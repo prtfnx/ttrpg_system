@@ -102,6 +102,55 @@ export const CharacterSheet: React.FC<CharacterSheetProps> = ({ character, onSav
     }
   };
 
+  const handleAbilitySaveRoll = (ability: string, modifier: number) => {
+    if (isConnected && ProtocolService.hasProtocol() && character) {
+      ProtocolService.getProtocol().rollAbilitySave(character.id, ability, modifier);
+      showToast.success(`Rolling ${ABILITY_SHORT[ability]} save…`);
+    }
+  };
+
+  const handleAbilityCheckRoll = (ability: string, modifier: number) => {
+    if (isConnected && ProtocolService.hasProtocol() && character) {
+      ProtocolService.getProtocol().rollAbilityCheck(character.id, ability, modifier);
+      showToast.success(`Rolling ${ABILITY_SHORT[ability]} check…`);
+    }
+  };
+
+  const handleAttackRoll = (attackType: string, modifier: number) => {
+    if (isConnected && ProtocolService.hasProtocol() && character) {
+      ProtocolService.getProtocol().rollAttack(character.id, attackType, modifier);
+      showToast.success(`Rolling ${attackType} attack…`);
+    }
+  };
+
+  const handleDeathSaveRoll = () => {
+    if (isConnected && ProtocolService.hasProtocol() && character) {
+      ProtocolService.getProtocol().rollDeathSave(character.id);
+      showToast.info('Rolling death save…');
+    }
+  };
+
+  const handleLongRest = () => {
+    if (!character) return;
+    const totalHitDice = data.level || 1;
+    const usedHitDice = data.hitDiceUsed || 0;
+    const recoveredDice = Math.max(1, Math.floor(totalHitDice / 2));
+    const newUsedHitDice = Math.max(0, usedHitDice - recoveredDice);
+    onSave({
+      data: {
+        ...data,
+        stats: { ...stats, hp: stats.maxHp || 10, deathSaves: { successes: 0, failures: 0 } },
+        spellSlotsUsed: {},
+        hitDiceUsed: newUsedHitDice,
+      }
+    });
+    showToast.success('Long Rest — HP and spell slots restored');
+  };
+
+  const handleShortRest = () => {
+    showToast.info('Short Rest — use Hit Dice roll to recover HP');
+  };
+
   const handleStatUpdate = (field: string, value: number) => {
     onSave({
       data: {
@@ -233,7 +282,14 @@ export const CharacterSheet: React.FC<CharacterSheetProps> = ({ character, onSav
               return (
                 <div key={key} className={styles.abilityBlock}>
                   <div className={styles.abilityLabel}>{ABILITY_SHORT[key]}</div>
-                  <div className={styles.abilityMod}>{modStr(mod)}</div>
+                  <button
+                    type="button"
+                    className={styles.abilityMod}
+                    onClick={() => handleAbilityCheckRoll(key, mod)}
+                    title={`Roll ${ABILITY_SHORT[key]} check`}
+                  >
+                    {modStr(mod)}
+                  </button>
                   <input
                     type="number"
                     className={styles.abilityScore}
@@ -244,10 +300,17 @@ export const CharacterSheet: React.FC<CharacterSheetProps> = ({ character, onSav
                   <div className={styles.abilitySaveRow}>
                     <span
                       className={clsx(styles.saveDot, isProfSave && styles.saveProficient)}
-                      title="Saving throw proficiency"
+                      title="Toggle saving throw proficiency"
                       onClick={() => onSave({ data: { ...data, savingThrows: { ...savingThrows, [key]: !isProfSave } } })}
                     />
-                    <span className={styles.saveBonus}>{modStr(saveBonus)}</span>
+                    <button
+                      type="button"
+                      className={styles.saveBonus}
+                      onClick={() => handleAbilitySaveRoll(key, saveBonus)}
+                      title={`Roll ${ABILITY_SHORT[key]} saving throw`}
+                    >
+                      {modStr(saveBonus)}
+                    </button>
                     <span className={styles.saveLabel}>Save</span>
                   </div>
                 </div>
@@ -353,23 +416,33 @@ export const CharacterSheet: React.FC<CharacterSheetProps> = ({ character, onSav
                 </div>
 
                 {/* Death saves вЂ” only at 0 HP */}
+                {/* Death saves — only at 0 HP */}
                 {(stats.hp || 0) === 0 && (
                   <div className={styles.deathSavesBlock}>
                     <span className={styles.deathTitle}>Death Saves</span>
-                    {(['successes', 'failures'] as const).map(type => (
-                      <div key={type} className={styles.deathRow}>
-                        <span className={clsx(styles.deathLabel, type === 'failures' && styles.deathFailLabel)}>
-                          {type === 'successes' ? <Check size={14} aria-hidden /> : <X size={14} aria-hidden />}
-                        </span>
-                        {[0, 1, 2].map(i => (
-                          <input key={i} type="checkbox" className={clsx(styles.deathCheck, type === 'failures' && styles.deathFail)}
-                            checked={i < (stats.deathSaves?.[type] || 0)}
-                            onChange={() => handleDeathSave(type, i)} />
-                        ))}
-                      </div>
-                    ))}
+                    <div className={styles.deathRow}>
+                      <span className={styles.deathLabel}><Check size={14} aria-hidden /></span>
+                      {[0, 1, 2].map(i => (
+                        <span key={i} className={clsx(styles.deathPip, i < (stats.deathSaves?.successes || 0) && styles.deathSuccess)} />
+                      ))}
+                    </div>
+                    <div className={styles.deathRow}>
+                      <span className={clsx(styles.deathLabel, styles.deathFailLabel)}><X size={14} aria-hidden /></span>
+                      {[0, 1, 2].map(i => (
+                        <span key={i} className={clsx(styles.deathPip, i < (stats.deathSaves?.failures || 0) && styles.deathFailure)} />
+                      ))}
+                    </div>
+                    <button type="button" className={styles.deathRollBtn} onClick={handleDeathSaveRoll}>
+                      Roll Death Save
+                    </button>
                   </div>
                 )}
+
+                {/* Rest Actions */}
+                <div className={styles.restActionsBlock}>
+                  <button type="button" className={styles.shortRestBtn} onClick={handleShortRest}>Short Rest</button>
+                  <button type="button" className={styles.longRestBtn} onClick={handleLongRest}>Long Rest</button>
+                </div>
 
                 {/* Conditions */}
                 {data.conditions && data.conditions.length > 0 && (
@@ -410,9 +483,20 @@ export const CharacterSheet: React.FC<CharacterSheetProps> = ({ character, onSav
                 {/* Attacks summary */}
                 <div className={styles.attacksBlock}>
                   <div className={styles.attacksTitle}>Attacks</div>
-                  <div className={styles.attackRow}><span>Melee</span><span>{modStr(getModifier(abilities.str) + profBonus)}</span></div>
-                  <div className={styles.attackRow}><span>Ranged</span><span>{modStr(getModifier(abilities.dex) + profBonus)}</span></div>
-                  <div className={styles.attackRow}><span>Spell DC</span><span>{8 + profBonus + Math.max(getModifier(abilities.wis), getModifier(abilities.int), getModifier(abilities.cha))}</span></div>
+                  <button type="button" className={styles.attackRollBtn}
+                    onClick={() => handleAttackRoll('melee', getModifier(abilities.str) + profBonus)}>
+                    <span>Melee</span>
+                    <span className={styles.attackBonus}>{modStr(getModifier(abilities.str) + profBonus)}</span>
+                  </button>
+                  <button type="button" className={styles.attackRollBtn}
+                    onClick={() => handleAttackRoll('ranged', getModifier(abilities.dex) + profBonus)}>
+                    <span>Ranged</span>
+                    <span className={styles.attackBonus}>{modStr(getModifier(abilities.dex) + profBonus)}</span>
+                  </button>
+                  <div className={styles.attackRow}>
+                    <span>Spell DC</span>
+                    <span>{8 + profBonus + Math.max(getModifier(abilities.wis), getModifier(abilities.int), getModifier(abilities.cha))}</span>
+                  </div>
                 </div>
 
                 {/* Features */}

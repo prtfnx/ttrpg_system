@@ -175,7 +175,7 @@ beforeEach(() => {
   // Ensure the RenderEngine factory returns the shared mock after clearing
   try {
     mockWasmModule.RenderEngine.mockImplementation(() => createMockRenderEngine());
-  } catch (e) {
+  } catch (_e) {
     // no-op if mock not available yet
   }
 });

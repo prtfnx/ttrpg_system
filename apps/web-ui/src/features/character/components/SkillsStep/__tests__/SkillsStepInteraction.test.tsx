@@ -87,7 +87,7 @@ describe('SkillsStep Interaction Test', () => {
     let nextButton = null;
     try {
       nextButton = await screen.findByTestId('skills-next-button', {}, { timeout: 2000 });
-    } catch (e) {
+    } catch (_e) {
       // Not found, log all buttons
       const allButtons = screen.queryAllByRole('button');
       console.log('[Test] All buttons:', allButtons.map(btn => btn.outerHTML));

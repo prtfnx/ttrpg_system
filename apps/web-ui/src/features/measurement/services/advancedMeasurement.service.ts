@@ -426,24 +426,27 @@ class AdvancedMeasurementService {
         snappedY = Math.round((point.y - grid.origin.y - grid.offsetY) / grid.size) * grid.size + grid.origin.y + grid.offsetY;
         break;
 
-      case 'hex':
+      case 'hex': {
         const hexGrid = grid as HexGridConfiguration;
         const hexSnap = this.snapToHexGrid(point, hexGrid);
         snappedX = hexSnap.x;
         snappedY = hexSnap.y;
         break;
+      }
 
-      case 'isometric':
+      case 'isometric': {
         const isoSnap = this.snapToIsometricGrid(point, grid);
         snappedX = isoSnap.x;
         snappedY = isoSnap.y;
         break;
+      }
 
-      case 'triangular':
+      case 'triangular': {
         const triSnap = this.snapToTriangularGrid(point, grid);
         snappedX = triSnap.x;
         snappedY = triSnap.y;
         break;
+      }
 
       default:
         snappedX = point.x;
@@ -472,13 +475,14 @@ class AdvancedMeasurementService {
     if (!grid) return this.calculateDistance(point1, point2);
 
     switch (grid.type) {
-      case 'square':
+      case 'square': {
         // D&D 5e distance rules: diagonal movement
         const dx = Math.abs(point2.x - point1.x) / grid.size;
         const dy = Math.abs(point2.y - point1.y) / grid.size;
         const diagonals = Math.min(dx, dy);
         const straights = Math.max(dx, dy) - diagonals;
         return (diagonals * 1.5 + straights) * grid.scale;
+      }
 
       case 'hex':
         return this.calculateHexDistance(point1, point2, grid as HexGridConfiguration);

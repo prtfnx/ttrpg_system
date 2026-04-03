@@ -316,16 +316,18 @@ export const useTableManagement = () => {
         case 'name':
           comparison = (a.table_name || '').localeCompare(b.table_name || '');
           break;
-        case 'date':
+        case 'date': {
           const dateA = a.created_at ? new Date(a.created_at).getTime() : 0;
           const dateB = b.created_at ? new Date(b.created_at).getTime() : 0;
           comparison = dateB - dateA;
           break;
-        case 'size':
+        }
+        case 'size': {
           const sizeA = (a.width || 0) * (a.height || 0);
           const sizeB = (b.width || 0) * (b.height || 0);
           comparison = sizeA - sizeB;
           break;
+        }
       }
       
       return sortOrder === 'asc' ? comparison : -comparison;

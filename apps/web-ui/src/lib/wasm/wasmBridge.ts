@@ -8,7 +8,7 @@
 import { useGameStore } from '@/store';
 import { authService } from '@features/auth';
 import { isDM } from '@features/session/types/roles';
-import { useProtocol } from '@lib/api';
+import { useOptionalProtocol } from '@lib/api';
 import { createMessage, MessageType } from '@lib/websocket';
 import React from 'react';
 import { toast } from 'react-toastify';
@@ -270,8 +270,7 @@ class WasmBridgeService {
 export const wasmBridgeService = new WasmBridgeService();
 
 export function useWasmBridge() {
-  const _ctx = (() => { try { return useProtocol(); } catch { return undefined; } })();
-  const protocol = _ctx?.protocol ?? null;
+  const protocol = useOptionalProtocol()?.protocol ?? null;
 
   React.useEffect(() => {
     wasmBridgeService.init();

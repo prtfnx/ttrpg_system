@@ -32,6 +32,12 @@ export function useProtocol() {
   return ctx;
 }
 
+/** Returns null when used outside ProtocolProvider instead of throwing */
+// eslint-disable-next-line react-refresh/only-export-components
+export function useOptionalProtocol(): ProtocolContextValue | null {
+  return useContext(ProtocolContext) ?? null;
+}
+
 interface ProviderProps {
   sessionCode: string;
   children: React.ReactNode;

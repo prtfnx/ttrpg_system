@@ -1,12 +1,11 @@
 import { useGameStore } from '@/store';
 import type { Sprite, WebSocketMessage } from '@/types';
-import { useProtocol } from '@lib/api';
+import { useOptionalProtocol } from '@lib/api';
 import { useCallback, useEffect, useRef } from 'react';
 
 export function useWebSocket(url: string) {
   const wsRef = useRef<WebSocket | null>(null);
-  let protocol: any = null;
-  try { protocol = useProtocol().protocol; } catch (e) { protocol = null; }
+  const protocol = useOptionalProtocol()?.protocol ?? null;
   const reconnectTimeoutRef = useRef<number | undefined>(undefined);
   const messageQueueRef = useRef<WebSocketMessage[]>([]);
   

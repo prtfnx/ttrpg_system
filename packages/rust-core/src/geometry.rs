@@ -1,9 +1,13 @@
 use wasm_bindgen::prelude::*;
+#[cfg(target_arch = "wasm32")]
 use js_sys::Array;
-use serde::{Serialize};
+#[cfg(target_arch = "wasm32")]
+use serde::Serialize;
+#[cfg(target_arch = "wasm32")]
 use serde_wasm_bindgen;
 use crate::math::Vec2;
 
+#[cfg(target_arch = "wasm32")]
 #[derive(Serialize)]
 struct Point { x: f32, y: f32 }
 
@@ -24,6 +28,29 @@ fn seg_intersect(a1: Vec2, a2: Vec2, b1: Vec2, b2: Vec2) -> Option<Vec2> {
 // Obstacles expected as flat array: [x1,y1,x2,y2, x1,y1,x2,y2, ...]
 // Internal version takes &[f32] so Rust code can call it without a JS Float32Array.
 pub(crate) fn compute_visibility_impl(player_x: f32, player_y: f32, data: &[f32], max_dist: f32) -> JsValue {
+    let points = compute_visibility_raw(player_x, player_y, data, max_dist);
+
+    #[cfg(target_arch = "wasm32")]
+    {
+        let arr = Array::new();
+        for (_, p) in points {
+            let pt = Point { x: p.x, y: p.y };
+            let js = serde_wasm_bindgen::to_value(&pt).unwrap_or(JsValue::NULL);
+            arr.push(&js);
+        }
+        JsValue::from(arr)
+    }
+    #[cfg(not(target_arch = "wasm32"))]
+    {
+        // Native: return a dummy JsValue (only used in tests via compute_visibility_raw)
+        let _ = points;
+        JsValue::NULL
+    }
+}
+
+/// Pure visibility polygon computation. Returns sorted (angle, point) pairs.
+/// Testable on all targets — no JS dependencies.
+pub(crate) fn compute_visibility_raw(player_x: f32, player_y: f32, data: &[f32], max_dist: f32) -> Vec<(f32, Vec2)> {
     let mut endpoints: Vec<Vec2> = Vec::new();
     let mut i = 0usize;
     while i + 3 < data.len() {
@@ -61,7 +88,7 @@ pub(crate) fn compute_visibility_impl(player_x: f32, player_y: f32, data: &[f32]
 
     // Build a simple uniform grid spatial index mapping cell -> segment indices
     use std::collections::HashMap;
-    let cell_size: f32 = 128.0; // Tunable; smaller => more cells
+    let cell_size: f32 = 128.0;
     let mut grid: HashMap<(i32,i32), Vec<usize>> = HashMap::new();
     for (idx, (s1, s2)) in segments.iter().enumerate() {
         let min_x = s1.x.min(s2.x);
@@ -108,7 +135,6 @@ pub(crate) fn compute_visibility_impl(player_x: f32, player_y: f32, data: &[f32]
         }
 
         if candidates.is_empty() {
-            // No obstacles in path; default to max distance
             let final_pt = ray_end;
             let mut ang_norm = ang;
             if ang_norm < 0.0 { ang_norm += std::f32::consts::PI * 2.0; }
@@ -136,16 +162,10 @@ pub(crate) fn compute_visibility_impl(player_x: f32, player_y: f32, data: &[f32]
 
     // sort by angle
     points.sort_by(|a,b| a.0.partial_cmp(&b.0).unwrap_or(std::cmp::Ordering::Equal));
-
-    let arr = Array::new();
-    for (_, p) in points {
-        let pt = Point { x: p.x, y: p.y };
-        let js = serde_wasm_bindgen::to_value(&pt).unwrap_or(JsValue::NULL);
-        arr.push(&js);
-    }
-    JsValue::from(arr)
+    points
 }
 
+#[cfg(target_arch = "wasm32")]
 #[wasm_bindgen]
 pub fn compute_visibility_polygon(player_x: f32, player_y: f32, obstacles: &js_sys::Float32Array, max_dist: f32) -> JsValue {
     compute_visibility_impl(player_x, player_y, &obstacles.to_vec(), max_dist)

@@ -1,5 +1,7 @@
 use wasm_bindgen::prelude::*;
+#[cfg(target_arch = "wasm32")]
 use web_sys::{WebGl2RenderingContext as WebGlRenderingContext, WebGlProgram, WebGlShader};
+#[cfg(target_arch = "wasm32")]
 use indexmap::IndexMap;
 use std::collections::HashMap;
 use crate::math::Vec2;
@@ -52,6 +54,7 @@ impl FogRectangle {
     }
 }
 
+#[cfg(target_arch = "wasm32")]
 pub struct FogOfWarSystem {
     gl: WebGlRenderingContext,
     fog_shader: Option<WebGlProgram>,
@@ -81,6 +84,7 @@ pub struct FogOfWarSystem {
     vision_stencil_rb: Option<web_sys::WebGlRenderbuffer>,
 }
 
+#[cfg(target_arch = "wasm32")]
 impl FogOfWarSystem {
     pub fn new(gl: WebGlRenderingContext) -> Result<Self, JsValue> {
         let mut system = Self {

@@ -28,6 +28,7 @@ impl Default for Camera {
 impl Camera {
     pub fn set_table_bounds(&mut self, x: f64, y: f64, width: f64, height: f64) {
         self.table_bounds = Some((x, y, width, height));
+        #[cfg(target_arch = "wasm32")]
         web_sys::console::log_1(&format!(
             "[CAMERA] Table bounds set: origin=({}, {}), size={}x{}", 
             x, y, width, height
@@ -58,7 +59,7 @@ impl Camera {
     pub fn handle_wheel(&mut self, screen_x: f32, screen_y: f32, delta_y: f32) {
         let zoom_factor = if delta_y > 0.0 { 0.9 } else { 1.1 };
         let world_point_before = self.screen_to_world(Vec2::new(screen_x, screen_y));
-        #[cfg(debug_assertions)]
+        #[cfg(all(debug_assertions, target_arch = "wasm32"))]
         let old_zoom = self.zoom;
         self.zoom = (self.zoom * zoom_factor).clamp(self.min_zoom, self.max_zoom);
         let world_point_after = self.screen_to_world(Vec2::new(screen_x, screen_y));
@@ -67,7 +68,7 @@ impl Camera {
         self.world_y += world_delta.y as f64;
         
         // Use debug log to avoid spamming console during frequent wheel events
-        #[cfg(debug_assertions)]
+        #[cfg(all(debug_assertions, target_arch = "wasm32"))]
         web_sys::console::debug_1(&format!(
             "[CAMERA-DEBUG] Zoom: {} → {} | Camera moved: ({}, {}) → ({}, {})",
             old_zoom, self.zoom, 

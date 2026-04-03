@@ -141,6 +141,7 @@ impl Default for BlendMode {
 }
 
 impl BlendMode {
+    #[cfg(target_arch = "wasm32")]
     pub fn to_webgl_equation(&self) -> (u32, u32) {
         use web_sys::WebGl2RenderingContext as GL;
         match self {

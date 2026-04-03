@@ -1,6 +1,7 @@
 use wasm_bindgen::prelude::*;
 #[cfg(target_arch = "wasm32")]
 use web_sys::{WebGl2RenderingContext as WebGlRenderingContext, WebGlProgram, WebGlShader, WebGlBuffer};
+#[cfg(target_arch = "wasm32")]
 use std::collections::HashMap;
 #[cfg(target_arch = "wasm32")]
 use std::cell::RefCell;
@@ -34,6 +35,7 @@ pub struct Light {
     pub(crate) dirty: bool,
     
     #[serde(skip)]
+    #[cfg(target_arch = "wasm32")]
     pub(crate) cached_polygon: Option<Vec<Point>>,
 }
 
@@ -51,6 +53,7 @@ impl Light {
             is_on: true,
             light_type: LightType::Point,
             dirty: true,
+            #[cfg(target_arch = "wasm32")]
             cached_polygon: None,
         }
     }
@@ -89,7 +92,8 @@ impl Light {
 
     fn mark_dirty(&mut self) {
         self.dirty = true;
-        self.cached_polygon = None;
+        #[cfg(target_arch = "wasm32")]
+        { self.cached_polygon = None; }
     }
 }
 

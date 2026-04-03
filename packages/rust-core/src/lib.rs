@@ -108,44 +108,68 @@ macro_rules! log_error {
 static ALLOC: wee_alloc::WeeAlloc = wee_alloc::WeeAlloc::INIT;
 
 mod math;
-mod render;  
 mod types;
 mod camera;
 mod input;
 mod input_controller;
-mod sprite_manager;
-mod sprite_renderer;
-mod webgl_renderer;
-mod text_renderer;
 mod lighting;
 mod fog;
-mod event_system;
-mod layer_manager;
-mod grid_system;
-mod texture_manager;
-mod network;
-mod actions;
-mod paint;
-mod asset_manager;
 mod geometry;
-mod table_manager;
-mod table_sync;
-mod utils;
 mod wall_manager;
+mod table_manager;
 pub mod unit_converter;
 
+// WASM/WebGL-only modules — not compiled on native test targets
+#[cfg(target_arch = "wasm32")]
+mod render;
+#[cfg(target_arch = "wasm32")]
+mod sprite_manager;
+#[cfg(target_arch = "wasm32")]
+mod sprite_renderer;
+#[cfg(target_arch = "wasm32")]
+mod webgl_renderer;
+#[cfg(target_arch = "wasm32")]
+mod text_renderer;
+#[cfg(target_arch = "wasm32")]
+mod event_system;
+#[cfg(target_arch = "wasm32")]
+mod layer_manager;
+#[cfg(target_arch = "wasm32")]
+mod grid_system;
+#[cfg(target_arch = "wasm32")]
+mod texture_manager;
+#[cfg(target_arch = "wasm32")]
+mod network;
+#[cfg(target_arch = "wasm32")]
+mod actions;
+#[cfg(target_arch = "wasm32")]
+mod paint;
+#[cfg(target_arch = "wasm32")]
+mod asset_manager;
+#[cfg(target_arch = "wasm32")]
+mod table_sync;
+#[cfg(target_arch = "wasm32")]
+mod utils;
+
+#[cfg(target_arch = "wasm32")]
 pub use render::RenderEngine;
 pub use types::*;
 #[cfg(target_arch = "wasm32")]
 pub use lighting::LightingSystem;
 pub use lighting::{Light, LightType};
+#[cfg(target_arch = "wasm32")]
 pub use network::NetworkClient;
+#[cfg(target_arch = "wasm32")]
 pub use actions::ActionsClient;
+#[cfg(target_arch = "wasm32")]
 pub use paint::{PaintSystem, BrushPreset, create_default_brush_presets};
+#[cfg(target_arch = "wasm32")]
 pub use asset_manager::{AssetManager, AssetInfo, CacheStats};
 pub use table_manager::TableManager;
+#[cfg(target_arch = "wasm32")]
 pub use table_sync::TableSync;
 
+#[cfg(target_arch = "wasm32")]
 use web_sys::HtmlCanvasElement;
 
 /// Initialize the WebGL game renderer
@@ -184,6 +208,7 @@ use web_sys::HtmlCanvasElement;
 /// - WebGL2 support required
 /// - Stencil buffer recommended for shadow rendering
 /// - Minimum canvas size: 300x200 pixels
+#[cfg(target_arch = "wasm32")]
 #[wasm_bindgen]
 pub fn init_game_renderer(canvas: HtmlCanvasElement) -> Result<RenderEngine, JsValue> {
     log_info!("Initializing WebGL game renderer");
@@ -210,6 +235,7 @@ pub fn init_game_renderer(canvas: HtmlCanvasElement) -> Result<RenderEngine, JsV
 /// await init();
 /// // TTRPG Rust Core initialized
 /// ```
+#[cfg(target_arch = "wasm32")]
 #[wasm_bindgen(start)]
 pub fn main() {
     console_error_panic_hook::set_once();

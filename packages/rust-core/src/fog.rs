@@ -3,6 +3,7 @@ use wasm_bindgen::prelude::*;
 use web_sys::{WebGl2RenderingContext as WebGlRenderingContext, WebGlProgram, WebGlShader};
 #[cfg(target_arch = "wasm32")]
 use indexmap::IndexMap;
+#[cfg(target_arch = "wasm32")]
 use std::collections::HashMap;
 use crate::math::Vec2;
 

@@ -139,6 +139,7 @@ export function EntitiesPanel() {
     return () => {
       window.removeEventListener('spriteAdded', handleSpriteAdded)
     }
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- intentional: sync once on mount
   }, []) // Remove dependencies to avoid constant re-syncing
 
   return (

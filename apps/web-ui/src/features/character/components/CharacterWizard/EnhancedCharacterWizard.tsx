@@ -303,6 +303,7 @@ export const EnhancedCharacterWizard: React.FC<EnhancedCharacterWizardProps> = (
         setCurrentStepIndex(nextStepIndex);
       }
     }
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- shouldShowStep has [] deps and never changes
   }, [validateCurrentStep, currentStep.canSkip, isLastStep, currentStepIndex, getValues, onFinish]);
 
   const handlePrevious = useCallback(() => {
@@ -320,6 +321,7 @@ export const EnhancedCharacterWizard: React.FC<EnhancedCharacterWizardProps> = (
         setCurrentStepIndex(prevStepIndex);
       }
     }
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- shouldShowStep has [] deps and never changes
   }, [isFirstStep, currentStepIndex, getValues]);
 
   const handleStepClick = useCallback((stepIndex: number) => {

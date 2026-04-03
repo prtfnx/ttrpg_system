@@ -82,6 +82,7 @@ export const useLayerManager = () => {
     };
 
     initLayerManager();
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- intentional: refresh on mount only
   }, []);
 
   const refreshLayerData = useCallback((manager: any = renderManager) => {

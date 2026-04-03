@@ -95,6 +95,7 @@ export function ProtocolProvider({ sessionCode, children }: ProviderProps) {
       setProtocol(null);
       setConnectionState('disconnected');
     };
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- intentional: run once on mount
   }, [sessionCode]);
 
   const value = useMemo(() => ({

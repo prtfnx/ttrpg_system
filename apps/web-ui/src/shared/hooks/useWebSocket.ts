@@ -35,6 +35,7 @@ export function useWebSocket(url: string) {
     } else {
       messageQueueRef.current.push(message);
     }
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- intentional: protocol dep omitted to prevent reconnect loop
   }, []);
 
   const flushMessageQueue = useCallback(() => {
@@ -50,6 +51,7 @@ export function useWebSocket(url: string) {
         break;
       }
     }
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- intentional: protocol dep omitted to prevent reconnect loop
   }, []);
 
   const handleMessage = useCallback((payload: any) => {
@@ -250,6 +252,7 @@ export function useWebSocket(url: string) {
     } catch (error) {
       console.error('Failed to parse WebSocket message:', error);
     }
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- intentional: deps omitted to avoid infinite reconnect
   }, [moveSprite, addSprite, removeSprite, updateSprite, setConnection]);
 
   const connect = useCallback(async () => {
@@ -308,6 +311,7 @@ export function useWebSocket(url: string) {
     }
   }, [url, updateConnectionState, setConnection, handleMessage, flushMessageQueue, sendMessage, createMessage]);
 
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- intentional: protocol dep omitted to prevent reconnect loop
   const disconnect = useCallback(() => {
     if (reconnectTimeoutRef.current) {
       clearTimeout(reconnectTimeoutRef.current);

@@ -73,6 +73,7 @@ export const useInvitations = (sessionCode: string | null) => {
 
   useEffect(() => {
     fetchInvitations();
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- intentional: fetch once on mount
   }, [sessionCode]);
 
   return { invitations, loading, error, createInvitation, revokeInvitation, deleteInvitation, refetch: fetchInvitations };

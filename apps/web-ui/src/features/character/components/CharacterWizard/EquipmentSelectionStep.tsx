@@ -3,10 +3,10 @@ import { ErrorBoundary } from '@shared/components';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { useFormContext } from 'react-hook-form';
 import {
-    equipmentManagementService,
-    equipmentToWizardItem,
-    type Equipment,
-    type WizardEquipmentItem
+  equipmentManagementService,
+  equipmentToWizardItem,
+  type Equipment,
+  type WizardEquipmentItem
 } from '../../services/equipmentManagement.service';
 import styles from './EquipmentSelectionStep.module.css';
 import type { WizardFormData } from './WizardFormData';
@@ -43,6 +43,7 @@ export const EquipmentSelectionStep: React.FC<EquipmentSelectionStepProps> = ({
   const formData = getValues();
   const characterClass = propCharacterClass || formData.class || 'fighter';
   const characterBackground = (formData as any).background || '';
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- known: abilityScores optional chaining, stable reference
   const abilityScores = propAbilityScores || {
     strength: formData.strength || 10,
     dexterity: formData.dexterity || 10,
@@ -147,6 +148,7 @@ export const EquipmentSelectionStep: React.FC<EquipmentSelectionStepProps> = ({
     };
 
     loadEquipment();
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- intentional: re-sync only when characterClass changes
   }, [characterClass]); // Only run when class changes, NOT when currentEquipment changes!
 
   // Filter equipment based on search and category

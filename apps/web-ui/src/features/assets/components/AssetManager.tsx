@@ -102,6 +102,7 @@ export const AssetManager: React.FC<AssetManagerProps> = ({ isVisible, onClose, 
     if (fileInputRef.current) {
       fileInputRef.current.value = '';
     }
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- intentional: protocol dep would cause re-subscribe loop
   }, [uploadFiles]);
 
   // Message batching and delta updates for asset uploads

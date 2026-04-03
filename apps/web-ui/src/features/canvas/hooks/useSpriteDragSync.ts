@@ -57,6 +57,7 @@ export function useSpriteDragSync(sendMessage: (msg: unknown) => void) {
       window.removeEventListener('sprite-drag-preview',   onDrag);
       window.removeEventListener('sprite-resize-preview', onResize);
       window.removeEventListener('sprite-rotate-preview', onRotate);
+      // eslint-disable-next-line react-hooks/exhaustive-deps -- known: timers.current stable ref, captured before use
       Object.values(timers.current).forEach(t => t && clearTimeout(t));
     };
   }, [sendMessage]);

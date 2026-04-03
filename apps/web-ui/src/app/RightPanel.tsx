@@ -73,6 +73,7 @@ export function RightPanel(props: { sessionCode?: string; userInfo?: any; userRo
       const first = DEFAULT_TAB_ORDER.find(t => isVisible(t));
       if (first) setActiveTab(first);
     }
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- intentional: activeTab/isVisible not tracked to avoid re-runs
   }, [sessionRole]);
 
   const tab = (id: TabId, label: string) => {

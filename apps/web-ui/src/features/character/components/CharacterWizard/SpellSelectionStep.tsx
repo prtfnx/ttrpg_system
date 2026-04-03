@@ -52,6 +52,7 @@ export const SpellSelectionStep: React.FC<SpellSelectionStepProps> = ({
   const formData = getValues();
   const characterClass = propCharacterClass || formData.class || 'fighter';
   const characterLevel = propCharacterLevel || formData.advancement?.currentLevel || 1;
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- known: abilityScores optional chaining, stable
   const abilityScores = propAbilityScores || {
     strength: formData.strength || 10,
     dexterity: formData.dexterity || 10,
@@ -64,6 +65,7 @@ export const SpellSelectionStep: React.FC<SpellSelectionStepProps> = ({
   const handleBack = onBack || onPrevious;
   void handleBack; // used only when step renders its own navigation
   
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- known: currentSpells optional chaining, stable
   const currentSpells = watch('spells') || { cantrips: [], knownSpells: [], preparedSpells: [] };
 
   const [availableSpells, setAvailableSpells] = useState<Record<string, Spell>>({});

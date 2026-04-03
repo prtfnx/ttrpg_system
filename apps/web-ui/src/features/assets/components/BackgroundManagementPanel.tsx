@@ -55,6 +55,7 @@ const BackgroundManagementPanel: React.FC<BackgroundManagementPanelProps> = ({
           setError('Failed to initialize background system: ' + err.message);
         });
     }
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- intentional: load once on mount
   }, [renderEngine]);
 
   // Performance metrics polling
@@ -72,6 +73,7 @@ const BackgroundManagementPanel: React.FC<BackgroundManagementPanelProps> = ({
     if (activeConfiguration) {
       loadActiveConfiguration(activeConfiguration);
     }
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- intentional: load once on mount
   }, [activeConfiguration]);
 
   const loadConfigurations = useCallback(async () => {

@@ -21,10 +21,12 @@ export function BackgroundStep({ onNext: _onNext, onBack: _onBack }: { onNext?: 
 
   // Derive race bonus skills from compendium
   const raceEntry = races?.[characterRace];
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- known: optional chaining result is stable per race/background
   const raceSkills: string[] = raceEntry?.proficiencies?.skills ?? [];
 
   // Find selected background skills from compendium data
   const selectedBackgroundData = backgrounds?.find(bg => bg.name === selectedBackground);
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- known: optional chaining result is stable per race/background
   const backgroundSkills: string[] = selectedBackgroundData?.skill_proficiencies ?? [];
 
   const alreadyGranted = useMemo(() => [...backgroundSkills, ...raceSkills], [backgroundSkills, raceSkills]);

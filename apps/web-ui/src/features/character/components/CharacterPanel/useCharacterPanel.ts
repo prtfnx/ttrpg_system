@@ -85,6 +85,7 @@ export function useCharacterPanel() {
   useEffect(() => {
     return () => {
       pendingOperationsRef.current.forEach(op => clearTimeout(op.timeoutId));
+      // eslint-disable-next-line react-hooks/exhaustive-deps -- known: pendingOperationsRef.current is stable
       pendingOperationsRef.current.clear();
     };
   }, []);

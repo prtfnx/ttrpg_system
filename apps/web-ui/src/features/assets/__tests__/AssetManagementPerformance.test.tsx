@@ -617,6 +617,7 @@ describe('Asset Management System - Performance and Caching', () => {
             // Update count to include next scene assets when background preloading completes
             setPreloadedCount(gameAssets.currentScene.length + gameAssets.nextScene.length + 1); // +1 for character asset
           }, 100);
+        // eslint-disable-next-line react-hooks/exhaustive-deps -- test: mock deps not tracked
         }, []);
         
         const handleNextScene = () => {

@@ -65,6 +65,7 @@ export const MonsterCreationPanel: React.FC<MonsterCreationPanelProps> = ({
   const handleSystemEvent = useCallback(() => {
     setInstances(monsterCreationSystem.getInstances());
     performSearch();
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- intentional: performSearch stable callback
   }, []);
 
   // === Effects ===
@@ -89,6 +90,7 @@ export const MonsterCreationPanel: React.FC<MonsterCreationPanelProps> = ({
     return () => {
       // Cleanup subscriptions
       events.forEach(event => {
+        // eslint-disable-next-line react-hooks/exhaustive-deps -- known: subscriptionKeyRef.current stable ref
         monsterCreationSystem.unsubscribe(subscriptionKeyRef.current, event);
       });
       
@@ -97,6 +99,7 @@ export const MonsterCreationPanel: React.FC<MonsterCreationPanelProps> = ({
         clearTimeout(searchTimeoutRef.current);
       }
     };
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- intentional: performSearch is stable, triggered by subscription
   }, [isOpen, handleSystemEvent]);
 
   useEffect(() => {
@@ -114,6 +117,7 @@ export const MonsterCreationPanel: React.FC<MonsterCreationPanelProps> = ({
         clearTimeout(searchTimeoutRef.current);
       }
     };
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- intentional: performSearch is stable, triggered by subscription
   }, [searchQuery, filters, sortBy, sortAsc]);
 
   // === Search and Filtering ===

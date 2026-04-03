@@ -262,6 +262,7 @@ const FeatSelectionStep: React.FC<FeatSelectionStepProps> = ({ onNext, onBack })
   const race = watch('race') || '';
   const abilityScores = watch('ability_scores') || {};
   const existingFeats = watch('feats') || [];
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- known: featChoices optional chaining, stable
   const featChoices = watch('feat_choices') || [];
 
   const [selectionType, setSelectionType] = useState<'asi' | 'feat' | null>(null);

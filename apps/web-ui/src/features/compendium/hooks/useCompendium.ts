@@ -205,6 +205,7 @@ export function useSpells(filters: {
         loading: false 
       }));
     }
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- intentional: filters excluded to prevent re-subscription loop
   }, [filters.level, filters.school, filters.class, filters.limit]);
 
   useEffect(() => {
@@ -355,6 +356,7 @@ export function useFeats(filters: {
         loading: false
       }));
     }
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- intentional: filters excluded to prevent re-subscription loop
   }, [filters.prerequisite, filters.source]);
 
   useEffect(() => { fetchFeats(); }, [fetchFeats]);

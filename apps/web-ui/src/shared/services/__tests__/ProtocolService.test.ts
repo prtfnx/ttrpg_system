@@ -16,6 +16,7 @@ import { ProtocolService } from '@lib/api';
 import { beforeEach, describe, expect, it } from 'vitest';
 
 // Create a minimal mock WebClientProtocol to avoid dependency chain
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 interface MockWebClientProtocol {
   id?: string;
   name?: string;

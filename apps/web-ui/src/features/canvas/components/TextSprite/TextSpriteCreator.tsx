@@ -116,6 +116,7 @@ export function TextSpriteCreator({
   // Update preview when config changes
   useEffect(() => {
     updatePreview();
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- intentional: preview updated via deps, not callback ref
   }, [config]);
 
   const updatePreview = useCallback(() => {

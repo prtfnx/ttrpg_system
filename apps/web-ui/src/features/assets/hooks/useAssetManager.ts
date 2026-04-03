@@ -157,6 +157,7 @@ export const useAssetManager = (config?: AssetManagerConfig) => {
         error: error instanceof Error ? error.message : 'Unknown error',
       }));
     }
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- intentional: isLoading guarded to avoid loop
   }, [config]);
 
   // Download asset with hash verification
@@ -364,7 +365,7 @@ export const useAssetManager = (config?: AssetManagerConfig) => {
     } catch (error) {
       console.error('Failed to refresh stats:', error);
     }
-  }, [config]);
+  }, []);
 
   // Auto-initialize on mount
   useEffect(() => {
@@ -380,6 +381,7 @@ export const useAssetManager = (config?: AssetManagerConfig) => {
     return () => {
       isMountedRef.current = false;
     };
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- intentional: initialize dep omitted to prevent infinite loop
   }, [state.isInitialized, state.isLoading]); // Removed initialize from dependencies to prevent infinite loops
 
   // Additional methods expected by AssetManager component

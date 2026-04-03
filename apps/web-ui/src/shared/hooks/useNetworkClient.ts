@@ -180,6 +180,7 @@ export const useNetworkClient = (options: NetworkHookOptions = {}) => {
         clientRef.current = null;
       }
     };
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- intentional: options excluded to prevent loop
   }, [options.autoConnect, options.serverUrl, options.onMessage, options.onConnectionChange, options.onError]);
 
   // Connection management

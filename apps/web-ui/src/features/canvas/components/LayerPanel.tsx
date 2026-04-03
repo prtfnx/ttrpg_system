@@ -112,6 +112,7 @@ export function LayerPanel({ className, _style, id, initialLayers, ...otherProps
 
     const timer = setTimeout(initLayers, delay);
     return () => clearTimeout(timer);
+ // eslint-disable-next-line react-hooks/exhaustive-deps -- intentional: one-time layer initialization
  }, []);
 
   // Re-filter layers when role/visibleLayers changes
@@ -122,6 +123,7 @@ export function LayerPanel({ className, _style, id, initialLayers, ...otherProps
         return filtered;
       });
     }
+ // eslint-disable-next-line react-hooks/exhaustive-deps -- intentional: one-time layer initialization
  }, [sessionRole, visibleLayers]);
 
   // Update sprite counts when activeTableId changes

@@ -173,6 +173,7 @@ export const useTableSync = (options: TableSyncHookOptions = {}) => {
         }
       });
     }
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- intentional: options object excluded to prevent infinite loop
   }, [options.onTableReceived, options.onSpriteUpdate, options.onError]);
 
   // Listen for protocol events and forward to WASM
@@ -263,6 +264,7 @@ export const useTableSync = (options: TableSyncHookOptions = {}) => {
     ) {
       requestTable(options.defaultTableName);
     }
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- intentional: requestTable stable callback
   }, [isConnected, options.autoRequestTable, options.defaultTableName, state.tableData]);
 
   // Request table data from server
@@ -289,6 +291,7 @@ export const useTableSync = (options: TableSyncHookOptions = {}) => {
         options.onError(errorMsg);
       }
     }
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- intentional: options excluded to prevent loop
   }, [isConnected, options.onError]);
 
   // Send sprite move update

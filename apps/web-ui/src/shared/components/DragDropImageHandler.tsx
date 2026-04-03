@@ -152,6 +152,7 @@ export const DragDropImageHandler: React.FC<DragDropImageHandlerProps> = ({
       // Clear all pending uploads on error
       pendingUploadsRef.current.clear();
     }
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- known: camera props captured at call time
   }, [uploadState.fileName]);
 
   // Upload file to R2 (server-first approach - no local sprite creation)
@@ -369,6 +370,7 @@ export const DragDropImageHandler: React.FC<DragDropImageHandlerProps> = ({
         fileName: file.name
       });
     }
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- known: camera in deps covers .x/.y/.zoom
   }, [protocol, camera, sessionId, calculateHash]);
 
   // Listen for asset upload responses and sprite creation broadcasts

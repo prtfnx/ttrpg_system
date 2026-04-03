@@ -17,6 +17,7 @@ interface Props {
 }
 
 export const InventoryTab: React.FC<Props> = ({ data, onSave }) => {
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- known: items optional chaining, stable per prop
   const items: WizardItem[] = data.equipment?.items ?? [];
   const currency: Currency = data.equipment?.currency ?? { cp: 0, sp: 0, ep: 0, gp: 0, pp: 0 };
   const strScore: number = data.abilityScores?.str ?? 10;

@@ -140,7 +140,7 @@ export const GameCanvas: React.FC = () => {
     if (rustRenderManagerRef.current) {
       multiSelectManagerRef.current = new MultiSelectManager(rustRenderManagerRef.current);
     }
- }, [rustRenderManagerRef.current]);
+ }, []);
 
   // Keep WASM active layer in sync with React store
   useEffect(() => {
@@ -646,6 +646,7 @@ export const GameCanvas: React.FC = () => {
       // Cleanup asset integration service
       assetIntegrationService.dispose();
 
+      // eslint-disable-next-line react-hooks/exhaustive-deps -- known: canvasRef.current captured at cleanup via const canvas above
       const canvas = canvasRef.current;
       if (canvas) {
         canvas.removeEventListener('mousedown', stableMouseDown);

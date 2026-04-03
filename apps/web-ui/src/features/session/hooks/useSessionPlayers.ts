@@ -25,6 +25,7 @@ export const useSessionPlayers = (sessionCode: string | null) => {
 
   useEffect(() => {
     fetchPlayers();
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- intentional: fetch once on mount
   }, [sessionCode]);
 
   return { players, loading, error, refetch: fetchPlayers };

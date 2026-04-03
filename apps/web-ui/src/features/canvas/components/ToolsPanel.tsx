@@ -158,12 +158,14 @@ export function ToolsPanel({ userInfo }: ToolsPanelProps) {
     return () => {
       if (dmPreviewUserId != null) { stopDmPreview(); setDmPreviewMode(null); }
     };
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- intentional: cleanup only on unmount with stale-by-design closure
   }, []);
 
   useEffect(() => {
     if ((!dynamicLightingEnabled || activeTableId == null) && dmPreviewUserId != null) {
       stopDmPreview(); setDmPreviewMode(null);
     }
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- intentional: react to lighting/table changes only
   }, [dynamicLightingEnabled, activeTableId]);
   
   useEffect(() => {

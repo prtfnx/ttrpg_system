@@ -29,7 +29,7 @@ export class SessionManager {
   private maxReconnectAttempts = 5;
   private reconnectDelay = 1000;
   private heartbeatInterval: ReturnType<typeof setInterval> | null = null;
-  private eventListeners: Map<string, Function[]> = new Map();
+  private eventListeners: Map<string, ((...args: unknown[]) => void)[]> = new Map();
   private baseUrl: string;
 
   constructor(baseUrl: string = typeof window !== 'undefined' 
@@ -161,14 +161,14 @@ export class SessionManager {
   /**
    * Event listener management
    */
-  on(event: string, callback: Function): void {
+  on(event: string, callback: (...args: unknown[]) => void): void {
     if (!this.eventListeners.has(event)) {
       this.eventListeners.set(event, []);
     }
     this.eventListeners.get(event)!.push(callback);
   }
 
-  once(event: string, callback: Function): void {
+  once(event: string, callback: (...args: unknown[]) => void): void {
     const wrappedCallback = (...args: any[]) => {
       this.off(event, wrappedCallback);
       callback(...args);
@@ -176,7 +176,7 @@ export class SessionManager {
     this.on(event, wrappedCallback);
   }
 
-  off(event: string, callback: Function): void {
+  off(event: string, callback: (...args: unknown[]) => void): void {
     const listeners = this.eventListeners.get(event);
     if (listeners) {
       const index = listeners.indexOf(callback);

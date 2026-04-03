@@ -150,7 +150,7 @@ class AdvancedMeasurementService {
   private history: MeasurementHistory;
   private settings: MeasurementSettings;
   private activeMeasurement: string | null = null;
-  private measurementCallbacks: Map<string, Function> = new Map();
+  private measurementCallbacks: Map<string, (...args: unknown[]) => void> = new Map();
 
   constructor() {
     this.spatialIndex = this.createSpatialIndex();

@@ -19,7 +19,7 @@ interface MapSettings {
   gridSettings: GridSettings;
 }
 
-interface MapPanelProps extends React.HTMLProps<HTMLDivElement> {}
+type MapPanelProps = React.HTMLProps<HTMLDivElement>;
 
 const gridPresets = [
   { name: 'D&D 5ft', size: 50, type: 'square' as const },

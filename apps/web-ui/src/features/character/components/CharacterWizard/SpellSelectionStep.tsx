@@ -189,15 +189,13 @@ export const SpellSelectionStep: React.FC<SpellSelectionStepProps> = ({
         newCantrips = newCantrips.filter(name => name !== spell.name);
       } else if (newCantrips.length < (spellSlots.cantrips || 0)) {
         newCantrips.push(spell.name);
-      } else {
-      }
+      } // else: cantrip limit reached, ignore
     } else {
       if (isSelected) {
         newKnownSpells = newKnownSpells.filter(name => name !== spell.name);
       } else if (maxSpellsKnown === Infinity || newKnownSpells.length < maxSpellsKnown) {
         newKnownSpells.push(spell.name);
-      } else {
-      }
+      } // else: spell limit reached, ignore
     }
 
     const newSpellData = {

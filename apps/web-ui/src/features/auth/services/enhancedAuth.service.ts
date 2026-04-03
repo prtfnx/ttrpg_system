@@ -689,7 +689,7 @@ class EnhancedAuthService {
       errors.push('Password must contain at least one number');
     }
 
-    if (policy.requireSpecialChars && !/[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?]/.test(password)) {
+    if (policy.requireSpecialChars && !/[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>/?]/.test(password)) {
       errors.push('Password must contain at least one special character');
     }
 
@@ -889,7 +889,7 @@ class EnhancedAuthService {
 export const enhancedAuthService = EnhancedAuthService.getInstance();
 
 // Export utility functions for role and permission checking
-export const withAuth = <T extends {}>(
+export const withAuth = <T extends Record<string, unknown>>(
   component: React.ComponentType<T>
 ): React.ComponentType<T> => {
   return (props: T) => {
@@ -904,7 +904,7 @@ export const withAuth = <T extends {}>(
   };
 };
 
-export const withRole = <T extends {}>(
+export const withRole = <T extends Record<string, unknown>>(
   component: React.ComponentType<T>,
   requiredRole: UserRole
 ): React.ComponentType<T> => {
@@ -919,7 +919,7 @@ export const withRole = <T extends {}>(
   };
 };
 
-export const withPermission = <T extends {}>(
+export const withPermission = <T extends Record<string, unknown>>(
   component: React.ComponentType<T>,
   requiredPermission: Permission
 ): React.ComponentType<T> => {

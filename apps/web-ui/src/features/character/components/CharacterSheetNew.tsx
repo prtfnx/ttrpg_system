@@ -233,7 +233,7 @@ export const CharacterSheet: React.FC<CharacterSheetProps> = ({ character, onSav
       if (imageInputRef.current) {
         imageInputRef.current.value = '';
       }
-    } catch (error) {
+    } catch (_error) {
       showToast.error('Failed to create token');
     }
   };

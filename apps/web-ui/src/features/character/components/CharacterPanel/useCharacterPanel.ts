@@ -234,7 +234,7 @@ export function useCharacterPanel() {
         const saveBlob = { character_id: tempId, ...characterData };
         registerPendingOperation(tempId, 'create', newCharacter);
         protocol.saveCharacter(saveBlob, currentUserId);
-      } catch (error) {
+      } catch (_error) {
         confirmPendingOperation(tempId);
         updateCharacter(tempId, { syncStatus: 'error' });
         showToast.error(`Failed to save character "${newCharacter.name}". Click retry to try again.`);
@@ -258,7 +258,7 @@ export function useCharacterPanel() {
       const saveBlob = { character_id: charId, ...(char.data as any) };
       protocol.saveCharacter(saveBlob, currentUserId);
       showToast.info(`Retrying save for "${char.name}"...`);
-    } catch (error) {
+    } catch (_error) {
       confirmPendingOperation(charId);
       updateCharacter(charId, { syncStatus: 'error' });
       showToast.error(`Retry failed for "${char.name}". Please try again.`);
@@ -299,7 +299,7 @@ export function useCharacterPanel() {
       try {
         registerPendingOperation(charId, 'delete', character);
         protocol.deleteCharacter(charId);
-      } catch (error) {
+      } catch (_error) {
         confirmPendingOperation(charId);
         addCharacter(character);
         showToast.error(`Failed to delete character "${character.name}". Please try again.`);
@@ -318,7 +318,7 @@ export function useCharacterPanel() {
         notes: `Exported from session ${sessionId || 'unknown'}`
       });
       showToast.success(`Character "${character.name}" exported successfully!`);
-    } catch (error) {
+    } catch (_error) {
       showToast.error('Failed to export character. Please try again.');
     }
   };
@@ -383,7 +383,7 @@ export function useCharacterPanel() {
         notes: `Bulk export of ${characters.length} characters`
       });
       showToast.success(`Exported ${characters.length} character(s) successfully!`);
-    } catch (error) {
+    } catch (_error) {
       showToast.error('Failed to export characters. Please try again.');
     }
   };
@@ -450,7 +450,7 @@ export function useCharacterPanel() {
       });
       showToast.success(`Exported ${selectedChars.length} character(s) successfully!`);
       setSelectedCharacterIds(new Set());
-    } catch (error) {
+    } catch (_error) {
       showToast.error('Failed to export characters. Please try again.');
     }
   };

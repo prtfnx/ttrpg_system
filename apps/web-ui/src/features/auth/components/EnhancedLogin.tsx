@@ -168,7 +168,7 @@ const EnhancedLogin: React.FC = () => {
       } else {
         setError(result.error?.message || 'Registration failed');
       }
-    } catch (error) {
+    } catch (_error) {
       setError('An unexpected error occurred');
     } finally {
       setIsLoading(false);
@@ -207,7 +207,7 @@ const EnhancedLogin: React.FC = () => {
       } else {
         setError(result.error?.message || 'Password reset request failed');
       }
-    } catch (error) {
+    } catch (_error) {
       setError('An unexpected error occurred');
     } finally {
       setIsLoading(false);

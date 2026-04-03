@@ -2,7 +2,7 @@
  * React hook for authenticated WebSocket connection with protocol compliance
  * Manages connection state and provides protocol interface
  */
-import { useProtocol } from '@lib/api';
+import { useOptionalProtocol } from '@lib/api';
 import { WebClientProtocol } from '@lib/websocket';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import type { UserInfo } from '../services/auth.service';
@@ -16,35 +16,20 @@ interface UseAuthenticatedWebSocketProps {
 export type ConnectionState = 'disconnected' | 'connecting' | 'connected' | 'error';
 
 export function useAuthenticatedWebSocket({ sessionCode, userInfo }: UseAuthenticatedWebSocketProps) {
-  // Prefer the centralized ProtocolContext if present
-  let ctx: any = null;
-  try { ctx = useProtocol(); } catch (e) { ctx = null; }
+  const ctx = useOptionalProtocol();
 
   const protocolRef = useRef<WebClientProtocol | null>(null);
   const [connectionState, setConnectionState] = useState<ConnectionState>('disconnected');
   const [error, setError] = useState<string | null>(null);
 
-  // If ProtocolContext is available, mirror its values and return early
-  if (ctx) {
-    return {
-      connectionState: ctx.connectionState as ConnectionState,
-      error: null,
-      protocol: ctx.protocol as WebClientProtocol | null,
-      connect: ctx.connect,
-      disconnect: ctx.disconnect,
-      isConnected: ctx.connectionState === 'connected'
-    };
-  }
-
   const connect = useCallback(async () => {
+    if (ctx) return; // managed by ProtocolProvider
     try {
       setConnectionState('connecting');
       setError(null);
       
-      // Resolve sessionCode to canonical session_code if needed
       let resolvedCode = sessionCode;
       try {
-        // Fetch user's sessions and try to resolve by code first, then by name
         const sessions = await authService.getUserSessions();
         const byCode = sessions.find((s: any) => s.session_code === sessionCode);
         const byName = sessions.find((s: any) => s.session_name === sessionCode);
@@ -52,60 +37,47 @@ export function useAuthenticatedWebSocket({ sessionCode, userInfo }: UseAuthenti
           resolvedCode = byCode.session_code;
         } else if (byName) {
           resolvedCode = byName.session_code;
-          console.debug('[useAuthenticatedWebSocket] Resolved injected session name to code:', sessionCode, '->', resolvedCode);
+          console.debug('[useAuthenticatedWebSocket] Resolved session name to code:', sessionCode, '->', resolvedCode);
         }
       } catch (e) {
-        // If session resolution fails, continue with provided sessionCode but log it
-        console.warn('[useAuthenticatedWebSocket] Failed to resolve sessionCode against user sessions:', e);
+        console.warn('[useAuthenticatedWebSocket] Failed to resolve sessionCode:', e);
       }
 
-      // If already connected, skip creating a new protocol (idempotent)
       if (protocolRef.current && protocolRef.current.isConnected()) {
-        console.debug('[useAuthenticatedWebSocket] Already connected - skipping new connect for', resolvedCode);
         setConnectionState('connected');
         return;
       }
 
-      // Create new protocol instance with the resolved canonical code
       const protocol = new WebClientProtocol(resolvedCode);
       protocolRef.current = protocol;
-
-      // Connect to WebSocket with authentication
       await protocol.connect();
-
       setConnectionState('connected');
-      // Log the actual resolved canonical code we connected to (not the injected candidate)
       console.log(`Connected to session ${resolvedCode} as ${userInfo.username} (${userInfo.role})`);
-      
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Connection failed';
       setError(errorMessage);
       setConnectionState('error');
       console.error('WebSocket connection error:', err);
-      
-      // Clear protocol reference on error
       protocolRef.current = null;
     }
-  }, [sessionCode, userInfo]);
+  }, [ctx, sessionCode, userInfo]);
 
   const disconnect = useCallback(() => {
+    if (ctx) return; // managed by ProtocolProvider
     if (protocolRef.current) {
       protocolRef.current.disconnect();
       protocolRef.current = null;
     }
     setConnectionState('disconnected');
     setError(null);
-  }, []);
+  }, [ctx]);
 
   const getProtocol = useCallback(() => protocolRef.current, []);
 
-  // Monitor connection state using event-driven approach instead of polling
   useEffect(() => {
-    if (!protocolRef.current) return;
+    if (ctx || !protocolRef.current) return;
 
     const handleConnectionStateChange = (state: 'connected' | 'disconnected' | 'timeout') => {
-      console.log('[useAuthenticatedWebSocket] Connection state changed:', state);
-      
       if (state === 'connected') {
         setConnectionState('connected');
         setError(null);
@@ -118,32 +90,35 @@ export function useAuthenticatedWebSocket({ sessionCode, userInfo }: UseAuthenti
       }
     };
 
-    // Subscribe to connection state changes
     const unsubscribe = protocolRef.current.onConnectionStateChange(handleConnectionStateChange);
-    
-    return () => {
-      unsubscribe();
-    };
-  }, [protocolRef.current]);
+    return () => { unsubscribe(); };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [ctx, protocolRef.current]);
 
-  // Auto-connect on mount and disconnect on unmount
   useEffect(() => {
+    if (ctx) return;
     connect();
-    return () => disconnect();
-  }, [connect, disconnect]);
+    return () => { disconnect(); };
+  }, [ctx, connect, disconnect]);
 
-  // Handle connection state changes
   useEffect(() => {
-    if (connectionState === 'error' && error) {
-  // Authentication errors should not be silently ignored; allow retry logic below
-  // Auto-retry connection after 5 seconds for non-authentication errors
-      
-      if (!error.includes('Authentication failed')) {
-        const retryTimer = setTimeout(() => connect(), 5000);
-        return () => clearTimeout(retryTimer);
-      }
+    if (ctx || connectionState !== 'error' || !error) return;
+    if (!error.includes('Authentication failed')) {
+      const retryTimer = setTimeout(() => connect(), 5000);
+      return () => clearTimeout(retryTimer);
     }
-  }, [connectionState, error, connect]);
+  }, [ctx, connectionState, error, connect]);
+
+  if (ctx) {
+    return {
+      connectionState: ctx.connectionState as ConnectionState,
+      error: null,
+      protocol: ctx.protocol as WebClientProtocol | null,
+      connect: ctx.connect,
+      disconnect: ctx.disconnect,
+      isConnected: ctx.connectionState === 'connected'
+    };
+  }
 
   return {
     connectionState,

@@ -51,7 +51,7 @@ class AuthService {
       } else {
         const errorText = await response.text();
         // Try to extract error message from HTML response
-        const errorMatch = errorText.match(/error[\"']: [\"']([^\"']+)[\"']/i);
+        const errorMatch = errorText.match(/error["']: ["']([^"']+)["']/i);
         const errorMessage = errorMatch ? errorMatch[1] : 'Login failed';
         return { success: false, message: errorMessage };
       }
@@ -82,7 +82,7 @@ class AuthService {
         return { success: true, message: 'Registration successful. Please log in.' };
       } else {
         const errorText = await response.text();
-        const errorMatch = errorText.match(/error[\"']: [\"']([^\"']+)[\"']/i);
+        const errorMatch = errorText.match(/error["']: ["']([^"']+)["']/i);
         const errorMessage = errorMatch ? errorMatch[1] : 'Registration failed';
         return { success: false, message: errorMessage };
       }

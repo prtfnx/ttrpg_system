@@ -47,7 +47,7 @@ const mockCombatUIElements = () => {
     const button = document.createElement('button');
     button.setAttribute('data-testid', `mock-${action}-button`);
     button.className = 'mock-element';
-    button.textContent = name.source?.replace(/[\/\\^$.*+?()[\]{}|]/g, '') || action;
+    button.textContent = name.source?.replace(/[/\\^$.*+?()[\]{}|]/g, '') || action;
     document.body.appendChild(button);
   });
 

@@ -483,7 +483,8 @@ export const EquipmentSelectionStep: React.FC<EquipmentSelectionStepProps> = ({
                     className={`${styles['equipment-card']} ${isExpanded ? styles['equipment-card-expanded'] : ''}`}
                     onClick={() => setExpandedCards(prev => {
                       const next = new Set(prev);
-                      next.has(equipment.name) ? next.delete(equipment.name) : next.add(equipment.name);
+                      if (next.has(equipment.name)) next.delete(equipment.name);
+                      else next.add(equipment.name);
                       return next;
                     })}
                   >

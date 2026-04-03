@@ -106,7 +106,10 @@ class WasmIntegrationService {
           if (this.renderEngine) {
             console.log('Removing optimistic sprite (confirmed):', data.client_temp_id);
             try { this.renderEngine.remove_sprite(data.client_temp_id); } catch(_e) { /* best-effort */ }
-          }', e);
+          }
+        }
+      } catch (e) {
+        console.warn('Error while reconciling optimistic sprite on add:', e);
       }
 
       this.handleSpriteCreated(data);

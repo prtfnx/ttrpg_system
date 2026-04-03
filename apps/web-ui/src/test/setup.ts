@@ -74,7 +74,6 @@ globalThis.cancelAnimationFrame = vi.fn((id) => clearTimeout(id));
 // Canvas context mock
 HTMLCanvasElement.prototype.getContext = vi.fn(function(this: HTMLCanvasElement, type: string) {
   if (type === '2d') {
-    const canvas = this;
     return {
       fillRect: vi.fn(),
       strokeRect: vi.fn(),

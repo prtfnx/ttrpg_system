@@ -5,7 +5,7 @@
 import { useGameStore } from '@/store';
 import { assetIntegrationService } from '@features/assets';
 import { isDM } from '@features/session/types/roles';
-import { useProtocol } from '@lib/api';
+import { useOptionalProtocol } from '@lib/api';
 import type { GlobalWasmModule } from '@lib/wasm';
 import { useWasmBridge, wasmIntegrationService } from '@lib/wasm';
 import type { RenderEngine } from '@lib/wasm/wasm';
@@ -64,14 +64,7 @@ export const GameCanvas: React.FC = () => {
 
   const dynamicLightingEnabled = useGameStore(s => s.dynamicLightingEnabled);
   // Protocol and store setup
-  const _protocolCtx = (() => {
-    try {
-      return useProtocol();
-    } catch (e) {
-      return undefined;
-    }
-  })();
-  const protocol = _protocolCtx?.protocol ?? null;
+  const protocol = useOptionalProtocol()?.protocol ?? null;
   const { updateConnectionState, tables, activeTableId } = useGameStore();
   const activeTable = tables.find((t) => t.table_id === activeTableId);
   const activeLayer = useGameStore(s => s.activeLayer);
@@ -572,7 +565,7 @@ export const GameCanvas: React.FC = () => {
         }
         try {
           window.addEventListener('resize', scheduleResize);
-        } catch (e) {
+        } catch (_e) {
           /* ignore */
         }
 

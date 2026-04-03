@@ -179,32 +179,26 @@ export function GameClient({ sessionCode, userInfo, userRole, onAuthError }: Gam
     return () => window.removeEventListener('table-updated', handler);
  }, []);
 
-  // Handle authentication errors
-  if (error?.includes('Authentication failed')) {
-    onAuthError();
-    return null;
-  }
-
-  // Panel size state with localStorage persistence
- const [leftWidth, setLeftWidth] = React.useState(() => {
+  // Panel size state with localStorage persistence — must be before early returns
+  const [leftWidth, setLeftWidth] = React.useState(() => {
     const v = localStorage.getItem('panel_left_width');
     return v ? parseInt(v) : 320;
   });
- const [rightWidth, setRightWidth] = React.useState(() => {
+  const [rightWidth, setRightWidth] = React.useState(() => {
     const v = localStorage.getItem('panel_right_width');
     return v ? parseInt(v) : 400;
   });
- const [leftVisible, setLeftVisible] = React.useState(() => {
+  const [leftVisible, setLeftVisible] = React.useState(() => {
     const v = localStorage.getItem('panel_left_visible');
     return v !== 'false';
   });
- const [rightVisible, setRightVisible] = React.useState(() => {
+  const [rightVisible, setRightVisible] = React.useState(() => {
     const v = localStorage.getItem('panel_right_visible');
     return v !== 'false';
   });
 
   // Token config modal state
- const [tokenConfigSpriteId, setTokenConfigSpriteId] = React.useState<string | null>(null);
+  const [tokenConfigSpriteId, setTokenConfigSpriteId] = React.useState<string | null>(null);
 
   // Listen for double-click events from Rust WASM
   useEffect(() => {
@@ -212,72 +206,60 @@ export function GameClient({ sessionCode, userInfo, userRole, onAuthError }: Gam
       const customEvent = event as CustomEvent;
       const spriteId = customEvent.detail?.spriteId;
       if (!spriteId) return;
- console.log('[GameClient] Token double-click on sprite:', spriteId);
+      console.log('[GameClient] Token double-click on sprite:', spriteId);
       setTokenConfigSpriteId(spriteId);
     };
-
     window.addEventListener('tokenDoubleClick', handleTokenDoubleClick);
-    return () => {
-      window.removeEventListener('tokenDoubleClick', handleTokenDoubleClick);
-    };
- }, []);
+    return () => { window.removeEventListener('tokenDoubleClick', handleTokenDoubleClick); };
+  }, []);
 
   // Handle drag to resize panels
   const dragRef = React.useRef<{ side: 'left'|'right', startX: number, startWidth: number }|null>(null);
-  
+
   const onDragStart = (side: 'left'|'right', e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
     dragRef.current = { side, startX: e.clientX, startWidth: side === 'left' ? leftWidth : rightWidth };
     document.body.style.cursor = 'col-resize';
     document.body.style.userSelect = 'none';
-    console.log(` GameClient: Starting ${side} panel resize`);
   };
-  
+
   React.useEffect(() => {
     const onDrag = (e: MouseEvent) => {
       if (!dragRef.current) return;
       e.preventDefault();
-      
       const dx = e.clientX - dragRef.current.startX;
       if (dragRef.current.side === 'left') {
         const w = Math.max(200, Math.min(600, dragRef.current.startWidth + dx));
         setLeftWidth(w);
         localStorage.setItem('panel_left_width', w.toString());
-        console.log(` GameClient: Left panel width: ${w}px`);
       } else {
         const w = Math.max(250, Math.min(600, dragRef.current.startWidth - dx));
         setRightWidth(w);
         localStorage.setItem('panel_right_width', w.toString());
-        console.log(` GameClient: Right panel width: ${w}px`);
       }
-      
-      // Trigger multiple resize notifications for better canvas detection
       window.dispatchEvent(new Event('resize'));
-      // Also trigger a direct request animation frame callback for immediate effect
-      requestAnimationFrame(() => {
-        window.dispatchEvent(new Event('resize'));
-      });
+      requestAnimationFrame(() => { window.dispatchEvent(new Event('resize')); });
     };
-    
     const onDragEnd = () => {
       dragRef.current = null;
       document.body.style.cursor = '';
       document.body.style.userSelect = '';
-      
-      // Final resize trigger after drag ends to ensure canvas updates
-      setTimeout(() => {
-        window.dispatchEvent(new Event('resize'));
-      }, 100);
+      setTimeout(() => { window.dispatchEvent(new Event('resize')); }, 100);
     };
-    
     document.addEventListener('mousemove', onDrag);
     document.addEventListener('mouseup', onDragEnd);
     return () => {
       document.removeEventListener('mousemove', onDrag);
       document.removeEventListener('mouseup', onDragEnd);
     };
- }, []); // Remove dependency on leftWidth, rightWidth to prevent recreating listeners
+  }, []);
+
+  // Handle authentication errors — after all hooks
+  if (error?.includes('Authentication failed')) {
+    onAuthError();
+    return null;
+  }
 
   // Persist panel visibility
   const toggleLeft = () => {

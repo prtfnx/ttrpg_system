@@ -159,7 +159,7 @@ export const SpellManager: React.FC<SpellManagerProps> = ({
       });
   };
 
-  const useSpellSlot = (level: number) => {
+  const consumeSpellSlot = (level: number) => {
     const slotKey = `level${level}`;
     if (spellSlots[slotKey] && spellSlots[slotKey].used < spellSlots[slotKey].total) {
       setSpellSlots(prev => ({
@@ -214,7 +214,7 @@ export const SpellManager: React.FC<SpellManagerProps> = ({
       return;
     }
 
-    useSpellSlot(requiredLevel);
+    consumeSpellSlot(requiredLevel);
   };
 
   const renderSlotsTab = () => (
@@ -248,7 +248,7 @@ export const SpellManager: React.FC<SpellManagerProps> = ({
                       if (i < slots.used) {
                         restoreSpellSlot(levelNum);
                       } else if (i === slots.used && slots.used < slots.total) {
-                        useSpellSlot(levelNum);
+                        consumeSpellSlot(levelNum);
                       }
                     }}
                   />
@@ -258,7 +258,7 @@ export const SpellManager: React.FC<SpellManagerProps> = ({
               <div className="slot-controls">
                 <button 
                   className="use-slot-btn"
-                  onClick={() => useSpellSlot(levelNum)}
+                  onClick={() => consumeSpellSlot(levelNum)}
                   disabled={available === 0}
                 >
                   Use Slot

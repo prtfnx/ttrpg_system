@@ -1,6 +1,6 @@
 describe('Legacy Character Migration Edge Cases', () => {
   it('should migrate legacy character with missing fields to new structure', () => {
-    const { addCharacter, getCharacterForSprite } = useGameStore.getState();
+    const { addCharacter, _getCharacterForSprite } = useGameStore.getState();
     // Simulate legacy character (missing data fields)
     const legacyChar: any = {
       id: 'legacy1',
@@ -35,7 +35,7 @@ describe('Legacy Character Migration Edge Cases', () => {
   });
 
   it('should migrate legacy sprite with imageUrl/width/height to new structure', () => {
-    const { addSprite, getCharacterForSprite } = useGameStore.getState();
+    const { addSprite, _getCharacterForSprite } = useGameStore.getState();
     // Simulate legacy sprite
     const legacySprite: any = {
       id: 'spriteLegacy',

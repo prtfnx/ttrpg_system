@@ -10,7 +10,7 @@ import React from 'react';
 import { describe, expect, it } from 'vitest';
 
 describe('Asset Management System - Performance and Caching', () => {
-  const mockUserInfo = { 
+  const _mockUserInfo = { 
     id: 'dm1', 
     username: 'DM Mike', 
     role: 'dm' as const,
@@ -123,7 +123,7 @@ describe('Asset Management System - Performance and Caching', () => {
     });
 
     it('should validate file types and enforce size limits', async () => {
-      const user = userEvent.setup();
+      const _user = userEvent.setup();
       
       // Functional validation component
       const FileValidationComponent = () => {
@@ -439,7 +439,7 @@ describe('Asset Management System - Performance and Caching', () => {
     });
 
     it('should optimize images for different viewport sizes and network conditions', async () => {
-      const user = userEvent.setup();
+      const _user = userEvent.setup();
       
       // Functional responsive assets component
       const ResponsiveAssetsComponent = () => {
@@ -637,7 +637,7 @@ describe('Asset Management System - Performance and Caching', () => {
       render(<PreloadingComponent />);
       
       // Define preloaded assets set to track preloading behavior
-      const preloadedAssets = new Set();
+      const _preloadedAssets = new Set();
       
       // Should preload current scene assets initially  
       await waitFor(() => {

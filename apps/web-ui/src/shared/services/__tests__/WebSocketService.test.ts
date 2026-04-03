@@ -31,7 +31,7 @@ class MockWebSocket {
     }, 10);
   }
 
-  send(data: string): void {
+  send(_data: string): void {
     if (this.readyState !== MockWebSocket.OPEN) {
       throw new Error('WebSocket is not open');
     }
@@ -184,7 +184,6 @@ describe('WebSocketService - Exponential Backoff Tests', () => {
       service = new WebSocketService(config);
       
       // Override WebSocket to simulate connection failures
-      let connectionAttempt = 0;
       const originalWebSocket = global.WebSocket;
       global.WebSocket = class {
         static CONNECTING = 0;

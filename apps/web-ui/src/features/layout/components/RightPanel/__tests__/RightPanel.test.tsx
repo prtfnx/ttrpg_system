@@ -284,7 +284,7 @@ describe('RightPanel', () => {
         { name: 'Network', pattern: /^network$/i }
       ];
       
-      devTabs.forEach(({ name, pattern }) => {
+      devTabs.forEach(({ name: _name, pattern }) => {
         const tab = screen.getByRole('tab', { name: pattern });
         expect(tab).toBeInTheDocument();
         expect(tab).toHaveAttribute('aria-selected', 'false');
@@ -331,7 +331,7 @@ describe('RightPanel', () => {
       renderWithProviders(<RightPanel sessionCode={mockSessionCode} userInfo={mockUserInfo} />);
 
       const entitiesTab = screen.getByRole('tab', { name: /^entities$/i });
-      const chatTab = screen.getByRole('tab', { name: /^chat$/i });
+      const _chatTab = screen.getByRole('tab', { name: /^chat$/i });
 
       // Focus on a visible tab
       entitiesTab.focus();

@@ -44,7 +44,7 @@ vi.mock('../Invitations/InvitationManager', () => ({
 }));
 
 vi.mock('../PlayerList', () => ({
-  PlayerList: ({ players, onRoleChange, onRemove, canManagePlayers }: any) => (
+  PlayerList: ({ players, _onRoleChange, _onRemove, canManagePlayers }: any) => (
     <div data-testid="player-list">
       <span>Players: {players.length}</span>
       <span>Can modify: {canManagePlayers ? 'yes' : 'no'}</span>
@@ -254,7 +254,7 @@ describe('SessionManagementPanel - Game Master Experience', () => {
 
       // Simulate invitation panel opening
       mockSessionManagement.showInvites = true;
-      const { rerender } = render(<SessionManagementPanel sessionCode={sessionCode} />);
+      const { rerender: _rerender } = render(<SessionManagementPanel sessionCode={sessionCode} />);
 
       // Should see invitation manager
       expect(screen.getByTestId('invitation-manager')).toBeInTheDocument();

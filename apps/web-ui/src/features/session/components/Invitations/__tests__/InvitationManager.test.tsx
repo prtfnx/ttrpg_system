@@ -466,7 +466,7 @@ describe('InvitationManager - Game Master Invitation Workflows', () => {
     it('provides helpful role selection options', () => {
       render(<InvitationManager sessionCode={sessionCode} onClose={onClose} />);
 
-      const roleSelect = screen.getByLabelText(/role/i);
+      const _roleSelect = screen.getByLabelText(/role/i);
       
       // Should have all the expected roles
       expect(screen.getByRole('option', { name: 'Player' })).toBeInTheDocument();

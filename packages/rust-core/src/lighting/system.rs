@@ -851,3 +851,85 @@ impl LightingSystem {
         before_count - self.lights.len()
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::math::Vec2;
+
+    #[test]
+    fn light_new_defaults() {
+        let l = Light::new("l1".to_string(), 100.0, 200.0);
+        assert_eq!(l.id, "l1");
+        assert_eq!(l.position.x, 100.0);
+        assert_eq!(l.position.y, 200.0);
+        assert_eq!(l.radius, 200.0);
+        assert_eq!(l.intensity, 1.0);
+        assert_eq!(l.falloff, 2.0);
+        assert!(l.is_on);
+        assert!(l.dirty);
+    }
+
+    #[test]
+    fn set_radius_clamps_to_minimum() {
+        let mut l = Light::new("l1".to_string(), 0.0, 0.0);
+        l.set_radius(1.0); // below min
+        assert_eq!(l.radius, 10.0);
+    }
+
+    #[test]
+    fn set_radius_sets_dirty() {
+        let mut l = Light::new("l1".to_string(), 0.0, 0.0);
+        l.dirty = false;
+        l.set_radius(300.0);
+        assert!(l.dirty);
+    }
+
+    #[test]
+    fn set_intensity_clamps_range() {
+        let mut l = Light::new("l1".to_string(), 0.0, 0.0);
+        l.set_intensity(-1.0);
+        assert_eq!(l.intensity, 0.0);
+        l.set_intensity(99.0);
+        assert_eq!(l.intensity, 2.0);
+        l.set_intensity(1.5);
+        assert_eq!(l.intensity, 1.5);
+    }
+
+    #[test]
+    fn set_falloff_clamps_range() {
+        let mut l = Light::new("l1".to_string(), 0.0, 0.0);
+        l.set_falloff(0.0);
+        assert_eq!(l.falloff, 0.5);
+        l.set_falloff(10.0);
+        assert_eq!(l.falloff, 4.0);
+        l.set_falloff(2.0);
+        assert_eq!(l.falloff, 2.0);
+    }
+
+    #[test]
+    fn toggle_flips_is_on() {
+        let mut l = Light::new("l1".to_string(), 0.0, 0.0);
+        assert!(l.is_on);
+        l.toggle();
+        assert!(!l.is_on);
+        l.toggle();
+        assert!(l.is_on);
+    }
+
+    #[test]
+    fn set_position_marks_dirty_on_change() {
+        let mut l = Light::new("l1".to_string(), 0.0, 0.0);
+        l.dirty = false;
+        l.set_position(Vec2::new(50.0, 50.0));
+        assert!(l.dirty);
+    }
+
+    #[test]
+    fn set_position_no_dirty_on_same_position() {
+        let mut l = Light::new("l1".to_string(), 50.0, 50.0);
+        l.dirty = false;
+        l.set_position(Vec2::new(50.0, 50.0)); // same coords
+        assert!(!l.dirty);
+    }
+}

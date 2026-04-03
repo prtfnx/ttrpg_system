@@ -396,3 +396,81 @@ impl TableManager {
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn make_table(id: &str, w: f64, h: f64) -> TableManager {
+        let mut tm = TableManager::new();
+        tm.create_table(id, "Test Table", w, h).unwrap();
+        tm
+    }
+
+    #[test]
+    fn create_table_stores_info() {
+        let tm = make_table("t1", 1000.0, 800.0);
+        assert_eq!(tm.tables.len(), 1);
+        let info = &tm.tables["t1"];
+        assert_eq!(info.width, 1000.0);
+        assert_eq!(info.height, 800.0);
+        assert_eq!(info.table_name, "Test Table");
+    }
+
+    #[test]
+    fn first_table_becomes_active_automatically() {
+        let tm = make_table("t1", 500.0, 500.0);
+        assert_eq!(tm.active_table_id.as_deref(), Some("t1"));
+    }
+
+    #[test]
+    fn set_active_table_returns_true_for_known_table() {
+        let mut tm = make_table("t1", 500.0, 500.0);
+        tm.create_table("t2", "Test 2", 200.0, 200.0).unwrap();
+        assert!(tm.set_active_table("t2"));
+        assert_eq!(tm.active_table_id.as_deref(), Some("t2"));
+    }
+
+    #[test]
+    fn set_active_table_returns_false_for_unknown() {
+        let mut tm = make_table("t1", 500.0, 500.0);
+        assert!(!tm.set_active_table("nonexistent"));
+        // Active table unchanged
+        assert_eq!(tm.active_table_id.as_deref(), Some("t1"));
+    }
+
+    #[test]
+    fn get_active_table_id_after_set() {
+        let mut tm = make_table("t1", 500.0, 500.0);
+        tm.create_table("t2", "Test 2", 200.0, 200.0).unwrap();
+        tm.set_active_table("t2");
+        assert_eq!(tm.get_active_table_id().as_deref(), Some("t2"));
+    }
+
+    #[test]
+    fn get_active_table_world_bounds_returns_dimensions() {
+        let tm = make_table("t1", 1024.0, 768.0);
+        let bounds = tm.get_active_table_world_bounds().unwrap();
+        assert_eq!(bounds, (0.0, 0.0, 1024.0, 768.0));
+    }
+
+    #[test]
+    fn get_active_table_world_bounds_none_with_no_active() {
+        let tm = TableManager::new();
+        assert!(tm.get_active_table_world_bounds().is_none());
+    }
+
+    #[test]
+    fn remove_table_decreases_count() {
+        let mut tm = make_table("t1", 500.0, 500.0);
+        tm.create_table("t2", "Test 2", 200.0, 200.0).unwrap();
+        assert!(tm.remove_table("t1"));
+        assert_eq!(tm.tables.len(), 1);
+    }
+
+    #[test]
+    fn remove_unknown_table_returns_false() {
+        let mut tm = make_table("t1", 500.0, 500.0);
+        assert!(!tm.remove_table("unknown"));
+    }
+}

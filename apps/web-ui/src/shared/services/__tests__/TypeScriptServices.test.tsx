@@ -184,7 +184,10 @@ describe('TypeScript Service Layer Tests', () => {
       expect(metrics.frameTime).toBeGreaterThanOrEqual(0);
       // Handle memoryUsage being an object with numeric properties
       if (typeof metrics.memoryUsage === 'object') {
-        expect(typeof metrics.memoryUsage?.usedJSHeapSize || typeof metrics.memoryUsage?.totalJSHeapSize).toBe('number');
+        expect(
+          typeof metrics.memoryUsage?.usedJSHeapSize === 'number' ||
+          typeof metrics.memoryUsage?.totalJSHeapSize === 'number'
+        ).toBe(true);
       } else {
         expect(metrics.memoryUsage).toBeGreaterThan(0);
       }

@@ -77,15 +77,15 @@ export class SessionManager {
         reject(new Error('Session join timeout'));
       }, 10000);
 
-      this.once('sessionJoined', (session: SessionInfo) => {
+      this.once('sessionJoined', (session) => {
         clearTimeout(timeoutId);
-        this.currentSession = session;
-        resolve(session);
+        this.currentSession = session as SessionInfo;
+        resolve(session as SessionInfo);
       });
 
-      this.once('sessionJoinError', (error: string) => {
+      this.once('sessionJoinError', (error) => {
         clearTimeout(timeoutId);
-        reject(new Error(error));
+        reject(new Error(error as string));
       });
 
       this.sendMessage('join_session', {

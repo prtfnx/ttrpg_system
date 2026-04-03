@@ -57,7 +57,7 @@ const DEFAULT_LAYERS: Layer[] = [
   { id: 'fog_of_war', name: 'Fog of War', icon: CloudFog, color: '#6b7280', spriteCount: 0 },
 ];
 
-export function LayerPanel({ className, _style, id, initialLayers, ...otherProps }: LayerPanelProps) {
+export function LayerPanel({ className, style: _style, id, initialLayers, ...otherProps }: LayerPanelProps) {
   const gameStore = useGameStore() || {};
   const {
     activeLayer = '',

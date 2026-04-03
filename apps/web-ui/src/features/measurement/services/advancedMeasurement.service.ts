@@ -150,7 +150,7 @@ class AdvancedMeasurementService {
   private history: MeasurementHistory;
   private settings: MeasurementSettings;
   private activeMeasurement: string | null = null;
-  private measurementCallbacks: Map<string, (...args: unknown[]) => void> = new Map();
+  private measurementCallbacks: Map<string, (event: string, data: unknown) => void> = new Map();
 
   constructor() {
     this.spatialIndex = this.createSpatialIndex();
@@ -1011,7 +1011,7 @@ class AdvancedMeasurementService {
     });
   }
 
-  private notifyCallbacks(event: string, data: any): void {
+  private notifyCallbacks(event: string, data: unknown): void {
     this.measurementCallbacks.forEach((callback, key) => {
       try {
         callback(event, data);
@@ -1026,7 +1026,7 @@ class AdvancedMeasurementService {
   /**
    * Subscribe to measurement events
    */
-  subscribe(key: string, callback: (event: string, data: any) => void): void {
+  subscribe(key: string, callback: (event: string, data: unknown) => void): void {
     this.measurementCallbacks.set(key, callback);
   }
 

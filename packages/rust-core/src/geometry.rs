@@ -170,3 +170,71 @@ pub(crate) fn compute_visibility_raw(player_x: f32, player_y: f32, data: &[f32],
 pub fn compute_visibility_polygon(player_x: f32, player_y: f32, obstacles: &js_sys::Float32Array, max_dist: f32) -> JsValue {
     compute_visibility_impl(player_x, player_y, &obstacles.to_vec(), max_dist)
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::f32::consts::PI;
+
+    const MAX: f32 = 500.0;
+
+    #[test]
+    fn no_obstacles_returns_points_at_max_dist() {
+        let pts = compute_visibility_raw(0.0, 0.0, &[], MAX);
+        // With no walls, all 32 extra rays should reach max_dist
+        assert!(!pts.is_empty());
+        for (_, pt) in &pts {
+            let d = (pt.x * pt.x + pt.y * pt.y).sqrt();
+            assert!((d - MAX).abs() < 0.5, "expected ~{} got {}", MAX, d);
+        }
+    }
+
+    #[test]
+    fn points_sorted_by_angle() {
+        // Sorting is required for a correct TRIANGLE_FAN
+        let pts = compute_visibility_raw(0.0, 0.0, &[], MAX);
+        for w in pts.windows(2) {
+            assert!(w[0].0 <= w[1].0, "not sorted: {} > {}", w[0].0, w[1].0);
+        }
+    }
+
+    #[test]
+    fn wall_blocks_ray_behind_it() {
+        // A horizontal wall at y=100 directly above the player at origin
+        // Rays going upward should be blocked at y=100, not reach y=500
+        let wall = [0.0_f32, 100.0, 200.0, 100.0]; // x1,y1,x2,y2
+        let pts = compute_visibility_raw(100.0, 0.0, &wall, MAX);
+        // Find the upward ray (closest to angle=π/2 ≈ 1.5708)
+        let upward = pts.iter()
+            .min_by(|a, b| (a.0 - PI / 2.0).abs().partial_cmp(&(b.0 - PI / 2.0).abs()).unwrap())
+            .unwrap();
+        // Should hit the wall around y=100, not extend to 500
+        assert!(upward.1.y < 150.0, "ray should have been blocked near y=100, got y={}", upward.1.y);
+    }
+
+    #[test]
+    fn wall_does_not_block_opposite_side() {
+        // Same horizontal wall, but rays going DOWNWARD should NOT be blocked
+        let wall = [0.0_f32, 100.0, 200.0, 100.0];
+        let pts = compute_visibility_raw(100.0, 0.0, &wall, MAX);
+        // Downward ray is at angle 3π/2 ≈ 4.712
+        let downward = pts.iter()
+            .min_by(|a, b| (a.0 - 3.0 * PI / 2.0).abs().partial_cmp(&(b.0 - 3.0 * PI / 2.0).abs()).unwrap())
+            .unwrap();
+        // Must not be blocked; should reach near MAX
+        let d = ((downward.1.x - 100.0).powi(2) + downward.1.y.powi(2)).sqrt();
+        assert!(d > MAX * 0.9, "downward ray should not be blocked, dist={}", d);
+    }
+
+    #[test]
+    fn player_in_open_space_sees_full_circle() {
+        let pts = compute_visibility_raw(250.0, 250.0, &[], MAX);
+        // All points should be at max distance (no walls)
+        for (_, pt) in &pts {
+            let dx = pt.x - 250.0;
+            let dy = pt.y - 250.0;
+            let d = (dx * dx + dy * dy).sqrt();
+            assert!((d - MAX).abs() < 1.0, "expected ~{} got {}", MAX, d);
+        }
+    }
+}

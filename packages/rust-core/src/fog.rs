@@ -1002,3 +1002,68 @@ impl FogOfWarSystem {
         before_count - self.fog_rectangles.len()
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::math::Vec2;
+
+    fn make_rect(sx: f32, sy: f32, ex: f32, ey: f32) -> FogRectangle {
+        FogRectangle::new("r1".to_string(), sx, sy, ex, ey, FogMode::Hide)
+    }
+
+    #[test]
+    fn normalized_corrects_reversed_drag() {
+        // Simulates dragging from bottom-right to top-left
+        let r = make_rect(200.0, 150.0, 50.0, 25.0);
+        let n = r.normalized();
+        assert_eq!(n.start.x, 50.0);
+        assert_eq!(n.start.y, 25.0);
+        assert_eq!(n.end.x, 200.0);
+        assert_eq!(n.end.y, 150.0);
+    }
+
+    #[test]
+    fn normalized_is_idempotent() {
+        let r = make_rect(10.0, 20.0, 100.0, 80.0);
+        let n = r.normalized();
+        assert_eq!(n.start.x, 10.0);
+        assert_eq!(n.start.y, 20.0);
+        assert_eq!(n.end.x, 100.0);
+        assert_eq!(n.end.y, 80.0);
+    }
+
+    #[test]
+    fn contains_point_inside() {
+        let r = make_rect(0.0, 0.0, 100.0, 100.0);
+        assert!(r.contains_point(Vec2::new(50.0, 50.0)));
+    }
+
+    #[test]
+    fn contains_point_on_edge() {
+        let r = make_rect(0.0, 0.0, 100.0, 100.0);
+        assert!(r.contains_point(Vec2::new(0.0, 0.0)));
+        assert!(r.contains_point(Vec2::new(100.0, 100.0)));
+    }
+
+    #[test]
+    fn contains_point_outside() {
+        let r = make_rect(0.0, 0.0, 100.0, 100.0);
+        assert!(!r.contains_point(Vec2::new(101.0, 50.0)));
+        assert!(!r.contains_point(Vec2::new(-1.0, 50.0)));
+    }
+
+    #[test]
+    fn contains_point_with_reversed_rect() {
+        // Even un-normalized rect should contain interior points (normalized internally)
+        let r = make_rect(100.0, 100.0, 0.0, 0.0); // reversed
+        assert!(r.contains_point(Vec2::new(50.0, 50.0)));
+    }
+
+    #[test]
+    fn fog_mode_equality() {
+        assert_eq!(FogMode::Hide, FogMode::Hide);
+        assert_eq!(FogMode::Reveal, FogMode::Reveal);
+        assert_ne!(FogMode::Hide, FogMode::Reveal);
+    }
+}

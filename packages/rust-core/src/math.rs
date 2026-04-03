@@ -162,3 +162,141 @@ impl From<(f64, f64)> for Vec2 {
         Vec2::new(x as f32, y as f32)
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    const EPSILON: f32 = 1e-5;
+
+    fn approx(a: f32, b: f32) -> bool {
+        (a - b).abs() < EPSILON
+    }
+
+    fn vec2_approx(a: Vec2, b: Vec2) -> bool {
+        approx(a.x, b.x) && approx(a.y, b.y)
+    }
+
+    // ── Vec2 arithmetic ──────────────────────────────────────────────────────
+
+    #[test]
+    fn vec2_add() {
+        let r = Vec2::new(1.0, 2.0) + Vec2::new(3.0, 4.0);
+        assert!(vec2_approx(r, Vec2::new(4.0, 6.0)));
+    }
+
+    #[test]
+    fn vec2_sub() {
+        let r = Vec2::new(5.0, 5.0) - Vec2::new(2.0, 3.0);
+        assert!(vec2_approx(r, Vec2::new(3.0, 2.0)));
+    }
+
+    #[test]
+    fn vec2_mul_scalar() {
+        let r = Vec2::new(2.0, 3.0) * 4.0;
+        assert!(vec2_approx(r, Vec2::new(8.0, 12.0)));
+    }
+
+    // ── Vec2 geometry ────────────────────────────────────────────────────────
+
+    #[test]
+    fn vec2_length_345() {
+        // Classic 3-4-5 right triangle → hypotenuse = 5
+        let len = Vec2::new(3.0, 4.0).length();
+        assert!(approx(len, 5.0), "expected 5.0, got {}", len);
+    }
+
+    #[test]
+    fn vec2_normalize_unit_result() {
+        let n = Vec2::new(3.0, 4.0).normalize();
+        assert!(approx(n.length(), 1.0), "normalized length must be 1.0");
+        assert!(approx(n.x, 0.6));
+        assert!(approx(n.y, 0.8));
+    }
+
+    #[test]
+    fn vec2_normalize_zero_vector_returns_zero() {
+        // Must not panic or produce NaN
+        let n = Vec2::new(0.0, 0.0).normalize();
+        assert!(!n.x.is_nan() && !n.y.is_nan());
+        assert!(vec2_approx(n, Vec2::new(0.0, 0.0)));
+    }
+
+    #[test]
+    fn vec2_angle_right() {
+        // Vector pointing right → angle = 0
+        let a = Vec2::new(1.0, 0.0).angle();
+        assert!(approx(a, 0.0), "expected 0, got {}", a);
+    }
+
+    #[test]
+    fn vec2_angle_up() {
+        // Vector pointing up → angle = π/2
+        let a = Vec2::new(0.0, 1.0).angle();
+        assert!(approx(a, std::f32::consts::FRAC_PI_2));
+    }
+
+    // ── Mat3 transform ───────────────────────────────────────────────────────
+
+    #[test]
+    fn mat3_scale_translation_transforms_point() {
+        // scale=(2,3), translation=(10,20): maps (1,1) → (10+2, 20+3) = (12, 23)
+        let m = Mat3::from_scale_translation(Vec2::new(2.0, 3.0), Vec2::new(10.0, 20.0));
+        let p = m * Vec2::new(1.0, 1.0);
+        assert!(vec2_approx(p, Vec2::new(12.0, 23.0)), "got {:?}", p);
+    }
+
+    #[test]
+    fn mat3_identity_preserves_point() {
+        let m = Mat3::from_scale_translation(Vec2::new(1.0, 1.0), Vec2::new(0.0, 0.0));
+        let p = m * Vec2::new(7.0, -3.0);
+        assert!(vec2_approx(p, Vec2::new(7.0, -3.0)));
+    }
+
+    #[test]
+    fn mat3_to_array_column_major() {
+        let m = Mat3::from_scale_translation(Vec2::new(2.0, 3.0), Vec2::new(10.0, 20.0));
+        let arr = m.to_array();
+        // Column 0: scale.x, 0, 0
+        assert!(approx(arr[0], 2.0));
+        assert!(approx(arr[1], 0.0));
+        assert!(approx(arr[2], 0.0));
+        // Column 1: 0, scale.y, 0
+        assert!(approx(arr[3], 0.0));
+        assert!(approx(arr[4], 3.0));
+        assert!(approx(arr[5], 0.0));
+        // Column 2: tx, ty, 1
+        assert!(approx(arr[6], 10.0));
+        assert!(approx(arr[7], 20.0));
+        assert!(approx(arr[8], 1.0));
+    }
+
+    // ── Rect ─────────────────────────────────────────────────────────────────
+
+    #[test]
+    fn rect_contains_interior() {
+        let r = Rect::new(0.0, 0.0, 100.0, 100.0);
+        assert!(r.contains(Vec2::new(50.0, 50.0)));
+    }
+
+    #[test]
+    fn rect_contains_corner_inclusive() {
+        let r = Rect::new(0.0, 0.0, 100.0, 100.0);
+        assert!(r.contains(Vec2::new(0.0, 0.0)));
+        assert!(r.contains(Vec2::new(100.0, 100.0)));
+    }
+
+    #[test]
+    fn rect_does_not_contain_outside() {
+        let r = Rect::new(0.0, 0.0, 100.0, 100.0);
+        assert!(!r.contains(Vec2::new(100.01, 50.0)));
+        assert!(!r.contains(Vec2::new(50.0, -0.01)));
+    }
+
+    #[test]
+    fn rect_from_center_size_symmetric() {
+        let r = Rect::from_center_size(Vec2::new(50.0, 50.0), Vec2::new(20.0, 10.0));
+        assert!(vec2_approx(r.min, Vec2::new(40.0, 45.0)));
+        assert!(vec2_approx(r.max, Vec2::new(60.0, 55.0)));
+    }
+}

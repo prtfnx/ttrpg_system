@@ -208,3 +208,173 @@ impl WallManager {
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn make_wall(id: &str, x1: f32, y1: f32, x2: f32, y2: f32) -> Wall {
+        Wall {
+            wall_id: id.to_string(),
+            table_id: "t1".to_string(),
+            x1, y1, x2, y2,
+            wall_type: WallType::Normal,
+            blocks_movement: true,
+            blocks_light: true,
+            blocks_sight: true,
+            blocks_sound: true,
+            is_door: false,
+            door_state: DoorState::Closed,
+            is_secret: false,
+            direction: WallDirection::Both,
+        }
+    }
+
+    fn make_door(id: &str, state: DoorState) -> Wall {
+        Wall {
+            wall_id: id.to_string(),
+            table_id: "t1".to_string(),
+            x1: 0.0, y1: 0.0, x2: 100.0, y2: 0.0,
+            wall_type: WallType::Normal,
+            blocks_movement: true,
+            blocks_light: true,
+            blocks_sight: true,
+            blocks_sound: true,
+            is_door: true,
+            door_state: state,
+            is_secret: false,
+            direction: WallDirection::Both,
+        }
+    }
+
+    #[test]
+    fn add_remove_count() {
+        let mut wm = WallManager::new();
+        wm.add_wall(make_wall("w1", 0.0, 0.0, 10.0, 0.0));
+        wm.add_wall(make_wall("w2", 0.0, 0.0, 0.0, 10.0));
+        wm.add_wall(make_wall("w3", 5.0, 5.0, 15.0, 5.0));
+        assert_eq!(wm.count(), 3);
+        assert!(wm.remove_wall("w2"));
+        assert_eq!(wm.count(), 2);
+        assert!(!wm.remove_wall("nonexistent"));
+        assert_eq!(wm.count(), 2);
+    }
+
+    #[test]
+    fn light_blocking_normal_wall() {
+        let mut wm = WallManager::new();
+        wm.add_wall(make_wall("w1", 0.0, 0.0, 50.0, 0.0));
+        let segs = wm.get_light_blocking_segments();
+        assert_eq!(segs, vec![0.0, 0.0, 50.0, 0.0]);
+    }
+
+    #[test]
+    fn door_open_excluded_from_light_blocking() {
+        let mut wm = WallManager::new();
+        wm.add_wall(make_door("d1", DoorState::Open));
+        let segs = wm.get_light_blocking_segments();
+        assert!(segs.is_empty(), "open door must not block light");
+    }
+
+    #[test]
+    fn door_closed_blocks_light() {
+        let mut wm = WallManager::new();
+        wm.add_wall(make_door("d1", DoorState::Closed));
+        let segs = wm.get_light_blocking_segments();
+        assert_eq!(segs.len(), 4);
+    }
+
+    #[test]
+    fn door_locked_blocks_light() {
+        let mut wm = WallManager::new();
+        wm.add_wall(make_door("d1", DoorState::Locked));
+        let segs = wm.get_light_blocking_segments();
+        assert_eq!(segs.len(), 4);
+    }
+
+    #[test]
+    fn non_blocking_wall_excluded_from_light() {
+        let mut wm = WallManager::new();
+        let mut w = make_wall("w1", 0.0, 0.0, 50.0, 0.0);
+        w.blocks_light = false;
+        wm.add_wall(w);
+        assert!(wm.get_light_blocking_segments().is_empty());
+    }
+
+    #[test]
+    fn translate_wall_moves_both_endpoints() {
+        let mut wm = WallManager::new();
+        wm.add_wall(make_wall("w1", 10.0, 20.0, 30.0, 40.0));
+        assert!(wm.translate_wall("w1", 5.0, -10.0));
+        let (x1, y1, x2, y2) = wm.get_wall_endpoints("w1").unwrap();
+        assert_eq!((x1, y1, x2, y2), (15.0, 10.0, 35.0, 30.0));
+    }
+
+    #[test]
+    fn translate_unknown_wall_returns_false() {
+        let mut wm = WallManager::new();
+        assert!(!wm.translate_wall("none", 1.0, 1.0));
+    }
+
+    #[test]
+    fn find_wall_at_within_threshold() {
+        let mut wm = WallManager::new();
+        wm.add_wall(make_wall("w1", 0.0, 0.0, 100.0, 0.0));
+        // Point 3 units above middle of segment — within threshold of 5
+        let id = wm.find_wall_at(50.0, 3.0, 5.0);
+        assert_eq!(id.as_deref(), Some("w1"));
+    }
+
+    #[test]
+    fn find_wall_at_outside_threshold_returns_none() {
+        let mut wm = WallManager::new();
+        wm.add_wall(make_wall("w1", 0.0, 0.0, 100.0, 0.0));
+        assert!(wm.find_wall_at(50.0, 20.0, 5.0).is_none());
+    }
+
+    #[test]
+    fn get_wall_endpoints_returns_correct_coords() {
+        let mut wm = WallManager::new();
+        wm.add_wall(make_wall("w1", 1.5, 2.5, 3.5, 4.5));
+        assert_eq!(wm.get_wall_endpoints("w1"), Some((1.5, 2.5, 3.5, 4.5)));
+        assert_eq!(wm.get_wall_endpoints("missing"), None);
+    }
+
+    #[test]
+    fn update_from_json_partial_update() {
+        let mut wm = WallManager::new();
+        wm.add_wall(make_wall("w1", 0.0, 0.0, 10.0, 0.0));
+        let ok = wm.update_from_json("w1", r#"{"x2": 99.0, "blocks_light": false}"#);
+        assert!(ok);
+        let (_, _, x2, _) = wm.get_wall_endpoints("w1").unwrap();
+        assert_eq!(x2, 99.0);
+        // Non-blocking wall should now be absent from light segments
+        assert!(wm.get_light_blocking_segments().is_empty());
+    }
+
+    #[test]
+    fn add_wall_from_json_invalid_returns_false() {
+        let mut wm = WallManager::new();
+        assert!(!wm.add_wall_from_json("not json"));
+        assert_eq!(wm.count(), 0);
+    }
+
+    #[test]
+    fn light_blocking_segments_format_is_flat_quads() {
+        let mut wm = WallManager::new();
+        wm.add_wall(make_wall("w1", 1.0, 2.0, 3.0, 4.0));
+        wm.add_wall(make_wall("w2", 5.0, 6.0, 7.0, 8.0));
+        let segs = wm.get_light_blocking_segments();
+        assert_eq!(segs.len(), 8); // 2 walls × 4 floats each
+    }
+
+    #[test]
+    fn clear_removes_all_walls() {
+        let mut wm = WallManager::new();
+        wm.add_wall(make_wall("w1", 0.0, 0.0, 1.0, 0.0));
+        wm.add_wall(make_wall("w2", 0.0, 0.0, 0.0, 1.0));
+        wm.clear();
+        assert_eq!(wm.count(), 0);
+        assert!(wm.get_light_blocking_segments().is_empty());
+    }
+}

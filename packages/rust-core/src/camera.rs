@@ -143,3 +143,103 @@ impl Camera {
         self.set_camera(rect_center.x as f64, rect_center.y as f64, new_zoom);
     }
 }
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::math::Vec2;
+
+    fn cam_at(wx: f64, wy: f64, zoom: f64) -> Camera {
+        Camera { world_x: wx, world_y: wy, zoom, ..Default::default() }
+    }
+
+    #[test]
+    fn screen_to_world_no_zoom() {
+        let c = cam_at(0.0, 0.0, 1.0);
+        let w = c.screen_to_world(Vec2::new(100.0, 200.0));
+        assert_eq!((w.x, w.y), (100.0, 200.0));
+    }
+
+    #[test]
+    fn world_to_screen_no_zoom() {
+        let c = cam_at(0.0, 0.0, 1.0);
+        let s = c.world_to_screen(Vec2::new(100.0, 200.0));
+        assert_eq!((s.x, s.y), (100.0, 200.0));
+    }
+
+    #[test]
+    fn screen_world_roundtrip() {
+        let c = cam_at(150.0, 75.0, 2.5);
+        let original = Vec2::new(300.0, 400.0);
+        let screen = c.world_to_screen(original);
+        let back = c.screen_to_world(screen);
+        assert!((back.x - original.x).abs() < 1e-4);
+        assert!((back.y - original.y).abs() < 1e-4);
+    }
+
+    #[test]
+    fn world_to_screen_with_offset_and_zoom() {
+        // world_x=100, zoom=2: screen_x = (world.x - 100) * 2
+        let c = cam_at(100.0, 0.0, 2.0);
+        let s = c.world_to_screen(Vec2::new(150.0, 0.0));
+        assert_eq!(s.x, 100.0); // (150-100)*2 = 100
+    }
+
+    #[test]
+    fn handle_wheel_zoom_in_clamped() {
+        let mut c = Camera { min_zoom: 0.1, max_zoom: 5.0, zoom: 0.15, ..Default::default() };
+        // delta_y < 0 zooms in (×1.1) → from 0.15 to 0.165, well within bounds
+        c.handle_wheel(0.0, 0.0, -1.0);
+        assert!(c.zoom > 0.15 && c.zoom <= 5.0);
+    }
+
+    #[test]
+    fn handle_wheel_zoom_out_clamped_at_min() {
+        let mut c = Camera { min_zoom: 0.1, max_zoom: 5.0, zoom: 0.1, ..Default::default() };
+        // delta_y > 0 zooms out (×0.9) — already at min, should stay at min_zoom
+        c.handle_wheel(0.0, 0.0, 1.0);
+        assert!((c.zoom - 0.1).abs() < 1e-6);
+    }
+
+    #[test]
+    fn handle_wheel_anchors_world_point() {
+        // The world point under the cursor must remain at same screen position after zoom
+        let mut c = cam_at(0.0, 0.0, 1.0);
+        let sx = 200.0_f32;
+        let sy = 150.0_f32;
+        let world_before = c.screen_to_world(Vec2::new(sx, sy));
+        c.handle_wheel(sx, sy, -1.0); // zoom in
+        let world_after = c.screen_to_world(Vec2::new(sx, sy));
+        assert!((world_before.x - world_after.x).abs() < 0.01);
+        assert!((world_before.y - world_after.y).abs() < 0.01);
+    }
+
+    #[test]
+    fn set_camera_clamps_zoom_to_max() {
+        let mut c = Camera::default(); // max_zoom=5.0
+        c.set_camera(0.0, 0.0, 99.0);
+        assert_eq!(c.zoom, 5.0);
+    }
+
+    #[test]
+    fn set_camera_clamps_zoom_to_min() {
+        let mut c = Camera::default(); // min_zoom=0.1
+        c.set_camera(0.0, 0.0, 0.0);
+        assert_eq!(c.zoom, 0.1);
+    }
+
+    #[test]
+    fn pan_moves_world_origin() {
+        let mut c = cam_at(0.0, 0.0, 1.0);
+        c.pan(50.0, -25.0);
+        assert_eq!((c.world_x, c.world_y), (50.0, -25.0));
+    }
+
+    #[test]
+    fn pan_by_screen_delta_accounts_for_zoom() {
+        let mut c = cam_at(0.0, 0.0, 2.0);
+        c.pan_by_screen_delta(Vec2::new(100.0, 50.0));
+        // 100 screen pixels / zoom=2 = 50 world units
+        assert!((c.world_x - 50.0).abs() < 1e-6);
+        assert!((c.world_y - 25.0).abs() < 1e-6);
+    }
+}

@@ -100,7 +100,7 @@ describe('useLayerManager', () => {
         delete (window as any).gameAPI;
       }
 
-      const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+      const _consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
       const { result } = renderHook(() => useLayerManager());
 
       // Should remain uninitialized after timeout

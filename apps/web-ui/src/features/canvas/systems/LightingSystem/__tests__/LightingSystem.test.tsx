@@ -1,16 +1,16 @@
 // Mock the useRenderEngine hook BEFORE any imports
 import { vi } from 'vitest';
 const mockEngine = {
-  add_light: vi.fn((id: string, x: number, y: number) => true),
-  remove_light: vi.fn((id: string) => true),
-  set_light_color: vi.fn((id: string, r: number, g: number, b: number, a?: number) => true),
-  set_light_intensity: vi.fn((id: string, intensity: number) => true),
-  set_light_radius: vi.fn((id: string, radius: number) => true),
-  set_light_enabled: vi.fn((id: string, enabled: boolean) => true),
-  set_ambient_light: vi.fn((intensity: number) => true),
+  add_light: vi.fn((_id: string, _x: number, _y: number) => true),
+  remove_light: vi.fn((_id: string) => true),
+  set_light_color: vi.fn((_id: string, _r: number, _g: number, _b: number, _a?: number) => true),
+  set_light_intensity: vi.fn((_id: string, _intensity: number) => true),
+  set_light_radius: vi.fn((_id: string, _radius: number) => true),
+  set_light_enabled: vi.fn((_id: string, _enabled: boolean) => true),
+  set_ambient_light: vi.fn((_intensity: number) => true),
   update_lighting_obstacles: vi.fn(() => true),
   get_light_count: vi.fn(() => 0),
-  toggle_light: vi.fn((id: string) => true),
+  toggle_light: vi.fn((_id: string) => true),
 };
 vi.mock('../hooks/useRenderEngine', () => ({
   useRenderEngine: () => mockEngine
@@ -200,7 +200,7 @@ describe('Lighting System', () => {
 
   describe('Test Scenario 4: Ambient Light Control', () => {
     it('should update ambient light when slider moved', async () => {
-      const user = userEvent.setup();
+      const _user = userEvent.setup();
 
       
       render(<LightingPanel />);
@@ -433,7 +433,7 @@ describe('Lighting System', () => {
     });
 
     it('should display multiple lights in list', async () => {
-      const user = userEvent.setup();
+      const _user = userEvent.setup();
       // Pre-populate store with two light sprites (normalized color)
       useGameStore.setState({
         sprites: [

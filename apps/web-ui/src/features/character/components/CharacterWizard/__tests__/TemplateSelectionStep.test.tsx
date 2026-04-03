@@ -432,7 +432,7 @@ describe('TemplateSelectionStep - Template Data Application', () => {
       });
       
       // Spy on setValue
-      const setValueSpy = vi.spyOn(methods, 'setValue');
+      const _setValueSpy = vi.spyOn(methods, 'setValue');
       
       return (
         <FormProvider {...methods}>

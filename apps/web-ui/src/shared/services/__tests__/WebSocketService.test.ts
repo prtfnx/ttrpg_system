@@ -198,7 +198,6 @@ describe('WebSocketService - Exponential Backoff Tests', () => {
         public onmessage: ((event: MessageEvent) => void) | null = null;
         
         constructor(public url: string, public protocols?: string | string[]) {
-          connectionAttempt++;
           // Immediately fail the connection
           setTimeout(() => {
             if (this.onerror) this.onerror(new Event('error'));

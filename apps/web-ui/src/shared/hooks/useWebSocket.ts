@@ -1,6 +1,7 @@
 import { useGameStore } from '@/store';
 import type { Sprite, WebSocketMessage } from '@/types';
 import { useOptionalProtocol } from '@lib/api';
+import type { Message } from '@lib/websocket';
 import { useCallback, useEffect, useRef } from 'react';
 
 export function useWebSocket(url: string) {
@@ -29,7 +30,7 @@ export function useWebSocket(url: string) {
 
   const sendMessage = useCallback((message: WebSocketMessage) => {
     if (protocol && protocol.isConnected && protocol.isConnected()) {
-      protocol.sendMessage(message);
+      protocol.sendMessage(message as unknown as Message);
     } else if (wsRef.current?.readyState === WebSocket.OPEN) {
       wsRef.current.send(JSON.stringify(message));
     } else {
@@ -42,7 +43,7 @@ export function useWebSocket(url: string) {
     while (messageQueueRef.current.length > 0) {
       const message = messageQueueRef.current.shift()!;
       if (protocol && protocol.isConnected && protocol.isConnected()) {
-        protocol.sendMessage(message);
+        protocol.sendMessage(message as unknown as Message);
       } else if (wsRef.current?.readyState === WebSocket.OPEN) {
         wsRef.current.send(JSON.stringify(message));
       } else {

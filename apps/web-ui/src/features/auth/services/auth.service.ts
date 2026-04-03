@@ -132,7 +132,7 @@ class AuthService {
       } else {
         return null;
       }
-    } catch (error) {
+    } catch (_error) {
       return null;
     }
     const urlToken = this.extractTokenFromURL();
@@ -190,7 +190,7 @@ class AuthService {
         };
         return this.userInfo;
       }
-    } catch (error) {
+    } catch (_error) {
       return null;
     }
     return null;

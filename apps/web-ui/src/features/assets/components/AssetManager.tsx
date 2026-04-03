@@ -148,7 +148,7 @@ export const AssetManager: React.FC<AssetManagerProps> = ({ isVisible, onClose, 
           console.error(`Failed to upload ${fileInfo?.file.name}`);
         }
       });
-    } catch (error) {
+    } catch (_error) {
       batch.forEach(fileId => {
         const fileInfo = uploadFiles.get(fileId);
         setUploadFiles(prev => new Map(prev.set(fileId, {

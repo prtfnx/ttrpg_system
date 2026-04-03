@@ -38,7 +38,7 @@ describe('LoadingSpinner Component', () => {
     try {
       const module = await import('@shared/components/LoadingSpinner');
       LoadingSpinner = (module as any).default || (module as any).LoadingSpinner || (() => <div role="status" aria-label="Loading...">Loading...</div>);
-    } catch (e) {
+    } catch (_e) {
       LoadingSpinner = () => <div role="status" aria-label="Loading...">Loading...</div>;
     }
   });
@@ -74,7 +74,7 @@ describe('Modal Component', () => {
             {children}
           </div>
         ) : null);
-    } catch (e) {
+    } catch (_e) {
       Modal = ({ isOpen, children, onClose, title }: any) => 
         isOpen ? (
           <div role="dialog" aria-modal="true" aria-labelledby="modal-title">

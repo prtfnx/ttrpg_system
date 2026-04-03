@@ -340,7 +340,7 @@ export function useCharacterPanel() {
             registerPendingOperation(character.id, 'create');
             const saveBlob = { character_id: character.id, ...(character.data as any) };
             protocol.saveCharacter(saveBlob, currentUserId);
-          } catch (error) {
+          } catch (_error) {
             confirmPendingOperation(character.id);
             showToast.warning(`Character "${character.name}" imported locally only.`);
           }
@@ -367,7 +367,7 @@ export function useCharacterPanel() {
         registerPendingOperation(clonedChar.id, 'create');
         const saveBlob = { character_id: clonedChar.id, ...(clonedChar.data as any) };
         protocol.saveCharacter(saveBlob, currentUserId);
-      } catch (error) {
+      } catch (_error) {
         confirmPendingOperation(clonedChar.id);
         showToast.warning(`Cloned character saved locally only.`);
       }
@@ -425,7 +425,7 @@ export function useCharacterPanel() {
           protocol.deleteCharacter(charId);
         }
         successCount++;
-      } catch (error) {
+      } catch (_error) {
         addCharacter(char);
         errorCount++;
       }

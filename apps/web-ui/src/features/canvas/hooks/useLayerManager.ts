@@ -112,7 +112,7 @@ export const useLayerManager = () => {
           if (typeof settings === 'string') {
             try {
               parsedSettings = JSON.parse(settings);
-            } catch (parseError) {
+            } catch (_parseError) {
               console.warn(`Failed to parse settings for layer ${config.name}:`, settings);
               parsedSettings = null;
             }

@@ -182,7 +182,7 @@ class PaintTemplateService {
           } else {
             errors.push(`Invalid template: ${template.name || 'Unknown'}`);
           }
-        } catch (error) {
+        } catch (_error) {
           errors.push(`Failed to import template: ${template.name || 'Unknown'}`);
         }
       }

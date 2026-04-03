@@ -213,7 +213,7 @@ export function importCharacterFromJSON(
   
   try {
     data = JSON.parse(fileContent);
-  } catch (error) {
+  } catch (_error) {
     throw new Error('Invalid JSON file. Please select a valid character export file.');
   }
 
@@ -267,7 +267,7 @@ export function importMultipleCharactersFromJSON(
   
   try {
     data = JSON.parse(fileContent);
-  } catch (error) {
+  } catch (_error) {
     throw new Error('Invalid JSON file. Please select a valid character export file.');
   }
 
@@ -345,7 +345,7 @@ export function pickAndImportCharacter(
       try {
         result = importCharacterFromJSON(content, currentUserId, currentSessionId);
         onImport(result);
-      } catch (singleError) {
+      } catch (_singleError) {
         // Try multiple characters
         const multiResult = importMultipleCharactersFromJSON(content, currentUserId, currentSessionId);
         

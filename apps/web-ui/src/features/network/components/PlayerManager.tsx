@@ -47,7 +47,7 @@ export const PlayerManager: React.FC<PlayerManagerProps> = ({ sessionCode, userI
     setError(null);
     try {
       await protocol?.sendMessage(createMessage(MessageType.PLAYER_KICK_REQUEST, { id }, 1));
-    } catch (err) {
+    } catch (_err) {
       setError("Failed to kick player");
     } finally {
       setLoading(false);
@@ -59,7 +59,7 @@ export const PlayerManager: React.FC<PlayerManagerProps> = ({ sessionCode, userI
     setError(null);
     try {
       await protocol?.sendMessage(createMessage(MessageType.PLAYER_BAN_REQUEST, { id }, 1));
-    } catch (err) {
+    } catch (_err) {
       setError("Failed to ban player");
     } finally {
       setLoading(false);

@@ -47,7 +47,7 @@ export const SpellsTab: React.FC<Props> = ({ data, onSave }) => {
     return groups;
   }, [spells.knownSpells, compendiumSpells]);
 
-  function useSlot(slotLevel: number) {
+  function consumeSlot(slotLevel: number) {
     const max = (slots as any)[slotLevel] ?? 0;
     const used = slotsUsed[slotLevel] ?? 0;
     if (used >= max) return;
@@ -93,7 +93,7 @@ export const SpellsTab: React.FC<Props> = ({ data, onSave }) => {
                         key={i}
                         type="button"
                         className={clsx(styles.slotPip, i < remaining ? styles.pipAvailable : styles.pipUsed)}
-                        onClick={() => i < remaining ? useSlot(slotLevel) : recoverSlot(slotLevel)}
+                        onClick={() => i < remaining ? consumeSlot(slotLevel) : recoverSlot(slotLevel)}
                         title={i < remaining ? 'Click to use slot' : 'Click to recover slot'}
                       />
                     ))}
@@ -199,7 +199,7 @@ export const SpellsTab: React.FC<Props> = ({ data, onSave }) => {
                                 type="button"
                                 className={clsx(styles.castBtn, !canCast && styles.castBtnDisabled)}
                                 disabled={!canCast}
-                                onClick={() => { if (canCast) useSlot(lvl); }}
+                                onClick={() => { if (canCast) consumeSlot(lvl); }}
                               >
                                 {canCast ? 'Cast (use slot)' : 'No slots remaining'}
                               </button>

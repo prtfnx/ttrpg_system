@@ -166,7 +166,7 @@ export function LayerPanel({ className, style, id, initialLayers, ...otherProps 
           try {
             const count = renderManager.get_layer_sprite_count(layer.id);
             return { ...layer, spriteCount: count };
-          } catch (error) {
+          } catch (_error) {
             return layer;
           }
         })

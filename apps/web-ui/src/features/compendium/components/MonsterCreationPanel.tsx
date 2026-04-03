@@ -8,11 +8,11 @@ import '@shared/styles/MonsterCreationPanel.css';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import {
-  monsterCreationSystem,
-  type MonsterInstance,
-  type MonsterSearchFilters,
-  type MonsterStats,
-  type MonsterTemplate
+    monsterCreationSystem,
+    type MonsterInstance,
+    type MonsterSearchFilters,
+    type MonsterStats,
+    type MonsterTemplate
 } from '../services/monsterCreation.service';
 
 interface MonsterCreationPanelProps {
@@ -132,11 +132,12 @@ export const MonsterCreationPanel: React.FC<MonsterCreationPanelProps> = ({
           case 'name':
             comparison = a.name.localeCompare(b.name);
             break;
-          case 'cr':
+          case 'cr': {
             const crA = parseChallengeRating(a.challengeRating);
             const crB = parseChallengeRating(b.challengeRating);
             comparison = crA - crB;
             break;
+          }
           case 'type':
             comparison = a.type.localeCompare(b.type);
             break;

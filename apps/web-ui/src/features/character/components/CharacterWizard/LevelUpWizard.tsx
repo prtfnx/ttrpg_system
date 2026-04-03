@@ -28,6 +28,66 @@ interface LevelUpChoices {
 }
 
 export function LevelUpWizard({ character, onComplete, onCancel }: LevelUpWizardProps) {
+  const [currentStep, setCurrentStep] = useState<LevelUpStep>('class-choice');
+  const [levelProgression, setLevelProgression] = useState<LevelProgression | null>(null);
+  const [multiclassOptions, setMulticlassOptions] = useState<MulticlassRequirements[]>([]);
+  const [choices, setChoices] = useState<LevelUpChoices>(() => ({
+    class: character?.classLevels?.[0]?.class || character?.class || '',
+    hitPointMethod: 'average',
+    hitPointIncrease: 0,
+    asiOrFeat: 'asi',
+    featureChoices: {},
+    newSpells: [],
+    newCantrips: []
+  }));
+
+  const nextLevel = (character?.totalLevel ?? 0) + 1;
+  const currentXP = character?.experiencePoints?.current ?? 0;
+  const requiredXP = AdvancementSystemService.calculateXPForLevel(nextLevel);
+  const canLevelUp = currentXP >= requiredXP;
+
+  useEffect(() => {
+    if (!character || !canLevelUp) return;
+    
+    const abilities = {
+      strength: character.strength,
+      dexterity: character.dexterity,
+      constitution: character.constitution,
+      intelligence: character.intelligence,
+      wisdom: character.wisdom,
+      charisma: character.charisma
+    };
+    
+    const allClasses = ['Fighter', 'Wizard', 'Rogue', 'Cleric', 'Barbarian', 'Bard', 'Druid', 'Monk', 'Paladin', 'Ranger', 'Sorcerer', 'Warlock'];
+    const multiclassChecks = allClasses
+      .filter(cls => !character.classLevels.some(cl => cl.class.toLowerCase() === cls.toLowerCase()))
+      .map(cls => AdvancementSystemService.checkMulticlassRequirements(cls, abilities));
+    
+    setMulticlassOptions(multiclassChecks);
+  }, [character, canLevelUp]);
+  
+  useEffect(() => {
+    if (!character || !choices.class) return;
+    const classLevels = character.classLevels.find(cl => cl.class.toLowerCase() === choices.class.toLowerCase());
+    const classLevel = (classLevels?.level || 0) + 1;
+    
+    const progression: LevelProgression = {
+      level: nextLevel,
+      totalXP: AdvancementSystemService.calculateXPForLevel(nextLevel),
+      proficiencyBonus: AdvancementSystemService.getProficiencyBonus(nextLevel),
+      newFeatures: AdvancementSystemService.getClassFeaturesForLevel(choices.class, classLevel),
+      newSpells: AdvancementSystemService.getSpellProgression(choices.class, classLevel) || undefined,
+      hitPointIncrease: AdvancementSystemService.calculateHitPointIncrease(
+        choices.class, 
+        Math.floor((character.constitution - 10) / 2)
+      ),
+      asiOrFeatAvailable: AdvancementSystemService.isASILevel(choices.class, classLevel)
+    };
+    
+    setLevelProgression(progression);
+    setChoices(prev => ({ ...prev, hitPointIncrease: progression.hitPointIncrease }));
+  }, [choices.class, character, nextLevel]);
+
   if (!character) {
     return (
       <div className="level-up-wizard">
@@ -55,68 +115,6 @@ export function LevelUpWizard({ character, onComplete, onCancel }: LevelUpWizard
       </div>
     );
   }
-  
-  const [currentStep, setCurrentStep] = useState<LevelUpStep>('class-choice');
-  const [levelProgression, setLevelProgression] = useState<LevelProgression | null>(null);
-  const [multiclassOptions, setMulticlassOptions] = useState<MulticlassRequirements[]>([]);
-  const [choices, setChoices] = useState<LevelUpChoices>({
-    class: character.classLevels[0]?.class || character.class,
-    hitPointMethod: 'average',
-    hitPointIncrease: 0,
-    asiOrFeat: 'asi',
-    featureChoices: {},
-    newSpells: [],
-    newCantrips: []
-  });
-  
-  const nextLevel = character.totalLevel + 1;
-  const currentXP = character.experiencePoints.current;
-  const requiredXP = AdvancementSystemService.calculateXPForLevel(nextLevel);
-  const canLevelUp = currentXP >= requiredXP;
-  
-  useEffect(() => {
-    if (!canLevelUp) return;
-    
-    // Check multiclass options
-    const abilities = {
-      strength: character.strength,
-      dexterity: character.dexterity,
-      constitution: character.constitution,
-      intelligence: character.intelligence,
-      wisdom: character.wisdom,
-      charisma: character.charisma
-    };
-    
-    const allClasses = ['Fighter', 'Wizard', 'Rogue', 'Cleric', 'Barbarian', 'Bard', 'Druid', 'Monk', 'Paladin', 'Ranger', 'Sorcerer', 'Warlock'];
-    const multiclassChecks = allClasses
-      .filter(cls => !character.classLevels.some(cl => cl.class.toLowerCase() === cls.toLowerCase()))
-      .map(cls => AdvancementSystemService.checkMulticlassRequirements(cls, abilities));
-    
-    setMulticlassOptions(multiclassChecks);
-  }, [character, canLevelUp]);
-  
-  useEffect(() => {
-    if (choices.class) {
-      const classLevels = character.classLevels.find(cl => cl.class.toLowerCase() === choices.class.toLowerCase());
-      const classLevel = (classLevels?.level || 0) + 1;
-      
-      const progression: LevelProgression = {
-        level: nextLevel,
-        totalXP: AdvancementSystemService.calculateXPForLevel(nextLevel),
-        proficiencyBonus: AdvancementSystemService.getProficiencyBonus(nextLevel),
-        newFeatures: AdvancementSystemService.getClassFeaturesForLevel(choices.class, classLevel),
-        newSpells: AdvancementSystemService.getSpellProgression(choices.class, classLevel) || undefined,
-        hitPointIncrease: AdvancementSystemService.calculateHitPointIncrease(
-          choices.class, 
-          Math.floor((character.constitution - 10) / 2)
-        ),
-        asiOrFeatAvailable: AdvancementSystemService.isASILevel(choices.class, classLevel)
-      };
-      
-      setLevelProgression(progression);
-      setChoices(prev => ({ ...prev, hitPointIncrease: progression.hitPointIncrease }));
-    }
-  }, [choices.class, character, nextLevel]);
   
   if (!canLevelUp) {
     return (

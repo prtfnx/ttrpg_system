@@ -1,4 +1,4 @@
-/**
+﻿/**
  * WASM Integration Service - bridges protocol messages with WASM RenderEngine
  * Handles sprite synchronization, table updates, and asset management
  */
@@ -105,7 +105,11 @@ class WasmIntegrationService {
           this.clearOptimisticTimer(data.client_temp_id);
           if (this.renderEngine) {
             console.log('Removing optimistic sprite (confirmed):', data.client_temp_id);
-            try { this.renderEngine.remove_sprite(data.client_temp_id); } catch(e) { /* best-effort */ }
+            try { this.renderEngine.remove_sprite(data.client_temp_id); }  param($m)
+        $body = $m.Groups[1].Value
+        if ($body -match '\be\b') { return $m.Value }
+        return 'catch(_e) {' + $body + '}'
+    
           }
         }
       } catch (e) {
@@ -124,7 +128,11 @@ class WasmIntegrationService {
         if (data && data.client_temp_id) {
           this.clearOptimisticTimer(data.client_temp_id);
           if (this.renderEngine) {
-            try { this.renderEngine.remove_sprite(data.client_temp_id); } catch(e) { /* best-effort */ }
+            try { this.renderEngine.remove_sprite(data.client_temp_id); }  param($m)
+        $body = $m.Groups[1].Value
+        if ($body -match '\be\b') { return $m.Value }
+        return 'catch(_e) {' + $body + '}'
+    
           }
         }
       } catch (e) {
@@ -269,7 +277,11 @@ class WasmIntegrationService {
           console.warn('Protocol error for optimistic insert, removing:', data.client_temp_id, data);
           this.clearOptimisticTimer(data.client_temp_id);
           if (this.renderEngine) {
-            try { this.renderEngine.remove_sprite(data.client_temp_id); } catch(e) { /* best-effort */ }
+            try { this.renderEngine.remove_sprite(data.client_temp_id); }  param($m)
+        $body = $m.Groups[1].Value
+        if ($body -match '\be\b') { return $m.Value }
+        return 'catch(_e) {' + $body + '}'
+    
           }
         }
       } catch (e) {
@@ -552,13 +564,21 @@ class WasmIntegrationService {
       const tempId = data.client_temp_id;
       if (tempId) {
         this.clearOptimisticTimer(tempId);
-        try { this.renderEngine.remove_sprite(tempId); } catch(e) { /* ok */ }
+        try { this.renderEngine.remove_sprite(tempId); }  param($m)
+        $body = $m.Groups[1].Value
+        if ($body -match '\be\b') { return $m.Value }
+        return 'catch(_e) {' + $body + '}'
+    
       }
       // Also remove by confirmed sprite_id in case it was already added
       const confirmedId = data.sprite_data?.sprite_id;
       if (confirmedId && confirmedId !== tempId) {
         this.clearOptimisticTimer(confirmedId);
-        try { this.renderEngine.remove_sprite(confirmedId); } catch(e) { /* ok if not found */ }
+        try { this.renderEngine.remove_sprite(confirmedId); }  param($m)
+        $body = $m.Groups[1].Value
+        if ($body -match '\be\b') { return $m.Value }
+        return 'catch(_e) {' + $body + '}'
+    
       }
       try {
         this.addSpriteToWasm(data.sprite_data);
@@ -1543,7 +1563,11 @@ class WasmIntegrationService {
         try {
           console.warn('Optimistic insert timed out, removing sprite:', tempId);
           if (this.renderEngine) {
-            try { this.renderEngine.remove_sprite(tempId); } catch(e) { /* best-effort */ }
+            try { this.renderEngine.remove_sprite(tempId); }  param($m)
+        $body = $m.Groups[1].Value
+        if ($body -match '\be\b') { return $m.Value }
+        return 'catch(_e) {' + $body + '}'
+    
           }
         } catch (e) {
           console.error('Error during optimistic timeout cleanup for', tempId, e);

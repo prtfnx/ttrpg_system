@@ -1,15 +1,9 @@
-import { useProtocol } from '@lib/api';
+import { useOptionalProtocol } from '@lib/api';
 import React, { useEffect } from 'react';
 import { useChatStore } from '../chatStore';
 
 export function useChatWebSocket(url: string, user: string) {
-  // Try to use centralized protocol if available
-  let protocol = null;
-  try {
-    protocol = useProtocol().protocol;
-  } catch (e) {
-    // Not inside ProtocolProvider, fall back to local websocket
-  }
+  const protocol = useOptionalProtocol()?.protocol ?? null;
 
   const wsRef = React.useRef<WebSocket | null>(null);
 

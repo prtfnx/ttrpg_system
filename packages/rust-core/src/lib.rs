@@ -89,9 +89,16 @@ macro_rules! log_info {
 /// log_error!("Critical shader compilation error: {}", shader_log);
 /// log_error!("WebSocket connection failed: {:?}", error);
 /// ```
+#[cfg(target_arch = "wasm32")]
 macro_rules! log_error {
     ($($arg:tt)*) => {
         web_sys::console::error_1(&format!("[ERROR] {}", format_args!($($arg)*)).into());
+    };
+}
+#[cfg(not(target_arch = "wasm32"))]
+macro_rules! log_error {
+    ($($arg:tt)*) => {
+        eprintln!("[ERROR] {}", format_args!($($arg)*));
     };
 }
 
@@ -129,7 +136,9 @@ pub mod unit_converter;
 
 pub use render::RenderEngine;
 pub use types::*;
-pub use lighting::{Light, LightingSystem, LightType};
+#[cfg(target_arch = "wasm32")]
+pub use lighting::LightingSystem;
+pub use lighting::{Light, LightType};
 pub use network::NetworkClient;
 pub use actions::ActionsClient;
 pub use paint::{PaintSystem, BrushPreset, create_default_brush_presets};

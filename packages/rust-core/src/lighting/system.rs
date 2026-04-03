@@ -1,10 +1,13 @@
 use wasm_bindgen::prelude::*;
+#[cfg(target_arch = "wasm32")]
 use web_sys::{WebGl2RenderingContext as WebGlRenderingContext, WebGlProgram, WebGlShader, WebGlBuffer};
 use std::collections::HashMap;
+#[cfg(target_arch = "wasm32")]
 use std::cell::RefCell;
 use serde::{Serialize, Deserialize};
 use crate::math::Vec2;
 use crate::types::Color;
+#[cfg(target_arch = "wasm32")]
 use super::visibility::{VisibilityCalculator, Point};
 
 /// Light types supported by the system
@@ -91,6 +94,7 @@ impl Light {
 }
 
 /// Lighting system with shadow casting using hybrid CPU/GPU approach
+#[cfg(target_arch = "wasm32")]
 pub struct LightingSystem {
     gl: WebGlRenderingContext,
     light_shader: Option<WebGlProgram>,
@@ -101,6 +105,7 @@ pub struct LightingSystem {
     vertex_buffer: Option<WebGlBuffer>,
 }
 
+#[cfg(target_arch = "wasm32")]
 impl LightingSystem {
     pub fn new(gl: WebGlRenderingContext) -> Result<Self, JsValue> {
         // Verify stencil buffer is available

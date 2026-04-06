@@ -2,10 +2,14 @@ import { useGameStore } from '@/store';
 import type { UserInfo } from '@features/auth';
 import { GameClient } from '@features/canvas';
 import { WindowManagerProvider } from '@shared/components/FloatingWindow';
-import { act, render, screen, waitFor } from '@testing-library/react';
+import { act, render, screen, waitFor, within } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 // Mock child components to test GameClient in isolation
+vi.mock('@features/chat', () => ({
+  ChatOverlay: () => null,
+}));
+
 vi.mock('@features/canvas/components/TokenConfigModal', () => ({
   TokenConfigModal: ({ spriteId, onClose }: any) => (
     <div data-testid="token-config-modal">
@@ -77,6 +81,11 @@ function renderGameClient(props: Partial<React.ComponentProps<typeof GameClient>
 
 describe('GameClient - Double-Click Detection Tests', () => {
   beforeEach(() => {
+    // Provide portal root required by FloatingWindow
+    const windowRoot = document.createElement('div');
+    windowRoot.id = 'window-root';
+    document.body.appendChild(windowRoot);
+
     // Reset store
     useGameStore.setState({
       sprites: [createTestSprite()],
@@ -88,6 +97,9 @@ describe('GameClient - Double-Click Detection Tests', () => {
   });
 
   afterEach(() => {
+    // Remove portal root
+    document.getElementById('window-root')?.remove();
+
     // Clean up any remaining event listeners
     const events = ['tokenDoubleClick'];
     events.forEach(eventName => {
@@ -123,8 +135,7 @@ describe('GameClient - Double-Click Detection Tests', () => {
 
       // Wait for modal to appear
       await waitFor(() => {
-        const modal = screen.queryByText(/token configuration/i);
-        expect(modal).toBeDefined();
+        expect(screen.queryByTestId('token-config-modal')).toBeInTheDocument();
       });
     });
 
@@ -167,7 +178,7 @@ describe('GameClient - Double-Click Detection Tests', () => {
       act(() => { window.dispatchEvent(event1); });
 
       await waitFor(() => {
-        expect(screen.queryByText(/token configuration/i)).toBeDefined();
+        expect(screen.queryAllByTestId('token-config-modal').length).toBeGreaterThan(0);
       });
 
       // Close modal by dispatching a different sprite double-click
@@ -176,9 +187,9 @@ describe('GameClient - Double-Click Detection Tests', () => {
       });
       act(() => { window.dispatchEvent(event2); });
 
-      // Modal should still be open but for different sprite
+      // Modal should still be open (multiple can be open at once with WindowManager)
       await waitFor(() => {
-        expect(screen.queryByText(/token configuration/i)).toBeDefined();
+        expect(screen.queryAllByTestId('token-config-modal').length).toBeGreaterThan(0);
       });
     });
 
@@ -243,7 +254,7 @@ describe('GameClient - Double-Click Detection Tests', () => {
       act(() => { window.dispatchEvent(event); });
 
       await waitFor(() => {
-        expect(screen.getByText(/token configuration/i)).toBeInTheDocument();
+        expect(screen.getByTestId('token-config-modal')).toBeInTheDocument();
       });
     });
 
@@ -257,15 +268,16 @@ describe('GameClient - Double-Click Detection Tests', () => {
       act(() => { window.dispatchEvent(event); });
 
       await waitFor(() => {
-        expect(screen.getByText(/token configuration/i)).toBeInTheDocument();
+        expect(screen.getByTestId('token-config-modal')).toBeInTheDocument();
       });
 
-      // Close modal using close button
-      const closeButton = screen.getByRole('button', { name: /close/i });
+      // Close modal using the mock's close button via within() to avoid ambiguity with FloatingWindow's close
+      const modal = screen.getByTestId('token-config-modal');
+      const closeButton = within(modal).getByRole('button', { name: /close/i });
       closeButton.click();
 
       await waitFor(() => {
-        expect(screen.queryByText(/token configuration/i)).not.toBeInTheDocument();
+        expect(screen.queryByTestId('token-config-modal')).not.toBeInTheDocument();
       });
     });
 
@@ -282,11 +294,11 @@ describe('GameClient - Double-Click Detection Tests', () => {
 
       // Modal should be open
       await waitFor(() => {
-        expect(screen.getByText(/token configuration/i)).toBeInTheDocument();
+        expect(screen.getByTestId('token-config-modal')).toBeInTheDocument();
       });
 
       // Should not have multiple modals or errors
-      const modals = screen.getAllByText(/token configuration/i);
+      const modals = screen.getAllByTestId('token-config-modal');
       expect(modals.length).toBe(1);
     });
   });
@@ -321,7 +333,7 @@ describe('GameClient - Double-Click Detection Tests', () => {
       act(() => { window.dispatchEvent(event); });
 
       await waitFor(() => {
-        expect(screen.queryByText(/token configuration/i)).toBeDefined();
+        expect(screen.queryByTestId('token-config-modal')).toBeInTheDocument();
       });
     });
 
@@ -330,13 +342,17 @@ describe('GameClient - Double-Click Detection Tests', () => {
 
       const removeSpy = vi.spyOn(window, 'removeEventListener');
 
-      // Force re-render with same props
-      rerender(<GameClient 
-        sessionCode="TEST-SESSION"
-        userInfo={createTestUserInfo()}
-        userRole="player"
-        onAuthError={vi.fn()}
-      />);
+      // Force re-render with same props — must keep WindowManagerProvider wrapper
+      rerender(
+        <WindowManagerProvider>
+          <GameClient
+            sessionCode="TEST-SESSION"
+            userInfo={createTestUserInfo()}
+            userRole="player"
+            onAuthError={vi.fn()}
+          />
+        </WindowManagerProvider>
+      );
 
       // tokenDoubleClick listener should NOT be removed on re-render (effect has [] deps)
       const tokenDoubleClickRemoved = removeSpy.mock.calls.some(
@@ -348,3 +364,4 @@ describe('GameClient - Double-Click Detection Tests', () => {
     });
   });
 });
+

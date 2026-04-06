@@ -200,13 +200,16 @@ export function GameClient({ sessionCode, userInfo, userRole, onAuthError }: Gam
   });
 
 const windowManager = useWindowManager();
+  const windowManagerRef = React.useRef(windowManager);
+  windowManagerRef.current = windowManager;
 
   // Listen for double-click events from Rust WASM
   useEffect(() => {
     const handleTokenDoubleClick = (event: Event) => {
       const spriteId = (event as CustomEvent).detail?.spriteId;
       if (!spriteId) return;
-      windowManager.openWindow(
+      console.log('[GameClient] Token double-click on sprite:', spriteId);
+      windowManagerRef.current.openWindow(
         `token-config-${spriteId}`,
         TokenConfigModal,
         { spriteId, inline: true },
@@ -215,8 +218,7 @@ const windowManager = useWindowManager();
     };
     window.addEventListener('tokenDoubleClick', handleTokenDoubleClick);
     return () => window.removeEventListener('tokenDoubleClick', handleTokenDoubleClick);
-  }, [windowManager]);
-
+  }, []);
   // Handle drag to resize panels
   const dragRef = React.useRef<{ side: 'left'|'right', startX: number, startWidth: number }|null>(null);
 

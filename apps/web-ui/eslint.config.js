@@ -23,25 +23,21 @@ export default tseslint.config([
       // Pervasive at system/protocol boundaries — fix progressively
       '@typescript-eslint/no-explicit-any': 'warn',
       // Allow unused vars with _ prefix (intentional placeholders)
-      '@typescript-eslint/no-unused-vars': ['warn', {
+      '@typescript-eslint/no-unused-vars': ['error', {
         argsIgnorePattern: '^_',
         varsIgnorePattern: '^_',
         caughtErrorsIgnorePattern: '^_',
       }],
-      // Empty blocks common in event handlers and catch-alls
-      'no-empty': ['warn', { allowEmptyCatch: true }],
-      // Switch case declarations are pre-existing pattern
-      'no-case-declarations': 'warn',
-      // Legacy type aliases — warn until replaced
-      '@typescript-eslint/no-unsafe-function-type': 'warn',
-      '@typescript-eslint/no-empty-object-type': 'warn',
-      // Pre-existing hooks violations in legacy code — tracked as tech debt
-      'react-hooks/rules-of-hooks': 'warn',
-      // Other pre-existing issues to address progressively
-      'no-useless-escape': 'warn',
-      '@typescript-eslint/no-this-alias': 'warn',
-      '@typescript-eslint/no-unused-expressions': 'warn',
-      'no-constant-binary-expression': 'warn',
+      // Upgraded to error — all instances fixed
+      'no-empty': ['error', { allowEmptyCatch: true }],
+      'no-case-declarations': 'error',
+      '@typescript-eslint/no-unsafe-function-type': 'error',
+      '@typescript-eslint/no-empty-object-type': 'error',
+      'react-hooks/rules-of-hooks': 'error',
+      'no-useless-escape': 'error',
+      '@typescript-eslint/no-this-alias': 'error',
+      '@typescript-eslint/no-unused-expressions': 'error',
+      'no-constant-binary-expression': 'error',
     },
   },
   // Test files: relax rules that conflict with mocking patterns

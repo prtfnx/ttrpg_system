@@ -55,7 +55,9 @@ export default defineConfig({
       '../wasm/ttrpg_rust_core': '/src/test/mocks/wasm.mock.ts',
       '../../wasm/ttrpg_rust_core': '/src/test/mocks/wasm.mock.ts',
       // Mock react-toastify to avoid missing dependency errors
-      'react-toastify': '/src/test/mocks/react-toastify.mock.ts'
+      'react-toastify': '/src/test/mocks/react-toastify.mock.ts',
+      // Mock react-rnd (uses browser drag APIs not available in jsdom)
+      'react-rnd': '/src/test/mocks/react-rnd.mock.ts'
     }
   }
 });

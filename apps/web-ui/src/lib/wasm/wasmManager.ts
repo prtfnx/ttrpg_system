@@ -1,24 +1,13 @@
 // Global WASM module manager - ensures single instance across the app
 export interface GlobalWasmModule {
   RenderEngine: any;
-  NetworkClient: any;
-  TableSync: any;
-  LightingSystem: any;
-  FogOfWarSystem: any;
   AssetManager: any;
-  LayerManager: any;
-  ActionsClient: any;
+  // PaintSystem / BrushPreset: internal — accessed via RenderEngine paint_* methods
   PaintSystem: any;
-  create_default_brush_presets: () => any; // Add the missing method
-  // Add other WASM exports as needed
+  create_default_brush_presets: () => any;
+  version?: () => string;
+  init_game_renderer?: (canvas: HTMLCanvasElement) => any;
   default: () => Promise<void>; // WASM init function
-}
-
-// Use declaration merging for Window interface
-declare global {
-  interface Window {
-    wasmInitialized: boolean;
-  }
 }
 
 // Global state for WASM management
@@ -56,13 +45,7 @@ class WasmManager {
     
     return {
       RenderEngine: mockEngine,
-      NetworkClient: {},
-      TableSync: {},
-      LightingSystem: mockEngine,
-      FogOfWarSystem: {},
       AssetManager: {},
-      LayerManager: {},
-      ActionsClient: {},
       PaintSystem: {},
       create_default_brush_presets: () => ({}),
       default: async () => Promise.resolve(),
@@ -126,15 +109,10 @@ class WasmManager {
       } catch (error) {
         console.log('[WASM Manager] DOM detection failed, trying hardcoded paths...', error);
         
-        // Strategy 2: Try common paths (most likely first)
+        // Strategy 2: Try production path
         const possiblePaths = [
-          // Server static path (most common in production)
+          // Server static path (production deploy path)
           '/static/ui/wasm/ttrpg_rust_core.js',
-          // Vite build assets (if assets are served differently)
-          '/assets/ttrpg_rust_core.js',
-          // Development paths
-          '../wasm/ttrpg_rust_core.js',
-          './wasm/ttrpg_rust_core.js',
         ];
 
         let loaded = false;
@@ -163,7 +141,7 @@ class WasmManager {
       }
 
       // Validate required exports
-      const requiredExports = ['RenderEngine', 'NetworkClient'];
+      const requiredExports = ['RenderEngine'];
       const missingExports = requiredExports.filter(exp => !wasmModule[exp]);
       
       if (missingExports.length > 0) {
@@ -171,7 +149,7 @@ class WasmManager {
       }
 
       // Optional exports (warn but don't fail)
-      const optionalExports = ['TableSync', 'AssetManager', 'LightingSystem', 'FogOfWarSystem', 'LayerManager'];
+      const optionalExports = ['AssetManager', 'PaintSystem'];
       const missingOptional = optionalExports.filter(exp => !wasmModule[exp]);
       
       if (missingOptional.length > 0) {
@@ -208,16 +186,6 @@ class WasmManager {
   async getRenderEngine(): Promise<any> {
     const wasm = await this.getWasmModule();
     return wasm.RenderEngine;
-  }
-
-  async getNetworkClient(): Promise<any> {
-    const wasm = await this.getWasmModule();
-    return wasm.NetworkClient;
-  }
-
-  async getTableSync(): Promise<any> {
-    const wasm = await this.getWasmModule();
-    return wasm.TableSync;
   }
 
   async getAssetManager(): Promise<any> {

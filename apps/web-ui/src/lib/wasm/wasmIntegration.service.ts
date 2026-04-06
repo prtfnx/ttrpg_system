@@ -777,11 +777,13 @@ class WasmIntegrationService {
 
   private hasCompleteData(data: any): boolean {
     // Check if we have enough data to recreate a complete sprite
+    // LEGACY COMPAT: position may be [x,y] array, x/y props, coord_x/coord_y (older DB), or world_x/world_y.
     const hasPosition = (data.position && Array.isArray(data.position) && data.position.length >= 2) ||
                        (data.x !== undefined && data.y !== undefined) ||
                        (data.coord_x !== undefined && data.coord_y !== undefined) ||
                        (data.world_x !== undefined && data.world_y !== undefined);
     
+    // LEGACY COMPAT: asset_xxhash is the old field name, asset_id is canonical.
     const hasAsset = data.asset_id || data.asset_xxhash || data.texture_id;
     const hasDimensions = (data.width && data.height) || (data.size_x && data.size_y);
     
@@ -1012,11 +1014,13 @@ class WasmIntegrationService {
       const layer = spriteData.layer || 'tokens';
       
       // Check if this is a light source.
-      // Accept both '__LIGHT__' (current) and 'LIGHT' (stored in older DB records).
+      // LEGACY COMPAT: Accept both '__LIGHT__' (current) and 'LIGHT' (stored in older DB records).
+      // Can be removed after DB migration to normalize all light entities to '__LIGHT__'.
       const isLight = (spriteData.texture_path === '__LIGHT__' || spriteData.texture_path === 'LIGHT')
         && spriteData.layer === 'light';
       
       // Check if this is a fog rectangle
+      // LEGACY COMPAT: __FOG_HIDE__ / __FOG_REVEAL__ are active sentinel values in DB; keep until migrated.
       const isFogHide = spriteData.texture_path === '__FOG_HIDE__';
       const isFogReveal = spriteData.texture_path === '__FOG_REVEAL__';
       
@@ -1178,14 +1182,15 @@ class WasmIntegrationService {
         y = spriteData.position[1];
         console.log(`Position from array: [${x}, ${y}]`);
       } else {
-        // Client format: coord_x/coord_y or x/y
+        // LEGACY COMPAT: coord_x/coord_y is older DB field naming, x/y is current canonical.
         x = spriteData.coord_x ?? spriteData.x ?? 0;
         y = spriteData.coord_y ?? spriteData.y ?? 0;
         console.log(`Position from properties: (${x}, ${y})`);
       }
       
       // Get asset ID for texture loading
-      // Priority: asset_id (new) > asset_xxhash (legacy) > texture_path (old fallback)
+      // LEGACY COMPAT: asset_xxhash is the old field name; asset_id is canonical.
+      // texture_path is the oldest fallback — keep until all clients/DB use asset_id.
       const assetId = spriteData.asset_id || spriteData.asset_xxhash || spriteData.texture_path || null;
       
       const wasmSprite = {
@@ -1201,7 +1206,8 @@ class WasmIntegrationService {
         texture_id: assetId || '',  // Use asset_id as texture_id so it matches loaded texture
         tint_color: spriteData.tint_color || [1.0, 1.0, 1.0, 1.0],
         table_id: spriteData.table_id || 'default_table',  // Use table_id from spriteData
-        // controlled_by must be an array; guard against JSON-string form from old server records
+        // LEGACY COMPAT: controlled_by may be an array, raw string, or JSON-encoded string
+        // depending on the data source (server, DB, or older clients).
         controlled_by: Array.isArray(spriteData.controlled_by)
           ? spriteData.controlled_by
           : (typeof spriteData.controlled_by === 'string'

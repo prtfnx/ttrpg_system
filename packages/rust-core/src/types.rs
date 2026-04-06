@@ -379,3 +379,80 @@ pub struct Wall {
 }
 
 fn default_true() -> bool { true }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::math::Vec2;
+
+    #[test]
+    fn sprite_new_defaults() {
+        let s = Sprite::new("s1".into(), 10.0, 20.0, 50.0, 50.0, "tokens".into());
+        assert_eq!(s.id, "s1");
+        assert_eq!(s.scale_x, 1.0);
+        assert_eq!(s.scale_y, 1.0);
+        assert_eq!(s.rotation, 0.0);
+        assert_eq!(s.tint_color, [1.0, 1.0, 1.0, 1.0]);
+        assert!(s.controlled_by.is_empty());
+    }
+
+    #[test]
+    fn sprite_world_bounds_no_scale() {
+        let s = Sprite::new("b".into(), 0.0, 0.0, 100.0, 100.0, "tokens".into());
+        let bounds = s.world_bounds();
+        // center = (50, 50), half = (50, 50)
+        assert!((bounds.min.x - 0.0).abs() < 0.01);
+        assert!((bounds.min.y - 0.0).abs() < 0.01);
+        assert!((bounds.max.x - 100.0).abs() < 0.01);
+        assert!((bounds.max.y - 100.0).abs() < 0.01);
+    }
+
+    #[test]
+    fn sprite_contains_center_point() {
+        let s = Sprite::new("c".into(), 0.0, 0.0, 100.0, 100.0, "tokens".into());
+        assert!(s.contains_world_point(Vec2::new(50.0, 50.0)));
+    }
+
+    #[test]
+    fn sprite_does_not_contain_outside_point() {
+        let s = Sprite::new("d".into(), 0.0, 0.0, 100.0, 100.0, "tokens".into());
+        assert!(!s.contains_world_point(Vec2::new(150.0, 50.0)));
+    }
+
+    #[test]
+    fn sprite_serde_roundtrip() {
+        let s = Sprite::new("rt".into(), 5.0, 10.0, 30.0, 40.0, "maps".into());
+        let json = serde_json::to_string(&s).unwrap();
+        let s2: Sprite = serde_json::from_str(&json).unwrap();
+        assert_eq!(s.id, s2.id);
+        assert_eq!(s.world_x, s2.world_x);
+        assert_eq!(s.width, s2.width);
+        assert_eq!(s.layer, s2.layer);
+    }
+
+    #[test]
+    fn layer_settings_defaults() {
+        let ls = LayerSettings::default();
+        assert_eq!(ls.opacity, 1.0);
+        assert!(ls.visible);
+        assert_eq!(ls.color, [1.0, 1.0, 1.0]);
+    }
+
+    #[test]
+    fn layer_set_opacity_clamps() {
+        let mut l = Layer::new(0);
+        l.set_opacity(2.5);
+        assert_eq!(l.opacity(), 1.0);
+        l.set_opacity(-1.0);
+        assert_eq!(l.opacity(), 0.0);
+    }
+
+    #[test]
+    fn color_white_black() {
+        let w = Color::white();
+        assert_eq!([w.r, w.g, w.b, w.a], [1.0, 1.0, 1.0, 1.0]);
+        let b = Color::black();
+        assert_eq!([b.r, b.g, b.b, b.a], [0.0, 0.0, 0.0, 1.0]);
+    }
+}
+

@@ -1,10 +1,10 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 // WASM is auto-mocked via vitest.config.ts
-// wasmManager mock for specific test behavior
-vi.mock('../utils/wasmManager', () => ({
+// wasmManager mock for specific test behavior — NetworkClient is absent to test error path
+vi.mock('@lib/wasm/wasmManager', () => ({
   wasmManager: {
-    // getNetworkClient resolves to an object WITHOUT set_message_handler
-    getNetworkClient: () => Promise.resolve({}),
+    // getWasmModule resolves to a module WITHOUT NetworkClient (error path)
+    getWasmModule: () => Promise.resolve({}),
   }
 }));
 

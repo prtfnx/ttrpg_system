@@ -10,13 +10,6 @@ export interface GlobalWasmModule {
   default: () => Promise<void>; // WASM init function
 }
 
-// Use declaration merging for Window interface
-declare global {
-  interface Window {
-    wasmInitialized: boolean;
-  }
-}
-
 // Global state for WASM management
 class WasmManager {
   private static instance: WasmManager;

@@ -8,6 +8,9 @@
 //
 // Run with:
 //   cargo test --target wasm32-unknown-unknown --test wasm
+//
+// This file is excluded from native test runs (not wasm32 target).
+#![cfg(target_arch = "wasm32")]
 
 use ttrpg_rust_core as core;
 use wasm_bindgen_test::*;

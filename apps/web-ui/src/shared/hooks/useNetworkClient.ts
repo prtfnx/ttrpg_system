@@ -1,5 +1,7 @@
-import type { NetworkClient } from '@lib/wasm';
 import { wasmManager } from '@lib/wasm/wasmManager';
+
+// NetworkClient is internal to the WASM module; use any for the instance type
+type NetworkClientInstance = any;
 import { useCallback, useEffect, useRef, useState } from 'react';
 
 interface NetworkMessage {
@@ -30,7 +32,7 @@ interface NetworkHookOptions {
 }
 
 export const useNetworkClient = (options: NetworkHookOptions = {}) => {
-  const clientRef = useRef<NetworkClient | null>(null);
+  const clientRef = useRef<NetworkClientInstance | null>(null);
   const [networkState, setNetworkState] = useState<NetworkState>({
     isConnected: false,
     connectionState: 'disconnected',
@@ -41,9 +43,10 @@ export const useNetworkClient = (options: NetworkHookOptions = {}) => {
   useEffect(() => {
     if (!clientRef.current) {
       // Use global WASM manager for consistent instance
-      wasmManager.getNetworkClient().then(async (NetworkClientClassOrInstance: any) => {
+      wasmManager.getWasmModule().then(async (m: any) => {
+        const NetworkClientClassOrInstance = m.NetworkClient;
         // wasmManager may return either a constructor (class) or an already-instantiated client.
-        let client: NetworkClient;
+        let client: NetworkClientInstance;
         if (typeof NetworkClientClassOrInstance === 'function') {
           client = new NetworkClientClassOrInstance();
         } else if (typeof NetworkClientClassOrInstance === 'object' && NetworkClientClassOrInstance !== null) {
@@ -165,11 +168,15 @@ export const useNetworkClient = (options: NetworkHookOptions = {}) => {
           }
         
         
-      }).catch((error) => {
+      }).catch((error: unknown) => {
+        const msg = error instanceof Error ? error.message : String(error);
+        const errorText = `Connection failed: ${msg}`;
         console.error('Failed to load WASM network client:', error);
-        if (options.onError) {
-          options.onError(`Failed to load network client: ${error.message}`);
-        }
+        setNetworkState(prev => ({ ...prev, connectionState: 'error', isConnected: false, lastError: errorText }));
+        queueMicrotask(() => {
+          if (options.onError) options.onError(errorText);
+          if (options.onConnectionChange) options.onConnectionChange('error', errorText);
+        });
       });
     }
 

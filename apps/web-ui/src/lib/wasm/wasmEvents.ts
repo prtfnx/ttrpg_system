@@ -2,8 +2,6 @@
 // Replaces raw window.dispatchEvent(new CustomEvent(...)) with typed helpers.
 // Migration: replace raw addEventListener/dispatchEvent calls incrementally.
 
-import type { RenderEngine } from './wasm';
-
 // Shared data shapes
 interface SpriteData {
   sprite_id?: string;
@@ -130,12 +128,3 @@ export function onWasmEvents(
 export type WasmEventHandler<K extends keyof WasmEventMap> = (
   detail: WasmEventMap[K]
 ) => void;
-
-// Augment global Window type to expose typed WASM state
-declare global {
-  interface Window {
-    wasmInitialized: boolean;
-    ttrpg_rust_core: unknown;
-    rustRenderManager: RenderEngine | null;
-  }
-}

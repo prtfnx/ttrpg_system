@@ -11,10 +11,10 @@ vi.mock('@shared/hooks/useNetworkClient', () => ({
   })),
 }));
 
-// Mock WASM table sync – never resolves so tableSyncRef stays null in unit tests
+// Mock WASM module – never resolves so tableSyncRef stays null in unit tests
 vi.mock('@lib/wasm/wasmManager', () => ({
   wasmManager: {
-    getTableSync: vi.fn(() => new Promise(() => {})),
+    getWasmModule: vi.fn(() => new Promise(() => {})),
   },
 }));
 

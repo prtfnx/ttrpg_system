@@ -78,8 +78,12 @@ export const useTableSync = (options: TableSyncHookOptions = {}) => {
   // Initialize table sync client
   useEffect(() => {
     if (!tableSyncRef.current) {
-      // Use global WASM manager for consistent instance
-      wasmManager.getTableSync().then(async (TableSyncClass) => {
+      // Use global WASM manager — TableSync is internal to the WASM module
+      wasmManager.getWasmModule().then(async (m: any) => {
+        const TableSyncClass = m.TableSync;
+        if (!TableSyncClass) {
+          throw new Error('TableSync not available in WASM module');
+        }
         const tableSync = new TableSyncClass();
         
         // Set up event handlers
@@ -165,7 +169,7 @@ export const useTableSync = (options: TableSyncHookOptions = {}) => {
 
         tableSyncRef.current = tableSync;
         console.log('Table sync client initialized');
-      }).catch((error) => {
+      }).catch((error: unknown) => {
         const errorMsg = `Failed to initialize table sync: ${error}`;
         setState(prev => ({ ...prev, error: errorMsg }));
         if (options.onError) {

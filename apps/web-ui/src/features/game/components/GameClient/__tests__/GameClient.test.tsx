@@ -1,6 +1,7 @@
 import { useGameStore } from '@/store';
 import type { UserInfo } from '@features/auth';
 import { GameClient } from '@features/canvas';
+import { WindowManagerProvider } from '@shared/components/FloatingWindow';
 import { act, render, screen, waitFor } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
@@ -67,7 +68,11 @@ function renderGameClient(props: Partial<React.ComponentProps<typeof GameClient>
     onAuthError: vi.fn(),
     ...props,
   };
-  return render(<GameClient {...defaultProps} />);
+  return render(
+    <WindowManagerProvider>
+      <GameClient {...defaultProps} />
+    </WindowManagerProvider>
+  );
 }
 
 describe('GameClient - Double-Click Detection Tests', () => {

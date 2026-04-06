@@ -6,7 +6,6 @@ import { useGameStore } from '@/store';
 import { assetIntegrationService } from '@features/assets';
 import { isDM } from '@features/session/types/roles';
 import { useOptionalProtocol } from '@lib/api';
-import type { GlobalWasmModule } from '@lib/wasm';
 import { useWasmBridge, wasmIntegrationService, wasmManager } from '@lib/wasm';
 import type { RenderEngine } from '@lib/wasm/wasm';
 import { DragDropImageHandler } from '@shared/components';
@@ -34,13 +33,8 @@ import {
 import { useCanvasEventsEnhanced } from './GameCanvas/useCanvasEventsEnhanced';
 import PerformanceMonitor from './PerformanceMonitor';
 
-declare global {
-  interface Window {
-    rustRenderManager?: RenderEngine;
-    ttrpg_rust_core: GlobalWasmModule | null;
-    wasmInitialized: boolean;
-  }
-}
+// Window globals declared in src/types.ts: ttrpg_rust_core, rustRenderManager, wasmInitialized
+
 
 // Available layers - matching LayerPanel
 const AVAILABLE_LAYERS: { id: string; name: string; icon: LucideIcon }[] = [

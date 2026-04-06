@@ -286,5 +286,7 @@ declare global {
     rustRenderManager?: import('@lib/wasm/wasm').RenderEngine;
     wasmBridge?: WasmBridge;
     protocol?: any; // Protocol service instance
+    ttrpg_rust_core: import('@lib/wasm/wasmManager').GlobalWasmModule | null;
+    wasmInitialized: boolean;
   }
 }

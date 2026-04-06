@@ -7,6 +7,29 @@ export function useChatWebSocket(url: string, user: string) {
 
   const wsRef = React.useRef<WebSocket | null>(null);
 
+  // Mirror in-game roll results to the chat log
+  useEffect(() => {
+    const onRoll = (e: Event) => {
+      const d = (e as CustomEvent).detail ?? {};
+      const name = d.character_name || d.characterName || 'Unknown';
+      const type = (d.roll_type || 'roll').replace(/_/g, ' ');
+      const skill = d.skill || d.ability || '';
+      const total = d.total ?? d.result ?? '?';
+      const what = skill ? `${type}: ${skill}` : type;
+      const breakdown = d.d20 != null
+        ? ` (d20: ${d.d20}${d.modifier != null && d.modifier !== 0 ? (d.modifier > 0 ? '+' : '') + d.modifier : ''})`
+        : '';
+      useChatStore.getState().addMessage({
+        id: Math.random().toString(36).slice(2),
+        user: '🎲',
+        text: `${name} — ${what} = ${total}${breakdown}`,
+        timestamp: Date.now(),
+      });
+    };
+    window.addEventListener('character-roll-result', onRoll);
+    return () => window.removeEventListener('character-roll-result', onRoll);
+  }, []);
+
   useEffect(() => {
     if (protocol) {
       // Register a handler for chat messages via protocol

@@ -7,7 +7,7 @@ import { assetIntegrationService } from '@features/assets';
 import { isDM } from '@features/session/types/roles';
 import { useOptionalProtocol } from '@lib/api';
 import type { GlobalWasmModule } from '@lib/wasm';
-import { useWasmBridge, wasmIntegrationService } from '@lib/wasm';
+import { useWasmBridge, wasmIntegrationService, wasmManager } from '@lib/wasm';
 import type { RenderEngine } from '@lib/wasm/wasm';
 import { DragDropImageHandler } from '@shared/components';
 import { useWebSocket } from '@shared/hooks';
@@ -438,31 +438,20 @@ export const GameCanvas: React.FC = () => {
  console.log('loadAndInitWasm called');
       try {
         updateConnectionState('connecting');
- console.log('Starting WASM dynamic import...');
+ console.log('Starting WASM initialization via wasmManager...');
 
-        // Use proper dynamic import with runtime path construction
-        const wasmPath = '/static/ui/wasm/ttrpg_rust_core.js';
-        const wasmModule = await import(/* @vite-ignore */ wasmPath);
-        window.ttrpg_rust_core = wasmModule;
- console.log('[WASM] window.ttrpg_rust_core:', wasmModule);
+        // Use singleton wasmManager — sets window.ttrpg_rust_core once
+        const wasmModule = await wasmManager.getWasmModule();
 
-        const initWasm = wasmModule?.default;
         const WasmRenderEngine = wasmModule?.RenderEngine;
 
-        if (!initWasm) {
- console.error('[WASM] initWasm is undefined!', wasmModule);
-          updateConnectionState('error');
-          return;
-        }
         if (!WasmRenderEngine) {
  console.error('[WASM] RenderEngine is undefined!', wasmModule);
           updateConnectionState('error');
           return;
         }
 
- console.log('[WASM] WASM module loaded, calling initWasm...');
-        await initWasm();
- console.log('[WASM] initWasm completed');
+ console.log('[WASM] WASM module ready, dispatching wasm-ready event...');
 
         // Dispatch wasm-ready event for other services to listen
         window.dispatchEvent(
@@ -569,9 +558,7 @@ export const GameCanvas: React.FC = () => {
           /* ignore */
         }
 
-        // Mark WASM as initialized for thumbnail service
-        (window as any).wasmInitialized = true;
- console.log('[WASM] window.wasmInitialized = true');
+        // wasmManager already sets window.wasmInitialized = true during init
 
         // Start render loop
         const renderLoop = () => {

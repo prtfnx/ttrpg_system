@@ -10,36 +10,9 @@ export function warn(s: string): void;
 export function init_game_renderer(canvas: HTMLCanvasElement): RenderEngine;
 export function main(): void;
 export function version(): string;
-export class ActionsClient {
-  free(): void;
-  constructor();
-  set_action_handler(callback: Function): void;
-  set_state_change_handler(callback: Function): void;
-  set_error_handler(callback: Function): void;
-  set_network_client(network_client: NetworkClient): void;
-  disconnect_network_client(): void;
-  is_network_connected(): boolean;
-  set_auto_sync(enabled: boolean): void;
-  create_table(name: string, width: number, height: number): any;
-  delete_table(table_id: string): any;
-  update_table(table_id: string, updates: any): any;
-  create_sprite(table_id: string, layer: string, position: any, texture_name: string): any;
-  delete_sprite(sprite_id: string): any;
-  update_sprite(sprite_id: string, updates: any): any;
-  set_layer_visibility(layer: string, visible: boolean): any;
-  get_layer_visibility(layer: string): boolean;
-  move_sprite_to_layer(sprite_id: string, new_layer: string): any;
-  batch_actions(actions: any): any;
-  undo(): any;
-  redo(): any;
-  get_table_info(table_id: string): any;
-  get_sprite_info(sprite_id: string): any;
-  get_all_tables(): any;
-  get_sprites_by_layer(layer: string): any;
-  get_action_history(): any;
-  can_undo(): boolean;
-  can_redo(): boolean;
-}
+// ActionsClient: internal to RenderEngine, not instantiated by React
+// NetworkClient: internal to RenderEngine, not instantiated by React
+// TableSync: internal to RenderEngine, not instantiated by React
 export class AssetManager {
   free(): void;
   constructor();
@@ -67,37 +40,6 @@ export class BrushPreset {
   free(): void;
   constructor(r: number, g: number, b: number, a: number, width: number, blend_mode: string);
   apply_to_paint_system(paint_system: PaintSystem): void;
-}
-export class NetworkClient {
-  free(): void;
-  constructor();
-  set_message_handler(callback: Function): void;
-  set_connection_handler(callback: Function): void;
-  set_error_handler(callback: Function): void;
-  connect(url: string): void;
-  disconnect(): void;
-  send_message(message_type: string, data: any): void;
-  send_sprite_update(sprite_data: any): void;
-  send_sprite_create(sprite_data: any): void;
-  send_sprite_remove(sprite_id: string): void;
-  send_table_update(table_data: any): void;
-  send_table_request(request_data: any): void;
-  send_new_table_request(table_name: string): void;
-  send_ping(): void;
-  authenticate(username: string, password: string): void;
-  join_session(session_code: string): void;
-  request_table_list(): void;
-  request_player_list(): void;
-  request_asset_upload(filename: string, file_hash: string, file_size: bigint): void;
-  request_asset_download(asset_id: string): void;
-  confirm_asset_upload(asset_id: string, upload_success: boolean): void;
-  is_connected(): boolean;
-  get_connection_state(): string;
-  get_client_id(): string;
-  get_username(): string | undefined;
-  get_session_code(): string | undefined;
-  set_user_info(user_id: number, username: string, session_code?: string | null, jwt_token?: string | null): void;
-  sync_action(action_data: string): void;
 }
 export class PaintSystem {
   free(): void;
@@ -409,82 +351,7 @@ export class TableManager {
   get_visible_bounds(table_id: string): Float64Array | undefined;
   snap_to_grid(table_id: string, x: number, y: number): Float64Array | undefined;
 }
-/**
- * Table synchronization manager for TTRPG web client
- * Handles table data reception from server and bidirectional sprite updates
- */
-export class TableSync {
-  free(): void;
-  constructor();
-  /**
-   * Set the network client for sending messages
-   */
-  set_network_client(network_client: object): void;
-  /**
-   * Set callback for when table data is received
-   */
-  set_table_received_handler(callback: Function): void;
-  /**
-   * Set callback for sprite updates
-   */
-  set_sprite_update_handler(callback: Function): void;
-  /**
-   * Set error handler
-   */
-  set_error_handler(callback: Function): void;
-  /**
-   * Request table data from server
-   */
-  request_table(table_name: string): void;
-  /**
-   * Handle table data received from server
-   */
-  handle_table_data(table_data_js: any): void;
-  /**
-   * Send sprite move update to server
-   */
-  send_sprite_move(sprite_id: string, x: number, y: number): void;
-  /**
-   * Send sprite scale update to server
-   */
-  send_sprite_scale(sprite_id: string, scale_x: number, scale_y: number): void;
-  /**
-   * Send sprite rotation update to server
-   */
-  send_sprite_rotate(sprite_id: string, rotation: number): void;
-  /**
-   * Send sprite creation to server
-   */
-  send_sprite_create(sprite_data_js: any): void;
-  /**
-   * Send sprite deletion to server
-   */
-  send_sprite_delete(sprite_id: string): void;
-  /**
-   * Handle sprite update received from server
-   */
-  handle_sprite_update(update_data_js: any): void;
-  /**
-   * Get current table data
-   */
-  get_table_data(): any;
-  /**
-   * Get current table ID
-   */
-  get_table_id(): string | undefined;
-  /**
-   * Get sprites from current table (flattened from all layers)
-   */
-  get_sprites(): any;
-  /**
-   * Get sprites by layer
-   */
-  get_sprites_by_layer(layer_name: string): any;
-  /**
-   * Handle table update errors
-   */
-  handle_error(error_message: string): void;
-}
+// TableSync: internal to RenderEngine, not instantiated directly by React
 
 export type InitInput = RequestInfo | URL | Response | BufferSource | WebAssembly.Module;
 

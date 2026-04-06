@@ -1,2 +1,3 @@
 export { FloatingWindow } from './FloatingWindow';
-export { useWindowManager, WindowManagerProvider } from './WindowManager';
+export { useWindowManager, useWindowManager, WindowManagerProvider, WindowManagerProvider } from './WindowManager';
+

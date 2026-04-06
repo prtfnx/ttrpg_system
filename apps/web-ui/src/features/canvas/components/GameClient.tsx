@@ -2,9 +2,11 @@ import { useGameStore } from '@/store';
 import { RightPanel } from '@app/RightPanel';
 import type { UserInfo } from '@features/auth';
 import { useAuthenticatedWebSocket } from '@features/auth';
+import { ChatOverlay } from '@features/chat';
 import { visionService } from '@features/lighting/services/vision.service';
 import { SessionManagementPanel } from '@features/session';
 import { isDM, type SessionRole } from '@features/session/types/roles';
+import { useWindowManager } from '@shared/components/FloatingWindow';
 import clsx from 'clsx';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import React, { useEffect } from 'react';
@@ -197,21 +199,23 @@ export function GameClient({ sessionCode, userInfo, userRole, onAuthError }: Gam
     return v !== 'false';
   });
 
-  // Token config modal state
-  const [tokenConfigSpriteId, setTokenConfigSpriteId] = React.useState<string | null>(null);
+const windowManager = useWindowManager();
 
   // Listen for double-click events from Rust WASM
   useEffect(() => {
     const handleTokenDoubleClick = (event: Event) => {
-      const customEvent = event as CustomEvent;
-      const spriteId = customEvent.detail?.spriteId;
+      const spriteId = (event as CustomEvent).detail?.spriteId;
       if (!spriteId) return;
-      console.log('[GameClient] Token double-click on sprite:', spriteId);
-      setTokenConfigSpriteId(spriteId);
+      windowManager.openWindow(
+        `token-config-${spriteId}`,
+        TokenConfigModal,
+        { spriteId, inline: true },
+        { title: 'Token Configuration', width: 480, height: 700 }
+      );
     };
     window.addEventListener('tokenDoubleClick', handleTokenDoubleClick);
-    return () => { window.removeEventListener('tokenDoubleClick', handleTokenDoubleClick); };
-  }, []);
+    return () => window.removeEventListener('tokenDoubleClick', handleTokenDoubleClick);
+  }, [windowManager]);
 
   // Handle drag to resize panels
   const dragRef = React.useRef<{ side: 'left'|'right', startX: number, startWidth: number }|null>(null);
@@ -299,7 +303,8 @@ export function GameClient({ sessionCode, userInfo, userRole, onAuthError }: Gam
         
         <div className={styles.canvasContainer}>
           <GameCanvas />
-          
+          <ChatOverlay />
+
           {/* Panel expand buttons positioned directly in canvas */}
           {!leftVisible && (
             <button className={clsx(styles.expandBtn, styles.left)} onClick={toggleLeft} title="Expand panel"><ChevronRight size={16} aria-hidden /></button>
@@ -326,14 +331,6 @@ export function GameClient({ sessionCode, userInfo, userRole, onAuthError }: Gam
             <RightPanel sessionCode={sessionCode} userInfo={userInfo} userRole={userRole} />
             <button className={styles.collapseBtn} onClick={toggleRight} title="Collapse panel"><ChevronRight size={16} aria-hidden /></button>
           </div>
-        )}
-
-        {/* Token Configuration Modal */}
-        {tokenConfigSpriteId && (
-          <TokenConfigModal
-            spriteId={tokenConfigSpriteId}
-            onClose={() => setTokenConfigSpriteId(null)}
-          />
         )}
 
         {/* Session Management Panel - floating for DM users */}

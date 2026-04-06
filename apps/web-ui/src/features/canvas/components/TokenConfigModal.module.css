@@ -11,11 +11,22 @@
   z-index: 10000;
 }
 
+/* Fills a FloatingWindow body - no overlay, no fixed dimensions */
+.inlineModal {
+  width: 100%;
+  height: 100%;
+  overflow-y: auto;
+  background: linear-gradient(135deg, var(--bg-tertiary) 0%, var(--bg-secondary) 100%);
+  color: var(--text-primary);
+  display: flex;
+  flex-direction: column;
+}
+
 .tokenConfigModal {
   background: linear-gradient(135deg, var(--bg-tertiary) 0%, var(--bg-secondary) 100%);
   border-radius: var(--radius-lg);
-  box-shadow: var(--shadow-2xl);
-  border: var(--border-width) solid var(--border-primary);
+  box-shadow: var(--shadow-xl);
+  border: 1px solid var(--border-primary);
   width: 90%;
   max-width: 480px;
   max-height: 85vh;
@@ -28,7 +39,7 @@
   justify-content: space-between;
   align-items: center;
   padding: var(--space-xl) var(--space-2xl);
-  border-bottom: var(--border-width) solid var(--border-primary);
+  border-bottom: 1px solid var(--border-primary);
 }
 
 .modalHeader h2 {
@@ -42,7 +53,7 @@
   background: none;
   border: none;
   font-size: var(--text-3xl);
-  color: var(--slate-400);
+  color: var(--text-muted);
   cursor: pointer;
   padding: 0;
   width: var(--space-3xl);
@@ -50,13 +61,13 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  border-radius: var(--radius-xs);
+  border-radius: var(--radius-sm);
   transition: var(--transition-fast);
 }
 
 .closeButton:hover {
-  background: var(--slate-400-alpha-10);
-  color: var(--slate-100);
+  background: var(--hover-overlay);
+  color: var(--text-primary);
 }
 
 .modalContent {
@@ -72,14 +83,14 @@
   margin-bottom: var(--space-sm);
   font-size: var(--text-sm);
   font-weight: var(--font-medium);
-  color: var(--slate-300);
+  color: var(--text-secondary);
 }
 
 .characterSelect {
   width: 100%;
   padding: var(--space-md) var(--space-lg);
   background: var(--bg-primary);
-  border: var(--border-width) solid var(--border-primary);
+  border: 1px solid var(--border-primary);
   border-radius: var(--radius-md);
   color: var(--text-primary);
   font-size: var(--text-sm);
@@ -88,13 +99,13 @@
 }
 
 .characterSelect:hover {
-  border-color: var(--blue-500-alpha-50);
+  border-color: var(--border-hover);
 }
 
 .characterSelect:focus {
   outline: none;
-  border-color: var(--blue-500);
-  box-shadow: var(--focus-ring-blue);
+  border-color: var(--color-primary);
+  box-shadow: var(--focus-ring);
 }
 
 .statRow {
@@ -111,11 +122,11 @@
 .statDisplay {
   font-size: var(--text-lg);
   font-weight: var(--font-semibold);
-  color: var(--slate-100);
-  background: var(--blue-500-alpha-10);
+  color: var(--text-primary);
+  background: var(--color-primary-overlay);
   padding: var(--space-sm) var(--space-xl);
   border-radius: var(--radius-md);
-  border: var(--border-width) solid var(--blue-500-alpha-30);
+  border: 1px solid var(--color-primary-glow);
 }
 
 .hpInputGroup {
@@ -128,7 +139,7 @@
   width: var(--space-3xl);
   height: var(--space-3xl);
   background: var(--bg-primary);
-  border: var(--border-width) solid var(--border-primary);
+  border: 1px solid var(--border-primary);
   border-radius: var(--radius-md);
   color: var(--text-primary);
   font-size: var(--text-lg);
@@ -141,9 +152,9 @@
 }
 
 .hpButton:hover {
-  background: var(--blue-500-alpha-20);
-  border-color: var(--blue-500);
-  color: var(--slate-100);
+  background: var(--color-primary-overlay);
+  border-color: var(--color-primary);
+  color: var(--text-primary);
 }
 
 .hpButton:active {
@@ -154,7 +165,7 @@
   width: 80px;
   padding: var(--space-sm);
   background: var(--bg-primary);
-  border: var(--border-width) solid var(--border-primary);
+  border: 1px solid var(--border-primary);
   border-radius: var(--radius-md);
   color: var(--text-primary);
   font-size: var(--text-base);
@@ -165,8 +176,8 @@
 
 .hpInput:focus {
   outline: none;
-  border-color: var(--blue-500);
-  box-shadow: var(--focus-ring-blue);
+  border-color: var(--color-primary);
+  box-shadow: var(--focus-ring);
 }
 
 /* Remove spinner buttons in number inputs */
@@ -184,16 +195,16 @@
   position: relative;
   width: 100%;
   height: var(--space-3xl);
-  background: var(--slate-900-alpha-80);
+  background: var(--bg-primary);
   border-radius: var(--radius-md);
-  border: var(--border-width) solid var(--slate-400-alpha-30);
+  border: 1px solid var(--border-primary);
   overflow: hidden;
 }
 
 .hpBarFill {
   height: 100%;
   transition: var(--transition-normal);
-  border-radius: var(--radius-xs);
+  border-radius: var(--radius-sm);
 }
 
 .hpBarText {
@@ -203,15 +214,14 @@
   transform: translate(-50%, -50%);
   font-size: var(--text-sm);
   font-weight: var(--font-semibold);
-  color: var(--slate-100);
-  text-shadow: var(--shadow-text-sm);
+  color: var(--text-primary);
 }
 
 .characterInfo {
   margin-top: var(--space-2xl);
   padding: var(--space-xl);
-  background: var(--color-info-subtle, rgba(59,130,246,0.08));
-  border: var(--border-width) solid var(--color-info-border, rgba(59,130,246,0.25));
+  background: var(--color-info-overlay);
+  border: 1px solid var(--color-primary-glow);
   border-radius: var(--radius-lg);
 }
 
@@ -236,29 +246,29 @@
 }
 
 .noCharacterMessage {
-  padding: var(--space-4xl);
+  padding: var(--space-2xl);
   text-align: center;
 }
 
 .noCharacterMessage p {
   margin: 0;
-  color: var(--slate-400);
+  color: var(--text-muted);
   font-size: var(--text-sm);
 }
 
 .modalFooter {
   padding: var(--space-xl) var(--space-2xl);
-  border-top: var(--border-width) solid var(--border-primary);
+  border-top: 1px solid var(--border-primary);
   display: flex;
   justify-content: flex-end;
 }
 
 .doneButton {
   padding: var(--space-md) var(--space-2xl);
-  background: var(--blue-500);
+  background: var(--button-primary-bg);
   border: none;
   border-radius: var(--radius-md);
-  color: white;
+  color: var(--button-primary-text);
   font-size: var(--text-sm);
   font-weight: var(--font-semibold);
   cursor: pointer;
@@ -266,9 +276,9 @@
 }
 
 .doneButton:hover {
-  background: var(--blue-600);
+  background: var(--button-primary-hover);
   transform: translateY(-1px);
-  box-shadow: var(--shadow-glow-blue);
+  box-shadow: var(--shadow-md);
 }
 
 .doneButton:active {
@@ -282,12 +292,12 @@
 
 .tokenConfigModal::-webkit-scrollbar-track {
   background: var(--bg-primary);
-  border-radius: var(--radius-xs);
+  border-radius: var(--radius-sm);
 }
 
 .tokenConfigModal::-webkit-scrollbar-thumb {
   background: var(--border-primary);
-  border-radius: var(--radius-xs);
+  border-radius: var(--radius-sm);
 }
 
 .tokenConfigModal::-webkit-scrollbar-thumb:hover {
@@ -299,7 +309,7 @@
   margin-bottom: var(--space-xl);
   padding: var(--space-lg);
   background: var(--bg-primary);
-  border: var(--border-width) solid var(--border-primary);
+  border: 1px solid var(--border-primary);
   border-radius: var(--radius-md);
 }
 
@@ -325,8 +335,8 @@
   gap: var(--space-xs);
   padding: 2px var(--space-sm);
   background: var(--bg-elevated);
-  border: var(--border-width) solid var(--border-primary);
-  border-radius: var(--radius-full, 9999px);
+  border: 1px solid var(--border-primary);
+  border-radius: var(--radius-full);
   font-size: var(--text-xs);
   color: var(--text-secondary);
 }
@@ -344,7 +354,7 @@
 }
 
 .ownerTagRemove:hover {
-  color: var(--color-danger, #ef4444);
+  color: var(--color-danger);
 }
 
 .ownerInputRow {
@@ -356,7 +366,7 @@
   flex: 1;
   padding: var(--space-sm) var(--space-md);
   background: var(--bg-secondary);
-  border: var(--border-width) solid var(--border-primary);
+  border: 1px solid var(--border-primary);
   border-radius: var(--radius-md);
   color: var(--text-primary);
   font-size: var(--text-sm);
@@ -370,7 +380,7 @@
 .ownerAddBtn {
   padding: var(--space-sm) var(--space-lg);
   background: var(--bg-elevated);
-  border: var(--border-width) solid var(--border-primary);
+  border: 1px solid var(--border-primary);
   border-radius: var(--radius-md);
   color: var(--text-primary);
   font-size: var(--text-sm);

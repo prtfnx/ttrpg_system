@@ -9,9 +9,11 @@ import styles from './TokenConfigModal.module.css';
 interface TokenConfigModalProps {
   spriteId: string;
   onClose: () => void;
+  // When true, renders without the overlay backdrop (used inside FloatingWindow)
+  inline?: boolean;
 }
 
-export const TokenConfigModal: React.FC<TokenConfigModalProps> = ({ spriteId, onClose }) => {
+export const TokenConfigModal: React.FC<TokenConfigModalProps> = ({ spriteId, onClose, inline = false }) => {
   const { sprites, characters, sessionRole, unlinkSpriteFromCharacter, getCharacterForSprite, updateSprite } = useGameStore();
   const distanceUnit = useGameStore(s => s.distanceUnit);
   const { protocol, isConnected } = useProtocol();
@@ -244,15 +246,17 @@ export const TokenConfigModal: React.FC<TokenConfigModalProps> = ({ spriteId, on
   // Show all characters - don't filter by session since we might not have session info
   const sessionCharacters = characters;
 
-  return (
-    <div className={styles.tokenConfigModalOverlay} onClick={onClose}>
-      <div className={styles.tokenConfigModal} onClick={(e) => e.stopPropagation()}>
+  const body = (
+    <div className={inline ? styles.inlineModal : styles.tokenConfigModal}
+         onClick={inline ? undefined : (e) => e.stopPropagation()}>
+      {!inline && (
         <div className={styles.modalHeader}>
           <h2>Token Configuration</h2>
           <button className={styles.closeButton} onClick={onClose}>×</button>
         </div>
-        
-        <div className={styles.modalContent}>
+      )}
+      
+      <div className={styles.modalContent}>
           {/* Ownership - DM/CO-DM only */}
           {canManageOwnership && (
             <div className={styles.ownershipSection}>
@@ -487,7 +491,13 @@ export const TokenConfigModal: React.FC<TokenConfigModalProps> = ({ spriteId, on
         <div className={styles.modalFooter}>
           <button className={styles.doneButton} onClick={onClose}>Done</button>
         </div>
-      </div>
+    </div>
+  );
+
+  if (inline) return body;
+  return (
+    <div className={styles.tokenConfigModalOverlay} onClick={onClose}>
+      {body}
     </div>
   );
 };

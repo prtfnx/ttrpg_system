@@ -1,4 +1,7 @@
 import re
+from pathlib import Path
+
+_SRC = Path(__file__).resolve().parent.parent / 'src'
 
 def fix(path):
     content = open(path, encoding='utf-8').read()
@@ -28,10 +31,10 @@ def fix(path):
     else:
         print(f"No changes made to {path}")
 
-fix(r'C:\Users\fenix\Documents\code\ttrpg_system\apps\web-ui\src\features\auth\services\auth.service.ts')
+fix(str(_SRC / 'features/auth/services/auth.service.ts'))
 
 # Also fix RealTimeCombatSystem.test.tsx line 50: \/ is useless escape
-test_path = r'C:\Users\fenix\Documents\code\ttrpg_system\apps\web-ui\src\features\combat\__tests__\RealTimeCombatSystem.test.tsx'
+test_path = str(_SRC / 'features/combat/__tests__/RealTimeCombatSystem.test.tsx')
 content = open(test_path, encoding='utf-8').read()
 lines = content.splitlines(keepends=True)
 for i, line in enumerate(lines):

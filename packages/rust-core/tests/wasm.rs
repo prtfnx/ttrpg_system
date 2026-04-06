@@ -28,8 +28,13 @@ fn version_returns_non_empty_string() {
 #[wasm_bindgen_test]
 fn version_looks_like_semver() {
     let v = core::version();
-    // Basic check: not empty and contains numeric parts
-    assert!(!v.is_empty());
+    // Must have at least MAJOR.MINOR.PATCH structure
+    let parts: Vec<&str> = v.split('.').collect();
+    assert!(parts.len() >= 3, "expected MAJOR.MINOR.PATCH, got: {v}");
+    assert!(
+        parts.iter().all(|p| p.chars().next().map_or(false, |c| c.is_ascii_digit())),
+        "each version part must start with a digit, got: {v}"
+    );
 }
 
 // ── Visibility polygon ────────────────────────────────────────────────────

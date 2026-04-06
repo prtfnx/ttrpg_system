@@ -1,5 +1,6 @@
 import re
 import os
+from pathlib import Path
 
 def rename_unused_catch_vars(content, debug=False):
     pattern = re.compile(r'catch\s*\(([a-zA-Z_][a-zA-Z0-9_]*)\)\s*\{')
@@ -40,7 +41,7 @@ def rename_unused_catch_vars(content, debug=False):
             replacements += 1
     return ''.join(result), replacements
 
-target = r'C:\Users\fenix\Documents\code\ttrpg_system\apps\web-ui\src\lib\wasm\wasmIntegration.service.ts'
+target = str(Path(__file__).resolve().parent.parent / 'src/lib/wasm/wasmIntegration.service.ts')
 with open(target, encoding='utf-8') as f:
     content = f.read()
 

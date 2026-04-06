@@ -3,8 +3,9 @@ Batch fix no-unused-vars violations by prefixing with _ or removing assignments.
 Uses targeted line-specific replacements.
 """
 import re
+from pathlib import Path
 
-BASE = r'C:\Users\fenix\Documents\code\ttrpg_system\apps\web-ui\src'
+BASE = str(Path(__file__).resolve().parent.parent / 'src')
 
 def read(path):
     with open(path, encoding='utf-8') as f:

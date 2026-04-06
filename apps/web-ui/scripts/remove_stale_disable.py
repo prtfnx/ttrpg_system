@@ -1,10 +1,13 @@
 """Remove stale eslint-disable-next-line exhaustive-deps comments."""
 import subprocess, json, os, sys
+from pathlib import Path
+
+WEB_UI = Path(__file__).resolve().parent.parent
 
 result = subprocess.run(
     ['npx', 'eslint', 'src', '--format=json'],
     capture_output=True, text=True,
-    cwd=r'C:\Users\fenix\Documents\code\ttrpg_system\apps\web-ui'
+    cwd=str(WEB_UI)
 )
 data = json.loads(result.stdout)
 

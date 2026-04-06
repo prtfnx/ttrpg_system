@@ -1,5 +1,8 @@
 """Fix no-useless-escape violations in auth.service.ts and RealTimeCombatSystem.test.tsx"""
 import re
+from pathlib import Path
+
+_SRC = Path(__file__).resolve().parent.parent / 'src'
 
 def fix_file(path, replacements):
     content = open(path, encoding='utf-8').read()
@@ -13,7 +16,7 @@ def fix_file(path, replacements):
 
 # auth.service.ts: /error[\"']: [\"']([^\"']+)[\"']/i  -- \" is useless inside character class
 # The actual bytes have \" inside [] which is unnecessary
-auth_path = r'C:\Users\fenix\Documents\code\ttrpg_system\apps\web-ui\src\features\auth\services\auth.service.ts'
+auth_path = str(_SRC / 'features/auth/services/auth.service.ts')
 content = open(auth_path, encoding='utf-8').read()
 # Replace the pattern where \" appears inside regex character class
 new_content = content.replace(

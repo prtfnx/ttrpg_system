@@ -5,8 +5,9 @@ Fix exhaustive-deps warnings:
 3. Suppress run-once init patterns with justified comments
 """
 import re
+from pathlib import Path
 
-BASE = r'C:\Users\fenix\Documents\code\ttrpg_system\apps\web-ui\src'
+BASE = str(Path(__file__).resolve().parent.parent / 'src')
 
 def read(path):
     with open(path, encoding='utf-8') as f:

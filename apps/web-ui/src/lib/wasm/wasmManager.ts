@@ -193,6 +193,18 @@ class WasmManager {
     return wasm.AssetManager;
   }
 
+  /**
+   * Initialize the WebGL renderer on the given canvas.
+   * Calls `init_game_renderer(canvas)` from the WASM module.
+   */
+  async createRenderer(canvas: HTMLCanvasElement): Promise<any> {
+    const wasm = await this.getWasmModule();
+    if (typeof wasm.init_game_renderer !== 'function') {
+      throw new Error('[WASM] init_game_renderer not available in this build');
+    }
+    return wasm.init_game_renderer(canvas);
+  }
+
   // Check if WASM is ready without triggering initialization
   isReady(): boolean {
     return this.isInitialized && this.wasmModule !== null;

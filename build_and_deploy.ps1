@@ -57,6 +57,7 @@ function Build-Wasm {
         } else {
             # Fallback: cargo + wasm-bindgen-cli (+ optional wasm-opt)
             Write-Host "    [info] wasm-pack not found — using cargo + wasm-bindgen-cli"
+            Require-Command "cargo"
             Require-Command "wasm-bindgen"
 
             $profile = if ($dev) { "debug" } else { "release" }

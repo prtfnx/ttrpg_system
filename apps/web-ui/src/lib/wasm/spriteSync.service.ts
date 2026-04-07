@@ -394,7 +394,7 @@ export class SpriteSyncService {
 
     useGameStore.getState().addSprite({
       id: lightId, name: spriteData.name || meta.presetName || 'Light',
-      tableId: spriteData.table_id ?? '', x, y,
+      tableId: spriteData.table_id ?? '', x: finalX, y: finalY,
       texture: '__LIGHT__', layer: 'light',
       scale: { x: 1, y: 1 }, rotation: 0, metadata: spriteData.metadata ?? undefined,
     });
@@ -539,7 +539,7 @@ export class SpriteSyncService {
     // LEGACY COMPAT: controlled_by may be array, raw string, or JSON-encoded string.
     const rawCb = data.controlled_by ?? u.controlled_by;
     if (rawCb !== undefined) {
-      let cbNums: number[] = Array.isArray(rawCb) ? rawCb.map(Number) : (typeof rawCb === 'string' ? (() => { try { return JSON.parse(rawCb).map(Number); } catch { return []; } })() : []);
+      const cbNums: number[] = Array.isArray(rawCb) ? rawCb.map(Number) : (typeof rawCb === 'string' ? (() => { try { return JSON.parse(rawCb).map(Number); } catch { return []; } })() : []);
       (this.getEngine() as any)?.update_sprite_controlled_by?.(spriteId, cbNums);
       useGameStore.setState(state => ({ sprites: state.sprites.map(s => s.id === spriteId ? { ...s, controlledBy: cbNums.map(String) } : s) }));
     }

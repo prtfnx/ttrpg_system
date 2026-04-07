@@ -131,7 +131,7 @@ export class TableSyncService {
         Object.values(tableData.layers ?? {}).forEach((ld: any) => {
           spriteCount += Array.isArray(ld) ? ld.length : typeof ld === 'object' ? Object.keys(ld).length : 0;
         });
-        window.dispatchEvent(new CustomEvent('table-sprites-loaded', { detail: { tableId: tableData.table_id, spriteCount, timestamp: Date.now() } }));
+        window.dispatchEvent(new CustomEvent('table-sprites-loaded', { detail: { table_id: tableData.table_id, count: spriteCount } }));
       }
 
     } catch (err) {

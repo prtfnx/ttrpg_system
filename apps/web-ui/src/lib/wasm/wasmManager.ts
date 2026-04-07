@@ -1,3 +1,5 @@
+import type { RenderEngine } from './wasm';
+
 // Global WASM module manager - ensures single instance across the app
 export interface GlobalWasmModule {
   RenderEngine: any;
@@ -6,7 +8,7 @@ export interface GlobalWasmModule {
   PaintSystem: any;
   create_default_brush_presets: () => any;
   version?: () => string;
-  init_game_renderer?: (canvas: HTMLCanvasElement) => any;
+  init_game_renderer?: (canvas: HTMLCanvasElement) => RenderEngine;
   default: () => Promise<void>; // WASM init function
 }
 
@@ -197,7 +199,7 @@ class WasmManager {
    * Initialize the WebGL renderer on the given canvas.
    * Calls `init_game_renderer(canvas)` from the WASM module.
    */
-  async createRenderer(canvas: HTMLCanvasElement): Promise<any> {
+  async createRenderer(canvas: HTMLCanvasElement): Promise<RenderEngine> {
     const wasm = await this.getWasmModule();
     if (typeof wasm.init_game_renderer !== 'function') {
       throw new Error('[WASM] init_game_renderer not available in this build');

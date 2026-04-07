@@ -19,21 +19,24 @@ export function useWasm(): UseWasmResult {
   const [api, setApi] = useState<GlobalWasmModule | null>(null);
   const [isReady, setIsReady] = useState(false);
   const [error, setError] = useState<Error | null>(null);
-  const initiated = useRef(false);
+  const isMountedRef = useRef(true);
 
   useEffect(() => {
-    if (initiated.current) return;
-    initiated.current = true;
+    isMountedRef.current = true;
 
     wasmManager
       .getWasmModule()
       .then(mod => {
+        if (!isMountedRef.current) return;
         setApi(mod);
         setIsReady(true);
       })
       .catch(err => {
+        if (!isMountedRef.current) return;
         setError(err instanceof Error ? err : new Error(String(err)));
       });
+
+    return () => { isMountedRef.current = false; };
   }, []);
 
   return { api, isReady, error };

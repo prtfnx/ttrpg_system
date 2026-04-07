@@ -2,6 +2,36 @@
 import { renderWithProviders } from '@test/utils/test-utils';
 const render = renderWithProviders;
 
+// Mock FPS + performance services to prevent real intervals/console logs from
+// firing after test teardown (causes EnvironmentTeardownError in Vitest)
+vi.mock('../../../features/canvas/services/fps.service', () => ({
+  default: {
+    subscribe: vi.fn(() => vi.fn()),
+    initialize: vi.fn(),
+    recordFrame: vi.fn(),
+  },
+}));
+
+vi.mock('../../../features/canvas/services/performance.service', () => ({
+  performanceService: {
+    getMetrics: vi.fn(() => ({
+      fps: 60,
+      averageFPS: 60,
+      frameTime: 16.6,
+      averageFrameTime: 16.6,
+      memoryUsage: { usedJSHeapSize: 0, totalJSHeapSize: 0, jsHeapSizeLimit: 1 },
+      spriteCount: 0,
+      textureCount: 0,
+      renderCalls: 0,
+      cacheHitRate: 1,
+      networkLatency: 0,
+      wasmMemoryUsage: 0,
+    })),
+    startRecording: vi.fn(),
+    stopRecording: vi.fn(),
+  },
+}));
+
 // Mock usePaintSystem for PaintPanel
 vi.mock('../../../features/painting/hooks/usePaintSystem', () => ({
   usePaintSystem: vi.fn().mockReturnValue([
@@ -505,6 +535,9 @@ describe('InitiativeTracker Component', () => {
 
 // Test PerformanceMonitor Component
 describe('PerformanceMonitor Component', () => {
+  beforeEach(() => { vi.useFakeTimers(); });
+  afterEach(() => { vi.useRealTimers(); });
+
   test('renders performance metrics', () => {
     render(<PerformanceMonitor isVisible={true} />);
     
@@ -512,14 +545,12 @@ describe('PerformanceMonitor Component', () => {
     expect(screen.getAllByText(/fps|memory/i)).toHaveLength(2); // FPS and Memory labels
   });
 
-  test('displays real-time statistics', async () => {
+  test('displays real-time statistics', () => {
     render(<PerformanceMonitor isVisible={true} />);
     
     // Should have numeric performance data
-    await waitFor(() => {
-      const performanceData = screen.queryAllByText(/\d+/);
-      expect(performanceData.length >= 0).toBe(true);
-    });
+    const performanceData = screen.queryAllByText(/\d+/);
+    expect(performanceData.length >= 0).toBe(true);
   });
 
   test('provides performance controls', () => {

@@ -6,12 +6,14 @@
 #   .\build_and_deploy.ps1 -WasmOnly    # build WASM only
 #   .\build_and_deploy.ps1 -WebOnly     # build React only (skip WASM)
 #   .\build_and_deploy.ps1 -SkipCopy    # build everything but don't copy to server
+#   .\build_and_deploy.ps1 -Test        # run Rust + TypeScript tests (no build)
 
 param(
     [switch]$dev,
     [switch]$WasmOnly,
     [switch]$WebOnly,
-    [switch]$SkipCopy
+    [switch]$SkipCopy,
+    [switch]$Test
 )
 
 Set-StrictMode -Version Latest
@@ -34,24 +36,53 @@ function Require-Command ($name) {
 
 function Build-Wasm {
     Write-Host "`n==> Building Rust WASM..." -ForegroundColor Cyan
-    Require-Command "wasm-pack"
     Push-Location $RustDir
     try {
-        # wasm-pack writes [INFO] lines to stderr which PowerShell treats as errors
-        # when $ErrorActionPreference = "Stop". Temporarily lower it for this call.
         $savedEAP = $ErrorActionPreference
         $ErrorActionPreference = "Continue"
-        if ($dev) {
-            Write-Host "    [dev] debug logging enabled"
-            wasm-pack build --target web --out-dir "$WasmOut" --features dev-logging 2>&1 |
-                ForEach-Object { Write-Host $_ }
+
+        $useWasmPack = [bool](Get-Command wasm-pack -ErrorAction SilentlyContinue)
+
+        if ($useWasmPack) {
+            # Preferred path: wasm-pack handles cargo + wasm-bindgen + wasm-opt in one step.
+            if ($dev) {
+                Write-Host "    [dev] debug logging enabled"
+                wasm-pack build --target web --out-dir "$WasmOut" --features dev-logging 2>&1 |
+                    ForEach-Object { Write-Host $_ }
+            } else {
+                wasm-pack build --release --target web --out-dir "$WasmOut" 2>&1 |
+                    ForEach-Object { Write-Host $_ }
+            }
+            if ($LASTEXITCODE -ne 0) { throw "wasm-pack failed (exit $LASTEXITCODE)" }
         } else {
-            wasm-pack build --release --target web --out-dir "$WasmOut" 2>&1 |
+            # Fallback: cargo + wasm-bindgen-cli (+ optional wasm-opt)
+            Write-Host "    [info] wasm-pack not found — using cargo + wasm-bindgen-cli"
+            Require-Command "wasm-bindgen"
+
+            $profile = if ($dev) { "debug" } else { "release" }
+            $cargoFlags = if ($dev) { @("--features", "dev-logging") } else { @("--release") }
+            $wasmTarget = "$RustDir\target\wasm32-unknown-unknown\$profile\ttrpg_rust_core.wasm"
+
+            cargo build --target wasm32-unknown-unknown @cargoFlags 2>&1 |
                 ForEach-Object { Write-Host $_ }
+            if ($LASTEXITCODE -ne 0) { throw "cargo build failed (exit $LASTEXITCODE)" }
+
+            New-Item -ItemType Directory -Path $WasmOut -Force | Out-Null
+            wasm-bindgen --target web --out-dir "$WasmOut" "$wasmTarget" 2>&1 |
+                ForEach-Object { Write-Host $_ }
+            if ($LASTEXITCODE -ne 0) { throw "wasm-bindgen failed (exit $LASTEXITCODE)" }
+
+            # Optional wasm-opt pass (skipped if not installed)
+            $bgWasm = "$WasmOut\ttrpg_rust_core_bg.wasm"
+            if ((Get-Command wasm-opt -ErrorAction SilentlyContinue) -and (Test-Path $bgWasm)) {
+                Write-Host "    [opt] running wasm-opt -O3"
+                wasm-opt -O3 "$bgWasm" -o "$bgWasm" 2>&1 | ForEach-Object { Write-Host $_ }
+            }
         }
+
         $ErrorActionPreference = $savedEAP
-        if ($LASTEXITCODE -ne 0) { throw "wasm-pack failed (exit $LASTEXITCODE)" }
     } finally {
+        if (-not $savedEAP) { $savedEAP = "Stop" }
         $ErrorActionPreference = $savedEAP
         Pop-Location
     }
@@ -81,6 +112,31 @@ function Build-Web {
         Pop-Location
     }
     Write-Host "    dist -> $Dist" -ForegroundColor DarkGreen
+}
+
+function Test-Rust {
+    Write-Host "`n==> Running Rust tests (native)..." -ForegroundColor Cyan
+    Require-Command "cargo"
+    Push-Location $RustDir
+    try {
+        cargo test 2>&1 | ForEach-Object { Write-Host $_ }
+        if ($LASTEXITCODE -ne 0) { throw "cargo test failed (exit $LASTEXITCODE)" }
+    } finally {
+        Pop-Location
+    }
+    Write-Host "    Rust tests passed." -ForegroundColor DarkGreen
+}
+
+function Test-TypeScript {
+    Write-Host "`n==> Running TypeScript tests (jsdom project)..." -ForegroundColor Cyan
+    Push-Location $WebDir
+    try {
+        pnpm exec vitest run --project jsdom 2>&1 | ForEach-Object { Write-Host $_ }
+        if ($LASTEXITCODE -ne 0) { throw "vitest failed (exit $LASTEXITCODE)" }
+    } finally {
+        Pop-Location
+    }
+    Write-Host "    TypeScript tests passed." -ForegroundColor DarkGreen
 }
 
 function Copy-ToServer {
@@ -119,7 +175,10 @@ $mode = if ($dev) { "development" } else { "production" }
 Write-Host "Build mode: $mode" -ForegroundColor Yellow
 
 try {
-    if ($WasmOnly) {
+    if ($Test) {
+        Test-Rust
+        Test-TypeScript
+    } elseif ($WasmOnly) {
         Build-Wasm
     } elseif ($WebOnly) {
         Build-Web

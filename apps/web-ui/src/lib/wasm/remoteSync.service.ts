@@ -7,8 +7,11 @@ import type { SpriteSyncService } from './spriteSync.service';
 
 export class RemoteSyncService {
   private eventCleanups: Array<() => void> = [];
+  private readonly spriteSync: SpriteSyncService;
 
-  constructor(private readonly spriteSync: SpriteSyncService) {}
+  constructor(spriteSync: SpriteSyncService) {
+    this.spriteSync = spriteSync;
+  }
 
   init(): void {
     const on = (type: string, handler: (detail: any) => void) => {

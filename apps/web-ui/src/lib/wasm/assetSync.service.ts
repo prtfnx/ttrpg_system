@@ -15,8 +15,11 @@ export class AssetSyncService {
   private pendingSpritesForAssets = new Map<string, string[]>();
 
   private eventCleanups: Array<() => void> = [];
+  private readonly getEngine: () => RenderEngine | null;
 
-  constructor(private readonly getEngine: () => RenderEngine | null) {}
+  constructor(getEngine: () => RenderEngine | null) {
+    this.getEngine = getEngine;
+  }
 
   init(): void {
     const on = <T>(type: string, handler: (detail: T) => void) => {

@@ -9,11 +9,16 @@ import type { SpriteSyncService } from './spriteSync.service';
 
 export class TableSyncService {
   private eventCleanups: Array<() => void> = [];
+  private readonly getEngine: () => RenderEngine | null;
+  private readonly spriteSync: SpriteSyncService;
 
   constructor(
-    private readonly getEngine: () => RenderEngine | null,
-    private readonly spriteSync: SpriteSyncService,
-  ) {}
+    getEngine: () => RenderEngine | null,
+    spriteSync: SpriteSyncService,
+  ) {
+    this.getEngine = getEngine;
+    this.spriteSync = spriteSync;
+  }
 
   init(): void {
     const on = (type: string, handler: (detail: any) => void) => {

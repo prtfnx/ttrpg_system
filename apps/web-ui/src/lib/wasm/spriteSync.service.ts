@@ -16,11 +16,16 @@ export class SpriteSyncService {
   private optimisticTimers = new Map<string, number>();
   private pendingScaleOperations = new Set<string>();
   private eventCleanups: Array<() => void> = [];
+  private readonly getEngine: () => RenderEngine | null;
+  private readonly assetSync: AssetSyncService;
 
   constructor(
-    private readonly getEngine: () => RenderEngine | null,
-    private readonly assetSync: AssetSyncService,
-  ) {}
+    getEngine: () => RenderEngine | null,
+    assetSync: AssetSyncService,
+  ) {
+    this.getEngine = getEngine;
+    this.assetSync = assetSync;
+  }
 
   init(): void {
     const on = (type: string, handler: (detail: any) => void) => {

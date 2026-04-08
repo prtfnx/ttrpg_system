@@ -273,7 +273,7 @@ export const GameCanvas: React.FC = () => {
       const rm = rustRenderManagerRef.current;
       if (!canvas || !mainCanvas) { raf = requestAnimationFrame(draw); return; }
 
-      const { sprites, sessionRole, getUnitConverter, gridCellPx } = useGameStore.getState();
+      const { sprites, sessionRole, getUnitConverter, gridCellPx, activeTableId } = useGameStore.getState();
       const cellPx = gridCellPx ?? 50;
       const ctx = canvas.getContext('2d');
       if (!ctx) { raf = requestAnimationFrame(draw); return; }
@@ -292,7 +292,9 @@ export const GameCanvas: React.FC = () => {
       ctx.scale(dpr, dpr);
 
       const conv = getUnitConverter();
-      for (const sprite of sprites) {
+      // Only draw circles for sprites on the active table
+      const tableSprites = sprites.filter(sp => (sp as any).tableId === activeTableId || (sp as any).table_id === activeTableId);
+      for (const sprite of tableSprites) {
         const s = sprite as any;
         const vr: number = s.visionRadiusUnits != null
           ? conv.toPixels(s.visionRadiusUnits)
@@ -302,7 +304,10 @@ export const GameCanvas: React.FC = () => {
               ? conv.toPixels(s.darkvisionRadiusUnits)
               : (s.darkvisionRadius ?? s.darkvision_radius ?? 0))
           : 0;
-        if (!vr && !dvr) continue;
+        const ar: number = s.auraRadiusUnits != null
+          ? conv.toPixels(s.auraRadiusUnits)
+          : (s.auraRadius ?? 0);
+        if (!vr && !dvr && !ar) continue;
 
         const hw = (s.scale?.x ?? (s as any).scale_x ?? 1) * cellPx / 2;
         const hh = (s.scale?.y ?? (s as any).scale_y ?? 1) * cellPx / 2;
@@ -310,12 +315,29 @@ export const GameCanvas: React.FC = () => {
         const pos = dragPositionsRef.current.get(s.id) ?? { x: s.x, y: s.y };
         try {
           const ctr = rm.world_to_screen(pos.x + hw, pos.y + hh);
- const sx = ctr[0] / dpr;
- const sy = ctr[1] / dpr;
+          const sx = ctr[0] / dpr;
+          const sy = ctr[1] / dpr;
+
+          if (ar > 0) {
+            const edge = rm.world_to_screen(pos.x + hw + ar, pos.y + hh);
+            const sr = (edge[0] - ctr[0]) / dpr;
+            // Parse auraColor (hex string) to rgba; default to warm gold
+            const hex = (s.auraColor ?? '#ffaa00').replace('#', '');
+            const cr = parseInt(hex.slice(0, 2), 16);
+            const cg = parseInt(hex.slice(2, 4), 16);
+            const cb = parseInt(hex.slice(4, 6), 16);
+            ctx.beginPath();
+            ctx.arc(sx, sy, sr, 0, Math.PI * 2);
+            ctx.strokeStyle = `rgba(${cr}, ${cg}, ${cb}, 0.55)`;
+            ctx.setLineDash([4, 3]);
+            ctx.lineWidth = 1.5;
+            ctx.stroke();
+            ctx.setLineDash([]);
+          }
 
           if (vr > 0) {
             const edge = rm.world_to_screen(pos.x + hw + vr, pos.y + hh);
- const sr = (edge[0] - ctr[0]) / dpr;
+            const sr = (edge[0] - ctr[0]) / dpr;
             ctx.beginPath();
             ctx.arc(sx, sy, sr, 0, Math.PI * 2);
             ctx.strokeStyle = 'rgba(255, 210, 80, 0.45)';
@@ -325,14 +347,14 @@ export const GameCanvas: React.FC = () => {
 
           if (dvr > 0) {
             const edge = rm.world_to_screen(pos.x + hw + dvr, pos.y + hh);
- const sr = (edge[0] - ctr[0]) / dpr;
+            const sr = (edge[0] - ctr[0]) / dpr;
             ctx.beginPath();
             ctx.arc(sx, sy, sr, 0, Math.PI * 2);
             ctx.strokeStyle = 'rgba(160, 100, 255, 0.45)';
- ctx.setLineDash([6, 4]);
+            ctx.setLineDash([6, 4]);
             ctx.lineWidth = 1.5;
             ctx.stroke();
- ctx.setLineDash([]);
+            ctx.setLineDash([]);
           }
         } catch { /* sprite may not be on screen */ }
       }

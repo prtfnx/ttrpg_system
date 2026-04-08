@@ -7,7 +7,9 @@ import { useGameStore } from "../../../store";
 import type { Character } from "../../../types";
 import { ActivityTab } from './ActivityTab';
 import styles from "./CharacterSheetNew.module.css";
+import { ExperienceTracker } from './ExperienceTracker';
 import { InventoryTab } from './InventoryTab';
+import { MulticlassManager } from './MulticlassManager';
 import { SpellsTab } from './SpellsTab';
 
 
@@ -161,6 +163,17 @@ export const CharacterSheet: React.FC<CharacterSheetProps> = ({ character, onSav
         abilityScores: { ...abilities, [ability]: value }
       }
     });
+  };
+
+  const handleMulticlass = (newClass: string) => {
+    const classes = [...currentClasses, newClass];
+    onSave({ data: { ...data, class: classes.join('/') } });
+  };
+
+  const currentClasses = (data.class || '').split('/').map((c: string) => c.trim()).filter(Boolean);
+  const fullAbilityScores = {
+    strength: abilities.str, dexterity: abilities.dex, constitution: abilities.con,
+    intelligence: abilities.int, wisdom: abilities.wis, charisma: abilities.cha,
   };
 
   const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -502,6 +515,20 @@ export const CharacterSheet: React.FC<CharacterSheetProps> = ({ character, onSav
                     ))}
                   </div>
                 )}
+
+                <MulticlassManager
+                  currentClasses={currentClasses}
+                  currentLevel={data.level || 1}
+                  abilityScores={fullAbilityScores}
+                  onMulticlass={handleMulticlass}
+                />
+
+                <ExperienceTracker
+                  currentLevel={data.level || 1}
+                  currentExperience={data.experience || 0}
+                  onExperienceChange={newExp => onSave({ data: { ...data, experience: newExp } })}
+                  onLevelUp={newLevel => onSave({ data: { ...data, level: newLevel } })}
+                />
               </div>
             )}
 

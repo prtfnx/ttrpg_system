@@ -3,6 +3,8 @@ import { showToast } from '@shared/utils';
 import clsx from "clsx";
 import { Check, CircleUser, Dices, Footprints, Shield, X, Zap } from 'lucide-react';
 import React, { useRef, useState } from "react";
+import { isDM } from '@features/session/types/roles';
+import { useAdvancementData, useClassPrerequisites } from '../../compendium/hooks/useCompendium';
 import { useGameStore } from "../../../store";
 import type { Character } from "../../../types";
 import { ActivityTab } from './ActivityTab';
@@ -10,6 +12,7 @@ import styles from "./CharacterSheetNew.module.css";
 import { ExperienceTracker } from './ExperienceTracker';
 import { InventoryTab } from './InventoryTab';
 import { MulticlassManager } from './MulticlassManager';
+import { SpellPreparationManager } from './SpellPreparationManager';
 import { SpellsTab } from './SpellsTab';
 
 
@@ -52,7 +55,10 @@ export const CharacterSheet: React.FC<CharacterSheetProps> = ({ character, onSav
   const imageInputRef = useRef<HTMLInputElement>(null);
 
   const { isConnected } = useProtocol();
-  const { sprites, activeTableId, getSpritesForCharacter, linkSpriteToCharacter } = useGameStore();
+  const { sprites, activeTableId, getSpritesForCharacter, linkSpriteToCharacter, sessionRole } = useGameStore();
+  const isDMUser = isDM(sessionRole);
+  const { data: advancementConfig } = useAdvancementData();
+  const { data: classPrerequisites } = useClassPrerequisites();
 
   if (!character) {
     return <div className={styles.characterSheetEmpty}>No character data</div>;
@@ -521,6 +527,7 @@ export const CharacterSheet: React.FC<CharacterSheetProps> = ({ character, onSav
                   currentLevel={data.level || 1}
                   abilityScores={fullAbilityScores}
                   onMulticlass={handleMulticlass}
+                  classPrerequisites={classPrerequisites ?? undefined}
                 />
 
                 <ExperienceTracker
@@ -528,12 +535,25 @@ export const CharacterSheet: React.FC<CharacterSheetProps> = ({ character, onSav
                   currentExperience={data.experience || 0}
                   onExperienceChange={newExp => onSave({ data: { ...data, experience: newExp } })}
                   onLevelUp={newLevel => onSave({ data: { ...data, level: newLevel } })}
+                  advancementConfig={advancementConfig ?? undefined}
+                  isDM={isDMUser}
                 />
               </div>
             )}
 
             {activeTab === 'spells' && (
-              <SpellsTab data={data} onSave={newData => onSave({ data: newData })} />
+              <>
+                <SpellPreparationManager
+                  characterClass={data.class || ''}
+                  characterLevel={data.level || 1}
+                  abilityScores={fullAbilityScores}
+                  knownSpells={data.knownSpells || []}
+                  preparedSpells={data.preparedSpells || []}
+                  onPrepareSpell={id => onSave({ data: { ...data, preparedSpells: [...(data.preparedSpells || []), id] } })}
+                  onUnprepareSpell={id => onSave({ data: { ...data, preparedSpells: (data.preparedSpells || []).filter((s: string) => s !== id) } })}
+                />
+                <SpellsTab data={data} onSave={newData => onSave({ data: newData })} />
+              </>
             )}
 
             {activeTab === 'inventory' && (

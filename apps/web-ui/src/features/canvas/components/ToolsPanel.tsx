@@ -124,9 +124,10 @@ export function ToolsPanel({ userInfo }: ToolsPanelProps) {
     if (rm?.set_active_layer) rm.set_active_layer(layerId);
   };
 
+  // controlledBy is stored as string[] in the store (server sends user IDs as strings)
   const playerIds: number[] = Array.from(
     new Set((sprites as any[]).flatMap((s: any) => s.controlledBy ?? s.controlled_by ?? []))
-  ).filter((id): id is number => typeof id === 'number');
+  ).map(id => Number(id)).filter(id => !isNaN(id) && id > 0);
 
   const [tableSwitcherOpen, setTableSwitcherOpen] = useState(false);
   const tableSwitcherRef = useRef<HTMLDivElement>(null);

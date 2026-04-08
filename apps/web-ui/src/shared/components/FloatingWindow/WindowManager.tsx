@@ -27,9 +27,12 @@ const WindowManagerContext = createContext<WindowManagerContextValue | null>(nul
 
 const BASE_Z = 1000;
 
+function nextZ(windows: WindowEntry[]): number {
+  return windows.reduce((m, w) => Math.max(m, w.zIndex), BASE_Z) + 1;
+}
+
 export function WindowManagerProvider({ children }: { children: React.ReactNode }) {
   const [windows, setWindows] = useState<WindowEntry[]>([]);
-  const [topZ, setTopZ] = useState(BASE_Z);
 
   const openWindow = useCallback((
     id: string,
@@ -38,27 +41,22 @@ export function WindowManagerProvider({ children }: { children: React.ReactNode 
     options: { title?: string; width?: number; height?: number } = {}
   ) => {
     setWindows(prev => {
+      const z = nextZ(prev);
       const exists = prev.find(w => w.id === id);
       if (exists) {
-        // Bring to front
-        const next = prev.filter(w => w.id !== id);
-        const newZ = topZ + 1;
-        setTopZ(newZ);
-        return [...next, { ...exists, zIndex: newZ }];
+        return [...prev.filter(w => w.id !== id), { ...exists, zIndex: z }];
       }
-      const newZ = topZ + 1;
-      setTopZ(newZ);
       return [...prev, {
         id,
         title: options.title ?? id,
         component,
         props,
-        zIndex: newZ,
+        zIndex: z,
         initialWidth: options.width,
         initialHeight: options.height,
       }];
     });
-  }, [topZ]);
+  }, []);
 
   const closeWindow = useCallback((id: string) => {
     setWindows(prev => prev.filter(w => w.id !== id));
@@ -68,12 +66,10 @@ export function WindowManagerProvider({ children }: { children: React.ReactNode 
     setWindows(prev => {
       const entry = prev.find(w => w.id === id);
       if (!entry) return prev;
-      const next = prev.filter(w => w.id !== id);
-      const newZ = topZ + 1;
-      setTopZ(newZ);
-      return [...next, { ...entry, zIndex: newZ }];
+      const z = nextZ(prev);
+      return [...prev.filter(w => w.id !== id), { ...entry, zIndex: z }];
     });
-  }, [topZ]);
+  }, []);
 
   const isOpen = useCallback((id: string) => {
     return windows.some(w => w.id === id);

@@ -222,9 +222,9 @@ describe('CharacterSheet Component', () => {
     render(<CharacterSheet character={mockCharacterData} />);
     
     // Should show race, class, or level somewhere
-    const hasRaceInfo = screen.queryByText(/human/i) !== null;
-    const hasClassInfo = screen.queryByText(/fighter/i) !== null;
-    const hasLevelInfo = screen.queryByText(/level 1|1st level/i) !== null;
+    const hasRaceInfo = screen.queryAllByText(/human/i).length > 0;
+    const hasClassInfo = screen.queryAllByText(/fighter/i).length > 0;
+    const hasLevelInfo = screen.queryAllByText(/level 1|1st level/i).length > 0;
     
     expect(hasRaceInfo || hasClassInfo || hasLevelInfo).toBe(true);
   });

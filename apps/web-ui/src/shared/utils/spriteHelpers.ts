@@ -99,32 +99,3 @@ export function getDistanceBetweenSprites(
   return Math.sqrt(dx * dx + dy * dy);
 }
 
-/**
- * Legacy compatibility: create a sprite display object with old properties
- * Use this temporarily for components that need migration
- */
-export interface LegacySpriteDisplay extends Sprite {
-  name: string;
-  width: number;
-  height: number;
-  imageUrl: string;
-  isVisible: boolean;
-  isSelected: boolean;
-}
-
-export function toLegacySpriteDisplay(
-  sprite: Sprite,
-  isSelected: boolean = false,
-  isVisible: boolean = true,
-  baseSize: number = DEFAULT_SPRITE_SIZE
-): LegacySpriteDisplay {
-  return {
-    ...sprite,
-    name: getSpriteName(sprite),
-    width: getSpriteWidth(sprite, baseSize),
-    height: getSpriteHeight(sprite, baseSize),
-    imageUrl: sprite.texture,
-    isVisible,
-    isSelected
-  };
-}

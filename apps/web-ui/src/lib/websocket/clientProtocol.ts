@@ -864,7 +864,7 @@ export class WebClientProtocol {
       
       console.log(`Loaded ${characters.length} characters from server`);
       
-      // Also update asset cache for legacy compatibility
+      // Also sync to asset cache (used by asset resolution pipeline)
       const cacheChars = characters.map(c => ({
         id: c.id,
         name: c.name,

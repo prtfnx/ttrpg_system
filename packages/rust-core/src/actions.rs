@@ -856,3 +856,50 @@ impl ActionsClient {
         web_sys::console::log_1(&format!("Syncing sprite update: {}", sprite_id).into());
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::{ActionResult, TableInfo, SpriteInfo};
+    use crate::types::{Position, Size};
+
+    #[test]
+    fn action_result_success() {
+        let r = ActionResult { success: true, message: "ok".into(), data: None };
+        assert!(r.success);
+        assert_eq!(r.message, "ok");
+    }
+
+    #[test]
+    fn action_result_failure() {
+        let r = ActionResult { success: false, message: "err".into(), data: None };
+        assert!(!r.success);
+    }
+
+    #[test]
+    fn table_info_serde_roundtrip() {
+        let t = TableInfo {
+            table_id: "t1".into(), name: "Dungeon".into(),
+            width: 100.0, height: 200.0,
+            scale_x: 1.0, scale_y: 1.0,
+            offset_x: 0.0, offset_y: 0.0,
+        };
+        let json = serde_json::to_string(&t).unwrap();
+        let t2: TableInfo = serde_json::from_str(&json).unwrap();
+        assert_eq!(t.table_id, t2.table_id);
+        assert_eq!(t.width, t2.width);
+    }
+
+    #[test]
+    fn sprite_info_serde_roundtrip() {
+        let s = SpriteInfo {
+            sprite_id: "s1".into(), layer: "tokens".into(),
+            position: Position { x: 10.0, y: 20.0 },
+            size: Size { width: 50.0, height: 50.0 },
+            rotation: 0.0, texture_name: "goblin.png".into(), visible: true,
+        };
+        let json = serde_json::to_string(&s).unwrap();
+        let s2: SpriteInfo = serde_json::from_str(&json).unwrap();
+        assert_eq!(s.sprite_id, s2.sprite_id);
+        assert!(s2.visible);
+    }
+}

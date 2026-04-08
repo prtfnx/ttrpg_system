@@ -343,3 +343,68 @@ impl LayerManager {
         removed_count
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::types::Sprite;
+
+    fn make_sprite(id: &str, x: f64, y: f64, layer: &str) -> Sprite {
+        let mut s = Sprite::new(id.into(), x, y, 50.0, 50.0, layer.into());
+        s.table_id = "table1".into();
+        s
+    }
+
+    #[test]
+    fn new_manager_has_all_layers() {
+        let lm = LayerManager::new();
+        for name in LAYER_NAMES {
+            assert!(lm.get_layer(name).is_some(), "missing layer: {}", name);
+        }
+    }
+
+    #[test]
+    fn set_opacity_returns_false_for_unknown_layer() {
+        let mut lm = LayerManager::new();
+        assert!(!lm.set_layer_opacity("nonexistent", 0.5));
+    }
+
+    #[test]
+    fn set_visibility_toggles_correctly() {
+        let mut lm = LayerManager::new();
+        assert!(lm.set_layer_visibility("tokens", false));
+        assert!(!lm.get_layer("tokens").unwrap().visible());
+        assert!(lm.set_layer_visibility("tokens", true));
+        assert!(lm.get_layer("tokens").unwrap().visible());
+    }
+
+    #[test]
+    fn remove_sprite_across_layers() {
+        let mut lm = LayerManager::new();
+        let layer = lm.layers.get_mut("tokens").unwrap();
+        layer.sprites.push(make_sprite("s1", 0.0, 0.0, "tokens"));
+        assert!(lm.remove_sprite("s1"));
+        assert!(!lm.remove_sprite("s1"));
+    }
+
+    #[test]
+    fn count_sprites_for_table() {
+        let mut lm = LayerManager::new();
+        lm.layers.get_mut("tokens").unwrap().sprites.push(make_sprite("a", 0.0, 0.0, "tokens"));
+        lm.layers.get_mut("map").unwrap().sprites.push({
+            let mut s = make_sprite("b", 10.0, 10.0, "map");
+            s.table_id = "other".into();
+            s
+        });
+        assert_eq!(lm.count_sprites_for_table("table1"), 1);
+    }
+
+    #[test]
+    fn update_sprite_position_moves_sprite() {
+        let mut lm = LayerManager::new();
+        lm.layers.get_mut("tokens").unwrap().sprites.push(make_sprite("p1", 0.0, 0.0, "tokens"));
+        assert!(lm.update_sprite_position("p1", Vec2::new(100.0, 200.0)));
+        let (s, _) = lm.find_sprite("p1").unwrap();
+        assert_eq!((s.world_x, s.world_y), (100.0, 200.0));
+    }
+}

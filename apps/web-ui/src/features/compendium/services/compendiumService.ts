@@ -154,6 +154,19 @@ export interface SpellsResponse {
   };
 }
 
+export interface AdvancementConfig {
+  xp_table: number[];
+  proficiency_bonus: number[];
+  asi_levels: Record<string, number[]>;
+  tier_boundaries: { level: number; tier: number; name: string }[];
+}
+
+export interface ClassMulticlassData {
+  prerequisites: Record<string, number>;
+  proficiencies: string[];
+  spellcasting_type: 'full' | 'half' | 'third' | 'pact' | 'none';
+}
+
 class CompendiumService {
   private cache: Map<string, { data: any; timestamp: number }> = new Map();
   private readonly CACHE_DURATION = 5 * 60 * 1000; // 5 minutes
@@ -377,6 +390,18 @@ class CompendiumService {
    */
   clearCache() {
     this.cache.clear();
+  }
+
+  async getAdvancement(): Promise<AdvancementConfig> {
+    return this.fetchWithCache<AdvancementConfig>('/advancement');
+  }
+
+  async getClassMulticlassData(className: string): Promise<ClassMulticlassData> {
+    return this.fetchWithCache<ClassMulticlassData>(`/classes/${encodeURIComponent(className)}/multiclass`);
+  }
+
+  async getAllMulticlassData(): Promise<Record<string, ClassMulticlassData>> {
+    return this.fetchWithCache<Record<string, ClassMulticlassData>>('/classes/multiclass/all');
   }
 }
 

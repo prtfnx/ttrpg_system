@@ -8,8 +8,7 @@ class Settings(BaseSettings):
     # These will be read from environment variables set manually on Render
     SECRET_KEY: str = os.getenv("SECRET_KEY", "setted in env")
     ALGORITHM: str = os.getenv("ALGORITHM", "HS256")
-    jwt_secret_key: str = ""
-    
+
     # Session secret for OAuth state management (min 32 chars)
     SESSION_SECRET: str = os.getenv("SESSION_SECRET", "dev-secret-change-me-now-min32chars-0001")
     

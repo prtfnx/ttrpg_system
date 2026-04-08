@@ -37,13 +37,8 @@ getrandom = { version = "0.2", features = ["js"] }
 xxhash-rust = { version = "0.8", features = ["xxh64"] }
 
 
-# Math and graphics
-nalgebra = "0.32"
-image = { version = "0.24", default-features = false, features = ["png", "jpeg"] }
-
 # Async
 futures = "0.3"
-tokio = { version = "1", features = ["macros", "rt"], default-features = false }
 
 [dependencies.web-sys]
 version = "0.3"

@@ -1,4 +1,4 @@
-import { ErrorBoundary, Modal } from '@shared/components';
+import { ErrorBoundary } from '@shared/components';
 import { AlignCenter, AlignLeft, AlignRight } from 'lucide-react';
 import { type ReactElement, useCallback, useEffect, useRef, useState } from 'react';
 import styles from './TextSpriteCreator.module.css';
@@ -237,13 +237,8 @@ export function TextSpriteCreator({
   };
 
   return (
-    <Modal
-      isOpen={isOpen}
-      onClose={onClose}
-      title={title}
-      size="large"
-      closeOnEscape={true}
-    >
+    <>
+      {isOpen && (
       <ErrorBoundary>
         <div className={styles.textSpriteCreator}>
           <div className="creator-layout">
@@ -560,6 +555,7 @@ export function TextSpriteCreator({
           </div>
         </div>
       </ErrorBoundary>
-    </Modal>
+      )}
+    </>
   );
 }

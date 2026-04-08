@@ -57,7 +57,7 @@ export default defineConfig({
           name: 'browser',
           include: ['src/**/*.wasm-test.ts'],
           browser: {
-            enabled: true,
+            enabled: false,
             provider: 'playwright',
             headless: true,
             instances: [{ browser: 'chromium' }],

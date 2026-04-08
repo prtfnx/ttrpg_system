@@ -1,5 +1,6 @@
 ﻿import { useEffect, useMemo, useState } from 'react';
 import { useFormContext } from 'react-hook-form';
+import { useClass, useBackgrounds } from '../../../compendium/hooks/useCompendium';
 import type { SkillsStepData } from './schemas';
 import styles from './SkillsStep.module.css';
 
@@ -101,17 +102,28 @@ export function SkillsStep({
   const background = formData.background || 'acolyte';
   const race = formData.race || 'human';
   
-  // TODO: Get from compendium data based on class/background/race
-  // For now, use props or provide sensible defaults
-  const classSkills = propClassSkills || getClassSkills(characterClass);
-  const classSkillChoices = propClassSkillChoices || 2;
-  const backgroundSkills = propBackgroundSkills || getBackgroundSkills(background);
-  const raceSkills = propRaceSkills || getRaceSkills(race);
+  // Fetch compendium data — used as primary source, hardcoded maps as fallback
+  const { data: compendiumClass } = useClass(characterClass || null);
+  const { data: allBackgrounds } = useBackgrounds();
 
-  // Compute already granted skills (background + race)
-  const alreadyGranted = useMemo(() => [...backgroundSkills, ...raceSkills], [backgroundSkills, raceSkills]);
-  // Filter class skills to only those not already granted
-  const availableClassSkills = classSkills.filter(skill => !alreadyGranted.includes(skill));
+  const compendiumBackground = useMemo(
+    () => allBackgrounds?.find(b => b.name.toLowerCase() === background.toLowerCase()),
+    [allBackgrounds, background]
+  );
+
+  const classSkills = propClassSkills
+    || compendiumClass?.skill_proficiencies
+    || getClassSkills(characterClass);
+  const classSkillChoices = propClassSkillChoices
+    || compendiumClass?.num_skills
+    || 2;
+  const backgroundSkills = propBackgroundSkills
+    || compendiumBackground?.skill_proficiencies
+    || getBackgroundSkills(background);
+
+  const raceSkills = propRaceSkills || getRaceSkills(race);
+  const alreadyGranted = [...backgroundSkills, ...raceSkills];
+  const availableClassSkills = classSkills.filter(s => !alreadyGranted.includes(s));
 
   // Initialize selected state from form value OR default to granted skills
   const [selected, setSelected] = useState<string[]>(() => {

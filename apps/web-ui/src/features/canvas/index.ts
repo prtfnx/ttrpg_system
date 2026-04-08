@@ -11,9 +11,9 @@ export { TextSpriteModal } from './components/TextSprite/TextSpriteModal';
 export { TokenConfigModal } from './components/TokenConfigModal';
 export { ToolsPanel } from './components/ToolsPanel';
 
-export { useLayerManager } from './hooks/useLayerManager';
-export { useRenderEngine } from './hooks/useRenderEngine';
-export { useSpriteSyncing } from './hooks/useSpriteSyncing';
+export { useLayerManager } from './hooks';
+export { useRenderEngine } from './hooks';
+export { useSpriteSyncing } from './hooks';
 
 export { fpsService } from './services/fps.service';
 export { PerformanceLevel, performanceService } from './services/performance.service';

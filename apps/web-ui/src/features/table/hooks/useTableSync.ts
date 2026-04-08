@@ -64,7 +64,12 @@ interface TableSyncHookOptions {
 
 export const useTableSync = (options: TableSyncHookOptions = {}) => {
   const tableSyncRef = useRef<any>(null);
-  const { client: networkClient, networkState } = useNetworkClient();
+  // Ref-based handler so the stable onMessage wrapper never becomes stale
+  const handleNetworkMessageRef = useRef<(type: string, data: any) => void>();
+  const stableOnMessage = useCallback((msg: { type: string; data: any }) => {
+    handleNetworkMessageRef.current?.(msg.type, msg.data);
+  }, []);
+  const { client: networkClient, networkState } = useNetworkClient({ onMessage: stableOnMessage });
   const isConnected = networkState.isConnected;
   
   const [state, setState] = useState<TableSyncState>({
@@ -414,11 +419,15 @@ export const useTableSync = (options: TableSyncHookOptions = {}) => {
     }
   }, [state.tableId]);
 
+  // Keep ref current so stableOnMessage always calls the latest handler
+  useEffect(() => {
+    handleNetworkMessageRef.current = handleNetworkMessage;
+  }, [handleNetworkMessage]);
+
   // Register message handler with network client
   useEffect(() => {
     if (networkClient) {
-      // TODO: Register handleNetworkMessage with the network client
-      // This depends on the exact API of the network client
+      // handled via stableOnMessage passed to useNetworkClient above
     }
   }, [networkClient, handleNetworkMessage]);
 

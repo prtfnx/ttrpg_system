@@ -56,6 +56,7 @@ export const useCanvasEventsEnhanced = ({
 }: UseCanvasEventsEnhancedProps): CanvasEventsEnhanced => {
   const selectedSpriteIdsRef = useRef<string[]>([]);
   const lastMousePosRef = useRef({ x: 0, y: 0 });
+  const clipboardRef = useRef<string | null>(null);
 
   // Update input context when selection changes
   const updateInputContext = useCallback(() => {
@@ -94,6 +95,7 @@ export const useCanvasEventsEnhanced = ({
         if (selectedSpriteIds.length > 0) {
           const spriteData = (engine as any).copy_sprite?.(selectedSpriteIds[0]);
           if (spriteData) {
+            clipboardRef.current = spriteData;
             setContextMenu(prev => ({ ...prev, copiedSprite: spriteData }));
             inputManager.updateContext({ hasClipboard: true });
           }
@@ -101,7 +103,7 @@ export const useCanvasEventsEnhanced = ({
       },
 
       paste_sprites: () => {
-        const copiedData = null; // TODO: Implement clipboard
+        const copiedData = clipboardRef.current;
         if (copiedData && protocol) {
           protocol.pasteSprite(lastMousePosRef.current.x, lastMousePosRef.current.y);
         }

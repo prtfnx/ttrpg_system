@@ -175,19 +175,19 @@ function App() {
 
   return (
     <ErrorBoundary>
-      <WindowManagerProvider>
-        <div className={styles.app}>
-          <ProtocolProvider sessionCode={state.selectedSession}>
+      <div className={styles.app}>
+        <ProtocolProvider sessionCode={state.selectedSession}>
+          <WindowManagerProvider>
             <GameClient 
               sessionCode={state.selectedSession}
               userInfo={state.userInfo}
               userRole={state.userRole!}
               onAuthError={handleAuthError}
             />
-          </ProtocolProvider>
-          <ToastContainer theme="dark" />
-        </div>
-      </WindowManagerProvider>
+          </WindowManagerProvider>
+        </ProtocolProvider>
+        <ToastContainer theme="dark" />
+      </div>
     </ErrorBoundary>
   );
 }

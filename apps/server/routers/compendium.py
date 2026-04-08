@@ -355,6 +355,55 @@ async def get_feat_by_name(feat_name: str):
     return feat
 
 
+# D&D 5e multiclass data — static per SRD rules
+_MULTICLASS_DATA = {
+    'barbarian': {'prerequisites': {'strength': 13}, 'proficiencies': ['shields', 'simple_weapons', 'martial_weapons'], 'spellcasting_type': 'none'},
+    'bard': {'prerequisites': {'charisma': 13}, 'proficiencies': ['light_armor', 'one_musical_instrument'], 'spellcasting_type': 'full'},
+    'cleric': {'prerequisites': {'wisdom': 13}, 'proficiencies': ['light_armor', 'medium_armor', 'shields'], 'spellcasting_type': 'full'},
+    'druid': {'prerequisites': {'wisdom': 13}, 'proficiencies': ['light_armor', 'medium_armor', 'shields'], 'spellcasting_type': 'full'},
+    'fighter': {'prerequisites': {'strength_or_dexterity': 13}, 'proficiencies': ['light_armor', 'medium_armor', 'shields', 'simple_weapons', 'martial_weapons'], 'spellcasting_type': 'none'},
+    'monk': {'prerequisites': {'dexterity': 13, 'wisdom': 13}, 'proficiencies': ['simple_weapons', 'shortswords'], 'spellcasting_type': 'none'},
+    'paladin': {'prerequisites': {'strength': 13, 'charisma': 13}, 'proficiencies': ['light_armor', 'medium_armor', 'shields', 'simple_weapons', 'martial_weapons'], 'spellcasting_type': 'half'},
+    'ranger': {'prerequisites': {'dexterity': 13, 'wisdom': 13}, 'proficiencies': ['light_armor', 'medium_armor', 'shields', 'simple_weapons', 'martial_weapons'], 'spellcasting_type': 'half'},
+    'rogue': {'prerequisites': {'dexterity': 13}, 'proficiencies': ['light_armor', 'simple_weapons', 'hand_crossbows', 'longswords', 'rapiers', 'shortswords', 'thieves_tools'], 'spellcasting_type': 'none'},
+    'sorcerer': {'prerequisites': {'charisma': 13}, 'proficiencies': [], 'spellcasting_type': 'full'},
+    'warlock': {'prerequisites': {'charisma': 13}, 'proficiencies': ['light_armor', 'simple_weapons'], 'spellcasting_type': 'half'},
+    'wizard': {'prerequisites': {'intelligence': 13}, 'proficiencies': [], 'spellcasting_type': 'full'},
+}
+
+# D&D 5e ASI levels per class
+_ASI_LEVELS = {
+    'fighter': [4, 6, 8, 12, 14, 16, 19],
+    'rogue': [4, 8, 10, 12, 16, 19],
+    'default': [4, 8, 12, 16, 19],
+}
+
+@router.get("/advancement")
+async def get_advancement_config():
+    """D&D 5e advancement config: XP table, proficiency bonus, ASI levels, tier boundaries"""
+    return {
+        'xp_table': [0, 300, 900, 2700, 6500, 14000, 23000, 34000, 48000, 64000, 85000, 100000, 120000, 140000, 165000, 195000, 225000, 265000, 305000, 355000],
+        'proficiency_bonus': [2, 2, 2, 2, 3, 3, 3, 3, 4, 4, 4, 4, 5, 5, 5, 5, 6, 6, 6, 6],
+        'asi_levels': _ASI_LEVELS,
+        'tier_boundaries': [1, 5, 11, 17],
+    }
+
+
+@router.get("/classes/{class_name}/multiclass")
+async def get_class_multiclass(class_name: str):
+    """Multiclass prerequisites and proficiencies for a class (SRD rules)"""
+    data = _MULTICLASS_DATA.get(class_name.lower())
+    if not data:
+        raise HTTPException(status_code=404, detail=f"Multiclass data not found for '{class_name}'")
+    return {'class': class_name, **data}
+
+
+@router.get("/classes/multiclass/all")
+async def get_all_multiclass_data():
+    """All class multiclass prerequisites and proficiencies"""
+    return {k: {'class': k, **v} for k, v in _MULTICLASS_DATA.items()}
+
+
 # Reload endpoint for development
 @router.post("/reload")
 async def reload_compendium_data():

@@ -93,11 +93,10 @@ export class SpriteSyncService {
     try {
       const layer = spriteData.layer || 'tokens';
 
-      // LEGACY COMPAT: '__LIGHT__' is current; 'LIGHT' is stored in older DB records.
-      const isLight = (spriteData.texture_path === '__LIGHT__' || spriteData.texture_path === 'LIGHT')
-        && spriteData.layer === 'light';
+      // '__LIGHT__' sentinel for dynamic lights
+      const isLight = spriteData.texture_path === '__LIGHT__' && spriteData.layer === 'light';
 
-      // LEGACY COMPAT: __FOG_HIDE__ / __FOG_REVEAL__ are active sentinel values; keep until DB migrated.
+      // __FOG_HIDE__ / __FOG_REVEAL__ are sentinel values for fog of war
       const isFogHide = spriteData.texture_path === '__FOG_HIDE__';
       const isFogReveal = spriteData.texture_path === '__FOG_REVEAL__';
 
@@ -405,8 +404,8 @@ export class SpriteSyncService {
     if (Array.isArray(spriteData.position) && spriteData.position.length >= 2) {
       [startX, startY] = spriteData.position;
     } else {
-      startX = spriteData.coord_x ?? spriteData.x ?? 0;
-      startY = spriteData.coord_y ?? spriteData.y ?? 0;
+      startX = spriteData.x ?? 0;
+      startY = spriteData.y ?? 0;
     }
     const width = spriteData.scale_x ?? 100;
     const height = spriteData.scale_y ?? 100;
@@ -440,11 +439,10 @@ export class SpriteSyncService {
     if (Array.isArray(spriteData.position) && spriteData.position.length >= 2) {
       [x, y] = spriteData.position;
     } else {
-      // LEGACY COMPAT: coord_x/coord_y is older DB field; x/y is canonical.
-      x = spriteData.coord_x ?? spriteData.x ?? 0;
-      y = spriteData.coord_y ?? spriteData.y ?? 0;
+      x = spriteData.x ?? 0;
+      y = spriteData.y ?? 0;
     }
-    // LEGACY COMPAT: asset_xxhash is old field; asset_id is canonical; texture_path is oldest fallback.
+    // asset_xxhash is the server-computed verification hash; asset_id is the canonical identifier.
     const assetId = spriteData.asset_id || spriteData.asset_xxhash || spriteData.texture_path || null;
     const wasmSprite = {
       id: spriteData.sprite_id || spriteData.id || `sprite_${Date.now()}`,
@@ -455,7 +453,7 @@ export class SpriteSyncService {
       texture_id: assetId || '',
       tint_color: spriteData.tint_color || [1.0, 1.0, 1.0, 1.0],
       table_id: spriteData.table_id || 'default_table',
-      // LEGACY COMPAT: controlled_by may be array, raw string, or JSON-encoded string.
+      // controlled_by is stored as a JSON array string by server; parse if needed.
       controlled_by: Array.isArray(spriteData.controlled_by)
         ? spriteData.controlled_by
         : (typeof spriteData.controlled_by === 'string'
@@ -516,7 +514,6 @@ export class SpriteSyncService {
   private hasCompleteData(data: any): boolean {
     const hasPos = (Array.isArray(data.position) && data.position.length >= 2)
       || (data.x !== undefined && data.y !== undefined)
-      || (data.coord_x !== undefined && data.coord_y !== undefined)
       || (data.world_x !== undefined && data.world_y !== undefined);
     const hasAsset = data.asset_id || data.asset_xxhash || data.texture_id;
     const hasDims = (data.width && data.height) || (data.size_x && data.size_y);
@@ -536,7 +533,7 @@ export class SpriteSyncService {
     if (data.scale_x !== undefined || u.scale_x !== undefined) this.updateSpriteScale(spriteId, data.scale_x ?? u.scale_x, data.scale_y ?? u.scale_y);
     if (data.rotation !== undefined || u.rotation !== undefined) this.updateSpriteRotation(spriteId, data.rotation ?? u.rotation);
 
-    // LEGACY COMPAT: controlled_by may be array, raw string, or JSON-encoded string.
+    // controlled_by is stored as a JSON array string; parse if needed.
     const rawCb = data.controlled_by ?? u.controlled_by;
     if (rawCb !== undefined) {
       const cbNums: number[] = Array.isArray(rawCb) ? rawCb.map(Number) : (typeof rawCb === 'string' ? (() => { try { return JSON.parse(rawCb).map(Number); } catch { return []; } })() : []);

@@ -634,3 +634,62 @@ pub fn create_default_brush_presets() -> Vec<JsValue> {
         .map(|preset| serde_wasm_bindgen::to_value(&preset).unwrap_or(JsValue::NULL))
         .collect()
 }
+
+#[cfg(test)]
+mod tests {
+    use super::{DrawPoint, DrawStroke};
+    use crate::types::BlendMode;
+
+    #[test]
+    fn draw_point_stores_values() {
+        let p = DrawPoint::new(1.5, 2.5, 0.8);
+        assert_eq!(p.x, 1.5);
+        assert_eq!(p.y, 2.5);
+        assert_eq!(p.pressure, 0.8);
+    }
+
+    #[test]
+    fn draw_stroke_starts_empty() {
+        let s = DrawStroke {
+            points: Vec::new(),
+            color: [1.0, 0.0, 0.0, 1.0],
+            width: 3.0,
+            blend_mode: BlendMode::Alpha,
+            id: "test".into(),
+        };
+        assert!(s.points.is_empty());
+        assert_eq!(s.width, 3.0);
+    }
+
+    #[test]
+    fn draw_stroke_add_point() {
+        let mut s = DrawStroke {
+            points: Vec::new(),
+            color: [1.0, 1.0, 1.0, 1.0],
+            width: 2.0,
+            blend_mode: BlendMode::Alpha,
+            id: "s1".into(),
+        };
+        s.add_point(10.0, 20.0, 1.0);
+        s.add_point(15.0, 25.0, 0.5);
+        assert_eq!(s.points.len(), 2);
+        assert_eq!(s.points[0].x, 10.0);
+        assert_eq!(s.points[1].pressure, 0.5);
+    }
+
+    #[test]
+    fn draw_stroke_serde_roundtrip() {
+        let s = DrawStroke {
+            points: vec![DrawPoint::new(1.0, 2.0, 1.0)],
+            color: [0.5, 0.5, 0.5, 1.0],
+            width: 4.0,
+            blend_mode: BlendMode::Additive,
+            id: "rt".into(),
+        };
+        let json = serde_json::to_string(&s).unwrap();
+        let s2: DrawStroke = serde_json::from_str(&json).unwrap();
+        assert_eq!(s2.id, "rt");
+        assert_eq!(s2.points.len(), 1);
+        assert_eq!(s2.width, 4.0);
+    }
+}

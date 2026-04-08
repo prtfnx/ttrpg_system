@@ -3,7 +3,7 @@
  */
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { compendiumService, type Background, type CharacterClass, type CompendiumStatus, type Feat, type Race, type Spell, type Subclass } from '../services/compendiumService';
+import { compendiumService, type AdvancementConfig, type Background, type CharacterClass, type ClassMulticlassData, type CompendiumStatus, type Feat, type Race, type Spell, type Subclass } from '../services/compendiumService';
 
 export interface UseCompendiumDataState<T> {
   data: T | null;
@@ -396,4 +396,65 @@ export function useSubclasses(className: string | null): UseCompendiumDataState<
   useEffect(() => { fetchSubclasses(); }, [fetchSubclasses]);
 
   return useMemo(() => ({ ...state, refetch: fetchSubclasses }), [state, fetchSubclasses]);
+}
+
+export function useAdvancementData(): UseCompendiumDataState<AdvancementConfig> {
+  const [state, setState] = useState<UseCompendiumDataState<AdvancementConfig>>({
+    data: null, loading: true, error: null, refetch: async () => {}
+  });
+
+  const fetch = useCallback(async () => {
+    setState(prev => ({ ...prev, loading: true, error: null }));
+    try {
+      const data = await compendiumService.getAdvancement();
+      setState(prev => ({ ...prev, data, loading: false }));
+    } catch (error) {
+      setState(prev => ({ ...prev, error: error instanceof Error ? error.message : 'Unknown error', loading: false }));
+    }
+  }, []);
+
+  useEffect(() => { fetch(); }, [fetch]);
+  return useMemo(() => ({ ...state, refetch: fetch }), [state, fetch]);
+}
+
+export function useClassPrerequisites(): UseCompendiumDataState<Record<string, ClassMulticlassData>> {
+  const [state, setState] = useState<UseCompendiumDataState<Record<string, ClassMulticlassData>>>({
+    data: null, loading: true, error: null, refetch: async () => {}
+  });
+
+  const fetch = useCallback(async () => {
+    setState(prev => ({ ...prev, loading: true, error: null }));
+    try {
+      const data = await compendiumService.getAllMulticlassData();
+      setState(prev => ({ ...prev, data, loading: false }));
+    } catch (error) {
+      setState(prev => ({ ...prev, error: error instanceof Error ? error.message : 'Unknown error', loading: false }));
+    }
+  }, []);
+
+  useEffect(() => { fetch(); }, [fetch]);
+  return useMemo(() => ({ ...state, refetch: fetch }), [state, fetch]);
+}
+
+export function useClassSpells(className: string, level?: number): UseCompendiumDataState<Spell[]> {
+  const [state, setState] = useState<UseCompendiumDataState<Spell[]>>({
+    data: null, loading: !!className, error: null, refetch: async () => {}
+  });
+
+  const fetch = useCallback(async () => {
+    if (!className) {
+      setState(prev => ({ ...prev, data: [], loading: false }));
+      return;
+    }
+    setState(prev => ({ ...prev, loading: true, error: null }));
+    try {
+      const response = await compendiumService.getSpells({ class: className, level });
+      setState(prev => ({ ...prev, data: Object.values(response.spells), loading: false }));
+    } catch (error) {
+      setState(prev => ({ ...prev, error: error instanceof Error ? error.message : 'Unknown error', loading: false }));
+    }
+  }, [className, level]);
+
+  useEffect(() => { fetch(); }, [fetch]);
+  return useMemo(() => ({ ...state, refetch: fetch }), [state, fetch]);
 }

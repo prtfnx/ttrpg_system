@@ -246,6 +246,10 @@ class VirtualTable:
         #TODO validate position 
         #if not self.is_valid_position(position):
         #    raise ValueError("Invalid position")
+        original_position = position
+        position = self._clamp_position(position)
+        if position != original_position:
+            logger.warning(f"Entity position clamped from {original_position} to {position}")
         if layer not in self.layers:
             raise ValueError("Invalid layer")
         #if self.grid[layer][position[1]][position[0]] is not None:
@@ -314,6 +318,7 @@ class VirtualTable:
         if entity_id not in self.entities:
             logger.error(f"Entity {entity_id} not found")
             raise ValueError("Entity not found")
+        new_position = self._clamp_position(new_position)
         if not self.is_valid_position(new_position):
             logger.error(f"Invalid move to {new_position}")
             raise ValueError("Invalid position")
@@ -367,6 +372,12 @@ class VirtualTable:
         """Check if position is within table bounds"""
         x, y = position
         return 0 <= x < self.width and 0 <= y < self.height
+
+    def _clamp_position(self, position: Tuple[int, int]) -> Tuple[int, int]:
+        """Clamp position to valid table bounds"""
+        x = max(0, min(int(position[0]), self.width - 1))
+        y = max(0, min(int(position[1]), self.height - 1))
+        return (x, y)
     
     def table_to_layered_dict(self) -> Dict:
         """Convert table to layered dictionary format """

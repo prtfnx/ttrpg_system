@@ -1,12 +1,12 @@
 import clsx from 'clsx';
 import type { ReactNode } from 'react';
-import { Component, createRef } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import styles from './Modal.module.css';
 
 /**
- * @deprecated Use FloatingWindow for non-blocking panels.
- * Keep ONLY for destructive confirmation dialogs (delete, error alerts).
+ * Use for destructive confirmations and authentication only.
+ * For panels/inspectors use FloatingWindow.
  */
 
 interface Props {
@@ -19,138 +19,79 @@ interface Props {
   size?: 'small' | 'medium' | 'large' | 'fullscreen';
 }
 
-interface State {
-  isAnimating: boolean;
-}
+export function Modal({ isOpen, onClose, title, children, closeOnEscape = true, closeOnOverlayClick = true, size = 'medium' }: Props) {
+  const [isAnimating, setIsAnimating] = useState(false);
+  const modalRef = useRef<HTMLDivElement>(null);
+  const previousActiveElement = useRef<Element | null>(null);
+  const hasOpenedRef = useRef(false);
 
-export class Modal extends Component<Props, State> {
-  private modalRef = createRef<HTMLDivElement>();
-  private previousActiveElement: Element | null = null;
-
-  state: State = {
-    isAnimating: false
-  };
-
-  componentDidMount() {
-    if (this.props.isOpen) {
-      this.openModal();
+  const restoreFocus = useCallback(() => {
+    if (previousActiveElement.current instanceof HTMLElement) {
+      previousActiveElement.current.focus();
     }
-  }
+  }, []);
 
-  componentDidUpdate(prevProps: Props) {
-    if (!prevProps.isOpen && this.props.isOpen) {
-      this.openModal();
-    } else if (prevProps.isOpen && !this.props.isOpen) {
-      this.closeModal();
+  useEffect(() => {
+    if (isOpen) {
+      hasOpenedRef.current = true;
+      setIsAnimating(true);
+      previousActiveElement.current = document.activeElement;
+      document.body.style.overflow = 'hidden';
+      const timer = setTimeout(() => {
+        setIsAnimating(false);
+        modalRef.current?.focus();
+      }, 150);
+      return () => clearTimeout(timer);
+    } else if (hasOpenedRef.current) {
+      setIsAnimating(true);
+      document.body.style.overflow = '';
+      restoreFocus();
+      const timer = setTimeout(() => setIsAnimating(false), 150);
+      return () => clearTimeout(timer);
     }
-  }
+  }, [isOpen, restoreFocus]);
 
-  componentWillUnmount() {
-    this.restoreFocus();
-    this.removeEventListeners();
-  }
+  useEffect(() => {
+    if (!closeOnEscape) return;
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') { e.preventDefault(); onClose(); }
+    };
+    if (isOpen) document.addEventListener('keydown', handleKeyDown);
+    return () => document.removeEventListener('keydown', handleKeyDown);
+  }, [isOpen, closeOnEscape, onClose]);
 
-  private openModal = () => {
-    this.setState({ isAnimating: true });
-    this.previousActiveElement = document.activeElement;
-    document.body.style.overflow = 'hidden';
-    this.addEventListeners();
-    
-    // Focus the modal after animation
-    setTimeout(() => {
-      this.setState({ isAnimating: false });
-      this.modalRef.current?.focus();
-    }, 150);
+  useEffect(() => () => { document.body.style.overflow = ''; }, []);
+
+  if (!isOpen && !isAnimating) return null;
+
+  const handleOverlayClick = (e: React.MouseEvent) => {
+    if (closeOnOverlayClick && e.target === e.currentTarget) onClose();
   };
 
-  private closeModal = () => {
-    this.setState({ isAnimating: true });
-    document.body.style.overflow = '';
-    this.removeEventListeners();
-    this.restoreFocus();
-    
-    setTimeout(() => {
-      this.setState({ isAnimating: false });
-    }, 150);
-  };
-
-  private restoreFocus = () => {
-    if (this.previousActiveElement instanceof HTMLElement) {
-      this.previousActiveElement.focus();
-    }
-  };
-
-  private addEventListeners = () => {
-    if (this.props.closeOnEscape !== false) {
-      document.addEventListener('keydown', this.handleKeyDown);
-    }
-  };
-
-  private removeEventListeners = () => {
-    document.removeEventListener('keydown', this.handleKeyDown);
-  };
-
-  private handleKeyDown = (event: KeyboardEvent) => {
-    if (event.key === 'Escape') {
-      event.preventDefault();
-      this.props.onClose();
-    }
-  };
-
-  private handleOverlayClick = (event: React.MouseEvent) => {
-    if (this.props.closeOnOverlayClick !== false && event.target === event.currentTarget) {
-      this.props.onClose();
-    }
-  };
-
-  private getSizeClass = () => {
-    const { size = 'medium' } = this.props;
-    return styles[size];
-  };
-
-  render() {
-    if (!this.props.isOpen && !this.state.isAnimating) {
-      return null;
-    }
-
-    const modalContent = (
-      <div 
-        className={clsx(styles.modalOverlay, this.props.isOpen ? styles.modalOpen : styles.modalClosing)}
-        onClick={this.handleOverlayClick}
-        role="presentation"
+  const modalRoot = document.getElementById('modal-root') || document.body;
+  return createPortal(
+    <div
+      className={clsx(styles.modalOverlay, isOpen ? styles.modalOpen : styles.modalClosing)}
+      onClick={handleOverlayClick}
+      role="presentation"
+    >
+      <div
+        ref={modalRef}
+        className={clsx(styles.modalContent, styles[size])}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby={title ? 'modal-title' : undefined}
+        tabIndex={-1}
       >
-        <div 
-          ref={this.modalRef}
-          className={clsx(styles.modalContent, this.getSizeClass())}
-          role="dialog"
-          aria-modal="true"
-          aria-labelledby={this.props.title ? 'modal-title' : undefined}
-          tabIndex={-1}
-        >
-          {this.props.title && (
-            <div className={styles.modalHeader}>
-              <h2 id="modal-title" className={styles.modalTitle}>
-                {this.props.title}
-              </h2>
-              <button
-                type="button"
-                className={styles.modalCloseButton}
-                onClick={this.props.onClose}
-                aria-label="Close modal"
-              >
-                ×
-              </button>
-            </div>
-          )}
-          <div className={styles.modalBody}>
-            {this.props.children}
+        {title && (
+          <div className={styles.modalHeader}>
+            <h2 id="modal-title" className={styles.modalTitle}>{title}</h2>
+            <button type="button" className={styles.modalCloseButton} onClick={onClose} aria-label="Close modal">×</button>
           </div>
-        </div>
+        )}
+        <div className={styles.modalBody}>{children}</div>
       </div>
-    );
-
-    // Use portal to render modal at document root
-    const modalRoot = document.getElementById('modal-root') || document.body;
-    return createPortal(modalContent, modalRoot);
-  }
+    </div>,
+    modalRoot
+  );
 }

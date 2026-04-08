@@ -1,6 +1,40 @@
 from typing import Dict, Any, List, Optional
 from abc import ABC, abstractmethod
-from .actions_protocol import ActionResult, Position, LAYERS
+
+
+LAYERS = ['map', 'tokens', 'dungeon_master', 'light', 'height', 'obstacles', 'fog_of_war']
+
+
+class Position:
+    def __init__(self, x: float, y: float):
+        self.x = x
+        self.y = y
+
+    def get(self, key: str, default=None):
+        return getattr(self, key, default)
+
+    def __eq__(self, other):
+        if isinstance(other, Position):
+            return self.x == other.x and self.y == other.y
+        if isinstance(other, (list, tuple)) and len(other) >= 2:
+            return self.x == other[0] and self.y == other[1]
+        return False
+
+    def __repr__(self):
+        return f"Position({self.x}, {self.y})"
+
+
+class ActionResult:
+    def __init__(self, success: bool, message: str = '', data: Any = None):
+        self.success = success
+        self.message = message
+        self.data = data
+
+    def __bool__(self):
+        return self.success
+
+    def __repr__(self):
+        return f"ActionResult(success={self.success}, message={self.message!r})"
 
 class AsyncActionsProtocol(ABC):
     """

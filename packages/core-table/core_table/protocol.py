@@ -113,6 +113,12 @@ class MessageType(enum.Enum):    # Core messages
     # Skill/ability/saving-throw rolls
     CHARACTER_ROLL = "character_roll"
     CHARACTER_ROLL_RESULT = "character_roll_result"
+    # XP award (DM → server → all clients for that character)
+    XP_AWARD = "xp_award"
+    XP_AWARD_RESPONSE = "xp_award_response"
+    # Multiclass request (player → server → broadcast CHARACTER_UPDATE)
+    MULTICLASS_REQUEST = "multiclass_request"
+    MULTICLASS_RESPONSE = "multiclass_response"
 
     # Batch messaging for performance
     BATCH = "batch"

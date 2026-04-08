@@ -1,5 +1,11 @@
 import react from '@vitejs/plugin-react';
+import { playwright } from '@vitest/browser-playwright';
+import fs from 'fs';
+import path from 'path';
+import { fileURLToPath } from 'url';
 import { defineConfig } from 'vitest/config';
+
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 export default defineConfig({
   plugins: [react()],
@@ -52,16 +58,54 @@ export default defineConfig({
         },
       },
       {
-        plugins: [react()],
+        plugins: [
+          react(),
+          // Allow importing JS files from public/wasm — Vite 7 blocks public/*.js imports by default.
+          // Intercept the test file transform to replace the import path with a virtual module.
+          {
+            name: 'allow-public-wasm-js',
+            enforce: 'pre' as const,
+            transform(code: string, id: string) {
+              if (id.endsWith('.wasm-test.ts') && code.includes('/wasm/')) {
+                // Replace dynamic import of public WASM JS with a virtual module path
+                return code.replace(
+                  /import\(\/\* @vite-ignore \*\/ '\/wasm\/ttrpg_rust_core\.js'\)/g,
+                  "import(/* @vite-ignore */ '/wasm-module/ttrpg_rust_core.js')"
+                );
+              }
+            },
+            resolveId(id: string) {
+              if (id === '/wasm-module/ttrpg_rust_core.js') {
+                return '\0virtual:wasm-entry';
+              }
+            },
+            load(id: string) {
+              if (id === '\0virtual:wasm-entry') {
+                const filePath = path.resolve(__dirname, 'public/wasm/ttrpg_rust_core.js');
+                let code = fs.readFileSync(filePath, 'utf-8');
+                // Fix WASM binary URL: replace relative import.meta.url resolution with absolute path
+                code = code.replace(
+                  /new URL\('ttrpg_rust_core_bg\.wasm', import\.meta\.url\)/g,
+                  "new URL('/wasm/ttrpg_rust_core_bg.wasm', location.origin)"
+                );
+                return code;
+              }
+            },
+          },
+        ],
         test: {
           name: 'browser',
           include: ['src/**/*.wasm-test.ts'],
           browser: {
             enabled: true,
-            provider: 'playwright',
+            provider: playwright(),
             headless: true,
             instances: [{ browser: 'chromium' }],
           },
+        },
+        assetsInclude: ['**/*.wasm'],
+        server: {
+          fs: { strict: false },
         },
         resolve: {
           alias: {

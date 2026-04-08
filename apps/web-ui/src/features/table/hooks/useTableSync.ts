@@ -65,7 +65,7 @@ interface TableSyncHookOptions {
 export const useTableSync = (options: TableSyncHookOptions = {}) => {
   const tableSyncRef = useRef<any>(null);
   // Ref-based handler so the stable onMessage wrapper never becomes stale
-  const handleNetworkMessageRef = useRef<(type: string, data: any) => void>();
+  const handleNetworkMessageRef = useRef<((type: string, data: any) => void) | undefined>(undefined);
   const stableOnMessage = useCallback((msg: { type: string; data: any }) => {
     handleNetworkMessageRef.current?.(msg.type, msg.data);
   }, []);

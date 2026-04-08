@@ -617,7 +617,7 @@ class ActionsCore(AsyncActionsProtocol):
             
             # Add layer_visibility attribute if it doesn't exist
             if not hasattr(table, 'layer_visibility'):
-                table.layer_visibility = {l: True for l in LAYERS.keys()}
+                table.layer_visibility = {l: True for l in LAYERS}
             
             old_visibility = table.layer_visibility.get(layer, True)
             table.layer_visibility[layer] = visible
@@ -646,7 +646,7 @@ class ActionsCore(AsyncActionsProtocol):
                 return ActionResult(False, f"Invalid layer: {layer}")
             
             if not hasattr(table, 'layer_visibility'):
-                table.layer_visibility = {l: True for l in LAYERS.keys()}
+                table.layer_visibility = {l: True for l in LAYERS}
             
             visibility = table.layer_visibility.get(layer, True)
             return ActionResult(True, f"Layer {layer} visibility: {visibility}", {'visible': visibility})
@@ -729,7 +729,7 @@ class ActionsCore(AsyncActionsProtocol):
                 'entity_count': len(table.entities),
                 'position': getattr(table, 'position', Position(0, 0)),
                 'scale': getattr(table, 'scale', (1.0, 1.0)),
-                'layer_visibility': getattr(table, 'layer_visibility', {l: True for l in LAYERS.keys()})
+                'layer_visibility': getattr(table, 'layer_visibility', {l: True for l in LAYERS})
             }
             
             return ActionResult(True, f"Table {table_id} info retrieved", info)

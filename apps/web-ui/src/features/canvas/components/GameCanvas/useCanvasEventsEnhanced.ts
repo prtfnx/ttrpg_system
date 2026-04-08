@@ -104,9 +104,11 @@ export const useCanvasEventsEnhanced = ({
 
       paste_sprites: () => {
         const copiedData = clipboardRef.current;
-        if (copiedData && protocol) {
-          protocol.pasteSprite(lastMousePosRef.current.x, lastMousePosRef.current.y);
-        }
+        if (!copiedData) return;
+        const { x, y } = lastMousePosRef.current;
+        const worldPos = engine.screen_to_world(x, y);
+        engine.paste_sprite('tokens', copiedData, worldPos[0], worldPos[1]);
+        updateInputContext();
       },
 
       scale_up: () => {

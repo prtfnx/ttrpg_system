@@ -158,7 +158,7 @@ export interface AdvancementConfig {
   xp_table: number[];
   proficiency_bonus: number[];
   asi_levels: Record<string, number[]>;
-  tier_boundaries: { level: number; tier: number; name: string }[];
+  tier_boundaries: number[];
 }
 
 export interface ClassMulticlassData {

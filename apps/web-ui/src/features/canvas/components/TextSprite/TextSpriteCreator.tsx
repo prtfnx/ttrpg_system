@@ -65,7 +65,6 @@ interface TextSpriteCreatorProps {
   activeLayer: string;
   initialPosition?: { x: number; y: number };
   initialConfig?: TextSpriteConfig;
-  title?: string;
   createButtonText?: string;
   showDeleteButton?: boolean;
   onDelete?: () => void;
@@ -79,7 +78,6 @@ export function TextSpriteCreator({
   activeLayer,
   initialPosition = { x: 100, y: 100 },
   initialConfig,
-  title = "Create Text Sprite",
   createButtonText = "Create Text Sprite",
   showDeleteButton = false,
   onDelete,

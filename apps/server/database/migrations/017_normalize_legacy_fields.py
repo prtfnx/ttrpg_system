@@ -21,15 +21,15 @@ def _normalize_character(row_id: str, data: dict) -> tuple[dict, list[str]]:
     changes: list[str] = []
     d = dict(data)
 
-    # Add character_id from row PK if missing
-    if "character_id" not in d:
-        d["character_id"] = row_id
-        changes.append("added character_id from row PK")
-
-    # Promote legacy `id` to `character_id` if character_id still absent
+    # Promote legacy `id` to `character_id` if character_id absent but `id` exists
     if "character_id" not in d and "id" in d:
         d["character_id"] = d["id"]
         changes.append("promoted id -> character_id")
+
+    # Add character_id from row PK if still missing
+    if "character_id" not in d:
+        d["character_id"] = row_id
+        changes.append("added character_id from row PK")
 
     # Normalize flat ability scores to nested abilityScores dict
     has_flat = any(isinstance(d.get(k), int) for k in _ABILITY_KEYS)

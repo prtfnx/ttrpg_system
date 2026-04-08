@@ -401,7 +401,7 @@ async def get_class_multiclass(class_name: str):
 @router.get("/classes/multiclass/all")
 async def get_all_multiclass_data():
     """All class multiclass prerequisites and proficiencies"""
-    return {'classes': {k: {'class': k, **v} for k, v in _MULTICLASS_DATA.items()}}
+    return {k: {'class': k, **v} for k, v in _MULTICLASS_DATA.items()}
 
 
 # Reload endpoint for development

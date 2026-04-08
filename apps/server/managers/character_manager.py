@@ -461,7 +461,7 @@ class ServerCharacterManager:
         scores = data.get('abilityScores', data.get('ability_scores', {}))
         prereqs = self._MULTICLASS_PREREQS[new_class_lower]
 
-        # fighter and monk use OR logic for str/dex
+        # Fighter uses OR logic for Strength/Dexterity; other classes use AND logic for listed prerequisites
         if new_class_lower == 'fighter':
             str_val = int((scores.get('strength') or scores.get('str') or {}).get('score', 0) if isinstance(scores.get('strength') or scores.get('str'), dict) else scores.get('strength') or scores.get('str') or 0)
             dex_val = int((scores.get('dexterity') or scores.get('dex') or {}).get('score', 0) if isinstance(scores.get('dexterity') or scores.get('dex'), dict) else scores.get('dexterity') or scores.get('dex') or 0)

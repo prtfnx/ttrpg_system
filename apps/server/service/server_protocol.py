@@ -2475,11 +2475,11 @@ class ServerProtocol:
         current_xp = int(inner.get('experience', inner.get('currentXP', 0)) or 0)
         new_xp = current_xp + amount
 
-        # D&D 5e XP thresholds for level-up detection
+        # D&D 5e XP thresholds for level-up detection TODO: take it from compendium
         _XP_TABLE = [0, 300, 900, 2700, 6500, 14000, 23000, 34000, 48000, 64000,
                      85000, 100000, 120000, 140000, 165000, 195000, 225000, 265000, 305000, 355000]
-        old_level = next((i for i in range(19, -1, -1) if current_xp >= _XP_TABLE[i]), 0)
-        new_level = next((i for i in range(19, -1, -1) if new_xp >= _XP_TABLE[i]), 0)
+        old_level = next((i for i in range(19, -1, -1) if current_xp >= _XP_TABLE[i]), 0) + 1
+        new_level = next((i for i in range(19, -1, -1) if new_xp >= _XP_TABLE[i]), 0) + 1
         leveled_up = new_level > old_level
 
         updates: dict = {}

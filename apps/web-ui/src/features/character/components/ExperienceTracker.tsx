@@ -82,7 +82,7 @@ export function ExperienceTracker({
 
   return (
     <div className={styles.container}>
-      <div className={styles.header ?? ''} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+      <div className={styles.header}>
         <h3 className={styles.title}>Experience Tracker</h3>
         {isDM && (
           <button className={styles.addBtn} onClick={() => setShowAwardDialog(v => !v)}>
@@ -112,9 +112,9 @@ export function ExperienceTracker({
       </div>
 
       {isDM && showAwardDialog && (
-        <div className={styles.inputRow} style={{ flexDirection: 'column', gap: '8px', marginTop: '12px' }}>
+        <div className={styles.awardForm}>
           <strong>Award XP</strong>
-          <div style={{ display: 'flex', gap: '8px' }}>
+          <div className={styles.awardFormRow}>
             <input
               type="number" min="1" value={awardAmount}
               onChange={e => setAwardAmount(e.target.value)}
@@ -163,7 +163,7 @@ export function ExperienceTracker({
       )}
 
       {isDM && !showAwardDialog && canLevelUp && (
-        <button className={styles.levelUpBtn} onClick={() => onLevelUp(currentLevel + 1)} style={{ marginTop: '8px' }}>
+        <button className={styles.levelUpBtnMt} onClick={() => onLevelUp(currentLevel + 1)}>
           Level Up
         </button>
       )}

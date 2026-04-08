@@ -172,7 +172,7 @@ export function MulticlassManager({
       )}
 
       {selectedClass && !selectedMeetsReqs && (
-        <div className={styles.errBox ?? ''} style={{ color: 'var(--color-error, #e53)', marginTop: '8px' }}>
+        <div className={styles.errBox}>
           You don&apos;t meet the ability score requirements for {selectedClass}.
         </div>
       )}

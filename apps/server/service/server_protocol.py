@@ -121,6 +121,10 @@ class ServerProtocol:
             self.register_handler(MessageType.CHARACTER_LOG_REQUEST, self.handle_character_log_request)
         if hasattr(MessageType, 'CHARACTER_ROLL'):
             self.register_handler(MessageType.CHARACTER_ROLL, self.handle_character_roll)
+        if hasattr(MessageType, 'XP_AWARD'):
+            self.register_handler(MessageType.XP_AWARD, self.handle_xp_award)
+        if hasattr(MessageType, 'MULTICLASS_REQUEST'):
+            self.register_handler(MessageType.MULTICLASS_REQUEST, self.handle_multiclass_request)
         
         # Wall management (DM-only for create/update/remove; all for door_toggle)
         self.register_handler(MessageType.WALL_CREATE,       self.handle_wall_create)
@@ -2439,6 +2443,129 @@ class ServerProtocol:
             return Message(MessageType.ERROR, {'error': result.message})
         await self.broadcast_to_session(Message(MessageType.CHARACTER_ROLL_RESULT, result.data), client_id)
         return Message(MessageType.SUCCESS, {'message': 'Roll completed'})
+
+    async def handle_xp_award(self, msg: Message, client_id: str) -> Message:
+        """DM awards XP to a character. Checks for level-up automatically."""
+        if not is_dm(self._get_client_role(client_id)):
+            return Message(MessageType.XP_AWARD_RESPONSE, {'success': False, 'error': 'Only DMs can award XP'})
+        if not msg.data:
+            return Message(MessageType.XP_AWARD_RESPONSE, {'success': False, 'error': 'No data provided'})
+
+        character_id = msg.data.get('character_id')
+        amount = int(msg.data.get('amount', 0))
+        source = msg.data.get('source', 'other')
+        description = msg.data.get('description', '')
+        session_id = self._get_session_id(msg)
+        user_id = self._get_user_id(msg, client_id) or 0
+
+        if not character_id or amount <= 0:
+            return Message(MessageType.XP_AWARD_RESPONSE, {'success': False, 'error': 'character_id and positive amount required'})
+        if not session_id:
+            return Message(MessageType.XP_AWARD_RESPONSE, {'success': False, 'error': 'Session not found'})
+
+        from managers.character_manager import get_server_character_manager
+        char_mgr = get_server_character_manager()
+
+        load_result = char_mgr.load_character(session_id, character_id, user_id=0)
+        if not load_result.get('success'):
+            return Message(MessageType.XP_AWARD_RESPONSE, {'success': False, 'error': load_result.get('error', 'Character not found')})
+
+        char_data = load_result['character_data']
+        inner = char_data.get('data', char_data)
+        current_xp = int(inner.get('experience', inner.get('currentXP', 0)) or 0)
+        new_xp = current_xp + amount
+
+        # D&D 5e XP thresholds for level-up detection
+        _XP_TABLE = [0, 300, 900, 2700, 6500, 14000, 23000, 34000, 48000, 64000,
+                     85000, 100000, 120000, 140000, 165000, 195000, 225000, 265000, 305000, 355000]
+        old_level = next((i for i in range(19, -1, -1) if current_xp >= _XP_TABLE[i]), 0)
+        new_level = next((i for i in range(19, -1, -1) if new_xp >= _XP_TABLE[i]), 0)
+        leveled_up = new_level > old_level
+
+        updates: dict = {}
+        if 'data' in char_data:
+            updates = {'data': {**inner, 'experience': new_xp}}
+            if leveled_up:
+                updates['data']['level'] = new_level
+                updates['data']['pending_level_up'] = True
+        else:
+            updates = {**char_data, 'experience': new_xp}
+            if leveled_up:
+                updates['level'] = new_level
+                updates['pending_level_up'] = True
+
+        save_result = char_mgr.update_character(session_id, character_id, updates, user_id=0, bypass_owner_check=True)
+        if not save_result.get('success'):
+            return Message(MessageType.XP_AWARD_RESPONSE, {'success': False, 'error': save_result.get('error', 'Save failed')})
+
+        # Log the award
+        from database.database import SessionLocal
+        from database.models import CharacterLog
+        try:
+            with SessionLocal() as db:
+                db.add(CharacterLog(
+                    character_id=character_id, session_id=session_id,
+                    action_type='xp_award',
+                    description=f"+{amount} XP from {source}" + (f": {description}" if description else ""),
+                    user_id=user_id,
+                ))
+                db.commit()
+        except Exception as e:
+            logger.warning(f"Failed to log XP award: {e}")
+
+        resp_data = {
+            'success': True, 'character_id': character_id,
+            'amount': amount, 'new_xp': new_xp,
+            'leveled_up': leveled_up, 'new_level': new_level if leveled_up else old_level,
+        }
+        await self.broadcast_to_session(Message(MessageType.XP_AWARD_RESPONSE, resp_data), client_id)
+        return Message(MessageType.XP_AWARD_RESPONSE, resp_data)
+
+    async def handle_multiclass_request(self, msg: Message, client_id: str) -> Message:
+        """Player or DM requests adding a new class (multiclassing)."""
+        if not msg.data:
+            return Message(MessageType.MULTICLASS_RESPONSE, {'success': False, 'error': 'No data provided'})
+
+        character_id = msg.data.get('character_id')
+        new_class = msg.data.get('new_class', '')
+        session_id = self._get_session_id(msg)
+        user_id = self._get_user_id(msg, client_id) or 0
+
+        if not character_id or not new_class:
+            return Message(MessageType.MULTICLASS_RESPONSE, {'success': False, 'error': 'character_id and new_class required'})
+        if not session_id:
+            return Message(MessageType.MULTICLASS_RESPONSE, {'success': False, 'error': 'Session not found'})
+
+        from managers.character_manager import get_server_character_manager
+        char_mgr = get_server_character_manager()
+
+        is_dm_client = is_dm(self._get_client_role(client_id))
+        load_result = char_mgr.load_character(session_id, character_id, user_id=user_id if not is_dm_client else 0)
+        if not load_result.get('success'):
+            return Message(MessageType.MULTICLASS_RESPONSE, {'success': False, 'error': load_result.get('error', 'Character not found')})
+
+        char_data = load_result['character_data']
+        valid, error = char_mgr.validate_multiclass(char_data, new_class)
+        if not valid:
+            return Message(MessageType.MULTICLASS_RESPONSE, {'success': False, 'error': error})
+
+        inner = char_data.get('data', char_data)
+        classes = list(inner.get('classes', []))
+        classes.append({'name': new_class.lower(), 'level': 1})
+
+        updates: dict = {}
+        if 'data' in char_data:
+            updates = {'data': {**inner, 'classes': classes}}
+        else:
+            updates = {**char_data, 'classes': classes}
+
+        save_result = char_mgr.update_character(session_id, character_id, updates, user_id=user_id, bypass_owner_check=is_dm_client)
+        if not save_result.get('success'):
+            return Message(MessageType.MULTICLASS_RESPONSE, {'success': False, 'error': save_result.get('error', 'Save failed')})
+
+        resp_data = {'success': True, 'character_id': character_id, 'new_class': new_class, 'classes': classes}
+        await self.broadcast_to_session(Message(MessageType.MULTICLASS_RESPONSE, resp_data), client_id)
+        return Message(MessageType.MULTICLASS_RESPONSE, resp_data)
 
     # =========================================================================
     # MISSING MESSAGE HANDLERS IMPLEMENTATION

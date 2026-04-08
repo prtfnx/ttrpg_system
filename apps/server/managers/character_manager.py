@@ -410,14 +410,73 @@ class ServerCharacterManager:
                 session = db.query(GameSession).filter(
                     GameSession.session_code == session_code
                 ).first()
-                
+
                 if session:
                     return session.id  # type: ignore
                 return None
-                
+
         except Exception as e:
             logger.error(f"Error getting session ID: {e}")
             return None
+
+    # D&D 5e multiclass prerequisites (ability score minimums)
+    _MULTICLASS_PREREQS: Dict[str, Dict[str, int]] = {
+        'barbarian': {'strength': 13},
+        'bard': {'charisma': 13},
+        'cleric': {'wisdom': 13},
+        'druid': {'wisdom': 13},
+        'fighter': {'strength': 13, 'dexterity': 13},
+        'monk': {'dexterity': 13, 'wisdom': 13},
+        'paladin': {'strength': 13, 'charisma': 13},
+        'ranger': {'dexterity': 13, 'wisdom': 13},
+        'rogue': {'dexterity': 13},
+        'sorcerer': {'charisma': 13},
+        'warlock': {'charisma': 13},
+        'wizard': {'intelligence': 13},
+    }
+
+    def validate_multiclass(self, character_data: dict, new_class: str) -> tuple:
+        """Validate D&D 5e multiclass prerequisites. Returns (valid, error_message)."""
+        new_class_lower = new_class.lower()
+        if new_class_lower not in self._MULTICLASS_PREREQS:
+            return False, f"Unknown class: {new_class}"
+
+        data = character_data.get('data', character_data)
+
+        # Total level cap
+        classes = data.get('classes', [])
+        total_level = sum(int(c.get('level', 1)) for c in classes) if classes else int(data.get('level', 1))
+        if total_level >= 20:
+            return False, "Cannot multiclass: already at maximum level (20)"
+
+        # Already has this class
+        if any(c.get('name', '').lower() == new_class_lower for c in classes):
+            return False, f"Already has {new_class} class"
+
+        # Ability score prerequisites
+        ability_map = {
+            'strength': 'str', 'dexterity': 'dex', 'constitution': 'con',
+            'intelligence': 'int', 'wisdom': 'wis', 'charisma': 'cha',
+        }
+        scores = data.get('abilityScores', data.get('ability_scores', {}))
+        prereqs = self._MULTICLASS_PREREQS[new_class_lower]
+
+        # fighter and monk use OR logic for str/dex
+        if new_class_lower == 'fighter':
+            str_val = int((scores.get('strength') or scores.get('str') or {}).get('score', 0) if isinstance(scores.get('strength') or scores.get('str'), dict) else scores.get('strength') or scores.get('str') or 0)
+            dex_val = int((scores.get('dexterity') or scores.get('dex') or {}).get('score', 0) if isinstance(scores.get('dexterity') or scores.get('dex'), dict) else scores.get('dexterity') or scores.get('dex') or 0)
+            if str_val < 13 and dex_val < 13:
+                return False, "Fighter multiclass requires Strength 13 OR Dexterity 13"
+            return True, ""
+
+        for ability, minimum in prereqs.items():
+            short = ability_map.get(ability, ability[:3])
+            raw = scores.get(ability) or scores.get(short)
+            score = int(raw.get('score', 0) if isinstance(raw, dict) else raw or 0)
+            if score < minimum:
+                return False, f"{new_class.capitalize()} multiclass requires {ability.capitalize()} {minimum} (have {score})"
+
+        return True, ""
 
 
 # Global instance

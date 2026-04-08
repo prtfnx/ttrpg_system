@@ -1,6 +1,5 @@
 from typing import Dict, Any, List, Optional, Tuple
-from .async_actions_protocol import AsyncActionsProtocol
-from .actions_protocol import ActionResult, Position, LAYERS
+from .async_actions_protocol import AsyncActionsProtocol, ActionResult, Position, LAYERS
 from .table import VirtualTable, Entity
 import uuid
 import copy
@@ -472,9 +471,9 @@ class ActionsCore(AsyncActionsProtocol):
                 return ActionResult(False, f"Sprite {sprite_id} not found")
             logger.debug(f"Entity found: {entity} with position {entity.position}")
             old_position_entity = Position(entity.position[0], entity.position[1])
-            if old_position_entity == old_position:
-                logger.warning(f"Sprite position desynchronization detected for {sprite_id}. Expected {old_position}, found {old_position_entity}.")
-                #TODO implement desync handling
+            if old_position_entity != old_position:
+                logger.warning(f"Sprite position desync for {sprite_id}. Client expected {old_position}, server has {old_position_entity}. Using server position.")
+                # Server-authoritative: ignore client's old_position, move from where we actually are
 
             
             # Convert position to grid coordinates
@@ -499,7 +498,8 @@ class ActionsCore(AsyncActionsProtocol):
             }
             await self._add_to_history(action)
 
-            return ActionResult(True, f"Sprite {sprite_id} moved to ({grid_x}, {grid_y})")
+            corrected = old_position_entity != old_position
+            return ActionResult(True, f"Sprite {sprite_id} moved to ({grid_x}, {grid_y})", data={'corrected': corrected, 'x': grid_x, 'y': grid_y})
         except Exception as e:
             logger.error(f"Failed to move sprite {sprite_id}: {str(e)}")
             return ActionResult(False, f"Failed to move sprite: {str(e)}")

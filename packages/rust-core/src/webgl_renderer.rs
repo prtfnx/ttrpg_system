@@ -107,8 +107,13 @@ impl WebGLRenderer {
     }
     
     pub fn clear(&self, r: f32, g: f32, b: f32, a: f32) {
+        // Reset critical GL state before clearing to ensure nothing blocks the clear
+        self.gl.color_mask(true, true, true, true);
+        self.gl.disable(WebGlRenderingContext::STENCIL_TEST);
+        self.gl.stencil_mask(0xFF);
+        self.gl.blend_func(WebGlRenderingContext::SRC_ALPHA, WebGlRenderingContext::ONE_MINUS_SRC_ALPHA);
         self.gl.clear_color(r, g, b, a);
-        self.gl.clear(WebGlRenderingContext::COLOR_BUFFER_BIT);
+        self.gl.clear(WebGlRenderingContext::COLOR_BUFFER_BIT | WebGlRenderingContext::STENCIL_BUFFER_BIT);
     }
     
     pub fn draw_quad(&self, vertices: &[f32], tex_coords: &[f32], color: [f32; 4], use_texture: bool) -> Result<(), JsValue> {

@@ -303,6 +303,15 @@ export const GameCanvas: React.FC = () => {
       ctx.scale(dpr, dpr);
 
       const conv = getUnitConverter();
+
+      // Get authoritative sprite geometry from WASM (world_x, world_y, width, height are accurate)
+      type WasmSpriteData = { sprite_id: string; world_x: number; world_y: number; width: number; height: number };
+      let wasmMap = new Map<string, WasmSpriteData>();
+      try {
+        const raw: WasmSpriteData[] = (rm as any).get_all_sprites_network_data?.() ?? [];
+        wasmMap = new Map(raw.map(d => [d.sprite_id, d]));
+      } catch { /* ignore — fall back to store data */ }
+
       // Only draw circles for sprites on the active table
       const tableSprites = sprites.filter(sp => (sp as any).tableId === activeTableId || (sp as any).table_id === activeTableId);
       for (const sprite of tableSprites) {
@@ -320,22 +329,29 @@ export const GameCanvas: React.FC = () => {
           : (s.auraRadius ?? 0);
         if (!vr && !dvr && !ar) continue;
 
-        // Use live resize dims if available during drag, otherwise use stored scale
-        const liveSize = dragDimsRef.current.get(s.id);
+        // Scale from store (same as WASM scale_x/scale_y)
         const scaleX = s.scale?.x ?? s.scale_x ?? 1;
         const scaleY = s.scale?.y ?? s.scale_y ?? 1;
-        // Actual sprite half-size in world px: prefer explicit width/height, then scale*cellPx
-        const hw = liveSize ? liveSize.w / 2 : (s.width != null ? s.width / 2 : scaleX * cellPx / 2);
-        const hh = liveSize ? liveSize.h / 2 : (s.height != null ? s.height / 2 : scaleY * cellPx / 2);
-        // Use live drag position if being dragged, otherwise use store position
-        const pos = dragPositionsRef.current.get(s.id) ?? { x: s.x, y: s.y };
+
+        // Resolve actual pixel dimensions (live drag > WASM > store fallback)
+        const liveDims = dragDimsRef.current.get(s.id);
+        const wasmSprite = wasmMap.get(s.id);
+        // WASM width is unscaled base width; actual pixel size = width * scale
+        const wpx = liveDims?.w ?? (wasmSprite ? wasmSprite.width * scaleX : scaleX * cellPx);
+        const hpx = liveDims?.h ?? (wasmSprite ? wasmSprite.height * scaleY : scaleY * cellPx);
+
+        // Resolve top-left world position (live drag > WASM > store fallback)
+        const livePos = dragPositionsRef.current.get(s.id);
+        const wx = livePos?.x ?? wasmSprite?.world_x ?? s.x ?? 0;
+        const wy = livePos?.y ?? wasmSprite?.world_y ?? s.y ?? 0;
+
         try {
-          const ctr = rm.world_to_screen(pos.x + hw, pos.y + hh);
+          const ctr = rm.world_to_screen(wx + wpx / 2, wy + hpx / 2);
           const sx = ctr[0] / dpr;
           const sy = ctr[1] / dpr;
 
           if (ar > 0) {
-            const edge = rm.world_to_screen(pos.x + hw + ar, pos.y + hh);
+            const edge = rm.world_to_screen(wx + wpx / 2 + ar, wy + hpx / 2);
             const sr = (edge[0] - ctr[0]) / dpr;
             // Parse auraColor (hex string) to rgba; default to warm gold
             const hex = (s.auraColor ?? '#ffaa00').replace('#', '');
@@ -352,7 +368,7 @@ export const GameCanvas: React.FC = () => {
           }
 
           if (vr > 0) {
-            const edge = rm.world_to_screen(pos.x + hw + vr, pos.y + hh);
+            const edge = rm.world_to_screen(wx + wpx / 2 + vr, wy + hpx / 2);
             const sr = (edge[0] - ctr[0]) / dpr;
             ctx.beginPath();
             ctx.arc(sx, sy, sr, 0, Math.PI * 2);
@@ -362,7 +378,7 @@ export const GameCanvas: React.FC = () => {
           }
 
           if (dvr > 0) {
-            const edge = rm.world_to_screen(pos.x + hw + dvr, pos.y + hh);
+            const edge = rm.world_to_screen(wx + wpx / 2 + dvr, wy + hpx / 2);
             const sr = (edge[0] - ctr[0]) / dpr;
             ctx.beginPath();
             ctx.arc(sx, sy, sr, 0, Math.PI * 2);

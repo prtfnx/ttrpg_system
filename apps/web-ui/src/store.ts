@@ -606,6 +606,15 @@ export const useGameStore = create<GameStore>()(
           const rm = (window as any).rustRenderManager;
           if (rm?.set_ambient_light) rm.set_ambient_light(settings.ambient_light_level ?? 1.0);
           if (rm?.set_dynamic_lighting_enabled) rm.set_dynamic_lighting_enabled(settings.dynamic_lighting_enabled);
+          // Re-assert GM mode so the DM never sees a black fog screen.
+          // set_dynamic_lighting_enabled can reset internal fog state.
+          const { sessionRole } = useGameStore.getState();
+          if (isDM(sessionRole)) {
+            rm?.set_gm_mode?.(true);
+            (rm as any)?.fog_set_gm_mode?.(true);
+            // Force a render refresh so the restored view is visible immediately
+            rm?.render?.();
+          }
         }
       },
 

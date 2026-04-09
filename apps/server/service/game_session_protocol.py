@@ -202,6 +202,23 @@ class GameSessionProtocolService:
         logger.info(f"Client {client_id} ({user_info.get('username', 'unknown')}) added to session {self.session_code}")
           # Send welcome message with protocol support
         role = user_info.get('role', 'player')
+
+        # Load game mode and rules for this session
+        game_mode = 'free_roam'
+        rules_dict: dict = {}
+        if self.db_session and self.game_session_db_id:
+            try:
+                from database.crud import get_session_rules_json, get_game_mode
+                from database.database import SessionLocal
+                from database.models import GameSession
+                sess = self.db_session.get(GameSession, self.game_session_db_id)
+                if sess:
+                    game_mode = sess.game_mode or 'free_roam'
+                    import json as _json
+                    rules_dict = _json.loads(sess.session_rules_json or '{}')
+            except Exception:
+                pass
+
         await self._send_message(websocket, Message(
             MessageType.WELCOME,
             {
@@ -213,7 +230,9 @@ class GameSessionProtocolService:
                 "tables": list(self.table_manager.tables.keys()),
                 "role": role,
                 "permissions": get_permissions(role),
-                "visible_layers": get_visible_layers(role)
+                "visible_layers": get_visible_layers(role),
+                "game_mode": game_mode,
+                "session_rules": rules_dict,
             }
         ))
 

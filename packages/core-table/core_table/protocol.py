@@ -98,6 +98,88 @@ class MessageType(enum.Enum):    # Core messages
     # Character management
     CHARACTER_SAVE_REQUEST = "character_save_request"
     CHARACTER_SAVE_RESPONSE = "character_save_response"
+
+    # ── Game Mode ──
+    GAME_MODE_CHANGE = "game_mode_change"
+    GAME_MODE_STATE = "game_mode_state"
+
+    # ── Session Rules ──
+    SESSION_RULES_UPDATE = "session_rules_update"
+    SESSION_RULES_CHANGED = "session_rules_changed"
+    SESSION_RULES_REQUEST = "session_rules_request"
+
+    # ── Planning / Preview ──
+    PLAN_START = "plan_start"
+    PLAN_ACK = "plan_ack"
+    ACTION_COMMIT = "action_commit"
+    ACTION_RESULT = "action_result"
+    ACTION_REJECTED = "action_rejected"
+
+    # ── State Sync ──
+    STATE_SYNC_REQUEST = "state_sync_request"
+    STATE_SYNC_RESPONSE = "state_sync_response"
+
+    # ── Combat ──
+    COMBAT_START = "combat_start"
+    COMBAT_END = "combat_end"
+    COMBAT_STATE = "combat_state"
+    COMBAT_STATE_REQUEST = "combat_state_request"
+
+    # ── Initiative ──
+    INITIATIVE_ROLL = "initiative_roll"
+    INITIATIVE_ROLL_RESULT = "initiative_roll_result"
+    INITIATIVE_SET = "initiative_set"
+    INITIATIVE_ADD = "initiative_add"
+    INITIATIVE_REMOVE = "initiative_remove"
+    INITIATIVE_ORDER = "initiative_order"
+
+    # ── Turn Management ──
+    TURN_START = "turn_start"
+    TURN_END = "turn_end"
+    TURN_SKIP = "turn_skip"
+    ROUND_START = "round_start"
+    ROUND_END = "round_end"
+
+    # ── Explore Mode ──
+    EXPLORE_SUBMIT = "explore_submit"
+    EXPLORE_ROUND_RESOLVE = "explore_round_resolve"
+    EXPLORE_ROUND_RESULT = "explore_round_result"
+
+    # ── Conditions ──
+    CONDITION_ADD = "condition_add"
+    CONDITION_REMOVE = "condition_remove"
+    CONDITION_UPDATE = "condition_update"
+    CONDITIONS_SYNC = "conditions_sync"
+
+    # ── DM Controls ──
+    DM_OVERRIDE = "dm_override"
+    DM_MODIFY_ROLL = "dm_modify_roll"
+    DM_SET_HP = "dm_set_hp"
+    DM_APPLY_DAMAGE = "dm_apply_damage"
+    DM_ADD_ACTION = "dm_add_action"
+    DM_ADD_MOVEMENT = "dm_add_movement"
+    DM_REVERT_ACTION = "dm_revert_action"
+    DM_TOGGLE_AI = "dm_toggle_ai"
+
+    # ── NPC AI ──
+    AI_ACTION = "ai_action"
+    AI_SUGGESTION = "ai_suggestion"
+    AI_CONFIG = "ai_config"
+
+    # ── Encounter (Non-Combat) ──
+    ENCOUNTER_START = "encounter_start"
+    ENCOUNTER_END = "encounter_end"
+    ENCOUNTER_CHOICE = "encounter_choice"
+    ENCOUNTER_ROLL = "encounter_roll"
+    ENCOUNTER_RESULT = "encounter_result"
+    ENCOUNTER_STATE = "encounter_state"
+
+    # ── Resource Tracking ──
+    SPELL_SLOT_USE = "spell_slot_use"
+    SPELL_SLOT_RECOVER = "spell_slot_recover"
+    RESOURCE_UPDATE = "resource_update"
+    REST_SHORT = "rest_short"
+    REST_LONG = "rest_long"
     CHARACTER_LOAD_REQUEST = "character_load_request"
     CHARACTER_LOAD_RESPONSE = "character_load_response"
     CHARACTER_LIST_REQUEST = "character_list_request"

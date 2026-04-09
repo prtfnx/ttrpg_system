@@ -37,6 +37,8 @@ class GameSession(Base):
     created_at = Column(DateTime, default=datetime.utcnow)
     game_data = Column(Text)  # JSON data for game state
     ban_list = Column(Text, default='[]')  # JSON array of ban records (player_id, reason, etc.)
+    session_rules_json = Column(Text, default='{}')  # JSON blob of SessionRules
+    game_mode = Column(String(20), default='free_roam')
     
     # Relationships
     owner = relationship("User", back_populates="game_sessions")

@@ -136,6 +136,11 @@ class ServerProtocol:
         # Layer settings persistence (DM-only write, broadcast to all)
         self.register_handler(MessageType.LAYER_SETTINGS_UPDATE, self.handle_layer_settings_update)
 
+        # Game mode & session rules (DM-only writes, broadcast to all)
+        self.register_handler(MessageType.GAME_MODE_CHANGE,     self.handle_game_mode_change)
+        self.register_handler(MessageType.SESSION_RULES_UPDATE, self.handle_session_rules_update)
+        self.register_handler(MessageType.SESSION_RULES_REQUEST, self.handle_session_rules_request)
+
         # Error handling
         self.register_handler(MessageType.ERROR, self.handle_error)
         self.register_handler(MessageType.SUCCESS, self.handle_success)
@@ -3214,3 +3219,113 @@ class ServerProtocol:
             client_id,
         )
         return Message(MessageType.LAYER_SETTINGS_UPDATE, broadcast_payload)
+
+    # ── Game Mode & Session Rules ────────────────────────────────────────────
+
+    async def handle_game_mode_change(self, msg: Message, client_id: str) -> Message:
+        """DM changes game mode.  Validates transition, persists, broadcasts."""
+        if not is_dm(self._get_client_role(client_id)):
+            return Message(MessageType.ERROR, {'error': 'Only DMs can change game mode'})
+
+        target_mode = (msg.data or {}).get('mode')
+        if not target_mode:
+            return Message(MessageType.ERROR, {'error': 'mode is required'})
+
+        try:
+            from core_table.game_mode import GameMode, GameModeFSM
+            # We don't keep FSM state in memory yet — just validate the value and persist
+            GameMode(target_mode)  # raises ValueError if invalid
+        except ValueError:
+            return Message(MessageType.ERROR, {'error': f'Invalid game mode: {target_mode}'})
+
+        session_code = self._get_session_code()
+        if session_code:
+            try:
+                from database.database import SessionLocal
+                from database.crud import update_game_mode
+                db = SessionLocal()
+                try:
+                    update_game_mode(db, session_code, target_mode)
+                finally:
+                    db.close()
+            except Exception as e:
+                logger.error(f"Failed to persist game mode: {e}")
+
+        response = Message(MessageType.GAME_MODE_STATE, {'mode': target_mode})
+        await self.broadcast_to_session(response, client_id)
+        return response
+
+    async def handle_session_rules_update(self, msg: Message, client_id: str) -> Message:
+        """DM updates session rules.  Validates, persists, broadcasts."""
+        if not is_dm(self._get_client_role(client_id)):
+            return Message(MessageType.ERROR, {'error': 'Only DMs can update session rules'})
+
+        rules_data = (msg.data or {}).get('rules', {})
+        if not rules_data:
+            return Message(MessageType.ERROR, {'error': 'rules payload is required'})
+
+        try:
+            from core_table.session_rules import SessionRules
+            import json
+            session_code = self._get_session_code() or "unknown"
+            rules_data['session_id'] = session_code
+            rules = SessionRules.from_dict(rules_data)
+            errors = rules.validate()
+            if errors:
+                return Message(MessageType.ERROR, {'error': '; '.join(errors)})
+
+            rules_json = json.dumps(rules.to_dict())
+            from database.database import SessionLocal
+            from database.crud import update_session_rules_json
+            db = SessionLocal()
+            try:
+                update_session_rules_json(db, session_code, rules_json)
+            finally:
+                db.close()
+
+            response = Message(MessageType.SESSION_RULES_CHANGED, {'rules': rules.to_dict()})
+            await self.broadcast_to_session(response, client_id)
+            return response
+        except Exception as e:
+            logger.error(f"handle_session_rules_update error: {e}")
+            return Message(MessageType.ERROR, {'error': str(e)})
+
+    async def handle_session_rules_request(self, msg: Message, client_id: str) -> Message:
+        """Client requests current session rules.  Sends directly back."""
+        session_code = self._get_session_code()
+        rules_json = '{}'
+        if session_code:
+            try:
+                from database.database import SessionLocal
+                from database.crud import get_session_rules_json, get_game_mode
+                import json
+                db = SessionLocal()
+                try:
+                    rules_json = get_session_rules_json(db, session_code)
+                    game_mode = get_game_mode(db, session_code)
+                finally:
+                    db.close()
+            except Exception as e:
+                logger.error(f"Failed to load session rules: {e}")
+                game_mode = 'free_roam'
+
+        import json
+        try:
+            rules_dict = json.loads(rules_json)
+        except Exception:
+            rules_dict = {}
+
+        response = Message(MessageType.SESSION_RULES_CHANGED, {
+            'rules': rules_dict,
+            'mode': game_mode,
+        })
+        # Send only to requesting client (exclude no one, but broadcast just to sender)
+        await self.send_to_client(response, client_id)
+        return response
+
+    def _get_session_code(self) -> str | None:
+        """Get the session code from the session manager."""
+        if self.session_manager and hasattr(self.session_manager, 'session_code'):
+            return self.session_manager.session_code
+        return None
+

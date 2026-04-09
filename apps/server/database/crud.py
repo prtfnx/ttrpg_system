@@ -261,6 +261,40 @@ def update_game_session(db: Session, session_id: int, session_update: schemas.Ga
     db.refresh(db_session)
     return db_session
 
+
+def get_session_rules_json(db: Session, session_code: str) -> str:
+    """Return the raw JSON rules blob for a session (empty dict string if missing)."""
+    session = get_game_session_by_code(db, session_code)
+    if not session:
+        return "{}"
+    return session.session_rules_json or "{}"
+
+
+def update_session_rules_json(db: Session, session_code: str, rules_json: str) -> bool:
+    session = get_game_session_by_code(db, session_code)
+    if not session:
+        return False
+    session.session_rules_json = rules_json
+    db.commit()
+    return True
+
+
+def update_game_mode(db: Session, session_code: str, mode: str) -> bool:
+    session = get_game_session_by_code(db, session_code)
+    if not session:
+        return False
+    session.game_mode = mode
+    db.commit()
+    return True
+
+
+def get_game_mode(db: Session, session_code: str) -> str:
+    session = get_game_session_by_code(db, session_code)
+    if not session:
+        return "free_roam"
+    return session.game_mode or "free_roam"
+
+
 # Game Player operations
 def join_game_session(db: Session, session_code: str, user_id: int, character_name: str = None):
     session = get_game_session_by_code(db, session_code)

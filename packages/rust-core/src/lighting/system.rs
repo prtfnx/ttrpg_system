@@ -297,11 +297,9 @@ impl LightingSystem {
         
         // Enable stencil test for shadow masking
         self.gl.enable(WebGlRenderingContext::STENCIL_TEST);
-        self.gl.stencil_mask(0xFF); // Enable writing all stencil bits
+        self.gl.stencil_mask(0xFF);
         self.gl.clear_stencil(0);
         self.gl.clear(WebGlRenderingContext::STENCIL_BUFFER_BIT);
-        
-        // web_sys::console::log_1(&"[STENCIL-DEBUG] 🎭 Stencil buffer enabled and cleared".into());
         
         // Enable additive blending for light accumulation
         self.gl.enable(WebGlRenderingContext::BLEND);
@@ -309,7 +307,6 @@ impl LightingSystem {
         
         self.gl.use_program(Some(program));
         
-        // Set common uniforms
         let view_matrix_location = self.gl.get_uniform_location(program, "u_view_matrix");
         if let Some(location) = view_matrix_location {
             self.gl.uniform_matrix3fv_with_f32_array(Some(&location), false, view_matrix);
@@ -320,23 +317,20 @@ impl LightingSystem {
             self.gl.uniform2f(Some(&location), canvas_width, canvas_height);
         }
         
-        // Render each light (filtered by table_id if specified)
+        // Render each light — capture result to ensure cleanup runs regardless
         let light_ids: Vec<String> = self.lights.keys().cloned().collect();
+        let mut render_result: Result<(), JsValue> = Ok(());
         for light_id in light_ids {
-            // Get light data for rendering
             let (id, position, color, intensity, radius, falloff, cached_polygon, dirty, _light_table_id) = {
                 if let Some(light) = self.lights.get(&light_id) {
                     if !light.is_on {
                         continue;
                     }
-                    
-                    // Filter by table_id if specified
                     if let Some(filter_table_id) = table_id {
                         if light.table_id != filter_table_id {
-                            continue; // Skip lights not belonging to active table
+                            continue;
                         }
                     }
-                    
                     (
                         light.id.clone(),
                         light.position,
@@ -353,35 +347,29 @@ impl LightingSystem {
                 }
             };
             
-            // Render light (immutable borrow of self)
-            let (new_polygon, new_dirty) = self.render_single_light(
-                program,
-                &id,
-                position,
-                color,
-                intensity,
-                radius,
-                falloff,
-                cached_polygon,
-                dirty,
-            )?;
-            
-            // Update light state
-            if let Some(light) = self.lights.get_mut(&light_id) {
-                light.cached_polygon = new_polygon;
-                light.dirty = new_dirty;
+            match self.render_single_light(program, &id, position, color, intensity, radius, falloff, cached_polygon, dirty) {
+                Ok((new_polygon, new_dirty)) => {
+                    if let Some(light) = self.lights.get_mut(&light_id) {
+                        light.cached_polygon = new_polygon;
+                        light.dirty = new_dirty;
+                    }
+                }
+                Err(e) => {
+                    render_result = Err(e);
+                    break;
+                }
             }
         }
         
-        // Restore normal blending and disable stencil test
+        // ALWAYS restore GL state — even if rendering failed
+        self.gl.color_mask(true, true, true, true);
         self.gl.blend_func(WebGlRenderingContext::SRC_ALPHA, WebGlRenderingContext::ONE_MINUS_SRC_ALPHA);
         self.gl.disable(WebGlRenderingContext::STENCIL_TEST);
-        
-        // web_sys::console::log_1(&"[STENCIL-DEBUG] 🎭 Stencil test disabled, rendering complete".into());
+        self.gl.stencil_mask(0xFF);
         
         self.obstacles_dirty = false;
         
-        Ok(())
+        render_result
     }
 
     /// Render a single light with shadow casting
@@ -429,38 +417,39 @@ impl LightingSystem {
             // web_sys::console::log_1(&"[STENCIL-DEBUG] 🎭 Stencil setup: ALWAYS pass, REPLACE with 1, color mask OFF".into());
             
             // Render each shadow quad as triangle strip
+            let mut shadow_result: Result<(), JsValue> = Ok(());
             for quad in shadow_quads.iter() {
                 if quad.len() == 4 {
                     let shadow_vertices = self.quad_to_vertices(quad);
-                    // web_sys::console::log_1(&format!("[STENCIL-DEBUG] 🌑 Drawing shadow quad {} with {} vertices", 
-                    //     i, shadow_vertices.len() / 2).into());
-                    self.upload_and_draw_triangle_strip(&shadow_vertices, program)?;
+                    if let Err(e) = self.upload_and_draw_triangle_strip(&shadow_vertices, program) {
+                        shadow_result = Err(e);
+                        break;
+                    }
                 }
             }
             
-            // Re-enable color writing
+            // ALWAYS restore color writing, even if a shadow quad failed
             self.gl.color_mask(true, true, true, true);
-            // web_sys::console::log_1(&"[STENCIL-DEBUG] ✅ Shadow quads written to stencil, color mask restored".into());
+            
+            if let Err(e) = shadow_result {
+                return Err(e);
+            }
         }
         
         // Step 2: Render full light circle where stencil = 0 (not shadowed)
         self.gl.stencil_func(WebGlRenderingContext::EQUAL, 0, 0xFF);
         self.gl.stencil_op(WebGlRenderingContext::KEEP, WebGlRenderingContext::KEEP, WebGlRenderingContext::KEEP);
-        self.gl.stencil_mask(0x00); // Don't modify stencil during light rendering
+        self.gl.stencil_mask(0x00);
         
-        // web_sys::console::log_1(&"[STENCIL-DEBUG] 💡 Rendering light circle where stencil = 0 (not in shadow)".into());
-        
-        // Render full light circle (only where NOT in shadow)
         let circle = self.generate_circle(position, radius);
         let circle_vertices = self.polygon_to_vertices_from_light(&circle, position);
-        self.upload_and_draw_vertices(&circle_vertices, program)?;
+        let draw_result = self.upload_and_draw_vertices(&circle_vertices, program);
         
-        // web_sys::console::log_1(&format!("[STENCIL-DEBUG] ✅ Light circle drawn with {} vertices", circle_vertices.len() / 2).into());
-        
-        // Reset stencil state
+        // ALWAYS reset stencil state for the next light
         self.gl.stencil_func(WebGlRenderingContext::ALWAYS, 0, 0xFF);
         self.gl.stencil_mask(0xFF);
         
+        draw_result?;
         Ok((None, false))
     }
 

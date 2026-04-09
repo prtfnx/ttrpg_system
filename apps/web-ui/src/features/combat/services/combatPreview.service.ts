@@ -1,8 +1,15 @@
 import type { WizardFormData } from '@features/character';
 
 /**
- * Combat System Service
- * Handles D&D 5e combat mechanics including attacks, damage, saves, and spell casting
+ * Combat Preview Calculator — CLIENT-SIDE ONLY
+ *
+ * Provides planning-layer calculations: damage estimates, attack bonus previews,
+ * AC comparisons, spell save DCs. Used to show players what MIGHT happen.
+ *
+ * This service does NOT mutate game state. All authoritative results come from
+ * the server via WebSocket (ACTION_RESULT). Server state always wins.
+ *
+ * Renamed from combatSystem.service.ts per GAME_RULES_ENGINE_PLAN Phase 0.
  */
 
 export interface CombatStats {
@@ -71,7 +78,7 @@ export interface DiceResult {
   timestamp: Date;
 }
 
-export class CombatSystemService {
+export class CombatPreviewService {
   /**
    * Calculate ability score modifier
    */

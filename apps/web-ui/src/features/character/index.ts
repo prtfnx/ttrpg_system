@@ -7,7 +7,6 @@ export { MulticlassManager } from './components/MulticlassManager';
 export { ShareCharacterDialog } from './components/ShareCharacterDialog';
 export { SpellPreparationManager } from './components/SpellPreparationManager';
 
-export { CombatLauncher } from '@features/combat';
 export { EnhancedCharacterWizard } from './components/CharacterWizard/EnhancedCharacterWizard';
 export type { WizardFormData } from './components/CharacterWizard/WizardFormData';
 export { ALL_TEMPLATES, getTemplatesByType } from './data/characterTemplates';

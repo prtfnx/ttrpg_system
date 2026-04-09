@@ -130,7 +130,47 @@ export const MessageType = {
 
   // Layer settings persistence
   LAYER_SETTINGS_UPDATE: "layer_settings_update",
-  
+
+  // ── Game Mode ──
+  GAME_MODE_CHANGE: "game_mode_change",
+  GAME_MODE_STATE: "game_mode_state",
+
+  // ── Session Rules ──
+  SESSION_RULES_UPDATE: "session_rules_update",
+  SESSION_RULES_CHANGED: "session_rules_changed",
+  SESSION_RULES_REQUEST: "session_rules_request",
+
+  // ── Planning / Preview ──
+  PLAN_START: "plan_start",
+  PLAN_ACK: "plan_ack",
+  ACTION_COMMIT: "action_commit",
+  ACTION_RESULT: "action_result",
+  ACTION_REJECTED: "action_rejected",
+
+  // ── State Sync ──
+  STATE_SYNC_REQUEST: "state_sync_request",
+  STATE_SYNC_RESPONSE: "state_sync_response",
+
+  // ── Combat ──
+  COMBAT_START: "combat_start",
+  COMBAT_END: "combat_end",
+  COMBAT_STATE: "combat_state",
+  COMBAT_STATE_REQUEST: "combat_state_request",
+  INITIATIVE_ROLL: "initiative_roll",
+  INITIATIVE_ROLL_RESULT: "initiative_roll_result",
+  INITIATIVE_SET: "initiative_set",
+  INITIATIVE_ADD: "initiative_add",
+  INITIATIVE_REMOVE: "initiative_remove",
+  INITIATIVE_ORDER: "initiative_order",
+  TURN_START: "turn_start",
+  TURN_END: "turn_end",
+  TURN_SKIP: "turn_skip",
+  ROUND_START: "round_start",
+  ROUND_END: "round_end",
+  EXPLORE_SUBMIT: "explore_submit",
+  EXPLORE_ROUND_RESOLVE: "explore_round_resolve",
+  EXPLORE_ROUND_RESULT: "explore_round_result",
+
   // Extension point for new message types
   CUSTOM: "custom"
 } as const;

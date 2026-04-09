@@ -1,4 +1,4 @@
-import { CombatSystemService } from '@features/combat';
+import { CombatPreviewService } from '@features/combat';
 import React, { useMemo, useState } from 'react';
 import type { WizardFormData } from './WizardFormData';
 
@@ -11,7 +11,7 @@ export const CharacterSheet: React.FC<CharacterSheetProps> = ({ character, onClo
   const [activeTab, setActiveTab] = useState<'stats' | 'combat' | 'spells' | 'equipment' | 'notes'>('stats');
   
   const combatStats = useMemo(() => {
-    return CombatSystemService.generateCombatStats(character);
+    return CombatPreviewService.generateCombatStats(character);
   }, [character]);
 
   const formatModifier = (score: number): string => {

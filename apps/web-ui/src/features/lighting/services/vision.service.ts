@@ -237,7 +237,9 @@ class VisionService {
     }
 
     // Fallback: compute from store (when WASM isn't ready yet)
-    const sprites = (useGameStore.getState().sprites || []) as any[];
+    const { sprites: storeSprites, gridCellPx: obsCellPx } = useGameStore.getState();
+    const sprites = (storeSprites || []) as any[];
+    const fallbackCellPx = obsCellPx ?? 50;
     const segs: number[] = [];
 
     for (const s of sprites) {
@@ -253,8 +255,8 @@ class VisionService {
         continue;
       }
 
-      const w = s.width ?? ((s.scale_x ?? 1) * 64);
-      const h = s.height ?? ((s.scale_y ?? 1) * 64);
+      const w = s.width ?? ((s.scale_x ?? (s.scale?.x ?? 1)) * fallbackCellPx);
+      const h = s.height ?? ((s.scale_y ?? (s.scale?.y ?? 1)) * fallbackCellPx);
       const cx = s.x + w / 2;
       const cy = s.y + h / 2;
       const angle = (s.rotation ?? 0) * (Math.PI / 180);
@@ -278,8 +280,9 @@ class VisionService {
   }
 
   private getVisionSources(): { id: string; x: number; y: number; radius: number; darkvisionRadius?: number }[] {
-    const { sprites, userId, dynamicLightingEnabled } = useGameStore.getState();
+    const { sprites, userId, dynamicLightingEnabled, gridCellPx } = useGameStore.getState();
     if (!dynamicLightingEnabled && this.dmPreviewUserId == null) return [];
+    const cellPx = gridCellPx ?? 50;
 
     const targetUserId = this.dmPreviewUserId ?? userId;
     const converter = useGameStore.getState().getUnitConverter();
@@ -314,8 +317,8 @@ class VisionService {
       }
 
       const pos = this.spritePositions.get(s.id) ?? { x: s.x, y: s.y };
-      const w = s.width ?? ((s.scale_x ?? 1) * 64);
-      const h = s.height ?? ((s.scale_y ?? 1) * 64);
+      const w = s.width ?? ((s.scale_x ?? (s.scale?.x ?? 1)) * cellPx);
+      const h = s.height ?? ((s.scale_y ?? (s.scale?.y ?? 1)) * cellPx);
 
       out.push({
         id: s.id,

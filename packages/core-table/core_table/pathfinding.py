@@ -154,6 +154,7 @@ class PathfindingSystem:
         max_distance: Optional[float] = None,
         exclude_entity_id: Optional[str] = None,
         grid_bounds: Optional[tuple] = None,  # (max_cols, max_rows) in cells, inclusive
+        diagonal_rule: str = "standard",
     ) -> Optional[list[tuple]]:
         """A* on grid. Returns waypoints in pixel space or None if unreachable."""
         def to_cell(pt):
@@ -223,7 +224,10 @@ class PathfindingSystem:
                         cur_px, nb_px, obstacles, exclude_entity_id
                     ):
                         continue
-                    step = 5 * (math.sqrt(2) if (dx != 0 and dy != 0) else 1)
+                    # Cost per step consistent with get_movement_cost rules:
+                    # realistic=sqrt(2)*5, standard/alternate=Chebyshev 5ft
+                    is_diag = dx != 0 and dy != 0
+                    step = 5 * (math.sqrt(2) if (is_diag and diagonal_rule == 'realistic') else 1)
                     new_g = g[current] + step
                     if max_distance and new_g > max_distance:
                         continue
@@ -272,9 +276,9 @@ class PathfindingSystem:
                         continue
                     if obstacles and PathfindingSystem.is_path_blocked_by_obstacles(cur_px, nb_px, obstacles):
                         continue
-                    step = 5 * (math.sqrt(2) if (dx != 0 and dy != 0) else 1) \
-                        if diagonal_rule == 'realistic' else \
-                        5 * (1.5 if (dx != 0 and dy != 0 and diagonal_rule == 'alternate') else 1)
+                    # Consistent with A* step costs: realistic=sqrt(2)*5, standard/alternate=5
+                    is_diag = dx != 0 and dy != 0
+                    step = 5 * (math.sqrt(2) if (is_diag and diagonal_rule == 'realistic') else 1)
                     new_cost = cost + step
                     if new_cost <= speed and new_cost < best.get(nb, float('inf')):
                         best[nb] = new_cost

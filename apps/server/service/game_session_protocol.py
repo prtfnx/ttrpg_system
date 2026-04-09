@@ -216,6 +216,7 @@ class GameSessionProtocolService:
                     game_mode = sess.game_mode or 'free_roam'
                     import json as _json
                     rules_dict = _json.loads(sess.session_rules_json or '{}')
+                    rules_dict.setdefault('session_id', self.session_code)
             except Exception:
                 pass
 

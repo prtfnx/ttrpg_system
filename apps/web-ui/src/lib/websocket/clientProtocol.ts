@@ -524,8 +524,10 @@ export class WebClientProtocol {
       useGameModeStore.getState().setMode(data.game_mode);
     }
     if (data.session_rules && typeof data.session_rules === 'object') {
-      const { useSessionRulesStore } = await import('@features/combat/stores/sessionRulesStore');
-      useSessionRulesStore.getState().setRules(data.session_rules);
+      const { useSessionRulesStore, DEFAULT_RULES } = await import('@features/combat/stores/sessionRulesStore');
+      type R = import('@features/combat/stores/sessionRulesStore').SessionRules;
+      const merged = { session_id: '', ...DEFAULT_RULES, ...(data.session_rules as Partial<R>) } as R;
+      useSessionRulesStore.getState().setRules(merged);
     }
 
     this.requestTableList();

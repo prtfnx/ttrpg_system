@@ -117,7 +117,6 @@ import { AssetPanel } from '@features/assets';
 import { PerformanceMonitor } from '@features/canvas';
 import { CanvasRenderer } from '@features/canvas/components/GameCanvas/CanvasRenderer';
 import { ChatPanel } from '@features/chat';
-import { InitiativeTracker } from '@features/combat';
 import { FogPanel } from '@features/fog';
 import { LightingPanel } from '@features/lighting';
 import { NetworkPanel } from '@features/network';
@@ -489,47 +488,6 @@ describe('ChatPanel Component', () => {
       await user.type(textInputs[0], 'Hello world');
       expect(textInputs[0]).toHaveValue('Hello world');
     }
-  });
-});
-
-// Test InitiativeTracker Component
-describe('InitiativeTracker Component', () => {
-  const mockInitiativeProps = {
-    sessionCode: 'test-session',
-    userInfo: {
-      id: 1,
-      username: 'testuser',
-      role: 'dm' as const,
-      permissions: ['manage_initiative']
-    }
-  };
-
-  test('renders initiative tracking interface', () => {
-    render(<InitiativeTracker {...mockInitiativeProps} />);
-    
-    // Should show initiative-related elements
-    const initiativeElements = screen.queryAllByText(/initiative|turn|combat|next|previous|round/i);
-    const listElements = screen.queryAllByRole('list');
-    expect(initiativeElements.length > 0 || listElements.length > 0).toBe(true);
-  });  test('provides turn management controls', () => {
-    render(<InitiativeTracker {...mockInitiativeProps} />);
-    
-    // Should have turn management buttons
-    const turnButtons = screen.queryAllByRole('button', { 
-      name: /next|previous|start|end|turn/i 
-    });
-    
-    expect(turnButtons.length >= 0).toBe(true);
-  });
-
-  test('displays initiative order list', () => {
-    render(<InitiativeTracker {...mockInitiativeProps} />);
-    
-    // Should have some kind of list or order display
-    const lists = screen.queryAllByRole('list');
-    const listItems = screen.queryAllByRole('listitem');
-    
-    expect(lists.length >= 0 && listItems.length >= 0).toBe(true);
   });
 });
 

@@ -449,11 +449,10 @@ class ServerProtocol:
                     return (float(pos[0]), float(pos[1]))
 
                 validator = MovementValidator(rules)
-                # Pass combatant speed data when in fight/explore mode
+                # Do not use client-provided movement state for enforcement.
+                # When server-authoritative turn/combat state tracks remaining movement,
+                # construct a Combatant from that trusted value here.
                 combatant = None
-                if game_mode in ('fight', 'explore') and rules.enforce_movement_speed:
-                    speed_ft = msg.data.get('movement_remaining', rules.default_movement_speed)
-                    combatant = Combatant(entity_id=sprite_id, movement_remaining=float(speed_ft))
 
                 mv_result = validator.validate(
                     entity_id=sprite_id,
@@ -3277,13 +3276,13 @@ class ServerProtocol:
     # ── Game Mode & Session Rules ────────────────────────────────────────────
 
     async def handle_game_mode_change(self, msg: Message, client_id: str) -> Message:
-        """DM changes game mode.  Validates transition, persists, broadcasts."""
+        """DM changes game mode.  Validates the value, persists, broadcasts."""
         if not is_dm(self._get_client_role(client_id)):
             return Message(MessageType.ERROR, {'error': 'Only DMs can change game mode'})
 
-        target_mode = (msg.data or {}).get('mode')
+        target_mode = (msg.data or {}).get('game_mode')
         if not target_mode:
-            return Message(MessageType.ERROR, {'error': 'mode is required'})
+            return Message(MessageType.ERROR, {'error': 'game_mode is required'})
 
         try:
             from core_table.game_mode import GameMode, GameModeFSM
@@ -3305,7 +3304,7 @@ class ServerProtocol:
             except Exception as e:
                 logger.error(f"Failed to persist game mode: {e}")
 
-        response = Message(MessageType.GAME_MODE_STATE, {'mode': target_mode})
+        response = Message(MessageType.GAME_MODE_STATE, {'game_mode': target_mode})
         await self.broadcast_to_session(response, client_id)
         return response
 

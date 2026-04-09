@@ -274,6 +274,18 @@ export class WebClientProtocol {
     this.registerHandler(MessageType.WALL_DATA, this.handleWallData.bind(this));
     // Layer settings persistence
     this.registerHandler(MessageType.LAYER_SETTINGS_UPDATE, this.handleLayerSettingsUpdate.bind(this));
+
+    // Game mode + session rules broadcasts
+    this.registerHandler(MessageType.GAME_MODE_STATE, async (m) => {
+      const data = m.data as Record<string, unknown>;
+      const { useGameModeStore } = await import('@features/combat/stores/gameModeStore');
+      if (data.game_mode) useGameModeStore.getState().setMode(data.game_mode as import('@features/combat/stores/gameModeStore').GameMode);
+      if (typeof data.round_number === 'number') useGameModeStore.getState().setRoundNumber(data.round_number);
+    });
+    this.registerHandler(MessageType.SESSION_RULES_CHANGED, async (m) => {
+      const { useSessionRulesStore } = await import('@features/combat/stores/sessionRulesStore');
+      useSessionRulesStore.getState().setRules(m.data as never);
+    });
   }
 
   registerHandler(type: string, handler: MessageHandler): void {
@@ -504,6 +516,16 @@ export class WebClientProtocol {
         Array.isArray(data.permissions) ? data.permissions : [],
         Array.isArray(data.visible_layers) ? data.visible_layers : []
       );
+    }
+
+    // Seed game mode and session rules from the welcome payload
+    if (data.game_mode) {
+      const { useGameModeStore } = await import('@features/combat/stores/gameModeStore');
+      useGameModeStore.getState().setMode(data.game_mode);
+    }
+    if (data.session_rules && typeof data.session_rules === 'object') {
+      const { useSessionRulesStore } = await import('@features/combat/stores/sessionRulesStore');
+      useSessionRulesStore.getState().setRules(data.session_rules);
     }
 
     this.requestTableList();

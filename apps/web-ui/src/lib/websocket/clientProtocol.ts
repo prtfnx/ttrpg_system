@@ -634,15 +634,15 @@ export class WebClientProtocol {
         fog_exploration_mode: td.fog_exploration_mode ?? 'current_only',
         ambient_light_level: td.ambient_light_level ?? 1.0,
       });
-      if (td.grid_cell_px !== undefined || td.cell_distance !== undefined || td.distance_unit !== undefined) {
+      if (td.grid_cell_px != null || td.cell_distance != null || td.distance_unit != null) {
         store.setTableUnits({
           gridCellPx: td.grid_cell_px ?? 50,
           cellDistance: td.cell_distance ?? 5,
           distanceUnit: td.distance_unit ?? 'ft',
         });
       }
-      if (td.grid_enabled !== undefined) store.setGridEnabled(td.grid_enabled);
-      if (td.snap_to_grid !== undefined) store.setGridSnapping(td.snap_to_grid);
+      if (td.grid_enabled != null) store.setGridEnabled(td.grid_enabled);
+      if (td.snap_to_grid != null) store.setGridSnapping(td.snap_to_grid);
       if (td.grid_color_hex) store.setGridColorHex(td.grid_color_hex);
       if (td.background_color_hex) store.setBackgroundColorHex(td.background_color_hex);
     }
@@ -1039,17 +1039,17 @@ export class WebClientProtocol {
     };
     const store = useGameStore.getState();
     store.applyTableLightingSettings(data);
-    if (data.grid_cell_px !== undefined || data.cell_distance !== undefined || data.distance_unit !== undefined) {
+    if (data.grid_cell_px != null || data.cell_distance != null || data.distance_unit != null) {
       store.setTableUnits({
         gridCellPx: data.grid_cell_px ?? 50,
         cellDistance: data.cell_distance ?? 5,
         distanceUnit: (data.distance_unit as 'ft' | 'm') ?? 'ft',
       });
     }
-    if (data.grid_enabled !== undefined) store.setGridEnabled(data.grid_enabled);
-    if (data.snap_to_grid !== undefined) store.setGridSnapping(data.snap_to_grid);
-    if (data.grid_color_hex !== undefined) store.setGridColorHex(data.grid_color_hex);
-    if (data.background_color_hex !== undefined) store.setBackgroundColorHex(data.background_color_hex);
+    if (data.grid_enabled != null) store.setGridEnabled(data.grid_enabled);
+    if (data.snap_to_grid != null) store.setGridSnapping(data.snap_to_grid);
+    if (data.grid_color_hex != null) store.setGridColorHex(data.grid_color_hex);
+    if (data.background_color_hex != null) store.setBackgroundColorHex(data.background_color_hex);
 
     // Apply visual changes directly to WASM renderer
     const rm = (window as any).rustRenderManager;

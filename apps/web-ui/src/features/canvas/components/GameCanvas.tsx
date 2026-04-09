@@ -55,6 +55,8 @@ export const GameCanvas: React.FC = () => {
   const visionRingsCanvasRef = useRef<HTMLCanvasElement>(null);
   // Tracks live drag positions so vision rings follow during drag
   const dragPositionsRef = useRef(new Map<string, { x: number; y: number }>());
+  // Tracks live resize dimensions during drag so rings use correct size
+  const dragDimsRef = useRef(new Map<string, { w: number; h: number }>());
 
   const dynamicLightingEnabled = useGameStore(s => s.dynamicLightingEnabled);
   // Protocol and store setup
@@ -82,15 +84,24 @@ export const GameCanvas: React.FC = () => {
       const { spriteId, x, y } = (e as CustomEvent).detail ?? {};
       if (spriteId) dragPositionsRef.current.set(spriteId, { x, y });
     };
+    const onResize = (e: Event) => {
+      const { spriteId, width, height } = (e as CustomEvent).detail ?? {};
+      if (spriteId && width != null && height != null) dragDimsRef.current.set(spriteId, { w: width, h: height });
+    };
     const onMoved = (e: Event) => {
       const d = (e as CustomEvent).detail ?? {};
       const id = d.sprite_id || d.id;
-      if (id) dragPositionsRef.current.delete(id);
+      if (id) {
+        dragPositionsRef.current.delete(id);
+        dragDimsRef.current.delete(id);
+      }
     };
     window.addEventListener('sprite-drag-preview', onDrag);
+    window.addEventListener('sprite-resize-preview', onResize);
     window.addEventListener('sprite-moved', onMoved);
     return () => {
       window.removeEventListener('sprite-drag-preview', onDrag);
+      window.removeEventListener('sprite-resize-preview', onResize);
       window.removeEventListener('sprite-moved', onMoved);
     };
  }, []);
@@ -309,8 +320,13 @@ export const GameCanvas: React.FC = () => {
           : (s.auraRadius ?? 0);
         if (!vr && !dvr && !ar) continue;
 
-        const hw = (s.scale?.x ?? (s as any).scale_x ?? 1) * cellPx / 2;
-        const hh = (s.scale?.y ?? (s as any).scale_y ?? 1) * cellPx / 2;
+        // Use live resize dims if available during drag, otherwise use stored scale
+        const liveSize = dragDimsRef.current.get(s.id);
+        const scaleX = s.scale?.x ?? s.scale_x ?? 1;
+        const scaleY = s.scale?.y ?? s.scale_y ?? 1;
+        // Actual sprite half-size in world px: prefer explicit width/height, then scale*cellPx
+        const hw = liveSize ? liveSize.w / 2 : (s.width != null ? s.width / 2 : scaleX * cellPx / 2);
+        const hh = liveSize ? liveSize.h / 2 : (s.height != null ? s.height / 2 : scaleY * cellPx / 2);
         // Use live drag position if being dragged, otherwise use store position
         const pos = dragPositionsRef.current.get(s.id) ?? { x: s.x, y: s.y };
         try {

@@ -12,6 +12,7 @@ from utils.roles import is_dm, is_elevated, can_interact, get_visible_layers, ge
 from .asset_manager import get_server_asset_manager, AssetRequest
 from database.models import Asset, GameSession, GamePlayer
 from database.database import SessionLocal
+from service.movement_validator import MovementValidator, Combatant
 
 logger = setup_logger(__name__)
 
@@ -416,6 +417,59 @@ class ServerProtocol:
             user_id_check = self._get_user_id(msg, client_id)
             if not await self._can_control_sprite(sprite_id, user_id_check):
                 return Message(MessageType.ERROR, {'error': 'You do not control this sprite'})
+
+        # Movement validation (server-authoritative)
+        table = self.table_manager.tables_id.get(table_id) or self.table_manager.tables.get(table_id)
+        if table is not None:
+            try:
+                from core_table.session_rules import SessionRules
+                from database.crud import get_session_rules_json, get_game_mode
+                session_code = self._get_session_code()
+                rules = None
+                game_mode = 'free_roam'
+                if session_code:
+                    db = SessionLocal()
+                    try:
+                        rules_json = get_session_rules_json(db, session_code)
+                        game_mode = get_game_mode(db, session_code)
+                        if rules_json and rules_json != '{}':
+                            rules_data = json.loads(rules_json)
+                            rules_data.setdefault('session_id', session_code)
+                            rules = SessionRules.from_dict(rules_data)
+                    finally:
+                        db.close()
+
+                if rules is None:
+                    rules = SessionRules.defaults(session_code or 'default')
+
+                # Normalise positions to pixel tuples
+                def to_tuple(pos):
+                    if isinstance(pos, dict):
+                        return (float(pos.get('x', 0)), float(pos.get('y', 0)))
+                    return (float(pos[0]), float(pos[1]))
+
+                validator = MovementValidator(rules)
+                # Pass combatant speed data when in fight/explore mode
+                combatant = None
+                if game_mode in ('fight', 'explore') and rules.enforce_movement_speed:
+                    speed_ft = msg.data.get('movement_remaining', rules.default_movement_speed)
+                    combatant = Combatant(entity_id=sprite_id, movement_remaining=float(speed_ft))
+
+                mv_result = validator.validate(
+                    entity_id=sprite_id,
+                    from_pos=to_tuple(from_pos),
+                    to_pos=to_tuple(to_pos),
+                    table=table,
+                    combatant=combatant,
+                    client_path=msg.data.get('path'),
+                )
+                if not mv_result.valid:
+                    reject = {'reason': mv_result.reason, 'sprite_id': sprite_id}
+                    if action_id:
+                        reject['action_id'] = action_id
+                    return Message(MessageType.ACTION_REJECTED, reject)
+            except Exception as e:
+                logger.warning(f"Movement validation error (non-fatal): {e}")
 
         # Get session_id for database persistence
         session_id = self._get_session_id(msg)

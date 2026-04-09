@@ -1,4 +1,4 @@
-import { CombatSystemService, type DiceResult } from '@features/combat';
+import { CombatPreviewService, type DiceResult } from '@features/combat';
 import { Dices, Star, X, Zap } from 'lucide-react';
 import React, { useState } from 'react';
 
@@ -32,7 +32,7 @@ export const DiceRoller: React.FC<DiceRollerProps> = ({
     // Add rolling animation delay
     setTimeout(() => {
       try {
-        const rollResult = CombatSystemService.rollDice(formula);
+        const rollResult = CombatPreviewService.rollDice(formula);
         setResult(rollResult);
         
         if (showHistory) {

@@ -5,6 +5,19 @@ import { WindowManagerProvider } from '@shared/components/FloatingWindow';
 import { act, render, screen, waitFor, within } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
+// Prevent real WebSocket connections from firing async console logs during teardown
+vi.mock('@features/auth', () => ({
+  useAuthenticatedWebSocket: vi.fn().mockReturnValue({
+    connectionState: 'connected',
+    error: null,
+    protocol: null,
+  }),
+}));
+
+vi.mock('@features/lighting/services/vision.service', () => ({
+  visionService: { start: vi.fn(), stop: vi.fn() },
+}));
+
 // Mock child components to test GameClient in isolation
 vi.mock('@features/chat', () => ({
   ChatOverlay: () => null,

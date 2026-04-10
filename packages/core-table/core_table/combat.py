@@ -100,9 +100,10 @@ class Combatant:
             elif hp_visibility == 'descriptor':
                 pct = (self.hp / self.max_hp) if self.max_hp else 0
                 d['hp_descriptor'] = (
+                    'dead' if self.hp <= 0 else
                     'bloodied' if pct <= 0.5 else
                     'wounded' if pct <= 0.75 else
-                    'healthy' if pct > 0.75 else 'dead'
+                    'healthy'
                 )
                 d.pop('hp'); d.pop('max_hp'); d.pop('temp_hp')
             d.pop('ai_enabled'); d.pop('ai_behavior'); d.pop('controlled_by')

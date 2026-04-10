@@ -1,4 +1,4 @@
-import { WebSocketService, WebSocketConfig, WebSocketState } from '@lib/websocket/WebSocketService';
+import { WebSocketConfig, WebSocketService, WebSocketState } from '@lib/websocket/WebSocketService';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 // Mock WebSocket
@@ -75,6 +75,7 @@ describe('WebSocketService - Exponential Backoff Tests', () => {
   });
 
   afterEach(() => {
+    service?.disconnect();
     global.WebSocket = originalWebSocket;
     vi.restoreAllMocks();
     vi.useRealTimers();

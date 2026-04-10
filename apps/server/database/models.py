@@ -302,6 +302,27 @@ class PendingEmailChange(Base):
     user = relationship("User")
 
 
+class CombatEncounter(Base):
+    """Persisted combat state snapshot — written on start/end and key turns."""
+    __tablename__ = "combat_encounters"
+
+    id = Column(Integer, primary_key=True, index=True)
+    encounter_id = Column(String(36), unique=True, index=True, nullable=False)  # UUID
+    session_id = Column(Integer, ForeignKey("game_sessions.id"), nullable=False)
+    table_id = Column(String(36), nullable=False)
+    phase = Column(String(20), default="inactive")          # CombatPhase value
+    round_number = Column(Integer, default=0)
+    current_turn_index = Column(Integer, default=0)
+    combatants_json = Column(Text, default="[]")            # serialised list[Combatant]
+    settings_json = Column(Text, default="{}")              # CombatSettings
+    action_log_json = Column(Text, default="[]")            # list[CombatAction]
+    started_at = Column(DateTime, nullable=True)
+    ended_at = Column(DateTime, nullable=True)
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+    session = relationship("GameSession")
+
+
 class Wall(Base):
     """Persistent wall segment — feeds directly into lighting and vision pipeline."""
     __tablename__ = "walls"

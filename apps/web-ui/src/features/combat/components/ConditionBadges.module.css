@@ -1,0 +1,15 @@
+.badges {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 2px;
+}
+
+.badge {
+  padding: 1px 4px;
+  border-radius: var(--radius-sm);
+  font-size: 10px;
+  font-weight: bold;
+  color: var(--text-primary);
+  cursor: default;
+  white-space: nowrap;
+}

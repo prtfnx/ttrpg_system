@@ -286,6 +286,35 @@ export class WebClientProtocol {
       const { useSessionRulesStore } = await import('@features/combat/stores/sessionRulesStore');
       useSessionRulesStore.getState().setRules(m.data as never);
     });
+
+    // ── Combat ──
+    const setCombat = async (data: unknown) => {
+      const { useCombatStore } = await import('@features/combat/stores/combatStore');
+      useCombatStore.getState().setCombat(data as never);
+    };
+    this.registerHandler(MessageType.COMBAT_STATE, async (m) => setCombat(m.data));
+    this.registerHandler(MessageType.COMBAT_START, async (m) => setCombat(m.data));
+    this.registerHandler(MessageType.COMBAT_END, async () => {
+      const { useCombatStore } = await import('@features/combat/stores/combatStore');
+      useCombatStore.getState().setCombat(null);
+    });
+    this.registerHandler(MessageType.TURN_START, async (m) => setCombat(m.data));
+    this.registerHandler(MessageType.INITIATIVE_ORDER, async (m) => setCombat(m.data));
+    this.registerHandler(MessageType.CONDITIONS_SYNC, async (m) => {
+      const { useCombatStore } = await import('@features/combat/stores/combatStore');
+      const d = m.data as { combatant_id: string; conditions: never[] };
+      if (d?.combatant_id) useCombatStore.getState().setConditions(d.combatant_id, d.conditions);
+    });
+
+    // ── Encounters ──
+    this.registerHandler(MessageType.ENCOUNTER_STATE, async (m) => {
+      const { useEncounterStore } = await import('@features/combat/stores/encounterStore');
+      useEncounterStore.getState().setEncounter(m.data as never);
+    });
+    this.registerHandler(MessageType.ENCOUNTER_END, async () => {
+      const { useEncounterStore } = await import('@features/combat/stores/encounterStore');
+      useEncounterStore.getState().setEncounter(null);
+    });
   }
 
   registerHandler(type: string, handler: MessageHandler): void {

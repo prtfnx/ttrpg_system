@@ -1,0 +1,42 @@
+.banner {
+  position: fixed;
+  top: 60px;
+  left: 50%;
+  transform: translateX(-50%);
+  padding: 8px 20px;
+  border-radius: var(--radius-md);
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  font-weight: bold;
+  font-size: 14px;
+  z-index: 100;
+  box-shadow: var(--shadow-lg);
+}
+
+.myTurn {
+  background: var(--status-success-bg);
+  color: var(--status-success-text);
+  border: 1px solid var(--border-success);
+}
+
+.otherTurn {
+  background: var(--panel-bg);
+  color: var(--text-muted);
+  border: 1px solid var(--panel-border);
+}
+
+.endBtn {
+  background: var(--button-success-bg);
+  color: var(--button-success-text);
+  border: none;
+  border-radius: var(--radius-sm);
+  padding: 4px 12px;
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: bold;
+}
+
+.endBtn:hover {
+  background: var(--button-success-hover);
+}

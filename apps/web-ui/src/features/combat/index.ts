@@ -1,9 +1,22 @@
 export { DiceRoller } from './components/DiceRoller';
 export { GameModeSwitch } from './components/GameModeSwitch';
+export { InitiativePanel } from './components/InitiativePanel';
+export { TurnBanner } from './components/TurnBanner';
+export { ActionEconomyBar } from './components/ActionEconomyBar';
+export { ConditionBadges } from './components/ConditionBadges';
+export { CombatLog } from './components/CombatLog';
+export { DMCombatPanel } from './components/DMCombatPanel';
+export { AIControlPanel } from './components/AIControlPanel';
+export { EncounterView } from './components/EncounterView';
+export { EncounterBuilder } from './components/EncounterBuilder';
 export { CombatPreviewService } from './services/combatPreview.service';
 export type { CombatStats, DiceResult } from './services/combatPreview.service';
 export { useGameModeStore } from './stores/gameModeStore';
 export type { GameMode } from './stores/gameModeStore';
 export { useSessionRulesStore } from './stores/sessionRulesStore';
 export type { SessionRules } from './stores/sessionRulesStore';
+export { useCombatStore } from './stores/combatStore';
+export type { CombatState, Combatant, ActiveCondition } from './stores/combatStore';
+export { useEncounterStore } from './stores/encounterStore';
+export type { EncounterState, EncounterChoice } from './stores/encounterStore';
 

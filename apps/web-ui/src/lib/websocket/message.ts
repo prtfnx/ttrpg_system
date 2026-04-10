@@ -171,6 +171,33 @@ export const MessageType = {
   EXPLORE_ROUND_RESOLVE: "explore_round_resolve",
   EXPLORE_ROUND_RESULT: "explore_round_result",
 
+  // ── Conditions ──
+  CONDITION_ADD: "condition_add",
+  CONDITION_REMOVE: "condition_remove",
+  CONDITION_UPDATE: "condition_update",
+  CONDITIONS_SYNC: "conditions_sync",
+
+  // ── DM Combat Controls ──
+  DM_OVERRIDE: "dm_override",
+  DM_SET_HP: "dm_set_hp",
+  DM_APPLY_DAMAGE: "dm_apply_damage",
+  DM_ADD_ACTION: "dm_add_action",
+  DM_ADD_MOVEMENT: "dm_add_movement",
+  DM_REVERT_ACTION: "dm_revert_action",
+  DM_TOGGLE_AI: "dm_toggle_ai",
+
+  // ── NPC AI ──
+  AI_ACTION: "ai_action",
+  AI_SUGGESTION: "ai_suggestion",
+
+  // ── Encounters ──
+  ENCOUNTER_START: "encounter_start",
+  ENCOUNTER_END: "encounter_end",
+  ENCOUNTER_CHOICE: "encounter_choice",
+  ENCOUNTER_ROLL: "encounter_roll",
+  ENCOUNTER_RESULT: "encounter_result",
+  ENCOUNTER_STATE: "encounter_state",
+
   // Extension point for new message types
   CUSTOM: "custom"
 } as const;

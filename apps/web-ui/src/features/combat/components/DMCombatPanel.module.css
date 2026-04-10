@@ -1,0 +1,99 @@
+.panel {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 12px;
+  background: var(--overlay-dark-medium);
+  border-radius: var(--radius-md);
+  min-width: 240px;
+}
+
+.combatControls {
+  display: flex;
+  gap: 6px;
+}
+
+.startBtn {
+  flex: 1;
+  padding: 5px 8px;
+  background: var(--button-success-bg);
+  color: var(--button-success-text);
+  border: none;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.endBtn {
+  flex: 1;
+  padding: 5px 8px;
+  background: var(--button-danger-bg);
+  color: var(--button-danger-text);
+  border: none;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.revertBtn {
+  padding: 5px 8px;
+  background: var(--bg-secondary);
+  color: var(--text-primary);
+  border: none;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  font-size: 12px;
+}
+
+.section {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.label {
+  font-size: 11px;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.row {
+  display: flex;
+  gap: 4px;
+}
+
+.input {
+  flex: 1;
+  padding: 4px 8px;
+  background: var(--input-bg);
+  border: 1px solid var(--input-border);
+  border-radius: var(--radius-sm);
+  color: var(--input-text);
+  font-size: 12px;
+  min-width: 0;
+}
+
+.select {
+  flex: 1;
+  padding: 4px 8px;
+  background: var(--input-bg);
+  border: 1px solid var(--input-border);
+  border-radius: var(--radius-sm);
+  color: var(--input-text);
+  font-size: 12px;
+  min-width: 0;
+}
+
+.btn {
+  padding: 4px 10px;
+  background: var(--button-primary-bg);
+  color: var(--button-primary-text);
+  border: none;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  font-size: 12px;
+  white-space: nowrap;
+}

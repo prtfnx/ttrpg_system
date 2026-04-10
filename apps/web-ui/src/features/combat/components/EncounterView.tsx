@@ -6,7 +6,7 @@ import { useEncounterStore } from '../stores/encounterStore';
 export function EncounterView() {
   const encounter = useEncounterStore((s) => s.encounter);
 
-  if (!encounter || encounter.phase === 'idle') return null;
+  if (!encounter || encounter.phase === 'setup') return null;
 
   const send = (type: MessageType, data: Record<string, unknown>) =>
     ProtocolService.getProtocol()?.sendMessage(createMessage(type, data));
@@ -14,7 +14,7 @@ export function EncounterView() {
   const makeChoice = (choice_id: string) =>
     send(MessageType.ENCOUNTER_CHOICE, { encounter_id: encounter.encounter_id, choice_id });
 
-  if (encounter.phase === 'resolved') {
+  if (encounter.phase === 'completed') {
     return (
       <div className={styles.modal}>
         <div className={styles.card}>
@@ -31,7 +31,7 @@ export function EncounterView() {
     );
   }
 
-  if (encounter.phase === 'rolling' && encounter.pending_roll) {
+  if (encounter.phase === 'awaiting_roll' && encounter.pending_roll) {
     const { skill, dc } = encounter.pending_roll;
     return (
       <div className={styles.modal}>

@@ -12,7 +12,6 @@ vi.mock('../stores/combatStore', () => ({
 vi.mock('../components/PlanningQueue.module.css', () => ({ default: {} }));
 
 import { usePlanningStore } from '../stores/planningStore';
-import { useCombatStore } from '../stores/combatStore';
 import { PlanningQueue } from '../components/PlanningQueue';
 
 const mockRemoveAction = vi.fn();

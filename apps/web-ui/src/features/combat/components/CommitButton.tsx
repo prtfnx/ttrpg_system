@@ -65,7 +65,3 @@ export function CommitButton() {
   );
 }
 
-/** Register action result handler — call once when the protocol is ready */
-export function registerCommitHandlers() {
-  // ACTION_RESULT and ACTION_REJECTED are registered in clientProtocol.ts
-}

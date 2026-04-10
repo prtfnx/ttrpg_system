@@ -171,7 +171,7 @@ impl CollisionSystem {
 
     /// BFS reachable cells for movement range overlay
     pub fn movement_range(&self, sx: f32, sy: f32, speed_ft: f32, ft_per_unit: f32, diagonal_5_10_5: bool) -> JsValue {
-        let cell_ft = self.grid_size / ft_per_unit;
+        let cell_ft = self.grid_size * ft_per_unit;
         let normal_budget = (speed_ft / cell_ft * 10.0) as i32;
         let dash_budget   = normal_budget * 2;
 
@@ -232,9 +232,9 @@ impl CollisionSystem {
         let dy = ((y2 - y1) / g).abs();
         let diag = dx.min(dy);
         let straight = (dx - diag) + (dy - diag);
-        // 5-10-5 diagonal: every other diagonal counts double
-        let diag_cost = (diag / 2.0).floor() * 2.0 + (diag % 2.0 > 0.5) as i32 as f32;
-        (straight + diag_cost) * (g / ft_per_unit)
+        // 5-10-5 diagonal: pairs cost 1+2 steps, so floor(n/2)*3 + n%2
+        let diag_cost = (diag / 2.0).floor() * 3.0 + (diag % 2.0 > 0.5) as i32 as f32;
+        (straight + diag_cost) * (g * ft_per_unit)
     }
 }
 

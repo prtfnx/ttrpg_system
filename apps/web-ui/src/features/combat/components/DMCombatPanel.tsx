@@ -36,9 +36,8 @@ export function DMCombatPanel() {
     if (!selectedId) return;
     send(MessageType.CONDITION_ADD, {
       combatant_id: selectedId,
-      condition_type: conditionType,
-      duration_type: 'rounds',
-      duration_remaining: Number(conditionDuration),
+      condition: conditionType,
+      duration: Number(conditionDuration),
       source: 'dm',
     });
   };

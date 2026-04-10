@@ -21,7 +21,7 @@ def _distance(a: dict, b: dict) -> float:
 def _nearest_enemy(combatant: Combatant, combat: CombatState) -> Optional[Combatant]:
     enemies = [c for c in combat.combatants
                if c.combatant_id != combatant.combatant_id
-               and not c.is_npc != combatant.is_npc  # opposite side
+               and c.is_npc != combatant.is_npc  # opposite side
                and not c.is_defeated]
     if not enemies:
         return None
@@ -71,7 +71,7 @@ class NPCAIEngine:
         # Tactical: prefer most wounded
         if behavior == "tactical":
             enemies = [c for c in combat.combatants
-                       if not c.is_npc == combatant.is_npc and not c.is_defeated]
+                       if c.is_npc != combatant.is_npc and not c.is_defeated]
             wounded = [e for e in enemies if e.max_hp and e.hp / e.max_hp < 0.75]
             if wounded:
                 target = min(wounded, key=lambda c: c.hp / c.max_hp)

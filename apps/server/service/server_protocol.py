@@ -2,6 +2,7 @@ import os
 import sys
 import time
 import json
+import uuid
 import xxhash
 from typing import Dict, Set, Optional, Tuple, Any, Callable
 
@@ -3602,9 +3603,11 @@ class ServerProtocol:
                 return Message(MessageType.ERROR, {'error': f'Unknown condition: {condition_str}'})
             if not any(x.condition_type == ctype for x in c.conditions):
                 c.conditions.append(ActiveCondition(
+                    condition_id=str(uuid.uuid4()),
                     condition_type=ctype,
-                    duration_rounds=d.get('duration'),
                     source=d.get('source', 'dm'),
+                    duration_type='rounds' if d.get('duration') else 'permanent',
+                    duration_remaining=d.get('duration'),
                 ))
             conditions = [x.to_dict() for x in c.conditions]
             resp = Message(MessageType.CONDITIONS_SYNC, {'combatant_id': combatant_id, 'conditions': conditions})

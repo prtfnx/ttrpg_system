@@ -66,13 +66,6 @@ class ActiveCondition:
             'save_ability': self.save_ability, 'extra_data': self.extra_data,
         }
 
-    def tick(self) -> bool:
-        """Decrement round duration. Returns True if condition expired (should be removed)."""
-        if self.duration_type != 'rounds' or self.duration_remaining is None:
-            return False
-        self.duration_remaining -= 1
-        return self.duration_remaining <= 0
-
     @classmethod
     def from_dict(cls, data: dict) -> 'ActiveCondition':
         return cls(

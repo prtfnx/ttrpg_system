@@ -32,7 +32,7 @@ pub enum AoeTemplate {
     Cube { cx: f32, cy: f32, side: f32 },
 }
 
-/// Return world positions of points within the AoE template
+/// Return indices of tokens within the AoE template
 fn tokens_in_aoe(template: &AoeTemplate, token_positions: &[[f32; 2]]) -> Vec<String> {
     token_positions.iter().enumerate().filter(|(_, p)| {
         let px = p[0]; let py = p[1];
@@ -46,7 +46,7 @@ fn tokens_in_aoe(template: &AoeTemplate, token_positions: &[[f32; 2]]) -> Vec<St
                 let dist = (dx*dx + dy*dy).sqrt();
                 if dist > *length { return false; }
                 let tok_angle = (dy).atan2(dx);
-                let half = (25.0_f32).to_radians(); // 53° cone = ±26.5°
+                let half = (0.5_f32).atan(); // 5e cone: ±26.565° half-angle (53.13° total)
                 let diff = (tok_angle - angle).abs() % (2.0 * std::f32::consts::PI);
                 diff <= half || diff >= (2.0 * std::f32::consts::PI - half)
             }

@@ -1,9 +1,9 @@
-import { useSessionRulesStore } from '@features/combat/stores/sessionRulesStore';
-import type { SessionRules } from '@features/combat/stores/sessionRulesStore';
 import { useGameStore } from '@/store';
-import { isDM } from '../types/roles';
+import type { SessionRules } from '@features/combat/stores/sessionRulesStore';
+import { useSessionRulesStore } from '@features/combat/stores/sessionRulesStore';
 import { ProtocolService } from '@lib/api';
 import { createMessage, MessageType } from '@lib/websocket';
+import { isDM } from '../types/roles';
 
 function Toggle({ label, field, draft, update }: {
   label: string;

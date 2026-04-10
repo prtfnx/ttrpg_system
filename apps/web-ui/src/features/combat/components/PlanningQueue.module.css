@@ -1,0 +1,124 @@
+.panel {
+  background: var(--panel-bg);
+  border: 1px solid var(--border-primary);
+  border-radius: var(--radius-md);
+  padding: 12px;
+  min-width: 260px;
+  max-height: 320px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.clearBtn {
+  font-size: 0.75em;
+  padding: 2px 8px;
+  background: transparent;
+  color: var(--status-error-text);
+  border: 1px solid var(--status-error-text);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+}
+
+.clearBtn:hover {
+  background: var(--button-danger-bg);
+  color: var(--text-primary);
+}
+
+.list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  overflow-y: auto;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 8px;
+  background: var(--bg-secondary);
+  border-radius: var(--radius-sm);
+  color: var(--text-primary);
+  font-size: 0.9em;
+}
+
+.icon {
+  font-size: 1em;
+  flex-shrink: 0;
+}
+
+.label {
+  flex: 1;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.ftCost {
+  font-size: 0.8em;
+  color: var(--text-muted);
+  flex-shrink: 0;
+}
+
+.removeBtn {
+  background: transparent;
+  border: none;
+  color: var(--text-muted);
+  cursor: pointer;
+  padding: 0 2px;
+  font-size: 0.85em;
+  flex-shrink: 0;
+}
+
+.removeBtn:hover {
+  color: var(--status-error-text);
+}
+
+.footer {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding-top: 4px;
+  border-top: 1px solid var(--border-primary);
+}
+
+.badge {
+  padding: 2px 8px;
+  border-radius: var(--radius-sm);
+  font-size: 0.75em;
+  background: var(--bg-secondary);
+  color: var(--text-muted);
+  border: 1px solid var(--border-primary);
+}
+
+.badge.used {
+  background: var(--color-accent);
+  color: var(--text-primary);
+  border-color: var(--color-accent);
+  opacity: 0.7;
+  text-decoration: line-through;
+}
+
+.moveBadge {
+  margin-left: auto;
+  font-size: 0.8em;
+  color: var(--text-muted);
+}
+
+.moveBadge.overBudget {
+  color: var(--status-error-text);
+  font-weight: 600;
+}

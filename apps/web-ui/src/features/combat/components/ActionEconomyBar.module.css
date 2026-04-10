@@ -1,0 +1,59 @@
+.bar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 12px;
+  background: var(--modal-overlay);
+  border-radius: var(--radius-md);
+}
+
+.pip {
+  padding: 4px 10px;
+  border-radius: var(--radius-sm);
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.03em;
+}
+
+.pipAvail {
+  background: var(--button-success-bg);
+  color: var(--button-success-text);
+}
+
+.pipUsed {
+  background: var(--bg-secondary);
+  color: var(--text-muted);
+  text-decoration: line-through;
+}
+
+.move {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  margin-left: 8px;
+}
+
+.movePips {
+  display: flex;
+  gap: 2px;
+}
+
+.movePip {
+  width: 6px;
+  height: 12px;
+  border-radius: 2px;
+}
+
+.moveAvail {
+  background: var(--status-warning-text, var(--color-accent));
+}
+
+.moveUsed {
+  background: var(--bg-secondary);
+}
+
+.moveLabel {
+  font-size: 11px;
+  color: var(--text-primary);
+  min-width: 28px;
+}

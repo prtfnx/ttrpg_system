@@ -1,0 +1,62 @@
+.log {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  max-height: 240px;
+  overflow-y: auto;
+  padding: 4px 8px;
+  font-size: 12px;
+  background: var(--overlay-dark-subtle);
+  border-radius: var(--radius-md);
+}
+
+.empty {
+  color: var(--text-muted);
+  font-size: 12px;
+  padding: 8px;
+  text-align: center;
+}
+
+.entry {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  padding: 2px 0;
+  border-bottom: 1px solid var(--border-primary);
+  color: var(--text-primary);
+}
+
+.round {
+  color: var(--color-accent);
+  font-weight: bold;
+  min-width: 22px;
+}
+
+.actor {
+  font-weight: 600;
+  color: var(--status-warning-text, var(--text-primary));
+}
+
+.action {
+  color: var(--color-accent-hover);
+  text-transform: capitalize;
+}
+
+.target {
+  color: var(--text-secondary);
+}
+
+.damage {
+  color: var(--status-error-text);
+  font-weight: bold;
+}
+
+.healing {
+  color: var(--status-success-text);
+  font-weight: bold;
+}
+
+.result {
+  color: var(--text-muted);
+  font-style: italic;
+}

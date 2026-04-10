@@ -13,6 +13,57 @@ export function version(): string;
 // ActionsClient: internal to RenderEngine, not instantiated by React
 // NetworkClient: internal to RenderEngine, not instantiated by React
 // TableSync: internal to RenderEngine, not instantiated by React
+
+export interface MovementRange {
+  normal: [number, number][];
+  dash: [number, number][];
+  blocked: [number, number][];
+}
+
+export interface GhostToken {
+  sprite_id: string;
+  real_x: number;
+  real_y: number;
+  preview_x: number;
+  preview_y: number;
+  path: [number, number][];
+  movement_cost_ft: number;
+  opacity: number;
+}
+
+export class CollisionSystem {
+  free(): void;
+  constructor(grid_size: number);
+  set_walls(json: string): void;
+  set_obstacles(json: string): void;
+  line_blocked(x1: number, y1: number, x2: number, y2: number): boolean;
+  find_path(sx: number, sy: number, ex: number, ey: number): Float32Array;
+  movement_range(sx: number, sy: number, speed_ft: number, ft_per_unit: number, diagonal_5_10_5: boolean): MovementRange;
+  distance_ft(x1: number, y1: number, x2: number, y2: number, ft_per_unit: number): number;
+}
+
+export class PlanningManager {
+  free(): void;
+  constructor(grid_size: number, ft_per_unit: number);
+  set_walls(json: string): void;
+  set_obstacles(json: string): void;
+  start_ghost(sprite_id: string, real_x: number, real_y: number, preview_x: number, preview_y: number, speed_ft: number): number;
+  clear_ghost(sprite_id: string): void;
+  clear_all(): void;
+  get_ghosts(): GhostToken[];
+  get_ghost(sprite_id: string): GhostToken | null;
+  movement_range(sx: number, sy: number, speed_ft: number, diagonal_5_10_5: boolean): MovementRange;
+  measure_ft(x1: number, y1: number, x2: number, y2: number): number;
+  set_aoe_sphere(cx: number, cy: number, radius: number): void;
+  set_aoe_cone(ox: number, oy: number, angle: number, length: number): void;
+  set_aoe_line(x1: number, y1: number, x2: number, y2: number, width: number): void;
+  set_aoe_cube(cx: number, cy: number, side: number): void;
+  clear_aoe(): void;
+  get_aoe(): unknown;
+  tokens_in_aoe(positions_flat: Float32Array): string[];
+  has_los(x1: number, y1: number, x2: number, y2: number): boolean;
+}
+
 export class AssetManager {
   free(): void;
   constructor();

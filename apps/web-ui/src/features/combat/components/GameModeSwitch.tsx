@@ -1,9 +1,9 @@
-import { useGameModeStore } from '../stores/gameModeStore';
-import type { GameMode } from '../stores/gameModeStore';
 import { useGameStore } from '@/store';
 import { isDM } from '@features/session/types/roles';
 import { ProtocolService } from '@lib/api';
 import { createMessage, MessageType } from '@lib/websocket';
+import type { GameMode } from '../stores/gameModeStore';
+import { useGameModeStore } from '../stores/gameModeStore';
 
 const MODES: { value: GameMode; label: string }[] = [
   { value: 'free_roam', label: 'Free Roam' },

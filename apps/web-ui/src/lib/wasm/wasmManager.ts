@@ -4,8 +4,9 @@ import type { RenderEngine } from './wasm';
 export interface GlobalWasmModule {
   RenderEngine: any;
   AssetManager: any;
-  // PaintSystem / BrushPreset: internal — accessed via RenderEngine paint_* methods
   PaintSystem: any;
+  PlanningManager: any;
+  CollisionSystem: any;
   create_default_brush_presets: () => any;
   version?: () => string;
   init_game_renderer?: (canvas: HTMLCanvasElement) => RenderEngine;
@@ -49,6 +50,8 @@ class WasmManager {
       RenderEngine: mockEngine,
       AssetManager: {},
       PaintSystem: {},
+      PlanningManager: {},
+      CollisionSystem: {},
       create_default_brush_presets: () => ({}),
       default: async () => Promise.resolve(),
     };

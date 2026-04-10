@@ -2,6 +2,7 @@ import os
 import sys
 import time
 import json
+import uuid
 import xxhash
 from typing import Dict, Set, Optional, Tuple, Any, Callable
 
@@ -13,6 +14,10 @@ from .asset_manager import get_server_asset_manager, AssetRequest
 from database.models import Asset, GameSession, GamePlayer
 from database.database import SessionLocal
 from service.movement_validator import MovementValidator, Combatant
+from service.rules_engine import RulesEngine
+from core_table.session_rules import SessionRules
+from core_table.game_mode import GameMode
+from database.crud import get_session_rules_json, get_game_mode
 
 logger = setup_logger(__name__)
 
@@ -141,6 +146,34 @@ class ServerProtocol:
         self.register_handler(MessageType.GAME_MODE_CHANGE,     self.handle_game_mode_change)
         self.register_handler(MessageType.SESSION_RULES_UPDATE, self.handle_session_rules_update)
         self.register_handler(MessageType.SESSION_RULES_REQUEST, self.handle_session_rules_request)
+
+        # Combat (Phase 5-10)
+        self.register_handler(MessageType.COMBAT_START,          self.handle_combat_start)
+        self.register_handler(MessageType.COMBAT_END,            self.handle_combat_end)
+        self.register_handler(MessageType.COMBAT_STATE_REQUEST,  self.handle_combat_state_request)
+        self.register_handler(MessageType.INITIATIVE_ROLL,       self.handle_initiative_roll)
+        self.register_handler(MessageType.INITIATIVE_SET,        self.handle_initiative_set)
+        self.register_handler(MessageType.INITIATIVE_ADD,        self.handle_initiative_add)
+        self.register_handler(MessageType.INITIATIVE_REMOVE,     self.handle_initiative_remove)
+        self.register_handler(MessageType.TURN_END,              self.handle_turn_end)
+        self.register_handler(MessageType.TURN_SKIP,             self.handle_turn_skip)
+        self.register_handler(MessageType.CONDITION_ADD,         self.handle_condition_add)
+        self.register_handler(MessageType.CONDITION_REMOVE,      self.handle_condition_remove)
+        self.register_handler(MessageType.DM_SET_HP,             self.handle_dm_set_hp)
+        self.register_handler(MessageType.DM_APPLY_DAMAGE,       self.handle_dm_apply_damage)
+        self.register_handler(MessageType.DM_REVERT_ACTION,      self.handle_dm_revert_action)
+        self.register_handler(MessageType.DM_ADD_ACTION,         self.handle_dm_add_action)
+        self.register_handler(MessageType.DM_ADD_MOVEMENT,       self.handle_dm_add_movement)
+        self.register_handler(MessageType.DM_TOGGLE_AI,          self.handle_dm_toggle_ai)
+        self.register_handler(MessageType.AI_ACTION,             self.handle_ai_action)
+        # Encounters (Phase 11)
+        self.register_handler(MessageType.ENCOUNTER_START,       self.handle_encounter_start)
+        self.register_handler(MessageType.ENCOUNTER_END,         self.handle_encounter_end)
+        self.register_handler(MessageType.ENCOUNTER_CHOICE,      self.handle_encounter_choice)
+        self.register_handler(MessageType.ENCOUNTER_ROLL,        self.handle_encounter_roll)
+
+        # Planning commit (Phase 4)
+        self.register_handler(MessageType.ACTION_COMMIT,         self.handle_action_commit)
 
         # Error handling
         self.register_handler(MessageType.ERROR, self.handle_error)
@@ -3381,4 +3414,500 @@ class ServerProtocol:
         if self.session_manager and hasattr(self.session_manager, 'session_code'):
             return self.session_manager.session_code
         return None
+
+    # ── Combat ──────────────────────────────────────────────────────────────
+
+    async def handle_combat_start(self, msg: Message, client_id: str) -> Message:
+        if not is_dm(self._get_client_role(client_id)):
+            return Message(MessageType.ERROR, {'error': 'Only DMs can start combat'})
+        d = msg.data or {}
+        table_id = d.get('table_id')
+        if not table_id:
+            return Message(MessageType.ERROR, {'error': 'table_id required'})
+
+        from service.combat_engine import CombatEngine
+        from core_table.combat import CombatSettings
+        settings = CombatSettings.from_dict(d['settings']) if d.get('settings') else None
+        session_code = self._get_session_code()
+        state = CombatEngine.start_combat(
+            session_id=session_code,
+            table_id=table_id,
+            entity_ids=d.get('entity_ids', []),
+            settings=settings,
+            names=d.get('names', {}),
+        )
+        resp = Message(MessageType.COMBAT_STATE, {'combat': state.to_dict()})
+        await self.broadcast_to_session(resp, client_id)
+        return resp
+
+    async def handle_combat_end(self, msg: Message, client_id: str) -> Message:
+        if not is_dm(self._get_client_role(client_id)):
+            return Message(MessageType.ERROR, {'error': 'Only DMs can end combat'})
+        from service.combat_engine import CombatEngine
+        state = CombatEngine.end_combat(self._get_session_code())
+        if not state:
+            return Message(MessageType.ERROR, {'error': 'No active combat'})
+        resp = Message(MessageType.COMBAT_STATE, {'combat': state.to_dict(), 'ended': True})
+        await self.broadcast_to_session(resp, client_id)
+        return resp
+
+    async def handle_combat_state_request(self, msg: Message, client_id: str) -> Message:
+        from service.combat_engine import CombatEngine
+        state = CombatEngine.get_state(self._get_session_code())
+        if not state:
+            return Message(MessageType.COMBAT_STATE, {'combat': None})
+        if is_dm(self._get_client_role(client_id)):
+            return Message(MessageType.COMBAT_STATE, {'combat': state.to_dict()})
+        return Message(MessageType.COMBAT_STATE, {
+            'combat': state.to_dict_for_player(state.settings.show_npc_hp_to_players)
+        })
+
+    async def handle_initiative_roll(self, msg: Message, client_id: str) -> Message:
+        d = msg.data or {}
+        combatant_id = d.get('combatant_id')
+        if not combatant_id:
+            return Message(MessageType.ERROR, {'error': 'combatant_id required'})
+        from service.combat_engine import CombatEngine
+        session_code = self._get_session_code()
+        value = CombatEngine.roll_initiative(session_code, combatant_id)
+        if value is None:
+            return Message(MessageType.ERROR, {'error': 'Combatant not found'})
+        state = CombatEngine.get_state(session_code)
+        order = [{'combatant_id': c.combatant_id, 'name': c.name, 'initiative': c.initiative}
+                 for c in (state.combatants if state else [])]
+        resp = Message(MessageType.INITIATIVE_ORDER, {'combatant_id': combatant_id, 'value': value, 'order': order})
+        await self.broadcast_to_session(resp, client_id)
+        return resp
+
+    async def handle_initiative_set(self, msg: Message, client_id: str) -> Message:
+        if not is_dm(self._get_client_role(client_id)):
+            return Message(MessageType.ERROR, {'error': 'Only DMs can set initiative'})
+        d = msg.data or {}
+        combatant_id, value = d.get('combatant_id'), d.get('value')
+        if not combatant_id or value is None:
+            return Message(MessageType.ERROR, {'error': 'combatant_id and value required'})
+        from service.combat_engine import CombatEngine
+        session_code = self._get_session_code()
+        if not CombatEngine.set_initiative(session_code, combatant_id, float(value)):
+            return Message(MessageType.ERROR, {'error': 'Failed — no active combat or combatant not found'})
+        state = CombatEngine.get_state(session_code)
+        order = [{'combatant_id': c.combatant_id, 'name': c.name, 'initiative': c.initiative}
+                 for c in (state.combatants if state else [])]
+        resp = Message(MessageType.INITIATIVE_ORDER, {'order': order})
+        await self.broadcast_to_session(resp, client_id)
+        return resp
+
+    async def handle_initiative_add(self, msg: Message, client_id: str) -> Message:
+        if not is_dm(self._get_client_role(client_id)):
+            return Message(MessageType.ERROR, {'error': 'Only DMs can add combatants'})
+        d = msg.data or {}
+        entity_id = d.get('entity_id')
+        if not entity_id:
+            return Message(MessageType.ERROR, {'error': 'entity_id required'})
+        from service.combat_engine import CombatEngine
+        session_code = self._get_session_code()
+        extra = {k: v for k, v in d.items() if k != 'entity_id'}
+        combatant = CombatEngine.add_combatant(session_code, entity_id, **extra)
+        if not combatant:
+            return Message(MessageType.ERROR, {'error': 'No active combat'})
+        state = CombatEngine.get_state(session_code)
+        order = [{'combatant_id': c.combatant_id, 'name': c.name, 'initiative': c.initiative}
+                 for c in (state.combatants if state else [])]
+        resp = Message(MessageType.INITIATIVE_ORDER, {'combatant': combatant.to_dict(), 'order': order})
+        await self.broadcast_to_session(resp, client_id)
+        return resp
+
+    async def handle_initiative_remove(self, msg: Message, client_id: str) -> Message:
+        if not is_dm(self._get_client_role(client_id)):
+            return Message(MessageType.ERROR, {'error': 'Only DMs can remove combatants'})
+        d = msg.data or {}
+        combatant_id = d.get('combatant_id')
+        if not combatant_id:
+            return Message(MessageType.ERROR, {'error': 'combatant_id required'})
+        from service.combat_engine import CombatEngine
+        session_code = self._get_session_code()
+        CombatEngine.remove_combatant(session_code, combatant_id)
+        state = CombatEngine.get_state(session_code)
+        order = [{'combatant_id': c.combatant_id, 'name': c.name, 'initiative': c.initiative}
+                 for c in (state.combatants if state else [])]
+        resp = Message(MessageType.INITIATIVE_ORDER, {'removed': combatant_id, 'order': order})
+        await self.broadcast_to_session(resp, client_id)
+        return resp
+
+    async def handle_turn_end(self, msg: Message, client_id: str) -> Message:
+        d = msg.data or {}
+        combatant_id = d.get('combatant_id')
+        if not combatant_id:
+            return Message(MessageType.ERROR, {'error': 'combatant_id required'})
+        from service.combat_engine import CombatEngine
+        session_code = self._get_session_code()
+        state = CombatEngine.get_state(session_code)
+        if not state:
+            return Message(MessageType.ERROR, {'error': 'No active combat'})
+        role = self._get_client_role(client_id)
+        if not is_dm(role):
+            current = state.get_current_combatant()
+            if not current or current.combatant_id != combatant_id:
+                return Message(MessageType.ERROR, {'error': 'Not your turn'})
+            if not state.settings.allow_player_end_turn:
+                return Message(MessageType.ERROR, {'error': 'Players cannot end their own turn'})
+        if not CombatEngine.end_turn(session_code, combatant_id):
+            return Message(MessageType.ERROR, {'error': 'Cannot end turn'})
+        state = CombatEngine.get_state(session_code)
+        current = state.get_current_combatant() if state else None
+        resp = Message(MessageType.TURN_START, {
+            'combat': state.to_dict() if state else None,
+            'current_combatant': current.to_dict() if current else None,
+            'round_number': state.round_number if state else 0,
+        })
+        await self.broadcast_to_session(resp, client_id)
+        return resp
+
+    async def handle_turn_skip(self, msg: Message, client_id: str) -> Message:
+        if not is_dm(self._get_client_role(client_id)):
+            return Message(MessageType.ERROR, {'error': 'Only DMs can skip turns'})
+        from service.combat_engine import CombatEngine
+        session_code = self._get_session_code()
+        result = CombatEngine.next_turn(session_code)
+        if not result:
+            return Message(MessageType.ERROR, {'error': 'No active combat'})
+        state = CombatEngine.get_state(session_code)
+        resp = Message(MessageType.TURN_START, {
+            'combat': state.to_dict() if state else None,
+            **result,
+        })
+        await self.broadcast_to_session(resp, client_id)
+        return resp
+
+    # ── Conditions ──────────────────────────────────────────────────────────
+
+    async def handle_condition_add(self, msg: Message, client_id: str) -> Message:
+        if not is_dm(self._get_client_role(client_id)):
+            return Message(MessageType.ERROR, {'error': 'Only DMs can add conditions'})
+        d = msg.data or {}
+        combatant_id = d.get('combatant_id')
+        condition_str = d.get('condition')
+        if not combatant_id or not condition_str:
+            return Message(MessageType.ERROR, {'error': 'combatant_id and condition required'})
+        from service.combat_engine import CombatEngine
+        from core_table.conditions import ActiveCondition, ConditionType
+        state = CombatEngine.get_state(self._get_session_code())
+        if not state:
+            return Message(MessageType.ERROR, {'error': 'No active combat'})
+        for c in state.combatants:
+            if c.combatant_id != combatant_id:
+                continue
+            try:
+                ctype = ConditionType(condition_str)
+            except ValueError:
+                return Message(MessageType.ERROR, {'error': f'Unknown condition: {condition_str}'})
+            if not any(x.condition_type == ctype for x in c.conditions):
+                c.conditions.append(ActiveCondition(
+                    condition_id=str(uuid.uuid4()),
+                    condition_type=ctype,
+                    source=d.get('source', 'dm'),
+                    duration_type='rounds' if d.get('duration') else 'permanent',
+                    duration_remaining=d.get('duration'),
+                ))
+            conditions = [x.to_dict() for x in c.conditions]
+            resp = Message(MessageType.CONDITIONS_SYNC, {'combatant_id': combatant_id, 'conditions': conditions})
+            await self.broadcast_to_session(resp, client_id)
+            return resp
+        return Message(MessageType.ERROR, {'error': 'Combatant not found'})
+
+    async def handle_condition_remove(self, msg: Message, client_id: str) -> Message:
+        if not is_dm(self._get_client_role(client_id)):
+            return Message(MessageType.ERROR, {'error': 'Only DMs can remove conditions'})
+        d = msg.data or {}
+        combatant_id = d.get('combatant_id')
+        condition_str = d.get('condition')
+        if not combatant_id or not condition_str:
+            return Message(MessageType.ERROR, {'error': 'combatant_id and condition required'})
+        from service.combat_engine import CombatEngine
+        state = CombatEngine.get_state(self._get_session_code())
+        if not state:
+            return Message(MessageType.ERROR, {'error': 'No active combat'})
+        for c in state.combatants:
+            if c.combatant_id != combatant_id:
+                continue
+            c.conditions = [x for x in c.conditions if x.condition_type.value != condition_str]
+            conditions = [x.to_dict() for x in c.conditions]
+            resp = Message(MessageType.CONDITIONS_SYNC, {'combatant_id': combatant_id, 'conditions': conditions})
+            await self.broadcast_to_session(resp, client_id)
+            return resp
+        return Message(MessageType.ERROR, {'error': 'Combatant not found'})
+
+    # ── DM Overrides ────────────────────────────────────────────────────────
+
+    async def handle_dm_set_hp(self, msg: Message, client_id: str) -> Message:
+        if not is_dm(self._get_client_role(client_id)):
+            return Message(MessageType.ERROR, {'error': 'DMs only'})
+        d = msg.data or {}
+        combatant_id, hp = d.get('combatant_id'), d.get('hp')
+        if not combatant_id or hp is None:
+            return Message(MessageType.ERROR, {'error': 'combatant_id and hp required'})
+        from service.combat_engine import CombatEngine
+        session_code = self._get_session_code()
+        if not CombatEngine.dm_set_hp(session_code, combatant_id, int(hp)):
+            return Message(MessageType.ERROR, {'error': 'Failed'})
+        state = CombatEngine.get_state(session_code)
+        resp = Message(MessageType.COMBAT_STATE, {'combat': state.to_dict() if state else None})
+        await self.broadcast_to_session(resp, client_id)
+        return resp
+
+    async def handle_dm_apply_damage(self, msg: Message, client_id: str) -> Message:
+        if not is_dm(self._get_client_role(client_id)):
+            return Message(MessageType.ERROR, {'error': 'DMs only'})
+        d = msg.data or {}
+        combatant_id, amount = d.get('combatant_id'), d.get('amount')
+        if not combatant_id or amount is None:
+            return Message(MessageType.ERROR, {'error': 'combatant_id and amount required'})
+        from service.combat_engine import CombatEngine
+        session_code = self._get_session_code()
+        result = CombatEngine.apply_damage(session_code, combatant_id, int(amount),
+                                           damage_type=d.get('damage_type', ''), is_dm=True)
+        state = CombatEngine.get_state(session_code)
+        resp = Message(MessageType.COMBAT_STATE, {'combat': state.to_dict() if state else None, 'damage_result': result})
+        await self.broadcast_to_session(resp, client_id)
+        return resp
+
+    async def handle_dm_revert_action(self, msg: Message, client_id: str) -> Message:
+        if not is_dm(self._get_client_role(client_id)):
+            return Message(MessageType.ERROR, {'error': 'DMs only'})
+        from service.combat_engine import CombatEngine
+        session_code = self._get_session_code()
+        if not CombatEngine.dm_revert_last_action(session_code):
+            return Message(MessageType.ERROR, {'error': 'Nothing to revert'})
+        state = CombatEngine.get_state(session_code)
+        resp = Message(MessageType.COMBAT_STATE, {'combat': state.to_dict() if state else None})
+        await self.broadcast_to_session(resp, client_id)
+        return resp
+
+    async def handle_dm_add_action(self, msg: Message, client_id: str) -> Message:
+        if not is_dm(self._get_client_role(client_id)):
+            return Message(MessageType.ERROR, {'error': 'DMs only'})
+        d = msg.data or {}
+        combatant_id = d.get('combatant_id')
+        resource = d.get('resource', 'action')
+        if not combatant_id:
+            return Message(MessageType.ERROR, {'error': 'combatant_id required'})
+        from service.combat_engine import CombatEngine
+        session_code = self._get_session_code()
+        CombatEngine.dm_grant_resource(session_code, combatant_id, resource)
+        state = CombatEngine.get_state(session_code)
+        resp = Message(MessageType.COMBAT_STATE, {'combat': state.to_dict() if state else None})
+        await self.broadcast_to_session(resp, client_id)
+        return resp
+
+    async def handle_dm_add_movement(self, msg: Message, client_id: str) -> Message:
+        if not is_dm(self._get_client_role(client_id)):
+            return Message(MessageType.ERROR, {'error': 'DMs only'})
+        d = msg.data or {}
+        combatant_id = d.get('combatant_id')
+        amount = float(d.get('amount', 5))
+        if not combatant_id:
+            return Message(MessageType.ERROR, {'error': 'combatant_id required'})
+        from service.combat_engine import CombatEngine
+        session_code = self._get_session_code()
+        CombatEngine.dm_grant_resource(session_code, combatant_id, 'movement', amount)
+        state = CombatEngine.get_state(session_code)
+        resp = Message(MessageType.COMBAT_STATE, {'combat': state.to_dict() if state else None})
+        await self.broadcast_to_session(resp, client_id)
+        return resp
+
+    async def handle_dm_toggle_ai(self, msg: Message, client_id: str) -> Message:
+        if not is_dm(self._get_client_role(client_id)):
+            return Message(MessageType.ERROR, {'error': 'DMs only'})
+        d = msg.data or {}
+        combatant_id = d.get('combatant_id')
+        if not combatant_id:
+            return Message(MessageType.ERROR, {'error': 'combatant_id required'})
+        from service.combat_engine import CombatEngine
+        state = CombatEngine.get_state(self._get_session_code())
+        if not state:
+            return Message(MessageType.ERROR, {'error': 'No active combat'})
+        for c in state.combatants:
+            if c.combatant_id == combatant_id:
+                c.ai_enabled = d.get('enabled', not c.ai_enabled)
+                if 'behavior' in d:
+                    c.ai_behavior = d['behavior']
+                resp = Message(MessageType.COMBAT_STATE, {
+                    'combatant_id': combatant_id, 'ai_enabled': c.ai_enabled, 'ai_behavior': c.ai_behavior
+                })
+                await self.broadcast_to_session(resp, client_id)
+                return resp
+        return Message(MessageType.ERROR, {'error': 'Combatant not found'})
+
+    async def handle_ai_action(self, msg: Message, client_id: str) -> Message:
+        if not is_dm(self._get_client_role(client_id)):
+            return Message(MessageType.ERROR, {'error': 'DMs only'})
+        d = msg.data or {}
+        combatant_id = d.get('combatant_id')
+        if not combatant_id:
+            return Message(MessageType.ERROR, {'error': 'combatant_id required'})
+        from service.combat_engine import CombatEngine
+        from service.npc_ai import NPCAIEngine
+        session_code = self._get_session_code()
+        state = CombatEngine.get_state(session_code)
+        if not state:
+            return Message(MessageType.ERROR, {'error': 'No active combat'})
+        combatant = next((c for c in state.combatants if c.combatant_id == combatant_id), None)
+        if not combatant:
+            return Message(MessageType.ERROR, {'error': 'Combatant not found'})
+        decision = NPCAIEngine.decide_action(combatant, state, combatant.ai_behavior)
+        resp = Message(MessageType.AI_SUGGESTION, {'combatant_id': combatant_id, 'decision': {
+            'action_type': decision.action_type, 'target_id': decision.target_id,
+            'move_to': decision.move_to, 'reasoning': decision.reasoning,
+        }})
+        await self.broadcast_to_session(resp, client_id)
+        return resp
+
+    # ── Encounters ──────────────────────────────────────────────────────────
+
+    async def handle_encounter_start(self, msg: Message, client_id: str) -> Message:
+        if not is_dm(self._get_client_role(client_id)):
+            return Message(MessageType.ERROR, {'error': 'Only DMs can start encounters'})
+        d = msg.data or {}
+        title = d.get('title', 'Encounter')
+        description = d.get('description', '')
+        choices = d.get('choices', [])
+        participants = d.get('participants', [])
+        if not choices:
+            return Message(MessageType.ERROR, {'error': 'choices required'})
+        from service.encounter_engine import EncounterEngine
+        session_code = self._get_session_code()
+        enc = EncounterEngine.create(session_code, title, description, choices, participants,
+                                     dm_notes=d.get('dm_notes', ''))
+        resp = Message(MessageType.ENCOUNTER_STATE, {'encounter': enc.to_dict(dm=False)})
+        await self.broadcast_to_session(resp, client_id)
+        return Message(MessageType.ENCOUNTER_STATE, {'encounter': enc.to_dict(dm=True)})
+
+    async def handle_encounter_end(self, msg: Message, client_id: str) -> Message:
+        if not is_dm(self._get_client_role(client_id)):
+            return Message(MessageType.ERROR, {'error': 'Only DMs can end encounters'})
+        from service.encounter_engine import EncounterEngine
+        enc = EncounterEngine.end_encounter(self._get_session_code())
+        if not enc:
+            return Message(MessageType.ERROR, {'error': 'No active encounter'})
+        resp = Message(MessageType.ENCOUNTER_RESULT, {'encounter_id': enc.encounter_id, 'ended': True,
+                                                      'player_choices': enc.player_choices})
+        await self.broadcast_to_session(resp, client_id)
+        return resp
+
+    async def handle_encounter_choice(self, msg: Message, client_id: str) -> Message:
+        d = msg.data or {}
+        choice_id = d.get('choice_id')
+        if not choice_id:
+            return Message(MessageType.ERROR, {'error': 'choice_id required'})
+        player_id = str(self._get_user_id(msg, client_id) or client_id)
+        from service.encounter_engine import EncounterEngine
+        result = EncounterEngine.submit_choice(self._get_session_code(), player_id, choice_id)
+        if 'error' in result:
+            return Message(MessageType.ERROR, result)
+        return Message(MessageType.ENCOUNTER_RESULT, {'player_id': player_id, **result})
+
+    async def handle_encounter_roll(self, msg: Message, client_id: str) -> Message:
+        d = msg.data or {}
+        bonus = int(d.get('bonus', 0))
+        player_id = str(self._get_user_id(msg, client_id) or client_id)
+        from service.encounter_engine import EncounterEngine
+        result = EncounterEngine.submit_roll(self._get_session_code(), player_id, bonus)
+        if 'error' in result:
+            return Message(MessageType.ERROR, result)
+        resp = Message(MessageType.ENCOUNTER_RESULT, {'player_id': player_id, **result})
+        await self.broadcast_to_session(resp, client_id)
+        return resp
+
+    # ── Planning Commit (Phase 4) ────────────────────────────────────────────
+
+    async def handle_action_commit(self, msg: Message, client_id: str) -> Message:
+        d = msg.data or {}
+        actions = d.get('actions', [])
+        sequence_id = int(d.get('sequence_id', 0))
+
+        if not actions:
+            return Message(MessageType.ACTION_REJECTED, {
+                'sequence_id': sequence_id, 'failed_index': 0, 'reason': 'No actions provided',
+            })
+
+        role = self._get_client_role(client_id)
+        user_id = self._get_user_id(msg, client_id)
+        is_dm_user = is_dm(role)
+        session_code = self._get_session_code()
+
+        # Load rules once for this commit batch
+        rules = None
+        mode = GameMode.FREE_ROAM
+        if session_code and not is_dm_user:
+            db = SessionLocal()
+            try:
+                rules_json = get_session_rules_json(db, session_code)
+                mode_str = get_game_mode(db, session_code) or 'free_roam'
+                if rules_json and rules_json != '{}':
+                    rules_data = json.loads(rules_json)
+                    rules_data.setdefault('session_id', session_code)
+                    rules = SessionRules.from_dict(rules_data)
+                try:
+                    mode = GameMode(mode_str)
+                except ValueError:
+                    mode = GameMode.FREE_ROAM
+            finally:
+                db.close()
+        rules = rules or SessionRules.defaults(session_code or 'default')
+        engine = RulesEngine(rules)
+
+        applied = []
+        for idx, action in enumerate(actions):
+            action_type = action.get('action_type', '')
+            sprite_id = action.get('sprite_id') or action.get('target_id') or ''
+            table_id = action.get('table_id', 'default')
+
+            if not is_dm_user and not await self._can_control_sprite(sprite_id, user_id):
+                return Message(MessageType.ACTION_REJECTED, {
+                    'sequence_id': sequence_id, 'failed_index': idx,
+                    'reason': 'You do not control this sprite',
+                })
+
+            if action_type == 'move':
+                to_pos = {'x': float(action.get('target_x', 0)), 'y': float(action.get('target_y', 0))}
+                from_pos = action.get('from') or to_pos
+
+                if not is_dm_user:
+                    vr = engine.validate_action(
+                        action, mode,
+                        movement_cost=action.get('cost_ft'),
+                        available_speed=action.get('speed_ft'),
+                    )
+                    if not vr.ok:
+                        return Message(MessageType.ACTION_REJECTED, {
+                            'sequence_id': sequence_id, 'failed_index': idx, 'reason': vr.reason,
+                        })
+
+                result = await self.actions.move_sprite(
+                    table_id=table_id, sprite_id=sprite_id,
+                    old_position=from_pos, new_position=to_pos,
+                    session_id=session_code,
+                )
+                if not result.success:
+                    return Message(MessageType.ACTION_REJECTED, {
+                        'sequence_id': sequence_id, 'failed_index': idx,
+                        'reason': result.message or 'Move failed',
+                    })
+                applied.append({'sequence_index': action.get('sequence_index', idx), 'action_type': action_type,
+                                'sprite_id': sprite_id, 'to': to_pos})
+
+            else:
+                # Non-move actions: validate permissions only; execution handled by future phases
+                if not is_dm_user:
+                    vr = engine.validate_action(action, mode, has_action_available=True)
+                    if not vr.ok:
+                        return Message(MessageType.ACTION_REJECTED, {
+                            'sequence_id': sequence_id, 'failed_index': idx, 'reason': vr.reason,
+                        })
+                applied.append({'sequence_index': action.get('sequence_index', idx), 'action_type': action_type,
+                                'sprite_id': sprite_id})
+
+        resp = Message(MessageType.ACTION_RESULT, {'sequence_id': sequence_id, 'applied': applied})
+        await self.broadcast_to_session(resp, client_id)
+        return resp
 

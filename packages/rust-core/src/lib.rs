@@ -118,6 +118,8 @@ mod geometry;
 mod wall_manager;
 mod table_manager;
 pub mod unit_converter;
+pub mod collision;
+pub mod planning;
 
 // WASM/WebGL-only modules — not compiled on native test targets
 #[cfg(target_arch = "wasm32")]
@@ -168,6 +170,8 @@ pub use asset_manager::{AssetManager, AssetInfo, CacheStats};
 pub use table_manager::TableManager;
 #[cfg(target_arch = "wasm32")]
 pub use table_sync::TableSync;
+pub use collision::CollisionSystem;
+pub use planning::PlanningManager;
 
 #[cfg(target_arch = "wasm32")]
 use web_sys::HtmlCanvasElement;

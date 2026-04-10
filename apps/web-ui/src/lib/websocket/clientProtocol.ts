@@ -315,6 +315,21 @@ export class WebClientProtocol {
       const { useEncounterStore } = await import('@features/combat/stores/encounterStore');
       useEncounterStore.getState().setEncounter(null);
     });
+
+    // ── Planning Commit (Phase 4) ──
+    this.registerHandler(MessageType.ACTION_RESULT, async (m) => {
+      const { usePlanningStore } = await import('@features/combat/stores/planningStore');
+      usePlanningStore.getState().clearQueue();
+      usePlanningStore.getState().stopPlanning();
+      const data = m.data as { sequence_id?: number; applied?: unknown[] };
+      if (data?.applied?.length) {
+        await setCombat(data);
+      }
+    });
+    this.registerHandler(MessageType.ACTION_REJECTED, async (m) => {
+      const data = m.data as { reason?: string; failed_index?: number };
+      showToast.error(data?.reason ?? 'Action rejected');
+    });
   }
 
   registerHandler(type: string, handler: MessageHandler): void {

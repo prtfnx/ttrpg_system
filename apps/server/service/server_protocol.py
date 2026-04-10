@@ -13,6 +13,10 @@ from .asset_manager import get_server_asset_manager, AssetRequest
 from database.models import Asset, GameSession, GamePlayer
 from database.database import SessionLocal
 from service.movement_validator import MovementValidator, Combatant
+from service.rules_engine import RulesEngine
+from core_table.session_rules import SessionRules
+from core_table.game_mode import GameMode
+from database.crud import get_session_rules_json, get_game_mode
 
 logger = setup_logger(__name__)
 
@@ -166,6 +170,9 @@ class ServerProtocol:
         self.register_handler(MessageType.ENCOUNTER_END,         self.handle_encounter_end)
         self.register_handler(MessageType.ENCOUNTER_CHOICE,      self.handle_encounter_choice)
         self.register_handler(MessageType.ENCOUNTER_ROLL,        self.handle_encounter_roll)
+
+        # Planning commit (Phase 4)
+        self.register_handler(MessageType.ACTION_COMMIT,         self.handle_action_commit)
 
         # Error handling
         self.register_handler(MessageType.ERROR, self.handle_error)
@@ -3805,6 +3812,99 @@ class ServerProtocol:
         if 'error' in result:
             return Message(MessageType.ERROR, result)
         resp = Message(MessageType.ENCOUNTER_RESULT, {'player_id': player_id, **result})
+        await self.broadcast_to_session(resp, client_id)
+        return resp
+
+    # ── Planning Commit (Phase 4) ────────────────────────────────────────────
+
+    async def handle_action_commit(self, msg: Message, client_id: str) -> Message:
+        d = msg.data or {}
+        actions = d.get('actions', [])
+        sequence_id = int(d.get('sequence_id', 0))
+
+        if not actions:
+            return Message(MessageType.ACTION_REJECTED, {
+                'sequence_id': sequence_id, 'failed_index': 0, 'reason': 'No actions provided',
+            })
+
+        role = self._get_client_role(client_id)
+        user_id = self._get_user_id(msg, client_id)
+        is_dm_user = is_dm(role)
+        session_code = self._get_session_code()
+
+        # Load rules once for this commit batch
+        rules = None
+        mode = GameMode.FREE_ROAM
+        if session_code and not is_dm_user:
+            db = SessionLocal()
+            try:
+                rules_json = get_session_rules_json(db, session_code)
+                mode_str = get_game_mode(db, session_code) or 'free_roam'
+                if rules_json and rules_json != '{}':
+                    rules_data = json.loads(rules_json)
+                    rules_data.setdefault('session_id', session_code)
+                    rules = SessionRules.from_dict(rules_data)
+                try:
+                    mode = GameMode(mode_str)
+                except ValueError:
+                    mode = GameMode.FREE_ROAM
+            finally:
+                db.close()
+        rules = rules or SessionRules.defaults(session_code or 'default')
+        engine = RulesEngine(rules)
+
+        applied = []
+        for idx, action in enumerate(actions):
+            action_type = action.get('action_type', '')
+            sprite_id = action.get('sprite_id') or action.get('target_id') or ''
+            table_id = action.get('table_id', 'default')
+
+            if not is_dm_user and not await self._can_control_sprite(sprite_id, user_id):
+                return Message(MessageType.ACTION_REJECTED, {
+                    'sequence_id': sequence_id, 'failed_index': idx,
+                    'reason': 'You do not control this sprite',
+                })
+
+            if action_type == 'move':
+                to_pos = {'x': float(action.get('target_x', 0)), 'y': float(action.get('target_y', 0))}
+                from_pos = action.get('from') or to_pos
+
+                if not is_dm_user:
+                    vr = engine.validate_action(
+                        action, mode,
+                        movement_cost=action.get('cost_ft'),
+                        available_speed=action.get('speed_ft'),
+                    )
+                    if not vr.ok:
+                        return Message(MessageType.ACTION_REJECTED, {
+                            'sequence_id': sequence_id, 'failed_index': idx, 'reason': vr.reason,
+                        })
+
+                result = await self.actions.move_sprite(
+                    table_id=table_id, sprite_id=sprite_id,
+                    old_position=from_pos, new_position=to_pos,
+                    session_id=session_code,
+                )
+                if not result.success:
+                    return Message(MessageType.ACTION_REJECTED, {
+                        'sequence_id': sequence_id, 'failed_index': idx,
+                        'reason': result.message or 'Move failed',
+                    })
+                applied.append({'sequence_index': action.get('sequence_index', idx), 'action_type': action_type,
+                                'sprite_id': sprite_id, 'to': to_pos})
+
+            else:
+                # Non-move actions: validate permissions only; execution handled by future phases
+                if not is_dm_user:
+                    vr = engine.validate_action(action, mode, has_action_available=True)
+                    if not vr.ok:
+                        return Message(MessageType.ACTION_REJECTED, {
+                            'sequence_id': sequence_id, 'failed_index': idx, 'reason': vr.reason,
+                        })
+                applied.append({'sequence_index': action.get('sequence_index', idx), 'action_type': action_type,
+                                'sprite_id': sprite_id})
+
+        resp = Message(MessageType.ACTION_RESULT, {'sequence_id': sequence_id, 'applied': applied})
         await self.broadcast_to_session(resp, client_id)
         return resp
 

@@ -1,0 +1,70 @@
+.panel {
+  background: var(--panel-bg);
+  border: 1px solid var(--border-primary);
+  border-radius: var(--radius-md);
+  padding: 12px;
+  min-width: 240px;
+}
+
+.header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 8px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.cost {
+  font-size: 0.85em;
+  color: var(--text-muted);
+}
+
+.overBudget {
+  min-height: 20px;
+  margin-bottom: 8px;
+}
+
+.warn {
+  font-size: 0.8em;
+  color: var(--status-error-text);
+}
+
+.actions {
+  display: flex;
+  gap: 8px;
+}
+
+.confirmBtn {
+  flex: 1;
+  padding: 6px 12px;
+  background: var(--button-success-bg);
+  color: var(--text-primary);
+  border: none;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+}
+
+.confirmBtn:hover {
+  filter: brightness(1.15);
+}
+
+.cancelBtn {
+  flex: 1;
+  padding: 6px 12px;
+  background: var(--bg-secondary);
+  color: var(--text-muted);
+  border: 1px solid var(--border-primary);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+}
+
+.cancelBtn:hover {
+  color: var(--text-primary);
+}
+
+.hint {
+  margin-top: 8px;
+  font-size: 0.75em;
+  color: var(--text-muted);
+}

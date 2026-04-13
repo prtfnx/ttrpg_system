@@ -2,7 +2,7 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import Optional, TYPE_CHECKING
 
-from core_table.pathfinding import PathfindingSystem
+from core_table.pathfinding import PathfindingSystem, SpatialHashGrid
 from core_table.session_rules import SessionRules
 
 if TYPE_CHECKING:
@@ -63,6 +63,9 @@ class MovementValidator:
                 and str(getattr(e, 'entity_id', '')) != str(entity_id)
             ]
 
+        # Build spatial hash once for all collision checks
+        sh = SpatialHashGrid.build(walls, obstacles, table.grid_cell_px) if walls or obstacles else None
+
         # Build or accept path
         path = client_path
         if not path:
@@ -72,6 +75,7 @@ class MovementValidator:
                     grid_size=table.grid_cell_px,
                     exclude_entity_id=entity_id,
                     grid_bounds=(table.width - 1, table.height - 1) if table.width > 0 else None,
+                    spatial_hash=sh,
                 )
                 if path is None:
                     return MovementResult(valid=False, reason="No clear path to destination")
@@ -81,14 +85,14 @@ class MovementValidator:
         # Wall collision along path segments
         if walls:
             for seg_start, seg_end in zip(path, path[1:]):
-                if PathfindingSystem.is_path_blocked_by_walls(seg_start, seg_end, walls):
+                if PathfindingSystem.is_path_blocked_by_walls(seg_start, seg_end, walls, sh):
                     return MovementResult(valid=False, reason="Path blocked by wall")
 
         # Obstacle collision along path segments
         if obstacles:
             for seg_start, seg_end in zip(path, path[1:]):
                 if PathfindingSystem.is_path_blocked_by_obstacles(
-                    seg_start, seg_end, obstacles, entity_id
+                    seg_start, seg_end, obstacles, entity_id, sh
                 ):
                     return MovementResult(valid=False, reason="Path blocked by obstacle")
 

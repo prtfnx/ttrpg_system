@@ -7,6 +7,91 @@ if TYPE_CHECKING:
     from core_table.entities import Wall, Entity
 
 
+class SpatialHashGrid:
+    """Grid-bucketed spatial index for walls and obstacles.
+
+    Mirrors the Rust SpatialHash struct — reduces collision checks from O(N)
+    to O(bucket_size) ≈ O(1-5) for typical dungeon maps.
+    """
+
+    def __init__(self, cell_size: float):
+        self.cell_size = cell_size
+        self._walls: dict[tuple[int, int], list[int]] = {}
+        self._obstacles: dict[tuple[int, int], list[int]] = {}
+
+    def _bucket(self, x: float, y: float) -> tuple[int, int]:
+        c = self.cell_size
+        return (int(x // c), int(y // c))
+
+    def insert_wall(self, idx: int, wall) -> None:
+        for cell in self._cells_along(wall.x1, wall.y1, wall.x2, wall.y2):
+            self._walls.setdefault(cell, []).append(idx)
+
+    def insert_obstacle(self, idx: int, entity) -> None:
+        px, py = entity.position[0], entity.position[1]
+        w = getattr(entity, 'width', 1.0) or 1.0
+        h = getattr(entity, 'height', 1.0) or 1.0
+        min_c = self._bucket(px, py)
+        max_c = self._bucket(px + w, py + h)
+        for cx in range(min_c[0], max_c[0] + 1):
+            for cy in range(min_c[1], max_c[1] + 1):
+                self._obstacles.setdefault((cx, cy), []).append(idx)
+
+    def query_walls(self, x1: float, y1: float, x2: float, y2: float) -> set[int]:
+        result: set[int] = set()
+        for cell in self._cells_along(x1, y1, x2, y2):
+            result.update(self._walls.get(cell, []))
+        return result
+
+    def query_obstacles(self, x1: float, y1: float, x2: float, y2: float) -> set[int]:
+        result: set[int] = set()
+        for cell in self._cells_along(x1, y1, x2, y2):
+            result.update(self._obstacles.get(cell, []))
+        return result
+
+    def _cells_along(self, x1: float, y1: float, x2: float, y2: float) -> list[tuple[int, int]]:
+        """DDA grid walk — same algorithm as Rust cells_along_segment."""
+        c = self.cell_size
+        cx, cy = int(x1 // c), int(y1 // c)
+        end_cx, end_cy = int(x2 // c), int(y2 // c)
+
+        dx, dy = x2 - x1, y2 - y1
+        step_x = 1 if dx >= 0 else -1
+        step_y = 1 if dy >= 0 else -1
+
+        t_delta_x = (c / abs(dx)) if abs(dx) > 1e-6 else float('inf')
+        t_delta_y = (c / abs(dy)) if abs(dy) > 1e-6 else float('inf')
+
+        next_bx = (cx + 1) * c if step_x > 0 else cx * c
+        next_by = (cy + 1) * c if step_y > 0 else cy * c
+        t_max_x = ((next_bx - x1) / dx) if abs(dx) > 1e-6 else float('inf')
+        t_max_y = ((next_by - y1) / dy) if abs(dy) > 1e-6 else float('inf')
+
+        cells = [(cx, cy)]
+        max_steps = abs(end_cx - cx) + abs(end_cy - cy) + 2
+        for _ in range(max_steps):
+            if cx == end_cx and cy == end_cy:
+                break
+            if t_max_x < t_max_y:
+                cx += step_x
+                t_max_x += t_delta_x
+            else:
+                cy += step_y
+                t_max_y += t_delta_y
+            cells.append((cx, cy))
+        return cells
+
+    @staticmethod
+    def build(walls: list, obstacles: list, cell_size: float) -> 'SpatialHashGrid':
+        """Build a hash from wall + obstacle lists in one pass."""
+        h = SpatialHashGrid(cell_size)
+        for i, w in enumerate(walls):
+            h.insert_wall(i, w)
+        for i, o in enumerate(obstacles):
+            h.insert_obstacle(i, o)
+        return h
+
+
 class PathfindingSystem:
 
     # ── Geometric primitives ─────────────────────────────────────────────────
@@ -88,8 +173,13 @@ class PathfindingSystem:
     def is_path_blocked_by_walls(
         start: tuple, end: tuple,
         walls: list,
+        spatial_hash: Optional['SpatialHashGrid'] = None,
     ) -> bool:
-        for wall in walls:
+        candidates = (
+            [walls[i] for i in spatial_hash.query_walls(start[0], start[1], end[0], end[1])]
+            if spatial_hash else walls
+        )
+        for wall in candidates:
             if not wall.blocks_movement:
                 continue
             if wall.is_door and wall.door_state == 'open':
@@ -106,9 +196,15 @@ class PathfindingSystem:
         start: tuple, end: tuple,
         obstacles: list,
         exclude_entity_id: Optional[str] = None,
+        spatial_hash: Optional['SpatialHashGrid'] = None,
     ) -> bool:
         x1, y1, x2, y2 = start[0], start[1], end[0], end[1]
-        for entity in obstacles:
+        if spatial_hash:
+            idxs = spatial_hash.query_obstacles(x1, y1, x2, y2)
+            candidates = [obstacles[i] for i in idxs if i < len(obstacles)]
+        else:
+            candidates = obstacles
+        for entity in candidates:
             if exclude_entity_id and str(entity.entity_id) == str(exclude_entity_id):
                 continue
             ot = getattr(entity, 'obstacle_type', None)
@@ -155,6 +251,7 @@ class PathfindingSystem:
         exclude_entity_id: Optional[str] = None,
         grid_bounds: Optional[tuple] = None,  # (max_cols, max_rows) in cells, inclusive
         diagonal_rule: str = "standard",
+        spatial_hash: Optional['SpatialHashGrid'] = None,
     ) -> Optional[list[tuple]]:
         """A* on grid. Returns waypoints in pixel space or None if unreachable."""
         def to_cell(pt):
@@ -178,6 +275,11 @@ class PathfindingSystem:
             return None
 
         if start_c == end_c:
+            return [start, end]
+
+        # Direct-path shortcut — skip A* if line of sight is clear
+        if not PathfindingSystem.is_path_blocked_by_walls(start, end, walls, spatial_hash) and \
+                not PathfindingSystem.is_path_blocked_by_obstacles(start, end, obstacles, exclude_entity_id, spatial_hash):
             return [start, end]
 
         open_set = [(0.0, start_c)]
@@ -218,10 +320,10 @@ class PathfindingSystem:
                     nb_px = to_px(nb)
                     cur_px = to_px(current)
                     # Collision check on the step segment
-                    if walls and PathfindingSystem.is_path_blocked_by_walls(cur_px, nb_px, walls):
+                    if walls and PathfindingSystem.is_path_blocked_by_walls(cur_px, nb_px, walls, spatial_hash):
                         continue
                     if obstacles and PathfindingSystem.is_path_blocked_by_obstacles(
-                        cur_px, nb_px, obstacles, exclude_entity_id
+                        cur_px, nb_px, obstacles, exclude_entity_id, spatial_hash
                     ):
                         continue
                     # Cost per step consistent with get_movement_cost rules:

@@ -348,6 +348,7 @@ class PathfindingSystem:
         obstacles: list,
         grid_size: float,
         diagonal_rule: str = "standard",
+        spatial_hash: Optional['SpatialHashGrid'] = None,
     ) -> list[dict]:
         """BFS expansion. Returns [{x, y, cost}] for cells reachable within speed."""
         def to_cell(pt):
@@ -374,9 +375,9 @@ class PathfindingSystem:
                     nb = (cx + dx, cy + dy)
                     nb_px = to_px(nb)
                     cur_px = to_px(current)
-                    if walls and PathfindingSystem.is_path_blocked_by_walls(cur_px, nb_px, walls):
+                    if walls and PathfindingSystem.is_path_blocked_by_walls(cur_px, nb_px, walls, spatial_hash):
                         continue
-                    if obstacles and PathfindingSystem.is_path_blocked_by_obstacles(cur_px, nb_px, obstacles):
+                    if obstacles and PathfindingSystem.is_path_blocked_by_obstacles(cur_px, nb_px, obstacles, spatial_hash=spatial_hash):
                         continue
                     # Consistent with A* step costs: realistic=sqrt(2)*5, standard/alternate=5
                     is_diag = dx != 0 and dy != 0

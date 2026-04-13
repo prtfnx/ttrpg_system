@@ -4,6 +4,7 @@ from typing import Optional, TYPE_CHECKING
 
 from core_table.pathfinding import PathfindingSystem, SpatialHashGrid
 from core_table.session_rules import SessionRules
+import math
 
 if TYPE_CHECKING:
     pass
@@ -121,9 +122,10 @@ class MovementValidator:
 
     def _snap_to_cell(self, pos: tuple, grid: float) -> tuple:
         """Snap pixel position to nearest grid cell center."""
+
         return (
-            int(pos[0] / grid) * grid + grid / 2,
-            int(pos[1] / grid) * grid + grid / 2,
+            math.floor(pos[0] / grid) * grid + grid / 2,
+            math.floor(pos[1] / grid) * grid + grid / 2,
         )
 
     def _get_walls_and_obstacles(self, entity_id: str, table) -> tuple[list, list]:
@@ -168,12 +170,13 @@ class MovementValidator:
                 return MovementResult(valid=False, reason="Outside table bounds")
 
         walls, obstacles = self._get_walls_and_obstacles(entity_id, table)
+        sh = SpatialHashGrid.build(walls, obstacles, grid) if walls or obstacles else None
         path = client_path or [from_pos, to_pos]
 
         for seg_start, seg_end in zip(path, path[1:]):
-            if walls and PathfindingSystem.is_path_blocked_by_walls(seg_start, seg_end, walls):
+            if walls and PathfindingSystem.is_path_blocked_by_walls(seg_start, seg_end, walls, sh):
                 return MovementResult(valid=False, reason="Path crosses a wall")
-            if obstacles and PathfindingSystem.is_path_blocked_by_obstacles(seg_start, seg_end, obstacles, entity_id):
+            if obstacles and PathfindingSystem.is_path_blocked_by_obstacles(seg_start, seg_end, obstacles, entity_id, sh):
                 return MovementResult(valid=False, reason="Path blocked by obstacle")
 
         movement_cost = 0.0

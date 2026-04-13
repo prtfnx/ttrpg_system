@@ -41,7 +41,7 @@ export const usePlanningStore = create<PlanningStore>((set) => ({
 
   startPlanning: (spriteId) => set({ isPlanningMode: true, selectedSpriteId: spriteId }),
 
-  stopPlanning: () => set({ isPlanningMode: false, selectedSpriteId: null, queue: [] }),
+  stopPlanning: () => set({ isPlanningMode: false, selectedSpriteId: null }),
 
   addAction: (action) => set((s) => ({
     queue: [...s.queue, { ...action, sequence_index: s.queue.length }],

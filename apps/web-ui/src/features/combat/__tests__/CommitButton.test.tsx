@@ -69,7 +69,7 @@ describe('CommitButton', () => {
     expect(mockSendMessage).toHaveBeenCalledWith(
       expect.objectContaining({ type: 'action_commit', data: expect.objectContaining({ sequence_id: 42 }) })
     );
-    expect(mockStopPlanning).toHaveBeenCalled();
-    expect(vi.mocked(planningService.clearAll)).toHaveBeenCalled();
+    // Planning cleared by ACTION_RESULT / ACTION_REJECTED, not optimistically on commit
+    expect(mockStopPlanning).not.toHaveBeenCalled();
   });
 });

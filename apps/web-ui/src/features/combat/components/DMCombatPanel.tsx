@@ -36,7 +36,7 @@ export function DMCombatPanel() {
     if (!selectedId) return;
     send(MessageType.CONDITION_ADD, {
       combatant_id: selectedId,
-      condition: conditionType,
+      condition_type: conditionType,
       duration: Number(conditionDuration),
       source: 'dm',
     });

@@ -290,7 +290,9 @@ export class WebClientProtocol {
     // ── Combat ──
     const setCombat = async (data: unknown) => {
       const { useCombatStore } = await import('@features/combat/stores/combatStore');
-      useCombatStore.getState().setCombat(data as never);
+      const d = data as Record<string, unknown>;
+      const combat = (d?.combat ?? data) as never;
+      useCombatStore.getState().setCombat(combat);
     };
     this.registerHandler(MessageType.COMBAT_STATE, async (m) => setCombat(m.data));
     this.registerHandler(MessageType.COMBAT_START, async (m) => setCombat(m.data));
@@ -319,10 +321,12 @@ export class WebClientProtocol {
     // ── Planning Commit (Phase 4) ──
     this.registerHandler(MessageType.ACTION_RESULT, async (m) => {
       const { usePlanningStore } = await import('@features/combat/stores/planningStore');
-      usePlanningStore.getState().clearQueue();
-      usePlanningStore.getState().stopPlanning();
-      const data = m.data as { sequence_id?: number; applied?: unknown[] };
+      const data = m.data as { sequence_id?: number; applied?: unknown[]; combat?: unknown };
       if (data?.applied?.length) {
+        usePlanningStore.getState().clearQueue();
+        usePlanningStore.getState().stopPlanning();
+      }
+      if (data?.combat) {
         await setCombat(data);
       }
     });

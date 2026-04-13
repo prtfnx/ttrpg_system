@@ -38,10 +38,7 @@ export function CommitButton() {
       })
     );
 
-    // Response handled via clientProtocol ACTION_RESULT / ACTION_REJECTED handlers
-    // Stop planning mode optimistically — server confirms or reverts
-    stopPlanning();
-    planningService.clearAll();
+    // Queue cleared and planning stopped by ACTION_RESULT / ACTION_REJECTED handlers
     setPending(false);
   };
 

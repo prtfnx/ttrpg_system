@@ -3586,9 +3586,9 @@ class ServerProtocol:
             return Message(MessageType.ERROR, {'error': 'Only DMs can add conditions'})
         d = msg.data or {}
         combatant_id = d.get('combatant_id')
-        condition_str = d.get('condition')
+        condition_str = d.get('condition_type')
         if not combatant_id or not condition_str:
-            return Message(MessageType.ERROR, {'error': 'combatant_id and condition required'})
+            return Message(MessageType.ERROR, {'error': 'combatant_id and condition_type required'})
         from service.combat_engine import CombatEngine
         from core_table.conditions import ActiveCondition, ConditionType
         state = CombatEngine.get_state(self._get_session_code())
@@ -3620,9 +3620,9 @@ class ServerProtocol:
             return Message(MessageType.ERROR, {'error': 'Only DMs can remove conditions'})
         d = msg.data or {}
         combatant_id = d.get('combatant_id')
-        condition_str = d.get('condition')
+        condition_str = d.get('condition_type')
         if not combatant_id or not condition_str:
-            return Message(MessageType.ERROR, {'error': 'combatant_id and condition required'})
+            return Message(MessageType.ERROR, {'error': 'combatant_id and condition_type required'})
         from service.combat_engine import CombatEngine
         state = CombatEngine.get_state(self._get_session_code())
         if not state:
@@ -3728,7 +3728,8 @@ class ServerProtocol:
             return Message(MessageType.ERROR, {'error': 'No active combat'})
         for c in state.combatants:
             if c.combatant_id == combatant_id:
-                c.ai_enabled = d.get('enabled', not c.ai_enabled)
+                if 'enabled' in d:
+                    c.ai_enabled = d['enabled']
                 if 'behavior' in d:
                     c.ai_behavior = d['behavior']
                 resp = Message(MessageType.COMBAT_STATE, {

@@ -295,6 +295,25 @@
   --combat-overlay-medium: var(--overlay-dark-light);
   --combat-overlay-dark: var(--overlay-dark-heavy);
 
+  /* Condition badge colors */
+  --condition-poisoned: var(--green-600);
+  --condition-blinded: var(--gray-500);
+  --condition-stunned: var(--yellow-400);
+  --condition-paralyzed: var(--red-500);
+  --condition-incapacitated: var(--red-500);
+  --condition-charmed: var(--rose-500);
+  --condition-frightened: var(--purple-600);
+  --condition-grappled: var(--indigo-400);
+  --condition-prone: var(--yellow-300);
+  --condition-restrained: var(--rose-400);
+  --condition-exhaustion: var(--gray-400);
+  --condition-unconscious: var(--gray-800);
+  --condition-petrified: var(--gray-600);
+  --condition-invisible: var(--gray-200);
+  --condition-concentration: var(--blue-600);
+  --condition-dead: var(--gray-900);
+  --condition-default: var(--blue-300);
+
   /* ============================================
      THEME PREVIEW GRADIENTS
      ============================================ */

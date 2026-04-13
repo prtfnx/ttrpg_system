@@ -124,6 +124,14 @@
 
   /* CYAN - Info states */
   --cyan-50: #ecfeff;
+
+  /* ROSE/PINK - Charm, status effects */
+  --rose-300: #fda4af;
+  --rose-400: #fb7185;
+  --rose-500: #f43f5e;
+  --rose-600: #e11d48;
+  --rose-700: #be123c;
+  --rose-800: #9f1239;
   --cyan-100: #cffafe;
   --cyan-200: #a5f3fc;
   --cyan-300: #67e8f9;

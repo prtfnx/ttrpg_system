@@ -94,3 +94,7 @@ criterion = { version = "0.5", features = ["html_reports"] }
 [[bench]]
 name = "collision_bench"
 harness = false
+
+[[bench]]
+name = "bottleneck_bench"
+harness = false

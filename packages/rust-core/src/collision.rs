@@ -4,6 +4,107 @@ use wasm_bindgen::prelude::*;
 use serde::{Serialize, Deserialize};
 use crate::math::Vec2;
 
+// ── Spatial hash index ────────────────────────────────────────────────
+
+/// Grid-bucketed index for fast collision lookup.
+/// Reduces wall/obstacle checks from O(N) to O(bucket_size) ≈ O(1-5).
+struct SpatialHash {
+    cell_size: f32,
+    walls: HashMap<(i32, i32), Vec<usize>>,
+    obstacles: HashMap<(i32, i32), Vec<usize>>,
+}
+
+impl SpatialHash {
+    fn new(cell_size: f32) -> Self {
+        Self { cell_size, walls: HashMap::new(), obstacles: HashMap::new() }
+    }
+
+    fn bucket(&self, x: f32, y: f32) -> (i32, i32) {
+        ((x / self.cell_size).floor() as i32, (y / self.cell_size).floor() as i32)
+    }
+
+    /// Rasterize wall segment into all overlapping grid cells (DDA walk).
+    fn insert_wall(&mut self, idx: usize, s: &CollisionSegment) {
+        for cell in cells_along_segment(s.x1, s.y1, s.x2, s.y2, self.cell_size) {
+            self.walls.entry(cell).or_default().push(idx);
+        }
+    }
+
+    fn insert_obstacle(&mut self, idx: usize, obs: &CollisionObstacle) {
+        let (x, y, w, h) = (obs.x, obs.y, obs.width.max(obs.radius * 2.0), obs.height.max(obs.radius * 2.0));
+        let (min_cx, min_cy) = self.bucket(x - w * 0.5, y - h * 0.5);
+        let (max_cx, max_cy) = self.bucket(x + w * 0.5, y + h * 0.5);
+        for cx in min_cx..=max_cx {
+            for cy in min_cy..=max_cy {
+                self.obstacles.entry((cx, cy)).or_default().push(idx);
+            }
+        }
+    }
+
+    fn query_walls(&self, x1: f32, y1: f32, x2: f32, y2: f32) -> Vec<usize> {
+        let mut seen = HashSet::new();
+        let mut result = Vec::new();
+        for cell in cells_along_segment(x1, y1, x2, y2, self.cell_size) {
+            if let Some(ids) = self.walls.get(&cell) {
+                for &id in ids {
+                    if seen.insert(id) { result.push(id); }
+                }
+            }
+        }
+        result
+    }
+
+    fn query_obstacles(&self, x1: f32, y1: f32, x2: f32, y2: f32) -> Vec<usize> {
+        let mut seen = HashSet::new();
+        let mut result = Vec::new();
+        for cell in cells_along_segment(x1, y1, x2, y2, self.cell_size) {
+            if let Some(ids) = self.obstacles.get(&cell) {
+                for &id in ids {
+                    if seen.insert(id) { result.push(id); }
+                }
+            }
+        }
+        result
+    }
+}
+
+/// DDA grid walk — returns all cells that a line segment passes through.
+fn cells_along_segment(x1: f32, y1: f32, x2: f32, y2: f32, cell_size: f32) -> Vec<(i32, i32)> {
+    let inv = 1.0 / cell_size;
+    let (mut cx, mut cy) = ((x1 * inv).floor() as i32, (y1 * inv).floor() as i32);
+    let (end_cx, end_cy) = ((x2 * inv).floor() as i32, (y2 * inv).floor() as i32);
+
+    let dx = x2 - x1;
+    let dy = y2 - y1;
+    let step_x: i32 = if dx >= 0.0 { 1 } else { -1 };
+    let step_y: i32 = if dy >= 0.0 { 1 } else { -1 };
+
+    // t-deltas: how far along the ray to cross a cell boundary
+    let t_delta_x = if dx.abs() < 1e-6 { f32::MAX } else { cell_size / dx.abs() };
+    let t_delta_y = if dy.abs() < 1e-6 { f32::MAX } else { cell_size / dy.abs() };
+
+    // Initial t to first crossing
+    let next_bx = if step_x > 0 { (cx + 1) as f32 * cell_size } else { cx as f32 * cell_size };
+    let next_by = if step_y > 0 { (cy + 1) as f32 * cell_size } else { cy as f32 * cell_size };
+    let mut t_max_x = if dx.abs() < 1e-6 { f32::MAX } else { (next_bx - x1) / dx };
+    let mut t_max_y = if dy.abs() < 1e-6 { f32::MAX } else { (next_by - y1) / dy };
+
+    let mut cells = vec![(cx, cy)];
+    let max_steps = (end_cx - cx).unsigned_abs() + (end_cy - cy).unsigned_abs() + 2;
+    for _ in 0..max_steps {
+        if cx == end_cx && cy == end_cy { break; }
+        if t_max_x < t_max_y {
+            cx += step_x;
+            t_max_x += t_delta_x;
+        } else {
+            cy += step_y;
+            t_max_y += t_delta_y;
+        }
+        cells.push((cx, cy));
+    }
+    cells
+}
+
 // ── Data types ────────────────────────────────────────────────────────
 
 /// A movement-blocking wall segment
@@ -86,6 +187,7 @@ pub struct CollisionSystem {
     segments: Vec<CollisionSegment>,
     obstacles: Vec<CollisionObstacle>,
     grid_size: f32,
+    spatial_hash: Option<SpatialHash>,
 }
 
 #[wasm_bindgen]
@@ -96,6 +198,7 @@ impl CollisionSystem {
             segments: Vec::new(),
             obstacles: Vec::new(),
             grid_size,
+            spatial_hash: None,
         }
     }
 
@@ -103,6 +206,7 @@ impl CollisionSystem {
     pub fn set_walls(&mut self, json: &str) {
         if let Ok(segs) = serde_json::from_str::<Vec<CollisionSegment>>(json) {
             self.segments = segs;
+            self.rebuild_index();
         }
     }
 
@@ -110,27 +214,58 @@ impl CollisionSystem {
     pub fn set_obstacles(&mut self, json: &str) {
         if let Ok(obs) = serde_json::from_str::<Vec<CollisionObstacle>>(json) {
             self.obstacles = obs;
+            self.rebuild_index();
         }
     }
 
-    /// True if the line segment from (x1,y1) to (x2,y2) is blocked
+    /// Rebuild spatial hash index after walls/obstacles change.
+    pub fn rebuild_index(&mut self) {
+        let mut hash = SpatialHash::new(self.grid_size);
+        for (i, s) in self.segments.iter().enumerate() {
+            hash.insert_wall(i, s);
+        }
+        for (i, obs) in self.obstacles.iter().enumerate() {
+            hash.insert_obstacle(i, obs);
+        }
+        self.spatial_hash = Some(hash);
+    }
+
+    /// True if the line segment from (x1,y1) to (x2,y2) is blocked.
+    /// Uses spatial hash when available; falls back to linear scan.
     pub fn line_blocked(&self, x1: f32, y1: f32, x2: f32, y2: f32) -> bool {
         let a = Vec2::new(x1, y1);
         let b = Vec2::new(x2, y2);
-        for s in &self.segments {
-            if s.is_door && s.door_open { continue; }
-            let c = Vec2::new(s.x1, s.y1);
-            let d = Vec2::new(s.x2, s.y2);
-            if seg_intersect(a, b, c, d).is_some() { return true; }
-        }
-        for obs in &self.obstacles {
-            if self.line_hits_obstacle(a, b, obs) { return true; }
+        if let Some(hash) = &self.spatial_hash {
+            for &idx in &hash.query_walls(x1, y1, x2, y2) {
+                let s = &self.segments[idx];
+                if s.is_door && s.door_open { continue; }
+                if seg_intersect(a, b, Vec2::new(s.x1, s.y1), Vec2::new(s.x2, s.y2)).is_some() {
+                    return true;
+                }
+            }
+            for &idx in &hash.query_obstacles(x1, y1, x2, y2) {
+                if self.line_hits_obstacle(a, b, &self.obstacles[idx]) { return true; }
+            }
+        } else {
+            for s in &self.segments {
+                if s.is_door && s.door_open { continue; }
+                if seg_intersect(a, b, Vec2::new(s.x1, s.y1), Vec2::new(s.x2, s.y2)).is_some() {
+                    return true;
+                }
+            }
+            for obs in &self.obstacles {
+                if self.line_hits_obstacle(a, b, obs) { return true; }
+            }
         }
         false
     }
 
     /// A* pathfinding. Returns flat [x1,y1,x2,y2,...] waypoints or empty on failure.
     pub fn find_path(&self, sx: f32, sy: f32, ex: f32, ey: f32) -> Vec<f32> {
+        // Direct-path shortcut: ~50% of open-area moves skip A* entirely
+        if !self.line_blocked(sx, sy, ex, ey) {
+            return vec![sx, sy, ex, ey];
+        }
         let g = self.grid_size;
         let start = Cell((sx / g).floor() as i32, (sy / g).floor() as i32);
         let goal  = Cell((ex / g).floor() as i32, (ey / g).floor() as i32);

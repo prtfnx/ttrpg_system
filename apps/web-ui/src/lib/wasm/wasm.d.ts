@@ -36,6 +36,7 @@ export class CollisionSystem {
   constructor(grid_size: number);
   set_walls(json: string): void;
   set_obstacles(json: string): void;
+  rebuild_index(): void;
   line_blocked(x1: number, y1: number, x2: number, y2: number): boolean;
   find_path(sx: number, sy: number, ex: number, ey: number): Float32Array;
   movement_range(sx: number, sy: number, speed_ft: number, ft_per_unit: number, diagonal_5_10_5: boolean): MovementRange;

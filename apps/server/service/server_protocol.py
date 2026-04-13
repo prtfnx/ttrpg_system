@@ -40,6 +40,8 @@ class ServerProtocol:
             logger.debug(f"Initialized tables_id with {len(self.table_manager.tables_id)} tables id: {self.table_manager.tables_id}")
         # Track sprite positions for conflict resolution
         #self.sprite_positions: Dict[str, Dict[str, Tuple[float, float]]] = {}
+        # Cache SessionRules per session — invalidated on SESSION_RULES_UPDATE
+        self._rules_cache: Dict[str, Any] = {}
 
     def register_handler(self, msg_type: MessageType, handler: Callable):
         """Extension point for custom message handlers"""
@@ -461,16 +463,22 @@ class ServerProtocol:
                 rules = None
                 game_mode = 'free_roam'
                 if session_code:
-                    db = SessionLocal()
-                    try:
-                        rules_json = get_session_rules_json(db, session_code)
-                        game_mode = get_game_mode(db, session_code)
-                        if rules_json and rules_json != '{}':
-                            rules_data = json.loads(rules_json)
-                            rules_data.setdefault('session_id', session_code)
-                            rules = SessionRules.from_dict(rules_data)
-                    finally:
-                        db.close()
+                    cached = self._rules_cache.get(session_code)
+                    if cached:
+                        rules, game_mode = cached
+                    else:
+                        db = SessionLocal()
+                        try:
+                            rules_json = get_session_rules_json(db, session_code)
+                            game_mode = get_game_mode(db, session_code)
+                            if rules_json and rules_json != '{}':
+                                rules_data = json.loads(rules_json)
+                                rules_data.setdefault('session_id', session_code)
+                                rules = SessionRules.from_dict(rules_data)
+                        finally:
+                            db.close()
+                        if rules is not None:
+                            self._rules_cache[session_code] = (rules, game_mode)
 
                 if rules is None:
                     rules = SessionRules.defaults(session_code or 'default')
@@ -3379,6 +3387,9 @@ class ServerProtocol:
                 update_session_rules_json(db, session_code, rules_json)
             finally:
                 db.close()
+
+            # Invalidate per-session rules cache
+            self._rules_cache.pop(session_code, None)
 
             response = Message(MessageType.SESSION_RULES_CHANGED, {'rules': rules.to_dict()})
             await self.broadcast_to_session(response, client_id)

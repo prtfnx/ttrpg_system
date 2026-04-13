@@ -28,6 +28,7 @@ export function CommitButton() {
       target_id: a.target_id,
       spell_id: a.spell_id,
       item_id: a.item_id,
+      path: a.path,
       sequence_index: a.sequence_index,
     }));
 

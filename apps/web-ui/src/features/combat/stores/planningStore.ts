@@ -14,6 +14,7 @@ export interface PlannedAction {
   item_id?: string;
   cost_ft?: number;       // movement cost if move action
   cost_type?: 'action' | 'bonus_action' | 'reaction' | 'movement' | 'free';
+  path?: [number, number][];  // computed waypoints in pixel space
   sequence_index: number;
 }
 

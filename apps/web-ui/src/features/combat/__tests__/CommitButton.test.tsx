@@ -1,7 +1,7 @@
 import '@testing-library/jest-dom';
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 const mockSendMessage = vi.fn();
 const mockStopPlanning = vi.fn();
@@ -27,9 +27,8 @@ vi.mock('../services/planning.service', () => ({
 }));
 vi.mock('../components/CommitButton.module.css', () => ({ default: {} }));
 
-import { usePlanningStore } from '../stores/planningStore';
-import { planningService } from '../services/planning.service';
 import { CommitButton } from '../components/CommitButton';
+import { usePlanningStore } from '../stores/planningStore';
 
 function setup(overrides: Record<string, unknown> = {}) {
   vi.mocked(usePlanningStore).mockReturnValue({

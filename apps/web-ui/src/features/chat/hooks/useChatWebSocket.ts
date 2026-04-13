@@ -1,4 +1,5 @@
 import { useOptionalProtocol } from '@lib/api';
+import type { Message } from '@lib/websocket';
 import React, { useEffect } from 'react';
 import { useChatStore } from '../chatStore';
 
@@ -33,7 +34,7 @@ export function useChatWebSocket(url: string, user: string) {
   useEffect(() => {
     if (protocol) {
       // Register a handler for chat messages via protocol
-      const handler = async (m: any) => {
+      const handler = async (m: Message) => {
         if (m.type === 'chat' && m.data?.message) {
           useChatStore.getState().addMessage(m.data.message);
         }
@@ -77,7 +78,7 @@ export function useChatWebSocket(url: string, user: string) {
     };
     useChatStore.getState().addMessage(msg.data.message);
     if (protocol && protocol.isConnected()) {
-      protocol.sendMessage(msg as any);
+      protocol.sendMessage(msg as unknown as Message);
     } else if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
       wsRef.current.send(JSON.stringify(msg));
     } else {

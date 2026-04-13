@@ -5,6 +5,7 @@
   "scripts": {
     "test": "pytest -x -q",
     "test:run": "pytest -q",
-    "lint": "ruff check ."
+    "lint": "ruff check .",
+    "bench": "pytest tests/bench_pathfinding.py --benchmark-only --benchmark-sort=mean --benchmark-columns=mean,stddev,rounds"
   }
 }

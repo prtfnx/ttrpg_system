@@ -7,6 +7,17 @@ const FT_PER_UNIT = 5 / 64; // 5ft per grid cell (64 units)
 
 let manager: PlanningManager | null = null;
 
+// Cell-change gate: only rerun pathfinding when mouse crosses into a new grid cell.
+// Tracks last computed cell per sprite to avoid redundant A* calls.
+const lastCell = new Map<string, { cx: number; cy: number; cost: number }>();
+
+function snapToCell(x: number, y: number, gridSize: number) {
+  return {
+    cx: Math.floor(x / gridSize) * gridSize + gridSize * 0.5,
+    cy: Math.floor(y / gridSize) * gridSize + gridSize * 0.5,
+  };
+}
+
 async function getManager(): Promise<PlanningManager | null> {
   if (manager) return manager;
   try {
@@ -31,14 +42,23 @@ export const planningService = {
 
   async startGhost(spriteId: string, realX: number, realY: number, previewX: number, previewY: number, speedFt: number): Promise<number> {
     const m = await getManager();
-    return m?.start_ghost(spriteId, realX, realY, previewX, previewY, speedFt) ?? 0;
+    if (!m) return 0;
+    // Throttle: skip pathfinding if mouse is still in the same cell as last call
+    const { cx, cy } = snapToCell(previewX, previewY, GRID_SIZE);
+    const prev = lastCell.get(spriteId);
+    if (prev && prev.cx === cx && prev.cy === cy) return prev.cost;
+    const cost = m.start_ghost(spriteId, realX, realY, cx, cy, speedFt) ?? 0;
+    lastCell.set(spriteId, { cx, cy, cost });
+    return cost;
   },
 
   async clearGhost(spriteId: string) {
+    lastCell.delete(spriteId);
     (await getManager())?.clear_ghost(spriteId);
   },
 
   async clearAll() {
+    lastCell.clear();
     (await getManager())?.clear_all();
   },
 

@@ -3858,24 +3858,34 @@ class ServerProtocol:
         is_dm_user = is_dm(role)
         session_code = self._get_session_code()
 
-        # Load rules once for this commit batch
+        # Load rules once for this commit batch (use cache when available)
         rules = None
         mode = GameMode.FREE_ROAM
         if session_code and not is_dm_user:
-            db = SessionLocal()
-            try:
-                rules_json = get_session_rules_json(db, session_code)
-                mode_str = get_game_mode(db, session_code) or 'free_roam'
-                if rules_json and rules_json != '{}':
-                    rules_data = json.loads(rules_json)
-                    rules_data.setdefault('session_id', session_code)
-                    rules = SessionRules.from_dict(rules_data)
+            cached = self._rules_cache.get(session_code)
+            if cached:
+                rules, game_mode_str = cached
                 try:
-                    mode = GameMode(mode_str)
+                    mode = GameMode(game_mode_str)
                 except ValueError:
                     mode = GameMode.FREE_ROAM
-            finally:
-                db.close()
+            else:
+                db = SessionLocal()
+                try:
+                    rules_json = get_session_rules_json(db, session_code)
+                    mode_str = get_game_mode(db, session_code) or 'free_roam'
+                    if rules_json and rules_json != '{}':
+                        rules_data = json.loads(rules_json)
+                        rules_data.setdefault('session_id', session_code)
+                        rules = SessionRules.from_dict(rules_data)
+                    try:
+                        mode = GameMode(mode_str)
+                    except ValueError:
+                        mode = GameMode.FREE_ROAM
+                finally:
+                    db.close()
+                if rules is not None:
+                    self._rules_cache[session_code] = (rules, mode_str)
         rules = rules or SessionRules.defaults(session_code or 'default')
         engine = RulesEngine(rules)
 

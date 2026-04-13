@@ -482,20 +482,31 @@ class ServerProtocol:
                     return (float(pos[0]), float(pos[1]))
 
                 validator = MovementValidator(rules)
-                # Do not use client-provided movement state for enforcement.
-                # When server-authoritative turn/combat state tracks remaining movement,
-                # construct a Combatant from that trusted value here.
                 combatant = None
+                tier = getattr(rules, 'server_validation_tier', 'lightweight')
 
-                mv_result = validator.validate(
-                    entity_id=sprite_id,
-                    from_pos=to_tuple(from_pos),
-                    to_pos=to_tuple(to_pos),
-                    table=table,
-                    combatant=combatant,
-                    client_path=msg.data.get('path'),
-                )
-                if not mv_result.valid:
+                if tier == 'trust_client':
+                    mv_result = None  # skip collision, bounds already checked above
+                elif tier == 'lightweight':
+                    mv_result = validator.validate_lightweight(
+                        entity_id=sprite_id,
+                        from_pos=to_tuple(from_pos),
+                        to_pos=to_tuple(to_pos),
+                        table=table,
+                        combatant=combatant,
+                        client_path=msg.data.get('path'),
+                    )
+                else:
+                    mv_result = validator.validate(
+                        entity_id=sprite_id,
+                        from_pos=to_tuple(from_pos),
+                        to_pos=to_tuple(to_pos),
+                        table=table,
+                        combatant=combatant,
+                        client_path=msg.data.get('path'),
+                    )
+
+                if mv_result is not None and not mv_result.valid:
                     reject = {'reason': mv_result.reason, 'sprite_id': sprite_id}
                     if action_id:
                         reject['action_id'] = action_id
@@ -3883,6 +3894,27 @@ class ServerProtocol:
                         return Message(MessageType.ACTION_REJECTED, {
                             'sequence_id': sequence_id, 'failed_index': idx, 'reason': vr.reason,
                         })
+
+                    # Collision validation based on configured tier
+                    tier = getattr(rules, 'server_validation_tier', 'lightweight')
+                    if tier != 'trust_client':
+                        table = self.table_manager.tables_id.get(table_id) or self.table_manager.tables.get(table_id)
+                        if table is not None:
+                            from service.movement_validator import MovementValidator
+                            from_t = (float(from_pos.get('x', 0)), float(from_pos.get('y', 0)))
+                            to_t   = (float(to_pos.get('x', 0)),   float(to_pos.get('y', 0)))
+                            mv = MovementValidator(rules)
+                            if tier == 'lightweight':
+                                mv_result = mv.validate_lightweight(sprite_id, from_t, to_t, table,
+                                                                    client_path=action.get('path'))
+                            else:
+                                mv_result = mv.validate(sprite_id, from_t, to_t, table,
+                                                        client_path=action.get('path'))
+                            if not mv_result.valid:
+                                return Message(MessageType.ACTION_REJECTED, {
+                                    'sequence_id': sequence_id, 'failed_index': idx,
+                                    'reason': mv_result.reason,
+                                })
 
                 result = await self.actions.move_sprite(
                     table_id=table_id, sprite_id=sprite_id,

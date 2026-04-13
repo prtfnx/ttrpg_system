@@ -49,6 +49,25 @@ function NumberInput({ label, field, draft, update, min, max }: {
   );
 }
 
+function Select<T extends string>({ label, field, options, draft, update }: {
+  label: string;
+  field: keyof SessionRules;
+  options: { value: T; label: string }[];
+  draft: Partial<SessionRules>;
+  update: (patch: Partial<SessionRules>) => void;
+}) {
+  const rules = useSessionRulesStore((s) => s.rules);
+  const value = (field in draft ? draft[field] : rules?.[field]) as T;
+  return (
+    <label className="rules-input">
+      {label}
+      <select value={value ?? ''} onChange={(e) => update({ [field]: e.target.value as T } as Partial<SessionRules>)}>
+        {options.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
+      </select>
+    </label>
+  );
+}
+
 export function SessionRulesTab() {
   const isDirty = useSessionRulesStore((s) => s.isDirty);
   const draft = useSessionRulesStore((s) => s.draft);
@@ -73,6 +92,27 @@ export function SessionRulesTab() {
         <Toggle label="Obstacles block movement" field="obstacles_block_movement" draft={draft} update={update} />
         <Toggle label="Enforce movement speed" field="enforce_movement_speed" draft={draft} update={update} />
         <Toggle label="Enforce line of sight" field="enforce_line_of_sight" draft={draft} update={update} />
+        <Select
+          label="Movement precision"
+          field="movement_mode"
+          options={[
+            { value: 'cell', label: 'Cell-snapped (combat/explore)' },
+            { value: 'free', label: 'Free pixel (free roam)' },
+          ]}
+          draft={draft}
+          update={update}
+        />
+        <Select
+          label="Server validation"
+          field="server_validation_tier"
+          options={[
+            { value: 'trust_client', label: 'Trust client (fastest, no collision)' },
+            { value: 'lightweight', label: 'Lightweight (segment check, no A*)' },
+            { value: 'full', label: 'Full (server A* pathfinding)' },
+          ]}
+          draft={draft}
+          update={update}
+        />
       </section>
 
       <section>

@@ -39,6 +39,8 @@ class MovementValidator:
         client_path: Optional[list] = None,
     ) -> MovementResult:
         # Table bounds: table uses grid cells, positions are pixel coords
+        if getattr(self.rules, 'movement_mode', 'cell') == 'cell':
+            to_pos = self._snap_to_cell(to_pos, table.grid_cell_px)
         if table.width > 0 and table.height > 0:
             max_x = table.width * table.grid_cell_px
             max_y = table.height * table.grid_cell_px
@@ -108,5 +110,76 @@ class MovementValidator:
                         f"have {combatant.movement_remaining:.0f}ft"
                     ),
                 )
+
+        return MovementResult(valid=True, valid_path=path, movement_cost=movement_cost)
+
+    # ── Helpers ───────────────────────────────────────────────────────────
+
+    def _snap_to_cell(self, pos: tuple, grid: float) -> tuple:
+        """Snap pixel position to nearest grid cell center."""
+        return (
+            int(pos[0] / grid) * grid + grid / 2,
+            int(pos[1] / grid) * grid + grid / 2,
+        )
+
+    def _get_walls_and_obstacles(self, entity_id: str, table) -> tuple[list, list]:
+        walls = []
+        if self.rules.walls_block_movement:
+            walls = [
+                w for w in table.walls.values()
+                if hasattr(w, 'blocks_movement') and w.blocks_movement
+            ]
+        obstacles = []
+        if self.rules.obstacles_block_movement:
+            obstacles = [
+                e for e in table.entities.values()
+                if getattr(e, 'layer', None) == 'obstacles'
+                and str(getattr(e, 'entity_id', '')) != str(entity_id)
+            ]
+        return walls, obstacles
+
+    def validate_lightweight(
+        self,
+        entity_id: str,
+        from_pos: tuple,
+        to_pos: tuple,
+        table,
+        combatant: 'Combatant | None' = None,
+        client_path: 'list | None' = None,
+    ) -> MovementResult:
+        """Segment-only validation: no A*, no pathfinding — fast enough for Render free tier.
+
+        Checks:
+        1. Table bounds
+        2. Each path segment vs walls/obstacles (direct intersection only)
+        3. Optionally enforces movement speed if combatant provided
+        """
+        grid = table.grid_cell_px
+        if getattr(self.rules, 'movement_mode', 'cell') == 'cell':
+            to_pos = self._snap_to_cell(to_pos, grid)
+
+        if table.width > 0 and table.height > 0:
+            max_x, max_y = table.width * grid, table.height * grid
+            if not (0 <= to_pos[0] <= max_x and 0 <= to_pos[1] <= max_y):
+                return MovementResult(valid=False, reason="Outside table bounds")
+
+        walls, obstacles = self._get_walls_and_obstacles(entity_id, table)
+        path = client_path or [from_pos, to_pos]
+
+        for seg_start, seg_end in zip(path, path[1:]):
+            if walls and PathfindingSystem.is_path_blocked_by_walls(seg_start, seg_end, walls):
+                return MovementResult(valid=False, reason="Path crosses a wall")
+            if obstacles and PathfindingSystem.is_path_blocked_by_obstacles(seg_start, seg_end, obstacles, entity_id):
+                return MovementResult(valid=False, reason="Path blocked by obstacle")
+
+        movement_cost = 0.0
+        if self.rules.enforce_movement_speed and combatant is not None:
+            for seg_start, seg_end in zip(path, path[1:]):
+                movement_cost += PathfindingSystem.get_movement_cost(
+                    seg_start, seg_end, grid_size=grid,
+                    diagonal_rule=self.rules.diagonal_movement_rule,
+                )
+            if movement_cost > combatant.movement_remaining:
+                return MovementResult(valid=False, reason=f"Insufficient movement: need {movement_cost:.0f}ft")
 
         return MovementResult(valid=True, valid_path=path, movement_cost=movement_cost)

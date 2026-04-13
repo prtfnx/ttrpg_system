@@ -55,6 +55,16 @@ class SessionRules:
     ai_auto_act: bool = False
     default_ai_behavior: str = "tactical"
 
+    # Performance & validation
+    # "cell" = grid-snapped movement (fight/explore default, cheaper server-side)
+    # "free" = pixel-precise (free_roam default)
+    movement_mode: str = "cell"
+    # Server collision validation tier:
+    # "trust_client" = ownership + bounds only (fastest, no collision)
+    # "lightweight"  = segment checks only, no A* (default - good for Render free tier)
+    # "full"         = server runs own A* pathfinding (most accurate, most CPU)
+    server_validation_tier: str = "lightweight"
+
     # Extensible
     custom_rules: dict = field(default_factory=dict)
 
@@ -77,6 +87,10 @@ class SessionRules:
         valid_hp_display = {"exact", "descriptor", "none"}
         if self.show_npc_hp_to_players not in valid_hp_display:
             errors.append(f"show_npc_hp_to_players must be one of {valid_hp_display}")
+        if self.movement_mode not in {"cell", "free"}:
+            errors.append("movement_mode must be 'cell' or 'free'")
+        if self.server_validation_tier not in {"trust_client", "lightweight", "full"}:
+            errors.append("server_validation_tier must be 'trust_client', 'lightweight', or 'full'")
         return errors
 
     def to_dict(self) -> dict:

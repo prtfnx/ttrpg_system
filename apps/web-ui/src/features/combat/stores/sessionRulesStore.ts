@@ -34,6 +34,8 @@ export interface SessionRules {
   ai_enabled: boolean;
   ai_auto_act: boolean;
   default_ai_behavior: string;
+  movement_mode: 'cell' | 'free';
+  server_validation_tier: 'trust_client' | 'lightweight' | 'full';
   custom_rules: Record<string, unknown>;
 }
 
@@ -70,6 +72,8 @@ export const DEFAULT_RULES: Omit<SessionRules, 'session_id'> = {
   ai_enabled: false,
   ai_auto_act: false,
   default_ai_behavior: 'tactical',
+  movement_mode: 'cell',
+  server_validation_tier: 'lightweight',
   custom_rules: {},
 };
 

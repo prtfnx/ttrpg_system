@@ -369,7 +369,7 @@ impl Default for TableManager {
 impl TableManager {
     /// Borrow the active table ID without cloning.
     /// Use in hot loops (render, input) to avoid per-frame String allocation.
-    pub fn active_table_id(&self) -> Option<&str> {
+    pub(crate) fn active_table_id(&self) -> Option<&str> {
         self.active_table_id.as_deref()
     }
 

@@ -47,13 +47,13 @@ describe('distance calculations', () => {
   bench('euclidean', () => {
     const dx = 800 - 100;
     const dy = 600 - 50;
-    Math.sqrt(dx * dx + dy * dy);
+    void Math.sqrt(dx * dx + dy * dy);
   });
 
   bench('manhattan (cell count)', () => {
     const dx = Math.abs(Math.floor(800 / 64) - Math.floor(100 / 64));
     const dy = Math.abs(Math.floor(600 / 64) - Math.floor(50 / 64));
-    dx + dy;
+    void (dx + dy);
   });
 
   bench('chebyshev (5-10-5 diagonal)', () => {
@@ -61,6 +61,6 @@ describe('distance calculations', () => {
     const dy = Math.abs(Math.floor(600 / 64) - Math.floor(50 / 64));
     const diag = Math.min(dx, dy);
     const straight = Math.abs(dx - dy);
-    diag * 1.5 + straight;
+    void (diag * 1.5 + straight);
   });
 });

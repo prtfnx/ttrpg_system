@@ -10,6 +10,6 @@
     "test": "cargo test",
     "test:wasm": "cargo test --target wasm32-unknown-unknown --test wasm",
     "test:all": "cargo test && cargo test --target wasm32-unknown-unknown --test wasm",
-    "bench": "cargo bench --bench collision_bench"
+    "bench": "cargo bench"
   }
 }

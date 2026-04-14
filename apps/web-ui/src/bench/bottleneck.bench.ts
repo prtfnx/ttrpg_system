@@ -154,14 +154,14 @@ describe('combatStore updateCombatant (triple spread)', () => {
 
     bench(`${count} combatants`, () => {
       // Exact pattern from combatStore.ts:86-99
-      combat
+      void (combat
         ? {
             ...combat, // spread 1: CombatState
             combatants: combat.combatants.map((c) =>
               c.combatant_id === targetId ? { ...c, ...patch } : c // spreads 2+3
             ),
           }
-        : null;
+        : null);
     });
   }
 });

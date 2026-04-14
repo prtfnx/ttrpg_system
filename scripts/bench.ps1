@@ -30,11 +30,11 @@ if ($runAll -or $Rust) {
     Push-Location "$Root\packages\rust-core"
     try {
         if ($Save) {
-            cargo bench --bench collision_bench -- --save-baseline main
+            cargo bench -- --save-baseline main
         } elseif ($Compare) {
-            cargo bench --bench collision_bench -- --baseline main
+            cargo bench -- --baseline main
         } else {
-            cargo bench --bench collision_bench
+            cargo bench
         }
         if ($LASTEXITCODE -ne 0) { throw "Rust bench failed" }
     } finally { Pop-Location }
@@ -44,7 +44,7 @@ if ($runAll -or $Rust) {
 if ($runAll -or $Python) {
     Write-Host "`n==> Python benchmarks (pytest-benchmark)" -ForegroundColor Cyan
 
-    if (Test-Path $Venv) { & $Venv }
+    if (Test-Path $Venv) { . $Venv }
 
     $pyBenchArgs = @(
         "--benchmark-only"
@@ -58,7 +58,7 @@ if ($runAll -or $Python) {
     Write-Host "  [core-table]" -ForegroundColor Yellow
     Push-Location "$Root\packages\core-table"
     try {
-        & python -m pytest tests/bench_pathfinding.py @pyBenchArgs
+        & python -m pytest tests/bench_*.py @pyBenchArgs
         if ($LASTEXITCODE -ne 0) { throw "core-table bench failed" }
     } finally { Pop-Location }
 

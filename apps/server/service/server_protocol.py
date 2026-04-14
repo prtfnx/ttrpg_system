@@ -270,6 +270,9 @@ class ServerProtocol:
                             'data': resp.data or {},
                             'client_id': resp.client_id,
                             'timestamp': resp.timestamp,
+                            'version': resp.version,
+                            'priority': resp.priority,
+                            'sequence_id': resp.sequence_id,
                         }
                         for resp in responses
                     ],
@@ -352,12 +355,17 @@ class ServerProtocol:
             limit = get_sprite_limit(role)
             if user_id is not None and hasattr(self.table_manager, 'db_session') and self.table_manager.db_session:
                 from database.models import Entity
-                # Count via SQL LIKE instead of loading all entities + json.loads per row
+                # Pre-filter with SQL LIKE, then exact-check with json.loads
+                # (substring match alone could miscount: user_id 1 matches [10])
                 uid = str(user_id)
-                owned_count = self.table_manager.db_session.query(Entity).filter(
+                candidates = self.table_manager.db_session.query(Entity.controlled_by).filter(
                     Entity.controlled_by.isnot(None),
                     Entity.controlled_by.contains(uid),
-                ).count()
+                ).all()
+                owned_count = sum(
+                    1 for (cb_raw,) in candidates
+                    if user_id in json.loads(cb_raw or '[]')
+                )
                 if owned_count >= limit:
                     return Message(MessageType.ERROR, {'error': f'Sprite limit of {limit} reached for your role'})
 

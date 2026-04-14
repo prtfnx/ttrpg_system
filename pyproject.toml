@@ -9,7 +9,7 @@ ignore = ["E501"]
 
 [tool.pytest.ini_options]
 testpaths = ["apps/server/tests", "packages/core-table/tests"]
-python_files = "test_*.py bench_*.py"
+python_files = "test_*.py"
 python_classes = "Test*"
 python_functions = "test_*"
 asyncio_mode = "auto"

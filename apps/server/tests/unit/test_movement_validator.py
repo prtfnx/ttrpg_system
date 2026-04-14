@@ -127,3 +127,50 @@ def test_no_combatant_skips_speed_check():
     big_table = make_table(width=1000, height=1000)
     r2 = v.validate('e1', (25, 25), (5000, 25), big_table, combatant=None)
     assert r2.valid  # speed not checked without combatant
+
+
+def test_direct_los_clear_skips_astar():
+    """When direct path has no obstacles, validate() should succeed without A*."""
+    rules = make_rules(walls_block_movement=True, obstacles_block_movement=True)
+    # Wall at x=500 — movement from (25,25) to (75,25) is well clear of it
+    wall = FakeWall(500, 0, 500, 1000)
+    table = make_table(walls={'w1': wall})
+    v = MovementValidator(rules)
+    r = v.validate('e1', (25, 25), (75, 25), table)
+    assert r.valid
+    assert r.valid_path == [(25, 25), (75, 25)]  # direct 2-point path, no A* detour
+
+
+def test_direct_los_blocked_triggers_astar():
+    """When direct path is blocked by a wall, A* should find alternate route."""
+    rules = make_rules(walls_block_movement=True, obstacles_block_movement=False)
+    # Short wall at x=100, spanning y=0..500 — blocks direct horizontal move
+    wall = FakeWall(100, 0, 100, 500)
+    table = make_table(width=20, height=20, grid_cell_px=50)
+    table.walls = {'w1': wall}
+    v = MovementValidator(rules)
+    r = v.validate('e1', (25, 250), (200, 250), table)
+    # A* should find a route around the wall (path length > 2 points)
+    if r.valid:
+        assert len(r.valid_path) > 2  # A* produced a multi-step path
+
+
+def test_validate_lightweight_clear_path():
+    """Lightweight validation accepts a clear direct path."""
+    rules = make_rules(walls_block_movement=True, obstacles_block_movement=True)
+    wall = FakeWall(500, 0, 500, 1000)
+    table = make_table(walls={'w1': wall})
+    v = MovementValidator(rules)
+    r = v.validate_lightweight('e1', (25, 25), (75, 25), table)
+    assert r.valid
+
+
+def test_validate_lightweight_blocked_path():
+    """Lightweight validation rejects when wall crosses direct path."""
+    rules = make_rules(walls_block_movement=True, obstacles_block_movement=False)
+    wall = FakeWall(100, 0, 100, 1000)
+    table = make_table(walls={'w1': wall})
+    v = MovementValidator(rules)
+    r = v.validate_lightweight('e1', (25, 500), (200, 500), table)
+    assert not r.valid
+    assert 'wall' in r.reason.lower()

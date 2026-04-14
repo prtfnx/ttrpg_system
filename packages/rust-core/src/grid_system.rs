@@ -6,6 +6,10 @@ pub struct GridSystem {
     pub enabled: bool,
     pub size: f32,
     pub snapping: bool,
+    /// Reusable vertex buffer to avoid per-frame allocation
+    line_buf: Vec<f32>,
+    /// Reusable vertex buffer for snapping dots
+    dot_buf: Vec<f32>,
 }
 
 impl GridSystem {
@@ -14,6 +18,8 @@ impl GridSystem {
             enabled: true,
             size: 50.0,
             snapping: false,
+            line_buf: Vec::with_capacity(1024),
+            dot_buf: Vec::with_capacity(512),
         }
     }
     
@@ -50,7 +56,7 @@ impl GridSystem {
         self.snapping
     }
 
-    pub fn draw_grid(&self, renderer: &WebGLRenderer, world_bounds: Rect) -> Result<(), JsValue> {
+    pub fn draw_grid(&mut self, renderer: &WebGLRenderer, world_bounds: Rect) -> Result<(), JsValue> {
         if !self.enabled {
             return Ok(());
         }
@@ -60,33 +66,33 @@ impl GridSystem {
         let start_y = (world_bounds.min.y / self.size).floor() * self.size;
         let end_y = (world_bounds.max.y / self.size).ceil() * self.size;
         
-        let mut vertices = Vec::new();
+        self.line_buf.clear();
         
         // Vertical lines
         let mut x = start_x;
         while x <= end_x {
-            vertices.extend_from_slice(&[x, world_bounds.min.y, x, world_bounds.max.y]);
+            self.line_buf.extend_from_slice(&[x, world_bounds.min.y, x, world_bounds.max.y]);
             x += self.size;
         }
         
         // Horizontal lines
         let mut y = start_y;
         while y <= end_y {
-            vertices.extend_from_slice(&[world_bounds.min.x, y, world_bounds.max.x, y]);
+            self.line_buf.extend_from_slice(&[world_bounds.min.x, y, world_bounds.max.x, y]);
             y += self.size;
         }
         
-        renderer.draw_lines(&vertices, [0.2, 0.2, 0.2, 1.0])?;
+        renderer.draw_lines(&self.line_buf, [0.2, 0.2, 0.2, 1.0])?;
         
         // Draw grid center dots if grid snapping is enabled (for visual reference)
         if self.snapping && self.size >= 30.0 {
-            let mut center_vertices = Vec::new();
+            self.dot_buf.clear();
             let mut y = start_y + self.size * 0.5;
             while y <= end_y - self.size * 0.5 {
                 let mut x = start_x + self.size * 0.5;
                 while x <= end_x - self.size * 0.5 {
                     let dot_size = 2.0;
-                    center_vertices.extend_from_slice(&[
+                    self.dot_buf.extend_from_slice(&[
                         x - dot_size, y,
                         x + dot_size, y,
                         x, y - dot_size,
@@ -96,8 +102,8 @@ impl GridSystem {
                 }
                 y += self.size;
             }
-            if !center_vertices.is_empty() {
-                renderer.draw_lines(&center_vertices, [0.4, 0.4, 0.4, 0.8])?;
+            if !self.dot_buf.is_empty() {
+                renderer.draw_lines(&self.dot_buf, [0.4, 0.4, 0.4, 0.8])?;
             }
         }
         

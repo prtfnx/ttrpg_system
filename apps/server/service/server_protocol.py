@@ -264,7 +264,15 @@ class ServerProtocol:
             # Return batch response if there are any responses
             if responses:
                 return Message(MessageType.BATCH, {
-                    'messages': [json.loads(resp.to_json()) for resp in responses],
+                    'messages': [
+                        {
+                            'type': resp.type.value,
+                            'data': resp.data or {},
+                            'client_id': resp.client_id,
+                            'timestamp': resp.timestamp,
+                        }
+                        for resp in responses
+                    ],
                     'seq': sequence_id,
                     'processed_count': len(messages_data),
                     'response_count': len(responses)
@@ -344,8 +352,12 @@ class ServerProtocol:
             limit = get_sprite_limit(role)
             if user_id is not None and hasattr(self.table_manager, 'db_session') and self.table_manager.db_session:
                 from database.models import Entity
-                all_entities = self.table_manager.db_session.query(Entity).filter(Entity.controlled_by.isnot(None)).all()
-                owned_count = sum(1 for e in all_entities if user_id in json.loads(e.controlled_by or '[]'))
+                # Count via SQL LIKE instead of loading all entities + json.loads per row
+                uid = str(user_id)
+                owned_count = self.table_manager.db_session.query(Entity).filter(
+                    Entity.controlled_by.isnot(None),
+                    Entity.controlled_by.contains(uid),
+                ).count()
                 if owned_count >= limit:
                     return Message(MessageType.ERROR, {'error': f'Sprite limit of {limit} reached for your role'})
 

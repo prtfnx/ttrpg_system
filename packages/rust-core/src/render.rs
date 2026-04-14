@@ -292,8 +292,8 @@ impl RenderEngine {
         let mut sorted_layers: Vec<_> = self.layer_manager.get_layers().iter().collect();
         sorted_layers.sort_by_key(|(_, layer)| layer.settings.z_order);
 
-        // Get active table ID for filtering entities
-        let active_table_id = self.table_manager.get_active_table_id()
+        // Get active table ID for filtering entities (borrow, no allocation)
+        let active_table_id = self.table_manager.active_table_id()
             .expect("CRITICAL: No active table ID during rendering! Table-centric architecture requires a table to exist.");
 
         let active_layer = self.active_layer.clone();
@@ -345,14 +345,14 @@ impl RenderEngine {
         
         // web_sys::console::log_1(&"[RENDER-ORDER] 1️⃣ About to render lighting".into());
         // Render lighting system with shadow casting (filtered by active table)
-        self.lighting.render_lights_filtered(&self.view_matrix.to_array(), self.canvas_size.x, self.canvas_size.y, Some(&active_table_id))?;
+        self.lighting.render_lights_filtered(&self.view_matrix.to_array(), self.canvas_size.x, self.canvas_size.y, Some(active_table_id))?;
         // web_sys::console::log_1(&"[RENDER-ORDER] 2️⃣ Lighting complete".into());
         
         // Render paint strokes (on top of everything except fog)
         self.paint.render_strokes(&self.renderer)?;
 
         // Render fog of war system (last, alpha-overlaid on top of everything)
-        self.fog.render_fog_filtered(&self.view_matrix.to_array(), self.canvas_size.x, self.canvas_size.y, Some(&active_table_id))?;
+        self.fog.render_fog_filtered(&self.view_matrix.to_array(), self.canvas_size.x, self.canvas_size.y, Some(active_table_id))?;
         // web_sys::console::log_1(&"[RENDER-ORDER] 4️⃣ Fog complete".into());
         
         // Draw area selection rectangle if active
@@ -362,9 +362,7 @@ impl RenderEngine {
         
         // Draw measurement line if active
         if let Some((start, end)) = self.input.get_measurement_line() {
-            let conv = self.table_manager.get_unit_converter(
-                &self.table_manager.get_active_table_id().unwrap_or("default_table".to_string())
-            );
+            let conv = self.table_manager.get_unit_converter(active_table_id);
             SpriteRenderer::draw_measurement_line(start, end, &self.renderer, &self.text_renderer, &self.texture_manager, &conv)?;
         }
         

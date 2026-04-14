@@ -367,6 +367,12 @@ impl Default for TableManager {
 
 // Plain impl block for internal-only helpers (not exported to wasm-bindgen)
 impl TableManager {
+    /// Borrow the active table ID without cloning.
+    /// Use in hot loops (render, input) to avoid per-frame String allocation.
+    pub(crate) fn active_table_id(&self) -> Option<&str> {
+        self.active_table_id.as_deref()
+    }
+
     pub fn get_active_table_screen_area_internal(&self) -> Option<(f64, f64, f64, f64)> {
         if let Some(active_id) = &self.active_table_id {
             if let Some(area) = self.screen_areas.get(active_id) {

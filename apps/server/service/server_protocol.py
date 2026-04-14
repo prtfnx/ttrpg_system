@@ -264,7 +264,18 @@ class ServerProtocol:
             # Return batch response if there are any responses
             if responses:
                 return Message(MessageType.BATCH, {
-                    'messages': [json.loads(resp.to_json()) for resp in responses],
+                    'messages': [
+                        {
+                            'type': resp.type.value,
+                            'data': resp.data or {},
+                            'client_id': resp.client_id,
+                            'timestamp': resp.timestamp,
+                            'version': resp.version,
+                            'priority': resp.priority,
+                            'sequence_id': resp.sequence_id,
+                        }
+                        for resp in responses
+                    ],
                     'seq': sequence_id,
                     'processed_count': len(messages_data),
                     'response_count': len(responses)
@@ -344,8 +355,17 @@ class ServerProtocol:
             limit = get_sprite_limit(role)
             if user_id is not None and hasattr(self.table_manager, 'db_session') and self.table_manager.db_session:
                 from database.models import Entity
-                all_entities = self.table_manager.db_session.query(Entity).filter(Entity.controlled_by.isnot(None)).all()
-                owned_count = sum(1 for e in all_entities if user_id in json.loads(e.controlled_by or '[]'))
+                # Pre-filter with SQL LIKE, then exact-check with json.loads
+                # (substring match alone could miscount: user_id 1 matches [10])
+                uid = str(user_id)
+                candidates = self.table_manager.db_session.query(Entity.controlled_by).filter(
+                    Entity.controlled_by.isnot(None),
+                    Entity.controlled_by.contains(uid),
+                ).all()
+                owned_count = sum(
+                    1 for (cb_raw,) in candidates
+                    if user_id in json.loads(cb_raw or '[]')
+                )
                 if owned_count >= limit:
                     return Message(MessageType.ERROR, {'error': f'Sprite limit of {limit} reached for your role'})
 

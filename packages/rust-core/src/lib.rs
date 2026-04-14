@@ -107,8 +107,8 @@ macro_rules! log_error {
 #[global_allocator]
 static ALLOC: wee_alloc::WeeAlloc = wee_alloc::WeeAlloc::INIT;
 
-mod math;
-mod types;
+pub mod math;
+pub mod types;
 mod camera;
 mod input;
 mod input_controller;

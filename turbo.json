@@ -22,6 +22,10 @@
       "outputs": ["coverage/**", "htmlcov/**", ".coverage"]
     },
     "lint": {},
+    "bench": {
+      "cache": false,
+      "dependsOn": ["^build"]
+    },
     "clean": {
       "cache": false
     }

@@ -71,15 +71,27 @@ class MovementValidator:
         path = client_path
         if not path:
             if walls or obstacles:
-                path = PathfindingSystem.find_path_astar(
-                    from_pos, to_pos, walls, obstacles,
-                    grid_size=table.grid_cell_px,
-                    exclude_entity_id=entity_id,
-                    grid_bounds=(table.width - 1, table.height - 1) if table.width > 0 else None,
-                    spatial_hash=sh,
-                )
-                if path is None:
-                    return MovementResult(valid=False, reason="No clear path to destination")
+                # Fast path: if direct line of sight is clear, skip expensive A*
+                direct_blocked = False
+                if walls and PathfindingSystem.is_path_blocked_by_walls(from_pos, to_pos, walls, sh):
+                    direct_blocked = True
+                if not direct_blocked and obstacles and PathfindingSystem.is_path_blocked_by_obstacles(
+                    from_pos, to_pos, obstacles, entity_id, sh
+                ):
+                    direct_blocked = True
+
+                if direct_blocked:
+                    path = PathfindingSystem.find_path_astar(
+                        from_pos, to_pos, walls, obstacles,
+                        grid_size=table.grid_cell_px,
+                        exclude_entity_id=entity_id,
+                        grid_bounds=(table.width - 1, table.height - 1) if table.width > 0 else None,
+                        spatial_hash=sh,
+                    )
+                    if path is None:
+                        return MovementResult(valid=False, reason="No clear path to destination")
+                else:
+                    path = [from_pos, to_pos]
             else:
                 path = [from_pos, to_pos]
 

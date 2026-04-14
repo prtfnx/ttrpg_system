@@ -9,6 +9,7 @@
     "test:run": "turbo test:run",
     "test:coverage": "turbo test:coverage",
     "lint": "turbo lint",
+    "bench": "turbo bench",
     "clean": "turbo clean"
   },
   "devDependencies": {

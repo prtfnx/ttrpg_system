@@ -513,6 +513,7 @@ describe('Lighting System', () => {
   });
 
   describe('Performance Tests', () => {
+    // Skipped: 10 sequential userEvent clicks + dispatches exceed the 5s test timeout
     it.skip('should handle multiple lights efficiently', async () => {
       const user = userEvent.setup();
 

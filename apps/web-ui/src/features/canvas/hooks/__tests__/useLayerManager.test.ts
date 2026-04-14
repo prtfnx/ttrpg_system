@@ -429,7 +429,8 @@ describe('useLayerManager', () => {
       expect(mockRenderManager.set_layer_opacity).toHaveBeenCalledTimes(5);
     });
 
-    it.skip('batches layer data refresh calls', async () => {
+    // Skipped: hook never initializes in test env — WASM mock state not sufficient for refreshLayerData path
+    it.skip('executes each layer refresh call independently', async () => {
       // Ensure clean state for this test
       (window as any).ttrpg_rust_core = true;
       (window as any).gameAPI = mockGameAPI;

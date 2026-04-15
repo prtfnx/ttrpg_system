@@ -273,9 +273,9 @@ class ActionsCore(AsyncActionsProtocol):
         try:
             logger.debug(f"all table_manager.tables: {self.table_manager.tables.items()}")
             table = await self._get_table(table_id)
-            logger.debug(f"all entities: {table.to_dict()}")
             if not table:
                 return ActionResult(False, f"Table {table_id} not found")
+            logger.debug(f"all entities: {table.to_dict()}")
             return ActionResult(True, f"Table {table_id} retrieved successfully", {'table': table})
         except Exception as e:
             return ActionResult(False, f"Failed to get table: {str(e)}")
@@ -436,6 +436,7 @@ class ActionsCore(AsyncActionsProtocol):
                 'scale_y': entity.scale_y,
                 'rotation': getattr(entity, 'rotation', 0.0)
             }
+            assert entity.entity_id is not None, f"Entity for sprite {sprite_id} has no entity_id"
             table.remove_entity(entity.entity_id)
             
             # Persist the deletion to database
@@ -480,8 +481,12 @@ class ActionsCore(AsyncActionsProtocol):
             if isinstance(new_position, (list, tuple)):
                 new_position = Position(new_position[0], new_position[1])
 
-            grid_x, grid_y = int(new_position.get('x')), int(new_position.get('y'))
+            raw_x, raw_y = new_position.get('x'), new_position.get('y')
+            if raw_x is None or raw_y is None:
+                return ActionResult(False, f"Invalid position: x={raw_x}, y={raw_y}")
+            grid_x, grid_y = int(raw_x), int(raw_y)
 
+            assert entity.entity_id is not None, f"Entity for sprite {sprite_id} has no entity_id"
             table.move_entity(entity.entity_id, (grid_x, grid_y))
             logger.info(f"Moved sprite {sprite_id} to new position ({entity.entity_id}, {grid_x}, {grid_y})")
             
@@ -670,6 +675,7 @@ class ActionsCore(AsyncActionsProtocol):
             old_layer = entity.layer
             
             # Use VirtualTable's move_entity method to change layer
+            assert entity.entity_id is not None, f"Entity for sprite {sprite_id} has no entity_id"
             table.move_entity(entity.entity_id, entity.position, new_layer)
             
             # Persist the layer move to database

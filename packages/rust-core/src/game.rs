@@ -39,8 +39,8 @@ impl GameEngine {
     #[wasm_bindgen]
     pub fn move_sprite(&mut self, sprite_id: &str, x: f64, y: f64) -> bool {
         if let Some(sprite) = self.sprites.iter_mut().find(|s| s.id == sprite_id) {
-            sprite.x = x;
-            sprite.y = y;
+            sprite.world_x = x;
+            sprite.world_y = y;
             true
         } else {
             false
@@ -195,6 +195,7 @@ mod tests {
     }
 
     #[test]
+    #[cfg(target_arch = "wasm32")]
     fn update_sprites_from_invalid_json_errors() {
         let mut engine = GameEngine::new();
         assert!(engine.update_sprites_from_json("not json").is_err());

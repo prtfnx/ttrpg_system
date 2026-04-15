@@ -120,6 +120,7 @@ mod table_manager;
 pub mod unit_converter;
 pub mod collision;
 pub mod planning;
+mod game;
 
 // WASM/WebGL-only modules — not compiled on native test targets
 #[cfg(target_arch = "wasm32")]
@@ -136,7 +137,6 @@ mod text_renderer;
 mod event_system;
 #[cfg(target_arch = "wasm32")]
 mod layer_manager;
-#[cfg(target_arch = "wasm32")]
 mod grid_system;
 #[cfg(target_arch = "wasm32")]
 mod texture_manager;

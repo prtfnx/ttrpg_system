@@ -1,5 +1,7 @@
 use crate::math::Rect;
+#[cfg(target_arch = "wasm32")]
 use crate::webgl_renderer::WebGLRenderer;
+#[cfg(target_arch = "wasm32")]
 use wasm_bindgen::prelude::*;
 
 pub struct GridSystem {
@@ -55,7 +57,10 @@ impl GridSystem {
     pub fn is_snapping_enabled(&self) -> bool {
         self.snapping
     }
+}
 
+#[cfg(target_arch = "wasm32")]
+impl GridSystem {
     pub fn draw_grid(&mut self, renderer: &WebGLRenderer, world_bounds: Rect) -> Result<(), JsValue> {
         if !self.enabled {
             return Ok(());

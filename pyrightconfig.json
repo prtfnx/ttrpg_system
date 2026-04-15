@@ -10,7 +10,20 @@
     "legacy",
     "downloads",
     "cache",
-    ".pytest_cache"
+    ".pytest_cache",
+    "packages/core-table/core_table/compendiums/equipment",
+    "packages/core-table/core_table/compendiums/monsters",
+    "packages/core-table/core_table/compendiums/spells"
+  ],
+  "extraPaths": ["apps/server"],
+  "executionEnvironments": [
+    {
+      "root": "packages/core-table",
+      "extraPaths": ["apps/server"]
+    },
+    {
+      "root": "apps/server"
+    }
   ],
   "reportMissingImports": true,
   "reportMissingTypeStubs": false,

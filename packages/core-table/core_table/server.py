@@ -4,7 +4,7 @@ import json
 import uuid
 import os
 import sys
-from typing import Dict, Set
+from typing import Dict, Optional, Set
 
 from .table import VirtualTable
 from .protocol import Message, MessageType
@@ -33,7 +33,7 @@ class TableManager:
         self.tables_id[table_id] = table
         return table
     
-    def get_table(self, table_id: str = None) -> VirtualTable:
+    def get_table(self, table_id: Optional[str] = None) -> VirtualTable:
         """Get table by UUID or return default"""
         if table_id and table_id in self.tables:
             return self.tables[table_id]
@@ -170,10 +170,15 @@ class TableManager:
             return False
 
 class GameServer:
-    """Main game server that uses ServerProtocol"""
-    def __init__(self, table_manager: TableManager = None):
+    """Main game server that uses ServerProtocol (legacy — real server is apps/server)"""
+    def __init__(self, table_manager: Optional[TableManager] = None):
         self.table_manager = table_manager or TableManager()
-        self.protocol = ServerProtocol(self.table_manager)
+        try:
+            from service.server_protocol import ServerProtocol  # noqa: F811 — lives in apps/server
+            self.protocol = ServerProtocol(self.table_manager)
+        except ImportError:
+            self.protocol = None  # type: ignore[assignment]
+            logger.warning("ServerProtocol not available — GameServer running without protocol handler")
         self.clients: Dict[str, asyncio.StreamWriter] = {}
         self.client_addresses: Dict[str, str] = {}
         
@@ -222,6 +227,9 @@ class GameServer:
                             continue
                         
                         # Process through protocol handler
+                        if not self.protocol:
+                            logger.error("ServerProtocol not available")
+                            continue
                         try:
                             await self.protocol.handle_client(client_id, writer, message_str)
                         except json.JSONDecodeError as e:
@@ -259,7 +267,8 @@ class GameServer:
         logger.info(f"Cleaning up client {client_id}")
         
         # Remove from protocol
-        self.protocol.disconnect_client(client_id)
+        if self.protocol:
+            self.protocol.disconnect_client(client_id)
         
         # Remove from our tracking
         self.clients.pop(client_id, None)

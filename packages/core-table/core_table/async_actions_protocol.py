@@ -73,8 +73,8 @@ class AsyncActionsProtocol(ABC):
     
     # Sprite Actions
     @abstractmethod
-    async def create_sprite(self, table_id: str, sprite_id: str, position: Position, 
-                     image_path: str, layer: str = "tokens") -> ActionResult:
+    async def create_sprite(self, table_id: str, sprite_data: Dict[str, Any], 
+                     session_id: Optional[int] = None) -> ActionResult:
         pass
     
     @abstractmethod

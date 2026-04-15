@@ -128,7 +128,7 @@ def create_user(db: Session, user: schemas.UserCreate):
     db.refresh(db_user)
     return db_user
 
-def register_user(db: Session, username: str, password: str, email: str = None, full_name: str = None):
+def register_user(db: Session, username: str, password: str, email: Optional[str] = None, full_name: Optional[str] = None):
     """Register a new user - simplified version with validation and flood protection"""
     
     # Validate input
@@ -296,7 +296,7 @@ def get_game_mode(db: Session, session_code: str) -> str:
 
 
 # Game Player operations
-def join_game_session(db: Session, session_code: str, user_id: int, character_name: str = None):
+def join_game_session(db: Session, session_code: str, user_id: int, character_name: Optional[str] = None):
     session = get_game_session_by_code(db, session_code)
     if not session:
         return None

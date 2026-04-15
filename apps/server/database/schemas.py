@@ -21,6 +21,9 @@ class User(UserBase):
     id: int
     disabled: bool = False
     created_at: datetime
+    hashed_password: Optional[str] = None
+    password_set_at: Optional[datetime] = None
+    google_id: Optional[str] = None
     
     model_config = ConfigDict(from_attributes=True)
 

@@ -1,4 +1,4 @@
 # Spell compendium package
-from .spell import Spell
+# Model file (spell.py) not yet implemented — only the loader and JSON exports exist.
 
-__all__ = ['Spell']
+__all__: list[str] = []

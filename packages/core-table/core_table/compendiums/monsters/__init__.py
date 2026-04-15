@@ -1,5 +1,4 @@
 # Monster compendium package
-from .monster import Monster
-from .bestiary import *
+# Model files (monster.py, bestiary.py) not yet implemented — only the loader and JSON exports exist.
 
-__all__ = ['Monster']
+__all__: list[str] = []

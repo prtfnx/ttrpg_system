@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+# pyright: reportMissingImports=false
 """
 D&D 5e Equipment System - Data Loader
 Load equipment data for use in the VTT system

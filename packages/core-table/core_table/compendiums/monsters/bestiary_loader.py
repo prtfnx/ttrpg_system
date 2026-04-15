@@ -1,3 +1,4 @@
+# pyright: reportMissingImports=false
 """
 Universal Bestiary Loader
 Can load monster data from any exported format

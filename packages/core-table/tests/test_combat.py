@@ -1,5 +1,6 @@
 """Tests for combat data models and CombatFSM."""
 import pytest
+from typing import Any
 from core_table.combat import (
     CombatPhase, CombatState, CombatSettings, Combatant, CombatAction, DamageType
 )
@@ -7,8 +8,8 @@ from core_table.combat_fsm import CombatFSM
 from core_table.conditions import ActiveCondition, ConditionType
 
 
-def make_combatant(**kwargs) -> Combatant:
-    defaults = dict(combatant_id='c1', entity_id='e1', name='Hero', initiative=15.0,
+def make_combatant(**kwargs: Any) -> Combatant:
+    defaults: dict[str, Any] = dict(combatant_id='c1', entity_id='e1', name='Hero', initiative=15.0,
                     hp=30, max_hp=30, armor_class=14, movement_speed=30, movement_remaining=30)
     defaults.update(kwargs)
     return Combatant(**defaults)

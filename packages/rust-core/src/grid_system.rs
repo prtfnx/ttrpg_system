@@ -110,3 +110,84 @@ impl GridSystem {
         Ok(())
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn new_grid_defaults() {
+        let grid = GridSystem::new();
+        assert!(grid.enabled);
+        assert_eq!(grid.size, 50.0);
+        assert!(!grid.snapping);
+    }
+
+    #[test]
+    fn toggle_enabled() {
+        let mut grid = GridSystem::new();
+        grid.toggle();
+        assert!(!grid.enabled);
+        grid.toggle();
+        assert!(grid.enabled);
+    }
+
+    #[test]
+    fn toggle_snapping() {
+        let mut grid = GridSystem::new();
+        grid.toggle_snapping();
+        assert!(grid.snapping);
+        grid.toggle_snapping();
+        assert!(!grid.snapping);
+    }
+
+    #[test]
+    fn set_size_clamps_min() {
+        let mut grid = GridSystem::new();
+        grid.set_size(1.0);
+        assert_eq!(grid.get_size(), 10.0);
+    }
+
+    #[test]
+    fn set_size_clamps_max() {
+        let mut grid = GridSystem::new();
+        grid.set_size(999.0);
+        assert_eq!(grid.get_size(), 200.0);
+    }
+
+    #[test]
+    fn set_size_normal() {
+        let mut grid = GridSystem::new();
+        grid.set_size(75.0);
+        assert_eq!(grid.get_size(), 75.0);
+    }
+
+    #[test]
+    fn sync_from_table_clamps_range() {
+        let mut grid = GridSystem::new();
+        grid.sync_from_table(5.0);
+        assert_eq!(grid.get_size(), 10.0);
+        grid.sync_from_table(600.0);
+        assert_eq!(grid.get_size(), 500.0);
+        grid.sync_from_table(64.0);
+        assert_eq!(grid.get_size(), 64.0);
+    }
+
+    #[test]
+    fn set_enabled_explicit() {
+        let mut grid = GridSystem::new();
+        grid.set_enabled(false);
+        assert!(!grid.enabled);
+        grid.set_enabled(true);
+        assert!(grid.enabled);
+    }
+
+    #[test]
+    fn set_snapping_explicit() {
+        let mut grid = GridSystem::new();
+        grid.set_snapping(true);
+        assert!(grid.is_snapping_enabled());
+        grid.set_snapping(false);
+        assert!(!grid.is_snapping_enabled());
+    }
+}

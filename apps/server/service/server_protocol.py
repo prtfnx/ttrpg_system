@@ -812,15 +812,14 @@ class ServerProtocol:
             # Get table data and ensure assets are in R2
             table_obj = (result.data or {}).get('table')
             to_dict_fn = getattr(table_obj, 'to_dict', None)
+            table_data: dict = {}
             if callable(to_dict_fn):
                 try:
                     table_data = to_dict_fn() or {}
                 except Exception:
-                    table_data = {}
+                    pass
             elif isinstance(table_obj, dict):
                 table_data = table_obj
-            else:
-                table_data = {}
             await self.ensure_assets_in_r2(table_data, msg.data.get('session_code', 'default'), self._get_user_id(msg, client_id) or 0)
             logger.info(f"Processing table {table_name} with {len(table_data.get('layers', {}))} layers")
             
@@ -868,15 +867,14 @@ class ServerProtocol:
             # Get table data and add xxHash information
             table_obj = (result.data or {}).get('table')
             to_dict_fn = getattr(table_obj, 'to_dict', None)
+            table_data: dict = {}
             if callable(to_dict_fn):
                 try:
                     table_data = to_dict_fn() or {}
                 except Exception:
-                    table_data = {}
+                    pass
             elif isinstance(table_obj, dict):
                 table_data = table_obj
-            else:
-                table_data = {}
             table_data_with_hashes = await self.add_asset_hashes_to_table(table_data, session_code=msg.data.get('session_code', 'default'), user_id=user_id)
 
             role = self._get_client_role(client_id)
@@ -1360,6 +1358,7 @@ class ServerProtocol:
             return Message(MessageType.ERROR, {'error': 'No sprite_data provided for compendium add'})
 
         layer = sprite_data.get('layer', 'tokens') if isinstance(sprite_data, dict) else 'tokens'
+        _dm_layers = {'dungeon_master', 'fog_of_war', 'light', 'height', 'obstacles', 'dm_notes'}
         if layer in _dm_layers and not is_dm(role):
             return Message(MessageType.ERROR, {'error': 'Only DMs can create sprites on this layer'})
 
@@ -1915,22 +1914,27 @@ class ServerProtocol:
             logger.error(f"Error getting or uploading asset {asset_name}: {e}")
             return None
 
-    def _get_session_code(self, msg: Message) -> Optional[str]:
-        """Get session_code string from session manager or message data"""
+    def _get_session_code(self, msg: Optional[Message] = None) -> str:
+        """Get session_code string from session manager or message data.
+        Returns empty string if no session code is available."""
         try:
             # Primary method: Get from session manager (most reliable)
             if self.session_manager and hasattr(self.session_manager, 'session_code'):
-                return self.session_manager.session_code
+                code = self.session_manager.session_code
+                if code:
+                    return code
             
             # Secondary method: Extract from message data
-            if msg.data:
-                return msg.data.get('session_code')
+            if msg and msg.data:
+                code = msg.data.get('session_code')
+                if code:
+                    return code
             
             logger.error("No valid session_code available")
-            return None
+            return ""
         except Exception as e:
             logger.error(f"Error getting session_code: {e}")
-            return None
+            return ""
 
     def _get_session_id(self, msg: Message) -> Optional[int]:
         """Get session_id for database persistence from message data or session manager"""
@@ -3422,6 +3426,7 @@ class ServerProtocol:
         """Client requests current session rules.  Sends directly back."""
         session_code = self._get_session_code()
         rules_json = '{}'
+        game_mode = 'free_roam'
         if session_code:
             try:
                 from database.database import SessionLocal
@@ -3450,12 +3455,6 @@ class ServerProtocol:
         # Send only to requesting client (exclude no one, but broadcast just to sender)
         await self.send_to_client(response, client_id)
         return response
-
-    def _get_session_code(self) -> str | None:
-        """Get the session code from the session manager."""
-        if self.session_manager and hasattr(self.session_manager, 'session_code'):
-            return self.session_manager.session_code
-        return None
 
     # ── Combat ──────────────────────────────────────────────────────────────
 

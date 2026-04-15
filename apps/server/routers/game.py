@@ -5,7 +5,7 @@ from fastapi import APIRouter, Request, Depends, Form, HTTPException, status
 from fastapi.responses import RedirectResponse
 from fastapi.templating import Jinja2Templates
 from sqlalchemy.orm import Session
-from typing import Annotated, List
+from typing import Annotated, List, Optional
 import secrets
 import string
 from database.database import get_db
@@ -39,7 +39,7 @@ def generate_unique_session_code(db: Session, length: int = 6, max_attempts: int
         existing = crud.get_game_session_by_code(db, code)
         if not existing:
             return code
-        
+    raise RuntimeError(f"Could not generate unique session code after {max_attempts} attempts")
 @router.get("/")
 async def game_lobby(
     request: Request,
@@ -53,7 +53,7 @@ async def game_lobby(
 async def create_game_session(
     request: Request,
     game_name: str = Form(...),
-    current_user: Annotated[schemas.User, Depends(get_current_active_user)] = None,
+    current_user: Optional[Annotated[schemas.User, Depends(get_current_active_user)]] = None,
     db: Session = Depends(get_db)
 ):
     """Create a new game session"""
@@ -71,7 +71,7 @@ async def join_game_session(
     request: Request,
     session_code: str = Form(...),
     character_name: str = Form(None),
-    current_user: Annotated[schemas.User, Depends(get_current_active_user)] = None,
+    current_user: Optional[Annotated[schemas.User, Depends(get_current_active_user)]] = None,
     db: Session = Depends(get_db)
 ):
     """Join an existing game session"""
@@ -194,7 +194,7 @@ async def update_session_settings(
     session_code: str,
     request: Request,
     name: str = Form(...),
-    current_user: Annotated[schemas.User, Depends(get_current_active_user)] = None,
+    current_user: Optional[Annotated[schemas.User, Depends(get_current_active_user)]] = None,
     db: Session = Depends(get_db)
 ):
     """Update session settings"""
@@ -226,7 +226,7 @@ async def update_session_settings(
 @router.post("/session/{session_code}/delete")
 async def delete_session(
     session_code: str,
-    current_user: Annotated[schemas.User, Depends(get_current_active_user)] = None,
+    current_user: Optional[Annotated[schemas.User, Depends(get_current_active_user)]] = None,
     db: Session = Depends(get_db)
 ):
     """Delete session"""

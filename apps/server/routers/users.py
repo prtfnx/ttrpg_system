@@ -6,7 +6,7 @@ from fastapi.responses import RedirectResponse
 from fastapi.templating import Jinja2Templates
 from fastapi.security import OAuth2PasswordRequestForm
 from sqlalchemy.orm import Session
-from typing import Annotated
+from typing import Annotated, Optional
 from datetime import datetime, timedelta, timezone
 from jwt.exceptions import InvalidTokenError
 import hashlib
@@ -712,7 +712,7 @@ async def settings_page(
 async def settings_profile(
     request: Request,
     full_name: str = Form(""),
-    current_user: Annotated[schemas.User, Depends(get_current_active_user)] = None,
+    current_user: Optional[Annotated[schemas.User, Depends(get_current_active_user)]] = None,
     db: Session = Depends(get_db),
 ):
     user = db.query(models.User).filter(models.User.id == current_user.id).first()
@@ -727,7 +727,7 @@ async def settings_password(
     current_password: str = Form(""),
     new_password: str = Form(...),
     confirm_password: str = Form(...),
-    current_user: Annotated[schemas.User, Depends(get_current_active_user)] = None,
+    current_user: Optional[Annotated[schemas.User, Depends(get_current_active_user)]] = None,
     db: Session = Depends(get_db),
 ):
     has_password = current_user.password_set_at is not None
@@ -779,7 +779,7 @@ async def settings_email(
     request: Request,
     new_email: str = Form(...),
     password: str = Form(default=""),
-    current_user: Annotated[schemas.User, Depends(get_current_active_user)] = None,
+    current_user: Optional[Annotated[schemas.User, Depends(get_current_active_user)]] = None,
     db: Session = Depends(get_db),
 ):
     if current_user.password_set_at and not crud.verify_password(password, current_user.hashed_password):
@@ -853,7 +853,7 @@ async def settings_delete(
     request: Request,
     username_confirm: str = Form(...),
     password: str = Form(default=""),
-    current_user: Annotated[schemas.User, Depends(get_current_active_user)] = None,
+    current_user: Optional[Annotated[schemas.User, Depends(get_current_active_user)]] = None,
     db: Session = Depends(get_db),
 ):
     if username_confirm != current_user.username:

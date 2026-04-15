@@ -16,6 +16,7 @@ logger = setup_logger(__name__)
 router = APIRouter(prefix="/api/compendium", tags=["compendium"])
 
 # Compendium exports directory inside the installed core_table package
+assert core_table.__file__ is not None, "core_table must be a file-based module"
 COMPENDIUM_DIR = Path(core_table.__file__).parent / "compendiums" / "exports"
 
 class CompendiumService:

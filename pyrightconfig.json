@@ -22,7 +22,8 @@
       "extraPaths": ["apps/server"]
     },
     {
-      "root": "apps/server"
+      "root": "apps/server",
+      "extraPaths": ["packages/core-table"]
     }
   ],
   "reportMissingImports": true,

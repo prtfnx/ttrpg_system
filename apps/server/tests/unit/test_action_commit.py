@@ -30,6 +30,7 @@ async def test_empty_actions_rejected():
     msg = Message(MessageType.ACTION_COMMIT, {'actions': [], 'sequence_id': 1})
     resp = await proto.handle_action_commit(msg, 'c1')
     assert resp.type == MessageType.ACTION_REJECTED
+    assert resp.data is not None
     assert resp.data['sequence_id'] == 1
 
 
@@ -43,9 +44,10 @@ async def test_dm_move_commit_success():
     })
     resp = await proto.handle_action_commit(msg, 'c1')
     assert resp.type == MessageType.ACTION_RESULT
+    assert resp.data is not None
     assert resp.data['sequence_id'] == 5
     assert len(resp.data['applied']) == 1
-    proto.broadcast_to_session.assert_awaited_once()
+    proto.broadcast_to_session.assert_awaited_once()  # type: ignore[attr-defined]
 
 
 @pytest.mark.asyncio
@@ -78,6 +80,7 @@ async def test_player_no_control_rejected():
     })
     resp = await proto.handle_action_commit(msg, 'c1')
     assert resp.type == MessageType.ACTION_REJECTED
+    assert resp.data is not None
     assert resp.data['failed_index'] == 0
 
 
@@ -92,6 +95,7 @@ async def test_failed_move_returns_rejected_with_index():
     })
     resp = await proto.handle_action_commit(msg, 'c1')
     assert resp.type == MessageType.ACTION_REJECTED
+    assert resp.data is not None
     assert resp.data['failed_index'] == 0
     assert resp.data['reason'] == 'blocked'
 
@@ -110,6 +114,7 @@ async def test_multi_action_commit():
     })
     resp = await proto.handle_action_commit(msg, 'c1')
     assert resp.type == MessageType.ACTION_RESULT
+    assert resp.data is not None
     assert len(resp.data['applied']) == 2
     assert resp.data['applied'][0]['action_type'] == 'move'
     assert resp.data['applied'][1]['action_type'] == 'attack'

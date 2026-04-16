@@ -37,6 +37,7 @@ def test_submit_roll_choice_requires_roll():
     result = EncounterEngine.submit_choice('sess1', 'p1', 'c2')
     assert result['status'] == 'roll_required'
     enc = EncounterEngine.get('sess1')
+    assert enc is not None
     assert enc.phase == EncounterPhase.AWAITING_ROLL
 
 
@@ -59,6 +60,7 @@ def test_submit_roll_no_bonus_might_fail():
 def test_end_encounter():
     EncounterEngine.create('sess1', 'Test', 'A test.', CHOICES, ['p1'])
     enc = EncounterEngine.end_encounter('sess1')
+    assert enc is not None
     assert enc.phase == EncounterPhase.COMPLETED
     assert EncounterEngine.get('sess1') is None
 

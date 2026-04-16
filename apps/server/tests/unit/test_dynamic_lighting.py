@@ -143,6 +143,7 @@ class TestDynamicLightingPersistence:
         update = schemas.VirtualTableUpdate(dynamic_lighting_enabled=True)
         updated = crud.update_virtual_table(test_db, db_table.table_id, update)
 
+        assert updated is not None
         assert updated.dynamic_lighting_enabled is True
 
         # Verify it actually survived a DB round-trip
@@ -247,6 +248,7 @@ class TestEntityVisionPersistence:
         update = schemas.EntityUpdate(vision_radius=500.0)
         updated = crud.update_entity(test_db, sprite_id, update)
 
+        assert updated is not None
         assert updated.vision_radius == pytest.approx(500.0)
 
     def test_dm_grants_darkvision_to_token(self, test_db, db_table):
@@ -266,6 +268,7 @@ class TestEntityVisionPersistence:
         update = schemas.EntityUpdate(has_darkvision=True, darkvision_radius=200.0)
         updated = crud.update_entity(test_db, sprite_id, update)
 
+        assert updated is not None
         assert updated.has_darkvision is True
         assert updated.darkvision_radius == pytest.approx(200.0)
 
@@ -290,6 +293,7 @@ class TestEntityVisionPersistence:
 
         loaded_table, ok = crud.load_table_from_db(test_db, str(table.table_id))
         assert ok is True
+        assert loaded_table is not None
         assert loaded_table.dynamic_lighting_enabled is True
         assert loaded_table.fog_exploration_mode == "persist_dimmed"
         assert loaded_table.ambient_light_level == pytest.approx(0.4)

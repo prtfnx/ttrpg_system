@@ -18,6 +18,7 @@ class TestUserCRUD:
         
     def test_get_user_by_username(self, test_db, test_user):
         user = crud.get_user_by_username(test_db, test_user.username)
+        assert user is not None
         assert user.id == test_user.id
         assert user.username == test_user.username
         
@@ -27,6 +28,7 @@ class TestUserCRUD:
         
     def test_get_user_by_email(self, test_db, test_user):
         user = crud.get_user_by_email(test_db, test_user.email)
+        assert user is not None
         assert user.id == test_user.id
 
 @pytest.mark.unit
@@ -42,6 +44,7 @@ class TestGameSessionCRUD:
         
     def test_get_session_by_code(self, test_db, test_game_session):
         session = crud.get_game_session_by_code(test_db, "TEST01")
+        assert session is not None
         assert session.id == test_game_session.id
         assert session.name == test_game_session.name
         

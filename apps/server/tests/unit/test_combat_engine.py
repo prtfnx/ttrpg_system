@@ -24,6 +24,7 @@ def test_start_combat_creates_state():
 def test_end_combat_removes_state():
     CombatEngine.start_combat('sess1', 't1', ['e1'])
     ended = CombatEngine.end_combat('sess1')
+    assert ended is not None
     assert ended.phase == CombatPhase.ENDED
     assert CombatEngine.get_state('sess1') is None
 
@@ -41,6 +42,7 @@ def test_turn_advancement():
     ok = CombatEngine.end_turn('sess1', combatant_id)
     assert ok
     c1 = state.get_current_combatant()
+    assert c1 is not None
     assert c1.combatant_id != combatant_id
 
 
@@ -132,7 +134,7 @@ def test_dm_revert_last_action():
     state.combatants[0].hp = 10
     from core_table.combat import CombatAction
     import time
-    action = CombatAction(
+    action = CombatAction(  # type: ignore[call-arg]
         action_id='a1', combat_id=state.combat_id, round_number=1,
         turn_index=0, actor_id=cid, action_type='attack',
         action_cost='action', damage_dealt=5,
@@ -150,7 +152,7 @@ def test_new_round_ticks_conditions():
     import uuid
     state = CombatEngine.start_combat('sess1', 't1', ['e1', 'e2'])
     state.combatants[0].conditions.append(
-        ActiveCondition(
+        ActiveCondition(  # type: ignore[call-arg]
             condition_id=str(uuid.uuid4()), condition_type=ConditionType.POISONED,
             source='dm', duration_type='rounds', duration_remaining=1,
         )

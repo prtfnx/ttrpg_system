@@ -1,7 +1,7 @@
 """
 WebSocket-based game session manager with integrated table protocol
 """
-from typing import Dict, List, Optional, Any
+from typing import Dict, List, Optional, Any, Union
 from fastapi import WebSocket, WebSocketDisconnect
 import json
 import asyncio
@@ -75,7 +75,8 @@ class ConnectionManager:
                 logger.debug(f"Loaded protocol service: {protocol_service}, error: {error}")
                 if protocol_service:
                     logger.info(f"Loaded existing session {session_code} from database")
-                    self.game_session_db_ids[session_code] = protocol_service.game_session_db_id
+                    if protocol_service.game_session_db_id is not None:
+                        self.game_session_db_ids[session_code] = protocol_service.game_session_db_id
                 else:
                     # Create new session with database persistence
                     logger.info(f"Creating new session {session_code} with database persistence")
@@ -83,7 +84,8 @@ class ConnectionManager:
                         db_session, session_code, user_id
                     )
                     if protocol_service:
-                        self.game_session_db_ids[session_code] = protocol_service.game_session_db_id
+                        if protocol_service.game_session_db_id is not None:
+                            self.game_session_db_ids[session_code] = protocol_service.game_session_db_id
                     else:
                         logger.warning(f"Failed to create persistent session: {error}")
                         # Fallback to non-persistent session
@@ -147,7 +149,8 @@ class ConnectionManager:
         
         # Remove from protocol service first
         protocol_service = self.sessions_protocols.get(session_code)
-        await protocol_service.remove_client(websocket)
+        if protocol_service:
+            await protocol_service.remove_client(websocket)
           # Remove from connections
         if session_code in self.active_connections:
             if websocket in self.active_connections[session_code]:
@@ -204,11 +207,11 @@ class ConnectionManager:
         except Exception as e:
             logger.error(f"Error sending personal message: {e}")
 
-    async def broadcast_to_session(self, session_code: str, message: Message, exclude_websocket: Optional[WebSocket] = None):
+    async def broadcast_to_session(self, session_code: str, message: Union[Message, dict], exclude_websocket: Optional[WebSocket] = None):
         """Broadcast message to all users in a session"""
         if session_code not in self.active_connections:
             return
-        message_text = message.to_json()
+        message_text = message.to_json() if isinstance(message, Message) else json.dumps(message)
         disconnected_websockets = []
         for websocket in self.active_connections[session_code]:
             if websocket == exclude_websocket:
@@ -266,12 +269,12 @@ class ConnectionManager:
             # Handle regular game session messages
             # Add sender info
          
-            response_message = Message(
-                message_type,{                
+            response_message = {
+                "type": message_type,
                 "data": data,
                 "sender": username,
                 "timestamp": datetime.now().isoformat()
-            })
+            }
             
             if message_type == "chat_message":
                 # Broadcast chat message to all session members

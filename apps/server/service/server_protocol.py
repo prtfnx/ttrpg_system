@@ -815,7 +815,8 @@ class ServerProtocol:
             table_data: dict = {}
             if callable(to_dict_fn):
                 try:
-                    table_data = to_dict_fn() or {}
+                    result_data = to_dict_fn()
+                    table_data = result_data if isinstance(result_data, dict) else {}
                 except Exception:
                     pass
             elif isinstance(table_obj, dict):
@@ -870,7 +871,8 @@ class ServerProtocol:
             table_data: dict = {}
             if callable(to_dict_fn):
                 try:
-                    table_data = to_dict_fn() or {}
+                    result_data = to_dict_fn()
+                    table_data = result_data if isinstance(result_data, dict) else {}
                 except Exception:
                     pass
             elif isinstance(table_obj, dict):
@@ -1183,7 +1185,7 @@ class ServerProtocol:
         
         # Extract sprite_id and table_id for permission checks
         sprite_id = update_data.get('sprite_id') or msg.data.get('sprite_id')
-        table_id = update_data.get('table_id') or update_data.get('table_name')
+        table_id: str = update_data.get('table_id') or update_data.get('table_name') or 'default'
         
         if not sprite_id:
             return Message(MessageType.ERROR, {'error': 'Missing sprite_id'})

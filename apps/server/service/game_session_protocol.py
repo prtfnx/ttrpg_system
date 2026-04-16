@@ -18,7 +18,7 @@ from .server_protocol import ServerProtocol
 from core_table.server import TableManager
 from .asset_manager import get_server_asset_manager
 from utils.logger import setup_logger
-from database.models import GameSession
+from database import models as db_models
 from database.crud import append_ban_to_session
 from utils.roles import get_permissions, get_visible_layers, is_dm as _is_dm
 logger = setup_logger(__name__)
@@ -27,7 +27,7 @@ logger = setup_logger(__name__)
 
 class GameSessionProtocolService:
     """Manages table protocol within a game session with database persistence"""
-    def __init__(self, session_code: str, db_session=None, game_session_db_id: int = None):
+    def __init__(self, session_code: str, db_session=None, game_session_db_id: int | None = None):
         logger.info(f"Creating GameSessionProtocolService for session {session_code}")
         self.session_code = session_code
         self.db_session = db_session
@@ -62,7 +62,7 @@ class GameSessionProtocolService:
     def _load_tables_from_database(self):
         """Load tables from database for this game session"""
         try:
-            if self.table_manager.load_from_database(self.game_session_db_id):
+            if self.game_session_db_id is not None and self.table_manager.load_from_database(self.game_session_db_id):
                 logger.info(f"Session {self.session_code} - Loaded tables from database")
                 logger.info(f"Session {self.session_code} - Available tables: {list(self.table_manager.tables.keys())}")
                 
@@ -140,9 +140,12 @@ class GameSessionProtocolService:
             treasure = test_table.add_entity({'name': 'Treasure', 'x': 8, 'y': 9, 'layer': 'tokens', 'texture_path': 'resources/treasure.png'})
             
             logger.info(f"Created test_table with entities:")
-            logger.info(f"Hero (ID: {hero.entity_id}, Sprite: {hero.sprite_id}) at {hero.position}")
-            logger.info(f"Goblin1 (ID: {goblin.entity_id}, Sprite: {goblin.sprite_id}) at {goblin.position}")
-            logger.info(f" Treasure (ID: {treasure.entity_id}, Sprite: {treasure.sprite_id}) at {treasure.position}")
+            if hero:
+                logger.info(f"Hero (ID: {hero.entity_id}, Sprite: {hero.sprite_id}) at {hero.position}")
+            if goblin:
+                logger.info(f"Goblin1 (ID: {goblin.entity_id}, Sprite: {goblin.sprite_id}) at {goblin.position}")
+            if treasure:
+                logger.info(f" Treasure (ID: {treasure.entity_id}, Sprite: {treasure.sprite_id}) at {treasure.position}")
             
             # Create large table for testing with multiple entities in different layers
             large_table = VirtualTable('large_table', 1080, 1920)
@@ -182,7 +185,7 @@ class GameSessionProtocolService:
     async def add_client(self, websocket: WebSocket, client_id: str, user_info: dict):
         """Add a client to this game session. Raises PermissionError if the player is banned."""
         if self.db_session and self.game_session_db_id:
-            sess = self.db_session.get(GameSession, self.game_session_db_id)
+            sess = self.db_session.get(db_models.GameSession, self.game_session_db_id)
             if sess and sess.ban_list:
                 ban_list = json.loads(sess.ban_list)
                 user_id = str(user_info.get('user_id', ''))
@@ -210,8 +213,7 @@ class GameSessionProtocolService:
             try:
                 from database.crud import get_session_rules_json, get_game_mode
                 from database.database import SessionLocal
-                from database.models import GameSession
-                sess = self.db_session.get(GameSession, self.game_session_db_id)
+                sess = self.db_session.get(db_models.GameSession, self.game_session_db_id)
                 if sess:
                     game_mode = sess.game_mode or 'free_roam'
                     import json as _json
@@ -439,7 +441,7 @@ class GameSessionProtocolService:
                 return False
             
             # Update GameSession metadata
-            game_session = self.db_session.query(GameSession).filter_by(id=self.game_session_db_id).first()
+            game_session = self.db_session.query(db_models.GameSession).filter_by(id=self.game_session_db_id).first()
             if game_session:
                 game_session.game_data = json.dumps({
                     'client_count': len(self.clients),

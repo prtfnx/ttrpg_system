@@ -36,7 +36,7 @@ class EncounterChoice:
 @dataclass
 class EncounterRollResult:
     player_id: str
-    choice_id: str
+    choice_id: str | None
     ability: str
     roll: DiceRollResult
     dc: int

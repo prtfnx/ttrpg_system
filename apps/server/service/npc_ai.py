@@ -41,8 +41,9 @@ def _most_wounded_ally(combatant: Combatant, combat: CombatState) -> Optional[Co
 
 
 class NPCAIEngine:
+    @staticmethod
     def decide_action(
-        self, combatant: Combatant, combat: CombatState, behavior: str = "tactical"
+        combatant: Combatant, combat: CombatState, behavior: str = "tactical"
     ) -> AIDecision:
         hp_ratio = (combatant.hp / combatant.max_hp) if combatant.max_hp else 1.0
 

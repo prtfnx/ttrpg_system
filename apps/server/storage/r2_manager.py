@@ -151,7 +151,7 @@ class R2AssetManager:
             logger.info(f"Calculated xxHash for {filename}: {file_xxhash}")
             
             # Upload to R2 with metadata including xxHash
-            extra_args = {
+            extra_args: dict[str, Any] = {
                 'Metadata': {
                     'xxhash': file_xxhash,
                     'original-filename': filename,

@@ -4,6 +4,7 @@ WebSocket endpoints for game sessions
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect, Depends, HTTPException, status, Request
 from fastapi.templating import Jinja2Templates
 from sqlalchemy.orm import Session
+from typing import Optional
 import json
 import logging
 import jwt
@@ -87,7 +88,7 @@ async def websocket_general_endpoint(
 async def websocket_game_endpoint(
     websocket: WebSocket, 
     session_code: str,
-    token: str = None,
+    token: Optional[str] = None,
     connection_manager: ConnectionManager = Depends(get_connection_manager)
 ):
     """WebSocket endpoint for game sessions"""
@@ -190,7 +191,7 @@ async def websocket_game_endpoint(
             await websocket.close(code=status.WS_1008_POLICY_VIOLATION)
             return
 
-        player_role = db_player.role
+        player_role = db_player.role or "player"
         logger.debug(f"User {username} role in session {session_code}: {player_role}")
 
         logger.info(f"Connecting user {username} with ID {user_id} to session {session_code}")

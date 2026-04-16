@@ -249,8 +249,8 @@ class ServerCharacterManager:
                         'owner_user_id': char.owner_user_id,
                         'character_data': json.loads(char.character_data) if char.character_data else {},
                         'version': char.version,
-                        'created_at': char.created_at.isoformat(),
-                        'updated_at': char.updated_at.isoformat()
+                        'created_at': char.created_at.isoformat() if char.created_at else None,
+                        'updated_at': char.updated_at.isoformat() if char.updated_at else None
                     })
                 
                 logger.info(f"Listed {len(character_list)} characters for session {session_id}, user {user_id}")
@@ -394,7 +394,7 @@ class ServerCharacterManager:
                             'id': e.id,
                             'action_type': e.action_type,
                             'description': e.description,
-                            'created_at': e.created_at.isoformat(),
+                            'created_at': e.created_at.isoformat() if e.created_at else None,
                         }
                         for e in entries
                     ],

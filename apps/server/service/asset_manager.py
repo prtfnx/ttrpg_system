@@ -15,6 +15,7 @@ import xxhash
 from storage.r2_manager import R2AssetManager
 from database.database import SessionLocal
 from database.models import Asset, GameSession
+from config import Settings
 
 logger = logging.getLogger(__name__)
 
@@ -495,10 +496,10 @@ class ServerAssetManager:
                         "asset_id": asset.r2_asset_id,
                         "filename": asset.asset_name,
                         "uploaded_by": asset.uploaded_by,
-                        "created_at": asset.created_at.isoformat(),
+                        "created_at": (asset.created_at.isoformat() if asset.created_at else None),
                         "file_size": asset.file_size,
                         "content_type": asset.content_type,
-                        "last_accessed": asset.last_accessed.isoformat()
+                        "last_accessed": (asset.last_accessed.isoformat() if asset.last_accessed else None)
                     })
                 
                 logger.info(f"Found {len(result)} assets in session {session_code}")
@@ -704,7 +705,7 @@ class ServerAssetManager:
                     uploaded_by=asset_data["uploaded_by"],
                     session_id=session_id,
                     r2_key=asset_data["r2_key"],
-                    r2_bucket=settings.R2_BUCKET_NAME or "default",
+                    r2_bucket=Settings().r2_bucket_name or "default",
                     created_at=datetime.utcnow(),
                     last_accessed=datetime.utcnow()
                 )
@@ -742,8 +743,8 @@ class ServerAssetManager:
                         "file_size": asset.file_size,
                         "uploaded_by": asset.uploaded_by,
                         "session_id": asset.session_id,
-                        "created_at": asset.created_at.isoformat(),
-                        "last_accessed": asset.last_accessed.isoformat()
+                        "created_at": (asset.created_at.isoformat() if asset.created_at else None),
+                        "last_accessed": (asset.last_accessed.isoformat() if asset.last_accessed else None)
                     }
                 return None
                 
@@ -782,8 +783,8 @@ class ServerAssetManager:
                         "uploaded_by": asset.uploaded_by,
                         "session_id": asset.session_id,
                         "session_code": session_code,
-                        "created_at": asset.created_at.isoformat(),
-                        "last_accessed": asset.last_accessed.isoformat()
+                        "created_at": (asset.created_at.isoformat() if asset.created_at else None),
+                        "last_accessed": (asset.last_accessed.isoformat() if asset.last_accessed else None)
                     }
                 return None
                 
@@ -810,7 +811,7 @@ class ServerAssetManager:
                         "xxhash": asset.xxhash,
                         "uploaded_by": asset.uploaded_by,
                         "session_id": asset.session_id,
-                        "created_at": asset.created_at.isoformat()
+                        "created_at": (asset.created_at.isoformat() if asset.created_at else None)
                     }
                 return None
                 
@@ -962,7 +963,7 @@ class ServerAssetManager:
                                 "asset_id": asset.r2_asset_id,
                                 "filename": asset.filename,
                                 "r2_key": r2_key,
-                                "created_at": asset.created_at.isoformat() if hasattr(asset.created_at, 'isoformat') and asset.created_at is not None else str(asset.created_at)
+                                "created_at": (asset.created_at.isoformat() if asset.created_at else None) if hasattr(asset.created_at, 'isoformat') and asset.created_at is not None else str(asset.created_at)
                             })
                     except Exception as e:
                         verification_report["errors"].append(f"Error verifying {asset.r2_asset_id}: {str(e)}")

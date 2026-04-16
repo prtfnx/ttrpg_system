@@ -1,4 +1,5 @@
 from enum import Enum
+from typing import Optional
 
 
 class SessionRole(str, Enum):
@@ -56,28 +57,28 @@ _VISIBLE_LAYERS: dict[str, list[str]] = {
 }
 
 
-def is_valid_role(role: str) -> bool:
+def is_valid_role(role: Optional[str]) -> bool:
     return role in ALL_ROLES
 
 
-def is_dm(role: str) -> bool:
+def is_dm(role: Optional[str]) -> bool:
     return role in DM_ROLES
 
 
-def is_elevated(role: str) -> bool:
+def is_elevated(role: Optional[str]) -> bool:
     return role in ELEVATED_ROLES
 
 
-def can_interact(role: str) -> bool:
+def can_interact(role: Optional[str]) -> bool:
     return role in INTERACTIVE_ROLES
 
 
-def get_permissions(role: str) -> list[str]:
-    return _PERMISSIONS.get(role, [])
+def get_permissions(role: Optional[str]) -> list[str]:
+    return _PERMISSIONS.get(role or "", [])
 
 
-def get_visible_layers(role: str) -> list[str]:
-    return _VISIBLE_LAYERS.get(role, ["map", "tokens", "fog"])
+def get_visible_layers(role: Optional[str]) -> list[str]:
+    return _VISIBLE_LAYERS.get(role or "", ["map", "tokens", "fog"])
 
 
 # Role hierarchy: who can modify whom
@@ -110,11 +111,11 @@ SPRITE_LIMITS: dict[str, int] = {
 }
 
 
-def get_sprite_limit(role: str) -> int:
-    return SPRITE_LIMITS.get(role, 0)
+def get_sprite_limit(role: Optional[str]) -> int:
+    return SPRITE_LIMITS.get(role or "", 0)
 
 
-def can_assign_role(requester_role: str, target_role: str, new_role: str) -> tuple[bool, str]:
+def can_assign_role(requester_role: Optional[str], target_role: Optional[str], new_role: str) -> tuple[bool, str]:
     """Check if requester can assign new_role to a player currently at target_role."""
     if not is_valid_role(new_role):
         return False, f"Invalid role: {new_role}"

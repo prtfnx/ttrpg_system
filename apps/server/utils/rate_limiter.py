@@ -11,7 +11,7 @@ class RateLimiter:
         # Store requests by IP address
         self.requests: Dict[str, Deque[float]] = defaultdict(deque)
         
-    def is_allowed(self, identifier: str, max_requests: int = 5, window_minutes: int = 5) -> bool:
+    def is_allowed(self, identifier: str, max_requests: int = 5, window_minutes: float = 5) -> bool:
         """
         Check if a request is allowed based on rate limiting.
         
@@ -41,7 +41,7 @@ class RateLimiter:
         
         return False
     
-    def get_time_until_reset(self, identifier: str, window_minutes: int = 5) -> int:
+    def get_time_until_reset(self, identifier: str, window_minutes: float = 5) -> int:
         """
         Get seconds until rate limit resets for this identifier.
         

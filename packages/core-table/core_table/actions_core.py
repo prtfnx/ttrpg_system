@@ -1,3 +1,4 @@
+# pyright: reportMissingImports=false
 from typing import Dict, Any, List, Optional, Tuple, Union
 from .async_actions_protocol import AsyncActionsProtocol, ActionResult, Position, LAYERS
 from .table import VirtualTable, Entity

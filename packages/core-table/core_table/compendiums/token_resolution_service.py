@@ -12,8 +12,8 @@ from difflib import SequenceMatcher
 from functools import lru_cache
 
 import logging
-from database.database import SessionLocal
-from database.models import Asset
+from database.database import SessionLocal  # type: ignore[import-not-found]
+from database.models import Asset  # type: ignore[import-not-found]
 
 logger = logging.getLogger(__name__)
 

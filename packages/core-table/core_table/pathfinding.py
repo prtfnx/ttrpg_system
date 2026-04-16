@@ -4,7 +4,7 @@ import math
 from typing import Optional, TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from core_table.entities import Wall, Entity
+    from core_table.entities import Wall
 
 
 class SpatialHashGrid:

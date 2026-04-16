@@ -12,7 +12,7 @@ from typing import Dict, List, Optional, Any
 # Add the current directory to the path for imports
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
-from spell import Spell, SpellSchool, SpellComponent, SpellEffect, DamageRoll
+from spell import Spell, SpellSchool, SpellComponent, SpellEffect, DamageRoll  # type: ignore[import-not-found]
 
 
 class SpellLoader:

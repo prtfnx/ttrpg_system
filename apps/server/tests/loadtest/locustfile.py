@@ -13,8 +13,8 @@ import os
 import time
 import uuid
 
-from locust import User, task, between, events
-import websocket
+from locust import User, task, between, events  # type: ignore[import-not-found]
+import websocket  # type: ignore[import-missing-module-source]
 
 
 WS_PATH = "/ws/game/"

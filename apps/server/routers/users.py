@@ -297,45 +297,48 @@ async def login(
         elif invite_code:
             # Auto-accept invitation
             user = crud.get_user_by_username(db, form_data.username)
-            invitation = db.query(models.SessionInvitation).filter(
-                models.SessionInvitation.invite_code == invite_code
-            ).first()
-            
-            if invitation and invitation.is_valid():
-                session = db.query(models.GameSession).filter(
-                    models.GameSession.id == invitation.session_id
-                ).first()
-                
-                if not session:
-                    # Session referenced by invitation does not exist
-                    response = RedirectResponse(url="/users/dashboard", status_code=302)
-                else:
-                    existing = db.query(models.GamePlayer).filter(
-                        models.GamePlayer.session_id == session.id,
-                        models.GamePlayer.user_id == user.id
-                    ).first()
-                    
-                    if not existing:
-                        new_player = models.GamePlayer(
-                            session_id=session.id,
-                            user_id=user.id,
-                            role=invitation.pre_assigned_role,
-                            joined_at=datetime.utcnow()
-                        )
-                        db.add(new_player)
-                        
-                        invitation.uses_count += 1
-                        if invitation.max_uses > 0 and invitation.uses_count >= invitation.max_uses:
-                            invitation.is_active = False
-                        
-                        db.commit()
-                    
-                    response = RedirectResponse(
-                        url=f"/game/session/{session.session_code}",
-                        status_code=302
-                    )
-            else:
+            if not user:
                 response = RedirectResponse(url="/users/dashboard", status_code=302)
+            else:
+                invitation = db.query(models.SessionInvitation).filter(
+                    models.SessionInvitation.invite_code == invite_code
+                ).first()
+            
+                if invitation and invitation.is_valid():
+                    session = db.query(models.GameSession).filter(
+                        models.GameSession.id == invitation.session_id
+                    ).first()
+                
+                    if not session:
+                        # Session referenced by invitation does not exist
+                        response = RedirectResponse(url="/users/dashboard", status_code=302)
+                    else:
+                        existing = db.query(models.GamePlayer).filter(
+                            models.GamePlayer.session_id == session.id,
+                            models.GamePlayer.user_id == user.id
+                        ).first()
+                    
+                        if not existing:
+                            new_player = models.GamePlayer(
+                                session_id=session.id,
+                                user_id=user.id,
+                                role=invitation.pre_assigned_role,
+                                joined_at=datetime.utcnow()
+                            )
+                            db.add(new_player)
+                        
+                            invitation.uses_count += 1
+                            if invitation.max_uses > 0 and invitation.uses_count >= invitation.max_uses:
+                                invitation.is_active = False
+                        
+                            db.commit()
+                    
+                        response = RedirectResponse(
+                            url=f"/game/session/{session.session_code}",
+                            status_code=302
+                        )
+                else:
+                    response = RedirectResponse(url="/users/dashboard", status_code=302)
         else:
             response = RedirectResponse(url="/users/dashboard", status_code=302)
         
@@ -614,7 +617,8 @@ async def forgot_password_submit(
         db.commit()
 
         base_url = get_settings().BASE_URL.rstrip("/")
-        send_password_reset(user.email, f"{base_url}/users/reset-password?token={raw}")
+        if user.email:
+            send_password_reset(user.email, f"{base_url}/users/reset-password?token={raw}")
     else:
         # Timing equalisation — prevent enumeration via response time delta
         crud.get_password_hash("timing-dummy")
@@ -711,11 +715,13 @@ async def settings_page(
 @router.post("/settings/profile")
 async def settings_profile(
     request: Request,
+    current_user: Annotated[schemas.User, Depends(get_current_active_user)],
     full_name: str = Form(""),
-    current_user: Optional[Annotated[schemas.User, Depends(get_current_active_user)]] = None,
     db: Session = Depends(get_db),
 ):
     user = db.query(models.User).filter(models.User.id == current_user.id).first()
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
     user.full_name = full_name.strip() or None
     db.commit()
     return RedirectResponse("/users/settings?tab=profile&msg=profile_updated", status_code=302)
@@ -724,10 +730,10 @@ async def settings_profile(
 @router.post("/settings/password")
 async def settings_password(
     request: Request,
+    current_user: Annotated[schemas.User, Depends(get_current_active_user)],
     current_password: str = Form(""),
     new_password: str = Form(...),
     confirm_password: str = Form(...),
-    current_user: Optional[Annotated[schemas.User, Depends(get_current_active_user)]] = None,
     db: Session = Depends(get_db),
 ):
     has_password = current_user.password_set_at is not None
@@ -746,6 +752,8 @@ async def settings_password(
         return RedirectResponse("/users/settings?tab=security&error=New+password+must+differ+from+current", status_code=302)
 
     user = db.query(models.User).filter(models.User.id == current_user.id).first()
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
     user.hashed_password = crud.get_password_hash(new_password)
     user.password_set_at = datetime.utcnow()
     user.session_version = (user.session_version or 0) + 1
@@ -777,9 +785,9 @@ async def settings_password(
 @router.post("/settings/email")
 async def settings_email(
     request: Request,
+    current_user: Annotated[schemas.User, Depends(get_current_active_user)],
     new_email: str = Form(...),
     password: str = Form(default=""),
-    current_user: Optional[Annotated[schemas.User, Depends(get_current_active_user)]] = None,
     db: Session = Depends(get_db),
 ):
     if current_user.password_set_at and not crud.verify_password(password, current_user.hashed_password):
@@ -835,6 +843,10 @@ def verify_email_change(request: Request, token: str = "", db: Session = Depends
 
     record.used = True
     user = db.query(models.User).filter(models.User.id == record.user_id).first()
+    if not user:
+        return templates.TemplateResponse(request, "auth_error.html", {
+            "error_message": "User not found."
+        }, status_code=400)
     user.email = record.new_email
 
     db.add(models.AuditLog(
@@ -851,9 +863,9 @@ def verify_email_change(request: Request, token: str = "", db: Session = Depends
 @router.post("/settings/delete")
 async def settings_delete(
     request: Request,
+    current_user: Annotated[schemas.User, Depends(get_current_active_user)],
     username_confirm: str = Form(...),
     password: str = Form(default=""),
-    current_user: Optional[Annotated[schemas.User, Depends(get_current_active_user)]] = None,
     db: Session = Depends(get_db),
 ):
     if username_confirm != current_user.username:
@@ -863,6 +875,8 @@ async def settings_delete(
         return RedirectResponse("/users/settings?tab=account&error=Incorrect+password", status_code=302)
 
     user = db.query(models.User).filter(models.User.id == current_user.id).first()
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
     user.disabled = True
     user.session_version = (user.session_version or 0) + 1
 

@@ -120,6 +120,9 @@ async def revoke_invitation(
         models.GameSession.id == invitation.session_id
     ).first()
     
+    if not session:
+        raise HTTPException(status_code=404, detail="Session not found")
+    
     player = db.query(models.GamePlayer).filter(
         models.GamePlayer.session_id == session.id,
         models.GamePlayer.user_id == current_user.id
@@ -182,6 +185,9 @@ async def accept_invitation(
     session = db.query(models.GameSession).filter(
         models.GameSession.id == invitation.session_id
     ).first()
+    
+    if not session:
+        raise HTTPException(status_code=404, detail="Session not found")
     
     existing = db.query(models.GamePlayer).filter(
         models.GamePlayer.session_id == session.id,

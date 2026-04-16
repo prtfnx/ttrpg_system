@@ -40,6 +40,7 @@ def generate_unique_session_code(db: Session, length: int = 6, max_attempts: int
         if not existing:
             return code
     raise RuntimeError(f"Could not generate unique session code after {max_attempts} attempts")
+
 @router.get("/")
 async def game_lobby(
     request: Request,
@@ -52,12 +53,12 @@ async def game_lobby(
 @router.post("/create")
 async def create_game_session(
     request: Request,
+    current_user: Annotated[schemas.User, Depends(get_current_active_user)],
     game_name: str = Form(...),
-    current_user: Optional[Annotated[schemas.User, Depends(get_current_active_user)]] = None,
     db: Session = Depends(get_db)
 ):
     """Create a new game session"""
-    session_data = game_models.GameSessionCreate(name=game_name)
+    session_data = schemas.GameSessionCreate(name=game_name)
     session_code = generate_unique_session_code(db)
     game_session = crud.create_game_session(db, session_data, current_user.id, session_code)
     
@@ -69,9 +70,9 @@ async def create_game_session(
 @router.post("/join")
 async def join_game_session(
     request: Request,
+    current_user: Annotated[schemas.User, Depends(get_current_active_user)],
     session_code: str = Form(...),
     character_name: str = Form(None),
-    current_user: Optional[Annotated[schemas.User, Depends(get_current_active_user)]] = None,
     db: Session = Depends(get_db)
 ):
     """Join an existing game session"""
@@ -193,8 +194,8 @@ async def session_settings(
 async def update_session_settings(
     session_code: str,
     request: Request,
+    current_user: Annotated[schemas.User, Depends(get_current_active_user)],
     name: str = Form(...),
-    current_user: Optional[Annotated[schemas.User, Depends(get_current_active_user)]] = None,
     db: Session = Depends(get_db)
 ):
     """Update session settings"""
@@ -226,7 +227,7 @@ async def update_session_settings(
 @router.post("/session/{session_code}/delete")
 async def delete_session(
     session_code: str,
-    current_user: Optional[Annotated[schemas.User, Depends(get_current_active_user)]] = None,
+    current_user: Annotated[schemas.User, Depends(get_current_active_user)],
     db: Session = Depends(get_db)
 ):
     """Delete session"""

@@ -11,6 +11,7 @@ logger = setup_logger(__name__)
 
 def upgrade(db_path: str):
     """Add obstacle metadata columns to entities table"""
+    conn = None
     try:
         conn = sqlite3.connect(db_path)
         cursor = conn.cursor()

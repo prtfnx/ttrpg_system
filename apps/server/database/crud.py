@@ -20,7 +20,9 @@ pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 def get_password_hash(password: str) -> str:
     return pwd_context.hash(password)
 
-def verify_password(plain_password: str, hashed_password: str) -> bool:
+def verify_password(plain_password: str, hashed_password: Optional[str]) -> bool:
+    if hashed_password is None:
+        return False
     return pwd_context.verify(plain_password, hashed_password)
 
 def generate_session_code() -> str:
@@ -378,7 +380,7 @@ def get_session_tables(db: Session, session_id: int) -> list[models.VirtualTable
     """Get all tables for a game session"""
     return db.query(models.VirtualTable).filter(models.VirtualTable.session_id == session_id).all()
 
-def update_virtual_table(db: Session, table_id: str, table_update: schemas.VirtualTableUpdate) -> models.VirtualTable:
+def update_virtual_table(db: Session, table_id: str, table_update: schemas.VirtualTableUpdate) -> Optional[models.VirtualTable]:
     """Update virtual table"""
     db_table = get_virtual_table_by_id(db, table_id)
     if not db_table:
@@ -457,7 +459,7 @@ def get_table_entities(db: Session, table_db_id: int) -> list[models.Entity]:
     """Get all entities for a table"""
     return db.query(models.Entity).filter(models.Entity.table_id == table_db_id).all()
 
-def update_entity(db: Session, sprite_id: str, entity_update: schemas.EntityUpdate) -> models.Entity:
+def update_entity(db: Session, sprite_id: str, entity_update: schemas.EntityUpdate) -> Optional[models.Entity]:
     """Update entity"""
     db_entity = get_entity_by_sprite_id(db, sprite_id)
     if not db_entity:
@@ -484,7 +486,7 @@ def delete_entity(db: Session, sprite_id: str) -> bool:
     db.commit()
     return True
 
-def save_table_to_db(db: Session, virtual_table_obj, session_id: int) -> models.VirtualTable:
+def save_table_to_db(db: Session, virtual_table_obj, session_id: int) -> Optional[models.VirtualTable]:
     """
     Save a VirtualTable object from table.py to the database
     """
@@ -534,6 +536,10 @@ def save_table_to_db(db: Session, virtual_table_obj, session_id: int) -> models.
             distance_unit=getattr(virtual_table_obj, 'distance_unit', 'ft'),
         )
         db_table = create_virtual_table(db, table_data)
+    
+    if db_table is None:
+        logger.error(f"Failed to create/update virtual table {table_id_str}")
+        return
     
     # Synchronize entities: First get current entities in database for this table
     current_db_entities = db.query(models.Entity).filter(models.Entity.table_id == db_table.id).all()
@@ -731,8 +737,9 @@ def load_table_from_db(db: Session, table_id: str):
             entity.rotation = db_entity.rotation
             
             # Add to virtual table
-            virtual_table.entities[entity.entity_id] = entity
-            virtual_table.sprite_to_entity[entity.sprite_id] = entity.entity_id
+            if entity.entity_id is not None:
+                virtual_table.entities[entity.entity_id] = entity
+                virtual_table.sprite_to_entity[entity.sprite_id] = entity.entity_id
             
             # Update grid (skip if position is out of bounds or layer doesn't exist)
             if (entity.layer in virtual_table.grid and 
@@ -741,7 +748,7 @@ def load_table_from_db(db: Session, table_id: str):
                 virtual_table.grid[entity.layer][entity.position[1]][entity.position[0]] = entity.entity_id
             
             # Update next entity ID
-            if entity.entity_id >= virtual_table.next_entity_id:
+            if entity.entity_id is not None and entity.entity_id >= virtual_table.next_entity_id:
                 virtual_table.next_entity_id = entity.entity_id + 1
         
         return virtual_table, True

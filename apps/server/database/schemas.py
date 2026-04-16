@@ -28,7 +28,7 @@ class User(UserBase):
     model_config = ConfigDict(from_attributes=True)
 
 class UserInDB(User):
-    hashed_password: str
+    hashed_password: Optional[str] = None
 
 # Token schemas
 class Token(BaseModel):

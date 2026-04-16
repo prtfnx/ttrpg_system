@@ -13,7 +13,8 @@
     ".pytest_cache",
     "packages/core-table/core_table/compendiums/equipment",
     "packages/core-table/core_table/compendiums/monsters",
-    "packages/core-table/core_table/compendiums/spells"
+    "packages/core-table/core_table/compendiums/spells", 
+    "**/.*", 
   ],
   "extraPaths": ["apps/server"],
   "executionEnvironments": [

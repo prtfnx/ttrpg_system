@@ -254,8 +254,8 @@ class TestCharacterRollHandlerBroadcast:
         )):
             await proto.handle_character_roll(msg, "client1")
 
-        proto.broadcast_to_session.assert_awaited_once  # type: ignore[attr-defined]()
-        broadcast_msg = proto.broadcast_to_session.call_args  # type: ignore[attr-defined][0][0]
+        proto.broadcast_to_session.assert_awaited_once() # type: ignore[attr-defined]
+        broadcast_msg = proto.broadcast_to_session.call_args[0][0] # type: ignore[attr-defined]
         assert broadcast_msg.type == MessageType.CHARACTER_ROLL_RESULT
         assert broadcast_msg.data["character_id"] == "char-1"
 
@@ -300,8 +300,8 @@ class TestCharacterSaveBroadcast:
         with patch.object(proto.actions, "save_character", new=AsyncMock(return_value=save_result)):
             await proto.handle_character_save_request(msg, "c1")
 
-        proto.broadcast_to_session.assert_awaited_once  # type: ignore[attr-defined]()
-        broadcast_msg = proto.broadcast_to_session.call_args  # type: ignore[attr-defined][0][0]
+        proto.broadcast_to_session.assert_awaited_once() # type: ignore[attr-defined]
+        broadcast_msg = proto.broadcast_to_session.call_args[0][0] # type: ignore[attr-defined]
         assert broadcast_msg.type == MessageType.CHARACTER_UPDATE, (
             f"Expected CHARACTER_UPDATE, got {broadcast_msg.type}"
         )
@@ -363,8 +363,8 @@ class TestCharacterDeleteBroadcast:
         )):
             await proto.handle_character_delete_request(msg, "c1")
 
-        proto.broadcast_to_session.assert_awaited_once  # type: ignore[attr-defined]()
-        broadcast_msg = proto.broadcast_to_session.call_args  # type: ignore[attr-defined][0][0]
+        proto.broadcast_to_session.assert_awaited_once() # type: ignore[attr-defined]
+        broadcast_msg = proto.broadcast_to_session.call_args[0][0] # type: ignore[attr-defined]
         assert broadcast_msg.type == MessageType.CHARACTER_UPDATE, (
             f"Expected CHARACTER_UPDATE, got {broadcast_msg.type}"
         )

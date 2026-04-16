@@ -1,4 +1,4 @@
-from typing import Dict, Any, List, Optional
+from typing import Dict, Any, List, Optional, Union
 from abc import ABC, abstractmethod
 
 
@@ -86,7 +86,7 @@ class AsyncActionsProtocol(ABC):
         pass
     
     @abstractmethod
-    async def move_sprite(self, table_id: str, sprite_id: str, old_position: Position, new_position: Position) -> ActionResult:
+    async def move_sprite(self, table_id: str, sprite_id: str, old_position: Union[Position, dict], new_position: Union[Position, dict]) -> ActionResult:
         pass
     
     @abstractmethod

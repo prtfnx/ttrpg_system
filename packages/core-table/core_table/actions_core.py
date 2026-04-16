@@ -1,4 +1,4 @@
-from typing import Dict, Any, List, Optional, Tuple
+from typing import Dict, Any, List, Optional, Tuple, Union
 from .async_actions_protocol import AsyncActionsProtocol, ActionResult, Position, LAYERS
 from .table import VirtualTable, Entity
 import uuid
@@ -456,7 +456,7 @@ class ActionsCore(AsyncActionsProtocol):
             return ActionResult(False, f"Failed to delete sprite: {str(e)}")
 
 
-    async def move_sprite(self, table_id: str, sprite_id: str, old_position: Position, new_position: Position, session_id: Optional[int] = None) -> ActionResult:
+    async def move_sprite(self, table_id: str, sprite_id: str, old_position: Union[Position, dict], new_position: Union[Position, dict], session_id: Optional[Any] = None) -> ActionResult:
         """Move sprite to new position"""
         try:
             logger.info(f"Moving sprite {sprite_id} from {old_position} to {new_position} on table {table_id}")

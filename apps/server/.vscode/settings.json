@@ -1,0 +1,6 @@
+{
+	"python.analysis.extraPaths": [
+		"../../packages/core-table"
+	],
+	"python.defaultInterpreterPath": "../../.venv/Scripts/python.exe"
+}

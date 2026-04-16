@@ -6,5 +6,11 @@
 		{ "name": "rust-core", "path": "packages/rust-core" },
 		{ "name": "core-table", "path": "packages/core-table" }
 	],
-	"settings": {}
+	"settings": {
+		"python.analysis.extraPaths": [
+			"packages/core-table",
+			"../../packages/core-table"
+		],
+		"python.defaultInterpreterPath": ".venv/Scripts/python.exe"
+	}
 }

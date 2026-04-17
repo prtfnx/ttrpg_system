@@ -569,3 +569,396 @@ impl HandleDetector {
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    // ===== CONSTRUCTION =====
+
+    #[test]
+    fn new_handler_defaults() {
+        let h = InputHandler::new();
+        assert_eq!(h.input_mode, InputMode::None);
+        assert!(h.selected_sprite_ids.is_empty());
+        assert!(h.selected_sprite_id.is_none());
+    }
+
+    // ===== SELECTION =====
+
+    #[test]
+    fn add_to_selection_deduplicates() {
+        let mut h = InputHandler::new();
+        h.add_to_selection("a".into());
+        h.add_to_selection("a".into());
+        assert_eq!(h.get_selected_sprites().len(), 1);
+    }
+
+    #[test]
+    fn add_multiple_and_check() {
+        let mut h = InputHandler::new();
+        h.add_to_selection("a".into());
+        h.add_to_selection("b".into());
+        assert!(h.has_multiple_selected());
+        assert!(h.is_sprite_selected("a"));
+        assert!(h.is_sprite_selected("b"));
+    }
+
+    #[test]
+    fn remove_from_selection_updates_primary() {
+        let mut h = InputHandler::new();
+        h.add_to_selection("a".into());
+        h.add_to_selection("b".into());
+        h.remove_from_selection("b");
+        assert!(!h.is_sprite_selected("b"));
+        assert_eq!(h.selected_sprite_id.as_deref(), Some("a"));
+    }
+
+    #[test]
+    fn remove_primary_falls_back_to_first() {
+        let mut h = InputHandler::new();
+        h.add_to_selection("a".into());
+        h.add_to_selection("b".into());
+        h.remove_from_selection("a");
+        assert_eq!(h.selected_sprite_id.as_deref(), Some("b"));
+    }
+
+    #[test]
+    fn clear_selection_empties_all() {
+        let mut h = InputHandler::new();
+        h.add_to_selection("a".into());
+        h.add_to_selection("b".into());
+        h.clear_selection();
+        assert!(h.get_selected_sprites().is_empty());
+        assert!(h.selected_sprite_id.is_none());
+    }
+
+    #[test]
+    fn set_single_selection_replaces() {
+        let mut h = InputHandler::new();
+        h.add_to_selection("a".into());
+        h.add_to_selection("b".into());
+        h.set_single_selection("c".into());
+        assert_eq!(h.get_selected_sprites(), &vec!["c".to_string()]);
+        assert!(!h.has_multiple_selected());
+    }
+
+    // ===== AREA SELECTION =====
+
+    #[test]
+    fn area_selection_lifecycle() {
+        let mut h = InputHandler::new();
+        h.start_area_selection(Vec2::new(10.0, 20.0));
+        assert_eq!(h.input_mode, InputMode::AreaSelect);
+
+        h.area_select_current = Some(Vec2::new(50.0, 60.0));
+        let rect = h.get_area_selection_rect().unwrap();
+        assert_eq!(rect.0, Vec2::new(10.0, 20.0));
+        assert_eq!(rect.1, Vec2::new(50.0, 60.0));
+
+        h.finish_area_selection();
+        assert_eq!(h.input_mode, InputMode::None);
+        assert!(h.get_area_selection_rect().is_none());
+    }
+
+    #[test]
+    fn area_selection_rect_normalizes() {
+        let mut h = InputHandler::new();
+        h.start_area_selection(Vec2::new(50.0, 60.0));
+        h.area_select_current = Some(Vec2::new(10.0, 20.0));
+        let (min, max) = h.get_area_selection_rect().unwrap();
+        assert_eq!(min, Vec2::new(10.0, 20.0));
+        assert_eq!(max, Vec2::new(50.0, 60.0));
+    }
+
+    // ===== LIGHT DRAG =====
+
+    #[test]
+    fn light_drag_lifecycle() {
+        let mut h = InputHandler::new();
+        h.start_light_drag("light1".into(), Vec2::new(100.0, 100.0), Vec2::new(110.0, 120.0));
+        assert_eq!(h.input_mode, InputMode::LightDrag);
+
+        let new_pos = h.update_light_drag(Vec2::new(200.0, 200.0)).unwrap();
+        assert_eq!(new_pos, Vec2::new(210.0, 220.0));
+
+        let id = h.end_light_drag().unwrap();
+        assert_eq!(id, "light1");
+        assert_eq!(h.input_mode, InputMode::None);
+    }
+
+    #[test]
+    fn light_drag_update_wrong_mode_returns_none() {
+        let mut h = InputHandler::new();
+        assert!(h.update_light_drag(Vec2::new(0.0, 0.0)).is_none());
+    }
+
+    #[test]
+    fn light_drag_end_wrong_mode_returns_none() {
+        let mut h = InputHandler::new();
+        assert!(h.end_light_drag().is_none());
+    }
+
+    // ===== FOG DRAWING =====
+
+    #[test]
+    fn fog_draw_hide_lifecycle() {
+        let mut h = InputHandler::new();
+        h.start_fog_draw(Vec2::new(0.0, 0.0), FogDrawMode::Hide);
+        assert_eq!(h.input_mode, InputMode::FogDraw);
+
+        let rect = h.update_fog_draw(Vec2::new(100.0, 100.0)).unwrap();
+        assert_eq!(rect.0, Vec2::new(0.0, 0.0));
+        assert_eq!(rect.1, Vec2::new(100.0, 100.0));
+
+        let (start, end, mode) = h.end_fog_draw().unwrap();
+        assert_eq!(start, Vec2::new(0.0, 0.0));
+        assert_eq!(end, Vec2::new(100.0, 100.0));
+        assert_eq!(mode, FogDrawMode::Hide);
+        assert_eq!(h.input_mode, InputMode::None);
+    }
+
+    #[test]
+    fn fog_draw_reveal_uses_erase_mode() {
+        let mut h = InputHandler::new();
+        h.start_fog_draw(Vec2::new(0.0, 0.0), FogDrawMode::Reveal);
+        assert_eq!(h.input_mode, InputMode::FogErase);
+    }
+
+    #[test]
+    fn fog_draw_end_wrong_mode_returns_none() {
+        let mut h = InputHandler::new();
+        assert!(h.end_fog_draw().is_none());
+    }
+
+    // ===== MEASUREMENT =====
+
+    #[test]
+    fn measurement_lifecycle() {
+        let mut h = InputHandler::new();
+        h.start_measurement(Vec2::new(0.0, 0.0));
+        h.update_measurement(Vec2::new(30.0, 40.0));
+
+        let line = h.get_measurement_line().unwrap();
+        assert_eq!(line.0, Vec2::new(0.0, 0.0));
+        assert_eq!(line.1, Vec2::new(30.0, 40.0));
+
+        let (start, end) = h.end_measurement().unwrap();
+        assert_eq!(start, Vec2::new(0.0, 0.0));
+        assert_eq!(end, Vec2::new(30.0, 40.0));
+
+        // completed measurement persists
+        assert!(h.get_measurement_line().is_some());
+        h.clear_completed_measurement();
+        assert!(h.get_measurement_line().is_none());
+    }
+
+    #[test]
+    fn measurement_update_without_start_is_noop() {
+        let mut h = InputHandler::new();
+        h.update_measurement(Vec2::new(10.0, 10.0));
+        assert!(h.measurement_current.is_none());
+    }
+
+    // ===== SHAPE CREATION =====
+
+    #[test]
+    fn shape_creation_lifecycle() {
+        let mut h = InputHandler::new();
+        h.start_shape_creation(Vec2::new(10.0, 10.0));
+        h.update_shape_creation(Vec2::new(50.0, 50.0));
+
+        let rect = h.get_shape_creation_rect().unwrap();
+        assert_eq!(rect.0, Vec2::new(10.0, 10.0));
+        assert_eq!(rect.1, Vec2::new(50.0, 50.0));
+
+        let (start, end) = h.end_shape_creation().unwrap();
+        assert_eq!(start, Vec2::new(10.0, 10.0));
+        assert_eq!(end, Vec2::new(50.0, 50.0));
+
+        assert!(h.get_shape_creation_rect().is_none());
+    }
+
+    #[test]
+    fn shape_creation_update_without_start_is_noop() {
+        let mut h = InputHandler::new();
+        h.update_shape_creation(Vec2::new(10.0, 10.0));
+        assert!(h.shape_creation_current.is_none());
+    }
+
+    // ===== DOUBLE-CLICK =====
+
+    #[test]
+    fn double_click_detected_within_threshold() {
+        let mut h = InputHandler::new();
+        assert!(!h.check_double_click("sprite1", 1000.0));
+        assert!(h.check_double_click("sprite1", 1200.0)); // 200ms < 300ms
+    }
+
+    #[test]
+    fn double_click_not_detected_different_sprites() {
+        let mut h = InputHandler::new();
+        h.check_double_click("sprite1", 1000.0);
+        assert!(!h.check_double_click("sprite2", 1100.0));
+    }
+
+    #[test]
+    fn double_click_not_detected_after_threshold() {
+        let mut h = InputHandler::new();
+        h.check_double_click("sprite1", 1000.0);
+        assert!(!h.check_double_click("sprite1", 1500.0)); // 500ms > 300ms
+    }
+
+    // ===== WALL DRAWING =====
+
+    #[test]
+    fn wall_draw_two_click() {
+        let mut h = InputHandler::new();
+        // First click returns None
+        assert!(h.register_wall_click(Vec2::new(0.0, 0.0)).is_none());
+        assert!(h.get_wall_preview_line().is_some());
+
+        h.update_wall_draw(Vec2::new(50.0, 50.0));
+        let preview = h.get_wall_preview_line().unwrap();
+        assert_eq!(preview.1, Vec2::new(50.0, 50.0));
+
+        // Second click returns segment
+        let (start, end) = h.register_wall_click(Vec2::new(100.0, 100.0)).unwrap();
+        assert_eq!(start, Vec2::new(0.0, 0.0));
+        assert_eq!(end, Vec2::new(100.0, 100.0));
+        assert!(h.get_wall_preview_line().is_none());
+    }
+
+    #[test]
+    fn wall_draw_cancel_resets() {
+        let mut h = InputHandler::new();
+        h.register_wall_click(Vec2::new(0.0, 0.0));
+        h.cancel_wall_draw();
+        assert!(h.get_wall_preview_line().is_none());
+    }
+
+    // ===== POLYGON CREATION =====
+
+    #[test]
+    fn polygon_add_vertices_and_close() {
+        let mut h = InputHandler::new();
+        assert!(!h.add_polygon_vertex(Vec2::new(0.0, 0.0)));
+        assert!(!h.add_polygon_vertex(Vec2::new(100.0, 0.0)));
+        assert!(!h.add_polygon_vertex(Vec2::new(100.0, 100.0)));
+        // Click near first vertex to close
+        assert!(h.add_polygon_vertex(Vec2::new(5.0, 5.0)));
+
+        let verts = h.close_polygon().unwrap();
+        assert_eq!(verts.len(), 3);
+    }
+
+    #[test]
+    fn polygon_close_requires_min_3_vertices() {
+        let mut h = InputHandler::new();
+        h.add_polygon_vertex(Vec2::new(0.0, 0.0));
+        h.add_polygon_vertex(Vec2::new(100.0, 0.0));
+        assert!(h.close_polygon().is_none());
+    }
+
+    #[test]
+    fn polygon_undo_vertex() {
+        let mut h = InputHandler::new();
+        h.add_polygon_vertex(Vec2::new(0.0, 0.0));
+        h.add_polygon_vertex(Vec2::new(100.0, 0.0));
+        h.undo_polygon_vertex();
+        assert_eq!(h.polygon_vertices.len(), 1);
+    }
+
+    #[test]
+    fn polygon_cancel_clears_all() {
+        let mut h = InputHandler::new();
+        h.add_polygon_vertex(Vec2::new(0.0, 0.0));
+        h.add_polygon_vertex(Vec2::new(100.0, 0.0));
+        h.cancel_polygon();
+        assert!(h.polygon_vertices.is_empty());
+        assert!(h.polygon_cursor.is_none());
+    }
+
+    #[test]
+    fn polygon_cursor_updates() {
+        let mut h = InputHandler::new();
+        h.update_polygon_cursor(Vec2::new(42.0, 42.0));
+        assert_eq!(h.polygon_cursor, Some(Vec2::new(42.0, 42.0)));
+    }
+
+    // ===== MODIFIERS =====
+
+    #[test]
+    fn modifier_ctrl_returns_multi_select() {
+        let mut h = InputHandler::new();
+        let result = h.handle_mouse_down_with_modifiers(Vec2::new(0.0, 0.0), true);
+        assert!(matches!(result, InputResult::MultiSelectToggle));
+    }
+
+    #[test]
+    fn modifier_no_ctrl_returns_single_select() {
+        let mut h = InputHandler::new();
+        let result = h.handle_mouse_down_with_modifiers(Vec2::new(0.0, 0.0), false);
+        assert!(matches!(result, InputResult::SingleSelect));
+    }
+
+    // ===== HANDLE DETECTOR =====
+
+    #[test]
+    fn point_in_handle_center() {
+        assert!(HandleDetector::point_in_handle(Vec2::new(50.0, 50.0), 50.0, 50.0, 10.0));
+    }
+
+    #[test]
+    fn point_outside_handle() {
+        assert!(!HandleDetector::point_in_handle(Vec2::new(100.0, 100.0), 50.0, 50.0, 10.0));
+    }
+
+    #[test]
+    fn resize_handle_top_left_corner() {
+        let sprite = Sprite::new("s1".into(), 100.0, 100.0, 200.0, 200.0, "tokens".into());
+        let handle = HandleDetector::get_resize_handle_for_non_rotated_sprite(
+            &sprite, Vec2::new(100.0, 100.0), 1.0
+        );
+        assert_eq!(handle, Some(ResizeHandle::TopLeft));
+    }
+
+    #[test]
+    fn resize_handle_bottom_right_corner() {
+        let sprite = Sprite::new("s1".into(), 100.0, 100.0, 200.0, 200.0, "tokens".into());
+        let handle = HandleDetector::get_resize_handle_for_non_rotated_sprite(
+            &sprite, Vec2::new(300.0, 300.0), 1.0
+        );
+        assert_eq!(handle, Some(ResizeHandle::BottomRight));
+    }
+
+    #[test]
+    fn resize_handle_none_for_center() {
+        let sprite = Sprite::new("s1".into(), 100.0, 100.0, 200.0, 200.0, "tokens".into());
+        let handle = HandleDetector::get_resize_handle_for_non_rotated_sprite(
+            &sprite, Vec2::new(200.0, 200.0), 1.0
+        );
+        assert!(handle.is_none());
+    }
+
+    #[test]
+    fn cursor_for_handles() {
+        assert_eq!(HandleDetector::get_cursor_for_handle(ResizeHandle::TopLeft), "nw-resize");
+        assert_eq!(HandleDetector::get_cursor_for_handle(ResizeHandle::TopCenter), "ns-resize");
+        assert_eq!(HandleDetector::get_cursor_for_handle(ResizeHandle::RightCenter), "ew-resize");
+    }
+
+    #[test]
+    fn cursor_detection_more_precise_than_resize() {
+        let sprite = Sprite::new("s1".into(), 100.0, 100.0, 200.0, 200.0, "tokens".into());
+        // At 6px from edge: resize (threshold 8) detects, cursor (threshold 4) does not
+        let handle_resize = HandleDetector::get_resize_handle_for_non_rotated_sprite(
+            &sprite, Vec2::new(106.0, 200.0), 1.0
+        );
+        let handle_cursor = HandleDetector::get_resize_handle_for_cursor_detection(
+            &sprite, Vec2::new(106.0, 200.0), 1.0
+        );
+        assert!(handle_resize.is_some());
+        assert!(handle_cursor.is_none());
+    }
+}

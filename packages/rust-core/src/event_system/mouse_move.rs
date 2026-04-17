@@ -64,10 +64,9 @@ impl EventSystem {
                 MouseEventResult::Handled
             }
             InputMode::CameraPan => {
-                let current_screen = Vec2::new(0.0, 0.0);
-                let last_screen = input.last_mouse_screen;
-                let screen_delta = current_screen - last_screen;
-                MouseEventResult::CameraOperation(format!("pan:{},{}", -screen_delta.x, -screen_delta.y))
+                // Camera panning is handled directly in RenderEngine::handle_mouse_move
+                // with actual screen coordinates. This branch is unreachable.
+                MouseEventResult::Handled
             }
             InputMode::LightDrag => {
                 if let Some(new_pos) = input.update_light_drag(world_pos) {

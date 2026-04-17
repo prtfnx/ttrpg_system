@@ -48,10 +48,6 @@ impl ActionsClient {
     #[wasm_bindgen]
     pub fn delete_table(&mut self, table_id: &str) -> JsValue {
         if let Some(table_info) = self.tables.remove(table_id) {
-            self.sprites.retain(|_, _sprite| {
-                true
-            });
-
             let action = ActionHistoryEntry {
                 action_type: "delete_table".to_string(),
                 timestamp: js_sys::Date::now(),

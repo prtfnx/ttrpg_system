@@ -77,7 +77,7 @@ impl RenderEngine {
             &self.wall_manager,
             self.camera.zoom,
             ctrl_pressed,
-            &self.active_layer.clone()
+            self.active_layer.as_str()
         );
         
         let uid_opt = self.current_user_id;
@@ -196,7 +196,7 @@ impl RenderEngine {
             &self.wall_manager,
             &mut self.fog,
             table_id,
-            &self.active_layer.clone(),
+            self.active_layer.as_str(),
             &converter,
         );
         

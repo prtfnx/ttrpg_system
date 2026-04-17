@@ -323,4 +323,218 @@ mod tests {
         let pm = PlanningManager::new(64.0, 5.0 / 64.0);
         assert!(pm.has_los(0.0, 0.0, 100.0, 100.0));
     }
+
+    // ── Collision setup tests ─────────────────────────────────────────
+
+    #[test]
+    fn set_walls_creates_collision_system() {
+        let mut pm = PlanningManager::new(64.0, 5.0 / 64.0);
+        assert!(pm.collision.is_none());
+        pm.set_walls(r#"[{"x1":50,"y1":0,"x2":50,"y2":200,"is_door":false,"door_open":false}]"#);
+        assert!(pm.collision.is_some());
+    }
+
+    #[test]
+    fn set_obstacles_creates_collision_system() {
+        let mut pm = PlanningManager::new(64.0, 5.0 / 64.0);
+        pm.set_obstacles(r#"[{"id":"o1","obstacle_type":"circle","x":50,"y":50,"width":0,"height":0,"radius":20}]"#);
+        assert!(pm.collision.is_some());
+    }
+
+    #[test]
+    fn walls_affect_los() {
+        let mut pm = PlanningManager::new(64.0, 5.0 / 64.0);
+        pm.set_walls(r#"[{"x1":50,"y1":0,"x2":50,"y2":200,"is_door":false,"door_open":false}]"#);
+        assert!(!pm.has_los(0.0, 100.0, 100.0, 100.0));
+    }
+
+    #[test]
+    fn walls_affect_measure_ft() {
+        let mut pm = PlanningManager::new(64.0, 5.0 / 64.0);
+        let d_no_collision = pm.measure_ft(0.0, 0.0, 64.0, 0.0);
+        pm.set_walls(r#"[]"#);
+        let d_with_collision = pm.measure_ft(0.0, 0.0, 64.0, 0.0);
+        // Both should calculate distance; collision system uses grid-aware method
+        assert!(d_no_collision > 0.0);
+        assert!(d_with_collision > 0.0);
+    }
+
+    // ── Ghost token management tests ──────────────────────────────────
+
+    #[test]
+    fn clear_ghost_removes_single() {
+        let mut pm = PlanningManager::new(64.0, 5.0 / 64.0);
+        pm.start_ghost("s1", 32.0, 32.0, 90.0, 90.0, 30.0);
+        pm.start_ghost("s2", 96.0, 96.0, 160.0, 160.0, 30.0);
+        assert_eq!(pm.ghost_tokens.len(), 2);
+        pm.clear_ghost("s1");
+        assert_eq!(pm.ghost_tokens.len(), 1);
+        assert!(pm.ghost_tokens.contains_key("s2"));
+    }
+
+    #[test]
+    fn clear_ghost_nonexistent_is_noop() {
+        let mut pm = PlanningManager::new(64.0, 5.0 / 64.0);
+        pm.start_ghost("s1", 32.0, 32.0, 90.0, 90.0, 30.0);
+        pm.clear_ghost("nonexistent");
+        assert_eq!(pm.ghost_tokens.len(), 1);
+    }
+
+    #[test]
+    fn clear_all_removes_ghosts_and_aoe() {
+        let mut pm = PlanningManager::new(64.0, 5.0 / 64.0);
+        pm.start_ghost("s1", 32.0, 32.0, 90.0, 90.0, 30.0);
+        pm.set_aoe_sphere(0.0, 0.0, 100.0);
+        assert!(!pm.ghost_tokens.is_empty());
+        assert!(pm.aoe_template.is_some());
+        pm.clear_all();
+        assert!(pm.ghost_tokens.is_empty());
+        assert!(pm.aoe_template.is_none());
+    }
+
+    #[test]
+    fn ghost_opacity_within_speed() {
+        let mut pm = PlanningManager::new(64.0, 5.0 / 64.0);
+        // Short move within speed → 0.45 opacity
+        pm.start_ghost("s1", 32.0, 32.0, 90.0, 90.0, 300.0);
+        let g = pm.ghost_tokens.get("s1").unwrap();
+        assert!((g.opacity - 0.45).abs() < 0.01);
+    }
+
+    #[test]
+    fn ghost_opacity_beyond_speed() {
+        let mut pm = PlanningManager::new(64.0, 5.0 / 64.0);
+        // Very far move with tiny speed → 0.2 opacity
+        pm.start_ghost("s1", 0.0, 0.0, 5000.0, 5000.0, 5.0);
+        let g = pm.ghost_tokens.get("s1").unwrap();
+        assert!((g.opacity - 0.2).abs() < 0.01);
+    }
+
+    #[test]
+    fn ghost_has_path() {
+        let mut pm = PlanningManager::new(64.0, 5.0 / 64.0);
+        pm.start_ghost("s1", 32.0, 32.0, 160.0, 160.0, 30.0);
+        let g = pm.ghost_tokens.get("s1").unwrap();
+        assert!(!g.path.is_empty());
+    }
+
+    #[test]
+    fn ghost_replaces_existing() {
+        let mut pm = PlanningManager::new(64.0, 5.0 / 64.0);
+        pm.start_ghost("s1", 32.0, 32.0, 90.0, 90.0, 30.0);
+        pm.start_ghost("s1", 32.0, 32.0, 160.0, 160.0, 30.0);
+        assert_eq!(pm.ghost_tokens.len(), 1);
+        let g = pm.ghost_tokens.get("s1").unwrap();
+        // Should have snapped to grid around 160,160
+        assert!(g.preview_x > 100.0);
+    }
+
+    // ── AoE template tests ────────────────────────────────────────────
+
+    #[test]
+    fn set_aoe_cone() {
+        let mut pm = PlanningManager::new(64.0, 5.0 / 64.0);
+        pm.set_aoe_cone(0.0, 0.0, 1.0, 60.0);
+        match pm.aoe_template {
+            Some(AoeTemplate::Cone { ox, oy, angle, length }) => {
+                assert_eq!(ox, 0.0);
+                assert_eq!(angle, 1.0);
+                assert_eq!(length, 60.0);
+            }
+            _ => panic!("Expected cone AoE"),
+        }
+    }
+
+    #[test]
+    fn set_aoe_line() {
+        let mut pm = PlanningManager::new(64.0, 5.0 / 64.0);
+        pm.set_aoe_line(0.0, 0.0, 100.0, 0.0, 10.0);
+        match pm.aoe_template {
+            Some(AoeTemplate::Line { x1, y1, x2, y2, width }) => {
+                assert_eq!(x2, 100.0);
+                assert_eq!(width, 10.0);
+            }
+            _ => panic!("Expected line AoE"),
+        }
+    }
+
+    #[test]
+    fn set_aoe_cube() {
+        let mut pm = PlanningManager::new(64.0, 5.0 / 64.0);
+        pm.set_aoe_cube(50.0, 50.0, 30.0);
+        match pm.aoe_template {
+            Some(AoeTemplate::Cube { cx, cy, side }) => {
+                assert_eq!(cx, 50.0);
+                assert_eq!(side, 30.0);
+            }
+            _ => panic!("Expected cube AoE"),
+        }
+    }
+
+    #[test]
+    fn clear_aoe_removes_template() {
+        let mut pm = PlanningManager::new(64.0, 5.0 / 64.0);
+        pm.set_aoe_sphere(0.0, 0.0, 50.0);
+        assert!(pm.aoe_template.is_some());
+        pm.clear_aoe();
+        assert!(pm.aoe_template.is_none());
+    }
+
+    #[test]
+    fn aoe_replaces_previous() {
+        let mut pm = PlanningManager::new(64.0, 5.0 / 64.0);
+        pm.set_aoe_sphere(0.0, 0.0, 50.0);
+        pm.set_aoe_cube(10.0, 10.0, 20.0);
+        match pm.aoe_template {
+            Some(AoeTemplate::Cube { .. }) => {}
+            _ => panic!("Expected cube to replace sphere"),
+        }
+    }
+
+    // ── tokens_in_aoe for different shapes ────────────────────────────
+
+    #[test]
+    fn tokens_in_aoe_cube() {
+        let positions = vec![[15.0, 15.0], [100.0, 100.0]];
+        let template = AoeTemplate::Cube { cx: 10.0, cy: 10.0, side: 20.0 };
+        let hits = tokens_in_aoe(&template, &positions);
+        assert_eq!(hits, vec!["0"]); // only first token inside
+    }
+
+    #[test]
+    fn tokens_in_aoe_line() {
+        let positions = vec![[50.0, 0.0], [50.0, 100.0]];
+        let template = AoeTemplate::Line { x1: 0.0, y1: 0.0, x2: 100.0, y2: 0.0, width: 10.0 };
+        let hits = tokens_in_aoe(&template, &positions);
+        assert_eq!(hits, vec!["0"]); // first on the line, second too far
+    }
+
+    #[test]
+    fn tokens_in_aoe_empty_positions() {
+        let positions: Vec<[f32; 2]> = vec![];
+        let template = AoeTemplate::Sphere { cx: 0.0, cy: 0.0, radius: 100.0 };
+        let hits = tokens_in_aoe(&template, &positions);
+        assert!(hits.is_empty());
+    }
+
+    // ── distance_ft_simple helper ─────────────────────────────────────
+
+    #[test]
+    fn distance_ft_simple_straight() {
+        let d = distance_ft_simple(0.0, 0.0, 64.0, 0.0, 64.0, 5.0 / 64.0);
+        assert!((d - 5.0).abs() < 0.1);
+    }
+
+    #[test]
+    fn distance_ft_simple_diagonal() {
+        let d = distance_ft_simple(0.0, 0.0, 64.0, 64.0, 64.0, 5.0 / 64.0);
+        // Chebyshev: max(1,1) = 1 cell = 5ft
+        assert!((d - 5.0).abs() < 0.1);
+    }
+
+    #[test]
+    fn distance_ft_simple_zero() {
+        let d = distance_ft_simple(50.0, 50.0, 50.0, 50.0, 64.0, 5.0 / 64.0);
+        assert!((d - 0.0).abs() < 0.001);
+    }
 }

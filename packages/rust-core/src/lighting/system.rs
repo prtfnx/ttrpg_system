@@ -921,4 +921,37 @@ mod tests {
         l.set_position(Vec2::new(50.0, 50.0)); // same coords
         assert!(!l.dirty);
     }
+
+    #[test]
+    fn set_color_updates_color() {
+        let mut l = Light::new("l1".to_string(), 0.0, 0.0);
+        l.set_color(Color::new(1.0, 0.0, 0.0, 1.0));
+        assert_eq!(l.color.r, 1.0);
+        assert_eq!(l.color.g, 0.0);
+    }
+
+    #[test]
+    fn light_default_table_id() {
+        let l = Light::new("l1".to_string(), 0.0, 0.0);
+        assert_eq!(l.table_id, "default_table");
+    }
+
+    #[test]
+    fn set_radius_no_dirty_on_same_radius() {
+        let mut l = Light::new("l1".to_string(), 0.0, 0.0);
+        l.dirty = false;
+        l.set_radius(200.0); // same as default
+        assert!(!l.dirty);
+    }
+
+    #[test]
+    fn light_serializes_and_deserializes() {
+        let l = Light::new("test_light".to_string(), 42.0, 84.0);
+        let json = serde_json::to_string(&l).unwrap();
+        let l2: Light = serde_json::from_str(&json).unwrap();
+        assert_eq!(l2.id, "test_light");
+        assert_eq!(l2.position.x, 42.0);
+        assert_eq!(l2.position.y, 84.0);
+        assert_eq!(l2.radius, 200.0);
+    }
 }

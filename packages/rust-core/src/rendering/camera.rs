@@ -242,4 +242,52 @@ mod tests {
         assert!((c.world_x - 50.0).abs() < 1e-6);
         assert!((c.world_y - 25.0).abs() < 1e-6);
     }
+
+    #[test]
+    fn center_on_sets_world_position() {
+        let mut c = Camera::default();
+        c.center_on(500.0, 300.0);
+        assert_eq!(c.world_x, 500.0);
+        assert_eq!(c.world_y, 300.0);
+    }
+
+    #[test]
+    fn view_matrix_identity_at_default() {
+        let c = Camera::default(); // zoom=1, pos=0,0
+        let m = c.view_matrix(Vec2::new(800.0, 600.0));
+        // Scale should be 1,1 and translation 0,0
+        assert_eq!(m.cols[0].x, 1.0); // scale_x
+        assert_eq!(m.cols[1].y, 1.0); // scale_y
+        assert_eq!(m.cols[2].x, 0.0); // translate_x
+        assert_eq!(m.cols[2].y, 0.0); // translate_y
+    }
+
+    #[test]
+    fn pan_clamped_by_table_bounds_strict() {
+        let mut c = Camera::default();
+        c.set_table_bounds(0.0, 0.0, 1000.0, 800.0);
+        c.allow_outside_table = false;
+        c.pan(-500.0, -500.0);
+        assert_eq!(c.world_x, 0.0); // clamped at table min_x
+        assert_eq!(c.world_y, 0.0);
+    }
+
+    #[test]
+    fn pan_allowed_with_padding() {
+        let mut c = Camera::default();
+        c.set_table_bounds(0.0, 0.0, 1000.0, 800.0);
+        c.allow_outside_table = true;
+        c.pan(-200.0, 0.0);
+        assert_eq!(c.world_x, -200.0); // within 500px padding
+    }
+
+    #[test]
+    fn focus_on_rect_centers_and_zooms() {
+        let mut c = Camera::default();
+        let rect = Rect::new(100.0, 100.0, 200.0, 200.0);
+        c.focus_on_rect(rect, Vec2::new(800.0, 600.0), 0.0);
+        // Center should be at (200, 200)
+        assert!((c.world_x - 200.0).abs() < 0.01);
+        assert!((c.world_y - 200.0).abs() < 0.01);
+    }
 }

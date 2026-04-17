@@ -479,4 +479,189 @@ mod tests {
         let mut tm = make_table("t1", 500.0, 500.0);
         assert!(!tm.remove_table("unknown"));
     }
+
+    #[test]
+    fn remove_active_table_selects_another() {
+        let mut tm = make_table("t1", 500.0, 500.0);
+        tm.create_table("t2", "Test 2", 200.0, 200.0).unwrap();
+        tm.remove_table("t1");
+        // Should have selected t2 as new active
+        assert_eq!(tm.get_active_table_id().as_deref(), Some("t2"));
+    }
+
+    #[test]
+    fn snap_to_grid_rounds_to_nearest_cell() {
+        let mut tm = make_table("t1", 1000.0, 1000.0);
+        // default grid_cell_px=50
+        let snapped = tm.snap_to_grid("t1", 73.0, 28.0).unwrap();
+        assert_eq!(snapped, vec![50.0, 50.0]); // round(73/50)*50=50, round(28/50)*50=50
+    }
+
+    #[test]
+    fn snap_to_grid_unknown_table_returns_none() {
+        let tm = make_table("t1", 500.0, 500.0);
+        assert!(tm.snap_to_grid("nope", 10.0, 10.0).is_none());
+    }
+
+    #[test]
+    fn set_table_units_clamps_grid_cell() {
+        let mut tm = make_table("t1", 500.0, 500.0);
+        assert!(tm.set_table_units("t1", 5.0, 5.0, "ft")); // below min → clamped to 10
+        let info: TableInfo = serde_json::from_str(&tm.get_table_info("t1").unwrap()).unwrap();
+        assert_eq!(info.grid_cell_px, 10.0);
+    }
+
+    #[test]
+    fn set_table_units_updates_fields() {
+        let mut tm = make_table("t1", 500.0, 500.0);
+        assert!(tm.set_table_units("t1", 64.0, 10.0, "m"));
+        let info: TableInfo = serde_json::from_str(&tm.get_table_info("t1").unwrap()).unwrap();
+        assert_eq!(info.grid_cell_px, 64.0);
+        assert_eq!(info.cell_distance, 10.0);
+        assert_eq!(info.distance_unit, "m");
+    }
+
+    #[test]
+    fn set_table_units_unknown_returns_false() {
+        let mut tm = make_table("t1", 500.0, 500.0);
+        assert!(!tm.set_table_units("nope", 64.0, 5.0, "ft"));
+    }
+
+    #[test]
+    fn units_to_pixels_and_back() {
+        let mut tm = make_table("t1", 500.0, 500.0);
+        tm.set_table_units("t1", 50.0, 5.0, "ft"); // 50px = 5ft
+        let px = tm.units_to_pixels("t1", 10.0); // 10ft → 100px
+        assert!((px - 100.0).abs() < 0.01);
+        let u = tm.pixels_to_units("t1", 100.0); // 100px → 10ft
+        assert!((u - 10.0).abs() < 0.01);
+    }
+
+    #[test]
+    fn table_to_screen_without_area_uses_canvas() {
+        let tm = make_table("t1", 1000.0, 1000.0);
+        // No screen area set — uses canvas coordinates
+        let result = tm.table_to_screen("t1", 100.0, 200.0).unwrap();
+        assert_eq!(result, vec![100.0, 200.0]); // scale=1, viewport=0,0
+    }
+
+    #[test]
+    fn screen_to_table_roundtrip() {
+        let mut tm = make_table("t1", 1000.0, 1000.0);
+        tm.set_table_screen_area("t1", 50.0, 50.0, 400.0, 300.0);
+        let screen = tm.table_to_screen("t1", 100.0, 200.0).unwrap();
+        let table = tm.screen_to_table("t1", screen[0], screen[1]).unwrap();
+        assert!((table[0] - 100.0).abs() < 0.01);
+        assert!((table[1] - 200.0).abs() < 0.01);
+    }
+
+    #[test]
+    fn is_point_in_table_area_with_defined_area() {
+        let mut tm = make_table("t1", 500.0, 500.0);
+        tm.set_table_screen_area("t1", 10.0, 10.0, 100.0, 100.0);
+        assert!(tm.is_point_in_table_area("t1", 50.0, 50.0));
+        assert!(!tm.is_point_in_table_area("t1", 200.0, 200.0));
+    }
+
+    #[test]
+    fn is_point_in_table_area_without_area_uses_canvas() {
+        let mut tm = make_table("t1", 500.0, 500.0);
+        tm.set_canvas_size(800.0, 600.0);
+        assert!(tm.is_point_in_table_area("t1", 400.0, 300.0));
+        assert!(!tm.is_point_in_table_area("t1", 900.0, 300.0));
+    }
+
+    #[test]
+    fn pan_viewport_moves_and_clamps() {
+        let mut tm = make_table("t1", 500.0, 500.0);
+        assert!(tm.pan_viewport("t1", 100.0, 50.0));
+        let bounds = tm.get_visible_bounds("t1").unwrap();
+        // viewport moved from (0,0) by (100,50)/scale=1 → (100,50)
+        assert!((bounds[0] - 100.0).abs() < 0.01);
+        assert!((bounds[1] - 50.0).abs() < 0.01);
+    }
+
+    #[test]
+    fn pan_viewport_unknown_table_returns_false() {
+        let mut tm = make_table("t1", 500.0, 500.0);
+        assert!(!tm.pan_viewport("nope", 10.0, 10.0));
+    }
+
+    #[test]
+    fn zoom_table_changes_scale() {
+        let mut tm = make_table("t1", 500.0, 500.0);
+        tm.set_table_screen_area("t1", 0.0, 0.0, 800.0, 600.0);
+        assert!(tm.zoom_table("t1", 2.0, 400.0, 300.0));
+        let info: TableInfo = serde_json::from_str(&tm.get_table_info("t1").unwrap()).unwrap();
+        assert!((info.table_scale - 2.0).abs() < 0.01);
+    }
+
+    #[test]
+    fn zoom_table_clamps_to_max() {
+        let mut tm = make_table("t1", 500.0, 500.0);
+        assert!(tm.zoom_table("t1", 100.0, 0.0, 0.0)); // way over max
+        let info: TableInfo = serde_json::from_str(&tm.get_table_info("t1").unwrap()).unwrap();
+        assert_eq!(info.table_scale, 5.0);
+    }
+
+    #[test]
+    fn zoom_unknown_table_returns_false() {
+        let mut tm = make_table("t1", 500.0, 500.0);
+        assert!(!tm.zoom_table("nope", 2.0, 0.0, 0.0));
+    }
+
+    #[test]
+    fn set_table_grid_changes_grid_props() {
+        let mut tm = make_table("t1", 500.0, 500.0);
+        assert!(tm.set_table_grid("t1", false, 25.0));
+        let info: TableInfo = serde_json::from_str(&tm.get_table_info("t1").unwrap()).unwrap();
+        assert!(!info.show_grid);
+        assert_eq!(info.cell_side, 25.0);
+    }
+
+    #[test]
+    fn set_table_grid_clamps_min_cell() {
+        let mut tm = make_table("t1", 500.0, 500.0);
+        assert!(tm.set_table_grid("t1", true, 1.0));
+        let info: TableInfo = serde_json::from_str(&tm.get_table_info("t1").unwrap()).unwrap();
+        assert_eq!(info.cell_side, 5.0);
+    }
+
+    #[test]
+    fn get_all_tables_returns_json_array() {
+        let mut tm = make_table("t1", 500.0, 500.0);
+        tm.create_table("t2", "Second", 200.0, 200.0).unwrap();
+        let json = tm.get_all_tables();
+        let tables: Vec<TableInfo> = serde_json::from_str(&json).unwrap();
+        assert_eq!(tables.len(), 2);
+    }
+
+    #[test]
+    fn get_visible_bounds_matches_canvas_size() {
+        let mut tm = make_table("t1", 1000.0, 1000.0);
+        tm.set_canvas_size(800.0, 600.0);
+        // No screen area → use canvas size, scale=1, viewport=0,0
+        let bounds = tm.get_visible_bounds("t1").unwrap();
+        assert_eq!(bounds, vec![0.0, 0.0, 800.0, 600.0]);
+    }
+
+    #[test]
+    fn active_table_id_borrow_returns_ref() {
+        let tm = make_table("t1", 500.0, 500.0);
+        assert_eq!(tm.active_table_id(), Some("t1"));
+    }
+
+    #[test]
+    fn active_table_screen_area_defaults_to_canvas() {
+        let mut tm = make_table("t1", 500.0, 500.0);
+        tm.set_canvas_size(1024.0, 768.0);
+        let area = tm.get_active_table_screen_area_internal().unwrap();
+        assert_eq!(area, (0.0, 0.0, 1024.0, 768.0));
+    }
+
+    #[test]
+    fn set_table_screen_area_returns_false_for_unknown() {
+        let mut tm = make_table("t1", 500.0, 500.0);
+        assert!(!tm.set_table_screen_area("nope", 0.0, 0.0, 100.0, 100.0));
+    }
 }

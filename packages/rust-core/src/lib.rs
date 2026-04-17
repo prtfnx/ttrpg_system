@@ -109,47 +109,55 @@ static ALLOC: wee_alloc::WeeAlloc = wee_alloc::WeeAlloc::INIT;
 
 pub mod math;
 pub mod types;
-mod camera;
 mod input;
-mod input_controller;
 mod lighting;
 mod fog;
 mod geometry;
 mod wall_manager;
 mod table_manager;
 pub mod unit_converter;
-pub mod collision;
-pub mod planning;
-mod game;
 
-// WASM/WebGL-only modules — not compiled on native test targets
+// Systems subsystem
+mod systems;
+pub use systems::collision;
+pub use systems::planning;
+#[cfg(target_arch = "wasm32")]
+pub(crate) use systems::paint;
+
+// Rendering subsystem
+mod rendering;
+
+// Re-exports so existing `use crate::camera::Camera` etc. still resolve
+pub(crate) use rendering::camera;
+#[cfg(target_arch = "wasm32")]
+pub(crate) use rendering::sprite_manager;
+#[cfg(target_arch = "wasm32")]
+pub(crate) use rendering::sprite_renderer;
+#[cfg(target_arch = "wasm32")]
+pub(crate) use rendering::webgl_renderer;
+#[cfg(target_arch = "wasm32")]
+pub(crate) use rendering::text_renderer;
+#[cfg(target_arch = "wasm32")]
+pub(crate) use rendering::layer_manager;
+pub(crate) use rendering::grid_system;
+#[cfg(target_arch = "wasm32")]
+pub(crate) use rendering::texture_manager;
+
+// WASM/WebGL-only modules
 #[cfg(target_arch = "wasm32")]
 mod render;
 #[cfg(target_arch = "wasm32")]
-mod sprite_manager;
-#[cfg(target_arch = "wasm32")]
-mod sprite_renderer;
-#[cfg(target_arch = "wasm32")]
-mod webgl_renderer;
-#[cfg(target_arch = "wasm32")]
-mod text_renderer;
-#[cfg(target_arch = "wasm32")]
 mod event_system;
 #[cfg(target_arch = "wasm32")]
-mod layer_manager;
-mod grid_system;
+mod net;
 #[cfg(target_arch = "wasm32")]
-mod texture_manager;
+pub(crate) use net::client as network;
 #[cfg(target_arch = "wasm32")]
-mod network;
+pub(crate) use net::table_sync;
+#[cfg(target_arch = "wasm32")]
+pub(crate) use net::asset_manager;
 #[cfg(target_arch = "wasm32")]
 mod actions;
-#[cfg(target_arch = "wasm32")]
-mod paint;
-#[cfg(target_arch = "wasm32")]
-mod asset_manager;
-#[cfg(target_arch = "wasm32")]
-mod table_sync;
 #[cfg(target_arch = "wasm32")]
 mod utils;
 
@@ -160,16 +168,16 @@ pub use types::*;
 pub use lighting::LightingSystem;
 pub use lighting::{Light, LightType};
 #[cfg(target_arch = "wasm32")]
-pub use network::NetworkClient;
+pub use net::client::NetworkClient;
 #[cfg(target_arch = "wasm32")]
 pub use actions::ActionsClient;
 #[cfg(target_arch = "wasm32")]
-pub use paint::{PaintSystem, BrushPreset, create_default_brush_presets};
+pub use systems::paint::{PaintSystem, BrushPreset, create_default_brush_presets};
 #[cfg(target_arch = "wasm32")]
-pub use asset_manager::{AssetManager, AssetInfo, CacheStats};
+pub use net::asset_manager::{AssetManager, AssetInfo, CacheStats};
 pub use table_manager::TableManager;
 #[cfg(target_arch = "wasm32")]
-pub use table_sync::TableSync;
+pub use net::table_sync::TableSync;
 pub use collision::CollisionSystem;
 pub use planning::PlanningManager;
 

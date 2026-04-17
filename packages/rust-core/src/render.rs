@@ -434,12 +434,6 @@ impl RenderEngine {
         }
         layer_settings.opacity * layer_settings.inactive_opacity
     }
-    
-    pub fn get_viewport_bounds(&self) -> Vec<f64> {
-        let bounds = self.get_world_view_bounds();
-        vec![bounds.min.x as f64, bounds.min.y as f64, (bounds.max.x - bounds.min.x) as f64, (bounds.max.y - bounds.min.y) as f64]
-    }
-    
     /// Extract obstacles from sprites and wall manager for shadow casting.
     /// Wall segments are sourced from WallManager (respects door state).
     /// Sprite obstacles (rectangles/polygons on the obstacles layer) are also included.
@@ -511,44 +505,10 @@ impl RenderEngine {
         self.canvas_size = Vec2::new(width, height);
         self.update_view_matrix();
     }
-
-    /// Compute visibility polygon — merges JS obstacle segments with WallManager segments.
-    pub fn compute_visibility_polygon(&mut self, player_x: f32, player_y: f32, obstacles: js_sys::Float32Array, max_dist: f32) -> JsValue {
-        let mut all = obstacles.to_vec();
-        all.extend_from_slice(&self.wall_manager.get_light_blocking_segments());
-        geometry::compute_visibility_impl(player_x, player_y, &all, max_dist)
-    }
-
-    /// Add a fog reveal polygon (array of {x,y}) under given id.
-    /// id prefix "vision_" = fully lit zone, "darkvision_" = dim zone.
-    pub fn add_fog_polygon(&mut self, id: &str, points: JsValue) {
-        let arr = js_sys::Array::from(&points);
-        let mut flat: Vec<f32> = Vec::with_capacity(arr.length() as usize * 2);
-        for i in 0..arr.length() {
-            let pt = arr.get(i);
-            let x = js_sys::Reflect::get(&pt, &"x".into())
-                .unwrap_or(JsValue::from(0.0)).as_f64().unwrap_or(0.0) as f32;
-            let y = js_sys::Reflect::get(&pt, &"y".into())
-                .unwrap_or(JsValue::from(0.0)).as_f64().unwrap_or(0.0) as f32;
-            flat.push(x);
-            flat.push(y);
-        }
-        self.fog.add_vision_polygon(id, flat);
-    }
-
-    pub fn remove_fog_polygon(&mut self, id: &str) {
-        self.fog.remove_vision_polygon(id);
-    }
-
     #[wasm_bindgen]
     pub fn set_ambient_light(&mut self, level: f32) {
         self.fog.set_ambient_light(level);
     }
-
-    pub fn set_dynamic_lighting_enabled(&mut self, enabled: bool) {
-        self.fog.set_dynamic_lighting_enabled(enabled);
-    }
-    
     #[wasm_bindgen]
     pub fn handle_wheel(&mut self, screen_x: f32, screen_y: f32, delta_y: f32) {
         // Debug-only wheel logging to avoid spamming console
@@ -1041,21 +1001,10 @@ impl RenderEngine {
         let new_scale = crate::math::Vec2::new(scale_x as f32, scale_y as f32);
         self.layer_manager.update_sprite_scale(sprite_id, new_scale)
     }
-    
-    // Grid management methods
-    pub fn toggle_grid(&mut self) {
-        self.grid_system.toggle();
-    }
-    
     #[wasm_bindgen]
     pub fn set_grid_enabled(&mut self, enabled: bool) {
         self.grid_system.set_enabled(enabled);
     }
-    
-    pub fn toggle_grid_snapping(&mut self) {
-        self.grid_system.toggle_snapping();
-    }
-    
     #[wasm_bindgen]
     pub fn set_grid_snapping(&mut self, enabled: bool) {
         self.grid_system.set_snapping(enabled);
@@ -1070,45 +1019,6 @@ impl RenderEngine {
     pub fn get_grid_size(&self) -> f32 {
         self.grid_system.get_size()
     }
-    
-    pub fn is_grid_snapping_enabled(&self) -> bool {
-        self.grid_system.is_snapping_enabled()
-    }
-
-    // Additional grid methods for MapPanel compatibility
-    pub fn set_snap_to_grid(&mut self, enabled: bool) {
-        self.set_grid_snapping(enabled);
-    }
-
-    pub fn set_grid_color(&mut self, r: f32, g: f32, b: f32, a: f32) {
-        // Store grid color in the renderer for future use
-        // For now, we'll just log it since grid rendering uses fixed colors
-        utils::log(&format!("Setting grid color to rgba({}, {}, {}, {})", r, g, b, a));
-    }
-
-    pub fn set_background_color(&mut self, r: f32, g: f32, b: f32, a: f32) {
-        // Store background color and apply it in the next render
-        self.background_color = [r, g, b, a];
-        utils::log(&format!("Setting background color to rgba({}, {}, {}, {})", r, g, b, a));
-    }
-
-    pub fn get_background_color(&self) -> Vec<f32> {
-        self.background_color.to_vec()
-    }
-
-    // Additional camera methods for MapPanel compatibility
-    pub fn reset_camera(&mut self) {
-        self.set_camera(0.0, 0.0, 1.0);
-    }
-
-    pub fn set_camera_position(&mut self, world_x: f64, world_y: f64) {
-        self.center_camera(world_x, world_y);
-    }
-
-    pub fn set_camera_scale(&mut self, scale: f64) {
-        self.set_zoom(scale);
-    }
-    
     // Texture management
     #[wasm_bindgen]
     pub fn load_texture(&mut self, name: &str, image: &HtmlImageElement) -> Result<(), JsValue> {
@@ -1205,23 +1115,6 @@ impl RenderEngine {
     pub fn update_light_position(&mut self, id: &str, x: f32, y: f32) {
         self.lighting.update_light_position(id, Vec2::new(x, y));
     }
-
-    pub fn turn_on_all_lights(&mut self) {
-        self.lighting.turn_on_all();
-    }
-
-    pub fn turn_off_all_lights(&mut self) {
-        self.lighting.turn_off_all();
-    }
-
-    pub fn get_light_count(&self) -> usize {
-        self.lighting.get_light_count()
-    }
-
-    pub fn clear_lights(&mut self) {
-        self.lighting.clear_lights();
-    }
-
     // ===== FOG OF WAR METHODS =====
 
     #[wasm_bindgen]
@@ -1234,59 +1127,6 @@ impl RenderEngine {
     pub fn set_active_layer(&mut self, layer_name: &str) {
         self.active_layer = layer_name.to_string();
     }
-
-    pub fn get_active_layer(&self) -> String {
-        self.active_layer.clone()
-    }
-
-    /// Return current obstacle segments (polygon + rectangle) as a flat f32 array.
-    /// TypeScript vision service calls this instead of computing from the stale store.
-    pub fn get_obstacle_segments_flat(&self) -> Vec<f32> {
-        let mut segs = Vec::new();
-        if let Some(layer) = self.layer_manager.get_layer("obstacles") {
-            for sprite in &layer.sprites {
-                if sprite.obstacle_type.as_deref() == Some("polygon") {
-                    if let Some(verts) = &sprite.polygon_vertices {
-                        if verts.len() >= 2 {
-                            let n = verts.len();
-                            for i in 0..n {
-                                let next = (i + 1) % n;
-                                segs.push(verts[i][0] as f32);
-                                segs.push(verts[i][1] as f32);
-                                segs.push(verts[next][0] as f32);
-                                segs.push(verts[next][1] as f32);
-                            }
-                        }
-                    }
-                    continue;
-                }
-                // Rectangle obstacle
-                let w = (sprite.width * sprite.scale_x) as f32;
-                let h = (sprite.height * sprite.scale_y) as f32;
-                let cx = sprite.world_x as f32 + w / 2.0;
-                let cy = sprite.world_y as f32 + h / 2.0;
-                let half_w = w / 2.0;
-                let half_h = h / 2.0;
-                let angle = sprite.rotation as f32;
-                let cos_a = angle.cos();
-                let sin_a = angle.sin();
-                let raw: [(f32, f32); 4] = [(-half_w, -half_h), (half_w, -half_h), (half_w, half_h), (-half_w, half_h)];
-                let corners: [Vec2; 4] = std::array::from_fn(|i| {
-                    let (dx, dy) = raw[i];
-                    Vec2::new(cx + dx * cos_a - dy * sin_a, cy + dx * sin_a + dy * cos_a)
-                });
-                for i in 0..4 {
-                    let next = (i + 1) % 4;
-                    segs.push(corners[i].x);
-                    segs.push(corners[i].y);
-                    segs.push(corners[next].x);
-                    segs.push(corners[next].y);
-                }
-            }
-        }
-        segs
-    }
-
     // ===== WALL MANAGEMENT =====
 
     /// Add or replace a wall from a JSON object string.
@@ -1327,12 +1167,6 @@ impl RenderEngine {
         let data = self.wall_manager.get_render_data();
         js_sys::Float32Array::from(data.as_slice())
     }
-
-    /// Number of currently loaded walls.
-    pub fn get_wall_count(&self) -> usize {
-        self.wall_manager.count()
-    }
-
     #[wasm_bindgen]
     pub fn set_current_user_id(&mut self, user_id: i32) {
         self.current_user_id = Some(user_id);
@@ -1372,11 +1206,6 @@ impl RenderEngine {
     pub fn is_point_in_fog(&self, x: f32, y: f32) -> bool {
         self.fog.is_point_in_fog(x, y)
     }
-
-    pub fn get_fog_count(&self) -> usize {
-        self.fog.get_fog_count()
-    }
-
     // ============================================================================
     // INTERACTIVE CONTROLS - Mouse-based light positioning and fog drawing
     // ============================================================================
@@ -1386,48 +1215,6 @@ impl RenderEngine {
         let world_pos = Vec2::new(x, y);
         self.lighting.get_light_at_position(world_pos, 30.0).map(|s| s.clone())
     }
-
-    pub fn start_light_drag(&mut self, light_id: &str, world_x: f32, world_y: f32) -> bool {
-        if let Some(light_pos) = self.lighting.get_light_position(light_id) {
-            self.input.start_light_drag(light_id.to_string(), Vec2::new(world_x, world_y), light_pos);
-            true
-        } else {
-            false
-        }
-    }
-
-    pub fn update_light_drag(&mut self, world_x: f32, world_y: f32) -> bool {
-        if let Some(new_pos) = self.input.update_light_drag(Vec2::new(world_x, world_y)) {
-            if let Some(ref light_id) = self.input.selected_light_id {
-                self.lighting.update_light_position(light_id, new_pos);
-                true
-            } else {
-                false
-            }
-        } else {
-            false
-        }
-    }
-
-    pub fn end_light_drag(&mut self) -> Option<String> {
-        self.input.end_light_drag()
-    }
-
-    pub fn get_light_radius(&self, light_id: &str) -> f32 {
-        self.lighting.get_light_radius(light_id).unwrap_or(0.0)
-    }
-
-    // Fog of War - Simple API for Design A (manual DM fog only)
-    // All fog drawing handled in TypeScript UI, these are just forwarding methods
-    
-    pub fn set_light_drag_mode(&mut self, enabled: bool) {
-        if enabled {
-            self.input.input_mode = InputMode::LightDrag;
-        } else if self.input.input_mode == InputMode::LightDrag {
-            self.input.input_mode = InputMode::None;
-        }
-    }
-
     pub fn is_in_fog_draw_mode(&self) -> bool {
         matches!(self.input.input_mode, InputMode::FogDraw | InputMode::FogErase)
     }
@@ -1435,30 +1222,6 @@ impl RenderEngine {
     pub fn is_in_light_drag_mode(&self) -> bool {
         self.input.input_mode == InputMode::LightDrag
     }
-
-    pub fn get_current_input_mode(&self) -> String {
-        match self.input.input_mode {
-            InputMode::None => "none".to_string(),
-            InputMode::CameraPan => "camera_pan".to_string(),
-            InputMode::SpriteMove => "sprite_move".to_string(),
-            InputMode::SpriteResize(_) => "sprite_resize".to_string(),
-            InputMode::SpriteRotate => "sprite_rotate".to_string(),
-            InputMode::AreaSelect => "area_select".to_string(),
-            InputMode::LightDrag => "light_drag".to_string(),
-            InputMode::FogDraw => "fog_draw".to_string(),
-            InputMode::FogErase => "fog_erase".to_string(),
-            InputMode::Measurement => "measurement".to_string(),
-            InputMode::CreateRectangle => "create_rectangle".to_string(),
-            InputMode::CreateCircle => "create_circle".to_string(),
-            InputMode::CreateLine => "create_line".to_string(),
-            InputMode::CreateText => "create_text".to_string(),
-            InputMode::Paint => "paint".to_string(),
-            InputMode::DrawWall => "draw_wall".to_string(),
-            InputMode::CreatePolygon => "create_polygon".to_string(),
-            InputMode::WallDrag => "wall_drag".to_string(),
-        }
-    }
-
     // ============================================================================
     // INPUT MODE CONTROL - Methods to set specific input modes
     // ============================================================================
@@ -1467,142 +1230,11 @@ impl RenderEngine {
         self.input.input_mode = InputMode::Measurement;
         web_sys::console::log_1(&"[RUST] Input mode set to Measurement".into());
     }
-
-    pub fn set_input_mode_create_rectangle(&mut self) {
-        self.input.input_mode = InputMode::CreateRectangle;
-        web_sys::console::log_1(&"[RUST] Input mode set to CreateRectangle".into());
-    }
-
-    pub fn set_input_mode_create_circle(&mut self) {
-        self.input.input_mode = InputMode::CreateCircle;
-        web_sys::console::log_1(&"[RUST] Input mode set to CreateCircle".into());
-    }
-
-    pub fn set_input_mode_create_line(&mut self) {
-        self.input.input_mode = InputMode::CreateLine;
-        web_sys::console::log_1(&"[RUST] Input mode set to CreateLine".into());
-    }
-
-    pub fn set_input_mode_create_text(&mut self) {
-        self.input.input_mode = InputMode::CreateText;
-        web_sys::console::log_1(&"[RUST] Input mode set to CreateText".into());
-    }
-
-    #[wasm_bindgen]
-    pub fn set_input_mode_select(&mut self) {
-        self.input.input_mode = InputMode::None;
-        web_sys::console::log_1(&"[RUST] Input mode set to Select (None)".into());
-    }
-
-    pub fn clear_measurement(&mut self) {
-        self.input.clear_completed_measurement();
-        web_sys::console::log_1(&"[RUST] Completed measurement cleared".into());
-    }
-
     #[wasm_bindgen]
     pub fn set_input_mode_paint(&mut self) {
         self.input.input_mode = InputMode::Paint;
         web_sys::console::log_1(&"[RUST] Input mode set to Paint".into());
     }
-
-    pub fn set_input_mode_draw_wall(&mut self) {
-        self.input.input_mode = InputMode::DrawWall;
-        self.input.cancel_wall_draw();
-        web_sys::console::log_1(&"[RUST] Input mode set to DrawWall".into());
-    }
-
-    pub fn set_input_mode_create_polygon(&mut self) {
-        self.input.input_mode = InputMode::CreatePolygon;
-        self.input.cancel_polygon();
-        web_sys::console::log_1(&"[RUST] Input mode set to CreatePolygon".into());
-    }
-
-    pub fn cancel_polygon_creation(&mut self) {
-        self.input.cancel_polygon();
-        self.input.input_mode = InputMode::None;
-    }
-
-    pub fn undo_polygon_vertex(&mut self) {
-        self.input.undo_polygon_vertex();
-    }
-
-    /// Create a polygon obstacle sprite from world-space vertices (flat [x0,y0,x1,y1,...]).
-    /// Returns the new sprite ID or an empty string on failure.
-    pub fn create_polygon_sprite(&mut self, vertices_flat: &[f32], layer: &str, table_id: &str) -> String {
-        if vertices_flat.len() < 6 { return String::new(); } // need ≥3 vertices
-
-        // Compute AABB bounding box to place the sprite anchor
-        let xs: Vec<f32> = vertices_flat.iter().step_by(2).copied().collect();
-        let ys: Vec<f32> = vertices_flat.iter().skip(1).step_by(2).copied().collect();
-        let min_x = xs.iter().cloned().fold(f32::INFINITY, f32::min);
-        let max_x = xs.iter().cloned().fold(f32::NEG_INFINITY, f32::max);
-        let min_y = ys.iter().cloned().fold(f32::INFINITY, f32::min);
-        let max_y = ys.iter().cloned().fold(f32::NEG_INFINITY, f32::max);
-
-        let id = format!("polygon_{}", (js_sys::Math::random() * 1e15) as u64);
-        let verts: Vec<[f32; 2]> = vertices_flat.chunks(2).map(|c| [c[0], c[1]]).collect();
-
-        let sprite = crate::types::Sprite {
-            id: id.clone(),
-            table_id: table_id.to_string(),
-            world_x: min_x as f64,
-            world_y: min_y as f64,
-            width: (max_x - min_x) as f64,
-            height: (max_y - min_y) as f64,
-            scale_x: 1.0,
-            scale_y: 1.0,
-            rotation: 0.0,
-            layer: layer.to_string(),
-            texture_id: String::new(),
-            tint_color: [0.2, 0.2, 0.8, 0.5], // semi-transparent blue fill hint
-            obstacle_type: Some("polygon".to_string()),
-            polygon_vertices: Some(verts),
-            character_id: None,
-            controlled_by: Vec::new(),
-            hp: None, max_hp: None, ac: None,
-            aura_radius: None, aura_color: None,
-            is_text_sprite: None, text_content: None, text_size: None, text_color: None,
-        };
-
-        if let Some(layer_obj) = self.layer_manager.get_layer_mut(layer) {
-            layer_obj.sprites.push(sprite);
-            if layer == "obstacles" { self.obstacles_dirty = true; }
-            id
-        } else {
-            String::new()
-        }
-    }
-
-    pub fn set_input_mode_fog_draw(&mut self) {
-        self.input.input_mode = InputMode::FogDraw;
-        self.input.fog_mode = FogDrawMode::Hide;
-        web_sys::console::log_1(&"[RUST] Input mode set to FogDraw (Hide)".into());
-    }
-
-    pub fn set_input_mode_fog_erase(&mut self) {
-        self.input.input_mode = InputMode::FogErase;
-        self.input.fog_mode = FogDrawMode::Reveal;
-        web_sys::console::log_1(&"[RUST] Input mode set to FogErase (Reveal)".into());
-    }
-
-    pub fn set_fog_draw_mode_hide(&mut self) {
-        self.input.fog_mode = FogDrawMode::Hide;
-        web_sys::console::log_1(&"[RUST] Fog draw mode set to Hide".into());
-    }
-
-    pub fn set_fog_draw_mode_reveal(&mut self) {
-        self.input.fog_mode = FogDrawMode::Reveal;
-        web_sys::console::log_1(&"[RUST] Fog draw mode set to Reveal".into());
-    }
-
-    // ============================================================================
-    // SPRITE CREATION METHODS - Create sprites from tools
-    // ============================================================================
-    
-    pub fn create_rectangle_sprite(&mut self, x: f32, y: f32, width: f32, height: f32, layer_name: &str) -> String {
-        self.create_rectangle_sprite_with_options(x, y, width, height, layer_name, "#50c850", 1.0, false)
-    }
-    
     pub fn create_rectangle_sprite_with_options(&mut self, x: f32, y: f32, width: f32, height: f32, layer_name: &str, color: &str, opacity: f32, filled: bool) -> String {
         web_sys::console::log_1(&format!("[RUST] create_rectangle_sprite called: {},{} {}x{} on layer '{}' color: {} opacity: {} filled: {}", x, y, width, height, layer_name, color, opacity, filled).into());
         let sprite_id = format!("rect_{}", js_sys::Date::now() as u64);
@@ -1646,11 +1278,6 @@ impl RenderEngine {
         web_sys::console::log_1(&format!("[RUST] Created rectangle sprite: {}", sprite_id).into());
         sprite_id
     }
-    
-    pub fn create_circle_sprite(&mut self, x: f32, y: f32, radius: f32, layer_name: &str) -> String {
-        self.create_circle_sprite_with_options(x, y, radius, layer_name, "#5080c8", 1.0, false)
-    }
-    
     pub fn create_circle_sprite_with_options(&mut self, x: f32, y: f32, radius: f32, layer_name: &str, color: &str, opacity: f32, filled: bool) -> String {
         let sprite_id = format!("circle_{}", js_sys::Date::now() as u64);
         let diameter = radius * 2.0;
@@ -1690,40 +1317,32 @@ impl RenderEngine {
         web_sys::console::log_1(&format!("[RUST] Created circle sprite: {}", sprite_id).into());
         sprite_id
     }
-    
-    pub fn create_line_sprite(&mut self, start_x: f32, start_y: f32, end_x: f32, end_y: f32, layer_name: &str) -> String {
-        self.create_line_sprite_with_options(start_x, start_y, end_x, end_y, layer_name, "#c85050", 1.0)
-    }
-    
+
     pub fn create_line_sprite_with_options(&mut self, start_x: f32, start_y: f32, end_x: f32, end_y: f32, layer_name: &str, color: &str, opacity: f32) -> String {
         let sprite_id = format!("line_{}", js_sys::Date::now() as u64);
-        
-        // Calculate line dimensions
+
         let dx = end_x - start_x;
         let dy = end_y - start_y;
         let length = (dx * dx + dy * dy).sqrt();
-        let width: f32 = 4.0; // Line thickness
-        
-        // Calculate position and rotation
+        let width: f32 = 4.0;
+
         let center_x = (start_x + end_x) / 2.0;
         let center_y = (start_y + end_y) / 2.0;
         let angle = dy.atan2(dx);
-        
-        // Convert color and opacity to RGBA bytes
+
         let rgba_color = Self::hex_to_rgba(color, opacity);
-        
-        // Create procedural line texture with color
+
         let texture_name = format!("line_texture_{}", sprite_id);
         let texture_width = length.max(8.0) as u32;
         let texture_height = width.max(4.0) as u32;
-        let line_width = 2u32; // Line width in pixels
+        let line_width = 2u32;
         if let Err(e) = self.texture_manager.create_line_texture_with_color(&texture_name, texture_width, texture_height, line_width, rgba_color) {
             web_sys::console::log_1(&format!("[RUST] Failed to create line texture: {:?}", e).into());
         }
-        
+
         let active_table_id = self.table_manager.get_active_table_id()
             .unwrap_or("default_table".to_string());
-        
+
         let sprite = Sprite {
             id: sprite_id.clone(),
             world_x: (center_x - length / 2.0) as f64,
@@ -1734,348 +1353,21 @@ impl RenderEngine {
             scale_x: 1.0,
             scale_y: 1.0,
             layer: layer_name.to_string(),
-            texture_id: texture_name, // Use procedural line texture
-            tint_color: [1.0, 1.0, 1.0, 1.0], // White tint (no color change)
+            texture_id: texture_name,
+            tint_color: [1.0, 1.0, 1.0, 1.0],
             table_id: active_table_id,
             ..Default::default()
         };
-        
-        // Convert to JsValue for layer manager
+
         let sprite_data = serde_wasm_bindgen::to_value(&sprite).unwrap();
         let _ = self.layer_manager.add_sprite_to_layer(layer_name, &sprite_data);
         web_sys::console::log_1(&format!("[RUST] Created line sprite: {} at ({:.1}, {:.1})", sprite_id, center_x, center_y).into());
         sprite_id
     }
 
-    pub fn create_text_sprite(&mut self, text: &str, x: f32, y: f32, font_size: f32, color: &str, layer_name: &str) -> String {
-        web_sys::console::log_1(&format!("[RUST] create_text_sprite called: '{}' at ({:.1}, {:.1}) size: {} color: {} on layer '{}'", 
-            text, x, y, font_size, color, layer_name).into());
-        
-        let sprite_id = format!("text_{}", js_sys::Date::now() as u64);
-        
-        // Convert color hex to RGBA (opacity is always 1.0 for text)
-        let rgba_color = Self::hex_to_rgba(color, 1.0);
-        
-        // Convert RGBA bytes to normalized float array [0.0, 1.0]
-        let text_color = [
-            rgba_color[0] as f32 / 255.0,
-            rgba_color[1] as f32 / 255.0,
-            rgba_color[2] as f32 / 255.0,
-            rgba_color[3] as f32 / 255.0,
-        ];
-        
-        // Calculate accurate text dimensions based on character advances
-        // Base char size is 32px, so scale by font_size multiplier
-        let base_char_size = 32.0;
-        let actual_size = base_char_size * font_size;
-        
-        // Calculate text width using actual character advances (matching text_renderer.rs)
-        let mut text_width = 0.0;
-        for ch in text.chars() {
-            let advance = match ch {
-                '.' | ',' | ':' | ';' | '!' | '\'' | '`' => 8.0,
-                'i' | 'l' | 'I' | '|' => 10.0,
-                ' ' => 12.0,
-                _ => 18.0,  // Default advance
-            };
-            text_width += advance * font_size;
-        }
-        
-        // Add padding to make the sprite easier to select
-        let padding = 8.0 * font_size;
-        let estimated_width = text_width + padding;
-        let estimated_height = actual_size + padding;
-        
-        // Since text is rendered centered at x, the bounding box should start at x - width/2
-        // to match where the text actually appears
-        let bbox_x = x - estimated_width / 2.0;
-        
-        // Text renderer will draw at bbox center: (world_y + height/2)
-        // We want text at y, so: y = bbox_y + height/2
-        // Therefore: bbox_y = y - height/2
-        let bbox_y = y - estimated_height / 2.0;
-        
-        let active_table_id = self.table_manager.get_active_table_id()
-            .unwrap_or("default_table".to_string());
-        
-        let sprite = Sprite {
-            id: sprite_id.clone(),
-            world_x: bbox_x as f64,  // Use centered position
-            world_y: bbox_y as f64,  // Center vertically so text renders at click Y
-            width: estimated_width as f64,
-            height: estimated_height as f64,
-            rotation: 0.0,
-            scale_x: 1.0,
-            scale_y: 1.0,
-            layer: layer_name.to_string(),
-            texture_id: "text_sprite".to_string(), // Placeholder - text sprites don't use textures
-            tint_color: [1.0, 1.0, 1.0, 1.0],
-            table_id: active_table_id,
-            character_id: None,
-            controlled_by: Vec::new(),
-            hp: None,
-            max_hp: None,
-            ac: None,
-            aura_radius: None,
-            aura_color: None,
-            is_text_sprite: Some(true),
-            text_content: Some(text.to_string()),
-            text_size: Some(font_size as f64),
-            text_color: Some(text_color),
-            ..Default::default()
-        };
-        
-        web_sys::console::log_1(&format!("[RUST] Created text sprite {}, adding to layer '{}'", sprite_id, layer_name).into());
-        
-        // Convert to JsValue for layer manager
-        let sprite_data = serde_wasm_bindgen::to_value(&sprite).unwrap();
-        let result = self.layer_manager.add_sprite_to_layer(layer_name, &sprite_data);
-        web_sys::console::log_1(&format!("[RUST] add_sprite_to_layer result: {:?}", result).into());
-        web_sys::console::log_1(&format!("[RUST] Created text sprite: {} with text: '{}'", sprite_id, text).into());
-        
-        sprite_id
-    }
-
-    // ============================================================================
-    // NETWORK INTEGRATION - Direct integration with NetworkClient
-    // ============================================================================
-    
-    pub fn get_sprite_network_data(&self, sprite_id: &str) -> Result<JsValue, JsValue> {
-        if let Some((sprite, layer_name)) = self.layer_manager.find_sprite(sprite_id) {
-            let network_data = crate::network::SpriteNetworkData {
-                sprite_id: sprite_id.to_string(),
-                layer_name: layer_name.to_string(),
-                world_x: sprite.world_x,
-                world_y: sprite.world_y,
-                width: sprite.width,
-                height: sprite.height,
-                rotation: sprite.rotation,
-                texture_name: sprite.texture_id.clone(),
-            };
-            serde_wasm_bindgen::to_value(&network_data).map_err(|e| JsValue::from_str(&e.to_string()))
-        } else {
-            Err(JsValue::from_str("Sprite not found"))
-        }
-    }
-
-    pub fn apply_network_sprite_update(&mut self, sprite_data: &JsValue) -> Result<(), JsValue> {
-        let network_data: crate::network::SpriteNetworkData = 
-            serde_wasm_bindgen::from_value(sprite_data.clone())?;
-        
-        // Find the sprite and update it
-        if let Some(sprite) = self.layer_manager.find_sprite_mut(&network_data.sprite_id) {
-            sprite.world_x = network_data.world_x;
-            sprite.world_y = network_data.world_y;
-            sprite.width = network_data.width;
-            sprite.height = network_data.height;
-            sprite.rotation = network_data.rotation;
-            sprite.texture_id = network_data.texture_name;
-            Ok(())
-        } else {
-            Err(JsValue::from_str("Sprite not found for network update"))
-        }
-    }
-
-    pub fn update_sprite_controlled_by(&mut self, sprite_id: &str, controlled_by_js: &JsValue) -> bool {
-        let controlled_by: Vec<i32> = match serde_wasm_bindgen::from_value(controlled_by_js.clone()) {
-            Ok(v) => v,
-            Err(_) => return false,
-        };
-        if let Some(sprite) = self.layer_manager.find_sprite_mut(sprite_id) {
-            sprite.controlled_by = controlled_by;
-            true
-        } else {
-            false
-        }
-    }
-
-    pub fn apply_network_sprite_create(&mut self, sprite_data: &JsValue) -> Result<String, JsValue> {
-        let network_data: crate::network::SpriteNetworkData = 
-            serde_wasm_bindgen::from_value(sprite_data.clone())?;
-        
-        let active_table_id = self.table_manager.get_active_table_id()
-            .unwrap_or("default_table".to_string());
-        
-        // Create a new sprite from network data
-        let sprite = Sprite {
-            id: network_data.sprite_id.clone(),
-            world_x: network_data.world_x,
-            world_y: network_data.world_y,
-            width: network_data.width,
-            height: network_data.height,
-            scale_x: 1.0,
-            scale_y: 1.0,
-            rotation: network_data.rotation,
-            layer: network_data.layer_name.clone(),
-            texture_id: network_data.texture_name,
-            tint_color: [1.0, 1.0, 1.0, 1.0],
-            table_id: active_table_id,
-            ..Default::default()
-        };
-        
-        let sprite_js = serde_wasm_bindgen::to_value(&sprite)?;
-        self.layer_manager.add_sprite_to_layer(&network_data.layer_name, &sprite_js)
-    }
-
-    pub fn apply_network_sprite_remove(&mut self, sprite_id: &str) -> bool {
-        self.remove_sprite(sprite_id)
-    }
-
-    pub fn get_all_sprites_network_data(&self) -> Result<JsValue, JsValue> {
-        let mut all_sprites = Vec::new();
-        
-        for (layer_name, layer) in self.layer_manager.get_layers() {
-            for sprite in &layer.sprites {
-                let network_data = crate::network::SpriteNetworkData {
-                    sprite_id: sprite.id.clone(),
-                    layer_name: layer_name.clone(),
-                    world_x: sprite.world_x,
-                    world_y: sprite.world_y,
-                    width: sprite.width,
-                    height: sprite.height,
-                    rotation: sprite.rotation,
-                    texture_name: sprite.texture_id.clone(),
-                };
-                all_sprites.push(network_data);
-            }
-        }
-        
-        serde_wasm_bindgen::to_value(&all_sprites).map_err(|e| JsValue::from_str(&e.to_string()))
-    }
-
-    // Actions System Integration
-
-    pub fn create_table_action(&mut self, name: &str, width: f64, height: f64) -> JsValue {
-        self.actions.create_table(name, width, height)
-    }
-
-    pub fn delete_table_action(&mut self, table_id: &str) -> JsValue {
-        self.actions.delete_table(table_id)
-    }
-
-    /// Delete a table and clean up all associated resources (sprites, lights, fog)
-    pub fn delete_table(&mut self, table_id: &str) -> Result<(), JsValue> {
-        web_sys::console::log_1(&format!("[TABLE-DELETE] 🗑️ Deleting table: {}", table_id).into());
-        
-        // Clean up all entities associated with this table
-        let sprites_removed = self.layer_manager.clear_sprites_for_table(table_id);
-        let lights_removed = self.lighting.clear_lights_for_table(table_id);
-        let fog_removed = self.fog.clear_fog_for_table(table_id);
-        
-        web_sys::console::log_1(&format!(
-            "[TABLE-DELETE] 🗑️ Cleaned up {} sprites, {} lights, {} fog rectangles",
-            sprites_removed, lights_removed, fog_removed
-        ).into());
-        
-        // Remove from table manager
-        if !self.table_manager.remove_table(table_id) {
-            return Err(JsValue::from_str(&format!("Table '{}' not found", table_id)));
-        }
-        
-        web_sys::console::log_1(&format!("[TABLE-DELETE] ✅ Table '{}' deleted successfully", table_id).into());
-        Ok(())
-    }
-
-    pub fn update_table_action(&mut self, table_id: &str, updates: &JsValue) -> JsValue {
-        self.actions.update_table(table_id, updates)
-    }
-
-    pub fn create_sprite_action(&mut self, table_id: &str, layer: &str, position: &JsValue, texture_name: &str) -> JsValue {
-        let result = self.actions.create_sprite(table_id, layer, position, texture_name);
-        
-        // If successful, also add the sprite to the layer manager
-        if let Ok(action_result) = serde_wasm_bindgen::from_value::<crate::actions::ActionResult>(result.clone()) {
-            if action_result.success {
-                if let Some(sprite_data) = action_result.data {
-                    if let Ok(sprite_info) = serde_json::from_value::<crate::actions::SpriteInfo>(sprite_data) {
-                        let sprite = Sprite::new(
-                            sprite_info.sprite_id.clone(),
-                            sprite_info.position.x,
-                            sprite_info.position.y,
-                            sprite_info.size.width,
-                            sprite_info.size.height,
-                            sprite_info.texture_name.clone(),
-                        );
-                        let sprite_js = serde_wasm_bindgen::to_value(&sprite).unwrap_or(JsValue::NULL);
-                        let _ = self.layer_manager.add_sprite_to_layer(&sprite_info.layer, &sprite_js);
-                    }
-                }
-            }
-        }
-        
-        result
-    }
-
-    pub fn delete_sprite_action(&mut self, sprite_id: &str) -> JsValue {
-        let result = self.actions.delete_sprite(sprite_id);
-        
-        // If successful, also remove from layer manager
-        if let Ok(action_result) = serde_wasm_bindgen::from_value::<crate::actions::ActionResult>(result.clone()) {
-            if action_result.success {
-                // Note: LayerManager doesn't have remove_sprite_from_all_layers, so we'll skip this for now
-                web_sys::console::log_1(&format!("Sprite {} deleted from actions", sprite_id).into());
-            }
-        }
-        
-        result
-    }
-
-    pub fn update_sprite_action(&mut self, sprite_id: &str, updates: &JsValue) -> JsValue {
-        let result = self.actions.update_sprite(sprite_id, updates);
-        
-        // If successful, also update in layer manager
-        if let Ok(action_result) = serde_wasm_bindgen::from_value::<crate::actions::ActionResult>(result.clone()) {
-            if action_result.success {
-                // Note: LayerManager doesn't have update_sprite_in_layers, so we'll skip this for now
-                web_sys::console::log_1(&format!("Sprite {} updated in actions", sprite_id).into());
-            }
-        }
-        
-        result
-    }
-
-    pub fn set_layer_visibility_action(&mut self, layer: &str, visible: bool) -> JsValue {
-        let result = self.actions.set_layer_visibility(layer, visible);
-        
-        // Also update the layer manager
-        self.layer_manager.set_layer_visibility(layer, visible);
-        
-        result
-    }
-
-    pub fn move_sprite_to_layer_action(&mut self, sprite_id: &str, new_layer: &str) -> JsValue {
-        let old_layer_is_obstacles = self.layer_manager.find_sprite(sprite_id).map(|(_, l)| l == "obstacles").unwrap_or(false);
-        let result = self.actions.move_sprite_to_layer(sprite_id, new_layer);
-        
-        // If successful, also move in layer manager
-        if let Ok(action_result) = serde_wasm_bindgen::from_value::<crate::actions::ActionResult>(result.clone()) {
-            if action_result.success {
-                // Move sprite in layer manager for rendering
-                let moved = self.layer_manager.move_sprite_to_layer(sprite_id, new_layer);
-                if moved {
-                    web_sys::console::log_1(&format!("✅ Sprite {} successfully moved to layer {} in both actions and layer manager", sprite_id, new_layer).into());
-                    if old_layer_is_obstacles || new_layer == "obstacles" { self.obstacles_dirty = true; }
-                } else {
-                    web_sys::console::warn_1(&format!("⚠️ Sprite {} moved in actions but not found in layer manager", sprite_id).into());
-                }
-            }
-        }
-        
-        result
-    }
-
     pub fn batch_actions(&mut self, actions: &JsValue) -> JsValue {
         self.actions.batch_actions(actions)
     }
-
-    pub fn undo_action(&mut self) -> JsValue {
-        self.actions.undo()
-    }
-
-    pub fn redo_action(&mut self) -> JsValue {
-        self.actions.redo()
-    }
-
     pub fn can_undo(&self) -> bool {
         self.actions.can_undo()
     }
@@ -2083,44 +1375,6 @@ impl RenderEngine {
     pub fn can_redo(&self) -> bool {
         self.actions.can_redo()
     }
-
-    pub fn get_action_history(&self) -> JsValue {
-        self.actions.get_action_history()
-    }
-
-    pub fn get_table_info(&self, table_id: &str) -> JsValue {
-        self.actions.get_table_info(table_id)
-    }
-
-    pub fn get_sprite_info(&self, sprite_id: &str) -> JsValue {
-        self.actions.get_sprite_info(sprite_id)
-    }
-
-    pub fn get_all_tables(&self) -> JsValue {
-        self.actions.get_all_tables()
-    }
-
-    pub fn get_sprites_by_layer(&self, layer: &str) -> JsValue {
-        self.actions.get_sprites_by_layer(layer)
-    }
-
-    // Actions event handlers setup
-    pub fn set_action_handler(&mut self, callback: &js_sys::Function) {
-        self.actions.set_action_handler(callback);
-    }
-
-    pub fn set_state_change_handler(&mut self, callback: &js_sys::Function) {
-        self.actions.set_state_change_handler(callback);
-    }
-
-    pub fn set_actions_error_handler(&mut self, callback: &js_sys::Function) {
-        self.actions.set_error_handler(callback);
-    }
-
-    pub fn set_actions_auto_sync(&mut self, enabled: bool) {
-        self.actions.set_auto_sync(enabled);
-    }
-    
     // Advanced Layer Management for Rendering Pipeline
     #[wasm_bindgen]
     pub fn set_layer_opacity(&mut self, layer_name: &str, opacity: f32) -> bool {
@@ -2149,35 +1403,6 @@ impl RenderEngine {
     pub fn set_layer_color(&mut self, layer_name: &str, r: f32, g: f32, b: f32) -> bool {
         self.layer_manager.set_layer_color(layer_name, r, g, b)
     }
-
-    /// Set the RGBA tint applied to inactive layers (shown when layer is not active)
-    pub fn set_layer_tint_color(&mut self, layer_name: &str, r: f32, g: f32, b: f32, a: f32) -> bool {
-        if let Some(settings) = self.layer_manager.get_layer_settings_mut(layer_name) {
-            settings.tint_color = [r.clamp(0.0, 1.0), g.clamp(0.0, 1.0), b.clamp(0.0, 1.0), a.clamp(0.0, 1.0)];
-            true
-        } else {
-            false
-        }
-    }
-
-    /// Set the opacity multiplier applied to a layer when it is not the active layer
-    pub fn set_layer_inactive_opacity(&mut self, layer_name: &str, opacity: f32) -> bool {
-        if let Some(settings) = self.layer_manager.get_layer_settings_mut(layer_name) {
-            settings.inactive_opacity = opacity.clamp(0.0, 1.0);
-            true
-        } else {
-            false
-        }
-    }
-
-    pub fn get_layer_settings(&self, layer_name: &str) -> JsValue {
-        if let Some(settings) = self.layer_manager.get_layer_settings(layer_name) {
-            serde_wasm_bindgen::to_value(settings).unwrap_or(JsValue::NULL)
-        } else {
-            JsValue::NULL
-        }
-    }
-    
     #[wasm_bindgen]
     pub fn get_layer_names(&self) -> Vec<String> {
         self.layer_manager.get_layers().keys().cloned().collect()
@@ -2191,11 +1416,6 @@ impl RenderEngine {
             0
         }
     }
-    
-    pub fn set_layer_z_order(&mut self, layer_name: &str, z_order: i32) -> bool {
-        self.layer_manager.set_layer_z_order(layer_name, z_order)
-    }
-    
     pub fn clear_layer(&mut self, layer_name: &str) -> bool {
         if let Some(layer) = self.layer_manager.get_layer_mut(layer_name) {
             layer.sprites.clear();
@@ -2204,11 +1424,6 @@ impl RenderEngine {
             false
         }
     }
-    
-    pub fn clear_all_sprites(&mut self) {
-        self.layer_manager.clear_all_layers();
-    }
-    
     pub fn set_layer_visible(&mut self, layer_name: &str, visible: bool) -> bool {
         self.layer_manager.set_layer_visibility(layer_name, visible)
     }
@@ -2219,15 +1434,6 @@ impl RenderEngine {
     pub fn paint_set_current_table(&mut self, table_id: &str) {
         self.paint.set_current_table(table_id);
     }
-    
-    pub fn paint_get_current_table(&self) -> Option<String> {
-        self.paint.get_current_table()
-    }
-    
-    pub fn paint_clear_table(&mut self, table_id: &str) {
-        self.paint.clear_table_paint(table_id);
-    }
-    
     #[wasm_bindgen]
     pub fn paint_enter_mode(&mut self, width: f32, height: f32) {
         self.paint.enter_paint_mode(width, height);
@@ -2237,11 +1443,6 @@ impl RenderEngine {
     pub fn paint_exit_mode(&mut self) {
         self.paint.exit_paint_mode();
     }
-    
-    pub fn paint_is_mode(&self) -> bool {
-        self.paint.is_paint_mode()
-    }
-    
     #[wasm_bindgen]
     pub fn paint_set_brush_color(&mut self, r: f32, g: f32, b: f32, a: f32) {
         self.paint.set_brush_color(r, g, b, a);
@@ -2256,15 +1457,6 @@ impl RenderEngine {
     pub fn paint_set_blend_mode(&mut self, blend_mode: &str) {
         self.paint.set_blend_mode(blend_mode);
     }
-    
-    pub fn paint_get_brush_color(&self) -> Vec<f32> {
-        self.paint.get_brush_color()
-    }
-    
-    pub fn paint_get_brush_width(&self) -> f32 {
-        self.paint.get_brush_width()
-    }
-    
     #[wasm_bindgen]
     pub fn paint_start_stroke(&mut self, world_x: f32, world_y: f32, pressure: f32) -> bool {
         self.paint.start_stroke(world_x, world_y, pressure)
@@ -2279,135 +1471,14 @@ impl RenderEngine {
     pub fn paint_end_stroke(&mut self) -> bool {
         self.paint.end_stroke()
     }
-    
-    pub fn paint_cancel_stroke(&mut self) {
-        self.paint.cancel_stroke();
-    }
-    
     #[wasm_bindgen]
     pub fn paint_clear_all(&mut self) {
         self.paint.clear_all_strokes();
     }
-    
-    pub fn paint_save_strokes_as_sprites(&mut self, layer_name: &str) -> Vec<String> {
-        let strokes_json = self.paint.get_strokes_data_json();
-        let mut sprite_ids = Vec::new();
-        
-        if let Ok(strokes_data) = serde_wasm_bindgen::from_value::<Vec<serde_json::Value>>(strokes_json) {
-            for stroke_data in strokes_data {
-                if let (Some(id), Some(min_x), Some(min_y), Some(max_x), Some(max_y), Some(color), Some(_width)) = (
-                    stroke_data["id"].as_str(),
-                    stroke_data["min_x"].as_f64(),
-                    stroke_data["min_y"].as_f64(),
-                    stroke_data["max_x"].as_f64(),
-                    stroke_data["max_y"].as_f64(),
-                    stroke_data["color"].as_array(),
-                    stroke_data["width"].as_f64()
-                ) {
-                    let sprite_id = format!("paint_stroke_{}", js_sys::Date::now() as u64);
-                    
-                    // Calculate sprite bounds
-                    let sprite_width = (max_x - min_x).max(10.0);
-                    let sprite_height = (max_y - min_y).max(10.0);
-                    
-                    // Extract color array
-                    let tint_color = if color.len() >= 4 {
-                        [
-                            color[0].as_f64().unwrap_or(1.0) as f32,
-                            color[1].as_f64().unwrap_or(1.0) as f32,
-                            color[2].as_f64().unwrap_or(1.0) as f32,
-                            color[3].as_f64().unwrap_or(1.0) as f32,
-                        ]
-                    } else {
-                    [1.0, 1.0, 1.0, 1.0]
-                };
-                
-                let active_table_id = self.table_manager.get_active_table_id()
-                    .unwrap_or("default_table".to_string());
-                
-                // Create a sprite representing the paint stroke
-                let sprite = Sprite {
-                    id: sprite_id.clone(),
-                    world_x: min_x,
-                    world_y: min_y,
-                    width: sprite_width,
-                    height: sprite_height,
-                    rotation: 0.0,
-                    scale_x: 1.0,
-                    scale_y: 1.0,
-                    texture_id: format!("paint_stroke_{}", id), // Custom texture ID for paint stroke
-                    tint_color,
-                    layer: layer_name.to_string(),
-                    table_id: active_table_id,
-                    character_id: None,
-                    controlled_by: Vec::new(),
-                    hp: None,
-                    max_hp: None,
-                    ac: None,
-                    aura_radius: None,
-                    aura_color: None,
-                    is_text_sprite: None,
-                    text_content: None,
-                    text_size: None,
-                    text_color: None,
-                    obstacle_type: None,
-                    polygon_vertices: None,
-                };                    // Convert sprite to JsValue and add to layer manager
-                    if let Ok(sprite_js) = serde_wasm_bindgen::to_value(&sprite) {
-                        match self.layer_manager.add_sprite_to_layer(layer_name, &sprite_js) {
-                            Ok(sprite_id) => {
-                                sprite_ids.push(sprite_id);
-                            }
-                            Err(e) => {
-                                web_sys::console::log_1(&format!("[RUST] Failed to create sprite from paint stroke: {:?}", e).into());
-                            }
-                        }
-                    }
-                }
-            }
-        }
-        
-        // Clear paint strokes after converting to sprites
-        if !sprite_ids.is_empty() {
-            self.paint.clear_all_strokes();
-            web_sys::console::log_1(&format!("[RUST] Saved {} paint strokes as sprites and cleared canvas", sprite_ids.len()).into());
-        }
-        
-        sprite_ids
-    }
-
     #[wasm_bindgen]
     pub fn paint_undo_stroke(&mut self) -> bool {
         self.paint.undo_last_stroke()
     }
-    
-    pub fn paint_get_stroke_count(&self) -> usize {
-        self.paint.get_stroke_count()
-    }
-    
-    pub fn paint_is_drawing(&self) -> bool {
-        self.paint.is_drawing()
-    }
-    
-    pub fn paint_get_strokes(&self) -> JsValue {
-        self.paint.get_all_strokes_json()
-    }
-    
-    pub fn paint_get_current_stroke(&self) -> JsValue {
-        self.paint.get_current_stroke_json()
-    }
-    
-    pub fn paint_on_event(&mut self, event_type: &str, callback: js_sys::Function) {
-        self.paint.on_stroke_event(event_type, callback);
-    }
-
-    // ========== TABLE SYNC INTEGRATION ==========
-
-    /// Set network client for table synchronization
-    pub fn set_network_client(&mut self, network_client: &js_sys::Object) {
-        self.table_sync.set_network_client(network_client);
-    }
-
     /// Handle table data received from server
     #[wasm_bindgen]
     pub fn handle_table_data(&mut self, table_data_js: &JsValue) -> Result<(), JsValue> {
@@ -2593,269 +1664,18 @@ impl RenderEngine {
             }
         }
     }
-
-    /// Handle sprite update from server
-    pub fn handle_sprite_update(&mut self, update_data_js: &JsValue) -> Result<(), JsValue> {
-        // First update the table sync state
-        self.table_sync.handle_sprite_update(update_data_js)?;
-
-        // Parse the update data
-        let update_data: crate::table_sync::SpriteUpdateData = serde_wasm_bindgen::from_value(update_data_js.clone())
-            .map_err(|e| JsValue::from_str(&format!("Failed to parse sprite update: {}", e)))?;
-
-        // Apply the update to the render engine
-        match update_data.update_type.as_str() {
-            "sprite_move" => {
-                if let Some(to) = update_data.data.get("to") {
-                    if let (Some(x), Some(y)) = (to.get("x"), to.get("y")) {
-                        let new_pos = Vec2::new(x.as_f64().unwrap_or(0.0) as f32, y.as_f64().unwrap_or(0.0) as f32);
-                        self.layer_manager.update_sprite_position(&update_data.sprite_id, new_pos);
-                        // Keep token light centered on the sprite
-                        let light_id = format!("token_light_{}", update_data.sprite_id);
-                        let center = Vec2::new(new_pos.x + 25.0, new_pos.y + 25.0);
-                        self.lighting.update_light_position(&light_id, center);
-                    }
-                }
-            }
-            "sprite_scale" => {
-                if let (Some(scale_x), Some(scale_y)) = (
-                    update_data.data.get("scale_x"), 
-                    update_data.data.get("scale_y")
-                ) {
-                    let new_scale = Vec2::new(
-                        scale_x.as_f64().unwrap_or(1.0) as f32, 
-                        scale_y.as_f64().unwrap_or(1.0) as f32
-                    );
-                    self.layer_manager.update_sprite_scale(&update_data.sprite_id, new_scale);
-                }
-            }
-            "sprite_create" => {
-                // Handle new sprite creation
-                if let Some(sprite_data) = update_data.data.get("sprite_data") {
-                    // Convert serde_json::Value to JsValue first
-                    let sprite_js = serde_wasm_bindgen::to_value(sprite_data)
-                        .map_err(|e| JsValue::from_str(&format!("Failed to convert sprite data: {}", e)))?;
-                    let sprite: crate::table_sync::SpriteData = serde_wasm_bindgen::from_value(sprite_js)
-                        .map_err(|e| JsValue::from_str(&format!("Failed to parse new sprite data: {}", e)))?;
-                    
-                    // For real-time sprite creation, use active table
-                    let active_table_id = self.table_manager.get_active_table_id()
-                        .unwrap_or("default_table".to_string());
-                    self.add_sprite_from_table_data(&sprite, &active_table_id)?;
-                }
-            }
-            "sprite_remove" => {
-                // Clean up token light before removing the sprite
-                let light_id = format!("token_light_{}", update_data.sprite_id);
-                self.lighting.remove_light(&light_id);
-                self.layer_manager.remove_sprite(&update_data.sprite_id);
-            }
-            "sprite_aura_update" | "sprite_update" => {
-                // Handle runtime aura radius/color changes
-                let light_id = format!("token_light_{}", update_data.sprite_id);
-                let sid = &update_data.sprite_id;
-                // Prefer game-unit radius; fall back to pixel radius
-                let aura_radius_px: Option<f64> = if let Some(units) = update_data.data.get("aura_radius_units").and_then(|v| v.as_f64()) {
-                    let active_id = self.table_manager.get_active_table_id().unwrap_or_else(|| "default_table".to_string());
-                    let conv = self.table_manager.get_unit_converter(&active_id);
-                    Some(conv.to_pixels(units as f32) as f64)
-                } else {
-                    update_data.data.get("aura_radius").and_then(|v| v.as_f64())
-                };
-                if let Some(radius_val) = aura_radius_px {
-                    let radius = radius_val;
-                    if radius > 0.0 {
-                        if self.lighting.get_light_mut(&light_id).is_some() {
-                            if let Some(l) = self.lighting.get_light_mut(&light_id) {
-                                l.set_radius(radius as f32);
-                            }
-                        } else if let Some((sprite, _)) = self.layer_manager.find_sprite(sid) {
-                            let cx = (sprite.world_x + 25.0) as f32;
-                            let cy = (sprite.world_y + 25.0) as f32;
-                            let active_table = self.table_manager.get_active_table_id()
-                                .unwrap_or_else(|| "default_table".to_string());
-                            let mut light = crate::lighting::Light::new(light_id.clone(), cx, cy);
-                            light.table_id = active_table;
-                            light.set_radius(radius as f32);
-                            self.lighting.add_light(light);
-                        }
-                    } else {
-                        self.lighting.remove_light(&light_id);
-                    }
-                }
-                if let Some(color_str) = update_data.data.get("aura_color").and_then(|v| v.as_str()) {
-                    if let Some(color) = parse_hex_color(color_str) {
-                        if let Some(l) = self.lighting.get_light_mut(&light_id) {
-                            l.set_color(color);
-                        }
-                    }
-                }
-            }
-            _ => {
-                web_sys::console::warn_1(&format!("Unknown sprite update type: {}", update_data.update_type).into());
-            }
-        }
-
-        Ok(())
-    }
-
     /// Send sprite move update to server
     pub fn send_sprite_move(&mut self, sprite_id: &str, x: f64, y: f64) -> Result<String, JsValue> {
         self.table_sync.send_sprite_move(sprite_id, x, y)
     }
-
-    /// Send sprite scale update to server
-    pub fn send_sprite_scale(&mut self, sprite_id: &str, scale_x: f64, scale_y: f64) -> Result<String, JsValue> {
-        self.table_sync.send_sprite_scale(sprite_id, scale_x, scale_y)
-    }
-
     /// Send sprite creation to server
     pub fn send_sprite_create(&self, sprite_data_js: &JsValue) -> Result<(), JsValue> {
         self.table_sync.send_sprite_create(sprite_data_js)
     }
-
-    /// Send sprite deletion to server
-    pub fn send_sprite_delete(&mut self, sprite_id: &str) -> Result<String, JsValue> {
-        self.table_sync.send_sprite_delete(sprite_id)
-    }
-
     /// Request table data from server
     pub fn request_table(&self, table_name: &str) -> Result<(), JsValue> {
         self.table_sync.request_table(table_name)
     }
-
-    /// Get current table data
-    pub fn get_table_data(&self) -> JsValue {
-        self.table_sync.get_table_data()
-    }
-
-    /// Get current table ID
-    pub fn get_table_id(&self) -> Option<String> {
-        self.table_sync.get_table_id()
-    }
-
-    /// Set table sync callbacks
-    pub fn set_table_received_handler(&mut self, callback: &js_sys::Function) {
-        self.table_sync.set_table_received_handler(callback);
-    }
-
-    pub fn set_sprite_update_handler(&mut self, callback: &js_sys::Function) {
-        self.table_sync.set_sprite_update_handler(callback);
-    }
-
-    pub fn set_table_error_handler(&mut self, callback: &js_sys::Function) {
-        self.table_sync.set_error_handler(callback);
-    }
-    
-    // ===== TABLE SWITCHING & OPTIMIZATION METHODS =====
-    
-    /// Switch to a different table and optionally unload entities from other tables
-    pub fn switch_table(&mut self, table_id: &str, unload_other_tables: bool) -> Result<(), JsValue> {
-        web_sys::console::log_1(&format!("[TABLE-SWITCH] Switching to table: {}", table_id).into());
-        
-        // Check if table exists
-        if !self.table_manager.set_active_table(table_id) {
-            return Err(JsValue::from_str(&format!("Table '{}' not found", table_id)));
-        }
-        
-        // Get table bounds and update camera + fog
-        if let Some((tx, ty, tw, th)) = self.table_manager.get_active_table_world_bounds() {
-            // Update camera bounds
-            self.camera.set_table_bounds(tx, ty, tw, th);
-            
-            // Update fog bounds
-            self.fog.set_table_bounds(tx as f32, ty as f32, tw as f32, th as f32);
-            
-            // Center camera on new table
-            let center_x = tx + tw / 2.0;
-            let center_y = ty + th / 2.0;
-            self.camera.center_on(center_x, center_y);
-            self.update_view_matrix();
-            
-            web_sys::console::log_1(&format!(
-                "[TABLE-SWITCH] ✅ Switched to table '{}', bounds: ({}, {}) size {}x{}", 
-                table_id, tx, ty, tw, th
-            ).into());
-        }
-        
-        // Optionally unload entities from other tables to save memory
-        if unload_other_tables {
-            let sprites_removed = self.layer_manager.remove_sprites_not_in_table(table_id);
-            let lights_removed = self.lighting.remove_lights_not_in_table(table_id);
-            let fog_removed = self.fog.remove_fog_not_in_table(table_id);
-            
-            web_sys::console::log_1(&format!(
-                "[TABLE-SWITCH] 🗑️ Optimization: Removed {} sprites, {} lights, {} fog from other tables",
-                sprites_removed, lights_removed, fog_removed
-            ).into());
-        }
-        
-        Ok(())
-    }
-    
-    /// Get statistics about entities per table
-    pub fn get_entity_stats_by_table(&self) -> JsValue {
-        let sprites_by_table = self.layer_manager.count_sprites_by_table();
-        let lights_by_table = self.lighting.count_lights_by_table();
-        let fog_by_table = self.fog.count_fog_by_table();
-        
-        let stats = js_sys::Object::new();
-        
-        // Get all unique table IDs
-        let mut all_table_ids = std::collections::HashSet::new();
-        all_table_ids.extend(sprites_by_table.keys().cloned());
-        all_table_ids.extend(lights_by_table.keys().cloned());
-        all_table_ids.extend(fog_by_table.keys().cloned());
-        
-        for table_id in all_table_ids {
-            let table_stats = js_sys::Object::new();
-            js_sys::Reflect::set(
-                &table_stats,
-                &"sprites".into(),
-                &(*sprites_by_table.get(&table_id).unwrap_or(&0) as f64).into(),
-            ).unwrap();
-            js_sys::Reflect::set(
-                &table_stats,
-                &"lights".into(),
-                &(*lights_by_table.get(&table_id).unwrap_or(&0) as f64).into(),
-            ).unwrap();
-            js_sys::Reflect::set(
-                &table_stats,
-                &"fog".into(),
-                &(*fog_by_table.get(&table_id).unwrap_or(&0) as f64).into(),
-            ).unwrap();
-            
-            js_sys::Reflect::set(&stats, &table_id.into(), &table_stats).unwrap();
-        }
-        
-        stats.into()
-    }
-    
-    /// Get entity count for active table only
-    pub fn get_active_table_entity_count(&self) -> JsValue {
-        let active_table_id = self.table_manager.get_active_table_id()
-            .expect("Active table must exist!");
-        
-        let counts = js_sys::Object::new();
-        js_sys::Reflect::set(
-            &counts,
-            &"sprites".into(),
-            &(self.layer_manager.count_sprites_for_table(&active_table_id) as f64).into(),
-        ).unwrap();
-        js_sys::Reflect::set(
-            &counts,
-            &"lights".into(),
-            &(self.lighting.count_lights_for_table(&active_table_id) as f64).into(),
-        ).unwrap();
-        js_sys::Reflect::set(
-            &counts,
-            &"fog".into(),
-            &(self.fog.count_fog_for_table(&active_table_id) as f64).into(),
-        ).unwrap();
-        
-        counts.into()
-    }
-
     // ===== ENHANCED INPUT & SELECTION METHODS =====
     
     /// Get list of currently selected sprite IDs
@@ -2885,36 +1705,6 @@ impl RenderEngine {
     pub fn clear_selection(&mut self) {
         self.input.clear_selection();
     }
-
-    /// Select sprites within a rectangular area
-    pub fn select_sprites_in_rect(&mut self, x1: f32, y1: f32, x2: f32, y2: f32, add_to_selection: bool) {
-        let min_x = x1.min(x2) as f64;
-        let min_y = y1.min(y2) as f64;
-        let max_x = x1.max(x2) as f64;
-        let max_y = y1.max(y2) as f64;
-
-        if !add_to_selection {
-            self.input.clear_selection();
-        }
-
-        for layer in self.layer_manager.get_layers().values() {
-            for sprite in &layer.sprites {
-                let half_width = sprite.width * sprite.scale_x / 2.0;
-                let half_height = sprite.height * sprite.scale_y / 2.0;
-                
-                let sprite_min_x = sprite.world_x - half_width;
-                let sprite_min_y = sprite.world_y - half_height;
-                let sprite_max_x = sprite.world_x + half_width;
-                let sprite_max_y = sprite.world_y + half_height;
-
-                if sprite_min_x <= max_x && sprite_max_x >= min_x &&
-                   sprite_min_y <= max_y && sprite_max_y >= min_y {
-                    self.input.add_to_selection(sprite.id.clone());
-                }
-            }
-        }
-    }
-
     /// Get sprite position for movement operations
     #[wasm_bindgen]
     pub fn get_sprite_position(&self, sprite_id: &str) -> Option<Vec<f32>> {

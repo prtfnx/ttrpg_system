@@ -433,7 +433,6 @@ impl RenderEngine {
         layer_settings.opacity * layer_settings.inactive_opacity
     }
     
-    #[wasm_bindgen]
     pub fn get_viewport_bounds(&self) -> Vec<f64> {
         let bounds = self.get_world_view_bounds();
         vec![bounds.min.x as f64, bounds.min.y as f64, (bounds.max.x - bounds.min.x) as f64, (bounds.max.y - bounds.min.y) as f64]
@@ -512,7 +511,6 @@ impl RenderEngine {
     }
 
     /// Compute visibility polygon — merges JS obstacle segments with WallManager segments.
-    #[wasm_bindgen]
     pub fn compute_visibility_polygon(&mut self, player_x: f32, player_y: f32, obstacles: js_sys::Float32Array, max_dist: f32) -> JsValue {
         let mut all = obstacles.to_vec();
         all.extend_from_slice(&self.wall_manager.get_light_blocking_segments());
@@ -521,7 +519,6 @@ impl RenderEngine {
 
     /// Add a fog reveal polygon (array of {x,y}) under given id.
     /// id prefix "vision_" = fully lit zone, "darkvision_" = dim zone.
-    #[wasm_bindgen]
     pub fn add_fog_polygon(&mut self, id: &str, points: JsValue) {
         let arr = js_sys::Array::from(&points);
         let mut flat: Vec<f32> = Vec::with_capacity(arr.length() as usize * 2);
@@ -537,7 +534,6 @@ impl RenderEngine {
         self.fog.add_vision_polygon(id, flat);
     }
 
-    #[wasm_bindgen]
     pub fn remove_fog_polygon(&mut self, id: &str) {
         self.fog.remove_vision_polygon(id);
     }
@@ -547,7 +543,6 @@ impl RenderEngine {
         self.fog.set_ambient_light(level);
     }
 
-    #[wasm_bindgen]
     pub fn set_dynamic_lighting_enabled(&mut self, enabled: bool) {
         self.fog.set_dynamic_lighting_enabled(enabled);
     }
@@ -561,7 +556,6 @@ impl RenderEngine {
         self.update_view_matrix();
     }
     
-    #[wasm_bindgen]
     pub fn set_zoom(&mut self, zoom: f64) {
         self.camera.zoom = zoom.clamp(0.1, 5.0);
         self.update_view_matrix();
@@ -1041,14 +1035,12 @@ impl RenderEngine {
         ok
     }
     
-    #[wasm_bindgen]
     pub fn update_sprite_scale(&mut self, sprite_id: &str, scale_x: f64, scale_y: f64) -> bool {
         let new_scale = crate::math::Vec2::new(scale_x as f32, scale_y as f32);
         self.layer_manager.update_sprite_scale(sprite_id, new_scale)
     }
     
     // Grid management methods
-    #[wasm_bindgen]
     pub fn toggle_grid(&mut self) {
         self.grid_system.toggle();
     }
@@ -1058,7 +1050,6 @@ impl RenderEngine {
         self.grid_system.set_enabled(enabled);
     }
     
-    #[wasm_bindgen]
     pub fn toggle_grid_snapping(&mut self) {
         self.grid_system.toggle_snapping();
     }
@@ -1078,48 +1069,40 @@ impl RenderEngine {
         self.grid_system.get_size()
     }
     
-    #[wasm_bindgen]
     pub fn is_grid_snapping_enabled(&self) -> bool {
         self.grid_system.is_snapping_enabled()
     }
 
     // Additional grid methods for MapPanel compatibility
-    #[wasm_bindgen]
     pub fn set_snap_to_grid(&mut self, enabled: bool) {
         self.set_grid_snapping(enabled);
     }
 
-    #[wasm_bindgen] 
     pub fn set_grid_color(&mut self, r: f32, g: f32, b: f32, a: f32) {
         // Store grid color in the renderer for future use
         // For now, we'll just log it since grid rendering uses fixed colors
         utils::log(&format!("Setting grid color to rgba({}, {}, {}, {})", r, g, b, a));
     }
 
-    #[wasm_bindgen]
     pub fn set_background_color(&mut self, r: f32, g: f32, b: f32, a: f32) {
         // Store background color and apply it in the next render
         self.background_color = [r, g, b, a];
         utils::log(&format!("Setting background color to rgba({}, {}, {}, {})", r, g, b, a));
     }
 
-    #[wasm_bindgen]
     pub fn get_background_color(&self) -> Vec<f32> {
         self.background_color.to_vec()
     }
 
     // Additional camera methods for MapPanel compatibility
-    #[wasm_bindgen]
     pub fn reset_camera(&mut self) {
         self.set_camera(0.0, 0.0, 1.0);
     }
 
-    #[wasm_bindgen]
     pub fn set_camera_position(&mut self, world_x: f64, world_y: f64) {
         self.center_camera(world_x, world_y);
     }
 
-    #[wasm_bindgen]
     pub fn set_camera_scale(&mut self, scale: f64) {
         self.set_zoom(scale);
     }
@@ -1221,22 +1204,18 @@ impl RenderEngine {
         self.lighting.update_light_position(id, Vec2::new(x, y));
     }
 
-    #[wasm_bindgen]
     pub fn turn_on_all_lights(&mut self) {
         self.lighting.turn_on_all();
     }
 
-    #[wasm_bindgen]
     pub fn turn_off_all_lights(&mut self) {
         self.lighting.turn_off_all();
     }
 
-    #[wasm_bindgen]
     pub fn get_light_count(&self) -> usize {
         self.lighting.get_light_count()
     }
 
-    #[wasm_bindgen]
     pub fn clear_lights(&mut self) {
         self.lighting.clear_lights();
     }
@@ -1254,14 +1233,12 @@ impl RenderEngine {
         self.active_layer = layer_name.to_string();
     }
 
-    #[wasm_bindgen]
     pub fn get_active_layer(&self) -> String {
         self.active_layer.clone()
     }
 
     /// Return current obstacle segments (polygon + rectangle) as a flat f32 array.
     /// TypeScript vision service calls this instead of computing from the stale store.
-    #[wasm_bindgen]
     pub fn get_obstacle_segments_flat(&self) -> Vec<f32> {
         let mut segs = Vec::new();
         if let Some(layer) = self.layer_manager.get_layer("obstacles") {
@@ -1350,7 +1327,6 @@ impl RenderEngine {
     }
 
     /// Number of currently loaded walls.
-    #[wasm_bindgen]
     pub fn get_wall_count(&self) -> usize {
         self.wall_manager.count()
     }
@@ -1391,12 +1367,10 @@ impl RenderEngine {
         self.fog.hide_entire_table(table_width, table_height, table_id);
     }
 
-    #[wasm_bindgen]
     pub fn is_point_in_fog(&self, x: f32, y: f32) -> bool {
         self.fog.is_point_in_fog(x, y)
     }
 
-    #[wasm_bindgen]
     pub fn get_fog_count(&self) -> usize {
         self.fog.get_fog_count()
     }
@@ -1406,13 +1380,11 @@ impl RenderEngine {
     // ============================================================================
     
     // Light interaction methods
-    #[wasm_bindgen]
     pub fn get_light_at_position(&self, x: f32, y: f32) -> Option<String> {
         let world_pos = Vec2::new(x, y);
         self.lighting.get_light_at_position(world_pos, 30.0).map(|s| s.clone())
     }
 
-    #[wasm_bindgen]
     pub fn start_light_drag(&mut self, light_id: &str, world_x: f32, world_y: f32) -> bool {
         if let Some(light_pos) = self.lighting.get_light_position(light_id) {
             self.input.start_light_drag(light_id.to_string(), Vec2::new(world_x, world_y), light_pos);
@@ -1422,7 +1394,6 @@ impl RenderEngine {
         }
     }
 
-    #[wasm_bindgen]
     pub fn update_light_drag(&mut self, world_x: f32, world_y: f32) -> bool {
         if let Some(new_pos) = self.input.update_light_drag(Vec2::new(world_x, world_y)) {
             if let Some(ref light_id) = self.input.selected_light_id {
@@ -1436,12 +1407,10 @@ impl RenderEngine {
         }
     }
 
-    #[wasm_bindgen]
     pub fn end_light_drag(&mut self) -> Option<String> {
         self.input.end_light_drag()
     }
 
-    #[wasm_bindgen]
     pub fn get_light_radius(&self, light_id: &str) -> f32 {
         self.lighting.get_light_radius(light_id).unwrap_or(0.0)
     }
@@ -1449,7 +1418,6 @@ impl RenderEngine {
     // Fog of War - Simple API for Design A (manual DM fog only)
     // All fog drawing handled in TypeScript UI, these are just forwarding methods
     
-    #[wasm_bindgen]
     pub fn set_light_drag_mode(&mut self, enabled: bool) {
         if enabled {
             self.input.input_mode = InputMode::LightDrag;
@@ -1458,17 +1426,14 @@ impl RenderEngine {
         }
     }
 
-    #[wasm_bindgen]
     pub fn is_in_fog_draw_mode(&self) -> bool {
         matches!(self.input.input_mode, InputMode::FogDraw | InputMode::FogErase)
     }
 
-    #[wasm_bindgen]
     pub fn is_in_light_drag_mode(&self) -> bool {
         self.input.input_mode == InputMode::LightDrag
     }
 
-    #[wasm_bindgen]
     pub fn get_current_input_mode(&self) -> String {
         match self.input.input_mode {
             InputMode::None => "none".to_string(),
@@ -1496,31 +1461,26 @@ impl RenderEngine {
     // INPUT MODE CONTROL - Methods to set specific input modes
     // ============================================================================
     
-    #[wasm_bindgen]
     pub fn set_input_mode_measurement(&mut self) {
         self.input.input_mode = InputMode::Measurement;
         web_sys::console::log_1(&"[RUST] Input mode set to Measurement".into());
     }
 
-    #[wasm_bindgen]
     pub fn set_input_mode_create_rectangle(&mut self) {
         self.input.input_mode = InputMode::CreateRectangle;
         web_sys::console::log_1(&"[RUST] Input mode set to CreateRectangle".into());
     }
 
-    #[wasm_bindgen]
     pub fn set_input_mode_create_circle(&mut self) {
         self.input.input_mode = InputMode::CreateCircle;
         web_sys::console::log_1(&"[RUST] Input mode set to CreateCircle".into());
     }
 
-    #[wasm_bindgen]
     pub fn set_input_mode_create_line(&mut self) {
         self.input.input_mode = InputMode::CreateLine;
         web_sys::console::log_1(&"[RUST] Input mode set to CreateLine".into());
     }
 
-    #[wasm_bindgen]
     pub fn set_input_mode_create_text(&mut self) {
         self.input.input_mode = InputMode::CreateText;
         web_sys::console::log_1(&"[RUST] Input mode set to CreateText".into());
@@ -1532,7 +1492,6 @@ impl RenderEngine {
         web_sys::console::log_1(&"[RUST] Input mode set to Select (None)".into());
     }
 
-    #[wasm_bindgen]
     pub fn clear_measurement(&mut self) {
         self.input.clear_completed_measurement();
         web_sys::console::log_1(&"[RUST] Completed measurement cleared".into());
@@ -1544,34 +1503,29 @@ impl RenderEngine {
         web_sys::console::log_1(&"[RUST] Input mode set to Paint".into());
     }
 
-    #[wasm_bindgen]
     pub fn set_input_mode_draw_wall(&mut self) {
         self.input.input_mode = InputMode::DrawWall;
         self.input.cancel_wall_draw();
         web_sys::console::log_1(&"[RUST] Input mode set to DrawWall".into());
     }
 
-    #[wasm_bindgen]
     pub fn set_input_mode_create_polygon(&mut self) {
         self.input.input_mode = InputMode::CreatePolygon;
         self.input.cancel_polygon();
         web_sys::console::log_1(&"[RUST] Input mode set to CreatePolygon".into());
     }
 
-    #[wasm_bindgen]
     pub fn cancel_polygon_creation(&mut self) {
         self.input.cancel_polygon();
         self.input.input_mode = InputMode::None;
     }
 
-    #[wasm_bindgen]
     pub fn undo_polygon_vertex(&mut self) {
         self.input.undo_polygon_vertex();
     }
 
     /// Create a polygon obstacle sprite from world-space vertices (flat [x0,y0,x1,y1,...]).
     /// Returns the new sprite ID or an empty string on failure.
-    #[wasm_bindgen]
     pub fn create_polygon_sprite(&mut self, vertices_flat: &[f32], layer: &str, table_id: &str) -> String {
         if vertices_flat.len() < 6 { return String::new(); } // need ≥3 vertices
 
@@ -1617,27 +1571,23 @@ impl RenderEngine {
         }
     }
 
-    #[wasm_bindgen]
     pub fn set_input_mode_fog_draw(&mut self) {
         self.input.input_mode = InputMode::FogDraw;
         self.input.fog_mode = FogDrawMode::Hide;
         web_sys::console::log_1(&"[RUST] Input mode set to FogDraw (Hide)".into());
     }
 
-    #[wasm_bindgen]
     pub fn set_input_mode_fog_erase(&mut self) {
         self.input.input_mode = InputMode::FogErase;
         self.input.fog_mode = FogDrawMode::Reveal;
         web_sys::console::log_1(&"[RUST] Input mode set to FogErase (Reveal)".into());
     }
 
-    #[wasm_bindgen]
     pub fn set_fog_draw_mode_hide(&mut self) {
         self.input.fog_mode = FogDrawMode::Hide;
         web_sys::console::log_1(&"[RUST] Fog draw mode set to Hide".into());
     }
 
-    #[wasm_bindgen]
     pub fn set_fog_draw_mode_reveal(&mut self) {
         self.input.fog_mode = FogDrawMode::Reveal;
         web_sys::console::log_1(&"[RUST] Fog draw mode set to Reveal".into());
@@ -1647,12 +1597,10 @@ impl RenderEngine {
     // SPRITE CREATION METHODS - Create sprites from tools
     // ============================================================================
     
-    #[wasm_bindgen]
     pub fn create_rectangle_sprite(&mut self, x: f32, y: f32, width: f32, height: f32, layer_name: &str) -> String {
         self.create_rectangle_sprite_with_options(x, y, width, height, layer_name, "#50c850", 1.0, false)
     }
     
-    #[wasm_bindgen]
     pub fn create_rectangle_sprite_with_options(&mut self, x: f32, y: f32, width: f32, height: f32, layer_name: &str, color: &str, opacity: f32, filled: bool) -> String {
         web_sys::console::log_1(&format!("[RUST] create_rectangle_sprite called: {},{} {}x{} on layer '{}' color: {} opacity: {} filled: {}", x, y, width, height, layer_name, color, opacity, filled).into());
         let sprite_id = format!("rect_{}", js_sys::Date::now() as u64);
@@ -1697,12 +1645,10 @@ impl RenderEngine {
         sprite_id
     }
     
-    #[wasm_bindgen]
     pub fn create_circle_sprite(&mut self, x: f32, y: f32, radius: f32, layer_name: &str) -> String {
         self.create_circle_sprite_with_options(x, y, radius, layer_name, "#5080c8", 1.0, false)
     }
     
-    #[wasm_bindgen]
     pub fn create_circle_sprite_with_options(&mut self, x: f32, y: f32, radius: f32, layer_name: &str, color: &str, opacity: f32, filled: bool) -> String {
         let sprite_id = format!("circle_{}", js_sys::Date::now() as u64);
         let diameter = radius * 2.0;
@@ -1743,7 +1689,6 @@ impl RenderEngine {
         sprite_id
     }
     
-    #[wasm_bindgen]
     pub fn create_line_sprite(&mut self, start_x: f32, start_y: f32, end_x: f32, end_y: f32, layer_name: &str) -> String {
         self.create_line_sprite_with_options(start_x, start_y, end_x, end_y, layer_name, "#c85050", 1.0)
     }
@@ -1800,7 +1745,6 @@ impl RenderEngine {
         sprite_id
     }
 
-    #[wasm_bindgen]
     pub fn create_text_sprite(&mut self, text: &str, x: f32, y: f32, font_size: f32, color: &str, layer_name: &str) -> String {
         web_sys::console::log_1(&format!("[RUST] create_text_sprite called: '{}' at ({:.1}, {:.1}) size: {} color: {} on layer '{}'", 
             text, x, y, font_size, color, layer_name).into());
@@ -1894,7 +1838,6 @@ impl RenderEngine {
     // NETWORK INTEGRATION - Direct integration with NetworkClient
     // ============================================================================
     
-    #[wasm_bindgen]
     pub fn get_sprite_network_data(&self, sprite_id: &str) -> Result<JsValue, JsValue> {
         if let Some((sprite, layer_name)) = self.layer_manager.find_sprite(sprite_id) {
             let network_data = crate::network::SpriteNetworkData {
@@ -1913,7 +1856,6 @@ impl RenderEngine {
         }
     }
 
-    #[wasm_bindgen]
     pub fn apply_network_sprite_update(&mut self, sprite_data: &JsValue) -> Result<(), JsValue> {
         let network_data: crate::network::SpriteNetworkData = 
             serde_wasm_bindgen::from_value(sprite_data.clone())?;
@@ -1932,7 +1874,6 @@ impl RenderEngine {
         }
     }
 
-    #[wasm_bindgen]
     pub fn update_sprite_controlled_by(&mut self, sprite_id: &str, controlled_by_js: &JsValue) -> bool {
         let controlled_by: Vec<i32> = match serde_wasm_bindgen::from_value(controlled_by_js.clone()) {
             Ok(v) => v,
@@ -1946,7 +1887,6 @@ impl RenderEngine {
         }
     }
 
-    #[wasm_bindgen]
     pub fn apply_network_sprite_create(&mut self, sprite_data: &JsValue) -> Result<String, JsValue> {
         let network_data: crate::network::SpriteNetworkData = 
             serde_wasm_bindgen::from_value(sprite_data.clone())?;
@@ -1975,12 +1915,10 @@ impl RenderEngine {
         self.layer_manager.add_sprite_to_layer(&network_data.layer_name, &sprite_js)
     }
 
-    #[wasm_bindgen]
     pub fn apply_network_sprite_remove(&mut self, sprite_id: &str) -> bool {
         self.remove_sprite(sprite_id)
     }
 
-    #[wasm_bindgen]
     pub fn get_all_sprites_network_data(&self) -> Result<JsValue, JsValue> {
         let mut all_sprites = Vec::new();
         
@@ -2005,18 +1943,15 @@ impl RenderEngine {
 
     // Actions System Integration
 
-    #[wasm_bindgen]
     pub fn create_table_action(&mut self, name: &str, width: f64, height: f64) -> JsValue {
         self.actions.create_table(name, width, height)
     }
 
-    #[wasm_bindgen]
     pub fn delete_table_action(&mut self, table_id: &str) -> JsValue {
         self.actions.delete_table(table_id)
     }
 
     /// Delete a table and clean up all associated resources (sprites, lights, fog)
-    #[wasm_bindgen]
     pub fn delete_table(&mut self, table_id: &str) -> Result<(), JsValue> {
         web_sys::console::log_1(&format!("[TABLE-DELETE] 🗑️ Deleting table: {}", table_id).into());
         
@@ -2039,12 +1974,10 @@ impl RenderEngine {
         Ok(())
     }
 
-    #[wasm_bindgen]
     pub fn update_table_action(&mut self, table_id: &str, updates: &JsValue) -> JsValue {
         self.actions.update_table(table_id, updates)
     }
 
-    #[wasm_bindgen]
     pub fn create_sprite_action(&mut self, table_id: &str, layer: &str, position: &JsValue, texture_name: &str) -> JsValue {
         let result = self.actions.create_sprite(table_id, layer, position, texture_name);
         
@@ -2071,7 +2004,6 @@ impl RenderEngine {
         result
     }
 
-    #[wasm_bindgen]
     pub fn delete_sprite_action(&mut self, sprite_id: &str) -> JsValue {
         let result = self.actions.delete_sprite(sprite_id);
         
@@ -2086,7 +2018,6 @@ impl RenderEngine {
         result
     }
 
-    #[wasm_bindgen]
     pub fn update_sprite_action(&mut self, sprite_id: &str, updates: &JsValue) -> JsValue {
         let result = self.actions.update_sprite(sprite_id, updates);
         
@@ -2101,7 +2032,6 @@ impl RenderEngine {
         result
     }
 
-    #[wasm_bindgen]
     pub fn set_layer_visibility_action(&mut self, layer: &str, visible: bool) -> JsValue {
         let result = self.actions.set_layer_visibility(layer, visible);
         
@@ -2111,7 +2041,6 @@ impl RenderEngine {
         result
     }
 
-    #[wasm_bindgen]
     pub fn move_sprite_to_layer_action(&mut self, sprite_id: &str, new_layer: &str) -> JsValue {
         let old_layer_is_obstacles = self.layer_manager.find_sprite(sprite_id).map(|(_, l)| l == "obstacles").unwrap_or(false);
         let result = self.actions.move_sprite_to_layer(sprite_id, new_layer);
@@ -2133,73 +2062,59 @@ impl RenderEngine {
         result
     }
 
-    #[wasm_bindgen]
     pub fn batch_actions(&mut self, actions: &JsValue) -> JsValue {
         self.actions.batch_actions(actions)
     }
 
-    #[wasm_bindgen]
     pub fn undo_action(&mut self) -> JsValue {
         self.actions.undo()
     }
 
-    #[wasm_bindgen]
     pub fn redo_action(&mut self) -> JsValue {
         self.actions.redo()
     }
 
-    #[wasm_bindgen]
     pub fn can_undo(&self) -> bool {
         self.actions.can_undo()
     }
 
-    #[wasm_bindgen]
     pub fn can_redo(&self) -> bool {
         self.actions.can_redo()
     }
 
-    #[wasm_bindgen]
     pub fn get_action_history(&self) -> JsValue {
         self.actions.get_action_history()
     }
 
-    #[wasm_bindgen]
     pub fn get_table_info(&self, table_id: &str) -> JsValue {
         self.actions.get_table_info(table_id)
     }
 
-    #[wasm_bindgen]
     pub fn get_sprite_info(&self, sprite_id: &str) -> JsValue {
         self.actions.get_sprite_info(sprite_id)
     }
 
-    #[wasm_bindgen]
     pub fn get_all_tables(&self) -> JsValue {
         self.actions.get_all_tables()
     }
 
-    #[wasm_bindgen]
     pub fn get_sprites_by_layer(&self, layer: &str) -> JsValue {
         self.actions.get_sprites_by_layer(layer)
     }
 
     // Actions event handlers setup
-    #[wasm_bindgen]
     pub fn set_action_handler(&mut self, callback: &js_sys::Function) {
         self.actions.set_action_handler(callback);
     }
 
-    #[wasm_bindgen]
     pub fn set_state_change_handler(&mut self, callback: &js_sys::Function) {
         self.actions.set_state_change_handler(callback);
     }
 
-    #[wasm_bindgen]
     pub fn set_actions_error_handler(&mut self, callback: &js_sys::Function) {
         self.actions.set_error_handler(callback);
     }
 
-    #[wasm_bindgen]
     pub fn set_actions_auto_sync(&mut self, enabled: bool) {
         self.actions.set_auto_sync(enabled);
     }
@@ -2234,7 +2149,6 @@ impl RenderEngine {
     }
 
     /// Set the RGBA tint applied to inactive layers (shown when layer is not active)
-    #[wasm_bindgen]
     pub fn set_layer_tint_color(&mut self, layer_name: &str, r: f32, g: f32, b: f32, a: f32) -> bool {
         if let Some(settings) = self.layer_manager.get_layer_settings_mut(layer_name) {
             settings.tint_color = [r.clamp(0.0, 1.0), g.clamp(0.0, 1.0), b.clamp(0.0, 1.0), a.clamp(0.0, 1.0)];
@@ -2245,7 +2159,6 @@ impl RenderEngine {
     }
 
     /// Set the opacity multiplier applied to a layer when it is not the active layer
-    #[wasm_bindgen]
     pub fn set_layer_inactive_opacity(&mut self, layer_name: &str, opacity: f32) -> bool {
         if let Some(settings) = self.layer_manager.get_layer_settings_mut(layer_name) {
             settings.inactive_opacity = opacity.clamp(0.0, 1.0);
@@ -2255,7 +2168,6 @@ impl RenderEngine {
         }
     }
 
-    #[wasm_bindgen]
     pub fn get_layer_settings(&self, layer_name: &str) -> JsValue {
         if let Some(settings) = self.layer_manager.get_layer_settings(layer_name) {
             serde_wasm_bindgen::to_value(settings).unwrap_or(JsValue::NULL)
@@ -2278,12 +2190,10 @@ impl RenderEngine {
         }
     }
     
-    #[wasm_bindgen]
     pub fn set_layer_z_order(&mut self, layer_name: &str, z_order: i32) -> bool {
         self.layer_manager.set_layer_z_order(layer_name, z_order)
     }
     
-    #[wasm_bindgen]
     pub fn clear_layer(&mut self, layer_name: &str) -> bool {
         if let Some(layer) = self.layer_manager.get_layer_mut(layer_name) {
             layer.sprites.clear();
@@ -2293,12 +2203,10 @@ impl RenderEngine {
         }
     }
     
-    #[wasm_bindgen]
     pub fn clear_all_sprites(&mut self) {
         self.layer_manager.clear_all_layers();
     }
     
-    #[wasm_bindgen]
     pub fn set_layer_visible(&mut self, layer_name: &str, visible: bool) -> bool {
         self.layer_manager.set_layer_visibility(layer_name, visible)
     }
@@ -2306,17 +2214,14 @@ impl RenderEngine {
     // Paint System Methods
     
     // Table management for paint
-    #[wasm_bindgen]
     pub fn paint_set_current_table(&mut self, table_id: &str) {
         self.paint.set_current_table(table_id);
     }
     
-    #[wasm_bindgen]
     pub fn paint_get_current_table(&self) -> Option<String> {
         self.paint.get_current_table()
     }
     
-    #[wasm_bindgen]
     pub fn paint_clear_table(&mut self, table_id: &str) {
         self.paint.clear_table_paint(table_id);
     }
@@ -2331,7 +2236,6 @@ impl RenderEngine {
         self.paint.exit_paint_mode();
     }
     
-    #[wasm_bindgen]
     pub fn paint_is_mode(&self) -> bool {
         self.paint.is_paint_mode()
     }
@@ -2351,12 +2255,10 @@ impl RenderEngine {
         self.paint.set_blend_mode(blend_mode);
     }
     
-    #[wasm_bindgen]
     pub fn paint_get_brush_color(&self) -> Vec<f32> {
         self.paint.get_brush_color()
     }
     
-    #[wasm_bindgen]
     pub fn paint_get_brush_width(&self) -> f32 {
         self.paint.get_brush_width()
     }
@@ -2376,7 +2278,6 @@ impl RenderEngine {
         self.paint.end_stroke()
     }
     
-    #[wasm_bindgen]
     pub fn paint_cancel_stroke(&mut self) {
         self.paint.cancel_stroke();
     }
@@ -2386,7 +2287,6 @@ impl RenderEngine {
         self.paint.clear_all_strokes();
     }
     
-    #[wasm_bindgen]
     pub fn paint_save_strokes_as_sprites(&mut self, layer_name: &str) -> Vec<String> {
         let strokes_json = self.paint.get_strokes_data_json();
         let mut sprite_ids = Vec::new();
@@ -2479,27 +2379,22 @@ impl RenderEngine {
         self.paint.undo_last_stroke()
     }
     
-    #[wasm_bindgen]
     pub fn paint_get_stroke_count(&self) -> usize {
         self.paint.get_stroke_count()
     }
     
-    #[wasm_bindgen]
     pub fn paint_is_drawing(&self) -> bool {
         self.paint.is_drawing()
     }
     
-    #[wasm_bindgen]
     pub fn paint_get_strokes(&self) -> JsValue {
         self.paint.get_all_strokes_json()
     }
     
-    #[wasm_bindgen]
     pub fn paint_get_current_stroke(&self) -> JsValue {
         self.paint.get_current_stroke_json()
     }
     
-    #[wasm_bindgen]
     pub fn paint_on_event(&mut self, event_type: &str, callback: js_sys::Function) {
         self.paint.on_stroke_event(event_type, callback);
     }
@@ -2507,7 +2402,6 @@ impl RenderEngine {
     // ========== TABLE SYNC INTEGRATION ==========
 
     /// Set network client for table synchronization
-    #[wasm_bindgen]
     pub fn set_network_client(&mut self, network_client: &js_sys::Object) {
         self.table_sync.set_network_client(network_client);
     }
@@ -2699,7 +2593,6 @@ impl RenderEngine {
     }
 
     /// Handle sprite update from server
-    #[wasm_bindgen]
     pub fn handle_sprite_update(&mut self, update_data_js: &JsValue) -> Result<(), JsValue> {
         // First update the table sync state
         self.table_sync.handle_sprite_update(update_data_js)?;
@@ -2805,59 +2698,49 @@ impl RenderEngine {
     }
 
     /// Send sprite move update to server
-    #[wasm_bindgen]
     pub fn send_sprite_move(&mut self, sprite_id: &str, x: f64, y: f64) -> Result<String, JsValue> {
         self.table_sync.send_sprite_move(sprite_id, x, y)
     }
 
     /// Send sprite scale update to server
-    #[wasm_bindgen]
     pub fn send_sprite_scale(&mut self, sprite_id: &str, scale_x: f64, scale_y: f64) -> Result<String, JsValue> {
         self.table_sync.send_sprite_scale(sprite_id, scale_x, scale_y)
     }
 
     /// Send sprite creation to server
-    #[wasm_bindgen]
     pub fn send_sprite_create(&self, sprite_data_js: &JsValue) -> Result<(), JsValue> {
         self.table_sync.send_sprite_create(sprite_data_js)
     }
 
     /// Send sprite deletion to server
-    #[wasm_bindgen]
     pub fn send_sprite_delete(&mut self, sprite_id: &str) -> Result<String, JsValue> {
         self.table_sync.send_sprite_delete(sprite_id)
     }
 
     /// Request table data from server
-    #[wasm_bindgen]
     pub fn request_table(&self, table_name: &str) -> Result<(), JsValue> {
         self.table_sync.request_table(table_name)
     }
 
     /// Get current table data
-    #[wasm_bindgen]
     pub fn get_table_data(&self) -> JsValue {
         self.table_sync.get_table_data()
     }
 
     /// Get current table ID
-    #[wasm_bindgen]
     pub fn get_table_id(&self) -> Option<String> {
         self.table_sync.get_table_id()
     }
 
     /// Set table sync callbacks
-    #[wasm_bindgen]
     pub fn set_table_received_handler(&mut self, callback: &js_sys::Function) {
         self.table_sync.set_table_received_handler(callback);
     }
 
-    #[wasm_bindgen]
     pub fn set_sprite_update_handler(&mut self, callback: &js_sys::Function) {
         self.table_sync.set_sprite_update_handler(callback);
     }
 
-    #[wasm_bindgen]
     pub fn set_table_error_handler(&mut self, callback: &js_sys::Function) {
         self.table_sync.set_error_handler(callback);
     }
@@ -2865,7 +2748,6 @@ impl RenderEngine {
     // ===== TABLE SWITCHING & OPTIMIZATION METHODS =====
     
     /// Switch to a different table and optionally unload entities from other tables
-    #[wasm_bindgen]
     pub fn switch_table(&mut self, table_id: &str, unload_other_tables: bool) -> Result<(), JsValue> {
         web_sys::console::log_1(&format!("[TABLE-SWITCH] Switching to table: {}", table_id).into());
         
@@ -2910,7 +2792,6 @@ impl RenderEngine {
     }
     
     /// Get statistics about entities per table
-    #[wasm_bindgen]
     pub fn get_entity_stats_by_table(&self) -> JsValue {
         let sprites_by_table = self.layer_manager.count_sprites_by_table();
         let lights_by_table = self.lighting.count_lights_by_table();
@@ -2949,7 +2830,6 @@ impl RenderEngine {
     }
     
     /// Get entity count for active table only
-    #[wasm_bindgen]
     pub fn get_active_table_entity_count(&self) -> JsValue {
         let active_table_id = self.table_manager.get_active_table_id()
             .expect("Active table must exist!");
@@ -3005,7 +2885,6 @@ impl RenderEngine {
     }
 
     /// Select sprites within a rectangular area
-    #[wasm_bindgen]
     pub fn select_sprites_in_rect(&mut self, x1: f32, y1: f32, x2: f32, y2: f32, add_to_selection: bool) {
         let min_x = x1.min(x2) as f64;
         let min_y = y1.min(y2) as f64;
@@ -3047,7 +2926,6 @@ impl RenderEngine {
     }
 
     /// Get sprite data for network synchronization
-    #[wasm_bindgen]
     pub fn get_sprite_data(&self, sprite_id: &str) -> JsValue {
         if let Some(sprite) = self.find_sprite(sprite_id) {
             serde_wasm_bindgen::to_value(sprite).unwrap_or(JsValue::NULL)
@@ -3057,7 +2935,6 @@ impl RenderEngine {
     }
 
     /// Enhanced mouse down handler with modifier key support
-    #[wasm_bindgen]
     pub fn handle_mouse_down_with_modifiers(&mut self, screen_x: f64, screen_y: f64, ctrl_key: bool, shift_key: bool) -> Option<String> {
         let world_coords = self.screen_to_world(screen_x as f32, screen_y as f32);
         let world_pos = Vec2::new(world_coords[0] as f32, world_coords[1] as f32);

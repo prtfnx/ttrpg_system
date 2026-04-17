@@ -560,4 +560,141 @@ mod tests {
         let d = sys.distance_ft(0.0, 0.0, 192.0, 0.0, 5.0 / 64.0);
         assert!(d > 0.0);
     }
+
+    // ── set_walls tests ──────────────────────────────────────────────
+
+    #[test]
+    fn set_walls_parses_json() {
+        let mut sys = make_system();
+        sys.set_walls(r#"[{"x1":0,"y1":0,"x2":100,"y2":0,"is_door":false,"door_open":false}]"#);
+        assert_eq!(sys.segments.len(), 1);
+        assert_eq!(sys.segments[0].x1, 0.0);
+        assert_eq!(sys.segments[0].x2, 100.0);
+    }
+
+    #[test]
+    fn set_walls_replaces_previous() {
+        let mut sys = make_system();
+        sys.set_walls(r#"[{"x1":0,"y1":0,"x2":50,"y2":0,"is_door":false,"door_open":false}]"#);
+        assert_eq!(sys.segments.len(), 1);
+        sys.set_walls(r#"[{"x1":0,"y1":0,"x2":100,"y2":0,"is_door":false,"door_open":false},{"x1":10,"y1":10,"x2":20,"y2":20,"is_door":true,"door_open":true}]"#);
+        assert_eq!(sys.segments.len(), 2);
+    }
+
+    #[test]
+    fn set_walls_invalid_json_no_panic() {
+        let mut sys = make_system();
+        sys.set_walls("not json");
+        assert!(sys.segments.is_empty());
+    }
+
+    #[test]
+    fn set_walls_rebuilds_spatial_index() {
+        let mut sys = make_system();
+        assert!(sys.spatial_hash.is_none());
+        sys.set_walls(r#"[{"x1":0,"y1":0,"x2":100,"y2":0,"is_door":false,"door_open":false}]"#);
+        assert!(sys.spatial_hash.is_some());
+    }
+
+    // ── set_obstacles tests ──────────────────────────────────────────
+
+    #[test]
+    fn set_obstacles_parses_json() {
+        let mut sys = make_system();
+        sys.set_obstacles(r#"[{"id":"o1","obstacle_type":"rectangle","x":50,"y":50,"width":20,"height":20,"radius":0}]"#);
+        assert_eq!(sys.obstacles.len(), 1);
+        assert_eq!(sys.obstacles[0].id, "o1");
+    }
+
+    #[test]
+    fn set_obstacles_replaces_previous() {
+        let mut sys = make_system();
+        sys.set_obstacles(r#"[{"id":"o1","obstacle_type":"circle","x":50,"y":50,"width":0,"height":0,"radius":10}]"#);
+        assert_eq!(sys.obstacles.len(), 1);
+        sys.set_obstacles(r#"[]"#);
+        assert!(sys.obstacles.is_empty());
+    }
+
+    #[test]
+    fn set_obstacles_invalid_json_no_panic() {
+        let mut sys = make_system();
+        sys.set_obstacles("{bad}");
+        assert!(sys.obstacles.is_empty());
+    }
+
+    #[test]
+    fn set_obstacles_rebuilds_spatial_index() {
+        let mut sys = make_system();
+        sys.set_obstacles(r#"[{"id":"o1","obstacle_type":"circle","x":50,"y":50,"width":0,"height":0,"radius":10}]"#);
+        assert!(sys.spatial_hash.is_some());
+    }
+
+    // ── rebuild_index tests ──────────────────────────────────────────
+
+    #[test]
+    fn rebuild_index_from_scratch() {
+        let mut sys = make_system();
+        sys.segments.push(CollisionSegment {
+            x1: 0.0, y1: 0.0, x2: 100.0, y2: 0.0,
+            is_door: false, door_open: false,
+        });
+        sys.rebuild_index();
+        assert!(sys.spatial_hash.is_some());
+        // After rebuilding, line_blocked should work with the new wall
+        assert!(sys.line_blocked(50.0, -10.0, 50.0, 10.0));
+    }
+
+    #[test]
+    fn rebuild_index_empty_collections() {
+        let mut sys = make_system();
+        sys.rebuild_index();
+        assert!(sys.spatial_hash.is_some());
+        // No walls/obstacles → nothing blocked
+        assert!(!sys.line_blocked(0.0, 0.0, 100.0, 0.0));
+    }
+
+    // ── rectangle obstacle blocking ──────────────────────────────────
+
+    #[test]
+    fn rectangle_obstacle_blocks_line() {
+        let mut sys = make_system();
+        sys.set_obstacles(r#"[{"id":"r1","obstacle_type":"rectangle","x":50,"y":50,"width":30,"height":30,"radius":0}]"#);
+        assert!(sys.line_blocked(0.0, 50.0, 100.0, 50.0));
+    }
+
+    // ── find_path with obstacles ──────────────────────────────────────
+
+    #[test]
+    fn find_path_around_obstacle() {
+        let mut sys = make_system();
+        sys.set_obstacles(r#"[{"id":"c1","obstacle_type":"circle","x":128,"y":32,"width":0,"height":0,"radius":30}]"#);
+        let path = sys.find_path(32.0, 32.0, 224.0, 32.0);
+        assert!(!path.is_empty());
+        // Path should have more than start+end since it must go around
+        assert!(path.len() > 4);
+    }
+
+    #[test]
+    fn find_path_same_cell() {
+        let sys = make_system();
+        let path = sys.find_path(10.0, 10.0, 20.0, 20.0);
+        assert!(!path.is_empty());
+    }
+
+    // ── distance_ft edge cases ────────────────────────────────────────
+
+    #[test]
+    fn distance_ft_zero_same_point() {
+        let sys = make_system();
+        let d = sys.distance_ft(50.0, 50.0, 50.0, 50.0, 5.0 / 64.0);
+        assert!((d - 0.0).abs() < 0.001);
+    }
+
+    #[test]
+    fn distance_ft_diagonal() {
+        let sys = make_system();
+        // 1 diagonal cell uses 5-10-5 rule: first diagonal costs 1 cell
+        let d = sys.distance_ft(0.0, 0.0, 64.0, 64.0, 5.0 / 64.0);
+        assert!(d > 0.0);
+    }
 }

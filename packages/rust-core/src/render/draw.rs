@@ -1,6 +1,5 @@
 use wasm_bindgen::prelude::*;
-use crate::types::*;
-use crate::math::*;
+use crate::math::Rect;
 use crate::sprite_renderer::SpriteRenderer;
 
 use super::RenderEngine;

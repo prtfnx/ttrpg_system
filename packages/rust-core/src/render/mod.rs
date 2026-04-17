@@ -10,14 +10,12 @@ use web_sys::{HtmlCanvasElement, WebGl2RenderingContext as WebGlRenderingContext
 use crate::types::*;
 use crate::math::*;
 use crate::camera::Camera;
-use crate::input::{InputHandler, InputMode, HandleDetector};
-use crate::sprite_manager::SpriteManager;
-use crate::sprite_renderer::SpriteRenderer;
+use crate::input::InputHandler;
 use crate::webgl_renderer::WebGLRenderer;
 use crate::text_renderer::TextRenderer;
 use crate::lighting::LightingSystem;
 use crate::fog::FogOfWarSystem;
-use crate::event_system::{EventSystem, MouseEventResult};
+use crate::event_system::EventSystem;
 use crate::layer_manager::LayerManager;
 use crate::grid_system::GridSystem;
 use crate::texture_manager::TextureManager;

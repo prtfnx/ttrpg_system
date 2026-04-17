@@ -2,7 +2,6 @@ use wasm_bindgen::prelude::*;
 use crate::math::*;
 use crate::input::{InputMode, HandleDetector};
 use crate::sprite_manager::SpriteManager;
-use crate::sprite_renderer::SpriteRenderer;
 use crate::event_system::MouseEventResult;
 
 use super::RenderEngine;

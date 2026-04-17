@@ -5,7 +5,7 @@ mod dispatch;
 
 use crate::math::Vec2;
 use crate::types::{Sprite, Layer};
-use crate::input::{InputHandler, InputMode};
+use crate::input::InputHandler;
 use std::collections::HashMap;
 
 #[derive(Debug, Clone)]

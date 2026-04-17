@@ -1,6 +1,5 @@
 use wasm_bindgen::prelude::*;
 use crate::types::*;
-use crate::math::*;
 
 use super::{RenderEngine, parse_hex_color};
 

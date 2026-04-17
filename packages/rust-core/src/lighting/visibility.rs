@@ -109,4 +109,76 @@ impl SpatialGrid {
     }
 }
 
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn point_new_creates_point() {
+        let p = Point::new(1.5, 2.5);
+        assert_eq!(p.x, 1.5);
+        assert_eq!(p.y, 2.5);
+    }
+
+    #[test]
+    fn line_segment_stores_endpoints() {
+        let seg = LineSegment::new(Point::new(0.0, 0.0), Point::new(10.0, 20.0));
+        assert_eq!(seg.p1.x, 0.0);
+        assert_eq!(seg.p2.x, 10.0);
+        assert_eq!(seg.p2.y, 20.0);
+    }
+
+    #[test]
+    fn calculator_starts_empty() {
+        let calc = VisibilityCalculator::new();
+        assert!(calc.get_segments().is_empty());
+    }
+
+    #[test]
+    fn add_segment_increases_count() {
+        let mut calc = VisibilityCalculator::new();
+        calc.add_segment(Point::new(0.0, 0.0), Point::new(10.0, 0.0));
+        assert_eq!(calc.get_segments().len(), 1);
+    }
+
+    #[test]
+    fn add_segments_from_array_parses_flat_quads() {
+        let mut calc = VisibilityCalculator::new();
+        let data = vec![0.0, 0.0, 10.0, 0.0, 10.0, 0.0, 10.0, 10.0];
+        calc.add_segments_from_array(&data);
+        assert_eq!(calc.get_segments().len(), 2);
+        assert_eq!(calc.get_segments()[0].p1.x, 0.0);
+        assert_eq!(calc.get_segments()[1].p2.y, 10.0);
+    }
+
+    #[test]
+    fn add_segments_from_array_ignores_incomplete() {
+        let mut calc = VisibilityCalculator::new();
+        calc.add_segments_from_array(&[1.0, 2.0, 3.0]);
+        assert!(calc.get_segments().is_empty());
+    }
+
+    #[test]
+    fn clear_removes_all_segments() {
+        let mut calc = VisibilityCalculator::new();
+        calc.add_segment(Point::new(0.0, 0.0), Point::new(100.0, 0.0));
+        calc.add_segment(Point::new(0.0, 100.0), Point::new(100.0, 100.0));
+        assert_eq!(calc.get_segments().len(), 2);
+        calc.clear();
+        assert!(calc.get_segments().is_empty());
+    }
+
+    #[test]
+    fn multiple_segments_stored_in_order() {
+        let mut calc = VisibilityCalculator::new();
+        calc.add_segment(Point::new(0.0, 0.0), Point::new(1.0, 0.0));
+        calc.add_segment(Point::new(2.0, 0.0), Point::new(3.0, 0.0));
+        calc.add_segment(Point::new(4.0, 0.0), Point::new(5.0, 0.0));
+        let segs = calc.get_segments();
+        assert_eq!(segs.len(), 3);
+        assert_eq!(segs[0].p1.x, 0.0);
+        assert_eq!(segs[1].p1.x, 2.0);
+        assert_eq!(segs[2].p1.x, 4.0);
+    }
+}
 

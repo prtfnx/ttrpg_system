@@ -111,7 +111,6 @@ pub mod math;
 pub mod types;
 mod camera;
 mod input;
-mod input_controller;
 mod lighting;
 mod fog;
 mod geometry;
@@ -120,7 +119,6 @@ mod table_manager;
 pub mod unit_converter;
 pub mod collision;
 pub mod planning;
-mod game;
 
 // WASM/WebGL-only modules — not compiled on native test targets
 #[cfg(target_arch = "wasm32")]

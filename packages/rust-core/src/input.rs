@@ -2,6 +2,7 @@ use crate::math::Vec2;
 use crate::types::Sprite;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[allow(dead_code)] // Variants constructed via WASM bindings at runtime
 pub enum InputMode {
     None,
     CameraPan,
@@ -82,6 +83,7 @@ pub struct InputHandler {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[allow(dead_code)] // Variants used via WASM bindings
 pub enum FogDrawMode {
     Hide,
     Reveal,
@@ -121,6 +123,7 @@ impl Default for InputHandler {
     }
 }
 
+#[allow(dead_code)] // Some methods only reachable via WASM bindings
 impl InputHandler {
     pub fn new() -> Self {
         Self::default()
@@ -453,6 +456,7 @@ impl InputHandler {
 }
 
 #[derive(Debug, Clone)]
+#[allow(dead_code)]
 pub enum InputResult {
     SingleSelect,
     MultiSelectToggle,

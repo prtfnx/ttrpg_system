@@ -23,6 +23,7 @@ use wasm_bindgen::prelude::*;
 /// log_debug!("Collision detected between {} and {}", entity1, entity2);
 /// ```
 #[cfg(feature = "log-debug")]
+#[allow(unused_macros)]
 macro_rules! log_debug {
     ($($arg:tt)*) => {
         web_sys::console::log_1(&format!("[DEBUG] {}", format_args!($($arg)*)).into());
@@ -31,6 +32,7 @@ macro_rules! log_debug {
 
 /// No-op debug macro when feature is disabled
 #[cfg(not(feature = "log-debug"))]
+#[allow(unused_macros)]
 macro_rules! log_debug {
     ($($arg:tt)*) => {};
 }
@@ -49,6 +51,7 @@ macro_rules! log_debug {
 /// log_info!("Game session started with {} players", player_count);
 /// ```
 #[cfg(feature = "log-info")]
+#[allow(unused_macros)]
 macro_rules! log_info {
     ($($arg:tt)*) => {
         web_sys::console::log_1(&format!("[INFO] {}", format_args!($($arg)*)).into());
@@ -57,6 +60,7 @@ macro_rules! log_info {
 
 /// No-op info macro when feature is disabled
 #[cfg(not(feature = "log-info"))]
+#[allow(unused_macros)]
 macro_rules! log_info {
     ($($arg:tt)*) => {};
 }
@@ -90,12 +94,14 @@ macro_rules! log_info {
 /// log_error!("WebSocket connection failed: {:?}", error);
 /// ```
 #[cfg(target_arch = "wasm32")]
+#[allow(unused_macros)]
 macro_rules! log_error {
     ($($arg:tt)*) => {
         web_sys::console::error_1(&format!("[ERROR] {}", format_args!($($arg)*)).into());
     };
 }
 #[cfg(not(target_arch = "wasm32"))]
+#[allow(unused_macros)]
 macro_rules! log_error {
     ($($arg:tt)*) => {
         eprintln!("[ERROR] {}", format_args!($($arg)*));
@@ -128,6 +134,7 @@ pub(crate) use systems::paint;
 mod rendering;
 
 // Re-exports so existing `use crate::camera::Camera` etc. still resolve
+#[cfg(target_arch = "wasm32")]
 pub(crate) use rendering::camera;
 #[cfg(target_arch = "wasm32")]
 pub(crate) use rendering::sprite_manager;
@@ -139,6 +146,7 @@ pub(crate) use rendering::webgl_renderer;
 pub(crate) use rendering::text_renderer;
 #[cfg(target_arch = "wasm32")]
 pub(crate) use rendering::layer_manager;
+#[cfg(target_arch = "wasm32")]
 pub(crate) use rendering::grid_system;
 #[cfg(target_arch = "wasm32")]
 pub(crate) use rendering::texture_manager;
@@ -154,8 +162,6 @@ mod net;
 pub(crate) use net::client as network;
 #[cfg(target_arch = "wasm32")]
 pub(crate) use net::table_sync;
-#[cfg(target_arch = "wasm32")]
-pub(crate) use net::asset_manager;
 #[cfg(target_arch = "wasm32")]
 mod actions;
 #[cfg(target_arch = "wasm32")]

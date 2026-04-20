@@ -369,6 +369,7 @@ impl Default for TableManager {
 impl TableManager {
     /// Borrow the active table ID without cloning.
     /// Use in hot loops (render, input) to avoid per-frame String allocation.
+    #[cfg_attr(not(target_arch = "wasm32"), allow(dead_code))]
     pub(crate) fn active_table_id(&self) -> Option<&str> {
         self.active_table_id.as_deref()
     }
@@ -491,7 +492,7 @@ mod tests {
 
     #[test]
     fn snap_to_grid_rounds_to_nearest_cell() {
-        let mut tm = make_table("t1", 1000.0, 1000.0);
+        let tm = make_table("t1", 1000.0, 1000.0);
         // default grid_cell_px=50
         let snapped = tm.snap_to_grid("t1", 73.0, 28.0).unwrap();
         assert_eq!(snapped, vec![50.0, 50.0]); // round(73/50)*50=50, round(28/50)*50=50

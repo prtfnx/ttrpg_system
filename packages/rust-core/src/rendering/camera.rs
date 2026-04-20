@@ -1,6 +1,7 @@
 use crate::math::{Vec2, Mat3, Rect};
 
 #[derive(Debug, Clone)]
+#[cfg_attr(not(target_arch = "wasm32"), allow(dead_code))]
 pub struct Camera {
     pub world_x: f64,
     pub world_y: f64,
@@ -25,6 +26,7 @@ impl Default for Camera {
     }
 }
 
+#[cfg_attr(not(target_arch = "wasm32"), allow(dead_code))]
 impl Camera {
     pub fn set_table_bounds(&mut self, x: f64, y: f64, width: f64, height: f64) {
         self.table_bounds = Some((x, y, width, height));
@@ -94,6 +96,7 @@ impl Camera {
         self.world_y = world_y;
     }
 
+    #[allow(dead_code)] // Tested API; render/state.rs currently sets fields directly
     pub fn set_camera(&mut self, world_x: f64, world_y: f64, zoom: f64) {
         self.world_x = world_x;
         self.world_y = world_y;
@@ -125,6 +128,7 @@ impl Camera {
         self.pan(world_delta_x, world_delta_y);
     }
 
+    #[allow(dead_code)] // Tested API; not yet wired into new render/ module
     pub fn focus_on_rect(&mut self, rect: Rect, canvas_size: Vec2, padding: f32) {
         // Calculate the center of the rectangle
         let rect_center = Vec2::new(

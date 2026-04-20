@@ -25,6 +25,7 @@ pub enum InputMode {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[cfg_attr(not(target_arch = "wasm32"), allow(dead_code))]
 pub enum ResizeHandle {
     TopLeft,
     TopRight,
@@ -36,6 +37,9 @@ pub enum ResizeHandle {
     RightCenter,
 }
 
+// Several fields are read only by event_system/ (cfg wasm32), so they appear
+// dead in native builds. The struct is shared across targets on purpose.
+#[cfg_attr(not(target_arch = "wasm32"), allow(dead_code))]
 pub struct InputHandler {
     pub input_mode: InputMode,
     pub last_mouse_screen: Vec2,
@@ -462,8 +466,10 @@ pub enum InputResult {
     MultiSelectToggle,
 }
 
+#[cfg_attr(not(target_arch = "wasm32"), allow(dead_code))]
 pub struct HandleDetector;
 
+#[cfg_attr(not(target_arch = "wasm32"), allow(dead_code))]
 impl HandleDetector {
     pub fn point_in_handle(point: Vec2, handle_x: f32, handle_y: f32, handle_size: f32) -> bool {
         let half = handle_size * 0.5;

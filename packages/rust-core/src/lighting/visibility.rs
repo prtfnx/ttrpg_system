@@ -1,3 +1,6 @@
+// Visibility types are only used by LightingSystem (cfg wasm32).
+#![cfg_attr(not(target_arch = "wasm32"), allow(dead_code))]
+
 /// Point in 2D space for visibility calculations
 #[derive(Clone, Copy, Debug)]
 pub struct Point {

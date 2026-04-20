@@ -1,3 +1,4 @@
+#[cfg(target_arch = "wasm32")]
 use wasm_bindgen::prelude::*;
 #[cfg(target_arch = "wasm32")]
 use js_sys::Array;
@@ -11,7 +12,8 @@ use crate::math::Vec2;
 #[derive(Serialize)]
 struct Point { x: f32, y: f32 }
 
-// Simple segment intersection helper
+// Simple segment intersection helper (used by compute_visibility_raw)
+#[cfg_attr(not(target_arch = "wasm32"), allow(dead_code))]
 fn seg_intersect(a1: Vec2, a2: Vec2, b1: Vec2, b2: Vec2) -> Option<Vec2> {
     let r = a2 - a1;
     let s = b2 - b1;
@@ -26,30 +28,23 @@ fn seg_intersect(a1: Vec2, a2: Vec2, b1: Vec2, b2: Vec2) -> Option<Vec2> {
 }
 
 // Obstacles expected as flat array: [x1,y1,x2,y2, x1,y1,x2,y2, ...]
-// Internal version takes &[f32] so Rust code can call it without a JS Float32Array.
+// Only used from WASM modules (returns JsValue → Array of {x,y} points).
+#[cfg(target_arch = "wasm32")]
 pub(crate) fn compute_visibility_impl(player_x: f32, player_y: f32, data: &[f32], max_dist: f32) -> JsValue {
     let points = compute_visibility_raw(player_x, player_y, data, max_dist);
 
-    #[cfg(target_arch = "wasm32")]
-    {
-        let arr = Array::new();
-        for (_, p) in points {
-            let pt = Point { x: p.x, y: p.y };
-            let js = serde_wasm_bindgen::to_value(&pt).unwrap_or(JsValue::NULL);
-            arr.push(&js);
-        }
-        JsValue::from(arr)
+    let arr = Array::new();
+    for (_, p) in points {
+        let pt = Point { x: p.x, y: p.y };
+        let js = serde_wasm_bindgen::to_value(&pt).unwrap_or(JsValue::NULL);
+        arr.push(&js);
     }
-    #[cfg(not(target_arch = "wasm32"))]
-    {
-        // Native: return a dummy JsValue (only used in tests via compute_visibility_raw)
-        let _ = points;
-        JsValue::NULL
-    }
+    JsValue::from(arr)
 }
 
 /// Pure visibility polygon computation. Returns sorted (angle, point) pairs.
 /// Testable on all targets — no JS dependencies.
+#[cfg_attr(not(target_arch = "wasm32"), allow(dead_code))]
 pub(crate) fn compute_visibility_raw(player_x: f32, player_y: f32, data: &[f32], max_dist: f32) -> Vec<(f32, Vec2)> {
     let mut endpoints: Vec<Vec2> = Vec::new();
     let mut i = 0usize;

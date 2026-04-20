@@ -1,3 +1,4 @@
+#[cfg(target_arch = "wasm32")]
 use wasm_bindgen::prelude::*;
 #[cfg(target_arch = "wasm32")]
 use web_sys::{WebGl2RenderingContext as WebGlRenderingContext, WebGlProgram, WebGlShader, WebGlBuffer};
@@ -90,10 +91,10 @@ impl Light {
         self.is_on = !self.is_on;
     }
 
+    #[cfg(target_arch = "wasm32")]
     fn mark_dirty(&mut self) {
         self.dirty = true;
-        #[cfg(target_arch = "wasm32")]
-        { self.cached_polygon = None; }
+        self.cached_polygon = None;
     }
 }
 

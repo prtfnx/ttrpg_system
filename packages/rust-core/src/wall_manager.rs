@@ -7,10 +7,12 @@ use crate::types::{Wall, WallType, WallDirection, DoorState};
 /// Walls are first-class geometric entities separate from sprites.  They feed
 /// directly into the lighting/vision pipeline as line segments and are rendered
 /// as colour-coded overlays in the DM view.
+#[cfg_attr(not(target_arch = "wasm32"), allow(dead_code))]
 pub struct WallManager {
     walls: HashMap<String, Wall>,
 }
 
+#[cfg_attr(not(target_arch = "wasm32"), allow(dead_code))]
 impl WallManager {
     pub fn new() -> Self {
         Self { walls: HashMap::new() }
@@ -74,6 +76,7 @@ impl WallManager {
         self.walls.clear();
     }
 
+    #[cfg(test)]
     pub fn count(&self) -> usize {
         self.walls.len()
     }
@@ -98,11 +101,12 @@ impl WallManager {
     }
 
     // ------------------------------------------------------------------
-    // Rendering data
+    // Rendering data (WASM only — used by DM overlay rendering)
     // ------------------------------------------------------------------
 
     /// Returns wall geometry + colour for DM overlay rendering.
     /// Each wall emits 8 floats: x1,y1,x2,y2,r,g,b,a
+    #[cfg(target_arch = "wasm32")]
     pub fn get_render_data(&self) -> Vec<f32> {
         let mut out = Vec::with_capacity(self.walls.len() * 8);
         for wall in self.walls.values() {
@@ -177,6 +181,7 @@ impl WallManager {
 }
 
 /// DM colour-coding by wall type / state.
+#[cfg(target_arch = "wasm32")]
 fn wall_color(wall: &Wall) -> (f32, f32, f32, f32) {
     if wall.is_door {
         return match wall.door_state {
@@ -199,6 +204,7 @@ fn wall_color(wall: &Wall) -> (f32, f32, f32, f32) {
 // the WallManager.  These thin helpers are called by render.rs.
 // =============================================================================
 
+#[cfg_attr(not(target_arch = "wasm32"), allow(dead_code))]
 impl WallManager {
     /// Parse a JSON wall object and add it to the manager.
     pub fn add_wall_from_json(&mut self, json: &str) -> bool {

@@ -1,8 +1,6 @@
 use wasm_bindgen::prelude::*;
 use web_sys::HtmlImageElement;
 use crate::types::*;
-use crate::math::*;
-use crate::input::InputMode;
 
 use super::RenderEngine;
 

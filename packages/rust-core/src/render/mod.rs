@@ -7,7 +7,6 @@ mod sync;
 use wasm_bindgen::prelude::*;
 use web_sys::{HtmlCanvasElement, WebGl2RenderingContext as WebGlRenderingContext};
 
-use crate::types::*;
 use crate::math::*;
 use crate::camera::Camera;
 use crate::input::InputHandler;

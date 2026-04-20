@@ -1,7 +1,7 @@
+import type { NetworkClient } from '@lib/wasm/wasm';
 import { wasmManager } from '@lib/wasm/wasmManager';
 
-// NetworkClient is internal to the WASM module; use any for the instance type
-type NetworkClientInstance = any;
+type NetworkClientInstance = NetworkClient;
 import { useCallback, useEffect, useRef, useState } from 'react';
 
 interface NetworkMessage {

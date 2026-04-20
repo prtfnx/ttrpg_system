@@ -436,7 +436,7 @@ mod tests {
         let mut pm = PlanningManager::new(64.0, 5.0 / 64.0);
         pm.set_aoe_cone(0.0, 0.0, 1.0, 60.0);
         match pm.aoe_template {
-            Some(AoeTemplate::Cone { ox, oy, angle, length }) => {
+            Some(AoeTemplate::Cone { ox, oy: _, angle, length }) => {
                 assert_eq!(ox, 0.0);
                 assert_eq!(angle, 1.0);
                 assert_eq!(length, 60.0);
@@ -450,7 +450,7 @@ mod tests {
         let mut pm = PlanningManager::new(64.0, 5.0 / 64.0);
         pm.set_aoe_line(0.0, 0.0, 100.0, 0.0, 10.0);
         match pm.aoe_template {
-            Some(AoeTemplate::Line { x1, y1, x2, y2, width }) => {
+            Some(AoeTemplate::Line { x1: _, y1: _, x2, y2: _, width }) => {
                 assert_eq!(x2, 100.0);
                 assert_eq!(width, 10.0);
             }
@@ -463,7 +463,7 @@ mod tests {
         let mut pm = PlanningManager::new(64.0, 5.0 / 64.0);
         pm.set_aoe_cube(50.0, 50.0, 30.0);
         match pm.aoe_template {
-            Some(AoeTemplate::Cube { cx, cy, side }) => {
+            Some(AoeTemplate::Cube { cx, cy: _, side }) => {
                 assert_eq!(cx, 50.0);
                 assert_eq!(side, 30.0);
             }

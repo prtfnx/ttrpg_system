@@ -1,3 +1,4 @@
+#[cfg(target_arch = "wasm32")]
 use wasm_bindgen::prelude::*;
 #[cfg(target_arch = "wasm32")]
 use web_sys::{WebGl2RenderingContext as WebGlRenderingContext, WebGlProgram, WebGlShader};
@@ -8,6 +9,7 @@ use std::collections::HashMap;
 use crate::math::Vec2;
 
 #[derive(Clone, Debug)]
+#[cfg_attr(not(target_arch = "wasm32"), allow(dead_code))]
 pub struct FogRectangle {
     pub id: String,
     pub table_id: String, // NEW: Associates fog with specific table
@@ -17,11 +19,13 @@ pub struct FogRectangle {
 }
 
 #[derive(Clone, Debug, PartialEq)]
+#[cfg_attr(not(target_arch = "wasm32"), allow(dead_code))]
 pub enum FogMode {
     Hide,
     Reveal,
 }
 
+#[cfg_attr(not(target_arch = "wasm32"), allow(dead_code))]
 impl FogRectangle {
     pub fn new(id: String, start_x: f32, start_y: f32, end_x: f32, end_y: f32, mode: FogMode) -> Self {
         Self {
@@ -419,25 +423,8 @@ impl FogOfWarSystem {
         Ok(shader)
     }
 
-    pub fn add_vision_polygon(&mut self, id: &str, points: Vec<f32>) {
-        self.vision_polygons.insert(id.to_string(), points);
-        self.needs_vision_rebuild = true;
-    }
-
-    pub fn remove_vision_polygon(&mut self, id: &str) {
-        self.vision_polygons.remove(id);
-        self.needs_vision_rebuild = true;
-    }
-
     pub fn set_ambient_light(&mut self, level: f32) {
         self.ambient_light = level.clamp(0.0, 1.0);
-    }
-
-    pub fn set_dynamic_lighting_enabled(&mut self, enabled: bool) {
-        self.dynamic_lighting_enabled = enabled;
-        if !enabled {
-            self.needs_vision_rebuild = true;
-        }
     }
 
     /// Rebuild the vision mask texture from stored polygons.
@@ -968,33 +955,6 @@ impl FogOfWarSystem {
         Ok(())
     }
 
-    pub fn get_fog_count(&self) -> usize {
-        self.fog_rectangles.len()
-    }
-    
-    // ===== TABLE-BASED OPTIMIZATION METHODS =====
-    
-    /// Count fog rectangles per table
-    pub fn count_fog_by_table(&self) -> std::collections::HashMap<String, usize> {
-        let mut counts = std::collections::HashMap::new();
-        for fog in self.fog_rectangles.values() {
-            *counts.entry(fog.table_id.clone()).or_insert(0) += 1;
-        }
-        counts
-    }
-    
-    /// Get fog count for specific table only
-    pub fn count_fog_for_table(&self, table_id: &str) -> usize {
-        self.fog_rectangles.values().filter(|fog| fog.table_id == table_id).count()
-    }
-    
-    /// Remove all fog not belonging to the specified table (optimization)
-    pub fn remove_fog_not_in_table(&mut self, table_id: &str) -> usize {
-        let before_count = self.fog_rectangles.len();
-        self.fog_rectangles.retain(|_, fog| fog.table_id == table_id);
-        before_count - self.fog_rectangles.len()
-    }
-    
     /// Clear all fog from a specific table
     pub fn clear_fog_for_table(&mut self, table_id: &str) -> usize {
         let before_count = self.fog_rectangles.len();

@@ -1,40 +1,39 @@
+#[cfg(target_arch = "wasm32")]
 use crate::math::Rect;
 #[cfg(target_arch = "wasm32")]
 use crate::webgl_renderer::WebGLRenderer;
 #[cfg(target_arch = "wasm32")]
 use wasm_bindgen::prelude::*;
 
+#[cfg_attr(not(target_arch = "wasm32"), allow(dead_code))]
 pub struct GridSystem {
     pub enabled: bool,
     pub size: f32,
     pub snapping: bool,
-    /// Reusable vertex buffer to avoid per-frame allocation
+    /// Reusable vertex buffer to avoid per-frame allocation (WASM rendering only)
+    #[cfg(target_arch = "wasm32")]
     line_buf: Vec<f32>,
-    /// Reusable vertex buffer for snapping dots
+    /// Reusable vertex buffer for snapping dots (WASM rendering only)
+    #[cfg(target_arch = "wasm32")]
     dot_buf: Vec<f32>,
 }
 
+#[cfg_attr(not(target_arch = "wasm32"), allow(dead_code))]
 impl GridSystem {
     pub fn new() -> Self {
         Self {
             enabled: true,
             size: 50.0,
             snapping: false,
+            #[cfg(target_arch = "wasm32")]
             line_buf: Vec::with_capacity(1024),
+            #[cfg(target_arch = "wasm32")]
             dot_buf: Vec::with_capacity(512),
         }
     }
     
-    pub fn toggle(&mut self) {
-        self.enabled = !self.enabled;
-    }
-    
     pub fn set_enabled(&mut self, enabled: bool) {
         self.enabled = enabled;
-    }
-    
-    pub fn toggle_snapping(&mut self) {
-        self.snapping = !self.snapping;
     }
     
     pub fn set_snapping(&mut self, enabled: bool) {
@@ -52,10 +51,6 @@ impl GridSystem {
     
     pub fn get_size(&self) -> f32 {
         self.size
-    }
-    
-    pub fn is_snapping_enabled(&self) -> bool {
-        self.snapping
     }
 }
 
@@ -131,18 +126,18 @@ mod tests {
     #[test]
     fn toggle_enabled() {
         let mut grid = GridSystem::new();
-        grid.toggle();
+        grid.set_enabled(false);
         assert!(!grid.enabled);
-        grid.toggle();
+        grid.set_enabled(true);
         assert!(grid.enabled);
     }
 
     #[test]
     fn toggle_snapping() {
         let mut grid = GridSystem::new();
-        grid.toggle_snapping();
+        grid.set_snapping(true);
         assert!(grid.snapping);
-        grid.toggle_snapping();
+        grid.set_snapping(false);
         assert!(!grid.snapping);
     }
 
@@ -191,8 +186,8 @@ mod tests {
     fn set_snapping_explicit() {
         let mut grid = GridSystem::new();
         grid.set_snapping(true);
-        assert!(grid.is_snapping_enabled());
+        assert!(grid.snapping);
         grid.set_snapping(false);
-        assert!(!grid.is_snapping_enabled());
+        assert!(!grid.snapping);
     }
 }

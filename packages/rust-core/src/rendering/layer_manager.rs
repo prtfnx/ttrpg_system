@@ -97,23 +97,6 @@ impl LayerManager {
         }
     }
     
-    pub fn set_layer_z_order(&mut self, layer_name: &str, z_order: i32) -> bool {
-        if let Some(layer) = self.layers.get_mut(layer_name) {
-            layer.settings.z_order = z_order;
-            true
-        } else {
-            false
-        }
-    }
-    
-    pub fn get_layer_settings(&self, layer_name: &str) -> Option<&LayerSettings> {
-        self.layers.get(layer_name).map(|layer| &layer.settings)
-    }
-
-    pub fn get_layer_settings_mut(&mut self, layer_name: &str) -> Option<&mut LayerSettings> {
-        self.layers.get_mut(layer_name).map(|layer| &mut layer.settings)
-    }
-    
     pub fn add_sprite_to_layer(&mut self, layer_name: &str, sprite_data: &JsValue) -> Result<String, JsValue> {
         let mut sprite: Sprite = sprite_data.into_serde()
             .map_err(|e| JsValue::from_str(&format!("Failed to parse sprite: {}", e)))?;
@@ -147,15 +130,6 @@ impl LayerManager {
         for (layer_name, layer) in &self.layers {
             if let Some(sprite) = layer.sprites.iter().find(|s| s.id == sprite_id) {
                 return Some((sprite, layer_name));
-            }
-        }
-        None
-    }
-    
-    pub fn find_sprite_mut(&mut self, sprite_id: &str) -> Option<&mut Sprite> {
-        for layer in self.layers.values_mut() {
-            if let Some(sprite) = layer.sprites.iter_mut().find(|s| s.id == sprite_id) {
-                return Some(sprite);
             }
         }
         None
@@ -275,63 +249,6 @@ impl LayerManager {
         false
     }
 
-    /// Move sprite from one layer to another
-    pub fn move_sprite_to_layer(&mut self, sprite_id: &str, target_layer: &str) -> bool {
-        // Find and remove sprite from current layer
-        let mut sprite_to_move: Option<Sprite> = None;
-        
-        for layer in self.layers.values_mut() {
-            if let Some(index) = layer.sprites.iter().position(|s| s.id == sprite_id) {
-                sprite_to_move = Some(layer.sprites.remove(index));
-                break;
-            }
-        }
-        
-        // Add sprite to target layer
-        if let Some(sprite) = sprite_to_move {
-            if let Some(target) = self.layers.get_mut(target_layer) {
-                target.sprites.push(sprite);
-                return true;
-            }
-        }
-        
-        false
-    }
-    
-    // ===== TABLE-BASED OPTIMIZATION METHODS =====
-    
-    /// Count sprites per table across all layers
-    pub fn count_sprites_by_table(&self) -> HashMap<String, usize> {
-        let mut counts = HashMap::new();
-        for layer in self.layers.values() {
-            for sprite in &layer.sprites {
-                *counts.entry(sprite.table_id.clone()).or_insert(0) += 1;
-            }
-        }
-        counts
-    }
-    
-    /// Get total sprite count for active table only
-    pub fn count_sprites_for_table(&self, table_id: &str) -> usize {
-        let mut count = 0;
-        for layer in self.layers.values() {
-            count += layer.sprites.iter().filter(|s| s.table_id == table_id).count();
-        }
-        count
-    }
-    
-    /// Remove all sprites not belonging to the specified table (optimization)
-    /// This is useful when switching tables to free memory
-    pub fn remove_sprites_not_in_table(&mut self, table_id: &str) -> usize {
-        let mut removed_count = 0;
-        for layer in self.layers.values_mut() {
-            let before_count = layer.sprites.len();
-            layer.sprites.retain(|sprite| sprite.table_id == table_id);
-            removed_count += before_count - layer.sprites.len();
-        }
-        removed_count
-    }
-    
     /// Clear all sprites from a specific table
     pub fn clear_sprites_for_table(&mut self, table_id: &str) -> usize {
         let mut removed_count = 0;

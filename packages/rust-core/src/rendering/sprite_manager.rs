@@ -89,13 +89,4 @@ impl SpriteManager {
     }
     
     // Additional sprite operation methods for better separation of concerns
-    
-    pub fn get_sprite_bounds(sprite: &Sprite) -> (Vec2, Vec2) {
-        let top_left = Vec2::new(sprite.world_x as f32, sprite.world_y as f32);
-        let size = Vec2::new(
-            (sprite.width * sprite.scale_x) as f32,
-            (sprite.height * sprite.scale_y) as f32
-        );
-        (top_left, size)
-    }
 }

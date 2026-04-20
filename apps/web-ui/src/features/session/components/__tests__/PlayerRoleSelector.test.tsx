@@ -266,9 +266,7 @@ describe('PlayerRoleSelector', () => {
       expect(screen.getByText('Owner')).toBeInTheDocument();
     });
 
-    it.skip('closes dropdown with Escape key', async () => {
-      // Skip: Component may not implement escape key behavior
-      // Users typically close dropdowns by clicking outside or clicking trigger again
+    it('closes dropdown with Escape key', async () => {
       render(
         <PlayerRoleSelector
           currentRole="player"

@@ -513,17 +513,13 @@ describe('Lighting System', () => {
   });
 
   describe('Performance Tests', () => {
-    // Skipped: 10 sequential userEvent clicks + dispatches exceed the 5s test timeout
-    it.skip('should handle multiple lights efficiently', async () => {
-      const user = userEvent.setup();
-
-      
+    it('should handle multiple lights efficiently', async () => {
       render(<LightingPanel />);
       
-      // Place 10 lights (include preset in each event)
+      // Place 10 lights using fireEvent (avoids userEvent delay overhead)
       for (let i = 0; i < 10; i++) {
         const torchButton = screen.getByRole('button', { name: /torch/i });
-        await user.click(torchButton);
+        fireEvent.click(torchButton);
         const preset = {
           name: 'Torch',
           color: { r: 1.0, g: 0.6, b: 0.2, a: 1.0 },

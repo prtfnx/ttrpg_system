@@ -11,7 +11,6 @@ use std::collections::HashMap;
 #[derive(Debug, Clone)]
 pub enum MouseEventResult {
     Handled,
-    CameraOperation(String),
     CreateSprite(String),
     None,
 }

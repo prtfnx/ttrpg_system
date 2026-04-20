@@ -96,19 +96,9 @@ impl RenderEngine {
             self.input.selected_sprite_ids.clear();
         }
 
-        match result {
-            MouseEventResult::CameraOperation(op) if op == "focus_selection" => {
-                if let Some(sprite_id) = &self.input.selected_sprite_id {
-                    if let Some((sprite, _)) = self.layer_manager.find_sprite(sprite_id) {
-                        let (pos, size) = SpriteManager::get_sprite_bounds(sprite);
-                        let rect = crate::math::Rect::new(pos.x, pos.y, size.x, size.y);
-                        self.camera.focus_on_rect(rect, self.canvas_size, 50.0);
-                        self.view_matrix = self.camera.view_matrix(self.canvas_size);
-                    }
-                }
-            }
-            _ => {}
-        }
+        // Result from handle_mouse_down is currently unused after
+        // CameraOperation variant removal.
+        let _ = result;
     }
     
     #[wasm_bindgen]
@@ -159,14 +149,6 @@ impl RenderEngine {
             MouseEventResult::Handled => {
                 self.view_matrix = self.camera.view_matrix(self.canvas_size);
             }
-            MouseEventResult::CameraOperation(cam_op) => {
-                match cam_op.as_str() {
-                    "update_view_matrix" => {
-                        self.view_matrix = self.camera.view_matrix(self.canvas_size);
-                    }
-                    _ => {}
-                }
-            }
             MouseEventResult::CreateSprite(_) => {}
             MouseEventResult::None => {}
         }
@@ -202,14 +184,6 @@ impl RenderEngine {
         
         match result {
             MouseEventResult::Handled => {}
-            MouseEventResult::CameraOperation(cam_op) => {
-                match cam_op.as_str() {
-                    "update_view_matrix" => {
-                        self.view_matrix = self.camera.view_matrix(self.canvas_size);
-                    }
-                    _ => {}
-                }
-            }
             MouseEventResult::CreateSprite(sprite_data) => {
                 self.handle_create_sprite_result(&sprite_data);
             }

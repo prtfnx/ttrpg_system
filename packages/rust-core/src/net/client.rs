@@ -109,19 +109,6 @@ pub struct NetworkMessage {
     pub session_code: Option<String>,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct SpriteNetworkData {
-    pub sprite_id: String,
-    pub layer_name: String,
-    pub world_x: f64,
-    pub world_y: f64,
-    pub width: f64,
-    pub height: f64,
-    pub rotation: f64,
-    pub texture_name: String,
-}
-
-
 #[derive(Debug, Clone)]
 pub enum ConnectionState {
     Disconnected,

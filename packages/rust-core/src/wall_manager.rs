@@ -1,5 +1,4 @@
 use std::collections::HashMap;
-use serde_json;
 use crate::types::{Wall, WallType, WallDirection, DoorState};
 
 /// Manages wall segments for a single virtual table.

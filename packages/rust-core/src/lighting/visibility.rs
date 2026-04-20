@@ -106,7 +106,7 @@ impl SpatialGrid {
 
         for cx in cx0..=cx1 {
             for cy in cy0..=cy1 {
-                self.grid.entry((cx, cy)).or_insert_with(Vec::new).push(idx);
+                self.grid.entry((cx, cy)).or_default().push(idx);
             }
         }
     }

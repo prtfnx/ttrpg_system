@@ -126,18 +126,13 @@ impl Sprite {
     }
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
 pub enum BlendMode {
+    #[default]
     Alpha,
     Additive,
     Modulate,
     Multiply,
-}
-
-impl Default for BlendMode {
-    fn default() -> Self {
-        BlendMode::Alpha
-    }
 }
 
 impl BlendMode {
@@ -320,9 +315,10 @@ impl Color {
 // Wall segment types
 // =============================================================================
 
-#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
+#[derive(Debug, Clone, Default, PartialEq, serde::Serialize, serde::Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum WallType {
+    #[default]
     Normal,
     Terrain,
     Invisible,
@@ -330,32 +326,22 @@ pub enum WallType {
     Window,
 }
 
-impl Default for WallType {
-    fn default() -> Self { WallType::Normal }
-}
-
-#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
+#[derive(Debug, Clone, Default, PartialEq, serde::Serialize, serde::Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum DoorState {
+    #[default]
     Closed,
     Open,
     Locked,
 }
 
-impl Default for DoorState {
-    fn default() -> Self { DoorState::Closed }
-}
-
-#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
+#[derive(Debug, Clone, Default, PartialEq, serde::Serialize, serde::Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum WallDirection {
+    #[default]
     Both,
     Left,
     Right,
-}
-
-impl Default for WallDirection {
-    fn default() -> Self { WallDirection::Both }
 }
 
 /// A wall segment in world-space coordinates.

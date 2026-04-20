@@ -21,7 +21,7 @@ fn seg_intersect(a1: Vec2, a2: Vec2, b1: Vec2, b2: Vec2) -> Option<Vec2> {
     if rxs.abs() < 1e-6 { return None; }
     let t = ((b1 - a1).x * s.y - (b1 - a1).y * s.x) / rxs;
     let u = ((b1 - a1).x * r.y - (b1 - a1).y * r.x) / rxs;
-    if t >= 0.0 && t <= 1.0 && u >= 0.0 && u <= 1.0 {
+    if (0.0..=1.0).contains(&t) && (0.0..=1.0).contains(&u) {
         return Some(Vec2::new(a1.x + t * r.x, a1.y + t * r.y));
     }
     None
@@ -96,7 +96,7 @@ pub(crate) fn compute_visibility_raw(player_x: f32, player_y: f32, data: &[f32],
         let cy1 = (max_y / cell_size).floor() as i32;
         for cx in cx0..=cx1 {
             for cy in cy0..=cy1 {
-                grid.entry((cx,cy)).or_insert_with(Vec::new).push(idx);
+                grid.entry((cx,cy)).or_default().push(idx);
             }
         }
     }

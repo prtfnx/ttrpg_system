@@ -302,7 +302,7 @@ mod tests {
     fn aoe_sphere_contains_token() {
         let mut pm = PlanningManager::new(64.0, 5.0 / 64.0);
         pm.set_aoe_sphere(0.0, 0.0, 100.0);
-        let positions = vec![50.0_f32, 0.0, 200.0, 0.0];
+        let positions = [50.0_f32, 0.0, 200.0, 0.0];
         // Use the non-wasm path
         let template = pm.aoe_template.as_ref().unwrap();
         let pos: Vec<[f32; 2]> = positions.chunks(2).map(|c| [c[0], c[1]]).collect();

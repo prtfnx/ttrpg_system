@@ -38,13 +38,13 @@
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: var(--space-xl) var(--space-2xl);
+  padding: var(--space-sm) var(--space-md);
   border-bottom: 1px solid var(--border-primary);
 }
 
 .modalHeader h2 {
   margin: 0;
-  font-size: var(--text-xl);
+  font-size: var(--text-base);
   font-weight: var(--font-semibold);
   color: var(--text-primary);
 }
@@ -52,12 +52,12 @@
 .closeButton {
   background: none;
   border: none;
-  font-size: var(--text-3xl);
+  font-size: var(--text-xl);
   color: var(--text-muted);
   cursor: pointer;
   padding: 0;
-  width: var(--space-3xl);
-  height: var(--space-3xl);
+  width: var(--space-2xl);
+  height: var(--space-2xl);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -71,17 +71,17 @@
 }
 
 .modalContent {
-  padding: var(--space-2xl);
+  padding: var(--space-sm) var(--space-md);
 }
 
 .configSection {
-  margin-bottom: var(--space-xl);
+  margin-bottom: var(--space-sm);
 }
 
 .configSection label {
   display: block;
-  margin-bottom: var(--space-sm);
-  font-size: var(--text-sm);
+  margin-bottom: 2px;
+  font-size: var(--text-xs);
   font-weight: var(--font-medium);
   color: var(--text-secondary);
 }
@@ -112,11 +112,12 @@
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: var(--space-lg);
+  margin-bottom: var(--space-xs);
 }
 
 .statRow label {
   margin-bottom: 0;
+  font-size: var(--text-xs);
 }
 
 .statDisplay {
@@ -136,13 +137,13 @@
 }
 
 .hpButton {
-  width: var(--space-3xl);
-  height: var(--space-3xl);
+  width: var(--space-2xl);
+  height: var(--space-2xl);
   background: var(--bg-primary);
   border: 1px solid var(--border-primary);
-  border-radius: var(--radius-md);
+  border-radius: var(--radius-sm);
   color: var(--text-primary);
-  font-size: var(--text-lg);
+  font-size: var(--text-sm);
   font-weight: var(--font-semibold);
   cursor: pointer;
   transition: var(--transition-fast);
@@ -162,13 +163,13 @@
 }
 
 .hpInput {
-  width: 80px;
-  padding: var(--space-sm);
+  width: 56px;
+  padding: 2px var(--space-xs);
   background: var(--bg-primary);
   border: 1px solid var(--border-primary);
-  border-radius: var(--radius-md);
+  border-radius: var(--radius-sm);
   color: var(--text-primary);
-  font-size: var(--text-base);
+  font-size: var(--text-sm);
   font-weight: var(--font-semibold);
   text-align: center;
   transition: var(--transition-fast);
@@ -194,9 +195,9 @@
 .hpBarContainer {
   position: relative;
   width: 100%;
-  height: var(--space-3xl);
+  height: 14px;
   background: var(--bg-primary);
-  border-radius: var(--radius-md);
+  border-radius: var(--radius-sm);
   border: 1px solid var(--border-primary);
   overflow: hidden;
 }
@@ -212,22 +213,22 @@
   top: 50%;
   left: 50%;
   transform: translate(-50%, -50%);
-  font-size: var(--text-sm);
+  font-size: var(--text-2xs);
   font-weight: var(--font-semibold);
   color: var(--text-primary);
 }
 
 .characterInfo {
-  margin-top: var(--space-2xl);
-  padding: var(--space-xl);
+  margin-top: var(--space-sm);
+  padding: var(--space-sm);
   background: var(--color-info-overlay);
   border: 1px solid var(--color-primary-glow);
-  border-radius: var(--radius-lg);
+  border-radius: var(--radius-md);
 }
 
 .characterInfo h3 {
-  margin: 0 0 var(--space-sm) 0;
-  font-size: var(--text-lg);
+  margin: 0 0 2px;
+  font-size: var(--text-sm);
   font-weight: var(--font-semibold);
   color: var(--text-primary);
 }
@@ -246,7 +247,7 @@
 }
 
 .noCharacterMessage {
-  padding: var(--space-2xl);
+  padding: var(--space-sm);
   text-align: center;
 }
 
@@ -257,7 +258,7 @@
 }
 
 .modalFooter {
-  padding: var(--space-xl) var(--space-2xl);
+  padding: var(--space-sm) var(--space-md);
   border-top: 1px solid var(--border-primary);
   display: flex;
   justify-content: flex-end;
@@ -306,8 +307,8 @@
 
 /* Ownership section - DM only */
 .ownershipSection {
-  margin-bottom: var(--space-xl);
-  padding: var(--space-lg);
+  margin-bottom: var(--space-sm);
+  padding: var(--space-sm);
   background: var(--bg-primary);
   border: 1px solid var(--border-primary);
   border-radius: var(--radius-md);

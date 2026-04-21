@@ -513,8 +513,8 @@ describe('Lighting System', () => {
   });
 
   describe('Performance Tests', () => {
-    it('should handle multiple lights efficiently', async () => {
-      render(<LightingPanel />);
+    it('should handle multiple lights efficiently', () => {
+      act(() => { render(<LightingPanel />); });
       
       const preset = {
         name: 'Torch',

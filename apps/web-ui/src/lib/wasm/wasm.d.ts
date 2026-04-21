@@ -10,9 +10,64 @@ export function warn(s: string): void;
 export function init_game_renderer(canvas: HTMLCanvasElement): RenderEngine;
 export function main(): void;
 export function version(): string;
-// ActionsClient: internal to RenderEngine, not instantiated by React
-// NetworkClient: internal to RenderEngine, not instantiated by React
-// TableSync: internal to RenderEngine, not instantiated by React
+
+// ActionsClient is internal to RenderEngine — not directly instantiated by React
+
+export class NetworkClient {
+  free(): void;
+  constructor();
+  set_message_handler(callback: Function): void;
+  set_connection_handler(callback: Function): void;
+  set_error_handler(callback: Function): void;
+  connect(url: string): void;
+  disconnect(): void;
+  send_message(message_type: string, data: any): void;
+  send_sprite_update(sprite_data: any): void;
+  send_sprite_create(sprite_data: any): void;
+  send_sprite_remove(sprite_id: string): void;
+  send_table_update(table_data: any): void;
+  send_table_request(request_data: any): void;
+  send_new_table_request(table_name: string): void;
+  send_ping(): void;
+  authenticate(username: string, password: string): void;
+  join_session(session_code: string): void;
+  request_table_list(): void;
+  request_player_list(): void;
+  request_asset_upload(filename: string, file_hash: string, file_size: bigint): void;
+  request_asset_download(asset_id: string): void;
+  confirm_asset_upload(asset_id: string, upload_success: boolean): void;
+  is_connected(): boolean;
+  get_connection_state(): string;
+  get_client_id(): string;
+  get_username(): string | undefined;
+  get_session_code(): string | undefined;
+  set_user_info(user_id: number, username: string, session_code?: string, jwt_token?: string): void;
+  sync_action(action_data: string): void;
+}
+
+export class TableSync {
+  free(): void;
+  constructor();
+  set_network_client(network_client: object): void;
+  set_table_received_handler(callback: Function): void;
+  set_sprite_update_handler(callback: Function): void;
+  set_error_handler(callback: Function): void;
+  set_action_reverted_handler(callback: Function): void;
+  set_grace_period(ms: number): void;
+  request_table(table_name: string): void;
+  handle_table_data(table_data: any): void;
+  send_sprite_move(sprite_id: string, x: number, y: number): string;
+  send_sprite_scale(sprite_id: string, scale_x: number, scale_y: number): string;
+  send_sprite_rotate(sprite_id: string, rotation: number): string;
+  send_sprite_create(sprite_data: any): void;
+  send_sprite_delete(sprite_id: string): string;
+  handle_sprite_update(update_data: any): void;
+  get_table_data(): any;
+  get_table_id(): string | undefined;
+  get_sprites(): any;
+  get_sprites_by_layer(layer_name: string): any;
+  handle_error(error_message: string): void;
+}
 
 export interface MovementRange {
   normal: [number, number][];

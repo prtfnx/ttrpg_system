@@ -92,6 +92,8 @@ describe('useLayerManager', () => {
     });
 
     it('handles WASM initialization timeout', async () => {
+      vi.useFakeTimers();
+
       // Remove WASM globals completely by deleting the properties
       // Setting to undefined doesn't work because the code checks for truthiness
       const descriptor = Object.getOwnPropertyDescriptor(window, 'ttrpg_rust_core');
@@ -103,11 +105,12 @@ describe('useLayerManager', () => {
       const _consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
       const { result } = renderHook(() => useLayerManager());
 
-      // Should remain uninitialized after timeout
-      await new Promise(resolve => setTimeout(resolve, 100));
+      // Advance past the 10s timeout to fire and resolve the pending timer
+      await vi.advanceTimersByTimeAsync(11000);
+
       expect(result.current.isInitialized).toBe(false);
-      // Error will be logged after 10s timeout, which we don't wait for in test
-      // Just verify it stays uninitialized
+
+      vi.useRealTimers();
     });
 
     it('waits for wasm-ready event when WASM is not initially available', async () => {
@@ -409,6 +412,31 @@ describe('useLayerManager', () => {
   });
 
   describe('Performance', () => {
+    it('executes each layer refresh call independently', async () => {
+      const { result } = renderHook(() => useLayerManager());
+
+      // Wait for initialization
+      await waitFor(() => {
+        expect(result.current.isInitialized).toBe(true);
+      });
+
+      mockRenderManager.get_layer_settings.mockClear();
+
+      // Multiple rapid refresh calls passing manager explicitly
+      await act(async () => {
+        result.current.refreshLayerData(mockRenderManager);
+      });
+      await act(async () => {
+        result.current.refreshLayerData(mockRenderManager);
+      });
+      await act(async () => {
+        result.current.refreshLayerData(mockRenderManager);
+      });
+
+      // Each call should execute independently (no batching): 3×7 = 21
+      expect(mockRenderManager.get_layer_settings).toHaveBeenCalledTimes(21);
+    });
+
     it('debounces rapid layer setting changes', async () => {
       const { result } = renderHook(() => useLayerManager());
 
@@ -427,36 +455,6 @@ describe('useLayerManager', () => {
 
       // Should have been called for each change (no debouncing in this implementation)
       expect(mockRenderManager.set_layer_opacity).toHaveBeenCalledTimes(5);
-    });
-
-    // Skipped: hook never initializes in test env — WASM mock state not sufficient for refreshLayerData path
-    it.skip('executes each layer refresh call independently', async () => {
-      // Ensure clean state for this test
-      (window as any).ttrpg_rust_core = true;
-      (window as any).gameAPI = mockGameAPI;
-      
-      const { result } = renderHook(() => useLayerManager());
-
-      await waitFor(() => {
-        expect(result.current?.isInitialized).toBe(true);
-      }, { timeout: 3000 });
-
-      // Reset call count after initialization
-      mockRenderManager.get_layer_settings.mockClear();
-
-      // Multiple rapid refresh calls (use await act for each)
-      await act(async () => {
-        result.current?.refreshLayerData();
-      });
-      await act(async () => {
-        result.current?.refreshLayerData();
-      });
-      await act(async () => {
-        result.current?.refreshLayerData();
-      });
-
-      // Each call should execute (no batching in this implementation)
-      expect(mockRenderManager.get_layer_settings).toHaveBeenCalledTimes(21); // 7 layers × 3 calls
     });
   });
 });

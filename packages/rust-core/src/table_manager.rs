@@ -327,7 +327,7 @@ impl TableManager {
     #[wasm_bindgen]
     pub fn set_table_units(&mut self, table_id: &str, grid_cell_px: f64, cell_distance: f64, unit: &str) -> bool {
         if let Some(table) = self.tables.get_mut(table_id) {
-            table.grid_cell_px = grid_cell_px.max(10.0).min(500.0);
+            table.grid_cell_px = grid_cell_px.clamp(10.0, 500.0);
             table.cell_distance = cell_distance.max(0.001);
             table.distance_unit = unit.to_string();
             table.cell_side = table.grid_cell_px; // keep in sync
@@ -390,17 +390,9 @@ impl TableManager {
     /// Get the active table's world bounds (width/height from TableInfo, NOT screen coordinates)
     /// Returns (x, y, width, height) in world coordinates
     pub fn get_active_table_world_bounds(&self) -> Option<(f64, f64, f64, f64)> {
-        if let Some(active_id) = &self.active_table_id {
-            if let Some(table) = self.tables.get(active_id) {
-                // Table's width and height are already in world coordinates
-                // Tables start at origin (0, 0) by default
-                Some((0.0, 0.0, table.width, table.height))
-            } else {
-                None
-            }
-        } else {
-            None
-        }
+        self.active_table_id.as_deref()
+            .and_then(|id| self.tables.get(id))
+            .map(|table| (0.0, 0.0, table.width, table.height))
     }
 }
 

@@ -240,11 +240,7 @@ impl InputHandler {
     pub fn update_fog_draw(&mut self, world_pos: Vec2) -> Option<(Vec2, Vec2)> {
         if matches!(self.input_mode, InputMode::FogDraw | InputMode::FogErase) {
             self.fog_draw_current = Some(world_pos);
-            if let Some(start) = self.fog_draw_start {
-                Some((start, world_pos))
-            } else {
-                None
-            }
+            self.fog_draw_start.map(|start| (start, world_pos))
         } else {
             None
         }
@@ -296,10 +292,8 @@ impl InputHandler {
             Some((start, current))
         }
         // After mouse up, show completed measurement until cleared
-        else if let Some(completed) = self.completed_measurement {
-            Some(completed)
-        } else {
-            None
+        else {
+            self.completed_measurement
         }
     }
     

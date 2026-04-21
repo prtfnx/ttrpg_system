@@ -9,7 +9,7 @@ import logging
 logger = logging.getLogger(__name__)
 
 
-def upgrade():
+def upgrade(db_path: str):
     with engine.connect() as conn:
         inspector = sa.inspect(conn)
         existing = [c["name"] for c in inspector.get_columns("game_sessions")]
@@ -35,4 +35,5 @@ def downgrade():
 
 
 if __name__ == "__main__":
-    upgrade()
+    import sys
+    upgrade(sys.argv[1] if len(sys.argv) > 1 else "ttrpg.db")

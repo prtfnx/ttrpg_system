@@ -398,23 +398,13 @@
 /* Table Thumbnail Preview — full-width proportional */
 .tableThumbnail {
   width: 100%;
+  aspect-ratio: 16 / 9;
   border: 1px solid var(--border-secondary);
   border-radius: var(--radius-xs);
   background: var(--bg-tertiary);
   overflow: hidden;
   position: relative;
-}
-
-.tableThumbnailRect {
-  display: block;
-  width: 100%;
-  background: var(--color-info);
-  opacity: 0.35;
-  border-radius: 1px;
-}
-
-.tableCard.active .tableThumbnailRect {
-  opacity: 0.6;
+  cursor: pointer;
 }
 
 /* Table Info Section */
@@ -490,15 +480,16 @@
 .tableCardActions {
   display: flex;
   align-items: center;
-  gap: var(--space-2xs);
-  flex-wrap: wrap;
+  gap: 2px;
+  flex-wrap: nowrap;
+  overflow: hidden;
 }
 
 .actionBtn {
   composes: panel-button secondary from '@shared/styles/PanelBase.module.css';
   flex: 1 1 0;
   min-width: 0;
-  height: 22px;
+  height: 20px;
   padding: 0;
   display: inline-flex;
   align-items: center;

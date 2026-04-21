@@ -5,6 +5,7 @@ import clsx from 'clsx';
 import { Copy, ExternalLink, Settings2, Trash2, Users } from 'lucide-react';
 import type { FC } from 'react';
 import styles from '../TableManagementPanel.module.css';
+import { TablePreview } from '../TablePreview';
 
 interface TableCardProps {
   table: TableInfo;
@@ -50,15 +51,9 @@ export const TableCard: FC<TableCardProps> = ({
         {syncBadge}
       </div>
 
-      {/* Proportional rectangle preview — fills card width */}
+      {/* Proportional preview — uses WASM screenshot for active, placeholder for inactive */}
       <div className={styles.tableThumbnail} onClick={() => onOpen(table.table_id)}>
-        {(() => {
-          const w = table.width || 1;
-          const h = table.height || 1;
-          return (
-            <div className={styles.tableThumbnailRect} style={{ paddingBottom: `${(h / w) * 100}%` }} />
-          );
-        })()}
+        <TablePreview table={table} width={130} height={73} />
       </div>
 
       {/* Meta info */}

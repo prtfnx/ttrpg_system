@@ -3,9 +3,11 @@ import sys, os
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '../..'))
 
 import pytest
+from unittest.mock import patch
 from core_table.session_rules import SessionRules
 from core_table.combat import Combatant
 from core_table.conditions import ActiveCondition, ConditionType
+from core_table.dice import DiceRollResult
 from service.attack_resolver import AttackResolver
 
 
@@ -38,10 +40,14 @@ def make_target(ac: int = 14, **kw) -> Combatant:
 def test_attack_hit_or_miss(resolver):
     attacker = make_attacker()
     target = make_target(ac=10)
-    result = resolver.resolve_attack(attacker=attacker, target=target, attack_bonus=10, damage_formula='1d6+3')
-    # With +10 vs AC 10, should almost always hit
+    # Pin dice: roll 10 on d20 (total=20 beats AC 10), then roll damage
+    with patch('service.attack_resolver.DiceEngine.roll', side_effect=[
+        DiceRollResult(total=20, rolls=[10], modifier=10, formula='1d20+10'),
+        DiceRollResult(total=6,  rolls=[3],  modifier=3,  formula='1d6+3'),
+    ]):
+        result = resolver.resolve_attack(attacker=attacker, target=target, attack_bonus=10, damage_formula='1d6+3')
     assert result.hit is True
-    assert result.damage_dealt >= 0
+    assert result.damage_dealt == 6
 
 
 def test_attack_auto_miss_on_one(resolver):

@@ -1,23 +1,26 @@
-/* ChatOverlay  transparent mini-chat anchored at bottom-left of canvas */
+/* ChatOverlay  transparent mini-chat centered at bottom of canvas */
 
 .overlay {
   position: absolute;
   bottom: 0;
-  left: 0;
+  left: 50%;
+  transform: translateX(-50%);
   width: 320px;
   max-height: 280px;
   display: flex;
   flex-direction: column;
-  background: var(--overlay-dark-subtle);
+  background: transparent;
+  border-top-left-radius: var(--radius-md);
   border-top-right-radius: var(--radius-md);
-  backdrop-filter: blur(4px);
   z-index: 200;
   pointer-events: all;
   transition: background 0.2s;
 }
 
-.overlay:hover {
-  background: var(--overlay-dark-light);
+.overlay:hover,
+.overlay:focus-within {
+  background: var(--overlay-dark-subtle);
+  backdrop-filter: blur(6px);
 }
 
 .header {
@@ -97,6 +100,7 @@
   display: flex;
   gap: var(--space-xs);
   flex-wrap: wrap;
+  text-shadow: var(--shadow-text-readable, none);
 }
 
 .msgUser {

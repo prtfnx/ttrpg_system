@@ -6,7 +6,7 @@ import logging
 logger = logging.getLogger(__name__)
 
 
-def upgrade():
+def upgrade(db_path: str):
     with engine.connect() as conn:
         inspector = sa.inspect(conn)
         if "combat_encounters" not in inspector.get_table_names():
@@ -38,4 +38,5 @@ def downgrade():
 
 
 if __name__ == "__main__":
-    upgrade()
+    import sys
+    upgrade(sys.argv[1] if len(sys.argv) > 1 else "ttrpg.db")

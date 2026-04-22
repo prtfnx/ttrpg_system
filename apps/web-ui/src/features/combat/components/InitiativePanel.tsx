@@ -94,6 +94,9 @@ export function InitiativePanel() {
             {c.concentration_spell && (
               <span className={styles.concentrating} title={`Concentrating: ${c.concentration_spell}`}>🔮</span>
             )}
+            {c.surprised && (
+              <span className={styles.surprisedBadge} title="Surprised — loses first turn">⚡</span>
+            )}
             {c.hp === 0 && (isDM(role) || isControlledByMe(c)) && (
               <button className={styles.rollInitBtn} onClick={() => rollDeathSave(c.combatant_id)} title="Roll death save">💀</button>
             )}

@@ -143,6 +143,12 @@
   background: var(--death-save-empty);
 }
 
+.surprisedBadge {
+  font-size: var(--font-size-xs);
+  opacity: 0.85;
+  flex-shrink: 0;
+}
+
 .actions {
   display: flex;
   gap: 2px;

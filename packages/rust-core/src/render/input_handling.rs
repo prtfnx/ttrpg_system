@@ -393,11 +393,10 @@ impl RenderEngine {
                 return Some(sprite_id);
             }
         } else if let Some(sprite_id) = self.find_sprite_at_position(world_pos) {
-                self.input.set_single_selection(sprite_id.clone());
-                return Some(sprite_id);
-            } else if !shift_key {
-                self.input.start_area_selection(world_pos);
-            }
+            self.input.set_single_selection(sprite_id.clone());
+            return Some(sprite_id);
+        } else if !shift_key {
+            self.input.start_area_selection(world_pos);
         }
         None
     }

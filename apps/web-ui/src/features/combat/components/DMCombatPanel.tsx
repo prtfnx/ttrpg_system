@@ -31,6 +31,7 @@ export function DMCombatPanel() {
   const [resistField, setResistField] = useState('');
   const [vulnField, setVulnField] = useState('');
   const [immuneField, setImmuneField] = useState('');
+  const [surprisedIds, setSurprisedIds] = useState<string[]>([]);
 
   if (!combat) return <PreCombatSetup />;
 
@@ -81,6 +82,15 @@ export function DMCombatPanel() {
       immunities: toList(immuneField),
     });
   };
+
+  const setSurprised = (surprised: boolean) => {
+    if (!surprisedIds.length) return;
+    send(MessageType.DM_SET_SURPRISED, { combatant_ids: surprisedIds, surprised });
+    setSurprisedIds([]);
+  };
+
+  const toggleSurprisedId = (id: string) =>
+    setSurprisedIds((prev) => prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]);
 
   const revertLast = () => send(MessageType.DM_REVERT_ACTION, {});
 
@@ -182,6 +192,26 @@ export function DMCombatPanel() {
         <label className={styles.label}>Immunities</label>
         <input className={styles.input} placeholder="poison..." value={immuneField} onChange={(e) => setImmuneField(e.target.value)} />
         <button className={styles.btn} onClick={setResistances}>Set</button>
+      </div>
+
+      <div className={styles.section}>
+        <label className={styles.label}>Surprise Round — mark surprised</label>
+        <div className={styles.checkList}>
+          {combat.combatants.map((c) => (
+            <label key={c.combatant_id} className={styles.checkItem}>
+              <input
+                type="checkbox"
+                checked={surprisedIds.includes(c.combatant_id)}
+                onChange={() => toggleSurprisedId(c.combatant_id)}
+              />
+              {c.name}
+            </label>
+          ))}
+        </div>
+        <div className={styles.row}>
+          <button className={styles.btn} onClick={() => setSurprised(true)}>Set Surprised</button>
+          <button className={styles.btn} onClick={() => setSurprised(false)}>Clear</button>
+        </div>
       </div>
     </div>
   );

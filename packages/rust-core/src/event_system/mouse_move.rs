@@ -49,7 +49,7 @@ impl EventSystem {
                 if let Some(sprite_id) = &input.selected_sprite_id {
                     if let Some((sprite, _)) = Self::find_sprite_mut(sprite_id, layers) {
                         SpriteManager::resize_sprite_with_handle(sprite, handle, world_pos);
-                        Self::dispatch_resize_preview(sprite_id, sprite.width as f64 * sprite.scale_x as f64, sprite.height as f64 * sprite.scale_y as f64);
+                        Self::dispatch_resize_preview(sprite_id, sprite.width * sprite.scale_x, sprite.height * sprite.scale_y);
                     }
                 }
                 MouseEventResult::Handled
@@ -58,7 +58,7 @@ impl EventSystem {
                 if let Some(sprite_id) = &input.selected_sprite_id {
                     if let Some((sprite, _)) = Self::find_sprite_mut(sprite_id, layers) {
                         SpriteManager::update_rotation(sprite, world_pos, input.rotation_start_angle, input.sprite_initial_rotation);
-                        Self::dispatch_rotate_preview(sprite_id, sprite.rotation.to_degrees() as f64);
+                        Self::dispatch_rotate_preview(sprite_id, sprite.rotation.to_degrees());
                     }
                 }
                 MouseEventResult::Handled

@@ -78,7 +78,18 @@ macro_rules! log_info {
 /// log_warn!("Performance warning: {} objects rendered in single batch", count);
 /// log_warn!("Resource not found, using fallback: {}", resource_name);
 /// ```
-
+#[cfg(any(debug_assertions, feature = "log-warn"))]
+#[allow(unused_macros)]
+macro_rules! log_warn {
+    ($($arg:tt)*) => {
+        web_sys::console::warn_1(&format!("[WARN] {}", format_args!($($arg)*)).into());
+    };
+}
+#[cfg(not(any(debug_assertions, feature = "log-warn")))]
+#[allow(unused_macros)]
+macro_rules! log_warn {
+    ($($arg:tt)*) => {};
+}
 
 /// Error level logging macro - always enabled
 /// 

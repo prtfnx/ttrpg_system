@@ -29,12 +29,26 @@ if ($runAll -or $Rust) {
     Write-Host "`n==> Rust benchmarks (Criterion)" -ForegroundColor Cyan
     Push-Location "$Root\packages\rust-core"
     try {
+        # Auto-discover bench names from Cargo.toml [[bench]] sections
+        $benchNames = (Get-Content Cargo.toml -Raw) -split '\r?\n' |
+            Where-Object { $_ -match '^\s*name\s*=' } |
+            Select-Object -Skip 0 |
+            ForEach-Object { ($_ -replace '.*=\s*"([^"]+)"', '$1').Trim() }
+        # Only keep actual [[bench]] names (Cargo.toml has one [package] name before them)
+        $cargoContent = Get-Content Cargo.toml -Raw
+        $benchNames = [regex]::Matches($cargoContent, '\[\[bench\]\]\s*\r?\nname\s*=\s*"([^"]+)"') |
+            ForEach-Object { $_.Groups[1].Value }
+
+        if (-not $benchNames) { throw "No [[bench]] targets found in Cargo.toml" }
+        Write-Host "  Found bench targets: $($benchNames -join ', ')" -ForegroundColor DarkGray
+
+        $benchFlags = $benchNames | ForEach-Object { "--bench", $_ }
         if ($Save) {
-            cargo bench -- --save-baseline main
+            cargo bench @benchFlags -- --save-baseline main
         } elseif ($Compare) {
-            cargo bench -- --baseline main
+            cargo bench @benchFlags -- --baseline main
         } else {
-            cargo bench
+            cargo bench @benchFlags
         }
         if ($LASTEXITCODE -ne 0) { throw "Rust bench failed" }
     } finally { Pop-Location }
@@ -54,19 +68,19 @@ if ($runAll -or $Python) {
     if ($Save)    { $pyBenchArgs += "--benchmark-autosave" }
     if ($Compare) { $pyBenchArgs += "--benchmark-compare" }
 
-    # core-table
+    # core-table — auto-discover any bench_*.py in tests/
     Write-Host "  [core-table]" -ForegroundColor Yellow
     Push-Location "$Root\packages\core-table"
     try {
-        & python -m pytest tests/bench_*.py @pyBenchArgs
+        & python -m pytest tests/ --override-ini="python_files=bench_*.py" @pyBenchArgs
         if ($LASTEXITCODE -ne 0) { throw "core-table bench failed" }
     } finally { Pop-Location }
 
-    # server
+    # server — auto-discover any bench_*.py under tests/benchmarks/
     Write-Host "  [server]" -ForegroundColor Yellow
     Push-Location "$Root\apps\server"
     try {
-        & python -m pytest tests/benchmarks/ @pyBenchArgs
+        & python -m pytest tests/benchmarks/ --override-ini="addopts=" --override-ini="python_files=bench_*.py" @pyBenchArgs
         if ($LASTEXITCODE -ne 0) { throw "server bench failed" }
     } finally { Pop-Location }
 }

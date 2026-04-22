@@ -197,7 +197,15 @@ class CombatEngine:
             c.hp = max(0, c.hp - actual)
             if c.hp == 0:
                 c.is_defeated = True
-            return {'new_hp': c.hp, 'temp_hp': c.temp_hp, 'absorbed': absorbed, 'defeated': c.is_defeated}
+            result: dict = {'new_hp': c.hp, 'temp_hp': c.temp_hp, 'absorbed': absorbed, 'defeated': c.is_defeated}
+            # Concentration check on any damage taken
+            if actual > 0 and c.concentration_spell:
+                dc = max(10, actual // 2)
+                con_roll = DiceEngine.roll('1d20').total
+                if con_roll < dc:
+                    result['concentration_broken'] = c.concentration_spell
+                    c.concentration_spell = None
+            return result
         return {'error': 'combatant not found'}
 
     @classmethod

@@ -3715,6 +3715,12 @@ class ServerProtocol:
         state = CombatEngine.get_state(session_code)
         resp = Message(MessageType.COMBAT_STATE, {'combat': state.to_dict() if state else None, 'damage_result': result})
         await self.broadcast_to_session(resp, client_id)
+        if result.get('concentration_broken'):
+            conc_msg = Message(MessageType.CONCENTRATION_BROKEN, {
+                'combatant_id': combatant_id,
+                'spell': result['concentration_broken'],
+            })
+            await self.broadcast_to_session(conc_msg, client_id)
         return resp
 
     async def handle_dm_revert_action(self, msg: Message, client_id: str) -> Message:

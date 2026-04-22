@@ -167,6 +167,8 @@ class ServerProtocol:
         self.register_handler(MessageType.DM_ADD_ACTION,         self.handle_dm_add_action)
         self.register_handler(MessageType.DM_ADD_MOVEMENT,       self.handle_dm_add_movement)
         self.register_handler(MessageType.DM_TOGGLE_AI,          self.handle_dm_toggle_ai)
+        self.register_handler(MessageType.DM_SET_TEMP_HP,        self.handle_dm_set_temp_hp)
+        self.register_handler(MessageType.DEATH_SAVE_ROLL,       self.handle_death_save_roll)
         self.register_handler(MessageType.AI_ACTION,             self.handle_ai_action)
         # Encounters (Phase 11)
         self.register_handler(MessageType.ENCOUNTER_START,       self.handle_encounter_start)
@@ -3806,7 +3808,47 @@ class ServerProtocol:
         await self.broadcast_to_session(resp, client_id)
         return resp
 
-    # ── Encounters ──────────────────────────────────────────────────────────
+    async def handle_dm_set_temp_hp(self, msg: Message, client_id: str) -> Message:
+        if not is_dm(self._get_client_role(client_id)):
+            return Message(MessageType.ERROR, {'error': 'DMs only'})
+        d = msg.data or {}
+        combatant_id, amount = d.get('combatant_id'), d.get('amount')
+        if not combatant_id or amount is None:
+            return Message(MessageType.ERROR, {'error': 'combatant_id and amount required'})
+        from service.combat_engine import CombatEngine
+        result = CombatEngine.set_temp_hp(self._get_session_code(), combatant_id, int(amount))
+        if not result:
+            return Message(MessageType.ERROR, {'error': 'Combatant not found or no active combat'})
+        state = CombatEngine.get_state(self._get_session_code())
+        resp = Message(MessageType.COMBAT_STATE, {'combat': state.to_dict() if state else None, 'temp_hp_set': result})
+        await self.broadcast_to_session(resp, client_id)
+        return resp
+
+    async def handle_death_save_roll(self, msg: Message, client_id: str) -> Message:
+        d = msg.data or {}
+        combatant_id = d.get('combatant_id')
+        if not combatant_id:
+            return Message(MessageType.ERROR, {'error': 'combatant_id required'})
+        from service.combat_engine import CombatEngine
+        session_code = self._get_session_code()
+        # Only the controlling player or DM may roll
+        state = CombatEngine.get_state(session_code)
+        if not state:
+            return Message(MessageType.ERROR, {'error': 'No active combat'})
+        combatant = next((c for c in state.combatants if c.combatant_id == combatant_id), None)
+        if not combatant:
+            return Message(MessageType.ERROR, {'error': 'Combatant not found'})
+        user_id = self._get_user_id(msg, client_id)
+        if not is_dm(self._get_client_role(client_id)):
+            if user_id is None or str(user_id) not in combatant.controlled_by:
+                return Message(MessageType.ERROR, {'error': 'Not your combatant'})
+        result = CombatEngine.roll_death_save(session_code, combatant_id)
+        if result is None:
+            return Message(MessageType.ERROR, {'error': 'Cannot roll — combatant is not downed'})
+        state = CombatEngine.get_state(session_code)
+        resp = Message(MessageType.DEATH_SAVE_RESULT, {**result, 'combat': state.to_dict() if state else None})
+        await self.broadcast_to_session(resp, client_id)
+        return resp
 
     async def handle_encounter_start(self, msg: Message, client_id: str) -> Message:
         if not is_dm(self._get_client_role(client_id)):

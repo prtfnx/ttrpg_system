@@ -265,3 +265,57 @@ class CombatEngine:
         state = cls._active.get(session_id)
         if state:
             state.action_log.append(action)
+
+    # ── Death Saves ─────────────────────────────────────────────────────────
+
+    @classmethod
+    def roll_death_save(cls, session_id: str, combatant_id: str) -> dict | None:
+        """Roll 1d20 death saving throw for a downed combatant.
+        Returns result dict or None if combatant not found / not downed."""
+        state = cls._active.get(session_id)
+        if not state or not state.settings.death_saves_enabled:
+            return None
+        for c in state.combatants:
+            if c.combatant_id != combatant_id:
+                continue
+            if c.hp > 0:
+                return None  # not downed
+            roll = DiceEngine.roll(1, 20)[0]
+            if roll == 20:
+                c.hp = 1
+                c.is_defeated = False
+                c.death_save_successes = 0
+                c.death_save_failures = 0
+                return {'roll': roll, 'result': 'stabilized', 'combatant_id': combatant_id}
+            if roll == 1:
+                c.death_save_failures += 2
+            elif roll < 10:
+                c.death_save_failures += 1
+            else:
+                c.death_save_successes += 1
+            if c.death_save_failures >= 3:
+                c.is_defeated = True
+                return {'roll': roll, 'result': 'dead', 'combatant_id': combatant_id,
+                        'successes': c.death_save_successes, 'failures': c.death_save_failures}
+            if c.death_save_successes >= 3:
+                c.death_save_successes = 0
+                c.death_save_failures = 0
+                return {'roll': roll, 'result': 'stable', 'combatant_id': combatant_id,
+                        'successes': 3, 'failures': c.death_save_failures}
+            return {'roll': roll, 'result': 'success' if roll >= 10 else 'failure',
+                    'combatant_id': combatant_id,
+                    'successes': c.death_save_successes, 'failures': c.death_save_failures}
+        return None
+
+    # ── Temp HP ─────────────────────────────────────────────────────────────
+
+    @classmethod
+    def set_temp_hp(cls, session_id: str, combatant_id: str, amount: int) -> dict | None:
+        state = cls._active.get(session_id)
+        if not state:
+            return None
+        for c in state.combatants:
+            if c.combatant_id == combatant_id:
+                c.temp_hp = max(0, amount)
+                return {'combatant_id': combatant_id, 'temp_hp': c.temp_hp}
+        return None

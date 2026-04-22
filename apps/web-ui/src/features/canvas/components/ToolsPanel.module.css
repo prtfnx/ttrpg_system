@@ -618,9 +618,9 @@
 .combatSection {
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: var(--spacing-xs);
   border-top: 1px solid var(--border-primary);
-  padding-top: 8px;
-  margin-top: 4px;
+  padding-top: var(--spacing-sm);
+  margin-top: var(--spacing-xs);
 }
 

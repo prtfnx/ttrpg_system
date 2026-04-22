@@ -1,0 +1,53 @@
+.panel {
+  background: var(--panel-bg);
+  border: 1px solid var(--panel-border);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-lg);
+  z-index: 200;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+.header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: var(--spacing-xs) var(--spacing-sm);
+  background: var(--overlay-dark-medium);
+  cursor: grab;
+  user-select: none;
+  border-bottom: 1px solid var(--panel-border);
+  height: 32px;
+  box-sizing: border-box;
+  flex-shrink: 0;
+}
+
+.header:active {
+  cursor: grabbing;
+}
+
+.title {
+  font-weight: 600;
+  font-size: var(--font-size-xs);
+  color: var(--text-primary);
+}
+
+.closeBtn {
+  background: none;
+  border: none;
+  color: var(--text-muted);
+  cursor: pointer;
+  font-size: var(--font-size-sm);
+  line-height: 1;
+  padding: 0 var(--spacing-xs);
+}
+
+.closeBtn:hover {
+  color: var(--button-danger-bg);
+}
+
+.body {
+  overflow-y: auto;
+  height: 100%;
+}

@@ -28,6 +28,9 @@ export function DMCombatPanel() {
   const [damageValue, setDamageValue] = useState('');
   const [conditionType, setConditionType] = useState('poisoned');
   const [conditionDuration, setConditionDuration] = useState('1');
+  const [resistField, setResistField] = useState('');
+  const [vulnField, setVulnField] = useState('');
+  const [immuneField, setImmuneField] = useState('');
 
   if (!combat) return <PreCombatSetup />;
 
@@ -65,6 +68,17 @@ export function DMCombatPanel() {
       condition_type: conditionType,
       duration: Number(conditionDuration),
       source: 'dm',
+    });
+  };
+
+  const setResistances = () => {
+    if (!selectedId) return;
+    const toList = (s: string) => s.split(',').map((x) => x.trim().toLowerCase()).filter(Boolean);
+    send(MessageType.DM_SET_RESISTANCES, {
+      combatant_id: selectedId,
+      resistances: toList(resistField),
+      vulnerabilities: toList(vulnField),
+      immunities: toList(immuneField),
     });
   };
 
@@ -158,6 +172,16 @@ export function DMCombatPanel() {
           />
           <button className={styles.btn} onClick={addCondition}>Add</button>
         </div>
+      </div>
+
+      <div className={styles.section}>
+        <label className={styles.label}>Resistances (comma-separated damage types)</label>
+        <input className={styles.input} placeholder="fire, cold..." value={resistField} onChange={(e) => setResistField(e.target.value)} />
+        <label className={styles.label}>Vulnerabilities</label>
+        <input className={styles.input} placeholder="thunder..." value={vulnField} onChange={(e) => setVulnField(e.target.value)} />
+        <label className={styles.label}>Immunities</label>
+        <input className={styles.input} placeholder="poison..." value={immuneField} onChange={(e) => setImmuneField(e.target.value)} />
+        <button className={styles.btn} onClick={setResistances}>Set</button>
       </div>
     </div>
   );

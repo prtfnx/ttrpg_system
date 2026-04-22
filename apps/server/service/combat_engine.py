@@ -182,6 +182,14 @@ class CombatEngine:
         for c in state.combatants:
             if c.combatant_id != combatant_id:
                 continue
+            # Apply resistance / immunity / vulnerability
+            dt = damage_type.lower()
+            if dt and dt in c.damage_immunities:
+                return {'new_hp': c.hp, 'temp_hp': c.temp_hp, 'absorbed': 0, 'defeated': c.is_defeated, 'immune': True}
+            if dt and dt in c.damage_vulnerabilities:
+                amount = amount * 2
+            elif dt and dt in c.damage_resistances:
+                amount = amount // 2
             # Temp HP absorbs first
             absorbed = min(c.temp_hp, amount)
             c.temp_hp -= absorbed
@@ -280,7 +288,7 @@ class CombatEngine:
                 continue
             if c.hp > 0:
                 return None  # not downed
-            roll = DiceEngine.roll(1, 20)[0]
+            roll = DiceEngine.roll('1d20').total
             if roll == 20:
                 c.hp = 1
                 c.is_defeated = False
@@ -318,4 +326,31 @@ class CombatEngine:
             if c.combatant_id == combatant_id:
                 c.temp_hp = max(0, amount)
                 return {'combatant_id': combatant_id, 'temp_hp': c.temp_hp}
+        return None
+
+    # ── Resistances ─────────────────────────────────────────────────────────
+
+    @classmethod
+    def set_resistances(cls, session_id: str, combatant_id: str,
+                        resistances: list[str] | None = None,
+                        vulnerabilities: list[str] | None = None,
+                        immunities: list[str] | None = None) -> dict | None:
+        state = cls._active.get(session_id)
+        if not state:
+            return None
+        for c in state.combatants:
+            if c.combatant_id == combatant_id:
+                if resistances is not None:
+                    c.damage_resistances = resistances
+                if vulnerabilities is not None:
+                    c.damage_vulnerabilities = vulnerabilities
+                if immunities is not None:
+                    c.damage_immunities = immunities
+                return {
+                    'combatant_id': combatant_id,
+                    'damage_resistances': c.damage_resistances,
+                    'damage_vulnerabilities': c.damage_vulnerabilities,
+                    'damage_immunities': c.damage_immunities,
+                }
+        return None
         return None

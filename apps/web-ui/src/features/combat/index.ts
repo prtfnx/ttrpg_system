@@ -1,4 +1,5 @@
 export { DiceRoller } from './components/DiceRoller';
+export { FloatingInitiativeTracker } from './components/FloatingInitiativeTracker';
 export { GameModeSwitch } from './components/GameModeSwitch';
 export { InitiativePanel } from './components/InitiativePanel';
 export { TurnBanner } from './components/TurnBanner';

@@ -4,7 +4,7 @@ import { DND_DISTANCES } from '@/utils/unitConverter';
 import { AssetManager } from '@features/assets';
 import { GridControls, LayerPanel } from '@features/canvas';
 import { useLayerHotkeys } from '@features/canvas/hooks';
-import { DMCombatPanel, GameModeSwitch } from '@features/combat';
+import { DMCombatPanel, FloatingInitiativeTracker, GameModeSwitch } from '@features/combat';
 import { startDmPreview, stopDmPreview } from '@features/lighting';
 import { MeasurementTool } from '@features/measurement';
 import { PaintPanel } from '@features/painting';
@@ -80,6 +80,7 @@ export function ToolsPanel({ userInfo }: ToolsPanelProps) {
   const [assetManagerVisible, setAssetManagerVisible] = useState(false);
   const [paintPanelVisible, setPaintPanelVisible] = useState(false);
   const [showCombatPanel, setShowCombatPanel] = useState(false);
+  const [showInitTracker, setShowInitTracker] = useState(false);
   const [shapeColor, setShapeColor] = useState('#0080ff');
   const [shapeOpacity, setShapeOpacity] = useState(1.0);
   const [shapeFilled, setShapeFilled] = useState(false);
@@ -455,16 +456,26 @@ export function ToolsPanel({ userInfo }: ToolsPanelProps) {
           {dmMode && (
             <div className={styles.combatSection}>
               <GameModeSwitch />
-              <button
-                className={`${styles.toolButton} ${showCombatPanel ? styles.active : ''}`}
-                onClick={() => setShowCombatPanel(v => !v)}
-                title="Toggle Combat Panel"
-              >
-                <Crown size={14} aria-hidden /> Combat
-              </button>
+              <div className={styles.combatButtons}>
+                <button
+                  className={`${styles.toolButton} ${showCombatPanel ? styles.active : ''}`}
+                  onClick={() => setShowCombatPanel(v => !v)}
+                  title="Toggle Combat Panel"
+                >
+                  <Crown size={14} aria-hidden /> Combat
+                </button>
+                <button
+                  className={`${styles.toolButton} ${showInitTracker ? styles.active : ''}`}
+                  onClick={() => setShowInitTracker(v => !v)}
+                  title="Toggle Initiative Tracker"
+                >
+                  <Shield size={14} aria-hidden /> Tracker
+                </button>
+              </div>
               {showCombatPanel && <DMCombatPanel />}
             </div>
           )}
+          {showInitTracker && <FloatingInitiativeTracker onClose={() => setShowInitTracker(false)} />}
 
           <DiceRoller />
 

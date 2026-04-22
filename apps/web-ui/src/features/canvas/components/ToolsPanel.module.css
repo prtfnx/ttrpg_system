@@ -624,3 +624,8 @@
   margin-top: var(--spacing-xs);
 }
 
+.combatButtons {
+  display: flex;
+  gap: var(--spacing-xs);
+}
+

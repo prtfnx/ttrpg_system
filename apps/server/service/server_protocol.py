@@ -170,6 +170,7 @@ class ServerProtocol:
         self.register_handler(MessageType.DM_SET_TEMP_HP,        self.handle_dm_set_temp_hp)
         self.register_handler(MessageType.DEATH_SAVE_ROLL,       self.handle_death_save_roll)
         self.register_handler(MessageType.DM_SET_RESISTANCES,    self.handle_dm_set_resistances)
+        self.register_handler(MessageType.DM_SET_SURPRISED,      self.handle_dm_set_surprised)
         self.register_handler(MessageType.AI_ACTION,             self.handle_ai_action)
         # Encounters (Phase 11)
         self.register_handler(MessageType.ENCOUNTER_START,       self.handle_encounter_start)
@@ -3874,6 +3875,23 @@ class ServerProtocol:
             return Message(MessageType.ERROR, {'error': 'Combatant not found or no active combat'})
         state = CombatEngine.get_state(self._get_session_code())
         resp = Message(MessageType.COMBAT_STATE, {'combat': state.to_dict() if state else None, 'resistances_update': result})
+        await self.broadcast_to_session(resp, client_id)
+        return resp
+
+    async def handle_dm_set_surprised(self, msg: Message, client_id: str) -> Message:
+        if not is_dm(self._get_client_role(client_id)):
+            return Message(MessageType.ERROR, {'error': 'DMs only'})
+        d = msg.data or {}
+        combatant_ids = d.get('combatant_ids', [])
+        surprised = bool(d.get('surprised', True))
+        if not combatant_ids:
+            return Message(MessageType.ERROR, {'error': 'combatant_ids required'})
+        from service.combat_engine import CombatEngine
+        result = CombatEngine.set_surprised(self._get_session_code(), combatant_ids, surprised)
+        if not result:
+            return Message(MessageType.ERROR, {'error': 'No matching combatants or no active combat'})
+        state = CombatEngine.get_state(self._get_session_code())
+        resp = Message(MessageType.COMBAT_STATE, {'combat': state.to_dict() if state else None, 'surprised_update': result})
         await self.broadcast_to_session(resp, client_id)
         return resp
 

@@ -140,15 +140,21 @@ class CombatEngine:
 
         state.current_turn_index = (state.current_turn_index + 1) % len(active)
 
-        # New round
+        # New round — tick conditions and clear surprise
         if state.current_turn_index == 0:
             state.round_number += 1
-            # Tick round-duration conditions on all combatants
             for c in state.combatants:
                 c.conditions = [cond for cond in c.conditions if not cond.tick()]
+                c.surprised = False  # surprise only lasts round 1
 
         # Reset current combatant's turn resources
         current = state.active_combatants()[state.current_turn_index]
+
+        # Surprised combatants on round 1 lose their turn
+        if state.round_number == 1 and current.surprised:
+            current.surprised = False
+            state.current_turn_index = (state.current_turn_index + 1) % len(active)
+            current = state.active_combatants()[state.current_turn_index]
         current.has_action = True
         current.has_bonus_action = True
         current.has_reaction = True
@@ -361,4 +367,17 @@ class CombatEngine:
                     'damage_immunities': c.damage_immunities,
                 }
         return None
-        return None
+
+    # ── Surprise ─────────────────────────────────────────────────────────────
+
+    @classmethod
+    def set_surprised(cls, session_id: str, combatant_ids: list[str], surprised: bool) -> dict | None:
+        state = cls._active.get(session_id)
+        if not state:
+            return None
+        updated = []
+        for c in state.combatants:
+            if c.combatant_id in combatant_ids:
+                c.surprised = surprised
+                updated.append(c.combatant_id)
+        return {'updated': updated, 'surprised': surprised} if updated else None

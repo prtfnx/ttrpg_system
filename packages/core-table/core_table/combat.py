@@ -63,6 +63,7 @@ class Combatant:
     damage_resistances: list[str] = field(default_factory=list)
     damage_vulnerabilities: list[str] = field(default_factory=list)
     damage_immunities: list[str] = field(default_factory=list)
+    surprised: bool = False
 
     def is_alive(self) -> bool:
         return not self.is_defeated
@@ -96,6 +97,7 @@ class Combatant:
             'damage_resistances': self.damage_resistances,
             'damage_vulnerabilities': self.damage_vulnerabilities,
             'damage_immunities': self.damage_immunities,
+            'surprised': self.surprised,
         }
 
     def to_dict_for_player(self, hp_visibility: str) -> dict:

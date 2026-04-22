@@ -13,6 +13,9 @@ import { useWebSocket } from '@shared/hooks';
 import type { LucideIcon } from 'lucide-react';
 import { ChevronRight, CloudFog, Construction, Crown, Lightbulb, Map as MapIcon, Mountain, Users } from 'lucide-react';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
+import { useCombatStore } from '@features/combat/stores/combatStore';
+import { useGameModeStore } from '@features/combat/stores/gameModeStore';
+import { createMessage, MessageType } from '@lib/websocket';
 import { useSpriteDragSync } from '../hooks/useSpriteDragSync';
 import { useSpriteSyncing } from '../hooks/useSpriteSyncing';
 import { MultiSelectManager } from '../services';
@@ -112,6 +115,21 @@ export const GameCanvas: React.FC = () => {
  const [showPerformanceMonitor, togglePerformanceMonitor] = usePerformanceMonitor();
 
   // Context menu logic
+  const combatants = useCombatStore((s) => s.combat?.combatants ?? []);
+  const isFight = useGameModeStore((s) => s.isFight);
+  const sessionRole = useGameStore((s) => s.sessionRole);
+  const inCombat = (entityId: string) => combatants.some((c) => c.entity_id === entityId);
+
+  const addToCombat = (entityId: string) => {
+    protocol?.sendMessage(createMessage(MessageType.INITIATIVE_ADD, { entity_id: entityId }));
+  };
+
+  const removeFromCombat = (entityId: string) => {
+    const combatant = combatants.find((c) => c.entity_id === entityId);
+    if (!combatant) return;
+    protocol?.sendMessage(createMessage(MessageType.INITIATIVE_REMOVE, { combatant_id: combatant.combatant_id }));
+  };
+
   const { contextMenu, setContextMenu, handleContextMenuAction, handleMoveToLayer } = useContextMenu({
     canvasRef: canvasRef as React.RefObject<HTMLCanvasElement>,
     rustRenderManagerRef,
@@ -924,6 +942,24 @@ export const GameCanvas: React.FC = () => {
                 >
                   Delete Sprite
                 </div>
+                {/* Combat context menu items — DM only, fight mode */}
+                {isDM(sessionRole) && isFight && contextMenu.spriteId && (
+                  inCombat(contextMenu.spriteId) ? (
+                    <div
+                      className={styles.contextMenuItem}
+                      onClick={() => { removeFromCombat(contextMenu.spriteId!); setContextMenu((p) => ({ ...p, visible: false })); }}
+                    >
+                      Remove from Combat
+                    </div>
+                  ) : (
+                    <div
+                      className={styles.contextMenuItem}
+                      onClick={() => { addToCombat(contextMenu.spriteId!); setContextMenu((p) => ({ ...p, visible: false })); }}
+                    >
+                      Add to Combat
+                    </div>
+                  )
+                )}
               </>
             ) : (
               // Show paste option when clicking on empty space if there's a copied sprite

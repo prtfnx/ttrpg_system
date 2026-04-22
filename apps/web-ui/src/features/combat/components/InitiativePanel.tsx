@@ -20,6 +20,19 @@ function HpBar({ c }: { c: Combatant }) {
   );
 }
 
+function DeathSavePips({ successes, failures }: { successes: number; failures: number }) {
+  return (
+    <div className={styles.deathSaves}>
+      {[0, 1, 2].map((i) => (
+        <span key={`s${i}`} className={[styles.pip, i < successes ? styles.pipSuccess : styles.pipEmpty].join(' ')} />
+      ))}
+      {[0, 1, 2].map((i) => (
+        <span key={`f${i}`} className={[styles.pip, i < failures ? styles.pipFail : styles.pipEmpty].join(' ')} />
+      ))}
+    </div>
+  );
+}
+
 export function InitiativePanel() {
   const combat = useCombatStore((s) => s.combat);
   const role = useGameStore((s) => s.sessionRole);
@@ -36,6 +49,12 @@ export function InitiativePanel() {
   const rollInitiative = (combatant_id: string) => {
     ProtocolService.getProtocol()?.sendMessage(
       createMessage(MessageType.INITIATIVE_ROLL, { combatant_id })
+    );
+  };
+
+  const rollDeathSave = (combatant_id: string) => {
+    ProtocolService.getProtocol()?.sendMessage(
+      createMessage(MessageType.DEATH_SAVE_ROLL, { combatant_id })
     );
   };
 
@@ -74,6 +93,12 @@ export function InitiativePanel() {
             </div>
             {c.concentration_spell && (
               <span className={styles.concentrating} title={`Concentrating: ${c.concentration_spell}`}>🔮</span>
+            )}
+            {c.hp === 0 && (isDM(role) || isControlledByMe(c)) && (
+              <button className={styles.rollInitBtn} onClick={() => rollDeathSave(c.combatant_id)} title="Roll death save">💀</button>
+            )}
+            {c.hp === 0 && ((c.death_save_successes ?? 0) > 0 || (c.death_save_failures ?? 0) > 0) && (
+              <DeathSavePips successes={c.death_save_successes ?? 0} failures={c.death_save_failures ?? 0} />
             )}
             {c.initiative === null && isControlledByMe(c) && (
               <button className={styles.rollInitBtn} onClick={() => rollInitiative(c.combatant_id)} title="Roll initiative">🎲</button>

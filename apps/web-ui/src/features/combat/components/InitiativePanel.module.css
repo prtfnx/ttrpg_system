@@ -117,6 +117,32 @@
   flex-shrink: 0;
 }
 
+.deathSaves {
+  display: flex;
+  gap: 2px;
+  flex-shrink: 0;
+}
+
+.pip {
+  display: inline-block;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  border: 1px solid var(--border-primary);
+}
+
+.pipSuccess {
+  background: var(--death-save-success);
+}
+
+.pipFail {
+  background: var(--death-save-failure);
+}
+
+.pipEmpty {
+  background: var(--death-save-empty);
+}
+
 .actions {
   display: flex;
   gap: 2px;

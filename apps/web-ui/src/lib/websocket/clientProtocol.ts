@@ -315,6 +315,12 @@ export class WebClientProtocol {
       if (d?.combat) useCombatStore.getState().setCombat(d.combat);
     });
 
+    // ── Concentration ──
+    this.registerHandler(MessageType.CONCENTRATION_BROKEN, async (m) => {
+      const d = m.data as { combatant_id: string; spell: string };
+      console.warn(`[Combat] Concentration broken for ${d?.combatant_id} (${d?.spell})`);
+    });
+
     // ── Encounters ──
     this.registerHandler(MessageType.ENCOUNTER_STATE, async (m) => {
       const { useEncounterStore } = await import('@features/combat/stores/encounterStore');

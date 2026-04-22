@@ -2,7 +2,7 @@ import { useGameStore } from '@/store';
 import { AssetPanel, BackgroundManagementPanel } from '@features/assets';
 import { CharacterPanel } from '@features/character';
 import { ChatPanel } from '@features/chat';
-// InitiativePanel will be added in Phase 5 — combat state machine
+import { InitiativePanel } from '@features/combat';
 import { CompendiumPanel } from '@features/compendium';
 import { FogPanel } from '@features/fog';
 import { LightingPanel } from '@features/lighting';
@@ -122,7 +122,7 @@ export function RightPanel(props: { sessionCode?: string; userInfo?: any; userRo
         {isDevelopment && activeTab === 'sync' && <TableSyncPanel />}
         {activeTab === 'characters' && <CharacterPanel />}
         {activeTab === 'players' && <PlayerManagerPanel sessionCode={props.sessionCode!} userInfo={{...props.userInfo, role: sessionRole}} />}
-        {activeTab === 'initiative' && <div style={{padding:'1rem',color:'#aaa'}}>Initiative tracker — coming in Phase 5</div>}
+        {activeTab === 'initiative' && <InitiativePanel />}
         {isDevelopment && activeTab === 'actions' && <ActionsPanel renderEngine={window.rustRenderManager as any || null} />}
         {isDevelopment && activeTab === 'queue' && <ActionQueuePanel sessionCode={props.sessionCode!} userInfo={props.userInfo!} />}
         {activeTab === 'entities' && <EntitiesPanel />}

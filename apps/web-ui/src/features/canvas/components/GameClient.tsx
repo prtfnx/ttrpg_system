@@ -3,6 +3,7 @@ import { RightPanel } from '@app/RightPanel';
 import type { UserInfo } from '@features/auth';
 import { useAuthenticatedWebSocket } from '@features/auth';
 import { ChatOverlay } from '@features/chat';
+import { ActionEconomyBar, TurnBanner } from '@features/combat';
 import { visionService } from '@features/lighting/services/vision.service';
 import { SessionManagementPanel } from '@features/session';
 import { isDM, type SessionRole } from '@features/session/types/roles';
@@ -305,6 +306,8 @@ const windowManager = useWindowManager();
         
         <div className={styles.canvasContainer}>
           <GameCanvas />
+          <TurnBanner />
+          <ActionEconomyBar />
           <ChatOverlay />
 
           {/* Panel expand buttons positioned directly in canvas */}

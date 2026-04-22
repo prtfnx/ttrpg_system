@@ -118,3 +118,6 @@ docs/
 # Server internal
 server_host/doc/
 
+# Benchmarks
+*.benchmarks*
+bench_results*

@@ -2,28 +2,54 @@ import { useState } from 'react';
 import styles from './DMCombatPanel.module.css';
 import { ProtocolService } from '@lib/api';
 import { createMessage, MessageType } from '@lib/websocket';
+import { useGameStore } from '@/store';
 import { useCombatStore } from '../stores/combatStore';
+
+function PreCombatSetup() {
+  const send = (type: MessageType, data: Record<string, unknown>) =>
+    ProtocolService.getProtocol()?.sendMessage(createMessage(type, data));
+
+  const startCombat = () => send(MessageType.COMBAT_START, {});
+
+  return (
+    <div className={styles.panel}>
+      <p className={styles.noCombaText}>No active combat.</p>
+      <button className={styles.startBtn} onClick={startCombat}>Start Combat</button>
+    </div>
+  );
+}
 
 export function DMCombatPanel() {
   const combat = useCombatStore((s) => s.combat);
+  const activeTableId = useGameStore((s) => s.activeTableId);
   const [selectedId, setSelectedId] = useState('');
   const [hpValue, setHpValue] = useState('');
+  const [tempHpValue, setTempHpValue] = useState('');
   const [damageValue, setDamageValue] = useState('');
   const [conditionType, setConditionType] = useState('poisoned');
   const [conditionDuration, setConditionDuration] = useState('1');
 
-  if (!combat) return null;
+  if (!combat) return <PreCombatSetup />;
 
   const send = (type: MessageType, data: Record<string, unknown>) =>
     ProtocolService.getProtocol()?.sendMessage(createMessage(type, data));
 
-  const startCombat = () => send(MessageType.COMBAT_START, { table_id: combat.table_id });
-  const endCombat = () => send(MessageType.COMBAT_END, {});
+  const startCombat = () => send(MessageType.COMBAT_START, { table_id: activeTableId });
+  const endCombat = () => {
+    if (!confirm('End combat? This cannot be undone.')) return;
+    send(MessageType.COMBAT_END, {});
+  };
 
   const setHp = () => {
     if (!selectedId || !hpValue) return;
     send(MessageType.DM_SET_HP, { combatant_id: selectedId, hp: Number(hpValue) });
     setHpValue('');
+  };
+
+  const setTempHp = () => {
+    if (!selectedId || !tempHpValue) return;
+    send(MessageType.DM_SET_TEMP_HP, { combatant_id: selectedId, temp_hp: Number(tempHpValue) });
+    setTempHpValue('');
   };
 
   const applyDamage = () => {
@@ -78,6 +104,21 @@ export function DMCombatPanel() {
             onChange={(e) => setHpValue(e.target.value)}
           />
           <button className={styles.btn} onClick={setHp}>Set</button>
+        </div>
+      </div>
+
+      <div className={styles.section}>
+        <label className={styles.label}>Temp HP</label>
+        <div className={styles.row}>
+          <input
+            className={styles.input}
+            type="number"
+            min="0"
+            placeholder="Temp HP"
+            value={tempHpValue}
+            onChange={(e) => setTempHpValue(e.target.value)}
+          />
+          <button className={styles.btn} onClick={setTempHp}>Set</button>
         </div>
       </div>
 

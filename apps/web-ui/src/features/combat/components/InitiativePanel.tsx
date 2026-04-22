@@ -5,15 +5,39 @@ import { ProtocolService } from '@lib/api';
 import { createMessage, MessageType } from '@lib/websocket';
 import { useCombatStore } from '../stores/combatStore';
 import { ConditionBadges } from './ConditionBadges';
+import type { Combatant } from '../stores/combatStore';
+
+function HpBar({ c }: { c: Combatant }) {
+  if (c.hp === null || c.max_hp === null || c.max_hp === 0) return null;
+  const pct = Math.max(0, Math.min(100, (c.hp / c.max_hp) * 100));
+  const tempPct = Math.min(100 - pct, (c.temp_hp / c.max_hp) * 100);
+  const color = pct > 50 ? 'var(--status-success-text)' : pct > 25 ? 'var(--status-warning-text)' : 'var(--status-error-text)';
+  return (
+    <div className={styles.hpBar} title={c.hp_descriptor ?? `${c.hp}/${c.max_hp} HP${c.temp_hp > 0 ? ` (+${c.temp_hp} temp)` : ''}`}>
+      <div className={styles.hpFill} style={{ width: `${pct}%`, background: color }} />
+      {tempPct > 0 && <div className={styles.tempHpFill} style={{ width: `${tempPct}%`, left: `${pct}%` }} />}
+    </div>
+  );
+}
 
 export function InitiativePanel() {
   const combat = useCombatStore((s) => s.combat);
   const role = useGameStore((s) => s.sessionRole);
+  const userId = useGameStore((s) => s.userId);
 
   if (!combat || combat.phase === 'inactive') return null;
 
   const active = combat.combatants.filter((c) => !c.is_defeated);
   const current = active[combat.current_turn_index % Math.max(active.length, 1)];
+
+  const isControlledByMe = (c: Combatant) =>
+    userId !== null && c.controlled_by.includes(String(userId));
+
+  const rollInitiative = (combatant_id: string) => {
+    ProtocolService.getProtocol()?.sendMessage(
+      createMessage(MessageType.INITIATIVE_ROLL, { combatant_id })
+    );
+  };
 
   const skipTurn = (combatant_id: string) => {
     ProtocolService.getProtocol()?.sendMessage(
@@ -44,11 +68,15 @@ export function InitiativePanel() {
             ].join(' ')}
           >
             <span className={styles.initiative}>{c.initiative ?? '—'}</span>
-            <span className={styles.name}>{c.name}</span>
-            {c.hp !== null && (
-              <span className={styles.hp}>
-                {c.hp_descriptor ?? `${c.hp}/${c.max_hp}`}
-              </span>
+            <div className={styles.nameCol}>
+              <span className={styles.name}>{c.name}</span>
+              <HpBar c={c} />
+            </div>
+            {c.concentration_spell && (
+              <span className={styles.concentrating} title={`Concentrating: ${c.concentration_spell}`}>🔮</span>
+            )}
+            {c.initiative === null && isControlledByMe(c) && (
+              <button className={styles.rollInitBtn} onClick={() => rollInitiative(c.combatant_id)} title="Roll initiative">🎲</button>
             )}
             <ConditionBadges conditions={c.conditions} />
             {isDM(role) && !c.is_defeated && (

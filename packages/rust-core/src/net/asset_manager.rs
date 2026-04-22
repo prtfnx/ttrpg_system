@@ -168,10 +168,10 @@ impl AssetManager {
         }
         
         // Extract filename from URL
-        let filename = url.split('/').last().unwrap_or("unknown").to_string();
+        let filename = url.split('/').next_back().unwrap_or("unknown").to_string();
         
         // Determine MIME type from file extension
-        let mime_type = match filename.split('.').last().unwrap_or("") {
+        let mime_type = match filename.split('.').next_back().unwrap_or("") {
             "png" => "image/png",
             "jpg" | "jpeg" => "image/jpeg",
             "gif" => "image/gif",

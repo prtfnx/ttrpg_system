@@ -16,7 +16,7 @@ impl RenderEngine {
         let user_can_control = |s: &crate::types::Sprite| -> bool {
             if self.is_gm { return true; }
             let Some(uid) = uid_opt else { return false; };
-            !s.controlled_by.is_empty() && s.controlled_by.contains(&(uid as i32))
+            !s.controlled_by.is_empty() && s.controlled_by.contains(&uid)
         };
 
         if let Some(selected_id) = &self.input.selected_sprite_id {
@@ -107,8 +107,7 @@ impl RenderEngine {
         let world_pos = self.camera.screen_to_world(current_screen);
         
         if self.input.input_mode == InputMode::Paint {
-            if self.paint.add_stroke_point(world_pos.x, world_pos.y, 1.0) {
-            }
+            self.paint.add_stroke_point(world_pos.x, world_pos.y, 1.0);
             self.input.last_mouse_screen = current_screen;
             return;
         }
@@ -393,8 +392,7 @@ impl RenderEngine {
                 }
                 return Some(sprite_id);
             }
-        } else {
-            if let Some(sprite_id) = self.find_sprite_at_position(world_pos) {
+        } else if let Some(sprite_id) = self.find_sprite_at_position(world_pos) {
                 self.input.set_single_selection(sprite_id.clone());
                 return Some(sprite_id);
             } else if !shift_key {

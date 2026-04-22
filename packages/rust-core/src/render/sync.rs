@@ -22,7 +22,7 @@ impl RenderEngine {
             web_sys::console::log_1(&format!("[RUST] handle_table_data: Setting active table to '{}'", table_id).into());
             
             let old_table_id = self.table_manager.get_active_table_id();
-            let is_switching_tables = old_table_id.as_ref().map_or(false, |old_id| old_id != &table_id);
+            let is_switching_tables = old_table_id.as_ref().is_some_and(|old_id| old_id != &table_id);
             
             if is_switching_tables {
                 if let Some(old_id) = old_table_id {
@@ -70,7 +70,7 @@ impl RenderEngine {
         self.layer_manager.clear_all_layers();
 
         let table_id = table.table_id.clone();
-        for (_layer_name, sprites) in &table.layers {
+        for sprites in table.layers.values() {
             for sprite_data in sprites {
                 self.add_sprite_from_table_data(sprite_data, &table_id)?;
             }

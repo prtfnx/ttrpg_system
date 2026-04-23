@@ -7,7 +7,7 @@ from core_table.session_rules import SessionRules
 import math
 
 if TYPE_CHECKING:
-    pass
+    from core_table.combat import CombatState
 
 
 @dataclass
@@ -22,6 +22,7 @@ class MovementResult:
     reason: str = ""
     valid_path: list = field(default_factory=list)
     movement_cost: float = 0.0
+    opportunity_attack_triggers: list = field(default_factory=list)
 
 
 class MovementValidator:
@@ -138,6 +139,34 @@ class MovementValidator:
                 )
 
         return MovementResult(valid=True, valid_path=path, movement_cost=movement_cost)
+
+    def check_opportunity_attacks(
+        self, entity_id: str, from_pos: tuple, table, combat_state: Optional['CombatState'],
+    ) -> list[dict]:
+        """Return triggers: [{combatant_id, name, controlled_by}] for hostiles within reach."""
+        if combat_state is None or not getattr(self.rules, 'opportunity_attacks_enabled', True):
+            return []
+        grid = table.grid_cell_px
+        reach = grid * 1.5  # covers diagonal adjacency
+        triggers = []
+        for c in combat_state.combatants:
+            if str(c.entity_id) == str(entity_id) or c.is_defeated or not c.has_reaction:
+                continue
+            sprite_key = table.sprite_to_entity.get(str(c.entity_id))
+            if sprite_key is None:
+                continue
+            ent = table.entities.get(sprite_key)
+            if ent is None:
+                continue
+            dist = math.hypot(float(ent.position[0]) - from_pos[0],
+                              float(ent.position[1]) - from_pos[1])
+            if dist <= reach:
+                triggers.append({
+                    'combatant_id': c.combatant_id,
+                    'name': c.name,
+                    'controlled_by': getattr(c, 'controlled_by', None),
+                })
+        return triggers
 
     # ── Helpers ───────────────────────────────────────────────────────────
 

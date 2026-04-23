@@ -112,13 +112,22 @@ class MovementValidator:
         # Speed check (only when rules say so and combatant info is available)
         movement_cost = 0.0
         if self.rules.enforce_movement_speed and combatant is not None:
+            difficult = getattr(table, 'difficult_terrain_cells', set())
             # Sum cost of each segment in the actual path (accounts for detours)
             for seg_start, seg_end in zip(path, path[1:]):
-                movement_cost += PathfindingSystem.get_movement_cost(
+                seg_cost = PathfindingSystem.get_movement_cost(
                     seg_start, seg_end,
                     grid_size=table.grid_cell_px,
                     diagonal_rule=self.rules.diagonal_movement_rule,
                 )
+                if difficult:
+                    # Mid-point cell of segment determines terrain type
+                    mid_x = (seg_start[0] + seg_end[0]) / 2
+                    mid_y = (seg_start[1] + seg_end[1]) / 2
+                    cell = (int(mid_x // table.grid_cell_px), int(mid_y // table.grid_cell_px))
+                    if cell in difficult:
+                        seg_cost *= 2
+                movement_cost += seg_cost
             if movement_cost > combatant.movement_remaining:
                 return MovementResult(
                     valid=False,
@@ -193,11 +202,19 @@ class MovementValidator:
 
         movement_cost = 0.0
         if self.rules.enforce_movement_speed and combatant is not None:
+            difficult = getattr(table, 'difficult_terrain_cells', set())
             for seg_start, seg_end in zip(path, path[1:]):
-                movement_cost += PathfindingSystem.get_movement_cost(
+                seg_cost = PathfindingSystem.get_movement_cost(
                     seg_start, seg_end, grid_size=grid,
                     diagonal_rule=self.rules.diagonal_movement_rule,
                 )
+                if difficult:
+                    mid_x = (seg_start[0] + seg_end[0]) / 2
+                    mid_y = (seg_start[1] + seg_end[1]) / 2
+                    cell = (int(mid_x // grid), int(mid_y // grid))
+                    if cell in difficult:
+                        seg_cost *= 2
+                movement_cost += seg_cost
             if movement_cost > combatant.movement_remaining:
                 return MovementResult(valid=False, reason=f"Insufficient movement: need {movement_cost:.0f}ft")
 

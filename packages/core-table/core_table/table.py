@@ -207,6 +207,9 @@ class VirtualTable:
         # Wall segments (keyed by wall_id UUID string)
         self.walls: Dict[str, Any] = {}
 
+        # Difficult terrain cells: set of (col, row) grid coords
+        self.difficult_terrain_cells: set = set()
+
         # Initialize grid
         self.grid = {}
         for layer in self.layers:

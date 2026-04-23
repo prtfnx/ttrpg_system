@@ -172,6 +172,14 @@ class ServerProtocol:
         self.register_handler(MessageType.DM_SET_RESISTANCES,    self.handle_dm_set_resistances)
         self.register_handler(MessageType.DM_SET_SURPRISED,      self.handle_dm_set_surprised)
         self.register_handler(MessageType.DM_SET_TERRAIN,        self.handle_dm_set_terrain)
+        # Cover zones (Phase 8)
+        self.register_handler(MessageType.COVER_ZONE_ADD,        self.handle_cover_zone_add)
+        self.register_handler(MessageType.COVER_ZONE_REMOVE,     self.handle_cover_zone_remove)
+        self.register_handler(MessageType.COVER_ZONES_SYNC,      self.handle_cover_zones_sync)
+        self.register_handler(MessageType.ATTACK_PREVIEW,        self.handle_attack_preview)
+        # Opportunity attacks (Phase 9)
+        self.register_handler(MessageType.OPPORTUNITY_ATTACK_CONFIRM_MOVE, self.handle_oa_confirm_move)
+        self.register_handler(MessageType.OPPORTUNITY_ATTACK_RESOLVE,      self.handle_oa_resolve)
         self.register_handler(MessageType.AI_ACTION,             self.handle_ai_action)
         # Encounters (Phase 11)
         self.register_handler(MessageType.ENCOUNTER_START,       self.handle_encounter_start)
@@ -544,6 +552,26 @@ class ServerProtocol:
                     if action_id:
                         reject['action_id'] = action_id
                     return Message(MessageType.ACTION_REJECTED, reject)
+
+                # Opportunity attack detection (fight mode only)
+                if mv_result is not None and mv_result.valid and game_mode == 'fight':
+                    from service.combat_engine import CombatEngine
+                    combat_state = CombatEngine.get_state(self._get_session_code())
+                    oa_triggers = validator.check_opportunity_attacks(
+                        sprite_id, to_tuple(from_pos), table, combat_state
+                    )
+                    if oa_triggers:
+                        key = f'{self._get_session_code()}:{sprite_id}'
+                        self.__class__._pending_moves[key] = {
+                            'from_pos': from_pos, 'to_pos': to_pos,
+                            'path': msg.data.get('path', []),
+                        }
+                        warn = Message(MessageType.OPPORTUNITY_ATTACK_WARNING, {
+                            'entity_id': sprite_id,
+                            'triggers': oa_triggers,
+                        })
+                        await self.broadcast_to_session(warn, None)
+                        return warn
             except Exception as e:
                 logger.warning(f"Movement validation error (non-fatal): {e}")
 
@@ -3919,6 +3947,155 @@ class ServerProtocol:
         resp = Message(MessageType.DM_SET_TERRAIN, {
             'difficult_terrain': [list(c) for c in table.difficult_terrain_cells],
             'mode': mode,
+        })
+        await self.broadcast_to_session(resp, client_id)
+        return resp
+
+    # ── Cover Zones (Phase 8) ────────────────────────────────────────────────
+
+    def _get_table_by_id(self, table_id: str):
+        return self.table_manager.tables_id.get(table_id) or self.table_manager.tables.get(table_id)
+
+    async def handle_cover_zone_add(self, msg: Message, client_id: str) -> Message:
+        if not is_dm(self._get_client_role(client_id)):
+            return Message(MessageType.ERROR, {'error': 'DMs only'})
+        from core_table.table import CoverZone
+        d = msg.data or {}
+        table_id = str(d.get('table_id', ''))
+        table = self._get_table_by_id(table_id)
+        if table is None:
+            return Message(MessageType.ERROR, {'error': 'Table not found'})
+        zone = CoverZone.from_dict(d['zone'])
+        if not hasattr(table, 'cover_zones'):
+            table.cover_zones = []
+        # Replace if zone_id already exists
+        table.cover_zones = [z for z in table.cover_zones if z.zone_id != zone.zone_id]
+        table.cover_zones.append(zone)
+        resp = Message(MessageType.COVER_ZONE_ADD, {'zone': zone.to_dict()})
+        await self.broadcast_to_session(resp, client_id)
+        return resp
+
+    async def handle_cover_zone_remove(self, msg: Message, client_id: str) -> Message:
+        if not is_dm(self._get_client_role(client_id)):
+            return Message(MessageType.ERROR, {'error': 'DMs only'})
+        d = msg.data or {}
+        table_id = str(d.get('table_id', ''))
+        table = self._get_table_by_id(table_id)
+        if table is None:
+            return Message(MessageType.ERROR, {'error': 'Table not found'})
+        zone_id = d.get('zone_id', '')
+        if hasattr(table, 'cover_zones'):
+            table.cover_zones = [z for z in table.cover_zones if z.zone_id != zone_id]
+        resp = Message(MessageType.COVER_ZONE_REMOVE, {'zone_id': zone_id})
+        await self.broadcast_to_session(resp, client_id)
+        return resp
+
+    async def handle_cover_zones_sync(self, msg: Message, client_id: str) -> Message:
+        d = msg.data or {}
+        table_id = str(d.get('table_id', ''))
+        table = self._get_table_by_id(table_id)
+        zones = [z.to_dict() for z in getattr(table, 'cover_zones', [])] if table else []
+        return Message(MessageType.COVER_ZONES_SYNC, {'zones': zones})
+
+    async def handle_attack_preview(self, msg: Message, client_id: str) -> Message:
+        if not is_dm(self._get_client_role(client_id)):
+            return Message(MessageType.ERROR, {'error': 'DMs only'})
+        from service.attack_resolver import AttackResolver
+        from service.combat_engine import CombatEngine
+        d = msg.data or {}
+        session_code = self._get_session_code()
+        state = CombatEngine.get_state(session_code)
+        if not state:
+            return Message(MessageType.ERROR, {'error': 'No active combat'})
+        attacker_id = d.get('attacker_id', '')
+        target_id = d.get('target_id', '')
+        atk = next((c for c in state.combatants if c.combatant_id == attacker_id), None)
+        tgt = next((c for c in state.combatants if c.combatant_id == target_id), None)
+        if not atk or not tgt:
+            return Message(MessageType.ERROR, {'error': 'Combatant not found'})
+        table_id = str(d.get('table_id', ''))
+        table = self._get_table_by_id(table_id)
+        from core_table.session_rules import SessionRules
+        rules = SessionRules.defaults(session_code or 'default')
+        resolver = AttackResolver(rules)
+        attack_type = d.get('attack_type', 'melee')
+        cover = AttackResolver.resolve_cover(
+            (0.0, 0.0), (0.0, 0.0), table
+        ) if table else 'none'
+        # Resolve with attack_bonus=0 just for preview info
+        attack_bonus = int(d.get('attack_bonus', 0))
+        result = resolver.resolve_attack(
+            atk, tgt, attack_bonus=attack_bonus,
+            damage_formula=d.get('damage_formula', '1d6'),
+            damage_type=d.get('damage_type', 'bludgeoning'),
+            attack_type=attack_type, table=table, combat=state,
+        )
+        return Message(MessageType.ATTACK_PREVIEW_RESULT, {
+            'hit': result.hit, 'is_critical': result.is_critical,
+            'attack_roll': result.attack_roll.total if result.attack_roll else None,
+            'damage_dealt': result.damage_dealt, 'reason': result.reason,
+            'cover': cover,
+            'effective_ac': tgt.armor_class + {'half': 2, 'three_quarters': 5}.get(cover, 0),
+        })
+
+    # ── Opportunity Attacks (Phase 9) ────────────────────────────────────────
+
+    # Pending moves: session:entity_id → {from_pos, to_pos, path, pending_oa_count}
+    _pending_moves: dict = {}
+
+    async def handle_oa_confirm_move(self, msg: Message, client_id: str) -> Message:
+        """Player confirmed move despite OA warning — apply the pending move."""
+        d = msg.data or {}
+        session_code = self._get_session_code()
+        entity_id = d.get('entity_id', '')
+        key = f'{session_code}:{entity_id}'
+        pending = self.__class__._pending_moves.pop(key, None)
+        if not pending:
+            return Message(MessageType.ERROR, {'error': 'No pending move'})
+        # Broadcast the move to all clients
+        move_msg = Message(MessageType.SPRITE_MOVE, {
+            'sprite_id': entity_id,
+            'from': pending['from_pos'],
+            'to': pending['to_pos'],
+            'path': pending.get('path', []),
+        })
+        await self.broadcast_to_session(move_msg, client_id)
+        return move_msg
+
+    async def handle_oa_resolve(self, msg: Message, client_id: str) -> Message:
+        """Attacker resolves (or passes) an opportunity attack reaction."""
+        from service.attack_resolver import AttackResolver
+        from service.combat_engine import CombatEngine
+        d = msg.data or {}
+        session_code = self._get_session_code()
+        if not d.get('use_reaction', False):
+            return Message(MessageType.OPPORTUNITY_ATTACK_RESOLVE, {'resolved': True, 'passed': True})
+        state = CombatEngine.get_state(session_code)
+        if not state:
+            return Message(MessageType.ERROR, {'error': 'No active combat'})
+        attacker_id = d.get('attacker_combatant_id', '')
+        target_id = d.get('target_combatant_id', '')
+        atk = next((c for c in state.combatants if c.combatant_id == attacker_id), None)
+        tgt = next((c for c in state.combatants if c.combatant_id == target_id), None)
+        if not atk or not tgt:
+            return Message(MessageType.ERROR, {'error': 'Combatant not found'})
+        # Mark reaction used
+        atk.has_reaction = False
+        from core_table.session_rules import SessionRules
+        rules = SessionRules.defaults(session_code or 'default')
+        resolver = AttackResolver(rules)
+        result = resolver.resolve_attack(
+            atk, tgt, attack_bonus=int(d.get('attack_bonus', 0)),
+            damage_formula=d.get('damage_formula', '1d6+0'),
+            damage_type=d.get('damage_type', 'bludgeoning'),
+            combat=state,
+        )
+        if result.hit:
+            CombatEngine.apply_damage(session_code, tgt.combatant_id, result.damage_dealt)
+        resp = Message(MessageType.OPPORTUNITY_ATTACK_RESOLVE, {
+            'hit': result.hit, 'damage': result.damage_dealt,
+            'attacker': attacker_id, 'target': target_id,
+            'reason': result.reason,
         })
         await self.broadcast_to_session(resp, client_id)
         return resp

@@ -1,9 +1,9 @@
-import styles from './TurnBanner.module.css';
-import { useEffect } from 'react';
 import { useGameStore } from '@/store';
 import { ProtocolService } from '@lib/api';
 import { createMessage, MessageType } from '@lib/websocket';
+import { useEffect } from 'react';
 import { useCombatStore } from '../stores/combatStore';
+import styles from './TurnBanner.module.css';
 
 export function TurnBanner() {
   const combat = useCombatStore((s) => s.combat);

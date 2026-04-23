@@ -1,11 +1,11 @@
-import styles from './InitiativePanel.module.css';
 import { useGameStore } from '@/store';
 import { isDM } from '@features/session/types/roles';
 import { ProtocolService } from '@lib/api';
 import { createMessage, MessageType } from '@lib/websocket';
+import type { Combatant } from '../stores/combatStore';
 import { useCombatStore } from '../stores/combatStore';
 import { ConditionBadges } from './ConditionBadges';
-import type { Combatant } from '../stores/combatStore';
+import styles from './InitiativePanel.module.css';
 
 function HpBar({ c }: { c: Combatant }) {
   if (c.hp === null || c.max_hp === null || c.max_hp === 0) return null;

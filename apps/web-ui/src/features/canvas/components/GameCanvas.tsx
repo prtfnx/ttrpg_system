@@ -4,18 +4,18 @@
  */
 import { useGameStore } from '@/store';
 import { assetIntegrationService } from '@features/assets';
+import { useCombatStore } from '@features/combat/stores/combatStore';
+import { useGameModeStore } from '@features/combat/stores/gameModeStore';
 import { isDM } from '@features/session/types/roles';
 import { useOptionalProtocol } from '@lib/api';
 import { useWasmBridge, wasmIntegrationService, wasmManager } from '@lib/wasm';
 import type { RenderEngine } from '@lib/wasm/wasm';
+import { createMessage, MessageType } from '@lib/websocket';
 import { DragDropImageHandler } from '@shared/components';
 import { useWebSocket } from '@shared/hooks';
 import type { LucideIcon } from 'lucide-react';
 import { ChevronRight, CloudFog, Construction, Crown, Lightbulb, Map as MapIcon, Mountain, Users } from 'lucide-react';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
-import { useCombatStore } from '@features/combat/stores/combatStore';
-import { useGameModeStore } from '@features/combat/stores/gameModeStore';
-import { createMessage, MessageType } from '@lib/websocket';
 import { useSpriteDragSync } from '../hooks/useSpriteDragSync';
 import { useSpriteSyncing } from '../hooks/useSpriteSyncing';
 import { MultiSelectManager } from '../services';

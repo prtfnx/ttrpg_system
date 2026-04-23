@@ -205,15 +205,13 @@ impl EventSystem {
                 } else {
                     input.add_to_selection(sprite_id);
                 }
-                return MouseEventResult::Handled;
             } else {
                 input.start_area_selection(world_pos);
-                return MouseEventResult::Handled;
             }
         } else {
             input.clear_selection();
             input.input_mode = InputMode::CameraPan;
-            return MouseEventResult::Handled;
         }
+        MouseEventResult::Handled
     }
 }

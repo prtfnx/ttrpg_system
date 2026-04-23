@@ -224,12 +224,12 @@ impl EventSystem {
                 "move"
             }
             InputMode::SpriteResize(_) => {
-                js_sys::Reflect::set(&data, &"width".into(), &JsValue::from_f64(sprite.width as f64 * sprite.scale_x as f64)).ok();
-                js_sys::Reflect::set(&data, &"height".into(), &JsValue::from_f64(sprite.height as f64 * sprite.scale_y as f64)).ok();
+                js_sys::Reflect::set(&data, &"width".into(), &JsValue::from_f64(sprite.width * sprite.scale_x)).ok();
+                js_sys::Reflect::set(&data, &"height".into(), &JsValue::from_f64(sprite.height * sprite.scale_y)).ok();
                 "resize"
             }
             InputMode::SpriteRotate => {
-                js_sys::Reflect::set(&data, &"rotation".into(), &JsValue::from_f64(sprite.rotation.to_degrees() as f64)).ok();
+                js_sys::Reflect::set(&data, &"rotation".into(), &JsValue::from_f64(sprite.rotation.to_degrees())).ok();
                 "rotate"
             }
             _ => return,

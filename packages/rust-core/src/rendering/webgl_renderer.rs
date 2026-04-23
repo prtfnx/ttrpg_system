@@ -186,7 +186,7 @@ impl WebGLRenderer {
     }
     
     pub fn draw_line_strip(&self, vertices: &[f32], color: [f32; 4], line_width: f32) -> Result<(), JsValue> {
-        if vertices.len() < 4 || vertices.len() % 2 != 0 { return Ok(()); }
+        if vertices.len() < 4 || !vertices.len().is_multiple_of(2) { return Ok(()); }
         
         if let Some(program) = &self.shader_program {
             self.gl.use_program(Some(program));
@@ -243,7 +243,7 @@ impl WebGLRenderer {
     }
     
     pub fn draw_triangles(&self, vertices: &[f32], color: [f32; 4]) -> Result<(), JsValue> {
-        if vertices.len() < 6 || vertices.len() % 2 != 0 { return Ok(()); }
+        if vertices.len() < 6 || !vertices.len().is_multiple_of(2) { return Ok(()); }
         
         if let Some(program) = &self.shader_program {
             self.gl.use_program(Some(program));
@@ -294,7 +294,7 @@ impl WebGLRenderer {
     }
     
     pub fn draw_lines(&self, vertices: &[f32], color: [f32; 4]) -> Result<(), JsValue> {
-        if vertices.len() < 4 || vertices.len() % 2 != 0 { return Ok(()); }
+        if vertices.len() < 4 || !vertices.len().is_multiple_of(2) { return Ok(()); }
         
         if let Some(program) = &self.shader_program {
             self.gl.use_program(Some(program));

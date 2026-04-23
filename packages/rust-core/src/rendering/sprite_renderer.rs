@@ -283,7 +283,7 @@ impl SpriteRenderer {
         );
         
         // Get text properties with defaults
-        let text = sprite.text_content.as_ref().map(|s| s.as_str()).unwrap_or("Text");
+        let text = sprite.text_content.as_deref().unwrap_or("Text");
         let text_size = sprite.text_size.unwrap_or(1.0) as f32;
         let mut text_color = sprite.text_color.unwrap_or([1.0, 1.0, 1.0, 1.0]);
         
@@ -346,10 +346,10 @@ impl SpriteRenderer {
         let outline_color = [0.0, 0.0, 0.0, 1.0]; // Black
         
         // Draw black outline (thicker line first)
-        renderer.draw_lines(&vec![start.x, start.y, end.x, end.y], outline_color)?;
+        renderer.draw_lines(&[start.x, start.y, end.x, end.y], outline_color)?;
         
         // Draw main cyan line (thinner, on top)
-        renderer.draw_lines(&vec![start.x, start.y, end.x, end.y], line_color)?;
+        renderer.draw_lines(&[start.x, start.y, end.x, end.y], line_color)?;
         
         // Arrow head size
         let arrow_size = 12.0;

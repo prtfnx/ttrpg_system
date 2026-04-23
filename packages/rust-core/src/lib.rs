@@ -65,6 +65,32 @@ macro_rules! log_info {
     ($($arg:tt)*) => {};
 }
 
+/// Warning level logging macro - potential issues
+/// 
+/// Enabled by default in debug builds (`debug_assertions`) or with `log-warn` feature.
+/// Use for non-critical issues that should be noticed but don't prevent operation.
+/// 
+/// # Examples
+/// 
+/// ```rust
+/// // Logs in debug builds or with --features log-warn
+/// log_warn!("Deprecated API usage detected in {}", function_name);
+/// log_warn!("Performance warning: {} objects rendered in single batch", count);
+/// log_warn!("Resource not found, using fallback: {}", resource_name);
+/// ```
+#[cfg(any(debug_assertions, feature = "log-warn"))]
+#[allow(unused_macros)]
+macro_rules! log_warn {
+    ($($arg:tt)*) => {
+        web_sys::console::warn_1(&format!("[WARN] {}", format_args!($($arg)*)).into());
+    };
+}
+#[cfg(not(any(debug_assertions, feature = "log-warn")))]
+#[allow(unused_macros)]
+macro_rules! log_warn {
+    ($($arg:tt)*) => {};
+}
+
 /// Error level logging macro - always enabled
 /// 
 /// Critical errors that should always be logged regardless of build configuration.

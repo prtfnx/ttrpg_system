@@ -148,7 +148,7 @@ impl RenderEngine {
 
     pub fn get_light_at_position(&self, x: f32, y: f32) -> Option<String> {
         let world_pos = Vec2::new(x, y);
-        self.lighting.get_light_at_position(world_pos, 30.0).map(|s| s.clone())
+        self.lighting.get_light_at_position(world_pos, 30.0).cloned()
     }
 
     // Fog of war methods

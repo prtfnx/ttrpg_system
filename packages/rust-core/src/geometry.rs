@@ -4,8 +4,6 @@ use wasm_bindgen::prelude::*;
 use js_sys::Array;
 #[cfg(target_arch = "wasm32")]
 use serde::Serialize;
-#[cfg(target_arch = "wasm32")]
-use serde_wasm_bindgen;
 use crate::math::Vec2;
 
 #[cfg(target_arch = "wasm32")]

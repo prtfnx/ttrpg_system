@@ -335,7 +335,7 @@ impl LightingSystem {
                     (
                         light.id.clone(),
                         light.position,
-                        light.color.clone(),
+                        light.color,
                         light.intensity,
                         light.radius,
                         light.falloff,
@@ -432,9 +432,7 @@ impl LightingSystem {
             // ALWAYS restore color writing, even if a shadow quad failed
             self.gl.color_mask(true, true, true, true);
             
-            if let Err(e) = shadow_result {
-                return Err(e);
-            }
+            shadow_result?;
         }
         
         // Step 2: Render full light circle where stencil = 0 (not shadowed)
@@ -686,10 +684,10 @@ impl LightingSystem {
                     );
                     
                     let quad = vec![
-                        segment.p1.clone(),      // v0: segment start
-                        projected_p1,            // v1: projected start (forms diagonal)
-                        segment.p2.clone(),      // v2: segment end
-                        projected_p2,            // v3: projected end
+                        segment.p1,      // v0: segment start
+                        projected_p1,    // v1: projected start (forms diagonal)
+                        segment.p2,      // v2: segment end
+                        projected_p2,    // v3: projected end
                     ];
                     
                     shadow_quads.push(quad);

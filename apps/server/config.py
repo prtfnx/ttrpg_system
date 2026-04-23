@@ -33,4 +33,4 @@ class Settings(BaseSettings):
     r2_endpoint: str = ""        # Full endpoint URL (optional, derived from account_id if absent)
     r2_public_url: str = ""      # Public bucket URL for direct access
     
-    model_config = SettingsConfigDict(env_file=".env")
+    model_config = SettingsConfigDict(env_file=".env", extra="ignore")

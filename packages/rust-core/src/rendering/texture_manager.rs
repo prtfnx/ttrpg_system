@@ -119,7 +119,7 @@ impl TextureManager {
         
         let half_height = height / 2;
         let line_thickness = line_width.min(height);
-        let line_start = if half_height >= line_thickness / 2 { half_height - line_thickness / 2 } else { 0 };
+        let line_start = half_height.saturating_sub(line_thickness / 2);
         let line_end = (line_start + line_thickness).min(height);
         
         for y in 0..height {

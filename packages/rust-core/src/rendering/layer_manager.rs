@@ -25,8 +25,10 @@ impl LayerManager {
         ];
 
         for (i, &name) in LAYER_NAMES.iter().enumerate() {
-            let mut settings = LayerSettings::default();
-            settings.z_order = i as i32;
+            let mut settings = LayerSettings {
+                z_order: i as i32,
+                ..LayerSettings::default()
+            };
 
             match name {
                 "light" => settings.blend_mode = BlendMode::Additive,

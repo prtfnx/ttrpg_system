@@ -46,7 +46,7 @@ impl ActionsClient {
 
         let result = ActionResult {
             success: true,
-            message: format!("Sprite created successfully"),
+            message: "Sprite created successfully".to_string(),
             data: Some(serde_json::to_value(&sprite_info).unwrap_or(serde_json::Value::Null)),
         };
 

@@ -311,7 +311,7 @@ export class WebClientProtocol {
     // ── Death saves ──
     this.registerHandler(MessageType.DEATH_SAVE_RESULT, async (m) => {
       const { useCombatStore } = await import('@features/combat/stores/combatStore');
-      const d = m.data as { combat?: never; combatant_id: string; roll: number; result: string; successes: number; failures: number };
+      const d = m.data as { combat?: import('@features/combat/stores/combatStore').CombatState; combatant_id: string; roll: number; result: string; successes: number; failures: number };
       if (d?.combat) useCombatStore.getState().setCombat(d.combat);
     });
 
@@ -324,12 +324,12 @@ export class WebClientProtocol {
     // ── Cover zones ──
     this.registerHandler(MessageType.COVER_ZONES_SYNC, async (m) => {
       const { useCoverStore } = await import('@features/combat/stores/coverStore');
-      const d = m.data as { zones: never[] };
+      const d = m.data as { zones: import('@features/combat/stores/coverStore').CoverZone[] };
       useCoverStore.getState().setZones(d?.zones ?? []);
     });
     this.registerHandler(MessageType.COVER_ZONE_ADD, async (m) => {
       const { useCoverStore } = await import('@features/combat/stores/coverStore');
-      const d = m.data as { zone: never };
+      const d = m.data as { zone: import('@features/combat/stores/coverStore').CoverZone };
       if (d?.zone) useCoverStore.getState().addZone(d.zone);
     });
     this.registerHandler(MessageType.COVER_ZONE_REMOVE, async (m) => {
@@ -341,7 +341,7 @@ export class WebClientProtocol {
     // ── Opportunity Attacks ──
     this.registerHandler(MessageType.OPPORTUNITY_ATTACK_WARNING, async (m) => {
       const { useOAStore } = await import('@features/combat/stores/oaStore');
-      const d = m.data as { entity_id: string; triggers: never[] };
+      const d = m.data as { entity_id: string; triggers: Array<{ combatant_id: string; name: string }> };
       useOAStore.getState().setWarning(d?.entity_id ?? '', d?.triggers ?? []);
     });
     this.registerHandler(MessageType.OPPORTUNITY_ATTACK_PROMPT, async (m) => {

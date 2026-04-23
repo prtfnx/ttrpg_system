@@ -114,6 +114,8 @@ export function ToolsPanel({ userInfo }: ToolsPanelProps) {
   const setDmPreviewMode = useGameStore(s => s.setDmPreviewMode);
   const sprites = useGameStore(s => s.sprites);
   const setActiveLayer = useGameStore(s => s.setActiveLayer);
+  const canControlSprite = useGameStore(s => s.canControlSprite);
+  const userId = useGameStore(s => s.userId);
 
   const LAYER_ORDER = [
     { id: 'map',            label: 'Map',     Icon: Map,       hotkey: '1' },
@@ -633,7 +635,7 @@ export function ToolsPanel({ userInfo }: ToolsPanelProps) {
       <AssetManager isVisible={assetManagerVisible} onClose={() => setAssetManagerVisible(false)} sessionCode={sessionId || ""} userInfo={userInfo} />
 
       {/* Opportunity Attack modals */}
-      {oaWarning && (
+      {oaWarning && (dmMode || canControlSprite(oaWarning, userId ?? undefined)) && (
         <OAWarningModal
           triggers={oaTriggers}
           onConfirm={() => {

@@ -171,6 +171,7 @@ class ServerProtocol:
         self.register_handler(MessageType.DEATH_SAVE_ROLL,       self.handle_death_save_roll)
         self.register_handler(MessageType.DM_SET_RESISTANCES,    self.handle_dm_set_resistances)
         self.register_handler(MessageType.DM_SET_SURPRISED,      self.handle_dm_set_surprised)
+        self.register_handler(MessageType.DM_SET_TERRAIN,        self.handle_dm_set_terrain)
         self.register_handler(MessageType.AI_ACTION,             self.handle_ai_action)
         # Encounters (Phase 11)
         self.register_handler(MessageType.ENCOUNTER_START,       self.handle_encounter_start)
@@ -3892,6 +3893,33 @@ class ServerProtocol:
             return Message(MessageType.ERROR, {'error': 'No matching combatants or no active combat'})
         state = CombatEngine.get_state(self._get_session_code())
         resp = Message(MessageType.COMBAT_STATE, {'combat': state.to_dict() if state else None, 'surprised_update': result})
+        await self.broadcast_to_session(resp, client_id)
+        return resp
+
+    async def handle_dm_set_terrain(self, msg: Message, client_id: str) -> Message:
+        if not is_dm(self._get_client_role(client_id)):
+            return Message(MessageType.ERROR, {'error': 'DMs only'})
+        d = msg.data or {}
+        cells = d.get('cells', [])        # list of [col, row]
+        mode = d.get('mode', 'add')       # 'add' | 'remove' | 'clear'
+        table_id = str(d.get('table_id', ''))
+        table = self.table_manager.tables_id.get(table_id) or self.table_manager.tables.get(table_id)
+        if table is None:
+            return Message(MessageType.ERROR, {'error': 'Table not found'})
+        if not hasattr(table, 'difficult_terrain_cells'):
+            table.difficult_terrain_cells = set()
+        if mode == 'clear':
+            table.difficult_terrain_cells.clear()
+        elif mode == 'remove':
+            for col, row in cells:
+                table.difficult_terrain_cells.discard((col, row))
+        else:
+            for col, row in cells:
+                table.difficult_terrain_cells.add((col, row))
+        resp = Message(MessageType.DM_SET_TERRAIN, {
+            'difficult_terrain': [list(c) for c in table.difficult_terrain_cells],
+            'mode': mode,
+        })
         await self.broadcast_to_session(resp, client_id)
         return resp
 

@@ -156,18 +156,6 @@ class AttackResolver:
             if dist <= reach:
                 return True
         return False
-        zones = getattr(table, 'cover_zones', [])
-        if not zones:
-            return 'none'
-        tier_order = {'none': 0, 'half': 1, 'three_quarters': 2, 'full': 3}
-        best = 'none'
-        ax, ay = attacker_pos
-        tx, ty = target_pos
-        for zone in zones:
-            if _los_blocked_by_zone(ax, ay, tx, ty, zone):
-                if tier_order.get(zone.cover_tier, 0) > tier_order.get(best, 0):
-                    best = zone.cover_tier
-        return best
 
 
 # ── Geometry helpers ──────────────────────────────────────────────────────────

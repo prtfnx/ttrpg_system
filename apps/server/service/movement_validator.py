@@ -121,7 +121,7 @@ class MovementValidator:
                     grid_size=table.grid_cell_px,
                     diagonal_rule=self.rules.diagonal_movement_rule,
                 )
-                if difficult:
+                if difficult and getattr(self.rules, 'enforce_difficult_terrain', True):
                     # Mid-point cell of segment determines terrain type
                     mid_x = (seg_start[0] + seg_end[0]) / 2
                     mid_y = (seg_start[1] + seg_end[1]) / 2

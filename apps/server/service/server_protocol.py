@@ -570,7 +570,7 @@ class ServerProtocol:
                             'entity_id': sprite_id,
                             'triggers': oa_triggers,
                         })
-                        await self.broadcast_to_session(warn, None)
+                        await self.send_to_client(warn, client_id)
                         return warn
             except Exception as e:
                 logger.warning(f"Movement validation error (non-fatal): {e}")

@@ -49,6 +49,10 @@ class SessionRules:
     enforce_spell_slots: bool = True
     enforce_spell_components: bool = False
     critical_hit_rule: str = "double_dice"  # "double_dice" | "max_dice" | "double_total"
+    enforce_cover: bool = True
+    enforce_difficult_terrain: bool = True
+    opportunity_attacks_enabled: bool = True
+    opportunity_attack_timeout_sec: int = 30
 
     # NPC AI
     ai_enabled: bool = False

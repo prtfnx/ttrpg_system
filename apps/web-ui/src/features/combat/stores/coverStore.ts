@@ -3,7 +3,7 @@ import { create } from 'zustand';
 export interface CoverZone {
   zone_id: string;
   shape_type: 'rect' | 'polygon' | 'circle';
-  coords: number[];
+  coords: number[] | number[][];
   cover_tier: 'half' | 'three_quarters' | 'full';
   label: string;
 }

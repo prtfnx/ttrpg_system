@@ -1,9 +1,9 @@
-import { useState } from 'react';
-import styles from './DMCombatPanel.module.css';
+import { useGameStore } from '@/store';
 import { ProtocolService } from '@lib/api';
 import { createMessage, MessageType } from '@lib/websocket';
-import { useGameStore } from '@/store';
+import { useState } from 'react';
 import { useCombatStore } from '../stores/combatStore';
+import styles from './DMCombatPanel.module.css';
 
 function PreCombatSetup() {
   const send = (type: MessageType, data: Record<string, unknown>) =>
@@ -211,6 +211,19 @@ export function DMCombatPanel() {
         <div className={styles.row}>
           <button className={styles.btn} onClick={() => setSurprised(true)}>Set Surprised</button>
           <button className={styles.btn} onClick={() => setSurprised(false)}>Clear</button>
+        </div>
+      </div>
+
+      {/* ── Difficult Terrain ── */}
+      <div className={styles.section}>
+        <h4 className={styles.sectionTitle}>Difficult Terrain</h4>
+        <p className={styles.hint}>Mark cells as difficult terrain on the canvas, or clear all.</p>
+        <div className={styles.row}>
+          <button className={styles.btn} onClick={() =>
+            ProtocolService.getProtocol()?.sendMessage(
+              createMessage(MessageType.DM_SET_TERRAIN, { table_id: activeTableId, mode: 'clear', cells: [] })
+            )
+          }>Clear All</button>
         </div>
       </div>
     </div>

@@ -3,7 +3,6 @@
  * Tests form components, input validation, and user interactions
  * Focus: UI components that actually exist and work
  */
-// @ts-nocheck
 import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { act } from 'react-dom/test-utils';

@@ -8,8 +8,9 @@ import styles from './DMCombatPanel.module.css';
 function PreCombatSetup() {
   const send = (type: MessageType, data: Record<string, unknown>) =>
     ProtocolService.getProtocol()?.sendMessage(createMessage(type, data));
+  const activeTableId = useGameStore((s) => s.activeTableId);
 
-  const startCombat = () => send(MessageType.COMBAT_START, {});
+  const startCombat = () => send(MessageType.COMBAT_START, { table_id: activeTableId ?? 'default' });
 
   return (
     <div className={styles.panel}>

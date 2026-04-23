@@ -183,6 +183,7 @@ export const MessageType = {
   DM_SET_TEMP_HP: "dm_set_temp_hp",
   DM_SET_RESISTANCES: "dm_set_resistances",
   DM_SET_SURPRISED: "dm_set_surprised",
+  DM_SET_TERRAIN: "dm_set_terrain",
   DM_APPLY_DAMAGE: "dm_apply_damage",
   DM_ADD_ACTION: "dm_add_action",
   DM_ADD_MOVEMENT: "dm_add_movement",

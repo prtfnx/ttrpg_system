@@ -4,6 +4,7 @@ import { ProtocolService } from '@lib/api';
 import { createMessage, MessageType } from '@lib/websocket';
 import type { GameMode } from '../stores/gameModeStore';
 import { useGameModeStore } from '../stores/gameModeStore';
+import styles from './GameModeSwitch.module.css';
 
 const MODES: { value: GameMode; label: string }[] = [
   { value: 'free_roam', label: 'Free Roam' },
@@ -25,8 +26,8 @@ export function GameModeSwitch() {
   };
 
   return (
-    <div className="game-mode-switch">
-      <select value={mode} onChange={(e) => change(e.target.value as GameMode)}>
+    <div className={styles.container}>
+      <select className={styles.select} value={mode} onChange={(e) => change(e.target.value as GameMode)}>
         {MODES.map((m) => (
           <option key={m.value} value={m.value}>
             {m.label}
@@ -34,7 +35,7 @@ export function GameModeSwitch() {
         ))}
       </select>
       {mode === 'fight' && roundNumber > 0 && (
-        <span className="round-badge">Round {roundNumber}</span>
+        <span className={styles.roundBadge}>Round {roundNumber}</span>
       )}
     </div>
   );

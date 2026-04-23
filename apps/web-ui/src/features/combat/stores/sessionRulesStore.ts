@@ -36,6 +36,10 @@ export interface SessionRules {
   default_ai_behavior: string;
   movement_mode: 'cell' | 'free';
   server_validation_tier: 'trust_client' | 'lightweight' | 'full';
+  enforce_cover: boolean;
+  enforce_difficult_terrain: boolean;
+  opportunity_attacks_enabled: boolean;
+  opportunity_attack_timeout_sec: number;
   custom_rules: Record<string, unknown>;
 }
 
@@ -74,6 +78,10 @@ export const DEFAULT_RULES: Omit<SessionRules, 'session_id'> = {
   default_ai_behavior: 'tactical',
   movement_mode: 'cell',
   server_validation_tier: 'lightweight',
+  enforce_cover: true,
+  enforce_difficult_terrain: true,
+  opportunity_attacks_enabled: true,
+  opportunity_attack_timeout_sec: 30,
   custom_rules: {},
 };
 

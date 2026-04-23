@@ -31,6 +31,13 @@ export interface Combatant {
   ai_enabled: boolean;
   ai_behavior: string;
   hp_descriptor?: string;  // when hp_visibility='descriptor'
+  concentration_spell?: string | null;
+  death_save_successes?: number;
+  death_save_failures?: number;
+  surprised?: boolean;
+  damage_resistances?: string[];
+  damage_vulnerabilities?: string[];
+  damage_immunities?: string[];
 }
 
 export interface CombatSettings {

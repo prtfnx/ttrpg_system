@@ -4,10 +4,13 @@
  */
 import { useGameStore } from '@/store';
 import { assetIntegrationService } from '@features/assets';
+import { useCombatStore } from '@features/combat/stores/combatStore';
+import { useGameModeStore } from '@features/combat/stores/gameModeStore';
 import { isDM } from '@features/session/types/roles';
 import { useOptionalProtocol } from '@lib/api';
 import { useWasmBridge, wasmIntegrationService, wasmManager } from '@lib/wasm';
 import type { RenderEngine } from '@lib/wasm/wasm';
+import { createMessage, MessageType } from '@lib/websocket';
 import { DragDropImageHandler } from '@shared/components';
 import { useWebSocket } from '@shared/hooks';
 import type { LucideIcon } from 'lucide-react';
@@ -61,7 +64,9 @@ export const GameCanvas: React.FC = () => {
   const dynamicLightingEnabled = useGameStore(s => s.dynamicLightingEnabled);
   // Protocol and store setup
   const protocol = useOptionalProtocol()?.protocol ?? null;
-  const { updateConnectionState, tables, activeTableId } = useGameStore();
+  const updateConnectionState = useGameStore(s => s.updateConnectionState);
+  const tables = useGameStore(s => s.tables);
+  const activeTableId = useGameStore(s => s.activeTableId);
   const activeTable = tables.find((t) => t.table_id === activeTableId);
   const activeLayer = useGameStore(s => s.activeLayer);
   const { connect: connectWebSocket, disconnect: disconnectWebSocket } = useWebSocket(
@@ -112,6 +117,21 @@ export const GameCanvas: React.FC = () => {
  const [showPerformanceMonitor, togglePerformanceMonitor] = usePerformanceMonitor();
 
   // Context menu logic
+  const combatants = useCombatStore((s) => s.combat?.combatants ?? []);
+  const isFight = useGameModeStore((s) => s.isFight);
+  const sessionRole = useGameStore((s) => s.sessionRole);
+  const inCombat = (entityId: string) => combatants.some((c) => c.entity_id === entityId);
+
+  const addToCombat = (entityId: string) => {
+    protocol?.sendMessage(createMessage(MessageType.INITIATIVE_ADD, { entity_id: entityId }));
+  };
+
+  const removeFromCombat = (entityId: string) => {
+    const combatant = combatants.find((c) => c.entity_id === entityId);
+    if (!combatant) return;
+    protocol?.sendMessage(createMessage(MessageType.INITIATIVE_REMOVE, { combatant_id: combatant.combatant_id }));
+  };
+
   const { contextMenu, setContextMenu, handleContextMenuAction, handleMoveToLayer } = useContextMenu({
     canvasRef: canvasRef as React.RefObject<HTMLCanvasElement>,
     rustRenderManagerRef,
@@ -924,6 +944,24 @@ export const GameCanvas: React.FC = () => {
                 >
                   Delete Sprite
                 </div>
+                {/* Combat context menu items — DM only, fight mode */}
+                {isDM(sessionRole) && isFight && contextMenu.spriteId && (
+                  inCombat(contextMenu.spriteId) ? (
+                    <div
+                      className={styles.contextMenuItem}
+                      onClick={() => { removeFromCombat(contextMenu.spriteId!); setContextMenu((p) => ({ ...p, visible: false })); }}
+                    >
+                      Remove from Combat
+                    </div>
+                  ) : (
+                    <div
+                      className={styles.contextMenuItem}
+                      onClick={() => { addToCombat(contextMenu.spriteId!); setContextMenu((p) => ({ ...p, visible: false })); }}
+                    >
+                      Add to Combat
+                    </div>
+                  )
+                )}
               </>
             ) : (
               // Show paste option when clicking on empty space if there's a copied sprite

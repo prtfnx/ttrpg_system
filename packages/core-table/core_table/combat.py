@@ -60,6 +60,10 @@ class Combatant:
     ai_behavior: str = "tactical"
     death_save_successes: int = 0
     death_save_failures: int = 0
+    damage_resistances: list[str] = field(default_factory=list)
+    damage_vulnerabilities: list[str] = field(default_factory=list)
+    damage_immunities: list[str] = field(default_factory=list)
+    surprised: bool = False
 
     def is_alive(self) -> bool:
         return not self.is_defeated
@@ -90,6 +94,10 @@ class Combatant:
             'ai_behavior': self.ai_behavior,
             'death_save_successes': self.death_save_successes,
             'death_save_failures': self.death_save_failures,
+            'damage_resistances': self.damage_resistances,
+            'damage_vulnerabilities': self.damage_vulnerabilities,
+            'damage_immunities': self.damage_immunities,
+            'surprised': self.surprised,
         }
 
     def to_dict_for_player(self, hp_visibility: str) -> dict:

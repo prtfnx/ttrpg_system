@@ -7,7 +7,7 @@ from core_table.session_rules import SessionRules
 import math
 
 if TYPE_CHECKING:
-    pass
+    from core_table.combat import CombatState
 
 
 @dataclass
@@ -22,6 +22,7 @@ class MovementResult:
     reason: str = ""
     valid_path: list = field(default_factory=list)
     movement_cost: float = 0.0
+    opportunity_attack_triggers: list = field(default_factory=list)
 
 
 class MovementValidator:
@@ -112,13 +113,22 @@ class MovementValidator:
         # Speed check (only when rules say so and combatant info is available)
         movement_cost = 0.0
         if self.rules.enforce_movement_speed and combatant is not None:
+            difficult = getattr(table, 'difficult_terrain_cells', set())
             # Sum cost of each segment in the actual path (accounts for detours)
             for seg_start, seg_end in zip(path, path[1:]):
-                movement_cost += PathfindingSystem.get_movement_cost(
+                seg_cost = PathfindingSystem.get_movement_cost(
                     seg_start, seg_end,
                     grid_size=table.grid_cell_px,
                     diagonal_rule=self.rules.diagonal_movement_rule,
                 )
+                if difficult and getattr(self.rules, 'enforce_difficult_terrain', True):
+                    # Mid-point cell of segment determines terrain type
+                    mid_x = (seg_start[0] + seg_end[0]) / 2
+                    mid_y = (seg_start[1] + seg_end[1]) / 2
+                    cell = (int(mid_x // table.grid_cell_px), int(mid_y // table.grid_cell_px))
+                    if cell in difficult:
+                        seg_cost *= 2
+                movement_cost += seg_cost
             if movement_cost > combatant.movement_remaining:
                 return MovementResult(
                     valid=False,
@@ -129,6 +139,42 @@ class MovementValidator:
                 )
 
         return MovementResult(valid=True, valid_path=path, movement_cost=movement_cost)
+
+    def check_opportunity_attacks(
+        self, entity_id: str, from_pos: tuple, table, combat_state: Optional['CombatState'],
+        to_pos: Optional[tuple] = None,
+    ) -> list[dict]:
+        """Return OA triggers: combatants within reach at from_pos but NOT at to_pos.
+        Only fires when the mover actually leaves reach (D&D 5e rule)."""
+        if combat_state is None or not getattr(self.rules, 'opportunity_attacks_enabled', True):
+            return []
+        grid = table.grid_cell_px
+        reach = grid * 1.5  # covers diagonal adjacency
+        triggers = []
+        for c in combat_state.combatants:
+            if str(c.entity_id) == str(entity_id) or c.is_defeated or not c.has_reaction:
+                continue
+            sprite_key = table.sprite_to_entity.get(str(c.entity_id))
+            if sprite_key is None:
+                continue
+            ent = table.entities.get(sprite_key)
+            if ent is None:
+                continue
+            ex, ey = float(ent.position[0]), float(ent.position[1])
+            dist_from = math.hypot(ex - from_pos[0], ey - from_pos[1])
+            if dist_from > reach:
+                continue  # wasn't adjacent to start with
+            # Only trigger if the mover leaves reach at the destination
+            if to_pos is not None:
+                dist_to = math.hypot(ex - to_pos[0], ey - to_pos[1])
+                if dist_to <= reach:
+                    continue  # still adjacent — no OA
+            triggers.append({
+                'combatant_id': c.combatant_id,
+                'name': c.name,
+                'controlled_by': getattr(c, 'controlled_by', None),
+            })
+        return triggers
 
     # ── Helpers ───────────────────────────────────────────────────────────
 
@@ -193,11 +239,19 @@ class MovementValidator:
 
         movement_cost = 0.0
         if self.rules.enforce_movement_speed and combatant is not None:
+            difficult = getattr(table, 'difficult_terrain_cells', set())
             for seg_start, seg_end in zip(path, path[1:]):
-                movement_cost += PathfindingSystem.get_movement_cost(
+                seg_cost = PathfindingSystem.get_movement_cost(
                     seg_start, seg_end, grid_size=grid,
                     diagonal_rule=self.rules.diagonal_movement_rule,
                 )
+                if difficult:
+                    mid_x = (seg_start[0] + seg_end[0]) / 2
+                    mid_y = (seg_start[1] + seg_end[1]) / 2
+                    cell = (int(mid_x // grid), int(mid_y // grid))
+                    if cell in difficult:
+                        seg_cost *= 2
+                movement_cost += seg_cost
             if movement_cost > combatant.movement_remaining:
                 return MovementResult(valid=False, reason=f"Insufficient movement: need {movement_cost:.0f}ft")
 

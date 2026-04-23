@@ -1,8 +1,8 @@
 .panel {
   display: flex;
   flex-direction: column;
-  gap: 10px;
-  padding: 12px;
+  gap: var(--spacing-sm);
+  padding: var(--spacing-md);
   background: var(--overlay-dark-medium);
   border-radius: var(--radius-md);
   min-width: 240px;
@@ -10,51 +10,51 @@
 
 .combatControls {
   display: flex;
-  gap: 6px;
+  gap: var(--spacing-xs);
 }
 
 .startBtn {
   flex: 1;
-  padding: 5px 8px;
+  padding: var(--spacing-xs) var(--spacing-sm);
   background: var(--button-success-bg);
   color: var(--button-success-text);
   border: none;
   border-radius: var(--radius-sm);
   cursor: pointer;
-  font-size: 12px;
+  font-size: var(--font-size-xs);
   font-weight: 600;
 }
 
 .endBtn {
   flex: 1;
-  padding: 5px 8px;
+  padding: var(--spacing-xs) var(--spacing-sm);
   background: var(--button-danger-bg);
   color: var(--button-danger-text);
   border: none;
   border-radius: var(--radius-sm);
   cursor: pointer;
-  font-size: 12px;
+  font-size: var(--font-size-xs);
   font-weight: 600;
 }
 
 .revertBtn {
-  padding: 5px 8px;
+  padding: var(--spacing-xs) var(--spacing-sm);
   background: var(--bg-secondary);
   color: var(--text-primary);
   border: none;
   border-radius: var(--radius-sm);
   cursor: pointer;
-  font-size: 12px;
+  font-size: var(--font-size-xs);
 }
 
 .section {
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: var(--spacing-xs);
 }
 
 .label {
-  font-size: 11px;
+  font-size: var(--font-size-xs);
   color: var(--text-muted);
   text-transform: uppercase;
   letter-spacing: 0.05em;
@@ -62,38 +62,66 @@
 
 .row {
   display: flex;
-  gap: 4px;
+  gap: var(--spacing-xs);
 }
 
 .input {
   flex: 1;
-  padding: 4px 8px;
+  padding: var(--spacing-xs) var(--spacing-sm);
   background: var(--input-bg);
   border: 1px solid var(--input-border);
   border-radius: var(--radius-sm);
   color: var(--input-text);
-  font-size: 12px;
+  font-size: var(--font-size-xs);
   min-width: 0;
 }
 
 .select {
   flex: 1;
-  padding: 4px 8px;
+  padding: var(--spacing-xs) var(--spacing-sm);
   background: var(--input-bg);
   border: 1px solid var(--input-border);
   border-radius: var(--radius-sm);
   color: var(--input-text);
-  font-size: 12px;
+  font-size: var(--font-size-xs);
   min-width: 0;
 }
 
 .btn {
-  padding: 4px 10px;
+  padding: var(--spacing-xs) var(--spacing-sm);
   background: var(--button-primary-bg);
   color: var(--button-primary-text);
   border: none;
   border-radius: var(--radius-sm);
   cursor: pointer;
-  font-size: 12px;
+  font-size: var(--font-size-xs);
   white-space: nowrap;
+}
+
+.noCombaText {
+  font-size: var(--font-size-xs);
+  color: var(--text-muted);
+  margin: 0 0 var(--spacing-sm);
+}
+
+.hint {
+  font-size: var(--font-size-xs);
+  color: var(--text-muted);
+  margin: 0 0 var(--spacing-xs);
+}
+
+.checkList {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-xs);
+  margin-bottom: var(--spacing-xs);
+}
+
+.checkItem {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-xs);
+  font-size: var(--font-size-sm);
+  color: var(--text-primary);
+  cursor: pointer;
 }

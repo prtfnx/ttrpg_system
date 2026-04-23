@@ -63,15 +63,90 @@
 }
 
 .name {
-  flex: 1;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+  font-size: var(--font-size-xs);
 }
 
-.hp {
+.nameCol {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.hpBar {
+  position: relative;
+  height: 4px;
+  background: var(--bg-elevated);
+  border-radius: var(--radius-sm);
+  overflow: visible;
+}
+
+.hpFill {
+  position: absolute;
+  left: 0;
+  top: 0;
+  height: 100%;
+  border-radius: var(--radius-sm);
+  transition: width 0.2s;
+}
+
+.tempHpFill {
+  position: absolute;
+  top: 0;
+  height: 100%;
+  background: var(--status-info-text);
+  border-radius: var(--radius-sm);
+  opacity: 0.8;
+}
+
+.concentrating {
   font-size: 10px;
-  color: var(--status-success-text);
+  flex-shrink: 0;
+}
+
+.rollInitBtn {
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-size: 12px;
+  padding: 0;
+  flex-shrink: 0;
+}
+
+.deathSaves {
+  display: flex;
+  gap: 2px;
+  flex-shrink: 0;
+}
+
+.pip {
+  display: inline-block;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  border: 1px solid var(--border-primary);
+}
+
+.pipSuccess {
+  background: var(--death-save-success);
+}
+
+.pipFail {
+  background: var(--death-save-failure);
+}
+
+.pipEmpty {
+  background: var(--death-save-empty);
+}
+
+.surprisedBadge {
+  font-size: var(--font-size-xs);
+  opacity: 0.85;
+  flex-shrink: 0;
 }
 
 .actions {

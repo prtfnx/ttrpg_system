@@ -180,6 +180,10 @@ export const MessageType = {
   // ── DM Combat Controls ──
   DM_OVERRIDE: "dm_override",
   DM_SET_HP: "dm_set_hp",
+  DM_SET_TEMP_HP: "dm_set_temp_hp",
+  DM_SET_RESISTANCES: "dm_set_resistances",
+  DM_SET_SURPRISED: "dm_set_surprised",
+  DM_SET_TERRAIN: "dm_set_terrain",
   DM_APPLY_DAMAGE: "dm_apply_damage",
   DM_ADD_ACTION: "dm_add_action",
   DM_ADD_MOVEMENT: "dm_add_movement",
@@ -197,6 +201,38 @@ export const MessageType = {
   ENCOUNTER_ROLL: "encounter_roll",
   ENCOUNTER_RESULT: "encounter_result",
   ENCOUNTER_STATE: "encounter_state",
+
+  // ── Death Saves ──
+  DEATH_SAVE_ROLL: "death_save_roll",
+  DEATH_SAVE_RESULT: "death_save_result",
+
+  // ── Concentration ──
+  CONCENTRATION_BROKEN: "concentration_broken",
+
+  // ── Terrain Zones ──
+  TERRAIN_ZONE_ADD: "terrain_zone_add",
+  TERRAIN_ZONE_REMOVE: "terrain_zone_remove",
+  TERRAIN_ZONE_UPDATE: "terrain_zone_update",
+  TERRAIN_ZONES_SYNC: "terrain_zones_sync",
+
+  // ── Cover Zones ──
+  COVER_ZONE_ADD: "cover_zone_add",
+  COVER_ZONE_REMOVE: "cover_zone_remove",
+  COVER_ZONE_UPDATE: "cover_zone_update",
+  COVER_ZONES_SYNC: "cover_zones_sync",
+
+  // ── Opportunity Attacks ──
+  OPPORTUNITY_ATTACK_WARNING: "opportunity_attack_warning",
+  OPPORTUNITY_ATTACK_CONFIRM_MOVE: "opportunity_attack_confirm_move",
+  OPPORTUNITY_ATTACK_PROMPT: "opportunity_attack_prompt",
+  OPPORTUNITY_ATTACK_RESOLVE: "opportunity_attack_resolve",
+
+  // ── Attack Preview ──
+  ATTACK_PREVIEW: "attack_preview",
+  ATTACK_PREVIEW_RESULT: "attack_preview_result",
+
+  // ── Surprised / Turn Skipped ──
+  TURN_SKIPPED: "turn_skipped",
 
   // Extension point for new message types
   CUSTOM: "custom"

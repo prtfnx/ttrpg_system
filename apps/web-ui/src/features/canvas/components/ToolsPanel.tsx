@@ -4,6 +4,7 @@ import { DND_DISTANCES } from '@/utils/unitConverter';
 import { AssetManager } from '@features/assets';
 import { GridControls, LayerPanel } from '@features/canvas';
 import { useLayerHotkeys } from '@features/canvas/hooks';
+import { DMCombatPanel, FloatingInitiativeTracker, GameModeSwitch, OAPrompt, OAWarningModal, useOAStore } from '@features/combat';
 import { startDmPreview, stopDmPreview } from '@features/lighting';
 import { MeasurementTool } from '@features/measurement';
 import { PaintPanel } from '@features/painting';
@@ -78,6 +79,12 @@ export function ToolsPanel({ userInfo }: ToolsPanelProps) {
   const [activeTab, setActiveTab] = useState<TabId>('tools');
   const [assetManagerVisible, setAssetManagerVisible] = useState(false);
   const [paintPanelVisible, setPaintPanelVisible] = useState(false);
+  const [showCombatPanel, setShowCombatPanel] = useState(false);
+  const [showInitTracker, setShowInitTracker] = useState(false);
+  const oaWarning = useOAStore((s) => s.warningEntityId);
+  const oaTriggers = useOAStore((s) => s.warningTriggers);
+  const oaPrompt = useOAStore((s) => s.prompt);
+  const clearOA = useOAStore((s) => s.clearAll);
   const [shapeColor, setShapeColor] = useState('#0080ff');
   const [shapeOpacity, setShapeOpacity] = useState(1.0);
   const [shapeFilled, setShapeFilled] = useState(false);
@@ -107,6 +114,8 @@ export function ToolsPanel({ userInfo }: ToolsPanelProps) {
   const setDmPreviewMode = useGameStore(s => s.setDmPreviewMode);
   const sprites = useGameStore(s => s.sprites);
   const setActiveLayer = useGameStore(s => s.setActiveLayer);
+  const canControlSprite = useGameStore(s => s.canControlSprite);
+  const userId = useGameStore(s => s.userId);
 
   const LAYER_ORDER = [
     { id: 'map',            label: 'Map',     Icon: Map,       hotkey: '1' },
@@ -450,6 +459,30 @@ export function ToolsPanel({ userInfo }: ToolsPanelProps) {
           {/* Player layer visibility */}
           {!dmMode && <PlayerLayerControls />}
 
+          {dmMode && (
+            <div className={styles.combatSection}>
+              <GameModeSwitch />
+              <div className={styles.combatButtons}>
+                <button
+                  className={`${styles.toolButton} ${showCombatPanel ? styles.active : ''}`}
+                  onClick={() => setShowCombatPanel(v => !v)}
+                  title="Toggle Combat Panel"
+                >
+                  <Crown size={14} aria-hidden /> Combat
+                </button>
+                <button
+                  className={`${styles.toolButton} ${showInitTracker ? styles.active : ''}`}
+                  onClick={() => setShowInitTracker(v => !v)}
+                  title="Toggle Initiative Tracker"
+                >
+                  <Shield size={14} aria-hidden /> Tracker
+                </button>
+              </div>
+              {showCombatPanel && <DMCombatPanel />}
+            </div>
+          )}
+          {showInitTracker && <FloatingInitiativeTracker onClose={() => setShowInitTracker(false)} />}
+
           <DiceRoller />
 
           <div className={styles.gamePanel}>
@@ -600,6 +633,38 @@ export function ToolsPanel({ userInfo }: ToolsPanelProps) {
       <MeasurementTool isActive={measurementActive} />
       <AlignmentHelper isActive={alignmentActive} />
       <AssetManager isVisible={assetManagerVisible} onClose={() => setAssetManagerVisible(false)} sessionCode={sessionId || ""} userInfo={userInfo} />
+
+      {/* Opportunity Attack modals */}
+      {oaWarning && (dmMode || canControlSprite(oaWarning, userId ?? undefined)) && (
+        <OAWarningModal
+          triggers={oaTriggers}
+          onConfirm={() => {
+            if (ProtocolService.hasProtocol())
+              ProtocolService.getProtocol().confirmMoveDespiteOA(oaWarning);
+            clearOA();
+          }}
+          onCancel={clearOA}
+        />
+      )}
+      {oaPrompt && (
+        <OAPrompt
+          targetName={oaPrompt.target_name}
+          onUseReaction={() => {
+            if (ProtocolService.hasProtocol())
+              ProtocolService.getProtocol().resolveOA({
+                use_reaction: true,
+                attacker_combatant_id: oaPrompt.attacker_combatant_id,
+                target_combatant_id: oaPrompt.target_combatant_id,
+              });
+            clearOA();
+          }}
+          onPass={() => {
+            if (ProtocolService.hasProtocol())
+              ProtocolService.getProtocol().resolveOA({ use_reaction: false });
+            clearOA();
+          }}
+        />
+      )}
 
       {/* Test Elements for compatibility */}
       <div data-testid="tools-test-elements" className={styles.srTestContainer}>

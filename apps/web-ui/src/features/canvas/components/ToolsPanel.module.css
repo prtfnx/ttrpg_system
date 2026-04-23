@@ -240,7 +240,7 @@
   flex-wrap: wrap;
   gap: 2px;
   margin-bottom: var(--space-sm);
-  background: var(--bg-secondary, #1a1a2e);
+  background: var(--bg-secondary);
   border: 1px solid var(--border-primary);
   border-radius: var(--radius-sm);
   padding: 3px;
@@ -265,14 +265,14 @@
 }
 
 .layerBtn:hover {
-  background: var(--bg-hover, #2a2a4a);
+  background: var(--hover-overlay);
   color: var(--text-primary);
 }
 
 .activeLayerBtn {
-  background: var(--accent-primary, #4a9eff);
-  border-color: var(--accent-primary, #4a9eff);
-  color: #fff;
+  background: var(--color-accent);
+  border-color: var(--color-accent);
+  color: var(--text-inverse-primary);
 }
 
 .layerBtnHotkey {
@@ -613,3 +613,19 @@
   left: -9999px;
   top: -9999px;
 }
+
+/* ===== Combat section ===== */
+.combatSection {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-xs);
+  border-top: 1px solid var(--border-primary);
+  padding-top: var(--spacing-sm);
+  margin-top: var(--spacing-xs);
+}
+
+.combatButtons {
+  display: flex;
+  gap: var(--spacing-xs);
+}
+

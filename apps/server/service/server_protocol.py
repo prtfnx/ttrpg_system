@@ -167,6 +167,19 @@ class ServerProtocol:
         self.register_handler(MessageType.DM_ADD_ACTION,         self.handle_dm_add_action)
         self.register_handler(MessageType.DM_ADD_MOVEMENT,       self.handle_dm_add_movement)
         self.register_handler(MessageType.DM_TOGGLE_AI,          self.handle_dm_toggle_ai)
+        self.register_handler(MessageType.DM_SET_TEMP_HP,        self.handle_dm_set_temp_hp)
+        self.register_handler(MessageType.DEATH_SAVE_ROLL,       self.handle_death_save_roll)
+        self.register_handler(MessageType.DM_SET_RESISTANCES,    self.handle_dm_set_resistances)
+        self.register_handler(MessageType.DM_SET_SURPRISED,      self.handle_dm_set_surprised)
+        self.register_handler(MessageType.DM_SET_TERRAIN,        self.handle_dm_set_terrain)
+        # Cover zones (Phase 8)
+        self.register_handler(MessageType.COVER_ZONE_ADD,        self.handle_cover_zone_add)
+        self.register_handler(MessageType.COVER_ZONE_REMOVE,     self.handle_cover_zone_remove)
+        self.register_handler(MessageType.COVER_ZONES_SYNC,      self.handle_cover_zones_sync)
+        self.register_handler(MessageType.ATTACK_PREVIEW,        self.handle_attack_preview)
+        # Opportunity attacks (Phase 9)
+        self.register_handler(MessageType.OPPORTUNITY_ATTACK_CONFIRM_MOVE, self.handle_oa_confirm_move)
+        self.register_handler(MessageType.OPPORTUNITY_ATTACK_RESOLVE,      self.handle_oa_resolve)
         self.register_handler(MessageType.AI_ACTION,             self.handle_ai_action)
         # Encounters (Phase 11)
         self.register_handler(MessageType.ENCOUNTER_START,       self.handle_encounter_start)
@@ -539,6 +552,28 @@ class ServerProtocol:
                     if action_id:
                         reject['action_id'] = action_id
                     return Message(MessageType.ACTION_REJECTED, reject)
+
+                # Opportunity attack detection (fight mode only)
+                if mv_result is not None and mv_result.valid and game_mode == 'fight':
+                    from service.combat_engine import CombatEngine
+                    combat_state = CombatEngine.get_state(self._get_session_code())
+                    oa_triggers = validator.check_opportunity_attacks(
+                        sprite_id, to_tuple(from_pos), table, combat_state,
+                        to_pos=to_tuple(to_pos),
+                    )
+                    if oa_triggers:
+                        key = f'{self._get_session_code()}:{sprite_id}'
+                        self.__class__._pending_moves[key] = {
+                            'from_pos': from_pos, 'to_pos': to_pos,
+                            'path': msg.data.get('path', []),
+                            'action_id': action_id,
+                        }
+                        warn = Message(MessageType.OPPORTUNITY_ATTACK_WARNING, {
+                            'entity_id': sprite_id,
+                            'triggers': oa_triggers,
+                        })
+                        await self.send_to_client(warn, client_id)
+                        return warn
             except Exception as e:
                 logger.warning(f"Movement validation error (non-fatal): {e}")
 
@@ -3712,6 +3747,12 @@ class ServerProtocol:
         state = CombatEngine.get_state(session_code)
         resp = Message(MessageType.COMBAT_STATE, {'combat': state.to_dict() if state else None, 'damage_result': result})
         await self.broadcast_to_session(resp, client_id)
+        if result.get('concentration_broken'):
+            conc_msg = Message(MessageType.CONCENTRATION_BROKEN, {
+                'combatant_id': combatant_id,
+                'spell': result['concentration_broken'],
+            })
+            await self.broadcast_to_session(conc_msg, client_id)
         return resp
 
     async def handle_dm_revert_action(self, msg: Message, client_id: str) -> Message:
@@ -3806,7 +3847,284 @@ class ServerProtocol:
         await self.broadcast_to_session(resp, client_id)
         return resp
 
-    # ── Encounters ──────────────────────────────────────────────────────────
+    async def handle_dm_set_temp_hp(self, msg: Message, client_id: str) -> Message:
+        if not is_dm(self._get_client_role(client_id)):
+            return Message(MessageType.ERROR, {'error': 'DMs only'})
+        d = msg.data or {}
+        combatant_id = d.get('combatant_id')
+        temp_hp = d.get('temp_hp') if d.get('temp_hp') is not None else d.get('amount')
+        if not combatant_id or temp_hp is None:
+            return Message(MessageType.ERROR, {'error': 'combatant_id and temp_hp required'})
+        from service.combat_engine import CombatEngine
+        result = CombatEngine.set_temp_hp(self._get_session_code(), combatant_id, int(temp_hp))
+        if not result:
+            return Message(MessageType.ERROR, {'error': 'Combatant not found or no active combat'})
+        state = CombatEngine.get_state(self._get_session_code())
+        resp = Message(MessageType.COMBAT_STATE, {'combat': state.to_dict() if state else None, 'temp_hp_set': result})
+        await self.broadcast_to_session(resp, client_id)
+        return resp
+
+    async def handle_death_save_roll(self, msg: Message, client_id: str) -> Message:
+        d = msg.data or {}
+        combatant_id = d.get('combatant_id')
+        if not combatant_id:
+            return Message(MessageType.ERROR, {'error': 'combatant_id required'})
+        from service.combat_engine import CombatEngine
+        session_code = self._get_session_code()
+        # Only the controlling player or DM may roll
+        state = CombatEngine.get_state(session_code)
+        if not state:
+            return Message(MessageType.ERROR, {'error': 'No active combat'})
+        combatant = next((c for c in state.combatants if c.combatant_id == combatant_id), None)
+        if not combatant:
+            return Message(MessageType.ERROR, {'error': 'Combatant not found'})
+        user_id = self._get_user_id(msg, client_id)
+        if not is_dm(self._get_client_role(client_id)):
+            if user_id is None or str(user_id) not in combatant.controlled_by:
+                return Message(MessageType.ERROR, {'error': 'Not your combatant'})
+        result = CombatEngine.roll_death_save(session_code, combatant_id)
+        if result is None:
+            return Message(MessageType.ERROR, {'error': 'Cannot roll — combatant is not downed'})
+        state = CombatEngine.get_state(session_code)
+        resp = Message(MessageType.DEATH_SAVE_RESULT, {**result, 'combat': state.to_dict() if state else None})
+        await self.broadcast_to_session(resp, client_id)
+        return resp
+
+    async def handle_dm_set_resistances(self, msg: Message, client_id: str) -> Message:
+        if not is_dm(self._get_client_role(client_id)):
+            return Message(MessageType.ERROR, {'error': 'DMs only'})
+        d = msg.data or {}
+        combatant_id = d.get('combatant_id')
+        if not combatant_id:
+            return Message(MessageType.ERROR, {'error': 'combatant_id required'})
+        from service.combat_engine import CombatEngine
+        result = CombatEngine.set_resistances(
+            self._get_session_code(), combatant_id,
+            resistances=d.get('resistances'), vulnerabilities=d.get('vulnerabilities'),
+            immunities=d.get('immunities'),
+        )
+        if not result:
+            return Message(MessageType.ERROR, {'error': 'Combatant not found or no active combat'})
+        state = CombatEngine.get_state(self._get_session_code())
+        resp = Message(MessageType.COMBAT_STATE, {'combat': state.to_dict() if state else None, 'resistances_update': result})
+        await self.broadcast_to_session(resp, client_id)
+        return resp
+
+    async def handle_dm_set_surprised(self, msg: Message, client_id: str) -> Message:
+        if not is_dm(self._get_client_role(client_id)):
+            return Message(MessageType.ERROR, {'error': 'DMs only'})
+        d = msg.data or {}
+        combatant_ids = d.get('combatant_ids', [])
+        surprised = bool(d.get('surprised', True))
+        if not combatant_ids:
+            return Message(MessageType.ERROR, {'error': 'combatant_ids required'})
+        from service.combat_engine import CombatEngine
+        result = CombatEngine.set_surprised(self._get_session_code(), combatant_ids, surprised)
+        if not result:
+            return Message(MessageType.ERROR, {'error': 'No matching combatants or no active combat'})
+        state = CombatEngine.get_state(self._get_session_code())
+        resp = Message(MessageType.COMBAT_STATE, {'combat': state.to_dict() if state else None, 'surprised_update': result})
+        await self.broadcast_to_session(resp, client_id)
+        return resp
+
+    async def handle_dm_set_terrain(self, msg: Message, client_id: str) -> Message:
+        if not is_dm(self._get_client_role(client_id)):
+            return Message(MessageType.ERROR, {'error': 'DMs only'})
+        d = msg.data or {}
+        cells = d.get('cells', [])        # list of [col, row]
+        mode = d.get('mode', 'add')       # 'add' | 'remove' | 'clear'
+        table_id = str(d.get('table_id', ''))
+        table = self.table_manager.tables_id.get(table_id) or self.table_manager.tables.get(table_id)
+        if table is None:
+            return Message(MessageType.ERROR, {'error': 'Table not found'})
+        if not hasattr(table, 'difficult_terrain_cells'):
+            table.difficult_terrain_cells = set()
+        if mode == 'clear':
+            table.difficult_terrain_cells.clear()
+        elif mode == 'remove':
+            for col, row in cells:
+                table.difficult_terrain_cells.discard((col, row))
+        else:
+            for col, row in cells:
+                table.difficult_terrain_cells.add((col, row))
+        resp = Message(MessageType.DM_SET_TERRAIN, {
+            'difficult_terrain': [list(c) for c in table.difficult_terrain_cells],
+            'mode': mode,
+        })
+        await self.broadcast_to_session(resp, client_id)
+        return resp
+
+    # ── Cover Zones (Phase 8) ────────────────────────────────────────────────
+
+    def _get_table_by_id(self, table_id: str):
+        return self.table_manager.tables_id.get(table_id) or self.table_manager.tables.get(table_id)
+
+    async def handle_cover_zone_add(self, msg: Message, client_id: str) -> Message:
+        if not is_dm(self._get_client_role(client_id)):
+            return Message(MessageType.ERROR, {'error': 'DMs only'})
+        from core_table.table import CoverZone
+        d = msg.data or {}
+        table_id = str(d.get('table_id', ''))
+        table = self._get_table_by_id(table_id)
+        if table is None:
+            return Message(MessageType.ERROR, {'error': 'Table not found'})
+        zone = CoverZone.from_dict(d['zone'])
+        if not hasattr(table, 'cover_zones'):
+            table.cover_zones = []
+        # Replace if zone_id already exists
+        table.cover_zones = [z for z in table.cover_zones if z.zone_id != zone.zone_id]
+        table.cover_zones.append(zone)
+        resp = Message(MessageType.COVER_ZONE_ADD, {'zone': zone.to_dict()})
+        await self.broadcast_to_session(resp, client_id)
+        return resp
+
+    async def handle_cover_zone_remove(self, msg: Message, client_id: str) -> Message:
+        if not is_dm(self._get_client_role(client_id)):
+            return Message(MessageType.ERROR, {'error': 'DMs only'})
+        d = msg.data or {}
+        table_id = str(d.get('table_id', ''))
+        table = self._get_table_by_id(table_id)
+        if table is None:
+            return Message(MessageType.ERROR, {'error': 'Table not found'})
+        zone_id = d.get('zone_id', '')
+        if hasattr(table, 'cover_zones'):
+            table.cover_zones = [z for z in table.cover_zones if z.zone_id != zone_id]
+        resp = Message(MessageType.COVER_ZONE_REMOVE, {'zone_id': zone_id})
+        await self.broadcast_to_session(resp, client_id)
+        return resp
+
+    async def handle_cover_zones_sync(self, msg: Message, client_id: str) -> Message:
+        d = msg.data or {}
+        table_id = str(d.get('table_id', ''))
+        table = self._get_table_by_id(table_id)
+        zones = [z.to_dict() for z in getattr(table, 'cover_zones', [])] if table else []
+        return Message(MessageType.COVER_ZONES_SYNC, {'zones': zones})
+
+    async def handle_attack_preview(self, msg: Message, client_id: str) -> Message:
+        if not is_dm(self._get_client_role(client_id)):
+            return Message(MessageType.ERROR, {'error': 'DMs only'})
+        from service.attack_resolver import AttackResolver
+        from service.combat_engine import CombatEngine
+        d = msg.data or {}
+        session_code = self._get_session_code()
+        state = CombatEngine.get_state(session_code)
+        if not state:
+            return Message(MessageType.ERROR, {'error': 'No active combat'})
+        attacker_id = d.get('attacker_id', '')
+        target_id = d.get('target_id', '')
+        atk = next((c for c in state.combatants if c.combatant_id == attacker_id), None)
+        tgt = next((c for c in state.combatants if c.combatant_id == target_id), None)
+        if not atk or not tgt:
+            return Message(MessageType.ERROR, {'error': 'Combatant not found'})
+        table_id = str(d.get('table_id', ''))
+        table = self._get_table_by_id(table_id)
+        from core_table.session_rules import SessionRules
+        rules = SessionRules.defaults(session_code or 'default')
+        resolver = AttackResolver(rules)
+        attack_type = d.get('attack_type', 'melee')
+        # Look up real entity positions for accurate cover calculation
+        cover = 'none'
+        if table:
+            atk_sprite = table.sprite_to_entity.get(str(atk.entity_id))
+            tgt_sprite = table.sprite_to_entity.get(str(tgt.entity_id))
+            atk_ent = table.entities.get(atk_sprite) if atk_sprite else None
+            tgt_ent = table.entities.get(tgt_sprite) if tgt_sprite else None
+            if atk_ent and tgt_ent:
+                atk_pos = (float(atk_ent.position[0]), float(atk_ent.position[1]))
+                tgt_pos = (float(tgt_ent.position[0]), float(tgt_ent.position[1]))
+                cover = AttackResolver.resolve_cover(atk_pos, tgt_pos, table)
+        # Resolve with attack_bonus=0 just for preview info
+        attack_bonus = int(d.get('attack_bonus', 0))
+        result = resolver.resolve_attack(
+            atk, tgt, attack_bonus=attack_bonus,
+            damage_formula=d.get('damage_formula', '1d6'),
+            damage_type=d.get('damage_type', 'bludgeoning'),
+            attack_type=attack_type, table=table, combat=state,
+        )
+        return Message(MessageType.ATTACK_PREVIEW_RESULT, {
+            'hit': result.hit, 'is_critical': result.is_critical,
+            'attack_roll': result.attack_roll.total if result.attack_roll else None,
+            'damage_dealt': result.damage_dealt, 'reason': result.reason,
+            'cover': cover,
+            'effective_ac': tgt.armor_class + {'half': 2, 'three_quarters': 5}.get(cover, 0),
+        })
+
+    # ── Opportunity Attacks (Phase 9) ────────────────────────────────────────
+
+    # Pending moves: session:entity_id → {from_pos, to_pos, path, pending_oa_count}
+    _pending_moves: dict = {}
+
+    async def handle_oa_confirm_move(self, msg: Message, client_id: str) -> Message:
+        """Player confirmed move despite OA warning — apply the pending move."""
+        d = msg.data or {}
+        session_code = self._get_session_code()
+        entity_id = d.get('entity_id', '')
+        # Ownership check: only DM or controlling player may confirm
+        role = self._get_client_role(client_id)
+        if not is_dm(role):
+            user_id_check = self._get_user_id(msg, client_id)
+            if not await self._can_control_sprite(entity_id, user_id_check):
+                return Message(MessageType.ERROR, {'error': 'You do not control this sprite'})
+        key = f'{session_code}:{entity_id}'
+        pending = self.__class__._pending_moves.pop(key, None)
+        if not pending:
+            return Message(MessageType.ERROR, {'error': 'No pending move'})
+        move_msg = Message(MessageType.SPRITE_MOVE, {
+            'sprite_id': entity_id,
+            'from': pending['from_pos'],
+            'to': pending['to_pos'],
+            'path': pending.get('path', []),
+            'action_id': pending.get('action_id'),
+        })
+        await self.broadcast_to_session(move_msg, client_id)
+        return move_msg
+
+    async def handle_oa_resolve(self, msg: Message, client_id: str) -> Message:
+        """Attacker resolves (or passes) an opportunity attack reaction."""
+        from service.attack_resolver import AttackResolver
+        from service.combat_engine import CombatEngine
+        d = msg.data or {}
+        session_code = self._get_session_code()
+        attacker_id = d.get('attacker_combatant_id', '')
+        state = CombatEngine.get_state(session_code)
+        # Auth: DM or the controlling player of the attacker
+        role = self._get_client_role(client_id)
+        if not is_dm(role) and state:
+            atk_check = next((c for c in state.combatants if c.combatant_id == attacker_id), None)
+            user_id_check = self._get_user_id(msg, client_id)
+            if atk_check and user_id_check is not None:
+                if str(user_id_check) not in getattr(atk_check, 'controlled_by', []):
+                    return Message(MessageType.ERROR, {'error': 'Not your combatant'})
+        if not d.get('use_reaction', False):
+            resp = Message(MessageType.OPPORTUNITY_ATTACK_RESOLVE, {'resolved': True, 'passed': True})
+            await self.broadcast_to_session(resp, client_id)
+            return resp
+        if not state:
+            return Message(MessageType.ERROR, {'error': 'No active combat'})
+        target_id = d.get('target_combatant_id', '')
+        atk = next((c for c in state.combatants if c.combatant_id == attacker_id), None)
+        tgt = next((c for c in state.combatants if c.combatant_id == target_id), None)
+        if not atk or not tgt:
+            return Message(MessageType.ERROR, {'error': 'Combatant not found'})
+        atk.has_reaction = False
+        from core_table.session_rules import SessionRules
+        rules = SessionRules.defaults(session_code or 'default')
+        resolver = AttackResolver(rules)
+        result = resolver.resolve_attack(
+            atk, tgt, attack_bonus=int(d.get('attack_bonus', 0)),
+            damage_formula=d.get('damage_formula', '1d6+0'),
+            damage_type=d.get('damage_type', 'bludgeoning'),
+            combat=state,
+        )
+        if result.hit:
+            CombatEngine.apply_damage(session_code, tgt.combatant_id, result.damage_dealt)
+        resp = Message(MessageType.OPPORTUNITY_ATTACK_RESOLVE, {
+            'hit': result.hit, 'damage': result.damage_dealt,
+            'attacker': attacker_id, 'target': target_id,
+            'reason': result.reason,
+        })
+        await self.broadcast_to_session(resp, client_id)
+        return resp
 
     async def handle_encounter_start(self, msg: Message, client_id: str) -> Message:
         if not is_dm(self._get_client_role(client_id)):

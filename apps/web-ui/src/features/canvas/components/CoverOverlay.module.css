@@ -1,0 +1,22 @@
+.overlay {
+  z-index: 10;
+}
+
+/* Uses CSS fill/stroke from design tokens */
+.half {
+  fill: var(--cover-half-fill);
+  stroke: var(--cover-half-border);
+  stroke-width: 1;
+}
+
+.threequarters {
+  fill: var(--cover-three-quarter-fill);
+  stroke: var(--cover-three-quarter-border);
+  stroke-width: 1;
+}
+
+.full {
+  fill: var(--cover-full-fill);
+  stroke: var(--cover-full-border);
+  stroke-width: 1;
+}

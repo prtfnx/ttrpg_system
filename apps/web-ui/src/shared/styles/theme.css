@@ -334,6 +334,39 @@
   --damage-magical-bg: rgba(165, 42, 42, 0.05);
   
   --notification-danger-bg: rgba(220, 53, 69, 0.8);
+
+  /* ============================================
+     TERRAIN & COVER TOKENS
+     ============================================ */
+
+  --terrain-difficult-fill: rgba(255, 165, 0, 0.25);
+  --terrain-very-difficult-fill: rgba(255, 100, 0, 0.35);
+  --terrain-hazardous-fill: rgba(200, 0, 0, 0.30);
+  --terrain-difficult-border: rgba(255, 165, 0, 0.7);
+  --terrain-very-difficult-border: rgba(255, 100, 0, 0.8);
+  --terrain-hazardous-border: rgba(200, 0, 0, 0.75);
+
+  --cover-half-fill: rgba(100, 200, 100, 0.30);
+  --cover-three-quarter-fill: rgba(50, 150, 50, 0.40);
+  --cover-full-fill: rgba(20, 80, 20, 0.50);
+  --cover-half-border: rgba(100, 200, 100, 0.8);
+  --cover-three-quarter-border: rgba(50, 150, 50, 0.9);
+  --cover-full-border: rgba(20, 80, 20, 0.95);
+
+  /* ============================================
+     DEATH SAVE TOKENS
+     ============================================ */
+
+  --death-save-success: var(--green-400);
+  --death-save-failure: var(--red-400);
+  --death-save-empty: var(--gray-600);
+
+  /* ============================================
+     COMBAT ACTIVE GLOW
+     ============================================ */
+
+  --combat-active-glow: rgba(99, 102, 241, 0.4);
+  --combat-active-border: var(--color-accent);
 }
 
 /* ============================================

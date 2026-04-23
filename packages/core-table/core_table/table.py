@@ -1,6 +1,7 @@
 import json
 import os
 import logging
+from dataclasses import dataclass, field
 from typing import Dict, Tuple, List, Optional, Any
 import uuid
 
@@ -9,6 +10,25 @@ logger = logging.getLogger(__name__)
 # logging.basicConfig removed - using central logger setup
 
 LAYER_NAMES = ['map', 'tokens', 'dungeon_master', 'light', 'height', 'obstacles', 'fog_of_war']
+
+
+@dataclass
+class CoverZone:
+    zone_id: str
+    shape_type: str          # 'rect' | 'polygon' | 'circle'
+    coords: list             # rect: [x,y,w,h]; polygon: [[x,y],...]; circle: [cx,cy,r]
+    cover_tier: str = 'half' # 'half' | 'three_quarters' | 'full'
+    label: str = ''
+
+    def to_dict(self) -> dict:
+        return {'zone_id': self.zone_id, 'shape_type': self.shape_type,
+                'coords': self.coords, 'cover_tier': self.cover_tier, 'label': self.label}
+
+    @classmethod
+    def from_dict(cls, d: dict) -> 'CoverZone':
+        return cls(zone_id=d['zone_id'], shape_type=d['shape_type'], coords=d['coords'],
+                   cover_tier=d.get('cover_tier', 'half'), label=d.get('label', ''))
+
 
 class Entity:
     def __init__(self, name: str, position: Tuple[int, int], layer: str, 
@@ -206,6 +226,12 @@ class VirtualTable:
 
         # Wall segments (keyed by wall_id UUID string)
         self.walls: Dict[str, Any] = {}
+
+        # Difficult terrain cells: set of (col, row) grid coords
+        self.difficult_terrain_cells: set = set()
+
+        # Cover zones (shape-based, DM-placed)
+        self.cover_zones: List[CoverZone] = []
 
         # Initialize grid
         self.grid = {}

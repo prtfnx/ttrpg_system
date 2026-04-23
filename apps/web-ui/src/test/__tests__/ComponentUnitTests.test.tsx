@@ -59,7 +59,6 @@ vi.mock('../../store', () => ({
  * Tests isolated component behavior, props validation, and rendering
  * Focus: Component-specific functionality without complex integrations
  */
-// @ts-nocheck
 import { renderWithProviders } from '@test/utils/test-utils';
 import { screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';

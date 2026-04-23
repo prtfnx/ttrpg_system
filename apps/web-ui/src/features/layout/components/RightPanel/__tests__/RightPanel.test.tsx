@@ -48,6 +48,7 @@ vi.mock('@features/network/components/NetworkPanel', () => ({
 
 vi.mock('@features/combat', () => ({
   InitiativeTracker: () => <div data-testid="initiative-tracker">Initiative Tracker</div>,
+  InitiativePanel: () => <div data-testid="initiative-panel">Initiative Panel</div>,
 }));
 
 vi.mock('@features/canvas/components/EntitiesPanel', () => ({

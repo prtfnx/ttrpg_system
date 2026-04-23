@@ -1,4 +1,5 @@
 import logging
+import math
 import random
 import time
 import uuid
@@ -140,15 +141,24 @@ class CombatEngine:
 
         state.current_turn_index = (state.current_turn_index + 1) % len(active)
 
-        # New round
+        # New round — tick conditions and clear surprise
         if state.current_turn_index == 0:
             state.round_number += 1
-            # Tick round-duration conditions on all combatants
             for c in state.combatants:
                 c.conditions = [cond for cond in c.conditions if not cond.tick()]
+                c.surprised = False  # surprise only lasts round 1
 
         # Reset current combatant's turn resources
         current = state.active_combatants()[state.current_turn_index]
+
+        # Surprised combatants on round 1 lose their turn; loop in case several are consecutive
+        if state.round_number == 1:
+            checked = 0
+            while checked < len(active) and current.surprised:
+                current.surprised = False
+                state.current_turn_index = (state.current_turn_index + 1) % len(active)
+                current = state.active_combatants()[state.current_turn_index]
+                checked += 1
         current.has_action = True
         current.has_bonus_action = True
         current.has_reaction = True
@@ -182,14 +192,31 @@ class CombatEngine:
         for c in state.combatants:
             if c.combatant_id != combatant_id:
                 continue
+            # Apply resistance / immunity / vulnerability
+            dt = damage_type.lower()
+            if dt and dt in c.damage_immunities:
+                return {'new_hp': c.hp, 'temp_hp': c.temp_hp, 'absorbed': 0, 'defeated': c.is_defeated, 'immune': True}
+            if dt and dt in c.damage_vulnerabilities:
+                amount = amount * 2
+            elif dt and dt in c.damage_resistances:
+                amount = amount // 2
             # Temp HP absorbs first
             absorbed = min(c.temp_hp, amount)
             c.temp_hp -= absorbed
             actual = amount - absorbed
             c.hp = max(0, c.hp - actual)
-            if c.hp == 0:
+            # Downed ≠ defeated when death saves are on — let roll_death_save handle it
+            if c.hp == 0 and (not state.settings.death_saves_enabled or c.is_npc):
                 c.is_defeated = True
-            return {'new_hp': c.hp, 'temp_hp': c.temp_hp, 'absorbed': absorbed, 'defeated': c.is_defeated}
+            result: dict = {'new_hp': c.hp, 'temp_hp': c.temp_hp, 'absorbed': absorbed, 'defeated': c.is_defeated}
+            # Concentration check on any damage taken
+            if actual > 0 and c.concentration_spell:
+                dc = max(10, math.ceil(actual / 2))
+                con_roll = DiceEngine.roll('1d20').total
+                if con_roll < dc:
+                    result['concentration_broken'] = c.concentration_spell
+                    c.concentration_spell = None
+            return result
         return {'error': 'combatant not found'}
 
     @classmethod
@@ -265,3 +292,97 @@ class CombatEngine:
         state = cls._active.get(session_id)
         if state:
             state.action_log.append(action)
+
+    # ── Death Saves ─────────────────────────────────────────────────────────
+
+    @classmethod
+    def roll_death_save(cls, session_id: str, combatant_id: str) -> dict | None:
+        """Roll 1d20 death saving throw for a downed combatant.
+        Returns result dict or None if combatant not found / not downed."""
+        state = cls._active.get(session_id)
+        if not state or not state.settings.death_saves_enabled:
+            return None
+        for c in state.combatants:
+            if c.combatant_id != combatant_id:
+                continue
+            if c.hp > 0:
+                return None  # not downed
+            roll = DiceEngine.roll('1d20').total
+            if roll == 20:
+                c.hp = 1
+                c.is_defeated = False
+                c.death_save_successes = 0
+                c.death_save_failures = 0
+                return {'roll': roll, 'result': 'stabilized', 'combatant_id': combatant_id}
+            if roll == 1:
+                c.death_save_failures += 2
+            elif roll < 10:
+                c.death_save_failures += 1
+            else:
+                c.death_save_successes += 1
+            if c.death_save_failures >= 3:
+                c.is_defeated = True
+                return {'roll': roll, 'result': 'dead', 'combatant_id': combatant_id,
+                        'successes': c.death_save_successes, 'failures': c.death_save_failures}
+            if c.death_save_successes >= 3:
+                c.death_save_successes = 0
+                c.death_save_failures = 0
+                return {'roll': roll, 'result': 'stable', 'combatant_id': combatant_id,
+                        'successes': 3, 'failures': c.death_save_failures}
+            return {'roll': roll, 'result': 'success' if roll >= 10 else 'failure',
+                    'combatant_id': combatant_id,
+                    'successes': c.death_save_successes, 'failures': c.death_save_failures}
+        return None
+
+    # ── Temp HP ─────────────────────────────────────────────────────────────
+
+    @classmethod
+    def set_temp_hp(cls, session_id: str, combatant_id: str, amount: int) -> dict | None:
+        state = cls._active.get(session_id)
+        if not state:
+            return None
+        for c in state.combatants:
+            if c.combatant_id == combatant_id:
+                c.temp_hp = max(0, amount)
+                return {'combatant_id': combatant_id, 'temp_hp': c.temp_hp}
+        return None
+
+    # ── Resistances ─────────────────────────────────────────────────────────
+
+    @classmethod
+    def set_resistances(cls, session_id: str, combatant_id: str,
+                        resistances: list[str] | None = None,
+                        vulnerabilities: list[str] | None = None,
+                        immunities: list[str] | None = None) -> dict | None:
+        state = cls._active.get(session_id)
+        if not state:
+            return None
+        for c in state.combatants:
+            if c.combatant_id == combatant_id:
+                if resistances is not None:
+                    c.damage_resistances = resistances
+                if vulnerabilities is not None:
+                    c.damage_vulnerabilities = vulnerabilities
+                if immunities is not None:
+                    c.damage_immunities = immunities
+                return {
+                    'combatant_id': combatant_id,
+                    'damage_resistances': c.damage_resistances,
+                    'damage_vulnerabilities': c.damage_vulnerabilities,
+                    'damage_immunities': c.damage_immunities,
+                }
+        return None
+
+    # ── Surprise ─────────────────────────────────────────────────────────────
+
+    @classmethod
+    def set_surprised(cls, session_id: str, combatant_ids: list[str], surprised: bool) -> dict | None:
+        state = cls._active.get(session_id)
+        if not state:
+            return None
+        updated = []
+        for c in state.combatants:
+            if c.combatant_id in combatant_ids:
+                c.surprised = surprised
+                updated.append(c.combatant_id)
+        return {'updated': updated, 'surprised': surprised} if updated else None

@@ -129,6 +129,10 @@ export function SessionRulesTab() {
         <Toggle label="Massive damage rule" field="massive_damage_rule" draft={draft} update={update} />
         <Toggle label="Enforce spell slots" field="enforce_spell_slots" draft={draft} update={update} />
         <Toggle label="Enforce range" field="enforce_range" draft={draft} update={update} />
+        <Toggle label="Enforce cover" field="enforce_cover" draft={draft} update={update} />
+        <Toggle label="Enforce difficult terrain" field="enforce_difficult_terrain" draft={draft} update={update} />
+        <Toggle label="Opportunity attacks" field="opportunity_attacks_enabled" draft={draft} update={update} />
+        <NumberInput label="OA reaction timeout (sec)" field="opportunity_attack_timeout_sec" draft={draft} update={update} min={5} max={120} />
       </section>
 
       <section>

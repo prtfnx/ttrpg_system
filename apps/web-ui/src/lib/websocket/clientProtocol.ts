@@ -321,6 +321,39 @@ export class WebClientProtocol {
       console.warn(`[Combat] Concentration broken for ${d?.combatant_id} (${d?.spell})`);
     });
 
+    // ── Cover zones ──
+    this.registerHandler(MessageType.COVER_ZONES_SYNC, async (m) => {
+      const { useCoverStore } = await import('@features/combat/stores/coverStore');
+      const d = m.data as { zones: never[] };
+      useCoverStore.getState().setZones(d?.zones ?? []);
+    });
+    this.registerHandler(MessageType.COVER_ZONE_ADD, async (m) => {
+      const { useCoverStore } = await import('@features/combat/stores/coverStore');
+      const d = m.data as { zone: never };
+      if (d?.zone) useCoverStore.getState().addZone(d.zone);
+    });
+    this.registerHandler(MessageType.COVER_ZONE_REMOVE, async (m) => {
+      const { useCoverStore } = await import('@features/combat/stores/coverStore');
+      const d = m.data as { zone_id: string };
+      if (d?.zone_id) useCoverStore.getState().removeZone(d.zone_id);
+    });
+
+    // ── Opportunity Attacks ──
+    this.registerHandler(MessageType.OPPORTUNITY_ATTACK_WARNING, async (m) => {
+      const { useOAStore } = await import('@features/combat/stores/oaStore');
+      const d = m.data as { entity_id: string; triggers: never[] };
+      useOAStore.getState().setWarning(d?.entity_id ?? '', d?.triggers ?? []);
+    });
+    this.registerHandler(MessageType.OPPORTUNITY_ATTACK_PROMPT, async (m) => {
+      const { useOAStore } = await import('@features/combat/stores/oaStore');
+      const d = m.data as { target_combatant_id: string; target_name: string; attacker_combatant_id: string };
+      useOAStore.getState().setPrompt(d);
+    });
+    this.registerHandler(MessageType.OPPORTUNITY_ATTACK_RESOLVE, async () => {
+      const { useOAStore } = await import('@features/combat/stores/oaStore');
+      useOAStore.getState().clearAll();
+    });
+
     // ── Encounters ──
     this.registerHandler(MessageType.ENCOUNTER_STATE, async (m) => {
       const { useEncounterStore } = await import('@features/combat/stores/encounterStore');
@@ -1800,5 +1833,36 @@ export class WebClientProtocol {
 
   sendTestMessage(data: Record<string, unknown>): void {
     this.sendMessage(createMessage(MessageType.TEST, data));
+  }
+
+  // ── Cover Zones ──────────────────────────────────────────────────────────
+
+  requestCoverZonesSync(tableId: string): void {
+    this.sendMessage(createMessage(MessageType.COVER_ZONES_SYNC, { table_id: tableId }));
+  }
+
+  addCoverZone(tableId: string, zone: Record<string, unknown>): void {
+    this.sendMessage(createMessage(MessageType.COVER_ZONE_ADD, { table_id: tableId, zone }));
+  }
+
+  removeCoverZone(tableId: string, zoneId: string): void {
+    this.sendMessage(createMessage(MessageType.COVER_ZONE_REMOVE, { table_id: tableId, zone_id: zoneId }));
+  }
+
+  // ── Opportunity Attacks ──────────────────────────────────────────────────
+
+  confirmMoveDespiiteOA(entityId: string): void {
+    this.sendMessage(createMessage(MessageType.OPPORTUNITY_ATTACK_CONFIRM_MOVE, { entity_id: entityId }));
+  }
+
+  resolveOA(data: {
+    use_reaction: boolean;
+    attacker_combatant_id?: string;
+    target_combatant_id?: string;
+    attack_bonus?: number;
+    damage_formula?: string;
+    damage_type?: string;
+  }): void {
+    this.sendMessage(createMessage(MessageType.OPPORTUNITY_ATTACK_RESOLVE, data));
   }
 }

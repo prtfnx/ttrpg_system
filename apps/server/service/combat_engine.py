@@ -1,4 +1,5 @@
 import logging
+import math
 import random
 import time
 import uuid
@@ -150,11 +151,14 @@ class CombatEngine:
         # Reset current combatant's turn resources
         current = state.active_combatants()[state.current_turn_index]
 
-        # Surprised combatants on round 1 lose their turn
-        if state.round_number == 1 and current.surprised:
-            current.surprised = False
-            state.current_turn_index = (state.current_turn_index + 1) % len(active)
-            current = state.active_combatants()[state.current_turn_index]
+        # Surprised combatants on round 1 lose their turn; loop in case several are consecutive
+        if state.round_number == 1:
+            checked = 0
+            while checked < len(active) and current.surprised:
+                current.surprised = False
+                state.current_turn_index = (state.current_turn_index + 1) % len(active)
+                current = state.active_combatants()[state.current_turn_index]
+                checked += 1
         current.has_action = True
         current.has_bonus_action = True
         current.has_reaction = True
@@ -201,12 +205,13 @@ class CombatEngine:
             c.temp_hp -= absorbed
             actual = amount - absorbed
             c.hp = max(0, c.hp - actual)
-            if c.hp == 0:
+            # Downed ≠ defeated when death saves are on — let roll_death_save handle it
+            if c.hp == 0 and (not state.settings.death_saves_enabled or c.is_npc):
                 c.is_defeated = True
             result: dict = {'new_hp': c.hp, 'temp_hp': c.temp_hp, 'absorbed': absorbed, 'defeated': c.is_defeated}
             # Concentration check on any damage taken
             if actual > 0 and c.concentration_spell:
-                dc = max(10, actual // 2)
+                dc = max(10, math.ceil(actual / 2))
                 con_roll = DiceEngine.roll('1d20').total
                 if con_roll < dc:
                     result['concentration_broken'] = c.concentration_spell

@@ -638,7 +638,7 @@ export function ToolsPanel({ userInfo }: ToolsPanelProps) {
           triggers={oaTriggers}
           onConfirm={() => {
             if (ProtocolService.hasProtocol())
-              ProtocolService.getProtocol().confirmMoveDespiiteOA(oaWarning);
+              ProtocolService.getProtocol().confirmMoveDespiteOA(oaWarning);
             clearOA();
           }}
           onCancel={clearOA}

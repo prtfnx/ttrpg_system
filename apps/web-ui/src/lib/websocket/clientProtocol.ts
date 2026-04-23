@@ -1851,7 +1851,7 @@ export class WebClientProtocol {
 
   // ── Opportunity Attacks ──────────────────────────────────────────────────
 
-  confirmMoveDespiiteOA(entityId: string): void {
+  confirmMoveDespiteOA(entityId: string): void {
     this.sendMessage(createMessage(MessageType.OPPORTUNITY_ATTACK_CONFIRM_MOVE, { entity_id: entityId }));
   }
 

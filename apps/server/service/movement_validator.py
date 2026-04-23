@@ -142,8 +142,10 @@ class MovementValidator:
 
     def check_opportunity_attacks(
         self, entity_id: str, from_pos: tuple, table, combat_state: Optional['CombatState'],
+        to_pos: Optional[tuple] = None,
     ) -> list[dict]:
-        """Return triggers: [{combatant_id, name, controlled_by}] for hostiles within reach."""
+        """Return OA triggers: combatants within reach at from_pos but NOT at to_pos.
+        Only fires when the mover actually leaves reach (D&D 5e rule)."""
         if combat_state is None or not getattr(self.rules, 'opportunity_attacks_enabled', True):
             return []
         grid = table.grid_cell_px
@@ -158,14 +160,20 @@ class MovementValidator:
             ent = table.entities.get(sprite_key)
             if ent is None:
                 continue
-            dist = math.hypot(float(ent.position[0]) - from_pos[0],
-                              float(ent.position[1]) - from_pos[1])
-            if dist <= reach:
-                triggers.append({
-                    'combatant_id': c.combatant_id,
-                    'name': c.name,
-                    'controlled_by': getattr(c, 'controlled_by', None),
-                })
+            ex, ey = float(ent.position[0]), float(ent.position[1])
+            dist_from = math.hypot(ex - from_pos[0], ey - from_pos[1])
+            if dist_from > reach:
+                continue  # wasn't adjacent to start with
+            # Only trigger if the mover leaves reach at the destination
+            if to_pos is not None:
+                dist_to = math.hypot(ex - to_pos[0], ey - to_pos[1])
+                if dist_to <= reach:
+                    continue  # still adjacent — no OA
+            triggers.append({
+                'combatant_id': c.combatant_id,
+                'name': c.name,
+                'controlled_by': getattr(c, 'controlled_by', None),
+            })
         return triggers
 
     # ── Helpers ───────────────────────────────────────────────────────────

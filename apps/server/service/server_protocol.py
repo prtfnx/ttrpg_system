@@ -558,13 +558,15 @@ class ServerProtocol:
                     from service.combat_engine import CombatEngine
                     combat_state = CombatEngine.get_state(self._get_session_code())
                     oa_triggers = validator.check_opportunity_attacks(
-                        sprite_id, to_tuple(from_pos), table, combat_state
+                        sprite_id, to_tuple(from_pos), table, combat_state,
+                        to_pos=to_tuple(to_pos),
                     )
                     if oa_triggers:
                         key = f'{self._get_session_code()}:{sprite_id}'
                         self.__class__._pending_moves[key] = {
                             'from_pos': from_pos, 'to_pos': to_pos,
                             'path': msg.data.get('path', []),
+                            'action_id': action_id,
                         }
                         warn = Message(MessageType.OPPORTUNITY_ATTACK_WARNING, {
                             'entity_id': sprite_id,
@@ -3849,11 +3851,12 @@ class ServerProtocol:
         if not is_dm(self._get_client_role(client_id)):
             return Message(MessageType.ERROR, {'error': 'DMs only'})
         d = msg.data or {}
-        combatant_id, amount = d.get('combatant_id'), d.get('amount')
-        if not combatant_id or amount is None:
-            return Message(MessageType.ERROR, {'error': 'combatant_id and amount required'})
+        combatant_id = d.get('combatant_id')
+        temp_hp = d.get('temp_hp') if d.get('temp_hp') is not None else d.get('amount')
+        if not combatant_id or temp_hp is None:
+            return Message(MessageType.ERROR, {'error': 'combatant_id and temp_hp required'})
         from service.combat_engine import CombatEngine
-        result = CombatEngine.set_temp_hp(self._get_session_code(), combatant_id, int(amount))
+        result = CombatEngine.set_temp_hp(self._get_session_code(), combatant_id, int(temp_hp))
         if not result:
             return Message(MessageType.ERROR, {'error': 'Combatant not found or no active combat'})
         state = CombatEngine.get_state(self._get_session_code())
@@ -4019,9 +4022,17 @@ class ServerProtocol:
         rules = SessionRules.defaults(session_code or 'default')
         resolver = AttackResolver(rules)
         attack_type = d.get('attack_type', 'melee')
-        cover = AttackResolver.resolve_cover(
-            (0.0, 0.0), (0.0, 0.0), table
-        ) if table else 'none'
+        # Look up real entity positions for accurate cover calculation
+        cover = 'none'
+        if table:
+            atk_sprite = table.sprite_to_entity.get(str(atk.entity_id))
+            tgt_sprite = table.sprite_to_entity.get(str(tgt.entity_id))
+            atk_ent = table.entities.get(atk_sprite) if atk_sprite else None
+            tgt_ent = table.entities.get(tgt_sprite) if tgt_sprite else None
+            if atk_ent and tgt_ent:
+                atk_pos = (float(atk_ent.position[0]), float(atk_ent.position[1]))
+                tgt_pos = (float(tgt_ent.position[0]), float(tgt_ent.position[1]))
+                cover = AttackResolver.resolve_cover(atk_pos, tgt_pos, table)
         # Resolve with attack_bonus=0 just for preview info
         attack_bonus = int(d.get('attack_bonus', 0))
         result = resolver.resolve_attack(
@@ -4048,16 +4059,22 @@ class ServerProtocol:
         d = msg.data or {}
         session_code = self._get_session_code()
         entity_id = d.get('entity_id', '')
+        # Ownership check: only DM or controlling player may confirm
+        role = self._get_client_role(client_id)
+        if not is_dm(role):
+            user_id_check = self._get_user_id(msg, client_id)
+            if not await self._can_control_sprite(entity_id, user_id_check):
+                return Message(MessageType.ERROR, {'error': 'You do not control this sprite'})
         key = f'{session_code}:{entity_id}'
         pending = self.__class__._pending_moves.pop(key, None)
         if not pending:
             return Message(MessageType.ERROR, {'error': 'No pending move'})
-        # Broadcast the move to all clients
         move_msg = Message(MessageType.SPRITE_MOVE, {
             'sprite_id': entity_id,
             'from': pending['from_pos'],
             'to': pending['to_pos'],
             'path': pending.get('path', []),
+            'action_id': pending.get('action_id'),
         })
         await self.broadcast_to_session(move_msg, client_id)
         return move_msg
@@ -4068,18 +4085,27 @@ class ServerProtocol:
         from service.combat_engine import CombatEngine
         d = msg.data or {}
         session_code = self._get_session_code()
-        if not d.get('use_reaction', False):
-            return Message(MessageType.OPPORTUNITY_ATTACK_RESOLVE, {'resolved': True, 'passed': True})
+        attacker_id = d.get('attacker_combatant_id', '')
         state = CombatEngine.get_state(session_code)
+        # Auth: DM or the controlling player of the attacker
+        role = self._get_client_role(client_id)
+        if not is_dm(role) and state:
+            atk_check = next((c for c in state.combatants if c.combatant_id == attacker_id), None)
+            user_id_check = self._get_user_id(msg, client_id)
+            if atk_check and user_id_check is not None:
+                if str(user_id_check) not in getattr(atk_check, 'controlled_by', []):
+                    return Message(MessageType.ERROR, {'error': 'Not your combatant'})
+        if not d.get('use_reaction', False):
+            resp = Message(MessageType.OPPORTUNITY_ATTACK_RESOLVE, {'resolved': True, 'passed': True})
+            await self.broadcast_to_session(resp, client_id)
+            return resp
         if not state:
             return Message(MessageType.ERROR, {'error': 'No active combat'})
-        attacker_id = d.get('attacker_combatant_id', '')
         target_id = d.get('target_combatant_id', '')
         atk = next((c for c in state.combatants if c.combatant_id == attacker_id), None)
         tgt = next((c for c in state.combatants if c.combatant_id == target_id), None)
         if not atk or not tgt:
             return Message(MessageType.ERROR, {'error': 'Combatant not found'})
-        # Mark reaction used
         atk.has_reaction = False
         from core_table.session_rules import SessionRules
         rules = SessionRules.defaults(session_code or 'default')

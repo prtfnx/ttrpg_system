@@ -64,7 +64,9 @@ export const GameCanvas: React.FC = () => {
   const dynamicLightingEnabled = useGameStore(s => s.dynamicLightingEnabled);
   // Protocol and store setup
   const protocol = useOptionalProtocol()?.protocol ?? null;
-  const { updateConnectionState, tables, activeTableId } = useGameStore();
+  const updateConnectionState = useGameStore(s => s.updateConnectionState);
+  const tables = useGameStore(s => s.tables);
+  const activeTableId = useGameStore(s => s.activeTableId);
   const activeTable = tables.find((t) => t.table_id === activeTableId);
   const activeLayer = useGameStore(s => s.activeLayer);
   const { connect: connectWebSocket, disconnect: disconnectWebSocket } = useWebSocket(

@@ -43,7 +43,6 @@ describe('Lighting System', () => {
   beforeEach(() => {
   // Ensure the render engine global is the mock
   window.rustRenderManager = mockEngine as any;
-    vi.resetModules();
     // Setup mocks
     Object.values(mockEngine).forEach(fn => {
       if (typeof fn === 'function') {
@@ -514,7 +513,7 @@ describe('Lighting System', () => {
 
   describe('Performance Tests', () => {
     it('should handle multiple lights efficiently', async () => {
-      await act(async () => { render(<LightingPanel />); });
+      render(<LightingPanel />);
       
       const preset = {
         name: 'Torch',

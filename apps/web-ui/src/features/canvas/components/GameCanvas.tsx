@@ -4,7 +4,7 @@
  */
 import { useGameStore } from '@/store';
 import { assetIntegrationService } from '@features/assets';
-import { useCombatStore } from '@features/combat/stores/combatStore';
+import { useCombatStore, type Combatant } from '@features/combat/stores/combatStore';
 import { useGameModeStore } from '@features/combat/stores/gameModeStore';
 import { isDM } from '@features/session/types/roles';
 import { useOptionalProtocol } from '@lib/api';
@@ -37,6 +37,9 @@ import { useCanvasEventsEnhanced } from './GameCanvas/useCanvasEventsEnhanced';
 import PerformanceMonitor from './PerformanceMonitor';
 
 // Window globals declared in src/types.ts: ttrpg_rust_core, rustRenderManager, wasmInitialized
+
+// Stable fallback to prevent Zustand selector from returning new [] reference every render
+const EMPTY_COMBATANTS: Combatant[] = [];
 
 
 // Available layers - matching LayerPanel
@@ -117,7 +120,7 @@ export const GameCanvas: React.FC = () => {
  const [showPerformanceMonitor, togglePerformanceMonitor] = usePerformanceMonitor();
 
   // Context menu logic
-  const combatants = useCombatStore((s) => s.combat?.combatants ?? []);
+  const combatants = useCombatStore((s) => s.combat?.combatants ?? EMPTY_COMBATANTS);
   const isFight = useGameModeStore((s) => s.isFight);
   const sessionRole = useGameStore((s) => s.sessionRole);
   const inCombat = (entityId: string) => combatants.some((c) => c.entity_id === entityId);

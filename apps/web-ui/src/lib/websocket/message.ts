@@ -8,6 +8,7 @@ export const MessageType = {
   PING: "ping",
   PONG: "pong",
   ERROR: "error",
+  CHAT_MESSAGE: "chat",
   TEST: "test",
   SUCCESS: "success",
   WELCOME: "welcome",

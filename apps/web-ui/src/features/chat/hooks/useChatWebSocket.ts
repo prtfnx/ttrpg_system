@@ -1,6 +1,8 @@
 import { useOptionalProtocol } from '@lib/api';
 import type { Message } from '@lib/websocket';
+import { MessageType } from '@lib/websocket';
 import React, { useEffect } from 'react';
+import type { ChatMessage } from '../chatStore';
 import { useChatStore } from '../chatStore';
 
 export function useChatWebSocket(url: string, user: string) {
@@ -35,13 +37,13 @@ export function useChatWebSocket(url: string, user: string) {
     if (protocol) {
       // Register a handler for chat messages via protocol
       const handler = async (m: Message) => {
-        if (m.type === 'chat' && m.data?.message) {
-          useChatStore.getState().addMessage(m.data.message);
+        if (m.type === MessageType.CHAT_MESSAGE && m.data?.message) {
+          useChatStore.getState().addMessage(m.data.message as ChatMessage);
         }
       };
-      protocol.registerHandler('chat', handler);
+      protocol.registerHandler(MessageType.CHAT_MESSAGE, handler);
       return () => {
-        try { protocol.unregisterHandler('chat'); } catch {}
+        try { protocol.unregisterHandler(MessageType.CHAT_MESSAGE); } catch {}
       };
     }
 

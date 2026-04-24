@@ -72,7 +72,7 @@ macro_rules! log_info {
 /// 
 /// # Examples
 /// 
-/// ```rust
+/// ```rust,ignore
 /// // Logs in debug builds or with --features log-warn
 /// log_warn!("Deprecated API usage detected in {}", function_name);
 /// log_warn!("Performance warning: {} objects rendered in single batch", count);

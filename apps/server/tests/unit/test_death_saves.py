@@ -47,8 +47,10 @@ def test_dst_3_successes_stabilize():
         CombatEngine.roll_death_save('s', cid)
         CombatEngine.roll_death_save('s', cid)
         result = CombatEngine.roll_death_save('s', cid)
+    assert result is not None
     assert result['result'] == 'stable'
     state = CombatEngine.get_state('s')
+    assert state is not None
     c = state.combatants[0]
     assert c.death_save_successes == 0
     assert c.death_save_failures == 0
@@ -62,8 +64,10 @@ def test_dst_3_failures_kill():
         CombatEngine.roll_death_save('s', cid)
         CombatEngine.roll_death_save('s', cid)
         result = CombatEngine.roll_death_save('s', cid)
+    assert result is not None
     assert result['result'] == 'dead'
     state = CombatEngine.get_state('s')
+    assert state is not None
     assert state.combatants[0].is_defeated
 
 
@@ -73,8 +77,10 @@ def test_dst_nat20_heals_to_1hp():
         from core_table.dice import DiceRollResult
         mock.return_value = DiceRollResult(total=20, rolls=[20], modifier=0, formula='1d20')
         result = CombatEngine.roll_death_save('s', cid)
+    assert result is not None
     assert result['result'] == 'stabilized'
     state = CombatEngine.get_state('s')
+    assert state is not None
     assert state.combatants[0].hp == 1
 
 
@@ -85,6 +91,7 @@ def test_dst_nat1_counts_as_two_failures():
         mock.return_value = DiceRollResult(total=1, rolls=[1], modifier=0, formula='1d20')
         CombatEngine.roll_death_save('s', cid)
     state = CombatEngine.get_state('s')
+    assert state is not None
     assert state.combatants[0].death_save_failures == 2
 
 

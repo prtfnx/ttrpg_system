@@ -43,6 +43,7 @@ def test_concentration_breaks_on_failed_save():
         result = CombatEngine.apply_damage('s', cid, 10)
     assert result.get('concentration_broken') == 'Bless'
     state = CombatEngine.get_state('s')
+    assert state is not None
     assert state.combatants[0].concentration_spell is None
 
 
@@ -53,6 +54,7 @@ def test_concentration_maintained_on_pass():
         result = CombatEngine.apply_damage('s', cid, 4)
     assert 'concentration_broken' not in result
     state = CombatEngine.get_state('s')
+    assert state is not None
     assert state.combatants[0].concentration_spell == 'Bless'
 
 

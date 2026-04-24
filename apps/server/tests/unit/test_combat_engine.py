@@ -64,6 +64,7 @@ def test_apply_damage():
 
 def test_apply_damage_defeats():
     state = CombatEngine.start_combat('sess1', 't1', ['e1'])
+    state.settings.death_saves_enabled = False  # NPCs / no death saves → immediate defeat
     state.combatants[0].hp = 5
     cid = state.combatants[0].combatant_id
     result = CombatEngine.apply_damage('sess1', cid, 10)

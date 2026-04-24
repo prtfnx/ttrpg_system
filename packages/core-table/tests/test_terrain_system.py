@@ -46,11 +46,3 @@ def test_session_rules_oa_fields():
     rules = SessionRules.defaults('test')
     assert rules.opportunity_attacks_enabled is True
     assert rules.opportunity_attack_timeout_sec == 30
-
-    assert rules.enforce_cover is True
-
-
-def test_session_rules_oa_fields():
-    rules = SessionRules.defaults('test')
-    assert rules.opportunity_attacks_enabled is True
-    assert rules.opportunity_attack_timeout_sec == 30

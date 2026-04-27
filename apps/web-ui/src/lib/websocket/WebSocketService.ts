@@ -13,7 +13,7 @@ export interface WebSocketConfig {
 
 export interface WebSocketMessage {
   type: string;
-  payload: any;
+  payload: unknown;
   timestamp?: number;
 }
 

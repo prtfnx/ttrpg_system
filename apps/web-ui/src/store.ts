@@ -26,11 +26,11 @@ export interface WallData {
 }
 
 // Change detection cache
-const spriteCache = new Map<string, Record<string, any>>();
+const spriteCache = new Map<string, Record<string, unknown>>();
 
-const detectChanges = (spriteId: string, updates: Record<string, any>): Record<string, any> => {
+const detectChanges = (spriteId: string, updates: Record<string, unknown>): Record<string, unknown> => {
   const prev = spriteCache.get(spriteId) || {};
-  const changes: Record<string, any> = {};
+  const changes: Record<string, unknown> = {};
   
   for (const [key, value] of Object.entries(updates)) {
     // Deep comparison for arrays
@@ -315,9 +315,10 @@ export const useGameStore = create<GameStore>()(
         }));
       },
 
-      addSprite: (sprite: any) => {
+      addSprite: (sprite: Sprite) => {
         // Migrate legacy sprite fields if needed
-        const migrated = { ...sprite };
+        type LegacySprite = Sprite & { imageUrl?: string; width?: number; height?: number };
+        const migrated: LegacySprite = { ...sprite };
         if (migrated.imageUrl && !migrated.texture) {
           migrated.texture = migrated.imageUrl;
         }
@@ -366,7 +367,7 @@ export const useGameStore = create<GameStore>()(
         // Send to server with change detection
         if (!ProtocolService.hasProtocol()) return;
         
-        const serverUpdate: Record<string, any> = {};
+        const serverUpdate: Record<string, unknown> = {};
         if ('characterId' in updates) serverUpdate.character_id = updates.characterId || null;
         if ('controlledBy' in updates) serverUpdate.controlled_by = updates.controlledBy || [];
         if ('hp' in updates) serverUpdate.hp = updates.hp;
@@ -392,7 +393,7 @@ export const useGameStore = create<GameStore>()(
         }
       },
 
-      addCharacter: (character: any) => {
+      addCharacter: (character: Character) => {
         // Migrate legacy character fields if needed
         const migrated = { ...character };
         if (typeof migrated.data !== 'object' || migrated.data == null) {
@@ -411,19 +412,19 @@ export const useGameStore = create<GameStore>()(
 
       // --- Character / Sprite linking helpers ---
       getSpritesForCharacter: (characterId: string) => {
-        return useGameStore.getState().sprites.filter((s: any) => s.characterId === characterId);
+        return useGameStore.getState().sprites.filter((s) => s.characterId === characterId);
       },
 
       getCharacterForSprite: (spriteId: string) => {
-        const sprite = useGameStore.getState().sprites.find((s: any) => s.id === spriteId);
+        const sprite = useGameStore.getState().sprites.find((s) => s.id === spriteId);
         if (!sprite?.characterId) return undefined;
-        return useGameStore.getState().characters.find((c: any) => c.id === sprite.characterId);
+        return useGameStore.getState().characters.find((c) => c.id === sprite.characterId);
       },
 
       canControlSprite: (spriteId: string, userId?: number) => {
         const state = useGameStore.getState();
         if (isDM(state.sessionRole)) return true;
-        const sprite = state.sprites.find((s: any) => s.id === spriteId);
+        const sprite = state.sprites.find((s) => s.id === spriteId);
         if (!sprite) return false;
         const cb: number[] = Array.isArray(sprite.controlledBy)
           ? sprite.controlledBy.map(Number)
@@ -438,7 +439,7 @@ export const useGameStore = create<GameStore>()(
       canEditCharacter: (characterId: string, userId?: number) => {
         const state = useGameStore.getState();
         if (isDM(state.sessionRole)) return true;
-        const character = state.characters.find((c: any) => c.id === characterId);
+        const character = state.characters.find((c) => c.id === characterId);
         if (!character) return false;
         if (userId === undefined) return true;
         return character.ownerId === userId || (Array.isArray(character.controlledBy) && character.controlledBy.includes(userId));

@@ -1,7 +1,7 @@
 import { useGameStore } from '@/store';
 import { ProtocolService } from '@lib/api';
 import { createMessage, MessageType } from '@lib/websocket';
-import { useEffect } from 'react';
+import { useCallback, useEffect } from 'react';
 import { useCombatStore } from '../stores/combatStore';
 import styles from './TurnBanner.module.css';
 
@@ -13,12 +13,12 @@ export function TurnBanner() {
   const current = combat?.phase === 'active' ? getCurrentCombatant() : null;
   const isMyTurn = !!current && userId !== null && current.controlled_by.includes(String(userId));
 
-  const endTurn = () => {
+  const endTurn = useCallback(() => {
     if (!current) return;
     ProtocolService.getProtocol()?.sendMessage(
       createMessage(MessageType.TURN_END, { combatant_id: current.combatant_id })
     );
-  };
+  }, [current]);
 
   useEffect(() => {
     if (!isMyTurn) return;
@@ -27,7 +27,7 @@ export function TurnBanner() {
     };
     window.addEventListener('keydown', handler);
     return () => window.removeEventListener('keydown', handler);
-  }, [isMyTurn, current?.combatant_id]);
+  }, [isMyTurn, endTurn]);
 
   if (!current) return null;
 

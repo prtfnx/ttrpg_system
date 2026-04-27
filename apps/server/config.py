@@ -6,7 +6,7 @@ class Settings(BaseSettings):
     """Settings for the application, loaded from environment variables."""
    
     # These will be read from environment variables set manually on Render
-    SECRET_KEY: str = os.getenv("SECRET_KEY", "setted in env")
+    SECRET_KEY: str = os.getenv("SECRET_KEY", "dev-secret-key-change-me-in-production-0001")
     ALGORITHM: str = os.getenv("ALGORITHM", "HS256")
 
     # Session secret for OAuth state management (min 32 chars)

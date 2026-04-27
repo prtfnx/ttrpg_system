@@ -360,6 +360,12 @@ impl RenderEngine {
         self.input.selected_sprite_ids.clone()
     }
 
+    /// Alias for get_selected_sprite_ids (TypeScript-facing name)
+    #[wasm_bindgen]
+    pub fn get_selected_sprites(&self) -> Vec<String> {
+        self.input.selected_sprite_ids.clone()
+    }
+
     /// Select all sprites in all layers
     #[wasm_bindgen]
     pub fn select_all_sprites(&mut self) {

@@ -43,9 +43,22 @@ impl RenderEngine {
         ok
     }
     
+    #[wasm_bindgen]
     pub fn update_sprite_scale(&mut self, sprite_id: &str, scale_x: f64, scale_y: f64) -> bool {
         let new_scale = crate::math::Vec2::new(scale_x as f32, scale_y as f32);
         self.layer_manager.update_sprite_scale(sprite_id, new_scale)
+    }
+
+    /// Set sprite position (alias for update_sprite_position)
+    #[wasm_bindgen]
+    pub fn set_sprite_position(&mut self, sprite_id: &str, x: f64, y: f64) -> bool {
+        self.update_sprite_position(sprite_id, x, y)
+    }
+
+    /// Set sprite scale (alias for update_sprite_scale)
+    #[wasm_bindgen]
+    pub fn set_sprite_scale(&mut self, sprite_id: &str, scale_x: f64, scale_y: f64) -> bool {
+        self.update_sprite_scale(sprite_id, scale_x, scale_y)
     }
 
     #[wasm_bindgen]

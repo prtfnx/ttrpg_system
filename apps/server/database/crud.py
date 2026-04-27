@@ -2,7 +2,7 @@
 Database CRUD operations
 """
 from sqlalchemy.orm import Session
-from passlib.context import CryptContext
+import bcrypt
 from . import models, schemas
 from datetime import datetime, timedelta
 from sqlalchemy import func
@@ -15,15 +15,14 @@ import uuid
 from utils.logger import setup_logger
 
 logger = setup_logger(__name__)
-pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
 def get_password_hash(password: str) -> str:
-    return pwd_context.hash(password)
+    return bcrypt.hashpw(password.encode(), bcrypt.gensalt()).decode()
 
 def verify_password(plain_password: str, hashed_password: Optional[str]) -> bool:
     if hashed_password is None:
         return False
-    return pwd_context.verify(plain_password, hashed_password)
+    return bcrypt.checkpw(plain_password.encode(), hashed_password.encode())
 
 def generate_session_code() -> str:
     """Generate a unique session code"""

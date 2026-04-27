@@ -58,12 +58,10 @@ def get_or_create_demo_session(db: Session) -> models.GameSession:
         ).first()
         
         if not demo_user:
-            from passlib.context import CryptContext
-            pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
-            
+            import bcrypt
             demo_user = models.User(
                 username="demo_host",
-                hashed_password=pwd_context.hash("demo_password_not_used"),
+                hashed_password=bcrypt.hashpw(b"demo_password_not_used", bcrypt.gensalt()).decode(),
                 email="demo@ttrpg-system.local"
             )
             db.add(demo_user)

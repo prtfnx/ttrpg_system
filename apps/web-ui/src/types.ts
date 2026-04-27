@@ -285,8 +285,10 @@ declare global {
     gameAPI?: GameAPI;
     rustRenderManager?: import('@lib/wasm/wasm').RenderEngine;
     wasmBridge?: WasmBridge;
-    protocol?: any; // Protocol service instance
+    protocol?: import('@lib/websocket/clientProtocol').WebClientProtocol;
     ttrpg_rust_core: import('@lib/wasm/wasmManager').GlobalWasmModule | null;
     wasmInitialized: boolean;
+    activeTableId?: string | null;
+    __INITIAL_DATA__?: { userRole?: string; [key: string]: unknown };
   }
 }

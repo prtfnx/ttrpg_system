@@ -9,7 +9,7 @@ interface PerformanceMetric {
   startTime: number;
   endTime: number;
   category: 'calculation' | 'rendering' | 'state' | 'data' | 'network';
-  metadata?: Record<string, any>;
+  metadata?: Record<string, unknown>;
 }
 
 interface PerformanceProfile {
@@ -24,7 +24,7 @@ class PerformanceProfiler {
   private static instance: PerformanceProfiler;
   private currentProfile: PerformanceProfile | null = null;
   private activeTimers: Map<string, number> = new Map();
-  private activeMetadata: Map<string, any> = new Map();
+  private activeMetadata: Map<string, unknown> = new Map();
   private readonly PERFORMANCE_THRESHOLDS = {
     calculation: 50, // milliseconds
     rendering: 16.67, // 60fps
@@ -58,7 +58,7 @@ class PerformanceProfiler {
   /**
    * Start timing a specific operation
    */
-  startTimer(name: string, category: PerformanceMetric['category'] = 'calculation', metadata?: Record<string, any>): void {
+  startTimer(name: string, category: PerformanceMetric['category'] = 'calculation', metadata?: Record<string, unknown>): void {
     if (!this.currentProfile) {
  console.warn('Performance profiling not started. Call startProfiling() first.');
       return;
@@ -92,7 +92,7 @@ class PerformanceProfiler {
     const endTime = performance.now();
     const duration = endTime - startTime;
     const category = (this.activeMetadata.get(`${name}_category`) as PerformanceMetric['category']) || 'calculation';
-    const metadata = this.activeMetadata.get(`${name}_metadata`) as Record<string, any>;
+    const metadata = this.activeMetadata.get(`${name}_metadata`) as Record<string, unknown> | undefined;
 
     const metric: PerformanceMetric = {
       name,
@@ -123,7 +123,7 @@ class PerformanceProfiler {
     name: string, 
     fn: () => T | Promise<T>, 
     category: PerformanceMetric['category'] = 'calculation',
-    metadata?: Record<string, any>
+    metadata?: Record<string, unknown>
   ): Promise<{ result: T; duration: number }> {
     this.startTimer(name, category, metadata);
     
@@ -418,10 +418,10 @@ export const performanceUtils = {
   /**
    * Debounce function for reducing excessive calculations
    */
-  debounce<T extends (...args: any[]) => void>(func: T, delay: number): T {
+  debounce<T extends (...args: Parameters<T>) => void>(func: T, delay: number): T {
     let timeoutId: number;
-    return ((...args: any[]) => {
-              window.clearTimeout(timeoutId);
+    return ((...args: Parameters<T>) => {
+      window.clearTimeout(timeoutId);
       timeoutId = window.setTimeout(() => func(...args), delay);
     }) as T;
   },
@@ -429,9 +429,9 @@ export const performanceUtils = {
   /**
    * Throttle function for limiting execution frequency
    */
-  throttle<T extends (...args: any[]) => void>(func: T, limit: number): T {
+  throttle<T extends (...args: Parameters<T>) => void>(func: T, limit: number): T {
     let inThrottle: boolean;
-    return ((...args: any[]) => {
+    return ((...args: Parameters<T>) => {
       if (!inThrottle) {
         func(...args);
         inThrottle = true;
@@ -443,13 +443,11 @@ export const performanceUtils = {
   /**
    * Memoization utility for expensive calculations
    */
-  memoize<T extends (...args: any[]) => any>(func: T): T {
-    const cache = new Map();
-    return ((...args: any[]) => {
+  memoize<T extends (...args: Parameters<T>) => ReturnType<T>>(func: T): T {
+    const cache = new Map<string, ReturnType<T>>();
+    return ((...args: Parameters<T>) => {
       const key = JSON.stringify(args);
-      if (cache.has(key)) {
-        return cache.get(key);
-      }
+      if (cache.has(key)) return cache.get(key) as ReturnType<T>;
       const result = func(...args);
       cache.set(key, result);
       return result;

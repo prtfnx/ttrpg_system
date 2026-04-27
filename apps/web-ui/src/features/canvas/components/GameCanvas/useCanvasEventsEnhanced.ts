@@ -4,6 +4,7 @@
  */
 
 import type { RenderEngine } from '@lib/wasm/wasm';
+import type { WebClientProtocol } from '@lib/websocket/clientProtocol';
 import { type RefObject, useCallback, useEffect, useRef } from 'react';
 import { inputManager } from '../../services/InputManager';
 import { getRelativeCoords } from './canvasUtils';
@@ -22,7 +23,7 @@ export interface CanvasEventsEnhanced {
 
 interface LightPlacementMode {
   active: boolean;
-  preset: any;
+  preset: Record<string, unknown>;
 }
 
 interface ContextMenuState {
@@ -42,7 +43,7 @@ export interface UseCanvasEventsEnhancedProps {
   setContextMenu: React.Dispatch<React.SetStateAction<ContextMenuState>>;
   showPerformanceMonitor?: boolean;
   togglePerformanceMonitor: () => void;
-  protocol?: any;
+  protocol?: WebClientProtocol | null;
 }
 
 export const useCanvasEventsEnhanced = ({ 
@@ -62,12 +63,12 @@ export const useCanvasEventsEnhanced = ({
   const updateInputContext = useCallback(() => {
     const engine = rustRenderManagerRef.current;
     if (engine) {
-      const selectedSpriteIds = (engine as any).get_selected_sprites?.() || [];
+      const selectedSpriteIds = engine.get_selected_sprites();
       selectedSpriteIdsRef.current = selectedSpriteIds;
       inputManager.updateContext({
         selectedSpriteIds,
-        canUndo: (engine as any).can_undo?.() || false,
-        canRedo: (engine as any).can_redo?.() || false,
+        canUndo: engine.can_undo(),
+        canRedo: engine.can_redo(),
       });
     }
   }, [rustRenderManagerRef]);
@@ -79,21 +80,20 @@ export const useCanvasEventsEnhanced = ({
 
     const actionHandlers = {
       delete_selected: () => {
-        const selectedSpriteIds = (engine as any).get_selected_sprites?.() || [];
-        selectedSpriteIds.forEach((spriteId: string) => {
+        engine.get_selected_sprites().forEach((spriteId) => {
           if (protocol) {
             protocol.removeSprite(spriteId);
           } else {
-            (engine as any).delete_sprite(spriteId);
+            engine.delete_sprite(spriteId);
           }
         });
         updateInputContext();
       },
 
       copy_selected: () => {
-        const selectedSpriteIds = (engine as any).get_selected_sprites?.() || [];
+        const selectedSpriteIds = engine.get_selected_sprites();
         if (selectedSpriteIds.length > 0) {
-          const spriteData = (engine as any).copy_sprite?.(selectedSpriteIds[0]);
+          const spriteData = engine.copy_sprite(selectedSpriteIds[0]);
           if (spriteData) {
             clipboardRef.current = spriteData;
             setContextMenu(prev => ({ ...prev, copiedSprite: spriteData }));
@@ -112,29 +112,23 @@ export const useCanvasEventsEnhanced = ({
       },
 
       scale_up: () => {
-        const selectedSpriteIds = (engine as any).get_selected_sprites?.() || [];
-        selectedSpriteIds.forEach((spriteId: string) => {
-          const currentScale = (engine as any).get_sprite_scale?.(spriteId);
-          if (currentScale && Array.isArray(currentScale)) {
+        engine.get_selected_sprites().forEach((spriteId) => {
+          const currentScale = engine.get_sprite_scale(spriteId);
+          if (currentScale) {
             const newScale = [currentScale[0] * 1.1, currentScale[1] * 1.1];
-            (engine as any).set_sprite_scale?.(spriteId, newScale[0], newScale[1]);
-            if (protocol) {
-              protocol.updateSprite(spriteId, { scale: newScale });
-            }
+            engine.set_sprite_scale(spriteId, newScale[0], newScale[1]);
+            protocol?.updateSprite(spriteId, { scale: newScale });
           }
         });
       },
 
       scale_down: () => {
-        const selectedSpriteIds = (engine as any).get_selected_sprites?.() || [];
-        selectedSpriteIds.forEach((spriteId: string) => {
-          const currentScale = (engine as any).get_sprite_scale?.(spriteId);
-          if (currentScale && Array.isArray(currentScale)) {
+        engine.get_selected_sprites().forEach((spriteId) => {
+          const currentScale = engine.get_sprite_scale(spriteId);
+          if (currentScale) {
             const newScale = [currentScale[0] * 0.9, currentScale[1] * 0.9];
-            (engine as any).set_sprite_scale?.(spriteId, newScale[0], newScale[1]);
-            if (protocol) {
-              protocol.updateSprite(spriteId, { scale: newScale });
-            }
+            engine.set_sprite_scale(spriteId, newScale[0], newScale[1]);
+            protocol?.updateSprite(spriteId, { scale: newScale });
           }
         });
       },
@@ -156,12 +150,12 @@ export const useCanvasEventsEnhanced = ({
       },
 
       select_all: () => {
-        (engine as any).select_all_sprites?.();
+        engine.select_all_sprites();
         updateInputContext();
       },
 
       clear_selection: () => {
-        (engine as any).clear_selection?.();
+        engine.clear_selection();
         updateInputContext();
       },
 
@@ -171,15 +165,12 @@ export const useCanvasEventsEnhanced = ({
     };
 
     const moveSelectedSprites = (deltaX: number, deltaY: number) => {
-      const selectedSpriteIds = (engine as any).get_selected_sprites?.() || [];
-      selectedSpriteIds.forEach((spriteId: string) => {
-        const currentPos = (engine as any).get_sprite_position?.(spriteId);
-        if (currentPos && Array.isArray(currentPos)) {
+      engine.get_selected_sprites().forEach((spriteId) => {
+        const currentPos = engine.get_sprite_position(spriteId);
+        if (currentPos) {
           const newPos = [currentPos[0] + deltaX, currentPos[1] + deltaY];
-          (engine as any).set_sprite_position?.(spriteId, newPos[0], newPos[1]);
-          if (protocol) {
-            protocol.updateSprite(spriteId, { x: newPos[0], y: newPos[1] });
-          }
+          engine.set_sprite_position(spriteId, newPos[0], newPos[1]);
+          protocol?.updateSprite(spriteId, { x: newPos[0], y: newPos[1] });
         }
       });
     };
@@ -202,13 +193,14 @@ export const useCanvasEventsEnhanced = ({
   const handleMouseDown = useCallback(
     (e: MouseEvent) => {
       const canvas = canvasRef.current;
+      const renderManager = rustRenderManagerRef.current;
       if (!canvas) return;
 
       lastMousePosRef.current = { x: e.offsetX, y: e.offsetY };
 
-      if (lightPlacementMode?.active && rustRenderManagerRef.current) {
+      if (lightPlacementMode?.active && renderManager) {
         const { x, y } = getRelativeCoords(e, canvas);
-        const worldCoords = (rustRenderManagerRef.current as any).screen_to_world(x, y);
+        const worldCoords = renderManager.screen_to_world(x, y);
         if (worldCoords && worldCoords.length === 2) {
           window.dispatchEvent(
             new CustomEvent('lightPlaced', {
@@ -225,16 +217,10 @@ export const useCanvasEventsEnhanced = ({
         return;
       }
 
-      if (rustRenderManagerRef.current) {
+      if (renderManager) {
         const { x, y } = getRelativeCoords(e, canvas);
-        const renderManager = rustRenderManagerRef.current as any;
-        if (renderManager.handle_mouse_down_with_ctrl) {
-          renderManager.handle_mouse_down_with_ctrl(x, y, e.ctrlKey);
-        } else {
-          renderManager.handle_mouse_down(x, y);
-        }
-        // Set cursor: grab handle if nothing selected, otherwise follow WASM
-        const cursorType = renderManager.get_cursor_type?.(x, y) ?? 'default';
+        renderManager.handle_mouse_down_with_ctrl(x, y, e.ctrlKey);
+        const cursorType = renderManager.get_cursor_type(x, y) ?? 'default';
         canvas.style.cursor = cursorType === 'default' ? 'grabbing' : cursorType;
         setTimeout(() => updateInputContext(), 0);
       }
@@ -245,16 +231,15 @@ export const useCanvasEventsEnhanced = ({
   const handleMouseMove = useCallback(
     (e: MouseEvent) => {
       const canvas = canvasRef.current;
-      if (!canvas || !rustRenderManagerRef.current) return;
+      const renderManager = rustRenderManagerRef.current;
+      if (!canvas || !renderManager) return;
 
       lastMousePosRef.current = { x: e.offsetX, y: e.offsetY };
 
       const { x, y } = getRelativeCoords(e, canvas);
-      const renderManager = rustRenderManagerRef.current as any;
       renderManager.handle_mouse_move(x, y);
 
-      // Update cursor dynamically: 'grabbing' when panning empty space
-      const cursorType = renderManager.get_cursor_type?.(x, y) ?? 'default';
+      const cursorType = renderManager.get_cursor_type(x, y) ?? 'default';
       canvas.style.cursor = (e.buttons & 1) && cursorType === 'default' ? 'grabbing' : cursorType;
     },
     [canvasRef, rustRenderManagerRef]
@@ -263,13 +248,12 @@ export const useCanvasEventsEnhanced = ({
   const handleMouseUp = useCallback(
     (e: MouseEvent) => {
       const canvas = canvasRef.current;
-      if (!canvas || !rustRenderManagerRef.current) return;
+      const renderManager = rustRenderManagerRef.current;
+      if (!canvas || !renderManager) return;
 
       const { x, y } = getRelativeCoords(e, canvas);
-      const renderManager = rustRenderManagerRef.current as any;
       renderManager.handle_mouse_up(x, y);
-      // Restore cursor after releasing mouse
-      const cursorType = renderManager.get_cursor_type?.(x, y) ?? 'default';
+      const cursorType = renderManager.get_cursor_type(x, y) ?? 'default';
       canvas.style.cursor = cursorType;
       setTimeout(() => updateInputContext(), 0);
     },
@@ -279,10 +263,11 @@ export const useCanvasEventsEnhanced = ({
   const handleWheel = useCallback(
     (e: WheelEvent) => {
       const canvas = canvasRef.current;
-      if (!canvas || !rustRenderManagerRef.current) return;
+      const renderManager = rustRenderManagerRef.current;
+      if (!canvas || !renderManager) return;
 
       const { x, y } = getRelativeCoords(e, canvas);
-      (rustRenderManagerRef.current as any).handle_wheel(x, y, e.deltaY);
+      renderManager.handle_wheel(x, y, e.deltaY);
     },
     [canvasRef, rustRenderManagerRef]
   );
@@ -290,12 +275,12 @@ export const useCanvasEventsEnhanced = ({
   const handleRightClick = useCallback(
     (e: MouseEvent) => {
       const canvas = canvasRef.current;
-      if (!canvas || !rustRenderManagerRef.current) return;
+      const renderManager = rustRenderManagerRef.current;
+      if (!canvas || !renderManager) return;
 
       e.preventDefault();
       const { x, y } = getRelativeCoords(e, canvas);
-      // handle_right_click selects the sprite and returns its ID
-      const clickedSpriteId = (rustRenderManagerRef.current as any).handle_right_click?.(x, y) || undefined;
+      const clickedSpriteId = renderManager.handle_right_click(x, y);
       
       setContextMenu(prev => ({
         ...prev,

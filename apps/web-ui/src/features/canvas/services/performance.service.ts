@@ -4,6 +4,24 @@
  */
 
 import fpsService from './fps.service';
+import type { RenderEngine } from '@lib/wasm/wasm';
+
+type RenderEngineExt = RenderEngine & {
+  get_memory_usage?: () => number;
+  get_sprite_count?: () => number;
+  get_texture_count?: () => number;
+  set_max_sprites?: (count: number) => void;
+  set_texture_quality?: (quality: number) => void;
+  enable_sprite_pooling?: (enabled: boolean) => void;
+  enable_frustum_culling?: (enabled: boolean) => void;
+  set_max_render_distance?: (distance: number) => void;
+};
+
+type PerformanceWithMemory = Performance & {
+  memory?: { usedJSHeapSize: number; totalJSHeapSize: number; jsHeapSizeLimit: number };
+};
+
+type CacheEntry<T> = { data: T; timestamp: number; accessCount: number; size?: number };
 
 // Performance metrics interface
 export interface PerformanceMetrics {
@@ -54,13 +72,12 @@ class PerformanceService {
   private lastFrameTime: number = 0;
   private isMonitoring: boolean = false;
   private monitoringInterval: number | null = null;
-  private renderEngine: any = null;
+  private renderEngine: RenderEngineExt | null = null;
   private lastOptimizationTime: number = 0;
   private readonly OPTIMIZATION_COOLDOWN_MS = 10000; // 10 seconds cooldown
 
-  // Sprite and texture caching
-  private spriteCache = new Map<string, any>();
-  private textureCache = new Map<string, any>();
+  private spriteCache = new Map<string, CacheEntry<unknown>>();
+  private textureCache = new Map<string, CacheEntry<unknown>>();
   private cacheHits: number = 0;
   private cacheRequests: number = 0;
 
@@ -76,7 +93,7 @@ class PerformanceService {
   }
 
   private initializeMetrics(): PerformanceMetrics {
-    const memory = (performance as any).memory;
+    const memory = (performance as PerformanceWithMemory).memory;
     return {
       fps: 0,
       averageFPS: 0,
@@ -99,7 +116,7 @@ class PerformanceService {
   /**
    * Initialize performance monitoring with render engine reference
    */
-  initialize(renderEngine: any): void {
+  initialize(renderEngine: RenderEngineExt): void {
     this.renderEngine = renderEngine;
     this.startMonitoring();
     this.applyOptimizations();
@@ -166,7 +183,7 @@ class PerformanceService {
     }
 
     // Update memory metrics
-    const memory = (performance as any).memory;
+    const memory = (performance as PerformanceWithMemory).memory;
     if (memory) {
       this.metrics.memoryUsage = {
         usedJSHeapSize: memory.usedJSHeapSize,
@@ -222,7 +239,7 @@ class PerformanceService {
    */
   private getOptimalSettings(): PerformanceSettings {
     // Check device memory and GPU capabilities
-    const memory = (navigator as any).deviceMemory || 4; // Default to 4GB
+    const memory = (navigator as Navigator & { deviceMemory?: number }).deviceMemory || 4;
     const hardwareConcurrency = navigator.hardwareConcurrency || 4;
     
     // Detect performance level based on hardware
@@ -386,7 +403,7 @@ class PerformanceService {
   /**
    * Sprite caching functionality
    */
-  cacheSprite(id: string, spriteData: any): void {
+  cacheSprite(id: string, spriteData: unknown): void {
     this.spriteCache.set(id, {
       data: spriteData,
       timestamp: Date.now(),
@@ -394,7 +411,7 @@ class PerformanceService {
     });
   }
 
-  getCachedSprite(id: string): any | null {
+  getCachedSprite(id: string): unknown | null {
     this.cacheRequests++;
     const cached = this.spriteCache.get(id);
     
@@ -415,15 +432,16 @@ class PerformanceService {
   /**
    * Texture caching functionality
    */
-  cacheTexture(id: string, textureData: any): void {
+  cacheTexture(id: string, textureData: unknown): void {
     this.textureCache.set(id, {
       data: textureData,
       timestamp: Date.now(),
+      accessCount: 0,
       size: this.estimateTextureSize(textureData)
     });
   }
 
-  getCachedTexture(id: string): any | null {
+  getCachedTexture(id: string): unknown | null {
     const cached = this.textureCache.get(id);
     return cached ? cached.data : null;
   }
@@ -433,10 +451,10 @@ class PerformanceService {
     console.log(' Texture cache cleared');
   }
 
-  private estimateTextureSize(textureData: any): number {
-    // Rough estimation of texture memory usage
-    if (textureData && textureData.width && textureData.height) {
-      return textureData.width * textureData.height * 4; // RGBA
+  private estimateTextureSize(textureData: unknown): number {
+    if (textureData && typeof textureData === 'object') {
+      const td = textureData as { width?: number; height?: number };
+      if (td.width && td.height) return td.width * td.height * 4;
     }
     return 1024; // Default estimate
   }

@@ -2,6 +2,8 @@
  * Canvas utility functions for coordinate transformations and grid calculations
  */
 
+import type { RenderEngine } from '@lib/wasm/wasm';
+
 /**
  * Get nearest grid coordinate for snapping
  */
@@ -41,12 +43,11 @@ export const getRelativeCoords = (
 export const resizeCanvas = (
   canvas: HTMLCanvasElement,
   dprRef: React.MutableRefObject<number>,
-  rustRenderManager: any
+  rustRenderManager: RenderEngine | null
 ): void => {
-  // Get size from container instead of canvas element to avoid timing issues
   const container = canvas.parentElement;
   if (!container) {
- console.warn('Canvas has no parent container for sizing');
+    console.warn('Canvas has no parent container for sizing');
     return;
   }
   
@@ -54,82 +55,51 @@ export const resizeCanvas = (
   dprRef.current = dpr;
   const containerRect = container.getBoundingClientRect();
   
-  // Use container dimensions for the canvas size
   const targetWidth = containerRect.width;
   const targetHeight = containerRect.height;
   
-  // Check if the size has actually changed
   const newDeviceWidth = Math.round(targetWidth * dpr);
   const newDeviceHeight = Math.round(targetHeight * dpr);
-  const currentDeviceWidth = canvas.width;
-  const currentDeviceHeight = canvas.height;
   
-  if (newDeviceWidth === currentDeviceWidth && newDeviceHeight === currentDeviceHeight) {
+  if (newDeviceWidth === canvas.width && newDeviceHeight === canvas.height) {
     return;
   }
 
-  // Compute world coordinate at canvas center before changing internal size.
-  let worldCenter: number[] | null = null;
-  try {
-    const rm: any = rustRenderManager;
-    if (rm && typeof rm.screen_to_world === 'function') {
-      const deviceCenterX = currentDeviceWidth / 2;
-      const deviceCenterY = currentDeviceHeight / 2;
-      const w = rm.screen_to_world(deviceCenterX, deviceCenterY);
-      if (Array.isArray(w) && w.length >= 2) {
-        worldCenter = w;
+  let worldCenter: [number, number] | null = null;
+  if (rustRenderManager) {
+    try {
+      const w = rustRenderManager.screen_to_world(canvas.width / 2, canvas.height / 2);
+      if (w && w.length >= 2) {
+        worldCenter = [w[0], w[1]];
       }
+    } catch (err) {
+      console.warn('screen_to_world before resize failed:', err);
     }
-  } catch (err) {
- console.warn('screen_to_world before resize failed:', err);
   }
 
-  // Update canvas internal resolution
   canvas.width = newDeviceWidth;
   canvas.height = newDeviceHeight;
   canvas.style.width = targetWidth + 'px';
   canvas.style.height = targetHeight + 'px';
 
-  // Notify WASM of resize if method exists
-  try {
-    const rm: any = rustRenderManager;
-    if (rm) {
-      let resizeSuccess = false;
-      if (typeof rm.resize_canvas === 'function') {
-        rm.resize_canvas(canvas.width, canvas.height);
-        resizeSuccess = true;
-      } else if (typeof rm.resize === 'function') {
-        rm.resize(canvas.width, canvas.height);
-        resizeSuccess = true;
-      } else if (typeof rm.resizeCanvas === 'function') {
-        rm.resizeCanvas(canvas.width, canvas.height);
-        resizeSuccess = true;
+  if (rustRenderManager) {
+    try {
+      rustRenderManager.resize_canvas(canvas.width, canvas.height);
+    } catch (err) {
+      try {
+        rustRenderManager.resize(canvas.width, canvas.height);
+      } catch {
+        console.error('WASM resize error:', err);
       }
-      if (!resizeSuccess) {
-        console.warn(' WASM: No resize method found on render manager');
-      }
-    } else {
-      console.warn(' WASM: No render manager available for resize');
     }
-  } catch (err) {
- console.error('WASM resize error:', err);
-  }
 
-  // Re-center camera so the same world point stays under the canvas center
-  try {
-    const rm: any = rustRenderManager;
-    if (worldCenter && rm) {
-      if (typeof rm.center_camera === 'function') {
-        rm.center_camera(worldCenter[0], worldCenter[1]);
-      } else if (typeof rm.centerCamera === 'function') {
-        rm.centerCamera(worldCenter[0], worldCenter[1]);
-      }
-      // Force a render immediately after resize+recenter to avoid visual lag
-      if (typeof rm.render === 'function') {
-        rm.render();
+    if (worldCenter) {
+      try {
+        rustRenderManager.center_camera(worldCenter[0], worldCenter[1]);
+        rustRenderManager.render();
+      } catch (err) {
+        console.error('WASM center_camera after resize failed:', err);
       }
     }
-  } catch (err) {
- console.error('WASM center_camera after resize failed:', err);
   }
 };

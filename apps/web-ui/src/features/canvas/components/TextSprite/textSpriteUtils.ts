@@ -44,6 +44,11 @@ export interface RenderResult {
   height: number;
 }
 
+type RustRenderer = { load_texture?: (id: string, img: HTMLImageElement) => void; add_sprite_to_layer?: (layer: string, sprite: Record<string, unknown>) => void; delete_sprite?: (id: string) => void };
+function getRustRenderer(): RustRenderer | undefined {
+  return (window as unknown as Record<string, unknown>)['rustRenderManager'] as RustRenderer | undefined;
+}
+
 /**
  * Renders text sprite to a canvas and returns rendering data
  */
@@ -143,7 +148,7 @@ export function renderTextSprite(
 
       // Apply letter spacing if supported
       if (config.letterSpacing !== 0 && 'letterSpacing' in ctx) {
-        (ctx as any).letterSpacing = `${config.letterSpacing}px`;
+        (ctx as CanvasRenderingContext2D & { letterSpacing?: string }).letterSpacing = `${config.letterSpacing}px`;
       }
 
       // Draw text lines
@@ -245,9 +250,9 @@ export async function createTextSprite(
     const img = new Image();
     img.onload = () => {
       try {
-        // Load texture into WASM texture manager
-        if ((window as any).rustRenderManager && (window as any).rustRenderManager.load_texture) {
-          (window as any).rustRenderManager.load_texture(renderResult.textureId, img);
+        const rm = getRustRenderer();
+        if (rm?.load_texture) {
+          rm.load_texture(renderResult.textureId, img);
         }
 
         // Create WASM sprite payload for local rendering
@@ -265,10 +270,9 @@ export async function createTextSprite(
           tint_color: [1, 1, 1, config.opacity],
         };
 
-        // Add sprite to layer for immediate display
-        if ((window as any).rustRenderManager && 
-            typeof (window as any).rustRenderManager.add_sprite_to_layer === 'function') {
-          (window as any).rustRenderManager.add_sprite_to_layer(layer, wasmSprite);
+        const rm2 = getRustRenderer();
+        if (rm2?.add_sprite_to_layer) {
+          rm2.add_sprite_to_layer(layer, wasmSprite as Record<string, unknown>);
         }
 
         onSuccess?.(spriteId);
@@ -307,9 +311,9 @@ export async function updateTextSprite(
   layer: string
 ): Promise<void> {
   try {
-    // Remove existing sprite
-    if ((window as any).rustRenderManager && (window as any).rustRenderManager.delete_sprite) {
-      (window as any).rustRenderManager.delete_sprite(spriteId);
+    const rm = getRustRenderer();
+    if (rm?.delete_sprite) {
+      rm.delete_sprite(spriteId);
     }
 
     // Create updated sprite with same ID
@@ -336,13 +340,12 @@ export async function updateTextSprite(
       window.gameAPI.sendMessage('sprite_update', updatePayload);
     }
 
-    // Re-add to local renderer
-    const img = new Image();
-    img.onload = () => {
-      if ((window as any).rustRenderManager) {
-        (window as any).rustRenderManager.load_texture(renderResult.textureId, img);
-        
-        const wasmSprite = {
+    const img2 = new Image();
+    img2.onload = () => {
+      const rm2 = getRustRenderer();
+      if (rm2) {
+        rm2.load_texture?.(renderResult.textureId, img2);
+        rm2.add_sprite_to_layer?.(layer, {
           id: spriteId,
           world_x: position.x,
           world_y: position.y,
@@ -354,13 +357,11 @@ export async function updateTextSprite(
           layer,
           texture_id: renderResult.textureId,
           tint_color: [1, 1, 1, config.opacity],
-        };
-
-        (window as any).rustRenderManager.add_sprite_to_layer(layer, wasmSprite);
+        });
       }
     };
 
-    img.src = renderResult.canvas.toDataURL('image/png');
+    img2.src = renderResult.canvas.toDataURL('image/png');
 
   } catch (error) {
     console.error('[TextSprite] Failed to update text sprite:', error);
@@ -373,9 +374,9 @@ export async function updateTextSprite(
  */
 export function deleteTextSprite(spriteId: string): void {
   try {
-    // Remove from local renderer
-    if ((window as any).rustRenderManager && (window as any).rustRenderManager.delete_sprite) {
-      (window as any).rustRenderManager.delete_sprite(spriteId);
+    const rm3 = getRustRenderer();
+    if (rm3?.delete_sprite) {
+      rm3.delete_sprite(spriteId);
     }
 
     // Send delete to server

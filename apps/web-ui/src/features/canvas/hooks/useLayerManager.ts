@@ -1,4 +1,14 @@
 import { useCallback, useEffect, useState } from 'react';
+import type { RenderEngine } from '@lib/wasm/wasm';
+
+type RenderEngineExt = RenderEngine & {
+  set_layer_settings?: (name: string, settings: Partial<LayerSettings>) => void;
+  set_blend_mode?: (name: string, mode: string) => void;
+  set_layer_visible?: (name: string, visible: boolean) => void;
+  clear_layer?: (name: string) => void;
+  get_layer_settings?: (name: string) => unknown;
+  get_layer_sprite_count?: (name: string) => number;
+};
 
 export interface LayerSettings {
   visible: boolean;
@@ -27,7 +37,7 @@ const LAYER_CONFIG = [
 ];
 
 export const useLayerManager = () => {
-  const [renderManager, setRenderManager] = useState<any>(null);
+  const [renderManager, setRenderManager] = useState<RenderEngineExt | null>(null);
   const [layers, setLayers] = useState<LayerInfo[]>([]);
   const [activeLayer, setActiveLayer] = useState<string>('tokens');
   const [isInitialized, setIsInitialized] = useState(false);
@@ -39,7 +49,7 @@ export const useLayerManager = () => {
         const waitForWasm = (): Promise<void> => {
           return new Promise((resolve, reject) => {
             // Check if already loaded
-            if (window.ttrpg_rust_core && (window as any).gameAPI?.renderManager) {
+            if (window.ttrpg_rust_core && (window as unknown as Record<string, unknown>)['gameAPI'] !== undefined) {
               resolve();
               return;
             }
@@ -53,9 +63,8 @@ export const useLayerManager = () => {
             // Listen for ready event
             const handleReady = () => {
               clearTimeout(timeoutId);
-              // Give gameAPI a moment to be set up after WASM is ready
               queueMicrotask(() => {
-                if (window.ttrpg_rust_core && (window as any).gameAPI?.renderManager) {
+                if (window.ttrpg_rust_core && (window as unknown as Record<string, unknown>)['gameAPI'] !== undefined) {
                   resolve();
                 } else {
                   reject(new Error('gameAPI.renderManager not available after WASM ready'));
@@ -70,7 +79,8 @@ export const useLayerManager = () => {
         await waitForWasm();
         console.log('Global WASM module is ready for layer manager');
         
-        const manager = (window as any).gameAPI?.renderManager?.();
+        const gameAPI = (window as unknown as Record<string, unknown>)['gameAPI'] as { renderManager?: () => RenderEngineExt } | undefined;
+        const manager = gameAPI?.renderManager?.();
         if (manager) {
           setRenderManager(manager);
           setIsInitialized(true);
@@ -85,7 +95,7 @@ export const useLayerManager = () => {
   // eslint-disable-next-line react-hooks/exhaustive-deps -- intentional: refresh on mount only
   }, []);
 
-  const refreshLayerData = useCallback((manager: any = renderManager) => {
+  const refreshLayerData = useCallback((manager: RenderEngineExt | null = renderManager) => {
     if (!manager) return;
 
     try {

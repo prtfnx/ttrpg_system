@@ -7,6 +7,29 @@ import { useGameStore } from '@/store';
 import type { RenderEngine } from '@lib/wasm/wasm';
 import type { SpriteSyncService } from './spriteSync.service';
 
+interface TablePayload {
+  [key: string]: unknown;
+  table_id?: string;
+  table_name?: string;
+  name?: string;
+  width?: number;
+  height?: number;
+  scale?: number;
+  x_moved?: number;
+  y_moved?: number;
+  grid_enabled?: boolean;
+  grid_size?: number;
+  grid_snapping?: boolean;
+  layers?: Record<string, unknown>;
+  sprites?: unknown[];
+  background_image?: string;
+  table_data?: TablePayload;
+}
+
+type RenderEngineExt = RenderEngine & {
+  clear_all_sprites?: () => void;
+};
+
 export class TableSyncService {
   private eventCleanups: Array<() => void> = [];
   private readonly getEngine: () => RenderEngine | null;
@@ -21,8 +44,8 @@ export class TableSyncService {
   }
 
   init(): void {
-    const on = (type: string, handler: (detail: any) => void) => {
-      const listener = (e: Event) => handler((e as CustomEvent).detail);
+    const on = (type: string, handler: (detail: TablePayload) => void) => {
+      const listener = (e: Event) => handler((e as CustomEvent<TablePayload>).detail);
       window.addEventListener(type, listener);
       this.eventCleanups.push(() => window.removeEventListener(type, listener));
     };
@@ -40,7 +63,7 @@ export class TableSyncService {
 
   // ── Handlers ──────────────────────────────────────────────────────────────
 
-  private handleTableDataReceived(data: any): void {
+  private handleTableDataReceived(data: TablePayload): void {
     const engine = this.getEngine();
     if (!engine) return;
 
@@ -52,12 +75,12 @@ export class TableSyncService {
       const tableName = tableData.table_name;
       const isUUID = tableId && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(tableId);
       if (isUUID && tableName) {
-        const gameStore = (window as any).gameStore || useGameStore?.getState();
+        const gameStore = useGameStore?.getState();
         if (gameStore) {
           const current = gameStore.tables || [];
-          const existing = current.find((t: any) => t.table_name === tableName || t.table_id === tableName || t.table_id === tableId);
+          const existing = current.find((t) => t.table_name === tableName || t.table_id === tableName || t.table_id === tableId);
           if (existing && existing.table_id !== tableId) {
-            const updated = current.map((t: any) =>
+            const updated = current.map((t) =>
               (t.table_name === tableName || t.table_id === tableName || t.table_id === tableId) ? { ...t, table_id: tableId } : t
             );
             gameStore.setTables?.(updated);
@@ -72,8 +95,9 @@ export class TableSyncService {
       if (tableData.table_id && (engine as any).handle_table_data) {
         const formattedLayers: Record<string, any[]> = {};
         if (tableData.layers && typeof tableData.layers === 'object') {
-          Object.keys(tableData.layers).forEach(name => {
-            formattedLayers[name] = Array.isArray(tableData.layers[name]) ? tableData.layers[name] : [];
+          const layers = tableData.layers;
+          Object.keys(layers).forEach(name => {
+            formattedLayers[name] = Array.isArray(layers[name]) ? layers[name] : [];
           });
         }
         if (Object.keys(formattedLayers).length === 0) {
@@ -82,7 +106,7 @@ export class TableSyncService {
           formattedLayers['objects'] = [];
           formattedLayers['foreground'] = [];
         }
-        (engine as any).handle_table_data({
+        engine.handle_table_data({
           table_id: tableData.table_id,
           table_name: tableData.table_name || tableData.name || tableData.table_id,
           name: tableData.table_name || tableData.name || tableData.table_id,
@@ -103,16 +127,19 @@ export class TableSyncService {
 
       // Load sprites from layer structure
       if (tableData.layers) {
-        (engine as any).clear_all_sprites?.();
-        Object.entries(tableData.layers).forEach(([layerName, layerData]: [string, any]) => {
+        (engine as RenderEngineExt).clear_all_sprites?.();
+        Object.entries(tableData.layers as Record<string, unknown>).forEach(([layerName, layerData]) => {
           if (Array.isArray(layerData)) {
-            layerData.forEach(s => { s.layer = layerName; s.table_id = tableData.table_id || 'default_table'; this.spriteSync.addSpriteToWasm(s); });
+            layerData.forEach((s: Record<string, unknown>) => { s['layer'] = layerName; s['table_id'] = tableData.table_id || 'default_table'; this.spriteSync.addSpriteToWasm(s); });
           } else if (layerData && typeof layerData === 'object') {
-            const sprites = layerData.sprites ?? Object.values(layerData);
-            (Array.isArray(sprites) ? sprites : []).forEach((s: any) => {
-              if (!s?.sprite_id && !(s as any)?.id) return;
-              s.layer = layerName; s.table_id = tableData.table_id || 'default_table';
-              this.spriteSync.addSpriteToWasm(s);
+            const ld = layerData as Record<string, unknown>;
+            const sprites = ld['sprites'] ?? Object.values(ld);
+            (Array.isArray(sprites) ? sprites : []).forEach((s: unknown) => {
+              if (!s || typeof s !== 'object') return;
+              const sprite = s as Record<string, unknown>;
+              if (!sprite['sprite_id'] && !sprite['id']) return;
+              sprite['layer'] = layerName; sprite['table_id'] = tableData.table_id || 'default_table';
+              this.spriteSync.addSpriteToWasm(sprite);
             });
           }
         });
@@ -120,7 +147,7 @@ export class TableSyncService {
 
       // Fallback flat array
       if (data.sprites && Array.isArray(data.sprites)) {
-        data.sprites.forEach((s: any) => this.spriteSync.addSpriteToWasm(s));
+        data.sprites.forEach((s: unknown) => this.spriteSync.addSpriteToWasm(s as Record<string, unknown>));
       }
 
       if (tableData.background_image) this.loadBackgroundImage(engine, tableData.background_image);
@@ -128,8 +155,8 @@ export class TableSyncService {
       // Emit completion so thumbnail service can generate
       if (tableData.table_id) {
         let spriteCount = 0;
-        Object.values(tableData.layers ?? {}).forEach((ld: any) => {
-          spriteCount += Array.isArray(ld) ? ld.length : typeof ld === 'object' ? Object.keys(ld).length : 0;
+        Object.values(tableData.layers ?? {}).forEach((ld: unknown) => {
+          spriteCount += Array.isArray(ld) ? ld.length : ld && typeof ld === 'object' ? Object.keys(ld).length : 0;
         });
         window.dispatchEvent(new CustomEvent('table-sprites-loaded', { detail: { table_id: tableData.table_id, count: spriteCount } }));
       }
@@ -139,7 +166,7 @@ export class TableSyncService {
     }
   }
 
-  private handleTableUpdate(data: any): void {
+  private handleTableUpdate(data: TablePayload): void {
     const engine = this.getEngine();
     if (!engine) return;
     try {

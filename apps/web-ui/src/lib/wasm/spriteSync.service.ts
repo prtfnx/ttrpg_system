@@ -10,6 +10,73 @@ import type { RenderEngine } from '@lib/wasm/wasm';
 import { wasmBridgeService } from './wasmBridge';
 import type { AssetSyncService } from './assetSync.service';
 
+// Typed payload for sprite-related custom events
+interface SpritePayload {
+  [key: string]: unknown;
+  sprite_id?: string;
+  id?: string;
+  spriteId?: string;
+  client_temp_id?: string;
+  operation?: string;
+  success?: boolean;
+  x?: number;
+  y?: number;
+  world_x?: number;
+  world_y?: number;
+  position?: [number, number] | { x: number; y: number };
+  to?: { x: number; y: number };
+  width?: number;
+  height?: number;
+  size_x?: number;
+  size_y?: number;
+  scale_x?: number;
+  scale_y?: number;
+  rotation?: number;
+  layer?: string;
+  name?: string;
+  texture_path?: string;
+  asset_id?: string;
+  asset_xxhash?: string;
+  texture_id?: string;
+  metadata?: string;
+  tint_color?: number[];
+  table_id?: string;
+  sprite_data?: SpritePayload;
+  updates?: SpritePayload;
+  controlled_by?: unknown;
+  vision_radius?: number;
+  has_darkvision?: boolean;
+  darkvision_radius?: number;
+  darkvision_radius_units?: number;
+  obstacle_type?: string;
+  polygon_vertices?: Array<{ x: number; y: number }>;
+  obstacle_data?: { vertices?: Array<{ x: number; y: number }> };
+  character_id?: string;
+  layer_changed?: boolean;
+  texture_changed?: boolean;
+  fundamental_change?: boolean;
+  dropX?: number;
+  dropY?: number;
+  type?: string;
+  monsterType?: string;
+  challenge_rating?: string;
+  raw?: Record<string, unknown>;
+  originalState?: SpritePayload;
+  hp?: number;
+  max_hp?: number;
+  ac?: number;
+  aura_radius?: number;
+  aura_radius_units?: number;
+  vision_radius_units?: number;
+  coord_x?: number;
+  coord_y?: number;
+}
+
+// Engine with non-standard methods not yet in wasm.d.ts
+type RenderEngineExt = RenderEngine & {
+  update_sprite_controlled_by?: (spriteId: string, ids: number[]) => void;
+};
+
 const OPTIMISTIC_TIMEOUT = 10_000;
 
 export class SpriteSyncService {
@@ -28,8 +95,8 @@ export class SpriteSyncService {
   }
 
   init(): void {
-    const on = (type: string, handler: (detail: any) => void) => {
-      const listener = (e: Event) => handler((e as CustomEvent).detail);
+    const on = (type: string, handler: (detail: SpritePayload) => void) => {
+      const listener = (e: Event) => handler((e as CustomEvent<SpritePayload>).detail);
       window.addEventListener(type, listener);
       this.eventCleanups.push(() => window.removeEventListener(type, listener));
     };
@@ -61,9 +128,9 @@ export class SpriteSyncService {
       const { spriteId, operation, originalState } = d ?? {};
       if (!spriteId || !originalState) return;
       switch (operation) {
-        case 'move':   this.updateSpritePosition(spriteId, { x: originalState.x, y: originalState.y }); break;
-        case 'resize': this.resizeSpriteInWasm(spriteId, originalState.width, originalState.height); break;
-        case 'rotate': this.updateSpriteRotation(spriteId, originalState.rotation); break;
+        case 'move':   this.updateSpritePosition(spriteId, { x: originalState.x ?? 0, y: originalState.y ?? 0 }); break;
+        case 'resize': this.resizeSpriteInWasm(spriteId, originalState.width ?? 0, originalState.height ?? 0); break;
+        case 'rotate': this.updateSpriteRotation(spriteId, originalState.rotation ?? 0); break;
       }
     });
 
@@ -86,7 +153,7 @@ export class SpriteSyncService {
 
   // ── Public: called by TableSyncService and RemoteSyncService ──────────────
 
-  addSpriteToWasm(spriteData: any): void {
+  addSpriteToWasm(spriteData: SpritePayload): void {
     const engine = this.getEngine();
     if (!engine) return;
 
@@ -127,14 +194,12 @@ export class SpriteSyncService {
 
   updateSpritePosition(spriteId: string, position: { x: number; y: number }): void {
     try {
-      const engine = this.getEngine() as any;
+      const engine = this.getEngine();
       if (!engine) return;
-      if (typeof engine.update_sprite_position === 'function') {
-        if (engine.update_sprite_position(spriteId, position.x, position.y)) return;
-      }
-      const sprite = useGameStore.getState().sprites.find((s: any) => s.id === spriteId);
+      if (engine.set_sprite_position(spriteId, position.x, position.y)) return;
+      const sprite = useGameStore.getState().sprites.find((s) => s.id === spriteId);
       const isLight = sprite?.layer === 'light' || sprite?.texture === '__LIGHT__';
-      if (isLight && typeof engine.update_light_position === 'function') {
+      if (isLight) {
         engine.update_light_position(spriteId, position.x, position.y);
       }
     } catch (err) {
@@ -143,21 +208,21 @@ export class SpriteSyncService {
   }
 
   resizeSpriteInWasm(spriteId: string, width: number, height: number): void {
-    const engine = this.getEngine() as any;
+    const engine = this.getEngine();
     if (!engine) return;
     try {
-      const ok = engine.resize_sprite?.(String(spriteId), Number(width), Number(height));
-      if (ok && typeof engine.render === 'function') engine.render();
+      engine.resize_sprite(String(spriteId), Number(width), Number(height));
+      engine.render();
     } catch (err) {
       console.error('[SpriteSyncService] resizeSpriteInWasm failed:', err);
     }
   }
 
   updateSpriteRotation(spriteId: string, rotation: number): void {
-    const engine = this.getEngine() as any;
+    const engine = this.getEngine();
     if (!engine) return;
     try {
-      engine.rotate_sprite?.(spriteId, rotation);
+      engine.rotate_sprite(spriteId, rotation);
     } catch (err) {
       console.error('[SpriteSyncService] updateSpriteRotation failed:', err);
     }
@@ -179,13 +244,13 @@ export class SpriteSyncService {
 
   // ── Private sprite handlers ───────────────────────────────────────────────
 
-  private handleSpriteCreated(data: any): void {
+  private handleSpriteCreated(data: SpritePayload): void {
     if (!this.getEngine()) return;
     this.addSpriteToWasm(data);
     if (data?.table_id) tableThumbnailService.invalidateTable(data.table_id);
   }
 
-  private handleSpriteResponse(data: any): void {
+  private handleSpriteResponse(data: SpritePayload): void {
     if (!this.getEngine()) return;
     if (data.operation === 'create' || (!data.operation && data.sprite_data)) {
       const tempId = data.client_temp_id;
@@ -197,8 +262,10 @@ export class SpriteSyncService {
       if (confirmedId && confirmedId !== tempId) {
         try { this.getEngine()?.remove_sprite(confirmedId); } catch { /* ok */ }
       }
-      try { this.addSpriteToWasm(data.sprite_data); } catch (e) {
-        console.error('[SpriteSyncService] addSpriteToWasm after response:', e);
+      if (data.sprite_data) {
+        try { this.addSpriteToWasm(data.sprite_data); } catch (e) {
+          console.error('[SpriteSyncService] addSpriteToWasm after response:', e);
+        }
       }
     } else if (data.operation === 'remove' && data.success && data.sprite_id) {
       try { this.getEngine()?.remove_sprite(data.sprite_id); } catch (e) {
@@ -207,7 +274,7 @@ export class SpriteSyncService {
     }
   }
 
-  private handleSpriteUpdated(data: any): void {
+  private handleSpriteUpdated(data: SpritePayload): void {
     if (!this.getEngine()) return;
     try {
       const spriteId = data.sprite_id || data.id;
@@ -218,7 +285,7 @@ export class SpriteSyncService {
         useGameStore.setState(state => ({ sprites: state.sprites.filter(s => s.id !== spriteId) }));
         return;
       }
-      if (data.operation === 'move' && data.position) { this.updateSpritePosition(spriteId, data.position); return; }
+      if (data.operation === 'move' && data.position) { this.updateSpritePosition(spriteId, Array.isArray(data.position) ? { x: data.position[0], y: data.position[1] } : data.position); return; }
       if (data.operation === 'scale') { this.updateSpriteScale(spriteId, data.scale_x, data.scale_y); return; }
       if (data.operation === 'rotate' && data.rotation !== undefined) { this.updateSpriteRotation(spriteId, data.rotation); return; }
       if (data.operation && !this.hasCompleteData(data)) { this.handlePartialSpriteUpdate(spriteId, data); return; }
@@ -233,7 +300,7 @@ export class SpriteSyncService {
     }
   }
 
-  private handleSpriteRemoved(data: any): void {
+  private handleSpriteRemoved(data: SpritePayload): void {
     if (!this.getEngine()) return;
     try {
       const spriteId = data.sprite_id || data.id;
@@ -245,14 +312,17 @@ export class SpriteSyncService {
     }
   }
 
-  private handleSpriteMoved(data: any): void {
+  private handleSpriteMoved(data: SpritePayload): void {
     if (!this.getEngine()) return;
     try {
       const spriteId = data.sprite_id || data.id;
       if (!spriteId) return;
       let pos: { x: number; y: number } | null = null;
       if (data.to) { this.updateSpritePosition(spriteId, data.to); pos = data.to; }
-      else if (data.position) { this.updateSpritePosition(spriteId, data.position); pos = data.position; }
+      else if (data.position) {
+        const normPos = Array.isArray(data.position) ? { x: data.position[0], y: data.position[1] } : data.position;
+        this.updateSpritePosition(spriteId, normPos); pos = normPos;
+      }
       else if (data.x !== undefined && data.y !== undefined) { this.updateSpritePosition(spriteId, { x: data.x, y: data.y }); pos = { x: data.x, y: data.y }; }
       else { this.updateSpriteEfficiently(spriteId, data); }
       if (pos) {
@@ -265,7 +335,7 @@ export class SpriteSyncService {
     }
   }
 
-  private handleSpriteScaled(data: any): void {
+  private handleSpriteScaled(data: SpritePayload): void {
     if (!this.getEngine()) return;
     try {
       const spriteId = data.sprite_id || data.id || data.spriteId;
@@ -280,7 +350,7 @@ export class SpriteSyncService {
     }
   }
 
-  private handleSpriteRotated(data: any): void {
+  private handleSpriteRotated(data: SpritePayload): void {
     if (!this.getEngine()) return;
     try {
       const spriteId = data.sprite_id || data.id || data.spriteId;
@@ -293,7 +363,7 @@ export class SpriteSyncService {
     }
   }
 
-  private handleCompendiumConfirmed(data: any, _op: 'created' | 'updated'): void {
+  private handleCompendiumConfirmed(data: SpritePayload, _op: 'created' | 'updated'): void {
     if (!data) return;
     try {
       if (data.client_temp_id) {
@@ -307,7 +377,7 @@ export class SpriteSyncService {
     }
   }
 
-  private handleCompendiumInsert(data: any): void {
+  private handleCompendiumInsert(data: SpritePayload): void {
     if (!data) return;
     try {
       const spriteData = {
@@ -316,7 +386,7 @@ export class SpriteSyncService {
         y: data.y ?? data.world_y ?? 0,
         width: data.width || data.size_x || 50,
         height: data.height || data.size_y || 50,
-        asset_id: data.asset_id || data.texture || data.imageUrl || data.texture_id || data.image || data.texture_path || '',
+        asset_id: (data.asset_id || data.texture_path || data.texture_id || (data.texture as string | undefined) || (data.imageUrl as string | undefined) || (data.image as string | undefined) || '') as string,
         layer: data.layer || 'tokens',
         rotation: data.rotation || 0,
         scale_x: data.scale_x || 1,
@@ -330,7 +400,7 @@ export class SpriteSyncService {
     }
   }
 
-  private handleCompendiumDrop(data: any): void {
+  private handleCompendiumDrop(data: SpritePayload): void {
     if (!data) return;
     try {
       const store = useGameStore.getState();
@@ -361,7 +431,7 @@ export class SpriteSyncService {
 
   // ── Sprite shape helpers ──────────────────────────────────────────────────
 
-  private addLightToWasm(engine: RenderEngine, spriteData: any): void {
+  private addLightToWasm(engine: RenderEngine, spriteData: SpritePayload): void {
     let x = 0, y = 0;
     if (Array.isArray(spriteData.position) && spriteData.position.length >= 2) {
       [x, y] = spriteData.position;
@@ -369,37 +439,34 @@ export class SpriteSyncService {
       x = spriteData.coord_x ?? spriteData.x ?? 0;
       y = spriteData.coord_y ?? spriteData.y ?? 0;
     }
-    let meta: any = {};
+    let meta: Record<string, unknown> = {};
     try { if (typeof spriteData.metadata === 'string') meta = JSON.parse(spriteData.metadata); } catch { /* defaults */ }
 
     const lightId = spriteData.sprite_id || spriteData.id || `light_${Date.now()}`;
-    const radius = meta.radius ?? 150.0;
-    const intensity = meta.intensity ?? 1.0;
-    const color = meta.color ?? { r: 1.0, g: 0.9, b: 0.7, a: 1.0 };
-    const isOn = meta.isOn !== false;
+    const radius = (meta.radius as number) ?? 150.0;
+    const intensity = (meta.intensity as number) ?? 1.0;
+    const color = (meta.color as { r: number; g: number; b: number; a: number }) ?? { r: 1.0, g: 0.9, b: 0.7, a: 1.0 };
+    const isOn = (meta.isOn as boolean) !== false;
 
-    const existing = useGameStore.getState().sprites.find((s: any) => s.id === lightId);
+    const existing = useGameStore.getState().sprites.find((s) => s.id === lightId);
     const finalX = existing ? (existing.x ?? x) : x;
     const finalY = existing ? (existing.y ?? y) : y;
 
-    const e = engine as any;
-    if (typeof e.add_light === 'function') {
-      e.add_light(lightId, finalX, finalY);
-      e.set_light_color(lightId, color.r, color.g, color.b, color.a);
-      e.set_light_intensity(lightId, intensity);
-      e.set_light_radius(lightId, radius);
-      if (!isOn) e.toggle_light?.(lightId);
-    }
+    engine.add_light(lightId, finalX, finalY);
+    engine.set_light_color(lightId, color.r, color.g, color.b, color.a);
+    engine.set_light_intensity(lightId, intensity);
+    engine.set_light_radius(lightId, radius);
+    if (!isOn) engine.toggle_light(lightId);
 
     useGameStore.getState().addSprite({
-      id: lightId, name: spriteData.name || meta.presetName || 'Light',
+      id: lightId, name: spriteData.name || (meta.presetName as string | undefined) || 'Light',
       tableId: spriteData.table_id ?? '', x: finalX, y: finalY,
       texture: '__LIGHT__', layer: 'light',
       scale: { x: 1, y: 1 }, rotation: 0, metadata: spriteData.metadata ?? undefined,
     });
   }
 
-  private addFogToWasm(engine: RenderEngine, spriteData: any, mode: 'hide' | 'reveal'): void {
+  private addFogToWasm(engine: RenderEngine, spriteData: SpritePayload, mode: 'hide' | 'reveal'): void {
     let startX = 0, startY = 0;
     if (Array.isArray(spriteData.position) && spriteData.position.length >= 2) {
       [startX, startY] = spriteData.position;
@@ -410,17 +477,14 @@ export class SpriteSyncService {
     const width = spriteData.scale_x ?? 100;
     const height = spriteData.scale_y ?? 100;
     const fogId = spriteData.sprite_id || spriteData.id || `fog_${Date.now()}`;
-    (engine as any).add_fog_rectangle?.(fogId, startX, startY, startX + width, startY + height, mode);
+    engine.add_fog_rectangle(fogId, startX, startY, startX + width, startY + height, mode);
   }
 
-  private addPolygonToWasm(engine: RenderEngine, spriteData: any, vertices: Array<{ x: number; y: number }>, layer: string): void {
-    const e = engine as any;
-    if (typeof e.create_polygon_sprite === 'function') {
-      const flat = new Float32Array(vertices.flatMap(v => [v.x, v.y]));
-      try { e.create_polygon_sprite(flat, layer, spriteData.table_id || 'default_table'); } catch (err) {
+  private addPolygonToWasm(engine: RenderEngine, spriteData: SpritePayload, vertices: Array<{ x: number; y: number }>, layer: string): void {
+    const flat = new Float32Array(vertices.flatMap(v => [v.x, v.y]));
+    try { engine.create_polygon_sprite(flat, layer, spriteData.table_id || 'default_table'); } catch (err) {
         console.error('[SpriteSyncService] create_polygon_sprite failed:', err);
       }
-    }
     const cx = vertices[0]?.x ?? spriteData.x ?? 0;
     const cy = vertices[0]?.y ?? spriteData.y ?? 0;
     try {
@@ -434,7 +498,7 @@ export class SpriteSyncService {
     } catch { /* non-critical */ }
   }
 
-  private addRegularSpriteToWasm(engine: RenderEngine, spriteData: any, layer: string): void {
+  private addRegularSpriteToWasm(engine: RenderEngine, spriteData: SpritePayload, layer: string): void {
     let x = 0, y = 0;
     if (Array.isArray(spriteData.position) && spriteData.position.length >= 2) {
       [x, y] = spriteData.position;
@@ -473,7 +537,7 @@ export class SpriteSyncService {
         texture: spriteData.texture_path || '',
         scale: { x: wasmSprite.scale_x, y: wasmSprite.scale_y }, rotation: wasmSprite.rotation,
         characterId: spriteData.character_id,
-        controlledBy: spriteData.controlled_by || [],
+        controlledBy: (spriteData.controlled_by as string[] | undefined) || [],
         hp: spriteData.hp, maxHp: spriteData.max_hp, ac: spriteData.ac,
         auraRadius: spriteData.aura_radius, auraRadiusUnits: spriteData.aura_radius_units ?? undefined,
         visionRadius: spriteData.vision_radius ?? undefined,
@@ -499,11 +563,12 @@ export class SpriteSyncService {
     if (this.pendingScaleOperations.has(spriteId)) return;
     this.pendingScaleOperations.add(spriteId);
     try {
-      const engine = this.getEngine() as any;
+      const engine = this.getEngine();
       if (!engine) return;
       const sx = scaleX ?? 1.0, sy = scaleY ?? 1.0;
-      const ok = engine.update_sprite_scale?.(String(spriteId), Number(sx), Number(sy));
-      if (ok) { engine.render?.(); requestAnimationFrame(() => engine.render?.()); }
+      engine.set_sprite_scale(String(spriteId), Number(sx), Number(sy));
+      engine.render();
+      requestAnimationFrame(() => engine.render());
     } catch (err) {
       console.error('[SpriteSyncService] updateSpriteScale failed:', err);
     } finally {
@@ -511,33 +576,36 @@ export class SpriteSyncService {
     }
   }
 
-  private hasCompleteData(data: any): boolean {
+  private hasCompleteData(data: SpritePayload): boolean {
     const hasPos = (Array.isArray(data.position) && data.position.length >= 2)
       || (data.x !== undefined && data.y !== undefined)
       || (data.world_x !== undefined && data.world_y !== undefined);
     const hasAsset = data.asset_id || data.asset_xxhash || data.texture_id;
     const hasDims = (data.width && data.height) || (data.size_x && data.size_y);
-    return hasPos && hasAsset && hasDims;
+    return !!(hasPos && hasAsset && hasDims);
   }
 
-  private needsFullRecreation(data: any): boolean {
+  private needsFullRecreation(data: SpritePayload): boolean {
     return !!(data.layer_changed || data.texture_changed || data.fundamental_change);
   }
 
-  private handlePartialSpriteUpdate(spriteId: string, data: any): void {
+  private handlePartialSpriteUpdate(spriteId: string, data: SpritePayload): void {
     const u = data.updates ?? {};
     if (data.position || u.position || data.x !== undefined || u.x !== undefined) {
-      const pos = data.position ?? u.position ?? { x: data.x ?? u.x, y: data.y ?? u.y };
+      const rawPos = data.position ?? u.position;
+      const pos = rawPos
+        ? (Array.isArray(rawPos) ? { x: rawPos[0], y: rawPos[1] } : rawPos)
+        : { x: (data.x ?? (u.x as number | undefined)) ?? 0, y: (data.y ?? (u.y as number | undefined)) ?? 0 };
       this.updateSpritePosition(spriteId, pos);
     }
     if (data.scale_x !== undefined || u.scale_x !== undefined) this.updateSpriteScale(spriteId, data.scale_x ?? u.scale_x, data.scale_y ?? u.scale_y);
-    if (data.rotation !== undefined || u.rotation !== undefined) this.updateSpriteRotation(spriteId, data.rotation ?? u.rotation);
+    if (data.rotation !== undefined || u.rotation !== undefined) this.updateSpriteRotation(spriteId, (data.rotation ?? (u.rotation as number | undefined)) ?? 0);
 
     // controlled_by is stored as a JSON array string; parse if needed.
     const rawCb = data.controlled_by ?? u.controlled_by;
     if (rawCb !== undefined) {
-      const cbNums: number[] = Array.isArray(rawCb) ? rawCb.map(Number) : (typeof rawCb === 'string' ? (() => { try { return JSON.parse(rawCb).map(Number); } catch { return []; } })() : []);
-      (this.getEngine() as any)?.update_sprite_controlled_by?.(spriteId, cbNums);
+      const cbNums: number[] = Array.isArray(rawCb) ? (rawCb as unknown[]).map(Number) : (typeof rawCb === 'string' ? (() => { try { return (JSON.parse(rawCb) as unknown[]).map(Number); } catch { return []; } })() : []);
+      (this.getEngine() as RenderEngineExt)?.update_sprite_controlled_by?.(spriteId, cbNums);
       useGameStore.setState(state => ({ sprites: state.sprites.map(s => s.id === spriteId ? { ...s, controlledBy: cbNums.map(String) } : s) }));
     }
 
@@ -552,7 +620,7 @@ export class SpriteSyncService {
     }
   }
 
-  private updateSpriteEfficiently(spriteId: string, data: any): void {
+  private updateSpriteEfficiently(spriteId: string, data: SpritePayload): void {
     if (data.position || (data.x !== undefined && data.y !== undefined) || (data.world_x !== undefined)) {
       const pos = data.position
         ? (Array.isArray(data.position) ? { x: data.position[0], y: data.position[1] } : data.position)

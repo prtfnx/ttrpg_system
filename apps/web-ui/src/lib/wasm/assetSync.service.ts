@@ -6,6 +6,16 @@
 
 import type { RenderEngine } from '@lib/wasm/wasm';
 
+interface AssetPayload {
+  asset_id?: string;
+  url?: string;
+  download_url?: string;
+  success?: boolean;
+  instructions?: string;
+  status?: string;
+  message?: string;
+}
+
 export class AssetSyncService {
   // Texture IDs already loaded into WASM — skip redundant server downloads
   private loadedTextureIds = new Set<string>();
@@ -28,13 +38,13 @@ export class AssetSyncService {
       this.eventCleanups.push(() => window.removeEventListener(type, listener));
     };
 
-    on('asset-downloaded', (d: any) => this.handleAssetDownloaded(d));
-    on('asset-uploaded', (d: any) => this.handleAssetUploaded(d));
-    on('asset-upload-started', (d: any) => {
+    on('asset-downloaded', (d: AssetPayload) => this.handleAssetDownloaded(d));
+    on('asset-uploaded', (d: AssetPayload) => this.handleAssetUploaded(d));
+    on('asset-upload-started', (d: AssetPayload) => {
       if (d?.asset_id) this.pendingAssetRetries.add(d.asset_id);
     });
-    on('protocol-success', (d: any) => this.handleProtocolSuccess(d));
-    on('local-texture-ready', (d: any) => this.handleLocalTextureReady(d));
+    on('protocol-success', (d: AssetPayload) => this.handleProtocolSuccess(d));
+    on('local-texture-ready', (d: AssetPayload) => this.handleLocalTextureReady(d));
   }
 
   dispose(): void {
@@ -78,7 +88,7 @@ export class AssetSyncService {
     });
   }
 
-  private handleLocalTextureReady(data: any): void {
+  private handleLocalTextureReady(data: AssetPayload): void {
     const { asset_id, url } = data ?? {};
     if (!asset_id || !url) return;
     this.loadTextureFromUrl(asset_id, url)
@@ -92,39 +102,41 @@ export class AssetSyncService {
       });
   }
 
-  private handleAssetDownloaded(data: any): void {
+  private handleAssetDownloaded(data: AssetPayload): void {
     if (!data?.success || !data.download_url || !data.asset_id) {
       if (data?.instructions?.includes('upload') && data?.asset_id) {
         this.pendingAssetRetries.add(data.asset_id);
       }
       return;
     }
-    if (this.loadedTextureIds.has(data.asset_id)) {
-      this.pendingAssetRetries.delete(data.asset_id);
+    const { asset_id, download_url } = data;
+    if (this.loadedTextureIds.has(asset_id)) {
+      this.pendingAssetRetries.delete(asset_id);
       return;
     }
-    this.loadTextureFromUrl(data.asset_id, data.download_url)
-      .then(() => this.loadedTextureIds.add(data.asset_id))
+    this.loadTextureFromUrl(asset_id, download_url)
+      .then(() => this.loadedTextureIds.add(asset_id))
       .catch(() => {});
-    this.pendingAssetRetries.delete(data.asset_id);
+    this.pendingAssetRetries.delete(asset_id);
   }
 
-  private handleAssetUploaded(data: any): void {
+  private handleAssetUploaded(data: AssetPayload): void {
     if (!data?.asset_id) return;
-    if (this.pendingAssetRetries.has(data.asset_id)) {
-      this.pendingAssetRetries.delete(data.asset_id);
-      setTimeout(() => this.requestAssetDownloadLink(data.asset_id, `sprite_for_${data.asset_id}`), 100);
+    const assetId = data.asset_id;
+    if (this.pendingAssetRetries.has(assetId)) {
+      this.pendingAssetRetries.delete(assetId);
+      setTimeout(() => this.requestAssetDownloadLink(assetId, `sprite_for_${assetId}`), 100);
     }
-    const pending = this.pendingSpritesForAssets.get(data.asset_id);
+    const pending = this.pendingSpritesForAssets.get(assetId);
     if (pending?.length) {
       setTimeout(() => {
-        pending.forEach(sid => this.requestAssetDownloadLink(data.asset_id, sid));
-        this.pendingSpritesForAssets.delete(data.asset_id);
+        pending.forEach(sid => this.requestAssetDownloadLink(assetId, sid));
+        this.pendingSpritesForAssets.delete(assetId);
       }, 150);
     }
   }
 
-  private handleProtocolSuccess(data: any): void {
+  private handleProtocolSuccess(data: AssetPayload): void {
     if (data?.asset_id && (data.message?.includes('Upload confirmed') || data.status === 'uploaded')) {
       this.handleAssetUploaded(data);
     }

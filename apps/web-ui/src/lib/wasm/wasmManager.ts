@@ -1,13 +1,13 @@
-import type { RenderEngine } from './wasm';
+import type { AssetManager, CollisionSystem, PaintSystem, PlanningManager, RenderEngine } from './wasm';
 
 // Global WASM module manager - ensures single instance across the app
 export interface GlobalWasmModule {
-  RenderEngine: any;
-  AssetManager: any;
-  PaintSystem: any;
-  PlanningManager: any;
-  CollisionSystem: any;
-  create_default_brush_presets: () => any;
+  RenderEngine: typeof RenderEngine;
+  AssetManager: typeof AssetManager;
+  PaintSystem: typeof PaintSystem;
+  PlanningManager: typeof PlanningManager;
+  CollisionSystem: typeof CollisionSystem;
+  create_default_brush_presets: () => unknown[];
   version?: () => string;
   init_game_renderer?: (canvas: HTMLCanvasElement) => RenderEngine;
   default: () => Promise<void>; // WASM init function
@@ -47,12 +47,12 @@ class WasmManager {
     };
     
     return {
-      RenderEngine: mockEngine,
-      AssetManager: {},
-      PaintSystem: {},
-      PlanningManager: {},
-      CollisionSystem: {},
-      create_default_brush_presets: () => ({}),
+      RenderEngine: mockEngine as unknown as typeof RenderEngine,
+      AssetManager: {} as unknown as typeof AssetManager,
+      PaintSystem: {} as unknown as typeof PaintSystem,
+      PlanningManager: {} as unknown as typeof PlanningManager,
+      CollisionSystem: {} as unknown as typeof CollisionSystem,
+      create_default_brush_presets: () => [] as unknown[],
       default: async () => Promise.resolve(),
     };
   }
@@ -82,9 +82,11 @@ class WasmManager {
       console.log('[WASM Manager] Starting WASM initialization...');
       
       // Check if we're in a test environment using safe detection methods
-      const isTest = (typeof globalThis !== 'undefined' && (globalThis as any).process?.env?.NODE_ENV === 'test') ||
-                     (typeof window !== 'undefined' && (window as any).__VITEST__) ||
-                     (typeof globalThis !== 'undefined' && (globalThis as any).__VITEST__);
+      const isTest = (typeof globalThis !== 'undefined' && (globalThis as Record<string, unknown>)['process'] !== undefined &&
+                      ((globalThis as Record<string, unknown>)['process'] as Record<string, unknown>)?.['env'] !== undefined &&
+                      (((globalThis as Record<string, unknown>)['process'] as Record<string, unknown>)?.['env'] as Record<string, unknown>)?.['NODE_ENV'] === 'test') ||
+                     (typeof window !== 'undefined' && '__VITEST__' in window) ||
+                     (typeof globalThis !== 'undefined' && '__VITEST__' in globalThis);
       
       if (isTest) {
         console.log('[WASM Manager] Test environment detected, using mock WASM module');
@@ -93,7 +95,7 @@ class WasmManager {
         return this.wasmModule!;
       }
       
-      let wasmModule: any;
+      let wasmModule: Record<string, unknown> = {};
       
       // Strategy 1: Use dynamic asset path detection (browser only)
       try {
@@ -161,12 +163,12 @@ class WasmManager {
         console.warn('[WASM Manager] Missing optional WASM exports:', missingOptional);
       }
 
-      this.wasmModule = wasmModule as GlobalWasmModule;
+      this.wasmModule = wasmModule as unknown as GlobalWasmModule;
       this.isInitialized = true;
 
       // Set global window reference for backward compatibility
       if (typeof window !== 'undefined') {
-        (window as any).ttrpg_rust_core = this.wasmModule;
+        (window as unknown as Record<string, unknown>)['ttrpg_rust_core'] = this.wasmModule;
         window.wasmInitialized = true;
       }
 
@@ -181,19 +183,19 @@ class WasmManager {
       this.isInitialized = false;
       if (typeof window !== 'undefined') {
         window.wasmInitialized = false;
-        (window as any).ttrpg_rust_core = null;
+        (window as unknown as Record<string, unknown>)['ttrpg_rust_core'] = null;
       }
       throw error;
     }
   }
 
   // Helper methods for specific WASM classes
-  async getRenderEngine(): Promise<any> {
+  async getRenderEngine(): Promise<typeof RenderEngine> {
     const wasm = await this.getWasmModule();
     return wasm.RenderEngine;
   }
 
-  async getAssetManager(): Promise<any> {
+  async getAssetManager(): Promise<typeof AssetManager> {
     const wasm = await this.getWasmModule();
     return wasm.AssetManager;
   }
@@ -224,6 +226,6 @@ export const initializeWasm = () => wasmManager.getWasmModule();
 
 // Initialize window globals
 if (typeof window !== 'undefined') {
-  (window as any).ttrpg_rust_core = null;
+  (window as unknown as Record<string, unknown>)['ttrpg_rust_core'] = null;
   window.wasmInitialized = false;
 }

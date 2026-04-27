@@ -426,9 +426,17 @@ export class RenderEngine {
    */
   get_sprite_position(sprite_id: string): number[] | undefined;
   /**
+   * Set sprite position
+   */
+  set_sprite_position(sprite_id: string, x: number, y: number): boolean;
+  /**
    * Get sprite scale for scaling operations
    */
   get_sprite_scale(sprite_id: string): number[] | undefined;
+  /**
+   * Set sprite scale
+   */
+  set_sprite_scale(sprite_id: string, scale_x: number, scale_y: number): boolean;
   /**
    * Get sprite data for network synchronization
    */

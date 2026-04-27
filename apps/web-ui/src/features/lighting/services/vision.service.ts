@@ -1,4 +1,54 @@
 import { useGameStore } from '@/store';
+import type { RenderEngine } from '@lib/wasm/wasm';
+
+type RenderEngineExt = RenderEngine & {
+  set_dynamic_lighting_enabled?: (v: boolean) => void;
+  compute_visibility_polygon?: (x: number, y: number, obstacles: Float32Array, radius: number) => { x: number; y: number }[];
+  add_fog_polygon?: (id: string, poly: { x: number; y: number }[]) => void;
+  remove_fog_polygon?: (id: string) => void;
+  get_obstacle_segments_flat?: () => number[];
+  set_gm_mode?: (v: boolean) => void;
+};
+
+function getRm(): RenderEngineExt | undefined {
+  return (window as unknown as Record<string, unknown>)['rustRenderManager'] as RenderEngineExt | undefined;
+}
+
+interface SpriteData {
+  id: string;
+  layer?: string;
+  x: number;
+  y: number;
+  width?: number;
+  height?: number;
+  scale_x?: number;
+  scale_y?: number;
+  scale?: { x?: number; y?: number };
+  rotation?: number;
+  obstacle_type?: string;
+  obstacleType?: string;
+  polygon_vertices?: number[][];
+  metadata?: string | Record<string, unknown>;
+  controlledBy?: number[];
+  controlled_by?: number[];
+  visionRadiusUnits?: number;
+  vision_radius_units?: number;
+  visionRadius?: number;
+  vision_radius?: number;
+  hasDarkvision?: boolean;
+  has_darkvision?: boolean;
+  darkvisionRadiusUnits?: number;
+  darkvision_radius_units?: number;
+  darkvisionRadius?: number;
+  darkvision_radius?: number;
+  race_darkvision?: number;
+  characterData?: { race?: { darkvision?: number } };
+}
+
+interface LightMeta {
+  isOn?: boolean;
+  radius?: number;
+}
 
 class VisionService {
   private unsubscribe: (() => void) | null = null;
@@ -31,7 +81,7 @@ class VisionService {
       return;
     }
 
-    const rm = (window as any).rustRenderManager;
+    const rm = getRm();
     if (!rm) {
       if (this.renderManagerReadyListener) return; // already waiting
       const onReady = () => {
@@ -44,7 +94,7 @@ class VisionService {
       return;
     }
 
-    rm.set_dynamic_lighting_enabled(true);
+    rm.set_dynamic_lighting_enabled?.(true);
     this.isRunning = true;
     this.recompute();
     this.attachSpriteMoveListener();
@@ -75,9 +125,9 @@ class VisionService {
   }
 
   private clearExploredPolygons(): void {
-    const rm = (window as any).rustRenderManager;
+    const rm = getRm();
     for (const id of this.exploredIds) {
-      try { rm?.remove_fog_polygon(id); } catch {}
+      try { rm?.remove_fog_polygon?.(id); } catch {}
     }
     this.exploredIds.clear();
   }
@@ -92,12 +142,12 @@ class VisionService {
     this.isRunning = false;
     this.dmPreviewUserId = null;
 
-    const rm = (window as any).rustRenderManager;
+    const rm = getRm();
     for (const id of this.activeIds) {
-      try { rm?.remove_fog_polygon(id); } catch {}
+      try { rm?.remove_fog_polygon?.(id); } catch {}
     }
     this.clearExploredPolygons();
-    rm?.set_dynamic_lighting_enabled(false);
+    rm?.set_dynamic_lighting_enabled?.(false);
 
     this.activeIds.clear();
     this.lastPositions.clear();
@@ -110,11 +160,11 @@ class VisionService {
     this.stop();
     this.dmPreviewUserId = userId;
 
-    const rm = (window as any).rustRenderManager;
+    const rm = getRm();
     if (!rm) return;
 
-    rm.set_gm_mode(false);
-    rm.set_dynamic_lighting_enabled(true);
+    rm.set_gm_mode?.(false);
+    rm.set_dynamic_lighting_enabled?.(true);
     this.isRunning = true;
     this.recompute();
     this.attachSpriteMoveListener();
@@ -130,9 +180,9 @@ class VisionService {
 
   stopDmPreview(): void {
     this.stop();
-    const rm = (window as any).rustRenderManager;
-    rm?.set_gm_mode(true);
-    rm?.set_dynamic_lighting_enabled(false);
+    const rm = getRm();
+    rm?.set_gm_mode?.(true);
+    rm?.set_dynamic_lighting_enabled?.(false);
   }
 
   private scheduleRecompute(): void {
@@ -145,7 +195,7 @@ class VisionService {
   }
 
   private recompute(): void {
-    const rm = (window as any).rustRenderManager;
+    const rm = getRm();
     if (!rm) return;
 
     const obstacles = this.buildObstacles();
@@ -163,16 +213,16 @@ class VisionService {
       const moved = this.lastPositions.get(src.id) !== posKey;
 
       if (moved || obstaclesChanged) {
-        const rawPoly: { x: number; y: number }[] = rm.compute_visibility_polygon(src.x, src.y, obstacles, src.radius);
+        const rawPoly = rm.compute_visibility_polygon?.(src.x, src.y, obstacles, src.radius) ?? [];
         const poly = [{ x: src.x, y: src.y }, ...rawPoly];
 
         if (persistExplored && moved && this.lastPositions.has(src.id)) {
           const expId = `explored_${src.id}`;
-          try { rm.add_fog_polygon(expId, poly); } catch {}
+          try { rm.add_fog_polygon?.(expId, poly); } catch {}
           this.exploredIds.add(expId);
         }
 
-        try { rm.add_fog_polygon(id, poly); } catch {}
+        try { rm.add_fog_polygon?.(id, poly); } catch {}
         this.lastPositions.set(src.id, posKey);
       }
       seenIds.add(id);
@@ -184,8 +234,8 @@ class VisionService {
         const dvMoved = this.lastPositions.get(dvId) !== dvPosKey;
 
         if (dvMoved || obstaclesChanged) {
-          const rawDv: { x: number; y: number }[] = rm.compute_visibility_polygon(src.x, src.y, obstacles, src.darkvisionRadius);
-          try { rm.add_fog_polygon(dvId, [{ x: src.x, y: src.y }, ...rawDv]); } catch {}
+          const rawDv = rm.compute_visibility_polygon?.(src.x, src.y, obstacles, src.darkvisionRadius) ?? [];
+          try { rm.add_fog_polygon?.(dvId, [{ x: src.x, y: src.y }, ...rawDv]); } catch {}
           this.lastPositions.set(dvId, dvPosKey);
         }
         seenIds.add(dvId);
@@ -194,11 +244,11 @@ class VisionService {
     }
 
     // Also reveal areas illuminated by active lights (vision union light)
-    const allSprites = (useGameStore.getState().sprites || []) as any[];
+    const allSprites = (useGameStore.getState().sprites || []) as SpriteData[];
     for (const ls of allSprites) {
       if (ls.layer !== 'light') continue;
-      let meta: any = {};
-      try { meta = typeof ls.metadata === 'string' ? JSON.parse(ls.metadata) : (ls.metadata ?? {}); } catch {}
+      let meta: LightMeta = {};
+      try { meta = typeof ls.metadata === 'string' ? JSON.parse(ls.metadata) : (ls.metadata ?? {}) as LightMeta; } catch {}
       if (meta.isOn === false) continue;
       // meta.radius is stored in pixels (LightingPanel converts at placement)
       // Fallback: 20ft torch at default 10px/ft = 200px
@@ -209,9 +259,9 @@ class VisionService {
       const lightPosKey = `${lx.toFixed(1)},${ly.toFixed(1)},${lightRadius}`;
       const lightMoved = this.lastPositions.get(lightFogId) !== lightPosKey;
       if (lightMoved || obstaclesChanged) {
-        const rawLight: { x: number; y: number }[] = rm.compute_visibility_polygon(lx, ly, obstacles, lightRadius);
+        const rawLight = rm.compute_visibility_polygon?.(lx, ly, obstacles, lightRadius) ?? [];
         const lightPoly = [{ x: lx, y: ly }, ...rawLight];
-        try { rm.add_fog_polygon(lightFogId, lightPoly); } catch {}
+        try { rm.add_fog_polygon?.(lightFogId, lightPoly); } catch {}
         this.lastPositions.set(lightFogId, lightPosKey);
       }
       seenIds.add(lightFogId);
@@ -229,7 +279,7 @@ class VisionService {
   }
 
   private buildObstacles(): Float32Array {
-    const rm = (window as any).rustRenderManager;
+    const rm = getRm();
     // Prefer live WASM data — always reflects current drag positions
     if (rm?.get_obstacle_segments_flat) {
       const segs: number[] = rm.get_obstacle_segments_flat();
@@ -238,7 +288,7 @@ class VisionService {
 
     // Fallback: compute from store (when WASM isn't ready yet)
     const { sprites: storeSprites, gridCellPx: obsCellPx } = useGameStore.getState();
-    const sprites = (storeSprites || []) as any[];
+    const sprites = (storeSprites || []) as SpriteData[];
     const fallbackCellPx = obsCellPx ?? 50;
     const segs: number[] = [];
 
@@ -288,7 +338,7 @@ class VisionService {
     const converter = useGameStore.getState().getUnitConverter();
     const out: { id: string; x: number; y: number; radius: number; darkvisionRadius?: number }[] = [];
 
-    for (const s of (sprites || []) as any[]) {
+    for (const s of (sprites || []) as SpriteData[]) {
       const controlled: number[] = s.controlledBy ?? s.controlled_by ?? [];
       if (controlled.length === 0) continue;
       if (targetUserId != null && !controlled.includes(targetUserId)) continue;
@@ -296,7 +346,7 @@ class VisionService {
       // Prefer game-unit fields, convert to pixels; fall back to legacy pixel fields
       let radiusPx: number;
       if (s.visionRadiusUnits != null || s.vision_radius_units != null) {
-        radiusPx = converter.toPixels(s.visionRadiusUnits ?? s.vision_radius_units);
+        radiusPx = converter.toPixels((s.visionRadiusUnits ?? s.vision_radius_units) ?? 0);
       } else {
         radiusPx = s.visionRadius ?? s.vision_radius ?? 0;
       }
@@ -306,7 +356,7 @@ class VisionService {
       let dvRadiusPx = 0;
       if (hasDv) {
         if (s.darkvisionRadiusUnits != null || s.darkvision_radius_units != null) {
-          dvRadiusPx = converter.toPixels(s.darkvisionRadiusUnits ?? s.darkvision_radius_units);
+          dvRadiusPx = converter.toPixels((s.darkvisionRadiusUnits ?? s.darkvision_radius_units) ?? 0);
         } else if (s.darkvisionRadius != null || s.darkvision_radius != null) {
           dvRadiusPx = s.darkvisionRadius ?? s.darkvision_radius ?? 0;
         } else {
@@ -335,10 +385,10 @@ class VisionService {
   private attachSpriteMoveListener(): void {
     if (!this.spriteMovedListener) {
       this.spriteMovedListener = (e: Event) => {
-        const d = (e as CustomEvent).detail as any;
+        const d = (e as CustomEvent).detail as { sprite_id?: string; id?: string; to?: { x: number; y: number }; position?: { x: number; y: number }; x?: number; y?: number };
         const id = d?.sprite_id || d?.id;
         const pos: { x: number; y: number } | null =
-          d?.to ?? d?.position ?? (d?.x !== undefined ? { x: d.x, y: d.y } : null);
+          d?.to ?? d?.position ?? (d?.x !== undefined && d?.y !== undefined ? { x: d.x, y: d.y } : null);
         if (id && pos) {
           this.spritePositions.set(id, pos);
           this.scheduleRecompute();
@@ -351,7 +401,7 @@ class VisionService {
       // sprite-drag-preview fires every mousemove during local drag (player's own sprite)
       // detail: { spriteId, x, y } — top-left world coords from WASM
       this.spriteDragPreviewListener = (e: Event) => {
-        const d = (e as CustomEvent).detail as any;
+        const d = (e as CustomEvent).detail as { spriteId?: string; x?: number; y?: number };
         const id = d?.spriteId;
         if (id && d?.x !== undefined && d?.y !== undefined) {
           this.spritePositions.set(id, { x: d.x, y: d.y });

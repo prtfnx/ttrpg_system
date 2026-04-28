@@ -83,7 +83,7 @@ export const GameCanvas: React.FC = () => {
   useSpriteSyncing();
 
   // Stream live drag/resize/rotate previews to other clients via WebSocket
-  const sendWsMessage = useCallback((msg: unknown) => { protocol?.sendMessage(msg as any); }, [protocol]);
+  const sendWsMessage = useCallback((msg: unknown) => { protocol?.sendMessage(msg as Record<string, unknown>); }, [protocol]);
   useSpriteDragSync(sendWsMessage);
 
   // Track drag positions so vision rings follow the token during drag
@@ -172,7 +172,7 @@ export const GameCanvas: React.FC = () => {
 
   // Keep WASM active layer in sync with React store
   useEffect(() => {
-    const engine = rustRenderManagerRef.current as any;
+    const engine = rustRenderManagerRef.current;
     if (engine?.set_active_layer) {
  console.log('[Canvas] set_active_layer:', activeLayer);
       engine.set_active_layer(activeLayer);
@@ -331,14 +331,15 @@ export const GameCanvas: React.FC = () => {
       type WasmSpriteData = { sprite_id: string; world_x: number; world_y: number; width: number; height: number };
       let wasmMap = new Map<string, WasmSpriteData>();
       try {
-        const raw: WasmSpriteData[] = (rm as any).get_all_sprites_network_data?.() ?? [];
+        const raw: WasmSpriteData[] = rm.get_all_sprites_network_data?.() as WasmSpriteData[] ?? [];
         wasmMap = new Map(raw.map(d => [d.sprite_id, d]));
       } catch { /* ignore — fall back to store data */ }
 
       // Only draw circles for sprites on the active table
-      const tableSprites = sprites.filter(sp => (sp as any).tableId === activeTableId || (sp as any).table_id === activeTableId);
+      type ExtSprite = typeof sprites[number] & { table_id?: string; vision_radius?: number; has_darkvision?: boolean; darkvision_radius?: number; scale_x?: number; scale_y?: number };
+      const tableSprites = (sprites as ExtSprite[]).filter(sp => sp.tableId === activeTableId || sp.table_id === activeTableId);
       for (const sprite of tableSprites) {
-        const s = sprite as any;
+        const s = sprite;
         const vr: number = s.visionRadiusUnits != null
           ? conv.toPixels(s.visionRadiusUnits)
           : (s.visionRadius ?? s.vision_radius ?? 0);
@@ -434,10 +435,7 @@ export const GameCanvas: React.FC = () => {
     const draw = () => {
       const canvas = wallCanvasRef.current;
       const mainCanvas = canvasRef.current;
-      const rm = rustRenderManagerRef.current as any;
-      if (!canvas || !mainCanvas || !rm) { raf = requestAnimationFrame(draw); return; }
-
-      // Match overlay size to main canvas
+      const rm = rustRenderManagerRef.current;
       if (canvas.width !== mainCanvas.width || canvas.height !== mainCanvas.height) {
         canvas.width = mainCanvas.width;
         canvas.height = mainCanvas.height;
@@ -561,13 +559,13 @@ export const GameCanvas: React.FC = () => {
         // Set user ID and GM mode immediately.
         // sessionRole may be null before welcome msg — fall back to server-injected role.
         const { userId, sessionRole } = useGameStore.getState();
-        const initialRole = (window as any).__INITIAL_DATA__?.userRole ?? null;
+        const initialRole = window.__INITIAL_DATA__?.userRole ?? null;
         const effectiveRole = (sessionRole ?? initialRole) as import('@features/session/types/roles').SessionRole | null;
         if (userId != null) rustRenderEngine.set_current_user_id?.(userId);
         rustRenderEngine.set_gm_mode?.(isDM(effectiveRole));
         // Sync active layer immediately so WASM knows the starting layer
         const initialActiveLayer = useGameStore.getState().activeLayer;
-        (rustRenderEngine as any).set_active_layer?.(initialActiveLayer);
+        (rustRenderEngine as RenderEngine).set_active_layer?.(initialActiveLayer);
         window.dispatchEvent(new Event('render-manager-ready'));
 
         // Initialize performance monitoring
@@ -693,7 +691,7 @@ export const GameCanvas: React.FC = () => {
       mounted = false;
 
       // Mark WASM as no longer initialized
-      (window as any).wasmInitialized = false;
+      window.wasmInitialized = false;
 
       if (animationFrameId) cancelAnimationFrame(animationFrameId);
       disconnectWebSocket();
@@ -1080,7 +1078,7 @@ export const GameCanvas: React.FC = () => {
             }}
             onClick={() => {
               const canvas = canvasRef.current;
-              const rm = rustRenderManagerRef.current as any;
+              const rm = rustRenderManagerRef.current;
               if (!canvas || !rm?.handle_wheel) return;
               rm.handle_wheel(canvas.width / 2, canvas.height / 2, -120);
             }}
@@ -1102,7 +1100,7 @@ export const GameCanvas: React.FC = () => {
             }}
             onClick={() => {
               const canvas = canvasRef.current;
-              const rm = rustRenderManagerRef.current as any;
+              const rm = rustRenderManagerRef.current;
               if (!canvas || !rm?.handle_wheel) return;
               rm.handle_wheel(canvas.width / 2, canvas.height / 2, 120);
             }}

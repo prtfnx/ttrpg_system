@@ -68,8 +68,8 @@ export function GameClient({ sessionCode, userInfo, userRole, onAuthError }: Gam
 
   // Expose protocol and active table id globally for integration points (read-only usage by components)
   useEffect(() => {
-    if (protocol) (window as any).protocol = protocol;
-    return () => { if ((window as any).protocol === protocol) delete (window as any).protocol; };
+    if (protocol) window.protocol = protocol;
+    return () => { if (window.protocol === protocol) delete window.protocol; };
  }, [protocol]);
 
   // Expose activeTableId for components that need the current table context (e.g. Compendium drag)
@@ -77,7 +77,7 @@ export function GameClient({ sessionCode, userInfo, userRole, onAuthError }: Gam
     const handler = (e: Event) => {
       // update when table is switched by store events
       const custom = e as CustomEvent;
-      (window as any).activeTableId = custom.detail?.table_id || null;
+      window.activeTableId = custom.detail?.table_id || null;
     };
     window.addEventListener('table-data-received', handler);
     return () => window.removeEventListener('table-data-received', handler);
@@ -109,9 +109,9 @@ export function GameClient({ sessionCode, userInfo, userRole, onAuthError }: Gam
       const engine = window.rustRenderManager;
       if (engine?.set_gm_mode) {
         // Use __INITIAL_DATA__ as fallback so GM mode is correct before WELCOME arrives
-        const effectiveRole = sessionRole ?? (window as any).__INITIAL_DATA__?.userRole ?? null;
+        const effectiveRole = sessionRole ?? window.__INITIAL_DATA__?.userRole ?? null;
         engine.set_gm_mode(isDM(effectiveRole));
-        (engine as any).fog_set_gm_mode?.(isDM(effectiveRole));
+        engine.fog_set_gm_mode?.(isDM(effectiveRole));
       }
     };
     apply();
@@ -162,15 +162,15 @@ export function GameClient({ sessionCode, userInfo, userRole, onAuthError }: Gam
   // Apply fog updates received from other clients in real-time
   useEffect(() => {
     const handler = (e: Event) => {
-      const detail = (e as CustomEvent).detail as Record<string, any>;
+      const detail = (e as CustomEvent).detail as Record<string, unknown>;
       if (!detail || detail.type !== 'fog_update') return;
       const engine = window.rustRenderManager;
       if (!engine) return;
-      const data = detail.data as Record<string, any>;
+      const data = detail.data as Record<string, unknown> | undefined;
       if (!data) return;
       engine.clear_fog?.();
-      const hideRects: Array<[[number, number], [number, number]]> = data.hide_rectangles ?? [];
-      const revealRects: Array<[[number, number], [number, number]]> = data.reveal_rectangles ?? [];
+      const hideRects = (data.hide_rectangles ?? []) as Array<[[number, number], [number, number]]>;
+      const revealRects = (data.reveal_rectangles ?? []) as Array<[[number, number], [number, number]]>;
  hideRects.forEach(([start, end], i) =>
         engine.add_fog_rectangle?.(`hide_${i}`, start[0], start[1], end[0], end[1], 'hide')
       );

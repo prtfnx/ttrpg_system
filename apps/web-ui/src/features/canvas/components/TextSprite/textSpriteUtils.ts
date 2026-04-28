@@ -200,7 +200,7 @@ export async function createTextSprite(
   onError?: (error: Error) => void
 ): Promise<string> {
   try {
-    const spriteId = `text_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+    const spriteId = `text_${Date.now()}_${Math.random().toString(36).slice(2, 11)}`;
     
     // Render the text sprite to canvas
     const renderResult = await renderTextSprite(config, spriteId);

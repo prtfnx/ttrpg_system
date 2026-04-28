@@ -133,9 +133,9 @@ export function LayerPanel({ className, style: _style, id, initialLayers, ...oth
     if (isLoading) return;
 
     const updateSpriteCounts = () => {
-      const renderManager = (window as any).rustRenderManager;
+      const renderManager = window.rustRenderManager;
       if (!renderManager) {
- console.warn('[LayerPanel] RenderManager not available');
+        console.warn('[LayerPanel] RenderManager not available');
         return;
       }
 
@@ -159,7 +159,7 @@ export function LayerPanel({ className, style: _style, id, initialLayers, ...oth
   // Subscribe to sprite events for immediate UI updates
   useEffect(() => {
     const handleSpriteEvent = () => {
-      const renderManager = (window as any).rustRenderManager;
+      const renderManager = window.rustRenderManager;
       if (!renderManager) return;
 
       // Query WASM when sprites change
@@ -191,7 +191,7 @@ export function LayerPanel({ className, style: _style, id, initialLayers, ...oth
     // Sync active layer with WASM render engine so opacity rules are applied
     if (renderEngine) {
       try {
-        (renderEngine as any).set_active_layer?.(layerId);
+      renderEngine.set_active_layer?.(layerId);
       } catch (error) {
         console.error(' LayerPanel: Failed to sync active layer to WASM:', error);
       }
@@ -210,7 +210,7 @@ export function LayerPanel({ className, style: _style, id, initialLayers, ...oth
     // Sync with WASM
     if (renderEngine) {
       try {
-        (renderEngine as any).set_layer_visible?.(layerId, newVisibility);
+        renderEngine.set_layer_visible(layerId, newVisibility);
         console.log(` LayerPanel: Synced layer visibility to WASM: ${layerId} = ${newVisibility}`);
       } catch (error) {
         console.error(' LayerPanel: Failed to sync layer visibility to WASM:', error);
@@ -240,7 +240,7 @@ export function LayerPanel({ className, style: _style, id, initialLayers, ...oth
     // Sync with WASM
     if (renderEngine) {
       try {
-        (renderEngine as any).set_layer_opacity?.(layerId, opacity);
+        renderEngine.set_layer_opacity(layerId, opacity);
         console.log(` LayerPanel: Synced layer opacity to WASM: ${layerId} = ${opacity}`);
       } catch (error) {
         console.error(' LayerPanel: Failed to sync layer opacity to WASM:', error);

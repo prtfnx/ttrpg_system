@@ -1,4 +1,4 @@
-Ôªøimport { ProtocolService, useProtocol } from '@lib/api';
+import { ProtocolService, useProtocol } from '@lib/api';
 import { showToast } from '@shared/utils';
 import clsx from "clsx";
 import { Check, CircleUser, Dices, Footprints, Shield, X, Zap } from 'lucide-react';
@@ -100,35 +100,35 @@ export const CharacterSheet: React.FC<CharacterSheetProps> = ({ character, onSav
   const handleSkillRoll = (skillName: string, modifier: number) => {
     if (isConnected && ProtocolService.hasProtocol() && character) {
       ProtocolService.getProtocol().rollSkill(character.id, skillName, modifier);
-      showToast.success(`Rolling ${skillName}‚Ä¶`);
+      showToast.success(`Rolling ${skillName}Ö`);
     }
   };
 
   const handleAbilitySaveRoll = (ability: string, modifier: number) => {
     if (isConnected && ProtocolService.hasProtocol() && character) {
       ProtocolService.getProtocol().rollAbilitySave(character.id, ability, modifier);
-      showToast.success(`Rolling ${ABILITY_SHORT[ability]} save‚Ä¶`);
+      showToast.success(`Rolling ${ABILITY_SHORT[ability]} saveÖ`);
     }
   };
 
   const handleAbilityCheckRoll = (ability: string, modifier: number) => {
     if (isConnected && ProtocolService.hasProtocol() && character) {
       ProtocolService.getProtocol().rollAbilityCheck(character.id, ability, modifier);
-      showToast.success(`Rolling ${ABILITY_SHORT[ability]} check‚Ä¶`);
+      showToast.success(`Rolling ${ABILITY_SHORT[ability]} checkÖ`);
     }
   };
 
   const handleAttackRoll = (attackType: string, modifier: number) => {
     if (isConnected && ProtocolService.hasProtocol() && character) {
       ProtocolService.getProtocol().rollAttack(character.id, attackType, modifier);
-      showToast.success(`Rolling ${attackType} attack‚Ä¶`);
+      showToast.success(`Rolling ${attackType} attackÖ`);
     }
   };
 
   const handleDeathSaveRoll = () => {
     if (isConnected && ProtocolService.hasProtocol() && character) {
       ProtocolService.getProtocol().rollDeathSave(character.id);
-      showToast.info('Rolling death save‚Ä¶');
+      showToast.info('Rolling death saveÖ');
     }
   };
 
@@ -146,11 +146,11 @@ export const CharacterSheet: React.FC<CharacterSheetProps> = ({ character, onSav
         hitDiceUsed: newUsedHitDice,
       }
     });
-    showToast.success('Long Rest ‚Äî HP and spell slots restored');
+    showToast.success('Long Rest ó HP and spell slots restored');
   };
 
   const handleShortRest = () => {
-    showToast.info('Short Rest ‚Äî use Hit Dice roll to recover HP');
+    showToast.info('Short Rest ó use Hit Dice roll to recover HP');
   };
 
   const handleStatUpdate = (field: string, value: number) => {
@@ -226,7 +226,7 @@ export const CharacterSheet: React.FC<CharacterSheetProps> = ({ character, onSav
       return;
     }
 
-    const spriteId = `sprite_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+    const spriteId = `sprite_${Date.now()}_${Math.random().toString(36).slice(2, 11)}`;
     const spriteData = {
       sprite_id: spriteId,
       table_id: activeTableId,
@@ -284,7 +284,7 @@ export const CharacterSheet: React.FC<CharacterSheetProps> = ({ character, onSav
 
       {/* Main layout: sidebar + content */}
       <div className={styles.sheetLayout}>
-        {/* Left sidebar ‚Äî always visible */}
+        {/* Left sidebar ó always visible */}
         <aside className={styles.sidebar}>
           <div className={styles.abilitiesColumn}>
             {Object.entries(abilities).map(([key, rawVal]) => {
@@ -428,8 +428,8 @@ export const CharacterSheet: React.FC<CharacterSheetProps> = ({ character, onSav
                   </div>
                 </div>
 
-                {/* Death saves –≤–Ç‚Äù only at 0 HP */}
                 {/* Death saves ‚Äî only at 0 HP */}
+                {/* Death saves ó only at 0 HP */}
                 {(stats.hp || 0) === 0 && (
                   <div className={styles.deathSavesBlock}>
                     <span className={styles.deathTitle}>Death Saves</span>
@@ -567,7 +567,7 @@ export const CharacterSheet: React.FC<CharacterSheetProps> = ({ character, onSav
                   <textarea
                     value={character.data?.bio || ''}
                     onChange={e => onSave({ data: { ...data, bio: e.target.value } })}
-                    placeholder="Backstory, personality, goals‚Ä¶"
+                    placeholder="Backstory, personality, goalsÖ"
                     rows={6}
                     className={styles.bioTextarea}
                   />

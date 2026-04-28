@@ -11,7 +11,7 @@ interface CharacterAdvancementStepProps {
   onBack?: () => void;
   // Legacy props for backwards compatibility
   data?: WizardFormData;
-  onChange?: (field: keyof WizardFormData, value: any) => void;
+  onChange?: (field: keyof WizardFormData, value: WizardFormData[keyof WizardFormData]) => void;
   onComplete?: () => void;
 }
 
@@ -29,7 +29,7 @@ export const CharacterAdvancementStep: React.FC<CharacterAdvancementStepProps> =
   // Use form context if available, otherwise use legacy props
   const data = isUsingFormContext ? formContext.watch() : (legacyData || {} as WizardFormData);
   
-  const onChange = legacyOnChange || ((field: keyof WizardFormData, value: any) => {
+  const onChange = legacyOnChange || ((field: keyof WizardFormData, value: WizardFormData[keyof WizardFormData]) => {
     if (isUsingFormContext) {
       formContext.setValue(field, value, { shouldValidate: true });
     }
@@ -92,7 +92,7 @@ export const CharacterAdvancementStep: React.FC<CharacterAdvancementStepProps> =
     }
   };
 
-  const handleLevelUpComplete = (levelUpData: any) => {
+  const handleLevelUpComplete = (levelUpData: Partial<WizardFormData>) => {
     // Update character with level up data
     const updatedData = {
       ...data,
@@ -136,7 +136,7 @@ export const CharacterAdvancementStep: React.FC<CharacterAdvancementStepProps> =
     // AdvancedCharacter extends WizardFormData, so abilities should be top-level (not nested)
     // Just add the missing required AdvancedCharacter properties
     
-    const characterData: any = {
+    const characterData: WizardFormData = {
       ...data,
       // Ensure ability scores have defaults if not set
       strength: data.strength || 10,
@@ -265,7 +265,7 @@ export const CharacterAdvancementStep: React.FC<CharacterAdvancementStepProps> =
           <div className="advancement-section">
             <h3>Level History</h3>
             <div className="level-history">
-              {data.advancement.levelHistory.map((entry: any, index: number) => (
+              {data.advancement.levelHistory.map((entry, index: number) => (
                 <div key={index} className="history-entry">
                   <div className="history-level">Level {entry.level}</div>
                   <div className="history-class">
@@ -275,7 +275,7 @@ export const CharacterAdvancementStep: React.FC<CharacterAdvancementStepProps> =
                   <div className="history-details">
                     <span>HP: +{entry.hitPointIncrease}</span>
                     {entry.abilityScoreImprovements && (
-                      <span>ASI: {entry.abilityScoreImprovements.map((asi: any) => `${asi.ability} +${asi.increase}`).join(', ')}</span>
+                      <span>ASI: {entry.abilityScoreImprovements.map((asi) => `${asi.ability} +${asi.increase}`).join(', ')}</span>
                     )}
                     {entry.featGained && <span>Feat: {entry.featGained}</span>}
                   </div>
@@ -292,7 +292,7 @@ export const CharacterAdvancementStep: React.FC<CharacterAdvancementStepProps> =
             <div className="multiclass-info">
               <p>Your character is multiclassed across the following classes:</p>
               <div className="multiclass-breakdown">
-                {data.classes.map((cls: any, index: number) => (
+                {data.classes.map((cls, index: number) => (
                   <div key={index} className="multiclass-entry">
                     <strong>{cls.name}</strong>
                     <span>Level {cls.level}</span>
@@ -301,7 +301,7 @@ export const CharacterAdvancementStep: React.FC<CharacterAdvancementStepProps> =
                 ))}
               </div>
               <div className="total-level">
-                <strong>Total Character Level: {data.classes.reduce((sum: number, cls: any) => sum + cls.level, 0)}</strong>
+                <strong>Total Character Level: {data.classes.reduce((sum: number, cls) => sum + cls.level, 0)}</strong>
               </div>
             </div>
           </div>

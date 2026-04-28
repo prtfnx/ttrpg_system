@@ -30,24 +30,27 @@ export class CharacterImportService {
   /**
    * Detect import format from file content or structure
    */
-  static detectFormat(data: any): string | null {
+  static detectFormat(data: unknown): string | null {
+    if (typeof data !== 'object' || data === null) return null;
+    const obj = data as Record<string, unknown>;
+    const char = obj.character as Record<string, unknown> | undefined;
     // Check for our D5e format
-    if (data.version && data.source === 'TTRPG_System_Web' && data.character) {
+    if (obj.version && obj.source === 'TTRPG_System_Web' && obj.character) {
       return 'd5e';
     }
     
     // Check for D&D Beyond format
-    if (data.character?.race?.fullName && data.character?.classes && data.character?.stats) {
+    if (char?.race && char?.classes && char?.stats) {
       return 'dndBeyond';
     }
     
     // Check for basic character data structure
-    if (data.race && data.class && data.name && data.strength !== undefined) {
+    if (obj.race && obj.class && obj.name && obj.strength !== undefined) {
       return 'json';
     }
     
     // Check for Roll20 format characteristics
-    if (data.schema_version && data.character && data.character.attribs) {
+    if (obj.schema_version && char?.attribs) {
       return 'roll20';
     }
     
@@ -114,7 +117,7 @@ export class CharacterImportService {
    */
   static importFromDNDBeyond(data: DNDBeyondExport): ImportResult {
     try {
-      const character = data.character as any;
+      const character = data.character as Record<string, unknown>;
       
       if (!character.classes || character.classes.length === 0) {
         return {
@@ -131,19 +134,19 @@ export class CharacterImportService {
       }
       
       // Map D&D Beyond stats (ID 1-6) to ability scores
-      const statsMap = character.stats.reduce((acc: Record<string, number>, stat: any) => {
+      const statsMap = (character.stats as Array<{ id: number; value: number }>).reduce((acc: Record<string, number>, stat) => {
         const abilities = ['strength', 'dexterity', 'constitution', 'intelligence', 'wisdom', 'charisma'];
         acc[abilities[stat.id - 1]] = stat.value;
         return acc;
       }, {} as Record<string, number>);
       
-      const primaryClass = character.classes[0];
+      const primaryClass = (character.classes as Array<{ definition: { name: string; hitDie: number }; level: number }>)[0];
       
       const wizardData: WizardFormData = {
-        name: character.name,
-        race: character.race.baseRaceName || character.race.fullName,
+        name: (character.name as string),
+        race: ((character.race as Record<string, string>).baseRaceName || (character.race as Record<string, string>).fullName),
         class: primaryClass.definition.name,
-        background: character.background?.definition?.name || 'Unknown',
+        background: ((character.background as Record<string, Record<string, string>> | undefined)?.definition?.name) || 'Unknown',
         
         strength: statsMap.strength || 10,
         dexterity: statsMap.dexterity || 10,
@@ -192,26 +195,29 @@ export class CharacterImportService {
   /**
    * Import character from generic JSON format
    */
-  static importFromJSON(data: any): ImportResult {
+  static importFromJSON(data: unknown): ImportResult {
     try {
+      const d = data as Record<string, unknown>;
+      const abilities = d.ability_scores as Record<string, number> | undefined;
+      const abilObj = d.abilities as Record<string, number> | undefined;
       const wizardData: WizardFormData = {
-        name: data.name || 'Unnamed Character',
-        race: data.race || '',
-        class: data.class || data.character_class || '', // Support both formats
-        background: data.background || 'Folk Hero',
+        name: (d.name as string) || 'Unnamed Character',
+        race: (d.race as string) || '',
+        class: (d.class as string) || (d.character_class as string) || '', // Support both formats
+        background: (d.background as string) || 'Folk Hero',
         
-        strength: data.strength || data.ability_scores?.STR || data.abilities?.strength || 10,
-        dexterity: data.dexterity || data.ability_scores?.DEX || data.abilities?.dexterity || 10,
-        constitution: data.constitution || data.ability_scores?.CON || data.abilities?.constitution || 10,
-        intelligence: data.intelligence || data.ability_scores?.INT || data.abilities?.intelligence || 10,
-        wisdom: data.wisdom || data.ability_scores?.WIS || data.abilities?.wisdom || 10,
-        charisma: data.charisma || data.ability_scores?.CHA || data.abilities?.charisma || 10,
+        strength: (d.strength as number) || abilities?.STR || abilObj?.strength || 10,
+        dexterity: (d.dexterity as number) || abilities?.DEX || abilObj?.dexterity || 10,
+        constitution: (d.constitution as number) || abilities?.CON || abilObj?.constitution || 10,
+        intelligence: (d.intelligence as number) || abilities?.INT || abilObj?.intelligence || 10,
+        wisdom: (d.wisdom as number) || abilities?.WIS || abilObj?.wisdom || 10,
+        charisma: (d.charisma as number) || abilities?.CHA || abilObj?.charisma || 10,
         
-        skills: data.skills || data.skill_proficiencies || [],
-        spells: data.spells || undefined,
+        skills: (d.skills as string[]) || (d.skill_proficiencies as string[]) || [],
+        spells: (d.spells as WizardFormData['spells']) || undefined,
         
-        bio: data.bio || data.personality || undefined,
-        image: data.image || undefined,
+        bio: (d.bio as string) || (d.personality as string) || undefined,
+        image: (d.image as string) || undefined,
       };
       
       const validation = this.validateCharacterData(wizardData);
@@ -241,9 +247,11 @@ export class CharacterImportService {
   /**
    * Import character from Roll20 export format
    */
-  static importFromRoll20(data: any): ImportResult {
+  static importFromRoll20(data: unknown): ImportResult {
     try {
-      if (!data.character || !data.character.attribs) {
+      const d = data as Record<string, unknown>;
+      const char = d.character as Record<string, unknown> | undefined;
+      if (!char?.attribs) {
         return {
           success: false,
           errors: ['Invalid Roll20 character format - missing character.attribs'],
@@ -251,9 +259,9 @@ export class CharacterImportService {
       }
       
       // Roll20 stores attributes as an array of {name, current, max} objects
-      const attribs = data.character.attribs;
+      const attribs = char.attribs as Array<{ name: string; current: unknown; max: unknown }>;
       const getAttr = (name: string) => {
-        const attr = attribs.find((a: any) => a.name === name);
+        const attr = attribs.find(a => a.name === name);
         return attr ? (attr.current || attr.max || 0) : 0;
       };
       
@@ -304,7 +312,7 @@ export class CharacterImportService {
   /**
    * Universal import method that detects format and imports accordingly
    */
-  static importCharacter(data: any): ImportResult {
+  static importCharacter(data: unknown): ImportResult {
     const format = this.detectFormat(data);
     
     if (!format) {

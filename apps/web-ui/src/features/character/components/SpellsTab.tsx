@@ -1,4 +1,6 @@
 import { useSpells } from '@features/compendium';
+import type { Spell } from '@features/compendium';
+import type { SpellSlots } from '../services/spellManagement.service';
 import clsx from 'clsx';
 import React, { useMemo, useState } from 'react';
 import { spellManagementService } from '../services/spellManagement.service';
@@ -11,15 +13,15 @@ interface SpellData {
 }
 
 interface Props {
-  data: Record<string, any>;
-  onSave: (data: Record<string, any>) => void;
+  data: Record<string, unknown>;
+  onSave: (data: Record<string, unknown>) => void;
 }
 
 export const SpellsTab: React.FC<Props> = ({ data, onSave }) => {
-  const characterClass: string = data.class ?? '';
-  const level: number = data.level ?? 1;
-  const spells: SpellData = data.spells ?? { cantrips: [], knownSpells: [], preparedSpells: [] };
-  const slotsUsed: Record<number, number> = data.spellSlotsUsed ?? {};
+  const characterClass: string = (data.class as string) ?? '';
+  const level: number = (data.level as number) ?? 1;
+  const spells: SpellData = (data.spells as SpellData) ?? { cantrips: [], knownSpells: [], preparedSpells: [] };
+  const slotsUsed: Record<number, number> = (data.spellSlotsUsed as Record<number, number>) ?? {};
   const [expandedSpell, setExpandedSpell] = useState<string | null>(null);
 
   const slots = useMemo(
@@ -31,13 +33,13 @@ export const SpellsTab: React.FC<Props> = ({ data, onSave }) => {
   const { data: compendiumSpells } = useSpells({ class: characterClass });
 
   const slotLevels = useMemo(
-    () => [1, 2, 3, 4, 5, 6, 7, 8, 9].filter(l => ((slots as any)[l] ?? 0) > 0),
+    () => [1, 2, 3, 4, 5, 6, 7, 8, 9].filter(l => ((slots as SpellSlots)[l] ?? 0) > 0),
     [slots]
   );
 
   // Group known spells by level using compendium data
   const spellsByLevel = useMemo(() => {
-    const groups: Record<number, Array<{ name: string; details: any }>> = {};
+    const groups: Record<number, Array<{ name: string; details: Spell | null }>> = {};
     spells.knownSpells.forEach(name => {
       const details = compendiumSpells?.[name] ?? null;
       const spellLevel = details?.level ?? 1;
@@ -48,7 +50,7 @@ export const SpellsTab: React.FC<Props> = ({ data, onSave }) => {
   }, [spells.knownSpells, compendiumSpells]);
 
   function consumeSlot(slotLevel: number) {
-    const max = (slots as any)[slotLevel] ?? 0;
+    const max = (slots as SpellSlots)[slotLevel] ?? 0;
     const used = slotsUsed[slotLevel] ?? 0;
     if (used >= max) return;
     onSave({ ...data, spellSlotsUsed: { ...slotsUsed, [slotLevel]: used + 1 } });
@@ -81,7 +83,7 @@ export const SpellsTab: React.FC<Props> = ({ data, onSave }) => {
         ) : (
           <div className={styles.slotsGrid}>
             {slotLevels.map(slotLevel => {
-              const max = (slots as any)[slotLevel];
+              const max = (slots as SpellSlots)[slotLevel];
               const used = slotsUsed[slotLevel] ?? 0;
               const remaining = max - used;
               return (
@@ -152,7 +154,7 @@ export const SpellsTab: React.FC<Props> = ({ data, onSave }) => {
             .map(levelStr => {
               const lvl = Number(levelStr);
               const spellsInLevel = spellsByLevel[lvl];
-              const max = (slots as any)[lvl] ?? 0;
+              const max = (slots as SpellSlots)[lvl] ?? 0;
               const used = slotsUsed[lvl] ?? 0;
               const remaining = max - used;
               return (

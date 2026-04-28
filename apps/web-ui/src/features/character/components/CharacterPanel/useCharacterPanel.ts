@@ -1,6 +1,7 @@
 import { useGameStore } from '@/store';
 import type { Character } from '@/types';
 import { authService } from '@features/auth';
+import type { WizardFormData } from '@features/character/components/CharacterWizard/WizardFormData';
 import { useProtocol } from '@lib/api';
 import {
     cloneCharacter,
@@ -23,7 +24,7 @@ interface StatsEditForm {
 interface PendingOperation {
   type: 'create' | 'update' | 'delete';
   characterId: string;
-  originalState?: any;
+  originalState?: Character;
   timeoutId: ReturnType<typeof setTimeout>;
 }
 
@@ -90,7 +91,7 @@ export function useCharacterPanel() {
     };
   }, []);
 
-  const registerPendingOperation = (characterId: string, type: PendingOperation['type'], originalState?: any) => {
+  const registerPendingOperation = (characterId: string, type: PendingOperation['type'], originalState?: Character) => {
     const existing = pendingOperationsRef.current.get(characterId);
     if (existing) clearTimeout(existing.timeoutId);
 
@@ -143,12 +144,12 @@ export function useCharacterPanel() {
       if (event.detail?.character_id) confirmPendingOperation(String(event.detail.character_id));
     };
 
-    window.addEventListener('character-update' as any, handleCharacterUpdate);
-    window.addEventListener('character-saved' as any, handleCharacterSaved);
+    window.addEventListener('character-update' as keyof WindowEventMap, handleCharacterUpdate as EventListener);
+    window.addEventListener('character-saved' as keyof WindowEventMap, handleCharacterSaved as EventListener);
 
     return () => {
-      window.removeEventListener('character-update' as any, handleCharacterUpdate);
-      window.removeEventListener('character-saved' as any, handleCharacterSaved);
+      window.removeEventListener('character-update' as keyof WindowEventMap, handleCharacterUpdate as EventListener);
+      window.removeEventListener('character-saved' as keyof WindowEventMap, handleCharacterSaved as EventListener);
     };
   }, [characters]);
 
@@ -163,7 +164,7 @@ export function useCharacterPanel() {
     setShowWizard(true);
   };
 
-  const handleWizardFinish = async (data: any) => {
+  const handleWizardFinish = async (data: WizardFormData) => {
     const tempId = genId();
     
     if (!currentUserId) {
@@ -256,7 +257,7 @@ export function useCharacterPanel() {
 
     try {
       registerPendingOperation(charId, 'create', char);
-      const saveBlob = { character_id: charId, ...(char.data as any) };
+        const saveBlob = { character_id: charId, ...char.data };
       protocol.saveCharacter(saveBlob, currentUserId);
       showToast.info(`Retrying save for "${char.name}"...`);
     } catch (_error) {
@@ -339,7 +340,7 @@ export function useCharacterPanel() {
         if (protocol && isConnected) {
           try {
             registerPendingOperation(character.id, 'create');
-            const saveBlob = { character_id: character.id, ...(character.data as any) };
+            const saveBlob = { character_id: character.id, ...character.data };
             protocol.saveCharacter(saveBlob, currentUserId);
           } catch (_error) {
             confirmPendingOperation(character.id);
@@ -366,7 +367,7 @@ export function useCharacterPanel() {
     if (protocol && isConnected) {
       try {
         registerPendingOperation(clonedChar.id, 'create');
-        const saveBlob = { character_id: clonedChar.id, ...(clonedChar.data as any) };
+        const saveBlob = { character_id: clonedChar.id, ...clonedChar.data };
         protocol.saveCharacter(saveBlob, currentUserId);
       } catch (_error) {
         confirmPendingOperation(clonedChar.id);

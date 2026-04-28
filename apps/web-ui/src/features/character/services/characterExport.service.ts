@@ -90,12 +90,18 @@ export interface D5eCharacterExport {
   notes?: string;
 }
 
+interface ExportAdditionalData {
+  level?: number;
+  exportedBy?: string;
+  notes?: string;
+}
+
 export interface DNDBeyondExport {
   // D&D Beyond compatible format structure
   character: {
     id?: string;
     readonlyUrl?: string;
-    decorations?: any;
+    decorations?: Record<string, unknown>;
     
     // Core character data matching D&D Beyond structure
     name: string;
@@ -127,9 +133,9 @@ export interface DNDBeyondExport {
       bonus?: number;
     }>;
     
-    modifiers: any[];
-    classSpells?: any[];
-    spells?: any;
+    modifiers: unknown[];
+    classSpells?: unknown[];
+    spells?: Record<string, unknown>;
     
     // Additional D&D Beyond fields
     baseHitPoints: number;
@@ -312,7 +318,7 @@ export class CharacterExportService {
   /**
    * Export character to comprehensive D&D 5e format
    */
-  static exportToD5e(character: WizardFormData, additionalData?: any): D5eCharacterExport {
+  static exportToD5e(character: WizardFormData, additionalData?: ExportAdditionalData): D5eCharacterExport {
     const level = additionalData?.level || 1;
     const exportedBy = additionalData?.exportedBy;
     const notes = additionalData?.notes;
@@ -414,7 +420,7 @@ export class CharacterExportService {
   /**
    * Export character to D&D Beyond compatible format
    */
-  static exportToDNDBeyond(character: WizardFormData, additionalData?: any): DNDBeyondExport {
+  static exportToDNDBeyond(character: WizardFormData, additionalData?: ExportAdditionalData): DNDBeyondExport {
     const level = additionalData?.level || 1;
     const abilityModifiers = {
       strength: this.calculateModifier(character.strength),
@@ -474,7 +480,7 @@ export class CharacterExportService {
   /**
    * Export character to character sheet format
    */
-  static exportToCharacterSheet(character: WizardFormData, additionalData?: any): CharacterSheetExport {
+  static exportToCharacterSheet(character: WizardFormData, additionalData?: ExportAdditionalData): CharacterSheetExport {
     const level = additionalData?.level || 1;
     const abilityModifiers = {
       strength: this.calculateModifier(character.strength),
@@ -625,7 +631,7 @@ export class CharacterExportService {
   /**
    * Download character data as JSON file
    */
-  static downloadAsJSON(characterData: any, filename: string): void {
+  static downloadAsJSON(characterData: unknown, filename: string): void {
     const jsonString = JSON.stringify(characterData, null, 2);
     const blob = new Blob([jsonString], { type: 'application/json' });
     const url = URL.createObjectURL(blob);

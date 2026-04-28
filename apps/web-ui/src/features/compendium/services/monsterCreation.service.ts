@@ -168,6 +168,47 @@ export interface EncounterTemplate {
   updatedAt: number;
 }
 
+// Raw data shape from the compendium API (external JSON)
+interface CompendiumRawMonster {
+  hit_points?: string | number;
+  type?: string;
+  subtype?: string;
+  size?: string;
+  alignment?: string;
+  challenge_rating?: string | number;
+  armor_class?: number;
+  strength?: number;
+  dexterity?: number;
+  constitution?: number;
+  intelligence?: number;
+  wisdom?: number;
+  charisma?: number;
+  speed?: unknown;
+  saving_throws?: unknown;
+  skills?: unknown;
+  damage_resistances?: unknown;
+  damage_immunities?: unknown;
+  damage_vulnerabilities?: unknown;
+  condition_immunities?: string[];
+  senses?: unknown;
+  languages?: string[];
+  actions?: Array<{
+    name: string;
+    desc?: string;
+    description?: string;
+    attack_bonus?: number;
+    damage?: unknown;
+    damage_dice?: string;
+    damage_type?: string;
+    damage_bonus?: number;
+  }>;
+  legendary_actions?: Array<{ name: string; desc?: string; description?: string }>;
+  spellcasting?: unknown;
+  desc?: string;
+  description?: string;
+  source?: string;
+}
+
 // === Service Class ===
 
 export class MonsterCreationService extends EventSystem {
@@ -179,7 +220,7 @@ export class MonsterCreationService extends EventSystem {
   private encounters: Map<string, EncounterTemplate> = new Map();
   
   // Compendium integration
-  private compendiumData: any = null;
+  private compendiumData: Record<string, unknown> | null = null;
   private isCompendiumLoaded = false;
   
   // Search and filtering
@@ -212,12 +253,12 @@ export class MonsterCreationService extends EventSystem {
   /**
    * Initialize with compendium data
    */
-  async initializeWithCompendium(compendiumData: any): Promise<void> {
+  async initializeWithCompendium(compendiumData: Record<string, unknown>): Promise<void> {
     try {
       this.compendiumData = compendiumData;
       
       if (compendiumData?.monsters) {
-        await this.loadMonstersFromCompendium(compendiumData.monsters);
+        await this.loadMonstersFromCompendium(compendiumData.monsters as Record<string, CompendiumRawMonster>);
       }
       
       this.isCompendiumLoaded = true;
@@ -237,10 +278,10 @@ export class MonsterCreationService extends EventSystem {
   /**
    * Load monsters from compendium data
    */
-  private async loadMonstersFromCompendium(monsters: any): Promise<void> {
+  private async loadMonstersFromCompendium(monsters: Record<string, CompendiumRawMonster>): Promise<void> {
     let loadedCount = 0;
     
-    for (const [name, monsterData] of Object.entries(monsters as Record<string, any>)) {
+    for (const [name, monsterData] of Object.entries(monsters)) {
       try {
         const template = this.convertCompendiumMonster(name, monsterData);
         if (template) {
@@ -259,7 +300,7 @@ export class MonsterCreationService extends EventSystem {
   /**
    * Convert compendium monster data to our template format
    */
-  private convertCompendiumMonster(name: string, data: any): MonsterTemplate | null {
+  private convertCompendiumMonster(name: string, data: CompendiumRawMonster): MonsterTemplate | null {
     try {
       // Parse hit points
       let hitPoints = { average: 1, formula: '1d4' };
@@ -290,7 +331,7 @@ export class MonsterCreationService extends EventSystem {
       
       // Add actions
       if (data.actions) {
-        data.actions.forEach((action: any) => {
+        data.actions.forEach((action) => {
           abilities.push({
             id: `action_${action.name.toLowerCase().replace(/\s+/g, '_')}`,
             name: action.name,
@@ -308,7 +349,7 @@ export class MonsterCreationService extends EventSystem {
 
       // Add legendary actions
       if (data.legendary_actions) {
-        data.legendary_actions.forEach((action: any) => {
+        data.legendary_actions.forEach((action) => {
           abilities.push({
             id: `legendary_${action.name.toLowerCase().replace(/\s+/g, '_')}`,
             name: action.name,
@@ -337,7 +378,7 @@ export class MonsterCreationService extends EventSystem {
         name: name,
         type: data.type || 'humanoid',
         subtype: data.subtype,
-        size: (data.size?.toLowerCase() || 'medium') as any,
+        size: ((data.size?.toLowerCase() || 'medium')) as MonsterTemplate['size'],
         alignment: data.alignment || 'neutral',
         challengeRating: crString,
         experiencePoints: xpTable[crString] || 0,
@@ -376,7 +417,7 @@ export class MonsterCreationService extends EventSystem {
   /**
    * Parse speed from various formats
    */
-  private parseSpeed(speedData: any): Record<string, number> {
+  private parseSpeed(speedData: unknown): Record<string, number> {
     const speeds: Record<string, number> = { walk: 30 };
     
     if (typeof speedData === 'number') {
@@ -405,8 +446,8 @@ export class MonsterCreationService extends EventSystem {
   /**
    * Parse saving throws
    */
-  private parseSavingThrows(savingThrows: any): Partial<Record<keyof MonsterStats, number>> | undefined {
-    if (!savingThrows) return undefined;
+  private parseSavingThrows(savingThrows: unknown): Partial<Record<keyof MonsterStats, number>> | undefined {
+    if (!savingThrows || typeof savingThrows !== 'object') return undefined;
     
     const saves: Partial<Record<keyof MonsterStats, number>> = {};
     const statMap: Record<string, keyof MonsterStats> = {
@@ -418,7 +459,7 @@ export class MonsterCreationService extends EventSystem {
       'cha': 'charisma'
     };
     
-    Object.entries(savingThrows).forEach(([key, value]) => {
+    Object.entries(savingThrows as Record<string, unknown>).forEach(([key, value]) => {
       const stat = statMap[key.toLowerCase().substring(0, 3)];
       if (stat) {
         saves[stat] = parseInt(value as string) || 0;
@@ -431,12 +472,12 @@ export class MonsterCreationService extends EventSystem {
   /**
    * Parse skills
    */
-  private parseSkills(skillsData: any): MonsterSkill[] | undefined {
-    if (!skillsData) return undefined;
+  private parseSkills(skillsData: unknown): MonsterSkill[] | undefined {
+    if (!skillsData || typeof skillsData !== 'object') return undefined;
     
     const skills: MonsterSkill[] = [];
     
-    Object.entries(skillsData).forEach(([skill, bonus]) => {
+    Object.entries(skillsData as Record<string, unknown>).forEach(([skill, bonus]) => {
       skills.push({
         skill: skill.replace('_', ' '),
         bonus: parseInt(bonus as string) || 0,
@@ -451,7 +492,7 @@ export class MonsterCreationService extends EventSystem {
   /**
    * Parse damage resistances, immunities, and vulnerabilities
    */
-  private parseResistances(resistances?: any, immunities?: any, vulnerabilities?: any): MonsterResistance[] | undefined {
+  private parseResistances(resistances?: unknown, immunities?: unknown, vulnerabilities?: unknown): MonsterResistance[] | undefined {
     const results: MonsterResistance[] = [];
     
     if (resistances) {
@@ -488,7 +529,7 @@ export class MonsterCreationService extends EventSystem {
   /**
    * Parse senses
    */
-  private parseSenses(sensesData: any): MonsterSense[] | undefined {
+  private parseSenses(sensesData: unknown): MonsterSense[] | undefined {
     if (!sensesData) return undefined;
     
     const senses: MonsterSense[] = [];
@@ -517,17 +558,17 @@ export class MonsterCreationService extends EventSystem {
   /**
    * Parse spellcasting information
    */
-  private parseSpellcasting(spellcastingData: any): MonsterTemplate['spells'] | undefined {
-    if (!spellcastingData) return undefined;
-    
+  private parseSpellcasting(spellcastingData: unknown): MonsterTemplate['spells'] | undefined {
+    if (!spellcastingData || typeof spellcastingData !== 'object') return undefined;
+    const d = spellcastingData as Record<string, unknown>;
     return {
       spellcaster: true,
-      level: spellcastingData.level || 1,
-      ability: (spellcastingData.ability?.toLowerCase() || 'intelligence') as keyof MonsterStats,
-      saveDC: spellcastingData.dc || 13,
-      attackBonus: spellcastingData.modifier || 5,
-      slots: spellcastingData.slots || {},
-      knownSpells: spellcastingData.spells || []
+      level: (d.level as number | undefined) || 1,
+      ability: ((d.ability as string | undefined)?.toLowerCase() || 'intelligence') as keyof MonsterStats,
+      saveDC: (d.dc as number | undefined) || 13,
+      attackBonus: (d.modifier as number | undefined) || 5,
+      slots: (d.slots as Record<number, number> | undefined) || {},
+      knownSpells: (d.spells as string[] | undefined) || []
     };
   }
 
@@ -551,7 +592,7 @@ export class MonsterCreationService extends EventSystem {
   /**
    * Generate tags for monster
    */
-  private generateTags(data: any): string[] {
+  private generateTags(data: CompendiumRawMonster): string[] {
     const tags: string[] = [];
     
     if (data.type) tags.push(data.type);
@@ -731,7 +772,7 @@ export class MonsterCreationService extends EventSystem {
       return null;
     }
     
-    const id = `instance_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+    const id = `instance_${Date.now()}_${Math.random().toString(36).slice(2, 11)}`;
     const name = customName || template.name;
     
     const instance: MonsterInstance = {
@@ -821,7 +862,7 @@ export class MonsterCreationService extends EventSystem {
    * Create custom monster template
    */
   createTemplate(template: Omit<MonsterTemplate, 'id' | 'createdAt' | 'updatedAt'>): MonsterTemplate {
-    const id = `custom_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+    const id = `custom_${Date.now()}_${Math.random().toString(36).slice(2, 11)}`;
     
     const fullTemplate: MonsterTemplate = {
       ...template,

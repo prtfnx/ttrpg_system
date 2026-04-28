@@ -168,7 +168,7 @@ export interface ClassMulticlassData {
 }
 
 class CompendiumService {
-  private cache: Map<string, { data: any; timestamp: number }> = new Map();
+  private cache: Map<string, { data: unknown; timestamp: number }> = new Map();
   private readonly CACHE_DURATION = 5 * 60 * 1000; // 5 minutes
 
   constructor() {
@@ -322,7 +322,17 @@ class CompendiumService {
    * Convert backend race format to frontend format
    * This bridges the gap between the compendium format and the existing frontend race format
    */
-  convertRaceFormat(backendRace: Race): any {
+  convertRaceFormat(backendRace: Race): {
+    name: string;
+    abilityScoreIncrease: Record<string, number>;
+    size: 'Small' | 'Medium';
+    speed: number;
+    languages: string[];
+    traits: { name: string; description: string }[];
+    proficiencies: { skills: string[] };
+    darkvision?: number;
+    subraces: Record<string, never>;
+  } {
     const abilityScoreIncrease: Record<string, number> = {};
     
     // Convert ability score increases to frontend format
@@ -356,27 +366,27 @@ class CompendiumService {
   /**
    * Get all monsters with optional CR filter
    */
-  async getMonsters(filters: { cr?: string; type?: string; limit?: number } = {}): Promise<{ monsters: Record<string, any>; count: number; metadata: any }> {
+  async getMonsters(filters: { cr?: string; type?: string; limit?: number } = {}): Promise<{ monsters: Record<string, Record<string, unknown>>; count: number; metadata: Record<string, unknown> }> {
     const params = new URLSearchParams();
     if (filters.cr) params.append('cr', filters.cr);
     if (filters.limit) params.append('limit', filters.limit.toString());
     const qs = params.toString();
-    return this.fetchWithCache<{ monsters: Record<string, any>; count: number; metadata: any }>(`/monsters${qs ? `?${qs}` : ''}`);
+    return this.fetchWithCache<{ monsters: Record<string, Record<string, unknown>>; count: number; metadata: Record<string, unknown> }>(`/monsters${qs ? `?${qs}` : ''}`);
   }
 
   /**
    * Get all equipment data
    */
-  async getEquipment(): Promise<{ equipment: Record<string, any[]> }> {
-    return this.fetchWithCache<{ equipment: Record<string, any[]> }>('/equipment');
+  async getEquipment(): Promise<{ equipment: Record<string, unknown[]> }> {
+    return this.fetchWithCache<{ equipment: Record<string, unknown[]> }>('/equipment');
   }
 
   /**
    * Get all races in frontend format
    */
-  async getRacesForFrontend(): Promise<Record<string, any>> {
+  async getRacesForFrontend(): Promise<Record<string, ReturnType<CompendiumService['convertRaceFormat']>>> {
     const racesResponse = await this.getRaces();
-    const frontendRaces: Record<string, any> = {};
+    const frontendRaces: Record<string, ReturnType<CompendiumService['convertRaceFormat']>> = {};
     
     racesResponse.races.forEach(race => {
       frontendRaces[race.name] = this.convertRaceFormat(race);

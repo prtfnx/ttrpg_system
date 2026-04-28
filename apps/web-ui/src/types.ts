@@ -290,5 +290,9 @@ declare global {
     wasmInitialized: boolean;
     activeTableId?: string | null;
     __INITIAL_DATA__?: { userRole?: string; [key: string]: unknown };
+    // Canvas tool globals (ephemeral cross-component state via window)
+    shapeSettings?: { color: string; opacity: number; filled: boolean };
+    fromDrawShapes?: boolean;
+    selectedSpellTemplate?: { name: string; type: string; radiusFt?: number; radiusPx?: number; lengthFt?: number; lengthPx?: number };
   }
 }

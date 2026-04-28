@@ -445,6 +445,17 @@ export class RenderEngine {
    * Enhanced mouse down handler with modifier key support
    */
   handle_mouse_down_with_modifiers(screen_x: number, screen_y: number, ctrl_key: boolean, shift_key: boolean): string | undefined;
+  // Runtime-only wall management methods (not exposed by wasm-bindgen, injected at runtime)
+  add_wall?: (wall_json: string) => void;
+  update_wall?: (wall_id: string, updates_json: string) => void;
+  remove_wall?: (wall_id: string) => void;
+  clear_walls?: () => void;
+  set_table_units?: (table_id: string, grid_cell_px: number, cell_distance: number, distance_unit: string) => void;
+  fog_set_gm_mode?: (is_gm: boolean) => void;
+  // Layer management (not formally exposed in wasm-bindgen)
+  set_active_layer?: (layer_name: string) => void;
+  // Wall visualization (not formally exposed in wasm-bindgen)
+  get_wall_render_data?: () => Float32Array;
 }
 export class TableManager {
   free(): void;

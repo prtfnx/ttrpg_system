@@ -5,7 +5,7 @@
  * Handles all message types defined in protocol.py with proper authentication
  */
 
-import { useGameStore, type WallData } from '@/store';
+import { useGameStore } from '@/store';
 import { useAssetCharacterCache } from '@features/assets/services/assetCache';
 import { logger, protocolLogger } from '@shared/utils/logger';
 import { showToast } from '@shared/utils/toast';
@@ -105,7 +105,7 @@ export class WebClientProtocol {
   }
 
   /** Send only changed fields (delta) for updates */
-  sendDelta(type: MessageType, id: string, changes: Record<string, unknown>) {
+  sendDelta(type: MessageType, id: string, changes: Record<string, any>) {
     const msg: Message = {
       type,
       data: { id, changes },
@@ -599,28 +599,28 @@ export class WebClientProtocol {
   private async handleWelcome(message: Message): Promise<void> {
     protocolLogger.message('received', { type: 'welcome', data: message.data });
 
-    const data = message.data as Record<string, unknown>;
+    const data = message.data as Record<string, any>;
     if (data.user_id) {
       this.userId = data.user_id as number;
       useGameStore.getState().setUserId(this.userId);
     }
     if (data.role) {
       useGameStore.getState().setSessionRole(
-        data.role as import('@features/session/types/roles').SessionRole,
-        Array.isArray(data.permissions) ? data.permissions as string[] : [],
-        Array.isArray(data.visible_layers) ? data.visible_layers as string[] : []
+        data.role,
+        Array.isArray(data.permissions) ? data.permissions : [],
+        Array.isArray(data.visible_layers) ? data.visible_layers : []
       );
     }
 
     // Seed game mode and session rules from the welcome payload
     if (data.game_mode) {
       const { useGameModeStore } = await import('@features/combat/stores/gameModeStore');
-      useGameModeStore.getState().setMode(data.game_mode as import('@features/combat/stores/gameModeStore').GameMode);
+      useGameModeStore.getState().setMode(data.game_mode);
     }
     if (data.session_rules && typeof data.session_rules === 'object') {
       const { useSessionRulesStore, DEFAULT_RULES } = await import('@features/combat/stores/sessionRulesStore');
-      type SessionRules = import('@features/combat/stores/sessionRulesStore').SessionRules;
-      const merged: SessionRules = { session_id: '', ...DEFAULT_RULES, ...(data.session_rules as Partial<SessionRules>) };
+      type R = import('@features/combat/stores/sessionRulesStore').SessionRules;
+      const merged = { session_id: '', ...DEFAULT_RULES, ...(data.session_rules as Partial<R>) } as R;
       useSessionRulesStore.getState().setRules(merged);
     }
 
@@ -722,14 +722,14 @@ export class WebClientProtocol {
   private async handleTableListResponse(message: Message): Promise<void> {
     console.log('Table list received:', message.data);
     // Update store directly so panels that mount after this response still see the data
-    const data = message.data as Record<string, unknown>;
+    const data = message.data as Record<string, any>;
     if (data?.tables) {
-      const serverTables = Object.entries(data.tables as Record<string, Record<string, unknown>>).map(([id, d]) => ({
+      const serverTables = Object.entries(data.tables as Record<string, any>).map(([id, d]: [string, any]) => ({
         table_id: id,
         ...d,
         syncStatus: 'synced' as const,
         lastSyncTime: Date.now()
-      })) as import('@/store').TableInfo[];
+      }));
       useGameStore.getState().setTables(serverTables);
       useGameStore.getState().setTablesLoading(false);
     }
@@ -743,35 +743,35 @@ export class WebClientProtocol {
 
   private async handleTableResponse(message: Message): Promise<void> {
     console.log('Table response received:', message.data);
-    const data = message.data as Record<string, unknown>;
+    const data = message.data as any;
     if (data?.table_data) {
-      const td = data.table_data as Record<string, unknown>;
+      const td = data.table_data;
       const store = useGameStore.getState();
       store.applyTableLightingSettings({
-        dynamic_lighting_enabled: (td.dynamic_lighting_enabled as boolean) ?? false,
-        fog_exploration_mode: (td.fog_exploration_mode as string) ?? 'current_only',
-        ambient_light_level: (td.ambient_light_level as number) ?? 1.0,
+        dynamic_lighting_enabled: td.dynamic_lighting_enabled ?? false,
+        fog_exploration_mode: td.fog_exploration_mode ?? 'current_only',
+        ambient_light_level: td.ambient_light_level ?? 1.0,
       });
       if (td.grid_cell_px != null || td.cell_distance != null || td.distance_unit != null) {
         store.setTableUnits({
-          gridCellPx: (td.grid_cell_px as number) ?? 50,
-          cellDistance: (td.cell_distance as number) ?? 5,
-          distanceUnit: (td.distance_unit as 'ft' | 'm') ?? 'ft',
+          gridCellPx: td.grid_cell_px ?? 50,
+          cellDistance: td.cell_distance ?? 5,
+          distanceUnit: td.distance_unit ?? 'ft',
         });
       }
-      if (td.grid_enabled != null) store.setGridEnabled(td.grid_enabled as boolean);
-      if (td.snap_to_grid != null) store.setGridSnapping(td.snap_to_grid as boolean);
-      if (td.grid_color_hex) store.setGridColorHex(td.grid_color_hex as string);
-      if (td.background_color_hex) store.setBackgroundColorHex(td.background_color_hex as string);
+      if (td.grid_enabled != null) store.setGridEnabled(td.grid_enabled);
+      if (td.snap_to_grid != null) store.setGridSnapping(td.snap_to_grid);
+      if (td.grid_color_hex) store.setGridColorHex(td.grid_color_hex);
+      if (td.background_color_hex) store.setBackgroundColorHex(td.background_color_hex);
     }
     // Sync walls on table join
-    if (Array.isArray(data?.walls) && (data.walls as unknown[]).length > 0) {
-      useGameStore.getState().addWalls(data.walls as WallData[]);
+    if (Array.isArray(data?.walls) && data.walls.length > 0) {
+      useGameStore.getState().addWalls(data.walls);
       // addWalls already forwards each wall into rustRenderManager
     }
     // Apply persisted layer settings on join
     if (data?.layer_settings && typeof data.layer_settings === 'object') {
-      this.applyLayerSettings(data.layer_settings as Record<string, Record<string, unknown>>);
+      this.applyLayerSettings(data.layer_settings as Record<string, Record<string, any>>);
     }
     window.dispatchEvent(new CustomEvent('table-response', { detail: message.data }));
   }
@@ -784,7 +784,7 @@ export class WebClientProtocol {
       return;
     }
     
-    const data = message.data as Record<string, unknown>;
+    const data = message.data as any;
     const table_id = data.table_id;
     const success = data.success;
     const error = data.error;
@@ -792,10 +792,10 @@ export class WebClientProtocol {
     if (success && table_id) {
       // Set the active table in the store
       const gameStore = useGameStore.getState();
-      gameStore.setActiveTableId(table_id as string);
+      gameStore.setActiveTableId(table_id);
       
       // Request table data for the active table
-      this.requestTableData(table_id as string);
+      this.requestTableData(table_id);
       
       console.log(`[Protocol] Active table set to: ${table_id}`);
     } else if (error) {
@@ -877,17 +877,14 @@ export class WebClientProtocol {
     // Bulk load assets into cache
     if (Array.isArray(message.data?.assets)) {
       const validAssets = message.data.assets.filter(
-        (a: unknown) => a && typeof (a as Record<string, unknown>).id === 'string'
-      ).map((a: unknown) => {
-        const asset = a as Record<string, unknown>;
-        return {
-          id: String(asset.id),
-          name: typeof asset.name === 'string' ? asset.name : '',
-          url: typeof asset.url === 'string' ? asset.url : '',
-          hash: typeof asset.hash === 'string' ? asset.hash : undefined,
-          type: typeof asset.type === 'string' ? asset.type : undefined,
-        };
-      });
+        (a: any) => a && typeof a.id === 'string'
+      ).map((a: any) => ({
+        id: String(a.id),
+        name: typeof a.name === 'string' ? a.name : '',
+        url: typeof a.url === 'string' ? a.url : '',
+        hash: typeof a.hash === 'string' ? a.hash : undefined,
+        type: typeof a.type === 'string' ? a.type : undefined,
+      }));
       useAssetCharacterCache.getState().bulkLoadAssets(validAssets);
     }
     window.dispatchEvent(new CustomEvent('asset-list-updated', { detail: message.data }));
@@ -964,22 +961,19 @@ export class WebClientProtocol {
       
       // Map server characters to client format
       const characters = message.data.characters
-        .filter((c: unknown) => c && ((c as Record<string, unknown>).character_id || (c as Record<string, unknown>).id))
-        .map((c: unknown) => {
-          const ch = c as Record<string, unknown>;
-          return {
-            id: String(ch.character_id || ch.id),
-            sessionId: (ch.session_id as string) || '',
-            name: String(ch.character_name || ch.name || 'Unnamed'),
-            ownerId: Number(ch.owner_user_id || ch.ownerId || 0),
-            controlledBy: Array.isArray(ch.controlledBy) ? (ch.controlledBy as number[]) : [],
-            data: (ch.character_data ?? ch.data ?? {}) as Record<string, unknown>,
-            version: Number(ch.version || 1),
-            createdAt: (ch.created_at as string) || new Date().toISOString(),
-            updatedAt: (ch.updated_at as string) || new Date().toISOString(),
-            syncStatus: 'synced' as const
-          };
-        });
+        .filter((c: any) => c && (c.character_id || c.id))
+        .map((c: any) => ({
+          id: String(c.character_id || c.id),
+          sessionId: c.session_id || '',
+          name: String(c.character_name || c.name || 'Unnamed'),
+          ownerId: Number(c.owner_user_id || c.ownerId || 0),
+          controlledBy: Array.isArray(c.controlledBy) ? c.controlledBy : [],
+          data: c.character_data || c.data || {},
+          version: Number(c.version || 1),
+          createdAt: c.created_at || new Date().toISOString(),
+          updatedAt: c.updated_at || new Date().toISOString(),
+          syncStatus: 'synced' as const
+        }));
       
       // Clear existing characters and load new ones
       // This ensures we don't have stale data
@@ -989,7 +983,12 @@ export class WebClientProtocol {
       console.log(`Loaded ${characters.length} characters from server`);
       
       // Also sync to asset cache (used by asset resolution pipeline)
-      useAssetCharacterCache.getState().bulkLoadCharacters(characters as import('@/types').Character[]);
+      const cacheChars = characters.map(c => ({
+        id: c.id,
+        name: c.name,
+        data: c.data,
+      }));
+      useAssetCharacterCache.getState().bulkLoadCharacters(cacheChars);
     }
     
     window.dispatchEvent(new CustomEvent('character-list-updated', { detail: message.data }));
@@ -998,14 +997,12 @@ export class WebClientProtocol {
   // Handle incoming character delta updates broadcast from server
   private async handleCharacterUpdate(message: Message): Promise<void> {
     console.log('Character update received:', message.data);
-    const data: Record<string, unknown> = (message.data as Record<string, unknown>) || {};
+    const data: any = message.data || {};
     const store = useGameStore.getState();
     
     // Check for operation type
-    const operation = data['operation'];
-    const characterId = String(data['character_id'] as string | undefined || '');
-
-    if (!characterId) return;
+    const operation = data.operation;
+    const characterId = data.character_id;
     
     if (operation === 'delete' && characterId) {
       // Handle character deletion broadcast
@@ -1017,18 +1014,18 @@ export class WebClientProtocol {
     
     if (operation === 'save' || operation === 'create') {
       // Full character update (new character or complete save)
-      const characterData = data['character_data'] as Record<string, unknown> | undefined;
+      const characterData = data.character_data;
       if (characterData) {
         const character = {
-          id: String(characterData['character_id'] || characterData['id'] || characterId),
-          sessionId: String(characterData['session_id'] || characterData['sessionId'] || ''),
-          name: String(characterData['name'] || 'Unnamed'),
-          ownerId: Number(characterData['owner_user_id'] || characterData['ownerId'] || 0),
-          controlledBy: Array.isArray(characterData['controlledBy']) ? (characterData['controlledBy'] as number[]) : [],
-          data: characterData['data'] ?? characterData,
-          version: Number(data['version'] || characterData['version'] || 1),
-          createdAt: String(characterData['created_at'] || characterData['createdAt'] || new Date().toISOString()),
-          updatedAt: String(characterData['updated_at'] || characterData['updatedAt'] || new Date().toISOString()),
+          id: String(characterData.character_id || characterData.id || characterId),
+          sessionId: characterData.session_id || characterData.sessionId || '',
+          name: String(characterData.name || 'Unnamed'),
+          ownerId: Number(characterData.owner_user_id || characterData.ownerId || 0),
+          controlledBy: Array.isArray(characterData.controlledBy) ? characterData.controlledBy : [],
+          data: characterData.data || characterData,
+          version: Number(data.version || characterData.version || 1),
+          createdAt: characterData.created_at || characterData.createdAt || new Date().toISOString(),
+          updatedAt: characterData.updated_at || characterData.updatedAt || new Date().toISOString(),
           syncStatus: 'synced' as const
         };
         
@@ -1048,10 +1045,10 @@ export class WebClientProtocol {
     }
     
     // Delta update (partial changes)
-    const updates = data['updates'];
+    const updates = data.updates;
     if (characterId && updates) {
-      const version = data['version'];
-      const updatePayload: Record<string, unknown> = { ...((updates as Record<string, unknown>)) };
+      const version = data.version;
+      const updatePayload: any = { ...updates };
       if (version !== undefined) {
         updatePayload.version = version;
       }
@@ -1076,7 +1073,7 @@ export class WebClientProtocol {
     if (success && characterId) {
       // Update successful - update version and sync status
       const store = useGameStore.getState();
-      const updatePayload: Record<string, unknown> = { syncStatus: 'synced' };
+      const updatePayload: any = { syncStatus: 'synced' };
       if (version !== undefined) {
         updatePayload.version = typeof version === 'number' ? version : parseInt(String(version));
       }
@@ -1107,9 +1104,9 @@ export class WebClientProtocol {
             if (character && character.syncStatus === 'error') {
               // Update with the new version
               store.updateCharacter(characterId, {
-                version: currentVersion as number,
+                version: currentVersion,
                 syncStatus: 'synced'
-              });
+              } as any);
               
               showToast.success('Character synchronized with latest version');
             }
@@ -1129,7 +1126,7 @@ export class WebClientProtocol {
       } else {
         // Other error
         console.error(`Character update failed: ${error}`);
-        store.updateCharacter(characterId, { syncStatus: 'error' });
+        store.updateCharacter(characterId, { syncStatus: 'error' } as any);
         showToast.error(`Failed to update character: ${error || 'Unknown error'}`);
       }
     }
@@ -1173,7 +1170,7 @@ export class WebClientProtocol {
     if (data.background_color_hex != null) store.setBackgroundColorHex(data.background_color_hex);
 
     // Apply visual changes directly to WASM renderer
-    const rm = (window as unknown as Record<string, unknown>)['rustRenderManager'] as Record<string, (((...args: unknown[]) => unknown) | undefined)> | undefined;
+    const rm = (window as any).rustRenderManager;
     if (rm) {
       if (data.grid_enabled !== undefined && rm.set_grid_enabled) rm.set_grid_enabled(data.grid_enabled);
       if (data.snap_to_grid !== undefined && rm.set_snap_to_grid) rm.set_snap_to_grid(data.snap_to_grid);
@@ -1190,18 +1187,18 @@ export class WebClientProtocol {
   }
 
   private async handleWallData(message: Message): Promise<void> {
-    const data = message.data as { operation: string; wall?: Record<string, unknown>; walls?: Record<string, unknown>[]; wall_id?: string };
+    const data = message.data as { operation: string; wall?: Record<string, any>; walls?: Record<string, any>[]; wall_id?: string };
     const store = useGameStore.getState();
     switch (data.operation) {
       case 'create':
-        if (data.wall) store.addWall(data.wall as unknown as WallData);
+        if (data.wall) store.addWall(data.wall as any);
         break;
       case 'batch_create':
       case 'join_sync':
-        if (data.walls?.length) store.addWalls(data.walls as unknown as WallData[]);
+        if (data.walls?.length) store.addWalls(data.walls as any[]);
         break;
       case 'update':
-        if (data.wall?.wall_id) store.updateWall(data.wall.wall_id as string, data.wall as unknown as Partial<WallData>);
+        if (data.wall?.wall_id) store.updateWall(data.wall.wall_id, data.wall as any);
         break;
       case 'remove':
         if (data.wall_id) store.removeWall(data.wall_id);
@@ -1210,23 +1207,24 @@ export class WebClientProtocol {
   }
 
   private async handleLayerSettingsUpdate(message: Message): Promise<void> {
-    const data = message.data as { layer: string; settings: Record<string, unknown> };
+    const data = message.data as { layer: string; settings: Record<string, any> };
     if (data?.layer && data?.settings) {
       this.applyLayerSettings({ [data.layer]: data.settings });
     }
   }
 
-  private applyLayerSettings(settings: Record<string, Record<string, unknown>>): void {
-    const rm = (window as unknown as Record<string, unknown>)['rustRenderManager'] as Record<string, (((...args: unknown[]) => unknown) | undefined)> | undefined;
+  /** Apply a map of { layerName → settings } to the WASM engine and Zustand store. */
+  private applyLayerSettings(settings: Record<string, Record<string, any>>): void {
+    const rm = window.rustRenderManager as any;
     const store = useGameStore.getState();
     for (const [layer, s] of Object.entries(settings)) {
       if (s.opacity !== undefined) {
         rm?.set_layer_opacity?.(layer, s.opacity);
-        store.setLayerOpacity(layer, s.opacity as number);
+        store.setLayerOpacity(layer, s.opacity);
       }
       if (s.visible !== undefined) {
         rm?.set_layer_visibility?.(layer, s.visible);
-        store.setLayerVisibility(layer, s.visible as boolean);
+        store.setLayerVisibility(layer, s.visible);
       }
       if (Array.isArray(s.tint_color) && s.tint_color.length >= 4) {
         rm?.set_layer_tint_color?.(layer, s.tint_color[0], s.tint_color[1], s.tint_color[2], s.tint_color[3]);
@@ -1332,7 +1330,7 @@ export class WebClientProtocol {
       return;
     }
     validateTableId(activeTableId);
-    const sprite = state.sprites.find((s) => s.id === spriteId);
+    const sprite = state.sprites.find((s: any) => s.id === spriteId);
     const from = { x: sprite?.x ?? x, y: sprite?.y ?? y };
     this.sendMessage(createMessage(MessageType.SPRITE_MOVE, {
       sprite_id: spriteId, table_id: activeTableId,
@@ -1474,7 +1472,7 @@ export class WebClientProtocol {
       return;
     }
 
-    const payload: Record<string, unknown> = {
+    const payload: any = {
       character_id: characterId,
       updates,
       user_id: effectiveUserId,

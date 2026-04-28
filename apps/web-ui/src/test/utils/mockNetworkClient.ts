@@ -6,7 +6,7 @@ export class MockNetworkClient {
   private messageHandler: MessageHandler | null = null;
   private connectionHandler: ConnectionHandler | null = null;
   private errorHandler: ErrorHandler | null = null;
-  private clientId = 'test-client-' + Math.random().toString(36).substr(2, 9);
+  private clientId = 'test-client-' + Math.random().toString(36).slice(2, 11);
 
   set_message_handler(handler: MessageHandler) {
     this.messageHandler = handler;

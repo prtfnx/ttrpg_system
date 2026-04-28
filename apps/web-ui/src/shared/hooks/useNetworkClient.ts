@@ -6,7 +6,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 
 interface NetworkMessage {
   type: string;
-  data: any;
+  data: unknown;
   timestamp: number;
   clientId?: string;
   userId?: number;
@@ -43,7 +43,7 @@ export const useNetworkClient = (options: NetworkHookOptions = {}) => {
   useEffect(() => {
     if (!clientRef.current) {
       // Use global WASM manager for consistent instance
-      wasmManager.getWasmModule().then(async (m: any) => {
+      wasmManager.getWasmModule().then(async (m: Record<string, unknown>) => {
         const NetworkClientClassOrInstance = m.NetworkClient;
         // wasmManager may return either a constructor (class) or an already-instantiated client.
         let client: NetworkClientInstance;
@@ -58,7 +58,7 @@ export const useNetworkClient = (options: NetworkHookOptions = {}) => {
           try {
             // Set up event handlers only if the client exposes the expected API.
             if (typeof client.set_message_handler === 'function') {
-              client.set_message_handler((messageType: string, data: any) => {
+              client.set_message_handler((messageType: string, data: unknown) => {
                 const message: NetworkMessage = {
                   type: messageType,
                   data,
@@ -145,7 +145,7 @@ export const useNetworkClient = (options: NetworkHookOptions = {}) => {
               }
             }
 
-          } catch (e: any) {
+          } catch (e: unknown) {
             const message = e instanceof Error ? e.message : String(e);
             const errorText = `Connection failed: ${message}`;
             // Set a clear error state so UI can respond appropriately
@@ -241,13 +241,13 @@ export const useNetworkClient = (options: NetworkHookOptions = {}) => {
   }, []);
 
   // Sprite synchronization
-  const sendSpriteUpdate = useCallback((spriteData: any) => {
+  const sendSpriteUpdate = useCallback((spriteData: unknown) => {
     if (clientRef.current) {
       clientRef.current.send_sprite_update(spriteData);
     }
   }, []);
 
-  const sendSpriteCreate = useCallback((spriteData: any) => {
+  const sendSpriteCreate = useCallback((spriteData: unknown) => {
     if (clientRef.current) {
       clientRef.current.send_sprite_create(spriteData);
     }
@@ -259,14 +259,14 @@ export const useNetworkClient = (options: NetworkHookOptions = {}) => {
     }
   }, []);
 
-  const sendTableUpdate = useCallback((tableData: any) => {
+  const sendTableUpdate = useCallback((tableData: unknown) => {
     if (clientRef.current) {
       clientRef.current.send_table_update(tableData);
     }
   }, []);
 
   // Generic message sending
-  const sendMessage = useCallback((messageType: string, data: any) => {
+  const sendMessage = useCallback((messageType: string, data: unknown) => {
     if (clientRef.current) {
       clientRef.current.send_message(messageType, data);
     }

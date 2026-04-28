@@ -4,7 +4,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 export interface ActionResult {
   success: boolean;
   message: string;
-  data?: any;
+  data?: unknown;
 }
 
 export interface TableInfo {
@@ -30,13 +30,13 @@ export interface SpriteInfo {
 
 export interface BatchAction {
   type: string;
-  params: Record<string, any>;
+  params: Record<string, unknown>;
 }
 
 export interface ActionHistoryEntry {
   action_type: string;
   timestamp: number;
-  data: any;
+  data: unknown;
   reversible: boolean;
 }
 
@@ -52,7 +52,7 @@ export interface ActionsState {
 }
 
 export interface ActionsCallbacks {
-  onAction?: (actionType: string, data: any) => void;
+  onAction?: (actionType: string, data: unknown) => void;
   onStateChange?: (eventType: string, targetId: string) => void;
   onError?: (error: string) => void;
 }
@@ -89,7 +89,7 @@ export function useActions(renderEngine: RenderEngine | null, callbacks?: Action
   useEffect(() => {
     if (!renderEngine) return;
 
-    const handleAction = (actionType: string, data: any) => {
+    const handleAction = (actionType: string, data: unknown) => {
       callbacksRef.current?.onAction?.(actionType, data);
     };
 

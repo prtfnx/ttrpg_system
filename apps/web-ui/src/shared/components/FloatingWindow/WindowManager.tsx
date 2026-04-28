@@ -4,8 +4,8 @@ import { FloatingWindow } from './FloatingWindow';
 interface WindowEntry {
   id: string;
   title: string;
-  component: React.ComponentType<any>;
-  props: Record<string, any>;
+  component: React.ComponentType<Record<string, unknown>>;
+  props: Record<string, unknown>;
   zIndex: number;
   initialWidth?: number;
   initialHeight?: number;
@@ -14,8 +14,8 @@ interface WindowEntry {
 interface WindowManagerContextValue {
   openWindow: (
     id: string,
-    component: React.ComponentType<any>,
-    props: Record<string, any>,
+    component: React.ComponentType<Record<string, unknown>>,
+    props: Record<string, unknown>,
     options?: { title?: string; width?: number; height?: number }
   ) => void;
   closeWindow: (id: string) => void;
@@ -36,8 +36,8 @@ export function WindowManagerProvider({ children }: { children: React.ReactNode 
 
   const openWindow = useCallback((
     id: string,
-    component: React.ComponentType<any>,
-    props: Record<string, any>,
+    component: React.ComponentType<Record<string, unknown>>,
+    props: Record<string, unknown>,
     options: { title?: string; width?: number; height?: number } = {}
   ) => {
     setWindows(prev => {

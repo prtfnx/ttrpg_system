@@ -39,8 +39,8 @@ export function exportCharacter(
     character: {
       ...character,
       // Strip runtime-only fields
-      syncStatus: undefined as any,
-    },
+      syncStatus: undefined,
+    } as Character,
     metadata: {
       ...metadata,
       originalSessionId: character.sessionId,
@@ -96,8 +96,8 @@ export function exportMultipleCharacters(
     count: characters.length,
     characters: characters.map(char => ({
       ...char,
-      syncStatus: undefined as any,
-    })),
+      syncStatus: undefined,
+    } as Character)),
     metadata,
   };
 
@@ -145,24 +145,31 @@ export interface ImportValidationResult {
  * @param data - Parsed JSON data
  * @returns Validation result with errors and warnings
  */
-export function validateImportedCharacter(data: any): ImportValidationResult {
+export function validateImportedCharacter(data: unknown): ImportValidationResult {
   const errors: string[] = [];
   const warnings: string[] = [];
 
+  if (typeof data !== 'object' || data === null) {
+    errors.push('Import data must be an object');
+    return { valid: false, errors, warnings };
+  }
+
+  const obj = data as Record<string, unknown>;
+
   // Check version
-  if (!data.version) {
+  if (!obj.version) {
     warnings.push('No version specified in import file');
-  } else if (data.version !== EXPORT_FORMAT_VERSION) {
-    warnings.push(`Import file version (${data.version}) differs from current version (${EXPORT_FORMAT_VERSION})`);
+  } else if (obj.version !== EXPORT_FORMAT_VERSION) {
+    warnings.push(`Import file version (${obj.version}) differs from current version (${EXPORT_FORMAT_VERSION})`);
   }
 
   // Check required character fields
-  if (!data.character) {
+  if (!obj.character) {
     errors.push('No character data found in import file');
     return { valid: false, errors, warnings };
   }
 
-  const char = data.character;
+  const char = obj.character as Record<string, unknown>;
 
   // Validate required fields
   if (!char.name || typeof char.name !== 'string') {
@@ -209,10 +216,10 @@ export function importCharacterFromJSON(
   currentUserId: number,
   currentSessionId: string
 ): { character: Character; warnings: string[] } {
-  let data: any;
+  let data: Record<string, unknown>;
   
   try {
-    data = JSON.parse(fileContent);
+    data = JSON.parse(fileContent) as Record<string, unknown>;
   } catch (_error) {
     throw new Error('Invalid JSON file. Please select a valid character export file.');
   }
@@ -226,9 +233,9 @@ export function importCharacterFromJSON(
 
   // Generate new character with reset values
   const importedCharacter: Character = {
-    ...data.character,
+    ...(data.character as object),
     // Reset identity and session data
-    id: `imported-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+    id: `imported-${Date.now()}-${Math.random().toString(36).slice(2, 11)}`,
     sessionId: currentSessionId,
     ownerId: currentUserId,
     controlledBy: [currentUserId], // Importer gets control
@@ -263,15 +270,14 @@ export function importMultipleCharactersFromJSON(
   currentUserId: number,
   currentSessionId: string
 ): { characters: Character[]; warnings: string[] } {
-  let data: any;
+  let data: Record<string, unknown>;
   
   try {
-    data = JSON.parse(fileContent);
+    data = JSON.parse(fileContent) as Record<string, unknown>;
   } catch (_error) {
     throw new Error('Invalid JSON file. Please select a valid character export file.');
   }
 
-  // Check if it's a multiple character export
   if (!data.characters || !Array.isArray(data.characters)) {
     throw new Error('Invalid multiple character export file. Expected "characters" array.');
   }
@@ -279,8 +285,10 @@ export function importMultipleCharactersFromJSON(
   const warnings: string[] = [];
   const characters: Character[] = [];
 
-  for (let i = 0; i < data.characters.length; i++) {
-    const charData = { character: data.characters[i], version: data.version };
+  const charList = data.characters as unknown[];
+
+  for (let i = 0; i < charList.length; i++) {
+    const charData = { character: charList[i], version: data.version };
     const validation = validateImportedCharacter(charData);
     
     if (!validation.valid) {
@@ -291,8 +299,8 @@ export function importMultipleCharactersFromJSON(
     warnings.push(...validation.warnings.map(w => `Character ${i + 1}: ${w}`));
 
     const importedChar: Character = {
-      ...data.characters[i],
-      id: `imported-${Date.now()}-${i}-${Math.random().toString(36).substr(2, 9)}`,
+      ...(charList[i] as object),
+      id: `imported-${Date.now()}-${i}-${Math.random().toString(36).slice(2, 11)}`,
       sessionId: currentSessionId,
       ownerId: currentUserId,
       controlledBy: [currentUserId],
@@ -375,7 +383,7 @@ export function cloneCharacter(
 ): Character {
   const clonedCharacter: Character = {
     ...character,
-    id: `cloned-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+    id: `cloned-${Date.now()}-${Math.random().toString(36).slice(2, 11)}`,
     name: `${character.name} (Copy)`,
     ownerId: currentUserId,
     controlledBy: [currentUserId],

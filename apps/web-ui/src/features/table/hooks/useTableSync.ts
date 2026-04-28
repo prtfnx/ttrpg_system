@@ -43,7 +43,7 @@ export interface SpriteUpdateData {
   sprite_id: string;
   table_id: string;
   update_type: string;
-  data: any;
+  data: Record<string, unknown>;
 }
 
 interface TableSyncState {
@@ -63,10 +63,10 @@ interface TableSyncHookOptions {
 }
 
 export const useTableSync = (options: TableSyncHookOptions = {}) => {
-  const tableSyncRef = useRef<any>(null);
+  const tableSyncRef = useRef<unknown>(null);
   // Ref-based handler so the stable onMessage wrapper never becomes stale
-  const handleNetworkMessageRef = useRef<((type: string, data: any) => void) | undefined>(undefined);
-  const stableOnMessage = useCallback((msg: { type: string; data: any }) => {
+  const handleNetworkMessageRef = useRef<((type: string, data: Record<string, unknown>) => void) | undefined>(undefined);
+  const stableOnMessage = useCallback((msg: { type: string; data: Record<string, unknown> }) => {
     handleNetworkMessageRef.current?.(msg.type, msg.data);
   }, []);
   const { client: networkClient, networkState } = useNetworkClient({ onMessage: stableOnMessage });
@@ -84,15 +84,15 @@ export const useTableSync = (options: TableSyncHookOptions = {}) => {
   useEffect(() => {
     if (!tableSyncRef.current) {
       // Use global WASM manager — TableSync is internal to the WASM module
-      wasmManager.getWasmModule().then(async (m: any) => {
-        const TableSyncClass = m.TableSync;
+      wasmManager.getWasmModule().then(async (m: Record<string, unknown>) => {
+        const TableSyncClass = m.TableSync as (new () => { set_table_received_handler: (h: (d: unknown) => void) => void; set_sprite_update_handler: (h: (d: unknown) => void) => void; set_error_handler: (h: (e: string) => void) => void; handle_table_data: (d: unknown) => void; handle_sprite_update: (d: unknown) => void; request_table: (id: string) => void; send_sprite_move: (id: string, x: number, y: number) => void; send_sprite_scale: (id: string, x: number, y: number) => void; send_sprite_rotate: (id: string, r: number) => void; send_sprite_delete: (id: string) => void }) | undefined;
         if (!TableSyncClass) {
           throw new Error('TableSync not available in WASM module');
         }
         const tableSync = new TableSyncClass();
         
         // Set up event handlers
-        tableSync.set_table_received_handler((tableDataJs: any) => {
+        tableSync.set_table_received_handler((tableDataJs: unknown) => {
           try {
             const tableData = JSON.parse(JSON.stringify(tableDataJs)) as TableData;
             setState(prev => ({
@@ -116,7 +116,7 @@ export const useTableSync = (options: TableSyncHookOptions = {}) => {
           }
         });
 
-        tableSync.set_sprite_update_handler((updateDataJs: any) => {
+        tableSync.set_sprite_update_handler((updateDataJs: unknown) => {
           try {
             const updateData = JSON.parse(JSON.stringify(updateDataJs)) as SpriteUpdateData;
             
@@ -356,7 +356,7 @@ export const useTableSync = (options: TableSyncHookOptions = {}) => {
 
     const fullSpriteData: SpriteData = {
       ...spriteData,
-      sprite_id: `sprite_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+      sprite_id: `sprite_${Date.now()}_${Math.random().toString(36).slice(2, 11)}`,
     };
 
     try {
@@ -385,7 +385,7 @@ export const useTableSync = (options: TableSyncHookOptions = {}) => {
   }, []);
 
   // Handle message from network client
-  const handleNetworkMessage = useCallback((messageType: string, data: any) => {
+  const handleNetworkMessage = useCallback((messageType: string, data: Record<string, unknown>) => {
     if (!tableSyncRef.current) return;
 
     try {

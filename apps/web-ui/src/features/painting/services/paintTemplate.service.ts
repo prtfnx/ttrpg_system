@@ -40,7 +40,7 @@ class PaintTemplateService {
     description?: string,
     thumbnail?: string
   ): Promise<string> {
-    const id = `template_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+    const id = `template_${Date.now()}_${Math.random().toString(36).slice(2, 11)}`;
     const now = new Date().toISOString();
     
     const template: PaintTemplate = {
@@ -175,7 +175,7 @@ class PaintTemplateService {
         try {
           if (this.validateTemplate(template)) {
             // Generate new ID to avoid conflicts
-            const newId = `template_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+            const newId = `template_${Date.now()}_${Math.random().toString(36).slice(2, 11)}`;
             const importedTemplate = { ...template, id: newId };
             this.templates.set(newId, importedTemplate);
             imported++;

@@ -1,5 +1,5 @@
 import { useGameStore } from '@/store';
-import type { Color } from '@/types';
+import type { Color, Sprite } from '@/types';
 import { useRenderEngine } from '@features/canvas';
 import { useProtocol } from '@lib/api';
 import {
@@ -15,7 +15,8 @@ import {
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import styles from './LightingPanel.module.css';
 
-function lightToSprite(light: Light, tableId: string): Record<string, any> {
+type LightSpritePayload = { id: string; x: number; y: number; scale_x: number; scale_y: number; rotation: number; texture_path: string; layer: string; table_id: string; metadata: string };
+function lightToSprite(light: Light, tableId: string): LightSpritePayload {
   const converter = useGameStore.getState().getUnitConverter();
   const radiusUnits = converter.toUnits(light.radius);
   return {
@@ -40,13 +41,14 @@ function lightToSprite(light: Light, tableId: string): Record<string, any> {
   };
 }
 
-function spriteToLight(sprite: any): Light | null {
+type LightSprite = { id?: string; sprite_id?: string; layer: string; texture_path?: string; texture?: string; x?: number; y?: number; metadata?: string | Record<string, unknown> };
+function spriteToLight(sprite: LightSprite): Light | null {
   const texturePath = sprite.texture_path || sprite.texture;
   if (sprite.layer !== 'light' || texturePath !== '__LIGHT__') return null;
 
-  let meta: any = {};
+  let meta: Record<string, unknown> = {};
   try {
-    meta = typeof sprite.metadata === 'string' ? JSON.parse(sprite.metadata) : (sprite.metadata ?? {});
+    meta = (typeof sprite.metadata === 'string' ? JSON.parse(sprite.metadata) : (sprite.metadata ?? {})) as Record<string, unknown>;
   } catch {
     // keep defaults
   }
@@ -111,8 +113,8 @@ export const LightingPanel: React.FC = () => {
   // Derive lights directly from store  single source of truth
   const lights = useMemo(() => {
     return sprites
-      .filter(s => s.layer === 'light' && (!activeTableId || (s as any).tableId === activeTableId || (s as any).table_id === activeTableId))
-      .map(spriteToLight)
+      .filter(s => s.layer === 'light' && (!activeTableId || s.tableId === activeTableId))
+      .map(spriteToLight as (s: typeof sprites[number]) => Light | null)
       .filter((l): l is Light => l !== null);
   }, [sprites, activeTableId]);
 
@@ -178,7 +180,8 @@ export const LightingPanel: React.FC = () => {
       // and server confirmation doesn't reset the position if user moves it first
       if (activeTableId) {
         const spritePayload = lightToSprite(newLight, activeTableId);
-        useGameStore.getState().addSprite({ ...spritePayload, texture: '__LIGHT__' } as any);
+        const addSpriteArg: Sprite = { ...spritePayload, id: spritePayload.id, texture: '__LIGHT__', name: spritePayload.id, tableId: activeTableId, scale: { x: 1, y: 1 }, x: spritePayload.x, y: spritePayload.y, layer: spritePayload.layer, rotation: spritePayload.rotation };
+        useGameStore.getState().addSprite(addSpriteArg);
       }
 
       setSelectedLightId(lightId);
@@ -202,7 +205,7 @@ export const LightingPanel: React.FC = () => {
     protocol?.removeSprite(lightId);
   };
 
-  const updateLightProperty = (lightId: string, property: keyof Light, value: any) => {
+  const updateLightProperty = (lightId: string, property: keyof Light, value: Light[keyof Light]) => {
     if (!engine) return;
     const light = lights.find(l => l.id === lightId);
     if (!light) return;
@@ -220,7 +223,7 @@ export const LightingPanel: React.FC = () => {
     const updated = { ...light, [property]: value };
     const spriteData = lightToSprite(updated, activeTableId ?? 'default_table');
     if (protocol) protocol.updateSprite(lightId, spriteData);
-    useGameStore.getState().updateSprite(lightId, { x: updated.x, y: updated.y, metadata: spriteData.metadata } as any);
+    useGameStore.getState().updateSprite(lightId, { x: updated.x, y: updated.y, metadata: spriteData.metadata });
   };
 
   const startPlacingLight = (preset: typeof LIGHT_PRESETS[0]) => {
@@ -230,7 +233,7 @@ export const LightingPanel: React.FC = () => {
 
   const startMovingLight = (light: Light) => {
     const movePreset = { ...LIGHT_PRESETS[0], name: light.id, radius: light.radius, intensity: light.intensity, color: light.color, isMoving: true, existingLightId: light.id };
-    setPlacementMode(movePreset as any);
+    setPlacementMode(movePreset as typeof LIGHT_PRESETS[0] & { isMoving: boolean; existingLightId: string });
     window.dispatchEvent(new CustomEvent('startLightPlacement', { detail: { preset: movePreset } }));
   };
 
@@ -243,7 +246,7 @@ export const LightingPanel: React.FC = () => {
     for (const l of lights) {
       const updated = { ...l, isOn: !allOn };
       protocol?.updateSprite(l.id, lightToSprite(updated, activeTableId ?? ''));
-      useGameStore.getState().updateSprite(l.id, { metadata: lightToSprite(updated, activeTableId ?? '').metadata } as any);
+      useGameStore.getState().updateSprite(l.id, { metadata: lightToSprite(updated, activeTableId ?? '').metadata });
     }
   };
 
@@ -307,7 +310,7 @@ export const LightingPanel: React.FC = () => {
           onChange={(e) => {
             const v = parseFloat(e.target.value);
             setAmbientLight(v);
-            try { (engine as any)?.set_ambient_light(v); } catch {}
+            try { engine?.set_ambient_light?.(v); } catch {}
           }}
         />
       </div>

@@ -117,7 +117,7 @@ export class SessionManager {
   /**
    * Send real-time message to session participants
    */
-  sendMessage(type: string, data: any): void {
+  sendMessage(type: string, data: unknown): void {
     if (this.websocket && this.websocket.readyState === WebSocket.OPEN) {
       this.websocket.send(JSON.stringify({ type, data, timestamp: Date.now() }));
     } else {
@@ -139,7 +139,7 @@ export class SessionManager {
   /**
    * Broadcast dice roll result
    */
-  broadcastDiceRoll(result: any): void {
+  broadcastDiceRoll(result: unknown): void {
     this.sendMessage('dice_roll', {
       result,
       userId: this.getCurrentUserId(),
@@ -169,7 +169,7 @@ export class SessionManager {
   }
 
   once(event: string, callback: (...args: unknown[]) => void): void {
-    const wrappedCallback = (...args: any[]) => {
+    const wrappedCallback = (...args: unknown[]) => {
       this.off(event, wrappedCallback);
       callback(...args);
     };
@@ -186,7 +186,7 @@ export class SessionManager {
     }
   }
 
-  private emit(event: string, ...args: any[]): void {
+  private emit(event: string, ...args: unknown[]): void {
     const listeners = this.eventListeners.get(event);
     if (listeners) {
       listeners.forEach(callback => callback(...args));
@@ -252,7 +252,7 @@ export class SessionManager {
     }
   }
 
-  private handleWebSocketMessage(message: any): void {
+  private handleWebSocketMessage(message: Record<string, unknown>): void {
     const { type, data } = message;
     
     switch (type) {

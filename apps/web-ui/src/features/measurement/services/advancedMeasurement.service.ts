@@ -178,7 +178,7 @@ class AdvancedMeasurementService {
     persistent?: boolean;
     label?: string;
   } = {}): string {
-    const id = `measurement_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+    const id = `measurement_${Date.now()}_${Math.random().toString(36).slice(2, 11)}`;
     const startPoint: MeasurementPoint = {
       ...point,
       timestamp: Date.now(),
@@ -306,7 +306,7 @@ class AdvancedMeasurementService {
     filled?: boolean;
     label?: string;
   } = {}): string {
-    const id = `shape_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+    const id = `shape_${Date.now()}_${Math.random().toString(36).slice(2, 11)}`;
     const shapePoints: MeasurementPoint[] = points.map((point, index) => ({
       ...point,
       timestamp: Date.now(),
@@ -354,7 +354,7 @@ class AdvancedMeasurementService {
    * Create a measurement template (spell areas, etc.)
    */
   createTemplate(template: Omit<MeasurementTemplate, 'id'>): string {
-    const id = `template_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+    const id = `template_${Date.now()}_${Math.random().toString(36).slice(2, 11)}`;
     const fullTemplate: MeasurementTemplate = { id, ...template };
     
     this.templates.set(id, fullTemplate);
@@ -368,7 +368,7 @@ class AdvancedMeasurementService {
    * Create a new grid configuration
    */
   createGrid(config: Omit<GridConfiguration, 'id'>): string {
-    const id = `grid_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+    const id = `grid_${Date.now()}_${Math.random().toString(36).slice(2, 11)}`;
     const grid: GridConfiguration = { id, ...config };
     
     this.grids.set(id, grid);

@@ -1,18 +1,18 @@
 import { useBackgrounds, useClasses, useRacesForCharacterWizard } from '@features/compendium';
 import { useEffect, useMemo, useState } from 'react';
 import { useFormContext } from 'react-hook-form';
-import type { BackgroundStepData } from './schemas';
 import styles from './BackgroundStep.module.css';
+import type { WizardFormData } from './WizardFormData';
 
 export function BackgroundStep({ onNext: _onNext, onBack: _onBack }: { onNext?: () => void; onBack?: () => void } = {}) {
-  const { register, formState, watch, setValue, getValues } = useFormContext<BackgroundStepData>();
+  const { register, formState, watch, setValue, getValues } = useFormContext<WizardFormData>();
   const selectedBackground = watch('background');
   const { data: backgrounds, loading: bgLoading, error: bgError } = useBackgrounds();
   const { data: classes } = useClasses();
   const { data: races } = useRacesForCharacterWizard();
 
-  const characterClass: string = (watch as any)('class') ?? '';
-  const characterRace: string = (watch as any)('race') ?? '';
+  const characterClass: string = watch('class') ?? '';
+  const characterRace: string = watch('race') ?? '';
 
   // Derive class skill data from compendium
   const classData = classes?.find(c => c.name.toLowerCase() === characterClass.toLowerCase());
@@ -33,14 +33,14 @@ export function BackgroundStep({ onNext: _onNext, onBack: _onBack }: { onNext?: 
   const availableClassSkills = classSkills.filter(s => !alreadyGranted.includes(s));
 
   const [selectedClassSkills, setSelectedClassSkills] = useState<string[]>(() => {
-    const existing = (getValues as any)().skills;
+    const existing = getValues('skills');
     if (Array.isArray(existing) && existing.length > 0) return existing.filter((s: string) => classSkills.includes(s));
     return [];
   });
 
   useEffect(() => {
     const allSkills = [...new Set([...alreadyGranted, ...selectedClassSkills])];
-    (setValue as any)('skills', allSkills, { shouldValidate: false });
+    setValue('skills', allSkills, { shouldValidate: false });
   }, [alreadyGranted, selectedClassSkills, setValue]);
 
   function toggleClassSkill(skill: string) {

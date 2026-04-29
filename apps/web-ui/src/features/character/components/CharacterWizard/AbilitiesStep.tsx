@@ -1,6 +1,7 @@
 import { useChatStore } from '@features/chat';
 import { useRacesForCharacterWizard } from '@features/compendium';
 import { Controller, useFormContext } from 'react-hook-form';
+import type { Path } from 'react-hook-form';
 import styles from './AbilitiesStep.module.css';
 import { calculateRacialASI } from './raceData';
 import type { AbilitiesStepData } from './schemas';
@@ -33,7 +34,7 @@ export function AbilitiesStep({ onNext: _onNext, onBack: _onBack }: { onNext?: (
   };
 
   const selectedRace = watch('race') ?? '';
-  const selectedSubrace = watch('subrace' as any) as string ?? '';
+  const selectedSubrace = watch('subrace') ?? '';
   const characterName = watch('name') ?? '';
   const characterClass = watch('class') ?? '';
   const characterBackground = watch('background') ?? '';
@@ -89,7 +90,7 @@ export function AbilitiesStep({ onNext: _onNext, onBack: _onBack }: { onNext?: (
   };
 
   // Watch ability scores reactively for display
-  const abilityValues = watch(ABILITIES as any) as number[];
+  const abilityValues = watch(ABILITIES as Array<Path<WizardFormData>>) as number[];
   const scores: Record<AbilityName, number> = Object.fromEntries(
     ABILITIES.map((a, i) => [a, abilityValues[i] || (method === 'pointbuy' ? 8 : 0)])
   ) as Record<AbilityName, number>;
@@ -232,7 +233,7 @@ export function AbilitiesStep({ onNext: _onNext, onBack: _onBack }: { onNext?: (
                 </div>
               ) : (
                 <Controller
-                  name={ability as any}
+                  name={ability as Path<WizardFormData>}
                   control={control}
                   render={({ field }) => (
                     <input
@@ -259,7 +260,7 @@ export function AbilitiesStep({ onNext: _onNext, onBack: _onBack }: { onNext?: (
               )}
 
               {errors[ability as keyof typeof errors] && (
-                <span className={styles.errorText}>{(errors[ability as keyof typeof errors] as any)?.message}</span>
+                <span className={styles.errorText}>{errors[ability as keyof typeof errors]?.message}</span>
               )}
             </div>
           );

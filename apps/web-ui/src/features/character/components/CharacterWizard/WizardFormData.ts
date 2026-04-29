@@ -1,5 +1,6 @@
 export type WizardFormData = {
   race: string;
+  subrace?: string;
   class: string;
   background: string;
   // Optional simple level and alignment for viewer/editor convenience

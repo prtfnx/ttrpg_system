@@ -25,7 +25,7 @@ export const GridSettings: React.FC<GridSettingsProps> = ({
   const [show, setShow] = useState<boolean>(showGrid);
   const [snap, setSnap] = useState<boolean>(snapToGrid);
 
-  const handleChange = (field: string, value: any) => {
+  const handleChange = (field: string, value: string | number | boolean) => {
     const newSettings = { gridType: type, gridSize: size, showGrid: show, snapToGrid: snap };
     switch (field) {
       case 'type': setType(value); newSettings.gridType = value; break;

@@ -2,6 +2,7 @@
  * Mouse Multi-Selection Strategy Implementation
  * Defines the strategy for multi-selecting sprites with mouse interactions
  */
+import type { RenderEngine } from '@lib/wasm';
 
 export const MultiSelectMode = {
   /** Ctrl+Click to add/remove individual sprites */
@@ -154,15 +155,15 @@ export class MouseMultiSelectStrategy implements MultiSelectStrategy {
  */
 export class MultiSelectManager {
   private strategy: MultiSelectStrategy;
-  private renderEngine: any; // RenderEngine reference
+  private renderEngine: RenderEngine | null; // RenderEngine reference
   private isActive: boolean = false;
 
-  constructor(renderEngine: any) {
+  constructor(renderEngine: RenderEngine | null) {
     this.renderEngine = renderEngine;
     this.strategy = new MouseMultiSelectStrategy();
   }
 
-  setRenderEngine(engine: any) {
+  setRenderEngine(engine: RenderEngine | null) {
     this.renderEngine = engine;
   }
 

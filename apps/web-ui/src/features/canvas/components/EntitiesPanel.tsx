@@ -19,7 +19,7 @@ export function EntitiesPanel() {
   const [syncState, setSyncState] = useState<SyncState>({ status: 'idle' })
 
   // Validate and transform sprite data from WASM
-  const validateAndTransformSprite = (rustSprite: any) => {
+  const validateAndTransformSprite = (rustSprite: Record<string, unknown>) => {
     if (!rustSprite || typeof rustSprite !== 'object') {
       throw new Error('Invalid sprite data object');
     }
@@ -48,7 +48,7 @@ export function EntitiesPanel() {
     
     try {
       // Validate WASM availability
-      const engine = renderEngine || (window as any).rustRenderManager;
+      const engine = renderEngine ?? window.rustRenderManager;
       if (!engine) {
         throw new Error('WASM render manager not available');
       }
@@ -65,7 +65,7 @@ export function EntitiesPanel() {
       setSyncState(prev => ({ ...prev, progress: 50 }));
       
       // Process sprites with validation
-      const processedSprites: any[] = [];
+      const processedSprites: ReturnType<typeof validateAndTransformSprite>[] = [];
       const errors: string[] = [];
       
       for (const rustSprite of rustSprites) {

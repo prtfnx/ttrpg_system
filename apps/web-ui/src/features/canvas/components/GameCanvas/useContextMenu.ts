@@ -2,6 +2,7 @@
  * Context menu and light placement state management
  */
 import { useGameStore } from '@/store';
+import type { WebClientProtocol } from '@lib/websocket';
 import type { RenderEngine } from '@lib/wasm/wasm';
 import { useCallback, useEffect, useState, type RefObject } from 'react';
 
@@ -16,13 +17,13 @@ interface ContextMenuState {
 
 interface LightPlacementMode {
   active: boolean;
-  preset: any;
+  preset: Record<string, unknown>;
 }
 
 interface UseContextMenuProps {
   canvasRef: RefObject<HTMLCanvasElement>;
   rustRenderManagerRef: RefObject<RenderEngine | null>;
-  protocol: any;
+  protocol: WebClientProtocol | null;
 }
 
 export const useContextMenu = ({ canvasRef, rustRenderManagerRef, protocol }: UseContextMenuProps) => {
@@ -124,7 +125,7 @@ export const useContextMenu = ({ canvasRef, rustRenderManagerRef, protocol }: Us
       const { updateSprite } = useGameStore.getState();
 
       try {
-        const renderEngine = rustRenderManagerRef.current as any;
+        const renderEngine = rustRenderManagerRef.current as RenderEngine & { move_sprite_to_layer_action?: (id: string, layer: string) => unknown };
         if (renderEngine.move_sprite_to_layer_action) {
           const result = renderEngine.move_sprite_to_layer_action(contextMenu.spriteId, layerId);
           console.log(` GameCanvas: Moved sprite ${contextMenu.spriteId} to layer ${layerId}`, result);

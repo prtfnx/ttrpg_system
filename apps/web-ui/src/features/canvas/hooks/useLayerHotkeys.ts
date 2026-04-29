@@ -35,7 +35,7 @@ export function useLayerHotkeys() {
 
       e.preventDefault();
       setActiveLayer(layer);
-      const rm = (window as any).rustRenderManager;
+      const rm = window.rustRenderManager as (typeof window.rustRenderManager) & { set_active_layer?: (id: string) => void } | undefined;
       if (rm?.set_active_layer) rm.set_active_layer(layer);
     };
 

@@ -25,7 +25,7 @@ export const PerformanceSettingsPanel: React.FC<PerformanceSettingsPanelProps> =
 
   if (!isVisible || !settings || !tempSettings) return null;
 
-  const handleSettingChange = (key: keyof PerformanceSettings, value: any) => {
+  const handleSettingChange = (key: keyof PerformanceSettings, value: PerformanceSettings[keyof PerformanceSettings]) => {
     setTempSettings({
       ...tempSettings,
       [key]: value

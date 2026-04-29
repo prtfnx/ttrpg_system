@@ -23,7 +23,7 @@ export function FloatingLayerPicker() {
 
   useEffect(() => {
     // Check on mount using injected initial data (before WS welcome)
-    const initial = (window as any).__INITIAL_DATA__?.userRole ?? null;
+    const initial = (window as Window & { __INITIAL_DATA__?: { userRole?: string } }).__INITIAL_DATA__?.userRole ?? null;
     if (isDM(initial)) setDmConfirmed(true);
   }, []);
 
@@ -35,7 +35,7 @@ export function FloatingLayerPicker() {
 
   const switchLayer = (id: string) => {
     setActiveLayer(id);
-    const rm = (window as any).rustRenderManager;
+    const rm = window.rustRenderManager as (typeof window.rustRenderManager) & { set_active_layer?: (id: string) => void } | undefined;
     if (rm?.set_active_layer) rm.set_active_layer(id);
   };
 

@@ -28,7 +28,7 @@ function InlineTextEditor({ worldPosition, onComplete, onCancel }: InlineTextEdi
     let retryId: ReturnType<typeof setTimeout> | null = null;
 
     const tryConvert = () => {
-      const rustManager = (window as any).rustRenderManager;
+      const rustManager = window.rustRenderManager;
       const canvas = document.querySelector('.game-canvas') as HTMLCanvasElement;
 
       if (!rustManager || !canvas) {
@@ -224,11 +224,11 @@ export function TextSpriteTool({
     };
 
     console.log('[TextSpriteTool] Registering textSpriteClick event listener');
-    window.addEventListener('textSpriteClick' as any, handleMapClick);
+    window.addEventListener('textSpriteClick' as keyof WindowEventMap, handleMapClick as EventListener);
 
     return () => {
       console.log('[TextSpriteTool] Removing textSpriteClick event listener');
-      window.removeEventListener('textSpriteClick' as any, handleMapClick);
+      window.removeEventListener('textSpriteClick' as keyof WindowEventMap, handleMapClick as EventListener);
     };
   }, [activeTool]);
 
@@ -239,7 +239,7 @@ export function TextSpriteTool({
     }
 
     try {
-      const rustManager = (window as any).rustRenderManager;
+      const rustManager = window.rustRenderManager;
       if (!rustManager) {
         throw new Error('Rust render manager not available');
       }

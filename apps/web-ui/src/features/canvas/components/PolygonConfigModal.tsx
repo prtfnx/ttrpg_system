@@ -33,7 +33,7 @@ export const PolygonConfigModal: React.FC = () => {
     setDraft(null);
     // Cancel any in-progress polygon in Rust (in case user dismissed via hotkey)
     if (window.rustRenderManager) {
-      (window.rustRenderManager as any).cancel_polygon_creation?.();
+      (window.rustRenderManager as unknown as { cancel_polygon_creation?: () => void }).cancel_polygon_creation?.();
     }
   }, []);
 
@@ -46,7 +46,7 @@ export const PolygonConfigModal: React.FC = () => {
 
     let spriteId = '';
     if (window.rustRenderManager) {
-      spriteId = (window.rustRenderManager as any).create_polygon_sprite(flat, layer, tableId) ?? '';
+      spriteId = ((window.rustRenderManager as unknown as { create_polygon_sprite?: (flat: Float32Array, layer: string, tableId: string) => string }).create_polygon_sprite?.(flat, layer, tableId)) ?? '';
     }
 
     // Send sprite_create to server — server expects { table_id, sprite_data: {...} }

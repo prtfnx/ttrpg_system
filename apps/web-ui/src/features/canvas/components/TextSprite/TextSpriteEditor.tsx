@@ -34,7 +34,7 @@ export function TextSpriteEditor({ position, onComplete, onCancel }: TextSpriteE
       return;
     }
 
-    const rustManager = (window as any).rustRenderManager;
+    const rustManager = window.rustRenderManager;
     if (!rustManager) {
       console.error('[TextSpriteEditor] Rust render manager not available');
       return;

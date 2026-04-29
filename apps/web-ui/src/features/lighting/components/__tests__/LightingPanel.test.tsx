@@ -36,12 +36,11 @@ vi.mock('@lib/api', () => ({
 function makeLight(overrides: Record<string, unknown> = {}) {
   return {
     id: 'torch_1',
-    sprite_id: 'torch_1',
     layer: 'light',
-    texture_path: '__LIGHT__',
+    texture: '__LIGHT__',
     x: 100,
     y: 200,
-    table_id: 'table-1',
+    tableId: 'table-1',
     metadata: JSON.stringify({
       isLight: true,
       presetName: 'Torch',
@@ -95,13 +94,13 @@ describe('LightingPanel', () => {
     });
 
     it('ignores sprites from other tables', () => {
-      useGameStore.setState({ sprites: [makeLight({ table_id: 'other' }) as unknown as Sprite] } as unknown as Parameters<typeof useGameStore.setState>[0]);
+      useGameStore.setState({ sprites: [makeLight({ tableId: 'other' }) as unknown as Sprite] } as unknown as Parameters<typeof useGameStore.setState>[0]);
       render(<LightingPanel />);
       expect(screen.getByText(/no lights placed/i)).toBeInTheDocument();
     });
 
     it('ignores sprites with wrong texture_path', () => {
-      useGameStore.setState({ sprites: [makeLight({ texture_path: 'hero.png' }) as unknown as Sprite] } as unknown as Parameters<typeof useGameStore.setState>[0]);
+      useGameStore.setState({ sprites: [makeLight({ texture: 'hero.png' }) as unknown as Sprite] } as unknown as Parameters<typeof useGameStore.setState>[0]);
       render(<LightingPanel />);
       expect(screen.getByText(/no lights placed/i)).toBeInTheDocument();
     });

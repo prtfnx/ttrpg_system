@@ -551,7 +551,8 @@ describe('Character Import/Export', () => {
         href: '',
         download: '',
         click: clickSpy,
-      } as unknown as HTMLAnchorElement;`n      createElementSpy.mockReturnValue(mockLink as unknown as HTMLElement);
+      } as unknown as HTMLAnchorElement;
+      createElementSpy.mockReturnValue(mockLink as unknown as HTMLElement);
 
       const appendChildSpy = vi.spyOn(document.body, 'appendChild').mockImplementation(() => null as unknown as ChildNode);
       const removeChildSpy = vi.spyOn(document.body, 'removeChild').mockImplementation(() => null as unknown as ChildNode);
@@ -585,7 +586,8 @@ describe('Character Import/Export', () => {
         href: '',
         download: '',
         click: clickSpy,
-      } as unknown as HTMLAnchorElement;`n      createElementSpy.mockReturnValue(mockLink as unknown as HTMLElement);
+      } as unknown as HTMLAnchorElement;
+      createElementSpy.mockReturnValue(mockLink as unknown as HTMLElement);
 
       const appendChildSpy = vi.spyOn(document.body, 'appendChild').mockImplementation(() => null as unknown as ChildNode);
       const removeChildSpy = vi.spyOn(document.body, 'removeChild').mockImplementation(() => null as unknown as ChildNode);
@@ -606,4 +608,5 @@ describe('Character Import/Export', () => {
     });
   });
 });
+
 

@@ -310,9 +310,9 @@ export function useWebSocket(url: string) {
       updateConnectionState('error');
       console.error('WebSocket connection failed:', error);
     }
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- intentional: protocol dep omitted to prevent reconnect loop
   }, [url, updateConnectionState, setConnection, handleMessage, flushMessageQueue, sendMessage, createMessage]);
 
-  // eslint-disable-next-line react-hooks/exhaustive-deps -- intentional: protocol dep omitted to prevent reconnect loop
   const disconnect = useCallback(() => {
     if (reconnectTimeoutRef.current) {
       clearTimeout(reconnectTimeoutRef.current);

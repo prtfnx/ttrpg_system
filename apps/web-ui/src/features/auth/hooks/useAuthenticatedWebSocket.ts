@@ -31,8 +31,8 @@ export function useAuthenticatedWebSocket({ sessionCode, userInfo }: UseAuthenti
       let resolvedCode = sessionCode;
       try {
         const sessions = await authService.getUserSessions();
-        const byCode = sessions.find((s: any) => s.session_code === sessionCode);
-        const byName = sessions.find((s: any) => s.session_name === sessionCode);
+        const byCode = sessions.find((s: { session_code: string; session_name: string }) => s.session_code === sessionCode);
+        const byName = sessions.find((s: { session_code: string; session_name: string }) => s.session_name === sessionCode);
         if (byCode) {
           resolvedCode = byCode.session_code;
         } else if (byName) {

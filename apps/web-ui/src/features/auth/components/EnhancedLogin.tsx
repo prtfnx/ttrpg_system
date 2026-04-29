@@ -276,9 +276,9 @@ const EnhancedLogin: React.FC = () => {
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
       if (isLoginMode) {
-        handleLogin(e as any);
+        handleLogin(e as unknown as React.FormEvent<HTMLFormElement>);
       } else {
-        handleRegister(e as any);
+        handleRegister(e as unknown as React.FormEvent<HTMLFormElement>);
       }
     }
   };

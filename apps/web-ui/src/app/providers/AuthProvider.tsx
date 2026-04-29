@@ -91,8 +91,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         setLoading(false);
         return false;
       }
-    } catch (e: any) {
-      setError(e.message || 'Login failed');
+    } catch (e: unknown) {
+      setError(e instanceof Error ? e.message : 'Login failed');
       setLoading(false);
       setIsAuthenticated(false);
       return false;

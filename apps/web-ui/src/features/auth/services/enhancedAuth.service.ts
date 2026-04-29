@@ -123,7 +123,7 @@ export interface OAuthProvider {
 export interface AuthError {
   code: string;
   message: string;
-  details?: Record<string, any>;
+  details?: Record<string, unknown>;
 }
 
 export interface AuthState {
@@ -814,7 +814,7 @@ class EnhancedAuthService {
     return fetch(absoluteUrl, mergedOptions);
   }
 
-  private formatError(error: any): AuthError {
+  private formatError(error: unknown): AuthError {
     if (error instanceof Error) {
       return {
         code: 'AUTH_ERROR',

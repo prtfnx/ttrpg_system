@@ -18,7 +18,7 @@ export { ProtocolContext };
 // eslint-disable-next-line react-refresh/only-export-components
 export function useProtocol() {
   const ctx = useContext(ProtocolContext);
-  if (!ctx && (globalThis as any).__VITEST__) {
+  if (!ctx && (globalThis as typeof globalThis & { __VITEST__?: boolean }).__VITEST__) {
     return {
       protocol: null,
       connectionState: 'disconnected' as const,
@@ -58,8 +58,8 @@ export function ProtocolProvider({ sessionCode, children }: ProviderProps) {
         
         try {
           const sessions = await authService.getUserSessions();
-          const byCode = sessions.find((s: any) => s.session_code === sessionCode);
-          const byName = sessions.find((s: any) => s.session_name === sessionCode);
+          const byCode = sessions.find((s: { session_code: string; session_name: string }) => s.session_code === sessionCode);
+          const byName = sessions.find((s: { session_code: string; session_name: string }) => s.session_name === sessionCode);
           if (byCode) resolved = byCode.session_code;
           else if (byName) resolved = byName.session_code;
           

@@ -50,14 +50,14 @@ function App() {
         // game session), prefer that sessionCode so the client connects by code.
         // If the injected value is actually a session name (older behavior),
         // attempt to resolve it to the user's session_code by querying the server.
-        const initData = (window as any).__INITIAL_DATA__;
+        const initData = (window as Window & { __INITIAL_DATA__?: { sessionCode?: string; userRole?: SessionRole } }).__INITIAL_DATA__;
         if (initData && initData.sessionCode) {
           logger.debug('App: Found server initial data, candidate:', initData.sessionCode);
           try {
             // Fetch user's sessions and try to match either by code or by name
             const sessions = await authService.getUserSessions();
-            const byCode = sessions.find((s: any) => s.session_code === initData.sessionCode);
-            const byName = sessions.find((s: any) => s.session_name === initData.sessionCode);
+            const byCode = sessions.find((s: { session_code: string; session_name: string }) => s.session_code === initData.sessionCode);
+            const byName = sessions.find((s: { session_code: string; session_name: string }) => s.session_name === initData.sessionCode);
             const resolved = byCode ? byCode.session_code : (byName ? byName.session_code : null);
             if (resolved) {
               logger.debug('App: Resolved initial session to code:', resolved);
@@ -66,7 +66,7 @@ function App() {
                 isAuthenticated: true,
                 userInfo: userInfo || prev.userInfo,
                 selectedSession: resolved,
-                userRole: initData.userRole || prev.userRole,
+                userRole: initData.userRole ?? prev.userRole,
                 loading: false
               }));
               return;
@@ -80,8 +80,8 @@ function App() {
             ...prev,
             isAuthenticated: true,
             userInfo: userInfo || prev.userInfo,
-            selectedSession: initData.sessionCode,
-            userRole: initData.userRole || prev.userRole,
+            selectedSession: initData.sessionCode ?? null,
+            userRole: initData.userRole ?? prev.userRole,
             loading: false
           }));
           return;

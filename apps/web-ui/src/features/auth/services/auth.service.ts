@@ -99,7 +99,7 @@ class AuthService {
    */
   async extractToken(): Promise<string | null> {
     // Rate limiting - skip in test environment
-    if (!((globalThis as any).__VITEST__ || import.meta.env?.MODE === 'test')) {
+    if (!((globalThis as typeof globalThis & { __VITEST__?: boolean }).__VITEST__ || import.meta.env?.MODE === 'test')) {
       const now = Date.now();
       if (now - this.lastRequestTime > AuthService.RATE_LIMIT_WINDOW) {
         this.requestCount = 0;

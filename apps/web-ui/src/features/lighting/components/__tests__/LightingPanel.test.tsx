@@ -1,4 +1,5 @@
 import { useGameStore } from '@/store';
+import type { Sprite } from '@/types';
 import { fireEvent, render, screen } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { LightingPanel } from '../LightingPanel';
@@ -32,7 +33,7 @@ vi.mock('@lib/api', () => ({
 }));
 
 // ---- helpers ----
-function makeLight(overrides: Record<string, any> = {}) {
+function makeLight(overrides: Record<string, unknown> = {}) {
   return {
     id: 'torch_1',
     sprite_id: 'torch_1',
@@ -55,7 +56,7 @@ function makeLight(overrides: Record<string, any> = {}) {
 
 beforeEach(() => {
   vi.clearAllMocks();
-  useGameStore.setState({ sprites: [], activeTableId: 'table-1', ambientLight: 1.0 } as any);
+  useGameStore.setState({ sprites: [], activeTableId: 'table-1', ambientLight: 1.0 } as unknown as Parameters<typeof useGameStore.setState>[0]);
 });
 
 describe('LightingPanel', () => {
@@ -80,7 +81,7 @@ describe('LightingPanel', () => {
 
   describe('with lights in store', () => {
     beforeEach(() => {
-      useGameStore.setState({ sprites: [makeLight() as any], activeTableId: 'table-1', ambientLight: 1.0 } as any);
+      useGameStore.setState({ sprites: [makeLight() as unknown as Sprite], activeTableId: 'table-1', ambientLight: 1.0 } as unknown as Parameters<typeof useGameStore.setState>[0]);
     });
 
     it('shows light preset name in list', () => {
@@ -94,20 +95,20 @@ describe('LightingPanel', () => {
     });
 
     it('ignores sprites from other tables', () => {
-      useGameStore.setState({ sprites: [makeLight({ table_id: 'other' }) as any] } as any);
+      useGameStore.setState({ sprites: [makeLight({ table_id: 'other' }) as unknown as Sprite] } as unknown as Parameters<typeof useGameStore.setState>[0]);
       render(<LightingPanel />);
       expect(screen.getByText(/no lights placed/i)).toBeInTheDocument();
     });
 
     it('ignores sprites with wrong texture_path', () => {
-      useGameStore.setState({ sprites: [makeLight({ texture_path: 'hero.png' }) as any] } as any);
+      useGameStore.setState({ sprites: [makeLight({ texture_path: 'hero.png' }) as unknown as Sprite] } as unknown as Parameters<typeof useGameStore.setState>[0]);
       render(<LightingPanel />);
       expect(screen.getByText(/no lights placed/i)).toBeInTheDocument();
     });
 
     it('ignores sprites with isLight=false in metadata', () => {
       const bad = makeLight({ metadata: JSON.stringify({ isLight: false, presetName: 'X', color: {}, intensity: 1, radius: 1, isOn: true }) });
-      useGameStore.setState({ sprites: [bad as any] } as any);
+      useGameStore.setState({ sprites: [bad as unknown as Sprite] } as unknown as Parameters<typeof useGameStore.setState>[0]);
       render(<LightingPanel />);
       expect(screen.getByText(/no lights placed/i)).toBeInTheDocument();
     });
@@ -154,3 +155,4 @@ describe('LightingPanel', () => {
     });
   });
 });
+

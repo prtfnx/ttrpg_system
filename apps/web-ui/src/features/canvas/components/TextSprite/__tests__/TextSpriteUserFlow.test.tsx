@@ -44,11 +44,12 @@ describe('Text sprite creation user flow', () => {
     });
 
     // Ensure rustRenderManager was used to create text sprite
-    expect((window as any).rustRenderManager.create_text_sprite).toHaveBeenCalled();
+    expect(window.rustRenderManager?.create_text_sprite).toHaveBeenCalled();
 
     // If gameAPI exists it should have been called to send network payload
-    if ((window as any).gameAPI && (window as any).gameAPI.sendMessage) {
-      expect((window as any).gameAPI.sendMessage).toHaveBeenCalledWith(expect.any(String), expect.objectContaining({ type: 'text' }));
+    const gameAPI = (window as Window & { gameAPI?: { sendMessage?: (type: string, payload: unknown) => void } }).gameAPI;
+    if (gameAPI && gameAPI.sendMessage) {
+      expect(gameAPI.sendMessage).toHaveBeenCalledWith(expect.any(String), expect.objectContaining({ type: 'text' }));
     }
 
     // No error should have been reported

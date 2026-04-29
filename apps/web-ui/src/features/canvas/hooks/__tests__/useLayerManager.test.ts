@@ -55,8 +55,8 @@ afterEach(() => {
   // Clean up global mocks by setting to undefined instead of delete
   // This avoids "Cannot delete property" errors
   // Then redefine them for next test
-  (window as any).ttrpg_rust_core = undefined;
-  (window as any).gameAPI = undefined;
+  Object.assign(window, { ttrpg_rust_core: undefined });
+  Object.assign(window, { gameAPI: undefined });
   
   // Restore them for next test
   Object.defineProperty(window, 'ttrpg_rust_core', {
@@ -98,8 +98,8 @@ describe('useLayerManager', () => {
       // Setting to undefined doesn't work because the code checks for truthiness
       const descriptor = Object.getOwnPropertyDescriptor(window, 'ttrpg_rust_core');
       if (descriptor?.configurable !== false) {
-        delete (window as any).ttrpg_rust_core;
-        delete (window as any).gameAPI;
+        delete (window as unknown as Record<string, unknown>).ttrpg_rust_core;
+        delete (window as unknown as Record<string, unknown>).gameAPI;
       }
 
       const _consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
@@ -115,15 +115,15 @@ describe('useLayerManager', () => {
 
     it('waits for wasm-ready event when WASM is not initially available', async () => {
       // Start without WASM by setting to undefined
-      (window as any).ttrpg_rust_core = undefined;
-      (window as any).gameAPI = undefined;
+      Object.assign(window, { ttrpg_rust_core: undefined });
+      Object.assign(window, { gameAPI: undefined });
 
       const { result } = renderHook(() => useLayerManager());
       expect(result.current.isInitialized).toBe(false);
 
       // Simulate WASM becoming ready
-      (window as any).ttrpg_rust_core = true;
-      (window as any).gameAPI = mockGameAPI;
+      Object.assign(window, { ttrpg_rust_core: true });
+      Object.assign(window, { gameAPI: mockGameAPI });
 
       // Emit ready event
       const readyEvent = new Event('wasm-ready');
@@ -357,12 +357,10 @@ describe('useLayerManager', () => {
   describe('Error Handling', () => {
     it('handles render manager operations when not initialized', async () => {
       // Start with uninitialized state
-      delete (window as any).ttrpg_rust_core;
-      delete (window as any).gameAPI;
-      
-      const { result } = renderHook(() => useLayerManager());
+      delete (window as unknown as Record<string, unknown>).ttrpg_rust_core;
+      delete (window as unknown as Record<string, unknown>).gameAPI;
 
-      // Operations should not throw but should not succeed
+      const { result } = renderHook(() => useLayerManager());
       await expect(result.current.setLayerVisible('tokens', false)).resolves.toBeUndefined();
       await expect(result.current.setLayerOpacity('tokens', 0.5)).resolves.toBeUndefined();
 

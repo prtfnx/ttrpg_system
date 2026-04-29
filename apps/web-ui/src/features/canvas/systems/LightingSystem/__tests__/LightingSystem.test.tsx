@@ -31,6 +31,8 @@ vi.mock('../hooks/useRenderEngine', () => ({
  */
 import { useGameStore } from '@/store';
 import { LightingPanel } from '@features/lighting';
+import type { RenderEngine } from '@lib/wasm';
+import type { Sprite } from '@/types';
 import '@testing-library/jest-dom';
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
@@ -42,7 +44,7 @@ describe('Lighting System', () => {
 
   beforeEach(() => {
   // Ensure the render engine global is the mock
-  window.rustRenderManager = mockEngine as any;
+  window.rustRenderManager = mockEngine as unknown as RenderEngine;
     // Setup mocks
     Object.values(mockEngine).forEach(fn => {
       if (typeof fn === 'function') {
@@ -446,7 +448,7 @@ describe('Lighting System', () => {
             scale: { x: 1, y: 1 },
             rotation: 0,
             metadata: JSON.stringify({ isLight: true, color: { r: 1.0, g: 0.6, b: 0.2, a: 1.0 }, intensity: 1.0, radius: 150, isOn: true }),
-          } as any,
+          } as unknown as Sprite,
           {
             id: 'light-2',
             tableId: 'test-table',
@@ -457,7 +459,7 @@ describe('Lighting System', () => {
             scale: { x: 1, y: 1 },
             rotation: 0,
             metadata: JSON.stringify({ isLight: true, color: { r: 1.0, g: 0.7, b: 0.3, a: 1.0 }, intensity: 0.7, radius: 80, isOn: true }),
-          } as any,
+          } as unknown as Sprite,
         ],
         activeTableId: 'test-table',
       });
@@ -490,7 +492,7 @@ describe('Lighting System', () => {
       const user = userEvent.setup();
       
       // Remove engine from window
-      delete (window as any).engine;
+      delete (window as unknown as Record<string, unknown>).engine;
       
 
       
@@ -507,7 +509,7 @@ describe('Lighting System', () => {
       }));
       
       // Restore engine
-      (window as any).engine = mockEngine;
+      Object.assign(window, { engine: mockEngine });
     });
   });
 

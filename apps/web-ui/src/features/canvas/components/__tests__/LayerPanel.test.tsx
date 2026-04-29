@@ -62,7 +62,7 @@ const mockGameStore = {
 };
 
 vi.mock('@/store', () => ({
-  useGameStore: (selector?: (s: any) => any) => {
+  useGameStore: (selector?: (s: typeof mockGameStore) => unknown) => {
     if (typeof selector === 'function') return selector(mockGameStore);
     return mockGameStore;
   }
@@ -109,7 +109,7 @@ describe('LayerPanel - Game Master Layer Management', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     // Setup window.rustRenderManager mock
-    (window as any).rustRenderManager = mockRustRenderManager;
+    Object.assign(window, { rustRenderManager: mockRustRenderManager });
   });
 
   describe('When game master views layer panel', () => {

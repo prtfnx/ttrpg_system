@@ -19,7 +19,7 @@ export function useSpriteSyncing() {
       if (!Array.isArray(rustSprites)) return;
 
       // Convert Rust sprite data to our format
-      const convertedSprites = rustSprites.map((rustSprite: any) => ({
+      const convertedSprites = rustSprites.map((rustSprite: Record<string, unknown>) => ({
         id: rustSprite.id || rustSprite.sprite_id || Math.random().toString(),
         tableId: rustSprite.table_id || useGameStore.getState().activeTableId || '',
         characterId: rustSprite.character_id,
@@ -37,11 +37,11 @@ export function useSpriteSyncing() {
 
       // Update store with current sprites from Rust
       // For now, replace all sprites (can be optimized later for incremental updates)
-      const currentSpriteIds = new Set(sprites.map((s: any) => s.id));
+      const currentSpriteIds = new Set(sprites.map((s) => s.id));
       const rustSpriteIds = new Set(convertedSprites.map(s => s.id));
 
       // Remove sprites that no longer exist in Rust
-      sprites.forEach((sprite: any) => {
+      sprites.forEach((sprite) => {
         if (!rustSpriteIds.has(sprite.id)) {
           removeSprite(sprite.id);
         }
@@ -56,7 +56,7 @@ export function useSpriteSyncing() {
           // IMPORTANT: Only update if WASM-managed fields actually changed
           // WASM manages: x, y, rotation, scale, texture, layer
           // React manages: characterId, hp, maxHp, ac, auraRadius, controlledBy
-          const existingSprite = sprites.find((s: any) => s.id === sprite.id);
+          const existingSprite = sprites.find((s) => s.id === sprite.id);
           
           if (!existingSprite) return;
           

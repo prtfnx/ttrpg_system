@@ -40,7 +40,7 @@ function PlayerLayerControls() {
   const toggle = (id: string) => {
     const next = !(layerVisibility[id] ?? true);
     setLayerVisibility(id, next);
-    const rm = (window as any).rustRenderManager;
+    const rm = window.rustRenderManager;
     if (rm?.set_layer_visible) rm.set_layer_visible(id, next);
   };
 
@@ -129,13 +129,13 @@ export function ToolsPanel({ userInfo }: ToolsPanelProps) {
 
   const handleLayerSwitch = (layerId: string) => {
     setActiveLayer(layerId);
-    const rm = (window as any).rustRenderManager;
+    const rm = window.rustRenderManager;
     if (rm?.set_active_layer) rm.set_active_layer(layerId);
   };
 
   // controlledBy is stored as string[] in the store (server sends user IDs as strings)
   const playerIds: number[] = Array.from(
-    new Set((sprites as any[]).flatMap((s: any) => s.controlledBy ?? s.controlled_by ?? []))
+    new Set(sprites.flatMap((s) => s.controlledBy ?? []))
   ).map(id => Number(id)).filter(id => !isNaN(id) && id > 0);
 
   const [tableSwitcherOpen, setTableSwitcherOpen] = useState(false);
@@ -184,7 +184,7 @@ export function ToolsPanel({ userInfo }: ToolsPanelProps) {
       window.rustRenderManager.paint_exit_mode();
       setPaintPanelVisible(false);
     }
-    (window as any).shapeSettings = { color: shapeColor, opacity: shapeOpacity, filled: shapeFilled };
+    window.shapeSettings = { color: shapeColor, opacity: shapeOpacity, filled: shapeFilled };
     switch (activeTool) {
       case 'measure':     window.rustRenderManager.set_input_mode_measurement(); break;
       case 'rectangle':   window.rustRenderManager.set_input_mode_create_rectangle(); break;
@@ -339,7 +339,7 @@ export function ToolsPanel({ userInfo }: ToolsPanelProps) {
             <div className={styles.creationToolbar}>
               <h4>Create Sprites</h4>
               <div className={styles.creationButtons}>
-                <button className={`${styles.toolButton} ${activeTool === 'rectangle' ? styles.active : ''}`} onClick={() => { setActiveTool('rectangle'); (window as any).fromDrawShapes = true; }} title="Create Rectangle">
+                <button className={`${styles.toolButton} ${activeTool === 'rectangle' ? styles.active : ''}`} onClick={() => { setActiveTool('rectangle'); window.fromDrawShapes = true; }} title="Create Rectangle">
                   <Square size={14} aria-hidden /> Rectangle
                 </button>
                 <button className={`${styles.toolButton} ${activeTool === 'circle' ? styles.active : ''}`} onClick={() => setActiveTool('circle')} title="Create Circle">
@@ -407,7 +407,7 @@ export function ToolsPanel({ userInfo }: ToolsPanelProps) {
           {dmMode && <WallConfigModal />}
           {dmMode && <PolygonConfigModal />}
 
-          {(activeTool === 'draw_shapes' || (activeTool === 'rectangle' && (window as any).fromDrawShapes)) && (
+          {(activeTool === 'draw_shapes' || (activeTool === 'rectangle' && window.fromDrawShapes)) && (
             <div className={styles.drawingSettings}>
               <h5>Drawing Tools</h5>
               <div className={styles.settingRow}>
@@ -436,19 +436,19 @@ export function ToolsPanel({ userInfo }: ToolsPanelProps) {
               <div className={styles.templateButtons}>
                 <button onClick={() => {
                   const conv = useGameStore.getState().getUnitConverter();
-                  (window as any).selectedSpellTemplate = { name: 'fireball', radiusFt: DND_DISTANCES.FIREBALL_RADIUS, radiusPx: conv.toPixels(conv.fromFeet(DND_DISTANCES.FIREBALL_RADIUS)), type: 'sphere' };
+                  window.selectedSpellTemplate = { name: 'fireball', radiusFt: DND_DISTANCES.FIREBALL_RADIUS, radiusPx: conv.toPixels(conv.fromFeet(DND_DISTANCES.FIREBALL_RADIUS)), type: 'sphere' };
                 }} title="Fireball (20 ft radius)">
                   <Flame size={14} aria-hidden /> Fireball (20 ft radius)
                 </button>
                 <button onClick={() => {
                   const conv = useGameStore.getState().getUnitConverter();
-                  (window as any).selectedSpellTemplate = { name: 'cone_of_cold', lengthFt: DND_DISTANCES.CONE_LENGTH, lengthPx: conv.toPixels(conv.fromFeet(DND_DISTANCES.CONE_LENGTH)), type: 'cone' };
+                  window.selectedSpellTemplate = { name: 'cone_of_cold', lengthFt: DND_DISTANCES.CONE_LENGTH, lengthPx: conv.toPixels(conv.fromFeet(DND_DISTANCES.CONE_LENGTH)), type: 'cone' };
                 }} title="Cone of Cold (60 ft cone)">
                   <Snowflake size={14} aria-hidden /> Cone of Cold (60 ft)
                 </button>
                 <button onClick={() => {
                   const conv = useGameStore.getState().getUnitConverter();
-                  (window as any).selectedSpellTemplate = { name: 'lightning_bolt', lengthFt: DND_DISTANCES.LIGHTNING_BOLT_LENGTH, lengthPx: conv.toPixels(conv.fromFeet(DND_DISTANCES.LIGHTNING_BOLT_LENGTH)), type: 'line' };
+                  window.selectedSpellTemplate = { name: 'lightning_bolt', lengthFt: DND_DISTANCES.LIGHTNING_BOLT_LENGTH, lengthPx: conv.toPixels(conv.fromFeet(DND_DISTANCES.LIGHTNING_BOLT_LENGTH)), type: 'line' };
                 }} title="Lightning Bolt (100 ft line)">
                   <Zap size={14} aria-hidden /> Lightning Bolt (100 ft)
                 </button>

@@ -61,7 +61,7 @@ const DEFAULT_TAB_ORDER: TabId[] = [
   'backgrounds', 'map', 'performance', 'customize',
 ];
 
-export function RightPanel(props: { sessionCode?: string; userInfo?: any; userRole?: string }) {
+export function RightPanel(props: { sessionCode?: string; userInfo?: import('@features/auth').UserInfo; userRole?: string }) {
   const [activeTab, setActiveTab] = useState<TabId>('entities');
   const sessionRole = (useGameStore(s => s.sessionRole) ?? props.userRole ?? 'player') as SessionRole;
 
@@ -117,19 +117,19 @@ export function RightPanel(props: { sessionCode?: string; userInfo?: any; userRo
       </div>
       <div className={styles.tabContent} role="tabpanel" aria-label={`${activeTab} panel`}>
         {activeTab === 'tables' && <TableManagementPanel />}
-        {activeTab === 'quick-actions' && <ActionsQuickPanel renderEngine={window.rustRenderManager as any || null} />}
+        {activeTab === 'quick-actions' && <ActionsQuickPanel renderEngine={window.rustRenderManager ?? null} />}
         {isDevelopment && activeTab === 'table-tools' && <TablePanel />}
         {isDevelopment && activeTab === 'sync' && <TableSyncPanel />}
         {activeTab === 'characters' && <CharacterPanel />}
         {activeTab === 'players' && <PlayerManagerPanel sessionCode={props.sessionCode!} userInfo={{...props.userInfo, role: sessionRole}} />}
         {activeTab === 'initiative' && <InitiativePanel />}
-        {isDevelopment && activeTab === 'actions' && <ActionsPanel renderEngine={window.rustRenderManager as any || null} />}
+        {isDevelopment && activeTab === 'actions' && <ActionsPanel renderEngine={window.rustRenderManager ?? null} />}
         {isDevelopment && activeTab === 'queue' && <ActionQueuePanel sessionCode={props.sessionCode!} userInfo={props.userInfo!} />}
         {activeTab === 'entities' && <EntitiesPanel />}
         {activeTab === 'chat' && <ChatPanel />}
         {activeTab === 'lighting' && <LightingPanel />}
         {activeTab === 'fog' && <FogPanel />}
-        {activeTab === 'backgrounds' && <BackgroundManagementPanel isOpen={true} onClose={() => setActiveTab('entities')} renderEngine={window.rustRenderManager as any || null} />}
+        {activeTab === 'backgrounds' && <BackgroundManagementPanel isOpen={true} onClose={() => setActiveTab('entities')} renderEngine={window.rustRenderManager ?? null} />}
         {activeTab === 'performance' && <PerformanceSettingsPanel isVisible={true} onClose={() => setActiveTab('entities')} />}
         {activeTab === 'customize' && <CustomizePanel />}
         {activeTab === 'compendium' && <CompendiumPanel />}

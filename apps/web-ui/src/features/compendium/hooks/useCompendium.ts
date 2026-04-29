@@ -81,8 +81,8 @@ export function useRaces(): UseCompendiumDataState<Race[]> {
 /**
  * Hook to get races in frontend format (compatible with existing character wizard)
  */
-export function useRacesForCharacterWizard(): UseCompendiumDataState<Record<string, any>> {
-  const [state, setState] = useState<UseCompendiumDataState<Record<string, any>>>({
+export function useRacesForCharacterWizard(): UseCompendiumDataState<Record<string, unknown>> {
+  const [state, setState] = useState<UseCompendiumDataState<Record<string, unknown>>>({
     data: null,
     loading: true,
     error: null,

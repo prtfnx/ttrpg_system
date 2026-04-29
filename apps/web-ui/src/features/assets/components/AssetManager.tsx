@@ -1,4 +1,5 @@
 import { useAuthenticatedWebSocket } from '@features/auth';
+import type { UserInfo } from '@features/auth';
 import { MessageType, createMessage } from '@lib/websocket';
 import clsx from 'clsx';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
@@ -10,7 +11,7 @@ interface AssetManagerProps {
   isVisible: boolean;
   onClose: () => void;
   sessionCode: string;
-  userInfo: any;
+  userInfo: UserInfo | null;
 }
 
 interface FileUploadInfo {

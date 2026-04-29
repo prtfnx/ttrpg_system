@@ -3,7 +3,7 @@
  * Production-quality event system with type safety and error handling
  */
 
-export type EventHandler<T = any> = (data: T) => void;
+export type EventHandler<T = unknown> = (data: T) => void;
 
 export interface EventSubscription {
   key: string;
@@ -22,7 +22,7 @@ export class EventSystem {
   /**
    * Subscribe to an event
    */
-  subscribe<T = any>(key: string, event: string, handler: EventHandler<T>, once = false): void {
+  subscribe<T = unknown>(key: string, event: string, handler: EventHandler<T>, once = false): void {
     if (!this.eventHandlers.has(event)) {
       this.eventHandlers.set(event, []);
     }
@@ -40,7 +40,7 @@ export class EventSystem {
   /**
    * Subscribe to an event that only fires once
    */
-  subscribeOnce<T = any>(key: string, event: string, handler: EventHandler<T>): void {
+  subscribeOnce<T = unknown>(key: string, event: string, handler: EventHandler<T>): void {
     this.subscribe(key, event, handler, true);
   }
 
@@ -74,7 +74,7 @@ export class EventSystem {
   /**
    * Emit an event
    */
-  public emit<T = any>(event: string, data: T): void {
+  public emit<T = unknown>(event: string, data: T): void {
     const handlers = this.eventHandlers.get(event);
     if (!handlers) return;
 

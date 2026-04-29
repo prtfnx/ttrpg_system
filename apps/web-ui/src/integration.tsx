@@ -131,7 +131,7 @@ document.addEventListener('DOMContentLoaded', () => {
   if (!window.wasmBridge) {
     window.wasmBridge = {
       // Called when sprite operations complete in WASM
-      onSpriteOperationComplete: (operation: string, spriteId: string, data: any) => {
+      onSpriteOperationComplete: (operation: string, spriteId: string, data: Record<string, unknown>) => {
         console.log('[integration] WASM operation complete:', operation, spriteId, data);
         
         // Dispatch custom event that components can listen to
@@ -160,7 +160,7 @@ document.addEventListener('DOMContentLoaded', () => {
       },
       
       // Called when WASM needs to send network updates
-      sendNetworkUpdate: (updateType: string, data: any) => {
+      sendNetworkUpdate: (updateType: string, data: Record<string, unknown>) => {
         console.log('[integration] WASM requesting network update:', updateType, data);
         
         // Dispatch event that protocol can listen to

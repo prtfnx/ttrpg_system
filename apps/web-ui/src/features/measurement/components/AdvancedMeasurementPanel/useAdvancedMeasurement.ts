@@ -64,7 +64,7 @@ export const useAdvancedMeasurement = ({
   }, [isOpen]);
 
   useEffect(() => {
-    const handleMeasurementEvent = (event: string, data: any) => {
+    const handleMeasurementEvent = (event: string, data: Record<string, unknown>) => {
       switch (event) {
         case 'measurementStarted':
           setActiveMeasurement(data.measurement.id);

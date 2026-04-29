@@ -74,7 +74,7 @@ const TablePanel: React.FC = () => {
     const factor = zoomIn ? 1.2 : 0.8;
     const newZoom = Math.max(0.1, Math.min(5.0, zoomRef.current * factor));
     zoomRef.current = newZoom;
-    const rm = (window as any).rustRenderManager;
+    const rm = window.rustRenderManager as (typeof window.rustRenderManager) & { set_zoom?: (z: number) => void } | undefined;
     if (rm?.set_zoom) rm.set_zoom(newZoom);
     zoomTable(tableId, factor, 400, 300);
   };
@@ -138,7 +138,7 @@ const TablePanel: React.FC = () => {
             className={clsx(styles.tableItem, table.table_id === activeTableId && styles.active)}
           >
             <div className={styles.tablePreviewWrapper} onClick={() => handleTableSelect(table.table_id)}>
-              <TablePreview table={table as any} width={160} height={90} />
+              <TablePreview table={table} width={160} height={90} />
             </div>
 
             <div className={styles.tableHeader}>

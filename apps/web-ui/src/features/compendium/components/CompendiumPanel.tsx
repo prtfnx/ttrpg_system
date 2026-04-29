@@ -19,7 +19,7 @@ interface CompendiumEntry {
   school?: string;
   cost?: string;
   monsterType?: string;
-  raw?: Record<string, any>;
+  raw?: Record<string, unknown>;
 }
 
 interface CompendiumPanelProps extends React.HTMLProps<HTMLDivElement> {
@@ -68,22 +68,23 @@ export const CompendiumPanel: React.FC<CompendiumPanelProps> = ({ category, clas
           monsterCreationSystem.initializeWithCompendium({ monsters: rawMonsters }).catch(() => {});
         }
 
-        for (const [name, m] of Object.entries(rawMonsters as Record<string, any>)) {
+        for (const [name, m] of Object.entries(rawMonsters as Record<string, unknown>)) {
+          const monster = m as Record<string, unknown>;
           results.push({
             id: name.toLowerCase().replace(/\s+/g, '-'),
             type: 'monster',
             name,
-            description: `CR ${m.challenge_rating ?? '?'} ${m.type ?? ''}`,
-            challenge_rating: parseFloat(m.challenge_rating) || 0,
-            monsterType: m.type ?? '',
-            raw: m,
+            description: `CR ${monster.challenge_rating ?? '?'} ${monster.type ?? ''}`,
+            challenge_rating: parseFloat(String(monster.challenge_rating)) || 0,
+            monsterType: String(monster.type ?? ''),
+            raw: monster,
           });
         }
       } catch { /* monsters unavailable */ }
 
       try {
         const spellRes = await compendiumService.getSpells({ limit: 500 });
-        for (const spell of Object.values(spellRes.spells ?? {}) as any[]) {
+        for (const spell of Object.values(spellRes.spells ?? {}) as Array<Record<string, unknown>>) {
           results.push({
             id: spell.name.toLowerCase().replace(/\s+/g, '-'),
             type: 'spell',
@@ -99,7 +100,7 @@ export const CompendiumPanel: React.FC<CompendiumPanelProps> = ({ category, clas
       try {
         const eqRes = await compendiumService.getEquipment();
         for (const [cat, items] of Object.entries(eqRes.equipment ?? {})) {
-          for (const item of (items as any[])) {
+          for (const item of (items as Array<Record<string, unknown>>)) {
             if (!item.name) continue;
             results.push({
               id: `${cat}_${item.name}`.toLowerCase().replace(/\s+/g, '-'),

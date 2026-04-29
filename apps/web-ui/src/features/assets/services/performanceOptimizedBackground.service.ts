@@ -425,7 +425,7 @@ class PerformanceOptimizedBackgroundSystem {
     }
 
     // Adjust based on memory constraints
-    const navigator_ = navigator as any;
+    const navigator_ = navigator as Navigator & { deviceMemory?: number };
     if (navigator_.deviceMemory && navigator_.deviceMemory < 4) {
       this.performanceProfile = 'low';
     }

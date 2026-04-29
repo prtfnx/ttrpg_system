@@ -170,7 +170,7 @@ export const MonsterCreationPanel: React.FC<MonsterCreationPanelProps> = ({
     return parseInt(cr) || 0;
   };
 
-  const handleFilterChange = useCallback((key: keyof MonsterSearchFilters, value: any) => {
+  const handleFilterChange = useCallback((key: keyof MonsterSearchFilters, value: MonsterSearchFilters[keyof MonsterSearchFilters]) => {
     setFilters(prev => ({
       ...prev,
       [key]: value

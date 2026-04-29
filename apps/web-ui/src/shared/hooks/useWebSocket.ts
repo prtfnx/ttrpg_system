@@ -55,7 +55,7 @@ export function useWebSocket(url: string) {
   // eslint-disable-next-line react-hooks/exhaustive-deps -- intentional: protocol dep omitted to prevent reconnect loop
   }, []);
 
-  const handleMessage = useCallback((payload: any) => {
+  const handleMessage = useCallback((payload: WebSocketMessage | string | Record<string, unknown>) => {
     try {
       const message: WebSocketMessage = typeof payload === 'string' ? JSON.parse(payload) : payload;
       switch (message.type) {
@@ -145,13 +145,13 @@ export function useWebSocket(url: string) {
             };
             
             // Clear existing sprites first
-            sprites.forEach((sprite: any) => removeSprite(sprite.id));
+            sprites.forEach((sprite) => removeSprite(sprite.id));
             
             // Load sprites and handle asset downloads
             if (data.sprites && Array.isArray(data.sprites)) {
               data.sprites.forEach(async (sprite: Partial<Sprite>) => {
                 // Convert legacy width/height to scale if provided
-                const spriteData = sprite as any; // Type assertion for legacy fields
+                const spriteData = sprite as Partial<Sprite> & { width?: number; height?: number; imageUrl?: string }; // legacy fields
                 const scaleX = spriteData.width ? spriteData.width / 32 : sprite.scale?.x || 1;
                 const scaleY = spriteData.height ? spriteData.height / 32 : sprite.scale?.y || 1;
                 
@@ -265,7 +265,7 @@ export function useWebSocket(url: string) {
       try {
         await protocol.connect();
         // register handler to receive protocol messages
-        const protoHandler = (m: any) => handleMessage(m.data ?? m);
+        const protoHandler = (m: import('@lib/websocket/message').Message) => handleMessage(m.data ?? m as Record<string, unknown>);
         protocol.registerHandler('generic', protoHandler);
         flushMessageQueue();
         updateConnectionState('connected');

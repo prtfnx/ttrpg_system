@@ -32,7 +32,7 @@ export interface ScreenArea {
 }
 
 export interface UseTableManagerReturn {
-  tableManager: any;
+  tableManager: unknown;
   activeTableId: string | null;
   tables: TableInfo[];
   createTable: (tableId: string, tableName: string, width: number, height: number) => boolean;
@@ -51,7 +51,7 @@ export interface UseTableManagerReturn {
 }
 
 export const useTableManager = (): UseTableManagerReturn => {
-  const [tableManager, setTableManager] = useState<any>(null);
+  const [tableManager, setTableManager] = useState<unknown>(null);
   const [activeTableId, setActiveTableId] = useState<string | null>(null);
   const [tables, setTables] = useState<TableInfo[]>([]);
 
@@ -59,7 +59,7 @@ export const useTableManager = (): UseTableManagerReturn => {
   useEffect(() => {
     if (!tableManager) {
       try {
-        const manager = new (window as any).wasm.TableManager();
+        const manager = new (window as Window & { wasm?: { TableManager: new () => unknown } }).wasm!.TableManager();
         setTableManager(manager);
         console.log('Table Manager initialized');
       } catch (error) {

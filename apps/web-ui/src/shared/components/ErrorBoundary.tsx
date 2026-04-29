@@ -7,7 +7,7 @@ import styles from './ErrorBoundary.module.css';
 declare global {
   interface Window {
     errorTracker?: {
-      captureException: (error: Error, options?: any) => void;
+      captureException: (error: Error, options?: Record<string, unknown>) => void;
     };
   }
 }

@@ -406,7 +406,7 @@ class AdvancedMeasurementService {
   syncWithTableUnits(gridCellPx: number, cellDistance: number, unit: 'ft' | 'm'): void {
     const unitLabel = unit === 'ft' ? 'feet' : 'meters';
     for (const grid of this.grids.values()) {
-      this.updateGrid(grid.id, { size: gridCellPx, scale: cellDistance, unit: unitLabel as any });
+      this.updateGrid(grid.id, { size: gridCellPx, scale: cellDistance, unit: unitLabel as 'feet' | 'meters' });
     }
   }
 

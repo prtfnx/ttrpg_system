@@ -108,18 +108,19 @@ class TableThumbnailService {
       // CRITICAL: Check if WASM and canvas are fully initialized
       // When opening Tables tab directly (without visiting Game tab first),
       // the canvas exists but hasn't rendered any frames yet
-      const wasmReady = (window as any).wasmInitialized === true;
+      const wasmWindow = window as Window & { wasmInitialized?: boolean };
+      const wasmReady = wasmWindow.wasmInitialized === true;
       if (!wasmReady) {
         console.warn('[ThumbnailService] WASM not fully initialized yet, waiting for first render...');
         
         // Wait for WASM to initialize (max 5 seconds)
         const maxWaitMs = 5000;
         const waitStart = Date.now();
-        while (!(window as any).wasmInitialized && (Date.now() - waitStart < maxWaitMs)) {
+        while (!wasmWindow.wasmInitialized && (Date.now() - waitStart < maxWaitMs)) {
           await new Promise(resolve => setTimeout(resolve, 100));
         }
         
-        if (!(window as any).wasmInitialized) {
+        if (!wasmWindow.wasmInitialized) {
           throw new Error('WASM initialization timeout - canvas not ready');
         }
         

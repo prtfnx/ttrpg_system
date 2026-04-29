@@ -7,6 +7,7 @@
 import { ErrorBoundary, LoadingSpinner } from '@shared/components';
 import { AlertTriangle, Eye, EyeOff, Pencil, Trash2, X } from 'lucide-react';
 import React, { useCallback, useEffect, useState } from 'react';
+import type { RenderEngine } from '@lib/wasm';
 import {
     performanceOptimizedBackgroundSystem,
     type BackgroundConfiguration,
@@ -19,7 +20,7 @@ import styles from './BackgroundManagementPanel.module.css';
 interface BackgroundManagementPanelProps {
   isOpen: boolean;
   onClose: () => void;
-  renderEngine: any; // RenderEngine type
+  renderEngine: RenderEngine | null;
 }
 
 const BackgroundManagementPanel: React.FC<BackgroundManagementPanelProps> = ({
@@ -421,7 +422,7 @@ const BackgroundManagementPanel: React.FC<BackgroundManagementPanelProps> = ({
                     id="performance-profile"
                     className={styles.settingSelect}
                     value={performanceProfile}
-                    onChange={(e) => handlePerformanceProfileChange(e.target.value as any)}
+                    onChange={(e) => handlePerformanceProfileChange(e.target.value as 'low' | 'medium' | 'high' | 'ultra')}
                   >
                     <option value="low">Low</option>
                     <option value="medium">Medium</option>
@@ -517,7 +518,7 @@ const BackgroundManagementPanel: React.FC<BackgroundManagementPanelProps> = ({
                             <select
                               className={styles.layerPropertySelect}
                               value={layer.blendMode}
-                              onChange={(e) => handleLayerUpdate(layer.id, { blendMode: e.target.value as any })}
+                              onChange={(e) => handleLayerUpdate(layer.id, { blendMode: e.target.value as BackgroundLayer['blendMode'] })}
                             >
                               <option value="normal">Normal</option>
                               <option value="multiply">Multiply</option>
@@ -597,7 +598,7 @@ const BackgroundManagementPanel: React.FC<BackgroundManagementPanelProps> = ({
                       if (e.target.value) {
                         const newEffect: WeatherEffect = {
                           id: `${e.target.value}_${Date.now()}`,
-                          type: e.target.value as any,
+                          type: e.target.value as WeatherEffect['type'],
                           intensity: 0.5,
                           direction: { x: 1, y: 0 },
                           speed: 1.0,

@@ -24,8 +24,8 @@ export interface PaintControls {
   clearAll: () => void;
   undoStroke: () => void;
   redoStroke: () => void;
-  getStrokes: () => any[];
-  getCurrentStroke: () => any | null;
+  getStrokes: () => Record<string, unknown>[];
+  getCurrentStroke: () => Record<string, unknown> | null;
   startStroke: (worldX: number, worldY: number, pressure?: number) => boolean;
   addPoint: (worldX: number, worldY: number, pressure?: number) => boolean;
   endStroke: () => boolean;
@@ -43,7 +43,7 @@ export interface PaintEvents {
 }
 
 export function usePaintSystem(
-  renderEngine: any,
+  renderEngine: import('@lib/wasm').RenderEngine | null,
   events?: PaintEvents
 ): [PaintState, PaintControls] {
   const { activeTableId } = useGameStore();
@@ -306,7 +306,7 @@ export function usePaintSystem(
 
 // Utility hook for mouse-based painting interaction
 export function usePaintInteraction(
-  renderEngine: any,
+  renderEngine: import('@lib/wasm').RenderEngine | null,
   paintControls: PaintControls,
   paintState: PaintState
 ) {

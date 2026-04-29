@@ -29,7 +29,7 @@ export const useSessionManagement = (sessionCode: string) => {
   useEffect(() => {
     if (!protocol) return;
 
-    const handlePlayerEvent = (message: any) => {
+    const handlePlayerEvent = (message: { data?: { event?: string } }) => {
       const eventType = message.data?.event;
       if (eventType === 'PLAYER_JOINED' ||
           eventType === 'PLAYER_ROLE_CHANGED' ||

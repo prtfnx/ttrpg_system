@@ -26,7 +26,7 @@ export const FogPanel: React.FC = () => {
     if (!protocol || !renderer) return;
 
     // Get active table ID — prefer WASM state, fall back to store
-    const tableId = (renderer as any).get_active_table_id?.() ?? useGameStore.getState().activeTableId;
+    const tableId = (renderer as typeof renderer & { get_active_table_id?: () => string | null }).get_active_table_id?.() ?? useGameStore.getState().activeTableId;
     if (!tableId) {
       console.warn('No active table ID, cannot send fog update');
       return;

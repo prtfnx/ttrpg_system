@@ -116,7 +116,7 @@ export const useAssetManager = (config?: AssetManagerConfig) => {
       console.log('Global WASM module is ready');
       
       console.log('Initializing Enhanced Asset Manager...');
-      const AssetManagerClass = (window.ttrpg_rust_core as any).AssetManager as typeof AssetManager;
+      const AssetManagerClass = (window.ttrpg_rust_core as unknown as { AssetManager: typeof AssetManager }).AssetManager;
       const manager = new AssetManagerClass();
       await manager.initialize();
       

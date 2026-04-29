@@ -12,7 +12,7 @@ export const ActionsQuickPanel: React.FC<ActionsQuickPanelProps> = ({ renderEngi
   const [tableWidth, setTableWidth] = useState(800);
   const [tableHeight, setTableHeight] = useState(600);
 
-  const actions = useActions(renderEngine || (window as any).rustRenderManager, {
+  const actions = useActions(renderEngine ?? window.rustRenderManager ?? null, {
     onAction: (actionType, data) => {
       console.log(`Action: ${actionType}`, data);
     },

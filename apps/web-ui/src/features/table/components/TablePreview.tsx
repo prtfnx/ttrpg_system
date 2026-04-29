@@ -23,7 +23,7 @@ export const TablePreview: React.FC<TablePreviewProps> = ({
   
   // Expose regenerate method globally for debugging
   React.useEffect(() => {
-    (window as any).__regenerateThumbnail = (tableId: string) => {
+    (window as Window & { __regenerateThumbnail?: (tableId: string) => void }).__regenerateThumbnail = (tableId: string) => {
       if (tableId === table.table_id) {
         console.log(`[TablePreview] Manual regeneration triggered for ${tableId}`);
         tableThumbnailService.invalidateThumbnail(table.table_id, width, height);

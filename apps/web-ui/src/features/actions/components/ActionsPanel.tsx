@@ -264,7 +264,7 @@ export const ActionsPanel: React.FC<ActionsPanelProps> = ({ renderEngine, classN
         {['tables', 'layers', 'history'].map(tab => (
           <button
             key={tab}
-            onClick={() => setActiveTab(tab as any)}
+            onClick={() => setActiveTab(tab as 'tables' | 'layers' | 'history')}
             className={clsx(styles.tabButton, activeTab === tab && styles.active)}
           >
             {tab.charAt(0).toUpperCase() + tab.slice(1)}

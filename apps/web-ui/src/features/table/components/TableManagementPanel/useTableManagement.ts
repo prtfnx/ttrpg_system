@@ -54,7 +54,7 @@ export const useTableManagement = () => {
       const data = customEvent.detail;
       
       if (data.tables) {
-        const serverTables = Object.entries(data.tables).map(([id, tableData]: [string, any]) => ({
+        const serverTables = Object.entries(data.tables).map(([id, tableData]: [string, Record<string, unknown>]) => ({
           table_id: id,
           ...tableData,
           syncStatus: 'synced' as const,
@@ -154,7 +154,7 @@ export const useTableManagement = () => {
   const handleDiagnoseThumbnails = async () => {
     console.group(' Thumbnail Diagnostic Report');
     
-    const wasmReady = (window as any).wasmInitialized;
+    const wasmReady = (window as Window & { wasmInitialized?: boolean }).wasmInitialized;
     console.log('1. WASM Status:', wasmReady ? ' Initialized' : ' Not Initialized');
     
     const mainCanvas = document.querySelector('[data-testid="game-canvas"]') as HTMLCanvasElement;
@@ -385,8 +385,8 @@ export const useTableManagement = () => {
     const input = document.createElement('input');
     input.type = 'file';
     input.accept = '.json';
-    input.onchange = async (e: any) => {
-      const file = e.target.files[0];
+    input.onchange = async (e: Event) => {
+      const file = (e.target as HTMLInputElement).files?.[0];
       if (!file) return;
 
       try {

@@ -652,7 +652,7 @@ export const useGameStore = create<GameStore>()(
             console.warn('[Store] protocol.setActiveTable method not available');
           }
         } else {
-          console.warn('[Store] Protocol not available or tableId is null:', { tableId, protocol: !!(window as any).protocol });
+          console.warn('[Store] Protocol not available or tableId is null:', { tableId, protocol: !!(window as Window & { protocol?: unknown }).protocol });
         }
       },
 

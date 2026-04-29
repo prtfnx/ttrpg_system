@@ -27,7 +27,7 @@ function TableSyncPanel() {
     imageUrl: '',
     rotation: 0
   });
-  const [mutationQueue, setMutationQueue] = useState<Array<{ type: 'create'|'update'|'delete'; payload: any; tempId?: string }>>([]);
+  const [mutationQueue, setMutationQueue] = useState<Array<{ type: 'create'|'update'|'delete'; payload: Record<string, unknown>; tempId?: string }>>([]); 
 
   const addLog = (type: ActivityLog['type'], message: string, emoji: string) => {
     const newLog: ActivityLog = {

@@ -7,7 +7,7 @@ export interface PaintTemplate {
   id: string;
   name: string;
   description?: string;
-  strokes: any[]; // Stroke data from WASM
+  strokes: unknown[]; // Stroke data from WASM
   thumbnail?: string; // Base64 image
   created: string;
   updated: string;
@@ -36,7 +36,7 @@ class PaintTemplateService {
    */
   async saveTemplate(
     name: string,
-    strokes: any[],
+    strokes: unknown[],
     description?: string,
     thumbnail?: string
   ): Promise<string> {
@@ -200,7 +200,7 @@ class PaintTemplateService {
     }
   }
 
-  private validateTemplate(template: any): boolean {
+  private validateTemplate(template: unknown): boolean {
     return (
       template &&
       typeof template.id === 'string' &&

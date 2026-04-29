@@ -12,7 +12,7 @@ export function validateTableId(tableId: string): void {
   }
 }
 
-export function transformServerTableToClient(serverTable: any): TableInfo {
+export function transformServerTableToClient(serverTable: Record<string, unknown>): TableInfo {
   const uuid = serverTable.table_id || serverTable.id;
   if (!uuid || !isValidUUID(uuid)) {
     throw new Error(`Server table missing valid UUID: ${JSON.stringify(serverTable)}`);
@@ -28,6 +28,6 @@ export function transformServerTableToClient(serverTable: any): TableInfo {
   };
 }
 
-export function transformServerTablesToClient(serverTables: any[]): TableInfo[] {
+export function transformServerTablesToClient(serverTables: Record<string, unknown>[]): TableInfo[] {
   return serverTables.map(transformServerTableToClient);
 }

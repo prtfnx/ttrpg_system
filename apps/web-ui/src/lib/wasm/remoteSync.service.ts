@@ -14,7 +14,7 @@ export class RemoteSyncService {
   }
 
   init(): void {
-    const on = (type: string, handler: (detail: any) => void) => {
+    const on = (type: string, handler: (detail: Record<string, unknown>) => void) => {
       const listener = (e: Event) => handler((e as CustomEvent).detail);
       window.addEventListener(type, listener);
       this.eventCleanups.push(() => window.removeEventListener(type, listener));

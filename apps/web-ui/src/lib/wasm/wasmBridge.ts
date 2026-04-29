@@ -10,6 +10,7 @@ import { authService } from '@features/auth';
 import { isDM } from '@features/session/types/roles';
 import { useOptionalProtocol } from '@lib/api';
 import { createMessage, MessageType } from '@lib/websocket';
+import type { WebClientProtocol } from '@lib/websocket';
 import React from 'react';
 import { toast } from 'react-toastify';
 
@@ -28,7 +29,7 @@ interface PendingAction {
 }
 
 class WasmBridgeService {
-  private protocol: any = null;
+  private protocol: WebClientProtocol | null = null;
   private isInitialized = false;
 
   // Last server-confirmed state (source of truth for rollback)
@@ -50,7 +51,7 @@ class WasmBridgeService {
     this.isInitialized = true;
   }
 
-  setProtocol(protocol: any) {
+  setProtocol(protocol: WebClientProtocol | null) {
     this.protocol = protocol;
   }
 
@@ -117,7 +118,7 @@ class WasmBridgeService {
     // Send a sprite move so the server persists the new coordinates.
     this.protocol.moveSprite(lightId, x, y);
     // Also update the Zustand store so the UI stays consistent
-    useGameStore.getState().updateSprite(lightId, { x, y } as any);
+    useGameStore.getState().updateSprite(lightId, { x, y });
   };
 
   private onWallMoved = (e: Event) => {

@@ -49,7 +49,7 @@ export interface Character {
   name: string;
   ownerId: number;
   controlledBy: number[];
-  data: any; // D&D 5e structure, see architecture
+  data: Record<string, unknown>; // D&D 5e structure, see architecture
   version: number;
   lastModifiedBy?: number;
   createdAt: string;
@@ -125,8 +125,8 @@ export interface GameAPI {
 
 // WASM Bridge interface for bidirectional communication
 export interface WasmBridge {
-  onSpriteOperationComplete: (operation: string, spriteId: string, data: any) => void;
-  sendNetworkUpdate: (updateType: string, data: any) => void;
+  onSpriteOperationComplete: (operation: string, spriteId: string, data: Record<string, unknown>) => void;
+  sendNetworkUpdate: (updateType: string, data: Record<string, unknown>) => void;
   onError: (operation: string, error: string) => void;
 }
 

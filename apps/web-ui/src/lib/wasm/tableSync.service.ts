@@ -92,8 +92,8 @@ export class TableSyncService {
       }
 
       // Push table data to WASM
-      if (tableData.table_id && (engine as any).handle_table_data) {
-        const formattedLayers: Record<string, any[]> = {};
+      if (tableData.table_id && (engine as typeof engine & { handle_table_data?: (id: string, data: unknown) => void }).handle_table_data) {
+        const formattedLayers: Record<string, unknown[]> = {};
         if (tableData.layers && typeof tableData.layers === 'object') {
           const layers = tableData.layers;
           Object.keys(layers).forEach(name => {

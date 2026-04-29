@@ -22,7 +22,7 @@ vi.mock('@features/auth', () => ({
     loading: false,
     error: '',
     hasPermission: vi.fn(() => true),
-    requireAuth: vi.fn((op: any) => op()),
+    requireAuth: vi.fn((op: () => unknown) => op()),
     updateUser: vi.fn()
   })
 }));

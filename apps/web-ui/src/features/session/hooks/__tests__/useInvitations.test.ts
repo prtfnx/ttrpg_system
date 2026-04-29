@@ -48,8 +48,8 @@ describe('useInvitations', () => {
     vi.clearAllMocks();
     vi.mocked(invitationService.listSessionInvitations).mockResolvedValue([...mockInvitations]);
     vi.mocked(invitationService.createInvitation).mockResolvedValue({ ...mockInvitations[0], id: 3 });
-    vi.mocked(invitationService.revokeInvitation).mockResolvedValue(undefined as any);
-    vi.mocked(invitationService.deleteInvitation).mockResolvedValue(undefined as any);
+    vi.mocked(invitationService.revokeInvitation).mockResolvedValue(undefined);
+    vi.mocked(invitationService.deleteInvitation).mockResolvedValue(undefined);
   });
 
   describe('Initialization', () => {
@@ -122,7 +122,7 @@ describe('useInvitations', () => {
       vi.mocked(invitationService.createInvitation).mockRejectedValueOnce(new Error('Create failed'));
       const { result } = renderHook(() => useInvitations(sessionCode));
 
-      let created: SessionInvitation | null = undefined as any;
+      let created: SessionInvitation | null = null;
       await act(async () => {
         created = await result.current.createInvitation({ session_code: sessionCode, pre_assigned_role: 'player', max_uses: 1 });
       });

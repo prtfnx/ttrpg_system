@@ -19,10 +19,10 @@ vi.mock('@features/auth', () => ({
     loading: false,
     error: '',
     hasPermission: vi.fn(() => true),
-    requireAuth: vi.fn((op: any) => op()),
+    requireAuth: vi.fn((op: () => unknown) => op()),
     updateUser: vi.fn()
   }),
-  type: {} as any,
+  type: {} as unknown as ReturnType<typeof import("@features/auth").useAuth>["type"],
 }));
 
 // Import mocked service after mock is defined
@@ -50,13 +50,13 @@ describe('SessionSelector - User Behavior Tests', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     // Default: successful session load
-    (authService.getUserSessions as any).mockResolvedValue(mockSessions);
+    vi.mocked(authService.getUserSessions).mockResolvedValue(mockSessions);
   });
 
   describe('Loading State', () => {
     it('shows loading spinner while fetching sessions', () => {
       // Make the promise never resolve to test loading state
-      (authService.getUserSessions as any).mockImplementation(() => new Promise(() => {}));
+      vi.mocked(authService.getUserSessions).mockImplementation(() => new Promise(() => {}));
       
       render(<SessionSelector onSessionSelected={mockOnSessionSelected} />);
 
@@ -197,7 +197,7 @@ describe('SessionSelector - User Behavior Tests', () => {
 
   describe('Empty State', () => {
     it('shows appropriate message when no sessions are available', async () => {
-      (authService.getUserSessions as any).mockResolvedValue([]);
+      vi.mocked(authService.getUserSessions).mockResolvedValue([]);
       
       render(<SessionSelector onSessionSelected={mockOnSessionSelected} />);
 
@@ -210,7 +210,7 @@ describe('SessionSelector - User Behavior Tests', () => {
     });
 
     it('allows logging out from empty state', async () => {
-      (authService.getUserSessions as any).mockResolvedValue([]);
+      vi.mocked(authService.getUserSessions).mockResolvedValue([]);
       
       render(<SessionSelector onSessionSelected={mockOnSessionSelected} />);
 
@@ -230,7 +230,7 @@ describe('SessionSelector - User Behavior Tests', () => {
   describe('Error Handling', () => {
     it('displays error message when session loading fails', async () => {
       const errorMessage = 'Network connection failed';
-      (authService.getUserSessions as any).mockRejectedValue(new Error(errorMessage));
+      vi.mocked(authService.getUserSessions).mockRejectedValue(new Error(errorMessage));
       
       render(<SessionSelector onSessionSelected={mockOnSessionSelected} />);
 
@@ -242,7 +242,7 @@ describe('SessionSelector - User Behavior Tests', () => {
     });
 
     it('allows retrying when session loading fails', async () => {
-      (authService.getUserSessions as any)
+      vi.mocked(authService.getUserSessions)
         .mockRejectedValueOnce(new Error('Network error'))
         .mockResolvedValueOnce(mockSessions);
       
@@ -264,7 +264,7 @@ describe('SessionSelector - User Behavior Tests', () => {
     });
 
     it('allows logging out from error state', async () => {
-      (authService.getUserSessions as any).mockRejectedValue(new Error('Failed'));
+      vi.mocked(authService.getUserSessions).mockRejectedValue(new Error('Failed'));
       
       render(<SessionSelector onSessionSelected={mockOnSessionSelected} />);
 
@@ -298,3 +298,4 @@ describe('SessionSelector - User Behavior Tests', () => {
     });
   });
 });
+

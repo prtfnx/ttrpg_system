@@ -228,13 +228,13 @@ describe('CollapsedView', () => {
     it('handles undefined props gracefully', () => {
       // TypeScript would prevent this, but good to test runtime behavior
       expect(() => {
-        render(<CollapsedView sessionCode={undefined as any} onToggle={mockOnToggle} />);
+        render(<CollapsedView sessionCode={undefined as unknown as string} onToggle={mockOnToggle} />);
       }).not.toThrow();
     });
 
     it('handles null onToggle gracefully', () => {
       expect(() => {
-        render(<CollapsedView sessionCode={testSessionCode} onToggle={null as any} />);
+        render(<CollapsedView sessionCode={testSessionCode} onToggle={null as unknown as () => void} />);
       }).not.toThrow();
     });
   });

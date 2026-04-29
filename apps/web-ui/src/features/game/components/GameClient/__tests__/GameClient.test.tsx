@@ -24,7 +24,7 @@ vi.mock('@features/chat', () => ({
 }));
 
 vi.mock('@features/canvas/components/TokenConfigModal', () => ({
-  TokenConfigModal: ({ spriteId, onClose }: any) => (
+  TokenConfigModal: ({ spriteId, onClose }: { spriteId: string; onClose: () => void }) => (
     <div data-testid="token-config-modal">
       <h2>Token Configuration</h2>
       <div>Sprite ID: {spriteId}</div>
@@ -46,7 +46,7 @@ vi.mock('../../../app/RightPanel', () => ({
 }));
 
 // Helper to create a Sprite
-function createTestSprite(overrides: any = {}) {
+function createTestSprite(overrides: Partial<Record<string, unknown>> = {}) {
   return {
     id: 'sprite-1',
     name: 'Test Token',
@@ -116,8 +116,9 @@ describe('GameClient - Double-Click Detection Tests', () => {
     // Clean up any remaining event listeners
     const events = ['tokenDoubleClick'];
     events.forEach(eventName => {
-      const handlers = (window as any).eventListeners?.[eventName] || [];
-      handlers.forEach((handler: any) => {
+      const w = window as Window & { eventListeners?: Record<string, EventListener[]> };
+      const handlers = w.eventListeners?.[eventName] || [];
+      handlers.forEach((handler: EventListener) => {
         window.removeEventListener(eventName, handler);
       });
     });

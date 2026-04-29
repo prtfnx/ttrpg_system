@@ -188,7 +188,7 @@ describe('Character Import/Export', () => {
     });
 
     it('should accept data without version with warning', () => {
-      const dataWithoutVersion: any = {
+      const dataWithoutVersion = {
         character: mockCharacter
       };
 
@@ -211,7 +211,7 @@ describe('Character Import/Export', () => {
     });
 
     it('should reject missing character data', () => {
-      const invalidData: any = {
+      const invalidData = {
         version: '1.0'
       };
 
@@ -256,7 +256,7 @@ describe('Character Import/Export', () => {
         version: '1.0',
         character: {
           ...mockCharacter,
-          ownerId: 'not-a-number' as any
+          ownerId: 'not-a-number' as unknown as number
         }
       };
 
@@ -271,7 +271,7 @@ describe('Character Import/Export', () => {
         version: '1.0',
         character: {
           ...mockCharacter,
-          controlledBy: 'not-an-array' as any
+          controlledBy: 'not-an-array' as unknown as number[]
         }
       };
 
@@ -542,8 +542,8 @@ describe('Character Import/Export', () => {
       // Mock URL and DOM APIs properly
       const mockCreateObjectURL = vi.fn(() => 'blob:mock-url');
       const mockRevokeObjectURL = vi.fn();
-      (globalThis as any).URL.createObjectURL = mockCreateObjectURL;
-      (globalThis as any).URL.revokeObjectURL = mockRevokeObjectURL;
+      Object.assign(URL, { createObjectURL: mockCreateObjectURL });
+      Object.assign(URL, { revokeObjectURL: mockRevokeObjectURL });
 
       const createElementSpy = vi.spyOn(document, 'createElement');
       const clickSpy = vi.fn();
@@ -551,11 +551,10 @@ describe('Character Import/Export', () => {
         href: '',
         download: '',
         click: clickSpy,
-      } as any;
-      createElementSpy.mockReturnValue(mockLink);
+      } as unknown as HTMLAnchorElement;`n      createElementSpy.mockReturnValue(mockLink as unknown as HTMLElement);
 
-      const appendChildSpy = vi.spyOn(document.body, 'appendChild').mockImplementation(() => null as any);
-      const removeChildSpy = vi.spyOn(document.body, 'removeChild').mockImplementation(() => null as any);
+      const appendChildSpy = vi.spyOn(document.body, 'appendChild').mockImplementation(() => null as unknown as ChildNode);
+      const removeChildSpy = vi.spyOn(document.body, 'removeChild').mockImplementation(() => null as unknown as ChildNode);
 
       downloadCharacterAsJSON(mockCharacter);
 
@@ -577,8 +576,8 @@ describe('Character Import/Export', () => {
       // Mock URL and DOM APIs properly
       const mockCreateObjectURL = vi.fn(() => 'blob:mock-url');
       const mockRevokeObjectURL = vi.fn();
-      (globalThis as any).URL.createObjectURL = mockCreateObjectURL;
-      (globalThis as any).URL.revokeObjectURL = mockRevokeObjectURL;
+      Object.assign(URL, { createObjectURL: mockCreateObjectURL });
+      Object.assign(URL, { revokeObjectURL: mockRevokeObjectURL });
 
       const createElementSpy = vi.spyOn(document, 'createElement');
       const clickSpy = vi.fn();
@@ -586,11 +585,10 @@ describe('Character Import/Export', () => {
         href: '',
         download: '',
         click: clickSpy,
-      } as any;
-      createElementSpy.mockReturnValue(mockLink);
+      } as unknown as HTMLAnchorElement;`n      createElementSpy.mockReturnValue(mockLink as unknown as HTMLElement);
 
-      const appendChildSpy = vi.spyOn(document.body, 'appendChild').mockImplementation(() => null as any);
-      const removeChildSpy = vi.spyOn(document.body, 'removeChild').mockImplementation(() => null as any);
+      const appendChildSpy = vi.spyOn(document.body, 'appendChild').mockImplementation(() => null as unknown as ChildNode);
+      const removeChildSpy = vi.spyOn(document.body, 'removeChild').mockImplementation(() => null as unknown as ChildNode);
 
       const char2 = { ...mockCharacter, id: 'char-2' };
       downloadMultipleCharactersAsJSON([mockCharacter, char2]);
@@ -608,3 +606,4 @@ describe('Character Import/Export', () => {
     });
   });
 });
+

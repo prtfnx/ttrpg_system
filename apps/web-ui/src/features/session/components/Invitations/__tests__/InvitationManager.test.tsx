@@ -5,7 +5,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 // vi.hoisted ensures these refs are available when vi.mock factories run
 const mockInvitations = vi.hoisted(() => ({
-  invitations: [] as any[],
+  invitations: [] as unknown[],
   loading: false,
   error: null as string | null,
   createInvitation: vi.fn(),
@@ -36,7 +36,7 @@ Object.defineProperty(window, 'confirm', {
 
 // Mock the InviteLink component to focus on manager behavior
 vi.mock('../InviteLink', () => ({
-  InviteLink: ({ invitation, onRevoke, onDelete }: any) => (
+  InviteLink: ({ invitation, onRevoke, onDelete }: { invitation: { id: number; pre_assigned_role: string; invite_code: string }; onRevoke: (id: number) => void; onDelete: (id: number) => void }) => (
     <div data-testid={`invite-link-${invitation.id}`}>
       <span>Role: {invitation.pre_assigned_role}</span>
       <span>Code: {invitation.invite_code}</span>
@@ -295,7 +295,7 @@ describe('InvitationManager - Game Master Invitation Workflows', () => {
     });
 
     it('does not revoke invitation when user cancels confirmation', async () => {
-      (window.confirm as any).mockReturnValueOnce(false);
+      (window.confirm as ReturnType<typeof vi.fn>).mockReturnValueOnce(false);
 
       render(<InvitationManager sessionCode={sessionCode} onClose={onClose} />);
 

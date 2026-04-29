@@ -450,7 +450,7 @@ describe('Asset Management System - Performance and Caching', () => {
         React.useEffect(() => {
           const handleResize = () => {
             const width = window.innerWidth;
-            const connection = (navigator as any).connection;
+            const connection = (navigator as Navigator & { connection?: { effectiveType?: string } }).connection;
             
             if (width <= 480) {
               setCurrentDevice('mobile');
@@ -665,7 +665,7 @@ describe('Asset Management System - Performance and Caching', () => {
     it('should handle memory management for large asset collections', async () => {
       const memoryThreshold = 512 * 1024 * 1024; // 512MB threshold
       let currentMemoryUsage = 0;
-      const loadedAssets: Map<string, any> = new Map();
+      const loadedAssets: Map<string, unknown> = new Map();
       
       render(
         <div data-testid="memory-management">

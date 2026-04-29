@@ -6,7 +6,7 @@ import { EnhancedCharacterWizard } from '../EnhancedCharacterWizard';
 
 // Mock external dependencies
 vi.mock('@shared/components', () => ({
-  ErrorBoundary: ({ children }: any) => <div>{children}</div>,
+  ErrorBoundary: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,
   LoadingSpinner: () => <div>Loading...</div>,
 }));
 
@@ -32,7 +32,7 @@ vi.mock('@features/auth', () => ({
     loading: false,
     error: '',
     hasPermission: vi.fn(() => true),
-    requireAuth: vi.fn((op: any) => op()),
+    requireAuth: vi.fn((op: () => unknown) => op()),
     updateUser: vi.fn()
   })
 }));

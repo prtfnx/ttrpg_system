@@ -10,7 +10,7 @@ describe('TableThumbnailService', () => {
   const validUUID = '550e8400-e29b-41d4-a716-446655440000';
   const validUUID2 = '0a577ca2-7f6a-400d-9758-26f232003cc5';
   
-  let mockRenderEngine: any;
+  let mockRenderEngine: { get_active_table_id: ReturnType<typeof vi.fn>; render: ReturnType<typeof vi.fn> };
   let mockCanvas: HTMLCanvasElement;
 
   beforeEach(() => {
@@ -35,7 +35,7 @@ describe('TableThumbnailService', () => {
       render: vi.fn()
     };
     
-    (window as any).wasmInitialized = true;
+    Object.assign(window, { wasmInitialized: true });
   });
 
   afterEach(() => {
@@ -44,7 +44,7 @@ describe('TableThumbnailService', () => {
       canvas.remove();
     }
     tableThumbnailService.clearCache();
-    delete (window as any).wasmInitialized;
+    delete (window as unknown as Record<string, unknown>).wasmInitialized;
   });
 
   describe('initialization', () => {
@@ -56,7 +56,7 @@ describe('TableThumbnailService', () => {
     });
 
     it('provides null render engine before initialization', () => {
-      const service = new (tableThumbnailService.constructor as any)();
+      const service = new (tableThumbnailService.constructor as new () => typeof tableThumbnailService)();
       
       expect(service.getRenderEngine()).toBeNull();
       expect(service.isInitialized()).toBe(false);
@@ -133,7 +133,7 @@ describe('TableThumbnailService', () => {
 
     it('throws error when render engine not initialized', async () => {
       // Create fresh service without initialization
-      const freshService = new (tableThumbnailService.constructor as any)();
+      const freshService = new (tableThumbnailService.constructor as new () => typeof tableThumbnailService)();
       
       await expect(
         freshService.generateThumbnail(

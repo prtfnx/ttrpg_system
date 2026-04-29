@@ -46,7 +46,7 @@ describe('useRoleManagement', () => {
 
       const { result } = renderHook(() => useRoleManagement(mockSessionCode));
 
-      let response: any;
+      let response;
       await act(async () => {
         response = await result.current.changeRole(101, 'trusted_player');
       });
@@ -62,11 +62,11 @@ describe('useRoleManagement', () => {
 
     it('sets changing state during role change', async () => {
       const { sessionManagementService } = await import('@features/session/services/sessionManagement.service');
-      let resolveChange: any;
+      let resolveChange: (value: unknown) => void;
       const changePromise = new Promise(resolve => {
         resolveChange = resolve;
       });
-      vi.mocked(sessionManagementService.changePlayerRole).mockReturnValue(changePromise as any);
+      vi.mocked(sessionManagementService.changePlayerRole).mockReturnValue(changePromise as unknown as ReturnType<typeof sessionManagementService.changePlayerRole>);
 
       const { result } = renderHook(() => useRoleManagement(mockSessionCode));
 
@@ -95,7 +95,7 @@ describe('useRoleManagement', () => {
 
       const { result } = renderHook(() => useRoleManagement(mockSessionCode));
 
-      let response: any;
+      let response;
       await act(async () => {
         response = await result.current.changeRole(101, 'owner');
       });
@@ -108,7 +108,7 @@ describe('useRoleManagement', () => {
     it('returns null when session code is null', async () => {
       const { result } = renderHook(() => useRoleManagement(null));
 
-      let response: any;
+      let response;
       await act(async () => {
         response = await result.current.changeRole(101, 'player');
       });
@@ -167,11 +167,11 @@ describe('useRoleManagement', () => {
 
     it('sets changing state during kick', async () => {
       const { sessionManagementService } = await import('@features/session/services/sessionManagement.service');
-      let resolveKick: any;
+      let resolveKick: (value: unknown) => void;
       const kickPromise = new Promise(resolve => {
         resolveKick = resolve;
       });
-      vi.mocked(sessionManagementService.kickPlayer).mockReturnValue(kickPromise as any);
+      vi.mocked(sessionManagementService.kickPlayer).mockReturnValue(kickPromise as unknown as ReturnType<typeof sessionManagementService.kickPlayer>);
 
       const { result } = renderHook(() => useRoleManagement(mockSessionCode));
 
@@ -265,3 +265,4 @@ describe('useRoleManagement', () => {
     });
   });
 });
+

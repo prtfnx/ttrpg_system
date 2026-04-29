@@ -12,7 +12,7 @@ const mockSprites = [
 // Mock the game store with sprites
 const mockAddSprite = vi.fn();
 const mockStore = {
-  sprites: [] as any[],
+  sprites: [] as unknown[],
   selectedSprites: [],
   selectSprite: vi.fn(),
   addSprite: mockAddSprite,
@@ -33,7 +33,7 @@ describe('EntitiesPanel sprite sync', () => {
 
   it('syncs sprites from the render manager and displays them', async () => {
     // The global rustRenderManager mock in setup.ts provides get_all_sprites_network_data
-    (window as any).rustRenderManager.get_all_sprites_network_data = () => mockSprites;
+    Object.assign(window.rustRenderManager ?? {}, { get_all_sprites_network_data: () => mockSprites });
 
     // Simulate addSprite actually adding to the store
     mockAddSprite.mockImplementation((sprite) => {

@@ -34,7 +34,7 @@ beforeEach(() => {
     distanceUnit: 'ft',
     activeTableId: 'table-1',
     setTableUnits: mockSetTableUnits,
-  } as any);
+  } as unknown as Parameters<typeof useGameStore.setState>[0]);
 });
 
 describe('TableSettingsPanel — DM view', () => {
@@ -87,7 +87,7 @@ describe('TableSettingsPanel — DM view', () => {
   });
 
   it('calls setTableUnits with ft when ft button clicked', async () => {
-    useGameStore.setState({ distanceUnit: 'm' } as any);
+    useGameStore.setState({ distanceUnit: 'm' } as unknown as Parameters<typeof useGameStore.setState>[0]);
     const user = userEvent.setup();
     render(<TableSettingsPanel />);
 
@@ -101,13 +101,13 @@ describe('TableSettingsPanel — DM view', () => {
 
 describe('TableSettingsPanel — non-DM view', () => {
   it('renders nothing for players', () => {
-    useGameStore.setState({ sessionRole: 'player' } as any);
+    useGameStore.setState({ sessionRole: 'player' } as unknown as Parameters<typeof useGameStore.setState>[0]);
     const { container } = render(<TableSettingsPanel />);
     expect(container).toBeEmptyDOMElement();
   });
 
   it('renders nothing for spectators', () => {
-    useGameStore.setState({ sessionRole: 'spectator' } as any);
+    useGameStore.setState({ sessionRole: 'spectator' } as unknown as Parameters<typeof useGameStore.setState>[0]);
     const { container } = render(<TableSettingsPanel />);
     expect(container).toBeEmptyDOMElement();
   });

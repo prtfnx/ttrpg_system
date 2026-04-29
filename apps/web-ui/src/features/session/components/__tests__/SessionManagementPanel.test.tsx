@@ -26,7 +26,7 @@ vi.mock('../../hooks/useSessionManagement', () => ({
 
 // Mock sub-components to focus on orchestration behavior
 vi.mock('../CollapsedView', () => ({
-  CollapsedView: ({ sessionCode, onToggle }: any) => (
+  CollapsedView: ({ sessionCode, onToggle }: { sessionCode: string; onToggle: () => void }) => (
     <div data-testid="collapsed-view">
       <span>Session: {sessionCode}</span>
       <button onClick={onToggle}>Expand Management</button>
@@ -35,7 +35,7 @@ vi.mock('../CollapsedView', () => ({
 }));
 
 vi.mock('../Invitations/InvitationManager', () => ({
-  InvitationManager: ({ sessionCode, onClose }: any) => (
+  InvitationManager: ({ sessionCode, onClose }: { sessionCode: string; onClose: () => void }) => (
     <div data-testid="invitation-manager">
       <span>Managing invites for: {sessionCode}</span>
       <button onClick={onClose}>Close Invitations</button>
@@ -44,7 +44,7 @@ vi.mock('../Invitations/InvitationManager', () => ({
 }));
 
 vi.mock('../PlayerList', () => ({
-  PlayerList: ({ players, _onRoleChange, _onRemove, canManagePlayers }: any) => (
+  PlayerList: ({ players, _onRoleChange, _onRemove, canManagePlayers }: { players: unknown[]; _onRoleChange?: unknown; _onRemove?: unknown; canManagePlayers?: boolean }) => (
     <div data-testid="player-list">
       <span>Players: {players.length}</span>
       <span>Can modify: {canManagePlayers ? 'yes' : 'no'}</span>

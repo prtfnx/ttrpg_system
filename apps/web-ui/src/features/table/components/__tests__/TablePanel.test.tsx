@@ -13,7 +13,7 @@ import { TablePanel } from '../TablePanel';
 // Mock the hook that provides table data
 // Define mock data outside vi.mock but it will be captured
 const mockTableData = {
-  tableManager: {} as any,
+  tableManager: {} as unknown as object,
   activeTableId: 'table_1',
   tables: [
     {

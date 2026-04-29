@@ -6,7 +6,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 // Mock the role selector component
 vi.mock('../PlayerRoleSelector', () => ({
-  PlayerRoleSelector: ({ currentRole, onChange, disabled, canEdit }: any) => (
+  PlayerRoleSelector: ({ currentRole, onChange, disabled, canEdit }: { currentRole: string; onChange: (role: string) => void; disabled?: boolean; canEdit?: boolean }) => (
     <select 
       data-testid="role-selector"
       data-role={currentRole}

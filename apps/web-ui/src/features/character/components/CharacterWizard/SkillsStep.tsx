@@ -97,7 +97,7 @@ export function SkillsStep({
   const { setValue, formState, setError: _setError, clearErrors: _clearErrors, getValues } = useFormContext<SkillsStepData>();
   
   // Get data from form context if not provided as props
-  const formData = getValues() as any; // Cast to any to access other form fields
+  const formData = getValues() as SkillsStepData & { class?: string; background?: string; race?: string }; // Cast to access other form fields
   const characterClass = formData.class || 'fighter';
   const background = formData.background || 'acolyte';
   const race = formData.race || 'human';

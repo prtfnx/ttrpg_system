@@ -782,7 +782,7 @@ export class AdvancementSystemService {
     // Apply ASI choices
     if (levelUpChoices.asiChoices) {
       Object.entries(levelUpChoices.asiChoices).forEach(([ability, increase]) => {
-        (updatedCharacter as any)[ability] += increase;
+        (updatedCharacter as Record<string, unknown>)[ability] = ((updatedCharacter as Record<string, unknown>)[ability] as number) + increase;
       });
     }
     

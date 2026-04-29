@@ -42,7 +42,7 @@ export const EquipmentSelectionStep: React.FC<EquipmentSelectionStepProps> = ({
   
   const formData = getValues();
   const characterClass = propCharacterClass || formData.class || 'fighter';
-  const characterBackground = (formData as any).background || '';
+  const characterBackground = formData.background || '';
   // eslint-disable-next-line react-hooks/exhaustive-deps -- known: abilityScores optional chaining, stable reference
   const abilityScores = propAbilityScores || {
     strength: formData.strength || 10,
@@ -112,7 +112,7 @@ export const EquipmentSelectionStep: React.FC<EquipmentSelectionStepProps> = ({
           const wizardItems: WizardEquipmentItem[] = [];
           
           for (const item of existingItems) {
-            const itemAny = item as any; // Type assertion for old format compatibility
+            const itemAny = item as Record<string, unknown>; // Type assertion for old format compatibility
             
             // Check if item is in new wizard format: {equipment: {...}, quantity, equipped}
             if (item.equipment && typeof item.equipment === 'object' && 'name' in item.equipment) {

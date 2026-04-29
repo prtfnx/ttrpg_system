@@ -298,7 +298,7 @@ const FeatSelectionStep: React.FC<FeatSelectionStepProps> = ({ onNext, onBack })
     characterClass,
     abilityScores,
     race,
-    featFilter === 'all' ? 'combat' : featFilter as any
+    featFilter === 'all' ? 'combat' : featFilter as 'combat' | 'utility' | 'defense'
   );
 
   useEffect(() => {

@@ -679,7 +679,7 @@ class EquipmentManagementService {
       // Transform compendium equipment format to our Equipment type
       const items = data.equipment?.items || [];
       
-      return items.map((item: any) => {
+      return items.map((item: Record<string, unknown>) => {
         // Pick natural denomination (most significant non-zero currency)
         const pp = item.cost?.platinum || 0;
         const gp = item.cost?.gold || 0;

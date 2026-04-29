@@ -24,7 +24,7 @@ export const TemplateSelectionStep: React.FC = () => {
     
     // Apply template data to form
     Object.entries(template.data).forEach(([key, value]) => {
-      setValue(key as any, value, { shouldValidate: true });
+      setValue(key as keyof WizardFormData, value as WizardFormData[keyof WizardFormData], { shouldValidate: true });
     });
   };
 

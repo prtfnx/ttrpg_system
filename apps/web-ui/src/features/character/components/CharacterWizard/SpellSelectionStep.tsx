@@ -127,7 +127,7 @@ export const SpellSelectionStep: React.FC<SpellSelectionStepProps> = ({
       if (spell.level === 0) return true; // Cantrips always available
       // Check if character has slots for this spell level
       // Access as index signature since spellSlots has numeric keys
-      const hasSlot = (spellSlots as any)[spell.level] && (spellSlots as any)[spell.level] > 0;
+      const hasSlot = (spellSlots as Record<number, number>)[spell.level] > 0;
       return hasSlot;
     });
 
@@ -208,7 +208,7 @@ export const SpellSelectionStep: React.FC<SpellSelectionStepProps> = ({
     setValue('spells', newSpellData, { shouldValidate: true });
   }, [currentSpells, setValue, spellSlots.cantrips, maxSpellsKnown]);
 
-  const handleFilterChange = useCallback((key: keyof SpellFilters, value: any) => {
+  const handleFilterChange = useCallback((key: keyof SpellFilters, value: SpellFilters[keyof SpellFilters]) => {
     setFilters(prev => ({ ...prev, [key]: value }));
   }, []);
 
@@ -252,7 +252,7 @@ export const SpellSelectionStep: React.FC<SpellSelectionStepProps> = ({
           {(() => {
             const isPrepared = maxSpellsKnown === Infinity;
             const abilityKey = spellcastingStats.spellcastingAbility.toLowerCase();
-            const abilityScore = (abilityScores as any)?.[abilityKey] || 10;
+            const abilityScore = abilityScores?.[abilityKey] ?? 10;
             const abilityMod = Math.floor((abilityScore - 10) / 2);
             const modStr = abilityMod >= 0 ? `+${abilityMod}` : `${abilityMod}`;
             const preparedCount = Math.max(1, abilityMod + characterLevel);

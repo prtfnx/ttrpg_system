@@ -27,7 +27,7 @@ export function IdentityStep({ onNext, onBack: _onBack }: { onNext?: () => void;
     const template = ALL_TEMPLATES.find((t: CharacterTemplate) => t.id === templateId);
     if (!template) return;
     Object.entries(template.data).forEach(([key, value]) => {
-      setValue(key as any, value, { shouldValidate: true });
+      setValue(key as keyof IdentityStepData, value as IdentityStepData[keyof IdentityStepData], { shouldValidate: true });
     });
   }
 

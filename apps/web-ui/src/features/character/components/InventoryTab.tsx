@@ -12,8 +12,8 @@ interface WizardItem {
 interface Currency { cp: number; sp: number; ep: number; gp: number; pp: number }
 
 interface Props {
-  data: Record<string, any>;
-  onSave: (data: Record<string, any>) => void;
+  data: Record<string, unknown>;
+  onSave: (data: Record<string, unknown>) => void;
 }
 
 export const InventoryTab: React.FC<Props> = ({ data, onSave }) => {

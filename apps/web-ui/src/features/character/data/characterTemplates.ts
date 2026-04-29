@@ -24,7 +24,7 @@ export interface CharacterTemplate {
   type: 'pc' | 'npc';
   description: string;
   icon: string;
-  data: Record<string, any>;
+  data: Record<string, unknown>;
 }
 
 /**

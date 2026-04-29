@@ -268,7 +268,7 @@ export const RACES: Record<string, RaceData> = {
 };
 
 // Helper function to calculate total ability score increases
-export function calculateRacialASI(race: string, subrace?: string, racesData?: Record<string, any>): Partial<Record<AbilityScore, number>> {
+export function calculateRacialASI(race: string, subrace?: string, racesData?: Record<string, unknown>): Partial<Record<AbilityScore, number>> {
   const RACES_SOURCE = racesData || RACES;
   const raceData = RACES_SOURCE[race];
   if (!raceData) return {};
@@ -288,7 +288,7 @@ export function calculateRacialASI(race: string, subrace?: string, racesData?: R
 }
 
 // Helper to get all racial traits (race + subrace)
-export function getRacialTraits(race: string, subrace?: string, racesData?: Record<string, any>): RaceTrait[] {
+export function getRacialTraits(race: string, subrace?: string, racesData?: Record<string, unknown>): RaceTrait[] {
   const RACES_SOURCE = racesData || RACES;
   const raceData = RACES_SOURCE[race];
   if (!raceData) return [];

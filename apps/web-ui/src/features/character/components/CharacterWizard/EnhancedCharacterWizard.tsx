@@ -32,8 +32,8 @@ interface WizardStep {
   id: string;
   title: string;
   description: string;
-  component: React.ComponentType<any>;
-  validation?: z.ZodSchema<any>;
+  component: React.ComponentType<Record<string, unknown>>;
+  validation?: z.ZodSchema<Record<string, unknown>>;
   canSkip?: boolean;
   requirements?: string[];
 }

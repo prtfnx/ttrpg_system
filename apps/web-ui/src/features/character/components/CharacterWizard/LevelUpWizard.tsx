@@ -346,7 +346,7 @@ export function LevelUpWizard({ character, onComplete, onCancel }: LevelUpWizard
             <h4>Allocate 2 points among your abilities:</h4>
             <div className="ability-increases">
               {['strength', 'dexterity', 'constitution', 'intelligence', 'wisdom', 'charisma'].map(ability => {
-                const currentScore = (character as any)[ability];
+                const currentScore = (character as Record<string, unknown>)[ability] as number;
                 const increase = choices.asiChoices?.[ability] || 0;
                 const maxIncrease = Math.min(2, 20 - currentScore);
                 

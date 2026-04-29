@@ -15,7 +15,7 @@ export const createAuthMock = () => ({
     getUserSessions: vi.fn(() => Promise.resolve([])),
     logout: vi.fn(() => Promise.resolve())
   },
-  AuthProvider: ({ children }: any) => <div>{children}</div>,
+  AuthProvider: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,
   useAuth: () => ({
     user: {
       id: 'test-user-1',
@@ -30,7 +30,7 @@ export const createAuthMock = () => ({
     loading: false,
     error: '',
     hasPermission: vi.fn(() => true),
-    requireAuth: vi.fn((operation: any) => operation()),
+    requireAuth: vi.fn((operation: () => unknown) => operation()),
     updateUser: vi.fn()
   })
 });

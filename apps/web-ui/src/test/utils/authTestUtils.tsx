@@ -6,13 +6,13 @@ interface MockAuthContextValue {
   user: UserInfo | null;
   isAuthenticated: boolean;
   permissions: string[];
-  login: any;
-  logout: any;
+  login: (...args: unknown[]) => unknown;
+  logout: (...args: unknown[]) => unknown;
   loading: boolean;
   error: string;
-  hasPermission: any;
-  requireAuth: any;
-  updateUser: any;
+  hasPermission: (permission: string) => boolean;
+  requireAuth: (operation: () => unknown) => unknown;
+  updateUser: (...args: unknown[]) => unknown;
 }
 
 interface CreateAuthTestWrapperOptions {
@@ -42,7 +42,7 @@ export const createAuthTestWrapper = (options: CreateAuthTestWrapperOptions = {}
     hasPermission: vi.fn((permission: string) => 
       mockUser?.permissions?.includes(permission) ?? false
     ),
-    requireAuth: vi.fn((operation: () => any) => {
+    requireAuth: vi.fn((operation: () => unknown) => {
       if (!mockUser) {
         throw new Error('Authentication required for this operation');
       }

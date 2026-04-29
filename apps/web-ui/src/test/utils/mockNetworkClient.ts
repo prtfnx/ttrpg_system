@@ -1,4 +1,4 @@
-export type MessageHandler = (type: string, data: any) => void;
+export type MessageHandler = (type: string, data: unknown) => void;
 export type ConnectionHandler = (state: string, error?: string) => void;
 export type ErrorHandler = (error: string) => void;
 
@@ -36,7 +36,7 @@ export class MockNetworkClient {
     if (this.connectionHandler) this.connectionHandler('disconnected');
   }
 
-  __simulate_incoming(type: string, data: any) {
+  __simulate_incoming(type: string, data: unknown) {
     if (this.messageHandler) this.messageHandler(type, data);
   }
 
@@ -45,7 +45,7 @@ export class MockNetworkClient {
     if (this.connectionHandler) this.connectionHandler('error', error);
   }
 
-  send_message(_type: string, _data: any) {
+  send_message(_type: string, _data: unknown) {
     return Promise.resolve();
   }
 
@@ -55,10 +55,10 @@ export class MockNetworkClient {
   join_session(_code: string) { /* noop */ }
   request_table_list() { /* noop */ }
   request_player_list() { /* noop */ }
-  send_sprite_update(_data: any) { return Promise.resolve(); }
-  send_sprite_create(_data: any) { return Promise.resolve(); }
+  send_sprite_update(_data: unknown) { return Promise.resolve(); }
+  send_sprite_create(_data: unknown) { return Promise.resolve(); }
   send_sprite_remove(_id: string) { return Promise.resolve(); }
-  send_table_update(_data: any) { return Promise.resolve(); }
+  send_table_update(_data: unknown) { return Promise.resolve(); }
   send_ping() { return Promise.resolve(); }
   request_asset_upload(_filename: string, _hash: string, _size: bigint) { return Promise.resolve(); }
   request_asset_download(_id: string) { return Promise.resolve(); }
@@ -70,3 +70,4 @@ export class MockNetworkClient {
 export function createMockNetworkClient() {
   return new MockNetworkClient();
 }
+

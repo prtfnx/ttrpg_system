@@ -68,7 +68,7 @@ globalThis.IntersectionObserver = class IntersectionObserver {
 } as unknown as typeof IntersectionObserver;
 
 // requestAnimationFrame
-globalThis.requestAnimationFrame = vi.fn((cb) => setTimeout(cb, 16)) as any;
+globalThis.requestAnimationFrame = vi.fn((cb) => setTimeout(cb, 16)) as unknown as typeof requestAnimationFrame;
 globalThis.cancelAnimationFrame = vi.fn((id) => clearTimeout(id));
 
 // Canvas context mock
@@ -206,7 +206,7 @@ HTMLCanvasElement.prototype.getContext = vi.fn(function(this: HTMLCanvasElement,
     };
   }
   return null;
-}) as any;
+}) as unknown as typeof HTMLCanvasElement.prototype.getContext;
 
 // ============================================================================
 // WASM MOCKS (for Rust/WASM integration)
@@ -283,11 +283,11 @@ const createMockWasmModule = () => ({
 
 // Set up window.ttrpg_rust_core before any tests run
 beforeAll(() => {
-  (window as any).ttrpg_rust_core = createMockWasmModule();
-  (window as any).wasm = (window as any).ttrpg_rust_core;
+  const wasmModule = createMockWasmModule();
+  Object.assign(window, { ttrpg_rust_core: wasmModule, wasm: wasmModule });
   
   // Mock rustRenderManager for components that access it directly
-  (window as any).rustRenderManager = {
+  Object.assign(window, { rustRenderManager: {
     render: vi.fn(),
     set_camera: vi.fn(),
     get_camera: vi.fn(() => ({ x: 0, y: 0, zoom: 1 })),
@@ -342,7 +342,7 @@ beforeAll(() => {
     add_fog_polygon: vi.fn(),
     compute_visibility_polygon: vi.fn(() => []),
     get_obstacle_segments_flat: vi.fn(() => []),
-  };
+  } });
 });
 
 // ============================================================================
@@ -364,7 +364,7 @@ vi.mock('react-toastify', () => ({
 // VITEST ENVIRONMENT FLAG
 // ============================================================================
 
-(globalThis as any).__VITEST__ = true;
+(globalThis as typeof globalThis & { __VITEST__?: boolean }).__VITEST__ = true;
 
 // ============================================================================
 // CLEANUP

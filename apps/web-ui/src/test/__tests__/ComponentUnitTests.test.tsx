@@ -49,7 +49,7 @@ const mockStoreState = {
     // Add any additional methods as needed for future-proofing
 };
 vi.mock('../../store', () => ({
-  useGameStore: vi.fn((selector?: (s: any) => any) => {
+  useGameStore: vi.fn((selector?: (s: typeof mockStoreState) => unknown) => {
     if (typeof selector === 'function') return selector(mockStoreState);
     return mockStoreState;
   })
@@ -92,7 +92,7 @@ vi.mock('@features/auth', () => ({
     getUserSessions: vi.fn(() => Promise.resolve([])),
     logout: vi.fn(() => Promise.resolve())
   },
-  AuthProvider: ({ children }: any) => <div>{children}</div>,
+  AuthProvider: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,
   useAuth: () => ({
     user: {
       id: 'test-user-1',
@@ -107,7 +107,7 @@ vi.mock('@features/auth', () => ({
     loading: false,
     error: '',
     hasPermission: vi.fn(() => true),
-    requireAuth: vi.fn((operation: any) => operation()),
+    requireAuth: vi.fn((operation: () => unknown) => operation()),
     updateUser: vi.fn()
   })
 }));
@@ -291,7 +291,7 @@ const TestAuthProvider: React.FC<{ children: React.ReactNode }> = ({ children })
   <AuthProvider>{children}</AuthProvider>
 );
 
-const WrappedCompendiumPanel: React.FC<any> = (props) => (
+const WrappedCompendiumPanel: React.FC<Record<string, unknown>> = (props) => (
   <TestAuthProvider>
     <CompendiumPanel {...props} />
   </TestAuthProvider>
@@ -349,7 +349,7 @@ describe('Component Error Boundaries', () => {
 
   it('handles invalid prop types without crashing', () => {
     expect(() => {
-      render(<MapPanel className={123 as any} />);
+      render(<MapPanel className={123 as unknown as string} />);
     }).not.toThrow();
 
     expect(() => {

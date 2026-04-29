@@ -32,12 +32,12 @@ vi.mock('../../features/auth/services/enhancedAuth.service', () => ({
 // Test LoadingSpinner Component (if it exists)
 describe('LoadingSpinner Component', () => {
   // Dynamic import to handle if component doesn't exist
-  let LoadingSpinner: React.ComponentType<any>;
+  let LoadingSpinner: React.ComponentType;
   
   beforeAll(async () => {
     try {
       const module = await import('@shared/components/LoadingSpinner');
-      LoadingSpinner = (module as any).default || (module as any).LoadingSpinner || (() => <div role="status" aria-label="Loading...">Loading...</div>);
+      LoadingSpinner = (module as Record<string, unknown>).default || (module as Record<string, unknown>).LoadingSpinner || (() => <div role="status" aria-label="Loading...">Loading...</div>);
     } catch (_e) {
       LoadingSpinner = () => <div role="status" aria-label="Loading...">Loading...</div>;
     }
@@ -61,12 +61,12 @@ describe('LoadingSpinner Component', () => {
 
 // Test Modal Component (if it exists)  
 describe('Modal Component', () => {
-  let Modal: React.ComponentType<any>;
+  let Modal: React.ComponentType;
   
   beforeAll(async () => {
     try {
       const module = await import('@shared/components/Modal');
-      Modal = (module as any).default || (module as any).Modal || (({ isOpen, children, onClose, title }: any) => 
+      Modal = (module as Record<string, unknown>).default || (module as Record<string, unknown>).Modal || (({ isOpen, children, onClose, title }: { isOpen?: boolean; children?: React.ReactNode; onClose?: () => void; title?: string }) => 
         isOpen ? (
           <div role="dialog" aria-modal="true" aria-labelledby="modal-title">
             <h2 id="modal-title">{title}</h2>
@@ -75,7 +75,7 @@ describe('Modal Component', () => {
           </div>
         ) : null);
     } catch (_e) {
-      Modal = ({ isOpen, children, onClose, title }: any) => 
+      Modal = ({ isOpen, children, onClose, title }: { isOpen?: boolean; children?: React.ReactNode; onClose?: () => void; title?: string }) => 
         isOpen ? (
           <div role="dialog" aria-modal="true" aria-labelledby="modal-title">
             <h2 id="modal-title">{title}</h2>

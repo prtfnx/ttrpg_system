@@ -40,7 +40,7 @@ describe('ProtocolService - Singleton Pattern', () => {
     });
 
     it('should set protocol successfully', () => {
-      const mockProtocol = {} as any;
+      const mockProtocol = {} as unknown as ReturnType<typeof ProtocolService.getProtocol>;
       
       ProtocolService.setProtocol(mockProtocol);
       
@@ -51,7 +51,7 @@ describe('ProtocolService - Singleton Pattern', () => {
 
   describe('Protocol Lifecycle', () => {
     it('should return same instance on multiple getProtocol calls', () => {
-      const mockProtocol = {} as any;
+      const mockProtocol = {} as unknown as ReturnType<typeof ProtocolService.getProtocol>;
       ProtocolService.setProtocol(mockProtocol);
       
       const instance1 = ProtocolService.getProtocol();
@@ -62,8 +62,8 @@ describe('ProtocolService - Singleton Pattern', () => {
     });
 
     it('should replace protocol when setProtocol called again', () => {
-      const mockProtocol1 = { id: 'protocol-1' } as any;
-      const mockProtocol2 = { id: 'protocol-2' } as any;
+      const mockProtocol1 = { id: 'protocol-1' } as unknown as ReturnType<typeof ProtocolService.getProtocol>;
+      const mockProtocol2 = { id: 'protocol-2' } as unknown as ReturnType<typeof ProtocolService.getProtocol>;
       
       ProtocolService.setProtocol(mockProtocol1);
       expect(ProtocolService.getProtocol()).toBe(mockProtocol1);
@@ -74,7 +74,7 @@ describe('ProtocolService - Singleton Pattern', () => {
     });
 
     it('should clear protocol successfully', () => {
-      const mockProtocol = {} as any;
+      const mockProtocol = {} as unknown as ReturnType<typeof ProtocolService.getProtocol>;
       ProtocolService.setProtocol(mockProtocol);
       
       expect(ProtocolService.hasProtocol()).toBe(true);
@@ -86,7 +86,7 @@ describe('ProtocolService - Singleton Pattern', () => {
     });
 
     it('should be safe to clear protocol multiple times', () => {
-      const mockProtocol = {} as any;
+      const mockProtocol = {} as unknown as ReturnType<typeof ProtocolService.getProtocol>;
       ProtocolService.setProtocol(mockProtocol);
       
       ProtocolService.clearProtocol();
@@ -132,8 +132,8 @@ describe('ProtocolService - Singleton Pattern', () => {
     });
 
     it('should return true after protocol replacement', () => {
-      const mockProtocol1 = {} as any;
-      const mockProtocol2 = {} as any;
+      const mockProtocol1 = {} as unknown as ReturnType<typeof ProtocolService.getProtocol>;
+      const mockProtocol2 = {} as unknown as ReturnType<typeof ProtocolService.getProtocol>;
       
       ProtocolService.setProtocol(mockProtocol1);
       ProtocolService.setProtocol(mockProtocol2);
@@ -144,7 +144,7 @@ describe('ProtocolService - Singleton Pattern', () => {
 
   describe('Singleton Behavior', () => {
     it('should maintain single instance across operations', () => {
-      const mockProtocol = { name: 'TestProtocol' } as any;
+      const mockProtocol = { name: 'TestProtocol' } as unknown as ReturnType<typeof ProtocolService.getProtocol>;
       
       ProtocolService.setProtocol(mockProtocol);
       
@@ -160,8 +160,8 @@ describe('ProtocolService - Singleton Pattern', () => {
     });
 
     it('should allow protocol initialization -> use -> clear -> re-initialize cycle', () => {
-      const mockProtocol1 = { version: 1 } as any;
-      const mockProtocol2 = { version: 2 } as any;
+      const mockProtocol1 = { version: 1 } as unknown as ReturnType<typeof ProtocolService.getProtocol>;
+      const mockProtocol2 = { version: 2 } as unknown as ReturnType<typeof ProtocolService.getProtocol>;
       
       // First cycle
       ProtocolService.setProtocol(mockProtocol1);
@@ -198,7 +198,7 @@ describe('ProtocolService - Singleton Pattern', () => {
       // Simulate application startup
       expect(ProtocolService.hasProtocol()).toBe(false);
       
-      const protocol = { isReady: true } as any;
+      const protocol = { isReady: true } as unknown as ReturnType<typeof ProtocolService.getProtocol>;
       ProtocolService.setProtocol(protocol);
       
       // Now components can use it
@@ -207,7 +207,7 @@ describe('ProtocolService - Singleton Pattern', () => {
     });
 
     it('should support protocol cleanup on disconnect', () => {
-      const protocol = {} as any;
+      const protocol = {} as unknown as ReturnType<typeof ProtocolService.getProtocol>;
       ProtocolService.setProtocol(protocol);
       
       // Simulate disconnect
@@ -219,3 +219,4 @@ describe('ProtocolService - Singleton Pattern', () => {
     });
   });
 });
+

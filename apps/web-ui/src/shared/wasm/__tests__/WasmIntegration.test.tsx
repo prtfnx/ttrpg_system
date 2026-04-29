@@ -485,7 +485,7 @@ describe('WASM TypeScript Integration Tests', () => {
       // User expects parameter validation
       try {
         // Testing invalid parameters - TypeScript should catch this
-        renderEngine.create_sprite(null as any, '', '');
+        renderEngine.create_sprite(null as unknown as string, '', '');
       } catch (error) {
         expect(error).toBeInstanceOf(Error);
       }

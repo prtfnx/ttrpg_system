@@ -35,6 +35,6 @@ describe('Protocol Message Utilities', () => {
     expect(parsed.type).toBe(MessageType.PING);
     expect(parsed.data).toEqual({});
     // Extra fields are ignored by the parser (not present in result)
-    expect((parsed as any).extra).toBeUndefined();
+    expect((parsed as Record<string, unknown>).extra).toBeUndefined();
   });
 });

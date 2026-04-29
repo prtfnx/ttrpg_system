@@ -42,8 +42,8 @@ describe('isValidUUID', () => {
   });
 
   it('rejects null and undefined', () => {
-    expect(isValidUUID(null as any)).toBe(false);
-    expect(isValidUUID(undefined as any)).toBe(false);
+    expect(isValidUUID(null as unknown as string)).toBe(false);
+    expect(isValidUUID(undefined as unknown as string)).toBe(false);
   });
 });
 

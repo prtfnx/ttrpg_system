@@ -70,7 +70,7 @@ describe('WebSocketService - Exponential Backoff Tests', () => {
   beforeEach(() => {
     // Replace global WebSocket with mock
     originalWebSocket = global.WebSocket;
-    global.WebSocket = MockWebSocket as any;
+    global.WebSocket = MockWebSocket as unknown as typeof WebSocket;
     vi.useFakeTimers();
   });
 
@@ -100,7 +100,7 @@ describe('WebSocketService - Exponential Backoff Tests', () => {
       expect(service.isConnected()).toBe(true);
 
       // Simulate unexpected disconnect
-      const ws = (service as any).ws as MockWebSocket;
+      const ws = (service as unknown as { ws: MockWebSocket }).ws as MockWebSocket;
       ws.simulateClose();
 
       // Should schedule reconnection
@@ -157,7 +157,7 @@ describe('WebSocketService - Exponential Backoff Tests', () => {
       expect(service.isConnected()).toBe(true);
 
       // Simulate disconnect
-      const ws1 = (service as any).ws as MockWebSocket;
+      const ws1 = (service as unknown as { ws: MockWebSocket }).ws as MockWebSocket;
       ws1.simulateClose();
 
       // Wait for reconnection to be scheduled and callback to fire
@@ -208,7 +208,7 @@ describe('WebSocketService - Exponential Backoff Tests', () => {
         
         send() {}
         close() {}
-      } as any;
+      } as unknown as typeof WebSocket;
       
       // Initial connection that fails
       const connectPromise = service.connect().catch(() => {});
@@ -267,7 +267,7 @@ describe('WebSocketService - Exponential Backoff Tests', () => {
         
         send() {}
         close() {}
-      } as any;
+      } as unknown as typeof WebSocket;
 
       const connectPromise = service.connect().catch(() => {});
       await vi.advanceTimersByTimeAsync(10);
@@ -345,7 +345,7 @@ describe('WebSocketService - Exponential Backoff Tests', () => {
         
         send() {}
         close() {}
-      } as any;
+      } as unknown as typeof WebSocket;
 
       const connectPromise = service.connect().catch(() => {});
       await vi.advanceTimersByTimeAsync(10);
@@ -397,7 +397,7 @@ describe('WebSocketService - Exponential Backoff Tests', () => {
       await vi.advanceTimersByTimeAsync(10);
       await connectPromise;
 
-      const ws = (service as any).ws as MockWebSocket;
+      const ws = (service as unknown as { ws: MockWebSocket }).ws as MockWebSocket;
       ws.simulateClose();
 
       // Should not reconnect at all
@@ -439,7 +439,7 @@ describe('WebSocketService - Exponential Backoff Tests', () => {
         
         send() {}
         close() {}
-      } as any;
+      } as unknown as typeof WebSocket;
 
       const connectPromise = service.connect().catch(() => {});
       await vi.advanceTimersByTimeAsync(10);
@@ -471,7 +471,7 @@ describe('WebSocketService - Exponential Backoff Tests', () => {
       await vi.advanceTimersByTimeAsync(10);
       await connectPromise;
 
-      const ws = (service as any).ws as MockWebSocket;
+      const ws = (service as unknown as { ws: MockWebSocket }).ws as MockWebSocket;
       ws.simulateClose();
 
       // Manually disconnect before reconnection attempt
@@ -494,7 +494,7 @@ describe('WebSocketService - Exponential Backoff Tests', () => {
       await vi.advanceTimersByTimeAsync(10);
       await connectPromise;
 
-      const ws = (service as any).ws as MockWebSocket;
+      const ws = (service as unknown as { ws: MockWebSocket }).ws as MockWebSocket;
       
       // Trigger multiple close events rapidly
       ws.simulateClose();
@@ -542,7 +542,7 @@ describe('WebSocketService - Exponential Backoff Tests', () => {
         
         send() {}
         close() {}
-      } as any;
+      } as unknown as typeof WebSocket;
 
       const connectPromise = service.connect().catch(() => {});
       await vi.advanceTimersByTimeAsync(10);
@@ -604,7 +604,7 @@ describe('WebSocketService - Exponential Backoff Tests', () => {
         
         send() {}
         close() {}
-      } as any;
+      } as unknown as typeof WebSocket;
 
       const connectPromise = service.connect().catch(() => {});
       await vi.advanceTimersByTimeAsync(10);
@@ -684,7 +684,7 @@ describe('WebSocketService - Exponential Backoff Tests', () => {
         
         send() {}
         close() {}
-      } as any;
+      } as unknown as typeof WebSocket;
 
       const connectPromise = service.connect().catch(() => {});
       await vi.advanceTimersByTimeAsync(10);
@@ -702,3 +702,6 @@ describe('WebSocketService - Exponential Backoff Tests', () => {
     });
   });
 });
+
+
+

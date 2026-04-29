@@ -41,7 +41,7 @@ describe('Performance Tests', () => {
     });
 
     it('should validate memory usage patterns', () => {
-      const initialMemory = (performance as any).memory?.usedJSHeapSize || 0;
+      const initialMemory = (performance as Performance & { memory?: { usedJSHeapSize?: number } }).memory?.usedJSHeapSize || 0;
       
       // Create some objects
       const largeArray = new Array(10000).fill(0).map((_, i) => ({
@@ -50,7 +50,7 @@ describe('Performance Tests', () => {
         timestamp: Date.now()
       }));
       
-      const finalMemory = (performance as any).memory?.usedJSHeapSize || 0;
+      const finalMemory = (performance as Performance & { memory?: { usedJSHeapSize?: number } }).memory?.usedJSHeapSize || 0;
       
       expect(largeArray.length).toBe(10000);
       // Memory usage should be reasonable (either same or higher)
@@ -69,7 +69,7 @@ describe('Performance Tests', () => {
         let timeoutId: number;
         return () => {
           clearTimeout(timeoutId);
-          timeoutId = setTimeout(() => fn(), delay) as any;
+          timeoutId = setTimeout(() => fn(), delay) as unknown as number;
         };
       };
       

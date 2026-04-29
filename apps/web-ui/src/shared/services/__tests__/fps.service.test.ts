@@ -167,7 +167,7 @@ describe('FPSService', () => {
     it('notifies subscribers on FPS update', () => {
       fpsService.initialize();
       
-      const updates: any[] = [];
+      const updates: unknown[] = [];
       const unsubscribe = fpsService.subscribe(metrics => {
         updates.push(metrics);
       });
@@ -188,8 +188,8 @@ describe('FPSService', () => {
     it('allows multiple subscribers', () => {
       fpsService.initialize();
       
-      const updates1: any[] = [];
-      const updates2: any[] = [];
+      const updates1: unknown[] = [];
+      const updates2: unknown[] = [];
       
       const unsub1 = fpsService.subscribe(m => updates1.push(m));
       const unsub2 = fpsService.subscribe(m => updates2.push(m));
@@ -210,7 +210,7 @@ describe('FPSService', () => {
     it('stops notifying after unsubscribe', () => {
       fpsService.initialize();
       
-      const updates: any[] = [];
+      const updates: unknown[] = [];
       const unsubscribe = fpsService.subscribe(m => updates.push(m));
       
       for (let i = 0; i < 60; i++) {
@@ -284,7 +284,7 @@ describe('FPSService', () => {
     it('clears subscribers on destroy', () => {
       fpsService.initialize();
       
-      const updates: any[] = [];
+      const updates: unknown[] = [];
       fpsService.subscribe(m => updates.push(m));
       
       const initialCount = updates.length;
@@ -375,3 +375,4 @@ describe('FPSService', () => {
     });
   });
 });
+

@@ -4,7 +4,7 @@ import React from 'react';
 import { useActions, type ActionsCallbacks } from '@shared/hooks/useActions';
 import type { RenderEngine } from '@lib/wasm/wasm';
 
-function createMockRenderEngine(overrides: Partial<Record<string, any>> = {}): RenderEngine {
+function createMockRenderEngine(overrides: Partial<Record<string, unknown>> = {}): RenderEngine {
   return {
     set_action_handler: vi.fn(),
     set_state_change_handler: vi.fn(),

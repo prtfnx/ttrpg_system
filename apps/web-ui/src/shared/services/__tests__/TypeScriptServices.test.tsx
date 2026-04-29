@@ -3,6 +3,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 // Import TypeScript services to test
 import { performanceService } from '@features/canvas';
 import { wasmIntegrationService } from '@lib/wasm/wasmIntegration.service';
+import type { RenderEngine } from '@lib/wasm';
 
 // Mock WASM RenderEngine
 const mockRenderEngine = {
@@ -37,7 +38,7 @@ describe('TypeScript Service Layer Tests', () => {
   describe('WASM Integration Service - TypeScript Bridge', () => {
     it('should initialize with WASM render engine properly typed', () => {
       // User expects service initialization to work with TypeScript safety
-      wasmIntegrationService.initialize(mockRenderEngine as any);
+      wasmIntegrationService.initialize(mockRenderEngine as unknown as RenderEngine);
       
       // User expects no TypeScript compilation errors
       expect(mockRenderEngine.initialize).toBeDefined();
@@ -45,7 +46,7 @@ describe('TypeScript Service Layer Tests', () => {
     });
 
     it('should handle table data reception with proper type validation', () => {
-      wasmIntegrationService.initialize(mockRenderEngine as any);
+      wasmIntegrationService.initialize(mockRenderEngine as unknown as RenderEngine);
       
       // User expects typed message handling
       const tableData = {
@@ -66,7 +67,7 @@ describe('TypeScript Service Layer Tests', () => {
     });
 
     it('should handle sprite operations with TypeScript type safety', () => {
-      wasmIntegrationService.initialize(mockRenderEngine as any);
+      wasmIntegrationService.initialize(mockRenderEngine as unknown as RenderEngine);
       
       // Use the table data reception path that actually triggers add_sprite_to_layer
       const tableEvent = new CustomEvent('table-data-received', {
@@ -90,7 +91,7 @@ describe('TypeScript Service Layer Tests', () => {
     });
 
     it('should provide error handling with TypeScript error types', () => {
-      wasmIntegrationService.initialize(mockRenderEngine as any);
+      wasmIntegrationService.initialize(mockRenderEngine as unknown as RenderEngine);
       
       // Mock WASM error
       mockRenderEngine.create_sprite.mockImplementation(() => {
@@ -273,7 +274,7 @@ describe('TypeScript Service Layer Tests', () => {
 
     it('should validate network message types at compile time', () => {
       // User expects network messages to have proper TypeScript types
-      interface NetworkMessage<T = any> {
+      interface NetworkMessage<T = unknown> {
         id: string;
         type: string;
         data: T;
@@ -328,7 +329,7 @@ describe('TypeScript Service Layer Tests', () => {
       };
       
       // User expects type consistency across services
-      wasmIntegrationService.initialize(mockRenderEngine as any);
+      wasmIntegrationService.initialize(mockRenderEngine as unknown as RenderEngine);
       
       // Mock service calls with typed data - should not throw here
       mockRenderEngine.create_sprite.mockReturnValue('sprite_123');

@@ -57,8 +57,8 @@ export function TextSpriteEditor({ position, onComplete, onCancel }: TextSpriteE
       console.log('[TextSpriteEditor] Screen coords from Rust:', screenCoords);
       
       const finalPos = {
-        x: rect.left + screenCoords.x,
-        y: rect.top + screenCoords.y
+        x: rect.left + (screenCoords[0] ?? 0),
+        y: rect.top + (screenCoords[1] ?? 0)
       };
       console.log('[TextSpriteEditor] Final screen position:', finalPos);
       

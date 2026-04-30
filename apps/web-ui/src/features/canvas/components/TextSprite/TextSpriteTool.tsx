@@ -259,7 +259,8 @@ export function TextSpriteTool({
       });
 
       // Call Rust function to create text sprite directly in WebGL
-      const spriteId = rustManager.create_text_sprite(
+      const rm = rustManager as unknown as { create_text_sprite: (text: string, x: number, y: number, size: number, color: string, layer: string) => string };
+      const spriteId = rm.create_text_sprite(
         text,
         clickPosition.x,
         clickPosition.y,

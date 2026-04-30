@@ -29,7 +29,7 @@ export const AssetManager: React.FC<AssetManagerProps> = ({ isVisible, onClose, 
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   // WebSocket protocol for asset sync
-  const { protocol } = useAuthenticatedWebSocket({ sessionCode, userInfo });
+  const { protocol } = useAuthenticatedWebSocket({ sessionCode, userInfo: userInfo ?? undefined });
 
   const {
     stats,

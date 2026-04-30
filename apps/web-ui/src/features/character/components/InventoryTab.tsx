@@ -17,10 +17,12 @@ interface Props {
 }
 
 export const InventoryTab: React.FC<Props> = ({ data, onSave }) => {
+  const equipment = data.equipment as { items?: WizardItem[]; currency?: Currency } | undefined;
+  const abilityScores = data.abilityScores as { str?: number } | undefined;
   // eslint-disable-next-line react-hooks/exhaustive-deps -- known: items optional chaining, stable per prop
-  const items: WizardItem[] = data.equipment?.items ?? [];
-  const currency: Currency = data.equipment?.currency ?? { cp: 0, sp: 0, ep: 0, gp: 0, pp: 0 };
-  const strScore: number = data.abilityScores?.str ?? 10;
+  const items: WizardItem[] = equipment?.items ?? [];
+  const currency: Currency = equipment?.currency ?? { cp: 0, sp: 0, ep: 0, gp: 0, pp: 0 };
+  const strScore: number = abilityScores?.str ?? 10;
   const carryCapacity = strScore * 15;
 
   const totalWeight = useMemo(
@@ -29,11 +31,11 @@ export const InventoryTab: React.FC<Props> = ({ data, onSave }) => {
   );
 
   function saveItems(newItems: WizardItem[]) {
-    onSave({ ...data, equipment: { ...data.equipment, items: newItems } });
+    onSave({ ...data, equipment: { ...(equipment ?? {}), items: newItems } });
   }
 
   function saveCurrency(newCurrency: Currency) {
-    onSave({ ...data, equipment: { ...data.equipment, currency: newCurrency } });
+    onSave({ ...data, equipment: { ...(equipment ?? {}), currency: newCurrency } });
   }
 
   function updateQty(index: number, delta: number) {

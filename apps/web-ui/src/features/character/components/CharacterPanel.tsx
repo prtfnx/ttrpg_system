@@ -1,3 +1,4 @@
+import type React from 'react';
 import { useGameStore } from '@/store';
 import { isDM } from '@features/session/types/roles';
 import { useWindowManager } from '@shared/components/FloatingWindow';
@@ -291,7 +292,7 @@ function CharacterPanel() {
                     <button className={styles.actionBtn} onClick={() => {
                       windowManager.openWindow(
                         `character-sheet-${char.id}`,
-                        CharacterSheetWindow,
+                        CharacterSheetWindow as React.ComponentType<Record<string, unknown>>,
                         { characterId: char.id },
                         { title: `${char.name} — Sheet`, width: 900, height: 700 }
                       );

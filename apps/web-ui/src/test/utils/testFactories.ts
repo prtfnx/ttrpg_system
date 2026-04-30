@@ -4,7 +4,9 @@
  * Provides consistent, type-safe test data creation.
  * Use these factories instead of inline object literals in tests.
  */
-import type { Character } from '@/types';
+import type { Character, Sprite } from '@/types';
+
+export type { Sprite };
 
 // Import types from features
 export interface TableInfo {
@@ -24,20 +26,6 @@ export interface SessionInfo {
   session_name: string;
   role: 'dm' | 'player';
   created_at: string;
-}
-
-export interface Sprite {
-  id: string;
-  tableId: string;
-  characterId?: string;
-  x: number;
-  y: number;
-  layer: 'background' | 'tokens' | 'effects' | 'fog';
-  texture: string;
-  scale: { x: number; y: number };
-  rotation: number;
-  syncStatus: 'local' | 'syncing' | 'synced' | 'error';
-  controlledBy?: string[];
 }
 
 /**
@@ -86,6 +74,7 @@ export function createTestSprite(overrides: Partial<Sprite> = {}): Sprite {
   const id = `sprite_${Math.random().toString(36).slice(2, 9)}`;
   return {
     id,
+    name: 'Test Sprite',
     tableId: 'test-table',
     x: 100,
     y: 100,

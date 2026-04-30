@@ -201,7 +201,7 @@ describe('Lighting System', () => {
 
   describe('Test Scenario 4: Ambient Light Control', () => {
     it('should update ambient light when slider moved', async () => {
-      const _user = userEvent.setup();
+
 
       
       render(<LightingPanel />);
@@ -434,7 +434,7 @@ describe('Lighting System', () => {
     });
 
     it('should display multiple lights in list', async () => {
-      const _user = userEvent.setup();
+
       // Pre-populate store with two light sprites (normalized color)
       useGameStore.setState({
         sprites: [

@@ -211,7 +211,7 @@ describe('LayerPanel - Game Master Layer Management', () => {
 
       // User sees Map layer is visible (eye icon showing)
       const mapToggle = screen.getByRole('button', { name: /toggle map layer/i });
-      const _initialIcon = mapToggle.textContent;
+      void mapToggle.textContent;
       
       // User clicks to toggle visibility
       await user.click(mapToggle);

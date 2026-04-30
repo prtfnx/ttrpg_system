@@ -83,7 +83,7 @@ function createTestCharacter(overrides: Partial<Character> = {}): Character {
 }
 
 describe('TokenConfigModal - Component UI Tests', () => {
-  let onCloseMock: ReturnType<typeof vi.fn>;
+  let onCloseMock: () => void;
 
   beforeEach(() => {
     // Reset store
@@ -94,7 +94,7 @@ describe('TokenConfigModal - Component UI Tests', () => {
       activeTableId: 'test-table-uuid',
     });
 
-    onCloseMock = vi.fn();
+    onCloseMock = vi.fn() as unknown as () => void;
     mockProtocol.requestCharacterList.mockClear();
   });
 

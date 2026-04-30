@@ -31,7 +31,7 @@ describe('Token Stats System - Store Operations', () => {
     it('should create sprite with stats but no character link', () => {
       const { result } = renderHook(() => useGameStore());
       
-      const testSprite: Sprite = {
+      const testSprite: Sprite = { name: "test", tableId: "test-table", layer: "tokens", scale: { x: 1, y: 1 }, rotation: 0,
         id: 'sprite-1',
         x: 100,
         y: 200,
@@ -59,7 +59,7 @@ describe('Token Stats System - Store Operations', () => {
     it('should update token HP without affecting character', () => {
       const { result } = renderHook(() => useGameStore());
       
-      const testSprite: Sprite = {
+      const testSprite: Sprite = { name: "test", tableId: "test-table", layer: "tokens", scale: { x: 1, y: 1 }, rotation: 0,
         id: 'sprite-1',
         x: 100,
         y: 200,
@@ -86,7 +86,7 @@ describe('Token Stats System - Store Operations', () => {
     it('should update token AC independently', () => {
       const { result } = renderHook(() => useGameStore());
       
-      const testSprite: Sprite = {
+      const testSprite: Sprite = { name: "test", tableId: "test-table", layer: "tokens", scale: { x: 1, y: 1 }, rotation: 0,
         id: 'sprite-1',
         x: 100,
         y: 200,
@@ -110,7 +110,7 @@ describe('Token Stats System - Store Operations', () => {
     it('should update aura radius independently', () => {
       const { result } = renderHook(() => useGameStore());
       
-      const testSprite: Sprite = {
+      const testSprite: Sprite = { name: "test", tableId: "test-table", layer: "tokens", scale: { x: 1, y: 1 }, rotation: 0,
         id: 'sprite-1',
         x: 100,
         y: 200,
@@ -143,13 +143,13 @@ describe('Token Stats System - Store Operations', () => {
         is_npc: false,
         data: {
           stats: {
-            hp: { current: 50, max: 50, temp: 0 },
+            hp: 50,
             ac: 18
           }
         }
       };
 
-      const testSprite: Sprite = {
+      const testSprite: Sprite = { name: "test", tableId: "test-table", layer: "tokens", scale: { x: 1, y: 1 }, rotation: 0,
         id: 'sprite-1',
         x: 100,
         y: 200,
@@ -168,9 +168,9 @@ describe('Token Stats System - Store Operations', () => {
       act(() => {
         result.current.updateSprite('sprite-1', {
           characterId: 'char-1',
-          hp: testCharacter.data.stats.hp.current,
-          maxHp: testCharacter.data.stats.hp.max,
-          ac: testCharacter.data.stats.ac
+          hp: testCharacter.data.stats?.hp as number,
+          maxHp: testCharacter.data.stats?.maxHp as number,
+          ac: testCharacter.data.stats?.ac
         });
       });
 
@@ -184,7 +184,7 @@ describe('Token Stats System - Store Operations', () => {
     it('should preserve character link during position updates', () => {
       const { result } = renderHook(() => useGameStore());
       
-      const testSprite: Sprite = {
+      const testSprite: Sprite = { name: "test", tableId: "test-table", layer: "tokens", scale: { x: 1, y: 1 }, rotation: 0,
         id: 'sprite-1',
         x: 100,
         y: 200,
@@ -218,7 +218,7 @@ describe('Token Stats System - Store Operations', () => {
     it('should unlink character when set to undefined', () => {
       const { result } = renderHook(() => useGameStore());
       
-      const testSprite: Sprite = {
+      const testSprite: Sprite = { name: "test", tableId: "test-table", layer: "tokens", scale: { x: 1, y: 1 }, rotation: 0,
         id: 'sprite-1',
         x: 100,
         y: 200,
@@ -251,7 +251,7 @@ describe('Token Stats System - Store Operations', () => {
       const { result } = renderHook(() => useGameStore());
       
       act(() => {
-        result.current.addSprite({
+        result.current.addSprite({ name: "test", tableId: "test-table", layer: "tokens", scale: { x: 1, y: 1 }, rotation: 0,
           id: 'sprite-1',
           x: 100,
           y: 200,
@@ -270,7 +270,7 @@ describe('Token Stats System - Store Operations', () => {
       const { result } = renderHook(() => useGameStore());
       
       act(() => {
-        result.current.addSprite({
+        result.current.addSprite({ name: "test", tableId: "test-table", layer: "tokens", scale: { x: 1, y: 1 }, rotation: 0,
           id: 'sprite-1',
           x: 100,
           y: 200,
@@ -289,7 +289,7 @@ describe('Token Stats System - Store Operations', () => {
       const { result } = renderHook(() => useGameStore());
       
       act(() => {
-        result.current.addSprite({
+        result.current.addSprite({ name: "test", tableId: "test-table", layer: "tokens", scale: { x: 1, y: 1 }, rotation: 0,
           id: 'sprite-1',
           x: 100,
           y: 200,
@@ -309,7 +309,7 @@ describe('Token Stats System - Store Operations', () => {
       const { result } = renderHook(() => useGameStore());
       
       act(() => {
-        result.current.addSprite({
+        result.current.addSprite({ name: "test", tableId: "test-table", layer: "tokens", scale: { x: 1, y: 1 }, rotation: 0,
           id: 'sprite-1',
           x: 100,
           y: 200,
@@ -336,7 +336,7 @@ describe('Token Stats System - Store Operations', () => {
         is_npc: false,
         data: {
           stats: {
-            hp: { current: 50, max: 50, temp: 0 },
+            hp: 50,
             ac: 18
           }
         }
@@ -349,7 +349,7 @@ describe('Token Stats System - Store Operations', () => {
         is_npc: false,
         data: {
           stats: {
-            hp: { current: 30, max: 30, temp: 0 },
+            hp: 30,
             ac: 12
           }
         }
@@ -359,7 +359,7 @@ describe('Token Stats System - Store Operations', () => {
         result.current.addCharacter(char1);
         result.current.addCharacter(char2);
         
-        result.current.addSprite({
+        result.current.addSprite({ name: "test", tableId: "test-table", layer: "tokens", scale: { x: 1, y: 1 }, rotation: 0,
           id: 'sprite-1',
           x: 100,
           y: 200,
@@ -370,7 +370,7 @@ describe('Token Stats System - Store Operations', () => {
           ac: 18
         });
 
-        result.current.addSprite({
+        result.current.addSprite({ name: "test", tableId: "test-table", layer: "tokens", scale: { x: 1, y: 1 }, rotation: 0,
           id: 'sprite-2',
           x: 200,
           y: 300,
@@ -381,7 +381,7 @@ describe('Token Stats System - Store Operations', () => {
           ac: 12
         });
 
-        result.current.addSprite({
+        result.current.addSprite({ name: "test", tableId: "test-table", layer: "tokens", scale: { x: 1, y: 1 }, rotation: 0,
           id: 'sprite-3',
           x: 300,
           y: 400,
@@ -407,3 +407,6 @@ describe('Token Stats System - Store Operations', () => {
     });
   });
 });
+
+
+

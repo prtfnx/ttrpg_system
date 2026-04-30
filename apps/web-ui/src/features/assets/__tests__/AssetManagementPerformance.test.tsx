@@ -9,13 +9,6 @@ import React from 'react';
 import { describe, expect, it } from 'vitest';
 
 describe('Asset Management System - Performance and Caching', () => {
-  const _mockUserInfo = { 
-    id: 'dm1', 
-    username: 'DM Mike', 
-    role: 'dm' as const,
-    permissions: ['upload_assets', 'manage_assets', 'optimize_assets'] 
-  };
-
   describe('Asset Upload and Processing Pipeline', () => {
     it('should handle large image uploads with progress tracking', async () => {
       const user = userEvent.setup();
@@ -122,7 +115,7 @@ describe('Asset Management System - Performance and Caching', () => {
     });
 
     it('should validate file types and enforce size limits', async () => {
-      const _user = userEvent.setup();
+      
       
       // Functional validation component
       const FileValidationComponent = () => {
@@ -438,7 +431,7 @@ describe('Asset Management System - Performance and Caching', () => {
     });
 
     it('should optimize images for different viewport sizes and network conditions', async () => {
-      const _user = userEvent.setup();
+      
       
       // Functional responsive assets component
       const ResponsiveAssetsComponent = () => {
@@ -637,7 +630,7 @@ describe('Asset Management System - Performance and Caching', () => {
       render(<PreloadingComponent />);
       
       // Define preloaded assets set to track preloading behavior
-      const _preloadedAssets = new Set();
+      void new Set();
       
       // Should preload current scene assets initially  
       await waitFor(() => {
@@ -665,7 +658,7 @@ describe('Asset Management System - Performance and Caching', () => {
     it('should handle memory management for large asset collections', async () => {
       const memoryThreshold = 512 * 1024 * 1024; // 512MB threshold
       let currentMemoryUsage = 0;
-      const loadedAssets: Map<string, unknown> = new Map();
+      const loadedAssets: Map<string, { id: string; size: number; lastAccessed: number }> = new Map();
       
       render(
         <div data-testid="memory-management">

@@ -102,7 +102,7 @@ describe('useLayerManager', () => {
         delete (window as unknown as Record<string, unknown>).gameAPI;
       }
 
-      const _consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+      vi.spyOn(console, 'error').mockImplementation(() => {});
       const { result } = renderHook(() => useLayerManager());
 
       // Advance past the 10s timeout to fire and resolve the pending timer
@@ -422,13 +422,13 @@ describe('useLayerManager', () => {
 
       // Multiple rapid refresh calls passing manager explicitly
       await act(async () => {
-        result.current.refreshLayerData(mockRenderManager);
+        result.current.refreshLayerData();
       });
       await act(async () => {
-        result.current.refreshLayerData(mockRenderManager);
+        result.current.refreshLayerData();
       });
       await act(async () => {
-        result.current.refreshLayerData(mockRenderManager);
+        result.current.refreshLayerData();
       });
 
       // Each call should execute independently (no batching): 3×7 = 21

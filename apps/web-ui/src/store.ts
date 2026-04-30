@@ -282,7 +282,7 @@ export const useGameStore = create<GameStore>()(
                   ...char, 
                   data: {
                     ...char.data,
-                    inventory: [...(char.data?.inventory || []), item]
+                    inventory: [...((char.data?.inventory as unknown[]) || []), item]
                   }
                 }
               : char
@@ -629,7 +629,7 @@ export const useGameStore = create<GameStore>()(
       
       // Table management actions
       setTables: (tables: TableInfo[]) => {
-        const transformedTables = transformServerTablesToClient(tables);
+        const transformedTables = transformServerTablesToClient(tables as unknown as Record<string, unknown>[]);
         set(() => ({
           tables: transformedTables,
         }));

@@ -388,22 +388,24 @@ export const TokenConfigModal: React.FC<TokenConfigModalProps> = ({ spriteId, on
           <div className={styles.configSection}>
             <div className={styles.statRow}>
               <label>Aura Radius:</label>
-              <input
-                type="number"
-                value={localAuraRadius}
-                onChange={(e) => handleAuraRadiusChange(Math.max(0, parseFloat(e.target.value) || 0))}
-                className={styles.hpInput}
-                min="0"
-                step="5"
-              />
-              <span style={{ marginLeft: '8px', color: 'var(--text-muted)' }}>ft</span>
-              <input
-                type="color"
-                value={localAuraColor}
-                onChange={(e) => handleAuraColorChange(e.target.value)}
-                title="Aura color"
-                style={{ marginLeft: '8px', width: '32px', height: '24px', padding: '0', border: 'none', cursor: 'pointer', background: 'none' }}
-              />
+              <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                <input
+                  type="number"
+                  value={localAuraRadius}
+                  onChange={(e) => handleAuraRadiusChange(Math.max(0, parseFloat(e.target.value) || 0))}
+                  className={styles.hpInput}
+                  min="0"
+                  step="5"
+                />
+                <span style={{ color: 'var(--text-muted)' }}>ft</span>
+                <input
+                  type="color"
+                  value={localAuraColor}
+                  onChange={(e) => handleAuraColorChange(e.target.value)}
+                  title="Aura color"
+                  style={{ width: '32px', height: '24px', padding: '0', border: 'none', cursor: 'pointer', background: 'none' }}
+                />
+              </div>
             </div>
           </div>
 
@@ -412,25 +414,27 @@ export const TokenConfigModal: React.FC<TokenConfigModalProps> = ({ spriteId, on
               <h4 style={{ margin: '0 0 8px', fontSize: '13px', color: 'var(--text-secondary)' }}>Vision</h4>
               <div className={styles.statRow}>
                 <label>Vision Radius:</label>
-                <input
-                  type="number"
-                  value={localVisionRadius}
-                  placeholder="default"
-                  onChange={(e) => setLocalVisionRadius(e.target.value === '' ? '' : Math.max(0, parseFloat(e.target.value) || 0))}
-                  onBlur={() => {
-                    if (localVisionRadius === '') {
-                      updateSprite(spriteId, { visionRadiusUnits: undefined, visionRadius: undefined });
-                    } else {
-                      const units = Number(localVisionRadius);
-                      const px = useGameStore.getState().getUnitConverter().toPixels(units);
-                      updateSprite(spriteId, { visionRadiusUnits: units, visionRadius: px });
-                    }
-                  }}
-                  className={styles.hpInput}
-                  min="0"
-                  step="5"
-                />
-                <span style={{ marginLeft: '8px', color: 'var(--text-muted)' }}>{distanceUnit}</span>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                  <input
+                    type="number"
+                    value={localVisionRadius}
+                    placeholder="default"
+                    onChange={(e) => setLocalVisionRadius(e.target.value === '' ? '' : Math.max(0, parseFloat(e.target.value) || 0))}
+                    onBlur={() => {
+                      if (localVisionRadius === '') {
+                        updateSprite(spriteId, { visionRadiusUnits: undefined, visionRadius: undefined });
+                      } else {
+                        const units = Number(localVisionRadius);
+                        const px = useGameStore.getState().getUnitConverter().toPixels(units);
+                        updateSprite(spriteId, { visionRadiusUnits: units, visionRadius: px });
+                      }
+                    }}
+                    className={styles.hpInput}
+                    min="0"
+                    step="5"
+                  />
+                  <span style={{ color: 'var(--text-muted)' }}>{distanceUnit}</span>
+                </div>
               </div>
               <div className={styles.statRow} style={{ marginTop: '6px' }}>
                 <label>

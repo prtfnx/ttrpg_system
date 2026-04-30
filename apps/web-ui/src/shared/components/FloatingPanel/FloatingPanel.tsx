@@ -1,4 +1,5 @@
-import { useState } from 'react';
+import type React from 'react';
+import { useRef, useState } from 'react';
 import Draggable from 'react-draggable';
 import { ResizableBox } from 'react-resizable';
 import 'react-resizable/css/styles.css';
@@ -28,14 +29,16 @@ const saveSize = (id: string, s: Size) => localStorage.setItem(`fp-size-${id}`, 
 export function FloatingPanel({ id, title, defaultPos = { x: 80, y: 80 }, defaultSize = { width: 280, height: 400 }, minWidth = 240, minHeight = 200, onClose, children }: Props) {
   const [pos, setPos] = useState<Pos>(() => loadPos(id) ?? defaultPos);
   const [size, setSize] = useState<Size>(() => loadSize(id) ?? defaultSize);
+  const nodeRef = useRef<HTMLDivElement>(null);
 
   return (
     <Draggable
+      nodeRef={nodeRef as React.RefObject<HTMLElement>}
       handle={`.${styles.header}`}
       position={pos}
       onStop={(_, d) => { const p = { x: d.x, y: d.y }; setPos(p); savePos(id, p); }}
     >
-      <div className={styles.panel} style={{ width: size.width, height: size.height, position: 'fixed' }}>
+      <div ref={nodeRef} className={styles.panel} style={{ width: size.width, height: size.height, position: 'fixed' }}>
         <div className={styles.header}>
           <span className={styles.title}>{title}</span>
           <button className={styles.closeBtn} onClick={onClose} aria-label="Close">✕</button>

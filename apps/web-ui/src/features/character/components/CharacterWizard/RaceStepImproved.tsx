@@ -1,4 +1,5 @@
 import { useRacesForCharacterWizard } from '@features/compendium';
+import type { RaceData } from './raceData';
 import { useState } from 'react';
 import { Controller, useFormContext } from 'react-hook-form';
 import { calculateRacialASI, getRacialTraits } from './raceData';
@@ -60,13 +61,14 @@ export function RaceStep({ onNext }: { onNext: () => void }) {
     );
   }
 
-  const selectedRaceData = RACES[selectedRace];
+  const racesTyped = RACES as Record<string, RaceData> | undefined;
+  const selectedRaceData = racesTyped?.[selectedRace];
   const hasSubraces = selectedRaceData?.subraces && Object.keys(selectedRaceData.subraces).length > 0;
   // Use local state instead of watch() to avoid infinite loops
   
   // Show racial traits
-  const racialTraits = selectedRace ? getRacialTraits(selectedRace, selectedSubrace, RACES) : [];
-  const racialASI = selectedRace ? calculateRacialASI(selectedRace, selectedSubrace, RACES) : {};
+  const racialTraits = selectedRace ? getRacialTraits(selectedRace, selectedSubrace, racesTyped) : [];
+  const racialASI = selectedRace ? calculateRacialASI(selectedRace, selectedSubrace, racesTyped) : {};
 
   return (
     <form onSubmit={handleSubmit(handleRaceNext)} className={styles.step}>

@@ -43,7 +43,7 @@ const WIZARD_STEPS: WizardStep[] = [
     id: 'identity',
     title: 'Character Identity',
     description: 'Name, portrait, bio, and optional template preset',
-    component: IdentityStep,
+    component: IdentityStep as React.ComponentType<Record<string, unknown>>,
     canSkip: false
   },
   {
@@ -79,14 +79,14 @@ const WIZARD_STEPS: WizardStep[] = [
     id: 'equipment',
     title: 'Equipment',
     description: 'Choose your starting equipment and gear',
-    component: EquipmentSelectionStep,
+    component: EquipmentSelectionStep as React.ComponentType<Record<string, unknown>>,
     canSkip: false
   },
   {
     id: 'spells',
     title: 'Spells',
     description: 'Select spells for spellcasting classes',
-    component: SpellSelectionStep,
+    component: SpellSelectionStep as React.ComponentType<Record<string, unknown>>,
     canSkip: true,
     requirements: ['Spellcasting class selected']
   },

@@ -108,11 +108,11 @@ export const CharacterAdvancementStep: React.FC<CharacterAdvancementStepProps> =
     // Update each field that might have changed
     Object.keys(levelUpData).forEach(key => {
       if (key !== 'advancement') {
-        onChange(key as keyof WizardFormData, levelUpData[key]);
+        onChange(key as keyof WizardFormData, (levelUpData as Record<string, unknown>)[key] as WizardFormData[keyof WizardFormData]);
       }
     });
     
-    onChange('advancement', updatedData.advancement);
+    onChange('advancement', updatedData.advancement as unknown as WizardFormData['advancement']);
     
     setShowLevelUpWizard(false);
     setTargetLevel(null);
@@ -146,6 +146,7 @@ export const CharacterAdvancementStep: React.FC<CharacterAdvancementStepProps> =
       wisdom: data.wisdom || 10,
       charisma: data.charisma || 10,
       // Add required AdvancedCharacter properties
+      // @ts-expect-error totalLevel is an AdvancedCharacter field added at runtime
       totalLevel: currentLevel,
       classLevels: data.class ? [{ name: data.class, level: currentLevel }] : [],
       experiencePoints: {
@@ -164,7 +165,7 @@ export const CharacterAdvancementStep: React.FC<CharacterAdvancementStepProps> =
     
     return (
       <LevelUpWizard
-        character={characterData}
+        character={characterData as unknown as import('../../services/advancementSystem.service').AdvancedCharacter}
         onComplete={handleLevelUpComplete}
         onCancel={() => {
           setShowLevelUpWizard(false);

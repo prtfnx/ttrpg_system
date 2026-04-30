@@ -20,7 +20,7 @@ export function BackgroundStep({ onNext: _onNext, onBack: _onBack }: { onNext?: 
   const classChoices: number = classData?.num_skills ?? 2;
 
   // Derive race bonus skills from compendium
-  const raceEntry = races?.[characterRace];
+  const raceEntry = races?.[characterRace] as { proficiencies?: { skills?: string[] } } | undefined;
   // eslint-disable-next-line react-hooks/exhaustive-deps -- known: optional chaining result is stable per race/background
   const raceSkills: string[] = raceEntry?.proficiencies?.skills ?? [];
 

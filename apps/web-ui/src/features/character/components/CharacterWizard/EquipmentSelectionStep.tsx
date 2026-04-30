@@ -127,7 +127,7 @@ export const EquipmentSelectionStep: React.FC<EquipmentSelectionStepProps> = ({
               // Find the full equipment data from available equipment
               const fullEquipment = validEquipment.find(eq => eq.name === itemAny.name);
               if (fullEquipment) {
-                wizardItems.push(equipmentToWizardItem(fullEquipment, itemAny.quantity || 1, itemAny.equipped));
+                wizardItems.push(equipmentToWizardItem(fullEquipment, (itemAny.quantity as number) || 1, itemAny.equipped as boolean | undefined));
               } // else: skip unrecognized items
             } else {
               // skip items without index or name

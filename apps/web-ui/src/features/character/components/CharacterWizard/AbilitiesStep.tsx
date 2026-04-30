@@ -1,5 +1,6 @@
 import { useChatStore } from '@features/chat';
 import { useRacesForCharacterWizard } from '@features/compendium';
+import type React from 'react';
 import { Controller, useFormContext } from 'react-hook-form';
 import type { Path } from 'react-hook-form';
 import styles from './AbilitiesStep.module.css';
@@ -237,7 +238,7 @@ export function AbilitiesStep({ onNext: _onNext, onBack: _onBack }: { onNext?: (
                   control={control}
                   render={({ field }) => (
                     <input
-                      {...field}
+                      {...field as React.InputHTMLAttributes<HTMLInputElement>}
                       type="number"
                       min={3}
                       max={20}
@@ -260,7 +261,7 @@ export function AbilitiesStep({ onNext: _onNext, onBack: _onBack }: { onNext?: (
               )}
 
               {errors[ability as keyof typeof errors] && (
-                <span className={styles.errorText}>{errors[ability as keyof typeof errors]?.message}</span>
+                <span className={styles.errorText}>{String(errors[ability as keyof typeof errors]?.message ?? '')}</span>
               )}
             </div>
           );

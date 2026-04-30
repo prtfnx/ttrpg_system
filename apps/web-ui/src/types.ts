@@ -43,13 +43,83 @@ export interface Sprite {
   darkvisionRadiusUnits?: number; // game units (ft/m) — source of truth
 }
 
+export interface CharacterDataStats {
+  hp?: number;
+  maxHp?: number;
+  ac?: number;
+  speed?: number;
+  tempHp?: number;
+  initiative?: number;
+  deathSaves?: { successes: number; failures: number };
+}
+
+export interface CharacterDataAbilityScores {
+  str?: number;
+  dex?: number;
+  con?: number;
+  int?: number;
+  wis?: number;
+  cha?: number;
+}
+
+export interface CharacterDataInventory {
+  items?: Array<{ equipment: { name: string; weight: number; cost: { quantity: number; unit: string } }; quantity: number; equipped?: boolean }>;
+  currency?: { platinum?: number; gold?: number; electrum?: number; silver?: number; copper?: number };
+}
+
+export interface CharacterData {
+  class?: string;
+  race?: string;
+  level?: number;
+  background?: string;
+  alignment?: string;
+  experience?: number;
+  proficiencyBonus?: number;
+  hitDie?: number;
+  hitDiceUsed?: number;
+  stats?: CharacterDataStats;
+  abilityScores?: CharacterDataAbilityScores;
+  skills?: Record<string, boolean>;
+  savingThrows?: Record<string, boolean>;
+  spells?: Spell[];
+  spellSlotsUsed?: Record<string, number>;
+  languages?: string[];
+  features?: string[];
+  conditions?: string[];
+  inventory?: CharacterDataInventory | unknown[];
+  proficiencies?: string[];
+  inspiration?: boolean;
+  personality?: string;
+  ideals?: string;
+  bonds?: string;
+  flaws?: string;
+  notes?: string;
+  image?: string;
+  race_traits?: { darkvision?: number; [key: string]: unknown };
+  darkvision?: number;
+  [key: string]: unknown;
+}
+
+export interface Spell {
+  name: string;
+  level: number;
+  school?: string;
+  castingTime?: string;
+  range?: string;
+  components?: string;
+  duration?: string;
+  description?: string;
+  prepared?: boolean;
+  [key: string]: unknown;
+}
+
 export interface Character {
   id: string; // character_id
   sessionId: string;
   name: string;
   ownerId: number;
   controlledBy: number[];
-  data: Record<string, unknown>; // D&D 5e structure, see architecture
+  data: CharacterData;
   version: number;
   lastModifiedBy?: number;
   createdAt: string;

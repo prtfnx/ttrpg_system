@@ -83,7 +83,7 @@ export const GameCanvas: React.FC = () => {
   useSpriteSyncing();
 
   // Stream live drag/resize/rotate previews to other clients via WebSocket
-  const sendWsMessage = useCallback((msg: unknown) => { protocol?.sendMessage(msg as Record<string, unknown>); }, [protocol]);
+  const sendWsMessage = useCallback((msg: unknown) => { protocol?.sendMessage(msg as import('@lib/websocket').Message); }, [protocol]);
   useSpriteDragSync(sendWsMessage);
 
   // Track drag positions so vision rings follow the token during drag
@@ -156,7 +156,7 @@ export const GameCanvas: React.FC = () => {
       canvasRef: canvasRef as React.RefObject<HTMLCanvasElement>,
       rustRenderManagerRef,
       lightPlacementMode,
-      setLightPlacementMode,
+      setLightPlacementMode: setLightPlacementMode as Parameters<typeof useCanvasEventsEnhanced>[0]['setLightPlacementMode'],
       setContextMenu,
       showPerformanceMonitor,
       togglePerformanceMonitor,
@@ -229,7 +229,7 @@ export const GameCanvas: React.FC = () => {
     const ctx = previewCanvas.getContext('2d');
     if (!ctx) return;
 
-    const preset = lightPlacementMode.preset;
+    const preset = lightPlacementMode.preset as { color: { r: number; g: number; b: number }; radius?: number; radiusFt?: number };
     const dpr = dprRef.current;
 
     // Ensure preview canvas matches main canvas size
@@ -436,20 +436,23 @@ export const GameCanvas: React.FC = () => {
       const canvas = wallCanvasRef.current;
       const mainCanvas = canvasRef.current;
       const rm = rustRenderManagerRef.current;
-      if (canvas.width !== mainCanvas.width || canvas.height !== mainCanvas.height) {
-        canvas.width = mainCanvas.width;
-        canvas.height = mainCanvas.height;
-        canvas.style.width = mainCanvas.style.width;
-        canvas.style.height = mainCanvas.style.height;
+      const _canvas = canvas!;
+      const _mainCanvas = mainCanvas!;
+      const _rm = rm!;
+      if (_canvas.width !== _mainCanvas.width || _canvas.height !== _mainCanvas.height) {
+        _canvas.width = _mainCanvas.width;
+        _canvas.height = _mainCanvas.height;
+        _canvas.style.width = _mainCanvas.style.width;
+        _canvas.style.height = _mainCanvas.style.height;
       }
 
-      const ctx = canvas.getContext('2d');
+      const ctx = _canvas.getContext('2d');
       if (!ctx) { raf = requestAnimationFrame(draw); return; }
-      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      ctx.clearRect(0, 0, _canvas.width, _canvas.height);
 
       try {
-        if (typeof rm.get_wall_render_data !== 'function') { raf = requestAnimationFrame(draw); return; }
-        const data: Float32Array = rm.get_wall_render_data();
+        if (typeof _rm.get_wall_render_data !== 'function') { raf = requestAnimationFrame(draw); return; }
+        const data: Float32Array = _rm.get_wall_render_data();
         // Each wall = 8 floats: x1,y1,x2,y2,r,g,b,a  (world coords)
         const STRIDE = 8;
         ctx.save();
@@ -458,9 +461,9 @@ export const GameCanvas: React.FC = () => {
  const wx1 = data[i], wy1 = data[i + 1], wx2 = data[i + 2], wy2 = data[i + 3];
  const r = data[i + 4], g = data[i + 5], b = data[i + 6], a = data[i + 7];
 
-          if (typeof rm.world_to_screen !== 'function') continue;
-          const s1 = rm.world_to_screen(wx1, wy1);
-          const s2 = rm.world_to_screen(wx2, wy2);
+          if (typeof _rm.world_to_screen !== 'function') continue;
+          const s1 = _rm.world_to_screen(wx1, wy1);
+          const s2 = _rm.world_to_screen(wx2, wy2);
           if (!s1 || !s2) continue;
 
           ctx.beginPath();

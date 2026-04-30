@@ -20,19 +20,19 @@ export function useSpriteSyncing() {
 
       // Convert Rust sprite data to our format
       const convertedSprites = rustSprites.map((rustSprite: Record<string, unknown>) => ({
-        id: rustSprite.id || rustSprite.sprite_id || Math.random().toString(),
-        tableId: rustSprite.table_id || useGameStore.getState().activeTableId || '',
-        characterId: rustSprite.character_id,
-        controlledBy: rustSprite.controlled_by,
-        x: rustSprite.x || rustSprite.world_x || 0,
-        y: rustSprite.y || rustSprite.world_y || 0,
-        layer: rustSprite.layer || 'tokens',
-        texture: rustSprite.texture_id || rustSprite.texture || '',
+        id: String(rustSprite.id || rustSprite.sprite_id || Math.random().toString()),
+        tableId: String(rustSprite.table_id || useGameStore.getState().activeTableId || ''),
+        characterId: rustSprite.character_id as string | undefined,
+        controlledBy: rustSprite.controlled_by as number[] | undefined,
+        x: Number(rustSprite.x || rustSprite.world_x || 0),
+        y: Number(rustSprite.y || rustSprite.world_y || 0),
+        layer: String(rustSprite.layer || 'tokens'),
+        texture: String(rustSprite.texture_id || rustSprite.texture || ''),
         scale: {
-          x: rustSprite.scale_x || (rustSprite.width ? rustSprite.width / 32 : 1),
-          y: rustSprite.scale_y || (rustSprite.height ? rustSprite.height / 32 : 1)
+          x: Number(rustSprite.scale_x || (rustSprite.width ? Number(rustSprite.width) / 32 : 1)),
+          y: Number(rustSprite.scale_y || (rustSprite.height ? Number(rustSprite.height) / 32 : 1))
         },
-        rotation: rustSprite.rotation || 0
+        rotation: Number(rustSprite.rotation || 0)
       }));
 
       // Update store with current sprites from Rust
@@ -51,7 +51,7 @@ export function useSpriteSyncing() {
       convertedSprites.forEach(sprite => {
         const spriteWithName = { ...sprite, name: 'Unnamed Sprite' };
         if (!currentSpriteIds.has(sprite.id)) {
-          addSprite(spriteWithName);
+          addSprite(spriteWithName as import('@/types').Sprite);
         } else {
           // IMPORTANT: Only update if WASM-managed fields actually changed
           // WASM manages: x, y, rotation, scale, texture, layer

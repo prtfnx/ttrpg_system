@@ -191,7 +191,8 @@ export class MultiSelectManager {
     
     if (result.handled && result.selectionRect) {
       // Update visual feedback for selection rectangle in WASM
-      this.renderEngine?.update_selection_rect?.(result.selectionRect);
+      const re = this.renderEngine as unknown as { update_selection_rect?: (rect: typeof result.selectionRect) => void };
+      re.update_selection_rect?.(result.selectionRect);
       return true;
     }
 
@@ -217,7 +218,7 @@ export class MultiSelectManager {
       );
       
       // Clear visual selection rectangle
-      this.renderEngine?.clear_selection_rect?.();
+      (this.renderEngine as unknown as { clear_selection_rect?: () => void }).clear_selection_rect?.();
     }
 
     this.isActive = false;

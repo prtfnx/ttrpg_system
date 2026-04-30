@@ -89,10 +89,10 @@ export function EntitiesPanel() {
         
         if (existingSprites.has(sprite.id)) {
           // Update existing sprite
-          updateSprite(sprite.id, sprite)
+          updateSprite(sprite.id, sprite as unknown as Parameters<typeof updateSprite>[1])
         } else {
           // Add new sprite
-          addSprite(sprite)
+          addSprite(sprite as unknown as Parameters<typeof addSprite>[0])
         }
       })
       

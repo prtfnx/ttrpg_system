@@ -15,9 +15,20 @@ interface ContextMenuState {
   showLayerSubmenu?: boolean;
 }
 
+interface LightPreset {
+  name: string;
+  color: { r: number; g: number; b: number; a: number };
+  radius?: number;
+  radiusFt?: number;
+  intensity: number;
+  isMoving?: boolean;
+  existingLightId?: string;
+  [key: string]: unknown;
+}
+
 interface LightPlacementMode {
   active: boolean;
-  preset: Record<string, unknown>;
+  preset: LightPreset;
 }
 
 interface UseContextMenuProps {

@@ -24,7 +24,7 @@ export function FloatingLayerPicker() {
   useEffect(() => {
     // Check on mount using injected initial data (before WS welcome)
     const initial = (window as Window & { __INITIAL_DATA__?: { userRole?: string } }).__INITIAL_DATA__?.userRole ?? null;
-    if (isDM(initial)) setDmConfirmed(true);
+    if (isDM(initial as import('@features/session/types/roles').SessionRole | null)) setDmConfirmed(true);
   }, []);
 
   useEffect(() => {

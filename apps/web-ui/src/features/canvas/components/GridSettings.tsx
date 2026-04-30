@@ -28,10 +28,10 @@ export const GridSettings: React.FC<GridSettingsProps> = ({
   const handleChange = (field: string, value: string | number | boolean) => {
     const newSettings = { gridType: type, gridSize: size, showGrid: show, snapToGrid: snap };
     switch (field) {
-      case 'type': setType(value); newSettings.gridType = value; break;
-      case 'size': setSize(value); newSettings.gridSize = value; break;
-      case 'show': setShow(value); newSettings.showGrid = value; break;
-      case 'snap': setSnap(value); newSettings.snapToGrid = value; break;
+      case 'type': setType(value as 'square' | 'hex'); newSettings.gridType = value as 'square' | 'hex'; break;
+      case 'size': setSize(value as number); newSettings.gridSize = value as number; break;
+      case 'show': setShow(value as boolean); newSettings.showGrid = value as boolean; break;
+      case 'snap': setSnap(value as boolean); newSettings.snapToGrid = value as boolean; break;
     }
     onGridSettingsChange?.(newSettings);
   };

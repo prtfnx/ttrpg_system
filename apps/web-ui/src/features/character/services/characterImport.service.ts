@@ -119,14 +119,14 @@ export class CharacterImportService {
     try {
       const character = data.character as Record<string, unknown>;
       
-      if (!character.classes || character.classes.length === 0) {
+      if (!character.classes || (character.classes as unknown[]).length === 0) {
         return {
           success: false,
           errors: ['D&D Beyond character missing class information'],
         };
       }
       
-      if (!character.stats || character.stats.length !== 6) {
+      if (!character.stats || (character.stats as unknown[]).length !== 6) {
         return {
           success: false,
           errors: ['D&D Beyond character missing or invalid ability scores'],
@@ -260,9 +260,9 @@ export class CharacterImportService {
       
       // Roll20 stores attributes as an array of {name, current, max} objects
       const attribs = char.attribs as Array<{ name: string; current: unknown; max: unknown }>;
-      const getAttr = (name: string) => {
+      const getAttr = (name: string): string | number => {
         const attr = attribs.find(a => a.name === name);
-        return attr ? (attr.current || attr.max || 0) : 0;
+        return attr ? ((attr.current as string | number) || (attr.max as string | number) || 0) : 0;
       };
       
       const wizardData: WizardFormData = {

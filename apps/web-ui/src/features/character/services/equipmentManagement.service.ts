@@ -680,12 +680,13 @@ class EquipmentManagementService {
       const items = data.equipment?.items || [];
       
       return items.map((item: Record<string, unknown>) => {
+        const cost = item.cost as { platinum?: number; gold?: number; electrum?: number; silver?: number; copper?: number } | undefined;
         // Pick natural denomination (most significant non-zero currency)
-        const pp = item.cost?.platinum || 0;
-        const gp = item.cost?.gold || 0;
-        const ep = item.cost?.electrum || 0;
-        const sp = item.cost?.silver || 0;
-        const cp = item.cost?.copper || 0;
+        const pp = cost?.platinum || 0;
+        const gp = cost?.gold || 0;
+        const ep = cost?.electrum || 0;
+        const sp = cost?.silver || 0;
+        const cp = cost?.copper || 0;
         let costQuantity = 0;
         let costUnit: 'cp' | 'sp' | 'ep' | 'gp' | 'pp' = 'gp';
         if (pp > 0) { costQuantity = pp; costUnit = 'pp'; }
@@ -694,42 +695,44 @@ class EquipmentManagementService {
         else if (sp > 0) { costQuantity = sp; costUnit = 'sp'; }
         else if (cp > 0) { costQuantity = cp; costUnit = 'cp'; }
         
+        const itemName = String(item.name || '');
+        
         // Determine category from item data
         let category: EquipmentCategoryType = EquipmentCategory.GEAR;
         
         // Check for weapon properties
         if (item.damage_roll || item.weapon_category || item.weapon_properties ||
-            item.name.toLowerCase().includes('sword') || 
-            item.name.toLowerCase().includes('axe') || 
-            item.name.toLowerCase().includes('bow') ||
-            item.name.toLowerCase().includes('crossbow') ||
-            item.name.toLowerCase().includes('mace') || 
-            item.name.toLowerCase().includes('dagger') ||
-            item.name.toLowerCase().includes('spear') ||
-            item.name.toLowerCase().includes('hammer')) {
+            itemName.toLowerCase().includes('sword') || 
+            itemName.toLowerCase().includes('axe') || 
+            itemName.toLowerCase().includes('bow') ||
+            itemName.toLowerCase().includes('crossbow') ||
+            itemName.toLowerCase().includes('mace') || 
+            itemName.toLowerCase().includes('dagger') ||
+            itemName.toLowerCase().includes('spear') ||
+            itemName.toLowerCase().includes('hammer')) {
           category = EquipmentCategory.WEAPON;
         } 
         // Check for armor
         else if (item.armor_category || item.ac_bonus !== undefined ||
-                 item.name.toLowerCase().includes('armor') || 
-                 item.name.toLowerCase().includes('mail') || 
-                 item.name.toLowerCase().includes('plate') ||
-                 item.name.toLowerCase().includes('leather') ||
-                 item.name.toLowerCase().includes('breastplate')) {
+                 itemName.toLowerCase().includes('armor') || 
+                 itemName.toLowerCase().includes('mail') || 
+                 itemName.toLowerCase().includes('plate') ||
+                 itemName.toLowerCase().includes('leather') ||
+                 itemName.toLowerCase().includes('breastplate')) {
           category = EquipmentCategory.ARMOR;
         } 
         // Check for shield
-        else if (item.name.toLowerCase().includes('shield')) {
+        else if (itemName.toLowerCase().includes('shield')) {
           category = EquipmentCategory.SHIELD;
         }
         // Check for tools
-        else if (item.name.toLowerCase().includes('tools') ||
-                 item.name.toLowerCase().includes('kit') && !item.name.toLowerCase().includes('first aid')) {
+        else if (itemName.toLowerCase().includes('tools') ||
+                 itemName.toLowerCase().includes('kit') && !itemName.toLowerCase().includes('first aid')) {
           category = EquipmentCategory.TOOL;
         }
         
         return {
-          name: item.name,
+          name: itemName,
           category,
           cost: { quantity: costQuantity, unit: costUnit },
           weight: item.weight || 0,

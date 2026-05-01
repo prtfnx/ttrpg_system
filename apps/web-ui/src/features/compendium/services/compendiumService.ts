@@ -192,7 +192,7 @@ class CompendiumService {
     const cached = this.cache.get(cacheKey);
     
     if (cached && Date.now() - cached.timestamp < this.CACHE_DURATION) {
-      return cached.data;
+      return cached.data as T;
     }
 
     try {
@@ -208,7 +208,7 @@ class CompendiumService {
       
       const data = await response.json();
       this.cache.set(cacheKey, { data, timestamp: Date.now() });
-      return data;
+      return data as unknown as T;
     } catch (error) {
       console.error(`Error fetching compendium data from ${endpoint}:`, error);
       throw error;

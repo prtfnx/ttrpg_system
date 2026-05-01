@@ -84,14 +84,14 @@ export const CompendiumPanel: React.FC<CompendiumPanelProps> = ({ category, clas
 
       try {
         const spellRes = await compendiumService.getSpells({ limit: 500 });
-        for (const spell of Object.values(spellRes.spells ?? {}) as Array<Record<string, unknown>>) {
+        for (const spell of Object.values(spellRes.spells ?? {}) as unknown as Array<Record<string, unknown>>) {
           results.push({
-            id: spell.name.toLowerCase().replace(/\s+/g, '-'),
+            id: (spell.name as string).toLowerCase().replace(/\s+/g, '-'),
             type: 'spell',
-            name: spell.name,
+            name: spell.name as string,
             description: `Level ${spell.level} ${spell.school}`,
-            level: spell.level,
-            school: spell.school,
+            level: spell.level as number | undefined,
+            school: spell.school as string | undefined,
             raw: spell,
           });
         }
@@ -105,9 +105,9 @@ export const CompendiumPanel: React.FC<CompendiumPanelProps> = ({ category, clas
             results.push({
               id: `${cat}_${item.name}`.toLowerCase().replace(/\s+/g, '-'),
               type: 'equipment',
-              name: item.name,
+              name: item.name as string,
               description: `${cat} — ${item.cost ?? '—'}`,
-              cost: item.cost,
+              cost: item.cost as string | undefined,
               raw: item,
             });
           }

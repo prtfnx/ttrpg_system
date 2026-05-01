@@ -312,7 +312,7 @@ export class MonsterCreationService extends EventSystem {
             formula: hpMatch[2]
           };
         } else {
-          hitPoints.average = parseInt(data.hit_points) || 1;
+          hitPoints.average = parseInt(String(data.hit_points)) || 1;
         }
       }
 
@@ -600,9 +600,9 @@ export class MonsterCreationService extends EventSystem {
     if (data.challenge_rating) tags.push(`CR ${data.challenge_rating}`);
     if (data.spellcasting) tags.push('spellcaster');
     if (data.legendary_actions) tags.push('legendary');
-    if (data.damage_immunities?.length) tags.push('damage immunity');
-    if (data.damage_resistances?.length) tags.push('damage resistance');
-    if (data.condition_immunities?.length) tags.push('condition immunity');
+    if ((data.damage_immunities as unknown[])?.length) tags.push('damage immunity');
+    if ((data.damage_resistances as unknown[])?.length) tags.push('damage resistance');
+    if ((data.condition_immunities as unknown[])?.length) tags.push('condition immunity');
     
     return tags;
   }

@@ -12,7 +12,8 @@
       "@shared/*": ["./src/shared/*"],
       "@lib/*": ["./src/lib/*"],
       "@config/*": ["./src/config/*"],
-      "@app/*": ["./src/app/*"]
+      "@app/*": ["./src/app/*"],
+      "@test/*": ["./src/test/*"]
     },
 
     /* Bundler mode */

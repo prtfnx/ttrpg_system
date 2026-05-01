@@ -30,7 +30,7 @@ export class EventSystem {
     const subscription: EventSubscription = {
       key,
       event,
-      handler,
+      handler: handler as EventHandler<unknown>,
       once
     };
 

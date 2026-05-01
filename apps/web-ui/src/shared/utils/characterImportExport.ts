@@ -249,7 +249,7 @@ export function importCharacterFromJSON(
     
     // Reset sync status
     syncStatus: 'local' as const,
-  };
+  } as Character;
 
   return {
     character: importedCharacter,
@@ -308,7 +308,7 @@ export function importMultipleCharactersFromJSON(
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
       syncStatus: 'local' as const,
-    };
+    } as Character;
 
     characters.push(importedChar);
   }

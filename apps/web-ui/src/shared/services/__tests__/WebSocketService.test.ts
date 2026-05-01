@@ -1,4 +1,5 @@
-import { WebSocketConfig, WebSocketService, WebSocketState } from '@lib/websocket/WebSocketService';
+import { WebSocketService, WebSocketState } from '@lib/websocket/WebSocketService';
+import type { WebSocketConfig } from '@lib/websocket/WebSocketService';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 // Mock WebSocket
@@ -16,9 +17,9 @@ class MockWebSocket {
   public url: string;
   public protocols?: string | string[];
 
-  constructor(url: string, protocols?: string | string[]) {
-    this.url = url;
-    this.protocols = protocols;
+  constructor(_url: string, _protocols?: string | string[]) {
+    this.url = _url;
+    this.protocols = _protocols;
 
     // Simulate async connection
     setTimeout(() => {
@@ -69,14 +70,14 @@ describe('WebSocketService - Exponential Backoff Tests', () => {
 
   beforeEach(() => {
     // Replace global WebSocket with mock
-    originalWebSocket = global.WebSocket;
-    global.WebSocket = MockWebSocket as unknown as typeof WebSocket;
+    originalWebSocket = globalThis.WebSocket;
+    globalThis.WebSocket = MockWebSocket as unknown as typeof WebSocket;
     vi.useFakeTimers();
   });
 
   afterEach(() => {
     service?.disconnect();
-    global.WebSocket = originalWebSocket;
+    globalThis.WebSocket = originalWebSocket;
     vi.restoreAllMocks();
     vi.useRealTimers();
   });
@@ -185,8 +186,8 @@ describe('WebSocketService - Exponential Backoff Tests', () => {
       service = new WebSocketService(config);
       
       // Override WebSocket to simulate connection failures
-      const originalWebSocket = global.WebSocket;
-      global.WebSocket = class {
+      const originalWebSocket = globalThis.WebSocket;
+      globalThis.WebSocket = class {
         static CONNECTING = 0;
         static OPEN = 1;
         static CLOSING = 2;
@@ -198,7 +199,7 @@ describe('WebSocketService - Exponential Backoff Tests', () => {
         public onerror: ((event: Event) => void) | null = null;
         public onmessage: ((event: MessageEvent) => void) | null = null;
         
-        constructor(public url: string, public protocols?: string | string[]) {
+        constructor(_url: string, _protocols?: string | string[]) {
           // Immediately fail the connection
           setTimeout(() => {
             if (this.onerror) this.onerror(new Event('error'));
@@ -232,7 +233,7 @@ describe('WebSocketService - Exponential Backoff Tests', () => {
       await vi.advanceTimersByTimeAsync(8005);
       expect(service.getStats().reconnectAttempts).toBe(4);
       
-      global.WebSocket = originalWebSocket;
+      globalThis.WebSocket = originalWebSocket;
     });
 
     it('should respect custom reconnectDelay base value', async () => {
@@ -245,8 +246,8 @@ describe('WebSocketService - Exponential Backoff Tests', () => {
       service = new WebSocketService(config);
       
       // Override WebSocket to fail connections
-      const originalWebSocket = global.WebSocket;
-      global.WebSocket = class {
+      const originalWebSocket = globalThis.WebSocket;
+      globalThis.WebSocket = class {
         static CONNECTING = 0;
         static OPEN = 1;
         static CLOSING = 2;
@@ -258,7 +259,7 @@ describe('WebSocketService - Exponential Backoff Tests', () => {
         public onerror: ((event: Event) => void) | null = null;
         public onmessage: ((event: MessageEvent) => void) | null = null;
         
-        constructor(public url: string, public protocols?: string | string[]) {
+        constructor(_url: string, _protocols?: string | string[]) {
           setTimeout(() => {
             if (this.onerror) this.onerror(new Event('error'));
             if (this.onclose) this.onclose(new CloseEvent('close'));
@@ -282,7 +283,7 @@ describe('WebSocketService - Exponential Backoff Tests', () => {
       await vi.advanceTimersByTimeAsync(1005);
       expect(service.getStats().reconnectAttempts).toBe(2);
       
-      global.WebSocket = originalWebSocket;
+      globalThis.WebSocket = originalWebSocket;
     });
 
     it('should calculate correct delays for multiple reconnection attempts', async () => {
@@ -323,8 +324,8 @@ describe('WebSocketService - Exponential Backoff Tests', () => {
       service = new WebSocketService(config);
       
       // Override WebSocket to fail connections
-      const originalWebSocket = global.WebSocket;
-      global.WebSocket = class {
+      const originalWebSocket = globalThis.WebSocket;
+      globalThis.WebSocket = class {
         static CONNECTING = 0;
         static OPEN = 1;
         static CLOSING = 2;
@@ -336,7 +337,7 @@ describe('WebSocketService - Exponential Backoff Tests', () => {
         public onerror: ((event: Event) => void) | null = null;
         public onmessage: ((event: MessageEvent) => void) | null = null;
         
-        constructor(public url: string, public protocols?: string | string[]) {
+        constructor(_url: string, _protocols?: string | string[]) {
           setTimeout(() => {
             if (this.onerror) this.onerror(new Event('error'));
             if (this.onclose) this.onclose(new CloseEvent('close'));
@@ -367,7 +368,7 @@ describe('WebSocketService - Exponential Backoff Tests', () => {
       await vi.advanceTimersByTimeAsync(10000);
       expect(service.getStats().reconnectAttempts).toBe(3);
       
-      global.WebSocket = originalWebSocket;
+      globalThis.WebSocket = originalWebSocket;
     });
 
     it('should respect default maxReconnectAttempts of 5', async () => {
@@ -417,8 +418,8 @@ describe('WebSocketService - Exponential Backoff Tests', () => {
       service = new WebSocketService(config);
       
       // Override WebSocket to fail connections
-      const originalWebSocket = global.WebSocket;
-      global.WebSocket = class {
+      const originalWebSocket = globalThis.WebSocket;
+      globalThis.WebSocket = class {
         static CONNECTING = 0;
         static OPEN = 1;
         static CLOSING = 2;
@@ -430,7 +431,7 @@ describe('WebSocketService - Exponential Backoff Tests', () => {
         public onerror: ((event: Event) => void) | null = null;
         public onmessage: ((event: MessageEvent) => void) | null = null;
         
-        constructor(public url: string, public protocols?: string | string[]) {
+        constructor(_url: string, _protocols?: string | string[]) {
           setTimeout(() => {
             if (this.onerror) this.onerror(new Event('error'));
             if (this.onclose) this.onclose(new CloseEvent('close'));
@@ -456,7 +457,7 @@ describe('WebSocketService - Exponential Backoff Tests', () => {
       await vi.advanceTimersByTimeAsync(405);
       expect(service.getStats().reconnectAttempts).toBe(3);
       
-      global.WebSocket = originalWebSocket;
+      globalThis.WebSocket = originalWebSocket;
     });
 
     it('should clear reconnection timer on manual disconnect', async () => {
@@ -520,8 +521,8 @@ describe('WebSocketService - Exponential Backoff Tests', () => {
       service = new WebSocketService(config);
       
       // Override WebSocket to fail connections
-      const originalWebSocket = global.WebSocket;
-      global.WebSocket = class {
+      const originalWebSocket = globalThis.WebSocket;
+      globalThis.WebSocket = class {
         static CONNECTING = 0;
         static OPEN = 1;
         static CLOSING = 2;
@@ -533,7 +534,7 @@ describe('WebSocketService - Exponential Backoff Tests', () => {
         public onerror: ((event: Event) => void) | null = null;
         public onmessage: ((event: MessageEvent) => void) | null = null;
         
-        constructor(public url: string, public protocols?: string | string[]) {
+        constructor(_url: string, _protocols?: string | string[]) {
           setTimeout(() => {
             if (this.onerror) this.onerror(new Event('error'));
             if (this.onclose) this.onclose(new CloseEvent('close'));
@@ -557,7 +558,7 @@ describe('WebSocketService - Exponential Backoff Tests', () => {
       );
 
       consoleErrorSpy.mockRestore();
-      global.WebSocket = originalWebSocket;
+      globalThis.WebSocket = originalWebSocket;
     });
 
     it('should handle successful reconnection after failures', async () => {
@@ -570,20 +571,22 @@ describe('WebSocketService - Exponential Backoff Tests', () => {
       service = new WebSocketService(config);
       
       let connectionAttempts = 0;
-      const originalWebSocket = global.WebSocket;
-      global.WebSocket = class {
+      const originalWebSocket = globalThis.WebSocket;
+      globalThis.WebSocket = class {
         static CONNECTING = 0;
         static OPEN = 1;
         static CLOSING = 2;
         static CLOSED = 3;
         
         public readyState: number;
+        public url: string = '';
+        public protocols?: string | string[];
         public onopen: ((event: Event) => void) | null = null;
         public onclose: ((event: CloseEvent) => void) | null = null;
         public onerror: ((event: Event) => void) | null = null;
         public onmessage: ((event: MessageEvent) => void) | null = null;
         
-        constructor(public url: string, public protocols?: string | string[]) {
+        constructor(_url: string, _protocols?: string | string[]) {
           connectionAttempts++;
           if (connectionAttempts <= 2) {
             // Fail first 2 attempts
@@ -628,7 +631,7 @@ describe('WebSocketService - Exponential Backoff Tests', () => {
       expect(service.getStats().reconnectAttempts).toBe(0);
       expect(service.isConnected()).toBe(true);
       
-      global.WebSocket = originalWebSocket;
+      globalThis.WebSocket = originalWebSocket;
     });
   });
 
@@ -662,8 +665,8 @@ describe('WebSocketService - Exponential Backoff Tests', () => {
       service = new WebSocketService(config);
       
       // Override WebSocket to fail connections
-      const originalWebSocket = global.WebSocket;
-      global.WebSocket = class {
+      const originalWebSocket = globalThis.WebSocket;
+      globalThis.WebSocket = class {
         static CONNECTING = 0;
         static OPEN = 1;
         static CLOSING = 2;
@@ -675,7 +678,7 @@ describe('WebSocketService - Exponential Backoff Tests', () => {
         public onerror: ((event: Event) => void) | null = null;
         public onmessage: ((event: MessageEvent) => void) | null = null;
         
-        constructor(public url: string, public protocols?: string | string[]) {
+        constructor(_url: string, _protocols?: string | string[]) {
           setTimeout(() => {
             if (this.onerror) this.onerror(new Event('error'));
             if (this.onclose) this.onclose(new CloseEvent('close'));
@@ -698,10 +701,17 @@ describe('WebSocketService - Exponential Backoff Tests', () => {
       stats = service.getStats();
       expect(stats.reconnectAttempts).toBe(2);
       
-      global.WebSocket = originalWebSocket;
+      globalThis.WebSocket = originalWebSocket;
     });
   });
 });
+
+
+
+
+
+
+
 
 
 

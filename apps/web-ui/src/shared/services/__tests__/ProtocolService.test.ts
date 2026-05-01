@@ -15,14 +15,6 @@
 import { ProtocolService } from '@lib/api';
 import { beforeEach, describe, expect, it } from 'vitest';
 
-// Create a minimal mock WebClientProtocol to avoid dependency chain
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-interface MockWebClientProtocol {
-  id?: string;
-  name?: string;
-  version?: number;
-  isReady?: boolean;
-}
 
 describe('ProtocolService - Singleton Pattern', () => {
   beforeEach(() => {
@@ -103,7 +95,7 @@ describe('ProtocolService - Singleton Pattern', () => {
     });
 
     it('should throw error after clearing protocol', () => {
-      const mockProtocol = {} as WebClientProtocol;
+      const mockProtocol = {} as unknown as ReturnType<typeof ProtocolService.getProtocol>;
       ProtocolService.setProtocol(mockProtocol);
       ProtocolService.clearProtocol();
       
@@ -117,14 +109,14 @@ describe('ProtocolService - Singleton Pattern', () => {
     });
 
     it('should return true after setting protocol', () => {
-      const mockProtocol = {} as WebClientProtocol;
+      const mockProtocol = {} as unknown as ReturnType<typeof ProtocolService.getProtocol>;
       ProtocolService.setProtocol(mockProtocol);
       
       expect(ProtocolService.hasProtocol()).toBe(true);
     });
 
     it('should return false after clearing protocol', () => {
-      const mockProtocol = {} as WebClientProtocol;
+      const mockProtocol = {} as unknown as ReturnType<typeof ProtocolService.getProtocol>;
       ProtocolService.setProtocol(mockProtocol);
       ProtocolService.clearProtocol();
       
@@ -219,4 +211,5 @@ describe('ProtocolService - Singleton Pattern', () => {
     });
   });
 });
+
 

@@ -10,18 +10,12 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 // Mock WebClientProtocol to avoid circular dependencies and module loading issues
 class MockWebClientProtocol {
-  private sessionCode: string;
-  private userId: number | null;
   sendMessage = vi.fn();
 
-  constructor(sessionCode: string, userId?: number) {
-    this.sessionCode = sessionCode;
-    this.userId = userId ?? null;
-  }
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  constructor(_sessionCode: string, _userId?: number) {}
 
-  setUserId(userId: number): void {
-    this.userId = userId;
-  }
+  setUserId(_userId: number): void {}
 
   saveCharacter(characterData: Record<string, unknown>, userId?: number): void {
     this.sendMessage({ type: 'CHARACTER_SAVE_REQUEST', characterData, userId });

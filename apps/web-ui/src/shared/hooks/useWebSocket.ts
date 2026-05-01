@@ -265,7 +265,7 @@ export function useWebSocket(url: string) {
       try {
         await protocol.connect();
         // register handler to receive protocol messages
-        const protoHandler = (m: import('@lib/websocket/message').Message) => handleMessage(m.data ?? m as Record<string, unknown>);
+        const protoHandler = (m: import('@lib/websocket/message').Message) => handleMessage(m.data ?? m as unknown as Record<string, unknown>);
         protocol.registerHandler('generic', protoHandler);
         flushMessageQueue();
         updateConnectionState('connected');

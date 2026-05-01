@@ -1,12 +1,15 @@
 describe('Legacy Character Migration Edge Cases', () => {
   it('should migrate legacy character with missing fields to new structure', () => {
-    const { addCharacter, _getCharacterForSprite } = useGameStore.getState();
+    const { addCharacter } = useGameStore.getState();
     // Simulate legacy character (missing data fields)
     const legacyChar = {
       id: 'legacy1',
       sessionId: 'sess',
       name: 'Old Hero',
       ownerId: 1,
+      controlledBy: [] as number[],
+      data: {},
+      version: 1,
       // no controlledBy, no data, no version
       createdAt: '',
       updatedAt: ''
@@ -27,7 +30,7 @@ describe('Legacy Character Migration Edge Cases', () => {
     // Assume updateCharacter checks version and throws or ignores
     const updateCharacter = useGameStore.getState().updateCharacter || (() => {});
     if (updateCharacter) {
-      expect(() => updateCharacter(update)).not.toThrow();
+      expect(() => updateCharacter('ver1', update)).not.toThrow();
       // Should not downgrade version
       const char = useGameStore.getState().characters.find(c => c.id === 'ver1');
       expect(char?.version).toBeGreaterThanOrEqual(1);
@@ -35,7 +38,7 @@ describe('Legacy Character Migration Edge Cases', () => {
   });
 
   it('should migrate legacy sprite with imageUrl/width/height to new structure', () => {
-    const { addSprite, _getCharacterForSprite } = useGameStore.getState();
+    const { addSprite } = useGameStore.getState();
     // Simulate legacy sprite
     const legacySprite = {
       id: 'spriteLegacy',
@@ -46,7 +49,7 @@ describe('Legacy Character Migration Edge Cases', () => {
       x: 0, y: 0, layer: 'tokens',
       rotation: 0
     };
-    expect(() => addSprite(legacySprite)).not.toThrow();
+    expect(() => addSprite(legacySprite as unknown as Sprite)).not.toThrow();
     const sprite = useGameStore.getState().sprites.find(s => s.id === 'spriteLegacy');
     expect(sprite).toBeDefined();
     expect(sprite?.texture).toBe('foo.png');
@@ -99,6 +102,7 @@ describe('Character Protocol Client', () => {
     };
     const sprite: Sprite = {
       id: 'sprite1',
+      name: '',
       tableId: 'table1',
       x: 0, y: 0, layer: 'tokens', texture: '', scale: { x: 1, y: 1 }, rotation: 0
     };
@@ -129,6 +133,7 @@ describe('Character Protocol Client', () => {
     };
     const sprite: Sprite = {
       id: 'sprite2',
+      name: '',
       tableId: 'table1',
       x: 0, y: 0, layer: 'tokens', texture: '', scale: { x: 1, y: 1 }, rotation: 0
     };
@@ -166,7 +171,7 @@ describe('Character Protocol Client', () => {
     const { addCharacter, addSprite, linkSpriteToCharacter, getSpritesForCharacter, getCharacterForSprite } = useGameStore.getState();
     addCharacter({ id: 'charA', sessionId: '', name: 'A', ownerId: 1, controlledBy: [], data: {}, version: 1, createdAt: '', updatedAt: '' });
     addCharacter({ id: 'charB', sessionId: '', name: 'B', ownerId: 2, controlledBy: [], data: {}, version: 1, createdAt: '', updatedAt: '' });
-    addSprite({ id: 'spriteX', tableId: TEST_TABLE_ID, x: 0, y: 0, layer: 'tokens', texture: '', scale: { x: 1, y: 1 }, rotation: 0 });
+    addSprite({ id: 'spriteX', tableId: TEST_TABLE_ID, name: '', x: 0, y: 0, layer: 'tokens', texture: '', scale: { x: 1, y: 1 }, rotation: 0 });
     linkSpriteToCharacter('spriteX', 'charA');
     expect(getCharacterForSprite('spriteX')?.id).toBe('charA');
     // Link to another character should overwrite
@@ -185,7 +190,7 @@ describe('Character Protocol Client', () => {
   it('should not escalate permissions when linking sprites', () => {
     const { addCharacter, addSprite, linkSpriteToCharacter, canEditCharacter, canControlSprite } = useGameStore.getState();
     addCharacter({ id: 'charC', sessionId: '', name: 'C', ownerId: 1, controlledBy: [], data: {}, version: 1, createdAt: '', updatedAt: '' });
-    addSprite({ id: 'spriteY', tableId: TEST_TABLE_ID, x: 0, y: 0, layer: 'tokens', texture: '', scale: { x: 1, y: 1 }, rotation: 0 });
+    addSprite({ id: 'spriteY', tableId: TEST_TABLE_ID, name: '', x: 0, y: 0, layer: 'tokens', texture: '', scale: { x: 1, y: 1 }, rotation: 0 });
     linkSpriteToCharacter('spriteY', 'charC');
     // Only owner can edit/control
     expect(canEditCharacter('charC', 1)).toBe(true);
@@ -196,10 +201,11 @@ describe('Character Protocol Client', () => {
 
   it('should not link sprite to non-existent character', () => {
     const { addSprite, linkSpriteToCharacter, getCharacterForSprite } = useGameStore.getState();
-    addSprite({ id: 'spriteZ', tableId: TEST_TABLE_ID, x: 0, y: 0, layer: 'tokens', texture: '', scale: { x: 1, y: 1 }, rotation: 0 });
+    addSprite({ id: 'spriteZ', tableId: TEST_TABLE_ID, name: '', x: 0, y: 0, layer: 'tokens', texture: '', scale: { x: 1, y: 1 }, rotation: 0 });
     // Should not throw, but should not link
     expect(() => linkSpriteToCharacter('spriteZ', 'no_such_char')).not.toThrow();
     expect(getCharacterForSprite('spriteZ')).toBeUndefined();
   });
 });
+
 

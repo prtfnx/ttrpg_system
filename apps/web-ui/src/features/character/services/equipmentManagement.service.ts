@@ -738,7 +738,7 @@ class EquipmentManagementService {
           weight: item.weight || 0,
           description: item.description || '',
           properties: item.properties || {}
-        } as Equipment;
+        } as unknown as Equipment;
       });
     } catch (error) {
  console.error('Failed to fetch equipment from API:', error);

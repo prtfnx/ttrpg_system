@@ -5,6 +5,7 @@ import { Controller, useFormContext } from 'react-hook-form';
 import type { Path } from 'react-hook-form';
 import styles from './AbilitiesStep.module.css';
 import { calculateRacialASI } from './raceData';
+import type { RaceData } from './raceData';
 import type { AbilitiesStepData } from './schemas';
 import type { WizardFormData } from './WizardFormData';
 
@@ -40,7 +41,7 @@ export function AbilitiesStep({ onNext: _onNext, onBack: _onBack }: { onNext?: (
   const characterClass = watch('class') ?? '';
   const characterBackground = watch('background') ?? '';
   const { data: races } = useRacesForCharacterWizard();
-  const racialASI = races ? calculateRacialASI(selectedRace, selectedSubrace, races) : {};
+  const racialASI = races ? calculateRacialASI(selectedRace, selectedSubrace, races as Record<string, RaceData>) : {};
 
   const getRacialBonus = (ability: string): number => (racialASI as Record<string, number>)[ability] ?? 0;
 

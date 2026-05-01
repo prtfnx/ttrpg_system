@@ -243,7 +243,7 @@ describe('EnhancedCharacterWizard', () => {
           isOpen={true}
           onFinish={mockOnFinish}
           onCancel={mockOnCancel}
-          character={existingCharacter}
+          {...({ character: existingCharacter } as object)}
         />
       );
 
@@ -258,7 +258,7 @@ describe('EnhancedCharacterWizard', () => {
           isOpen={true}
           onFinish={mockOnFinish}
           onCancel={mockOnCancel}
-          character={existingCharacter}
+          {...({ character: existingCharacter } as object)}
         />
       );
 

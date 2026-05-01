@@ -24,7 +24,7 @@ interface QuickActionsProps {
 }
 
 export const QuickActions: React.FC<QuickActionsProps> = ({ character, isConnected }) => {
-  const abilities = character.data?.abilities || {};
+  const abilities = (character.data?.abilityScores || character.data?.abilities || {}) as Record<string, number>;
 
   const roll = (ability: string) => {
     if (!isConnected || !ProtocolService.hasProtocol()) return;

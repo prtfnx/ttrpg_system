@@ -1,4 +1,5 @@
 import { AdvancementSystemService } from '@features/character/services/advancementSystem.service';
+import type { AdvancedCharacter } from '@features/character/services/advancementSystem.service';
 import React from 'react';
 import { useFormContext } from 'react-hook-form';
 import { LevelUpWizard } from './LevelUpWizard';
@@ -165,7 +166,7 @@ export const CharacterAdvancementStep: React.FC<CharacterAdvancementStepProps> =
     
     return (
       <LevelUpWizard
-        character={characterData as unknown as import('../../services/advancementSystem.service').AdvancedCharacter}
+        character={characterData as unknown as AdvancedCharacter}
         onComplete={handleLevelUpComplete}
         onCancel={() => {
           setShowLevelUpWizard(false);

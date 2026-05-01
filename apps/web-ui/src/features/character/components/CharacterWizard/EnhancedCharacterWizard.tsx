@@ -43,14 +43,14 @@ const WIZARD_STEPS: WizardStep[] = [
     id: 'identity',
     title: 'Character Identity',
     description: 'Name, portrait, bio, and optional template preset',
-    component: IdentityStep as React.ComponentType<Record<string, unknown>>,
+    component: IdentityStep as unknown as React.ComponentType<Record<string, unknown>>,
     canSkip: false
   },
   {
     id: 'race',
     title: 'Race Selection',
     description: 'Select your character\'s race from the compendium',
-    component: RaceStep,
+    component: RaceStep as unknown as React.ComponentType<Record<string, unknown>>,
     canSkip: false,
     requirements: ['Compendium API connection']
   },
@@ -58,35 +58,35 @@ const WIZARD_STEPS: WizardStep[] = [
     id: 'class',
     title: 'Class Selection',
     description: 'Choose your character\'s class and archetype',
-    component: ClassStep,
+    component: ClassStep as unknown as React.ComponentType<Record<string, unknown>>,
     canSkip: false
   },
   {
     id: 'abilities',
     title: 'Ability Scores',
     description: 'Assign your character\'s ability scores with racial bonuses',
-    component: AbilitiesStep,
+    component: AbilitiesStep as unknown as React.ComponentType<Record<string, unknown>>,
     canSkip: false
   },
   {
     id: 'background',
     title: 'Background & Skills',
     description: 'Select background, languages, and class skill proficiencies',
-    component: BackgroundStep,
+    component: BackgroundStep as unknown as React.ComponentType<Record<string, unknown>>,
     canSkip: false
   },
   {
     id: 'equipment',
     title: 'Equipment',
     description: 'Choose your starting equipment and gear',
-    component: EquipmentSelectionStep as React.ComponentType<Record<string, unknown>>,
+    component: EquipmentSelectionStep as unknown as React.ComponentType<Record<string, unknown>>,
     canSkip: false
   },
   {
     id: 'spells',
     title: 'Spells',
     description: 'Select spells for spellcasting classes',
-    component: SpellSelectionStep as React.ComponentType<Record<string, unknown>>,
+    component: SpellSelectionStep as unknown as React.ComponentType<Record<string, unknown>>,
     canSkip: true,
     requirements: ['Spellcasting class selected']
   },
@@ -94,7 +94,7 @@ const WIZARD_STEPS: WizardStep[] = [
     id: 'review',
     title: 'Review & Save',
     description: 'Review and save your character to the server',
-    component: ReviewStep,
+    component: ReviewStep as unknown as React.ComponentType<Record<string, unknown>>,
     canSkip: false
   }
 ];

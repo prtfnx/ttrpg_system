@@ -113,7 +113,7 @@ describe('CharacterPanel', () => {
       activeTool: 'select',
       measurementActive: false,
       alignmentActive: false,
-    }, false); // Merge, don't replace (keeps action methods)
+    } as unknown as Parameters<typeof useGameStore.setState>[0], false); // Merge, don't replace (keeps action methods)
     vi.clearAllMocks();
   });
 

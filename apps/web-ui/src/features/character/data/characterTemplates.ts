@@ -427,7 +427,7 @@ export const PC_WIZARD_TEMPLATE: CharacterTemplate = {
     },
     
     skills: {
-      ...PC_TEMPLATE.data.skills,
+      ...(PC_TEMPLATE.data.skills as Record<string, unknown>),
       arcana: { proficient: true, expertise: false, bonus: 5 },
       history: { proficient: true, expertise: false, bonus: 5 },
       investigation: { proficient: true, expertise: false, bonus: 5 }

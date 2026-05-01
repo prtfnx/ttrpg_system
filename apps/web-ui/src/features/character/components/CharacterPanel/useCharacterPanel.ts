@@ -219,7 +219,7 @@ export function useCharacterPanel() {
       sessionId: sessionId?.toString() || '',
       name: data.name || `${data.race} ${data.class}`,
       ownerId: currentUserId,
-      controlledBy: [],
+      controlledBy: [] as number[],
       data: characterData,
       version: 1,
       createdAt: new Date().toISOString(),
@@ -227,14 +227,14 @@ export function useCharacterPanel() {
       syncStatus: 'syncing' as const,
     };
     
-    addCharacter(newCharacter);
+    addCharacter(newCharacter as unknown as Character);
     setShowWizard(false);
     setExpandedCharId(tempId);
     
     if (protocol && isConnected) {
       try {
         const saveBlob = { character_id: tempId, ...characterData };
-        registerPendingOperation(tempId, 'create', newCharacter);
+        registerPendingOperation(tempId, 'create', newCharacter as unknown as Character);
         protocol.saveCharacter(saveBlob, currentUserId);
       } catch (_error) {
         confirmPendingOperation(tempId);
@@ -509,10 +509,8 @@ export function useCharacterPanel() {
     if (protocol && isConnected) {
       updateCharacter(charId, { syncStatus: 'syncing' });
       protocol.updateCharacter(charId, updates, char.version);
-      registerPendingOperation(charId, 'update', charData);
+      registerPendingOperation(charId, 'update', charData as unknown as Character);
     }
-
-    handleCancelEdit();
   };
 
   const handleAddCondition = (charId: string) => {
@@ -646,3 +644,4 @@ export function useCharacterPanel() {
     sessionId,
   };
 }
+

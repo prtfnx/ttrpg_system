@@ -292,7 +292,7 @@ function CharacterPanel() {
                     <button className={styles.actionBtn} onClick={() => {
                       windowManager.openWindow(
                         `character-sheet-${char.id}`,
-                        CharacterSheetWindow as React.ComponentType<Record<string, unknown>>,
+                        CharacterSheetWindow as unknown as React.ComponentType<Record<string, unknown>>,
                         { characterId: char.id },
                         { title: `${char.name} — Sheet`, width: 900, height: 700 }
                       );

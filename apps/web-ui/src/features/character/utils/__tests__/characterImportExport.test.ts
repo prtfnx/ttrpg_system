@@ -12,7 +12,7 @@
  * @vitest-environment jsdom
  */
 
-import type { Character } from '@/types';
+import type { Character, CharacterData } from '@/types';
 import {
     cloneCharacter,
     downloadCharacterAsJSON,
@@ -56,7 +56,7 @@ describe('Character Import/Export', () => {
       },
       skills: ['Athletics', 'Intimidation'],
       proficiencyBonus: 3
-    },
+    } as unknown as CharacterData,
     version: 3,
     createdAt: '2025-11-01T10:00:00Z',
     updatedAt: '2025-11-05T14:30:00Z',
@@ -346,7 +346,7 @@ describe('Character Import/Export', () => {
       const result = importCharacterFromJSON(validJSON, 5, 'new-session');
       
       expect(result.character.data.class).toBe('Fighter');
-      expect(result.character.data.abilities?.str).toBe(16);
+      expect((result.character.data as Record<string, Record<string, unknown>>).abilities?.str).toBe(16);
       expect(result.character.data.skills).toEqual(['Athletics', 'Intimidation']);
     });
 
@@ -525,15 +525,17 @@ describe('Character Import/Export', () => {
 
       const cloned = cloneCharacter(freshMock, 10);
       
+      const freshMockData = freshMock.data as Record<string, Record<string, unknown>>;
+      const clonedData = cloned.data as Record<string, Record<string, unknown>>;
       // Modify cloned data
-      if (cloned.data.abilities) {
-        cloned.data.abilities.str = 20;
+      if (clonedData.abilities) {
+        clonedData.abilities.str = 20;
       }
       
       // Original should remain unchanged
-      expect(freshMock.data.abilities?.str).toBe(16);
+      expect(freshMockData.abilities?.str).toBe(16);
       // Cloned should be modified
-      expect(cloned.data.abilities?.str).toBe(20);
+      expect(clonedData.abilities?.str).toBe(20);
     });
   });
 

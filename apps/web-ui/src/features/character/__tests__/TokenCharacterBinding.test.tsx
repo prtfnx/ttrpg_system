@@ -136,14 +136,14 @@ describe('Token Stats System - Store Operations', () => {
     it('should link token to character', () => {
       const { result } = renderHook(() => useGameStore());
       
-      const testCharacter: Character = {
+      const testCharacter = {
         id: 'char-1',
         name: 'Warrior',
-        player_id: 123,
-        is_npc: false,
+        
         data: {
           stats: {
             hp: 50,
+            maxHp: 50,
             ac: 18
           }
         }
@@ -160,7 +160,7 @@ describe('Token Stats System - Store Operations', () => {
       };
 
       act(() => {
-        result.current.addCharacter(testCharacter);
+        result.current.addCharacter(testCharacter as unknown as Character);
         result.current.addSprite(testSprite);
       });
 
@@ -329,11 +329,10 @@ describe('Token Stats System - Store Operations', () => {
     it('should manage multiple sprites with different character links', () => {
       const { result } = renderHook(() => useGameStore());
       
-      const char1: Character = {
+      const char1 = {
         id: 'char-1',
         name: 'Warrior',
-        player_id: 123,
-        is_npc: false,
+        
         data: {
           stats: {
             hp: 50,
@@ -342,11 +341,10 @@ describe('Token Stats System - Store Operations', () => {
         }
       };
 
-      const char2: Character = {
+      const char2 = {
         id: 'char-2',
         name: 'Mage',
-        player_id: 456,
-        is_npc: false,
+        
         data: {
           stats: {
             hp: 30,
@@ -356,8 +354,8 @@ describe('Token Stats System - Store Operations', () => {
       };
 
       act(() => {
-        result.current.addCharacter(char1);
-        result.current.addCharacter(char2);
+        result.current.addCharacter(char1 as unknown as Character);
+        result.current.addCharacter(char2 as unknown as Character);
         
         result.current.addSprite({ name: "test", tableId: "test-table", layer: "tokens", scale: { x: 1, y: 1 }, rotation: 0,
           id: 'sprite-1',
@@ -407,6 +405,10 @@ describe('Token Stats System - Store Operations', () => {
     });
   });
 });
+
+
+
+
 
 
 

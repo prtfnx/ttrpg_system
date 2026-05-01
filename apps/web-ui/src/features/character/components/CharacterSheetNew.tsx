@@ -65,11 +65,19 @@ export const CharacterSheet: React.FC<CharacterSheetProps> = ({ character, onSav
   }
 
   const data = character.data || {};
-  const abilities = data.abilityScores || { str: 10, dex: 10, con: 10, int: 10, wis: 10, cha: 10 };
+  const rawAbilities = data.abilityScores || {};
+  const abilities = {
+    str: rawAbilities.str ?? 10,
+    dex: rawAbilities.dex ?? 10,
+    con: rawAbilities.con ?? 10,
+    int: rawAbilities.int ?? 10,
+    wis: rawAbilities.wis ?? 10,
+    cha: rawAbilities.cha ?? 10,
+  };
   const stats = data.stats || { hp: 0, maxHp: 10, ac: 10, speed: 30, initiative: 0 };
   const profBonus = data.proficiencyBonus || Math.ceil((data.level || 1) / 4) + 1;
-  const skills = data.skills || {};
-  const savingThrows = data.savingThrows || { str: false, dex: false, con: false, int: false, wis: false, cha: false };
+  const skills = (data.skills as Record<string, boolean>) || {};
+  const savingThrows = (data.savingThrows as Record<string, boolean>) || { str: false, dex: false, con: false, int: false, wis: false, cha: false };
 
   const getModifier = (score: number) => Math.floor((score - 10) / 2);
   const modStr = (mod: number) => mod >= 0 ? `+${mod}` : `${mod}`;
@@ -100,35 +108,35 @@ export const CharacterSheet: React.FC<CharacterSheetProps> = ({ character, onSav
   const handleSkillRoll = (skillName: string, modifier: number) => {
     if (isConnected && ProtocolService.hasProtocol() && character) {
       ProtocolService.getProtocol().rollSkill(character.id, skillName, modifier);
-      showToast.success(`Rolling ${skillName}…`);
+      showToast.success(`Rolling ${skillName}ï¿½`);
     }
   };
 
   const handleAbilitySaveRoll = (ability: string, modifier: number) => {
     if (isConnected && ProtocolService.hasProtocol() && character) {
       ProtocolService.getProtocol().rollAbilitySave(character.id, ability, modifier);
-      showToast.success(`Rolling ${ABILITY_SHORT[ability]} save…`);
+      showToast.success(`Rolling ${ABILITY_SHORT[ability]} saveï¿½`);
     }
   };
 
   const handleAbilityCheckRoll = (ability: string, modifier: number) => {
     if (isConnected && ProtocolService.hasProtocol() && character) {
       ProtocolService.getProtocol().rollAbilityCheck(character.id, ability, modifier);
-      showToast.success(`Rolling ${ABILITY_SHORT[ability]} check…`);
+      showToast.success(`Rolling ${ABILITY_SHORT[ability]} checkï¿½`);
     }
   };
 
   const handleAttackRoll = (attackType: string, modifier: number) => {
     if (isConnected && ProtocolService.hasProtocol() && character) {
       ProtocolService.getProtocol().rollAttack(character.id, attackType, modifier);
-      showToast.success(`Rolling ${attackType} attack…`);
+      showToast.success(`Rolling ${attackType} attackï¿½`);
     }
   };
 
   const handleDeathSaveRoll = () => {
     if (isConnected && ProtocolService.hasProtocol() && character) {
       ProtocolService.getProtocol().rollDeathSave(character.id);
-      showToast.info('Rolling death save…');
+      showToast.info('Rolling death saveï¿½');
     }
   };
 
@@ -146,11 +154,11 @@ export const CharacterSheet: React.FC<CharacterSheetProps> = ({ character, onSav
         hitDiceUsed: newUsedHitDice,
       }
     });
-    showToast.success('Long Rest — HP and spell slots restored');
+    showToast.success('Long Rest ï¿½ HP and spell slots restored');
   };
 
   const handleShortRest = () => {
-    showToast.info('Short Rest — use Hit Dice roll to recover HP');
+    showToast.info('Short Rest ï¿½ use Hit Dice roll to recover HP');
   };
 
   const handleStatUpdate = (field: string, value: number) => {
@@ -177,7 +185,7 @@ export const CharacterSheet: React.FC<CharacterSheetProps> = ({ character, onSav
   };
 
   const currentClasses = (data.class || '').split('/').map((c: string) => c.trim()).filter(Boolean);
-  const fullAbilityScores = {
+  const fullAbilityScores: Record<string, number> = {
     strength: abilities.str, dexterity: abilities.dex, constitution: abilities.con,
     intelligence: abilities.int, wisdom: abilities.wis, charisma: abilities.cha,
   };
@@ -284,7 +292,7 @@ export const CharacterSheet: React.FC<CharacterSheetProps> = ({ character, onSav
 
       {/* Main layout: sidebar + content */}
       <div className={styles.sheetLayout}>
-        {/* Left sidebar — always visible */}
+        {/* Left sidebar ï¿½ always visible */}
         <aside className={styles.sidebar}>
           <div className={styles.abilitiesColumn}>
             {Object.entries(abilities).map(([key, rawVal]) => {
@@ -429,7 +437,7 @@ export const CharacterSheet: React.FC<CharacterSheetProps> = ({ character, onSav
                 </div>
 
                 {/* Death saves â€” only at 0 HP */}
-                {/* Death saves — only at 0 HP */}
+                {/* Death saves ï¿½ only at 0 HP */}
                 {(stats.hp || 0) === 0 && (
                   <div className={styles.deathSavesBlock}>
                     <span className={styles.deathTitle}>Death Saves</span>
@@ -547,10 +555,11 @@ export const CharacterSheet: React.FC<CharacterSheetProps> = ({ character, onSav
                   characterClass={data.class || ''}
                   characterLevel={data.level || 1}
                   abilityScores={fullAbilityScores}
-                  knownSpells={data.knownSpells || []}
-                  preparedSpells={data.preparedSpells || []}
-                  onPrepareSpell={id => onSave({ data: { ...data, preparedSpells: [...(data.preparedSpells || []), id] } })}
-                  onUnprepareSpell={id => onSave({ data: { ...data, preparedSpells: (data.preparedSpells || []).filter((s: string) => s !== id) } })}
+                  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                  knownSpells={((data.knownSpells as unknown[]) || []) as any}
+                  preparedSpells={(data.preparedSpells as string[]) || []}
+                  onPrepareSpell={id => onSave({ data: { ...data, preparedSpells: [...((data.preparedSpells as string[]) || []), id] } })}
+                  onUnprepareSpell={id => onSave({ data: { ...data, preparedSpells: ((data.preparedSpells as string[]) || []).filter((s: string) => s !== id) } })}
                 />
                 <SpellsTab data={data} onSave={newData => onSave({ data: newData })} />
               </>
@@ -565,9 +574,9 @@ export const CharacterSheet: React.FC<CharacterSheetProps> = ({ character, onSav
                 <div className={styles.bioSection}>
                   <h4>Biography</h4>
                   <textarea
-                    value={character.data?.bio || ''}
+                    value={(character.data?.bio as string) || ''}
                     onChange={e => onSave({ data: { ...data, bio: e.target.value } })}
-                    placeholder="Backstory, personality, goals…"
+                    placeholder="Backstory, personality, goalsï¿½"
                     rows={6}
                     className={styles.bioTextarea}
                   />

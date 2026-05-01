@@ -266,17 +266,17 @@ export class CharacterImportService {
       };
       
       const wizardData: WizardFormData = {
-        name: getAttr('character_name') || 'Roll20 Character',
-        race: getAttr('race') || '',
-        class: getAttr('class') || '',
-        background: getAttr('background') || 'Folk Hero',
+        name: String(getAttr('character_name') || 'Roll20 Character'),
+        race: String(getAttr('race') || ''),
+        class: String(getAttr('class') || ''),
+        background: String(getAttr('background') || 'Folk Hero'),
         
-        strength: parseInt(getAttr('strength') || '10'),
-        dexterity: parseInt(getAttr('dexterity') || '10'),
-        constitution: parseInt(getAttr('constitution') || '10'),
-        intelligence: parseInt(getAttr('intelligence') || '10'),
-        wisdom: parseInt(getAttr('wisdom') || '10'),
-        charisma: parseInt(getAttr('charisma') || '10'),
+        strength: parseInt(String(getAttr('strength') || '10')),
+        dexterity: parseInt(String(getAttr('dexterity') || '10')),
+        constitution: parseInt(String(getAttr('constitution') || '10')),
+        intelligence: parseInt(String(getAttr('intelligence') || '10')),
+        wisdom: parseInt(String(getAttr('wisdom') || '10')),
+        charisma: parseInt(String(getAttr('charisma') || '10')),
         
         skills: [], // Roll20 skill parsing would be complex, left for manual selection
         spells: undefined, // Roll20 spell parsing would be complex

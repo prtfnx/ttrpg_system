@@ -48,8 +48,8 @@ describe('useInvitations', () => {
     vi.clearAllMocks();
     vi.mocked(invitationService.listSessionInvitations).mockResolvedValue([...mockInvitations]);
     vi.mocked(invitationService.createInvitation).mockResolvedValue({ ...mockInvitations[0], id: 3 });
-    vi.mocked(invitationService.revokeInvitation).mockResolvedValue(undefined);
-    vi.mocked(invitationService.deleteInvitation).mockResolvedValue(undefined);
+    vi.mocked(invitationService.revokeInvitation).mockResolvedValue({ success: true, message: 'revoked' });
+    vi.mocked(invitationService.deleteInvitation).mockResolvedValue({ success: true, message: 'deleted' });
   });
 
   describe('Initialization', () => {

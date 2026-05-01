@@ -4,7 +4,21 @@ import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 // Mock the session management hook to control what the component receives
-const mockSessionManagement = {
+const mockSessionManagement: {
+  players: { id: string; username: string; role: string }[];
+  loading: boolean;
+  error: string | null;
+  isExpanded: boolean;
+  showInvites: boolean;
+  changing: boolean;
+  canManagePlayers: boolean;
+  toggleExpanded: ReturnType<typeof vi.fn>;
+  toggleInvites: ReturnType<typeof vi.fn>;
+  closeInvites: ReturnType<typeof vi.fn>;
+  handleRoleChange: ReturnType<typeof vi.fn>;
+  handleKick: ReturnType<typeof vi.fn>;
+  refetch: ReturnType<typeof vi.fn>;
+} = {
   players: [],
   loading: false,
   error: null,
@@ -44,7 +58,7 @@ vi.mock('../Invitations/InvitationManager', () => ({
 }));
 
 vi.mock('../PlayerList', () => ({
-  PlayerList: ({ players, _onRoleChange, _onRemove, canManagePlayers }: { players: unknown[]; _onRoleChange?: unknown; _onRemove?: unknown; canManagePlayers?: boolean }) => (
+  PlayerList: ({ players, canManagePlayers }: { players: unknown[]; _onRoleChange?: unknown; _onRemove?: unknown; canManagePlayers?: boolean }) => (
     <div data-testid="player-list">
       <span>Players: {players.length}</span>
       <span>Can modify: {canManagePlayers ? 'yes' : 'no'}</span>

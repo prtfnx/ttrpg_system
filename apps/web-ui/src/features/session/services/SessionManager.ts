@@ -254,19 +254,20 @@ export class SessionManager {
 
   private handleWebSocketMessage(message: Record<string, unknown>): void {
     const { type, data } = message;
+    const d = data as Record<string, unknown> | undefined;
     
     switch (type) {
       case 'session_joined':
-        this.emit('sessionJoined', data.session);
+        this.emit('sessionJoined', d?.session);
         break;
       case 'session_join_error':
-        this.emit('sessionJoinError', data.error);
+        this.emit('sessionJoinError', d?.error);
         break;
       case 'participant_joined':
-        this.emit('participantJoined', data.participant);
+        this.emit('participantJoined', d?.participant);
         break;
       case 'participant_left':
-        this.emit('participantLeft', data.participant);
+        this.emit('participantLeft', d?.participant);
         break;
       case 'token_movement':
         this.emit('tokenMoved', data);
@@ -279,7 +280,7 @@ export class SessionManager {
         break;
       case 'session_updated':
         if (this.currentSession) {
-          this.currentSession = { ...this.currentSession, ...data.session };
+          this.currentSession = { ...this.currentSession, ...(d?.session as object) };
           this.emit('sessionUpdated', this.currentSession);
         }
         break;

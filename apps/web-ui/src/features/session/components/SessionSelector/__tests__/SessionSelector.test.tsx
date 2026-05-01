@@ -1,6 +1,7 @@
 import '@testing-library/jest-dom';
 import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
+import type { SessionInfo } from '@features/auth';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { SessionSelector } from '@features/session';
 
@@ -22,7 +23,6 @@ vi.mock('@features/auth', () => ({
     requireAuth: vi.fn((op: () => unknown) => op()),
     updateUser: vi.fn()
   }),
-  type: {} as unknown as ReturnType<typeof import("@features/auth").useAuth>["type"],
 }));
 
 // Import mocked service after mock is defined
@@ -32,17 +32,17 @@ describe('SessionSelector - User Behavior Tests', () => {
   const user = userEvent.setup();
   const mockOnSessionSelected = vi.fn();
   
-  const mockSessions = [
+  const mockSessions: SessionInfo[] = [
     {
       session_code: 'DMG001',
       session_name: 'Dragon Heist Campaign',
-      role: 'dm' as const,
+      role: 'owner' as SessionInfo['role'],
       created_at: '2025-01-15T10:00:00Z',
     },
     {
       session_code: 'PLR002',
       session_name: 'Storm King\'s Thunder',
-      role: 'player' as const,
+      role: 'player' as SessionInfo['role'],
       created_at: '2025-01-10T14:30:00Z',
     },
   ];

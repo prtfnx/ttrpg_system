@@ -132,7 +132,7 @@ describe('useSessionManagement', () => {
 
       let res = true;
       await act(async () => {
-        res = await result.current.handleRoleChange(target, 'dm');
+        res = await result.current.handleRoleChange(target, 'owner');
       });
 
       expect(res).toBe(false);
@@ -173,9 +173,9 @@ describe('useSessionManagement', () => {
       const mockRegister = vi.fn();
       const mockUnregister = vi.fn();
       vi.mocked(useProtocol).mockReturnValueOnce({
-        protocol: { registerHandler: mockRegister, unregisterHandler: mockUnregister },
+        protocol: { registerHandler: mockRegister, unregisterHandler: mockUnregister } as unknown as ReturnType<typeof useProtocol>['protocol'],
         isConnected: true,
-      });
+      } as unknown as ReturnType<typeof useProtocol>);
 
       const { unmount } = renderHook(() => useSessionManagement(sessionCode));
       expect(mockRegister).toHaveBeenCalledWith('CUSTOM', expect.any(Function));

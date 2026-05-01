@@ -59,18 +59,18 @@ function spriteToLight(sprite: LightSprite): Light | null {
   let radius: number;
   if (meta.radius_units != null) {
     const converter = useGameStore.getState().getUnitConverter();
-    radius = converter.toPixels(meta.radius_units);
+    radius = converter.toPixels(meta.radius_units as number);
   } else {
-    radius = meta.radius ?? 100;
+    radius = (meta.radius as number | undefined) ?? 100;
   }
 
   return {
-    id: sprite.id || sprite.sprite_id,
+    id: sprite.id ?? sprite.sprite_id ?? '',
     x: sprite.x ?? 0,
     y: sprite.y ?? 0,
-    presetName: meta.presetName,
-    color: meta.color || { r: 1, g: 1, b: 1, a: 1 },
-    intensity: meta.intensity ?? 1.0,
+    presetName: meta.presetName as string | undefined,
+    color: (meta.color as Color | undefined) || { r: 1, g: 1, b: 1, a: 1 },
+    intensity: (meta.intensity as number | undefined) ?? 1.0,
     radius,
     isOn: meta.isOn !== false,
   };
@@ -212,11 +212,11 @@ export const LightingPanel: React.FC = () => {
 
     try {
       switch (property) {
-        case 'color': engine.set_light_color(lightId, value.r, value.g, value.b, value.a); break;
-        case 'intensity': engine.set_light_intensity(lightId, value); break;
-        case 'radius': engine.set_light_radius(lightId, value); break;
+        case 'color': { const c = value as Color; engine.set_light_color(lightId, c.r, c.g, c.b, c.a); break; }
+        case 'intensity': engine.set_light_intensity(lightId, value as number); break;
+        case 'radius': engine.set_light_radius(lightId, value as number); break;
         case 'isOn': engine.toggle_light(lightId); break;
-        case 'x': case 'y': engine.update_light_position(lightId, property === 'x' ? value : light.x, property === 'y' ? value : light.y); break;
+        case 'x': case 'y': engine.update_light_position(lightId, property === 'x' ? value as number : light.x, property === 'y' ? value as number : light.y); break;
       }
     } catch {}
 

@@ -4,7 +4,7 @@ import styles from './NetworkPanel.module.css';
 
 interface NetworkMessage {
   type: string;
-  data: Record<string, unknown>;
+  data: unknown;
   timestamp: number;
 }
 
@@ -203,7 +203,7 @@ export const NetworkPanel: React.FC = () => {
         {/* Add retry button for connection failures */}
         {!networkState.isConnected && messages.some(m => {
           if (m.type !== 'error') return false;
-          const d = m.data;
+          const d = m.data as Record<string, unknown> | null | undefined;
           if (!d) return false;
           if (typeof d['error'] === 'string' && d['error'].includes('Connection failed')) return true;
           if (typeof d['message'] === 'string' && (d['message'] as string).includes('Connection failure')) return true;

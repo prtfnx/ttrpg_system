@@ -201,13 +201,14 @@ class PaintTemplateService {
   }
 
   private validateTemplate(template: unknown): boolean {
+    if (!template || typeof template !== 'object') return false;
+    const t = template as Record<string, unknown>;
     return (
-      template &&
-      typeof template.id === 'string' &&
-      typeof template.name === 'string' &&
-      Array.isArray(template.strokes) &&
-      typeof template.created === 'string' &&
-      typeof template.updated === 'string'
+      typeof t.id === 'string' &&
+      typeof t.name === 'string' &&
+      Array.isArray(t.strokes) &&
+      typeof t.created === 'string' &&
+      typeof t.updated === 'string'
     );
   }
 

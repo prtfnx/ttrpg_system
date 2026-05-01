@@ -95,7 +95,8 @@ export function usePaintSystem(
         const isActive = typeof renderEngine.paint_is_mode === 'function' ? renderEngine.paint_is_mode() : false;
         const isDrawing = typeof renderEngine.paint_is_drawing === 'function' ? renderEngine.paint_is_drawing() : false;
         const strokeCount = typeof renderEngine.paint_get_stroke_count === 'function' ? renderEngine.paint_get_stroke_count() : 0;
-        const brushColor = typeof renderEngine.paint_get_brush_color === 'function' ? renderEngine.paint_get_brush_color() : [1.0, 1.0, 1.0, 1.0];
+        const brushColorRaw = typeof renderEngine.paint_get_brush_color === 'function' ? renderEngine.paint_get_brush_color() : [1.0, 1.0, 1.0, 1.0];
+        const brushColor = Array.isArray(brushColorRaw) ? brushColorRaw : Array.from(brushColorRaw as Float32Array);
         const brushWidth = typeof renderEngine.paint_get_brush_width === 'function' ? renderEngine.paint_get_brush_width() : 3.0;
         const canUndo = typeof renderEngine.can_undo === 'function' ? renderEngine.can_undo() : false;
         const canRedo = typeof renderEngine.can_redo === 'function' ? renderEngine.can_redo() : false;
@@ -197,8 +198,9 @@ export function usePaintSystem(
 
   const redoStroke = useCallback(() => {
     if (!renderEngine) return false;
-    if (typeof renderEngine.redo_last_stroke === 'function') {
-      return renderEngine.redo_last_stroke();
+    const eng = renderEngine as unknown as Record<string, unknown>;
+    if (typeof eng.redo_last_stroke === 'function') {
+      return (eng.redo_last_stroke as () => boolean)();
     }
     console.debug('Render engine missing redo_last_stroke()');
     return false;
@@ -267,13 +269,14 @@ export function usePaintSystem(
   const applyBrushPreset = useCallback((preset: BrushPreset) => {
     if (!renderEngine) return;
     if (typeof preset.apply_to_paint_system === 'function') {
-      preset.apply_to_paint_system(renderEngine);
+      preset.apply_to_paint_system(renderEngine as unknown as Parameters<typeof preset.apply_to_paint_system>[0]);
     } else {
       console.debug('Brush preset missing apply_to_paint_system()');
     }
     
     // Update local state (guarded reads)
-    const brushColor = typeof renderEngine.paint_get_brush_color === 'function' ? renderEngine.paint_get_brush_color() : [1.0, 1.0, 1.0, 1.0];
+    const brushColorRaw2 = typeof renderEngine.paint_get_brush_color === 'function' ? renderEngine.paint_get_brush_color() : [1.0, 1.0, 1.0, 1.0];
+    const brushColor = Array.isArray(brushColorRaw2) ? brushColorRaw2 : Array.from(brushColorRaw2 as Float32Array);
     const brushWidth = typeof renderEngine.paint_get_brush_width === 'function' ? renderEngine.paint_get_brush_width() : 3.0;
     setPaintState(prev => ({ 
       ...prev, 

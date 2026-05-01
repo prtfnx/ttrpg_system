@@ -281,7 +281,7 @@ export const PaintPanel: React.FC<PaintPanelProps> = ({
       // Load template into table if in table mode
       if (paintMode === 'table' && isIntegrated) {
         try {
-          await paintToTable(template.strokes, 'paint', {
+          await paintToTable(template.strokes as PaintStroke[], 'paint', {
             paintLayer: 'paint',
             tableId: 'main-table',
             coordinateSystem: 'world',

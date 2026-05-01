@@ -64,19 +64,20 @@ export const useAdvancedMeasurement = ({
   }, [isOpen]);
 
   useEffect(() => {
-    const handleMeasurementEvent = (event: string, data: Record<string, unknown>) => {
+    const handleMeasurementEvent = (event: string, data: unknown) => {
+      const d = data as Record<string, Record<string, unknown>>;
       switch (event) {
         case 'measurementStarted':
-          setActiveMeasurement(data.measurement.id);
-          onMeasurementStart?.(data.measurement.start);
+          setActiveMeasurement(d.measurement.id as string);
+          onMeasurementStart?.(d.measurement.start as unknown as { x: number; y: number });
           break;
         case 'measurementUpdated':
-          onMeasurementUpdate?.(data.measurement.id, data.measurement.end);
+          onMeasurementUpdate?.(d.measurement.id as string, d.measurement.end as unknown as { x: number; y: number });
           break;
         case 'measurementCompleted':
           setActiveMeasurement(null);
           setMeasurements(advancedMeasurementSystem.getMeasurements());
-          onMeasurementComplete?.(data.measurement);
+          onMeasurementComplete?.(d.measurement as unknown as MeasurementLine);
           break;
         case 'shapeCreated':
           setShapes(advancedMeasurementSystem.getShapes());
@@ -87,7 +88,7 @@ export const useAdvancedMeasurement = ({
           setActiveGrid(advancedMeasurementSystem.getActiveGrid());
           break;
         case 'settingsUpdated':
-          setSettings(data.settings);
+          setSettings((data as Record<string, unknown>).settings as MeasurementSettings | null);
           break;
         default:
           break;

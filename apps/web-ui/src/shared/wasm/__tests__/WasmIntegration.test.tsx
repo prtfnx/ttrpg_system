@@ -4,6 +4,14 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { GlobalWasmModule } from '@lib/wasm/wasmManager';
 import { wasmManager } from '@lib/wasm/wasmManager';
 
+// Extended type for test mock that includes additional WASM classes
+type TestWasmModule = GlobalWasmModule & Record<string, new () => Record<string, unknown>>;
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+type AnyMock = Record<string, any>;
+
+const getTestModule = async () => (await wasmManager.getWasmModule()) as unknown as TestWasmModule;
+const makeEngine = (mod: TestWasmModule) => new (mod as AnyMock).RenderEngine() as AnyMock;
+
 // Mock WASM classes using proper class syntax to match real WASM behavior
 class MockRenderEngine {
   initialize = vi.fn().mockResolvedValue(undefined);
@@ -122,7 +130,7 @@ class MockTableSync {
 }
 
 // Mock WASM module for testing - using constructor classes like real WASM
-const mockWasmModule: GlobalWasmModule = {
+const mockWasmModule = {
   RenderEngine: MockRenderEngine,
   NetworkClient: MockNetworkClient,
   ActionsClient: MockActionsClient,
@@ -131,6 +139,8 @@ const mockWasmModule: GlobalWasmModule = {
   FogOfWarSystem: MockFogOfWarSystem,
   LayerManager: MockLayerManager,
   PaintSystem: MockPaintSystem,
+  PlanningManager: class { free = vi.fn(); },
+  CollisionSystem: class { free = vi.fn(); },
   TableSync: MockTableSync,
   create_default_brush_presets: vi.fn().mockReturnValue([
     { name: 'Small Brush', size: 2, opacity: 1.0, color: [0, 0, 0, 1] },
@@ -138,7 +148,7 @@ const mockWasmModule: GlobalWasmModule = {
     { name: 'Large Brush', size: 10, opacity: 1.0, color: [0, 0, 0, 1] }
   ]),
   default: vi.fn().mockResolvedValue(undefined)
-};
+} as unknown as GlobalWasmModule;
 
 // Mock window globals
 Object.defineProperty(window, 'ttrpg_rust_core', {
@@ -165,7 +175,7 @@ describe('WASM TypeScript Integration Tests', () => {
   describe('WASM Manager - Core System', () => {
     it('should initialize WASM module correctly for users', async () => {
       // User expects WASM to load without errors
-      const wasmModule = await wasmManager.getWasmModule();
+      const wasmModule = await getTestModule();
       
       expect(wasmModule).toBeDefined();
       expect(wasmModule.RenderEngine).toBeTypeOf('function'); // Constructor classes are functions
@@ -178,7 +188,7 @@ describe('WASM TypeScript Integration Tests', () => {
       vi.spyOn(wasmManager, 'getWasmModule').mockRejectedValue(new Error('WASM failed to load'));
       
       try {
-        await wasmManager.getWasmModule();
+        await getTestModule();
         expect.fail('Should have thrown error');
       } catch (error) {
         // User expects meaningful error messages
@@ -189,8 +199,8 @@ describe('WASM TypeScript Integration Tests', () => {
 
     it('should provide singleton WASM instance across the application', async () => {
       // User expects consistent WASM module instance
-      const wasmModule1 = await wasmManager.getWasmModule();
-      const wasmModule2 = await wasmManager.getWasmModule();
+      const wasmModule1 = await getTestModule();
+      const wasmModule2 = await getTestModule();
       
       expect(wasmModule1).toBe(wasmModule2);
     });
@@ -198,8 +208,8 @@ describe('WASM TypeScript Integration Tests', () => {
 
   describe('WASM RenderEngine - TypeScript Bridge', () => {
     it('should create and initialize render engine through TypeScript', async () => {
-      const wasmModule = await wasmManager.getWasmModule();
-      const renderEngine = new wasmModule.RenderEngine();
+      const wasmModule = await getTestModule();
+      const renderEngine = makeEngine(wasmModule);
       
       // User expects render engine to be properly typed
       expect(renderEngine.initialize).toBeTypeOf('function');
@@ -212,8 +222,8 @@ describe('WASM TypeScript Integration Tests', () => {
     });
 
     it('should handle coordinate transformations accurately', async () => {
-      const wasmModule = await wasmManager.getWasmModule();
-      const renderEngine = new wasmModule.RenderEngine();
+      const wasmModule = await getTestModule();
+      const renderEngine = makeEngine(wasmModule);
       
       // User expects accurate screen-to-world coordinate conversion
       const worldCoords = renderEngine.screen_to_world(100, 200);
@@ -225,8 +235,8 @@ describe('WASM TypeScript Integration Tests', () => {
     });
 
     it('should manage sprites with proper TypeScript typing', async () => {
-      const wasmModule = await wasmManager.getWasmModule();
-      const renderEngine = new wasmModule.RenderEngine();
+      const wasmModule = await getTestModule();
+      const renderEngine = makeEngine(wasmModule);
       
       // User expects sprite creation to return proper ID
       const spriteId = renderEngine.create_sprite({ x: 100, y: 150 }, 'dragon_texture', 'tokens');
@@ -244,8 +254,8 @@ describe('WASM TypeScript Integration Tests', () => {
     });
 
     it('should provide performance metrics through TypeScript interface', async () => {
-      const wasmModule = await wasmManager.getWasmModule();
-      const renderEngine = new wasmModule.RenderEngine();
+      const wasmModule = await getTestModule();
+      const renderEngine = makeEngine(wasmModule);
       
       // User expects performance metrics to be properly typed
       const metrics = renderEngine.get_performance_metrics();
@@ -269,8 +279,8 @@ describe('WASM TypeScript Integration Tests', () => {
 
   describe('WASM ActionsClient - Command Interface', () => {
     it('should execute actions with TypeScript type safety', async () => {
-      const wasmModule = await wasmManager.getWasmModule();
-      const actionsClient = new wasmModule.ActionsClient();
+      const wasmModule = await getTestModule();
+      const actionsClient = new wasmModule.ActionsClient() as unknown as AnyMock;
       
       // User expects table creation to return proper result
       const result = actionsClient.create_table('Dragon Encounter', 800, 600);
@@ -283,8 +293,8 @@ describe('WASM TypeScript Integration Tests', () => {
     });
 
     it('should support batch operations with proper error handling', async () => {
-      const wasmModule = await wasmManager.getWasmModule();
-      const actionsClient = new wasmModule.ActionsClient();
+      const wasmModule = await getTestModule();
+      const actionsClient = new wasmModule.ActionsClient() as unknown as AnyMock;
       
       // User expects batch actions to work
       const batchResult = actionsClient.batch_actions([
@@ -299,8 +309,8 @@ describe('WASM TypeScript Integration Tests', () => {
     });
 
     it('should provide undo/redo functionality with state tracking', async () => {
-      const wasmModule = await wasmManager.getWasmModule();
-      const actionsClient = new wasmModule.ActionsClient();
+      const wasmModule = await getTestModule();
+      const actionsClient = new wasmModule.ActionsClient() as unknown as AnyMock;
       
       // User expects undo capability check
       expect(actionsClient.can_undo()).toBe(true);
@@ -315,8 +325,8 @@ describe('WASM TypeScript Integration Tests', () => {
 
   describe('WASM AssetManager - Resource Management', () => {
     it('should manage assets with TypeScript interface', async () => {
-      const wasmModule = await wasmManager.getWasmModule();
-      const assetManager = new wasmModule.AssetManager();
+      const wasmModule = await getTestModule();
+      const assetManager = new wasmModule.AssetManager() as unknown as AnyMock;
       
       // User expects asset initialization
       await assetManager.initialize();
@@ -326,7 +336,7 @@ describe('WASM TypeScript Integration Tests', () => {
       expect(assetManager.has_asset('dragon_texture')).toBe(true);
       
       // User expects asset info to be properly parsed
-      const assetInfo = JSON.parse(assetManager.get_asset_info('dragon_texture'));
+      const assetInfo = JSON.parse(assetManager.get_asset_info('dragon_texture') as string);
       expect(assetInfo).toHaveProperty('name');
       expect(assetInfo).toHaveProperty('size');
       expect(assetInfo).toHaveProperty('format');
@@ -334,8 +344,8 @@ describe('WASM TypeScript Integration Tests', () => {
     });
 
     it('should handle asset downloads with progress tracking', async () => {
-      const wasmModule = await wasmManager.getWasmModule();
-      const assetManager = new wasmModule.AssetManager();
+      const wasmModule = await getTestModule();
+      const assetManager = new wasmModule.AssetManager() as unknown as AnyMock;
       
       // User expects asset download to work
       const assetId = await assetManager.download_asset('https://example.com/dragon.png');
@@ -345,11 +355,11 @@ describe('WASM TypeScript Integration Tests', () => {
     });
 
     it('should provide asset data access through TypeScript', async () => {
-      const wasmModule = await wasmManager.getWasmModule();
-      const assetManager = new wasmModule.AssetManager();
+      const wasmModule = await getTestModule();
+      const assetManager = new wasmModule.AssetManager() as unknown as AnyMock;
       
       // User expects asset data to be accessible
-      const assetData = assetManager.get_asset_data('dragon_texture');
+      const assetData = assetManager.get_asset_data('dragon_texture') as Uint8Array;
       
       expect(assetData).toBeInstanceOf(Uint8Array);
       expect(assetData.length).toBeGreaterThan(0);
@@ -364,8 +374,8 @@ describe('WASM TypeScript Integration Tests', () => {
 
   describe('WASM NetworkClient - Communication Bridge', () => {
     it('should handle network operations through TypeScript', async () => {
-      const wasmModule = await wasmManager.getWasmModule();
-      const networkClient = new wasmModule.NetworkClient();
+      const wasmModule = await getTestModule();
+      const networkClient = new wasmModule.NetworkClient() as unknown as AnyMock;
       
       // User expects connection to work
       const connected = await networkClient.connect('ws://localhost:8080');
@@ -383,8 +393,8 @@ describe('WASM TypeScript Integration Tests', () => {
     });
 
     it('should handle message sending with TypeScript type safety', async () => {
-      const wasmModule = await wasmManager.getWasmModule();
-      const networkClient = new wasmModule.NetworkClient();
+      const wasmModule = await getTestModule();
+      const networkClient = new wasmModule.NetworkClient() as unknown as AnyMock;
       
       // User expects message sending to work
       const message = {
@@ -402,8 +412,8 @@ describe('WASM TypeScript Integration Tests', () => {
 
   describe('WASM LightingSystem - Advanced Features', () => {
     it('should manage lighting with TypeScript interface', async () => {
-      const wasmModule = await wasmManager.getWasmModule();
-      const lightingSystem = new wasmModule.LightingSystem();
+      const wasmModule = await getTestModule();
+      const lightingSystem = new wasmModule.LightingSystem() as unknown as AnyMock;
       
       // User expects light creation
       const lightId = lightingSystem.add_light(200, 300, 50, 0.8);
@@ -421,8 +431,8 @@ describe('WASM TypeScript Integration Tests', () => {
     });
 
     it('should calculate lighting at positions', async () => {
-      const wasmModule = await wasmManager.getWasmModule();
-      const lightingSystem = new wasmModule.LightingSystem();
+      const wasmModule = await getTestModule();
+      const lightingSystem = new wasmModule.LightingSystem() as unknown as AnyMock;
       
       // User expects lighting calculation
       const lightLevel = lightingSystem.get_lighting_at_position(150, 200);
@@ -434,8 +444,8 @@ describe('WASM TypeScript Integration Tests', () => {
 
   describe('WASM FogOfWarSystem - Vision Management', () => {
     it('should manage fog of war through TypeScript', async () => {
-      const wasmModule = await wasmManager.getWasmModule();
-      const fogSystem = new wasmModule.FogOfWarSystem();
+      const wasmModule = await getTestModule();
+      const fogSystem = new wasmModule.FogOfWarSystem() as unknown as AnyMock;
       
       // User expects visibility checking
       const isVisible = fogSystem.is_visible(100, 150);
@@ -449,8 +459,8 @@ describe('WASM TypeScript Integration Tests', () => {
     });
 
     it('should update player vision dynamically', async () => {
-      const wasmModule = await wasmManager.getWasmModule();
-      const fogSystem = new wasmModule.FogOfWarSystem();
+      const wasmModule = await getTestModule();
+      const fogSystem = new wasmModule.FogOfWarSystem() as unknown as AnyMock;
       
       // User expects vision updates
       fogSystem.update_player_vision('player_123', 200, 250, 30);
@@ -460,10 +470,10 @@ describe('WASM TypeScript Integration Tests', () => {
 
   describe('WASM Error Handling - TypeScript Safety', () => {
     it('should handle WASM exceptions gracefully in TypeScript', async () => {
-      const wasmModule = await wasmManager.getWasmModule();
+      const wasmModule = await getTestModule();
       
       // Mock WASM exception
-      const renderEngine = new wasmModule.RenderEngine();
+      const renderEngine = makeEngine(wasmModule);
       renderEngine.create_sprite.mockImplementation(() => {
         throw new Error('WASM: Invalid texture format');
       });
@@ -479,8 +489,8 @@ describe('WASM TypeScript Integration Tests', () => {
     });
 
     it('should validate TypeScript parameters before WASM calls', async () => {
-      const wasmModule = await wasmManager.getWasmModule();
-      const renderEngine = new wasmModule.RenderEngine();
+      const wasmModule = await getTestModule();
+      const renderEngine = makeEngine(wasmModule);
       
       // User expects parameter validation
       try {
@@ -494,12 +504,12 @@ describe('WASM TypeScript Integration Tests', () => {
 
   describe('WASM Memory Management - TypeScript Integration', () => {
     it('should properly manage WASM object lifecycle', async () => {
-      const wasmModule = await wasmManager.getWasmModule();
+      const wasmModule = await getTestModule();
       
       // User expects proper cleanup
-      const renderEngine = new wasmModule.RenderEngine();
-      const actionsClient = new wasmModule.ActionsClient();
-      const assetManager = new wasmModule.AssetManager();
+      const renderEngine = makeEngine(wasmModule);
+      const actionsClient = new wasmModule.ActionsClient() as unknown as AnyMock;
+      const assetManager = new wasmModule.AssetManager() as unknown as AnyMock;
       
       // User expects free methods to be available
       expect(renderEngine.free).toBeTypeOf('function');
@@ -517,3 +527,4 @@ describe('WASM TypeScript Integration Tests', () => {
     });
   });
 });
+

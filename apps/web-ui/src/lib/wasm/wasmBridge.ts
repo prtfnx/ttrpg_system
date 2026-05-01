@@ -224,20 +224,20 @@ class WasmBridgeService {
     switch (op) {
       case 'move': {
         const prev = this.committedPositions.get(spriteId) ?? { x: data.x, y: data.y };
-        this.protocol.sendMessage(createMessage(MessageType.SPRITE_MOVE, {
+        this.protocol?.sendMessage(createMessage(MessageType.SPRITE_MOVE, {
           sprite_id: spriteId, table_id: tableId, action_id: actionId,
           from: prev, to: { x: data.x, y: data.y },
         }, 2));
         break;
       }
       case 'resize':
-        this.protocol.sendMessage(createMessage(MessageType.SPRITE_SCALE, {
+        this.protocol?.sendMessage(createMessage(MessageType.SPRITE_SCALE, {
           sprite_id: spriteId, table_id: tableId, action_id: actionId,
           width: data.width, height: data.height,
         }, 2));
         break;
       case 'rotate':
-        this.protocol.sendMessage(createMessage(MessageType.SPRITE_ROTATE, {
+        this.protocol?.sendMessage(createMessage(MessageType.SPRITE_ROTATE, {
           sprite_id: spriteId, table_id: tableId, action_id: actionId,
           rotation: data.rotation,
         }, 2));

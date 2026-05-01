@@ -14,17 +14,17 @@ export function validateTableId(tableId: string): void {
 
 export function transformServerTableToClient(serverTable: Record<string, unknown>): TableInfo {
   const uuid = serverTable.table_id || serverTable.id;
-  if (!uuid || !isValidUUID(uuid)) {
+  if (!uuid || !isValidUUID(String(uuid))) {
     throw new Error(`Server table missing valid UUID: ${JSON.stringify(serverTable)}`);
   }
   
   const displayName = serverTable.table_name || serverTable.display_name || serverTable.name || 'Unknown Table';
   
   return {
-    table_id: uuid,
-    table_name: displayName,
-    width: serverTable.width || 100,
-    height: serverTable.height || 100
+    table_id: String(uuid),
+    table_name: String(displayName),
+    width: Number(serverTable.width) || 100,
+    height: Number(serverTable.height) || 100
   };
 }
 

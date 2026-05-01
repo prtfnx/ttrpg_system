@@ -20,14 +20,14 @@ export class RemoteSyncService {
       this.eventCleanups.push(() => window.removeEventListener(type, listener));
     };
 
-    on('sprite-drag-preview-remote', ({ id, x, y }) => {
-      if (id) this.spriteSync.updateSpritePosition(id, { x, y });
+    on('sprite-drag-preview-remote', (e: { id?: string; x?: number; y?: number }) => {
+      if (e.id) this.spriteSync.updateSpritePosition(e.id, { x: e.x ?? 0, y: e.y ?? 0 });
     });
-    on('sprite-resize-preview-remote', ({ id, width, height }) => {
-      if (id) this.spriteSync.resizeSpriteInWasm(id, width, height);
+    on('sprite-resize-preview-remote', (e: { id?: string; width?: number; height?: number }) => {
+      if (e.id) this.spriteSync.resizeSpriteInWasm(e.id, e.width ?? 0, e.height ?? 0);
     });
-    on('sprite-rotate-preview-remote', ({ id, rotation }) => {
-      if (id) this.spriteSync.updateSpriteRotation(id, rotation);
+    on('sprite-rotate-preview-remote', (e: { id?: string; rotation?: number }) => {
+      if (e.id) this.spriteSync.updateSpriteRotation(e.id, e.rotation ?? 0);
     });
   }
 

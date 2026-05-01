@@ -119,7 +119,7 @@ describe('TablePanel', () => {
 
     it('shows empty state when no tables exist', () => {
       // Override mock data for this specific test
-      mockTableData.activeTableId = null;
+      mockTableData.activeTableId = '';
       mockTableData.tables = [];
 
       renderWithProviders(<TablePanel />);

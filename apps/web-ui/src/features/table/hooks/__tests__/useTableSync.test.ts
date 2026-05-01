@@ -58,9 +58,9 @@ describe('useTableSync', () => {
 
     it('also errors when not connected (same guard)', () => {
       vi.mocked(useNetworkClient).mockReturnValueOnce({
-        client: { sendMessage: vi.fn() },
-        networkState: { isConnected: false },
-      });
+        client: { send_message: vi.fn() } as unknown as ReturnType<typeof useNetworkClient>['client'],
+        networkState: { isConnected: false, connectionState: 'disconnected', clientId: '' },
+      } as unknown as ReturnType<typeof useNetworkClient>);
 
       const { result } = renderHook(() => useTableSync());
 

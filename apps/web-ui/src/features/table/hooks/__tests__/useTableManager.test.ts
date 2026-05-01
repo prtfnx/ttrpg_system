@@ -255,7 +255,7 @@ describe('useTableManager', () => {
     });
 
     it('returns null for invalid table coordinates', () => {
-      mockTableManager.table_to_screen.mockReturnValueOnce(null);
+      mockTableManager.table_to_screen.mockReturnValueOnce(null as unknown as number[]);
       const { result } = renderHook(() => useTableManager());
 
       const screenCoords = result.current.tableToScreen('invalid-table', 50, 75);

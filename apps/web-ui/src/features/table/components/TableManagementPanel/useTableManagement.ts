@@ -54,7 +54,7 @@ export const useTableManagement = () => {
       const data = customEvent.detail;
       
       if (data.tables) {
-        const serverTables = Object.entries(data.tables).map(([id, tableData]: [string, Record<string, unknown>]) => ({
+        const serverTables = (Object.entries(data.tables) as [string, Record<string, unknown>][]).map(([id, tableData]) => ({
           table_id: id,
           ...tableData,
           syncStatus: 'synced' as const,
@@ -69,7 +69,7 @@ export const useTableManagement = () => {
         });
         
         const mergedTables = [...serverTables, ...localTables];
-        setTables(mergedTables);
+        setTables(mergedTables as unknown as TableInfo[]);
       }
       setTablesLoading(false);
     };

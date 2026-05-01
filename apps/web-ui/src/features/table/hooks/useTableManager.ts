@@ -51,7 +51,7 @@ export interface UseTableManagerReturn {
 }
 
 export const useTableManager = (): UseTableManagerReturn => {
-  const [tableManager, setTableManager] = useState<unknown>(null);
+  const [tableManager, setTableManager] = useState<Record<string, (...args: unknown[]) => unknown> | null>(null);
   const [activeTableId, setActiveTableId] = useState<string | null>(null);
   const [tables, setTables] = useState<TableInfo[]>([]);
 
@@ -59,7 +59,7 @@ export const useTableManager = (): UseTableManagerReturn => {
   useEffect(() => {
     if (!tableManager) {
       try {
-        const manager = new (window as Window & { wasm?: { TableManager: new () => unknown } }).wasm!.TableManager();
+        const manager = new (window as Window & { wasm?: { TableManager: new () => Record<string, (...args: unknown[]) => unknown> } }).wasm!.TableManager();
         setTableManager(manager);
         console.log('Table Manager initialized');
       } catch (error) {
@@ -83,11 +83,11 @@ export const useTableManager = (): UseTableManagerReturn => {
     if (!tableManager) return;
     
     try {
-      const tablesJson = tableManager.get_all_tables();
+      const tablesJson = tableManager.get_all_tables() as string;
       const parsedTables = JSON.parse(tablesJson) as TableInfo[];
       setTables(parsedTables);
       
-      const activeId = tableManager.get_active_table_id();
+      const activeId = tableManager.get_active_table_id() as string | null;
       setActiveTableId(activeId);
 
       if (activeId) {
@@ -132,7 +132,7 @@ export const useTableManager = (): UseTableManagerReturn => {
   const setActiveTable = useCallback((tableId: string): boolean => {
     if (!tableManager) return false;
     
-    const success = tableManager.set_active_table(tableId);
+    const success = tableManager.set_active_table(tableId) as boolean;
     if (success) {
       setActiveTableId(tableId);
       const active = tables.find(t => t.table_id === tableId);
@@ -150,65 +150,65 @@ export const useTableManager = (): UseTableManagerReturn => {
   const setTableScreenArea = useCallback((tableId: string, area: ScreenArea): boolean => {
     if (!tableManager) return false;
     
-    return tableManager.set_table_screen_area(tableId, area.x, area.y, area.width, area.height);
+    return tableManager.set_table_screen_area(tableId, area.x, area.y, area.width, area.height) as boolean;
   }, [tableManager]);
 
   const tableToScreen = useCallback((tableId: string, tableX: number, tableY: number): [number, number] | null => {
     if (!tableManager) return null;
     
-    const result = tableManager.table_to_screen(tableId, tableX, tableY);
+    const result = tableManager.table_to_screen(tableId, tableX, tableY) as [number, number] | null;
     return result ? [result[0], result[1]] : null;
   }, [tableManager]);
 
   const screenToTable = useCallback((tableId: string, screenX: number, screenY: number): [number, number] | null => {
     if (!tableManager) return null;
     
-    const result = tableManager.screen_to_table(tableId, screenX, screenY);
+    const result = tableManager.screen_to_table(tableId, screenX, screenY) as [number, number] | null;
     return result ? [result[0], result[1]] : null;
   }, [tableManager]);
 
   const isPointInTableArea = useCallback((tableId: string, screenX: number, screenY: number): boolean => {
     if (!tableManager) return false;
     
-    return tableManager.is_point_in_table_area(tableId, screenX, screenY);
+    return tableManager.is_point_in_table_area(tableId, screenX, screenY) as boolean;
   }, [tableManager]);
 
   const panViewport = useCallback((tableId: string, dx: number, dy: number): boolean => {
     if (!tableManager) return false;
     
-    return tableManager.pan_viewport(tableId, dx, dy);
+    return tableManager.pan_viewport(tableId, dx, dy) as boolean;
   }, [tableManager]);
 
   const zoomTable = useCallback((tableId: string, zoomFactor: number, centerX: number, centerY: number): boolean => {
     if (!tableManager) return false;
     
-    return tableManager.zoom_table(tableId, zoomFactor, centerX, centerY);
+    return tableManager.zoom_table(tableId, zoomFactor, centerX, centerY) as boolean;
   }, [tableManager]);
 
   const setTableGrid = useCallback((tableId: string, showGrid: boolean, cellSize: number): boolean => {
     if (!tableManager) return false;
     
-    return tableManager.set_table_grid(tableId, showGrid, cellSize);
+    return tableManager.set_table_grid(tableId, showGrid, cellSize) as boolean;
   }, [tableManager]);
 
   const getVisibleBounds = useCallback((tableId: string): [number, number, number, number] | null => {
     if (!tableManager) return null;
     
-    const result = tableManager.get_visible_bounds(tableId);
+    const result = tableManager.get_visible_bounds(tableId) as [number, number, number, number] | null;
     return result ? [result[0], result[1], result[2], result[3]] : null;
   }, [tableManager]);
 
   const snapToGrid = useCallback((tableId: string, x: number, y: number): [number, number] | null => {
     if (!tableManager) return null;
     
-    const result = tableManager.snap_to_grid(tableId, x, y);
+    const result = tableManager.snap_to_grid(tableId, x, y) as [number, number] | null;
     return result ? [result[0], result[1]] : null;
   }, [tableManager]);
 
   const removeTable = useCallback((tableId: string): boolean => {
     if (!tableManager) return false;
     
-    const success = tableManager.remove_table(tableId);
+    const success = tableManager.remove_table(tableId) as boolean;
     if (success) {
       refreshTables();
     }

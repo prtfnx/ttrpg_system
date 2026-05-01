@@ -10,7 +10,7 @@ describe('TableThumbnailService', () => {
   const validUUID = '550e8400-e29b-41d4-a716-446655440000';
   const validUUID2 = '0a577ca2-7f6a-400d-9758-26f232003cc5';
   
-  let mockRenderEngine: { get_active_table_id: ReturnType<typeof vi.fn>; render: ReturnType<typeof vi.fn> };
+  let mockRenderEngine: { get_active_table_id: ReturnType<typeof vi.fn>; render: ReturnType<typeof vi.fn> } & import('@lib/wasm').RenderEngine;
   let mockCanvas: HTMLCanvasElement;
 
   beforeEach(() => {
@@ -33,7 +33,7 @@ describe('TableThumbnailService', () => {
     mockRenderEngine = {
       get_active_table_id: vi.fn().mockReturnValue(validUUID),
       render: vi.fn()
-    };
+    } as unknown as typeof mockRenderEngine;
     
     Object.assign(window, { wasmInitialized: true });
   });
@@ -464,3 +464,4 @@ describe('TableThumbnailService', () => {
     });
   });
 });
+

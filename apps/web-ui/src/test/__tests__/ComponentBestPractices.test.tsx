@@ -32,12 +32,13 @@ vi.mock('../../features/auth/services/enhancedAuth.service', () => ({
 // Test LoadingSpinner Component (if it exists)
 describe('LoadingSpinner Component', () => {
   // Dynamic import to handle if component doesn't exist
-  let LoadingSpinner: React.ComponentType;
+  let LoadingSpinner: React.ComponentType<Record<string, unknown>>;
   
   beforeAll(async () => {
     try {
       const module = await import('@shared/components/LoadingSpinner');
-      LoadingSpinner = (module as Record<string, unknown>).default || (module as Record<string, unknown>).LoadingSpinner || (() => <div role="status" aria-label="Loading...">Loading...</div>);
+      const mod = module as Record<string, unknown>;
+      LoadingSpinner = (mod.default || mod.LoadingSpinner || (() => <div role="status" aria-label="Loading...">Loading...</div>)) as React.ComponentType<Record<string, unknown>>;
     } catch (_e) {
       LoadingSpinner = () => <div role="status" aria-label="Loading...">Loading...</div>;
     }
@@ -61,21 +62,22 @@ describe('LoadingSpinner Component', () => {
 
 // Test Modal Component (if it exists)  
 describe('Modal Component', () => {
-  let Modal: React.ComponentType;
+  let Modal: React.ComponentType<{ isOpen?: boolean; children?: React.ReactNode; onClose?: () => void; title?: string }>;
   
   beforeAll(async () => {
     try {
       const module = await import('@shared/components/Modal');
-      Modal = (module as Record<string, unknown>).default || (module as Record<string, unknown>).Modal || (({ isOpen, children, onClose, title }: { isOpen?: boolean; children?: React.ReactNode; onClose?: () => void; title?: string }) => 
+      const mod = module as Record<string, unknown>;
+      Modal = (mod.default || mod.Modal || (({ isOpen, children, onClose, title }: { isOpen?: boolean; children?: React.ReactNode; onClose?: () => void; title?: string }) =>
         isOpen ? (
           <div role="dialog" aria-modal="true" aria-labelledby="modal-title">
             <h2 id="modal-title">{title}</h2>
             <button onClick={onClose} aria-label="Close modal">×</button>
             {children}
           </div>
-        ) : null);
+        ) : null)) as React.ComponentType<{ isOpen?: boolean; children?: React.ReactNode; onClose?: () => void; title?: string }>;
     } catch (_e) {
-      Modal = ({ isOpen, children, onClose, title }: { isOpen?: boolean; children?: React.ReactNode; onClose?: () => void; title?: string }) => 
+      Modal = ({ isOpen, children, onClose, title }: { isOpen?: boolean; children?: React.ReactNode; onClose?: () => void; title?: string }) =>
         isOpen ? (
           <div role="dialog" aria-modal="true" aria-labelledby="modal-title">
             <h2 id="modal-title">{title}</h2>

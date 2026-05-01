@@ -1,6 +1,7 @@
 import { useGameStore } from '@/store';
 import { RightPanel } from '@app/RightPanel';
 import { AuthProvider } from '@features/auth';
+import type { UserInfo } from '@features/auth';
 import '@testing-library/jest-dom';
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
@@ -306,7 +307,7 @@ describe('RightPanel', () => {
 
   describe('Session and User Props', () => {
     it('passes session code and user info to appropriate panels', async () => {
-      const customUserInfo = { id: 456, username: 'customuser', role: 'owner' as const, permissions: [] };
+      const customUserInfo = { id: 456, username: 'customuser', role: 'owner', permissions: [] } as unknown as UserInfo;
       const customSessionCode = 'CUSTOM789';
 
       renderWithProviders(<RightPanel sessionCode={customSessionCode} userInfo={customUserInfo} />);
@@ -332,7 +333,7 @@ describe('RightPanel', () => {
       renderWithProviders(<RightPanel sessionCode={mockSessionCode} userInfo={mockUserInfo} />);
 
       const entitiesTab = screen.getByRole('tab', { name: /^entities$/i });
-      const _chatTab = screen.getByRole('tab', { name: /^chat$/i });
+      screen.getByRole('tab', { name: /^chat$/i });
 
       // Focus on a visible tab
       entitiesTab.focus();

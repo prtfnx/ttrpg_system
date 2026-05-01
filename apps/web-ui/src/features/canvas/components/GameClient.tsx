@@ -212,7 +212,7 @@ const windowManager = useWindowManager();
       console.log('[GameClient] Token double-click on sprite:', spriteId);
       windowManagerRef.current.openWindow(
         `token-config-${spriteId}`,
-        TokenConfigModal as React.ComponentType<Record<string, unknown>>,
+        TokenConfigModal as unknown as React.ComponentType<Record<string, unknown>>,
         { spriteId, inline: true },
         { title: 'Token Configuration', width: 480, height: 700 }
       );

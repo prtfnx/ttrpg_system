@@ -25,7 +25,7 @@ const mockAuthContextValue = {
   validateSession: vi.fn().mockResolvedValue(true),
   refreshToken: vi.fn().mockResolvedValue('new-mock-token'),
   hasPermission: vi.fn((permission: string) => ['view_session', 'edit_session', 'manage_characters'].includes(permission)),
-  requireAuth: vi.fn((operation: () => unknown) => operation()),
+  requireAuth: vi.fn(<T,>(operation: () => T): T => operation()) as <T>(operation: () => T) => T,
   updateUser: vi.fn(),
 };
 

@@ -129,7 +129,7 @@ describe('MapPanel Component', () => {
     // Look for any map-related elements or container
     const mapElements = screen.queryAllByTestId(/map|canvas|grid/i)
                        .concat(screen.queryAllByText(/map|grid/i))
-                       .concat([document.querySelector('.map-panel')].filter(Boolean));
+                       .concat(Array.from(document.querySelectorAll('.map-panel')) as HTMLElement[]);
     expect(mapElements.length).toBeGreaterThan(0);
   });
 
@@ -189,10 +189,17 @@ describe('CompendiumPanel Component', () => {
 
 describe('CharacterSheet Component', () => {
   const mockCharacterData = {
+    id: 'test-char-1',
+    sessionId: 'test-session',
     name: 'Test Character',
     race: 'Human',
     class: 'Fighter',
     level: 1,
+    ownerId: 1,
+    controlledBy: [] as number[],
+    version: 1,
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
     background: 'Soldier',
     skills: ['Athletics', 'Intimidation'],
     data: {
@@ -204,21 +211,22 @@ describe('CharacterSheet Component', () => {
 
   it('renders without crashing with minimal data', () => {
     expect(() => {
-      render(<CharacterSheet character={mockCharacterData} />);
+      render(<CharacterSheet character={mockCharacterData} onSave={vi.fn()} />);
     }).not.toThrow();
   });
 
   it('displays character name', () => {
-    render(<CharacterSheet character={mockCharacterData} />);
+    render(<CharacterSheet character={mockCharacterData} onSave={vi.fn()} />);
     
     // Character name should be displayed somewhere
-    expect(screen.queryByText('Test Character')).toBeInTheDocument() ||
-    expect(screen.queryByDisplayValue('Test Character')).toBeInTheDocument() ||
-    expect(screen.queryByText(/test character/i)).toBeInTheDocument();
+    const hasName = screen.queryByText('Test Character') !== null ||
+    screen.queryByDisplayValue('Test Character') !== null ||
+    screen.queryByText(/test character/i) !== null;
+    expect(hasName).toBe(true);
   });
 
   it('displays basic character information', () => {
-    render(<CharacterSheet character={mockCharacterData} />);
+    render(<CharacterSheet character={mockCharacterData} onSave={vi.fn()} />);
     
     // Should show race, class, or level somewhere
     const hasRaceInfo = screen.queryAllByText(/human/i).length > 0;
@@ -229,7 +237,7 @@ describe('CharacterSheet Component', () => {
   });
 
   it('handles ability score display', () => {
-    render(<CharacterSheet character={mockCharacterData} />);
+    render(<CharacterSheet character={mockCharacterData} onSave={vi.fn()} />);
     
     // Test semantic structure - the component should display ability scores section
     // This tests the component's ability to render ability scores, not specific values
@@ -324,7 +332,12 @@ describe('Generic Component Behavior', () => {
         render(<Component {...props} />);
         
         // Should have some accessible content
-        const accessibleElements = screen.queryAllByRole(/button|textbox|main|navigation|region/);
+        const accessibleElements = screen.queryAllByRole('button').concat(
+          screen.queryAllByRole('textbox')).concat(
+          screen.queryAllByRole('main')).concat(
+          screen.queryAllByRole('navigation')).concat(
+          screen.queryAllByRole('region')
+        );
         const textContent = document.body.textContent;
         
         // Either has accessible roles or text content

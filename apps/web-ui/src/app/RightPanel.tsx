@@ -121,7 +121,7 @@ export function RightPanel(props: { sessionCode?: string; userInfo?: import('@fe
         {isDevelopment && activeTab === 'table-tools' && <TablePanel />}
         {isDevelopment && activeTab === 'sync' && <TableSyncPanel />}
         {activeTab === 'characters' && <CharacterPanel />}
-        {activeTab === 'players' && <PlayerManagerPanel sessionCode={props.sessionCode!} userInfo={{...props.userInfo, role: isDM(sessionRole) ? 'dm' : 'player'}} />}
+        {activeTab === 'players' && <PlayerManagerPanel sessionCode={props.sessionCode!} userInfo={{...props.userInfo, role: isDM(sessionRole) ? 'dm' : 'player'} as import('@features/auth').UserInfo} />}
         {activeTab === 'initiative' && <InitiativePanel />}
         {isDevelopment && activeTab === 'actions' && <ActionsPanel renderEngine={window.rustRenderManager ?? null} />}
         {isDevelopment && activeTab === 'queue' && <ActionQueuePanel sessionCode={props.sessionCode!} userInfo={props.userInfo!} />}

@@ -104,7 +104,7 @@ describe('GameClient - Double-Click Detection Tests', () => {
       sprites: [createTestSprite()],
       characters: [],
       currentUserId: 123,
-    });
+    } as unknown as Parameters<typeof useGameStore.setState>[0]);
 
     vi.clearAllMocks();
   });
@@ -183,7 +183,7 @@ describe('GameClient - Double-Click Detection Tests', () => {
           createTestSprite({ id: 'sprite-3' }),
         ],
         currentUserId: 123,
-      });
+      } as unknown as Parameters<typeof useGameStore.setState>[0]);
 
       // Double-click on sprite-2
       const event1 = new CustomEvent('tokenDoubleClick', {
@@ -260,7 +260,7 @@ describe('GameClient - Double-Click Detection Tests', () => {
       useGameStore.setState({
         sprites: [createTestSprite({ id: targetSpriteId })],
         currentUserId: 123,
-      });
+      } as unknown as Parameters<typeof useGameStore.setState>[0]);
 
       const event = new CustomEvent('tokenDoubleClick', {
         detail: { spriteId: targetSpriteId }

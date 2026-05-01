@@ -141,8 +141,7 @@ describe('Form Validation Components', () => {
       await user.click(submitButton);
       
       // Should show validation or prevent submission
-      const _validationMessages = screen.queryAllByRole('alert') ||
-                               screen.queryAllByText(/required|invalid|error/i);
+      screen.queryAllByRole('alert') || screen.queryAllByText(/required|invalid|error/i);
       
       // Either shows validation or prevents submission (both are valid behaviors)
       expect(true).toBe(true);

@@ -182,7 +182,7 @@ beforeEach(() => {
 
 describe('Web Client TypeScript & WASM Systems Integration Tests', () => {
   const user = userEvent.setup();
-  const _mockUserInfo = { id: 1, username: 'testuser', role: 'dm' as const, permissions: ['all'] };
+  void { id: 1, username: 'testuser', role: 'dm' as const, permissions: ['all'] };
 
   describe('WASM Integration System', () => {
     it('should initialize WASM module and provide TypeScript bridge', async () => {

@@ -1,6 +1,6 @@
 ﻿import { useEffect, useMemo, useState } from 'react';
 import { useFormContext } from 'react-hook-form';
-import { useClass, useBackgrounds } from '../../../compendium/hooks/useCompendium';
+import { useClass, useBackgrounds, useRace } from '../../../compendium/hooks/useCompendium';
 import type { SkillsStepData } from './schemas';
 import styles from './SkillsStep.module.css';
 
@@ -26,8 +26,7 @@ const SKILLS = [
   'Survival',
 ];
 
-// Helper functions to get skills from class/background/race
-// TODO: Replace with compendium data
+// Fallback maps — used when compendium data is not yet loaded or unavailable
 function getClassSkills(className: string): string[] {
   const classSkillMap: Record<string, string[]> = {
     barbarian: ['Animal Handling', 'Athletics', 'Intimidation', 'Nature', 'Perception', 'Survival'],
@@ -74,6 +73,14 @@ function getRaceSkills(race: string): string[] {
   return raceSkillMap[race.toLowerCase()] || [];
 }
 
+// Fallback skill-choice counts per class (PHB defaults)
+const CLASS_SKILL_CHOICES: Record<string, number> = {
+  bard: 3, ranger: 3, rogue: 4,
+};
+function getClassSkillChoices(className: string): number {
+  return CLASS_SKILL_CHOICES[className.toLowerCase()] ?? 2;
+}
+
 // Example: classSkills and backgroundSkills would come from previous steps or compendium
 type SkillsStepProps = {
   onNext: () => void;
@@ -105,6 +112,7 @@ export function SkillsStep({
   // Fetch compendium data — used as primary source, hardcoded maps as fallback
   const { data: compendiumClass } = useClass(characterClass || null);
   const { data: allBackgrounds } = useBackgrounds();
+  const { data: compendiumRace } = useRace(race || null);
 
   const compendiumBackground = useMemo(
     () => allBackgrounds?.find(b => b.name.toLowerCase() === background.toLowerCase()),
@@ -116,12 +124,12 @@ export function SkillsStep({
     || getClassSkills(characterClass);
   const classSkillChoices = propClassSkillChoices
     || compendiumClass?.num_skills
-    || 2;
+    || getClassSkillChoices(characterClass);
   const backgroundSkills = propBackgroundSkills
     || compendiumBackground?.skill_proficiencies
     || getBackgroundSkills(background);
 
-  const raceSkills = propRaceSkills || getRaceSkills(race);
+  const raceSkills = propRaceSkills || compendiumRace?.skill_proficiencies || getRaceSkills(race);
   const alreadyGranted = [...backgroundSkills, ...raceSkills];
   const availableClassSkills = classSkills.filter(s => !alreadyGranted.includes(s));
 

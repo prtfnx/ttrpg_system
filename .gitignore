@@ -81,6 +81,13 @@ apps/server/templates/vite_assets.html
 test_output_*.txt
 test_output_*.json
 
+# Build error captures (stale outputs, never commit)
+tsc_errors.txt
+*.tsc_errors.txt
+coverage.xml
+apps/web-ui/coverage/
+apps/web-ui/.eslintcache
+
 # ============================================================
 # Server static assets (built from web client)
 # ============================================================

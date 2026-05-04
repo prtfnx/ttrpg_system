@@ -24,18 +24,26 @@ jobs:
       - run: pnpm test:run --filter @ttrpg/web-ui
 
   rust:
-    name: Rust WASM (test)
+    name: Rust WASM (test + build)
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@stable
         with:
           targets: wasm32-unknown-unknown
-      - run: cargo test
+      - name: Install wasm-pack and wasm-opt
+        run: |
+          curl https://rustwasm.github.io/wasm-pack/installer/init.sh -sSf | sh
+          cargo install wasm-opt --locked
+      - name: Run tests
+        run: cargo test
+        working-directory: packages/rust-core
+      - name: Build WASM
+        run: wasm-pack build --target web --release
         working-directory: packages/rust-core
 
   server:
-    name: Server (pytest)
+    name: Server (lint + test + coverage)
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -46,8 +54,20 @@ jobs:
         run: pip install -e packages/core-table
       - name: Install server dependencies
         run: pip install -r apps/server/requirements.txt
-      - name: Run tests
-        run: pytest
+      - name: Install lint/type-check tools
+        run: pip install ruff mypy pytest-cov
+      - name: Ruff lint
+        run: ruff check apps/server packages/core-table
+      - name: Mypy type check
+        run: mypy apps/server --ignore-missing-imports --no-error-summary
+        continue-on-error: true
+      - name: Run tests with coverage
+        run: pytest --cov=. --cov-report=xml
         working-directory: apps/server
         env:
-          PYTHONPATH: ${{ github.workspace }}/apps/server
+          PYTHONPATH: ${{ github.workspace }}/apps/server:${{ github.workspace }}/packages/core-table
+      - name: Upload coverage
+        uses: codecov/codecov-action@v4
+        with:
+          files: apps/server/coverage.xml
+        if: always()

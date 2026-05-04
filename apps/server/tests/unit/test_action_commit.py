@@ -59,9 +59,9 @@ async def test_player_move_free_roam_success():
                      'target_x': 64, 'target_y': 64, 'cost_ft': 5, 'speed_ft': 30,
                      'sequence_index': 0}],
     })
-    with patch('service.server_protocol.get_session_rules_json', return_value=None), \
-         patch('service.server_protocol.get_game_mode', return_value='free_roam'), \
-         patch('service.server_protocol.SessionLocal') as mock_db:
+    with patch('service.protocol.combat.get_session_rules_json', return_value=None), \
+         patch('service.protocol.combat.get_game_mode', return_value='free_roam'), \
+         patch('service.protocol.combat.SessionLocal') as mock_db:
         mock_db.return_value.__enter__ = MagicMock(return_value=MagicMock())
         mock_db.return_value.__exit__ = MagicMock(return_value=False)
         mock_db.return_value.close = MagicMock()

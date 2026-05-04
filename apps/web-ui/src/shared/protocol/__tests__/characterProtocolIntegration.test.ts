@@ -12,7 +12,6 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 class MockWebClientProtocol {
   sendMessage = vi.fn();
 
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   constructor(_sessionCode: string, _userId?: number) {}
 
   setUserId(_userId: number): void {}

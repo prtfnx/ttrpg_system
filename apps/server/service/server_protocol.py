@@ -1248,9 +1248,11 @@ class ServerProtocol:
                                                    old_position=update_data['from'],
                                                    new_position=update_data['to'])
                 case 'sprite_scale':
-                    raise NotImplementedError(f"Sprite update type '{type}' not implemented")
+                    logger.warning(f"Sprite update type 'sprite_scale' not yet supported from {client_id}")
+                    return Message(MessageType.ERROR, {'error': "Sprite update type 'sprite_scale' not implemented"})
                 case 'sprite_rotate':
-                    raise NotImplementedError(f"Sprite update type '{type}' not implemented")
+                    logger.warning(f"Sprite update type 'sprite_rotate' not yet supported from {client_id}")
+                    return Message(MessageType.ERROR, {'error': "Sprite update type 'sprite_rotate' not implemented"})
         
         # Extract character binding updates
         updates = {}
@@ -1365,7 +1367,8 @@ class ServerProtocol:
         return response
 
     async def handle_file_request(self, msg: Message, client_id: str) -> Message:
-        return Message(MessageType.ERROR, {'error': 'File transfer not implemented yet'})  
+        logger.info(f"handle_file_request called by {client_id} — direct file transfer not supported, use asset upload API")
+        return Message(MessageType.ERROR, {'error': 'Direct file transfer not supported. Use the asset upload endpoint.'})
     async def handle_compendium_sprite_add(self, msg: Message, client_id: str) -> Message:
         """Create character + sprite from compendium monster data.
 
@@ -1766,9 +1769,12 @@ class ServerProtocol:
         
         if os.path.exists(texture_path):
             file_path = texture_path
-        #TODO: remove hardcoded path
-        elif os.path.exists(''.join(['res/', texture_path.split('/')[-1]])):
-            file_path = ''.join(['res/', texture_path.split('/')[-1]])
+        else:
+            # Fall back to looking for the file by name inside static/assets/
+            _server_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+            fallback = os.path.join(_server_dir, 'static', 'assets', os.path.basename(texture_path))
+            if os.path.exists(fallback):
+                file_path = fallback
         
         if file_path:
             calculated_hash = self._calculate_file_xxhash(file_path)
@@ -1835,9 +1841,13 @@ class ServerProtocol:
     async def handle_asset_delete_request(self, msg: Message, client_id: str) -> Message:
         """Handle asset deletion request"""
         try:
-            # Asset deletion not implemented yet - future feature
-            return Message(MessageType.ERROR, {'error': 'Asset deletion not implemented yet'})
-            
+            if not msg.data:
+                return Message(MessageType.ERROR, {'error': 'No data provided'})
+            asset_id = msg.data.get('asset_id')
+            if not asset_id:
+                return Message(MessageType.ERROR, {'error': 'asset_id is required'})
+            logger.info(f"Asset deletion requested for {asset_id} by {client_id} — not yet implemented")
+            return Message(MessageType.ERROR, {'error': 'Asset deletion not yet supported'})
         except Exception as e:
             logger.error(f"Error handling asset delete request: {e}")
             return Message(MessageType.ERROR, {'error': 'Internal server error'})
@@ -2752,19 +2762,19 @@ class ServerProtocol:
     
     # Authentication handlers
     async def handle_auth_register(self, msg: Message, client_id: str) -> Message:
-        """Handle user registration request"""
-        # TODO: Implement proper authentication
+        """Handle user registration via WebSocket — not supported, use HTTP /auth/register"""
+        logger.warning(f"WS auth_register attempt from {client_id} — redirecting to HTTP endpoint")
         return Message(MessageType.AUTH_STATUS, {
             'authenticated': False,
-            'message': 'Authentication not implemented yet'
+            'message': 'Use HTTP POST /auth/register for registration'
         })
     
     async def handle_auth_login(self, msg: Message, client_id: str) -> Message:
-        """Handle user login request"""
-        # TODO: Implement proper authentication
+        """Handle user login via WebSocket — not supported, use HTTP /auth/login"""
+        logger.warning(f"WS auth_login attempt from {client_id} — redirecting to HTTP endpoint")
         return Message(MessageType.AUTH_STATUS, {
             'authenticated': False,
-            'message': 'Authentication not implemented yet'
+            'message': 'Use HTTP POST /auth/login for authentication'
         })
     
     async def handle_auth_logout(self, msg: Message, client_id: str) -> Message:
@@ -2775,11 +2785,11 @@ class ServerProtocol:
         })
     
     async def handle_auth_token(self, msg: Message, client_id: str) -> Message:
-        """Handle authentication token validation"""
-        # TODO: Implement proper token validation
+        """Handle authentication token validation via WebSocket — not supported, use HTTP /auth/verify"""
+        logger.warning(f"WS auth_token attempt from {client_id} — redirecting to HTTP endpoint")
         return Message(MessageType.AUTH_STATUS, {
             'authenticated': False,
-            'message': 'Token validation not implemented yet'
+            'message': 'Use HTTP POST /auth/verify for token validation'
         })
     
     async def handle_auth_status(self, msg: Message, client_id: str) -> Message:
@@ -2804,7 +2814,7 @@ class ServerProtocol:
                 return Message(MessageType.ERROR, {'error': 'table_id and scale are required'})
             
             # For now, just broadcast the update since ActionsCore doesn't have update_table_scale
-            # TODO: Implement proper table scale update in ActionsCore
+            # table scale is broadcast-only until ActionsCore exposes update_table_scale
             await self.broadcast_to_session(Message(MessageType.TABLE_UPDATE, {
                 'table_id': table_id,
                 'scale': scale,
@@ -2831,8 +2841,7 @@ class ServerProtocol:
             if not table_id or x_moved is None or y_moved is None:
                 return Message(MessageType.ERROR, {'error': 'table_id, x_moved, and y_moved are required'})
             
-            # For now, just broadcast the update since ActionsCore doesn't have update_table_position  
-            # TODO: Implement proper table position update in ActionsCore
+            # table position is broadcast-only until ActionsCore exposes update_table_position
             await self.broadcast_to_session(Message(MessageType.TABLE_UPDATE, {
                 'table_id': table_id,
                 'x_moved': x_moved,
@@ -2996,10 +3005,8 @@ class ServerProtocol:
             if not file_id or not chunk_data:
                 return Message(MessageType.ERROR, {'error': 'file_id and chunk_data are required'})
             
-            # TODO: Implement file chunk handling and storage
-            logger.info(f"Received file chunk {chunk_index + 1}/{total_chunks} for file {file_id}")
-            
-            # For now, just acknowledge receipt
+            # Chunked upload storage is not implemented — acknowledge receipt only
+            logger.info(f"Received file chunk {chunk_index + 1}/{total_chunks} for file {file_id} (not stored)")
             return Message(MessageType.SUCCESS, {
                 'message': f'File chunk {chunk_index + 1}/{total_chunks} received',
                 'file_id': file_id

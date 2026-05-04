@@ -78,6 +78,8 @@ function Build-Wasm {
             if ((Get-Command wasm-opt -ErrorAction SilentlyContinue) -and (Test-Path $bgWasm)) {
                 Write-Host "    [opt] running wasm-opt -O3"
                 wasm-opt -O3 "$bgWasm" -o "$bgWasm" 2>&1 | ForEach-Object { Write-Host $_ }
+            } else {
+                Write-Host "::warning::wasm-opt not found — WASM output is NOT size-optimized. Install binaryen to enable -O3 optimization." -ForegroundColor Yellow
             }
         }
 

@@ -239,7 +239,12 @@ export const FogPanel: React.FC = () => {
   const handleHideAll = useCallback(() => {
     if (!renderer) return;
     // Use active table world bounds so Hide All covers the table only
-    const bounds = renderer.get_active_table_world_bounds();
+    let bounds: Float64Array;
+    try {
+      bounds = renderer.get_active_table_world_bounds();
+    } catch {
+      return;
+    }
     if (!bounds || bounds.length < 4) return;
     const [startX, startY, width, height] = bounds;
 

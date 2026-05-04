@@ -186,34 +186,28 @@ impl RenderEngine {
         };
         
         web_sys::console::log_1(&"[TABLE-INIT] [TARGET] Creating mandatory default table...".into());
-        
+
         engine.table_manager.create_table("default_table", "Default Table", 1200.0, 1200.0)
-            .expect("CRITICAL: Failed to create default table - cannot continue!");
-        
-        let set_active_result = engine.table_manager.set_active_table("default_table");
-        if !set_active_result {
-            panic!("CRITICAL: Failed to set default table as active - cannot continue!");
+            .map_err(|e| JsValue::from_str(&format!("[TABLE-INIT] Failed to create default table: {}", e)))?;
+
+        if !engine.table_manager.set_active_table("default_table") {
+            return Err(JsValue::from_str("[TABLE-INIT] Failed to set default table as active"));
         }
-        
+
         web_sys::console::log_1(&"[TABLE-INIT] [OK] Default table created successfully".into());
-        
-        let active_id = engine.table_manager.get_active_table_id();
-        match active_id {
-            Some(ref id) => {
-                web_sys::console::log_1(&format!("[TABLE-INIT] [OK] Active table ID: '{}'", id).into());
-                
-                if let Some((x, y, width, height)) = engine.table_manager.get_active_table_world_bounds() {
-                    web_sys::console::log_1(&format!(
-                        "[TABLE-INIT] [OK] Table bounds: origin=({}, {}), size={}x{}", 
-                        x, y, width, height
-                    ).into());
-                } else {
-                    web_sys::console::error_1(&"[TABLE-INIT] [ERR] ERROR: Table exists but get_active_table_world_bounds() returned None!".into());
-                }
-            }
-            None => {
-                panic!("CRITICAL: Table was created but active_table_id is still None!");
-            }
+
+        let active_id = engine.table_manager.get_active_table_id()
+            .ok_or_else(|| JsValue::from_str("[TABLE-INIT] Table created but active_table_id is None"))?;
+
+        web_sys::console::log_1(&format!("[TABLE-INIT] [OK] Active table ID: '{}'", active_id).into());
+
+        if let Some((x, y, width, height)) = engine.table_manager.get_active_table_world_bounds() {
+            web_sys::console::log_1(&format!(
+                "[TABLE-INIT] [OK] Table bounds: origin=({}, {}), size={}x{}",
+                x, y, width, height
+            ).into());
+        } else {
+            web_sys::console::error_1(&"[TABLE-INIT] [ERR] Table exists but get_active_table_world_bounds() returned None".into());
         }
         
         engine.camera.center_on(0.0, 0.0);

@@ -51,13 +51,13 @@ impl RenderEngine {
     }
     
     #[wasm_bindgen]
-    pub fn get_active_table_world_bounds(&self) -> Vec<f64> {
-        if let Some((x, y, width, height)) = self.table_manager.get_active_table_world_bounds() {
-            vec![x, y, width, height]
-        } else {
-            web_sys::console::error_1(&"[TABLE-ERROR] [ERR] CRITICAL: No active table found!".into());
-            panic!("No active table found - this should never happen! Table creation must have failed.");
-        }
+    pub fn get_active_table_world_bounds(&self) -> Result<Vec<f64>, JsValue> {
+        self.table_manager.get_active_table_world_bounds()
+            .map(|(x, y, w, h)| vec![x, y, w, h])
+            .ok_or_else(|| {
+                web_sys::console::error_1(&"[TABLE-ERROR] [ERR] CRITICAL: No active table found!".into());
+                JsValue::from_str("No active table found")
+            })
     }
     
     #[wasm_bindgen]

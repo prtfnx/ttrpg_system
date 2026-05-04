@@ -39,6 +39,10 @@ class TableManager:
         if table_id and table_id in self.tables:
             return self.tables[table_id]
         return self.default_table
+
+    def get_table_by_name(self, name: str) -> Optional[VirtualTable]:
+        """Get table by display name, or None if not found."""
+        return next((t for t in self.tables.values() if t.display_name == name), None)
     def create_table(self, name: str, width: int, height: int) -> VirtualTable:        
         """Create a new table"""
         table = VirtualTable(name, width, height)

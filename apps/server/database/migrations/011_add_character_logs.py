@@ -18,7 +18,7 @@ def upgrade(db_path: str):
 
         cursor.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='character_logs'")
         if cursor.fetchone():
-            logger.info("⏭  character_logs table already exists")
+            logger.info("[SKIP]  character_logs table already exists")
             return
 
         logger.info("Creating character_logs table")
@@ -37,7 +37,7 @@ def upgrade(db_path: str):
         cursor.execute("CREATE INDEX idx_char_logs_session ON character_logs(session_id, created_at DESC)")
 
         conn.commit()
-        logger.info("✓ character_logs table created")
+        logger.info("[OK] character_logs table created")
 
     except Exception as e:
         logger.error(f"Migration 011_add_character_logs failed: {e}")

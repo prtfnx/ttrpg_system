@@ -22,9 +22,9 @@ def upgrade(db_path: str):
         if 'ban_list' not in columns:
             logger.info("Adding ban_list column to game_sessions table")
             cursor.execute("ALTER TABLE game_sessions ADD COLUMN ban_list TEXT DEFAULT '[]'")
-            logger.info("✓ ban_list column added")
+            logger.info("[OK] ban_list column added")
         else:
-            logger.info("⏭  ban_list column already exists")
+            logger.info("[SKIP]  ban_list column already exists")
 
         conn.commit()
         logger.info("Migration 009_add_ban_list completed successfully")

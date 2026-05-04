@@ -119,12 +119,12 @@ impl LightingSystem {
             .and_then(|v| v.as_f64())
             .unwrap_or(0.0) as i32;
         
-        log_info!("🎨 Stencil buffer bits: {}", stencil_bits);
+        log_info!("[PAINT] Stencil buffer bits: {}", stencil_bits);
         
         if stencil_bits == 0 {
-            log_error!("❌ No stencil buffer available! Shadow casting will not work.");
+            log_error!("[ERR] No stencil buffer available! Shadow casting will not work.");
         } else {
-            log_info!("✅ Stencil buffer is available");
+            log_info!("[OK] Stencil buffer is available");
         }
         
         let mut system = Self {
@@ -264,7 +264,7 @@ impl LightingSystem {
 
     /// Set obstacles for shadow casting
     pub fn set_obstacles(&mut self, obstacles: &[f32]) {
-        // web_sys::console::log_1(&format!("[LIGHTING-DEBUG] 📥 Received {} floats = {} segments", 
+        // web_sys::console::log_1(&format!("[LIGHTING-DEBUG] [IN] Received {} floats = {} segments", 
         //     obstacles.len(), obstacles.len() / 4).into());
         
         let mut calc = self.visibility_calculator.borrow_mut();
@@ -272,7 +272,7 @@ impl LightingSystem {
         calc.add_segments_from_array(obstacles);
         
         // let segment_count = calc.get_segments().len();
-        // web_sys::console::log_1(&format!("[LIGHTING-DEBUG] 📐 VisibilityCalculator now has {} segments", 
+        // web_sys::console::log_1(&format!("[LIGHTING-DEBUG] [GEOM] VisibilityCalculator now has {} segments", 
         //     segment_count).into());
         
         drop(calc); // Release borrow
@@ -390,7 +390,7 @@ impl LightingSystem {
     ) -> Result<(Option<Vec<Point>>, bool), JsValue> {
         // Check if light is inside an opaque obstacle
         if self.is_light_occluded(position) {
-            log_debug!("🚫 Light at ({:.1}, {:.1}) is inside obstacle, skipping render", 
+            log_debug!("[SKIP] Light at ({:.1}, {:.1}) is inside obstacle, skipping render", 
                 position.x, position.y);
             return Ok((None, false));
         }
@@ -405,7 +405,7 @@ impl LightingSystem {
         // Step 1: Compute and render shadow quads to stencil
         let shadow_quads = self.compute_shadow_quads(position, radius);
         
-        // web_sys::console::log_1(&format!("[STENCIL-DEBUG] 🌑 Computing shadows for light at ({:.1}, {:.1}), found {} shadow quads", 
+        // web_sys::console::log_1(&format!("[STENCIL-DEBUG] [DARK] Computing shadows for light at ({:.1}, {:.1}), found {} shadow quads", 
         //     position.x, position.y, shadow_quads.len()).into());
         
         if !shadow_quads.is_empty() {
@@ -415,7 +415,7 @@ impl LightingSystem {
             self.gl.stencil_mask(0xFF); // Ensure stencil can be written
             self.gl.color_mask(false, false, false, false); // Don't write color, only stencil
             
-            // web_sys::console::log_1(&"[STENCIL-DEBUG] 🎭 Stencil setup: ALWAYS pass, REPLACE with 1, color mask OFF".into());
+            // web_sys::console::log_1(&"[STENCIL-DEBUG] [STENCIL] Stencil setup: ALWAYS pass, REPLACE with 1, color mask OFF".into());
             
             // Render each shadow quad as triangle strip
             let mut shadow_result: Result<(), JsValue> = Ok(());
@@ -608,11 +608,11 @@ impl LightingSystem {
         let mut shadow_quads = Vec::new();
         
         let segment_count = calc.get_segments().len();
-        // web_sys::console::log_1(&format!("[LIGHTING-DEBUG] 🌑 Computing shadows for light at ({:.1}, {:.1}) with radius {:.1}, {} segments available", 
+        // web_sys::console::log_1(&format!("[LIGHTING-DEBUG] [DARK] Computing shadows for light at ({:.1}, {:.1}) with radius {:.1}, {} segments available", 
         //     light_pos.x, light_pos.y, radius, segment_count).into());
         
         if segment_count == 0 {
-            // web_sys::console::warn_1(&"[LIGHTING-DEBUG] ⚠️ WARNING: No segments for shadow casting!".into());
+            // web_sys::console::warn_1(&"[LIGHTING-DEBUG] [WARN] WARNING: No segments for shadow casting!".into());
             return shadow_quads;
         }
         
@@ -740,7 +740,7 @@ impl LightingSystem {
         let is_occluded = intersections % 2 == 1;
         
         if is_occluded {
-            log_debug!("🚫 Light occluded at ({:.1}, {:.1}): {} ray intersections", 
+            log_debug!("[SKIP] Light occluded at ({:.1}, {:.1}): {} ray intersections", 
                 light_pos.x, light_pos.y, intersections);
         }
         

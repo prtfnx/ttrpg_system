@@ -55,7 +55,7 @@ impl RenderEngine {
         if let Some((x, y, width, height)) = self.table_manager.get_active_table_world_bounds() {
             vec![x, y, width, height]
         } else {
-            web_sys::console::error_1(&"[TABLE-ERROR] ❌ CRITICAL: No active table found!".into());
+            web_sys::console::error_1(&"[TABLE-ERROR] [ERR] CRITICAL: No active table found!".into());
             panic!("No active table found - this should never happen! Table creation must have failed.");
         }
     }

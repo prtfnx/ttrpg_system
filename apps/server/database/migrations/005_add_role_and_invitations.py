@@ -25,9 +25,9 @@ def upgrade(db_path: str):
                 ALTER TABLE game_players 
                 ADD COLUMN role VARCHAR(20) DEFAULT 'player'
             """)
-            logger.info("✓ Role column added")
+            logger.info("[OK] Role column added")
         else:
-            logger.info("⏭  Role column already exists")
+            logger.info("[SKIP]  Role column already exists")
         
         # Create session_invitations table
         cursor.execute("""
@@ -46,7 +46,7 @@ def upgrade(db_path: str):
                 FOREIGN KEY (session_id) REFERENCES game_sessions(id)
             )
         """)
-        logger.info("✓ session_invitations table created")
+        logger.info("[OK] session_invitations table created")
         
         # Create indexes for session_invitations
         cursor.execute("CREATE INDEX IF NOT EXISTS idx_invitations_code ON session_invitations(invite_code)")
@@ -66,7 +66,7 @@ def upgrade(db_path: str):
                 FOREIGN KEY (user_id) REFERENCES users(id)
             )
         """)
-        logger.info("✓ audit_logs table created")
+        logger.info("[OK] audit_logs table created")
         
         # Create indexes for audit_logs
         cursor.execute("CREATE INDEX IF NOT EXISTS idx_audit_event_type ON audit_logs(event_type)")
@@ -74,11 +74,11 @@ def upgrade(db_path: str):
         cursor.execute("CREATE INDEX IF NOT EXISTS idx_audit_timestamp ON audit_logs(timestamp)")
         
         conn.commit()
-        logger.info("✓ Migration 005_add_role_and_invitations completed successfully")
+        logger.info("[OK] Migration 005_add_role_and_invitations completed successfully")
         return True
         
     except Exception as e:
-        logger.error(f"✗ Migration failed: {e}")
+        logger.error(f"[FAIL] Migration failed: {e}")
         if conn:
             conn.rollback()
             conn.close()
@@ -97,14 +97,14 @@ def downgrade(db_path: str):
         
         # Note: SQLite doesn't support DROP COLUMN directly
         # Role column would need manual table recreation to remove
-        logger.info("✓ Invitation tables dropped (role column remains)")
+        logger.info("[OK] Invitation tables dropped (role column remains)")
         
         conn.commit()
         conn.close()
         return True
         
     except Exception as e:
-        logger.error(f"✗ Downgrade failed: {e}")
+        logger.error(f"[FAIL] Downgrade failed: {e}")
         if conn:
             conn.rollback()
             conn.close()

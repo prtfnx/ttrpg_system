@@ -28,7 +28,7 @@ def upgrade(db_path: str):
             """)
             logger.info(" obstacle_type column added")
         else:
-            logger.info("⏭  obstacle_type column already exists")
+            logger.info("[SKIP]  obstacle_type column already exists")
         
         if 'obstacle_data' not in columns:
             logger.info("Adding obstacle_data column to entities table")

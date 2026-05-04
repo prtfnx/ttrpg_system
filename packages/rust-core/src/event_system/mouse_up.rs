@@ -87,7 +87,7 @@ impl EventSystem {
                     if let Some(ref sprite_id_str) = sprite_id_opt {
                         let current_time = js_sys::Date::now();
                         if input.check_double_click(sprite_id_str, current_time) {
-                            web_sys::console::log_1(&format!("[RUST EVENT] ✅ Double-click detected on sprite: {}", sprite_id_str).into());
+                            web_sys::console::log_1(&format!("[RUST EVENT] [OK] Double-click detected on sprite: {}", sprite_id_str).into());
                             
                             if let Some(window) = web_sys::window() {
                                 let detail = js_sys::Object::new();

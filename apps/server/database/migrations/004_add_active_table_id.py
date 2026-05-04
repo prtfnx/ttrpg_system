@@ -26,17 +26,17 @@ def upgrade(db_path: str):
                 ALTER TABLE game_players 
                 ADD COLUMN active_table_id VARCHAR(36)
             """)
-            logger.info("✓ active_table_id column added")
+            logger.info("[OK] active_table_id column added")
         else:
-            logger.info("⏭  active_table_id column already exists")
+            logger.info("[SKIP]  active_table_id column already exists")
         
         conn.commit()
         conn.close()
-        logger.info("✓ Migration 004_add_active_table_id completed successfully")
+        logger.info("[OK] Migration 004_add_active_table_id completed successfully")
         return True
         
     except Exception as e:
-        logger.error(f"✗ Migration failed: {e}")
+        logger.error(f"[FAIL] Migration failed: {e}")
         if conn:
             conn.rollback()
             conn.close()
@@ -65,7 +65,7 @@ if __name__ == "__main__":
     print(f"Running migration on database: {DB_PATH}")
     
     if not os.path.exists(DB_PATH):
-        print(f"✗ Database not found at {DB_PATH}")
+        print(f"[FAIL] Database not found at {DB_PATH}")
         print("Run the server first to create the database, then run this migration.")
         sys.exit(1)
     
@@ -77,8 +77,8 @@ if __name__ == "__main__":
     # Run migration
     try:
         upgrade(DB_PATH)
-        print("✓ Migration completed successfully!")
+        print("[OK] Migration completed successfully!")
     except Exception as e:
-        print(f"✗ Migration failed: {e}")
+        print(f"[FAIL] Migration failed: {e}")
         print(f"Backup available at: {backup_path}")
         sys.exit(1)

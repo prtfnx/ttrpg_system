@@ -35,9 +35,9 @@ def upgrade(db_path: str):
 
         if added:
             conn.commit()
-            logger.info(f"✓ Added columns to virtual_tables: {', '.join(added)}")
+            logger.info(f"[OK] Added columns to virtual_tables: {', '.join(added)}")
         else:
-            logger.info("⏭  All lighting columns already exist in virtual_tables")
+            logger.info("[SKIP]  All lighting columns already exist in virtual_tables")
 
     except Exception as e:
         logger.error(f"Migration 012 failed: {e}")

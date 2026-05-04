@@ -101,9 +101,9 @@ def upgrade(db_path: str):
                 logger.info(f"  entity {eid}: controlled_by {cb!r} -> {normalized!r}")
 
         conn.commit()
-        logger.info(f"✓ Migration 017 complete: {char_updated} chars, {ent_updated} entities updated")
+        logger.info(f"[OK] Migration 017 complete: {char_updated} chars, {ent_updated} entities updated")
     except Exception as e:
-        logger.error(f"✗ Migration 017 failed: {e}")
+        logger.error(f"[FAIL] Migration 017 failed: {e}")
         if conn:
             conn.rollback()
         raise

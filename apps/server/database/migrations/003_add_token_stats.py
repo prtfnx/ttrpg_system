@@ -26,9 +26,9 @@ def upgrade(db_path: str):
                 ALTER TABLE entities 
                 ADD COLUMN hp INTEGER
             """)
-            logger.info("✓ hp column added")
+            logger.info("[OK] hp column added")
         else:
-            logger.info("⏭  hp column already exists")
+            logger.info("[SKIP]  hp column already exists")
         
         if 'max_hp' not in columns:
             logger.info("Adding max_hp column to entities table")
@@ -36,9 +36,9 @@ def upgrade(db_path: str):
                 ALTER TABLE entities 
                 ADD COLUMN max_hp INTEGER
             """)
-            logger.info("✓ max_hp column added")
+            logger.info("[OK] max_hp column added")
         else:
-            logger.info("⏭  max_hp column already exists")
+            logger.info("[SKIP]  max_hp column already exists")
         
         if 'ac' not in columns:
             logger.info("Adding ac column to entities table")
@@ -46,9 +46,9 @@ def upgrade(db_path: str):
                 ALTER TABLE entities 
                 ADD COLUMN ac INTEGER
             """)
-            logger.info("✓ ac column added")
+            logger.info("[OK] ac column added")
         else:
-            logger.info("⏭  ac column already exists")
+            logger.info("[SKIP]  ac column already exists")
         
         if 'aura_radius' not in columns:
             logger.info("Adding aura_radius column to entities table")
@@ -56,17 +56,17 @@ def upgrade(db_path: str):
                 ALTER TABLE entities 
                 ADD COLUMN aura_radius REAL
             """)
-            logger.info("✓ aura_radius column added")
+            logger.info("[OK] aura_radius column added")
         else:
-            logger.info("⏭  aura_radius column already exists")
+            logger.info("[SKIP]  aura_radius column already exists")
         
         conn.commit()
         conn.close()
-        logger.info("✓ Migration 003_add_token_stats completed successfully")
+        logger.info("[OK] Migration 003_add_token_stats completed successfully")
         return True
         
     except Exception as e:
-        logger.error(f"✗ Migration failed: {e}")
+        logger.error(f"[FAIL] Migration failed: {e}")
         if conn:
             conn.rollback()
             conn.close()
@@ -95,7 +95,7 @@ if __name__ == "__main__":
     print(f"Running migration on database: {DB_PATH}")
     
     if not os.path.exists(DB_PATH):
-        print(f"✗ Database not found at {DB_PATH}")
+        print(f"[FAIL] Database not found at {DB_PATH}")
         print("Run the server first to create the database, then run this migration.")
         sys.exit(1)
     
@@ -107,8 +107,8 @@ if __name__ == "__main__":
     # Run migration
     try:
         upgrade(DB_PATH)
-        print("✓ Migration completed successfully!")
+        print("[OK] Migration completed successfully!")
     except Exception as e:
-        print(f"✗ Migration failed: {e}")
+        print(f"[FAIL] Migration failed: {e}")
         print(f"Backup available at: {backup_path}")
         sys.exit(1)

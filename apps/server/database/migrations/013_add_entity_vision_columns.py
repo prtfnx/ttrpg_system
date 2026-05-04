@@ -35,9 +35,9 @@ def upgrade(db_path: str):
 
         if added:
             conn.commit()
-            logger.info(f"✓ Added columns to entities: {', '.join(added)}")
+            logger.info(f"[OK] Added columns to entities: {', '.join(added)}")
         else:
-            logger.info("⏭  All vision columns already exist in entities")
+            logger.info("[SKIP]  All vision columns already exist in entities")
 
     except Exception as e:
         logger.error(f"Migration 013 failed: {e}")

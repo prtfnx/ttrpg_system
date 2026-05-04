@@ -28,9 +28,9 @@ def upgrade(db_path: str):
                 ALTER TABLE users 
                 ADD COLUMN is_verified BOOLEAN DEFAULT 0
             """)
-            logger.info("✓ is_verified column added")
+            logger.info("[OK] is_verified column added")
         else:
-            logger.info("⏭  is_verified column already exists")
+            logger.info("[SKIP]  is_verified column already exists")
         
         # Add google_id column to users table
         cursor.execute("PRAGMA table_info(users)")
@@ -46,9 +46,9 @@ def upgrade(db_path: str):
                 CREATE UNIQUE INDEX IF NOT EXISTS idx_users_google_id 
                 ON users(google_id)
             """)
-            logger.info("✓ google_id column and index added")
+            logger.info("[OK] google_id column and index added")
         else:
-            logger.info("⏭  google_id column already exists")
+            logger.info("[SKIP]  google_id column already exists")
         
         # Create email_verification_tokens table
         cursor.execute("""
@@ -62,21 +62,21 @@ def upgrade(db_path: str):
                 FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
             )
         """)
-        logger.info("✓ email_verification_tokens table created")
+        logger.info("[OK] email_verification_tokens table created")
         
         # Create index for faster token lookups
         cursor.execute("""
             CREATE INDEX IF NOT EXISTS idx_email_tokens_token 
             ON email_verification_tokens(token)
         """)
-        logger.info("✓ Token index created")
+        logger.info("[OK] Token index created")
         
         # Create index for user_id lookups
         cursor.execute("""
             CREATE INDEX IF NOT EXISTS idx_email_tokens_user_id 
             ON email_verification_tokens(user_id)
         """)
-        logger.info("✓ User ID index created")
+        logger.info("[OK] User ID index created")
         
         # Add is_demo column to game_sessions table
         cursor.execute("PRAGMA table_info(game_sessions)")
@@ -92,16 +92,16 @@ def upgrade(db_path: str):
                 CREATE INDEX IF NOT EXISTS idx_game_sessions_is_demo 
                 ON game_sessions(is_demo)
             """)
-            logger.info("✓ is_demo column and index added")
+            logger.info("[OK] is_demo column and index added")
         else:
-            logger.info("⏭  is_demo column already exists")
+            logger.info("[SKIP]  is_demo column already exists")
         
         conn.commit()
-        logger.info("✅ Migration 006 upgrade completed")
+        logger.info("[OK] Migration 006 upgrade completed")
         return True
         
     except sqlite3.Error as e:
-        logger.error(f"❌ Migration 006 upgrade failed: {e}")
+        logger.error(f"[ERR] Migration 006 upgrade failed: {e}")
         if conn:
             conn.rollback()
         raise
@@ -124,11 +124,11 @@ def downgrade(db_path: str):
         logger.info("      Column will remain but can be ignored")
         
         conn.commit()
-        logger.info("✅ Migration 006 downgrade completed")
+        logger.info("[OK] Migration 006 downgrade completed")
         return True
         
     except sqlite3.Error as e:
-        logger.error(f"❌ Migration 006 downgrade failed: {e}")
+        logger.error(f"[ERR] Migration 006 downgrade failed: {e}")
         if conn:
             conn.rollback()
         raise

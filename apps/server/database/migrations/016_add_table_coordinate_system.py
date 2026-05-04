@@ -41,9 +41,9 @@ def upgrade(db_path: str):
             logger.info("  + entities.darkvision_radius_units")
 
         conn.commit()
-        logger.info("✓ Migration 016 complete")
+        logger.info("[OK] Migration 016 complete")
     except Exception as e:
-        logger.error(f"✗ Migration 016 failed: {e}")
+        logger.error(f"[FAIL] Migration 016 failed: {e}")
         if conn:
             conn.rollback()
         raise

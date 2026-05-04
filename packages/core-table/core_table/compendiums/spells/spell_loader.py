@@ -124,7 +124,7 @@ class SpellLoader:
             return spell
             
         except Exception as e:
-            print(f"️ Error converting spell data: {e}")
+            print(f" Error converting spell data: {e}")
             return None
     
     def get_spell(self, name: str) -> Optional[Spell]:

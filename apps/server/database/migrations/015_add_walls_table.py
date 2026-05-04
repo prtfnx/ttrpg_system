@@ -47,7 +47,7 @@ def upgrade(db_path: str):
         cursor.execute("CREATE INDEX ix_walls_wall_id ON walls (wall_id)")
         cursor.execute("CREATE INDEX ix_walls_table_id ON walls (table_id)")
         conn.commit()
-        logger.info("✓ Created walls table")
+        logger.info("[OK] Created walls table")
 
     except Exception as e:
         logger.error(f"Migration failed: {e}")
@@ -63,7 +63,7 @@ def downgrade(db_path: str):
         conn = sqlite3.connect(db_path)
         conn.execute("DROP TABLE IF EXISTS walls")
         conn.commit()
-        logger.info("✓ Dropped walls table")
+        logger.info("[OK] Dropped walls table")
     finally:
         if conn:
             conn.close()

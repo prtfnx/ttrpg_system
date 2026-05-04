@@ -26,14 +26,14 @@ impl RenderEngine {
             
             if is_switching_tables {
                 if let Some(old_id) = old_table_id {
-                    web_sys::console::log_1(&format!("[TABLE-SWITCH] 🔄 Switching from table '{}' to '{}'", old_id, table_id).into());
+                    web_sys::console::log_1(&format!("[TABLE-SWITCH] [SYNC] Switching from table '{}' to '{}'", old_id, table_id).into());
                     
                     let sprites_removed = self.layer_manager.clear_sprites_for_table(&old_id);
                     let lights_removed = self.lighting.clear_lights_for_table(&old_id);
                     let fog_removed = self.fog.clear_fog_for_table(&old_id);
                     
                     web_sys::console::log_1(&format!(
-                        "[TABLE-SWITCH] 🗑️ Cleaned up old table '{}': {} sprites, {} lights, {} fog",
+                        "[TABLE-SWITCH] [DEL] Cleaned up old table '{}': {} sprites, {} lights, {} fog",
                         old_id, sprites_removed, lights_removed, fog_removed
                     ).into());
                 }
@@ -54,16 +54,16 @@ impl RenderEngine {
             
             if let Some((tx, ty, tw, th)) = self.table_manager.get_active_table_world_bounds() {
                 self.camera.set_table_bounds(tx, ty, tw, th);
-                web_sys::console::log_1(&format!("[TABLE-SWITCH] 🎯 Updated camera bounds: {}x{}", tw, th).into());
+                web_sys::console::log_1(&format!("[TABLE-SWITCH] [TARGET] Updated camera bounds: {}x{}", tw, th).into());
                 
                 self.fog.set_table_bounds(tx as f32, ty as f32, tw as f32, th as f32);
-                web_sys::console::log_1(&format!("[TABLE-SWITCH] 🌫️ Updated fog bounds: {}x{}", tw, th).into());
+                web_sys::console::log_1(&format!("[TABLE-SWITCH] [FOG] Updated fog bounds: {}x{}", tw, th).into());
                 
                 self.camera.center_on(tx, ty);
-                web_sys::console::log_1(&format!("[TABLE-SWITCH] 📷 Camera positioned at table origin ({}, {})", tx, ty).into());
+                web_sys::console::log_1(&format!("[TABLE-SWITCH] [CAM] Camera positioned at table origin ({}, {})", tx, ty).into());
                 
                 self.update_view_matrix();
-                web_sys::console::log_1(&"[TABLE-SWITCH] ✅ View matrix updated".into());
+                web_sys::console::log_1(&"[TABLE-SWITCH] [OK] View matrix updated".into());
             }
         }
 

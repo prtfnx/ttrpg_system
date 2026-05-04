@@ -36,7 +36,7 @@ def upgrade(db_path: str):
             ''')
             logger.info(" character_id column added")
         else:
-            logger.info("⏭  entities.character_id already exists")
+            logger.info("[SKIP]  entities.character_id already exists")
 
         if 'controlled_by' not in existing_cols:
             logger.info("Adding controlled_by column to entities table")
@@ -46,7 +46,7 @@ def upgrade(db_path: str):
             ''')
             logger.info(" controlled_by column added")
         else:
-            logger.info("⏭  entities.controlled_by already exists")
+            logger.info("[SKIP]  entities.controlled_by already exists")
 
         # --- SESSION_CHARACTERS table ---
         cursor.execute("PRAGMA table_info(session_characters)")
@@ -62,7 +62,7 @@ def upgrade(db_path: str):
             cursor.execute("UPDATE session_characters SET version = 1 WHERE version IS NULL")
             logger.info(" version column added and initialized")
         else:
-            logger.info("⏭  session_characters.version already exists")
+            logger.info("[SKIP]  session_characters.version already exists")
 
         if 'last_modified_by' not in sc_cols:
             logger.info("Adding last_modified_by column to session_characters table")
@@ -72,7 +72,7 @@ def upgrade(db_path: str):
             ''')
             logger.info(" last_modified_by column added")
         else:
-            logger.info("⏭  session_characters.last_modified_by already exists")
+            logger.info("[SKIP]  session_characters.last_modified_by already exists")
 
         conn.commit()
         conn.close()

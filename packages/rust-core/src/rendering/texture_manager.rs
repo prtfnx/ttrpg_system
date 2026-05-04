@@ -277,10 +277,10 @@ impl TextureManager {
                     gl.tex_parameteri(WebGlRenderingContext::TEXTURE_2D, WebGlRenderingContext::TEXTURE_MAG_FILTER, WebGlRenderingContext::LINEAR as i32);
                     gl.tex_parameteri(WebGlRenderingContext::TEXTURE_2D, WebGlRenderingContext::TEXTURE_WRAP_S, WebGlRenderingContext::CLAMP_TO_EDGE as i32);
                     gl.tex_parameteri(WebGlRenderingContext::TEXTURE_2D, WebGlRenderingContext::TEXTURE_WRAP_T, WebGlRenderingContext::CLAMP_TO_EDGE as i32);
-                    web_sys::console::log_1(&format!("✅ [TEXTURE MANAGER] Successfully loaded texture '{}'", texture_name).into());
+                    web_sys::console::log_1(&format!("[OK] [TEXTURE MANAGER] Successfully loaded texture '{}'", texture_name).into());
                 },
                 Err(e) => {
-                    web_sys::console::error_1(&format!("❌ [TEXTURE MANAGER] Failed to upload texture '{}': {:?}", texture_name, e).into());
+                    web_sys::console::error_1(&format!("[ERR] [TEXTURE MANAGER] Failed to upload texture '{}': {:?}", texture_name, e).into());
                 }
             }
         }) as Box<dyn FnMut()>);
@@ -292,7 +292,7 @@ impl TextureManager {
         let error_name = name.to_string();
         let error_url = url.to_string();
         let onerror = Closure::wrap(Box::new(move || {
-            web_sys::console::error_1(&format!("❌ [TEXTURE MANAGER] Failed to load texture '{}' from {}", error_name, error_url).into());
+            web_sys::console::error_1(&format!("[ERR] [TEXTURE MANAGER] Failed to load texture '{}' from {}", error_name, error_url).into());
         }) as Box<dyn FnMut()>);
         
         image.set_onerror(Some(onerror.as_ref().unchecked_ref()));

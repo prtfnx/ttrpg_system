@@ -21,9 +21,9 @@ def upgrade(db_path: str):
         if 'metadata' not in columns:
             logger.info("Adding metadata column to entities table")
             cursor.execute("ALTER TABLE entities ADD COLUMN metadata TEXT")
-            logger.info("✓ metadata column added")
+            logger.info("[OK] metadata column added")
         else:
-            logger.info("⏭  metadata column already exists")
+            logger.info("[SKIP]  metadata column already exists")
 
         conn.commit()
         logger.info("Migration 008_add_entity_metadata completed successfully")

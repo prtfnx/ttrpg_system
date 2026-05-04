@@ -22,9 +22,9 @@ def upgrade(db_path: str):
         if 'layer_settings' not in existing:
             cursor.execute("ALTER TABLE virtual_tables ADD COLUMN layer_settings TEXT")
             conn.commit()
-            logger.info("✓ Added column layer_settings to virtual_tables")
+            logger.info("[OK] Added column layer_settings to virtual_tables")
         else:
-            logger.info("⏭  layer_settings already exists in virtual_tables")
+            logger.info("[SKIP]  layer_settings already exists in virtual_tables")
 
     except Exception as e:
         logger.error(f"Migration failed: {e}")
@@ -36,4 +36,4 @@ def upgrade(db_path: str):
 
 def downgrade(db_path: str):
     # SQLite does not support DROP COLUMN on older versions; no-op
-    logger.warning("⚠  Downgrade not supported for this migration (SQLite limitation)")
+    logger.warning("[WARN]  Downgrade not supported for this migration (SQLite limitation)")

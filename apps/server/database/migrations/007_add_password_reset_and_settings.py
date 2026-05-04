@@ -25,15 +25,15 @@ def upgrade(db_path: str):
 
         if "password_set_at" not in cols:
             cursor.execute("ALTER TABLE users ADD COLUMN password_set_at DATETIME")
-            logger.info("✓ users.password_set_at added")
+            logger.info("[OK] users.password_set_at added")
         else:
-            logger.info("⏭  users.password_set_at already exists")
+            logger.info("[SKIP]  users.password_set_at already exists")
 
         if "session_version" not in cols:
             cursor.execute("ALTER TABLE users ADD COLUMN session_version INTEGER DEFAULT 0 NOT NULL")
-            logger.info("✓ users.session_version added")
+            logger.info("[OK] users.session_version added")
         else:
-            logger.info("⏭  users.session_version already exists")
+            logger.info("[SKIP]  users.session_version already exists")
 
         # ── password_reset_tokens ─────────────────────────────────────────────
         cursor.execute("""
@@ -53,7 +53,7 @@ def upgrade(db_path: str):
         cursor.execute("""
             CREATE INDEX IF NOT EXISTS idx_prt_token_hash ON password_reset_tokens(token_hash)
         """)
-        logger.info("✓ password_reset_tokens table ready")
+        logger.info("[OK] password_reset_tokens table ready")
 
         # ── pending_email_changes ─────────────────────────────────────────────
         cursor.execute("""
@@ -74,14 +74,14 @@ def upgrade(db_path: str):
         cursor.execute("""
             CREATE INDEX IF NOT EXISTS idx_pec_token_hash ON pending_email_changes(token_hash)
         """)
-        logger.info("✓ pending_email_changes table ready")
+        logger.info("[OK] pending_email_changes table ready")
 
         conn.commit()
-        logger.info("✅ Migration 007 upgrade completed")
+        logger.info("[OK] Migration 007 upgrade completed")
         return True
 
     except sqlite3.Error as e:
-        logger.error(f"❌ Migration 007 upgrade failed: {e}")
+        logger.error(f"[ERR] Migration 007 upgrade failed: {e}")
         if conn:
             conn.rollback()
         raise
@@ -97,20 +97,20 @@ def downgrade(db_path: str):
         cursor = conn.cursor()
 
         cursor.execute("DROP TABLE IF EXISTS pending_email_changes")
-        logger.info("✓ pending_email_changes dropped")
+        logger.info("[OK] pending_email_changes dropped")
 
         cursor.execute("DROP TABLE IF EXISTS password_reset_tokens")
-        logger.info("✓ password_reset_tokens dropped")
+        logger.info("[OK] password_reset_tokens dropped")
 
         # SQLite doesn't support DROP COLUMN — columns remain but can be ignored
         logger.info("Note: password_set_at and session_version columns remain (SQLite limitation)")
 
         conn.commit()
-        logger.info("✅ Migration 007 downgrade completed")
+        logger.info("[OK] Migration 007 downgrade completed")
         return True
 
     except sqlite3.Error as e:
-        logger.error(f"❌ Migration 007 downgrade failed: {e}")
+        logger.error(f"[ERR] Migration 007 downgrade failed: {e}")
         if conn:
             conn.rollback()
         raise

@@ -86,7 +86,7 @@ class MigrationRunner:
             migration_name = migration_file[:-3]  # Remove .py extension
             
             if migration_name in applied:
-                logger.info(f"⏭  Skipping {migration_name} (already applied)")
+                logger.info(f"[SKIP]  Skipping {migration_name} (already applied)")
                 continue
                 
             logger.info(f" Applying {migration_name}...")

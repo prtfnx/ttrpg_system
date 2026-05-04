@@ -22,9 +22,9 @@ def upgrade(db_path: str):
         if 'aura_color' not in columns:
             logger.info("Adding aura_color column to entities table")
             cursor.execute("ALTER TABLE entities ADD COLUMN aura_color VARCHAR(7)")
-            logger.info("✓ aura_color column added")
+            logger.info("[OK] aura_color column added")
         else:
-            logger.info("⏭  aura_color column already exists")
+            logger.info("[SKIP]  aura_color column already exists")
 
         conn.commit()
         logger.info("Migration 010_add_aura_color completed successfully")

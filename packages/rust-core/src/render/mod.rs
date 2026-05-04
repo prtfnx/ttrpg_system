@@ -185,7 +185,7 @@ impl RenderEngine {
             active_layer: "tokens".to_string(),
         };
         
-        web_sys::console::log_1(&"[TABLE-INIT] 🎯 Creating mandatory default table...".into());
+        web_sys::console::log_1(&"[TABLE-INIT] [TARGET] Creating mandatory default table...".into());
         
         engine.table_manager.create_table("default_table", "Default Table", 1200.0, 1200.0)
             .expect("CRITICAL: Failed to create default table - cannot continue!");
@@ -195,20 +195,20 @@ impl RenderEngine {
             panic!("CRITICAL: Failed to set default table as active - cannot continue!");
         }
         
-        web_sys::console::log_1(&"[TABLE-INIT] ✅ Default table created successfully".into());
+        web_sys::console::log_1(&"[TABLE-INIT] [OK] Default table created successfully".into());
         
         let active_id = engine.table_manager.get_active_table_id();
         match active_id {
             Some(ref id) => {
-                web_sys::console::log_1(&format!("[TABLE-INIT] ✅ Active table ID: '{}'", id).into());
+                web_sys::console::log_1(&format!("[TABLE-INIT] [OK] Active table ID: '{}'", id).into());
                 
                 if let Some((x, y, width, height)) = engine.table_manager.get_active_table_world_bounds() {
                     web_sys::console::log_1(&format!(
-                        "[TABLE-INIT] ✅ Table bounds: origin=({}, {}), size={}x{}", 
+                        "[TABLE-INIT] [OK] Table bounds: origin=({}, {}), size={}x{}", 
                         x, y, width, height
                     ).into());
                 } else {
-                    web_sys::console::error_1(&"[TABLE-INIT] ❌ ERROR: Table exists but get_active_table_world_bounds() returned None!".into());
+                    web_sys::console::error_1(&"[TABLE-INIT] [ERR] ERROR: Table exists but get_active_table_world_bounds() returned None!".into());
                 }
             }
             None => {
@@ -217,7 +217,7 @@ impl RenderEngine {
         }
         
         engine.camera.center_on(0.0, 0.0);
-        web_sys::console::log_1(&"[TABLE-INIT] 📷 Camera positioned at table origin (0, 0)".into());
+        web_sys::console::log_1(&"[TABLE-INIT] [CAM] Camera positioned at table origin (0, 0)".into());
         
         if let Some((tx, ty, tw, th)) = engine.table_manager.get_active_table_world_bounds() {
             engine.camera.set_table_bounds(tx, ty, tw, th);

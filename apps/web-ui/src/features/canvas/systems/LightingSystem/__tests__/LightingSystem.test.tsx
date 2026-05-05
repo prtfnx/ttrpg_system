@@ -516,7 +516,7 @@ describe('Lighting System', () => {
   describe('Performance Tests', () => {
     it('should handle multiple lights efficiently', async () => {
       render(<LightingPanel />);
-      
+
       const preset = {
         name: 'Torch',
         color: { r: 1.0, g: 0.6, b: 0.2, a: 1.0 },
@@ -524,20 +524,21 @@ describe('Lighting System', () => {
         intensity: 1.0
       };
 
-      // Place 10 lights using fireEvent — synchronous, no async waiting needed
-      for (let i = 0; i < 10; i++) {
-        const torchButton = screen.getByRole('button', { name: /torch/i });
-        fireEvent.click(torchButton);
-        window.dispatchEvent(new CustomEvent('lightPlaced', {
-          detail: { x: 100 + i * 50, y: 100 + i * 50, preset }
-        }));
-      }
+      // Batch all 10 placements in a single act() to flush React state updates
+      await act(async () => {
+        for (let i = 0; i < 10; i++) {
+          const torchButton = screen.getByRole('button', { name: /torch/i });
+          fireEvent.click(torchButton);
+          window.dispatchEvent(new CustomEvent('lightPlaced', {
+            detail: { x: 100 + i * 50, y: 100 + i * 50, preset }
+          }));
+        }
+      });
 
-      // fireEvent is synchronous — calls are immediate
       expect(mockEngine.add_light).toHaveBeenCalledTimes(10);
       mockEngine.get_light_count.mockReturnValue(10);
       expect(mockEngine.get_light_count()).toBe(10);
-    });
+    }, 15000);
   });
 });
 

@@ -429,7 +429,6 @@ async def kick_player(
 
 def get_role_permissions(role: str) -> list:
     """Kept for template compatibility — delegates to roles module."""
-    from utils.roles import get_permissions
     return get_permissions(role)
 
 @router.get("/api/sessions", response_model=List[game_models.GameSession])

@@ -24,7 +24,14 @@ jobs:
         run: pnpm exec tsc -b
         working-directory: apps/web-ui
       - run: pnpm lint --filter @ttrpg/web-ui
-      - run: pnpm test:run --filter @ttrpg/web-ui
+      - name: Run tests with coverage
+        run: pnpm test:coverage --filter @ttrpg/web-ui
+      - name: Upload web coverage
+        uses: codecov/codecov-action@v4
+        with:
+          files: apps/web-ui/coverage/coverage-final.json
+          flags: web
+        if: always()
 
   rust:
     name: Rust WASM (test + build)

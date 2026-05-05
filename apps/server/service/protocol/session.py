@@ -1,5 +1,6 @@
 from typing import TYPE_CHECKING, Optional
 
+from core_table.game_mode import GameMode
 from core_table.protocol import Message, MessageType
 from database.database import SessionLocal
 from database.models import GamePlayer, GameSession
@@ -66,9 +67,8 @@ class _SessionMixin:
             return Message(MessageType.ERROR, {'error': 'game_mode is required'})
 
         try:
-            from core_table.game_mode import GameMode
-            # We don't keep FSM state in memory yet — just validate the value and persist
-            GameMode(target_mode)  # raises ValueError if invalid
+            # raises ValueError if invalid
+            GameMode(target_mode)
         except ValueError:
             return Message(MessageType.ERROR, {'error': f'Invalid game mode: {target_mode}'})
 

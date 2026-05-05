@@ -1,6 +1,7 @@
 """
 Database utility functions for game session management
 """
+import json
 import logging
 from typing import Optional, Tuple
 
@@ -129,7 +130,6 @@ def save_game_session_state(
 
         # Save additional game data if provided
         if additional_data and protocol_service.db_session and protocol_service.game_session_db_id:
-            import json
             session_update = schemas.GameSessionUpdate(
                 game_data=json.dumps(additional_data)
             )

@@ -20,6 +20,9 @@ jobs:
           node-version: 22
           cache: pnpm
       - run: pnpm install --frozen-lockfile
+      - name: TypeScript check
+        run: pnpm exec tsc -b
+        working-directory: apps/web-ui
       - run: pnpm lint --filter @ttrpg/web-ui
       - run: pnpm test:run --filter @ttrpg/web-ui
 

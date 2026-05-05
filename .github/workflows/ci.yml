@@ -41,16 +41,18 @@ jobs:
       - uses: dtolnay/rust-toolchain@stable
         with:
           targets: wasm32-unknown-unknown
-      - name: Install wasm-pack and wasm-opt
+      - name: Install wasm-pack and binaryen
         run: |
           curl https://rustwasm.github.io/wasm-pack/installer/init.sh -sSf | sh
-          cargo install wasm-opt --locked
+          sudo apt-get install -y binaryen
       - name: Run tests
         run: cargo test
         working-directory: packages/rust-core
       - name: Build WASM
         run: wasm-pack build --target web --release
         working-directory: packages/rust-core
+      - name: Optimize WASM with wasm-opt
+        run: wasm-opt -O -o packages/rust-core/pkg/ttrpg_rust_core_bg.wasm packages/rust-core/pkg/ttrpg_rust_core_bg.wasm
 
   server:
     name: Server (lint + test + coverage)

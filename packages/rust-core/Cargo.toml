@@ -87,6 +87,11 @@ features = [
 opt-level = "s"
 lto = true
 
+# Disable wasm-pack's built-in wasm-opt pass — we run it ourselves in CI
+# using binaryen from apt, which is more up-to-date than the cargo crate version.
+[package.metadata.wasm-pack.profile.release]
+wasm-opt = false
+
 [dev-dependencies]
 wasm-bindgen-test = "0.3"
 criterion = { version = "0.5", features = ["html_reports"] }

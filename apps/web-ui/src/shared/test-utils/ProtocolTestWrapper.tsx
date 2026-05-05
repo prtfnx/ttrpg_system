@@ -47,6 +47,6 @@ export function MockProtocolProvider({ children, mockProtocol }: MockProtocolPro
 }
 
 // Mock the useProtocol hook for testing
-export function mockUseProtocol() {
+export function useMockProtocolInTests() {
   return useMockProtocol();
 }

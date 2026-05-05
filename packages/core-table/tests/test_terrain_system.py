@@ -1,8 +1,6 @@
 """Tests for difficult terrain movement cost and table terrain model."""
-import pytest
 from core_table.session_rules import SessionRules
 from core_table.table import CoverZone
-
 
 # ── CoverZone model tests ─────────────────────────────────────────────────────
 

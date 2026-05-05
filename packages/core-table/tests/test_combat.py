@@ -1,9 +1,7 @@
 """Tests for combat data models and CombatFSM."""
-import pytest
 from typing import Any
-from core_table.combat import (
-    CombatPhase, CombatState, CombatSettings, Combatant, CombatAction, DamageType
-)
+
+from core_table.combat import Combatant, CombatPhase, CombatState
 from core_table.combat_fsm import CombatFSM
 from core_table.conditions import ActiveCondition, ConditionType
 

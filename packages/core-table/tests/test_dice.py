@@ -1,5 +1,4 @@
 """Tests for dice engine."""
-import pytest
 from core_table.dice import DiceEngine
 
 
@@ -52,7 +51,7 @@ def test_apply_critical_doubles_dice():
 
 
 def test_is_fumble():
-    result = DiceEngine.roll('1d20')
+    DiceEngine.roll('1d20')
     # force a 1
     from core_table.dice import DiceRollResult
     r = DiceRollResult(total=1, rolls=[1], modifier=0, formula='1d20', is_critical=False, is_fumble=True)

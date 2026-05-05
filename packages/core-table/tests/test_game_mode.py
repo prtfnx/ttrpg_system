@@ -1,5 +1,4 @@
 """Tests for GameModeFSM."""
-import pytest
 from core_table.game_mode import GameMode, GameModeFSM
 
 

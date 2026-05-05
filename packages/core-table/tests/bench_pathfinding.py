@@ -1,8 +1,8 @@
 """Benchmarks for pathfinding hot paths (pytest-benchmark)."""
-import pytest
 from types import SimpleNamespace
-from core_table.pathfinding import PathfindingSystem, SpatialHashGrid
 
+import pytest
+from core_table.pathfinding import PathfindingSystem, SpatialHashGrid
 
 # --- fixtures ---
 

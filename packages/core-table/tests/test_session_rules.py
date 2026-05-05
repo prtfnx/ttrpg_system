@@ -1,5 +1,4 @@
 """Tests for SessionRules data model."""
-import pytest
 from core_table.session_rules import SessionRules
 
 

@@ -1,6 +1,5 @@
 """Tests for combat model extensions (Phase 3-6, 10)."""
-import pytest
-from core_table.combat import Combatant, CombatState, CombatPhase, CombatSettings
+from core_table.combat import Combatant
 
 
 def make_combatant(**kw) -> Combatant:

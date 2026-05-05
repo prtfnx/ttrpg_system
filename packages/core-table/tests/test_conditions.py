@@ -1,6 +1,7 @@
 """Tests for conditions system."""
-import pytest
-from core_table.conditions import ConditionType, ActiveCondition, CONDITION_EFFECTS, INCAPACITATING
+import uuid
+
+from core_table.conditions import CONDITION_EFFECTS, INCAPACITATING, ActiveCondition, ConditionType
 
 
 def test_all_condition_types_have_effect():
@@ -9,8 +10,6 @@ def test_all_condition_types_have_effect():
         # A few may not be (e.g. frightened has partial)
         assert isinstance(ct.value, str)
 
-
-import uuid
 
 def test_active_condition_tick_counts_down():
     cond = ActiveCondition(

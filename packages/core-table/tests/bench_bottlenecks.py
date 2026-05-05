@@ -1,9 +1,8 @@
 """Benchmarks targeting real server performance bottlenecks."""
 import json
-import pytest
 from types import SimpleNamespace
-from core_table.protocol import Message, MessageType
 
+from core_table.protocol import Message, MessageType
 
 # ── BOTTLENECK 1: JSON round-trip in batch handler ──
 # server_protocol.py:267  json.loads(resp.to_json())

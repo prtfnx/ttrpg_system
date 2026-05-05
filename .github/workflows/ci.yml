@@ -44,7 +44,11 @@ jobs:
       - name: Install wasm-pack and binaryen
         run: |
           curl https://rustwasm.github.io/wasm-pack/installer/init.sh -sSf | sh
-          sudo apt-get install -y binaryen
+          # apt binaryen is too old for table.fill (misc 0x11) from current rustc.
+          # Use a pinned release from GitHub instead.
+          wget -q https://github.com/WebAssembly/binaryen/releases/download/version_119/binaryen-version_119-x86_64-linux.tar.gz
+          tar -xzf binaryen-version_119-x86_64-linux.tar.gz
+          sudo cp binaryen-version_119/bin/wasm-opt /usr/local/bin/wasm-opt
       - name: Run tests
         run: cargo test
         working-directory: packages/rust-core

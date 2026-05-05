@@ -4,7 +4,7 @@
  */
 import styles from '@/App.module.css';
 import { authService, type SessionInfo } from '@features/auth';
-import { type SessionRole } from '@features/session/types/roles';
+import { getRoleDisplayName, type SessionRole } from '@features/session/types/roles';
 import clsx from 'clsx';
 import { useEffect, useState } from 'react';
 
@@ -108,7 +108,7 @@ export function SessionSelector({ onSessionSelected }: SessionSelectorProps) {
           <div 
             key={session.session_code}
             role="listitem"
-            aria-label={`Session: ${session.session_name}, Role: ${session.role}`}
+            aria-label={`Session: ${session.session_name}, Role: ${getRoleDisplayName(session.role)}`}
             className={clsx(styles.sessionCard, styles[session.role])}
             onClick={() => handleSessionClick(session)}
             tabIndex={0}
@@ -129,14 +129,14 @@ export function SessionSelector({ onSessionSelected }: SessionSelectorProps) {
             
             <div className={styles.sessionRole}>
               <span className={clsx(styles.roleBadge, styles[session.role])}>
-                {session.role.toUpperCase()}
+                {getRoleDisplayName(session.role)}
               </span>
             </div>
             
             <div>
               <button 
                 className={styles.joinBtn}
-                aria-label={`Join ${session.session_name} as ${session.role}`}
+                aria-label={`Join ${session.session_name} as ${getRoleDisplayName(session.role)}`}
                 onClick={(e) => {
                   e.stopPropagation(); // Prevent double-trigger from parent click
                   handleSessionClick(session);

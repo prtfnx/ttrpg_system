@@ -116,7 +116,7 @@ describe('SessionSelector - User Behavior Tests', () => {
         expect(screen.getByText('DM')).toBeInTheDocument();
       });
 
-      expect(screen.getByText('PLAYER')).toBeInTheDocument();
+      expect(screen.getByText('Player')).toBeInTheDocument();
     });
 
     it('provides join buttons with descriptive labels', async () => {
@@ -152,7 +152,7 @@ describe('SessionSelector - User Behavior Tests', () => {
       });
       await user.click(dmSession);
 
-      expect(mockOnSessionSelected).toHaveBeenCalledWith('DMG001', 'dm');
+      expect(mockOnSessionSelected).toHaveBeenCalledWith('DMG001', 'owner');
     });
 
     it('selects session when clicking join button', async () => {
@@ -170,7 +170,7 @@ describe('SessionSelector - User Behavior Tests', () => {
       });
       await user.click(joinButton);
 
-      expect(mockOnSessionSelected).toHaveBeenCalledWith('DMG001', 'dm');
+      expect(mockOnSessionSelected).toHaveBeenCalledWith('DMG001', 'owner');
     });
 
     it('supports keyboard navigation with Enter key', async () => {
@@ -191,7 +191,7 @@ describe('SessionSelector - User Behavior Tests', () => {
       session.focus();
       await user.keyboard('{Enter}');
 
-      expect(mockOnSessionSelected).toHaveBeenCalledWith('DMG001', 'dm');
+      expect(mockOnSessionSelected).toHaveBeenCalledWith('DMG001', 'owner');
     });
   });
 

@@ -23,6 +23,17 @@ export const isElevated = (role: SessionRole | null): boolean =>
 export const canInteract = (role: SessionRole | null): boolean =>
   role !== null && INTERACTIVE_ROLES.includes(role);
 
+const ROLE_DISPLAY_NAMES: Record<SessionRole, string> = {
+  owner: 'DM',
+  co_dm: 'Co-DM',
+  trusted_player: 'Trusted',
+  player: 'Player',
+  spectator: 'Spectator',
+};
+
+export const getRoleDisplayName = (role: SessionRole): string =>
+  ROLE_DISPLAY_NAMES[role] ?? role;
+
 export const isSpectator = (role: SessionRole | null): boolean =>
   role === 'spectator';
 

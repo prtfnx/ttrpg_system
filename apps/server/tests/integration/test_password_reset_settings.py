@@ -79,7 +79,7 @@ class TestForgotPassword:
 
         active = test_db.query(models.PasswordResetToken).filter(
             models.PasswordResetToken.user_id == test_user.id,
-            not models.PasswordResetToken.used,
+            ~models.PasswordResetToken.used,
         ).count()
         assert active == 1  # Only one active token at a time
 

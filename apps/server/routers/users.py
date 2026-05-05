@@ -1,4 +1,4 @@
-"""
+﻿"""
 User authentication and management router
 """
 import hashlib
@@ -580,7 +580,7 @@ async def auth_error_page(request: Request):
     })
 
 
-# ─── Forgot / Reset Password ─────────────────────────────────────────────────
+# в”Ђв”Ђв”Ђ Forgot / Reset Password в”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђ
 
 @router.get("/forgot-password")
 def forgot_password_page(request: Request):
@@ -604,7 +604,7 @@ async def forgot_password_submit(
         # Invalidate existing unused tokens
         db.query(models.PasswordResetToken).filter(
             models.PasswordResetToken.user_id == user.id,
-            not models.PasswordResetToken.used,
+            ~models.PasswordResetToken.used,
         ).delete()
 
         raw = secrets.token_urlsafe(32)
@@ -619,7 +619,7 @@ async def forgot_password_submit(
         if user.email:
             send_password_reset(user.email, f"{base_url}/users/reset-password?token={raw}")
     else:
-        # Timing equalisation — prevent enumeration via response time delta
+        # Timing equalisation вЂ” prevent enumeration via response time delta
         crud.get_password_hash("timing-dummy")
 
     # Always show the same page regardless of whether email exists
@@ -633,7 +633,7 @@ def reset_password_page(request: Request, token: str = "", db: Session = Depends
 
     record = db.query(models.PasswordResetToken).filter(
         models.PasswordResetToken.token_hash == hashlib.sha256(token.encode()).hexdigest(),
-        not models.PasswordResetToken.used,
+        ~models.PasswordResetToken.used,
         models.PasswordResetToken.expires_at > datetime.utcnow(),
     ).first()
 
@@ -666,7 +666,7 @@ async def reset_password_submit(
 
     record = db.query(models.PasswordResetToken).filter(
         models.PasswordResetToken.token_hash == hashlib.sha256(token.encode()).hexdigest(),
-        not models.PasswordResetToken.used,
+        ~models.PasswordResetToken.used,
         models.PasswordResetToken.expires_at > datetime.utcnow(),
     ).first()
 
@@ -694,7 +694,7 @@ async def reset_password_submit(
     return RedirectResponse("/users/login?msg=password_reset_success", status_code=302)
 
 
-# ─── User Settings ────────────────────────────────────────────────────────────
+# в”Ђв”Ђв”Ђ User Settings в”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђ
 
 @router.get("/settings")
 async def settings_page(
@@ -799,7 +799,7 @@ async def settings_email(
     # Invalidate existing pending changes for this user
     db.query(models.PendingEmailChange).filter(
         models.PendingEmailChange.user_id == current_user.id,
-        not models.PendingEmailChange.used,
+        ~models.PendingEmailChange.used,
     ).delete()
 
     raw = secrets.token_urlsafe(32)
@@ -826,7 +826,7 @@ def verify_email_change(request: Request, token: str = "", db: Session = Depends
 
     record = db.query(models.PendingEmailChange).filter(
         models.PendingEmailChange.token_hash == hashlib.sha256(token.encode()).hexdigest(),
-        not models.PendingEmailChange.used,
+        ~models.PendingEmailChange.used,
         models.PendingEmailChange.expires_at > datetime.utcnow(),
     ).first()
 

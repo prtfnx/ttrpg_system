@@ -5,6 +5,7 @@ Description: Stores the hex color string for a token's aura light (e.g. '#ffaa00
              Nullable — NULL means default warm-white light.
 """
 import sqlite3
+
 from utils.logger import setup_logger
 
 logger = setup_logger(__name__)

@@ -1,13 +1,16 @@
 """Tests for AttackResolver."""
-import sys, os
+import os
+import sys
+
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '../..'))
 
-import pytest
 from unittest.mock import patch
-from core_table.session_rules import SessionRules
+
+import pytest
 from core_table.combat import Combatant
 from core_table.conditions import ActiveCondition, ConditionType
 from core_table.dice import DiceRollResult
+from core_table.session_rules import SessionRules
 from service.attack_resolver import AttackResolver
 
 

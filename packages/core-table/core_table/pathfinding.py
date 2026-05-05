@@ -1,10 +1,11 @@
 from __future__ import annotations
+
 import heapq
 import math
-from typing import Optional, TYPE_CHECKING
+from typing import TYPE_CHECKING, Optional
 
 if TYPE_CHECKING:
-    from core_table.entities import Wall
+    pass
 
 
 class SpatialHashGrid:
@@ -117,10 +118,14 @@ class PathfindingSystem:
         def on_segment(px, py, x1, y1, x2, y2):
             return min(x1, x2) <= px <= max(x1, x2) and min(y1, y2) <= py <= max(y1, y2)
 
-        if d1 == 0 and on_segment(ax1, ay1, bx1, by1, bx2, by2): return True
-        if d2 == 0 and on_segment(ax2, ay2, bx1, by1, bx2, by2): return True
-        if d3 == 0 and on_segment(bx1, by1, ax1, ay1, ax2, ay2): return True
-        if d4 == 0 and on_segment(bx2, by2, ax1, ay1, ax2, ay2): return True
+        if d1 == 0 and on_segment(ax1, ay1, bx1, by1, bx2, by2):
+            return True
+        if d2 == 0 and on_segment(ax2, ay2, bx1, by1, bx2, by2):
+            return True
+        if d3 == 0 and on_segment(bx1, by1, ax1, ay1, ax2, ay2):
+            return True
+        if d4 == 0 and on_segment(bx2, by2, ax1, ay1, ax2, ay2):
+            return True
         return False
 
     @staticmethod

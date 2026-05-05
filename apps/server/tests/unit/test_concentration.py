@@ -1,12 +1,14 @@
 """Tests for concentration auto-break mechanic."""
-import sys
 import os
+import sys
+
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '../..'))
 
-import pytest
 from unittest.mock import patch
-from service.combat_engine import CombatEngine
+
+import pytest
 from core_table.dice import DiceRollResult
+from service.combat_engine import CombatEngine
 
 
 @pytest.fixture(autouse=True)

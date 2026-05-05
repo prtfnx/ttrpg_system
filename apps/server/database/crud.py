@@ -1,18 +1,20 @@
 """
 Database CRUD operations
 """
-from sqlalchemy.orm import Session
-import bcrypt
-from . import models, schemas
-from datetime import datetime, timedelta
-from sqlalchemy import func
-from typing import Optional
+import json
+import re
 import secrets
 import string
-import re
-import json
 import uuid
+from datetime import datetime, timedelta
+from typing import Optional
+
+import bcrypt
+from sqlalchemy import func
+from sqlalchemy.orm import Session
 from utils.logger import setup_logger
+
+from . import models, schemas
 
 logger = setup_logger(__name__)
 
@@ -31,79 +33,79 @@ def generate_session_code() -> str:
 def validate_username(username: str) -> tuple[bool, str]:
     """
     Validate username format and length.
-    
+
     Returns:
         Tuple of (is_valid, error_message)
     """
     if not username:
         return False, "Username is required"
-    
+
     if len(username) < 4:
         return False, "Username must be at least 4 characters long"
-    
+
     if len(username) > 50:
         return False, "Username must be less than 50 characters"
-    
+
     # Check for valid characters (alphanumeric and underscore)
     if not re.match(r'^[a-zA-Z0-9_]+$', username):
         return False, "Username can only contain letters, numbers, and underscores"
-    
+
     return True, ""
 
 def validate_password(password: str) -> tuple[bool, str]:
     """
     Validate password format and length.
-    
+
     Requirements:
     - At least 8 characters
     - At least one uppercase letter
     - At least one lowercase letter
     - At least one digit
-    
+
     Returns:
         Tuple of (is_valid, error_message)
     """
     if not password:
         return False, "Password is required"
-    
+
     if len(password) < 8:
         return False, "Password must be at least 8 characters long"
-    
+
     if len(password) > 128:
         return False, "Password must be less than 128 characters"
-    
+
     if not any(c.isupper() for c in password):
         return False, "Password must include at least one uppercase letter"
-    
+
     if not any(c.islower() for c in password):
         return False, "Password must include at least one lowercase letter"
-    
+
     if not any(c.isdigit() for c in password):
         return False, "Password must include at least one number"
-    
+
     return True, ""
 
 def check_registration_flood_protection(db: Session, time_window_minutes: int = 10, max_registrations: int = 10) -> tuple[bool, str]:
     """
     Check if too many users have been registered recently (flood protection).
-    
+
     Args:
         db: Database session
         time_window_minutes: Time window to check
         max_registrations: Maximum registrations allowed in time window
-        
+
     Returns:
         Tuple of (is_allowed, error_message)
     """
     cutoff_time = datetime.utcnow() - timedelta(minutes=time_window_minutes)
-    
+
     recent_registrations = db.query(func.count(models.User.id)).filter(
         models.User.created_at >= cutoff_time
     ).scalar()
-    
+
     if recent_registrations >= max_registrations:
         return False, f"Too many registrations in the last {time_window_minutes} minutes. Please try again later."
-    
+
     return True, ""
 
 # User operations
@@ -131,33 +133,33 @@ def create_user(db: Session, user: schemas.UserCreate):
 
 def register_user(db: Session, username: str, password: str, email: Optional[str] = None, full_name: Optional[str] = None):
     """Register a new user - simplified version with validation and flood protection"""
-    
+
     # Validate input
     username_valid, username_error = validate_username(username)
     if not username_valid:
         return None, username_error
-    
+
     password_valid, password_error = validate_password(password)
     if not password_valid:
         return None, password_error
-    
+
     # Check flood protection
     flood_allowed, flood_error = check_registration_flood_protection(db)
     if not flood_allowed:
         return None, flood_error
-    
+
     # Check if user already exists
     if get_user_by_username(db, username):
         return None, "Username already exists"
-    
+
     # Check email uniqueness if provided
     if email and email.strip() and get_user_by_email(db, email.strip()):
         return None, "Email already registered"
-    
+
     # Handle empty email - set to None instead of empty string to avoid unique constraint issues
     email_value = email if email and email.strip() else None
     full_name_value = full_name if full_name and full_name.strip() else None
-    
+
     try:
         user_data = schemas.UserCreate(
             username=username,
@@ -182,7 +184,7 @@ def authenticate_user(db: Session, username: str, password: str):
 def create_game_session(db: Session, session: schemas.GameSessionCreate, owner_id: int, session_code: Optional[str] = None):
     existing_session = db.query(models.GameSession).filter(
         models.GameSession.session_code == session_code,
-        models.GameSession.is_active == True
+        models.GameSession.is_active
     ).first()
     if existing_session:
         return existing_session
@@ -226,7 +228,7 @@ def append_ban_to_session(db: Session, session_id: int, ban_entry: dict) -> bool
 def get_game_session_by_code(db: Session, session_code: str):
     return db.query(models.GameSession).filter(
         models.GameSession.session_code == session_code,
-        models.GameSession.is_active == True
+        models.GameSession.is_active
     ).first()
 
 def list_game_sessions(db: Session):
@@ -241,7 +243,7 @@ def get_user_game_sessions(db: Session, user_id: int):
         .join(models.GamePlayer, models.GameSession.id == models.GamePlayer.session_id)
         .filter(
             models.GamePlayer.user_id == user_id,
-            models.GameSession.is_active == True
+            models.GameSession.is_active
         )
         .all()
     )
@@ -253,11 +255,11 @@ def update_game_session(db: Session, session_id: int, session_update: schemas.Ga
     db_session = get_game_session(db, session_id)
     if not db_session:
         return None
-    
+
     update_data = session_update.model_dump(exclude_unset=True)
     for field, value in update_data.items():
         setattr(db_session, field, value)
-    
+
     db.commit()
     db.refresh(db_session)
     return db_session
@@ -301,19 +303,19 @@ def join_game_session(db: Session, session_code: str, user_id: int, character_na
     session = get_game_session_by_code(db, session_code)
     if not session:
         return None
-    
+
     # Check if user already joined
     existing_player = db.query(models.GamePlayer).filter(
         models.GamePlayer.session_id == session.id,
         models.GamePlayer.user_id == user_id
     ).first()
-    
+
     if existing_player:
         existing_player.is_connected = True
         existing_player.character_name = character_name or existing_player.character_name
         db.commit()
         return existing_player
-    
+
     # Create new player — owner keeps their role, everyone else defaults to "player"
     role = "owner" if user_id == session.owner_id else "player"
     db_player = models.GamePlayer(
@@ -347,7 +349,7 @@ def create_virtual_table(db: Session, table_data: schemas.VirtualTableCreate) ->
     layer_visibility_json = json.dumps(table_data.layer_visibility) if table_data.layer_visibility else json.dumps({
         'map': True, 'tokens': True, 'dungeon_master': True, 'light': True, 'height': True, 'obstacles': True
     })
-    
+
     db_table = models.VirtualTable(
         table_id=table_data.table_id,
         name=table_data.name,
@@ -384,7 +386,7 @@ def update_virtual_table(db: Session, table_id: str, table_update: schemas.Virtu
     db_table = get_virtual_table_by_id(db, table_id)
     if not db_table:
         return None
-    
+
     update_data = table_update.model_dump(exclude_unset=True)
     for field, value in update_data.items():
         if field in ('layer_visibility', 'layer_settings') and value is not None:
@@ -402,7 +404,7 @@ def delete_virtual_table(db: Session, table_id: str) -> bool:
     db_table = get_virtual_table_by_id(db, table_id)
     if not db_table:
         return False
-    
+
     db.delete(db_table)
     db.commit()
     return True
@@ -463,7 +465,7 @@ def update_entity(db: Session, sprite_id: str, entity_update: schemas.EntityUpda
     db_entity = get_entity_by_sprite_id(db, sprite_id)
     if not db_entity:
         return None
-    
+
     update_data = entity_update.model_dump(exclude_unset=True)
     for field, value in update_data.items():
         # schema field 'metadata' maps to SQLAlchemy attribute 'entity_metadata'
@@ -480,7 +482,7 @@ def delete_entity(db: Session, sprite_id: str) -> bool:
     db_entity = get_entity_by_sprite_id(db, sprite_id)
     if not db_entity:
         return False
-    
+
     db.delete(db_entity)
     db.commit()
     return True
@@ -491,10 +493,10 @@ def save_table_to_db(db: Session, virtual_table_obj, session_id: int) -> Optiona
     """
     # Convert UUID to string if needed
     table_id_str = str(virtual_table_obj.table_id) if virtual_table_obj.table_id else str(uuid.uuid4())
-    
+
     # Check if table already exists
     existing_table = get_virtual_table_by_id(db, table_id_str)
-    
+
     if existing_table:
         # Update existing table
         table_update = schemas.VirtualTableUpdate(
@@ -535,18 +537,18 @@ def save_table_to_db(db: Session, virtual_table_obj, session_id: int) -> Optiona
             distance_unit=getattr(virtual_table_obj, 'distance_unit', 'ft'),
         )
         db_table = create_virtual_table(db, table_data)
-    
+
     if db_table is None:
         logger.error(f"Failed to create/update virtual table {table_id_str}")
         return
-    
+
     # Synchronize entities: First get current entities in database for this table
     current_db_entities = db.query(models.Entity).filter(models.Entity.table_id == db_table.id).all()
     current_db_sprite_ids = {entity.sprite_id for entity in current_db_entities}
-    
+
     # Get current in-memory sprite IDs
     current_memory_sprite_ids = {entity.sprite_id for entity in virtual_table_obj.entities.values()}
-    
+
     # Delete entities that are in database but not in memory (these were deleted)
     entities_to_delete = current_db_sprite_ids - current_memory_sprite_ids
     if entities_to_delete:
@@ -556,15 +558,15 @@ def save_table_to_db(db: Session, virtual_table_obj, session_id: int) -> Optiona
             if entity_to_delete:
                 db.delete(entity_to_delete)
                 logger.debug(f"Deleted entity from database: {sprite_id}")
-    
+
     # Save/update entities that are in memory
     for entity in virtual_table_obj.entities.values():
         save_entity_to_db(db, entity, db_table.id)
-    
+
     # Commit all changes
     db.commit()
     logger.info(f"Synchronized table {virtual_table_obj.display_name}: {len(entities_to_delete)} deleted, {len(virtual_table_obj.entities)} saved/updated")
-    
+
     return db_table
 
 def save_entity_to_db(db: Session, entity_obj, table_db_id: int) -> models.Entity:
@@ -573,12 +575,12 @@ def save_entity_to_db(db: Session, entity_obj, table_db_id: int) -> models.Entit
     """
     # Check if entity already exists
     existing_entity = get_entity_by_sprite_id(db, entity_obj.sprite_id)
-    
+
     # Prepare controlled_by as JSON string
     controlled_by_json = None
     if hasattr(entity_obj, 'controlled_by') and entity_obj.controlled_by:
         controlled_by_json = json.dumps(entity_obj.controlled_by) if isinstance(entity_obj.controlled_by, list) else entity_obj.controlled_by
-    
+
     if existing_entity:
         # Update existing entity
         entity_update = schemas.EntityUpdate(
@@ -651,7 +653,7 @@ def save_entity_to_db(db: Session, entity_obj, table_db_id: int) -> models.Entit
             darkvision_radius_units=getattr(entity_obj, 'darkvision_radius_units', None),
         )
         db_entity = create_entity(db, entity_data, table_db_id)
-    
+
     return db_entity
 
 def load_table_from_db(db: Session, table_id: str):
@@ -660,12 +662,12 @@ def load_table_from_db(db: Session, table_id: str):
     Returns tuple: (VirtualTable object, success boolean)
     """
     try:
-        from core_table.table import VirtualTable, Entity
-        
+        from core_table.table import Entity, VirtualTable
+
         db_table = get_virtual_table_by_id(db, table_id)
         if not db_table:
             return None, False
-        
+
         # Create VirtualTable object
         virtual_table = VirtualTable(
             name=db_table.name,
@@ -673,15 +675,15 @@ def load_table_from_db(db: Session, table_id: str):
             height=db_table.height,
             table_id=db_table.table_id
         )
-        
+
         # Set additional properties
         virtual_table.position = (db_table.position_x, db_table.position_y)
         virtual_table.scale = (db_table.scale_x, db_table.scale_y)
-        
+
         # Parse layer visibility
         if db_table.layer_visibility:
             virtual_table.layer_visibility = json.loads(db_table.layer_visibility)
-        
+
         # Dynamic lighting settings
         virtual_table.dynamic_lighting_enabled = bool(db_table.dynamic_lighting_enabled or False)
         virtual_table.fog_exploration_mode = db_table.fog_exploration_mode or 'current_only'
@@ -690,7 +692,7 @@ def load_table_from_db(db: Session, table_id: str):
         virtual_table.grid_cell_px = float(db_table.grid_cell_px or 50.0)
         virtual_table.cell_distance = float(db_table.cell_distance or 5.0)
         virtual_table.distance_unit = db_table.distance_unit or 'ft'
-        
+
         # Load entities
         db_entities = get_table_entities(db, db_table.id)
         for db_entity in db_entities:
@@ -701,7 +703,7 @@ def load_table_from_db(db: Session, table_id: str):
                     controlled_by = json.loads(db_entity.controlled_by) if isinstance(db_entity.controlled_by, str) else db_entity.controlled_by
                 except json.JSONDecodeError:
                     controlled_by = []
-            
+
             entity = Entity(
                 name=db_entity.name,
                 position=(db_entity.position_x, db_entity.position_y),
@@ -734,24 +736,24 @@ def load_table_from_db(db: Session, table_id: str):
             entity.scale_x = db_entity.scale_x
             entity.scale_y = db_entity.scale_y
             entity.rotation = db_entity.rotation
-            
+
             # Add to virtual table
             if entity.entity_id is not None:
                 virtual_table.entities[entity.entity_id] = entity
                 virtual_table.sprite_to_entity[entity.sprite_id] = entity.entity_id
-            
+
             # Update grid (skip if position is out of bounds or layer doesn't exist)
-            if (entity.layer in virtual_table.grid and 
-                0 <= entity.position[1] < len(virtual_table.grid[entity.layer]) and 
+            if (entity.layer in virtual_table.grid and
+                0 <= entity.position[1] < len(virtual_table.grid[entity.layer]) and
                 0 <= entity.position[0] < len(virtual_table.grid[entity.layer][0])):
                 virtual_table.grid[entity.layer][entity.position[1]][entity.position[0]] = entity.entity_id
-            
+
             # Update next entity ID
             if entity.entity_id is not None and entity.entity_id >= virtual_table.next_entity_id:
                 virtual_table.next_entity_id = entity.entity_id + 1
-        
+
         return virtual_table, True
-        
+
     except Exception as e:
         print(f"Error loading table from database: {e}")
         return None, False

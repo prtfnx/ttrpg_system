@@ -10,12 +10,11 @@ Covers real user behaviour:
 - pixels_per_unit property always reflects current grid config
 - Metric tables (metres) store and report correctly
 """
-import pytest
 import uuid
 
+import pytest
 from core_table.table import VirtualTable
 from database import crud, schemas
-
 
 # ---------------------------------------------------------------------------
 # Helpers
@@ -27,7 +26,8 @@ def _make_table_id() -> str:
 
 @pytest.fixture
 def session(test_db, test_user):
-    from database import crud as db_crud, schemas as sc
+    from database import crud as db_crud
+    from database import schemas as sc
     session_data = sc.GameSessionCreate(name="Grid Test Session")
     return db_crud.create_game_session(test_db, session_data, test_user.id, "GRID01")
 

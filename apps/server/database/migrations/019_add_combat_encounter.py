@@ -1,7 +1,8 @@
 """Add combat_encounters table."""
+import logging
+
 import sqlalchemy as sa
 from database.database import engine
-import logging
 
 logger = logging.getLogger(__name__)
 

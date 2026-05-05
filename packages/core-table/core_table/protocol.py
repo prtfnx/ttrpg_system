@@ -1,14 +1,15 @@
-import json
 import enum
-from dataclasses import dataclass, asdict, field
-from typing import Dict, List, Any, Optional
+import json
 import time
+from dataclasses import dataclass, field
+from typing import Any, Dict, List, Optional
+
 
 class MessageType(enum.Enum):    # Core messages
     PING = "ping"
     PONG = "pong"
     ERROR = "error"
-    TEST = "test"  
+    TEST = "test"
     SUCCESS = "success"
     WELCOME = "welcome"
 
@@ -18,7 +19,7 @@ class MessageType(enum.Enum):    # Core messages
     AUTH_LOGOUT = "auth_logout"
     AUTH_TOKEN = "auth_token"
     AUTH_STATUS = "auth_status"
-    
+
     # Table sync
     NEW_TABLE_REQUEST = "new_table_request"
     NEW_TABLE_RESPONSE = "new_table_response"
@@ -36,8 +37,8 @@ class MessageType(enum.Enum):    # Core messages
     TABLE_ACTIVE_SET = "table_active_set"
     TABLE_ACTIVE_SET_ALL = "table_active_set_all"
     TABLE_ACTIVE_SET_ALL_RESPONSE = "table_active_set_all_response"
-    
- 
+
+
     # Player actions
     PLAYER_ACTION = "player_action"
     PLAYER_ACTION_RESPONSE = "player_action_response"
@@ -57,7 +58,7 @@ class MessageType(enum.Enum):    # Core messages
     PLAYER_ROLE_CHANGED = "player_role_changed"
     CONNECTION_STATUS_REQUEST = "connection_status_request"
     CONNECTION_STATUS_RESPONSE = "connection_status_response"
-    
+
 
     # Sprite sync
     SPRITE_REQUEST = "sprite_request"
@@ -73,11 +74,11 @@ class MessageType(enum.Enum):    # Core messages
     SPRITE_DRAG_PREVIEW = "sprite_drag_preview"
     SPRITE_RESIZE_PREVIEW = "sprite_resize_preview"
     SPRITE_ROTATE_PREVIEW = "sprite_rotate_preview"
-    
+
     # File transfer
     FILE_REQUEST = "file_request"
     FILE_DATA = "file_data"
-    
+
     # R2 Asset Management
     ASSET_UPLOAD_REQUEST = "asset_upload_request"
     ASSET_UPLOAD_RESPONSE = "asset_upload_response"
@@ -94,7 +95,7 @@ class MessageType(enum.Enum):    # Core messages
     COMPENDIUM_SPRITE_ADD = "compendium_sprite_add"
     COMPENDIUM_SPRITE_UPDATE = "compendium_sprite_update"
     COMPENDIUM_SPRITE_REMOVE = "compendium_sprite_remove"
-    
+
     # Character management
     CHARACTER_SAVE_REQUEST = "character_save_request"
     CHARACTER_SAVE_RESPONSE = "character_save_response"
@@ -240,7 +241,7 @@ class MessageType(enum.Enum):    # Core messages
 
     # Batch messaging for performance
     BATCH = "batch"
-    
+
     # Dynamic lighting / table settings
     TABLE_SETTINGS_UPDATE = "table_settings_update"    # DM → server: change lighting settings
     TABLE_SETTINGS_CHANGED = "table_settings_changed"  # server → all clients: settings broadcast
@@ -265,7 +266,7 @@ class BatchMessage:
     messages: List['Message']
     sequence_id: int
     timestamp: float = field(default_factory=time.time)
-    
+
     def to_json(self) -> str:
         return json.dumps({
             'type': 'batch',
@@ -273,7 +274,7 @@ class BatchMessage:
             'seq': self.sequence_id,
             'timestamp': self.timestamp
         })
-    
+
     @classmethod
     def from_json(cls, json_str: str) -> 'BatchMessage':
         data = json.loads(json_str)
@@ -289,15 +290,15 @@ class Message:
     type: MessageType
     data: Optional[Dict[str, Any]] = None
     client_id: Optional[str] = None
-    timestamp: Optional[float] = None    
-    version: str = "0.1"  
+    timestamp: Optional[float] = None
+    version: str = "0.1"
     priority: int = 5     # Message priority (5=normal, 2=high, 0=critical)
     sequence_id: Optional[int] = None  # For message ordering and deduplication
-    
+
     def __post_init__(self):
         if self.timestamp is None:
             self.timestamp = time.time()
-    
+
     def to_json(self) -> str:
         return json.dumps({
             'type': self.type.value,
@@ -308,7 +309,7 @@ class Message:
             'priority': self.priority,
             'sequence_id': self.sequence_id
         })
-    
+
     @classmethod
     def from_json(cls, json_str: str) -> 'Message':
         data = json.loads(json_str)

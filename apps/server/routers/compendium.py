@@ -4,12 +4,11 @@ Serves compendium data (races, classes, spells, equipment, monsters) via REST AP
 """
 
 import json
-import core_table
 from pathlib import Path
-from typing import Optional, Dict, List, Any
-from fastapi import APIRouter, HTTPException, Query
-from fastapi.responses import JSONResponse
+from typing import Optional
 
+import core_table
+from fastapi import APIRouter, HTTPException, Query
 from utils.logger import setup_logger
 
 logger = setup_logger(__name__)
@@ -21,7 +20,7 @@ COMPENDIUM_DIR = Path(core_table.__file__).parent / "compendiums" / "exports"
 
 class CompendiumService:
     """Service for loading and serving D&D 5e compendium data"""
-    
+
     def __init__(self):
         self.character_data = None
         self.spell_data = None
@@ -29,12 +28,12 @@ class CompendiumService:
         self.bestiary_data = None
         self.feats_data = None
         self._load_all_data()
-    
+
     def _load_all_data(self):
         """Load all compendium data from JSON files"""
         try:
             logger.info(f"Loading compendium data from: {COMPENDIUM_DIR}")
-            
+
             # Load character data (races, classes, backgrounds)
             char_file = COMPENDIUM_DIR / "character_data.json"
             if char_file.exists():
@@ -43,7 +42,7 @@ class CompendiumService:
                 logger.info(f"Loaded character data: {len(self.character_data.get('races', []))} races")
             else:
                 logger.warning("character_data.json not found")
-            
+
             # Load spell data
             spell_file = COMPENDIUM_DIR / "spellbook_optimized.json"
             if spell_file.exists():
@@ -52,7 +51,7 @@ class CompendiumService:
                 logger.info(f"Loaded spell data: {self.spell_data['metadata']['spell_count']} spells")
             else:
                 logger.warning("spellbook_optimized.json not found")
-            
+
             # Load equipment data
             equipment_file = COMPENDIUM_DIR / "equipment_data.json"
             if equipment_file.exists():
@@ -61,7 +60,7 @@ class CompendiumService:
                 logger.info("Loaded equipment data")
             else:
                 logger.warning("equipment_data.json not found")
-            
+
             # Load bestiary data
             bestiary_file = COMPENDIUM_DIR / "bestiary_optimized.json"
             if bestiary_file.exists():
@@ -119,7 +118,7 @@ async def get_races():
     """Get all race data"""
     if not compendium_service.character_data:
         raise HTTPException(status_code=500, detail="Character data not available")
-    
+
     races = compendium_service.character_data.get('races', [])
     return {
         "races": races,
@@ -131,13 +130,13 @@ async def get_race_by_name(race_name: str):
     """Get specific race by name"""
     if not compendium_service.character_data:
         raise HTTPException(status_code=500, detail="Character data not available")
-    
+
     races = compendium_service.character_data.get('races', [])
     race = next((r for r in races if r['name'].lower() == race_name.lower()), None)
-    
+
     if not race:
         raise HTTPException(status_code=404, detail=f"Race '{race_name}' not found")
-    
+
     return race
 
 @router.get("/classes")
@@ -145,7 +144,7 @@ async def get_classes():
     """Get all class data"""
     if not compendium_service.character_data:
         raise HTTPException(status_code=500, detail="Character data not available")
-    
+
     classes = compendium_service.character_data.get('classes', [])
     return {
         "classes": classes,
@@ -172,13 +171,13 @@ async def get_class_by_name(class_name: str):
     """Get specific class by name"""
     if not compendium_service.character_data:
         raise HTTPException(status_code=500, detail="Character data not available")
-    
+
     classes = compendium_service.character_data.get('classes', [])
     char_class = next((c for c in classes if c['name'].lower() == class_name.lower()), None)
-    
+
     if not char_class:
         raise HTTPException(status_code=404, detail=f"Class '{class_name}' not found")
-    
+
     return char_class
 
 @router.get("/backgrounds")
@@ -186,7 +185,7 @@ async def get_backgrounds():
     """Get all background data"""
     if not compendium_service.character_data:
         raise HTTPException(status_code=500, detail="Character data not available")
-    
+
     backgrounds = compendium_service.character_data.get('backgrounds', [])
     return {
         "backgrounds": backgrounds,
@@ -198,13 +197,13 @@ async def get_background_by_name(background_name: str):
     """Get specific background by name"""
     if not compendium_service.character_data:
         raise HTTPException(status_code=500, detail="Character data not available")
-    
+
     backgrounds = compendium_service.character_data.get('backgrounds', [])
     background = next((b for b in backgrounds if b['name'].lower() == background_name.lower()), None)
-    
+
     if not background:
         raise HTTPException(status_code=404, detail=f"Background '{background_name}' not found")
-    
+
     return background
 
 @router.get("/spells")
@@ -217,10 +216,10 @@ async def get_spells(
     """Get all spell data with optional filtering"""
     if not compendium_service.spell_data:
         raise HTTPException(status_code=500, detail="Spell data not available")
-    
+
     spells = compendium_service.spell_data['spells']
     filtered_spells = {}
-    
+
     count = 0
     for name, spell in spells.items():
         # Apply filters
@@ -230,14 +229,14 @@ async def get_spells(
             continue
         if spell_class and spell_class.lower() not in [c.lower() for c in spell.get('classes', [])]:
             continue
-        
+
         filtered_spells[name] = spell
         count += 1
-        
+
         # Apply limit
         if limit and count >= limit:
             break
-    
+
     return {
         "spells": filtered_spells,
         "count": len(filtered_spells),
@@ -249,17 +248,17 @@ async def get_spell_by_name(spell_name: str):
     """Get specific spell by name"""
     if not compendium_service.spell_data:
         raise HTTPException(status_code=500, detail="Spell data not available")
-    
+
     spells = compendium_service.spell_data['spells']
     spell = spells.get(spell_name)
-    
+
     if not spell:
         # Try case-insensitive search
         spell = next((s for name, s in spells.items() if name.lower() == spell_name.lower()), None)
-    
+
     if not spell:
         raise HTTPException(status_code=404, detail=f"Spell '{spell_name}' not found")
-    
+
     return spell
 
 @router.get("/equipment")
@@ -267,7 +266,7 @@ async def get_equipment():
     """Get all equipment data"""
     if not compendium_service.equipment_data:
         raise HTTPException(status_code=500, detail="Equipment data not available")
-    
+
     return compendium_service.equipment_data
 
 @router.get("/monsters")
@@ -278,18 +277,18 @@ async def get_monsters(
     """Get all monster data with optional filtering"""
     if not compendium_service.bestiary_data:
         raise HTTPException(status_code=500, detail="Bestiary data not available")
-    
+
     monsters = compendium_service.bestiary_data['monsters']
-    
+
     if cr:
-        filtered_monsters = {name: monster for name, monster in monsters.items() 
+        filtered_monsters = {name: monster for name, monster in monsters.items()
                            if str(monster.get('challenge_rating', 0)) == str(cr)}
         return {
             "monsters": filtered_monsters,
             "count": len(filtered_monsters),
             "metadata": compendium_service.bestiary_data['metadata']
         }
-    
+
     # Apply limit if specified
     if limit:
         limited_monsters = dict(list(monsters.items())[:limit])
@@ -298,7 +297,7 @@ async def get_monsters(
             "count": len(limited_monsters),
             "metadata": compendium_service.bestiary_data['metadata']
         }
-    
+
     return {
         "monsters": monsters,
         "count": len(monsters),
@@ -310,17 +309,17 @@ async def get_monster_by_name(monster_name: str):
     """Get specific monster by name"""
     if not compendium_service.bestiary_data:
         raise HTTPException(status_code=500, detail="Bestiary data not available")
-    
+
     monsters = compendium_service.bestiary_data['monsters']
     monster = monsters.get(monster_name)
-    
+
     if not monster:
         # Try case-insensitive search
         monster = next((m for name, m in monsters.items() if name.lower() == monster_name.lower()), None)
-    
+
     if not monster:
         raise HTTPException(status_code=404, detail=f"Monster '{monster_name}' not found")
-    
+
     return monster
 
 @router.get("/feats")

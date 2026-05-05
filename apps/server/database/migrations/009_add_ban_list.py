@@ -5,6 +5,7 @@ Description: Stores a JSON array of ban records (player_id, username, reason, du
              banned_by, timestamp) for each session. Defaults to empty array.
 """
 import sqlite3
+
 from utils.logger import setup_logger
 
 logger = setup_logger(__name__)

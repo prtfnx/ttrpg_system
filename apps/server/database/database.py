@@ -1,14 +1,15 @@
 """
 Database configuration and setup
 """
-from sqlalchemy import create_engine
-from sqlalchemy.orm import sessionmaker, Session
-from .models import Base
 import os
+
+from sqlalchemy import create_engine
+from sqlalchemy.orm import sessionmaker
+
+from .models import Base
 
 # Use SQLite for development, can be changed to PostgreSQL for production
 # Ensure we use the correct database file location
-import os
 current_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))  # apps/server directory
 DB_PATH = os.path.join(current_dir, "ttrpg.db")
 DATABASE_URL = os.getenv("DATABASE_URL", f"sqlite:///{DB_PATH}")
@@ -66,13 +67,13 @@ def get_db():
 def init_db():
     """Initialize database with test data"""
     create_tables()
-    
+
     # Create a test user
     db = SessionLocal()
     try:
-        from .crud import get_user_by_username, create_user
+        from .crud import create_user, get_user_by_username
         from .schemas import UserCreate
-        
+
         # Create test user if doesn't exist
         if not get_user_by_username(db, "johndoe"):
             user_data = UserCreate(

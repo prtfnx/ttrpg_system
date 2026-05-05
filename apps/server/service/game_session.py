@@ -1,28 +1,31 @@
 """
 WebSocket-based game session manager with integrated table protocol
 """
-from typing import Dict, List, Optional, Any, Union
-from fastapi import WebSocket, WebSocketDisconnect
-import json
-import asyncio
-import logging
 import hashlib
+import json
 import time
 from datetime import datetime
-from core_table.protocol import Message, MessageType, ProtocolHandler
-from .game_session_protocol import GameSessionProtocolService
-from utils.logger import setup_logger
+from typing import Any, Dict, List, Optional, Union
+
+from core_table.protocol import Message, MessageType
+
 # Database imports
 from database.database import SessionLocal
-from database.session_utils import create_game_session_with_persistence, load_game_session_protocol_from_db, save_game_session_state
+from database.session_utils import (
+    create_game_session_with_persistence,
+    load_game_session_protocol_from_db,
+)
+from fastapi import WebSocket
+from utils.logger import setup_logger
+
 from .asset_manager import get_server_asset_manager
-from utils.roles import get_permissions, get_visible_layers
+from .game_session_protocol import GameSessionProtocolService
 
 logger = setup_logger(__name__)
 
 class ConnectionManager:
     """Manages WebSocket connections for game sessions with protocol support"""
-    
+
     def __init__(self):
         # session_code -> list of websockets
         self.active_connections: Dict[str, List[WebSocket]] = {}        # websocket -> user_info (includes role)
@@ -39,12 +42,12 @@ class ConnectionManager:
     async def connect(self, websocket: WebSocket, session_code: str,
                       user_id: int, username: str, role: str = "player"):
         """Connect a user to a game session with protocol support"""
-        
+
         await websocket.accept()
         logger.info(f"WebSocket connection accepted for user {username} in session {session_code}")
         if session_code not in self.active_connections:
             self.active_connections[session_code] = []
-    
+
         self.active_connections[session_code].append(websocket)
         self.connection_info[websocket] = {
             "session_code": session_code,
@@ -54,20 +57,19 @@ class ConnectionManager:
             "connected_at": datetime.now()
         }
         client_id = self._generate_client_id(user_id, username)
-        
+
         # Add to protocol service
         logger.debug(f"Initializing protocol service for session {session_code} with client_id {client_id}")
-        
+
         # Try to load from database first
         db_session = None
-        game_session_db_id = None
         logger.debug(f"Checking if session {session_code} exists in active protocols {self.sessions_protocols.keys()}")
         if session_code not in self.sessions_protocols:
             logger.debug(f"Session {session_code} not found in active protocols, initializing new one")
             try:                # Create database session
                 db_session = SessionLocal()
                 self.db_sessions[session_code] = db_session
-                
+
                 # Try to load existing session or create new one
                 protocol_service, error = load_game_session_protocol_from_db(
                     db_session, session_code
@@ -90,9 +92,9 @@ class ConnectionManager:
                         logger.warning(f"Failed to create persistent session: {error}")
                         # Fallback to non-persistent session
                         protocol_service = GameSessionProtocolService(session_code)
-                
+
                 self.sessions_protocols[session_code] = protocol_service
-                
+
             except Exception as e:
                 logger.error(f"Database session initialization failed: {e}")
                 # Fallback to non-persistent session
@@ -101,14 +103,14 @@ class ConnectionManager:
         else:
             protocol_service = self.sessions_protocols[session_code]
         logger.info(f"Adding client {client_id} to protocol service for session {session_code}")
-        
+
         # Setup R2 asset permissions using the role resolved by the caller
         user_role = role
-        
+
         asset_manager = get_server_asset_manager()
         asset_manager.setup_session_permissions(session_code, user_id, username, user_role)
         logger.info(f"Setup R2 asset permissions for {username} as {user_role} in session {session_code}")
-        
+
         try:
             await protocol_service.add_client(websocket, client_id, {
                 "user_id": user_id,
@@ -142,11 +144,11 @@ class ConnectionManager:
         """Disconnect a user from their game session with protocol cleanup"""
         if websocket not in self.connection_info:
             return
-        
+
         info = self.connection_info[websocket]
         session_code = info["session_code"]
         username = info["username"]
-        
+
         # Remove from protocol service first
         protocol_service = self.sessions_protocols.get(session_code)
         if protocol_service:
@@ -166,10 +168,10 @@ class ConnectionManager:
                         logger.info(f"Session {session_code} data saved to database before cleanup")
                     except Exception as e:
                         logger.error(f"Error saving session {session_code} to database: {e}")
-                    
+
                     protocol_service.cleanup()
                     del self.sessions_protocols[session_code]
-                    
+
                     # Clean up database session
                     if session_code in self.db_sessions:
                         try:
@@ -177,24 +179,24 @@ class ConnectionManager:
                             del self.db_sessions[session_code]
                         except Exception as e:
                             logger.error(f"Error closing database session: {e}")
-                    
+
                     # Clean up R2 asset session data
                     asset_manager = get_server_asset_manager()
                     asset_manager.cleanup_session(session_code)
                     logger.info(f"Cleaned up R2 assets for session {session_code}")
-                    
+
                     if session_code in self.game_session_db_ids:
                         del self.game_session_db_ids[session_code]
 
         del self.connection_info[websocket]
-        
-        logger.info(f"User {username} disconnected from session {session_code}")       
+
+        logger.info(f"User {username} disconnected from session {session_code}")
         # Notify other players of the departure (protocol messages are handled
         # by the protocol service itself when appropriate)
-        await self.broadcast_to_session(session_code, 
+        await self.broadcast_to_session(session_code,
         Message(
             MessageType.PLAYER_LEFT,
-            {               
+            {
                     "username": username,
                     "timestamp": datetime.now().isoformat()
             }
@@ -216,13 +218,13 @@ class ConnectionManager:
         for websocket in self.active_connections[session_code]:
             if websocket == exclude_websocket:
                 continue
-                
+
             try:
                 await websocket.send_text(message_text)
             except Exception as e:
                 logger.error(f"Error broadcasting to websocket: {e}")
                 disconnected_websockets.append(websocket)
-        
+
         # Clean up disconnected websockets
         for ws in disconnected_websockets:
             await self.disconnect(ws)
@@ -232,20 +234,20 @@ class ConnectionManager:
         try:
             message_type = message_data.get("type")
             data = message_data.get("data", {})
-            
+
             if websocket not in self.connection_info:
                 await self.send_personal_message({
                     "type": "error",
                     "data": {"message": "Not connected to a session"}
                 }, websocket)
                 return
-            
+
             info = self.connection_info[websocket]
             session_code = info["session_code"]
             username = info["username"]
-            
+
             logger.debug(f"Received message: {message_data}")
-            
+
             # Check if this is a protocol message (contains MessageType fields)
             if self._is_protocol_message(message_data):
                 logger.debug(f"Processing as protocol message: {message_data.get('type')}")
@@ -265,42 +267,42 @@ class ConnectionManager:
                     logger.error(f"No protocol service found for session: {session_code}")
             else:
                 logger.debug(f"Processing as regular message: {message_data.get('type')}")
-            
+
             # Handle regular game session messages
             # Add sender info
-         
+
             response_message = {
                 "type": message_type,
                 "data": data,
                 "sender": username,
                 "timestamp": datetime.now().isoformat()
             }
-            
+
             if message_type == "chat_message":
                 # Broadcast chat message to all session members
                 await self.broadcast_to_session(session_code, response_message)
-                
+
             elif message_type == "game_action":
                 # Handle game actions (dice rolls, token moves, etc.)
                 response_message["type"] = "game_action_result"
                 await self.broadcast_to_session(session_code, response_message)
-                
+
             elif message_type == "ping":
                 # Respond to ping
                 await self.send_personal_message({
                     "type": "pong",
                     "data": {"timestamp": datetime.now().isoformat()}
                 }, websocket)
-                
+
             else:
                 logger.warning(f"Unknown message type: {message_type}")
                 await self.send_personal_message({
                     "type": "error",
                     "data": {"message": f"Unknown message type: {message_type}"}
                 }, websocket)
-                
+
         except Exception as e:
-            logger.error(f"Error handling message: {e}")            
+            logger.error(f"Error handling message: {e}")
             await self.send_personal_message({
                 "type": "error",
                 "data": {"message": "Error processing message"}
@@ -322,14 +324,14 @@ class ConnectionManager:
         else:
             logger.debug(f"Message missing 'type' field: {message_data}")
             return False
-          
-               
+
+
 
     def get_session_players(self, session_code: str) -> List[dict]:
         """Get list of connected players in a session"""
         if session_code not in self.active_connections:
             return []
-        
+
         players = []
         for websocket in self.active_connections[session_code]:
             if websocket in self.connection_info:

@@ -27,21 +27,21 @@ Setup requirements:
    - Add authorized redirect URI: {BASE_URL}/auth/callback
 """
 
-from fastapi import APIRouter, Request, HTTPException, Depends
-from fastapi.responses import RedirectResponse, JSONResponse
-from sqlalchemy.orm import Session
-from datetime import timedelta
-from authlib.integrations.starlette_client import OAuth, OAuthError
-import logging
 import re
 import secrets
 import time
+from datetime import timedelta
 
-from database.database import SessionLocal, get_db
-from database import models, crud
-from .users import create_access_token, ACCESS_TOKEN_EXPIRE_MINUTES
+from authlib.integrations.starlette_client import OAuth, OAuthError
 from config import Settings
+from database import models
+from database.database import get_db
+from fastapi import APIRouter, Depends, HTTPException, Request
+from fastapi.responses import JSONResponse, RedirectResponse
+from sqlalchemy.orm import Session
 from utils.logger import setup_logger
+
+from .users import ACCESS_TOKEN_EXPIRE_MINUTES, create_access_token
 
 router = APIRouter(prefix="/auth", tags=["auth"])
 logger = setup_logger(__name__)
@@ -104,7 +104,7 @@ else:
 async def google_login(request: Request):
     """
     Initiate Google OAuth 2.0 authorization flow.
-    
+
     Redirects user to Google's consent screen.
     Generates and stores CSRF protection state in session.
     """
@@ -124,18 +124,18 @@ async def google_login(request: Request):
                 "redirect": "/users/login"
             }
         )
-    
+
     try:
         # Generate redirect URI (strip trailing slash from BASE_URL to avoid //)
         base_url = settings.BASE_URL.rstrip('/')
         redirect_uri = f"{base_url}/auth/callback"
-        
+
         logger.info(f"Initiating Google OAuth flow with redirect_uri: {redirect_uri}")
-        
+
         # Redirect to Google's authorization endpoint
         # authlib generates and stores state internally for CSRF protection
         return await oauth.google.authorize_redirect(request, redirect_uri)
-        
+
     except Exception as e:
         logger.error(f"Error initiating Google OAuth: {e}", exc_info=True)
         return RedirectResponse(
@@ -148,14 +148,14 @@ async def google_login(request: Request):
 async def google_callback(request: Request, db: Session = Depends(get_db)):
     """
     Handle Google OAuth callback.
-    
+
     Validates state, exchanges authorization code for tokens,
     retrieves user info, and creates or links user account.
     """
     if not OAUTH_CONFIGURED:
         logger.error("OAuth callback received but OAuth not configured")
         return RedirectResponse(url="/users/login?error=oauth_not_configured")
-    
+
     try:
         # Check for error from Google before attempting token exchange
         error = request.query_params.get('error')
@@ -165,33 +165,33 @@ async def google_callback(request: Request, db: Session = Depends(get_db)):
                 url=f"/users/login?error=oauth_failed&reason={error}",
                 status_code=302
             )
-        
+
         # Exchange authorization code for access token
         # authlib validates the state parameter internally (CSRF protection)
         logger.info("Exchanging authorization code for access token")
         token = await oauth.google.authorize_access_token(request)
-        
+
         # Get user info from Google
         userinfo = token.get('userinfo')
         if not userinfo:
             logger.error("No userinfo in token response")
             raise HTTPException(status_code=400, detail="Failed to retrieve user information")
-        
+
         google_id = userinfo.get('sub')
         email = userinfo.get('email')
         name = userinfo.get('name', '')
-        
+
         if not google_id or not email:
             logger.error(f"Missing required user info - google_id: {google_id}, email: {email}")
             raise HTTPException(status_code=400, detail="Incomplete user information from Google")
-        
+
         logger.info(f"OAuth successful for email: {email}")
-        
+
         # Find or create user
         user = db.query(models.User).filter(
             models.User.google_id == google_id
         ).first()
-        
+
         if user:
             logger.info(f"Found existing user with google_id: {user.username}")
         else:
@@ -199,7 +199,7 @@ async def google_callback(request: Request, db: Session = Depends(get_db)):
             user = db.query(models.User).filter(
                 models.User.email == email
             ).first()
-            
+
             if user:
                 # Link Google account to existing user
                 logger.info(f"Linking Google account to existing user: {user.username}")
@@ -214,17 +214,17 @@ async def google_callback(request: Request, db: Session = Depends(get_db)):
                 # Ensure minimum length
                 if len(base_username) < 4:
                     base_username = f"user_{base_username}"
-                
+
                 username = base_username
                 counter = 1
-                
+
                 # Ensure username is unique
                 while db.query(models.User).filter(models.User.username == username).first():
                     username = f"{base_username}{counter}"
                     counter += 1
-                
+
                 logger.info(f"Creating new user: {username} (email: {email})")
-                
+
                 user = models.User(
                     username=username,
                     email=email,
@@ -235,22 +235,22 @@ async def google_callback(request: Request, db: Session = Depends(get_db)):
                     disabled=False
                 )
                 db.add(user)
-            
+
             db.commit()
             db.refresh(user)
-        
+
         # Create JWT access token
         access_token = create_access_token(
             data={"sub": user.username, "sv": user.session_version or 0},
             expires_delta=timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
         )
-        
+
         # Create response with redirect to dashboard
         response = RedirectResponse(
             url="/users/dashboard",
             status_code=302
         )
-        
+
         # Set secure cookie with JWT
         response.set_cookie(
             key="token",
@@ -261,10 +261,10 @@ async def google_callback(request: Request, db: Session = Depends(get_db)):
             max_age=ACCESS_TOKEN_EXPIRE_MINUTES * 60,
             path="/"
         )
-        
+
         logger.info(f"OAuth login successful for user: {user.username}")
         return response
-        
+
     except OAuthError as e:
         logger.error(f"OAuth error in callback: {e}", exc_info=True)
         return RedirectResponse(

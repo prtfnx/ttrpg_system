@@ -1,11 +1,9 @@
-import pytest
 from datetime import datetime, timedelta
-from fastapi.testclient import TestClient
 
-from routers.users import get_current_user
 import main
+import pytest
 from database import crud, models
-
+from routers.users import get_current_user
 
 
 @pytest.mark.integration

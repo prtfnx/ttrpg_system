@@ -1,5 +1,6 @@
 import pytest
 
+
 @pytest.mark.integration
 class TestUserRegistration:
     def test_register_new_user(self, client):

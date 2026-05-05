@@ -1,22 +1,10 @@
-import os
-import sys
-import time
-import json
-import uuid
-import xxhash
-from typing import Dict, Set, Optional, Tuple, Any, Callable, TYPE_CHECKING
+from typing import TYPE_CHECKING, Optional
 
-from core_table.protocol import Message, MessageType, BatchMessage
-from core_table.actions_core import ActionsCore
-from utils.logger import setup_logger
-from utils.roles import is_dm, is_elevated, can_interact, get_visible_layers, get_sprite_limit
-from database.models import Asset, GameSession, GamePlayer
+from core_table.protocol import Message, MessageType
 from database.database import SessionLocal
-from service.movement_validator import MovementValidator, Combatant
-from service.rules_engine import RulesEngine
-from core_table.session_rules import SessionRules
-from core_table.game_mode import GameMode
-from database.crud import get_session_rules_json, get_game_mode
+from database.models import GamePlayer, GameSession
+from utils.logger import setup_logger
+from utils.roles import is_dm
 
 if TYPE_CHECKING:
     pass
@@ -44,9 +32,10 @@ class _SessionMixin:
         session_id = self._get_session_id(msg)
         if session_id:
             try:
-                from database.database import SessionLocal
-                from database import crud, schemas
                 import json as _json
+
+                from database import crud, schemas
+                from database.database import SessionLocal
                 db = SessionLocal()
                 try:
                     db_table = crud.get_virtual_table_by_id(db, table_id)
@@ -77,7 +66,7 @@ class _SessionMixin:
             return Message(MessageType.ERROR, {'error': 'game_mode is required'})
 
         try:
-            from core_table.game_mode import GameMode, GameModeFSM
+            from core_table.game_mode import GameMode
             # We don't keep FSM state in memory yet — just validate the value and persist
             GameMode(target_mode)  # raises ValueError if invalid
         except ValueError:
@@ -86,8 +75,8 @@ class _SessionMixin:
         session_code = self._get_session_code()
         if session_code:
             try:
-                from database.database import SessionLocal
                 from database.crud import update_game_mode
+                from database.database import SessionLocal
                 db = SessionLocal()
                 try:
                     update_game_mode(db, session_code, target_mode)
@@ -110,8 +99,9 @@ class _SessionMixin:
             return Message(MessageType.ERROR, {'error': 'rules payload is required'})
 
         try:
-            from core_table.session_rules import SessionRules
             import json
+
+            from core_table.session_rules import SessionRules
             session_code = self._get_session_code() or "unknown"
             rules_data['session_id'] = session_code
             rules = SessionRules.from_dict(rules_data)
@@ -120,8 +110,8 @@ class _SessionMixin:
                 return Message(MessageType.ERROR, {'error': '; '.join(errors)})
 
             rules_json = json.dumps(rules.to_dict())
-            from database.database import SessionLocal
             from database.crud import update_session_rules_json
+            from database.database import SessionLocal
             db = SessionLocal()
             try:
                 update_session_rules_json(db, session_code, rules_json)
@@ -145,9 +135,10 @@ class _SessionMixin:
         game_mode = 'free_roam'
         if session_code:
             try:
-                from database.database import SessionLocal
-                from database.crud import get_session_rules_json, get_game_mode
                 import json
+
+                from database.crud import get_game_mode, get_session_rules_json
+                from database.database import SessionLocal
                 db = SessionLocal()
                 try:
                     rules_json = get_session_rules_json(db, session_code)
@@ -183,17 +174,17 @@ class _SessionMixin:
                     GamePlayer.user_id == user_id,
                     GameSession.session_code == session_code
                 ).first()
-                
+
                 if player:
                     logger.debug(f"Found GamePlayer {player.id} with active_table_id: {player.active_table_id}")
                 else:
                     logger.debug(f"No GamePlayer found for user {user_id} in session {session_code}")
-                
+
                 return player.active_table_id if player else None
-                
+
             finally:
                 db_session.close()
-                
+
         except Exception as e:
             logger.error(f"Error getting player active table for user {user_id} in session {session_code}: {e}")
             return None
@@ -209,7 +200,7 @@ class _SessionMixin:
                     GamePlayer.user_id == user_id,
                     GameSession.session_code == session_code
                 ).first()
-                
+
                 if player:
                     old_table_id = player.active_table_id
                     player.active_table_id = table_id
@@ -219,10 +210,10 @@ class _SessionMixin:
                 else:
                     logger.warning(f"No GamePlayer found for user {user_id} in session {session_code}")
                     return False
-                    
+
             finally:
                 db_session.close()
-                
+
         except Exception as e:
             logger.error(f"Error setting player active table for user {user_id} in session {session_code}: {e}")
             return False

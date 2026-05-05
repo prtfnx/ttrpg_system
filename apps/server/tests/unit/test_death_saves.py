@@ -1,12 +1,13 @@
 """Tests for death saving throws in CombatEngine."""
-import sys
 import os
+import sys
+
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '../..'))
 
-import pytest
 from unittest.mock import patch
+
+import pytest
 from service.combat_engine import CombatEngine
-from core_table.combat import CombatSettings
 
 
 @pytest.fixture(autouse=True)

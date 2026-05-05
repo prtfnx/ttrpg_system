@@ -1,22 +1,12 @@
 import os
-import sys
-import time
-import json
-import uuid
-import xxhash
-from typing import Dict, Set, Optional, Tuple, Any, Callable, TYPE_CHECKING
+from typing import TYPE_CHECKING, Optional
 
-from core_table.protocol import Message, MessageType, BatchMessage
-from core_table.actions_core import ActionsCore
-from utils.logger import setup_logger
-from utils.roles import is_dm, is_elevated, can_interact, get_visible_layers, get_sprite_limit
-from database.models import Asset, GameSession, GamePlayer
+import xxhash
+from core_table.protocol import Message, MessageType
 from database.database import SessionLocal
-from service.movement_validator import MovementValidator, Combatant
-from service.rules_engine import RulesEngine
-from core_table.session_rules import SessionRules
-from core_table.game_mode import GameMode
-from database.crud import get_session_rules_json, get_game_mode
+from database.models import Asset
+from service.asset_manager import AssetRequest, get_server_asset_manager
+from utils.logger import setup_logger
 
 if TYPE_CHECKING:
     pass
@@ -36,10 +26,10 @@ class _AssetsMixin:
         try:
             if not msg.data:
                 return Message(MessageType.ERROR, {'error': 'No data provided in asset upload request'})
-            
+
             # Get asset manager and client info
             asset_manager = get_server_asset_manager()
-            
+
             # Extract request data - including xxHash
             filename = msg.data.get('filename')
             file_size = msg.data.get('file_size')
@@ -49,10 +39,10 @@ class _AssetsMixin:
             username = msg.data.get('username', 'unknown')
             asset_id = msg.data.get('asset_id')  # Client-generated based on xxHash
             file_xxhash = msg.data.get('xxhash')  # xxHash from client
-            
+
             if not filename or not file_xxhash:
                 return Message(MessageType.ERROR, {'error': 'Filename and xxHash are required'})
-            
+
             # Create asset request with xxHash
             request = AssetRequest(
                 user_id=user_id,
@@ -64,10 +54,10 @@ class _AssetsMixin:
                 content_type=content_type,
                 file_xxhash=file_xxhash
             )
-            
+
             # Generate presigned URL with xxHash
             response = await asset_manager.request_upload_url_with_hash(request, file_xxhash)
-            
+
             if response.success:
                 return Message(MessageType.ASSET_UPLOAD_RESPONSE, {
                     'success': True,
@@ -84,7 +74,7 @@ class _AssetsMixin:
                     'asset_id': response.asset_id,
                     'instructions': response.instructions
                 })
-                
+
         except Exception as e:
             logger.error(f"Error handling asset upload request: {e}")
             return Message(MessageType.ERROR, {'error': 'Internal server error'})
@@ -94,19 +84,19 @@ class _AssetsMixin:
         try:
             if not msg.data:
                 return Message(MessageType.ERROR, {'error': 'No data provided in asset download request'})
-            
+
             # Get asset manager
             asset_manager = get_server_asset_manager()
-            
+
             # Extract request data
             asset_id = msg.data.get('asset_id')
             session_code = msg.data.get('session_code', 'default')
             user_id = self._get_user_id(msg, client_id) or 0
             username = msg.data.get('username', 'unknown')
-            
+
             if not asset_id:
                 return Message(MessageType.ERROR, {'error': 'Asset ID is required'})
-            
+
             # Create asset request
             request = AssetRequest(
                 user_id=user_id,
@@ -114,14 +104,14 @@ class _AssetsMixin:
                 session_code=session_code,
                 asset_id=asset_id
             )
-            
+
             # Generate presigned URL
             response = await asset_manager.request_download_url(request)
-            
+
             if response.success:
                 # Get asset xxHash from database
                 asset_xxhash = await self._get_asset_xxhash(asset_id)
-                
+
                 return Message(MessageType.ASSET_DOWNLOAD_RESPONSE, {
                     'success': True,
                     'download_url': response.url,
@@ -135,7 +125,7 @@ class _AssetsMixin:
                     'success': False,
                     'instructions': "Please upload the asset first"
                 })
-                
+
         except Exception as e:
             logger.error(f"Error handling asset download request: {e}")
             return Message(MessageType.ERROR, {'error': 'Internal server error'})
@@ -159,30 +149,29 @@ class _AssetsMixin:
         try:
             if not msg.data:
                 return Message(MessageType.ERROR, {'error': 'No data provided in asset upload confirmation'})
-            
+
             # Extract data
             asset_id = msg.data.get('asset_id')
             upload_success = msg.data.get('success', True)
             error_message = msg.data.get('error')
             user_id = self._get_user_id(msg, client_id) or 0
-            username = msg.data.get('username', 'unknown')
-            
+            msg.data.get('username', 'unknown')
+
             if not asset_id:
                 return Message(MessageType.ERROR, {'error': 'Asset ID is required'})
-            
+
             logger.info(f"Processing upload confirmation for asset {asset_id}: {'success' if upload_success else 'failed'}")
-            
+
             # Get asset manager and confirm upload
-            from .asset_manager import get_server_asset_manager
             asset_manager = get_server_asset_manager()
-            
+
             confirmed = await asset_manager.confirm_upload(
                 asset_id=asset_id,
                 user_id=user_id,
                 upload_success=upload_success,
                 error_message=error_message
             )
-            
+
             if confirmed:
                 status_msg = "Upload confirmed successfully" if upload_success else f"Upload failure recorded: {error_message}"
                 logger.info(f"Asset {asset_id} confirmation completed: {status_msg}")
@@ -195,32 +184,32 @@ class _AssetsMixin:
                 error_msg = f"Failed to confirm upload for asset {asset_id}"
                 logger.error(error_msg)
                 return Message(MessageType.ERROR, {'error': error_msg})
-                
+
         except Exception as e:
             error_msg = f"Error processing upload confirmation: {e}"
             logger.error(error_msg)
             return Message(MessageType.ERROR, {'error': error_msg})
 
-    async def add_asset_hashes_to_table(self, table_data: dict, session_code: str, user_id: int) -> dict:    
+    async def add_asset_hashes_to_table(self, table_data: dict, session_code: str, user_id: int) -> dict:
         """Add xxHash information to all entity assets in table data"""
         try:
             # Get all layers data
             layers = table_data.get('layers', {})
-            
+
             # Process each layer
             for layer_name, layer_entities in layers.items():
                 if not isinstance(layer_entities, dict):
                     continue
-                    
+
                 # Process each entity in the layer
                 for entity_id, entity_data in layer_entities.items():
                     if not isinstance(entity_data, dict):
                         continue
-                    
+
                     texture_path = entity_data.get('texture_path')
                     if not texture_path:
                         continue
-                    
+
                     logger.debug(f"Processing asset for entity {entity_id}: {texture_path}")
                     # Calculate or get xxHash for the asset
                     asset_xxhash = await self._get_asset_xxhash_by_path(texture_path)
@@ -232,8 +221,8 @@ class _AssetsMixin:
                         logger.debug(f"Added xxHash {asset_xxhash} to entity {entity_id}")
                     else:
                         logger.warning(f"Could not get xxHash for asset: {texture_path}")
-            
-            return table_data            
+
+            return table_data
         except Exception as e:
             logger.error(f"Error adding asset hashes to table: {e}")
             return table_data
@@ -256,12 +245,12 @@ class _AssetsMixin:
 
     async def _get_asset_xxhash_by_path(self, texture_path: str) -> Optional[str]:
         """Get xxHash for asset by texture path"""
-        
+
         # If it's a local file, calculate xxHash
-        logger.debug(f"Getting xxHash for texture path: {texture_path}")            
+        logger.debug(f"Getting xxHash for texture path: {texture_path}")
         file_path = None
         calculated_hash = None
-        
+
         if os.path.exists(texture_path):
             file_path = texture_path
         else:
@@ -270,7 +259,7 @@ class _AssetsMixin:
             fallback = os.path.join(_server_dir, 'static', 'assets', os.path.basename(texture_path))
             if os.path.exists(fallback):
                 file_path = fallback
-        
+
         if file_path:
             calculated_hash = self._calculate_file_xxhash(file_path)
             logger.debug(f"Calculated xxHash for {file_path}: {calculated_hash}")
@@ -295,14 +284,14 @@ class _AssetsMixin:
                     asset_id = calculated_hash[:16]
                     new_asset = Asset(
                         asset_name=asset_name,
-                        r2_asset_id=asset_id,  # Content-based, consistent with client                        
-                        content_type=asset_type,  
+                        r2_asset_id=asset_id,  # Content-based, consistent with client
+                        content_type=asset_type,
                         file_size=os.path.getsize(file_path),
                         xxhash=calculated_hash,
-                        uploaded_by=1,  
-                        r2_key=f"local/{asset_name}",  
-                        r2_bucket="local"  
-                    )                    
+                        uploaded_by=1,
+                        r2_key=f"local/{asset_name}",
+                        r2_bucket="local"
+                    )
                     db_session.add(new_asset)
                     logger.debug(f"Created new asset entry for {asset_name} with xxHash: {calculated_hash}")
                 db_session.commit()
@@ -346,46 +335,46 @@ class _AssetsMixin:
             logger.error(f"Error handling asset delete request: {e}")
             return Message(MessageType.ERROR, {'error': 'Internal server error'})
 
-    async def ensure_assets_in_r2(self, table_data: dict, session_code: str, user_id: int) -> dict:    
+    async def ensure_assets_in_r2(self, table_data: dict, session_code: str, user_id: int) -> dict:
         """Ensure all entity assets are available in R2 and provide download URLs"""
         try:
-            asset_manager = get_server_asset_manager()
-            
+            get_server_asset_manager()
+
             # Get all layers data
             layers = table_data.get('layers', {})
-            
+
             # Process each layer
             for layer_name, layer_entities in layers.items():
                 if not isinstance(layer_entities, dict):
                     continue
-                    
+
                 # Process each entity in the layer
                 for entity_id, entity_data in layer_entities.items():
                     if not isinstance(entity_data, dict):
                         continue
-                                       
+
                     if hasattr(entity_data, 'r2_asset_url'):
                         continue
-                    texture_path = entity_data.get('texture_path')   
-                
+                    texture_path = entity_data.get('texture_path')
+
                     # Convert local path to asset name
                     if not texture_path:
                         logger.warning(f"No texture_path for entity {entity_id}, skipping asset processing.")
                         continue
                     asset_name = os.path.basename(texture_path)
                     logger.debug(f"Processing asset for entity {entity_id}: {asset_name}")
-                    
+
                     # Check if asset exists in database
                     r2_url = await self._get_or_upload_asset(asset_name, texture_path, session_code, user_id)
-                    
-                    if r2_url:                      
-                        
-                        entity_data['r2_asset_url'] = r2_url  
+
+                    if r2_url:
+
+                        entity_data['r2_asset_url'] = r2_url
                         logger.info(f"Updated entity {entity_id} with R2 URL: {r2_url}")
                     else:
                         logger.warning(f"Failed to get R2 URL for asset: {asset_name}")
-            
-            return table_data            
+
+            return table_data
         except Exception as e:
             logger.error(f"Error ensuring assets in R2: {e}")
             return table_data  # Return original data if asset processing fails
@@ -397,11 +386,11 @@ class _AssetsMixin:
             db_session = SessionLocal()
             try:
                 existing_asset = db_session.query(Asset).filter_by(asset_name=asset_name).first()
-                
+
                 if existing_asset:
                     # Asset exists, generate download URL
                     logger.debug(f"Asset {asset_name} exists in database with R2 ID: {existing_asset.r2_asset_id}")
-                    
+
                     asset_manager = get_server_asset_manager()
                     request = AssetRequest(
                         user_id=user_id,
@@ -409,7 +398,7 @@ class _AssetsMixin:
                         session_code=session_code,
                         asset_id=str(existing_asset.r2_asset_id)
                     )
-                    
+
                     response = await asset_manager.request_download_url(request)
                     if response.success:
                         logger.info(f"Generated download URL for existing asset: {asset_name}")
@@ -421,9 +410,9 @@ class _AssetsMixin:
                 logger.info(f"Asset {asset_name} not found in database, will be uploaded via normal client flow")
                 # Return None so the client knows to upload this asset through the normal flow
                 return None
-                
+
             finally:
-                db_session.close()                
+                db_session.close()
         except Exception as e:
             logger.error(f"Error getting or uploading asset {asset_name}: {e}")
             return None
@@ -433,16 +422,16 @@ class _AssetsMixin:
         try:
             if not msg.data:
                 return Message(MessageType.ERROR, {'error': 'No data provided'})
-                
+
             asset_id = msg.data.get('asset_id')
             client_hash = msg.data.get('hash')
-            
+
             if not asset_id or not client_hash:
                 return Message(MessageType.ERROR, {'error': 'asset_id and hash are required'})
-            
+
             # Get server hash for asset
             server_hash = await self._get_asset_xxhash(asset_id)
-            
+
             if server_hash:
                 hash_match = server_hash == client_hash
                 return Message(MessageType.ASSET_HASH_CHECK, {
@@ -453,7 +442,7 @@ class _AssetsMixin:
                 })
             else:
                 return Message(MessageType.ERROR, {'error': 'Asset not found or hash unavailable'})
-                
+
         except Exception as e:
             logger.error(f"Error handling asset hash check: {e}")
             return Message(MessageType.ERROR, {'error': 'Internal server error'})

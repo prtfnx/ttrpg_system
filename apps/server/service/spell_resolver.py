@@ -1,11 +1,12 @@
 from __future__ import annotations
-import uuid
+
 from dataclasses import dataclass, field
 from typing import Optional
 
-from core_table.combat import Combatant, CombatState
-from core_table.dice import DiceEngine, DiceRollResult
+from core_table.combat import Combatant
+from core_table.dice import DiceEngine
 from core_table.session_rules import SessionRules
+
 from .attack_resolver import AttackResolver, SaveResult
 
 

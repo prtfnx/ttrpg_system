@@ -1,5 +1,6 @@
 # This file contains the definitions of various entities in the game, including spells and walls.
 from __future__ import annotations
+
 import uuid
 from typing import Optional
 

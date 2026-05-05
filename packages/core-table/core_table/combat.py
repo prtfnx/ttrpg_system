@@ -1,13 +1,12 @@
 from __future__ import annotations
+
 import hashlib
 import json
-import uuid
 from dataclasses import dataclass, field
 from enum import Enum
 from typing import Optional
 
-from .conditions import ActiveCondition, INCAPACITATING, ConditionType
-from .dice import DiceRollResult
+from .conditions import INCAPACITATING, ActiveCondition
 
 
 class CombatPhase(str, Enum):
@@ -20,16 +19,29 @@ class CombatPhase(str, Enum):
 
 
 class DamageType(str, Enum):
-    ACID = "acid"; BLUDGEONING = "bludgeoning"; COLD = "cold"
-    FIRE = "fire"; FORCE = "force"; LIGHTNING = "lightning"
-    NECROTIC = "necrotic"; PIERCING = "piercing"; POISON = "poison"
-    PSYCHIC = "psychic"; RADIANT = "radiant"; SLASHING = "slashing"
+    ACID = "acid"
+    BLUDGEONING = "bludgeoning"
+    COLD = "cold"
+    FIRE = "fire"
+    FORCE = "force"
+    LIGHTNING = "lightning"
+    NECROTIC = "necrotic"
+    PIERCING = "piercing"
+    POISON = "poison"
+    PSYCHIC = "psychic"
+    RADIANT = "radiant"
+    SLASHING = "slashing"
     THUNDER = "thunder"
 
 
 class ActionCost(str, Enum):
-    ACTION = "action"; BONUS_ACTION = "bonus_action"; REACTION = "reaction"
-    MOVEMENT = "movement"; FREE = "free"; LEGENDARY = "legendary"; LAIR = "lair"
+    ACTION = "action"
+    BONUS_ACTION = "bonus_action"
+    REACTION = "reaction"
+    MOVEMENT = "movement"
+    FREE = "free"
+    LEGENDARY = "legendary"
+    LAIR = "lair"
 
 
 @dataclass
@@ -104,7 +116,9 @@ class Combatant:
         d = self.to_dict()
         if self.is_npc:
             if hp_visibility == 'none':
-                d.pop('hp'); d.pop('max_hp'); d.pop('temp_hp')
+                d.pop('hp')
+                d.pop('max_hp')
+                d.pop('temp_hp')
             elif hp_visibility == 'descriptor':
                 pct = (self.hp / self.max_hp) if self.max_hp else 0
                 d['hp_descriptor'] = (
@@ -113,8 +127,12 @@ class Combatant:
                     'wounded' if pct <= 0.75 else
                     'healthy'
                 )
-                d.pop('hp'); d.pop('max_hp'); d.pop('temp_hp')
-            d.pop('ai_enabled'); d.pop('ai_behavior'); d.pop('controlled_by')
+                d.pop('hp')
+                d.pop('max_hp')
+                d.pop('temp_hp')
+            d.pop('ai_enabled')
+            d.pop('ai_behavior')
+            d.pop('controlled_by')
         return d
 
     @classmethod

@@ -10,8 +10,9 @@ Notes:
   so this migration only adds the new columns. If you need an enforced FK, you
   must recreate the table and copy data.
 """
-import sqlite3
 import os
+import sqlite3
+
 from utils.logger import setup_logger
 
 logger = setup_logger(__name__)
@@ -98,8 +99,8 @@ def downgrade(db_path: str):
 
 
 if __name__ == '__main__':
-    import sys
     import shutil
+    import sys
     import time
 
     sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '../../../')))

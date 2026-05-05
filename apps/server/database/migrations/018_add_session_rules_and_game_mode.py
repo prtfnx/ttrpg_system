@@ -1,10 +1,10 @@
 """
 Add session_rules_json and game_mode columns to game_sessions table.
 """
+import logging
+
 import sqlalchemy as sa
 from database.database import engine
-from database.models import Base
-import logging
 
 logger = logging.getLogger(__name__)
 

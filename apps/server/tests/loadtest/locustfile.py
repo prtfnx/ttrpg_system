@@ -13,9 +13,8 @@ import os
 import time
 import uuid
 
-from locust import User, task, between, events  # type: ignore[import-not-found]
 import websocket  # type: ignore[import-missing-module-source]
-
+from locust import User, between, events, task  # type: ignore[import-not-found]
 
 WS_PATH = "/ws/game/"
 TOKEN = os.getenv("LOAD_TEST_TOKEN", "dev-token")

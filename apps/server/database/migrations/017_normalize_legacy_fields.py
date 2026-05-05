@@ -7,8 +7,9 @@ Description:
   - session_characters.character_data: normalize legacy `id` key to `character_id` when absent
   - entities.controlled_by: ensure value is always a JSON array string (not plain string/int)
 """
-import sqlite3
 import json
+import sqlite3
+
 from utils.logger import setup_logger
 
 logger = setup_logger(__name__)

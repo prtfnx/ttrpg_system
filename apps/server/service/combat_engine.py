@@ -3,10 +3,13 @@ import math
 import random
 import time
 import uuid
-from typing import Optional
 
 from core_table.combat import (
-    ActionCost, CombatAction, CombatPhase, CombatSettings, CombatState, Combatant,
+    CombatAction,
+    Combatant,
+    CombatPhase,
+    CombatSettings,
+    CombatState,
 )
 from core_table.combat_fsm import CombatFSM
 from core_table.dice import DiceEngine

@@ -1,7 +1,8 @@
-import pytest
-from fastapi import HTTPException
 from datetime import timedelta
+
 import jwt
+import pytest
+
 
 @pytest.mark.unit
 class TestTokenGeneration:
@@ -10,10 +11,10 @@ class TestTokenGeneration:
         token = create_access_token(data={"sub": "testuser"})
         assert token is not None
         assert isinstance(token, str)
-        
+
     def test_token_expiration(self):
-        from routers.users import create_access_token, SECRET_KEY, ALGORITHM
-        
+        from routers.users import ALGORITHM, SECRET_KEY, create_access_token
+
         token = create_access_token(
             data={"sub": "testuser"},
             expires_delta=timedelta(minutes=1)
@@ -32,10 +33,10 @@ class TestPasswordHashing:
             password="plaintext123"
         )
         user = crud.create_user(test_db, user_data)
-        
+
         assert user.hashed_password != "plaintext123"
         assert len(user.hashed_password) > 20
-        
+
     def test_verify_password(self, test_db, test_user):
         """Test password verification against stored hash"""
         from database import crud

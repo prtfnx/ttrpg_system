@@ -9,12 +9,11 @@ Covers real user behaviour:
 - Table dict representation includes lighting settings for clients
 - In-memory VirtualTable correctly reflects lighting state
 """
-import pytest
 import uuid
 
-from core_table.table import VirtualTable, Entity
+import pytest
+from core_table.table import Entity, VirtualTable
 from database import crud, schemas
-
 
 # ---------------------------------------------------------------------------
 # Fixtures
@@ -30,7 +29,8 @@ def _make_sprite_id() -> str:
 
 @pytest.fixture
 def session(test_db, test_user):
-    from database import crud as db_crud, schemas as sc
+    from database import crud as db_crud
+    from database import schemas as sc
     session_data = sc.GameSessionCreate(name="Lighting Test Session")
     return db_crud.create_game_session(test_db, session_data, test_user.id, "LIGHT01")
 

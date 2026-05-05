@@ -1,10 +1,8 @@
-import pytest
-from unittest.mock import patch
 
-from routers.users import get_current_user
 import main
-from database import crud, schemas, models
-
+import pytest
+from database import crud, models, schemas
+from routers.users import get_current_user
 
 
 @pytest.mark.integration

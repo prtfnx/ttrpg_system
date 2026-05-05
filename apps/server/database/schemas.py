@@ -1,9 +1,11 @@
 """
 Pydantic schemas for API models
 """
-from pydantic import BaseModel, EmailStr, ConfigDict
-from typing import Optional, List, Dict, Tuple, Any
 from datetime import datetime
+from typing import Any, Dict, List, Optional
+
+from pydantic import BaseModel, ConfigDict
+
 
 # User schemas
 class UserBase(BaseModel):
@@ -24,7 +26,7 @@ class User(UserBase):
     hashed_password: Optional[str] = None
     password_set_at: Optional[datetime] = None
     google_id: Optional[str] = None
-    
+
     model_config = ConfigDict(from_attributes=True)
 
 class UserInDB(User):
@@ -113,7 +115,7 @@ class Entity(EntityBase):
     table_id: int
     created_at: datetime
     updated_at: datetime
-    
+
     model_config = ConfigDict(from_attributes=True)
 
 # Virtual Table schemas
@@ -169,7 +171,7 @@ class VirtualTable(VirtualTableBase):
     created_at: datetime
     updated_at: datetime
     entities: List[Entity] = []
-    
+
     model_config = ConfigDict(from_attributes=True)
 
 # Game Session schemas
@@ -193,7 +195,7 @@ class GameSession(GameSessionBase):
     created_at: datetime
     game_data: Optional[str] = None
     ban_list: Optional[str] = None
-    
+
     model_config = ConfigDict(from_attributes=True)
 
 class GameSessionWithData(GameSession):
@@ -218,7 +220,7 @@ class GamePlayer(GamePlayerBase):
     is_connected: bool
     active_table_id: Optional[str] = None
     user: User
-    
+
     model_config = ConfigDict(from_attributes=True)
 
 # Session Invitation schemas
@@ -240,9 +242,9 @@ class InvitationResponse(BaseModel):
     is_active: bool
     is_valid: bool
     invite_url: str
-    
+
     model_config = ConfigDict(from_attributes=True)
-        
+
     @classmethod
     def from_orm(cls, obj):
         return cls(

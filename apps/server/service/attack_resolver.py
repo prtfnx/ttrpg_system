@@ -1,9 +1,10 @@
 from __future__ import annotations
-import math
-from dataclasses import dataclass, field
-from typing import Optional, TYPE_CHECKING
 
-from core_table.combat import Combatant, CombatState, DamageType
+import math
+from dataclasses import dataclass
+from typing import TYPE_CHECKING, Optional
+
+from core_table.combat import Combatant, CombatState
 from core_table.dice import DiceEngine, DiceRollResult
 from core_table.session_rules import SessionRules
 

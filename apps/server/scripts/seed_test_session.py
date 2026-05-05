@@ -2,10 +2,12 @@
 Seed script to create a test user and an active game session for local dev.
 Run from apps/server with: python scripts/seed_test_session.py
 """
-import sys, os
+import os
+import sys
+
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
-from database.database import SessionLocal, init_db
 from database import crud, schemas
+from database.database import SessionLocal, init_db
 
 
 def main():

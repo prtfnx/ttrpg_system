@@ -1,9 +1,9 @@
 # core_table package
-from .table import VirtualTable, Entity
-from .entities import Wall, Spell
-from .protocol import Message, MessageType
 from .actions_core import ActionsCore
 from .async_actions_protocol import ActionResult
+from .entities import Spell, Wall
+from .protocol import Message, MessageType
+from .table import Entity, VirtualTable
 
 __all__ = [
     'VirtualTable', 'Entity', 'Wall', 'Spell',

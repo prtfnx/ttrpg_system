@@ -5,14 +5,12 @@ Focus: user-visible behaviour — correct message types broadcast,
 death save state persistence, roll result contents.
 """
 import importlib
-import json
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.pool import StaticPool
-
 
 # ---------------------------------------------------------------------------
 # Fixtures

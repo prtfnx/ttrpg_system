@@ -1,5 +1,6 @@
 """Tests for batch message serialization — verifies inline dict construction is JSON-safe."""
 import json
+
 from core_table.protocol import Message, MessageType
 
 

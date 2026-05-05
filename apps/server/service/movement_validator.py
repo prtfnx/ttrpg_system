@@ -1,10 +1,11 @@
 from __future__ import annotations
+
+import math
 from dataclasses import dataclass, field
-from typing import Optional, TYPE_CHECKING
+from typing import TYPE_CHECKING, Optional
 
 from core_table.pathfinding import PathfindingSystem, SpatialHashGrid
 from core_table.session_rules import SessionRules
-import math
 
 if TYPE_CHECKING:
     from core_table.combat import CombatState

@@ -1,11 +1,12 @@
 """Tests for phase 4 ACTION_COMMIT handler."""
-import sys
 import os
+import sys
+
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '../..'))
 
-import pytest
 from unittest.mock import AsyncMock, MagicMock, patch
 
+import pytest
 from core_table.protocol import Message, MessageType
 from core_table.server import TableManager
 from service.server_protocol import ServerProtocol

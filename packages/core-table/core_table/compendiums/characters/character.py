@@ -4,10 +4,9 @@ D&D 5e Character System - Core Classes
 Comprehensive character representation for virtual tabletop use
 """
 
-from typing import List, Dict, Optional, Union, Any
 from dataclasses import dataclass, field
 from enum import Enum
-import re
+from typing import Any, Dict, List, Optional
 
 
 class AbilityScore(Enum):
@@ -106,7 +105,7 @@ class BackgroundFeature:
 
 class Race:
     """D&D 5e Race representation"""
-    
+
     def __init__(self):
         self.name: str = ""
         self.size: Size = Size.MEDIUM
@@ -117,13 +116,13 @@ class Race:
         self.traits: List[RacialTrait] = []
         self.languages: List[str] = []
         self.source: str = ""
-        
+
         # Additional racial features
         self.darkvision: int = 0  # range in feet, 0 if none
         self.damage_resistances: List[str] = []
         self.damage_immunities: List[str] = []
         self.condition_immunities: List[str] = []
-        
+
     def get_ability_modifier(self, ability: AbilityScore) -> int:
         """Get the racial modifier for an ability score"""
         for asi in self.ability_score_increases:
@@ -134,7 +133,7 @@ class Race:
 
 class CharacterClass:
     """D&D 5e Character Class representation"""
-    
+
     def __init__(self):
         self.name: str = ""
         self.hit_die: int = 8  # d8, d10, etc.
@@ -143,19 +142,19 @@ class CharacterClass:
         self.skill_proficiencies: List[Skill] = []
         self.num_skills: int = 2  # Number of skills to choose
         self.spell_ability: Optional[AbilityScore] = None
-        
+
         # Equipment proficiencies
         self.armor_proficiencies: List[str] = []
         self.weapon_proficiencies: List[str] = []
         self.tool_proficiencies: List[str] = []
-        
+
         # Starting equipment
         self.starting_wealth: str = "2d4x10"  # Starting gold formula
-        
+
         # Class features by level
         self.features: Dict[int, List[ClassFeature]] = {}
         self.spell_slots: Dict[int, Dict[int, int]] = {}  # level -> spell level -> slots
-        
+
         # Source information
         self.source: str = ""
 
@@ -168,7 +167,7 @@ class CharacterClass:
         self.spellcasting_ability: Optional[AbilityScore] = None
         self.spell_slots_by_level: Dict[int, Dict[int, int]] = {}  # {1: {1: 2}, 2: {1: 3}}
         self.source_5etools: str = "PHB"
-    
+
 
     def get_features_at_level(self, level: int) -> List[ClassFeature]:
         """Get all features available at given level"""
@@ -185,7 +184,7 @@ class CharacterClass:
 
 class Background:
     """D&D 5e Background representation"""
-    
+
     def __init__(self):
         self.name: str = ""
         self.skill_proficiencies: List[Skill] = []
@@ -206,7 +205,7 @@ class FeatPrerequisite:
 
 class Feat:
     """D&D 5e Feat representation"""
-    
+
     def __init__(self):
         self.name: str = ""
         self.description: str = ""
@@ -218,7 +217,7 @@ class Feat:
 
 class Character:
     """Complete D&D 5e Character representation"""
-    
+
     def __init__(self):
         # Basic character information
         self.name: str = ""
@@ -227,7 +226,7 @@ class Character:
         self.character_class: Optional[CharacterClass] = None
         self.background: Optional[Background] = None
         self.level: int = 1
-        
+
         # Ability scores (base scores before racial bonuses)
         self.ability_scores: Dict[AbilityScore, int] = {
             AbilityScore.STRENGTH: 10,
@@ -237,34 +236,34 @@ class Character:
             AbilityScore.WISDOM: 10,
             AbilityScore.CHARISMA: 10
         }
-        
+
         # Skills and proficiencies
         self.skill_proficiencies: List[Skill] = []
         self.expertise: List[Skill] = []  # Skills with expertise (double proficiency)
-        
+
         # Equipment and spells
         self.equipment: List[str] = []
         self.spells_known: List[str] = []
         self.feats: List[Feat] = []
-        
+
         # Calculated values
         self.hit_points: int = 0
         self.max_hit_points: int = 0
         self.armor_class: int = 10
         self.proficiency_bonus: int = 2
-        
+
         # Character details
         self.alignment: str = ""
         self.experience_points: int = 0
         self.backstory: str = ""
-        
+
     def get_ability_modifier(self, ability: AbilityScore) -> int:
         """Calculate ability modifier including racial bonuses"""
         base_score = self.ability_scores[ability]
         racial_bonus = self.race.get_ability_modifier(ability) if self.race else 0
         total_score = base_score + racial_bonus
         return (total_score - 10) // 2
-    
+
     def get_skill_modifier(self, skill: Skill) -> int:
         """Calculate skill modifier including proficiency"""
         # Map skills to their associated abilities
@@ -288,41 +287,41 @@ class Character:
             Skill.STEALTH: AbilityScore.DEXTERITY,
             Skill.SURVIVAL: AbilityScore.WISDOM,
         }
-        
+
         ability = skill_abilities.get(skill, AbilityScore.INTELLIGENCE)
         modifier = self.get_ability_modifier(ability)
-        
+
         if skill in self.skill_proficiencies:
             if skill in self.expertise:
                 modifier += self.proficiency_bonus * 2
             else:
                 modifier += self.proficiency_bonus
-                
+
         return modifier
-    
+
     def calculate_proficiency_bonus(self) -> int:
         """Calculate proficiency bonus based on level"""
         return 2 + ((self.level - 1) // 4)
-    
+
     def update_calculated_values(self):
         """Update all calculated character values"""
         self.proficiency_bonus = self.calculate_proficiency_bonus()
-        
+
         # Calculate hit points (simplified - would need more complex logic for real implementation)
         if self.character_class:
             constitution_modifier = self.get_ability_modifier(AbilityScore.CONSTITUTION)
             self.max_hit_points = (self.character_class.hit_die + constitution_modifier) * self.level
             if self.hit_points == 0:  # First time setting hit points
                 self.hit_points = self.max_hit_points
-    
+
     def level_up(self, hit_point_roll: Optional[int] = None):
         """Level up the character"""
         if not self.character_class:
             return False
-            
+
         self.level += 1
         self.proficiency_bonus = self.calculate_proficiency_bonus()
-        
+
         # Add hit points
         constitution_modifier = self.get_ability_modifier(AbilityScore.CONSTITUTION)
         if hit_point_roll is not None:
@@ -330,12 +329,12 @@ class Character:
         else:
             # Use average
             hp_gain = (self.character_class.hit_die // 2 + 1) + constitution_modifier
-        
+
         # Ensure minimum 1 HP gain
         hp_gain = max(1, hp_gain)
         self.hit_points += hp_gain
         self.max_hit_points += hp_gain
-        
+
         return True
 
 
@@ -345,7 +344,7 @@ def parse_ability_increase(ability_string: str) -> List[AbilityScoreIncrease]:
     increases = []
     if not ability_string:
         return increases
-        
+
     # Map common abbreviations to full ability names
     ability_map = {
         'Str': AbilityScore.STRENGTH,
@@ -361,14 +360,14 @@ def parse_ability_increase(ability_string: str) -> List[AbilityScoreIncrease]:
         'Wisdom': AbilityScore.WISDOM,
         'Charisma': AbilityScore.CHARISMA,
     }
-    
+
     # Parse strings like "Dex 2, Cha 1" or "Strength 1"
     parts = ability_string.split(',')
     for part in parts:
         part = part.strip()
         if not part:
             continue
-            
+
         # Split on space to get ability and increase
         tokens = part.split()
         if len(tokens) >= 2:
@@ -382,7 +381,7 @@ def parse_ability_increase(ability_string: str) -> List[AbilityScoreIncrease]:
                     ))
             except ValueError:
                 continue
-                
+
     return increases
 
 
@@ -391,14 +390,14 @@ def parse_skill_proficiencies(proficiency_string: str) -> List[Skill]:
     skills = []
     if not proficiency_string:
         return skills
-    
+
     # Map skill names to enum values
     skill_map = {skill.value: skill for skill in Skill}
-    
+
     parts = proficiency_string.split(',')
     for part in parts:
         skill_name = part.strip()
         if skill_name in skill_map:
             skills.append(skill_map[skill_name])
-            
+
     return skills

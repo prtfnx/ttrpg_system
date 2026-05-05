@@ -6,13 +6,12 @@ Handles character persistence in the database for game sessions
 
 import json
 import uuid
-from typing import Dict, List, Optional, Any
 from datetime import datetime
-from sqlalchemy.orm import Session
-from sqlalchemy import and_
+from typing import Any, Dict, Optional
 
 from database.database import SessionLocal
 from database.models import CharacterLog, GameSession, SessionCharacter
+from sqlalchemy import and_
 from utils.logger import setup_logger
 
 logger = setup_logger(__name__)
@@ -20,12 +19,12 @@ logger = setup_logger(__name__)
 
 class ServerCharacterManager:
     """Server-side character management with database persistence"""
-    
+
     def __init__(self):
         logger.info("ServerCharacterManager initialized")
         # No need to manually create table - SQLAlchemy migrations handle this
-    
-    def save_character(self, session_id: int, character_data: Dict[str, Any], 
+
+    def save_character(self, session_id: int, character_data: Dict[str, Any],
                       user_id: int) -> Dict[str, Any]:
         """Save a character to the database"""
         try:
@@ -37,20 +36,20 @@ class ServerCharacterManager:
                         'success': False,
                         'error': f'Session {session_id} not found'
                     }
-                
+
                 # Generate or use existing character ID (canonical key: 'character_id')
                 # Do NOT accept legacy 'id' fallback - callers must use `character_id`.
                 character_id = character_data.get('character_id') or str(uuid.uuid4())
                 character_name = character_data.get('name', 'Unnamed Character')
-                
+
                 # Serialize character data
                 character_json = json.dumps(character_data)
-                
+
                 # Check if character already exists
                 existing = db.query(SessionCharacter).filter(
                     SessionCharacter.character_id == character_id
                 ).first()
-                
+
                 # ensure new_version defined for return value
                 new_version = 1
                 if existing:
@@ -87,16 +86,16 @@ class ServerCharacterManager:
                     )
                     db.add(new_character)
                     logger.info(f"Created character {character_name} (ID: {character_id})")
-                
+
                 db.commit()
-                
+
                 return {
                     'success': True,
                     'character_id': character_id,
                     'message': f'Character {character_name} saved successfully',
                     'version': new_version
                 }
-                
+
         except Exception as e:
             logger.error(f"Error saving character: {e}")
             return {
@@ -185,8 +184,8 @@ class ServerCharacterManager:
         except Exception as e:
             logger.error(f"Error updating character: {e}")
             return {'success': False, 'error': f'Database error: {str(e)}'}
-    
-    def load_character(self, session_id: int, character_id: str, 
+
+    def load_character(self, session_id: int, character_id: str,
                       user_id: int) -> Dict[str, Any]:
         """Load a character from the database"""
         try:
@@ -199,13 +198,13 @@ class ServerCharacterManager:
                         SessionCharacter.owner_user_id == user_id
                     )
                 ).first()
-                
+
                 if not character:
                     return {
                         'success': False,
                         'error': f'Character {character_id} not found or access denied'
                     }
-                
+
                 # Deserialize character data
                 try:
                     character_data = json.loads(character.character_data)  # type: ignore
@@ -215,21 +214,21 @@ class ServerCharacterManager:
                         'success': False,
                         'error': 'Character data corrupted'
                     }
-                
+
                 logger.info(f"Loaded character {character_data.get('name', 'unnamed')} (ID: {character_id})")
-                
+
                 return {
                     'success': True,
                     'character_data': character_data
                 }
-                
+
         except Exception as e:
             logger.error(f"Error loading character: {e}")
             return {
                 'success': False,
                 'error': f'Database error: {str(e)}'
             }
-    
+
     def list_characters(self, session_id: int, user_id: int) -> Dict[str, Any]:
         """List characters for a session. DMs (user_id=0) get all characters."""
         try:
@@ -240,7 +239,7 @@ class ServerCharacterManager:
                 if user_id:  # user_id=0 means DM — return all
                     query = query.filter(SessionCharacter.owner_user_id == user_id)
                 characters = query.order_by(SessionCharacter.updated_at.desc()).all()
-                
+
                 character_list = []
                 for char in characters:
                     character_list.append({
@@ -252,22 +251,22 @@ class ServerCharacterManager:
                         'created_at': char.created_at.isoformat() if char.created_at else None,
                         'updated_at': char.updated_at.isoformat() if char.updated_at else None
                     })
-                
+
                 logger.info(f"Listed {len(character_list)} characters for session {session_id}, user {user_id}")
-                
+
                 return {
                     'success': True,
                     'characters': character_list
                 }
-                
+
         except Exception as e:
             logger.error(f"Error listing characters: {e}")
             return {
                 'success': False,
                 'error': f'Database error: {str(e)}'
             }
-    
-    def delete_character(self, session_id: int, character_id: str, 
+
+    def delete_character(self, session_id: int, character_id: str,
                         user_id: int) -> Dict[str, Any]:
         """Delete a character from the database"""
         try:
@@ -280,31 +279,31 @@ class ServerCharacterManager:
                         SessionCharacter.owner_user_id == user_id
                     )
                 ).first()
-                
+
                 if not character:
                     return {
                         'success': False,
                         'error': f'Character {character_id} not found or access denied'
                     }
-                
+
                 character_name = character.character_name
                 db.delete(character)
                 db.commit()
-                
+
                 logger.info(f"Deleted character {character_name} (ID: {character_id}) for user {user_id}")
-                
+
                 return {
                     'success': True,
                     'message': f'Character {character_name} deleted successfully'
                 }
-                
+
         except Exception as e:
             logger.error(f"Error deleting character: {e}")
             return {
                 'success': False,
                 'error': f'Database error: {str(e)}'
             }
-    
+
     # ------------------------------------------------------------------
     # Character log helpers
     # ------------------------------------------------------------------

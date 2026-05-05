@@ -8,6 +8,7 @@ Description:
 - Creates pending_email_changes table
 """
 import sqlite3
+
 from utils.logger import setup_logger
 
 logger = setup_logger(__name__)

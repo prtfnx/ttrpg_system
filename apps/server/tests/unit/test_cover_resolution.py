@@ -1,13 +1,14 @@
 """Tests for cover resolution in AttackResolver."""
-import sys
 import os
+import sys
+
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '../..'))
 
-import pytest
 from unittest.mock import MagicMock
+
 from core_table.session_rules import SessionRules
-from service.attack_resolver import AttackResolver
 from core_table.table import CoverZone
+from service.attack_resolver import AttackResolver
 
 
 def make_table(zones=None):
@@ -79,9 +80,8 @@ def test_clear_los_no_cover():
 
 
 def test_full_cover_blocks_attack():
+
     from core_table.combat import Combatant
-    from unittest.mock import patch
-    from core_table.dice import DiceRollResult
 
     rules = SessionRules.defaults('test')
     resolver = AttackResolver(rules)

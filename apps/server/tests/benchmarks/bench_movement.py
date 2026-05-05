@@ -1,7 +1,7 @@
 """Benchmarks for server movement validation (pytest-benchmark)."""
-import pytest
 from types import SimpleNamespace
-from core_table.pathfinding import SpatialHashGrid
+
+import pytest
 from core_table.session_rules import SessionRules
 from service.movement_validator import MovementValidator
 

@@ -1,35 +1,34 @@
 """
 User authentication and management router
 """
-from fastapi import APIRouter, Request, Depends, Form, HTTPException, status, Cookie
-from fastapi.responses import RedirectResponse
-from fastapi.templating import Jinja2Templates
-from fastapi.security import OAuth2PasswordRequestForm
-from sqlalchemy.orm import Session
-from typing import Annotated, Optional
-from datetime import datetime, timedelta, timezone
-from jwt.exceptions import InvalidTokenError
 import hashlib
-import jwt
-import secrets
-
-from database.database import get_db
-from database import crud
-from database import schemas
-from database import models
-from models import auth as auth_models
-from utils.rate_limiter import registration_limiter, login_limiter, password_reset_limiter, get_client_ip
-from utils.logger import setup_logger
-from service.email import send_password_reset, send_password_changed, send_email_change_verify, send_email_change_notify
-from functools import lru_cache
 import os
+import secrets
+from datetime import datetime, timedelta, timezone
+from functools import lru_cache
+from typing import Annotated
+
+import config
+import jwt
+from database import crud, models, schemas
+from database.database import get_db
+from fastapi import APIRouter, Depends, Form, HTTPException, Request, status
+from fastapi.responses import RedirectResponse
+from fastapi.security import OAuth2PasswordRequestForm
+from fastapi.templating import Jinja2Templates
+from jwt.exceptions import InvalidTokenError
+from models import auth as auth_models
+from service.email import send_email_change_notify, send_email_change_verify, send_password_changed, send_password_reset
+from sqlalchemy.orm import Session
+from utils.logger import setup_logger
+from utils.rate_limiter import get_client_ip, login_limiter, password_reset_limiter, registration_limiter
 
 logger = setup_logger(__name__)
 
 router = APIRouter(prefix="/users", tags=["users"])
 templates_dir = os.path.join(os.path.dirname(os.path.dirname(__file__)), "templates")
 templates = Jinja2Templates(directory=templates_dir)
-import config
+
 
 @lru_cache
 def get_settings():
@@ -55,18 +54,18 @@ async def get_current_user(request: Request, db: Session = Depends(get_db)):
         detail="Could not validate credentials",
         headers={"WWW-Authenticate": "Bearer"},
     )
-    
+
     # Try to get token from cookie first (manual reading for reliability)
     token = request.cookies.get("token")
     logger.debug(f"get_current_user: token from cookie: {token}")
-    
+
     # If no token in cookie, try Authorization header
     if not token:
         authorization = request.headers.get("Authorization")
         if authorization and authorization.startswith("Bearer "):
             token = authorization.split(" ")[1]
             logger.debug(f"get_current_user: token from Authorization header: {token}")
-    
+
     if not token:
         logger.debug("get_current_user: No token found, raising credentials_exception")
         raise credentials_exception
@@ -80,7 +79,7 @@ async def get_current_user(request: Request, db: Session = Depends(get_db)):
     except InvalidTokenError as e:
         logger.debug(f"get_current_user: Token validation failed: {e}")
         raise credentials_exception
-    
+
     user = crud.get_user_by_username(db, username=username)
     if user is None:
         logger.debug(f"get_current_user: User {username} not found in database")
@@ -98,21 +97,21 @@ async def get_current_user_optional(request: Request, db: Session = Depends(get_
     try:
         # Try to get token from cookie first
         token = request.cookies.get("token")
-        
+
         # If no token in cookie, try Authorization header
         if not token:
             authorization = request.headers.get("Authorization")
             if authorization and authorization.startswith("Bearer "):
                 token = authorization.split(" ")[1]
-        
+
         if not token:
             return None
-        
+
         payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
         username = payload.get("sub")
         if username is None:
             return None
-        
+
         user = crud.get_user_by_username(db, username=username)
         return user
     except (InvalidTokenError, Exception) as e:
@@ -137,16 +136,16 @@ async def users_me(
         # Determine user role based on session ownership
         user_sessions = crud.get_user_game_sessions(db, current_user.id)
         is_dm = any(session.owner_id == current_user.id for session, role in user_sessions)
-        
+
         # Determine permissions based on role
         user_role = "dm" if is_dm else "player"
         permissions = []
-        
+
         if user_role == "dm":
             # DM gets comprehensive permissions
             permissions = [
                 "compendium:read",
-                "compendium:write", 
+                "compendium:write",
                 "table:admin",
                 "character:write",
                 "sprite:create",
@@ -161,7 +160,7 @@ async def users_me(
                 "character:read",
                 "sprite:create"
             ]
-        
+
         # Return JSON for API requests with additional fields needed by client
         return {
             "id": current_user.id,
@@ -176,11 +175,11 @@ async def users_me(
         # Return HTML page for browser requests
         # Get user stats (you can expand this based on your database schema)
         user_sessions = crud.get_user_game_sessions(db, current_user.id)
-        
+
         # Calculate stats
         games_played = len(user_sessions)
         victories = sum(1 for session, role in user_sessions if getattr(session, 'status', None) == 'won')
-        
+
         # Add calculated stats to user object for template
         profile_data = {
             'user': current_user,
@@ -190,7 +189,7 @@ async def users_me(
             'gold_earned': getattr(current_user, 'gold_earned', 45892),
             'level': getattr(current_user, 'level', 42)
         }
-        
+
         return templates.TemplateResponse(request, "profile.html", {
             **profile_data
         })
@@ -234,7 +233,7 @@ def login_page(request: Request):
     verified = request.query_params.get("verified")
     invite_code = request.query_params.get("invite")
     next_url = request.query_params.get("next")
-    
+
     success_message = None
     if registered and verify:
         success_message = "Registration successful! Please check your console logs for the verification link, then log in."
@@ -248,7 +247,7 @@ def login_page(request: Request):
         success_message = "Password reset successful. Please log in with your new password."
     elif msg == "account_deleted":
         success_message = "Your account has been deactivated."
-    
+
     return templates.TemplateResponse(request, "login.html", {
         "success": success_message,
         "invite_code": invite_code,
@@ -265,25 +264,25 @@ async def login(
 ):
     """Login with rate limiting protection"""
     client_ip = get_client_ip(request)
-    
+
     # Rate limiting check - 10 login attempts per 5 minutes per IP
     if not login_limiter.is_allowed(client_ip, max_requests=10, window_minutes=5):
         time_until_reset = login_limiter.get_time_until_reset(client_ip, window_minutes=5)
         return templates.TemplateResponse(request, "login.html", {
             "error": f"Too many login attempts. Please try again in {time_until_reset} seconds."
         }, status_code=429)  # 429 Too Many Requests
-    
+
     # Validate input lengths
     if len(form_data.username) < 4:
         return templates.TemplateResponse(request, "login.html", {
             "error": "Username must be at least 4 characters long"
         }, status_code=400)  # 400 Bad Request
-    
+
     if len(form_data.password) < 8:
         return templates.TemplateResponse(request, "login.html", {
             "error": "Password must be at least 8 characters long"
         }, status_code=400)  # 400 Bad Request
-    
+
     try:
         token = await login_for_access_token(form_data, db)
         if not token:
@@ -303,12 +302,12 @@ async def login(
                 invitation = db.query(models.SessionInvitation).filter(
                     models.SessionInvitation.invite_code == invite_code
                 ).first()
-            
+
                 if invitation and invitation.is_valid():
                     session = db.query(models.GameSession).filter(
                         models.GameSession.id == invitation.session_id
                     ).first()
-                
+
                     if not session:
                         # Session referenced by invitation does not exist
                         response = RedirectResponse(url="/users/dashboard", status_code=302)
@@ -317,7 +316,7 @@ async def login(
                             models.GamePlayer.session_id == session.id,
                             models.GamePlayer.user_id == user.id
                         ).first()
-                    
+
                         if not existing:
                             new_player = models.GamePlayer(
                                 session_id=session.id,
@@ -326,13 +325,13 @@ async def login(
                                 joined_at=datetime.utcnow()
                             )
                             db.add(new_player)
-                        
+
                             invitation.uses_count += 1
                             if invitation.max_uses > 0 and invitation.uses_count >= invitation.max_uses:
                                 invitation.is_active = False
-                        
+
                             db.commit()
-                    
+
                         response = RedirectResponse(
                             url=f"/game/session/{session.session_code}",
                             status_code=302
@@ -341,12 +340,12 @@ async def login(
                     response = RedirectResponse(url="/users/dashboard", status_code=302)
         else:
             response = RedirectResponse(url="/users/dashboard", status_code=302)
-        
+
         settings = get_settings()
         response.set_cookie(
-            key="token", 
-            value=token.access_token, 
-            httponly=True, 
+            key="token",
+            value=token.access_token,
+            httponly=True,
             max_age=ACCESS_TOKEN_EXPIRE_MINUTES * 60,
             samesite="lax",
             secure=settings.ENVIRONMENT == "production",
@@ -365,34 +364,34 @@ async def verify_email(
     db: Session = Depends(get_db)
 ):
     """Verify user email address using token from verification email"""
-    
+
     # Find verification token
     email_token = db.query(models.EmailVerificationToken).filter(
         models.EmailVerificationToken.token == token
     ).first()
-    
+
     if not email_token:
         return templates.TemplateResponse(request, "auth_error.html", {
             "error_message": "Invalid verification link. The token may have expired or been used already."
         }, status_code=400)
-    
+
     # Check if token is valid
     if not email_token.is_valid():
         return templates.TemplateResponse(request, "auth_error.html", {
             "error_message": "This verification link has expired or was already used. Please request a new one."
         }, status_code=400)
-    
+
     # Mark token as used
     email_token.used_at = datetime.utcnow()
-    
+
     # Update user verification status
     user = db.query(models.User).filter(models.User.id == email_token.user_id).first()
     if user:
         user.is_verified = True
         db.commit()
-        
+
         logger.info(f"Email verified for user: {user.username}")
-        
+
         return RedirectResponse(
             url="/users/login?verified=1",
             status_code=status.HTTP_302_FOUND
@@ -410,7 +409,7 @@ async def dashboard(
 ):
     accept_header = request.headers.get("accept", "")
     user_sessions = crud.get_user_game_sessions(db, current_user.id)
-    
+
     if "application/json" in accept_header:
         sessions_data = []
         for session, role in user_sessions:
@@ -436,8 +435,8 @@ def register_page(request: Request):
 
 @router.post("/register")
 def register_user_view(
-    request: Request, 
-    username: str = Form(...), 
+    request: Request,
+    username: str = Form(...),
     email: str = Form(...),
     password: str = Form(...),
     confirm_password: str = Form(...),
@@ -446,7 +445,7 @@ def register_user_view(
 ):
     """Register a new user with email verification"""
     client_ip = get_client_ip(request)
-    
+
     # Rate limiting check - 5 registration attempts per 10 minutes per IP
     if not registration_limiter.is_allowed(client_ip, max_requests=5, window_minutes=10):
         time_until_reset = registration_limiter.get_time_until_reset(client_ip, window_minutes=10)
@@ -455,7 +454,7 @@ def register_user_view(
             "username": username,
             "email": email
         }, status_code=429)
-    
+
     # Basic validation
     if not username or not password or not email:
         return templates.TemplateResponse(request, "register.html", {
@@ -463,7 +462,7 @@ def register_user_view(
             "username": username,
             "email": email
         }, status_code=400)
-    
+
     # Password confirmation check
     if password != confirm_password:
         return templates.TemplateResponse(request, "register.html", {
@@ -471,10 +470,10 @@ def register_user_view(
             "username": username,
             "email": email
         }, status_code=400)
-    
+
     # Attempt to register user
     result = crud.register_user(db, username, password, email=email)
-    
+
     if isinstance(result, tuple):
         user, message = result
         if user is None:
@@ -484,11 +483,11 @@ def register_user_view(
                 "username": username,
                 "email": email
             }, status_code=status_code)
-        
+
         # Registration successful - create verification token
         verification_token = secrets.token_urlsafe(32)
         expires_at = datetime.utcnow() + timedelta(hours=24)
-        
+
         email_token = models.EmailVerificationToken(
             token=verification_token,
             user_id=user.id,
@@ -496,22 +495,22 @@ def register_user_view(
         )
         db.add(email_token)
         db.commit()
-        
+
         # Log verification URL (in production, send email)
         verification_url = f"/users/verify?token={verification_token}"
         logger.info(f"Email verification URL for {username}: {verification_url}")
-        
+
         # Handle invite code - auto-accept after registration
         if invite_code:
             invitation = db.query(models.SessionInvitation).filter(
                 models.SessionInvitation.invite_code == invite_code
             ).first()
-            
+
             if invitation and invitation.is_valid():
                 session = db.query(models.GameSession).filter(
                     models.GameSession.id == invitation.session_id
                 ).first()
-                
+
                 # Ensure the session still exists before proceeding
                 if session:
                     # Avoid creating duplicate membership rows
@@ -519,7 +518,7 @@ def register_user_view(
                         models.GamePlayer.session_id == session.id,
                         models.GamePlayer.user_id == user.id,
                     ).first()
-                    
+
                     if not existing_player:
                         new_player = models.GamePlayer(
                             session_id=session.id,
@@ -528,13 +527,13 @@ def register_user_view(
                             joined_at=datetime.utcnow()
                         )
                         db.add(new_player)
-                        
+
                         invitation.uses_count += 1
                         if invitation.max_uses > 0 and invitation.uses_count >= invitation.max_uses:
                             invitation.is_active = False
-                        
+
                         db.commit()
-                    
+
                     # Log in and redirect to session
                     access_token = create_access_token(
                         data={"sub": user.username, "sv": user.session_version or 0},
@@ -553,7 +552,7 @@ def register_user_view(
                         secure=get_settings().ENVIRONMENT == "production"
                     )
                     return response
-        
+
         return RedirectResponse(
             url="/users/login?registered=1&verify=1",
             status_code=status.HTTP_302_FOUND
@@ -605,7 +604,7 @@ async def forgot_password_submit(
         # Invalidate existing unused tokens
         db.query(models.PasswordResetToken).filter(
             models.PasswordResetToken.user_id == user.id,
-            models.PasswordResetToken.used == False,
+            not models.PasswordResetToken.used,
         ).delete()
 
         raw = secrets.token_urlsafe(32)
@@ -634,7 +633,7 @@ def reset_password_page(request: Request, token: str = "", db: Session = Depends
 
     record = db.query(models.PasswordResetToken).filter(
         models.PasswordResetToken.token_hash == hashlib.sha256(token.encode()).hexdigest(),
-        models.PasswordResetToken.used == False,
+        not models.PasswordResetToken.used,
         models.PasswordResetToken.expires_at > datetime.utcnow(),
     ).first()
 
@@ -667,7 +666,7 @@ async def reset_password_submit(
 
     record = db.query(models.PasswordResetToken).filter(
         models.PasswordResetToken.token_hash == hashlib.sha256(token.encode()).hexdigest(),
-        models.PasswordResetToken.used == False,
+        not models.PasswordResetToken.used,
         models.PasswordResetToken.expires_at > datetime.utcnow(),
     ).first()
 
@@ -800,7 +799,7 @@ async def settings_email(
     # Invalidate existing pending changes for this user
     db.query(models.PendingEmailChange).filter(
         models.PendingEmailChange.user_id == current_user.id,
-        models.PendingEmailChange.used == False,
+        not models.PendingEmailChange.used,
     ).delete()
 
     raw = secrets.token_urlsafe(32)
@@ -827,7 +826,7 @@ def verify_email_change(request: Request, token: str = "", db: Session = Depends
 
     record = db.query(models.PendingEmailChange).filter(
         models.PendingEmailChange.token_hash == hashlib.sha256(token.encode()).hexdigest(),
-        models.PendingEmailChange.used == False,
+        not models.PendingEmailChange.used,
         models.PendingEmailChange.expires_at > datetime.utcnow(),
     ).first()
 

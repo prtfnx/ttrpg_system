@@ -3,37 +3,26 @@ FastAPI-based TTRPG Server for render.com hosting
 Provides HTTP/webhook and WebSocket endpoints for client communication
 """
 import asyncio
-import logging
 import os
-import sys
-import uvicorn
 from contextlib import asynccontextmanager
-from fastapi import FastAPI, Request, HTTPException, Depends
-from fastapi.responses import JSONResponse, RedirectResponse
-from fastapi.middleware.cors import CORSMiddleware
-from fastapi.templating import Jinja2Templates
-from fastapi.staticfiles import StaticFiles
-from fastapi.exception_handlers import http_exception_handler
-from starlette.exceptions import HTTPException as StarletteHTTPException
-from sqlalchemy.orm import Session
 
-from utils.logger import setup_logger
-from routers import users
-from routers.users import get_current_user_optional
-from routers import game
-from routers import compendium
-from routers import invitations
-from routers import demo
-from routers import auth
+import uvicorn
 from api import game_ws
-from database.database import create_tables, SessionLocal, get_db
-from database import models
-from service.game_session import ConnectionManager
-from utils.rate_limiter import registration_limiter, login_limiter
-from starlette.middleware.sessions import SessionMiddleware
-
 from core_table.server import TableManager
-
+from database import models
+from database.database import create_tables, get_db
+from fastapi import Depends, FastAPI, HTTPException, Request
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse, RedirectResponse
+from fastapi.staticfiles import StaticFiles
+from fastapi.templating import Jinja2Templates
+from routers import auth, compendium, demo, game, invitations, users
+from routers.users import get_current_user_optional
+from service.game_session import ConnectionManager
+from sqlalchemy.orm import Session
+from starlette.middleware.sessions import SessionMiddleware
+from utils.logger import setup_logger
+from utils.rate_limiter import login_limiter, registration_limiter
 
 logger = setup_logger("main.py") # set level in logger.py to DEBUG for detailed logs
 
@@ -50,20 +39,20 @@ async def lifespan(app: FastAPI):
     """Manage server lifecycle"""
     # Startup
     logger.info("Starting TTRPG Server...")
-    
+
     # Create database tables
     create_tables()
     logger.info("Database tables created/verified")
-    
+
     # Store app state in FastAPI app
     app.state.connection_manager = app_state.connection_manager
     app.state.table_manager = app_state.table_manager
-    
+
     # Start cleanup task for rate limiters
     cleanup_task = asyncio.create_task(rate_limiter_cleanup_task())
-    
+
     yield
-    
+
     # Shutdown
     cleanup_task.cancel()
     try:
@@ -125,7 +114,7 @@ else:
         session_secret = "dev-secret-change-in-production-min32chars"
 
 app.add_middleware(
-    SessionMiddleware, 
+    SessionMiddleware,
     secret_key=session_secret,
     session_cookie="session",
     max_age=3600,  # 1 hour
@@ -206,12 +195,12 @@ async def test_auth_error():
 @app.get("/invite/{invite_code}")
 async def invitation_page(invite_code: str, request: Request, db: Session = Depends(get_db)):
     """Invitation acceptance page"""
-    
+
     # Get invitation details
     invitation = db.query(models.SessionInvitation).filter(
         models.SessionInvitation.invite_code == invite_code
     ).first()
-    
+
     if not invitation:
         return templates.TemplateResponse(
             request,
@@ -220,19 +209,19 @@ async def invitation_page(invite_code: str, request: Request, db: Session = Depe
                 "error": "Invitation not found. Please check the link and try again."
             }
         )
-    
+
     # Get session details
     session = db.query(models.GameSession).filter(
         models.GameSession.id == invitation.session_id
     ).first()
-    
+
     # Check if user is authenticated
     current_user = None
     try:
         current_user = await get_current_user_optional(request, db)
     except Exception as exc:
         logger.debug("Optional authentication resolution failed in invitation_page", exc_info=exc)
-    
+
     return templates.TemplateResponse(
         request,
         "invitation.html",
@@ -260,13 +249,13 @@ async def health_check():
         status_code=200
     )
 
-if __name__ == "__main__":     
-   
-    
-       
+if __name__ == "__main__":
+
+
+
     # Get port from environment (render.com sets this automatically)
     port = int(os.environ.get("PORT", 12345))
-    
+
     # Determine host based on environment
     # If PORT is set by cloud provider (Render, Heroku, etc.), bind to 0.0.0.0
     # Otherwise, bind to localhost for local development

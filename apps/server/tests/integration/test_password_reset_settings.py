@@ -4,12 +4,11 @@ Tests real HTTP behaviour via the TestClient — no implementation detail mockin
 """
 import hashlib
 import secrets
-import pytest
 from datetime import datetime, timedelta
 from unittest.mock import patch
 
-from database import models, crud, schemas
-
+import pytest
+from database import crud, models, schemas
 
 # ─── Helpers ─────────────────────────────────────────────────────────────────
 
@@ -80,7 +79,7 @@ class TestForgotPassword:
 
         active = test_db.query(models.PasswordResetToken).filter(
             models.PasswordResetToken.user_id == test_user.id,
-            models.PasswordResetToken.used == False,
+            not models.PasswordResetToken.used,
         ).count()
         assert active == 1  # Only one active token at a time
 

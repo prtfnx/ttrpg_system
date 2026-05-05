@@ -2,19 +2,19 @@
 Cloudflare R2 Asset Manager for TTRPG System.
 Production-ready boto3-based implementation following Cloudflare best practices.
 """
-import os
-import logging
 import hashlib
-import xxhash
-from typing import Optional, Dict, Any, List, Tuple
-from datetime import datetime
+import logging
+import mimetypes
+import os
 from dataclasses import dataclass
+from datetime import datetime
+from typing import Any, Dict, List, Optional
 
 import boto3
-from botocore.exceptions import ClientError, NoCredentialsError
+import xxhash
 from botocore.config import Config
+from botocore.exceptions import ClientError, NoCredentialsError
 from config import Settings
-import mimetypes
 
 _settings = Settings()
 logger = logging.getLogger(__name__)
@@ -51,25 +51,25 @@ class R2AssetManager:
             'uploads': {"count": 0, "bytes": 0, "errors": 0},
             'downloads': {"count": 0, "bytes": 0, "errors": 0}
         }
-    
+
     @property
     def s3_client(self):
         """Lazy-loaded S3 client for R2 following Cloudflare best practices"""
         if self._s3_client is None:
             if not self.is_r2_configured():
                 raise ValueError("R2 configuration missing or invalid")
-            
+
             # Following Cloudflare R2 boto3 documentation
             # https://developers.cloudflare.com/r2/examples/aws/boto3/
             endpoint_url = self._build_endpoint_url()
-            
+
             # Config for boto3 1.36.0+ compatibility
             config = Config(
                 region_name='auto',
                 s3={'addressing_style': 'path'},
                 signature_version='s3v4'
             )
-            
+
             self._s3_client = boto3.client(
                 's3',
                 endpoint_url=endpoint_url,
@@ -78,40 +78,40 @@ class R2AssetManager:
                 config=config
             )
         return self._s3_client
-    
+
     def _build_endpoint_url(self) -> str:
         """Build the R2 endpoint URL"""
         if _settings.r2_endpoint:
             # If a full endpoint is provided, use it
             return _settings.r2_endpoint
-        
+
         # Try to get account ID from environment or settings
         account_id = os.getenv('R2_ACCOUNT_ID') or _settings.r2_account_id
-        
+
         if not account_id:
             raise ValueError("Either R2_ENDPOINT or R2_ACCOUNT_ID must be configured")
-        
+
         return f"https://{account_id}.r2.cloudflarestorage.com"
-    
+
     def is_r2_configured(self) -> bool:
         """Check if R2 is properly configured"""
         if not _settings.r2_enabled:
             return False
-        
+
         required_settings = [
             _settings.r2_access_key,
             _settings.r2_secret_key,
             _settings.r2_bucket_name
         ]
-        
+
         has_endpoint_config = bool(
             _settings.r2_endpoint or
             os.getenv('R2_ACCOUNT_ID') or
             _settings.r2_account_id
         )
-        
+
         return all(required_settings) and has_endpoint_config
-    
+
     def generate_file_key(self, filename: str, file_type: str = "other") -> str:
         """Generate unique key for file in R2"""
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
@@ -119,37 +119,37 @@ class R2AssetManager:
         name, ext = os.path.splitext(filename)
         clean_name = "".join(c for c in name if c.isalnum() or c in '-_')[:50]
         return f"{file_type}/{timestamp}_{file_hash}_{clean_name}{ext}"
-    
+
     def calculate_xxhash(self, file_path: str) -> str:
         """Calculate xxHash for a file (fast hash for local operations)"""
         try:
             hasher = xxhash.xxh64()  # xxh64 is faster and has good distribution
-            
+
             with open(file_path, 'rb') as f:
                 for chunk in iter(lambda: f.read(65536), b""):  # 64KB chunks
                     hasher.update(chunk)
-            
+
             return hasher.hexdigest()
         except Exception as e:
             logger.error(f"Error calculating xxHash for {file_path}: {e}")
             return ""
-    
+
     def upload_file(self, file_path: str, file_type: Optional[str] = None) -> UploadResult:
         """Upload file to R2 storage with xxHash metadata"""
         if not os.path.exists(file_path):
             return UploadResult(success=False, error=f"File not found: {file_path}")
-        
+
         file_size = 0
         file_xxhash = ""
         try:
             filename = os.path.basename(file_path)
             file_key = self.generate_file_key(filename, file_type or "other")
             file_size = os.path.getsize(file_path)
-            
+
             # Calculate xxHash before upload
             file_xxhash = self.calculate_xxhash(file_path)
             logger.info(f"Calculated xxHash for {filename}: {file_xxhash}")
-            
+
             # Upload to R2 with metadata including xxHash
             extra_args: dict[str, Any] = {
                 'Metadata': {
@@ -158,36 +158,36 @@ class R2AssetManager:
                     'upload-timestamp': str(int(datetime.now().timestamp()))
                 }
             }
-            
+
             # Set content type if we can determine it
-            
+
             content_type, _ = mimetypes.guess_type(filename)
             if content_type:
                 extra_args['ContentType'] = content_type
-            
+
             self.s3_client.upload_file(
-                file_path, 
-                _settings.r2_bucket_name, 
+                file_path,
+                _settings.r2_bucket_name,
                 file_key,
                 ExtraArgs=extra_args
             )
-            
+
             # Generate URL
             url = self._build_public_url(file_key)
-            
+
             # Update stats
             self._stats['uploads']['count'] += 1
             self._stats['uploads']['bytes'] += file_size
-            
+
             logger.info(f"Successfully uploaded: {filename} -> {url} (xxHash: {file_xxhash})")
             return UploadResult(
-                success=True, 
-                url=url, 
-                file_size=file_size, 
+                success=True,
+                url=url,
+                file_size=file_size,
                 file_key=file_key,
                 xxhash=file_xxhash
             )
-            
+
         except (ClientError, NoCredentialsError) as e:
             error_msg = f"Upload failed: {str(e)}"
             logger.error(error_msg)
@@ -198,7 +198,7 @@ class R2AssetManager:
             logger.error(error_msg)
             self._stats['uploads']['errors'] += 1
             return UploadResult(success=False, error=error_msg, file_size=file_size, xxhash=file_xxhash)
-    
+
     def _build_public_url(self, file_key: str) -> str:
         """Build public URL for a file key"""
         if _settings.r2_public_url:
@@ -207,7 +207,7 @@ class R2AssetManager:
             # Use the R2 endpoint for direct access
             endpoint = self._build_endpoint_url()
             return f"{endpoint}/{_settings.r2_bucket_name}/{file_key}"
-    
+
     def get_presigned_url(self, file_key: str, expiration: int = 3600) -> Optional[str]:
         """Generate presigned URL for file access"""
         try:
@@ -220,7 +220,7 @@ class R2AssetManager:
         except ClientError as e:
             logger.error(f"Failed to generate presigned URL: {e}")
             return None
-    
+
     def download_file(self, file_key: str, local_path: str) -> DownloadResult:
         """Download file from R2 to local path"""
         try:
@@ -228,23 +228,23 @@ class R2AssetManager:
             dir_name = os.path.dirname(local_path)
             if dir_name:
                 os.makedirs(dir_name, exist_ok=True)
-            
+
             # Download from R2
             self.s3_client.download_file(
-                _settings.r2_bucket_name, 
-                file_key, 
+                _settings.r2_bucket_name,
+                file_key,
                 local_path
             )
-            
+
             file_size = os.path.getsize(local_path)
-            
+
             # Update stats
             self._stats['downloads']['count'] += 1
             self._stats['downloads']['bytes'] += file_size
-            
+
             logger.info(f"Successfully downloaded: {file_key} -> {local_path}")
             return DownloadResult(success=True, local_path=local_path, file_size=file_size)
-            
+
         except ClientError as e:
             error_msg = f"Download failed: {str(e)}"
             logger.error(error_msg)
@@ -255,7 +255,7 @@ class R2AssetManager:
             logger.error(error_msg)
             self._stats['downloads']['errors'] += 1
             return DownloadResult(success=False, error=error_msg)
-    
+
     def delete_file(self, file_key: str) -> bool:
         """Delete file from R2 storage"""
         try:
@@ -268,7 +268,7 @@ class R2AssetManager:
         except ClientError as e:
             logger.error(f"Delete failed: {e}")
             return False
-    
+
     def list_objects(self, prefix: str = "", max_keys: int = 1000) -> List[Dict[str, Any]]:
         """List objects in R2 bucket"""
         try:
@@ -277,7 +277,7 @@ class R2AssetManager:
                 Prefix=prefix,
                 MaxKeys=max_keys
             )
-            
+
             objects = []
             for obj in response.get('Contents', []):
                 objects.append({
@@ -286,12 +286,12 @@ class R2AssetManager:
                     'last_modified': obj['LastModified'],
                     'url': self._build_public_url(obj['Key'])
                 })
-            
+
             return objects
         except ClientError as e:
             logger.error(f"List objects failed: {e}")
             return []
-    
+
     def get_object_info(self, file_key: str) -> Optional[Dict[str, Any]]:
         """Get information about a specific object"""
         try:
@@ -299,7 +299,7 @@ class R2AssetManager:
                 Bucket=_settings.r2_bucket_name,
                 Key=file_key
             )
-            
+
             return {
                 'key': file_key,
                 'size': response['ContentLength'],
@@ -310,27 +310,27 @@ class R2AssetManager:
         except ClientError as e:
             logger.error(f"Get object info failed: {e}")
             return None
-    
+
     def get_stats(self) -> Dict[str, Dict[str, int]]:
         """Get usage statistics"""
         return self._stats.copy()
-    
+
     def reset_stats(self):
         """Reset usage statistics"""
         self._stats = {
             'uploads': {"count": 0, "bytes": 0, "errors": 0},
             'downloads': {"count": 0, "bytes": 0, "errors": 0}
         }
-    
+
     def generate_presigned_url(self, file_key: str, method: str = "GET", expiration: int = 3600) -> Optional[str]:
         """
         Generate presigned URL for R2 object following Cloudflare best practices.
-        
+
         Args:
             file_key: Object key in R2 bucket
             method: HTTP method (GET, PUT, DELETE)
             expiration: URL expiration in seconds (max 7 days)
-        
+
         Returns:
             Presigned URL string or None if failed
         """
@@ -340,7 +340,7 @@ class R2AssetManager:
             if expiration > max_expiration:
                 logger.warning(f"Expiration {expiration}s exceeds R2 limit, using {max_expiration}s")
                 expiration = max_expiration
-            
+
             # Generate presigned URL using boto3
             if method.upper() == "GET":
                 url = self.s3_client.generate_presigned_url(
@@ -372,21 +372,21 @@ class R2AssetManager:
             else:
                 logger.error(f"Unsupported method for presigned URL: {method}")
                 return None
-            
+
             logger.info(f"Generated presigned {method} URL for {file_key} (expires in {expiration}s)")
             return url
-            
+
         except Exception as e:
             logger.error(f"Failed to generate presigned URL for {file_key}: {e}")
             return None
-    
+
     def object_exists(self, file_key: str) -> bool:
         """
         Check if an object exists in R2 bucket.
-        
+
         Args:
             file_key: Object key to check
-            
+
         Returns:
             True if object exists, False otherwise
         """
@@ -406,7 +406,7 @@ class R2AssetManager:
         except Exception as e:
             logger.error(f"Unexpected error checking object existence for {file_key}: {e}")
             return False
-    
+
     def download_file_with_verification(self, file_key: str, local_path: str) -> DownloadResult:
         """Download file from R2 with hash verification"""
         try:
@@ -414,27 +414,27 @@ class R2AssetManager:
             dir_name = os.path.dirname(local_path)
             if dir_name:
                 os.makedirs(dir_name, exist_ok=True)
-            
+
             # Get object metadata first to retrieve stored hash
             head_response = self.s3_client.head_object(
                 Bucket=_settings.r2_bucket_name,
                 Key=file_key
             )
-            
+
             stored_xxhash = head_response.get('Metadata', {}).get('xxhash')
-            
+
             # Download from R2
             self.s3_client.download_file(
-                _settings.r2_bucket_name, 
-                file_key, 
+                _settings.r2_bucket_name,
+                file_key,
                 local_path
             )
-            
+
             file_size = os.path.getsize(local_path)
-            
+
             # Calculate local file hash
             local_xxhash = self.calculate_xxhash(local_path)
-            
+
             # Verify hash if stored hash exists
             hash_verified = False
             if stored_xxhash:
@@ -445,20 +445,20 @@ class R2AssetManager:
                     logger.warning(f"Hash verification failed for {file_key}: stored={stored_xxhash}, local={local_xxhash}")
             else:
                 logger.warning(f"No stored hash found for {file_key}")
-            
+
             # Update stats
             self._stats['downloads']['count'] += 1
             self._stats['downloads']['bytes'] += file_size
-            
+
             logger.info(f"Successfully downloaded: {file_key} -> {local_path}")
             return DownloadResult(
-                success=True, 
-                local_path=local_path, 
+                success=True,
+                local_path=local_path,
                 file_size=file_size,
                 xxhash=local_xxhash,
                 hash_verified=hash_verified
             )
-            
+
         except ClientError as e:
             error_msg = f"Download failed: {str(e)}"
             logger.error(error_msg)
@@ -469,7 +469,7 @@ class R2AssetManager:
             logger.error(error_msg)
             self._stats['downloads']['errors'] += 1
             return DownloadResult(success=False, error=error_msg)
-    
+
     def get_object_hash(self, file_key: str) -> Optional[str]:
         """Get stored xxHash for an object"""
         try:
@@ -481,7 +481,7 @@ class R2AssetManager:
         except Exception as e:
             logger.error(f"Error getting hash for {file_key}: {e}")
             return None
-    
+
     def generate_presigned_upload_url(self, file_key: str, xxhash: str, expiration: int = 3600) -> Optional[str]:
         """Generate presigned URL for upload with required xxHash metadata"""
         try:
@@ -490,7 +490,7 @@ class R2AssetManager:
             if expiration > max_expiration:
                 logger.warning(f"Expiration {expiration}s exceeds R2 limit, using {max_expiration}s")
                 expiration = max_expiration
-            
+
             # Generate presigned URL for PUT with required metadata
             url = self.s3_client.generate_presigned_url(
                 'put_object',
@@ -504,10 +504,10 @@ class R2AssetManager:
                 },
                 ExpiresIn=expiration
             )
-            
+
             logger.info(f"Generated presigned upload URL for {file_key} with xxHash: {xxhash}")
             return url
-            
+
         except Exception as e:
             logger.error(f"Failed to generate presigned upload URL for {file_key}: {e}")
             return None

@@ -1,6 +1,6 @@
 from __future__ import annotations
-from .combat import CombatPhase, CombatState, CombatSettings, Combatant
 
+from .combat import CombatPhase, CombatSettings, CombatState
 
 TRANSITIONS: dict[CombatPhase, set[CombatPhase]] = {
     CombatPhase.INACTIVE: {CombatPhase.SETUP},

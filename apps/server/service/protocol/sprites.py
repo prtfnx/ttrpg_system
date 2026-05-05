@@ -1,22 +1,11 @@
-import os
-import sys
-import time
 import json
-import uuid
-import xxhash
-from typing import Dict, Set, Optional, Tuple, Any, Callable, TYPE_CHECKING
+from typing import TYPE_CHECKING
 
-from core_table.protocol import Message, MessageType, BatchMessage
-from core_table.actions_core import ActionsCore
-from utils.logger import setup_logger
-from utils.roles import is_dm, is_elevated, can_interact, get_visible_layers, get_sprite_limit
-from database.models import Asset, GameSession, GamePlayer
+from core_table.protocol import Message, MessageType
 from database.database import SessionLocal
-from service.movement_validator import MovementValidator, Combatant
-from service.rules_engine import RulesEngine
-from core_table.session_rules import SessionRules
-from core_table.game_mode import GameMode
-from database.crud import get_session_rules_json, get_game_mode
+from service.movement_validator import MovementValidator
+from utils.logger import setup_logger
+from utils.roles import can_interact, get_sprite_limit, is_dm
 
 if TYPE_CHECKING:
     pass
@@ -45,10 +34,10 @@ class _SpritesMixin:
             except Exception:
                 sprite_data = {}
         table_id = msg.data.get('table_id', 'default')
-        
+
         # Get session_id for database persistence
         session_id = self._get_session_id(msg)
-        
+
         # Extract canonical character link and normalize controlled_by
         try:
             if isinstance(sprite_data, dict):
@@ -129,7 +118,7 @@ class _SpritesMixin:
                 'sprite_data': sprite_data
             }
             logger.debug(f"Sending sprite response: {response_data}")
-            
+
             # Broadcast sprite creation only to clients who can see this layer
             update_message = Message(MessageType.SPRITE_UPDATE, {
                 'sprite_id': sprite_data.get('sprite_id'),
@@ -138,7 +127,7 @@ class _SpritesMixin:
                 'table_id': table_id
             })
             await self.broadcast_filtered(update_message, layer, client_id)
-            
+
             return Message(MessageType.SPRITE_RESPONSE, response_data)
 
     async def handle_delete_sprite(self, msg: Message, client_id: str) -> Message:
@@ -148,16 +137,16 @@ class _SpritesMixin:
             return Message(MessageType.ERROR, {'error': 'Only DMs can delete sprites'})
         if not msg.data:
             return Message(MessageType.ERROR, {'error': 'No data provided in delete sprite request'})
-        
+
         table_id = msg.data.get('table_id', 'default')
         sprite_id = msg.data.get('sprite_id')
-        
+
         if not sprite_id:
             return Message(MessageType.ERROR, {'error': 'Sprite ID is required'})
-        
+
         # Get session_id for database persistence
         session_id = self._get_session_id(msg)
-        
+
         result = await self.actions.delete_sprite(table_id=table_id, sprite_id=sprite_id, session_id=session_id)
         if result.success:
             # Broadcast sprite deletion to all other clients in the session
@@ -167,7 +156,7 @@ class _SpritesMixin:
                 'table_id': table_id
             })
             await self.broadcast_to_session(remove_message, client_id)
-            
+
             return Message(MessageType.SPRITE_RESPONSE, {
                 'sprite_id': sprite_id,
                 'operation': 'remove',
@@ -181,13 +170,13 @@ class _SpritesMixin:
         logger.debug(f"Move sprite request received: {msg}")
         if not msg.data:
             return Message(MessageType.ERROR, {'error': 'No data provided in move sprite request'})
-        
+
         table_id = msg.data.get('table_id', 'default')
         sprite_id = msg.data.get('sprite_id')
         from_pos = msg.data.get('from')
         to_pos = msg.data.get('to')
         action_id = msg.data.get('action_id')  # For confirmation tracking
-        
+
         if not sprite_id or not from_pos or not to_pos:
             return Message(MessageType.ERROR, {'error': 'Sprite ID, from position, and to position are required'})
 
@@ -205,7 +194,7 @@ class _SpritesMixin:
         if table is not None:
             try:
                 from core_table.session_rules import SessionRules
-                from database.crud import get_session_rules_json, get_game_mode
+                from database.crud import get_game_mode, get_session_rules_json
                 session_code = self._get_session_code()
                 rules = None
                 game_mode = 'free_roam'
@@ -293,16 +282,16 @@ class _SpritesMixin:
 
         # Get session_id for database persistence
         session_id = self._get_session_id(msg)
-        
+
         # Use the existing move_sprite method from actions
         result = await self.actions.move_sprite(
-            table_id=table_id,  
+            table_id=table_id,
             sprite_id=sprite_id,
             old_position=from_pos,
             new_position=to_pos,
             session_id=session_id
         )
-        
+
         if result.success:
             response_data = {
                 'sprite_id': sprite_id,
@@ -313,7 +302,7 @@ class _SpritesMixin:
             # Include action_id for confirmation if provided
             if action_id:
                 response_data['action_id'] = action_id
-            
+
             # Broadcast sprite move to all other clients in the session
             move_message = Message(MessageType.SPRITE_MOVE, {
                 'sprite_id': sprite_id,
@@ -322,7 +311,7 @@ class _SpritesMixin:
                 'table_id': table_id
             })
             await self.broadcast_to_session(move_message, client_id)
-            
+
             return Message(MessageType.SPRITE_RESPONSE, response_data)
         else:
             error_data = {'error': f'Failed to move sprite: {result.message}'}
@@ -335,7 +324,7 @@ class _SpritesMixin:
         logger.debug(f"Scale sprite request received: {msg}")
         if not msg.data:
             return Message(MessageType.ERROR, {'error': 'No data provided in scale sprite request'})
-        
+
         table_id = msg.data.get('table_id', 'default')
         sprite_id = msg.data.get('sprite_id')
         width = msg.data.get('width')
@@ -380,12 +369,12 @@ class _SpritesMixin:
         logger.debug(f"Rotate sprite request received: {msg}")
         if not msg.data:
             return Message(MessageType.ERROR, {'error': 'No data provided in rotate sprite request'})
-        
+
         table_id = msg.data.get('table_id', 'default')
         sprite_id = msg.data.get('sprite_id')
         rotation = msg.data.get('rotation')
         action_id = msg.data.get('action_id')  # For confirmation tracking
-        
+
         if not sprite_id or rotation is None:
             return Message(MessageType.ERROR, {'error': 'Sprite ID and rotation are required'})
         role = self._get_client_role(client_id)
@@ -411,7 +400,7 @@ class _SpritesMixin:
             # Include action_id for confirmation if provided
             if action_id:
                 response_data['action_id'] = action_id
-            
+
             await self.broadcast_to_session(
                 Message(MessageType.SPRITE_ROTATE, {
                     'sprite_id': sprite_id,
@@ -420,7 +409,7 @@ class _SpritesMixin:
                 }),
                 client_id
             )
-            
+
             return Message(MessageType.SPRITE_RESPONSE, response_data)
         else:
             error_data = {'error': f'Failed to rotate sprite: {result.message}'}
@@ -491,26 +480,26 @@ class _SpritesMixin:
         if not msg.data:
             logger.error(f"No data provided in sprite update from {client_id}")
             return Message(MessageType.ERROR, {'error': 'No data provided in sprite update'})
-            
+
         # Client sends flat structure: { sprite_id, table_id, character_id, hp, ... }
         # Legacy support for nested structure: { type: 'sprite_move', data: { ... } }
         type = msg.data.get('type')
         update_data = msg.data.get('data', {}) if type else msg.data
-        
+
         # Extract sprite_id and table_id for permission checks
         sprite_id = update_data.get('sprite_id') or msg.data.get('sprite_id')
         table_id: str = update_data.get('table_id') or update_data.get('table_name') or 'default'
-        
+
         if not sprite_id:
             return Message(MessageType.ERROR, {'error': 'Missing sprite_id'})
-        
+
         # Permission validation — DMs can always update any sprite
         role = self._get_client_role(client_id)
         user_id = self._get_user_id(msg, client_id)
         if not is_dm(role) and not await self._can_control_sprite(sprite_id, user_id):
             logger.warning(f"User {user_id} attempted to update sprite {sprite_id} without permission")
             return Message(MessageType.ERROR, {'error': 'Permission denied: you cannot control this sprite'})
-        
+
         # Handle legacy type-based updates
         if type:
             if not update_data or 'table_name' not in update_data or 'sprite_id' not in update_data:
@@ -521,7 +510,7 @@ class _SpritesMixin:
                     if 'from' not in update_data or 'to' not in update_data:
                         logger.error(f"Missing 'from' or 'to' field in sprite move update from {client_id}: {update_data}")
                         return Message(MessageType.ERROR, {'error': 'Missing required fields: from, to'})
-         
+
                     await self.actions.move_sprite(table_id=update_data['table_id'],
                                                    sprite_id=update_data['sprite_id'],
                                                    old_position=update_data['from'],
@@ -532,7 +521,7 @@ class _SpritesMixin:
                 case 'sprite_rotate':
                     logger.warning(f"Sprite update type 'sprite_rotate' not yet supported from {client_id}")
                     return Message(MessageType.ERROR, {'error': "Sprite update type 'sprite_rotate' not implemented"})
-        
+
         # Extract character binding updates
         updates = {}
         if 'character_id' in update_data:
@@ -549,7 +538,7 @@ class _SpritesMixin:
                     except Exception:
                         cb = []
                 updates['controlled_by'] = [int(x) for x in cb if str(x).lstrip('-').isdigit()]
-        
+
         # Extract token stat updates
         if 'hp' in update_data:
             updates['hp'] = update_data['hp']
@@ -575,7 +564,7 @@ class _SpritesMixin:
             updates['vision_radius_units'] = update_data['vision_radius_units']
         if 'darkvision_radius_units' in update_data and is_dm(role):
             updates['darkvision_radius_units'] = update_data['darkvision_radius_units']
-        
+
         # Apply updates via actions
         if updates:
             session_id = self._get_session_id(msg)
@@ -637,11 +626,11 @@ class _SpritesMixin:
                 'operation': 'update'
             })
             await self.broadcast_to_session(broadcast_msg, client_id)
-        
+
         response = Message(MessageType.SUCCESS, {
             'table_id': table_id,
             'sprite_id': sprite_id,
-            'message': f'Sprite updated successfully'
+            'message': 'Sprite updated successfully'
         })
         return response
 
@@ -663,7 +652,7 @@ class _SpritesMixin:
         table_id = msg.data.get('table_id') or msg.data.get('table_name') or 'default'
         sprite_data = msg.data.get('sprite_data')
         monster_data = msg.data.get('monster_data')
-        session_code = msg.data.get('session_code', msg.data.get('session', 'default'))
+        msg.data.get('session_code', msg.data.get('session', 'default'))
         user_id = self._get_user_id(msg, client_id) or 0
 
         role = self._get_client_role(client_id)
@@ -801,7 +790,7 @@ class _SpritesMixin:
                     'operation': 'delete'
                 }
                 await self.broadcast_to_session(Message(MessageType.SPRITE_UPDATE, broadcast_data), client_id)
-                
+
                 return Message(MessageType.SPRITE_RESPONSE, {'sprite_id': sprite_id, 'operation': 'delete', 'success': True})
             else:
                 return Message(MessageType.ERROR, {'error': result.message})
@@ -814,18 +803,18 @@ class _SpritesMixin:
         try:
             if not msg.data:
                 return Message(MessageType.ERROR, {'error': 'No data provided'})
-                
+
             sprite_id = msg.data.get('sprite_id')
             table_id = msg.data.get('table_id')
-            
+
             if not sprite_id or not table_id:
                 return Message(MessageType.ERROR, {'error': 'sprite_id and table_id are required'})
-            
+
             # Get sprite data from table manager
             table_data = self.table_manager.get_table(table_id)
             if not table_data:
                 return Message(MessageType.ERROR, {'error': 'Table not found'})
-            
+
             # Find sprite in table layers
             sprite_data = None
             for layer_sprites in table_data.layers.values():
@@ -835,7 +824,7 @@ class _SpritesMixin:
                         break
                 if sprite_data:
                     break
-            
+
             if sprite_data:
                 return Message(MessageType.SPRITE_DATA, {
                     'sprite_id': sprite_id,
@@ -844,7 +833,7 @@ class _SpritesMixin:
                 })
             else:
                 return Message(MessageType.ERROR, {'error': 'Sprite not found'})
-                
+
         except Exception as e:
             logger.error(f"Error handling sprite request: {e}")
             return Message(MessageType.ERROR, {'error': 'Internal server error'})

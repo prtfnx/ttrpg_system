@@ -1,19 +1,20 @@
 """
 Secure session invitation management endpoints
 """
+import secrets
+import string
+from datetime import datetime, timedelta
+from typing import Annotated, List
+
+from database import crud, models, schemas
+from database.database import get_db
 from fastapi import APIRouter, Depends, HTTPException, Request
 from fastapi.responses import RedirectResponse
 from sqlalchemy.orm import Session
-from typing import Annotated, List
-from datetime import datetime, timedelta
-import secrets
-import string
-
-from database.database import get_db
-from database import crud, schemas, models
-from .users import get_current_active_user
 from utils.logger import setup_logger
-from utils.roles import is_dm, is_valid_role, SessionRole
+from utils.roles import SessionRole, is_dm, is_valid_role
+
+from .users import get_current_active_user
 
 router = APIRouter()
 logger = setup_logger(__name__)
@@ -33,12 +34,12 @@ async def create_invitation(
     session = crud.get_game_session_by_code(db, invite_data.session_code)
     if not session:
         raise HTTPException(status_code=404, detail="Session not found")
-    
+
     player = db.query(models.GamePlayer).filter(
         models.GamePlayer.session_id == session.id,
         models.GamePlayer.user_id == current_user.id
     ).first()
-    
+
     if not player or not is_dm(player.role):
         raise HTTPException(status_code=403, detail="Owner/Co-DM access required")
 
@@ -52,7 +53,7 @@ async def create_invitation(
 
     invite_code = generate_invite_code()
     expires_at = datetime.utcnow() + timedelta(hours=invite_data.expires_hours)
-    
+
     invitation = models.SessionInvitation(
         invite_code=invite_code,
         session_id=session.id,
@@ -62,7 +63,7 @@ async def create_invitation(
         max_uses=invite_data.max_uses
     )
     db.add(invitation)
-    
+
     audit = models.AuditLog(
         event_type="INVITATION_CREATED",
         session_code=invite_data.session_code,
@@ -72,9 +73,9 @@ async def create_invitation(
     db.add(audit)
     db.commit()
     db.refresh(invitation)
-    
+
     logger.info(f"Invitation created: code={invite_code[:8]}... session={invite_data.session_code}")
-    
+
     return schemas.InvitationResponse.from_orm(invitation)
 
 @router.get("/session/{session_code}", response_model=List[schemas.InvitationResponse])
@@ -87,19 +88,19 @@ async def list_session_invitations(
     session = crud.get_game_session_by_code(db, session_code)
     if not session:
         raise HTTPException(status_code=404, detail="Session not found")
-    
+
     player = db.query(models.GamePlayer).filter(
         models.GamePlayer.session_id == session.id,
         models.GamePlayer.user_id == current_user.id
     ).first()
-    
+
     if not player:
         raise HTTPException(status_code=403, detail="Access denied")
-    
+
     invitations = db.query(models.SessionInvitation).filter(
         models.SessionInvitation.session_id == session.id
     ).order_by(models.SessionInvitation.created_at.desc()).all()
-    
+
     return [schemas.InvitationResponse.from_orm(inv) for inv in invitations]
 
 @router.delete("/{invitation_id}")
@@ -112,27 +113,27 @@ async def revoke_invitation(
     invitation = db.query(models.SessionInvitation).filter(
         models.SessionInvitation.id == invitation_id
     ).first()
-    
+
     if not invitation:
         raise HTTPException(status_code=404, detail="Invitation not found")
-    
+
     session = db.query(models.GameSession).filter(
         models.GameSession.id == invitation.session_id
     ).first()
-    
+
     if not session:
         raise HTTPException(status_code=404, detail="Session not found")
-    
+
     player = db.query(models.GamePlayer).filter(
         models.GamePlayer.session_id == session.id,
         models.GamePlayer.user_id == current_user.id
     ).first()
-    
+
     if not player or not is_dm(player.role):
         raise HTTPException(status_code=403, detail="Owner/Co-DM access required")
-    
+
     invitation.is_active = False
-    
+
     audit = models.AuditLog(
         event_type="INVITATION_REVOKED",
         session_code=session.session_code,
@@ -141,7 +142,7 @@ async def revoke_invitation(
     )
     db.add(audit)
     db.commit()
-    
+
     logger.info(f"Invitation revoked: id={invitation_id} by user={current_user.id}")
     return {"success": True, "message": "Invitation revoked"}
 
@@ -151,13 +152,13 @@ async def get_invitation(invite_code: str, db: Session = Depends(get_db)):
     invitation = db.query(models.SessionInvitation).filter(
         models.SessionInvitation.invite_code == invite_code
     ).first()
-    
+
     if not invitation:
         raise HTTPException(status_code=404, detail="Invitation not found")
-    
+
     if not invitation.is_valid():
         raise HTTPException(status_code=410, detail="Invitation expired or no uses remaining")
-    
+
     return schemas.InvitationResponse.from_orm(invitation)
 
 @router.post("/{invite_code}/accept")
@@ -171,10 +172,10 @@ async def accept_invitation(
     invitation = db.query(models.SessionInvitation).filter(
         models.SessionInvitation.invite_code == invite_code
     ).first()
-    
+
     if not invitation:
         raise HTTPException(status_code=404, detail="Invitation not found")
-    
+
     if not invitation.is_valid():
         raise HTTPException(status_code=410, detail="Invitation expired or used up")
 
@@ -185,15 +186,15 @@ async def accept_invitation(
     session = db.query(models.GameSession).filter(
         models.GameSession.id == invitation.session_id
     ).first()
-    
+
     if not session:
         raise HTTPException(status_code=404, detail="Session not found")
-    
+
     existing = db.query(models.GamePlayer).filter(
         models.GamePlayer.session_id == session.id,
         models.GamePlayer.user_id == current_user.id
     ).first()
-    
+
     if existing:
         accept_header = request.headers.get("accept", "")
         if "text/html" in accept_header:
@@ -202,7 +203,7 @@ async def accept_invitation(
                 status_code=302
             )
         raise HTTPException(status_code=400, detail="Already in session")
-    
+
     new_player = models.GamePlayer(
         session_id=session.id,
         user_id=current_user.id,
@@ -210,11 +211,11 @@ async def accept_invitation(
         joined_at=datetime.utcnow()
     )
     db.add(new_player)
-    
+
     invitation.uses_count += 1
     if invitation.max_uses > 0 and invitation.uses_count >= invitation.max_uses:
         invitation.is_active = False
-    
+
     audit = models.AuditLog(
         event_type="INVITATION_ACCEPTED",
         session_code=session.session_code,
@@ -223,16 +224,16 @@ async def accept_invitation(
     )
     db.add(audit)
     db.commit()
-    
+
     logger.info(f"Invitation accepted: user={current_user.id} session={session.session_code}")
-    
+
     accept_header = request.headers.get("accept", "")
     if "text/html" in accept_header:
         return RedirectResponse(
             url=f"/game/session/{session.session_code}",
             status_code=302
         )
-    
+
     return {
         "success": True,
         "session_code": session.session_code,

@@ -1,5 +1,6 @@
 from __future__ import annotations
-from core_table.combat import ActionCost, Combatant, CombatState
+
+from core_table.combat import ActionCost, Combatant
 from core_table.session_rules import SessionRules
 
 

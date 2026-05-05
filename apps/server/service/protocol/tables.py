@@ -1,22 +1,8 @@
-import os
-import sys
-import time
-import json
-import uuid
-import xxhash
-from typing import Dict, Set, Optional, Tuple, Any, Callable, TYPE_CHECKING
+from typing import TYPE_CHECKING
 
-from core_table.protocol import Message, MessageType, BatchMessage
-from core_table.actions_core import ActionsCore
+from core_table.protocol import Message, MessageType
 from utils.logger import setup_logger
-from utils.roles import is_dm, is_elevated, can_interact, get_visible_layers, get_sprite_limit
-from database.models import Asset, GameSession, GamePlayer
-from database.database import SessionLocal
-from service.movement_validator import MovementValidator, Combatant
-from service.rules_engine import RulesEngine
-from core_table.session_rules import SessionRules
-from core_table.game_mode import GameMode
-from database.crud import get_session_rules_json, get_game_mode
+from utils.roles import get_visible_layers, is_dm
 
 if TYPE_CHECKING:
     pass
@@ -34,14 +20,14 @@ class _TablesMixin:
             return Message(MessageType.ERROR, {'error': 'Only DMs can delete tables'})
         if not msg.data:
             return Message(MessageType.ERROR, {'error': 'No data provided in delete table request'})
-        
+
         table_id = msg.data.get('table_id')
         if not table_id:
             return Message(MessageType.ERROR, {'error': 'Table ID is required'})
-        
+
         # Get session_id for database persistence
         session_id = self._get_session_id(msg)
-        
+
         result = await self.actions.delete_table(table_id, session_id)
         if result.success:
             # Broadcast table deletion to all clients in the session
@@ -50,7 +36,7 @@ class _TablesMixin:
                 'table_id': table_id
             })
             await self.broadcast_to_session(update_message, client_id)
-            
+
             return Message(MessageType.SUCCESS, {
                 'table_id': table_id,
                 'message': 'Table deleted successfully'
@@ -61,7 +47,7 @@ class _TablesMixin:
     async def handle_table_list_request(self, msg: Message, client_id: str) -> Message:
         """Handle table list request"""
         logger.debug(f"Table list request received: {msg}")
-        
+
         try:
             result = await self.actions.get_all_tables()
             if result.success:
@@ -87,16 +73,16 @@ class _TablesMixin:
         table_name = msg.data.get('table_name', 'default')
         local_table_id = msg.data.get('local_table_id')  # BEST PRACTICE: Preserve local ID for sync mapping
         logger.info(f"DEBUG: Extracted local_table_id = '{local_table_id}' (type: {type(local_table_id).__name__})")
-        
+
         # BEST PRACTICE: Get session_id for database persistence
         session_id = self._get_session_id(msg)
         if session_id:
             logger.info(f"Creating table with session_id: {session_id}")
         else:
-            logger.warning(f"No session_id available - table will not be persisted to database")
-        
-        result = await self.actions.create_table(table_name, msg.data.get('width', 100), msg.data.get('height', 100), session_id=session_id)        
-        
+            logger.warning("No session_id available - table will not be persisted to database")
+
+        result = await self.actions.create_table(table_name, msg.data.get('width', 100), msg.data.get('height', 100), session_id=session_id)
+
         if not result.success or not result.data or result.data.get('table') is None:
             return Message(MessageType.ERROR, {'error': 'Failed to create new table'})
         else:
@@ -114,10 +100,10 @@ class _TablesMixin:
                 table_data = table_obj
             await self.ensure_assets_in_r2(table_data, msg.data.get('session_code', 'default'), self._get_user_id(msg, client_id) or 0)
             logger.info(f"Processing table {table_name} with {len(table_data.get('layers', {}))} layers")
-            
+
             if local_table_id:
                 logger.info(f"Sync completed: local table '{local_table_id}' → server table '{table_data.get('table_id')}'")
-            
+
             # Broadcast new table creation to all clients in the session
             update_message = Message(MessageType.TABLE_UPDATE, {
                 'operation': 'create',
@@ -126,7 +112,7 @@ class _TablesMixin:
                 'table_data': table_data
             })
             await self.broadcast_to_session(update_message, client_id)
-            
+
             # BEST PRACTICE: Include local_table_id in response for client-side ID mapping
             response_data = {
                 'name': table_name,
@@ -137,8 +123,8 @@ class _TablesMixin:
                 response_data['local_table_id'] = local_table_id
                 logger.info(f"DEBUG: Added local_table_id to response: {local_table_id}")
             else:
-                logger.warning(f"DEBUG: local_table_id is falsy, not adding to response")
-            
+                logger.warning("DEBUG: local_table_id is falsy, not adding to response")
+
             logger.info(f"DEBUG: Final response_data keys: {list(response_data.keys())}")
             return Message(MessageType.NEW_TABLE_RESPONSE, response_data)
 
@@ -152,7 +138,7 @@ class _TablesMixin:
         user_id = self._get_user_id(msg, client_id) or 0
         logger.info(f"Current tables: {self.table_manager.tables.items()}")
         result = await self.actions.get_table(table_id)
-        
+
         if not result.success or not result.data or result.data.get('table') is None:
             return Message(MessageType.ERROR, {'error': 'Failed to get table'})
         else:
@@ -200,9 +186,10 @@ class _TablesMixin:
             layer_settings_data = {}
             if table_id:
                 try:
-                    from database.database import SessionLocal
-                    from database import crud as _crud
                     import json as _json
+
+                    from database import crud as _crud
+                    from database.database import SessionLocal
                     _db = SessionLocal()
                     try:
                         _db_table = _crud.get_virtual_table_by_id(_db, str(table_id))
@@ -314,8 +301,8 @@ class _TablesMixin:
         session_id = self._get_session_id(msg)
         if session_id:
             try:
-                from database.database import SessionLocal
                 from database import crud, schemas
+                from database.database import SessionLocal
                 db = SessionLocal()
                 try:
                     update = schemas.VirtualTableUpdate(
@@ -367,12 +354,12 @@ class _TablesMixin:
                 update_type = msg.data.get('type')
                 update_data = msg.data.get('data', {})
                 table_id = update_data.get('table_id', 'default')
-                
+
                 # Validate required fields
                 if update_type is None:
                     logger.error(f"Missing 'type' field in table update from {client_id}: {msg.data}")
                     return Message(MessageType.ERROR, {'error': 'Missing required field: type'})
-                
+
                 role = self._get_client_role(client_id)
                 user_id = self._get_user_id(msg, client_id)
 
@@ -412,9 +399,9 @@ class _TablesMixin:
                         case _:
                             logger.error(f"Unknown sprite update type: {update_type} from {client_id}")
                             response_error= Message(MessageType.ERROR, {
-                                'error': f"Unknown sprite update type"
+                                'error': "Unknown sprite update type"
                             })
-                            
+
                 elif update_category == 'table':
                     if not is_dm(role):
                         return Message(MessageType.ERROR, {'error': 'Only DMs can modify table settings'})
@@ -429,9 +416,9 @@ class _TablesMixin:
                             session_id = self._get_session_id(msg)
                             hide_rectangles = update_data.get('hide_rectangles', [])
                             reveal_rectangles = update_data.get('reveal_rectangles', [])
-                            
+
                             result = await self.actions.update_fog_rectangles(table_id, hide_rectangles, reveal_rectangles, session_id)
-                            
+
                             if result.success:
                                 fog_data = result.data.get('fog_rectangles') if result.data else {}
                                 response = Message(MessageType.SUCCESS, {
@@ -446,7 +433,7 @@ class _TablesMixin:
                             response_error = Message(MessageType.ERROR, {
                                 'error': f"Unknown table update type: {update_type}"
                             })
-                            
+
                 if response_error:
                     await self.send_to_client(response_error, client_id)
                     return response_error
@@ -467,14 +454,14 @@ class _TablesMixin:
         try:
             if not msg.data:
                 return Message(MessageType.ERROR, {'error': 'No data provided'})
-                
+
             table_id = msg.data.get('table_id')
             scale = msg.data.get('scale')
-            session_id = self._get_session_id(msg)
-            
+            self._get_session_id(msg)
+
             if not table_id or scale is None:
                 return Message(MessageType.ERROR, {'error': 'table_id and scale are required'})
-            
+
             # For now, just broadcast the update since ActionsCore doesn't have update_table_scale
             # table scale is broadcast-only until ActionsCore exposes update_table_scale
             await self.broadcast_to_session(Message(MessageType.TABLE_UPDATE, {
@@ -482,9 +469,9 @@ class _TablesMixin:
                 'scale': scale,
                 'type': 'scale_update'
             }), client_id)
-            
+
             return Message(MessageType.SUCCESS, {'message': 'Table scale updated'})
-                
+
         except Exception as e:
             logger.error(f"Error handling table scale: {e}")
             return Message(MessageType.ERROR, {'error': 'Internal server error'})
@@ -494,15 +481,15 @@ class _TablesMixin:
         try:
             if not msg.data:
                 return Message(MessageType.ERROR, {'error': 'No data provided'})
-                
+
             table_id = msg.data.get('table_id')
             x_moved = msg.data.get('x_moved')
             y_moved = msg.data.get('y_moved')
-            session_id = self._get_session_id(msg)
-            
+            self._get_session_id(msg)
+
             if not table_id or x_moved is None or y_moved is None:
                 return Message(MessageType.ERROR, {'error': 'table_id, x_moved, and y_moved are required'})
-            
+
             # table position is broadcast-only until ActionsCore exposes update_table_position
             await self.broadcast_to_session(Message(MessageType.TABLE_UPDATE, {
                 'table_id': table_id,
@@ -510,9 +497,9 @@ class _TablesMixin:
                 'y_moved': y_moved,
                 'type': 'position_update'
             }), client_id)
-            
+
             return Message(MessageType.SUCCESS, {'message': 'Table position updated'})
-                
+
         except Exception as e:
             logger.error(f"Error handling table move: {e}")
             return Message(MessageType.ERROR, {'error': 'Internal server error'})
@@ -522,9 +509,9 @@ class _TablesMixin:
         try:
             user_id = self._get_user_id(msg, client_id)
             session_code = self._get_session_code(msg)
-            
+
             logger.info(f"Active table request from user {user_id} in session {session_code}")
-            
+
             if not user_id or not session_code:
                 logger.warning("Missing user_id or session_code for table active request")
                 return Message(MessageType.TABLE_ACTIVE_RESPONSE, {
@@ -532,17 +519,17 @@ class _TablesMixin:
                     'success': False,
                     'error': 'Missing user_id or session_code'
                 })
-            
+
             # Get the user's active table from database
             active_table_id = await self._get_player_active_table(user_id, session_code)
-            
+
             logger.info(f"Retrieved active table for user {user_id}: {active_table_id}")
-            
+
             return Message(MessageType.TABLE_ACTIVE_RESPONSE, {
                 'table_id': active_table_id,
                 'success': active_table_id is not None
             })
-            
+
         except Exception as e:
             logger.error(f"Error handling table active request: {e}")
             return Message(MessageType.ERROR, {'error': 'Internal server error'})
@@ -553,23 +540,23 @@ class _TablesMixin:
             user_id = self._get_user_id(msg, client_id)
             session_code = self._get_session_code(msg)
             table_id = msg.data.get('table_id') if msg.data else None
-            
+
             logger.info(f"Active table set request from user {user_id} in session {session_code} to table {table_id}")
-            
+
             if not user_id or not session_code:
                 logger.warning("Missing user_id or session_code for table active set")
                 return Message(MessageType.ERROR, {'error': 'Missing user_id or session_code'})
-            
+
             # Update the user's active table in database
             success = await self._set_player_active_table(user_id, session_code, table_id)
-            
+
             if success:
                 logger.info(f"Successfully updated active table for user {user_id} to {table_id}")
                 return Message(MessageType.SUCCESS, {'message': 'Active table updated'})
             else:
                 logger.error(f"Failed to update active table for user {user_id} to {table_id}")
                 return Message(MessageType.ERROR, {'error': 'Failed to update active table'})
-                
+
         except Exception as e:
             logger.error(f"Error handling table active set: {e}")
             return Message(MessageType.ERROR, {'error': 'Internal server error'})

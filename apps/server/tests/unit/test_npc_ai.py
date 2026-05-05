@@ -1,8 +1,10 @@
 """Tests for NPCAIEngine."""
-import sys, os
+import os
+import sys
+
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '../..'))
 
-from core_table.combat import CombatState, CombatSettings, CombatPhase, Combatant
+from core_table.combat import Combatant, CombatPhase, CombatState
 from service.npc_ai import NPCAIEngine
 
 

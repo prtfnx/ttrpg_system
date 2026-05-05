@@ -1,4 +1,4 @@
 # Character compendium package
-from .character import Race, CharacterClass, Background
+from .character import Background, CharacterClass, Race
 
 __all__ = ['Race', 'CharacterClass', 'Background']

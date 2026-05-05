@@ -1,7 +1,7 @@
-import pytest
 from unittest.mock import MagicMock
-from service.movement_validator import MovementValidator, Combatant, MovementResult
+
 from core_table.session_rules import SessionRules
+from service.movement_validator import Combatant, MovementValidator
 
 
 def make_rules(**kwargs):
@@ -121,7 +121,7 @@ def test_no_combatant_skips_speed_check():
     rules = make_rules(enforce_movement_speed=True)
     table = make_table(grid_cell_px=50)
     v = MovementValidator(rules)
-    r = v.validate('e1', (25, 25), (5000, 25), table, combatant=None)
+    v.validate('e1', (25, 25), (5000, 25), table, combatant=None)
     # bounds will stop it, but speed should not
     # resize table to be huge to isolate speed check
     big_table = make_table(width=1000, height=1000)

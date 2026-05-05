@@ -2,15 +2,14 @@ import secrets
 from datetime import datetime, timedelta
 from unittest.mock import Mock
 
+import main
 import pytest
+from database.database import get_db
+from database.models import Base
 from fastapi.testclient import TestClient
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.pool import StaticPool
-
-import main
-from database.database import get_db
-from database.models import Base
 
 app = main.app
 
@@ -43,9 +42,9 @@ def test_db(test_db_engine):
 @pytest.fixture(autouse=True)
 def reset_rate_limiters():
     """Reset rate limiters before each test to prevent 429 errors"""
-    from utils.rate_limiter import registration_limiter, login_limiter, password_reset_limiter
     from routers.demo import demo_limiter
-    
+    from utils.rate_limiter import login_limiter, password_reset_limiter, registration_limiter
+
     registration_limiter.clear()
     login_limiter.clear()
     demo_limiter.clear()
@@ -59,12 +58,12 @@ def client(test_db):
             yield test_db
         finally:
             pass
-    
+
     app.dependency_overrides[get_db] = override_get_db
-    
+
     with TestClient(app) as test_client:
         yield test_client
-    
+
     app.dependency_overrides.clear()
 
 @pytest.fixture
@@ -85,15 +84,15 @@ def auth_token(test_user):
 @pytest.fixture
 def auth_client(client, test_db, test_user, auth_token):
     from routers.users import get_current_user
-    
+
     async def override_get_current_user():
         return test_user
-    
+
     app.dependency_overrides[get_current_user] = override_get_current_user
     client.cookies.set("token", auth_token)
-    
+
     yield client
-    
+
     app.dependency_overrides.pop(get_current_user, None)
 
 @pytest.fixture

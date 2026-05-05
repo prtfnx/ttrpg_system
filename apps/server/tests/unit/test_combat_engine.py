@@ -1,9 +1,11 @@
 """Tests for CombatEngine."""
-import sys, os
+import os
+import sys
+
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '../..'))
 
 import pytest
-from core_table.combat import CombatPhase, CombatSettings
+from core_table.combat import CombatPhase
 from service.combat_engine import CombatEngine
 
 
@@ -133,8 +135,9 @@ def test_dm_revert_last_action():
     state = CombatEngine.start_combat('sess1', 't1', ['e1'])
     cid = state.combatants[0].combatant_id
     state.combatants[0].hp = 10
-    from core_table.combat import CombatAction
     import time
+
+    from core_table.combat import CombatAction
     action = CombatAction(  # type: ignore[call-arg]
         action_id='a1', combat_id=state.combat_id, round_number=1,
         turn_index=0, actor_id=cid, action_type='attack',
@@ -149,8 +152,9 @@ def test_dm_revert_last_action():
 
 
 def test_new_round_ticks_conditions():
-    from core_table.conditions import ActiveCondition, ConditionType
     import uuid
+
+    from core_table.conditions import ActiveCondition, ConditionType
     state = CombatEngine.start_combat('sess1', 't1', ['e1', 'e2'])
     state.combatants[0].conditions.append(
         ActiveCondition(  # type: ignore[call-arg]

@@ -2,10 +2,8 @@
 Email service using Resend API.
 If RESEND_API_KEY is unset, emails are logged to console only.
 """
-import logging
 
 import resend
-
 from config import Settings
 from utils.logger import setup_logger
 

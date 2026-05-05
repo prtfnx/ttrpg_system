@@ -5,6 +5,7 @@ Description: Adds dynamic_lighting_enabled, fog_exploration_mode, and
              ambient_light_level columns required by the lighting system.
 """
 import sqlite3
+
 from utils.logger import setup_logger
 
 logger = setup_logger(__name__)

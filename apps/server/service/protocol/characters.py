@@ -1,22 +1,9 @@
-import os
-import sys
-import time
-import json
-import uuid
-import xxhash
-from typing import Dict, Set, Optional, Tuple, Any, Callable, TYPE_CHECKING
+from typing import TYPE_CHECKING
 
-from core_table.protocol import Message, MessageType, BatchMessage
-from core_table.actions_core import ActionsCore
-from utils.logger import setup_logger
-from utils.roles import is_dm, is_elevated, can_interact, get_visible_layers, get_sprite_limit
-from database.models import Asset, GameSession, GamePlayer
+from core_table.protocol import Message, MessageType
 from database.database import SessionLocal
-from service.movement_validator import MovementValidator, Combatant
-from service.rules_engine import RulesEngine
-from core_table.session_rules import SessionRules
-from core_table.game_mode import GameMode
-from database.crud import get_session_rules_json, get_game_mode
+from utils.logger import setup_logger
+from utils.roles import is_dm
 
 if TYPE_CHECKING:
     pass
@@ -35,17 +22,17 @@ class _CharactersMixin:
                 'success': False,
                 'error': 'No character data provided'
             })
-        
+
         character_data = msg.data.get('character_data')
         session_code = msg.data.get('session_code', 'unknown')
         user_id = self._get_user_id(msg, client_id) or 0
-        
+
         if not character_data:
             return Message(MessageType.CHARACTER_SAVE_RESPONSE, {
                 'success': False,
                 'error': 'Character data is required'
             })
-        
+
         # Get session_id from session_code
         session_id = self._get_session_id(msg)
         if not session_id:
@@ -53,7 +40,7 @@ class _CharactersMixin:
                 'success': False,
                 'error': f'Session {session_code} not found'
             })
-        
+
         result = await self.actions.save_character(session_id, character_data, user_id)
 
         if result.success:
@@ -90,17 +77,17 @@ class _CharactersMixin:
                 'success': False,
                 'error': 'No character ID provided'
             })
-        
+
         character_id = msg.data.get('character_id')
         session_code = msg.data.get('session_code', 'unknown')
         user_id = self._get_user_id(msg, client_id) or 0
-        
+
         if not character_id:
             return Message(MessageType.CHARACTER_LOAD_RESPONSE, {
                 'success': False,
                 'error': 'Character ID is required'
             })
-        
+
         # Get session_id from session_code
         session_id = self._get_session_id(msg)
         if not session_id:
@@ -108,7 +95,7 @@ class _CharactersMixin:
                 'success': False,
                 'error': f'Session {session_code} not found'
             })
-        
+
         result = await self.actions.load_character(session_id, character_id, user_id)
 
         if result.success:
@@ -132,10 +119,10 @@ class _CharactersMixin:
                 'success': False,
                 'error': 'No session data provided'
             })
-        
+
         session_code = msg.data.get('session_code', 'unknown')
         user_id = self._get_user_id(msg, client_id) or 0
-        
+
         # Get session_id from session_code
         session_id = self._get_session_id(msg)
         if not session_id:
@@ -143,7 +130,7 @@ class _CharactersMixin:
                 'success': False,
                 'error': f'Session {session_code} not found'
             })
-        
+
         role = self._get_client_role(client_id)
         user_id_for_filter = 0 if is_dm(role) else user_id
         result = await self.actions.list_characters(session_id, user_id_for_filter)
@@ -170,17 +157,17 @@ class _CharactersMixin:
                 'success': False,
                 'error': 'No character ID provided'
             })
-        
+
         character_id = msg.data.get('character_id')
         session_code = msg.data.get('session_code', 'unknown')
         user_id = self._get_user_id(msg, client_id) or 0
-        
+
         if not character_id:
             return Message(MessageType.CHARACTER_DELETE_RESPONSE, {
                 'success': False,
                 'error': 'Character ID is required'
             })
-        
+
         # Get session_id from session_code
         session_id = self._get_session_id(msg)
         if not session_id:
@@ -188,9 +175,9 @@ class _CharactersMixin:
                 'success': False,
                 'error': f'Session {session_code} not found'
             })
-        
+
         result = await self.actions.delete_character(session_id, character_id, user_id)
-        
+
         if result.success:
             await self.broadcast_to_session(Message(MessageType.CHARACTER_UPDATE, {
                 'operation': 'delete',
@@ -236,7 +223,7 @@ class _CharactersMixin:
             if result.success:
                 # Sync character stats to linked tokens
                 await self._sync_character_stats_to_tokens(session_id, character_id, updates)
-                
+
                 # Broadcast to session that character updated
                 returned_version = None
                 if isinstance(result.data, dict):
@@ -431,42 +418,43 @@ class _CharactersMixin:
             # Only sync if HP, max_hp, or AC were updated
             stat_fields = {'hp', 'max_hp', 'ac'}
             updated_stats = {k: v for k, v in updates.items() if k in stat_fields}
-            
+
             if not updated_stats:
                 return  # No stats to sync
-            
+
             logger.debug(f"Syncing character {character_id} stats to linked tokens: {updated_stats}")
-            
+
             # Get all entities linked to this character
             db = SessionLocal()
             try:
-                from database.models import Entity as DBEntity, VirtualTable as DBVirtualTable
-                
+                from database.models import Entity as DBEntity
+                from database.models import VirtualTable as DBVirtualTable
+
                 # Find the table_id for this session
                 table_record = db.query(DBVirtualTable).filter(
                     DBVirtualTable.session_id == session_id
                 ).first()
-                
+
                 if not table_record:
                     logger.debug(f"No table found for session {session_id}")
                     return
-                
+
                 # Find all entities with this character_id in the table
                 linked_entities = db.query(DBEntity).filter(
                     DBEntity.table_id == table_record.id,
                     DBEntity.character_id == character_id
                 ).all()
-                
+
                 if not linked_entities:
                     logger.debug(f"No tokens linked to character {character_id}")
                     return
-                
+
                 # Update each linked entity
                 for entity in linked_entities:
                     # Update database entity
                     for field, value in updated_stats.items():
                         setattr(entity, field, value)
-                    
+
                     # Update in-memory entity if it exists
                     table = self.table_manager.get_table_by_session_id(session_id)
                     if table:
@@ -474,12 +462,12 @@ class _CharactersMixin:
                         if in_memory_entity:
                             for field, value in updated_stats.items():
                                 setattr(in_memory_entity, field, value)
-                
+
                 db.commit()
                 logger.info(f"Synced stats from character {character_id} to {len(linked_entities)} token(s)")
-                
+
             finally:
                 db.close()
-                
+
         except Exception as e:
             logger.error(f"Error syncing character stats to tokens: {e}")

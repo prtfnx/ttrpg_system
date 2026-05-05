@@ -1,6 +1,7 @@
 """Tests for server-side movement validator terrain logic."""
 from core_table.session_rules import SessionRules
-from service.movement_validator import MovementValidator, Combatant as MvCombatant
+from service.movement_validator import Combatant as MvCombatant
+from service.movement_validator import MovementValidator
 
 
 class _MockTable:
@@ -47,8 +48,9 @@ def test_difficult_terrain_doubles_cost():
 
 def test_oa_no_trigger_when_stay_in_reach():
     """OA should NOT fire if mover stays within reach."""
-    from service.movement_validator import MovementValidator
     from unittest.mock import MagicMock
+
+    from service.movement_validator import MovementValidator
 
     rules = SessionRules.defaults('test')
     rules.opportunity_attacks_enabled = True
@@ -79,8 +81,9 @@ def test_oa_no_trigger_when_stay_in_reach():
 
 def test_oa_triggers_when_leaving_reach():
     """OA SHOULD fire when mover leaves reach."""
-    from service.movement_validator import MovementValidator
     from unittest.mock import MagicMock
+
+    from service.movement_validator import MovementValidator
 
     rules = SessionRules.defaults('test')
     rules.opportunity_attacks_enabled = True

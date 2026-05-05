@@ -5,22 +5,22 @@ This class wraps the core_table ServerProtocol to provide persistent
 storage, ban handling, and client management for a multiplayer session.
 """
 import json
-import logging
 import time
 from datetime import datetime
-from typing import Dict, Set, Optional, Any, List
-from fastapi import WebSocket, WebSocketDisconnect
-from dataclasses import asdict
-import os
+from typing import Dict, List, Optional
 
-from core_table.protocol import Message, MessageType, ProtocolHandler
-from .server_protocol import ServerProtocol
+from core_table.protocol import Message, MessageType
 from core_table.server import TableManager
-from .asset_manager import get_server_asset_manager
-from utils.logger import setup_logger
 from database import models as db_models
 from database.crud import append_ban_to_session
-from utils.roles import get_permissions, get_visible_layers, is_dm as _is_dm
+from fastapi import WebSocket
+from utils.logger import setup_logger
+from utils.roles import get_permissions, get_visible_layers
+from utils.roles import is_dm as _is_dm
+
+from .asset_manager import get_server_asset_manager
+from .server_protocol import ServerProtocol
+
 logger = setup_logger(__name__)
 
 
@@ -32,45 +32,45 @@ class GameSessionProtocolService:
         self.session_code = session_code
         self.db_session = db_session
         self.game_session_db_id = game_session_db_id
-        
+
         self.table_manager = TableManager(db_session)
         logger.info(f"TableManager initialized for session {session_code}")
-        
+
         self.server_protocol = ServerProtocol(self.table_manager, session_manager=self)
         logger.info(f"ServerProtocol initialized for session {session_code}")
         self.server_protocol.send_to_client = self.send_to_client  # For compatibility with server protocol
-        
+
         # Client connections within this game session
         logger.info(f"Initializing GameSessionProtocolService for session {session_code}")
         self.clients: Dict[str, WebSocket] = {}  # client_id -> websocket
         self.client_info: Dict[str, dict] = {}   # client_id -> user info
-        self.websocket_to_client: Dict[WebSocket, str] = {}  # websocket -> client_id     
-       
-        # Load existing tables from database or create test tables        
+        self.websocket_to_client: Dict[WebSocket, str] = {}  # websocket -> client_id
+
+        # Load existing tables from database or create test tables
         if db_session and game_session_db_id:
             self._load_tables_from_database()
             logger.debug(f"GameSessionProtocolService initialized with existing tables for session {session_code}")
         else:
             logger.warning(f"No database session provided for {session_code}, creating test tables")
             self._create_test_tables()
-        
-        
+
+
         self.asset_manager = get_server_asset_manager()
-        
+
         logger.info(f"GameSessionProtocolService created for session {session_code}")
-    
+
     def _load_tables_from_database(self):
         """Load tables from database for this game session"""
         try:
             if self.game_session_db_id is not None and self.table_manager.load_from_database(self.game_session_db_id):
                 logger.info(f"Session {self.session_code} - Loaded tables from database")
                 logger.info(f"Session {self.session_code} - Available tables: {list(self.table_manager.tables.keys())}")
-                
+
                 # Check if any tables were loaded (excluding the default table)
                 # tables dict uses UUID keys, so we need to count non-default tables
-                non_default_tables = [t for tid, t in self.table_manager.tables.items() 
+                non_default_tables = [t for tid, t in self.table_manager.tables.items()
                                       if tid != str(self.table_manager.default_table.table_id)]
-                
+
                 if len(non_default_tables) == 0:
                     logger.info(f"Session {self.session_code} - No tables loaded from database, creating test tables")
                     self._create_test_tables()
@@ -82,11 +82,11 @@ class GameSessionProtocolService:
         except Exception as e:
             logger.error(f"Session {self.session_code} - Error loading from database: {e}")
             self._create_test_tables()
-    
+
     def save_to_database(self) -> bool:
         """Save current state to database - delegates to to_db()"""
         return self.to_db()
-    
+
     def auto_save(self):
         """Auto-save session data (call this periodically or on important events)"""
         try:
@@ -94,13 +94,13 @@ class GameSessionProtocolService:
             current_time = time.time()
             if not hasattr(self, '_last_save_time'):
                 self._last_save_time = 0
-            
+
             # Allow saving if it's been at least 5 seconds since last save, or force save on important events
             time_since_last_save = current_time - self._last_save_time
             if time_since_last_save < 5.0:
                 logger.debug(f"Session {self.session_code} - Skipping auto-save, only {time_since_last_save:.1f}s since last save")
                 return
-                
+
             success = self.save_to_database()
             if success:
                 self._last_save_time = current_time
@@ -128,49 +128,49 @@ class GameSessionProtocolService:
             logger.warning(f"Session {self.session_code} - Creating NEW test tables (this should only happen on first session creation)")
             # Import VirtualTable here to avoid circular imports
             from core_table.table import VirtualTable
-            
+
             # Create small test table
             test_table = VirtualTable('test_table', 20, 20)
             logger.info(f"Created test_table with UUID: {test_table.table_id}")
             self.table_manager.add_table(test_table)
-            
+
             # Add some test entities
             hero = test_table.add_entity({'name': 'Hero', 'x': 2, 'y': 3, 'layer': 'tokens', 'texture_path': 'resources/hero.png'})
             goblin = test_table.add_entity({'name': 'Goblin', 'x': 5, 'y': 6, 'layer': 'tokens', 'texture_path': 'resources/goblin.png'})
             treasure = test_table.add_entity({'name': 'Treasure', 'x': 8, 'y': 9, 'layer': 'tokens', 'texture_path': 'resources/treasure.png'})
-            
-            logger.info(f"Created test_table with entities:")
+
+            logger.info("Created test_table with entities:")
             if hero:
                 logger.info(f"Hero (ID: {hero.entity_id}, Sprite: {hero.sprite_id}) at {hero.position}")
             if goblin:
                 logger.info(f"Goblin1 (ID: {goblin.entity_id}, Sprite: {goblin.sprite_id}) at {goblin.position}")
             if treasure:
                 logger.info(f" Treasure (ID: {treasure.entity_id}, Sprite: {treasure.sprite_id}) at {treasure.position}")
-            
+
             # Create large table for testing with multiple entities in different layers
             large_table = VirtualTable('large_table', 1080, 1920)
             logger.info(f"Created large_table with UUID: {large_table.table_id}")
             self.table_manager.add_table(large_table)
-            
+
             # Add entities across different layers
-            map_bg = large_table.add_entity({'name': 'Map Background1', 'x': 0, 'y': 0, 'layer': 'map', 'texture_path': 'resources/map.jpg', 'asset_id': '1aeb5857b9cd3b50'})
-            player1 = large_table.add_entity({'name': 'Player 1', 'x': 400, 'y': 300, 'layer': 'tokens', 'texture_path': 'resources/player1.png', 'asset_id': 'e7f80bafaaf67027'})
-            player2 = large_table.add_entity({'name': 'Player 2', 'x': 12, 'y': 10, 'layer': 'tokens', 'texture_path': 'resources/player2.png'})
-            dm_note = large_table.add_entity({'name': 'DM Note', 'x': 25, 'y': 25, 'layer': 'dungeon_master', 'texture_path': 'resources/note.png'})
-            light_source = large_table.add_entity({'name': 'Light Source', 'x': 15, 'y': 15, 'layer': 'light', 'texture_path': 'server_host/res/torch.png'})
+            large_table.add_entity({'name': 'Map Background1', 'x': 0, 'y': 0, 'layer': 'map', 'texture_path': 'resources/map.jpg', 'asset_id': '1aeb5857b9cd3b50'})
+            large_table.add_entity({'name': 'Player 1', 'x': 400, 'y': 300, 'layer': 'tokens', 'texture_path': 'resources/player1.png', 'asset_id': 'e7f80bafaaf67027'})
+            large_table.add_entity({'name': 'Player 2', 'x': 12, 'y': 10, 'layer': 'tokens', 'texture_path': 'resources/player2.png'})
+            large_table.add_entity({'name': 'DM Note', 'x': 25, 'y': 25, 'layer': 'dungeon_master', 'texture_path': 'resources/note.png'})
+            large_table.add_entity({'name': 'Light Source', 'x': 15, 'y': 15, 'layer': 'light', 'texture_path': 'server_host/res/torch.png'})
 
             # Add some more entities to make it feel populated
-            orc1 = large_table.add_entity({'name': 'Orc Warrior', 'x': 20, 'y': 15, 'layer': 'tokens', 'texture_path': 'resources/orc.png'})
-            orc2 = large_table.add_entity({'name': 'Orc Archer', 'x': 22, 'y': 17, 'layer': 'tokens', 'texture_path': 'resources/orc_archer.png'})
-            chest = large_table.add_entity({'name': 'Treasure Chest', 'x': 30, 'y': 30, 'layer': 'tokens', 'texture_path': 'resources/chest.png'})
-            trap = large_table.add_entity({'name': 'Hidden Trap', 'x': 18, 'y': 18, 'layer': 'dungeon_master', 'texture_path': 'resources/trap.png'})
-            
+            large_table.add_entity({'name': 'Orc Warrior', 'x': 20, 'y': 15, 'layer': 'tokens', 'texture_path': 'resources/orc.png'})
+            large_table.add_entity({'name': 'Orc Archer', 'x': 22, 'y': 17, 'layer': 'tokens', 'texture_path': 'resources/orc_archer.png'})
+            large_table.add_entity({'name': 'Treasure Chest', 'x': 30, 'y': 30, 'layer': 'tokens', 'texture_path': 'resources/chest.png'})
+            large_table.add_entity({'name': 'Hidden Trap', 'x': 18, 'y': 18, 'layer': 'dungeon_master', 'texture_path': 'resources/trap.png'})
+
             logger.info(f"Created large_table (1080x1920) with {len(large_table.entities)} entities:")
             for entity in large_table.entities.values():
                 logger.info(f"  {entity.name} (ID: {entity.entity_id}, Sprite: {entity.sprite_id}) at {entity.position} [Layer: {entity.layer}]")
-            
+
             logger.info(f"Session {self.session_code} - Available tables: {list(self.table_manager.tables.keys())}")
-            
+
         except Exception as e:
             logger.error(f"Failed to create test tables: {e}")
             # Create a minimal fallback table
@@ -201,7 +201,7 @@ class GameSessionProtocolService:
             "last_ping": time.time()
         }
         self.websocket_to_client[websocket] = client_id
-        
+
         logger.info(f"Client {client_id} ({user_info.get('username', 'unknown')}) added to session {self.session_code}")
           # Send welcome message with protocol support
         role = user_info.get('role', 'player')
@@ -211,8 +211,6 @@ class GameSessionProtocolService:
         rules_dict: dict = {}
         if self.db_session and self.game_session_db_id:
             try:
-                from database.crud import get_session_rules_json, get_game_mode
-                from database.database import SessionLocal
                 sess = self.db_session.get(db_models.GameSession, self.game_session_db_id)
                 if sess:
                     game_mode = sess.game_mode or 'free_roam'
@@ -243,17 +241,17 @@ class GameSessionProtocolService:
         """Remove a client from this game session"""
         if websocket not in self.websocket_to_client:
             return
-        
+
         client_id = self.websocket_to_client[websocket]
         username = self.client_info.get(client_id, {}).get('username', 'unknown')
-        
+
         # Clean up
         del self.clients[client_id]
         del self.client_info[client_id]
         del self.websocket_to_client[websocket]
         # Notify server protocol
         #self.server_protocol.disconnect_client(client_id)
-        
+
         logger.info(f"Client {client_id} ({username}) removed from session {self.session_code}")
 
     async def handle_protocol_message(self, websocket: WebSocket, message_str: str):
@@ -261,13 +259,13 @@ class GameSessionProtocolService:
         try:
             message = Message.from_json(message_str)
             logger.debug(f"Handling protocol message in session {self.session_code}: {message}")
-            
+
             client_id = self.websocket_to_client.get(websocket)
-            
+
             if not client_id:
                 await self._send_error(websocket, "Client not registered in session")
                 return
-            
+
             # Update last activity
             if client_id in self.client_info:
                 self.client_info[client_id]["last_ping"] = time.time()
@@ -281,16 +279,16 @@ class GameSessionProtocolService:
                 logger.error(f"Failed to convert message type '{message.type}': {e}")
                 logger.error(f"Available message types: {[mt.value for mt in MessageType]}")
                 await self._send_error(websocket, f"Invalid message type: {message.type}")
-                return                 
-            
+                return
+
             if message_type in self.server_protocol.handlers.keys():
                 await self.server_protocol.handle_client(message, client_id)
-                
+
                 # Auto-save after sprite/entity movement or updates to persist changes immediately
                 if message_type in [MessageType.SPRITE_UPDATE, MessageType.TABLE_UPDATE]:
                     logger.debug(f"Auto-saving after {message_type.value} in session {self.session_code}")
                     self.auto_save()
-                
+
                 # NOTE: Broadcasting is now handled by individual handlers in ServerProtocol
                 # Each handler (move_sprite, scale_sprite, etc.) broadcasts SPRITE_UPDATE messages
                 # to other clients after successful operations
@@ -298,7 +296,7 @@ class GameSessionProtocolService:
                 logger.warning(f"Unknown message type: {message_type}, available handlers: {list(self.server_protocol.handlers.keys())}")
                 logger.info(f"message: {message}, client_id: {client_id}")
                 await self._send_error(websocket, f"Unknown message type: {message.type.value}")
-        
+
         except json.JSONDecodeError as e:
             logger.error(f"Invalid JSON from WebSocket in session {self.session_code}: {e}")
             await self._send_error(websocket, "Invalid JSON format")
@@ -310,11 +308,11 @@ class GameSessionProtocolService:
         """Broadcast message to all clients in this game session"""
         disconnected_clients = []
         broadcast_count = 0
-        
+
         logger.info(f"BROADCAST: Broadcasting {message.type.value} to session {self.session_code}")
         logger.info(f"BROADCAST: Available clients: {list(self.clients.keys())}")
         logger.info(f"BROADCAST: Excluding client: {exclude_client}")
-        
+
         for client_id, websocket in self.clients.items():
             if client_id != exclude_client:
                 try:
@@ -326,9 +324,9 @@ class GameSessionProtocolService:
                     disconnected_clients.append(websocket)
             else:
                 logger.info(f"BROADCAST: Skipping sender client {client_id}")
-        
+
         logger.info(f"BROADCAST: Broadcasted {message.type.value} to {broadcast_count} clients in session {self.session_code}")
-        
+
         # Clean up disconnected clients
         for websocket in disconnected_clients:
             await self.remove_client(websocket)
@@ -354,7 +352,7 @@ class GameSessionProtocolService:
         """Send message to specific client"""
         if message.type == MessageType.PONG:
             logger.info(f"PONG: Sending to client {client_id} in session {self.session_code}")
-        
+
         if client_id in self.clients:
             websocket = self.clients[client_id]
             try:
@@ -372,17 +370,17 @@ class GameSessionProtocolService:
                 logger.warning(f"PONG: Client {client_id} NOT FOUND in session {self.session_code}")
 
     # Protocol Message Handlers
-    
+
 
     # Utility Methods
-    
+
     async def _send_message(self, websocket: WebSocket, message: Message):
         """Send message to WebSocket"""
         if message.type == MessageType.PONG:
             logger.debug(f"PONG: Calling websocket.send_text() with: {message.to_json()}")
         await websocket.send_text(message.to_json())
         if message.type == MessageType.PONG:
-            logger.debug(f"PONG: websocket.send_text() completed")
+            logger.debug("PONG: websocket.send_text() completed")
 
     async def _send_error(self, websocket: WebSocket, error_message: str):
         """Send error message to WebSocket"""
@@ -412,7 +410,7 @@ class GameSessionProtocolService:
     def has_clients(self) -> bool:
         """Check if session has any connected clients"""
         return len(self.clients) > 0
-    
+
     def cleanup(self):
         """Cleanup resources when session is closed"""
         logger.info(f"Cleaning up GameSessionProtocolService for session {self.session_code}")
@@ -439,7 +437,7 @@ class GameSessionProtocolService:
             if not self.db_session or not self.game_session_db_id:
                 logger.warning(f"No database session for {self.session_code}")
                 return False
-            
+
             # Update GameSession metadata
             game_session = self.db_session.query(db_models.GameSession).filter_by(id=self.game_session_db_id).first()
             if game_session:
@@ -447,13 +445,13 @@ class GameSessionProtocolService:
                     'client_count': len(self.clients),
                     'table_count': len(self.table_manager.tables)
                 })
-            
+
             # Save all tables using table_manager's existing method
             success = self.table_manager.save_to_database(self.game_session_db_id)
             if success:
                 self.db_session.commit()
                 logger.info(f"Saved session {self.session_code} to database")
-            
+
             return success
         except Exception as e:
             logger.error(f"Error saving to database: {e}")
@@ -466,30 +464,30 @@ class GameSessionProtocolService:
         try:
             target_client_id = None
             target_websocket = None
-            
+
             # Find target client by player_id or username
             for client_id, info in self.client_info.items():
-                if (str(info.get('user_id')) == str(target_player_id) or 
+                if (str(info.get('user_id')) == str(target_player_id) or
                     info.get('username') == target_username):
                     target_client_id = client_id
                     target_websocket = self.clients.get(client_id)
                     break
-            
+
             if not target_client_id or not target_websocket:
                 logger.warning(f"Player not found for kick: {target_username}/{target_player_id}")
                 return False
-            
+
             kicked_username = self.client_info[target_client_id].get('username', 'unknown')
             kicker_username = self.client_info.get(kicked_by_client_id, {}).get('username', 'unknown')
-            
+
             # Notify the kicked player
             kick_message = Message(MessageType.ERROR, {
-                'error': f'You have been kicked from the session',
+                'error': 'You have been kicked from the session',
                 'reason': reason,
                 'kicked_by': kicker_username
             })
             await self._send_message(target_websocket, kick_message)
-            
+
             # Broadcast kick notification to other players
             kick_notification = Message(MessageType.PLAYER_LEFT, {
                 'username': kicked_username,
@@ -498,19 +496,19 @@ class GameSessionProtocolService:
                 'kicked': True
             })
             await self.broadcast_to_session(kick_notification, exclude_client=target_client_id)
-            
+
             # Remove the player
             await self.remove_client(target_websocket)
-            
+
             # Close the WebSocket connection
             try:
                 await target_websocket.close()
             except Exception as e:
                 logger.error(f"Error closing WebSocket for kicked player: {e}")
-            
+
             logger.info(f"Player {kicked_username} kicked by {kicker_username}: {reason}")
             return True
-            
+
         except Exception as e:
             logger.error(f"Error kicking player: {e}")
             return False
@@ -520,7 +518,7 @@ class GameSessionProtocolService:
         try:
             # First kick the player
             kick_success = await self.kick_player(target_player_id, target_username, f"Banned: {reason}", banned_by_client_id)
-            
+
             if kick_success:
                 # Persist ban in the database if available
                 banner_username = self.client_info.get(banned_by_client_id, {}).get('username', 'unknown')
@@ -534,7 +532,7 @@ class GameSessionProtocolService:
                         "timestamp": datetime.utcnow().isoformat()
                     })
                 logger.info(f"Player {target_username} banned by {banner_username} for {duration}: {reason}")
-                
+
                 # Broadcast ban notification
                 ban_notification = Message(MessageType.PLAYER_LEFT, {
                     'username': target_username,
@@ -544,11 +542,11 @@ class GameSessionProtocolService:
                     'duration': duration
                 })
                 await self.broadcast_to_session(ban_notification)
-                
+
                 return True
             else:
                 return False
-                
+
         except Exception as e:
             logger.error(f"Error banning player: {e}")
             return False

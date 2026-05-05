@@ -1,16 +1,17 @@
 """
 Database models for TTRPG server
 """
-from sqlalchemy import Integer, String, Boolean, DateTime, ForeignKey, Text, Float, UniqueConstraint
-from sqlalchemy.orm import declarative_base, relationship, Mapped, mapped_column
-from typing import Optional
 from datetime import datetime
+from typing import Optional
+
+from sqlalchemy import Boolean, DateTime, Float, ForeignKey, Integer, String, Text, UniqueConstraint
+from sqlalchemy.orm import Mapped, declarative_base, mapped_column, relationship
 
 Base = declarative_base()
 
 class User(Base):
     __tablename__ = "users"
-    
+
     id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
     username: Mapped[str] = mapped_column(String(50), unique=True, index=True, nullable=False)
     email: Mapped[Optional[str]] = mapped_column(String(100), unique=True, index=True, nullable=True)  # Allow NULL for unique constraint
@@ -22,13 +23,13 @@ class User(Base):
     created_at: Mapped[Optional[datetime]] = mapped_column(DateTime, default=datetime.utcnow)
     password_set_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)  # NULL = OAuth-only user who never set a password
     session_version: Mapped[int] = mapped_column(Integer, default=0, nullable=False)  # Bump to invalidate all JWTs
-    
+
     # Relationships
     game_sessions = relationship("GameSession", back_populates="owner")
 
 class GameSession(Base):
     __tablename__ = "game_sessions"
-    
+
     id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
     name: Mapped[str] = mapped_column(String(100), nullable=False)
     session_code: Mapped[str] = mapped_column(String(20), unique=True, index=True, nullable=False)
@@ -40,7 +41,7 @@ class GameSession(Base):
     ban_list: Mapped[Optional[str]] = mapped_column(Text, default='[]')  # JSON array of ban records (player_id, reason, etc.)
     session_rules_json: Mapped[Optional[str]] = mapped_column(Text, default='{}')  # JSON blob of SessionRules
     game_mode: Mapped[Optional[str]] = mapped_column(String(20), default='free_roam')
-    
+
     # Relationships
     owner = relationship("User", back_populates="game_sessions")
     players = relationship("GamePlayer", back_populates="session")
@@ -51,7 +52,7 @@ class GameSession(Base):
 class GamePlayer(Base):
     __tablename__ = "game_players"
     __table_args__ = (UniqueConstraint("session_id", "user_id", name="uq_gameplayer_session_user"),)
-    
+
     id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
     session_id: Mapped[int] = mapped_column(Integer, ForeignKey("game_sessions.id"), nullable=False)
     user_id: Mapped[int] = mapped_column(Integer, ForeignKey("users.id"), nullable=False)
@@ -60,32 +61,32 @@ class GamePlayer(Base):
     joined_at: Mapped[Optional[datetime]] = mapped_column(DateTime, default=datetime.utcnow)
     is_connected: Mapped[bool] = mapped_column(Boolean, default=False)
     active_table_id: Mapped[Optional[str]] = mapped_column(String(36), nullable=True)  # UUID of user's active table
-    
+
     # Relationships
     session = relationship("GameSession", back_populates="players")
     user = relationship("User")
 
 class VirtualTable(Base):
     __tablename__ = "virtual_tables"
-    
+
     id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
     table_id: Mapped[str] = mapped_column(String(36), unique=True, index=True, nullable=False)  # UUID
     name: Mapped[str] = mapped_column(String(100), nullable=False)  # display_name - keeping for backward compatibility
     width: Mapped[int] = mapped_column(Integer, nullable=False)
     height: Mapped[int] = mapped_column(Integer, nullable=False)
     session_id: Mapped[int] = mapped_column(Integer, ForeignKey("game_sessions.id"), nullable=False)
-    
+
     # Table properties
     position_x: Mapped[float] = mapped_column(Float, default=0.0)
     position_y: Mapped[float] = mapped_column(Float, default=0.0)
     scale_x: Mapped[float] = mapped_column(Float, default=1.0)
     scale_y: Mapped[float] = mapped_column(Float, default=1.0)
-    
+
     # Layer visibility (JSON string)
     layer_visibility: Mapped[Optional[str]] = mapped_column(Text)  # JSON: {"map": true, "tokens": true, ...}
     # Per-layer settings (JSON string) — persistent opacity, tint, inactive_opacity per layer
     layer_settings: Mapped[Optional[str]] = mapped_column(Text, nullable=True)  # JSON: {"tokens": {"opacity": 1.0, "tint_color": [...], ...}}
-    
+
     # Dynamic lighting (per-table, DM-controlled)
     dynamic_lighting_enabled: Mapped[bool] = mapped_column(Boolean, default=False)
     fog_exploration_mode: Mapped[Optional[str]] = mapped_column(String(20), default='current_only')
@@ -102,7 +103,7 @@ class VirtualTable(Base):
 
     created_at: Mapped[Optional[datetime]] = mapped_column(DateTime, default=datetime.utcnow)
     updated_at: Mapped[Optional[datetime]] = mapped_column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
-    
+
     # Relationships
     session = relationship("GameSession", back_populates="tables")
     entities = relationship("Entity", back_populates="table", cascade="all, delete-orphan")
@@ -110,12 +111,12 @@ class VirtualTable(Base):
 
 class Entity(Base):
     __tablename__ = "entities"
-    
+
     id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
     entity_id: Mapped[int] = mapped_column(Integer, nullable=False)  # Entity ID within the table
     sprite_id: Mapped[str] = mapped_column(String(36), unique=True, index=True, nullable=False)  # UUID
     table_id: Mapped[int] = mapped_column(Integer, ForeignKey("virtual_tables.id"), nullable=False)
-    
+
     # Entity properties
     name: Mapped[str] = mapped_column(String(100), nullable=False)
     position_x: Mapped[int] = mapped_column(Integer, nullable=False)
@@ -129,26 +130,26 @@ class Entity(Base):
     character_id: Mapped[Optional[str]] = mapped_column(String(36), ForeignKey("session_characters.character_id"), nullable=True)
     # JSON array of user ids who can control this token (nullable)
     controlled_by: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
-    
+
     # Transform properties
     scale_x: Mapped[float] = mapped_column(Float, default=1.0)
     scale_y: Mapped[float] = mapped_column(Float, default=1.0)
     rotation: Mapped[float] = mapped_column(Float, default=0.0)
-    
+
     # Obstacle metadata (for client-side lighting/collision)
     obstacle_type: Mapped[Optional[str]] = mapped_column(String(20), nullable=True)  # "rectangle", "circle", "polygon", "line", None
     obstacle_data: Mapped[Optional[str]] = mapped_column(Text, nullable=True)  # JSON: shape-specific data
-    
+
     # Generic metadata (JSON string — used by lights and other special entities, opaque to server)
     entity_metadata: Mapped[Optional[str]] = mapped_column('metadata', Text, nullable=True)
-    
+
     # Token stats (for gameplay)
     hp: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
     max_hp: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
     ac: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
     aura_radius: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
     aura_color: Mapped[Optional[str]] = mapped_column(String(7), nullable=True)  # hex color e.g. '#ffaa00'
-    
+
     # Vision fields (for dynamic lighting, client-enforced)
     vision_radius: Mapped[Optional[float]] = mapped_column(Float, nullable=True)       # pixels (legacy)
     has_darkvision: Mapped[bool] = mapped_column(Boolean, default=False)
@@ -159,7 +160,7 @@ class Entity(Base):
 
     created_at: Mapped[Optional[datetime]] = mapped_column(DateTime, default=datetime.utcnow)
     updated_at: Mapped[Optional[datetime]] = mapped_column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
-    
+
     # Relationships
     table = relationship("VirtualTable", back_populates="entities")
     # Backref to SessionCharacter (nullable)
@@ -167,48 +168,48 @@ class Entity(Base):
 
 class Asset(Base):
     __tablename__ = "assets"
-    
+
     id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
     asset_name: Mapped[str] = mapped_column(String(255), unique=True, index=True, nullable=False)  # Original filename
     r2_asset_id: Mapped[str] = mapped_column(String(100), unique=True, index=True, nullable=False)  # R2 asset ID
     content_type: Mapped[str] = mapped_column(String(100), nullable=False)  # MIME type
     file_size: Mapped[int] = mapped_column(Integer, nullable=False)  # Size in bytes
     xxhash: Mapped[Optional[str]] = mapped_column(String(32), nullable=True)     # xxHash for fast verification
-    
+
     # Metadata
     uploaded_by: Mapped[int] = mapped_column(Integer, ForeignKey("users.id"), nullable=False)
     session_id: Mapped[Optional[int]] = mapped_column(Integer, ForeignKey("game_sessions.id"), nullable=True)  # Optional session association
-    
+
     # Timestamps
     created_at: Mapped[Optional[datetime]] = mapped_column(DateTime, default=datetime.utcnow)
     updated_at: Mapped[Optional[datetime]] = mapped_column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
     last_accessed: Mapped[Optional[datetime]] = mapped_column(DateTime, default=datetime.utcnow)
-    
+
     # R2 specific metadata
     r2_key: Mapped[str] = mapped_column(String(500), nullable=False)  # R2 object key
     r2_bucket: Mapped[str] = mapped_column(String(100), nullable=False)  # R2 bucket name
-    
+
     # Relationships
     uploader = relationship("User")
     session = relationship("GameSession")
 
 class SessionCharacter(Base):
     __tablename__ = "session_characters"
-    
+
     id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
     character_id: Mapped[str] = mapped_column(String(36), unique=True, index=True, nullable=False)  # UUID
     session_id: Mapped[int] = mapped_column(Integer, ForeignKey("game_sessions.id"), nullable=False)
     character_name: Mapped[str] = mapped_column(String(255), nullable=False)
     character_data: Mapped[str] = mapped_column(Text, nullable=False)  # JSON blob of character data
     owner_user_id: Mapped[int] = mapped_column(Integer, ForeignKey("users.id"), nullable=False)
-    
+
     # Timestamps
     created_at: Mapped[Optional[datetime]] = mapped_column(DateTime, default=datetime.utcnow)
     updated_at: Mapped[Optional[datetime]] = mapped_column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
     # Versioning for optimistic concurrency
     version: Mapped[int] = mapped_column(Integer, default=1)
     last_modified_by: Mapped[Optional[int]] = mapped_column(Integer, ForeignKey("users.id"), nullable=True)
-    
+
     # Relationships
     session = relationship("GameSession")
     owner = relationship("User", foreign_keys=[owner_user_id])
@@ -220,7 +221,7 @@ class SessionCharacter(Base):
 
 class SessionInvitation(Base):
     __tablename__ = "session_invitations"
-    
+
     id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
     invite_code: Mapped[str] = mapped_column(String(32), unique=True, index=True, nullable=False)
     session_id: Mapped[int] = mapped_column(Integer, ForeignKey("game_sessions.id"), nullable=False)
@@ -231,11 +232,11 @@ class SessionInvitation(Base):
     max_uses: Mapped[int] = mapped_column(Integer, default=1)
     uses_count: Mapped[int] = mapped_column(Integer, default=0)
     is_active: Mapped[bool] = mapped_column(Boolean, default=True)
-    
+
     # Relationships
     session = relationship("GameSession", back_populates="invitations")
     creator = relationship("User")
-    
+
     def is_valid(self) -> bool:
         """Validate invitation security state"""
         # Check if invitation is active
@@ -255,17 +256,17 @@ class SessionInvitation(Base):
 class EmailVerificationToken(Base):
     """Email verification tokens for new user signups"""
     __tablename__ = "email_verification_tokens"
-    
+
     id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
     token: Mapped[str] = mapped_column(String(64), unique=True, index=True, nullable=False)
     user_id: Mapped[int] = mapped_column(Integer, ForeignKey("users.id"), nullable=False)
     created_at: Mapped[Optional[datetime]] = mapped_column(DateTime, default=datetime.utcnow)
     expires_at: Mapped[datetime] = mapped_column(DateTime, nullable=False)
     used_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
-    
+
     # Relationship
     user = relationship("User")
-    
+
     def is_valid(self) -> bool:
         """Check if token is still valid"""
         if self.used_at is not None:
@@ -359,7 +360,7 @@ class Wall(Base):
 class AuditLog(Base):
     """Comprehensive audit logging for security events"""
     __tablename__ = "audit_logs"
-    
+
     id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
     event_type: Mapped[str] = mapped_column(String(50), nullable=False, index=True)
     session_code: Mapped[Optional[str]] = mapped_column(String(20), nullable=True, index=True)
@@ -368,7 +369,7 @@ class AuditLog(Base):
     user_agent: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     details: Mapped[Optional[str]] = mapped_column(Text, nullable=True)  # JSON details
     timestamp: Mapped[Optional[datetime]] = mapped_column(DateTime, default=datetime.utcnow, index=True)
-    
+
     # Relationship
     user = relationship("User")
 

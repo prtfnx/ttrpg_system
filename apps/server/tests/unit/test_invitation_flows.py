@@ -1,6 +1,8 @@
-import pytest
 from datetime import datetime, timedelta
+
+import pytest
 from database import models
+
 
 @pytest.mark.unit
 class TestInvitationFlow:
@@ -19,7 +21,7 @@ class TestInvitationFlow:
         )
         test_db.add(invite)
         test_db.commit()
-        
+
         # Register with invite code
         response = client.post("/users/register", data={
             "username": "inviteduser",
@@ -28,27 +30,27 @@ class TestInvitationFlow:
             "confirm_password": "SecurePass1",
             "invite_code": "TESTINV123"
         }, follow_redirects=False)
-        
+
         assert response.status_code == 302
         assert test_game_session.session_code in response.headers["location"]
-        
+
         # Check user was added to session
         user = test_db.query(models.User).filter(
             models.User.username == "inviteduser"
         ).first()
-        
+
         player = test_db.query(models.GamePlayer).filter(
             models.GamePlayer.user_id == user.id,
             models.GamePlayer.session_id == test_game_session.id
         ).first()
-        
+
         assert player is not None
         assert player.role == "player"
-        
+
         # Check invite usage incremented
         test_db.refresh(invite)
         assert invite.uses_count == 1
-    
+
     def test_login_with_invite_auto_accepts(self, client, test_db, test_user, test_game_session):
         """Login with invite code adds a new (non-owner) user to the session"""
         from database import crud, schemas
@@ -91,7 +93,7 @@ class TestInvitationFlow:
 
         test_db.refresh(invite)
         assert invite.uses_count == 1
-    
+
     def test_invitation_page_shows_details(self, client, test_db, test_game_session, test_user):
         """Invitation page displays session details"""
         invite = models.SessionInvitation(
@@ -106,14 +108,14 @@ class TestInvitationFlow:
         )
         test_db.add(invite)
         test_db.commit()
-        
+
         response = client.get("/invite/TESTINV789")
-        
+
         assert response.status_code == 200
         assert test_game_session.name.encode() in response.content
         assert b"co-dm" in response.content.lower()
         assert b"1 / 3" in response.content
-    
+
     def test_expired_invitation_shows_error(self, client, test_db, test_game_session, test_user):
         """Expired invitation shows appropriate error"""
         invite = models.SessionInvitation(
@@ -128,12 +130,12 @@ class TestInvitationFlow:
         )
         test_db.add(invite)
         test_db.commit()
-        
+
         response = client.get("/invite/EXPIREDINV")
-        
+
         assert response.status_code == 200
         assert b"expired" in response.content.lower() or b"no longer valid" in response.content.lower()
-    
+
     def test_invite_max_uses_deactivates(self, client, test_db, test_game_session, test_user):
         """Invitation deactivates after max uses"""
         invite = models.SessionInvitation(
@@ -148,7 +150,7 @@ class TestInvitationFlow:
         )
         test_db.add(invite)
         test_db.commit()
-        
+
         # Register with invite code
         client.post("/users/register", data={
             "username": "maxuseuser",
@@ -157,8 +159,8 @@ class TestInvitationFlow:
             "confirm_password": "SecurePass1",
             "invite_code": "MAXUSESINV"
         })
-        
+
         # Check invitation is now inactive
         test_db.refresh(invite)
         assert invite.uses_count == 1
-        assert invite.is_active == False
+        assert not invite.is_active

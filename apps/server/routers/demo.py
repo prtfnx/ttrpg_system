@@ -12,18 +12,18 @@ Security measures:
 - Spectator role with limited permissions
 """
 
-from fastapi import APIRouter, Request, HTTPException, Depends
+import logging
+from datetime import timedelta
+
+from config import Settings
+from database import models
+from database.database import get_db
+from fastapi import APIRouter, Depends, HTTPException, Request
 from fastapi.responses import RedirectResponse
 from sqlalchemy.orm import Session
-from datetime import datetime, timedelta
-import logging
-from typing import Optional
-
-from database.database import get_db
-from database import models
-from .users import create_access_token
 from utils.rate_limiter import RateLimiter
-from config import Settings
+
+from .users import create_access_token
 
 router = APIRouter()
 logger = logging.getLogger(__name__)
@@ -48,15 +48,15 @@ def get_or_create_demo_session(db: Session) -> models.GameSession:
     """Get or create the demo game session"""
     demo_session = db.query(models.GameSession).filter(
         models.GameSession.session_code == DEMO_SESSION_CODE,
-        models.GameSession.is_demo == True
+        models.GameSession.is_demo
     ).first()
-    
+
     if not demo_session:
         # Create demo user if doesn't exist
         demo_user = db.query(models.User).filter(
             models.User.username == "demo_host"
         ).first()
-        
+
         if not demo_user:
             import bcrypt
             demo_user = models.User(
@@ -67,7 +67,7 @@ def get_or_create_demo_session(db: Session) -> models.GameSession:
             db.add(demo_user)
             db.commit()
             db.refresh(demo_user)
-        
+
         # Create demo session
         demo_session = models.GameSession(
             name="Demo Adventure - Tavern Encounter",
@@ -79,9 +79,9 @@ def get_or_create_demo_session(db: Session) -> models.GameSession:
         db.add(demo_session)
         db.commit()
         db.refresh(demo_session)
-        
+
         logger.info(f"Created demo session: {DEMO_SESSION_CODE}")
-    
+
     return demo_session
 
 
@@ -89,21 +89,21 @@ def get_or_create_demo_session(db: Session) -> models.GameSession:
 async def start_demo(request: Request, db: Session = Depends(get_db)):
     """
     Start a demo session for unauthenticated users.
-    
+
     Creates a temporary JWT with demo flag and redirects to the demo game session.
     """
     client_ip = get_client_ip(request)
-    
+
     # Rate limiting check (3 demos per hour)
     if not demo_limiter.is_allowed(client_ip, max_requests=3, window_minutes=60):
         raise HTTPException(
             status_code=429,
             detail="Demo rate limit exceeded. Please try again later or create a free account for unlimited access."
         )
-    
+
     # Get or create demo session
-    demo_session = get_or_create_demo_session(db)
-    
+    get_or_create_demo_session(db)
+
     # Create temporary demo JWT
     demo_token_data = {
         "sub": f"demo_user_{client_ip.replace('.', '_')}",
@@ -111,21 +111,21 @@ async def start_demo(request: Request, db: Session = Depends(get_db)):
         "session_code": DEMO_SESSION_CODE,
         "role": "spectator"
     }
-    
+
     demo_token = create_access_token(
         data=demo_token_data,
         expires_delta=timedelta(minutes=DEMO_JWT_EXPIRY_MINUTES)
     )
-    
+
     # Log demo access
     logger.info(f"Demo session started from IP: {client_ip}")
-    
+
     # Redirect to demo session with token
     response = RedirectResponse(
         url=f"/game/session/{DEMO_SESSION_CODE}",
         status_code=302
     )
-    
+
     response.set_cookie(
         key="token",
         value=demo_token,

@@ -1,22 +1,15 @@
-import os
-import sys
-import time
 import json
 import uuid
-import xxhash
-from typing import Dict, Set, Optional, Tuple, Any, Callable, TYPE_CHECKING
+from typing import TYPE_CHECKING
 
-from core_table.protocol import Message, MessageType, BatchMessage
-from core_table.actions_core import ActionsCore
-from utils.logger import setup_logger
-from utils.roles import is_dm, is_elevated, can_interact, get_visible_layers, get_sprite_limit
-from database.models import Asset, GameSession, GamePlayer
-from database.database import SessionLocal
-from service.movement_validator import MovementValidator, Combatant
-from service.rules_engine import RulesEngine
-from core_table.session_rules import SessionRules
 from core_table.game_mode import GameMode
-from database.crud import get_session_rules_json, get_game_mode
+from core_table.protocol import Message, MessageType
+from core_table.session_rules import SessionRules
+from database.crud import get_game_mode, get_session_rules_json
+from database.database import SessionLocal
+from service.rules_engine import RulesEngine
+from utils.logger import setup_logger
+from utils.roles import is_dm
 
 if TYPE_CHECKING:
     pass
@@ -35,8 +28,8 @@ class _CombatMixin:
         if not table_id:
             return Message(MessageType.ERROR, {'error': 'table_id required'})
 
-        from service.combat_engine import CombatEngine
         from core_table.combat import CombatSettings
+        from service.combat_engine import CombatEngine
         settings = CombatSettings.from_dict(d['settings']) if d.get('settings') else None
         session_code = self._get_session_code()
         state = CombatEngine.start_combat(
@@ -197,8 +190,8 @@ class _CombatMixin:
         condition_str = d.get('condition_type')
         if not combatant_id or not condition_str:
             return Message(MessageType.ERROR, {'error': 'combatant_id and condition_type required'})
-        from service.combat_engine import CombatEngine
         from core_table.conditions import ActiveCondition, ConditionType
+        from service.combat_engine import CombatEngine
         state = CombatEngine.get_state(self._get_session_code())
         if not state:
             return Message(MessageType.ERROR, {'error': 'No active combat'})

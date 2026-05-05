@@ -1,22 +1,11 @@
-import os
-import sys
-import time
 import json
-import uuid
-import xxhash
-from typing import Dict, Set, Optional, Tuple, Any, Callable, TYPE_CHECKING
+import time
+from typing import TYPE_CHECKING, Optional
 
-from core_table.protocol import Message, MessageType, BatchMessage
-from core_table.actions_core import ActionsCore
-from utils.logger import setup_logger
-from utils.roles import is_dm, is_elevated, can_interact, get_visible_layers, get_sprite_limit
-from database.models import Asset, GameSession, GamePlayer
+from core_table.protocol import Message, MessageType
 from database.database import SessionLocal
-from service.movement_validator import MovementValidator, Combatant
-from service.rules_engine import RulesEngine
-from core_table.session_rules import SessionRules
-from core_table.game_mode import GameMode
-from database.crud import get_session_rules_json, get_game_mode
+from database.models import GameSession
+from utils.logger import setup_logger
 
 if TYPE_CHECKING:
     pass
@@ -30,7 +19,7 @@ class _HelpersMixin:
     async def send_to_client(self, message: Message, client_id: str):
         """Send message to specific client"""
         # Overload this method in server implementation to use choosed transport
-        raise NotImplementedError("Subclasses must implement send_to_client method")      
+        raise NotImplementedError("Subclasses must implement send_to_client method")
 
     async def broadcast_to_session(self, message: Message, client_id: str):
         """Send message to all clients in the session"""
@@ -63,13 +52,13 @@ class _HelpersMixin:
                 code = self.session_manager.session_code
                 if code:
                     return code
-            
+
             # Secondary method: Extract from message data
             if msg and msg.data:
                 code = msg.data.get('session_code')
                 if code:
                     return code
-            
+
             logger.error("No valid session_code available")
             return ""
         except Exception as e:
@@ -88,7 +77,7 @@ class _HelpersMixin:
                     if self.session_manager.game_session_db_id:
                         logger.info(f"Using session_id from session_manager: {self.session_manager.game_session_db_id}")
                         return self.session_manager.game_session_db_id
-            
+
             # Secondary method: Extract from message data
             if msg.data:
                 session_code = msg.data.get('session_code')
@@ -105,7 +94,7 @@ class _HelpersMixin:
                             return None
                     finally:
                         db_session.close()
-            
+
             # No valid session_id found - this is an error condition
             logger.error("No valid session_id available for persistence - request missing session context")
             return None

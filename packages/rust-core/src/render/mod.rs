@@ -188,7 +188,7 @@ impl RenderEngine {
         web_sys::console::log_1(&"[TABLE-INIT] [TARGET] Creating mandatory default table...".into());
 
         engine.table_manager.create_table("default_table", "Default Table", 1200.0, 1200.0)
-            .map_err(|e| JsValue::from_str(&format!("[TABLE-INIT] Failed to create default table: {}", e)))?;
+            .map_err(|e| JsValue::from_str(&format!("[TABLE-INIT] Failed to create default table: {:?}", e)))?;
 
         if !engine.table_manager.set_active_table("default_table") {
             return Err(JsValue::from_str("[TABLE-INIT] Failed to set default table as active"));

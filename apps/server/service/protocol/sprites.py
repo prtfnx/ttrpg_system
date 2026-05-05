@@ -516,11 +516,21 @@ class _SpritesMixin:
                                                    old_position=update_data['from'],
                                                    new_position=update_data['to'])
                 case 'sprite_scale':
-                    logger.warning(f"Sprite update type 'sprite_scale' not yet supported from {client_id}")
-                    return Message(MessageType.ERROR, {'error': "Sprite update type 'sprite_scale' not implemented"})
+                    scale_x = float(update_data.get('scale_x', 1.0))
+                    scale_y = float(update_data.get('scale_y', scale_x))
+                    result = await self.actions.scale_sprite(
+                        table_id=table_id, sprite_id=sprite_id,
+                        scale_x=scale_x, scale_y=scale_y
+                    )
+                    if not result.success:
+                        return Message(MessageType.ERROR, {'error': result.message})
                 case 'sprite_rotate':
-                    logger.warning(f"Sprite update type 'sprite_rotate' not yet supported from {client_id}")
-                    return Message(MessageType.ERROR, {'error': "Sprite update type 'sprite_rotate' not implemented"})
+                    angle = float(update_data.get('angle', update_data.get('rotation', 0.0)))
+                    result = await self.actions.rotate_sprite(
+                        table_id=table_id, sprite_id=sprite_id, angle=angle
+                    )
+                    if not result.success:
+                        return Message(MessageType.ERROR, {'error': result.message})
 
         # Extract character binding updates
         updates = {}

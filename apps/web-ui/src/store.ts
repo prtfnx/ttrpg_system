@@ -459,9 +459,15 @@ export const useGameStore = create<GameStore>()(
 
       updateCharacter: (id: string, updates: Partial<Character>) => {
         set((state) => ({
-          characters: state.characters.map((char) =>
-            char.id === id ? { ...char, ...updates } : char
-          )
+          characters: state.characters.map((char) => {
+            if (char.id !== id) return char;
+            const merged = { ...char, ...updates };
+            // Never downgrade version — server is source of truth for incrementing
+            if (updates.version !== undefined && char.version !== undefined) {
+              merged.version = Math.max(char.version, updates.version);
+            }
+            return merged;
+          })
         }));
       },
 

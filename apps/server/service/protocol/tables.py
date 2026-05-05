@@ -1,5 +1,6 @@
 from typing import TYPE_CHECKING
 
+from core_table.async_actions_protocol import Position
 from core_table.protocol import Message, MessageType
 from utils.logger import setup_logger
 from utils.roles import get_visible_layers, is_dm
@@ -462,8 +463,11 @@ class _TablesMixin:
             if not table_id or scale is None:
                 return Message(MessageType.ERROR, {'error': 'table_id and scale are required'})
 
-            # For now, just broadcast the update since ActionsCore doesn't have update_table_scale
-            # table scale is broadcast-only until ActionsCore exposes update_table_scale
+            scale_val = float(scale)
+            result = await self.actions.scale_table(table_id, scale_val, scale_val)
+            if not result.success:
+                return Message(MessageType.ERROR, {'error': result.message})
+
             await self.broadcast_to_session(Message(MessageType.TABLE_UPDATE, {
                 'table_id': table_id,
                 'scale': scale,
@@ -490,7 +494,10 @@ class _TablesMixin:
             if not table_id or x_moved is None or y_moved is None:
                 return Message(MessageType.ERROR, {'error': 'table_id, x_moved, and y_moved are required'})
 
-            # table position is broadcast-only until ActionsCore exposes update_table_position
+            result = await self.actions.move_table(table_id, Position(float(x_moved), float(y_moved)))
+            if not result.success:
+                return Message(MessageType.ERROR, {'error': result.message})
+
             await self.broadcast_to_session(Message(MessageType.TABLE_UPDATE, {
                 'table_id': table_id,
                 'x_moved': x_moved,

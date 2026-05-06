@@ -580,7 +580,7 @@ async def auth_error_page(request: Request):
     })
 
 
-# в”Ђв”Ђв”Ђ Forgot / Reset Password в”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђ
+# ─── Forgot / Reset Password ─────────────────────────────────────────────────
 
 @router.get("/forgot-password")
 def forgot_password_page(request: Request):
@@ -619,7 +619,7 @@ async def forgot_password_submit(
         if user.email:
             send_password_reset(user.email, f"{base_url}/users/reset-password?token={raw}")
     else:
-        # Timing equalisation вЂ” prevent enumeration via response time delta
+        # Timing equalisation — prevent enumeration via response time delta
         crud.get_password_hash("timing-dummy")
 
     # Always show the same page regardless of whether email exists
@@ -694,7 +694,7 @@ async def reset_password_submit(
     return RedirectResponse("/users/login?msg=password_reset_success", status_code=302)
 
 
-# в”Ђв”Ђв”Ђ User Settings в”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђ
+# ─── User Settings ────────────────────────────────────────────────────────────
 
 @router.get("/settings")
 async def settings_page(

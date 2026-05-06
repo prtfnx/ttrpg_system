@@ -1,6 +1,6 @@
 ﻿import { useEffect, useMemo, useState } from 'react';
 import { useFormContext } from 'react-hook-form';
-import { useClass, useBackgrounds, useRace } from '../../../compendium/hooks/useCompendium';
+import { useBackgrounds, useClass, useRace } from '../../../compendium/hooks/useCompendium';
 import type { SkillsStepData } from './schemas';
 import styles from './SkillsStep.module.css';
 

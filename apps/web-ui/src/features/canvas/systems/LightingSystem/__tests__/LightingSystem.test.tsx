@@ -30,9 +30,9 @@ vi.mock('../hooks/useRenderEngine', () => ({
  * Based on LIGHTING_SYSTEM_TEST_PLAN.md
  */
 import { useGameStore } from '@/store';
+import type { Sprite } from '@/types';
 import { LightingPanel } from '@features/lighting';
 import type { RenderEngine } from '@lib/wasm';
-import type { Sprite } from '@/types';
 import '@testing-library/jest-dom';
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';

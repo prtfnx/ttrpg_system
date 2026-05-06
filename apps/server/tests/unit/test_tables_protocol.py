@@ -8,9 +8,7 @@ from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 from core_table.protocol import Message, MessageType
-
 from service.protocol.tables import _TablesMixin
-
 
 # ---------------------------------------------------------------------------
 # Stub

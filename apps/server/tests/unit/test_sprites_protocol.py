@@ -5,13 +5,11 @@ Focus: user-visible behaviour — correct response types, permission gates,
 validation errors, and broadcast calls. Implementation details (DB rows,
 WASM state) are intentionally not asserted.
 """
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 from core_table.protocol import Message, MessageType
-
 from service.protocol.sprites import _SpritesMixin
-
 
 # ---------------------------------------------------------------------------
 # Stub — minimal concrete class satisfying _ProtocolBase interface

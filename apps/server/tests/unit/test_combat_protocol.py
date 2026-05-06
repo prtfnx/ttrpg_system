@@ -3,13 +3,11 @@
 CombatEngine is patched for all tests — we verify permission gates,
 validation, and correct MessageType in responses.
 """
+from unittest.mock import MagicMock, patch
+
 import pytest
-from unittest.mock import AsyncMock, MagicMock, patch
-
 from core_table.protocol import Message, MessageType
-
 from service.protocol.combat import _CombatMixin
-
 
 # ---------------------------------------------------------------------------
 # Shared stub

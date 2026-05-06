@@ -3,11 +3,10 @@
 Tests focus on user-visible behaviour: permission gates, validation,
 and correct response MessageType. DB calls are patched out.
 """
+from unittest.mock import MagicMock, patch
+
 import pytest
-from unittest.mock import AsyncMock, MagicMock, patch
-
 from core_table.protocol import Message, MessageType
-
 from service.protocol.session import _SessionMixin
 
 # ---------------------------------------------------------------------------

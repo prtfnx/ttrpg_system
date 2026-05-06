@@ -1,16 +1,13 @@
-from typing import TYPE_CHECKING
-
 from core_table.protocol import Message, MessageType
 from utils.logger import setup_logger
 from utils.roles import can_interact, is_dm
 
-if TYPE_CHECKING:
-    pass
+from ._protocol_base import _ProtocolBase
 
 logger = setup_logger(__name__)
 
 
-class _WallsMixin:
+class _WallsMixin(_ProtocolBase):
     """Handler methods for walls domain."""
 
     async def handle_wall_create(self, msg: Message, client_id: str) -> Message:

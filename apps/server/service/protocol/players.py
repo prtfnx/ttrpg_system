@@ -1,17 +1,15 @@
 import time
-from typing import TYPE_CHECKING
 
 from core_table.protocol import Message, MessageType
 from utils.logger import setup_logger
 from utils.roles import is_dm
 
-if TYPE_CHECKING:
-    pass
+from ._protocol_base import _ProtocolBase
 
 logger = setup_logger(__name__)
 
 
-class _PlayersMixin:
+class _PlayersMixin(_ProtocolBase):
     """Handler methods for players domain."""
 
     async def handle_player_list_request(self, msg: Message, client_id: str) -> Message:

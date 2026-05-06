@@ -1,5 +1,5 @@
 import time
-from typing import Any, Callable, Dict
+from typing import Any, Callable, ClassVar, Dict
 
 from core_table.actions_core import ActionsCore
 from core_table.protocol import Message, MessageType
@@ -33,8 +33,8 @@ class ServerProtocol(
     _EncounterMixin,
     _HelpersMixin,
 ):
-    # Class-level store for moves pending OA resolution: "{session}:{sprite_id}" → move data
-    _pending_moves: dict = {}
+    # Class-level store for moves pending OA resolution: "{session}:{sprite_id}" -> move data
+    _pending_moves: ClassVar[dict] = {}
     """
     WebSocket message dispatcher for the TTRPG server.
 

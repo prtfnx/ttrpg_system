@@ -1,15 +1,12 @@
-from typing import TYPE_CHECKING
-
 from core_table.protocol import Message, MessageType
 from utils.logger import setup_logger
 
-if TYPE_CHECKING:
-    pass
+from ._protocol_base import _ProtocolBase
 
 logger = setup_logger(__name__)
 
 
-class _AuthMixin:
+class _AuthMixin(_ProtocolBase):
     """Handler methods for auth domain."""
 
     async def handle_auth_register(self, msg: Message, client_id: str) -> Message:

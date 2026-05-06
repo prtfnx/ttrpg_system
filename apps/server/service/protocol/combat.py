@@ -1,6 +1,5 @@
 import json
 import uuid
-from typing import TYPE_CHECKING
 
 from core_table.game_mode import GameMode
 from core_table.protocol import Message, MessageType
@@ -11,13 +10,12 @@ from service.rules_engine import RulesEngine
 from utils.logger import setup_logger
 from utils.roles import is_dm
 
-if TYPE_CHECKING:
-    pass
+from ._protocol_base import _ProtocolBase
 
 logger = setup_logger(__name__)
 
 
-class _CombatMixin:
+class _CombatMixin(_ProtocolBase):
     """Handler methods for combat domain."""
 
     async def handle_combat_start(self, msg: Message, client_id: str) -> Message:

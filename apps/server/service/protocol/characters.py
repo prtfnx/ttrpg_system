@@ -1,17 +1,14 @@
-from typing import TYPE_CHECKING
-
 from core_table.protocol import Message, MessageType
 from database.database import SessionLocal
 from utils.logger import setup_logger
 from utils.roles import is_dm
 
-if TYPE_CHECKING:
-    pass
+from ._protocol_base import _ProtocolBase
 
 logger = setup_logger(__name__)
 
 
-class _CharactersMixin:
+class _CharactersMixin(_ProtocolBase):
     """Handler methods for characters domain."""
 
     async def handle_character_save_request(self, msg: Message, client_id: str) -> Message:

@@ -1,4 +1,4 @@
-from typing import TYPE_CHECKING, Optional
+from typing import Optional
 
 from core_table.game_mode import GameMode
 from core_table.protocol import Message, MessageType
@@ -7,13 +7,12 @@ from database.models import GamePlayer, GameSession
 from utils.logger import setup_logger
 from utils.roles import is_dm
 
-if TYPE_CHECKING:
-    pass
+from ._protocol_base import _ProtocolBase
 
 logger = setup_logger(__name__)
 
 
-class _SessionMixin:
+class _SessionMixin(_ProtocolBase):
     """Handler methods for session domain."""
 
     async def handle_layer_settings_update(self, msg: Message, client_id: str) -> Message:

@@ -1,16 +1,13 @@
-from typing import TYPE_CHECKING
-
 from core_table.protocol import Message, MessageType
 from utils.logger import setup_logger
 from utils.roles import is_dm
 
-if TYPE_CHECKING:
-    pass
+from ._protocol_base import _ProtocolBase
 
 logger = setup_logger(__name__)
 
 
-class _EncounterMixin:
+class _EncounterMixin(_ProtocolBase):
     """Handler methods for encounter domain."""
 
     async def handle_encounter_start(self, msg: Message, client_id: str) -> Message:

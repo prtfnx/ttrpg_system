@@ -1,5 +1,5 @@
 import os
-from typing import TYPE_CHECKING, Optional
+from typing import Optional
 
 import xxhash
 from core_table.protocol import Message, MessageType
@@ -8,13 +8,12 @@ from database.models import Asset
 from service.asset_manager import AssetRequest, get_server_asset_manager
 from utils.logger import setup_logger
 
-if TYPE_CHECKING:
-    pass
+from ._protocol_base import _ProtocolBase
 
 logger = setup_logger(__name__)
 
 
-class _AssetsMixin:
+class _AssetsMixin(_ProtocolBase):
     """Handler methods for assets domain."""
 
     async def handle_file_request(self, msg: Message, client_id: str) -> Message:

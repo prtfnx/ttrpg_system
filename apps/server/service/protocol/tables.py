@@ -1,17 +1,14 @@
-from typing import TYPE_CHECKING
-
 from core_table.async_actions_protocol import Position
 from core_table.protocol import Message, MessageType
 from utils.logger import setup_logger
 from utils.roles import get_visible_layers, is_dm
 
-if TYPE_CHECKING:
-    pass
+from ._protocol_base import _ProtocolBase
 
 logger = setup_logger(__name__)
 
 
-class _TablesMixin:
+class _TablesMixin(_ProtocolBase):
     """Handler methods for tables domain."""
 
     async def handle_delete_table(self, msg: Message, client_id: str) -> Message:

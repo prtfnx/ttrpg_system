@@ -1,5 +1,4 @@
 import json
-from typing import TYPE_CHECKING
 
 from core_table.protocol import Message, MessageType
 from database.database import SessionLocal
@@ -7,13 +6,12 @@ from service.movement_validator import MovementValidator
 from utils.logger import setup_logger
 from utils.roles import can_interact, get_sprite_limit, is_dm
 
-if TYPE_CHECKING:
-    pass
+from ._protocol_base import _ProtocolBase
 
 logger = setup_logger(__name__)
 
 
-class _SpritesMixin:
+class _SpritesMixin(_ProtocolBase):
     """Handler methods for sprites domain."""
 
     async def handle_create_sprite(self, msg: Message, client_id: str) -> Message:

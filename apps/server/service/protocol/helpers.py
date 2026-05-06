@@ -1,19 +1,18 @@
 import json
 import time
-from typing import TYPE_CHECKING, Optional
+from typing import Optional
 
 from core_table.protocol import Message, MessageType
 from database.database import SessionLocal
 from database.models import GameSession
 from utils.logger import setup_logger
 
-if TYPE_CHECKING:
-    pass
+from ._protocol_base import _ProtocolBase
 
 logger = setup_logger(__name__)
 
 
-class _HelpersMixin:
+class _HelpersMixin(_ProtocolBase):
     """Handler methods for helpers domain."""
 
     async def send_to_client(self, message: Message, client_id: str):

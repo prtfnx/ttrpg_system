@@ -41,8 +41,12 @@ class _AuthMixin(_ProtocolBase):
         })
 
     async def handle_auth_status(self, msg: Message, client_id: str) -> Message:
-        """Handle authentication status request"""
+        """Return current auth status for the connected client."""
+        info = self._get_client_info(client_id)
+        user_id = info.get('user_id')
         return Message(MessageType.AUTH_STATUS, {
-            'authenticated': False,
-            'message': 'Not authenticated'
+            'authenticated': user_id is not None,
+            'user_id': user_id,
+            'username': info.get('username'),
+            'role': info.get('role', 'player'),
         })

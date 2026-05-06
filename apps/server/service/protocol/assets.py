@@ -7,6 +7,7 @@ from database.database import SessionLocal
 from database.models import Asset
 from service.asset_manager import AssetRequest, get_server_asset_manager
 from utils.logger import setup_logger
+from utils.roles import is_dm
 
 from ._protocol_base import _ProtocolBase
 
@@ -321,15 +322,41 @@ class _AssetsMixin(_ProtocolBase):
             return ""
 
     async def handle_asset_delete_request(self, msg: Message, client_id: str) -> Message:
-        """Handle asset deletion request"""
+        """Handle asset deletion request. DM or asset owner can delete."""
         try:
             if not msg.data:
                 return Message(MessageType.ERROR, {'error': 'No data provided'})
             asset_id = msg.data.get('asset_id')
             if not asset_id:
                 return Message(MessageType.ERROR, {'error': 'asset_id is required'})
-            logger.info(f"Asset deletion requested for {asset_id} by {client_id} — not yet implemented")
-            return Message(MessageType.ERROR, {'error': 'Asset deletion not yet supported'})
+
+            user_id = self._get_user_id(msg, client_id)
+            role = self._get_client_role(client_id)
+
+            db = SessionLocal()
+            try:
+                asset = db.query(Asset).filter_by(r2_asset_id=asset_id).first()
+                if not asset:
+                    return Message(MessageType.ERROR, {'error': 'Asset not found'})
+
+                if not is_dm(role) and asset.uploaded_by != user_id:
+                    return Message(MessageType.ERROR, {'error': 'Permission denied'})
+
+                r2_key = asset.r2_key
+                db.delete(asset)
+                db.commit()
+            finally:
+                db.close()
+
+            # Delete from R2 (best-effort — DB record already removed)
+            try:
+                asset_manager = get_server_asset_manager()
+                asset_manager.r2_manager.delete_file(r2_key)
+            except Exception as r2_err:
+                logger.warning(f"R2 delete failed for {r2_key}, DB record removed: {r2_err}")
+
+            logger.info(f"Asset {asset_id} deleted by {client_id}")
+            return Message(MessageType.SUCCESS, {'asset_id': asset_id, 'deleted': True})
         except Exception as e:
             logger.error(f"Error handling asset delete request: {e}")
             return Message(MessageType.ERROR, {'error': 'Internal server error'})

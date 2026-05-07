@@ -21,7 +21,8 @@ class MockWebSocket {
   onmessage: ((e: MessageEvent) => void) | null = null;
   close = vi.fn();
   send = vi.fn();
-  constructor(public url: string) {}
+  url: string;
+  constructor(url: string) { this.url = url; }
 }
 vi.stubGlobal('WebSocket', MockWebSocket);
 
@@ -61,7 +62,7 @@ describe('useChatWebSocket', () => {
 
     it('sends via protocol when connected', () => {
       const protocol = makeProtocol(true);
-      vi.mocked(useOptionalProtocol).mockReturnValue({ protocol } as ReturnType<typeof useOptionalProtocol>);
+      vi.mocked(useOptionalProtocol).mockReturnValue({ protocol } as unknown as ReturnType<typeof useOptionalProtocol>);
       const { result } = renderHook(() => useChatWebSocket('ws://test', 'Bob'));
       act(() => { result.current.sendMessage('Hey'); });
       expect(protocol.sendMessage).toHaveBeenCalledOnce();

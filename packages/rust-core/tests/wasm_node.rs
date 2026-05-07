@@ -1,21 +1,14 @@
-// WASM-specific integration tests using wasm-bindgen-test.
-// These run in a browser/node environment via:
-//   cargo test --target wasm32-unknown-unknown
+// Pure logic WASM tests — no browser APIs needed.
+// Run with: wasm-pack test --node
 //
-// Requirements:
-//   - wasm-bindgen-test-runner installed (cargo install wasm-bindgen-cli)
-//   - .cargo/config.toml sets runner = "wasm-bindgen-test-runner"
-//
-// Run with:
-//   cargo test --target wasm32-unknown-unknown --test wasm
-//
-// This file is excluded from native test runs (not wasm32 target).
+// These tests run in a Node.js environment via wasm-bindgen-test-runner,
+// making them fast and CI-friendly without requiring a browser binary.
 #![cfg(target_arch = "wasm32")]
 
 use ttrpg_rust_core as core;
 use wasm_bindgen_test::*;
 
-wasm_bindgen_test_configure!(run_in_browser);
+wasm_bindgen_test_configure!(run_in_node_experimental);
 
 // ── Core utilities ────────────────────────────────────────────────────────
 
@@ -42,7 +35,7 @@ fn version_looks_like_semver() {
 fn compute_visibility_empty_obstacles_returns_value() {
     use js_sys::Float32Array;
     let obstacles = Float32Array::new_with_length(0);
-    let result = core::compute_visibility_polygon(0.0, 0.0, &obstacles, 100.0);
+    let result = core::geometry::compute_visibility_polygon(0.0, 0.0, &obstacles, 100.0);
     assert!(result.is_array() || result.is_object());
 }
 
@@ -51,7 +44,7 @@ fn compute_visibility_with_single_wall() {
     use js_sys::Float32Array;
     let data = [10.0_f32, -50.0, 10.0, 50.0];
     let obstacles = Float32Array::from(data.as_slice());
-    let result = core::compute_visibility_polygon(0.0, 0.0, &obstacles, 200.0);
+    let result = core::geometry::compute_visibility_polygon(0.0, 0.0, &obstacles, 200.0);
     assert!(result.is_array() || result.is_object());
 }
 

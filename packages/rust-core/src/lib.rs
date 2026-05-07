@@ -267,7 +267,7 @@ pub fn init_game_renderer(canvas: HtmlCanvasElement) -> Result<RenderEngine, JsV
 /// await init();
 /// // TTRPG Rust Core initialized
 /// ```
-#[cfg(all(target_arch = "wasm32", not(test)))]
+#[cfg(all(target_arch = "wasm32", feature = "wasm-start"))]
 #[wasm_bindgen(start)]
 pub fn main() {
     console_error_panic_hook::set_once();

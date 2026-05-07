@@ -47,10 +47,10 @@ function Build-Wasm {
             # Preferred path: wasm-pack handles cargo + wasm-bindgen + wasm-opt in one step.
             if ($dev) {
                 Write-Host "    [dev] debug logging enabled"
-                wasm-pack build --target web --out-dir "$WasmOut" --features dev-logging 2>&1 |
+                wasm-pack build --target web --out-dir "$WasmOut" --features wasm-start,dev-logging 2>&1 |
                     ForEach-Object { Write-Host $_ }
             } else {
-                wasm-pack build --release --target web --out-dir "$WasmOut" 2>&1 |
+                wasm-pack build --release --target web --out-dir "$WasmOut" --features wasm-start 2>&1 |
                     ForEach-Object { Write-Host $_ }
             }
             if ($LASTEXITCODE -ne 0) { throw "wasm-pack failed (exit $LASTEXITCODE)" }

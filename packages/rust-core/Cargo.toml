@@ -20,6 +20,10 @@ log-warn = []
 dev-logging = ["log-trace", "log-debug", "log-info", "log-warn"]
 # Memory allocator feature
 wee_alloc = []
+# Auto-initialize WASM on module load via #[wasm_bindgen(start)].
+# Enabled by production/dev builds; omitted for wasm-pack test so the
+# test harness can provide its own entry point without symbol conflicts.
+wasm-start = []
 
 [dependencies]
 wasm-bindgen = "0.2"
@@ -94,6 +98,8 @@ wasm-opt = false
 
 [dev-dependencies]
 wasm-bindgen-test = "0.3"
+
+[target.'cfg(not(target_arch = "wasm32"))'.dev-dependencies]
 criterion = { version = "0.5", features = ["html_reports"] }
 
 [[bench]]

@@ -119,10 +119,11 @@ fn table_manager_screen_to_table_roundtrip() {
 fn table_manager_snap_to_grid() {
     let mut tm = core::TableManager::new();
     tm.create_table("t1", "Map", 1920.0, 1080.0).unwrap();
+    // set_table_units sets grid_cell_px which snap_to_grid reads
+    tm.set_table_units("t1", 64.0, 5.0, "ft");
     tm.set_table_grid("t1", true, 64.0);
 
     let snapped = tm.snap_to_grid("t1", 33.0, 97.0).unwrap();
-    // Should snap to nearest grid intersection
     assert!((snapped[0] % 64.0).abs() < 0.01 || (64.0 - (snapped[0] % 64.0)).abs() < 0.01);
 }
 
@@ -166,7 +167,7 @@ fn table_manager_get_all_tables_json() {
 #[wasm_bindgen_test]
 fn collision_line_blocked_by_wall() {
     let mut cs = core::CollisionSystem::new(64.0);
-    cs.set_walls(r#"[{"id":"w1","x1":100,"y1":0,"x2":100,"y2":200,"wall_type":"normal","door_state":"closed","direction":"both"}]"#);
+    cs.set_walls(r#"[{"x1":100,"y1":0,"x2":100,"y2":200,"is_door":false,"door_open":false}]"#);
     assert!(cs.line_blocked(50.0, 100.0, 150.0, 100.0), "line through wall should be blocked");
 }
 
@@ -179,7 +180,8 @@ fn collision_line_not_blocked_without_walls() {
 #[wasm_bindgen_test]
 fn collision_distance_ft_straight() {
     let cs = core::CollisionSystem::new(64.0);
-    let d = cs.distance_ft(0.0, 0.0, 320.0, 0.0, 5.0);
+    // ft_per_unit = ft_per_cell / pixels_per_cell = 5.0 / 64.0
+    let d = cs.distance_ft(0.0, 0.0, 320.0, 0.0, 5.0 / 64.0);
     assert!((d - 25.0).abs() < 0.1, "5 cells × 5ft = 25ft, got {d}");
 }
 
@@ -193,7 +195,7 @@ fn collision_find_path_open_field() {
 #[wasm_bindgen_test]
 fn collision_open_door_not_blocked() {
     let mut cs = core::CollisionSystem::new(64.0);
-    cs.set_walls(r#"[{"id":"w1","x1":100,"y1":0,"x2":100,"y2":200,"wall_type":"normal","door_state":"open","direction":"both"}]"#);
+    cs.set_walls(r#"[{"x1":100,"y1":0,"x2":100,"y2":200,"is_door":true,"door_open":true}]"#);
     assert!(!cs.line_blocked(50.0, 100.0, 150.0, 100.0), "open door should not block");
 }
 

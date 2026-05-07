@@ -1,13 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 
-// logger reads import.meta.env.DEV at module load — control it before import
-const setDev = (value: boolean) => {
-  Object.defineProperty(import.meta, 'env', {
-    value: { DEV: value },
-    configurable: true,
-  });
-};
-
 describe('logger', () => {
   let consoleSpy: Record<string, ReturnType<typeof vi.spyOn>>;
 

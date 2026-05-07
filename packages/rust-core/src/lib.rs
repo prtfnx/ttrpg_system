@@ -98,7 +98,7 @@ macro_rules! log_warn {
 /// 
 /// # Examples
 /// 
-/// ```rust
+/// ```rust,ignore
 /// // Always logs in all builds
 /// log_error!("Failed to initialize WebGL context: {}", error);
 /// log_error!("Critical shader compilation error: {}", shader_log);
@@ -129,6 +129,9 @@ pub mod types;
 mod input;
 mod lighting;
 mod fog;
+#[cfg(target_arch = "wasm32")]
+pub mod geometry;
+#[cfg(not(target_arch = "wasm32"))]
 mod geometry;
 mod wall_manager;
 mod table_manager;
@@ -264,7 +267,7 @@ pub fn init_game_renderer(canvas: HtmlCanvasElement) -> Result<RenderEngine, JsV
 /// await init();
 /// // TTRPG Rust Core initialized
 /// ```
-#[cfg(target_arch = "wasm32")]
+#[cfg(all(target_arch = "wasm32", not(test)))]
 #[wasm_bindgen(start)]
 pub fn main() {
     console_error_panic_hook::set_once();

@@ -52,8 +52,16 @@ jobs:
       - name: Run tests
         run: cargo test
         working-directory: packages/rust-core
+      - name: WASM node tests
+        run: wasm-pack test --node --test wasm_node
+        working-directory: packages/rust-core
+      - name: Install Chrome for browser tests
+        uses: browser-actions/setup-chrome@v1
+      - name: WASM browser tests
+        run: wasm-pack test --headless --chrome --test wasm_browser
+        working-directory: packages/rust-core
       - name: Build WASM
-        run: wasm-pack build --target web --release
+        run: wasm-pack build --target web --release --features wasm-start
         working-directory: packages/rust-core
       - name: Optimize WASM with wasm-opt
         run: wasm-opt -O -o packages/rust-core/pkg/ttrpg_rust_core_bg.wasm packages/rust-core/pkg/ttrpg_rust_core_bg.wasm

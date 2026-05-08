@@ -121,6 +121,32 @@ export default defineConfig({
           },
         },
       },
+      // ── browser-components: React components that need real browser APIs ──
+      {
+        plugins: [react()],
+        test: {
+          name: 'browser-components',
+          include: ['src/**/*.browser-test.{ts,tsx}'],
+          browser: {
+            enabled: true,
+            provider: playwright(),
+            headless: true,
+            instances: [{ browser: 'chromium' }],
+          },
+          globals: true,
+          setupFiles: ['./src/test/setup.browser.ts'],
+        },
+        resolve: {
+          alias: {
+            '@': '/src',
+            '@features': '/src/features',
+            '@shared': '/src/shared',
+            '@lib': '/src/lib',
+            '@config': '/src/config',
+            '@app': '/src/app',
+          },
+        },
+      },
     ],
   },
 });

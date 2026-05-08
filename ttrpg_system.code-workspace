@@ -8,9 +8,11 @@
 	],
 	"settings": {
 		"python.analysis.extraPaths": [
-			"packages/core-table",
-			"../../packages/core-table"
+			"packages/core-table"
 		],
-		"python.defaultInterpreterPath": ".venv/Scripts/python.exe"
+		"powershell.cwd": "root",
+		"rust-analyzer.trace.server": "off",
+		"rust-analyzer.linkedProjects": ["packages/rust-core/Cargo.toml"],
+		"rust-analyzer.testExplorer": true
 	}
 }

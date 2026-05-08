@@ -229,12 +229,13 @@ impl PlanningManager {
     }
 
     /// Given token positions (flat [x1,y1,x2,y2,...]), returns indices of tokens in AoE
-    pub fn tokens_in_aoe(&self, positions_flat: Vec<f32>) -> JsValue {
+    pub fn tokens_in_aoe(&self, positions_flat: &js_sys::Float32Array) -> JsValue {
+        let flat: Vec<f32> = positions_flat.to_vec();
         let template = match &self.aoe_template {
             Some(t) => t,
             None => return JsValue::NULL,
         };
-        let positions: Vec<[f32; 2]> = positions_flat.chunks(2)
+        let positions: Vec<[f32; 2]> = flat.chunks(2)
             .filter(|c| c.len() == 2)
             .map(|c| [c[0], c[1]])
             .collect();

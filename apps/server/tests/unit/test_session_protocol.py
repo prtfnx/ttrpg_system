@@ -69,7 +69,7 @@ class TestLayerSettingsUpdate:
     async def test_missing_data_returns_error(self, _mock_db):
         proto = _ProtoStub(role="owner")
         resp = await proto.handle_layer_settings_update(
-            Message(MessageType.LAYER_SETTINGS_UPDATE, None), "c1"
+            Message(MessageType.LAYER_SETTINGS_UPDATE, {}), "c1"
         )
         assert resp.type == MessageType.ERROR
 

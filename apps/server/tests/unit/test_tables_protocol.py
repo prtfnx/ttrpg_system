@@ -95,7 +95,7 @@ class TestDeleteTable:
 
     async def test_missing_data_returns_error(self):
         proto = _ProtoStub(role="owner")
-        resp = await proto.handle_delete_table(Message(MessageType.TABLE_DELETE, None), "c1")
+        resp = await proto.handle_delete_table(Message(MessageType.TABLE_DELETE, {}), "c1")
         assert resp.type == MessageType.ERROR
 
     async def test_missing_table_id_returns_error(self):
@@ -169,7 +169,7 @@ class TestNewTableRequest:
 
     async def test_missing_data_returns_error(self):
         proto = _ProtoStub(role="owner")
-        resp = await proto.handle_new_table_request(Message(MessageType.NEW_TABLE_REQUEST, None), "c1")
+        resp = await proto.handle_new_table_request(Message(MessageType.NEW_TABLE_REQUEST, {}), "c1")
         assert resp.type == MessageType.ERROR
 
     async def test_successful_create_returns_table_response(self):

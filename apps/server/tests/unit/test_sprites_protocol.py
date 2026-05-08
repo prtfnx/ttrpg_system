@@ -95,7 +95,7 @@ class TestCreateSprite:
 
     async def test_missing_data_returns_error(self):
         proto = _ProtoStub()
-        resp = await proto.handle_create_sprite(Message(MessageType.SPRITE_CREATE, None), "c1")
+        resp = await proto.handle_create_sprite(Message(MessageType.SPRITE_CREATE, {}), "c1")
         assert resp.type == MessageType.ERROR
 
     async def test_missing_sprite_data_field_returns_error(self):

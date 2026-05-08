@@ -315,7 +315,8 @@ mod tests {
             s.table_id = "other".into();
             s
         });
-        assert_eq!(lm.count_sprites_for_table("table1"), 1);
+        let count: usize = lm.layers.values().map(|l| l.sprites.iter().filter(|s| s.table_id == "table1").count()).sum();
+        assert_eq!(count, 1);
     }
 
     #[test]

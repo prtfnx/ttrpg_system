@@ -288,7 +288,7 @@ class BatchMessage:
 @dataclass
 class Message:
     type: MessageType
-    data: Optional[Dict[str, Any]] = None
+    data: Dict[str, Any] = field(default_factory=dict)
     client_id: Optional[str] = None
     timestamp: Optional[float] = None
     version: str = "0.1"

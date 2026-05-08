@@ -76,6 +76,7 @@ class TestCreateAuditLog:
     def test_formats_additional_data_when_no_details(self):
         db = MagicMock()
         log = create_audit_log(db, "login", additional_data={"ip": "1.2.3.4"})
+        assert log.details is not None
         assert "1.2.3.4" in log.details
 
     def test_appends_additional_data_to_existing_details(self):
@@ -83,6 +84,7 @@ class TestCreateAuditLog:
         log = create_audit_log(
             db, "login", details="manual note", additional_data={"ip": "1.2.3.4"}
         )
+        assert log.details is not None
         assert "manual note" in log.details
         assert "1.2.3.4" in log.details
 

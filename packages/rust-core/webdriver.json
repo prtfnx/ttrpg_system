@@ -4,8 +4,9 @@
       "--no-sandbox",
       "--disable-setuid-sandbox",
       "--disable-dev-shm-usage",
-      "--disable-gpu",
-      "--headless=new"
+      "--headless=new",
+      "--enable-webgl",
+      "--use-angle=swiftshader"
     ]
   }
 }

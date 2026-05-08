@@ -43,6 +43,22 @@
 			"type": "shell",
 			"command": ".\\scripts\\setup-python.ps1",
 			"problemMatcher": []
+		},
+		{
+			"label": "Test: WASM (Node)",
+			"type": "shell",
+			"command": "wasm-pack test --node packages/rust-core",
+			"options": { "cwd": "${workspaceFolder}" },
+			"group": "test",
+			"problemMatcher": []
+		},
+		{
+			"label": "Test: WASM (Browser/Chrome)",
+			"type": "shell",
+			"command": "wasm-pack test --headless --chrome packages/rust-core",
+			"options": { "cwd": "${workspaceFolder}" },
+			"group": "test",
+			"problemMatcher": []
 		}
 	]
 }

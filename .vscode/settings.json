@@ -77,5 +77,14 @@
       "envManager": "ms-python.python:venv",
       "packageManager": "ms-python.python:pip"
     }
-  ]
+  ],
+  "testing.coverageBarThresholds": {
+    "red": 0,
+    "yellow": 60,
+    "green": 80
+  },
+  "testing.showCoverageInExplorer": true,
+  "testing.defaultGutterClickAction": "run",
+  "testing.gutterEnabled": true,
+  "rust-analyzer.testExplorer": true
 }

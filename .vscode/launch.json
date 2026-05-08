@@ -10,6 +10,20 @@
             "request": "launch",
             "program": "${file}",
             "console": "integratedTerminal"
+        },
+        {
+            "name": "Debug: pytest at cursor",
+            "type": "debugpy",
+            "request": "launch",
+            "module": "pytest",
+            "args": ["${relativeFile}", "-v", "--no-cov", "-x"],
+            "cwd": "${fileDirname}",
+            "purpose": ["debug-test"],
+            "console": "integratedTerminal",
+            "justMyCode": false,
+            "env": {
+                "PYTHONPATH": "${workspaceFolder}:${workspaceFolder}/../../packages/core-table"
+            }
         }
     ]
 }

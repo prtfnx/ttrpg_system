@@ -168,3 +168,33 @@ class TestSessionRulesUpdate:
         msg = Message(MessageType.SESSION_RULES_UPDATE, {"rules": {"max_hp_roll": True}})
         resp = await proto.handle_session_rules_update(msg, "c1")
         assert resp.type == MessageType.SESSION_RULES_CHANGED
+
+
+# ---------------------------------------------------------------------------
+# handle_session_rules_request
+# ---------------------------------------------------------------------------
+
+@pytest.mark.unit
+class TestSessionRulesRequest:
+    """handle_session_rules_request sends current rules back to caller."""
+
+    @patch("database.crud.get_game_mode", return_value="fight")
+    @patch("database.crud.get_session_rules_json", return_value='{"max_hp_roll": true}')
+    @patch("service.protocol.session.SessionLocal")
+    async def test_returns_current_rules_to_caller(self, _mock_db, _mock_rules, _mock_mode):
+        proto = _ProtoStub(role="player")
+        resp = await proto.handle_session_rules_request(
+            Message(MessageType.SESSION_RULES_REQUEST, {}), "c1"
+        )
+        assert resp.type == MessageType.SESSION_RULES_CHANGED
+        assert resp.data["mode"] == "fight"
+        assert resp.data["rules"] == {"max_hp_roll": True}
+
+    @patch("service.protocol.session.SessionLocal", side_effect=Exception("DB down"))
+    async def test_db_failure_falls_back_to_defaults(self, _mock_db):
+        proto = _ProtoStub(role="player")
+        resp = await proto.handle_session_rules_request(
+            Message(MessageType.SESSION_RULES_REQUEST, {}), "c1"
+        )
+        assert resp.type == MessageType.SESSION_RULES_CHANGED
+        assert resp.data["mode"] == "free_roam"

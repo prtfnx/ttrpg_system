@@ -174,3 +174,213 @@ class TestBypassOwnerCheck:
         loaded = manager.load_character(sid, "hero-3", uid)
         assert loaded["success"] is True
         assert loaded["character_data"]["data"]["stats"]["hp"] == 3
+
+
+# ---------------------------------------------------------------------------
+# save_character
+# ---------------------------------------------------------------------------
+
+@pytest.mark.unit
+class TestSaveCharacter:
+    def test_save_new_character_returns_success(self, manager, user_and_session):
+        uid, sid = user_and_session
+        r = manager.save_character(sid, {"character_id": "c1", "name": "Aria"}, uid)
+        assert r["success"] is True
+        assert r["character_id"] == "c1"
+        assert r["version"] == 1
+
+    def test_save_generates_id_if_missing(self, manager, user_and_session):
+        uid, sid = user_and_session
+        r = manager.save_character(sid, {"name": "No ID"}, uid)
+        assert r["success"] is True
+        assert r["character_id"]
+
+    def test_save_to_invalid_session_returns_error(self, manager):
+        r = manager.save_character(999999, {"character_id": "x", "name": "X"}, 1)
+        assert r["success"] is False
+        assert "not found" in r["error"].lower()
+
+    def test_save_updates_existing_character(self, manager, user_and_session):
+        uid, sid = user_and_session
+        manager.save_character(sid, {"character_id": "c2", "name": "Old Name"}, uid)
+        r = manager.save_character(sid, {"character_id": "c2", "name": "New Name"}, uid)
+        assert r["success"] is True
+        assert r["version"] == 2
+
+    def test_save_another_users_character_denied(self, manager, user_and_session, db_mod):
+        uid, sid = user_and_session
+        from database.models import User
+        db = db_mod.SessionLocal()
+        try:
+            intruder = User(username="i", email="i@i.com", full_name="I", hashed_password="p")
+            db.add(intruder)
+            db.commit()
+            db.refresh(intruder)
+            intruder_id = intruder.id
+        finally:
+            db.close()
+        manager.save_character(sid, {"character_id": "owned", "name": "Mine"}, uid)
+        r = manager.save_character(sid, {"character_id": "owned", "name": "Stolen"}, intruder_id)
+        assert r["success"] is False
+        assert "permission" in r["error"].lower()
+
+
+# ---------------------------------------------------------------------------
+# load_character
+# ---------------------------------------------------------------------------
+
+@pytest.mark.unit
+class TestLoadCharacter:
+    def test_load_existing_character(self, manager, user_and_session):
+        uid, sid = user_and_session
+        manager.save_character(sid, {"character_id": "lc1", "name": "Loaded One"}, uid)
+        r = manager.load_character(sid, "lc1", uid)
+        assert r["success"] is True
+        assert r["character_data"]["name"] == "Loaded One"
+
+    def test_load_missing_character_returns_error(self, manager, user_and_session):
+        uid, sid = user_and_session
+        r = manager.load_character(sid, "ghost", uid)
+        assert r["success"] is False
+        assert "not found" in r["error"].lower()
+
+    def test_load_another_users_character_denied(self, manager, user_and_session, db_mod):
+        uid, sid = user_and_session
+        from database.models import User
+        db = db_mod.SessionLocal()
+        try:
+            other = User(username="o2", email="o2@o.com", full_name="O2", hashed_password="p")
+            db.add(other)
+            db.commit()
+            db.refresh(other)
+            other_id = other.id
+        finally:
+            db.close()
+        manager.save_character(sid, {"character_id": "lc2", "name": "Priv"}, uid)
+        r = manager.load_character(sid, "lc2", other_id)
+        assert r["success"] is False
+
+
+# ---------------------------------------------------------------------------
+# list_characters
+# ---------------------------------------------------------------------------
+
+@pytest.mark.unit
+class TestListCharacters:
+    def test_list_returns_own_characters(self, manager, user_and_session):
+        uid, sid = user_and_session
+        manager.save_character(sid, {"character_id": "lc3", "name": "A"}, uid)
+        manager.save_character(sid, {"character_id": "lc4", "name": "B"}, uid)
+        r = manager.list_characters(sid, uid)
+        assert r["success"] is True
+        assert len(r["characters"]) == 2
+
+    def test_list_empty_session_returns_empty(self, manager, user_and_session):
+        uid, sid = user_and_session
+        r = manager.list_characters(sid, uid)
+        assert r["success"] is True
+        assert r["characters"] == []
+
+    def test_dm_list_gets_all_characters(self, manager, user_and_session, db_mod):
+        uid, sid = user_and_session
+        from database.models import User
+        db = db_mod.SessionLocal()
+        try:
+            p2 = User(username="p2", email="p2@p.com", full_name="P2", hashed_password="p")
+            db.add(p2)
+            db.commit()
+            db.refresh(p2)
+            p2_id = p2.id
+        finally:
+            db.close()
+        manager.save_character(sid, {"character_id": "dm1", "name": "P1 Char"}, uid)
+        manager.save_character(sid, {"character_id": "dm2", "name": "P2 Char"}, p2_id)
+        # user_id=0 means DM — get all
+        r = manager.list_characters(sid, 0)
+        assert r["success"] is True
+        assert len(r["characters"]) == 2
+
+
+# ---------------------------------------------------------------------------
+# delete_character
+# ---------------------------------------------------------------------------
+
+@pytest.mark.unit
+class TestDeleteCharacter:
+    def test_delete_own_character(self, manager, user_and_session):
+        uid, sid = user_and_session
+        manager.save_character(sid, {"character_id": "del1", "name": "Gone"}, uid)
+        r = manager.delete_character(sid, "del1", uid)
+        assert r["success"] is True
+        assert "deleted" in r["message"].lower()
+
+    def test_delete_nonexistent_returns_error(self, manager, user_and_session):
+        uid, sid = user_and_session
+        r = manager.delete_character(sid, "ghost", uid)
+        assert r["success"] is False
+
+    def test_delete_another_users_character_denied(self, manager, user_and_session, db_mod):
+        uid, sid = user_and_session
+        from database.models import User
+        db = db_mod.SessionLocal()
+        try:
+            thief = User(username="thief", email="t2@t.com", full_name="T", hashed_password="p")
+            db.add(thief)
+            db.commit()
+            db.refresh(thief)
+            thief_id = thief.id
+        finally:
+            db.close()
+        manager.save_character(sid, {"character_id": "del2", "name": "Protected"}, uid)
+        r = manager.delete_character(sid, "del2", thief_id)
+        assert r["success"] is False
+
+
+# ---------------------------------------------------------------------------
+# update_character — version conflict
+# ---------------------------------------------------------------------------
+
+@pytest.mark.unit
+class TestUpdateVersionConflict:
+    def test_version_conflict_rejected(self, manager, user_and_session):
+        uid, sid = user_and_session
+        manager.save_character(sid, {"character_id": "vc1", "name": "Versioned"}, uid)
+        r = manager.update_character(sid, "vc1", {"name": "Updated"}, uid, expected_version=99)
+        assert r["success"] is False
+        assert "version" in r["error"].lower()
+
+    def test_correct_version_accepted(self, manager, user_and_session):
+        uid, sid = user_and_session
+        manager.save_character(sid, {"character_id": "vc2", "name": "Versioned"}, uid)
+        r = manager.update_character(sid, "vc2", {"name": "Updated"}, uid, expected_version=1)
+        assert r["success"] is True
+
+    def test_update_missing_session_returns_error(self, manager):
+        r = manager.update_character(999999, "x", {"name": "X"}, 1)
+        assert r["success"] is False
+
+
+# ---------------------------------------------------------------------------
+# character logs
+# ---------------------------------------------------------------------------
+
+@pytest.mark.unit
+class TestCharacterLogs:
+    def test_hp_change_is_logged(self, manager, user_and_session):
+        uid, sid = user_and_session
+        char = {
+            "character_id": "log1", "name": "Logger",
+            "data": {"stats": {"hp": 10, "maxHp": 20}}
+        }
+        manager.save_character(sid, char, uid)
+        manager.update_character(sid, "log1", {"data": {"stats": {"hp": 5, "maxHp": 20}}}, uid)
+        r = manager.get_character_logs("log1", sid)
+        assert r["success"] is True
+        hp_logs = [l for l in r["logs"] if l["action_type"] == "hp_change"]
+        assert len(hp_logs) >= 1
+
+    def test_get_logs_empty_returns_empty_list(self, manager, user_and_session):
+        uid, sid = user_and_session
+        r = manager.get_character_logs("no-such-char", sid)
+        assert r["success"] is True
+        assert r["logs"] == []

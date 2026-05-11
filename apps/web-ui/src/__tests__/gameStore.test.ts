@@ -20,7 +20,15 @@ import { useGameStore } from '../store';
 // ─── helpers ────────────────────────────────────────────────────────────────
 
 function makeSprite(id: string, x = 0, y = 0) {
-  return { id, x, y, textureUrl: '', layer: 'tokens', isSelected: false };
+  return {
+    id, x, y,
+    name: 'Token',
+    tableId: 't1',
+    texture: 'default.png',
+    layer: 'tokens',
+    scale: { x: 1, y: 1 },
+    rotation: 0,
+  };
 }
 
 function makeCharacter(id: string) {
@@ -66,7 +74,7 @@ beforeEach(() => {
     alignmentActive: false,
     activeTool: 'select',
     dmPreviewUserId: null,
-  } as Parameters<typeof useGameStore.setState>[0]);
+  } as unknown as Parameters<typeof useGameStore.setState>[0]);
 });
 
 // ─── sprites ─────────────────────────────────────────────────────────────────

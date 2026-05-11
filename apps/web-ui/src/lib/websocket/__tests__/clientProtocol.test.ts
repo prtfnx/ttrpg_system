@@ -102,7 +102,7 @@ function makeProtocol(sessionCode = 'TEST123', userId = 1) {
 }
 
 function makeOpenWs(protocol: WebClientProtocol) {
-  const ws = {
+  const ws: { readyState: number; send: ReturnType<typeof vi.fn>; close: ReturnType<typeof vi.fn> } = {
     readyState: WebSocket.OPEN,
     send: vi.fn(),
     close: vi.fn(),
@@ -513,7 +513,6 @@ describe('WebClientProtocol', () => {
 
     it('PONG marks connection alive', async () => {
       const p = makeProtocol();
-      const before = (p as unknown as Record<string, unknown>)['connectionAlive'];
       await dispatch(p, 'pong', {});
       expect((p as unknown as Record<string, unknown>)['connectionAlive']).toBe(true);
     });

@@ -230,23 +230,23 @@ describe('usePlanningStore', () => {
   });
 
   it('addAction appends to queue with sequence_index', () => {
-    usePlanningStore.getState().addAction({ id: 'a1', action_type: 'move', label: 'Move', sequence_index: 0 });
+    usePlanningStore.getState().addAction({ id: 'a1', action_type: 'move', label: 'Move' });
     const q = usePlanningStore.getState().queue;
     expect(q).toHaveLength(1);
     expect(q[0].sequence_index).toBe(0);
   });
 
   it('addAction increments sequence_index for each added action', () => {
-    usePlanningStore.getState().addAction({ id: 'a1', action_type: 'move', label: 'Move', sequence_index: 0 });
-    usePlanningStore.getState().addAction({ id: 'a2', action_type: 'attack', label: 'Attack', sequence_index: 0 });
+    usePlanningStore.getState().addAction({ id: 'a1', action_type: 'move', label: 'Move' });
+    usePlanningStore.getState().addAction({ id: 'a2', action_type: 'attack', label: 'Attack' });
     const q = usePlanningStore.getState().queue;
     expect(q[0].sequence_index).toBe(0);
     expect(q[1].sequence_index).toBe(1);
   });
 
   it('removeAction removes by id and re-indexes remaining', () => {
-    usePlanningStore.getState().addAction({ id: 'a1', action_type: 'move', label: 'Move', sequence_index: 0 });
-    usePlanningStore.getState().addAction({ id: 'a2', action_type: 'attack', label: 'Attack', sequence_index: 0 });
+    usePlanningStore.getState().addAction({ id: 'a1', action_type: 'move', label: 'Move' });
+    usePlanningStore.getState().addAction({ id: 'a2', action_type: 'attack', label: 'Attack' });
     usePlanningStore.getState().removeAction('a1');
     const q = usePlanningStore.getState().queue;
     expect(q).toHaveLength(1);
@@ -255,7 +255,7 @@ describe('usePlanningStore', () => {
   });
 
   it('clearQueue empties the queue', () => {
-    usePlanningStore.getState().addAction({ id: 'a1', action_type: 'move', label: 'Move', sequence_index: 0 });
+    usePlanningStore.getState().addAction({ id: 'a1', action_type: 'move', label: 'Move' });
     usePlanningStore.getState().clearQueue();
     expect(usePlanningStore.getState().queue).toHaveLength(0);
   });

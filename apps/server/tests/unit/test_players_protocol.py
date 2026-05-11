@@ -10,7 +10,6 @@ import pytest
 from core_table.protocol import Message, MessageType
 from service.protocol.players import _PlayersMixin
 
-
 # ---------------------------------------------------------------------------
 # Stub — minimal concrete class satisfying _ProtocolBase interface
 # ---------------------------------------------------------------------------
@@ -84,7 +83,7 @@ class TestPlayerListRequest:
 class TestPlayerKickRequest:
     async def test_no_data_returns_error(self):
         proto = _ProtoStub()
-        msg = Message(MessageType.PLAYER_KICK_REQUEST, None)
+        msg = Message(MessageType.PLAYER_KICK_REQUEST, {})
         resp = await proto.handle_player_kick_request(msg, "c1")
         assert resp.type == MessageType.ERROR
 
@@ -130,7 +129,7 @@ class TestPlayerKickRequest:
 class TestPlayerBanRequest:
     async def test_no_data_returns_error(self):
         proto = _ProtoStub()
-        msg = Message(MessageType.PLAYER_BAN_REQUEST, None)
+        msg = Message(MessageType.PLAYER_BAN_REQUEST, {})
         resp = await proto.handle_player_ban_request(msg, "c1")
         assert resp.type == MessageType.ERROR
 
@@ -192,7 +191,7 @@ class TestConnectionStatusRequest:
 class TestPlayerAction:
     async def test_no_data_returns_error(self):
         proto = _ProtoStub()
-        msg = Message(MessageType.PLAYER_ACTION, None)
+        msg = Message(MessageType.PLAYER_ACTION, {})
         resp = await proto.handle_player_action(msg, "c1")
         assert resp.type == MessageType.ERROR
 
@@ -250,13 +249,13 @@ class TestPlayerStatus:
         proto = _ProtoStub()
         proto.clients["c1"] = {"ready": True}
         # No data → defaults to own client_id
-        resp = await proto.handle_player_status(Message(MessageType.PLAYER_STATUS, None), "c1")
+        resp = await proto.handle_player_status(Message(MessageType.PLAYER_STATUS, {}), "c1")
         assert resp.type == MessageType.PLAYER_STATUS
 
     async def test_status_data_contains_client_id(self):
         proto = _ProtoStub()
         proto.clients["c1"] = {"ready": False}
-        resp = await proto.handle_player_status(Message(MessageType.PLAYER_STATUS, None), "c1")
+        resp = await proto.handle_player_status(Message(MessageType.PLAYER_STATUS, {}), "c1")
         assert resp.data["client_id"] == "c1"
 
 
@@ -269,7 +268,7 @@ class TestPlayerStatus:
 class TestFileData:
     async def test_no_data_returns_error(self):
         proto = _ProtoStub()
-        msg = Message(MessageType.FILE_DATA, None)
+        msg = Message(MessageType.FILE_DATA, {})
         resp = await proto.handle_file_data(msg, "c1")
         assert resp.type == MessageType.ERROR
 

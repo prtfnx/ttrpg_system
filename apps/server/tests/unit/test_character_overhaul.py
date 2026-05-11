@@ -376,7 +376,7 @@ class TestCharacterLogs:
         manager.update_character(sid, "log1", {"data": {"stats": {"hp": 5, "maxHp": 20}}}, uid)
         r = manager.get_character_logs("log1", sid)
         assert r["success"] is True
-        hp_logs = [l for l in r["logs"] if l["action_type"] == "hp_change"]
+        hp_logs = [log for log in r["logs"] if log["action_type"] == "hp_change"]
         assert len(hp_logs) >= 1
 
     def test_get_logs_empty_returns_empty_list(self, manager, user_and_session):

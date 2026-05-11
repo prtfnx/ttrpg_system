@@ -1,4 +1,3 @@
-import pytest
 from core_table.Character import Character
 
 

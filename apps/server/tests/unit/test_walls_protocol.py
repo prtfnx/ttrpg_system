@@ -10,7 +10,6 @@ import pytest
 from core_table.protocol import Message, MessageType
 from service.protocol.walls import _WallsMixin
 
-
 # ---------------------------------------------------------------------------
 # Stub
 # ---------------------------------------------------------------------------
@@ -29,8 +28,8 @@ class _ProtoStub(_WallsMixin):
     def _get_session_code(self, msg=None): return "TST"
     def _get_user_id(self, msg, client_id=None): return self._user_id
     def _get_client_info(self, client_id): return {"role": self._role}
-    def _has_kick_permission(self, info): return False
-    def _has_ban_permission(self, info): return False
+    def _has_kick_permission(self, client_info): return False
+    def _has_ban_permission(self, client_info): return False
 
     async def broadcast_to_session(self, message, client_id): pass
     async def broadcast_filtered(self, message, layer, client_id): pass
@@ -59,7 +58,7 @@ class TestWallCreate:
 
     async def test_no_data_returns_error(self):
         proto = _ProtoStub(role="owner")
-        resp = await proto.handle_wall_create(Message(MessageType.WALL_CREATE, None), "c1")
+        resp = await proto.handle_wall_create(Message(MessageType.WALL_CREATE, {}), "c1")
         assert resp.type == MessageType.ERROR
 
     async def test_missing_table_id_returns_error(self):
@@ -221,7 +220,7 @@ class TestDoorToggle:
 
     async def test_no_data_returns_error(self):
         proto = _ProtoStub(role="player")
-        resp = await proto.handle_door_toggle(Message(MessageType.WALL_UPDATE, None), "c1")
+        resp = await proto.handle_door_toggle(Message(MessageType.WALL_UPDATE, {}), "c1")
         assert resp.type == MessageType.ERROR
 
     async def test_table_not_found_returns_error(self):

@@ -1,7 +1,8 @@
-import pytest
 import uuid
-from core_table.table import VirtualTable, Entity
+
+import pytest
 from core_table.entities import Wall
+from core_table.table import Entity, VirtualTable
 
 
 def make_table(w: int = 20, h: int = 20) -> VirtualTable:

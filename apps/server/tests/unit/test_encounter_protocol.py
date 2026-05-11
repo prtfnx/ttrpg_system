@@ -4,12 +4,11 @@ Tests for _EncounterMixin protocol handlers.
 Focus: permission gates, validation errors, and correct response types.
 EncounterEngine (in-function import) is patched at the module level.
 """
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import MagicMock, patch
 
 import pytest
 from core_table.protocol import Message, MessageType
 from service.protocol.encounter import _EncounterMixin
-
 
 # ---------------------------------------------------------------------------
 # Stub

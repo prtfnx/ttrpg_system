@@ -385,7 +385,7 @@ class TestTableActiveHandlers:
 
     async def test_active_request_without_user_returns_error_data(self):
         proto = _ProtoStub()
-        proto._get_user_id = lambda msg, cid=None: None
+        proto._get_user_id = lambda msg, client_id=None: None  # type: ignore[method-assign]
         msg = Message(MessageType.TABLE_ACTIVE_RESPONSE, {})
         resp = await proto.handle_table_active_request(msg, "c1")
         assert resp.data.get("success") is False

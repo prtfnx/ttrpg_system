@@ -2,10 +2,9 @@
 Tests for _HelpersMixin helpers in service/protocol/helpers.py.
 Focus: _get_session_code, _get_session_id, _get_user_id, _can_control_sprite.
 """
-from unittest.mock import AsyncMock, MagicMock, patch
 import json
+from unittest.mock import MagicMock, patch
 
-import pytest
 from core_table.protocol import Message, MessageType
 from service.protocol.helpers import _HelpersMixin
 
@@ -26,10 +25,10 @@ class _Stub(_HelpersMixin):
     def _get_client_role(self, client_id):
         return "player"
 
-    def _has_kick_permission(self, info):
+    def _has_kick_permission(self, client_info):
         return False
 
-    def _has_ban_permission(self, info):
+    def _has_ban_permission(self, client_info):
         return False
 
     async def ensure_assets_in_r2(self, table_data, session_code, user_id):

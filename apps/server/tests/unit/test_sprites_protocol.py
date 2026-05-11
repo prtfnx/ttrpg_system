@@ -226,3 +226,157 @@ class TestMoveSprite:
         })
         resp = await proto.handle_move_sprite(msg, "c1")
         assert resp.type == MessageType.ERROR
+
+
+# ---------------------------------------------------------------------------
+# handle_scale_sprite
+# ---------------------------------------------------------------------------
+
+@pytest.mark.unit
+class TestScaleSprite:
+    async def test_missing_data_returns_error(self):
+        proto = _ProtoStub(role="owner")
+        resp = await proto.handle_scale_sprite(Message(MessageType.SPRITE_SCALE, {}), "c1")
+        assert resp.type == MessageType.ERROR
+
+    async def test_missing_dimensions_returns_error(self):
+        proto = _ProtoStub(role="owner")
+        msg = Message(MessageType.SPRITE_SCALE, {"sprite_id": "sp-1", "table_id": "t1"})
+        resp = await proto.handle_scale_sprite(msg, "c1")
+        assert resp.type == MessageType.ERROR
+
+    async def test_spectator_cannot_scale(self):
+        proto = _ProtoStub(role="spectator")
+        msg = Message(MessageType.SPRITE_SCALE, {"sprite_id": "sp-1", "width": 2.0, "height": 2.0})
+        resp = await proto.handle_scale_sprite(msg, "c1")
+        assert resp.type == MessageType.ERROR
+        assert "spectator" in resp.data["error"].lower()
+
+    async def test_successful_scale_returns_sprite_response(self):
+        proto = _ProtoStub(role="owner")
+        proto.actions.update_sprite = AsyncMock(return_value=_ok_result())
+        msg = Message(MessageType.SPRITE_SCALE, {"sprite_id": "sp-1", "table_id": "t1", "width": 2.0, "height": 3.0})
+        resp = await proto.handle_scale_sprite(msg, "c1")
+        assert resp.type == MessageType.SPRITE_RESPONSE
+        assert resp.data["width"] == 2.0
+
+    async def test_failed_scale_returns_error(self):
+        proto = _ProtoStub(role="owner")
+        proto.actions.update_sprite = AsyncMock(return_value=_fail_result("no such sprite"))
+        msg = Message(MessageType.SPRITE_SCALE, {"sprite_id": "sp-1", "table_id": "t1", "width": 1.0, "height": 1.0})
+        resp = await proto.handle_scale_sprite(msg, "c1")
+        assert resp.type == MessageType.ERROR
+
+
+# ---------------------------------------------------------------------------
+# handle_rotate_sprite
+# ---------------------------------------------------------------------------
+
+@pytest.mark.unit
+class TestRotateSprite:
+    async def test_missing_rotation_returns_error(self):
+        proto = _ProtoStub(role="owner")
+        msg = Message(MessageType.SPRITE_ROTATE, {"sprite_id": "sp-1"})
+        resp = await proto.handle_rotate_sprite(msg, "c1")
+        assert resp.type == MessageType.ERROR
+
+    async def test_spectator_cannot_rotate(self):
+        proto = _ProtoStub(role="spectator")
+        msg = Message(MessageType.SPRITE_ROTATE, {"sprite_id": "sp-1", "rotation": 45.0})
+        resp = await proto.handle_rotate_sprite(msg, "c1")
+        assert resp.type == MessageType.ERROR
+
+    async def test_successful_rotate_returns_sprite_response(self):
+        proto = _ProtoStub(role="owner")
+        proto.actions.rotate_sprite = AsyncMock(return_value=_ok_result())
+        msg = Message(MessageType.SPRITE_ROTATE, {"sprite_id": "sp-1", "table_id": "t1", "rotation": 90.0})
+        resp = await proto.handle_rotate_sprite(msg, "c1")
+        assert resp.type == MessageType.SPRITE_RESPONSE
+        assert resp.data["rotation"] == 90.0
+
+    async def test_failed_rotate_returns_error(self):
+        proto = _ProtoStub(role="owner")
+        proto.actions.rotate_sprite = AsyncMock(return_value=_fail_result())
+        msg = Message(MessageType.SPRITE_ROTATE, {"sprite_id": "sp-1", "table_id": "t1", "rotation": 0.0})
+        resp = await proto.handle_rotate_sprite(msg, "c1")
+        assert resp.type == MessageType.ERROR
+
+
+# ---------------------------------------------------------------------------
+# preview handlers (no DB write, just broadcast)
+# ---------------------------------------------------------------------------
+
+@pytest.mark.unit
+class TestSpritePreviewHandlers:
+    async def test_drag_preview_broadcasts(self):
+        proto = _ProtoStub(role="owner")
+        broadcasts = []
+        proto.broadcast_to_session = AsyncMock(side_effect=lambda m, c: broadcasts.append(m))
+        msg = Message(MessageType.SPRITE_DRAG_PREVIEW, {"id": "sp-1", "x": 5.0, "y": 3.0})
+        await proto.handle_sprite_drag_preview(msg, "c1")
+        assert len(broadcasts) == 1
+        assert broadcasts[0].type == MessageType.SPRITE_DRAG_PREVIEW
+
+    async def test_drag_preview_missing_coords_is_noop(self):
+        proto = _ProtoStub(role="owner")
+        proto.broadcast_to_session = AsyncMock()
+        msg = Message(MessageType.SPRITE_DRAG_PREVIEW, {"id": "sp-1"})
+        await proto.handle_sprite_drag_preview(msg, "c1")
+        proto.broadcast_to_session.assert_not_called()
+
+    async def test_resize_preview_broadcasts(self):
+        proto = _ProtoStub(role="owner")
+        broadcasts = []
+        proto.broadcast_to_session = AsyncMock(side_effect=lambda m, c: broadcasts.append(m))
+        msg = Message(MessageType.SPRITE_RESIZE_PREVIEW, {"id": "sp-1", "width": 2.0, "height": 2.0})
+        await proto.handle_sprite_resize_preview(msg, "c1")
+        assert broadcasts[0].type == MessageType.SPRITE_RESIZE_PREVIEW
+
+    async def test_rotate_preview_broadcasts(self):
+        proto = _ProtoStub(role="owner")
+        broadcasts = []
+        proto.broadcast_to_session = AsyncMock(side_effect=lambda m, c: broadcasts.append(m))
+        msg = Message(MessageType.SPRITE_ROTATE_PREVIEW, {"id": "sp-1", "rotation": 45.0})
+        await proto.handle_sprite_rotate_preview(msg, "c1")
+        assert broadcasts[0].type == MessageType.SPRITE_ROTATE_PREVIEW
+
+    async def test_player_without_ownership_drag_preview_is_silent(self):
+        proto = _ProtoStub(role="player")
+        proto._can_control_sprite = AsyncMock(return_value=False)
+        proto.broadcast_to_session = AsyncMock()
+        msg = Message(MessageType.SPRITE_DRAG_PREVIEW, {"id": "sp-other", "x": 0.0, "y": 0.0})
+        await proto.handle_sprite_drag_preview(msg, "c1")
+        proto.broadcast_to_session.assert_not_called()
+
+
+# ---------------------------------------------------------------------------
+# handle_sprite_update
+# ---------------------------------------------------------------------------
+
+@pytest.mark.unit
+class TestSpriteUpdate:
+    async def test_missing_data_returns_error(self):
+        proto = _ProtoStub(role="owner")
+        resp = await proto.handle_sprite_update(Message(MessageType.SPRITE_UPDATE, {}), "c1")
+        assert resp.type == MessageType.ERROR
+
+    async def test_missing_sprite_id_returns_error(self):
+        proto = _ProtoStub(role="owner")
+        msg = Message(MessageType.SPRITE_UPDATE, {"table_id": "t1", "hp": 10})
+        resp = await proto.handle_sprite_update(msg, "c1")
+        assert resp.type == MessageType.ERROR
+
+    async def test_player_without_ownership_denied(self):
+        proto = _ProtoStub(role="player")
+        proto._can_control_sprite = AsyncMock(return_value=False)
+        msg = Message(MessageType.SPRITE_UPDATE, {"sprite_id": "sp-1", "hp": 5})
+        resp = await proto.handle_sprite_update(msg, "c1")
+        assert resp.type == MessageType.ERROR
+        assert "permission" in resp.data["error"].lower()
+
+    async def test_dm_can_update_any_sprite(self):
+        proto = _ProtoStub(role="owner")
+        proto.actions.update_sprite = AsyncMock(return_value=_ok_result())
+        msg = Message(MessageType.SPRITE_UPDATE, {"sprite_id": "sp-1", "table_id": "t1", "hp": 5})
+        resp = await proto.handle_sprite_update(msg, "c1")
+        assert resp.type != MessageType.ERROR

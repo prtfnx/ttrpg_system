@@ -546,3 +546,302 @@ class TestActionCommit:
         )
         assert resp.type == MessageType.ACTION_REJECTED
         assert resp.data["sequence_id"] == 1
+
+
+# ---------------------------------------------------------------------------
+# handle_dm_set_temp_hp
+# ---------------------------------------------------------------------------
+
+@pytest.mark.unit
+class TestDmSetTempHp:
+    async def test_player_blocked(self):
+        proto = _ProtoStub(role="player")
+        resp = await proto.handle_dm_set_temp_hp(
+            Message(MessageType.DM_SET_HP, {"combatant_id": "c1", "temp_hp": 5}), "c1"
+        )
+        assert resp.type == MessageType.ERROR
+
+    async def test_missing_fields_returns_error(self):
+        proto = _ProtoStub(role="owner")
+        resp = await proto.handle_dm_set_temp_hp(Message(MessageType.DM_SET_HP, {}), "c1")
+        assert resp.type == MessageType.ERROR
+
+    @patch("service.combat_engine.CombatEngine")
+    async def test_success_returns_combat_state(self, mock_engine):
+        state = _combat_state()
+        mock_engine.set_temp_hp.return_value = {"combatant_id": "c1", "temp_hp": 5}
+        mock_engine.get_state.return_value = state
+        proto = _ProtoStub(role="owner")
+        resp = await proto.handle_dm_set_temp_hp(
+            Message(MessageType.DM_SET_HP, {"combatant_id": "c1", "temp_hp": 5}), "c1"
+        )
+        assert resp.type == MessageType.COMBAT_STATE
+        assert resp.data["temp_hp_set"] is not None
+
+
+# ---------------------------------------------------------------------------
+# handle_dm_set_resistances
+# ---------------------------------------------------------------------------
+
+@pytest.mark.unit
+class TestDmSetResistances:
+    async def test_player_blocked(self):
+        proto = _ProtoStub(role="player")
+        resp = await proto.handle_dm_set_resistances(
+            Message(MessageType.DM_SET_HP, {"combatant_id": "c1"}), "c1"
+        )
+        assert resp.type == MessageType.ERROR
+
+    async def test_missing_combatant_id_returns_error(self):
+        proto = _ProtoStub(role="owner")
+        resp = await proto.handle_dm_set_resistances(Message(MessageType.DM_SET_HP, {}), "c1")
+        assert resp.type == MessageType.ERROR
+
+    @patch("service.combat_engine.CombatEngine")
+    async def test_success_returns_combat_state(self, mock_engine):
+        state = _combat_state()
+        mock_engine.set_resistances.return_value = {"combatant_id": "c1"}
+        mock_engine.get_state.return_value = state
+        proto = _ProtoStub(role="owner")
+        resp = await proto.handle_dm_set_resistances(
+            Message(MessageType.DM_SET_HP, {"combatant_id": "c1", "resistances": ["fire"]}), "c1"
+        )
+        assert resp.type == MessageType.COMBAT_STATE
+
+
+# ---------------------------------------------------------------------------
+# handle_dm_set_surprised
+# ---------------------------------------------------------------------------
+
+@pytest.mark.unit
+class TestDmSetSurprised:
+    async def test_player_blocked(self):
+        proto = _ProtoStub(role="player")
+        resp = await proto.handle_dm_set_surprised(
+            Message(MessageType.DM_SET_HP, {"combatant_ids": ["c1"]}), "c1"
+        )
+        assert resp.type == MessageType.ERROR
+
+    async def test_missing_combatant_ids_returns_error(self):
+        proto = _ProtoStub(role="owner")
+        resp = await proto.handle_dm_set_surprised(Message(MessageType.DM_SET_HP, {}), "c1")
+        assert resp.type == MessageType.ERROR
+
+    @patch("service.combat_engine.CombatEngine")
+    async def test_success_returns_combat_state(self, mock_engine):
+        state = _combat_state()
+        mock_engine.set_surprised.return_value = [{"combatant_id": "c1"}]
+        mock_engine.get_state.return_value = state
+        proto = _ProtoStub(role="owner")
+        resp = await proto.handle_dm_set_surprised(
+            Message(MessageType.DM_SET_HP, {"combatant_ids": ["c1"], "surprised": True}), "c1"
+        )
+        assert resp.type == MessageType.COMBAT_STATE
+
+
+# ---------------------------------------------------------------------------
+# handle_dm_add_movement
+# ---------------------------------------------------------------------------
+
+@pytest.mark.unit
+class TestDmAddMovement:
+    async def test_player_blocked(self):
+        proto = _ProtoStub(role="player")
+        resp = await proto.handle_dm_add_movement(
+            Message(MessageType.DM_SET_HP, {"combatant_id": "c1", "amount": 10}), "c1"
+        )
+        assert resp.type == MessageType.ERROR
+
+    async def test_missing_combatant_id_returns_error(self):
+        proto = _ProtoStub(role="owner")
+        resp = await proto.handle_dm_add_movement(Message(MessageType.DM_SET_HP, {}), "c1")
+        assert resp.type == MessageType.ERROR
+
+    @patch("service.combat_engine.CombatEngine")
+    async def test_success_returns_combat_state(self, mock_engine):
+        state = _combat_state()
+        mock_engine.get_state.return_value = state
+        proto = _ProtoStub(role="owner")
+        resp = await proto.handle_dm_add_movement(
+            Message(MessageType.DM_SET_HP, {"combatant_id": "c1", "amount": 15}), "c1"
+        )
+        assert resp.type == MessageType.COMBAT_STATE
+
+
+# ---------------------------------------------------------------------------
+# handle_dm_toggle_ai / handle_ai_action
+# ---------------------------------------------------------------------------
+
+@pytest.mark.unit
+class TestDmToggleAi:
+    async def test_player_blocked(self):
+        proto = _ProtoStub(role="player")
+        resp = await proto.handle_dm_toggle_ai(
+            Message(MessageType.DM_SET_HP, {"combatant_id": "c1"}), "c1"
+        )
+        assert resp.type == MessageType.ERROR
+
+    async def test_missing_combatant_id_returns_error(self):
+        proto = _ProtoStub(role="owner")
+        resp = await proto.handle_dm_toggle_ai(Message(MessageType.DM_SET_HP, {}), "c1")
+        assert resp.type == MessageType.ERROR
+
+    @patch("service.combat_engine.CombatEngine")
+    async def test_combatant_not_found_returns_error(self, mock_engine):
+        state = _combat_state()
+        state.combatants = []
+        mock_engine.get_state.return_value = state
+        proto = _ProtoStub(role="owner")
+        resp = await proto.handle_dm_toggle_ai(
+            Message(MessageType.DM_SET_HP, {"combatant_id": "missing", "enabled": True}), "c1"
+        )
+        assert resp.type == MessageType.ERROR
+
+    @patch("service.combat_engine.CombatEngine")
+    async def test_success_returns_combat_state(self, mock_engine):
+        combatant = MagicMock()
+        combatant.combatant_id = "c1"
+        combatant.ai_enabled = False
+        combatant.ai_behavior = "aggressive"
+        state = _combat_state()
+        state.combatants = [combatant]
+        mock_engine.get_state.return_value = state
+        proto = _ProtoStub(role="owner")
+        resp = await proto.handle_dm_toggle_ai(
+            Message(MessageType.DM_SET_HP, {"combatant_id": "c1", "enabled": True}), "c1"
+        )
+        assert resp.type == MessageType.COMBAT_STATE
+        assert combatant.ai_enabled is True
+
+
+# ---------------------------------------------------------------------------
+# handle_dm_set_terrain
+# ---------------------------------------------------------------------------
+
+@pytest.mark.unit
+class TestDmSetTerrain:
+    async def test_player_blocked(self):
+        proto = _ProtoStub(role="player")
+        proto.table_manager = MagicMock()
+        resp = await proto.handle_dm_set_terrain(
+            Message(MessageType.DM_SET_HP, {"table_id": "t1", "cells": [[1, 1]]}), "c1"
+        )
+        assert resp.type == MessageType.ERROR
+
+    async def test_table_not_found_returns_error(self):
+        proto = _ProtoStub(role="owner")
+        proto.table_manager = MagicMock()
+        proto.table_manager.tables_id = {}
+        proto.table_manager.tables = {}
+        resp = await proto.handle_dm_set_terrain(
+            Message(MessageType.DM_SET_HP, {"table_id": "missing", "cells": [[1, 1]]}), "c1"
+        )
+        assert resp.type == MessageType.ERROR
+
+    async def test_add_mode_populates_terrain(self):
+        proto = _ProtoStub(role="owner")
+        table = MagicMock()
+        table.difficult_terrain_cells = set()
+        proto.table_manager = MagicMock()
+        proto.table_manager.tables_id = {"t1": table}
+        resp = await proto.handle_dm_set_terrain(
+            Message(MessageType.DM_SET_HP, {"table_id": "t1", "cells": [[2, 3]], "mode": "add"}), "c1"
+        )
+        assert resp.type == MessageType.DM_SET_TERRAIN
+        assert (2, 3) in table.difficult_terrain_cells
+
+    async def test_clear_mode_empties_terrain(self):
+        proto = _ProtoStub(role="owner")
+        table = MagicMock()
+        table.difficult_terrain_cells = {(1, 1), (2, 2)}
+        proto.table_manager = MagicMock()
+        proto.table_manager.tables_id = {"t1": table}
+        resp = await proto.handle_dm_set_terrain(
+            Message(MessageType.DM_SET_HP, {"table_id": "t1", "cells": [], "mode": "clear"}), "c1"
+        )
+        assert resp.type == MessageType.DM_SET_TERRAIN
+        assert len(table.difficult_terrain_cells) == 0
+
+
+# ---------------------------------------------------------------------------
+# handle_cover_zone_add / remove / sync
+# ---------------------------------------------------------------------------
+
+@pytest.mark.unit
+class TestCoverZoneHandlers:
+    async def test_add_player_blocked(self):
+        proto = _ProtoStub(role="player")
+        proto.table_manager = MagicMock()
+        resp = await proto.handle_cover_zone_add(
+            Message(MessageType.COVER_ZONE_ADD, {"table_id": "t1", "zone": {}}), "c1"
+        )
+        assert resp.type == MessageType.ERROR
+
+    async def test_add_table_not_found_returns_error(self):
+        proto = _ProtoStub(role="owner")
+        proto.table_manager = MagicMock()
+        proto.table_manager.tables_id = {}
+        proto.table_manager.tables = {}
+        resp = await proto.handle_cover_zone_add(
+            Message(MessageType.COVER_ZONE_ADD, {"table_id": "t1", "zone": {"zone_id": "z1"}}), "c1"
+        )
+        assert resp.type == MessageType.ERROR
+
+    async def test_remove_player_blocked(self):
+        proto = _ProtoStub(role="player")
+        proto.table_manager = MagicMock()
+        resp = await proto.handle_cover_zone_remove(
+            Message(MessageType.COVER_ZONE_REMOVE, {"table_id": "t1", "zone_id": "z1"}), "c1"
+        )
+        assert resp.type == MessageType.ERROR
+
+    async def test_sync_returns_zones(self):
+        proto = _ProtoStub(role="player")
+        table = MagicMock()
+        zone = MagicMock()
+        zone.to_dict.return_value = {"zone_id": "z1"}
+        table.cover_zones = [zone]
+        proto.table_manager = MagicMock()
+        proto.table_manager.tables_id = {"t1": table}
+        resp = await proto.handle_cover_zones_sync(
+            Message(MessageType.COVER_ZONES_SYNC, {"table_id": "t1"}), "c1"
+        )
+        assert resp.type == MessageType.COVER_ZONES_SYNC
+        assert len(resp.data["zones"]) == 1
+
+    async def test_sync_no_table_returns_empty_list(self):
+        proto = _ProtoStub(role="player")
+        proto.table_manager = MagicMock()
+        proto.table_manager.tables_id = {}
+        proto.table_manager.tables = {}
+        resp = await proto.handle_cover_zones_sync(
+            Message(MessageType.COVER_ZONES_SYNC, {"table_id": "missing"}), "c1"
+        )
+        assert resp.type == MessageType.COVER_ZONES_SYNC
+        assert resp.data["zones"] == []
+
+
+# ---------------------------------------------------------------------------
+# handle_oa_confirm_move
+# ---------------------------------------------------------------------------
+
+@pytest.mark.unit
+class TestOaConfirmMove:
+    async def test_no_pending_move_returns_error(self):
+        proto = _ProtoStub(role="owner")
+        _CombatMixin._pending_moves = {}
+        resp = await proto.handle_oa_confirm_move(
+            Message(MessageType.OPPORTUNITY_ATTACK_CONFIRM_MOVE, {"entity_id": "e1"}), "c1"
+        )
+        assert resp.type == MessageType.ERROR
+        assert "pending" in resp.data["error"].lower()
+
+    async def test_pending_move_broadcasts_sprite_move(self):
+        proto = _ProtoStub(role="owner")
+        key = "TST:e1"
+        _CombatMixin._pending_moves = {key: {"from_pos": [0, 0], "to_pos": [5, 5], "path": []}}
+        resp = await proto.handle_oa_confirm_move(
+            Message(MessageType.OPPORTUNITY_ATTACK_CONFIRM_MOVE, {"entity_id": "e1"}), "c1"
+        )
+        assert resp.type == MessageType.SPRITE_MOVE
+        assert _ProtoStub._pending_moves.get(key) is None

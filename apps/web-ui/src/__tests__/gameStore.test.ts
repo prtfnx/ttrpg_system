@@ -326,3 +326,48 @@ describe('gameStore — session role', () => {
     expect(useGameStore.getState().dmPreviewUserId).toBeNull();
   });
 });
+
+// ─── sprite/character helpers ─────────────────────────────────────────────────
+
+describe('gameStore — sprite/character helpers', () => {
+  it('getSpritesForCharacter returns sprites linked to character', () => {
+    const s = { ...makeSprite('s1'), characterId: 'c1' };
+    useGameStore.setState({ sprites: [s as never] });
+    expect(useGameStore.getState().getSpritesForCharacter('c1')).toHaveLength(1);
+  });
+
+  it('getCharacterForSprite returns linked character', () => {
+    const char = { ...makeCharacter('c1'), id: 'c1' };
+    const s = { ...makeSprite('s1'), characterId: 'c1' };
+    useGameStore.setState({ sprites: [s as never], characters: [char as never] });
+    expect(useGameStore.getState().getCharacterForSprite('s1')).toBeDefined();
+  });
+
+  it('canControlSprite returns true for DM', () => {
+    useGameStore.setState({ sessionRole: 'owner' as never, sprites: [makeSprite('s1') as never] });
+    expect(useGameStore.getState().canControlSprite('s1')).toBe(true);
+  });
+
+  it('canEditCharacter returns true for DM', () => {
+    useGameStore.setState({ sessionRole: 'owner' as never, characters: [makeCharacter('c1') as never] });
+    expect(useGameStore.getState().canEditCharacter('c1')).toBe(true);
+  });
+});
+
+// ─── table management ─────────────────────────────────────────────────────────
+
+describe('gameStore — switchToTable with existing table', () => {
+  it('switchToTable dispatches table-data-received for existing table', () => {
+    const events: string[] = [];
+    window.addEventListener('table-data-received', () => events.push('table-data'));
+    window.addEventListener('protocol-send-message', () => events.push('protocol'));
+
+    useGameStore.setState({
+      tables: [{ table_id: 't1', table_name: 'Main', width: 100, height: 100 }],
+    } as never);
+    useGameStore.getState().switchToTable('t1');
+
+    expect(events).toContain('table-data');
+    expect(events).toContain('protocol');
+  });
+});

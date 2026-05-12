@@ -34,6 +34,8 @@ export default defineConfig({
               '**/*.d.ts',
               '**/*.config.*',
               '**/vite-env.d.ts',
+              '**/index.ts',
+              '**/*.module.css',
             ],
             thresholds: {
               lines: 30,

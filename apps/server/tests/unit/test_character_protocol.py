@@ -368,3 +368,444 @@ class TestCharacterDeleteBroadcast:
         )
         assert broadcast_msg.data["operation"] == "delete"
         assert broadcast_msg.data["character_id"] == "c1"
+
+
+# ---------------------------------------------------------------------------
+# Shared helper
+# ---------------------------------------------------------------------------
+
+def _make_proto():
+    from core_table.server import TableManager
+    from service.server_protocol import ServerProtocol
+
+    tm = TableManager()
+    proto = ServerProtocol(tm, session_manager=MagicMock())
+    proto.send_to_client = AsyncMock()
+    proto.broadcast_to_session = AsyncMock()
+    proto._get_session_id = MagicMock(return_value=1)
+    proto._get_user_id = MagicMock(return_value=1)
+    proto._get_client_role = MagicMock(return_value="player")
+    return proto
+
+
+# ---------------------------------------------------------------------------
+# handle_character_load_request
+# ---------------------------------------------------------------------------
+
+@pytest.mark.unit
+class TestCharacterLoadRequest:
+    async def test_success_returns_character_data(self):
+        from core_table.protocol import Message, MessageType
+
+        proto = _make_proto()
+        msg = Message(MessageType.CHARACTER_LOAD_REQUEST, {
+            "character_id": "c1", "session_code": "TST",
+        })
+        with patch.object(proto.actions, "load_character", new=AsyncMock(
+            return_value=MagicMock(
+                success=True, message="OK",
+                data={"character_data": {"name": "Hero", "level": 3}},
+            )
+        )):
+            resp = await proto.handle_character_load_request(msg, "client1")
+
+        assert resp.type == MessageType.CHARACTER_LOAD_RESPONSE
+        assert resp.data["success"] is True
+        assert resp.data["character_data"]["name"] == "Hero"
+
+    async def test_missing_character_id_returns_error(self):
+        from core_table.protocol import Message, MessageType
+
+        proto = _make_proto()
+        msg = Message(MessageType.CHARACTER_LOAD_REQUEST, {"session_code": "TST"})
+        resp = await proto.handle_character_load_request(msg, "client1")
+
+        assert resp.data["success"] is False
+        assert "required" in resp.data["error"].lower()
+
+    async def test_session_not_found_returns_error(self):
+        from core_table.protocol import Message, MessageType
+
+        proto = _make_proto()
+        proto._get_session_id = MagicMock(return_value=None)
+        msg = Message(MessageType.CHARACTER_LOAD_REQUEST, {
+            "character_id": "c1", "session_code": "GONE",
+        })
+        resp = await proto.handle_character_load_request(msg, "client1")
+
+        assert resp.data["success"] is False
+        assert "GONE" in resp.data["error"]
+
+    async def test_action_failure_returns_error(self):
+        from core_table.protocol import Message, MessageType
+
+        proto = _make_proto()
+        msg = Message(MessageType.CHARACTER_LOAD_REQUEST, {
+            "character_id": "c1", "session_code": "TST",
+        })
+        with patch.object(proto.actions, "load_character", new=AsyncMock(
+            return_value=MagicMock(success=False, message="Character not found", data=None)
+        )):
+            resp = await proto.handle_character_load_request(msg, "client1")
+
+        assert resp.data["success"] is False
+        assert "Character not found" in resp.data["error"]
+
+
+# ---------------------------------------------------------------------------
+# handle_character_list_request
+# ---------------------------------------------------------------------------
+
+@pytest.mark.unit
+class TestCharacterListRequest:
+    async def test_dm_gets_all_characters(self):
+        """DM passes user_id=0 to list_characters so they see everyone's characters."""
+        from core_table.protocol import Message, MessageType
+
+        proto = _make_proto()
+        proto._get_client_role = MagicMock(return_value="owner")
+        msg = Message(MessageType.CHARACTER_LIST_REQUEST, {"session_code": "TST"})
+
+        list_mock = AsyncMock(return_value=MagicMock(
+            success=True,
+            data={"characters": [{"id": "c1"}, {"id": "c2"}]},
+            message="Listed",
+        ))
+        with patch.object(proto.actions, "list_characters", new=list_mock):
+            resp = await proto.handle_character_list_request(msg, "dm1")
+
+        assert resp.data["success"] is True
+        assert len(resp.data["characters"]) == 2
+        # DM filter: user_id=0 means all characters
+        list_mock.assert_awaited_once()
+        assert list_mock.call_args[0][1] == 0  # user_id_for_filter
+
+    async def test_player_gets_own_characters(self):
+        """Player passes their own user_id so list_characters filters."""
+        from core_table.protocol import Message, MessageType
+
+        proto = _make_proto()
+        proto._get_client_role = MagicMock(return_value="player")
+        proto._get_user_id = MagicMock(return_value=42)
+        msg = Message(MessageType.CHARACTER_LIST_REQUEST, {"session_code": "TST"})
+
+        list_mock = AsyncMock(return_value=MagicMock(
+            success=True,
+            data={"characters": [{"id": "c1"}]},
+            message="Listed",
+        ))
+        with patch.object(proto.actions, "list_characters", new=list_mock):
+            await proto.handle_character_list_request(msg, "player1")
+
+        assert list_mock.call_args[0][1] == 42  # user_id passed through
+
+    async def test_session_not_found_returns_error(self):
+        from core_table.protocol import Message, MessageType
+
+        proto = _make_proto()
+        proto._get_session_id = MagicMock(return_value=None)
+        msg = Message(MessageType.CHARACTER_LIST_REQUEST, {"session_code": "OLD"})
+        resp = await proto.handle_character_list_request(msg, "client1")
+
+        assert resp.data["success"] is False
+        assert "OLD" in resp.data["error"]
+
+
+# ---------------------------------------------------------------------------
+# handle_character_update
+# ---------------------------------------------------------------------------
+
+@pytest.mark.unit
+class TestCharacterUpdate:
+    async def test_success_broadcasts_character_update(self):
+        from core_table.protocol import Message, MessageType
+
+        proto = _make_proto()
+        msg = Message(MessageType.CHARACTER_UPDATE, {
+            "character_id": "c1",
+            "updates": {"hp": 8},
+            "version": 3,
+            "session_code": "TST",
+        })
+        with patch.object(proto.actions, "update_character", new=AsyncMock(
+            return_value=MagicMock(success=True, message="updated", data={"version": 4})
+        )):
+            with patch.object(proto, "_sync_character_stats_to_tokens", new=AsyncMock()):
+                resp = await proto.handle_character_update(msg, "client1")
+
+        assert resp.data["success"] is True
+        assert resp.data["version"] == 4
+        proto.broadcast_to_session.assert_awaited_once()  # type: ignore[attr-defined]
+        broadcast = proto.broadcast_to_session.call_args[0][0]  # type: ignore[attr-defined]
+        assert broadcast.type == MessageType.CHARACTER_UPDATE
+        assert broadcast.data["updates"] == {"hp": 8}
+
+    async def test_missing_character_id_returns_error(self):
+        from core_table.protocol import Message, MessageType
+
+        proto = _make_proto()
+        msg = Message(MessageType.CHARACTER_UPDATE, {"updates": {"hp": 5}, "session_code": "TST"})
+        resp = await proto.handle_character_update(msg, "client1")
+
+        assert resp.data["success"] is False
+        assert "required" in resp.data["error"].lower()
+
+    async def test_missing_updates_returns_error(self):
+        from core_table.protocol import Message, MessageType
+
+        proto = _make_proto()
+        msg = Message(MessageType.CHARACTER_UPDATE, {"character_id": "c1", "session_code": "TST"})
+        resp = await proto.handle_character_update(msg, "client1")
+
+        assert resp.data["success"] is False
+
+    async def test_session_not_found_returns_error(self):
+        from core_table.protocol import Message, MessageType
+
+        proto = _make_proto()
+        proto._get_session_id = MagicMock(return_value=None)
+        msg = Message(MessageType.CHARACTER_UPDATE, {
+            "character_id": "c1", "updates": {"hp": 5},
+        })
+        resp = await proto.handle_character_update(msg, "client1")
+
+        assert resp.data["success"] is False
+        assert "session" in resp.data["error"].lower()
+
+    async def test_action_failure_returns_error(self):
+        from core_table.protocol import Message, MessageType
+
+        proto = _make_proto()
+        msg = Message(MessageType.CHARACTER_UPDATE, {
+            "character_id": "c1", "updates": {"hp": 5}, "session_code": "TST",
+        })
+        with patch.object(proto.actions, "update_character", new=AsyncMock(
+            return_value=MagicMock(success=False, message="Version conflict")
+        )):
+            resp = await proto.handle_character_update(msg, "client1")
+
+        assert resp.data["success"] is False
+        assert "Version conflict" in resp.data["error"]
+
+
+# ---------------------------------------------------------------------------
+# handle_character_log_request
+# ---------------------------------------------------------------------------
+
+@pytest.mark.unit
+class TestCharacterLogRequest:
+    async def test_success_returns_logs(self):
+        from core_table.protocol import Message, MessageType
+
+        proto = _make_proto()
+        msg = Message(MessageType.CHARACTER_LOG_REQUEST, {
+            "character_id": "c1", "session_code": "TST", "limit": 10,
+        })
+        logs = [{"action": "hp_change", "delta": -3}, {"action": "death_save"}]
+        with patch.object(proto.actions, "get_character_log", new=AsyncMock(
+            return_value=MagicMock(success=True, data={"logs": logs}, message="OK")
+        )):
+            resp = await proto.handle_character_log_request(msg, "client1")
+
+        assert resp.type == MessageType.CHARACTER_LOG_RESPONSE
+        assert resp.data["success"] is True
+        assert resp.data["logs"] == logs
+        assert resp.data["character_id"] == "c1"
+
+    async def test_missing_character_id_returns_error(self):
+        from core_table.protocol import Message, MessageType
+
+        proto = _make_proto()
+        msg = Message(MessageType.CHARACTER_LOG_REQUEST, {"session_code": "TST"})
+        resp = await proto.handle_character_log_request(msg, "client1")
+
+        assert resp.data["success"] is False
+        assert "required" in resp.data["error"].lower()
+
+    async def test_action_failure_returns_error(self):
+        from core_table.protocol import Message, MessageType
+
+        proto = _make_proto()
+        msg = Message(MessageType.CHARACTER_LOG_REQUEST, {
+            "character_id": "c1", "session_code": "TST",
+        })
+        with patch.object(proto.actions, "get_character_log", new=AsyncMock(
+            return_value=MagicMock(success=False, message="Access denied")
+        )):
+            resp = await proto.handle_character_log_request(msg, "client1")
+
+        assert resp.data["success"] is False
+
+
+# ---------------------------------------------------------------------------
+# handle_xp_award
+# ---------------------------------------------------------------------------
+
+@pytest.mark.unit
+class TestXpAward:
+    def _char_data(self, xp=0, level=1):
+        return {
+            "success": True,
+            "character_data": {
+                "character_id": "c1", "name": "Hero",
+                "data": {"experience": xp, "level": level, "stats": {}},
+            },
+        }
+
+    async def test_non_player_is_rejected(self):
+        from core_table.protocol import Message, MessageType
+
+        proto = _make_proto()
+        # "player" is not in DM_ROLES — xp award is DM-only
+        proto._get_client_role = MagicMock(return_value="player")
+        msg = Message(MessageType.XP_AWARD, {
+            "character_id": "c1", "amount": 100, "source": "encounter",
+        })
+        resp = await proto.handle_xp_award(msg, "player1")
+
+        assert resp.data["success"] is False
+        assert "DM" in resp.data["error"]
+        proto.broadcast_to_session.assert_not_awaited()  # type: ignore[attr-defined]
+
+    async def test_session_not_found_returns_error(self):
+        from core_table.protocol import Message, MessageType
+
+        proto = _make_proto()
+        proto._get_client_role = MagicMock(return_value="owner")
+        proto._get_session_id = MagicMock(return_value=None)
+        msg = Message(MessageType.XP_AWARD, {
+            "character_id": "c1", "amount": 100, "source": "encounter",
+        })
+        resp = await proto.handle_xp_award(msg, "dm1")
+
+        assert resp.data["success"] is False
+        assert "Session" in resp.data["error"]
+
+    async def test_xp_award_no_level_up(self):
+        from core_table.protocol import Message, MessageType
+
+        proto = _make_proto()
+        proto._get_client_role = MagicMock(return_value="owner")
+        msg = Message(MessageType.XP_AWARD, {
+            "character_id": "c1", "amount": 50, "source": "quest",
+        })
+        char_mgr = MagicMock()
+        char_mgr.load_character.return_value = self._char_data(xp=100, level=1)
+        char_mgr.update_character.return_value = {"success": True}
+
+        db_mock = MagicMock()
+        db_mock.__enter__ = MagicMock(return_value=db_mock)
+        db_mock.__exit__ = MagicMock(return_value=False)
+
+        with patch("managers.character_manager.get_server_character_manager", return_value=char_mgr):
+            with patch("database.database.SessionLocal", return_value=db_mock):
+                resp = await proto.handle_xp_award(msg, "dm1")
+
+        assert resp.data["success"] is True
+        assert resp.data["new_xp"] == 150
+        assert resp.data["leveled_up"] is False
+        proto.broadcast_to_session.assert_awaited_once()  # type: ignore[attr-defined]
+
+    async def test_xp_award_triggers_level_up(self):
+        from core_table.protocol import Message, MessageType
+
+        proto = _make_proto()
+        proto._get_client_role = MagicMock(return_value="owner")
+        # 250 XP + 300 pushes past 300 threshold to level 2
+        msg = Message(MessageType.XP_AWARD, {
+            "character_id": "c1", "amount": 300, "source": "boss",
+        })
+        char_mgr = MagicMock()
+        char_mgr.load_character.return_value = self._char_data(xp=250, level=1)
+        char_mgr.update_character.return_value = {"success": True}
+
+        db_mock = MagicMock()
+        db_mock.__enter__ = MagicMock(return_value=db_mock)
+        db_mock.__exit__ = MagicMock(return_value=False)
+
+        with patch("managers.character_manager.get_server_character_manager", return_value=char_mgr):
+            with patch("database.database.SessionLocal", return_value=db_mock):
+                resp = await proto.handle_xp_award(msg, "dm1")
+
+        assert resp.data["success"] is True
+        assert resp.data["leveled_up"] is True
+        assert resp.data["new_level"] == 2
+
+
+# ---------------------------------------------------------------------------
+# handle_multiclass_request
+# ---------------------------------------------------------------------------
+
+@pytest.mark.unit
+class TestMulticlassRequest:
+    async def test_missing_new_class_returns_error(self):
+        from core_table.protocol import Message, MessageType
+
+        proto = _make_proto()
+        # character_id present but new_class missing → hits 'required' guard
+        msg = Message(MessageType.MULTICLASS_REQUEST, {"character_id": "c1"})
+        resp = await proto.handle_multiclass_request(msg, "client1")
+
+        assert resp.data["success"] is False
+        assert "required" in resp.data["error"].lower()
+
+    async def test_session_not_found_returns_error(self):
+        from core_table.protocol import Message, MessageType
+
+        proto = _make_proto()
+        proto._get_session_id = MagicMock(return_value=None)
+        msg = Message(MessageType.MULTICLASS_REQUEST, {
+            "character_id": "c1", "new_class": "rogue",
+        })
+        char_mgr = MagicMock()
+        char_mgr.load_character.return_value = {"success": True, "character_data": {}}
+        with patch("managers.character_manager.get_server_character_manager", return_value=char_mgr):
+            resp = await proto.handle_multiclass_request(msg, "client1")
+
+        assert resp.data["success"] is False
+        assert "Session" in resp.data["error"]
+
+    async def test_invalid_multiclass_returns_error(self):
+        from core_table.protocol import Message, MessageType
+
+        proto = _make_proto()
+        msg = Message(MessageType.MULTICLASS_REQUEST, {
+            "character_id": "c1", "new_class": "wizard",
+        })
+        char_mgr = MagicMock()
+        char_mgr.load_character.return_value = {
+            "success": True,
+            "character_data": {"data": {"classes": []}},
+        }
+        char_mgr.validate_multiclass.return_value = (False, "Insufficient INT score")
+
+        with patch("managers.character_manager.get_server_character_manager", return_value=char_mgr):
+            resp = await proto.handle_multiclass_request(msg, "client1")
+
+        assert resp.data["success"] is False
+        assert "Insufficient" in resp.data["error"]
+
+    async def test_success_broadcasts_and_includes_classes(self):
+        from core_table.protocol import Message, MessageType
+
+        proto = _make_proto()
+        msg = Message(MessageType.MULTICLASS_REQUEST, {
+            "character_id": "c1", "new_class": "rogue",
+        })
+        char_mgr = MagicMock()
+        char_mgr.load_character.return_value = {
+            "success": True,
+            "character_data": {"data": {"classes": [{"name": "fighter", "level": 3}]}},
+        }
+        char_mgr.validate_multiclass.return_value = (True, None)
+        char_mgr.update_character.return_value = {"success": True}
+
+        with patch("managers.character_manager.get_server_character_manager", return_value=char_mgr):
+            resp = await proto.handle_multiclass_request(msg, "client1")
+
+        assert resp.data["success"] is True
+        assert resp.data["new_class"] == "rogue"
+        class_names = [c["name"] for c in resp.data["classes"]]
+        assert "fighter" in class_names
+        assert "rogue" in class_names
+        proto.broadcast_to_session.assert_awaited_once()  # type: ignore[attr-defined]

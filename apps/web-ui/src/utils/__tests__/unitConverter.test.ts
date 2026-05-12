@@ -119,3 +119,21 @@ describe('DND_DISTANCES constants', () => {
     }
   });
 });
+
+describe('UnitConverter — uncovered branches', () => {
+  it('pixelsPerUnit returns px/unit ratio', () => {
+    const conv = new UnitConverter({ gridCellPx: 50, cellDistance: 5, distanceUnit: 'ft' });
+    expect(conv.pixelsPerUnit()).toBe(10);
+  });
+
+  it('toFeet converts meters to feet', () => {
+    const conv = new UnitConverter({ gridCellPx: 50, cellDistance: 5, distanceUnit: 'm' });
+    // 10m → feet: 10 / 0.3048 ≈ 32.808
+    expect(conv.toFeet(10)).toBeCloseTo(32.808, 2);
+  });
+
+  it('falls back to cellDistance=5 when given zero', () => {
+    const conv = new UnitConverter({ gridCellPx: 50, cellDistance: 0, distanceUnit: 'ft' });
+    expect(conv.pixelsPerUnit()).toBe(10); // 50 / 5 fallback
+  });
+});

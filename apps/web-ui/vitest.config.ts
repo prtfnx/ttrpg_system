@@ -10,6 +10,24 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 export default defineConfig({
   plugins: [react()],
   test: {
+    coverage: {
+      provider: 'v8',
+      reporter: ['text', 'json', 'html'],
+      exclude: [
+        'node_modules/',
+        'src/test/',
+        '**/*.d.ts',
+        '**/*.config.*',
+        '**/vite-env.d.ts',
+        '**/index.ts',
+        '**/*.module.css',
+      ],
+      thresholds: {
+        lines: 30,
+        functions: 30,
+        branches: 25,
+      },
+    },
     // Workspace projects: jsdom (unit/component) + browser (real WASM integration)
     projects: [
       {
@@ -25,24 +43,6 @@ export default defineConfig({
             'tests/**/*.{test,spec}.{js,mjs,cjs,ts,mts,cts,jsx,tsx}',
           ],
           exclude: ['node_modules', 'dist', '.idea', '.git', '.cache', 'src/**/*.wasm-test.ts'],
-          coverage: {
-            provider: 'v8',
-            reporter: ['text', 'json', 'html'],
-            exclude: [
-              'node_modules/',
-              'src/test/',
-              '**/*.d.ts',
-              '**/*.config.*',
-              '**/vite-env.d.ts',
-              '**/index.ts',
-              '**/*.module.css',
-            ],
-            thresholds: {
-              lines: 30,
-              functions: 30,
-              branches: 25,
-            },
-          },
         },
         resolve: {
           alias: {

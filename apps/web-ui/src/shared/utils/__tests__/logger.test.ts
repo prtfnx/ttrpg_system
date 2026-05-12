@@ -29,6 +29,24 @@ describe('logger', () => {
     expect(consoleSpy.error).toHaveBeenCalledWith('[ERROR] boom', expect.any(Error));
   });
 
+  it('logger.debug calls console.debug in dev mode', async () => {
+    const { logger } = await import('../logger');
+    logger.debug('verbose');
+    expect(consoleSpy.debug).toHaveBeenCalledWith('[DEBUG] verbose');
+  });
+
+  it('logger.info calls console.info in dev mode', async () => {
+    const { logger } = await import('../logger');
+    logger.info('hello');
+    expect(consoleSpy.info).toHaveBeenCalledWith('[INFO] hello');
+  });
+
+  it('logger.log calls console.log in dev mode', async () => {
+    const { logger } = await import('../logger');
+    logger.log('raw message');
+    expect(consoleSpy.log).toHaveBeenCalledWith('raw message');
+  });
+
   it('protocolLogger.error always calls console.error', async () => {
     const { protocolLogger } = await import('../logger');
     protocolLogger.error('ctx', new Error('oops'));
@@ -36,5 +54,17 @@ describe('logger', () => {
       '[PROTOCOL ERROR] ctx',
       expect.any(Error)
     );
+  });
+
+  it('protocolLogger.message calls console.log in dev mode', async () => {
+    const { protocolLogger } = await import('../logger');
+    protocolLogger.message('sent', { type: 'PING' });
+    expect(consoleSpy.log).toHaveBeenCalledWith('[PROTOCOL SENT]', { type: 'PING' });
+  });
+
+  it('protocolLogger.connection calls console.log in dev mode', async () => {
+    const { protocolLogger } = await import('../logger');
+    protocolLogger.connection('connected', { host: 'localhost' });
+    expect(consoleSpy.log).toHaveBeenCalledWith('[CONNECTION] connected', { host: 'localhost' });
   });
 });

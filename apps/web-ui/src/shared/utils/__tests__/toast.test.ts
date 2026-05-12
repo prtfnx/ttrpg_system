@@ -55,4 +55,54 @@ describe('showToast', () => {
       expect.objectContaining({ autoClose: false })
     );
   });
+
+  it('characterDeleted calls toast.info', () => {
+    showToast.characterDeleted('Aragorn');
+    expect(toast.info).toHaveBeenCalledWith(expect.stringContaining('Aragorn'));
+  });
+
+  it('characterUpdateFailed with reason includes reason', () => {
+    showToast.characterUpdateFailed('Frodo', 'network timeout');
+    expect(toast.error).toHaveBeenCalledWith(
+      expect.stringContaining('network timeout'),
+      expect.anything()
+    );
+  });
+
+  it('characterUpdateFailed without reason still calls toast.error', () => {
+    showToast.characterUpdateFailed('Frodo');
+    expect(toast.error).toHaveBeenCalledWith(
+      expect.stringContaining('Frodo'),
+      expect.anything()
+    );
+  });
+
+  it('connectionRestored calls toast.success', () => {
+    showToast.connectionRestored();
+    expect(toast.success).toHaveBeenCalledWith(expect.any(String));
+  });
+
+  it('rollbackWarning calls toast.warning with character name', () => {
+    showToast.rollbackWarning('Bilbo');
+    expect(toast.warning).toHaveBeenCalledWith(
+      expect.stringContaining('Bilbo'),
+      expect.anything()
+    );
+  });
+
+  it('versionConflict calls toast.warning with character name', () => {
+    showToast.versionConflict('Sauron');
+    expect(toast.warning).toHaveBeenCalledWith(
+      expect.stringContaining('Sauron'),
+      expect.anything()
+    );
+  });
+
+  it('characterSaveFailed without reason still calls toast.error', () => {
+    showToast.characterSaveFailed('Gimli');
+    expect(toast.error).toHaveBeenCalledWith(
+      expect.stringContaining('Gimli'),
+      expect.anything()
+    );
+  });
 });

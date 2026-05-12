@@ -3,7 +3,7 @@
 Tests focus on user-visible behaviour: permission gates, validation,
 and correct response MessageType. DB calls are patched out.
 """
-from unittest.mock import MagicMock, patch
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 from core_table.protocol import Message, MessageType
@@ -198,3 +198,105 @@ class TestSessionRulesRequest:
         )
         assert resp.type == MessageType.SESSION_RULES_CHANGED
         assert resp.data["mode"] == "free_roam"
+
+
+# ---------------------------------------------------------------------------
+# _get_player_active_table / _set_player_active_table
+# ---------------------------------------------------------------------------
+
+@pytest.mark.unit
+class TestPlayerActiveTable:
+    """DB utility methods return correct values; exceptions handled gracefully."""
+
+    @patch("service.protocol.session.SessionLocal")
+    async def test_get_returns_table_id_when_player_found(self, mock_sl):
+        proto = _ProtoStub()
+        player_mock = MagicMock()
+        player_mock.active_table_id = "t-42"
+
+        db_mock = MagicMock()
+        db_mock.query.return_value.join.return_value.filter.return_value.first.return_value = player_mock
+        mock_sl.return_value = db_mock
+
+        result = await proto._get_player_active_table(1, "TST")
+        assert result == "t-42"
+
+    @patch("service.protocol.session.SessionLocal")
+    async def test_get_returns_none_when_player_not_found(self, mock_sl):
+        proto = _ProtoStub()
+        db_mock = MagicMock()
+        db_mock.query.return_value.join.return_value.filter.return_value.first.return_value = None
+        mock_sl.return_value = db_mock
+
+        result = await proto._get_player_active_table(99, "TST")
+        assert result is None
+
+    @patch("service.protocol.session.SessionLocal", side_effect=Exception("DB offline"))
+    async def test_get_returns_none_on_exception(self, _mock_sl):
+        proto = _ProtoStub()
+        result = await proto._get_player_active_table(1, "TST")
+        assert result is None
+
+    @patch("service.protocol.session.SessionLocal")
+    async def test_set_returns_true_when_player_found(self, mock_sl):
+        proto = _ProtoStub()
+        player_mock = MagicMock()
+        player_mock.active_table_id = "old"
+
+        db_mock = MagicMock()
+        db_mock.query.return_value.join.return_value.filter.return_value.first.return_value = player_mock
+        mock_sl.return_value = db_mock
+
+        result = await proto._set_player_active_table(1, "TST", "t-new")
+        assert result is True
+        assert player_mock.active_table_id == "t-new"
+
+    @patch("service.protocol.session.SessionLocal")
+    async def test_set_returns_false_when_player_not_found(self, mock_sl):
+        proto = _ProtoStub()
+        db_mock = MagicMock()
+        db_mock.query.return_value.join.return_value.filter.return_value.first.return_value = None
+        mock_sl.return_value = db_mock
+
+        result = await proto._set_player_active_table(1, "TST", "t-new")
+        assert result is False
+
+    @patch("service.protocol.session.SessionLocal", side_effect=Exception("DB offline"))
+    async def test_set_returns_false_on_exception(self, _mock_sl):
+        proto = _ProtoStub()
+        result = await proto._set_player_active_table(1, "TST", "t-new")
+        assert result is False
+
+
+# ---------------------------------------------------------------------------
+# handle_layer_settings_update — DB update path
+# ---------------------------------------------------------------------------
+
+@pytest.mark.unit
+class TestLayerSettingsDbUpdate:
+    """When table is found in DB the layer settings are merged and saved."""
+
+    @patch("database.crud.update_virtual_table")
+    @patch("database.crud.get_virtual_table_by_id")
+    @patch("database.database.SessionLocal")
+    async def test_merges_settings_when_table_exists(self, mock_sl, mock_get, mock_update):
+        table_mock = MagicMock()
+        table_mock.layer_settings = '{"ground": {"opacity": 0.8}}'
+        mock_get.return_value = table_mock
+
+        db_mock = MagicMock()
+        mock_sl.return_value = db_mock
+
+        proto = _ProtoStub(role="owner")
+        proto.broadcast_to_session = AsyncMock()
+
+        msg = Message(MessageType.LAYER_SETTINGS_UPDATE, {
+            "table_id": "t1", "layer": "tokens", "settings": {"opacity": 0.3}
+        })
+        resp = await proto.handle_layer_settings_update(msg, "dm1")
+
+        assert resp.type == MessageType.LAYER_SETTINGS_UPDATE
+        # update_virtual_table was invoked with merged settings
+        mock_update.assert_called_once()
+        updated_settings = mock_update.call_args[0][2].layer_settings
+        assert "tokens" in updated_settings

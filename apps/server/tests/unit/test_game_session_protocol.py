@@ -208,3 +208,171 @@ class TestSessionUtils:
     def test_force_save_returns_false_without_db(self):
         svc = _make_service()
         assert svc.force_save() is False
+
+
+# ---------------------------------------------------------------------------
+# auto_save time-guard
+# ---------------------------------------------------------------------------
+
+class TestAutoSave:
+    def test_skips_when_last_save_was_recent(self):
+        svc = _make_service()
+        svc.db_session = MagicMock()
+        svc.game_session_db_id = 1
+        svc._last_save_time = 1e15  # far future → 0 seconds elapsed
+        svc.table_manager.save_to_database = MagicMock(return_value=True)
+        svc.auto_save()  # should skip
+        svc.table_manager.save_to_database.assert_not_called()
+
+    def test_runs_when_enough_time_has_passed(self):
+        svc = _make_service()
+        svc.db_session = MagicMock()
+        svc.game_session_db_id = 1
+        svc._last_save_time = 0  # very old
+        svc.table_manager.save_to_database = MagicMock(return_value=True)
+        svc.auto_save()
+        svc.table_manager.save_to_database.assert_called_once()
+
+
+# ---------------------------------------------------------------------------
+# force_save with DB
+# ---------------------------------------------------------------------------
+
+class TestForceSave:
+    def test_returns_true_on_successful_save(self):
+        svc = _make_service()
+        svc.db_session = MagicMock()
+        svc.game_session_db_id = 1
+        svc.db_session.query.return_value.filter_by.return_value.first.return_value = MagicMock()
+        svc.table_manager.save_to_database = MagicMock(return_value=True)
+        svc.table_manager.tables = {}
+        result = svc.force_save()
+        assert result is True
+
+    def test_returns_false_on_exception(self):
+        svc = _make_service()
+        svc.db_session = MagicMock()
+        svc.game_session_db_id = 1
+        svc.table_manager.save_to_database = MagicMock(side_effect=Exception("DB error"))
+        result = svc.force_save()
+        assert result is False
+
+
+# ---------------------------------------------------------------------------
+# kick_player / ban_player
+# ---------------------------------------------------------------------------
+
+@pytest.mark.asyncio
+class TestKickBanPlayer:
+    async def _setup_with_player(self):
+        svc = _make_service()
+        ws = _ws()
+        await svc.add_client(ws, "c1", {"user_id": 5, "username": "Troll", "role": "player"})
+        ws.send_text.reset_mock()
+        return svc, ws
+
+    async def test_kick_player_found_returns_true(self):
+        svc, ws = await self._setup_with_player()
+        result = await svc.kick_player("5", "Troll", "disruptive", "dm1")
+        assert result is True
+        assert "c1" not in svc.clients  # client removed
+        ws.send_text.assert_awaited()  # kick message sent
+
+    async def test_kick_player_not_found_returns_false(self):
+        svc = _make_service()
+        result = await svc.kick_player("99", "Ghost", "reason", "dm1")
+        assert result is False
+
+    async def test_ban_player_calls_kick_and_broadcasts(self):
+        svc, ws = await self._setup_with_player()
+        dm_ws = _ws()
+        await svc.add_client(dm_ws, "dm1", {"user_id": 1, "username": "DM", "role": "owner"})
+        dm_ws.send_text.reset_mock()
+
+        result = await svc.ban_player("5", "Troll", "cheating", "permanent", "dm1")
+        assert result is True
+        # ban notification broadcast
+        dm_ws.send_text.assert_awaited()
+
+    async def test_ban_persists_to_db_when_available(self):
+        svc, ws = await self._setup_with_player()
+        dm_ws = _ws()
+        await svc.add_client(dm_ws, "dm1", {"user_id": 1, "username": "DM", "role": "owner"})
+        # Set DB after clients are connected to avoid ban-list check on add_client
+        svc.db_session = MagicMock()
+        svc.game_session_db_id = 7
+
+        with patch("service.game_session_protocol.append_ban_to_session") as mock_ban:
+            await svc.ban_player("5", "Troll", "cheating", "1d", "dm1")
+
+        mock_ban.assert_called_once()
+        call_kwargs = mock_ban.call_args[0][2]
+        assert call_kwargs["username"] == "Troll"
+        assert call_kwargs["reason"] == "cheating"
+
+
+# ---------------------------------------------------------------------------
+# get_connection_status / get_session_players
+# ---------------------------------------------------------------------------
+
+class TestConnectionStatus:
+    def test_connected_client_returns_status(self):
+        svc = _make_service()
+        svc.clients["c1"] = _ws()
+        svc.client_info["c1"] = {"username": "Alice", "connected_at": 100.0, "last_ping": 200.0}
+        status = svc.get_connection_status("c1")
+        assert status["connected"] is True
+        assert status["username"] == "Alice"
+
+    def test_unknown_client_returns_not_connected(self):
+        svc = _make_service()
+        status = svc.get_connection_status("nobody")
+        assert status["connected"] is False
+        assert status["session_code"] == "TST"
+
+    def test_get_session_players_returns_all_clients(self):
+        svc = _make_service()
+        svc.clients["c1"] = _ws()
+        svc.client_info["c1"] = {"username": "Alice", "user_id": 1, "connected_at": 0, "last_ping": 0}
+        svc.clients["c2"] = _ws()
+        svc.client_info["c2"] = {"username": "Bob", "user_id": 2, "connected_at": 0, "last_ping": 0}
+        players = svc.get_session_players()
+        assert len(players) == 2
+        usernames = {p["username"] for p in players}
+        assert usernames == {"Alice", "Bob"}
+
+
+# ---------------------------------------------------------------------------
+# broadcast_to_session — failed send triggers client removal
+# ---------------------------------------------------------------------------
+
+@pytest.mark.asyncio
+class TestBroadcastCleanup:
+    async def test_failed_send_removes_client(self):
+        svc = _make_service()
+        ws_good = _ws()
+        ws_bad = _ws()
+
+        await svc.add_client(ws_good, "c1", {"user_id": 1, "username": "Alice", "role": "player"})
+        await svc.add_client(ws_bad, "c2", {"user_id": 2, "username": "Disconnected", "role": "player"})
+        ws_good.send_text.reset_mock()
+        # Break ws_bad only after add_client succeeds
+        ws_bad.send_text = AsyncMock(side_effect=Exception("connection lost"))
+
+        await svc.broadcast_to_session(Message(MessageType.PING, {}))
+        assert "c2" not in svc.clients
+
+
+# ---------------------------------------------------------------------------
+# cleanup
+# ---------------------------------------------------------------------------
+
+class TestCleanup:
+    def test_cleanup_clears_all_state(self):
+        svc = _make_service()
+        svc.clients["c1"] = _ws()
+        svc.client_info["c1"] = {}
+        svc.cleanup()
+        assert len(svc.clients) == 0
+        assert len(svc.client_info) == 0
+        svc.table_manager.clear_tables.assert_called_once()

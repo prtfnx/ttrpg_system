@@ -107,4 +107,28 @@ describe('ActivityTab', () => {
       expect(screen.getByText('No activity yet.')).toBeInTheDocument();
     });
   });
+
+  it('renders slot_recovered and long_rest log entries', async () => {
+    render(<ActivityTab characterId="char-1" />);
+
+    window.dispatchEvent(
+      new CustomEvent('character-log-response', {
+        detail: {
+          character_id: 'char-1',
+          logs: [
+            { id: 10, action_type: 'slot_recovered', description: 'Recovered spell slot', created_at: new Date().toISOString() },
+            { id: 11, action_type: 'long_rest', description: 'Took a long rest', created_at: new Date().toISOString() },
+            { id: 12, action_type: 'item_change', description: 'Used healing potion', created_at: new Date().toISOString() },
+            { id: 13, action_type: 'skill_roll', description: 'Rolled Perception', created_at: new Date().toISOString() },
+          ],
+        },
+      })
+    );
+
+    await waitFor(() => {
+      expect(screen.getByText('Recovered spell slot')).toBeInTheDocument();
+      expect(screen.getByText('Took a long rest')).toBeInTheDocument();
+      expect(screen.getByText('Used healing potion')).toBeInTheDocument();
+    });
+  });
 });

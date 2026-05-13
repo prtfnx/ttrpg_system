@@ -9,7 +9,6 @@ const makeCondition = (overrides: Partial<ActiveCondition> = {}): ActiveConditio
   source: 's1',
   duration_remaining: null,
   duration_type: 'permanent',
-  applied_at_round: 1,
   ...overrides,
 });
 

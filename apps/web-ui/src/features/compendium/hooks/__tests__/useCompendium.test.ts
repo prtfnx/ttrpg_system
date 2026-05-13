@@ -16,7 +16,7 @@ vi.mock('../../services/compendiumService', () => ({
 }));
 
 import { compendiumService } from '../../services/compendiumService';
-const svc = compendiumService as Record<string, ReturnType<typeof vi.fn>>;
+const svc = compendiumService as unknown as Record<string, ReturnType<typeof vi.fn>>;
 
 const mockClasses = [{ name: 'Fighter', hit_die: 10 }];
 const mockRaces = [{ name: 'Human', speed: 30 }];

@@ -6,7 +6,7 @@ import type { ActiveCondition } from '../../stores/combatStore';
 const makeCondition = (overrides: Partial<ActiveCondition> = {}): ActiveCondition => ({
   condition_id: 'c1',
   condition_type: 'poisoned',
-  source_id: 's1',
+  source: 's1',
   duration_remaining: null,
   duration_type: 'permanent',
   applied_at_round: 1,

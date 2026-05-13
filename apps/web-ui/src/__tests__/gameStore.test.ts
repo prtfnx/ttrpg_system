@@ -371,3 +371,48 @@ describe('gameStore — switchToTable with existing table', () => {
     expect(events).toContain('protocol');
   });
 });
+
+describe('gameStore — wall actions', () => {
+  beforeEach(() => {
+    useGameStore.setState({ walls: [] } as never);
+    delete (window as never)['rustRenderManager'];
+  });
+
+  it('addWall inserts a new wall', () => {
+    useGameStore.getState().addWall({ wall_id: 'w1' } as never);
+    expect(useGameStore.getState().walls).toHaveLength(1);
+  });
+
+  it('addWall updates existing wall', () => {
+    useGameStore.setState({ walls: [{ wall_id: 'w1', color: 'red' }] } as never);
+    useGameStore.getState().addWall({ wall_id: 'w1', color: 'blue' } as never);
+    expect(useGameStore.getState().walls[0]).toMatchObject({ wall_id: 'w1', color: 'blue' });
+    expect(useGameStore.getState().walls).toHaveLength(1);
+  });
+
+  it('addWall calls rustRenderManager.add_wall if present', () => {
+    const add_wall = vi.fn();
+    (window as never)['rustRenderManager'] = { add_wall };
+    useGameStore.getState().addWall({ wall_id: 'w2' } as never);
+    expect(add_wall).toHaveBeenCalled();
+  });
+
+  it('addWalls merges multiple walls', () => {
+    useGameStore.getState().addWalls([{ wall_id: 'w1' } as never, { wall_id: 'w2' } as never]);
+    expect(useGameStore.getState().walls).toHaveLength(2);
+  });
+
+  it('updateWall merges partial updates', () => {
+    useGameStore.setState({ walls: [{ wall_id: 'w1', color: 'red' }] } as never);
+    useGameStore.getState().updateWall('w1', { color: 'green' } as never);
+    expect(useGameStore.getState().walls[0]).toMatchObject({ color: 'green' });
+  });
+
+  it('updateWall calls rustRenderManager.update_wall if present', () => {
+    const update_wall = vi.fn();
+    (window as never)['rustRenderManager'] = { update_wall };
+    useGameStore.setState({ walls: [{ wall_id: 'w1' }] } as never);
+    useGameStore.getState().updateWall('w1', {} as never);
+    expect(update_wall).toHaveBeenCalled();
+  });
+});

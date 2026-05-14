@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach, vi } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 
 // Mock heavy dependencies before importing the store
 vi.mock('@lib/api', () => ({
@@ -12,7 +12,7 @@ vi.mock('@lib/websocket', () => ({
   validateTableId: () => true,
 }));
 vi.mock('@features/measurement/services/advancedMeasurement.service', () => ({
-  advancedMeasurementSystem: { stop: vi.fn() },
+  advancedMeasurementSystem: { stop: vi.fn(), syncWithTableUnits: vi.fn() },
 }));
 
 import { useGameStore } from '../store';
@@ -414,5 +414,155 @@ describe('gameStore — wall actions', () => {
     useGameStore.setState({ walls: [{ wall_id: 'w1' }] } as never);
     useGameStore.getState().updateWall('w1', {} as never);
     expect(update_wall).toHaveBeenCalled();
+  });
+});
+
+// ─── setTableUnits ─────────────────────────────────────────────────────────────
+
+describe('gameStore — setTableUnits', () => {
+  it('updates grid state with valid config', () => {
+    useGameStore.getState().setTableUnits({ gridCellPx: 100, cellDistance: 10, distanceUnit: 'ft' });
+    const s = useGameStore.getState();
+    expect(s.gridCellPx).toBe(100);
+    expect(s.gridSize).toBe(100);
+    expect(s.cellDistance).toBe(10);
+    expect(s.distanceUnit).toBe('ft');
+  });
+
+  it('falls back to defaults for invalid values', () => {
+    useGameStore.getState().setTableUnits({ gridCellPx: -5, cellDistance: 0, distanceUnit: 'xx' as never });
+    const s = useGameStore.getState();
+    expect(s.gridCellPx).toBe(50);
+    expect(s.cellDistance).toBe(5);
+    expect(s.distanceUnit).toBe('ft');
+  });
+
+  it('calls rustRenderManager.set_table_units when present', () => {
+    const set_table_units = vi.fn();
+    (window as never)['rustRenderManager'] = { set_table_units };
+    useGameStore.setState({ activeTableId: 'tbl-1' } as never);
+    useGameStore.getState().setTableUnits({ gridCellPx: 60, cellDistance: 5, distanceUnit: 'm' });
+    expect(set_table_units).toHaveBeenCalledWith('tbl-1', 60, 5, 'm');
+    delete (window as never)['rustRenderManager'];
+  });
+});
+
+// ─── createNewTable ────────────────────────────────────────────────────────────
+
+describe('gameStore — createNewTable', () => {
+  it('adds table to store and sets activeTableId', () => {
+    useGameStore.getState().createNewTable('Arena', 800, 600);
+    const s = useGameStore.getState();
+    expect(s.tables).toHaveLength(1);
+    expect(s.tables[0].table_name).toBe('Arena');
+    expect(s.tables[0].width).toBe(800);
+    expect(s.tables[0].syncStatus).toBe('local');
+    expect(s.activeTableId).toBe(s.tables[0].table_id);
+  });
+
+  it('dispatches table-data-received and protocol-send-message events', () => {
+    const events: string[] = [];
+    window.addEventListener('table-data-received', () => events.push('data'));
+    window.addEventListener('protocol-send-message', () => events.push('protocol'));
+
+    useGameStore.getState().createNewTable('Map', 100, 100);
+
+    expect(events).toContain('data');
+    expect(events).toContain('protocol');
+  });
+});
+
+// ─── deleteTable ────────────────────────────────────────────────────────────────
+
+describe('gameStore — deleteTable', () => {
+  it('dispatches protocol-send-message with table_delete type', () => {
+    let detail: unknown = null;
+    window.addEventListener('protocol-send-message', (e) => { detail = (e as CustomEvent).detail; });
+
+    useGameStore.getState().deleteTable('tbl-99');
+
+    expect(detail).toMatchObject({ type: 'table_delete', data: { table_id: 'tbl-99' } });
+  });
+});
+
+// ─── syncTableToServer ─────────────────────────────────────────────────────────
+
+describe('gameStore — syncTableToServer', () => {
+  it('marks table as syncing and dispatches new_table_request', () => {
+    useGameStore.setState({
+      tables: [{ table_id: 't1', table_name: 'Map', width: 100, height: 100, syncStatus: 'local' }],
+    } as never);
+
+    let detail: unknown = null;
+    window.addEventListener('protocol-send-message', (e) => { detail = (e as CustomEvent).detail; });
+
+    useGameStore.getState().syncTableToServer('t1');
+
+    const s = useGameStore.getState();
+    expect((s.tables[0] as Record<string, unknown>).syncStatus).toBe('syncing');
+    expect(detail).toMatchObject({ type: 'new_table_request' });
+  });
+
+  it('logs error for unknown tableId and does not change state', () => {
+    useGameStore.setState({ tables: [] } as never);
+    const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+    useGameStore.getState().syncTableToServer('nonexistent');
+    expect(consoleSpy).toHaveBeenCalled();
+    consoleSpy.mockRestore();
+  });
+});
+
+// ─── applyTableLightingSettings ────────────────────────────────────────────────
+
+describe('gameStore — applyTableLightingSettings', () => {
+  afterEach(() => {
+    delete (window as never)['rustRenderManager'];
+  });
+
+  it('updates lighting state', () => {
+    useGameStore.getState().applyTableLightingSettings({
+      dynamic_lighting_enabled: true,
+      fog_exploration_mode: 'persist_dimmed',
+      ambient_light_level: 0.5,
+    });
+    const s = useGameStore.getState();
+    expect(s.dynamicLightingEnabled).toBe(true);
+    expect(s.fogExplorationMode).toBe('persist_dimmed');
+    expect(s.ambientLight).toBe(0.5);
+  });
+
+  it('calls rustRenderManager methods when available', () => {
+    const rm = {
+      set_ambient_light: vi.fn(),
+      set_dynamic_lighting_enabled: vi.fn(),
+    };
+    (window as never)['rustRenderManager'] = rm;
+    useGameStore.setState({ sessionRole: null } as never);
+
+    useGameStore.getState().applyTableLightingSettings({
+      dynamic_lighting_enabled: false,
+      fog_exploration_mode: 'current_only',
+      ambient_light_level: 0.8,
+    });
+
+    expect(rm.set_ambient_light).toHaveBeenCalledWith(0.8);
+    expect(rm.set_dynamic_lighting_enabled).toHaveBeenCalledWith(false);
+  });
+});
+
+// ─── setActiveTableId with protocol ───────────────────────────────────────────
+
+describe('gameStore — setActiveTableId', () => {
+  it('sets activeTableId in state', () => {
+    useGameStore.getState().setActiveTableId('tbl-42');
+    expect(useGameStore.getState().activeTableId).toBe('tbl-42');
+  });
+
+  it('calls protocol.setActiveTable when window.protocol present', () => {
+    const setActiveTable = vi.fn();
+    (window as never)['protocol'] = { setActiveTable };
+    useGameStore.getState().setActiveTableId('tbl-42');
+    expect(setActiveTable).toHaveBeenCalledWith('tbl-42');
+    delete (window as never)['protocol'];
   });
 });

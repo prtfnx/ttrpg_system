@@ -62,8 +62,8 @@ const baseStoreState = {
   removeWall: vi.fn(),
   clearWalls: vi.fn(),
   sessionRole: 'player',
-  tables: [],
-  activeTableId: null,
+  tables: [] as { table_id: string; table_name: string }[],
+  activeTableId: null as string | null,
   switchToTable: mockSwitchToTable,
   dynamicLightingEnabled: false,
   fogExplorationMode: false,
@@ -88,14 +88,14 @@ vi.mock('@/store', () => ({
 import { useGameStore } from '@/store';
 
 function makeUser(role: 'dm' | 'player' = 'player'): UserInfo {
-  return { id: 1, username: 'tester', email: 'x@x.com', role } as UserInfo;
+  return { id: 1, username: 'tester', email: 'x@x.com', role } as unknown as UserInfo;
 }
 
 beforeEach(() => {
   vi.clearAllMocks();
   vi.mocked(useGameStore).mockImplementation(
-    (sel?: (s: typeof baseStoreState) => unknown) =>
-      sel ? sel(baseStoreState) : baseStoreState
+    ((sel?: (s: typeof baseStoreState) => unknown) =>
+      sel ? sel(baseStoreState) : baseStoreState) as unknown as typeof useGameStore
   );
 });
 
@@ -120,8 +120,9 @@ describe('ToolsPanel — render', () => {
 
   it('shows Lighting and Layers tabs for dm role', () => {
     vi.mocked(useGameStore).mockImplementation(
-      (sel?: (s: typeof baseStoreState) => unknown) =>
+      ((sel?: (s: typeof baseStoreState) => unknown) =>
         sel ? sel({ ...baseStoreState, sessionRole: 'dm' }) : { ...baseStoreState, sessionRole: 'dm' }
+      ) as unknown as typeof useGameStore
     );
     render(<ToolsPanel userInfo={makeUser('dm')} />);
     expect(screen.getByRole('tab', { name: 'Lighting' })).toBeInTheDocument();
@@ -164,8 +165,9 @@ describe('ToolsPanel — toolbar tools', () => {
 
   it('DM-only tools shown for dm', () => {
     vi.mocked(useGameStore).mockImplementation(
-      (sel?: (s: typeof baseStoreState) => unknown) =>
+      ((sel?: (s: typeof baseStoreState) => unknown) =>
         sel ? sel({ ...baseStoreState, sessionRole: 'dm' }) : { ...baseStoreState, sessionRole: 'dm' }
+      ) as unknown as typeof useGameStore
     );
     render(<ToolsPanel userInfo={makeUser('dm')} />);
     expect(screen.getByTitle('Draw Shapes')).toBeInTheDocument();
@@ -185,8 +187,9 @@ describe('ToolsPanel — table switcher', () => {
       { table_id: 't2', table_name: 'Town Square' },
     ];
     vi.mocked(useGameStore).mockImplementation(
-      (sel?: (s: typeof baseStoreState) => unknown) =>
+      ((sel?: (s: typeof baseStoreState) => unknown) =>
         sel ? sel({ ...baseStoreState, sessionRole: 'dm', tables, activeTableId: 't1' }) : { ...baseStoreState, sessionRole: 'dm', tables, activeTableId: 't1' }
+      ) as unknown as typeof useGameStore
     );
     render(<ToolsPanel userInfo={makeUser('dm')} />);
     const trigger = screen.getByTitle('Switch table');
@@ -200,8 +203,9 @@ describe('ToolsPanel — table switcher', () => {
 describe('ToolsPanel — tab switching', () => {
   it('switches to Lighting tab for dm', () => {
     vi.mocked(useGameStore).mockImplementation(
-      (sel?: (s: typeof baseStoreState) => unknown) =>
+      ((sel?: (s: typeof baseStoreState) => unknown) =>
         sel ? sel({ ...baseStoreState, sessionRole: 'dm' }) : { ...baseStoreState, sessionRole: 'dm' }
+      ) as unknown as typeof useGameStore
     );
     render(<ToolsPanel userInfo={makeUser('dm')} />);
     fireEvent.click(screen.getByRole('tab', { name: 'Lighting' }));

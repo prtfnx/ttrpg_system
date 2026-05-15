@@ -35,13 +35,14 @@ const mockSpells = {
 const defaultSpellSlots = { cantrips: 3, 1: 2, 2: 0 };
 
 beforeEach(() => {
-  vi.mocked(compendiumService.getSpells).mockResolvedValue({ spells: mockSpells } as Awaited<ReturnType<typeof compendiumService.getSpells>>);
+  vi.mocked(compendiumService.getSpells).mockResolvedValue({ spells: mockSpells, count: 3, metadata: {} } as unknown as Awaited<ReturnType<typeof compendiumService.getSpells>>);
   vi.mocked(spellManagementService.getSpellSlots).mockReturnValue(defaultSpellSlots as ReturnType<typeof spellManagementService.getSpellSlots>);
   vi.mocked(spellManagementService.getSpellsKnown).mockReturnValue(4);
   vi.mocked(spellManagementService.getSpellcastingStats).mockReturnValue({
     spellcastingAbility: 'Intelligence',
     spellSaveDC: 13,
     spellAttackBonus: 5,
+    proficiencyBonus: 2,
   });
   vi.mocked(spellManagementService.getSpellsForClass).mockImplementation((spells) => spells);
 });

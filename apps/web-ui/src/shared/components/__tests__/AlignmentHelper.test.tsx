@@ -24,7 +24,7 @@ const mockSprites = [
 ];
 
 function setupStore(selectedSprites: string[] = ['a', 'b']) {
-  (useGameStore as ReturnType<typeof vi.fn>).mockReturnValue({
+  (useGameStore as unknown as ReturnType<typeof vi.fn>).mockReturnValue({
     sprites: mockSprites,
     selectedSprites,
   });
@@ -32,7 +32,7 @@ function setupStore(selectedSprites: string[] = ['a', 'b']) {
 
 beforeEach(() => {
   vi.clearAllMocks();
-  (window as typeof window & { gameAPI?: unknown }).gameAPI = { sendMessage: vi.fn() };
+  (window as typeof window & { gameAPI?: unknown }).gameAPI = { sendMessage: vi.fn(), renderManager: () => null };
 });
 
 describe('AlignmentHelper', () => {

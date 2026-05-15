@@ -392,7 +392,7 @@ describe('gameStore — wall actions', () => {
 
   it('addWall calls rustRenderManager.add_wall if present', () => {
     const add_wall = vi.fn();
-    (window as never)['rustRenderManager'] = { add_wall };
+    (window as unknown as Record<string, unknown>)['rustRenderManager'] = { add_wall };
     useGameStore.getState().addWall({ wall_id: 'w2' } as never);
     expect(add_wall).toHaveBeenCalled();
   });
@@ -410,7 +410,7 @@ describe('gameStore — wall actions', () => {
 
   it('updateWall calls rustRenderManager.update_wall if present', () => {
     const update_wall = vi.fn();
-    (window as never)['rustRenderManager'] = { update_wall };
+    (window as unknown as Record<string, unknown>)['rustRenderManager'] = { update_wall };
     useGameStore.setState({ walls: [{ wall_id: 'w1' }] } as never);
     useGameStore.getState().updateWall('w1', {} as never);
     expect(update_wall).toHaveBeenCalled();
@@ -439,11 +439,11 @@ describe('gameStore — setTableUnits', () => {
 
   it('calls rustRenderManager.set_table_units when present', () => {
     const set_table_units = vi.fn();
-    (window as never)['rustRenderManager'] = { set_table_units };
+    (window as unknown as Record<string, unknown>)['rustRenderManager'] = { set_table_units };
     useGameStore.setState({ activeTableId: 'tbl-1' } as never);
     useGameStore.getState().setTableUnits({ gridCellPx: 60, cellDistance: 5, distanceUnit: 'm' });
     expect(set_table_units).toHaveBeenCalledWith('tbl-1', 60, 5, 'm');
-    delete (window as never)['rustRenderManager'];
+    delete (window as unknown as Record<string, unknown>)['rustRenderManager'];
   });
 });
 
@@ -499,7 +499,7 @@ describe('gameStore — syncTableToServer', () => {
     useGameStore.getState().syncTableToServer('t1');
 
     const s = useGameStore.getState();
-    expect((s.tables[0] as Record<string, unknown>).syncStatus).toBe('syncing');
+    expect((s.tables[0] as unknown as Record<string, unknown>).syncStatus).toBe('syncing');
     expect(detail).toMatchObject({ type: 'new_table_request' });
   });
 
@@ -516,7 +516,7 @@ describe('gameStore — syncTableToServer', () => {
 
 describe('gameStore — applyTableLightingSettings', () => {
   afterEach(() => {
-    delete (window as never)['rustRenderManager'];
+    delete (window as unknown as Record<string, unknown>)['rustRenderManager'];
   });
 
   it('updates lighting state', () => {
@@ -536,7 +536,7 @@ describe('gameStore — applyTableLightingSettings', () => {
       set_ambient_light: vi.fn(),
       set_dynamic_lighting_enabled: vi.fn(),
     };
-    (window as never)['rustRenderManager'] = rm;
+    (window as unknown as Record<string, unknown>)['rustRenderManager'] = rm;
     useGameStore.setState({ sessionRole: null } as never);
 
     useGameStore.getState().applyTableLightingSettings({
@@ -560,9 +560,9 @@ describe('gameStore — setActiveTableId', () => {
 
   it('calls protocol.setActiveTable when window.protocol present', () => {
     const setActiveTable = vi.fn();
-    (window as never)['protocol'] = { setActiveTable };
+    (window as unknown as Record<string, unknown>)['protocol'] = { setActiveTable };
     useGameStore.getState().setActiveTableId('tbl-42');
     expect(setActiveTable).toHaveBeenCalledWith('tbl-42');
-    delete (window as never)['protocol'];
+    delete (window as unknown as Record<string, unknown>)['protocol'];
   });
 });

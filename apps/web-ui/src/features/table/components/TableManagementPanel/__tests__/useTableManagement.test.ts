@@ -39,8 +39,8 @@ import { useGameStore } from '@/store';
 
 beforeEach(() => {
   vi.clearAllMocks();
-  (useGameStore as ReturnType<typeof vi.fn>).mockReturnValue(mockStore);
-  (useGameStore as ReturnType<typeof vi.fn> & { getState: ReturnType<typeof vi.fn> }).getState.mockReturnValue({
+  (useGameStore as unknown as ReturnType<typeof vi.fn>).mockReturnValue(mockStore);
+  (useGameStore as unknown as ReturnType<typeof vi.fn> & { getState: ReturnType<typeof vi.fn> }).getState.mockReturnValue({
     tables: mockTables,
   });
   vi.stubGlobal('alert', vi.fn());
@@ -60,7 +60,7 @@ describe('useTableManagement initial state', () => {
   });
 
   it('requests table list on mount when tables is empty', () => {
-    (useGameStore as ReturnType<typeof vi.fn>).mockReturnValue({ ...mockStore, tables: [] });
+    (useGameStore as unknown as ReturnType<typeof vi.fn>).mockReturnValue({ ...mockStore, tables: [] });
     renderHook(() => useTableManagement());
     expect(mockStore.requestTableList).toHaveBeenCalled();
   });
@@ -299,7 +299,7 @@ describe('window event listeners', () => {
   });
 
   it('new-table-response with local_table_id merges and resets form', () => {
-    (useGameStore as ReturnType<typeof vi.fn> & { getState: ReturnType<typeof vi.fn> }).getState.mockReturnValue({
+    (useGameStore as unknown as ReturnType<typeof vi.fn> & { getState: ReturnType<typeof vi.fn> }).getState.mockReturnValue({
       tables: [{ table_id: 'local-123', table_name: 'Draft', width: 2000, height: 2000, syncStatus: 'local' }],
     });
     renderHook(() => useTableManagement());

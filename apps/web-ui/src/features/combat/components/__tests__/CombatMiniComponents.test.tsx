@@ -46,10 +46,15 @@ const makeCombatant = (overrides = {}) => ({
 
 const baseCombat = {
   combat_id: 'combat1',
+  session_id: 'session1',
+  table_id: 'table1',
   phase: 'active' as const,
   round_number: 1,
   current_turn_index: 0,
   combatants: [makeCombatant()],
+  action_log: [],
+  started_at: Date.now(),
+  state_hash: 'hash1',
   settings: {} as never,
 };
 

@@ -1,6 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
-import React from 'react';
 import {
   ErrorBoundary,
   PanelErrorBoundary,
@@ -69,7 +68,7 @@ describe('ErrorBoundary (legacy)', () => {
   it('renders element fallback when provided as ReactElement', () => {
     const fallbackEl = <div>Custom Fallback Element</div>;
     render(
-      <ErrorBoundary fallback={fallbackEl as React.ComponentType<object>}>
+      <ErrorBoundary fallback={fallbackEl}>
         <ThrowingComponent shouldThrow />
       </ErrorBoundary>
     );

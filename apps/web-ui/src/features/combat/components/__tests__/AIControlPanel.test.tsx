@@ -30,7 +30,7 @@ const npc1 = {
 };
 
 const mockStore = (combat: unknown) => {
-  (useCombatStore as ReturnType<typeof vi.fn>).mockImplementation((selector: (s: unknown) => unknown) =>
+  (useCombatStore as unknown as ReturnType<typeof vi.fn>).mockImplementation((selector: (s: unknown) => unknown) =>
     selector({ combat })
   );
 };

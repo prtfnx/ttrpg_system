@@ -1,4 +1,4 @@
-import { render, screen, fireEvent, act } from '@testing-library/react';
+import { render, screen, fireEvent } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { MapPanel } from '../MapPanel';
@@ -41,7 +41,6 @@ vi.mock('@/store', () => ({
 }));
 
 import { useRenderEngine } from '@features/canvas';
-import { useGameStore } from '@/store';
 
 beforeEach(() => {
   vi.clearAllMocks();

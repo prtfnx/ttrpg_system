@@ -2,7 +2,7 @@ import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { useForm, FormProvider } from 'react-hook-form';
 import { EquipmentSelectionStep } from '../EquipmentSelectionStep';
-import { equipmentManagementService, equipmentToWizardItem } from '../../../services/equipmentManagement.service';
+import { equipmentManagementService } from '../../../services/equipmentManagement.service';
 import { useBackgrounds } from '@features/compendium';
 import type { WizardFormData } from '../WizardFormData';
 
@@ -34,7 +34,7 @@ const mockEquipment = [
 
 beforeEach(() => {
   vi.mocked(equipmentManagementService.getAllEquipment).mockResolvedValue(mockEquipment as Awaited<ReturnType<typeof equipmentManagementService.getAllEquipment>>);
-  vi.mocked(useBackgrounds).mockReturnValue({ data: [] } as ReturnType<typeof useBackgrounds>);
+  vi.mocked(useBackgrounds).mockReturnValue({ data: [], loading: false, error: null, refetch: vi.fn() } as unknown as ReturnType<typeof useBackgrounds>);
 });
 
 afterEach(() => vi.clearAllMocks());

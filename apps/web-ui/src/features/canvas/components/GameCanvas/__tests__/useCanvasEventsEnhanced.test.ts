@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { act, renderHook } from '@testing-library/react';
+import type { RenderEngine } from '@lib/wasm/wasm';
 import { useCanvasEventsEnhanced } from '../useCanvasEventsEnhanced';
 
 // Mock InputManager singleton so we don't need real key bindings
@@ -55,7 +56,7 @@ function defaultProps(overrides: Record<string, unknown> = {}) {
   const engine = makeEngine();
   return {
     canvasRef: { current: canvas },
-    rustRenderManagerRef: { current: engine },
+    rustRenderManagerRef: { current: engine as unknown as RenderEngine },
     lightPlacementMode: null,
     setLightPlacementMode: vi.fn(),
     setContextMenu: vi.fn(),
@@ -107,7 +108,7 @@ describe('useCanvasEventsEnhanced', () => {
 
   it('does not register handlers when engine is null', () => {
     const props = defaultProps();
-    props.rustRenderManagerRef = { current: null };
+    props.rustRenderManagerRef = { current: null as unknown as RenderEngine };
     renderHook(() => useCanvasEventsEnhanced(props));
     expect(inputManager.onAction).not.toHaveBeenCalled();
   });

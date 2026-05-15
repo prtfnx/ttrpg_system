@@ -56,14 +56,14 @@ const mockGameAPI = { sendMessage: vi.fn() };
 
 beforeEach(() => {
   vi.stubGlobal('Image', FakeImage);
-  (window as Record<string, unknown>).rustRenderManager = mockRustRenderer;
-  (window as Record<string, unknown>).gameAPI = mockGameAPI;
+  (window as unknown as Record<string, unknown>).rustRenderManager = mockRustRenderer;
+  (window as unknown as Record<string, unknown>).gameAPI = mockGameAPI;
   vi.clearAllMocks();
 });
 
 afterEach(() => {
-  delete (window as Record<string, unknown>).rustRenderManager;
-  delete (window as Record<string, unknown>).gameAPI;
+  delete (window as unknown as Record<string, unknown>).rustRenderManager;
+  delete (window as unknown as Record<string, unknown>).gameAPI;
   vi.unstubAllGlobals();
 });
 
@@ -184,7 +184,7 @@ describe('createTextSprite', () => {
   });
 
   it('without gameAPI: does not throw, still returns ID', async () => {
-    delete (window as Record<string, unknown>).gameAPI;
+    delete (window as unknown as Record<string, unknown>).gameAPI;
     const id = await createTextSprite(makeConfig(), { x: 0, y: 0 }, 'tokens');
     expect(typeof id).toBe('string');
   });
@@ -209,7 +209,7 @@ describe('deleteTextSprite', () => {
   });
 
   it('does not throw when rustRenderManager is absent', () => {
-    delete (window as Record<string, unknown>).rustRenderManager;
+    delete (window as unknown as Record<string, unknown>).rustRenderManager;
     expect(() => deleteTextSprite('s1')).not.toThrow();
   });
 });

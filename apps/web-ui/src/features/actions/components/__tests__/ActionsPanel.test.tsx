@@ -3,6 +3,10 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { ActionsPanel } from '../ActionsPanel';
 
 // ── useActions mock ─────────────────────────────────────────────────────────
+const mockCreateSprite = vi.fn();
+const mockDeleteSprite = vi.fn();
+const mockUpdateSprite = vi.fn();
+const mockMoveSpriteToLayer = vi.fn();
 const mockCreateTable = vi.fn();
 const mockDeleteTable = vi.fn();
 const mockUpdateTable = vi.fn();
@@ -31,6 +35,10 @@ const baseActions = {
   redo: mockRedo,
   refreshState: mockRefreshState,
   clearError: mockClearError,
+  createSprite: mockCreateSprite,
+  deleteSprite: mockDeleteSprite,
+  updateSprite: mockUpdateSprite,
+  moveSpriteToLayer: mockMoveSpriteToLayer,
 };
 
 vi.mock('@shared/hooks', () => ({
@@ -41,7 +49,7 @@ import { useActions } from '@shared/hooks';
 
 beforeEach(() => {
   vi.clearAllMocks();
-  vi.mocked(useActions).mockReturnValue({ ...baseActions });
+  vi.mocked(useActions).mockReturnValue({ ...baseActions } as unknown as ReturnType<typeof useActions>);
 });
 
 // ── tests ───────────────────────────────────────────────────────────────────
@@ -56,20 +64,20 @@ describe('ActionsPanel — render', () => {
   });
 
   it('shows loading indicator when isLoading is true', () => {
-    vi.mocked(useActions).mockReturnValue({ ...baseActions, isLoading: true });
+    vi.mocked(useActions).mockReturnValue({ ...baseActions, isLoading: true } as unknown as ReturnType<typeof useActions>);
     render(<ActionsPanel renderEngine={null} />);
     // Loader2 icon renders with aria-hidden; just verify Create Table button is disabled
     expect(screen.getByRole('button', { name: 'Create Table' })).toBeDisabled();
   });
 
   it('shows error message with clear button', () => {
-    vi.mocked(useActions).mockReturnValue({ ...baseActions, error: 'Something failed' });
+    vi.mocked(useActions).mockReturnValue({ ...baseActions, error: 'Something failed' } as unknown as ReturnType<typeof useActions>);
     render(<ActionsPanel renderEngine={null} />);
     expect(screen.getByText('Something failed')).toBeInTheDocument();
   });
 
   it('clicking clear error button calls clearError', () => {
-    vi.mocked(useActions).mockReturnValue({ ...baseActions, error: 'Oops' });
+    vi.mocked(useActions).mockReturnValue({ ...baseActions, error: 'Oops' } as unknown as ReturnType<typeof useActions>);
     render(<ActionsPanel renderEngine={null} />);
     const xButtons = screen.getAllByRole('button');
     // The X clear button is the one inside the errorMessage
@@ -103,7 +111,7 @@ describe('ActionsPanel — Tables tab', () => {
     const tables = new Map([
       ['t1', { table_id: 't1', name: 'Dungeon', width: 400, height: 300 }],
     ]);
-    vi.mocked(useActions).mockReturnValue({ ...baseActions, tables } as ReturnType<typeof useActions>);
+    vi.mocked(useActions).mockReturnValue({ ...baseActions, tables } as unknown as ReturnType<typeof useActions>);
     render(<ActionsPanel renderEngine={null} />);
     expect(screen.getByText('Dungeon')).toBeInTheDocument();
     expect(screen.getByText('Delete')).toBeInTheDocument();
@@ -115,7 +123,7 @@ describe('ActionsPanel — Tables tab', () => {
     const tables = new Map([
       ['t1', { table_id: 't1', name: 'Forest', width: 400, height: 300 }],
     ]);
-    vi.mocked(useActions).mockReturnValue({ ...baseActions, tables } as ReturnType<typeof useActions>);
+    vi.mocked(useActions).mockReturnValue({ ...baseActions, tables } as unknown as ReturnType<typeof useActions>);
     render(<ActionsPanel renderEngine={null} />);
     fireEvent.click(screen.getByText('Delete'));
     await waitFor(() => expect(mockDeleteTable).toHaveBeenCalledWith('t1'));
@@ -126,7 +134,7 @@ describe('ActionsPanel — Tables tab', () => {
     const tables = new Map([
       ['t1', { table_id: 't1', name: 'City', width: 400, height: 300 }],
     ]);
-    vi.mocked(useActions).mockReturnValue({ ...baseActions, tables } as ReturnType<typeof useActions>);
+    vi.mocked(useActions).mockReturnValue({ ...baseActions, tables } as unknown as ReturnType<typeof useActions>);
     render(<ActionsPanel renderEngine={null} />);
     fireEvent.click(screen.getByText('Scale'));
     await waitFor(() => expect(mockUpdateTable).toHaveBeenCalledWith('t1', { scale_x: 1.5, scale_y: 1.5 }));
@@ -176,7 +184,7 @@ describe('ActionsPanel — History tab', () => {
   });
 
   it('undo button enabled and calls undo', async () => {
-    vi.mocked(useActions).mockReturnValue({ ...baseActions, canUndo: true });
+    vi.mocked(useActions).mockReturnValue({ ...baseActions, canUndo: true } as unknown as ReturnType<typeof useActions>);
     render(<ActionsPanel renderEngine={null} />);
     fireEvent.click(screen.getByText('History'));
     fireEvent.click(screen.getByText(/Undo/));
@@ -184,7 +192,7 @@ describe('ActionsPanel — History tab', () => {
   });
 
   it('redo button enabled and calls redo', async () => {
-    vi.mocked(useActions).mockReturnValue({ ...baseActions, canRedo: true });
+    vi.mocked(useActions).mockReturnValue({ ...baseActions, canRedo: true } as unknown as ReturnType<typeof useActions>);
     render(<ActionsPanel renderEngine={null} />);
     fireEvent.click(screen.getByText('History'));
     fireEvent.click(screen.getByText(/Redo/));
@@ -208,13 +216,13 @@ describe('ActionsPanel — History tab', () => {
 
   it('renders action history entries', () => {
     const history = [
-      { action_type: 'create_table', timestamp: Date.now(), reversible: true },
+      { action_type: 'create_table', timestamp: Date.now(), reversible: true, data: {} },
     ];
     vi.mocked(useActions).mockReturnValue({
       ...baseActions,
       actionHistory: history,
       canUndo: true,
-    });
+    } as unknown as ReturnType<typeof useActions>);
     render(<ActionsPanel renderEngine={null} />);
     fireEvent.click(screen.getByText('History'));
     expect(screen.getByText('create_table')).toBeInTheDocument();

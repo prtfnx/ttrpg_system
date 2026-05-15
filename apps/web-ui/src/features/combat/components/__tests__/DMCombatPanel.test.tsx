@@ -1,4 +1,4 @@
-import { render, screen, fireEvent } from '@testing-library/react';
+import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { DMCombatPanel } from '../DMCombatPanel';
 import { useCombatStore } from '../../stores/combatStore';
@@ -29,10 +29,15 @@ const mockSendMessage = vi.fn();
 
 const mockCombat = {
   combat_id: 'combat1',
+  session_id: 'session1',
   table_id: 'table1',
+  phase: 'active' as const,
+  round_number: 1,
   current_turn_index: 0,
-  round: 1,
   is_active: true,
+  action_log: [],
+  started_at: Date.now(),
+  state_hash: 'hash1',
   combatants: [
     {
       combatant_id: 'c1', entity_id: 'e1', character_id: null, name: 'Goblin',
@@ -52,11 +57,18 @@ const mockCombat = {
   settings: {
     auto_roll_npc_initiative: true,
     auto_sort_initiative: true,
+    skip_defeated: false,
+    allow_player_end_turn: false,
+    show_npc_hp_to_players: 'none',
+    group_initiative: false,
+    ai_auto_act: false,
+    death_saves_enabled: true,
+    critical_hit_rule: 'max_die',
   },
 };
 
 beforeEach(() => {
-  vi.mocked(ProtocolService.getProtocol).mockReturnValue({ sendMessage: mockSendMessage } as ReturnType<typeof ProtocolService.getProtocol>);
+  vi.mocked(ProtocolService.getProtocol).mockReturnValue({ sendMessage: mockSendMessage } as unknown as ReturnType<typeof ProtocolService.getProtocol>);
   // Set a default activeTableId
   useGameStore.setState({ activeTableId: 'table1' } as Parameters<typeof useGameStore.setState>[0]);
 });
@@ -282,7 +294,7 @@ describe('DMCombatPanel — end combat + revert', () => {
 describe('DMCombatPanel — no protocol', () => {
   beforeEach(() => {
     useCombatStore.setState({ combat: null });
-    vi.mocked(ProtocolService.getProtocol).mockReturnValue(null);
+    vi.mocked(ProtocolService.getProtocol).mockReturnValue(null as unknown as ReturnType<typeof ProtocolService.getProtocol>);
   });
 
   it('clicking Start Combat does not throw when protocol is null', async () => {

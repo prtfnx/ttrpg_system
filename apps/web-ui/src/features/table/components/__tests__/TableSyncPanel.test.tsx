@@ -1,6 +1,5 @@
 import { render, screen, fireEvent, waitFor, act } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import React from 'react';
 
 // Mock hooks before importing component
 vi.mock('@features/table/hooks/useTableSync', () => ({

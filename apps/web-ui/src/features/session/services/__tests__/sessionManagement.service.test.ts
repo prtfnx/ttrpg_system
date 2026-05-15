@@ -12,7 +12,7 @@ function ok(data: unknown) {
   return { ok: true, json: () => Promise.resolve(data) } as never;
 }
 
-function fail(status = 400, statusText = 'Bad Request') {
+function fail(_status = 400, statusText = 'Bad Request') {
   return { ok: false, statusText } as never;
 }
 

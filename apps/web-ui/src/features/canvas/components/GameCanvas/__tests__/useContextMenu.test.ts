@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, afterEach } from 'vitest';
 import { act, renderHook } from '@testing-library/react';
+import type { RenderEngine } from '@lib/wasm/wasm';
 import { useContextMenu, useLightPlacement } from '../useContextMenu';
 
 // useGameStore is called inside handleMoveToLayer (getState pattern)
@@ -27,7 +28,7 @@ function makeRefs(engineOverrides: Record<string, unknown> = {}) {
   vi.spyOn(canvasEl, 'getBoundingClientRect').mockReturnValue({
     left: 0, top: 0, width: 800, height: 600, x: 0, y: 0, right: 800, bottom: 600, toJSON: () => ({})
   } as DOMRect);
-  const rustRenderManagerRef = { current: engine };
+  const rustRenderManagerRef = { current: engine as unknown as RenderEngine };
   return { canvasRef, rustRenderManagerRef, engine };
 }
 
@@ -69,7 +70,7 @@ describe('handleContextMenuAction', () => {
 
   it('delete: calls protocol.removeSprite when protocol and spriteId present', () => {
     const { canvasRef, rustRenderManagerRef } = makeRefs();
-    const protocol = { removeSprite: vi.fn() } as never;
+    const protocol = { removeSprite: vi.fn() } as unknown as import('@lib/websocket').WebClientProtocol;
     const { result } = renderHook(() =>
       useContextMenu({ canvasRef, rustRenderManagerRef, protocol })
     );

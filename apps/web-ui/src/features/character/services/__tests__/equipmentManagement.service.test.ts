@@ -18,18 +18,15 @@ import type { Equipment, InventoryItem } from '../equipmentManagement.service';
 
 // Minimal Equipment stub
 const sword: Equipment = {
-  id: 'longsword',
   name: 'Longsword',
   category: EquipmentCategory.WEAPON,
   cost: { quantity: 15, unit: 'gp' },
   weight: 3,
   description: 'A standard longsword.',
-  properties: {},
 };
 
 // Minimal InventoryItem stub
 const inventoryItem: InventoryItem = {
-  id: 'inv-1',
   equipment: sword,
   quantity: 2,
   equipped: false,
@@ -139,7 +136,7 @@ describe('equipmentManagementService sync methods', () => {
     it('sums quantity × weight', () => {
       const items: InventoryItem[] = [
         { ...inventoryItem, quantity: 2 },
-        { ...inventoryItem, id: 'inv-2', quantity: 1 },
+        { ...inventoryItem, quantity: 1 },
       ];
       // sword.weight = 3, so 2*3 + 1*3 = 9
       expect(equipmentManagementService.calculateTotalWeight(items)).toBe(9);

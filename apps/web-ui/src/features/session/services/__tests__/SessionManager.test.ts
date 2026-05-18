@@ -57,13 +57,13 @@ describe('SessionManager', () => {
   describe('joinSession — invalid code', () => {
     it('rejects with error for invalid code format', async () => {
       await expect(
-        mgr.joinSession({ code: 'bad', userInfo: { id: 1, username: 'test', email: 'test@test.com', role: 'player' } })
+        mgr.joinSession({ code: 'bad', userInfo: { id: 1, username: 'test', role: 'player', permissions: [] } })
       ).rejects.toThrow('Invalid session code format');
     });
 
     it('rejects for lowercase code', async () => {
       await expect(
-        mgr.joinSession({ code: 'abc123', userInfo: { id: 1, username: 'test', email: 'test@test.com', role: 'player' } })
+        mgr.joinSession({ code: 'abc123', userInfo: { id: 1, username: 'test', role: 'player', permissions: [] } })
       ).rejects.toThrow('Invalid session code format');
     });
   });

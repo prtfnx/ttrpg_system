@@ -1,6 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
-import React from 'react';
 
 // Mock CSS module
 vi.mock('../ActionQueuePanel.module.css', () => ({
@@ -34,7 +33,7 @@ vi.mock('@lib/websocket', () => ({
 
 import { ActionQueuePanel } from '../ActionQueuePanel';
 
-const userInfo = { username: 'testUser', role: 'player' as const, userId: 'u1', token: 'tok' };
+const userInfo = { id: 1, username: 'testUser', role: 'player' as const, permissions: [] };
 
 describe('ActionQueuePanel', () => {
   beforeEach(() => {

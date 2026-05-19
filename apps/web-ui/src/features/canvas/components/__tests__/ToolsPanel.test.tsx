@@ -348,13 +348,13 @@ function mockRustManager(extra: Record<string, unknown> = {}) {
     set_active_layer: vi.fn(),
     ...extra,
   };
-  (window as Record<string, unknown>)['rustRenderManager'] = rm;
+  (window as unknown as Record<string, unknown>)['rustRenderManager'] = rm;
   return rm;
 }
 
 // ── player layer controls ─────────────────────────────────────────────────────
 describe('ToolsPanel — PlayerLayerControls (player role)', () => {
-  afterEach(() => { delete (window as Record<string, unknown>)['rustRenderManager']; });
+  afterEach(() => { delete (window as unknown as Record<string, unknown>)['rustRenderManager']; });
 
   it('shows Toggle Map layer and Toggle Tokens layer buttons', () => {
     render(<ToolsPanel userInfo={makeUser('player')} />);

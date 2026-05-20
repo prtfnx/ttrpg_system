@@ -129,7 +129,7 @@ describe('useAdvancedMeasurement', () => {
       await act(async () => {
         result.current.setSelectedTab('grids');
       });
-      expect(result.current.selectedTab).toBe('grid');
+      expect(result.current.selectedTab).toBe('grids');
     });
 
     it('setSearchQuery filters measurements', async () => {

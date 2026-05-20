@@ -27,12 +27,10 @@ jobs:
       - name: Run tests with coverage
         run: pnpm test:coverage --filter @ttrpg/web-ui
       - name: Upload web coverage
-        uses: codecov/codecov-action@v4
+        uses: actions/upload-artifact@v4
         with:
-          token: ${{ secrets.CODECOV_TOKEN }}
-          files: apps/web-ui/coverage/coverage-final.json
-          flags: web
-          disable_search: true
+          name: web-coverage
+          path: apps/web-ui/coverage/
         if: always()
 
   rust:
@@ -57,12 +55,10 @@ jobs:
         run: cargo llvm-cov --lib --lcov --output-path coverage.lcov
         working-directory: packages/rust-core
       - name: Upload Rust coverage
-        uses: codecov/codecov-action@v4
+        uses: actions/upload-artifact@v4
         with:
-          token: ${{ secrets.CODECOV_TOKEN }}
-          files: packages/rust-core/coverage.lcov
-          flags: rust
-          disable_search: true
+          name: rust-coverage
+          path: packages/rust-core/coverage.lcov
         if: always()
       - name: WASM node tests
         run: wasm-pack test --node --test wasm_node
@@ -102,11 +98,9 @@ jobs:
         working-directory: apps/server
         env:
           PYTHONPATH: ${{ github.workspace }}/apps/server:${{ github.workspace }}/packages/core-table
-      - name: Upload coverage
-        uses: codecov/codecov-action@v4
+      - name: Upload server coverage
+        uses: actions/upload-artifact@v4
         with:
-          token: ${{ secrets.CODECOV_TOKEN }}
-          files: apps/server/coverage.xml
-          flags: server
-          disable_search: true
+          name: server-coverage
+          path: apps/server/coverage.xml
         if: always()

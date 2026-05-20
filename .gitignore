@@ -88,6 +88,13 @@ coverage.xml
 apps/web-ui/coverage/
 apps/web-ui/.eslintcache
 
+# Raw coverage/bench capture files (local scratch, never commit)
+apps/web-ui/coverage_*.txt
+apps/web-ui/coverage_*.json
+bench_results_*.txt
+bench_results_*.md
+packages/rust-core/coverage.lcov
+
 # ============================================================
 # Server static assets (built from web client)
 # ============================================================

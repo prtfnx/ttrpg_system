@@ -29,8 +29,10 @@ jobs:
       - name: Upload web coverage
         uses: codecov/codecov-action@v4
         with:
+          token: ${{ secrets.CODECOV_TOKEN }}
           files: apps/web-ui/coverage/coverage-final.json
           flags: web
+          disable_search: true
         if: always()
 
   rust:
@@ -57,8 +59,10 @@ jobs:
       - name: Upload Rust coverage
         uses: codecov/codecov-action@v4
         with:
+          token: ${{ secrets.CODECOV_TOKEN }}
           files: packages/rust-core/coverage.lcov
           flags: rust
+          disable_search: true
         if: always()
       - name: WASM node tests
         run: wasm-pack test --node --test wasm_node
@@ -101,5 +105,8 @@ jobs:
       - name: Upload coverage
         uses: codecov/codecov-action@v4
         with:
+          token: ${{ secrets.CODECOV_TOKEN }}
           files: apps/server/coverage.xml
+          flags: server
+          disable_search: true
         if: always()

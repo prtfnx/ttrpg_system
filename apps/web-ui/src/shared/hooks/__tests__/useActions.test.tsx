@@ -1,8 +1,8 @@
-import { afterEach, describe, expect, it, vi } from 'vitest';
-import { render, act, waitFor } from '@testing-library/react';
-import React from 'react';
-import { useActions, type ActionsCallbacks } from '@shared/hooks/useActions';
 import type { RenderEngine } from '@lib/wasm/wasm';
+import { useActions, type ActionsCallbacks } from '@shared/hooks/useActions';
+import { act, render, waitFor } from '@testing-library/react';
+import React from 'react';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 
 function createMockRenderEngine(overrides: Partial<Record<string, unknown>> = {}): RenderEngine {
   return {

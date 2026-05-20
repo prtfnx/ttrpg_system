@@ -1,6 +1,6 @@
 import { renderHook, waitFor } from '@testing-library/react';
-import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { useClasses, useRaces, useClassSpells, useBackgrounds, useCompendiumStatus } from '../useCompendium';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { useBackgrounds, useClasses, useClassSpells, useCompendiumStatus, useRaces } from '../useCompendium';
 
 vi.mock('../../services/compendiumService', () => ({
   compendiumService: {

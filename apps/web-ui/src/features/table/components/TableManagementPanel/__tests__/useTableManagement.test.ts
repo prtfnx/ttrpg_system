@@ -1,5 +1,5 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { act, renderHook } from '@testing-library/react';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { useTableManagement } from '../useTableManagement';
 
 vi.mock('@features/table/services/tableThumbnail.service', () => ({

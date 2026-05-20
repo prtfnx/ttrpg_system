@@ -1,8 +1,8 @@
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { TurnBanner } from '../TurnBanner';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { useCombatStore } from '../../stores/combatStore';
+import { TurnBanner } from '../TurnBanner';
 
 vi.mock('@/store', () => ({
   useGameStore: (sel?: (s: { userId: number | null }) => unknown) =>

@@ -1,5 +1,5 @@
-import { describe, it, expect } from 'vitest';
-import { RACES, calculateRacialASI, getRacialTraits, getRacialProficiencies } from '../raceData';
+import { describe, expect, it } from 'vitest';
+import { RACES, calculateRacialASI, getRacialProficiencies, getRacialTraits } from '../raceData';
 
 describe('RACES data', () => {
   it('contains Human, Elf, Dwarf, Halfling', () => {

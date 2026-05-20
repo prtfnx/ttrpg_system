@@ -1,6 +1,6 @@
-import { describe, it, expect, vi, afterEach } from 'vitest';
-import { act, renderHook } from '@testing-library/react';
 import type { RenderEngine } from '@lib/wasm/wasm';
+import { act, renderHook } from '@testing-library/react';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { useContextMenu, useLightPlacement } from '../useContextMenu';
 
 // useGameStore is called inside handleMoveToLayer (getState pattern)

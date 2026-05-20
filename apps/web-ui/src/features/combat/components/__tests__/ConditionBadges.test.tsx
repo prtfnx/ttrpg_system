@@ -1,7 +1,7 @@
 import { render, screen } from '@testing-library/react';
-import { describe, it, expect } from 'vitest';
-import { ConditionBadges } from '../ConditionBadges';
+import { describe, expect, it } from 'vitest';
 import type { ActiveCondition } from '../../stores/combatStore';
+import { ConditionBadges } from '../ConditionBadges';
 
 const makeCondition = (overrides: Partial<ActiveCondition> = {}): ActiveCondition => ({
   condition_id: 'c1',

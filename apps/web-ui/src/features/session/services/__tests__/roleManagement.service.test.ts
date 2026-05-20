@@ -1,6 +1,6 @@
-import { describe, it, expect } from 'vitest';
-import { roleManagementService } from '../roleManagement.service';
+import { describe, expect, it } from 'vitest';
 import type { RoleChangeData } from '../roleManagement.service';
+import { roleManagementService } from '../roleManagement.service';
 
 describe('roleManagementService', () => {
   it('updatePlayerRole resolves without error', async () => {

@@ -1,8 +1,8 @@
+import { useGameStore } from '@/store';
 import '@testing-library/jest-dom';
-import { render, screen, fireEvent } from '@testing-library/react';
+import { fireEvent, render, screen } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { EncounterBuilder } from '../EncounterBuilder';
-import { useGameStore } from '@/store';
 
 const mockSend = vi.fn();
 

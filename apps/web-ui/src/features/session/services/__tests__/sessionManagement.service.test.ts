@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { sessionManagementService } from '../sessionManagement.service';
 
 let mockFetch: ReturnType<typeof vi.fn>;

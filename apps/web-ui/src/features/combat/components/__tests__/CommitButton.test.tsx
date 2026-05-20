@@ -1,9 +1,9 @@
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { CommitButton } from '../CommitButton';
-import { usePlanningStore } from '../../stores/planningStore';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { useGameModeStore } from '../../stores/gameModeStore';
+import { usePlanningStore } from '../../stores/planningStore';
+import { CommitButton } from '../CommitButton';
 
 vi.mock('@lib/api', () => ({
   ProtocolService: {

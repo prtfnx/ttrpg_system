@@ -11,8 +11,8 @@ const mockFetch = vi.hoisted(() => {
   return fn;
 });
 
-import { enhancedAuthService } from '../enhancedAuth.service';
 import type { AuthState, Permission, UserRole } from '../enhancedAuth.service';
+import { enhancedAuthService } from '../enhancedAuth.service';
 
 // Direct state manipulation helpers (bypass async network calls in tests)
 function setState(updates: Partial<AuthState>) {

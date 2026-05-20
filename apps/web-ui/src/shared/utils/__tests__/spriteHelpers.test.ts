@@ -1,15 +1,15 @@
-import { describe, it, expect } from 'vitest';
-import {
-  getSpriteWidth,
-  getSpriteHeight,
-  getSpriteBounds,
-  getSpriteName,
-  getSpriteCenter,
-  isPointInSprite,
-  getDistanceBetweenSprites,
-  DEFAULT_SPRITE_SIZE,
-} from '../spriteHelpers';
 import type { Sprite } from '@/types';
+import { describe, expect, it } from 'vitest';
+import {
+    DEFAULT_SPRITE_SIZE,
+    getDistanceBetweenSprites,
+    getSpriteBounds,
+    getSpriteCenter,
+    getSpriteHeight,
+    getSpriteName,
+    getSpriteWidth,
+    isPointInSprite,
+} from '../spriteHelpers';
 
 const makeSprite = (overrides: Partial<Sprite> = {}): Sprite => ({
   id: 's1',

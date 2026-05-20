@@ -1,5 +1,5 @@
 import { render } from '@testing-library/react';
-import { describe, it, expect } from 'vitest';
+import { describe, expect, it } from 'vitest';
 import { SyncBadge } from '../SyncBadge';
 
 const fmtTime = (t?: number) => (t ? `${Math.floor((Date.now() - t) / 60000)}m ago` : '');

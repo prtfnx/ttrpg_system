@@ -1,8 +1,8 @@
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { ChatPanel } from '../ChatPanel';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { useChatStore } from '../../chatStore';
+import { ChatPanel } from '../ChatPanel';
 
 // Mock heavy hooks
 vi.mock('../../hooks/useChatWebSocket', () => ({

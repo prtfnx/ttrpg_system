@@ -23,10 +23,10 @@ vi.mock('../../services/auth.service', () => ({
   authService: { getUserSessions: vi.fn().mockResolvedValue([]) },
 }));
 
-import { useAuthenticatedWebSocket } from '../useAuthenticatedWebSocket';
 import { useOptionalProtocol } from '@lib/api';
 import { WebClientProtocol } from '@lib/websocket';
 import { authService } from '../../services/auth.service';
+import { useAuthenticatedWebSocket } from '../useAuthenticatedWebSocket';
 
 const user = { id: 1, username: 'alice', role: 'dm' as const };
 const props = { sessionCode: 'TEST-CODE', userInfo: user as Parameters<typeof useAuthenticatedWebSocket>[0]['userInfo'] };

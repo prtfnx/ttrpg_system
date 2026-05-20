@@ -1,6 +1,6 @@
-import { render, screen, fireEvent, act } from '@testing-library/react';
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { DiceRoller, AttackRoll, DamageRoll, SavingThrowRoll } from '../DiceRoller';
+import { act, fireEvent, render, screen } from '@testing-library/react';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { AttackRoll, DamageRoll, DiceRoller, SavingThrowRoll } from '../DiceRoller';
 
 // ── mock CombatPreviewService ────────────────────────────────────────────────
 const mockRollDice = vi.hoisted(() => vi.fn());

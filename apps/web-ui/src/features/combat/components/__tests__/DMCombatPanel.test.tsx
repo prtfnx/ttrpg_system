@@ -1,9 +1,9 @@
+import { useGameStore } from '@/store';
+import { ProtocolService } from '@lib/api';
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { DMCombatPanel } from '../DMCombatPanel';
 import { useCombatStore } from '../../stores/combatStore';
-import { ProtocolService } from '@lib/api';
-import { useGameStore } from '@/store';
+import { DMCombatPanel } from '../DMCombatPanel';
 
 vi.mock('@lib/api', () => ({
   ProtocolService: { getProtocol: vi.fn() },

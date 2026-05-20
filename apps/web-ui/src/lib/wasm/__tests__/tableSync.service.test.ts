@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 vi.mock('@/store', () => ({
   useGameStore: Object.assign(
@@ -9,8 +9,8 @@ vi.mock('@/store', () => ({
   ),
 }));
 
-import { TableSyncService } from '../tableSync.service';
 import { useGameStore } from '@/store';
+import { TableSyncService } from '../tableSync.service';
 
 const mockEngine = {
   handle_table_data: vi.fn(),

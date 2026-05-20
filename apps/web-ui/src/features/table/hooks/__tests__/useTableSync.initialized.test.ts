@@ -3,9 +3,9 @@
  * Separate file so we can use a resolving WASM mock without
  * breaking the existing guard-path tests.
  */
+import { useTableSync } from '@features/table';
 import { act, renderHook, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { useTableSync } from '@features/table';
 
 // Shared mock instance captured at construction time
 let capturedTableSync: {

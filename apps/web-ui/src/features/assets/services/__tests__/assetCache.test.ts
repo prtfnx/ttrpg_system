@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach } from 'vitest';
+import { beforeEach, describe, expect, it } from 'vitest';
 import { useAssetCharacterCache } from '../assetCache';
 
 // Reset store state before each test

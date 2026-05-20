@@ -1,7 +1,7 @@
-import { render, screen, fireEvent, waitFor } from '@testing-library/react';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { InviteLink } from '@features/session/components/Invitations/InviteLink';
 import type { SessionInvitation } from '@features/session/types/invitations';
+import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 function makeInvitation(overrides: Partial<SessionInvitation> = {}): SessionInvitation {
   return {

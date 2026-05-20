@@ -1,7 +1,7 @@
 import { render, screen } from '@testing-library/react';
-import { describe, it, expect, beforeEach } from 'vitest';
-import { CombatLog } from '../CombatLog';
+import { beforeEach, describe, expect, it } from 'vitest';
 import { useCombatStore } from '../../stores/combatStore';
+import { CombatLog } from '../CombatLog';
 
 // jsdom doesn't implement scrollIntoView
 Element.prototype.scrollIntoView = () => {};

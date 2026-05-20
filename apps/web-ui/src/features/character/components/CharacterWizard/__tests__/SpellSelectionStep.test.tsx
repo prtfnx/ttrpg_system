@@ -1,9 +1,9 @@
+import { compendiumService } from '@features/compendium/services/compendiumService';
 import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { useForm, FormProvider } from 'react-hook-form';
-import { SpellSelectionStep } from '../SpellSelectionStep';
-import { compendiumService } from '@features/compendium/services/compendiumService';
+import { FormProvider, useForm } from 'react-hook-form';
 import { spellManagementService } from '../../../services/spellManagement.service';
+import { SpellSelectionStep } from '../SpellSelectionStep';
 import type { WizardFormData } from '../WizardFormData';
 
 vi.mock('@features/compendium/services/compendiumService', () => ({

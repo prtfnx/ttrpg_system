@@ -5,7 +5,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 // Mock the WASM module itself so it doesn't try to load .wasm binary
 vi.mock('@lib/wasm/wasm', () => ({}));
 
-import { wasmManager, initializeWasm } from '@lib/wasm/wasmManager';
+import { initializeWasm, wasmManager } from '@lib/wasm/wasmManager';
 
 beforeEach(() => {
   // Reset singleton state between tests so each gets a fresh init

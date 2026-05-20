@@ -1,9 +1,9 @@
 import type { TextSpriteConfig } from '../TextSpriteCreator';
 import {
-  renderTextSprite,
-  createTextSprite,
-  updateTextSprite,
-  deleteTextSprite,
+    createTextSprite,
+    deleteTextSprite,
+    renderTextSprite,
+    updateTextSprite,
 } from '../textSpriteUtils';
 
 // Canvas 2D context mock — jsdom doesn't support real canvas

@@ -1,6 +1,6 @@
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { act, renderHook } from '@testing-library/react';
 import type { RenderEngine } from '@lib/wasm/wasm';
+import { act, renderHook } from '@testing-library/react';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { useCanvasEventsEnhanced } from '../useCanvasEventsEnhanced';
 
 // Mock InputManager singleton so we don't need real key bindings

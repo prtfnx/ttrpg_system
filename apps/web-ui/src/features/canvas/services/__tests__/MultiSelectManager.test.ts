@@ -1,8 +1,8 @@
-import { describe, it, expect, beforeEach } from 'vitest';
+import { beforeEach, describe, expect, it } from 'vitest';
 import {
-  MouseMultiSelectStrategy,
-  MultiSelectManager,
-  MultiSelectMode,
+    MouseMultiSelectStrategy,
+    MultiSelectManager,
+    MultiSelectMode,
 } from '../MultiSelectManager';
 
 // Helper to build a minimal MouseEvent

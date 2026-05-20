@@ -1,9 +1,9 @@
+import { useBackgrounds } from '@features/compendium';
 import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { useForm, FormProvider } from 'react-hook-form';
-import { EquipmentSelectionStep } from '../EquipmentSelectionStep';
+import { FormProvider, useForm } from 'react-hook-form';
 import { equipmentManagementService } from '../../../services/equipmentManagement.service';
-import { useBackgrounds } from '@features/compendium';
+import { EquipmentSelectionStep } from '../EquipmentSelectionStep';
 import type { WizardFormData } from '../WizardFormData';
 
 vi.mock('../../../services/equipmentManagement.service', () => ({

@@ -1,5 +1,5 @@
-import { CombatPreviewService } from '../combatPreview.service';
 import type { WizardFormData } from '@features/character/components/CharacterWizard/WizardFormData';
+import { CombatPreviewService } from '../combatPreview.service';
 
 const makeChar = (overrides: Partial<WizardFormData> = {}): WizardFormData => ({
   name: 'Test',

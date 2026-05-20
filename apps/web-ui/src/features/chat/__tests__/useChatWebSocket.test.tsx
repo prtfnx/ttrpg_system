@@ -1,7 +1,7 @@
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { renderHook, act } from '@testing-library/react';
-import { useChatWebSocket } from '../hooks/useChatWebSocket';
+import { act, renderHook } from '@testing-library/react';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { useChatStore } from '../chatStore';
+import { useChatWebSocket } from '../hooks/useChatWebSocket';
 
 // Minimal protocol mock — no real WebSocket needed
 const makeProtocol = (connected = false) => ({

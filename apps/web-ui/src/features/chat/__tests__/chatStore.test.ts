@@ -1,6 +1,6 @@
-import { describe, it, expect, beforeEach } from 'vitest';
-import { useChatStore } from '../chatStore';
+import { beforeEach, describe, expect, it } from 'vitest';
 import type { ChatMessage } from '../chatStore';
+import { useChatStore } from '../chatStore';
 
 const makeMsg = (overrides?: Partial<ChatMessage>): ChatMessage => ({
   id: '1',

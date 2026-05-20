@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach, vi } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 // Class is not exported — use the singleton and clear its internal state via delete+recreate in storage
 import { paintTemplateService } from '../paintTemplate.service';
 

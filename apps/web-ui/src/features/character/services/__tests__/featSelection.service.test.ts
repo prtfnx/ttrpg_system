@@ -1,5 +1,5 @@
-import { describe, it, expect } from 'vitest';
-import { featSelectionService, DND_FEATS } from '../featSelection.service';
+import { describe, expect, it } from 'vitest';
+import { DND_FEATS, featSelectionService } from '../featSelection.service';
 
 const baseScores = { Strength: 10, Dexterity: 10, Constitution: 10, Intelligence: 10, Wisdom: 10, Charisma: 10 };
 const highScores = { Strength: 16, Dexterity: 16, Constitution: 14, Intelligence: 16, Wisdom: 14, Charisma: 12 };

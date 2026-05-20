@@ -1,5 +1,5 @@
-import { CharacterExportService } from '../characterExport.service';
 import type { WizardFormData } from '@features/character/components/CharacterWizard/WizardFormData';
+import { CharacterExportService } from '../characterExport.service';
 
 const baseChar: WizardFormData = {
   name: 'Thalindra',

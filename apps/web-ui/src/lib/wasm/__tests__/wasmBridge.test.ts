@@ -39,9 +39,9 @@ vi.mock('react-toastify', () => ({
   toast: { error: vi.fn() },
 }));
 
-import { wasmBridgeService } from '@lib/wasm/wasmBridge';
 import { useGameStore } from '@/store';
 import { isDM } from '@features/session/types/roles';
+import { wasmBridgeService } from '@lib/wasm/wasmBridge';
 import { toast } from 'react-toastify';
 
 function mockStore(overrides: Record<string, unknown> = {}) {

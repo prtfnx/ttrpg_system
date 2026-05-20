@@ -1,8 +1,8 @@
+import { useGameStore } from '@/store';
 import '@testing-library/jest-dom';
-import { render, screen, fireEvent, act } from '@testing-library/react';
+import { act, fireEvent, render, screen } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { WallConfigModal } from '../WallConfigModal';
-import { useGameStore } from '@/store';
 
 vi.mock('@/store', () => ({ useGameStore: vi.fn() }));
 

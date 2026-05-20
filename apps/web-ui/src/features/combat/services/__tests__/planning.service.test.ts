@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 // Mock wasmManager before importing planningService
 vi.mock('@lib/wasm/wasmManager', () => ({
@@ -7,8 +7,8 @@ vi.mock('@lib/wasm/wasmManager', () => ({
   },
 }));
 
-import { planningService } from '../planning.service';
 import { wasmManager } from '@lib/wasm/wasmManager';
+import { planningService } from '../planning.service';
 
 const mockManager = {
   set_walls: vi.fn(),

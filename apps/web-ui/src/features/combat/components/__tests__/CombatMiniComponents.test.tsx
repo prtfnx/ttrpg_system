@@ -1,12 +1,12 @@
-import { render, screen, fireEvent } from '@testing-library/react';
-import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { useGameStore } from '@/store';
+import { ProtocolService } from '@lib/api';
+import { fireEvent, render, screen } from '@testing-library/react';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { useCombatStore } from '../../stores/combatStore';
 import { useGameModeStore } from '../../stores/gameModeStore';
-import { TurnBanner } from '../TurnBanner';
 import { ActionEconomyBar } from '../ActionEconomyBar';
 import { GameModeSwitch } from '../GameModeSwitch';
-import { ProtocolService } from '@lib/api';
+import { TurnBanner } from '../TurnBanner';
 
 vi.mock('@lib/api', () => ({
   ProtocolService: { getProtocol: vi.fn().mockReturnValue({ sendMessage: vi.fn() }) },

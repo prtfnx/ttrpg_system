@@ -1,5 +1,5 @@
 import { render, screen } from '@testing-library/react';
-import { describe, it, expect, vi } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import RoleBased, { DMOnly, ElevatedOnly, InteractiveOnly, PlayerOnly } from '../RoleBased';
 
 // Mock useGameStore to return a controlled sessionRole

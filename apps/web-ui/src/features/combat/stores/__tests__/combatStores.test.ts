@@ -2,7 +2,7 @@ import { beforeEach, describe, expect, it } from 'vitest';
 import { useCombatStore, type CombatState, type Combatant } from '../combatStore';
 import { useGameModeStore } from '../gameModeStore';
 import { usePlanningStore } from '../planningStore';
-import { useSessionRulesStore, DEFAULT_RULES } from '../sessionRulesStore';
+import { DEFAULT_RULES, useSessionRulesStore } from '../sessionRulesStore';
 
 // ---------------------------------------------------------------------------
 // Helpers

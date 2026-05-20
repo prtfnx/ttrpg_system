@@ -1,20 +1,20 @@
-import { describe, it, expect } from 'vitest';
-import {
-  equipmentManagementService,
-  equipmentToWizardItem,
-  wizardItemToInventoryItem,
-  inventoryItemToWizardItem,
-  EquipmentCategory,
-  WeaponType,
-  ArmorType,
-  DamageType,
-  WEAPONS,
-  ARMOR,
-  SHIELDS,
-  ADVENTURING_GEAR,
-  CLASS_STARTING_EQUIPMENT,
-} from '../equipmentManagement.service';
+import { describe, expect, it } from 'vitest';
 import type { Equipment, InventoryItem } from '../equipmentManagement.service';
+import {
+    ADVENTURING_GEAR,
+    ARMOR,
+    ArmorType,
+    CLASS_STARTING_EQUIPMENT,
+    DamageType,
+    EquipmentCategory,
+    equipmentManagementService,
+    equipmentToWizardItem,
+    inventoryItemToWizardItem,
+    SHIELDS,
+    WEAPONS,
+    WeaponType,
+    wizardItemToInventoryItem,
+} from '../equipmentManagement.service';
 
 // Minimal Equipment stub
 const sword: Equipment = {

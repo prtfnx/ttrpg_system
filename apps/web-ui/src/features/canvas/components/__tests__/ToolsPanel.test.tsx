@@ -1,7 +1,7 @@
-import { render, screen, fireEvent } from '@testing-library/react';
-import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { ToolsPanel } from '../ToolsPanel';
 import type { UserInfo } from '@features/auth';
+import { fireEvent, render, screen } from '@testing-library/react';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { ToolsPanel } from '../ToolsPanel';
 
 // ── heavy component mocks ──────────────────────────────────────────────────
 vi.mock('@features/canvas', () => ({

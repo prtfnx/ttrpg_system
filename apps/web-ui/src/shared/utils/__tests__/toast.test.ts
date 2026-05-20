@@ -1,5 +1,5 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { toast } from 'react-toastify';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { showToast } from '../toast';
 
 beforeEach(() => {

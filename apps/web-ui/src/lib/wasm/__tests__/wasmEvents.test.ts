@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { emitWasmEvent, onWasmEvent } from '../wasmEvents';
+import { emitWasmEvent, onWasmEvent, onWasmEvents } from '../wasmEvents';
 
 afterEach(() => {
   // ensure no event listeners leak between tests
@@ -65,5 +65,35 @@ describe('onWasmEvent', () => {
     emitWasmEvent('render-manager-ready', {});
     expect(handler).toHaveBeenCalledWith({});
     off();
+  });
+});
+
+describe('onWasmEvents', () => {
+  it('registers multiple handlers and all fire', () => {
+    const h1 = vi.fn();
+    const h2 = vi.fn();
+    const off = onWasmEvents([
+      ['sprite-created', h1],
+      ['sprite-removed', h2],
+    ]);
+    emitWasmEvent('sprite-created', { sprite_id: 'a' });
+    emitWasmEvent('sprite-removed', { sprite_id: 'b' });
+    expect(h1).toHaveBeenCalledWith(expect.objectContaining({ sprite_id: 'a' }));
+    expect(h2).toHaveBeenCalledWith(expect.objectContaining({ sprite_id: 'b' }));
+    off();
+  });
+
+  it('cleanup removes all handlers at once', () => {
+    const h1 = vi.fn();
+    const h2 = vi.fn();
+    const off = onWasmEvents([
+      ['sprite-created', h1],
+      ['sprite-moved', h2],
+    ]);
+    off();
+    emitWasmEvent('sprite-created', { sprite_id: 'x' });
+    emitWasmEvent('sprite-moved', { sprite_id: 'x', x: 0, y: 0 });
+    expect(h1).not.toHaveBeenCalled();
+    expect(h2).not.toHaveBeenCalled();
   });
 });

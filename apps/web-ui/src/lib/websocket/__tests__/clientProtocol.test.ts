@@ -605,4 +605,636 @@ describe('WebClientProtocol', () => {
       expect(handler).not.toHaveBeenCalled();
     });
   });
+
+  // ── connect() lifecycle ──────────────────────────────────────────────────
+
+  describe('connect()', () => {
+    function makeMockWs() {
+      return {
+        readyState: WebSocket.CONNECTING as number,
+        send: vi.fn(),
+        close: vi.fn(),
+        onopen: null as (() => void) | null,
+        onclose: null as ((e: Partial<CloseEvent>) => void) | null,
+        onerror: null as ((e: Event) => void) | null,
+        onmessage: null as ((e: MessageEvent) => void) | null,
+      };
+    }
+
+    it('resolves when onopen fires and sets connectionAlive', async () => {
+      const ws = makeMockWs();
+      vi.stubGlobal('WebSocket', vi.fn(function() { return ws; }));
+      const p = makeProtocol();
+      const promise = p.connect();
+      ws.onopen!();
+      await promise;
+      expect((p as unknown as Record<string, unknown>)['connectionAlive']).toBe(true);
+      vi.unstubAllGlobals();
+    });
+
+    it('rejects when onerror fires', async () => {
+      const ws = makeMockWs();
+      vi.stubGlobal('WebSocket', vi.fn(function() { return ws; }));
+      const p = makeProtocol();
+      const promise = p.connect();
+      ws.onerror!(new Event('error'));
+      await expect(promise).rejects.toThrow();
+      vi.unstubAllGlobals();
+    });
+
+    it('rejects with "Kicked from session" on close code 1008', async () => {
+      const ws = makeMockWs();
+      vi.stubGlobal('WebSocket', vi.fn(function() { return ws; }));
+      const p = makeProtocol();
+      const promise = p.connect();
+      ws.onclose!({ code: 1008, reason: 'Kicked from session', wasClean: false });
+      await expect(promise).rejects.toThrow('Kicked from session');
+      vi.unstubAllGlobals();
+    });
+
+    it('rejects when already connecting', async () => {
+      const ws = makeMockWs();
+      vi.stubGlobal('WebSocket', vi.fn(function() { return ws; }));
+      const p = makeProtocol();
+      p.connect(); // first call — keeps connecting
+      await expect(p.connect()).rejects.toThrow('Already connecting');
+      vi.unstubAllGlobals();
+    });
+
+    it('routes incoming messages to handlers via onmessage', async () => {
+      const ws = makeMockWs();
+      vi.stubGlobal('WebSocket', vi.fn(function() { return ws; }));
+      const p = makeProtocol();
+      const connectPromise = p.connect();
+      ws.onopen!();
+      await connectPromise;
+
+      const handler = vi.fn();
+      window.addEventListener('player-joined', handler);
+      ws.onmessage!({ data: JSON.stringify({ type: 'player_joined', data: { user_id: 1 }, version: '0.1', priority: 5 }) } as MessageEvent);
+      window.removeEventListener('player-joined', handler);
+      // Give async handler a tick
+      await new Promise(r => setTimeout(r, 0));
+      expect(handler).toHaveBeenCalled();
+      vi.unstubAllGlobals();
+    });
+  });
+
+  // ── startPing / stopPing ─────────────────────────────────────────────────
+
+  describe('startPing / stopPing', () => {
+    it('startPing queues PING message after interval', () => {
+      vi.useFakeTimers();
+      const p = makeProtocol();
+      const ws = makeOpenWs(p);
+      p.startPing();
+      vi.advanceTimersByTime(30001);
+      // PING is queued (non-critical), flush the batch to send
+      p.sendBatch();
+      expect(ws.send).toHaveBeenCalled();
+      const sent = JSON.parse((ws.send as ReturnType<typeof vi.fn>).mock.calls[0][0]);
+      // sendBatch wraps in a batch message
+      expect(['ping', 'batch']).toContain(sent.type);
+      p.stopPing();
+    });
+
+    it('startPing is idempotent (second call is no-op)', () => {
+      vi.useFakeTimers();
+      const p = makeProtocol();
+      makeOpenWs(p);
+      p.startPing();
+      p.startPing(); // should not create a second interval
+      expect(p.isPingEnabled()).toBe(true);
+      p.stopPing();
+    });
+
+    it('stopPing disables ping and clears interval', () => {
+      vi.useFakeTimers();
+      const p = makeProtocol();
+      makeOpenWs(p);
+      p.startPing();
+      p.stopPing();
+      expect(p.isPingEnabled()).toBe(false);
+    });
+  });
+
+  // ── flushMessageQueue ────────────────────────────────────────────────────
+
+  describe('flushMessageQueue', () => {
+    it('sends queued critical messages when ws becomes OPEN', () => {
+      const p = makeProtocol();
+      const closedWs = { readyState: WebSocket.CLOSED, send: vi.fn(), close: vi.fn() };
+      (p as unknown as Record<string, unknown>)['websocket'] = closedWs;
+      p.sendMessage({ type: 'sprite_create', data: {}, version: '0.1', priority: 2 });
+      // Now open the connection
+      const openWs = { readyState: WebSocket.OPEN, send: vi.fn(), close: vi.fn() };
+      (p as unknown as Record<string, unknown>)['websocket'] = openWs;
+      (p as unknown as Record<string, () => void>)['flushMessageQueue']();
+      expect(openWs.send).toHaveBeenCalledOnce();
+    });
+  });
+
+  // ── Remaining simple event-dispatch handlers ─────────────────────────────
+
+  describe('more incoming handlers', () => {
+    async function dispatch(p: WebClientProtocol, type: string, data: Record<string, unknown>) {
+      const raw = JSON.stringify({ type, data, version: '0.1', priority: 5 });
+      await (p as unknown as Record<string, (...a: unknown[]) => Promise<void>>)['handleIncomingMessage'](raw);
+    }
+
+    it('AUTH_STATUS dispatches auth-status-changed', async () => {
+      const p = makeProtocol();
+      const fn = vi.fn();
+      window.addEventListener('auth-status-changed', fn);
+      await dispatch(p, 'auth_status', { authenticated: true });
+      window.removeEventListener('auth-status-changed', fn);
+      expect(fn).toHaveBeenCalledOnce();
+    });
+
+    it('PLAYER_ACTION_RESPONSE dispatches player-action-response', async () => {
+      const p = makeProtocol();
+      const fn = vi.fn();
+      window.addEventListener('player-action-response', fn);
+      await dispatch(p, 'player_action_response', { ok: true });
+      window.removeEventListener('player-action-response', fn);
+      expect(fn).toHaveBeenCalledOnce();
+    });
+
+    it('PLAYER_ACTION_UPDATE dispatches player-action-update', async () => {
+      const p = makeProtocol();
+      const fn = vi.fn();
+      window.addEventListener('player-action-update', fn);
+      await dispatch(p, 'player_action_update', {});
+      window.removeEventListener('player-action-update', fn);
+      expect(fn).toHaveBeenCalledOnce();
+    });
+
+    it('PLAYER_STATUS dispatches player-status-changed', async () => {
+      const p = makeProtocol();
+      const fn = vi.fn();
+      window.addEventListener('player-status-changed', fn);
+      await dispatch(p, 'player_status', { status: 'online' });
+      window.removeEventListener('player-status-changed', fn);
+      expect(fn).toHaveBeenCalledOnce();
+    });
+
+    it('PLAYER_KICK_RESPONSE dispatches player-kick-response', async () => {
+      const p = makeProtocol();
+      const fn = vi.fn();
+      window.addEventListener('player-kick-response', fn);
+      await dispatch(p, 'player_kick_response', { success: true });
+      window.removeEventListener('player-kick-response', fn);
+      expect(fn).toHaveBeenCalledOnce();
+    });
+
+    it('PLAYER_BAN_RESPONSE dispatches player-ban-response', async () => {
+      const p = makeProtocol();
+      const fn = vi.fn();
+      window.addEventListener('player-ban-response', fn);
+      await dispatch(p, 'player_ban_response', { success: true });
+      window.removeEventListener('player-ban-response', fn);
+      expect(fn).toHaveBeenCalledOnce();
+    });
+
+    it('CONNECTION_STATUS_RESPONSE dispatches connection-status-response', async () => {
+      const p = makeProtocol();
+      const fn = vi.fn();
+      window.addEventListener('connection-status-response', fn);
+      await dispatch(p, 'connection_status_response', {});
+      window.removeEventListener('connection-status-response', fn);
+      expect(fn).toHaveBeenCalledOnce();
+    });
+
+    it('TABLE_DATA dispatches table-data-received', async () => {
+      const p = makeProtocol();
+      const fn = vi.fn();
+      window.addEventListener('table-data-received', fn);
+      await dispatch(p, 'table_data', { table_id: 't1' });
+      window.removeEventListener('table-data-received', fn);
+      expect(fn).toHaveBeenCalledOnce();
+    });
+
+    it('NEW_TABLE_RESPONSE dispatches new-table-response', async () => {
+      const p = makeProtocol();
+      const fn = vi.fn();
+      window.addEventListener('new-table-response', fn);
+      await dispatch(p, 'new_table_response', { table_id: 'new-t1' });
+      window.removeEventListener('new-table-response', fn);
+      expect(fn).toHaveBeenCalledOnce();
+    });
+
+    it('TABLE_ACTIVE_SET_ALL_RESPONSE dispatches table-force-switch when table_id present', async () => {
+      const p = makeProtocol();
+      const fn = vi.fn();
+      window.addEventListener('table-force-switch', fn);
+      await dispatch(p, 'table_active_set_all_response', { table_id: 't2', table_name: 'Arena' });
+      window.removeEventListener('table-force-switch', fn);
+      expect(fn).toHaveBeenCalledOnce();
+    });
+
+    it('SPRITE_UPDATE dispatches sprite-updated', async () => {
+      const p = makeProtocol();
+      const fn = vi.fn();
+      window.addEventListener('sprite-updated', fn);
+      await dispatch(p, 'sprite_update', { sprite_id: 's1' });
+      window.removeEventListener('sprite-updated', fn);
+      expect(fn).toHaveBeenCalledOnce();
+    });
+
+    it('SPRITE_MOVE dispatches sprite-moved', async () => {
+      const p = makeProtocol();
+      const fn = vi.fn();
+      window.addEventListener('sprite-moved', fn);
+      await dispatch(p, 'sprite_move', { sprite_id: 's1', to: { x: 1, y: 2 } });
+      window.removeEventListener('sprite-moved', fn);
+      expect(fn).toHaveBeenCalledOnce();
+    });
+
+    it('SPRITE_MOVE with action_id dispatches sprite-action-confirmed', async () => {
+      const p = makeProtocol();
+      const fn = vi.fn();
+      window.addEventListener('sprite-action-confirmed', fn);
+      await dispatch(p, 'sprite_move', { action_id: 'act-1', sprite_id: 's1' });
+      window.removeEventListener('sprite-action-confirmed', fn);
+      expect(fn).toHaveBeenCalledOnce();
+    });
+
+    it('SPRITE_SCALE dispatches sprite-scaled', async () => {
+      const p = makeProtocol();
+      const fn = vi.fn();
+      window.addEventListener('sprite-scaled', fn);
+      await dispatch(p, 'sprite_scale', { sprite_id: 's1' });
+      window.removeEventListener('sprite-scaled', fn);
+      expect(fn).toHaveBeenCalledOnce();
+    });
+
+    it('SPRITE_ROTATE dispatches sprite-rotated', async () => {
+      const p = makeProtocol();
+      const fn = vi.fn();
+      window.addEventListener('sprite-rotated', fn);
+      await dispatch(p, 'sprite_rotate', { sprite_id: 's1', rotation: 45 });
+      window.removeEventListener('sprite-rotated', fn);
+      expect(fn).toHaveBeenCalledOnce();
+    });
+
+    it('SPRITE_RESPONSE dispatches sprite-response', async () => {
+      const p = makeProtocol();
+      const fn = vi.fn();
+      window.addEventListener('sprite-response', fn);
+      await dispatch(p, 'sprite_response', { sprite_id: 's1' });
+      window.removeEventListener('sprite-response', fn);
+      expect(fn).toHaveBeenCalledOnce();
+    });
+
+    it('SPRITE_RESPONSE with action_id+success dispatches sprite-action-confirmed', async () => {
+      const p = makeProtocol();
+      const fn = vi.fn();
+      window.addEventListener('sprite-action-confirmed', fn);
+      await dispatch(p, 'sprite_response', { action_id: 'act-2', success: true });
+      window.removeEventListener('sprite-action-confirmed', fn);
+      expect(fn).toHaveBeenCalledOnce();
+    });
+
+    it('SPRITE_DATA dispatches sprite-data-received', async () => {
+      const p = makeProtocol();
+      const fn = vi.fn();
+      window.addEventListener('sprite-data-received', fn);
+      await dispatch(p, 'sprite_data', { sprite_id: 's1' });
+      window.removeEventListener('sprite-data-received', fn);
+      expect(fn).toHaveBeenCalledOnce();
+    });
+
+    it('SPRITE_DRAG_PREVIEW dispatches sprite-drag-preview-remote', async () => {
+      const p = makeProtocol();
+      const fn = vi.fn();
+      window.addEventListener('sprite-drag-preview-remote', fn);
+      await dispatch(p, 'sprite_drag_preview', { sprite_id: 's1' });
+      window.removeEventListener('sprite-drag-preview-remote', fn);
+      expect(fn).toHaveBeenCalledOnce();
+    });
+
+    it('FILE_DATA dispatches file-data-received', async () => {
+      const p = makeProtocol();
+      const fn = vi.fn();
+      window.addEventListener('file-data-received', fn);
+      await dispatch(p, 'file_data', { file_id: 'f1' });
+      window.removeEventListener('file-data-received', fn);
+      expect(fn).toHaveBeenCalledOnce();
+    });
+
+    it('ASSET_UPLOAD_RESPONSE dispatches asset-uploaded', async () => {
+      const p = makeProtocol();
+      const fn = vi.fn();
+      window.addEventListener('asset-uploaded', fn);
+      await dispatch(p, 'asset_upload_response', { asset_id: 'a1' });
+      window.removeEventListener('asset-uploaded', fn);
+      expect(fn).toHaveBeenCalledOnce();
+    });
+
+    it('ASSET_DELETE_RESPONSE dispatches asset-delete-response', async () => {
+      const p = makeProtocol();
+      const fn = vi.fn();
+      window.addEventListener('asset-delete-response', fn);
+      await dispatch(p, 'asset_delete_response', { asset_id: 'a1' });
+      window.removeEventListener('asset-delete-response', fn);
+      expect(fn).toHaveBeenCalledOnce();
+    });
+
+    it('ASSET_HASH_CHECK dispatches asset-hash-check', async () => {
+      const p = makeProtocol();
+      const fn = vi.fn();
+      window.addEventListener('asset-hash-check', fn);
+      await dispatch(p, 'asset_hash_check', { asset_id: 'a1' });
+      window.removeEventListener('asset-hash-check', fn);
+      expect(fn).toHaveBeenCalledOnce();
+    });
+
+    it('ASSET_DOWNLOAD_RESPONSE dispatches asset-downloaded', async () => {
+      const p = makeProtocol();
+      const fn = vi.fn();
+      window.addEventListener('asset-downloaded', fn);
+      await dispatch(p, 'asset_download_response', { id: 'a1', name: 'img.png', url: 'http://x.com/img.png' });
+      window.removeEventListener('asset-downloaded', fn);
+      expect(fn).toHaveBeenCalledOnce();
+    });
+
+    it('ASSET_LIST_RESPONSE dispatches asset-list-updated', async () => {
+      const p = makeProtocol();
+      const fn = vi.fn();
+      window.addEventListener('asset-list-updated', fn);
+      await dispatch(p, 'asset_list_response', { assets: [] });
+      window.removeEventListener('asset-list-updated', fn);
+      expect(fn).toHaveBeenCalledOnce();
+    });
+
+    it('CHARACTER_LOG_RESPONSE dispatches character-log-response', async () => {
+      const p = makeProtocol();
+      const fn = vi.fn();
+      window.addEventListener('character-log-response', fn);
+      await dispatch(p, 'character_log_response', { entries: [] });
+      window.removeEventListener('character-log-response', fn);
+      expect(fn).toHaveBeenCalledOnce();
+    });
+
+    it('CHARACTER_ROLL_RESULT dispatches character-roll-result', async () => {
+      const p = makeProtocol();
+      const fn = vi.fn();
+      window.addEventListener('character-roll-result', fn);
+      await dispatch(p, 'character_roll_result', { roll: 15 });
+      window.removeEventListener('character-roll-result', fn);
+      expect(fn).toHaveBeenCalledOnce();
+    });
+
+    it('TABLE_ACTIVE_RESPONSE sets activeTableId on success', async () => {
+      const p = makeProtocol();
+      await dispatch(p, 'table_active_response', { success: true, table_id: 'tbl-active' });
+      expect(mockSetActiveTableId).toHaveBeenCalledWith('tbl-active');
+    });
+
+    it('TABLE_ACTIVE_RESPONSE dispatches active-table-response', async () => {
+      const p = makeProtocol();
+      const fn = vi.fn();
+      window.addEventListener('active-table-response', fn);
+      await dispatch(p, 'table_active_response', { success: false, error: 'no active table' });
+      window.removeEventListener('active-table-response', fn);
+      expect(fn).toHaveBeenCalledOnce();
+    });
+
+    it('CHARACTER_LOAD_RESPONSE dispatches character-loaded', async () => {
+      const p = makeProtocol();
+      const fn = vi.fn();
+      window.addEventListener('character-loaded', fn);
+      await dispatch(p, 'character_load_response', { character_id: 'c1', name: 'Hero' });
+      window.removeEventListener('character-loaded', fn);
+      expect(fn).toHaveBeenCalledOnce();
+    });
+
+    it('CHARACTER_DELETE_RESPONSE success removes character from store', async () => {
+      const store = mocks.storeState as Record<string, unknown>;
+      const removeCharacter = vi.fn();
+      store.removeCharacter = removeCharacter;
+      const p = makeProtocol();
+      await dispatch(p, 'character_delete_response', { success: true, character_id: 'c2' });
+      expect(removeCharacter).toHaveBeenCalledWith('c2');
+    });
+
+    it('CHARACTER_UPDATE delete operation removes character from store', async () => {
+      const store = mocks.storeState as Record<string, unknown>;
+      const removeCharacter = vi.fn();
+      store.removeCharacter = removeCharacter;
+      const p = makeProtocol();
+      await dispatch(p, 'character_update', { operation: 'delete', character_id: 'c3' });
+      expect(removeCharacter).toHaveBeenCalledWith('c3');
+    });
+
+    it('CHARACTER_UPDATE delta path calls store.updateCharacter', async () => {
+      const store = mocks.storeState as Record<string, unknown>;
+      const updateCharacter = vi.fn();
+      store.updateCharacter = updateCharacter;
+      const p = makeProtocol();
+      await dispatch(p, 'character_update', { character_id: 'c4', updates: { hp: 20 } });
+      expect(updateCharacter).toHaveBeenCalledWith('c4', expect.objectContaining({ hp: 20 }));
+    });
+
+    it('CHARACTER_UPDATE_RESPONSE success updates sync status', async () => {
+      const store = mocks.storeState as Record<string, unknown>;
+      const updateCharacter = vi.fn();
+      store.updateCharacter = updateCharacter;
+      const p = makeProtocol();
+      await dispatch(p, 'character_update_response', { success: true, character_id: 'c5', version: 3 });
+      expect(updateCharacter).toHaveBeenCalledWith('c5', expect.objectContaining({ syncStatus: 'synced', version: 3 }));
+    });
+
+    it('CHARACTER_UPDATE_RESPONSE failure marks character as error', async () => {
+      const store = mocks.storeState as Record<string, unknown>;
+      const updateCharacter = vi.fn();
+      store.updateCharacter = updateCharacter;
+      store.characters = [{ id: 'c6', syncStatus: 'syncing' }];
+      const p = makeProtocol();
+      await dispatch(p, 'character_update_response', { success: false, character_id: 'c6', error: 'Some error' });
+      expect(updateCharacter).toHaveBeenCalledWith('c6', expect.objectContaining({ syncStatus: 'error' }));
+    });
+
+    it('LAYER_SETTINGS_UPDATE applies layer settings via applyLayerSettings', async () => {
+      const store = mocks.storeState as Record<string, unknown>;
+      const setLayerOpacity = vi.fn();
+      store.setLayerOpacity = setLayerOpacity;
+      const p = makeProtocol();
+      await dispatch(p, 'layer_settings_update', { layer: 'tokens', settings: { opacity: 0.5 } });
+      expect(setLayerOpacity).toHaveBeenCalledWith('tokens', 0.5);
+    });
+
+    it('ERROR with action_id dispatches sprite-action-rejected', async () => {
+      const p = makeProtocol();
+      const fn = vi.fn();
+      window.addEventListener('sprite-action-rejected', fn);
+      await dispatch(p, 'error', { action_id: 'act-x', message: 'rejected' });
+      window.removeEventListener('sprite-action-rejected', fn);
+      expect(fn).toHaveBeenCalledOnce();
+    });
+
+    it('SUCCESS with delete message dispatches table-deleted', async () => {
+      const p = makeProtocol();
+      const fn = vi.fn();
+      window.addEventListener('table-deleted', fn);
+      await dispatch(p, 'success', { message: 'Table deleted successfully', table_id: 't1' });
+      window.removeEventListener('table-deleted', fn);
+      expect(fn).toHaveBeenCalledOnce();
+    });
+  });
+
+  // ── More outgoing request methods ────────────────────────────────────────
+
+  describe('outgoing requests', () => {
+    it('createSprite sends sprite_create with sprite_data', () => {
+      const p = makeProtocol();
+      const ws = makeOpenWs(p);
+      p.createSprite({ name: 'Goblin', table_id: 'table-abc' });
+      const msg = JSON.parse((ws.send as ReturnType<typeof vi.fn>).mock.calls[0][0]);
+      expect(msg.type).toBe('sprite_create');
+      expect(msg.data.table_id).toBe('table-abc');
+    });
+
+    it('createSprite skips when no table_id available', () => {
+      Object.assign(mocks.storeState, makeStoreState({ activeTableId: null }));
+      const p = makeProtocol();
+      const ws = makeOpenWs(p);
+      p.createSprite({ name: 'Goblin' });
+      expect(ws.send).not.toHaveBeenCalled();
+    });
+
+    it('moveSprite queues sprite_move message', () => {
+      const p = makeProtocol();
+      const ws = makeOpenWs(p);
+      p.moveSprite('s1', 10, 20);
+      p.sendBatch();
+      const batch = JSON.parse((ws.send as ReturnType<typeof vi.fn>).mock.calls[0][0]);
+      const inner = batch.data.messages[0];
+      expect(inner.type).toBe('sprite_move');
+      expect(inner.data.sprite_id).toBe('s1');
+    });
+
+    it('removeSprite sends sprite_remove', () => {
+      const p = makeProtocol();
+      const ws = makeOpenWs(p);
+      p.removeSprite('s2');
+      const msg = JSON.parse((ws.send as ReturnType<typeof vi.fn>).mock.calls[0][0]);
+      expect(msg.type).toBe('sprite_remove');
+      expect(msg.data.sprite_id).toBe('s2');
+    });
+
+    it('scaleSprite queues sprite_scale', () => {
+      const p = makeProtocol();
+      const ws = makeOpenWs(p);
+      p.scaleSprite('s3', 2.0, 2.0);
+      p.sendBatch();
+      const batch = JSON.parse((ws.send as ReturnType<typeof vi.fn>).mock.calls[0][0]);
+      const inner = batch.data.messages[0];
+      expect(inner.type).toBe('sprite_scale');
+    });
+
+    it('kickPlayer sends player_kick_request', () => {
+      const p = makeProtocol();
+      const ws = makeOpenWs(p);
+      p.kickPlayer('player-1');
+      const msg = JSON.parse((ws.send as ReturnType<typeof vi.fn>).mock.calls[0][0]);
+      expect(msg.type).toBe('player_kick_request');
+      expect(msg.data.player_id).toBe('player-1');
+    });
+
+    it('banPlayer sends player_ban_request', () => {
+      const p = makeProtocol();
+      const ws = makeOpenWs(p);
+      p.banPlayer('player-2');
+      const msg = JSON.parse((ws.send as ReturnType<typeof vi.fn>).mock.calls[0][0]);
+      expect(msg.type).toBe('player_ban_request');
+    });
+
+    it('updateCharacter queues character_update', () => {
+      const p = makeProtocol('S', 1);
+      const ws = makeOpenWs(p);
+      p.updateCharacter('c1', { hp: 30 }, 2);
+      p.sendBatch();
+      const batch = JSON.parse((ws.send as ReturnType<typeof vi.fn>).mock.calls[0][0]);
+      const inner = batch.data.messages[0];
+      expect(inner.type).toBe('character_update');
+      expect(inner.data.character_id).toBe('c1');
+      expect(inner.data.version).toBe(2);
+    });
+
+    it('updateCharacter skips when userId is null', () => {
+      const p = new WebClientProtocol('S');
+      const ws = makeOpenWs(p);
+      p.updateCharacter('c1', { hp: 10 });
+      expect(ws.send).not.toHaveBeenCalled();
+    });
+
+    it('requestCharacterList sends character_list_request', () => {
+      const p = makeProtocol('S', 5);
+      const ws = makeOpenWs(p);
+      p.requestCharacterList();
+      p.sendBatch();
+      const batch = JSON.parse((ws.send as ReturnType<typeof vi.fn>).mock.calls[0][0]);
+      const inner = batch.data.messages[0];
+      expect(inner.type).toBe('character_list_request');
+    });
+
+    it('deleteCharacter sends character_delete_request', () => {
+      const p = makeProtocol('S', 3);
+      const ws = makeOpenWs(p);
+      p.deleteCharacter('c-del');
+      p.sendBatch();
+      const batch = JSON.parse((ws.send as ReturnType<typeof vi.fn>).mock.calls[0][0]);
+      const inner = batch.data.messages[0];
+      expect(inner.type).toBe('character_delete_request');
+      expect(inner.data.character_id).toBe('c-del');
+    });
+
+    it('requestAssetList sends asset_list_request', () => {
+      const p = makeProtocol();
+      const ws = makeOpenWs(p);
+      p.requestAssetList();
+      const msg = JSON.parse((ws.send as ReturnType<typeof vi.fn>).mock.calls[0][0]);
+      expect(msg.type).toBe('asset_list_request');
+    });
+
+    it('deleteAsset sends asset_delete_request', () => {
+      const p = makeProtocol();
+      const ws = makeOpenWs(p);
+      p.deleteAsset('asset-xyz');
+      const msg = JSON.parse((ws.send as ReturnType<typeof vi.fn>).mock.calls[0][0]);
+      expect(msg.type).toBe('asset_delete_request');
+      expect(msg.data.asset_id).toBe('asset-xyz');
+    });
+
+    it('setPlayerReady queues player_ready', () => {
+      const p = makeProtocol();
+      const ws = makeOpenWs(p);
+      p.setPlayerReady();
+      p.sendBatch();
+      const batch = JSON.parse((ws.send as ReturnType<typeof vi.fn>).mock.calls[0][0]);
+      const inner = batch.data.messages[0];
+      expect(inner.type).toBe('player_ready');
+    });
+
+    it('setPlayerUnready queues player_unready', () => {
+      const p = makeProtocol();
+      const ws = makeOpenWs(p);
+      p.setPlayerUnready();
+      p.sendBatch();
+      const batch = JSON.parse((ws.send as ReturnType<typeof vi.fn>).mock.calls[0][0]);
+      const inner = batch.data.messages[0];
+      expect(inner.type).toBe('player_unready');
+    });
+
+    it('sendDelta queues a delta message', () => {
+      const p = makeProtocol();
+      makeOpenWs(p);
+      p.sendDelta('sprite_move', 's1', { x: 5, y: 10 });
+      const q = (p as unknown as Record<string, unknown>)['batchQueue'] as { type: string; data: Record<string, unknown> }[];
+      expect(q.length).toBe(1);
+      expect(q[0].data).toEqual({ id: 's1', changes: { x: 5, y: 10 } });
+    });
+  });
 });
+

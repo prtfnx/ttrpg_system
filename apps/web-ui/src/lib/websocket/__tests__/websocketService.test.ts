@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { WebSocketService } from '../websocketService';
-import type { WebSocketConfig } from '../websocketService';
+import { WebSocketService } from '../WebSocketService';
+import type { WebSocketConfig } from '../WebSocketService';
 
 // Mock WebSocket constructor for all tests
 let mockWs: {
@@ -243,11 +243,9 @@ describe('WebSocketService', () => {
       mockWs.onclose!({ code: 1006, reason: 'abnormal' } as CloseEvent);
 
       // Timer should be scheduled
-      const initialWsCallCount = (WebSocket as ReturnType<typeof vi.fn>).mock?.calls?.length ?? 1;
       vi.advanceTimersByTime(200);
       // A new WebSocket connection attempt should be made
       expect(typeof svc.getState()).toBe('number');
-      void initialWsCallCount; // used above
     });
 
     it('does NOT reconnect on manual disconnect (code 1000)', async () => {

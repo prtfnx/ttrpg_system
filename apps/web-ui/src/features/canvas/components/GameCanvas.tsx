@@ -100,7 +100,14 @@ export const GameCanvas: React.FC = () => {
       const d = (e as CustomEvent).detail ?? {};
       const id = d.sprite_id || d.id;
       if (id) {
-        dragPositionsRef.current.delete(id);
+        // Use the server-confirmed position so rings don't snap to stale store coords
+        const pos: { x: number; y: number } | null =
+          d.to ?? (d.x != null && d.y != null ? { x: d.x, y: d.y } : null);
+        if (pos != null) {
+          dragPositionsRef.current.set(id, { x: pos.x, y: pos.y });
+        } else {
+          dragPositionsRef.current.delete(id);
+        }
         dragDimsRef.current.delete(id);
       }
     };

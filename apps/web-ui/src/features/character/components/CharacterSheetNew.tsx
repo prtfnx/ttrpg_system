@@ -108,35 +108,35 @@ export const CharacterSheet: React.FC<CharacterSheetProps> = ({ character, onSav
   const handleSkillRoll = (skillName: string, modifier: number) => {
     if (isConnected && ProtocolService.hasProtocol() && character) {
       ProtocolService.getProtocol().rollSkill(character.id, skillName, modifier);
-      showToast.success(`Rolling ${skillName}�`);
+      showToast.success(`Rolling ${skillName}`);
     }
   };
 
   const handleAbilitySaveRoll = (ability: string, modifier: number) => {
     if (isConnected && ProtocolService.hasProtocol() && character) {
       ProtocolService.getProtocol().rollAbilitySave(character.id, ability, modifier);
-      showToast.success(`Rolling ${ABILITY_SHORT[ability]} save�`);
+      showToast.success(`Rolling ${ABILITY_SHORT[ability]} save`);
     }
   };
 
   const handleAbilityCheckRoll = (ability: string, modifier: number) => {
     if (isConnected && ProtocolService.hasProtocol() && character) {
       ProtocolService.getProtocol().rollAbilityCheck(character.id, ability, modifier);
-      showToast.success(`Rolling ${ABILITY_SHORT[ability]} check�`);
+      showToast.success(`Rolling ${ABILITY_SHORT[ability]} check`);
     }
   };
 
   const handleAttackRoll = (attackType: string, modifier: number) => {
     if (isConnected && ProtocolService.hasProtocol() && character) {
       ProtocolService.getProtocol().rollAttack(character.id, attackType, modifier);
-      showToast.success(`Rolling ${attackType} attack�`);
+      showToast.success(`Rolling ${attackType} attack`);
     }
   };
 
   const handleDeathSaveRoll = () => {
     if (isConnected && ProtocolService.hasProtocol() && character) {
       ProtocolService.getProtocol().rollDeathSave(character.id);
-      showToast.info('Rolling death save�');
+      showToast.info('Rolling death save');
     }
   };
 
@@ -154,11 +154,11 @@ export const CharacterSheet: React.FC<CharacterSheetProps> = ({ character, onSav
         hitDiceUsed: newUsedHitDice,
       }
     });
-    showToast.success('Long Rest � HP and spell slots restored');
+    showToast.success('Long Rest: HP and spell slots restored');
   };
 
   const handleShortRest = () => {
-    showToast.info('Short Rest � use Hit Dice roll to recover HP');
+    showToast.info('Short Rest: use Hit Dice to recover HP');
   };
 
   const handleStatUpdate = (field: string, value: number) => {
@@ -493,7 +493,7 @@ export const CharacterSheet: React.FC<CharacterSheetProps> = ({ character, onSav
                             title={`Roll ${skill.name}`}>
                             {modStr(bonus)}
                           </button>
-                          <span className={styles.skillName}>{skill.name}</span>
+                          <span className={styles.skillName} onClick={() => handleSkillRoll(skill.name, bonus)}>{skill.name}</span>
                           <span className={styles.skillAbility}>{ABILITY_SHORT[skill.ability].slice(0, 3)}</span>
                         </div>
                       );

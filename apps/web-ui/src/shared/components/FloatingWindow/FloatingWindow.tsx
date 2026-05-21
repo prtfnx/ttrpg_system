@@ -14,8 +14,10 @@ interface FloatingWindowProps {
   initialX?: number;
   initialY?: number;
   zIndex: number;
+  minimized?: boolean;
   onClose: () => void;
   onFocus: () => void;
+  onMinimizeToggle?: () => void;
   children: React.ReactNode;
 }
 
@@ -51,8 +53,10 @@ export function FloatingWindow({
   initialX,
   initialY,
   zIndex,
+  minimized: minimizedProp,
   onClose,
   onFocus,
+  onMinimizeToggle,
   children,
 }: FloatingWindowProps) {
   const defaults: WindowState = {
@@ -65,6 +69,7 @@ export function FloatingWindow({
 
   const [state, setState] = useState<WindowState>(() => loadState(id, defaults));
   const rndRef = useRef<Rnd>(null);
+  const isMinimized = minimizedProp !== undefined ? minimizedProp : state.minimized;
 
   const updateState = useCallback((patch: Partial<WindowState>) => {
     setState(prev => {
@@ -73,6 +78,14 @@ export function FloatingWindow({
       return next;
     });
   }, [id]);
+
+  const handleMinimizeToggle = useCallback(() => {
+    if (onMinimizeToggle) {
+      onMinimizeToggle();
+    } else {
+      updateState({ minimized: !state.minimized });
+    }
+  }, [onMinimizeToggle, updateState, state.minimized]);
 
   // Escape key closes the topmost focused window
   useEffect(() => {
@@ -93,10 +106,10 @@ export function FloatingWindow({
     >
       <Rnd
         ref={rndRef}
-        size={{ width: state.width, height: state.minimized ? 36 : state.height }}
+        size={{ width: state.width, height: isMinimized ? 36 : state.height }}
         position={{ x: state.x, y: state.y }}
         minWidth={minWidth}
-        minHeight={state.minimized ? 36 : minHeight}
+        minHeight={isMinimized ? 36 : minHeight}
         dragHandleClassName={styles.titleBar}
         bounds="window"
         onDragStop={(_, d) => updateState({ x: d.x, y: d.y })}
@@ -106,7 +119,7 @@ export function FloatingWindow({
           x: pos.x,
           y: pos.y,
         })}
-        enableResizing={!state.minimized}
+        enableResizing={!isMinimized}
         className={styles.floatingWindow}
       >
         <div className={styles.titleBar}>
@@ -115,8 +128,8 @@ export function FloatingWindow({
             <button
               type="button"
               className={styles.titleBtn}
-              onClick={() => updateState({ minimized: !state.minimized })}
-              title={state.minimized ? 'Restore' : 'Minimize'}
+              onClick={handleMinimizeToggle}
+              title={isMinimized ? 'Restore' : 'Minimize'}
             >
               <Minus size={12} aria-hidden />
             </button>
@@ -131,7 +144,7 @@ export function FloatingWindow({
           </div>
         </div>
 
-        {!state.minimized && (
+        {!isMinimized && (
           <div className={styles.windowBody}>
             {children}
           </div>

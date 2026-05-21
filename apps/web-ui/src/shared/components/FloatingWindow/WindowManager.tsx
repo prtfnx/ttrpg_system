@@ -7,6 +7,7 @@ interface WindowEntry {
   component: React.ComponentType<Record<string, unknown>>;
   props: Record<string, unknown>;
   zIndex: number;
+  minimized: boolean;
   initialWidth?: number;
   initialHeight?: number;
 }
@@ -21,6 +22,8 @@ interface WindowManagerContextValue {
   closeWindow: (id: string) => void;
   bringToFront: (id: string) => void;
   isOpen: (id: string) => boolean;
+  minimizeWindow: (id: string) => void;
+  restoreWindow: (id: string) => void;
 }
 
 const WindowManagerContext = createContext<WindowManagerContextValue | null>(null);
@@ -44,7 +47,8 @@ export function WindowManagerProvider({ children }: { children: React.ReactNode 
       const z = nextZ(prev);
       const exists = prev.find(w => w.id === id);
       if (exists) {
-        return [...prev.filter(w => w.id !== id), { ...exists, zIndex: z }];
+        // Re-opening a window restores and brings to front
+        return [...prev.filter(w => w.id !== id), { ...exists, zIndex: z, minimized: false }];
       }
       return [...prev, {
         id,
@@ -52,6 +56,7 @@ export function WindowManagerProvider({ children }: { children: React.ReactNode 
         component,
         props,
         zIndex: z,
+        minimized: false,
         initialWidth: options.width,
         initialHeight: options.height,
       }];
@@ -75,8 +80,21 @@ export function WindowManagerProvider({ children }: { children: React.ReactNode 
     return windows.some(w => w.id === id);
   }, [windows]);
 
+  const minimizeWindow = useCallback((id: string) => {
+    setWindows(prev => prev.map(w => w.id === id ? { ...w, minimized: true } : w));
+  }, []);
+
+  const restoreWindow = useCallback((id: string) => {
+    setWindows(prev => {
+      const entry = prev.find(w => w.id === id);
+      if (!entry) return prev;
+      const z = nextZ(prev);
+      return [...prev.filter(w => w.id !== id), { ...entry, minimized: false, zIndex: z }];
+    });
+  }, []);
+
   return (
-    <WindowManagerContext.Provider value={{ openWindow, closeWindow, bringToFront, isOpen }}>
+    <WindowManagerContext.Provider value={{ openWindow, closeWindow, bringToFront, isOpen, minimizeWindow, restoreWindow }}>
       {children}
       {windows.map(w => (
         <FloatingWindow
@@ -84,14 +102,46 @@ export function WindowManagerProvider({ children }: { children: React.ReactNode 
           id={w.id}
           title={w.title}
           zIndex={w.zIndex}
+          minimized={w.minimized}
           initialWidth={w.initialWidth}
           initialHeight={w.initialHeight}
           onClose={() => closeWindow(w.id)}
           onFocus={() => bringToFront(w.id)}
+          onMinimizeToggle={() => w.minimized ? restoreWindow(w.id) : minimizeWindow(w.id)}
         >
           <w.component {...w.props} onClose={() => closeWindow(w.id)} />
         </FloatingWindow>
       ))}
+      {windows.some(w => w.minimized) && (
+        <div style={{
+          position: 'fixed', bottom: 0, left: 0, right: 0,
+          zIndex: 9999,
+          display: 'flex', flexWrap: 'wrap', gap: '4px',
+          padding: '4px 8px',
+          background: 'var(--bg-elevated)',
+          borderTop: '1px solid var(--border-primary)',
+        }}>
+          {windows.filter(w => w.minimized).map(w => (
+            <button
+              key={w.id}
+              type="button"
+              onClick={() => restoreWindow(w.id)}
+              style={{
+                background: 'var(--bg-secondary)',
+                border: '1px solid var(--border-primary)',
+                borderRadius: 'var(--radius-sm)',
+                color: 'var(--text-secondary)',
+                cursor: 'pointer',
+                fontSize: '12px',
+                padding: '2px 10px',
+                height: '26px',
+              }}
+            >
+              {w.title}
+            </button>
+          ))}
+        </div>
+      )}
     </WindowManagerContext.Provider>
   );
 }

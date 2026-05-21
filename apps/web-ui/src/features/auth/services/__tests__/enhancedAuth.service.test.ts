@@ -1,3 +1,5 @@
+import { render, screen } from '@testing-library/react';
+import React from 'react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 // Mock fetch BEFORE the singleton initialises (vi.hoisted runs before imports)
@@ -12,7 +14,7 @@ const mockFetch = vi.hoisted(() => {
 });
 
 import type { AuthState, Permission, UserRole } from '../enhancedAuth.service';
-import { enhancedAuthService } from '../enhancedAuth.service';
+import { enhancedAuthService, withAuth, withPermission, withRole } from '../enhancedAuth.service';
 
 // Direct state manipulation helpers (bypass async network calls in tests)
 function setState(updates: Partial<AuthState>) {
@@ -261,6 +263,234 @@ describe('register', () => {
     });
     expect(result.success).toBe(false);
     expect(result.error?.message).toMatch(/username taken/i);
+  });
+});
+
+// ── logout ────────────────────────────────────────────────────────────────────
+describe('logout', () => {
+  it('clears auth state on successful logout', async () => {
+    setState({ isAuthenticated: true, user: makeUser(), tokens: makeTokens() });
+    mockFetch.mockResolvedValueOnce({ ok: true, json: () => Promise.resolve({}) });
+    await enhancedAuthService.logout();
+    expect(enhancedAuthService.isAuthenticated()).toBe(false);
+    expect(enhancedAuthService.getCurrentUser()).toBeNull();
+  });
+
+  it('clears state even if logout request fails', async () => {
+    setState({ isAuthenticated: true, user: makeUser(), tokens: makeTokens() });
+    mockFetch.mockRejectedValueOnce(new Error('Network error'));
+    await enhancedAuthService.logout();
+    expect(enhancedAuthService.isAuthenticated()).toBe(false);
+  });
+
+  it('clears auth state when no tokens (cookie-based)', async () => {
+    setState({ isAuthenticated: true, user: makeUser(), tokens: null });
+    await enhancedAuthService.logout();
+    expect(enhancedAuthService.isAuthenticated()).toBe(false);
+  });
+});
+
+// ── requestPasswordReset ──────────────────────────────────────────────────────
+describe('requestPasswordReset', () => {
+  it('returns success on 200', async () => {
+    mockFetch.mockResolvedValueOnce({ ok: true, json: () => Promise.resolve({}) });
+    const result = await enhancedAuthService.requestPasswordReset({ email: 'a@a.com' });
+    expect(result.success).toBe(true);
+  });
+
+  it('returns error on server failure', async () => {
+    mockFetch.mockResolvedValueOnce({
+      ok: false,
+      json: () => Promise.resolve({ detail: 'Email not found' })
+    });
+    const result = await enhancedAuthService.requestPasswordReset({ email: 'x@x.com' });
+    expect(result.success).toBe(false);
+    expect(result.error?.message).toMatch(/email not found/i);
+  });
+
+  it('returns error on network failure', async () => {
+    mockFetch.mockRejectedValueOnce(new Error('timeout'));
+    const result = await enhancedAuthService.requestPasswordReset({ email: 'a@a.com' });
+    expect(result.success).toBe(false);
+  });
+});
+
+// ── confirmPasswordReset ──────────────────────────────────────────────────────
+describe('confirmPasswordReset', () => {
+  it('rejects weak password', async () => {
+    const result = await enhancedAuthService.confirmPasswordReset({ token: 'tok', newPassword: 'weak' });
+    expect(result.success).toBe(false);
+  });
+
+  it('returns success on 200 with strong password', async () => {
+    mockFetch.mockResolvedValueOnce({ ok: true, json: () => Promise.resolve({}) });
+    const result = await enhancedAuthService.confirmPasswordReset({ token: 'tok', newPassword: 'StrongPass1!' });
+    expect(result.success).toBe(true);
+  });
+
+  it('returns error on server failure', async () => {
+    mockFetch.mockResolvedValueOnce({
+      ok: false,
+      json: () => Promise.resolve({ detail: 'Token expired' })
+    });
+    const result = await enhancedAuthService.confirmPasswordReset({ token: 'bad', newPassword: 'StrongPass1!' });
+    expect(result.success).toBe(false);
+    expect(result.error?.message).toMatch(/token expired/i);
+  });
+});
+
+// ── changePassword ────────────────────────────────────────────────────────────
+describe('changePassword', () => {
+  it('rejects weak new password', async () => {
+    setState({ isAuthenticated: true, user: makeUser(), tokens: makeTokens() });
+    const result = await enhancedAuthService.changePassword({ currentPassword: 'OldPass1!', newPassword: 'weak' });
+    expect(result.success).toBe(false);
+  });
+
+  it('returns success on 200', async () => {
+    setState({ isAuthenticated: true, user: makeUser(), tokens: makeTokens() });
+    mockFetch.mockResolvedValueOnce({ ok: true, json: () => Promise.resolve({}) });
+    const result = await enhancedAuthService.changePassword({ currentPassword: 'OldPass1!', newPassword: 'NewPass1!' });
+    expect(result.success).toBe(true);
+  });
+
+  it('returns error on server failure', async () => {
+    setState({ isAuthenticated: true, user: makeUser(), tokens: makeTokens() });
+    mockFetch.mockResolvedValueOnce({
+      ok: false,
+      json: () => Promise.resolve({ detail: 'Current password wrong' })
+    });
+    const result = await enhancedAuthService.changePassword({ currentPassword: 'Bad1!', newPassword: 'NewPass1!' });
+    expect(result.success).toBe(false);
+  });
+});
+
+// ── getSessions ───────────────────────────────────────────────────────────────
+describe('getSessions', () => {
+  it('returns sessions array on 200', async () => {
+    setState({ isAuthenticated: true, user: makeUser(), tokens: makeTokens() });
+    const sessions = [{ id: 's1', userId: 1, deviceInfo: {}, createdAt: '', lastActivity: '', isCurrentSession: true }];
+    mockFetch.mockResolvedValueOnce({ ok: true, json: () => Promise.resolve(sessions) });
+    const result = await enhancedAuthService.getSessions();
+    expect(result).toHaveLength(1);
+    expect(result[0].id).toBe('s1');
+  });
+
+  it('returns empty array on failure', async () => {
+    mockFetch.mockRejectedValueOnce(new Error('network'));
+    const result = await enhancedAuthService.getSessions();
+    expect(result).toEqual([]);
+  });
+
+  it('returns empty array on non-ok response', async () => {
+    mockFetch.mockResolvedValueOnce({ ok: false, json: () => Promise.resolve({}) });
+    const result = await enhancedAuthService.getSessions();
+    expect(result).toEqual([]);
+  });
+});
+
+// ── revokeSession ─────────────────────────────────────────────────────────────
+describe('revokeSession', () => {
+  it('returns success on 200', async () => {
+    setState({ isAuthenticated: true, user: makeUser(), tokens: makeTokens() });
+    mockFetch.mockResolvedValueOnce({ ok: true, json: () => Promise.resolve({}) });
+    const result = await enhancedAuthService.revokeSession('s1');
+    expect(result.success).toBe(true);
+  });
+
+  it('returns error on failure', async () => {
+    mockFetch.mockResolvedValueOnce({
+      ok: false,
+      json: () => Promise.resolve({ detail: 'Not found' })
+    });
+    const result = await enhancedAuthService.revokeSession('bad');
+    expect(result.success).toBe(false);
+    expect(result.error?.message).toMatch(/not found/i);
+  });
+});
+
+// ── getOAuthProviders ─────────────────────────────────────────────────────────
+describe('getOAuthProviders', () => {
+  it('returns providers on 200', async () => {
+    const providers = [{ id: 'google', name: 'Google', icon: '', isEnabled: true }];
+    mockFetch.mockResolvedValueOnce({ ok: true, json: () => Promise.resolve(providers) });
+    const result = await enhancedAuthService.getOAuthProviders();
+    expect(result).toHaveLength(1);
+    expect(result[0].id).toBe('google');
+  });
+
+  it('returns empty array on failure', async () => {
+    mockFetch.mockRejectedValueOnce(new Error('network'));
+    const result = await enhancedAuthService.getOAuthProviders();
+    expect(result).toEqual([]);
+  });
+});
+
+// ── cleanup ───────────────────────────────────────────────────────────────────
+describe('cleanup', () => {
+  it('clears listeners and does not throw', () => {
+    const listener = vi.fn();
+    enhancedAuthService.subscribe(listener);
+    expect(() => enhancedAuthService.cleanup()).not.toThrow();
+    (enhancedAuthService as unknown as { notifyListeners: () => void }).notifyListeners();
+    expect(listener).not.toHaveBeenCalled();
+  });
+});
+
+// ── withAuth HOC ──────────────────────────────────────────────────────────────
+describe('withAuth HOC', () => {
+  const TestComponent = (props: { label: string }) => React.createElement('div', null, props.label);
+
+  it('renders null when not authenticated', () => {
+    setState({ isAuthenticated: false, user: null, tokens: null });
+    const Protected = withAuth(TestComponent);
+    render(React.createElement(Protected, { label: 'hello' }));
+    expect(screen.queryByText('hello')).toBeNull();
+  });
+
+  it('renders component when authenticated', () => {
+    setState({ isAuthenticated: true, user: makeUser(), tokens: makeTokens() });
+    const Protected = withAuth(TestComponent);
+    render(React.createElement(Protected, { label: 'secret' }));
+    expect(screen.getByText('secret')).toBeDefined();
+  });
+});
+
+// ── withRole HOC ──────────────────────────────────────────────────────────────
+describe('withRole HOC', () => {
+  const AdminPanel = () => React.createElement('span', null, 'admin-content');
+
+  it('renders null when user has different role', () => {
+    setState({ isAuthenticated: true, user: makeUser('player'), tokens: makeTokens() });
+    const Protected = withRole(AdminPanel, 'admin');
+    render(React.createElement(Protected, {}));
+    expect(screen.queryByText('admin-content')).toBeNull();
+  });
+
+  it('renders component when user has matching role', () => {
+    setState({ isAuthenticated: true, user: makeUser('admin'), tokens: makeTokens() });
+    const Protected = withRole(AdminPanel, 'admin');
+    render(React.createElement(Protected, {}));
+    expect(screen.getByText('admin-content')).toBeDefined();
+  });
+});
+
+// ── withPermission HOC ────────────────────────────────────────────────────────
+describe('withPermission HOC', () => {
+  const DeleteBtn = () => React.createElement('button', null, 'delete');
+
+  it('renders null when user lacks permission', () => {
+    setState({ isAuthenticated: true, user: makeUser('player', ['game.read']), tokens: makeTokens() });
+    const Protected = withPermission(DeleteBtn, 'game.delete');
+    render(React.createElement(Protected, {}));
+    expect(screen.queryByText('delete')).toBeNull();
+  });
+
+  it('renders component when user has required permission', () => {
+    setState({ isAuthenticated: true, user: makeUser('gm', ['game.delete']), tokens: makeTokens() });
+    const Protected = withPermission(DeleteBtn, 'game.delete');
+    render(React.createElement(Protected, {}));
+    expect(screen.getByText('delete')).toBeDefined();
   });
 });
 

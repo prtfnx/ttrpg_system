@@ -234,10 +234,8 @@ describe('PerformanceService', () => {
       (performanceService as Svc)['lastOptimizationTime'] = -1e9;
       // averageFPS > targetFPS * 1.5 → LOW target=30, threshold=45
       mockFpsGetMetrics.mockReturnValue({ current: 90, average: 90, min: 90, max: 90, frameTime: 11 });
-      (performanceService as Svc)['metrics'] = {
-        ...(performanceService as Svc)['metrics'] as object,
-        memoryUsage: { usedJSHeapSize: 100, totalJSHeapSize: 1000, jsHeapSizeLimit: 10000 },
-      };
+      ((performanceService as Svc)['metrics'] as unknown as Record<string, unknown>)['memoryUsage'] =
+        { usedJSHeapSize: 100, totalJSHeapSize: 1000, jsHeapSizeLimit: 10000 };
       performanceService.startMonitoring();
       vi.advanceTimersByTime(300);
       expect(performanceService.getSettings().level).toBe(PerformanceLevel.MEDIUM);

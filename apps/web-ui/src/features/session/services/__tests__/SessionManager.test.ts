@@ -219,7 +219,7 @@ describe('broadcast helpers', () => {
     const m = new SessionManager('ws://test');
     await openSession(m);
     m.sendChatMessage('Hello!');
-    const call = lastWS.send.mock.calls.find(([msg]: [string]) => msg.includes('chat_message'));
+    const call = lastWS.send.mock.calls.find((args) => (args[0] as string).includes('chat_message'));
     expect(call![0]).toContain('Hello!');
   });
 });
@@ -318,7 +318,7 @@ describe('WebSocket message handling', () => {
   });
 
   it('heartbeat_response does not throw', async () => {
-    const m = await connected();
+    await connected();
     expect(() => simMsg('heartbeat_response', {})).not.toThrow();
   });
 
@@ -332,7 +332,7 @@ describe('WebSocket message handling', () => {
 
   it('malformed JSON is handled gracefully', async () => {
     vi.spyOn(console, 'error').mockImplementation(() => {});
-    const m = await connected();
+    await connected();
     expect(() =>
       lastWS.onmessage?.({ data: 'not-json' } as MessageEvent)
     ).not.toThrow();

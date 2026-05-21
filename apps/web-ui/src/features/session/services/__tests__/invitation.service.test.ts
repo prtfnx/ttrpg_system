@@ -65,4 +65,24 @@ describe('invitationService', () => {
     await invitationService.deleteInvitation(3);
     expect(mockFetch).toHaveBeenCalledWith(expect.stringContaining('/3'), expect.objectContaining({ method: 'DELETE' }));
   });
+
+  it('refreshInvitation sends POST to refresh endpoint', async () => {
+    const refreshed = { id: 5, invite_code: 'NEW', session_code: 'SESS' };
+    mockFetch.mockResolvedValue(ok(refreshed));
+    const result = await invitationService.refreshInvitation('5');
+    expect(result).toEqual(refreshed);
+    expect(mockFetch).toHaveBeenCalledWith(expect.stringContaining('/5/refresh'), expect.objectContaining({ method: 'POST' }));
+  });
+
+  it('fetchAPI includes credentials and JSON headers', async () => {
+    mockFetch.mockResolvedValue(ok({}));
+    await invitationService.getInvitation('CODE');
+    expect(mockFetch).toHaveBeenCalledWith(
+      expect.any(String),
+      expect.objectContaining({
+        credentials: 'include',
+        headers: expect.objectContaining({ 'Content-Type': 'application/json' }),
+      })
+    );
+  });
 });

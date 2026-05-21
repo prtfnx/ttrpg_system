@@ -16,7 +16,7 @@ class MockWebSocket {
   onmessage: ((e: unknown) => void) | null = null;
   onerror: ((e: unknown) => void) | null = null;
   constructor() {
-    // eslint-disable-next-line @typescript-eslint/no-use-before-define
+    // eslint-disable-next-line @typescript-eslint/no-this-alias
     lastWS = this;
     setTimeout(() => this.onopen?.(), 0);
   }

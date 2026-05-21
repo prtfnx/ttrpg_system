@@ -11,7 +11,7 @@ vi.mock('../../services/planning.service', () => ({
 }));
 
 beforeEach(() => {
-  useSessionRulesStore.setState({ rules: null } as any);
+  useSessionRulesStore.setState({ rules: null });
 });
 
 describe('MovementPlanner', () => {

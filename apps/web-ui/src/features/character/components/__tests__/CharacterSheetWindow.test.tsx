@@ -16,7 +16,7 @@ vi.mock('../CharacterPanel/useCharacterPanel', () => ({
 }));
 
 vi.mock('../CharacterSheetNew', () => ({
-  CharacterSheet: ({ character }: any) => (
+  CharacterSheet: ({ character }: { character: { name: string } | null }) => (
     <div data-testid="char-sheet">{character ? character.name : 'no character'}</div>
   ),
 }));
@@ -30,16 +30,16 @@ const mockChar = {
 
 describe('CharacterSheetWindow', () => {
   it('passes found character to CharacterSheet', () => {
-    vi.mocked(useGameStore).mockImplementation((sel: any) =>
-      sel({ characters: [mockChar] })
+    vi.mocked(useGameStore).mockImplementation((sel: (s: ReturnType<typeof useGameStore.getState>) => unknown) =>
+      sel({ characters: [mockChar] } as unknown as ReturnType<typeof useGameStore.getState>)
     );
     render(<CharacterSheetWindow characterId="c1" />);
     expect(screen.getByTestId('char-sheet')).toHaveTextContent('Thorin');
   });
 
   it('passes null when character not found', () => {
-    vi.mocked(useGameStore).mockImplementation((sel: any) =>
-      sel({ characters: [] })
+    vi.mocked(useGameStore).mockImplementation((sel: (s: ReturnType<typeof useGameStore.getState>) => unknown) =>
+      sel({ characters: [] } as unknown as ReturnType<typeof useGameStore.getState>)
     );
     render(<CharacterSheetWindow characterId="unknown" />);
     expect(screen.getByTestId('char-sheet')).toHaveTextContent('no character');

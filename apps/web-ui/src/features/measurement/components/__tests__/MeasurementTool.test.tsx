@@ -21,11 +21,11 @@ function dispatchMeasurement(detail = mockMeasurement) {
 }
 
 beforeEach(() => {
-  (window as any).rustRenderManager = undefined;
+  (window as unknown as Record<string, unknown>)['rustRenderManager'] = undefined;
 });
 
 afterEach(() => {
-  delete (window as any).rustRenderManager;
+  delete (window as unknown as Record<string, unknown>)['rustRenderManager'];
 });
 
 describe('MeasurementTool', () => {
@@ -82,7 +82,7 @@ describe('MeasurementTool', () => {
 
   it('calls rustRenderManager.set_input_mode_select on clear', () => {
     const setMode = vi.fn();
-    (window as any).rustRenderManager = { set_input_mode_select: setMode };
+    (window as unknown as Record<string, unknown>)['rustRenderManager'] = { set_input_mode_select: setMode };
     render(<MeasurementTool isActive={true} />);
     dispatchMeasurement();
     fireEvent.click(screen.getByText('Clear Measurement'));

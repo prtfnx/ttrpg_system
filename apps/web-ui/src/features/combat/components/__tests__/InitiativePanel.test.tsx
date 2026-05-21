@@ -1,7 +1,7 @@
 import { useGameStore } from '@/store';
 import { fireEvent, render, screen } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { useCombatStore } from '../../stores/combatStore';
+import { useCombatStore, type CombatSettings } from '../../stores/combatStore';
 import { InitiativePanel } from '../InitiativePanel';
 
 const mockSend = vi.fn();
@@ -64,13 +64,13 @@ const baseCombat = {
   combatants: [baseCombatant],
   action_log: [],
   started_at: null,
-  settings: {} as any,
+  settings: {} as unknown as CombatSettings,
   state_hash: 'x',
 };
 
 function setupStore({ role = 'owner', userId = 1 } = {}) {
-  vi.mocked(useGameStore).mockImplementation((sel: any) =>
-    sel({ sessionRole: role, userId, characters: [] })
+  vi.mocked(useGameStore).mockImplementation((sel: (s: ReturnType<typeof useGameStore.getState>) => unknown) =>
+    sel({ sessionRole: role, userId, characters: [] } as unknown as ReturnType<typeof useGameStore.getState>)
   );
 }
 

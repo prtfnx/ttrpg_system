@@ -1,6 +1,7 @@
 import type { TableInfo } from '@/store';
 import { useGameStore } from '@/store';
 import { tableThumbnailService } from '@features/table/services/tableThumbnail.service';
+import { showToast } from '@shared/utils/toast';
 import { useEffect, useMemo, useState } from 'react';
 import { TABLE_TEMPLATES } from './utils';
 
@@ -296,6 +297,7 @@ export const useTableManagement = () => {
     }, 500);
 
     setSettingsTableId(null);
+    showToast.success('Table settings saved');
   };
 
   const filteredAndSortedTables = useMemo(() => {

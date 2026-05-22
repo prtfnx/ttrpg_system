@@ -60,11 +60,20 @@ export const ActivityTab: React.FC<Props> = ({ characterId }) => {
       setLogs(prev => [entry, ...prev].slice(0, 50));
     }
 
+    function handleCharacterUpdated(e: Event) {
+      const data = (e as CustomEvent).detail;
+      if (data?.character_id === characterId || data?.id === characterId) {
+        fetchLogs();
+      }
+    }
+
     window.addEventListener('character-log-response', handleLogResponse);
     window.addEventListener('character-roll-result', handleRollResult);
+    window.addEventListener('character-updated', handleCharacterUpdated);
     return () => {
       window.removeEventListener('character-log-response', handleLogResponse);
       window.removeEventListener('character-roll-result', handleRollResult);
+      window.removeEventListener('character-updated', handleCharacterUpdated);
     };
   }, [characterId, fetchLogs]);
 

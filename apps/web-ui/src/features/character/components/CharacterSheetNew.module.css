@@ -4,6 +4,7 @@
 .characterSheetRedesigned {
   flex: 1;
   min-height: 0;
+  height: 100%;
   width: 100%;
   background: var(--bg-secondary);
   color: var(--text-primary);
@@ -21,7 +22,7 @@
 
 /* ===== HEADER ===== */
 .sheetHeader {
-  background: linear-gradient(135deg, var(--gray-800) 0%, var(--gray-950) 100%);
+  background: var(--bg-elevated);
   border-bottom: 2px solid var(--border-primary);
   padding: var(--space-md) var(--space-lg);
   display: flex;
@@ -163,6 +164,8 @@
   border: none;
   cursor: pointer;
   padding: 0;
+  width: 100%;
+  text-align: center;
 }
 
 .abilityScore {

@@ -180,7 +180,7 @@ export function ToolsPanel({ userInfo }: ToolsPanelProps) {
   
   useEffect(() => {
     if (!window.rustRenderManager) return;
-    if (activeTool !== 'paint' && window.rustRenderManager.paint_is_mode()) {
+    if (activeTool !== 'paint' && typeof window.rustRenderManager?.paint_is_mode === 'function' && window.rustRenderManager.paint_is_mode()) {
       window.rustRenderManager.paint_exit_mode();
       setPaintPanelVisible(false);
     }

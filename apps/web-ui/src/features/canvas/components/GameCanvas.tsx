@@ -376,8 +376,11 @@ export const GameCanvas: React.FC = () => {
         const wpx = liveDims?.w ?? (wasmSprite ? wasmSprite.width * scaleX : scaleX * cellPx);
         const hpx = liveDims?.h ?? (wasmSprite ? wasmSprite.height * scaleY : scaleY * cellPx);
 
-        // Resolve top-left world position (live drag > WASM > store fallback)
-        const livePos = dragPositionsRef.current.get(s.id);
+        // During resize, position and size change together in WASM atomically.
+        // Using dragPositionsRef (which updates separately from dragDimsRef) can cause
+        // a single-frame mismatch where center is computed with mismatched pos+size.
+        // So during an active resize (liveDims set), trust WASM for position.
+        const livePos = liveDims ? null : dragPositionsRef.current.get(s.id);
         const wx = livePos?.x ?? wasmSprite?.world_x ?? s.x ?? 0;
         const wy = livePos?.y ?? wasmSprite?.world_y ?? s.y ?? 0;
 

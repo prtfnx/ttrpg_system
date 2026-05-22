@@ -6,6 +6,7 @@
 import type { RenderEngine } from '@lib/wasm/wasm';
 import type { WebClientProtocol } from '@lib/websocket/clientProtocol';
 import { type RefObject, useCallback, useEffect, useRef } from 'react';
+import { useGameStore } from '@/store';
 import { inputManager } from '../../services/InputManager';
 import { getRelativeCoords } from './canvasUtils';
 
@@ -78,6 +79,22 @@ export const useCanvasEventsEnhanced = ({
     const engine = rustRenderManagerRef.current;
     if (!engine) return;
 
+    const cellPx = useGameStore.getState().gridCellPx ?? 50;
+
+    const moveSelectedSprites = (deltaX: number, deltaY: number) => {
+      engine.get_selected_sprites().forEach((spriteId) => {
+        const currentPos = engine.get_sprite_position(spriteId);
+        if (currentPos) {
+          const newPos = [currentPos[0] + deltaX, currentPos[1] + deltaY];
+          engine.set_sprite_position(spriteId, newPos[0], newPos[1]);
+          protocol?.updateSprite(spriteId, { x: newPos[0], y: newPos[1] });
+          window.dispatchEvent(new CustomEvent('sprite-moved', {
+            detail: { id: spriteId, x: newPos[0], y: newPos[1] }
+          }));
+        }
+      });
+    };
+
     const actionHandlers = {
       delete_selected: () => {
         engine.get_selected_sprites().forEach((spriteId) => {
@@ -134,19 +151,19 @@ export const useCanvasEventsEnhanced = ({
       },
 
       move_up: () => {
-        moveSelectedSprites(0, -10);
+        moveSelectedSprites(0, -cellPx);
       },
 
       move_down: () => {
-        moveSelectedSprites(0, 10);
+        moveSelectedSprites(0, cellPx);
       },
 
       move_left: () => {
-        moveSelectedSprites(-10, 0);
+        moveSelectedSprites(-cellPx, 0);
       },
 
       move_right: () => {
-        moveSelectedSprites(10, 0);
+        moveSelectedSprites(cellPx, 0);
       },
 
       select_all: () => {
@@ -162,17 +179,6 @@ export const useCanvasEventsEnhanced = ({
       toggle_performance: () => {
         togglePerformanceMonitor();
       },
-    };
-
-    const moveSelectedSprites = (deltaX: number, deltaY: number) => {
-      engine.get_selected_sprites().forEach((spriteId) => {
-        const currentPos = engine.get_sprite_position(spriteId);
-        if (currentPos) {
-          const newPos = [currentPos[0] + deltaX, currentPos[1] + deltaY];
-          engine.set_sprite_position(spriteId, newPos[0], newPos[1]);
-          protocol?.updateSprite(spriteId, { x: newPos[0], y: newPos[1] });
-        }
-      });
     };
 
     // Register all action handlers

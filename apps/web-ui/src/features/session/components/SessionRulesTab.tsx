@@ -4,6 +4,7 @@ import { useSessionRulesStore } from '@features/combat/stores/sessionRulesStore'
 import { ProtocolService } from '@lib/api';
 import { createMessage, MessageType } from '@lib/websocket';
 import { isDM } from '../types/roles';
+import { showToast } from '@shared/utils';
 
 function Toggle({ label, field, draft, update }: {
   label: string;
@@ -79,6 +80,7 @@ export function SessionRulesTab() {
     const proto = ProtocolService.getProtocol();
     proto?.sendMessage(createMessage(MessageType.SESSION_RULES_UPDATE, { rules: draft }));
     reset();
+    showToast.success('Session rules saved');
   };
 
   return (

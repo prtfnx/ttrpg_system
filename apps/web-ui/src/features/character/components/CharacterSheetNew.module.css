@@ -178,6 +178,13 @@
   font-weight: var(--font-semibold);
   text-align: center;
   padding: 2px;
+  -moz-appearance: textfield;
+}
+
+.abilityScore::-webkit-inner-spin-button,
+.abilityScore::-webkit-outer-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
 }
 
 .abilityScore:focus {
@@ -192,6 +199,9 @@
   font-size: 10px;
   color: var(--text-muted);
   cursor: pointer;
+  background: var(--bg-secondary);
+  border-radius: var(--radius-sm);
+  padding: 2px 3px;
 }
 
 .saveDot {

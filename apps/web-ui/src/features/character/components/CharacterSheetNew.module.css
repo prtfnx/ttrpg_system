@@ -108,6 +108,7 @@
   flex: 1;
   display: flex;
   overflow: hidden;
+  min-height: 0;
 }
 
 /* ===== SIDEBAR ===== */
@@ -168,6 +169,38 @@
   text-align: center;
 }
 
+.abilityScoreRow {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  width: 100%;
+  justify-content: center;
+}
+
+.abilityArrow {
+  width: 16px;
+  height: 20px;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-secondary);
+  border-radius: var(--radius-sm);
+  color: var(--text-secondary);
+  font-size: 11px;
+  line-height: 1;
+  cursor: pointer;
+  padding: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  transition: background 0.1s, color 0.1s;
+}
+
+.abilityArrow:hover {
+  background: var(--color-primary);
+  border-color: var(--color-primary);
+  color: var(--button-primary-text);
+}
+
 .abilityScore {
   width: 44px;
   background: var(--bg-secondary);
@@ -199,9 +232,11 @@
   font-size: 10px;
   color: var(--text-muted);
   cursor: pointer;
-  background: var(--bg-secondary);
-  border-radius: var(--radius-sm);
-  padding: 2px 3px;
+  border-top: 1px solid var(--border-secondary);
+  padding-top: 2px;
+  margin-top: 1px;
+  width: 100%;
+  justify-content: center;
 }
 
 .saveDot {

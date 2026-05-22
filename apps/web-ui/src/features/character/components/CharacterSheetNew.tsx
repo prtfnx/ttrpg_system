@@ -311,13 +311,27 @@ export const CharacterSheet: React.FC<CharacterSheetProps> = ({ character, onSav
                   >
                     {modStr(mod)}
                   </button>
-                  <input
-                    type="number"
-                    className={styles.abilityScore}
-                    value={score}
-                    onChange={e => handleAbilityUpdate(key, Number(e.target.value))}
-                    min={1} max={30}
-                  />
+                  <div className={styles.abilityScoreRow}>
+                    <button
+                      type="button"
+                      className={styles.abilityArrow}
+                      onClick={() => handleAbilityUpdate(key, Math.max(1, score - 1))}
+                      aria-label={`Decrease ${ABILITY_SHORT[key]}`}
+                    >−</button>
+                    <input
+                      type="number"
+                      className={styles.abilityScore}
+                      value={score}
+                      onChange={e => handleAbilityUpdate(key, Number(e.target.value))}
+                      min={1} max={30}
+                    />
+                    <button
+                      type="button"
+                      className={styles.abilityArrow}
+                      onClick={() => handleAbilityUpdate(key, Math.min(30, score + 1))}
+                      aria-label={`Increase ${ABILITY_SHORT[key]}`}
+                    >+</button>
+                  </div>
                   <div className={styles.abilitySaveRow}>
                     <span
                       className={clsx(styles.saveDot, isProfSave && styles.saveProficient)}

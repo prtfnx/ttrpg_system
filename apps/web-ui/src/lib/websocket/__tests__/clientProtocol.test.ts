@@ -423,11 +423,10 @@ describe('WebClientProtocol', () => {
       const p = makeProtocol('S', 1);
       const ws = makeOpenWs(p);
       p.rollDeathSave('char-2');
-      p.sendBatch();
-      const batch = JSON.parse((ws.send as Mock).mock.calls[0][0]);
-      const inner = batch.data.messages[0];
-      expect(inner.type).toBe('character_roll');
-      expect(inner.data.roll_type).toBe('death_save');
+      // character_roll is a critical message — sent directly, not batched
+      const msg = JSON.parse((ws.send as Mock).mock.calls[0][0]);
+      expect(msg.type).toBe('character_roll');
+      expect(msg.data.roll_type).toBe('death_save');
     });
   });
 

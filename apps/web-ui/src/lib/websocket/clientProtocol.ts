@@ -123,7 +123,7 @@ export class WebClientProtocol {
     const critical = [
       'table_data', 'table_update', 'table_list_request', 'table_request', 'new_table_request', 'table_delete',
       'sprite_create', 'sprite_remove', 'player_kick_request', 'player_ban_request', 'player_list_request',
-      'character_save', 'character_load', 
+      'character_save', 'character_load', 'character_roll',
       'asset_upload_request', 'asset_download_request', 'asset_list_request', 'asset_delete_request', 'asset_hash_check'
     ];
     

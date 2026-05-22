@@ -404,7 +404,8 @@ export const GameCanvas: React.FC = () => {
           }
 
           if (vr > 0) {
-            const edge = rm.world_to_screen(wx + wpx / 2 + vr, wy + hpx / 2);
+            // DnD: vision range measured from token edge, so ring radius = tokenHalfWidth + visionRange
+            const edge = rm.world_to_screen(wx + wpx / 2 + wpx / 2 + vr, wy + hpx / 2);
             const sr = (edge[0] - ctr[0]) / dpr;
             ctx.beginPath();
             ctx.arc(sx, sy, sr, 0, Math.PI * 2);
@@ -414,7 +415,8 @@ export const GameCanvas: React.FC = () => {
           }
 
           if (dvr > 0) {
-            const edge = rm.world_to_screen(wx + wpx / 2 + dvr, wy + hpx / 2);
+            // DnD: darkvision range measured from token edge
+            const edge = rm.world_to_screen(wx + wpx / 2 + wpx / 2 + dvr, wy + hpx / 2);
             const sr = (edge[0] - ctr[0]) / dpr;
             ctx.beginPath();
             ctx.arc(sx, sy, sr, 0, Math.PI * 2);

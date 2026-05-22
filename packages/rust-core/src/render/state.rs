@@ -243,14 +243,41 @@ impl RenderEngine {
     }
 
     // Input mode control
+    #[wasm_bindgen]
+    pub fn set_input_mode_select(&mut self) {
+        self.input.input_mode = InputMode::None;
+    }
+    #[wasm_bindgen]
     pub fn set_input_mode_measurement(&mut self) {
         self.input.input_mode = InputMode::Measurement;
-        web_sys::console::log_1(&"[RUST] Input mode set to Measurement".into());
     }
     #[wasm_bindgen]
     pub fn set_input_mode_paint(&mut self) {
         self.input.input_mode = InputMode::Paint;
-        web_sys::console::log_1(&"[RUST] Input mode set to Paint".into());
+    }
+    #[wasm_bindgen]
+    pub fn set_input_mode_create_rectangle(&mut self) {
+        self.input.input_mode = InputMode::CreateRectangle;
+    }
+    #[wasm_bindgen]
+    pub fn set_input_mode_create_circle(&mut self) {
+        self.input.input_mode = InputMode::CreateCircle;
+    }
+    #[wasm_bindgen]
+    pub fn set_input_mode_create_line(&mut self) {
+        self.input.input_mode = InputMode::CreateLine;
+    }
+    #[wasm_bindgen]
+    pub fn set_input_mode_create_text(&mut self) {
+        self.input.input_mode = InputMode::CreateText;
+    }
+    #[wasm_bindgen]
+    pub fn set_input_mode_draw_wall(&mut self) {
+        self.input.input_mode = InputMode::DrawWall;
+    }
+    #[wasm_bindgen]
+    pub fn set_input_mode_create_polygon(&mut self) {
+        self.input.input_mode = InputMode::CreatePolygon;
     }
 
     // Actions system

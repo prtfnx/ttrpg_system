@@ -280,7 +280,8 @@ class _CharactersMixin(_ProtocolBase):
         )
         if not result.success:
             return Message(MessageType.ERROR, {'error': result.message})
-        await self.broadcast_to_session(Message(MessageType.CHARACTER_ROLL_RESULT, result.data), client_id)
+        # Broadcast to ALL clients including sender so the roller sees their own result in chat
+        await self.broadcast_to_session(Message(MessageType.CHARACTER_ROLL_RESULT, result.data))
         return Message(MessageType.SUCCESS, {'message': 'Roll completed'})
 
     async def handle_xp_award(self, msg: Message, client_id: str) -> Message:

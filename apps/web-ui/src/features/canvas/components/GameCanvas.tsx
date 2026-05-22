@@ -323,7 +323,12 @@ export const GameCanvas: React.FC = () => {
       const rect = mainCanvas.getBoundingClientRect();
       const w = Math.round(rect.width * dpr);
       const h = Math.round(rect.height * dpr);
-      if (canvas.width !== w || canvas.height !== h) { canvas.width = w; canvas.height = h; }
+      if (canvas.width !== w || canvas.height !== h) {
+        canvas.width = w;
+        canvas.height = h;
+        canvas.style.width = `${rect.width}px`;
+        canvas.style.height = `${rect.height}px`;
+      }
 
       ctx.clearRect(0, 0, canvas.width, canvas.height);
 

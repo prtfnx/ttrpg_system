@@ -1251,8 +1251,19 @@ class ActionsCore(AsyncActionsProtocol):
             char_manager = get_server_character_manager()
             char_manager.log_event(character_id, session_id, user_id, 'skill_roll', desc)
 
+            character_name = 'Unknown'
+            try:
+                char_result = char_manager.load_character(session_id, character_id, user_id)
+                if char_result.get('success'):
+                    char_data = char_result.get('character_data', {})
+                    character_name = char_data.get('name') or char_data.get('data', {}).get('name') or 'Unknown'
+            except Exception:
+                pass
+
             result_data = {
                 'character_id': character_id,
+                'character_name': character_name,
+                'user_id': user_id,
                 'roll_type': roll_type,
                 'skill': skill,
                 'modifier': modifier,

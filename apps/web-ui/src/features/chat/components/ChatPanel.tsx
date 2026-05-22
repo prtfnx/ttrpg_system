@@ -46,7 +46,7 @@ export function ChatPanel() {
     <div className={styles.panel}>
       <div className={styles.messages}>
         {messages.map(msg => (
-          <div key={msg.id} className={styles.message}>
+          <div key={msg.id} className={styles.message} title={msg.tooltip}>
             <span className={styles.username}>{msg.user}:</span> <span>{msg.text}</span>
             <span className={styles.timestamp}>{new Date(msg.timestamp).toLocaleTimeString()}</span>
           </div>

@@ -19,14 +19,22 @@ export function useChatWebSocket(url: string, user: string) {
       const skill = d.skill || d.ability || '';
       const total = d.total ?? d.result ?? '?';
       const what = skill ? `${type}: ${skill}` : type;
-      const breakdown = d.d20 != null
-        ? ` (d20: ${d.d20}${d.modifier != null && d.modifier !== 0 ? (d.modifier > 0 ? '+' : '') + d.modifier : ''})`
+      const dieRoll = d.die_roll ?? d.d20;
+      const modifier = d.modifier ?? 0;
+      const sign = modifier >= 0 ? '+' : '';
+      const breakdown = dieRoll != null
+        ? ` (d20: ${dieRoll}${modifier !== 0 ? `${sign}${modifier}` : ''})`
         : '';
+      const advStr = d.advantage ? ' [ADV]' : d.disadvantage ? ' [DIS]' : '';
+      const tooltip = dieRoll != null
+        ? `d20 = ${dieRoll}\nModifier: ${sign}${modifier}\nTotal: ${total}${advStr}${d.description ? '\n' + d.description : ''}`
+        : undefined;
       useChatStore.getState().addMessage({
         id: Math.random().toString(36).slice(2),
         user: '🎲',
-        text: `${name} — ${what} = ${total}${breakdown}`,
+        text: `${name} — ${what} = ${total}${breakdown}${advStr}`,
         timestamp: Date.now(),
+        tooltip,
       });
     };
     window.addEventListener('character-roll-result', onRoll);

@@ -247,6 +247,41 @@ impl RenderEngine {
     pub fn set_input_mode_select(&mut self) {
         self.input.input_mode = InputMode::None;
     }
+
+    /// Set the active tool mode (select / move / align).
+    #[wasm_bindgen]
+    pub fn set_tool_mode(&mut self, mode: &str) {
+        self.input.tool_mode = match mode {
+            "move"  => crate::input::ToolMode::Move,
+            "align" => crate::input::ToolMode::Align,
+            _       => crate::input::ToolMode::Select,
+        };
+        self.input.input_mode = InputMode::None;
+    }
+
+    /// Snap all currently selected sprites to the nearest grid cell corner.
+    #[wasm_bindgen]
+    pub fn align_selected_to_grid(&mut self) {
+        let cell = self.grid_system.get_size() as f64;
+        if cell <= 0.0 { return; }
+        let ids: Vec<String> = self.input.selected_sprite_ids.iter().cloned().collect();
+        for id in &ids {
+            // Collect snapped position first, then apply
+            let snapped = {
+                let layers = self.layer_manager.get_layers();
+                layers.values().find_map(|l| {
+                    l.sprites.iter().find(|s| s.id == *id).map(|s| {
+                        let x = (s.world_x / cell).round() * cell;
+                        let y = (s.world_y / cell).round() * cell;
+                        (x, y)
+                    })
+                })
+            };
+            if let Some((x, y)) = snapped {
+                self.layer_manager.update_sprite_position(id, crate::math::Vec2::new(x as f32, y as f32));
+            }
+        }
+    }
     #[wasm_bindgen]
     pub fn set_input_mode_measurement(&mut self) {
         self.input.input_mode = InputMode::Measurement;

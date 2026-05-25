@@ -52,15 +52,22 @@ impl RenderEngine {
     
     #[wasm_bindgen]
     pub fn handle_mouse_down(&mut self, screen_x: f32, screen_y: f32) {
-        self.handle_mouse_down_internal(screen_x, screen_y, false);
+        self.handle_mouse_down_internal(screen_x, screen_y, false, false);
     }
     
     #[wasm_bindgen]
     pub fn handle_mouse_down_with_ctrl(&mut self, screen_x: f32, screen_y: f32, ctrl_pressed: bool) {
-        self.handle_mouse_down_internal(screen_x, screen_y, ctrl_pressed);
+        self.handle_mouse_down_internal(screen_x, screen_y, ctrl_pressed, false);
+    }
+
+    /// Full modifier support: ctrl for multi-select, alt to disable grid snap.
+    #[wasm_bindgen]
+    pub fn handle_mouse_down_full(&mut self, screen_x: f32, screen_y: f32, ctrl_pressed: bool, alt_pressed: bool) -> Option<String> {
+        self.handle_mouse_down_internal(screen_x, screen_y, ctrl_pressed, alt_pressed);
+        self.input.selected_sprite_id.clone()
     }
     
-    fn handle_mouse_down_internal(&mut self, screen_x: f32, screen_y: f32, ctrl_pressed: bool) {
+    fn handle_mouse_down_internal(&mut self, screen_x: f32, screen_y: f32, ctrl_pressed: bool, alt_pressed: bool) {
         let world_pos = self.camera.screen_to_world(Vec2::new(screen_x, screen_y));
         self.input.last_mouse_screen = Vec2::new(screen_x, screen_y);
         
@@ -69,6 +76,7 @@ impl RenderEngine {
             return;
         }
         
+        let grid_cell_px = self.grid_system.get_size();
         let result = self.event_system.handle_mouse_down(
             world_pos,
             &mut self.input,
@@ -77,7 +85,9 @@ impl RenderEngine {
             &self.wall_manager,
             self.camera.zoom,
             ctrl_pressed,
-            self.active_layer.as_str()
+            self.active_layer.as_str(),
+            alt_pressed,
+            grid_cell_px,
         );
         
         let uid_opt = self.current_user_id;
@@ -169,6 +179,7 @@ impl RenderEngine {
             .unwrap_or("default_table".to_string());
         let converter = self.table_manager.get_unit_converter(&table_id);
         
+        let grid_cell_px = self.grid_system.get_size();
         let result = self.event_system.handle_mouse_up(
             world_pos,
             &mut self.input,
@@ -179,6 +190,7 @@ impl RenderEngine {
             table_id,
             self.active_layer.as_str(),
             &converter,
+            grid_cell_px,
         );
         
         match result {

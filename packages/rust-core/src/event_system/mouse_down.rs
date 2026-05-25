@@ -1,6 +1,6 @@
 use crate::math::Vec2;
 use crate::types::Layer;
-use crate::input::{InputHandler, InputMode, HandleDetector};
+use crate::input::{InputHandler, InputMode, HandleDetector, ToolMode};
 use crate::sprite_manager::SpriteManager;
 use crate::lighting::LightingSystem;
 use crate::wall_manager::WallManager;
@@ -19,8 +19,11 @@ impl EventSystem {
         wall_manager: &WallManager,
         camera_zoom: f64,
         ctrl_pressed: bool,
-        active_layer: &str
+        active_layer: &str,
+        alt_pressed: bool,
+        grid_cell_px: f32,
     ) -> MouseEventResult {
+        input.alt_pressed = alt_pressed;
         web_sys::console::log_1(&format!("[RUST EVENT] Mouse down at world: {}, {}, input_mode: {:?}", world_pos.x, world_pos.y, input.input_mode).into());
         
         // Handle fog drawing modes FIRST
@@ -209,8 +212,27 @@ impl EventSystem {
                 input.start_area_selection(world_pos);
             }
         } else {
+            // Align tool: clicking a sprite snaps it immediately, no drag
+            if input.tool_mode == ToolMode::Align {
+                let clicked_sprite = Self::find_sprite_at_position(world_pos, layers, active_layer);
+                if let Some(sprite_id) = clicked_sprite {
+                    if let Some((sprite, _)) = Self::find_sprite_mut(&sprite_id, layers) {
+                        let cell = grid_cell_px as f64;
+                        sprite.world_x = (sprite.world_x / cell).round() * cell;
+                        sprite.world_y = (sprite.world_y / cell).round() * cell;
+                        Self::dispatch_drag_preview(&sprite_id, sprite.world_x, sprite.world_y);
+                    }
+                    input.set_single_selection(sprite_id);
+                    return MouseEventResult::Handled;
+                }
+            }
+
+            // Default: depends on active tool
             input.clear_selection();
-            input.input_mode = InputMode::CameraPan;
+            match input.tool_mode {
+                ToolMode::Select => input.start_area_selection(world_pos),
+                ToolMode::Move | ToolMode::Align => input.input_mode = InputMode::CameraPan,
+            }
         }
         MouseEventResult::Handled
     }

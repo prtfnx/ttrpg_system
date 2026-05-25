@@ -68,4 +68,16 @@ impl EventSystem {
             window.dispatch_event(&event).ok();
         }
     }
+
+    /// Tell React to switch to a specific tool mode after an automatic transition (e.g. area-select → move).
+    pub(crate) fn dispatch_tool_mode_changed(mode: &str) {
+        let Some(window) = web_sys::window() else { return };
+        let detail = js_sys::Object::new();
+        js_sys::Reflect::set(&detail, &"mode".into(), &JsValue::from_str(mode)).ok();
+        let event_init = web_sys::CustomEventInit::new();
+        event_init.set_detail(&detail);
+        if let Ok(event) = web_sys::CustomEvent::new_with_event_init_dict("wasm-tool-mode-changed", &event_init) {
+            window.dispatch_event(&event).ok();
+        }
+    }
 }

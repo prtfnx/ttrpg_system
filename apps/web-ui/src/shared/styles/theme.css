@@ -222,6 +222,9 @@
   /* Directional panel edge shadows */
   --shadow-panel-left:  2px 0 8px rgba(0, 0, 0, 0.5);
   --shadow-panel-right: -2px 0 8px rgba(0, 0, 0, 0.5);
+  /* Contextual shadows */
+  --shadow-overlay: 0 8px 24px rgb(0 0 0 / 40%);
+  --shadow-danger: 0 2px 8px rgb(239 68 68 / 30%);
 
   /* ============================================
      EXTENDED OVERLAY SYSTEM

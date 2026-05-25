@@ -12,110 +12,110 @@
   left: 0;
   right: 0;
   bottom: 0;
-  background: rgba(0, 0, 0, 0.5);
+  background: var(--overlay-dark-subtle);
   z-index: 1000;
 }
 
 .modal {
   display: flex;
   flex-direction: column;
-  background: var(--bg-primary, #1a1a1a);
-  border-radius: var(--radius-lg, 12px);
+  background: var(--bg-primary);
+  border-radius: var(--radius-lg);
   width: 90%;
   max-width: 600px;
   max-height: 90vh;
   overflow: hidden;
-  box-shadow: var(--shadow-xl, 0 25px 50px -12px rgba(0, 0, 0, 0.25));
+  box-shadow: var(--shadow-xl);
 }
 
 .header {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: var(--space-xl, 24px);
-  border-bottom: 1px solid var(--border-primary, #333);
-  background: var(--bg-secondary, #2a2a2a);
+  padding: var(--space-xl);
+  border-bottom: 1px solid var(--border-primary);
+  background: var(--bg-secondary);
 }
 
 .header h2 {
   margin: 0;
-  font-size: var(--text-xl, 24px);
-  font-weight: var(--font-semibold, 600);
+  font-size: var(--text-xl);
+  font-weight: var(--font-semibold);
 }
 
 .closeBtn {
-  padding: var(--space-sm, 8px) var(--space-md, 12px);
+  padding: var(--space-sm) var(--space-md);
   background: transparent;
   border: none;
-  color: var(--text-primary, #fff);
+  color: var(--text-primary);
   cursor: pointer;
-  font-size: var(--text-lg, 18px);
+  font-size: var(--text-lg);
   border-radius: 4px;
 }
 
 .closeBtn:hover {
-  background: var(--bg-tertiary, #3a3a3a);
+  background: var(--bg-tertiary);
 }
 
 .createSection {
-  padding: var(--space-xl, 24px);
-  border-bottom: 1px solid var(--border-primary, #333);
+  padding: var(--space-xl);
+  border-bottom: 1px solid var(--border-primary);
 }
 
 .createSection h3 {
-  margin: 0 0 var(--space-lg, 16px) 0;
-  font-size: var(--text-lg, 18px);
-  font-weight: var(--font-semibold, 600);
+  margin: 0 0 var(--space-lg) 0;
+  font-size: var(--text-lg);
+  font-weight: var(--font-semibold);
 }
 
 .formGrid {
   display: grid;
   grid-template-columns: 2fr 1fr 1fr;
-  gap: var(--space-md, 12px);
-  margin-bottom: var(--space-lg, 16px);
+  gap: var(--space-md);
+  margin-bottom: var(--space-lg);
 }
 
 .field {
   display: flex;
   flex-direction: column;
-  gap: var(--space-xs, 4px);
+  gap: var(--space-xs);
 }
 
 .field label {
-  font-size: var(--text-xs, 12px);
-  font-weight: var(--font-medium, 500);
-  color: var(--text-secondary, #888);
+  font-size: var(--text-xs);
+  font-weight: var(--font-medium);
+  color: var(--text-secondary);
 }
 
 .select,
 .input {
-  padding: var(--space-sm, 8px);
-  background: var(--bg-secondary, #2a2a2a);
-  border: 1px solid var(--border-primary, #333);
-  border-radius: var(--radius-sm, 4px);
-  font-size: var(--text-sm, 14px);
-  color: var(--text-primary, #fff);
+  padding: var(--space-sm);
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-primary);
+  border-radius: var(--radius-sm);
+  font-size: var(--text-sm);
+  color: var(--text-primary);
 }
 
 .select:focus,
 .input:focus {
-  outline: 2px solid var(--color-primary, #4a90e2);
+  outline: 2px solid var(--color-primary);
   outline-offset: -1px;
 }
 
 .createBtn {
   width: 100%;
-  padding: var(--space-md, 12px) var(--space-lg, 16px);
-  background: var(--color-primary, #4a90e2);
+  padding: var(--space-md) var(--space-lg);
+  background: var(--color-primary);
   color: white;
   border: none;
-  border-radius: var(--radius-md, 8px);
-  font-weight: var(--font-semibold, 600);
+  border-radius: var(--radius-md);
+  font-weight: var(--font-semibold);
   cursor: pointer;
 }
 
 .createBtn:hover:not(:disabled) {
-  background: var(--color-primary-hover, #357ab7);
+  background: var(--color-primary-hover);
 }
 
 .createBtn:disabled {
@@ -124,15 +124,15 @@
 }
 
 .listSection {
-  padding: var(--space-xl, 24px);
+  padding: var(--space-xl);
   overflow-y: auto;
   flex: 1;
 }
 
 .listSection h3 {
-  margin: 0 0 var(--space-lg, 16px) 0;
-  font-size: var(--text-lg, 18px);
-  font-weight: var(--font-semibold, 600);
+  margin: 0 0 var(--space-lg) 0;
+  font-size: var(--text-lg);
+  font-weight: var(--font-semibold);
 }
 
 .list {
@@ -142,7 +142,7 @@
 
 .loading,
 .empty {
-  padding: var(--space-2xl, 32px);
+  padding: var(--space-2xl);
   text-align: center;
-  color: var(--text-secondary, #888);
+  color: var(--text-secondary);
 }

@@ -22,13 +22,20 @@ impl EventSystem {
         table_id: String,
         active_layer: &str,
         converter: &UnitConverter,
+        grid_cell_px: f32,
     ) -> MouseEventResult {
         match input.input_mode {
             InputMode::AreaSelect => {
                 if let Some((min, max)) = input.get_area_selection_rect() {
                     Self::select_sprites_in_area(min, max, input, layers, active_layer);
                 }
+                let had_selection = !input.selected_sprite_ids.is_empty();
                 input.finish_area_selection();
+                // After area-select with sprites captured, auto-switch to Move tool
+                if had_selection {
+                    input.tool_mode = crate::input::ToolMode::Move;
+                    Self::dispatch_tool_mode_changed("move");
+                }
                 MouseEventResult::Handled
             }
             InputMode::LightDrag => {
@@ -80,6 +87,7 @@ impl EventSystem {
             InputMode::SpriteMove | InputMode::SpriteResize(_) | InputMode::SpriteRotate => {
                 let sprite_id_opt = input.selected_sprite_id.clone();
                 let current_input_mode = input.input_mode;
+                let snap = !input.alt_pressed && grid_cell_px > 0.0;
                 
                 web_sys::console::log_1(&format!("[RUST EVENT] Mouse up in mode: {:?}, sprite: {:?}", current_input_mode, sprite_id_opt).into());
                 
@@ -99,6 +107,41 @@ impl EventSystem {
                                 if let Ok(event) = web_sys::CustomEvent::new_with_event_init_dict("tokenDoubleClick", &event_init) {
                                     window.dispatch_event(&event).ok();
                                 }
+                            }
+                        }
+                    }
+                }
+
+                // Grid snap on move and resize (skip if alt held)
+                if snap {
+                    let cell = grid_cell_px as f64;
+                    if let Some(ref sprite_id) = sprite_id_opt {
+                        if let Some((sprite, _)) = Self::find_sprite_mut(sprite_id, layers) {
+                            match current_input_mode {
+                                InputMode::SpriteMove => {
+                                    sprite.world_x = (sprite.world_x / cell).round() * cell;
+                                    sprite.world_y = (sprite.world_y / cell).round() * cell;
+                                    Self::dispatch_drag_preview(sprite_id, sprite.world_x, sprite.world_y);
+                                }
+                                InputMode::SpriteResize(_) => {
+                                    let snapped_x = (sprite.world_x / cell).round() * cell;
+                                    let snapped_y = (sprite.world_y / cell).round() * cell;
+                                    let right = sprite.world_x + sprite.width * sprite.scale_x;
+                                    let bottom = sprite.world_y + sprite.height * sprite.scale_y;
+                                    let snapped_right = (right / cell).round() * cell;
+                                    let snapped_bottom = (bottom / cell).round() * cell;
+                                    let new_w = (snapped_right - snapped_x).max(cell);
+                                    let new_h = (snapped_bottom - snapped_y).max(cell);
+                                    sprite.world_x = snapped_x;
+                                    sprite.world_y = snapped_y;
+                                    sprite.width = new_w / sprite.scale_x;
+                                    sprite.height = new_h / sprite.scale_y;
+                                }
+                                InputMode::SpriteRotate => {
+                                    let half_pi = std::f64::consts::FRAC_PI_2;
+                                    sprite.rotation = (sprite.rotation / half_pi).round() * half_pi;
+                                }
+                                _ => {}
                             }
                         }
                     }

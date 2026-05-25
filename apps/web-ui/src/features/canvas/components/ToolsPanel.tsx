@@ -12,8 +12,9 @@ import { isDM, isElevated } from '@features/session/types/roles';
 import { ProtocolService } from '@lib/api';
 import { AlignmentHelper } from '@shared/components';
 import DiceRoller from '@shared/components/DiceRoller';
-import { AlignLeft, BrickWall, Check, ChevronDown, Circle, Cloud, Crown, Eye, EyeOff, Flame, Folder, Lightbulb, Map, Minus, Mountain, Move, Paintbrush, Pencil, Ruler, Search, Send, Shield, Snowflake, Sparkles, Square, Type, User, Users, Wrench, Zap } from 'lucide-react';
+import { AlignLeft, BrickWall, Check, ChevronDown, Circle, Cloud, Crown, Eye, EyeOff, Flame, Folder, HelpCircle, Lightbulb, Map, Minus, Mountain, Move, Paintbrush, Pencil, Ruler, Search, Send, Shield, Snowflake, Sparkles, Square, Type, User, Users, Wrench, Zap } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
+import { HelpWindow } from './HelpWindow';
 import { PolygonConfigModal } from './PolygonConfigModal';
 import { TextSpriteTool } from './TextSprite';
 import styles from './ToolsPanel.module.css';
@@ -79,6 +80,7 @@ export function ToolsPanel({ userInfo }: ToolsPanelProps) {
   const [activeTab, setActiveTab] = useState<TabId>('tools');
   const [assetManagerVisible, setAssetManagerVisible] = useState(false);
   const [paintPanelVisible, setPaintPanelVisible] = useState(false);
+  const [showHelp, setShowHelp] = useState(false);
   const [showCombatPanel, setShowCombatPanel] = useState(false);
   const [showInitTracker, setShowInitTracker] = useState(false);
   const oaWarning = useOAStore((s) => s.warningEntityId);
@@ -513,16 +515,14 @@ export function ToolsPanel({ userInfo }: ToolsPanelProps) {
 
           <DiceRoller />
 
-          <div className={styles.gamePanel}>
-            <h3 className={styles.panelTitle}>Controls</h3>
-            <ul className={styles.controlsList}>
-              <li>Click &amp; drag sprites to move</li>
-              <li>Drag empty space to pan camera</li>
-              <li>Mouse wheel to zoom in/out</li>
-              <li>Ctrl+click for multi-select</li>
-              <li>Drag rectangle to area select</li>
-            </ul>
-          </div>
+          <button
+            className={styles.toolButton}
+            onClick={() => setShowHelp(v => !v)}
+            title="Controls & Shortcuts"
+          >
+            <HelpCircle size={14} aria-hidden /> Help
+          </button>
+          {showHelp && <HelpWindow zIndex={2000} onClose={() => setShowHelp(false)} />}
         </div>
       )}
 

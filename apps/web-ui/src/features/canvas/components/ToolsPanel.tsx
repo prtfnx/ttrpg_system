@@ -171,6 +171,18 @@ export function ToolsPanel({ userInfo }: ToolsPanelProps) {
   // eslint-disable-next-line react-hooks/exhaustive-deps -- intentional: cleanup only on unmount with stale-by-design closure
   }, []);
 
+  // Respond to WASM-initiated tool mode changes (e.g. area-select → move)
+  useEffect(() => {
+    const handler = (e: Event) => {
+      const mode = (e as CustomEvent).detail?.mode as string | undefined;
+      if (mode === 'select' || mode === 'move' || mode === 'align') {
+        setActiveTool(mode);
+      }
+    };
+    window.addEventListener('wasm-tool-mode-changed', handler);
+    return () => window.removeEventListener('wasm-tool-mode-changed', handler);
+  }, [setActiveTool]);
+
   useEffect(() => {
     if ((!dynamicLightingEnabled || activeTableId == null) && dmPreviewUserId != null) {
       stopDmPreview(); setDmPreviewMode(null);
@@ -197,7 +209,23 @@ export function ToolsPanel({ userInfo }: ToolsPanelProps) {
         break;
       case 'draw_wall':    window.rustRenderManager.set_input_mode_draw_wall(); break;
       case 'draw_polygon': window.rustRenderManager.set_input_mode_create_polygon(); break;
-      default:             window.rustRenderManager.set_input_mode_select(); break;
+      case 'select':
+        window.rustRenderManager.set_tool_mode?.('select');
+        window.rustRenderManager.set_input_mode_select();
+        break;
+      case 'move':
+        window.rustRenderManager.set_tool_mode?.('move');
+        window.rustRenderManager.set_input_mode_select();
+        break;
+      case 'align':
+        window.rustRenderManager.set_tool_mode?.('align');
+        window.rustRenderManager.align_selected_to_grid?.();
+        window.rustRenderManager.set_input_mode_select();
+        break;
+      default:
+        window.rustRenderManager.set_tool_mode?.('select');
+        window.rustRenderManager.set_input_mode_select();
+        break;
     }
   }, [activeTool, shapeColor, shapeOpacity, shapeFilled]);
 

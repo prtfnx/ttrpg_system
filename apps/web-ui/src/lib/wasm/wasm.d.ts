@@ -215,6 +215,9 @@ export class RenderEngine {
   get_cursor_type(screen_x: number, screen_y: number): string;
   handle_mouse_down(screen_x: number, screen_y: number): void;
   handle_mouse_down_with_ctrl(screen_x: number, screen_y: number, ctrl_pressed: boolean): void;
+  handle_mouse_down_full(screen_x: number, screen_y: number, ctrl_pressed: boolean, alt_pressed: boolean): string | undefined;
+  set_tool_mode(mode: string): void;
+  align_selected_to_grid(): void;
   handle_mouse_move(screen_x: number, screen_y: number): void;
   handle_mouse_up(screen_x: number, screen_y: number): void;
   add_sprite_to_layer(layer_name: string, sprite_data: any): string;

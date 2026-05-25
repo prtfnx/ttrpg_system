@@ -114,11 +114,9 @@
 }
 
 /* State classes — CSS Modules reference stubs for compound selectors */
-/* stylelint-disable block-no-empty */
-.active {}
-.completed {}
-.disabled {}
-/* stylelint-enable block-no-empty */
+.active    { --_: 0; }
+.completed { --_: 0; }
+.disabled  { --_: 0; }
 
 .step-button:hover:not(.disabled) {
   background: var(--wizard-bg-overlay-hover);

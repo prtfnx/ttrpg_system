@@ -1,6 +1,17 @@
 use crate::math::Vec2;
 use crate::types::Sprite;
 
+/// High-level tool selected by the user in the toolbar.
+/// This controls what LMB drag on empty canvas does.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+#[allow(dead_code)]
+pub enum ToolMode {
+    #[default]
+    Select, // LMB drag on empty = rubber-band area select
+    Move,   // LMB drag on empty = camera pan
+    Align,  // Click sprite = snap it to grid immediately
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 #[allow(dead_code)] // Variants constructed via WASM bindings at runtime
 pub enum InputMode {
@@ -42,6 +53,8 @@ pub enum ResizeHandle {
 #[cfg_attr(not(target_arch = "wasm32"), allow(dead_code))]
 pub struct InputHandler {
     pub input_mode: InputMode,
+    pub tool_mode: ToolMode,        // Current toolbar tool
+    pub alt_pressed: bool,          // Alt key held — disables grid snap
     pub last_mouse_screen: Vec2,
     pub selected_sprite_id: Option<String>,
     pub selected_sprite_ids: Vec<String>,  // New: Multiple selection support
@@ -97,6 +110,8 @@ impl Default for InputHandler {
     fn default() -> Self {
         Self {
             input_mode: InputMode::None,
+            tool_mode: ToolMode::Select,
+            alt_pressed: false,
             last_mouse_screen: Vec2::new(0.0, 0.0),
             selected_sprite_id: None,
             selected_sprite_ids: Vec::new(),

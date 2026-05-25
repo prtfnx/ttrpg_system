@@ -7,8 +7,8 @@
   flex-direction: column;
   align-items: center;
   gap: 2px;
-  background: rgba(0, 0, 0, 0.45);
-  border: var(--border-width) solid rgba(255, 255, 255, 0.12);
+  background: var(--overlay-dark-subtle);
+  border: var(--border-width) solid rgb(255 255 255 / 12%);
   border-radius: var(--radius-lg);
   padding: 8px 4px;
   box-shadow: var(--shadow-lg);
@@ -50,7 +50,7 @@
   font-weight: var(--font-semibold);
   color: var(--color-info);
   padding-top: var(--space-xs);
-  border-top: var(--border-width) solid rgba(255, 255, 255, 0.12);
+  border-top: var(--border-width) solid rgb(255 255 255 / 12%);
   margin-top: 2px;
   white-space: nowrap;
   text-align: center;

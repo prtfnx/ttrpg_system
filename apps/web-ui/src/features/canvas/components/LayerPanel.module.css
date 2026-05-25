@@ -274,7 +274,7 @@
   display: flex;
   align-items: center;
   padding: var(--space-xs) var(--space-sm);
-  background: rgba(59, 130, 246, 0.15);
+  background: var(--active-bg-gradient-start);
   border: 1px solid var(--blue-500);
   border-radius: var(--radius-sm);
   margin-bottom: var(--space-sm);

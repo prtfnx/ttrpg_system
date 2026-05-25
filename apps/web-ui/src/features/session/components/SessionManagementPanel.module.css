@@ -83,10 +83,10 @@
 
 .closeBtn {
   padding: var(--space-xs) var(--space-sm);
-  background: rgba(239, 68, 68, 0.1);
-  border: 2px solid #ef4444;
+  background: var(--status-error-bg);
+  border: 2px solid var(--red-500);
   border-radius: var(--radius-sm);
-  color: #ef4444;
+  color: var(--red-500);
   font-size: var(--text-lg);
   font-weight: bold;
   line-height: 1;
@@ -96,10 +96,10 @@
 }
 
 .closeBtn:hover {
-  background: #ef4444;
+  background: var(--color-danger-hover);
   color: white;
   transform: scale(1.1);
-  box-shadow: 0 2px 8px rgba(239, 68, 68, 0.3);
+  box-shadow: var(--shadow-danger);
 }
 
 .inviteBtn {

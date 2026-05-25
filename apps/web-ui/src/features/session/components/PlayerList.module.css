@@ -71,11 +71,11 @@
 }
 
 .status.online {
-  color: #22c55e;
+  color: var(--green-500);
 }
 
 .status.offline {
-  color: #64748b;
+  color: var(--text-muted);
 }
 
 .roleRow {

@@ -293,7 +293,6 @@ const windowManager = useWindowManager();
               </span>
             </div>
             <ToolsPanel userInfo={userInfo} />
-            <button className={styles.collapseBtn} onClick={toggleLeft} title="Collapse panel"><ChevronLeft size={16} aria-hidden /></button>
           </div>
         )}
         
@@ -310,13 +309,13 @@ const windowManager = useWindowManager();
           <ActionEconomyBar />
           <ChatOverlay />
 
-          {/* Panel expand buttons positioned directly in canvas */}
-          {!leftVisible && (
-            <button className={clsx(styles.expandBtn, styles.left)} onClick={toggleLeft} title="Expand panel"><ChevronRight size={16} aria-hidden /></button>
-          )}
-          {!rightVisible && (
-            <button className={clsx(styles.expandBtn, styles.right)} onClick={toggleRight} title="Expand panel"><ChevronLeft size={16} aria-hidden /></button>
-          )}
+          {/* Panel toggle tabs — always in canvasContainer to avoid overflow clipping */}
+          <button className={clsx(styles.panelTab, styles.left)} onClick={toggleLeft} title={leftVisible ? 'Collapse panel' : 'Expand panel'}>
+            {leftVisible ? <ChevronLeft size={12} aria-hidden /> : <ChevronRight size={12} aria-hidden />}
+          </button>
+          <button className={clsx(styles.panelTab, styles.right)} onClick={toggleRight} title={rightVisible ? 'Collapse panel' : 'Expand panel'}>
+            {rightVisible ? <ChevronRight size={12} aria-hidden /> : <ChevronLeft size={12} aria-hidden />}
+          </button>
           
           {/* Other canvas controls */}
           <div className={styles.canvasControls}>
@@ -334,7 +333,6 @@ const windowManager = useWindowManager();
         {rightVisible && (
           <div className={styles.rightPanel} style={{ width: rightWidth }}>
             <RightPanel sessionCode={sessionCode} userInfo={userInfo} userRole={userRole} />
-            <button className={styles.collapseBtn} onClick={toggleRight} title="Collapse panel"><ChevronRight size={16} aria-hidden /></button>
           </div>
         )}
 

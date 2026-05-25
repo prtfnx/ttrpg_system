@@ -12,7 +12,7 @@
   display: flex;
   flex-direction: column;
   background: var(--bg-secondary);
-  border-right: var(--border-width) solid var(--border-primary);
+  border-right: 1px solid var(--border-secondary);
   overflow-y: auto;
   padding: var(--space-lg);
   min-width: 200px;
@@ -24,7 +24,7 @@
   display: flex;
   flex-direction: column;
   background: var(--bg-tertiary);
-  border-left: var(--border-width) solid var(--border-primary);
+  border-left: 1px solid var(--border-secondary);
   min-width: 250px;
   max-width: 600px;
   position: relative;
@@ -50,86 +50,48 @@
   gap: var(--space-sm);
 }
 
-/* Panel Control Buttons - Consistent positioning */
-:root {
-  --panel-btn-size: 32px;
-  --panel-btn-offset: 12px;
-}
-
-.collapseBtn,
-.expandBtn {
-  /* Base button styles */
-  width: var(--panel-btn-size);
-  height: var(--panel-btn-size);
+/* Panel toggle tabs — anchored to canvas edges, always inside canvasContainer */
+.panelTab {
+  width: 18px;
+  height: 52px;
   padding: 0;
-  font-size: var(--text-sm);
   background: var(--bg-elevated);
-  color: var(--text-primary);
-  border: var(--border-width) solid var(--border-primary);
-  border-radius: var(--radius-sm);
+  color: var(--text-secondary);
+  border: 1px solid var(--border-hover);
   cursor: pointer;
-  transition: all 0.2s ease;
+  transition: background var(--transition-fast), color var(--transition-fast), width var(--transition-fast);
   box-shadow: var(--shadow-md);
-  
-  /* Base positioning */
   position: absolute;
-  z-index: 100;
-  
-  /* Center content */
+  z-index: var(--z-sticky);
   display: flex;
   align-items: center;
   justify-content: center;
-}
-
-/* Collapse buttons - centered on panel edges */
-.leftPanel .collapseBtn,
-.rightPanel .collapseBtn {
   top: 50%;
   transform: translateY(-50%);
 }
 
-/* Collapse buttons - attached to panel edges */
-.leftPanel .collapseBtn {
-  right: calc(var(--panel-btn-offset) * -1);
+.panelTab.left {
+  left: 0;
+  border-left: none;
+  border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
+  box-shadow: var(--shadow-panel-left);
 }
 
-.rightPanel .collapseBtn {
-  left: calc(var(--panel-btn-offset) * -1);
+.panelTab.right {
+  right: 0;
+  border-right: none;
+  border-radius: var(--radius-sm) 0 0 var(--radius-sm);
+  box-shadow: var(--shadow-panel-right);
 }
 
-/* Expand buttons - positioned directly within canvas container */
-.canvasContainer .expandBtn.left {
-  left: var(--space-md);
-  top: var(--space-md); /* Position at top instead of center */
-  transform: none; /* Remove center transform */
-}
-
-.canvasContainer .expandBtn.right {
-  right: var(--space-md);
-}
-
-/* Hover states */
-.leftPanel .collapseBtn:hover,
-.rightPanel .collapseBtn:hover {
+.panelTab:hover {
+  width: 24px;
   background: var(--bg-elevated-hover);
-  border-color: var(--border-hover);
-  transform: translateY(-50%) scale(1.05);
+  color: var(--text-primary);
 }
 
-.expandBtn:hover {
-  background: var(--bg-elevated-hover);
-  border-color: var(--border-hover);
-  transform: scale(1.05);
-}
-
-/* Active states */
-.leftPanel .collapseBtn:active,
-.rightPanel .collapseBtn:active {
-  transform: translateY(-50%) scale(0.98);
-}
-
-.expandBtn:active {
-  transform: scale(0.98);
+.panelTab:active {
+  background: var(--border-hover);
 }
 
 .connectionStatus {

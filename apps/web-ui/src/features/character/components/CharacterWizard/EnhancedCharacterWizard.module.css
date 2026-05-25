@@ -113,10 +113,12 @@
   position: relative;
 }
 
-/* State classes — declared standalone for CSS Modules resolution */
+/* State classes — CSS Modules reference stubs for compound selectors */
+/* stylelint-disable block-no-empty */
 .active {}
 .completed {}
 .disabled {}
+/* stylelint-enable block-no-empty */
 
 .step-button:hover:not(.disabled) {
   background: var(--wizard-bg-overlay-hover);

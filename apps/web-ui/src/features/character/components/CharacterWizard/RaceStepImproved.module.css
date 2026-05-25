@@ -88,7 +88,7 @@
 
 .submit-btn {
   background: var(--color-primary);
-  color: var(--button-text, #fff);
+  color: var(--text-primary);
   border: none;
   border-radius: var(--radius-md);
   padding: var(--space-sm) var(--space-lg);

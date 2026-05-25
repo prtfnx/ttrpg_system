@@ -1,8 +1,10 @@
 /* State classes for spell-card-compact compound selectors */
+/* stylelint-disable block-no-empty */
 .selected {}
 .disabled {}
 .expanded {}
-.active {}
+.active   {}
+/* stylelint-enable block-no-empty */
 
 /* Spell Selection Step - D&D Beyond Inspired UI - Refactored with CharacterWizardBase */
 .spell-selection-step {

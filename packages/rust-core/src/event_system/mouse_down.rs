@@ -195,6 +195,7 @@ impl EventSystem {
                     let sprite_top_left = Vec2::new(sprite.world_x as f32, sprite.world_y as f32);
                     input.drag_offset = world_pos - sprite_top_left;
                 }
+                Self::dispatch_cursor_hint("grabbing");
                 return MouseEventResult::Handled;
             }
         }
@@ -230,8 +231,14 @@ impl EventSystem {
             // Default: depends on active tool
             input.clear_selection();
             match input.tool_mode {
-                ToolMode::Select => input.start_area_selection(world_pos),
-                ToolMode::Move | ToolMode::Align => input.input_mode = InputMode::CameraPan,
+                ToolMode::Select | ToolMode::Move => {
+                    if alt_pressed {
+                        input.input_mode = InputMode::CameraPan;
+                    } else {
+                        input.start_area_selection(world_pos);
+                    }
+                }
+                ToolMode::Align => input.input_mode = InputMode::CameraPan,
             }
         }
         MouseEventResult::Handled

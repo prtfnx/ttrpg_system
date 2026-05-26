@@ -70,6 +70,7 @@ impl EventSystem {
     }
 
     /// Tell React to switch to a specific tool mode after an automatic transition (e.g. area-select → move).
+    #[allow(dead_code)]
     pub(crate) fn dispatch_tool_mode_changed(mode: &str) {
         let Some(window) = web_sys::window() else { return };
         let detail = js_sys::Object::new();
@@ -77,6 +78,18 @@ impl EventSystem {
         let event_init = web_sys::CustomEventInit::new();
         event_init.set_detail(&detail);
         if let Ok(event) = web_sys::CustomEvent::new_with_event_init_dict("wasm-tool-mode-changed", &event_init) {
+            window.dispatch_event(&event).ok();
+        }
+    }
+
+    /// Tell React to change the canvas cursor (e.g. "pointer", "grab", "grabbing", "default").
+    pub(crate) fn dispatch_cursor_hint(cursor: &str) {
+        let Some(window) = web_sys::window() else { return };
+        let detail = js_sys::Object::new();
+        js_sys::Reflect::set(&detail, &"cursor".into(), &JsValue::from_str(cursor)).ok();
+        let event_init = web_sys::CustomEventInit::new();
+        event_init.set_detail(&detail);
+        if let Ok(event) = web_sys::CustomEvent::new_with_event_init_dict("wasm-cursor-hint", &event_init) {
             window.dispatch_event(&event).ok();
         }
     }

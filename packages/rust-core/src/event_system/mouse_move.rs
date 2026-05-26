@@ -1,6 +1,6 @@
 use crate::math::Vec2;
 use crate::types::Layer;
-use crate::input::{InputHandler, InputMode};
+use crate::input::{InputHandler, InputMode, ToolMode};
 use crate::sprite_manager::SpriteManager;
 use crate::lighting::LightingSystem;
 use crate::wall_manager::WallManager;
@@ -127,7 +127,21 @@ impl EventSystem {
                 input.area_select_current = Some(world_pos);
                 MouseEventResult::Handled
             }
-            _ => MouseEventResult::None
+            _ => {
+                // Hover detection: dispatch cursor hint when in unified select/move mode
+                if matches!(input.tool_mode, ToolMode::Select | ToolMode::Move)
+                    && matches!(input.input_mode, InputMode::None)
+                {
+                    // Check all visible layers for a hovered sprite
+                    let hovered = layers.values().any(|layer| {
+                        layer.visible() && layer.selectable
+                            && layer.sprites.iter().any(|s| s.contains_world_point(world_pos))
+                    });
+                    let cursor = if hovered { "pointer" } else { "default" };
+                    Self::dispatch_cursor_hint(cursor);
+                }
+                MouseEventResult::None
+            }
         }
     }
 }

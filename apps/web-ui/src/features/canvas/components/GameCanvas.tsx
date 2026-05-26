@@ -814,6 +814,18 @@ export const GameCanvas: React.FC = () => {
     }
  }, [updateDebugOverlay]);
 
+  // Apply cursor hints dispatched from WASM (hover/drag feedback)
+  React.useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const handler = (e: Event) => {
+      const cursor = (e as CustomEvent).detail?.cursor as string | undefined;
+      if (cursor) canvas.style.cursor = cursor;
+    };
+    window.addEventListener('wasm-cursor-hint', handler);
+    return () => window.removeEventListener('wasm-cursor-hint', handler);
+  }, []);
+
   return (
     <DragDropImageHandler>
       <div className={styles.gameCanvasContainer} style={{ position: 'relative' }}>

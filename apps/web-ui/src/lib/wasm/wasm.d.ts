@@ -220,6 +220,7 @@ export class RenderEngine {
   set_tool_mode(mode: string): void;
   align_selected_to_grid(): void;
   handle_mouse_move(screen_x: number, screen_y: number): void;
+  set_alt_pressed(alt: boolean): void;
   handle_mouse_up(screen_x: number, screen_y: number): void;
   add_sprite_to_layer(layer_name: string, sprite_data: any): string;
   remove_sprite(sprite_id: string): boolean;

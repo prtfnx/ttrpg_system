@@ -173,6 +173,11 @@ impl RenderEngine {
     }
     
     #[wasm_bindgen]
+    pub fn set_alt_pressed(&mut self, alt: bool) {
+        self.input.alt_pressed = alt;
+    }
+
+    #[wasm_bindgen]
     pub fn handle_mouse_up(&mut self, screen_x: f32, screen_y: f32) {
         let world_pos = self.camera.screen_to_world(Vec2::new(screen_x, screen_y));
         

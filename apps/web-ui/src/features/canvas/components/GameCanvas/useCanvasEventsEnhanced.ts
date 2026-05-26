@@ -278,6 +278,7 @@ export const useCanvasEventsEnhanced = ({
       if (!canvas || !renderManager) return;
 
       const { x, y } = getRelativeCoords(e, canvas);
+      renderManager.set_alt_pressed?.(e.altKey);
       renderManager.handle_mouse_up(x, y);
       const cursorType = renderManager.get_cursor_type(x, y) ?? 'default';
       canvas.style.cursor = cursorType;

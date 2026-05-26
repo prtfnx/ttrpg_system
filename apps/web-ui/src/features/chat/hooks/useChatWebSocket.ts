@@ -37,8 +37,23 @@ export function useChatWebSocket(url: string, user: string) {
         tooltip,
       });
     };
+    const onRollError = (e: Event) => {
+      const d = (e as CustomEvent).detail ?? {};
+      const msg = d.error || d.message || 'Roll failed — no response from server.';
+      useChatStore.getState().addMessage({
+        id: Math.random().toString(36).slice(2),
+        user: '⚠',
+        text: `Server error: ${msg}`,
+        timestamp: Date.now(),
+      });
+    };
+
     window.addEventListener('character-roll-result', onRoll);
-    return () => window.removeEventListener('character-roll-result', onRoll);
+    window.addEventListener('protocol-error', onRollError);
+    return () => {
+      window.removeEventListener('character-roll-result', onRoll);
+      window.removeEventListener('protocol-error', onRollError);
+    };
   }, []);
 
   useEffect(() => {

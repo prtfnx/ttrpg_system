@@ -517,12 +517,15 @@ export class SpriteSyncService {
       texture_id: assetId || '',
       tint_color: spriteData.tint_color || [1.0, 1.0, 1.0, 1.0],
       table_id: spriteData.table_id || 'default_table',
-      // controlled_by is stored as a JSON array string by server; parse if needed.
-      controlled_by: Array.isArray(spriteData.controlled_by)
-        ? spriteData.controlled_by
-        : (typeof spriteData.controlled_by === 'string'
-            ? (() => { try { return JSON.parse(spriteData.controlled_by); } catch { return []; } })()
-            : []),
+      // controlled_by: normalize to number[] — server may send string IDs
+      controlled_by: (() => {
+        const raw = Array.isArray(spriteData.controlled_by)
+          ? spriteData.controlled_by
+          : (typeof spriteData.controlled_by === 'string'
+              ? (() => { try { return JSON.parse(spriteData.controlled_by); } catch { return []; } })()
+              : []);
+        return (raw as unknown[]).map(v => Number(v)).filter(v => Number.isFinite(v));
+      })(),
       obstacle_type: spriteData.obstacle_type || null,
       polygon_vertices: spriteData.polygon_vertices ?? spriteData.obstacle_data?.vertices ?? null,
     };

@@ -75,12 +75,12 @@ class Entity:
                 controlled_by = json.loads(controlled_by)
             except Exception:
                 controlled_by = []
-        self.controlled_by = controlled_by if controlled_by is not None else []
+        self.controlled_by = [int(x) for x in (controlled_by or []) if x is not None]
 
-        # Token stats
-        self.hp = hp
-        self.max_hp = max_hp
-        self.ac = ac
+        # Token stats — coerce to int to avoid sending string values to WASM
+        self.hp = int(hp) if hp is not None else None
+        self.max_hp = int(max_hp) if max_hp is not None else None
+        self.ac = int(ac) if ac is not None else None
         self.aura_radius = aura_radius
         self.aura_color = aura_color  # hex string e.g. '#ffaa00' (JSON string, opaque to server — used by lights etc.)
         self.metadata = metadata

@@ -59,6 +59,8 @@ export const useCanvasEventsEnhanced = ({
   const selectedSpriteIdsRef = useRef<string[]>([]);
   const lastMousePosRef = useRef({ x: 0, y: 0 });
   const clipboardRef = useRef<string | null>(null);
+  // Tracks where right-mousedown started (for drag detection to suppress context menu)
+  const rightDownPosRef = useRef<{ x: number; y: number } | null>(null);
 
   // Update input context when selection changes
   const updateInputContext = useCallback(() => {
@@ -225,6 +227,19 @@ export const useCanvasEventsEnhanced = ({
 
       if (renderManager) {
         const { x, y } = getRelativeCoords(e, canvas);
+
+        // Middle (1) or right (2) button — always camera pan, don't route to WASM selection logic
+        if (e.button === 1 || e.button === 2) {
+          if (renderManager.start_camera_pan) {
+            renderManager.start_camera_pan(x, y);
+          }
+          if (e.button === 2) {
+            rightDownPosRef.current = { x: e.clientX, y: e.clientY };
+          }
+          canvas.style.cursor = 'grabbing';
+          return;
+        }
+
         if (renderManager.handle_mouse_down_full) {
           renderManager.handle_mouse_down_full(x, y, e.ctrlKey, e.altKey);
         } else {
@@ -250,7 +265,8 @@ export const useCanvasEventsEnhanced = ({
       renderManager.handle_mouse_move(x, y);
 
       const cursorType = renderManager.get_cursor_type(x, y) ?? 'default';
-      canvas.style.cursor = (e.buttons & 1) && cursorType === 'default' ? 'grabbing' : cursorType;
+      const isDragging = (e.buttons & 7) !== 0; // any mouse button held
+      canvas.style.cursor = isDragging && cursorType === 'default' ? 'grabbing' : cursorType;
     },
     [canvasRef, rustRenderManagerRef]
   );
@@ -289,6 +305,15 @@ export const useCanvasEventsEnhanced = ({
       if (!canvas || !renderManager) return;
 
       e.preventDefault();
+
+      // Suppress context menu if right button was dragged significantly
+      if (rightDownPosRef.current) {
+        const dx = e.clientX - rightDownPosRef.current.x;
+        const dy = e.clientY - rightDownPosRef.current.y;
+        rightDownPosRef.current = null;
+        if (Math.hypot(dx, dy) > 5) return;
+      }
+
       const { x, y } = getRelativeCoords(e, canvas);
       const clickedSpriteId = renderManager.handle_right_click(x, y);
       

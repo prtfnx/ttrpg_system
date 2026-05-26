@@ -123,6 +123,10 @@ impl EventSystem {
                 input.update_polygon_cursor(world_pos);
                 MouseEventResult::Handled
             }
+            InputMode::AreaSelect => {
+                input.area_select_current = Some(world_pos);
+                MouseEventResult::Handled
+            }
             _ => MouseEventResult::None
         }
     }

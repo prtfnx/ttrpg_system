@@ -66,6 +66,13 @@ impl RenderEngine {
         self.handle_mouse_down_internal(screen_x, screen_y, ctrl_pressed, alt_pressed);
         self.input.selected_sprite_id.clone()
     }
+
+    /// Start camera pan mode for middle/right mouse button drag.
+    #[wasm_bindgen]
+    pub fn start_camera_pan(&mut self, screen_x: f32, screen_y: f32) {
+        self.input.last_mouse_screen = Vec2::new(screen_x, screen_y);
+        self.input.input_mode = InputMode::CameraPan;
+    }
     
     fn handle_mouse_down_internal(&mut self, screen_x: f32, screen_y: f32, ctrl_pressed: bool, alt_pressed: bool) {
         let world_pos = self.camera.screen_to_world(Vec2::new(screen_x, screen_y));

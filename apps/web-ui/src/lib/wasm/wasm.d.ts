@@ -216,6 +216,7 @@ export class RenderEngine {
   handle_mouse_down(screen_x: number, screen_y: number): void;
   handle_mouse_down_with_ctrl(screen_x: number, screen_y: number, ctrl_pressed: boolean): void;
   handle_mouse_down_full(screen_x: number, screen_y: number, ctrl_pressed: boolean, alt_pressed: boolean): string | undefined;
+  start_camera_pan(screen_x: number, screen_y: number): void;
   set_tool_mode(mode: string): void;
   align_selected_to_grid(): void;
   handle_mouse_move(screen_x: number, screen_y: number): void;

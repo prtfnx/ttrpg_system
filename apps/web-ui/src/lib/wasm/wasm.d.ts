@@ -224,6 +224,7 @@ export class RenderEngine {
   handle_mouse_up(screen_x: number, screen_y: number): void;
   add_sprite_to_layer(layer_name: string, sprite_data: any): string;
   remove_sprite(sprite_id: string): boolean;
+  move_sprite_to_layer(sprite_id: string, new_layer: string): boolean;
   rotate_sprite(sprite_id: string, rotation_degrees: number): boolean;
   toggle_grid(): void;
   set_grid_enabled(enabled: boolean): void;

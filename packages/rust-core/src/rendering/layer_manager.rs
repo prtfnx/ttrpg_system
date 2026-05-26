@@ -127,7 +127,26 @@ impl LayerManager {
         }
         false
     }
-    
+
+    pub fn move_sprite_to_layer(&mut self, sprite_id: &str, new_layer: &str) -> bool {
+        let mut found: Option<Sprite> = None;
+        for layer in self.layers.values_mut() {
+            if let Some(idx) = layer.sprites.iter().position(|s| s.id == sprite_id) {
+                let mut s = layer.sprites.remove(idx);
+                s.layer = new_layer.to_string();
+                found = Some(s);
+                break;
+            }
+        }
+        let Some(sprite) = found else { return false; };
+        if let Some(layer) = self.layers.get_mut(new_layer) {
+            layer.sprites.push(sprite);
+            true
+        } else {
+            false
+        }
+    }
+
     pub fn find_sprite(&self, sprite_id: &str) -> Option<(&Sprite, &str)> {
         for (layer_name, layer) in &self.layers {
             if let Some(sprite) = layer.sprites.iter().find(|s| s.id == sprite_id) {

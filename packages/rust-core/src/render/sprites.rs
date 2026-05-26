@@ -26,6 +26,14 @@ impl RenderEngine {
         }
         result
     }
+
+    #[wasm_bindgen]
+    pub fn move_sprite_to_layer(&mut self, sprite_id: &str, new_layer: &str) -> bool {
+        let result = self.layer_manager.move_sprite_to_layer(sprite_id, new_layer);
+        if result && new_layer == "obstacles" { self.obstacles_dirty = true; }
+        result
+    }
+
     
     #[wasm_bindgen]
     pub fn rotate_sprite(&mut self, sprite_id: &str, rotation_degrees: f64) -> bool {

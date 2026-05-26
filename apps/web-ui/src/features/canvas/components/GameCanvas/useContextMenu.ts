@@ -136,21 +136,17 @@ export const useContextMenu = ({ canvasRef, rustRenderManagerRef, protocol }: Us
       const { updateSprite } = useGameStore.getState();
 
       try {
-        const renderEngine = rustRenderManagerRef.current as RenderEngine & { move_sprite_to_layer_action?: (id: string, layer: string) => unknown };
-        if (renderEngine.move_sprite_to_layer_action) {
-          const result = renderEngine.move_sprite_to_layer_action(contextMenu.spriteId, layerId);
-          console.log(` GameCanvas: Moved sprite ${contextMenu.spriteId} to layer ${layerId}`, result);
-
+        const renderEngine = rustRenderManagerRef.current as RenderEngine;
+        const moved = renderEngine.move_sprite_to_layer(contextMenu.spriteId, layerId);
+        if (moved) {
           updateSprite(contextMenu.spriteId, { layer: layerId });
-          console.log(` GameCanvas: Updated sprite ${contextMenu.spriteId} layer in store to ${layerId}`);
-
           window.dispatchEvent(
             new CustomEvent('spriteLayerChanged', {
               detail: { spriteId: contextMenu.spriteId, layer: layerId },
             })
           );
         } else {
-          console.warn(' GameCanvas: move_sprite_to_layer_action not available in WASM');
+          console.warn('GameCanvas: move_sprite_to_layer returned false');
         }
       } catch (error) {
         console.error(' GameCanvas: Failed to move sprite to layer:', error);

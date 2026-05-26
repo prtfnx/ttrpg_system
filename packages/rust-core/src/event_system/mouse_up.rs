@@ -88,6 +88,11 @@ impl EventSystem {
                 let sprite_id_opt = input.selected_sprite_id.clone();
                 let current_input_mode = input.input_mode;
                 let snap = !input.alt_pressed && grid_cell_px > 0.0;
+                // Collect other selected sprites before mutably borrowing layers
+                let other_selected: Vec<String> = input.selected_sprite_ids.iter()
+                    .filter(|id| Some(*id) != sprite_id_opt.as_ref())
+                    .cloned()
+                    .collect();
                 
                 web_sys::console::log_1(&format!("[RUST EVENT] Mouse up in mode: {:?}, sprite: {:?}", current_input_mode, sprite_id_opt).into());
                 
@@ -150,7 +155,24 @@ impl EventSystem {
                 if let Some(sprite_id) = &sprite_id_opt {
                     self.notify_operation_complete(current_input_mode, sprite_id, layers);
                 }
-                
+
+                // Snap and notify all other selected sprites (SpriteMove only)
+                if matches!(current_input_mode, InputMode::SpriteMove) {
+                    if snap {
+                        let cell = grid_cell_px as f64;
+                        for other_id in &other_selected {
+                            if let Some((sprite, _)) = Self::find_sprite_mut(other_id, layers) {
+                                sprite.world_x = (sprite.world_x / cell).round() * cell;
+                                sprite.world_y = (sprite.world_y / cell).round() * cell;
+                                Self::dispatch_drag_preview(other_id, sprite.world_x, sprite.world_y);
+                            }
+                        }
+                    }
+                    for other_id in &other_selected {
+                        self.notify_operation_complete(current_input_mode, other_id, layers);
+                    }
+                }
+
                 input.input_mode = InputMode::None;
                 MouseEventResult::Handled
             }

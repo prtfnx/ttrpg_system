@@ -25,22 +25,40 @@ impl EventSystem {
         
         match input.input_mode {
             InputMode::SpriteMove => {
-                if let Some(sprite_id) = &input.selected_sprite_id {
-                    if let Some((sprite, _layer_name)) = Self::find_sprite_mut(sprite_id, layers) {
-                        let old_pos = Vec2::new(sprite.world_x as f32, sprite.world_y as f32);
-                        let new_pos = world_pos - input.drag_offset;
-                        let delta = new_pos - old_pos;
-                        if sprite.obstacle_type.as_deref() == Some("polygon") {
-                            if let Some(verts) = &mut sprite.polygon_vertices {
-                                for v in verts.iter_mut() {
-                                    v[0] += delta.x;
-                                    v[1] += delta.y;
-                                }
-                            }
+                let sprite_id = match input.selected_sprite_id.clone() {
+                    Some(id) => id,
+                    None => return MouseEventResult::Handled,
+                };
+                let new_pos = world_pos - input.drag_offset;
+                // Collect other selected IDs before mutably borrowing layers
+                let others: Vec<String> = input.selected_sprite_ids.iter()
+                    .filter(|id| *id != &sprite_id)
+                    .cloned()
+                    .collect();
+
+                // Move primary sprite and compute delta
+                let delta = if let Some((sprite, _)) = Self::find_sprite_mut(&sprite_id, layers) {
+                    let old_pos = Vec2::new(sprite.world_x as f32, sprite.world_y as f32);
+                    let d = new_pos - old_pos;
+                    if sprite.obstacle_type.as_deref() == Some("polygon") {
+                        if let Some(verts) = &mut sprite.polygon_vertices {
+                            for v in verts.iter_mut() { v[0] += d.x; v[1] += d.y; }
                         }
-                        sprite.world_x = new_pos.x as f64;
-                        sprite.world_y = new_pos.y as f64;
-                        Self::dispatch_drag_preview(sprite_id, sprite.world_x, sprite.world_y);
+                    }
+                    sprite.world_x = new_pos.x as f64;
+                    sprite.world_y = new_pos.y as f64;
+                    Self::dispatch_drag_preview(&sprite_id, sprite.world_x, sprite.world_y);
+                    d
+                } else {
+                    Vec2::new(0.0, 0.0)
+                };
+
+                // Apply same delta to all other selected sprites
+                for other_id in &others {
+                    if let Some((sprite, _)) = Self::find_sprite_mut(other_id, layers) {
+                        sprite.world_x += delta.x as f64;
+                        sprite.world_y += delta.y as f64;
+                        Self::dispatch_drag_preview(other_id, sprite.world_x, sprite.world_y);
                     }
                 }
                 MouseEventResult::Handled

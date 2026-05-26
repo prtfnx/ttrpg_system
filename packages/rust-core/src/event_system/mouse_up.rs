@@ -29,13 +29,7 @@ impl EventSystem {
                 if let Some((min, max)) = input.get_area_selection_rect() {
                     Self::select_sprites_in_area(min, max, input, layers, active_layer);
                 }
-                let had_selection = !input.selected_sprite_ids.is_empty();
                 input.finish_area_selection();
-                // After area-select with sprites captured, auto-switch to Move tool
-                if had_selection {
-                    input.tool_mode = crate::input::ToolMode::Move;
-                    Self::dispatch_tool_mode_changed("move");
-                }
                 MouseEventResult::Handled
             }
             InputMode::LightDrag => {
@@ -143,8 +137,8 @@ impl EventSystem {
                                     sprite.height = new_h / sprite.scale_y;
                                 }
                                 InputMode::SpriteRotate => {
-                                    let half_pi = std::f64::consts::FRAC_PI_2;
-                                    sprite.rotation = (sprite.rotation / half_pi).round() * half_pi;
+                                    let quarter_pi = std::f64::consts::FRAC_PI_4; // snap to 45°
+                                    sprite.rotation = (sprite.rotation / quarter_pi).round() * quarter_pi;
                                 }
                                 _ => {}
                             }
@@ -174,6 +168,7 @@ impl EventSystem {
                 }
 
                 input.input_mode = InputMode::None;
+                Self::dispatch_cursor_hint("pointer"); // back to hover cursor after drag
                 MouseEventResult::Handled
             }
             InputMode::Measurement => {

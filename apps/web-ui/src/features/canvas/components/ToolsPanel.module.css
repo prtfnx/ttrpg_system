@@ -293,14 +293,13 @@
 }
 
 .active {
-  composes: panel-button primary from '@shared/styles/PanelBase.module.css';
+  composes: panel-button from '@shared/styles/PanelBase.module.css';
   display: flex;
   align-items: center;
   justify-content: center;
   gap: var(--space-xs);
   padding: var(--space-md) var(--space-sm);
   font-size: var(--text-sm);
-  /* Explicitly override secondary cascade — secondary is defined later in PanelBase */
   background: var(--button-primary-bg);
   color: var(--button-primary-text);
   border-color: var(--button-primary-border);

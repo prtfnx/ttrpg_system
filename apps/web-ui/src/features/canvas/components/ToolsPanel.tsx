@@ -12,7 +12,7 @@ import { isDM, isElevated } from '@features/session/types/roles';
 import { ProtocolService } from '@lib/api';
 import { AlignmentHelper } from '@shared/components';
 import DiceRoller from '@shared/components/DiceRoller';
-import { AlignLeft, BrickWall, Check, ChevronDown, Circle, Cloud, Crown, Eye, EyeOff, Flame, Folder, HelpCircle, Lightbulb, Map, Minus, Mountain, Move, Paintbrush, Pencil, Ruler, Search, Send, Shield, Snowflake, Sparkles, Square, Type, User, Users, Wrench, Zap } from 'lucide-react';
+import { AlignLeft, BrickWall, Check, ChevronDown, Circle, Cloud, Crown, Eye, EyeOff, Flame, Folder, HelpCircle, Lightbulb, Map, Minus, Mountain, Paintbrush, Pencil, Ruler, Search, Send, Shield, Snowflake, Sparkles, Square, Type, User, Users, Wrench, Zap } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import { HelpWindow } from './HelpWindow';
 import { PolygonConfigModal } from './PolygonConfigModal';
@@ -306,11 +306,8 @@ export function ToolsPanel({ userInfo }: ToolsPanelProps) {
 
           {/* Primary toolbar */}
           <div className={styles.toolbar}>
-            <button className={`${styles.toolButton} ${activeTool === 'select' ? styles.active : ''}`} onClick={() => setActiveTool('select')} title="Select Tool">
+            <button className={`${styles.toolButton} ${activeTool === 'select' || activeTool === 'move' ? styles.active : ''}`} onClick={() => setActiveTool('select')} title="Select / Move (drag token to move, drag empty = box select)">
               <Search size={14} aria-hidden /> Select
-            </button>
-            <button className={`${styles.toolButton} ${activeTool === 'move' ? styles.active : ''}`} onClick={() => setActiveTool('move')} title="Move Tool">
-              <Move size={14} aria-hidden /> Move
             </button>
             <button className={`${styles.toolButton} ${activeTool === 'measure' ? styles.active : ''}`} onClick={() => setActiveTool('measure')} title="Measurement Tool">
               <Ruler size={14} aria-hidden /> Measure

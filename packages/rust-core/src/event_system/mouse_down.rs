@@ -130,8 +130,16 @@ impl EventSystem {
             }
         }
 
-        // Auto wall-drag when active layer is "obstacles"
+        // Auto wall interaction when active layer is "obstacles"
         if active_layer == "obstacles" && !ctrl_pressed {
+            // Endpoint drag takes priority (12px), then full-wall drag (15px)
+            if let Some((wall_id, endpoint)) = wall_manager.find_endpoint_at(world_pos.x, world_pos.y, 12.0) {
+                input.input_mode = InputMode::WallEndpointDrag;
+                input.dragged_wall_id = Some(wall_id);
+                input.dragged_endpoint = endpoint;
+                input.wall_drag_last = world_pos;
+                return MouseEventResult::Handled;
+            }
             if let Some(wall_id) = wall_manager.find_wall_at(world_pos.x, world_pos.y, 15.0) {
                 input.input_mode = InputMode::WallDrag;
                 input.dragged_wall_id = Some(wall_id);

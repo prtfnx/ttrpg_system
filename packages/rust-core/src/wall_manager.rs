@@ -150,6 +150,38 @@ impl WallManager {
         self.walls.get(wall_id).map(|w| (w.x1, w.y1, w.x2, w.y2))
     }
 
+    /// Find the closest wall endpoint (p1 or p2) within `threshold` px.
+    /// Returns `(wall_id, endpoint)` where endpoint is 0 for p1, 1 for p2.
+    pub fn find_endpoint_at(&self, px: f32, py: f32, threshold: f32) -> Option<(String, u8)> {
+        let mut best: Option<(String, u8)> = None;
+        let mut best_dist = threshold;
+        for wall in self.walls.values() {
+            let d1 = ((px - wall.x1).powi(2) + (py - wall.y1).powi(2)).sqrt();
+            if d1 < best_dist {
+                best_dist = d1;
+                best = Some((wall.wall_id.clone(), 0));
+            }
+            let d2 = ((px - wall.x2).powi(2) + (py - wall.y2).powi(2)).sqrt();
+            if d2 < best_dist {
+                best_dist = d2;
+                best = Some((wall.wall_id.clone(), 1));
+            }
+        }
+        best
+    }
+
+    /// Move a single endpoint of a wall.
+    /// `endpoint` 0 = p1, 1 = p2.
+    pub fn move_endpoint(&mut self, wall_id: &str, endpoint: u8, x: f32, y: f32) -> bool {
+        if let Some(wall) = self.walls.get_mut(wall_id) {
+            if endpoint == 0 { wall.x1 = x; wall.y1 = y; }
+            else              { wall.x2 = x; wall.y2 = y; }
+            true
+        } else {
+            false
+        }
+    }
+
     /// Translate a wall by (dx, dy).
     pub fn translate_wall(&mut self, wall_id: &str, dx: f32, dy: f32) -> bool {
         if let Some(wall) = self.walls.get_mut(wall_id) {
@@ -381,5 +413,55 @@ mod tests {
         wm.clear();
         assert_eq!(wm.count(), 0);
         assert!(wm.get_light_blocking_segments().is_empty());
+    }
+
+    #[test]
+    fn find_endpoint_at_hits_p1() {
+        let mut wm = WallManager::new();
+        wm.add_wall(make_wall("w1", 0.0, 0.0, 100.0, 0.0));
+        let hit = wm.find_endpoint_at(1.0, 1.0, 12.0);
+        assert!(hit.is_some());
+        let (id, ep) = hit.unwrap();
+        assert_eq!(id, "w1");
+        assert_eq!(ep, 0);
+    }
+
+    #[test]
+    fn find_endpoint_at_hits_p2() {
+        let mut wm = WallManager::new();
+        wm.add_wall(make_wall("w1", 0.0, 0.0, 100.0, 0.0));
+        let hit = wm.find_endpoint_at(99.0, 1.0, 12.0);
+        assert!(hit.is_some());
+        let (_, ep) = hit.unwrap();
+        assert_eq!(ep, 1);
+    }
+
+    #[test]
+    fn find_endpoint_at_outside_threshold_returns_none() {
+        let mut wm = WallManager::new();
+        wm.add_wall(make_wall("w1", 0.0, 0.0, 100.0, 0.0));
+        assert!(wm.find_endpoint_at(50.0, 0.0, 12.0).is_none());
+    }
+
+    #[test]
+    fn move_endpoint_updates_p1() {
+        let mut wm = WallManager::new();
+        wm.add_wall(make_wall("w1", 0.0, 0.0, 10.0, 10.0));
+        assert!(wm.move_endpoint("w1", 0, 5.0, 5.0));
+        assert_eq!(wm.get_wall_endpoints("w1"), Some((5.0, 5.0, 10.0, 10.0)));
+    }
+
+    #[test]
+    fn move_endpoint_updates_p2() {
+        let mut wm = WallManager::new();
+        wm.add_wall(make_wall("w1", 0.0, 0.0, 10.0, 10.0));
+        assert!(wm.move_endpoint("w1", 1, 20.0, 20.0));
+        assert_eq!(wm.get_wall_endpoints("w1"), Some((0.0, 0.0, 20.0, 20.0)));
+    }
+
+    #[test]
+    fn move_endpoint_missing_wall_returns_false() {
+        let mut wm = WallManager::new();
+        assert!(!wm.move_endpoint("nope", 0, 0.0, 0.0));
     }
 }

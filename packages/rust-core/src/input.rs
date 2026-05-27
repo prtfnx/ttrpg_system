@@ -32,7 +32,8 @@ pub enum InputMode {
     Paint,          // New: Paint/brush tool
     DrawWall,       // New: Draw wall segment (two-click placement)
     CreatePolygon,  // New: Create polygon obstacle (multi-click, close-on-first-vertex)
-    WallDrag,       // Dragging an existing wall to a new position
+    WallDrag,           // Dragging an existing wall to a new position
+    WallEndpointDrag,  // Dragging a single wall endpoint
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -97,6 +98,8 @@ pub struct InputHandler {
     // Wall drag state
     pub dragged_wall_id: Option<String>,
     pub wall_drag_last: Vec2,
+    // Wall endpoint drag state (0 = p1, 1 = p2)
+    pub dragged_endpoint: u8,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -138,6 +141,7 @@ impl Default for InputHandler {
             polygon_cursor: None,
             dragged_wall_id: None,
             wall_drag_last: Vec2::new(0.0, 0.0),
+            dragged_endpoint: 0,
         }
     }
 }

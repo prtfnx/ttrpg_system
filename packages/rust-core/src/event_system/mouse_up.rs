@@ -53,6 +53,15 @@ impl EventSystem {
                 input.input_mode = InputMode::None;
                 MouseEventResult::Handled
             }
+            InputMode::WallEndpointDrag => {
+                if let Some(wall_id) = input.dragged_wall_id.take() {
+                    if let Some((x1, y1, x2, y2)) = wall_manager.get_wall_endpoints(&wall_id) {
+                        Self::dispatch_wall_moved(&wall_id, x1, y1, x2, y2);
+                    }
+                }
+                input.input_mode = InputMode::None;
+                MouseEventResult::Handled
+            }
             InputMode::FogDraw | InputMode::FogErase => {
                 if let Some((start, end, mode)) = input.end_fog_draw() {
                     let fog_mode = match mode {

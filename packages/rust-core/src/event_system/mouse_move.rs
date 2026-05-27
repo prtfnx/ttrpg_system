@@ -102,6 +102,13 @@ impl EventSystem {
                 input.wall_drag_last = world_pos;
                 MouseEventResult::Handled
             }
+            InputMode::WallEndpointDrag => {
+                if let Some(ref wall_id) = input.dragged_wall_id {
+                    wall_manager.move_endpoint(wall_id, input.dragged_endpoint, world_pos.x, world_pos.y);
+                }
+                input.wall_drag_last = world_pos;
+                MouseEventResult::Handled
+            }
             InputMode::FogDraw | InputMode::FogErase => {
                 input.update_fog_draw(world_pos);
                 MouseEventResult::Handled

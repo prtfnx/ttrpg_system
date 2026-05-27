@@ -93,12 +93,24 @@ impl RenderEngine {
         };
         let aura_color = sprite_data.aura_color.clone();
 
+        // Extract polygon vertices from obstacle_data if obstacle_type is "polygon"
+        let polygon_vertices: Option<Vec<[f32; 2]>> = if sprite_data.obstacle_type.as_deref() == Some("polygon") {
+            sprite_data.obstacle_data.as_ref()
+                .and_then(|d| d.get("vertices"))
+                .and_then(|v| serde_json::from_value::<Vec<[f32; 2]>>(v.clone()).ok())
+        } else {
+            None
+        };
+
+        let width = if sprite_data.width > 0.0 { sprite_data.width } else { 50.0 };
+        let height = if sprite_data.height > 0.0 { sprite_data.height } else { 50.0 };
+
         let sprite = Sprite {
             id: sprite_data.sprite_id.clone(),
             world_x: sprite_data.coord_x,
             world_y: sprite_data.coord_y,
-            width: 50.0,
-            height: 50.0,
+            width,
+            height,
             scale_x: sprite_data.scale_x,
             scale_y: sprite_data.scale_y,
             rotation: sprite_data.rotation.unwrap_or(0.0),
@@ -117,8 +129,8 @@ impl RenderEngine {
             text_content: None,
             text_size: None,
             text_color: None,
-            obstacle_type: None,
-            polygon_vertices: None,
+            obstacle_type: sprite_data.obstacle_type.clone(),
+            polygon_vertices,
         };
 
         let sprite_js = serde_wasm_bindgen::to_value(&sprite)?;

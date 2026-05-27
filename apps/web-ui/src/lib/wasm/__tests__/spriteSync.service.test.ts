@@ -103,10 +103,23 @@ describe('SpriteSyncService', () => {
       expect(engine.add_fog_rectangle).toHaveBeenCalledWith('f2', 5, 5, 55, 55, 'reveal');
     });
 
-    it('routes polygon obstacle to create_polygon_sprite', () => {
+    it('routes polygon obstacle to add_sprite_to_layer with obstacle_type and normalized vertices', () => {
       const verts = [{ x: 0, y: 0 }, { x: 10, y: 0 }, { x: 5, y: 10 }];
-      service.addSpriteToWasm({ obstacle_type: 'polygon', polygon_vertices: verts });
-      expect(engine.create_polygon_sprite).toHaveBeenCalled();
+      service.addSpriteToWasm({ obstacle_type: 'polygon', polygon_vertices: verts, sprite_id: 'poly1', table_id: 'tbl1' });
+      expect(engine.add_sprite_to_layer).toHaveBeenCalledWith(
+        expect.any(String),
+        expect.objectContaining({ id: 'poly1', obstacle_type: 'polygon', polygon_vertices: [[0, 0], [10, 0], [5, 10]] }),
+      );
+    });
+
+    it('routes polygon obstacle with server array-format vertices correctly', () => {
+      // Server sends obstacle_data.vertices as [[x,y]] arrays, not {x,y} objects
+      const arrayVerts = [[0, 0], [10, 0], [5, 10]];
+      service.addSpriteToWasm({ obstacle_type: 'polygon', obstacle_data: { vertices: arrayVerts as never }, sprite_id: 'poly2' });
+      expect(engine.add_sprite_to_layer).toHaveBeenCalledWith(
+        expect.any(String),
+        expect.objectContaining({ id: 'poly2', obstacle_type: 'polygon', polygon_vertices: [[0, 0], [10, 0], [5, 10]] }),
+      );
     });
 
     it('routes regular sprite to add_sprite_to_layer', () => {

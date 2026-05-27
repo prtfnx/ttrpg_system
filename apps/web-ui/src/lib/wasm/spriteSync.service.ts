@@ -480,19 +480,49 @@ export class SpriteSyncService {
     engine.add_fog_rectangle(fogId, startX, startY, startX + width, startY + height, mode);
   }
 
-  private addPolygonToWasm(engine: RenderEngine, spriteData: SpritePayload, vertices: Array<{ x: number; y: number }>, layer: string): void {
-    const flat = new Float32Array(vertices.flatMap(v => [v.x, v.y]));
-    try { engine.create_polygon_sprite(flat, layer, spriteData.table_id || 'default_table'); } catch (err) {
-        console.error('[SpriteSyncService] create_polygon_sprite failed:', err);
+  private addPolygonToWasm(engine: RenderEngine, spriteData: SpritePayload, vertices: Array<unknown>, layer: string): void {
+    // Normalize vertices: server sends [[x,y]] arrays; client creation sends [{x,y}] objects
+    const normalizedVerts: Array<[number, number]> = (vertices as Array<unknown>).map(v => {
+      if (Array.isArray(v) && v.length >= 2) return [Number(v[0]), Number(v[1])] as [number, number];
+      if (v && typeof v === 'object' && 'x' in v && 'y' in v) {
+        const o = v as { x: number; y: number };
+        return [o.x, o.y] as [number, number];
       }
-    const cx = vertices[0]?.x ?? spriteData.x ?? 0;
-    const cy = vertices[0]?.y ?? spriteData.y ?? 0;
+      return [0, 0] as [number, number];
+    });
+
+    const spriteId = spriteData.sprite_id || spriteData.id || `polygon_${Date.now()}`;
+    let x = 0, y = 0;
+    if (Array.isArray(spriteData.position) && spriteData.position.length >= 2) {
+      [x, y] = spriteData.position as [number, number];
+    } else {
+      x = spriteData.x ?? normalizedVerts[0]?.[0] ?? 0;
+      y = spriteData.y ?? normalizedVerts[0]?.[1] ?? 0;
+    }
+
+    const wasmSprite = {
+      id: spriteId,
+      world_x: x, world_y: y,
+      width: spriteData.width || 50, height: spriteData.height || 50,
+      scale_x: spriteData.scale_x || 1.0, scale_y: spriteData.scale_y || 1.0,
+      rotation: spriteData.rotation || 0.0, layer,
+      texture_id: '', tint_color: [1.0, 1.0, 1.0, 1.0],
+      table_id: spriteData.table_id || 'default_table',
+      controlled_by: [],
+      obstacle_type: 'polygon',
+      polygon_vertices: normalizedVerts,
+    };
+
+    try { engine.add_sprite_to_layer(layer, wasmSprite); } catch (err) {
+      console.error('[SpriteSyncService] addPolygonToWasm failed:', err);
+    }
+    wasmBridgeService.seedSpriteState(spriteId, { x, y, width: wasmSprite.width, height: wasmSprite.height, rotation: 0 });
     try {
       useGameStore.getState().addSprite({
-        id: spriteData.sprite_id || spriteData.id || `polygon_${Date.now()}`,
+        id: spriteId,
         name: spriteData.name || 'Polygon Obstacle',
         tableId: spriteData.table_id || 'default_table',
-        x: cx, y: cy, layer, texture: '',
+        x, y, layer, texture: '',
         scale: { x: 1, y: 1 }, rotation: 0, syncStatus: 'synced' as const,
       });
     } catch { /* non-critical */ }

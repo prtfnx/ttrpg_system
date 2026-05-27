@@ -35,6 +35,7 @@ export interface TextSpriteData {
   height: number;
   layer: string;
   textureId: string;
+  metadata?: string;
 }
 
 export interface RenderResult {
@@ -205,7 +206,26 @@ export async function createTextSprite(
     // Render the text sprite to canvas
     const renderResult = await renderTextSprite(config, spriteId);
 
-    // Create network payload for server synchronization
+    // Create network payload for server synchronization.
+    // Store text config in metadata so it can be restored on reconnect.
+    const textConfig = {
+      is_text: true,
+      text: config.text,
+      fontSize: config.fontSize,
+      fontFamily: config.fontFamily,
+      fontWeight: config.fontWeight,
+      color: config.color,
+      backgroundColor: config.hasBackground ? config.backgroundColor : undefined,
+      hasBackground: config.hasBackground,
+      textAlign: config.textAlign,
+      opacity: config.opacity,
+      hasBorder: config.hasBorder,
+      borderWidth: config.hasBorder ? config.borderWidth : undefined,
+      borderColor: config.hasBorder ? config.borderColor : undefined,
+      padding: config.padding,
+      lineHeight: config.lineHeight,
+      letterSpacing: config.letterSpacing,
+    };
     const networkPayload: TextSpriteData = {
       id: spriteId,
       type: 'text',
@@ -235,7 +255,8 @@ export async function createTextSprite(
       width: renderResult.width,
       height: renderResult.height,
       layer,
-      textureId: renderResult.textureId
+      textureId: renderResult.textureId,
+      metadata: JSON.stringify(textConfig),
     };
 
     // Send to server via protocol if available

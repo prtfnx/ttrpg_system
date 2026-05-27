@@ -130,6 +130,22 @@ pub struct SpriteData {
     pub entity_type: Option<String>,
     #[serde(default)]
     pub asset_id: Option<String>,
+
+    // Sprite dimensions
+    #[serde(default)]
+    pub width: f64,
+    #[serde(default)]
+    pub height: f64,
+
+    // Obstacle metadata (restored on reconnect for lighting/collision)
+    #[serde(default)]
+    pub obstacle_type: Option<String>,
+    #[serde(default)]
+    pub obstacle_data: Option<serde_json::Value>,
+
+    // Generic metadata (JSON string — lights, text sprites, etc.)
+    #[serde(default)]
+    pub metadata: Option<String>,
 }
 
 

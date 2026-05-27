@@ -11,6 +11,7 @@ from .characters import _CharactersMixin
 from .combat import _CombatMixin
 from .encounter import _EncounterMixin
 from .helpers import _HelpersMixin
+from .paint import _PaintMixin
 from .players import _PlayersMixin
 from .session import _SessionMixin
 from .sprites import _SpritesMixin
@@ -28,6 +29,7 @@ class ServerProtocol(
     _CharactersMixin,
     _AuthMixin,
     _WallsMixin,
+    _PaintMixin,
     _SessionMixin,
     _CombatMixin,
     _EncounterMixin,
@@ -162,6 +164,11 @@ class ServerProtocol(
         self.register_handler(MessageType.WALL_REMOVE,       self.handle_wall_remove)
         self.register_handler(MessageType.WALL_BATCH_CREATE, self.handle_wall_batch_create)
         self.register_handler(MessageType.DOOR_TOGGLE,       self.handle_door_toggle)
+
+        # Paint strokes
+        self.register_handler(MessageType.PAINT_STROKE_CREATE, self.handle_paint_stroke_create)
+        self.register_handler(MessageType.PAINT_STROKE_DELETE, self.handle_paint_stroke_delete)
+        self.register_handler(MessageType.PAINT_STROKE_CLEAR,  self.handle_paint_stroke_clear)
 
         # Session
         self.register_handler(MessageType.LAYER_SETTINGS_UPDATE, self.handle_layer_settings_update)

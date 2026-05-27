@@ -198,11 +198,45 @@ class _TablesMixin(_ProtocolBase):
                 except Exception as _e:
                     logger.warning(f"Could not load layer_settings from DB: {_e}")
 
+            # Include paint strokes for join-time sync
+            paint_strokes_list: list = []
+            if table_id:
+                try:
+                    from database import crud as _crud2
+                    from database.database import SessionLocal
+                    _db2 = SessionLocal()
+                    try:
+                        paint_strokes_list = [s.to_dict() for s in _crud2.get_paint_strokes_for_table(_db2, str(table_id))]
+                    finally:
+                        _db2.close()
+                except Exception as _e:
+                    logger.warning(f"Could not load paint strokes from DB for table {table_id}: {_e}")
+
             # return message that need send to client
+            # Load persisted paint strokes for this table
+            paint_strokes_list = []
+            if table_id:
+                try:
+                    import json as _json2
+                    from database.crud import get_paint_strokes_for_table
+                    from database.database import SessionLocal
+                    _db2 = SessionLocal()
+                    try:
+                        _strokes = get_paint_strokes_for_table(_db2, str(table_id))
+                        paint_strokes_list = [
+                            {'stroke_id': s.stroke_id, 'stroke_data': _json2.loads(s.stroke_data) if isinstance(s.stroke_data, str) else s.stroke_data}
+                            for s in _strokes
+                        ]
+                    finally:
+                        _db2.close()
+                except Exception as _e:
+                    logger.warning(f"Could not load paint strokes from DB for table {table_id}: {_e}")
+
             return Message(MessageType.TABLE_RESPONSE, {'name': table_name, 'client_id': client_id,
                                                             'table_data': table_data_with_hashes,
                                                             'walls': walls_list,
-                                                            'layer_settings': layer_settings_data})
+                                                            'layer_settings': layer_settings_data,
+                                                            'paint_strokes': paint_strokes_list})
 
     async def handle_table_settings_update(self, msg: Message, client_id: str) -> Message:
         """Handle DM request to change dynamic lighting / fog exploration settings for a table."""

@@ -40,24 +40,51 @@ export const PolygonConfigModal: React.FC = () => {
   const submit = useCallback(() => {
     if (!draft || !tableId || !protocol) return;
 
-    // Flatten vertices to Float32Array for WASM
-    const flat = new Float32Array(draft.vertices.flatMap(v => [v.x, v.y]));
     const layer = draft.layer;
+    // Generate ID once — used for both WASM and server to keep them in sync
+    const spriteId = `polygon_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
 
-    let spriteId = '';
+    // Compute bounding box for width/height
+    const xs = draft.vertices.map(v => v.x);
+    const ys = draft.vertices.map(v => v.y);
+    const minX = Math.min(...xs), minY = Math.min(...ys);
+    const maxX = Math.max(...xs), maxY = Math.max(...ys);
+    const width = Math.max(maxX - minX, 1);
+    const height = Math.max(maxY - minY, 1);
+
+    // Add polygon sprite to WASM render engine with the pre-generated ID
     if (window.rustRenderManager) {
-      spriteId = ((window.rustRenderManager as unknown as { create_polygon_sprite?: (flat: Float32Array, layer: string, tableId: string) => string }).create_polygon_sprite?.(flat, layer, tableId)) ?? '';
+      const spriteJson = {
+        id: spriteId,
+        table_id: tableId,
+        world_x: minX,
+        world_y: minY,
+        width,
+        height,
+        scale_x: 1.0,
+        scale_y: 1.0,
+        rotation: 0.0,
+        layer,
+        texture_id: '',
+        tint_color: [1, 1, 1, 1],
+        obstacle_type: 'polygon',
+        polygon_vertices: draft.vertices.map(v => [v.x, v.y]),
+        controlled_by: [],
+      };
+      (window.rustRenderManager as unknown as {
+        add_sprite_to_layer?: (layer: string, data: unknown) => string;
+      }).add_sprite_to_layer?.(layer, spriteJson);
     }
 
-    // Send sprite_create to server — server expects { table_id, sprite_data: {...} }
+    // Send sprite_create to server with the same ID
     const spriteData = {
-      sprite_id: spriteId || `polygon_${Date.now()}`,
+      sprite_id: spriteId,
       table_id: tableId,
       layer,
       obstacle_type: 'polygon',
       polygon_vertices: draft.vertices,
-      coord_x: draft.vertices[0]?.x ?? 0,
-      coord_y: draft.vertices[0]?.y ?? 0,
+      coord_x: minX,
+      coord_y: minY,
       label: draft.label,
     };
     protocol.sendMessage(createMessage(MessageType.SPRITE_CREATE, { table_id: tableId, sprite_data: spriteData } as unknown as Record<string, unknown>));

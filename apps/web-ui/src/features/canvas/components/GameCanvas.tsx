@@ -443,7 +443,6 @@ export const GameCanvas: React.FC = () => {
   // Wall overlay — DM-only: draw wall segments from WASM get_wall_render_data on a canvas 2D overlay
   const wallCanvasRef = useRef<HTMLCanvasElement>(null);
   useEffect(() => {
-    const { sessionRole } = useGameStore.getState();
     const isDM = sessionRole === 'owner' || sessionRole === 'co_dm';
     if (!isDM) return;
 
@@ -497,7 +496,7 @@ export const GameCanvas: React.FC = () => {
 
     raf = requestAnimationFrame(draw);
     return () => cancelAnimationFrame(raf);
- }, []);
+ }, [sessionRole]);
   useEffect(() => {
     let animationFrameId: number | null = null;
     let mounted = true;

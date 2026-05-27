@@ -826,3 +826,37 @@ def delete_table_walls(db: Session, table_id: str) -> int:
     count = db.query(models.Wall).filter(models.Wall.table_id == table_id).delete()
     db.commit()
     return count
+
+
+# -- Paint Strokes -------------------------------------------------------------
+
+def create_paint_stroke(db: Session, table_id: str, stroke_id: str, stroke_data: str, created_by: Optional[int] = None) -> models.PaintStroke:
+    stroke = models.PaintStroke(
+        stroke_id=stroke_id,
+        table_id=table_id,
+        created_by=created_by,
+        stroke_data=stroke_data,
+    )
+    db.add(stroke)
+    db.commit()
+    db.refresh(stroke)
+    return stroke
+
+
+def get_paint_strokes_for_table(db: Session, table_id: str) -> list[models.PaintStroke]:
+    return db.query(models.PaintStroke).filter(models.PaintStroke.table_id == table_id).order_by(models.PaintStroke.created_at).all()
+
+
+def delete_paint_stroke(db: Session, stroke_id: str) -> bool:
+    stroke = db.query(models.PaintStroke).filter(models.PaintStroke.stroke_id == stroke_id).first()
+    if not stroke:
+        return False
+    db.delete(stroke)
+    db.commit()
+    return True
+
+
+def clear_paint_strokes_for_table(db: Session, table_id: str) -> int:
+    count = db.query(models.PaintStroke).filter(models.PaintStroke.table_id == table_id).delete()
+    db.commit()
+    return count

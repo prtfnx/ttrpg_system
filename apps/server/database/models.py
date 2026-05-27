@@ -108,6 +108,7 @@ class VirtualTable(Base):
     session = relationship("GameSession", back_populates="tables")
     entities = relationship("Entity", back_populates="table", cascade="all, delete-orphan")
     walls = relationship("Wall", back_populates="table", cascade="all, delete-orphan", foreign_keys="Wall.table_id", primaryjoin="VirtualTable.table_id==Wall.table_id")
+    paint_strokes = relationship("PaintStroke", back_populates="table", cascade="all, delete-orphan", foreign_keys="PaintStroke.table_id")
 
 class Entity(Base):
     __tablename__ = "entities"
@@ -386,3 +387,27 @@ class CharacterLog(Base):
     action_type: Mapped[str] = mapped_column(String(50), nullable=False)
     description: Mapped[str] = mapped_column(String(500), nullable=False)
     created_at: Mapped[Optional[datetime]] = mapped_column(DateTime, default=datetime.utcnow, index=True)
+
+
+class PaintStroke(Base):
+    """Persistent paint stroke — per-table freehand drawing layer."""
+    __tablename__ = "paint_strokes"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
+    stroke_id: Mapped[str] = mapped_column(String(36), unique=True, index=True, nullable=False)  # UUID
+    table_id: Mapped[str] = mapped_column(String(36), ForeignKey("virtual_tables.table_id"), nullable=False, index=True)
+    created_by: Mapped[Optional[int]] = mapped_column(Integer, ForeignKey("users.id"), nullable=True)
+    stroke_data: Mapped[str] = mapped_column(Text, nullable=False)  # JSON blob from WASM
+    created_at: Mapped[Optional[datetime]] = mapped_column(DateTime, default=datetime.utcnow)
+
+    table = relationship("VirtualTable", back_populates="paint_strokes", foreign_keys=[table_id])
+    creator = relationship("User", foreign_keys=[created_by])
+
+    def to_dict(self) -> dict:
+        return {
+            'stroke_id': self.stroke_id,
+            'table_id': self.table_id,
+            'created_by': self.created_by,
+            'stroke_data': self.stroke_data,
+            'created_at': self.created_at.isoformat() if self.created_at else None,
+        }

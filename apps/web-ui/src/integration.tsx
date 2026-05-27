@@ -41,8 +41,27 @@ document.addEventListener('DOMContentLoaded', () => {
             switch (type) {
               case 'sprite_create': {
                 const layer = (data.layer as string) ?? 'tokens';
+                const obstacleType = (data.obstacle_type as string) ?? null;
+                const isRustShape = obstacleType === 'rectangle' || obstacleType === 'circle' || obstacleType === 'line';
+                // Parse metadata to get shape color for correct tint on other clients
+                let tintColor: number[] = [1.0, 1.0, 1.0, 1.0];
+                const rawMeta = data.metadata as string | undefined;
+                if (isRustShape && rawMeta) {
+                  try {
+                    const m = JSON.parse(rawMeta);
+                    if (m.shape_color) {
+                      const hex = m.shape_color as string;
+                      tintColor = [
+                        parseInt(hex.slice(1, 3), 16) / 255,
+                        parseInt(hex.slice(3, 5), 16) / 255,
+                        parseInt(hex.slice(5, 7), 16) / 255,
+                        m.opacity ?? 1.0,
+                      ];
+                    }
+                  } catch { /* use white fallback */ }
+                }
                 const sprite = {
-                  id: (data.id as string) || `sprite_${Date.now()}`,
+                  id: (data.sprite_id as string) || (data.id as string) || `sprite_${Date.now()}`,
                   world_x: (data.x as number) ?? 0,
                   world_y: (data.y as number) ?? 0,
                   width: (data.width as number) ?? 32,
@@ -52,25 +71,28 @@ document.addEventListener('DOMContentLoaded', () => {
                   rotation: (data.rotation as number) ?? 0.0,
                   layer,
                   texture_id: (data.texture_path as string) ?? (data.asset_id as string) ?? '',
-                  tint_color: [1.0, 1.0, 1.0, 1.0],
+                  tint_color: tintColor,
                   table_id: (data.table_id as string) ?? 'default_table',
                   controlled_by: (data.controlled_by as string[]) ?? [],
-                  obstacle_type: (data.obstacle_type as string) ?? null,
+                  obstacle_type: obstacleType,
                   obstacle_data: (data.obstacle_data as object) ?? null,
+                  shape_filled: (data.shape_filled as boolean) ?? null,
+                  metadata: rawMeta ?? null,
                 };
-                // Defer WASM call — Rust fires this from its own input handler,
-                // so calling add_sprite_to_layer synchronously would re-enter WASM
-                // while it is still executing (mutable borrow → recursive use panic).
-                queueMicrotask(() => {
-                  try {
-                    if (typeof window.rustRenderManager?.add_sprite_to_layer === 'function') {
-                      console.log('[integration] Forwarding to WASM add_sprite_to_layer:', layer, sprite);
-                      window.rustRenderManager.add_sprite_to_layer(layer, sprite);
+                // Rust shape sprites are already added to WASM by the factory method —
+                // skip the duplicate add to avoid overwriting with stale data.
+                if (!isRustShape) {
+                  queueMicrotask(() => {
+                    try {
+                      if (typeof window.rustRenderManager?.add_sprite_to_layer === 'function') {
+                        console.log('[integration] Forwarding to WASM add_sprite_to_layer:', layer, sprite);
+                        window.rustRenderManager.add_sprite_to_layer(layer, sprite);
+                      }
+                    } catch (err) {
+                      console.error('[integration] WASM add_sprite_to_layer error:', err);
                     }
-                  } catch (err) {
-                    console.error('[integration] WASM add_sprite_to_layer error:', err);
-                  }
-                });
+                  });
+                }
                 // Forward to server for persistence and broadcast to other players
                 queueMicrotask(() => {
                   try {

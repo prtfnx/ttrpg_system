@@ -539,6 +539,26 @@ export class SpriteSyncService {
     }
     // asset_xxhash is the server-computed verification hash; asset_id is the canonical identifier.
     const assetId = spriteData.asset_id || spriteData.asset_xxhash || spriteData.texture_path || null;
+    // For shapes, restore color and fill mode from metadata JSON (stored by client at creation time)
+    const isShape = spriteData.obstacle_type === 'rectangle' || spriteData.obstacle_type === 'circle' || spriteData.obstacle_type === 'line';
+    let tintColor = spriteData.tint_color || [1.0, 1.0, 1.0, 1.0];
+    let shapeFilled = spriteData.shape_filled ?? null;
+    if (isShape && typeof spriteData.metadata === 'string') {
+      try {
+        const m = JSON.parse(spriteData.metadata) as Record<string, unknown>;
+        if (typeof m.shape_color === 'string') {
+          const hex = m.shape_color;
+          const opacity = typeof m.opacity === 'number' ? m.opacity : 1.0;
+          tintColor = [
+            parseInt(hex.slice(1, 3), 16) / 255,
+            parseInt(hex.slice(3, 5), 16) / 255,
+            parseInt(hex.slice(5, 7), 16) / 255,
+            opacity,
+          ];
+        }
+        if (typeof m.shape_filled === 'boolean') shapeFilled = m.shape_filled;
+      } catch { /* keep defaults */ }
+    }
     const wasmSprite = {
       id: spriteData.sprite_id || spriteData.id || `sprite_${Date.now()}`,
       world_x: x, world_y: y,
@@ -546,7 +566,7 @@ export class SpriteSyncService {
       scale_x: spriteData.scale_x || 1.0, scale_y: spriteData.scale_y || 1.0,
       rotation: spriteData.rotation || 0.0, layer,
       texture_id: assetId || '',
-      tint_color: spriteData.tint_color || [1.0, 1.0, 1.0, 1.0],
+      tint_color: tintColor,
       table_id: spriteData.table_id || 'default_table',
       // controlled_by: normalize to number[] — server may send string IDs
       controlled_by: (() => {
@@ -559,7 +579,7 @@ export class SpriteSyncService {
       })(),
       obstacle_type: spriteData.obstacle_type || null,
       polygon_vertices: spriteData.polygon_vertices ?? spriteData.obstacle_data?.vertices ?? null,
-      shape_filled: spriteData.shape_filled ?? null,
+      shape_filled: shapeFilled,
     };
 
     engine.add_sprite_to_layer(layer, wasmSprite);

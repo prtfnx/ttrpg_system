@@ -254,6 +254,12 @@ class MessageType(enum.Enum):    # Core messages
     WALL_DATA        = "wall_data"          # server → client(s): single or batch wall state
     DOOR_TOGGLE      = "door_toggle"        # any permitted role → server: toggle door state
 
+    # Paint stroke sync
+    PAINT_STROKE_CREATE = "paint_stroke_create"  # DM/player → server: persist a completed stroke
+    PAINT_STROKE_DELETE = "paint_stroke_delete"  # DM → server: remove one stroke by id
+    PAINT_STROKE_CLEAR  = "paint_stroke_clear"   # DM → server: wipe all strokes on a table
+    PAINT_SYNC          = "paint_sync"           # server → client: full stroke list (on join)
+
     # Layer settings persistence (DM-only write, broadcast to all)
     LAYER_SETTINGS_UPDATE = "layer_settings_update"  # DM → server + server → all clients
 

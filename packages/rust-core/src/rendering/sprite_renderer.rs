@@ -36,6 +36,22 @@ impl SpriteRenderer {
         let mut color = sprite.tint_color;
         // Apply layer color modulation
         color = renderer.modulate_color(color);
+        let draw_opacity = if layer_opacity <= 0.01 { 0.0 } else { layer_opacity };
+
+        // Procedural shapes (rectangle, circle, line) — no texture needed
+        let is_shape = matches!(sprite.obstacle_type.as_deref(), Some("rectangle") | Some("circle") | Some("line"));
+        if is_shape {
+            texture_manager.unbind_texture();
+            let shape_color = [color[0], color[1], color[2], (color[3] * draw_opacity).max(if draw_opacity > 0.01 { 0.15 } else { 0.0 })];
+            Self::draw_shape_sprite(sprite, shape_color, renderer)?;
+            if is_selected {
+                Self::draw_selection_border(sprite, world_pos, size, is_primary_selected, renderer)?;
+                if is_primary_selected {
+                    Self::draw_handles(sprite, world_pos, size, renderer, camera_zoom)?;
+                }
+            }
+            return Ok(());
+        }
 
         // Polygon obstacles: draw actual polygon outline, not AABB rectangle
         let is_polygon = sprite.obstacle_type.as_deref() == Some("polygon");
@@ -516,6 +532,81 @@ impl SpriteRenderer {
             }
         }
 
+        Ok(())
+    }
+
+    /// Draw a procedural shape sprite (rectangle, circle, line) from geometry stored in the sprite.
+    /// Uses tint_color for fill/outline — no texture required. Scales correctly on resize.
+    fn draw_shape_sprite(sprite: &Sprite, color: [f32; 4], renderer: &WebGLRenderer) -> Result<(), JsValue> {
+        let filled = sprite.shape_filled.unwrap_or(true);
+        let x = sprite.world_x as f32;
+        let y = sprite.world_y as f32;
+        let w = (sprite.width * sprite.scale_x) as f32;
+        let h = (sprite.height * sprite.scale_y) as f32;
+
+        match sprite.obstacle_type.as_deref() {
+            Some("rectangle") => {
+                if filled {
+                    // Two triangles covering the rectangle
+                    renderer.draw_triangles(&[
+                        x,     y,
+                        x + w, y,
+                        x,     y + h,
+                        x + w, y,
+                        x + w, y + h,
+                        x,     y + h,
+                    ], color)?;
+                } else {
+                    // Closed outline using line pairs
+                    renderer.draw_lines(&[
+                        x,     y,     x + w, y,
+                        x + w, y,     x + w, y + h,
+                        x + w, y + h, x,     y + h,
+                        x,     y + h, x,     y,
+                    ], color)?;
+                }
+            }
+            Some("circle") => {
+                let cx = x + w * 0.5;
+                let cy = y + h * 0.5;
+                let rx = w * 0.5;
+                let ry = h * 0.5;
+                const SEGS: usize = 32;
+                if filled {
+                    let mut tris: Vec<f32> = Vec::with_capacity(SEGS * 6);
+                    for i in 0..SEGS {
+                        let a1 = i as f32 * 2.0 * std::f32::consts::PI / SEGS as f32;
+                        let a2 = (i + 1) as f32 * 2.0 * std::f32::consts::PI / SEGS as f32;
+                        tris.extend_from_slice(&[cx, cy, cx + rx * a1.cos(), cy + ry * a1.sin(), cx + rx * a2.cos(), cy + ry * a2.sin()]);
+                    }
+                    renderer.draw_triangles(&tris, color)?;
+                } else {
+                    let mut lines: Vec<f32> = Vec::with_capacity(SEGS * 4);
+                    for i in 0..SEGS {
+                        let a1 = i as f32 * 2.0 * std::f32::consts::PI / SEGS as f32;
+                        let a2 = (i + 1) as f32 * 2.0 * std::f32::consts::PI / SEGS as f32;
+                        lines.extend_from_slice(&[cx + rx * a1.cos(), cy + ry * a1.sin(), cx + rx * a2.cos(), cy + ry * a2.sin()]);
+                    }
+                    renderer.draw_lines(&lines, color)?;
+                }
+            }
+            Some("line") => {
+                // Use stored endpoints from polygon_vertices [[x1,y1],[x2,y2]]
+                if let Some(verts) = &sprite.polygon_vertices {
+                    if verts.len() >= 2 {
+                        renderer.draw_lines(&[verts[0][0], verts[0][1], verts[1][0], verts[1][1]], color)?;
+                    }
+                } else {
+                    // Fallback: draw from bounding box with rotation
+                    let cx = x + w * 0.5;
+                    let cy = y + h * 0.5;
+                    let (sin_r, cos_r) = (sprite.rotation as f32).sin_cos();
+                    let hlen = w * 0.5;
+                    renderer.draw_lines(&[cx - cos_r * hlen, cy - sin_r * hlen, cx + cos_r * hlen, cy + sin_r * hlen], color)?;
+                }
+            }
+            _ => {}
+        }
         Ok(())
     }
 }

@@ -51,6 +51,7 @@ interface SpritePayload {
   obstacle_type?: string;
   polygon_vertices?: Array<{ x: number; y: number }>;
   obstacle_data?: { vertices?: Array<{ x: number; y: number }> };
+  shape_filled?: boolean;
   character_id?: string;
   layer_changed?: boolean;
   texture_changed?: boolean;
@@ -558,6 +559,7 @@ export class SpriteSyncService {
       })(),
       obstacle_type: spriteData.obstacle_type || null,
       polygon_vertices: spriteData.polygon_vertices ?? spriteData.obstacle_data?.vertices ?? null,
+      shape_filled: spriteData.shape_filled ?? null,
     };
 
     engine.add_sprite_to_layer(layer, wasmSprite);

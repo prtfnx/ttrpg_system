@@ -131,6 +131,7 @@ impl RenderEngine {
             text_color: None,
             obstacle_type: sprite_data.obstacle_type.clone(),
             polygon_vertices,
+            shape_filled: None,
         };
 
         let sprite_js = serde_wasm_bindgen::to_value(&sprite)?;

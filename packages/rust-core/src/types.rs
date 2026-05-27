@@ -52,6 +52,8 @@ pub struct Sprite {
     pub obstacle_type: Option<String>,  // "rectangle" | "circle" | "line" | "polygon"
     #[serde(default)]
     pub polygon_vertices: Option<Vec<[f32; 2]>>,  // world-space vertices for polygon obstacles
+    #[serde(default)]
+    pub shape_filled: Option<bool>,  // true = filled shape, false = outline only
 }
 
 impl Sprite {
@@ -82,6 +84,7 @@ impl Sprite {
             text_color: None,
             obstacle_type: None,
             polygon_vertices: None,
+            shape_filled: None,
         }
     }
     
@@ -123,6 +126,101 @@ impl Sprite {
             local_x >= -half_width && local_x <= half_width &&
             local_y >= -half_height && local_y <= half_height
         }
+    }
+}
+
+#[cfg(test)]
+mod shape_tests {
+    use super::*;
+
+    fn shape_sprite(obstacle_type: &str, filled: bool) -> Sprite {
+        Sprite {
+            id: obstacle_type.to_string(),
+            world_x: 10.0, world_y: 20.0,
+            width: 100.0, height: 50.0,
+            scale_x: 1.0, scale_y: 1.0,
+            obstacle_type: Some(obstacle_type.to_string()),
+            shape_filled: Some(filled),
+            tint_color: [1.0, 0.0, 0.0, 1.0],
+            ..Default::default()
+        }
+    }
+
+    #[test]
+    fn sprite_default_shape_filled_is_none() {
+        let s = Sprite::default();
+        assert!(s.shape_filled.is_none());
+        assert!(s.obstacle_type.is_none());
+    }
+
+    #[test]
+    fn rectangle_sprite_stores_obstacle_type_and_fill() {
+        let s = shape_sprite("rectangle", true);
+        assert_eq!(s.obstacle_type.as_deref(), Some("rectangle"));
+        assert_eq!(s.shape_filled, Some(true));
+        assert!(s.texture_id.is_empty(), "shape sprites must not have a baked texture");
+    }
+
+    #[test]
+    fn circle_sprite_outline_stores_filled_false() {
+        let s = shape_sprite("circle", false);
+        assert_eq!(s.obstacle_type.as_deref(), Some("circle"));
+        assert_eq!(s.shape_filled, Some(false));
+        assert!(s.texture_id.is_empty());
+    }
+
+    #[test]
+    fn line_sprite_stores_endpoints_in_polygon_vertices() {
+        let s = Sprite {
+            id: "line_1".to_string(),
+            world_x: 0.0, world_y: 0.0,
+            width: 100.0, height: 4.0,
+            scale_x: 1.0, scale_y: 1.0,
+            obstacle_type: Some("line".to_string()),
+            shape_filled: Some(false),
+            polygon_vertices: Some(vec![[0.0, 0.0], [100.0, 50.0]]),
+            tint_color: [0.0, 1.0, 0.0, 1.0],
+            ..Default::default()
+        };
+        let verts = s.polygon_vertices.as_ref().unwrap();
+        assert_eq!(verts.len(), 2);
+        assert_eq!(verts[0], [0.0, 0.0]);
+        assert_eq!(verts[1], [100.0, 50.0]);
+    }
+
+    #[test]
+    fn shape_sprite_tint_color_carries_draw_color() {
+        let s = shape_sprite("rectangle", true);
+        assert_eq!(s.tint_color, [1.0, 0.0, 0.0, 1.0]);
+    }
+
+    #[test]
+    fn shape_sprite_world_bounds_correct() {
+        let s = shape_sprite("circle", true);
+        let bounds = s.world_bounds();
+        assert!((bounds.min.x - 10.0).abs() < 0.01);
+        assert!((bounds.min.y - 20.0).abs() < 0.01);
+        assert!((bounds.max.x - 110.0).abs() < 0.01);
+        assert!((bounds.max.y - 70.0).abs() < 0.01);
+    }
+
+    #[test]
+    fn sprite_serde_roundtrip_with_shape_fields() {
+        let s = Sprite {
+            id: "rect_test".to_string(),
+            world_x: 5.0, world_y: 10.0,
+            width: 80.0, height: 40.0,
+            scale_x: 1.0, scale_y: 1.0,
+            obstacle_type: Some("rectangle".to_string()),
+            shape_filled: Some(false),
+            tint_color: [0.2, 0.4, 0.8, 0.9],
+            ..Default::default()
+        };
+        let json = serde_json::to_string(&s).unwrap();
+        let back: Sprite = serde_json::from_str(&json).unwrap();
+        assert_eq!(back.obstacle_type.as_deref(), Some("rectangle"));
+        assert_eq!(back.shape_filled, Some(false));
+        assert_eq!(back.tint_color, [0.2, 0.4, 0.8, 0.9]);
     }
 }
 

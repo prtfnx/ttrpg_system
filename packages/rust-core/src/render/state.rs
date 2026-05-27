@@ -237,6 +237,15 @@ impl RenderEngine {
         js_sys::Float32Array::from(data.as_slice())
     }
 
+    /// Returns wall IDs in the same order as get_wall_render_data().
+    #[wasm_bindgen]
+    pub fn get_wall_ids(&self) -> Vec<JsValue> {
+        self.wall_manager.get_wall_ids()
+            .into_iter()
+            .map(|id| JsValue::from_str(&id))
+            .collect()
+    }
+
     #[wasm_bindgen]
     pub fn set_current_user_id(&mut self, user_id: i32) {
         self.current_user_id = Some(user_id);

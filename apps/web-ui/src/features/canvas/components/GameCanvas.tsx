@@ -53,6 +53,15 @@ const AVAILABLE_LAYERS: { id: string; name: string; icon: LucideIcon }[] = [
   { id: 'fog_of_war', name: 'Fog of War', icon: CloudFog },
 ];
 
+/** Point-to-segment distance (screen space, for wall hover detection). */
+function pointSegmentDist(px: number, py: number, ax: number, ay: number, bx: number, by: number): number {
+  const dx = bx - ax, dy = by - ay;
+  const lenSq = dx * dx + dy * dy;
+  if (lenSq < 1e-6) return Math.hypot(px - ax, py - ay);
+  const t = Math.max(0, Math.min(1, ((px - ax) * dx + (py - ay) * dy) / lenSq));
+  return Math.hypot(px - (ax + t * dx), py - (ay + t * dy));
+}
+
 export const GameCanvas: React.FC = () => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const rustRenderManagerRef = useRef<RenderEngine | null>(null);
@@ -442,18 +451,41 @@ export const GameCanvas: React.FC = () => {
 
   // Wall overlay — DM-only: draw wall segments from WASM get_wall_render_data on a canvas 2D overlay
   const wallCanvasRef = useRef<HTMLCanvasElement>(null);
+  const hoveredWallRef = useRef<string | null>(null); // index into render data, not id
+  const mouseScreenRef = useRef<{ x: number; y: number }>({ x: 0, y: 0 });
+
   useEffect(() => {
     const isDM = sessionRole === 'owner' || sessionRole === 'co_dm';
     if (!isDM) return;
+
+    // Track mouse position over the main canvas for hover detection
+    const mainCanvas = canvasRef.current;
+    const onMouseMove = (e: MouseEvent) => {
+      const rect = mainCanvas?.getBoundingClientRect();
+      if (!rect) return;
+      mouseScreenRef.current = { x: e.clientX - rect.left, y: e.clientY - rect.top };
+    };
+    mainCanvas?.addEventListener('mousemove', onMouseMove);
+
+    // Delete / Backspace removes the hovered wall
+    const onKeyDown = (e: KeyboardEvent) => {
+      if ((e.key === 'Delete' || e.key === 'Backspace') && hoveredWallRef.current) {
+        const wallId = hoveredWallRef.current;
+        hoveredWallRef.current = null;
+        rustRenderManagerRef.current?.remove_wall(wallId);
+        useGameStore.getState().removeWall(wallId);
+        protocol?.removeWall(wallId);
+      }
+    };
+    window.addEventListener('keydown', onKeyDown);
 
     let raf: number;
 
     const draw = () => {
       const canvas = wallCanvasRef.current;
-      const mainCanvas = canvasRef.current;
+      const _mainCanvas = mainCanvas!;
       const rm = rustRenderManagerRef.current;
       const _canvas = canvas!;
-      const _mainCanvas = mainCanvas!;
       const _rm = rm!;
       if (_canvas.width !== _mainCanvas.width || _canvas.height !== _mainCanvas.height) {
         _canvas.width = _mainCanvas.width;
@@ -471,22 +503,63 @@ export const GameCanvas: React.FC = () => {
         const data: Float32Array = _rm.get_wall_render_data();
         // Each wall = 8 floats: x1,y1,x2,y2,r,g,b,a  (world coords)
         const STRIDE = 8;
+        const HOVER_THRESH_PX = 12;
+        const mouse = mouseScreenRef.current;
+
+        // Determine hovered wall by min screen-space distance
+        let hoverId: string | null = null;
+        let minDist = HOVER_THRESH_PX;
+        if (typeof _rm.world_to_screen === 'function' && typeof _rm.get_wall_ids === 'function') {
+          const ids: string[] = _rm.get_wall_ids();
+          for (let i = 0; i + STRIDE <= data.length; i += STRIDE) {
+            const s1 = _rm.world_to_screen(data[i], data[i + 1]);
+            const s2 = _rm.world_to_screen(data[i + 2], data[i + 3]);
+            if (!s1 || !s2) continue;
+            const d = pointSegmentDist(mouse.x, mouse.y, s1[0], s1[1], s2[0], s2[1]);
+            if (d < minDist) { minDist = d; hoverId = ids[i / STRIDE] ?? null; }
+          }
+        }
+        hoveredWallRef.current = hoverId;
+
         ctx.save();
-        ctx.lineWidth = 2;
+        const wallIdx = typeof _rm.get_wall_ids === 'function'
+          ? (() => { const ids: string[] = _rm.get_wall_ids(); return Object.fromEntries(ids.map((id, i) => [id, i])); })()
+          : {};
         for (let i = 0; i + STRIDE <= data.length; i += STRIDE) {
- const wx1 = data[i], wy1 = data[i + 1], wx2 = data[i + 2], wy2 = data[i + 3];
- const r = data[i + 4], g = data[i + 5], b = data[i + 6], a = data[i + 7];
+          const wx1 = data[i], wy1 = data[i + 1], wx2 = data[i + 2], wy2 = data[i + 3];
+          const r = data[i + 4], g = data[i + 5], b = data[i + 6], a = data[i + 7];
 
           if (typeof _rm.world_to_screen !== 'function') continue;
           const s1 = _rm.world_to_screen(wx1, wy1);
           const s2 = _rm.world_to_screen(wx2, wy2);
           if (!s1 || !s2) continue;
 
+          const wallId = typeof _rm.get_wall_ids === 'function'
+            ? (_rm.get_wall_ids() as string[])[i / STRIDE]
+            : null;
+          const isHovered = wallId != null && wallId === hoveredWallRef.current;
+
           ctx.beginPath();
- ctx.moveTo(s1[0], s1[1]);
- ctx.lineTo(s2[0], s2[1]);
-          ctx.strokeStyle = `rgba(${Math.round(r * 255)},${Math.round(g * 255)},${Math.round(b * 255)},${a})`;
+          ctx.moveTo(s1[0], s1[1]);
+          ctx.lineTo(s2[0], s2[1]);
+          ctx.lineWidth = isHovered ? 4 : 2;
+          ctx.strokeStyle = isHovered
+            ? `rgba(255,255,255,1)`
+            : `rgba(${Math.round(r * 255)},${Math.round(g * 255)},${Math.round(b * 255)},${a})`;
           ctx.stroke();
+
+          // Draw endpoint circles when hovered
+          if (isHovered) {
+            for (const [ex, ey] of [[s1[0], s1[1]], [s2[0], s2[1]]]) {
+              ctx.beginPath();
+              ctx.arc(ex, ey, 5, 0, Math.PI * 2);
+              ctx.fillStyle = 'rgba(255,255,255,0.9)';
+              ctx.fill();
+              ctx.strokeStyle = `rgba(${Math.round(r * 255)},${Math.round(g * 255)},${Math.round(b * 255)},1)`;
+              ctx.lineWidth = 1.5;
+              ctx.stroke();
+            }
+          }
         }
         ctx.restore();
       } catch { /* rm may not be ready yet */ }
@@ -495,8 +568,12 @@ export const GameCanvas: React.FC = () => {
     };
 
     raf = requestAnimationFrame(draw);
-    return () => cancelAnimationFrame(raf);
- }, [sessionRole]);
+    return () => {
+      cancelAnimationFrame(raf);
+      mainCanvas?.removeEventListener('mousemove', onMouseMove);
+      window.removeEventListener('keydown', onKeyDown);
+    };
+ }, [sessionRole, protocol]);
   useEffect(() => {
     let animationFrameId: number | null = null;
     let mounted = true;

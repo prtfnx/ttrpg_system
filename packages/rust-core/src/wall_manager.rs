@@ -122,6 +122,12 @@ impl WallManager {
         out
     }
 
+    /// Returns wall IDs in the same iteration order as get_render_data().
+    #[cfg(target_arch = "wasm32")]
+    pub fn get_wall_ids(&self) -> Vec<String> {
+        self.walls.values().map(|w| w.wall_id.clone()).collect()
+    }
+
     // ------------------------------------------------------------------
     // Internals
     // ------------------------------------------------------------------

@@ -34,6 +34,7 @@ import {
     usePerformanceMonitor,
 } from './GameCanvas/index';
 import { useCanvasEventsEnhanced } from './GameCanvas/useCanvasEventsEnhanced';
+import { drawDoorArc, drawDirectionChevron, wallLineDash, wallLineWidth } from '../utils/wallVisuals';
 import PerformanceMonitor from './PerformanceMonitor';
 
 // Window globals declared in src/types.ts: ttrpg_rust_core, rustRenderManager, wasmInitialized
@@ -522,9 +523,10 @@ export const GameCanvas: React.FC = () => {
         hoveredWallRef.current = hoverId;
 
         ctx.save();
-        const wallIdx = typeof _rm.get_wall_ids === 'function'
-          ? (() => { const ids: string[] = _rm.get_wall_ids(); return Object.fromEntries(ids.map((id, i) => [id, i])); })()
-          : {};
+        const wallIds: string[] = typeof _rm.get_wall_ids === 'function' ? _rm.get_wall_ids() : [];
+        const storeWallsMap = Object.fromEntries(
+          useGameStore.getState().walls.map(w => [w.wall_id, w])
+        );
         for (let i = 0; i + STRIDE <= data.length; i += STRIDE) {
           const wx1 = data[i], wy1 = data[i + 1], wx2 = data[i + 2], wy2 = data[i + 3];
           const r = data[i + 4], g = data[i + 5], b = data[i + 6], a = data[i + 7];
@@ -534,25 +536,37 @@ export const GameCanvas: React.FC = () => {
           const s2 = _rm.world_to_screen(wx2, wy2);
           if (!s1 || !s2) continue;
 
-          const wallId = typeof _rm.get_wall_ids === 'function'
-            ? (_rm.get_wall_ids() as string[])[i / STRIDE]
-            : null;
+          const wallId = wallIds[i / STRIDE] ?? null;
           const isHovered = wallId != null && wallId === hoveredWallRef.current;
+          const wallData = wallId ? storeWallsMap[wallId] : undefined;
+
+          const baseColor = `rgba(${Math.round(r * 255)},${Math.round(g * 255)},${Math.round(b * 255)},${a})`;
+          const lineW = wallLineWidth(wallData);
 
           ctx.beginPath();
           ctx.moveTo(s1[0], s1[1]);
           ctx.lineTo(s2[0], s2[1]);
-          ctx.lineWidth = isHovered ? 4 : 2;
-          ctx.strokeStyle = isHovered
-            ? `rgba(255,255,255,1)`
-            : `rgba(${Math.round(r * 255)},${Math.round(g * 255)},${Math.round(b * 255)},${a})`;
+          ctx.lineWidth = isHovered ? lineW + 2 : lineW;
+          ctx.setLineDash(isHovered ? [] : wallLineDash(wallData));
+          ctx.strokeStyle = isHovered ? 'rgba(255,255,255,1)' : baseColor;
           ctx.stroke();
+          ctx.setLineDash([]);
 
-          // Draw endpoint circles when hovered
+          // Door arc at midpoint
+          if (wallData?.is_door) {
+            drawDoorArc(ctx, s1[0], s1[1], s2[0], s2[1], wallData.door_state);
+          }
+
+          // Direction chevron at midpoint
+          if (wallData?.direction && wallData.direction !== 'both') {
+            drawDirectionChevron(ctx, s1[0], s1[1], s2[0], s2[1], wallData.direction, baseColor);
+          }
+
+          // Endpoint circles when hovered
           if (isHovered) {
             for (const [ex, ey] of [[s1[0], s1[1]], [s2[0], s2[1]]]) {
               ctx.beginPath();
-              ctx.arc(ex, ey, 5, 0, Math.PI * 2);
+              ctx.arc(ex as number, ey as number, 5, 0, Math.PI * 2);
               ctx.fillStyle = 'rgba(255,255,255,0.9)';
               ctx.fill();
               ctx.strokeStyle = `rgba(${Math.round(r * 255)},${Math.round(g * 255)},${Math.round(b * 255)},1)`;

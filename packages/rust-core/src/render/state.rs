@@ -441,6 +441,21 @@ impl RenderEngine {
         self.paint.undo_last_stroke()
     }
 
+    #[wasm_bindgen]
+    pub fn paint_add_remote_stroke(&mut self, stroke_json: &str) -> bool {
+        self.paint.add_remote_stroke_json(stroke_json)
+    }
+
+    #[wasm_bindgen]
+    pub fn paint_remove_stroke(&mut self, stroke_id: &str) -> bool {
+        self.paint.remove_stroke_by_id(stroke_id)
+    }
+
+    #[wasm_bindgen]
+    pub fn paint_load_strokes(&mut self, strokes_json: &str) -> bool {
+        self.paint.load_strokes_json(strokes_json)
+    }
+
     // Background color
     pub fn set_background_color(&mut self, hex: &str) {
         if let Some(color) = super::parse_hex_color(hex) {

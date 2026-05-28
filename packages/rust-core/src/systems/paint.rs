@@ -487,6 +487,57 @@ impl PaintSystem {
             serde_wasm_bindgen::to_value(&Vec::<serde_json::Value>::new()).unwrap_or(JsValue::NULL)
         }
     }
+
+    /// Add a stroke from a remote client (already-serialized JSON blob from server).
+    #[wasm_bindgen]
+    pub fn add_remote_stroke_json(&mut self, stroke_json: &str) -> bool {
+        match serde_json::from_str::<DrawStroke>(stroke_json) {
+            Ok(stroke) => {
+                if let Some(table_id) = self.current_table_id.clone() {
+                    self.table_strokes.entry(table_id).or_default().push(stroke);
+                    return true;
+                }
+                web_sys::console::warn_1(&"add_remote_stroke_json: no current table".into());
+                false
+            }
+            Err(e) => {
+                web_sys::console::warn_1(&format!("add_remote_stroke_json parse error: {}", e).into());
+                false
+            }
+        }
+    }
+
+    /// Remove a specific stroke by its id from the current table.
+    #[wasm_bindgen]
+    pub fn remove_stroke_by_id(&mut self, stroke_id: &str) -> bool {
+        if let Some(table_id) = self.current_table_id.clone() {
+            if let Some(strokes) = self.table_strokes.get_mut(&table_id) {
+                let before = strokes.len();
+                strokes.retain(|s| s.id != stroke_id);
+                return strokes.len() < before;
+            }
+        }
+        false
+    }
+
+    /// Bulk-load a JSON array of DrawStroke objects, replacing all existing strokes for the current table.
+    #[wasm_bindgen]
+    pub fn load_strokes_json(&mut self, strokes_json: &str) -> bool {
+        match serde_json::from_str::<Vec<DrawStroke>>(strokes_json) {
+            Ok(strokes) => {
+                if let Some(table_id) = self.current_table_id.clone() {
+                    self.table_strokes.insert(table_id, strokes);
+                    return true;
+                }
+                web_sys::console::warn_1(&"load_strokes_json: no current table".into());
+                false
+            }
+            Err(e) => {
+                web_sys::console::warn_1(&format!("load_strokes_json parse error: {}", e).into());
+                false
+            }
+        }
+    }
 }
 
 impl PaintSystem {

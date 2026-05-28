@@ -466,6 +466,7 @@ export class RenderEngine {
   set_active_layer?: (layer_name: string) => void;
   // Wall visualization (not formally exposed in wasm-bindgen)
   get_wall_render_data?: () => Float32Array;
+  get_wall_ids(): string[];
 }
 export class TableManager {
   free(): void;

@@ -473,7 +473,7 @@ export const GameCanvas: React.FC = () => {
       if ((e.key === 'Delete' || e.key === 'Backspace') && hoveredWallRef.current) {
         const wallId = hoveredWallRef.current;
         hoveredWallRef.current = null;
-        rustRenderManagerRef.current?.remove_wall(wallId);
+        rustRenderManagerRef.current?.remove_wall?.(wallId);
         useGameStore.getState().removeWall(wallId);
         protocol?.removeWall(wallId);
       }

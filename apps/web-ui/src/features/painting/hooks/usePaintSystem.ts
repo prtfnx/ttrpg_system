@@ -194,12 +194,24 @@ export function usePaintSystem(
 
   const undoStroke = useCallback(() => {
     if (!renderEngine) return;
-    if (typeof renderEngine.paint_undo_stroke === 'function') {
-      return renderEngine.paint_undo_stroke();
+    // Capture last stroke ID before undoing so we can sync the delete
+    let lastStrokeId: string | undefined;
+    if (ProtocolService.hasProtocol()) {
+      try {
+        const raw = typeof renderEngine.paint_get_strokes === 'function' ? renderEngine.paint_get_strokes() : null;
+        if (raw) {
+          const strokes = JSON.parse(JSON.stringify(raw)) as { id?: string }[];
+          lastStrokeId = strokes[strokes.length - 1]?.id;
+        }
+      } catch { /* non-fatal */ }
     }
-    console.debug('Render engine missing paint_undo_stroke()');
-    return false;
-  }, [renderEngine]);
+
+    const ok = typeof renderEngine.paint_undo_stroke === 'function' ? renderEngine.paint_undo_stroke() : false;
+    if (ok && lastStrokeId && activeTableId) {
+      ProtocolService.getProtocol().deletePaintStroke(lastStrokeId);
+    }
+    return ok;
+  }, [renderEngine, activeTableId]);
 
   const redoStroke = useCallback(() => {
     if (!renderEngine) return false;

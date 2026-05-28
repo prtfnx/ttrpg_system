@@ -8,7 +8,7 @@ import { DMCombatPanel, FloatingInitiativeTracker, GameModeSwitch, OAPrompt, OAW
 import { startDmPreview, stopDmPreview } from '@features/lighting';
 import { MeasurementTool } from '@features/measurement';
 import { PaintPanel } from '@features/painting';
-import { isDM, isElevated } from '@features/session/types/roles';
+import { canInteract, isDM, isElevated } from '@features/session/types/roles';
 import { ProtocolService } from '@lib/api';
 import { AlignmentHelper } from '@shared/components';
 import DiceRoller from '@shared/components/DiceRoller';
@@ -105,6 +105,7 @@ export function ToolsPanel({ userInfo }: ToolsPanelProps) {
   const sessionRole = useGameStore(s => s.sessionRole) ?? 'player';
   const dmMode = isDM(sessionRole);
   const elevatedMode = isElevated(sessionRole);
+  const interactMode = canInteract(sessionRole);
   const tables = useGameStore(s => s.tables);
   const activeTableId = useGameStore(s => s.activeTableId);
   const switchToTable = useGameStore(s => s.switchToTable);
@@ -407,7 +408,7 @@ export function ToolsPanel({ userInfo }: ToolsPanelProps) {
                   <Folder size={14} aria-hidden /> Assets
                 </button>
               )}
-              {dmMode && (
+              {interactMode && (
                 <button className={`${styles.toolButton} ${activeTool === 'paint' ? styles.active : ''}`} onClick={() => {
                   if (!window.rustRenderManager) return;
                   window.rustRenderManager.set_input_mode_paint();

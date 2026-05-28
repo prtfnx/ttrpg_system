@@ -1,4 +1,5 @@
 import { useGameStore } from '@/store';
+import { ProtocolService } from '@lib/api';
 import type { BrushPreset } from '@lib/wasm';
 import { useCallback, useEffect, useRef, useState } from 'react';
 
@@ -182,6 +183,10 @@ export function usePaintSystem(
     if (!renderEngine) return;
     if (typeof renderEngine.paint_clear_all === 'function') {
       renderEngine.paint_clear_all();
+      // Notify server (DM only — server enforces role)
+      if (ProtocolService.hasProtocol()) {
+        ProtocolService.getProtocol().clearPaintStrokes();
+      }
     } else {
       console.debug('Render engine missing paint_clear_all()');
     }
@@ -251,7 +256,23 @@ export function usePaintSystem(
   const endStroke = useCallback(() => {
     if (!renderEngine) return false;
     if (typeof renderEngine.paint_end_stroke === 'function') {
-      return renderEngine.paint_end_stroke();
+      const result = renderEngine.paint_end_stroke();
+      if (result && ProtocolService.hasProtocol()) {
+        // Get the latest completed stroke and send to server
+        try {
+          const strokes: Record<string, unknown>[] = renderEngine.paint_get_strokes
+            ? JSON.parse(JSON.stringify(renderEngine.paint_get_strokes()))
+            : [];
+          const last = strokes[strokes.length - 1];
+          if (last) {
+            const strokeId = (last.id as string) ?? `stroke_${Date.now()}_${Math.random().toString(36).slice(2)}`;
+            ProtocolService.getProtocol().createPaintStroke(strokeId, JSON.stringify(last));
+          }
+        } catch {
+          // non-fatal
+        }
+      }
+      return result;
     }
     console.debug('Render engine missing paint_end_stroke()');
     return false;

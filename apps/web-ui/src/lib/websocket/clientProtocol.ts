@@ -382,6 +382,12 @@ export class WebClientProtocol {
       const data = m.data as { reason?: string; failed_index?: number };
       showToast.error(data?.reason ?? 'Action rejected');
     });
+
+    // ── Paint strokes ──
+    this.registerHandler(MessageType.PAINT_STROKE_CREATE, this.handlePaintStrokeCreate.bind(this));
+    this.registerHandler(MessageType.PAINT_STROKE_DELETE, this.handlePaintStrokeDelete.bind(this));
+    this.registerHandler(MessageType.PAINT_STROKE_CLEAR, this.handlePaintStrokeClear.bind(this));
+    this.registerHandler(MessageType.PAINT_SYNC, this.handlePaintSync.bind(this));
   }
 
   registerHandler(type: string, handler: MessageHandler): void {
@@ -789,6 +795,14 @@ export class WebClientProtocol {
     // Apply persisted layer settings on join
     if (data?.layer_settings && typeof data.layer_settings === 'object') {
       this.applyLayerSettings(data.layer_settings as Record<string, Record<string, unknown>>);
+    }
+    // Load paint strokes on join
+    const rawData = message.data as { paint_strokes?: Record<string, unknown>[] };
+    if (Array.isArray(rawData?.paint_strokes) && rawData.paint_strokes.length > 0) {
+      const rm = window.rustRenderManager;
+      if (rm && typeof rm.paint_load_strokes === 'function') {
+        rm.paint_load_strokes(JSON.stringify(rawData.paint_strokes));
+      }
     }
     window.dispatchEvent(new CustomEvent('table-response', { detail: message.data }));
   }
@@ -1232,6 +1246,44 @@ export class WebClientProtocol {
     }
   }
 
+  private handlePaintStrokeCreate(message: Message): void {
+    const data = message.data as { operation?: string; stroke?: Record<string, unknown>; stroke_data?: string };
+    const rm = window.rustRenderManager;
+    if (!rm) return;
+    const json = data.stroke ? JSON.stringify(data.stroke) : data.stroke_data;
+    if (json && typeof rm.paint_add_remote_stroke === 'function') {
+      rm.paint_add_remote_stroke(json);
+    }
+    window.dispatchEvent(new CustomEvent('paint-stroke-created', { detail: data }));
+  }
+
+  private handlePaintStrokeDelete(message: Message): void {
+    const data = message.data as { stroke_id?: string };
+    const rm = window.rustRenderManager;
+    if (!rm || !data.stroke_id) return;
+    if (typeof rm.paint_remove_stroke === 'function') {
+      rm.paint_remove_stroke(data.stroke_id);
+    }
+    window.dispatchEvent(new CustomEvent('paint-stroke-deleted', { detail: data }));
+  }
+
+  private handlePaintStrokeClear(message: Message): void {
+    const rm = window.rustRenderManager;
+    if (rm && typeof rm.paint_clear_all === 'function') {
+      rm.paint_clear_all();
+    }
+    window.dispatchEvent(new CustomEvent('paint-strokes-cleared', { detail: message.data }));
+  }
+
+  private handlePaintSync(message: Message): void {
+    const data = message.data as { strokes?: Record<string, unknown>[] };
+    const rm = window.rustRenderManager;
+    if (!rm || !Array.isArray(data?.strokes)) return;
+    if (typeof rm.paint_load_strokes === 'function') {
+      rm.paint_load_strokes(JSON.stringify(data.strokes));
+    }
+  }
+
   /** Apply a map of { layerName → settings } to the WASM engine and Zustand store. */
   private applyLayerSettings(settings: Record<string, Record<string, unknown>>): void {
     const rm = window.rustRenderManager;
@@ -1410,6 +1462,25 @@ export class WebClientProtocol {
     if (!tableId) return;
     validateTableId(tableId);
     this.sendMessage(createMessage(MessageType.DOOR_TOGGLE, { table_id: tableId, wall_id: wallId }, 2));
+  }
+
+  // Paint stroke management
+  createPaintStroke(strokeId: string, strokeData: string): void {
+    const tableId = useGameStore.getState().activeTableId;
+    if (!tableId) return;
+    this.sendMessage(createMessage(MessageType.PAINT_STROKE_CREATE, { table_id: tableId, stroke_id: strokeId, stroke_data: strokeData }, 3));
+  }
+
+  deletePaintStroke(strokeId: string): void {
+    const tableId = useGameStore.getState().activeTableId;
+    if (!tableId) return;
+    this.sendMessage(createMessage(MessageType.PAINT_STROKE_DELETE, { table_id: tableId, stroke_id: strokeId }, 3));
+  }
+
+  clearPaintStrokes(): void {
+    const tableId = useGameStore.getState().activeTableId;
+    if (!tableId) return;
+    this.sendMessage(createMessage(MessageType.PAINT_STROKE_CLEAR, { table_id: tableId }, 3));
   }
 
   // Asset management methods

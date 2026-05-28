@@ -132,6 +132,12 @@ export const MessageType = {
   // Layer settings persistence
   LAYER_SETTINGS_UPDATE: "layer_settings_update",
 
+  // Paint strokes
+  PAINT_STROKE_CREATE: "paint_stroke_create",
+  PAINT_STROKE_DELETE: "paint_stroke_delete",
+  PAINT_STROKE_CLEAR: "paint_stroke_clear",
+  PAINT_SYNC: "paint_sync",
+
   // ── Game Mode ──
   GAME_MODE_CHANGE: "game_mode_change",
   GAME_MODE_STATE: "game_mode_state",

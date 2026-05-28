@@ -1235,5 +1235,144 @@ describe('WebClientProtocol', () => {
       expect(q[0].data).toEqual({ id: 's1', changes: { x: 5, y: 10 } });
     });
   });
+
+  // ── Paint protocol ────────────────────────────────────────────────────────
+
+  describe('paint incoming handlers', () => {
+    async function dispatch(p: WebClientProtocol, type: string, data: Record<string, unknown>) {
+      const raw = JSON.stringify({ type, data, version: '0.1', priority: 5 });
+      await (p as unknown as Record<string, (...a: unknown[]) => Promise<void>>)['handleIncomingMessage'](raw);
+    }
+
+    function makeRm() {
+      return {
+        paint_add_remote_stroke: vi.fn().mockReturnValue(true),
+        paint_remove_stroke: vi.fn().mockReturnValue(true),
+        paint_clear_all: vi.fn(),
+        paint_load_strokes: vi.fn().mockReturnValue(true),
+      };
+    }
+
+    it('PAINT_STROKE_CREATE calls paint_add_remote_stroke with stroke_data', async () => {
+      const p = makeProtocol();
+      const rm = makeRm();
+      window.rustRenderManager = rm as unknown as typeof window.rustRenderManager;
+      const strokeData = JSON.stringify({ id: 's1', points: [], color: [1, 0, 0, 1], width: 3 });
+      await dispatch(p, 'paint_stroke_create', {
+        stroke: { stroke_id: 's1', created_by: 99, stroke_data: strokeData },
+        table_id: 'tbl1',
+      });
+      expect(rm.paint_add_remote_stroke).toHaveBeenCalledWith(strokeData);
+    });
+
+    it('PAINT_STROKE_CREATE skips own stroke (created_by === userId)', async () => {
+      const p = makeProtocol('TEST', 1); // userId = 1
+      const rm = makeRm();
+      window.rustRenderManager = rm as unknown as typeof window.rustRenderManager;
+      const strokeData = JSON.stringify({ id: 's2', points: [], color: [1, 0, 0, 1], width: 3 });
+      await dispatch(p, 'paint_stroke_create', {
+        stroke: { stroke_id: 's2', created_by: 1, stroke_data: strokeData },
+        table_id: 'tbl1',
+      });
+      expect(rm.paint_add_remote_stroke).not.toHaveBeenCalled();
+    });
+
+    it('PAINT_STROKE_CREATE dispatches paint-stroke-created event', async () => {
+      const p = makeProtocol();
+      const rm = makeRm();
+      window.rustRenderManager = rm as unknown as typeof window.rustRenderManager;
+      const fn = vi.fn();
+      window.addEventListener('paint-stroke-created', fn);
+      const strokeData = JSON.stringify({ id: 's3', points: [], color: [1, 0, 0, 1], width: 3 });
+      await dispatch(p, 'paint_stroke_create', {
+        stroke: { stroke_id: 's3', created_by: 99, stroke_data: strokeData },
+        table_id: 'tbl1',
+      });
+      window.removeEventListener('paint-stroke-created', fn);
+      expect(fn).toHaveBeenCalledOnce();
+    });
+
+    it('PAINT_STROKE_DELETE calls paint_remove_stroke', async () => {
+      const p = makeProtocol();
+      const rm = makeRm();
+      window.rustRenderManager = rm as unknown as typeof window.rustRenderManager;
+      await dispatch(p, 'paint_stroke_delete', { stroke_id: 'stroke-xyz', table_id: 'tbl1' });
+      expect(rm.paint_remove_stroke).toHaveBeenCalledWith('stroke-xyz');
+    });
+
+    it('PAINT_STROKE_DELETE dispatches paint-stroke-deleted event', async () => {
+      const p = makeProtocol();
+      const rm = makeRm();
+      window.rustRenderManager = rm as unknown as typeof window.rustRenderManager;
+      const fn = vi.fn();
+      window.addEventListener('paint-stroke-deleted', fn);
+      await dispatch(p, 'paint_stroke_delete', { stroke_id: 'stroke-xyz', table_id: 'tbl1' });
+      window.removeEventListener('paint-stroke-deleted', fn);
+      expect(fn).toHaveBeenCalledOnce();
+    });
+
+    it('PAINT_STROKE_CLEAR calls paint_clear_all', async () => {
+      const p = makeProtocol();
+      const rm = makeRm();
+      window.rustRenderManager = rm as unknown as typeof window.rustRenderManager;
+      await dispatch(p, 'paint_stroke_clear', { table_id: 'tbl1' });
+      expect(rm.paint_clear_all).toHaveBeenCalled();
+    });
+
+    it('PAINT_STROKE_CLEAR dispatches paint-strokes-cleared event', async () => {
+      const p = makeProtocol();
+      const rm = makeRm();
+      window.rustRenderManager = rm as unknown as typeof window.rustRenderManager;
+      const fn = vi.fn();
+      window.addEventListener('paint-strokes-cleared', fn);
+      await dispatch(p, 'paint_stroke_clear', { table_id: 'tbl1' });
+      window.removeEventListener('paint-strokes-cleared', fn);
+      expect(fn).toHaveBeenCalledOnce();
+    });
+
+    it('PAINT_SYNC extracts DrawStroke from stroke_data and calls paint_load_strokes', async () => {
+      const p = makeProtocol();
+      const rm = makeRm();
+      window.rustRenderManager = rm as unknown as typeof window.rustRenderManager;
+      const ds = { id: 'ds1', points: [], color: [1, 0, 0, 1], width: 3, blend_mode: 'alpha' };
+      await dispatch(p, 'paint_sync', {
+        strokes: [
+          { stroke_id: 'ds1', stroke_data: JSON.stringify(ds) },
+        ],
+      });
+      expect(rm.paint_load_strokes).toHaveBeenCalledWith(JSON.stringify([ds]));
+    });
+  });
+
+  describe('paint outgoing methods', () => {
+    it('createPaintStroke sends PAINT_STROKE_CREATE message', () => {
+      const p = makeProtocol();
+      const ws = makeOpenWs(p);
+      p.createPaintStroke('stroke-1', '{"points":[]}');
+      expect(ws.send).toHaveBeenCalled();
+      const sent = JSON.parse((ws.send as Mock).mock.calls[0][0]);
+      expect(sent.type).toBe('paint_stroke_create');
+      expect(sent.data.stroke_id).toBe('stroke-1');
+    });
+
+    it('deletePaintStroke sends PAINT_STROKE_DELETE message', () => {
+      const p = makeProtocol();
+      const ws = makeOpenWs(p);
+      p.deletePaintStroke('stroke-2');
+      expect(ws.send).toHaveBeenCalled();
+      const sent = JSON.parse((ws.send as Mock).mock.calls[0][0]);
+      expect(sent.type).toBe('paint_stroke_delete');
+      expect(sent.data.stroke_id).toBe('stroke-2');
+    });
+
+    it('clearPaintStrokes sends PAINT_STROKE_CLEAR message', () => {
+      const p = makeProtocol();
+      const ws = makeOpenWs(p);
+      p.clearPaintStrokes();
+      expect(ws.send).toHaveBeenCalled();
+      const sent = JSON.parse((ws.send as Mock).mock.calls[0][0]);
+      expect(sent.type).toBe('paint_stroke_clear');
+    });
+  });
 });
 

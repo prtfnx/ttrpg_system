@@ -307,7 +307,7 @@ export function ToolsPanel({ userInfo }: ToolsPanelProps) {
 
           {/* Primary toolbar */}
           <div className={styles.toolbar}>
-            <button className={`${styles.toolButton} ${activeTool === 'select' || activeTool === 'move' ? styles.active : ''}`} onClick={() => setActiveTool('select')} title="Select / Move (drag token to move, drag empty = box select)">
+            <button className={`${styles.toolButton} ${activeTool === 'select' || activeTool === 'move' ? styles.active : ''}`} onClick={() => setActiveTool('select')} title="Select Tool" aria-label="Select / Move (drag token to move, drag empty = box select)">
               <Search size={14} aria-hidden /> Select
             </button>
             <button className={`${styles.toolButton} ${activeTool === 'measure' ? styles.active : ''}`} onClick={() => setActiveTool('measure')} title="Measurement Tool">

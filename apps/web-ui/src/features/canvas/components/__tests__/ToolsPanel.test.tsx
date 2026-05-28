@@ -44,6 +44,7 @@ vi.mock('@lib/api', () => ({
 vi.mock('@features/session/types/roles', () => ({
   isDM: vi.fn((role: string) => role === 'dm'),
   isElevated: vi.fn((role: string) => role === 'dm' || role === 'elevated'),
+  canInteract: vi.fn((role: string) => role === 'player' || role === 'dm' || role === 'elevated'),
 }));
 
 const mockSetActiveTool = vi.fn();
@@ -131,10 +132,9 @@ describe('ToolsPanel — render', () => {
 });
 
 describe('ToolsPanel — toolbar tools', () => {
-  it('renders primary tool buttons (Select, Move, Measure, Align)', () => {
+  it('renders primary tool buttons (Select, Measure, Align)', () => {
     render(<ToolsPanel userInfo={makeUser()} />);
     expect(screen.getByTitle('Select Tool')).toBeInTheDocument();
-    expect(screen.getByTitle('Move Tool')).toBeInTheDocument();
     expect(screen.getByTitle('Measurement Tool')).toBeInTheDocument();
     expect(screen.getByTitle('Alignment Helper')).toBeInTheDocument();
   });
@@ -145,10 +145,16 @@ describe('ToolsPanel — toolbar tools', () => {
     expect(mockSetActiveTool).toHaveBeenCalledWith('select');
   });
 
-  it('clicking Move calls setActiveTool("move")', () => {
+  it('Select Tool button is active for both select and move tools', () => {
+    // Select/Move are combined — the button stays active for activeTool 'move' too
+    vi.mocked(useGameStore).mockImplementation(
+      ((sel?: (s: typeof baseStoreState) => unknown) =>
+        sel ? sel({ ...baseStoreState, activeTool: 'move' }) : { ...baseStoreState, activeTool: 'move' }
+      ) as unknown as typeof useGameStore
+    );
     render(<ToolsPanel userInfo={makeUser()} />);
-    fireEvent.click(screen.getByTitle('Move Tool'));
-    expect(mockSetActiveTool).toHaveBeenCalledWith('move');
+    expect(screen.getByTitle('Select Tool')).toBeInTheDocument();
+    expect(screen.queryByTitle('Move Tool')).not.toBeInTheDocument();
   });
 
   it('clicking Measure calls setActiveTool("measure")', () => {

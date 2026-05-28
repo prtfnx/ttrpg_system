@@ -124,7 +124,8 @@ export class WebClientProtocol {
       'table_data', 'table_update', 'table_list_request', 'table_request', 'new_table_request', 'table_delete',
       'sprite_create', 'sprite_remove', 'player_kick_request', 'player_ban_request', 'player_list_request',
       'character_save', 'character_load', 'character_roll',
-      'asset_upload_request', 'asset_download_request', 'asset_list_request', 'asset_delete_request', 'asset_hash_check'
+      'asset_upload_request', 'asset_download_request', 'asset_list_request', 'asset_delete_request', 'asset_hash_check',
+      'paint_stroke_create', 'paint_stroke_delete', 'paint_stroke_clear',
     ];
     
     if (critical.includes(message.type)) {
@@ -796,12 +797,19 @@ export class WebClientProtocol {
     if (data?.layer_settings && typeof data.layer_settings === 'object') {
       this.applyLayerSettings(data.layer_settings as Record<string, Record<string, unknown>>);
     }
-    // Load paint strokes on join
-    const rawData = message.data as { paint_strokes?: Record<string, unknown>[] };
+    // Load paint strokes on join — server sends to_dict() format: [{stroke_id, stroke_data: <JSON>, ...}]
+    const rawData = message.data as { paint_strokes?: { stroke_id: string; stroke_data: string }[] };
     if (Array.isArray(rawData?.paint_strokes) && rawData.paint_strokes.length > 0) {
       const rm = window.rustRenderManager;
       if (rm && typeof rm.paint_load_strokes === 'function') {
-        rm.paint_load_strokes(JSON.stringify(rawData.paint_strokes));
+        try {
+          const drawStrokes = rawData.paint_strokes
+            .map(s => JSON.parse(s.stroke_data) as Record<string, unknown>)
+            .filter(Boolean);
+          rm.paint_load_strokes(JSON.stringify(drawStrokes));
+        } catch {
+          // non-fatal
+        }
       }
     }
     window.dispatchEvent(new CustomEvent('table-response', { detail: message.data }));
@@ -1247,12 +1255,18 @@ export class WebClientProtocol {
   }
 
   private handlePaintStrokeCreate(message: Message): void {
-    const data = message.data as { operation?: string; stroke?: Record<string, unknown>; stroke_data?: string };
+    // Server sends: { operation, stroke: {stroke_id, created_by, stroke_data: <JSON string>, ...}, table_id }
+    const data = message.data as { stroke?: { stroke_id?: string; created_by?: number; stroke_data?: string } };
+    const stroke = data?.stroke;
+    if (!stroke) return;
+    // Skip our own strokes — server excludes sender from broadcast, but sends response back
+    if (stroke.created_by != null && stroke.created_by === this.userId) return;
     const rm = window.rustRenderManager;
     if (!rm) return;
-    const json = data.stroke ? JSON.stringify(data.stroke) : data.stroke_data;
-    if (json && typeof rm.paint_add_remote_stroke === 'function') {
-      rm.paint_add_remote_stroke(json);
+    // stroke_data is the raw DrawStroke JSON from WASM
+    const drawStrokeJson = stroke.stroke_data;
+    if (drawStrokeJson && typeof rm.paint_add_remote_stroke === 'function') {
+      rm.paint_add_remote_stroke(drawStrokeJson);
     }
     window.dispatchEvent(new CustomEvent('paint-stroke-created', { detail: data }));
   }
@@ -1276,11 +1290,20 @@ export class WebClientProtocol {
   }
 
   private handlePaintSync(message: Message): void {
-    const data = message.data as { strokes?: Record<string, unknown>[] };
+    // Server sends PAINT_SYNC with strokes in to_dict() format: [{stroke_id, stroke_data: <JSON>, ...}]
+    // We need to extract the DrawStroke JSON from each entry
+    const data = message.data as { strokes?: { stroke_id: string; stroke_data: string }[] };
     const rm = window.rustRenderManager;
     if (!rm || !Array.isArray(data?.strokes)) return;
     if (typeof rm.paint_load_strokes === 'function') {
-      rm.paint_load_strokes(JSON.stringify(data.strokes));
+      try {
+        const drawStrokes = data.strokes
+          .map(s => JSON.parse(s.stroke_data) as Record<string, unknown>)
+          .filter(Boolean);
+        rm.paint_load_strokes(JSON.stringify(drawStrokes));
+      } catch {
+        // non-fatal parse error
+      }
     }
   }
 

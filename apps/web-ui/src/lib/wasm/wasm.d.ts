@@ -358,10 +358,14 @@ export class RenderEngine {
   paint_clear_all(): void;
   paint_save_strokes_as_sprites(layer_name: string): string[];
   paint_undo_stroke(): boolean;
+  paint_can_undo(): boolean;
   paint_get_stroke_count(): number;
   paint_is_drawing(): boolean;
   paint_get_strokes(): any;
   paint_get_current_stroke(): any;
+  paint_add_remote_stroke(stroke_json: string): boolean;
+  paint_remove_stroke(stroke_id: string): boolean;
+  paint_load_strokes(strokes_json: string): boolean;
   paint_on_event(event_type: string, callback: Function): void;
   /**
    * Set network client for table synchronization

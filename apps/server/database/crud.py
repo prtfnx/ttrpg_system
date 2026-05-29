@@ -860,3 +860,75 @@ def clear_paint_strokes_for_table(db: Session, table_id: str) -> int:
     count = db.query(models.PaintStroke).filter(models.PaintStroke.table_id == table_id).delete()
     db.commit()
     return count
+
+
+# ── CombatEncounter persistence ───────────────────────────────────────────────
+
+def upsert_combat_encounter(db: Session, session_code: str, state_dict: dict) -> None:
+    """Create or update the persisted CombatEncounter for a session."""
+    game_session = get_game_session_by_code(db, session_code)
+    if not game_session:
+        return
+
+    enc = db.query(models.CombatEncounter).filter(
+        models.CombatEncounter.encounter_id == state_dict['combat_id']
+    ).first()
+
+    if enc is None:
+        enc = models.CombatEncounter(
+            encounter_id=state_dict['combat_id'],
+            session_id=game_session.id,
+            table_id=state_dict.get('table_id', ''),
+        )
+        db.add(enc)
+
+    enc.phase = state_dict.get('phase', 'active')
+    enc.round_number = state_dict.get('round_number', 1)
+    enc.current_turn_index = state_dict.get('current_turn_index', 0)
+    enc.combatants_json = json.dumps(state_dict.get('combatants', []))
+    enc.settings_json = json.dumps(state_dict.get('settings', {}))
+    enc.action_log_json = json.dumps(state_dict.get('action_log', []))
+    db.commit()
+
+
+def load_active_combat_encounter(db: Session, session_code: str) -> dict | None:
+    """Load the most recent non-ended CombatEncounter for a session."""
+    game_session = get_game_session_by_code(db, session_code)
+    if not game_session:
+        return None
+
+    enc = (
+        db.query(models.CombatEncounter)
+        .filter(
+            models.CombatEncounter.session_id == game_session.id,
+            models.CombatEncounter.ended_at.is_(None),
+            models.CombatEncounter.phase != 'ended',
+        )
+        .order_by(models.CombatEncounter.id.desc())
+        .first()
+    )
+    if enc is None:
+        return None
+
+    return {
+        'combat_id': enc.encounter_id,
+        'session_id': session_code,
+        'table_id': enc.table_id,
+        'phase': enc.phase,
+        'round_number': enc.round_number,
+        'current_turn_index': enc.current_turn_index,
+        'combatants': json.loads(enc.combatants_json or '[]'),
+        'settings': json.loads(enc.settings_json or '{}'),
+        'action_log': json.loads(enc.action_log_json or '[]'),
+    }
+
+
+def mark_combat_encounter_ended(db: Session, combat_id: str) -> None:
+    from datetime import datetime
+    enc = db.query(models.CombatEncounter).filter(
+        models.CombatEncounter.encounter_id == combat_id
+    ).first()
+    if enc:
+        enc.phase = 'ended'
+        enc.ended_at = datetime.utcnow()
+        db.commit()

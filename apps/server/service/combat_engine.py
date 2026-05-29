@@ -166,6 +166,9 @@ class CombatEngine:
         current.has_bonus_action = True
         current.has_reaction = True
         current.movement_remaining = current.movement_speed
+        current.is_dodging = False
+        current.is_disengaging = False
+        current.attacks_used_this_action = 0
 
         return {
             'combatant_id': current.combatant_id,
@@ -389,3 +392,159 @@ class CombatEngine:
                 c.surprised = surprised
                 updated.append(c.combatant_id)
         return {'updated': updated, 'surprised': surprised} if updated else None
+
+    # ── Player Action Execution ─────────────────────────────────────────────
+
+    @classmethod
+    def execute_attack(
+        cls,
+        session_id: str,
+        attacker_id: str,
+        target_id: str,
+        attack_bonus: int,
+        damage_formula: str,
+        damage_type: str,
+        attack_type: str = 'melee',
+        weapon_range_ft: float = 5.0,
+        table=None,
+        rules=None,
+    ) -> dict:
+        """Resolve an attack server-authoritatively. Returns result dict."""
+        from service.attack_resolver import AttackResolver
+        from core_table.session_rules import SessionRules
+
+        state = cls._active.get(session_id)
+        if not state:
+            return {'error': 'No active combat'}
+
+        attacker = next((c for c in state.combatants if c.combatant_id == attacker_id), None)
+        target = next((c for c in state.combatants if c.combatant_id == target_id), None)
+        if not attacker or not target:
+            return {'error': 'Combatant not found'}
+        if target.is_defeated:
+            return {'error': 'Target is already defeated'}
+        if not attacker.has_action and attacker.attacks_used_this_action >= attacker.attacks_per_action:
+            return {'error': 'No action remaining'}
+
+        # Range check using entity positions
+        if table is not None:
+            range_err = cls._check_range(state, attacker, target, weapon_range_ft, table)
+            if range_err:
+                return {'error': range_err}
+
+        rules = rules or SessionRules.defaults(session_id)
+        resolver = AttackResolver(rules)
+
+        # Snapshot for undo
+        state_before = {
+            'combatant_id': target_id,
+            'hp': target.hp, 'temp_hp': target.temp_hp,
+            'is_defeated': target.is_defeated,
+            'concentration_spell': target.concentration_spell,
+        }
+        attacker_before = {
+            'combatant_id': attacker_id,
+            'has_action': attacker.has_action,
+            'attacks_used_this_action': attacker.attacks_used_this_action,
+        }
+
+        result = resolver.resolve_attack(
+            attacker, target,
+            attack_bonus=attack_bonus,
+            damage_formula=damage_formula,
+            damage_type=damage_type,
+            attack_type=attack_type,
+            table=table,
+            combat=state,
+        )
+
+        damage_result: dict = {}
+        if result.hit:
+            damage_result = cls.apply_damage(session_id, target_id, result.damage_dealt, damage_type)
+
+        # Consume action after all attacks used
+        attacker.attacks_used_this_action += 1
+        if attacker.attacks_used_this_action >= attacker.attacks_per_action:
+            attacker.has_action = False
+
+        # Log for audit / undo
+        action = CombatAction(
+            action_id=str(uuid.uuid4()),
+            combat_id=state.combat_id,
+            round_number=state.round_number,
+            turn_index=state.current_turn_index,
+            actor_id=attacker_id,
+            action_type='attack',
+            action_cost='action',
+            target_ids=[target_id],
+            rolls=[{'attack': result.attack_roll.total if result.attack_roll else None,
+                    'damage': result.damage_dealt}],
+            outcome='hit' if result.hit else 'miss',
+            damage_dealt=result.damage_dealt,
+            state_before={**state_before, **attacker_before},
+            timestamp=time.time(),
+        )
+        state.action_log.append(action)
+
+        return {
+            'hit': result.hit,
+            'is_critical': result.is_critical,
+            'is_fumble': result.is_fumble,
+            'attack_roll': result.attack_roll.total if result.attack_roll else None,
+            'damage_roll': result.damage_dealt,
+            'damage_dealt': result.damage_dealt,
+            'reason': result.reason,
+            **damage_result,
+        }
+
+    @classmethod
+    def execute_utility(cls, session_id: str, combatant_id: str, action_type: str) -> dict:
+        """Handle dash/dodge/disengage utility actions."""
+        state = cls._active.get(session_id)
+        if not state:
+            return {'error': 'No active combat'}
+        c = next((x for x in state.combatants if x.combatant_id == combatant_id), None)
+        if not c:
+            return {'error': 'Combatant not found'}
+        if not c.has_action:
+            return {'error': 'No action remaining'}
+
+        c.has_action = False
+        if action_type == 'dash':
+            c.movement_remaining += c.movement_speed
+        elif action_type == 'dodge':
+            c.is_dodging = True
+        elif action_type == 'disengage':
+            c.is_disengaging = True
+
+        action = CombatAction(
+            action_id=str(uuid.uuid4()),
+            combat_id=state.combat_id,
+            round_number=state.round_number,
+            turn_index=state.current_turn_index,
+            actor_id=combatant_id,
+            action_type=action_type,
+            action_cost='action',
+            outcome=action_type,
+            timestamp=time.time(),
+        )
+        state.action_log.append(action)
+        return {'action_type': action_type, 'combatant_id': combatant_id}
+
+    @staticmethod
+    def _check_range(state: CombatState, attacker: Combatant, target: Combatant,
+                     range_ft: float, table) -> str | None:
+        """Return an error string if target is out of range, else None."""
+        atk_sprite = table.sprite_to_entity.get(str(attacker.entity_id))
+        tgt_sprite = table.sprite_to_entity.get(str(target.entity_id))
+        ae = table.entities.get(atk_sprite) if atk_sprite else None
+        te = table.entities.get(tgt_sprite) if tgt_sprite else None
+        if ae is None or te is None:
+            return None  # can't determine; allow
+        ft_per_unit = getattr(table, 'ft_per_unit', 1.0)
+        dist_px = math.hypot(te.position[0] - ae.position[0], te.position[1] - ae.position[1])
+        dist_ft = dist_px * ft_per_unit
+        # 5-ft grid tolerance (half-diagonal of a square)
+        if dist_ft > range_ft + 2.5:
+            return f'Target out of range ({dist_ft:.0f} ft > {range_ft:.0f} ft)'
+        return None

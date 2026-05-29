@@ -5,7 +5,9 @@ import sys
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '../..'))
 
 import pytest
+from unittest.mock import patch, MagicMock
 from core_table.combat import CombatPhase
+from service.attack_resolver import AttackResult
 from service.combat_engine import CombatEngine
 
 
@@ -168,3 +170,142 @@ def test_new_round_ticks_conditions():
     CombatEngine.end_turn('sess1', cids[1])
     # Condition should have been ticked off
     assert not state.combatants[0].conditions
+
+
+# ── execute_attack ────────────────────────────────────────────────────────────
+
+def _make_hit(damage=8):
+    from core_table.dice import DiceRollResult
+    roll = DiceRollResult(formula='1d20+5', rolls=[10], modifier=5, total=15)
+    return AttackResult(hit=True, damage_dealt=damage, attack_roll=roll)
+
+
+def _make_miss():
+    from core_table.dice import DiceRollResult
+    roll = DiceRollResult(formula='1d20+5', rolls=[3], modifier=5, total=8)
+    return AttackResult(hit=False, damage_dealt=0, attack_roll=roll, reason='Miss (8 vs AC 15)')
+
+
+@pytest.fixture()
+def two_combatant_state():
+    state = CombatEngine.start_combat('s1', 't1', ['att', 'def'])
+    state.combatants[0].hp = 20
+    state.combatants[0].max_hp = 20
+    state.combatants[1].hp = 20
+    state.combatants[1].max_hp = 20
+    state.combatants[1].armor_class = 15
+    return state
+
+
+def test_execute_attack_hit(two_combatant_state):
+    state = two_combatant_state
+    atk_id = state.combatants[0].combatant_id
+    def_id = state.combatants[1].combatant_id
+
+    with patch('service.attack_resolver.AttackResolver') as MockAR:
+        MockAR.return_value.resolve_attack.return_value = _make_hit(8)
+        result = CombatEngine.execute_attack('s1', atk_id, def_id, 5, '1d8', 'slashing')
+
+    assert result['hit'] is True
+    assert result['damage_dealt'] == 8
+    assert state.combatants[1].hp == 12
+    assert not state.combatants[0].has_action  # action consumed
+
+
+def test_execute_attack_miss(two_combatant_state):
+    state = two_combatant_state
+    atk_id = state.combatants[0].combatant_id
+    def_id = state.combatants[1].combatant_id
+
+    with patch('service.attack_resolver.AttackResolver') as MockAR:
+        MockAR.return_value.resolve_attack.return_value = _make_miss()
+        result = CombatEngine.execute_attack('s1', atk_id, def_id, 5, '1d8', 'slashing')
+
+    assert result['hit'] is False
+    assert state.combatants[1].hp == 20  # no damage
+    assert not state.combatants[0].has_action  # action still consumed
+
+
+def test_execute_attack_no_action(two_combatant_state):
+    state = two_combatant_state
+    atk_id = state.combatants[0].combatant_id
+    def_id = state.combatants[1].combatant_id
+    state.combatants[0].has_action = False
+    state.combatants[0].attacks_used_this_action = 1
+
+    result = CombatEngine.execute_attack('s1', atk_id, def_id, 5, '1d8', 'slashing')
+    assert 'error' in result
+
+
+def test_execute_attack_target_defeated(two_combatant_state):
+    state = two_combatant_state
+    atk_id = state.combatants[0].combatant_id
+    def_id = state.combatants[1].combatant_id
+    state.combatants[1].is_defeated = True
+
+    result = CombatEngine.execute_attack('s1', atk_id, def_id, 5, '1d8', 'slashing')
+    assert 'error' in result
+
+
+def test_execute_attack_missing_session():
+    result = CombatEngine.execute_attack('no_sess', 'a', 'b', 5, '1d6', 'slashing')
+    assert result.get('error') == 'No active combat'
+
+
+# ── execute_utility ───────────────────────────────────────────────────────────
+
+def test_execute_utility_dash(two_combatant_state):
+    state = two_combatant_state
+    cid = state.combatants[0].combatant_id
+    state.combatants[0].movement_speed = 30
+    state.combatants[0].movement_remaining = 30
+
+    result = CombatEngine.execute_utility('s1', cid, 'dash')
+    assert 'error' not in result
+    assert state.combatants[0].movement_remaining == 60
+    assert not state.combatants[0].has_action
+
+
+def test_execute_utility_dodge(two_combatant_state):
+    state = two_combatant_state
+    cid = state.combatants[0].combatant_id
+
+    result = CombatEngine.execute_utility('s1', cid, 'dodge')
+    assert 'error' not in result
+    assert state.combatants[0].is_dodging is True
+    assert not state.combatants[0].has_action
+
+
+def test_execute_utility_disengage(two_combatant_state):
+    state = two_combatant_state
+    cid = state.combatants[0].combatant_id
+
+    result = CombatEngine.execute_utility('s1', cid, 'disengage')
+    assert 'error' not in result
+    assert state.combatants[0].is_disengaging is True
+
+
+def test_execute_utility_no_action(two_combatant_state):
+    state = two_combatant_state
+    cid = state.combatants[0].combatant_id
+    state.combatants[0].has_action = False
+
+    result = CombatEngine.execute_utility('s1', cid, 'dash')
+    assert 'error' in result
+
+
+def test_next_turn_resets_dodge_flags(two_combatant_state):
+    state = two_combatant_state
+    cid0 = state.combatants[0].combatant_id
+    state.combatants[0].is_dodging = True
+    state.combatants[0].is_disengaging = True
+    state.combatants[0].attacks_used_this_action = 2
+
+    CombatEngine.end_turn('s1', cid0)
+    # Move back to combatant 0 to test reset on their next turn
+    cid1 = state.combatants[1].combatant_id
+    CombatEngine.end_turn('s1', cid1)
+
+    assert state.combatants[0].is_dodging is False
+    assert state.combatants[0].is_disengaging is False
+    assert state.combatants[0].attacks_used_this_action == 0

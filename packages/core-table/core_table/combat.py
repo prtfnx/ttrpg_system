@@ -76,6 +76,16 @@ class Combatant:
     damage_vulnerabilities: list[str] = field(default_factory=list)
     damage_immunities: list[str] = field(default_factory=list)
     surprised: bool = False
+    # Action-state flags (cleared each turn by CombatEngine.next_turn)
+    is_dodging: bool = False
+    is_disengaging: bool = False
+    # Combat stats
+    constitution_modifier: int = 0
+    attacks_per_action: int = 1
+    attacks_used_this_action: int = 0
+    # Spell resources
+    spell_slots: dict = field(default_factory=dict)      # {level_str: remaining}
+    spell_slots_max: dict = field(default_factory=dict)  # {level_str: max}
 
     def is_alive(self) -> bool:
         return not self.is_defeated
@@ -110,6 +120,13 @@ class Combatant:
             'damage_vulnerabilities': self.damage_vulnerabilities,
             'damage_immunities': self.damage_immunities,
             'surprised': self.surprised,
+            'is_dodging': self.is_dodging,
+            'is_disengaging': self.is_disengaging,
+            'constitution_modifier': self.constitution_modifier,
+            'attacks_per_action': self.attacks_per_action,
+            'attacks_used_this_action': self.attacks_used_this_action,
+            'spell_slots': self.spell_slots,
+            'spell_slots_max': self.spell_slots_max,
         }
 
     def to_dict_for_player(self, hp_visibility: str) -> dict:

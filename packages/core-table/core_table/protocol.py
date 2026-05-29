@@ -198,6 +198,19 @@ class MessageType(enum.Enum):    # Core messages
     COVER_ZONE_UPDATE = "cover_zone_update"
     COVER_ZONES_SYNC = "cover_zones_sync"
 
+    # ── Player Combat Actions ──
+    COMBAT_ATTACK    = "combat_attack"
+    COMBAT_SPELL     = "combat_spell"
+    COMBAT_ABILITY   = "combat_ability"
+    COMBAT_DASH      = "combat_dash"
+    COMBAT_DISENGAGE = "combat_disengage"
+    COMBAT_DODGE     = "combat_dodge"
+    COMBAT_HELP      = "combat_help"
+    COMBAT_HIDE      = "combat_hide"
+    COMBAT_READY     = "combat_ready"
+    READY_TRIGGER_FIRE = "ready_trigger_fire"
+    CONCENTRATION_SAVED = "concentration_saved"
+
     # ── Opportunity Attacks ──
     OPPORTUNITY_ATTACK_WARNING = "opportunity_attack_warning"
     OPPORTUNITY_ATTACK_CONFIRM_MOVE = "opportunity_attack_confirm_move"

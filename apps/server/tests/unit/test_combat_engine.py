@@ -5,7 +5,7 @@ import sys
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '../..'))
 
 import pytest
-from unittest.mock import patch, MagicMock
+from unittest.mock import MagicMock, call, patch
 from core_table.combat import CombatPhase
 from service.attack_resolver import AttackResult
 from service.combat_engine import CombatEngine
@@ -309,3 +309,48 @@ def test_next_turn_resets_dodge_flags(two_combatant_state):
     assert state.combatants[0].is_dodging is False
     assert state.combatants[0].is_disengaging is False
     assert state.combatants[0].attacks_used_this_action == 0
+
+
+# ── Persistence ───────────────────────────────────────────────────────────────
+
+def test_persist_called_on_start_combat():
+    with patch.object(CombatEngine, 'persist') as mock_persist:
+        CombatEngine.start_combat('ps1', 't1', ['e1'])
+        mock_persist.assert_called_once_with('ps1')
+
+
+def test_persist_called_on_new_round():
+    state = CombatEngine.start_combat('ps2', 't1', ['e1', 'e2'])
+    cid0 = state.combatants[0].combatant_id
+    cid1 = state.combatants[1].combatant_id
+
+    with patch.object(CombatEngine, 'persist') as mock_persist:
+        CombatEngine.end_turn('ps2', cid0)  # turn 1→2, no new round
+        CombatEngine.end_turn('ps2', cid1)  # turn 2→0, new round → persist
+        mock_persist.assert_called_once_with('ps2')
+
+
+def test_persist_silently_ignores_db_errors():
+    CombatEngine.start_combat('ps3', 't1', ['e1'])
+    with patch('database.database.SessionLocal', side_effect=Exception('DB down')):
+        CombatEngine.persist('ps3')  # must not raise
+
+
+def test_restore_returns_none_when_no_db_record():
+    mock_db = MagicMock()
+    mock_ctx = MagicMock()
+    mock_ctx.__enter__ = MagicMock(return_value=mock_db)
+    mock_ctx.__exit__ = MagicMock(return_value=False)
+    with patch('database.database.SessionLocal', return_value=mock_ctx):
+        with patch('database.crud.load_active_combat_encounter', return_value=None):
+            result = CombatEngine.restore('nonexistent_sess')
+    assert result is None
+
+
+def test_restore_returns_in_memory_state_without_db():
+    state = CombatEngine.start_combat('rs1', 't1', ['e1'])
+    # Already in memory — should never touch DB
+    with patch('database.database.SessionLocal') as MockSL:
+        result = CombatEngine.restore('rs1')
+        MockSL.assert_not_called()
+    assert result is state

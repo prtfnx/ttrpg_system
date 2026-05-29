@@ -153,6 +153,7 @@ class TestCombatStateRequest:
     @patch("service.combat_engine.CombatEngine")
     async def test_no_combat_returns_null_combat(self, mock_engine):
         mock_engine.get_state.return_value = None
+        mock_engine.restore.return_value = None
         proto = _ProtoStub(role="player")
         resp = await proto.handle_combat_state_request(Message(MessageType.COMBAT_STATE_REQUEST, {}), "c1")
         assert resp.type == MessageType.COMBAT_STATE

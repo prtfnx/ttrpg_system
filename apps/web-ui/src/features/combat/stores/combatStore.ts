@@ -38,6 +38,14 @@ export interface Combatant {
   damage_resistances?: string[];
   damage_vulnerabilities?: string[];
   damage_immunities?: string[];
+  // New fields
+  is_dodging?: boolean;
+  is_disengaging?: boolean;
+  constitution_modifier?: number;
+  attacks_per_action?: number;
+  attacks_used_this_action?: number;
+  spell_slots?: Record<string, number>;
+  spell_slots_max?: Record<string, number>;
 }
 
 export interface CombatSettings {

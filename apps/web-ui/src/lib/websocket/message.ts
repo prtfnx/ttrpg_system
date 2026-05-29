@@ -215,6 +215,7 @@ export const MessageType = {
 
   // ── Concentration ──
   CONCENTRATION_BROKEN: "concentration_broken",
+  CONCENTRATION_SAVED: "concentration_saved",
 
   // ── Terrain Zones ──
   TERRAIN_ZONE_ADD: "terrain_zone_add",
@@ -237,6 +238,18 @@ export const MessageType = {
   // ── Attack Preview ──
   ATTACK_PREVIEW: "attack_preview",
   ATTACK_PREVIEW_RESULT: "attack_preview_result",
+
+  // ── Player Combat Actions ──
+  COMBAT_ATTACK: "combat_attack",
+  COMBAT_SPELL: "combat_spell",
+  COMBAT_ABILITY: "combat_ability",
+  COMBAT_DASH: "combat_dash",
+  COMBAT_DISENGAGE: "combat_disengage",
+  COMBAT_DODGE: "combat_dodge",
+  COMBAT_HELP: "combat_help",
+  COMBAT_HIDE: "combat_hide",
+  COMBAT_READY: "combat_ready",
+  READY_TRIGGER_FIRE: "ready_trigger_fire",
 
   // ── Surprised / Turn Skipped ──
   TURN_SKIPPED: "turn_skipped",

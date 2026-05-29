@@ -59,7 +59,9 @@ class AttackResolver:
         if 'prone' in target_conds:
             advantage = True  # simplified: assume melee
 
-        # Ranged attack in melee: auto-disadvantage when hostile adjacent
+        # Dodge: target used Dodge action → attacker has disadvantage
+        if target.is_dodging:
+            disadvantage = True
         if attack_type == 'ranged' and combat is not None and table is not None:
             if self._has_adjacent_hostile(attacker, combat, table):
                 disadvantage = True

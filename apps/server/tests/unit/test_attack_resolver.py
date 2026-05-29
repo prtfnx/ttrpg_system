@@ -90,3 +90,30 @@ def test_saving_throw_failure(resolver):
     target = make_target()
     result = resolver.resolve_saving_throw(combatant=target, ability='dex', dc=30, bonus=-100)
     assert not result.success
+
+
+def test_dodge_applies_disadvantage(resolver):
+    """Attacking a dodging target should roll with disadvantage."""
+    attacker = make_attacker()
+    target = make_target(is_dodging=True)
+
+    with patch('service.attack_resolver.DiceEngine.roll_with_disadvantage') as mock_dis, \
+         patch('service.attack_resolver.DiceEngine.roll') as mock_roll:
+        mock_dis.return_value = DiceRollResult(formula='2d20kl1', rolls=[10, 5], modifier=0, total=5)
+        mock_roll.return_value = DiceRollResult(formula='1d6', rolls=[4], modifier=0, total=4)
+        result = resolver.resolve_attack(attacker, target, attack_bonus=0, damage_formula='1d6')
+
+    mock_dis.assert_called_once()
+
+
+def test_no_dodge_uses_normal_roll(resolver):
+    """A non-dodging target should not trigger disadvantage roll."""
+    attacker = make_attacker()
+    target = make_target(is_dodging=False)
+
+    with patch('service.attack_resolver.DiceEngine.roll_with_disadvantage') as mock_dis, \
+         patch('service.attack_resolver.DiceEngine.roll') as mock_roll:
+        mock_roll.return_value = DiceRollResult(formula='1d20', rolls=[15], modifier=0, total=15)
+        resolver.resolve_attack(attacker, target, attack_bonus=0, damage_formula='1d6')
+
+    mock_dis.assert_not_called()

@@ -263,13 +263,17 @@ class CombatEngine:
             if c.hp == 0 and (not state.settings.death_saves_enabled or c.is_npc):
                 c.is_defeated = True
             result: dict = {'new_hp': c.hp, 'temp_hp': c.temp_hp, 'absorbed': absorbed, 'defeated': c.is_defeated}
-            # Concentration check on any damage taken
+            # Concentration saving throw (Con save, DC = max(10, damage/2))
             if actual > 0 and c.concentration_spell:
                 dc = max(10, math.ceil(actual / 2))
-                con_roll = DiceEngine.roll('1d20').total
+                raw = DiceEngine.roll('1d20').total
+                con_roll = raw + c.constitution_modifier
                 if con_roll < dc:
                     result['concentration_broken'] = c.concentration_spell
                     c.concentration_spell = None
+                else:
+                    result['concentration_saved'] = c.concentration_spell
+                result['concentration_roll'] = {'raw': raw, 'modifier': c.constitution_modifier, 'total': con_roll, 'dc': dc}
             return result
         return {'error': 'combatant not found'}
 

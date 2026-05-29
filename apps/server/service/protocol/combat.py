@@ -272,8 +272,17 @@ class _CombatMixin(_ProtocolBase):
             conc_msg = Message(MessageType.CONCENTRATION_BROKEN, {
                 'combatant_id': combatant_id,
                 'spell': result['concentration_broken'],
+                'roll': result.get('concentration_roll'),
             })
             await self.broadcast_to_session(conc_msg, client_id)
+        elif result.get('concentration_saved'):
+            await self.broadcast_to_session(
+                Message(MessageType.CONCENTRATION_SAVED, {
+                    'combatant_id': combatant_id,
+                    'spell': result['concentration_saved'],
+                    'roll': result.get('concentration_roll'),
+                }), client_id,
+            )
         return resp
 
     async def handle_dm_revert_action(self, msg: Message, client_id: str) -> Message:
@@ -818,7 +827,15 @@ class _CombatMixin(_ProtocolBase):
         if result.get('concentration_broken'):
             await self.broadcast_to_session(
                 Message(MessageType.CONCENTRATION_BROKEN, {
-                    'combatant_id': target_id, 'spell': result['concentration_broken']
+                    'combatant_id': target_id, 'spell': result['concentration_broken'],
+                    'roll': result.get('concentration_roll'),
+                }), client_id,
+            )
+        elif result.get('concentration_saved'):
+            await self.broadcast_to_session(
+                Message(MessageType.CONCENTRATION_SAVED, {
+                    'combatant_id': target_id, 'spell': result['concentration_saved'],
+                    'roll': result.get('concentration_roll'),
                 }), client_id,
             )
         return resp

@@ -77,3 +77,62 @@ def test_no_concentration_no_check():
     cid = state.combatants[0].combatant_id
     result = CombatEngine.apply_damage('s', cid, 5)
     assert 'concentration_broken' not in result
+    assert 'concentration_saved' not in result
+
+
+def test_concentration_save_includes_con_modifier():
+    """Con save adds constitution_modifier to the d20 roll."""
+    state = CombatEngine.start_combat('cm', 't', ['e'])
+    c = state.combatants[0]
+    c.hp = 20
+    c.max_hp = 20
+    c.concentration_spell = 'Bless'
+    c.constitution_modifier = 3  # +3 bonus
+
+    with patch('service.combat_engine.DiceEngine.roll') as mock:
+        # raw 6 + 3 = 9 < dc 10 → still breaks (dc from 1 dmg → max(10, 0) = 10)
+        mock.return_value = DiceRollResult(total=6, rolls=[6], modifier=0, formula='1d20')
+        result = CombatEngine.apply_damage('cm', c.combatant_id, 1)
+
+    assert result['concentration_roll']['modifier'] == 3
+    assert result['concentration_roll']['total'] == 9  # 6 + 3
+    assert result.get('concentration_broken') == 'Bless'
+
+
+def test_constitution_modifier_can_save_concentration():
+    """A high Con modifier turns a low roll into a successful save."""
+    state = CombatEngine.start_combat('cm2', 't', ['e'])
+    c = state.combatants[0]
+    c.hp = 20
+    c.max_hp = 20
+    c.concentration_spell = 'Bless'
+    c.constitution_modifier = 5  # +5 bonus
+
+    with patch('service.combat_engine.DiceEngine.roll') as mock:
+        # raw 5 + 5 = 10 >= dc 10 → saves (just barely)
+        mock.return_value = DiceRollResult(total=5, rolls=[5], modifier=0, formula='1d20')
+        result = CombatEngine.apply_damage('cm2', c.combatant_id, 1)
+
+    assert 'concentration_broken' not in result
+    assert result.get('concentration_saved') == 'Bless'
+
+
+def test_concentration_saved_key_present_on_success():
+    _, cid = _concentrating(session='cs')
+    with patch('service.combat_engine.DiceEngine.roll') as mock:
+        mock.return_value = DiceRollResult(total=20, rolls=[20], modifier=0, formula='1d20')
+        result = CombatEngine.apply_damage('cs', cid, 10)
+    assert result.get('concentration_saved') == 'Bless'
+    assert 'concentration_broken' not in result
+
+
+def test_concentration_roll_metadata_returned():
+    _, cid = _concentrating(session='cr')
+    with patch('service.combat_engine.DiceEngine.roll') as mock:
+        mock.return_value = DiceRollResult(total=8, rolls=[8], modifier=0, formula='1d20')
+        result = CombatEngine.apply_damage('cr', cid, 12)
+    assert 'concentration_roll' in result
+    roll = result['concentration_roll']
+    assert roll['dc'] == 10  # max(10, 12//2=6) = 10... wait, 12//2=6, max(10,6)=10
+    assert roll['raw'] == 8
+    assert roll['total'] == 8  # modifier=0 by default

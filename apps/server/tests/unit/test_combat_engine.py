@@ -354,3 +354,83 @@ def test_restore_returns_in_memory_state_without_db():
         result = CombatEngine.restore('rs1')
         MockSL.assert_not_called()
     assert result is state
+
+
+# --- Multiattack / Extra Attack ---
+
+def _two_combatant(session: str = 'ma'):
+    CombatEngine._active.pop(session, None)
+    state = CombatEngine.start_combat(session, 't', ['a', 'b'])
+    a, b = state.combatants[0], state.combatants[1]
+    a.hp = 50
+    a.max_hp = 50
+    b.hp = 50
+    b.max_hp = 50
+    return state, a, b
+
+
+def test_multiattack_action_not_consumed_after_first_hit():
+    state, a, b = _two_combatant('ma1')
+    a.attacks_per_action = 2
+    a.has_action = True
+
+_ATTACK_HIT = AttackResult(hit=True, damage_dealt=5)
+
+
+def test_multiattack_action_not_consumed_after_first_hit():
+    state, a, b = _two_combatant('ma1')
+    a.attacks_per_action = 2
+    a.has_action = True
+
+    with patch.object(CombatEngine, 'apply_damage', return_value={}):
+        with patch('service.attack_resolver.AttackResolver') as MockAR:
+            MockAR.return_value.resolve_attack.return_value = _ATTACK_HIT
+            CombatEngine.execute_attack('ma1', a.combatant_id, b.combatant_id, 0, '1d6', 'slashing')
+
+    assert a.has_action is True  # still has action after 1 of 2 attacks
+    assert a.attacks_used_this_action == 1
+
+
+def test_multiattack_action_consumed_after_all_attacks():
+    state, a, b = _two_combatant('ma2')
+    a.attacks_per_action = 2
+    a.has_action = True
+
+    with patch.object(CombatEngine, 'apply_damage', return_value={}):
+        with patch('service.attack_resolver.AttackResolver') as MockAR:
+            MockAR.return_value.resolve_attack.return_value = _ATTACK_HIT
+            CombatEngine.execute_attack('ma2', a.combatant_id, b.combatant_id, 0, '1d6', 'slashing')
+            CombatEngine.execute_attack('ma2', a.combatant_id, b.combatant_id, 0, '1d6', 'slashing')
+
+    assert a.has_action is False  # action consumed after 2nd attack
+    assert a.attacks_used_this_action == 2
+
+
+def test_multiattack_third_attack_blocked():
+    state, a, b = _two_combatant('ma3')
+    a.attacks_per_action = 2
+    a.has_action = True
+
+    with patch.object(CombatEngine, 'apply_damage', return_value={}):
+        with patch('service.attack_resolver.AttackResolver') as MockAR:
+            MockAR.return_value.resolve_attack.return_value = _ATTACK_HIT
+            CombatEngine.execute_attack('ma3', a.combatant_id, b.combatant_id, 0, '1d6', 'slashing')
+            CombatEngine.execute_attack('ma3', a.combatant_id, b.combatant_id, 0, '1d6', 'slashing')
+            result = CombatEngine.execute_attack('ma3', a.combatant_id, b.combatant_id, 0, '1d6', 'slashing')
+
+    assert 'error' in result
+
+
+def test_attacks_reset_on_new_turn():
+    state, a, b = _two_combatant('ma4')
+    a.attacks_per_action = 2
+    a.attacks_used_this_action = 2
+    a.has_action = False
+    # Simulate next_turn cycling back to a's turn
+    state.current_turn_index = 0
+    state.combatants = [a, b]
+    CombatEngine.next_turn('ma4')
+    # Turn moved to b; now move to a again
+    state.current_turn_index = 1
+    CombatEngine.next_turn('ma4')
+    assert a.attacks_used_this_action == 0

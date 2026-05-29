@@ -759,3 +759,105 @@ class _CombatMixin(_ProtocolBase):
         resp = Message(MessageType.ACTION_RESULT, {'sequence_id': sequence_id, 'applied': applied})
         await self.broadcast_to_session(resp, client_id)
         return resp
+
+    # ── Player Combat Actions ───────────────────────────────────────────────
+
+    def _assert_current_turn(self, state, combatant_id: str, client_id: str, user_id) -> str | None:
+        """Return error string if it's not combatant_id's turn or user can't control them."""
+        current = state.get_current_combatant()
+        if not current or current.combatant_id != combatant_id:
+            return 'Not your turn'
+        if not is_dm(self._get_client_role(client_id)):
+            if user_id is None or str(user_id) not in current.controlled_by:
+                return 'You do not control this combatant'
+        return None
+
+    async def handle_combat_attack(self, msg: Message, client_id: str) -> Message:
+        from service.combat_engine import CombatEngine
+        d = msg.data or {}
+        session_code = self._get_session_code()
+        state = CombatEngine.get_state(session_code)
+        if not state:
+            return Message(MessageType.ERROR, {'error': 'No active combat'})
+
+        attacker_id = d.get('attacker_id', '')
+        target_id = d.get('target_id', '')
+        user_id = self._get_user_id(msg, client_id)
+        turn_err = self._assert_current_turn(state, attacker_id, client_id, user_id)
+        if turn_err:
+            return Message(MessageType.ERROR, {'error': turn_err})
+
+        table_id = str(d.get('table_id', ''))
+        table = self._get_table_by_id(table_id)
+        result = CombatEngine.execute_attack(
+            session_code,
+            attacker_id=attacker_id,
+            target_id=target_id,
+            attack_bonus=int(d.get('attack_bonus', 0)),
+            damage_formula=d.get('damage_formula', '1d4'),
+            damage_type=d.get('damage_type', 'bludgeoning'),
+            attack_type=d.get('attack_type', 'melee'),
+            weapon_range_ft=float(d.get('range_ft', 5.0)),
+            table=table,
+        )
+        if 'error' in result:
+            return Message(MessageType.ERROR, result)
+
+        state = CombatEngine.get_state(session_code)
+        resp = Message(MessageType.ACTION_RESULT, {
+            **result,
+            'action_type': 'attack',
+            'attacker_id': attacker_id,
+            'target_id': target_id,
+            'combat': state.to_dict() if state else None,
+        })
+        await self.broadcast_to_session(resp, client_id)
+
+        if result.get('concentration_broken'):
+            await self.broadcast_to_session(
+                Message(MessageType.CONCENTRATION_BROKEN, {
+                    'combatant_id': target_id, 'spell': result['concentration_broken']
+                }), client_id,
+            )
+        return resp
+
+    async def handle_combat_dash(self, msg: Message, client_id: str) -> Message:
+        from service.combat_engine import CombatEngine
+        return await self._handle_utility(msg, client_id, 'dash', CombatEngine)
+
+    async def handle_combat_dodge(self, msg: Message, client_id: str) -> Message:
+        from service.combat_engine import CombatEngine
+        return await self._handle_utility(msg, client_id, 'dodge', CombatEngine)
+
+    async def handle_combat_disengage(self, msg: Message, client_id: str) -> Message:
+        from service.combat_engine import CombatEngine
+        return await self._handle_utility(msg, client_id, 'disengage', CombatEngine)
+
+    async def handle_combat_help(self, msg: Message, client_id: str) -> Message:
+        from service.combat_engine import CombatEngine
+        return await self._handle_utility(msg, client_id, 'help', CombatEngine)
+
+    async def handle_combat_hide(self, msg: Message, client_id: str) -> Message:
+        from service.combat_engine import CombatEngine
+        return await self._handle_utility(msg, client_id, 'hide', CombatEngine)
+
+    async def _handle_utility(self, msg: Message, client_id: str, action_type: str, CombatEngine) -> Message:
+        session_code = self._get_session_code()
+        state = CombatEngine.get_state(session_code)
+        if not state:
+            return Message(MessageType.ERROR, {'error': 'No active combat'})
+        d = msg.data or {}
+        combatant_id = d.get('combatant_id', '')
+        user_id = self._get_user_id(msg, client_id)
+        turn_err = self._assert_current_turn(state, combatant_id, client_id, user_id)
+        if turn_err:
+            return Message(MessageType.ERROR, {'error': turn_err})
+        result = CombatEngine.execute_utility(session_code, combatant_id, action_type)
+        if 'error' in result:
+            return Message(MessageType.ERROR, result)
+        state = CombatEngine.get_state(session_code)
+        resp = Message(MessageType.ACTION_RESULT, {
+            **result, 'combat': state.to_dict() if state else None
+        })
+        await self.broadcast_to_session(resp, client_id)
+        return resp

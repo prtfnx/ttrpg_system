@@ -207,6 +207,13 @@ class ServerProtocol(
         self.register_handler(MessageType.OPPORTUNITY_ATTACK_RESOLVE,      self.handle_oa_resolve)
         self.register_handler(MessageType.AI_ACTION,             self.handle_ai_action)
         self.register_handler(MessageType.ACTION_COMMIT,         self.handle_action_commit)
+        # Player combat actions
+        self.register_handler(MessageType.COMBAT_ATTACK,    self.handle_combat_attack)
+        self.register_handler(MessageType.COMBAT_DASH,      self.handle_combat_dash)
+        self.register_handler(MessageType.COMBAT_DODGE,     self.handle_combat_dodge)
+        self.register_handler(MessageType.COMBAT_DISENGAGE, self.handle_combat_disengage)
+        self.register_handler(MessageType.COMBAT_HELP,      self.handle_combat_help)
+        self.register_handler(MessageType.COMBAT_HIDE,      self.handle_combat_hide)
 
         # Encounters
         self.register_handler(MessageType.ENCOUNTER_START,  self.handle_encounter_start)

@@ -214,6 +214,8 @@ class ServerProtocol(
         self.register_handler(MessageType.COMBAT_DISENGAGE, self.handle_combat_disengage)
         self.register_handler(MessageType.COMBAT_HELP,      self.handle_combat_help)
         self.register_handler(MessageType.COMBAT_HIDE,      self.handle_combat_hide)
+        self.register_handler(MessageType.COMBAT_SPELL,     self.handle_combat_spell)
+        self.register_handler(MessageType.SPELL_SLOT_RECOVER, self.handle_dm_restore_spell_slot)
 
         # Encounters
         self.register_handler(MessageType.ENCOUNTER_START,  self.handle_encounter_start)

@@ -13,6 +13,8 @@ from core_table.combat import (
 )
 from core_table.combat_fsm import CombatFSM
 from core_table.dice import DiceEngine
+from core_table.session_rules import SessionRules
+from .spell_resolver import SpellResolver
 
 logger = logging.getLogger(__name__)
 
@@ -600,3 +602,87 @@ class CombatEngine:
         if dist_ft > range_ft + 2.5:
             return f'Target out of range ({dist_ft:.0f} ft > {range_ft:.0f} ft)'
         return None
+
+    @classmethod
+    def execute_spell(
+        cls,
+        session_id: str,
+        caster_id: str,
+        spell_name: str,
+        spell_level: int,
+        target_ids: list,
+        damage_formula: str = "",
+        save_ability: str = "",
+        save_dc: int = 0,
+        damage_type: str = "fire",
+        requires_attack_roll: bool = False,
+        attack_bonus: int = 0,
+        is_concentration: bool = False,
+    ) -> dict:
+        state = cls._active.get(session_id)
+        if not state:
+            return {'error': 'No active combat'}
+        caster = next((x for x in state.combatants if x.combatant_id == caster_id), None)
+        if not caster:
+            return {'error': 'Combatant not found'}
+        if not caster.has_action:
+            return {'error': 'No action remaining'}
+
+        targets = [x for x in state.combatants if x.combatant_id in target_ids]
+        resolver = SpellResolver(state.settings.rules if hasattr(state.settings, 'rules') else SessionRules(session_id=session_id))
+        result = resolver.resolve_spell(
+            caster, spell_name, spell_level, targets,
+            damage_formula=damage_formula, save_ability=save_ability,
+            save_dc=save_dc, damage_type=damage_type,
+            requires_attack_roll=requires_attack_roll, attack_bonus=attack_bonus,
+        )
+
+        if not result.success:
+            return {'error': result.reason}
+
+        caster.has_action = False
+        if is_concentration:
+            caster.concentration_spell = spell_name
+
+        # Apply damage to targets
+        conc_results = []
+        for dr in result.damage_results:
+            if dr['damage'] > 0:
+                conc = cls.apply_damage(session_id, dr['target_id'], dr['damage'])
+                conc_results.append(conc)
+
+        action = CombatAction(
+            action_id=str(uuid.uuid4()),
+            combat_id=state.combat_id,
+            round_number=state.round_number,
+            turn_index=state.current_turn_index,
+            actor_id=caster_id,
+            action_type='spell',
+            action_cost='action',
+            outcome=spell_name,
+            timestamp=time.time(),
+        )
+        state.action_log.append(action)
+        return {
+            'spell': spell_name,
+            'slot_used': result.slot_used,
+            'slots_remaining': caster.spell_slots.get(spell_level, 0),
+            'targets_hit': result.targets_hit,
+            'damage_results': result.damage_results,
+            'concentration_effects': conc_results,
+        }
+
+    @classmethod
+    def restore_spell_slot(cls, session_id: str, combatant_id: str, slot_level: int) -> dict:
+        state = cls._active.get(session_id)
+        if not state:
+            return {'error': 'No active combat'}
+        c = next((x for x in state.combatants if x.combatant_id == combatant_id), None)
+        if not c:
+            return {'error': 'Combatant not found'}
+        max_slots = c.spell_slots_max.get(slot_level, 0)
+        if max_slots == 0:
+            return {'error': f'Combatant has no level-{slot_level} spell slots'}
+        c.spell_slots[slot_level] = min(max_slots, c.spell_slots.get(slot_level, 0) + 1)
+        return {'combatant_id': combatant_id, 'slot_level': slot_level, 'slots_remaining': c.spell_slots[slot_level]}
+

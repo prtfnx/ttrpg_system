@@ -39,6 +39,13 @@ class SpellResolver:
         requires_attack_roll: bool = False,
         attack_bonus: int = 0,
     ) -> SpellResult:
+        # Enforce spell slots (cantrips are level 0 — free)
+        if spell_level > 0:
+            available = caster.spell_slots.get(spell_level, 0)
+            if available <= 0:
+                return SpellResult(success=False, reason=f"No level-{spell_level} spell slots remaining")
+            caster.spell_slots[spell_level] = available - 1
+
         result = SpellResult(success=True, slot_used=spell_level)
 
         # Drop concentration if replacing

@@ -860,6 +860,59 @@ class _CombatMixin(_ProtocolBase):
         from service.combat_engine import CombatEngine
         return await self._handle_utility(msg, client_id, 'hide', CombatEngine)
 
+    async def handle_combat_spell(self, msg: Message, client_id: str) -> Message:
+        from service.combat_engine import CombatEngine
+        session_code = self._get_session_code()
+        state = CombatEngine.get_state(session_code)
+        if not state:
+            return Message(MessageType.ERROR, {'error': 'No active combat'})
+        d = msg.data or {}
+        caster_id = d.get('combatant_id', '')
+        user_id = self._get_user_id(msg, client_id)
+        turn_err = self._assert_current_turn(state, caster_id, client_id, user_id)
+        if turn_err:
+            return Message(MessageType.ERROR, {'error': turn_err})
+        result = CombatEngine.execute_spell(
+            session_code,
+            caster_id=caster_id,
+            spell_name=d.get('spell_name', ''),
+            spell_level=d.get('spell_level', 1),
+            target_ids=d.get('target_ids', []),
+            damage_formula=d.get('damage_formula', ''),
+            save_ability=d.get('save_ability', ''),
+            save_dc=d.get('save_dc', 0),
+            damage_type=d.get('damage_type', 'fire'),
+            requires_attack_roll=d.get('requires_attack_roll', False),
+            attack_bonus=d.get('attack_bonus', 0),
+            is_concentration=d.get('is_concentration', False),
+        )
+        if 'error' in result:
+            return Message(MessageType.ERROR, result)
+        state = CombatEngine.get_state(session_code)
+        resp = Message(MessageType.ACTION_RESULT, {
+            **result, 'combat': state.to_dict() if state else None
+        })
+        await self.broadcast_to_session(resp, client_id)
+        return resp
+
+    async def handle_dm_restore_spell_slot(self, msg: Message, client_id: str) -> Message:
+        from service.combat_engine import CombatEngine
+        session_code = self._get_session_code()
+        if not is_dm(self._get_client_role(client_id)):
+            return Message(MessageType.ERROR, {'error': 'DM only'})
+        d = msg.data or {}
+        result = CombatEngine.restore_spell_slot(
+            session_code,
+            combatant_id=d.get('combatant_id', ''),
+            slot_level=d.get('slot_level', 1),
+        )
+        if 'error' in result:
+            return Message(MessageType.ERROR, result)
+        resp = Message(MessageType.SPELL_SLOT_RECOVER, result)
+        await self.broadcast_to_session(resp, client_id)
+        return resp
+
+
     async def _handle_utility(self, msg: Message, client_id: str, action_type: str, CombatEngine) -> Message:
         session_code = self._get_session_code()
         state = CombatEngine.get_state(session_code)

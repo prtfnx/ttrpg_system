@@ -23,6 +23,42 @@ class CombatEngine:
     # session_code → CombatState (in-memory; persisted to DB on round/end)
     _active: dict[str, CombatState] = {}
 
+    # ── Persistence ─────────────────────────────────────────────────────────
+
+    @classmethod
+    def persist(cls, session_id: str) -> None:
+        """Synchronously snapshot the current combat state to the DB."""
+        state = cls._active.get(session_id)
+        if not state:
+            return
+        try:
+            from database.crud import upsert_combat_encounter
+            from database.database import SessionLocal
+            with SessionLocal() as db:
+                upsert_combat_encounter(db, session_id, state.to_dict())
+        except Exception as exc:  # never let persistence crash combat
+            logger.warning('Failed to persist combat state: %s', exc)
+
+    @classmethod
+    def restore(cls, session_id: str) -> CombatState | None:
+        """Restore combat from DB if not already in memory."""
+        if session_id in cls._active:
+            return cls._active[session_id]
+        try:
+            from database.crud import load_active_combat_encounter
+            from database.database import SessionLocal
+            with SessionLocal() as db:
+                data = load_active_combat_encounter(db, session_id)
+            if not data:
+                return None
+            state = CombatState.from_dict(data)
+            cls._active[session_id] = state
+            logger.info('Restored combat %s from DB for session %s', state.combat_id, session_id)
+            return state
+        except Exception as exc:
+            logger.warning('Failed to restore combat state: %s', exc)
+            return None
+
     # ── Lifecycle ───────────────────────────────────────────────────────────
 
     @classmethod
@@ -57,6 +93,7 @@ class CombatEngine:
         fsm = CombatFSM(state)
         fsm.transition(CombatPhase.ACTIVE, state.settings)
         state.round_number = 1
+        cls.persist(session_id)
         return state
 
     @classmethod
@@ -64,6 +101,13 @@ class CombatEngine:
         state = cls._active.pop(session_id, None)
         if state:
             state.phase = CombatPhase.ENDED
+            try:
+                from database.crud import mark_combat_encounter_ended
+                from database.database import SessionLocal
+                with SessionLocal() as db:
+                    mark_combat_encounter_ended(db, state.combat_id)
+            except Exception as exc:
+                logger.warning('Failed to mark combat ended: %s', exc)
         return state
 
     @classmethod
@@ -169,6 +213,10 @@ class CombatEngine:
         current.is_dodging = False
         current.is_disengaging = False
         current.attacks_used_this_action = 0
+
+        # Persist on every new round (not every single turn to reduce DB writes)
+        if state.current_turn_index == 0:
+            cls.persist(session_id)
 
         return {
             'combatant_id': current.combatant_id,

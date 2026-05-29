@@ -54,7 +54,9 @@ class _CombatMixin(_ProtocolBase):
 
     async def handle_combat_state_request(self, msg: Message, client_id: str) -> Message:
         from service.combat_engine import CombatEngine
-        state = CombatEngine.get_state(self._get_session_code())
+        session_code = self._get_session_code()
+        # Try in-memory first, then restore from DB (handles reconnects after restart)
+        state = CombatEngine.get_state(session_code) or CombatEngine.restore(session_code)
         if not state:
             return Message(MessageType.COMBAT_STATE, {'combat': None})
         if is_dm(self._get_client_role(client_id)):

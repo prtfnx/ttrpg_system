@@ -110,9 +110,10 @@ export function useActions(renderEngine: RenderEngine | null, callbacks?: Action
     };
 
     try {
-      renderEngine.set_action_handler(handleAction);
-      renderEngine.set_state_change_handler(handleStateChange);
-      renderEngine.set_actions_error_handler(handleError);
+      // TODO temporal fix: cast renderEngine to any until action handlers exist in WASM d.ts
+      (renderEngine as any).set_action_handler?.(handleAction);
+      (renderEngine as any).set_state_change_handler?.(handleStateChange);
+      (renderEngine as any).set_actions_error_handler?.(handleError);
     } catch (error) {
       console.error('Error setting up actions handlers:', error);
     }
@@ -129,7 +130,7 @@ export function useActions(renderEngine: RenderEngine | null, callbacks?: Action
     setState(prev => ({ ...prev, isLoading: true, error: null }));
     
     try {
-      const result = renderEngine.create_table_action(name, width, height);
+      const result = (renderEngine as any).create_table_action?.(name, width, height) ?? { success: false, message: 'create_table_action not supported' } as ActionResult;
       const actionResult = result as ActionResult;
       
       if (actionResult.success && actionResult.data) {
@@ -157,7 +158,7 @@ export function useActions(renderEngine: RenderEngine | null, callbacks?: Action
     setState(prev => ({ ...prev, isLoading: true, error: null }));
     
     try {
-      const result = renderEngine.delete_table_action(tableId);
+      const result = (renderEngine as any).delete_table_action?.(tableId) ?? { success: false, message: 'delete_table_action not supported' } as ActionResult;
       const actionResult = result as ActionResult;
       
       if (actionResult.success) {
@@ -184,7 +185,7 @@ export function useActions(renderEngine: RenderEngine | null, callbacks?: Action
     setState(prev => ({ ...prev, isLoading: true, error: null }));
     
     try {
-      const result = renderEngine.update_table_action(tableId, updates);
+      const result = (renderEngine as any).update_table_action?.(tableId, updates) ?? { success: false, message: 'update_table_action not supported' } as ActionResult;
       const actionResult = result as ActionResult;
       
       if (actionResult.success && actionResult.data) {
@@ -218,7 +219,7 @@ export function useActions(renderEngine: RenderEngine | null, callbacks?: Action
     setState(prev => ({ ...prev, isLoading: true, error: null }));
     
     try {
-      const result = renderEngine.create_sprite_action(tableId, layer, position, textureName);
+      const result = (renderEngine as any).create_sprite_action?.(tableId, layer, position, textureName) ?? { success: false, message: 'create_sprite_action not supported' } as ActionResult;
       const actionResult = result as ActionResult;
       
       if (actionResult.success && actionResult.data) {
@@ -246,7 +247,7 @@ export function useActions(renderEngine: RenderEngine | null, callbacks?: Action
     setState(prev => ({ ...prev, isLoading: true, error: null }));
     
     try {
-      const result = renderEngine.delete_sprite_action(spriteId);
+      const result = (renderEngine as any).delete_sprite_action?.(spriteId) ?? { success: false, message: 'delete_sprite_action not supported' } as ActionResult;
       const actionResult = result as ActionResult;
       
       if (actionResult.success) {
@@ -273,7 +274,7 @@ export function useActions(renderEngine: RenderEngine | null, callbacks?: Action
     setState(prev => ({ ...prev, isLoading: true, error: null }));
     
     try {
-      const result = renderEngine.update_sprite_action(spriteId, updates);
+      const result = (renderEngine as any).update_sprite_action?.(spriteId, updates) ?? { success: false, message: 'update_sprite_action not supported' } as ActionResult;
       const actionResult = result as ActionResult;
       
       if (actionResult.success && actionResult.data) {
@@ -300,7 +301,7 @@ export function useActions(renderEngine: RenderEngine | null, callbacks?: Action
     if (!renderEngine) throw new Error('RenderEngine not initialized');
     
     try {
-      const result = renderEngine.set_layer_visibility_action(layer, visible);
+      const result = (renderEngine as any).set_layer_visibility_action?.(layer, visible) ?? { success: false, message: 'set_layer_visibility_action not supported' } as ActionResult;
       const actionResult = result as ActionResult;
       
       if (actionResult.success) {

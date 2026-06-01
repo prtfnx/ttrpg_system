@@ -56,7 +56,8 @@ export function EntitiesPanel() {
       setSyncState(prev => ({ ...prev, progress: 25 }));
 
       // Get sprites with error handling
-      const rustSprites = engine.get_all_sprites_network_data();
+      // TODO temporal fix: cast to any until WASM types expose `get_all_sprites_network_data`
+      const rustSprites = (engine as any).get_all_sprites_network_data?.() as any[] ?? engine.get_sprites?.() ?? [];
       
       if (!Array.isArray(rustSprites)) {
         throw new Error('Invalid sprite data format from WASM');

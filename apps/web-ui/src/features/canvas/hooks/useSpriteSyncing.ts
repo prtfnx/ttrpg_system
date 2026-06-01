@@ -14,7 +14,8 @@ export function useSpriteSyncing() {
       const sprites = useGameStore.getState().sprites;
       
       // Get all sprites from the Rust backend
-      const rustSprites = window.rustRenderManager.get_all_sprites_network_data();
+      // TODO temporal fix: cast to any until the WASM d.ts exposes the legacy getter
+      const rustSprites = (window.rustRenderManager as any).get_all_sprites_network_data?.() as any[] ?? window.rustRenderManager?.get_sprites?.() ?? [];
       
       if (!Array.isArray(rustSprites)) return;
 

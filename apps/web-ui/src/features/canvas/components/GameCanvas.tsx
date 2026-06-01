@@ -8,7 +8,9 @@ import { useCombatStore, type Combatant } from '@features/combat/stores/combatSt
 import { useGameModeStore } from '@features/combat/stores/gameModeStore';
 import { isDM } from '@features/session/types/roles';
 import { useOptionalProtocol } from '@lib/api';
-import { useWasmBridge, wasmIntegrationService, wasmManager } from '@lib/wasm';
+import { useWasmBridge } from '@lib/wasm/wasmBridge';
+import { wasmIntegrationService } from '@lib/wasm/wasmIntegration.service';
+import { wasmManager } from '@lib/wasm/wasmManager';
 import type { RenderEngine } from '@lib/wasm/ttrpg_rust_core';
 import { createMessage, MessageType } from '@lib/websocket';
 import { DragDropImageHandler } from '@shared/components';
@@ -353,7 +355,8 @@ export const GameCanvas: React.FC = () => {
       type WasmSpriteData = { sprite_id: string; world_x: number; world_y: number; width: number; height: number };
       let wasmMap = new Map<string, WasmSpriteData>();
       try {
-        const raw: WasmSpriteData[] = rm.get_all_sprites_network_data?.() as WasmSpriteData[] ?? [];
+        // TODO temporal fix: prefer WASM getter when available; cast to any to avoid stale d.ts issues
+        const raw: WasmSpriteData[] = (rm as any).get_all_sprites_network_data?.() as WasmSpriteData[] ?? rm.get_sprites?.() as WasmSpriteData[] ?? [];
         wasmMap = new Map(raw.map(d => [d.sprite_id, d]));
       } catch { /* ignore — fall back to store data */ }
 

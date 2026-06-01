@@ -720,13 +720,8 @@ class PerformanceOptimizedBackgroundSystem {
   private applyGlobalSettings(config: BackgroundConfiguration): void {
     if (!this.renderEngine) return;
 
-    // Parse ambient color
-    const r = parseInt(config.ambientColor.slice(1, 3), 16) / 255;
-    const g = parseInt(config.ambientColor.slice(3, 5), 16) / 255;
-    const b = parseInt(config.ambientColor.slice(5, 7), 16) / 255;
-
-    // Apply to renderer
-    this.renderEngine.set_background_color(r, g, b, config.globalOpacity);
+    // Apply to renderer (Rust API accepts a single hex color string)
+    this.renderEngine.set_background_color?.(config.ambientColor);
   }
 
   private updatePerformanceSettings(profile: 'low' | 'medium' | 'high' | 'ultra'): void {

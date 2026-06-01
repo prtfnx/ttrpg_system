@@ -214,6 +214,7 @@ export function createMockRenderEngine() {
     handle_sprite_update: vi.fn(),
     send_sprite_move: vi.fn(),
     send_sprite_scale: vi.fn(),
+    set_sprite_scale: vi.fn(),
     send_sprite_create: vi.fn(),
     send_sprite_delete: vi.fn(),
     request_table: vi.fn(),

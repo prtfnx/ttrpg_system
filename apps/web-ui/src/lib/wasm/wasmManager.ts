@@ -1,4 +1,4 @@
-import type { AssetManager, CollisionSystem, PaintSystem, PlanningManager, RenderEngine } from './wasm';
+import type { AssetManager, CollisionSystem, PaintSystem, PlanningManager, RenderEngine } from './ttrpg_rust_core';
 
 // Global WASM module manager - ensures single instance across the app
 export interface GlobalWasmModule {

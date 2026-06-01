@@ -5,7 +5,7 @@
  * this class owns the engine lifecycle and wires sub-services together.
  */
 
-import type { RenderEngine } from '@lib/wasm/wasm';
+import type { RenderEngine } from './ttrpg_rust_core';
 import { AssetSyncService } from './assetSync.service';
 import { SpriteSyncService } from './spriteSync.service';
 import { TableSyncService } from './tableSync.service';

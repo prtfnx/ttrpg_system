@@ -1,4 +1,4 @@
-export * from './wasm.d';
+export type * from './ttrpg_rust_core';
 export { useWasmBridge } from './wasmBridge';
 export { wasmIntegrationService } from './wasmIntegration.service';
 export { wasmManager } from './wasmManager';

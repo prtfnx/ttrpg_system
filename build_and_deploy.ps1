@@ -89,6 +89,13 @@ function Build-Wasm {
         $ErrorActionPreference = $savedEAP
         Pop-Location
     }
+    # Sync generated types into the TS source tree so imports always match the actual WASM API.
+    # wasm.d.ts is the hand-written historical file — ttrpg_rust_core.d.ts is the ground truth.
+    $WasmSrc = "$WebDir\src\lib\wasm"
+    Copy-Item "$WasmOut\ttrpg_rust_core.d.ts"     "$WasmSrc\ttrpg_rust_core.d.ts"     -Force
+    Copy-Item "$WasmOut\ttrpg_rust_core_bg.wasm.d.ts" "$WasmSrc\ttrpg_rust_core_bg.wasm.d.ts" -Force
+    Write-Host "    types synced -> $WasmSrc" -ForegroundColor DarkGreen
+
     Write-Host "    WASM -> $WasmOut" -ForegroundColor DarkGreen
 }
 

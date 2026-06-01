@@ -107,11 +107,10 @@ export function GameClient({ sessionCode, userInfo, userRole, onAuthError }: Gam
   useEffect(() => {
     const apply = () => {
       const engine = window.rustRenderManager;
-      if (engine?.set_gm_mode) {
+      if (engine) {
         // Use __INITIAL_DATA__ as fallback so GM mode is correct before WELCOME arrives
         const effectiveRole = sessionRole ?? window.__INITIAL_DATA__?.userRole ?? null;
-        engine.set_gm_mode(isDM(effectiveRole));
-        engine.fog_set_gm_mode?.(isDM(effectiveRole));
+        engine.set_gm_mode?.(isDM(effectiveRole));
       }
     };
     apply();

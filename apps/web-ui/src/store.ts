@@ -618,7 +618,6 @@ export const useGameStore = create<GameStore>()(
           const { sessionRole } = useGameStore.getState();
           if (isDM(sessionRole)) {
             rm?.set_gm_mode?.(true);
-            rm?.fog_set_gm_mode?.(true);
             // Force a render refresh so the restored view is visible immediately
             rm?.render?.();
           }

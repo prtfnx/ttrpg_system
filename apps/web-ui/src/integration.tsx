@@ -114,9 +114,9 @@ document.addEventListener('DOMContentLoaded', () => {
                 break;
               
               case 'sprite_scale':
-                if (typeof window.rustRenderManager.send_sprite_scale === 'function') {
+                if (typeof window.rustRenderManager.set_sprite_scale === 'function') {
                   console.log('[integration] Forwarding sprite_scale to WASM:', data);
-                  window.rustRenderManager.send_sprite_scale(data.id as string, data.scale_x as number, data.scale_y as number);
+                  window.rustRenderManager.set_sprite_scale(data.id as string, data.scale_x as number, data.scale_y as number);
                 }
                 break;
               

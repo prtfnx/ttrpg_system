@@ -327,7 +327,11 @@ export const useTableSync = (options: TableSyncHookOptions = {}) => {
     }
 
     try {
-      tableSyncRef.current.send_sprite_scale(spriteId, scaleX, scaleY);
+      if (typeof tableSyncRef.current.set_sprite_scale === 'function') {
+        tableSyncRef.current.set_sprite_scale(spriteId, scaleX, scaleY);
+      } else {
+        tableSyncRef.current.send_sprite_scale(spriteId, scaleX, scaleY);
+      }
       console.log(`Sent sprite scale: ${spriteId} to (${scaleX}, ${scaleY})`);
     } catch (error) {
       console.error('Failed to send sprite scale:', error);

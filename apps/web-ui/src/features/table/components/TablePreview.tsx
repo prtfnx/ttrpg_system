@@ -1,5 +1,5 @@
 import type { TableInfo } from '@/store';
-import { wasmIntegrationService } from '@lib/wasm';
+import { wasmIntegrationService } from '@lib/wasm/wasmIntegration.service';
 import React, { useEffect, useRef, useState } from 'react';
 import { tableThumbnailService } from '../services/tableThumbnail.service';
 

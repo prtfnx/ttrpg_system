@@ -190,7 +190,7 @@ export interface DetailedCharacter extends Character {
 // Game API interface for window object
 export interface GameAPI {
   sendMessage: (type: string, data: Record<string, unknown>) => void;
-  renderManager: () => import('@lib/wasm/wasm').RenderEngine | null;
+  renderManager: () => import('@lib/wasm/ttrpg_rust_core').RenderEngine | null;
 }
 
 // WASM Bridge interface for bidirectional communication

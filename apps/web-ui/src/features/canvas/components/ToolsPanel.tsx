@@ -195,8 +195,9 @@ export function ToolsPanel({ userInfo }: ToolsPanelProps) {
   
   useEffect(() => {
     if (!window.rustRenderManager) return;
-    if (activeTool !== 'paint' && typeof window.rustRenderManager?.paint_is_mode === 'function' && window.rustRenderManager.paint_is_mode()) {
-      window.rustRenderManager.paint_exit_mode();
+    // TODO temporal fix: cast rustRenderManager to any until WASM d.ts includes paint getters
+    if (activeTool !== 'paint' && typeof (window.rustRenderManager as any)?.paint_is_mode === 'function' && (window.rustRenderManager as any).paint_is_mode()) {
+      (window.rustRenderManager as any).paint_exit_mode();
       setPaintPanelVisible(false);
     }
     window.shapeSettings = { color: shapeColor, opacity: shapeOpacity, filled: shapeFilled };

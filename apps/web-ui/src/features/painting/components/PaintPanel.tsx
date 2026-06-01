@@ -150,8 +150,9 @@ const usePaintTableIntegration = () => {
       }
       
       // Save strokes as sprites if persistence is enabled
-      if (options.persistence && engine.paint_save_strokes_as_sprites) {
-        const spriteIds = engine.paint_save_strokes_as_sprites(layer);
+      // TODO temporal fix: cast to any until WASM exposes paint_save_strokes_as_sprites in d.ts
+      if (options.persistence) {
+        const spriteIds = (engine as any).paint_save_strokes_as_sprites?.(layer) ?? [];
         return spriteIds;
       }
       

@@ -1,7 +1,7 @@
 /**
  * Canvas state management hook for viewport, zoom, and debug info
  */
-import type { RenderEngine } from '@lib/wasm/wasm';
+import type { RenderEngine } from '@lib/wasm/ttrpg_rust_core';
 import { useEffect, useState, type RefObject } from 'react';
 
 interface CanvasDebugInfo {

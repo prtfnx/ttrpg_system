@@ -353,7 +353,7 @@ export function hasMessageData<T extends WebSocketMessage['type']>(
 declare global {
   interface Window {
     gameAPI?: GameAPI;
-    rustRenderManager?: import('@lib/wasm/wasm').RenderEngine;
+    rustRenderManager?: import('@lib/wasm/ttrpg_rust_core').RenderEngine;
     wasmBridge?: WasmBridge;
     protocol?: import('@lib/websocket/clientProtocol').WebClientProtocol;
     ttrpg_rust_core: import('@lib/wasm/wasmManager').GlobalWasmModule | null;

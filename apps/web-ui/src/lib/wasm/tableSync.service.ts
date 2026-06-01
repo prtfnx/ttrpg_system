@@ -4,7 +4,7 @@
  */
 
 import { useGameStore } from '@/store';
-import type { RenderEngine } from '@lib/wasm/wasm';
+import type { RenderEngine } from '@lib/wasm/ttrpg_rust_core';
 import type { SpriteSyncService } from './spriteSync.service';
 
 interface TablePayload {

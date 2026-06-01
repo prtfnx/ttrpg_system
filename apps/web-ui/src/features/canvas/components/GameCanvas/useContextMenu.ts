@@ -3,7 +3,7 @@
  */
 import { useGameStore } from '@/store';
 import type { WebClientProtocol } from '@lib/websocket';
-import type { RenderEngine } from '@lib/wasm/wasm';
+import type { RenderEngine } from '@lib/wasm/ttrpg_rust_core';
 import { useCallback, useEffect, useState, type RefObject } from 'react';
 
 interface ContextMenuState {

@@ -2,7 +2,7 @@
  * Canvas utility functions for coordinate transformations and grid calculations
  */
 
-import type { RenderEngine } from '@lib/wasm/wasm';
+import type { RenderEngine } from '@lib/wasm/ttrpg_rust_core';
 
 /**
  * Get nearest grid coordinate for snapping

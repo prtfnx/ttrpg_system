@@ -1,4 +1,4 @@
-import type { PlanningManager, GhostToken, MovementRange } from '@lib/wasm/wasm';
+import type { PlanningManager, GhostToken, MovementRange } from '@lib/wasm/ttrpg_rust_core';
 import { wasmManager } from '@lib/wasm/wasmManager';
 
 // Grid size and ft-per-unit defaults — should be overridden by session settings

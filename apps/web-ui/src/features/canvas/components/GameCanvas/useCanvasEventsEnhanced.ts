@@ -3,7 +3,7 @@
  * Maintains compatibility with existing GameCanvas interface
  */
 
-import type { RenderEngine } from '@lib/wasm/wasm';
+import type { RenderEngine } from '@lib/wasm/ttrpg_rust_core';
 import type { WebClientProtocol } from '@lib/websocket/clientProtocol';
 import { type RefObject, useCallback, useEffect, useRef } from 'react';
 import { useGameStore } from '@/store';

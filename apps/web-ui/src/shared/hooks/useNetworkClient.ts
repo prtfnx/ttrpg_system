@@ -1,4 +1,4 @@
-import type { NetworkClient } from '@lib/wasm/wasm';
+import type { NetworkClient } from '@lib/wasm/ttrpg_rust_core';
 import { wasmManager } from '@lib/wasm/wasmManager';
 
 type NetworkClientInstance = NetworkClient;

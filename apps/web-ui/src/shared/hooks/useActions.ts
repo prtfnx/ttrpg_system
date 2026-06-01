@@ -1,4 +1,4 @@
-import type { RenderEngine } from '@lib/wasm/wasm';
+import type { RenderEngine } from '@lib/wasm/ttrpg_rust_core';
 import { useCallback, useEffect, useRef, useState } from 'react';
 
 export interface ActionResult {

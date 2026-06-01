@@ -1,4 +1,4 @@
-import type { RenderEngine } from '@lib/wasm/wasm';
+import type { RenderEngine } from '@lib/wasm/ttrpg_rust_core';
 import { useActions, type ActionsCallbacks } from '@shared/hooks/useActions';
 import { act, render, waitFor } from '@testing-library/react';
 import React from 'react';

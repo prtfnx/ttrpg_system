@@ -1,5 +1,5 @@
 import { useGameStore } from '@/store';
-import type { RenderEngine } from '@lib/wasm/wasm';
+import type { RenderEngine } from '@lib/wasm/ttrpg_rust_core';
 
 type RenderEngineExt = RenderEngine & {
   set_dynamic_lighting_enabled?: (v: boolean) => void;

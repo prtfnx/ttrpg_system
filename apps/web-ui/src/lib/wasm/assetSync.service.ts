@@ -4,7 +4,7 @@
  * No dependencies on other WASM sub-services.
  */
 
-import type { RenderEngine } from '@lib/wasm/wasm';
+import type { RenderEngine } from '@lib/wasm/ttrpg_rust_core';
 
 interface AssetPayload {
   asset_id?: string;

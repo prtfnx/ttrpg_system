@@ -270,7 +270,7 @@ class VisionService {
 
     for (const id of [...this.activeIds]) {
       if (!seenIds.has(id)) {
-        try { rm.remove_fog_polygon(id); } catch {}
+        try { rm?.remove_fog_polygon?.(id); } catch {}
         this.activeIds.delete(id);
       }
     }

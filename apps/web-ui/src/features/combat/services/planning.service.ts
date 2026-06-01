@@ -1,5 +1,19 @@
-import type { PlanningManager, GhostToken, MovementRange } from '@lib/wasm/ttrpg_rust_core';
+import type { PlanningManager } from '@lib/wasm/ttrpg_rust_core';
 import { wasmManager } from '@lib/wasm/wasmManager';
+
+// Local types for data returned from WASM (these are not exported from the generated d.ts)
+interface GhostToken {
+  sprite_id: string;
+  x: number;
+  y: number;
+  [key: string]: unknown;
+}
+
+interface MovementRange {
+  normal: unknown[];
+  dash: unknown[];
+  blocked: unknown[];
+}
 
 // Grid size and ft-per-unit defaults — should be overridden by session settings
 const GRID_SIZE = 64;

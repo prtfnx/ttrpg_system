@@ -209,7 +209,8 @@ export class MultiSelectManager {
       const rect = result.selectionRect;
       const addToSelection = result.mode === MultiSelectMode.CTRL_DRAG_RECTANGLE;
       
-      this.renderEngine?.select_sprites_in_rect?.(
+      // TODO temporal fix: cast to any until WASM includes select_sprites_in_rect in d.ts
+      (this.renderEngine as any).select_sprites_in_rect?.(
         Math.min(rect.x1, rect.x2),
         Math.min(rect.y1, rect.y2),
         Math.max(rect.x1, rect.x2),

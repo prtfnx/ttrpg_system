@@ -204,8 +204,9 @@ export const useLayerManager = () => {
     if (!renderManager) return false;
 
     try {
+      // TODO temporal fix: cast renderManager to any until WASM exposes set_layer_z_order in d.ts
       newOrder.forEach((layerName, index) => {
-        renderManager.set_layer_z_order?.(layerName, index);
+        (renderManager as any).set_layer_z_order?.(layerName, index);
       });
       refreshLayerData();
       return true;

@@ -83,14 +83,14 @@ export const MapPanel: React.FC<MapPanelProps> = ({ className, style, id, ...res
     const g = s.gridSettings;
     engine.set_grid_enabled?.(g.enabled);
     engine.set_grid_size?.(g.size);
-    engine.set_snap_to_grid?.(g.snapToGrid);
-    if (engine.set_grid_color) {
+    // TODO temporal fix: cast to any for grid APIs until WASM types are updated
+    (engine as any).set_snap_to_grid?.(g.snapToGrid);
+    if ((engine as any).set_grid_color) {
       const [r, gv, b] = hexToRgb(g.color);
-      engine.set_grid_color(r, gv, b, g.opacity);
+      (engine as any).set_grid_color(r, gv, b, g.opacity);
     }
     if (engine.set_background_color) {
-      const [r, gv, b] = hexToRgb(s.backgroundColor);
-      engine.set_background_color(r, gv, b, 1.0);
+      engine.set_background_color(s.backgroundColor);
     }
   }, [engine]);
 
@@ -124,16 +124,19 @@ export const MapPanel: React.FC<MapPanelProps> = ({ className, style, id, ...res
   }, [applyToWasm, sendToServer]);
 
   const resetCamera = useCallback(() => {
-    engine?.reset_camera?.();
+    // TODO temporal fix: cast to any until WASM exposes reset_camera or we migrate to set_camera
+    (engine as any)?.reset_camera?.();
   }, [engine]);
 
   const centerOnMap = useCallback(() => {
-    engine?.set_camera_position?.(settings.width / 2, settings.height / 2);
+    // TODO temporal fix: use set_camera when available; cast to any for backwards compatibility
+    (engine as any)?.set_camera_position?.(settings.width / 2, settings.height / 2);
   }, [engine, settings.width, settings.height]);
 
   const fitToScreen = useCallback(() => {
     const scale = Math.min(window.innerWidth / settings.width, window.innerHeight / settings.height) * 0.9;
-    engine?.set_camera_scale?.(scale);
+    // TODO temporal fix: cast to any until WASM d.ts exposes camera helpers
+    (engine as any)?.set_camera_scale?.(scale);
   }, [engine, settings.width, settings.height]);
 
   const handleExportMap = useCallback(() => {
@@ -148,7 +151,8 @@ export const MapPanel: React.FC<MapPanelProps> = ({ className, style, id, ...res
   const clearMap = useCallback(() => {
     if (!engine) return;
     if (confirm('Clear all sprites from the map? This cannot be undone.')) {
-      engine.clear_all_sprites?.();
+      // TODO temporal fix: clear_all_sprites may be missing from d.ts
+      (engine as any).clear_all_sprites?.();
     }
   }, [engine]);
 

@@ -1213,15 +1213,16 @@ export class WebClientProtocol {
     // Apply visual changes directly to WASM renderer
     const rm = window.rustRenderManager;
     if (rm) {
-      if (data.grid_enabled !== undefined && rm.set_grid_enabled) rm.set_grid_enabled(data.grid_enabled);
-      if (data.snap_to_grid !== undefined && rm.set_snap_to_grid) rm.set_snap_to_grid(data.snap_to_grid);
-      if (data.grid_color_hex && rm.set_grid_color) {
+      if (data.grid_enabled !== undefined && (rm as any).set_grid_enabled) (rm as any).set_grid_enabled(data.grid_enabled);
+      // TODO temporal fix: cast to any for legacy grid setters
+      if (data.snap_to_grid !== undefined && (rm as any).set_snap_to_grid) (rm as any).set_snap_to_grid(data.snap_to_grid);
+      if (data.grid_color_hex && (rm as any).set_grid_color) {
         const c = data.grid_color_hex;
-        rm.set_grid_color(parseInt(c.slice(1,3),16)/255, parseInt(c.slice(3,5),16)/255, parseInt(c.slice(5,7),16)/255, 0.4);
+        (rm as any).set_grid_color(parseInt(c.slice(1,3),16)/255, parseInt(c.slice(3,5),16)/255, parseInt(c.slice(5,7),16)/255, 0.4);
       }
-      if (data.background_color_hex && rm.set_background_color) {
-        const c = data.background_color_hex;
-        rm.set_background_color(parseInt(c.slice(1,3),16)/255, parseInt(c.slice(3,5),16)/255, parseInt(c.slice(5,7),16)/255, 1.0);
+      if (data.background_color_hex && (rm as any).set_background_color) {
+        const c = data.background_color_hex as string;
+        (rm as any).set_background_color(c);
       }
     }
     window.dispatchEvent(new CustomEvent('table-settings-changed', { detail: data }));

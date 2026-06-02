@@ -14,6 +14,7 @@ from core_table.combat import (
 from core_table.combat_fsm import CombatFSM
 from core_table.dice import DiceEngine
 from core_table.session_rules import SessionRules
+
 from .spell_resolver import SpellResolver
 
 logger = logging.getLogger(__name__)
@@ -464,8 +465,8 @@ class CombatEngine:
         rules=None,
     ) -> dict:
         """Resolve an attack server-authoritatively. Returns result dict."""
-        from service.attack_resolver import AttackResolver
         from core_table.session_rules import SessionRules
+        from service.attack_resolver import AttackResolver
 
         state = cls._active.get(session_id)
         if not state:

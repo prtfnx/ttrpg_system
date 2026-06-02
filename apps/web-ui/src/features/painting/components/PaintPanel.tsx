@@ -712,8 +712,8 @@ export const PaintPanel: React.FC<PaintPanelProps> = ({
             </button>
             <button
               onClick={() => {
-                if (engine && engine.paint_save_strokes_as_sprites) {
-                  const spriteIds = engine.paint_save_strokes_as_sprites('shapes');
+                if (engine && (engine as any).paint_save_strokes_as_sprites) {
+                  const spriteIds = (engine as any).paint_save_strokes_as_sprites('shapes');
                   console.log(`[PaintPanel] Saved ${spriteIds.length} paint strokes as sprites`);
                   if (spriteIds.length > 0) {
                     alert(`Saved ${spriteIds.length} paint strokes as sprites!`);

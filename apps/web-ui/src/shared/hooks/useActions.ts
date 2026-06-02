@@ -323,7 +323,7 @@ export function useActions(renderEngine: RenderEngine | null, callbacks?: Action
     if (!renderEngine) throw new Error('RenderEngine not initialized');
     
     try {
-      const result = renderEngine.move_sprite_to_layer_action(spriteId, newLayer);
+      const result = (renderEngine as any).move_sprite_to_layer_action?.(spriteId, newLayer) ?? { success: false, message: 'move_sprite_to_layer_action not supported' } as ActionResult;
       const actionResult = result as ActionResult;
       
       if (actionResult.success && actionResult.data) {
@@ -349,14 +349,14 @@ export function useActions(renderEngine: RenderEngine | null, callbacks?: Action
     setState(prev => ({ ...prev, isLoading: true, error: null }));
     
     try {
-      const result = renderEngine.batch_actions(actions);
+      const result = (renderEngine as any).batch_actions?.(actions) ?? { success: false, message: 'batch_actions not supported' } as ActionResult;
       const actionResult = result as ActionResult;
-      
+
       setState(prev => ({ 
         ...prev, 
         isLoading: false,
-        canUndo: renderEngine.can_undo(),
-        canRedo: renderEngine.can_redo(),
+        canUndo: (renderEngine as any).can_undo?.() ?? false,
+        canRedo: (renderEngine as any).can_redo?.() ?? false,
       }));
       
       return actionResult;
@@ -372,13 +372,13 @@ export function useActions(renderEngine: RenderEngine | null, callbacks?: Action
     if (!renderEngine) throw new Error('RenderEngine not initialized');
     
     try {
-      const result = renderEngine.undo_action();
+      const result = (renderEngine as any).undo_action?.() ?? { success: false, message: 'undo_action not supported' } as ActionResult;
       const actionResult = result as ActionResult;
-      
+
       setState(prev => ({
         ...prev,
-        canUndo: renderEngine.can_undo(),
-        canRedo: renderEngine.can_redo(),
+        canUndo: (renderEngine as any).can_undo?.() ?? false,
+        canRedo: (renderEngine as any).can_redo?.() ?? false,
       }));
       
       return actionResult;
@@ -393,13 +393,13 @@ export function useActions(renderEngine: RenderEngine | null, callbacks?: Action
     if (!renderEngine) throw new Error('RenderEngine not initialized');
     
     try {
-      const result = renderEngine.redo_action();
+      const result = (renderEngine as any).redo_action?.() ?? { success: false, message: 'redo_action not supported' } as ActionResult;
       const actionResult = result as ActionResult;
-      
+
       setState(prev => ({
         ...prev,
-        canUndo: renderEngine.can_undo(),
-        canRedo: renderEngine.can_redo(),
+        canUndo: (renderEngine as any).can_undo?.() ?? false,
+        canRedo: (renderEngine as any).can_redo?.() ?? false,
       }));
       
       return actionResult;
@@ -416,14 +416,14 @@ export function useActions(renderEngine: RenderEngine | null, callbacks?: Action
     
     try {
       // Get tables data for future use
-      renderEngine.get_all_tables();
-      const history = renderEngine.get_action_history();
-      
+      (renderEngine as any).get_all_tables?.();
+      const history = (renderEngine as any).get_action_history?.() ?? [];
+
       setState(prev => ({
         ...prev,
         actionHistory: history as ActionHistoryEntry[],
-        canUndo: renderEngine.can_undo(),
-        canRedo: renderEngine.can_redo(),
+        canUndo: (renderEngine as any).can_undo?.() ?? false,
+        canRedo: (renderEngine as any).can_redo?.() ?? false,
       }));
     } catch (error) {
       console.error('Error refreshing actions state:', error);

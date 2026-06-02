@@ -369,12 +369,6 @@ def _two_combatant(session: str = 'ma'):
     b.max_hp = 50
     return state, a, b
 
-
-def test_multiattack_action_not_consumed_after_first_hit():
-    state, a, b = _two_combatant('ma1')
-    a.attacks_per_action = 2
-    a.has_action = True
-
 _ATTACK_HIT = AttackResult(hit=True, damage_dealt=5)
 
 

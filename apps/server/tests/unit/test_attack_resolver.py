@@ -101,7 +101,7 @@ def test_dodge_applies_disadvantage(resolver):
          patch('service.attack_resolver.DiceEngine.roll') as mock_roll:
         mock_dis.return_value = DiceRollResult(formula='2d20kl1', rolls=[10, 5], modifier=0, total=5)
         mock_roll.return_value = DiceRollResult(formula='1d6', rolls=[4], modifier=0, total=4)
-        result = resolver.resolve_attack(attacker, target, attack_bonus=0, damage_formula='1d6')
+        resolver.resolve_attack(attacker, target, attack_bonus=0, damage_formula='1d6')
 
     mock_dis.assert_called_once()
 

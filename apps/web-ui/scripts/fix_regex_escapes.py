@@ -11,7 +11,7 @@ def fix(path):
     fixed = re.sub(r'/error\[\\\"\'\\]:', r"/error[\"']:", content)
     if fixed != content:
         content = fixed
-        print(f"Pass 1 fixed")
+        print("Pass 1 fixed")
     # Try a different approach - find and replace the entire regex lines
     lines = content.splitlines(keepends=True)
     changed = False

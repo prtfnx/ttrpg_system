@@ -1,5 +1,6 @@
-import re
 import os
+import re
+
 
 def rename_unused_catch_vars(content):
     pattern = re.compile(r'catch\s*\(([a-zA-Z_][a-zA-Z0-9_]*)\)\s*\{')

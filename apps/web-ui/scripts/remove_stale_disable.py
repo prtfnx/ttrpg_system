@@ -1,5 +1,7 @@
 """Remove stale eslint-disable-next-line exhaustive-deps comments."""
-import subprocess, json, os, sys
+import json
+import os
+import subprocess
 from pathlib import Path
 
 WEB_UI = Path(__file__).resolve().parent.parent

@@ -54,7 +54,7 @@ def remove_dep_from_array(path, lineno, dep_name):
                 write(path, lines)
                 print(f'  Removed dep {dep_name!r} at {path.split("src/")[-1]} L{i+1}')
                 return
-    # Try looking for just the deps array line pattern ], [...]);  
+    # Try looking for just the deps array line pattern ], [...]);
     for i in range(lineno - 1, min(lineno + 50, len(lines))):
         line = lines[i]
         if re.search(r'\[.*' + re.escape(dep_name) + r'.*\]', line):
@@ -96,7 +96,7 @@ else:
                 write(p, lines)
                 print(f'  Fixed rustRenderManagerRef at L{i+1}')
 
-# DragDropImageHandler.tsx L372: remove 'camera' (use camera.x etc. instead - but suppress for now)  
+# DragDropImageHandler.tsx L372: remove 'camera' (use camera.x etc. instead - but suppress for now)
 # useAssetManager.ts L367: remove 'config' (refreshStats callback has it unnecessarily)
 p = fr'{BASE}\features\assets\hooks\useAssetManager.ts'
 lines = read(p)

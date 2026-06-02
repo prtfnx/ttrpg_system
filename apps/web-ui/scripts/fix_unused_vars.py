@@ -39,7 +39,7 @@ def remove_import_or_unused(path, lineno, name):
         stripped = line.strip()
         if stripped.startswith('interface ') or stripped.startswith('type '):
             # Keep but suppress with eslint-disable on prior line
-            lines.insert(lineno - 1, f'// eslint-disable-next-line @typescript-eslint/no-unused-vars\n')
+            lines.insert(lineno - 1, '// eslint-disable-next-line @typescript-eslint/no-unused-vars\n')
             write(path, lines)
             print(f'Suppressed {path.split("src/")[-1]} L{lineno}: {name}')
         else:

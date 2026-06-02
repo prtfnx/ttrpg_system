@@ -356,7 +356,7 @@ export const GameCanvas: React.FC = () => {
       let wasmMap = new Map<string, WasmSpriteData>();
       try {
         // TODO temporal fix: prefer WASM getter when available; cast to any to avoid stale d.ts issues
-        const raw: WasmSpriteData[] = (rm as any).get_all_sprites_network_data?.() as WasmSpriteData[] ?? rm.get_sprites?.() as WasmSpriteData[] ?? [];
+        const raw: WasmSpriteData[] = (rm as any).get_all_sprites_network_data?.() as WasmSpriteData[] ?? (rm as any).get_sprites?.() as WasmSpriteData[] ?? [];
         wasmMap = new Map(raw.map(d => [d.sprite_id, d]));
       } catch { /* ignore — fall back to store data */ }
 

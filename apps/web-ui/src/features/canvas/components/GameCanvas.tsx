@@ -8,10 +8,10 @@ import { useCombatStore, type Combatant } from '@features/combat/stores/combatSt
 import { useGameModeStore } from '@features/combat/stores/gameModeStore';
 import { isDM } from '@features/session/types/roles';
 import { useOptionalProtocol } from '@lib/api';
+import type { RenderEngine } from '@lib/wasm/ttrpg_rust_core';
 import { useWasmBridge } from '@lib/wasm/wasmBridge';
 import { wasmIntegrationService } from '@lib/wasm/wasmIntegration.service';
 import { wasmManager } from '@lib/wasm/wasmManager';
-import type { RenderEngine } from '@lib/wasm/ttrpg_rust_core';
 import { createMessage, MessageType } from '@lib/websocket';
 import { DragDropImageHandler } from '@shared/components';
 import { useWebSocket } from '@shared/hooks';
@@ -23,20 +23,20 @@ import { useSpriteSyncing } from '../hooks/useSpriteSyncing';
 import { MultiSelectManager } from '../services';
 import fpsService from '../services/fps.service';
 import { performanceService } from '../services/performance.service';
+import { drawDirectionChevron, drawDoorArc, wallLineDash, wallLineWidth } from '../utils/wallVisuals';
 import { FloatingLayerPicker } from './FloatingLayerPicker';
 import styles from './GameCanvas.module.css';
 import {
-    CanvasRenderer,
-    getGridCoord,
-    resizeCanvas,
-    useCanvasDebug,
-    useContextMenu,
-    useFPS,
-    useLightPlacement,
-    usePerformanceMonitor,
+  CanvasRenderer,
+  getGridCoord,
+  resizeCanvas,
+  useCanvasDebug,
+  useContextMenu,
+  useFPS,
+  useLightPlacement,
+  usePerformanceMonitor,
 } from './GameCanvas/index';
 import { useCanvasEventsEnhanced } from './GameCanvas/useCanvasEventsEnhanced';
-import { drawDoorArc, drawDirectionChevron, wallLineDash, wallLineWidth } from '../utils/wallVisuals';
 import PerformanceMonitor from './PerformanceMonitor';
 
 // Window globals declared in src/types.ts: ttrpg_rust_core, rustRenderManager, wasmInitialized

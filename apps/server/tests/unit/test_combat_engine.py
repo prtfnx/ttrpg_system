@@ -4,8 +4,9 @@ import sys
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '../..'))
 
+from unittest.mock import MagicMock, patch
+
 import pytest
-from unittest.mock import MagicMock, call, patch
 from core_table.combat import CombatPhase
 from service.attack_resolver import AttackResult
 from service.combat_engine import CombatEngine

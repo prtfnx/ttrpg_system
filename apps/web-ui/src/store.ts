@@ -611,10 +611,8 @@ export const useGameStore = create<GameStore>()(
         // Sync lighting settings to WASM if available
         if (typeof window !== 'undefined') {
           const rm = window.rustRenderManager;
-          if (rm?.set_ambient_light) rm.set_ambient_light(settings.ambient_light_level ?? 1.0);
-          if (rm?.set_dynamic_lighting_enabled) rm.set_dynamic_lighting_enabled(settings.dynamic_lighting_enabled);
+          if (rm?.set_ambient_light) rm.set_ambient_light(settings.ambient_light_level ?? 1.0);          
           // Re-assert GM mode so the DM never sees a black fog screen.
-          // set_dynamic_lighting_enabled can reset internal fog state.
           const { sessionRole } = useGameStore.getState();
           if (isDM(sessionRole)) {
             rm?.set_gm_mode?.(true);
@@ -677,7 +675,7 @@ export const useGameStore = create<GameStore>()(
         return;
      }
 
-        ProtocolService.getProtocol().sendMessage?.('table_list_request', {});
+        sendProtocolMessage('table_list_request');
       },
 
       createNewTable: (name: string, width: number, height: number) => {
@@ -721,36 +719,26 @@ export const useGameStore = create<GameStore>()(
         };
         
         // Emit table data event for WASM integration
-        window.dispatchEvent(new CustomEvent('table-data-received', {
-          detail: tableDataForWasm
-        }));
+        sendProtocolMessage('table_data_received');
         
         // Send message via protocol to create new table on server
         // BEST PRACTICE: Include local_table_id for sync mapping
-        window.dispatchEvent(new CustomEvent('protocol-send-message', {
-          detail: {
-            type: 'new_table_request',
-            data: {
+        sendProtocolMessage('new_table_request', {
               table_name: name,
               width,
               height,
               local_table_id: newTable.table_id // Include local ID for server mapping
-            }
-          }
-        }));
-      },
+            });
+          
+        },
 
       deleteTable: (tableId: string) => {
         // Send message via protocol to delete table
-        window.dispatchEvent(new CustomEvent('protocol-send-message', {
-          detail: {
-            type: 'table_delete',
-            data: {
-              table_id: tableId
-            }
-          }
-        }));
+        sendProtocolMessage('table_delete', {
+          table_id: tableId
+        });
       },
+
 
       // BEST PRACTICE: Manual sync - send local table to server
       syncTableToServer: (tableId: string) => {
@@ -765,17 +753,12 @@ export const useGameStore = create<GameStore>()(
           console.log('Syncing table to server:', table);
           
           // Send NEW_TABLE_REQUEST to create on server
-          window.dispatchEvent(new CustomEvent('protocol-send-message', {
-            detail: {
-              type: 'new_table_request',
-              data: {
-                table_name: table.table_name,
-                width: table.width,
-                height: table.height,
-                local_table_id: tableId // Include local ID for mapping
-              }
-            }
-          }));
+          sendProtocolMessage('new_table_request', {
+            table_name: table.table_name,
+            width: table.width,
+            height: table.height,
+            local_table_id: tableId // Include local ID for mapping
+          });
           
           // Mark table as syncing
           return {
@@ -820,22 +803,15 @@ export const useGameStore = create<GameStore>()(
               }
             };
             
-            window.dispatchEvent(new CustomEvent('table-data-received', {
-              detail: tableDataForWasm
-            }));
+            sendProtocolMessage('table_data_received', tableDataForWasm);
           }
           
           return {}; // activeTableId already set by setActiveTableId
         });
         
-        window.dispatchEvent(new CustomEvent('protocol-send-message', {
-          detail: {
-            type: 'table_request',
-            data: {
-              table_id: tableId
-            }
-          }
-        }));
+        sendProtocolMessage('table_request', {
+          table_id: tableId
+        });
       },
 
       // Wall segment actions
@@ -886,3 +862,17 @@ export const useGameStore = create<GameStore>()(
     }
   )
 );
+
+function sendProtocolMessage(type: string, data: Record<string, unknown> = {}): boolean {
+  if (!ProtocolService.hasProtocol()) {
+    console.warn('[Store] Protocol not initialized');
+    return false;
+  }
+
+  ProtocolService.getProtocol().sendMessage({
+    type,
+    data,
+  } as never);
+
+  return true;
+}

@@ -1,8 +1,9 @@
-import { useCallback } from 'react';
-import styles from './ActionPanel.module.css';
-import { useCombatStore } from '../stores/combatStore';
 import { useGameStore } from '@/store';
+import { useOptionalProtocol } from '@lib/api';
 import { MessageType } from '@lib/websocket/message';
+import { useCallback } from 'react';
+import { useCombatStore } from '../stores/combatStore';
+import styles from './ActionPanel.module.css';
 
 interface ActionPanelProps {
   onSelectTarget?: (action: 'attack' | 'help') => void;
@@ -11,13 +12,8 @@ interface ActionPanelProps {
 export function ActionPanel({ onSelectTarget }: ActionPanelProps) {
   const combat = useCombatStore((s) => s.combat);
   const userId = useGameStore((s) => s.userId);
-  const protocol = useGameStore((s) => s.protocol);
-
-  if (!combat || combat.phase !== 'active') return null;
-
-  const active = combat.combatants.filter((c) => !c.is_defeated);
-  const current = active[combat.current_turn_index % Math.max(active.length, 1)];
-  if (!current || userId === null || !current.controlled_by.includes(String(userId))) return null;
+  const protocolCtx = useOptionalProtocol();
+  const protocol = protocolCtx?.protocol;
 
   const send = useCallback(
     (type: string, data: Record<string, unknown>) => {
@@ -25,6 +21,15 @@ export function ActionPanel({ onSelectTarget }: ActionPanelProps) {
     },
     [protocol],
   );
+
+  if (!combat || combat.phase !== 'active') return null;
+
+  const active = combat.combatants.filter((c) => !c.is_defeated);
+  const current = active[combat.current_turn_index % Math.max(active.length, 1)];
+
+  if (!current || userId === null || !current.controlled_by.includes(String(userId))) {
+    return null;
+  }
 
   const utilityAction = (actionType: string) => {
     send(actionType, { combatant_id: current.combatant_id });

@@ -647,8 +647,8 @@ export const useGameStore = create<GameStore>()(
         }));
         
         // Save active table to server for persistence
-        if (tableId && window.protocol) {
-          const protocol = window.protocol;
+        if (tableId && ProtocolService.hasProtocol()) {
+          const protocol = ProtocolService.getProtocol();
           console.log('[Store] Protocol available, calling setActiveTable');
           if (protocol.setActiveTable) {
             console.log('[Store] Calling protocol.setActiveTable with:', tableId);
@@ -670,16 +670,14 @@ export const useGameStore = create<GameStore>()(
       requestTableList: () => {
         console.log('Store: Requesting table list...');
         // Send message via protocol to request table list
-        window.dispatchEvent(new CustomEvent('protocol-send-message', {
-          detail: {
-            type: 'table_list_request',
-            data: {}
-          }
-        }));
-        console.log('Store: Dispatched protocol-send-message event');
-        set(() => ({
-          tablesLoading: true
-        }));
+        set(() => ({ tablesLoading: true }));
+
+        if (!ProtocolService.hasProtocol()) {
+        console.warn('[Store] Protocol not initialized');
+        return;
+     }
+
+        ProtocolService.getProtocol().sendMessage?.('table_list_request', {});
       },
 
       createNewTable: (name: string, width: number, height: number) => {

@@ -191,7 +191,7 @@ describe('useActions', () => {
 
   it('sets error state when createTable fails', async () => {
     const engine = createMockActionsEngine({
-      create_table_action: vi.fn(() => ({ success: false, message: 'Duplicate name' })),
+      create_table: vi.fn(() => ({ success: false, message: 'Duplicate name' })),
     });
     let hookRef: ReturnType<typeof useActions> | null = null;
 
@@ -278,7 +278,7 @@ describe('useActions', () => {
 
   it('moveSpriteToLayer updates sprite layer', async () => {
     const engine = createMockActionsEngine({
-      move_sprite_to_layer_action: vi.fn(() => ({
+      move_sprite_to_layer: vi.fn(() => ({
         success: true, message: 'moved',
         data: { sprite_id: 's1', layer: 'map', position: { x: 0, y: 0 }, size: { width: 64, height: 64 }, rotation: 0, texture_name: 'goblin', visible: true },
       })),

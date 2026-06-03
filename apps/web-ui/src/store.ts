@@ -3,6 +3,7 @@ import { UnitConverter, type DistanceUnit, type TableUnitConfig } from '@/utils/
 import { advancedMeasurementSystem } from '@features/measurement/services/advancedMeasurement.service';
 import { isDM, type SessionRole } from '@features/session/types/roles';
 import { ProtocolService } from '@lib/api';
+import { WasmRuntimeService } from '@lib/wasm/WasmRuntimeService';
 import { transformServerTablesToClient, validateTableId } from '@lib/websocket';
 import { create } from 'zustand';
 import { devtools } from 'zustand/middleware';
@@ -551,10 +552,11 @@ export const useGameStore = create<GameStore>()(
         }));
         advancedMeasurementSystem.syncWithTableUnits(gridCellPx, cellDistance, distanceUnit);
         // Sync to Rust WASM
-        const rm = window.rustRenderManager;
+        const tableManager = WasmRuntimeService.getTableManager();
         const tableId = useGameStore.getState().activeTableId;
-        if (rm?.set_table_units && tableId) {
-          rm.set_table_units(tableId, gridCellPx, cellDistance, distanceUnit);
+
+        if (tableManager && tableId) {
+        tableManager.set_table_units(tableId, gridCellPx, cellDistance, distanceUnit);
         }
       },
 
@@ -586,7 +588,7 @@ export const useGameStore = create<GameStore>()(
 
       setAmbientLight: (level: number) => {
         set(() => ({ ambientLight: level }));
-        const rm = typeof window !== 'undefined' ? window.rustRenderManager : null;
+        const rm = WasmRuntimeService.getRenderEngine();
         if (rm?.set_ambient_light) rm.set_ambient_light(level);
       },
 
@@ -609,16 +611,14 @@ export const useGameStore = create<GameStore>()(
           ambientLight: settings.ambient_light_level ?? 1.0,
         }));
         // Sync lighting settings to WASM if available
-        if (typeof window !== 'undefined') {
-          const rm = window.rustRenderManager;
-          if (rm?.set_ambient_light) rm.set_ambient_light(settings.ambient_light_level ?? 1.0);          
-          // Re-assert GM mode so the DM never sees a black fog screen.
-          const { sessionRole } = useGameStore.getState();
-          if (isDM(sessionRole)) {
-            rm?.set_gm_mode?.(true);
-            // Force a render refresh so the restored view is visible immediately
-            rm?.render?.();
-          }
+        const rm = WasmRuntimeService.getRenderEngine();
+        if (rm?.set_ambient_light) rm.set_ambient_light(settings.ambient_light_level ?? 1.0);          
+        // Re-assert GM mode so the DM never sees a black fog screen.
+        const { sessionRole } = useGameStore.getState();
+        if (isDM(sessionRole)) {
+          rm?.set_gm_mode?.(true);
+          // Force a render refresh so the restored view is visible immediately
+          rm?.render?.();
         }
       },
 
@@ -821,7 +821,7 @@ export const useGameStore = create<GameStore>()(
             ? state.walls.map(w => w.wall_id === wall.wall_id ? wall : w)
             : [...state.walls, wall],
         }));
-        const rm = window.rustRenderManager;
+        const rm = WasmRuntimeService.getRenderEngine();
         if (rm?.add_wall) rm.add_wall(JSON.stringify(wall));
       },
 
@@ -831,7 +831,7 @@ export const useGameStore = create<GameStore>()(
           for (const w of walls) existing.set(w.wall_id, w);
           return { walls: [...existing.values()] };
         });
-        const rm = window.rustRenderManager;
+        const rm = WasmRuntimeService.getRenderEngine();
         if (rm?.add_wall) {
           for (const w of walls) rm.add_wall(JSON.stringify(w));
         }
@@ -841,19 +841,19 @@ export const useGameStore = create<GameStore>()(
         set((state) => ({
           walls: state.walls.map(w => w.wall_id === wallId ? { ...w, ...updates } : w),
         }));
-        const rm = window.rustRenderManager;
+        const rm = WasmRuntimeService.getRenderEngine();
         if (rm?.update_wall) rm.update_wall(wallId, JSON.stringify(updates));
       },
 
       removeWall: (wallId: string) => {
         set((state) => ({ walls: state.walls.filter(w => w.wall_id !== wallId) }));
-        const rm = window.rustRenderManager;
+        const rm = WasmRuntimeService.getRenderEngine();
         if (rm?.remove_wall) rm.remove_wall(wallId);
       },
 
       clearWalls: () => {
         set(() => ({ walls: [] }));
-        const rm = window.rustRenderManager;
+        const rm = WasmRuntimeService.getRenderEngine();
         if (rm?.clear_walls) rm.clear_walls();
       },
     }),

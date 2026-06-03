@@ -1,5 +1,27 @@
-import type { RenderEngine } from '@lib/wasm/ttrpg_rust_core';
+import type { ActionsClient } from '@lib/wasm/ttrpg_rust_core';
 import { useCallback, useEffect, useRef, useState } from 'react';
+
+export type ActionsEngine = Pick<
+  ActionsClient,
+  | 'set_action_handler'
+  | 'set_state_change_handler'
+  | 'set_error_handler'
+  | 'can_undo'
+  | 'can_redo'
+  | 'create_table'
+  | 'delete_table'
+  | 'update_table'
+  | 'create_sprite'
+  | 'delete_sprite'
+  | 'update_sprite'
+  | 'set_layer_visibility'
+  | 'move_sprite_to_layer'
+  | 'batch_actions'
+  | 'undo'
+  | 'redo'
+  | 'get_all_tables'
+  | 'get_action_history'
+>;
 
 export interface ActionResult {
   success: boolean;
@@ -76,7 +98,7 @@ const initialState: ActionsState = {
   error: null,
 };
 
-export function useActions(renderEngine: RenderEngine | null, callbacks?: ActionsCallbacks) {
+export function useActions(actionsEngine: ActionsEngine | null, callbacks?: ActionsCallbacks) {
   const [state, setState] = useState<ActionsState>(initialState);
   const callbacksRef = useRef(callbacks);
   
@@ -87,7 +109,7 @@ export function useActions(renderEngine: RenderEngine | null, callbacks?: Action
 
   // Setup event handlers
   useEffect(() => {
-    if (!renderEngine) return;
+    if (!actionsEngine) return;
 
     const handleAction = (actionType: string, data: unknown) => {
       callbacksRef.current?.onAction?.(actionType, data);
@@ -97,8 +119,8 @@ export function useActions(renderEngine: RenderEngine | null, callbacks?: Action
       // Update local state based on event type
       setState(prev => ({
         ...prev,
-        canUndo: renderEngine.can_undo(),
-        canRedo: renderEngine.can_redo(),
+        canUndo: actionsEngine.can_undo(),
+        canRedo: actionsEngine.can_redo(),
       }));
       
       callbacksRef.current?.onStateChange?.(eventType, targetId);
@@ -110,10 +132,10 @@ export function useActions(renderEngine: RenderEngine | null, callbacks?: Action
     };
 
     try {
-      // TODO temporal fix: cast renderEngine to any until action handlers exist in WASM d.ts
-      (renderEngine as any).set_action_handler?.(handleAction);
-      (renderEngine as any).set_state_change_handler?.(handleStateChange);
-      (renderEngine as any).set_actions_error_handler?.(handleError);
+      // TODO temporal fix: cast actionsEngine to any until action handlers exist in WASM d.ts
+      (actionsEngine as any).set_action_handler?.(handleAction);
+      (actionsEngine as any).set_state_change_handler?.(handleStateChange);
+      (actionsEngine as any).set_actions_error_handler?.(handleError);
     } catch (error) {
       console.error('Error setting up actions handlers:', error);
     }
@@ -121,16 +143,16 @@ export function useActions(renderEngine: RenderEngine | null, callbacks?: Action
     return () => {
       // Cleanup handlers if needed
     };
-  }, [renderEngine]);
+  }, [actionsEngine]);
 
   // Table Management
   const createTable = useCallback(async (name: string, width: number, height: number): Promise<ActionResult> => {
-    if (!renderEngine) throw new Error('RenderEngine not initialized');
+    if (!actionsEngine) throw new Error('ActionsEngine not initialized');
     
     setState(prev => ({ ...prev, isLoading: true, error: null }));
     
     try {
-      const result = (renderEngine as any).create_table_action?.(name, width, height) ?? { success: false, message: 'create_table_action not supported' } as ActionResult;
+      const result = (actionsEngine as any).create_table_action?.(name, width, height) ?? { success: false, message: 'create_table_action not supported' } as ActionResult;
       const actionResult = result as ActionResult;
       
       if (actionResult.success && actionResult.data) {
@@ -150,15 +172,15 @@ export function useActions(renderEngine: RenderEngine | null, callbacks?: Action
       setState(prev => ({ ...prev, isLoading: false, error: errorMsg }));
       throw error;
     }
-  }, [renderEngine]);
+  }, [actionsEngine]);
 
   const deleteTable = useCallback(async (tableId: string): Promise<ActionResult> => {
-    if (!renderEngine) throw new Error('RenderEngine not initialized');
+    if (!actionsEngine) throw new Error('ActionsEngine not initialized');
     
     setState(prev => ({ ...prev, isLoading: true, error: null }));
     
     try {
-      const result = (renderEngine as any).delete_table_action?.(tableId) ?? { success: false, message: 'delete_table_action not supported' } as ActionResult;
+      const result = (actionsEngine as any).delete_table_action?.(tableId) ?? { success: false, message: 'delete_table_action not supported' } as ActionResult;
       const actionResult = result as ActionResult;
       
       if (actionResult.success) {
@@ -177,15 +199,15 @@ export function useActions(renderEngine: RenderEngine | null, callbacks?: Action
       setState(prev => ({ ...prev, isLoading: false, error: errorMsg }));
       throw error;
     }
-  }, [renderEngine]);
+  }, [actionsEngine]);
 
   const updateTable = useCallback(async (tableId: string, updates: Partial<TableInfo>): Promise<ActionResult> => {
-    if (!renderEngine) throw new Error('RenderEngine not initialized');
+    if (!actionsEngine) throw new Error('ActionsEngine not initialized');
     
     setState(prev => ({ ...prev, isLoading: true, error: null }));
     
     try {
-      const result = (renderEngine as any).update_table_action?.(tableId, updates) ?? { success: false, message: 'update_table_action not supported' } as ActionResult;
+      const result = (actionsEngine as any).update_table_action?.(tableId, updates) ?? { success: false, message: 'update_table_action not supported' } as ActionResult;
       const actionResult = result as ActionResult;
       
       if (actionResult.success && actionResult.data) {
@@ -205,7 +227,7 @@ export function useActions(renderEngine: RenderEngine | null, callbacks?: Action
       setState(prev => ({ ...prev, isLoading: false, error: errorMsg }));
       throw error;
     }
-  }, [renderEngine]);
+  }, [actionsEngine]);
 
   // Sprite Management
   const createSprite = useCallback(async (
@@ -214,7 +236,7 @@ export function useActions(renderEngine: RenderEngine | null, callbacks?: Action
     position: { x: number; y: number }, 
     textureName: string
   ): Promise<ActionResult> => {
-    if (!renderEngine) throw new Error('RenderEngine not initialized');
+    if (!actionsEngine) throw new Error('ActionsEngine not initialized');
     
     setState(prev => ({ ...prev, isLoading: true, error: null }));
     
@@ -239,15 +261,15 @@ export function useActions(renderEngine: RenderEngine | null, callbacks?: Action
       setState(prev => ({ ...prev, isLoading: false, error: errorMsg }));
       throw error;
     }
-  }, [renderEngine]);
+  }, [actionsEngine]);
 
   const deleteSprite = useCallback(async (spriteId: string): Promise<ActionResult> => {
-    if (!renderEngine) throw new Error('RenderEngine not initialized');
+    if (!actionsEngine) throw new Error('ActionsEngine not initialized');
     
     setState(prev => ({ ...prev, isLoading: true, error: null }));
     
     try {
-      const result = (renderEngine as any).delete_sprite_action?.(spriteId) ?? { success: false, message: 'delete_sprite_action not supported' } as ActionResult;
+      const result = (actionsEngine as any).delete_sprite_action?.(spriteId) ?? { success: false, message: 'delete_sprite_action not supported' } as ActionResult;
       const actionResult = result as ActionResult;
       
       if (actionResult.success) {
@@ -266,15 +288,15 @@ export function useActions(renderEngine: RenderEngine | null, callbacks?: Action
       setState(prev => ({ ...prev, isLoading: false, error: errorMsg }));
       throw error;
     }
-  }, [renderEngine]);
+  }, [actionsEngine]);
 
   const updateSprite = useCallback(async (spriteId: string, updates: Partial<SpriteInfo>): Promise<ActionResult> => {
-    if (!renderEngine) throw new Error('RenderEngine not initialized');
+    if (!actionsEngine) throw new Error('ActionsEngine not initialized');
     
     setState(prev => ({ ...prev, isLoading: true, error: null }));
     
     try {
-      const result = (renderEngine as any).update_sprite_action?.(spriteId, updates) ?? { success: false, message: 'update_sprite_action not supported' } as ActionResult;
+      const result = (actionsEngine as any).update_sprite_action?.(spriteId, updates) ?? { success: false, message: 'update_sprite_action not supported' } as ActionResult;
       const actionResult = result as ActionResult;
       
       if (actionResult.success && actionResult.data) {
@@ -294,14 +316,14 @@ export function useActions(renderEngine: RenderEngine | null, callbacks?: Action
       setState(prev => ({ ...prev, isLoading: false, error: errorMsg }));
       throw error;
     }
-  }, [renderEngine]);
+  }, [actionsEngine]);
 
   // Layer Management
   const setLayerVisibility = useCallback(async (layer: string, visible: boolean): Promise<ActionResult> => {
-    if (!renderEngine) throw new Error('RenderEngine not initialized');
+    if (!actionsEngine) throw new Error('ActionsEngine not initialized');
     
     try {
-      const result = (renderEngine as any).set_layer_visibility_action?.(layer, visible) ?? { success: false, message: 'set_layer_visibility_action not supported' } as ActionResult;
+      const result = (actionsEngine as any).set_layer_visibility_action?.(layer, visible) ?? { success: false, message: 'set_layer_visibility_action not supported' } as ActionResult;
       const actionResult = result as ActionResult;
       
       if (actionResult.success) {
@@ -317,13 +339,13 @@ export function useActions(renderEngine: RenderEngine | null, callbacks?: Action
       setState(prev => ({ ...prev, error: errorMsg }));
       throw error;
     }
-  }, [renderEngine]);
+  }, [actionsEngine]);
 
   const moveSpriteToLayer = useCallback(async (spriteId: string, newLayer: string): Promise<ActionResult> => {
-    if (!renderEngine) throw new Error('RenderEngine not initialized');
+    if (!actionsEngine) throw new Error('ActionsEngine not initialized');
     
     try {
-      const result = (renderEngine as any).move_sprite_to_layer_action?.(spriteId, newLayer) ?? { success: false, message: 'move_sprite_to_layer_action not supported' } as ActionResult;
+      const result = (actionsEngine as any).move_sprite_to_layer_action?.(spriteId, newLayer) ?? { success: false, message: 'move_sprite_to_layer_action not supported' } as ActionResult;
       const actionResult = result as ActionResult;
       
       if (actionResult.success && actionResult.data) {
@@ -340,23 +362,23 @@ export function useActions(renderEngine: RenderEngine | null, callbacks?: Action
       setState(prev => ({ ...prev, error: errorMsg }));
       throw error;
     }
-  }, [renderEngine]);
+  }, [actionsEngine]);
 
   // Batch Operations
   const batchActions = useCallback(async (actions: BatchAction[]): Promise<ActionResult> => {
-    if (!renderEngine) throw new Error('RenderEngine not initialized');
+    if (!actionsEngine) throw new Error('ActionsEngine not initialized');
     
     setState(prev => ({ ...prev, isLoading: true, error: null }));
     
     try {
-      const result = (renderEngine as any).batch_actions?.(actions) ?? { success: false, message: 'batch_actions not supported' } as ActionResult;
+      const result = (actionsEngine as any).batch_actions?.(actions) ?? { success: false, message: 'batch_actions not supported' } as ActionResult;
       const actionResult = result as ActionResult;
 
       setState(prev => ({ 
         ...prev, 
         isLoading: false,
-        canUndo: (renderEngine as any).can_undo?.() ?? false,
-        canRedo: (renderEngine as any).can_redo?.() ?? false,
+        canUndo: (actionsEngine as any).can_undo?.() ?? false,
+        canRedo: (actionsEngine as any).can_redo?.() ?? false,
       }));
       
       return actionResult;
@@ -365,20 +387,20 @@ export function useActions(renderEngine: RenderEngine | null, callbacks?: Action
       setState(prev => ({ ...prev, isLoading: false, error: errorMsg }));
       throw error;
     }
-  }, [renderEngine]);
+  }, [actionsEngine]);
 
   // Undo/Redo
   const undo = useCallback(async (): Promise<ActionResult> => {
-    if (!renderEngine) throw new Error('RenderEngine not initialized');
+    if (!actionsEngine) throw new Error('ActionsEngine not initialized');
     
     try {
-      const result = (renderEngine as any).undo_action?.() ?? { success: false, message: 'undo_action not supported' } as ActionResult;
+      const result = (actionsEngine as any).undo_action?.() ?? { success: false, message: 'undo_action not supported' } as ActionResult;
       const actionResult = result as ActionResult;
 
       setState(prev => ({
         ...prev,
-        canUndo: (renderEngine as any).can_undo?.() ?? false,
-        canRedo: (renderEngine as any).can_redo?.() ?? false,
+        canUndo: (actionsEngine as any).can_undo?.() ?? false,
+        canRedo: (actionsEngine as any).can_redo?.() ?? false,
       }));
       
       return actionResult;
@@ -387,19 +409,19 @@ export function useActions(renderEngine: RenderEngine | null, callbacks?: Action
       setState(prev => ({ ...prev, error: errorMsg }));
       throw error;
     }
-  }, [renderEngine]);
+  }, [actionsEngine]);
 
   const redo = useCallback(async (): Promise<ActionResult> => {
-    if (!renderEngine) throw new Error('RenderEngine not initialized');
+    if (!actionsEngine) throw new Error('ActionsEngine not initialized');
     
     try {
-      const result = (renderEngine as any).redo_action?.() ?? { success: false, message: 'redo_action not supported' } as ActionResult;
+      const result = (actionsEngine as any).redo_action?.() ?? { success: false, message: 'redo_action not supported' } as ActionResult;
       const actionResult = result as ActionResult;
 
       setState(prev => ({
         ...prev,
-        canUndo: (renderEngine as any).can_undo?.() ?? false,
-        canRedo: (renderEngine as any).can_redo?.() ?? false,
+        canUndo: (actionsEngine as any).can_undo?.() ?? false,
+        canRedo: (actionsEngine as any).can_redo?.() ?? false,
       }));
       
       return actionResult;
@@ -408,29 +430,29 @@ export function useActions(renderEngine: RenderEngine | null, callbacks?: Action
       setState(prev => ({ ...prev, error: errorMsg }));
       throw error;
     }
-  }, [renderEngine]);
+  }, [actionsEngine]);
 
   // Query operations
   const refreshState = useCallback(() => {
-    if (!renderEngine) return;
+    if (!actionsEngine) return;
     
     try {
       // Get tables data for future use
-      (renderEngine as any).get_all_tables?.();
-      const history = (renderEngine as any).get_action_history?.() ?? [];
+      (actionsEngine as any).get_all_tables?.();
+      const history = (actionsEngine as any).get_action_history?.() ?? [];
 
       setState(prev => ({
         ...prev,
         actionHistory: history as ActionHistoryEntry[],
-        canUndo: (renderEngine as any).can_undo?.() ?? false,
-        canRedo: (renderEngine as any).can_redo?.() ?? false,
+        canUndo: (actionsEngine as any).can_undo?.() ?? false,
+        canRedo: (actionsEngine as any).can_redo?.() ?? false,
       }));
     } catch (error) {
       console.error('Error refreshing actions state:', error);
     }
-  }, [renderEngine]);
+  }, [actionsEngine]);
 
-  // Auto-refresh state when renderEngine changes
+  // Auto-refresh state when actionsEngine changes
   useEffect(() => {
     refreshState();
   }, [refreshState]);

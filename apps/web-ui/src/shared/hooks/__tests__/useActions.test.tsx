@@ -1,47 +1,82 @@
-import type { RenderEngine } from '@lib/wasm/ttrpg_rust_core';
+import type { ActionsClient } from '@lib/wasm/ttrpg_rust_core';
 import { useActions, type ActionsCallbacks } from '@shared/hooks/useActions';
 import { act, render, waitFor } from '@testing-library/react';
 import React from 'react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
-function createMockRenderEngine(overrides: Partial<Record<string, unknown>> = {}): RenderEngine {
+type ActionsEngine = Pick<
+  ActionsClient,
+  | 'set_action_handler'
+  | 'set_state_change_handler'
+  | 'set_error_handler'
+  | 'can_undo'
+  | 'can_redo'
+  | 'create_table'
+  | 'delete_table'
+  | 'update_table'
+  | 'create_sprite'
+  | 'delete_sprite'
+  | 'update_sprite'
+  | 'set_layer_visibility'
+  | 'move_sprite_to_layer'
+  | 'batch_actions'
+  | 'undo'
+  | 'redo'
+  | 'get_all_tables'
+>;
+
+function createMockActionsEngine(overrides: Partial<Record<string, unknown>> = {}): ActionsEngine {
   return {
     set_action_handler: vi.fn(),
     set_state_change_handler: vi.fn(),
-    set_actions_error_handler: vi.fn(),
+    set_error_handler: vi.fn(),
+
     can_undo: vi.fn(() => false),
     can_redo: vi.fn(() => false),
-    create_table_action: vi.fn(() => ({
+
+    create_table: vi.fn(() => ({
       success: true,
       message: 'created',
-      data: { table_id: 't1', name: 'Map', width: 1920, height: 1080, scale_x: 1, scale_y: 1, offset_x: 0, offset_y: 0 },
+      data: {
+        table_id: 't1',
+        name: 'Map',
+        width: 1920,
+        height: 1080,
+        scale_x: 1,
+        scale_y: 1,
+        offset_x: 0,
+        offset_y: 0,
+      },
     })),
-    delete_table_action: vi.fn(() => ({ success: true, message: 'deleted' })),
-    update_table_action: vi.fn(() => ({
-      success: true,
-      message: 'updated',
-      data: { table_id: 't1', name: 'Renamed', width: 1920, height: 1080, scale_x: 1, scale_y: 1, offset_x: 0, offset_y: 0 },
-    })),
-    create_sprite_action: vi.fn(() => ({
+
+    delete_table: vi.fn(() => ({ success: true, message: 'deleted' })),
+    update_table: vi.fn(() => ({ success: true, message: 'updated' })),
+
+    create_sprite: vi.fn(() => ({
       success: true,
       message: 'created',
-      data: { sprite_id: 's1', layer: 'tokens', position: { x: 0, y: 0 }, size: { width: 64, height: 64 }, rotation: 0, texture_name: 'goblin', visible: true },
+      data: {
+        sprite_id: 's1',
+        layer: 'tokens',
+        position: { x: 0, y: 0 },
+        size: { width: 64, height: 64 },
+        rotation: 0,
+        texture_name: 'goblin',
+        visible: true,
+      },
     })),
-    delete_sprite_action: vi.fn(() => ({ success: true, message: 'deleted' })),
-    update_sprite_action: vi.fn(() => ({
-      success: true,
-      message: 'updated',
-      data: { sprite_id: 's1', layer: 'tokens', position: { x: 100, y: 100 }, size: { width: 64, height: 64 }, rotation: 0, texture_name: 'goblin', visible: true },
-    })),
-    set_layer_visibility_action: vi.fn(() => ({ success: true, message: 'ok' })),
-    move_sprite_to_layer_action: vi.fn(() => ({ success: true, message: 'moved' })),
+
+    delete_sprite: vi.fn(() => ({ success: true, message: 'deleted' })),
+    update_sprite: vi.fn(() => ({ success: true, message: 'updated' })),
+    set_layer_visibility: vi.fn(() => ({ success: true, message: 'ok' })),
+    move_sprite_to_layer: vi.fn(() => ({ success: true, message: 'moved' })),
     batch_actions: vi.fn(() => ({ success: true, message: 'batch ok' })),
-    undo_action: vi.fn(() => ({ success: true, message: 'undone' })),
-    redo_action: vi.fn(() => ({ success: true, message: 'redone' })),
+    undo: vi.fn(() => ({ success: true, message: 'undone' })),
+    redo: vi.fn(() => ({ success: true, message: 'redone' })),
     get_all_tables: vi.fn(() => '[]'),
-    get_all_sprites: vi.fn(() => '[]'),
+
     ...overrides,
-  } as unknown as RenderEngine;
+  } as ActionsEngine;
 }
 
 // Helper component that exposes the hook
@@ -83,16 +118,16 @@ describe('useActions', () => {
   });
 
   it('sets up handlers when renderEngine is provided', () => {
-    const engine = createMockRenderEngine();
+    const engine = createMockActionsEngine();
     render(<HookConsumer renderEngine={engine} />);
 
     expect(engine.set_action_handler).toHaveBeenCalledOnce();
     expect(engine.set_state_change_handler).toHaveBeenCalledOnce();
-    expect(engine.set_actions_error_handler).toHaveBeenCalledOnce();
+    expect(engine.set_error_handler).toHaveBeenCalledOnce();
   });
 
   it('createTable updates state on success', async () => {
-    const engine = createMockRenderEngine();
+    const engine = createMockActionsEngine();
     let hookRef: ReturnType<typeof useActions> | null = null;
 
     const { getByTestId } = render(
@@ -108,7 +143,7 @@ describe('useActions', () => {
   });
 
   it('deleteTable removes table from state', async () => {
-    const engine = createMockRenderEngine();
+    const engine = createMockActionsEngine();
     let hookRef: ReturnType<typeof useActions> | null = null;
 
     render(<HookConsumer renderEngine={engine} onHook={(h) => { hookRef = h; }} />);
@@ -130,20 +165,20 @@ describe('useActions', () => {
   });
 
   it('calls onError callback when error handler fires', async () => {
-    const engine = createMockRenderEngine();
+    const engine = createMockActionsEngine();
     const onError = vi.fn();
 
     render(<HookConsumer renderEngine={engine} callbacks={{ onError }} />);
 
     // Get the error handler that was registered
-    const errorHandler = (engine.set_actions_error_handler as ReturnType<typeof vi.fn>).mock.calls[0][0];
+    const errorHandler = (engine.set_error_handler as ReturnType<typeof vi.fn>).mock.calls[0][0];
     act(() => errorHandler('Something went wrong'));
 
     expect(onError).toHaveBeenCalledWith('Something went wrong');
   });
 
   it('calls onAction callback when action handler fires', () => {
-    const engine = createMockRenderEngine();
+    const engine = createMockActionsEngine();
     const onAction = vi.fn();
 
     render(<HookConsumer renderEngine={engine} callbacks={{ onAction }} />);
@@ -155,7 +190,7 @@ describe('useActions', () => {
   });
 
   it('sets error state when createTable fails', async () => {
-    const engine = createMockRenderEngine({
+    const engine = createMockActionsEngine({
       create_table_action: vi.fn(() => ({ success: false, message: 'Duplicate name' })),
     });
     let hookRef: ReturnType<typeof useActions> | null = null;
@@ -173,7 +208,7 @@ describe('useActions', () => {
   });
 
   it('updateTable updates table in state', async () => {
-    const engine = createMockRenderEngine();
+    const engine = createMockActionsEngine();
     let hookRef: ReturnType<typeof useActions> | null = null;
 
     render(<HookConsumer renderEngine={engine} onHook={(h) => { hookRef = h; }} />);
@@ -188,7 +223,7 @@ describe('useActions', () => {
   });
 
   it('createSprite adds sprite to state', async () => {
-    const engine = createMockRenderEngine();
+    const engine = createMockActionsEngine();
     let hookRef: ReturnType<typeof useActions> | null = null;
     render(<HookConsumer renderEngine={engine} onHook={(h) => { hookRef = h; }} />);
 
@@ -201,7 +236,7 @@ describe('useActions', () => {
   });
 
   it('deleteSprite removes sprite from state', async () => {
-    const engine = createMockRenderEngine();
+    const engine = createMockActionsEngine();
     let hookRef: ReturnType<typeof useActions> | null = null;
     render(<HookConsumer renderEngine={engine} onHook={(h) => { hookRef = h; }} />);
 
@@ -215,7 +250,7 @@ describe('useActions', () => {
   });
 
   it('updateSprite updates sprite in state', async () => {
-    const engine = createMockRenderEngine();
+    const engine = createMockActionsEngine();
     let hookRef: ReturnType<typeof useActions> | null = null;
     render(<HookConsumer renderEngine={engine} onHook={(h) => { hookRef = h; }} />);
 
@@ -229,7 +264,7 @@ describe('useActions', () => {
   });
 
   it('setLayerVisibility updates layerVisibility', async () => {
-    const engine = createMockRenderEngine();
+    const engine = createMockActionsEngine();
     let hookRef: ReturnType<typeof useActions> | null = null;
     render(<HookConsumer renderEngine={engine} onHook={(h) => { hookRef = h; }} />);
 
@@ -242,7 +277,7 @@ describe('useActions', () => {
   });
 
   it('moveSpriteToLayer updates sprite layer', async () => {
-    const engine = createMockRenderEngine({
+    const engine = createMockActionsEngine({
       move_sprite_to_layer_action: vi.fn(() => ({
         success: true, message: 'moved',
         data: { sprite_id: 's1', layer: 'map', position: { x: 0, y: 0 }, size: { width: 64, height: 64 }, rotation: 0, texture_name: 'goblin', visible: true },
@@ -261,7 +296,7 @@ describe('useActions', () => {
   });
 
   it('batchActions returns success', async () => {
-    const engine = createMockRenderEngine({
+    const engine = createMockActionsEngine({
       can_undo: vi.fn(() => true),
       can_redo: vi.fn(() => false),
     });
@@ -279,7 +314,7 @@ describe('useActions', () => {
   });
 
   it('undo updates canUndo/canRedo state', async () => {
-    const engine = createMockRenderEngine({
+    const engine = createMockActionsEngine({
       can_undo: vi.fn(() => false),
       can_redo: vi.fn(() => true),
     });
@@ -295,7 +330,7 @@ describe('useActions', () => {
   });
 
   it('redo updates canUndo/canRedo state', async () => {
-    const engine = createMockRenderEngine({
+    const engine = createMockActionsEngine({
       can_undo: vi.fn(() => true),
       can_redo: vi.fn(() => false),
     });
@@ -312,7 +347,7 @@ describe('useActions', () => {
 
   it('refreshState reads action history from engine', async () => {
     const historyEntry = { action_type: 'create_sprite', timestamp: 1000, data: {}, reversible: true };
-    const engine = createMockRenderEngine({
+    const engine = createMockActionsEngine({
       get_action_history: vi.fn(() => [historyEntry]),
     });
     let hookRef: ReturnType<typeof useActions> | null = null;
@@ -335,7 +370,7 @@ describe('useActions', () => {
   });
 
   it('onStateChange callback fires when state change handler is called', async () => {
-    const engine = createMockRenderEngine();
+    const engine = createMockActionsEngine();
     const onStateChange = vi.fn();
     render(<HookConsumer renderEngine={engine} callbacks={{ onStateChange }} />);
 
@@ -346,7 +381,7 @@ describe('useActions', () => {
   });
 
   it('createSprite handles failure and sets error', async () => {
-    const engine = createMockRenderEngine({
+    const engine = createMockActionsEngine({
       create_sprite_action: vi.fn(() => ({ success: false, message: 'Layer not found' })),
     });
     let hookRef: ReturnType<typeof useActions> | null = null;

@@ -81,11 +81,11 @@ function createMockActionsEngine(overrides: Partial<Record<string, unknown>> = {
 
 // Helper component that exposes the hook
 const HookConsumer: React.FC<{
-  renderEngine: RenderEngine | null;
+  actionsEngine: ActionsEngine | null;
   callbacks?: ActionsCallbacks;
   onHook?: (hook: ReturnType<typeof useActions>) => void;
-}> = ({ renderEngine, callbacks, onHook }) => {
-  const hook = useActions(renderEngine, callbacks);
+}> = ({ actionsEngine, callbacks, onHook }) => {
+  const hook = useActions(actionsEngine, callbacks);
   React.useEffect(() => {
     onHook?.(hook);
   });
@@ -108,7 +108,7 @@ afterEach(() => {
 describe('useActions', () => {
   it('returns initial state with null render engine', () => {
     let hookRef: ReturnType<typeof useActions> | null = null;
-    render(<HookConsumer renderEngine={null} onHook={(h) => { hookRef = h; }} />);
+    render(<HookConsumer actionsEngine={null} onHook={(h) => { hookRef = h; }} />);
 
     expect(hookRef).not.toBeNull();
     expect(hookRef!.tables.size).toBe(0);
@@ -119,7 +119,7 @@ describe('useActions', () => {
 
   it('sets up handlers when renderEngine is provided', () => {
     const engine = createMockActionsEngine();
-    render(<HookConsumer renderEngine={engine} />);
+    render(<HookConsumer actionsEngine={engine} />);
 
     expect(engine.set_action_handler).toHaveBeenCalledOnce();
     expect(engine.set_state_change_handler).toHaveBeenCalledOnce();
@@ -131,7 +131,7 @@ describe('useActions', () => {
     let hookRef: ReturnType<typeof useActions> | null = null;
 
     const { getByTestId } = render(
-      <HookConsumer renderEngine={engine} onHook={(h) => { hookRef = h; }} />
+      <HookConsumer actionsEngine={engine} onHook={(h) => { hookRef = h; }} />
     );
 
     await act(async () => {
@@ -146,7 +146,7 @@ describe('useActions', () => {
     const engine = createMockActionsEngine();
     let hookRef: ReturnType<typeof useActions> | null = null;
 
-    render(<HookConsumer renderEngine={engine} onHook={(h) => { hookRef = h; }} />);
+    render(<HookConsumer actionsEngine={engine} onHook={(h) => { hookRef = h; }} />);
 
     await act(async () => {
       await hookRef!.createTable('Map', 1920, 1080);
@@ -157,18 +157,18 @@ describe('useActions', () => {
     });
   });
 
-  it('throws when calling actions without renderEngine', async () => {
+  it('throws when calling actions without actionsEngine', async () => {
     let hookRef: ReturnType<typeof useActions> | null = null;
-    render(<HookConsumer renderEngine={null} onHook={(h) => { hookRef = h; }} />);
+    render(<HookConsumer actionsEngine={null} onHook={(h) => { hookRef = h; }} />);
 
-    await expect(hookRef!.createTable('Map', 100, 100)).rejects.toThrow('RenderEngine not initialized');
+    await expect(hookRef!.createTable('Map', 100, 100)).rejects.toThrow('ActionsEngine not initialized');
   });
 
   it('calls onError callback when error handler fires', async () => {
     const engine = createMockActionsEngine();
     const onError = vi.fn();
 
-    render(<HookConsumer renderEngine={engine} callbacks={{ onError }} />);
+    render(<HookConsumer actionsEngine={engine} callbacks={{ onError }} />);
 
     // Get the error handler that was registered
     const errorHandler = (engine.set_error_handler as ReturnType<typeof vi.fn>).mock.calls[0][0];
@@ -181,7 +181,7 @@ describe('useActions', () => {
     const engine = createMockActionsEngine();
     const onAction = vi.fn();
 
-    render(<HookConsumer renderEngine={engine} callbacks={{ onAction }} />);
+    render(<HookConsumer actionsEngine={engine} callbacks={{ onAction }} />);
 
     const actionHandler = (engine.set_action_handler as ReturnType<typeof vi.fn>).mock.calls[0][0];
     act(() => actionHandler('sprite_moved', { id: 's1' }));
@@ -196,7 +196,7 @@ describe('useActions', () => {
     let hookRef: ReturnType<typeof useActions> | null = null;
 
     const { getByTestId } = render(
-      <HookConsumer renderEngine={engine} onHook={(h) => { hookRef = h; }} />
+      <HookConsumer actionsEngine={engine} onHook={(h) => { hookRef = h; }} />
     );
 
     await act(async () => {
@@ -211,7 +211,7 @@ describe('useActions', () => {
     const engine = createMockActionsEngine();
     let hookRef: ReturnType<typeof useActions> | null = null;
 
-    render(<HookConsumer renderEngine={engine} onHook={(h) => { hookRef = h; }} />);
+    render(<HookConsumer actionsEngine={engine} onHook={(h) => { hookRef = h; }} />);
 
     await act(async () => { await hookRef!.createTable('Map', 1920, 1080); });
     await act(async () => {
@@ -225,7 +225,7 @@ describe('useActions', () => {
   it('createSprite adds sprite to state', async () => {
     const engine = createMockActionsEngine();
     let hookRef: ReturnType<typeof useActions> | null = null;
-    render(<HookConsumer renderEngine={engine} onHook={(h) => { hookRef = h; }} />);
+    render(<HookConsumer actionsEngine={engine} onHook={(h) => { hookRef = h; }} />);
 
     await act(async () => {
       const result = await hookRef!.createSprite('t1', 'tokens', { x: 0, y: 0 }, 'goblin');
@@ -238,7 +238,7 @@ describe('useActions', () => {
   it('deleteSprite removes sprite from state', async () => {
     const engine = createMockActionsEngine();
     let hookRef: ReturnType<typeof useActions> | null = null;
-    render(<HookConsumer renderEngine={engine} onHook={(h) => { hookRef = h; }} />);
+    render(<HookConsumer actionsEngine={engine} onHook={(h) => { hookRef = h; }} />);
 
     await act(async () => { await hookRef!.createSprite('t1', 'tokens', { x: 0, y: 0 }, 'goblin'); });
     await act(async () => {
@@ -252,7 +252,7 @@ describe('useActions', () => {
   it('updateSprite updates sprite in state', async () => {
     const engine = createMockActionsEngine();
     let hookRef: ReturnType<typeof useActions> | null = null;
-    render(<HookConsumer renderEngine={engine} onHook={(h) => { hookRef = h; }} />);
+    render(<HookConsumer actionsEngine={engine} onHook={(h) => { hookRef = h; }} />);
 
     await act(async () => { await hookRef!.createSprite('t1', 'tokens', { x: 0, y: 0 }, 'goblin'); });
     await act(async () => {
@@ -266,7 +266,7 @@ describe('useActions', () => {
   it('setLayerVisibility updates layerVisibility', async () => {
     const engine = createMockActionsEngine();
     let hookRef: ReturnType<typeof useActions> | null = null;
-    render(<HookConsumer renderEngine={engine} onHook={(h) => { hookRef = h; }} />);
+    render(<HookConsumer actionsEngine={engine} onHook={(h) => { hookRef = h; }} />);
 
     await act(async () => {
       const result = await hookRef!.setLayerVisibility('tokens', false);
@@ -284,7 +284,7 @@ describe('useActions', () => {
       })),
     });
     let hookRef: ReturnType<typeof useActions> | null = null;
-    render(<HookConsumer renderEngine={engine} onHook={(h) => { hookRef = h; }} />);
+    render(<HookConsumer actionsEngine={engine} onHook={(h) => { hookRef = h; }} />);
 
     await act(async () => { await hookRef!.createSprite('t1', 'tokens', { x: 0, y: 0 }, 'goblin'); });
     await act(async () => {
@@ -301,7 +301,7 @@ describe('useActions', () => {
       can_redo: vi.fn(() => false),
     });
     let hookRef: ReturnType<typeof useActions> | null = null;
-    const { getByTestId } = render(<HookConsumer renderEngine={engine} onHook={(h) => { hookRef = h; }} />);
+    const { getByTestId } = render(<HookConsumer actionsEngine={engine} onHook={(h) => { hookRef = h; }} />);
 
     await act(async () => {
       const result = await hookRef!.batchActions([
@@ -319,7 +319,7 @@ describe('useActions', () => {
       can_redo: vi.fn(() => true),
     });
     let hookRef: ReturnType<typeof useActions> | null = null;
-    const { getByTestId } = render(<HookConsumer renderEngine={engine} onHook={(h) => { hookRef = h; }} />);
+    const { getByTestId } = render(<HookConsumer actionsEngine={engine} onHook={(h) => { hookRef = h; }} />);
 
     await act(async () => {
       const result = await hookRef!.undo();
@@ -335,7 +335,7 @@ describe('useActions', () => {
       can_redo: vi.fn(() => false),
     });
     let hookRef: ReturnType<typeof useActions> | null = null;
-    const { getByTestId } = render(<HookConsumer renderEngine={engine} onHook={(h) => { hookRef = h; }} />);
+    const { getByTestId } = render(<HookConsumer actionsEngine={engine} onHook={(h) => { hookRef = h; }} />);
 
     await act(async () => {
       const result = await hookRef!.redo();
@@ -351,28 +351,28 @@ describe('useActions', () => {
       get_action_history: vi.fn(() => [historyEntry]),
     });
     let hookRef: ReturnType<typeof useActions> | null = null;
-    render(<HookConsumer renderEngine={engine} onHook={(h) => { hookRef = h; }} />);
+    render(<HookConsumer actionsEngine={engine} onHook={(h) => { hookRef = h; }} />);
 
     await waitFor(() => expect(hookRef!.actionHistory.length).toBeGreaterThan(0));
     expect(hookRef!.actionHistory[0].action_type).toBe('create_sprite');
   });
 
-  it('throws for sprite operations without renderEngine', async () => {
+it('throws for sprite operations without actionsEngine', async () => {
     let hookRef: ReturnType<typeof useActions> | null = null;
-    render(<HookConsumer renderEngine={null} onHook={(h) => { hookRef = h; }} />);
+    render(<HookConsumer actionsEngine={null} onHook={(h) => { hookRef = h; }} />);
 
-    await expect(hookRef!.deleteSprite('s1')).rejects.toThrow('RenderEngine not initialized');
-    await expect(hookRef!.updateSprite('s1', {})).rejects.toThrow('RenderEngine not initialized');
-    await expect(hookRef!.setLayerVisibility('tokens', false)).rejects.toThrow('RenderEngine not initialized');
-    await expect(hookRef!.undo()).rejects.toThrow('RenderEngine not initialized');
-    await expect(hookRef!.redo()).rejects.toThrow('RenderEngine not initialized');
-    await expect(hookRef!.batchActions([])).rejects.toThrow('RenderEngine not initialized');
+    await expect(hookRef!.deleteSprite('s1')).rejects.toThrow('ActionsEngine not initialized');
+    await expect(hookRef!.updateSprite('s1', {})).rejects.toThrow('ActionsEngine not initialized');
+    await expect(hookRef!.setLayerVisibility('tokens', false)).rejects.toThrow('ActionsEngine not initialized');
+    await expect(hookRef!.undo()).rejects.toThrow('ActionsEngine not initialized');
+    await expect(hookRef!.redo()).rejects.toThrow('ActionsEngine not initialized');
+    await expect(hookRef!.batchActions([])).rejects.toThrow('ActionsEngine not initialized');
   });
 
   it('onStateChange callback fires when state change handler is called', async () => {
     const engine = createMockActionsEngine();
     const onStateChange = vi.fn();
-    render(<HookConsumer renderEngine={engine} callbacks={{ onStateChange }} />);
+    render(<HookConsumer actionsEngine={engine} callbacks={{ onStateChange }} />);
 
     const stateChangeHandler = (engine.set_state_change_handler as ReturnType<typeof vi.fn>).mock.calls[0][0];
     act(() => stateChangeHandler('sprite_added', 's1'));
@@ -385,7 +385,7 @@ describe('useActions', () => {
       create_sprite_action: vi.fn(() => ({ success: false, message: 'Layer not found' })),
     });
     let hookRef: ReturnType<typeof useActions> | null = null;
-    const { getByTestId } = render(<HookConsumer renderEngine={engine} onHook={(h) => { hookRef = h; }} />);
+    const { getByTestId } = render(<HookConsumer actionsEngine={engine} onHook={(h) => { hookRef = h; }} />);
 
     await act(async () => {
       const result = await hookRef!.createSprite('t1', 'bad_layer', { x: 0, y: 0 }, 'goblin');

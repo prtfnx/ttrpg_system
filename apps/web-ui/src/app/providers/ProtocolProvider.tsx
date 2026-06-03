@@ -48,21 +48,23 @@ export function ProtocolProvider({ sessionCode, children }: ProviderProps) {
 
   useEffect(() => {
     let mounted = true;
-    
+    let currentProtocol: WebClientProtocol | null = null;
+
     async function init() {
       setConnectionState('connecting');
-      
+
       try {
         let resolved = sessionCode;
         let userId: number | undefined;
-        
+
         try {
           const sessions = await authService.getUserSessions();
-          const byCode = sessions.find((s: { session_code: string; session_name: string }) => s.session_code === sessionCode);
-          const byName = sessions.find((s: { session_code: string; session_name: string }) => s.session_name === sessionCode);
+          const byCode = sessions.find((s) => s.session_code === sessionCode);
+          const byName = sessions.find((s) => s.session_name === sessionCode);
+
           if (byCode) resolved = byCode.session_code;
           else if (byName) resolved = byName.session_code;
-          
+
           const userInfo = authService.getUserInfo();
           if (userInfo?.id) userId = userInfo.id;
         } catch (e) {
@@ -70,13 +72,23 @@ export function ProtocolProvider({ sessionCode, children }: ProviderProps) {
         }
 
         const p = new WebClientProtocol(resolved, userId);
-        if (!mounted) return;
-        
+        currentProtocol = p;
+
+        if (!mounted) {
+          p.disconnect();
+          return;
+        }
+
         ProtocolService.setProtocol(p);
         setProtocol(p);
-        
+
         await p.connect();
-        if (!mounted) return;
+
+        if (!mounted) {
+          p.disconnect();
+          return;
+        }
+
         setConnectionState('connected');
       } catch (err) {
         console.error('[ProtocolProvider] Connection failed', err);
@@ -85,17 +97,14 @@ export function ProtocolProvider({ sessionCode, children }: ProviderProps) {
     }
 
     init();
-    
+
     return () => {
       mounted = false;
-      if (protocol) {
-        protocol.disconnect();
-      }
+      currentProtocol?.disconnect();
       ProtocolService.clearProtocol();
       setProtocol(null);
       setConnectionState('disconnected');
     };
-  // eslint-disable-next-line react-hooks/exhaustive-deps -- intentional: run once on mount
   }, [sessionCode]);
 
   const value = useMemo(() => ({

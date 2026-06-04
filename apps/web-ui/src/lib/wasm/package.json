@@ -1,0 +1,21 @@
+{
+  "name": "ttrpg-rust-core",
+  "type": "module",
+  "description": "TTRPG virtual tabletop — Rust/WASM core (geometry, lighting, fog, rendering)",
+  "version": "0.1.0",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/your-org/ttrpg_system"
+  },
+  "files": [
+    "ttrpg_rust_core_bg.wasm",
+    "ttrpg_rust_core.js",
+    "ttrpg_rust_core.d.ts"
+  ],
+  "main": "ttrpg_rust_core.js",
+  "types": "ttrpg_rust_core.d.ts",
+  "sideEffects": [
+    "./snippets/*"
+  ]
+}

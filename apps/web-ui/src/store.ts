@@ -805,7 +805,10 @@ export const useGameStore = create<GameStore>()(
                 }
               }
             };
-            
+            const renderEngine = WasmRuntimeService.getRenderEngine();
+            if (renderEngine) {
+              renderEngine.handle_table_data(tableDataForWasm);
+            }
             sendProtocolMessage('table_data_received', tableDataForWasm);
           }
           

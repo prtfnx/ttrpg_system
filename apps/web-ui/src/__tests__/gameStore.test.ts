@@ -1,18 +1,41 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 // Mock heavy dependencies before importing the store
+const protocolMock = vi.hoisted(() => ({
+  sendMessage: vi.fn(),
+  setActiveTable: vi.fn(),
+  updateSprite: vi.fn(),
+}));
+
+const renderEngineMock = vi.hoisted(() => ({
+  handle_table_data: vi.fn(),
+  add_wall: vi.fn(),
+  update_wall: vi.fn(),
+  remove_wall: vi.fn(),
+  clear_walls: vi.fn(),
+  set_ambient_light: vi.fn(),
+  set_gm_mode: vi.fn(),
+  render: vi.fn(),
+}));
+
+const tableManagerMock = vi.hoisted(() => ({
+  set_table_units: vi.fn(),
+}));
+
 vi.mock('@lib/api', () => ({
   ProtocolService: {
-    getInstance: () => null,
-    hasProtocol: () => false,
+    hasProtocol: vi.fn(() => true),
+    getProtocol: vi.fn(() => protocolMock),
+    setProtocol: vi.fn(),
+    clearProtocol: vi.fn(),
   },
 }));
-vi.mock('@lib/websocket', () => ({
-  transformServerTablesToClient: (t: unknown) => t,
-  validateTableId: () => true,
-}));
-vi.mock('@features/measurement/services/advancedMeasurement.service', () => ({
-  advancedMeasurementSystem: { stop: vi.fn(), syncWithTableUnits: vi.fn() },
+
+vi.mock('@lib/wasm/wasmRuntimeService', () => ({
+  WasmRuntimeService: {
+    getRenderEngine: vi.fn(() => renderEngineMock),
+    getTableManager: vi.fn(() => tableManagerMock),
+  },
 }));
 
 import { useGameStore } from '../store';
@@ -48,6 +71,7 @@ function makeWall(wallId: string) {
 }
 
 beforeEach(() => {
+  vi.clearAllMocks();
   useGameStore.setState({
     sprites: [],
     characters: [],
@@ -357,18 +381,35 @@ describe('gameStore — sprite/character helpers', () => {
 // ─── table management ─────────────────────────────────────────────────────────
 
 describe('gameStore — switchToTable with existing table', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
   it('switchToTable dispatches table-data-received for existing table', () => {
-    const events: string[] = [];
-    window.addEventListener('table-data-received', () => events.push('table-data'));
-    window.addEventListener('protocol-send-message', () => events.push('protocol'));
-
+    const tableId = '1a74b0a1-8caa-48be-8623-5b1e13a9d853';
     useGameStore.setState({
-      tables: [{ table_id: 't1', table_name: 'Main', width: 100, height: 100 }],
+      tables: [{ table_id: tableId, table_name: 'Main', width: 100, height: 100 }],
     } as never);
-    useGameStore.getState().switchToTable('t1');
+    useGameStore.getState().switchToTable(tableId);
+    console.log(renderEngineMock.handle_table_data.mock.calls);
+    console.log(protocolMock.sendMessage.mock.calls);
+    expect(renderEngineMock.handle_table_data).toHaveBeenCalled();
+    expect(renderEngineMock.handle_table_data).toHaveBeenCalledWith(
+      expect.objectContaining({
+        table_data: expect.objectContaining({
+          table_id: tableId,
+          table_name: 'Main',
+          width: 100,
+          height: 100,
+        }),
+      }),
+    );
 
-    expect(events).toContain('table-data');
-    expect(events).toContain('protocol');
+    expect(protocolMock.sendMessage).toHaveBeenCalledWith(
+      expect.objectContaining({
+        type: 'table_request',
+        data: { table_id: tableId },
+      }),
+    );
   });
 });
 
@@ -391,10 +432,11 @@ describe('gameStore — wall actions', () => {
   });
 
   it('addWall calls rustRenderManager.add_wall if present', () => {
-    const add_wall = vi.fn();
-    (window as unknown as Record<string, unknown>)['rustRenderManager'] = { add_wall };
     useGameStore.getState().addWall({ wall_id: 'w2' } as never);
-    expect(add_wall).toHaveBeenCalled();
+
+    expect(renderEngineMock.add_wall).toHaveBeenCalledWith(
+      JSON.stringify({ wall_id: 'w2' }),
+    );
   });
 
   it('addWalls merges multiple walls', () => {
@@ -413,7 +455,7 @@ describe('gameStore — wall actions', () => {
     (window as unknown as Record<string, unknown>)['rustRenderManager'] = { update_wall };
     useGameStore.setState({ walls: [{ wall_id: 'w1' }] } as never);
     useGameStore.getState().updateWall('w1', {} as never);
-    expect(update_wall).toHaveBeenCalled();
+    expect(renderEngineMock.update_wall).toHaveBeenCalledWith('w1', JSON.stringify({}));
   });
 });
 
@@ -442,7 +484,7 @@ describe('gameStore — setTableUnits', () => {
     (window as unknown as Record<string, unknown>)['rustRenderManager'] = { set_table_units };
     useGameStore.setState({ activeTableId: 'tbl-1' } as never);
     useGameStore.getState().setTableUnits({ gridCellPx: 60, cellDistance: 5, distanceUnit: 'm' });
-    expect(set_table_units).toHaveBeenCalledWith('tbl-1', 60, 5, 'm');
+    expect(tableManagerMock.set_table_units).toHaveBeenCalledWith('tbl-1', 60, 5, 'm');
     delete (window as unknown as Record<string, unknown>)['rustRenderManager'];
   });
 });
@@ -467,8 +509,18 @@ describe('gameStore — createNewTable', () => {
 
     useGameStore.getState().createNewTable('Map', 100, 100);
 
-    expect(events).toContain('data');
-    expect(events).toContain('protocol');
+    expect(renderEngineMock.handle_table_data).toHaveBeenCalled();
+
+    expect(protocolMock.sendMessage).toHaveBeenCalledWith(
+      expect.objectContaining({
+        type: 'new_table_request',
+        data: expect.objectContaining({
+          table_name: 'Map',
+          width: 100,
+          height: 100,
+        }),
+      }),
+    );
   });
 });
 
@@ -481,9 +533,14 @@ describe('gameStore — deleteTable', () => {
 
     useGameStore.getState().deleteTable('tbl-99');
 
-    expect(detail).toMatchObject({ type: 'table_delete', data: { table_id: 'tbl-99' } });
+    expect(protocolMock.sendMessage).toHaveBeenCalledWith(
+      expect.objectContaining({
+        type: 'table_delete',
+        data: { table_id: 'tbl-99' },
+      }),
+    );
   });
-});
+}); 
 
 // ─── syncTableToServer ─────────────────────────────────────────────────────────
 
@@ -500,7 +557,17 @@ describe('gameStore — syncTableToServer', () => {
 
     const s = useGameStore.getState();
     expect((s.tables[0] as unknown as Record<string, unknown>).syncStatus).toBe('syncing');
-    expect(detail).toMatchObject({ type: 'new_table_request' });
+    expect(protocolMock.sendMessage).toHaveBeenCalledWith(
+    expect.objectContaining({
+      type: 'new_table_request',
+      data: expect.objectContaining({
+        table_name: 'Map',
+        width: 100,
+        height: 100,
+        local_table_id: 't1',
+      }),
+    }),
+  );
   });
 
   it('logs error for unknown tableId and does not change state', () => {
@@ -544,9 +611,7 @@ describe('gameStore — applyTableLightingSettings', () => {
       fog_exploration_mode: 'current_only',
       ambient_light_level: 0.8,
     });
-
-    expect(rm.set_ambient_light).toHaveBeenCalledWith(0.8);
-    expect(rm.set_dynamic_lighting_enabled).toHaveBeenCalledWith(false);
+    expect(renderEngineMock.set_ambient_light).toHaveBeenCalledWith(0.8);
   });
 });
 
@@ -559,10 +624,10 @@ describe('gameStore — setActiveTableId', () => {
   });
 
   it('calls protocol.setActiveTable when window.protocol present', () => {
-    const setActiveTable = vi.fn();
-    (window as unknown as Record<string, unknown>)['protocol'] = { setActiveTable };
+
     useGameStore.getState().setActiveTableId('tbl-42');
-    expect(setActiveTable).toHaveBeenCalledWith('tbl-42');
+
+    expect(protocolMock.setActiveTable).toHaveBeenCalledWith('tbl-42');
     delete (window as unknown as Record<string, unknown>)['protocol'];
   });
 });

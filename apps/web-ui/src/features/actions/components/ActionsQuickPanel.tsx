@@ -1,18 +1,17 @@
-import type { RenderEngine } from '@lib/wasm';
-import { useActions } from '@shared/hooks';
+import { useActions, type ActionsEngine } from '@shared/hooks';
 import { Redo2, Undo2 } from 'lucide-react';
 import React, { useCallback, useState } from 'react';
 
 interface ActionsQuickPanelProps {
-  renderEngine?: RenderEngine | null;
+  actionsEngine?: ActionsEngine | null;
 }
 
-export const ActionsQuickPanel: React.FC<ActionsQuickPanelProps> = ({ renderEngine }) => {
+export const ActionsQuickPanel: React.FC<ActionsQuickPanelProps> = ({ actionsEngine }) => {
   const [tableName, setTableName] = useState('');
   const [tableWidth, setTableWidth] = useState(800);
   const [tableHeight, setTableHeight] = useState(600);
 
-  const actions = useActions(renderEngine ?? window.rustRenderManager ?? null, {
+  const actions = useActions(actionsEngine ?? null, {
     onAction: (actionType, data) => {
       console.log(`Action: ${actionType}`, data);
     },

@@ -8,6 +8,7 @@ import { FogPanel } from '@features/fog';
 import { LightingPanel } from '@features/lighting';
 import { type SessionRole, canInteract, isDM, isElevated } from '@features/session/types/roles';
 import { MapPanel, TableManagementPanel, TablePanel, TableSyncPanel } from '@features/table';
+import { useActionsEngine } from '@lib/wasm/ActionsEngineProvider';
 import clsx from 'clsx';
 import { useEffect, useState } from 'react';
 import { ActionQueuePanel } from '../features/actions/components/ActionQueuePanel';
@@ -64,7 +65,7 @@ const DEFAULT_TAB_ORDER: TabId[] = [
 export function RightPanel(props: { sessionCode?: string; userInfo?: import('@features/auth').UserInfo; userRole?: string }) {
   const [activeTab, setActiveTab] = useState<TabId>('entities');
   const sessionRole = (useGameStore(s => s.sessionRole) ?? props.userRole ?? 'player') as SessionRole;
-
+  const actionsEngine = useActionsEngine();
   const isVisible = (tab: TabId) => TAB_VISIBLE[tab]?.(sessionRole) ?? false;
 
   // If current tab becomes hidden, switch to first visible tab
@@ -117,13 +118,13 @@ export function RightPanel(props: { sessionCode?: string; userInfo?: import('@fe
       </div>
       <div className={styles.tabContent} role="tabpanel" aria-label={`${activeTab} panel`}>
         {activeTab === 'tables' && <TableManagementPanel />}
-        {activeTab === 'quick-actions' && <ActionsQuickPanel renderEngine={window.rustRenderManager ?? null} />}
+        {activeTab === 'quick-actions' && <ActionsQuickPanel actionsEngine={actionsEngine} />}
         {isDevelopment && activeTab === 'table-tools' && <TablePanel />}
         {isDevelopment && activeTab === 'sync' && <TableSyncPanel />}
         {activeTab === 'characters' && <CharacterPanel />}
         {activeTab === 'players' && <PlayerManagerPanel sessionCode={props.sessionCode!} userInfo={{...props.userInfo, role: isDM(sessionRole) ? 'dm' : 'player'} as import('@features/auth').UserInfo} />}
         {activeTab === 'initiative' && <InitiativePanel />}
-        {isDevelopment && activeTab === 'actions' && <ActionsPanel renderEngine={window.rustRenderManager ?? null} />}
+        {isDevelopment && activeTab === 'actions' && <ActionsPanel actionsEngine={actionsEngine} />}
         {isDevelopment && activeTab === 'queue' && <ActionQueuePanel sessionCode={props.sessionCode!} userInfo={props.userInfo!} />}
         {activeTab === 'entities' && <EntitiesPanel />}
         {activeTab === 'chat' && <ChatPanel />}

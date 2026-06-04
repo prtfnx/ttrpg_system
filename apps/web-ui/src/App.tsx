@@ -11,6 +11,7 @@ import { type SessionRole } from '@features/session/types/roles';
 import { ErrorBoundary } from '@shared/components/ErrorBoundary';
 import { logger } from '@shared/utils/logger';
 import styles from './App.module.css';
+import { ActionsEngineProvider } from './lib/wasm/ActionsEngineProvider';
 
 interface AppState {
   isAuthenticated: boolean;
@@ -177,14 +178,16 @@ function App() {
     <ErrorBoundary>
       <div className={styles.app}>
         <ProtocolProvider sessionCode={state.selectedSession}>
-          <WindowManagerProvider>
-            <GameClient 
-              sessionCode={state.selectedSession}
-              userInfo={state.userInfo}
-              userRole={state.userRole!}
-              onAuthError={handleAuthError}
-            />
-          </WindowManagerProvider>
+          <ActionsEngineProvider>
+            <WindowManagerProvider>
+              <GameClient 
+                sessionCode={state.selectedSession}
+                userInfo={state.userInfo}
+                userRole={state.userRole!}
+                onAuthError={handleAuthError}
+              />
+            </WindowManagerProvider>
+          </ActionsEngineProvider>
         </ProtocolProvider>
         <ToastContainer theme="dark" />
       </div>

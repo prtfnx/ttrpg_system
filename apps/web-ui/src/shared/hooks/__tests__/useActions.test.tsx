@@ -1,29 +1,8 @@
-import type { ActionsClient } from '@lib/wasm/ttrpg_rust_core';
-import { useActions, type ActionsCallbacks } from '@shared/hooks/useActions';
+import { useActions, type ActionsCallbacks, type ActionsEngine } from '@shared/hooks/useActions';
 import { act, render, waitFor } from '@testing-library/react';
 import React from 'react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
-type ActionsEngine = Pick<
-  ActionsClient,
-  | 'set_action_handler'
-  | 'set_state_change_handler'
-  | 'set_error_handler'
-  | 'can_undo'
-  | 'can_redo'
-  | 'create_table'
-  | 'delete_table'
-  | 'update_table'
-  | 'create_sprite'
-  | 'delete_sprite'
-  | 'update_sprite'
-  | 'set_layer_visibility'
-  | 'move_sprite_to_layer'
-  | 'batch_actions'
-  | 'undo'
-  | 'redo'
-  | 'get_all_tables'
->;
 
 function createMockActionsEngine(overrides: Partial<Record<string, unknown>> = {}): ActionsEngine {
   return {
@@ -74,6 +53,7 @@ function createMockActionsEngine(overrides: Partial<Record<string, unknown>> = {
     undo: vi.fn(() => ({ success: true, message: 'undone' })),
     redo: vi.fn(() => ({ success: true, message: 'redone' })),
     get_all_tables: vi.fn(() => '[]'),
+    get_action_history: vi.fn(() => []),
 
     ...overrides,
   } as ActionsEngine;

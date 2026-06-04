@@ -1,5 +1,6 @@
 import { useGameStore } from '@/store';
 import { useOptionalProtocol } from '@lib/api';
+import type { WebClientProtocol } from '@lib/websocket';
 import { MessageType } from '@lib/websocket/message';
 import { useCallback } from 'react';
 import { useCombatStore } from '../stores/combatStore';
@@ -8,20 +9,25 @@ import styles from './ActionPanel.module.css';
 interface ActionPanelProps {
   onSelectTarget?: (action: 'attack' | 'help') => void;
 }
+type ProtocolMessage = Parameters<WebClientProtocol['sendMessage']>[0];
+
 
 export function ActionPanel({ onSelectTarget }: ActionPanelProps) {
   const combat = useCombatStore((s) => s.combat);
   const userId = useGameStore((s) => s.userId);
   const protocolCtx = useOptionalProtocol();
   const protocol = protocolCtx?.protocol;
-
   const send = useCallback(
     (type: string, data: Record<string, unknown>) => {
-      protocol?.send({ type, data } as never);
+      protocol?.sendMessage({
+        type,
+        data,
+      } as ProtocolMessage);
     },
     [protocol],
   );
 
+  
   if (!combat || combat.phase !== 'active') return null;
 
   const active = combat.combatants.filter((c) => !c.is_defeated);

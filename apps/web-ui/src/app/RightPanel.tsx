@@ -8,7 +8,7 @@ import { FogPanel } from '@features/fog';
 import { LightingPanel } from '@features/lighting';
 import { type SessionRole, canInteract, isDM, isElevated } from '@features/session/types/roles';
 import { MapPanel, TableManagementPanel, TablePanel, TableSyncPanel } from '@features/table';
-import { useActionsEngine } from '@lib/wasm/ActionsEngineProvider';
+import { useActionsEngine } from '@lib/wasm/actionsEngineContext';
 import clsx from 'clsx';
 import { useEffect, useState } from 'react';
 import { ActionQueuePanel } from '../features/actions/components/ActionQueuePanel';

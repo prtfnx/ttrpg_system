@@ -1,15 +1,13 @@
-import type { ActionsClient } from '@lib/wasm/ttrpg_rust_core';
-import { ActionsClient as WasmActionsClient } from '@lib/wasm/ttrpg_rust_core';
-import React, { createContext, useContext, useEffect, useMemo } from 'react';
+import { ActionsClient } from '@lib/wasm/ttrpg_rust_core';
+import React, { useEffect, useMemo } from 'react';
+import { ActionsEngineContext } from './actionsEngineContext';
 
-const ActionsEngineContext = createContext<ActionsClient | null>(null);
-
-export function useActionsEngine(): ActionsClient | null {
-  return useContext(ActionsEngineContext);
+interface ActionsEngineProviderProps {
+  children: React.ReactNode;
 }
 
-export function ActionsEngineProvider({ children }: { children: React.ReactNode }) {
-  const actionsEngine = useMemo(() => new WasmActionsClient(), []);
+export function ActionsEngineProvider({ children }: ActionsEngineProviderProps) {
+  const actionsEngine = useMemo(() => new ActionsClient(), []);
 
   useEffect(() => {
     return () => {

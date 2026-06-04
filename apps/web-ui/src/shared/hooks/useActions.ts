@@ -135,7 +135,7 @@ export function useActions(actionsEngine: ActionsEngine | null, callbacks?: Acti
       // TODO temporal fix: cast actionsEngine to any until action handlers exist in WASM d.ts
       (actionsEngine as any).set_action_handler?.(handleAction);
       (actionsEngine as any).set_state_change_handler?.(handleStateChange);
-      (actionsEngine as any).set_actions_error_handler?.(handleError);
+      (actionsEngine as any).set_error_handler?.(handleError);
     } catch (error) {
       console.error('Error setting up actions handlers:', error);
     }
@@ -152,7 +152,7 @@ export function useActions(actionsEngine: ActionsEngine | null, callbacks?: Acti
     setState(prev => ({ ...prev, isLoading: true, error: null }));
     
     try {
-      const result = (actionsEngine as any).create_table_action?.(name, width, height) ?? { success: false, message: 'create_table_action not supported' } as ActionResult;
+      const result = (actionsEngine as any).create_table?.(name, width, height) ?? { success: false, message: 'create_table_action not supported' } as ActionResult;
       const actionResult = result as ActionResult;
       
       if (actionResult.success && actionResult.data) {
@@ -180,7 +180,7 @@ export function useActions(actionsEngine: ActionsEngine | null, callbacks?: Acti
     setState(prev => ({ ...prev, isLoading: true, error: null }));
     
     try {
-      const result = (actionsEngine as any).delete_table_action?.(tableId) ?? { success: false, message: 'delete_table_action not supported' } as ActionResult;
+      const result = (actionsEngine as any).delete_table?.(tableId) ?? { success: false, message: 'delete_table_action not supported' } as ActionResult;
       const actionResult = result as ActionResult;
       
       if (actionResult.success) {
@@ -207,7 +207,7 @@ export function useActions(actionsEngine: ActionsEngine | null, callbacks?: Acti
     setState(prev => ({ ...prev, isLoading: true, error: null }));
     
     try {
-      const result = (actionsEngine as any).update_table_action?.(tableId, updates) ?? { success: false, message: 'update_table_action not supported' } as ActionResult;
+      const result = (actionsEngine as any).update_table?.(tableId, updates) ?? { success: false, message: 'update_table_action not supported' } as ActionResult;
       const actionResult = result as ActionResult;
       
       if (actionResult.success && actionResult.data) {
@@ -241,7 +241,7 @@ export function useActions(actionsEngine: ActionsEngine | null, callbacks?: Acti
     setState(prev => ({ ...prev, isLoading: true, error: null }));
     
     try {
-      const result = (renderEngine as any).create_sprite_action?.(tableId, layer, position, textureName) ?? { success: false, message: 'create_sprite_action not supported' } as ActionResult;
+      const result = (actionsEngine as any).create_sprite?.(tableId, layer, position, textureName) ?? { success: false, message: 'create_sprite_action not supported' } as ActionResult;
       const actionResult = result as ActionResult;
       
       if (actionResult.success && actionResult.data) {
@@ -269,7 +269,7 @@ export function useActions(actionsEngine: ActionsEngine | null, callbacks?: Acti
     setState(prev => ({ ...prev, isLoading: true, error: null }));
     
     try {
-      const result = (actionsEngine as any).delete_sprite_action?.(spriteId) ?? { success: false, message: 'delete_sprite_action not supported' } as ActionResult;
+      const result = (actionsEngine as any).delete_sprite?.(spriteId) ?? { success: false, message: 'delete_sprite_action not supported' } as ActionResult;
       const actionResult = result as ActionResult;
       
       if (actionResult.success) {
@@ -296,7 +296,7 @@ export function useActions(actionsEngine: ActionsEngine | null, callbacks?: Acti
     setState(prev => ({ ...prev, isLoading: true, error: null }));
     
     try {
-      const result = (actionsEngine as any).update_sprite_action?.(spriteId, updates) ?? { success: false, message: 'update_sprite_action not supported' } as ActionResult;
+      const result = (actionsEngine as any).update_sprite?.(spriteId, updates) ?? { success: false, message: 'update_sprite_action not supported' } as ActionResult;
       const actionResult = result as ActionResult;
       
       if (actionResult.success && actionResult.data) {
@@ -323,7 +323,7 @@ export function useActions(actionsEngine: ActionsEngine | null, callbacks?: Acti
     if (!actionsEngine) throw new Error('ActionsEngine not initialized');
     
     try {
-      const result = (actionsEngine as any).set_layer_visibility_action?.(layer, visible) ?? { success: false, message: 'set_layer_visibility_action not supported' } as ActionResult;
+      const result = (actionsEngine as any).set_layer_visibility?.(layer, visible) ?? { success: false, message: 'set_layer_visibility_action not supported' } as ActionResult;
       const actionResult = result as ActionResult;
       
       if (actionResult.success) {
@@ -345,7 +345,7 @@ export function useActions(actionsEngine: ActionsEngine | null, callbacks?: Acti
     if (!actionsEngine) throw new Error('ActionsEngine not initialized');
     
     try {
-      const result = (actionsEngine as any).move_sprite_to_layer_action?.(spriteId, newLayer) ?? { success: false, message: 'move_sprite_to_layer_action not supported' } as ActionResult;
+      const result = (actionsEngine as any).move_sprite_to_layer?.(spriteId, newLayer) ?? { success: false, message: 'move_sprite_to_layer_action not supported' } as ActionResult;
       const actionResult = result as ActionResult;
       
       if (actionResult.success && actionResult.data) {
@@ -394,7 +394,7 @@ export function useActions(actionsEngine: ActionsEngine | null, callbacks?: Acti
     if (!actionsEngine) throw new Error('ActionsEngine not initialized');
     
     try {
-      const result = (actionsEngine as any).undo_action?.() ?? { success: false, message: 'undo_action not supported' } as ActionResult;
+      const result = (actionsEngine as any).undo?.() ?? { success: false, message: 'undo_action not supported' } as ActionResult;
       const actionResult = result as ActionResult;
 
       setState(prev => ({
@@ -415,7 +415,7 @@ export function useActions(actionsEngine: ActionsEngine | null, callbacks?: Acti
     if (!actionsEngine) throw new Error('ActionsEngine not initialized');
     
     try {
-      const result = (actionsEngine as any).redo_action?.() ?? { success: false, message: 'redo_action not supported' } as ActionResult;
+      const result = (actionsEngine as any).redo?.() ?? { success: false, message: 'redo_action not supported' } as ActionResult;
       const actionResult = result as ActionResult;
 
       setState(prev => ({

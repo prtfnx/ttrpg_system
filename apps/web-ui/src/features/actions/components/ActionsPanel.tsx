@@ -1,5 +1,4 @@
-import type { RenderEngine } from '@lib/wasm';
-import { useActions, type ActionResult, type BatchAction, type TableInfo } from '@shared/hooks';
+import { useActions, type ActionResult, type ActionsEngine, type BatchAction, type TableInfo } from '@shared/hooks';
 import panelStyles from '@shared/styles/PanelBase.module.css';
 import clsx from 'clsx';
 import { Loader2, Redo2, Undo2, X } from 'lucide-react';
@@ -7,16 +6,16 @@ import React, { useCallback, useState } from 'react';
 import styles from './ActionsPanel.module.css';
 
 interface ActionsPanelProps {
-  renderEngine: RenderEngine | null;
+  actionsEngine: ActionsEngine | null;
   className?: string;
 }
 
-export const ActionsPanel: React.FC<ActionsPanelProps> = ({ renderEngine, className = '' }) => {
+export const ActionsPanel: React.FC<ActionsPanelProps> = ({ actionsEngine, className = '' }) => {
   const [activeTab, setActiveTab] = useState<'tables' | 'layers' | 'history'>('tables');
   const [selectedTable, setSelectedTable] = useState<string>('');
   const [logs, setLogs] = useState<string[]>([]);
 
-  const actions = useActions(renderEngine, {
+  const actions = useActions(actionsEngine, {
     onAction: (actionType, data) => {
       setLogs(prev => [...prev.slice(-19), `Action: ${actionType} - ${JSON.stringify(data)}`]);
     },

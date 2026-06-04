@@ -3,7 +3,7 @@ import { UnitConverter, type DistanceUnit, type TableUnitConfig } from '@/utils/
 import { advancedMeasurementSystem } from '@features/measurement/services/advancedMeasurement.service';
 import { isDM, type SessionRole } from '@features/session/types/roles';
 import { ProtocolService } from '@lib/api';
-import { WasmRuntimeService } from '@lib/wasm/WasmRuntimeService';
+import { WasmRuntimeService } from '@lib/wasm/wasmRuntimeService';
 import { transformServerTablesToClient, validateTableId } from '@lib/websocket';
 import { create } from 'zustand';
 import { devtools } from 'zustand/middleware';
@@ -720,7 +720,10 @@ export const useGameStore = create<GameStore>()(
         
         // Emit table data event for WASM integration
         sendProtocolMessage('table_data_received');
-        
+        const renderEngine = WasmRuntimeService.getRenderEngine();
+        if (renderEngine) {
+        renderEngine.handle_table_data(tableDataForWasm);
+        }
         // Send message via protocol to create new table on server
         // BEST PRACTICE: Include local_table_id for sync mapping
         sendProtocolMessage('new_table_request', {

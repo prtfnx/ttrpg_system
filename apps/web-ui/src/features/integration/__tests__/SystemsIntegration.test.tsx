@@ -246,7 +246,7 @@ describe('Web Client TypeScript & WASM Systems Integration Tests', () => {
     
     it('should coordinate WASM operations through TypeScript actions', async () => {
       const mockRenderEngine = mockWasmModule.RenderEngine();
-      render(<ActionsPanel renderEngine={mockRenderEngine} />);
+      render(<ActionsPanel actionsEngine={mockRenderEngine} />);
       
       // User expects action interface to be available
       expect(screen.getByText(/actions/i)).toBeInTheDocument();
@@ -254,7 +254,7 @@ describe('Web Client TypeScript & WASM Systems Integration Tests', () => {
 
     it('should support batch operations with WASM backend', async () => {
       const mockRenderEngine = mockWasmModule.RenderEngine();
-      render(<ActionsPanel renderEngine={mockRenderEngine} />);
+      render(<ActionsPanel actionsEngine={mockRenderEngine} />);
       
       // User expects action creation to be available
       const createButton = screen.getByRole('button', { name: /create table/i });
@@ -271,7 +271,7 @@ describe('Web Client TypeScript & WASM Systems Integration Tests', () => {
 
     it('should provide undo/redo functionality backed by WASM', async () => {
       const mockRenderEngine = mockWasmModule.RenderEngine();
-      render(<ActionsPanel renderEngine={mockRenderEngine} />);
+      render(<ActionsPanel actionsEngine={mockRenderEngine} />);
       
       // User expects action interface to be available with undo/redo
       expect(screen.getByText(/actions/i)).toBeInTheDocument();
@@ -510,7 +510,7 @@ describe('Web Client TypeScript & WASM Systems Integration Tests', () => {
     it('should maintain type safety across all system boundaries', async () => {
       render(
         <div>
-          <ActionsPanel renderEngine={mockWasmModule.RenderEngine()} />
+          <ActionsPanel actionsEngine={mockWasmModule.RenderEngine()} />
           <CharacterPanel />
           <GameCanvas />
         </div>
@@ -525,7 +525,7 @@ describe('Web Client TypeScript & WASM Systems Integration Tests', () => {
     it('should handle errors consistently across TypeScript boundaries', async () => {
       render(
         <div>
-          <ActionsPanel renderEngine={mockWasmModule.RenderEngine()} />
+          <ActionsPanel actionsEngine={mockWasmModule.RenderEngine()} />
           <GameCanvas />
         </div>
       );

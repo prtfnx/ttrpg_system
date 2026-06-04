@@ -526,7 +526,7 @@ describe('PerformanceMonitor Component', () => {
 // Test ActionsPanel Component
 describe('ActionsPanel Component', () => {
   test('renders action management interface', () => {
-    render(<ActionsPanel renderEngine={null} />);
+    render(<ActionsPanel actionsEngine={null} />);
     
     // Should show action-related elements
     expect(screen.getByText(/action|command|execute/i) || 
@@ -534,7 +534,7 @@ describe('ActionsPanel Component', () => {
   });
 
   test('provides action execution controls', () => {
-    render(<ActionsPanel renderEngine={null} />);
+    render(<ActionsPanel actionsEngine={null} />);
     
     // Should have action buttons or controls
     const actionControls = screen.queryAllByRole('button');
@@ -544,7 +544,7 @@ describe('ActionsPanel Component', () => {
 
   test('handles action execution', async () => {
     const user = userEvent.setup();
-    render(<ActionsPanel renderEngine={null} />);
+    render(<ActionsPanel actionsEngine={null} />);
     
     const buttons = screen.queryAllByRole('button');
     

@@ -72,7 +72,19 @@ const initialState = useGameStore.getState();
 // Use a valid UUID for test table IDs
 const TEST_TABLE_ID = '550e8400-e29b-41d4-a716-446655440000';
 
-
+const protocolMock = vi.hoisted(() => ({
+  sendMessage: vi.fn(),
+  setActiveTable: vi.fn(),
+  updateSprite: vi.fn(),
+}));
+vi.mock('@lib/api', () => ({
+  ProtocolService: {
+    hasProtocol: vi.fn(() => true),
+    getProtocol: vi.fn(() => protocolMock),
+    setProtocol: vi.fn(),
+    clearProtocol: vi.fn(),
+  },
+}));
 describe('Character Protocol Client', () => {
   beforeEach(() => {
     // Reset Zustand store state to initial (with all methods)
@@ -162,10 +174,14 @@ describe('Character Protocol Client', () => {
     const table = useGameStore.getState().tables.find(t => t.table_id === validTableId);
     expect(table?.syncStatus).toBe('syncing');
     // Mock protocol event dispatch
-    const dispatchSpy = vi.spyOn(window, 'dispatchEvent');
     useGameStore.getState().requestTableList();
-    expect(dispatchSpy).toHaveBeenCalled();
-    dispatchSpy.mockRestore();
+
+    expect(protocolMock.sendMessage).toHaveBeenCalledWith(
+      expect.objectContaining({
+        type: 'table_list_request',
+        data: {},
+      }),
+    );
   });
   it('should not allow double-linking a sprite to multiple characters', () => {
     const { addCharacter, addSprite, linkSpriteToCharacter, getSpritesForCharacter, getCharacterForSprite } = useGameStore.getState();

@@ -132,10 +132,9 @@ export function useActions(actionsEngine: ActionsEngine | null, callbacks?: Acti
     };
 
     try {
-      // TODO temporal fix: cast actionsEngine to any until action handlers exist in WASM d.ts
-      (actionsEngine as any).set_action_handler?.(handleAction);
-      (actionsEngine as any).set_state_change_handler?.(handleStateChange);
-      (actionsEngine as any).set_error_handler?.(handleError);
+      actionsEngine.set_action_handler(handleAction);
+      actionsEngine.set_state_change_handler(handleStateChange);
+      actionsEngine.set_error_handler(handleError);
     } catch (error) {
       console.error('Error setting up actions handlers:', error);
     }
@@ -152,7 +151,7 @@ export function useActions(actionsEngine: ActionsEngine | null, callbacks?: Acti
     setState(prev => ({ ...prev, isLoading: true, error: null }));
     
     try {
-      const result = (actionsEngine as any).create_table?.(name, width, height) ?? { success: false, message: 'create_table_action not supported' } as ActionResult;
+      const result = actionsEngine.create_table(name, width, height) as ActionResult;
       const actionResult = result as ActionResult;
       
       if (actionResult.success && actionResult.data) {
@@ -180,7 +179,7 @@ export function useActions(actionsEngine: ActionsEngine | null, callbacks?: Acti
     setState(prev => ({ ...prev, isLoading: true, error: null }));
     
     try {
-      const result = (actionsEngine as any).delete_table?.(tableId) ?? { success: false, message: 'delete_table_action not supported' } as ActionResult;
+      const result = actionsEngine.delete_table(tableId)  as ActionResult;
       const actionResult = result as ActionResult;
       
       if (actionResult.success) {
@@ -201,33 +200,45 @@ export function useActions(actionsEngine: ActionsEngine | null, callbacks?: Acti
     }
   }, [actionsEngine]);
 
-  const updateTable = useCallback(async (tableId: string, updates: Partial<TableInfo>): Promise<ActionResult> => {
-    if (!actionsEngine) throw new Error('ActionsEngine not initialized');
-    
-    setState(prev => ({ ...prev, isLoading: true, error: null }));
-    
-    try {
-      const result = (actionsEngine as any).update_table?.(tableId, updates) ?? { success: false, message: 'update_table_action not supported' } as ActionResult;
-      const actionResult = result as ActionResult;
-      
-      if (actionResult.success && actionResult.data) {
-        const updatedTable = actionResult.data as TableInfo;
-        setState(prev => ({
-          ...prev,
-          tables: new Map(prev.tables).set(tableId, updatedTable),
-          isLoading: false,
-        }));
-      } else {
-        setState(prev => ({ ...prev, isLoading: false, error: actionResult.message }));
+    const updateTable = useCallback(async (
+      tableId: string,
+      updates: Partial<TableInfo>,
+    ): Promise<ActionResult> => {
+      if (!actionsEngine) throw new Error('ActionsEngine not initialized');
+
+      setState(prev => ({ ...prev, isLoading: true, error: null }));
+
+      try {
+        const actionResult = actionsEngine.update_table(tableId, updates) as ActionResult;
+
+        if (actionResult.success) {
+          setState(prev => {
+            const existing = prev.tables.get(tableId);
+            const updatedTable = actionResult.data
+              ? actionResult.data as TableInfo
+              : existing
+                ? { ...existing, ...updates }
+                : undefined;
+
+            return {
+              ...prev,
+              tables: updatedTable
+                ? new Map(prev.tables).set(tableId, updatedTable)
+                : prev.tables,
+              isLoading: false,
+            };
+          });
+        } else {
+          setState(prev => ({ ...prev, isLoading: false, error: actionResult.message }));
+        }
+
+        return actionResult;
+      } catch (error) {
+        const errorMsg = error instanceof Error ? error.message : 'Unknown error';
+        setState(prev => ({ ...prev, isLoading: false, error: errorMsg }));
+        throw error;
       }
-      
-      return actionResult;
-    } catch (error) {
-      const errorMsg = error instanceof Error ? error.message : 'Unknown error';
-      setState(prev => ({ ...prev, isLoading: false, error: errorMsg }));
-      throw error;
-    }
-  }, [actionsEngine]);
+    }, [actionsEngine]);
 
   // Sprite Management
   const createSprite = useCallback(async (
@@ -241,7 +252,7 @@ export function useActions(actionsEngine: ActionsEngine | null, callbacks?: Acti
     setState(prev => ({ ...prev, isLoading: true, error: null }));
     
     try {
-      const result = (actionsEngine as any).create_sprite?.(tableId, layer, position, textureName) ?? { success: false, message: 'create_sprite_action not supported' } as ActionResult;
+      const result = actionsEngine.create_sprite(tableId, layer, position, textureName)  as ActionResult;
       const actionResult = result as ActionResult;
       
       if (actionResult.success && actionResult.data) {
@@ -290,33 +301,45 @@ export function useActions(actionsEngine: ActionsEngine | null, callbacks?: Acti
     }
   }, [actionsEngine]);
 
-  const updateSprite = useCallback(async (spriteId: string, updates: Partial<SpriteInfo>): Promise<ActionResult> => {
-    if (!actionsEngine) throw new Error('ActionsEngine not initialized');
-    
-    setState(prev => ({ ...prev, isLoading: true, error: null }));
-    
-    try {
-      const result = (actionsEngine as any).update_sprite?.(spriteId, updates) ?? { success: false, message: 'update_sprite_action not supported' } as ActionResult;
-      const actionResult = result as ActionResult;
-      
-      if (actionResult.success && actionResult.data) {
-        const updatedSprite = actionResult.data as SpriteInfo;
-        setState(prev => ({
-          ...prev,
-          sprites: new Map(prev.sprites).set(spriteId, updatedSprite),
-          isLoading: false,
-        }));
-      } else {
-        setState(prev => ({ ...prev, isLoading: false, error: actionResult.message }));
+    const updateSprite = useCallback(async (
+      spriteId: string,
+      updates: Partial<SpriteInfo>,
+    ): Promise<ActionResult> => {
+      if (!actionsEngine) throw new Error('ActionsEngine not initialized');
+
+      setState(prev => ({ ...prev, isLoading: true, error: null }));
+
+      try {
+        const actionResult = actionsEngine.update_sprite(spriteId, updates) as ActionResult;
+
+        if (actionResult.success) {
+          setState(prev => {
+            const existing = prev.sprites.get(spriteId);
+            const updatedSprite = actionResult.data
+              ? actionResult.data as SpriteInfo
+              : existing
+                ? { ...existing, ...updates }
+                : undefined;
+
+            return {
+              ...prev,
+              sprites: updatedSprite
+                ? new Map(prev.sprites).set(spriteId, updatedSprite)
+                : prev.sprites,
+              isLoading: false,
+            };
+          });
+        } else {
+          setState(prev => ({ ...prev, isLoading: false, error: actionResult.message }));
+        }
+
+        return actionResult;
+      } catch (error) {
+        const errorMsg = error instanceof Error ? error.message : 'Unknown error';
+        setState(prev => ({ ...prev, isLoading: false, error: errorMsg }));
+        throw error;
       }
-      
-      return actionResult;
-    } catch (error) {
-      const errorMsg = error instanceof Error ? error.message : 'Unknown error';
-      setState(prev => ({ ...prev, isLoading: false, error: errorMsg }));
-      throw error;
-    }
-  }, [actionsEngine]);
+    }, [actionsEngine]);
 
   // Layer Management
   const setLayerVisibility = useCallback(async (layer: string, visible: boolean): Promise<ActionResult> => {
@@ -435,17 +458,19 @@ export function useActions(actionsEngine: ActionsEngine | null, callbacks?: Acti
   // Query operations
   const refreshState = useCallback(() => {
     if (!actionsEngine) return;
-    
+
     try {
-      // Get tables data for future use
-      (actionsEngine as any).get_all_tables?.();
-      const history = (actionsEngine as any).get_action_history?.() ?? [];
+      actionsEngine.get_all_tables();
+
+      const history = actionsEngine.get_action_history();
 
       setState(prev => ({
         ...prev,
-        actionHistory: history as ActionHistoryEntry[],
-        canUndo: (actionsEngine as any).can_undo?.() ?? false,
-        canRedo: (actionsEngine as any).can_redo?.() ?? false,
+        actionHistory: Array.isArray(history)
+          ? (history as ActionHistoryEntry[])
+          : [],
+        canUndo: actionsEngine.can_undo(),
+        canRedo: actionsEngine.can_redo(),
       }));
     } catch (error) {
       console.error('Error refreshing actions state:', error);

@@ -528,8 +528,6 @@ describe('gameStore — createNewTable', () => {
 
 describe('gameStore — deleteTable', () => {
   it('dispatches protocol-send-message with table_delete type', () => {
-    let detail: unknown = null;
-    window.addEventListener('protocol-send-message', (e) => { detail = (e as CustomEvent).detail; });
 
     useGameStore.getState().deleteTable('tbl-99');
 
@@ -549,9 +547,6 @@ describe('gameStore — syncTableToServer', () => {
     useGameStore.setState({
       tables: [{ table_id: 't1', table_name: 'Map', width: 100, height: 100, syncStatus: 'local' }],
     } as never);
-
-    let detail: unknown = null;
-    window.addEventListener('protocol-send-message', (e) => { detail = (e as CustomEvent).detail; });
 
     useGameStore.getState().syncTableToServer('t1');
 

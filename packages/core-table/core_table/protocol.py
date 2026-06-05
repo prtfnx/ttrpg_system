@@ -276,6 +276,12 @@ class MessageType(enum.Enum):    # Core messages
     # Layer settings persistence (DM-only write, broadcast to all)
     LAYER_SETTINGS_UPDATE = "layer_settings_update"  # DM → server + server → all clients
 
+    # Chat messages
+    CHAT = "chat" # client → server: server → client - send a chat message to be broadcast to all clients or to client
+                  # to display
+    CHAT_CONFIRMATION = "chat_confirmation"  # server → sender: confirm receipt and persistence of chat message
+    CHAT_REQUEST = "chat_request"  # client → server: request chat history or specific chat data
+
     # Extension point for new message types
     CUSTOM = "custom"
 

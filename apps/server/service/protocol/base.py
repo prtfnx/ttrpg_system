@@ -17,6 +17,7 @@ from .session import _SessionMixin
 from .sprites import _SpritesMixin
 from .tables import _TablesMixin
 from .walls import _WallsMixin
+from .chat import _ChatMixin
 
 logger = setup_logger(__name__)
 
@@ -34,6 +35,7 @@ class ServerProtocol(
     _CombatMixin,
     _EncounterMixin,
     _HelpersMixin,
+    _ChatMixin,
 ):
     # Class-level store for moves pending OA resolution: "{session}:{sprite_id}" -> move data
     _pending_moves: ClassVar[dict] = {}
@@ -52,6 +54,7 @@ class ServerProtocol(
       combat.py      — initiative, turns, conditions, DM tools, cover
       encounter.py   — encounter start/end/choice/roll
       helpers.py     — send_to_client, broadcast, session helpers
+      chat.py        — chat message handling and history retrieval
     """
 
     def __init__(self, table_manager, session_manager=None):
@@ -222,6 +225,10 @@ class ServerProtocol(
         self.register_handler(MessageType.ENCOUNTER_END,    self.handle_encounter_end)
         self.register_handler(MessageType.ENCOUNTER_CHOICE, self.handle_encounter_choice)
         self.register_handler(MessageType.ENCOUNTER_ROLL,   self.handle_encounter_roll)
+
+        # Chat
+        self.register_handler(MessageType.CHAT, self.handle_chat)
+        self.register_handler(MessageType.CHAT_REQUEST, self.handle_chat_request)
 
     async def handle_client(self, msg: Message, client_id: str) -> bool:
         """Dispatch an incoming message to the registered handler."""

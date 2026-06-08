@@ -9,6 +9,8 @@ export const MessageType = {
   PONG: "pong",
   ERROR: "error",
   CHAT_MESSAGE: "chat",
+  CHAT_CONFIRMATION: "chat_confirmation",
+  CHAT_REQUEST: "chat_request",
   TEST: "test",
   SUCCESS: "success",
   WELCOME: "welcome",

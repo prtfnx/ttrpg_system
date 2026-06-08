@@ -1,4 +1,5 @@
 import { useOptionalProtocol } from '@lib/api';
+import { createMessage } from '@lib/websocket';
 import type { Message } from '@lib/websocket';
 import { MessageType } from '@lib/websocket';
 import React, { useEffect } from 'react';
@@ -60,11 +61,18 @@ export function useChatWebSocket(url: string, user: string) {
     if (protocol) {
       // Register a handler for chat messages via protocol
       const handler = async (m: Message) => {
+        if (m.type === MessageType.CHAT_MESSAGE && Array.isArray(m.data?.messages)) {
+          useChatStore.getState().setMessages(m.data.messages as ChatMessage[]);
+          return;
+        }
         if (m.type === MessageType.CHAT_MESSAGE && m.data?.message) {
           useChatStore.getState().addMessage(m.data.message as ChatMessage);
         }
       };
       protocol.registerHandler(MessageType.CHAT_MESSAGE, handler);
+      if (protocol.isConnected()) {
+        protocol.sendMessage(createMessage(MessageType.CHAT_REQUEST, { limit: 100 }));
+      }
       return () => {
         try { protocol.unregisterHandler(MessageType.CHAT_MESSAGE); } catch {}
       };
@@ -72,11 +80,18 @@ export function useChatWebSocket(url: string, user: string) {
 
     // Fallback to raw WebSocket
     wsRef.current = new WebSocket(url);
+    wsRef.current.onopen = () => {
+      wsRef.current?.send(JSON.stringify(createMessage(MessageType.CHAT_REQUEST, { limit: 100 })));
+    };
     wsRef.current.onmessage = (event) => {
       try {
         const data = JSON.parse(event.data);
-        if (data.type === 'chat' && data.message) {
+        if (data.type === 'chat' && data.data?.message) {
+          useChatStore.getState().addMessage(data.data.message);
+        } else if (data.type === 'chat' && data.message) {
           useChatStore.getState().addMessage(data.message);
+        } else if (data.type === 'chat' && Array.isArray(data.data?.messages)) {
+          useChatStore.getState().setMessages(data.data.messages);
         }
       } catch {
         // Ignore

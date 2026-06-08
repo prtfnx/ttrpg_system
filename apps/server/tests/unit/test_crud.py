@@ -54,3 +54,94 @@ class TestGameSessionCRUD:
         assert len(sessions) > 0
         session, role = sessions[0]  # Unpack the tuple
         assert session.id == test_game_session.id
+
+
+@pytest.mark.unit
+class TestChatCRUD:
+    def test_create_and_load_session_chat_messages(self, test_db, test_game_session, test_user):
+        message = crud.create_chat_message(test_db, schemas.ChatMessageCreate(
+            message_id="msg-1",
+            session_id=test_game_session.id,
+            user_id=test_user.id,
+            username=test_user.username,
+            text="Hello table",
+            message_json={"id": "msg-1", "user": test_user.username, "text": "Hello table", "timestamp": 123},
+            attachments=[{"asset_id": "asset-1", "name": "map.png"}],
+            client_timestamp=123,
+        ))
+
+        assert message.id is not None
+        loaded = crud.get_session_chat_messages(test_db, test_game_session.id, visible_to_user_id=test_user.id)
+        assert [m.message_id for m in loaded] == ["msg-1"]
+        assert loaded[0].to_dict()["attachments"][0]["asset_id"] == "asset-1"
+
+    def test_chat_history_hides_whispers_from_other_users(self, test_db, test_game_session, test_user, player_user):
+        crud.create_chat_message(test_db, schemas.ChatMessageCreate(
+            message_id="public-1",
+            session_id=test_game_session.id,
+            user_id=test_user.id,
+            username=test_user.username,
+            text="Public",
+            message_json={"id": "public-1", "user": test_user.username, "text": "Public", "timestamp": 1},
+        ))
+        crud.create_chat_message(test_db, schemas.ChatMessageCreate(
+            message_id="whisper-1",
+            session_id=test_game_session.id,
+            user_id=test_user.id,
+            username=test_user.username,
+            channel="whisper",
+            recipient_user_id=player_user.id,
+            text="Secret",
+            message_json={"id": "whisper-1", "user": test_user.username, "text": "Secret", "timestamp": 2},
+        ))
+
+        visible_to_recipient = crud.get_session_chat_messages(
+            test_db,
+            test_game_session.id,
+            visible_to_user_id=player_user.id,
+        )
+        visible_to_unknown = crud.get_session_chat_messages(test_db, test_game_session.id)
+
+        assert [m.message_id for m in visible_to_recipient] == ["public-1", "whisper-1"]
+        assert [m.message_id for m in visible_to_unknown] == ["public-1"]
+
+    def test_chat_history_defaults_to_last_30_and_can_load_all(self, test_db, test_game_session, test_user):
+        for idx in range(35):
+            crud.create_chat_message(test_db, schemas.ChatMessageCreate(
+                message_id=f"msg-{idx}",
+                session_id=test_game_session.id,
+                user_id=test_user.id,
+                username=test_user.username,
+                text=f"Message {idx}",
+                message_json={
+                    "id": f"msg-{idx}",
+                    "user": test_user.username,
+                    "text": f"Message {idx}",
+                    "timestamp": idx,
+                },
+                client_timestamp=idx,
+            ))
+
+        recent = crud.get_session_chat_messages(
+            test_db,
+            test_game_session.id,
+            visible_to_user_id=test_user.id,
+        )
+        all_messages = crud.get_session_chat_messages(
+            test_db,
+            test_game_session.id,
+            visible_to_user_id=test_user.id,
+            all_messages=True,
+        )
+        last_five = crud.get_session_chat_messages(
+            test_db,
+            test_game_session.id,
+            visible_to_user_id=test_user.id,
+            limit=5,
+        )
+
+        assert len(recent) == 30
+        assert recent[0].message_id == "msg-5"
+        assert recent[-1].message_id == "msg-34"
+        assert len(all_messages) == 35
+        assert [m.message_id for m in last_five] == ["msg-30", "msg-31", "msg-32", "msg-33", "msg-34"]

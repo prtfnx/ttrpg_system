@@ -6,10 +6,22 @@ import React, { useEffect } from 'react';
 import type { ChatMessage } from '../chatStore';
 import { useChatStore } from '../chatStore';
 
+const DEFAULT_HISTORY_COUNT = 30;
+
 export function useChatWebSocket(url: string, user: string) {
   const protocol = useOptionalProtocol()?.protocol ?? null;
 
   const wsRef = React.useRef<WebSocket | null>(null);
+
+  const sendHistoryRequest = React.useCallback((count: number | 'all' = DEFAULT_HISTORY_COUNT) => {
+    const data = count === 'all' ? { all: true } : { count };
+    const request = createMessage(MessageType.CHAT_REQUEST, data);
+    if (protocol && protocol.isConnected()) {
+      protocol.sendMessage(request);
+    } else if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
+      wsRef.current.send(JSON.stringify(request));
+    }
+  }, [protocol]);
 
   // Mirror in-game roll results to the chat log
   useEffect(() => {
@@ -71,7 +83,7 @@ export function useChatWebSocket(url: string, user: string) {
       };
       protocol.registerHandler(MessageType.CHAT_MESSAGE, handler);
       if (protocol.isConnected()) {
-        protocol.sendMessage(createMessage(MessageType.CHAT_REQUEST, { limit: 100 }));
+        sendHistoryRequest(DEFAULT_HISTORY_COUNT);
       }
       return () => {
         try { protocol.unregisterHandler(MessageType.CHAT_MESSAGE); } catch {}
@@ -81,7 +93,7 @@ export function useChatWebSocket(url: string, user: string) {
     // Fallback to raw WebSocket
     wsRef.current = new WebSocket(url);
     wsRef.current.onopen = () => {
-      wsRef.current?.send(JSON.stringify(createMessage(MessageType.CHAT_REQUEST, { limit: 100 })));
+      sendHistoryRequest(DEFAULT_HISTORY_COUNT);
     };
     wsRef.current.onmessage = (event) => {
       try {
@@ -126,5 +138,13 @@ export function useChatWebSocket(url: string, user: string) {
     }
   };
 
-  return { sendMessage };
+  const loadAllMessages = () => {
+    sendHistoryRequest('all');
+  };
+
+  const loadRecentMessages = (count: number = DEFAULT_HISTORY_COUNT) => {
+    sendHistoryRequest(count);
+  };
+
+  return { sendMessage, loadAllMessages, loadRecentMessages };
 }

@@ -15,6 +15,27 @@
   margin-bottom: var(--space-sm);
 }
 
+.historyActions {
+  display: flex;
+  justify-content: flex-end;
+  margin-bottom: var(--space-sm);
+}
+
+.historyBtn {
+  padding: 6px 10px;
+  border-radius: var(--radius-xs);
+  border: var(--border-width) solid var(--border-primary);
+  background: var(--bg-primary);
+  color: var(--text-secondary);
+  font-size: 13px;
+  cursor: pointer;
+}
+
+.historyBtn:hover {
+  color: var(--text-primary);
+  border-color: var(--color-accent);
+}
+
 .message {
   margin-bottom: 6px;
   font-size: 15px;

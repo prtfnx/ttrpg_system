@@ -8,7 +8,7 @@ import styles from './ChatPanel.module.css';
 export function ChatPanel() {
   const { user } = useAuth();
   const { messages } = useChatStore();
-  const { sendMessage } = useChatWebSocket(config.getWebSocketUrl(), user?.username || 'Anonymous');
+  const { sendMessage, loadAllMessages } = useChatWebSocket(config.getWebSocketUrl(), user?.username || 'Anonymous');
   const [input, setInput] = useState('');
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -44,6 +44,11 @@ export function ChatPanel() {
 
   return (
     <div className={styles.panel}>
+      <div className={styles.historyActions}>
+        <button className={styles.historyBtn} onClick={loadAllMessages} type="button">
+          Load all messages
+        </button>
+      </div>
       <div className={styles.messages}>
         {messages.map(msg => (
           <div key={msg.id} className={styles.message} title={msg.tooltip}>

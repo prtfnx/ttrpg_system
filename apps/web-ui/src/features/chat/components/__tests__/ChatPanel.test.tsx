@@ -6,7 +6,7 @@ import { ChatPanel } from '../ChatPanel';
 
 // Mock heavy hooks
 vi.mock('../../hooks/useChatWebSocket', () => ({
-  useChatWebSocket: () => ({ sendMessage: mockSendMessage }),
+  useChatWebSocket: () => ({ sendMessage: mockSendMessage, loadAllMessages: mockLoadAllMessages }),
 }));
 vi.mock('../../../auth', () => ({
   useAuth: () => ({ user: { username: 'Tester' } }),
@@ -16,10 +16,12 @@ vi.mock('@shared/config/appConfig', () => ({
 }));
 
 const mockSendMessage = vi.fn();
+const mockLoadAllMessages = vi.fn();
 
 beforeEach(() => {
   useChatStore.setState({ messages: [] });
   mockSendMessage.mockReset();
+  mockLoadAllMessages.mockReset();
 });
 
 describe('ChatPanel', () => {
@@ -27,6 +29,7 @@ describe('ChatPanel', () => {
     render(<ChatPanel />);
     expect(screen.getByPlaceholderText('Type a message...')).toBeTruthy();
     expect(screen.getByRole('button', { name: 'Send' })).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Load all messages' })).toBeTruthy();
   });
 
   it('sends message on button click', async () => {
@@ -76,5 +79,11 @@ describe('ChatPanel', () => {
     render(<ChatPanel />);
     expect(screen.getByText('Alice:')).toBeTruthy();
     expect(screen.getByText('Hello')).toBeTruthy();
+  });
+
+  it('loads all messages on history button click', async () => {
+    render(<ChatPanel />);
+    await userEvent.click(screen.getByRole('button', { name: 'Load all messages' }));
+    expect(mockLoadAllMessages).toHaveBeenCalledOnce();
   });
 });

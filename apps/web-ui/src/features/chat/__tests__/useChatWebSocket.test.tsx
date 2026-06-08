@@ -2,6 +2,7 @@ import { act, renderHook } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { useChatStore } from '../chatStore';
 import { useChatWebSocket } from '../hooks/useChatWebSocket';
+import { MessageType } from '@lib/websocket';
 
 // Minimal protocol mock — no real WebSocket needed
 const makeProtocol = (connected = false) => ({
@@ -64,9 +65,59 @@ describe('useChatWebSocket', () => {
       const protocol = makeProtocol(true);
       vi.mocked(useOptionalProtocol).mockReturnValue({ protocol } as unknown as ReturnType<typeof useOptionalProtocol>);
       const { result } = renderHook(() => useChatWebSocket('ws://test', 'Bob'));
+      expect(protocol.sendMessage).toHaveBeenCalledWith(expect.objectContaining({
+        type: MessageType.CHAT_REQUEST,
+        data: { count: 30 },
+      }));
       act(() => { result.current.sendMessage('Hey'); });
-      expect(protocol.sendMessage).toHaveBeenCalledOnce();
+      expect(protocol.sendMessage).toHaveBeenCalledTimes(2);
+      expect(protocol.sendMessage).toHaveBeenLastCalledWith(expect.objectContaining({
+        type: MessageType.CHAT_MESSAGE,
+        data: expect.objectContaining({
+          message: expect.objectContaining({ user: 'Bob', text: 'Hey' }),
+        }),
+      }));
       expect(useChatStore.getState().messages[0].text).toBe('Hey');
+    });
+
+    it('loads chat history from protocol messages', () => {
+      const protocol = makeProtocol(true);
+      vi.mocked(useOptionalProtocol).mockReturnValue({ protocol } as unknown as ReturnType<typeof useOptionalProtocol>);
+      renderHook(() => useChatWebSocket('ws://test', 'Bob'));
+      const handler = protocol.registerHandler.mock.calls[0][1];
+
+      act(() => {
+        handler({
+          type: MessageType.CHAT_MESSAGE,
+          data: {
+            messages: [
+              { id: '1', user: 'Alice', text: 'Old message', timestamp: 1 },
+              { id: '2', user: 'Bob', text: 'Recent message', timestamp: 2 },
+            ],
+          },
+          version: '0.1',
+          priority: 5,
+        });
+      });
+
+      expect(useChatStore.getState().messages.map((m) => m.text)).toEqual([
+        'Old message',
+        'Recent message',
+      ]);
+    });
+
+    it('can request all chat messages', () => {
+      const protocol = makeProtocol(true);
+      vi.mocked(useOptionalProtocol).mockReturnValue({ protocol } as unknown as ReturnType<typeof useOptionalProtocol>);
+      const { result } = renderHook(() => useChatWebSocket('ws://test', 'Bob'));
+      protocol.sendMessage.mockClear();
+
+      act(() => { result.current.loadAllMessages(); });
+
+      expect(protocol.sendMessage).toHaveBeenCalledWith(expect.objectContaining({
+        type: MessageType.CHAT_REQUEST,
+        data: { all: true },
+      }));
     });
   });
 

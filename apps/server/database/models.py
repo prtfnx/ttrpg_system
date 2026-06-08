@@ -1,6 +1,7 @@
 """
 Database models for TTRPG server
 """
+import json
 from datetime import datetime
 from typing import Optional
 
@@ -47,6 +48,7 @@ class GameSession(Base):
     players = relationship("GamePlayer", back_populates="session")
     tables = relationship("VirtualTable", back_populates="session")
     invitations = relationship("SessionInvitation", back_populates="session")
+    chat_messages = relationship("ChatMessage", back_populates="session", cascade="all, delete-orphan")
 
 
 class GamePlayer(Base):
@@ -387,6 +389,48 @@ class CharacterLog(Base):
     action_type: Mapped[str] = mapped_column(String(50), nullable=False)
     description: Mapped[str] = mapped_column(String(500), nullable=False)
     created_at: Mapped[Optional[datetime]] = mapped_column(DateTime, default=datetime.utcnow, index=True)
+
+
+class ChatMessage(Base):
+    """Persisted session chat message."""
+    __tablename__ = "chat_messages"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
+    message_id: Mapped[str] = mapped_column(String(64), unique=True, index=True, nullable=False)
+    session_id: Mapped[int] = mapped_column(Integer, ForeignKey("game_sessions.id"), nullable=False, index=True)
+    user_id: Mapped[Optional[int]] = mapped_column(Integer, ForeignKey("users.id"), nullable=True, index=True)
+    username: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)
+    channel: Mapped[str] = mapped_column(String(20), default="public", nullable=False)
+    recipient_user_id: Mapped[Optional[int]] = mapped_column(Integer, ForeignKey("users.id"), nullable=True, index=True)
+    table_id: Mapped[Optional[str]] = mapped_column(String(36), nullable=True, index=True)
+    text: Mapped[str] = mapped_column(Text, nullable=False)
+    message_json: Mapped[str] = mapped_column(Text, nullable=False)
+    attachments_json: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    client_timestamp: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
+    created_at: Mapped[Optional[datetime]] = mapped_column(DateTime, default=datetime.utcnow, index=True)
+
+    session = relationship("GameSession", back_populates="chat_messages")
+    user = relationship("User", foreign_keys=[user_id])
+    recipient = relationship("User", foreign_keys=[recipient_user_id])
+
+    def to_dict(self) -> dict:
+        try:
+            message = json.loads(self.message_json)
+        except Exception:
+            message = {
+                "id": self.message_id,
+                "user": self.username or "Unknown",
+                "text": self.text,
+                "timestamp": self.client_timestamp,
+            }
+        if self.created_at and "created_at" not in message:
+            message["created_at"] = self.created_at.isoformat()
+        if self.attachments_json and "attachments" not in message:
+            try:
+                message["attachments"] = json.loads(self.attachments_json)
+            except Exception:
+                pass
+        return message
 
 
 class PaintStroke(Base):

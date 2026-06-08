@@ -374,15 +374,15 @@ def get_chat_message_by_message_id(db: Session, message_id: str) -> Optional[mod
 def get_session_chat_messages(
     db: Session,
     session_id: int,
-    limit: int = 100,
+    limit: Optional[int] = 30,
     before_id: Optional[int] = None,
     after_id: Optional[int] = None,
     channel: Optional[str] = None,
     user_id: Optional[int] = None,
     visible_to_user_id: Optional[int] = None,
+    all_messages: bool = False,
 ) -> list[models.ChatMessage]:
     """Load chat messages newest-window first, returned in chronological order."""
-    safe_limit = max(1, min(int(limit or 100), 500))
     query = db.query(models.ChatMessage).filter(models.ChatMessage.session_id == session_id)
 
     if before_id is not None:
@@ -402,7 +402,12 @@ def get_session_chat_messages(
     else:
         query = query.filter(models.ChatMessage.channel != "whisper")
 
-    messages = query.order_by(models.ChatMessage.id.desc()).limit(safe_limit).all()
+    query = query.order_by(models.ChatMessage.id.desc())
+    if not all_messages:
+        safe_limit = max(1, min(int(limit or 30), 500))
+        query = query.limit(safe_limit)
+
+    messages = query.all()
     return list(reversed(messages))
 
 # Virtual Table operations

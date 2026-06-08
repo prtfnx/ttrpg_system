@@ -107,18 +107,22 @@ class _ChatMixin(_ProtocolBase):
 
         data = msg.data or {}
         user_id = self._get_user_id(msg, client_id)
+        requested_count = data.get('count', data.get('limit', 30))
+        all_messages = bool(data.get('all')) or requested_count == 'all'
+        count = 30 if all_messages else int(requested_count or 30)
 
         db = SessionLocal()
         try:
             messages = crud.get_session_chat_messages(
                 db,
                 session_id=session_id,
-                limit=int(data.get('limit') or 100),
+                limit=None if all_messages else count,
                 before_id=data.get('before_id'),
                 after_id=data.get('after_id'),
                 channel=data.get('channel'),
                 user_id=data.get('user_id'),
                 visible_to_user_id=user_id,
+                all_messages=all_messages,
             )
             payload = [message.to_dict() for message in messages]
         except Exception as e:
@@ -130,6 +134,7 @@ class _ChatMixin(_ProtocolBase):
         return Message(MessageType.CHAT, {
             'messages': payload,
             'count': len(payload),
+            'requested_count': 'all' if all_messages else count,
             'session_id': self._get_session_code(msg),
         })
 

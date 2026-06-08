@@ -399,6 +399,8 @@ def get_session_chat_messages(
             models.ChatMessage.user_id == visible_to_user_id,
             models.ChatMessage.recipient_user_id == visible_to_user_id,
         ))
+    else:
+        query = query.filter(models.ChatMessage.channel != "whisper")
 
     messages = query.order_by(models.ChatMessage.id.desc()).limit(safe_limit).all()
     return list(reversed(messages))

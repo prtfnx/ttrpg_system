@@ -42,6 +42,32 @@ def _run_migrations():
         "ALTER TABLE virtual_tables ADD COLUMN grid_color_hex VARCHAR(9) DEFAULT '#ffffff'",
         "ALTER TABLE virtual_tables ADD COLUMN background_color_hex VARCHAR(9) DEFAULT '#2a3441'",
     ]
+    table_migrations = [
+        """
+        CREATE TABLE IF NOT EXISTS chat_messages (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            message_id VARCHAR(64) NOT NULL UNIQUE,
+            session_id INTEGER NOT NULL REFERENCES game_sessions(id) ON DELETE CASCADE,
+            user_id INTEGER REFERENCES users(id),
+            username VARCHAR(100),
+            channel VARCHAR(20) NOT NULL DEFAULT 'public',
+            recipient_user_id INTEGER REFERENCES users(id),
+            table_id VARCHAR(36),
+            text TEXT NOT NULL,
+            message_json TEXT NOT NULL,
+            attachments_json TEXT,
+            client_timestamp FLOAT,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )
+        """,
+        "CREATE INDEX IF NOT EXISTS ix_chat_messages_message_id ON chat_messages (message_id)",
+        "CREATE INDEX IF NOT EXISTS ix_chat_messages_session_id ON chat_messages (session_id)",
+        "CREATE INDEX IF NOT EXISTS ix_chat_messages_user_id ON chat_messages (user_id)",
+        "CREATE INDEX IF NOT EXISTS ix_chat_messages_recipient_user_id ON chat_messages (recipient_user_id)",
+        "CREATE INDEX IF NOT EXISTS ix_chat_messages_table_id ON chat_messages (table_id)",
+        "CREATE INDEX IF NOT EXISTS ix_chat_messages_created_at ON chat_messages (created_at)",
+        "CREATE INDEX IF NOT EXISTS ix_chat_messages_session_created_at ON chat_messages (session_id, created_at)",
+    ]
     with engine.connect() as conn:
         for sql in migrations:
             try:
@@ -49,6 +75,12 @@ def _run_migrations():
                 conn.commit()
             except Exception:
                 pass  # Column already exists
+        for sql in table_migrations:
+            try:
+                conn.execute(text(sql))
+                conn.commit()
+            except Exception:
+                pass
 
 
 def create_tables():

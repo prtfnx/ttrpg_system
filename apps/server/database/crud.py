@@ -10,7 +10,7 @@ from datetime import datetime, timedelta
 from typing import Optional
 
 import bcrypt
-from sqlalchemy import func
+from sqlalchemy import func, or_
 from sqlalchemy.orm import Session
 from utils.logger import setup_logger
 
@@ -342,6 +342,66 @@ def disconnect_player(db: Session, session_id: int, user_id: int):
 
 def get_session_players(db: Session, session_id: int):
     return db.query(models.GamePlayer).filter(models.GamePlayer.session_id == session_id).all()
+
+
+# Chat operations
+def create_chat_message(db: Session, chat_data: schemas.ChatMessageCreate) -> models.ChatMessage:
+    """Persist a chat message for a game session."""
+    attachments_json = json.dumps(chat_data.attachments) if chat_data.attachments is not None else None
+    db_message = models.ChatMessage(
+        message_id=chat_data.message_id,
+        session_id=chat_data.session_id,
+        user_id=chat_data.user_id,
+        username=chat_data.username,
+        channel=chat_data.channel,
+        recipient_user_id=chat_data.recipient_user_id,
+        table_id=chat_data.table_id,
+        text=chat_data.text,
+        message_json=json.dumps(chat_data.message_json),
+        attachments_json=attachments_json,
+        client_timestamp=chat_data.client_timestamp,
+    )
+    db.add(db_message)
+    db.commit()
+    db.refresh(db_message)
+    return db_message
+
+
+def get_chat_message_by_message_id(db: Session, message_id: str) -> Optional[models.ChatMessage]:
+    return db.query(models.ChatMessage).filter(models.ChatMessage.message_id == message_id).first()
+
+
+def get_session_chat_messages(
+    db: Session,
+    session_id: int,
+    limit: int = 100,
+    before_id: Optional[int] = None,
+    after_id: Optional[int] = None,
+    channel: Optional[str] = None,
+    user_id: Optional[int] = None,
+    visible_to_user_id: Optional[int] = None,
+) -> list[models.ChatMessage]:
+    """Load chat messages newest-window first, returned in chronological order."""
+    safe_limit = max(1, min(int(limit or 100), 500))
+    query = db.query(models.ChatMessage).filter(models.ChatMessage.session_id == session_id)
+
+    if before_id is not None:
+        query = query.filter(models.ChatMessage.id < before_id)
+    if after_id is not None:
+        query = query.filter(models.ChatMessage.id > after_id)
+    if channel:
+        query = query.filter(models.ChatMessage.channel == channel)
+    if user_id is not None:
+        query = query.filter(models.ChatMessage.user_id == user_id)
+    if visible_to_user_id is not None:
+        query = query.filter(or_(
+            models.ChatMessage.channel != "whisper",
+            models.ChatMessage.user_id == visible_to_user_id,
+            models.ChatMessage.recipient_user_id == visible_to_user_id,
+        ))
+
+    messages = query.order_by(models.ChatMessage.id.desc()).limit(safe_limit).all()
+    return list(reversed(messages))
 
 # Virtual Table operations
 def create_virtual_table(db: Session, table_data: schemas.VirtualTableCreate) -> models.VirtualTable:

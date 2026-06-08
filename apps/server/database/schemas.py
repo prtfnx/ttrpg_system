@@ -223,6 +223,33 @@ class GamePlayer(GamePlayerBase):
 
     model_config = ConfigDict(from_attributes=True)
 
+
+# Chat schemas
+class ChatMessageBase(BaseModel):
+    message_id: str
+    session_id: int
+    user_id: Optional[int] = None
+    username: Optional[str] = None
+    channel: str = "public"
+    recipient_user_id: Optional[int] = None
+    table_id: Optional[str] = None
+    text: str
+    message_json: Dict[str, Any]
+    attachments: Optional[List[Dict[str, Any]]] = None
+    client_timestamp: Optional[float] = None
+
+
+class ChatMessageCreate(ChatMessageBase):
+    pass
+
+
+class ChatMessage(ChatMessageBase):
+    id: int
+    created_at: datetime
+
+    model_config = ConfigDict(from_attributes=True)
+
+
 # Session Invitation schemas
 class CreateInvitationRequest(BaseModel):
     session_code: str

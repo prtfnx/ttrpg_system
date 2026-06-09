@@ -177,17 +177,29 @@ describe('DMCombatPanel — PreCombatSetup (no active combat)', () => {
     expect(screen.getByText(/no active combat/i)).toBeTruthy();
   });
 
-  it('renders "Start Combat" button', () => {
+  it('renders table-token and empty start buttons', () => {
     render(<DMCombatPanel />);
-    expect(screen.getByRole('button', { name: /start combat/i })).toBeTruthy();
+    expect(screen.getByRole('button', { name: /start with table tokens/i })).toBeTruthy();
+    expect(screen.getByRole('button', { name: /start empty/i })).toBeTruthy();
   });
 
-  it('clicking Start Combat sends COMBAT_START', async () => {
+  it('clicking Start with Table Tokens sends COMBAT_START with current table token entities', async () => {
     const user = userEvent.setup();
     render(<DMCombatPanel />);
-    await user.click(screen.getByRole('button', { name: /start combat/i }));
+    await user.click(screen.getByRole('button', { name: /start with table tokens/i }));
     expect(mockSendMessage).toHaveBeenCalledWith(
-      expect.objectContaining({ type: 'COMBAT_START', data: expect.objectContaining({ table_id: expect.any(String) }) })
+      expect.objectContaining({
+        type: 'COMBAT_START',
+        data: expect.objectContaining({
+          table_id: 'table1',
+          entity_ids: ['e1', 'e2'],
+          names: { e1: 'Goblin', e2: 'Hero' },
+          combatants: [
+            expect.objectContaining({ entity_id: 'e1', character_id: 'char1', hp: 7, armor_class: 15, is_npc: true }),
+            expect.objectContaining({ entity_id: 'e2', character_id: 'char2', hp: 20, armor_class: 17, is_npc: false }),
+          ],
+        }),
+      })
     );
   });
 });
@@ -219,7 +231,7 @@ describe('DMCombatPanel — active combat', () => {
     useCombatStore.setState({ combat: { ...mockCombat, combatants: [mockCombat.combatants[0]] } });
 
     render(<DMCombatPanel />);
-    await user.click(screen.getByRole('button', { name: /add table combatants/i }));
+    await user.click(screen.getByRole('button', { name: /add missing/i }));
 
     expect(mockSendMessage).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -233,6 +245,7 @@ describe('DMCombatPanel — active combat', () => {
           armor_class: 17,
           movement_speed: 30,
           controlled_by: ['1'],
+          is_npc: false,
         }),
       })
     );
@@ -416,9 +429,9 @@ describe('DMCombatPanel — no protocol', () => {
     vi.mocked(ProtocolService.getProtocol).mockReturnValue(null as unknown as ReturnType<typeof ProtocolService.getProtocol>);
   });
 
-  it('clicking Start Combat does not throw when protocol is null', async () => {
+  it('clicking Start with Table Tokens does not throw when protocol is null', async () => {
     const user = userEvent.setup();
     expect(() => render(<DMCombatPanel />)).not.toThrow();
-    await expect(user.click(screen.getByRole('button', { name: /start combat/i }))).resolves.not.toThrow();
+    await expect(user.click(screen.getByRole('button', { name: /start with table tokens/i }))).resolves.not.toThrow();
   });
 });

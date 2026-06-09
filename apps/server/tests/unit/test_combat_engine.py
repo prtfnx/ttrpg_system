@@ -26,6 +26,37 @@ def test_start_combat_creates_state():
     assert CombatEngine.get_state('sess1') is state
 
 
+def test_start_combat_uses_rich_combatant_payload():
+    state = CombatEngine.start_combat(
+        'sess1',
+        't1',
+        [],
+        combatants=[{
+            'entity_id': 'token1',
+            'character_id': 'char1',
+            'name': 'Hero',
+            'hp': 20,
+            'max_hp': 20,
+            'armor_class': 17,
+            'movement_speed': 35,
+            'controlled_by': ['1'],
+            'is_npc': False,
+        }],
+    )
+
+    combatant = state.combatants[0]
+    assert combatant.entity_id == 'token1'
+    assert combatant.character_id == 'char1'
+    assert combatant.name == 'Hero'
+    assert combatant.hp == 20
+    assert combatant.max_hp == 20
+    assert combatant.armor_class == 17
+    assert combatant.movement_speed == 35
+    assert combatant.movement_remaining == 35
+    assert combatant.controlled_by == ['1']
+    assert not combatant.is_npc
+
+
 def test_end_combat_removes_state():
     CombatEngine.start_combat('sess1', 't1', ['e1'])
     ended = CombatEngine.end_combat('sess1')

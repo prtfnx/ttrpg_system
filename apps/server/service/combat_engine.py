@@ -72,6 +72,7 @@ class CombatEngine:
         entity_ids: list[str],
         settings: CombatSettings | None = None,
         names: dict[str, str] | None = None,
+        combatants: list[dict] | None = None,
     ) -> CombatState:
         combat_id = str(uuid.uuid4())
         state = CombatState(
@@ -80,12 +81,36 @@ class CombatEngine:
             settings=settings or CombatSettings(),
         )
         names = names or {}
-        for eid in entity_ids:
-            state.combatants.append(Combatant(
-                combatant_id=str(uuid.uuid4()), entity_id=eid,
-                name=names.get(eid, eid[:8]),
-                movement_speed=30, movement_remaining=30,
-            ))
+        combatants = combatants or []
+        if combatants:
+            for item in combatants:
+                if not isinstance(item, dict):
+                    continue
+                eid = str(item.get('entity_id') or '')
+                if not eid:
+                    continue
+                movement_speed = float(item.get('movement_speed', 30) or 30)
+                controlled_by = [str(x) for x in (item.get('controlled_by') or []) if x is not None]
+                state.combatants.append(Combatant(
+                    combatant_id=str(uuid.uuid4()),
+                    entity_id=eid,
+                    character_id=item.get('character_id'),
+                    name=str(item.get('name') or names.get(eid, eid[:8])),
+                    hp=int(item.get('hp', 0) or 0),
+                    max_hp=int(item.get('max_hp', 0) or 0),
+                    armor_class=int(item.get('armor_class', 10) or 10),
+                    movement_speed=movement_speed,
+                    movement_remaining=movement_speed,
+                    controlled_by=controlled_by,
+                    is_npc=bool(item.get('is_npc', not controlled_by)),
+                ))
+        else:
+            for eid in entity_ids:
+                state.combatants.append(Combatant(
+                    combatant_id=str(uuid.uuid4()), entity_id=eid,
+                    name=names.get(eid, eid[:8]),
+                    movement_speed=30, movement_remaining=30,
+                ))
         cls._active[session_id] = state
 
         if state.settings.auto_roll_npc_initiative:

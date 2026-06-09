@@ -36,6 +36,7 @@ class _CombatMixin(_ProtocolBase):
             entity_ids=d.get('entity_ids', []),
             settings=settings,
             names=d.get('names', {}),
+            combatants=d.get('combatants', []),
         )
         resp = Message(MessageType.COMBAT_STATE, {'combat': state.to_dict()})
         await self.broadcast_to_session(resp, client_id)
@@ -78,7 +79,12 @@ class _CombatMixin(_ProtocolBase):
         state = CombatEngine.get_state(session_code)
         order = [{'combatant_id': c.combatant_id, 'name': c.name, 'initiative': c.initiative}
                  for c in (state.combatants if state else [])]
-        resp = Message(MessageType.INITIATIVE_ORDER, {'combatant_id': combatant_id, 'value': value, 'order': order})
+        resp = Message(MessageType.INITIATIVE_ORDER, {
+            'combatant_id': combatant_id,
+            'value': value,
+            'order': order,
+            'combat': state.to_dict() if state else None,
+        })
         await self.broadcast_to_session(resp, client_id)
         return resp
 
@@ -96,7 +102,10 @@ class _CombatMixin(_ProtocolBase):
         state = CombatEngine.get_state(session_code)
         order = [{'combatant_id': c.combatant_id, 'name': c.name, 'initiative': c.initiative}
                  for c in (state.combatants if state else [])]
-        resp = Message(MessageType.INITIATIVE_ORDER, {'order': order})
+        resp = Message(MessageType.INITIATIVE_ORDER, {
+            'order': order,
+            'combat': state.to_dict() if state else None,
+        })
         await self.broadcast_to_session(resp, client_id)
         return resp
 
@@ -137,7 +146,11 @@ class _CombatMixin(_ProtocolBase):
         state = CombatEngine.get_state(session_code)
         order = [{'combatant_id': c.combatant_id, 'name': c.name, 'initiative': c.initiative}
                  for c in (state.combatants if state else [])]
-        resp = Message(MessageType.INITIATIVE_ORDER, {'removed': combatant_id, 'order': order})
+        resp = Message(MessageType.INITIATIVE_ORDER, {
+            'removed': combatant_id,
+            'order': order,
+            'combat': state.to_dict() if state else None,
+        })
         await self.broadcast_to_session(resp, client_id)
         return resp
 

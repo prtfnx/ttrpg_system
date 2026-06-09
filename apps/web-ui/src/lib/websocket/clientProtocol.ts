@@ -293,9 +293,20 @@ export class WebClientProtocol {
     // ── Combat ──
     const setCombat = async (data: unknown) => {
       const { useCombatStore } = await import('@features/combat/stores/combatStore');
-      const d = data as Record<string, unknown>;
-      const combat = (d?.combat ?? data) as never;
-      useCombatStore.getState().setCombat(combat);
+      const d = data as Record<string, unknown> | null;
+      const maybeCombat = d && typeof d === 'object' && 'combat' in d ? d.combat : data;
+      if (maybeCombat === null) {
+        useCombatStore.getState().setCombat(null);
+        return;
+      }
+      if (
+        maybeCombat &&
+        typeof maybeCombat === 'object' &&
+        'combat_id' in maybeCombat &&
+        'combatants' in maybeCombat
+      ) {
+        useCombatStore.getState().setCombat(maybeCombat as never);
+      }
     };
     this.registerHandler(MessageType.COMBAT_STATE, async (m) => setCombat(m.data));
     this.registerHandler(MessageType.COMBAT_START, async (m) => setCombat(m.data));

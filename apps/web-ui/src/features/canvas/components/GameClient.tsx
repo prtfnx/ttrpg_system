@@ -244,13 +244,12 @@ const windowManager = useWindowManager();
         setRightWidth(w);
         localStorage.setItem('panel_right_width', w.toString());
       }
-      window.dispatchEvent(new Event('resize'));
-      requestAnimationFrame(() => { window.dispatchEvent(new Event('resize')); });
     };
     const onDragEnd = () => {
       dragRef.current = null;
       document.body.style.cursor = '';
       document.body.style.userSelect = '';
+      // Fallback for older browsers without ResizeObserver support.
       setTimeout(() => { window.dispatchEvent(new Event('resize')); }, 100);
     };
     document.addEventListener('mousemove', onDrag);

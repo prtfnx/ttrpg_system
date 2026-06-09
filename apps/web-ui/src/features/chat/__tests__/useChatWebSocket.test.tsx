@@ -8,6 +8,7 @@ import { MessageType } from '@lib/websocket';
 const makeProtocol = (connected = false) => ({
   registerHandler: vi.fn(),
   unregisterHandler: vi.fn(),
+  onConnectionStateChange: vi.fn(),
   isConnected: vi.fn().mockReturnValue(connected),
   sendMessage: vi.fn(),
 });
@@ -104,6 +105,31 @@ describe('useChatWebSocket', () => {
         'Old message',
         'Recent message',
       ]);
+    });
+
+    it('requests chat history when protocol connects after mount', () => {
+      const unsubscribe = vi.fn();
+      const protocol = makeProtocol(false);
+      protocol.onConnectionStateChange.mockReturnValue(unsubscribe);
+      vi.mocked(useOptionalProtocol).mockReturnValue({ protocol } as unknown as ReturnType<typeof useOptionalProtocol>);
+
+      const { unmount } = renderHook(() => useChatWebSocket('ws://test', 'Bob'));
+
+      expect(protocol.sendMessage).not.toHaveBeenCalled();
+      protocol.isConnected.mockReturnValue(true);
+      const listener = protocol.onConnectionStateChange.mock.calls[0][0];
+
+      act(() => {
+        listener('connected');
+      });
+
+      expect(protocol.sendMessage).toHaveBeenCalledWith(expect.objectContaining({
+        type: MessageType.CHAT_REQUEST,
+        data: { count: 30 },
+      }));
+
+      unmount();
+      expect(unsubscribe).toHaveBeenCalled();
     });
 
     it('can request all chat messages', () => {

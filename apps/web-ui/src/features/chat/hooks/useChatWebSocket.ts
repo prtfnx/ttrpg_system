@@ -8,6 +8,19 @@ import { useChatStore } from '../chatStore';
 
 const DEFAULT_HISTORY_COUNT = 30;
 
+function mergeMessages(messages: ChatMessage[]) {
+  const current = useChatStore.getState().messages;
+  const byId = new Map<string, ChatMessage>();
+
+  for (const message of [...current, ...messages]) {
+    byId.set(message.id, message);
+  }
+
+  useChatStore.getState().setMessages(
+    Array.from(byId.values()).sort((a, b) => a.timestamp - b.timestamp)
+  );
+}
+
 export function useChatWebSocket(url: string, user: string) {
   const protocol = useOptionalProtocol()?.protocol ?? null;
 
@@ -74,7 +87,7 @@ export function useChatWebSocket(url: string, user: string) {
       // Register a handler for chat messages via protocol
       const handler = async (m: Message) => {
         if (m.type === MessageType.CHAT_MESSAGE && Array.isArray(m.data?.messages)) {
-          useChatStore.getState().setMessages(m.data.messages as ChatMessage[]);
+          mergeMessages(m.data.messages as ChatMessage[]);
           return;
         }
         if (m.type === MessageType.CHAT_MESSAGE && m.data?.message) {
@@ -85,7 +98,13 @@ export function useChatWebSocket(url: string, user: string) {
       if (protocol.isConnected()) {
         sendHistoryRequest(DEFAULT_HISTORY_COUNT);
       }
+      const unsubscribeConnection = protocol.onConnectionStateChange?.((state) => {
+        if (state === 'connected') {
+          sendHistoryRequest(DEFAULT_HISTORY_COUNT);
+        }
+      });
       return () => {
+        unsubscribeConnection?.();
         try { protocol.unregisterHandler(MessageType.CHAT_MESSAGE); } catch {}
       };
     }
@@ -103,7 +122,7 @@ export function useChatWebSocket(url: string, user: string) {
         } else if (data.type === 'chat' && data.message) {
           useChatStore.getState().addMessage(data.message);
         } else if (data.type === 'chat' && Array.isArray(data.data?.messages)) {
-          useChatStore.getState().setMessages(data.data.messages);
+          mergeMessages(data.data.messages);
         }
       } catch {
         // Ignore

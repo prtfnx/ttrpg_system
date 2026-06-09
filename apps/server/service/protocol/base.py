@@ -8,6 +8,7 @@ from utils.logger import setup_logger
 from .assets import _AssetsMixin
 from .auth import _AuthMixin
 from .characters import _CharactersMixin
+from .chat import _ChatMixin
 from .combat import _CombatMixin
 from .encounter import _EncounterMixin
 from .helpers import _HelpersMixin
@@ -17,7 +18,6 @@ from .session import _SessionMixin
 from .sprites import _SpritesMixin
 from .tables import _TablesMixin
 from .walls import _WallsMixin
-from .chat import _ChatMixin
 
 logger = setup_logger(__name__)
 

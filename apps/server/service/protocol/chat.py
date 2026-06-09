@@ -147,4 +147,4 @@ class _ChatMixin(_ProtocolBase):
             if int(info.get('user_id') or 0) == user_id:
                 await self.send_to_client(message, target_client_id)
 
-   
+

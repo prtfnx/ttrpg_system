@@ -14,6 +14,7 @@ vi.mock('@lib/websocket', () => ({
   MessageType: {
     COMBAT_START: 'COMBAT_START',
     COMBAT_END: 'COMBAT_END',
+    INITIATIVE_ADD: 'INITIATIVE_ADD',
     DM_SET_HP: 'DM_SET_HP',
     DM_SET_TEMP_HP: 'DM_SET_TEMP_HP',
     DM_APPLY_DAMAGE: 'DM_APPLY_DAMAGE',
@@ -26,6 +27,90 @@ vi.mock('@lib/websocket', () => ({
 }));
 
 const mockSendMessage = vi.fn();
+
+const mockCharacters = [
+  {
+    id: 'char1',
+    sessionId: 'session1',
+    name: 'Goblin',
+    ownerId: 1,
+    controlledBy: [],
+    data: { stats: { hp: 7, maxHp: 7, ac: 15, speed: 30 } },
+    version: 1,
+    createdAt: '',
+    updatedAt: '',
+  },
+  {
+    id: 'char2',
+    sessionId: 'session1',
+    name: 'Hero',
+    ownerId: 1,
+    controlledBy: [1],
+    data: { stats: { hp: 20, maxHp: 20, ac: 17, speed: 30 } },
+    version: 1,
+    createdAt: '',
+    updatedAt: '',
+  },
+  {
+    id: 'char3',
+    sessionId: 'session1',
+    name: 'Off Table',
+    ownerId: 1,
+    controlledBy: [],
+    data: { stats: { hp: 12, maxHp: 12, ac: 12, speed: 30 } },
+    version: 1,
+    createdAt: '',
+    updatedAt: '',
+  },
+];
+
+const mockSprites = [
+  {
+    id: 'e1',
+    name: 'Goblin Token',
+    tableId: 'table1',
+    characterId: 'char1',
+    controlledBy: [],
+    x: 0,
+    y: 0,
+    layer: 'tokens',
+    texture: '',
+    scale: { x: 1, y: 1 },
+    rotation: 0,
+    hp: 7,
+    maxHp: 7,
+    ac: 15,
+  },
+  {
+    id: 'e2',
+    name: 'Hero Token',
+    tableId: 'table1',
+    characterId: 'char2',
+    controlledBy: ['1'],
+    x: 0,
+    y: 0,
+    layer: 'tokens',
+    texture: '',
+    scale: { x: 1, y: 1 },
+    rotation: 0,
+    hp: 20,
+    maxHp: 20,
+    ac: 17,
+  },
+  {
+    id: 'e3',
+    name: 'Off Table Token',
+    tableId: 'table2',
+    characterId: 'char3',
+    controlledBy: [],
+    x: 0,
+    y: 0,
+    layer: 'tokens',
+    texture: '',
+    scale: { x: 1, y: 1 },
+    rotation: 0,
+  },
+];
 
 const mockCombat = {
   combat_id: 'combat1',
@@ -70,7 +155,11 @@ const mockCombat = {
 beforeEach(() => {
   vi.mocked(ProtocolService.getProtocol).mockReturnValue({ sendMessage: mockSendMessage } as unknown as ReturnType<typeof ProtocolService.getProtocol>);
   // Set a default activeTableId
-  useGameStore.setState({ activeTableId: 'table1' } as Parameters<typeof useGameStore.setState>[0]);
+  useGameStore.setState({
+    activeTableId: 'table1',
+    characters: mockCharacters,
+    sprites: mockSprites,
+  } as Parameters<typeof useGameStore.setState>[0]);
 });
 
 afterEach(() => {
@@ -123,6 +212,36 @@ describe('DMCombatPanel — active combat', () => {
     render(<DMCombatPanel />);
     expect(screen.getByRole('button', { name: /end combat/i })).toBeTruthy();
     expect(screen.getByRole('button', { name: /revert/i })).toBeTruthy();
+  });
+
+  it('adds linked token characters from the current table as combatants', async () => {
+    const user = userEvent.setup();
+    useCombatStore.setState({ combat: { ...mockCombat, combatants: [mockCombat.combatants[0]] } });
+
+    render(<DMCombatPanel />);
+    await user.click(screen.getByRole('button', { name: /add table combatants/i }));
+
+    expect(mockSendMessage).toHaveBeenCalledWith(
+      expect.objectContaining({
+        type: 'INITIATIVE_ADD',
+        data: expect.objectContaining({
+          entity_id: 'e2',
+          character_id: 'char2',
+          name: 'Hero',
+          hp: 20,
+          max_hp: 20,
+          armor_class: 17,
+          movement_speed: 30,
+          controlled_by: ['1'],
+        }),
+      })
+    );
+    expect(mockSendMessage).not.toHaveBeenCalledWith(
+      expect.objectContaining({
+        type: 'INITIATIVE_ADD',
+        data: expect.objectContaining({ entity_id: 'e3' }),
+      })
+    );
   });
 });
 

@@ -596,12 +596,17 @@ export const GameCanvas: React.FC = () => {
     let mounted = true;
     let resizeObserver: ResizeObserver | null = null;
     let resizeTimeout: number | null = null;
+    let resizeFrame: number | null = null;
 
     const scheduleResize = () => {
       if (resizeTimeout) {
         window.clearTimeout(resizeTimeout);
       }
-      requestAnimationFrame(() => {
+      if (resizeFrame) {
+        cancelAnimationFrame(resizeFrame);
+      }
+      resizeFrame = requestAnimationFrame(() => {
+        resizeFrame = null;
         resizeTimeout = window.setTimeout(() => {
           try {
             const canvas = canvasRef.current;
@@ -842,6 +847,9 @@ export const GameCanvas: React.FC = () => {
       }
       try {
         if (typeof resizeTimeout !== 'undefined' && resizeTimeout) window.clearTimeout(resizeTimeout);
+      } catch {}
+      try {
+        if (resizeFrame) cancelAnimationFrame(resizeFrame);
       } catch {}
       resizeObserver = null;
       window.rustRenderManager = undefined;

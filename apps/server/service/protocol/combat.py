@@ -116,7 +116,11 @@ class _CombatMixin(_ProtocolBase):
         state = CombatEngine.get_state(session_code)
         order = [{'combatant_id': c.combatant_id, 'name': c.name, 'initiative': c.initiative}
                  for c in (state.combatants if state else [])]
-        resp = Message(MessageType.INITIATIVE_ORDER, {'combatant': combatant.to_dict(), 'order': order})
+        resp = Message(MessageType.INITIATIVE_ORDER, {
+            'combatant': combatant.to_dict(),
+            'order': order,
+            'combat': state.to_dict() if state else None,
+        })
         await self.broadcast_to_session(resp, client_id)
         return resp
 

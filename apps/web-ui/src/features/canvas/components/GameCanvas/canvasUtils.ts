@@ -65,18 +65,6 @@ export const resizeCanvas = (
     return;
   }
 
-  let worldCenter: [number, number] | null = null;
-  if (rustRenderManager) {
-    try {
-      const w = rustRenderManager.screen_to_world(canvas.width / 2, canvas.height / 2);
-      if (w && w.length >= 2) {
-        worldCenter = [w[0], w[1]];
-      }
-    } catch (err) {
-      console.warn('screen_to_world before resize failed:', err);
-    }
-  }
-
   canvas.width = newDeviceWidth;
   canvas.height = newDeviceHeight;
   canvas.style.width = targetWidth + 'px';
@@ -90,15 +78,6 @@ export const resizeCanvas = (
         rustRenderManager.resize(canvas.width, canvas.height);
       } catch {
         console.error('WASM resize error:', err);
-      }
-    }
-
-    if (worldCenter) {
-      try {
-        rustRenderManager.center_camera(worldCenter[0], worldCenter[1]);
-        rustRenderManager.render();
-      } catch (err) {
-        console.error('WASM center_camera after resize failed:', err);
       }
     }
   }

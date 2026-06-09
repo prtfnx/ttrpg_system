@@ -134,7 +134,7 @@ describe('resizeCanvas', () => {
     expect(warnSpy).toHaveBeenCalledWith(expect.stringContaining('no parent container'));
   });
 
-  it('calls rustRenderManager.resize_canvas and center_camera after resize', () => {
+  it('calls rustRenderManager.resize_canvas without moving the camera', () => {
     const { canvas, dprRef } = makeSetup({ width: 800, height: 600 });
 
     const mockEngine = {
@@ -147,19 +147,17 @@ describe('resizeCanvas', () => {
     resizeCanvas(canvas, dprRef, mockEngine as never);
 
     expect(mockEngine.resize_canvas).toHaveBeenCalledWith(800, 600);
-    expect(mockEngine.center_camera).toHaveBeenCalledWith(100, 200);
-    expect(mockEngine.render).toHaveBeenCalled();
+    expect(mockEngine.screen_to_world).not.toHaveBeenCalled();
+    expect(mockEngine.center_camera).not.toHaveBeenCalled();
+    expect(mockEngine.render).not.toHaveBeenCalled();
   });
 
   it('falls back to resize() if resize_canvas throws', () => {
     const { canvas, dprRef } = makeSetup({ width: 800, height: 600 });
 
     const mockEngine = {
-      screen_to_world: vi.fn().mockReturnValue([0, 0]),
       resize_canvas: vi.fn().mockImplementation(() => { throw new Error('not impl'); }),
       resize: vi.fn(),
-      center_camera: vi.fn(),
-      render: vi.fn(),
     };
 
     resizeCanvas(canvas, dprRef, mockEngine as never);

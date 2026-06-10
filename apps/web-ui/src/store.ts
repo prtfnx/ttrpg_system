@@ -3,7 +3,7 @@ import { UnitConverter, type DistanceUnit, type TableUnitConfig } from '@/utils/
 import { advancedMeasurementSystem } from '@features/measurement/services/advancedMeasurement.service';
 import { isDM, type SessionRole } from '@features/session/types/roles';
 import { ProtocolService } from '@lib/api';
-import { WasmRuntimeService } from '@lib/wasm/wasmRuntimeService';
+import { getCurrentWasmRuntime } from '@lib/wasm/runtime';
 import { transformServerTablesToClient, validateTableId } from '@lib/websocket';
 import { create } from 'zustand';
 import { devtools } from 'zustand/middleware';
@@ -551,13 +551,8 @@ export const useGameStore = create<GameStore>()(
           distanceUnit,
         }));
         advancedMeasurementSystem.syncWithTableUnits(gridCellPx, cellDistance, distanceUnit);
-        // Sync to Rust WASM
-        const tableManager = WasmRuntimeService.getTableManager();
         const tableId = useGameStore.getState().activeTableId;
-
-        if (tableManager && tableId) {
-        tableManager.set_table_units(tableId, gridCellPx, cellDistance, distanceUnit);
-        }
+        getCurrentWasmRuntime()?.setTableUnits(tableId, gridCellPx, cellDistance, distanceUnit);
       },
 
       getUnitConverter: () => {
@@ -588,8 +583,7 @@ export const useGameStore = create<GameStore>()(
 
       setAmbientLight: (level: number) => {
         set(() => ({ ambientLight: level }));
-        const rm = WasmRuntimeService.getRenderEngine();
-        if (rm?.set_ambient_light) rm.set_ambient_light(level);
+        getCurrentWasmRuntime()?.setAmbientLight(level);
       },
 
       setDmPreviewMode: (userId: number | null) => {
@@ -611,8 +605,9 @@ export const useGameStore = create<GameStore>()(
           ambientLight: settings.ambient_light_level ?? 1.0,
         }));
         // Sync lighting settings to WASM if available
-        const rm = WasmRuntimeService.getRenderEngine();
-        if (rm?.set_ambient_light) rm.set_ambient_light(settings.ambient_light_level ?? 1.0);          
+        const runtime = getCurrentWasmRuntime();
+        const rm = runtime?.getRenderEngine();
+        runtime?.setAmbientLight(settings.ambient_light_level ?? 1.0);
         // Re-assert GM mode so the DM never sees a black fog screen.
         const { sessionRole } = useGameStore.getState();
         if (isDM(sessionRole)) {
@@ -720,10 +715,7 @@ export const useGameStore = create<GameStore>()(
         
         // Emit table data event for WASM integration
         sendProtocolMessage('table_data_received');
-        const renderEngine = WasmRuntimeService.getRenderEngine();
-        if (renderEngine) {
-        renderEngine.handle_table_data(tableDataForWasm);
-        }
+        getCurrentWasmRuntime()?.handleTableData(tableDataForWasm);
         // Send message via protocol to create new table on server
         // BEST PRACTICE: Include local_table_id for sync mapping
         sendProtocolMessage('new_table_request', {
@@ -805,10 +797,7 @@ export const useGameStore = create<GameStore>()(
                 }
               }
             };
-            const renderEngine = WasmRuntimeService.getRenderEngine();
-            if (renderEngine) {
-              renderEngine.handle_table_data(tableDataForWasm);
-            }
+            getCurrentWasmRuntime()?.handleTableData(tableDataForWasm);
             sendProtocolMessage('table_data_received', tableDataForWasm);
           }
           
@@ -827,8 +816,7 @@ export const useGameStore = create<GameStore>()(
             ? state.walls.map(w => w.wall_id === wall.wall_id ? wall : w)
             : [...state.walls, wall],
         }));
-        const rm = WasmRuntimeService.getRenderEngine();
-        if (rm?.add_wall) rm.add_wall(JSON.stringify(wall));
+        getCurrentWasmRuntime()?.addWall(wall);
       },
 
       addWalls: (walls: WallData[]) => {
@@ -837,30 +825,24 @@ export const useGameStore = create<GameStore>()(
           for (const w of walls) existing.set(w.wall_id, w);
           return { walls: [...existing.values()] };
         });
-        const rm = WasmRuntimeService.getRenderEngine();
-        if (rm?.add_wall) {
-          for (const w of walls) rm.add_wall(JSON.stringify(w));
-        }
+        getCurrentWasmRuntime()?.addWalls(walls);
       },
 
       updateWall: (wallId: string, updates: Partial<WallData>) => {
         set((state) => ({
           walls: state.walls.map(w => w.wall_id === wallId ? { ...w, ...updates } : w),
         }));
-        const rm = WasmRuntimeService.getRenderEngine();
-        if (rm?.update_wall) rm.update_wall(wallId, JSON.stringify(updates));
+        getCurrentWasmRuntime()?.updateWall(wallId, updates);
       },
 
       removeWall: (wallId: string) => {
         set((state) => ({ walls: state.walls.filter(w => w.wall_id !== wallId) }));
-        const rm = WasmRuntimeService.getRenderEngine();
-        if (rm?.remove_wall) rm.remove_wall(wallId);
+        getCurrentWasmRuntime()?.removeWall(wallId);
       },
 
       clearWalls: () => {
         set(() => ({ walls: [] }));
-        const rm = WasmRuntimeService.getRenderEngine();
-        if (rm?.clear_walls) rm.clear_walls();
+        getCurrentWasmRuntime()?.clearWalls();
       },
     }),
     {

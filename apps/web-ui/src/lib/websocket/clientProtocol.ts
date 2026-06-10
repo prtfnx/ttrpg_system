@@ -9,6 +9,7 @@ import { useGameStore } from '@/store';
 import type { WallData } from '@/store';
 import type { Character } from '@/types';
 import { useAssetCharacterCache } from '@features/assets/services/assetCache';
+import { getCurrentWasmRuntime } from '@lib/wasm/runtime';
 import { logger, protocolLogger } from '@shared/utils/logger';
 import { showToast } from '@shared/utils/toast';
 import type { Message, MessageHandler } from './message';
@@ -811,13 +812,13 @@ export class WebClientProtocol {
     // Load paint strokes on join — server sends to_dict() format: [{stroke_id, stroke_data: <JSON>, ...}]
     const rawData = message.data as { paint_strokes?: { stroke_id: string; stroke_data: string }[] };
     if (Array.isArray(rawData?.paint_strokes) && rawData.paint_strokes.length > 0) {
-      const rm = window.rustRenderManager;
-      if (rm && typeof rm.paint_load_strokes === 'function') {
+      const runtime = getCurrentWasmRuntime();
+      if (runtime) {
         try {
           const drawStrokes = rawData.paint_strokes
             .map(s => JSON.parse(s.stroke_data) as Record<string, unknown>)
             .filter(Boolean);
-          rm.paint_load_strokes(JSON.stringify(drawStrokes));
+          runtime.loadPaintStrokes(JSON.stringify(drawStrokes));
         } catch {
           // non-fatal
         }
@@ -1221,12 +1222,13 @@ export class WebClientProtocol {
     if (data.grid_color_hex != null) store.setGridColorHex(data.grid_color_hex);
     if (data.background_color_hex != null) store.setBackgroundColorHex(data.background_color_hex);
 
-    // Apply visual changes directly to WASM renderer
-    const rm = window.rustRenderManager;
+    // Apply visual changes through the WASM runtime facade
+    const runtime = getCurrentWasmRuntime();
+    const rm = runtime?.getRenderEngine();
     if (rm) {
-      if (data.grid_enabled !== undefined && (rm as any).set_grid_enabled) (rm as any).set_grid_enabled(data.grid_enabled);
+      if (data.grid_enabled !== undefined) runtime?.setGridEnabled(Boolean(data.grid_enabled));
       // TODO temporal fix: cast to any for legacy grid setters
-      if (data.snap_to_grid !== undefined && (rm as any).set_snap_to_grid) (rm as any).set_snap_to_grid(data.snap_to_grid);
+      if (data.snap_to_grid !== undefined) runtime?.setGridSnapping(Boolean(data.snap_to_grid));
       if (data.grid_color_hex && (rm as any).set_grid_color) {
         const c = data.grid_color_hex;
         (rm as any).set_grid_color(parseInt(c.slice(1,3),16)/255, parseInt(c.slice(3,5),16)/255, parseInt(c.slice(5,7),16)/255, 0.4);
@@ -1273,31 +1275,23 @@ export class WebClientProtocol {
     if (!stroke) return;
     // Skip our own strokes — server excludes sender from broadcast, but sends response back
     if (stroke.created_by != null && stroke.created_by === this.userId) return;
-    const rm = window.rustRenderManager;
-    if (!rm) return;
     // stroke_data is the raw DrawStroke JSON from WASM
     const drawStrokeJson = stroke.stroke_data;
-    if (drawStrokeJson && typeof rm.paint_add_remote_stroke === 'function') {
-      rm.paint_add_remote_stroke(drawStrokeJson);
+    if (drawStrokeJson) {
+      getCurrentWasmRuntime()?.addRemotePaintStroke(drawStrokeJson);
     }
     window.dispatchEvent(new CustomEvent('paint-stroke-created', { detail: data }));
   }
 
   private handlePaintStrokeDelete(message: Message): void {
     const data = message.data as { stroke_id?: string };
-    const rm = window.rustRenderManager;
-    if (!rm || !data.stroke_id) return;
-    if (typeof rm.paint_remove_stroke === 'function') {
-      rm.paint_remove_stroke(data.stroke_id);
-    }
+    if (!data.stroke_id) return;
+    getCurrentWasmRuntime()?.removePaintStroke(data.stroke_id);
     window.dispatchEvent(new CustomEvent('paint-stroke-deleted', { detail: data }));
   }
 
   private handlePaintStrokeClear(message: Message): void {
-    const rm = window.rustRenderManager;
-    if (rm && typeof rm.paint_clear_all === 'function') {
-      rm.paint_clear_all();
-    }
+    getCurrentWasmRuntime()?.clearPaintStrokes();
     window.dispatchEvent(new CustomEvent('paint-strokes-cleared', { detail: message.data }));
   }
 
@@ -1305,14 +1299,14 @@ export class WebClientProtocol {
     // Server sends PAINT_SYNC with strokes in to_dict() format: [{stroke_id, stroke_data: <JSON>, ...}]
     // We need to extract the DrawStroke JSON from each entry
     const data = message.data as { strokes?: { stroke_id: string; stroke_data: string }[] };
-    const rm = window.rustRenderManager;
-    if (!rm || !Array.isArray(data?.strokes)) return;
-    if (typeof rm.paint_load_strokes === 'function') {
+    const runtime = getCurrentWasmRuntime();
+    if (!runtime || !Array.isArray(data?.strokes)) return;
+    {
       try {
         const drawStrokes = data.strokes
           .map(s => JSON.parse(s.stroke_data) as Record<string, unknown>)
           .filter(Boolean);
-        rm.paint_load_strokes(JSON.stringify(drawStrokes));
+        runtime.loadPaintStrokes(JSON.stringify(drawStrokes));
       } catch {
         // non-fatal parse error
       }
@@ -1321,19 +1315,14 @@ export class WebClientProtocol {
 
   /** Apply a map of { layerName → settings } to the WASM engine and Zustand store. */
   private applyLayerSettings(settings: Record<string, Record<string, unknown>>): void {
-    const rm = window.rustRenderManager;
+    getCurrentWasmRuntime()?.applyLayerSettings(settings);
     const store = useGameStore.getState();
     for (const [layer, s] of Object.entries(settings)) {
       if (s.opacity !== undefined) {
-        rm?.set_layer_opacity?.(layer, s.opacity as number);
         store.setLayerOpacity(layer, s.opacity as number);
       }
       if (s.visible !== undefined) {
-        rm?.set_layer_visibility?.(layer, s.visible as boolean);
         store.setLayerVisibility(layer, s.visible as boolean);
-      }
-      if (Array.isArray(s.tint_color) && s.tint_color.length >= 4) {
-        rm?.set_layer_color?.(layer, s.tint_color[0] as number, s.tint_color[1] as number, s.tint_color[2] as number);
       }
       if (s.inactive_opacity !== undefined) {
         // no-op: WASM does not expose set_layer_inactive_opacity

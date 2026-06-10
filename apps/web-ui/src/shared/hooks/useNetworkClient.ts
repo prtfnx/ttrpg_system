@@ -1,7 +1,6 @@
-import type { NetworkClient } from '@lib/wasm/ttrpg_rust_core';
-import { wasmManager } from '@lib/wasm/wasmManager';
+import { useWasmRuntime, type WasmRuntime } from '@lib/wasm/runtime';
 
-type NetworkClientInstance = NetworkClient;
+type NetworkClientInstance = NonNullable<ReturnType<WasmRuntime['getNetworkClient']>>;
 import { useCallback, useEffect, useRef, useState } from 'react';
 
 interface NetworkMessage {
@@ -32,6 +31,7 @@ interface NetworkHookOptions {
 }
 
 export const useNetworkClient = (options: NetworkHookOptions = {}) => {
+  const runtime = useWasmRuntime();
   const clientRef = useRef<NetworkClientInstance | null>(null);
   const [networkState, setNetworkState] = useState<NetworkState>({
     isConnected: false,
@@ -42,19 +42,9 @@ export const useNetworkClient = (options: NetworkHookOptions = {}) => {
   // Initialize network client
   useEffect(() => {
     if (!clientRef.current) {
-      // Use global WASM manager for consistent instance
-      wasmManager.getWasmModule().then(async (m: unknown) => {
-        const mod = m as Record<string, unknown>;
-        const NetworkClientClassOrInstance = mod.NetworkClient;
-        // wasmManager may return either a constructor (class) or an already-instantiated client.
-        let client: NetworkClientInstance;
-        if (typeof NetworkClientClassOrInstance === 'function') {
-          client = new (NetworkClientClassOrInstance as new () => NetworkClientInstance)();
-        } else if (typeof NetworkClientClassOrInstance === 'object' && NetworkClientClassOrInstance !== null) {
-          client = NetworkClientClassOrInstance as NetworkClientInstance;
-        } else {
-          throw new Error('Invalid NetworkClient provided by wasmManager');
-        }
+      runtime.initialize().then(() => {
+        const client = runtime.getNetworkClient();
+        if (!client) throw new Error('NetworkClient unavailable from WASM runtime');
         
           try {
             // Set up event handlers only if the client exposes the expected API.
@@ -184,12 +174,11 @@ export const useNetworkClient = (options: NetworkHookOptions = {}) => {
     return () => {
       if (clientRef.current) {
         clientRef.current.disconnect();
-        clientRef.current.free();
         clientRef.current = null;
       }
     };
   // eslint-disable-next-line react-hooks/exhaustive-deps -- intentional: options excluded to prevent loop
-  }, [options.autoConnect, options.serverUrl, options.onMessage, options.onConnectionChange, options.onError]);
+  }, [runtime, options.autoConnect, options.serverUrl, options.onMessage, options.onConnectionChange, options.onError]);
 
   // Connection management
   const connect = useCallback((url: string) => {

@@ -1,4 +1,4 @@
-import { wasmManager } from '@lib/wasm/wasmManager';
+import { useWasmRuntime } from '@lib/wasm/runtime';
 import { useNetworkClient } from '@shared/hooks/useNetworkClient';
 import { useCallback, useEffect, useRef, useState } from 'react';
 
@@ -64,6 +64,7 @@ interface TableSyncHookOptions {
 }
 
 export const useTableSync = (options: TableSyncHookOptions = {}) => {
+  const runtime = useWasmRuntime();
   const tableSyncRef = useRef<Record<string, (...args: unknown[]) => unknown> | null>(null);
   // Ref-based handler so the stable onMessage wrapper never becomes stale
   const handleNetworkMessageRef = useRef<((type: string, data: Record<string, unknown>) => void) | undefined>(undefined);
@@ -84,14 +85,12 @@ export const useTableSync = (options: TableSyncHookOptions = {}) => {
   // Initialize table sync client
   useEffect(() => {
     if (!tableSyncRef.current) {
-      // Use global WASM manager — TableSync is internal to the WASM module
-      wasmManager.getWasmModule().then(async (wasmMod: unknown) => {
-        const m = wasmMod as Record<string, unknown>;
-        const TableSyncClass = m.TableSync as (new () => { set_table_received_handler: (h: (d: unknown) => void) => void; set_sprite_update_handler: (h: (d: unknown) => void) => void; set_error_handler: (h: (e: string) => void) => void; handle_table_data: (d: unknown) => void; handle_sprite_update: (d: unknown) => void; request_table: (id: string) => void; send_sprite_move: (id: string, x: number, y: number) => void; send_sprite_scale: (id: string, x: number, y: number) => void; send_sprite_rotate: (id: string, r: number) => void; send_sprite_delete: (id: string) => void }) | undefined;
-        if (!TableSyncClass) {
-          throw new Error('TableSync not available in WASM module');
+      // TableSync is owned by the WASM runtime facade.
+      runtime.initialize().then(() => {
+        const tableSync = runtime.getTableSync() as unknown as { set_table_received_handler: (h: (d: unknown) => void) => void; set_sprite_update_handler: (h: (d: unknown) => void) => void; set_error_handler: (h: (e: string) => void) => void; handle_table_data: (d: unknown) => void; handle_sprite_update: (d: unknown) => void; request_table: (id: string) => void; send_sprite_move: (id: string, x: number, y: number) => void; send_sprite_scale: (id: string, x: number, y: number) => void; send_sprite_rotate: (id: string, r: number) => void; send_sprite_delete: (id: string) => void; send_sprite_create: (sprite: unknown) => void } | null;
+        if (!tableSync) {
+          throw new Error('TableSync unavailable from WASM runtime');
         }
-        const tableSync = new TableSyncClass();
         
         // Set up event handlers
         tableSync.set_table_received_handler((tableDataJs: unknown) => {
@@ -185,7 +184,7 @@ export const useTableSync = (options: TableSyncHookOptions = {}) => {
       });
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps -- intentional: options object excluded to prevent infinite loop
-  }, [options.onTableReceived, options.onSpriteUpdate, options.onError]);
+  }, [runtime, options.onTableReceived, options.onSpriteUpdate, options.onError]);
 
   // Listen for protocol events and forward to WASM
   useEffect(() => {

@@ -1,13 +1,15 @@
 import { useGameStore } from '@/store';
+import { useRenderEngine } from '@lib/wasm/runtime';
 import { useCallback, useEffect } from 'react';
 
 export function useSpriteSyncing() {
   const addSprite = useGameStore(state => state.addSprite);
   const removeSprite = useGameStore(state => state.removeSprite);
   const updateSprite = useGameStore(state => state.updateSprite);
+  const renderEngine = useRenderEngine();
 
   const syncSprites = useCallback(() => {
-    if (!window.rustRenderManager) return;
+    if (!renderEngine) return;
 
     try {
       // Get current sprites from store
@@ -15,7 +17,7 @@ export function useSpriteSyncing() {
       
       // Get all sprites from the Rust backend
       // TODO temporal fix: cast to any until the WASM d.ts exposes the legacy getter
-      const rustSprites = (window.rustRenderManager as any).get_all_sprites_network_data?.() as any[] ?? (window.rustRenderManager as any).get_sprites?.() ?? [];
+      const rustSprites = (renderEngine as any).get_all_sprites_network_data?.() as any[] ?? (renderEngine as any).get_sprites?.() ?? [];
       
       if (!Array.isArray(rustSprites)) return;
 
@@ -98,7 +100,7 @@ export function useSpriteSyncing() {
     } catch (error) {
       console.warn('[SpriteSyncing] Error syncing sprites from Rust:', error);
     }
-  }, [addSprite, removeSprite, updateSprite]);
+  }, [addSprite, removeSprite, renderEngine, updateSprite]);
 
   // Sync sprites from Rust backend
   useEffect(() => {

@@ -1,5 +1,5 @@
 import type { PlanningManager } from '@lib/wasm/ttrpg_rust_core';
-import { wasmManager } from '@lib/wasm/wasmManager';
+import { getCurrentWasmRuntime } from '@lib/wasm/runtime';
 
 // Local types for data returned from WASM (these are not exported from the generated d.ts)
 interface GhostToken {
@@ -35,10 +35,9 @@ function snapToCell(x: number, y: number, gridSize: number) {
 async function getManager(): Promise<PlanningManager | null> {
   if (manager) return manager;
   try {
-    const wasm = await wasmManager.getWasmModule();
-    if (wasm?.PlanningManager) {
-      manager = new wasm.PlanningManager(GRID_SIZE, FT_PER_UNIT);
-    }
+    const runtime = getCurrentWasmRuntime();
+    await runtime?.initialize();
+    manager = runtime?.getPlanningManager() ?? null;
   } catch {
     // WASM may not be available in tests
   }

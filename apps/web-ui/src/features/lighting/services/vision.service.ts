@@ -1,4 +1,5 @@
 import { useGameStore } from '@/store';
+import { getCurrentWasmRuntime } from '@lib/wasm/runtime';
 import type { RenderEngine } from '@lib/wasm/ttrpg_rust_core';
 
 type RenderEngineExt = RenderEngine & {
@@ -11,7 +12,7 @@ type RenderEngineExt = RenderEngine & {
 };
 
 function getRm(): RenderEngineExt | undefined {
-  return (window as unknown as Record<string, unknown>)['rustRenderManager'] as RenderEngineExt | undefined;
+  return getCurrentWasmRuntime()?.getRenderEngine() as RenderEngineExt | undefined;
 }
 
 interface SpriteData {
@@ -63,7 +64,7 @@ class VisionService {
   private spritePositions = new Map<string, { x: number; y: number }>();
   private spriteMovedListener: ((e: Event) => void) | null = null;
   private spriteDragPreviewListener: ((e: Event) => void) | null = null;
-  private renderManagerReadyListener: (() => void) | null = null;
+  private renderRetryId: ReturnType<typeof setTimeout> | null = null;
 
   start(): void {
     if (this.isRunning) return;
@@ -83,14 +84,11 @@ class VisionService {
 
     const rm = getRm();
     if (!rm) {
-      if (this.renderManagerReadyListener) return; // already waiting
-      const onReady = () => {
-        window.removeEventListener('render-manager-ready', onReady);
-        this.renderManagerReadyListener = null;
+      if (this.renderRetryId) return;
+      this.renderRetryId = setTimeout(() => {
+        this.renderRetryId = null;
         this.start();
-      };
-      this.renderManagerReadyListener = onReady;
-      window.addEventListener('render-manager-ready', onReady);
+      }, 100);
       return;
     }
 
@@ -133,9 +131,9 @@ class VisionService {
   }
 
   stop(): void {
-    if (this.renderManagerReadyListener) {
-      window.removeEventListener('render-manager-ready', this.renderManagerReadyListener);
-      this.renderManagerReadyListener = null;
+    if (this.renderRetryId) {
+      clearTimeout(this.renderRetryId);
+      this.renderRetryId = null;
     }
     this.unsubscribe?.();
     this.unsubscribe = null;

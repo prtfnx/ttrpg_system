@@ -1,5 +1,6 @@
 import { useGameStore } from '@/store';
 import { ProtocolService } from '@lib/api';
+import { useWasmRuntime } from '@lib/wasm/runtime';
 import type { BrushPreset } from '@lib/wasm';
 import { useCallback, useEffect, useRef, useState } from 'react';
 
@@ -417,23 +418,21 @@ export function usePaintInteraction(
 
 // Brush presets utility
 export function useBrushPresets() {
+  const runtime = useWasmRuntime();
   const [presets, setPresets] = useState<BrushPreset[]>([]);
 
   useEffect(() => {
     const loadPresets = async () => {
       try {
-        const wasmModule = window.ttrpg_rust_core;
-        if (wasmModule && typeof wasmModule.create_default_brush_presets === 'function') {
-          const defaultPresets = wasmModule.create_default_brush_presets();
-          setPresets(defaultPresets as BrushPreset[]);
-        }
+        await runtime.initialize();
+        setPresets(runtime.getDefaultBrushPresets() as BrushPreset[]);
       } catch (error) {
         console.error('Error loading brush presets:', error);
       }
     };
 
     loadPresets();
-  }, []);
+  }, [runtime]);
 
   return presets;
 }

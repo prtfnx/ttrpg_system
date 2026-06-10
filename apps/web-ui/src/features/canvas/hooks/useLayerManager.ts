@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import type { RenderEngine } from '@lib/wasm/ttrpg_rust_core';
+import { useRenderEngine } from './useRenderEngine';
 
 type RenderEngineExt = RenderEngine & {
   set_layer_settings?: (name: string, settings: Partial<LayerSettings>) => void;
@@ -37,63 +38,18 @@ const LAYER_CONFIG = [
 ];
 
 export const useLayerManager = () => {
+  const runtimeRenderEngine = useRenderEngine() as RenderEngineExt | null;
   const [renderManager, setRenderManager] = useState<RenderEngineExt | null>(null);
   const [layers, setLayers] = useState<LayerInfo[]>([]);
   const [activeLayer, setActiveLayer] = useState<string>('tokens');
   const [isInitialized, setIsInitialized] = useState(false);
 
   useEffect(() => {
-    const initLayerManager = async () => {
-      try {
-        // Wait for the global WASM module to be ready using event-based approach
-        const waitForWasm = (): Promise<void> => {
-          return new Promise((resolve, reject) => {
-            // Check if already loaded
-            if (window.ttrpg_rust_core && (window as unknown as Record<string, unknown>)['gameAPI'] !== undefined) {
-              resolve();
-              return;
-            }
-            
-            // Set timeout for safety
-            const timeoutId = setTimeout(() => {
-              window.removeEventListener('wasm-ready', handleReady);
-              reject(new Error('WASM initialization timeout (10s)'));
-            }, 10000);
-            
-            // Listen for ready event
-            const handleReady = () => {
-              clearTimeout(timeoutId);
-              queueMicrotask(() => {
-                if (window.ttrpg_rust_core && (window as unknown as Record<string, unknown>)['gameAPI'] !== undefined) {
-                  resolve();
-                } else {
-                  reject(new Error('gameAPI.renderManager not available after WASM ready'));
-                }
-              });
-            };
-            
-            window.addEventListener('wasm-ready', handleReady, { once: true });
-          });
-        };
-
-        await waitForWasm();
-        console.log('Global WASM module is ready for layer manager');
-        
-        const gameAPI = (window as unknown as Record<string, unknown>)['gameAPI'] as { renderManager?: () => RenderEngineExt } | undefined;
-        const manager = gameAPI?.renderManager?.();
-        if (manager) {
-          setRenderManager(manager);
-          setIsInitialized(true);
-          refreshLayerData(manager);
-        }
-      } catch (error) {
-        console.error('Failed to initialize layer manager:', error);
-      }
-    };
-
-    initLayerManager();
-  // eslint-disable-next-line react-hooks/exhaustive-deps -- intentional: refresh on mount only
-  }, []);
+    setRenderManager(runtimeRenderEngine);
+    setIsInitialized(Boolean(runtimeRenderEngine));
+    if (runtimeRenderEngine) refreshLayerData(runtimeRenderEngine);
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- refreshLayerData is declared below and only needed when engine changes
+  }, [runtimeRenderEngine]);
 
   const refreshLayerData = useCallback((manager: RenderEngineExt | null = renderManager) => {
     if (!manager) return;

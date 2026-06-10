@@ -1,4 +1,5 @@
-import { AssetManager } from '@lib/wasm';
+import { useWasmRuntime } from '@lib/wasm/runtime';
+import type { AssetManager } from '@lib/wasm/ttrpg_rust_core';
 import { useCallback, useEffect, useRef, useState } from 'react';
 
 export interface AssetInfo {
@@ -47,6 +48,7 @@ export interface UploadProgress {
 }
 
 export const useAssetManager = (config?: AssetManagerConfig) => {
+  const runtime = useWasmRuntime();
   const assetManagerRef = useRef<AssetManager | null>(null);
   const [state, setState] = useState<AssetManagerState>({
     stats: null,
@@ -79,45 +81,10 @@ export const useAssetManager = (config?: AssetManagerConfig) => {
     try {
       console.log('Initializing WASM module...');
       
-      // Wait for the global WASM module to be ready using event-based approach
-      const waitForWasm = (): Promise<void> => {
-        return new Promise((resolve, reject) => {
-          // Check if already loaded
-          if (typeof window !== 'undefined' && window.ttrpg_rust_core?.AssetManager) {
-            console.log('WASM already initialized');
-            resolve();
-            return;
-          }
-          
-          // Test environment check
-          if (typeof window === 'undefined') {
-            resolve();
-            return;
-          }
-          
-          // Set timeout for safety
-          const timeoutId = setTimeout(() => {
-            window.removeEventListener('wasm-ready', handleReady);
-            reject(new Error('WASM initialization timeout (10s)'));
-          }, 10000);
-          
-          // Listen for ready event
-          const handleReady = () => {
-            clearTimeout(timeoutId);
-            console.log('WASM ready event received');
-            resolve();
-          };
-          
-          window.addEventListener('wasm-ready', handleReady, { once: true });
-        });
-      };
-
-      await waitForWasm();
-      console.log('Global WASM module is ready');
-      
+      await runtime.initialize();
       console.log('Initializing Enhanced Asset Manager...');
-      const AssetManagerClass = (window.ttrpg_rust_core as unknown as { AssetManager: typeof AssetManager }).AssetManager;
-      const manager = new AssetManagerClass();
+      const manager = runtime.getAssetManager();
+      if (!manager) throw new Error('AssetManager unavailable from WasmRuntime');
       await manager.initialize();
       
       // Apply configuration if provided
@@ -158,7 +125,7 @@ export const useAssetManager = (config?: AssetManagerConfig) => {
       }));
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps -- intentional: isLoading guarded to avoid loop
-  }, [config]);
+  }, [config, runtime]);
 
   // Download asset with hash verification
   const downloadAsset = useCallback(async (

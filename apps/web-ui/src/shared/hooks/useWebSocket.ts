@@ -1,12 +1,14 @@
 import { useGameStore } from '@/store';
 import type { Sprite, WebSocketMessage } from '@/types';
 import { useOptionalProtocol } from '@lib/api';
+import { useRenderEngine } from '@lib/wasm/runtime';
 import type { Message } from '@lib/websocket';
 import { useCallback, useEffect, useRef } from 'react';
 
 export function useWebSocket(url: string) {
   const wsRef = useRef<WebSocket | null>(null);
   const protocol = useOptionalProtocol()?.protocol ?? null;
+  const renderEngine = useRenderEngine();
   const reconnectTimeoutRef = useRef<number | undefined>(undefined);
   const messageQueueRef = useRef<WebSocketMessage[]>([]);
   
@@ -105,10 +107,10 @@ export function useWebSocket(url: string) {
               tint_color: [1.0, 1.0, 1.0, 1.0]
             };
             console.log('[WASM] add_sprite_to_layer payload:', spriteForWasm);
-            if (window.rustRenderManager && typeof window.rustRenderManager.add_sprite_to_layer === 'function') {
+            if (renderEngine && typeof renderEngine.add_sprite_to_layer === 'function') {
               try {
                 console.log('[WASM] Calling add_sprite_to_layer...');
-                window.rustRenderManager.add_sprite_to_layer(layer, spriteForWasm);
+                renderEngine.add_sprite_to_layer(layer, spriteForWasm);
                 console.log('[WASM] add_sprite_to_layer call completed');
               } catch (err) {
                 console.error('[WASM] Failed to add sprite to RenderManager:', err);
@@ -197,7 +199,7 @@ export function useWebSocket(url: string) {
                 }
                 
                 // Add sprite to WASM if available
-                if (window.rustRenderManager && typeof window.rustRenderManager.add_sprite_to_layer === 'function') {
+                if (renderEngine && typeof renderEngine.add_sprite_to_layer === 'function') {
                   try {
                     const layerName = newSprite.layer;
                     const spriteData = {
@@ -212,7 +214,7 @@ export function useWebSocket(url: string) {
                       tint_color: [1, 1, 1, 1]
                     };
                     
-                    window.rustRenderManager.add_sprite_to_layer(layerName, spriteData);
+                    renderEngine.add_sprite_to_layer(layerName, spriteData);
                     console.log('Added sprite to WASM layer:', layerName, spriteData);
                   } catch (error) {
                     console.error('Failed to add sprite to WASM:', error);
@@ -222,11 +224,11 @@ export function useWebSocket(url: string) {
             }
             
             // Table dimensions can be handled through the canvas resize mechanism
-            if (data.width && data.height && window.rustRenderManager) {
+            if (data.width && data.height && renderEngine) {
               try {
                 console.log('Table dimensions:', data.width, 'x', data.height);
                 // The resize method will handle table size adjustments
-                window.rustRenderManager.resize(data.width, data.height);
+                renderEngine.resize(data.width, data.height);
               } catch (error) {
                 console.error('Failed to set table size in WASM:', error);
               }
@@ -254,7 +256,7 @@ export function useWebSocket(url: string) {
       console.error('Failed to parse WebSocket message:', error);
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps -- intentional: deps omitted to avoid infinite reconnect
-  }, [moveSprite, addSprite, removeSprite, updateSprite, setConnection]);
+  }, [moveSprite, addSprite, removeSprite, renderEngine, updateSprite, setConnection]);
 
   const connect = useCallback(async () => {
     if (protocol && protocol.isConnected && protocol.isConnected()) return;

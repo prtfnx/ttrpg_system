@@ -4,6 +4,7 @@
  */
 
 import type { WebClientProtocol } from '@lib/websocket';
+import { getCurrentWasmRuntime } from '@lib/wasm/runtime';
 import { createMessage, MessageType } from '@lib/websocket';
 
 interface AssetUploadResponse {
@@ -225,9 +226,9 @@ class AssetIntegrationService {
       return new Promise((resolve, reject) => {
         img.onload = () => {
           try {
-            // Load texture into WASM render engine
-            if (window.rustRenderManager && window.rustRenderManager.load_texture) {
-              window.rustRenderManager.load_texture(assetId, img);
+            const renderEngine = getCurrentWasmRuntime()?.getRenderEngine();
+            if (renderEngine?.load_texture) {
+              renderEngine.load_texture(assetId, img);
  console.log('Texture loaded into WASM:', assetId);
             }
             resolve();

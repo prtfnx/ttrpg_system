@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import { useGameStore } from '@/store';
+import { useWasmRuntime } from '@lib/wasm/runtime';
 
 export interface TableInfo {
   table_id: string;
@@ -51,33 +52,44 @@ export interface UseTableManagerReturn {
 }
 
 export const useTableManager = (): UseTableManagerReturn => {
+  const runtime = useWasmRuntime();
   const [tableManager, setTableManager] = useState<Record<string, (...args: unknown[]) => unknown> | null>(null);
   const [activeTableId, setActiveTableId] = useState<string | null>(null);
   const [tables, setTables] = useState<TableInfo[]>([]);
 
   // Initialize table manager
   useEffect(() => {
+    let cancelled = false;
     if (!tableManager) {
       try {
-        const manager = new (window as Window & { wasm?: { TableManager: new () => Record<string, (...args: unknown[]) => unknown> } }).wasm!.TableManager();
-        setTableManager(manager);
-        console.log('Table Manager initialized');
+        runtime.initialize()
+          .then(() => {
+            if (cancelled) return;
+            const manager = runtime.getTableManager() as unknown as Record<string, (...args: unknown[]) => unknown> | null;
+            if (!manager) throw new Error('TableManager unavailable from WASM runtime');
+            setTableManager(manager);
+            console.log('Table Manager initialized');
+          })
+          .catch(error => {
+            if (!cancelled) console.error('Failed to initialize Table Manager:', error);
+          });
       } catch (error) {
         console.error('Failed to initialize Table Manager:', error);
       }
     }
-  }, [tableManager]);
+    return () => { cancelled = true; };
+  }, [runtime, tableManager]);
 
   // Update canvas size when available
   useEffect(() => {
-    if (tableManager && window.rustRenderManager) {
+    if (tableManager && runtime.getRenderEngine()) {
       // Get canvas from render manager if available
       const canvas = document.querySelector('canvas');
       if (canvas) {
         tableManager.set_canvas_size(canvas.width, canvas.height);
       }
     }
-  }, [tableManager]);
+  }, [runtime, tableManager]);
 
   const refreshTables = useCallback(() => {
     if (!tableManager) return;

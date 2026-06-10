@@ -1,0 +1,286 @@
+import { assetIntegrationService } from '@features/assets';
+import { isDM, type SessionRole } from '@features/session/types/roles';
+import { initializeWasmCore } from '../wasmCore';
+import { wasmBridgeService } from '../wasmBridge';
+import { wasmIntegrationService } from '../wasmIntegration.service';
+import {
+  ActionsClient,
+  AssetManager,
+  NetworkClient,
+  PlanningManager,
+  TableManager,
+  TableSync,
+  create_default_brush_presets,
+  init_game_renderer,
+  version,
+  type RenderEngine,
+} from '../ttrpg_rust_core';
+import type { AttachCanvasOptions, WasmRuntimePort } from './WasmRuntimePort';
+import { WasmRuntimeStore, type WasmRuntimeSnapshot } from './wasmStore';
+
+export class WasmRuntime implements WasmRuntimePort {
+  readonly store = new WasmRuntimeStore();
+
+  private initPromise: Promise<void> | null = null;
+  private renderEngine: RenderEngine | null = null;
+  private actionsEngine: ActionsClient | null = null;
+  private assetManager: AssetManager | null = null;
+  private networkClient: NetworkClient | null = null;
+  private planningManager: PlanningManager | null = null;
+  private tableManager: TableManager | null = null;
+  private tableSync: TableSync | null = null;
+  private animationFrameId: number | null = null;
+  private onFrame: (() => void) | null = null;
+
+  get status(): WasmRuntimeSnapshot {
+    return this.store.getSnapshot();
+  }
+
+  async initialize(): Promise<void> {
+    if (this.initPromise) return this.initPromise;
+
+    this.initPromise = initializeWasmCore()
+      .then(() => {
+        this.actionsEngine ??= new ActionsClient();
+        this.assetManager ??= new AssetManager();
+        this.networkClient ??= new NetworkClient();
+        this.tableManager ??= new TableManager();
+        this.tableSync ??= new TableSync();
+        this.store.setSnapshot({
+          isModuleReady: true,
+          error: null,
+          version: typeof version === 'function' ? version() : null,
+        });
+      })
+      .catch(error => {
+        const err = error instanceof Error ? error : new Error(String(error));
+        this.initPromise = null;
+        this.store.setSnapshot({ error: err, isModuleReady: false });
+        throw err;
+      });
+
+    return this.initPromise;
+  }
+
+  async attachCanvas(canvas: HTMLCanvasElement, options: AttachCanvasOptions): Promise<RenderEngine> {
+    await this.initialize();
+
+    if (this.renderEngine) {
+      this.setUserContext(options.userId, options.role);
+      this.setActiveLayer(options.activeLayer);
+      this.onFrame = options.onFrame ?? null;
+      return this.renderEngine;
+    }
+
+    const engine = init_game_renderer(canvas);
+    engine.set_camera?.(0, 0, 1.0);
+    this.renderEngine = engine;
+    this.onFrame = options.onFrame ?? null;
+    this.setUserContext(options.userId, options.role);
+    this.setActiveLayer(options.activeLayer);
+
+    wasmBridgeService.init();
+    wasmIntegrationService.initialize(engine);
+    assetIntegrationService.initialize();
+    this.startRenderLoop();
+    this.store.setSnapshot({ isCanvasAttached: true, error: null });
+
+    return engine;
+  }
+
+  detachCanvas(): void {
+    if (this.animationFrameId !== null) {
+      cancelAnimationFrame(this.animationFrameId);
+      this.animationFrameId = null;
+    }
+    wasmIntegrationService.dispose();
+    assetIntegrationService.dispose();
+    this.onFrame = null;
+
+    try {
+      this.renderEngine?.free?.();
+    } catch {
+      // best-effort wasm cleanup
+    }
+
+    this.renderEngine = null;
+    this.store.setSnapshot({ isCanvasAttached: false });
+  }
+
+  dispose(): void {
+    this.detachCanvas();
+    wasmBridgeService.cleanup();
+
+    try { this.actionsEngine?.free?.(); } catch {}
+    try { this.assetManager?.free?.(); } catch {}
+    try { this.networkClient?.free?.(); } catch {}
+    try { this.planningManager?.free?.(); } catch {}
+    try { this.tableManager?.free?.(); } catch {}
+    try { this.tableSync?.free?.(); } catch {}
+
+    this.actionsEngine = null;
+    this.assetManager = null;
+    this.networkClient = null;
+    this.planningManager = null;
+    this.tableManager = null;
+    this.tableSync = null;
+    this.initPromise = null;
+    this.store.setSnapshot({
+      isModuleReady: false,
+      isCanvasAttached: false,
+      error: null,
+      version: null,
+    });
+  }
+
+  setProtocol(protocol: unknown | null): void {
+    wasmBridgeService.setProtocol(protocol as never);
+  }
+
+  getRenderEngine(): RenderEngine | null {
+    return this.renderEngine;
+  }
+
+  getActionsEngine(): ActionsClient | null {
+    return this.actionsEngine;
+  }
+
+  getAssetManager(): AssetManager | null {
+    return this.assetManager;
+  }
+
+  getNetworkClient(): NetworkClient | null {
+    return this.networkClient;
+  }
+
+  getPlanningManager(): PlanningManager | null {
+    if (!this.planningManager && this.status.isModuleReady) {
+      this.planningManager = new PlanningManager(64, 5 / 64);
+    }
+    return this.planningManager;
+  }
+
+  getTableManager(): TableManager | null {
+    return this.tableManager;
+  }
+
+  getTableSync(): TableSync | null {
+    return this.tableSync;
+  }
+
+  getDefaultBrushPresets(): unknown[] {
+    if (!this.status.isModuleReady) return [];
+    return create_default_brush_presets();
+  }
+
+  setUserContext(userId: number | null, role: SessionRole | string | null): void {
+    const engine = this.renderEngine;
+    if (!engine) return;
+    if (userId != null) engine.set_current_user_id?.(userId);
+    engine.set_gm_mode?.(isDM(role as SessionRole | null));
+  }
+
+  setActiveLayer(layerName: string): void {
+    this.renderEngine?.set_active_layer?.(layerName);
+  }
+
+  setGridEnabled(enabled: boolean): void {
+    this.renderEngine?.set_grid_enabled?.(enabled);
+  }
+
+  setGridSnapping(enabled: boolean): void {
+    this.renderEngine?.set_grid_snapping?.(enabled);
+  }
+
+  setGridSize(size: number): void {
+    this.renderEngine?.set_grid_size?.(size);
+  }
+
+  setAmbientLight(level: number): void {
+    this.renderEngine?.set_ambient_light?.(level);
+  }
+
+  setTableUnits(tableId: string | null, gridCellPx: number, cellDistance: number, distanceUnit: string): void {
+    if (!tableId) return;
+    this.tableManager?.set_table_units?.(tableId, gridCellPx, cellDistance, distanceUnit);
+  }
+
+  handleTableData(tableData: unknown): void {
+    this.renderEngine?.handle_table_data?.(tableData);
+  }
+
+  addWall(wall: unknown): void {
+    this.renderEngine?.add_wall?.(JSON.stringify(wall));
+  }
+
+  addWalls(walls: unknown[]): void {
+    walls.forEach(wall => this.addWall(wall));
+  }
+
+  updateWall(wallId: string, updates: unknown): void {
+    this.renderEngine?.update_wall?.(wallId, JSON.stringify(updates));
+  }
+
+  removeWall(wallId: string): void {
+    this.renderEngine?.remove_wall?.(wallId);
+  }
+
+  clearWalls(): void {
+    this.renderEngine?.clear_walls?.();
+  }
+
+  loadPaintStrokes(strokesJson: string): void {
+    this.renderEngine?.paint_load_strokes?.(strokesJson);
+  }
+
+  addRemotePaintStroke(strokeJson: string): void {
+    this.renderEngine?.paint_add_remote_stroke?.(strokeJson);
+  }
+
+  removePaintStroke(strokeId: string): void {
+    this.renderEngine?.paint_remove_stroke?.(strokeId);
+  }
+
+  clearPaintStrokes(): void {
+    this.renderEngine?.paint_clear_all?.();
+  }
+
+  applyLayerSettings(settings: Record<string, Record<string, unknown>>): void {
+    const engine = this.renderEngine;
+    if (!engine) return;
+
+    for (const [layer, setting] of Object.entries(settings)) {
+      if (typeof setting.opacity === 'number') engine.set_layer_opacity?.(layer, setting.opacity);
+      if (typeof setting.visible === 'boolean') engine.set_layer_visibility?.(layer, setting.visible);
+      if (Array.isArray(setting.tint_color) && setting.tint_color.length >= 3) {
+        engine.set_layer_color?.(
+          layer,
+          Number(setting.tint_color[0]),
+          Number(setting.tint_color[1]),
+          Number(setting.tint_color[2]),
+        );
+      }
+    }
+  }
+
+  private startRenderLoop(): void {
+    if (this.animationFrameId !== null) return;
+
+    const render = () => {
+      try {
+        this.renderEngine?.render?.();
+        this.onFrame?.();
+      } catch (error) {
+        console.error('Rust WASM render error:', error);
+      }
+
+      if (this.renderEngine) {
+        this.animationFrameId = requestAnimationFrame(render);
+      } else {
+        this.animationFrameId = null;
+      }
+    };
+
+    this.animationFrameId = requestAnimationFrame(render);
+  }
+}

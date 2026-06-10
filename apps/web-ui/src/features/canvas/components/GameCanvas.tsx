@@ -3,18 +3,14 @@
  * Refactored to use extracted hooks and utilities for better maintainability
  */
 import { useGameStore } from '@/store';
-import { assetIntegrationService } from '@features/assets';
 import { useCombatStore, type Combatant } from '@features/combat/stores/combatStore';
 import { useGameModeStore } from '@features/combat/stores/gameModeStore';
 import { isDM } from '@features/session/types/roles';
 import { useOptionalProtocol } from '@lib/api';
+import { useWasmRuntime } from '@lib/wasm/runtime';
 import type { RenderEngine } from '@lib/wasm/ttrpg_rust_core';
-import { useWasmBridge } from '@lib/wasm/wasmBridge';
-import { wasmIntegrationService } from '@lib/wasm/wasmIntegration.service';
-import { wasmManager } from '@lib/wasm/wasmManager';
 import { createMessage, MessageType } from '@lib/websocket';
 import { DragDropImageHandler } from '@shared/components';
-import { useWebSocket } from '@shared/hooks';
 import type { LucideIcon } from 'lucide-react';
 import { ChevronRight, CloudFog, Construction, Crown, Lightbulb, Map as MapIcon, Mountain, Users } from 'lucide-react';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
@@ -77,6 +73,7 @@ export const GameCanvas: React.FC = () => {
   const dragDimsRef = useRef(new Map<string, { w: number; h: number }>());
 
   const dynamicLightingEnabled = useGameStore(s => s.dynamicLightingEnabled);
+  const runtime = useWasmRuntime();
   // Protocol and store setup
   const protocol = useOptionalProtocol()?.protocol ?? null;
   const updateConnectionState = useGameStore(s => s.updateConnectionState);
@@ -84,12 +81,6 @@ export const GameCanvas: React.FC = () => {
   const activeTableId = useGameStore(s => s.activeTableId);
   const activeTable = tables.find((t) => t.table_id === activeTableId);
   const activeLayer = useGameStore(s => s.activeLayer);
-  const { connect: connectWebSocket, disconnect: disconnectWebSocket } = useWebSocket(
-    'ws://127.0.0.1:12345/ws'
-  );
-
-  // Initialize WASM bridge for sprite operation synchronization
-  useWasmBridge();
 
   // Re-enabled sprite syncing with fixed React dependency issue
   useSpriteSyncing();
@@ -592,7 +583,6 @@ export const GameCanvas: React.FC = () => {
     };
  }, [sessionRole, protocol]);
   useEffect(() => {
-    let animationFrameId: number | null = null;
     let mounted = true;
     let resizeObserver: ResizeObserver | null = null;
     let resizeTimeout: number | null = null;
@@ -621,36 +611,9 @@ export const GameCanvas: React.FC = () => {
       });
     };
 
-    const loadAndInitWasm = async () => {
- console.log('loadAndInitWasm called');
+    const attachRuntimeCanvas = async () => {
       try {
         updateConnectionState('connecting');
- console.log('Starting WASM initialization via wasmManager...');
-
-        // Use singleton wasmManager — sets window.ttrpg_rust_core once
-        const wasmModule = await wasmManager.getWasmModule();
-
-        const WasmRenderEngine = wasmModule?.RenderEngine;
-
-        if (!WasmRenderEngine) {
- console.error('[WASM] RenderEngine is undefined!', wasmModule);
-          updateConnectionState('error');
-          return;
-        }
-
- console.log('[WASM] WASM module ready, dispatching wasm-ready event...');
-
-        // Dispatch wasm-ready event for other services to listen
-        window.dispatchEvent(
-          new CustomEvent('wasm-ready', {
-            detail: {
-              timestamp: Date.now(),
-              module: wasmModule,
-            },
-          })
-        );
- console.log('[WASM] wasm-ready event dispatched');
-
         if (!mounted) {
  console.warn('Component not mounted, aborting WASM init');
           return;
@@ -663,40 +626,24 @@ export const GameCanvas: React.FC = () => {
           return;
         }
 
-        resizeCanvas(canvas, dprRef, window.rustRenderManager || null);
-
- console.log('[WASM] Constructing RenderEngine...');
-        const rustRenderEngine = new WasmRenderEngine(canvas);
- console.log('[WASM] RenderEngine constructed:', rustRenderEngine);
-
-        // Center camera on world origin
-        rustRenderEngine.set_camera(0, 0, 1.0);
-        rustRenderManagerRef.current = rustRenderEngine;
-        window.rustRenderManager = rustRenderEngine;
-
-        // Set user ID and GM mode immediately.
-        // sessionRole may be null before welcome msg — fall back to server-injected role.
         const { userId, sessionRole } = useGameStore.getState();
         const initialRole = window.__INITIAL_DATA__?.userRole ?? null;
-        const effectiveRole = (sessionRole ?? initialRole) as import('@features/session/types/roles').SessionRole | null;
-        if (userId != null) rustRenderEngine.set_current_user_id?.(userId);
-        rustRenderEngine.set_gm_mode?.(isDM(effectiveRole));
-        // Sync active layer immediately so WASM knows the starting layer
-        const initialActiveLayer = useGameStore.getState().activeLayer;
-        (rustRenderEngine as RenderEngine).set_active_layer?.(initialActiveLayer);
-        window.dispatchEvent(new Event('render-manager-ready'));
+        const rustRenderEngine = await runtime.attachCanvas(canvas, {
+          userId,
+          role: sessionRole ?? initialRole ?? null,
+          activeLayer: useGameStore.getState().activeLayer,
+          onFrame: () => fpsService.recordFrame(),
+        });
+        if (!mounted) {
+          runtime.detachCanvas();
+          return;
+        }
+        rustRenderManagerRef.current = rustRenderEngine;
 
         // Initialize performance monitoring
         performanceService.initialize(rustRenderEngine);
  console.log('[PERFORMANCE] Service initialized');
-
-        // Initialize WASM integration service for protocol-driven updates
-        wasmIntegrationService.initialize(rustRenderEngine);
- console.log('[WASM] Integration service initialized');
-
-        // Initialize asset integration service
-        assetIntegrationService.initialize();
- console.log('[ASSET] Integration service initialized');
+        resizeCanvas(canvas, dprRef, rustRenderEngine);
 
         canvas.addEventListener('mousedown', stableMouseDown);
         canvas.addEventListener('mousemove', stableMouseMove);
@@ -745,80 +692,21 @@ export const GameCanvas: React.FC = () => {
           /* ignore */
         }
 
-        // wasmManager already sets window.wasmInitialized = true during init
-
-        // Start render loop
-        const renderLoop = () => {
-          try {
-            if (rustRenderManagerRef.current) {
-              rustRenderManagerRef.current.render();
-            }
-
-            // Record frame for unified FPS service
-            fpsService.recordFrame();
-          } catch (error) {
- console.error('Rust WASM render error:', error);
-          }
-          if (mounted) animationFrameId = requestAnimationFrame(renderLoop);
-        };
-        animationFrameId = requestAnimationFrame(renderLoop);
-
-        // Add a test sprite to verify the system works
-        setTimeout(() => {
-          try {
-            const testSprite = {
-              id: 'test_sprite_1',
-              world_x: 100,
-              world_y: 100,
-              width: 64,
-              height: 64,
-              scale_x: 1.0,
-              scale_y: 1.0,
-              rotation: 0.0,
-              layer: 'tokens',
-              texture_id: '',
- tint_color: [1.0, 0.5, 0.5, 1.0], // Red tint
-              table_id: 'default_table',
- controlled_by: [],
-            };
-            rustRenderEngine.add_sprite_to_layer('tokens', testSprite);
- console.log('[WASM] Test sprite added');
-          } catch (err) {
- console.error('[WASM] Failed to add test sprite:', err);
-          }
-        }, 1000);
-
-        // Connect to WebSocket after WASM is loaded
-        try {
-          await connectWebSocket();
-          updateConnectionState('connected');
-        } catch (wsErr) {
- console.error('WebSocket connection failed:', wsErr);
-          updateConnectionState('error');
-        }
+        updateConnectionState('connected');
       } catch (error) {
  console.error('Failed to load WASM module:', error);
         updateConnectionState('error');
       }
     };
 
-    loadAndInitWasm();
+    attachRuntimeCanvas();
 
     // Cleanup on unmount
     return () => {
       mounted = false;
 
-      // Mark WASM as no longer initialized
-      window.wasmInitialized = false;
-
-      if (animationFrameId) cancelAnimationFrame(animationFrameId);
-      disconnectWebSocket();
-
-      // Cleanup WASM integration service
-      wasmIntegrationService.dispose();
-
-      // Cleanup asset integration service
-      assetIntegrationService.dispose();
+      runtime.detachCanvas();
+      rustRenderManagerRef.current = null;
 
       // eslint-disable-next-line react-hooks/exhaustive-deps -- known: canvasRef.current captured at cleanup via const canvas above
       const canvas = canvasRef.current;
@@ -852,12 +740,10 @@ export const GameCanvas: React.FC = () => {
         if (resizeFrame) cancelAnimationFrame(resizeFrame);
       } catch {}
       resizeObserver = null;
-      window.rustRenderManager = undefined;
     };
  }, [
+    runtime,
     updateConnectionState,
-    connectWebSocket,
-    disconnectWebSocket,
     stableMouseDown,
     stableMouseMove,
     stableMouseUp,

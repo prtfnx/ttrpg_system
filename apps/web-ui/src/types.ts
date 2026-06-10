@@ -352,13 +352,6 @@ export function hasMessageData<T extends WebSocketMessage['type']>(
 
 declare global {
   interface Window {
-    gameAPI?: GameAPI;
-    rustRenderManager?: import('@lib/wasm/ttrpg_rust_core').RenderEngine;
-    wasmBridge?: WasmBridge;
-    protocol?: import('@lib/websocket/clientProtocol').WebClientProtocol;
-    ttrpg_rust_core: import('@lib/wasm/wasmManager').GlobalWasmModule | null;
-    wasmInitialized: boolean;
-    activeTableId?: string | null;
     __INITIAL_DATA__?: { userRole?: string; [key: string]: unknown };
     // Canvas tool globals (ephemeral cross-component state via window)
     shapeSettings?: { color: string; opacity: number; filled: boolean };

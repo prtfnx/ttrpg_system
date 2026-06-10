@@ -34,8 +34,7 @@ export default defineConfig(({ mode }) => {
       chunkSizeWarningLimit: 550,
       rollupOptions: {
         input: {
-          main: './index.html',
-          integration: './src/integration.tsx'
+          main: './index.html'
         },
         output: {
           entryFileNames: '[name]-[hash].js',

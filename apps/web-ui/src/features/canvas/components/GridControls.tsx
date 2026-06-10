@@ -1,8 +1,10 @@
 import { useGameStore } from '@/store';
 import type { DistanceUnit } from '@/utils/unitConverter';
 import { ProtocolService } from '@lib/api';
+import { useWasmRuntime } from '@lib/wasm/runtime';
 
 export function GridControls() {
+  const runtime = useWasmRuntime();
   const { 
     gridEnabled, 
     gridSnapping, 
@@ -22,18 +24,18 @@ export function GridControls() {
   const handleGridToggle = () => {
     const newEnabled = !gridEnabled;
     setGridEnabled(newEnabled);
-    window.rustRenderManager?.set_grid_enabled?.(newEnabled);
+    runtime.setGridEnabled(newEnabled);
   };
 
   const handleSnapToggle = () => {
     const newSnapping = !gridSnapping;
     setGridSnapping(newSnapping);
-    window.rustRenderManager?.set_grid_snapping?.(newSnapping);
+    runtime.setGridSnapping(newSnapping);
   };
 
   const handleSizeChange = (newSize: number) => {
     setGridSize(newSize);
-    window.rustRenderManager?.set_grid_size?.(newSize);
+    runtime.setGridSize(newSize);
     applyUnits(newSize, cellDistance, distanceUnit);
   };
 

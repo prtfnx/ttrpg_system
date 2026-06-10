@@ -1,4 +1,6 @@
 import { useGameStore } from '@/store';
+import type { RenderEngine } from '@lib/wasm/ttrpg_rust_core';
+import { useRenderEngine } from '@lib/wasm/runtime';
 import { Check, X } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 
@@ -11,11 +13,12 @@ interface TextSpriteToolProps {
 
 interface InlineTextEditorProps {
   worldPosition: { x: number; y: number };
+  renderEngine: RenderEngine;
   onComplete: (text: string, fontSize: number, color: string) => void;
   onCancel: () => void;
 }
 
-function InlineTextEditor({ worldPosition, onComplete, onCancel }: InlineTextEditorProps) {
+function InlineTextEditor({ worldPosition, renderEngine, onComplete, onCancel }: InlineTextEditorProps) {
   const [text, setText] = useState('');
   const [fontSize, setFontSize] = useState(16);  // Default 16px (0.5 multiplier)
   const [color, setColor] = useState('#ffffff');
@@ -28,17 +31,16 @@ function InlineTextEditor({ worldPosition, onComplete, onCancel }: InlineTextEdi
     let retryId: ReturnType<typeof setTimeout> | null = null;
 
     const tryConvert = () => {
-      const rustManager = window.rustRenderManager;
       const canvas = document.querySelector('.game-canvas') as HTMLCanvasElement;
 
-      if (!rustManager || !canvas) {
+      if (!canvas) {
         if (!cancelled) retryId = setTimeout(tryConvert, 100);
         return;
       }
 
       try {
         const rect = canvas.getBoundingClientRect();
-        const screenCoords = rustManager.world_to_screen(worldPosition.x, worldPosition.y);
+        const screenCoords = renderEngine.world_to_screen(worldPosition.x, worldPosition.y);
 
         console.log('[InlineTextEditor] Converting coords:', {
           world: worldPosition,
@@ -68,7 +70,7 @@ function InlineTextEditor({ worldPosition, onComplete, onCancel }: InlineTextEdi
       cancelled = true;
       if (retryId !== null) clearTimeout(retryId);
     };
-  }, [worldPosition]);
+  }, [renderEngine, worldPosition]);
 
   // Auto-focus input
   useEffect(() => {
@@ -207,6 +209,7 @@ export function TextSpriteTool({
   const [showDialog, setShowDialog] = useState(false);
   const [clickPosition, setClickPosition] = useState<{ x: number; y: number } | null>(null);
   const { setActiveTool } = useGameStore();
+  const renderEngine = useRenderEngine();
 
   // Listen for map clicks when text tool is active
   useEffect(() => {
@@ -239,8 +242,7 @@ export function TextSpriteTool({
     }
 
     try {
-      const rustManager = window.rustRenderManager;
-      if (!rustManager) {
+      if (!renderEngine) {
         throw new Error('Rust render manager not available');
       }
 
@@ -259,7 +261,7 @@ export function TextSpriteTool({
       });
 
       // Call Rust function to create text sprite directly in WebGL
-      const rm = rustManager as unknown as { create_text_sprite: (text: string, x: number, y: number, size: number, color: string, layer: string) => string };
+      const rm = renderEngine as unknown as { create_text_sprite: (text: string, x: number, y: number, size: number, color: string, layer: string) => string };
       const spriteId = rm.create_text_sprite(
         text,
         clickPosition.x,
@@ -289,9 +291,10 @@ export function TextSpriteTool({
     setClickPosition(null);
   };
 
-  return showDialog && clickPosition ? (
+  return showDialog && clickPosition && renderEngine ? (
     <InlineTextEditor
       worldPosition={clickPosition}
+      renderEngine={renderEngine}
       onComplete={handleComplete}
       onCancel={handleCancel}
     />

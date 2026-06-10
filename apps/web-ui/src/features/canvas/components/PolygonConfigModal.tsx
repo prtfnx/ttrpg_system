@@ -1,5 +1,6 @@
 import { useGameStore } from '@/store';
 import { useProtocol } from '@lib/api';
+import { useRenderEngine } from '@lib/wasm/runtime';
 import { createMessage, MessageType } from '@lib/websocket';
 import React, { useCallback, useEffect, useState } from 'react';
 
@@ -15,6 +16,7 @@ const DEFAULT_LAYER = 'obstacles';
 
 export const PolygonConfigModal: React.FC = () => {
   const { protocol } = useProtocol();
+  const renderEngine = useRenderEngine();
   const tableId = useGameStore(s => s.activeTableId);
 
   const [draft, setDraft] = useState<PolygonDraft | null>(null);
@@ -32,10 +34,8 @@ export const PolygonConfigModal: React.FC = () => {
   const close = useCallback(() => {
     setDraft(null);
     // Cancel any in-progress polygon in Rust (in case user dismissed via hotkey)
-    if (window.rustRenderManager) {
-      (window.rustRenderManager as unknown as { cancel_polygon_creation?: () => void }).cancel_polygon_creation?.();
-    }
-  }, []);
+    (renderEngine as unknown as { cancel_polygon_creation?: () => void } | null)?.cancel_polygon_creation?.();
+  }, [renderEngine]);
 
   const submit = useCallback(() => {
     if (!draft || !tableId || !protocol) return;
@@ -53,7 +53,7 @@ export const PolygonConfigModal: React.FC = () => {
     const height = Math.max(maxY - minY, 1);
 
     // Add polygon sprite to WASM render engine with the pre-generated ID
-    if (window.rustRenderManager) {
+    if (renderEngine) {
       const spriteJson = {
         id: spriteId,
         table_id: tableId,
@@ -71,7 +71,7 @@ export const PolygonConfigModal: React.FC = () => {
         polygon_vertices: draft.vertices.map(v => [v.x, v.y]),
         controlled_by: [],
       };
-      (window.rustRenderManager as unknown as {
+      (renderEngine as unknown as {
         add_sprite_to_layer?: (layer: string, data: unknown) => string;
       }).add_sprite_to_layer?.(layer, spriteJson);
     }
@@ -89,7 +89,7 @@ export const PolygonConfigModal: React.FC = () => {
     };
     protocol.sendMessage(createMessage(MessageType.SPRITE_CREATE, { table_id: tableId, sprite_data: spriteData } as unknown as Record<string, unknown>));
     setDraft(null);
-  }, [draft, tableId, protocol]);
+  }, [draft, renderEngine, tableId, protocol]);
 
   if (!draft) return null;
 

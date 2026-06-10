@@ -1,4 +1,5 @@
 import { useGameStore } from '@/store';
+import { useRenderEngine } from '@lib/wasm/runtime';
 import clsx from 'clsx';
 import React, { useRef, useState } from 'react';
 import type { TableInfo } from '../hooks/useTableManager';
@@ -18,6 +19,7 @@ const TablePanel: React.FC = () => {
     panViewport,
     zoomTable,
   } = useTableManager();
+  const renderEngine = useRenderEngine();
 
   const [showCreateForm, setShowCreateForm] = useState(false);
   const [newTableName, setNewTableName] = useState('');
@@ -74,8 +76,7 @@ const TablePanel: React.FC = () => {
     const factor = zoomIn ? 1.2 : 0.8;
     const newZoom = Math.max(0.1, Math.min(5.0, zoomRef.current * factor));
     zoomRef.current = newZoom;
-    const rm = window.rustRenderManager as (typeof window.rustRenderManager) & { set_zoom?: (z: number) => void } | undefined;
-    if (rm?.set_zoom) rm.set_zoom(newZoom);
+    renderEngine?.set_zoom?.(newZoom);
     zoomTable(tableId, factor, 400, 300);
   };
 

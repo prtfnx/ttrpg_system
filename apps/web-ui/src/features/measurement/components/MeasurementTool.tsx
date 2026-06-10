@@ -1,3 +1,4 @@
+import { useRenderEngine } from '@lib/wasm/runtime';
 import { useEffect, useState } from 'react';
 
 interface MeasurementResult {
@@ -19,6 +20,7 @@ interface MeasurementToolProps {
 export function MeasurementTool({ isActive }: MeasurementToolProps) {
   const [measurement, setMeasurement] = useState<MeasurementResult | null>(null);
   const [currentUnit, setCurrentUnit] = useState<'ft' | 'm' | 'grid' | 'px'>('ft');
+  const renderEngine = useRenderEngine();
 
   // Listen for measurement completion from Rust
   useEffect(() => {
@@ -58,9 +60,7 @@ export function MeasurementTool({ isActive }: MeasurementToolProps) {
     setMeasurement(null);
     
     // Clear measurement by switching back to select mode
-    if (window.rustRenderManager) {
-      window.rustRenderManager.set_input_mode_select();
-    }
+    renderEngine?.set_input_mode_select();
     
     console.log('[MeasurementTool] Measurement cleared');
   };

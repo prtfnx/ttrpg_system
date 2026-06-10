@@ -1,5 +1,4 @@
 ﻿import { useGameStore } from '@/store';
-import type { GameAPI } from '@/types';
 import { DND_DISTANCES } from '@/utils/unitConverter';
 import { AssetManager } from '@features/assets';
 import { GridControls, LayerPanel } from '@features/canvas';
@@ -10,6 +9,7 @@ import { MeasurementTool } from '@features/measurement';
 import { PaintPanel } from '@features/painting';
 import { canInteract, isDM, isElevated } from '@features/session/types/roles';
 import { ProtocolService } from '@lib/api';
+import { useRenderEngine } from '@lib/wasm/runtime';
 import { AlignmentHelper } from '@shared/components';
 import DiceRoller from '@shared/components/DiceRoller';
 import { AlignLeft, BrickWall, Check, ChevronDown, Circle, Cloud, Crown, Eye, EyeOff, Flame, Folder, HelpCircle, Lightbulb, Map, Minus, Mountain, Paintbrush, Pencil, Ruler, Search, Send, Shield, Snowflake, Sparkles, Square, Type, User, Users, Wrench, Zap } from 'lucide-react';
@@ -19,13 +19,6 @@ import { PolygonConfigModal } from './PolygonConfigModal';
 import { TextSpriteTool } from './TextSprite';
 import styles from './ToolsPanel.module.css';
 import { WallConfigModal } from './WallConfigModal';
-
-// Global type declarations
-declare global {
-  interface Window {
-    gameAPI?: GameAPI;
-  }
-}
 
 import type { UserInfo } from '@features/auth';
 
@@ -37,12 +30,12 @@ const PLAYER_PERMITTED_LAYERS = [
 function PlayerLayerControls() {
   const layerVisibility = useGameStore(s => s.layerVisibility);
   const setLayerVisibility = useGameStore(s => s.setLayerVisibility);
+  const renderEngine = useRenderEngine();
 
   const toggle = (id: string) => {
     const next = !(layerVisibility[id] ?? true);
     setLayerVisibility(id, next);
-    const rm = window.rustRenderManager;
-    if (rm?.set_layer_visible) rm.set_layer_visible(id, next);
+    renderEngine?.set_layer_visible?.(id, next);
   };
 
   return (
@@ -76,6 +69,7 @@ type TabId = 'tools' | 'lighting' | 'layers' | 'dev';
 
 export function ToolsPanel({ userInfo }: ToolsPanelProps) {
   useLayerHotkeys();
+  const renderEngine = useRenderEngine();
 
   const [activeTab, setActiveTab] = useState<TabId>('tools');
   const [assetManagerVisible, setAssetManagerVisible] = useState(false);
@@ -132,8 +126,7 @@ export function ToolsPanel({ userInfo }: ToolsPanelProps) {
 
   const handleLayerSwitch = (layerId: string) => {
     setActiveLayer(layerId);
-    const rm = window.rustRenderManager;
-    if (rm?.set_active_layer) rm.set_active_layer(layerId);
+    renderEngine?.set_active_layer?.(layerId);
   };
 
   // controlledBy is stored as string[] in the store (server sends user IDs as strings)
@@ -194,44 +187,44 @@ export function ToolsPanel({ userInfo }: ToolsPanelProps) {
   }, [dynamicLightingEnabled, activeTableId]);
   
   useEffect(() => {
-    if (!window.rustRenderManager) return;
+    if (!renderEngine) return;
     // TODO temporal fix: cast rustRenderManager to any until WASM d.ts includes paint getters
-    if (activeTool !== 'paint' && typeof (window.rustRenderManager as any)?.paint_is_mode === 'function' && (window.rustRenderManager as any).paint_is_mode()) {
-      (window.rustRenderManager as any).paint_exit_mode();
+    if (activeTool !== 'paint' && typeof (renderEngine as any)?.paint_is_mode === 'function' && (renderEngine as any).paint_is_mode()) {
+      (renderEngine as any).paint_exit_mode();
       setPaintPanelVisible(false);
     }
     window.shapeSettings = { color: shapeColor, opacity: shapeOpacity, filled: shapeFilled };
     switch (activeTool) {
-      case 'measure':     window.rustRenderManager.set_input_mode_measurement(); break;
-      case 'rectangle':   window.rustRenderManager.set_input_mode_create_rectangle(); break;
-      case 'circle':      window.rustRenderManager.set_input_mode_create_circle(); break;
-      case 'line':        window.rustRenderManager.set_input_mode_create_line(); break;
-      case 'text':        window.rustRenderManager.set_input_mode_create_text(); break;
+      case 'measure':     renderEngine.set_input_mode_measurement(); break;
+      case 'rectangle':   renderEngine.set_input_mode_create_rectangle(); break;
+      case 'circle':      renderEngine.set_input_mode_create_circle(); break;
+      case 'line':        renderEngine.set_input_mode_create_line(); break;
+      case 'text':        renderEngine.set_input_mode_create_text(); break;
       case 'paint':
-        window.rustRenderManager.set_input_mode_paint();
-        window.rustRenderManager.paint_enter_mode(800, 600);
+        renderEngine.set_input_mode_paint();
+        renderEngine.paint_enter_mode(800, 600);
         break;
-      case 'draw_wall':    window.rustRenderManager.set_input_mode_draw_wall(); break;
-      case 'draw_polygon': window.rustRenderManager.set_input_mode_create_polygon(); break;
+      case 'draw_wall':    renderEngine.set_input_mode_draw_wall(); break;
+      case 'draw_polygon': renderEngine.set_input_mode_create_polygon(); break;
       case 'select':
-        window.rustRenderManager.set_tool_mode?.('select');
-        window.rustRenderManager.set_input_mode_select();
+        renderEngine.set_tool_mode?.('select');
+        renderEngine.set_input_mode_select();
         break;
       case 'move':
-        window.rustRenderManager.set_tool_mode?.('move');
-        window.rustRenderManager.set_input_mode_select();
+        renderEngine.set_tool_mode?.('move');
+        renderEngine.set_input_mode_select();
         break;
       case 'align':
-        window.rustRenderManager.set_tool_mode?.('align');
-        window.rustRenderManager.align_selected_to_grid?.();
-        window.rustRenderManager.set_input_mode_select();
+        renderEngine.set_tool_mode?.('align');
+        renderEngine.align_selected_to_grid?.();
+        renderEngine.set_input_mode_select();
         break;
       default:
-        window.rustRenderManager.set_tool_mode?.('select');
-        window.rustRenderManager.set_input_mode_select();
+        renderEngine.set_tool_mode?.('select');
+        renderEngine.set_input_mode_select();
         break;
     }
-  }, [activeTool, shapeColor, shapeOpacity, shapeFilled]);
+  }, [activeTool, renderEngine, shapeColor, shapeOpacity, shapeFilled]);
 
   const handlePingToggle = (enabled: boolean) => {
     setPingEnabled(enabled);
@@ -411,8 +404,7 @@ export function ToolsPanel({ userInfo }: ToolsPanelProps) {
               )}
               {interactMode && (
                 <button className={`${styles.toolButton} ${activeTool === 'paint' ? styles.active : ''}`} onClick={() => {
-                  if (!window.rustRenderManager) return;
-                  window.rustRenderManager.set_input_mode_paint();
+                  renderEngine?.set_input_mode_paint();
                   setActiveTool('paint');
                   setPaintPanelVisible(true);
                 }} title="Paint System">
@@ -608,13 +600,19 @@ export function ToolsPanel({ userInfo }: ToolsPanelProps) {
           {dmMode && (
             <div className={styles.quickTestButtons}>
               <button className={styles.testButton} onClick={() => {
-                if (window.gameAPI?.sendMessage) {
-                  window.gameAPI.sendMessage('sprite_create', { id: `sprite_${Date.now()}`, x: Math.floor(Math.random()*800), y: Math.floor(Math.random()*600), width: 40, height: 40, layer: activeLayer, texture_path: 'hero.png', color: '#00CC33' });
+                if (ProtocolService.hasProtocol()) {
+                  ProtocolService.getProtocol().createSprite({ id: `sprite_${Date.now()}`, x: Math.floor(Math.random()*800), y: Math.floor(Math.random()*600), width: 40, height: 40, layer: activeLayer, texture_path: 'hero.png', color: '#00CC33' });
                   setTimeout(() => window.dispatchEvent(new CustomEvent('spriteAdded')), 500);
                 }
               }}>Add Sprite</button>
               <button className={styles.testButton} onClick={() => {
-                window.gameAPI?.sendMessage?.('character_create', { id: `char_${Date.now()}`, name: 'Test Character', class: 'Fighter', stats: { strength: 15, dexterity: 12, constitution: 14, intelligence: 10, wisdom: 10, charisma: 8 } });
+                if (!ProtocolService.hasProtocol()) return;
+                ProtocolService.getProtocol().sendMessage({
+                  type: 'character_create',
+                  data: { id: `char_${Date.now()}`, name: 'Test Character', class: 'Fighter', stats: { strength: 15, dexterity: 12, constitution: 14, intelligence: 10, wisdom: 10, charisma: 8 } },
+                  version: '0.1',
+                  priority: 1,
+                });
               }}>Add Character</button>
             </div>
           )}

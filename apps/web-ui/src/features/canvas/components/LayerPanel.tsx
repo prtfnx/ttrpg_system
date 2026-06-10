@@ -133,8 +133,7 @@ export function LayerPanel({ className, style: _style, id, initialLayers, ...oth
     if (isLoading) return;
 
     const updateSpriteCounts = () => {
-      const renderManager = window.rustRenderManager;
-      if (!renderManager) {
+      if (!renderEngine) {
         console.warn('[LayerPanel] RenderManager not available');
         return;
       }
@@ -143,7 +142,7 @@ export function LayerPanel({ className, style: _style, id, initialLayers, ...oth
       setLayers(prevLayers => 
         prevLayers.map(layer => {
           try {
-            const count = renderManager.get_layer_sprite_count(layer.id);
+            const count = renderEngine.get_layer_sprite_count(layer.id);
             return { ...layer, spriteCount: count };
           } catch (error) {
  console.error(`[LayerPanel] Failed to get count for layer ${layer.id}:`, error);
@@ -154,19 +153,18 @@ export function LayerPanel({ className, style: _style, id, initialLayers, ...oth
     };
 
     updateSpriteCounts();
- }, [activeTableId, isLoading]);
+ }, [activeTableId, isLoading, renderEngine]);
 
   // Subscribe to sprite events for immediate UI updates
   useEffect(() => {
     const handleSpriteEvent = () => {
-      const renderManager = window.rustRenderManager;
-      if (!renderManager) return;
+      if (!renderEngine) return;
 
       // Query WASM when sprites change
       setLayers(prevLayers => 
         prevLayers.map(layer => {
           try {
-            const count = renderManager.get_layer_sprite_count(layer.id);
+            const count = renderEngine.get_layer_sprite_count(layer.id);
             return { ...layer, spriteCount: count };
           } catch (_error) {
             return layer;
@@ -184,7 +182,7 @@ export function LayerPanel({ className, style: _style, id, initialLayers, ...oth
       window.removeEventListener('spriteRemoved', handleSpriteEvent);
       window.removeEventListener('spriteUpdated', handleSpriteEvent);
     };
- }, []);
+ }, [renderEngine]);
 
   const handleLayerClick = (layerId: string) => {
     setActiveLayer(layerId);

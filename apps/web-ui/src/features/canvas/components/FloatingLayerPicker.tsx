@@ -1,5 +1,6 @@
 import { useGameStore } from '@/store';
 import { isDM } from '@features/session/types/roles';
+import { useWasmRuntime } from '@lib/wasm/runtime';
 import { BrickWall, CloudFog, Crown, Lightbulb, Map, Mountain, Users } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import styles from './FloatingLayerPicker.module.css';
@@ -15,6 +16,7 @@ const LAYERS = [
 ] as const;
 
 export function FloatingLayerPicker() {
+  const runtime = useWasmRuntime();
   const sessionRole = useGameStore(s => s.sessionRole);
   const activeLayer = useGameStore(s => s.activeLayer);
   const setActiveLayer = useGameStore(s => s.setActiveLayer);
@@ -35,8 +37,7 @@ export function FloatingLayerPicker() {
 
   const switchLayer = (id: string) => {
     setActiveLayer(id);
-    const rm = window.rustRenderManager as (typeof window.rustRenderManager) & { set_active_layer?: (id: string) => void } | undefined;
-    if (rm?.set_active_layer) rm.set_active_layer(id);
+    runtime.setActiveLayer(id);
   };
 
   const active = LAYERS.find(l => l.id === activeLayer);

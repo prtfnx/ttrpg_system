@@ -1,3 +1,4 @@
+import { useRenderEngine } from '@lib/wasm/runtime';
 import clsx from 'clsx';
 import { Check, X } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
@@ -23,6 +24,7 @@ export function TextSpriteEditor({ position, onComplete, onCancel }: TextSpriteE
   const [bold, setBold] = useState(false);
   const [screenPos, setScreenPos] = useState<{ x: number; y: number } | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+  const renderEngine = useRenderEngine();
 
   // Convert world coordinates to screen coordinates
   useEffect(() => {
@@ -34,13 +36,12 @@ export function TextSpriteEditor({ position, onComplete, onCancel }: TextSpriteE
       return;
     }
 
-    const rustManager = window.rustRenderManager;
-    if (!rustManager) {
+    if (!renderEngine) {
       console.error('[TextSpriteEditor] Rust render manager not available');
       return;
     }
 
-    console.log('[TextSpriteEditor] rustManager available, converting coords');
+    console.log('[TextSpriteEditor] renderEngine available, converting coords');
 
     try {
       const canvas = document.querySelector('.game-canvas') as HTMLCanvasElement;
@@ -53,7 +54,7 @@ export function TextSpriteEditor({ position, onComplete, onCancel }: TextSpriteE
       const rect = canvas.getBoundingClientRect();
       console.log('[TextSpriteEditor] Canvas rect:', rect);
       
-      const screenCoords = rustManager.world_to_screen(position.x, position.y);
+      const screenCoords = renderEngine.world_to_screen(position.x, position.y);
       console.log('[TextSpriteEditor] Screen coords from Rust:', screenCoords);
       
       const finalPos = {
@@ -66,7 +67,7 @@ export function TextSpriteEditor({ position, onComplete, onCancel }: TextSpriteE
     } catch (error) {
       console.error('[TextSpriteEditor] Error converting world to screen coords:', error);
     }
-  }, [position]);
+  }, [position, renderEngine]);
 
   // Auto-focus input when editor appears
   useEffect(() => {

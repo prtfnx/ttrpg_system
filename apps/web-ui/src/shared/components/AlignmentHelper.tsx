@@ -1,4 +1,5 @@
 import { useGameStore } from '@/store';
+import { ProtocolService } from '@lib/api';
 import { getSpriteCenter, getSpriteHeight, getSpriteWidth } from '@shared/utils/spriteHelpers';
 import { useEffect, useState } from 'react';
 
@@ -78,17 +79,17 @@ export function AlignmentHelper({ isActive }: AlignmentHelperProps) {
     if (selectedSprites.length < 2) return;
 
     const selectedSpriteObjects = sprites.filter(s => selectedSprites.includes(s.id));
+    const updateSpritePosition = (spriteId: string, updates: Record<string, unknown>) => {
+      if (ProtocolService.hasProtocol()) {
+        ProtocolService.getProtocol().updateSprite(spriteId, updates);
+      }
+    };
     
     switch (type) {
       case 'left': {
         const leftMost = Math.min(...selectedSpriteObjects.map(s => s.x));
         selectedSpriteObjects.forEach(sprite => {
-          if (window.gameAPI?.sendMessage) {
-            window.gameAPI.sendMessage('sprite_update', {
-              id: sprite.id,
-              x: leftMost
-            });
-          }
+          updateSpritePosition(sprite.id, { x: leftMost });
         });
         break;
       }
@@ -97,12 +98,7 @@ export function AlignmentHelper({ isActive }: AlignmentHelperProps) {
         const centers = selectedSpriteObjects.map(s => getSpriteCenter(s).x);
         const avgCenter = centers.reduce((a, b) => a + b, 0) / centers.length;
         selectedSpriteObjects.forEach(sprite => {
-          if (window.gameAPI?.sendMessage) {
-            window.gameAPI.sendMessage('sprite_update', {
-              id: sprite.id,
-              x: avgCenter - getSpriteWidth(sprite) / 2
-            });
-          }
+          updateSpritePosition(sprite.id, { x: avgCenter - getSpriteWidth(sprite) / 2 });
         });
         break;
       }
@@ -110,12 +106,7 @@ export function AlignmentHelper({ isActive }: AlignmentHelperProps) {
       case 'right': {
         const rightMost = Math.max(...selectedSpriteObjects.map(s => s.x + getSpriteWidth(s)));
         selectedSpriteObjects.forEach(sprite => {
-          if (window.gameAPI?.sendMessage) {
-            window.gameAPI.sendMessage('sprite_update', {
-              id: sprite.id,
-              x: rightMost - getSpriteWidth(sprite)
-            });
-          }
+          updateSpritePosition(sprite.id, { x: rightMost - getSpriteWidth(sprite) });
         });
         break;
       }
@@ -123,12 +114,7 @@ export function AlignmentHelper({ isActive }: AlignmentHelperProps) {
       case 'top': {
         const topMost = Math.min(...selectedSpriteObjects.map(s => s.y));
         selectedSpriteObjects.forEach(sprite => {
-          if (window.gameAPI?.sendMessage) {
-            window.gameAPI.sendMessage('sprite_update', {
-              id: sprite.id,
-              y: topMost
-            });
-          }
+          updateSpritePosition(sprite.id, { y: topMost });
         });
         break;
       }
@@ -137,12 +123,7 @@ export function AlignmentHelper({ isActive }: AlignmentHelperProps) {
         const centers = selectedSpriteObjects.map(s => getSpriteCenter(s).y);
         const avgCenter = centers.reduce((a, b) => a + b, 0) / centers.length;
         selectedSpriteObjects.forEach(sprite => {
-          if (window.gameAPI?.sendMessage) {
-            window.gameAPI.sendMessage('sprite_update', {
-              id: sprite.id,
-              y: avgCenter - getSpriteHeight(sprite) / 2
-            });
-          }
+          updateSpritePosition(sprite.id, { y: avgCenter - getSpriteHeight(sprite) / 2 });
         });
         break;
       }
@@ -150,12 +131,7 @@ export function AlignmentHelper({ isActive }: AlignmentHelperProps) {
       case 'bottom': {
         const bottomMost = Math.max(...selectedSpriteObjects.map(s => s.y + getSpriteHeight(s)));
         selectedSpriteObjects.forEach(sprite => {
-          if (window.gameAPI?.sendMessage) {
-            window.gameAPI.sendMessage('sprite_update', {
-              id: sprite.id,
-              y: bottomMost - getSpriteHeight(sprite)
-            });
-          }
+          updateSpritePosition(sprite.id, { y: bottomMost - getSpriteHeight(sprite) });
         });
         break;
       }
@@ -172,12 +148,7 @@ export function AlignmentHelper({ isActive }: AlignmentHelperProps) {
         
         let currentX = leftMost;
         sorted.forEach(sprite => {
-          if (window.gameAPI?.sendMessage) {
-            window.gameAPI.sendMessage('sprite_update', {
-              id: sprite.id,
-              x: currentX
-            });
-          }
+          updateSpritePosition(sprite.id, { x: currentX });
           currentX += getSpriteWidth(sprite) + spacing;
         });
         break;
@@ -195,12 +166,7 @@ export function AlignmentHelper({ isActive }: AlignmentHelperProps) {
         
         let currentY = topMost;
         sorted.forEach(sprite => {
-          if (window.gameAPI?.sendMessage) {
-            window.gameAPI.sendMessage('sprite_update', {
-              id: sprite.id,
-              y: currentY
-            });
-          }
+          updateSpritePosition(sprite.id, { y: currentY });
           currentY += getSpriteHeight(sprite) + spacing;
         });
         break;

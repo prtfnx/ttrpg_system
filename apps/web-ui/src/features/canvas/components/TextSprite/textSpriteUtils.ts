@@ -1,3 +1,5 @@
+import { ProtocolService } from '@lib/api';
+import { getCurrentWasmRuntime } from '@lib/wasm/runtime';
 import type { TextSpriteConfig } from './TextSpriteCreator';
 
 /**
@@ -47,7 +49,7 @@ export interface RenderResult {
 
 type RustRenderer = { load_texture?: (id: string, img: HTMLImageElement) => void; add_sprite_to_layer?: (layer: string, sprite: Record<string, unknown>) => void; delete_sprite?: (id: string) => void };
 function getRustRenderer(): RustRenderer | undefined {
-  return (window as unknown as Record<string, unknown>)['rustRenderManager'] as RustRenderer | undefined;
+  return getCurrentWasmRuntime()?.getRenderEngine() as RustRenderer | undefined;
 }
 
 /**
@@ -260,11 +262,11 @@ export async function createTextSprite(
     };
 
     // Send to server via protocol if available
-    if (window.gameAPI && window.gameAPI.sendMessage) {
+    if (ProtocolService.hasProtocol()) {
       console.log('[TextSprite] Sending sprite_create:', networkPayload);
-      window.gameAPI.sendMessage('sprite_create', networkPayload);
+      ProtocolService.getProtocol().createSprite(networkPayload as unknown as Record<string, unknown>);
     } else {
-      console.warn('[TextSprite] window.gameAPI.sendMessage not available');
+      console.warn('[TextSprite] Protocol not available');
     }
 
     // Load texture into WASM renderer for immediate display
@@ -357,8 +359,8 @@ export async function updateTextSprite(
       rotation: config.rotation
     };
 
-    if (window.gameAPI && window.gameAPI.sendMessage) {
-      window.gameAPI.sendMessage('sprite_update', updatePayload);
+    if (ProtocolService.hasProtocol()) {
+      ProtocolService.getProtocol().updateSprite(spriteId, updatePayload);
     }
 
     const img2 = new Image();
@@ -401,8 +403,8 @@ export function deleteTextSprite(spriteId: string): void {
     }
 
     // Send delete to server
-    if (window.gameAPI && window.gameAPI.sendMessage) {
-      window.gameAPI.sendMessage('sprite_delete', { id: spriteId });
+    if (ProtocolService.hasProtocol()) {
+      ProtocolService.getProtocol().removeSprite(spriteId);
     }
   } catch (error) {
     console.error('[TextSprite] Failed to delete text sprite:', error);

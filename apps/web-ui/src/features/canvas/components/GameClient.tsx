@@ -7,6 +7,7 @@ import { ActionEconomyBar, TurnBanner } from '@features/combat';
 import { visionService } from '@features/lighting/services/vision.service';
 import { SessionManagementPanel } from '@features/session';
 import { isDM, type SessionRole } from '@features/session/types/roles';
+import { useWasmRuntime } from '@lib/wasm/runtime';
 import { useWindowManager } from '@shared/components/FloatingWindow';
 import clsx from 'clsx';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
@@ -65,23 +66,7 @@ export function GameClient({ sessionCode, userInfo, userRole, onAuthError }: Gam
   const visibleLayers = useGameStore(s => s.visibleLayers);
   const layerVisibility = useGameStore(s => s.layerVisibility);
   const userId = useGameStore(s => s.userId);
-
-  // Expose protocol and active table id globally for integration points (read-only usage by components)
-  useEffect(() => {
-    if (protocol) window.protocol = protocol;
-    return () => { if (window.protocol === protocol) delete window.protocol; };
- }, [protocol]);
-
-  // Expose activeTableId for components that need the current table context (e.g. Compendium drag)
-  useEffect(() => {
-    const handler = (e: Event) => {
-      // update when table is switched by store events
-      const custom = e as CustomEvent;
-      window.activeTableId = custom.detail?.table_id || null;
-    };
-    window.addEventListener('table-data-received', handler);
-    return () => window.removeEventListener('table-data-received', handler);
- }, []);
+  const runtime = useWasmRuntime();
 
   // Handle asset download requests from WASM integration service
   useEffect(() => {
@@ -105,30 +90,18 @@ export function GameClient({ sessionCode, userInfo, userRole, onAuthError }: Gam
 
   // Set WASM GM mode based on role — call immediately when effect runs (handles re-mounts too)
   useEffect(() => {
-    const apply = () => {
-      const engine = window.rustRenderManager;
-      if (engine) {
-        // Use __INITIAL_DATA__ as fallback so GM mode is correct before WELCOME arrives
-        const effectiveRole = sessionRole ?? window.__INITIAL_DATA__?.userRole ?? null;
-        engine.set_gm_mode?.(isDM(effectiveRole));
-      }
-    };
-    apply();
-    // Also apply when WASM render manager becomes available (may init after this effect)
-    window.addEventListener('render-manager-ready', apply);
-    return () => window.removeEventListener('render-manager-ready', apply);
- }, [sessionRole]);
+    const effectiveRole = sessionRole ?? window.__INITIAL_DATA__?.userRole ?? null;
+    runtime.setUserContext(userId ?? null, effectiveRole);
+ }, [runtime, sessionRole, userId]);
 
   // Pass current user ID to WASM for sprite ownership enforcement
   useEffect(() => {
-    if (userId != null) {
-      window.rustRenderManager?.set_current_user_id?.(userId);
-    }
- }, [userId]);
+    runtime.setUserContext(userId ?? null, sessionRole ?? window.__INITIAL_DATA__?.userRole ?? null);
+ }, [runtime, userId, sessionRole]);
 
   // Sync WASM layer visibility — role gates + user toggles both apply
   useEffect(() => {
-    const engine = window.rustRenderManager;
+    const engine = runtime.getRenderEngine();
     if (!engine?.set_layer_visibility) return;
     const allowed = new Set(isDM(sessionRole) ? ALL_LAYERS : visibleLayers);
     for (const layer of ALL_LAYERS) {
@@ -136,7 +109,7 @@ export function GameClient({ sessionCode, userInfo, userRole, onAuthError }: Gam
       const userToggle = layerVisibility[layer] ?? true;
       engine.set_layer_visibility(layer, roleAllows && userToggle);
     }
- }, [sessionRole, visibleLayers, layerVisibility]);
+ }, [runtime, sessionRole, visibleLayers, layerVisibility]);
 
   // Vision service: run for non-DMs to compute LOS; stop for DMs (they see all)
   useEffect(() => {
@@ -163,7 +136,7 @@ export function GameClient({ sessionCode, userInfo, userRole, onAuthError }: Gam
     const handler = (e: Event) => {
       const detail = (e as CustomEvent).detail as Record<string, unknown>;
       if (!detail || detail.type !== 'fog_update') return;
-      const engine = window.rustRenderManager;
+      const engine = runtime.getRenderEngine();
       if (!engine) return;
       const data = detail.data as Record<string, unknown> | undefined;
       if (!data) return;
@@ -179,7 +152,7 @@ export function GameClient({ sessionCode, userInfo, userRole, onAuthError }: Gam
     };
     window.addEventListener('table-updated', handler);
     return () => window.removeEventListener('table-updated', handler);
- }, []);
+ }, [runtime]);
 
   // Panel size state with localStorage persistence — must be before early returns
   const [leftWidth, setLeftWidth] = React.useState(() => {

@@ -8,7 +8,7 @@ import { FogPanel } from '@features/fog';
 import { LightingPanel } from '@features/lighting';
 import { type SessionRole, canInteract, isDM, isElevated } from '@features/session/types/roles';
 import { MapPanel, TableManagementPanel, TablePanel, TableSyncPanel } from '@features/table';
-import { useActionsEngine } from '@lib/wasm/actionsEngineContext';
+import { useActionsEngine, useRenderEngine } from '@lib/wasm/runtime';
 import clsx from 'clsx';
 import { useEffect, useState } from 'react';
 import { ActionQueuePanel } from '../features/actions/components/ActionQueuePanel';
@@ -66,6 +66,7 @@ export function RightPanel(props: { sessionCode?: string; userInfo?: import('@fe
   const [activeTab, setActiveTab] = useState<TabId>('entities');
   const sessionRole = (useGameStore(s => s.sessionRole) ?? props.userRole ?? 'player') as SessionRole;
   const actionsEngine = useActionsEngine();
+  const renderEngine = useRenderEngine();
   const isVisible = (tab: TabId) => TAB_VISIBLE[tab]?.(sessionRole) ?? false;
 
   // If current tab becomes hidden, switch to first visible tab
@@ -130,7 +131,7 @@ export function RightPanel(props: { sessionCode?: string; userInfo?: import('@fe
         {activeTab === 'chat' && <ChatPanel />}
         {activeTab === 'lighting' && <LightingPanel />}
         {activeTab === 'fog' && <FogPanel />}
-        {activeTab === 'backgrounds' && <BackgroundManagementPanel isOpen={true} onClose={() => setActiveTab('entities')} renderEngine={window.rustRenderManager ?? null} />}
+        {activeTab === 'backgrounds' && <BackgroundManagementPanel isOpen={true} onClose={() => setActiveTab('entities')} renderEngine={renderEngine} />}
         {activeTab === 'performance' && <PerformanceSettingsPanel isVisible={true} onClose={() => setActiveTab('entities')} />}
         {activeTab === 'customize' && <CustomizePanel />}
         {activeTab === 'compendium' && <CompendiumPanel />}

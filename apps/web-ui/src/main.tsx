@@ -4,6 +4,7 @@ import { AuthProvider } from '@features/auth';
 import { EntitiesPanel } from '@features/canvas/components/EntitiesPanel';
 import { ToolsPanel } from '@features/canvas/components/ToolsPanel';
 import { CharacterPanel } from '@features/character/components/CharacterPanel';
+import { WasmRuntimeProvider } from '@lib/wasm/runtime';
 import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 import App from './App.tsx';
@@ -38,9 +39,11 @@ window.ReactGameComponents = {
     const root = createRoot(container);
     root.render(
       <AuthProvider>
-        <div className="panel-container">
-          <ToolsPanel userInfo={{ id: 0, username: "unknown", role: "player", permissions: [] }} />
-        </div>
+        <WasmRuntimeProvider>
+          <div className="panel-container">
+            <ToolsPanel userInfo={{ id: 0, username: "unknown", role: "player", permissions: [] }} />
+          </div>
+        </WasmRuntimeProvider>
       </AuthProvider>
     );
   },
@@ -49,10 +52,12 @@ window.ReactGameComponents = {
     const root = createRoot(container);
     root.render(
       <AuthProvider>
-        <div className="panel-container">
-          <EntitiesPanel />
-          <CharacterPanel />
-        </div>
+        <WasmRuntimeProvider>
+          <div className="panel-container">
+            <EntitiesPanel />
+            <CharacterPanel />
+          </div>
+        </WasmRuntimeProvider>
       </AuthProvider>
     );
   }

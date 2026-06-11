@@ -37,7 +37,8 @@ vi.mock('@lib/wasm/wasmManager', () => ({
 }));
 
 import { useNetworkClient } from '@shared/hooks/useNetworkClient';
-import { render, act, waitFor } from '@testing-library/react';
+import { act, waitFor } from '@testing-library/react';
+import { createMockWasmRuntime, renderWithWasmRuntime } from '@test/utils/wasmRuntimeTestUtils';
 import React from 'react';
 
 const HookConsumer: React.FC<{
@@ -64,7 +65,10 @@ afterEach(() => {
 
 describe('useNetworkClient happy path', () => {
   it('initializes client and sets client ID', async () => {
-    const { getByTestId } = render(<HookConsumer />);
+    const { getByTestId } = renderWithWasmRuntime(
+      <HookConsumer />,
+      createMockWasmRuntime({ getNetworkClient: vi.fn(() => mockClient as never) }),
+    );
 
     await waitFor(() => expect(getByTestId('clientId').textContent).toBe('test-client-123'));
     expect(mockClient.set_message_handler).toHaveBeenCalledOnce();
@@ -73,15 +77,19 @@ describe('useNetworkClient happy path', () => {
   });
 
   it('auto-connects when autoConnect and serverUrl are provided', async () => {
-    render(
-      <HookConsumer options={{ autoConnect: true, serverUrl: 'ws://localhost:8000/ws' }} />
+    renderWithWasmRuntime(
+      <HookConsumer options={{ autoConnect: true, serverUrl: 'ws://localhost:8000/ws' }} />,
+      createMockWasmRuntime({ getNetworkClient: vi.fn(() => mockClient as never) }),
     );
 
     await waitFor(() => expect(mockClient.connect).toHaveBeenCalledWith('ws://localhost:8000/ws'));
   });
 
   it('does not auto-connect without serverUrl', async () => {
-    render(<HookConsumer options={{ autoConnect: true }} />);
+    renderWithWasmRuntime(
+      <HookConsumer options={{ autoConnect: true }} />,
+      createMockWasmRuntime({ getNetworkClient: vi.fn(() => mockClient as never) }),
+    );
 
     await waitFor(() => expect(mockClient.set_message_handler).toHaveBeenCalled());
     expect(mockClient.connect).not.toHaveBeenCalled();
@@ -89,7 +97,10 @@ describe('useNetworkClient happy path', () => {
 
   it('calls onMessage callback when message handler fires', async () => {
     const onMessage = vi.fn();
-    render(<HookConsumer options={{ onMessage }} />);
+    renderWithWasmRuntime(
+      <HookConsumer options={{ onMessage }} />,
+      createMockWasmRuntime({ getNetworkClient: vi.fn(() => mockClient as never) }),
+    );
 
     await waitFor(() => expect(mockClient.set_message_handler).toHaveBeenCalled());
 
@@ -103,8 +114,9 @@ describe('useNetworkClient happy path', () => {
 
   it('updates networkState when connection handler fires', async () => {
     const onConnectionChange = vi.fn();
-    const { getByTestId } = render(
-      <HookConsumer options={{ onConnectionChange }} />
+    const { getByTestId } = renderWithWasmRuntime(
+      <HookConsumer options={{ onConnectionChange }} />,
+      createMockWasmRuntime({ getNetworkClient: vi.fn(() => mockClient as never) }),
     );
 
     await waitFor(() => expect(mockClient.set_connection_handler).toHaveBeenCalled());
@@ -121,7 +133,10 @@ describe('useNetworkClient happy path', () => {
 
   it('updates lastError when error handler fires', async () => {
     const onError = vi.fn();
-    render(<HookConsumer options={{ onError }} />);
+    renderWithWasmRuntime(
+      <HookConsumer options={{ onError }} />,
+      createMockWasmRuntime({ getNetworkClient: vi.fn(() => mockClient as never) }),
+    );
 
     await waitFor(() => expect(mockClient.set_error_handler).toHaveBeenCalled());
 
@@ -133,7 +148,10 @@ describe('useNetworkClient happy path', () => {
 
   it('exposes connect and disconnect methods', async () => {
     let hookRef: ReturnType<typeof useNetworkClient> | null = null;
-    render(<HookConsumer onHook={(h) => { hookRef = h; }} />);
+    renderWithWasmRuntime(
+      <HookConsumer onHook={(h) => { hookRef = h; }} />,
+      createMockWasmRuntime({ getNetworkClient: vi.fn(() => mockClient as never) }),
+    );
 
     await waitFor(() => expect(hookRef).not.toBeNull());
 

@@ -1,4 +1,5 @@
-import { act, renderHook } from '@testing-library/react';
+import { act } from '@testing-library/react';
+import { renderHookWithWasmRuntime } from '@test/utils/wasmRuntimeTestUtils';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { useWebSocket } from '../useWebSocket';
 
@@ -78,7 +79,7 @@ afterEach(() => {
 
 // ── helpers ─────────────────────────────────────────────────────────────────
 async function connected() {
-  const hook = renderHook(() => useWebSocket('ws://test'));
+  const hook = renderHookWithWasmRuntime(() => useWebSocket('ws://test'));
   await act(async () => { hook.result.current.connect(); });
   act(() => { mockWs.triggerOpen(); });
   return hook;
@@ -88,7 +89,7 @@ async function connected() {
 
 describe('useWebSocket — connect / disconnect', () => {
   it('sets connection state to connecting then connected on open', async () => {
-    const { result } = renderHook(() => useWebSocket('ws://test'));
+    const { result } = renderHookWithWasmRuntime(() => useWebSocket('ws://test'));
     await act(async () => { result.current.connect(); });
     expect(mockUpdateConnectionState).toHaveBeenCalledWith('connecting');
     act(() => { mockWs.triggerOpen(); });
@@ -97,7 +98,7 @@ describe('useWebSocket — connect / disconnect', () => {
   });
 
   it('sets error state on socket error', async () => {
-    const { result } = renderHook(() => useWebSocket('ws://test'));
+    const { result } = renderHookWithWasmRuntime(() => useWebSocket('ws://test'));
     await act(async () => { result.current.connect(); });
     act(() => { mockWs.triggerError(); });
     expect(mockUpdateConnectionState).toHaveBeenCalledWith('error');
@@ -262,10 +263,11 @@ describe('useWebSocket — send helpers', () => {
   });
 
   it('sendMessage queues when not connected', () => {
-    const { result, unmount } = renderHook(() => useWebSocket('ws://test'));
+    const { result, unmount } = renderHookWithWasmRuntime(() => useWebSocket('ws://test'));
     // wsRef.current is null — message goes to internal queue, not the socket
     act(() => { result.current.sendMessage('ping'); });
     expect(mockWs.sent).toHaveLength(0);
     unmount();
   });
 });
+

@@ -9,7 +9,8 @@ vi.mock('@lib/wasm/wasmManager', () => ({
 }));
 
 import { useNetworkClient } from '@shared/hooks/useNetworkClient';
-import { render, waitFor } from '@testing-library/react';
+import { waitFor } from '@testing-library/react';
+import { createMockWasmRuntime, renderWithWasmRuntime } from '@test/utils/wasmRuntimeTestUtils';
 import React from 'react';
 
 // Small helper component to expose the hook's state for assertions
@@ -39,8 +40,9 @@ describe('useNetworkClient failure path', () => {
     const onError = vi.fn();
     const onConnectionChange = vi.fn();
 
-    const { getByTestId } = render(
-      <HookConsumer onError={onError} onConnectionChange={onConnectionChange} />
+    const { getByTestId } = renderWithWasmRuntime(
+      <HookConsumer onError={onError} onConnectionChange={onConnectionChange} />,
+      createMockWasmRuntime({ getNetworkClient: vi.fn(() => ({} as never)) }),
     );
 
     // The hook will set error state asynchronously; wait for it

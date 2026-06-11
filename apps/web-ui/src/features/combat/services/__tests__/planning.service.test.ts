@@ -1,13 +1,14 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-// Mock wasmManager before importing planningService
-vi.mock('@lib/wasm/wasmManager', () => ({
-  wasmManager: {
-    getWasmModule: vi.fn(),
-  },
+const runtimeMock = vi.hoisted(() => ({
+  initialize: vi.fn().mockResolvedValue(undefined),
+  getPlanningManager: vi.fn(),
 }));
 
-import { wasmManager } from '@lib/wasm/wasmManager';
+vi.mock('@lib/wasm/runtime', () => ({
+  getCurrentWasmRuntime: vi.fn(() => runtimeMock),
+}));
+
 import { planningService } from '../planning.service';
 
 const mockManager = {
@@ -29,18 +30,10 @@ const mockManager = {
   PlanningManager: undefined as unknown,
 };
 
-const mockWasm = {
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  PlanningManager: vi.fn(function () { return mockManager; } as any),
-};
-
-const getWasmModule = wasmManager.getWasmModule as ReturnType<typeof vi.fn>;
-
 beforeEach(async () => {
   vi.clearAllMocks();
-  // Restore implementations cleared by clearAllMocks
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  mockWasm.PlanningManager.mockImplementation(function () { return mockManager; } as any);
+  runtimeMock.initialize.mockResolvedValue(undefined);
+  runtimeMock.getPlanningManager.mockReturnValue(mockManager);
   mockManager.start_ghost.mockReturnValue(10);
   mockManager.get_ghost.mockReturnValue({ x: 1, y: 2 });
   mockManager.get_ghosts.mockReturnValue([]);
@@ -48,7 +41,6 @@ beforeEach(async () => {
   mockManager.measure_ft.mockReturnValue(30);
   mockManager.has_los.mockReturnValue(true);
   mockManager.tokens_in_aoe.mockReturnValue([]);
-  getWasmModule.mockResolvedValue(mockWasm);
   // Reset singleton manager and clear lastCell cache
   planningService.reset();
   await planningService.clearAll(); // clears module-level lastCell map
@@ -144,7 +136,7 @@ describe('planningService', () => {
   describe('when WASM is unavailable', () => {
     beforeEach(() => {
       planningService.reset();
-      getWasmModule.mockResolvedValue(null);
+      runtimeMock.getPlanningManager.mockReturnValue(null);
     });
 
     it('startGhost returns 0 with no manager', async () => {

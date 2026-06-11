@@ -3,6 +3,14 @@ import type { RenderEngine } from '@lib/wasm';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { visionService } from '../vision.service';
 
+const runtimeMock = vi.hoisted(() => ({
+  getRenderEngine: vi.fn(),
+}));
+
+vi.mock('@lib/wasm/runtime', () => ({
+  getCurrentWasmRuntime: vi.fn(() => runtimeMock),
+}));
+
 // ---- WASM render manager mock ----
 const rm = {
   set_dynamic_lighting_enabled: vi.fn(),
@@ -36,7 +44,7 @@ function makeSprite(overrides: Record<string, unknown> = {}) {
 
 beforeEach(() => {
   vi.clearAllMocks();
-  window.rustRenderManager = rm as unknown as RenderEngine;
+  runtimeMock.getRenderEngine.mockReturnValue(rm as unknown as RenderEngine);
   useGameStore.setState(baseStore() as unknown as Parameters<typeof useGameStore.setState>[0]);
 });
 

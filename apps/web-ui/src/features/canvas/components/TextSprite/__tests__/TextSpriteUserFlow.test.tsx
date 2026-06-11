@@ -1,5 +1,6 @@
-import { render, screen, waitFor } from '@testing-library/react';
+import { screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
+import { createMockWasmRuntime, renderWithWasmRuntime } from '@test/utils/wasmRuntimeTestUtils';
 import { describe, expect, it, vi } from 'vitest';
 
 import { TextSpriteTool } from '@features/canvas';
@@ -18,10 +19,15 @@ describe('Text sprite creation user flow', () => {
     mockCanvas.height = 600;
     document.body.appendChild(mockCanvas);
 
-    // Ensure global APIs are present (provided by test setup)
-    // window.rustRenderManager and window.gameAPI are mocked in setup.ts
+    const renderEngine = {
+      world_to_screen: vi.fn(() => [100, 100]),
+      create_text_sprite: vi.fn(() => 'text-sprite-1'),
+    };
 
-    render(<TextSpriteTool activeLayer="tokens" activeTool="text" onSpriteCreated={onSpriteCreated} onError={onError} />);
+    renderWithWasmRuntime(
+      <TextSpriteTool activeLayer="tokens" activeTool="text" onSpriteCreated={onSpriteCreated} onError={onError} />,
+      createMockWasmRuntime({ getRenderEngine: vi.fn(() => renderEngine as never) }),
+    );
 
     // Simulate a map click event to trigger the text editor
     const clickEvent = new CustomEvent('textSpriteClick', {
@@ -43,14 +49,14 @@ describe('Text sprite creation user flow', () => {
       expect(onSpriteCreated).toHaveBeenCalled();
     });
 
-    // Ensure rustRenderManager was used to create text sprite
-    expect((window.rustRenderManager as unknown as { create_text_sprite?: () => void })?.create_text_sprite).toHaveBeenCalled();
-
-    // If gameAPI exists it should have been called to send network payload
-    const gameAPI = (window as Window & { gameAPI?: { sendMessage?: (type: string, payload: unknown) => void } }).gameAPI;
-    if (gameAPI && gameAPI.sendMessage) {
-      expect(gameAPI.sendMessage).toHaveBeenCalledWith(expect.any(String), expect.objectContaining({ type: 'text' }));
-    }
+    expect(renderEngine.create_text_sprite).toHaveBeenCalledWith(
+      'Hello Table',
+      100,
+      100,
+      0.5,
+      '#ffffff',
+      'tokens',
+    );
 
     // No error should have been reported
     expect(onError).not.toHaveBeenCalled();

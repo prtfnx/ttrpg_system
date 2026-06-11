@@ -1,4 +1,7 @@
 import type { TextSpriteConfig } from '../TextSpriteCreator';
+import { ProtocolService } from '@lib/api';
+import { setCurrentWasmRuntime } from '@lib/wasm/runtime';
+import { createMockWasmRuntime } from '@test/utils/wasmRuntimeTestUtils';
 import {
     createTextSprite,
     deleteTextSprite,
@@ -52,18 +55,24 @@ const mockRustRenderer = {
   add_sprite_to_layer: vi.fn(),
   delete_sprite: vi.fn(),
 };
-const mockGameAPI = { sendMessage: vi.fn() };
+const mockProtocol = {
+  createSprite: vi.fn(),
+  updateSprite: vi.fn(),
+  removeSprite: vi.fn(),
+};
 
 beforeEach(() => {
   vi.stubGlobal('Image', FakeImage);
-  (window as unknown as Record<string, unknown>).rustRenderManager = mockRustRenderer;
-  (window as unknown as Record<string, unknown>).gameAPI = mockGameAPI;
+  setCurrentWasmRuntime(createMockWasmRuntime({
+    getRenderEngine: vi.fn(() => mockRustRenderer as never),
+  }));
+  ProtocolService.setProtocol(mockProtocol as never);
   vi.clearAllMocks();
 });
 
 afterEach(() => {
-  delete (window as unknown as Record<string, unknown>).rustRenderManager;
-  delete (window as unknown as Record<string, unknown>).gameAPI;
+  setCurrentWasmRuntime(null);
+  ProtocolService.clearProtocol();
   vi.unstubAllGlobals();
 });
 
@@ -157,17 +166,14 @@ describe('createTextSprite', () => {
     expect(id).toMatch(/^text_/);
   });
 
-  it('calls gameAPI.sendMessage with sprite_create', async () => {
+  it('creates a sprite through the active protocol', async () => {
     await createTextSprite(makeConfig(), { x: 10, y: 20 }, 'tokens');
-    expect(mockGameAPI.sendMessage).toHaveBeenCalledWith('sprite_create', expect.objectContaining({ type: 'text' }));
+    expect(mockProtocol.createSprite).toHaveBeenCalledWith(expect.objectContaining({ type: 'text' }));
   });
 
   it('sprite_create payload contains correct position', async () => {
     await createTextSprite(makeConfig(), { x: 50, y: 75 }, 'map');
-    expect(mockGameAPI.sendMessage).toHaveBeenCalledWith(
-      'sprite_create',
-      expect.objectContaining({ x: 50, y: 75 })
-    );
+    expect(mockProtocol.createSprite).toHaveBeenCalledWith(expect.objectContaining({ x: 50, y: 75 }));
   });
 
   it('calls rustRenderManager.load_texture after img.onload', async () => {
@@ -183,8 +189,8 @@ describe('createTextSprite', () => {
     expect(mockRustRenderer.add_sprite_to_layer).toHaveBeenCalledWith('tokens', expect.any(Object));
   });
 
-  it('without gameAPI: does not throw, still returns ID', async () => {
-    delete (window as unknown as Record<string, unknown>).gameAPI;
+  it('without protocol: does not throw, still returns ID', async () => {
+    ProtocolService.clearProtocol();
     const id = await createTextSprite(makeConfig(), { x: 0, y: 0 }, 'tokens');
     expect(typeof id).toBe('string');
   });
@@ -203,13 +209,13 @@ describe('deleteTextSprite', () => {
     expect(mockRustRenderer.delete_sprite).toHaveBeenCalledWith('sprite123');
   });
 
-  it('calls gameAPI.sendMessage with sprite_delete', () => {
+  it('removes the sprite through the active protocol', () => {
     deleteTextSprite('sprite123');
-    expect(mockGameAPI.sendMessage).toHaveBeenCalledWith('sprite_delete', { id: 'sprite123' });
+    expect(mockProtocol.removeSprite).toHaveBeenCalledWith('sprite123');
   });
 
-  it('does not throw when rustRenderManager is absent', () => {
-    delete (window as unknown as Record<string, unknown>).rustRenderManager;
+  it('does not throw when render engine is absent', () => {
+    setCurrentWasmRuntime(createMockWasmRuntime({ getRenderEngine: vi.fn(() => null) }));
     expect(() => deleteTextSprite('s1')).not.toThrow();
   });
 });
@@ -223,8 +229,8 @@ describe('updateTextSprite', () => {
     expect(mockRustRenderer.add_sprite_to_layer).toHaveBeenCalled();
   });
 
-  it('calls gameAPI.sendMessage with sprite_update', async () => {
+  it('updates the sprite through the active protocol', async () => {
     await updateTextSprite('sprite99', makeConfig({ text: 'Updated' }), { x: 5, y: 10 }, 'map');
-    expect(mockGameAPI.sendMessage).toHaveBeenCalledWith('sprite_update', expect.objectContaining({ id: 'sprite99' }));
+    expect(mockProtocol.updateSprite).toHaveBeenCalledWith('sprite99', expect.objectContaining({ id: 'sprite99' }));
   });
 });

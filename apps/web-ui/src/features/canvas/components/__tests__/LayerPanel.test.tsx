@@ -74,6 +74,18 @@ const mockRenderEngine = {
   set_layer_visible: vi.fn(),
   set_layer_opacity: vi.fn(),
   setActiveLayer: vi.fn(),
+  get_layer_sprite_count: vi.fn((layerId: string) => {
+    const counts: Record<string, number> = {
+      map: 1,
+      tokens: 5,
+      dungeon_master: 2,
+      light: 3,
+      height: 0,
+      obstacles: 4,
+      fog_of_war: 0
+    };
+    return counts[layerId] || 0;
+  }),
   getLayerSpriteCount: vi.fn((layerId: string) => {
     const counts: Record<string, number> = {
       map: 1,

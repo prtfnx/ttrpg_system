@@ -1,4 +1,5 @@
-import { act, renderHook, waitFor } from '@testing-library/react';
+import { act, waitFor } from '@testing-library/react';
+import { createMockWasmRuntime, renderHookWithWasmRuntime } from '@test/utils/wasmRuntimeTestUtils';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { LayerSettings } from '../useLayerManager';
 import { useLayerManager } from '../useLayerManager';
@@ -18,6 +19,13 @@ const mockRenderManager = {
 const mockGameAPI = {
   renderManager: vi.fn(() => mockRenderManager),
 };
+
+function renderLayerManager(renderEngine: typeof mockRenderManager | null = mockRenderManager) {
+  return renderHookWithWasmRuntime(
+    () => useLayerManager(),
+    createMockWasmRuntime({ getRenderEngine: vi.fn(() => renderEngine as never) }),
+  );
+}
 
 // Mock WASM globals
 beforeEach(() => {
@@ -75,60 +83,25 @@ afterEach(() => {
 describe('useLayerManager', () => {
   describe('Initialization', () => {
     it('initializes with default state when WASM is ready', async () => {
-      const { result } = renderHook(() => useLayerManager());
+      const { result } = renderLayerManager();
 
-      // Initial state
-      expect(result.current.isInitialized).toBe(false);
       expect(result.current.activeLayer).toBe('tokens');
-      expect(result.current.layers).toEqual([]);
 
       // Wait for initialization
       await waitFor(() => {
         expect(result.current.isInitialized).toBe(true);
       });
 
-      expect(mockGameAPI.renderManager).toHaveBeenCalled();
       expect(result.current.layers).toHaveLength(7); // All configured layers
     });
 
-    it('handles WASM initialization timeout', async () => {
-      vi.useFakeTimers();
-
-      // Remove WASM globals completely by deleting the properties
-      // Setting to undefined doesn't work because the code checks for truthiness
-      const descriptor = Object.getOwnPropertyDescriptor(window, 'ttrpg_rust_core');
-      if (descriptor?.configurable !== false) {
-        delete (window as unknown as Record<string, unknown>).ttrpg_rust_core;
-        delete (window as unknown as Record<string, unknown>).gameAPI;
-      }
-
-      vi.spyOn(console, 'error').mockImplementation(() => {});
-      const { result } = renderHook(() => useLayerManager());
-
-      // Advance past the 10s timeout to fire and resolve the pending timer
-      await vi.advanceTimersByTimeAsync(11000);
-
+    it('stays uninitialized when the runtime has no render engine', () => {
+      const { result } = renderLayerManager(null);
       expect(result.current.isInitialized).toBe(false);
-
-      vi.useRealTimers();
     });
 
-    it('waits for wasm-ready event when WASM is not initially available', async () => {
-      // Start without WASM by setting to undefined
-      Object.assign(window, { ttrpg_rust_core: undefined });
-      Object.assign(window, { gameAPI: undefined });
-
-      const { result } = renderHook(() => useLayerManager());
-      expect(result.current.isInitialized).toBe(false);
-
-      // Simulate WASM becoming ready
-      Object.assign(window, { ttrpg_rust_core: true });
-      Object.assign(window, { gameAPI: mockGameAPI });
-
-      // Emit ready event
-      const readyEvent = new Event('wasm-ready');
-      window.dispatchEvent(readyEvent);
-
+    it('initializes from the runtime render engine without global WASM events', async () => {
+      const { result } = renderLayerManager();
       await waitFor(() => {
         expect(result.current.isInitialized).toBe(true);
       });
@@ -146,7 +119,7 @@ describe('useLayerManager', () => {
         return layerName === 'tokens' ? 5 : layerName === 'map' ? 1 : 0;
       });
 
-      const { result } = renderHook(() => useLayerManager());
+      const { result } = renderLayerManager();
 
       await waitFor(() => {
         expect(result.current.isInitialized).toBe(true);
@@ -162,7 +135,7 @@ describe('useLayerManager', () => {
     });
 
     it('refreshes layer data when called', async () => {
-      const { result } = renderHook(() => useLayerManager());
+      const { result } = renderLayerManager();
 
       await waitFor(() => {
         expect(result.current.isInitialized).toBe(true);
@@ -182,7 +155,7 @@ describe('useLayerManager', () => {
     });
 
     it('handles layer data refresh errors gracefully', async () => {
-      const { result } = renderHook(() => useLayerManager());
+      const { result } = renderLayerManager();
 
       await waitFor(() => {
         expect(result.current.isInitialized).toBe(true);
@@ -209,14 +182,14 @@ describe('useLayerManager', () => {
 
   describe('Layer Control', () => {
     beforeEach(async () => {
-      const { result } = renderHook(() => useLayerManager());
+      const { result } = renderLayerManager();
       await waitFor(() => {
         expect(result.current.isInitialized).toBe(true);
       });
     });
 
     it('sets active layer', async () => {
-      const { result } = renderHook(() => useLayerManager());
+      const { result } = renderLayerManager();
 
       await waitFor(() => {
         expect(result.current.isInitialized).toBe(true);
@@ -230,7 +203,7 @@ describe('useLayerManager', () => {
     });
 
     it('toggles layer visibility', async () => {
-      const { result } = renderHook(() => useLayerManager());
+      const { result } = renderLayerManager();
 
       await waitFor(() => {
         expect(result.current.isInitialized).toBe(true);
@@ -244,7 +217,7 @@ describe('useLayerManager', () => {
     });
 
     it('sets layer opacity', async () => {
-      const { result } = renderHook(() => useLayerManager());
+      const { result } = renderLayerManager();
 
       await waitFor(() => {
         expect(result.current.isInitialized).toBe(true);
@@ -258,7 +231,7 @@ describe('useLayerManager', () => {
     });
 
     it('updates layer settings', async () => {
-      const { result } = renderHook(() => useLayerManager());
+      const { result } = renderLayerManager();
 
       await waitFor(() => {
         expect(result.current.isInitialized).toBe(true);
@@ -280,7 +253,7 @@ describe('useLayerManager', () => {
     });
 
     it('sets blend mode', async () => {
-      const { result } = renderHook(() => useLayerManager());
+      const { result } = renderLayerManager();
 
       await waitFor(() => {
         expect(result.current.isInitialized).toBe(true);
@@ -296,7 +269,7 @@ describe('useLayerManager', () => {
 
   describe('Layer Operations', () => {
     it('gets layer by name', async () => {
-      const { result } = renderHook(() => useLayerManager());
+      const { result } = renderLayerManager();
 
       await waitFor(() => {
         expect(result.current.isInitialized).toBe(true);
@@ -319,7 +292,7 @@ describe('useLayerManager', () => {
         z_order: 1,
       }));
 
-      const { result } = renderHook(() => useLayerManager());
+      const { result } = renderLayerManager();
 
       await waitFor(() => {
         expect(result.current.isInitialized).toBe(true);
@@ -340,7 +313,7 @@ describe('useLayerManager', () => {
         z_order: layerName === 'tokens' ? 5 : layerName === 'map' ? 1 : 3,
       }));
 
-      const { result } = renderHook(() => useLayerManager());
+      const { result } = renderLayerManager();
 
       await waitFor(() => {
         expect(result.current.isInitialized).toBe(true);
@@ -360,7 +333,7 @@ describe('useLayerManager', () => {
       delete (window as unknown as Record<string, unknown>).ttrpg_rust_core;
       delete (window as unknown as Record<string, unknown>).gameAPI;
 
-      const { result } = renderHook(() => useLayerManager());
+      const { result } = renderLayerManager(null);
       await expect(result.current.setLayerVisible('tokens', false)).resolves.toBeUndefined();
       await expect(result.current.setLayerOpacity('tokens', 0.5)).resolves.toBeUndefined();
 
@@ -369,7 +342,7 @@ describe('useLayerManager', () => {
     });
 
     it('handles WASM method errors gracefully', async () => {
-      const { result } = renderHook(() => useLayerManager());
+      const { result } = renderLayerManager();
 
       await waitFor(() => {
         expect(result.current.isInitialized).toBe(true);
@@ -394,7 +367,7 @@ describe('useLayerManager', () => {
         throw new Error('Settings not available');
       });
 
-      const { result } = renderHook(() => useLayerManager());
+      const { result } = renderLayerManager();
 
       await waitFor(() => {
         expect(result.current.isInitialized).toBe(true);
@@ -411,7 +384,7 @@ describe('useLayerManager', () => {
 
   describe('Performance', () => {
     it('executes each layer refresh call independently', async () => {
-      const { result } = renderHook(() => useLayerManager());
+      const { result } = renderLayerManager();
 
       // Wait for initialization
       await waitFor(() => {
@@ -436,7 +409,7 @@ describe('useLayerManager', () => {
     });
 
     it('debounces rapid layer setting changes', async () => {
-      const { result } = renderHook(() => useLayerManager());
+      const { result } = renderLayerManager();
 
       await waitFor(() => {
         expect(result.current.isInitialized).toBe(true);
@@ -456,3 +429,4 @@ describe('useLayerManager', () => {
     });
   });
 });
+

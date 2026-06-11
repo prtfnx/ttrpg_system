@@ -1,4 +1,4 @@
-import { renderHook } from '@testing-library/react';
+import { createMockWasmRuntime, renderHookWithWasmRuntime } from '@test/utils/wasmRuntimeTestUtils';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { useLayerHotkeys } from '../useLayerHotkeys';
 
@@ -28,7 +28,7 @@ function pressKey(key: string, opts: Partial<KeyboardEventInit> = {}) {
 
 describe('useLayerHotkeys', () => {
   it('switches layer on digit key press as DM', () => {
-    renderHook(() => useLayerHotkeys());
+    renderHookWithWasmRuntime(() => useLayerHotkeys());
     pressKey('1');
     expect(mockSetActiveLayer).toHaveBeenCalledWith('map');
   });
@@ -38,7 +38,7 @@ describe('useLayerHotkeys', () => {
       '1': 'map', '2': 'tokens', '3': 'dungeon_master',
       '4': 'light', '5': 'height', '6': 'obstacles', '7': 'fog_of_war',
     };
-    renderHook(() => useLayerHotkeys());
+    renderHookWithWasmRuntime(() => useLayerHotkeys());
     for (const [key, layer] of Object.entries(expected)) {
       pressKey(key);
       expect(mockSetActiveLayer).toHaveBeenCalledWith(layer);
@@ -47,46 +47,48 @@ describe('useLayerHotkeys', () => {
 
   it('does nothing when not DM', () => {
     mockSessionRole = 'player';
-    renderHook(() => useLayerHotkeys());
+    renderHookWithWasmRuntime(() => useLayerHotkeys());
     pressKey('1');
     expect(mockSetActiveLayer).not.toHaveBeenCalled();
   });
 
   it('ignores keys with Ctrl modifier', () => {
-    renderHook(() => useLayerHotkeys());
+    renderHookWithWasmRuntime(() => useLayerHotkeys());
     pressKey('1', { ctrlKey: true });
     expect(mockSetActiveLayer).not.toHaveBeenCalled();
   });
 
   it('ignores keys with Alt modifier', () => {
-    renderHook(() => useLayerHotkeys());
+    renderHookWithWasmRuntime(() => useLayerHotkeys());
     pressKey('1', { altKey: true });
     expect(mockSetActiveLayer).not.toHaveBeenCalled();
   });
 
   it('ignores non-layer keys', () => {
-    renderHook(() => useLayerHotkeys());
+    renderHookWithWasmRuntime(() => useLayerHotkeys());
     pressKey('a');
     expect(mockSetActiveLayer).not.toHaveBeenCalled();
   });
 
   it('calls rustRenderManager.set_active_layer if available', () => {
     const set_active_layer = vi.fn();
-    (window as unknown as Record<string, unknown>).rustRenderManager = { set_active_layer };
-    renderHook(() => useLayerHotkeys());
+    renderHookWithWasmRuntime(
+      () => useLayerHotkeys(),
+      createMockWasmRuntime({ getRenderEngine: vi.fn(() => ({ set_active_layer }) as never) }),
+    );
     pressKey('2');
     expect(set_active_layer).toHaveBeenCalledWith('tokens');
   });
 
   it('cleans up event listener on unmount', () => {
-    const { unmount } = renderHook(() => useLayerHotkeys());
+    const { unmount } = renderHookWithWasmRuntime(() => useLayerHotkeys());
     unmount();
     pressKey('1');
     expect(mockSetActiveLayer).not.toHaveBeenCalled();
   });
 
   it('skips when focus is in INPUT', () => {
-    renderHook(() => useLayerHotkeys());
+    renderHookWithWasmRuntime(() => useLayerHotkeys());
     const input = document.createElement('input');
     document.body.appendChild(input);
     input.focus();

@@ -4,7 +4,8 @@
  * breaking the existing guard-path tests.
  */
 import { useTableSync } from '@features/table';
-import { act, renderHook, waitFor } from '@testing-library/react';
+import { act, waitFor } from '@testing-library/react';
+import { createMockWasmRuntime, renderHookWithWasmRuntime, type MockWasmRuntime } from '@test/utils/wasmRuntimeTestUtils';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 // Shared mock instance captured at construction time
@@ -23,19 +24,14 @@ let capturedTableSync: {
   set_network_client: ReturnType<typeof vi.fn>;
 } | null = null;
 
-// hoisted mock fn so the factory can reference it
-const mockGetWasmModule = vi.hoisted(() => vi.fn());
-
-vi.mock('@lib/wasm/wasmManager', () => ({
-  wasmManager: { getWasmModule: mockGetWasmModule },
-}));
-
 vi.mock('@shared/hooks/useNetworkClient', () => ({
   useNetworkClient: vi.fn(() => ({
     client: { sendMessage: vi.fn() },
     networkState: { isConnected: true },
   })),
 }));
+
+let mockRuntime: MockWasmRuntime;
 
 function buildMockTableSync() {
   capturedTableSync = {
@@ -89,11 +85,14 @@ function makeTableData(overrides = {}) {
 
 async function initHook(options = {}) {
   const MockTableSync = buildMockTableSync();
-  mockGetWasmModule.mockResolvedValue({ TableSync: MockTableSync });
+  const tableSync = new MockTableSync();
+  mockRuntime = createMockWasmRuntime({
+    getTableSync: vi.fn(() => tableSync as never),
+  });
 
-  const hook = renderHook(() => useTableSync(options));
+  const hook = renderHookWithWasmRuntime(() => useTableSync(options), mockRuntime);
 
-  // Flush the async getWasmModule promise and the then() callback
+  // Flush the async runtime initialization promise and the then() callback
   await act(async () => {
     await Promise.resolve();
     await Promise.resolve();
@@ -105,13 +104,14 @@ async function initHook(options = {}) {
 beforeEach(() => {
   vi.clearAllMocks();
   capturedTableSync = null;
+  mockRuntime = createMockWasmRuntime();
 });
 
 describe('useTableSync – WASM initialized', () => {
   describe('initialization', () => {
-    it('calls getWasmModule on mount', async () => {
+    it('initializes the WASM runtime on mount', async () => {
       await initHook();
-      expect(mockGetWasmModule).toHaveBeenCalledOnce();
+      expect(mockRuntime.initialize).toHaveBeenCalledOnce();
     });
 
     it('registers all three WASM handlers', async () => {
@@ -123,8 +123,10 @@ describe('useTableSync – WASM initialized', () => {
 
     it('calls onError when WASM rejects', async () => {
       const onError = vi.fn();
-      mockGetWasmModule.mockRejectedValue(new Error('WASM load failed'));
-      const { result } = renderHook(() => useTableSync({ onError }));
+      mockRuntime = createMockWasmRuntime({
+        initialize: vi.fn().mockRejectedValue(new Error('WASM load failed')),
+      });
+      const { result } = renderHookWithWasmRuntime(() => useTableSync({ onError }), mockRuntime);
 
       await act(async () => { await Promise.resolve(); await Promise.resolve(); });
 

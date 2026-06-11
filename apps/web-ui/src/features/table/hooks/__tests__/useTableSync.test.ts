@@ -1,6 +1,7 @@
 import { useTableSync } from '@features/table';
 import { useNetworkClient } from '@shared/hooks/useNetworkClient';
-import { act, renderHook } from '@testing-library/react';
+import { act } from '@testing-library/react';
+import { createMockWasmRuntime, renderHookWithWasmRuntime, type MockWasmRuntime } from '@test/utils/wasmRuntimeTestUtils';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 // useNetworkClient must return { client, networkState } to match hook destructuring
@@ -18,14 +19,24 @@ vi.mock('@lib/wasm/wasmManager', () => ({
   },
 }));
 
+let mockRuntime: MockWasmRuntime;
+
+function renderTableSync(options?: Parameters<typeof useTableSync>[0]) {
+  return renderHookWithWasmRuntime(() => useTableSync(options), mockRuntime);
+}
+
 describe('useTableSync', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    mockRuntime = createMockWasmRuntime({
+      initialize: vi.fn(() => new Promise(() => {})),
+      getTableSync: vi.fn(() => null),
+    });
   });
 
   describe('Initial state', () => {
     it('returns null tableData and empty sprites', () => {
-      const { result } = renderHook(() => useTableSync());
+      const { result } = renderTableSync();
       expect(result.current.tableData).toBeNull();
       expect(result.current.tableId).toBeNull();
       expect(result.current.sprites).toEqual([]);
@@ -34,7 +45,7 @@ describe('useTableSync', () => {
     });
 
     it('exposes action functions', () => {
-      const { result } = renderHook(() => useTableSync());
+      const { result } = renderTableSync();
       expect(typeof result.current.requestTable).toBe('function');
       expect(typeof result.current.moveSprite).toBe('function');
       expect(typeof result.current.scaleSprite).toBe('function');
@@ -47,7 +58,7 @@ describe('useTableSync', () => {
 
   describe('requestTable', () => {
     it('sets error when tableSync not initialized (WASM never ready in unit tests)', () => {
-      const { result } = renderHook(() => useTableSync());
+      const { result } = renderTableSync();
 
       act(() => {
         result.current.requestTable('test-table');
@@ -62,7 +73,7 @@ describe('useTableSync', () => {
         networkState: { isConnected: false, connectionState: 'disconnected', clientId: '' },
       } as unknown as ReturnType<typeof useNetworkClient>);
 
-      const { result } = renderHook(() => useTableSync());
+      const { result } = renderTableSync();
 
       act(() => {
         result.current.requestTable('test-table');
@@ -75,27 +86,27 @@ describe('useTableSync', () => {
 
   describe('sprite actions – not initialized guard', () => {
     it('moveSprite throws when table sync not ready', () => {
-      const { result } = renderHook(() => useTableSync());
+      const { result } = renderTableSync();
       expect(() => result.current.moveSprite('s1', 10, 20)).toThrow('Table sync not initialized');
     });
 
     it('scaleSprite throws when table sync not ready', () => {
-      const { result } = renderHook(() => useTableSync());
+      const { result } = renderTableSync();
       expect(() => result.current.scaleSprite('s1', 2, 2)).toThrow('Table sync not initialized');
     });
 
     it('rotateSprite throws when table sync not ready', () => {
-      const { result } = renderHook(() => useTableSync());
+      const { result } = renderTableSync();
       expect(() => result.current.rotateSprite('s1', 45)).toThrow('Table sync not initialized');
     });
 
     it('deleteSprite throws when table sync not ready', () => {
-      const { result } = renderHook(() => useTableSync());
+      const { result } = renderTableSync();
       expect(() => result.current.deleteSprite('s1')).toThrow('Table sync not initialized');
     });
 
     it('createSprite throws when table sync not ready', () => {
-      const { result } = renderHook(() => useTableSync());
+      const { result } = renderTableSync();
       const spriteData = { name: 'Test', x: 0, y: 0, width: 50, height: 50, scale_x: 1, scale_y: 1, rotation: 0, layer: 'tokens', texture_path: '/token.png', color: '#fff', visible: true };
       expect(() => result.current.createSprite(spriteData)).toThrow('Table sync not initialized');
     });
@@ -103,7 +114,7 @@ describe('useTableSync', () => {
 
   describe('window events trigger state updates', () => {
     it('table-data-received event updates loading state', async () => {
-      const { result } = renderHook(() => useTableSync());
+      const { result } = renderTableSync();
 
       // Dispatch a custom event to simulate WASM callback-less path
       act(() => {
@@ -119,7 +130,7 @@ describe('useTableSync', () => {
 
   describe('handleNetworkMessage', () => {
     it('does not throw for unknown message type', () => {
-      const { result } = renderHook(() => useTableSync());
+      const { result } = renderTableSync();
 
       expect(() => {
         result.current.handleNetworkMessage('unknown_type', {});
@@ -127,7 +138,7 @@ describe('useTableSync', () => {
     });
 
     it('does not throw for table_data message when tableSync not ready', () => {
-      const { result } = renderHook(() => useTableSync());
+      const { result } = renderTableSync();
 
       expect(() => {
         result.current.handleNetworkMessage('table_data', { data: {} });
@@ -137,8 +148,9 @@ describe('useTableSync', () => {
 
   describe('cleanup', () => {
     it('unmounts without errors', () => {
-      const { unmount } = renderHook(() => useTableSync());
+      const { unmount } = renderTableSync();
       expect(() => unmount()).not.toThrow();
     });
   });
 });
+

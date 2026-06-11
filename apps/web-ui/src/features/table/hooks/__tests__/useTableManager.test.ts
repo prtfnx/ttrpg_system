@@ -1,6 +1,7 @@
 import type { ScreenArea } from '@features/table';
 import { useTableManager } from '@features/table';
-import { act, renderHook } from '@testing-library/react';
+import { act, waitFor } from '@testing-library/react';
+import { createMockWasmRuntime, renderHookWithWasmRuntime, type MockWasmRuntime } from '@test/utils/wasmRuntimeTestUtils';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 // Mock WASM TableManager
@@ -22,27 +23,25 @@ const mockTableManager = {
   remove_table: vi.fn(() => true),
 };
 
-// Mock global WASM
-const mockWasm = {
-  // Must be a regular function (not arrow) — Vitest uses Reflect.construct internally
-  // for 'new' calls, and arrow functions are not constructable.
-  TableManager: vi.fn(function() { return mockTableManager; }),
-};
+let mockRuntime: MockWasmRuntime;
+
+async function renderUseTableManager() {
+  const hook = renderHookWithWasmRuntime(() => useTableManager(), mockRuntime);
+  await waitFor(() => expect(hook.result.current.tableManager).toBe(mockTableManager));
+  return hook;
+}
+
+function renderUseTableManagerWithoutWaiting() {
+  return renderHookWithWasmRuntime(() => useTableManager(), mockRuntime);
+}
 
 // Setup global mocks
 beforeEach(() => {
   vi.clearAllMocks();
-  
-  // Mock window.wasm
-  Object.defineProperty(window, 'wasm', {
-    value: mockWasm,
-    writable: true,
-  });
 
-  // Mock window.rustRenderManager
-  Object.defineProperty(window, 'rustRenderManager', {
-    value: true,
-    writable: true,
+  mockRuntime = createMockWasmRuntime({
+    getTableManager: vi.fn(() => mockTableManager as never),
+    getRenderEngine: vi.fn(() => ({ render: vi.fn() }) as never),
   });
 
   // Mock canvas element
@@ -69,38 +68,35 @@ afterEach(() => {
 
 describe('useTableManager', () => {
   describe('Initialization', () => {
-    it('initializes table manager on first render', () => {
-      const { result } = renderHook(() => useTableManager());
+    it('initializes table manager on first render', async () => {
+      const { result } = await renderUseTableManager();
 
-      expect(mockWasm.TableManager).toHaveBeenCalledTimes(1);
+      expect(mockRuntime.initialize).toHaveBeenCalledTimes(1);
       expect(result.current.tableManager).toBeTruthy();
       expect(result.current.activeTableId).toBeNull();
       expect(result.current.tables).toEqual([]);
     });
 
-    it('sets canvas size when table manager and canvas are available', () => {
-      renderHook(() => useTableManager());
+    it('sets canvas size when table manager and canvas are available', async () => {
+      await renderUseTableManager();
 
       expect(mockTableManager.set_canvas_size).toHaveBeenCalledWith(800, 600);
     });
 
-    it('handles table manager initialization failure gracefully', () => {
+    it('handles table manager initialization failure gracefully', async () => {
       const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
-      mockWasm.TableManager.mockImplementationOnce(function() {
-        throw new Error('WASM initialization failed');
-      });
+      vi.mocked(mockRuntime.initialize).mockRejectedValueOnce(new Error('WASM initialization failed'));
 
-      const { result } = renderHook(() => useTableManager());
+      const { result } = renderUseTableManagerWithoutWaiting();
 
+      await waitFor(() => expect(consoleSpy).toHaveBeenCalledWith('Failed to initialize Table Manager:', expect.any(Error)));
       expect(result.current.tableManager).toBeNull();
-      expect(consoleSpy).toHaveBeenCalledWith('Failed to initialize Table Manager:', expect.any(Error));
     });
   });
 
   describe('Table Creation', () => {
-    it('creates a new table successfully', () => {
-      const { result } = renderHook(() => useTableManager());
-
+    it('creates a new table successfully', async () => {
+      const { result } = await renderUseTableManager();
       act(() => {
         const success = result.current.createTable('table1', 'Test Table', 1000, 800);
         expect(success).toBe(true);
@@ -109,26 +105,25 @@ describe('useTableManager', () => {
       expect(mockTableManager.create_table).toHaveBeenCalledWith('table1', 'Test Table', 1000, 800);
     });
 
-    it('returns false when table manager is not initialized', () => {
+    it('returns false when table manager is not initialized', async () => {
       vi.spyOn(console, 'error').mockImplementation(() => {});
-      mockWasm.TableManager.mockImplementationOnce(function() {
-        throw new Error('simulated init failure');
-      });
-      const { result } = renderHook(() => useTableManager());
+      vi.mocked(mockRuntime.initialize).mockRejectedValueOnce(new Error('simulated init failure'));
+      const { result } = renderUseTableManagerWithoutWaiting();
 
+      await waitFor(() => expect(mockRuntime.initialize).toHaveBeenCalled());
       act(() => {
         const success = result.current.createTable('table1', 'Test Table', 1000, 800);
         expect(success).toBe(false);
       });
     });
 
-    it('handles table creation with invalid dimensions', () => {
+    it('handles table creation with invalid dimensions', async () => {
       // WASM create_table returns void and throws on error; hook returns false on throw
       vi.spyOn(console, 'error').mockImplementation(() => {});
       mockTableManager.create_table.mockImplementationOnce(function() {
         throw new Error('invalid dimensions');
       });
-      const { result } = renderHook(() => useTableManager());
+      const { result } = await renderUseTableManager();
 
       act(() => {
         const success = result.current.createTable('table1', 'Test Table', -100, -100);
@@ -138,8 +133,8 @@ describe('useTableManager', () => {
   });
 
   describe('Table Management', () => {
-    it('sets active table', () => {
-      const { result } = renderHook(() => useTableManager());
+    it('sets active table', async () => {
+      const { result } = await renderUseTableManager();
 
       act(() => {
         const success = result.current.setActiveTable('table1');
@@ -149,8 +144,8 @@ describe('useTableManager', () => {
       expect(mockTableManager.set_active_table).toHaveBeenCalledWith('table1');
     });
 
-    it('removes table successfully', () => {
-      const { result } = renderHook(() => useTableManager());
+    it('removes table successfully', async () => {
+      const { result } = await renderUseTableManager();
 
       act(() => {
         const success = result.current.removeTable('table1');
@@ -160,7 +155,7 @@ describe('useTableManager', () => {
       expect(mockTableManager.remove_table).toHaveBeenCalledWith('table1');
     });
 
-    it('refreshes table list', () => {
+    it('refreshes table list', async () => {
       const mockTableData = [
         {
           table_id: 'table1',
@@ -182,7 +177,7 @@ describe('useTableManager', () => {
       // Need two returnValues: one for the init refresh, one for the explicit call
       mockTableManager.get_all_tables.mockReturnValueOnce(tableDataJson);
       mockTableManager.get_all_tables.mockReturnValueOnce(tableDataJson);
-      const { result } = renderHook(() => useTableManager());
+      const { result } = await renderUseTableManager();
 
       act(() => {
         result.current.refreshTables();
@@ -194,8 +189,8 @@ describe('useTableManager', () => {
   });
 
   describe('Viewport Operations', () => {
-    it('pans viewport correctly', () => {
-      const { result } = renderHook(() => useTableManager());
+    it('pans viewport correctly', async () => {
+      const { result } = await renderUseTableManager();
 
       act(() => {
         const success = result.current.panViewport('table1', 10, 20);
@@ -205,8 +200,8 @@ describe('useTableManager', () => {
       expect(mockTableManager.pan_viewport).toHaveBeenCalledWith('table1', 10, 20);
     });
 
-    it('zooms table correctly', () => {
-      const { result } = renderHook(() => useTableManager());
+    it('zooms table correctly', async () => {
+      const { result } = await renderUseTableManager();
 
       act(() => {
         const success = result.current.zoomTable('table1', 1.5, 400, 300);
@@ -216,8 +211,8 @@ describe('useTableManager', () => {
       expect(mockTableManager.zoom_table).toHaveBeenCalledWith('table1', 1.5, 400, 300);
     });
 
-    it('gets visible bounds', () => {
-      const { result } = renderHook(() => useTableManager());
+    it('gets visible bounds', async () => {
+      const { result } = await renderUseTableManager();
 
       const bounds = result.current.getVisibleBounds('table1');
       
@@ -227,8 +222,8 @@ describe('useTableManager', () => {
   });
 
   describe('Coordinate Transformations', () => {
-    it('converts table coordinates to screen coordinates', () => {
-      const { result } = renderHook(() => useTableManager());
+    it('converts table coordinates to screen coordinates', async () => {
+      const { result } = await renderUseTableManager();
 
       const screenCoords = result.current.tableToScreen('table1', 50, 75);
       
@@ -236,8 +231,8 @@ describe('useTableManager', () => {
       expect(mockTableManager.table_to_screen).toHaveBeenCalledWith('table1', 50, 75);
     });
 
-    it('converts screen coordinates to table coordinates', () => {
-      const { result } = renderHook(() => useTableManager());
+    it('converts screen coordinates to table coordinates', async () => {
+      const { result } = await renderUseTableManager();
 
       const tableCoords = result.current.screenToTable('table1', 100, 100);
       
@@ -245,8 +240,8 @@ describe('useTableManager', () => {
       expect(mockTableManager.screen_to_table).toHaveBeenCalledWith('table1', 100, 100);
     });
 
-    it('checks if point is in table area', () => {
-      const { result } = renderHook(() => useTableManager());
+    it('checks if point is in table area', async () => {
+      const { result } = await renderUseTableManager();
 
       const isInArea = result.current.isPointInTableArea('table1', 100, 100);
       
@@ -254,9 +249,9 @@ describe('useTableManager', () => {
       expect(mockTableManager.is_point_in_table_area).toHaveBeenCalledWith('table1', 100, 100);
     });
 
-    it('returns null for invalid table coordinates', () => {
+    it('returns null for invalid table coordinates', async () => {
       mockTableManager.table_to_screen.mockReturnValueOnce(null as unknown as number[]);
-      const { result } = renderHook(() => useTableManager());
+      const { result } = await renderUseTableManager();
 
       const screenCoords = result.current.tableToScreen('invalid-table', 50, 75);
       
@@ -265,8 +260,8 @@ describe('useTableManager', () => {
   });
 
   describe('Grid Operations', () => {
-    it('sets table grid settings', () => {
-      const { result } = renderHook(() => useTableManager());
+    it('sets table grid settings', async () => {
+      const { result } = await renderUseTableManager();
 
       act(() => {
         const success = result.current.setTableGrid('table1', true, 25);
@@ -276,8 +271,8 @@ describe('useTableManager', () => {
       expect(mockTableManager.set_table_grid).toHaveBeenCalledWith('table1', true, 25);
     });
 
-    it('snaps coordinates to grid', () => {
-      const { result } = renderHook(() => useTableManager());
+    it('snaps coordinates to grid', async () => {
+      const { result } = await renderUseTableManager();
 
       const snappedCoords = result.current.snapToGrid('table1', 23, 27);
       
@@ -287,8 +282,8 @@ describe('useTableManager', () => {
   });
 
   describe('Screen Area Management', () => {
-    it('sets table screen area', () => {
-      const { result } = renderHook(() => useTableManager());
+    it('sets table screen area', async () => {
+      const { result } = await renderUseTableManager();
       const area: ScreenArea = { x: 0, y: 0, width: 800, height: 600 };
 
       act(() => {
@@ -301,12 +296,12 @@ describe('useTableManager', () => {
   });
 
   describe('Error Handling', () => {
-    it('handles operations when table manager is null', () => {
+    it('handles operations when table manager is null', async () => {
       vi.spyOn(console, 'error').mockImplementation(() => {});
-      mockWasm.TableManager.mockImplementationOnce(function() {
-        throw new Error('simulated null manager');
-      });
-      const { result } = renderHook(() => useTableManager());
+      vi.mocked(mockRuntime.initialize).mockRejectedValueOnce(new Error('simulated null manager'));
+      const { result } = renderUseTableManagerWithoutWaiting();
+
+      await waitFor(() => expect(mockRuntime.initialize).toHaveBeenCalled());
 
       // All operations should return false when manager is null
       act(() => {
@@ -327,13 +322,13 @@ describe('useTableManager', () => {
       expect(result.current.isPointInTableArea('table1', 100, 100)).toBe(false);
     });
 
-    it('handles WASM method errors gracefully', () => {
+    it('handles WASM method errors gracefully', async () => {
       const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
       mockTableManager.get_all_tables.mockImplementationOnce(() => {
         throw new Error('WASM method error');
       });
 
-      const { result } = renderHook(() => useTableManager());
+      const { result } = await renderUseTableManager();
 
       act(() => {
         result.current.refreshTables();
@@ -344,3 +339,7 @@ describe('useTableManager', () => {
     });
   });
 });
+
+
+
+

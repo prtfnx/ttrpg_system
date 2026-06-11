@@ -1,6 +1,9 @@
-import { act, fireEvent, render, screen } from '@testing-library/react';
+import { act, fireEvent, screen } from '@testing-library/react';
+import { createMockWasmRuntime, renderWithWasmRuntime } from '@test/utils/wasmRuntimeTestUtils';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { MeasurementTool } from '../MeasurementTool';
+
+const render = renderWithWasmRuntime;
 
 const mockMeasurement = {
   distance: 141.4,
@@ -82,8 +85,10 @@ describe('MeasurementTool', () => {
 
   it('calls rustRenderManager.set_input_mode_select on clear', () => {
     const setMode = vi.fn();
-    (window as unknown as Record<string, unknown>)['rustRenderManager'] = { set_input_mode_select: setMode };
-    render(<MeasurementTool isActive={true} />);
+    renderWithWasmRuntime(
+      <MeasurementTool isActive={true} />,
+      createMockWasmRuntime({ getRenderEngine: vi.fn(() => ({ set_input_mode_select: setMode }) as never) }),
+    );
     dispatchMeasurement();
     fireEvent.click(screen.getByText('Clear Measurement'));
     expect(setMode).toHaveBeenCalled();

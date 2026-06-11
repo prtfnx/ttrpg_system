@@ -34,11 +34,17 @@ import type { Sprite } from '@/types';
 import { LightingPanel } from '@features/lighting';
 import type { RenderEngine } from '@lib/wasm';
 import '@testing-library/jest-dom';
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { fireEvent, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
+import { createMockWasmRuntime, renderWithWasmRuntime } from '@test/utils/wasmRuntimeTestUtils';
 import { act } from 'react-dom/test-utils';
+import type React from 'react';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
+const render = (ui: React.ReactElement) => renderWithWasmRuntime(
+  ui,
+  createMockWasmRuntime({ getRenderEngine: vi.fn(() => mockEngine as never) }),
+);
 
 describe('Lighting System', () => {
 

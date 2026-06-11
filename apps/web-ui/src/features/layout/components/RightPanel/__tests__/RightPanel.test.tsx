@@ -3,8 +3,9 @@ import { RightPanel } from '@app/RightPanel';
 import { AuthProvider } from '@features/auth';
 import type { UserInfo } from '@features/auth';
 import '@testing-library/jest-dom';
-import { render, screen } from '@testing-library/react';
+import { screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
+import { renderWithWasmRuntime } from '@test/utils/wasmRuntimeTestUtils';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 // Mock child components to prevent complex dependency chains
@@ -84,7 +85,7 @@ describe('RightPanel', () => {
 
   // Wrapper component to provide required context
   const renderWithProviders = (ui: React.ReactElement) => {
-    return render(
+    return renderWithWasmRuntime(
       <AuthProvider>
         {ui}
       </AuthProvider>

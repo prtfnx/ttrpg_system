@@ -8,8 +8,11 @@ import { useGameStore } from '@/store';
 import { RightPanel } from '@app/RightPanel';
 import type { SessionRole } from '@features/session/types/roles';
 import '@testing-library/jest-dom';
-import { act, render, screen } from '@testing-library/react';
+import { act, screen } from '@testing-library/react';
+import { renderWithWasmRuntime } from '@test/utils/wasmRuntimeTestUtils';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+
+const render = renderWithWasmRuntime;
 
 // Mock all panel components — we test routing, not panel internals
 vi.mock('@features/assets', () => ({

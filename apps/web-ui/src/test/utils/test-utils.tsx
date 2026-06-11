@@ -2,6 +2,7 @@ import { AuthContext, type UserInfo } from '@app/providers';
 import { render, type RenderOptions } from '@testing-library/react';
 import React from 'react';
 import { vi } from 'vitest';
+import { createMockWasmRuntime, createWasmRuntimeWrapper, type MockWasmRuntime } from './wasmRuntimeTestUtils';
 
 /**
  * Mock auth context value for tests
@@ -34,6 +35,7 @@ interface CustomRenderOptions extends Omit<RenderOptions, 'wrapper'> {
    * Optional auth context value override
    */
   authValue?: Partial<typeof mockAuthContextValue>;
+  wasmRuntime?: MockWasmRuntime;
 }
 
 /**
@@ -53,16 +55,19 @@ export function renderWithProviders(
   ui: React.ReactElement,
   options: CustomRenderOptions = {}
 ) {
-  const { authValue, ...renderOptions } = options;
+  const { authValue, wasmRuntime = createMockWasmRuntime(), ...renderOptions } = options;
 
   const finalAuthValue = authValue
     ? { ...mockAuthContextValue, ...authValue }
     : mockAuthContextValue;
 
   function Wrapper({ children }: { children: React.ReactNode }) {
+    const WasmWrapper = createWasmRuntimeWrapper(wasmRuntime);
     return (
       <AuthContext.Provider value={finalAuthValue}>
-        {children}
+        <WasmWrapper>
+          {children}
+        </WasmWrapper>
       </AuthContext.Provider>
     );
   }

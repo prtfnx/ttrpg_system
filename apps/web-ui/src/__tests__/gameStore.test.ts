@@ -22,6 +22,19 @@ const tableManagerMock = vi.hoisted(() => ({
   set_table_units: vi.fn(),
 }));
 
+const runtimeMock = vi.hoisted(() => ({
+  handleTableData: vi.fn(),
+  addWall: vi.fn(),
+  addWalls: vi.fn(),
+  updateWall: vi.fn(),
+  removeWall: vi.fn(),
+  clearWalls: vi.fn(),
+  setTableUnits: vi.fn(),
+  setAmbientLight: vi.fn(),
+  setUserContext: vi.fn(),
+  getRenderEngine: vi.fn(() => ({ set_dynamic_lighting_enabled: vi.fn() })),
+}));
+
 vi.mock('@lib/api', () => ({
   ProtocolService: {
     hasProtocol: vi.fn(() => true),
@@ -36,6 +49,10 @@ vi.mock('@lib/wasm/wasmRuntimeService', () => ({
     getRenderEngine: vi.fn(() => renderEngineMock),
     getTableManager: vi.fn(() => tableManagerMock),
   },
+}));
+
+vi.mock('@lib/wasm/runtime', () => ({
+  getCurrentWasmRuntime: vi.fn(() => runtimeMock),
 }));
 
 import { useGameStore } from '../store';
@@ -390,10 +407,10 @@ describe('gameStore — switchToTable with existing table', () => {
       tables: [{ table_id: tableId, table_name: 'Main', width: 100, height: 100 }],
     } as never);
     useGameStore.getState().switchToTable(tableId);
-    console.log(renderEngineMock.handle_table_data.mock.calls);
+    console.log(runtimeMock.handleTableData.mock.calls);
     console.log(protocolMock.sendMessage.mock.calls);
-    expect(renderEngineMock.handle_table_data).toHaveBeenCalled();
-    expect(renderEngineMock.handle_table_data).toHaveBeenCalledWith(
+    expect(runtimeMock.handleTableData).toHaveBeenCalled();
+    expect(runtimeMock.handleTableData).toHaveBeenCalledWith(
       expect.objectContaining({
         table_data: expect.objectContaining({
           table_id: tableId,
@@ -416,7 +433,6 @@ describe('gameStore — switchToTable with existing table', () => {
 describe('gameStore — wall actions', () => {
   beforeEach(() => {
     useGameStore.setState({ walls: [] } as never);
-    delete (window as never)['rustRenderManager'];
   });
 
   it('addWall inserts a new wall', () => {
@@ -431,12 +447,10 @@ describe('gameStore — wall actions', () => {
     expect(useGameStore.getState().walls).toHaveLength(1);
   });
 
-  it('addWall calls rustRenderManager.add_wall if present', () => {
+  it('addWall delegates to the WASM runtime', () => {
     useGameStore.getState().addWall({ wall_id: 'w2' } as never);
 
-    expect(renderEngineMock.add_wall).toHaveBeenCalledWith(
-      JSON.stringify({ wall_id: 'w2' }),
-    );
+    expect(runtimeMock.addWall).toHaveBeenCalledWith({ wall_id: 'w2' });
   });
 
   it('addWalls merges multiple walls', () => {
@@ -450,12 +464,10 @@ describe('gameStore — wall actions', () => {
     expect(useGameStore.getState().walls[0]).toMatchObject({ color: 'green' });
   });
 
-  it('updateWall calls rustRenderManager.update_wall if present', () => {
-    const update_wall = vi.fn();
-    (window as unknown as Record<string, unknown>)['rustRenderManager'] = { update_wall };
+  it('updateWall delegates to the WASM runtime', () => {
     useGameStore.setState({ walls: [{ wall_id: 'w1' }] } as never);
     useGameStore.getState().updateWall('w1', {} as never);
-    expect(renderEngineMock.update_wall).toHaveBeenCalledWith('w1', JSON.stringify({}));
+    expect(runtimeMock.updateWall).toHaveBeenCalledWith('w1', {});
   });
 });
 
@@ -479,13 +491,10 @@ describe('gameStore — setTableUnits', () => {
     expect(s.distanceUnit).toBe('ft');
   });
 
-  it('calls rustRenderManager.set_table_units when present', () => {
-    const set_table_units = vi.fn();
-    (window as unknown as Record<string, unknown>)['rustRenderManager'] = { set_table_units };
+  it('delegates table units to the WASM runtime', () => {
     useGameStore.setState({ activeTableId: 'tbl-1' } as never);
     useGameStore.getState().setTableUnits({ gridCellPx: 60, cellDistance: 5, distanceUnit: 'm' });
-    expect(tableManagerMock.set_table_units).toHaveBeenCalledWith('tbl-1', 60, 5, 'm');
-    delete (window as unknown as Record<string, unknown>)['rustRenderManager'];
+    expect(runtimeMock.setTableUnits).toHaveBeenCalledWith('tbl-1', 60, 5, 'm');
   });
 });
 
@@ -509,7 +518,7 @@ describe('gameStore — createNewTable', () => {
 
     useGameStore.getState().createNewTable('Map', 100, 100);
 
-    expect(renderEngineMock.handle_table_data).toHaveBeenCalled();
+    expect(runtimeMock.handleTableData).toHaveBeenCalled();
 
     expect(protocolMock.sendMessage).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -577,10 +586,6 @@ describe('gameStore — syncTableToServer', () => {
 // ─── applyTableLightingSettings ────────────────────────────────────────────────
 
 describe('gameStore — applyTableLightingSettings', () => {
-  afterEach(() => {
-    delete (window as unknown as Record<string, unknown>)['rustRenderManager'];
-  });
-
   it('updates lighting state', () => {
     useGameStore.getState().applyTableLightingSettings({
       dynamic_lighting_enabled: true,
@@ -593,12 +598,7 @@ describe('gameStore — applyTableLightingSettings', () => {
     expect(s.ambientLight).toBe(0.5);
   });
 
-  it('calls rustRenderManager methods when available', () => {
-    const rm = {
-      set_ambient_light: vi.fn(),
-      set_dynamic_lighting_enabled: vi.fn(),
-    };
-    (window as unknown as Record<string, unknown>)['rustRenderManager'] = rm;
+  it('delegates lighting settings to the WASM runtime', () => {
     useGameStore.setState({ sessionRole: null } as never);
 
     useGameStore.getState().applyTableLightingSettings({
@@ -606,7 +606,7 @@ describe('gameStore — applyTableLightingSettings', () => {
       fog_exploration_mode: 'current_only',
       ambient_light_level: 0.8,
     });
-    expect(renderEngineMock.set_ambient_light).toHaveBeenCalledWith(0.8);
+    expect(runtimeMock.setAmbientLight).toHaveBeenCalledWith(0.8);
   });
 });
 

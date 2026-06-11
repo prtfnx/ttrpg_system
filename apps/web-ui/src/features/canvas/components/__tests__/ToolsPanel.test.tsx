@@ -1,7 +1,10 @@
 import type { UserInfo } from '@features/auth';
-import { fireEvent, render, screen } from '@testing-library/react';
+import { fireEvent, screen } from '@testing-library/react';
+import { createMockWasmRuntime, renderWithWasmRuntime } from '@test/utils/wasmRuntimeTestUtils';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { ToolsPanel } from '../ToolsPanel';
+
+const render = renderWithWasmRuntime;
 
 // ── heavy component mocks ──────────────────────────────────────────────────
 vi.mock('@features/canvas', () => ({
@@ -377,8 +380,15 @@ describe('ToolsPanel — PlayerLayerControls (player role)', () => {
         return sel ? sel(state) : state;
       }) as unknown as typeof useGameStore
     );
-    mockRustManager({ set_layer_visible });
-    render(<ToolsPanel userInfo={makeUser('player')} />);
+    renderWithWasmRuntime(
+      <ToolsPanel userInfo={makeUser('player')} />,
+      createMockWasmRuntime({
+        getRenderEngine: vi.fn(() => ({
+          set_layer_visible,
+          set_input_mode_select: vi.fn(),
+        }) as never),
+      }),
+    );
     fireEvent.click(screen.getByRole('button', { name: 'Toggle Map layer' }));
     expect(setLayerVisibility).toHaveBeenCalledWith('map', false);
     expect(set_layer_visible).toHaveBeenCalledWith('map', false);

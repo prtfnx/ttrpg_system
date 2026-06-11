@@ -1,8 +1,11 @@
 import { useGameStore } from '@/store';
 import '@testing-library/jest-dom';
-import { act, fireEvent, render, screen } from '@testing-library/react';
+import { act, fireEvent, screen } from '@testing-library/react';
+import { renderWithWasmRuntime } from '@test/utils/wasmRuntimeTestUtils';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { PolygonConfigModal } from '../PolygonConfigModal';
+
+const render = renderWithWasmRuntime;
 
 vi.mock('@/store', () => ({ useGameStore: vi.fn() }));
 

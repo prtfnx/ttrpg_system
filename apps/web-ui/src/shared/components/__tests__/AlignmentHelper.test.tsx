@@ -15,6 +15,17 @@ vi.mock('@shared/utils/spriteHelpers', () => ({
   getSpriteHeight: vi.fn((s: { height?: number }) => s.height ?? 64),
 }));
 
+const mockProtocol = {
+  updateSprite: vi.fn(),
+};
+
+vi.mock('@lib/api', () => ({
+  ProtocolService: {
+    hasProtocol: vi.fn(() => true),
+    getProtocol: vi.fn(() => mockProtocol),
+  },
+}));
+
 import { useGameStore } from '@/store';
 
 const mockSprites = [
@@ -32,7 +43,6 @@ function setupStore(selectedSprites: string[] = ['a', 'b']) {
 
 beforeEach(() => {
   vi.clearAllMocks();
-  (window as typeof window & { gameAPI?: unknown }).gameAPI = { sendMessage: vi.fn(), renderManager: () => null };
 });
 
 describe('AlignmentHelper', () => {
@@ -62,60 +72,53 @@ describe('AlignmentHelper', () => {
     setupStore(['a', 'b']);
     render(<AlignmentHelper isActive={true} />);
     fireEvent.click(screen.getByTitle('Align Left'));
-    const sendMsg = (window as typeof window & { gameAPI: { sendMessage: ReturnType<typeof vi.fn> } }).gameAPI.sendMessage;
-    expect(sendMsg).toHaveBeenCalledTimes(2);
+    expect(mockProtocol.updateSprite).toHaveBeenCalledTimes(2);
     // Both sprites moved to leftmost x (100)
-    expect(sendMsg).toHaveBeenCalledWith('sprite_update', { id: 'a', x: 100 });
-    expect(sendMsg).toHaveBeenCalledWith('sprite_update', { id: 'b', x: 100 });
+    expect(mockProtocol.updateSprite).toHaveBeenCalledWith('a', { x: 100 });
+    expect(mockProtocol.updateSprite).toHaveBeenCalledWith('b', { x: 100 });
   });
 
   it('align right: calls sendMessage for each selected sprite', () => {
     setupStore(['a', 'b']);
     render(<AlignmentHelper isActive={true} />);
     fireEvent.click(screen.getByTitle('Align Right'));
-    const sendMsg = (window as typeof window & { gameAPI: { sendMessage: ReturnType<typeof vi.fn> } }).gameAPI.sendMessage;
-    expect(sendMsg).toHaveBeenCalledTimes(2);
+    expect(mockProtocol.updateSprite).toHaveBeenCalledTimes(2);
   });
 
   it('align top: calls sendMessage with y = topmost', () => {
     setupStore(['a', 'b']);
     render(<AlignmentHelper isActive={true} />);
     fireEvent.click(screen.getByTitle('Align Top'));
-    const sendMsg = (window as typeof window & { gameAPI: { sendMessage: ReturnType<typeof vi.fn> } }).gameAPI.sendMessage;
-    expect(sendMsg).toHaveBeenCalledWith('sprite_update', { id: 'a', y: 50 });
-    expect(sendMsg).toHaveBeenCalledWith('sprite_update', { id: 'b', y: 50 });
+    expect(mockProtocol.updateSprite).toHaveBeenCalledWith('a', { y: 50 });
+    expect(mockProtocol.updateSprite).toHaveBeenCalledWith('b', { y: 50 });
   });
 
   it('align bottom: calls sendMessage for each selected sprite', () => {
     setupStore(['a', 'b']);
     render(<AlignmentHelper isActive={true} />);
     fireEvent.click(screen.getByTitle('Align Bottom'));
-    const sendMsg = (window as typeof window & { gameAPI: { sendMessage: ReturnType<typeof vi.fn> } }).gameAPI.sendMessage;
-    expect(sendMsg).toHaveBeenCalledTimes(2);
+    expect(mockProtocol.updateSprite).toHaveBeenCalledTimes(2);
   });
 
   it('align center: calls sendMessage for each selected sprite', () => {
     setupStore(['a', 'b']);
     render(<AlignmentHelper isActive={true} />);
     fireEvent.click(screen.getByTitle('Align Center'));
-    const sendMsg = (window as typeof window & { gameAPI: { sendMessage: ReturnType<typeof vi.fn> } }).gameAPI.sendMessage;
-    expect(sendMsg).toHaveBeenCalledTimes(2);
+    expect(mockProtocol.updateSprite).toHaveBeenCalledTimes(2);
   });
 
   it('align middle: calls sendMessage for each selected sprite', () => {
     setupStore(['a', 'b']);
     render(<AlignmentHelper isActive={true} />);
     fireEvent.click(screen.getByTitle('Align Middle'));
-    const sendMsg = (window as typeof window & { gameAPI: { sendMessage: ReturnType<typeof vi.fn> } }).gameAPI.sendMessage;
-    expect(sendMsg).toHaveBeenCalledTimes(2);
+    expect(mockProtocol.updateSprite).toHaveBeenCalledTimes(2);
   });
 
   it('distribute-h: requires 3+ sprites, skips when fewer', () => {
     setupStore(['a', 'b']); // only 2 sprites
     render(<AlignmentHelper isActive={true} />);
     fireEvent.click(screen.getByTitle('Distribute Horizontally'));
-    const sendMsg = (window as typeof window & { gameAPI: { sendMessage: ReturnType<typeof vi.fn> } }).gameAPI.sendMessage;
-    expect(sendMsg).not.toHaveBeenCalled();
+    expect(mockProtocol.updateSprite).not.toHaveBeenCalled();
   });
 
   it('distribute-h: distributes 3+ sprites evenly', () => {
@@ -124,23 +127,20 @@ describe('AlignmentHelper', () => {
     act(() => {
       fireEvent.click(screen.getByTitle('Distribute Horizontally'));
     });
-    const sendMsg = (window as typeof window & { gameAPI: { sendMessage: ReturnType<typeof vi.fn> } }).gameAPI.sendMessage;
-    expect(sendMsg).toHaveBeenCalledTimes(3);
+    expect(mockProtocol.updateSprite).toHaveBeenCalledTimes(3);
   });
 
   it('distribute-v: requires 3+ sprites, skips when fewer', () => {
     setupStore(['a', 'b']); // only 2 sprites
     render(<AlignmentHelper isActive={true} />);
     fireEvent.click(screen.getByTitle('Distribute Vertically'));
-    const sendMsg = (window as typeof window & { gameAPI: { sendMessage: ReturnType<typeof vi.fn> } }).gameAPI.sendMessage;
-    expect(sendMsg).not.toHaveBeenCalled();
+    expect(mockProtocol.updateSprite).not.toHaveBeenCalled();
   });
 
   it('does nothing when fewer than 2 sprites selected', () => {
     setupStore(['a']); // only 1 sprite
     render(<AlignmentHelper isActive={true} />);
     fireEvent.click(screen.getByTitle('Align Left'));
-    const sendMsg = (window as typeof window & { gameAPI: { sendMessage: ReturnType<typeof vi.fn> } }).gameAPI.sendMessage;
-    expect(sendMsg).not.toHaveBeenCalled();
+    expect(mockProtocol.updateSprite).not.toHaveBeenCalled();
   });
 });

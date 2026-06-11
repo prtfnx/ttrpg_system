@@ -2,9 +2,24 @@ import { fireEvent, render, screen } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { DiceRoller } from '../DiceRoller';
 
+const mockProtocol = { sendMessage: vi.fn() };
+let hasProtocol = false;
+
+vi.mock('@lib/api', () => ({
+  ProtocolService: {
+    hasProtocol: vi.fn(() => hasProtocol),
+    getProtocol: vi.fn(() => mockProtocol),
+  },
+}));
+
+vi.mock('@lib/websocket', () => ({
+  createMessage: vi.fn((type: string, data: unknown) => ({ type, data })),
+  MessageType: { CHAT_MESSAGE: 'chat' },
+}));
+
 beforeEach(() => {
-  // Clean gameAPI between tests
-  delete (window as unknown as Record<string, unknown>).gameAPI;
+  hasProtocol = false;
+  vi.clearAllMocks();
 });
 
 describe('DiceRoller', () => {
@@ -49,18 +64,19 @@ describe('DiceRoller', () => {
     expect(screen.getByRole('button', { name: /roll.*d6/i })).toBeTruthy();
   });
 
-  it('sends to chat via window.gameAPI if available', () => {
-    const sendMessage = vi.fn();
-    (window as unknown as Record<string, unknown>).gameAPI = { sendMessage };
+  it('sends to chat via protocol if available', () => {
+    hasProtocol = true;
     render(<DiceRoller />);
     fireEvent.click(screen.getByRole('button', { name: /roll/i }));
-    expect(sendMessage).toHaveBeenCalledWith('chat', expect.objectContaining({ text: expect.stringContaining('d20') }));
+    expect(mockProtocol.sendMessage).toHaveBeenCalledWith(expect.objectContaining({
+      type: 'chat',
+      data: expect.objectContaining({ text: expect.stringContaining('d20') }),
+    }));
   });
 
   it('shows "Sent to chat!" after sending', async () => {
     vi.useFakeTimers();
-    const sendMessage = vi.fn();
-    (window as unknown as Record<string, unknown>).gameAPI = { sendMessage };
+    hasProtocol = true;
     render(<DiceRoller />);
     fireEvent.click(screen.getByRole('button', { name: /roll/i }));
     expect(screen.getByText(/Sent to chat!/)).toBeTruthy();

@@ -2,7 +2,9 @@ import { useGameStore } from '@/store';
 import type { UserInfo } from '@features/auth';
 import { GameClient } from '@features/canvas';
 import { WindowManagerProvider } from '@shared/components/FloatingWindow';
-import { act, render, screen, waitFor, within } from '@testing-library/react';
+import { act, screen, waitFor, within } from '@testing-library/react';
+import { createMockWasmRuntime, renderWithWasmRuntime } from '@test/utils/wasmRuntimeTestUtils';
+import type React from 'react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 // Prevent real WebSocket connections from firing async console logs during teardown
@@ -85,10 +87,11 @@ function renderGameClient(props: Partial<React.ComponentProps<typeof GameClient>
     onAuthError: vi.fn(),
     ...props,
   };
-  return render(
+  return renderWithWasmRuntime(
     <WindowManagerProvider>
       <GameClient {...defaultProps} />
-    </WindowManagerProvider>
+    </WindowManagerProvider>,
+    createMockWasmRuntime(),
   );
 }
 

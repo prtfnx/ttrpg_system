@@ -1,7 +1,8 @@
 import { createMockRenderEngine } from '@test/utils/mockRenderEngine';
-import { render, screen, waitFor, within } from '@testing-library/react';
+import { screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import React from 'react';
+import { createMockWasmRuntime, renderWithWasmRuntime } from '@test/utils/wasmRuntimeTestUtils';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 vi.mock('@shared/components/FloatingWindow', () => ({
@@ -27,6 +28,41 @@ import { NetworkPanel } from '@features/network';
 //Mock WASM module with realistic interface
 const mockLoadTexture = vi.fn().mockResolvedValue(true);
 const mockRenderEngine = createMockRenderEngine();
+const mockNetworkClient = {
+  set_message_handler: vi.fn(),
+  set_connection_handler: vi.fn(),
+  set_error_handler: vi.fn(),
+  get_client_id: vi.fn(() => 'integration-client'),
+  connect: vi.fn(),
+  disconnect: vi.fn(),
+  send_message: vi.fn(),
+};
+const mockAssetManager = {
+  initialize: vi.fn().mockResolvedValue(undefined),
+  download_asset: vi.fn().mockResolvedValue('asset_123'),
+  has_asset: vi.fn().mockReturnValue(true),
+  get_asset_info: vi.fn().mockReturnValue('{"name":"dragon.png","size":1024}'),
+  get_asset_data: vi.fn().mockReturnValue(new Uint8Array([1, 2, 3, 4])),
+  set_max_cache_size: vi.fn(),
+    get_cache_stats: vi.fn().mockReturnValue(JSON.stringify({ size: 1024, count: 5, hit_rate: 0.85 })),
+  clear_cache: vi.fn(),
+};
+const mockActionsClient = {
+  can_undo: vi.fn(() => true),
+  can_redo: vi.fn(() => false),
+};
+
+function render(ui: React.ReactElement) {
+  return renderWithWasmRuntime(
+    ui,
+    createMockWasmRuntime({
+      getRenderEngine: vi.fn(() => mockRenderEngine as never),
+      getNetworkClient: vi.fn(() => mockNetworkClient as never),
+      getAssetManager: vi.fn(() => mockAssetManager as never),
+      getActionsEngine: vi.fn(() => mockActionsClient as never),
+    }),
+  );
+}
 
 const mockWasmModule = {
   RenderEngine: vi.fn().mockImplementation(() => mockRenderEngine),
@@ -215,14 +251,14 @@ describe('Web Client TypeScript & WASM Systems Integration Tests', () => {
     });
 
     it('should handle WASM errors gracefully in TypeScript layer', async () => {
-      // Mock WASM error
-      mockWasmModule.RenderEngine.mockImplementation(() => {
-        throw new Error('WASM initialization failed');
-      });
-
       const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
 
-      render(<GameCanvas />);
+      renderWithWasmRuntime(
+        <GameCanvas />,
+        createMockWasmRuntime({
+          attachCanvas: vi.fn().mockRejectedValue(new Error('WASM initialization failed')),
+        }),
+      );
 
       // User expects WASM errors to be logged and handled gracefully
       await waitFor(() => {

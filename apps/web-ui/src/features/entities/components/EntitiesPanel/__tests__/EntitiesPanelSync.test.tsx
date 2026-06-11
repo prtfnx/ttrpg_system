@@ -1,4 +1,5 @@
-import { render, screen, waitFor } from '@testing-library/react';
+import { screen, waitFor } from '@testing-library/react';
+import { createMockWasmRuntime, renderWithWasmRuntime } from '@test/utils/wasmRuntimeTestUtils';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { EntitiesPanel } from '@features/canvas';
@@ -32,15 +33,17 @@ describe('EntitiesPanel sprite sync', () => {
   });
 
   it('syncs sprites from the render manager and displays them', async () => {
-    // The global rustRenderManager mock in setup.ts provides get_all_sprites_network_data
-    Object.assign(window.rustRenderManager ?? {}, { get_all_sprites_network_data: () => mockSprites });
-
     // Simulate addSprite actually adding to the store
     mockAddSprite.mockImplementation((sprite) => {
       mockStore.sprites.push(sprite);
     });
 
-    render(<EntitiesPanel />);
+    renderWithWasmRuntime(
+      <EntitiesPanel />,
+      createMockWasmRuntime({
+        getRenderEngine: vi.fn(() => ({ get_all_sprites_network_data: () => mockSprites }) as never),
+      }),
+    );
 
     // Wait for sync to complete and UI to update
     await waitFor(() => {

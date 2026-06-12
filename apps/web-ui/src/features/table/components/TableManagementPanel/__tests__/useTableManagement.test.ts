@@ -4,10 +4,25 @@ import { useTableManagement } from '../useTableManagement';
 
 vi.mock('@features/table/services/tableThumbnail.service', () => ({
   tableThumbnailService: {
+    initialize: vi.fn(),
     getRenderEngine: vi.fn().mockReturnValue(null),
     generateThumbnail: vi.fn().mockResolvedValue(null),
     getCacheStats: vi.fn().mockReturnValue({ size: 0, tables: [] }),
   },
+}));
+
+const { mockRuntime } = vi.hoisted(() => ({
+  mockRuntime: {
+    get status() {
+      return { isModuleReady: true, isCanvasAttached: true, error: null, version: 'test' };
+    },
+    getRenderEngine: vi.fn().mockReturnValue(null),
+  },
+}));
+
+vi.mock('@lib/wasm/runtime', () => ({
+  useWasmRuntime: () => mockRuntime,
+  useWasmStatus: () => mockRuntime.status,
 }));
 
 const mockTables = [

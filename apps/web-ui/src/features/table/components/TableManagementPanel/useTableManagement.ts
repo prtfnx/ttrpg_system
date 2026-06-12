@@ -1,11 +1,14 @@
 import type { TableInfo } from '@/store';
 import { useGameStore } from '@/store';
 import { tableThumbnailService } from '@features/table/services/tableThumbnail.service';
+import { useWasmRuntime, useWasmStatus } from '@lib/wasm/runtime';
 import { showToast } from '@shared/utils/toast';
 import { useEffect, useMemo, useState } from 'react';
 import { TABLE_TEMPLATES } from './utils';
 
 export const useTableManagement = () => {
+  const runtime = useWasmRuntime();
+  const wasmStatus = useWasmStatus();
   const {
     tables,
     activeTableId,
@@ -155,7 +158,7 @@ export const useTableManagement = () => {
   const handleDiagnoseThumbnails = async () => {
     console.group(' Thumbnail Diagnostic Report');
     
-    const wasmReady = (window as Window & { wasmInitialized?: boolean }).wasmInitialized;
+    const wasmReady = wasmStatus.isModuleReady && wasmStatus.isCanvasAttached;
     console.log('1. WASM Status:', wasmReady ? ' Initialized' : ' Not Initialized');
     
     const mainCanvas = document.querySelector('[data-testid="game-canvas"]') as HTMLCanvasElement;
@@ -165,9 +168,14 @@ export const useTableManagement = () => {
       inDOM: mainCanvas.parentElement ? 'In DOM': 'Not in DOM'
     } : 'Not Found');
     
-    const renderEngine = tableThumbnailService.getRenderEngine();
+    const renderEngine = runtime.getRenderEngine();
     console.log('3. Active Table:', tables[0]?.table_name || ' None');
     console.log('5. Render Engine:', renderEngine ? ' Available' : ' Not Available');
+    if (renderEngine) {
+      tableThumbnailService.initialize(renderEngine, {
+        isRuntimeReady: () => runtime.status.isModuleReady && runtime.status.isCanvasAttached,
+      });
+    }
     
     if (mainCanvas) {
       const ctx = mainCanvas.getContext('2d');

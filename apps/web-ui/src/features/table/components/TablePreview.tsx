@@ -1,5 +1,5 @@
 import type { TableInfo } from '@/store';
-import { wasmIntegrationService } from '@lib/wasm/wasmIntegration.service';
+import { useWasmRuntime, useWasmStatus } from '@lib/wasm/runtime';
 import React, { useEffect, useRef, useState } from 'react';
 import { tableThumbnailService } from '../services/tableThumbnail.service';
 
@@ -15,6 +15,8 @@ export const TablePreview: React.FC<TablePreviewProps> = ({
   height = 120 
 }) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
+  const runtime = useWasmRuntime();
+  const wasmStatus = useWasmStatus();
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -85,15 +87,15 @@ export const TablePreview: React.FC<TablePreviewProps> = ({
       ctx.fillText('Loading...', width / 2, height / 2);
 
       try {
-        // Get the render engine
-        const renderEngine = wasmIntegrationService.getRenderEngine();
+        const renderEngine = runtime.getRenderEngine();
         if (!renderEngine) {
           throw new Error('Render engine not initialized');
         }
 
-        // Initialize the thumbnail service if needed
-        if (!tableThumbnailService.isInitialized()) {
-          tableThumbnailService.initialize(renderEngine);
+        if (tableThumbnailService.getRenderEngine() !== renderEngine) {
+          tableThumbnailService.initialize(renderEngine, {
+            isRuntimeReady: () => runtime.status.isModuleReady && runtime.status.isCanvasAttached,
+          });
         }
 
         // Generate thumbnail using real WASM rendering
@@ -186,7 +188,17 @@ export const TablePreview: React.FC<TablePreviewProps> = ({
     return () => {
       isCancelled = true;
     };
-  }, [table.table_id, table.width, table.height, width, height, refreshTrigger]);
+  }, [
+    table.table_id,
+    table.width,
+    table.height,
+    width,
+    height,
+    refreshTrigger,
+    runtime,
+    wasmStatus.isModuleReady,
+    wasmStatus.isCanvasAttached,
+  ]);
 
   return (
     <canvas

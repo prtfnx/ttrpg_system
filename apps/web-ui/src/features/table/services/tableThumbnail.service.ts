@@ -1,4 +1,3 @@
-import type { RenderEngine } from '@lib/wasm';
 import { isValidUUID } from '@lib/websocket';
 
 interface ThumbnailCacheEntry {
@@ -7,9 +6,18 @@ interface ThumbnailCacheEntry {
   tableId: string;
 }
 
+interface ThumbnailRenderEngine {
+  render(): void;
+}
+
+interface ThumbnailRuntimeOptions {
+  isRuntimeReady?: () => boolean;
+}
+
 class TableThumbnailService {
   private cache = new Map<string, ThumbnailCacheEntry>();
-  private renderEngine: RenderEngine | null = null;
+  private renderEngine: ThumbnailRenderEngine | null = null;
+  private isRuntimeReady: () => boolean = () => true;
   private isGenerating = new Set<string>(); // Prevent concurrent generation
   private debounceTimers = new Map<string, number>(); // Debounce rapid invalidations
   private readonly DEBOUNCE_MS = 300; // Wait 300ms after last change before regenerating
@@ -18,8 +26,9 @@ class TableThumbnailService {
    * Set the WASM RenderEngine instance
    * Must be called before generating thumbnails
    */
-  initialize(engine: RenderEngine): void {
+  initialize(engine: ThumbnailRenderEngine, options: ThumbnailRuntimeOptions = {}): void {
     this.renderEngine = engine;
+    this.isRuntimeReady = options.isRuntimeReady ?? (() => true);
     console.log('[ThumbnailService] RenderEngine initialized');
   }
   
@@ -33,7 +42,7 @@ class TableThumbnailService {
   /**
    * Get the current RenderEngine instance
    */
-  getRenderEngine(): RenderEngine | null {
+  getRenderEngine(): ThumbnailRenderEngine | null {
     return this.renderEngine;
   }
   
@@ -108,19 +117,17 @@ class TableThumbnailService {
       // CRITICAL: Check if WASM and canvas are fully initialized
       // When opening Tables tab directly (without visiting Game tab first),
       // the canvas exists but hasn't rendered any frames yet
-      const wasmWindow = window as Window & { wasmInitialized?: boolean };
-      const wasmReady = wasmWindow.wasmInitialized === true;
-      if (!wasmReady) {
+      if (!this.isRuntimeReady()) {
         console.warn('[ThumbnailService] WASM not fully initialized yet, waiting for first render...');
         
         // Wait for WASM to initialize (max 5 seconds)
         const maxWaitMs = 5000;
         const waitStart = Date.now();
-        while (!wasmWindow.wasmInitialized && (Date.now() - waitStart < maxWaitMs)) {
+        while (!this.isRuntimeReady() && (Date.now() - waitStart < maxWaitMs)) {
           await new Promise(resolve => setTimeout(resolve, 100));
         }
         
-        if (!wasmWindow.wasmInitialized) {
+        if (!this.isRuntimeReady()) {
           throw new Error('WASM initialization timeout - canvas not ready');
         }
         

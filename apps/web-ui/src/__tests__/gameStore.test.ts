@@ -1,25 +1,10 @@
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 // Mock heavy dependencies before importing the store
 const protocolMock = vi.hoisted(() => ({
   sendMessage: vi.fn(),
   setActiveTable: vi.fn(),
   updateSprite: vi.fn(),
-}));
-
-const renderEngineMock = vi.hoisted(() => ({
-  handle_table_data: vi.fn(),
-  add_wall: vi.fn(),
-  update_wall: vi.fn(),
-  remove_wall: vi.fn(),
-  clear_walls: vi.fn(),
-  set_ambient_light: vi.fn(),
-  set_gm_mode: vi.fn(),
-  render: vi.fn(),
-}));
-
-const tableManagerMock = vi.hoisted(() => ({
-  set_table_units: vi.fn(),
 }));
 
 const runtimeMock = vi.hoisted(() => ({
@@ -41,13 +26,6 @@ vi.mock('@lib/api', () => ({
     getProtocol: vi.fn(() => protocolMock),
     setProtocol: vi.fn(),
     clearProtocol: vi.fn(),
-  },
-}));
-
-vi.mock('@lib/wasm/wasmRuntimeService', () => ({
-  WasmRuntimeService: {
-    getRenderEngine: vi.fn(() => renderEngineMock),
-    getTableManager: vi.fn(() => tableManagerMock),
   },
 }));
 

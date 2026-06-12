@@ -167,4 +167,18 @@ describe('WasmRuntime', () => {
     expect(runtime.status.error).toBeNull();
     expect(runtime.status.isModuleReady).toBe(true);
   });
+
+  it('propagates attachCanvas initialization errors without attaching a canvas', async () => {
+    const error = new Error('init failed');
+    mocks.initializeWasmCore.mockRejectedValueOnce(error);
+
+    await expect(
+      runtime.attachCanvas(canvas, { userId: null, role: null, activeLayer: 'map' }),
+    ).rejects.toThrow('init failed');
+
+    expect(mocks.initGameRenderer).not.toHaveBeenCalled();
+    expect(runtime.status.error).toBe(error);
+    expect(runtime.status.isModuleReady).toBe(false);
+    expect(runtime.status.isCanvasAttached).toBe(false);
+  });
 });

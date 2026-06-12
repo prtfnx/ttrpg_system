@@ -17,7 +17,6 @@ interface MovementRange {
 
 // Grid size and ft-per-unit defaults — should be overridden by session settings
 const GRID_SIZE = 64;
-const FT_PER_UNIT = 5 / 64; // 5ft per grid cell (64 units)
 
 let manager: PlanningManager | null = null;
 

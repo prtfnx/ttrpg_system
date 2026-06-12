@@ -29,7 +29,7 @@ describe('useTableSync', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mockRuntime = createMockWasmRuntime({
-      initialize: vi.fn(() => new Promise(() => {})),
+      initialize: vi.fn((): Promise<void> => new Promise<void>(() => {})),
       getTableSync: vi.fn(() => null),
     });
   });

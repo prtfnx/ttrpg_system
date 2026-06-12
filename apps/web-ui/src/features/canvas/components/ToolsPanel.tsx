@@ -21,6 +21,7 @@ import styles from './ToolsPanel.module.css';
 import { WallConfigModal } from './WallConfigModal';
 
 import type { UserInfo } from '@features/auth';
+import type { RenderEngine } from '@lib/wasm/ttrpg_rust_core';
 
 const PLAYER_PERMITTED_LAYERS = [
   { id: 'map',    label: 'Map',    Icon: Map },
@@ -66,6 +67,9 @@ interface ToolsPanelProps {
 }
 
 type TabId = 'tools' | 'lighting' | 'layers' | 'dev';
+type PaintModeRenderEngine = RenderEngine & {
+  paint_is_mode?: () => boolean;
+};
 
 export function ToolsPanel({ userInfo }: ToolsPanelProps) {
   useLayerHotkeys();
@@ -188,9 +192,9 @@ export function ToolsPanel({ userInfo }: ToolsPanelProps) {
   
   useEffect(() => {
     if (!renderEngine) return;
-    // TODO temporal fix: cast rustRenderManager to any until WASM d.ts includes paint getters
-    if (activeTool !== 'paint' && typeof (renderEngine as any)?.paint_is_mode === 'function' && (renderEngine as any).paint_is_mode()) {
-      (renderEngine as any).paint_exit_mode();
+    const paintEngine = renderEngine as PaintModeRenderEngine;
+    if (activeTool !== 'paint' && paintEngine.paint_is_mode?.()) {
+      paintEngine.paint_exit_mode();
       setPaintPanelVisible(false);
     }
     window.shapeSettings = { color: shapeColor, opacity: shapeOpacity, filled: shapeFilled };
@@ -607,11 +611,11 @@ export function ToolsPanel({ userInfo }: ToolsPanelProps) {
               }}>Add Sprite</button>
               <button className={styles.testButton} onClick={() => {
                 if (!ProtocolService.hasProtocol()) return;
-                ProtocolService.getProtocol().sendMessage({
-                  type: 'character_create',
-                  data: { id: `char_${Date.now()}`, name: 'Test Character', class: 'Fighter', stats: { strength: 15, dexterity: 12, constitution: 14, intelligence: 10, wisdom: 10, charisma: 8 } },
-                  version: '0.1',
-                  priority: 1,
+                ProtocolService.getProtocol().saveCharacter({
+                  id: `char_${Date.now()}`,
+                  name: 'Test Character',
+                  class: 'Fighter',
+                  stats: { strength: 15, dexterity: 12, constitution: 14, intelligence: 10, wisdom: 10, charisma: 8 },
                 });
               }}>Add Character</button>
             </div>

@@ -353,6 +353,11 @@ export function hasMessageData<T extends WebSocketMessage['type']>(
 declare global {
   interface Window {
     __INITIAL_DATA__?: { userRole?: string; [key: string]: unknown };
+    // Legacy WASM compatibility globals. New production code should use WasmRuntime.
+    rustRenderManager?: import('@lib/wasm/ttrpg_rust_core').RenderEngine;
+    ttrpg_rust_core?: unknown;
+    wasmInitialized?: boolean;
+    gameAPI?: GameAPI;
     // Canvas tool globals (ephemeral cross-component state via window)
     shapeSettings?: { color: string; opacity: number; filled: boolean };
     fromDrawShapes?: boolean;

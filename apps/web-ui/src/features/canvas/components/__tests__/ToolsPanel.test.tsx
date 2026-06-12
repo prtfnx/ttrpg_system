@@ -349,22 +349,8 @@ describe('ToolsPanel — combat section', () => {
 });
 
 // Shared rustRenderManager mock — avoids paint_is_mode errors across tests
-function mockRustManager(extra: Record<string, unknown> = {}) {
-  const rm = {
-    paint_is_mode: vi.fn(() => false),
-    paint_exit_mode: vi.fn(),
-    set_input_mode_select: vi.fn(),
-    set_active_layer: vi.fn(),
-    ...extra,
-  };
-  (window as unknown as Record<string, unknown>)['rustRenderManager'] = rm;
-  return rm;
-}
-
 // ── player layer controls ─────────────────────────────────────────────────────
 describe('ToolsPanel — PlayerLayerControls (player role)', () => {
-  afterEach(() => { delete (window as unknown as Record<string, unknown>)['rustRenderManager']; });
-
   it('shows Toggle Map layer and Toggle Tokens layer buttons', () => {
     render(<ToolsPanel userInfo={makeUser('player')} />);
     expect(screen.getByRole('button', { name: 'Toggle Map layer' })).toBeInTheDocument();

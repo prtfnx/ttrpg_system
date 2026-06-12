@@ -32,7 +32,6 @@ vi.mock('../hooks/useRenderEngine', () => ({
 import { useGameStore } from '@/store';
 import type { Sprite } from '@/types';
 import { LightingPanel } from '@features/lighting';
-import type { RenderEngine } from '@lib/wasm';
 import '@testing-library/jest-dom';
 import { fireEvent, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
@@ -49,8 +48,6 @@ const render = (ui: React.ReactElement) => renderWithWasmRuntime(
 describe('Lighting System', () => {
 
   beforeEach(() => {
-  // Ensure the render engine global is the mock
-  window.rustRenderManager = mockEngine as unknown as RenderEngine;
     // Setup mocks
     Object.values(mockEngine).forEach(fn => {
       if (typeof fn === 'function') {

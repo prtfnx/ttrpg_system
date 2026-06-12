@@ -1282,7 +1282,7 @@ describe('WebClientProtocol', () => {
 
     it('PAINT_STROKE_CREATE dispatches paint-stroke-created event', async () => {
       const p = makeProtocol();
-      const rm = makeRm();
+      makeRm();
       const fn = vi.fn();
       window.addEventListener('paint-stroke-created', fn);
       const strokeData = JSON.stringify({ id: 's3', points: [], color: [1, 0, 0, 1], width: 3 });
@@ -1303,7 +1303,7 @@ describe('WebClientProtocol', () => {
 
     it('PAINT_STROKE_DELETE dispatches paint-stroke-deleted event', async () => {
       const p = makeProtocol();
-      const rm = makeRm();
+      makeRm();
       const fn = vi.fn();
       window.addEventListener('paint-stroke-deleted', fn);
       await dispatch(p, 'paint_stroke_delete', { stroke_id: 'stroke-xyz', table_id: 'tbl1' });
@@ -1320,7 +1320,7 @@ describe('WebClientProtocol', () => {
 
     it('PAINT_STROKE_CLEAR dispatches paint-strokes-cleared event', async () => {
       const p = makeProtocol();
-      const rm = makeRm();
+      makeRm();
       const fn = vi.fn();
       window.addEventListener('paint-strokes-cleared', fn);
       await dispatch(p, 'paint_stroke_clear', { table_id: 'tbl1' });

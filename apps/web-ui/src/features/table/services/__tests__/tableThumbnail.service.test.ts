@@ -35,7 +35,6 @@ describe('TableThumbnailService', () => {
       render: vi.fn()
     } as unknown as typeof mockRenderEngine;
     
-    Object.assign(window, { wasmInitialized: true });
   });
 
   afterEach(() => {
@@ -44,7 +43,6 @@ describe('TableThumbnailService', () => {
       canvas.remove();
     }
     tableThumbnailService.clearCache();
-    delete (window as unknown as Record<string, unknown>).wasmInitialized;
   });
 
   describe('initialization', () => {

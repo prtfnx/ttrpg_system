@@ -4,7 +4,7 @@ import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { TableCard } from '../TableCard';
 
-vi.mock('../TablePreview', () => ({
+vi.mock('../../TablePreview', () => ({
   TablePreview: () => <div data-testid="preview" />,
 }));
 

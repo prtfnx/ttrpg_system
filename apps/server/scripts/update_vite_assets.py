@@ -75,8 +75,10 @@ def main():
     out.write_text("{# Auto-generated from Vite manifest #}\n" + "\n".join(main_lines) + "\n", encoding="utf-8")
     print(f"  Written: {out.relative_to(REPO_ROOT)}")
 
-    # --- admin_assets.html (integration entry) ---
-    admin_lines = _entry_tags(manifest, "src/integration.tsx")
+    # --- admin_assets.html ---
+    # The former dedicated integration entry was removed; main.tsx now exposes
+    # ReactGameComponents for embedded admin/server pages as well as standalone app boot.
+    admin_lines = _entry_tags(manifest, "index.html")
     out = TEMPLATES / "admin_assets.html"
     out.write_text("{# Auto-generated admin assets #}\n" + "\n".join(admin_lines) + "\n", encoding="utf-8")
     print(f"  Written: {out.relative_to(REPO_ROOT)}")

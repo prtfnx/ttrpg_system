@@ -43,6 +43,7 @@ export function createMockWasmRuntime(overrides: Partial<MockWasmRuntime> = {}):
     setGridSnapping: vi.fn(),
     setGridSize: vi.fn(),
     setAmbientLight: vi.fn(),
+    setShapeStyle: vi.fn(),
     setTableUnits: vi.fn(),
     handleTableData: vi.fn(),
     addWall: vi.fn(),

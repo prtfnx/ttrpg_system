@@ -21,6 +21,7 @@ import { WasmRuntimeStore, type WasmRuntimeSnapshot } from './wasmStore';
 type RuntimeCallbackRenderEngine = RenderEngine & {
   clear_runtime_operation_handler?: () => void;
   clear_runtime_event_handler?: () => void;
+  set_shape_style?: (color: string, opacity: number, filled: boolean) => void;
 };
 
 export class WasmRuntime implements WasmRuntimePort {
@@ -205,6 +206,11 @@ export class WasmRuntime implements WasmRuntimePort {
 
   setAmbientLight(level: number): void {
     this.renderEngine?.set_ambient_light?.(level);
+  }
+
+  setShapeStyle(color: string, opacity: number, filled: boolean): void {
+    const engine = this.renderEngine as RuntimeCallbackRenderEngine | null;
+    engine?.set_shape_style?.(color, opacity, filled);
   }
 
   setTableUnits(tableId: string | null, gridCellPx: number, cellDistance: number, distanceUnit: string): void {

@@ -41,6 +41,7 @@ export interface WasmRuntimePort {
   setGridSnapping(enabled: boolean): void;
   setGridSize(size: number): void;
   setAmbientLight(level: number): void;
+  setShapeStyle(color: string, opacity: number, filled: boolean): void;
   setTableUnits(tableId: string | null, gridCellPx: number, cellDistance: number, distanceUnit: string): void;
   handleTableData(tableData: unknown): void;
 

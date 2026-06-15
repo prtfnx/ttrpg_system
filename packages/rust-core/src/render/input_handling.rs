@@ -229,7 +229,7 @@ impl RenderEngine {
                         let active_layer = self.active_layer.clone();
                         let sprite_id = self.create_rectangle_sprite_with_options(x, y, width, height, &active_layer, &color, opacity, filled);
                         self.emit_shape_create_requested("rectangle", &sprite_id, x, y, width, height, &active_layer, &color, filled, opacity);
-                        Self::dispatch_sprite_added_event();
+                        self.emit_sprite_added_event();
                     }
                 }
             }
@@ -245,7 +245,7 @@ impl RenderEngine {
                         let sprite_id = self.create_circle_sprite_with_options(x, y, radius, &active_layer, &color, opacity, filled);
                         let diameter = radius * 2.0;
                         self.emit_circle_create_requested(&sprite_id, x, y, radius, diameter, &active_layer, &color, filled, opacity);
-                        Self::dispatch_sprite_added_event();
+                        self.emit_sprite_added_event();
                     }
                 }
             }
@@ -261,7 +261,7 @@ impl RenderEngine {
                         let active_layer = self.active_layer.clone();
                         let sprite_id = self.create_line_sprite_with_options(x1, y1, x2, y2, &active_layer, &color, opacity);
                         self.emit_line_create_requested(&sprite_id, x1, y1, x2, y2, &active_layer, &color, opacity);
-                        Self::dispatch_sprite_added_event();
+                        self.emit_sprite_added_event();
                     }
                 }
             }
@@ -356,11 +356,19 @@ impl RenderEngine {
         let _ = handler.call1(&JsValue::NULL, &operation.into());
     }
 
-    fn dispatch_sprite_added_event() {
-        if let Some(window) = web_sys::window() {
-            let event = web_sys::Event::new("spriteAdded").unwrap();
-            let _ = window.dispatch_event(&event);
-        }
+    fn emit_sprite_added_event(&self) {
+        self.emit_runtime_event("spriteAdded", js_sys::Object::new());
+    }
+
+    fn emit_runtime_event(&self, event_type: &str, data: js_sys::Object) {
+        let Some(handler) = &self.runtime_event_handler else {
+            return;
+        };
+
+        let event = js_sys::Object::new();
+        js_sys::Reflect::set(&event, &"type".into(), &event_type.into()).unwrap();
+        js_sys::Reflect::set(&event, &"data".into(), &data).unwrap();
+        let _ = handler.call1(&JsValue::NULL, &event.into());
     }
 
     #[wasm_bindgen]

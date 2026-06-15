@@ -10,6 +10,7 @@ const mocks = vi.hoisted(() => {
     set_gm_mode: vi.fn(),
     set_active_layer: vi.fn(),
     set_runtime_operation_handler: vi.fn(),
+    set_runtime_event_handler: vi.fn(),
     clear_runtime_operation_handler: vi.fn(),
     clear_runtime_event_handler: vi.fn(),
   };
@@ -123,6 +124,7 @@ describe('WasmRuntime', () => {
     expect(mocks.renderEngine.set_gm_mode).toHaveBeenCalledWith(true);
     expect(mocks.renderEngine.set_active_layer).toHaveBeenCalledWith('tokens');
     expect(mocks.renderEngine.set_runtime_operation_handler).toHaveBeenCalledWith(expect.any(Function));
+    expect(mocks.renderEngine.set_runtime_event_handler).toHaveBeenCalledWith(expect.any(Function));
     expect(mocks.bridgeInit).toHaveBeenCalled();
     expect(mocks.integrationInitialize).toHaveBeenCalledWith(mocks.renderEngine);
     expect(mocks.assetIntegrationInitialize).toHaveBeenCalled();
@@ -173,6 +175,18 @@ describe('WasmRuntime', () => {
       y: 12,
       obstacle_type: 'rectangle',
     });
+  });
+
+  it('bridges Rust spriteAdded runtime events to existing browser listeners', async () => {
+    const listener = vi.fn();
+    window.addEventListener('spriteAdded', listener);
+    await runtime.attachCanvas(canvas, { userId: null, role: null, activeLayer: 'map' });
+
+    const callback = mocks.renderEngine.set_runtime_event_handler.mock.calls[0][0];
+    callback({ type: 'spriteAdded', data: {} });
+
+    expect(listener).toHaveBeenCalledTimes(1);
+    window.removeEventListener('spriteAdded', listener);
   });
 
   it('records initialization errors and allows a later retry', async () => {

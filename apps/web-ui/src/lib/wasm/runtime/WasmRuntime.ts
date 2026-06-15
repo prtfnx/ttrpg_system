@@ -20,6 +20,7 @@ import { WasmRuntimeStore, type WasmRuntimeSnapshot } from './wasmStore';
 
 type RuntimeCallbackRenderEngine = RenderEngine & {
   set_runtime_operation_handler?: (callback: (operation: WasmRuntimeOperation) => void) => void;
+  set_runtime_event_handler?: (callback: (event: WasmRuntimeEvent) => void) => void;
   clear_runtime_operation_handler?: () => void;
   clear_runtime_event_handler?: () => void;
   set_shape_style?: (color: string, opacity: number, filled: boolean) => void;
@@ -30,6 +31,11 @@ type RuntimeProtocol = {
 };
 
 type WasmRuntimeOperation = {
+  type?: string;
+  data?: unknown;
+};
+
+type WasmRuntimeEvent = {
   type?: string;
   data?: unknown;
 };
@@ -50,6 +56,9 @@ export class WasmRuntime implements WasmRuntimePort {
   private protocol: RuntimeProtocol | null = null;
   private readonly runtimeOperationHandler = (operation: WasmRuntimeOperation) => {
     this.handleRuntimeOperation(operation);
+  };
+  private readonly runtimeEventHandler = (event: WasmRuntimeEvent) => {
+    this.handleRuntimeEvent(event);
   };
 
   get status(): WasmRuntimeSnapshot {
@@ -322,6 +331,7 @@ export class WasmRuntime implements WasmRuntimePort {
   private registerRuntimeCallbacks(engine: RenderEngine): void {
     const callbackEngine = engine as RuntimeCallbackRenderEngine;
     callbackEngine.set_runtime_operation_handler?.(this.runtimeOperationHandler);
+    callbackEngine.set_runtime_event_handler?.(this.runtimeEventHandler);
   }
 
   private handleRuntimeOperation(operation: WasmRuntimeOperation): void {
@@ -343,6 +353,15 @@ export class WasmRuntime implements WasmRuntimePort {
       return null;
     }
     return { createSprite: protocol.createSprite.bind(protocol) as RuntimeProtocol['createSprite'] };
+  }
+
+  private handleRuntimeEvent(event: WasmRuntimeEvent): void {
+    if (event.type === 'spriteAdded') {
+      window.dispatchEvent(new Event('spriteAdded'));
+      return;
+    }
+
+    console.warn('[WasmRuntime] Ignoring unknown WASM runtime event:', event.type);
   }
 
   private isRecord(value: unknown): value is Record<string, unknown> {

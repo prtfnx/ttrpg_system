@@ -187,12 +187,6 @@ export interface DetailedCharacter extends Character {
   actions?: string[];
 }
 
-// Game API interface for window object
-export interface GameAPI {
-  sendMessage: (type: string, data: Record<string, unknown>) => void;
-  renderManager: () => import('@lib/wasm/ttrpg_rust_core').RenderEngine | null;
-}
-
 // WASM Bridge interface for bidirectional communication
 export interface WasmBridge {
   onSpriteOperationComplete: (operation: string, spriteId: string, data: Record<string, unknown>) => void;
@@ -357,7 +351,6 @@ declare global {
     rustRenderManager?: import('@lib/wasm/ttrpg_rust_core').RenderEngine;
     ttrpg_rust_core?: unknown;
     wasmInitialized?: boolean;
-    gameAPI?: GameAPI;
     // Canvas tool globals (ephemeral cross-component state via window)
     fromDrawShapes?: boolean;
     selectedSpellTemplate?: { name: string; type: string; radiusFt?: number; radiusPx?: number; lengthFt?: number; lengthPx?: number };

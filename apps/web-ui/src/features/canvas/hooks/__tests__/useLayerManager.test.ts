@@ -15,11 +15,6 @@ const mockRenderManager = {
   set_blend_mode: vi.fn(),
 };
 
-// Mock global game API
-const mockGameAPI = {
-  renderManager: vi.fn(() => mockRenderManager),
-};
-
 function renderLayerManager(renderEngine: typeof mockRenderManager | null = mockRenderManager) {
   return renderHookWithWasmRuntime(
     () => useLayerManager(),
@@ -31,22 +26,6 @@ function renderLayerManager(renderEngine: typeof mockRenderManager | null = mock
 beforeEach(() => {
   vi.clearAllMocks();
   
-  // Clean up any existing event listeners
-  window.removeEventListener('wasm-ready', () => {});
-  
-  // Mock global WASM objects
-  Object.defineProperty(window, 'ttrpg_rust_core', {
-    value: true,
-    writable: true,
-    configurable: true,
-  });
-
-  Object.defineProperty(window, 'gameAPI', {
-    value: mockGameAPI,
-    writable: true,
-    configurable: true,
-  });
-
   // Set up default layer settings
   mockRenderManager.get_layer_settings.mockImplementation((layerName: string) => ({
     visible: true,
@@ -60,24 +39,7 @@ beforeEach(() => {
 });
 
 afterEach(() => {
-  // Clean up global mocks by setting to undefined instead of delete
-  // This avoids "Cannot delete property" errors
-  // Then redefine them for next test
-  Object.assign(window, { ttrpg_rust_core: undefined });
-  Object.assign(window, { gameAPI: undefined });
-  
-  // Restore them for next test
-  Object.defineProperty(window, 'ttrpg_rust_core', {
-    value: true,
-    writable: true,
-    configurable: true,
-  });
-
-  Object.defineProperty(window, 'gameAPI', {
-    value: mockGameAPI,
-    writable: true,
-    configurable: true,
-  });
+  vi.clearAllMocks();
 });
 
 describe('useLayerManager', () => {
@@ -329,10 +291,6 @@ describe('useLayerManager', () => {
 
   describe('Error Handling', () => {
     it('handles render manager operations when not initialized', async () => {
-      // Start with uninitialized state
-      delete (window as unknown as Record<string, unknown>).ttrpg_rust_core;
-      delete (window as unknown as Record<string, unknown>).gameAPI;
-
       const { result } = renderLayerManager(null);
       await expect(result.current.setLayerVisible('tokens', false)).resolves.toBeUndefined();
       await expect(result.current.setLayerOpacity('tokens', 0.5)).resolves.toBeUndefined();

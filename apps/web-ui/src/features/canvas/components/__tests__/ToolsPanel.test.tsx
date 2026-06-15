@@ -276,6 +276,23 @@ describe('ToolsPanel — DM creation toolbar', () => {
     expect(screen.getByLabelText('Color:')).toBeInTheDocument();
   });
 
+  it('sends shape settings through the wasm runtime port', () => {
+    const setShapeStyle = vi.fn();
+    dmStore({ activeTool: 'circle' });
+
+    renderWithWasmRuntime(
+      <ToolsPanel userInfo={makeUser('dm')} />,
+      createMockWasmRuntime({
+        setShapeStyle,
+        getRenderEngine: vi.fn(() => ({
+          set_input_mode_create_circle: vi.fn(),
+        }) as never),
+      }),
+    );
+
+    expect(setShapeStyle).toHaveBeenCalledWith('#0080ff', 1, false);
+  });
+
   it('shape settings panel shows when activeTool is line', () => {
     dmStore({ activeTool: 'line' });
     render(<ToolsPanel userInfo={makeUser('dm')} />);

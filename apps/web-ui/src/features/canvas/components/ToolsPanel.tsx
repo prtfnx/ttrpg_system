@@ -9,7 +9,7 @@ import { MeasurementTool } from '@features/measurement';
 import { PaintPanel } from '@features/painting';
 import { canInteract, isDM, isElevated } from '@features/session/types/roles';
 import { ProtocolService } from '@lib/api';
-import { useRenderEngine } from '@lib/wasm/runtime';
+import { useRenderEngine, useWasmRuntime } from '@lib/wasm/runtime';
 import { AlignmentHelper } from '@shared/components';
 import DiceRoller from '@shared/components/DiceRoller';
 import { AlignLeft, BrickWall, Check, ChevronDown, Circle, Cloud, Crown, Eye, EyeOff, Flame, Folder, HelpCircle, Lightbulb, Map, Minus, Mountain, Paintbrush, Pencil, Ruler, Search, Send, Shield, Snowflake, Sparkles, Square, Type, User, Users, Wrench, Zap } from 'lucide-react';
@@ -73,6 +73,7 @@ type PaintModeRenderEngine = RenderEngine & {
 
 export function ToolsPanel({ userInfo }: ToolsPanelProps) {
   useLayerHotkeys();
+  const wasmRuntime = useWasmRuntime();
   const renderEngine = useRenderEngine();
 
   const [activeTab, setActiveTab] = useState<TabId>('tools');
@@ -197,7 +198,7 @@ export function ToolsPanel({ userInfo }: ToolsPanelProps) {
       paintEngine.paint_exit_mode();
       setPaintPanelVisible(false);
     }
-    window.shapeSettings = { color: shapeColor, opacity: shapeOpacity, filled: shapeFilled };
+    wasmRuntime.setShapeStyle(shapeColor, shapeOpacity, shapeFilled);
     switch (activeTool) {
       case 'measure':     renderEngine.set_input_mode_measurement(); break;
       case 'rectangle':   renderEngine.set_input_mode_create_rectangle(); break;
@@ -228,7 +229,7 @@ export function ToolsPanel({ userInfo }: ToolsPanelProps) {
         renderEngine.set_input_mode_select();
         break;
     }
-  }, [activeTool, renderEngine, shapeColor, shapeOpacity, shapeFilled]);
+  }, [activeTool, renderEngine, shapeColor, shapeOpacity, shapeFilled, wasmRuntime]);
 
   const handlePingToggle = (enabled: boolean) => {
     setPingEnabled(enabled);

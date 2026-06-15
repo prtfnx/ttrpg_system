@@ -58,6 +58,60 @@ fn create_default_brush_presets_returns_non_empty() {
 
 // ── Unit converter ────────────────────────────────────────────────────────
 
+// ActionsClient
+
+#[wasm_bindgen_test]
+fn actions_client_new_has_empty_history() {
+    let client = core::ActionsClient::new();
+    let history = client.get_action_history();
+
+    assert!(js_sys::Array::is_array(&history), "history should be an array");
+    assert_eq!(js_sys::Array::from(&history).length(), 0);
+    assert!(!client.can_undo(), "new client should not be undoable");
+    assert!(!client.can_redo(), "new client should not be redoable");
+}
+
+#[wasm_bindgen_test]
+fn actions_client_create_table_records_undoable_action() {
+    let mut client = core::ActionsClient::new();
+    let result = client.create_table("Test Table", 800.0, 600.0);
+    let tables = client.get_all_tables();
+    let history = client.get_action_history();
+
+    assert_eq!(
+        js_sys::Reflect::get(&result, &"success".into()).unwrap().as_bool(),
+        Some(true)
+    );
+    assert_eq!(js_sys::Array::from(&tables).length(), 1);
+    assert_eq!(js_sys::Array::from(&history).length(), 1);
+    assert!(client.can_undo(), "create_table should be undoable");
+    assert!(!client.can_redo(), "redo stack should start empty");
+}
+
+#[wasm_bindgen_test]
+fn actions_client_undo_and_redo_table_create() {
+    let mut client = core::ActionsClient::new();
+    client.create_table("Test Table", 800.0, 600.0);
+
+    let undo = client.undo();
+    assert_eq!(
+        js_sys::Reflect::get(&undo, &"success".into()).unwrap().as_bool(),
+        Some(true)
+    );
+    assert_eq!(js_sys::Array::from(&client.get_all_tables()).length(), 0);
+    assert!(!client.can_undo(), "undo stack should be empty after undo");
+    assert!(client.can_redo(), "redo stack should contain the undone action");
+
+    let redo = client.redo();
+    assert_eq!(
+        js_sys::Reflect::get(&redo, &"success".into()).unwrap().as_bool(),
+        Some(true)
+    );
+    assert_eq!(js_sys::Array::from(&client.get_all_tables()).length(), 1);
+    assert!(client.can_undo(), "redo should restore undoable action");
+    assert!(!client.can_redo(), "redo stack should be empty after redo");
+}
+
 #[wasm_bindgen_test]
 fn unit_converter_dnd_default_pixels_per_unit_positive() {
     let uc = core::unit_converter::UnitConverter::dnd_default();

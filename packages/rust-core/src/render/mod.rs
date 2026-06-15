@@ -82,6 +82,10 @@ pub struct RenderEngine {
     pub(crate) is_gm: bool,
     pub(crate) current_user_id: Option<i32>,
     pub(crate) active_layer: String,
+
+    // Runtime bridge callbacks owned by the TypeScript WasmRuntime facade.
+    pub(crate) runtime_operation_handler: Option<js_sys::Function>,
+    pub(crate) runtime_event_handler: Option<js_sys::Function>,
 }
 
 #[wasm_bindgen]
@@ -183,6 +187,8 @@ impl RenderEngine {
             is_gm: false,
             current_user_id: None,
             active_layer: "tokens".to_string(),
+            runtime_operation_handler: None,
+            runtime_event_handler: None,
         };
         
         web_sys::console::log_1(&"[TABLE-INIT] [TARGET] Creating mandatory default table...".into());
@@ -233,6 +239,36 @@ impl RenderEngine {
         let min = self.camera.screen_to_world(Vec2::new(0.0, 0.0));
         let max = self.camera.screen_to_world(self.canvas_size);
         Rect::new(min.x, min.y, max.x - min.x, max.y - min.y)
+    }
+
+    #[wasm_bindgen]
+    pub fn set_runtime_operation_handler(&mut self, callback: &js_sys::Function) {
+        self.runtime_operation_handler = Some(callback.clone());
+    }
+
+    #[wasm_bindgen]
+    pub fn clear_runtime_operation_handler(&mut self) {
+        self.runtime_operation_handler = None;
+    }
+
+    #[wasm_bindgen]
+    pub fn has_runtime_operation_handler(&self) -> bool {
+        self.runtime_operation_handler.is_some()
+    }
+
+    #[wasm_bindgen]
+    pub fn set_runtime_event_handler(&mut self, callback: &js_sys::Function) {
+        self.runtime_event_handler = Some(callback.clone());
+    }
+
+    #[wasm_bindgen]
+    pub fn clear_runtime_event_handler(&mut self) {
+        self.runtime_event_handler = None;
+    }
+
+    #[wasm_bindgen]
+    pub fn has_runtime_event_handler(&self) -> bool {
+        self.runtime_event_handler.is_some()
     }
 
     fn get_effective_layer_opacity(layer_settings: &crate::types::LayerSettings, layer_name: &str, active_layer: &str) -> f32 {

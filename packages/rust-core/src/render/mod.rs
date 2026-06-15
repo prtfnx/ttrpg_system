@@ -109,25 +109,6 @@ impl RenderEngine {
     }
     
     pub(crate) fn get_shape_settings(&self) -> (String, f32, bool) {
-        if let Some(window) = web_sys::window() {
-            if let Ok(shape_settings) = js_sys::Reflect::get(&window, &"shapeSettings".into()) {
-                if !shape_settings.is_undefined() {
-                    let color = js_sys::Reflect::get(&shape_settings, &"color".into())
-                        .ok()
-                        .and_then(|v| v.as_string())
-                        .unwrap_or_else(|| "#ffffff".to_string());
-                    let opacity = js_sys::Reflect::get(&shape_settings, &"opacity".into())
-                        .ok()
-                        .and_then(|v| v.as_f64())
-                        .unwrap_or(1.0) as f32;
-                    let filled = js_sys::Reflect::get(&shape_settings, &"filled".into())
-                        .ok()
-                        .and_then(|v| v.as_bool())
-                        .unwrap_or(false);
-                    return (color, opacity, filled);
-                }
-            }
-        }
         (self.shape_color.clone(), self.shape_opacity, self.shape_filled)
     }
     

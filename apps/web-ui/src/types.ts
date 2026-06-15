@@ -359,7 +359,6 @@ declare global {
     wasmInitialized?: boolean;
     gameAPI?: GameAPI;
     // Canvas tool globals (ephemeral cross-component state via window)
-    shapeSettings?: { color: string; opacity: number; filled: boolean };
     fromDrawShapes?: boolean;
     selectedSpellTemplate?: { name: string; type: string; radiusFt?: number; radiusPx?: number; lengthFt?: number; lengthPx?: number };
   }

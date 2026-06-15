@@ -83,6 +83,11 @@ pub struct RenderEngine {
     pub(crate) current_user_id: Option<i32>,
     pub(crate) active_layer: String,
 
+    // Shape creation defaults. React should update these through WasmRuntime.
+    pub(crate) shape_color: String,
+    pub(crate) shape_opacity: f32,
+    pub(crate) shape_filled: bool,
+
     // Runtime bridge callbacks owned by the TypeScript WasmRuntime facade.
     pub(crate) runtime_operation_handler: Option<js_sys::Function>,
     pub(crate) runtime_event_handler: Option<js_sys::Function>,
@@ -123,7 +128,7 @@ impl RenderEngine {
                 }
             }
         }
-        ("#ffffff".to_string(), 1.0, false)
+        (self.shape_color.clone(), self.shape_opacity, self.shape_filled)
     }
     
     #[wasm_bindgen(constructor)]
@@ -187,6 +192,9 @@ impl RenderEngine {
             is_gm: false,
             current_user_id: None,
             active_layer: "tokens".to_string(),
+            shape_color: "#ffffff".to_string(),
+            shape_opacity: 1.0,
+            shape_filled: false,
             runtime_operation_handler: None,
             runtime_event_handler: None,
         };
@@ -269,6 +277,22 @@ impl RenderEngine {
     #[wasm_bindgen]
     pub fn has_runtime_event_handler(&self) -> bool {
         self.runtime_event_handler.is_some()
+    }
+
+    #[wasm_bindgen]
+    pub fn set_shape_style(&mut self, color: &str, opacity: f32, filled: bool) {
+        self.shape_color = color.to_string();
+        self.shape_opacity = opacity.clamp(0.0, 1.0);
+        self.shape_filled = filled;
+    }
+
+    #[wasm_bindgen]
+    pub fn get_shape_style_json(&self) -> JsValue {
+        serde_wasm_bindgen::to_value(&serde_json::json!({
+            "color": self.shape_color,
+            "opacity": self.shape_opacity,
+            "filled": self.shape_filled,
+        })).unwrap_or(JsValue::NULL)
     }
 
     fn get_effective_layer_opacity(layer_settings: &crate::types::LayerSettings, layer_name: &str, active_layer: &str) -> f32 {

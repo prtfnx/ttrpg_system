@@ -9,6 +9,8 @@ const mocks = vi.hoisted(() => {
     set_current_user_id: vi.fn(),
     set_gm_mode: vi.fn(),
     set_active_layer: vi.fn(),
+    clear_runtime_operation_handler: vi.fn(),
+    clear_runtime_event_handler: vi.fn(),
   };
 
   return {
@@ -145,6 +147,8 @@ describe('WasmRuntime', () => {
     expect(cancelAnimationFrame).toHaveBeenCalledWith(17);
     expect(mocks.integrationDispose).toHaveBeenCalled();
     expect(mocks.assetIntegrationDispose).toHaveBeenCalled();
+    expect(mocks.renderEngine.clear_runtime_operation_handler).toHaveBeenCalled();
+    expect(mocks.renderEngine.clear_runtime_event_handler).toHaveBeenCalled();
     expect(mocks.renderEngine.free).toHaveBeenCalled();
     expect(runtime.getRenderEngine()).toBeNull();
     expect(runtime.status.isCanvasAttached).toBe(false);

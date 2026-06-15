@@ -18,6 +18,11 @@ import {
 import type { AttachCanvasOptions, WasmRuntimePort } from './WasmRuntimePort';
 import { WasmRuntimeStore, type WasmRuntimeSnapshot } from './wasmStore';
 
+type RuntimeCallbackRenderEngine = RenderEngine & {
+  clear_runtime_operation_handler?: () => void;
+  clear_runtime_event_handler?: () => void;
+};
+
 export class WasmRuntime implements WasmRuntimePort {
   readonly store = new WasmRuntimeStore();
 
@@ -96,6 +101,8 @@ export class WasmRuntime implements WasmRuntimePort {
     wasmIntegrationService.dispose();
     assetIntegrationService.dispose();
     this.onFrame = null;
+
+    this.clearRuntimeCallbacks(this.renderEngine);
 
     try {
       this.renderEngine?.free?.();
@@ -282,5 +289,11 @@ export class WasmRuntime implements WasmRuntimePort {
     };
 
     this.animationFrameId = requestAnimationFrame(render);
+  }
+
+  private clearRuntimeCallbacks(engine: RenderEngine | null): void {
+    const callbackEngine = engine as RuntimeCallbackRenderEngine | null;
+    try { callbackEngine?.clear_runtime_operation_handler?.(); } catch {}
+    try { callbackEngine?.clear_runtime_event_handler?.(); } catch {}
   }
 }

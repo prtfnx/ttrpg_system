@@ -19,9 +19,19 @@ import type { AttachCanvasOptions, WasmRuntimePort } from './WasmRuntimePort';
 import { WasmRuntimeStore, type WasmRuntimeSnapshot } from './wasmStore';
 
 type RuntimeCallbackRenderEngine = RenderEngine & {
+  set_runtime_operation_handler?: (callback: (operation: WasmRuntimeOperation) => void) => void;
   clear_runtime_operation_handler?: () => void;
   clear_runtime_event_handler?: () => void;
   set_shape_style?: (color: string, opacity: number, filled: boolean) => void;
+};
+
+type RuntimeProtocol = {
+  createSprite?: (spriteData: Record<string, unknown>) => void;
+};
+
+type WasmRuntimeOperation = {
+  type?: string;
+  data?: unknown;
 };
 
 export class WasmRuntime implements WasmRuntimePort {
@@ -37,6 +47,10 @@ export class WasmRuntime implements WasmRuntimePort {
   private tableSync: TableSync | null = null;
   private animationFrameId: number | null = null;
   private onFrame: (() => void) | null = null;
+  private protocol: RuntimeProtocol | null = null;
+  private readonly runtimeOperationHandler = (operation: WasmRuntimeOperation) => {
+    this.handleRuntimeOperation(operation);
+  };
 
   get status(): WasmRuntimeSnapshot {
     return this.store.getSnapshot();
@@ -82,6 +96,7 @@ export class WasmRuntime implements WasmRuntimePort {
     engine.set_camera?.(0, 0, 1.0);
     this.renderEngine = engine;
     this.onFrame = options.onFrame ?? null;
+    this.registerRuntimeCallbacks(engine);
     this.setUserContext(options.userId, options.role);
     this.setActiveLayer(options.activeLayer);
 
@@ -142,6 +157,7 @@ export class WasmRuntime implements WasmRuntimePort {
   }
 
   setProtocol(protocol: unknown | null): void {
+    this.protocol = this.toRuntimeProtocol(protocol);
     wasmBridgeService.setProtocol(protocol as never);
   }
 
@@ -301,5 +317,35 @@ export class WasmRuntime implements WasmRuntimePort {
     const callbackEngine = engine as RuntimeCallbackRenderEngine | null;
     try { callbackEngine?.clear_runtime_operation_handler?.(); } catch {}
     try { callbackEngine?.clear_runtime_event_handler?.(); } catch {}
+  }
+
+  private registerRuntimeCallbacks(engine: RenderEngine): void {
+    const callbackEngine = engine as RuntimeCallbackRenderEngine;
+    callbackEngine.set_runtime_operation_handler?.(this.runtimeOperationHandler);
+  }
+
+  private handleRuntimeOperation(operation: WasmRuntimeOperation): void {
+    if (operation.type !== 'spriteCreateRequested') {
+      console.warn('[WasmRuntime] Ignoring unknown WASM runtime operation:', operation.type);
+      return;
+    }
+
+    if (!this.protocol?.createSprite || !this.isRecord(operation.data)) {
+      console.warn('[WasmRuntime] Cannot route WASM sprite creation without protocol and payload.');
+      return;
+    }
+
+    this.protocol.createSprite(operation.data);
+  }
+
+  private toRuntimeProtocol(protocol: unknown | null): RuntimeProtocol | null {
+    if (!this.isRecord(protocol) || typeof protocol.createSprite !== 'function') {
+      return null;
+    }
+    return { createSprite: protocol.createSprite.bind(protocol) as RuntimeProtocol['createSprite'] };
+  }
+
+  private isRecord(value: unknown): value is Record<string, unknown> {
+    return value !== null && typeof value === 'object' && !Array.isArray(value);
   }
 }

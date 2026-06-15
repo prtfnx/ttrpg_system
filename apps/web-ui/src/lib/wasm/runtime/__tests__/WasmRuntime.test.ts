@@ -9,6 +9,7 @@ const mocks = vi.hoisted(() => {
     set_current_user_id: vi.fn(),
     set_gm_mode: vi.fn(),
     set_active_layer: vi.fn(),
+    set_runtime_operation_handler: vi.fn(),
     clear_runtime_operation_handler: vi.fn(),
     clear_runtime_event_handler: vi.fn(),
   };
@@ -121,6 +122,7 @@ describe('WasmRuntime', () => {
     expect(mocks.renderEngine.set_current_user_id).toHaveBeenCalledWith(42);
     expect(mocks.renderEngine.set_gm_mode).toHaveBeenCalledWith(true);
     expect(mocks.renderEngine.set_active_layer).toHaveBeenCalledWith('tokens');
+    expect(mocks.renderEngine.set_runtime_operation_handler).toHaveBeenCalledWith(expect.any(Function));
     expect(mocks.bridgeInit).toHaveBeenCalled();
     expect(mocks.integrationInitialize).toHaveBeenCalledWith(mocks.renderEngine);
     expect(mocks.assetIntegrationInitialize).toHaveBeenCalled();
@@ -152,6 +154,25 @@ describe('WasmRuntime', () => {
     expect(mocks.renderEngine.free).toHaveBeenCalled();
     expect(runtime.getRenderEngine()).toBeNull();
     expect(runtime.status.isCanvasAttached).toBe(false);
+  });
+
+  it('routes Rust sprite create operations through the attached protocol', async () => {
+    const protocol = { createSprite: vi.fn() };
+    runtime.setProtocol(protocol);
+    await runtime.attachCanvas(canvas, { userId: null, role: null, activeLayer: 'map' });
+
+    const callback = mocks.renderEngine.set_runtime_operation_handler.mock.calls[0][0];
+    callback({
+      type: 'spriteCreateRequested',
+      data: { sprite_id: 'shape-1', x: 10, y: 12, obstacle_type: 'rectangle' },
+    });
+
+    expect(protocol.createSprite).toHaveBeenCalledWith({
+      sprite_id: 'shape-1',
+      x: 10,
+      y: 12,
+      obstacle_type: 'rectangle',
+    });
   });
 
   it('records initialization errors and allows a later retry', async () => {

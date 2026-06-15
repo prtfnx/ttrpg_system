@@ -58,6 +58,52 @@ fn create_default_brush_presets_returns_non_empty() {
 
 // ── Unit converter ────────────────────────────────────────────────────────
 
+#[wasm_bindgen_test]
+fn paint_system_brush_width_is_clamped() {
+    let mut paint = core::PaintSystem::new();
+
+    paint.set_brush_width(0.1);
+
+    assert_eq!(paint.get_brush_width(), 0.5);
+}
+
+#[wasm_bindgen_test]
+fn paint_system_stroke_lifecycle_records_completed_stroke() {
+    let mut paint = core::PaintSystem::new();
+    paint.set_current_table("table-1");
+    paint.enter_paint_mode(800.0, 600.0);
+
+    assert!(paint.start_stroke(10.0, 10.0, 1.0));
+    assert!(paint.is_drawing());
+    assert!(paint.add_stroke_point(20.0, 20.0, 1.0));
+    assert!(paint.end_stroke());
+
+    assert!(!paint.is_drawing());
+    assert_eq!(paint.get_stroke_count(), 1);
+    assert!(paint.can_undo());
+    assert!(!paint.can_redo());
+}
+
+#[wasm_bindgen_test]
+fn paint_system_undo_and_redo_stroke() {
+    let mut paint = core::PaintSystem::new();
+    paint.set_current_table("table-1");
+    paint.enter_paint_mode(800.0, 600.0);
+    paint.start_stroke(10.0, 10.0, 1.0);
+    paint.add_stroke_point(20.0, 20.0, 1.0);
+    paint.end_stroke();
+
+    assert!(paint.undo_last_stroke());
+    assert_eq!(paint.get_stroke_count(), 0);
+    assert!(!paint.can_undo());
+    assert!(paint.can_redo());
+
+    assert!(paint.redo_last_stroke());
+    assert_eq!(paint.get_stroke_count(), 1);
+    assert!(paint.can_undo());
+    assert!(!paint.can_redo());
+}
+
 // ActionsClient
 
 #[wasm_bindgen_test]

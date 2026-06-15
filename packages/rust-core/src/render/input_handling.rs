@@ -228,7 +228,7 @@ impl RenderEngine {
                         let (color, opacity, filled) = self.get_shape_settings();
                         let active_layer = self.active_layer.clone();
                         let sprite_id = self.create_rectangle_sprite_with_options(x, y, width, height, &active_layer, &color, opacity, filled);
-                        Self::send_shape_to_server("rectangle", &sprite_id, x, y, width, height, &active_layer, &color, filled, opacity);
+                        self.emit_shape_create_requested("rectangle", &sprite_id, x, y, width, height, &active_layer, &color, filled, opacity);
                         Self::dispatch_sprite_added_event();
                     }
                 }
@@ -244,7 +244,7 @@ impl RenderEngine {
                         let active_layer = self.active_layer.clone();
                         let sprite_id = self.create_circle_sprite_with_options(x, y, radius, &active_layer, &color, opacity, filled);
                         let diameter = radius * 2.0;
-                        Self::send_circle_to_server(&sprite_id, x, y, radius, diameter, &active_layer, &color, filled, opacity);
+                        self.emit_circle_create_requested(&sprite_id, x, y, radius, diameter, &active_layer, &color, filled, opacity);
                         Self::dispatch_sprite_added_event();
                     }
                 }
@@ -260,7 +260,7 @@ impl RenderEngine {
                         let (color, opacity, _) = self.get_shape_settings();
                         let active_layer = self.active_layer.clone();
                         let sprite_id = self.create_line_sprite_with_options(x1, y1, x2, y2, &active_layer, &color, opacity);
-                        Self::send_line_to_server(&sprite_id, x1, y1, x2, y2, &active_layer, &color, opacity);
+                        self.emit_line_create_requested(&sprite_id, x1, y1, x2, y2, &active_layer, &color, opacity);
                         Self::dispatch_sprite_added_event();
                     }
                 }
@@ -269,104 +269,91 @@ impl RenderEngine {
         }
     }
 
-    fn send_shape_to_server(shape_type: &str, sprite_id: &str, x: f32, y: f32, width: f32, height: f32, layer: &str, color: &str, filled: bool, opacity: f32) {
-        if let Some(window) = web_sys::window() {
-            if let Ok(game_api) = js_sys::Reflect::get(&window, &"gameAPI".into()) {
-                if let Ok(send_message) = js_sys::Reflect::get(&game_api, &"sendMessage".into()) {
-                    if let Ok(send_fn) = send_message.dyn_into::<js_sys::Function>() {
-                        let metadata = format!(
-                            r#"{{"shape_color":"{}","shape_filled":{},"opacity":{:.3}}}"#,
-                            color, filled, opacity
-                        );
-                        let data = js_sys::Object::new();
-                        js_sys::Reflect::set(&data, &"sprite_id".into(), &sprite_id.into()).unwrap();
-                        js_sys::Reflect::set(&data, &"x".into(), &x.into()).unwrap();
-                        js_sys::Reflect::set(&data, &"y".into(), &y.into()).unwrap();
-                        js_sys::Reflect::set(&data, &"width".into(), &width.into()).unwrap();
-                        js_sys::Reflect::set(&data, &"height".into(), &height.into()).unwrap();
-                        js_sys::Reflect::set(&data, &"layer".into(), &layer.into()).unwrap();
-                        js_sys::Reflect::set(&data, &"texture_path".into(), &"".into()).unwrap();
-                        js_sys::Reflect::set(&data, &"obstacle_type".into(), &shape_type.into()).unwrap();
-                        js_sys::Reflect::set(&data, &"metadata".into(), &metadata.into()).unwrap();
-                        let obs = js_sys::Object::new();
-                        js_sys::Reflect::set(&obs, &"x".into(), &x.into()).unwrap();
-                        js_sys::Reflect::set(&obs, &"y".into(), &y.into()).unwrap();
-                        js_sys::Reflect::set(&obs, &"width".into(), &width.into()).unwrap();
-                        js_sys::Reflect::set(&obs, &"height".into(), &height.into()).unwrap();
-                        js_sys::Reflect::set(&data, &"obstacle_data".into(), &obs).unwrap();
-                        let _ = send_fn.call2(&game_api, &"sprite_create".into(), &data);
-                    }
-                }
-            }
-        }
+    fn emit_shape_create_requested(&self, shape_type: &str, sprite_id: &str, x: f32, y: f32, width: f32, height: f32, layer: &str, color: &str, filled: bool, opacity: f32) {
+        let metadata = format!(
+            r#"{{"shape_color":"{}","shape_filled":{},"opacity":{:.3}}}"#,
+            color, filled, opacity
+        );
+        let data = js_sys::Object::new();
+        js_sys::Reflect::set(&data, &"sprite_id".into(), &sprite_id.into()).unwrap();
+        js_sys::Reflect::set(&data, &"x".into(), &x.into()).unwrap();
+        js_sys::Reflect::set(&data, &"y".into(), &y.into()).unwrap();
+        js_sys::Reflect::set(&data, &"width".into(), &width.into()).unwrap();
+        js_sys::Reflect::set(&data, &"height".into(), &height.into()).unwrap();
+        js_sys::Reflect::set(&data, &"layer".into(), &layer.into()).unwrap();
+        js_sys::Reflect::set(&data, &"texture_path".into(), &"".into()).unwrap();
+        js_sys::Reflect::set(&data, &"obstacle_type".into(), &shape_type.into()).unwrap();
+        js_sys::Reflect::set(&data, &"metadata".into(), &metadata.into()).unwrap();
+        let obs = js_sys::Object::new();
+        js_sys::Reflect::set(&obs, &"x".into(), &x.into()).unwrap();
+        js_sys::Reflect::set(&obs, &"y".into(), &y.into()).unwrap();
+        js_sys::Reflect::set(&obs, &"width".into(), &width.into()).unwrap();
+        js_sys::Reflect::set(&obs, &"height".into(), &height.into()).unwrap();
+        js_sys::Reflect::set(&data, &"obstacle_data".into(), &obs).unwrap();
+        self.emit_runtime_operation("spriteCreateRequested", data);
     }
 
-    fn send_circle_to_server(sprite_id: &str, x: f32, y: f32, radius: f32, diameter: f32, layer: &str, color: &str, filled: bool, opacity: f32) {
-        if let Some(window) = web_sys::window() {
-            if let Ok(game_api) = js_sys::Reflect::get(&window, &"gameAPI".into()) {
-                if let Ok(send_message) = js_sys::Reflect::get(&game_api, &"sendMessage".into()) {
-                    if let Ok(send_fn) = send_message.dyn_into::<js_sys::Function>() {
-                        let metadata = format!(
-                            r#"{{"shape_color":"{}","shape_filled":{},"opacity":{:.3}}}"#,
-                            color, filled, opacity
-                        );
-                        let data = js_sys::Object::new();
-                        js_sys::Reflect::set(&data, &"sprite_id".into(), &sprite_id.into()).unwrap();
-                        js_sys::Reflect::set(&data, &"x".into(), &(x - radius).into()).unwrap();
-                        js_sys::Reflect::set(&data, &"y".into(), &(y - radius).into()).unwrap();
-                        js_sys::Reflect::set(&data, &"width".into(), &diameter.into()).unwrap();
-                        js_sys::Reflect::set(&data, &"height".into(), &diameter.into()).unwrap();
-                        js_sys::Reflect::set(&data, &"layer".into(), &layer.into()).unwrap();
-                        js_sys::Reflect::set(&data, &"texture_path".into(), &"".into()).unwrap();
-                        js_sys::Reflect::set(&data, &"obstacle_type".into(), &"circle".into()).unwrap();
-                        js_sys::Reflect::set(&data, &"metadata".into(), &metadata.into()).unwrap();
-                        let obs = js_sys::Object::new();
-                        js_sys::Reflect::set(&obs, &"cx".into(), &x.into()).unwrap();
-                        js_sys::Reflect::set(&obs, &"cy".into(), &y.into()).unwrap();
-                        js_sys::Reflect::set(&obs, &"radius".into(), &radius.into()).unwrap();
-                        js_sys::Reflect::set(&data, &"obstacle_data".into(), &obs).unwrap();
-                        let _ = send_fn.call2(&game_api, &"sprite_create".into(), &data);
-                    }
-                }
-            }
-        }
+    fn emit_circle_create_requested(&self, sprite_id: &str, x: f32, y: f32, radius: f32, diameter: f32, layer: &str, color: &str, filled: bool, opacity: f32) {
+        let metadata = format!(
+            r#"{{"shape_color":"{}","shape_filled":{},"opacity":{:.3}}}"#,
+            color, filled, opacity
+        );
+        let data = js_sys::Object::new();
+        js_sys::Reflect::set(&data, &"sprite_id".into(), &sprite_id.into()).unwrap();
+        js_sys::Reflect::set(&data, &"x".into(), &(x - radius).into()).unwrap();
+        js_sys::Reflect::set(&data, &"y".into(), &(y - radius).into()).unwrap();
+        js_sys::Reflect::set(&data, &"width".into(), &diameter.into()).unwrap();
+        js_sys::Reflect::set(&data, &"height".into(), &diameter.into()).unwrap();
+        js_sys::Reflect::set(&data, &"layer".into(), &layer.into()).unwrap();
+        js_sys::Reflect::set(&data, &"texture_path".into(), &"".into()).unwrap();
+        js_sys::Reflect::set(&data, &"obstacle_type".into(), &"circle".into()).unwrap();
+        js_sys::Reflect::set(&data, &"metadata".into(), &metadata.into()).unwrap();
+        let obs = js_sys::Object::new();
+        js_sys::Reflect::set(&obs, &"cx".into(), &x.into()).unwrap();
+        js_sys::Reflect::set(&obs, &"cy".into(), &y.into()).unwrap();
+        js_sys::Reflect::set(&obs, &"radius".into(), &radius.into()).unwrap();
+        js_sys::Reflect::set(&data, &"obstacle_data".into(), &obs).unwrap();
+        self.emit_runtime_operation("spriteCreateRequested", data);
     }
 
-    fn send_line_to_server(sprite_id: &str, x1: f32, y1: f32, x2: f32, y2: f32, layer: &str, color: &str, opacity: f32) {
+    fn emit_line_create_requested(&self, sprite_id: &str, x1: f32, y1: f32, x2: f32, y2: f32, layer: &str, color: &str, opacity: f32) {
         let min_x = x1.min(x2);
         let min_y = y1.min(y2);
         let width = (x2 - x1).abs().max(2.0);
         let height = (y2 - y1).abs().max(2.0);
 
-        if let Some(window) = web_sys::window() {
-            if let Ok(game_api) = js_sys::Reflect::get(&window, &"gameAPI".into()) {
-                if let Ok(send_message) = js_sys::Reflect::get(&game_api, &"sendMessage".into()) {
-                    if let Ok(send_fn) = send_message.dyn_into::<js_sys::Function>() {
-                        let metadata = format!(
-                            r#"{{"shape_color":"{}","shape_filled":false,"opacity":{:.3}}}"#,
-                            color, opacity
-                        );
-                        let data = js_sys::Object::new();
-                        js_sys::Reflect::set(&data, &"sprite_id".into(), &sprite_id.into()).unwrap();
-                        js_sys::Reflect::set(&data, &"x".into(), &min_x.into()).unwrap();
-                        js_sys::Reflect::set(&data, &"y".into(), &min_y.into()).unwrap();
-                        js_sys::Reflect::set(&data, &"width".into(), &width.into()).unwrap();
-                        js_sys::Reflect::set(&data, &"height".into(), &height.into()).unwrap();
-                        js_sys::Reflect::set(&data, &"layer".into(), &layer.into()).unwrap();
-                        js_sys::Reflect::set(&data, &"texture_path".into(), &"".into()).unwrap();
-                        js_sys::Reflect::set(&data, &"obstacle_type".into(), &"line".into()).unwrap();
-                        js_sys::Reflect::set(&data, &"metadata".into(), &metadata.into()).unwrap();
-                        let obs = js_sys::Object::new();
-                        js_sys::Reflect::set(&obs, &"x1".into(), &x1.into()).unwrap();
-                        js_sys::Reflect::set(&obs, &"y1".into(), &y1.into()).unwrap();
-                        js_sys::Reflect::set(&obs, &"x2".into(), &x2.into()).unwrap();
-                        js_sys::Reflect::set(&obs, &"y2".into(), &y2.into()).unwrap();
-                        js_sys::Reflect::set(&data, &"obstacle_data".into(), &obs).unwrap();
-                        let _ = send_fn.call2(&game_api, &"sprite_create".into(), &data);
-                    }
-                }
-            }
-        }
+        let metadata = format!(
+            r#"{{"shape_color":"{}","shape_filled":false,"opacity":{:.3}}}"#,
+            color, opacity
+        );
+        let data = js_sys::Object::new();
+        js_sys::Reflect::set(&data, &"sprite_id".into(), &sprite_id.into()).unwrap();
+        js_sys::Reflect::set(&data, &"x".into(), &min_x.into()).unwrap();
+        js_sys::Reflect::set(&data, &"y".into(), &min_y.into()).unwrap();
+        js_sys::Reflect::set(&data, &"width".into(), &width.into()).unwrap();
+        js_sys::Reflect::set(&data, &"height".into(), &height.into()).unwrap();
+        js_sys::Reflect::set(&data, &"layer".into(), &layer.into()).unwrap();
+        js_sys::Reflect::set(&data, &"texture_path".into(), &"".into()).unwrap();
+        js_sys::Reflect::set(&data, &"obstacle_type".into(), &"line".into()).unwrap();
+        js_sys::Reflect::set(&data, &"metadata".into(), &metadata.into()).unwrap();
+        let obs = js_sys::Object::new();
+        js_sys::Reflect::set(&obs, &"x1".into(), &x1.into()).unwrap();
+        js_sys::Reflect::set(&obs, &"y1".into(), &y1.into()).unwrap();
+        js_sys::Reflect::set(&obs, &"x2".into(), &x2.into()).unwrap();
+        js_sys::Reflect::set(&obs, &"y2".into(), &y2.into()).unwrap();
+        js_sys::Reflect::set(&data, &"obstacle_data".into(), &obs).unwrap();
+        self.emit_runtime_operation("spriteCreateRequested", data);
+    }
+
+    fn emit_runtime_operation(&self, operation_type: &str, data: js_sys::Object) {
+        let Some(handler) = &self.runtime_operation_handler else {
+            return;
+        };
+
+        let operation = js_sys::Object::new();
+        js_sys::Reflect::set(&operation, &"type".into(), &operation_type.into()).unwrap();
+        js_sys::Reflect::set(&operation, &"data".into(), &data).unwrap();
+        let _ = handler.call1(&JsValue::NULL, &operation.into());
     }
 
     fn dispatch_sprite_added_event() {

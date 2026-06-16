@@ -204,6 +204,10 @@ describe('WasmRuntime', () => {
       ['wasm-cursor-hint', recordEvent('wasm-cursor-hint')],
       ['wallDrawn', recordEvent('wallDrawn')],
       ['polygonCreated', recordEvent('polygonCreated')],
+      ['tokenDoubleClick', recordEvent('tokenDoubleClick')],
+      ['measurementComplete', recordEvent('measurementComplete')],
+      ['textSpriteClick', recordEvent('textSpriteClick')],
+      ['wasm-sprite-operation', recordEvent('wasm-sprite-operation')],
     ];
     subscriptions.forEach(([type, listener]) => window.addEventListener(type, listener));
     await runtime.attachCanvas(canvas, { userId: null, role: null, activeLayer: 'map' });
@@ -218,6 +222,10 @@ describe('WasmRuntime', () => {
     callback({ type: 'cursorHint', data: { cursor: 'pointer' } });
     callback({ type: 'wallDrawn', data: { x1: 5, y1: 6, x2: 7, y2: 8 } });
     callback({ type: 'polygonCreated', data: { vertices: [{ x: 1, y: 2 }] } });
+    callback({ type: 'tokenDoubleClick', data: { spriteId: 's1' } });
+    callback({ type: 'measurementComplete', data: { distance: 10, gameUnits: 5, gridUnits: 5 } });
+    callback({ type: 'textSpriteClick', data: { x: 15, y: 20 } });
+    callback({ type: 'spriteOperationCompleted', data: { spriteId: 's1', operation: 'move', data: { x: 1, y: 2 } } });
 
     expect(received).toEqual([
       ['sprite-drag-preview', { spriteId: 's1', x: 10, y: 20 }],
@@ -229,6 +237,10 @@ describe('WasmRuntime', () => {
       ['wasm-cursor-hint', { cursor: 'pointer' }],
       ['wallDrawn', { x1: 5, y1: 6, x2: 7, y2: 8 }],
       ['polygonCreated', { vertices: [{ x: 1, y: 2 }] }],
+      ['tokenDoubleClick', { spriteId: 's1' }],
+      ['measurementComplete', { distance: 10, gameUnits: 5, gridUnits: 5 }],
+      ['textSpriteClick', { x: 15, y: 20 }],
+      ['wasm-sprite-operation', { spriteId: 's1', operation: 'move', data: { x: 1, y: 2 } }],
     ]);
 
     subscriptions.forEach(([type, listener]) => window.removeEventListener(type, listener));

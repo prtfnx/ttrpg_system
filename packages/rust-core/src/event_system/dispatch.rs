@@ -53,6 +53,28 @@ impl EventSystem {
         Self::emit_runtime_event(handler, "wallMoved", detail);
     }
 
+    pub(crate) fn dispatch_wall_drawn(handler: Option<&js_sys::Function>, x1: f32, y1: f32, x2: f32, y2: f32) {
+        let detail = js_sys::Object::new();
+        js_sys::Reflect::set(&detail, &"x1".into(), &JsValue::from_f64(x1 as f64)).ok();
+        js_sys::Reflect::set(&detail, &"y1".into(), &JsValue::from_f64(y1 as f64)).ok();
+        js_sys::Reflect::set(&detail, &"x2".into(), &JsValue::from_f64(x2 as f64)).ok();
+        js_sys::Reflect::set(&detail, &"y2".into(), &JsValue::from_f64(y2 as f64)).ok();
+        Self::emit_runtime_event(handler, "wallDrawn", detail);
+    }
+
+    pub(crate) fn dispatch_polygon_created(handler: Option<&js_sys::Function>, vertices: &[crate::math::Vec2]) {
+        let arr = js_sys::Array::new();
+        for vertex in vertices {
+            let point = js_sys::Object::new();
+            js_sys::Reflect::set(&point, &"x".into(), &JsValue::from_f64(vertex.x as f64)).ok();
+            js_sys::Reflect::set(&point, &"y".into(), &JsValue::from_f64(vertex.y as f64)).ok();
+            arr.push(&point);
+        }
+        let detail = js_sys::Object::new();
+        js_sys::Reflect::set(&detail, &"vertices".into(), &arr).ok();
+        Self::emit_runtime_event(handler, "polygonCreated", detail);
+    }
+
     /// Tell React to switch to a specific tool mode after an automatic transition.
     #[allow(dead_code)]
     pub(crate) fn dispatch_tool_mode_changed(handler: Option<&js_sys::Function>, mode: &str) {

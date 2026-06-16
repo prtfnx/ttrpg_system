@@ -5,7 +5,6 @@ use crate::sprite_manager::SpriteManager;
 use crate::lighting::LightingSystem;
 use crate::wall_manager::WallManager;
 use std::collections::HashMap;
-use wasm_bindgen::JsValue;
 
 use super::{EventSystem, MouseEventResult};
 
@@ -70,18 +69,7 @@ impl EventSystem {
                     let min_len = 5.0_f32;
                     let len = ((end.x - start.x).powi(2) + (end.y - start.y).powi(2)).sqrt();
                     if len >= min_len {
-                        if let Some(window) = web_sys::window() {
-                            let detail = js_sys::Object::new();
-                            js_sys::Reflect::set(&detail, &"x1".into(), &JsValue::from_f64(start.x as f64)).ok();
-                            js_sys::Reflect::set(&detail, &"y1".into(), &JsValue::from_f64(start.y as f64)).ok();
-                            js_sys::Reflect::set(&detail, &"x2".into(), &JsValue::from_f64(end.x as f64)).ok();
-                            js_sys::Reflect::set(&detail, &"y2".into(), &JsValue::from_f64(end.y as f64)).ok();
-                            let init = web_sys::CustomEventInit::new();
-                            init.set_detail(&detail);
-                            if let Ok(evt) = web_sys::CustomEvent::new_with_event_init_dict("wallDrawn", &init) {
-                                window.dispatch_event(&evt).ok();
-                            }
-                        }
+                        Self::dispatch_wall_drawn(runtime_event_handler, start.x, start.y, end.x, end.y);
                     }
                 }
                 return MouseEventResult::Handled;
@@ -90,22 +78,7 @@ impl EventSystem {
                 let should_close = input.add_polygon_vertex(world_pos);
                 if should_close {
                     if let Some(verts) = input.close_polygon() {
-                        if let Some(window) = web_sys::window() {
-                            let arr = js_sys::Array::new();
-                            for v in &verts {
-                                let pt = js_sys::Object::new();
-                                js_sys::Reflect::set(&pt, &"x".into(), &JsValue::from_f64(v.x as f64)).ok();
-                                js_sys::Reflect::set(&pt, &"y".into(), &JsValue::from_f64(v.y as f64)).ok();
-                                arr.push(&pt);
-                            }
-                            let detail = js_sys::Object::new();
-                            js_sys::Reflect::set(&detail, &"vertices".into(), &arr).ok();
-                            let init = web_sys::CustomEventInit::new();
-                            init.set_detail(&detail);
-                            if let Ok(evt) = web_sys::CustomEvent::new_with_event_init_dict("polygonCreated", &init) {
-                                window.dispatch_event(&evt).ok();
-                            }
-                        }
+                        Self::dispatch_polygon_created(runtime_event_handler, &verts);
                     }
                 }
                 return MouseEventResult::Handled;

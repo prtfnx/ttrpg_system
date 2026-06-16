@@ -75,6 +75,52 @@ impl EventSystem {
         Self::emit_runtime_event(handler, "polygonCreated", detail);
     }
 
+    pub(crate) fn dispatch_token_double_click(handler: Option<&js_sys::Function>, sprite_id: &str) {
+        let detail = js_sys::Object::new();
+        js_sys::Reflect::set(&detail, &"spriteId".into(), &JsValue::from_str(sprite_id)).ok();
+        Self::emit_runtime_event(handler, "tokenDoubleClick", detail);
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    pub(crate) fn dispatch_measurement_complete(
+        handler: Option<&js_sys::Function>,
+        distance: f32,
+        game_units: f32,
+        feet: f32,
+        meters: f32,
+        angle: f32,
+        start: crate::math::Vec2,
+        end: crate::math::Vec2,
+    ) {
+        let detail = js_sys::Object::new();
+        js_sys::Reflect::set(&detail, &"distance".into(), &JsValue::from_f64(distance as f64)).ok();
+        js_sys::Reflect::set(&detail, &"gameUnits".into(), &JsValue::from_f64(game_units as f64)).ok();
+        js_sys::Reflect::set(&detail, &"gridUnits".into(), &JsValue::from_f64(game_units as f64)).ok();
+        js_sys::Reflect::set(&detail, &"feet".into(), &JsValue::from_f64(feet as f64)).ok();
+        js_sys::Reflect::set(&detail, &"meters".into(), &JsValue::from_f64(meters as f64)).ok();
+        js_sys::Reflect::set(&detail, &"angle".into(), &JsValue::from_f64(angle as f64)).ok();
+        js_sys::Reflect::set(&detail, &"startX".into(), &JsValue::from_f64(start.x as f64)).ok();
+        js_sys::Reflect::set(&detail, &"startY".into(), &JsValue::from_f64(start.y as f64)).ok();
+        js_sys::Reflect::set(&detail, &"endX".into(), &JsValue::from_f64(end.x as f64)).ok();
+        js_sys::Reflect::set(&detail, &"endY".into(), &JsValue::from_f64(end.y as f64)).ok();
+        Self::emit_runtime_event(handler, "measurementComplete", detail);
+    }
+
+    pub(crate) fn dispatch_text_sprite_click(handler: Option<&js_sys::Function>, x: f32, y: f32) {
+        let detail = js_sys::Object::new();
+        js_sys::Reflect::set(&detail, &"x".into(), &JsValue::from_f64(x as f64)).ok();
+        js_sys::Reflect::set(&detail, &"y".into(), &JsValue::from_f64(y as f64)).ok();
+        Self::emit_runtime_event(handler, "textSpriteClick", detail);
+    }
+
+    pub(crate) fn dispatch_sprite_operation(handler: Option<&js_sys::Function>, sprite_id: &str, operation: &str, data: js_sys::Object) {
+        let detail = js_sys::Object::new();
+        js_sys::Reflect::set(&detail, &"spriteId".into(), &JsValue::from_str(sprite_id)).ok();
+        js_sys::Reflect::set(&detail, &"operation".into(), &JsValue::from_str(operation)).ok();
+        js_sys::Reflect::set(&detail, &"data".into(), &data).ok();
+        Self::emit_runtime_event(handler, "spriteOperationCompleted", detail);
+    }
+
     /// Tell React to switch to a specific tool mode after an automatic transition.
     #[allow(dead_code)]
     pub(crate) fn dispatch_tool_mode_changed(handler: Option<&js_sys::Function>, mode: &str) {

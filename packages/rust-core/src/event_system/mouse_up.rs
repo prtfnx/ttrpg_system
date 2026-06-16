@@ -105,18 +105,7 @@ impl EventSystem {
                         let current_time = js_sys::Date::now();
                         if input.check_double_click(sprite_id_str, current_time) {
                             web_sys::console::log_1(&format!("[RUST EVENT] [OK] Double-click detected on sprite: {}", sprite_id_str).into());
-                            
-                            if let Some(window) = web_sys::window() {
-                                let detail = js_sys::Object::new();
-                                js_sys::Reflect::set(&detail, &"spriteId".into(), &JsValue::from_str(sprite_id_str)).ok();
-                                
-                                let event_init = web_sys::CustomEventInit::new();
-                                event_init.set_detail(&detail);
-                                
-                                if let Ok(event) = web_sys::CustomEvent::new_with_event_init_dict("tokenDoubleClick", &event_init) {
-                                    window.dispatch_event(&event).ok();
-                                }
-                            }
+                            Self::dispatch_token_double_click(runtime_event_handler, sprite_id_str);
                         }
                     }
                 }
@@ -157,7 +146,7 @@ impl EventSystem {
                 }
                 
                 if let Some(sprite_id) = &sprite_id_opt {
-                    self.notify_operation_complete(current_input_mode, sprite_id, layers);
+                    self.notify_operation_complete(current_input_mode, sprite_id, layers, runtime_event_handler);
                 }
 
                 // Snap and notify all other selected sprites (SpriteMove only)
@@ -173,7 +162,7 @@ impl EventSystem {
                         }
                     }
                     for other_id in &other_selected {
-                        self.notify_operation_complete(current_input_mode, other_id, layers);
+                        self.notify_operation_complete(current_input_mode, other_id, layers, runtime_event_handler);
                     }
                 }
 
@@ -194,26 +183,7 @@ impl EventSystem {
                     
                     web_sys::console::log_1(&format!("[RUST EVENT] Measurement complete: {:.2} px ({:.1} {}) from ({:.1}, {:.1}) to ({:.1}, {:.1})", distance, game_dist, converter.unit().label(), start.x, start.y, end.x, end.y).into());
                     
-                    if let Some(window) = web_sys::window() {
-                        let detail = js_sys::Object::new();
-                        js_sys::Reflect::set(&detail, &"distance".into(), &JsValue::from_f64(distance as f64)).ok();
-                        js_sys::Reflect::set(&detail, &"gameUnits".into(), &JsValue::from_f64(game_dist as f64)).ok();
-                        js_sys::Reflect::set(&detail, &"gridUnits".into(), &JsValue::from_f64(game_dist as f64)).ok();
-                        js_sys::Reflect::set(&detail, &"feet".into(), &JsValue::from_f64(feet as f64)).ok();
-                        js_sys::Reflect::set(&detail, &"meters".into(), &JsValue::from_f64(meters as f64)).ok();
-                        js_sys::Reflect::set(&detail, &"angle".into(), &JsValue::from_f64(angle as f64)).ok();
-                        js_sys::Reflect::set(&detail, &"startX".into(), &JsValue::from_f64(start.x as f64)).ok();
-                        js_sys::Reflect::set(&detail, &"startY".into(), &JsValue::from_f64(start.y as f64)).ok();
-                        js_sys::Reflect::set(&detail, &"endX".into(), &JsValue::from_f64(end.x as f64)).ok();
-                        js_sys::Reflect::set(&detail, &"endY".into(), &JsValue::from_f64(end.y as f64)).ok();
-                        
-                        let event_init = web_sys::CustomEventInit::new();
-                        event_init.set_detail(&detail);
-                        
-                        if let Ok(event) = web_sys::CustomEvent::new_with_event_init_dict("measurementComplete", &event_init) {
-                            window.dispatch_event(&event).ok();
-                        }
-                    }
+                    Self::dispatch_measurement_complete(runtime_event_handler, distance, game_dist, feet, meters, angle, start, end);
                 }
                 MouseEventResult::Handled
             }
@@ -252,18 +222,7 @@ impl EventSystem {
             }
             InputMode::CreateText => {
                 if let Some((start, _end)) = input.end_shape_creation() {
-                    if let Some(window) = web_sys::window() {
-                        let detail = js_sys::Object::new();
-                        js_sys::Reflect::set(&detail, &"x".into(), &JsValue::from_f64(start.x as f64)).ok();
-                        js_sys::Reflect::set(&detail, &"y".into(), &JsValue::from_f64(start.y as f64)).ok();
-                        
-                        let event_init = web_sys::CustomEventInit::new();
-                        event_init.set_detail(&detail);
-                        
-                        if let Ok(event) = web_sys::CustomEvent::new_with_event_init_dict("textSpriteClick", &event_init) {
-                            window.dispatch_event(&event).ok();
-                        }
-                    }
+                    Self::dispatch_text_sprite_click(runtime_event_handler, start.x, start.y);
                 }
                 MouseEventResult::Handled
             }
@@ -281,10 +240,10 @@ impl EventSystem {
         &self,
         operation_mode: InputMode,
         sprite_id: &str,
-        layers: &HashMap<String, Layer>
+        layers: &HashMap<String, Layer>,
+        runtime_event_handler: Option<&js_sys::Function>,
     ) {
         let Some((sprite, _)) = Self::find_sprite(sprite_id, layers) else { return };
-        let Some(window) = web_sys::window() else { return };
 
         let data = js_sys::Object::new();
         let operation = match operation_mode {
@@ -305,15 +264,6 @@ impl EventSystem {
             _ => return,
         };
 
-        let detail = js_sys::Object::new();
-        js_sys::Reflect::set(&detail, &"spriteId".into(), &JsValue::from_str(sprite_id)).ok();
-        js_sys::Reflect::set(&detail, &"operation".into(), &JsValue::from_str(operation)).ok();
-        js_sys::Reflect::set(&detail, &"data".into(), &data).ok();
-
-        let event_init = web_sys::CustomEventInit::new();
-        event_init.set_detail(&detail);
-        if let Ok(event) = web_sys::CustomEvent::new_with_event_init_dict("wasm-sprite-operation", &event_init) {
-            window.dispatch_event(&event).ok();
-        }
+        Self::dispatch_sprite_operation(runtime_event_handler, sprite_id, operation, data);
     }
 }

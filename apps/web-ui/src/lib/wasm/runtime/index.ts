@@ -9,4 +9,5 @@ export {
   useWasmStatus,
 } from './WasmRuntimeContext';
 export type { AttachCanvasOptions, WasmRuntimePort } from './WasmRuntimePort';
+export type { ActionsClient, AssetManager, BrushPreset, PlanningManager, RenderEngine } from './types';
 export type { WasmRuntimeSnapshot } from './wasmStore';

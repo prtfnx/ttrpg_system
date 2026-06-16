@@ -1,5 +1,5 @@
 import { useWasmRuntime } from '@lib/wasm/runtime';
-import type { AssetManager } from '@lib/wasm/ttrpg_rust_core';
+import type { AssetManager } from '@lib/wasm/runtime';
 import { useCallback, useEffect, useRef, useState } from 'react';
 
 export interface AssetInfo {

@@ -8,7 +8,7 @@ import { useGameModeStore } from '@features/combat/stores/gameModeStore';
 import { isDM } from '@features/session/types/roles';
 import { useOptionalProtocol } from '@lib/api';
 import { useWasmRuntime } from '@lib/wasm/runtime';
-import type { RenderEngine } from '@lib/wasm/ttrpg_rust_core';
+import type { RenderEngine } from '@lib/wasm/runtime';
 import { createMessage, MessageType } from '@lib/websocket';
 import { DragDropImageHandler } from '@shared/components';
 import type { LucideIcon } from 'lucide-react';

@@ -1,5 +1,5 @@
 import { useGameStore } from '@/store';
-import type { RenderEngine } from '@lib/wasm/ttrpg_rust_core';
+import type { RenderEngine } from '@lib/wasm/runtime';
 import { useRenderEngine } from '@lib/wasm/runtime';
 import { Check, X } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';

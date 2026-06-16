@@ -1,4 +1,4 @@
-import type { RenderEngine } from '@lib/wasm/ttrpg_rust_core';
+import type { RenderEngine } from '@lib/wasm/runtime';
 import { act, renderHook } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { useContextMenu, useLightPlacement } from '../useContextMenu';

@@ -4,7 +4,7 @@
  */
 
 import fpsService from './fps.service';
-import type { RenderEngine } from '@lib/wasm/ttrpg_rust_core';
+import type { RenderEngine } from '@lib/wasm/runtime';
 
 type RenderEngineExt = RenderEngine & {
   get_memory_usage?: () => number;

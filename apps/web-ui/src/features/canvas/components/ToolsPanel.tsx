@@ -21,7 +21,7 @@ import styles from './ToolsPanel.module.css';
 import { WallConfigModal } from './WallConfigModal';
 
 import type { UserInfo } from '@features/auth';
-import type { RenderEngine } from '@lib/wasm/ttrpg_rust_core';
+import type { RenderEngine } from '@lib/wasm/runtime';
 
 const PLAYER_PERMITTED_LAYERS = [
   { id: 'map',    label: 'Map',    Icon: Map },

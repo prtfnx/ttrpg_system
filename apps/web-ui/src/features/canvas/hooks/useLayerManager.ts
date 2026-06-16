@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
-import type { RenderEngine } from '@lib/wasm/ttrpg_rust_core';
+import type { RenderEngine } from '@lib/wasm/runtime';
 import { useRenderEngine } from './useRenderEngine';
 
 type RenderEngineExt = RenderEngine & {

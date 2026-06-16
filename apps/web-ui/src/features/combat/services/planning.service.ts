@@ -1,4 +1,4 @@
-import type { PlanningManager } from '@lib/wasm/ttrpg_rust_core';
+import type { PlanningManager } from '@lib/wasm/runtime';
 import { getCurrentWasmRuntime } from '@lib/wasm/runtime';
 
 // Local types for data returned from WASM (these are not exported from the generated d.ts)

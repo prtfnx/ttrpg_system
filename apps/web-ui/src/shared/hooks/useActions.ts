@@ -1,4 +1,4 @@
-import type { ActionsClient } from '@lib/wasm/ttrpg_rust_core';
+import type { ActionsClient } from '@lib/wasm/runtime';
 import { useCallback, useEffect, useRef, useState } from 'react';
 
 export type ActionsEngine = Pick<

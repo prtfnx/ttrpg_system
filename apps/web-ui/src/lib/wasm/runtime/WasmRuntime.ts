@@ -41,6 +41,7 @@ type WasmRuntimeEvent = {
 };
 
 const RUNTIME_EVENT_BROWSER_NAMES: Record<string, string> = {
+  assetDownloadRequested: 'request-asset-download',
   cursorHint: 'wasm-cursor-hint',
   lightMoved: 'wasm-light-moved',
   measurementComplete: 'measurementComplete',

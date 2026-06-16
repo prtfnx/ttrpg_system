@@ -208,6 +208,7 @@ describe('WasmRuntime', () => {
       ['measurementComplete', recordEvent('measurementComplete')],
       ['textSpriteClick', recordEvent('textSpriteClick')],
       ['wasm-sprite-operation', recordEvent('wasm-sprite-operation')],
+      ['request-asset-download', recordEvent('request-asset-download')],
     ];
     subscriptions.forEach(([type, listener]) => window.addEventListener(type, listener));
     await runtime.attachCanvas(canvas, { userId: null, role: null, activeLayer: 'map' });
@@ -226,6 +227,7 @@ describe('WasmRuntime', () => {
     callback({ type: 'measurementComplete', data: { distance: 10, gameUnits: 5, gridUnits: 5 } });
     callback({ type: 'textSpriteClick', data: { x: 15, y: 20 } });
     callback({ type: 'spriteOperationCompleted', data: { spriteId: 's1', operation: 'move', data: { x: 1, y: 2 } } });
+    callback({ type: 'assetDownloadRequested', data: { asset_id: 'asset-1' } });
 
     expect(received).toEqual([
       ['sprite-drag-preview', { spriteId: 's1', x: 10, y: 20 }],
@@ -241,6 +243,7 @@ describe('WasmRuntime', () => {
       ['measurementComplete', { distance: 10, gameUnits: 5, gridUnits: 5 }],
       ['textSpriteClick', { x: 15, y: 20 }],
       ['wasm-sprite-operation', { spriteId: 's1', operation: 'move', data: { x: 1, y: 2 } }],
+      ['request-asset-download', { asset_id: 'asset-1' }],
     ]);
 
     subscriptions.forEach(([type, listener]) => window.removeEventListener(type, listener));

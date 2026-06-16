@@ -162,20 +162,22 @@ impl RenderEngine {
 
     fn request_asset_if_needed(&self, texture_path: &str) {
         if !self.texture_manager.has_texture(texture_path) {
-            let detail = js_sys::Object::new();
-            js_sys::Reflect::set(&detail, &"asset_path".into(), &texture_path.into()).unwrap();
-            
-            let event_init = web_sys::CustomEventInit::new();
-            event_init.set_detail(&detail);
-            let event = web_sys::CustomEvent::new_with_event_init_dict(
-                "asset-download-request",
-                &event_init
-            ).unwrap();
-            
-            if let Some(window) = web_sys::window() {
-                let _ = window.dispatch_event(&event);
-            }
+            self.emit_asset_download_requested(texture_path);
         }
+    }
+
+    fn emit_asset_download_requested(&self, asset_id: &str) {
+        let Some(handler) = &self.runtime_event_handler else {
+            return;
+        };
+
+        let data = js_sys::Object::new();
+        js_sys::Reflect::set(&data, &"asset_id".into(), &asset_id.into()).unwrap();
+
+        let event = js_sys::Object::new();
+        js_sys::Reflect::set(&event, &"type".into(), &"assetDownloadRequested".into()).unwrap();
+        js_sys::Reflect::set(&event, &"data".into(), &data).unwrap();
+        let _ = handler.call1(&JsValue::NULL, &event.into());
     }
 
     pub fn send_sprite_move(&mut self, sprite_id: &str, x: f64, y: f64) -> Result<String, JsValue> {

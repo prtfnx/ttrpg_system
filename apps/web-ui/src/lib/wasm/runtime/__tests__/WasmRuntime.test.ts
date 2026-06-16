@@ -202,6 +202,8 @@ describe('WasmRuntime', () => {
       ['wasm-wall-moved', recordEvent('wasm-wall-moved')],
       ['wasm-tool-mode-changed', recordEvent('wasm-tool-mode-changed')],
       ['wasm-cursor-hint', recordEvent('wasm-cursor-hint')],
+      ['wallDrawn', recordEvent('wallDrawn')],
+      ['polygonCreated', recordEvent('polygonCreated')],
     ];
     subscriptions.forEach(([type, listener]) => window.addEventListener(type, listener));
     await runtime.attachCanvas(canvas, { userId: null, role: null, activeLayer: 'map' });
@@ -214,6 +216,8 @@ describe('WasmRuntime', () => {
     callback({ type: 'wallMoved', data: { wallId: 'w1', x1: 1, y1: 2, x2: 3, y2: 4 } });
     callback({ type: 'toolModeChanged', data: { mode: 'move' } });
     callback({ type: 'cursorHint', data: { cursor: 'pointer' } });
+    callback({ type: 'wallDrawn', data: { x1: 5, y1: 6, x2: 7, y2: 8 } });
+    callback({ type: 'polygonCreated', data: { vertices: [{ x: 1, y: 2 }] } });
 
     expect(received).toEqual([
       ['sprite-drag-preview', { spriteId: 's1', x: 10, y: 20 }],
@@ -223,6 +227,8 @@ describe('WasmRuntime', () => {
       ['wasm-wall-moved', { wallId: 'w1', x1: 1, y1: 2, x2: 3, y2: 4 }],
       ['wasm-tool-mode-changed', { mode: 'move' }],
       ['wasm-cursor-hint', { cursor: 'pointer' }],
+      ['wallDrawn', { x1: 5, y1: 6, x2: 7, y2: 8 }],
+      ['polygonCreated', { vertices: [{ x: 1, y: 2 }] }],
     ]);
 
     subscriptions.forEach(([type, listener]) => window.removeEventListener(type, listener));

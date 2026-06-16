@@ -43,10 +43,12 @@ type WasmRuntimeEvent = {
 const RUNTIME_EVENT_BROWSER_NAMES: Record<string, string> = {
   cursorHint: 'wasm-cursor-hint',
   lightMoved: 'wasm-light-moved',
+  polygonCreated: 'polygonCreated',
   spriteDragPreview: 'sprite-drag-preview',
   spriteResizePreview: 'sprite-resize-preview',
   spriteRotatePreview: 'sprite-rotate-preview',
   toolModeChanged: 'wasm-tool-mode-changed',
+  wallDrawn: 'wallDrawn',
   wallMoved: 'wasm-wall-moved',
 };
 

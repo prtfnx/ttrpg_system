@@ -111,7 +111,6 @@ const mockWasmModule = {
     clear_cache: vi.fn(),
     preload_assets: vi.fn().mockResolvedValue(undefined)
   })),
-  // Add missing required properties for GlobalWasmModule interface
   TableSync: vi.fn().mockImplementation(() => ({
     sync_table: vi.fn(),
     get_table_state: vi.fn()
@@ -135,13 +134,6 @@ const mockWasmModule = {
   create_default_brush_presets: vi.fn().mockReturnValue([]),
   default: vi.fn().mockResolvedValue(undefined)
 };
-
-// Mock external dependencies
-vi.mock('../utils/wasmManager', () => ({
-  wasmManager: {
-    getWasmModule: vi.fn().mockResolvedValue(mockWasmModule)
-  }
-}));
 
 vi.mock('../hooks/useActions', () => ({
   useActions: vi.fn().mockReturnValue({

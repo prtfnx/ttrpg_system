@@ -1,19 +1,9 @@
-import { afterEach, describe, expect, it, vi } from 'vitest';
-// WASM is auto-mocked via vitest.config.ts
-// wasmManager mock for specific test behavior — NetworkClient is absent to test error path
-vi.mock('@lib/wasm/wasmManager', () => ({
-  wasmManager: {
-    // getWasmModule resolves to a module WITHOUT NetworkClient (error path)
-    getWasmModule: () => Promise.resolve({}),
-  }
-}));
-
-import { useNetworkClient } from '@shared/hooks/useNetworkClient';
 import { waitFor } from '@testing-library/react';
 import { createMockWasmRuntime, renderWithWasmRuntime } from '@test/utils/wasmRuntimeTestUtils';
 import React from 'react';
+import { afterEach, describe, expect, it, vi } from 'vitest';
+import { useNetworkClient } from '@shared/hooks/useNetworkClient';
 
-// Small helper component to expose the hook's state for assertions
 const HookConsumer: React.FC<{
   onError?: (err: string) => void;
   onConnectionChange?: (state: string, err?: string) => void;
@@ -30,7 +20,6 @@ const HookConsumer: React.FC<{
 };
 
 afterEach(() => {
-  // Reset modules so other tests can re-mock wasmManager as needed
   vi.resetModules();
   vi.clearAllMocks();
 });
@@ -45,13 +34,9 @@ describe('useNetworkClient failure path', () => {
       createMockWasmRuntime({ getNetworkClient: vi.fn(() => ({} as never)) }),
     );
 
-    // The hook will set error state asynchronously; wait for it
     await waitFor(() => expect(getByTestId('state').textContent).toBe('error'));
-
-    // lastError should contain the deterministic 'Connection failed:' message
     await waitFor(() => expect(getByTestId('lastError').textContent).toContain('Connection failed:'));
 
-    // onError and onConnectionChange should have been called
     await waitFor(() => {
       expect(onError).toHaveBeenCalled();
       expect(onConnectionChange).toHaveBeenCalledWith('error', expect.stringContaining('Connection failed:'));

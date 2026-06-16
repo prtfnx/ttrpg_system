@@ -1,6 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
-// Mock wasmManager with a functional NetworkClient
 const mockClient = {
   set_message_handler: vi.fn(),
   set_connection_handler: vi.fn(),
@@ -24,17 +23,6 @@ const mockClient = {
   set_user_info: vi.fn(),
   free: vi.fn(),
 };
-
-vi.mock('@lib/wasm/wasmManager', () => ({
-  wasmManager: {
-    getWasmModule: () =>
-      Promise.resolve({
-        NetworkClient: function MockNetworkClient() {
-          return mockClient;
-        },
-      }),
-  },
-}));
 
 import { useNetworkClient } from '@shared/hooks/useNetworkClient';
 import { act, waitFor } from '@testing-library/react';

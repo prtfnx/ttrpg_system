@@ -1,6 +1,5 @@
 // Comprehensive mock WASM module for unit tests.
 // Matches the shape of the real WASM module produced by wasm-bindgen.
-// Usage: vi.mock('@lib/wasm', () => ({ wasmManager: mockWasmManager }))
 
 import { vi } from 'vitest';
 

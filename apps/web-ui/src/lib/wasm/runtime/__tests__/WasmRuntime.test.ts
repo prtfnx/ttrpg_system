@@ -189,6 +189,45 @@ describe('WasmRuntime', () => {
     window.removeEventListener('spriteAdded', listener);
   });
 
+  it('bridges Rust preview and movement runtime events to existing browser listeners', async () => {
+    const received: Array<[string, unknown]> = [];
+    const recordEvent = (type: string): EventListener => (event: Event) => {
+      received.push([type, (event as CustomEvent).detail]);
+    };
+    const subscriptions: Array<[string, EventListener]> = [
+      ['sprite-drag-preview', recordEvent('sprite-drag-preview')],
+      ['sprite-resize-preview', recordEvent('sprite-resize-preview')],
+      ['sprite-rotate-preview', recordEvent('sprite-rotate-preview')],
+      ['wasm-light-moved', recordEvent('wasm-light-moved')],
+      ['wasm-wall-moved', recordEvent('wasm-wall-moved')],
+      ['wasm-tool-mode-changed', recordEvent('wasm-tool-mode-changed')],
+      ['wasm-cursor-hint', recordEvent('wasm-cursor-hint')],
+    ];
+    subscriptions.forEach(([type, listener]) => window.addEventListener(type, listener));
+    await runtime.attachCanvas(canvas, { userId: null, role: null, activeLayer: 'map' });
+
+    const callback = mocks.renderEngine.set_runtime_event_handler.mock.calls[0][0];
+    callback({ type: 'spriteDragPreview', data: { spriteId: 's1', x: 10, y: 20 } });
+    callback({ type: 'spriteResizePreview', data: { spriteId: 's1', width: 30, height: 40 } });
+    callback({ type: 'spriteRotatePreview', data: { spriteId: 's1', rotation: 45 } });
+    callback({ type: 'lightMoved', data: { lightId: 'l1', x: 50, y: 60 } });
+    callback({ type: 'wallMoved', data: { wallId: 'w1', x1: 1, y1: 2, x2: 3, y2: 4 } });
+    callback({ type: 'toolModeChanged', data: { mode: 'move' } });
+    callback({ type: 'cursorHint', data: { cursor: 'pointer' } });
+
+    expect(received).toEqual([
+      ['sprite-drag-preview', { spriteId: 's1', x: 10, y: 20 }],
+      ['sprite-resize-preview', { spriteId: 's1', width: 30, height: 40 }],
+      ['sprite-rotate-preview', { spriteId: 's1', rotation: 45 }],
+      ['wasm-light-moved', { lightId: 'l1', x: 50, y: 60 }],
+      ['wasm-wall-moved', { wallId: 'w1', x1: 1, y1: 2, x2: 3, y2: 4 }],
+      ['wasm-tool-mode-changed', { mode: 'move' }],
+      ['wasm-cursor-hint', { cursor: 'pointer' }],
+    ]);
+
+    subscriptions.forEach(([type, listener]) => window.removeEventListener(type, listener));
+  });
+
   it('records initialization errors and allows a later retry', async () => {
     const error = new Error('boom');
     mocks.initializeWasmCore.mockRejectedValueOnce(error);

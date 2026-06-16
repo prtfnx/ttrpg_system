@@ -40,6 +40,16 @@ type WasmRuntimeEvent = {
   data?: unknown;
 };
 
+const RUNTIME_EVENT_BROWSER_NAMES: Record<string, string> = {
+  cursorHint: 'wasm-cursor-hint',
+  lightMoved: 'wasm-light-moved',
+  spriteDragPreview: 'sprite-drag-preview',
+  spriteResizePreview: 'sprite-resize-preview',
+  spriteRotatePreview: 'sprite-rotate-preview',
+  toolModeChanged: 'wasm-tool-mode-changed',
+  wallMoved: 'wasm-wall-moved',
+};
+
 export class WasmRuntime implements WasmRuntimePort {
   readonly store = new WasmRuntimeStore();
 
@@ -358,6 +368,12 @@ export class WasmRuntime implements WasmRuntimePort {
   private handleRuntimeEvent(event: WasmRuntimeEvent): void {
     if (event.type === 'spriteAdded') {
       window.dispatchEvent(new Event('spriteAdded'));
+      return;
+    }
+
+    if (event.type && RUNTIME_EVENT_BROWSER_NAMES[event.type]) {
+      const detail = this.isRecord(event.data) ? event.data : {};
+      window.dispatchEvent(new CustomEvent(RUNTIME_EVENT_BROWSER_NAMES[event.type], { detail }));
       return;
     }
 

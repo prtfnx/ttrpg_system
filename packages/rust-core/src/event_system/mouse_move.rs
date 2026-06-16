@@ -16,6 +16,7 @@ impl EventSystem {
         layers: &mut HashMap<String, Layer>,
         lighting: &mut LightingSystem,
         wall_manager: &mut WallManager,
+        runtime_event_handler: Option<&js_sys::Function>,
     ) -> MouseEventResult {
         // Update fog drawing preview
         if matches!(input.input_mode, InputMode::FogDraw | InputMode::FogErase) {
@@ -47,7 +48,7 @@ impl EventSystem {
                     }
                     sprite.world_x = new_pos.x as f64;
                     sprite.world_y = new_pos.y as f64;
-                    Self::dispatch_drag_preview(&sprite_id, sprite.world_x, sprite.world_y);
+                    Self::dispatch_drag_preview(runtime_event_handler, &sprite_id, sprite.world_x, sprite.world_y);
                     d
                 } else {
                     Vec2::new(0.0, 0.0)
@@ -58,7 +59,7 @@ impl EventSystem {
                     if let Some((sprite, _)) = Self::find_sprite_mut(other_id, layers) {
                         sprite.world_x += delta.x as f64;
                         sprite.world_y += delta.y as f64;
-                        Self::dispatch_drag_preview(other_id, sprite.world_x, sprite.world_y);
+                        Self::dispatch_drag_preview(runtime_event_handler, other_id, sprite.world_x, sprite.world_y);
                     }
                 }
                 MouseEventResult::Handled
@@ -67,7 +68,7 @@ impl EventSystem {
                 if let Some(sprite_id) = &input.selected_sprite_id {
                     if let Some((sprite, _)) = Self::find_sprite_mut(sprite_id, layers) {
                         SpriteManager::resize_sprite_with_handle(sprite, handle, world_pos);
-                        Self::dispatch_resize_preview(sprite_id, sprite.width * sprite.scale_x, sprite.height * sprite.scale_y);
+                        Self::dispatch_resize_preview(runtime_event_handler, sprite_id, sprite.width * sprite.scale_x, sprite.height * sprite.scale_y);
                     }
                 }
                 MouseEventResult::Handled
@@ -76,7 +77,7 @@ impl EventSystem {
                 if let Some(sprite_id) = &input.selected_sprite_id {
                     if let Some((sprite, _)) = Self::find_sprite_mut(sprite_id, layers) {
                         SpriteManager::update_rotation(sprite, world_pos, input.rotation_start_angle, input.sprite_initial_rotation);
-                        Self::dispatch_rotate_preview(sprite_id, sprite.rotation.to_degrees());
+                        Self::dispatch_rotate_preview(runtime_event_handler, sprite_id, sprite.rotation.to_degrees());
                     }
                 }
                 MouseEventResult::Handled
@@ -145,7 +146,7 @@ impl EventSystem {
                             && layer.sprites.iter().any(|s| s.contains_world_point(world_pos))
                     });
                     let cursor = if hovered { "pointer" } else { "default" };
-                    Self::dispatch_cursor_hint(cursor);
+                    Self::dispatch_cursor_hint(runtime_event_handler, cursor);
                 }
                 MouseEventResult::None
             }

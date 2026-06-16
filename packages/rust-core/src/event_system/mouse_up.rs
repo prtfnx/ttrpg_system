@@ -23,6 +23,7 @@ impl EventSystem {
         active_layer: &str,
         converter: &UnitConverter,
         grid_cell_px: f32,
+        runtime_event_handler: Option<&js_sys::Function>,
     ) -> MouseEventResult {
         match input.input_mode {
             InputMode::AreaSelect => {
@@ -39,7 +40,7 @@ impl EventSystem {
                 );
                 if let Some(light_id) = &input.selected_light_id {
                     lighting.update_light_position(light_id, final_pos);
-                    Self::dispatch_light_moved(light_id, final_pos.x, final_pos.y);
+                    Self::dispatch_light_moved(runtime_event_handler, light_id, final_pos.x, final_pos.y);
                 }
                 input.end_light_drag();
                 MouseEventResult::Handled
@@ -47,7 +48,7 @@ impl EventSystem {
             InputMode::WallDrag => {
                 if let Some(wall_id) = input.dragged_wall_id.take() {
                     if let Some((x1, y1, x2, y2)) = wall_manager.get_wall_endpoints(&wall_id) {
-                        Self::dispatch_wall_moved(&wall_id, x1, y1, x2, y2);
+                        Self::dispatch_wall_moved(runtime_event_handler, &wall_id, x1, y1, x2, y2);
                     }
                 }
                 input.input_mode = InputMode::None;
@@ -56,7 +57,7 @@ impl EventSystem {
             InputMode::WallEndpointDrag => {
                 if let Some(wall_id) = input.dragged_wall_id.take() {
                     if let Some((x1, y1, x2, y2)) = wall_manager.get_wall_endpoints(&wall_id) {
-                        Self::dispatch_wall_moved(&wall_id, x1, y1, x2, y2);
+                        Self::dispatch_wall_moved(runtime_event_handler, &wall_id, x1, y1, x2, y2);
                     }
                 }
                 input.input_mode = InputMode::None;
@@ -129,7 +130,7 @@ impl EventSystem {
                                 InputMode::SpriteMove => {
                                     sprite.world_x = (sprite.world_x / cell).round() * cell;
                                     sprite.world_y = (sprite.world_y / cell).round() * cell;
-                                    Self::dispatch_drag_preview(sprite_id, sprite.world_x, sprite.world_y);
+                                    Self::dispatch_drag_preview(runtime_event_handler, sprite_id, sprite.world_x, sprite.world_y);
                                 }
                                 InputMode::SpriteResize(_) => {
                                     let snapped_x = (sprite.world_x / cell).round() * cell;
@@ -167,7 +168,7 @@ impl EventSystem {
                             if let Some((sprite, _)) = Self::find_sprite_mut(other_id, layers) {
                                 sprite.world_x = (sprite.world_x / cell).round() * cell;
                                 sprite.world_y = (sprite.world_y / cell).round() * cell;
-                                Self::dispatch_drag_preview(other_id, sprite.world_x, sprite.world_y);
+                                Self::dispatch_drag_preview(runtime_event_handler, other_id, sprite.world_x, sprite.world_y);
                             }
                         }
                     }
@@ -177,7 +178,7 @@ impl EventSystem {
                 }
 
                 input.input_mode = InputMode::None;
-                Self::dispatch_cursor_hint("pointer"); // back to hover cursor after drag
+                Self::dispatch_cursor_hint(runtime_event_handler, "pointer"); // back to hover cursor after drag
                 MouseEventResult::Handled
             }
             InputMode::Measurement => {

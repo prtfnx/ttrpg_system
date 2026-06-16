@@ -95,6 +95,7 @@ impl RenderEngine {
             self.active_layer.as_str(),
             alt_pressed,
             grid_cell_px,
+            self.runtime_event_handler.as_ref(),
         );
         
         let uid_opt = self.current_user_id;
@@ -148,6 +149,7 @@ impl RenderEngine {
             self.layer_manager.get_layers_mut(),
             &mut self.lighting,
             &mut self.wall_manager,
+            self.runtime_event_handler.as_ref(),
         );
 
         if self.input.input_mode == InputMode::WallDrag {
@@ -203,6 +205,7 @@ impl RenderEngine {
             self.active_layer.as_str(),
             &converter,
             grid_cell_px,
+            self.runtime_event_handler.as_ref(),
         );
         
         match result {

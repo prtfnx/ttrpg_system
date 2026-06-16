@@ -22,6 +22,7 @@ impl EventSystem {
         active_layer: &str,
         alt_pressed: bool,
         grid_cell_px: f32,
+        runtime_event_handler: Option<&js_sys::Function>,
     ) -> MouseEventResult {
         input.alt_pressed = alt_pressed;
         web_sys::console::log_1(&format!("[RUST EVENT] Mouse down at world: {}, {}, input_mode: {:?}", world_pos.x, world_pos.y, input.input_mode).into());
@@ -203,7 +204,7 @@ impl EventSystem {
                     let sprite_top_left = Vec2::new(sprite.world_x as f32, sprite.world_y as f32);
                     input.drag_offset = world_pos - sprite_top_left;
                 }
-                Self::dispatch_cursor_hint("grabbing");
+                Self::dispatch_cursor_hint(runtime_event_handler, "grabbing");
                 return MouseEventResult::Handled;
             }
         }
@@ -229,7 +230,7 @@ impl EventSystem {
                         let cell = grid_cell_px as f64;
                         sprite.world_x = (sprite.world_x / cell).round() * cell;
                         sprite.world_y = (sprite.world_y / cell).round() * cell;
-                        Self::dispatch_drag_preview(&sprite_id, sprite.world_x, sprite.world_y);
+                        Self::dispatch_drag_preview(runtime_event_handler, &sprite_id, sprite.world_x, sprite.world_y);
                     }
                     input.set_single_selection(sprite_id);
                     return MouseEventResult::Handled;

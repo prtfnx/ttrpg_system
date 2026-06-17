@@ -19,7 +19,6 @@ vi.mock('@features/session/types/roles', () => ({
 beforeEach(() => {
   vi.clearAllMocks();
   mockSessionRole = 'dm';
-  delete (window as unknown as Record<string, unknown>).rustRenderManager;
 });
 
 function pressKey(key: string, opts: Partial<KeyboardEventInit> = {}) {
@@ -70,7 +69,7 @@ describe('useLayerHotkeys', () => {
     expect(mockSetActiveLayer).not.toHaveBeenCalled();
   });
 
-  it('calls rustRenderManager.set_active_layer if available', () => {
+  it('calls runtime render engine set_active_layer if available', () => {
     const set_active_layer = vi.fn();
     renderHookWithWasmRuntime(
       () => useLayerHotkeys(),

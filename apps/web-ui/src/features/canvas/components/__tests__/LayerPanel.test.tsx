@@ -16,22 +16,6 @@ const TEST_LAYERS = [
   { id: 'fog_of_war', name: 'Fog of War', icon: CloudFog, color: '#6b7280', spriteCount: 0 }
 ];
 
-// Mock window.rustRenderManager
-const mockRustRenderManager = {
-  get_layer_sprite_count: vi.fn((layerId: string) => {
-    const counts: Record<string, number> = {
-      map: 1,
-      tokens: 5,
-      dungeon_master: 2,
-      light: 3,
-      height: 0,
-      obstacles: 4,
-      fog_of_war: 0
-    };
-    return counts[layerId] || 0;
-  })
-};
-
 // Mock the game store to control layer data
 const mockGameStore = {
   activeLayer: 'tokens',
@@ -120,8 +104,6 @@ describe('LayerPanel - Game Master Layer Management', () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
-    // Setup window.rustRenderManager mock
-    Object.assign(window, { rustRenderManager: mockRustRenderManager });
   });
 
   describe('When game master views layer panel', () => {

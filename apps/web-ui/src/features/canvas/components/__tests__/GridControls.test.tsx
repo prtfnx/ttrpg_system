@@ -30,12 +30,6 @@ const defaultState = {
 
 beforeEach(() => {
   useGameStore.setState(defaultState);
-  // Stub optional WASM renderer
-  (window as unknown as Record<string, unknown>)['rustRenderManager'] = {
-    set_grid_enabled: vi.fn(),
-    set_grid_snapping: vi.fn(),
-    set_grid_size: vi.fn(),
-  };
   vi.clearAllMocks();
 });
 

@@ -214,10 +214,6 @@ describe('Web Client TypeScript & WASM Systems Integration Tests', () => {
 
   describe('WASM Integration System', () => {
     it('should initialize WASM module and provide TypeScript bridge', async () => {
-      // Set up WASM mock state on window
-      Object.assign(window, { ttrpg_rust_core: mockWasmModule });
-      window.wasmInitialized = true;
-      
       render(<GameCanvas />);
       
       const canvas = screen.getByTestId('game-canvas');
@@ -228,7 +224,7 @@ describe('Web Client TypeScript & WASM Systems Integration Tests', () => {
       });
       
       // User expects WASM methods to be available
-      expect(mockWasmModule.RenderEngine().screen_to_world).toBeDefined();
+      expect(mockRenderEngine.screen_to_world).toBeDefined();
     });
 
     it('should synchronize WASM state with TypeScript UI components', async () => {

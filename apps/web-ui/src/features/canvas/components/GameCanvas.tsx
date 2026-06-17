@@ -35,8 +35,6 @@ import {
 import { useCanvasEventsEnhanced } from './GameCanvas/useCanvasEventsEnhanced';
 import PerformanceMonitor from './PerformanceMonitor';
 
-// Window globals declared in src/types.ts: ttrpg_rust_core, rustRenderManager, wasmInitialized
-
 // Stable fallback to prevent Zustand selector from returning new [] reference every render
 const EMPTY_COMBATANTS: Combatant[] = [];
 

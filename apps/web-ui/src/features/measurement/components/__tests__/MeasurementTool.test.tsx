@@ -1,6 +1,6 @@
 import { act, fireEvent, screen } from '@testing-library/react';
 import { createMockWasmRuntime, renderWithWasmRuntime } from '@test/utils/wasmRuntimeTestUtils';
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { MeasurementTool } from '../MeasurementTool';
 
 const render = renderWithWasmRuntime;
@@ -22,14 +22,6 @@ function dispatchMeasurement(detail = mockMeasurement) {
     window.dispatchEvent(new CustomEvent('measurementComplete', { detail }));
   });
 }
-
-beforeEach(() => {
-  (window as unknown as Record<string, unknown>)['rustRenderManager'] = undefined;
-});
-
-afterEach(() => {
-  delete (window as unknown as Record<string, unknown>)['rustRenderManager'];
-});
 
 describe('MeasurementTool', () => {
   it('renders nothing when inactive and no measurement', () => {
@@ -83,7 +75,7 @@ describe('MeasurementTool', () => {
     expect(screen.queryByText('Measurement Results')).toBeNull();
   });
 
-  it('calls rustRenderManager.set_input_mode_select on clear', () => {
+  it('calls runtime render engine set_input_mode_select on clear', () => {
     const setMode = vi.fn();
     renderWithWasmRuntime(
       <MeasurementTool isActive={true} />,

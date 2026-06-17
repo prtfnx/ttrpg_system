@@ -69,7 +69,6 @@ beforeEach(() => {
   // Preserve static constants so readyState comparisons work
   Object.assign(mockWsConstructor, { CONNECTING: 0, OPEN: 1, CLOSING: 2, CLOSED: 3 });
   vi.stubGlobal('WebSocket', mockWsConstructor);
-  delete (window as unknown as Record<string, unknown>).rustRenderManager;
 });
 
 afterEach(() => {

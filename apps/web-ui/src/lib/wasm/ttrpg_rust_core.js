@@ -1672,17 +1672,7 @@ export class RenderEngine {
         return v1;
     }
     /**
-     * Get list of currently selected sprite IDs
-     * @returns {string[]}
-     */
-    get_selected_sprite_ids() {
-        const ret = wasm.renderengine_get_selected_sprite_ids(this.__wbg_ptr);
-        var v1 = getArrayJsValueFromWasm0(ret[0], ret[1]).slice();
-        wasm.__wbindgen_free(ret[0], ret[1] * 4, 4);
-        return v1;
-    }
-    /**
-     * Alias for get_selected_sprite_ids (TypeScript-facing name)
+     * Get list of currently selected sprite IDs.
      * @returns {string[]}
      */
     get_selected_sprites() {
@@ -1759,13 +1749,6 @@ export class RenderEngine {
         return ret;
     }
     /**
-     * @param {number} screen_x
-     * @param {number} screen_y
-     */
-    handle_mouse_down(screen_x, screen_y) {
-        wasm.renderengine_handle_mouse_down(this.__wbg_ptr, screen_x, screen_y);
-    }
-    /**
      * Full modifier support: ctrl for multi-select, alt to disable grid snap.
      * @param {number} screen_x
      * @param {number} screen_y
@@ -1781,14 +1764,6 @@ export class RenderEngine {
             wasm.__wbindgen_free(ret[0], ret[1] * 1, 1);
         }
         return v1;
-    }
-    /**
-     * @param {number} screen_x
-     * @param {number} screen_y
-     * @param {boolean} ctrl_pressed
-     */
-    handle_mouse_down_with_ctrl(screen_x, screen_y, ctrl_pressed) {
-        wasm.renderengine_handle_mouse_down_with_ctrl(this.__wbg_ptr, screen_x, screen_y, ctrl_pressed);
     }
     /**
      * Enhanced mouse down handler with modifier key support

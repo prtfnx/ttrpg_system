@@ -28,8 +28,7 @@ export function createMockRenderEngine() {
     get_active_table_world_bounds: vi.fn().mockReturnValue(new Float64Array([0, 0, 800, 600])),
     // Input
     get_cursor_type: vi.fn().mockReturnValue('default'),
-    handle_mouse_down: vi.fn(),
-    handle_mouse_down_with_ctrl: vi.fn(),
+    handle_mouse_down_full: vi.fn(),
     handle_mouse_move: vi.fn(),
     handle_mouse_up: vi.fn(),
     handle_right_click: vi.fn().mockReturnValue(undefined),

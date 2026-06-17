@@ -287,11 +287,7 @@ export class RenderEngine {
     get_layer_sprite_count(layer_name: string): number;
     get_light_at_position(x: number, y: number): string | undefined;
     /**
-     * Get list of currently selected sprite IDs
-     */
-    get_selected_sprite_ids(): string[];
-    /**
-     * Alias for get_selected_sprite_ids (TypeScript-facing name)
+     * Get list of currently selected sprite IDs.
      */
     get_selected_sprites(): string[];
     get_shape_style_json(): any;
@@ -312,12 +308,10 @@ export class RenderEngine {
      */
     get_wall_ids(): any[];
     get_wall_render_data(): Float32Array;
-    handle_mouse_down(screen_x: number, screen_y: number): void;
     /**
      * Full modifier support: ctrl for multi-select, alt to disable grid snap.
      */
     handle_mouse_down_full(screen_x: number, screen_y: number, ctrl_pressed: boolean, alt_pressed: boolean): string | undefined;
-    handle_mouse_down_with_ctrl(screen_x: number, screen_y: number, ctrl_pressed: boolean): void;
     /**
      * Enhanced mouse down handler with modifier key support
      */
@@ -852,81 +846,6 @@ export interface InitOutput {
     readonly renderengine_set_runtime_event_handler: (a: number, b: any) => void;
     readonly renderengine_set_runtime_operation_handler: (a: number, b: any) => void;
     readonly renderengine_set_shape_style: (a: number, b: number, c: number, d: number, e: number) => void;
-    readonly __wbg_brushpreset_free: (a: number, b: number) => void;
-    readonly __wbg_paintsystem_free: (a: number, b: number) => void;
-    readonly __wbg_tablemanager_free: (a: number, b: number) => void;
-    readonly brushpreset_apply_to_paint_system: (a: number, b: number) => void;
-    readonly brushpreset_new: (a: number, b: number, c: number, d: number, e: number, f: number, g: number) => number;
-    readonly create_default_brush_presets: () => [number, number];
-    readonly paintsystem_add_remote_stroke_json: (a: number, b: number, c: number) => number;
-    readonly paintsystem_add_stroke_point: (a: number, b: number, c: number, d: number) => number;
-    readonly paintsystem_can_redo: (a: number) => number;
-    readonly paintsystem_can_undo: (a: number) => number;
-    readonly paintsystem_cancel_stroke: (a: number) => void;
-    readonly paintsystem_clear_all_strokes: (a: number) => void;
-    readonly paintsystem_clear_redo_stack: (a: number) => void;
-    readonly paintsystem_clear_table_paint: (a: number, b: number, c: number) => void;
-    readonly paintsystem_end_stroke: (a: number) => number;
-    readonly paintsystem_enter_paint_mode: (a: number, b: number, c: number) => void;
-    readonly paintsystem_exit_paint_mode: (a: number) => void;
-    readonly paintsystem_get_all_strokes_data: (a: number) => [number, number];
-    readonly paintsystem_get_all_strokes_json: (a: number) => any;
-    readonly paintsystem_get_brush_color: (a: number) => [number, number];
-    readonly paintsystem_get_brush_width: (a: number) => number;
-    readonly paintsystem_get_current_stroke_json: (a: number) => any;
-    readonly paintsystem_get_current_table: (a: number) => [number, number];
-    readonly paintsystem_get_stroke_count: (a: number) => number;
-    readonly paintsystem_get_strokes_data_json: (a: number) => any;
-    readonly paintsystem_is_drawing: (a: number) => number;
-    readonly paintsystem_is_paint_mode: (a: number) => number;
-    readonly paintsystem_load_strokes_json: (a: number, b: number, c: number) => number;
-    readonly paintsystem_new: () => number;
-    readonly paintsystem_on_stroke_event: (a: number, b: number, c: number, d: any) => void;
-    readonly paintsystem_redo_last_stroke: (a: number) => number;
-    readonly paintsystem_remove_stroke_by_id: (a: number, b: number, c: number) => number;
-    readonly paintsystem_remove_stroke_event: (a: number, b: number, c: number) => void;
-    readonly paintsystem_set_blend_mode: (a: number, b: number, c: number) => void;
-    readonly paintsystem_set_brush_color: (a: number, b: number, c: number, d: number, e: number) => void;
-    readonly paintsystem_set_brush_width: (a: number, b: number) => void;
-    readonly paintsystem_set_current_table: (a: number, b: number, c: number) => void;
-    readonly paintsystem_start_stroke: (a: number, b: number, c: number, d: number) => number;
-    readonly paintsystem_undo_last_stroke: (a: number) => number;
-    readonly renderengine_clear_selection: (a: number) => void;
-    readonly renderengine_get_cursor_type: (a: number, b: number, c: number) => [number, number];
-    readonly renderengine_get_selected_sprite_ids: (a: number) => [number, number];
-    readonly renderengine_get_selected_sprites: (a: number) => [number, number];
-    readonly renderengine_handle_mouse_down: (a: number, b: number, c: number) => void;
-    readonly renderengine_handle_mouse_down_full: (a: number, b: number, c: number, d: number, e: number) => [number, number];
-    readonly renderengine_handle_mouse_down_with_ctrl: (a: number, b: number, c: number, d: number) => void;
-    readonly renderengine_handle_mouse_down_with_modifiers: (a: number, b: number, c: number, d: number, e: number) => [number, number];
-    readonly renderengine_handle_mouse_move: (a: number, b: number, c: number) => void;
-    readonly renderengine_handle_mouse_up: (a: number, b: number, c: number) => void;
-    readonly renderengine_handle_right_click: (a: number, b: number, c: number) => [number, number];
-    readonly renderengine_handle_wheel: (a: number, b: number, c: number, d: number) => void;
-    readonly renderengine_select_all_sprites: (a: number) => void;
-    readonly renderengine_set_alt_pressed: (a: number, b: number) => void;
-    readonly renderengine_start_camera_pan: (a: number, b: number, c: number) => void;
-    readonly tablemanager_create_table: (a: number, b: number, c: number, d: number, e: number, f: number, g: number) => [number, number];
-    readonly tablemanager_get_active_table_id: (a: number) => [number, number];
-    readonly tablemanager_get_all_tables: (a: number) => [number, number];
-    readonly tablemanager_get_table_info: (a: number, b: number, c: number) => [number, number];
-    readonly tablemanager_get_unit_converter: (a: number, b: number, c: number) => number;
-    readonly tablemanager_get_visible_bounds: (a: number, b: number, c: number) => [number, number];
-    readonly tablemanager_is_point_in_table_area: (a: number, b: number, c: number, d: number, e: number) => number;
-    readonly tablemanager_new: () => number;
-    readonly tablemanager_pan_viewport: (a: number, b: number, c: number, d: number, e: number) => number;
-    readonly tablemanager_pixels_to_units: (a: number, b: number, c: number, d: number) => number;
-    readonly tablemanager_remove_table: (a: number, b: number, c: number) => number;
-    readonly tablemanager_screen_to_table: (a: number, b: number, c: number, d: number, e: number) => [number, number];
-    readonly tablemanager_set_active_table: (a: number, b: number, c: number) => number;
-    readonly tablemanager_set_canvas_size: (a: number, b: number, c: number) => void;
-    readonly tablemanager_set_table_grid: (a: number, b: number, c: number, d: number, e: number) => number;
-    readonly tablemanager_set_table_screen_area: (a: number, b: number, c: number, d: number, e: number, f: number, g: number) => number;
-    readonly tablemanager_set_table_units: (a: number, b: number, c: number, d: number, e: number, f: number, g: number) => number;
-    readonly tablemanager_snap_to_grid: (a: number, b: number, c: number, d: number, e: number) => [number, number];
-    readonly tablemanager_table_to_screen: (a: number, b: number, c: number, d: number, e: number) => [number, number];
-    readonly tablemanager_units_to_pixels: (a: number, b: number, c: number, d: number) => number;
-    readonly tablemanager_zoom_table: (a: number, b: number, c: number, d: number, e: number, f: number) => number;
     readonly __wbg_tablesync_free: (a: number, b: number) => void;
     readonly __wbg_unitconverter_free: (a: number, b: number) => void;
     readonly actionsclient_batch_actions: (a: number, b: any) => any;
@@ -985,6 +904,78 @@ export interface InitOutput {
     readonly tablesync_set_table_received_handler: (a: number, b: any) => void;
     readonly warn: (a: number, b: number) => void;
     readonly now: () => number;
+    readonly __wbg_brushpreset_free: (a: number, b: number) => void;
+    readonly __wbg_paintsystem_free: (a: number, b: number) => void;
+    readonly __wbg_tablemanager_free: (a: number, b: number) => void;
+    readonly brushpreset_apply_to_paint_system: (a: number, b: number) => void;
+    readonly brushpreset_new: (a: number, b: number, c: number, d: number, e: number, f: number, g: number) => number;
+    readonly create_default_brush_presets: () => [number, number];
+    readonly paintsystem_add_remote_stroke_json: (a: number, b: number, c: number) => number;
+    readonly paintsystem_add_stroke_point: (a: number, b: number, c: number, d: number) => number;
+    readonly paintsystem_can_redo: (a: number) => number;
+    readonly paintsystem_can_undo: (a: number) => number;
+    readonly paintsystem_cancel_stroke: (a: number) => void;
+    readonly paintsystem_clear_all_strokes: (a: number) => void;
+    readonly paintsystem_clear_redo_stack: (a: number) => void;
+    readonly paintsystem_clear_table_paint: (a: number, b: number, c: number) => void;
+    readonly paintsystem_end_stroke: (a: number) => number;
+    readonly paintsystem_enter_paint_mode: (a: number, b: number, c: number) => void;
+    readonly paintsystem_exit_paint_mode: (a: number) => void;
+    readonly paintsystem_get_all_strokes_data: (a: number) => [number, number];
+    readonly paintsystem_get_all_strokes_json: (a: number) => any;
+    readonly paintsystem_get_brush_color: (a: number) => [number, number];
+    readonly paintsystem_get_brush_width: (a: number) => number;
+    readonly paintsystem_get_current_stroke_json: (a: number) => any;
+    readonly paintsystem_get_current_table: (a: number) => [number, number];
+    readonly paintsystem_get_stroke_count: (a: number) => number;
+    readonly paintsystem_get_strokes_data_json: (a: number) => any;
+    readonly paintsystem_is_drawing: (a: number) => number;
+    readonly paintsystem_is_paint_mode: (a: number) => number;
+    readonly paintsystem_load_strokes_json: (a: number, b: number, c: number) => number;
+    readonly paintsystem_new: () => number;
+    readonly paintsystem_on_stroke_event: (a: number, b: number, c: number, d: any) => void;
+    readonly paintsystem_redo_last_stroke: (a: number) => number;
+    readonly paintsystem_remove_stroke_by_id: (a: number, b: number, c: number) => number;
+    readonly paintsystem_remove_stroke_event: (a: number, b: number, c: number) => void;
+    readonly paintsystem_set_blend_mode: (a: number, b: number, c: number) => void;
+    readonly paintsystem_set_brush_color: (a: number, b: number, c: number, d: number, e: number) => void;
+    readonly paintsystem_set_brush_width: (a: number, b: number) => void;
+    readonly paintsystem_set_current_table: (a: number, b: number, c: number) => void;
+    readonly paintsystem_start_stroke: (a: number, b: number, c: number, d: number) => number;
+    readonly paintsystem_undo_last_stroke: (a: number) => number;
+    readonly renderengine_clear_selection: (a: number) => void;
+    readonly renderengine_get_cursor_type: (a: number, b: number, c: number) => [number, number];
+    readonly renderengine_get_selected_sprites: (a: number) => [number, number];
+    readonly renderengine_handle_mouse_down_full: (a: number, b: number, c: number, d: number, e: number) => [number, number];
+    readonly renderengine_handle_mouse_down_with_modifiers: (a: number, b: number, c: number, d: number, e: number) => [number, number];
+    readonly renderengine_handle_mouse_move: (a: number, b: number, c: number) => void;
+    readonly renderengine_handle_mouse_up: (a: number, b: number, c: number) => void;
+    readonly renderengine_handle_right_click: (a: number, b: number, c: number) => [number, number];
+    readonly renderengine_handle_wheel: (a: number, b: number, c: number, d: number) => void;
+    readonly renderengine_select_all_sprites: (a: number) => void;
+    readonly renderengine_set_alt_pressed: (a: number, b: number) => void;
+    readonly renderengine_start_camera_pan: (a: number, b: number, c: number) => void;
+    readonly tablemanager_create_table: (a: number, b: number, c: number, d: number, e: number, f: number, g: number) => [number, number];
+    readonly tablemanager_get_active_table_id: (a: number) => [number, number];
+    readonly tablemanager_get_all_tables: (a: number) => [number, number];
+    readonly tablemanager_get_table_info: (a: number, b: number, c: number) => [number, number];
+    readonly tablemanager_get_unit_converter: (a: number, b: number, c: number) => number;
+    readonly tablemanager_get_visible_bounds: (a: number, b: number, c: number) => [number, number];
+    readonly tablemanager_is_point_in_table_area: (a: number, b: number, c: number, d: number, e: number) => number;
+    readonly tablemanager_new: () => number;
+    readonly tablemanager_pan_viewport: (a: number, b: number, c: number, d: number, e: number) => number;
+    readonly tablemanager_pixels_to_units: (a: number, b: number, c: number, d: number) => number;
+    readonly tablemanager_remove_table: (a: number, b: number, c: number) => number;
+    readonly tablemanager_screen_to_table: (a: number, b: number, c: number, d: number, e: number) => [number, number];
+    readonly tablemanager_set_active_table: (a: number, b: number, c: number) => number;
+    readonly tablemanager_set_canvas_size: (a: number, b: number, c: number) => void;
+    readonly tablemanager_set_table_grid: (a: number, b: number, c: number, d: number, e: number) => number;
+    readonly tablemanager_set_table_screen_area: (a: number, b: number, c: number, d: number, e: number, f: number, g: number) => number;
+    readonly tablemanager_set_table_units: (a: number, b: number, c: number, d: number, e: number, f: number, g: number) => number;
+    readonly tablemanager_snap_to_grid: (a: number, b: number, c: number, d: number, e: number) => [number, number];
+    readonly tablemanager_table_to_screen: (a: number, b: number, c: number, d: number, e: number) => [number, number];
+    readonly tablemanager_units_to_pixels: (a: number, b: number, c: number, d: number) => number;
+    readonly tablemanager_zoom_table: (a: number, b: number, c: number, d: number, e: number, f: number) => number;
     readonly wasm_bindgen__convert__closures_____invoke__h379eeb6857ff453f: (a: number, b: number, c: any) => [number, number];
     readonly wasm_bindgen__convert__closures_____invoke__h2bc1731c5b684db1: (a: number, b: number, c: any, d: any) => void;
     readonly wasm_bindgen__convert__closures_____invoke__h46355d3965ce5f88: (a: number, b: number, c: any) => void;

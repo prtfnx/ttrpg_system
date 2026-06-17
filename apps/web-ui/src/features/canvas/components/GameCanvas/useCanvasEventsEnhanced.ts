@@ -240,11 +240,7 @@ export const useCanvasEventsEnhanced = ({
           return;
         }
 
-        if (renderManager.handle_mouse_down_full) {
-          renderManager.handle_mouse_down_full(x, y, e.ctrlKey, e.altKey);
-        } else {
-          renderManager.handle_mouse_down_with_ctrl(x, y, e.ctrlKey);
-        }
+        renderManager.handle_mouse_down_full(x, y, e.ctrlKey, e.altKey);
         const cursorType = renderManager.get_cursor_type(x, y) ?? 'default';
         canvas.style.cursor = cursorType === 'default' ? 'grabbing' : cursorType;
         setTimeout(() => updateInputContext(), 0);

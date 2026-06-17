@@ -50,16 +50,6 @@ impl RenderEngine {
         "default".to_string()
     }
     
-    #[wasm_bindgen]
-    pub fn handle_mouse_down(&mut self, screen_x: f32, screen_y: f32) {
-        self.handle_mouse_down_internal(screen_x, screen_y, false, false);
-    }
-    
-    #[wasm_bindgen]
-    pub fn handle_mouse_down_with_ctrl(&mut self, screen_x: f32, screen_y: f32, ctrl_pressed: bool) {
-        self.handle_mouse_down_internal(screen_x, screen_y, ctrl_pressed, false);
-    }
-
     /// Full modifier support: ctrl for multi-select, alt to disable grid snap.
     #[wasm_bindgen]
     pub fn handle_mouse_down_full(&mut self, screen_x: f32, screen_y: f32, ctrl_pressed: bool, alt_pressed: bool) -> Option<String> {
@@ -388,13 +378,7 @@ impl RenderEngine {
         self.update_view_matrix();
     }
 
-    /// Get list of currently selected sprite IDs
-    #[wasm_bindgen]
-    pub fn get_selected_sprite_ids(&self) -> Vec<String> {
-        self.input.selected_sprite_ids.clone()
-    }
-
-    /// Alias for get_selected_sprite_ids (TypeScript-facing name)
+    /// Get list of currently selected sprite IDs.
     #[wasm_bindgen]
     pub fn get_selected_sprites(&self) -> Vec<String> {
         self.input.selected_sprite_ids.clone()

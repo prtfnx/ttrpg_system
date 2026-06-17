@@ -20,7 +20,7 @@ function makeEngine(overrides: Record<string, unknown> = {}) {
     get_selected_sprites: vi.fn().mockReturnValue([]),
     can_undo: vi.fn().mockReturnValue(false),
     can_redo: vi.fn().mockReturnValue(false),
-    handle_mouse_down_with_ctrl: vi.fn(),
+    handle_mouse_down_full: vi.fn(),
     handle_mouse_move: vi.fn(),
     handle_mouse_up: vi.fn(),
     handle_wheel: vi.fn(),
@@ -115,7 +115,7 @@ describe('useCanvasEventsEnhanced', () => {
 });
 
 describe('mouse event handlers', () => {
-  it('stableMouseDown calls engine.handle_mouse_down_with_ctrl', () => {
+  it('stableMouseDown calls engine.handle_mouse_down_full', () => {
     const props = defaultProps();
     const { result } = renderHook(() => useCanvasEventsEnhanced(props));
     const event = new MouseEvent('mousedown', { clientX: 100, clientY: 100, ctrlKey: false }) as MouseEvent;
@@ -124,7 +124,7 @@ describe('mouse event handlers', () => {
 
     act(() => result.current.stableMouseDown(event));
 
-    expect(props.engine.handle_mouse_down_with_ctrl).toHaveBeenCalled();
+    expect(props.engine.handle_mouse_down_full).toHaveBeenCalledWith(100, 100, false, false);
   });
 
   it('stableMouseDown in light placement mode dispatches lightPlaced event', () => {

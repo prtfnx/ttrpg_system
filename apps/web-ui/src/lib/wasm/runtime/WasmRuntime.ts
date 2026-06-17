@@ -15,6 +15,7 @@ import {
   type RenderEngine,
 } from '../ttrpg_rust_core';
 import type { AttachCanvasOptions, WasmRuntimePort } from './WasmRuntimePort';
+import type { BrushPreset } from './types';
 import { WasmSyncCoordinator } from './WasmSyncCoordinator';
 import { WasmRuntimeStore, type WasmRuntimeSnapshot } from './wasmStore';
 
@@ -219,9 +220,9 @@ export class WasmRuntime implements WasmRuntimePort {
     return this.tableSync;
   }
 
-  getDefaultBrushPresets(): unknown[] {
+  getDefaultBrushPresets(): BrushPreset[] {
     if (!this.status.isModuleReady) return [];
-    return create_default_brush_presets();
+    return create_default_brush_presets() as BrushPreset[];
   }
 
   setUserContext(userId: number | null, role: SessionRole | string | null): void {

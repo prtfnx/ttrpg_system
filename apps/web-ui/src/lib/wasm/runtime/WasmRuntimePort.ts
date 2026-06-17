@@ -8,6 +8,7 @@ import type {
   TableManager,
   TableSync,
 } from '../ttrpg_rust_core';
+import type { BrushPreset } from './types';
 import type { WasmRuntimeSnapshot } from './wasmStore';
 
 export interface AttachCanvasOptions {
@@ -33,7 +34,7 @@ export interface WasmRuntimePort {
   getPlanningManager(): PlanningManager | null;
   getTableManager(): TableManager | null;
   getTableSync(): TableSync | null;
-  getDefaultBrushPresets(): unknown[];
+  getDefaultBrushPresets(): BrushPreset[];
 
   setUserContext(userId: number | null, role: SessionRole | string | null): void;
   setActiveLayer(layerName: string): void;

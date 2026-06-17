@@ -4,7 +4,7 @@ import { useWasmRuntime } from '@lib/wasm/runtime';
 import type { BrushPreset, RenderEngine } from '@lib/wasm/runtime';
 import { useCallback, useEffect, useRef, useState } from 'react';
 
-// Access WASM functions through the global window object - use same type as in types.ts
+type PaintBlendMode = 'alpha' | 'additive' | 'modulate' | 'multiply';
 
 export interface PaintState {
   isActive: boolean;
@@ -22,7 +22,7 @@ export interface PaintControls {
   exitPaintMode: () => void;
   setBrushColor: (r: number, g: number, b: number, a?: number) => void;
   setBrushWidth: (width: number) => void;
-  setBlendMode: (mode: 'alpha' | 'additive' | 'modulate' | 'multiply') => void;
+  setBlendMode: (mode: PaintBlendMode) => void;
   clearAll: () => void;
   undoStroke: () => void;
   redoStroke: () => void;
@@ -171,7 +171,7 @@ export function usePaintSystem(
     setPaintState(prev => ({ ...prev, brushWidth: width }));
   }, [renderEngine]);
 
-  const setBlendMode = useCallback((mode: 'alpha' | 'additive' | 'modulate' | 'multiply') => {
+  const setBlendMode = useCallback((mode: PaintBlendMode) => {
     if (!renderEngine) return;
     if (typeof (renderEngine as any).paint_set_blend_mode === 'function') {
       (renderEngine as any).paint_set_blend_mode(mode);
@@ -303,21 +303,18 @@ export function usePaintSystem(
 
   const applyBrushPreset = useCallback((preset: BrushPreset) => {
     if (!renderEngine) return;
-    if (typeof preset.apply_to_paint_system === 'function') {
-      preset.apply_to_paint_system(renderEngine as unknown as Parameters<typeof preset.apply_to_paint_system>[0]);
-    } else {
-      console.debug('Brush preset missing apply_to_paint_system()');
-    }
-    
-    // Update local state (guarded reads)
-    const brushColorRaw2 = typeof (renderEngine as any).paint_get_brush_color === 'function' ? (renderEngine as any).paint_get_brush_color() : [1.0, 1.0, 1.0, 1.0];
-    const brushColor = Array.isArray(brushColorRaw2) ? brushColorRaw2 : Array.from(brushColorRaw2 as Float32Array);
-    const brushWidth = typeof (renderEngine as any).paint_get_brush_width === 'function' ? (renderEngine as any).paint_get_brush_width() : 3.0;
-    setPaintState(prev => ({ 
-      ...prev, 
-      brushColor, 
-      brushWidth,
-      // Note: blend mode would need to be tracked separately or queried
+    const [r, g, b, a] = preset.color;
+    const blendMode = normalizeBlendMode(preset.blend_mode);
+
+    renderEngine.paint_set_brush_color(r, g, b, a);
+    renderEngine.paint_set_brush_width(preset.width);
+    renderEngine.paint_set_blend_mode(blendMode);
+
+    setPaintState(prev => ({
+      ...prev,
+      brushColor: [r, g, b, a],
+      brushWidth: preset.width,
+      blendMode,
     }));
   }, [renderEngine]);
 
@@ -425,7 +422,7 @@ export function useBrushPresets() {
     const loadPresets = async () => {
       try {
         await runtime.initialize();
-        setPresets(runtime.getDefaultBrushPresets() as BrushPreset[]);
+        setPresets(runtime.getDefaultBrushPresets());
       } catch (error) {
         console.error('Error loading brush presets:', error);
       }
@@ -435,4 +432,22 @@ export function useBrushPresets() {
   }, [runtime]);
 
   return presets;
+}
+
+function normalizeBlendMode(blendMode: BrushPreset['blend_mode']): PaintBlendMode {
+  switch (blendMode) {
+    case 'Additive':
+    case 'additive':
+      return 'additive';
+    case 'Modulate':
+    case 'modulate':
+      return 'modulate';
+    case 'Multiply':
+    case 'multiply':
+      return 'multiply';
+    case 'Alpha':
+    case 'alpha':
+    default:
+      return 'alpha';
+  }
 }

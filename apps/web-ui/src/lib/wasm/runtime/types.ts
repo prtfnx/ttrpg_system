@@ -1,7 +1,6 @@
 import type {
   ActionsClient as GeneratedActionsClient,
   AssetManager as GeneratedAssetManager,
-  BrushPreset as GeneratedBrushPreset,
   PlanningManager as GeneratedPlanningManager,
   RenderEngine as GeneratedRenderEngine,
 } from '../ttrpg_rust_core';
@@ -9,5 +8,10 @@ import type {
 export type ActionsClient = GeneratedActionsClient;
 export type AssetManager = GeneratedAssetManager;
 export type RenderEngine = GeneratedRenderEngine;
-export type BrushPreset = GeneratedBrushPreset;
 export type PlanningManager = GeneratedPlanningManager;
+
+export interface BrushPreset {
+  color: [number, number, number, number];
+  width: number;
+  blend_mode: 'Alpha' | 'Additive' | 'Modulate' | 'Multiply' | 'alpha' | 'additive' | 'modulate' | 'multiply';
+}

@@ -2,7 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 // Import TypeScript services to test
 import { performanceService } from '@features/canvas';
-import type { RenderEngine } from '@lib/wasm';
+import type { RenderEngine } from '@lib/wasm/runtime';
 import { WasmSyncCoordinator } from '@lib/wasm/runtime/WasmSyncCoordinator';
 
 // Mock WASM RenderEngine

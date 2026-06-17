@@ -1,5 +1,5 @@
 import { useGameStore } from '@/store';
-import type { RenderEngine } from '@lib/wasm';
+import type { RenderEngine } from '@lib/wasm/runtime';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { visionService } from '../vision.service';
 

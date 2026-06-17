@@ -4,13 +4,14 @@
  */
 
 import { tableThumbnailService } from '@features/table';
+import type { RenderEngine } from '@lib/wasm/runtime';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 describe('TableThumbnailService', () => {
   const validUUID = '550e8400-e29b-41d4-a716-446655440000';
   const validUUID2 = '0a577ca2-7f6a-400d-9758-26f232003cc5';
   
-  let mockRenderEngine: { get_active_table_id: ReturnType<typeof vi.fn>; render: ReturnType<typeof vi.fn> } & import('@lib/wasm').RenderEngine;
+  let mockRenderEngine: { get_active_table_id: ReturnType<typeof vi.fn>; render: ReturnType<typeof vi.fn> } & RenderEngine;
   let mockCanvas: HTMLCanvasElement;
 
   beforeEach(() => {

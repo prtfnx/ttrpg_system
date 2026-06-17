@@ -61,11 +61,13 @@ vi.mock('../../wasmBridge', () => ({
   },
 }));
 
-vi.mock('../../wasmIntegration.service', () => ({
-  wasmIntegrationService: {
+vi.mock('../WasmSyncCoordinator', () => ({
+  WasmSyncCoordinator: vi.fn(function () {
+    return {
     initialize: mocks.integrationInitialize,
     dispose: mocks.integrationDispose,
-  },
+    };
+  }),
 }));
 
 vi.mock('@features/assets', () => ({

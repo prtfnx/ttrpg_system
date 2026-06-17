@@ -1,9 +1,9 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 // Import TypeScript services to test
 import { performanceService } from '@features/canvas';
-import { wasmIntegrationService } from '@lib/wasm/wasmIntegration.service';
 import type { RenderEngine } from '@lib/wasm';
+import { WasmSyncCoordinator } from '@lib/wasm/runtime/WasmSyncCoordinator';
 
 // Mock WASM RenderEngine
 const mockRenderEngine = {
@@ -28,17 +28,23 @@ const mockRenderEngine = {
 };
 
 describe('TypeScript Service Layer Tests', () => {
+  let wasmSyncCoordinator: WasmSyncCoordinator;
 
   beforeEach(() => {
     vi.clearAllMocks();
+    wasmSyncCoordinator = new WasmSyncCoordinator();
     // Re-establish default return values that vi.clearAllMocks() removes
     mockRenderEngine.get_sprite_info = vi.fn().mockReturnValue({ id: 'sprite_123', x: 100, y: 150 });
   });
 
-  describe('WASM Integration Service - TypeScript Bridge', () => {
+  afterEach(() => {
+    wasmSyncCoordinator.dispose();
+  });
+
+  describe('WASM Sync Coordinator - TypeScript Bridge', () => {
     it('should initialize with WASM render engine properly typed', () => {
       // User expects service initialization to work with TypeScript safety
-      wasmIntegrationService.initialize(mockRenderEngine as unknown as RenderEngine);
+      wasmSyncCoordinator.initialize(mockRenderEngine as unknown as RenderEngine);
       
       // User expects no TypeScript compilation errors
       expect(mockRenderEngine.initialize).toBeDefined();
@@ -46,7 +52,7 @@ describe('TypeScript Service Layer Tests', () => {
     });
 
     it('should handle table data reception with proper type validation', () => {
-      wasmIntegrationService.initialize(mockRenderEngine as unknown as RenderEngine);
+      wasmSyncCoordinator.initialize(mockRenderEngine as unknown as RenderEngine);
       
       // User expects typed message handling
       const tableData = {
@@ -67,7 +73,7 @@ describe('TypeScript Service Layer Tests', () => {
     });
 
     it('should handle sprite operations with TypeScript type safety', () => {
-      wasmIntegrationService.initialize(mockRenderEngine as unknown as RenderEngine);
+      wasmSyncCoordinator.initialize(mockRenderEngine as unknown as RenderEngine);
       
       // Use the table data reception path that actually triggers add_sprite_to_layer
       const tableEvent = new CustomEvent('table-data-received', {
@@ -91,7 +97,7 @@ describe('TypeScript Service Layer Tests', () => {
     });
 
     it('should provide error handling with TypeScript error types', () => {
-      wasmIntegrationService.initialize(mockRenderEngine as unknown as RenderEngine);
+      wasmSyncCoordinator.initialize(mockRenderEngine as unknown as RenderEngine);
       
       // Mock WASM error
       mockRenderEngine.create_sprite.mockImplementation(() => {
@@ -329,7 +335,7 @@ describe('TypeScript Service Layer Tests', () => {
       };
       
       // User expects type consistency across services
-      wasmIntegrationService.initialize(mockRenderEngine as unknown as RenderEngine);
+      wasmSyncCoordinator.initialize(mockRenderEngine as unknown as RenderEngine);
       
       // Mock service calls with typed data - should not throw here
       mockRenderEngine.create_sprite.mockReturnValue('sprite_123');
@@ -360,14 +366,14 @@ describe('TypeScript Service Layer Tests', () => {
       const mockError: ServiceError = {
         code: 'WASM_OPERATION_FAILED',
         message: 'Failed to create sprite: Invalid texture format',
-        service: 'wasmIntegrationService',
+        service: 'WasmSyncCoordinator',
         timestamp: Date.now()
       };
       
       // User expects error handling to be consistent
       expect(mockError.code).toContain('WASM');
       expect(mockError.message).toContain('Failed to create sprite');
-      expect(mockError.service).toBe('wasmIntegrationService');
+      expect(mockError.service).toBe('WasmSyncCoordinator');
       expect(typeof mockError.timestamp).toBe('number');
     });
   });

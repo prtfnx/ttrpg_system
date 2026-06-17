@@ -2,7 +2,6 @@ import { assetIntegrationService } from '@features/assets';
 import { isDM, type SessionRole } from '@features/session/types/roles';
 import { initializeWasmCore } from '../wasmCore';
 import { wasmBridgeService } from '../wasmBridge';
-import { wasmIntegrationService } from '../wasmIntegration.service';
 import {
   ActionsClient,
   AssetManager,
@@ -16,6 +15,7 @@ import {
   type RenderEngine,
 } from '../ttrpg_rust_core';
 import type { AttachCanvasOptions, WasmRuntimePort } from './WasmRuntimePort';
+import { WasmSyncCoordinator } from './WasmSyncCoordinator';
 import { WasmRuntimeStore, type WasmRuntimeSnapshot } from './wasmStore';
 
 type RuntimeCallbackRenderEngine = RenderEngine & {
@@ -71,6 +71,7 @@ export class WasmRuntime implements WasmRuntimePort {
   private animationFrameId: number | null = null;
   private onFrame: (() => void) | null = null;
   private protocol: RuntimeProtocol | null = null;
+  private readonly syncCoordinator = new WasmSyncCoordinator();
   private readonly runtimeOperationHandler = (operation: WasmRuntimeOperation) => {
     this.handleRuntimeOperation(operation);
   };
@@ -127,7 +128,7 @@ export class WasmRuntime implements WasmRuntimePort {
     this.setActiveLayer(options.activeLayer);
 
     wasmBridgeService.init();
-    wasmIntegrationService.initialize(engine);
+    this.syncCoordinator.initialize(engine);
     assetIntegrationService.initialize();
     this.startRenderLoop();
     this.store.setSnapshot({ isCanvasAttached: true, error: null });
@@ -140,7 +141,7 @@ export class WasmRuntime implements WasmRuntimePort {
       cancelAnimationFrame(this.animationFrameId);
       this.animationFrameId = null;
     }
-    wasmIntegrationService.dispose();
+    this.syncCoordinator.dispose();
     assetIntegrationService.dispose();
     this.onFrame = null;
 

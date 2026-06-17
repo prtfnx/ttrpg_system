@@ -1,17 +1,16 @@
-﻿/**
- * WASM Integration Service  coordinator.
+/**
+ * Runtime-owned WASM sync coordinator.
  * Wires AssetSyncService, SpriteSyncService, TableSyncService, and RemoteSyncService
- * together around a shared RenderEngine. The sub-services own all domain logic;
- * this class owns the engine lifecycle and wires sub-services together.
+ * together around the RenderEngine owned by a WasmRuntime instance.
  */
 
-import type { RenderEngine } from './ttrpg_rust_core';
-import { AssetSyncService } from './assetSync.service';
-import { SpriteSyncService } from './spriteSync.service';
-import { TableSyncService } from './tableSync.service';
-import { RemoteSyncService } from './remoteSync.service';
+import { AssetSyncService } from '../assetSync.service';
+import { RemoteSyncService } from '../remoteSync.service';
+import { SpriteSyncService } from '../spriteSync.service';
+import { TableSyncService } from '../tableSync.service';
+import type { RenderEngine } from './types';
 
-class WasmIntegrationService {
+export class WasmSyncCoordinator {
   private renderEngine: RenderEngine | null = null;
 
   private readonly assetSync: AssetSyncService;
@@ -32,7 +31,7 @@ class WasmIntegrationService {
     this.spriteSync.init();
     this.tableSync.init();
     this.remoteSync.init();
-    console.log('[WasmIntegrationService] initialized');
+    console.log('[WasmSyncCoordinator] initialized');
   }
 
   dispose(): void {
@@ -47,5 +46,3 @@ class WasmIntegrationService {
     return this.renderEngine;
   }
 }
-
-export const wasmIntegrationService = new WasmIntegrationService();

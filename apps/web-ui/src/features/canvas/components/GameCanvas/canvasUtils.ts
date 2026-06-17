@@ -74,11 +74,7 @@ export const resizeCanvas = (
     try {
       rustRenderManager.resize_canvas(canvas.width, canvas.height);
     } catch (err) {
-      try {
-        rustRenderManager.resize(canvas.width, canvas.height);
-      } catch {
-        console.error('WASM resize error:', err);
-      }
+      console.error('WASM resize error:', err);
     }
   }
 };

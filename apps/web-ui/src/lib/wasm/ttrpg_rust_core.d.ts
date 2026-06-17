@@ -350,7 +350,6 @@ export class RenderEngine {
     remove_sprite(sprite_id: string): boolean;
     remove_wall(wall_id: string): boolean;
     render(): void;
-    resize(width: number, height: number): void;
     resize_canvas(width: number, height: number): void;
     resize_sprite(sprite_id: string, new_width: number, new_height: number): boolean;
     rotate_sprite(sprite_id: string, rotation_degrees: number): boolean;
@@ -651,7 +650,7 @@ export type InitInput = RequestInfo | URL | Response | BufferSource | WebAssembl
 
 export interface InitOutput {
     readonly memory: WebAssembly.Memory;
-    readonly renderengine_render: (a: number) => [number, number];
+    readonly renderengine_handle_table_data: (a: number, b: any) => [number, number];
     readonly __wbg_networkclient_free: (a: number, b: number) => void;
     readonly __wbg_planningmanager_free: (a: number, b: number) => void;
     readonly init_game_renderer: (a: any) => [number, number, number];
@@ -742,7 +741,6 @@ export interface InitOutput {
     readonly renderengine_remove_fog_rectangle: (a: number, b: number, c: number) => void;
     readonly renderengine_remove_light: (a: number, b: number, c: number) => void;
     readonly renderengine_remove_wall: (a: number, b: number, c: number) => number;
-    readonly renderengine_resize: (a: number, b: number, c: number) => void;
     readonly renderengine_resize_canvas: (a: number, b: number, c: number) => void;
     readonly renderengine_screen_to_world: (a: number, b: number, c: number) => [number, number];
     readonly renderengine_set_active_layer: (a: number, b: number, c: number) => void;
@@ -886,8 +884,8 @@ export interface InitOutput {
     readonly renderengine_handle_mouse_move: (a: number, b: number, c: number) => void;
     readonly renderengine_handle_mouse_up: (a: number, b: number, c: number) => void;
     readonly renderengine_handle_right_click: (a: number, b: number, c: number) => [number, number];
-    readonly renderengine_handle_table_data: (a: number, b: any) => [number, number];
     readonly renderengine_handle_wheel: (a: number, b: number, c: number, d: number) => void;
+    readonly renderengine_render: (a: number) => [number, number];
     readonly renderengine_select_all_sprites: (a: number) => void;
     readonly renderengine_set_alt_pressed: (a: number, b: number) => void;
     readonly renderengine_start_camera_pan: (a: number, b: number, c: number) => void;

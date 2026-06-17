@@ -10,7 +10,6 @@ export function createMockRenderEngine() {
     free: vi.fn(),
     render: vi.fn(),
     resize_canvas: vi.fn(),
-    resize: vi.fn(),
 
     // Camera
     handle_wheel: vi.fn(),

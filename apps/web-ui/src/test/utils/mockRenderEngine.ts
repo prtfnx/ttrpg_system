@@ -6,7 +6,6 @@ export function createMockRenderEngine() {
     free: vi.fn(),
     render: vi.fn(),
     resize_canvas: vi.fn(),
-    resize: vi.fn(),
     // Visibility / geometry
     compute_visibility_polygon: vi.fn().mockReturnValue([]),
     // Fog polygons (dynamic vision)

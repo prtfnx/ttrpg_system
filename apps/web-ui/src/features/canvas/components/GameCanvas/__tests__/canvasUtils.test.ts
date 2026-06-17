@@ -150,16 +150,17 @@ describe('resizeCanvas', () => {
     expect(mockEngine.render).not.toHaveBeenCalled();
   });
 
-  it('falls back to resize() if resize_canvas throws', () => {
+  it('logs resize_canvas errors', () => {
     const { canvas, dprRef } = makeSetup({ width: 800, height: 600 });
 
     const mockEngine = {
       resize_canvas: vi.fn().mockImplementation(() => { throw new Error('not impl'); }),
-      resize: vi.fn(),
     };
+    const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
 
     resizeCanvas(canvas, dprRef, mockEngine as never);
 
-    expect(mockEngine.resize).toHaveBeenCalledWith(800, 600);
+    expect(errorSpy).toHaveBeenCalledWith('WASM resize error:', expect.any(Error));
+    errorSpy.mockRestore();
   });
 });

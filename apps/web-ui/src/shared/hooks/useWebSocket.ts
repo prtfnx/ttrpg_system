@@ -227,8 +227,7 @@ export function useWebSocket(url: string) {
             if (data.width && data.height && renderEngine) {
               try {
                 console.log('Table dimensions:', data.width, 'x', data.height);
-                // The resize method will handle table size adjustments
-                renderEngine.resize(data.width, data.height);
+                renderEngine.resize_canvas(data.width, data.height);
               } catch (error) {
                 console.error('Failed to set table size in WASM:', error);
               }

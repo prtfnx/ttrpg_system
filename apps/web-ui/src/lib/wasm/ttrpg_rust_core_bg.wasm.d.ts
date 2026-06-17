@@ -1,7 +1,7 @@
 /* tslint:disable */
 /* eslint-disable */
 export const memory: WebAssembly.Memory;
-export const renderengine_render: (a: number) => [number, number];
+export const renderengine_handle_table_data: (a: number, b: any) => [number, number];
 export const __wbg_networkclient_free: (a: number, b: number) => void;
 export const __wbg_planningmanager_free: (a: number, b: number) => void;
 export const init_game_renderer: (a: any) => [number, number, number];
@@ -92,7 +92,6 @@ export const renderengine_paint_undo_stroke: (a: number) => number;
 export const renderengine_remove_fog_rectangle: (a: number, b: number, c: number) => void;
 export const renderengine_remove_light: (a: number, b: number, c: number) => void;
 export const renderengine_remove_wall: (a: number, b: number, c: number) => number;
-export const renderengine_resize: (a: number, b: number, c: number) => void;
 export const renderengine_resize_canvas: (a: number, b: number, c: number) => void;
 export const renderengine_screen_to_world: (a: number, b: number, c: number) => [number, number];
 export const renderengine_set_active_layer: (a: number, b: number, c: number) => void;
@@ -236,8 +235,8 @@ export const renderengine_handle_mouse_down_with_modifiers: (a: number, b: numbe
 export const renderengine_handle_mouse_move: (a: number, b: number, c: number) => void;
 export const renderengine_handle_mouse_up: (a: number, b: number, c: number) => void;
 export const renderengine_handle_right_click: (a: number, b: number, c: number) => [number, number];
-export const renderengine_handle_table_data: (a: number, b: any) => [number, number];
 export const renderengine_handle_wheel: (a: number, b: number, c: number, d: number) => void;
+export const renderengine_render: (a: number) => [number, number];
 export const renderengine_select_all_sprites: (a: number) => void;
 export const renderengine_set_alt_pressed: (a: number, b: number) => void;
 export const renderengine_start_camera_pan: (a: number, b: number, c: number) => void;

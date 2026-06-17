@@ -14,11 +14,6 @@ impl RenderEngine {
         self.update_view_matrix();
     }
     
-    #[wasm_bindgen]
-    pub fn resize(&mut self, width: f32, height: f32) {
-        self.resize_canvas(width, height);
-    }
-    
     pub fn set_zoom(&mut self, zoom: f64) {
         self.camera.zoom = zoom.clamp(0.1, 5.0);
         self.update_view_matrix();

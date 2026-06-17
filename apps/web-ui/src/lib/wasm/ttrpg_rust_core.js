@@ -2071,13 +2071,6 @@ export class RenderEngine {
      * @param {number} width
      * @param {number} height
      */
-    resize(width, height) {
-        wasm.renderengine_resize(this.__wbg_ptr, width, height);
-    }
-    /**
-     * @param {number} width
-     * @param {number} height
-     */
     resize_canvas(width, height) {
         wasm.renderengine_resize_canvas(this.__wbg_ptr, width, height);
     }

@@ -25,12 +25,6 @@ impl RenderEngine {
     }
     
     #[wasm_bindgen]
-    pub fn center_camera(&mut self, world_x: f64, world_y: f64) {
-        self.camera.center_on(world_x, world_y);
-        self.update_view_matrix();
-    }
-    
-    #[wasm_bindgen]
     pub fn set_camera(&mut self, world_x: f64, world_y: f64, zoom: f64) {
         self.camera.world_x = world_x;
         self.camera.world_y = world_y;
@@ -80,11 +74,6 @@ impl RenderEngine {
         self.grid_system.set_size(size);
     }
     
-    #[wasm_bindgen]
-    pub fn get_grid_size(&self) -> f32 {
-        self.grid_system.get_size()
-    }
-
     // Lighting system methods
     #[wasm_bindgen]
     pub fn set_ambient_light(&mut self, level: f32) {

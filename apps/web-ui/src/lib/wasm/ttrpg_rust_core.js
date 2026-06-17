@@ -1451,13 +1451,6 @@ export class RenderEngine {
         const ret = wasm.renderengine_can_undo(this.__wbg_ptr);
         return ret !== 0;
     }
-    /**
-     * @param {number} world_x
-     * @param {number} world_y
-     */
-    center_camera(world_x, world_y) {
-        wasm.renderengine_center_camera(this.__wbg_ptr, world_x, world_y);
-    }
     clear_fog() {
         wasm.renderengine_clear_fog(this.__wbg_ptr);
     }
@@ -1630,13 +1623,6 @@ export class RenderEngine {
         } finally {
             wasm.__wbindgen_free(deferred1_0, deferred1_1, 1);
         }
-    }
-    /**
-     * @returns {number}
-     */
-    get_grid_size() {
-        const ret = wasm.renderengine_get_grid_size(this.__wbg_ptr);
-        return ret;
     }
     /**
      * @returns {string[]}

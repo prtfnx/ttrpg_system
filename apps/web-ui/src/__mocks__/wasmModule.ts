@@ -15,7 +15,6 @@ export function createMockRenderEngine() {
     // Camera
     handle_wheel: vi.fn(),
     set_zoom: vi.fn(),
-    center_camera: vi.fn(),
     set_camera: vi.fn(),
     set_camera_position: vi.fn(),
     set_camera_scale: vi.fn(),
@@ -64,7 +63,6 @@ export function createMockRenderEngine() {
     set_grid_snapping: vi.fn(),
     set_snap_to_grid: vi.fn(),
     set_grid_size: vi.fn(),
-    get_grid_size: vi.fn().mockReturnValue(50),
     is_grid_snapping_enabled: vi.fn().mockReturnValue(false),
     set_grid_color: vi.fn(),
 

@@ -140,7 +140,6 @@ describe('resizeCanvas', () => {
     const mockEngine = {
       screen_to_world: vi.fn().mockReturnValue([100, 200]),
       resize_canvas: vi.fn(),
-      center_camera: vi.fn(),
       render: vi.fn(),
     };
 
@@ -148,7 +147,6 @@ describe('resizeCanvas', () => {
 
     expect(mockEngine.resize_canvas).toHaveBeenCalledWith(800, 600);
     expect(mockEngine.screen_to_world).not.toHaveBeenCalled();
-    expect(mockEngine.center_camera).not.toHaveBeenCalled();
     expect(mockEngine.render).not.toHaveBeenCalled();
   });
 

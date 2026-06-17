@@ -267,6 +267,8 @@ export class RenderEngine {
     center_camera(world_x: number, world_y: number): void;
     clear_fog(): void;
     clear_layer(layer_name: string): boolean;
+    clear_runtime_event_handler(): void;
+    clear_runtime_operation_handler(): void;
     /**
      * Clear current selection
      */
@@ -292,6 +294,7 @@ export class RenderEngine {
      * Alias for get_selected_sprite_ids (TypeScript-facing name)
      */
     get_selected_sprites(): string[];
+    get_shape_style_json(): any;
     /**
      * Get sprite data for network synchronization
      */
@@ -327,6 +330,8 @@ export class RenderEngine {
      */
     handle_table_data(table_data_js: any): void;
     handle_wheel(screen_x: number, screen_y: number, delta_y: number): void;
+    has_runtime_event_handler(): boolean;
+    has_runtime_operation_handler(): boolean;
     hide_entire_table(table_width: number, table_height: number): void;
     is_in_fog_draw_mode(): boolean;
     is_in_light_drag_mode(): boolean;
@@ -356,7 +361,6 @@ export class RenderEngine {
     remove_sprite(sprite_id: string): boolean;
     remove_wall(wall_id: string): boolean;
     render(): void;
-    request_table(table_name: string): void;
     resize(width: number, height: number): void;
     resize_canvas(width: number, height: number): void;
     resize_sprite(sprite_id: string, new_width: number, new_height: number): boolean;
@@ -366,8 +370,6 @@ export class RenderEngine {
      * Select all sprites in all layers
      */
     select_all_sprites(): void;
-    send_sprite_create(sprite_data_js: any): void;
-    send_sprite_move(sprite_id: string, x: number, y: number): string;
     set_active_layer(layer_name: string): void;
     set_alt_pressed(alt: boolean): void;
     set_ambient_light(level: number): void;
@@ -395,6 +397,9 @@ export class RenderEngine {
     set_light_color(id: string, r: number, g: number, b: number, a: number): void;
     set_light_intensity(id: string, intensity: number): void;
     set_light_radius(id: string, radius: number): void;
+    set_runtime_event_handler(callback: Function): void;
+    set_runtime_operation_handler(callback: Function): void;
+    set_shape_style(color: string, opacity: number, filled: boolean): void;
     /**
      * Set sprite position (alias for update_sprite_position)
      */
@@ -657,69 +662,20 @@ export type InitInput = RequestInfo | URL | Response | BufferSource | WebAssembl
 
 export interface InitOutput {
     readonly memory: WebAssembly.Memory;
-    readonly __wbg_unitconverter_free: (a: number, b: number) => void;
-    readonly __wbg_actionsclient_free: (a: number, b: number) => void;
+    readonly __wbg_collisionsystem_free: (a: number, b: number) => void;
+    readonly collisionsystem_distance_ft: (a: number, b: number, c: number, d: number, e: number, f: number) => number;
+    readonly collisionsystem_find_path: (a: number, b: number, c: number, d: number, e: number) => [number, number];
+    readonly collisionsystem_line_blocked: (a: number, b: number, c: number, d: number, e: number) => number;
+    readonly collisionsystem_movement_range: (a: number, b: number, c: number, d: number, e: number, f: number) => any;
+    readonly collisionsystem_new: (a: number) => number;
+    readonly collisionsystem_rebuild_index: (a: number) => void;
+    readonly collisionsystem_set_obstacles: (a: number, b: number, c: number) => void;
+    readonly collisionsystem_set_walls: (a: number, b: number, c: number) => void;
+    readonly compute_visibility_polygon: (a: number, b: number, c: any, d: number) => any;
+    readonly __wbg_networkclient_free: (a: number, b: number) => void;
     readonly __wbg_planningmanager_free: (a: number, b: number) => void;
-    readonly actionsclient_can_redo: (a: number) => number;
-    readonly actionsclient_can_undo: (a: number) => number;
-    readonly actionsclient_disconnect_network_client: (a: number) => void;
-    readonly actionsclient_get_action_history: (a: number) => any;
-    readonly actionsclient_get_all_tables: (a: number) => any;
-    readonly actionsclient_get_sprite_info: (a: number, b: number, c: number) => any;
-    readonly actionsclient_get_sprites_by_layer: (a: number, b: number, c: number) => any;
-    readonly actionsclient_get_table_info: (a: number, b: number, c: number) => any;
-    readonly actionsclient_is_network_connected: (a: number) => number;
-    readonly actionsclient_new: () => number;
-    readonly actionsclient_redo: (a: number) => any;
-    readonly actionsclient_set_action_handler: (a: number, b: any) => void;
-    readonly actionsclient_set_auto_sync: (a: number, b: number) => void;
-    readonly actionsclient_set_error_handler: (a: number, b: any) => void;
-    readonly actionsclient_set_network_client: (a: number, b: number) => void;
-    readonly actionsclient_set_state_change_handler: (a: number, b: any) => void;
-    readonly actionsclient_undo: (a: number) => any;
     readonly init_game_renderer: (a: any) => [number, number, number];
     readonly main: () => void;
-    readonly planningmanager_clear_all: (a: number) => void;
-    readonly planningmanager_clear_aoe: (a: number) => void;
-    readonly planningmanager_clear_ghost: (a: number, b: number, c: number) => void;
-    readonly planningmanager_get_aoe: (a: number) => any;
-    readonly planningmanager_get_ghost: (a: number, b: number, c: number) => any;
-    readonly planningmanager_get_ghosts: (a: number) => any;
-    readonly planningmanager_has_los: (a: number, b: number, c: number, d: number, e: number) => number;
-    readonly planningmanager_measure_ft: (a: number, b: number, c: number, d: number, e: number) => number;
-    readonly planningmanager_movement_range: (a: number, b: number, c: number, d: number, e: number) => any;
-    readonly planningmanager_new: (a: number, b: number) => number;
-    readonly planningmanager_set_aoe_cone: (a: number, b: number, c: number, d: number, e: number) => void;
-    readonly planningmanager_set_aoe_cube: (a: number, b: number, c: number, d: number) => void;
-    readonly planningmanager_set_aoe_line: (a: number, b: number, c: number, d: number, e: number, f: number) => void;
-    readonly planningmanager_set_aoe_sphere: (a: number, b: number, c: number, d: number) => void;
-    readonly planningmanager_set_obstacles: (a: number, b: number, c: number) => void;
-    readonly planningmanager_set_walls: (a: number, b: number, c: number) => void;
-    readonly planningmanager_start_ghost: (a: number, b: number, c: number, d: number, e: number, f: number, g: number, h: number) => number;
-    readonly planningmanager_tokens_in_aoe: (a: number, b: any) => any;
-    readonly version: () => [number, number];
-    readonly __wbg_assetmanager_free: (a: number, b: number) => void;
-    readonly __wbg_networkclient_free: (a: number, b: number) => void;
-    readonly assetmanager_calculate_asset_hash: (a: number, b: number, c: number) => [number, number];
-    readonly assetmanager_cleanup_cache: (a: number) => any;
-    readonly assetmanager_clear_cache: (a: number) => any;
-    readonly assetmanager_clear_download_queue: (a: number) => void;
-    readonly assetmanager_download_asset: (a: number, b: number, c: number, d: number, e: number) => any;
-    readonly assetmanager_get_asset_by_hash: (a: number, b: number, c: number) => [number, number];
-    readonly assetmanager_get_asset_data: (a: number, b: number, c: number) => [number, number];
-    readonly assetmanager_get_asset_info: (a: number, b: number, c: number) => [number, number];
-    readonly assetmanager_get_cache_stats: (a: number) => [number, number];
-    readonly assetmanager_get_download_queue_size: (a: number) => number;
-    readonly assetmanager_get_queued_downloads: (a: number) => [number, number];
-    readonly assetmanager_has_asset: (a: number, b: number, c: number) => number;
-    readonly assetmanager_has_asset_by_hash: (a: number, b: number, c: number) => number;
-    readonly assetmanager_initialize: (a: number) => any;
-    readonly assetmanager_list_assets: (a: number) => [number, number];
-    readonly assetmanager_new: () => number;
-    readonly assetmanager_remove_asset: (a: number, b: number, c: number) => number;
-    readonly assetmanager_remove_from_queue: (a: number, b: number, c: number) => number;
-    readonly assetmanager_set_max_age: (a: number, b: number) => void;
-    readonly assetmanager_set_max_cache_size: (a: number, b: bigint) => void;
     readonly networkclient_authenticate: (a: number, b: number, c: number, d: number, e: number) => [number, number];
     readonly networkclient_confirm_asset_upload: (a: number, b: number, c: number, d: number) => [number, number];
     readonly networkclient_connect: (a: number, b: number, c: number) => [number, number];
@@ -748,6 +704,24 @@ export interface InitOutput {
     readonly networkclient_set_message_handler: (a: number, b: any) => void;
     readonly networkclient_set_user_info: (a: number, b: number, c: number, d: number, e: number, f: number, g: number, h: number) => void;
     readonly networkclient_sync_action: (a: number, b: number, c: number) => [number, number];
+    readonly planningmanager_clear_all: (a: number) => void;
+    readonly planningmanager_clear_aoe: (a: number) => void;
+    readonly planningmanager_clear_ghost: (a: number, b: number, c: number) => void;
+    readonly planningmanager_get_aoe: (a: number) => any;
+    readonly planningmanager_get_ghost: (a: number, b: number, c: number) => any;
+    readonly planningmanager_get_ghosts: (a: number) => any;
+    readonly planningmanager_has_los: (a: number, b: number, c: number, d: number, e: number) => number;
+    readonly planningmanager_measure_ft: (a: number, b: number, c: number, d: number, e: number) => number;
+    readonly planningmanager_movement_range: (a: number, b: number, c: number, d: number, e: number) => any;
+    readonly planningmanager_new: (a: number, b: number) => number;
+    readonly planningmanager_set_aoe_cone: (a: number, b: number, c: number, d: number, e: number) => void;
+    readonly planningmanager_set_aoe_cube: (a: number, b: number, c: number, d: number) => void;
+    readonly planningmanager_set_aoe_line: (a: number, b: number, c: number, d: number, e: number, f: number) => void;
+    readonly planningmanager_set_aoe_sphere: (a: number, b: number, c: number, d: number) => void;
+    readonly planningmanager_set_obstacles: (a: number, b: number, c: number) => void;
+    readonly planningmanager_set_walls: (a: number, b: number, c: number) => void;
+    readonly planningmanager_start_ghost: (a: number, b: number, c: number, d: number, e: number, f: number, g: number, h: number) => number;
+    readonly planningmanager_tokens_in_aoe: (a: number, b: any) => any;
     readonly renderengine_add_fog_rectangle: (a: number, b: number, c: number, d: number, e: number, f: number, g: number, h: number, i: number) => void;
     readonly renderengine_add_light: (a: number, b: number, c: number, d: number, e: number) => void;
     readonly renderengine_add_wall: (a: number, b: number, c: number) => number;
@@ -825,6 +799,59 @@ export interface InitOutput {
     readonly renderengine_update_light_position: (a: number, b: number, c: number, d: number, e: number) => void;
     readonly renderengine_update_wall: (a: number, b: number, c: number, d: number, e: number) => number;
     readonly renderengine_world_to_screen: (a: number, b: number, c: number) => [number, number];
+    readonly version: () => [number, number];
+    readonly __wbg_actionsclient_free: (a: number, b: number) => void;
+    readonly actionsclient_can_redo: (a: number) => number;
+    readonly actionsclient_can_undo: (a: number) => number;
+    readonly actionsclient_disconnect_network_client: (a: number) => void;
+    readonly actionsclient_get_action_history: (a: number) => any;
+    readonly actionsclient_get_all_tables: (a: number) => any;
+    readonly actionsclient_get_sprite_info: (a: number, b: number, c: number) => any;
+    readonly actionsclient_get_sprites_by_layer: (a: number, b: number, c: number) => any;
+    readonly actionsclient_get_table_info: (a: number, b: number, c: number) => any;
+    readonly actionsclient_is_network_connected: (a: number) => number;
+    readonly actionsclient_new: () => number;
+    readonly actionsclient_redo: (a: number) => any;
+    readonly actionsclient_set_action_handler: (a: number, b: any) => void;
+    readonly actionsclient_set_auto_sync: (a: number, b: number) => void;
+    readonly actionsclient_set_error_handler: (a: number, b: any) => void;
+    readonly actionsclient_set_network_client: (a: number, b: number) => void;
+    readonly actionsclient_set_state_change_handler: (a: number, b: any) => void;
+    readonly actionsclient_undo: (a: number) => any;
+    readonly __wbg_assetmanager_free: (a: number, b: number) => void;
+    readonly assetmanager_calculate_asset_hash: (a: number, b: number, c: number) => [number, number];
+    readonly assetmanager_cleanup_cache: (a: number) => any;
+    readonly assetmanager_clear_cache: (a: number) => any;
+    readonly assetmanager_clear_download_queue: (a: number) => void;
+    readonly assetmanager_download_asset: (a: number, b: number, c: number, d: number, e: number) => any;
+    readonly assetmanager_get_asset_by_hash: (a: number, b: number, c: number) => [number, number];
+    readonly assetmanager_get_asset_data: (a: number, b: number, c: number) => [number, number];
+    readonly assetmanager_get_asset_info: (a: number, b: number, c: number) => [number, number];
+    readonly assetmanager_get_cache_stats: (a: number) => [number, number];
+    readonly assetmanager_get_download_queue_size: (a: number) => number;
+    readonly assetmanager_get_queued_downloads: (a: number) => [number, number];
+    readonly assetmanager_has_asset: (a: number, b: number, c: number) => number;
+    readonly assetmanager_has_asset_by_hash: (a: number, b: number, c: number) => number;
+    readonly assetmanager_initialize: (a: number) => any;
+    readonly assetmanager_list_assets: (a: number) => [number, number];
+    readonly assetmanager_new: () => number;
+    readonly assetmanager_remove_asset: (a: number, b: number, c: number) => number;
+    readonly assetmanager_remove_from_queue: (a: number, b: number, c: number) => number;
+    readonly assetmanager_set_max_age: (a: number, b: number) => void;
+    readonly assetmanager_set_max_cache_size: (a: number, b: bigint) => void;
+    readonly __wbg_renderengine_free: (a: number, b: number) => void;
+    readonly actionsclient_create_table: (a: number, b: number, c: number, d: number, e: number) => any;
+    readonly actionsclient_delete_table: (a: number, b: number, c: number) => any;
+    readonly actionsclient_update_table: (a: number, b: number, c: number, d: any) => any;
+    readonly renderengine_clear_runtime_event_handler: (a: number) => void;
+    readonly renderengine_clear_runtime_operation_handler: (a: number) => void;
+    readonly renderengine_get_shape_style_json: (a: number) => any;
+    readonly renderengine_has_runtime_event_handler: (a: number) => number;
+    readonly renderengine_has_runtime_operation_handler: (a: number) => number;
+    readonly renderengine_new: (a: any) => [number, number, number];
+    readonly renderengine_set_runtime_event_handler: (a: number, b: any) => void;
+    readonly renderengine_set_runtime_operation_handler: (a: number, b: any) => void;
+    readonly renderengine_set_shape_style: (a: number, b: number, c: number, d: number, e: number) => void;
     readonly __wbg_brushpreset_free: (a: number, b: number) => void;
     readonly __wbg_paintsystem_free: (a: number, b: number) => void;
     readonly __wbg_tablemanager_free: (a: number, b: number) => void;
@@ -900,27 +927,15 @@ export interface InitOutput {
     readonly tablemanager_table_to_screen: (a: number, b: number, c: number, d: number, e: number) => [number, number];
     readonly tablemanager_units_to_pixels: (a: number, b: number, c: number, d: number) => number;
     readonly tablemanager_zoom_table: (a: number, b: number, c: number, d: number, e: number, f: number) => number;
-    readonly __wbg_collisionsystem_free: (a: number, b: number) => void;
-    readonly collisionsystem_distance_ft: (a: number, b: number, c: number, d: number, e: number, f: number) => number;
-    readonly collisionsystem_find_path: (a: number, b: number, c: number, d: number, e: number) => [number, number];
-    readonly collisionsystem_line_blocked: (a: number, b: number, c: number, d: number, e: number) => number;
-    readonly collisionsystem_movement_range: (a: number, b: number, c: number, d: number, e: number, f: number) => any;
-    readonly collisionsystem_new: (a: number) => number;
-    readonly collisionsystem_rebuild_index: (a: number) => void;
-    readonly collisionsystem_set_obstacles: (a: number, b: number, c: number) => void;
-    readonly collisionsystem_set_walls: (a: number, b: number, c: number) => void;
-    readonly compute_visibility_polygon: (a: number, b: number, c: any, d: number) => any;
     readonly __wbg_tablesync_free: (a: number, b: number) => void;
+    readonly __wbg_unitconverter_free: (a: number, b: number) => void;
     readonly actionsclient_batch_actions: (a: number, b: any) => any;
     readonly actionsclient_create_sprite: (a: number, b: number, c: number, d: number, e: number, f: any, g: number, h: number) => any;
-    readonly actionsclient_create_table: (a: number, b: number, c: number, d: number, e: number) => any;
     readonly actionsclient_delete_sprite: (a: number, b: number, c: number) => any;
-    readonly actionsclient_delete_table: (a: number, b: number, c: number) => any;
     readonly actionsclient_get_layer_visibility: (a: number, b: number, c: number) => number;
     readonly actionsclient_move_sprite_to_layer: (a: number, b: number, c: number, d: number, e: number) => any;
     readonly actionsclient_set_layer_visibility: (a: number, b: number, c: number, d: number) => any;
     readonly actionsclient_update_sprite: (a: number, b: number, c: number, d: any) => any;
-    readonly actionsclient_update_table: (a: number, b: number, c: number, d: any) => any;
     readonly error: (a: number, b: number) => void;
     readonly log: (a: number, b: number) => void;
     readonly renderengine_add_sprite_to_layer: (a: number, b: number, c: number, d: any) => [number, number, number, number];
@@ -932,10 +947,12 @@ export interface InitOutput {
     readonly renderengine_get_sprite_data: (a: number, b: number, c: number) => any;
     readonly renderengine_get_sprite_position: (a: number, b: number, c: number) => [number, number];
     readonly renderengine_get_sprite_scale: (a: number, b: number, c: number) => [number, number];
+    readonly renderengine_handle_table_data: (a: number, b: any) => [number, number];
     readonly renderengine_load_texture: (a: number, b: number, c: number, d: any) => [number, number];
     readonly renderengine_move_sprite_to_layer: (a: number, b: number, c: number, d: number, e: number) => number;
     readonly renderengine_paste_sprite: (a: number, b: number, c: number, d: number, e: number, f: number, g: number) => [number, number, number, number];
     readonly renderengine_remove_sprite: (a: number, b: number, c: number) => number;
+    readonly renderengine_render: (a: number) => [number, number];
     readonly renderengine_resize_sprite: (a: number, b: number, c: number, d: number, e: number) => number;
     readonly renderengine_rotate_sprite: (a: number, b: number, c: number, d: number) => number;
     readonly renderengine_set_sprite_position: (a: number, b: number, c: number, d: number, e: number) => number;
@@ -968,20 +985,13 @@ export interface InitOutput {
     readonly tablesync_set_table_received_handler: (a: number, b: any) => void;
     readonly warn: (a: number, b: number) => void;
     readonly now: () => number;
-    readonly __wbg_renderengine_free: (a: number, b: number) => void;
-    readonly renderengine_new: (a: any) => [number, number, number];
-    readonly renderengine_handle_table_data: (a: number, b: any) => [number, number];
-    readonly renderengine_render: (a: number) => [number, number];
-    readonly renderengine_request_table: (a: number, b: number, c: number) => [number, number];
-    readonly renderengine_send_sprite_create: (a: number, b: any) => [number, number];
-    readonly renderengine_send_sprite_move: (a: number, b: number, c: number, d: number, e: number) => [number, number, number, number];
     readonly wasm_bindgen__convert__closures_____invoke__h379eeb6857ff453f: (a: number, b: number, c: any) => [number, number];
     readonly wasm_bindgen__convert__closures_____invoke__h2bc1731c5b684db1: (a: number, b: number, c: any, d: any) => void;
-    readonly wasm_bindgen__convert__closures_____invoke__h6c2b06365ce6726d: (a: number, b: number, c: any) => void;
-    readonly wasm_bindgen__convert__closures_____invoke__h6c2b06365ce6726d_2: (a: number, b: number, c: any) => void;
-    readonly wasm_bindgen__convert__closures_____invoke__h6c2b06365ce6726d_3: (a: number, b: number, c: any) => void;
-    readonly wasm_bindgen__convert__closures_____invoke__h6c2b06365ce6726d_4: (a: number, b: number, c: any) => void;
-    readonly wasm_bindgen__convert__closures_____invoke__hb87dc99a98312fe0: (a: number, b: number) => void;
+    readonly wasm_bindgen__convert__closures_____invoke__h46355d3965ce5f88: (a: number, b: number, c: any) => void;
+    readonly wasm_bindgen__convert__closures_____invoke__h46355d3965ce5f88_2: (a: number, b: number, c: any) => void;
+    readonly wasm_bindgen__convert__closures_____invoke__h46355d3965ce5f88_3: (a: number, b: number, c: any) => void;
+    readonly wasm_bindgen__convert__closures_____invoke__h46355d3965ce5f88_4: (a: number, b: number, c: any) => void;
+    readonly wasm_bindgen__convert__closures_____invoke__h933b87fda231a098: (a: number, b: number) => void;
     readonly __wbindgen_malloc: (a: number, b: number) => number;
     readonly __wbindgen_realloc: (a: number, b: number, c: number, d: number) => number;
     readonly __wbindgen_exn_store: (a: number) => void;

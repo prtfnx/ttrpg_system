@@ -180,15 +180,4 @@ impl RenderEngine {
         let _ = handler.call1(&JsValue::NULL, &event.into());
     }
 
-    pub fn send_sprite_move(&mut self, sprite_id: &str, x: f64, y: f64) -> Result<String, JsValue> {
-        self.table_sync.send_sprite_move(sprite_id, x, y)
-    }
-
-    pub fn send_sprite_create(&self, sprite_data_js: &JsValue) -> Result<(), JsValue> {
-        self.table_sync.send_sprite_create(sprite_data_js)
-    }
-
-    pub fn request_table(&self, table_name: &str) -> Result<(), JsValue> {
-        self.table_sync.request_table(table_name)
-    }
 }

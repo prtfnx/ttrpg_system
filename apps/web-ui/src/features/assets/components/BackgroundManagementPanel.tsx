@@ -7,7 +7,7 @@
 import { ErrorBoundary, LoadingSpinner } from '@shared/components';
 import { AlertTriangle, Eye, EyeOff, Pencil, Trash2, X } from 'lucide-react';
 import React, { useCallback, useEffect, useState } from 'react';
-import type { RenderEngine } from '@lib/wasm';
+import type { RenderEngine } from '@lib/wasm/runtime';
 import {
     performanceOptimizedBackgroundSystem,
     type BackgroundConfiguration,

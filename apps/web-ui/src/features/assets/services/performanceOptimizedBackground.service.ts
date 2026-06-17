@@ -4,7 +4,7 @@
  * instanced rendering, and level-of-detail (LOD) system
  */
 
-import type { RenderEngine } from '@lib/wasm';
+import type { RenderEngine } from '@lib/wasm/runtime';
 
 export interface BackgroundLayer {
   id: string;

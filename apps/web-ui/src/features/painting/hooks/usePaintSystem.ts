@@ -1,7 +1,7 @@
 import { useGameStore } from '@/store';
 import { ProtocolService } from '@lib/api';
 import { useWasmRuntime } from '@lib/wasm/runtime';
-import type { BrushPreset } from '@lib/wasm';
+import type { BrushPreset, RenderEngine } from '@lib/wasm/runtime';
 import { useCallback, useEffect, useRef, useState } from 'react';
 
 // Access WASM functions through the global window object - use same type as in types.ts
@@ -45,7 +45,7 @@ export interface PaintEvents {
 }
 
 export function usePaintSystem(
-  renderEngine: import('@lib/wasm').RenderEngine | null,
+  renderEngine: RenderEngine | null,
   events?: PaintEvents
 ): [PaintState, PaintControls] {
   const { activeTableId } = useGameStore();
@@ -344,7 +344,7 @@ export function usePaintSystem(
 
 // Utility hook for mouse-based painting interaction
 export function usePaintInteraction(
-  renderEngine: import('@lib/wasm').RenderEngine | null,
+  renderEngine: RenderEngine | null,
   paintControls: PaintControls,
   paintState: PaintState
 ) {

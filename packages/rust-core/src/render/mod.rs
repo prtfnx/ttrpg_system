@@ -241,11 +241,6 @@ impl RenderEngine {
     }
 
     #[wasm_bindgen]
-    pub fn has_runtime_operation_handler(&self) -> bool {
-        self.runtime_operation_handler.is_some()
-    }
-
-    #[wasm_bindgen]
     pub fn set_runtime_event_handler(&mut self, callback: &js_sys::Function) {
         self.runtime_event_handler = Some(callback.clone());
     }
@@ -256,24 +251,10 @@ impl RenderEngine {
     }
 
     #[wasm_bindgen]
-    pub fn has_runtime_event_handler(&self) -> bool {
-        self.runtime_event_handler.is_some()
-    }
-
-    #[wasm_bindgen]
     pub fn set_shape_style(&mut self, color: &str, opacity: f32, filled: bool) {
         self.shape_color = color.to_string();
         self.shape_opacity = opacity.clamp(0.0, 1.0);
         self.shape_filled = filled;
-    }
-
-    #[wasm_bindgen]
-    pub fn get_shape_style_json(&self) -> JsValue {
-        serde_wasm_bindgen::to_value(&serde_json::json!({
-            "color": self.shape_color,
-            "opacity": self.shape_opacity,
-            "filled": self.shape_filled,
-        })).unwrap_or(JsValue::NULL)
     }
 
     fn get_effective_layer_opacity(layer_settings: &crate::types::LayerSettings, layer_name: &str, active_layer: &str) -> f32 {

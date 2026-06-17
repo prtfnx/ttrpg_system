@@ -6,9 +6,9 @@
 
 import { useGameStore } from '@/store';
 import { tableThumbnailService } from '@features/table/services/tableThumbnail.service';
-import type { RenderEngine } from '@lib/wasm/ttrpg_rust_core';
 import { wasmBridgeService } from './wasmBridge';
 import type { AssetSyncService } from './assetSync.service';
+import type { RenderEngine } from './runtime';
 
 // Typed payload for sprite-related custom events
 interface SpritePayload {

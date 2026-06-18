@@ -366,10 +366,6 @@ impl RenderEngine {
         }
     }
 
-    pub fn set_layer_visible(&mut self, layer_name: &str, visible: bool) -> bool {
-        self.layer_manager.set_layer_visibility(layer_name, visible)
-    }
-
     // Paint system methods
     pub fn paint_set_current_table(&mut self, table_id: &str) {
         self.paint.set_current_table(table_id);

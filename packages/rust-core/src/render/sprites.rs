@@ -58,11 +58,6 @@ impl RenderEngine {
     }
 
     #[wasm_bindgen]
-    pub fn delete_sprite(&mut self, sprite_id: &str) -> bool {
-        self.remove_sprite(sprite_id)
-    }
-
-    #[wasm_bindgen]
     pub fn copy_sprite(&self, sprite_id: &str) -> Option<String> {
         self.layer_manager.copy_sprite(sprite_id)
     }
@@ -94,8 +89,10 @@ impl RenderEngine {
     pub fn load_texture(&mut self, name: &str, image: &HtmlImageElement) -> Result<(), JsValue> {
         self.texture_manager.load_texture(name, image)
     }
+}
 
-    pub fn create_rectangle_sprite_with_options(&mut self, x: f32, y: f32, width: f32, height: f32, layer_name: &str, color: &str, opacity: f32, filled: bool) -> String {
+impl RenderEngine {
+    pub(crate) fn create_rectangle_sprite_with_options(&mut self, x: f32, y: f32, width: f32, height: f32, layer_name: &str, color: &str, opacity: f32, filled: bool) -> String {
         let sprite_id = format!("rect_{}", js_sys::Date::now() as u64);
         let active_table_id = self.table_manager.get_active_table_id()
             .unwrap_or("default_table".to_string());
@@ -124,7 +121,7 @@ impl RenderEngine {
         sprite_id
     }
 
-    pub fn create_circle_sprite_with_options(&mut self, x: f32, y: f32, radius: f32, layer_name: &str, color: &str, opacity: f32, filled: bool) -> String {
+    pub(crate) fn create_circle_sprite_with_options(&mut self, x: f32, y: f32, radius: f32, layer_name: &str, color: &str, opacity: f32, filled: bool) -> String {
         let sprite_id = format!("circle_{}", js_sys::Date::now() as u64);
         let diameter = radius * 2.0;
         let active_table_id = self.table_manager.get_active_table_id()
@@ -154,7 +151,7 @@ impl RenderEngine {
         sprite_id
     }
 
-    pub fn create_line_sprite_with_options(&mut self, start_x: f32, start_y: f32, end_x: f32, end_y: f32, layer_name: &str, color: &str, opacity: f32) -> String {
+    pub(crate) fn create_line_sprite_with_options(&mut self, start_x: f32, start_y: f32, end_x: f32, end_y: f32, layer_name: &str, color: &str, opacity: f32) -> String {
         let sprite_id = format!("line_{}", js_sys::Date::now() as u64);
         let dx = end_x - start_x;
         let dy = end_y - start_y;

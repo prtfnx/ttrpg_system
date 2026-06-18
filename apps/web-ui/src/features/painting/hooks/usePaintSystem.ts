@@ -24,8 +24,8 @@ export interface PaintControls {
   setBrushWidth: (width: number) => void;
   setBlendMode: (mode: PaintBlendMode) => void;
   clearAll: () => void;
-  undoStroke: () => void;
-  redoStroke: () => void;
+  undoStroke: () => boolean;
+  redoStroke: () => boolean;
   getStrokes: () => Record<string, unknown>[];
   getCurrentStroke: () => Record<string, unknown> | null;
   startStroke: (worldX: number, worldY: number, pressure?: number) => boolean;
@@ -49,256 +49,164 @@ export function usePaintSystem(
   events?: PaintEvents
 ): [PaintState, PaintControls] {
   const { activeTableId } = useGameStore();
-  
+  const eventsRef = useRef(events);
+  eventsRef.current = events;
+
   const [paintState, setPaintState] = useState<PaintState>({
     isActive: false,
     isDrawing: false,
     strokeCount: 0,
-    brushColor: [1.0, 1.0, 1.0, 1.0], // White
+    brushColor: [1.0, 1.0, 1.0, 1.0],
     brushWidth: 3.0,
     blendMode: 'alpha',
     canUndo: false,
     canRedo: false,
   });
 
-  const eventsRef = useRef(events);
-  eventsRef.current = events;
+  const readStrokes = useCallback((): Record<string, unknown>[] => {
+    if (!renderEngine) return [];
+    try {
+      const raw = renderEngine.paint_get_strokes();
+      return raw ? JSON.parse(JSON.stringify(raw)) as Record<string, unknown>[] : [];
+    } catch (error) {
+      const msg = error instanceof Error ? error.message : String(error);
+      console.debug('Error getting paint strokes:', msg);
+      return [];
+    }
+  }, [renderEngine]);
 
-  // Sync active table with paint system
+  const refreshPaintState = useCallback(() => {
+    if (!renderEngine) return;
+    const strokes = readStrokes();
+    setPaintState(prev => ({
+      ...prev,
+      strokeCount: strokes.length,
+      canUndo: renderEngine.paint_can_undo(),
+      canRedo: renderEngine.paint_can_redo(),
+    }));
+  }, [readStrokes, renderEngine]);
+
   useEffect(() => {
     if (!renderEngine || !activeTableId) return;
-    
-    if (typeof renderEngine.paint_set_current_table === 'function') {
-      renderEngine.paint_set_current_table(activeTableId);
-      console.log(`Paint system switched to table: ${activeTableId}`);
-    } else {
-      console.debug('Render engine missing paint_set_current_table()');
-    }
-  }, [renderEngine, activeTableId]);
+    renderEngine.paint_set_current_table(activeTableId);
+    refreshPaintState();
+  }, [renderEngine, activeTableId, refreshPaintState]);
 
-  // Setup event listeners - DISABLED: paint_on_event function not working
   useEffect(() => {
     if (!renderEngine) return;
-
-    // Event system disabled due to WASM function issues
-    // Would register paint event handlers here
-    
-    return () => {
-      // Cleanup would happen here if WASM supported removing event listeners
-    };
-  }, [renderEngine]);
-
-  // Update state from engine
-  useEffect(() => {
-    if (!renderEngine) return;
-
-    // TODO temporal fix: cast renderEngine to any for getter methods until WASM types are updated
-    const updateState = () => {
-      try {
-        const isActive = typeof (renderEngine as any).paint_is_mode === 'function' ? (renderEngine as any).paint_is_mode() : false;
-        const isDrawing = typeof (renderEngine as any).paint_is_drawing === 'function' ? (renderEngine as any).paint_is_drawing() : false;
-        const strokeCount = typeof (renderEngine as any).paint_get_stroke_count === 'function' ? (renderEngine as any).paint_get_stroke_count() : 0;
-        const brushColorRaw = typeof (renderEngine as any).paint_get_brush_color === 'function' ? (renderEngine as any).paint_get_brush_color() : [1.0, 1.0, 1.0, 1.0];
-        const brushColor = Array.isArray(brushColorRaw) ? brushColorRaw : Array.from(brushColorRaw as Float32Array);
-        const brushWidth = typeof (renderEngine as any).paint_get_brush_width === 'function' ? (renderEngine as any).paint_get_brush_width() : 3.0;
-        const canUndo = typeof (renderEngine as any).can_undo === 'function' ? (renderEngine as any).can_undo() : false;
-        const canRedo = typeof (renderEngine as any).can_redo === 'function' ? (renderEngine as any).can_redo() : false;
-
-        setPaintState(prev => ({
-          ...prev,
-          isActive,
-          isDrawing,
-          strokeCount,
-          brushColor,
-          brushWidth,
-          canUndo,
-          canRedo,
-        }));
-      } catch (error) {
-        // Log but avoid spamming stack traces for missing/mocked engines
-        const msg = error instanceof Error ? error.message : String(error);
-        console.debug('Error updating paint state (non-fatal):', msg);
-      }
-    };
-
-    const interval = setInterval(updateState, 100); // Update every 100ms
-    updateState(); // Initial update
-
+    const interval = setInterval(refreshPaintState, 250);
+    refreshPaintState();
     return () => clearInterval(interval);
-  }, [renderEngine]);
+  }, [refreshPaintState, renderEngine]);
 
-    const enterPaintMode = useCallback((width = 800, height = 600) => {
+  const enterPaintMode = useCallback((width = 800, height = 600) => {
     if (!renderEngine) return;
-    if (typeof (renderEngine as any).paint_enter_mode === 'function') {
-      (renderEngine as any).paint_enter_mode(width, height);
-    } else {
-      console.debug('Render engine missing paint_enter_mode()');
-    }
+    renderEngine.paint_enter_mode(width, height);
     setPaintState(prev => ({ ...prev, isActive: true }));
   }, [renderEngine]);
 
   const exitPaintMode = useCallback(() => {
     if (!renderEngine) return;
-    if (typeof (renderEngine as any).paint_exit_mode === 'function') {
-      (renderEngine as any).paint_exit_mode();
-    } else {
-      console.debug('Render engine missing paint_exit_mode()');
-    }
-    setPaintState(prev => ({ 
-      ...prev, 
-      isActive: false, 
-      isDrawing: false 
+    renderEngine.paint_exit_mode();
+    setPaintState(prev => ({
+      ...prev,
+      isActive: false,
+      isDrawing: false,
     }));
   }, [renderEngine]);
 
   const setBrushColor = useCallback((r: number, g: number, b: number, a = 1.0) => {
     if (!renderEngine) return;
-    if (typeof (renderEngine as any).paint_set_brush_color === 'function') {
-      (renderEngine as any).paint_set_brush_color(r, g, b, a);
-    } else {
-      console.debug('Render engine missing paint_set_brush_color()');
-    }
+    renderEngine.paint_set_brush_color(r, g, b, a);
     setPaintState(prev => ({ ...prev, brushColor: [r, g, b, a] }));
   }, [renderEngine]);
 
   const setBrushWidth = useCallback((width: number) => {
     if (!renderEngine) return;
-    if (typeof (renderEngine as any).paint_set_brush_width === 'function') {
-      (renderEngine as any).paint_set_brush_width(width);
-    } else {
-      console.debug('Render engine missing paint_set_brush_width()');
-    }
+    renderEngine.paint_set_brush_width(width);
     setPaintState(prev => ({ ...prev, brushWidth: width }));
   }, [renderEngine]);
 
   const setBlendMode = useCallback((mode: PaintBlendMode) => {
     if (!renderEngine) return;
-    if (typeof (renderEngine as any).paint_set_blend_mode === 'function') {
-      (renderEngine as any).paint_set_blend_mode(mode);
-    } else {
-      console.debug('Render engine missing paint_set_blend_mode()');
-    }
+    renderEngine.paint_set_blend_mode(mode);
     setPaintState(prev => ({ ...prev, blendMode: mode }));
   }, [renderEngine]);
 
   const clearAll = useCallback(() => {
     if (!renderEngine) return;
-    if (typeof (renderEngine as any).paint_clear_all === 'function') {
-      (renderEngine as any).paint_clear_all();
-      // Notify server (DM only — server enforces role)
-      if (ProtocolService.hasProtocol()) {
-        ProtocolService.getProtocol().clearPaintStrokes();
-      }
-    } else {
-      console.debug('Render engine missing paint_clear_all()');
+    renderEngine.paint_clear_all();
+    if (ProtocolService.hasProtocol()) {
+      ProtocolService.getProtocol().clearPaintStrokes();
     }
+    setPaintState(prev => ({
+      ...prev,
+      isDrawing: false,
+      strokeCount: 0,
+      canUndo: false,
+      canRedo: false,
+    }));
   }, [renderEngine]);
 
   const undoStroke = useCallback(() => {
-    if (!renderEngine) return;
-    // Capture last stroke ID before undoing so we can sync the delete
-    let lastStrokeId: string | undefined;
-    if (ProtocolService.hasProtocol()) {
-      try {
-        const raw = typeof (renderEngine as any).paint_get_strokes === 'function' ? (renderEngine as any).paint_get_strokes() : null;
-        if (raw) {
-          const strokes = JSON.parse(JSON.stringify(raw)) as { id?: string }[];
-          lastStrokeId = strokes[strokes.length - 1]?.id;
-        }
-      } catch { /* non-fatal */ }
-    }
+    if (!renderEngine) return false;
 
-    const ok = typeof (renderEngine as any).paint_undo_stroke === 'function' ? (renderEngine as any).paint_undo_stroke() : false;
+    const lastStrokeId = ProtocolService.hasProtocol()
+      ? readStrokes().at(-1)?.id as string | undefined
+      : undefined;
+    const ok = renderEngine.paint_undo_stroke();
+
     if (ok && lastStrokeId && activeTableId) {
       ProtocolService.getProtocol().deletePaintStroke(lastStrokeId);
     }
+    if (ok) refreshPaintState();
     return ok;
-  }, [renderEngine, activeTableId]);
+  }, [activeTableId, readStrokes, refreshPaintState, renderEngine]);
 
   const redoStroke = useCallback(() => {
     if (!renderEngine) return false;
-    const eng = renderEngine as unknown as Record<string, unknown>;
-    if (typeof eng.redo_last_stroke === 'function') {
-      return (eng.redo_last_stroke as () => boolean)();
-    }
-    console.debug('Render engine missing redo_last_stroke()');
-    return false;
-  }, [renderEngine]);
+    const ok = renderEngine.paint_redo_stroke();
+    if (ok) refreshPaintState();
+    return ok;
+  }, [refreshPaintState, renderEngine]);
 
-  const getStrokes = useCallback(() => {
-    if (!renderEngine) return [];
-    try {
-      const strokesJson = typeof (renderEngine as any).paint_get_strokes === 'function' ? (renderEngine as any).paint_get_strokes() : [];
-      return strokesJson ? JSON.parse(JSON.stringify(strokesJson)) : [];
-    } catch (error) {
-      const msg = error instanceof Error ? error.message : String(error);
-      console.debug('Error getting strokes (non-fatal):', msg);
-      return [];
-    }
-  }, [renderEngine]);
+  const getStrokes = useCallback(() => readStrokes(), [readStrokes]);
 
-  const getCurrentStroke = useCallback(() => {
-    if (!renderEngine) return null;
-    try {
-      const strokeJson = typeof (renderEngine as any).paint_get_current_stroke === 'function' ? (renderEngine as any).paint_get_current_stroke() : null;
-      return strokeJson ? JSON.parse(JSON.stringify(strokeJson)) : null;
-    } catch (error) {
-      const msg = error instanceof Error ? error.message : String(error);
-      console.debug('Error getting current stroke (non-fatal):', msg);
-      return null;
-    }
-  }, [renderEngine]);
+  const getCurrentStroke = useCallback(() => null, []);
 
   const startStroke = useCallback((worldX: number, worldY: number, pressure = 1.0) => {
     if (!renderEngine) return false;
-    if (typeof (renderEngine as any).paint_start_stroke === 'function') {
-      return (renderEngine as any).paint_start_stroke(worldX, worldY, pressure);
-    }
-    console.debug('Render engine missing paint_start_stroke()');
-    return false;
+    const ok = renderEngine.paint_start_stroke(worldX, worldY, pressure);
+    if (ok) setPaintState(prev => ({ ...prev, isDrawing: true }));
+    return ok;
   }, [renderEngine]);
 
   const addPoint = useCallback((worldX: number, worldY: number, pressure = 1.0) => {
     if (!renderEngine) return false;
-    if (typeof (renderEngine as any).paint_add_point === 'function') {
-      return (renderEngine as any).paint_add_point(worldX, worldY, pressure);
-    }
-    console.debug('Render engine missing paint_add_point()');
-    return false;
+    return renderEngine.paint_add_point(worldX, worldY, pressure);
   }, [renderEngine]);
 
   const endStroke = useCallback(() => {
     if (!renderEngine) return false;
-    if (typeof (renderEngine as any).paint_end_stroke === 'function') {
-      const result = (renderEngine as any).paint_end_stroke();
-      if (result && ProtocolService.hasProtocol()) {
-        // Get the latest completed stroke and send to server
-        try {
-          const strokes: Record<string, unknown>[] = (renderEngine as any).paint_get_strokes
-            ? JSON.parse(JSON.stringify((renderEngine as any).paint_get_strokes()))
-            : [];
-          const last = strokes[strokes.length - 1];
-          if (last) {
-            const strokeId = (last.id as string) ?? `stroke_${Date.now()}_${Math.random().toString(36).slice(2)}`;
-            ProtocolService.getProtocol().createPaintStroke(strokeId, JSON.stringify(last));
-          }
-        } catch {
-          // non-fatal
-        }
+    const result = renderEngine.paint_end_stroke();
+    setPaintState(prev => ({ ...prev, isDrawing: false }));
+
+    if (result && ProtocolService.hasProtocol()) {
+      const last = readStrokes().at(-1);
+      if (last) {
+        const strokeId = (last.id as string | undefined) ?? `stroke_${Date.now()}_${Math.random().toString(36).slice(2)}`;
+        ProtocolService.getProtocol().createPaintStroke(strokeId, JSON.stringify(last));
       }
-      return result;
     }
-    console.debug('Render engine missing paint_end_stroke()');
-    return false;
-  }, [renderEngine]);
+
+    if (result) refreshPaintState();
+    return result;
+  }, [readStrokes, refreshPaintState, renderEngine]);
 
   const cancelStroke = useCallback(() => {
     if (!renderEngine) return;
-    if (typeof (renderEngine as any).paint_cancel_stroke === 'function') {
-      (renderEngine as any).paint_cancel_stroke();
-    } else {
-      console.debug('Render engine missing paint_cancel_stroke()');
-    }
+    renderEngine.paint_cancel_stroke();
+    setPaintState(prev => ({ ...prev, isDrawing: false }));
   }, [renderEngine]);
 
   const applyBrushPreset = useCallback((preset: BrushPreset) => {
@@ -318,7 +226,7 @@ export function usePaintSystem(
     }));
   }, [renderEngine]);
 
-  const controls: PaintControls = {
+  return [paintState, {
     enterPaintMode,
     exitPaintMode,
     setBrushColor,
@@ -334,12 +242,9 @@ export function usePaintSystem(
     endStroke,
     cancelStroke,
     applyBrushPreset,
-  };
-
-  return [paintState, controls];
+  }];
 }
 
-// Utility hook for mouse-based painting interaction
 export function usePaintInteraction(
   renderEngine: RenderEngine | null,
   paintControls: PaintControls,
@@ -354,13 +259,10 @@ export function usePaintInteraction(
     const rect = canvasElement.getBoundingClientRect();
     const canvasX = event.clientX - rect.left;
     const canvasY = event.clientY - rect.top;
-    
     const [worldX, worldY] = renderEngine.screen_to_world(canvasX, canvasY);
-    
+
     setIsMouseDown(true);
     setIsDragging(false);
-    
-    // Start stroke
     paintControls.startStroke(worldX, worldY, 1.0);
   }, [paintState.isActive, renderEngine, paintControls]);
 
@@ -370,12 +272,9 @@ export function usePaintInteraction(
     const rect = canvasElement.getBoundingClientRect();
     const canvasX = event.clientX - rect.left;
     const canvasY = event.clientY - rect.top;
-    
     const [worldX, worldY] = renderEngine.screen_to_world(canvasX, canvasY);
-    
+
     setIsDragging(true);
-    
-    // Add point to stroke
     paintControls.addPoint(worldX, worldY, 1.0);
   }, [paintState.isActive, isMouseDown, renderEngine, paintControls]);
 
@@ -383,15 +282,11 @@ export function usePaintInteraction(
     if (!paintState.isActive || !isMouseDown) return;
 
     setIsMouseDown(false);
-    
     if (isDragging) {
-      // Complete stroke
       paintControls.endStroke();
     } else {
-      // Single click - cancel stroke
       paintControls.cancelStroke();
     }
-    
     setIsDragging(false);
   }, [paintState.isActive, isMouseDown, isDragging, paintControls]);
 
@@ -413,7 +308,6 @@ export function usePaintInteraction(
   };
 }
 
-// Brush presets utility
 export function useBrushPresets() {
   const runtime = useWasmRuntime();
   const [presets, setPresets] = useState<BrushPreset[]>([]);

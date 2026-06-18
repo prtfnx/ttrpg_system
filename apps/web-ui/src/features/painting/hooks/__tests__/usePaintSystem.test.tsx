@@ -25,8 +25,9 @@ describe('usePaintSystem', () => {
       paint_set_brush_color: vi.fn(),
       paint_set_brush_width: vi.fn(),
       paint_set_blend_mode: vi.fn(),
-      can_undo: vi.fn(() => false),
-      can_redo: vi.fn(() => false),
+      paint_get_strokes: vi.fn(() => []),
+      paint_can_undo: vi.fn(() => false),
+      paint_can_redo: vi.fn(() => false),
     } as unknown as RenderEngine;
 
     const { result, unmount } = renderHook(() => usePaintSystem(renderEngine));

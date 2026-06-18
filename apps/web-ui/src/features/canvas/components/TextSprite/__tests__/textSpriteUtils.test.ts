@@ -53,7 +53,7 @@ class FakeImage {
 const mockRustRenderer = {
   load_texture: vi.fn(),
   add_sprite_to_layer: vi.fn(),
-  delete_sprite: vi.fn(),
+  remove_sprite: vi.fn(),
 };
 const mockProtocol = {
   createSprite: vi.fn(),
@@ -204,9 +204,9 @@ describe('createTextSprite', () => {
 });
 
 describe('deleteTextSprite', () => {
-  it('calls rustRenderManager.delete_sprite', () => {
+  it('removes the sprite from the render engine', () => {
     deleteTextSprite('sprite123');
-    expect(mockRustRenderer.delete_sprite).toHaveBeenCalledWith('sprite123');
+    expect(mockRustRenderer.remove_sprite).toHaveBeenCalledWith('sprite123');
   });
 
   it('removes the sprite through the active protocol', () => {
@@ -221,9 +221,9 @@ describe('deleteTextSprite', () => {
 });
 
 describe('updateTextSprite', () => {
-  it('calls delete_sprite then add_sprite_to_layer (replace flow)', async () => {
+  it('removes then adds the sprite for the replace flow', async () => {
     await updateTextSprite('sprite99', makeConfig(), { x: 0, y: 0 }, 'tokens');
-    expect(mockRustRenderer.delete_sprite).toHaveBeenCalledWith('sprite99');
+    expect(mockRustRenderer.remove_sprite).toHaveBeenCalledWith('sprite99');
     // img.onload triggers via setTimeout
     await new Promise(r => setTimeout(r, 10));
     expect(mockRustRenderer.add_sprite_to_layer).toHaveBeenCalled();

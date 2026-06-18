@@ -13,7 +13,7 @@ vi.mock('@/store', () => ({
 
 function makeRefs(engineOverrides: Record<string, unknown> = {}) {
   const engine = {
-    delete_sprite: vi.fn(),
+    remove_sprite: vi.fn(),
     copy_sprite: vi.fn().mockReturnValue('{"id":"s1"}'),
     screen_to_world: vi.fn().mockReturnValue([10, 20]),
     paste_sprite: vi.fn(),
@@ -81,7 +81,7 @@ describe('handleContextMenuAction', () => {
     expect(protocol.removeSprite).toHaveBeenCalledWith('sprite-1');
   });
 
-  it('delete: falls back to local delete when no protocol', () => {
+  it('delete: removes the local sprite when no protocol is available', () => {
     const { canvasRef, rustRenderManagerRef, engine } = makeRefs();
     const { result } = renderHook(() =>
       useContextMenu({ canvasRef, rustRenderManagerRef, protocol: null })
@@ -90,7 +90,7 @@ describe('handleContextMenuAction', () => {
       result.current.setContextMenu({ visible: true, x: 0, y: 0, spriteId: 'sprite-2' });
     });
     act(() => result.current.handleContextMenuAction('delete'));
-    expect(engine.delete_sprite).toHaveBeenCalledWith('sprite-2');
+    expect(engine.remove_sprite).toHaveBeenCalledWith('sprite-2');
   });
 
   it('copy: stores sprite data in copiedSprite', () => {

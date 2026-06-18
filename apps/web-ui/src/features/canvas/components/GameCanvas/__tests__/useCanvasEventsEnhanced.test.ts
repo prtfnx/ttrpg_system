@@ -27,7 +27,7 @@ function makeEngine(overrides: Record<string, unknown> = {}) {
     handle_right_click: vi.fn().mockReturnValue('sprite-99'),
     get_cursor_type: vi.fn().mockReturnValue('default'),
     screen_to_world: vi.fn().mockReturnValue([50, 80]),
-    delete_sprite: vi.fn(),
+    remove_sprite: vi.fn(),
     copy_sprite: vi.fn().mockReturnValue('{"id":"x"}'),
     paste_sprite: vi.fn(),
     get_sprite_scale: vi.fn().mockReturnValue([1, 1]),

@@ -11,7 +11,6 @@ export { TextSpriteModal } from './components/TextSprite/TextSpriteModal';
 export { TokenConfigModal } from './components/TokenConfigModal';
 export { ToolsPanel } from './components/ToolsPanel';
 
-export { useLayerManager } from './hooks';
 export { useRenderEngine } from './hooks';
 export { useSpriteSyncing } from './hooks';
 

@@ -904,22 +904,8 @@ export class PaintSystem {
         const ret = wasm.paintsystem_can_undo(this.__wbg_ptr);
         return ret !== 0;
     }
-    cancel_stroke() {
-        wasm.paintsystem_cancel_stroke(this.__wbg_ptr);
-    }
     clear_all_strokes() {
         wasm.paintsystem_clear_all_strokes(this.__wbg_ptr);
-    }
-    clear_redo_stack() {
-        wasm.paintsystem_clear_redo_stack(this.__wbg_ptr);
-    }
-    /**
-     * @param {string} table_id
-     */
-    clear_table_paint(table_id) {
-        const ptr0 = passStringToWasm0(table_id, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
-        const len0 = WASM_VECTOR_LEN;
-        wasm.paintsystem_clear_table_paint(this.__wbg_ptr, ptr0, len0);
     }
     /**
      * @returns {boolean}
@@ -939,83 +925,11 @@ export class PaintSystem {
         wasm.paintsystem_exit_paint_mode(this.__wbg_ptr);
     }
     /**
-     * @returns {string[]}
-     */
-    get_all_strokes_data() {
-        const ret = wasm.paintsystem_get_all_strokes_data(this.__wbg_ptr);
-        var v1 = getArrayJsValueFromWasm0(ret[0], ret[1]).slice();
-        wasm.__wbindgen_free(ret[0], ret[1] * 4, 4);
-        return v1;
-    }
-    /**
      * @returns {any}
      */
     get_all_strokes_json() {
         const ret = wasm.paintsystem_get_all_strokes_json(this.__wbg_ptr);
         return ret;
-    }
-    /**
-     * @returns {Float32Array}
-     */
-    get_brush_color() {
-        const ret = wasm.paintsystem_get_brush_color(this.__wbg_ptr);
-        var v1 = getArrayF32FromWasm0(ret[0], ret[1]).slice();
-        wasm.__wbindgen_free(ret[0], ret[1] * 4, 4);
-        return v1;
-    }
-    /**
-     * @returns {number}
-     */
-    get_brush_width() {
-        const ret = wasm.paintsystem_get_brush_width(this.__wbg_ptr);
-        return ret;
-    }
-    /**
-     * @returns {any}
-     */
-    get_current_stroke_json() {
-        const ret = wasm.paintsystem_get_current_stroke_json(this.__wbg_ptr);
-        return ret;
-    }
-    /**
-     * @returns {string | undefined}
-     */
-    get_current_table() {
-        const ret = wasm.paintsystem_get_current_table(this.__wbg_ptr);
-        let v1;
-        if (ret[0] !== 0) {
-            v1 = getStringFromWasm0(ret[0], ret[1]).slice();
-            wasm.__wbindgen_free(ret[0], ret[1] * 1, 1);
-        }
-        return v1;
-    }
-    /**
-     * @returns {number}
-     */
-    get_stroke_count() {
-        const ret = wasm.paintsystem_get_stroke_count(this.__wbg_ptr);
-        return ret >>> 0;
-    }
-    /**
-     * @returns {any}
-     */
-    get_strokes_data_json() {
-        const ret = wasm.paintsystem_get_strokes_data_json(this.__wbg_ptr);
-        return ret;
-    }
-    /**
-     * @returns {boolean}
-     */
-    is_drawing() {
-        const ret = wasm.paintsystem_is_drawing(this.__wbg_ptr);
-        return ret !== 0;
-    }
-    /**
-     * @returns {boolean}
-     */
-    is_paint_mode() {
-        const ret = wasm.paintsystem_is_paint_mode(this.__wbg_ptr);
-        return ret !== 0;
     }
     /**
      * Bulk-load a JSON array of DrawStroke objects, replacing all existing strokes for the current table.
@@ -1035,15 +949,6 @@ export class PaintSystem {
         return this;
     }
     /**
-     * @param {string} event_type
-     * @param {Function} callback
-     */
-    on_stroke_event(event_type, callback) {
-        const ptr0 = passStringToWasm0(event_type, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
-        const len0 = WASM_VECTOR_LEN;
-        wasm.paintsystem_on_stroke_event(this.__wbg_ptr, ptr0, len0, callback);
-    }
-    /**
      * @returns {boolean}
      */
     redo_last_stroke() {
@@ -1060,14 +965,6 @@ export class PaintSystem {
         const len0 = WASM_VECTOR_LEN;
         const ret = wasm.paintsystem_remove_stroke_by_id(this.__wbg_ptr, ptr0, len0);
         return ret !== 0;
-    }
-    /**
-     * @param {string} event_type
-     */
-    remove_stroke_event(event_type) {
-        const ptr0 = passStringToWasm0(event_type, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
-        const len0 = WASM_VECTOR_LEN;
-        wasm.paintsystem_remove_stroke_event(this.__wbg_ptr, ptr0, len0);
     }
     /**
      * @param {string} blend_mode
@@ -1458,95 +1355,6 @@ export class RenderEngine {
         return v2;
     }
     /**
-     * @param {number} x
-     * @param {number} y
-     * @param {number} radius
-     * @param {string} layer_name
-     * @param {string} color
-     * @param {number} opacity
-     * @param {boolean} filled
-     * @returns {string}
-     */
-    create_circle_sprite_with_options(x, y, radius, layer_name, color, opacity, filled) {
-        let deferred3_0;
-        let deferred3_1;
-        try {
-            const ptr0 = passStringToWasm0(layer_name, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
-            const len0 = WASM_VECTOR_LEN;
-            const ptr1 = passStringToWasm0(color, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
-            const len1 = WASM_VECTOR_LEN;
-            const ret = wasm.renderengine_create_circle_sprite_with_options(this.__wbg_ptr, x, y, radius, ptr0, len0, ptr1, len1, opacity, filled);
-            deferred3_0 = ret[0];
-            deferred3_1 = ret[1];
-            return getStringFromWasm0(ret[0], ret[1]);
-        } finally {
-            wasm.__wbindgen_free(deferred3_0, deferred3_1, 1);
-        }
-    }
-    /**
-     * @param {number} start_x
-     * @param {number} start_y
-     * @param {number} end_x
-     * @param {number} end_y
-     * @param {string} layer_name
-     * @param {string} color
-     * @param {number} opacity
-     * @returns {string}
-     */
-    create_line_sprite_with_options(start_x, start_y, end_x, end_y, layer_name, color, opacity) {
-        let deferred3_0;
-        let deferred3_1;
-        try {
-            const ptr0 = passStringToWasm0(layer_name, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
-            const len0 = WASM_VECTOR_LEN;
-            const ptr1 = passStringToWasm0(color, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
-            const len1 = WASM_VECTOR_LEN;
-            const ret = wasm.renderengine_create_line_sprite_with_options(this.__wbg_ptr, start_x, start_y, end_x, end_y, ptr0, len0, ptr1, len1, opacity);
-            deferred3_0 = ret[0];
-            deferred3_1 = ret[1];
-            return getStringFromWasm0(ret[0], ret[1]);
-        } finally {
-            wasm.__wbindgen_free(deferred3_0, deferred3_1, 1);
-        }
-    }
-    /**
-     * @param {number} x
-     * @param {number} y
-     * @param {number} width
-     * @param {number} height
-     * @param {string} layer_name
-     * @param {string} color
-     * @param {number} opacity
-     * @param {boolean} filled
-     * @returns {string}
-     */
-    create_rectangle_sprite_with_options(x, y, width, height, layer_name, color, opacity, filled) {
-        let deferred3_0;
-        let deferred3_1;
-        try {
-            const ptr0 = passStringToWasm0(layer_name, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
-            const len0 = WASM_VECTOR_LEN;
-            const ptr1 = passStringToWasm0(color, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
-            const len1 = WASM_VECTOR_LEN;
-            const ret = wasm.renderengine_create_rectangle_sprite_with_options(this.__wbg_ptr, x, y, width, height, ptr0, len0, ptr1, len1, opacity, filled);
-            deferred3_0 = ret[0];
-            deferred3_1 = ret[1];
-            return getStringFromWasm0(ret[0], ret[1]);
-        } finally {
-            wasm.__wbindgen_free(deferred3_0, deferred3_1, 1);
-        }
-    }
-    /**
-     * @param {string} sprite_id
-     * @returns {boolean}
-     */
-    delete_sprite(sprite_id) {
-        const ptr0 = passStringToWasm0(sprite_id, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
-        const len0 = WASM_VECTOR_LEN;
-        const ret = wasm.renderengine_delete_sprite(this.__wbg_ptr, ptr0, len0);
-        return ret !== 0;
-    }
-    /**
      * @returns {string | undefined}
      */
     get_active_table_id() {
@@ -1818,9 +1626,19 @@ export class RenderEngine {
     /**
      * @returns {boolean}
      */
+    paint_can_redo() {
+        const ret = wasm.renderengine_paint_can_redo(this.__wbg_ptr);
+        return ret !== 0;
+    }
+    /**
+     * @returns {boolean}
+     */
     paint_can_undo() {
         const ret = wasm.renderengine_paint_can_undo(this.__wbg_ptr);
         return ret !== 0;
+    }
+    paint_cancel_stroke() {
+        wasm.renderengine_paint_cancel_stroke(this.__wbg_ptr);
     }
     paint_clear_all() {
         wasm.renderengine_paint_clear_all(this.__wbg_ptr);
@@ -1857,6 +1675,13 @@ export class RenderEngine {
         const ptr0 = passStringToWasm0(strokes_json, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
         const len0 = WASM_VECTOR_LEN;
         const ret = wasm.renderengine_paint_load_strokes(this.__wbg_ptr, ptr0, len0);
+        return ret !== 0;
+    }
+    /**
+     * @returns {boolean}
+     */
+    paint_redo_stroke() {
+        const ret = wasm.renderengine_paint_redo_stroke(this.__wbg_ptr);
         return ret !== 0;
     }
     /**
@@ -3741,32 +3566,32 @@ function __wbg_get_imports() {
             return ret;
         },
         __wbindgen_cast_0000000000000001: function(arg0, arg1) {
-            // Cast intrinsic for `Closure(Closure { owned: true, function: Function { arguments: [Externref], shim_idx: 201, ret: Result(Unit), inner_ret: Some(Result(Unit)) }, mutable: true }) -> Externref`.
+            // Cast intrinsic for `Closure(Closure { owned: true, function: Function { arguments: [Externref], shim_idx: 200, ret: Result(Unit), inner_ret: Some(Result(Unit)) }, mutable: true }) -> Externref`.
             const ret = makeMutClosure(arg0, arg1, wasm_bindgen__convert__closures_____invoke__h379eeb6857ff453f);
             return ret;
         },
         __wbindgen_cast_0000000000000002: function(arg0, arg1) {
-            // Cast intrinsic for `Closure(Closure { owned: true, function: Function { arguments: [NamedExternref("CloseEvent")], shim_idx: 115, ret: Unit, inner_ret: Some(Unit) }, mutable: true }) -> Externref`.
+            // Cast intrinsic for `Closure(Closure { owned: true, function: Function { arguments: [NamedExternref("CloseEvent")], shim_idx: 86, ret: Unit, inner_ret: Some(Unit) }, mutable: true }) -> Externref`.
             const ret = makeMutClosure(arg0, arg1, wasm_bindgen__convert__closures_____invoke__h46355d3965ce5f88);
             return ret;
         },
         __wbindgen_cast_0000000000000003: function(arg0, arg1) {
-            // Cast intrinsic for `Closure(Closure { owned: true, function: Function { arguments: [NamedExternref("ErrorEvent")], shim_idx: 115, ret: Unit, inner_ret: Some(Unit) }, mutable: true }) -> Externref`.
+            // Cast intrinsic for `Closure(Closure { owned: true, function: Function { arguments: [NamedExternref("ErrorEvent")], shim_idx: 86, ret: Unit, inner_ret: Some(Unit) }, mutable: true }) -> Externref`.
             const ret = makeMutClosure(arg0, arg1, wasm_bindgen__convert__closures_____invoke__h46355d3965ce5f88_2);
             return ret;
         },
         __wbindgen_cast_0000000000000004: function(arg0, arg1) {
-            // Cast intrinsic for `Closure(Closure { owned: true, function: Function { arguments: [NamedExternref("Event")], shim_idx: 115, ret: Unit, inner_ret: Some(Unit) }, mutable: true }) -> Externref`.
+            // Cast intrinsic for `Closure(Closure { owned: true, function: Function { arguments: [NamedExternref("Event")], shim_idx: 86, ret: Unit, inner_ret: Some(Unit) }, mutable: true }) -> Externref`.
             const ret = makeMutClosure(arg0, arg1, wasm_bindgen__convert__closures_____invoke__h46355d3965ce5f88_3);
             return ret;
         },
         __wbindgen_cast_0000000000000005: function(arg0, arg1) {
-            // Cast intrinsic for `Closure(Closure { owned: true, function: Function { arguments: [NamedExternref("MessageEvent")], shim_idx: 115, ret: Unit, inner_ret: Some(Unit) }, mutable: true }) -> Externref`.
+            // Cast intrinsic for `Closure(Closure { owned: true, function: Function { arguments: [NamedExternref("MessageEvent")], shim_idx: 86, ret: Unit, inner_ret: Some(Unit) }, mutable: true }) -> Externref`.
             const ret = makeMutClosure(arg0, arg1, wasm_bindgen__convert__closures_____invoke__h46355d3965ce5f88_4);
             return ret;
         },
         __wbindgen_cast_0000000000000006: function(arg0, arg1) {
-            // Cast intrinsic for `Closure(Closure { owned: true, function: Function { arguments: [], shim_idx: 114, ret: Unit, inner_ret: Some(Unit) }, mutable: true }) -> Externref`.
+            // Cast intrinsic for `Closure(Closure { owned: true, function: Function { arguments: [], shim_idx: 85, ret: Unit, inner_ret: Some(Unit) }, mutable: true }) -> Externref`.
             const ret = makeMutClosure(arg0, arg1, wasm_bindgen__convert__closures_____invoke__h933b87fda231a098);
             return ret;
         },

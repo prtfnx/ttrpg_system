@@ -27,9 +27,6 @@ pub struct PaintSystem {
     
     // Drawing state
     last_point: Option<Vec2>,
-    
-    // Event callbacks
-    stroke_callbacks: HashMap<String, js_sys::Function>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -89,7 +86,6 @@ impl PaintSystem {
             canvas_height: 600.0,
             paint_mode: false,
             last_point: None,
-            stroke_callbacks: HashMap::new(),
         }
     }
     
@@ -106,23 +102,6 @@ impl PaintSystem {
             web_sys::console::log_1(&format!("Initialized paint storage for table: {}", table_id).into());
         } else {
             web_sys::console::log_1(&format!("Switched to table: {}", table_id).into());
-        }
-    }
-    
-    #[wasm_bindgen]
-    pub fn get_current_table(&self) -> Option<String> {
-        self.current_table_id.clone()
-    }
-    
-    #[wasm_bindgen]
-    pub fn clear_table_paint(&mut self, table_id: &str) {
-        let table_id_string = table_id.to_string();
-        if let Some(strokes) = self.table_strokes.get_mut(&table_id_string) {
-            strokes.clear();
-            web_sys::console::log_1(&format!("Cleared paint for table: {}", table_id).into());
-        }
-        if let Some(redo_stack) = self.table_redo_stacks.get_mut(&table_id_string) {
-            redo_stack.clear();
         }
     }
     
@@ -171,11 +150,6 @@ impl PaintSystem {
         web_sys::console::log_1(&"Exited paint mode".into());
     }
     
-    #[wasm_bindgen]
-    pub fn is_paint_mode(&self) -> bool {
-        self.paint_mode
-    }
-    
     // Brush settings
     #[wasm_bindgen]
     pub fn set_brush_color(&mut self, r: f32, g: f32, b: f32, a: f32) {
@@ -198,16 +172,6 @@ impl PaintSystem {
         };
     }
     
-    #[wasm_bindgen]
-    pub fn get_brush_color(&self) -> Vec<f32> {
-        self.current_color.to_vec()
-    }
-    
-    #[wasm_bindgen]
-    pub fn get_brush_width(&self) -> f32 {
-        self.current_width
-    }
-    
     // Drawing operations
     #[wasm_bindgen]
     pub fn start_stroke(&mut self, world_x: f32, world_y: f32, pressure: f32) -> bool {
@@ -223,7 +187,6 @@ impl PaintSystem {
         self.is_drawing = true;
         self.last_point = Some(Vec2::new(world_x, world_y));
         
-        self.emit_stroke_started();
         true
     }
     
@@ -255,13 +218,11 @@ impl PaintSystem {
                     
                     stroke.add_point(world_x, world_y, pressure);
                     self.last_point = Some(current);
-                    self.emit_stroke_updated();
                     return true;
                 }
             } else {
                 stroke.add_point(world_x, world_y, pressure);
                 self.last_point = Some(current);
-                self.emit_stroke_updated();
                 return true;
             }
         }
@@ -283,7 +244,6 @@ impl PaintSystem {
                     if let Some(redo_stack) = self.get_current_redo_stack_mut() {
                         redo_stack.clear();
                     }
-                    self.emit_stroke_completed();
                 } else {
                     web_sys::console::warn_1(&"No current table set for paint stroke".into());
                 }
@@ -293,14 +253,6 @@ impl PaintSystem {
         self.is_drawing = false;
         self.last_point = None;
         true
-    }
-    
-    #[wasm_bindgen]
-    pub fn cancel_stroke(&mut self) {
-        self.current_stroke = None;
-        self.is_drawing = false;
-        self.last_point = None;
-        self.emit_stroke_cancelled();
     }
     
     // Stroke management
@@ -316,7 +268,6 @@ impl PaintSystem {
         self.current_stroke = None;
         self.is_drawing = false;
         self.last_point = None;
-        self.emit_canvas_cleared();
     }
     
     #[wasm_bindgen]
@@ -327,7 +278,6 @@ impl PaintSystem {
                 if let Some(redo_stack) = self.get_current_redo_stack_mut() {
                     redo_stack.push(stroke);
                 }
-                self.emit_stroke_undone();
                 return true;
             }
         }
@@ -342,7 +292,6 @@ impl PaintSystem {
                 if let Some(strokes) = self.get_current_strokes_mut() {
                     strokes.push(stroke);
                 }
-                self.emit_stroke_redone();
                 return true;
             }
         }
@@ -367,28 +316,6 @@ impl PaintSystem {
         }
         false
     }
-    
-    #[wasm_bindgen]
-    pub fn clear_redo_stack(&mut self) {
-        if let Some(redo_stack) = self.get_current_redo_stack_mut() {
-            redo_stack.clear();
-        }
-    }
-    
-    #[wasm_bindgen]
-    pub fn get_stroke_count(&self) -> usize {
-        if let Some(strokes) = self.get_current_strokes() {
-            strokes.len()
-        } else {
-            0
-        }
-    }
-    
-    #[wasm_bindgen]
-    pub fn is_drawing(&self) -> bool {
-        self.is_drawing
-    }
-    
     // Stroke data access for rendering
     #[wasm_bindgen]
     pub fn get_all_strokes_json(&self) -> JsValue {
@@ -398,96 +325,6 @@ impl PaintSystem {
             serde_wasm_bindgen::to_value(&Vec::<DrawStroke>::new()).unwrap_or(JsValue::NULL)
         }
     }
-    
-    #[wasm_bindgen]
-    pub fn get_current_stroke_json(&self) -> JsValue {
-        if let Some(ref stroke) = self.current_stroke {
-            serde_wasm_bindgen::to_value(stroke).unwrap_or(JsValue::NULL)
-        } else {
-            JsValue::NULL
-        }
-    }
-    
-    // Event system
-    #[wasm_bindgen]
-    pub fn on_stroke_event(&mut self, event_type: &str, callback: js_sys::Function) {
-        self.stroke_callbacks.insert(event_type.to_string(), callback);
-    }
-    
-    #[wasm_bindgen]
-    pub fn remove_stroke_event(&mut self, event_type: &str) {
-        self.stroke_callbacks.remove(event_type);
-    }
-    
-    // Get stroke data for sprite conversion
-    pub fn get_all_strokes_data(&self) -> Vec<String> {
-        if let Some(strokes) = self.get_current_strokes() {
-            strokes.iter().map(|stroke| {
-                serde_json::to_string(stroke).unwrap_or_else(|_| {
-                    format!("stroke_{}_{}_{}_{}", 
-                        stroke.id, 
-                        stroke.points.len(), 
-                        stroke.color[0], 
-                        stroke.width)
-                })
-            }).collect()
-        } else {
-            Vec::new()
-        }
-    }
-    
-    // Get stroke bounds for sprite positioning (internal use only)
-    fn get_stroke_bounds(&self, stroke: &DrawStroke) -> (Vec2, Vec2) {
-        if stroke.points.is_empty() {
-            return (Vec2::new(0.0, 0.0), Vec2::new(0.0, 0.0));
-        }
-        
-        let mut min_x = stroke.points[0].x;
-        let mut min_y = stroke.points[0].y;
-        let mut max_x = stroke.points[0].x;
-        let mut max_y = stroke.points[0].y;
-        
-        for point in &stroke.points {
-            min_x = min_x.min(point.x);
-            min_y = min_y.min(point.y);
-            max_x = max_x.max(point.x);
-            max_y = max_y.max(point.y);
-        }
-        
-        // Add padding for stroke width
-        let padding = stroke.width * 0.5;
-        (
-            Vec2::new(min_x - padding, min_y - padding),
-            Vec2::new(max_x + padding, max_y + padding)
-        )
-    }
-    
-
-    
-    // WASM-safe method to get stroke data for sprite conversion
-    #[wasm_bindgen]
-    pub fn get_strokes_data_json(&self) -> JsValue {
-        if let Some(strokes) = self.get_current_strokes() {
-            let stroke_data: Vec<_> = strokes.iter().map(|stroke| {
-                let (min, max) = self.get_stroke_bounds(stroke);
-                serde_json::json!({
-                    "id": stroke.id,
-                    "min_x": min.x,
-                    "min_y": min.y,
-                    "max_x": max.x,
-                    "max_y": max.y,
-                    "color": stroke.color,
-                    "width": stroke.width,
-                    "points": stroke.points
-                })
-            }).collect();
-            
-            serde_wasm_bindgen::to_value(&stroke_data).unwrap_or(JsValue::NULL)
-        } else {
-            serde_wasm_bindgen::to_value(&Vec::<serde_json::Value>::new()).unwrap_or(JsValue::NULL)
-        }
-    }
-
     /// Add a stroke from a remote client (already-serialized JSON blob from server).
     #[wasm_bindgen]
     pub fn add_remote_stroke_json(&mut self, stroke_json: &str) -> bool {
@@ -541,6 +378,12 @@ impl PaintSystem {
 }
 
 impl PaintSystem {
+    pub(crate) fn cancel_stroke(&mut self) {
+        self.current_stroke = None;
+        self.is_drawing = false;
+        self.last_point = None;
+    }
+
     // Rendering helpers (called from render engine)
     pub fn render_strokes(&self, renderer: &WebGLRenderer) -> Result<(), JsValue> {
         // Render all completed strokes for current table
@@ -579,49 +422,6 @@ impl PaintSystem {
         }
         
         Ok(())
-    }
-    
-    // Event emission helpers
-    fn emit_stroke_started(&self) {
-        if let Some(callback) = self.stroke_callbacks.get("stroke_started") {
-            let _ = callback.call0(&JsValue::NULL);
-        }
-    }
-    
-    fn emit_stroke_updated(&self) {
-        if let Some(callback) = self.stroke_callbacks.get("stroke_updated") {
-            let _ = callback.call0(&JsValue::NULL);
-        }
-    }
-    
-    fn emit_stroke_completed(&self) {
-        if let Some(callback) = self.stroke_callbacks.get("stroke_completed") {
-            let _ = callback.call0(&JsValue::NULL);
-        }
-    }
-    
-    fn emit_stroke_cancelled(&self) {
-        if let Some(callback) = self.stroke_callbacks.get("stroke_cancelled") {
-            let _ = callback.call0(&JsValue::NULL);
-        }
-    }
-    
-    fn emit_stroke_undone(&self) {
-        if let Some(callback) = self.stroke_callbacks.get("stroke_undone") {
-            let _ = callback.call0(&JsValue::NULL);
-        }
-    }
-    
-    fn emit_stroke_redone(&self) {
-        if let Some(callback) = self.stroke_callbacks.get("stroke_redone") {
-            let _ = callback.call0(&JsValue::NULL);
-        }
-    }
-    
-    fn emit_canvas_cleared(&self) {
-        if let Some(callback) = self.stroke_callbacks.get("canvas_cleared") {
-            let _ = callback.call0(&JsValue::NULL);
-        }
     }
 }
 

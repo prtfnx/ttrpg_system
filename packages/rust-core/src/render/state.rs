@@ -411,7 +411,12 @@ impl RenderEngine {
     pub fn paint_end_stroke(&mut self) -> bool {
         self.paint.end_stroke()
     }
+
     #[wasm_bindgen]
+    pub fn paint_cancel_stroke(&mut self) {
+        self.paint.cancel_stroke();
+    }
+
     #[wasm_bindgen]
     pub fn paint_clear_all(&mut self) {
         self.paint.clear_all_strokes();
@@ -422,6 +427,11 @@ impl RenderEngine {
     }
 
     #[wasm_bindgen]
+    pub fn paint_redo_stroke(&mut self) -> bool {
+        self.paint.redo_last_stroke()
+    }
+
+    #[wasm_bindgen]
     pub fn paint_get_strokes(&self) -> wasm_bindgen::JsValue {
         self.paint.get_all_strokes_json()
     }
@@ -429,6 +439,11 @@ impl RenderEngine {
     #[wasm_bindgen]
     pub fn paint_can_undo(&self) -> bool {
         self.paint.can_undo()
+    }
+
+    #[wasm_bindgen]
+    pub fn paint_can_redo(&self) -> bool {
+        self.paint.can_redo()
     }
 
     #[wasm_bindgen]

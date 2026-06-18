@@ -131,13 +131,10 @@ export function createMockRenderEngine() {
     set_layer_visibility: vi.fn().mockReturnValue(true),
     set_layer_blend_mode: vi.fn().mockReturnValue(true),
     set_layer_color: vi.fn().mockReturnValue(true),
-    get_layer_settings: vi.fn().mockReturnValue(null),
     get_layer_names: vi.fn().mockReturnValue([]),
     get_layer_sprite_count: vi.fn().mockReturnValue(0),
-    set_layer_z_order: vi.fn().mockReturnValue(true),
     clear_layer: vi.fn().mockReturnValue(true),
     clear_all_sprites: vi.fn(),
-    set_layer_visible: vi.fn().mockReturnValue(true),
 
     // Paint system
     paint_set_current_table: vi.fn(),

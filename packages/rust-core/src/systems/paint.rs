@@ -627,17 +627,14 @@ impl PaintSystem {
 
 // Preset brush configurations
 #[derive(Debug, Clone, Serialize, Deserialize)]
-#[wasm_bindgen]
-pub struct BrushPreset {
+struct BrushPreset {
     color: [f32; 4],
     width: f32,
     blend_mode: BlendMode,
 }
 
-#[wasm_bindgen]
 impl BrushPreset {
-    #[wasm_bindgen(constructor)]
-    pub fn new(r: f32, g: f32, b: f32, a: f32, width: f32, blend_mode: &str) -> Self {
+    fn new(r: f32, g: f32, b: f32, a: f32, width: f32, blend_mode: &str) -> Self {
         let blend = match blend_mode {
             "alpha" => BlendMode::Alpha,
             "additive" => BlendMode::Additive,
@@ -651,20 +648,6 @@ impl BrushPreset {
             width,
             blend_mode: blend,
         }
-    }
-    
-    #[wasm_bindgen]
-    pub fn apply_to_paint_system(&self, paint_system: &mut PaintSystem) {
-        paint_system.set_brush_color(self.color[0], self.color[1], self.color[2], self.color[3]);
-        paint_system.set_brush_width(self.width);
-        
-        let blend_str = match self.blend_mode {
-            BlendMode::Alpha => "alpha",
-            BlendMode::Additive => "additive",
-            BlendMode::Modulate => "modulate",
-            BlendMode::Multiply => "multiply",
-        };
-        paint_system.set_blend_mode(blend_str);
     }
 }
 

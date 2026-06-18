@@ -192,7 +192,7 @@ pub use net::client::NetworkClient;
 #[cfg(target_arch = "wasm32")]
 pub use actions::ActionsClient;
 #[cfg(target_arch = "wasm32")]
-pub use systems::paint::{PaintSystem, BrushPreset, create_default_brush_presets};
+pub use systems::paint::{PaintSystem, create_default_brush_presets};
 #[cfg(target_arch = "wasm32")]
 pub use net::asset_manager::{AssetManager, AssetInfo, CacheStats};
 pub use table_manager::TableManager;

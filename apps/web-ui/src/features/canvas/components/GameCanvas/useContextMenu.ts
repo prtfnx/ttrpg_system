@@ -63,7 +63,7 @@ export const useContextMenu = ({ canvasRef, rustRenderManagerRef, protocol }: Us
             }
           } else if (spriteId) {
             console.warn(' GameCanvas: Protocol not available, deleting sprite locally only');
-            rustRenderManagerRef.current.delete_sprite(spriteId);
+            rustRenderManagerRef.current.remove_sprite(spriteId);
           }
           break;
         case 'copy':

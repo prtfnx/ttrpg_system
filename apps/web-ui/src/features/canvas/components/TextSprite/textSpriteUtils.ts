@@ -47,7 +47,11 @@ export interface RenderResult {
   height: number;
 }
 
-type RustRenderer = { load_texture?: (id: string, img: HTMLImageElement) => void; add_sprite_to_layer?: (layer: string, sprite: Record<string, unknown>) => void; delete_sprite?: (id: string) => void };
+type RustRenderer = {
+  load_texture?: (id: string, img: HTMLImageElement) => void;
+  add_sprite_to_layer?: (layer: string, sprite: Record<string, unknown>) => void;
+  remove_sprite: (id: string) => void;
+};
 function getRustRenderer(): RustRenderer | undefined {
   return getCurrentWasmRuntime()?.getRenderEngine() as RustRenderer | undefined;
 }
@@ -335,9 +339,7 @@ export async function updateTextSprite(
 ): Promise<void> {
   try {
     const rm = getRustRenderer();
-    if (rm?.delete_sprite) {
-      rm.delete_sprite(spriteId);
-    }
+    rm?.remove_sprite(spriteId);
 
     // Create updated sprite with same ID
     const renderResult = await renderTextSprite(config, spriteId);
@@ -398,9 +400,7 @@ export async function updateTextSprite(
 export function deleteTextSprite(spriteId: string): void {
   try {
     const rm3 = getRustRenderer();
-    if (rm3?.delete_sprite) {
-      rm3.delete_sprite(spriteId);
-    }
+    rm3?.remove_sprite(spriteId);
 
     // Send delete to server
     if (ProtocolService.hasProtocol()) {

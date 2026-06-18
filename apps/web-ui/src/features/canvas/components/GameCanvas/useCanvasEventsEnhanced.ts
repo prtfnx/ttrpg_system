@@ -103,7 +103,7 @@ export const useCanvasEventsEnhanced = ({
           if (protocol) {
             protocol.removeSprite(spriteId);
           } else {
-            engine.delete_sprite(spriteId);
+            engine.remove_sprite(spriteId);
           }
         });
         updateInputContext();

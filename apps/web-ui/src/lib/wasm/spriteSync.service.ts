@@ -197,7 +197,7 @@ export class SpriteSyncService {
     try {
       const engine = this.getEngine();
       if (!engine) return;
-      if (engine.set_sprite_position(spriteId, position.x, position.y)) return;
+      if (engine.update_sprite_position(spriteId, position.x, position.y)) return;
       const sprite = useGameStore.getState().sprites.find((s) => s.id === spriteId);
       const isLight = sprite?.layer === 'light' || sprite?.texture === '__LIGHT__';
       if (isLight) {
@@ -621,7 +621,7 @@ export class SpriteSyncService {
       const engine = this.getEngine();
       if (!engine) return;
       const sx = scaleX ?? 1.0, sy = scaleY ?? 1.0;
-      engine.set_sprite_scale(String(spriteId), Number(sx), Number(sy));
+      engine.update_sprite_scale(String(spriteId), Number(sx), Number(sy));
       engine.render();
       requestAnimationFrame(() => engine.render());
     } catch (err) {

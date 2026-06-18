@@ -350,7 +350,6 @@ export class RenderEngine {
     set_layer_color(layer_name: string, r: number, g: number, b: number): boolean;
     set_layer_opacity(layer_name: string, opacity: number): boolean;
     set_layer_visibility(layer_name: string, visible: boolean): boolean;
-    set_layer_visible(layer_name: string, visible: boolean): boolean;
     set_light_color(id: string, r: number, g: number, b: number, a: number): void;
     set_light_intensity(id: string, intensity: number): void;
     set_light_radius(id: string, radius: number): void;
@@ -694,7 +693,6 @@ export interface InitOutput {
     readonly renderengine_set_layer_color: (a: number, b: number, c: number, d: number, e: number, f: number) => number;
     readonly renderengine_set_layer_opacity: (a: number, b: number, c: number, d: number) => number;
     readonly renderengine_set_layer_visibility: (a: number, b: number, c: number, d: number) => number;
-    readonly renderengine_set_layer_visible: (a: number, b: number, c: number, d: number) => number;
     readonly renderengine_set_light_color: (a: number, b: number, c: number, d: number, e: number, f: number, g: number) => void;
     readonly renderengine_set_light_intensity: (a: number, b: number, c: number, d: number) => void;
     readonly renderengine_set_light_radius: (a: number, b: number, c: number, d: number) => void;

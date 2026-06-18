@@ -84,7 +84,6 @@ export const renderengine_set_layer_blend_mode: (a: number, b: number, c: number
 export const renderengine_set_layer_color: (a: number, b: number, c: number, d: number, e: number, f: number) => number;
 export const renderengine_set_layer_opacity: (a: number, b: number, c: number, d: number) => number;
 export const renderengine_set_layer_visibility: (a: number, b: number, c: number, d: number) => number;
-export const renderengine_set_layer_visible: (a: number, b: number, c: number, d: number) => number;
 export const renderengine_set_light_color: (a: number, b: number, c: number, d: number, e: number, f: number, g: number) => void;
 export const renderengine_set_light_intensity: (a: number, b: number, c: number, d: number) => void;
 export const renderengine_set_light_radius: (a: number, b: number, c: number, d: number) => void;

@@ -402,26 +402,4 @@ impl RenderEngine {
         self.input.clear_selection();
     }
 
-    /// Enhanced mouse down handler with modifier key support
-    pub fn handle_mouse_down_with_modifiers(&mut self, screen_x: f64, screen_y: f64, ctrl_key: bool, shift_key: bool) -> Option<String> {
-        let world_coords = self.screen_to_world(screen_x as f32, screen_y as f32);
-        let world_pos = Vec2::new(world_coords[0] as f32, world_coords[1] as f32);
-        
-        if ctrl_key {
-            if let Some(sprite_id) = self.find_sprite_at_position(world_pos) {
-                if self.input.is_sprite_selected(&sprite_id) {
-                    self.input.remove_from_selection(&sprite_id);
-                } else {
-                    self.input.add_to_selection(sprite_id.clone());
-                }
-                return Some(sprite_id);
-            }
-        } else if let Some(sprite_id) = self.find_sprite_at_position(world_pos) {
-            self.input.set_single_selection(sprite_id.clone());
-            return Some(sprite_id);
-        } else if !shift_key {
-            self.input.start_area_selection(world_pos);
-        }
-        None
-    }
 }

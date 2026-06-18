@@ -101,15 +101,6 @@ impl RenderEngine {
         self.find_sprite(sprite_id).map(|sprite| vec![sprite.scale_x as f32, sprite.scale_y as f32])
     }
 
-    /// Get sprite data for network synchronization
-    pub fn get_sprite_data(&self, sprite_id: &str) -> JsValue {
-        if let Some(sprite) = self.find_sprite(sprite_id) {
-            serde_wasm_bindgen::to_value(sprite).unwrap_or(JsValue::NULL)
-        } else {
-            JsValue::NULL
-        }
-    }
-
     // Texture management
     #[wasm_bindgen]
     pub fn load_texture(&mut self, name: &str, image: &HtmlImageElement) -> Result<(), JsValue> {

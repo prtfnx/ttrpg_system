@@ -327,7 +327,4 @@ impl RenderEngine {
         self.layer_manager.find_sprite(sprite_id).map(|(sprite, _)| sprite)
     }
 
-    fn find_sprite_at_position(&self, world_pos: Vec2) -> Option<String> {
-        self.layer_manager.find_sprite_for_right_click(world_pos)
-    }
 }

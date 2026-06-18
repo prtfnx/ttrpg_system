@@ -376,7 +376,7 @@ describe('ToolsPanel — PlayerLayerControls (player role)', () => {
 
   it('clicking Toggle Map layer calls setLayerVisibility and rustRenderManager', () => {
     const setLayerVisibility = vi.fn();
-    const set_layer_visible = vi.fn();
+    const set_layer_visibility = vi.fn();
     vi.mocked(useGameStore).mockImplementation(
       ((sel?: (s: typeof baseStoreState) => unknown) => {
         const state = { ...baseStoreState, setLayerVisibility };
@@ -387,14 +387,14 @@ describe('ToolsPanel — PlayerLayerControls (player role)', () => {
       <ToolsPanel userInfo={makeUser('player')} />,
       createMockWasmRuntime({
         getRenderEngine: vi.fn(() => ({
-          set_layer_visible,
+          set_layer_visibility,
           set_input_mode_select: vi.fn(),
         }) as never),
       }),
     );
     fireEvent.click(screen.getByRole('button', { name: 'Toggle Map layer' }));
     expect(setLayerVisibility).toHaveBeenCalledWith('map', false);
-    expect(set_layer_visible).toHaveBeenCalledWith('map', false);
+    expect(set_layer_visibility).toHaveBeenCalledWith('map', false);
   });
 });
 

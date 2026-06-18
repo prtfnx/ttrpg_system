@@ -36,7 +36,7 @@ function PlayerLayerControls() {
   const toggle = (id: string) => {
     const next = !(layerVisibility[id] ?? true);
     setLayerVisibility(id, next);
-    renderEngine?.set_layer_visible?.(id, next);
+    renderEngine?.set_layer_visibility(id, next);
   };
 
   return (

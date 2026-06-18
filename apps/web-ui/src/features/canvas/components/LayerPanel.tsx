@@ -208,7 +208,7 @@ export function LayerPanel({ className, style: _style, id, initialLayers, ...oth
     // Sync with WASM
     if (renderEngine) {
       try {
-        renderEngine.set_layer_visible(layerId, newVisibility);
+        renderEngine.set_layer_visibility(layerId, newVisibility);
         console.log(` LayerPanel: Synced layer visibility to WASM: ${layerId} = ${newVisibility}`);
       } catch (error) {
         console.error(' LayerPanel: Failed to sync layer visibility to WASM:', error);

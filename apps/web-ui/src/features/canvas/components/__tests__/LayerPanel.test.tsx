@@ -55,7 +55,7 @@ vi.mock('@/store', () => ({
 // Mock render engine for layer operations
 const mockRenderEngine = {
   isInitialized: true,
-  set_layer_visible: vi.fn(),
+  set_layer_visibility: vi.fn(),
   set_layer_opacity: vi.fn(),
   setActiveLayer: vi.fn(),
   get_layer_sprite_count: vi.fn((layerId: string) => {

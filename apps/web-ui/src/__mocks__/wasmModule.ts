@@ -26,7 +26,6 @@ export function createMockRenderEngine() {
     // Mouse input
     get_cursor_type: vi.fn().mockReturnValue('default'),
     handle_mouse_down_full: vi.fn(),
-    handle_mouse_down_with_modifiers: vi.fn().mockReturnValue(undefined),
     handle_mouse_move: vi.fn(),
     handle_mouse_up: vi.fn(),
     handle_right_click: vi.fn().mockReturnValue(undefined),
@@ -40,7 +39,6 @@ export function createMockRenderEngine() {
     copy_sprite: vi.fn().mockReturnValue(undefined),
     paste_sprite: vi.fn().mockReturnValue('sprite-pasted'),
     get_sprite_info: vi.fn().mockReturnValue(null),
-    get_sprite_data: vi.fn().mockReturnValue(null),
     get_sprite_position: vi.fn().mockReturnValue(undefined),
     get_sprite_scale: vi.fn().mockReturnValue(undefined),
     get_sprite_network_data: vi.fn().mockReturnValue(null),
@@ -93,7 +91,6 @@ export function createMockRenderEngine() {
     clear_lights: vi.fn(),
     set_ambient_light: vi.fn(),
     set_dynamic_lighting_enabled: vi.fn(),
-    get_light_at_position: vi.fn().mockReturnValue(undefined),
     get_light_radius: vi.fn().mockReturnValue(100),
     start_light_drag: vi.fn().mockReturnValue(false),
     update_light_drag: vi.fn().mockReturnValue(false),

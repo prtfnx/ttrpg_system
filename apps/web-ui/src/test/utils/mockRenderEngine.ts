@@ -75,7 +75,6 @@ export function createMockRenderEngine() {
     turn_off_all_lights: vi.fn(),
     get_light_count: vi.fn().mockReturnValue(0),
     clear_lights: vi.fn(),
-    get_light_at_position: vi.fn().mockReturnValue(undefined),
     start_light_drag: vi.fn().mockReturnValue(false),
     update_light_drag: vi.fn().mockReturnValue(false),
     end_light_drag: vi.fn().mockReturnValue(undefined),

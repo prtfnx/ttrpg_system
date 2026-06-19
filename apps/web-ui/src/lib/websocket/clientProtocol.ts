@@ -14,6 +14,7 @@ import { logger, protocolLogger } from '@shared/utils/logger';
 import { showToast } from '@shared/utils/toast';
 import type { Message, MessageHandler } from './message';
 import { MessageType, createMessage, parseMessage } from './message';
+import { emitProtocolEvent, onProtocolEvent } from './protocolEvents';
 import { validateTableId } from './tableProtocolAdapter';
 
 
@@ -175,26 +176,25 @@ export class WebClientProtocol {
 
   private setupProtocolMessageSender(): void {
     // Listen for requests to send protocol messages
-    const handleProtocolSendMessage = (event: Event) => {
-      const customEvent = event as CustomEvent;
-      logger.debug('Protocol: Received protocol-send-message event', customEvent.detail);
-      if (customEvent.detail && customEvent.detail.type && customEvent.detail.data) {
+    const handleProtocolSendMessage = (detail: { type: string; data: unknown }) => {
+      logger.debug('Protocol: Received protocol-send-message event', detail);
+      if (detail?.type && detail.data) {
         logger.debug('Protocol: Sending message via WebSocket:', {
-          type: customEvent.detail.type,
+          type: detail.type,
           websocketState: this.websocket?.readyState,
           isConnected: this.websocket?.readyState === WebSocket.OPEN
         });
         this.sendMessage(createMessage(
-          customEvent.detail.type,
-          customEvent.detail.data,
+          detail.type as MessageType,
+          detail.data as Record<string, unknown>,
           5
         ));
       } else {
-        logger.warn('️ Protocol: Invalid protocol-send-message event detail', customEvent.detail);
+        logger.warn('️ Protocol: Invalid protocol-send-message event detail', detail);
       }
     };
     
-    window.addEventListener('protocol-send-message', handleProtocolSendMessage);
+    onProtocolEvent('protocol-send-message', handleProtocolSendMessage);
     logger.debug('Protocol: Registered protocol-send-message event listener');
   }
 
@@ -257,9 +257,9 @@ export class WebClientProtocol {
     this.registerHandler(MessageType.ASSET_HASH_CHECK, this.handleAssetHashCheck.bind(this));
 
     // Compendium handlers
-    this.registerHandler(MessageType.COMPENDIUM_SPRITE_ADD, async (m) => { window.dispatchEvent(new CustomEvent('compendium-sprite-added', { detail: m.data })); });
-    this.registerHandler(MessageType.COMPENDIUM_SPRITE_UPDATE, async (m) => { window.dispatchEvent(new CustomEvent('compendium-sprite-updated', { detail: m.data })); });
-    this.registerHandler(MessageType.COMPENDIUM_SPRITE_REMOVE, async (m) => { window.dispatchEvent(new CustomEvent('compendium-sprite-removed', { detail: m.data })); });
+    this.registerHandler(MessageType.COMPENDIUM_SPRITE_ADD, async (m) => { emitProtocolEvent('compendium-sprite-added', m.data); });
+    this.registerHandler(MessageType.COMPENDIUM_SPRITE_UPDATE, async (m) => { emitProtocolEvent('compendium-sprite-updated', m.data); });
+    this.registerHandler(MessageType.COMPENDIUM_SPRITE_REMOVE, async (m) => { emitProtocolEvent('compendium-sprite-removed', m.data); });
 
     // Character management
     this.registerHandler(MessageType.CHARACTER_LOAD_RESPONSE, this.handleCharacterLoadResponse.bind(this));
@@ -649,7 +649,7 @@ export class WebClientProtocol {
     this.requestPlayerList();
     if (this.userId) this.requestActiveTable();
     // Signal to all listeners that protocol is connected and ready
-    window.dispatchEvent(new CustomEvent('protocol-connected'));
+    emitProtocolEvent('protocol-connected');
   }
 
   private async handlePing(message: Message): Promise<void> {
@@ -674,11 +674,12 @@ export class WebClientProtocol {
     logger.error('Server error', message.data);
     // If this error is a rejection of a pending sprite action, notify the bridge
     if (message.data?.action_id) {
-      window.dispatchEvent(new CustomEvent('sprite-action-rejected', {
-        detail: { actionId: message.data.action_id, reason: 'server_rejected' }
-      }));
+      emitProtocolEvent('sprite-action-rejected', {
+        actionId: message.data.action_id,
+        reason: 'server_rejected',
+      });
     }
-    window.dispatchEvent(new CustomEvent('protocol-error', { detail: message.data }));
+    emitProtocolEvent('protocol-error', message.data);
   }
 
   private async handleSuccess(message: Message): Promise<void> {
@@ -690,10 +691,10 @@ export class WebClientProtocol {
         typeof message.data.message === 'string' && 
         message.data.message.toLowerCase().includes('delet') && 
         message.data.table_id) {
-      window.dispatchEvent(new CustomEvent('table-deleted', { detail: message.data }));
+      emitProtocolEvent('table-deleted', message.data);
     }
     
-    window.dispatchEvent(new CustomEvent('protocol-success', { detail: message.data }));
+    emitProtocolEvent('protocol-success', message.data);
   }
 
   private async handleBatch(message: Message): Promise<void> {
@@ -717,27 +718,27 @@ export class WebClientProtocol {
 
   private async handlePlayerJoined(message: Message): Promise<void> {
     logger.debug('Player joined:', message.data);
-    window.dispatchEvent(new CustomEvent('player-joined', { detail: message.data }));
+    emitProtocolEvent('player-joined', message.data);
   }
 
   private async handlePlayerLeft(message: Message): Promise<void> {
     logger.debug('Player left:', message.data);
-    window.dispatchEvent(new CustomEvent('player-left', { detail: message.data }));
+    emitProtocolEvent('player-left', message.data);
   }
 
   private async handlePlayerListResponse(message: Message): Promise<void> {
     logger.debug('Player list received:', message.data);
-    window.dispatchEvent(new CustomEvent('player-list-updated', { detail: message.data }));
+    emitProtocolEvent('player-list-updated', message.data);
   }
 
   private async handleTableData(message: Message): Promise<void> {
     logger.debug('Table data received:', message.data);
-    window.dispatchEvent(new CustomEvent('table-data-received', { detail: message.data }));
+    emitProtocolEvent('table-data-received', message.data);
   }
 
   private async handleTableUpdate(message: Message): Promise<void> {
     logger.debug('Table update:', message.data);
-    window.dispatchEvent(new CustomEvent('table-updated', { detail: message.data }));
+    emitProtocolEvent('table-updated', message.data);
   }
 
   private async handleTableListResponse(message: Message): Promise<void> {
@@ -754,12 +755,12 @@ export class WebClientProtocol {
       useGameStore.getState().setTables(serverTables);
       useGameStore.getState().setTablesLoading(false);
     }
-    window.dispatchEvent(new CustomEvent('table-list-updated', { detail: message.data }));
+    emitProtocolEvent('table-list-updated', message.data);
   }
 
   private async handleNewTableResponse(message: Message): Promise<void> {
     logger.debug('New table created:', message.data);
-    window.dispatchEvent(new CustomEvent('new-table-response', { detail: message.data }));
+    emitProtocolEvent('new-table-response', message.data);
   }
 
   private async handleTableResponse(message: Message): Promise<void> {
@@ -824,7 +825,7 @@ export class WebClientProtocol {
         }
       }
     }
-    window.dispatchEvent(new CustomEvent('table-response', { detail: message.data }));
+    emitProtocolEvent('table-response', message.data);
   }
 
   private async handleTableActiveResponse(message: Message): Promise<void> {
@@ -853,56 +854,56 @@ export class WebClientProtocol {
       logger.warn('[Protocol] No active table found:', error);
     }
     
-    window.dispatchEvent(new CustomEvent('active-table-response', { detail: message.data }));
+    emitProtocolEvent('active-table-response', message.data);
   }
 
   // Sprite handlers - integrate with existing store/WASM
   private async handleSpriteCreate(message: Message): Promise<void> {
     logger.debug('Sprite created:', message.data);
-    window.dispatchEvent(new CustomEvent('sprite-created', { detail: message.data }));
+    emitProtocolEvent('sprite-created', message.data);
   }
 
   private async handleSpriteUpdate(message: Message): Promise<void> {
     logger.debug('Sprite updated:', message.data);
-    window.dispatchEvent(new CustomEvent('sprite-updated', { detail: message.data }));
+    emitProtocolEvent('sprite-updated', message.data);
   }
 
   private async handleSpriteRemove(message: Message): Promise<void> {
     logger.debug('Sprite removed:', message.data);
-    window.dispatchEvent(new CustomEvent('sprite-removed', { detail: message.data }));
+    emitProtocolEvent('sprite-removed', message.data);
   }
 
   private async handleSpriteMove(message: Message): Promise<void> {
     if (message.data?.action_id) {
-      window.dispatchEvent(new CustomEvent('sprite-action-confirmed', { detail: { actionId: message.data.action_id } }));
+      emitProtocolEvent('sprite-action-confirmed', { actionId: message.data.action_id });
     }
-    window.dispatchEvent(new CustomEvent('sprite-moved', { detail: message.data }));
+    emitProtocolEvent('sprite-moved', message.data);
   }
 
   private async handleSpriteScale(message: Message): Promise<void> {
     if (message.data?.action_id) {
-      window.dispatchEvent(new CustomEvent('sprite-action-confirmed', { detail: { actionId: message.data.action_id } }));
+      emitProtocolEvent('sprite-action-confirmed', { actionId: message.data.action_id });
     }
-    window.dispatchEvent(new CustomEvent('sprite-scaled', { detail: message.data }));
+    emitProtocolEvent('sprite-scaled', message.data);
   }
 
   private async handleSpriteRotate(message: Message): Promise<void> {
     if (message.data?.action_id) {
-      window.dispatchEvent(new CustomEvent('sprite-action-confirmed', { detail: { actionId: message.data.action_id } }));
+      emitProtocolEvent('sprite-action-confirmed', { actionId: message.data.action_id });
     }
-    window.dispatchEvent(new CustomEvent('sprite-rotated', { detail: message.data }));
+    emitProtocolEvent('sprite-rotated', message.data);
   }
 
   private async handleSpriteDragPreview(message: Message): Promise<void> {
-    window.dispatchEvent(new CustomEvent('sprite-drag-preview-remote', { detail: message.data }));
+    emitProtocolEvent('sprite-drag-preview-remote', message.data);
   }
 
   private async handleSpriteResizePreview(message: Message): Promise<void> {
-    window.dispatchEvent(new CustomEvent('sprite-resize-preview-remote', { detail: message.data }));
+    emitProtocolEvent('sprite-resize-preview-remote', message.data);
   }
 
   private async handleSpriteRotatePreview(message: Message): Promise<void> {
-    window.dispatchEvent(new CustomEvent('sprite-rotate-preview-remote', { detail: message.data }));
+    emitProtocolEvent('sprite-rotate-preview-remote', message.data);
   }
 
   // Asset management handlers
@@ -919,7 +920,7 @@ export class WebClientProtocol {
         type: typeof message.data.type === 'string' ? message.data.type : undefined,
       });
     }
-    window.dispatchEvent(new CustomEvent('asset-downloaded', { detail: message.data }));
+    emitProtocolEvent('asset-downloaded', message.data);
   }
 
 
@@ -938,12 +939,12 @@ export class WebClientProtocol {
       }));
       useAssetCharacterCache.getState().bulkLoadAssets(validAssets);
     }
-    window.dispatchEvent(new CustomEvent('asset-list-updated', { detail: message.data }));
+    emitProtocolEvent('asset-list-updated', message.data);
   }
 
   private async handleAssetUploadResponse(message: Message): Promise<void> {
     logger.debug('Asset upload response:', message.data);
-    window.dispatchEvent(new CustomEvent('asset-uploaded', { detail: message.data }));
+    emitProtocolEvent('asset-uploaded', message.data);
   }
 
   // Character management handlers
@@ -959,7 +960,7 @@ export class WebClientProtocol {
         data: message.data,
       });
     }
-    window.dispatchEvent(new CustomEvent('character-loaded', { detail: message.data }));
+    emitProtocolEvent('character-loaded', message.data);
   }
 
   private async handleCharacterSaveResponse(message: Message): Promise<void> {
@@ -999,7 +1000,7 @@ export class WebClientProtocol {
       }
     }
     
-    window.dispatchEvent(new CustomEvent('character-saved', { detail: message.data }));
+    emitProtocolEvent('character-saved', message.data);
   }
 
 
@@ -1045,7 +1046,7 @@ export class WebClientProtocol {
       useAssetCharacterCache.getState().bulkLoadCharacters(cacheChars);
     }
     
-    window.dispatchEvent(new CustomEvent('character-list-updated', { detail: message.data }));
+    emitProtocolEvent('character-list-updated', message.data);
   }
 
   // Handle incoming character delta updates broadcast from server
@@ -1062,7 +1063,7 @@ export class WebClientProtocol {
       // Handle character deletion broadcast
       store.removeCharacter(characterId);
       logger.debug(`️ Character deleted (broadcast): ${characterId}`);
-      window.dispatchEvent(new CustomEvent('character-deleted', { detail: { character_id: characterId } }));
+      emitProtocolEvent('character-deleted', { character_id: characterId });
       return;
     }
     
@@ -1093,7 +1094,7 @@ export class WebClientProtocol {
           logger.debug(`Character added (broadcast): ${character.name}`);
         }
         
-        window.dispatchEvent(new CustomEvent('character-updated', { detail: { character_id: character.id, operation } }));
+        emitProtocolEvent('character-updated', { character_id: character.id, operation });
       }
       return;
     }
@@ -1111,7 +1112,7 @@ export class WebClientProtocol {
       
       store.updateCharacter(characterId, updatePayload);
       logger.debug(`Character updated (delta): ${characterId}`, updates);
-      window.dispatchEvent(new CustomEvent('character-updated', { detail: { character_id: characterId, updates } }));
+      emitProtocolEvent('character-updated', { character_id: characterId, updates });
     }
   }
 
@@ -1145,11 +1146,10 @@ export class WebClientProtocol {
         this.loadCharacter(characterId);
         
         // Listen for load response to retry the update
-        const retryListener = (event: Event) => {
-          const customEvent = event as CustomEvent;
-          const loadedData = customEvent.detail;
-          
-          if (loadedData?.character_data?.character_id === characterId) {
+        const cleanupRetryListener = onProtocolEvent('character-loaded', (loadedData) => {
+          const loadedCharacterData = loadedData?.character_data as { character_id?: string } | undefined;
+
+          if (loadedCharacterData?.character_id === characterId) {
             logger.debug(`Retrying update for ${characterId} with version ${currentVersion}`);
             
             // Get the character from store with pending updates
@@ -1164,17 +1164,12 @@ export class WebClientProtocol {
               showToast.success('Character synchronized with latest version');
             }
             
-            // Remove listener after handling
-            window.removeEventListener('character-loaded', retryListener);
+            cleanupRetryListener();
           }
-        };
-        
-        window.addEventListener('character-loaded', retryListener);
+        });
         
         // Set timeout to clean up listener if load fails
-        setTimeout(() => {
-          window.removeEventListener('character-loaded', retryListener);
-        }, 5000);
+        setTimeout(cleanupRetryListener, 5000);
         
       } else {
         // Other error
@@ -1184,15 +1179,15 @@ export class WebClientProtocol {
       }
     }
     
-    window.dispatchEvent(new CustomEvent('character-update-response', { detail: message.data }));
+    emitProtocolEvent('character-update-response', message.data);
   }
 
   private handleCharacterLogResponse(message: Message): void {
-    window.dispatchEvent(new CustomEvent('character-log-response', { detail: message.data }));
+    emitProtocolEvent('character-log-response', message.data);
   }
 
   private handleCharacterRollResult(message: Message): void {
-    window.dispatchEvent(new CustomEvent('character-roll-result', { detail: message.data }));
+    emitProtocolEvent('character-roll-result', message.data);
   }
 
   private async handleTableSettingsChanged(message: Message): Promise<void> {
@@ -1238,7 +1233,7 @@ export class WebClientProtocol {
         (rm as any).set_background_color(c);
       }
     }
-    window.dispatchEvent(new CustomEvent('table-settings-changed', { detail: data }));
+    emitProtocolEvent('table-settings-changed', data);
   }
 
   private async handleWallData(message: Message): Promise<void> {
@@ -1280,19 +1275,19 @@ export class WebClientProtocol {
     if (drawStrokeJson) {
       getCurrentWasmRuntime()?.addRemotePaintStroke(drawStrokeJson);
     }
-    window.dispatchEvent(new CustomEvent('paint-stroke-created', { detail: data }));
+    emitProtocolEvent('paint-stroke-created', data);
   }
 
   private handlePaintStrokeDelete(message: Message): void {
     const data = message.data as { stroke_id?: string };
     if (!data.stroke_id) return;
     getCurrentWasmRuntime()?.removePaintStroke(data.stroke_id);
-    window.dispatchEvent(new CustomEvent('paint-stroke-deleted', { detail: data }));
+    emitProtocolEvent('paint-stroke-deleted', data);
   }
 
   private handlePaintStrokeClear(message: Message): void {
     getCurrentWasmRuntime()?.clearPaintStrokes();
-    window.dispatchEvent(new CustomEvent('paint-strokes-cleared', { detail: message.data }));
+    emitProtocolEvent('paint-strokes-cleared', message.data);
   }
 
   private handlePaintSync(message: Message): void {
@@ -1731,39 +1726,39 @@ export class WebClientProtocol {
 
   private async handleTest(message: Message): Promise<void> {
     logger.debug('Protocol: Test message received:', message.data);
-    window.dispatchEvent(new CustomEvent('protocol-test-received', { detail: message.data }));
+    emitProtocolEvent('protocol-test-received', message.data);
   }
 
   // Authentication handlers
   private async handleAuthStatus(message: Message): Promise<void> {
     logger.debug('Protocol: Auth status received:', message.data);
-    window.dispatchEvent(new CustomEvent('auth-status-changed', { detail: message.data }));
+    emitProtocolEvent('auth-status-changed', message.data);
   }
 
   // Player action handlers
   private async handlePlayerActionResponse(message: Message): Promise<void> {
     logger.debug('Protocol: Player action response:', message.data);
-    window.dispatchEvent(new CustomEvent('player-action-response', { detail: message.data }));
+    emitProtocolEvent('player-action-response', message.data);
   }
 
   private async handlePlayerActionUpdate(message: Message): Promise<void> {
     logger.debug('Protocol: Player action update:', message.data);
-    window.dispatchEvent(new CustomEvent('player-action-update', { detail: message.data }));
+    emitProtocolEvent('player-action-update', message.data);
   }
 
   private async handlePlayerStatus(message: Message): Promise<void> {
     logger.debug('Protocol: Player status:', message.data);
-    window.dispatchEvent(new CustomEvent('player-status-changed', { detail: message.data }));
+    emitProtocolEvent('player-status-changed', message.data);
   }
 
   private async handlePlayerKickResponse(message: Message): Promise<void> {
     logger.debug('Protocol: Player kick response:', message.data);
-    window.dispatchEvent(new CustomEvent('player-kick-response', { detail: message.data }));
+    emitProtocolEvent('player-kick-response', message.data);
   }
 
   private async handlePlayerBanResponse(message: Message): Promise<void> {
     logger.debug('Protocol: Player ban response:', message.data);
-    window.dispatchEvent(new CustomEvent('player-ban-response', { detail: message.data }));
+    emitProtocolEvent('player-ban-response', message.data);
   }
 
   private async handlePlayerRoleChanged(message: Message): Promise<void> {
@@ -1776,21 +1771,21 @@ export class WebClientProtocol {
         Array.isArray(data.visible_layers) ? data.visible_layers as string[] : useGameStore.getState().visibleLayers
       );
     }
-    window.dispatchEvent(new CustomEvent('player-role-changed', { detail: data }));
+    emitProtocolEvent('player-role-changed', data);
   }
 
   private async handleTableActiveSetAllResponse(message: Message): Promise<void> {
     const data = message.data as Record<string, unknown>;
     if (data.table_id) {
-      window.dispatchEvent(new CustomEvent('table-force-switch', { detail: { tableId: data.table_id } }));
+      emitProtocolEvent('table-force-switch', { tableId: data.table_id });
       const name = data.table_name ?? data.table_id;
-      window.dispatchEvent(new CustomEvent('show-toast', { detail: { message: `Table switched to: ${name}`, type: 'info' } }));
+      emitProtocolEvent('show-toast', { message: `Table switched to: ${name}`, type: 'info' });
     }
   }
 
   private async handleConnectionStatusResponse(message: Message): Promise<void> {
     logger.debug('Protocol: Connection status response:', message.data);
-    window.dispatchEvent(new CustomEvent('connection-status-response', { detail: message.data }));
+    emitProtocolEvent('connection-status-response', message.data);
   }
 
   // Sprite data handlers
@@ -1798,31 +1793,31 @@ export class WebClientProtocol {
     // Confirm pending action - server echoes action_id back to the originating client
     // via sprite_response (broadcasts go to others without action_id)
     if (message.data?.action_id && message.data?.success) {
-      window.dispatchEvent(new CustomEvent('sprite-action-confirmed', { detail: { actionId: message.data.action_id } }));
+      emitProtocolEvent('sprite-action-confirmed', { actionId: message.data.action_id });
     }
-    window.dispatchEvent(new CustomEvent('sprite-response', { detail: message.data }));
+    emitProtocolEvent('sprite-response', message.data);
   }
 
   private async handleSpriteData(message: Message): Promise<void> {
     logger.debug('Protocol: Sprite data received:', message.data);
-    window.dispatchEvent(new CustomEvent('sprite-data-received', { detail: message.data }));
+    emitProtocolEvent('sprite-data-received', message.data);
   }
 
   // File transfer handlers
   private async handleFileData(message: Message): Promise<void> {
     logger.debug('Protocol: File data received:', message.data);
-    window.dispatchEvent(new CustomEvent('file-data-received', { detail: message.data }));
+    emitProtocolEvent('file-data-received', message.data);
   }
 
   // Asset management handlers
   private async handleAssetDeleteResponse(message: Message): Promise<void> {
     logger.debug('Protocol: Asset delete response:', message.data);
-    window.dispatchEvent(new CustomEvent('asset-delete-response', { detail: message.data }));
+    emitProtocolEvent('asset-delete-response', message.data);
   }
 
   private async handleAssetHashCheck(message: Message): Promise<void> {
     logger.debug('Protocol: Asset hash check:', message.data);
-    window.dispatchEvent(new CustomEvent('asset-hash-check', { detail: message.data }));
+    emitProtocolEvent('asset-hash-check', message.data);
   }
 
   // Character management handlers
@@ -1849,7 +1844,7 @@ export class WebClientProtocol {
       // The UI component should handle rollback via pendingOperationsRef
     }
     
-    window.dispatchEvent(new CustomEvent('character-delete-response', { detail: message.data }));
+    emitProtocolEvent('character-delete-response', message.data);
   }
 
   // Public API methods for new message types

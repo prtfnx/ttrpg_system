@@ -6,6 +6,7 @@
 import type { WebClientProtocol } from '@lib/websocket';
 import { getCurrentWasmRuntime } from '@lib/wasm/runtime';
 import { createMessage, MessageType } from '@lib/websocket';
+import { logger } from '@shared/utils/logger';
 
 interface AssetUploadResponse {
   success: boolean;
@@ -55,7 +56,7 @@ class AssetIntegrationService {
    */
   initialize(): void {
     this.setupEventListeners();
- console.log('Asset Integration Service initialized');
+    logger.debug('Asset integration service initialized');
   }
 
   /**
@@ -97,10 +98,10 @@ class AssetIntegrationService {
   }
 
   private async handleAssetDownloaded(data: AssetDownloadResponse): Promise<void> {
- console.log('Asset download response received:', data);
+    logger.debug('Asset download response received', data);
 
     if (!data.success) {
- console.error('Asset download failed:', data.error);
+      logger.error('Asset download failed', data.error);
       return;
     }
 
@@ -113,15 +114,15 @@ class AssetIntegrationService {
         await this.cacheAssetData(data.asset_id, data.asset_data);
       }
     } catch (error) {
- console.error('Failed to process asset download:', error);
+      logger.error('Failed to process asset download', error);
     }
   }
 
   private handleAssetListUpdated(data: AssetListResponse): void {
- console.log('Asset list updated:', data);
+    logger.debug('Asset list updated', data);
 
     if (!data.success) {
- console.error('Asset list update failed:', data.error);
+      logger.error('Asset list update failed', data.error);
       return;
     }
 
@@ -134,10 +135,10 @@ class AssetIntegrationService {
   }
 
   private async handleAssetUploadResponse(data: AssetUploadResponse): Promise<void> {
- console.log('Asset upload response received:', data);
+    logger.debug('Asset upload response received', data);
 
     if (!data.success) {
- console.error('Asset upload failed:', data.error);
+      logger.error('Asset upload failed', data.error);
       window.dispatchEvent(new CustomEvent('asset-upload-failed', { 
         detail: { error: data.error } 
       }));
@@ -156,16 +157,16 @@ class AssetIntegrationService {
   }
 
   private handleAssetUploadCompleted(data: AssetUploadCompleted): void {
-    console.log(' AssetIntegrationService: Upload completed for asset:', data.asset_id);
+    logger.debug('Asset upload completed', { assetId: data.asset_id });
 
     if (!data.success) {
- console.error('Asset upload to R2 failed:', data.error);
+      logger.error('Asset upload to R2 failed', data.error);
       return;
     }
 
     // Send confirmation to server that upload is complete
     if (this.protocol) {
-      console.log(' AssetIntegrationService: Confirming upload to server for asset:', data.asset_id);
+      logger.debug('Confirming asset upload to server', { assetId: data.asset_id });
       this.protocol.sendMessage(createMessage(MessageType.ASSET_UPLOAD_CONFIRM, {
         asset_id: data.asset_id,
         success: true,
@@ -173,13 +174,13 @@ class AssetIntegrationService {
         content_type: data.content_type
       }, 2));
     } else {
- console.error('Protocol service not available for upload confirmation');
+      logger.error('Protocol service not available for upload confirmation');
     }
   }
 
   private async downloadAndCacheAsset(assetId: string, downloadUrl: string): Promise<void> {
     try {
- console.log('Downloading asset:', assetId, 'from:', downloadUrl);
+      logger.debug('Downloading asset', { assetId, downloadUrl });
 
       const response = await fetch(downloadUrl);
       if (!response.ok) {
@@ -196,10 +197,10 @@ class AssetIntegrationService {
       // For now, we'll store it in a simple cache and load it into WASM
       await this.loadAssetIntoWasm(assetId, objectUrl);
 
- console.log('Asset downloaded and cached:', assetId);
+      logger.debug('Asset downloaded and cached', { assetId });
 
     } catch (error) {
- console.error('Failed to download and cache asset:', error);
+      logger.error('Failed to download and cache asset', error);
     }
   }
 
@@ -211,10 +212,10 @@ class AssetIntegrationService {
       
       await this.loadAssetIntoWasm(assetId, objectUrl);
       
- console.log('Asset data cached:', assetId);
+      logger.debug('Asset data cached', { assetId });
 
     } catch (error) {
- console.error('Failed to cache asset data:', error);
+      logger.error('Failed to cache asset data', error);
     }
   }
 
@@ -229,7 +230,7 @@ class AssetIntegrationService {
             const renderEngine = getCurrentWasmRuntime()?.getRenderEngine();
             if (renderEngine?.load_texture) {
               renderEngine.load_texture(assetId, img);
- console.log('Texture loaded into WASM:', assetId);
+              logger.debug('Texture loaded into WASM', { assetId });
             }
             resolve();
           } catch (error) {
@@ -245,7 +246,7 @@ class AssetIntegrationService {
       });
 
     } catch (error) {
- console.error('Failed to load asset into WASM:', error);
+      logger.error('Failed to load asset into WASM', error);
       throw error;
     }
   }
@@ -259,10 +260,10 @@ class AssetIntegrationService {
     const bytes = new Uint8Array(binaryString.length);
     
     for (let i = 0; i < binaryString.length; i++) {
- bytes[i] = binaryString.charCodeAt(i);
+      bytes[i] = binaryString.charCodeAt(i);
     }
     
- return new Blob([bytes]);
+    return new Blob([bytes]);
   }
 
   /**

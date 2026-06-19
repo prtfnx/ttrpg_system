@@ -1,5 +1,6 @@
 import { useWasmRuntime } from '@lib/wasm/runtime';
 import type { AssetManager } from '@lib/wasm/runtime';
+import { logger } from '@shared/utils/logger';
 import { useCallback, useEffect, useRef, useState } from 'react';
 
 export interface AssetInfo {
@@ -79,10 +80,10 @@ export const useAssetManager = (config?: AssetManagerConfig) => {
   safeSetState(prev => ({ ...prev, isLoading: true }));
     
     try {
-      console.log('Initializing WASM module...');
+      logger.debug('Initializing WASM module for asset manager');
       
       await runtime.initialize();
-      console.log('Initializing Enhanced Asset Manager...');
+      logger.debug('Initializing enhanced asset manager');
       const manager = runtime.getAssetManager();
       if (!manager) throw new Error('AssetManager unavailable from WasmRuntime');
       await manager.initialize();
@@ -107,7 +108,7 @@ export const useAssetManager = (config?: AssetManagerConfig) => {
         isLoading: false,
       });
       
-      console.log('Enhanced Asset Manager initialized successfully', stats);
+      logger.debug('Enhanced asset manager initialized successfully', stats);
       
       // Auto cleanup if enabled
       if (config?.autoCleanup) {
@@ -116,7 +117,7 @@ export const useAssetManager = (config?: AssetManagerConfig) => {
   safeSetState(prev => ({ ...prev, stats: updatedStats }));
       }
     } catch (error) {
-      console.error('Failed to initialize Enhanced Asset Manager:', error);
+      logger.error('Failed to initialize enhanced asset manager', error);
       safeSetState(prev => ({
         ...prev,
         isInitialized: false,
@@ -134,22 +135,22 @@ export const useAssetManager = (config?: AssetManagerConfig) => {
   ): Promise<string | null> => {
     const manager = assetManagerRef.current;
     if (!manager) {
-      console.error('Enhanced Asset Manager not initialized');
+      logger.error('Enhanced asset manager not initialized');
       return null;
     }
 
     try {
-      console.log(`Downloading asset: ${url}${expectedHash ? ` (expected hash: ${expectedHash})` : ''}`);
+      logger.debug('Downloading asset', { url, expectedHash });
       const assetId = await manager.download_asset(url, expectedHash || undefined);
       
   // Update stats
   const stats = JSON.parse(manager.get_cache_stats()) as CacheStats;
   safeSetState(prev => ({ ...prev, stats }));
       
-      console.log(`Asset downloaded successfully: ${assetId}`);
+      logger.debug('Asset downloaded successfully', { assetId });
       return assetId;
     } catch (error) {
-      console.error('Failed to download asset:', error);
+      logger.error('Failed to download asset', error);
       safeSetState(prev => ({
         ...prev,
         error: error instanceof Error ? error.message : 'Download failed',
@@ -173,7 +174,7 @@ export const useAssetManager = (config?: AssetManagerConfig) => {
       }
       return null;
     } catch (error) {
-      console.error('Failed to get asset data:', error);
+      logger.error('Failed to get asset data', error);
       return null;
     }
   }, []);
@@ -187,7 +188,7 @@ export const useAssetManager = (config?: AssetManagerConfig) => {
       const infoJson = manager.get_asset_info(assetId);
       return infoJson ? JSON.parse(infoJson) as AssetInfo : null;
     } catch (error) {
-      console.error('Failed to get asset info:', error);
+      logger.error('Failed to get asset info', error);
       return null;
     }
   }, []);
@@ -219,7 +220,7 @@ export const useAssetManager = (config?: AssetManagerConfig) => {
       }
       return null;
     } catch (error) {
-      console.error('Failed to get asset by hash:', error);
+      logger.error('Failed to get asset by hash', error);
       return null;
     }
   }, []);
@@ -238,7 +239,7 @@ export const useAssetManager = (config?: AssetManagerConfig) => {
       }
       return removed;
     } catch (error) {
-      console.error('Failed to remove asset:', error);
+      logger.error('Failed to remove asset', error);
       return false;
     }
   }, []);
@@ -255,9 +256,9 @@ export const useAssetManager = (config?: AssetManagerConfig) => {
   const stats = JSON.parse(manager.get_cache_stats()) as CacheStats;
   safeSetState(prev => ({ ...prev, stats }));
       
-      console.log('Cache cleanup completed');
+      logger.debug('Cache cleanup completed');
     } catch (error) {
-      console.error('Failed to cleanup cache:', error);
+      logger.error('Failed to cleanup cache', error);
     }
   }, []);
 
@@ -273,9 +274,9 @@ export const useAssetManager = (config?: AssetManagerConfig) => {
       const stats = JSON.parse(manager.get_cache_stats()) as CacheStats;
       setState(prev => ({ ...prev, stats }));
       
-      console.log('Cache cleared successfully');
+      logger.debug('Cache cleared successfully');
     } catch (error) {
-      console.error('Failed to clear cache:', error);
+      logger.error('Failed to clear cache', error);
     }
   }, []);
 
@@ -288,7 +289,7 @@ export const useAssetManager = (config?: AssetManagerConfig) => {
       const assetsJson = manager.list_assets();
       return JSON.parse(assetsJson) as AssetInfo[];
     } catch (error) {
-      console.error('Failed to list assets:', error);
+      logger.error('Failed to list assets', error);
       return [];
     }
   }, []);
@@ -316,7 +317,7 @@ export const useAssetManager = (config?: AssetManagerConfig) => {
     try {
       return manager.calculate_asset_hash(data);
     } catch (error) {
-      console.error('Failed to calculate hash:', error);
+      logger.error('Failed to calculate hash', error);
       return '';
     }
   }, []);
@@ -330,7 +331,7 @@ export const useAssetManager = (config?: AssetManagerConfig) => {
       const stats = JSON.parse(manager.get_cache_stats()) as CacheStats;
       setState(prev => ({ ...prev, stats }));
     } catch (error) {
-      console.error('Failed to refresh stats:', error);
+      logger.error('Failed to refresh stats', error);
     }
   }, []);
 
@@ -431,7 +432,7 @@ export const useAssetManager = (config?: AssetManagerConfig) => {
         ...prev,
         [fileId]: { progress: 0, status: 'failed' }
       }));
-      console.error('Failed to upload asset:', error);
+      logger.error('Failed to upload asset', error);
       return null;
     }
   }, [downloadAsset]);

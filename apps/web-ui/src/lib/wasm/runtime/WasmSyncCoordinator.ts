@@ -8,6 +8,7 @@ import { AssetSyncService } from '../assetSync.service';
 import { RemoteSyncService } from '../remoteSync.service';
 import { SpriteSyncService } from '../spriteSync.service';
 import { TableSyncService } from '../tableSync.service';
+import { logger } from '@shared/utils/logger';
 import type { RenderEngine } from './types';
 
 export class WasmSyncCoordinator {
@@ -31,7 +32,7 @@ export class WasmSyncCoordinator {
     this.spriteSync.init();
     this.tableSync.init();
     this.remoteSync.init();
-    console.log('[WasmSyncCoordinator] initialized');
+    logger.debug('WasmSyncCoordinator initialized');
   }
 
   dispose(): void {

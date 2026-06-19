@@ -2,13 +2,13 @@ import type { SessionRole } from '@features/session/types/roles';
 import type {
   ActionsClient,
   AssetManager,
+  BrushPreset,
   NetworkClient,
   PlanningManager,
   RenderEngine,
   TableManager,
   TableSync,
-} from '../ttrpg_rust_core';
-import type { BrushPreset } from './types';
+} from './types';
 import type { WasmRuntimeSnapshot } from './wasmStore';
 
 export interface AttachCanvasOptions {

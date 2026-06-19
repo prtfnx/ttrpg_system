@@ -1,6 +1,6 @@
 import { createContext, useContext } from 'react';
-import type { ActionsClient, RenderEngine } from '../ttrpg_rust_core';
 import type { WasmRuntime } from './WasmRuntime';
+import type { ActionsClient, RenderEngine } from './types';
 import { useWasmRuntimeSnapshot } from './wasmStore';
 
 export const WasmRuntimeContext = createContext<WasmRuntime | null>(null);

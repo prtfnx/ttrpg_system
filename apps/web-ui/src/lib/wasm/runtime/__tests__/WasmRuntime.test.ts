@@ -41,7 +41,7 @@ vi.mock('../../wasmCore', () => ({
   initializeWasmCore: mocks.initializeWasmCore,
 }));
 
-vi.mock('../../ttrpg_rust_core', () => ({
+vi.mock('../../generated/ttrpg_rust_core', () => ({
   ActionsClient: vi.fn(function () { return { free: mocks.actionsFree }; }),
   AssetManager: vi.fn(function () { return { free: mocks.assetFree }; }),
   NetworkClient: vi.fn(function () { return { free: mocks.networkFree }; }),

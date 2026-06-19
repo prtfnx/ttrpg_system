@@ -13,7 +13,7 @@ import {
   init_game_renderer,
   version,
   type RenderEngine,
-} from '../ttrpg_rust_core';
+} from '../generated/ttrpg_rust_core';
 import type { AttachCanvasOptions, WasmRuntimePort } from './WasmRuntimePort';
 import type { BrushPreset } from './types';
 import { WasmSyncCoordinator } from './WasmSyncCoordinator';

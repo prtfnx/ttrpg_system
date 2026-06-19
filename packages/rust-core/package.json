@@ -5,8 +5,8 @@
   "main": "pkg/ttrpg_rust_core.js",
   "types": "pkg/ttrpg_rust_core.d.ts",
   "scripts": {
-    "build": "wasm-pack build --target web --out-dir pkg",
-    "build:release": "wasm-pack build --release --target web --out-dir pkg",
+    "build": "wasm-pack build --target web --out-dir ../../apps/web-ui/src/lib/wasm/generated --features wasm-start,dev-logging",
+    "build:release": "wasm-pack build --release --target web --out-dir ../../apps/web-ui/src/lib/wasm/generated --features wasm-start",
     "test": "cargo test",
     "test:wasm": "cargo test --target wasm32-unknown-unknown --test wasm",
     "test:all": "cargo test && cargo test --target wasm32-unknown-unknown --test wasm",

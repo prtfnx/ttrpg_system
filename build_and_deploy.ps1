@@ -22,7 +22,7 @@ $ErrorActionPreference = "Stop"
 $Root         = $PSScriptRoot
 $RustDir      = "$Root\packages\rust-core"
 $WebDir       = "$Root\apps\web-ui"
-$WasmOut      = "$WebDir\public\wasm"
+$WasmOut      = "$WebDir\src\lib\wasm\generated"
 $Dist         = "$WebDir\dist"
 $Static       = "$Root\apps\server\static\ui"
 $Python       = "$Root\.venv\Scripts\python.exe"
@@ -61,7 +61,7 @@ function Build-Wasm {
             Require-Command "wasm-bindgen"
 
             $profile = if ($dev) { "debug" } else { "release" }
-            $cargoFlags = if ($dev) { @("--features", "dev-logging") } else { @("--release") }
+            $cargoFlags = if ($dev) { @("--features", "wasm-start,dev-logging") } else { @("--release", "--features", "wasm-start") }
             $wasmTarget = "$RustDir\target\wasm32-unknown-unknown\$profile\ttrpg_rust_core.wasm"
 
             cargo build --target wasm32-unknown-unknown @cargoFlags 2>&1 |

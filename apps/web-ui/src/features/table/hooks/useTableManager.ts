@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { useGameStore } from '@/store';
 import { useWasmRuntime } from '@lib/wasm/runtime';
+import { logger } from '@shared/utils/logger';
 
 export interface TableInfo {
   table_id: string;
@@ -68,13 +69,13 @@ export const useTableManager = (): UseTableManagerReturn => {
             const manager = runtime.getTableManager() as unknown as Record<string, (...args: unknown[]) => unknown> | null;
             if (!manager) throw new Error('TableManager unavailable from WASM runtime');
             setTableManager(manager);
-            console.log('Table Manager initialized');
+            logger.debug('Table Manager initialized');
           })
           .catch(error => {
-            if (!cancelled) console.error('Failed to initialize Table Manager:', error);
+            if (!cancelled) logger.error('Failed to initialize Table Manager:', error);
           });
       } catch (error) {
-        console.error('Failed to initialize Table Manager:', error);
+        logger.error('Failed to initialize Table Manager:', error);
       }
     }
     return () => { cancelled = true; };
@@ -113,7 +114,7 @@ export const useTableManager = (): UseTableManagerReturn => {
         }
       }
     } catch (error) {
-      console.error('Failed to refresh tables:', error);
+      logger.error('Failed to refresh tables:', error);
     }
   }, [tableManager]);
 
@@ -136,7 +137,7 @@ export const useTableManager = (): UseTableManagerReturn => {
       
       return true;
     } catch (error) {
-      console.error('Failed to create table:', error);
+      logger.error('Failed to create table:', error);
       return false;
     }
   }, [tableManager, refreshTables]);

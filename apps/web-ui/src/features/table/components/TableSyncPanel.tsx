@@ -11,6 +11,10 @@ interface ActivityLog {
   emoji: string;
 }
 
+type TableMutation =
+  | { type: 'create'; payload: { name: string }; tempId: string }
+  | { type: 'update'; payload: { tableId: string } };
+
 function TableSyncPanel() {
   const { tableSync, isLoading, error } = useTableSync();
   const { networkState } = useNetworkClient();
@@ -27,7 +31,7 @@ function TableSyncPanel() {
     imageUrl: '',
     rotation: 0
   });
-  const [mutationQueue, setMutationQueue] = useState<Array<{ type: 'create'|'update'|'delete'; payload: Record<string, unknown>; tempId?: string }>>([]); 
+  const [mutationQueue, setMutationQueue] = useState<TableMutation[]>([]); 
 
   const addLog = (type: ActivityLog['type'], message: string, emoji: string) => {
     const newLog: ActivityLog = {

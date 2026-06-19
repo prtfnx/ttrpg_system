@@ -1,4 +1,5 @@
 import { isValidUUID } from '@lib/websocket';
+import { logger } from '@shared/utils/logger';
 
 interface ThumbnailCacheEntry {
   imageData: ImageData;
@@ -29,7 +30,7 @@ class TableThumbnailService {
   initialize(engine: ThumbnailRenderEngine, options: ThumbnailRuntimeOptions = {}): void {
     this.renderEngine = engine;
     this.isRuntimeReady = options.isRuntimeReady ?? (() => true);
-    console.log('[ThumbnailService] RenderEngine initialized');
+    logger.debug('[ThumbnailService] RenderEngine initialized');
   }
   
   /**
@@ -67,7 +68,7 @@ class TableThumbnailService {
     forceRefresh = false
   ): Promise<ImageData | null> {
     if (!isValidUUID(tableId)) {
-      console.error(`[ThumbnailService] Invalid UUID: ${tableId}`);
+      logger.error(`[ThumbnailService] Invalid UUID: ${tableId}`);
       return null;
     }
     const cacheKey = `${tableId}_${thumbnailWidth}x${thumbnailHeight}`;
@@ -75,13 +76,13 @@ class TableThumbnailService {
     // Return cached version if available
     if (!forceRefresh && this.cache.has(cacheKey)) {
       const cached = this.cache.get(cacheKey)!;
-      console.log(`[ThumbnailService] Using cached thumbnail for ${tableId}`);
+      logger.debug(`[ThumbnailService] Using cached thumbnail for ${tableId}`);
       return cached.imageData;
     }
     
     // Prevent concurrent generation for same thumbnail
     if (this.isGenerating.has(cacheKey)) {
-      console.log(`[ThumbnailService] Already generating ${cacheKey}, waiting...`);
+      logger.debug(`[ThumbnailService] Already generating ${cacheKey}, waiting...`);
       // Wait for ongoing generation
       await this.waitForGeneration(cacheKey);
       // Should be cached now
@@ -97,7 +98,7 @@ class TableThumbnailService {
     this.isGenerating.add(cacheKey);
     
     try {
-      console.log(`[ThumbnailService] Generating thumbnail for ${tableId} at ${thumbnailWidth}x${thumbnailHeight}`);
+      logger.debug(`[ThumbnailService] Generating thumbnail for ${tableId} at ${thumbnailWidth}x${thumbnailHeight}`);
       
       const startTime = performance.now();
       
@@ -105,12 +106,12 @@ class TableThumbnailService {
       const mainCanvas = document.querySelector('[data-testid="game-canvas"]') as HTMLCanvasElement;
       
       if (!mainCanvas) {
-        console.warn('[ThumbnailService] Main canvas element not found in DOM');
+        logger.warn('[ThumbnailService] Main canvas element not found in DOM');
         throw new Error('Main game canvas not found');
       }
       
       if (mainCanvas.width === 0 || mainCanvas.height === 0) {
-        console.warn('[ThumbnailService] Main canvas has zero dimensions:', { width: mainCanvas.width, height: mainCanvas.height });
+        logger.warn('[ThumbnailService] Main canvas has zero dimensions:', { width: mainCanvas.width, height: mainCanvas.height });
         throw new Error('Main game canvas not initialized (zero dimensions)');
       }
       
@@ -118,7 +119,7 @@ class TableThumbnailService {
       // When opening Tables tab directly (without visiting Game tab first),
       // the canvas exists but hasn't rendered any frames yet
       if (!this.isRuntimeReady()) {
-        console.warn('[ThumbnailService] WASM not fully initialized yet, waiting for first render...');
+        logger.warn('[ThumbnailService] WASM not fully initialized yet, waiting for first render...');
         
         // Wait for WASM to initialize (max 5 seconds)
         const maxWaitMs = 5000;
@@ -134,7 +135,7 @@ class TableThumbnailService {
         // Wait one more frame to ensure at least one render cycle
         await new Promise(resolve => requestAnimationFrame(() => resolve(undefined)));
         
-        console.log('[ThumbnailService] WASM initialized, proceeding with capture');
+        logger.debug('[ThumbnailService] WASM initialized, proceeding with capture');
       }
       
       // Additional check: Verify canvas has actual content (not all black)
@@ -150,7 +151,7 @@ class TableThumbnailService {
         
         const isBlank = sampleData[0] === 0 && sampleData[1] === 0 && sampleData[2] === 0 && sampleData[3] === 0;
         if (isBlank) {
-          console.warn('[ThumbnailService] Canvas appears blank (all black), waiting for render...');
+          logger.warn('[ThumbnailService] Canvas appears blank (all black), waiting for render...');
           
           // Wait for next render frame
           await new Promise(resolve => requestAnimationFrame(() => 
@@ -163,23 +164,23 @@ class TableThumbnailService {
       // IMPORTANT: Only the active table is loaded in WASM memory
       // Other tables exist in server state but are not rendered until switched to
       // Note: We rely on the server marking tables as active/inactive
-      console.log(`[ThumbnailService] Generating thumbnail for table '${tableId}'`);
+      logger.debug(`[ThumbnailService] Generating thumbnail for table '${tableId}'`);
       
-      console.log(`[ThumbnailService] Generating thumbnail for active table '${tableId}'`);
+      logger.debug(`[ThumbnailService] Generating thumbnail for active table '${tableId}'`);
       
       // CRITICAL: Trigger a render frame before capturing
       // The render loop runs in WASM Rust and may not be producing frames
       // when the GameCanvas is not visible (e.g., on Tables tab)
-      console.log('[ThumbnailService] Triggering render frame before capture');
+      logger.debug('[ThumbnailService] Triggering render frame before capture');
       try {
         this.renderEngine.render();
         // Wait for the render to complete (WebGL/WASM operations)
         await new Promise(resolve => requestAnimationFrame(() => resolve(undefined)));
       } catch (renderError) {
-        console.warn('[ThumbnailService] Failed to trigger render:', renderError);
+        logger.warn('[ThumbnailService] Failed to trigger render:', renderError);
       }
       
-      console.log('[ThumbnailService] Capturing from canvas:', { 
+      logger.debug('[ThumbnailService] Capturing from canvas:', { 
         canvasWidth: mainCanvas.width, 
         canvasHeight: mainCanvas.height,
         tableWidth,
@@ -221,7 +222,7 @@ class TableThumbnailService {
         
         // Draw scaled version of main canvas (zero-copy approach like Figma)
         // This captures the current rendered state without re-rendering
-        console.log('[ThumbnailService] Drawing canvas:', {
+        logger.debug('[ThumbnailService] Drawing canvas:', {
           source: { x: 0, y: 0, w: mainCanvas.width, h: mainCanvas.height },
           dest: { x: offsetX, y: offsetY, w: scaledWidth, h: scaledHeight },
           scale
@@ -248,7 +249,7 @@ class TableThumbnailService {
         }
         const totalPixels = (imageData.width * imageData.height);
         const percentVisible = (nonBlackPixels / totalPixels * 100).toFixed(1);
-        console.log('[ThumbnailService] Content analysis:', {
+        logger.debug('[ThumbnailService] Content analysis:', {
           totalPixels,
           nonBlackPixels,
           percentVisible: `${percentVisible}%`,
@@ -264,17 +265,17 @@ class TableThumbnailService {
         this.cache.set(cacheKey, cacheEntry);
         
         const duration = performance.now() - startTime;
-        console.log(`[ThumbnailService] Generated thumbnail in ${duration.toFixed(2)}ms`);
+        logger.debug(`[ThumbnailService] Generated thumbnail in ${duration.toFixed(2)}ms`);
         
         return imageData;
         
       } catch (error) {
-        console.error('[ThumbnailService] Error during thumbnail generation:', error);
+        logger.error('[ThumbnailService] Error during thumbnail generation:', error);
         throw error;
       }
       
     } catch (error) {
-      console.error('[ThumbnailService] Failed to generate thumbnail:', error);
+      logger.error('[ThumbnailService] Failed to generate thumbnail:', error);
       throw error;
     } finally {
       this.isGenerating.delete(cacheKey);
@@ -288,7 +289,7 @@ class TableThumbnailService {
     const startTime = Date.now();
     while (this.isGenerating.has(cacheKey)) {
       if (Date.now() - startTime > timeoutMs) {
-        console.warn(`[ThumbnailService] Timeout waiting for ${cacheKey}`);
+        logger.warn(`[ThumbnailService] Timeout waiting for ${cacheKey}`);
         break;
       }
       await new Promise(resolve => setTimeout(resolve, 100));
@@ -319,7 +320,7 @@ class TableThumbnailService {
       
       if (keysToDelete.length > 0) {
         keysToDelete.forEach(key => this.cache.delete(key));
-        console.log(`[ThumbnailService] Invalidated ${keysToDelete.length} cached thumbnails for table ${tableId}`);
+        logger.debug(`[ThumbnailService] Invalidated ${keysToDelete.length} cached thumbnails for table ${tableId}`);
       }
       
       this.debounceTimers.delete(tableId);
@@ -335,7 +336,7 @@ class TableThumbnailService {
     if (!isValidUUID(tableId)) return;
     const cacheKey = `${tableId}_${width}x${height}`;
     if (this.cache.delete(cacheKey)) {
-      console.log(`[ThumbnailService] Invalidated thumbnail: ${cacheKey}`);
+      logger.debug(`[ThumbnailService] Invalidated thumbnail: ${cacheKey}`);
     }
   }
   
@@ -345,7 +346,7 @@ class TableThumbnailService {
   clearCache(): void {
     const count = this.cache.size;
     this.cache.clear();
-    console.log(`[ThumbnailService] Cleared ${count} cached thumbnails`);
+    logger.debug(`[ThumbnailService] Cleared ${count} cached thumbnails`);
   }
   
   /**
@@ -377,7 +378,7 @@ class TableThumbnailService {
     
     if (keysToDelete.length > 0) {
       keysToDelete.forEach(key => this.cache.delete(key));
-      console.log(`[ThumbnailService] Pruned ${keysToDelete.length} old thumbnails`);
+      logger.debug(`[ThumbnailService] Pruned ${keysToDelete.length} old thumbnails`);
     }
   }
 }

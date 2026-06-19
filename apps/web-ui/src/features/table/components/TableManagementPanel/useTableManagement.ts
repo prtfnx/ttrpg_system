@@ -2,6 +2,7 @@ import type { TableInfo } from '@/store';
 import { useGameStore } from '@/store';
 import { tableThumbnailService } from '@features/table/services/tableThumbnail.service';
 import { useWasmRuntime, useWasmStatus } from '@lib/wasm/runtime';
+import { logger } from '@shared/utils/logger';
 import { showToast } from '@shared/utils/toast';
 import { useEffect, useMemo, useState } from 'react';
 import { TABLE_TEMPLATES } from './utils';
@@ -156,21 +157,18 @@ export const useTableManagement = () => {
   };
 
   const handleDiagnoseThumbnails = async () => {
-    console.group(' Thumbnail Diagnostic Report');
-    
     const wasmReady = wasmStatus.isModuleReady && wasmStatus.isCanvasAttached;
-    console.log('1. WASM Status:', wasmReady ? ' Initialized' : ' Not Initialized');
-    
     const mainCanvas = document.querySelector('[data-testid="game-canvas"]') as HTMLCanvasElement;
- console.log('2. Main Canvas:', mainCanvas ? {
+    logger.debug('Thumbnail diagnostic: WASM status', wasmReady ? 'Initialized' : 'Not initialized');
+    logger.debug('Thumbnail diagnostic: main canvas', mainCanvas ? {
       found: 'Yes',
       dimensions: `${mainCanvas.width}x${mainCanvas.height}`,
       inDOM: mainCanvas.parentElement ? 'In DOM': 'Not in DOM'
     } : 'Not Found');
     
     const renderEngine = runtime.getRenderEngine();
-    console.log('3. Active Table:', tables[0]?.table_name || ' None');
-    console.log('5. Render Engine:', renderEngine ? ' Available' : ' Not Available');
+    logger.debug('Thumbnail diagnostic: active table', tables[0]?.table_name || 'None');
+    logger.debug('Thumbnail diagnostic: render engine', renderEngine ? 'Available' : 'Not available');
     if (renderEngine) {
       tableThumbnailService.initialize(renderEngine, {
         isRuntimeReady: () => runtime.status.isModuleReady && runtime.status.isCanvasAttached,
@@ -186,14 +184,14 @@ export const useTableManagement = () => {
           1, 1
         ).data;
         const isBlack = centerPixel[0] === 0 && centerPixel[1] === 0 && centerPixel[2] === 0;
-        console.log('6. Canvas Content (center pixel):', isBlack ? ' Black (empty?)' : ' Has Content', centerPixel);
+        logger.debug('Thumbnail diagnostic: canvas center pixel', isBlack ? 'Black or empty' : 'Has content', centerPixel);
       }
     }
     
     if (activeTableId) {
       const table = tables.find(t => t.table_id === activeTableId);
       if (table) {
- console.log('7. Attempting to regenerate thumbnail for active table:', table.table_name);
+        logger.debug('Thumbnail diagnostic: regenerating active table thumbnail', table.table_name);
         try {
           const imageData = await tableThumbnailService.generateThumbnail(
             table.table_id,
@@ -203,20 +201,18 @@ export const useTableManagement = () => {
             120,
             true
           );
-          console.log(' Result:', imageData ? ` Generated ${imageData.width}x${imageData.height}` : ' Returned null');
+          logger.debug('Thumbnail diagnostic: regeneration result', imageData ? `Generated ${imageData.width}x${imageData.height}` : 'Returned null');
         } catch (error) {
-          console.error(' Error:', error);
+          logger.error('Thumbnail diagnostic failed:', error);
         }
       }
     }
     
     const cacheStats = tableThumbnailService.getCacheStats();
- console.log('8. Cache Statistics:', {
+    logger.debug('Thumbnail diagnostic: cache statistics', {
       totalCached: cacheStats.size,
       tablesWithCache: cacheStats.tables
     });
-    
- console.groupEnd();
     
     alert(`Thumbnail Diagnostic Complete\n\nCheck browser console (F12) for detailed report.\n\nQuick Summary:\n- WASM: ${wasmReady ? '': ''}\n- Canvas: ${mainCanvas ? '': ''}\n- Active Table: ${activeTableId ? '': ''}\n- Cached: ${cacheStats.size} thumbnails`);
   };

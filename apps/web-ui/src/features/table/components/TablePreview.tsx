@@ -1,5 +1,6 @@
 import type { TableInfo } from '@/store';
 import { useWasmRuntime, useWasmStatus } from '@lib/wasm/runtime';
+import { logger } from '@shared/utils/logger';
 import React, { useEffect, useRef, useState } from 'react';
 import { tableThumbnailService } from '../services/tableThumbnail.service';
 
@@ -27,7 +28,7 @@ export const TablePreview: React.FC<TablePreviewProps> = ({
   React.useEffect(() => {
     (window as Window & { __regenerateThumbnail?: (tableId: string) => void }).__regenerateThumbnail = (tableId: string) => {
       if (tableId === table.table_id) {
-        console.log(`[TablePreview] Manual regeneration triggered for ${tableId}`);
+        logger.debug(`[TablePreview] Manual regeneration triggered for ${tableId}`);
         tableThumbnailService.invalidateThumbnail(table.table_id, width, height);
         setRefreshTrigger(prev => prev + 1);
       }
@@ -42,7 +43,7 @@ export const TablePreview: React.FC<TablePreviewProps> = ({
       
       // Only regenerate thumbnail if this event is for our table
       if (tableId === table.table_id) {
-        console.log(`[TablePreview] Sprites loaded for table ${tableId} (${spriteCount} sprites), regenerating thumbnail`);
+        logger.debug(`[TablePreview] Sprites loaded for table ${tableId} (${spriteCount} sprites), regenerating thumbnail`);
         
         // Force regeneration by clearing cache
         tableThumbnailService.invalidateThumbnail(table.table_id, width, height);
@@ -111,11 +112,11 @@ export const TablePreview: React.FC<TablePreviewProps> = ({
         // Only update if not cancelled
         if (!isCancelled) {
           if (imageData) {
-            console.log(`[TablePreview] Rendering thumbnail for ${table.table_id}: ${imageData.width}x${imageData.height}`);
+            logger.debug(`[TablePreview] Rendering thumbnail for ${table.table_id}: ${imageData.width}x${imageData.height}`);
             ctx.putImageData(imageData, 0, 0);
           } else {
             // Table not active - show "Not Loaded" placeholder
-            console.log(`[TablePreview] Table ${table.table_id} not active, showing placeholder`);
+            logger.debug(`[TablePreview] Table ${table.table_id} not active, showing placeholder`);
             
             ctx.fillStyle = '#1a1a1a';
             ctx.fillRect(0, 0, width, height);
@@ -160,7 +161,7 @@ export const TablePreview: React.FC<TablePreviewProps> = ({
           setIsLoading(false);
         }
       } catch (err) {
-        console.error('Failed to render table thumbnail:', err);
+        logger.error('Failed to render table thumbnail:', err);
         if (!isCancelled) {
           setError(err instanceof Error ? err.message : 'Failed to render thumbnail');
           

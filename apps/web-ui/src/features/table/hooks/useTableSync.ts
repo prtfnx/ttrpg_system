@@ -1,5 +1,6 @@
 import { useWasmRuntime } from '@lib/wasm/runtime';
 import { useNetworkClient } from '@shared/hooks/useNetworkClient';
+import { logger } from '@shared/utils/logger';
 import { useCallback, useEffect, useRef, useState } from 'react';
 
 export interface TableData {
@@ -43,8 +44,53 @@ export interface SpriteUpdateData {
   sprite_id: string;
   table_id: string;
   update_type: string;
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  data: any;
+  data: {
+    to?: {
+      x?: number;
+      y?: number;
+    };
+    scale_x?: number;
+    scale_y?: number;
+    rotation?: number;
+    [key: string]: unknown;
+  };
+}
+
+interface WasmTableSyncClient {
+  set_table_received_handler: (handler: (data: unknown) => void) => void;
+  set_sprite_update_handler: (handler: (data: unknown) => void) => void;
+  set_error_handler: (handler: (error: string) => void) => void;
+  set_network_client: (client: unknown) => void;
+  handle_table_data: (data: unknown) => void;
+  handle_sprite_update: (data: unknown) => void;
+  request_table: (id: string) => void;
+  request_new_table: (name: string) => Promise<unknown> | unknown;
+  send_sprite_move: (id: string, x: number, y: number) => void;
+  send_sprite_scale: (id: string, x: number, y: number) => void;
+  send_sprite_rotate: (id: string, rotation: number) => void;
+  send_sprite_delete: (id: string) => void;
+  send_sprite_create: (sprite: unknown) => void;
+  add_sprite: (
+    id: string,
+    name: string,
+    x: number,
+    y: number,
+    width: number,
+    height: number,
+    imageUrl: string,
+    rotation: number
+  ) => Promise<unknown> | unknown;
+  update_sprite: (
+    id: string,
+    name: string,
+    x: number,
+    y: number,
+    width: number,
+    height: number,
+    imageUrl: string,
+    rotation: number
+  ) => Promise<unknown> | unknown;
+  remove_sprite: (id: string) => Promise<unknown> | unknown;
 }
 
 interface TableSyncState {
@@ -65,7 +111,7 @@ interface TableSyncHookOptions {
 
 export const useTableSync = (options: TableSyncHookOptions = {}) => {
   const runtime = useWasmRuntime();
-  const tableSyncRef = useRef<Record<string, (...args: unknown[]) => unknown> | null>(null);
+  const tableSyncRef = useRef<WasmTableSyncClient | null>(null);
   // Ref-based handler so the stable onMessage wrapper never becomes stale
   const handleNetworkMessageRef = useRef<((type: string, data: Record<string, unknown>) => void) | undefined>(undefined);
   const stableOnMessage = useCallback((msg: { type: string; data: unknown }) => {
@@ -87,7 +133,7 @@ export const useTableSync = (options: TableSyncHookOptions = {}) => {
     if (!tableSyncRef.current) {
       // TableSync is owned by the WASM runtime facade.
       runtime.initialize().then(() => {
-        const tableSync = runtime.getTableSync() as unknown as { set_table_received_handler: (h: (d: unknown) => void) => void; set_sprite_update_handler: (h: (d: unknown) => void) => void; set_error_handler: (h: (e: string) => void) => void; handle_table_data: (d: unknown) => void; handle_sprite_update: (d: unknown) => void; request_table: (id: string) => void; send_sprite_move: (id: string, x: number, y: number) => void; send_sprite_scale: (id: string, x: number, y: number) => void; send_sprite_rotate: (id: string, r: number) => void; send_sprite_delete: (id: string) => void; send_sprite_create: (sprite: unknown) => void } | null;
+        const tableSync = runtime.getTableSync() as unknown as WasmTableSyncClient | null;
         if (!tableSync) {
           throw new Error('TableSync unavailable from WASM runtime');
         }
@@ -173,14 +219,15 @@ export const useTableSync = (options: TableSyncHookOptions = {}) => {
           }
         });
 
-        tableSyncRef.current = tableSync as unknown as Record<string, (...args: unknown[]) => unknown>;
-        console.log('Table sync client initialized');
+        tableSyncRef.current = tableSync;
+        logger.debug('Table sync client initialized');
       }).catch((error: unknown) => {
         const errorMsg = `Failed to initialize table sync: ${error}`;
         setState(prev => ({ ...prev, error: errorMsg }));
         if (options.onError) {
           options.onError(errorMsg);
         }
+        logger.error('Failed to initialize table sync:', error);
       });
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps -- intentional: options object excluded to prevent infinite loop
@@ -191,11 +238,11 @@ export const useTableSync = (options: TableSyncHookOptions = {}) => {
     const handleTableDataReceived = (event: Event) => {
       const customEvent = event as CustomEvent;
       if (tableSyncRef.current && customEvent.detail.table_data) {
-        console.log('Forwarding table data to WASM:', customEvent.detail.table_data);
+        logger.debug('Forwarding table data to WASM:', customEvent.detail.table_data);
         try {
           tableSyncRef.current.handle_table_data(customEvent.detail.table_data);
         } catch (error) {
-          console.error('Failed to handle table data in WASM:', error);
+          logger.error('Failed to handle table data in WASM:', error);
         }
       }
     };
@@ -203,11 +250,11 @@ export const useTableSync = (options: TableSyncHookOptions = {}) => {
     const handleTableResponse = (event: Event) => {
       const customEvent = event as CustomEvent;
       if (tableSyncRef.current && customEvent.detail.table_data) {
-        console.log('Forwarding table response to WASM:', customEvent.detail.table_data);
+        logger.debug('Forwarding table response to WASM:', customEvent.detail.table_data);
         try {
           tableSyncRef.current.handle_table_data(customEvent.detail.table_data);
         } catch (error) {
-          console.error('Failed to handle table response in WASM:', error);
+          logger.error('Failed to handle table response in WASM:', error);
         }
       }
     };
@@ -215,11 +262,11 @@ export const useTableSync = (options: TableSyncHookOptions = {}) => {
     const handleNewTableResponse = (event: Event) => {
       const customEvent = event as CustomEvent;
       if (tableSyncRef.current && customEvent.detail.table_data) {
-        console.log('Forwarding new table response to WASM:', customEvent.detail.table_data);
+        logger.debug('Forwarding new table response to WASM:', customEvent.detail.table_data);
         try {
           tableSyncRef.current.handle_table_data(customEvent.detail.table_data);
         } catch (error) {
-          console.error('Failed to handle new table response in WASM:', error);
+          logger.error('Failed to handle new table response in WASM:', error);
         }
       }
     };
@@ -227,11 +274,11 @@ export const useTableSync = (options: TableSyncHookOptions = {}) => {
     const handleSpriteUpdate = (event: Event) => {
       const customEvent = event as CustomEvent;
       if (tableSyncRef.current) {
-        console.log('Forwarding sprite update to WASM:', customEvent.detail);
+        logger.debug('Forwarding sprite update to WASM:', customEvent.detail);
         try {
           tableSyncRef.current.handle_sprite_update(customEvent.detail);
         } catch (error) {
-          console.error('Failed to handle sprite update in WASM:', error);
+          logger.error('Failed to handle sprite update in WASM:', error);
         }
       }
     };
@@ -256,9 +303,9 @@ export const useTableSync = (options: TableSyncHookOptions = {}) => {
     if (tableSyncRef.current && networkClient) {
       try {
         tableSyncRef.current.set_network_client(networkClient);
-        console.log('Network client set for table sync');
+        logger.debug('Network client set for table sync');
       } catch (error) {
-        console.error('Failed to set network client:', error);
+        logger.error('Failed to set network client:', error);
       }
     }
   }, [networkClient]);
@@ -293,7 +340,7 @@ export const useTableSync = (options: TableSyncHookOptions = {}) => {
     
     try {
       tableSyncRef.current.request_table(tableName);
-      console.log(`Requested table: ${tableName}`);
+      logger.debug(`Requested table: ${tableName}`);
     } catch (error) {
       const errorMsg = `Failed to request table: ${error}`;
       setState(prev => ({ ...prev, error: errorMsg, isLoading: false }));
@@ -312,9 +359,9 @@ export const useTableSync = (options: TableSyncHookOptions = {}) => {
 
     try {
       tableSyncRef.current.send_sprite_move(spriteId, x, y);
-      console.log(`Sent sprite move: ${spriteId} to (${x}, ${y})`);
+      logger.debug(`Sent sprite move: ${spriteId} to (${x}, ${y})`);
     } catch (error) {
-      console.error('Failed to send sprite move:', error);
+      logger.error('Failed to send sprite move:', error);
       throw error;
     }
   }, []);
@@ -326,14 +373,10 @@ export const useTableSync = (options: TableSyncHookOptions = {}) => {
     }
 
     try {
-      if (typeof tableSyncRef.current.set_sprite_scale === 'function') {
-        tableSyncRef.current.set_sprite_scale(spriteId, scaleX, scaleY);
-      } else {
-        tableSyncRef.current.send_sprite_scale(spriteId, scaleX, scaleY);
-      }
-      console.log(`Sent sprite scale: ${spriteId} to (${scaleX}, ${scaleY})`);
+      tableSyncRef.current.send_sprite_scale(spriteId, scaleX, scaleY);
+      logger.debug(`Sent sprite scale: ${spriteId} to (${scaleX}, ${scaleY})`);
     } catch (error) {
-      console.error('Failed to send sprite scale:', error);
+      logger.error('Failed to send sprite scale:', error);
       throw error;
     }
   }, []);
@@ -346,9 +389,9 @@ export const useTableSync = (options: TableSyncHookOptions = {}) => {
 
     try {
       tableSyncRef.current.send_sprite_rotate(spriteId, rotation);
-      console.log(`Sent sprite rotation: ${spriteId} to ${rotation}`);
+      logger.debug(`Sent sprite rotation: ${spriteId} to ${rotation}`);
     } catch (error) {
-      console.error('Failed to send sprite rotation:', error);
+      logger.error('Failed to send sprite rotation:', error);
       throw error;
     }
   }, []);
@@ -366,10 +409,10 @@ export const useTableSync = (options: TableSyncHookOptions = {}) => {
 
     try {
       tableSyncRef.current.send_sprite_create(fullSpriteData);
-      console.log(`Sent sprite create: ${fullSpriteData.sprite_id}`);
+      logger.debug(`Sent sprite create: ${fullSpriteData.sprite_id}`);
       return fullSpriteData.sprite_id;
     } catch (error) {
-      console.error('Failed to send sprite create:', error);
+      logger.error('Failed to send sprite create:', error);
       throw error;
     }
   }, []);
@@ -382,9 +425,9 @@ export const useTableSync = (options: TableSyncHookOptions = {}) => {
 
     try {
       tableSyncRef.current.send_sprite_delete(spriteId);
-      console.log(`Sent sprite delete: ${spriteId}`);
+      logger.debug(`Sent sprite delete: ${spriteId}`);
     } catch (error) {
-      console.error('Failed to send sprite delete:', error);
+      logger.error('Failed to send sprite delete:', error);
       throw error;
     }
   }, []);
@@ -421,7 +464,7 @@ export const useTableSync = (options: TableSyncHookOptions = {}) => {
           break;
       }
     } catch (error) {
-      console.error('Error handling network message:', error);
+      logger.error('Error handling network message:', error);
     }
   }, [state.tableId]);
 

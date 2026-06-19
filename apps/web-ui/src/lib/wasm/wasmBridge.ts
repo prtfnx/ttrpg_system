@@ -9,10 +9,13 @@ import { useGameStore } from '@/store';
 import { authService } from '@features/auth';
 import { isDM } from '@features/session/types/roles';
 import { useOptionalProtocol } from '@lib/api';
+import { onProtocolEvent, type ProtocolEventMap } from '@lib/websocket/protocolEvents';
 import { createMessage, MessageType } from '@lib/websocket';
 import type { WebClientProtocol } from '@lib/websocket';
+import { logger } from '@shared/utils/logger';
 import React from 'react';
 import { toast } from 'react-toastify';
+import { emitWasmEvent, onWasmEvent, type WasmEventMap } from './wasmEvents';
 
 const CONFIRM_TIMEOUT_MS = 5000;
 
@@ -31,6 +34,7 @@ interface PendingAction {
 class WasmBridgeService {
   private protocol: WebClientProtocol | null = null;
   private isInitialized = false;
+  private eventCleanups: Array<() => void> = [];
 
   // Last server-confirmed state (source of truth for rollback)
   private committedPositions = new Map<string, { x: number; y: number }>();
@@ -42,12 +46,14 @@ class WasmBridgeService {
 
   init() {
     if (this.isInitialized) return;
-    window.addEventListener('wasm-sprite-operation', this.onWasmOperation as EventListener);
-    window.addEventListener('wasm-light-moved', this.onLightMoved as EventListener);
-    window.addEventListener('wasm-wall-moved', this.onWallMoved as EventListener);
-    window.addEventListener('sprite-created', this.onSpriteCreated as EventListener);
-    window.addEventListener('sprite-action-confirmed', this.onActionConfirmed as EventListener);
-    window.addEventListener('sprite-action-rejected', this.onActionRejected as EventListener);
+    this.eventCleanups = [
+      onWasmEvent('wasm-sprite-operation', this.onWasmOperation),
+      onWasmEvent('wasm-light-moved', this.onLightMoved),
+      onWasmEvent('wasm-wall-moved', this.onWallMoved),
+      onProtocolEvent('sprite-created', this.onSpriteCreated),
+      onProtocolEvent('sprite-action-confirmed', this.onActionConfirmed),
+      onProtocolEvent('sprite-action-rejected', this.onActionRejected),
+    ];
     this.isInitialized = true;
   }
 
@@ -75,19 +81,16 @@ class WasmBridgeService {
   }
 
   cleanup() {
-    window.removeEventListener('wasm-sprite-operation', this.onWasmOperation as EventListener);
-    window.removeEventListener('wasm-light-moved', this.onLightMoved as EventListener);
-    window.removeEventListener('wasm-wall-moved', this.onWallMoved as EventListener);
-    window.removeEventListener('sprite-created', this.onSpriteCreated as EventListener);
-    window.removeEventListener('sprite-action-confirmed', this.onActionConfirmed as EventListener);
-    window.removeEventListener('sprite-action-rejected', this.onActionRejected as EventListener);
+    this.eventCleanups.forEach(cleanup => cleanup());
+    this.eventCleanups = [];
     this.pendingActions.forEach(p => clearTimeout(p.timerId));
     this.pendingActions.clear();
     this.isInitialized = false;
   }
 
-  private onActionConfirmed = (e: Event) => {
-    const { actionId } = (e as CustomEvent<{ actionId: string }>).detail;
+  private onActionConfirmed = (detail: ProtocolEventMap['sprite-action-confirmed']) => {
+    if (typeof detail.actionId !== 'string') return;
+    const actionId = detail.actionId;
     const pending = this.pendingActions.get(actionId);
     if (!pending) return;
     clearTimeout(pending.timerId);
@@ -95,8 +98,9 @@ class WasmBridgeService {
     this.pendingActions.delete(actionId);
   };
 
-  private onActionRejected = (e: Event) => {
-    const { actionId, reason } = (e as CustomEvent<{ actionId: string; reason: string }>).detail;
+  private onActionRejected = (detail: ProtocolEventMap['sprite-action-rejected']) => {
+    if (typeof detail.actionId !== 'string') return;
+    const { actionId, reason } = detail;
     const pending = this.pendingActions.get(actionId);
     if (!pending) return;
     clearTimeout(pending.timerId);
@@ -104,15 +108,14 @@ class WasmBridgeService {
     this.emitRevert(pending, reason);
   };
 
-  private onSpriteCreated = (e: Event) => {
-    const { sprite_id, x, y } = (e as CustomEvent).detail ?? {};
+  private onSpriteCreated = (detail: ProtocolEventMap['sprite-created']) => {
+    const { sprite_id, x, y } = detail ?? {};
     if (sprite_id != null && x != null && y != null) {
-      this.committedPositions.set(sprite_id, { x, y });
+      this.committedPositions.set(String(sprite_id), { x: Number(x), y: Number(y) });
     }
   };
 
-  private onLightMoved = (e: Event) => {
-    const { lightId, x, y } = (e as CustomEvent).detail ?? {};
+  private onLightMoved = ({ lightId, x, y }: WasmEventMap['wasm-light-moved']) => {
     if (!this.protocol || !lightId) return;
     // Lights are sprites on the server with texture_path '__LIGHT__'.
     // Send a sprite move so the server persists the new coordinates.
@@ -121,8 +124,7 @@ class WasmBridgeService {
     useGameStore.getState().updateSprite(lightId, { x, y });
   };
 
-  private onWallMoved = (e: Event) => {
-    const { wallId, x1, y1, x2, y2 } = (e as CustomEvent).detail ?? {};
+  private onWallMoved = ({ wallId, x1, y1, x2, y2 }: WasmEventMap['wasm-wall-moved']) => {
     if (!this.protocol || !wallId) return;
     // Update store (which also forwards to WASM)
     useGameStore.getState().updateWall(wallId, { x1, y1, x2, y2 });
@@ -130,8 +132,7 @@ class WasmBridgeService {
     this.protocol.updateWall(wallId, { x1, y1, x2, y2 });
   };
 
-  private onWasmOperation = (e: Event) => {
-    const { operation, spriteId, data } = (e as CustomEvent).detail;
+  private onWasmOperation = ({ operation, spriteId, data }: WasmEventMap['wasm-sprite-operation']) => {
     if (!this.protocol || !spriteId || !operation) return;
 
     // Permission check: only DM/co-DM can move ownerless sprites;
@@ -140,26 +141,24 @@ class WasmBridgeService {
     if (!isDM(sessionRole)) {
       const userId = authService.getUserInfo()?.id;
       if (!canControlSprite(spriteId, userId)) {
-        console.warn('[WasmBridge] Permission denied: cannot control sprite', spriteId);
+        logger.warn('[WasmBridge] Permission denied: cannot control sprite', spriteId);
         // Revert the optimistic WASM move back to last committed state
-        const originalState = this.snapshotCommitted(spriteId, operation as Operation);
+        const originalState = this.snapshotCommitted(spriteId, operation);
         if (Object.keys(originalState).length > 0) {
-          window.dispatchEvent(new CustomEvent('sprite-revert', {
-            detail: { spriteId, operation, originalState, reason: 'permission_denied' }
-          }));
+          emitWasmEvent('sprite-revert', { spriteId, operation, originalState, reason: 'permission_denied' });
         }
         return;
       }
     }
 
     const actionId = `a${++this.nextActionId}`;
-    const originalState = this.snapshotCommitted(spriteId, operation as Operation);
-    const newState = this.dataToState(operation as Operation, data);
+    const originalState = this.snapshotCommitted(spriteId, operation);
+    const newState = this.dataToState(operation, data);
 
-    this.sendCommit(operation as Operation, spriteId, data, actionId);
+    this.sendCommit(operation, spriteId, data, actionId);
 
     const timerId = setTimeout(() => this.onTimeout(actionId), CONFIRM_TIMEOUT_MS);
-    this.pendingActions.set(actionId, { spriteId, operation: operation as Operation, originalState, newState, timerId });
+    this.pendingActions.set(actionId, { spriteId, operation, originalState, newState, timerId });
   };
 
   private onTimeout(actionId: string) {
@@ -217,7 +216,7 @@ class WasmBridgeService {
   private sendCommit(op: Operation, spriteId: string, data: Record<string, number>, actionId: string) {
     const tableId = useGameStore.getState().activeTableId;
     if (!tableId) {
-      console.error('[WasmBridge] No active table for commit');
+      logger.error('[WasmBridge] No active table for commit');
       return;
     }
 
@@ -250,14 +249,12 @@ class WasmBridgeService {
     // If originalState is empty (sprite never confirmed a position with this client),
     // touching WASM with undefined values would send the sprite to NaN coordinates.
     if (Object.keys(pending.originalState).length > 0) {
-      window.dispatchEvent(new CustomEvent('sprite-revert', {
-        detail: {
-          spriteId: pending.spriteId,
-          operation: pending.operation,
-          originalState: pending.originalState,
-          reason,
-        }
-      }));
+      emitWasmEvent('sprite-revert', {
+        spriteId: pending.spriteId,
+        operation: pending.operation,
+        originalState: pending.originalState,
+        reason,
+      });
     }
 
     const label: Record<Operation, string> = { move: 'Movement', resize: 'Resize', rotate: 'Rotation' };

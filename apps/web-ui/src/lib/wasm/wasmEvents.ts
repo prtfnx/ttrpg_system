@@ -71,15 +71,15 @@ export type WasmEventMap = {
   // WASM → Protocol bridge events
   'wasm-sprite-operation': {
     spriteId: string;
-    operation: string;
-    state: Record<string, number>;
+    operation: 'move' | 'resize' | 'rotate';
+    data: Record<string, number>;
   };
   'wasm-light-moved': { lightId: string; x: number; y: number };
-  'wasm-wall-moved': { wallId: string; points: number[] };
+  'wasm-wall-moved': { wallId: string; x1: number; y1: number; x2: number; y2: number };
 
   // Protocol → WASM confirmations
-  'sprite-action-confirmed': { action_id: string };
-  'sprite-action-rejected': { action_id: string; reason: string };
+  'sprite-action-confirmed': { actionId: string };
+  'sprite-action-rejected': { actionId: string; reason: string };
 
   // Assets
   'asset-downloaded': { asset_id: string; data: ArrayBuffer };

@@ -37,7 +37,8 @@ function makeEngine() {
     create_polygon_sprite: vi.fn(),
     add_sprite_to_layer: vi.fn(),
     remove_sprite: vi.fn(),
-    set_sprite_position: vi.fn(() => true),
+    update_sprite_position: vi.fn(() => true),
+    update_light_position: vi.fn(),
     rotate_sprite: vi.fn(),
   };
 }
@@ -186,11 +187,11 @@ describe('SpriteSyncService', () => {
       expect(engine.remove_sprite).toHaveBeenCalledWith('x1');
     });
 
-    it('sprite-revert move operation calls set_sprite_position', () => {
+    it('sprite-revert move operation calls update_sprite_position', () => {
       window.dispatchEvent(new CustomEvent('sprite-revert', {
         detail: { spriteId: 'x1', operation: 'move', originalState: { x: 5, y: 10 } },
       }));
-      expect(engine.set_sprite_position).toHaveBeenCalledWith('x1', 5, 10);
+      expect(engine.update_sprite_position).toHaveBeenCalledWith('x1', 5, 10);
     });
 
     it('sprite-revert rotate operation calls rotate_sprite', () => {

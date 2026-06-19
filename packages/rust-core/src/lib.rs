@@ -178,8 +178,6 @@ pub(crate) use net::client as network;
 pub(crate) use net::table_sync;
 #[cfg(target_arch = "wasm32")]
 mod actions;
-#[cfg(target_arch = "wasm32")]
-mod utils;
 
 #[cfg(target_arch = "wasm32")]
 pub use render::RenderEngine;
@@ -269,7 +267,7 @@ pub fn init_game_renderer(canvas: HtmlCanvasElement) -> Result<RenderEngine, JsV
 /// ```
 #[cfg(all(target_arch = "wasm32", feature = "wasm-start"))]
 #[wasm_bindgen(start)]
-pub fn main() {
+fn main() {
     console_error_panic_hook::set_once();
     log_info!("TTRPG Rust Core initialized");
 }

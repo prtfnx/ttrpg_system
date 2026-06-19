@@ -4,6 +4,9 @@
  */
 
 import { useGameStore } from '@/store';
+import { onProtocolEvent } from '@lib/websocket/protocolEvents';
+import { logger } from '@shared/utils/logger';
+import { emitWasmEvent } from './wasmEvents';
 import type { RenderEngine } from './runtime';
 import type { SpriteSyncService } from './spriteSync.service';
 
@@ -44,16 +47,12 @@ export class TableSyncService {
   }
 
   init(): void {
-    const on = (type: string, handler: (detail: TablePayload) => void) => {
-      const listener = (e: Event) => handler((e as CustomEvent<TablePayload>).detail);
-      window.addEventListener(type, listener);
-      this.eventCleanups.push(() => window.removeEventListener(type, listener));
-    };
-
-    on('table-data-received', d => this.handleTableDataReceived(d));
-    on('table-response', d => this.handleTableDataReceived(d));
-    on('new-table-response', d => this.handleTableDataReceived(d));
-    on('table-updated', d => this.handleTableUpdate(d));
+    this.eventCleanups.push(
+      onProtocolEvent('table-data-received', d => this.handleTableDataReceived((d ?? {}) as TablePayload)),
+      onProtocolEvent('table-response', d => this.handleTableDataReceived((d ?? {}) as TablePayload)),
+      onProtocolEvent('new-table-response', d => this.handleTableDataReceived((d ?? {}) as TablePayload)),
+      onProtocolEvent('table-updated', d => this.handleTableUpdate((d ?? {}) as TablePayload)),
+    );
   }
 
   dispose(): void {
@@ -158,11 +157,11 @@ export class TableSyncService {
         Object.values(tableData.layers ?? {}).forEach((ld: unknown) => {
           spriteCount += Array.isArray(ld) ? ld.length : ld && typeof ld === 'object' ? Object.keys(ld).length : 0;
         });
-        window.dispatchEvent(new CustomEvent('table-sprites-loaded', { detail: { table_id: tableData.table_id, count: spriteCount } }));
+        emitWasmEvent('table-sprites-loaded', { table_id: tableData.table_id, count: spriteCount });
       }
 
     } catch (err) {
-      console.error('[TableSyncService] handleTableDataReceived failed:', err);
+      logger.error('[TableSyncService] handleTableDataReceived failed:', err);
     }
   }
 
@@ -174,7 +173,7 @@ export class TableSyncService {
       if (typeof data.grid_enabled === 'boolean') engine.set_grid_enabled(data.grid_enabled);
       if (typeof data.grid_snapping === 'boolean') engine.set_grid_snapping(data.grid_snapping);
     } catch (err) {
-      console.error('[TableSyncService] handleTableUpdate failed:', err);
+      logger.error('[TableSyncService] handleTableUpdate failed:', err);
     }
   }
 
@@ -189,7 +188,7 @@ export class TableSyncService {
         tint_color: [1.0, 1.0, 1.0, 1.0],
       });
     } catch (err) {
-      console.error('[TableSyncService] loadBackgroundImage failed:', err);
+      logger.error('[TableSyncService] loadBackgroundImage failed:', err);
     }
   }
 }

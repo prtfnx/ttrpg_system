@@ -85,7 +85,7 @@ export type WasmEventMap = {
   'asset-downloaded': { asset_id: string; data: ArrayBuffer };
   'asset-uploaded': { asset_id: string; url?: string };
   'asset-upload-started': { asset_id: string; filename?: string };
-  'local-texture-ready': { asset_id: string; element: HTMLImageElement };
+  'local-texture-ready': { asset_id: string; url: string };
   'request-asset-download': { asset_id: string; url?: string };
 
   // Protocol bridge

@@ -5,6 +5,8 @@
  */
 
 import type { RenderEngine } from './runtime';
+import { onProtocolEvent } from '@lib/websocket/protocolEvents';
+import { emitWasmEvent, onWasmEvent } from './wasmEvents';
 
 interface AssetPayload {
   asset_id?: string;
@@ -32,19 +34,15 @@ export class AssetSyncService {
   }
 
   init(): void {
-    const on = <T>(type: string, handler: (detail: T) => void) => {
-      const listener = (e: Event) => handler((e as CustomEvent<T>).detail);
-      window.addEventListener(type, listener);
-      this.eventCleanups.push(() => window.removeEventListener(type, listener));
-    };
-
-    on('asset-downloaded', (d: AssetPayload) => this.handleAssetDownloaded(d));
-    on('asset-uploaded', (d: AssetPayload) => this.handleAssetUploaded(d));
-    on('asset-upload-started', (d: AssetPayload) => {
+    this.eventCleanups.push(
+      onProtocolEvent('asset-downloaded', d => this.handleAssetDownloaded((d ?? {}) as AssetPayload)),
+      onProtocolEvent('asset-uploaded', d => this.handleAssetUploaded((d ?? {}) as AssetPayload)),
+      onWasmEvent('asset-upload-started', d => {
       if (d?.asset_id) this.pendingAssetRetries.add(d.asset_id);
-    });
-    on('protocol-success', (d: AssetPayload) => this.handleProtocolSuccess(d));
-    on('local-texture-ready', (d: AssetPayload) => this.handleLocalTextureReady(d));
+      }),
+      onProtocolEvent('protocol-success', d => this.handleProtocolSuccess((d ?? {}) as AssetPayload)),
+      onWasmEvent('local-texture-ready', d => this.handleLocalTextureReady(d)),
+    );
   }
 
   dispose(): void {
@@ -64,7 +62,7 @@ export class AssetSyncService {
 
   requestAssetDownloadLink(assetId: string, _spriteId: string): void {
     if (this.loadedTextureIds.has(assetId)) return;
-    window.dispatchEvent(new CustomEvent('request-asset-download', { detail: { asset_id: assetId } }));
+    emitWasmEvent('request-asset-download', { asset_id: assetId });
   }
 
   async loadTextureFromUrl(assetId: string, url: string): Promise<void> {

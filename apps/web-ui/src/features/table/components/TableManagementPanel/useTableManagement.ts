@@ -2,6 +2,7 @@ import type { TableInfo } from '@/store';
 import { useGameStore } from '@/store';
 import { tableThumbnailService } from '@features/table/services/tableThumbnail.service';
 import { useWasmRuntime, useWasmStatus } from '@lib/wasm/runtime';
+import { emitProtocolEvent } from '@lib/websocket/protocolEvents';
 import { logger } from '@shared/utils/logger';
 import { showToast } from '@shared/utils/toast';
 import { useEffect, useMemo, useState } from 'react';
@@ -236,23 +237,21 @@ export const useTableManagement = () => {
   const handleSaveSettings = () => {
     if (!settingsTableId) return;
     
-    window.dispatchEvent(new CustomEvent('protocol-send-message', {
-      detail: {
+    emitProtocolEvent('protocol-send-message', {
+      type: 'table_update',
+      data: {
+        category: 'table',
         type: 'table_update',
         data: {
-          category: 'table',
-          type: 'table_update',
-          data: {
-            table_id: settingsTableId,
-            table_name: settingsName,
-            width: settingsWidth,
-            height: settingsHeight,
-            grid_size: settingsGridSize,
-            grid_enabled: settingsGridEnabled
-          }
+          table_id: settingsTableId,
+          table_name: settingsName,
+          width: settingsWidth,
+          height: settingsHeight,
+          grid_size: settingsGridSize,
+          grid_enabled: settingsGridEnabled
         }
       }
-    }));
+    });
 
     setTables(tables.map(t => 
       t.table_id === settingsTableId 
@@ -282,18 +281,14 @@ export const useTableManagement = () => {
         }
       };
       
-      window.dispatchEvent(new CustomEvent('table-data-received', {
-        detail: updatedTableDataForWasm
-      }));
+      emitProtocolEvent('table-data-received', updatedTableDataForWasm);
       
-      window.dispatchEvent(new CustomEvent('protocol-send-message', {
-        detail: {
-          type: 'table_request',
-          data: {
-            table_id: settingsTableId
-          }
+      emitProtocolEvent('protocol-send-message', {
+        type: 'table_request',
+        data: {
+          table_id: settingsTableId
         }
-      }));
+      });
     }
 
     setTimeout(() => {

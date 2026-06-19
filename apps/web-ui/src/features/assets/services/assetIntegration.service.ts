@@ -6,6 +6,7 @@
 import type { WebClientProtocol } from '@lib/websocket';
 import { getCurrentWasmRuntime } from '@lib/wasm/runtime';
 import { createMessage, MessageType } from '@lib/websocket';
+import { emitProtocolEvent } from '@lib/websocket/protocolEvents';
 import { logger } from '@shared/utils/logger';
 
 interface AssetUploadResponse {
@@ -271,12 +272,10 @@ class AssetIntegrationService {
    */
   requestAssetDownload(assetId: string): void {
     // This would be called by the AssetManager component
-    window.dispatchEvent(new CustomEvent('protocol-send-message', {
-      detail: {
-        type: 'ASSET_DOWNLOAD_REQUEST',
-        data: { asset_id: assetId }
-      }
-    }));
+    emitProtocolEvent('protocol-send-message', {
+      type: 'ASSET_DOWNLOAD_REQUEST',
+      data: { asset_id: assetId }
+    });
   }
 
   /**
@@ -284,28 +283,24 @@ class AssetIntegrationService {
    */
   requestAssetUpload(fileName: string, fileSize: number, fileType: string): void {
     // This would be called by the AssetManager component
-    window.dispatchEvent(new CustomEvent('protocol-send-message', {
-      detail: {
-        type: 'ASSET_UPLOAD_REQUEST',
-        data: { 
-          filename: fileName,
-          file_size: fileSize,
-          file_type: fileType
-        }
+    emitProtocolEvent('protocol-send-message', {
+      type: 'ASSET_UPLOAD_REQUEST',
+      data: { 
+        filename: fileName,
+        file_size: fileSize,
+        file_type: fileType
       }
-    }));
+    });
   }
 
   /**
    * Request the asset list from the server
    */
   requestAssetList(): void {
-    window.dispatchEvent(new CustomEvent('protocol-send-message', {
-      detail: {
-        type: 'ASSET_LIST_REQUEST',
-        data: {}
-      }
-    }));
+    emitProtocolEvent('protocol-send-message', {
+      type: 'ASSET_LIST_REQUEST',
+      data: {}
+    });
   }
 }
 

@@ -1,6 +1,7 @@
 import type { TableInfo } from '@/store';
 import { useGameStore } from '@/store';
 import { isDM } from '@features/session/types/roles';
+import { emitProtocolEvent } from '@lib/websocket/protocolEvents';
 import clsx from 'clsx';
 import { Copy, ExternalLink, Settings2, Trash2, Users } from 'lucide-react';
 import type { FC } from 'react';
@@ -29,9 +30,10 @@ export const TableCard: FC<TableCardProps> = ({
 
   const handleSetForAll = (e: React.MouseEvent) => {
     e.stopPropagation();
-    window.dispatchEvent(new CustomEvent('protocol-send-message', {
-      detail: { type: 'table_active_set_all', data: { table_id: table.table_id } }
-    }));
+    emitProtocolEvent('protocol-send-message', {
+      type: 'table_active_set_all',
+      data: { table_id: table.table_id },
+    });
   };
 
   return (

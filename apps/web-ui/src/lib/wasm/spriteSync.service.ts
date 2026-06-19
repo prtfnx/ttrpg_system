@@ -6,6 +6,8 @@
 
 import { useGameStore } from '@/store';
 import { tableThumbnailService } from '@features/table/services/tableThumbnail.service';
+import { emitProtocolEvent } from '@lib/websocket/protocolEvents';
+import { logger } from '@shared/utils/logger';
 import { wasmBridgeService } from './wasmBridge';
 import type { AssetSyncService } from './assetSync.service';
 import type { RenderEngine } from './runtime';
@@ -189,7 +191,7 @@ export class SpriteSyncService {
       this.addRegularSpriteToWasm(engine, spriteData, layer);
 
     } catch (err) {
-      console.error('[SpriteSyncService] addSpriteToWasm failed:', err, spriteData);
+      logger.error('[SpriteSyncService] addSpriteToWasm failed:', err, spriteData);
     }
   }
 
@@ -204,7 +206,7 @@ export class SpriteSyncService {
         engine.update_light_position(spriteId, position.x, position.y);
       }
     } catch (err) {
-      console.error('[SpriteSyncService] updateSpritePosition failed:', err);
+      logger.error('[SpriteSyncService] updateSpritePosition failed:', err);
     }
   }
 
@@ -215,7 +217,7 @@ export class SpriteSyncService {
       engine.resize_sprite(String(spriteId), Number(width), Number(height));
       engine.render();
     } catch (err) {
-      console.error('[SpriteSyncService] resizeSpriteInWasm failed:', err);
+      logger.error('[SpriteSyncService] resizeSpriteInWasm failed:', err);
     }
   }
 
@@ -225,7 +227,7 @@ export class SpriteSyncService {
     try {
       engine.rotate_sprite(spriteId, rotation);
     } catch (err) {
-      console.error('[SpriteSyncService] updateSpriteRotation failed:', err);
+      logger.error('[SpriteSyncService] updateSpriteRotation failed:', err);
     }
   }
 
@@ -265,12 +267,12 @@ export class SpriteSyncService {
       }
       if (data.sprite_data) {
         try { this.addSpriteToWasm(data.sprite_data); } catch (e) {
-          console.error('[SpriteSyncService] addSpriteToWasm after response:', e);
+          logger.error('[SpriteSyncService] addSpriteToWasm after response:', e);
         }
       }
     } else if (data.operation === 'remove' && data.success && data.sprite_id) {
       try { this.getEngine()?.remove_sprite(data.sprite_id); } catch (e) {
-        console.error('[SpriteSyncService] remove after server confirm:', e);
+        logger.error('[SpriteSyncService] remove after server confirm:', e);
       }
     }
   }
@@ -297,7 +299,7 @@ export class SpriteSyncService {
         this.updateSpriteEfficiently(spriteId, data);
       }
     } catch (err) {
-      console.error('[SpriteSyncService] handleSpriteUpdated failed:', err);
+      logger.error('[SpriteSyncService] handleSpriteUpdated failed:', err);
     }
   }
 
@@ -309,7 +311,7 @@ export class SpriteSyncService {
       this.getEngine()?.remove_sprite(spriteId);
       if (data.table_id) tableThumbnailService.invalidateTable(data.table_id);
     } catch (err) {
-      console.error('[SpriteSyncService] handleSpriteRemoved failed:', err);
+      logger.error('[SpriteSyncService] handleSpriteRemoved failed:', err);
     }
   }
 
@@ -332,7 +334,7 @@ export class SpriteSyncService {
       }
       if (data.table_id) tableThumbnailService.invalidateTable(data.table_id);
     } catch (err) {
-      console.error('[SpriteSyncService] handleSpriteMoved failed:', err);
+      logger.error('[SpriteSyncService] handleSpriteMoved failed:', err);
     }
   }
 
@@ -347,7 +349,7 @@ export class SpriteSyncService {
       }
       if (data.table_id) tableThumbnailService.invalidateTable(data.table_id);
     } catch (err) {
-      console.error('[SpriteSyncService] handleSpriteScaled failed:', err);
+      logger.error('[SpriteSyncService] handleSpriteScaled failed:', err);
     }
   }
 
@@ -360,7 +362,7 @@ export class SpriteSyncService {
         wasmBridgeService.seedSpriteState(spriteId, { rotation: data.rotation });
       }
     } catch (err) {
-      console.error('[SpriteSyncService] handleSpriteRotated failed:', err);
+      logger.error('[SpriteSyncService] handleSpriteRotated failed:', err);
     }
   }
 
@@ -374,7 +376,7 @@ export class SpriteSyncService {
       if (_op === 'created') this.handleSpriteCreated(data);
       else this.handleSpriteUpdated(data);
     } catch (err) {
-      console.error('[SpriteSyncService] handleCompendiumConfirmed failed:', err);
+      logger.error('[SpriteSyncService] handleCompendiumConfirmed failed:', err);
     }
   }
 
@@ -397,7 +399,7 @@ export class SpriteSyncService {
       this.addSpriteToWasm(spriteData);
       if (String(spriteData.id).startsWith('opt_')) this.startOptimisticTimer(spriteData.id);
     } catch (err) {
-      console.error('[SpriteSyncService] handleCompendiumInsert failed:', err);
+      logger.error('[SpriteSyncService] handleCompendiumInsert failed:', err);
     }
   }
 
@@ -415,18 +417,16 @@ export class SpriteSyncService {
       this.addSpriteToWasm({ sprite_id: tempId, x: worldX, y: worldY, width: 64, height: 64, asset_id: '', layer: 'tokens', name: data.name || 'Unknown' });
       this.startOptimisticTimer(tempId);
 
-      window.dispatchEvent(new CustomEvent('protocol-send-message', {
-        detail: {
-          type: 'compendium_sprite_add',
-          data: {
-            table_id: tableId,
-            sprite_data: { client_temp_id: tempId, x: worldX, y: worldY, width: 64, height: 64, layer: 'tokens', name: data.name || 'Unknown' },
-            ...(data.type === 'monster' && { monster_data: { name: data.name || 'Unknown', type: data.monsterType || '', challenge_rating: data.challenge_rating || '', raw: data.raw || {} } }),
-          },
+      emitProtocolEvent('protocol-send-message', {
+        type: 'compendium_sprite_add',
+        data: {
+          table_id: tableId,
+          sprite_data: { client_temp_id: tempId, x: worldX, y: worldY, width: 64, height: 64, layer: 'tokens', name: data.name || 'Unknown' },
+          ...(data.type === 'monster' && { monster_data: { name: data.name || 'Unknown', type: data.monsterType || '', challenge_rating: data.challenge_rating || '', raw: data.raw || {} } }),
         },
-      }));
+      });
     } catch (err) {
-      console.error('[SpriteSyncService] handleCompendiumDrop failed:', err);
+      logger.error('[SpriteSyncService] handleCompendiumDrop failed:', err);
     }
   }
 
@@ -515,7 +515,7 @@ export class SpriteSyncService {
     };
 
     try { engine.add_sprite_to_layer(layer, wasmSprite); } catch (err) {
-      console.error('[SpriteSyncService] addPolygonToWasm failed:', err);
+      logger.error('[SpriteSyncService] addPolygonToWasm failed:', err);
     }
     wasmBridgeService.seedSpriteState(spriteId, { x, y, width: wasmSprite.width, height: wasmSprite.height, rotation: 0 });
     try {
@@ -625,7 +625,7 @@ export class SpriteSyncService {
       engine.render();
       requestAnimationFrame(() => engine.render());
     } catch (err) {
-      console.error('[SpriteSyncService] updateSpriteScale failed:', err);
+      logger.error('[SpriteSyncService] updateSpriteScale failed:', err);
     } finally {
       this.pendingScaleOperations.delete(spriteId);
     }

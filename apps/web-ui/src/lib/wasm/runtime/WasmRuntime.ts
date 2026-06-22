@@ -21,11 +21,11 @@ import { WasmSyncCoordinator } from './WasmSyncCoordinator';
 import { WasmRuntimeStore, type WasmRuntimeSnapshot } from './wasmStore';
 
 type RuntimeCallbackRenderEngine = RenderEngine & {
-  set_runtime_operation_handler?: (callback: (operation: WasmRuntimeOperation) => void) => void;
-  set_runtime_event_handler?: (callback: (event: WasmRuntimeEvent) => void) => void;
-  clear_runtime_operation_handler?: () => void;
-  clear_runtime_event_handler?: () => void;
-  set_shape_style?: (color: string, opacity: number, filled: boolean) => void;
+  set_runtime_operation_handler: (callback: (operation: WasmRuntimeOperation) => void) => void;
+  set_runtime_event_handler: (callback: (event: WasmRuntimeEvent) => void) => void;
+  clear_runtime_operation_handler: () => void;
+  clear_runtime_event_handler: () => void;
+  set_shape_style: (color: string, opacity: number, filled: boolean) => void;
 };
 
 type RuntimeProtocol = {
@@ -140,7 +140,7 @@ export class WasmRuntime implements WasmRuntimePort {
     }
 
     const engine = init_game_renderer(canvas);
-    engine.set_camera?.(0, 0, 1.0);
+    engine.set_camera(0, 0, 1.0);
     this.renderEngine = engine;
     this.onFrame = options.onFrame ?? null;
     this.registerRuntimeCallbacks(engine);
@@ -168,7 +168,7 @@ export class WasmRuntime implements WasmRuntimePort {
     this.clearRuntimeCallbacks(this.renderEngine);
 
     try {
-      this.renderEngine?.free?.();
+      this.renderEngine?.free();
     } catch {
       // best-effort wasm cleanup
     }
@@ -181,12 +181,12 @@ export class WasmRuntime implements WasmRuntimePort {
     this.detachCanvas();
     wasmBridgeService.cleanup();
 
-    try { this.actionsEngine?.free?.(); } catch {}
-    try { this.assetManager?.free?.(); } catch {}
-    try { this.networkClient?.free?.(); } catch {}
-    try { this.planningManager?.free?.(); } catch {}
-    try { this.tableManager?.free?.(); } catch {}
-    try { this.tableSync?.free?.(); } catch {}
+    try { this.actionsEngine?.free(); } catch {}
+    try { this.assetManager?.free(); } catch {}
+    try { this.networkClient?.free(); } catch {}
+    try { this.planningManager?.free(); } catch {}
+    try { this.tableManager?.free(); } catch {}
+    try { this.tableSync?.free(); } catch {}
 
     this.actionsEngine = null;
     this.assetManager = null;
@@ -247,46 +247,46 @@ export class WasmRuntime implements WasmRuntimePort {
   setUserContext(userId: number | null, role: SessionRole | string | null): void {
     const engine = this.renderEngine;
     if (!engine) return;
-    if (userId != null) engine.set_current_user_id?.(userId);
-    engine.set_gm_mode?.(isDM(role as SessionRole | null));
+    if (userId != null) engine.set_current_user_id(userId);
+    engine.set_gm_mode(isDM(role as SessionRole | null));
   }
 
   setActiveLayer(layerName: string): void {
-    this.renderEngine?.set_active_layer?.(layerName);
+    this.renderEngine?.set_active_layer(layerName);
   }
 
   setGridEnabled(enabled: boolean): void {
-    this.renderEngine?.set_grid_enabled?.(enabled);
+    this.renderEngine?.set_grid_enabled(enabled);
   }
 
   setGridSnapping(enabled: boolean): void {
-    this.renderEngine?.set_grid_snapping?.(enabled);
+    this.renderEngine?.set_grid_snapping(enabled);
   }
 
   setGridSize(size: number): void {
-    this.renderEngine?.set_grid_size?.(size);
+    this.renderEngine?.set_grid_size(size);
   }
 
   setAmbientLight(level: number): void {
-    this.renderEngine?.set_ambient_light?.(level);
+    this.renderEngine?.set_ambient_light(level);
   }
 
   setShapeStyle(color: string, opacity: number, filled: boolean): void {
     const engine = this.renderEngine as RuntimeCallbackRenderEngine | null;
-    engine?.set_shape_style?.(color, opacity, filled);
+    engine?.set_shape_style(color, opacity, filled);
   }
 
   setTableUnits(tableId: string | null, gridCellPx: number, cellDistance: number, distanceUnit: string): void {
     if (!tableId) return;
-    this.tableManager?.set_table_units?.(tableId, gridCellPx, cellDistance, distanceUnit);
+    this.tableManager?.set_table_units(tableId, gridCellPx, cellDistance, distanceUnit);
   }
 
   handleTableData(tableData: unknown): void {
-    this.renderEngine?.handle_table_data?.(tableData);
+    this.renderEngine?.handle_table_data(tableData);
   }
 
   addWall(wall: unknown): void {
-    this.renderEngine?.add_wall?.(JSON.stringify(wall));
+    this.renderEngine?.add_wall(JSON.stringify(wall));
   }
 
   addWalls(walls: unknown[]): void {
@@ -294,31 +294,31 @@ export class WasmRuntime implements WasmRuntimePort {
   }
 
   updateWall(wallId: string, updates: unknown): void {
-    this.renderEngine?.update_wall?.(wallId, JSON.stringify(updates));
+    this.renderEngine?.update_wall(wallId, JSON.stringify(updates));
   }
 
   removeWall(wallId: string): void {
-    this.renderEngine?.remove_wall?.(wallId);
+    this.renderEngine?.remove_wall(wallId);
   }
 
   clearWalls(): void {
-    this.renderEngine?.clear_walls?.();
+    this.renderEngine?.clear_walls();
   }
 
   loadPaintStrokes(strokesJson: string): void {
-    this.renderEngine?.paint_load_strokes?.(strokesJson);
+    this.renderEngine?.paint_load_strokes(strokesJson);
   }
 
   addRemotePaintStroke(strokeJson: string): void {
-    this.renderEngine?.paint_add_remote_stroke?.(strokeJson);
+    this.renderEngine?.paint_add_remote_stroke(strokeJson);
   }
 
   removePaintStroke(strokeId: string): void {
-    this.renderEngine?.paint_remove_stroke?.(strokeId);
+    this.renderEngine?.paint_remove_stroke(strokeId);
   }
 
   clearPaintStrokes(): void {
-    this.renderEngine?.paint_clear_all?.();
+    this.renderEngine?.paint_clear_all();
   }
 
   applyLayerSettings(settings: Record<string, Record<string, unknown>>): void {
@@ -326,10 +326,10 @@ export class WasmRuntime implements WasmRuntimePort {
     if (!engine) return;
 
     for (const [layer, setting] of Object.entries(settings)) {
-      if (typeof setting.opacity === 'number') engine.set_layer_opacity?.(layer, setting.opacity);
-      if (typeof setting.visible === 'boolean') engine.set_layer_visibility?.(layer, setting.visible);
+      if (typeof setting.opacity === 'number') engine.set_layer_opacity(layer, setting.opacity);
+      if (typeof setting.visible === 'boolean') engine.set_layer_visibility(layer, setting.visible);
       if (Array.isArray(setting.tint_color) && setting.tint_color.length >= 3) {
-        engine.set_layer_color?.(
+        engine.set_layer_color(
           layer,
           Number(setting.tint_color[0]),
           Number(setting.tint_color[1]),
@@ -344,7 +344,7 @@ export class WasmRuntime implements WasmRuntimePort {
 
     const render = () => {
       try {
-        this.renderEngine?.render?.();
+        this.renderEngine?.render();
         this.onFrame?.();
       } catch (error) {
         console.error('Rust WASM render error:', error);
@@ -362,14 +362,14 @@ export class WasmRuntime implements WasmRuntimePort {
 
   private clearRuntimeCallbacks(engine: RenderEngine | null): void {
     const callbackEngine = engine as RuntimeCallbackRenderEngine | null;
-    try { callbackEngine?.clear_runtime_operation_handler?.(); } catch {}
-    try { callbackEngine?.clear_runtime_event_handler?.(); } catch {}
+    try { callbackEngine?.clear_runtime_operation_handler(); } catch {}
+    try { callbackEngine?.clear_runtime_event_handler(); } catch {}
   }
 
   private registerRuntimeCallbacks(engine: RenderEngine): void {
     const callbackEngine = engine as RuntimeCallbackRenderEngine;
-    callbackEngine.set_runtime_operation_handler?.(this.runtimeOperationHandler);
-    callbackEngine.set_runtime_event_handler?.(this.runtimeEventHandler);
+    callbackEngine.set_runtime_operation_handler(this.runtimeOperationHandler);
+    callbackEngine.set_runtime_event_handler(this.runtimeEventHandler);
   }
 
   private handleRuntimeOperation(operation: WasmRuntimeOperation): void {

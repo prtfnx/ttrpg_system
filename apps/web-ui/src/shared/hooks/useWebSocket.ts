@@ -90,7 +90,7 @@ export function useWebSocket(url: string) {
               rotation: (data.rotation as number) || 0,
               name: (data.name as string) || 'Unnamed Sprite',
             });
-            // WASM integration: also add sprite to RenderManager if available
+            // WASM integration: also add sprite to RenderEngine if a canvas is attached.
             // Ensure all required fields for WASM
             const layer: string = (message.data.layer as string) || 'tokens';
             const spriteForWasm = {
@@ -107,7 +107,7 @@ export function useWebSocket(url: string) {
               tint_color: [1.0, 1.0, 1.0, 1.0]
             };
             console.log('[WASM] add_sprite_to_layer payload:', spriteForWasm);
-            if (renderEngine && typeof renderEngine.add_sprite_to_layer === 'function') {
+            if (renderEngine) {
               try {
                 console.log('[WASM] Calling add_sprite_to_layer...');
                 renderEngine.add_sprite_to_layer(layer, spriteForWasm);
@@ -115,8 +115,6 @@ export function useWebSocket(url: string) {
               } catch (err) {
                 console.error('[WASM] Failed to add sprite to RenderManager:', err);
               }
-            } else {
-              console.warn('[WASM] RenderManager not available or add_sprite not a function');
             }
           }
           break;
@@ -198,8 +196,8 @@ export function useWebSocket(url: string) {
                   }
                 }
                 
-                // Add sprite to WASM if available
-                if (renderEngine && typeof renderEngine.add_sprite_to_layer === 'function') {
+                // Add sprite to WASM if a canvas is attached.
+                if (renderEngine) {
                   try {
                     const layerName = newSprite.layer;
                     const spriteData = {

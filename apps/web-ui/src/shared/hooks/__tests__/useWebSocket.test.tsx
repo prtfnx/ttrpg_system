@@ -1,5 +1,5 @@
 import { act } from '@testing-library/react';
-import { renderHookWithWasmRuntime } from '@test/utils/wasmRuntimeTestUtils';
+import { createMockWasmRuntime, renderHookWithWasmRuntime } from '@test/utils/wasmRuntimeTestUtils';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { useWebSocket } from '../useWebSocket';
 
@@ -175,6 +175,29 @@ describe('useWebSocket — handleMessage routing', () => {
     hook.unmount();
   });
 
+  it('sprite_create adds the sprite to the attached render engine', async () => {
+    const addSpriteToLayer = vi.fn();
+    const runtime = createMockWasmRuntime({
+      getRenderEngine: vi.fn(() => ({ add_sprite_to_layer: addSpriteToLayer } as never)),
+    });
+    const hook = renderHookWithWasmRuntime(() => useWebSocket('ws://test'), runtime);
+
+    await act(async () => { hook.result.current.connect(); });
+    act(() => { mockWs.triggerOpen(); });
+    act(() => {
+      mockWs.triggerMessage({
+        type: 'sprite_create',
+        data: { id: 'c1', width: 64, height: 32, x: 1, y: 2, name: 'Hero', layer: 'tokens' },
+      });
+    });
+
+    expect(addSpriteToLayer).toHaveBeenCalledWith(
+      'tokens',
+      expect.objectContaining({ id: 'c1', width: 64, height: 32, layer: 'tokens' }),
+    );
+    hook.unmount();
+  });
+
   it('welcome calls setConnection with sessionId', async () => {
     const hook = await connected();
     act(() => {
@@ -199,6 +222,39 @@ describe('useWebSocket — handleMessage routing', () => {
     expect(mockRemoveSprite).toHaveBeenCalledWith('old1');
     expect(mockRemoveSprite).toHaveBeenCalledWith('old2');
     expect(mockAddSprite).toHaveBeenCalledWith(expect.objectContaining({ id: 'new1' }));
+    hook.unmount();
+  });
+
+  it('table_data syncs sprites and table dimensions to the attached render engine', async () => {
+    const addSpriteToLayer = vi.fn();
+    const resizeCanvas = vi.fn();
+    const runtime = createMockWasmRuntime({
+      getRenderEngine: vi.fn(() => ({
+        add_sprite_to_layer: addSpriteToLayer,
+        resize_canvas: resizeCanvas,
+      } as never)),
+    });
+    const hook = renderHookWithWasmRuntime(() => useWebSocket('ws://test'), runtime);
+
+    await act(async () => { hook.result.current.connect(); });
+    act(() => { mockWs.triggerOpen(); });
+    act(() => {
+      mockWs.triggerMessage({
+        type: 'table_data',
+        data: {
+          table_id: 't1',
+          width: 1200,
+          height: 800,
+          sprites: [{ id: 'new1', x: 4, y: 8, layer: 'tokens', texture: '' }],
+        },
+      });
+    });
+
+    expect(addSpriteToLayer).toHaveBeenCalledWith(
+      'tokens',
+      expect.objectContaining({ id: 'new1', world_x: 4, world_y: 8 }),
+    );
+    expect(resizeCanvas).toHaveBeenCalledWith(1200, 800);
     hook.unmount();
   });
 

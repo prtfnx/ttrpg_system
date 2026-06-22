@@ -1,5 +1,6 @@
 import { ProtocolService } from '@lib/api';
 import { getCurrentWasmRuntime } from '@lib/wasm/runtime';
+import type { RenderEngine } from '@lib/wasm/runtime';
 import type { TextSpriteConfig } from './TextSpriteCreator';
 
 /**
@@ -47,11 +48,7 @@ export interface RenderResult {
   height: number;
 }
 
-type RustRenderer = {
-  load_texture?: (id: string, img: HTMLImageElement) => void;
-  add_sprite_to_layer?: (layer: string, sprite: Record<string, unknown>) => void;
-  remove_sprite: (id: string) => void;
-};
+type RustRenderer = Pick<RenderEngine, 'load_texture' | 'add_sprite_to_layer' | 'remove_sprite'>;
 function getRustRenderer(): RustRenderer | undefined {
   return getCurrentWasmRuntime()?.getRenderEngine() as RustRenderer | undefined;
 }
@@ -278,7 +275,7 @@ export async function createTextSprite(
     img.onload = () => {
       try {
         const rm = getRustRenderer();
-        if (rm?.load_texture) {
+        if (rm) {
           rm.load_texture(renderResult.textureId, img);
         }
 
@@ -297,9 +294,8 @@ export async function createTextSprite(
           tint_color: [1, 1, 1, config.opacity],
         };
 
-        const rm2 = getRustRenderer();
-        if (rm2?.add_sprite_to_layer) {
-          rm2.add_sprite_to_layer(layer, wasmSprite as Record<string, unknown>);
+        if (rm) {
+          rm.add_sprite_to_layer(layer, wasmSprite as Record<string, unknown>);
         }
 
         onSuccess?.(spriteId);
@@ -369,8 +365,8 @@ export async function updateTextSprite(
     img2.onload = () => {
       const rm2 = getRustRenderer();
       if (rm2) {
-        rm2.load_texture?.(renderResult.textureId, img2);
-        rm2.add_sprite_to_layer?.(layer, {
+        rm2.load_texture(renderResult.textureId, img2);
+        rm2.add_sprite_to_layer(layer, {
           id: spriteId,
           world_x: position.x,
           world_y: position.y,

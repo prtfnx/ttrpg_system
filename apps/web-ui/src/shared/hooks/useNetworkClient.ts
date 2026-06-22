@@ -1,7 +1,7 @@
 import { useWasmRuntime, type WasmRuntime } from '@lib/wasm/runtime';
+import { useCallback, useEffect, useRef, useState } from 'react';
 
 type NetworkClientInstance = NonNullable<ReturnType<WasmRuntime['getNetworkClient']>>;
-import { useCallback, useEffect, useRef, useState } from 'react';
 
 interface NetworkMessage {
   type: string;
@@ -45,120 +45,74 @@ export const useNetworkClient = (options: NetworkHookOptions = {}) => {
       runtime.initialize().then(() => {
         const client = runtime.getNetworkClient();
         if (!client) throw new Error('NetworkClient unavailable from WASM runtime');
-        
-          try {
-            // Set up event handlers only if the client exposes the expected API.
-            if (typeof client.set_message_handler === 'function') {
-              client.set_message_handler((messageType: string, data: unknown) => {
-                const message: NetworkMessage = {
-                  type: messageType,
-                  data,
-                  timestamp: Date.now(),
-                };
 
-                if (options.onMessage) {
-                  options.onMessage(message);
-                }
-              });
-            } else {
-              // If the client lacks a message handler setter, surface a clear error
-              const shortMsg = 'Network client missing set_message_handler()';
-              const msg = `Connection failed: ${shortMsg}`;
-              console.error(shortMsg);
-              setNetworkState(prev => ({ ...prev, connectionState: 'error', isConnected: false, lastError: msg }));
-              // Call callbacks asynchronously using microtask queue
-              queueMicrotask(() => {
-                if (options.onError) options.onError(msg);
-                if (options.onConnectionChange) options.onConnectionChange('error', msg);
-              });
-              // Do not proceed further with initialization
-              return;
+        try {
+          client.set_message_handler((messageType: string, data: unknown) => {
+            const message: NetworkMessage = {
+              type: messageType,
+              data,
+              timestamp: Date.now(),
+            };
+
+            if (options.onMessage) {
+              options.onMessage(message);
             }
+          });
 
-            if (typeof client.set_connection_handler === 'function') {
-              client.set_connection_handler((state: string, error?: string) => {
-                setNetworkState(prev => ({
-                  ...prev,
-                  connectionState: state,
-                  isConnected: state === 'connected',
-                  lastError: error,
-                }));
-
-                if (options.onConnectionChange) {
-                  options.onConnectionChange(state, error);
-                }
-              });
-            } else {
-              console.warn('Network client missing set_connection_handler()');
-            }
-
-            if (typeof client.set_error_handler === 'function') {
-              client.set_error_handler((error: string) => {
-                setNetworkState(prev => ({
-                  ...prev,
-                  lastError: error,
-                }));
-
-                if (options.onError) {
-                  options.onError(error);
-                }
-              });
-            } else {
-              console.warn('Network client missing set_error_handler()');
-            }
-
-            clientRef.current = client;
-
-            // Update client ID (only after successful handler wiring)
-            try {
-              if (typeof client.get_client_id === 'function') {
-                setNetworkState(prev => ({
-                  ...prev,
-                  clientId: client.get_client_id(),
-                }));
-              } else {
-                console.warn('Network client missing get_client_id()');
-              }
-            } catch (idErr) {
-              console.warn('Unable to read client id after initialization:', idErr);
-            }
-
-            // Auto-connect if requested
-            if (options.autoConnect && options.serverUrl) {
-              try {
-                if (typeof client.connect === 'function') {
-                  client.connect(options.serverUrl);
-                } else {
-                  console.warn('Network client missing connect()');
-                }
-              } catch (connErr) {
-                console.error('Auto-connect failed:', connErr);
-              }
-            }
-
-          } catch (e: unknown) {
-            const message = e instanceof Error ? e.message : String(e);
-            const errorText = `Connection failed: ${message}`;
-            // Set a clear error state so UI can respond appropriately
+          client.set_connection_handler((state: string, error?: string) => {
             setNetworkState(prev => ({
               ...prev,
-              connectionState: 'error',
-              isConnected: false,
-              lastError: errorText,
+              connectionState: state,
+              isConnected: state === 'connected',
+              lastError: error,
+            }));
+
+            if (options.onConnectionChange) {
+              options.onConnectionChange(state, error);
+            }
+          });
+
+          client.set_error_handler((error: string) => {
+            setNetworkState(prev => ({
+              ...prev,
+              lastError: error,
             }));
 
             if (options.onError) {
-              options.onError(errorText);
+              options.onError(error);
             }
-            if (options.onConnectionChange) {
-              options.onConnectionChange('error', errorText);
-            }
+          });
 
-            console.error('Network client initialization failed:', e);
-            // Do not rethrow; we've recorded the failure for callers/UI
+          clientRef.current = client;
+
+          setNetworkState(prev => ({
+            ...prev,
+            clientId: client.get_client_id(),
+          }));
+
+          if (options.autoConnect && options.serverUrl) {
+            client.connect(options.serverUrl);
           }
-        
-        
+
+        } catch (e: unknown) {
+          const message = e instanceof Error ? e.message : String(e);
+          const errorText = `Connection failed: ${message}`;
+          setNetworkState(prev => ({
+            ...prev,
+            connectionState: 'error',
+            isConnected: false,
+            lastError: errorText,
+          }));
+
+          if (options.onError) {
+            options.onError(errorText);
+          }
+          if (options.onConnectionChange) {
+            options.onConnectionChange('error', errorText);
+          }
+
+          console.error('Network client initialization failed:', e);
+        }
       }).catch((error: unknown) => {
         const msg = error instanceof Error ? error.message : String(error);
         const errorText = `Connection failed: ${msg}`;

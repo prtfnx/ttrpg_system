@@ -25,21 +25,21 @@ afterEach(() => {
 });
 
 describe('useNetworkClient failure path', () => {
-  it('surfaces deterministic error when set_message_handler is missing and calls callbacks asynchronously', async () => {
+  it('surfaces runtime client unavailability and calls callbacks asynchronously', async () => {
     const onError = vi.fn();
     const onConnectionChange = vi.fn();
 
     const { getByTestId } = renderWithWasmRuntime(
       <HookConsumer onError={onError} onConnectionChange={onConnectionChange} />,
-      createMockWasmRuntime({ getNetworkClient: vi.fn(() => ({} as never)) }),
+      createMockWasmRuntime({ getNetworkClient: vi.fn(() => null) }),
     );
 
     await waitFor(() => expect(getByTestId('state').textContent).toBe('error'));
-    await waitFor(() => expect(getByTestId('lastError').textContent).toContain('Connection failed:'));
+    await waitFor(() => expect(getByTestId('lastError').textContent).toContain('NetworkClient unavailable'));
 
     await waitFor(() => {
-      expect(onError).toHaveBeenCalled();
-      expect(onConnectionChange).toHaveBeenCalledWith('error', expect.stringContaining('Connection failed:'));
+      expect(onError).toHaveBeenCalledWith(expect.stringContaining('NetworkClient unavailable'));
+      expect(onConnectionChange).toHaveBeenCalledWith('error', expect.stringContaining('NetworkClient unavailable'));
     });
   });
 });

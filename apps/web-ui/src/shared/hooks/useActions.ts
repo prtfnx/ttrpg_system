@@ -280,7 +280,7 @@ export function useActions(actionsEngine: ActionsEngine | null, callbacks?: Acti
     setState(prev => ({ ...prev, isLoading: true, error: null }));
     
     try {
-      const result = (actionsEngine as any).delete_sprite?.(spriteId) ?? { success: false, message: 'delete_sprite_action not supported' } as ActionResult;
+      const result = actionsEngine.delete_sprite(spriteId);
       const actionResult = result as ActionResult;
       
       if (actionResult.success) {
@@ -346,7 +346,7 @@ export function useActions(actionsEngine: ActionsEngine | null, callbacks?: Acti
     if (!actionsEngine) throw new Error('ActionsEngine not initialized');
     
     try {
-      const result = (actionsEngine as any).set_layer_visibility?.(layer, visible) ?? { success: false, message: 'set_layer_visibility_action not supported' } as ActionResult;
+      const result = actionsEngine.set_layer_visibility(layer, visible);
       const actionResult = result as ActionResult;
       
       if (actionResult.success) {
@@ -368,7 +368,7 @@ export function useActions(actionsEngine: ActionsEngine | null, callbacks?: Acti
     if (!actionsEngine) throw new Error('ActionsEngine not initialized');
     
     try {
-      const result = (actionsEngine as any).move_sprite_to_layer?.(spriteId, newLayer) ?? { success: false, message: 'move_sprite_to_layer_action not supported' } as ActionResult;
+      const result = actionsEngine.move_sprite_to_layer(spriteId, newLayer);
       const actionResult = result as ActionResult;
       
       if (actionResult.success && actionResult.data) {
@@ -394,14 +394,14 @@ export function useActions(actionsEngine: ActionsEngine | null, callbacks?: Acti
     setState(prev => ({ ...prev, isLoading: true, error: null }));
     
     try {
-      const result = (actionsEngine as any).batch_actions?.(actions) ?? { success: false, message: 'batch_actions not supported' } as ActionResult;
+      const result = actionsEngine.batch_actions(actions);
       const actionResult = result as ActionResult;
 
       setState(prev => ({ 
         ...prev, 
         isLoading: false,
-        canUndo: (actionsEngine as any).can_undo?.() ?? false,
-        canRedo: (actionsEngine as any).can_redo?.() ?? false,
+        canUndo: actionsEngine.can_undo(),
+        canRedo: actionsEngine.can_redo(),
       }));
       
       return actionResult;
@@ -417,13 +417,13 @@ export function useActions(actionsEngine: ActionsEngine | null, callbacks?: Acti
     if (!actionsEngine) throw new Error('ActionsEngine not initialized');
     
     try {
-      const result = (actionsEngine as any).undo?.() ?? { success: false, message: 'undo_action not supported' } as ActionResult;
+      const result = actionsEngine.undo();
       const actionResult = result as ActionResult;
 
       setState(prev => ({
         ...prev,
-        canUndo: (actionsEngine as any).can_undo?.() ?? false,
-        canRedo: (actionsEngine as any).can_redo?.() ?? false,
+        canUndo: actionsEngine.can_undo(),
+        canRedo: actionsEngine.can_redo(),
       }));
       
       return actionResult;
@@ -438,13 +438,13 @@ export function useActions(actionsEngine: ActionsEngine | null, callbacks?: Acti
     if (!actionsEngine) throw new Error('ActionsEngine not initialized');
     
     try {
-      const result = (actionsEngine as any).redo?.() ?? { success: false, message: 'redo_action not supported' } as ActionResult;
+      const result = actionsEngine.redo();
       const actionResult = result as ActionResult;
 
       setState(prev => ({
         ...prev,
-        canUndo: (actionsEngine as any).can_undo?.() ?? false,
-        canRedo: (actionsEngine as any).can_redo?.() ?? false,
+        canUndo: actionsEngine.can_undo(),
+        canRedo: actionsEngine.can_redo(),
       }));
       
       return actionResult;

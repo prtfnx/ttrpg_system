@@ -1,5 +1,6 @@
+import { useGameStore } from '@/store';
 import { authService, type UserInfo } from '@features/auth/services/auth.service';
-import React, { createContext, useContext, useEffect, useState } from 'react';
+import React, { createContext, useContext, useEffect, useMemo, useState } from 'react';
 
 type Permission = string;
 
@@ -23,9 +24,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const sessionPermissions = useGameStore(s => s.permissions);
 
-  // Derive permissions from user data
-  const permissions: Permission[] = user?.permissions || [];
+  // Account permissions come from /users/me; session permissions are refreshed by WebSocket role updates.
+  const permissions: Permission[] = useMemo(
+    () => Array.from(new Set([...(user?.permissions ?? []), ...sessionPermissions])),
+    [user?.permissions, sessionPermissions]
+  );
 
   // Check if user has a specific permission
   const hasPermission = (permission: string): boolean => {

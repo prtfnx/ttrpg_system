@@ -13,6 +13,7 @@ vi.mock('@features/auth/services/auth.service', () => ({
   authService: mockAuthService,
 }));
 
+import { useGameStore } from '@/store';
 import { AuthProvider, useAuth } from '../AuthProvider';
 
 // Helper: consumer component that captures auth context via useAuth
@@ -38,6 +39,7 @@ describe('AuthProvider', () => {
     mockAuthService.initialize.mockResolvedValue(undefined);
     mockAuthService.getUserInfo.mockReturnValue(null);
     mockAuthService.isAuthenticated.mockReturnValue(false);
+    useGameStore.setState({ permissions: [] });
   });
 
   it('renders children', async () => {
@@ -137,6 +139,20 @@ describe('AuthProvider', () => {
     await waitFor(() => expect(ctx?.isAuthenticated).toBe(true));
     expect(ctx.hasPermission('admin')).toBe(true);
     expect(ctx.hasPermission('superuser')).toBe(false);
+  });
+
+  it('hasPermission includes realtime session permissions', async () => {
+    const user = { id: 1, username: 'bob', role: 'player' as const, permissions: [] };
+    mockAuthService.getUserInfo.mockReturnValue(user);
+    mockAuthService.isAuthenticated.mockReturnValue(true);
+    useGameStore.setState({ permissions: ['compendium:read'] });
+
+    let ctx!: AuthCtx;
+    render(wrap(c => { ctx = c; }));
+    await waitFor(() => expect(ctx?.isAuthenticated).toBe(true));
+
+    expect(ctx.permissions).toContain('compendium:read');
+    expect(ctx.hasPermission('compendium:read')).toBe(true);
   });
 
   it('requireAuth throws when not authenticated', async () => {

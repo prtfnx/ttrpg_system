@@ -1,4 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { emitWasmEvent } from '../../wasmEvents';
 import { WasmRuntime } from '../WasmRuntime';
 
 const mocks = vi.hoisted(() => {
@@ -60,6 +61,14 @@ vi.mock('../../wasmBridge', () => ({
     setProtocol: mocks.bridgeSetProtocol,
   },
 }));
+
+vi.mock('../../wasmEvents', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('../../wasmEvents')>();
+  return {
+    ...actual,
+    emitWasmEvent: vi.fn(actual.emitWasmEvent),
+  };
+});
 
 vi.mock('../WasmSyncCoordinator', () => ({
   WasmSyncCoordinator: vi.fn(function () {
@@ -188,6 +197,7 @@ describe('WasmRuntime', () => {
     callback({ type: 'spriteAdded', data: {} });
 
     expect(listener).toHaveBeenCalledTimes(1);
+    expect(emitWasmEvent).toHaveBeenCalledWith('spriteAdded', {});
     window.removeEventListener('spriteAdded', listener);
   });
 

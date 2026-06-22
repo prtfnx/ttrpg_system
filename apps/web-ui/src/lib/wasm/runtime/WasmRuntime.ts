@@ -2,6 +2,7 @@ import { assetIntegrationService } from '@features/assets';
 import { isDM, type SessionRole } from '@features/session/types/roles';
 import { initializeWasmCore } from '../wasmCore';
 import { wasmBridgeService } from '../wasmBridge';
+import { emitWasmEvent, type WasmEventMap } from '../wasmEvents';
 import {
   ActionsClient,
   AssetManager,
@@ -41,7 +42,25 @@ type WasmRuntimeEvent = {
   data?: unknown;
 };
 
-const RUNTIME_EVENT_BROWSER_NAMES: Record<string, string> = {
+type RuntimeBrowserEventName = keyof Pick<
+  WasmEventMap,
+  | 'request-asset-download'
+  | 'wasm-cursor-hint'
+  | 'wasm-light-moved'
+  | 'measurementComplete'
+  | 'polygonCreated'
+  | 'wasm-sprite-operation'
+  | 'sprite-drag-preview'
+  | 'sprite-resize-preview'
+  | 'sprite-rotate-preview'
+  | 'textSpriteClick'
+  | 'wasm-tool-mode-changed'
+  | 'tokenDoubleClick'
+  | 'wallDrawn'
+  | 'wasm-wall-moved'
+>;
+
+const RUNTIME_EVENT_BROWSER_NAMES = {
   assetDownloadRequested: 'request-asset-download',
   cursorHint: 'wasm-cursor-hint',
   lightMoved: 'wasm-light-moved',
@@ -56,7 +75,7 @@ const RUNTIME_EVENT_BROWSER_NAMES: Record<string, string> = {
   tokenDoubleClick: 'tokenDoubleClick',
   wallDrawn: 'wallDrawn',
   wallMoved: 'wasm-wall-moved',
-};
+} satisfies Record<string, RuntimeBrowserEventName>;
 
 export class WasmRuntime implements WasmRuntimePort {
   readonly store = new WasmRuntimeStore();
@@ -376,20 +395,32 @@ export class WasmRuntime implements WasmRuntimePort {
 
   private handleRuntimeEvent(event: WasmRuntimeEvent): void {
     if (event.type === 'spriteAdded') {
-      window.dispatchEvent(new Event('spriteAdded'));
+      emitWasmEvent('spriteAdded', {});
       return;
     }
 
-    if (event.type && RUNTIME_EVENT_BROWSER_NAMES[event.type]) {
+    if (this.isRuntimeEventType(event.type)) {
+      const browserEventName = RUNTIME_EVENT_BROWSER_NAMES[event.type];
       const detail = this.isRecord(event.data) ? event.data : {};
-      window.dispatchEvent(new CustomEvent(RUNTIME_EVENT_BROWSER_NAMES[event.type], { detail }));
+      this.emitRuntimeBrowserEvent(browserEventName, detail);
       return;
     }
 
     console.warn('[WasmRuntime] Ignoring unknown WASM runtime event:', event.type);
   }
 
+  private emitRuntimeBrowserEvent<K extends RuntimeBrowserEventName>(
+    type: K,
+    detail: Record<string, unknown>,
+  ): void {
+    emitWasmEvent(type, detail as WasmEventMap[K]);
+  }
+
   private isRecord(value: unknown): value is Record<string, unknown> {
     return value !== null && typeof value === 'object' && !Array.isArray(value);
+  }
+
+  private isRuntimeEventType(value: unknown): value is keyof typeof RUNTIME_EVENT_BROWSER_NAMES {
+    return typeof value === 'string' && value in RUNTIME_EVENT_BROWSER_NAMES;
   }
 }

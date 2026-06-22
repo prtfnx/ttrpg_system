@@ -69,6 +69,10 @@ export type WasmEventMap = {
   };
 
   // WASM → Protocol bridge events
+  'spriteAdded': Record<string, never>;
+  'sprite-drag-preview': Record<string, unknown>;
+  'sprite-resize-preview': Record<string, unknown>;
+  'sprite-rotate-preview': Record<string, unknown>;
   'wasm-sprite-operation': {
     spriteId: string;
     operation: 'move' | 'resize' | 'rotate';
@@ -76,6 +80,13 @@ export type WasmEventMap = {
   };
   'wasm-light-moved': { lightId: string; x: number; y: number };
   'wasm-wall-moved': { wallId: string; x1: number; y1: number; x2: number; y2: number };
+  'wasm-tool-mode-changed': Record<string, unknown>;
+  'wasm-cursor-hint': Record<string, unknown>;
+  'wallDrawn': Record<string, unknown>;
+  'polygonCreated': Record<string, unknown>;
+  'tokenDoubleClick': Record<string, unknown>;
+  'measurementComplete': Record<string, unknown>;
+  'textSpriteClick': Record<string, unknown>;
 
   // Protocol → WASM confirmations
   'sprite-action-confirmed': { actionId: string };

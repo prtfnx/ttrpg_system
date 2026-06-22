@@ -229,7 +229,7 @@ class AssetIntegrationService {
         img.onload = () => {
           try {
             const renderEngine = getCurrentWasmRuntime()?.getRenderEngine();
-            if (renderEngine?.load_texture) {
+            if (renderEngine) {
               renderEngine.load_texture(assetId, img);
               logger.debug('Texture loaded into WASM', { assetId });
             }

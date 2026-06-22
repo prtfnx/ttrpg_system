@@ -1,6 +1,12 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { assetIntegrationService } from '../assetIntegration.service';
 
+const mockGetCurrentWasmRuntime = vi.hoisted(() => vi.fn());
+
+vi.mock('@lib/wasm/runtime', () => ({
+  getCurrentWasmRuntime: mockGetCurrentWasmRuntime,
+}));
+
 type Svc = typeof assetIntegrationService & Record<string, unknown>;
 
 function resetSvc() {
@@ -16,10 +22,12 @@ function dispatch(type: string, detail: unknown) {
 beforeEach(() => {
   resetSvc();
   vi.clearAllMocks();
+  mockGetCurrentWasmRuntime.mockReturnValue(null);
 });
 
 afterEach(() => {
   assetIntegrationService.dispose();
+  vi.unstubAllGlobals();
 });
 
 describe('AssetIntegrationService', () => {
@@ -227,6 +235,32 @@ describe('AssetIntegrationService', () => {
       await Promise.resolve();
 
       expect(fetchSpy).not.toHaveBeenCalled();
+      urlSpy.mockRestore();
+      fetchSpy.mockRestore();
+    });
+
+    it('loads downloaded asset data into the attached render engine texture cache', async () => {
+      const loadTexture = vi.fn();
+      mockGetCurrentWasmRuntime.mockReturnValue({
+        getRenderEngine: vi.fn(() => ({ load_texture: loadTexture })),
+      });
+      vi.stubGlobal('Image', class {
+        onload: (() => void) | null = null;
+        onerror: (() => void) | null = null;
+        set src(_: string) {
+          setTimeout(() => this.onload?.(), 0);
+        }
+      });
+      assetIntegrationService.initialize();
+      const fetchSpy = vi.spyOn(globalThis, 'fetch').mockRejectedValue(new Error('should not be called'));
+      const urlSpy = vi.spyOn(URL, 'createObjectURL').mockReturnValue('blob:mock');
+
+      dispatch('asset-downloaded', { success: true, asset_id: 'b64asset', asset_data: 'iVBORw0KGgo=' });
+      await new Promise(resolve => setTimeout(resolve, 0));
+      await new Promise(resolve => setTimeout(resolve, 0));
+
+      expect(fetchSpy).not.toHaveBeenCalled();
+      expect(loadTexture).toHaveBeenCalledWith('b64asset', expect.any(Image));
       urlSpy.mockRestore();
       fetchSpy.mockRestore();
     });

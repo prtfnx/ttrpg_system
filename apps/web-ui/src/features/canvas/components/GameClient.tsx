@@ -102,7 +102,7 @@ export function GameClient({ sessionCode, userInfo, userRole, onAuthError }: Gam
   // Sync WASM layer visibility — role gates + user toggles both apply
   useEffect(() => {
     const engine = runtime.getRenderEngine();
-    if (!engine?.set_layer_visibility) return;
+    if (!engine) return;
     const allowed = new Set(isDM(sessionRole) ? ALL_LAYERS : visibleLayers);
     for (const layer of ALL_LAYERS) {
       const roleAllows = allowed.has(layer);
@@ -140,14 +140,14 @@ export function GameClient({ sessionCode, userInfo, userRole, onAuthError }: Gam
       if (!engine) return;
       const data = detail.data as Record<string, unknown> | undefined;
       if (!data) return;
-      engine.clear_fog?.();
+      engine.clear_fog();
       const hideRects = (data.hide_rectangles ?? []) as Array<[[number, number], [number, number]]>;
       const revealRects = (data.reveal_rectangles ?? []) as Array<[[number, number], [number, number]]>;
- hideRects.forEach(([start, end], i) =>
-        engine.add_fog_rectangle?.(`hide_${i}`, start[0], start[1], end[0], end[1], 'hide')
+      hideRects.forEach(([start, end], i) =>
+        engine.add_fog_rectangle(`hide_${i}`, start[0], start[1], end[0], end[1], 'hide')
       );
       revealRects.forEach(([start, end], i) =>
-        engine.add_fog_rectangle?.(`reveal_${i}`, start[0], start[1], end[0], end[1], 'reveal')
+        engine.add_fog_rectangle(`reveal_${i}`, start[0], start[1], end[0], end[1], 'reveal')
       );
     };
     window.addEventListener('table-updated', handler);

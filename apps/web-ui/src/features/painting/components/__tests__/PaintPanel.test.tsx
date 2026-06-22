@@ -173,6 +173,11 @@ describe('PaintPanel — paint target mode', () => {
     // The status section should show the "unavailable" message  
     expect(screen.getByText(/WASM table integration unavailable/)).toBeInTheDocument();
   });
+
+  it('does not render unsupported save-strokes-as-sprites action', () => {
+    render(<PaintPanel />);
+    expect(screen.queryByTitle('Save current strokes as sprites')).not.toBeInTheDocument();
+  });
 });
 
 describe('PaintPanel — template dialog', () => {

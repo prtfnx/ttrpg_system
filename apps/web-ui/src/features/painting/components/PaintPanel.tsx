@@ -111,7 +111,7 @@ const usePaintTableIntegration = () => {
   
   const paintToTable = async (
     strokes: PaintStroke[],
-    layer: string,
+    _layer: string,
     options: WASMTablePaintIntegration
   ) => {
     if (!engine) {
@@ -147,13 +147,6 @@ const usePaintTableIntegration = () => {
           
           engine.paint_end_stroke();
         }
-      }
-      
-      // Save strokes as sprites if persistence is enabled
-      // TODO temporal fix: cast to any until WASM exposes paint_save_strokes_as_sprites in d.ts
-      if (options.persistence) {
-        const spriteIds = (engine as any).paint_save_strokes_as_sprites?.(layer) ?? [];
-        return spriteIds;
       }
       
       return [];
@@ -711,27 +704,6 @@ export const PaintPanel: React.FC<PaintPanelProps> = ({
               ↷ Redo
             </button>
             <button
-              onClick={() => {
-                if (engine && (engine as any).paint_save_strokes_as_sprites) {
-                  const spriteIds = (engine as any).paint_save_strokes_as_sprites('shapes');
-                  console.log(`[PaintPanel] Saved ${spriteIds.length} paint strokes as sprites`);
-                  if (spriteIds.length > 0) {
-                    alert(`Saved ${spriteIds.length} paint strokes as sprites!`);
-                  } else {
-                    alert('No strokes to save. Draw something first!');
-                  }
-                } else {
-                  console.warn('[PaintPanel] Save strokes method not available');
-                  alert('Save functionality not available');
-                }
-              }}
-              disabled={!paintState.isActive || paintState.strokeCount === 0}
-              className={styles.btnPrimary}
-              title="Save current strokes as sprites"
-            >
-              Save Strokes
-            </button>
-            <button
               onClick={paintControls.clearAll}
               disabled={!paintState.isActive || paintState.strokeCount === 0}
               className={styles.btnDanger}
@@ -768,7 +740,6 @@ export const PaintPanel: React.FC<PaintPanelProps> = ({
             <li>Use different brush sizes and colors</li>
             <li>Try different blend modes for effects</li>
             <li>Use presets for quick brush changes</li>
-            <li>Save strokes as sprites to make them permanent</li>
           </ul>
         </div>
       </div>

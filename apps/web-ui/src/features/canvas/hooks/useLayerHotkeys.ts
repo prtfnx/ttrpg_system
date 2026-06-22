@@ -37,7 +37,7 @@ export function useLayerHotkeys() {
 
       e.preventDefault();
       setActiveLayer(layer);
-      renderEngine?.set_active_layer?.(layer);
+      renderEngine?.set_active_layer(layer);
     };
 
     window.addEventListener('keydown', handler);

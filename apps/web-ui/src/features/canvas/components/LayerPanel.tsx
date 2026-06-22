@@ -189,7 +189,7 @@ export function LayerPanel({ className, style: _style, id, initialLayers, ...oth
     // Sync active layer with WASM render engine so opacity rules are applied
     if (renderEngine) {
       try {
-      renderEngine.set_active_layer?.(layerId);
+        renderEngine.set_active_layer(layerId);
       } catch (error) {
         console.error(' LayerPanel: Failed to sync active layer to WASM:', error);
       }

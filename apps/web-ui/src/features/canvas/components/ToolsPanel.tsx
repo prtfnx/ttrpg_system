@@ -21,8 +21,6 @@ import styles from './ToolsPanel.module.css';
 import { WallConfigModal } from './WallConfigModal';
 
 import type { UserInfo } from '@features/auth';
-import type { RenderEngine } from '@lib/wasm/runtime';
-
 const PLAYER_PERMITTED_LAYERS = [
   { id: 'map',    label: 'Map',    Icon: Map },
   { id: 'tokens', label: 'Tokens', Icon: Users },
@@ -67,9 +65,6 @@ interface ToolsPanelProps {
 }
 
 type TabId = 'tools' | 'lighting' | 'layers' | 'dev';
-type PaintModeRenderEngine = RenderEngine & {
-  paint_is_mode?: () => boolean;
-};
 
 export function ToolsPanel({ userInfo }: ToolsPanelProps) {
   useLayerHotkeys();
@@ -131,7 +126,7 @@ export function ToolsPanel({ userInfo }: ToolsPanelProps) {
 
   const handleLayerSwitch = (layerId: string) => {
     setActiveLayer(layerId);
-    renderEngine?.set_active_layer?.(layerId);
+    renderEngine?.set_active_layer(layerId);
   };
 
   // controlledBy is stored as string[] in the store (server sends user IDs as strings)
@@ -193,9 +188,8 @@ export function ToolsPanel({ userInfo }: ToolsPanelProps) {
   
   useEffect(() => {
     if (!renderEngine) return;
-    const paintEngine = renderEngine as PaintModeRenderEngine;
-    if (activeTool !== 'paint' && paintEngine.paint_is_mode?.()) {
-      paintEngine.paint_exit_mode();
+    if (activeTool !== 'paint') {
+      renderEngine.paint_exit_mode();
       setPaintPanelVisible(false);
     }
     wasmRuntime.setShapeStyle(shapeColor, shapeOpacity, shapeFilled);
@@ -212,20 +206,20 @@ export function ToolsPanel({ userInfo }: ToolsPanelProps) {
       case 'draw_wall':    renderEngine.set_input_mode_draw_wall(); break;
       case 'draw_polygon': renderEngine.set_input_mode_create_polygon(); break;
       case 'select':
-        renderEngine.set_tool_mode?.('select');
+        renderEngine.set_tool_mode('select');
         renderEngine.set_input_mode_select();
         break;
       case 'move':
-        renderEngine.set_tool_mode?.('move');
+        renderEngine.set_tool_mode('move');
         renderEngine.set_input_mode_select();
         break;
       case 'align':
-        renderEngine.set_tool_mode?.('align');
-        renderEngine.align_selected_to_grid?.();
+        renderEngine.set_tool_mode('align');
+        renderEngine.align_selected_to_grid();
         renderEngine.set_input_mode_select();
         break;
       default:
-        renderEngine.set_tool_mode?.('select');
+        renderEngine.set_tool_mode('select');
         renderEngine.set_input_mode_select();
         break;
     }

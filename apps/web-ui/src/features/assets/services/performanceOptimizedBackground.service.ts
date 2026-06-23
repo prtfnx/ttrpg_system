@@ -721,7 +721,7 @@ class PerformanceOptimizedBackgroundSystem {
     if (!this.renderEngine) return;
 
     // Apply to renderer (Rust API accepts a single hex color string)
-    this.renderEngine.set_background_color?.(config.ambientColor);
+    this.renderEngine.set_background_color(config.ambientColor);
   }
 
   private updatePerformanceSettings(profile: 'low' | 'medium' | 'high' | 'ultra'): void {

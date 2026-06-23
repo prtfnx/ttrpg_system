@@ -64,7 +64,6 @@ interface WasmTableSyncClient {
   handle_table_data: (data: unknown) => void;
   handle_sprite_update: (data: unknown) => void;
   request_table: (id: string) => void;
-  request_new_table: (name: string) => Promise<unknown> | unknown;
   send_sprite_move: (id: string, x: number, y: number) => void;
   send_sprite_scale: (id: string, x: number, y: number) => void;
   send_sprite_rotate: (id: string, rotation: number) => void;

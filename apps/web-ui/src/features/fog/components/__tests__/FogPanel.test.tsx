@@ -9,6 +9,7 @@ const mockRenderer = {
   remove_fog_rectangle: vi.fn(),
   screen_to_world: vi.fn(() => [0, 0]),
   world_to_screen: vi.fn(() => [0, 0]),
+  get_active_table_id: vi.fn(() => 'table-1'),
   get_active_table_world_bounds: vi.fn(() => new Float64Array([0, 0, 800, 600])),
 };
 

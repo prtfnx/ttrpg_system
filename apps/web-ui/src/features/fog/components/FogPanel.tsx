@@ -1,4 +1,3 @@
-import { useGameStore } from '@/store';
 import { useRenderEngine } from '@features/canvas';
 import { useProtocol } from '@lib/api';
 import clsx from 'clsx';
@@ -25,8 +24,7 @@ export const FogPanel: React.FC = () => {
   const sendFogUpdateToServer = useCallback((updatedRectangles: FogRectangle[]) => {
     if (!protocol || !renderer) return;
 
-    // Get active table ID — prefer WASM state, fall back to store
-    const tableId = (renderer as typeof renderer & { get_active_table_id?: () => string | null }).get_active_table_id?.() ?? useGameStore.getState().activeTableId;
+    const tableId = renderer.get_active_table_id();
     if (!tableId) {
       console.warn('No active table ID, cannot send fog update');
       return;

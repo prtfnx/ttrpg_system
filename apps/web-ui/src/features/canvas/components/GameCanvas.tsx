@@ -456,7 +456,7 @@ export const GameCanvas: React.FC = () => {
       if ((e.key === 'Delete' || e.key === 'Backspace') && hoveredWallRef.current) {
         const wallId = hoveredWallRef.current;
         hoveredWallRef.current = null;
-        rustRenderManagerRef.current?.remove_wall?.(wallId);
+        rustRenderManagerRef.current?.remove_wall(wallId);
         useGameStore.getState().removeWall(wallId);
         protocol?.removeWall(wallId);
       }
@@ -470,7 +470,6 @@ export const GameCanvas: React.FC = () => {
       const _mainCanvas = mainCanvas!;
       const rm = rustRenderManagerRef.current;
       const _canvas = canvas!;
-      const _rm = rm!;
       if (_canvas.width !== _mainCanvas.width || _canvas.height !== _mainCanvas.height) {
         _canvas.width = _mainCanvas.width;
         _canvas.height = _mainCanvas.height;
@@ -480,11 +479,12 @@ export const GameCanvas: React.FC = () => {
 
       const ctx = _canvas.getContext('2d');
       if (!ctx) { raf = requestAnimationFrame(draw); return; }
+      if (!rm) { raf = requestAnimationFrame(draw); return; }
       ctx.clearRect(0, 0, _canvas.width, _canvas.height);
 
       try {
-        if (typeof _rm.get_wall_render_data !== 'function') { raf = requestAnimationFrame(draw); return; }
-        const data: Float32Array = _rm.get_wall_render_data();
+        const data: Float32Array = rm.get_wall_render_data();
+        const wallIds: string[] = rm.get_wall_ids();
         // Each wall = 8 floats: x1,y1,x2,y2,r,g,b,a  (world coords)
         const STRIDE = 8;
         const HOVER_THRESH_PX = 12;
@@ -493,20 +493,16 @@ export const GameCanvas: React.FC = () => {
         // Determine hovered wall by min screen-space distance
         let hoverId: string | null = null;
         let minDist = HOVER_THRESH_PX;
-        if (typeof _rm.world_to_screen === 'function' && typeof _rm.get_wall_ids === 'function') {
-          const ids: string[] = _rm.get_wall_ids();
-          for (let i = 0; i + STRIDE <= data.length; i += STRIDE) {
-            const s1 = _rm.world_to_screen(data[i], data[i + 1]);
-            const s2 = _rm.world_to_screen(data[i + 2], data[i + 3]);
-            if (!s1 || !s2) continue;
-            const d = pointSegmentDist(mouse.x, mouse.y, s1[0], s1[1], s2[0], s2[1]);
-            if (d < minDist) { minDist = d; hoverId = ids[i / STRIDE] ?? null; }
-          }
+        for (let i = 0; i + STRIDE <= data.length; i += STRIDE) {
+          const s1 = rm.world_to_screen(data[i], data[i + 1]);
+          const s2 = rm.world_to_screen(data[i + 2], data[i + 3]);
+          if (!s1 || !s2) continue;
+          const d = pointSegmentDist(mouse.x, mouse.y, s1[0], s1[1], s2[0], s2[1]);
+          if (d < minDist) { minDist = d; hoverId = wallIds[i / STRIDE] ?? null; }
         }
         hoveredWallRef.current = hoverId;
 
         ctx.save();
-        const wallIds: string[] = typeof _rm.get_wall_ids === 'function' ? _rm.get_wall_ids() : [];
         const storeWallsMap = Object.fromEntries(
           useGameStore.getState().walls.map(w => [w.wall_id, w])
         );
@@ -514,9 +510,8 @@ export const GameCanvas: React.FC = () => {
           const wx1 = data[i], wy1 = data[i + 1], wx2 = data[i + 2], wy2 = data[i + 3];
           const r = data[i + 4], g = data[i + 5], b = data[i + 6], a = data[i + 7];
 
-          if (typeof _rm.world_to_screen !== 'function') continue;
-          const s1 = _rm.world_to_screen(wx1, wy1);
-          const s2 = _rm.world_to_screen(wx2, wy2);
+          const s1 = rm.world_to_screen(wx1, wy1);
+          const s2 = rm.world_to_screen(wx2, wy2);
           if (!s1 || !s2) continue;
 
           const wallId = wallIds[i / STRIDE] ?? null;

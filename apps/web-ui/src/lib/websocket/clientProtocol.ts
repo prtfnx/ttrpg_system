@@ -1219,18 +1219,12 @@ export class WebClientProtocol {
 
     // Apply visual changes through the WASM runtime facade
     const runtime = getCurrentWasmRuntime();
-    const rm = runtime?.getRenderEngine();
-    if (rm) {
-      if (data.grid_enabled !== undefined) runtime?.setGridEnabled(Boolean(data.grid_enabled));
-      // TODO temporal fix: cast to any for legacy grid setters
-      if (data.snap_to_grid !== undefined) runtime?.setGridSnapping(Boolean(data.snap_to_grid));
-      if (data.grid_color_hex && (rm as any).set_grid_color) {
-        const c = data.grid_color_hex;
-        (rm as any).set_grid_color(parseInt(c.slice(1,3),16)/255, parseInt(c.slice(3,5),16)/255, parseInt(c.slice(5,7),16)/255, 0.4);
-      }
-      if (data.background_color_hex && (rm as any).set_background_color) {
-        const c = data.background_color_hex as string;
-        (rm as any).set_background_color(c);
+    if (runtime) {
+      if (data.grid_enabled !== undefined) runtime.setGridEnabled(Boolean(data.grid_enabled));
+      if (data.snap_to_grid !== undefined) runtime.setGridSnapping(Boolean(data.snap_to_grid));
+      if (data.grid_cell_px != null) runtime.setGridSize(data.grid_cell_px);
+      if (data.background_color_hex != null) {
+        runtime.getRenderEngine()?.set_background_color(data.background_color_hex);
       }
     }
     emitProtocolEvent('table-settings-changed', data);

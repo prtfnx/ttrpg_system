@@ -4,6 +4,9 @@ import { beforeEach, describe, expect, it, vi, type Mock } from 'vitest';
 const mocks = vi.hoisted(() => {
   const storeState: Record<string, unknown> = {};
   const getState = vi.fn(() => storeState);
+  const renderEngine = {
+    set_background_color: vi.fn(),
+  };
   const useGameStore = Object.assign(
     (selector?: (s: unknown) => unknown) => {
       const s = getState();
@@ -17,8 +20,12 @@ const mocks = vi.hoisted(() => {
     clearPaintStrokes: vi.fn(),
     loadPaintStrokes: vi.fn(),
     applyLayerSettings: vi.fn(),
+    setGridEnabled: vi.fn(),
+    setGridSnapping: vi.fn(),
+    setGridSize: vi.fn(),
+    getRenderEngine: vi.fn(() => renderEngine),
   };
-  return { useGameStore, getState, storeState, runtime };
+  return { useGameStore, getState, storeState, runtime, renderEngine };
 });
 
 vi.mock('@/store', () => ({ useGameStore: mocks.useGameStore }));
@@ -575,6 +582,26 @@ describe('WebClientProtocol', () => {
       expect(mockApplyTableLightingSettings).toHaveBeenCalledWith(
         expect.objectContaining({ dynamic_lighting_enabled: true })
       );
+    });
+
+    it('TABLE_SETTINGS_CHANGED applies supported WASM render settings', async () => {
+      const p = makeProtocol();
+      await dispatch(p, 'table_settings_changed', {
+        dynamic_lighting_enabled: true,
+        fog_exploration_mode: 'all',
+        ambient_light_level: 0.5,
+        grid_cell_px: 72,
+        grid_enabled: false,
+        snap_to_grid: true,
+        grid_color_hex: '#123456',
+        background_color_hex: '#101820',
+      });
+
+      expect(mocks.runtime.setGridEnabled).toHaveBeenCalledWith(false);
+      expect(mocks.runtime.setGridSnapping).toHaveBeenCalledWith(true);
+      expect(mocks.runtime.setGridSize).toHaveBeenCalledWith(72);
+      expect(mocks.renderEngine.set_background_color).toHaveBeenCalledWith('#101820');
+      expect(mockSetGridColorHex).toHaveBeenCalledWith('#123456');
     });
 
     it('PLAYER_ROLE_CHANGED updates store when matches current user', async () => {

@@ -33,9 +33,7 @@ export const PolygonConfigModal: React.FC = () => {
 
   const close = useCallback(() => {
     setDraft(null);
-    // Cancel any in-progress polygon in Rust (in case user dismissed via hotkey)
-    (renderEngine as unknown as { cancel_polygon_creation?: () => void } | null)?.cancel_polygon_creation?.();
-  }, [renderEngine]);
+  }, []);
 
   const submit = useCallback(() => {
     if (!draft || !tableId || !protocol) return;
@@ -71,9 +69,7 @@ export const PolygonConfigModal: React.FC = () => {
         polygon_vertices: draft.vertices.map(v => [v.x, v.y]),
         controlled_by: [],
       };
-      (renderEngine as unknown as {
-        add_sprite_to_layer?: (layer: string, data: unknown) => string;
-      }).add_sprite_to_layer?.(layer, spriteJson);
+      renderEngine.add_sprite_to_layer(layer, spriteJson);
     }
 
     // Send sprite_create to server with the same ID

@@ -1,7 +1,7 @@
 import { useGameStore } from '@/store';
 import '@testing-library/jest-dom';
 import { act, fireEvent, screen } from '@testing-library/react';
-import { renderWithWasmRuntime } from '@test/utils/wasmRuntimeTestUtils';
+import { createMockWasmRuntime, renderWithWasmRuntime } from '@test/utils/wasmRuntimeTestUtils';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { PolygonConfigModal } from '../PolygonConfigModal';
 
@@ -80,6 +80,23 @@ describe('PolygonConfigModal', () => {
 
     const msg = mockSendMessage.mock.calls[0][0] as { data: { sprite_data: { obstacle_type: string } } };
     expect(msg.data.sprite_data.obstacle_type).toBe('polygon');
+  });
+
+  it('Create Obstacle adds the polygon sprite to the attached render engine', () => {
+    const addSpriteToLayer = vi.fn();
+    render(
+      <PolygonConfigModal />,
+      createMockWasmRuntime({
+        getRenderEngine: vi.fn(() => ({ add_sprite_to_layer: addSpriteToLayer }) as never),
+      }),
+    );
+    dispatchPolygonCreated();
+    fireEvent.click(screen.getByText('Create Obstacle'));
+
+    expect(addSpriteToLayer).toHaveBeenCalledWith(
+      'obstacles',
+      expect.objectContaining({ obstacle_type: 'polygon', layer: 'obstacles' }),
+    );
   });
 
   it('modal closes after submission', () => {

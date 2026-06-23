@@ -6,14 +6,11 @@ import { MapPanel } from '../MapPanel';
 // ── mocks ────────────────────────────────────────────────────────────────────
 const mockEngine = {
   set_grid_enabled: vi.fn(),
+  set_grid_snapping: vi.fn(),
   set_grid_size: vi.fn(),
-  set_snap_to_grid: vi.fn(),
-  set_grid_color: vi.fn(),
   set_background_color: vi.fn(),
-  reset_camera: vi.fn(),
-  set_camera_position: vi.fn(),
-  set_camera_scale: vi.fn(),
-  clear_all_sprites: vi.fn(),
+  set_camera: vi.fn(),
+  clear_layer: vi.fn(),
 };
 
 const mockSendTableSettingsUpdate = vi.fn();
@@ -86,14 +83,14 @@ describe('MapPanel — grid toggle', () => {
     expect(mockEngine.set_grid_enabled).toHaveBeenCalledWith(false);
   });
 
-  it('checking Snap to Grid calls engine.set_snap_to_grid', async () => {
-    // gridSnapping defaults to false in mock; clicking unchecked→checked calls set_snap_to_grid(true)
+  it('checking Snap to Grid calls engine.set_grid_snapping', async () => {
+    // gridSnapping defaults to false in mock; clicking unchecked->checked calls set_grid_snapping(true)
     const user = userEvent.setup();
     render(<MapPanel />);
     const checkboxes = screen.getAllByRole('checkbox');
     const snapGrid = checkboxes.find(c => c.closest('label')?.textContent?.includes('Snap to Grid'))!;
     await user.click(snapGrid);
-    expect(mockEngine.set_snap_to_grid).toHaveBeenCalledWith(true);
+    expect(mockEngine.set_grid_snapping).toHaveBeenCalledWith(true);
   });
 });
 
@@ -131,37 +128,38 @@ describe('MapPanel — grid presets', () => {
 });
 
 describe('MapPanel — camera controls', () => {
-  it('Reset button calls engine.reset_camera', () => {
+  it('Reset button calls engine.set_camera with centered default zoom', () => {
     render(<MapPanel />);
     fireEvent.click(screen.getByText('Reset'));
-    expect(mockEngine.reset_camera).toHaveBeenCalled();
+    expect(mockEngine.set_camera).toHaveBeenCalledWith(1000, 1000, 1);
   });
 
-  it('Center button calls engine.set_camera_position', () => {
+  it('Center button calls engine.set_camera at map center', () => {
     render(<MapPanel />);
     fireEvent.click(screen.getByText('Center'));
-    expect(mockEngine.set_camera_position).toHaveBeenCalled();
+    expect(mockEngine.set_camera).toHaveBeenCalledWith(1000, 1000, 1);
   });
 
-  it('Fit Screen button calls engine.set_camera_scale', () => {
+  it('Fit Screen button calls engine.set_camera with computed scale', () => {
     render(<MapPanel />);
     fireEvent.click(screen.getByText('Fit Screen'));
-    expect(mockEngine.set_camera_scale).toHaveBeenCalled();
+    expect(mockEngine.set_camera).toHaveBeenCalledWith(1000, 1000, expect.any(Number));
   });
 });
 
 describe('MapPanel — actions', () => {
-  it('Clear Map with confirm calls engine.clear_all_sprites', () => {
+  it('Clear Map with confirm clears known render layers', () => {
     render(<MapPanel />);
     fireEvent.click(screen.getByText('Clear Map'));
-    expect(mockEngine.clear_all_sprites).toHaveBeenCalled();
+    expect(mockEngine.clear_layer).toHaveBeenCalledWith('map');
+    expect(mockEngine.clear_layer).toHaveBeenCalledWith('tokens');
   });
 
   it('Clear Map with confirm=false does not call engine', () => {
     window.confirm = vi.fn(() => false);
     render(<MapPanel />);
     fireEvent.click(screen.getByText('Clear Map'));
-    expect(mockEngine.clear_all_sprites).not.toHaveBeenCalled();
+    expect(mockEngine.clear_layer).not.toHaveBeenCalled();
   });
 
   it('does nothing when engine is null', () => {
@@ -169,6 +167,6 @@ describe('MapPanel — actions', () => {
     render(<MapPanel />);
     // Clicking Reset without engine is a no-op
     fireEvent.click(screen.getByText('Reset'));
-    expect(mockEngine.reset_camera).not.toHaveBeenCalled();
+    expect(mockEngine.set_camera).not.toHaveBeenCalled();
   });
 });

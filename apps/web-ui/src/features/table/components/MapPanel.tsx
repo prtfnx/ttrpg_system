@@ -29,14 +29,7 @@ const gridPresets = [
   { name: 'Hex Small', size: 40, type: 'hex' as const },
 ];
 
-function hexToRgb(hex: string): [number, number, number] {
-  const h = hex.replace('#', '');
-  return [
-    parseInt(h.slice(0, 2), 16) / 255,
-    parseInt(h.slice(2, 4), 16) / 255,
-    parseInt(h.slice(4, 6), 16) / 255,
-  ];
-}
+const CLEARABLE_LAYERS = ['map', 'tokens', 'dungeon_master', 'light', 'height', 'obstacles', 'fog_of_war'];
 
 export const MapPanel: React.FC<MapPanelProps> = ({ className, style, id, ...rest }) => {
   const engine = useRenderEngine();
@@ -81,17 +74,10 @@ export const MapPanel: React.FC<MapPanelProps> = ({ className, style, id, ...res
   const applyToWasm = useCallback((s: MapSettings) => {
     if (!engine) return;
     const g = s.gridSettings;
-    engine.set_grid_enabled?.(g.enabled);
-    engine.set_grid_size?.(g.size);
-    // TODO temporal fix: cast to any for grid APIs until WASM types are updated
-    (engine as any).set_snap_to_grid?.(g.snapToGrid);
-    if ((engine as any).set_grid_color) {
-      const [r, gv, b] = hexToRgb(g.color);
-      (engine as any).set_grid_color(r, gv, b, g.opacity);
-    }
-    if (engine.set_background_color) {
-      engine.set_background_color(s.backgroundColor);
-    }
+    engine.set_grid_enabled(g.enabled);
+    engine.set_grid_snapping(g.snapToGrid);
+    engine.set_grid_size(g.size);
+    engine.set_background_color(s.backgroundColor);
   }, [engine]);
 
   const sendToServer = useCallback((s: MapSettings) => {
@@ -124,19 +110,16 @@ export const MapPanel: React.FC<MapPanelProps> = ({ className, style, id, ...res
   }, [applyToWasm, sendToServer]);
 
   const resetCamera = useCallback(() => {
-    // TODO temporal fix: cast to any until WASM exposes reset_camera or we migrate to set_camera
-    (engine as any)?.reset_camera?.();
-  }, [engine]);
+    engine?.set_camera(settings.width / 2, settings.height / 2, 1);
+  }, [engine, settings.width, settings.height]);
 
   const centerOnMap = useCallback(() => {
-    // TODO temporal fix: use set_camera when available; cast to any for backwards compatibility
-    (engine as any)?.set_camera_position?.(settings.width / 2, settings.height / 2);
+    engine?.set_camera(settings.width / 2, settings.height / 2, 1);
   }, [engine, settings.width, settings.height]);
 
   const fitToScreen = useCallback(() => {
     const scale = Math.min(window.innerWidth / settings.width, window.innerHeight / settings.height) * 0.9;
-    // TODO temporal fix: cast to any until WASM d.ts exposes camera helpers
-    (engine as any)?.set_camera_scale?.(scale);
+    engine?.set_camera(settings.width / 2, settings.height / 2, scale);
   }, [engine, settings.width, settings.height]);
 
   const handleExportMap = useCallback(() => {
@@ -151,8 +134,7 @@ export const MapPanel: React.FC<MapPanelProps> = ({ className, style, id, ...res
   const clearMap = useCallback(() => {
     if (!engine) return;
     if (confirm('Clear all sprites from the map? This cannot be undone.')) {
-      // TODO temporal fix: clear_all_sprites may be missing from d.ts
-      (engine as any).clear_all_sprites?.();
+      CLEARABLE_LAYERS.forEach(layer => engine.clear_layer(layer));
     }
   }, [engine]);
 

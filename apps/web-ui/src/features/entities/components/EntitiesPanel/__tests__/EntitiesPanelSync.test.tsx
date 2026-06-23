@@ -32,7 +32,7 @@ describe('EntitiesPanel sprite sync', () => {
     mockAddSprite.mockClear();
   });
 
-  it('syncs sprites from the render manager and displays them', async () => {
+  it('syncs sprites from table sync and displays them', async () => {
     // Simulate addSprite actually adding to the store
     mockAddSprite.mockImplementation((sprite) => {
       mockStore.sprites.push(sprite);
@@ -41,7 +41,7 @@ describe('EntitiesPanel sprite sync', () => {
     renderWithWasmRuntime(
       <EntitiesPanel />,
       createMockWasmRuntime({
-        getRenderEngine: vi.fn(() => ({ get_all_sprites_network_data: () => mockSprites }) as never),
+        getTableSync: vi.fn(() => ({ get_sprites: () => mockSprites }) as never),
       }),
     );
 

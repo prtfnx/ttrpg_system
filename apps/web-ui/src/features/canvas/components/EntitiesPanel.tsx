@@ -1,6 +1,6 @@
 import { useGameStore } from '@/store';
-import { useRenderEngine } from '@features/canvas';
 import { isDM } from '@features/session/types/roles';
+import { useWasmRuntime } from '@lib/wasm/runtime';
 import { AlertTriangle, Check } from 'lucide-react';
 import { useEffect, useState } from 'react';
 
@@ -15,7 +15,7 @@ export function EntitiesPanel() {
   const { sprites, selectedSprites, selectSprite, addSprite, removeSprite, updateSprite } = useGameStore()
   const sessionRole = useGameStore(s => s.sessionRole);
   const visibleLayers = useGameStore(s => s.visibleLayers);
-  const renderEngine = useRenderEngine();
+  const wasmRuntime = useWasmRuntime();
   const [syncState, setSyncState] = useState<SyncState>({ status: 'idle' })
 
   // Validate and transform sprite data from WASM
@@ -48,15 +48,14 @@ export function EntitiesPanel() {
     
     try {
       // Validate WASM availability
-      if (!renderEngine) {
-        throw new Error('WASM render manager not available');
+      const tableSync = wasmRuntime.getTableSync();
+      if (!tableSync) {
+        throw new Error('WASM table sync not available');
       }
 
       setSyncState(prev => ({ ...prev, progress: 25 }));
 
-      // Get sprites with error handling
-      // TODO temporal fix: cast to any until WASM types expose `get_all_sprites_network_data`
-      const rustSprites = (renderEngine as any).get_all_sprites_network_data?.() as any[] ?? (renderEngine as any).get_sprites?.() ?? [];
+      const rustSprites = tableSync.get_sprites();
       
       if (!Array.isArray(rustSprites)) {
         throw new Error('Invalid sprite data format from WASM');

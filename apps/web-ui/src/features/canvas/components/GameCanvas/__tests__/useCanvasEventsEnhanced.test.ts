@@ -23,6 +23,7 @@ function makeEngine(overrides: Record<string, unknown> = {}) {
     handle_mouse_down_full: vi.fn(),
     handle_mouse_move: vi.fn(),
     handle_mouse_up: vi.fn(),
+    set_alt_pressed: vi.fn(),
     handle_wheel: vi.fn(),
     handle_right_click: vi.fn().mockReturnValue('sprite-99'),
     get_cursor_type: vi.fn().mockReturnValue('default'),
@@ -160,13 +161,14 @@ describe('mouse event handlers', () => {
     expect(props.engine.handle_mouse_move).toHaveBeenCalled();
   });
 
-  it('stableMouseUp calls engine.handle_mouse_up', () => {
+  it('stableMouseUp syncs alt state and calls engine.handle_mouse_up', () => {
     const props = defaultProps();
     const { result } = renderHook(() => useCanvasEventsEnhanced(props));
-    const event = new MouseEvent('mouseup', { clientX: 50, clientY: 50 }) as MouseEvent;
+    const event = new MouseEvent('mouseup', { clientX: 50, clientY: 50, altKey: true }) as MouseEvent;
 
     act(() => result.current.stableMouseUp(event));
 
+    expect(props.engine.set_alt_pressed).toHaveBeenCalledWith(true);
     expect(props.engine.handle_mouse_up).toHaveBeenCalled();
   });
 

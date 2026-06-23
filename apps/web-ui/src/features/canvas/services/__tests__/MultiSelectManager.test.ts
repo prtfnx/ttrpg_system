@@ -108,9 +108,6 @@ describe('MultiSelectManager', () => {
   // Build a minimal render engine mock with jest spy functions
   const makeEngine = () => ({
     clear_selection: vi.fn(),
-    update_selection_rect: vi.fn(),
-    select_sprites_in_rect: vi.fn(),
-    clear_selection_rect: vi.fn(),
   });
 
   it('initial state is not active', () => {
@@ -134,19 +131,19 @@ describe('MultiSelectManager', () => {
     const engine = makeEngine();
     const mgr = new MultiSelectManager(engine as unknown as Parameters<typeof MultiSelectManager['prototype']['setRenderEngine']>[0]);
     mgr.handleMouseDown(mouseEvent(), pos(0, 0));
-    mgr.handleMouseMove(mouseEvent(), pos(50, 50));
-    mgr.handleMouseUp(mouseEvent(), pos(100, 100));
-    expect(engine.select_sprites_in_rect).toHaveBeenCalledWith(0, 0, 100, 100, false);
+    expect(mgr.handleMouseMove(mouseEvent(), pos(50, 50))).toBe(true);
+    expect(mgr.handleMouseUp(mouseEvent(), pos(100, 100))).toBe(true);
     expect(mgr.isSelectionActive()).toBe(false);
   });
 
-  it('ctrl drag calls select with addToSelection=true', () => {
+  it('ctrl drag completes additive selection mode without unsupported renderer calls', () => {
     const engine = makeEngine();
     const mgr = new MultiSelectManager(engine as unknown as Parameters<typeof MultiSelectManager['prototype']['setRenderEngine']>[0]);
     mgr.handleMouseDown(mouseEvent({ ctrlKey: true }), pos(0, 0));
     mgr.handleMouseMove(mouseEvent({ ctrlKey: true }), pos(10, 10));
-    mgr.handleMouseUp(mouseEvent({ ctrlKey: true }), pos(20, 20));
-    expect(engine.select_sprites_in_rect).toHaveBeenCalledWith(0, 0, 20, 20, true);
+    expect(mgr.handleMouseUp(mouseEvent({ ctrlKey: true }), pos(20, 20))).toBe(true);
+    expect(engine.clear_selection).not.toHaveBeenCalled();
+    expect(mgr.isSelectionActive()).toBe(false);
   });
 
   it('DRAG_RECTANGLE calls clear_selection on start', () => {

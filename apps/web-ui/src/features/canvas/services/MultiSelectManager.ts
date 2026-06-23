@@ -175,7 +175,7 @@ export class MultiSelectManager {
       
       if (result.action === 'start_selection' && result.mode === MultiSelectMode.DRAG_RECTANGLE) {
         // Start fresh area selection - clear existing selection
-        this.renderEngine?.clear_selection?.();
+        this.renderEngine?.clear_selection();
       }
       
       return true;
@@ -190,9 +190,6 @@ export class MultiSelectManager {
     const result = this.strategy.handleMouseMove(event, worldPos);
     
     if (result.handled && result.selectionRect) {
-      // Update visual feedback for selection rectangle in WASM
-      const re = this.renderEngine as unknown as { update_selection_rect?: (rect: typeof result.selectionRect) => void };
-      re.update_selection_rect?.(result.selectionRect);
       return true;
     }
 
@@ -204,24 +201,6 @@ export class MultiSelectManager {
 
     const result = this.strategy.handleMouseUp(event, worldPos);
     
-    if (result.handled && result.action === 'end_selection' && result.selectionRect) {
-      // Apply final selection
-      const rect = result.selectionRect;
-      const addToSelection = result.mode === MultiSelectMode.CTRL_DRAG_RECTANGLE;
-      
-      // TODO temporal fix: cast to any until WASM includes select_sprites_in_rect in d.ts
-      (this.renderEngine as any).select_sprites_in_rect?.(
-        Math.min(rect.x1, rect.x2),
-        Math.min(rect.y1, rect.y2),
-        Math.max(rect.x1, rect.x2),
-        Math.max(rect.y1, rect.y2),
-        addToSelection
-      );
-      
-      // Clear visual selection rectangle
-      (this.renderEngine as unknown as { clear_selection_rect?: () => void }).clear_selection_rect?.();
-    }
-
     this.isActive = false;
     this.strategy.reset();
     return result.handled;

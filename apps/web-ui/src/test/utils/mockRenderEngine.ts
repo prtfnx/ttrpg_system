@@ -17,9 +17,6 @@ export function createMockRenderEngine() {
     handle_wheel: vi.fn(),
     set_zoom: vi.fn(),
     set_camera: vi.fn(),
-    set_camera_position: vi.fn(),
-    set_camera_scale: vi.fn(),
-    reset_camera: vi.fn(),
     screen_to_world: vi.fn().mockReturnValue(new Float64Array([0, 0])),
     world_to_screen: vi.fn().mockReturnValue(new Float64Array([0, 0])),
     get_viewport_bounds: vi.fn().mockReturnValue(new Float64Array([0, 0, 800, 600])),
@@ -41,7 +38,6 @@ export function createMockRenderEngine() {
     set_input_mode_paint: vi.fn(),
     set_input_mode_draw_wall: vi.fn(),
     set_input_mode_create_polygon: vi.fn(),
-    cancel_polygon_creation: vi.fn(),
     // Sprites
     add_sprite_to_layer: vi.fn().mockReturnValue('sprite_mock_id'),
     remove_sprite: vi.fn().mockReturnValue(true),
@@ -55,10 +51,8 @@ export function createMockRenderEngine() {
     set_grid_enabled: vi.fn(),
     toggle_grid_snapping: vi.fn(),
     set_grid_snapping: vi.fn(),
-    set_snap_to_grid: vi.fn(),
     set_grid_size: vi.fn(),
     is_grid_snapping_enabled: vi.fn().mockReturnValue(false),
-    set_grid_color: vi.fn(),
     set_background_color: vi.fn(),
     // Textures
     load_texture: vi.fn(),

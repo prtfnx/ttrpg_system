@@ -15,9 +15,6 @@ export function createMockRenderEngine() {
     handle_wheel: vi.fn(),
     set_zoom: vi.fn(),
     set_camera: vi.fn(),
-    set_camera_position: vi.fn(),
-    set_camera_scale: vi.fn(),
-    reset_camera: vi.fn(),
     screen_to_world: vi.fn().mockReturnValue(new Float64Array([0, 0])),
     world_to_screen: vi.fn().mockReturnValue(new Float64Array([0, 0])),
     get_viewport_bounds: vi.fn().mockReturnValue(new Float64Array([0, 0, 800, 600])),
@@ -44,23 +41,19 @@ export function createMockRenderEngine() {
     apply_network_sprite_update: vi.fn(),
     apply_network_sprite_create: vi.fn().mockReturnValue('sprite-net'),
     apply_network_sprite_remove: vi.fn().mockReturnValue(true),
-    get_all_sprites_network_data: vi.fn().mockReturnValue([]),
 
     // Selection
     get_selected_sprites: vi.fn().mockReturnValue([]),
     select_all_sprites: vi.fn(),
     clear_selection: vi.fn(),
-    select_sprites_in_rect: vi.fn(),
 
     // Grid
     toggle_grid: vi.fn(),
     set_grid_enabled: vi.fn(),
     toggle_grid_snapping: vi.fn(),
     set_grid_snapping: vi.fn(),
-    set_snap_to_grid: vi.fn(),
     set_grid_size: vi.fn(),
     is_grid_snapping_enabled: vi.fn().mockReturnValue(false),
-    set_grid_color: vi.fn(),
 
     // Appearance
     set_background_color: vi.fn(),
@@ -123,7 +116,6 @@ export function createMockRenderEngine() {
     set_input_mode_paint: vi.fn(),
     set_input_mode_draw_wall: vi.fn(),
     set_input_mode_create_polygon: vi.fn(),
-    cancel_polygon_creation: vi.fn(),
     undo_polygon_vertex: vi.fn(),
 
     // Layers
@@ -134,7 +126,6 @@ export function createMockRenderEngine() {
     get_layer_names: vi.fn().mockReturnValue([]),
     get_layer_sprite_count: vi.fn().mockReturnValue(0),
     clear_layer: vi.fn().mockReturnValue(true),
-    clear_all_sprites: vi.fn(),
 
     // Paint system
     paint_set_current_table: vi.fn(),

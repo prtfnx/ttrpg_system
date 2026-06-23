@@ -117,18 +117,7 @@
         .log-error { color: #ef4444; }
         .log-info { color: #fbbf24; }
         
-        .game-canvas {
-            position: absolute;
-            top: 0;
-            left: 0;
-            width: 100vw;
-            height: 100vh;
-            background: #1a1a1a;
-            border: none;
-            outline: none;
-        }
-        
-        .canvas-overlay {
+        .page-status {
             position: absolute;
             top: 20px;
             left: 20px;
@@ -154,13 +143,9 @@
     </style>
 </head>
 <body>
-    <!-- Full-screen canvas for future game integration -->
-    <canvas id="gameCanvas" class="game-canvas" tabindex="0"></canvas>
-    
-    <!-- Canvas status overlay -->
-    <div class="canvas-overlay">
-        <div>TTRPG Client Ready</div>
-        <div id="canvasStatus">Canvas: Initialized</div>
+    <div class="page-status">
+        <div>TTRPG WebSocket Test Ready</div>
+        <div>Protocol only</div>
     </div>
     
     <!-- Toggle button for test panel -->
@@ -198,58 +183,6 @@
     <script>
         let websocket = null;
         let isConnected = false;
-        let canvas = document.getElementById('gameCanvas');
-        let gameRenderer = null; // Will be initialized by Rust WASM
-        let wasmModule = null;
-        
-        // Load WASM module
-        async function loadWasm() {
-            try {
-                wasmModule = await import('/static/ui/wasm/ttrpg_rust_core.js');
-                await wasmModule.default();
-                addLog('info', 'WASM module loaded successfully');
-                return true;
-            } catch (error) {
-                addLog('error', `Failed to load WASM: ${error}`);
-                return false;
-            }
-        }
-        
-        // Initialize canvas for WebGL
-        async function initCanvas() {
-            canvas.width = window.innerWidth;
-            canvas.height = window.innerHeight;
-            
-            // Load WASM first
-            const wasmLoaded = await loadWasm();
-            if (!wasmLoaded) {
-                addLog('error', 'Cannot initialize renderer without WASM');
-                return;
-            }
-            
-            try {
-                // Use the exported init function instead of constructor
-                gameRenderer = wasmModule.init_game_renderer(canvas);
-                startRenderLoop();
-                addLog('info', 'WebGL renderer initialized');
-            } catch (error) {
-                addLog('error', `Failed to initialize WebGL: ${error}`);
-            }
-        }
-        
-        function startRenderLoop() {
-            function render() {
-                if (gameRenderer) {
-                    try {
-                        gameRenderer.render();
-                    } catch (error) {
-                        console.error('Render error:', error);
-                    }
-                }
-                requestAnimationFrame(render);
-            }
-            render();
-        }
         
         // WebSocket functions
         function updateStatus(status, text) {
@@ -290,18 +223,6 @@
                     const msg = JSON.parse(event.data);
                     addLog('received', `${msg.type}: ${JSON.stringify(msg.data || {})}`);
                     
-                    // Forward sprite data to Rust renderer
-                    if (gameRenderer && msg.type === 'sprite_create' && msg.data) {
-                        try {
-                            addLog('info', `Attempting to add sprite: ${msg.data.name} with texture: ${msg.data.texture_path}`);
-                            console.log('Full sprite data:', msg.data);
-                            gameRenderer.add_sprite(msg.data);
-                            addLog('info', `Successfully added sprite: ${msg.data.name}`);
-                        } catch (error) {
-                            addLog('error', `Failed to add sprite: ${error}`);
-                            console.error('Sprite add error:', error, 'Data:', msg.data);
-                        }
-                    }
                 };
                 
                 websocket.onclose = (event) => {
@@ -421,25 +342,6 @@
             });
         }
         
-        function getRandomColor() {
-            const colors = ['#4ade80', '#3b82f6', '#ef4444', '#f59e0b', '#8b5cf6', '#06b6d4'];
-            return colors[Math.floor(Math.random() * colors.length)];
-        }
-        
-        function worldToScreen(worldX, worldY) {
-            return {
-                x: (worldX - camera.x) * camera.zoom,
-                y: (worldY - camera.y) * camera.zoom
-            };
-        }
-        
-        function screenToWorld(screenX, screenY) {
-            return {
-                x: screenX / camera.zoom + camera.x,
-                y: screenY / camera.zoom + camera.y
-            };
-        }
-        
         function clearLog() {
             document.getElementById('logArea').innerHTML = '<div class="log-entry log-info">[Cleared] Log cleared</div>';
         }
@@ -457,90 +359,9 @@
             }
         }
         
-        // Initialize
+        // Initialize protocol test page
         window.addEventListener('load', () => {
-            initCanvas();
-            setTimeout(() => {
-                loadDefaultTextures();
-                setTimeout(connectWS, 1000); // Wait for textures to load
-            }, 500);
-        });
-        
-        window.addEventListener('resize', () => {
-            if (gameRenderer) {
-                gameRenderer.resize(window.innerWidth, window.innerHeight);
-            }
-        });
-        
-        function loadDefaultTextures() {
-            // Load actual images from resources directory
-            const textures = [
-                { name: 'hero.png', path: '/resources/Hero.png' },
-                { name: 'enemy.png', path: '/resources/goblin.png' },
-                { name: 'chest.png', path: '/resources/treasure.png' },
-                { name: 'player.png', path: '/resources/player1.png' },
-                { name: 'token.png', path: '/resources/token_1.png' }
-            ];
-            
-            textures.forEach(tex => {
-                if (gameRenderer) {
-                    addLog('info', `Starting to load texture: ${tex.name} from ${tex.path}`);
-                    const img = new Image();
-                    img.onload = () => {
-                        try {
-                            console.log(`Image loaded successfully: ${tex.name}, size: ${img.width}x${img.height}`);
-                            gameRenderer.load_texture(tex.name, img);
-                            addLog('info', `Successfully loaded texture: ${tex.name} (${img.width}x${img.height})`);
-                        } catch (error) {
-                            addLog('error', `Failed to load texture ${tex.name}: ${error}`);
-                            console.error('Texture load error:', error);
-                        }
-                    };
-                    img.onerror = (e) => {
-                        addLog('error', `Failed to load image: ${tex.path}`);
-                        console.error('Image load error:', e, 'Path:', tex.path);
-                    };
-                    img.src = tex.path;
-                } else {
-                    addLog('error', 'GameRenderer not available for texture loading');
-                }
-            });
-        }
-        
-        // Canvas interaction - pass to Rust WebGL renderer
-        canvas.addEventListener('mousedown', (e) => {
-            if (gameRenderer) {
-                const rect = canvas.getBoundingClientRect();
-                const x = e.clientX - rect.left;
-                const y = e.clientY - rect.top;
-                gameRenderer.handle_mouse_down(x, y);
-            }
-        });
-        
-        canvas.addEventListener('mousemove', (e) => {
-            if (gameRenderer) {
-                const rect = canvas.getBoundingClientRect();
-                const x = e.clientX - rect.left;
-                const y = e.clientY - rect.top;
-                gameRenderer.handle_mouse_move(x, y);
-            }
-        });
-        
-        canvas.addEventListener('mouseup', (e) => {
-            if (gameRenderer) {
-                const rect = canvas.getBoundingClientRect();
-                const x = e.clientX - rect.left;
-                const y = e.clientY - rect.top;
-                gameRenderer.handle_mouse_up(x, y);
-                addLog('info', `Canvas clicked at (${Math.floor(x)}, ${Math.floor(y)})`);
-            }
-        });
-        
-        canvas.addEventListener('wheel', (e) => {
-            if (gameRenderer) {
-                e.preventDefault();
-                gameRenderer.handle_wheel(e.deltaY);
-            }
+            setTimeout(connectWS, 500);
         });
     </script>
 </body>

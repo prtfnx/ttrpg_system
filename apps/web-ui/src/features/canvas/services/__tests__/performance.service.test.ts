@@ -89,18 +89,20 @@ describe('PerformanceService', () => {
   });
 
   describe('initialize', () => {
-    it('sets renderEngine and starts monitoring', () => {
-      const engine = { set_max_sprites: vi.fn(), set_texture_quality: vi.fn(), enable_sprite_pooling: vi.fn(), enable_frustum_culling: vi.fn(), set_max_render_distance: vi.fn() };
+    it('starts monitoring on initialize', () => {
+      const engine = {};
       performanceService.initialize(engine as never);
-      expect((performanceService as Svc)['renderEngine']).toBe(engine);
       expect((performanceService as Svc)['isMonitoring']).toBe(true);
     });
 
-    it('calls render engine optimization methods on initialize', () => {
-      const engine = { set_max_sprites: vi.fn(), set_texture_quality: vi.fn(), enable_sprite_pooling: vi.fn(), enable_frustum_culling: vi.fn(), set_max_render_distance: vi.fn() };
+    it('does not call unsupported render engine optimization methods on initialize', () => {
+      const engine = {
+        set_max_sprites: vi.fn(),
+        enable_frustum_culling: vi.fn(),
+      };
       performanceService.initialize(engine as never);
-      expect(engine.set_max_sprites).toHaveBeenCalled();
-      expect(engine.enable_frustum_culling).toHaveBeenCalled();
+      expect(engine.set_max_sprites).not.toHaveBeenCalled();
+      expect(engine.enable_frustum_culling).not.toHaveBeenCalled();
     });
   });
 

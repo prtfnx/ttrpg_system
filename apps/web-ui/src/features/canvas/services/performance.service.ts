@@ -6,17 +6,6 @@
 import fpsService from './fps.service';
 import type { RenderEngine } from '@lib/wasm/runtime';
 
-type RenderEngineExt = RenderEngine & {
-  get_memory_usage?: () => number;
-  get_sprite_count?: () => number;
-  get_texture_count?: () => number;
-  set_max_sprites?: (count: number) => void;
-  set_texture_quality?: (quality: number) => void;
-  enable_sprite_pooling?: (enabled: boolean) => void;
-  enable_frustum_culling?: (enabled: boolean) => void;
-  set_max_render_distance?: (distance: number) => void;
-};
-
 type PerformanceWithMemory = Performance & {
   memory?: { usedJSHeapSize: number; totalJSHeapSize: number; jsHeapSizeLimit: number };
 };
@@ -72,7 +61,6 @@ class PerformanceService {
   private lastFrameTime: number = 0;
   private isMonitoring: boolean = false;
   private monitoringInterval: number | null = null;
-  private renderEngine: RenderEngineExt | null = null;
   private lastOptimizationTime: number = 0;
   private readonly OPTIMIZATION_COOLDOWN_MS = 10000; // 10 seconds cooldown
 
@@ -116,8 +104,7 @@ class PerformanceService {
   /**
    * Initialize performance monitoring with render engine reference
    */
-  initialize(renderEngine: RenderEngineExt): void {
-    this.renderEngine = renderEngine;
+  initialize(_renderEngine: RenderEngine): void {
     this.startMonitoring();
     this.applyOptimizations();
     console.log(' Performance service initialized');
@@ -192,16 +179,8 @@ class PerformanceService {
       };
     }
 
-    // Update WASM metrics if available
-    if (this.renderEngine && typeof this.renderEngine.get_memory_usage === 'function') {
-      this.metrics.wasmMemoryUsage = this.renderEngine.get_memory_usage();
-    }
-
-    // Update sprite and texture counts from render engine
-    if (this.renderEngine) {
-      this.metrics.spriteCount = this.getSpriteCount();
-      this.metrics.textureCount = this.getTextureCount();
-    }
+    this.metrics.spriteCount = this.getSpriteCount();
+    this.metrics.textureCount = this.getTextureCount();
 
     // Update cache hit rate
     this.metrics.cacheHitRate = this.cacheRequests > 0 ? 
@@ -310,36 +289,7 @@ class PerformanceService {
    * Apply performance optimizations to render engine
    */
   private applyOptimizations(): void {
-    if (!this.renderEngine) return;
-
-    try {
-      // Apply sprite count limits
-      if (typeof this.renderEngine.set_max_sprites === 'function') {
-        this.renderEngine.set_max_sprites(this.settings.maxSprites);
-      }
-
-      // Apply texture quality settings
-      if (typeof this.renderEngine.set_texture_quality === 'function') {
-        this.renderEngine.set_texture_quality(this.settings.textureQuality);
-      }
-
-      // Enable/disable features based on settings
-      if (typeof this.renderEngine.enable_sprite_pooling === 'function') {
-        this.renderEngine.enable_sprite_pooling(this.settings.enableSpritePooling);
-      }
-
-      if (typeof this.renderEngine.enable_frustum_culling === 'function') {
-        this.renderEngine.enable_frustum_culling(this.settings.enableFrustumCulling);
-      }
-
-      if (typeof this.renderEngine.set_max_render_distance === 'function') {
-        this.renderEngine.set_max_render_distance(this.settings.maxRenderDistance);
-      }
-
-      console.log(' Performance optimizations applied');
-    } catch (error) {
-      console.error(' Failed to apply performance optimizations:', error);
-    }
+    console.log(' Performance settings stored for client-side monitoring');
   }
 
   /**
@@ -463,20 +413,14 @@ class PerformanceService {
    * Get sprite count from render engine
    */
   private getSpriteCount(): number {
-    if (this.renderEngine && typeof this.renderEngine.get_sprite_count === 'function') {
-      return this.renderEngine.get_sprite_count();
-    }
-    return 0;
+    return this.spriteCache.size;
   }
 
   /**
    * Get texture count from render engine
    */
   private getTextureCount(): number {
-    if (this.renderEngine && typeof this.renderEngine.get_texture_count === 'function') {
-      return this.renderEngine.get_texture_count();
-    }
-    return 0;
+    return this.textureCache.size;
   }
 
   /**

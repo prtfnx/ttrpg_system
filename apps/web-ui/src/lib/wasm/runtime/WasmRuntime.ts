@@ -20,14 +20,6 @@ import type { BrushPreset } from './types';
 import { WasmSyncCoordinator } from './WasmSyncCoordinator';
 import { WasmRuntimeStore, type WasmRuntimeSnapshot } from './wasmStore';
 
-type RuntimeCallbackRenderEngine = RenderEngine & {
-  set_runtime_operation_handler: (callback: (operation: WasmRuntimeOperation) => void) => void;
-  set_runtime_event_handler: (callback: (event: WasmRuntimeEvent) => void) => void;
-  clear_runtime_operation_handler: () => void;
-  clear_runtime_event_handler: () => void;
-  set_shape_style: (color: string, opacity: number, filled: boolean) => void;
-};
-
 type RuntimeProtocol = {
   createSprite?: (spriteData: Record<string, unknown>) => void;
 };
@@ -116,7 +108,7 @@ export class WasmRuntime implements WasmRuntimePort {
         this.store.setSnapshot({
           isModuleReady: true,
           error: null,
-          version: typeof version === 'function' ? version() : null,
+          version: version(),
         });
       })
       .catch(error => {
@@ -272,8 +264,7 @@ export class WasmRuntime implements WasmRuntimePort {
   }
 
   setShapeStyle(color: string, opacity: number, filled: boolean): void {
-    const engine = this.renderEngine as RuntimeCallbackRenderEngine | null;
-    engine?.set_shape_style(color, opacity, filled);
+    this.renderEngine?.set_shape_style(color, opacity, filled);
   }
 
   setTableUnits(tableId: string | null, gridCellPx: number, cellDistance: number, distanceUnit: string): void {
@@ -361,15 +352,13 @@ export class WasmRuntime implements WasmRuntimePort {
   }
 
   private clearRuntimeCallbacks(engine: RenderEngine | null): void {
-    const callbackEngine = engine as RuntimeCallbackRenderEngine | null;
-    try { callbackEngine?.clear_runtime_operation_handler(); } catch {}
-    try { callbackEngine?.clear_runtime_event_handler(); } catch {}
+    try { engine?.clear_runtime_operation_handler(); } catch {}
+    try { engine?.clear_runtime_event_handler(); } catch {}
   }
 
   private registerRuntimeCallbacks(engine: RenderEngine): void {
-    const callbackEngine = engine as RuntimeCallbackRenderEngine;
-    callbackEngine.set_runtime_operation_handler(this.runtimeOperationHandler);
-    callbackEngine.set_runtime_event_handler(this.runtimeEventHandler);
+    engine.set_runtime_operation_handler(this.runtimeOperationHandler);
+    engine.set_runtime_event_handler(this.runtimeEventHandler);
   }
 
   private handleRuntimeOperation(operation: WasmRuntimeOperation): void {

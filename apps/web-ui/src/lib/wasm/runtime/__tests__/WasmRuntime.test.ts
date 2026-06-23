@@ -14,6 +14,7 @@ const mocks = vi.hoisted(() => {
     set_runtime_event_handler: vi.fn(),
     clear_runtime_operation_handler: vi.fn(),
     clear_runtime_event_handler: vi.fn(),
+    set_shape_style: vi.fn(),
   };
 
   return {
@@ -152,6 +153,14 @@ describe('WasmRuntime', () => {
     expect(mocks.renderEngine.set_current_user_id).toHaveBeenLastCalledWith(2);
     expect(mocks.renderEngine.set_gm_mode).toHaveBeenLastCalledWith(true);
     expect(mocks.renderEngine.set_active_layer).toHaveBeenLastCalledWith('light');
+  });
+
+  it('routes shape style through the generated render contract', async () => {
+    await runtime.attachCanvas(canvas, { userId: null, role: null, activeLayer: 'map' });
+
+    runtime.setShapeStyle('#ff8800', 0.75, true);
+
+    expect(mocks.renderEngine.set_shape_style).toHaveBeenCalledWith('#ff8800', 0.75, true);
   });
 
   it('detaches the canvas and cleans up renderer-owned services', async () => {

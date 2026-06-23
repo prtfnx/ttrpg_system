@@ -1,9 +1,3 @@
-.table-sync-panel {
-  composes: panel-container wide from '@shared/styles/PanelBase.module.css';
-  min-width: 320px;
-  max-width: 480px;
-}
-
 .panelHeader {
   composes: panel-header from '@shared/styles/PanelBase.module.css';
 }
@@ -13,132 +7,36 @@
   font-size: var(--font-size-xl);
 }
 
-.status.loading {
-  background: var(--orange-500);
-  color: var(--bg-primary);
+.stateGrid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: var(--spacing-sm);
 }
 
-.status.connected {
-  background: var(--color-success);
-  color: var(--bg-primary);
-}
-
-.status.disconnected {
-  background: var(--color-danger);
-  color: white;
-}
-
-.table-name-input {
-  flex: 1;
-  padding: var(--spacing-sm) var(--spacing-md);
-  background: var(--bg-tertiary);
+.stateGrid > div {
+  min-width: 0;
+  padding: var(--spacing-sm);
   border: var(--border-width) solid var(--border-secondary);
   border-radius: var(--radius-sm);
+  background: var(--bg-tertiary);
+}
+
+.stateLabel,
+.stateValue {
+  display: block;
+}
+
+.stateLabel {
+  margin-bottom: var(--space-xs);
+  color: var(--text-muted);
+  font-size: var(--text-2xs);
+}
+
+.stateValue {
+  overflow: hidden;
   color: var(--text-primary);
   font-size: var(--font-size-sm);
-}
-
-.table-name-input:focus {
-  border-color: var(--color-success);
-  box-shadow: 0 0 0 var(--space-xs) var(--status-success-bg);
-}
-
-.request-button {
-  composes: panel-button success from '@shared/styles/PanelBase.module.css';
-}
-
-.table-info,
-.sprite-list,
-.logs-section {
-  background: var(--bg-tertiary);
-  border-radius: var(--radius-md);
-  padding: var(--spacing-md);
-  margin-bottom: var(--spacing-lg);
-}
-
-.table-info h4,
-.sprite-list h4,
-.logs-header h4 {
-  margin: 0 0 var(--spacing-sm) 0;
-  color: var(--color-success);
-  font-size: var(--font-size-lg);
-}
-
-.table-stats {
-  display: flex;
-  gap: var(--spacing-lg);
-  font-size: var(--font-size-xs);
-  color: var(--text-secondary);
-}
-
-.action-buttons button {
-  padding: var(--spacing-sm) var(--spacing-md);
-  font-size: var(--font-size-xs);
-  background: var(--button-secondary-bg);
-  border: var(--border-width) solid var(--button-secondary-bg);
-  border-radius: var(--radius-sm);
-  color: var(--button-secondary-text);
-  cursor: pointer;
   font-weight: var(--font-medium);
-  transition: all var(--transition-fast);
-}
-
-.action-buttons button:hover:not(:disabled) {
-  background: var(--button-secondary-hover);
-}
-
-.action-buttons button:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
-}
-
-.sprites-container,
-.logs-container {
-  background: var(--bg-tertiary);
-  border-radius: var(--radius-md);
-  padding: var(--spacing-sm);
-}
-
-.sprite-item {
-  background: var(--bg-tertiary);
-  border-radius: var(--radius-sm);
-  padding: var(--spacing-sm);
-  margin-bottom: var(--spacing-sm);
-  border-left: var(--space-xs) solid var(--color-success);
-}
-
-.sprite-name {
-  font-weight: var(--font-bold);
-  color: var(--color-success);
-  margin-bottom: var(--spacing-xs);
-}
-
-.sprite-details,
-.log-entry {
-  font-size: var(--text-2xs);
-  color: var(--text-secondary);
-  margin-bottom: var(--space-xs);
-}
-
-.clear-logs-button {
-  composes: panel-button secondary from '@shared/styles/PanelBase.module.css';
-  padding: var(--spacing-xs) var(--spacing-sm);
-  font-size: var(--text-2xs);
-}
-
-.no-sprites,
-.no-logs {
-  text-align: center;
-  color: var(--text-muted);
-  font-style: italic;
-  padding: var(--spacing-lg);
-}
-
-.error-display {
-  background: var(--status-error-bg);
-  border: var(--border-width) solid var(--status-error-border);
-  border-radius: var(--radius-md);
-  padding: var(--spacing-md);
-  color: var(--status-error-text);
-  font-size: var(--font-size-sm);
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }

@@ -1,7 +1,6 @@
-import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-// Mock hooks before importing component
 vi.mock('@features/table/hooks/useTableSync', () => ({
   useTableSync: vi.fn(),
 }));
@@ -13,28 +12,40 @@ import { TableSyncPanel } from '@features/table/components/TableSyncPanel';
 import { useTableSync } from '@features/table/hooks/useTableSync';
 import { useNetworkClient } from '@shared/hooks/useNetworkClient';
 
+const mockRequestTable = vi.fn();
+
 function buildMockTableSync() {
   return {
     request_table: vi.fn(),
-    request_new_table: vi.fn(),
-    add_sprite: vi.fn(),
-    update_sprite: vi.fn(),
-    remove_sprite: vi.fn(),
     set_network_client: vi.fn(),
   };
 }
 
-function setup(options: { connected?: boolean; tableSync?: unknown | null; error?: string | null } = {}) {
-  const { connected = true, tableSync = buildMockTableSync(), error = null } = options;
+function setup(options: {
+  connected?: boolean;
+  tableSync?: unknown | null;
+  error?: string | null;
+  tableId?: string | null;
+  spriteCount?: number;
+  tableLoaded?: boolean;
+} = {}) {
+  const {
+    connected = true,
+    tableSync = buildMockTableSync(),
+    error = null,
+    tableId = null,
+    spriteCount = 0,
+    tableLoaded = false,
+  } = options;
 
   vi.mocked(useTableSync).mockReturnValue({
     tableSync,
     isLoading: false,
     error,
-    tableData: null,
-    tableId: null,
-    sprites: [],
-    requestTable: vi.fn(),
+    tableData: tableLoaded ? { table_id: tableId ?? 'tbl-1' } : null,
+    tableId,
+    sprites: Array.from({ length: spriteCount }, (_, index) => ({ sprite_id: `s${index}` })),
+    requestTable: mockRequestTable,
     moveSprite: vi.fn(),
     scaleSprite: vi.fn(),
     rotateSprite: vi.fn(),
@@ -54,83 +65,77 @@ beforeEach(() => {
 });
 
 describe('TableSyncPanel', () => {
-  it('renders main sections', () => {
-    setup();
+  it('renders table sync status and runtime state', () => {
+    setup({ tableId: 'tbl-42', spriteCount: 3, tableLoaded: true });
+
     render(<TableSyncPanel />);
+
     expect(screen.getByRole('heading', { name: 'Table Sync' })).toBeInTheDocument();
+    expect(screen.getByText('tbl-42')).toBeInTheDocument();
+    expect(screen.getByText('3')).toBeInTheDocument();
+    expect(screen.getByText('Loaded')).toBeInTheDocument();
   });
 
-  it('logs connected message when connection becomes active', async () => {
+  it('logs connected message when connection is active', async () => {
     setup({ connected: true });
+
     render(<TableSyncPanel />);
-    await waitFor(() => expect(screen.getByText(/Connected to table sync/i)).toBeInTheDocument());
+
+    await waitFor(() => expect(screen.getByText(/Connected to table sync service/i)).toBeInTheDocument());
   });
 
   it('logs disconnected warning when not connected', async () => {
     setup({ connected: false });
+
     render(<TableSyncPanel />);
+
     await waitFor(() => expect(screen.getByText(/Disconnected from table sync service/i)).toBeInTheDocument());
   });
 
   it('logs error when error prop is set', async () => {
     setup({ error: 'Sync failed' });
-    render(<TableSyncPanel />);
-    await waitFor(() => expect(screen.getByText(/Error: Sync failed/)).toBeInTheDocument());
-  });
 
-  it('shows "No activity" empty state initially', () => {
-    // useEffect logs fire asynchronously; check before waitFor
-    setup({ connected: false, tableSync: null });
-    const { container } = render(<TableSyncPanel />);
-    // The initial render might have empty state before effect fires
-    expect(container).toBeTruthy();
+    render(<TableSyncPanel />);
+
+    await waitFor(() => expect(screen.getByText(/Error: Sync failed/)).toBeInTheDocument());
   });
 
   it('warns when requesting table without a table ID', async () => {
     setup({ connected: true });
     render(<TableSyncPanel />);
-    const requestBtn = screen.getByText('Request Table');
-    fireEvent.click(requestBtn);
+
+    fireEvent.click(screen.getByText('Request Table'));
+
     await waitFor(() => expect(screen.getByText(/Please enter a table ID/i)).toBeInTheDocument());
+    expect(mockRequestTable).not.toHaveBeenCalled();
   });
 
-  it('adds to mutation queue when requesting table with valid ID', async () => {
-    const mockSync = buildMockTableSync();
-    mockSync.request_table.mockResolvedValue(undefined);
-    setup({ tableSync: mockSync });
-    render(<TableSyncPanel />);
-
-    const input = screen.getByPlaceholderText('Enter table ID');
-    fireEvent.change(input, { target: { value: 'tbl-42' } });
-
-    const btn = screen.getByText('Request Table');
-    fireEvent.click(btn);
-
-    await waitFor(() => expect(screen.getByText(/Optimistically requesting table: tbl-42/i)).toBeInTheDocument());
-  });
-
-  it('warns when creating table without a name', async () => {
+  it('requests table through the hook with a valid ID', async () => {
     setup({ connected: true });
     render(<TableSyncPanel />);
-    const createBtn = screen.getByText('🆕 Create New Table');
-    fireEvent.click(createBtn);
-    await waitFor(() => expect(screen.getByText(/Please enter a table name/i)).toBeInTheDocument());
+
+    fireEvent.change(screen.getByPlaceholderText('Enter table ID'), { target: { value: 'tbl-42' } });
+    fireEvent.click(screen.getByText('Request Table'));
+
+    expect(mockRequestTable).toHaveBeenCalledWith('tbl-42');
+    await waitFor(() => expect(screen.getByText(/Requested table: tbl-42/i)).toBeInTheDocument());
   });
 
-  it('disables Add Sprite button when tableSync is null', () => {
+  it('disables request button when table sync is unavailable', () => {
     setup({ tableSync: null, connected: true });
+
     render(<TableSyncPanel />);
-    expect(screen.getByText('+ Add Sprite')).toBeDisabled();
+
+    expect(screen.getByText('Request Table')).toBeDisabled();
   });
 
-  it('Clear button empties the activity log', async () => {
+  it('clears activity log', async () => {
     setup({ connected: true });
     render(<TableSyncPanel />);
     await waitFor(() => expect(screen.getByText(/Connected to table sync service/)).toBeInTheDocument());
 
-    const clearBtn = screen.getByText('Clear');
-    await act(async () => { fireEvent.click(clearBtn); });
+    fireEvent.click(screen.getByText('Clear'));
 
-    await waitFor(() => expect(screen.getByText(/No activity yet|Activity log cleared/i)).toBeInTheDocument());
+    expect(screen.getByText('No activity yet.')).toBeInTheDocument();
   });
 });

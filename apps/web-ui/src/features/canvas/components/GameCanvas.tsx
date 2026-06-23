@@ -181,8 +181,8 @@ export const GameCanvas: React.FC = () => {
   // Keep WASM active layer in sync with React store
   useEffect(() => {
     const engine = rustRenderManagerRef.current;
-    if (engine?.set_active_layer) {
- console.log('[Canvas] set_active_layer:', activeLayer);
+    if (engine) {
+      console.log('[Canvas] set_active_layer:', activeLayer);
       engine.set_active_layer(activeLayer);
     }
  }, [activeLayer]); // rustRenderManagerRef.current is not reactive; initial sync happens at engine init
@@ -340,17 +340,8 @@ export const GameCanvas: React.FC = () => {
 
       const conv = getUnitConverter();
 
-      // Get authoritative sprite geometry from WASM (world_x, world_y, width, height are accurate)
-      type WasmSpriteData = { sprite_id: string; world_x: number; world_y: number; width: number; height: number };
-      let wasmMap = new Map<string, WasmSpriteData>();
-      try {
-        // TODO temporal fix: prefer WASM getter when available; cast to any to avoid stale d.ts issues
-        const raw: WasmSpriteData[] = (rm as any).get_all_sprites_network_data?.() as WasmSpriteData[] ?? (rm as any).get_sprites?.() as WasmSpriteData[] ?? [];
-        wasmMap = new Map(raw.map(d => [d.sprite_id, d]));
-      } catch { /* ignore — fall back to store data */ }
-
       // Only draw circles for sprites on the active table
-      type ExtSprite = typeof sprites[number] & { table_id?: string; vision_radius?: number; has_darkvision?: boolean; darkvision_radius?: number; scale_x?: number; scale_y?: number };
+      type ExtSprite = typeof sprites[number] & { table_id?: string; vision_radius?: number; has_darkvision?: boolean; darkvision_radius?: number; scale_x?: number; scale_y?: number; width?: number; height?: number };
       const tableSprites = (sprites as ExtSprite[]).filter(sp => sp.tableId === activeTableId || sp.table_id === activeTableId);
       for (const sprite of tableSprites) {
         const s = sprite;
@@ -371,20 +362,20 @@ export const GameCanvas: React.FC = () => {
         const scaleX = s.scale?.x ?? s.scale_x ?? 1;
         const scaleY = s.scale?.y ?? s.scale_y ?? 1;
 
-        // Resolve actual pixel dimensions (live drag > WASM > store fallback)
+        // Resolve actual pixel dimensions from live drag state or store data.
         const liveDims = dragDimsRef.current.get(s.id);
-        const wasmSprite = wasmMap.get(s.id);
-        // WASM width is unscaled base width; actual pixel size = width * scale
-        const wpx = liveDims?.w ?? (wasmSprite ? wasmSprite.width * scaleX : scaleX * cellPx);
-        const hpx = liveDims?.h ?? (wasmSprite ? wasmSprite.height * scaleY : scaleY * cellPx);
+        const baseWidth = s.width ?? cellPx;
+        const baseHeight = s.height ?? cellPx;
+        const wpx = liveDims?.w ?? baseWidth * scaleX;
+        const hpx = liveDims?.h ?? baseHeight * scaleY;
 
-        // During resize, position and size change together in WASM atomically.
+        // During resize, position and size change together in the drag state.
         // Using dragPositionsRef (which updates separately from dragDimsRef) can cause
         // a single-frame mismatch where center is computed with mismatched pos+size.
-        // So during an active resize (liveDims set), trust WASM for position.
+        // So during an active resize (liveDims set), trust store position.
         const livePos = liveDims ? null : dragPositionsRef.current.get(s.id);
-        const wx = livePos?.x ?? wasmSprite?.world_x ?? s.x ?? 0;
-        const wy = livePos?.y ?? wasmSprite?.world_y ?? s.y ?? 0;
+        const wx = livePos?.x ?? s.x ?? 0;
+        const wy = livePos?.y ?? s.y ?? 0;
 
         try {
           const ctr = rm.world_to_screen(wx + wpx / 2, wy + hpx / 2);

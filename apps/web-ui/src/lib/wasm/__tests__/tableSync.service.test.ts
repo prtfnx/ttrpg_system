@@ -18,7 +18,7 @@ const mockEngine = {
   set_grid_enabled: vi.fn(),
   set_grid_snapping: vi.fn(),
   add_sprite_to_layer: vi.fn(),
-  clear_all_sprites: vi.fn(),
+  clear_layer: vi.fn(),
 };
 
 const mockSpriteSync = {
@@ -116,6 +116,7 @@ describe('TableSyncService', () => {
           tokens: [{ sprite_id: 's1', x: 0, y: 0 }],
         },
       });
+      expect(mockEngine.clear_layer).toHaveBeenCalledWith('tokens');
       expect(mockSpriteSync.addSpriteToWasm).toHaveBeenCalled();
       svc.dispose();
     });

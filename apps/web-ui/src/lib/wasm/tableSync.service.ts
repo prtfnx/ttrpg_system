@@ -10,6 +10,19 @@ import { emitWasmEvent } from './wasmEvents';
 import type { RenderEngine } from './runtime';
 import type { SpriteSyncService } from './spriteSync.service';
 
+const CLEARABLE_TABLE_LAYERS = [
+  'background',
+  'map',
+  'tokens',
+  'objects',
+  'foreground',
+  'dungeon_master',
+  'light',
+  'height',
+  'obstacles',
+  'fog_of_war',
+] as const;
+
 interface TablePayload {
   [key: string]: unknown;
   table_id?: string;
@@ -28,10 +41,6 @@ interface TablePayload {
   background_image?: string;
   table_data?: TablePayload;
 }
-
-type RenderEngineExt = RenderEngine & {
-  clear_all_sprites?: () => void;
-};
 
 export class TableSyncService {
   private eventCleanups: Array<() => void> = [];
@@ -91,7 +100,7 @@ export class TableSyncService {
       }
 
       // Push table data to WASM
-      if (tableData.table_id && (engine as typeof engine & { handle_table_data?: (id: string, data: unknown) => void }).handle_table_data) {
+      if (tableData.table_id) {
         const formattedLayers: Record<string, unknown[]> = {};
         if (tableData.layers && typeof tableData.layers === 'object') {
           const layers = tableData.layers;
@@ -126,7 +135,7 @@ export class TableSyncService {
 
       // Load sprites from layer structure
       if (tableData.layers) {
-        (engine as RenderEngineExt).clear_all_sprites?.();
+        CLEARABLE_TABLE_LAYERS.forEach(layerName => engine.clear_layer(layerName));
         Object.entries(tableData.layers as Record<string, unknown>).forEach(([layerName, layerData]) => {
           if (Array.isArray(layerData)) {
             layerData.forEach((s: Record<string, unknown>) => { s['layer'] = layerName; s['table_id'] = tableData.table_id || 'default_table'; this.spriteSync.addSpriteToWasm(s); });

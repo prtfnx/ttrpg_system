@@ -1,5 +1,6 @@
 import { act, renderHook } from '@testing-library/react';
 import type { RenderEngine } from '@lib/wasm/runtime';
+import { ProtocolService } from '@lib/api';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { usePaintSystem } from '../usePaintSystem';
 
@@ -48,5 +49,28 @@ describe('usePaintSystem', () => {
     expect(result.current[0].blendMode).toBe('additive');
 
     unmount();
+  });
+
+  it('recreates a redone stroke through the protocol', () => {
+    const createPaintStroke = vi.fn();
+    vi.mocked(ProtocolService.hasProtocol).mockReturnValue(true);
+    vi.mocked(ProtocolService.getProtocol).mockReturnValue({ createPaintStroke } as never);
+
+    const redoneStroke = { id: 'stroke-1', points: [{ x: 10, y: 20 }] };
+    const renderEngine = {
+      paint_set_current_table: vi.fn(),
+      paint_get_strokes: vi.fn(() => [redoneStroke]),
+      paint_can_undo: vi.fn(() => true),
+      paint_can_redo: vi.fn(() => true),
+      paint_redo_stroke: vi.fn(() => true),
+    } as unknown as RenderEngine;
+
+    const { result } = renderHook(() => usePaintSystem(renderEngine));
+
+    act(() => {
+      expect(result.current[1].redoStroke()).toBe(true);
+    });
+
+    expect(createPaintStroke).toHaveBeenCalledWith('stroke-1', JSON.stringify(redoneStroke));
   });
 });

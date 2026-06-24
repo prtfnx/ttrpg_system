@@ -166,9 +166,15 @@ export function usePaintSystem(
   const redoStroke = useCallback(() => {
     if (!renderEngine) return false;
     const ok = renderEngine.paint_redo_stroke();
+    if (ok && ProtocolService.hasProtocol() && activeTableId) {
+      const redone = readStrokes().at(-1);
+      if (redone?.id) {
+        ProtocolService.getProtocol().createPaintStroke(String(redone.id), JSON.stringify(redone));
+      }
+    }
     if (ok) refreshPaintState();
     return ok;
-  }, [refreshPaintState, renderEngine]);
+  }, [activeTableId, readStrokes, refreshPaintState, renderEngine]);
 
   const getStrokes = useCallback(() => readStrokes(), [readStrokes]);
 
@@ -194,7 +200,7 @@ export function usePaintSystem(
     if (result && ProtocolService.hasProtocol()) {
       const last = readStrokes().at(-1);
       if (last) {
-        const strokeId = (last.id as string | undefined) ?? `stroke_${Date.now()}_${Math.random().toString(36).slice(2)}`;
+        const strokeId = (last.id as string | undefined) ?? crypto.randomUUID();
         ProtocolService.getProtocol().createPaintStroke(strokeId, JSON.stringify(last));
       }
     }

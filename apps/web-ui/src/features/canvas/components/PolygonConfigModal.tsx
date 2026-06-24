@@ -40,7 +40,7 @@ export const PolygonConfigModal: React.FC = () => {
 
     const layer = draft.layer;
     // Generate ID once — used for both WASM and server to keep them in sync
-    const spriteId = `polygon_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
+    const spriteId = crypto.randomUUID();
 
     // Compute bounding box for width/height
     const xs = draft.vertices.map(v => v.x);

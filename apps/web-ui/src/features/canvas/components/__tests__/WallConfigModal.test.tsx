@@ -94,6 +94,8 @@ describe('WallConfigModal', () => {
     expect(mockAddWall).toHaveBeenCalledWith(
       expect.objectContaining({ x1: 10, y1: 20, x2: 30, y2: 40 })
     );
+    const wall = mockAddWall.mock.calls[0][0] as { wall_id: string };
+    expect(wall.wall_id).toMatch(/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i);
     expect(mockProtocol.createWall).toHaveBeenCalled();
   });
 

@@ -403,7 +403,7 @@ export const useTableSync = (options: TableSyncHookOptions = {}) => {
 
     const fullSpriteData: SpriteData = {
       ...spriteData,
-      sprite_id: `sprite_${Date.now()}_${Math.random().toString(36).slice(2, 11)}`,
+      sprite_id: crypto.randomUUID(),
     };
 
     try {

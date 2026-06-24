@@ -69,8 +69,8 @@ describe('PolygonConfigModal', () => {
     expect(mockSendMessage).toHaveBeenCalledOnce();
     const msg = mockSendMessage.mock.calls[0][0] as { data: { sprite_data: { sprite_id: string } } };
     const sentId: string = msg.data.sprite_data.sprite_id;
-    // ID must look like 'polygon_<timestamp>_<random>' — never the old Date.now() fallback
-    expect(sentId).toMatch(/^polygon_\d+_[a-z0-9]+$/);
+    // ID must be a raw UUID v4 to fit the persisted sprite_id field.
+    expect(sentId).toMatch(/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i);
   });
 
   it('Create Obstacle sets obstacle_type to polygon', () => {

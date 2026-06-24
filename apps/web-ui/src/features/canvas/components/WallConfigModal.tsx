@@ -47,7 +47,7 @@ export const WallConfigModal: React.FC = () => {
     if (!draft || !tableId || !protocol) return;
 
     const wall: WallData = {
-      wall_id: `wall_${Date.now()}`,
+      wall_id: crypto.randomUUID(),
       table_id: tableId,
       ...draft,
     };

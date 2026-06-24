@@ -6,11 +6,10 @@ export function createMockRenderEngine() {
     free: vi.fn(),
     render: vi.fn(),
     resize_canvas: vi.fn(),
-    // Visibility / geometry
-    compute_visibility_polygon: vi.fn().mockReturnValue([]),
     // Fog polygons (dynamic vision)
     add_fog_polygon: vi.fn(),
     remove_fog_polygon: vi.fn(),
+    get_obstacle_segments_flat: vi.fn().mockReturnValue(new Float32Array()),
     set_ambient_light: vi.fn(),
     set_dynamic_lighting_enabled: vi.fn(),
     // Camera
@@ -27,6 +26,7 @@ export function createMockRenderEngine() {
     handle_mouse_move: vi.fn(),
     handle_mouse_up: vi.fn(),
     handle_right_click: vi.fn().mockReturnValue(undefined),
+    cancel_current_operation: vi.fn().mockReturnValue(false),
     // Input modes
     get_current_input_mode: vi.fn().mockReturnValue('select'),
     set_input_mode_measurement: vi.fn(),
@@ -46,6 +46,12 @@ export function createMockRenderEngine() {
     resize_sprite: vi.fn().mockReturnValue(true),
     copy_sprite: vi.fn().mockReturnValue('sprite_copy_id'),
     paste_sprite: vi.fn().mockReturnValue('sprite_paste_id'),
+    get_selected_sprites: vi.fn().mockReturnValue([]),
+    get_selected_walls: vi.fn().mockReturnValue([]),
+    translate_selected_walls: vi.fn().mockReturnValue([]),
+    remove_selected_walls: vi.fn().mockReturnValue([]),
+    select_all_sprites: vi.fn(),
+    clear_selection: vi.fn(),
     // Grid
     toggle_grid: vi.fn(),
     set_grid_enabled: vi.fn(),

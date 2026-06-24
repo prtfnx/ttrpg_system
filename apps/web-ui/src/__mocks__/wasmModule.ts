@@ -44,8 +44,12 @@ export function createMockRenderEngine() {
 
     // Selection
     get_selected_sprites: vi.fn().mockReturnValue([]),
+    get_selected_walls: vi.fn().mockReturnValue([]),
+    translate_selected_walls: vi.fn().mockReturnValue([]),
+    remove_selected_walls: vi.fn().mockReturnValue([]),
     select_all_sprites: vi.fn(),
     clear_selection: vi.fn(),
+    cancel_current_operation: vi.fn().mockReturnValue(false),
 
     // Grid
     toggle_grid: vi.fn(),
@@ -97,7 +101,7 @@ export function createMockRenderEngine() {
     is_in_fog_draw_mode: vi.fn().mockReturnValue(false),
 
     // Visibility
-    compute_visibility_polygon: vi.fn().mockReturnValue([]),
+    get_obstacle_segments_flat: vi.fn().mockReturnValue(new Float32Array()),
 
     // GM / user
     set_gm_mode: vi.fn(),

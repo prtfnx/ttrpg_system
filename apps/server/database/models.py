@@ -359,6 +359,26 @@ class Wall(Base):
     table = relationship("VirtualTable", back_populates="walls", foreign_keys=[table_id], primaryjoin="Wall.table_id==VirtualTable.table_id")
     creator = relationship("User", foreign_keys=[created_by])
 
+    def to_dict(self) -> dict:
+        return {
+            "wall_id": self.wall_id,
+            "table_id": self.table_id,
+            "x1": self.x1,
+            "y1": self.y1,
+            "x2": self.x2,
+            "y2": self.y2,
+            "wall_type": self.wall_type,
+            "blocks_movement": self.blocks_movement,
+            "blocks_light": self.blocks_light,
+            "blocks_sight": self.blocks_sight,
+            "blocks_sound": self.blocks_sound,
+            "is_door": self.is_door,
+            "door_state": self.door_state,
+            "is_secret": self.is_secret,
+            "direction": self.direction,
+            "created_by": self.created_by,
+        }
+
 
 class AuditLog(Base):
     """Comprehensive audit logging for security events"""

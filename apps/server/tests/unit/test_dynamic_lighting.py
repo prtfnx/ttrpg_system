@@ -12,6 +12,7 @@ Covers real user behaviour:
 import uuid
 
 import pytest
+from core_table.entities import Wall
 from core_table.table import Entity, VirtualTable
 from database import crud, schemas
 
@@ -304,6 +305,32 @@ class TestEntityVisionPersistence:
         assert loaded_entity.vision_radius == pytest.approx(600)
         assert loaded_entity.has_darkvision is True
         assert loaded_entity.darkvision_radius == pytest.approx(300)
+
+    def test_walls_survive_full_table_save_and_load(self, test_db, session):
+        table = VirtualTable("Wall Round-trip Table", 50, 50)
+        wall = Wall(
+            table_id=str(table.table_id),
+            wall_id=str(uuid.uuid4()),
+            x1=10.0, y1=20.0, x2=30.0, y2=40.0,
+            wall_type="window",
+            blocks_movement=True,
+            blocks_light=False,
+            blocks_sight=False,
+            blocks_sound=True,
+            is_door=True,
+            door_state="closed",
+        )
+        table.add_wall(wall)
+
+        crud.save_table_to_db(test_db, table, session.id)
+
+        loaded_table, ok = crud.load_table_from_db(test_db, str(table.table_id))
+
+        assert ok is True
+        assert loaded_table is not None
+        loaded_wall = loaded_table.get_wall(wall.wall_id)
+        assert loaded_wall is not None
+        assert loaded_wall.to_dict() == wall.to_dict()
 
 
 # ---------------------------------------------------------------------------

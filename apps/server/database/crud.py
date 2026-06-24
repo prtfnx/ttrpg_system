@@ -630,9 +630,31 @@ def save_table_to_db(db: Session, virtual_table_obj, session_id: int) -> Optiona
     for entity in virtual_table_obj.entities.values():
         save_entity_to_db(db, entity, db_table.id)
 
+    # Synchronize wall segments for lighting, movement validation, and doors.
+    memory_walls = getattr(virtual_table_obj, 'walls', {})
+    current_db_walls = get_table_walls(db, table_id_str)
+    current_db_wall_ids = {wall.wall_id for wall in current_db_walls}
+    current_memory_wall_ids = set(memory_walls.keys())
+
+    walls_to_delete = current_db_wall_ids - current_memory_wall_ids
+    for wall_id in walls_to_delete:
+        delete_wall(db, wall_id)
+        logger.debug(f"Deleted wall from database: {wall_id}")
+
+    for wall in memory_walls.values():
+        wall_data = {**wall.to_dict(), 'table_id': table_id_str}
+        if wall.wall_id in current_db_wall_ids:
+            update_wall(db, wall.wall_id, wall_data)
+        else:
+            create_wall(db, wall_data)
+
     # Commit all changes
     db.commit()
-    logger.info(f"Synchronized table {virtual_table_obj.display_name}: {len(entities_to_delete)} deleted, {len(virtual_table_obj.entities)} saved/updated")
+    logger.info(
+        f"Synchronized table {virtual_table_obj.display_name}: "
+        f"{len(entities_to_delete)} entities deleted, {len(virtual_table_obj.entities)} entities saved/updated, "
+        f"{len(walls_to_delete)} walls deleted, {len(memory_walls)} walls saved/updated"
+    )
 
     return db_table
 
@@ -729,6 +751,7 @@ def load_table_from_db(db: Session, table_id: str):
     Returns tuple: (VirtualTable object, success boolean)
     """
     try:
+        from core_table.entities import Wall
         from core_table.table import Entity, VirtualTable
 
         db_table = get_virtual_table_by_id(db, table_id)
@@ -818,6 +841,11 @@ def load_table_from_db(db: Session, table_id: str):
             # Update next entity ID
             if entity.entity_id is not None and entity.entity_id >= virtual_table.next_entity_id:
                 virtual_table.next_entity_id = entity.entity_id + 1
+
+        # Load wall segments into the in-memory wall registry used by lighting,
+        # movement validation, and door operations.
+        for db_wall in get_table_walls(db, db_table.table_id):
+            virtual_table.add_wall(Wall.from_dict(db_wall.to_dict()))
 
         return virtual_table, True
 

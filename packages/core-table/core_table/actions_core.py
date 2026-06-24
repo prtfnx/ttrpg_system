@@ -1324,35 +1324,20 @@ class ActionsCore(AsyncActionsProtocol):
         if table is None:
             raise ValueError(f"Table {table_id!r} not found")
 
-        wall = Wall.from_dict(wall_data)
-        table.add_wall(wall)
+        wall = Wall.from_dict({**wall_data, 'table_id': str(table.table_id)})
 
-        # Persist to database
         if session_id and hasattr(self.table_manager, 'db_session') and self.table_manager.db_session:
             try:
-                from database.models import Wall as WallModel
+                from database import crud
                 db = self.table_manager.db_session
-                db_wall = WallModel(
-                    wall_id=wall.wall_id,
-                    table_id=str(table.table_id),
-                    x1=wall.x1, y1=wall.y1,
-                    x2=wall.x2, y2=wall.y2,
-                    wall_type=wall.wall_type,
-                    blocks_movement=wall.blocks_movement,
-                    blocks_light=wall.blocks_light,
-                    blocks_sight=wall.blocks_sight,
-                    blocks_sound=wall.blocks_sound,
-                    is_door=wall.is_door,
-                    door_state=wall.door_state,
-                    is_secret=wall.is_secret,
-                    direction=wall.direction,
-                    created_by=wall.created_by,
-                )
-                db.add(db_wall)
-                db.commit()
+                crud.create_wall(db, wall.to_dict())
                 logger.info(f"Persisted wall {wall.wall_id} to database")
             except Exception as e:
+                self.table_manager.db_session.rollback()
                 logger.error(f"Failed to persist wall to database: {e}")
+                raise
+
+        table.add_wall(wall)
 
         return wall.to_dict()
 
@@ -1362,26 +1347,20 @@ class ActionsCore(AsyncActionsProtocol):
         if table is None:
             raise ValueError(f"Table {table_id!r} not found")
 
-        wall = table.update_wall(wall_id, updates)
-
         if session_id and hasattr(self.table_manager, 'db_session') and self.table_manager.db_session:
             try:
-                from database.models import Wall as WallModel
+                from database import crud
                 db = self.table_manager.db_session
-                db_wall = db.query(WallModel).filter(WallModel.wall_id == wall_id).first()
-                if db_wall:
-                    _allowed = {
-                        'x1', 'y1', 'x2', 'y2', 'wall_type',
-                        'blocks_movement', 'blocks_light', 'blocks_sight', 'blocks_sound',
-                        'is_door', 'door_state', 'is_secret', 'direction',
-                    }
-                    for key, value in updates.items():
-                        if key in _allowed:
-                            setattr(db_wall, key, value)
-                    db.commit()
-                    logger.info(f"Updated wall {wall_id} in database")
+                db_wall = crud.update_wall(db, wall_id, updates)
+                if not db_wall:
+                    raise KeyError(f"Wall {wall_id!r} not found in database")
+                logger.info(f"Updated wall {wall_id} in database")
             except Exception as e:
+                self.table_manager.db_session.rollback()
                 logger.error(f"Failed to update wall in database: {e}")
+                raise
+
+        wall = table.update_wall(wall_id, updates)
 
         return wall.to_dict()
 
@@ -1391,16 +1370,16 @@ class ActionsCore(AsyncActionsProtocol):
         if table is None:
             raise ValueError(f"Table {table_id!r} not found")
 
-        table.remove_wall(wall_id)
-
         if session_id and hasattr(self.table_manager, 'db_session') and self.table_manager.db_session:
             try:
-                from database.models import Wall as WallModel
+                from database import crud
                 db = self.table_manager.db_session
-                db_wall = db.query(WallModel).filter(WallModel.wall_id == wall_id).first()
-                if db_wall:
-                    db.delete(db_wall)
-                    db.commit()
-                    logger.info(f"Deleted wall {wall_id} from database")
+                if not crud.delete_wall(db, wall_id):
+                    raise KeyError(f"Wall {wall_id!r} not found in database")
+                logger.info(f"Deleted wall {wall_id} from database")
             except Exception as e:
+                self.table_manager.db_session.rollback()
                 logger.error(f"Failed to delete wall from database: {e}")
+                raise
+
+        table.remove_wall(wall_id)

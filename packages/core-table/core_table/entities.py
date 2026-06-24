@@ -86,6 +86,7 @@ class Wall:
             'door_state':     self.door_state,
             'is_secret':      self.is_secret,
             'direction':      self.direction,
+            'created_by':     self.created_by,
         }
 
     @classmethod

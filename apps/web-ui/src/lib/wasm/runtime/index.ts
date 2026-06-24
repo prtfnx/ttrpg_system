@@ -18,5 +18,7 @@ export type {
   RenderEngine,
   TableManager,
   TableSync,
+  VisibilityPoint,
+  WallMoveUpdate,
 } from './types';
 export type { WasmRuntimeSnapshot } from './wasmStore';

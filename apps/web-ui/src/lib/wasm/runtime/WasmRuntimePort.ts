@@ -8,6 +8,7 @@ import type {
   RenderEngine,
   TableManager,
   TableSync,
+  VisibilityPoint,
 } from './types';
 import type { WasmRuntimeSnapshot } from './wasmStore';
 
@@ -35,6 +36,7 @@ export interface WasmRuntimePort {
   getTableManager(): TableManager | null;
   getTableSync(): TableSync | null;
   getDefaultBrushPresets(): BrushPreset[];
+  computeVisibilityPolygon(x: number, y: number, obstacles: Float32Array, radius: number): VisibilityPoint[];
 
   setUserContext(userId: number | null, role: SessionRole | string | null): void;
   setActiveLayer(layerName: string): void;

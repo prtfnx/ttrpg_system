@@ -10,13 +10,14 @@ import {
   PlanningManager,
   TableManager,
   TableSync,
+  compute_visibility_polygon,
   create_default_brush_presets,
   init_game_renderer,
   version,
   type RenderEngine,
 } from '../generated/ttrpg_rust_core';
 import type { AttachCanvasOptions, WasmRuntimePort } from './WasmRuntimePort';
-import type { BrushPreset } from './types';
+import type { BrushPreset, VisibilityPoint } from './types';
 import { WasmSyncCoordinator } from './WasmSyncCoordinator';
 import { WasmRuntimeStore, type WasmRuntimeSnapshot } from './wasmStore';
 
@@ -234,6 +235,10 @@ export class WasmRuntime implements WasmRuntimePort {
   getDefaultBrushPresets(): BrushPreset[] {
     if (!this.status.isModuleReady) return [];
     return create_default_brush_presets() as BrushPreset[];
+  }
+
+  computeVisibilityPolygon(x: number, y: number, obstacles: Float32Array, radius: number): VisibilityPoint[] {
+    return compute_visibility_polygon(x, y, obstacles, radius) as VisibilityPoint[];
   }
 
   setUserContext(userId: number | null, role: SessionRole | string | null): void {

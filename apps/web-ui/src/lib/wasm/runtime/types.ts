@@ -98,6 +98,7 @@ export interface PlanningManager {
 
 export interface RenderEngine {
   add_fog_rectangle(id: string, startX: number, startY: number, endX: number, endY: number, mode: string): void;
+  add_fog_polygon(id: string, polygon: VisibilityPoint[]): void;
   add_light(id: string, x: number, y: number): void;
   add_sprite_to_layer(layerName: string, spriteData: unknown): string;
   add_wall(wallJson: string): boolean;
@@ -111,13 +112,16 @@ export interface RenderEngine {
   clear_runtime_operation_handler(): void;
   clear_selection(): void;
   clear_walls(): void;
+  cancel_current_operation(): boolean;
   copy_sprite(spriteId: string): string | undefined;
   get_active_table_id(): string | undefined;
   get_active_table_world_bounds(): Float64Array;
   get_cursor_type(screenX: number, screenY: number): string;
   get_layer_names(): string[];
   get_layer_sprite_count(layerName: string): number;
+  get_obstacle_segments_flat(): Float32Array;
   get_selected_sprites(): string[];
+  get_selected_walls(): string[];
   get_sprite_position(spriteId: string): Float32Array | undefined;
   get_sprite_scale(spriteId: string): Float32Array | undefined;
   get_wall_ids(): string[];
@@ -155,7 +159,9 @@ export interface RenderEngine {
   paint_undo_stroke(): boolean;
   paste_sprite(layerName: string, spriteJson: string, offsetX: number, offsetY: number): string;
   remove_fog_rectangle(id: string): void;
+  remove_fog_polygon(id: string): void;
   remove_light(id: string): void;
+  remove_selected_walls(): string[];
   remove_sprite(spriteId: string): boolean;
   remove_wall(wallId: string): boolean;
   render(): void;
@@ -170,6 +176,7 @@ export interface RenderEngine {
   set_background_color(hex: string): void;
   set_camera(worldX: number, worldY: number, zoom: number): void;
   set_current_user_id(userId: number): void;
+  set_dynamic_lighting_enabled(enabled: boolean): void;
   set_gm_mode(isGm: boolean): void;
   set_grid_enabled(enabled: boolean): void;
   set_grid_size(size: number): void;
@@ -200,6 +207,7 @@ export interface RenderEngine {
   update_light_position(id: string, x: number, y: number): void;
   update_sprite_position(spriteId: string, x: number, y: number): boolean;
   update_sprite_scale(spriteId: string, scaleX: number, scaleY: number): boolean;
+  translate_selected_walls(dx: number, dy: number): ArrayLike<WallMoveUpdate>;
   update_wall(wallId: string, updatesJson: string): boolean;
   world_to_screen(worldX: number, worldY: number): Float64Array;
 }
@@ -255,4 +263,17 @@ export interface BrushPreset {
   color: [number, number, number, number];
   width: number;
   blend_mode: 'Alpha' | 'Additive' | 'Modulate' | 'Multiply' | 'alpha' | 'additive' | 'modulate' | 'multiply';
+}
+
+export interface VisibilityPoint {
+  x: number;
+  y: number;
+}
+
+export interface WallMoveUpdate {
+  wallId: string;
+  x1: number;
+  y1: number;
+  x2: number;
+  y2: number;
 }

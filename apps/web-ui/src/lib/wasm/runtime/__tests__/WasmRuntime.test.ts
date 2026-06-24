@@ -21,6 +21,7 @@ const mocks = vi.hoisted(() => {
     initializeWasmCore: vi.fn(),
     initGameRenderer: vi.fn(),
     version: vi.fn(() => '1.2.3-test'),
+    computeVisibilityPolygon: vi.fn(() => [{ x: 1, y: 2 }]),
     createDefaultBrushPresets: vi.fn(() => [{ id: 'round' }]),
     renderEngine,
     actionsFree: vi.fn(),
@@ -51,6 +52,7 @@ vi.mock('../../generated/ttrpg_rust_core', () => ({
   TableManager: vi.fn(function () { return { free: mocks.tableFree }; }),
   TableSync: vi.fn(function () { return { free: mocks.tableSyncFree }; }),
   create_default_brush_presets: mocks.createDefaultBrushPresets,
+  compute_visibility_polygon: mocks.computeVisibilityPolygon,
   init_game_renderer: mocks.initGameRenderer,
   version: mocks.version,
 }));
@@ -161,6 +163,15 @@ describe('WasmRuntime', () => {
     runtime.setShapeStyle('#ff8800', 0.75, true);
 
     expect(mocks.renderEngine.set_shape_style).toHaveBeenCalledWith('#ff8800', 0.75, true);
+  });
+
+  it('computes visibility polygons through the generated runtime boundary', async () => {
+    const obstacles = new Float32Array([1, 2, 3, 4]);
+
+    const result = runtime.computeVisibilityPolygon(10, 20, obstacles, 120);
+
+    expect(result).toEqual([{ x: 1, y: 2 }]);
+    expect(mocks.computeVisibilityPolygon).toHaveBeenCalledWith(10, 20, obstacles, 120);
   });
 
   it('detaches the canvas and cleans up renderer-owned services', async () => {

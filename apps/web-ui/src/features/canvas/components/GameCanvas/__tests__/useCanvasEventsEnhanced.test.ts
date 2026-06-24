@@ -18,6 +18,7 @@ import { inputManager } from '@features/canvas/services/InputManager';
 function makeEngine(overrides: Record<string, unknown> = {}) {
   return {
     get_selected_sprites: vi.fn().mockReturnValue([]),
+    get_selected_walls: vi.fn().mockReturnValue([]),
     can_undo: vi.fn().mockReturnValue(false),
     can_redo: vi.fn().mockReturnValue(false),
     handle_mouse_down_full: vi.fn(),
@@ -35,8 +36,11 @@ function makeEngine(overrides: Record<string, unknown> = {}) {
     update_sprite_scale: vi.fn(),
     get_sprite_position: vi.fn().mockReturnValue([0, 0]),
     update_sprite_position: vi.fn(),
+    translate_selected_walls: vi.fn().mockReturnValue([]),
+    remove_selected_walls: vi.fn().mockReturnValue([]),
     select_all_sprites: vi.fn(),
     clear_selection: vi.fn(),
+    cancel_current_operation: vi.fn().mockReturnValue(false),
     ...overrides,
   };
 }
@@ -227,5 +231,20 @@ describe('stableKeyDown', () => {
     act(() => result.current.stableKeyDown(event));
 
     expect(inputManager.handleKeyDown).toHaveBeenCalledWith(event);
+  });
+
+  it('cancels an active WASM operation on Escape before shortcut handling', () => {
+    const engine = makeEngine({ cancel_current_operation: vi.fn().mockReturnValue(true) });
+    const props = defaultProps({ rustRenderManagerRef: { current: engine as unknown as RenderEngine }, engine });
+    const { result } = renderHook(() => useCanvasEventsEnhanced(props));
+    const event = new KeyboardEvent('keydown', { key: 'Escape', cancelable: true });
+    const stopPropagation = vi.spyOn(event, 'stopPropagation');
+
+    act(() => result.current.stableKeyDown(event));
+
+    expect(engine.cancel_current_operation).toHaveBeenCalled();
+    expect(inputManager.handleKeyDown).not.toHaveBeenCalled();
+    expect(event.defaultPrevented).toBe(true);
+    expect(stopPropagation).toHaveBeenCalled();
   });
 });

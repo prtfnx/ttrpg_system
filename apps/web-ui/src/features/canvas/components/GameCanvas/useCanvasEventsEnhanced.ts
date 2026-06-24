@@ -3,7 +3,7 @@
  * Maintains compatibility with existing GameCanvas interface
  */
 
-import type { RenderEngine } from '@lib/wasm/runtime';
+import type { RenderEngine, WallMoveUpdate } from '@lib/wasm/runtime';
 import type { WebClientProtocol } from '@lib/websocket/clientProtocol';
 import { type RefObject, useCallback, useEffect, useRef } from 'react';
 import { useGameStore } from '@/store';
@@ -67,9 +67,11 @@ export const useCanvasEventsEnhanced = ({
     const engine = rustRenderManagerRef.current;
     if (engine) {
       const selectedSpriteIds = engine.get_selected_sprites();
+      const selectedWallIds = engine.get_selected_walls();
       selectedSpriteIdsRef.current = selectedSpriteIds;
       inputManager.updateContext({
         selectedSpriteIds,
+        selectedWallIds,
         canUndo: engine.can_undo(),
         canRedo: engine.can_redo(),
       });
@@ -97,6 +99,28 @@ export const useCanvasEventsEnhanced = ({
       });
     };
 
+    const syncWallUpdates = (updates: ArrayLike<WallMoveUpdate>) => {
+      Array.from(updates).forEach((update) => {
+        useGameStore.getState().updateWall(update.wallId, {
+          x1: update.x1,
+          y1: update.y1,
+          x2: update.x2,
+          y2: update.y2,
+        });
+        protocol?.updateWall(update.wallId, {
+          x1: update.x1,
+          y1: update.y1,
+          x2: update.x2,
+          y2: update.y2,
+        });
+      });
+    };
+
+    const moveSelectedObjects = (deltaX: number, deltaY: number) => {
+      moveSelectedSprites(deltaX, deltaY);
+      syncWallUpdates(engine.translate_selected_walls(deltaX, deltaY));
+    };
+
     const actionHandlers = {
       delete_selected: () => {
         engine.get_selected_sprites().forEach((spriteId) => {
@@ -105,6 +129,11 @@ export const useCanvasEventsEnhanced = ({
           } else {
             engine.remove_sprite(spriteId);
           }
+        });
+        const removedWallIds = engine.remove_selected_walls();
+        removedWallIds.forEach((wallId) => {
+          useGameStore.getState().removeWall(wallId);
+          protocol?.removeWall(wallId);
         });
         updateInputContext();
       },
@@ -153,19 +182,19 @@ export const useCanvasEventsEnhanced = ({
       },
 
       move_up: () => {
-        moveSelectedSprites(0, -cellPx);
+        moveSelectedObjects(0, -cellPx);
       },
 
       move_down: () => {
-        moveSelectedSprites(0, cellPx);
+        moveSelectedObjects(0, cellPx);
       },
 
       move_left: () => {
-        moveSelectedSprites(-cellPx, 0);
+        moveSelectedObjects(-cellPx, 0);
       },
 
       move_right: () => {
-        moveSelectedSprites(cellPx, 0);
+        moveSelectedObjects(cellPx, 0);
       },
 
       select_all: () => {
@@ -371,8 +400,18 @@ export const useCanvasEventsEnhanced = ({
   },  []);
 
   const stableKeyDown = useCallback((event: KeyboardEvent) => {
-    inputManager.handleKeyDown(event);
-  }, []);
+    const engine = rustRenderManagerRef.current;
+    if (event.key === 'Escape' && engine?.cancel_current_operation()) {
+      event.preventDefault();
+      event.stopPropagation();
+      updateInputContext();
+      return;
+    }
+
+    if (inputManager.handleKeyDown(event)) {
+      event.stopPropagation();
+    }
+  }, [rustRenderManagerRef, updateInputContext]);
 
   return {
     stableMouseDown,

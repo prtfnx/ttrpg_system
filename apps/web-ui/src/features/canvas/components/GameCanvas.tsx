@@ -451,14 +451,27 @@ export const GameCanvas: React.FC = () => {
     };
     mainCanvas?.addEventListener('mousemove', onMouseMove);
 
-    // Delete / Backspace removes the hovered wall
+    // Delete / Backspace removes selected walls, or the hovered wall when no wall is selected.
     const onKeyDown = (e: KeyboardEvent) => {
-      if ((e.key === 'Delete' || e.key === 'Backspace') && hoveredWallRef.current) {
-        const wallId = hoveredWallRef.current;
+      if (e.key !== 'Delete' && e.key !== 'Backspace') return;
+
+      const rm = rustRenderManagerRef.current;
+      const selectedWallIds = rm?.get_selected_walls() ?? [];
+      const wallIds = selectedWallIds.length > 0
+        ? selectedWallIds
+        : hoveredWallRef.current
+          ? [hoveredWallRef.current]
+          : [];
+
+      if (wallIds.length > 0) {
+        e.preventDefault();
         hoveredWallRef.current = null;
-        rustRenderManagerRef.current?.remove_wall(wallId);
-        useGameStore.getState().removeWall(wallId);
-        protocol?.removeWall(wallId);
+        wallIds.forEach((wallId) => {
+          rm?.remove_wall(wallId);
+          useGameStore.getState().removeWall(wallId);
+          protocol?.removeWall(wallId);
+        });
+        rm?.clear_selection();
       }
     };
     window.addEventListener('keydown', onKeyDown);
@@ -485,6 +498,7 @@ export const GameCanvas: React.FC = () => {
       try {
         const data: Float32Array = rm.get_wall_render_data();
         const wallIds: string[] = rm.get_wall_ids();
+        const selectedWallIds = new Set(rm.get_selected_walls());
         // Each wall = 8 floats: x1,y1,x2,y2,r,g,b,a  (world coords)
         const STRIDE = 8;
         const HOVER_THRESH_PX = 12;
@@ -516,6 +530,8 @@ export const GameCanvas: React.FC = () => {
 
           const wallId = wallIds[i / STRIDE] ?? null;
           const isHovered = wallId != null && wallId === hoveredWallRef.current;
+          const isSelected = wallId != null && selectedWallIds.has(wallId);
+          const isHighlighted = isHovered || isSelected;
           const wallData = wallId ? storeWallsMap[wallId] : undefined;
 
           const baseColor = `rgba(${Math.round(r * 255)},${Math.round(g * 255)},${Math.round(b * 255)},${a})`;
@@ -524,9 +540,9 @@ export const GameCanvas: React.FC = () => {
           ctx.beginPath();
           ctx.moveTo(s1[0], s1[1]);
           ctx.lineTo(s2[0], s2[1]);
-          ctx.lineWidth = isHovered ? lineW + 2 : lineW;
-          ctx.setLineDash(isHovered ? [] : wallLineDash(wallData));
-          ctx.strokeStyle = isHovered ? 'rgba(255,255,255,1)' : baseColor;
+          ctx.lineWidth = isSelected ? lineW + 3 : isHovered ? lineW + 2 : lineW;
+          ctx.setLineDash(isHighlighted ? [] : wallLineDash(wallData));
+          ctx.strokeStyle = isSelected ? 'rgba(0,229,255,1)' : isHovered ? 'rgba(255,255,255,1)' : baseColor;
           ctx.stroke();
           ctx.setLineDash([]);
 
@@ -540,12 +556,12 @@ export const GameCanvas: React.FC = () => {
             drawDirectionChevron(ctx, s1[0], s1[1], s2[0], s2[1], wallData.direction, baseColor);
           }
 
-          // Endpoint circles when hovered
-          if (isHovered) {
+          // Endpoint circles when selected or hovered
+          if (isHighlighted) {
             for (const [ex, ey] of [[s1[0], s1[1]], [s2[0], s2[1]]]) {
               ctx.beginPath();
               ctx.arc(ex as number, ey as number, 5, 0, Math.PI * 2);
-              ctx.fillStyle = 'rgba(255,255,255,0.9)';
+              ctx.fillStyle = isSelected ? 'rgba(0,229,255,0.95)' : 'rgba(255,255,255,0.9)';
               ctx.fill();
               ctx.strokeStyle = `rgba(${Math.round(r * 255)},${Math.round(g * 255)},${Math.round(b * 255)},1)`;
               ctx.lineWidth = 1.5;

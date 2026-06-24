@@ -15,6 +15,7 @@ export interface KeyboardShortcut {
 
 export interface InputContext {
   selectedSpriteIds: string[];
+  selectedWallIds: string[];
   hasClipboard: boolean;
   canUndo: boolean;
   canRedo: boolean;
@@ -27,6 +28,7 @@ export class InputManager {
   private shortcuts: Map<string, KeyboardShortcut> = new Map();
   private context: InputContext = {
     selectedSpriteIds: [],
+    selectedWallIds: [],
     hasClipboard: false,
     canUndo: false,
     canRedo: false,
@@ -41,12 +43,12 @@ export class InputManager {
 
   private setupDefaultShortcuts() {
     const shortcuts: KeyboardShortcut[] = [
-      // Sprite manipulation
+      // Selection manipulation
       {
         key: 'Delete',
         action: 'delete_selected',
-        description: 'Delete selected sprite(s)',
-        enabled: () => this.context.selectedSpriteIds.length > 0
+        description: 'Delete selected object(s)',
+        enabled: () => this.hasObjectSelection()
       },
       {
         key: 'c',
@@ -101,30 +103,30 @@ export class InputManager {
         enabled: () => this.context.canRedo
       },
 
-      // Sprite movement (with grid snap)
+      // Object movement (with grid snap)
       {
         key: 'ArrowUp',
         action: 'move_up',
-        description: 'Move selected sprite(s) up',
-        enabled: () => this.context.selectedSpriteIds.length > 0
+        description: 'Move selected object(s) up',
+        enabled: () => this.hasObjectSelection()
       },
       {
         key: 'ArrowDown', 
         action: 'move_down',
-        description: 'Move selected sprite(s) down',
-        enabled: () => this.context.selectedSpriteIds.length > 0
+        description: 'Move selected object(s) down',
+        enabled: () => this.hasObjectSelection()
       },
       {
         key: 'ArrowLeft',
         action: 'move_left', 
-        description: 'Move selected sprite(s) left',
-        enabled: () => this.context.selectedSpriteIds.length > 0
+        description: 'Move selected object(s) left',
+        enabled: () => this.hasObjectSelection()
       },
       {
         key: 'ArrowRight',
         action: 'move_right',
-        description: 'Move selected sprite(s) right', 
-        enabled: () => this.context.selectedSpriteIds.length > 0
+        description: 'Move selected object(s) right',
+        enabled: () => this.hasObjectSelection()
       },
 
       // Multi-selection
@@ -152,6 +154,10 @@ export class InputManager {
       const key = this.getShortcutKey(shortcut);
       this.shortcuts.set(key, shortcut);
     });
+  }
+
+  private hasObjectSelection(): boolean {
+    return this.context.selectedSpriteIds.length > 0 || this.context.selectedWallIds.length > 0;
   }
 
   private getShortcutKey(shortcut: KeyboardShortcut): string {

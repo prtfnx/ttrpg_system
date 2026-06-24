@@ -29,6 +29,7 @@ describe('InputManager', () => {
       const ctx = manager.getContext();
       expect(ctx.isCanvasFocused).toBe(false);
       expect(ctx.selectedSpriteIds).toEqual([]);
+      expect(ctx.selectedWallIds).toEqual([]);
       expect(ctx.canUndo).toBe(false);
     });
 
@@ -78,6 +79,22 @@ describe('InputManager', () => {
       manager.onAction('delete_selected', handler);
       const event = makeKey({ key: 'Delete' });
       expect(manager.handleKeyDown(event)).toBe(true);
+      expect(handler).toHaveBeenCalledTimes(1);
+    });
+
+    it('fires delete when only a wall is selected', () => {
+      manager.updateContext({ isCanvasFocused: true, selectedWallIds: ['w1'] });
+      const handler = vi.fn();
+      manager.onAction('delete_selected', handler);
+      expect(manager.handleKeyDown(makeKey({ key: 'Delete' }))).toBe(true);
+      expect(handler).toHaveBeenCalledTimes(1);
+    });
+
+    it('fires movement when only a wall is selected', () => {
+      manager.updateContext({ isCanvasFocused: true, selectedWallIds: ['w1'] });
+      const handler = vi.fn();
+      manager.onAction('move_right', handler);
+      expect(manager.handleKeyDown(makeKey({ key: 'ArrowRight' }))).toBe(true);
       expect(handler).toHaveBeenCalledTimes(1);
     });
 

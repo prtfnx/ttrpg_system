@@ -209,7 +209,6 @@ export interface TableManager {
   get_active_table_id(): string | undefined;
   get_all_tables(): string;
   get_table_info(tableId: string): string | undefined;
-  get_unit_converter(tableId: string): UnitConverter;
   get_visible_bounds(tableId: string): Float64Array | undefined;
   is_point_in_table_area(tableId: string, screenX: number, screenY: number): boolean;
   pan_viewport(tableId: string, dx: number, dy: number): boolean;
@@ -251,8 +250,6 @@ export interface TableSync {
   set_sprite_update_handler(callback: Function): void;
   set_table_received_handler(callback: Function): void;
 }
-
-export interface UnitConverter {}
 
 export interface BrushPreset {
   color: [number, number, number, number];

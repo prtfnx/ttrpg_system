@@ -337,17 +337,6 @@ impl TableManager {
         }
     }
 
-    pub fn get_unit_converter(&self, table_id: &str) -> UnitConverter {
-        match self.tables.get(table_id) {
-            Some(t) => UnitConverter::new(
-                t.grid_cell_px as f32,
-                t.cell_distance as f32,
-                DistanceUnit::from_str(&t.distance_unit),
-            ),
-            None => UnitConverter::dnd_default(),
-        }
-    }
-
     #[wasm_bindgen]
     pub fn units_to_pixels(&self, table_id: &str, game_distance: f64) -> f64 {
         self.get_unit_converter(table_id).to_pixels(game_distance as f32) as f64
@@ -367,6 +356,17 @@ impl Default for TableManager {
 
 // Plain impl block for internal-only helpers (not exported to wasm-bindgen)
 impl TableManager {
+    pub fn get_unit_converter(&self, table_id: &str) -> UnitConverter {
+        match self.tables.get(table_id) {
+            Some(t) => UnitConverter::new(
+                t.grid_cell_px as f32,
+                t.cell_distance as f32,
+                DistanceUnit::from_str(&t.distance_unit),
+            ),
+            None => UnitConverter::dnd_default(),
+        }
+    }
+
     /// Borrow the active table ID without cloning.
     /// Use in hot loops (render, input) to avoid per-frame String allocation.
     #[cfg_attr(not(target_arch = "wasm32"), allow(dead_code))]

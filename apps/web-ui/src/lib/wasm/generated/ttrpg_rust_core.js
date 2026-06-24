@@ -2216,16 +2216,6 @@ export class TableManager {
     }
     /**
      * @param {string} table_id
-     * @returns {UnitConverter}
-     */
-    get_unit_converter(table_id) {
-        const ptr0 = passStringToWasm0(table_id, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
-        const len0 = WASM_VECTOR_LEN;
-        const ret = wasm.tablemanager_get_unit_converter(this.__wbg_ptr, ptr0, len0);
-        return UnitConverter.__wrap(ret);
-    }
-    /**
-     * @param {string} table_id
      * @returns {Float64Array | undefined}
      */
     get_visible_bounds(table_id) {
@@ -2725,13 +2715,6 @@ if (Symbol.dispose) TableSync.prototype[Symbol.dispose] = TableSync.prototype.fr
  * All game distances flow through here — no scattered px/ft ratios.
  */
 export class UnitConverter {
-    static __wrap(ptr) {
-        ptr = ptr >>> 0;
-        const obj = Object.create(UnitConverter.prototype);
-        obj.__wbg_ptr = ptr;
-        UnitConverterFinalization.register(obj, obj.__wbg_ptr, obj);
-        return obj;
-    }
     __destroy_into_raw() {
         const ptr = this.__wbg_ptr;
         this.__wbg_ptr = 0;

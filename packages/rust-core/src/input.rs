@@ -59,6 +59,8 @@ pub struct InputHandler {
     pub last_mouse_screen: Vec2,
     pub selected_sprite_id: Option<String>,
     pub selected_sprite_ids: Vec<String>,  // New: Multiple selection support
+    pub selected_wall_id: Option<String>,
+    pub selected_wall_ids: Vec<String>,
     pub drag_offset: Vec2,
     pub rotation_start_angle: f64,
     pub sprite_initial_rotation: f64,
@@ -118,6 +120,8 @@ impl Default for InputHandler {
             last_mouse_screen: Vec2::new(0.0, 0.0),
             selected_sprite_id: None,
             selected_sprite_ids: Vec::new(),
+            selected_wall_id: None,
+            selected_wall_ids: Vec::new(),
             drag_offset: Vec2::new(0.0, 0.0),
             rotation_start_angle: 0.0,
             sprite_initial_rotation: 0.0,
@@ -159,6 +163,7 @@ impl InputHandler {
     }
     
     pub fn add_to_selection(&mut self, sprite_id: String) {
+        self.clear_wall_selection();
         if !self.selected_sprite_ids.contains(&sprite_id) {
             self.selected_sprite_ids.push(sprite_id.clone());
         }
@@ -175,9 +180,11 @@ impl InputHandler {
     pub fn clear_selection(&mut self) {
         self.selected_sprite_ids.clear();
         self.selected_sprite_id = None;
+        self.clear_wall_selection();
     }
     
     pub fn set_single_selection(&mut self, sprite_id: String) {
+        self.clear_wall_selection();
         self.selected_sprite_ids.clear();
         self.selected_sprite_ids.push(sprite_id.clone());
         self.selected_sprite_id = Some(sprite_id);
@@ -189,6 +196,30 @@ impl InputHandler {
     
     pub fn is_sprite_selected(&self, sprite_id: &str) -> bool {
         self.selected_sprite_ids.contains(&sprite_id.to_string())
+    }
+
+    pub fn get_selected_walls(&self) -> &[String] {
+        &self.selected_wall_ids
+    }
+
+    pub fn clear_wall_selection(&mut self) {
+        self.selected_wall_ids.clear();
+        self.selected_wall_id = None;
+    }
+
+    pub fn remove_from_wall_selection(&mut self, wall_id: &str) {
+        self.selected_wall_ids.retain(|id| id != wall_id);
+        if self.selected_wall_id.as_deref() == Some(wall_id) {
+            self.selected_wall_id = self.selected_wall_ids.first().cloned();
+        }
+    }
+
+    pub fn set_single_wall_selection(&mut self, wall_id: String) {
+        self.selected_sprite_ids.clear();
+        self.selected_sprite_id = None;
+        self.selected_wall_ids.clear();
+        self.selected_wall_ids.push(wall_id.clone());
+        self.selected_wall_id = Some(wall_id);
     }
     
     // Area selection methods
@@ -411,6 +442,11 @@ impl InputHandler {
     pub fn cancel_wall_draw(&mut self) {
         self.wall_draw_start = None;
         self.wall_draw_current = None;
+    }
+
+    pub fn cancel_shape_creation(&mut self) {
+        self.shape_creation_start = None;
+        self.shape_creation_current = None;
     }
 
     // ============================================================================
@@ -651,9 +687,13 @@ mod tests {
         let mut h = InputHandler::new();
         h.add_to_selection("a".into());
         h.add_to_selection("b".into());
+        h.selected_wall_ids.push("wall-a".into());
+        h.selected_wall_id = Some("wall-a".into());
         h.clear_selection();
         assert!(h.get_selected_sprites().is_empty());
+        assert!(h.get_selected_walls().is_empty());
         assert!(h.selected_sprite_id.is_none());
+        assert!(h.selected_wall_id.is_none());
     }
 
     #[test]
@@ -661,9 +701,34 @@ mod tests {
         let mut h = InputHandler::new();
         h.add_to_selection("a".into());
         h.add_to_selection("b".into());
+        h.selected_wall_ids.push("wall-a".into());
+        h.selected_wall_id = Some("wall-a".into());
         h.set_single_selection("c".into());
         assert_eq!(h.get_selected_sprites(), &vec!["c".to_string()]);
+        assert!(h.get_selected_walls().is_empty());
         assert!(!h.has_multiple_selected());
+    }
+
+    #[test]
+    fn set_single_wall_selection_replaces_sprite_selection() {
+        let mut h = InputHandler::new();
+        h.set_single_selection("sprite-a".into());
+        h.set_single_wall_selection("wall-a".into());
+
+        assert!(h.get_selected_sprites().is_empty());
+        assert_eq!(h.get_selected_walls(), &["wall-a".to_string()]);
+        assert_eq!(h.selected_wall_id.as_deref(), Some("wall-a"));
+    }
+
+    #[test]
+    fn remove_selected_wall_updates_primary() {
+        let mut h = InputHandler::new();
+        h.set_single_wall_selection("wall-a".into());
+        h.selected_wall_ids.push("wall-b".into());
+        h.remove_from_wall_selection("wall-a");
+
+        assert_eq!(h.get_selected_walls(), &["wall-b".to_string()]);
+        assert_eq!(h.selected_wall_id.as_deref(), Some("wall-b"));
     }
 
     // ===== AREA SELECTION =====

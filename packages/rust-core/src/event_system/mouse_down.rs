@@ -109,6 +109,7 @@ impl EventSystem {
             // Endpoint drag takes priority (12px), then full-wall drag (15px)
             if let Some((wall_id, endpoint)) = wall_manager.find_endpoint_at(world_pos.x, world_pos.y, 12.0) {
                 input.input_mode = InputMode::WallEndpointDrag;
+                input.set_single_wall_selection(wall_id.clone());
                 input.dragged_wall_id = Some(wall_id);
                 input.dragged_endpoint = endpoint;
                 input.wall_drag_last = world_pos;
@@ -116,6 +117,7 @@ impl EventSystem {
             }
             if let Some(wall_id) = wall_manager.find_wall_at(world_pos.x, world_pos.y, 15.0) {
                 input.input_mode = InputMode::WallDrag;
+                input.set_single_wall_selection(wall_id.clone());
                 input.dragged_wall_id = Some(wall_id);
                 input.wall_drag_last = world_pos;
                 return MouseEventResult::Handled;

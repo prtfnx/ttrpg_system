@@ -384,9 +384,55 @@ impl RenderEngine {
         self.input.selected_sprite_ids.clone()
     }
 
+    /// Get list of currently selected wall IDs.
+    #[wasm_bindgen]
+    pub fn get_selected_walls(&self) -> Vec<String> {
+        self.input.get_selected_walls().to_vec()
+    }
+
+    /// Translate all selected walls and return their updated endpoint payloads.
+    #[wasm_bindgen]
+    pub fn translate_selected_walls(&mut self, dx: f32, dy: f32) -> js_sys::Array {
+        let updates = js_sys::Array::new();
+        let wall_ids = self.input.selected_wall_ids.clone();
+        for wall_id in wall_ids {
+            if self.wall_manager.translate_wall(&wall_id, dx, dy) {
+                self.obstacles_dirty = true;
+                if let Some((x1, y1, x2, y2)) = self.wall_manager.get_wall_endpoints(&wall_id) {
+                    let detail = js_sys::Object::new();
+                    js_sys::Reflect::set(&detail, &"wallId".into(), &JsValue::from_str(&wall_id)).ok();
+                    js_sys::Reflect::set(&detail, &"x1".into(), &JsValue::from_f64(x1 as f64)).ok();
+                    js_sys::Reflect::set(&detail, &"y1".into(), &JsValue::from_f64(y1 as f64)).ok();
+                    js_sys::Reflect::set(&detail, &"x2".into(), &JsValue::from_f64(x2 as f64)).ok();
+                    js_sys::Reflect::set(&detail, &"y2".into(), &JsValue::from_f64(y2 as f64)).ok();
+                    updates.push(&detail);
+                }
+            }
+        }
+        updates
+    }
+
+    /// Remove all selected walls and return the deleted IDs.
+    #[wasm_bindgen]
+    pub fn remove_selected_walls(&mut self) -> Vec<String> {
+        let wall_ids = self.input.selected_wall_ids.clone();
+        let mut removed = Vec::new();
+        for wall_id in wall_ids {
+            if self.wall_manager.remove_wall(&wall_id) {
+                removed.push(wall_id);
+            }
+        }
+        if !removed.is_empty() {
+            self.obstacles_dirty = true;
+            self.input.clear_wall_selection();
+        }
+        removed
+    }
+
     /// Select all sprites in all layers
     #[wasm_bindgen]
     pub fn select_all_sprites(&mut self) {
+        self.input.clear_wall_selection();
         self.input.selected_sprite_ids.clear();
         for layer in self.layer_manager.get_layers().values() {
             for sprite in &layer.sprites {
@@ -400,6 +446,26 @@ impl RenderEngine {
     #[wasm_bindgen]
     pub fn clear_selection(&mut self) {
         self.input.clear_selection();
+    }
+
+    /// Cancel an in-progress draw/create operation without changing the active tool.
+    #[wasm_bindgen]
+    pub fn cancel_current_operation(&mut self) -> bool {
+        match self.input.input_mode {
+            InputMode::DrawWall => {
+                self.input.cancel_wall_draw();
+                true
+            }
+            InputMode::CreatePolygon => {
+                self.input.cancel_polygon();
+                true
+            }
+            InputMode::CreateRectangle | InputMode::CreateCircle | InputMode::CreateLine | InputMode::CreateText => {
+                self.input.cancel_shape_creation();
+                true
+            }
+            _ => false,
+        }
     }
 
 }

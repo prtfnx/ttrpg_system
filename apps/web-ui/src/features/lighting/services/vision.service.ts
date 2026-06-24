@@ -1,18 +1,13 @@
 import { useGameStore } from '@/store';
 import { getCurrentWasmRuntime } from '@lib/wasm/runtime';
-import type { RenderEngine } from '@lib/wasm/runtime';
+import type { RenderEngine, WasmRuntimePort } from '@lib/wasm/runtime';
 
-type RenderEngineExt = RenderEngine & {
-  set_dynamic_lighting_enabled?: (v: boolean) => void;
-  compute_visibility_polygon?: (x: number, y: number, obstacles: Float32Array, radius: number) => { x: number; y: number }[];
-  add_fog_polygon?: (id: string, poly: { x: number; y: number }[]) => void;
-  remove_fog_polygon?: (id: string) => void;
-  get_obstacle_segments_flat?: () => number[];
-  set_gm_mode?: (v: boolean) => void;
-};
+function getRuntime(): WasmRuntimePort | null {
+  return getCurrentWasmRuntime();
+}
 
-function getRm(): RenderEngineExt | undefined {
-  return getCurrentWasmRuntime()?.getRenderEngine() as RenderEngineExt | undefined;
+function getRm(): RenderEngine | undefined {
+  return getRuntime()?.getRenderEngine() ?? undefined;
 }
 
 interface SpriteData {
@@ -92,7 +87,7 @@ class VisionService {
       return;
     }
 
-    rm.set_dynamic_lighting_enabled?.(true);
+    rm.set_dynamic_lighting_enabled(true);
     this.isRunning = true;
     this.recompute();
     this.attachSpriteMoveListener();
@@ -125,7 +120,7 @@ class VisionService {
   private clearExploredPolygons(): void {
     const rm = getRm();
     for (const id of this.exploredIds) {
-      try { rm?.remove_fog_polygon?.(id); } catch {}
+      rm?.remove_fog_polygon(id);
     }
     this.exploredIds.clear();
   }
@@ -142,10 +137,10 @@ class VisionService {
 
     const rm = getRm();
     for (const id of this.activeIds) {
-      try { rm?.remove_fog_polygon?.(id); } catch {}
+      rm?.remove_fog_polygon(id);
     }
     this.clearExploredPolygons();
-    rm?.set_dynamic_lighting_enabled?.(false);
+    rm?.set_dynamic_lighting_enabled(false);
 
     this.activeIds.clear();
     this.lastPositions.clear();
@@ -161,8 +156,8 @@ class VisionService {
     const rm = getRm();
     if (!rm) return;
 
-    rm.set_gm_mode?.(false);
-    rm.set_dynamic_lighting_enabled?.(true);
+    rm.set_gm_mode(false);
+    rm.set_dynamic_lighting_enabled(true);
     this.isRunning = true;
     this.recompute();
     this.attachSpriteMoveListener();
@@ -179,8 +174,8 @@ class VisionService {
   stopDmPreview(): void {
     this.stop();
     const rm = getRm();
-    rm?.set_gm_mode?.(true);
-    rm?.set_dynamic_lighting_enabled?.(false);
+    rm?.set_gm_mode(true);
+    rm?.set_dynamic_lighting_enabled(false);
   }
 
   private scheduleRecompute(): void {
@@ -195,8 +190,10 @@ class VisionService {
   private recompute(): void {
     const rm = getRm();
     if (!rm) return;
+    const runtime = getRuntime();
+    if (!runtime) return;
 
-    const obstacles = this.buildObstacles();
+    const obstacles = this.buildObstacles(rm);
     const obstaclesKey = this.obstaclesKey(obstacles);
     const obstaclesChanged = obstaclesKey !== this.lastObstaclesKey;
     const { fogExplorationMode } = useGameStore.getState();
@@ -211,16 +208,16 @@ class VisionService {
       const moved = this.lastPositions.get(src.id) !== posKey;
 
       if (moved || obstaclesChanged) {
-        const rawPoly = rm.compute_visibility_polygon?.(src.x, src.y, obstacles, src.radius) ?? [];
+        const rawPoly = runtime.computeVisibilityPolygon(src.x, src.y, obstacles, src.radius);
         const poly = [{ x: src.x, y: src.y }, ...rawPoly];
 
         if (persistExplored && moved && this.lastPositions.has(src.id)) {
           const expId = `explored_${src.id}`;
-          try { rm.add_fog_polygon?.(expId, poly); } catch {}
+          rm.add_fog_polygon(expId, poly);
           this.exploredIds.add(expId);
         }
 
-        try { rm.add_fog_polygon?.(id, poly); } catch {}
+        rm.add_fog_polygon(id, poly);
         this.lastPositions.set(src.id, posKey);
       }
       seenIds.add(id);
@@ -232,8 +229,8 @@ class VisionService {
         const dvMoved = this.lastPositions.get(dvId) !== dvPosKey;
 
         if (dvMoved || obstaclesChanged) {
-          const rawDv = rm.compute_visibility_polygon?.(src.x, src.y, obstacles, src.darkvisionRadius) ?? [];
-          try { rm.add_fog_polygon?.(dvId, [{ x: src.x, y: src.y }, ...rawDv]); } catch {}
+          const rawDv = runtime.computeVisibilityPolygon(src.x, src.y, obstacles, src.darkvisionRadius);
+          rm.add_fog_polygon(dvId, [{ x: src.x, y: src.y }, ...rawDv]);
           this.lastPositions.set(dvId, dvPosKey);
         }
         seenIds.add(dvId);
@@ -257,9 +254,9 @@ class VisionService {
       const lightPosKey = `${lx.toFixed(1)},${ly.toFixed(1)},${lightRadius}`;
       const lightMoved = this.lastPositions.get(lightFogId) !== lightPosKey;
       if (lightMoved || obstaclesChanged) {
-        const rawLight = rm.compute_visibility_polygon?.(lx, ly, obstacles, lightRadius) ?? [];
+        const rawLight = runtime.computeVisibilityPolygon(lx, ly, obstacles, lightRadius);
         const lightPoly = [{ x: lx, y: ly }, ...rawLight];
-        try { rm.add_fog_polygon?.(lightFogId, lightPoly); } catch {}
+        rm.add_fog_polygon(lightFogId, lightPoly);
         this.lastPositions.set(lightFogId, lightPosKey);
       }
       seenIds.add(lightFogId);
@@ -268,7 +265,7 @@ class VisionService {
 
     for (const id of [...this.activeIds]) {
       if (!seenIds.has(id)) {
-        try { rm?.remove_fog_polygon?.(id); } catch {}
+        rm.remove_fog_polygon(id);
         this.activeIds.delete(id);
       }
     }
@@ -276,55 +273,8 @@ class VisionService {
     this.lastObstaclesKey = obstaclesKey;
   }
 
-  private buildObstacles(): Float32Array {
-    const rm = getRm();
-    // Prefer live WASM data — always reflects current drag positions
-    if (rm?.get_obstacle_segments_flat) {
-      const segs: number[] = rm.get_obstacle_segments_flat();
-      return new Float32Array(segs);
-    }
-
-    // Fallback: compute from store (when WASM isn't ready yet)
-    const { sprites: storeSprites, gridCellPx: obsCellPx } = useGameStore.getState();
-    const sprites = (storeSprites || []) as SpriteData[];
-    const fallbackCellPx = obsCellPx ?? 50;
-    const segs: number[] = [];
-
-    for (const s of sprites) {
-      if (s.layer !== 'obstacles') continue;
-
-      const obstacleType = s.obstacle_type || s.obstacleType;
-      if (obstacleType === 'polygon' && s.polygon_vertices) {
-        const verts: number[][] = s.polygon_vertices;
-        for (let i = 0; i < verts.length; i++) {
-          const next = (i + 1) % verts.length;
-          segs.push(verts[i][0], verts[i][1], verts[next][0], verts[next][1]);
-        }
-        continue;
-      }
-
-      const w = s.width ?? ((s.scale_x ?? (s.scale?.x ?? 1)) * fallbackCellPx);
-      const h = s.height ?? ((s.scale_y ?? (s.scale?.y ?? 1)) * fallbackCellPx);
-      const cx = s.x + w / 2;
-      const cy = s.y + h / 2;
-      const angle = (s.rotation ?? 0) * (Math.PI / 180);
-      const cosA = Math.cos(angle);
-      const sinA = Math.sin(angle);
-      const hw = w / 2;
-      const hh = h / 2;
-      const corners: [number, number][] = [
-        [cx + (-hw) * cosA - (-hh) * sinA, cy + (-hw) * sinA + (-hh) * cosA],
-        [cx + hw * cosA - (-hh) * sinA, cy + hw * sinA + (-hh) * cosA],
-        [cx + hw * cosA - hh * sinA, cy + hw * sinA + hh * cosA],
-        [cx + (-hw) * cosA - hh * sinA, cy + (-hw) * sinA + hh * cosA],
-      ];
-      for (let i = 0; i < 4; i++) {
-        const n = (i + 1) % 4;
-        segs.push(corners[i][0], corners[i][1], corners[n][0], corners[n][1]);
-      }
-    }
-
-    return new Float32Array(segs);
+  private buildObstacles(rm: RenderEngine): Float32Array {
+    return rm.get_obstacle_segments_flat();
   }
 
   private getVisionSources(): { id: string; x: number; y: number; radius: number; darkvisionRadius?: number }[] {

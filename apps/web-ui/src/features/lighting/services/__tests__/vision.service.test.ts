@@ -5,6 +5,7 @@ import { visionService } from '../vision.service';
 
 const runtimeMock = vi.hoisted(() => ({
   getRenderEngine: vi.fn(),
+  computeVisibilityPolygon: vi.fn().mockReturnValue([]),
 }));
 
 vi.mock('@lib/wasm/runtime', () => ({
@@ -15,7 +16,7 @@ vi.mock('@lib/wasm/runtime', () => ({
 const rm = {
   set_dynamic_lighting_enabled: vi.fn(),
   set_gm_mode: vi.fn(),
-  compute_visibility_polygon: vi.fn().mockReturnValue([]),
+  get_obstacle_segments_flat: vi.fn().mockReturnValue(new Float32Array()),
   add_fog_polygon: vi.fn(),
   remove_fog_polygon: vi.fn(),
 };
@@ -45,6 +46,8 @@ function makeSprite(overrides: Record<string, unknown> = {}) {
 beforeEach(() => {
   vi.clearAllMocks();
   runtimeMock.getRenderEngine.mockReturnValue(rm as unknown as RenderEngine);
+  runtimeMock.computeVisibilityPolygon.mockReturnValue([]);
+  rm.get_obstacle_segments_flat.mockReturnValue(new Float32Array());
   useGameStore.setState(baseStore() as unknown as Parameters<typeof useGameStore.setState>[0]);
 });
 
@@ -81,19 +84,19 @@ describe('getVisionSources (via recompute)', () => {
   it('excludes sprites without vision_radius', () => {
     useGameStore.setState({ sprites: [makeSprite({ controlled_by: [1] })] } as unknown as Parameters<typeof useGameStore.setState>[0]);
     visionService.start();
-    expect(rm.compute_visibility_polygon).not.toHaveBeenCalled();
+    expect(runtimeMock.computeVisibilityPolygon).not.toHaveBeenCalled();
   });
 
   it('excludes sprites with vision_radius=0', () => {
     useGameStore.setState({ sprites: [makeSprite({ controlled_by: [1], vision_radius: 0 })] } as unknown as Parameters<typeof useGameStore.setState>[0]);
     visionService.start();
-    expect(rm.compute_visibility_polygon).not.toHaveBeenCalled();
+    expect(runtimeMock.computeVisibilityPolygon).not.toHaveBeenCalled();
   });
 
   it('excludes sprites with no controlled_by array', () => {
     useGameStore.setState({ sprites: [makeSprite({ vision_radius: 150 })] } as unknown as Parameters<typeof useGameStore.setState>[0]);
     visionService.start();
-    expect(rm.compute_visibility_polygon).not.toHaveBeenCalled();
+    expect(runtimeMock.computeVisibilityPolygon).not.toHaveBeenCalled();
   });
 
   it('excludes sprites controlled by other users', () => {
@@ -102,7 +105,7 @@ describe('getVisionSources (via recompute)', () => {
       userId: 1,
     } as unknown as Parameters<typeof useGameStore.setState>[0]);
     visionService.start();
-    expect(rm.compute_visibility_polygon).not.toHaveBeenCalled();
+    expect(runtimeMock.computeVisibilityPolygon).not.toHaveBeenCalled();
   });
 
   it('includes sprite controlled by current userId', () => {
@@ -111,8 +114,8 @@ describe('getVisionSources (via recompute)', () => {
       userId: 1,
     } as unknown as Parameters<typeof useGameStore.setState>[0]);
     visionService.start();
-    expect(rm.compute_visibility_polygon).toHaveBeenCalledOnce();
-    expect(rm.compute_visibility_polygon).toHaveBeenCalledWith(200, 400, expect.any(Float32Array), 150);
+    expect(runtimeMock.computeVisibilityPolygon).toHaveBeenCalledOnce();
+    expect(runtimeMock.computeVisibilityPolygon).toHaveBeenCalledWith(200, 400, expect.any(Float32Array), 150);
   });
 
   it('handles camelCase controlledBy and visionRadius fields', () => {
@@ -121,7 +124,7 @@ describe('getVisionSources (via recompute)', () => {
       userId: 1,
     } as unknown as Parameters<typeof useGameStore.setState>[0]);
     visionService.start();
-    expect(rm.compute_visibility_polygon).toHaveBeenCalledWith(200, 400, expect.any(Float32Array), 120);
+    expect(runtimeMock.computeVisibilityPolygon).toHaveBeenCalledWith(200, 400, expect.any(Float32Array), 120);
   });
 
   it('adds darkvision polygon when has_darkvision is true', () => {
@@ -130,7 +133,7 @@ describe('getVisionSources (via recompute)', () => {
       userId: 1,
     } as unknown as Parameters<typeof useGameStore.setState>[0]);
     visionService.start();
-    expect(rm.compute_visibility_polygon).toHaveBeenCalledTimes(2);
+    expect(runtimeMock.computeVisibilityPolygon).toHaveBeenCalledTimes(2);
     // vision + darkvision
     expect(rm.add_fog_polygon).toHaveBeenCalledTimes(2);
   });
@@ -141,53 +144,22 @@ describe('getVisionSources (via recompute)', () => {
       userId: 1,
     } as unknown as Parameters<typeof useGameStore.setState>[0]);
     visionService.start();
-    expect(rm.compute_visibility_polygon).toHaveBeenCalledTimes(1);
+    expect(runtimeMock.computeVisibilityPolygon).toHaveBeenCalledTimes(1);
   });
 });
 
 describe('buildObstacles (via recompute)', () => {
-  it('ignores non-obstacle sprites', () => {
+  it('uses render-engine obstacle segments for visibility computation', () => {
+    const obstacleSegments = new Float32Array([1, 2, 3, 4]);
+    rm.get_obstacle_segments_flat.mockReturnValue(obstacleSegments);
     useGameStore.setState({
-      sprites: [
-        makeSprite({ controlled_by: [1], vision_radius: 150 }),
-        { id: 'wall', x: 0, y: 0, layer: 'walls' }, // walls layer — not obstacles
-      ],
+      sprites: [makeSprite({ controlled_by: [1], vision_radius: 150 })],
     } as unknown as Parameters<typeof useGameStore.setState>[0]);
-    visionService.start();
-    // Float32Array passed to compute_visibility_polygon should be empty (length 0)
-    const obstacles: Float32Array = rm.compute_visibility_polygon.mock.calls[0][2];
-    expect(obstacles.length).toBe(0);
-  });
 
-  it('converts obstacle rectangle to 4 edge segments (8 numbers)', () => {
-    useGameStore.setState({
-      sprites: [
-        makeSprite({ controlled_by: [1], vision_radius: 150 }),
-        { id: 'box', x: 0, y: 0, layer: 'obstacles', width: 64, height: 64, rotation: 0 },
-      ],
-    } as unknown as Parameters<typeof useGameStore.setState>[0]);
     visionService.start();
-    const obstacles: Float32Array = rm.compute_visibility_polygon.mock.calls[0][2];
-    expect(obstacles.length).toBe(16); // 4 edges × 4 numbers each
-  });
 
-  it('converts polygon obstacle by vertices', () => {
-    useGameStore.setState({
-      sprites: [
-        makeSprite({ controlled_by: [1], vision_radius: 150 }),
-        {
-          id: 'poly',
-          x: 0,
-          y: 0,
-          layer: 'obstacles',
-          obstacle_type: 'polygon',
-          polygon_vertices: [[0, 0], [100, 0], [100, 100]],
-        },
-      ],
-    } as unknown as Parameters<typeof useGameStore.setState>[0]);
-    visionService.start();
-    const obstacles: Float32Array = rm.compute_visibility_polygon.mock.calls[0][2];
-    expect(obstacles.length).toBe(12); // 3 edges × 4 numbers each
+    expect(rm.get_obstacle_segments_flat).toHaveBeenCalled();
+    expect(runtimeMock.computeVisibilityPolygon).toHaveBeenCalledWith(200, 400, obstacleSegments, 150);
   });
 });
 
@@ -199,7 +171,7 @@ describe('DM preview mode', () => {
       dynamicLightingEnabled: false,
     } as unknown as Parameters<typeof useGameStore.setState>[0]);
     visionService.startDmPreview(42);
-    expect(rm.compute_visibility_polygon).toHaveBeenCalledWith(200, 400, expect.any(Float32Array), 200);
+    expect(runtimeMock.computeVisibilityPolygon).toHaveBeenCalledWith(200, 400, expect.any(Float32Array), 200);
   });
 
   it('stops dm preview and disables lighting', () => {

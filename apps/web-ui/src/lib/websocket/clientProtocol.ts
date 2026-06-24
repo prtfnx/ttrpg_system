@@ -1422,18 +1422,18 @@ export class WebClientProtocol {
     }, 1));
   }
 
-  scaleSprite(spriteId: string, scaleX: number, scaleY: number): void {
+  scaleSprite(spriteId: string, width: number, height: number): void {
     const activeTableId = useGameStore.getState().activeTableId;
     if (!activeTableId) {
       logger.error('[Protocol] No active table ID available for sprite scale');
       return;
     }
     validateTableId(activeTableId);
-    logger.debug('Protocol: Sending sprite scale:', { spriteId, scaleX, scaleY, activeTableId });
+    logger.debug('Protocol: Sending sprite scale:', { spriteId, width, height, activeTableId });
     this.sendMessage(createMessage(MessageType.SPRITE_SCALE, { 
       sprite_id: spriteId, 
-      scale_x: scaleX, 
-      scale_y: scaleY, 
+      width,
+      height,
       table_id: activeTableId 
     }, 2));
   }

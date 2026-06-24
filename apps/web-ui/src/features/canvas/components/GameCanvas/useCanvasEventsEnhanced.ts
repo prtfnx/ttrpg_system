@@ -89,7 +89,7 @@ export const useCanvasEventsEnhanced = ({
         if (currentPos) {
           const newPos = [currentPos[0] + deltaX, currentPos[1] + deltaY];
           engine.update_sprite_position(spriteId, newPos[0], newPos[1]);
-          protocol?.updateSprite(spriteId, { x: newPos[0], y: newPos[1] });
+          protocol?.moveSprite(spriteId, newPos[0], newPos[1]);
           window.dispatchEvent(new CustomEvent('sprite-moved', {
             detail: { id: spriteId, x: newPos[0], y: newPos[1] }
           }));
@@ -136,7 +136,7 @@ export const useCanvasEventsEnhanced = ({
           if (currentScale) {
             const newScale = [currentScale[0] * 1.1, currentScale[1] * 1.1];
             engine.update_sprite_scale(spriteId, newScale[0], newScale[1]);
-            protocol?.updateSprite(spriteId, { scale: newScale });
+            protocol?.updateSprite(spriteId, { scale_x: newScale[0], scale_y: newScale[1] });
           }
         });
       },
@@ -147,7 +147,7 @@ export const useCanvasEventsEnhanced = ({
           if (currentScale) {
             const newScale = [currentScale[0] * 0.9, currentScale[1] * 0.9];
             engine.update_sprite_scale(spriteId, newScale[0], newScale[1]);
-            protocol?.updateSprite(spriteId, { scale: newScale });
+            protocol?.updateSprite(spriteId, { scale_x: newScale[0], scale_y: newScale[1] });
           }
         });
       },

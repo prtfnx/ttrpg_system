@@ -560,6 +560,10 @@ class _SpritesMixin(_ProtocolBase):
             updates['aura_color'] = update_data['aura_color']
         if 'aura_radius_units' in update_data:
             updates['aura_radius_units'] = update_data['aura_radius_units']
+        if 'scale_x' in update_data:
+            updates['scale_x'] = float(update_data['scale_x'])
+        if 'scale_y' in update_data:
+            updates['scale_y'] = float(update_data['scale_y'])
         # Vision fields (DM-settable per token)
         if 'vision_radius' in update_data and is_dm(role):
             updates['vision_radius'] = update_data['vision_radius']

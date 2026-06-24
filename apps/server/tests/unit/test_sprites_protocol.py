@@ -400,6 +400,25 @@ class TestSpriteUpdate:
         assert sprite_broadcasts, "Expected a SPRITE_UPDATE broadcast"
         assert sprite_broadcasts[0].data["updates"]["hp"] == 7
 
+    async def test_scale_fields_update_and_broadcast(self):
+        proto = _ProtoStub(role="owner")
+        proto.actions.update_sprite = AsyncMock(return_value=_ok_result())
+        broadcasts = []
+        proto.broadcast_to_session = AsyncMock(side_effect=lambda m, c: broadcasts.append(m))
+
+        msg = Message(MessageType.SPRITE_UPDATE, {
+            "sprite_id": "sp-1", "table_id": "t1", "scale_x": 1.25, "scale_y": 0.75,
+        })
+        resp = await proto.handle_sprite_update(msg, "c1")
+
+        assert resp.type == MessageType.SUCCESS
+        proto.actions.update_sprite.assert_awaited_once()
+        call_kwargs = proto.actions.update_sprite.call_args.kwargs
+        assert call_kwargs["scale_x"] == 1.25
+        assert call_kwargs["scale_y"] == 0.75
+        sprite_broadcasts = [m for m in broadcasts if m.type == MessageType.SPRITE_UPDATE]
+        assert sprite_broadcasts[0].data["updates"] == {"scale_x": 1.25, "scale_y": 0.75}
+
     async def test_controlled_by_change_ignored_for_non_dm(self):
         """Players cannot reassign controlled_by — field is silently dropped."""
         proto = _ProtoStub(role="player")

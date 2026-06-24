@@ -1163,6 +1163,14 @@ describe('WebClientProtocol', () => {
       const batch = JSON.parse((ws.send as ReturnType<typeof vi.fn>).mock.calls[0][0]);
       const inner = batch.data.messages[0];
       expect(inner.type).toBe('sprite_scale');
+      expect(inner.data).toMatchObject({
+        sprite_id: 's3',
+        table_id: 'table-abc',
+        width: 2.0,
+        height: 2.0,
+      });
+      expect(inner.data.scale_x).toBeUndefined();
+      expect(inner.data.scale_y).toBeUndefined();
     });
 
     it('kickPlayer sends player_kick_request', () => {

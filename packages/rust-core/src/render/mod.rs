@@ -265,6 +265,11 @@ impl RenderEngine {
     }
 
     pub(crate) fn update_lighting_obstacles(&mut self) {
+        let obstacles = self.collect_lighting_obstacle_segments();
+        self.lighting.set_obstacles(&obstacles);
+    }
+
+    pub(crate) fn collect_lighting_obstacle_segments(&self) -> Vec<f32> {
         let mut obstacles = Vec::new();
 
         let wall_segs = self.wall_manager.get_light_blocking_segments();
@@ -320,7 +325,7 @@ impl RenderEngine {
             }
         }
 
-        self.lighting.set_obstacles(&obstacles);
+        obstacles
     }
 
     fn find_sprite(&self, sprite_id: &str) -> Option<&crate::types::Sprite> {

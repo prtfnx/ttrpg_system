@@ -1,9 +1,16 @@
 use wasm_bindgen::prelude::*;
+use serde::Deserialize;
 use crate::types::*;
 use crate::math::*;
 use crate::input::InputMode;
 
 use super::RenderEngine;
+
+#[derive(Deserialize)]
+struct PolygonPoint {
+    x: f32,
+    y: f32,
+}
 
 #[wasm_bindgen]
 impl RenderEngine {
@@ -73,6 +80,29 @@ impl RenderEngine {
     #[wasm_bindgen]
     pub fn set_ambient_light(&mut self, level: f32) {
         self.fog.set_ambient_light(level);
+    }
+
+    #[wasm_bindgen]
+    pub fn set_dynamic_lighting_enabled(&mut self, enabled: bool) {
+        self.fog.set_dynamic_lighting_enabled(enabled);
+    }
+
+    #[wasm_bindgen]
+    pub fn add_fog_polygon(&mut self, id: &str, polygon: JsValue) -> Result<(), JsValue> {
+        let points: Vec<PolygonPoint> = serde_wasm_bindgen::from_value(polygon)
+            .map_err(|err| JsValue::from_str(&format!("Invalid fog polygon payload: {}", err)))?;
+        let mut flat = Vec::with_capacity(points.len() * 2);
+        for point in points {
+            flat.push(point.x);
+            flat.push(point.y);
+        }
+        self.fog.add_vision_polygon(id.to_string(), flat);
+        Ok(())
+    }
+
+    #[wasm_bindgen]
+    pub fn remove_fog_polygon(&mut self, id: &str) {
+        self.fog.remove_vision_polygon(id);
     }
 
     #[wasm_bindgen]
@@ -193,7 +223,10 @@ impl RenderEngine {
     #[wasm_bindgen]
     pub fn remove_wall(&mut self, wall_id: &str) -> bool {
         let removed = self.wall_manager.remove_wall(wall_id);
-        if removed { self.obstacles_dirty = true; }
+        if removed {
+            self.obstacles_dirty = true;
+            self.input.remove_from_wall_selection(wall_id);
+        }
         removed
     }
 
@@ -213,6 +246,12 @@ impl RenderEngine {
     #[wasm_bindgen]
     pub fn get_wall_render_data(&self) -> js_sys::Float32Array {
         let data = self.wall_manager.get_render_data();
+        js_sys::Float32Array::from(data.as_slice())
+    }
+
+    #[wasm_bindgen]
+    pub fn get_obstacle_segments_flat(&self) -> js_sys::Float32Array {
+        let data = self.collect_lighting_obstacle_segments();
         js_sys::Float32Array::from(data.as_slice())
     }
 

@@ -427,6 +427,24 @@ impl FogOfWarSystem {
         self.ambient_light = level.clamp(0.0, 1.0);
     }
 
+    pub fn set_dynamic_lighting_enabled(&mut self, enabled: bool) {
+        if self.dynamic_lighting_enabled != enabled {
+            self.dynamic_lighting_enabled = enabled;
+            self.needs_vision_rebuild = true;
+        }
+    }
+
+    pub fn add_vision_polygon(&mut self, id: String, points: Vec<f32>) {
+        self.vision_polygons.insert(id, points);
+        self.needs_vision_rebuild = true;
+    }
+
+    pub fn remove_vision_polygon(&mut self, id: &str) {
+        if self.vision_polygons.remove(id).is_some() {
+            self.needs_vision_rebuild = true;
+        }
+    }
+
     /// Rebuild the vision mask texture from stored polygons.
     ///
     /// Vision texture values (in R channel):

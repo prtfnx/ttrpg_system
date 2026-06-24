@@ -1225,6 +1225,18 @@ export class RenderEngine {
     }
     /**
      * @param {string} id
+     * @param {any} polygon
+     */
+    add_fog_polygon(id, polygon) {
+        const ptr0 = passStringToWasm0(id, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+        const len0 = WASM_VECTOR_LEN;
+        const ret = wasm.renderengine_add_fog_polygon(this.__wbg_ptr, ptr0, len0, polygon);
+        if (ret[1]) {
+            throw takeFromExternrefTable0(ret[0]);
+        }
+    }
+    /**
+     * @param {string} id
      * @param {number} start_x
      * @param {number} start_y
      * @param {number} end_x
@@ -1309,6 +1321,14 @@ export class RenderEngine {
      */
     can_undo() {
         const ret = wasm.renderengine_can_undo(this.__wbg_ptr);
+        return ret !== 0;
+    }
+    /**
+     * Cancel an in-progress draw/create operation without changing the active tool.
+     * @returns {boolean}
+     */
+    cancel_current_operation() {
+        const ret = wasm.renderengine_cancel_current_operation(this.__wbg_ptr);
         return ret !== 0;
     }
     clear_fog() {
@@ -1415,11 +1435,28 @@ export class RenderEngine {
         return ret >>> 0;
     }
     /**
+     * @returns {Float32Array}
+     */
+    get_obstacle_segments_flat() {
+        const ret = wasm.renderengine_get_obstacle_segments_flat(this.__wbg_ptr);
+        return ret;
+    }
+    /**
      * Get list of currently selected sprite IDs.
      * @returns {string[]}
      */
     get_selected_sprites() {
         const ret = wasm.renderengine_get_selected_sprites(this.__wbg_ptr);
+        var v1 = getArrayJsValueFromWasm0(ret[0], ret[1]).slice();
+        wasm.__wbindgen_free(ret[0], ret[1] * 4, 4);
+        return v1;
+    }
+    /**
+     * Get list of currently selected wall IDs.
+     * @returns {string[]}
+     */
+    get_selected_walls() {
+        const ret = wasm.renderengine_get_selected_walls(this.__wbg_ptr);
         var v1 = getArrayJsValueFromWasm0(ret[0], ret[1]).slice();
         wasm.__wbindgen_free(ret[0], ret[1] * 4, 4);
         return v1;
@@ -1774,6 +1811,14 @@ export class RenderEngine {
     /**
      * @param {string} id
      */
+    remove_fog_polygon(id) {
+        const ptr0 = passStringToWasm0(id, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+        const len0 = WASM_VECTOR_LEN;
+        wasm.renderengine_remove_fog_polygon(this.__wbg_ptr, ptr0, len0);
+    }
+    /**
+     * @param {string} id
+     */
     remove_fog_rectangle(id) {
         const ptr0 = passStringToWasm0(id, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
         const len0 = WASM_VECTOR_LEN;
@@ -1786,6 +1831,16 @@ export class RenderEngine {
         const ptr0 = passStringToWasm0(id, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
         const len0 = WASM_VECTOR_LEN;
         wasm.renderengine_remove_light(this.__wbg_ptr, ptr0, len0);
+    }
+    /**
+     * Remove all selected walls and return the deleted IDs.
+     * @returns {string[]}
+     */
+    remove_selected_walls() {
+        const ret = wasm.renderengine_remove_selected_walls(this.__wbg_ptr);
+        var v1 = getArrayJsValueFromWasm0(ret[0], ret[1]).slice();
+        wasm.__wbindgen_free(ret[0], ret[1] * 4, 4);
+        return v1;
     }
     /**
      * @param {string} sprite_id
@@ -1901,6 +1956,12 @@ export class RenderEngine {
      */
     set_current_user_id(user_id) {
         wasm.renderengine_set_current_user_id(this.__wbg_ptr, user_id);
+    }
+    /**
+     * @param {boolean} enabled
+     */
+    set_dynamic_lighting_enabled(enabled) {
+        wasm.renderengine_set_dynamic_lighting_enabled(this.__wbg_ptr, enabled);
     }
     /**
      * @param {boolean} is_gm
@@ -2083,6 +2144,16 @@ export class RenderEngine {
         const ptr0 = passStringToWasm0(id, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
         const len0 = WASM_VECTOR_LEN;
         wasm.renderengine_toggle_light(this.__wbg_ptr, ptr0, len0);
+    }
+    /**
+     * Translate all selected walls and return their updated endpoint payloads.
+     * @param {number} dx
+     * @param {number} dy
+     * @returns {Array<any>}
+     */
+    translate_selected_walls(dx, dy) {
+        const ret = wasm.renderengine_translate_selected_walls(this.__wbg_ptr, dx, dy);
+        return ret;
     }
     /**
      * @param {string} id
@@ -3472,32 +3543,32 @@ function __wbg_get_imports() {
             return ret;
         },
         __wbindgen_cast_0000000000000001: function(arg0, arg1) {
-            // Cast intrinsic for `Closure(Closure { owned: true, function: Function { arguments: [Externref], shim_idx: 199, ret: Result(Unit), inner_ret: Some(Result(Unit)) }, mutable: true }) -> Externref`.
+            // Cast intrinsic for `Closure(Closure { owned: true, function: Function { arguments: [Externref], shim_idx: 200, ret: Result(Unit), inner_ret: Some(Result(Unit)) }, mutable: true }) -> Externref`.
             const ret = makeMutClosure(arg0, arg1, wasm_bindgen__convert__closures_____invoke__h379eeb6857ff453f);
             return ret;
         },
         __wbindgen_cast_0000000000000002: function(arg0, arg1) {
-            // Cast intrinsic for `Closure(Closure { owned: true, function: Function { arguments: [NamedExternref("CloseEvent")], shim_idx: 46, ret: Unit, inner_ret: Some(Unit) }, mutable: true }) -> Externref`.
+            // Cast intrinsic for `Closure(Closure { owned: true, function: Function { arguments: [NamedExternref("CloseEvent")], shim_idx: 76, ret: Unit, inner_ret: Some(Unit) }, mutable: true }) -> Externref`.
             const ret = makeMutClosure(arg0, arg1, wasm_bindgen__convert__closures_____invoke__h6c2b06365ce6726d);
             return ret;
         },
         __wbindgen_cast_0000000000000003: function(arg0, arg1) {
-            // Cast intrinsic for `Closure(Closure { owned: true, function: Function { arguments: [NamedExternref("ErrorEvent")], shim_idx: 46, ret: Unit, inner_ret: Some(Unit) }, mutable: true }) -> Externref`.
+            // Cast intrinsic for `Closure(Closure { owned: true, function: Function { arguments: [NamedExternref("ErrorEvent")], shim_idx: 76, ret: Unit, inner_ret: Some(Unit) }, mutable: true }) -> Externref`.
             const ret = makeMutClosure(arg0, arg1, wasm_bindgen__convert__closures_____invoke__h6c2b06365ce6726d_2);
             return ret;
         },
         __wbindgen_cast_0000000000000004: function(arg0, arg1) {
-            // Cast intrinsic for `Closure(Closure { owned: true, function: Function { arguments: [NamedExternref("Event")], shim_idx: 46, ret: Unit, inner_ret: Some(Unit) }, mutable: true }) -> Externref`.
+            // Cast intrinsic for `Closure(Closure { owned: true, function: Function { arguments: [NamedExternref("Event")], shim_idx: 76, ret: Unit, inner_ret: Some(Unit) }, mutable: true }) -> Externref`.
             const ret = makeMutClosure(arg0, arg1, wasm_bindgen__convert__closures_____invoke__h6c2b06365ce6726d_3);
             return ret;
         },
         __wbindgen_cast_0000000000000005: function(arg0, arg1) {
-            // Cast intrinsic for `Closure(Closure { owned: true, function: Function { arguments: [NamedExternref("MessageEvent")], shim_idx: 46, ret: Unit, inner_ret: Some(Unit) }, mutable: true }) -> Externref`.
+            // Cast intrinsic for `Closure(Closure { owned: true, function: Function { arguments: [NamedExternref("MessageEvent")], shim_idx: 76, ret: Unit, inner_ret: Some(Unit) }, mutable: true }) -> Externref`.
             const ret = makeMutClosure(arg0, arg1, wasm_bindgen__convert__closures_____invoke__h6c2b06365ce6726d_4);
             return ret;
         },
         __wbindgen_cast_0000000000000006: function(arg0, arg1) {
-            // Cast intrinsic for `Closure(Closure { owned: true, function: Function { arguments: [], shim_idx: 45, ret: Unit, inner_ret: Some(Unit) }, mutable: true }) -> Externref`.
+            // Cast intrinsic for `Closure(Closure { owned: true, function: Function { arguments: [], shim_idx: 75, ret: Unit, inner_ret: Some(Unit) }, mutable: true }) -> Externref`.
             const ret = makeMutClosure(arg0, arg1, wasm_bindgen__convert__closures_____invoke__hb87dc99a98312fe0);
             return ret;
         },

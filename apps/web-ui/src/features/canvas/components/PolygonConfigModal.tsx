@@ -35,6 +35,17 @@ export const PolygonConfigModal: React.FC = () => {
     setDraft(null);
   }, []);
 
+  useEffect(() => {
+    if (!draft) return;
+    const handler = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        close();
+      }
+    };
+    window.addEventListener('keydown', handler);
+    return () => window.removeEventListener('keydown', handler);
+  }, [draft, close]);
+
   const submit = useCallback(() => {
     if (!draft || !tableId || !protocol) return;
 

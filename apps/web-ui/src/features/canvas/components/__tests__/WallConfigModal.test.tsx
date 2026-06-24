@@ -52,6 +52,13 @@ describe('WallConfigModal', () => {
     expect(screen.queryByText('New Wall Segment')).not.toBeInTheDocument();
   });
 
+  it('Escape closes the modal', () => {
+    render(<WallConfigModal />);
+    dispatchWallDrawn();
+    fireEvent.keyDown(window, { key: 'Escape' });
+    expect(screen.queryByText('New Wall Segment')).not.toBeInTheDocument();
+  });
+
   it('shows wall type selector with Normal default', () => {
     render(<WallConfigModal />);
     dispatchWallDrawn();

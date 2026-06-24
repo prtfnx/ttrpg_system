@@ -37,7 +37,18 @@ export const WallConfigModal: React.FC = () => {
     return () => window.removeEventListener('wallDrawn', handler);
   }, []);
 
-  const close = () => setDraft(null);
+  const close = useCallback(() => setDraft(null), []);
+
+  useEffect(() => {
+    if (!draft) return;
+    const handler = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        close();
+      }
+    };
+    window.addEventListener('keydown', handler);
+    return () => window.removeEventListener('keydown', handler);
+  }, [draft, close]);
 
   const set = useCallback(<K extends keyof WallDraft>(key: K, value: WallDraft[K]) => {
     setDraft(prev => prev ? { ...prev, [key]: value } : prev);

@@ -61,6 +61,13 @@ describe('PolygonConfigModal', () => {
     expect(screen.queryByText('New Polygon Obstacle')).not.toBeInTheDocument();
   });
 
+  it('Escape closes the modal', () => {
+    render(<PolygonConfigModal />);
+    dispatchPolygonCreated();
+    fireEvent.keyDown(window, { key: 'Escape' });
+    expect(screen.queryByText('New Polygon Obstacle')).not.toBeInTheDocument();
+  });
+
   it('Create Obstacle sends one message with consistent sprite_id', () => {
     render(<PolygonConfigModal />);
     dispatchPolygonCreated();

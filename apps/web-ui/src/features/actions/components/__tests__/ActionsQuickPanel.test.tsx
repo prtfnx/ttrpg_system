@@ -1,4 +1,4 @@
-import { fireEvent, render, screen } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import React from 'react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
@@ -23,6 +23,8 @@ vi.mock('@shared/hooks', () => ({
 vi.mock('lucide-react', () => ({
   Undo2: () => React.createElement('span', null, 'Undo'),
   Redo2: () => React.createElement('span', null, 'Redo'),
+  RotateCw: () => React.createElement('span', null, 'Refresh'),
+  Trash2: () => React.createElement('span', null, 'Delete'),
 }));
 
 import { ActionsQuickPanel } from '../ActionsQuickPanel';
@@ -88,5 +90,27 @@ describe('ActionsQuickPanel', () => {
     render(<ActionsQuickPanel />);
     fireEvent.change(screen.getByPlaceholderText('Width'), { target: { value: '1024' } });
     expect(screen.getByPlaceholderText('Width')).toHaveValue(1024);
+  });
+
+  it('creates a table and shows command status without alerts', async () => {
+    render(<ActionsQuickPanel />);
+    fireEvent.change(screen.getByPlaceholderText('Table name'), { target: { value: 'Dungeon' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Create Table' }));
+
+    await waitFor(() => expect(mockActions.createTable).toHaveBeenCalledWith('Dungeon', 800, 600));
+    expect(screen.getByText('Create Table: Done')).toBeInTheDocument();
+  });
+
+  it('deletes the selected table from the table selector', async () => {
+    mockActions.tables = new Map([
+      ['t1', { table_id: 't1', name: 'Dungeon', width: 800, height: 600 }],
+      ['t2', { table_id: 't2', name: 'Forest', width: 900, height: 700 }],
+    ]);
+    render(<ActionsQuickPanel />);
+
+    fireEvent.change(screen.getByLabelText('Table to delete'), { target: { value: 't2' } });
+    fireEvent.click(screen.getByRole('button', { name: /Delete/ }));
+
+    await waitFor(() => expect(mockActions.deleteTable).toHaveBeenCalledWith('t2'));
   });
 });

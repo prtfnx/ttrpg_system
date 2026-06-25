@@ -1,4 +1,5 @@
-import { useActions, type ActionResult, type ActionsEngine, type BatchAction, type TableInfo } from '@shared/hooks';
+import { useActionCommands } from '@features/actions/hooks';
+import type { ActionsEngine, BatchAction, TableInfo } from '@shared/hooks';
 import panelStyles from '@shared/styles/PanelBase.module.css';
 import clsx from 'clsx';
 import { Loader2, Redo2, Undo2, X } from 'lucide-react';
@@ -15,7 +16,7 @@ export const ActionsPanel: React.FC<ActionsPanelProps> = ({ actionsEngine, class
   const [selectedTable, setSelectedTable] = useState<string>('');
   const [logs, setLogs] = useState<string[]>([]);
 
-  const actions = useActions(actionsEngine, {
+  const commands = useActionCommands(actionsEngine, {
     onAction: (actionType, data) => {
       setLogs(prev => [...prev.slice(-19), `Action: ${actionType} - ${JSON.stringify(data)}`]);
     },
@@ -25,62 +26,42 @@ export const ActionsPanel: React.FC<ActionsPanelProps> = ({ actionsEngine, class
     onError: (error) => {
       setLogs(prev => [...prev.slice(-19), `Error: ${error}`]);
     },
+    onResult: (operation, result) => {
+      const status = result.success ? 'OK' : 'Error';
+      setLogs(prev => [...prev.slice(-19), `${status} ${operation}: ${result.message}`]);
+    },
   });
+  const { actions } = commands;
 
   // Form states
   const [tableForm, setTableForm] = useState({ name: '', width: 800, height: 600 });
 
-  const logResult = useCallback((operation: string, result: ActionResult) => {
-    const status = result.success ? 'OK' : 'Error';
-    setLogs(prev => [...prev.slice(-19), `${status} ${operation}: ${result.message}`]);
-  }, []);
-
   // Table Operations
   const handleCreateTable = useCallback(async () => {
     if (!tableForm.name.trim()) return;
-    
-    try {
-      const result = await actions.createTable(tableForm.name, tableForm.width, tableForm.height);
-      logResult('Create Table', result);
-      if (result.success) {
-        setTableForm({ name: '', width: 800, height: 600 });
-      }
-    } catch (error) {
-      console.error('Failed to create table:', error);
+
+    const result = await commands.createTable(tableForm.name, tableForm.width, tableForm.height);
+    if (result.success) {
+      setTableForm({ name: '', width: 800, height: 600 });
     }
-  }, [actions, tableForm, logResult]);
+  }, [commands, tableForm]);
 
   const handleDeleteTable = useCallback(async (tableId: string) => {
-    try {
-      const result = await actions.deleteTable(tableId);
-      logResult('Delete Table', result);
-      if (result.success && selectedTable === tableId) {
-        setSelectedTable('');
-      }
-    } catch (error) {
-      console.error('Failed to delete table:', error);
+    const result = await commands.deleteTable(tableId);
+    if (result.success && selectedTable === tableId) {
+      setSelectedTable('');
     }
-  }, [actions, selectedTable, logResult]);
+  }, [commands, selectedTable]);
 
   const handleUpdateTable = useCallback(async (tableId: string, updates: Partial<TableInfo>) => {
-    try {
-      const result = await actions.updateTable(tableId, updates);
-      logResult('Update Table', result);
-    } catch (error) {
-      console.error('Failed to update table:', error);
-    }
-  }, [actions, logResult]);
+    await commands.updateTable(tableId, updates);
+  }, [commands]);
 
   // Layer Operations
   const handleToggleLayerVisibility = useCallback(async (layer: string) => {
     const currentVisibility = actions.layerVisibility.get(layer) ?? true;
-    try {
-      const result = await actions.setLayerVisibility(layer, !currentVisibility);
-      logResult(`Toggle Layer ${layer}`, result);
-    } catch (error) {
-      console.error('Failed to toggle layer visibility:', error);
-    }
-  }, [actions, logResult]);
+    await commands.setLayerVisibility(layer, !currentVisibility);
+  }, [actions.layerVisibility, commands]);
 
   // Batch Operations
   const handleBatchTest = useCallback(async () => {
@@ -95,13 +76,8 @@ export const ActionsPanel: React.FC<ActionsPanelProps> = ({ actionsEngine, class
       }
     ];
     
-    try {
-      const result = await actions.batchActions(batchActions);
-      logResult('Batch Actions', result);
-    } catch (error) {
-      console.error('Failed to execute batch actions:', error);
-    }
-  }, [actions, logResult]);
+    await commands.batchActions(batchActions);
+  }, [commands]);
 
   const renderTabContent = () => {
     switch (activeTab) {
@@ -198,14 +174,14 @@ export const ActionsPanel: React.FC<ActionsPanelProps> = ({ actionsEngine, class
           <div className={styles.actionsTabContent}>
             <div className={styles.historyControls}>
               <button 
-                onClick={actions.undo}
+                onClick={commands.undo}
                 disabled={!actions.canUndo || actions.isLoading}
                 className={styles.actionButton}
               >
                 <Undo2 size={14} aria-hidden /> Undo
               </button>
               <button 
-                onClick={actions.redo}
+                onClick={commands.redo}
                 disabled={!actions.canRedo || actions.isLoading}
                 className={styles.actionButton}
               >
@@ -219,7 +195,7 @@ export const ActionsPanel: React.FC<ActionsPanelProps> = ({ actionsEngine, class
                 Batch Test
               </button>
               <button 
-                onClick={actions.refreshState}
+                onClick={commands.refreshState}
                 className={styles.actionButton}
               >
                 Refresh

@@ -1,6 +1,9 @@
-import { useActions, type ActionsEngine } from '@shared/hooks';
-import { Redo2, Undo2 } from 'lucide-react';
-import React, { useCallback, useState } from 'react';
+import { useActionCommands } from '@features/actions/hooks';
+import type { ActionsEngine } from '@shared/hooks';
+import clsx from 'clsx';
+import { Redo2, RotateCw, Trash2, Undo2 } from 'lucide-react';
+import React, { useCallback, useMemo, useState } from 'react';
+import styles from './ActionsQuickPanel.module.css';
 
 interface ActionsQuickPanelProps {
   actionsEngine?: ActionsEngine | null;
@@ -10,214 +13,135 @@ export const ActionsQuickPanel: React.FC<ActionsQuickPanelProps> = ({ actionsEng
   const [tableName, setTableName] = useState('');
   const [tableWidth, setTableWidth] = useState(800);
   const [tableHeight, setTableHeight] = useState(600);
+  const [selectedTableId, setSelectedTableId] = useState('');
+  const commands = useActionCommands(actionsEngine ?? null);
+  const { actions, status } = commands;
 
-  const actions = useActions(actionsEngine ?? null, {
-    onAction: (actionType, data) => {
-      console.log(`Action: ${actionType}`, data);
-    },
-    onStateChange: (eventType, targetId) => {
-      console.log(`State Change: ${eventType}`, targetId);
-    },
-    onError: (error) => {
-      console.error('Actions Error:', error);
-    },
-  });
+  const tables = useMemo(() => Array.from(actions.tables.values()), [actions.tables]);
+  const selectedTable = tables.find(table => table.table_id === selectedTableId) ?? tables[0];
 
   const handleCreateTable = useCallback(async () => {
-    if (!tableName.trim()) {
-      alert('Please enter a table name');
-      return;
+    if (!tableName.trim()) return;
+
+    const result = await commands.createTable(tableName.trim(), tableWidth, tableHeight);
+    if (result.success) {
+      setTableName('');
     }
-    
-    try {
-      const result = await actions.createTable(tableName, tableWidth, tableHeight);
-      if (result.success) {
-        setTableName('');
-        alert(`Table "${tableName}" created successfully!`);
-      } else {
-        alert(`Failed to create table: ${result.message}`);
-      }
-    } catch (error) {
-      console.error('Failed to create table:', error);
-      alert('Failed to create table');
-    }
-  }, [actions, tableName, tableWidth, tableHeight]);
+  }, [commands, tableHeight, tableName, tableWidth]);
 
   const handleDeleteSelectedTable = useCallback(async () => {
-    const tables = Array.from(actions.tables.values());
-    if (tables.length === 0) {
-      alert('No tables to delete');
-      return;
-    }
-
-    // For simplicity, delete the first table
-    const table = tables[0];
-    if (confirm(`Delete table "${table.name}"?`)) {
-      try {
-        const result = await actions.deleteTable(table.table_id);
-        if (result.success) {
-          alert(`Table "${table.name}" deleted successfully!`);
-        } else {
-          alert(`Failed to delete table: ${result.message}`);
-        }
-      } catch (error) {
-        console.error('Failed to delete table:', error);
-        alert('Failed to delete table');
-      }
-    }
-  }, [actions]);
-
-  const handleUndo = useCallback(() => {
-    actions.undo();
-  }, [actions]);
-
-  const handleRedo = useCallback(() => {
-    actions.redo();
-  }, [actions]);
-
-  const handleRefreshState = useCallback(() => {
-    actions.refreshState();
-  }, [actions]);
+    if (!selectedTable) return;
+    await commands.deleteTable(selectedTable.table_id);
+    setSelectedTableId('');
+  }, [commands, selectedTable]);
 
   return (
-    <div className="game-panel">
+    <div className={clsx('game-panel', styles.quickPanel)}>
       <div className="panel-header-compact">
         <h3 className="panel-title">Quick Actions</h3>
       </div>
 
-      <div className="actions-quick-content">
-        {/* Table Creation */}
-        <div className="action-group">
+      <div className={styles.content}>
+        <div className={styles.group}>
           <h4>Create Table</h4>
-          <div className="form-compact">
+          <div className={styles.form}>
             <input
+              className={styles.input}
               type="text"
               placeholder="Table name"
               value={tableName}
               onChange={(e) => setTableName(e.target.value)}
-              style={{ width: '100%', marginBottom: '4px', padding: '4px', fontSize: '12px' }}
             />
-            <div style={{ display: 'flex', gap: '4px', marginBottom: '4px' }}>
+            <div className={styles.row}>
               <input
+                className={styles.input}
                 type="number"
                 placeholder="Width"
                 value={tableWidth}
                 onChange={(e) => setTableWidth(parseInt(e.target.value) || 800)}
-                style={{ flex: 1, padding: '4px', fontSize: '12px' }}
               />
               <input
+                className={styles.input}
                 type="number"
                 placeholder="Height"
                 value={tableHeight}
                 onChange={(e) => setTableHeight(parseInt(e.target.value) || 600)}
-                style={{ flex: 1, padding: '4px', fontSize: '12px' }}
               />
             </div>
-            <button 
+            <button
+              className={clsx(styles.button, styles.primary)}
               onClick={handleCreateTable}
               disabled={!tableName.trim() || actions.isLoading}
-              style={{ 
-                width: '100%', 
-                padding: '6px', 
-                fontSize: '12px',
-                background: 'var(--color-success)',
-                color: 'white',
-                border: 'none',
-                borderRadius: '4px',
-                cursor: 'pointer'
-              }}
             >
               Create Table
             </button>
           </div>
         </div>
 
-        {/* Quick Actions */}
-        <div className="action-group">
+        <div className={styles.group}>
           <h4>Table Actions</h4>
-          <div className="button-grid">
-            <button 
+          <select
+            className={styles.select}
+            value={selectedTable?.table_id ?? ''}
+            onChange={(event) => setSelectedTableId(event.target.value)}
+            disabled={tables.length === 0 || actions.isLoading}
+            aria-label="Table to delete"
+          >
+            {tables.length === 0 ? (
+              <option value="">No tables</option>
+            ) : tables.map(table => (
+              <option key={table.table_id} value={table.table_id}>
+                {table.name}
+              </option>
+            ))}
+          </select>
+          <div className={styles.buttonGrid}>
+            <button
+              className={clsx(styles.button, styles.danger)}
               onClick={handleDeleteSelectedTable}
-              disabled={actions.tables.size === 0 || actions.isLoading}
-              style={{ 
-                padding: '6px 8px', 
-                fontSize: '11px',
-                background: 'var(--color-danger)',
-                color: 'white',
-                border: 'none',
-                borderRadius: '3px',
-                cursor: 'pointer'
-              }}
+              disabled={!selectedTable || actions.isLoading}
             >
-              Delete Table
+              <Trash2 size={14} aria-hidden /> Delete
             </button>
-            <button 
-              onClick={handleRefreshState}
+            <button
+              className={clsx(styles.button, styles.secondary)}
+              onClick={commands.refreshState}
               disabled={actions.isLoading}
-              style={{ 
-                padding: '6px 8px', 
-                fontSize: '11px',
-                background: 'var(--color-accent)',
-                color: 'white',
-                border: 'none',
-                borderRadius: '3px',
-                cursor: 'pointer'
-              }}
             >
-              Refresh
+              <RotateCw size={14} aria-hidden /> Refresh
             </button>
           </div>
         </div>
 
-        {/* History Actions */}
-        <div className="action-group">
+        <div className={styles.group}>
           <h4>History</h4>
-          <div className="button-grid">
-            <button 
-              onClick={handleUndo}
+          <div className={styles.buttonGrid}>
+            <button
+              className={clsx(styles.button, styles.history)}
+              onClick={commands.undo}
               disabled={!actions.canUndo || actions.isLoading}
-              style={{ 
-                padding: '6px 8px', 
-                fontSize: '11px',
-                background: 'var(--color-warning)',
-                color: 'white',
-                border: 'none',
-                borderRadius: '3px',
-                cursor: 'pointer'
-              }}
             >
               <Undo2 size={14} aria-hidden /> Undo
             </button>
-            <button 
-              onClick={handleRedo}
+            <button
+              className={clsx(styles.button, styles.history)}
+              onClick={commands.redo}
               disabled={!actions.canRedo || actions.isLoading}
-              style={{ 
-                padding: '6px 8px', 
-                fontSize: '11px',
-                background: 'var(--color-warning)',
-                color: 'white',
-                border: 'none',
-                borderRadius: '3px',
-                cursor: 'pointer'
-              }}
             >
               <Redo2 size={14} aria-hidden /> Redo
             </button>
           </div>
         </div>
 
-        {/* Status */}
-        <div className="action-status">
-          <div style={{ fontSize: '11px', color: 'var(--text-muted)' }}>
-            Tables: {actions.tables.size} | History: {actions.actionHistory.length}
-            {actions.isLoading && <span> | Loading...</span>}
-          </div>
-          {actions.error && (
-            <div style={{ fontSize: '11px', color: 'var(--color-danger)', marginTop: '4px' }}>
-              Error: {actions.error}
-            </div>
-          )}
+        <div className={styles.status}>
+          Tables: {actions.tables.size} | History: {actions.actionHistory.length}
+          {actions.isLoading && <span> | Loading...</span>}
         </div>
+        {(status || actions.error) && (
+          <div className={clsx(styles.feedback, status?.type === 'success' ? styles.success : styles.error)}>
+            {status?.message ?? `Error: ${actions.error}`}
+          </div>
+        )}
       </div>
     </div>
   );

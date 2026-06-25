@@ -1,10 +1,12 @@
 from __future__ import annotations
 
+import time
+import uuid
 from dataclasses import dataclass
 from enum import Enum
 from typing import Any, Awaitable, Callable, Optional
 
-from core_table.combat import CombatState
+from core_table.combat import CombatAction, CombatState
 from pydantic import BaseModel, ConfigDict, Field, ValidationError, field_validator
 from utils.roles import is_dm
 
@@ -166,6 +168,7 @@ class CombatCommandService:
                 return self._reject(envelope.sequence_id, idx, "Combat ended unexpectedly")
 
         current = self._engine.get_state(context.session_code)
+        self._persist(context.session_code)
         return CombatCommandResult(
             accepted=True,
             sequence_id=envelope.sequence_id,
@@ -214,6 +217,7 @@ class CombatCommandService:
                 return self._reject(envelope.sequence_id, idx, "Combat ended unexpectedly")
 
         current = self._engine.get_state(context.session_code)
+        self._persist(context.session_code)
         return CombatCommandResult(
             accepted=True,
             sequence_id=envelope.sequence_id,
@@ -331,6 +335,7 @@ class CombatCommandService:
             if not validation.get("success", False):
                 return {"error": validation.get("message") or "Move validation failed"}
 
+        actor_before = actor.to_dict()
         move_result = await context.move_sprite(
             command.table_id,
             actor.entity_id,
@@ -342,6 +347,18 @@ class CombatCommandService:
             return {"error": move_result.get("message") or "Move failed"}
 
         actor.movement_remaining -= command.cost_ft
+        state.action_log.append(CombatAction(
+            action_id=str(uuid.uuid4()),
+            combat_id=state.combat_id,
+            round_number=state.round_number,
+            turn_index=state.current_turn_index,
+            actor_id=actor_id,
+            action_type="move",
+            action_cost="movement",
+            outcome="moved",
+            state_before=actor_before,
+            timestamp=time.time(),
+        ))
         move_undos.append((command.table_id, actor.entity_id, to_pos, from_pos))
         return {
             "action_type": "move",
@@ -380,6 +397,11 @@ class CombatCommandService:
 
     def _restore(self, session_code: str, snapshot: dict[str, Any]) -> None:
         self._engine._active[session_code] = CombatState.from_dict(snapshot)
+
+    def _persist(self, session_code: str) -> None:
+        persist = getattr(self._engine, "persist", None)
+        if callable(persist):
+            persist(session_code)
 
     async def _restore_async(
         self,

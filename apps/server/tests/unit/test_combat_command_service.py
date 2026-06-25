@@ -196,6 +196,8 @@ async def test_move_command_spends_movement_and_moves_token():
 
     assert result.accepted is True
     assert CombatEngine.get_state("cmd").combatants[0].movement_remaining == 20
+    assert CombatEngine.get_state("cmd").action_log[-1].action_type == "move"
+    assert CombatEngine.get_state("cmd").action_log[-1].state_before["movement_remaining"] == 30
     move_sprite.assert_awaited_once()
 
 

@@ -571,9 +571,11 @@ class _CombatMixin(_ProtocolBase):
 
         session_code = self._get_session_code()
         rules = None
+        mode_str = "free_roam"
         cached = self._rules_cache.get(session_code) if session_code else None
         if cached:
             rules = cached[0]
+            mode_str = cached[1]
         elif session_code:
             db = SessionLocal()
             try:
@@ -588,22 +590,32 @@ class _CombatMixin(_ProtocolBase):
                 db.close()
         rules = rules or SessionRules.defaults(session_code or "default")
 
-        tier = getattr(rules, "server_validation_tier", "lightweight")
-        if tier == "trust_client":
-            return {"success": True, "message": "ok"}
-
+        from service.combat_engine import CombatEngine
         from service.movement_validator import MovementValidator
 
         validator = MovementValidator(rules)
+        tier = getattr(rules, "server_validation_tier", "lightweight")
         from_pos = (float(old_position.get("x", 0)), float(old_position.get("y", 0)))
         to_pos = (float(new_position.get("x", 0)), float(new_position.get("y", 0)))
-        if tier == "lightweight":
+        if tier == "trust_client":
+            result = None
+        elif tier == "lightweight":
             result = validator.validate_lightweight(sprite_id, from_pos, to_pos, table, client_path=path)
         else:
             result = validator.validate(sprite_id, from_pos, to_pos, table, client_path=path)
-        if not result.valid:
+        if result is not None and not result.valid:
             return {"success": False, "message": result.reason}
-        return {"success": True, "message": "ok"}
+
+        triggers = []
+        if mode_str == "fight":
+            triggers = validator.check_opportunity_attacks(
+                sprite_id,
+                from_pos,
+                table,
+                CombatEngine.get_state(session_code),
+                to_pos=to_pos,
+            )
+        return {"success": True, "message": "ok", "opportunity_attack_triggers": triggers}
 
     async def handle_cover_zone_add(self, msg: Message, client_id: str) -> Message:
         if not is_dm(self._get_client_role(client_id)):

@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import time
 import uuid
-from dataclasses import dataclass
+from dataclasses import dataclass, field as dataclass_field
 from enum import Enum
 from typing import Any, Awaitable, Callable, Optional
 
@@ -48,6 +48,7 @@ class CombatCommand(BaseModel):
     save_dc: int = 0
     requires_attack_roll: bool = False
     is_concentration: bool = False
+    confirm_opportunity_attacks: bool = False
 
     @field_validator("target_ids", mode="before")
     @classmethod
@@ -93,6 +94,7 @@ class CombatCommandResult:
     combat: dict[str, Any] | None = None
     failed_index: int | None = None
     reason: str = ""
+    details: dict[str, Any] = dataclass_field(default_factory=dict)
 
     def to_dict(self) -> dict[str, Any]:
         data: dict[str, Any] = {
@@ -106,6 +108,8 @@ class CombatCommandResult:
             data["failed_index"] = self.failed_index
         if self.reason:
             data["reason"] = self.reason
+        if self.details:
+            data["details"] = self.details
         return data
 
 
@@ -154,7 +158,12 @@ class CombatCommandService:
             result = self._apply_one(command, context, state, actor_id)
             if "error" in result:
                 self._restore(context.session_code, snapshot)
-                return self._reject(envelope.sequence_id, idx, str(result["error"]))
+                return self._reject(
+                    envelope.sequence_id,
+                    idx,
+                    str(result["error"]),
+                    self._result_details(result),
+                )
 
             applied.append({
                 "sequence_index": idx,
@@ -203,7 +212,12 @@ class CombatCommandService:
             result = await self._apply_one_async(command, context, state, actor_id, move_undos)
             if "error" in result:
                 await self._restore_async(context, snapshot, move_undos)
-                return self._reject(envelope.sequence_id, idx, str(result["error"]))
+                return self._reject(
+                    envelope.sequence_id,
+                    idx,
+                    str(result["error"]),
+                    self._result_details(result),
+                )
 
             applied.append({
                 "sequence_index": idx,
@@ -334,6 +348,16 @@ class CombatCommandService:
             validation = context.validate_move(command.table_id, actor.entity_id, from_pos, to_pos, command.path)
             if not validation.get("success", False):
                 return {"error": validation.get("message") or "Move validation failed"}
+            triggers = validation.get("opportunity_attack_triggers") or []
+            if triggers and not command.confirm_opportunity_attacks:
+                return {
+                    "error": "Opportunity attack warning",
+                    "details": {
+                        "code": "opportunity_attack_warning",
+                        "entity_id": actor.entity_id,
+                        "triggers": triggers,
+                    },
+                }
 
         actor_before = actor.to_dict()
         move_result = await context.move_sprite(
@@ -417,13 +441,24 @@ class CombatCommandService:
                     pass
         self._restore(context.session_code, snapshot)
 
-    def _reject(self, sequence_id: int, failed_index: int, reason: str) -> CombatCommandResult:
+    def _result_details(self, result: dict[str, Any]) -> dict[str, Any]:
+        details = result.get("details")
+        return details if isinstance(details, dict) else {}
+
+    def _reject(
+        self,
+        sequence_id: int,
+        failed_index: int,
+        reason: str,
+        details: dict[str, Any] | None = None,
+    ) -> CombatCommandResult:
         return CombatCommandResult(
             accepted=False,
             sequence_id=sequence_id,
             applied=[],
             failed_index=failed_index,
             reason=reason,
+            details=details or {},
         )
 
 

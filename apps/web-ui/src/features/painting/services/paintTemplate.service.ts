@@ -3,6 +3,8 @@
  * Handles saving and loading paint stroke templates
  */
 
+import { logger } from '@shared/utils/logger';
+
 export interface PaintTemplate {
   id: string;
   name: string;
@@ -56,7 +58,7 @@ class PaintTemplateService {
     this.templates.set(id, template);
     await this.saveTemplatesToStorage();
     
-    console.log(`[PaintTemplateService] Saved template: ${name} (${strokes.length} strokes)`);
+    logger.debug('[PaintTemplateService] Saved template', { name, strokeCount: strokes.length });
     return id;
   }
 
@@ -89,7 +91,7 @@ class PaintTemplateService {
     const deleted = this.templates.delete(id);
     if (deleted) {
       await this.saveTemplatesToStorage();
-      console.log(`[PaintTemplateService] Deleted template: ${id}`);
+      logger.debug('[PaintTemplateService] Deleted template', { id });
     }
     return deleted;
   }
@@ -113,7 +115,7 @@ class PaintTemplateService {
     this.templates.set(id, updatedTemplate);
     await this.saveTemplatesToStorage();
     
-    console.log(`[PaintTemplateService] Updated template: ${id}`);
+    logger.debug('[PaintTemplateService] Updated template', { id });
     return true;
   }
 
@@ -141,7 +143,7 @@ class PaintTemplateService {
       
       return tempCanvas.toDataURL('image/png', 0.8);
     } catch (error) {
-      console.error('[PaintTemplateService] Failed to generate thumbnail:', error);
+      logger.error('[PaintTemplateService] Failed to generate thumbnail', error);
       return '';
     }
   }
@@ -188,7 +190,7 @@ class PaintTemplateService {
       }
 
       await this.saveTemplatesToStorage();
-      console.log(`[PaintTemplateService] Imported ${imported} templates with ${errors.length} errors`);
+      logger.info('[PaintTemplateService] Imported templates', { imported, errorCount: errors.length });
       
       return { success: imported > 0, imported, errors };
     } catch (error) {
@@ -219,11 +221,11 @@ class PaintTemplateService {
         const data = JSON.parse(stored);
         if (Array.isArray(data)) {
           this.templates = new Map(data.map((template: PaintTemplate) => [template.id, template]));
-          console.log(`[PaintTemplateService] Loaded ${this.templates.size} templates from storage`);
+          logger.debug('[PaintTemplateService] Loaded templates from storage', { count: this.templates.size });
         }
       }
     } catch (error) {
-      console.error('[PaintTemplateService] Failed to load templates from storage:', error);
+      logger.error('[PaintTemplateService] Failed to load templates from storage', error);
       this.templates = new Map();
     }
   }
@@ -233,7 +235,7 @@ class PaintTemplateService {
       const data = Array.from(this.templates.values());
       localStorage.setItem(this.STORAGE_KEY, JSON.stringify(data));
     } catch (error) {
-      console.error('[PaintTemplateService] Failed to save templates to storage:', error);
+      logger.error('[PaintTemplateService] Failed to save templates to storage', error);
     }
   }
 }

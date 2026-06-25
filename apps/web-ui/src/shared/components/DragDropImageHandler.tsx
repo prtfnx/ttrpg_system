@@ -3,6 +3,7 @@ import { assetIntegrationService, useAssetManager } from '@features/assets';
 import { spriteCreationService } from '@features/canvas/services/spriteCreation.service';
 import { useProtocol } from '@lib/api';
 import { createMessage, MessageType } from '@lib/websocket';
+import { logger } from '@shared/utils/logger';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 
 interface DragDropImageHandlerProps {
@@ -43,7 +44,7 @@ export const DragDropImageHandler: React.FC<DragDropImageHandlerProps> = ({
   // Handle asset upload response from server
   const handleAssetUploadResponse = useCallback((event: CustomEvent) => {
     const data = event.detail;
-    console.log('DragDrop: Asset upload response received:', data);
+    logger.debug('Asset upload response received', data);
     
     if (data.success && data.asset_id) {
       // Look up pending upload by asset_id
@@ -84,7 +85,7 @@ export const DragDropImageHandler: React.FC<DragDropImageHandlerProps> = ({
               }, 3000);
             })
             .catch(error => {
-              console.error('Upload failed:', error);
+              logger.error('Drag-drop upload failed', error);
               setUploadState({
                 status: 'failed',
                 progress: 0,
@@ -95,7 +96,7 @@ export const DragDropImageHandler: React.FC<DragDropImageHandlerProps> = ({
             });
         } else {
           // Case 2: Asset already exists - directly create sprite
-          console.log('DragDrop: Asset already exists, creating sprite directly');
+          logger.debug('Asset already exists, creating sprite directly', { assetId: data.asset_id });
           
           setUploadState({
             status: 'processing',
@@ -133,7 +134,7 @@ export const DragDropImageHandler: React.FC<DragDropImageHandlerProps> = ({
           }, 2000);
         }
       } else {
-        console.error('DragDrop: No matching upload request found for asset_id:', data.asset_id);
+        logger.error('No matching drag-drop upload request found', { assetId: data.asset_id });
         setUploadState({
           status: 'failed',
           progress: 0,
@@ -186,11 +187,13 @@ export const DragDropImageHandler: React.FC<DragDropImageHandlerProps> = ({
       };
 
       xhr.onload = () => {
-        console.log('Upload response status:', xhr.status);
-        console.log('Upload response headers:', xhr.getAllResponseHeaders());
+        logger.debug('R2 upload response received', {
+          status: xhr.status,
+          headers: xhr.getAllResponseHeaders(),
+        });
         
         if (xhr.status >= 200 && xhr.status < 300) {
-          console.log('File uploaded successfully to R2');        
+          logger.info('File uploaded successfully to R2', { assetId, fileName: file.name });        
          
           // Dispatch upload completion event for AssetIntegrationService to handle
           window.dispatchEvent(new CustomEvent('asset-upload-completed', {
@@ -214,19 +217,19 @@ export const DragDropImageHandler: React.FC<DragDropImageHandlerProps> = ({
               worldY: worldY,
               sessionId: sessionId || 'default'
             }).catch(error => {
-              console.error('DragDrop: Failed to create sprite:', error);
+              logger.error('Failed to create sprite after drag-drop upload', error);
             });
           }
           
           resolve();
         } else {
-          console.error('Upload failed with status:', xhr.status, xhr.statusText);
+          logger.error('R2 upload failed with HTTP status', { status: xhr.status, statusText: xhr.statusText });
           reject(new Error(`Upload failed with status ${xhr.status}: ${xhr.statusText}`));
         }
       };
 
       xhr.onerror = () => {
-        console.error('Upload network error');
+        logger.error('R2 upload network error');
         reject(new Error('Upload failed due to network error'));
       };
       
@@ -235,7 +238,7 @@ export const DragDropImageHandler: React.FC<DragDropImageHandlerProps> = ({
       xhr.setRequestHeader('x-amz-meta-xxhash', fullHash);
       xhr.setRequestHeader('x-amz-meta-upload-timestamp', Math.floor(Date.now() / 1000).toString());
       
-      console.log('Starting upload to R2:', {
+      logger.debug('Starting upload to R2', {
         file: file.name,
         size: file.size,
         type: file.type,
@@ -292,7 +295,7 @@ export const DragDropImageHandler: React.FC<DragDropImageHandlerProps> = ({
     }
 
     if (!protocol) {
-      console.error('Protocol not available for upload');
+      logger.error('Protocol not available for drag-drop upload');
       return;
     }
 
@@ -305,7 +308,7 @@ export const DragDropImageHandler: React.FC<DragDropImageHandlerProps> = ({
 
     // Process first image file
     const file = imageFiles[0];
-    console.log(`DragDrop: Processing dropped image: ${file.name} at position:`, dropPosition);
+    logger.debug('Processing dropped image', { fileName: file.name, dropPosition });
 
     try {
       setUploadState({
@@ -359,10 +362,10 @@ export const DragDropImageHandler: React.FC<DragDropImageHandlerProps> = ({
         detail: { asset_id: assetId }
       }));
       
-      console.log('DragDrop: Requested upload URL for asset:', assetId);
+      logger.debug('Requested upload URL for drag-drop asset', { assetId });
 
     } catch (error) {
-      console.error('Error handling drop:', error);
+      logger.error('Error handling drag-drop image upload', error);
       setUploadState({
         status: 'failed',
         progress: 0,

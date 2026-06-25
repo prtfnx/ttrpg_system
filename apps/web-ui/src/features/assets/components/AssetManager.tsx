@@ -1,6 +1,7 @@
 import { useAuthenticatedWebSocket } from '@features/auth';
 import type { UserInfo } from '@features/auth';
 import { MessageType, createMessage } from '@lib/websocket';
+import { logger } from '@shared/utils/logger';
 import clsx from 'clsx';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { useAssetManager } from '../hooks/useAssetManager';
@@ -145,9 +146,9 @@ export const AssetManager: React.FC<AssetManagerProps> = ({ isVisible, onClose, 
         const fileId = batch[i];
         const fileInfo = uploadFiles.get(fileId);
         if (success) {
-          console.log(`Successfully uploaded ${fileInfo?.file.name}`);
+          logger.info('Asset upload completed', { fileName: fileInfo?.file.name });
         } else {
-          console.error(`Failed to upload ${fileInfo?.file.name}`);
+          logger.error('Asset upload failed', { fileName: fileInfo?.file.name });
         }
       });
     } catch (_error) {

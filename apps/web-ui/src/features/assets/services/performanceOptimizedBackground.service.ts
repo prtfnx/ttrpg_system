@@ -5,6 +5,7 @@
  */
 
 import type { RenderEngine } from '@lib/wasm/runtime';
+import { logger } from '@shared/utils/logger';
 
 export interface BackgroundLayer {
   id: string;
@@ -174,7 +175,7 @@ class PerformanceOptimizedBackgroundSystem {
     // Initialize texture atlases
     await this.initializeTextureAtlases();
     
-    console.log('Performance-Optimized Background System initialized', {
+    logger.info('Performance-Optimized Background System initialized', {
       webglSupport: this.webglSupport,
       performanceProfile: this.performanceProfile,
       streamingOptions: this.streamingOptions
@@ -198,9 +199,9 @@ class PerformanceOptimizedBackgroundSystem {
       // Create texture atlases for optimal batching
       await this.createTextureAtlases(config);
       
-      console.log(`Background configuration '${config.name}' loaded successfully`);
+      logger.info('Background configuration loaded successfully', { configId: config.id, configName: config.name });
     } catch (error) {
-      console.error('Failed to load background configuration:', error);
+      logger.error('Failed to load background configuration', error);
       throw error;
     }
   }
@@ -227,9 +228,9 @@ class PerformanceOptimizedBackgroundSystem {
       // Update performance settings
       this.updatePerformanceSettings(config.performanceProfile);
       
-      console.log(`Active background configuration set to '${config.name}'`);
+      logger.info('Active background configuration set', { configId, configName: config.name });
     } catch (error) {
-      console.error('Failed to set active background configuration:', error);
+      logger.error('Failed to set active background configuration', error);
       throw error;
     }
   }
@@ -352,7 +353,7 @@ class PerformanceOptimizedBackgroundSystem {
     // Clear configurations
     this.configurations.clear();
     
-    console.log('Background system cleaned up');
+    logger.info('Background system cleaned up');
   }
 
   // Private methods
@@ -576,7 +577,7 @@ class PerformanceOptimizedBackgroundSystem {
           try {
             this.renderEngine.load_texture(url, img);
           } catch (error) {
-            console.warn('Failed to load texture into render engine:', error);
+            logger.warn('Failed to load texture into render engine', error);
           }
         }
         
@@ -654,7 +655,7 @@ class PerformanceOptimizedBackgroundSystem {
       this.applyGlobalSettings(config);
 
     } catch (error) {
-      console.error('Failed to apply configuration to renderer:', error);
+      logger.error('Failed to apply configuration to renderer', error);
       throw error;
     }
   }
@@ -678,9 +679,9 @@ class PerformanceOptimizedBackgroundSystem {
       // The actual implementation would involve calling Rust methods to set up
       // background rendering with proper instancing and batching
       
-      console.log(`Applied background layer '${layer.name}' with texture '${textureUrl}'`);
+      logger.debug('Applied background layer', { layerId: layer.id, layerName: layer.name, textureUrl });
     } catch (error) {
-      console.error(`Failed to apply background layer '${layer.name}':`, error);
+      logger.error('Failed to apply background layer', { layerId: layer.id, layerName: layer.name, error });
     }
   }
 
@@ -700,21 +701,21 @@ class PerformanceOptimizedBackgroundSystem {
     // Weather effects would be implemented in the Rust side
     // This is a placeholder for the interface
     
-    console.log(`Applied weather effect '${effect.type}' with intensity ${effect.intensity}`);
+    logger.debug('Applied weather effect', { effectId: effect.id, type: effect.type, intensity: effect.intensity });
   }
 
   private removeWeatherEffectFromRenderer(effectId: string): void {
     if (!this.renderEngine) return;
 
     // Remove weather effect from Rust renderer
-    console.log(`Removed weather effect '${effectId}'`);
+    logger.debug('Removed weather effect', { effectId });
   }
 
   private updateLayerInRenderer(layer: BackgroundLayer): void {
     if (!this.renderEngine) return;
 
     // Update layer properties in renderer
-    console.log(`Updated background layer '${layer.name}'`);
+    logger.debug('Updated background layer', { layerId: layer.id, layerName: layer.name });
   }
 
   private applyGlobalSettings(config: BackgroundConfiguration): void {

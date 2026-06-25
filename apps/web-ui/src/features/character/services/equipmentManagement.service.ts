@@ -1,4 +1,6 @@
 // Type-safe conversion utilities for equipment <-> wizard item <-> inventory item
+import { logger } from '@shared/utils/logger';
+
 // Wizard equipment item type
 export type WizardEquipmentItem = {
   equipment: {
@@ -765,7 +767,7 @@ class EquipmentManagementService {
     }
     
     this.equipmentCache = await this.fetchEquipmentFromAPI();
-    console.log(` Loaded ${this.equipmentCache.length} equipment items from compendium`);
+    logger.debug('Loaded equipment items from compendium', { count: this.equipmentCache.length });
     return this.equipmentCache;
   }
 

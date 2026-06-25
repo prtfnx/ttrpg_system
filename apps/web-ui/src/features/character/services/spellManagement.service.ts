@@ -4,6 +4,7 @@
  */
 
 import type { Spell } from '@features/compendium';
+import { logger } from '@shared/utils/logger';
 
 // D&D 5e spell slot progression tables
 export const SPELL_SLOTS_BY_CLASS_AND_LEVEL = {
@@ -220,12 +221,12 @@ class SpellManagementService {
     const normalizedClass = characterClass.charAt(0).toUpperCase() + characterClass.slice(1).toLowerCase();
     const classData = SPELL_SLOTS_BY_CLASS_AND_LEVEL[normalizedClass as keyof typeof SPELL_SLOTS_BY_CLASS_AND_LEVEL];
     if (!classData) {
-      console.warn(` No spell slot data for class: ${characterClass} (normalized: ${normalizedClass})`);
+      logger.warn('No spell slot data for class', { characterClass, normalizedClass });
       return { cantrips: 0 };
     }
     
     const slots = classData[level as keyof typeof classData] || { cantrips: 0 };
-    console.log(` Spell slots for ${normalizedClass} level ${level}:`, slots);
+    logger.debug('Spell slots resolved', { className: normalizedClass, level, slots });
     return slots;
   }
 
@@ -258,7 +259,14 @@ class SpellManagementService {
       const modifier = Math.floor((abilityScore - 10) / 2);
       const preparedCount = Math.max(1, modifier + level); // Minimum of 1
       
-      console.log(` ${normalizedClass} can prepare ${preparedCount} spells (${abilityKey} ${abilityScore}, modifier ${modifier}, level ${level})`);
+      logger.debug('Prepared spell count resolved', {
+        className: normalizedClass,
+        preparedCount,
+        abilityKey,
+        abilityScore,
+        modifier,
+        level,
+      });
       return preparedCount;
     }
     

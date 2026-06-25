@@ -5,6 +5,7 @@ import { isDM, type SessionRole } from '@features/session/types/roles';
 import { ProtocolService } from '@lib/api';
 import { getCurrentWasmRuntime } from '@lib/wasm/runtime';
 import { transformServerTablesToClient, validateTableId } from '@lib/websocket';
+import { logger } from '@shared/utils/logger';
 import { create } from 'zustand';
 import { devtools } from 'zustand/middleware';
 
@@ -634,7 +635,7 @@ export const useGameStore = create<GameStore>()(
       },
 
       setActiveTableId: (tableId: string | null) => {
-        console.log('[Store] setActiveTableId called with:', tableId);
+        logger.debug('setActiveTableId called', { tableId });
         set(() => ({
           activeTableId: tableId,
         }));
@@ -642,15 +643,15 @@ export const useGameStore = create<GameStore>()(
         // Save active table to server for persistence
         if (tableId && ProtocolService.hasProtocol()) {
           const protocol = ProtocolService.getProtocol();
-          console.log('[Store] Protocol available, calling setActiveTable');
+          logger.debug('Protocol available for active table persistence');
           if (protocol.setActiveTable) {
-            console.log('[Store] Calling protocol.setActiveTable with:', tableId);
+            logger.debug('Calling protocol.setActiveTable', { tableId });
             protocol.setActiveTable(tableId);
           } else {
-            console.warn('[Store] protocol.setActiveTable method not available');
+            logger.warn('protocol.setActiveTable method not available');
           }
         } else {
-          console.warn('[Store] Protocol not available or tableId is null:', { tableId, protocol: !!(window as Window & { protocol?: unknown }).protocol });
+          logger.warn('Protocol not available or tableId is null', { tableId, protocol: !!(window as Window & { protocol?: unknown }).protocol });
         }
       },
 
@@ -661,12 +662,12 @@ export const useGameStore = create<GameStore>()(
       },
 
       requestTableList: () => {
-        console.log('Store: Requesting table list...');
+        logger.debug('Requesting table list');
         // Send message via protocol to request table list
         set(() => ({ tablesLoading: true }));
 
         if (!ProtocolService.hasProtocol()) {
-        console.warn('[Store] Protocol not initialized');
+        logger.warn('Protocol not initialized');
         return;
      }
 
@@ -741,11 +742,11 @@ export const useGameStore = create<GameStore>()(
           const table = state.tables.find((t: TableInfo) => t.table_id === tableId);
           
           if (!table) {
-            console.error('Table not found for sync:', tableId);
+            logger.error('Table not found for sync', { tableId });
             return state; // No change
           }
           
-          console.log('Syncing table to server:', table);
+          logger.debug('Syncing table to server', table);
           
           // Send NEW_TABLE_REQUEST to create on server
           sendProtocolMessage('new_table_request', {
@@ -767,7 +768,7 @@ export const useGameStore = create<GameStore>()(
       },
 
       switchToTable: (tableId: string) => {
-        console.log('[Store] switchToTable called with:', tableId);
+        logger.debug('switchToTable called', { tableId });
         validateTableId(tableId);
         
         // Use setActiveTableId to ensure server persistence

@@ -3,6 +3,7 @@ import type { Sprite, WebSocketMessage } from '@/types';
 import { useOptionalProtocol } from '@lib/api';
 import { useRenderEngine } from '@lib/wasm/runtime';
 import type { Message } from '@lib/websocket';
+import { logger } from '@shared/utils/logger';
 import { useCallback, useEffect, useRef } from 'react';
 
 export function useWebSocket(url: string) {
@@ -71,7 +72,7 @@ export function useWebSocket(url: string) {
         case 'sprite_create':
           if (message.data && typeof message.data === 'object') {
             const data = message.data as Record<string, unknown>;
-            console.log('[WebSocket] sprite_create received:', data);
+            logger.debug('sprite_create received', data);
             
             // Convert legacy width/height to scale if provided
             const scaleX = data.width ? (data.width as number) / 32 : (data.scale_x as number) || 1;
@@ -106,14 +107,12 @@ export function useWebSocket(url: string) {
               texture_id: message.data.texture_path || message.data.imageUrl || '',
               tint_color: [1.0, 1.0, 1.0, 1.0]
             };
-            console.log('[WASM] add_sprite_to_layer payload:', spriteForWasm);
+            logger.debug('Adding sprite to WASM layer', spriteForWasm);
             if (renderEngine) {
               try {
-                console.log('[WASM] Calling add_sprite_to_layer...');
                 renderEngine.add_sprite_to_layer(layer, spriteForWasm);
-                console.log('[WASM] add_sprite_to_layer call completed');
               } catch (err) {
-                console.error('[WASM] Failed to add sprite to RenderManager:', err);
+                logger.error('Failed to add sprite to RenderManager', err);
               }
             }
           }
@@ -135,7 +134,7 @@ export function useWebSocket(url: string) {
           
         case 'table_data':
           if (message.data && typeof message.data === 'object') {
-            console.log('Received table data:', message.data);
+            logger.debug('Received table data', message.data);
             const data = message.data as { 
               table_id?: string;
               width?: number;
@@ -179,10 +178,10 @@ export function useWebSocket(url: string) {
                     // Check if asset is already cached (simple check)
                     const img = new Image();
                     img.onload = () => {
-                      console.log('Asset already available:', textureUrl);
+                      logger.debug('Asset already available', textureUrl);
                     };
                     img.onerror = () => {
-                      console.log('Asset needs download:', textureUrl);
+                      logger.debug('Asset needs download', textureUrl);
                       // Request asset download from server
                       const downloadMessage = createMessage('asset_download_request', {
                         asset_id: textureUrl,
@@ -192,7 +191,7 @@ export function useWebSocket(url: string) {
                     };
                     img.src = textureUrl;
                   } catch (error) {
-                    console.error('Error checking asset:', error);
+                    logger.error('Error checking asset', error);
                   }
                 }
                 
@@ -213,9 +212,9 @@ export function useWebSocket(url: string) {
                     };
                     
                     renderEngine.add_sprite_to_layer(layerName, spriteData);
-                    console.log('Added sprite to WASM layer:', layerName, spriteData);
+                    logger.debug('Added sprite to WASM layer', { layerName, spriteData });
                   } catch (error) {
-                    console.error('Failed to add sprite to WASM:', error);
+                    logger.error('Failed to add sprite to WASM', error);
                   }
                 }
               });
@@ -224,14 +223,14 @@ export function useWebSocket(url: string) {
             // Table dimensions can be handled through the canvas resize mechanism
             if (data.width && data.height && renderEngine) {
               try {
-                console.log('Table dimensions:', data.width, 'x', data.height);
+                logger.debug('Resizing WASM canvas for table dimensions', { width: data.width, height: data.height });
                 renderEngine.resize_canvas(data.width, data.height);
               } catch (error) {
-                console.error('Failed to set table size in WASM:', error);
+                logger.error('Failed to set table size in WASM', error);
               }
             }
             
-            console.log('Table data processed successfully');
+            logger.debug('Table data processed successfully');
           }
           break;
           
@@ -247,10 +246,10 @@ export function useWebSocket(url: string) {
           break;
           
         default:
-          console.log('Unhandled message type:', message.type);
+          logger.debug('Unhandled message type', message.type);
       }
     } catch (error) {
-      console.error('Failed to parse WebSocket message:', error);
+      logger.error('Failed to parse WebSocket message', error);
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps -- intentional: deps omitted to avoid infinite reconnect
   }, [moveSprite, addSprite, removeSprite, renderEngine, updateSprite, setConnection]);
@@ -270,7 +269,7 @@ export function useWebSocket(url: string) {
         updateConnectionState('connected');
         setConnection(true);
       } catch (err) {
-        console.error('Protocol connect failed:', err);
+        logger.error('Protocol connect failed', err);
         updateConnectionState('error');
         setConnection(false);
       }
@@ -307,7 +306,7 @@ export function useWebSocket(url: string) {
 
     } catch (error) {
       updateConnectionState('error');
-      console.error('WebSocket connection failed:', error);
+      logger.error('WebSocket connection failed', error);
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps -- intentional: protocol dep omitted to prevent reconnect loop
   }, [url, updateConnectionState, setConnection, handleMessage, flushMessageQueue, sendMessage, createMessage]);

@@ -1,6 +1,7 @@
 /**
  * Configuration utility for the TTRPG client
  */
+import { logger } from '@shared/utils/logger';
 
 interface AppConfig {
   webSocketUrl: string;
@@ -41,7 +42,7 @@ class ConfigManager {
       isDevelopment
     };
 
-    console.log('Loaded config:', config);
+    logger.debug('Loaded config', config);
     return config;
   }
 

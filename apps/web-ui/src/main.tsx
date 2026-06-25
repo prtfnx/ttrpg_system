@@ -1,10 +1,10 @@
 /* eslint-disable react-refresh/only-export-components */
-console.log('[DEBUG] main.tsx script loaded');
 import { AuthProvider } from '@features/auth';
 import { EntitiesPanel } from '@features/canvas/components/EntitiesPanel';
 import { ToolsPanel } from '@features/canvas/components/ToolsPanel';
 import { CharacterPanel } from '@features/character/components/CharacterPanel';
 import { WasmRuntimeProvider } from '@lib/wasm/runtime';
+import { logger } from '@shared/utils/logger';
 import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 import App from './App.tsx';
@@ -69,4 +69,4 @@ if (rootElement) {
   createRoot(rootElement).render(<AppWrapper />);
 }
 
-console.log('React game components integration loaded');
+logger.info('React game components integration loaded');

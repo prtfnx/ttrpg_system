@@ -1,4 +1,5 @@
 import { useNetworkClient } from '@shared/hooks';
+import { logger } from '@shared/utils/logger';
 import React, { useCallback, useState } from 'react';
 import styles from './NetworkPanel.module.css';
 
@@ -18,14 +19,14 @@ export const NetworkPanel: React.FC = () => {
   const [customMessageType, setCustomMessageType] = useState('ping');
 
   const onMessage = useCallback((message: NetworkMessage) => {
-    console.log('Network message received:', message);
+    logger.debug('Network message received', message);
     if (typeof window !== 'undefined') {
       setMessages(prev => [...prev.slice(-49), message]); // Keep last 50 messages
     }
   }, []);
 
   const onConnectionChange = useCallback((state: string, error?: string) => {
-    console.log('Connection state changed:', state, error);
+    logger.debug('Connection state changed', { state, error });
     if (error && typeof window !== 'undefined') {
       // Avoid duplicating large human-readable failure messages in the message log.
       // The UI already shows the lastError banner for connection failures, so only
@@ -48,7 +49,7 @@ export const NetworkPanel: React.FC = () => {
   }, []);
 
   const onError = useCallback((error: string) => {
-    console.error('Network error:', error);
+    logger.error('Network error', error);
     // Check if component is still mounted and in browser environment
     if (typeof window !== 'undefined') {
       // Avoid adding the full 'Connection failed' text to the message log which
@@ -123,7 +124,7 @@ export const NetworkPanel: React.FC = () => {
       const data = customMessage ? JSON.parse(customMessage) : {};
       sendMessage(customMessageType, data);
     } catch (error) {
-      console.error('Invalid JSON in custom message:', error);
+      logger.error('Invalid JSON in custom message', error);
     }
   };
 

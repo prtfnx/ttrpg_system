@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from enum import Enum
-from typing import Any, Callable, Optional
+from typing import Any, Awaitable, Callable, Optional
 
 from core_table.combat import CombatState
 from pydantic import BaseModel, ConfigDict, Field, ValidationError, field_validator
@@ -10,6 +10,7 @@ from utils.roles import is_dm
 
 
 class CombatCommandType(str, Enum):
+    MOVE = "move"
     ATTACK = "attack"
     CAST_SPELL = "cast_spell"
     DASH = "dash"
@@ -28,6 +29,12 @@ class CombatCommand(BaseModel):
     target_id: Optional[str] = None
     target_ids: list[str] = Field(default_factory=list)
     table_id: Optional[str] = None
+    target_x: Optional[float] = None
+    target_y: Optional[float] = None
+    from_x: Optional[float] = None
+    from_y: Optional[float] = None
+    cost_ft: Optional[float] = None
+    path: list[Any] = Field(default_factory=list)
     attack_bonus: int = 0
     damage_formula: str = "1d4"
     damage_type: str = "bludgeoning"
@@ -68,6 +75,9 @@ class CombatCommandContext:
     role: str
     user_id: Optional[int]
     table_lookup: Callable[[str], Any | None] = lambda _table_id: None
+    move_sprite: Optional[
+        Callable[[str, str, dict[str, float], dict[str, float], str], Awaitable[dict[str, Any]]]
+    ] = None
 
 
 @dataclass
@@ -115,6 +125,9 @@ class CombatCommandService:
         envelope: CombatCommandEnvelope,
         context: CombatCommandContext,
     ) -> CombatCommandResult:
+        for idx, command in enumerate(envelope.commands):
+            if command.type == CombatCommandType.MOVE:
+                return self._reject(envelope.sequence_id, idx, "Movement commands require async application")
         state = self._engine.get_state(context.session_code)
         if not state:
             return self._reject(envelope.sequence_id, 0, "No active combat")
@@ -147,6 +160,54 @@ class CombatCommandService:
             state = self._engine.get_state(context.session_code)
             if not state:
                 self._restore(context.session_code, snapshot)
+                return self._reject(envelope.sequence_id, idx, "Combat ended unexpectedly")
+
+        current = self._engine.get_state(context.session_code)
+        return CombatCommandResult(
+            accepted=True,
+            sequence_id=envelope.sequence_id,
+            applied=applied,
+            combat=current.to_dict() if current else None,
+        )
+
+    async def apply_async(
+        self,
+        envelope: CombatCommandEnvelope,
+        context: CombatCommandContext,
+    ) -> CombatCommandResult:
+        state = self._engine.get_state(context.session_code)
+        if not state:
+            return self._reject(envelope.sequence_id, 0, "No active combat")
+
+        snapshot = state.to_dict()
+        applied: list[dict[str, Any]] = []
+        move_undos: list[tuple[str, str, dict[str, float], dict[str, float]]] = []
+
+        for idx, command in enumerate(envelope.commands):
+            actor_id = self._resolve_combatant_id(state, command.actor_id)
+            if actor_id is None:
+                await self._restore_async(context, snapshot, move_undos)
+                return self._reject(envelope.sequence_id, idx, "Combatant not found")
+
+            error = self._assert_turn_and_control(state, actor_id, context)
+            if error:
+                await self._restore_async(context, snapshot, move_undos)
+                return self._reject(envelope.sequence_id, idx, error)
+
+            result = await self._apply_one_async(command, context, state, actor_id, move_undos)
+            if "error" in result:
+                await self._restore_async(context, snapshot, move_undos)
+                return self._reject(envelope.sequence_id, idx, str(result["error"]))
+
+            applied.append({
+                "sequence_index": idx,
+                "action_type": command.type.value,
+                "actor_id": actor_id,
+                "result": result,
+            })
+            state = self._engine.get_state(context.session_code)
+            if not state:
+                await self._restore_async(context, snapshot, move_undos)
                 return self._reject(envelope.sequence_id, idx, "Combat ended unexpectedly")
 
         current = self._engine.get_state(context.session_code)
@@ -217,11 +278,82 @@ class CombatCommandService:
             command.type.value,
         )
 
+    async def _apply_one_async(
+        self,
+        command: CombatCommand,
+        context: CombatCommandContext,
+        state,
+        actor_id: str,
+        move_undos: list[tuple[str, str, dict[str, float], dict[str, float]]],
+    ) -> dict[str, Any]:
+        if command.type == CombatCommandType.MOVE:
+            return await self._apply_move(command, context, state, actor_id, move_undos)
+        return self._apply_one(command, context, state, actor_id)
+
+    async def _apply_move(
+        self,
+        command: CombatCommand,
+        context: CombatCommandContext,
+        state,
+        actor_id: str,
+        move_undos: list[tuple[str, str, dict[str, float], dict[str, float]]],
+    ) -> dict[str, Any]:
+        if context.move_sprite is None:
+            return {"error": "move_sprite callback required"}
+        if not command.table_id:
+            return {"error": "table_id required"}
+        if command.target_x is None or command.target_y is None:
+            return {"error": "target_x and target_y required"}
+        if command.cost_ft is None or command.cost_ft < 0:
+            return {"error": "cost_ft required"}
+
+        actor = self._get_combatant(state, actor_id)
+        if actor is None:
+            return {"error": "Combatant not found"}
+        if command.cost_ft > actor.movement_remaining:
+            return {
+                "error": (
+                    f"Insufficient movement: need {command.cost_ft:.0f}ft, "
+                    f"have {actor.movement_remaining:.0f}ft"
+                )
+            }
+
+        from_pos = {
+            "x": float(command.from_x if command.from_x is not None else command.target_x),
+            "y": float(command.from_y if command.from_y is not None else command.target_y),
+        }
+        to_pos = {"x": float(command.target_x), "y": float(command.target_y)}
+        move_result = await context.move_sprite(
+            command.table_id,
+            actor.entity_id,
+            from_pos,
+            to_pos,
+            context.session_code,
+        )
+        if not move_result.get("success", False):
+            return {"error": move_result.get("message") or "Move failed"}
+
+        actor.movement_remaining -= command.cost_ft
+        move_undos.append((command.table_id, actor.entity_id, to_pos, from_pos))
+        return {
+            "action_type": "move",
+            "combatant_id": actor_id,
+            "entity_id": actor.entity_id,
+            "from": from_pos,
+            "to": to_pos,
+            "cost_ft": command.cost_ft,
+            "movement_remaining": actor.movement_remaining,
+            "path": command.path,
+        }
+
     def _resolve_combatant_id(self, state, identifier: str) -> str | None:
         for combatant in state.combatants:
             if identifier in {combatant.combatant_id, combatant.entity_id, combatant.character_id}:
                 return combatant.combatant_id
         return None
+
+    def _get_combatant(self, state, combatant_id: str):
+        return next((c for c in state.combatants if c.combatant_id == combatant_id), None)
 
     def _assert_turn_and_control(
         self,
@@ -240,6 +372,20 @@ class CombatCommandService:
 
     def _restore(self, session_code: str, snapshot: dict[str, Any]) -> None:
         self._engine._active[session_code] = CombatState.from_dict(snapshot)
+
+    async def _restore_async(
+        self,
+        context: CombatCommandContext,
+        snapshot: dict[str, Any],
+        move_undos: list[tuple[str, str, dict[str, float], dict[str, float]]],
+    ) -> None:
+        if context.move_sprite is not None:
+            for table_id, entity_id, from_pos, to_pos in reversed(move_undos):
+                try:
+                    await context.move_sprite(table_id, entity_id, from_pos, to_pos, context.session_code)
+                except Exception:
+                    pass
+        self._restore(context.session_code, snapshot)
 
     def _reject(self, sequence_id: int, failed_index: int, reason: str) -> CombatCommandResult:
         return CombatCommandResult(

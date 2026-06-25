@@ -1,5 +1,6 @@
 import json
 import uuid
+from typing import Any
 
 from core_table.game_mode import GameMode
 from core_table.protocol import Message, MessageType
@@ -521,7 +522,7 @@ class _CombatMixin(_ProtocolBase):
                 "reason": str(exc),
             })
 
-        result = service.apply(
+        result = await service.apply_async(
             envelope,
             CombatCommandContext(
                 session_code=self._get_session_code(),
@@ -529,6 +530,7 @@ class _CombatMixin(_ProtocolBase):
                 role=self._get_client_role(client_id),
                 user_id=self._get_user_id(msg, client_id),
                 table_lookup=self._get_table_by_id,
+                move_sprite=self._move_sprite_for_combat_command,
             ),
         )
         response_type = MessageType.ACTION_RESULT if result.accepted else MessageType.ACTION_REJECTED
@@ -536,6 +538,23 @@ class _CombatMixin(_ProtocolBase):
         if result.accepted:
             await self.broadcast_to_session(response, client_id)
         return response
+
+    async def _move_sprite_for_combat_command(
+        self,
+        table_id: str,
+        sprite_id: str,
+        old_position: dict[str, float],
+        new_position: dict[str, float],
+        session_id: str,
+    ) -> dict[str, Any]:
+        result = await self.actions.move_sprite(
+            table_id=table_id,
+            sprite_id=sprite_id,
+            old_position=old_position,
+            new_position=new_position,
+            session_id=session_id,
+        )
+        return {"success": result.success, "message": result.message}
 
     async def handle_cover_zone_add(self, msg: Message, client_id: str) -> Message:
         if not is_dm(self._get_client_role(client_id)):

@@ -3,7 +3,7 @@
 CombatEngine is patched for all tests — we verify permission gates,
 validation, and correct MessageType in responses.
 """
-from unittest.mock import MagicMock, patch
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 from core_table.protocol import Message, MessageType
@@ -622,6 +622,49 @@ class TestCombatCommand:
         assert resp.data["applied"][0]["action_type"] == "attack"
         assert proto.broadcasts[0][0].type == MessageType.ACTION_RESULT
         assert CombatEngine.get_state("TST").combatants[0].has_action is False
+
+    async def test_move_command_spends_movement_and_uses_actions_core(self):
+        CombatEngine._active.pop("TST", None)
+        state = CombatEngine.start_combat(
+            "TST",
+            "t1",
+            [],
+            combatants=[{
+                "entity_id": "sprite-a",
+                "name": "Ada",
+                "hp": 20,
+                "max_hp": 20,
+                "armor_class": 12,
+                "movement_speed": 30,
+                "controlled_by": ["1"],
+            }],
+        )
+        state.current_turn_index = 0
+        actor = state.combatants[0]
+        proto = _ProtoStub(role="player")
+        proto.actions = MagicMock()
+        proto.actions.move_sprite = AsyncMock(return_value=MagicMock(success=True, message="ok"))
+
+        resp = await proto.handle_combat_command(
+            Message(MessageType.COMBAT_COMMAND, {
+                "sequence_id": 13,
+                "commands": [{
+                    "type": "move",
+                    "actor_id": actor.combatant_id,
+                    "table_id": "t1",
+                    "from_x": 0,
+                    "from_y": 0,
+                    "target_x": 64,
+                    "target_y": 0,
+                    "cost_ft": 10,
+                }],
+            }),
+            "c1",
+        )
+
+        assert resp.type == MessageType.ACTION_RESULT
+        assert CombatEngine.get_state("TST").combatants[0].movement_remaining == 20
+        proto.actions.move_sprite.assert_awaited_once()
 
     async def test_legacy_utility_message_uses_command_service(self):
         CombatEngine._active.pop("TST", None)

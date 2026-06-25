@@ -1,4 +1,4 @@
-from unittest.mock import patch
+from unittest.mock import AsyncMock, patch
 
 from service.attack_resolver import AttackResult
 from service.combat_command_service import (
@@ -133,6 +133,75 @@ def test_command_batch_rolls_back_when_later_command_fails():
     assert result.reason == "target_id required"
     assert restored_actor.has_action is True
     assert restored_actor.movement_remaining == 30
+
+
+async def test_move_command_spends_movement_and_moves_token():
+    state, actor, _target = _state()
+    move_sprite = AsyncMock(return_value={"success": True, "message": "ok"})
+    service = CombatCommandService()
+    envelope = service.parse_envelope({
+        "sequence_id": 4,
+        "commands": [{
+            "type": "move",
+            "actor_id": actor.combatant_id,
+            "table_id": "t1",
+            "from_x": 0,
+            "from_y": 0,
+            "target_x": 64,
+            "target_y": 0,
+            "cost_ft": 10,
+        }],
+    })
+
+    result = await service.apply_async(envelope, CombatCommandContext(
+        session_code="cmd",
+        client_id="c1",
+        role="player",
+        user_id=1,
+        move_sprite=move_sprite,
+    ))
+
+    assert result.accepted is True
+    assert CombatEngine.get_state("cmd").combatants[0].movement_remaining == 20
+    move_sprite.assert_awaited_once()
+
+
+async def test_move_command_rolls_back_token_move_when_later_command_fails():
+    state, actor, _target = _state()
+    move_sprite = AsyncMock(return_value={"success": True, "message": "ok"})
+    service = CombatCommandService()
+    envelope = service.parse_envelope({
+        "sequence_id": 5,
+        "commands": [
+            {
+                "type": "move",
+                "actor_id": actor.combatant_id,
+                "table_id": "t1",
+                "from_x": 0,
+                "from_y": 0,
+                "target_x": 64,
+                "target_y": 0,
+                "cost_ft": 10,
+            },
+            {"type": "attack", "actor_id": actor.combatant_id},
+        ],
+    })
+
+    result = await service.apply_async(envelope, CombatCommandContext(
+        session_code="cmd",
+        client_id="c1",
+        role="owner",
+        user_id=1,
+        move_sprite=move_sprite,
+    ))
+    restored_actor = CombatEngine.get_state("cmd").combatants[0]
+
+    assert result.accepted is False
+    assert result.failed_index == 1
+    assert restored_actor.movement_remaining == 30
+    assert move_sprite.await_count == 2
+    assert move_sprite.await_args_list[1].args[2] == {"x": 64.0, "y": 0.0}
+    assert move_sprite.await_args_list[1].args[3] == {"x": 0.0, "y": 0.0}
 
 
 def test_end_turn_command_advances_to_next_combatant():

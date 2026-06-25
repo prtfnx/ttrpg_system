@@ -6,6 +6,7 @@
 import { useGameStore } from '@/store';
 import type { WebClientProtocol } from '@lib/websocket';
 import { createMessage, MessageType } from '@lib/websocket';
+import { logger } from '@shared/utils/logger';
 
 export interface SpriteCreationRequest {
   assetId: string;
@@ -46,7 +47,7 @@ class SpriteCreationService {
       throw new Error('Protocol not initialized');
     }
 
-    console.log(' SpriteCreation: Creating sprite for asset:', request.assetId);
+    logger.debug('Creating sprite for uploaded asset', { assetId: request.assetId });
 
     // Generate a unique sprite ID
     const spriteId = crypto.randomUUID();
@@ -57,7 +58,7 @@ class SpriteCreationService {
     // Get the actual table ID from the game store
     const activeTableId = useGameStore.getState().activeTableId;
     if (!activeTableId) {
- console.error('[SpriteCreation] No active table ID available for sprite creation');
+      logger.error('[SpriteCreation] No active table ID available for sprite creation');
       return spriteId;
     }
 
@@ -82,7 +83,7 @@ class SpriteCreationService {
       detail: { ...spriteData, table_id: activeTableId, controlled_by: [] }
     }));
     
-    console.log(' SpriteCreation: Requesting server to create sprite:', spriteData);
+    logger.debug('Requesting server to create sprite', { spriteData });
 
     this.protocol.sendMessage(createMessage(MessageType.SPRITE_CREATE, { 
       sprite_data: spriteData, 

@@ -3,6 +3,8 @@
  * Provides profiling, monitoring, and optimization utilities
  */
 
+import { logger } from '@shared/utils/logger';
+
 interface PerformanceMetric {
   name: string;
   duration: number;
@@ -52,7 +54,7 @@ class PerformanceProfiler {
  recommendations: []
     };
     
-    console.log(` Performance profiling started: ${sessionId}`);
+    logger.info('Performance profiling started', { sessionId });
   }
 
   /**
@@ -60,7 +62,7 @@ class PerformanceProfiler {
    */
   startTimer(name: string, category: PerformanceMetric['category'] = 'calculation', metadata?: Record<string, unknown>): void {
     if (!this.currentProfile) {
- console.warn('Performance profiling not started. Call startProfiling() first.');
+      logger.warn('Performance profiling not started. Call startProfiling() first.');
       return;
     }
 
@@ -79,13 +81,13 @@ class PerformanceProfiler {
    */
   endTimer(name: string): number {
     if (!this.currentProfile) {
- console.warn('Performance profiling not started.');
+      logger.warn('Performance profiling not started.');
       return 0;
     }
 
     const startTime = this.activeTimers.get(name);
     if (!startTime) {
- console.warn(`Timer "${name}" was not started.`);
+      logger.warn('Performance timer was not started', { name });
       return 0;
     }
 
@@ -148,7 +150,7 @@ class PerformanceProfiler {
     if (metric.duration > threshold) {
       const warning = `Performance warning: ${metric.name} took ${metric.duration.toFixed(2)}ms (threshold: ${threshold}ms)`;
       this.currentProfile.warnings.push(warning);
- console.warn(warning);
+      logger.warn(warning);
     }
   }
 
@@ -201,7 +203,7 @@ class PerformanceProfiler {
    */
   endProfiling(): PerformanceProfile | null {
     if (!this.currentProfile) {
- console.warn('No active profiling session.');
+      logger.warn('No active profiling session.');
       return null;
     }
 
@@ -211,11 +213,13 @@ class PerformanceProfiler {
     const profile = { ...this.currentProfile };
     const totalDuration = performance.now() - profile.startTime;
     
- console.log(` Performance profiling completed: ${profile.sessionId}`);
- console.log(` Session duration: ${totalDuration.toFixed(2)}ms`);
- console.log(` Metrics collected: ${profile.metrics.length}`);
- console.log(` Warnings: ${profile.warnings.length}`);
- console.log(` Recommendations: ${profile.recommendations.length}`);
+    logger.info('Performance profiling completed', {
+      sessionId: profile.sessionId,
+      totalDurationMs: totalDuration,
+      metricsCollected: profile.metrics.length,
+      warningCount: profile.warnings.length,
+      recommendationCount: profile.recommendations.length,
+    });
 
     this.currentProfile = null;
     return profile;

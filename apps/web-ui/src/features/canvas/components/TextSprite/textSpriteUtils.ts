@@ -1,6 +1,7 @@
 import { ProtocolService } from '@lib/api';
 import { getCurrentWasmRuntime } from '@lib/wasm/runtime';
 import type { RenderEngine } from '@lib/wasm/runtime';
+import { logger } from '@shared/utils/logger';
 import type { TextSpriteConfig } from './TextSpriteCreator';
 
 /**
@@ -264,10 +265,10 @@ export async function createTextSprite(
 
     // Send to server via protocol if available
     if (ProtocolService.hasProtocol()) {
-      console.log('[TextSprite] Sending sprite_create:', networkPayload);
+      logger.debug('[TextSprite] Sending sprite_create', { networkPayload });
       ProtocolService.getProtocol().createSprite(networkPayload as unknown as Record<string, unknown>);
     } else {
-      console.warn('[TextSprite] Protocol not available');
+      logger.warn('[TextSprite] Protocol not available');
     }
 
     // Load texture into WASM renderer for immediate display
@@ -300,14 +301,14 @@ export async function createTextSprite(
 
         onSuccess?.(spriteId);
       } catch (error) {
-        console.error('[TextSprite] Failed to load texture into WASM:', error);
+        logger.error('[TextSprite] Failed to load texture into WASM', error);
         onError?.(error instanceof Error ? error : new Error('Unknown error'));
       }
     };
 
     img.onerror = (error) => {
       const err = new Error('Failed to load text sprite image');
-      console.error('[TextSprite] Image load error:', error);
+      logger.error('[TextSprite] Image load error', error);
       onError?.(err);
     };
 
@@ -318,7 +319,7 @@ export async function createTextSprite(
 
   } catch (error) {
     const err = error instanceof Error ? error : new Error('Unknown error');
-    console.error('[TextSprite] Failed to create text sprite:', err);
+    logger.error('[TextSprite] Failed to create text sprite', err);
     onError?.(err);
     throw err;
   }
@@ -385,7 +386,7 @@ export async function updateTextSprite(
     img2.src = renderResult.canvas.toDataURL('image/png');
 
   } catch (error) {
-    console.error('[TextSprite] Failed to update text sprite:', error);
+    logger.error('[TextSprite] Failed to update text sprite', error);
     throw error;
   }
 }
@@ -403,6 +404,6 @@ export function deleteTextSprite(spriteId: string): void {
       ProtocolService.getProtocol().removeSprite(spriteId);
     }
   } catch (error) {
-    console.error('[TextSprite] Failed to delete text sprite:', error);
+    logger.error('[TextSprite] Failed to delete text sprite', error);
   }
 }

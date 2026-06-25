@@ -1,4 +1,5 @@
 import { useRenderEngine } from '@lib/wasm/runtime';
+import { logger } from '@shared/utils/logger';
 import clsx from 'clsx';
 import { Check, X } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
@@ -28,44 +29,40 @@ export function TextSpriteEditor({ position, onComplete, onCancel }: TextSpriteE
 
   // Convert world coordinates to screen coordinates
   useEffect(() => {
-    console.log('[TextSpriteEditor] useEffect triggered, position:', position);
-    
     if (!position) {
-      console.log('[TextSpriteEditor] No position, setting screenPos to null');
       setScreenPos(null);
       return;
     }
 
     if (!renderEngine) {
-      console.error('[TextSpriteEditor] Rust render manager not available');
+      logger.error('[TextSpriteEditor] Rust render manager not available');
       return;
     }
-
-    console.log('[TextSpriteEditor] renderEngine available, converting coords');
 
     try {
       const canvas = document.querySelector('.game-canvas') as HTMLCanvasElement;
       if (!canvas) {
-        console.error('[TextSpriteEditor] Canvas not found!');
+        logger.error('[TextSpriteEditor] Canvas not found');
         return;
       }
 
-      console.log('[TextSpriteEditor] Canvas found, getting bounds');
       const rect = canvas.getBoundingClientRect();
-      console.log('[TextSpriteEditor] Canvas rect:', rect);
       
       const screenCoords = renderEngine.world_to_screen(position.x, position.y);
-      console.log('[TextSpriteEditor] Screen coords from Rust:', screenCoords);
       
       const finalPos = {
         x: rect.left + (screenCoords[0] ?? 0),
         y: rect.top + (screenCoords[1] ?? 0)
       };
-      console.log('[TextSpriteEditor] Final screen position:', finalPos);
+      logger.debug('[TextSpriteEditor] Converted world position to screen position', {
+        position,
+        screenCoords,
+        finalPos,
+      });
       
       setScreenPos(finalPos);
     } catch (error) {
-      console.error('[TextSpriteEditor] Error converting world to screen coords:', error);
+      logger.error('[TextSpriteEditor] Error converting world to screen coords', error);
     }
   }, [position, renderEngine]);
 
@@ -102,14 +99,9 @@ export function TextSpriteEditor({ position, onComplete, onCancel }: TextSpriteE
     onCancel();
   };
 
-  console.log('[TextSpriteEditor] Render check - screenPos:', screenPos, 'position:', position);
-
   if (!screenPos) {
-    console.log('[TextSpriteEditor] Returning null - no screenPos');
     return null;
   }
-
-  console.log('[TextSpriteEditor] Rendering editor at:', screenPos);
 
   return (
     <>

@@ -1,6 +1,7 @@
 import { useGameStore } from '@/store';
 import type { RenderEngine } from '@lib/wasm/runtime';
 import { useRenderEngine } from '@lib/wasm/runtime';
+import { logger } from '@shared/utils/logger';
 import { Check, X } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 
@@ -42,7 +43,7 @@ function InlineTextEditor({ worldPosition, renderEngine, onComplete, onCancel }:
         const rect = canvas.getBoundingClientRect();
         const screenCoords = renderEngine.world_to_screen(worldPosition.x, worldPosition.y);
 
-        console.log('[InlineTextEditor] Converting coords:', {
+        logger.debug('[InlineTextEditor] Converting coords', {
           world: worldPosition,
           screen: screenCoords,
           canvasRect: { left: rect.left, top: rect.top, width: rect.width, height: rect.height }
@@ -54,14 +55,14 @@ function InlineTextEditor({ worldPosition, renderEngine, onComplete, onCancel }:
           const finalX = rect.left + screenCoords[0];
           const finalY = rect.top + screenCoords[1];
 
-          console.log('[InlineTextEditor] Final screen position:', { x: finalX, y: finalY });
+          logger.debug('[InlineTextEditor] Final screen position', { x: finalX, y: finalY });
 
           if (!cancelled) setScreenPos({ x: finalX, y: finalY });
         } else {
-          console.error('[InlineTextEditor] Invalid screen coords:', screenCoords);
+          logger.error('[InlineTextEditor] Invalid screen coords', { screenCoords });
         }
       } catch (error) {
-        console.error('[InlineTextEditor] Error converting coords:', error);
+        logger.error('[InlineTextEditor] Error converting coords', error);
       }
     };
 
@@ -221,23 +222,23 @@ export function TextSpriteTool({
 
     const handleMapClick = (event: CustomEvent) => {
       const { x, y } = event.detail;
-      console.log('[TextSpriteTool] Received textSpriteClick event at:', x, y);
+      logger.debug('[TextSpriteTool] Received textSpriteClick event', { x, y });
       setClickPosition({ x, y });
       setShowDialog(true);
     };
 
-    console.log('[TextSpriteTool] Registering textSpriteClick event listener');
+    logger.debug('[TextSpriteTool] Registering textSpriteClick event listener');
     window.addEventListener('textSpriteClick' as keyof WindowEventMap, handleMapClick as EventListener);
 
     return () => {
-      console.log('[TextSpriteTool] Removing textSpriteClick event listener');
+      logger.debug('[TextSpriteTool] Removing textSpriteClick event listener');
       window.removeEventListener('textSpriteClick' as keyof WindowEventMap, handleMapClick as EventListener);
     };
   }, [activeTool]);
 
   const handleComplete = (text: string, fontSize: number, color: string) => {
     if (!clickPosition) {
-      console.error('[TextSpriteTool] No click position available');
+      logger.error('[TextSpriteTool] No click position available');
       return;
     }
 
@@ -251,7 +252,7 @@ export function TextSpriteTool({
       // 16px = 0.5, 24px = 0.75, 32px = 1.0, 48px = 1.5
       const sizeMultiplier = fontSize / 32.0;
 
-      console.log('[TextSpriteTool] Creating text sprite:', {
+      logger.debug('[TextSpriteTool] Creating text sprite', {
         text,
         position: clickPosition,
         fontSize,
@@ -271,7 +272,7 @@ export function TextSpriteTool({
         activeLayer || 'tokens'
       );
 
-      console.log('[TextSpriteTool] Successfully created text sprite:', spriteId);
+      logger.info('[TextSpriteTool] Successfully created text sprite', { spriteId });
       onSpriteCreated?.(spriteId);
       
       // Auto-switch to select tool after creating text
@@ -280,7 +281,7 @@ export function TextSpriteTool({
       setShowDialog(false);
       setClickPosition(null);
     } catch (error) {
-      console.error('[TextSpriteTool] Error creating text sprite:', error);
+      logger.error('[TextSpriteTool] Error creating text sprite', error);
       const err = error instanceof Error ? error : new Error('Unknown error');
       onError?.(err);
     }

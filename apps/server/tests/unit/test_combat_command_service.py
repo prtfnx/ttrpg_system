@@ -135,6 +135,39 @@ def test_command_batch_rolls_back_when_later_command_fails():
     assert restored_actor.movement_remaining == 30
 
 
+async def test_move_command_rejects_failed_validation_before_moving_token():
+    state, actor, _target = _state()
+    move_sprite = AsyncMock(return_value={"success": True, "message": "ok"})
+    service = CombatCommandService()
+    envelope = service.parse_envelope({
+        "sequence_id": 6,
+        "commands": [{
+            "type": "move",
+            "actor_id": actor.combatant_id,
+            "table_id": "t1",
+            "from_x": 0,
+            "from_y": 0,
+            "target_x": 64,
+            "target_y": 0,
+            "cost_ft": 10,
+        }],
+    })
+
+    result = await service.apply_async(envelope, CombatCommandContext(
+        session_code="cmd",
+        client_id="c1",
+        role="player",
+        user_id=1,
+        move_sprite=move_sprite,
+        validate_move=lambda *_args: {"success": False, "message": "Path blocked"},
+    ))
+
+    assert result.accepted is False
+    assert result.reason == "Path blocked"
+    assert CombatEngine.get_state("cmd").combatants[0].movement_remaining == 30
+    move_sprite.assert_not_awaited()
+
+
 async def test_move_command_spends_movement_and_moves_token():
     state, actor, _target = _state()
     move_sprite = AsyncMock(return_value={"success": True, "message": "ok"})

@@ -531,6 +531,7 @@ class _CombatMixin(_ProtocolBase):
                 user_id=self._get_user_id(msg, client_id),
                 table_lookup=self._get_table_by_id,
                 move_sprite=self._move_sprite_for_combat_command,
+                validate_move=self._validate_move_for_combat_command,
             ),
         )
         response_type = MessageType.ACTION_RESULT if result.accepted else MessageType.ACTION_REJECTED
@@ -555,6 +556,54 @@ class _CombatMixin(_ProtocolBase):
             session_id=session_id,
         )
         return {"success": result.success, "message": result.message}
+
+    def _validate_move_for_combat_command(
+        self,
+        table_id: str,
+        sprite_id: str,
+        old_position: dict[str, float],
+        new_position: dict[str, float],
+        path: list[Any],
+    ) -> dict[str, Any]:
+        table = self._get_table_by_id(table_id)
+        if table is None:
+            return {"success": False, "message": "Table not found"}
+
+        session_code = self._get_session_code()
+        rules = None
+        cached = self._rules_cache.get(session_code) if session_code else None
+        if cached:
+            rules = cached[0]
+        elif session_code:
+            db = SessionLocal()
+            try:
+                rules_json = get_session_rules_json(db, session_code)
+                mode_str = get_game_mode(db, session_code) or "free_roam"
+                if rules_json and rules_json != "{}":
+                    rules_data = json.loads(rules_json)
+                    rules_data.setdefault("session_id", session_code)
+                    rules = SessionRules.from_dict(rules_data)
+                    self._rules_cache[session_code] = (rules, mode_str)
+            finally:
+                db.close()
+        rules = rules or SessionRules.defaults(session_code or "default")
+
+        tier = getattr(rules, "server_validation_tier", "lightweight")
+        if tier == "trust_client":
+            return {"success": True, "message": "ok"}
+
+        from service.movement_validator import MovementValidator
+
+        validator = MovementValidator(rules)
+        from_pos = (float(old_position.get("x", 0)), float(old_position.get("y", 0)))
+        to_pos = (float(new_position.get("x", 0)), float(new_position.get("y", 0)))
+        if tier == "lightweight":
+            result = validator.validate_lightweight(sprite_id, from_pos, to_pos, table, client_path=path)
+        else:
+            result = validator.validate(sprite_id, from_pos, to_pos, table, client_path=path)
+        if not result.valid:
+            return {"success": False, "message": result.reason}
+        return {"success": True, "message": "ok"}
 
     async def handle_cover_zone_add(self, msg: Message, client_id: str) -> Message:
         if not is_dm(self._get_client_role(client_id)):

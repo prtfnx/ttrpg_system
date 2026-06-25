@@ -7,6 +7,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 from core_table.protocol import Message, MessageType
+from core_table.session_rules import SessionRules
 from service.attack_resolver import AttackResult
 from service.combat_engine import CombatEngine
 from service.protocol.combat import _CombatMixin
@@ -22,6 +23,7 @@ class _ProtoStub(_CombatMixin):
         self.table_manager = MagicMock()
         self.table_manager.tables_id = {}
         self.table_manager.tables = {}
+        self._rules_cache = {"TST": (SessionRules.defaults("TST"), "free_roam")}
         self.broadcasts = []
 
     def _get_client_role(self, client_id):
@@ -644,6 +646,14 @@ class TestCombatCommand:
         proto = _ProtoStub(role="player")
         proto.actions = MagicMock()
         proto.actions.move_sprite = AsyncMock(return_value=MagicMock(success=True, message="ok"))
+        table = MagicMock()
+        table.width = 10
+        table.height = 10
+        table.grid_cell_px = 64
+        table.walls = {}
+        table.entities = {}
+        table.difficult_terrain_cells = set()
+        proto.table_manager.tables_id = {"t1": table}
 
         resp = await proto.handle_combat_command(
             Message(MessageType.COMBAT_COMMAND, {

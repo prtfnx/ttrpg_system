@@ -78,6 +78,9 @@ class CombatCommandContext:
     move_sprite: Optional[
         Callable[[str, str, dict[str, float], dict[str, float], str], Awaitable[dict[str, Any]]]
     ] = None
+    validate_move: Optional[
+        Callable[[str, str, dict[str, float], dict[str, float], list[Any]], dict[str, Any]]
+    ] = None
 
 
 @dataclass
@@ -323,6 +326,11 @@ class CombatCommandService:
             "y": float(command.from_y if command.from_y is not None else command.target_y),
         }
         to_pos = {"x": float(command.target_x), "y": float(command.target_y)}
+        if context.validate_move is not None:
+            validation = context.validate_move(command.table_id, actor.entity_id, from_pos, to_pos, command.path)
+            if not validation.get("success", False):
+                return {"error": validation.get("message") or "Move validation failed"}
+
         move_result = await context.move_sprite(
             command.table_id,
             actor.entity_id,

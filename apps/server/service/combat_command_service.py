@@ -123,12 +123,17 @@ class CombatCommandService:
         applied: list[dict[str, Any]] = []
 
         for idx, command in enumerate(envelope.commands):
-            error = self._assert_turn_and_control(state, command.actor_id, context)
+            actor_id = self._resolve_combatant_id(state, command.actor_id)
+            if actor_id is None:
+                self._restore(context.session_code, snapshot)
+                return self._reject(envelope.sequence_id, idx, "Combatant not found")
+
+            error = self._assert_turn_and_control(state, actor_id, context)
             if error:
                 self._restore(context.session_code, snapshot)
                 return self._reject(envelope.sequence_id, idx, error)
 
-            result = self._apply_one(command, context)
+            result = self._apply_one(command, context, state, actor_id)
             if "error" in result:
                 self._restore(context.session_code, snapshot)
                 return self._reject(envelope.sequence_id, idx, str(result["error"]))
@@ -136,7 +141,7 @@ class CombatCommandService:
             applied.append({
                 "sequence_index": idx,
                 "action_type": command.type.value,
-                "actor_id": command.actor_id,
+                "actor_id": actor_id,
                 "result": result,
             })
             state = self._engine.get_state(context.session_code)
@@ -156,15 +161,20 @@ class CombatCommandService:
         self,
         command: CombatCommand,
         context: CombatCommandContext,
+        state,
+        actor_id: str,
     ) -> dict[str, Any]:
         if command.type == CombatCommandType.ATTACK:
             if not command.target_id:
                 return {"error": "target_id required"}
+            target_id = self._resolve_combatant_id(state, command.target_id)
+            if target_id is None:
+                return {"error": "target_id not found"}
             table = context.table_lookup(command.table_id or "")
             return self._engine.execute_attack(
                 context.session_code,
-                attacker_id=command.actor_id,
-                target_id=command.target_id,
+                attacker_id=actor_id,
+                target_id=target_id,
                 attack_bonus=command.attack_bonus,
                 damage_formula=command.damage_formula,
                 damage_type=command.damage_type,
@@ -174,12 +184,19 @@ class CombatCommandService:
             )
 
         if command.type == CombatCommandType.CAST_SPELL:
+            target_ids = [
+                combatant_id
+                for target in command.target_ids
+                if (combatant_id := self._resolve_combatant_id(state, target)) is not None
+            ]
+            if command.target_ids and len(target_ids) != len(command.target_ids):
+                return {"error": "target_id not found"}
             return self._engine.execute_spell(
                 context.session_code,
-                caster_id=command.actor_id,
+                caster_id=actor_id,
                 spell_name=command.spell_name,
                 spell_level=command.spell_level,
-                target_ids=command.target_ids,
+                target_ids=target_ids,
                 damage_formula=command.damage_formula,
                 save_ability=command.save_ability,
                 save_dc=command.save_dc,
@@ -190,15 +207,21 @@ class CombatCommandService:
             )
 
         if command.type == CombatCommandType.END_TURN:
-            if not self._engine.end_turn(context.session_code, command.actor_id):
+            if not self._engine.end_turn(context.session_code, actor_id):
                 return {"error": "Cannot end turn"}
-            return {"action_type": "end_turn", "combatant_id": command.actor_id}
+            return {"action_type": "end_turn", "combatant_id": actor_id}
 
         return self._engine.execute_utility(
             context.session_code,
-            command.actor_id,
+            actor_id,
             command.type.value,
         )
+
+    def _resolve_combatant_id(self, state, identifier: str) -> str | None:
+        for combatant in state.combatants:
+            if identifier in {combatant.combatant_id, combatant.entity_id, combatant.character_id}:
+                return combatant.combatant_id
+        return None
 
     def _assert_turn_and_control(
         self,
@@ -233,4 +256,3 @@ def parse_combat_command_payload(payload: dict[str, Any]) -> CombatCommandEnvelo
         return CombatCommandEnvelope.from_payload(payload)
     except ValidationError:
         raise
-

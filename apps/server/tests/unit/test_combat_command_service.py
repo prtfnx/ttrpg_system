@@ -72,6 +72,29 @@ def test_player_command_executes_attack_for_owned_current_combatant():
     assert CombatEngine.get_state("cmd").combatants[0].has_action is False
 
 
+def test_command_accepts_token_ids_and_applies_to_combatants():
+    state, attacker, target = _state()
+    service = CombatCommandService()
+    envelope = service.parse_envelope({
+        "sequence_id": 8,
+        "commands": [{
+            "type": "attack",
+            "actor_id": attacker.entity_id,
+            "target_id": target.entity_id,
+            "damage_formula": "1d6",
+        }],
+    })
+
+    with patch.object(CombatEngine, "apply_damage", return_value={"new_hp": 15}):
+        with patch("service.attack_resolver.AttackResolver") as resolver:
+            resolver.return_value.resolve_attack.return_value = AttackResult(hit=True, damage_dealt=5)
+            result = service.apply(envelope, _context(role="player"))
+
+    assert result.accepted is True
+    assert result.applied[0]["actor_id"] == attacker.combatant_id
+    assert CombatEngine.get_state("cmd").combatants[0].has_action is False
+
+
 def test_player_command_rejects_unowned_combatant():
     state, attacker, target = _state()
     service = CombatCommandService()
@@ -135,4 +158,3 @@ def test_invalid_payload_is_rejected_before_application():
         assert "commands" in str(exc)
     else:
         raise AssertionError("Expected validation error")
-

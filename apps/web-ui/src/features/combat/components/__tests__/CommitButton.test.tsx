@@ -3,6 +3,7 @@ import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { useGameStore } from '@/store';
 import { useGameModeStore } from '../../stores/gameModeStore';
+import { useOAStore } from '../../stores/oaStore';
 import { usePlanningStore } from '../../stores/planningStore';
 import { CommitButton } from '../CommitButton';
 
@@ -32,6 +33,7 @@ beforeEach(() => {
     sprites: [{ id: 'sprite-1', tableId: 'table-1', x: 10, y: 20, name: 'Hero', layer: 'tokens', texture: '', scale: { x: 1, y: 1 }, rotation: 0 }],
   } as never);
   usePlanningStore.setState({ queue: [], isPlanningMode: false, selectedSpriteId: 'sprite-1', sequenceId: 0, nextSequenceId: () => 1 } as never);
+  useOAStore.setState({ pendingCombatCommand: null } as never);
   useGameModeStore.setState({ mode: 'combat' } as never);
 });
 
@@ -78,5 +80,27 @@ describe('CommitButton', () => {
     render(<CommitButton />);
     await userEvent.click(screen.getByRole('button', { name: 'Cancel' }));
     expect(stopPlanning).toHaveBeenCalled();
+  });
+
+  it('stores pending combat command for server opportunity confirmation', async () => {
+    usePlanningStore.setState({
+      queue: [{ ...makeAction('a1'), target_x: 80, target_y: 90, cost_ft: 10 }],
+      isPlanningMode: true,
+    } as never);
+
+    render(<CommitButton />);
+    await userEvent.click(screen.getByRole('button', { name: /Commit Turn/i }));
+
+    expect(useOAStore.getState().pendingCombatCommand).toMatchObject({
+      sequence_id: 1,
+      commands: [expect.objectContaining({
+        type: 'move',
+        actor_id: 'sprite-1',
+        table_id: 'table-1',
+        target_x: 80,
+        target_y: 90,
+        cost_ft: 10,
+      })],
+    });
   });
 });

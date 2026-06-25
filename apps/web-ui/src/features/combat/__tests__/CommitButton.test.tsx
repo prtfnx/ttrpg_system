@@ -6,12 +6,18 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 const mockSendMessage = vi.fn();
 const mockStopPlanning = vi.fn();
 const mockNextSequenceId = vi.fn(() => 42);
+const mockSetPendingCombatCommand = vi.fn();
 
 vi.mock('../stores/planningStore', () => ({
   usePlanningStore: vi.fn(),
 }));
 vi.mock('../stores/gameModeStore', () => ({
   useGameModeStore: vi.fn(() => 'free_roam'),
+}));
+vi.mock('../stores/oaStore', () => ({
+  useOAStore: vi.fn((selector) => selector({
+    setPendingCombatCommand: mockSetPendingCombatCommand,
+  })),
 }));
 vi.mock('@/store', () => ({
   useGameStore: vi.fn((selector) => selector({
@@ -90,6 +96,10 @@ describe('CommitButton', () => {
         }),
       })
     );
+    expect(mockSetPendingCombatCommand).toHaveBeenCalledWith(expect.objectContaining({
+      sequence_id: 42,
+      commands: [expect.objectContaining({ type: 'move' })],
+    }));
     // Planning cleared by ACTION_RESULT / ACTION_REJECTED, not optimistically on commit
     expect(mockStopPlanning).not.toHaveBeenCalled();
   });

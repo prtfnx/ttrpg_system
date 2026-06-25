@@ -5,6 +5,7 @@ import { ProtocolService } from '@lib/api';
 import { createMessage, MessageType } from '@lib/websocket';
 import { planningService } from '../services/planning.service';
 import { useGameModeStore } from '../stores/gameModeStore';
+import { useOAStore } from '../stores/oaStore';
 import { useGameStore } from '@/store';
 
 export function CommitButton() {
@@ -13,6 +14,7 @@ export function CommitButton() {
   const { queue, isPlanningMode, selectedSpriteId, stopPlanning, nextSequenceId } = usePlanningStore();
   const mode = useGameModeStore((s) => s.mode);
   const activeTableId = useGameStore((s) => s.activeTableId);
+  const setPendingCombatCommand = useOAStore((s) => s.setPendingCombatCommand);
   const selectedSprite = useGameStore((s) =>
     selectedSpriteId ? s.sprites.find((sprite) => sprite.id === selectedSpriteId) : undefined
   );
@@ -60,12 +62,13 @@ export function CommitButton() {
       });
     }
 
-    ProtocolService.getProtocol()?.sendMessage(
-      createMessage(MessageType.COMBAT_COMMAND, {
-        commands,
-        sequence_id: sequenceId,
-      })
-    );
+    const payload = {
+      commands,
+      sequence_id: sequenceId,
+    };
+
+    setPendingCombatCommand(payload);
+    ProtocolService.getProtocol()?.sendMessage(createMessage(MessageType.COMBAT_COMMAND, payload));
 
     // Queue cleared and planning stopped by ACTION_RESULT / ACTION_REJECTED handlers
     setPending(false);
@@ -79,7 +82,7 @@ export function CommitButton() {
         onClick={commit}
         disabled={pending}
       >
-        {pending ? 'Sending…' : `Commit Turn (${queue.length} action${queue.length !== 1 ? 's' : ''})`}
+        {pending ? 'Sending...' : `Commit Turn (${queue.length} action${queue.length !== 1 ? 's' : ''})`}
       </button>
       <button className={styles.cancelBtn} onClick={() => {
         stopPlanning();

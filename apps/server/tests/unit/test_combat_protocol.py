@@ -623,6 +623,36 @@ class TestCombatCommand:
         assert proto.broadcasts[0][0].type == MessageType.ACTION_RESULT
         assert CombatEngine.get_state("TST").combatants[0].has_action is False
 
+    async def test_legacy_utility_message_uses_command_service(self):
+        CombatEngine._active.pop("TST", None)
+        state = CombatEngine.start_combat(
+            "TST",
+            "t1",
+            [],
+            combatants=[{
+                "entity_id": "sprite-a",
+                "name": "Ada",
+                "hp": 20,
+                "max_hp": 20,
+                "armor_class": 12,
+                "movement_speed": 30,
+                "controlled_by": ["1"],
+            }],
+        )
+        state.current_turn_index = 0
+        actor = state.combatants[0]
+        proto = _ProtoStub(role="player")
+
+        resp = await proto.handle_combat_dash(
+            Message(MessageType.COMBAT_DASH, {"combatant_id": actor.combatant_id, "sequence_id": 12}),
+            "c1",
+        )
+
+        assert resp.type == MessageType.ACTION_RESULT
+        assert resp.data["accepted"] is True
+        assert resp.data["sequence_id"] == 12
+        assert CombatEngine.get_state("TST").combatants[0].has_action is False
+
 
 # ---------------------------------------------------------------------------
 # handle_dm_set_temp_hp

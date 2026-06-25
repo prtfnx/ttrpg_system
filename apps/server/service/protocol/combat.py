@@ -964,22 +964,24 @@ class _CombatMixin(_ProtocolBase):
 
 
     async def _handle_utility(self, msg: Message, client_id: str, action_type: str, CombatEngine) -> Message:
-        session_code = self._get_session_code()
-        state = CombatEngine.get_state(session_code)
-        if not state:
-            return Message(MessageType.ERROR, {'error': 'No active combat'})
         d = msg.data or {}
         combatant_id = d.get('combatant_id', '')
-        user_id = self._get_user_id(msg, client_id)
-        turn_err = self._assert_current_turn(state, combatant_id, client_id, user_id)
-        if turn_err:
-            return Message(MessageType.ERROR, {'error': turn_err})
-        result = CombatEngine.execute_utility(session_code, combatant_id, action_type)
-        if 'error' in result:
-            return Message(MessageType.ERROR, result)
-        state = CombatEngine.get_state(session_code)
-        resp = Message(MessageType.ACTION_RESULT, {
-            **result, 'combat': state.to_dict() if state else None
-        })
+        service = CombatCommandService()
+        result = service.apply(
+            service.parse_envelope({
+                'sequence_id': int(d.get('sequence_id', 0)),
+                'commands': [{'type': action_type, 'actor_id': combatant_id}],
+            }),
+            CombatCommandContext(
+                session_code=self._get_session_code(),
+                client_id=client_id,
+                role=self._get_client_role(client_id),
+                user_id=self._get_user_id(msg, client_id),
+                table_lookup=self._get_table_by_id,
+            ),
+        )
+        if not result.accepted:
+            return Message(MessageType.ERROR, {'error': result.reason})
+        resp = Message(MessageType.ACTION_RESULT, result.to_dict())
         await self.broadcast_to_session(resp, client_id)
         return resp

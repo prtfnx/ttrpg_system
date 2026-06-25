@@ -7,6 +7,8 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 from core_table.protocol import Message, MessageType
+from service.attack_resolver import AttackResult
+from service.combat_engine import CombatEngine
 from service.protocol.combat import _CombatMixin
 
 # ---------------------------------------------------------------------------
@@ -17,6 +19,10 @@ class _ProtoStub(_CombatMixin):
     def __init__(self, role="owner"):
         self._role = role
         self.session_manager = MagicMock()
+        self.table_manager = MagicMock()
+        self.table_manager.tables_id = {}
+        self.table_manager.tables = {}
+        self.broadcasts = []
 
     def _get_client_role(self, client_id):
         return self._role
@@ -34,7 +40,7 @@ class _ProtoStub(_CombatMixin):
         return {"user_id": 1, "role": self._role}
 
     async def broadcast_to_session(self, message, client_id):
-        pass
+        self.broadcasts.append((message, client_id))
 
     async def broadcast_filtered(self, message, layer, client_id):
         pass
@@ -547,6 +553,75 @@ class TestActionCommit:
         )
         assert resp.type == MessageType.ACTION_REJECTED
         assert resp.data["sequence_id"] == 1
+
+
+@pytest.mark.unit
+class TestCombatCommand:
+    async def test_invalid_payload_returns_rejected(self):
+        proto = _ProtoStub(role="player")
+
+        resp = await proto.handle_combat_command(
+            Message(MessageType.COMBAT_COMMAND, {"sequence_id": 10, "commands": []}), "c1"
+        )
+
+        assert resp.type == MessageType.ACTION_REJECTED
+        assert resp.data["accepted"] is False
+        assert resp.data["sequence_id"] == 10
+
+    async def test_attack_command_applies_and_broadcasts_result(self):
+        CombatEngine._active.pop("TST", None)
+        state = CombatEngine.start_combat(
+            "TST",
+            "t1",
+            [],
+            combatants=[
+                {
+                    "entity_id": "sprite-a",
+                    "name": "Ada",
+                    "hp": 20,
+                    "max_hp": 20,
+                    "armor_class": 12,
+                    "movement_speed": 30,
+                    "controlled_by": ["1"],
+                },
+                {
+                    "entity_id": "sprite-b",
+                    "name": "Borin",
+                    "hp": 20,
+                    "max_hp": 20,
+                    "armor_class": 10,
+                    "movement_speed": 30,
+                    "controlled_by": ["2"],
+                },
+            ],
+        )
+        state.current_turn_index = 0
+        attacker = state.combatants[0]
+        target = state.combatants[1]
+        proto = _ProtoStub(role="player")
+
+        with patch.object(CombatEngine, "apply_damage", return_value={"new_hp": 15}):
+            with patch("service.attack_resolver.AttackResolver") as resolver:
+                resolver.return_value.resolve_attack.return_value = AttackResult(hit=True, damage_dealt=5)
+                resp = await proto.handle_combat_command(
+                    Message(MessageType.COMBAT_COMMAND, {
+                        "sequence_id": 11,
+                        "commands": [{
+                            "type": "attack",
+                            "actor_id": attacker.combatant_id,
+                            "target_id": target.combatant_id,
+                            "damage_formula": "1d6",
+                        }],
+                    }),
+                    "c1",
+                )
+
+        assert resp.type == MessageType.ACTION_RESULT
+        assert resp.data["accepted"] is True
+        assert resp.data["sequence_id"] == 11
+        assert resp.data["applied"][0]["action_type"] == "attack"
+        assert proto.broadcasts[0][0].type == MessageType.ACTION_RESULT
+        assert CombatEngine.get_state("TST").combatants[0].has_action is False
 
 
 # ---------------------------------------------------------------------------

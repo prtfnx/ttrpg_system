@@ -112,6 +112,7 @@ class MessageType(enum.Enum):    # Core messages
     # ── Planning / Preview ──
     PLAN_START = "plan_start"
     PLAN_ACK = "plan_ack"
+    COMBAT_COMMAND = "combat_command"
     ACTION_COMMIT = "action_commit"
     ACTION_RESULT = "action_result"
     ACTION_REJECTED = "action_rejected"

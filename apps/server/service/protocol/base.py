@@ -209,6 +209,7 @@ class ServerProtocol(
         self.register_handler(MessageType.OPPORTUNITY_ATTACK_CONFIRM_MOVE, self.handle_oa_confirm_move)
         self.register_handler(MessageType.OPPORTUNITY_ATTACK_RESOLVE,      self.handle_oa_resolve)
         self.register_handler(MessageType.AI_ACTION,             self.handle_ai_action)
+        self.register_handler(MessageType.COMBAT_COMMAND,        self.handle_combat_command)
         self.register_handler(MessageType.ACTION_COMMIT,         self.handle_action_commit)
         # Player combat actions
         self.register_handler(MessageType.COMBAT_ATTACK,    self.handle_combat_attack)

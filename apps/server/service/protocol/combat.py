@@ -6,6 +6,8 @@ from core_table.protocol import Message, MessageType
 from core_table.session_rules import SessionRules
 from database.crud import get_game_mode, get_session_rules_json
 from database.database import SessionLocal
+from pydantic import ValidationError
+from service.combat_command_service import CombatCommandContext, CombatCommandService
 from service.rules_engine import RulesEngine
 from utils.logger import setup_logger
 from utils.roles import is_dm
@@ -503,6 +505,37 @@ class _CombatMixin(_ProtocolBase):
 
     def _get_table_by_id(self, table_id: str):
         return self.table_manager.tables_id.get(table_id) or self.table_manager.tables.get(table_id)
+
+    async def handle_combat_command(self, msg: Message, client_id: str) -> Message:
+        service = CombatCommandService()
+        payload = msg.data or {}
+
+        try:
+            envelope = service.parse_envelope(payload)
+        except ValidationError as exc:
+            return Message(MessageType.ACTION_REJECTED, {
+                "accepted": False,
+                "sequence_id": payload.get("sequence_id", 0),
+                "applied": [],
+                "failed_index": 0,
+                "reason": str(exc),
+            })
+
+        result = service.apply(
+            envelope,
+            CombatCommandContext(
+                session_code=self._get_session_code(),
+                client_id=client_id,
+                role=self._get_client_role(client_id),
+                user_id=self._get_user_id(msg, client_id),
+                table_lookup=self._get_table_by_id,
+            ),
+        )
+        response_type = MessageType.ACTION_RESULT if result.accepted else MessageType.ACTION_REJECTED
+        response = Message(response_type, result.to_dict())
+        if result.accepted:
+            await self.broadcast_to_session(response, client_id)
+        return response
 
     async def handle_cover_zone_add(self, msg: Message, client_id: str) -> Message:
         if not is_dm(self._get_client_role(client_id)):

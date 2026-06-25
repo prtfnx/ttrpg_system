@@ -10,6 +10,7 @@ interface ActionPanelProps {
   onSelectTarget?: (action: 'attack' | 'help') => void;
 }
 type ProtocolMessage = Parameters<WebClientProtocol['sendMessage']>[0];
+type CombatCommandType = 'dash' | 'dodge' | 'disengage' | 'hide' | 'end_turn';
 
 
 export function ActionPanel({ onSelectTarget }: ActionPanelProps) {
@@ -37,12 +38,18 @@ export function ActionPanel({ onSelectTarget }: ActionPanelProps) {
     return null;
   }
 
-  const utilityAction = (actionType: string) => {
-    send(actionType, { combatant_id: current.combatant_id });
+  const sendCommand = (commandType: CombatCommandType) => {
+    send(MessageType.COMBAT_COMMAND, {
+      sequence_id: Date.now(),
+      commands: [{
+        type: commandType,
+        actor_id: current.combatant_id,
+      }],
+    });
   };
 
   const endTurn = () => {
-    send(MessageType.TURN_END, { combatant_id: current.combatant_id });
+    sendCommand('end_turn');
   };
 
   const noAction = !current.has_action;
@@ -62,7 +69,7 @@ export function ActionPanel({ onSelectTarget }: ActionPanelProps) {
         <button
           className={styles.btn}
           disabled={noAction}
-          onClick={() => utilityAction(MessageType.COMBAT_DASH)}
+          onClick={() => sendCommand('dash')}
           title="Dash: double movement (action)"
         >
           ⚡ Dash
@@ -70,7 +77,7 @@ export function ActionPanel({ onSelectTarget }: ActionPanelProps) {
         <button
           className={styles.btn}
           disabled={noAction}
-          onClick={() => utilityAction(MessageType.COMBAT_DODGE)}
+          onClick={() => sendCommand('dodge')}
           title="Dodge: attackers have disadvantage (action)"
         >
           🛡 Dodge
@@ -78,7 +85,7 @@ export function ActionPanel({ onSelectTarget }: ActionPanelProps) {
         <button
           className={styles.btn}
           disabled={noAction}
-          onClick={() => utilityAction(MessageType.COMBAT_DISENGAGE)}
+          onClick={() => sendCommand('disengage')}
           title="Disengage: move without provoking OAs (action)"
         >
           🏃 Disengage
@@ -94,7 +101,7 @@ export function ActionPanel({ onSelectTarget }: ActionPanelProps) {
         <button
           className={styles.btn}
           disabled={noAction}
-          onClick={() => utilityAction(MessageType.COMBAT_HIDE)}
+          onClick={() => sendCommand('hide')}
           title="Hide: Stealth check (action)"
         >
           👁 Hide

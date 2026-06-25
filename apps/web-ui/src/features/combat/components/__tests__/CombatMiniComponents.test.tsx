@@ -4,12 +4,16 @@ import { fireEvent, render, screen } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { useCombatStore } from '../../stores/combatStore';
 import { useGameModeStore } from '../../stores/gameModeStore';
+import { ActionPanel } from '../ActionPanel';
 import { ActionEconomyBar } from '../ActionEconomyBar';
 import { GameModeSwitch } from '../GameModeSwitch';
 import { TurnBanner } from '../TurnBanner';
 
+const mockOptionalProtocol = { sendMessage: vi.fn() };
+
 vi.mock('@lib/api', () => ({
   ProtocolService: { getProtocol: vi.fn().mockReturnValue({ sendMessage: vi.fn() }) },
+  useOptionalProtocol: vi.fn(() => ({ protocol: mockOptionalProtocol })),
 }));
 vi.mock('@lib/websocket', () => ({
   createMessage: vi.fn().mockReturnValue({}),
@@ -60,6 +64,7 @@ const baseCombat = {
 
 beforeEach(() => {
   vi.clearAllMocks();
+  mockOptionalProtocol.sendMessage.mockClear();
   useGameStore.setState({ userId: 42, sessionRole: 'player' });
   useCombatStore.setState({ combat: null, getCurrentCombatant: () => null });
   useGameModeStore.setState({ mode: 'free_roam', roundNumber: 0 });
@@ -145,6 +150,40 @@ describe('ActionEconomyBar', () => {
 });
 
 // ── GameModeSwitch ────────────────────────────────────────────────────────────
+
+describe('ActionPanel', () => {
+  it('sends utility actions through combat_command', () => {
+    useCombatStore.setState({ combat: { ...baseCombat, combatants: [makeCombatant({ combatant_id: 'cmb-1' })] } });
+
+    render(<ActionPanel />);
+    fireEvent.click(screen.getByRole('button', { name: /dash/i }));
+
+    expect(mockOptionalProtocol.sendMessage).toHaveBeenCalledWith(
+      expect.objectContaining({
+        type: 'combat_command',
+        data: expect.objectContaining({
+          commands: [expect.objectContaining({ type: 'dash', actor_id: 'cmb-1' })],
+        }),
+      }),
+    );
+  });
+
+  it('sends end turn through combat_command', () => {
+    useCombatStore.setState({ combat: { ...baseCombat, combatants: [makeCombatant({ combatant_id: 'cmb-2' })] } });
+
+    render(<ActionPanel />);
+    fireEvent.click(screen.getByRole('button', { name: /end turn/i }));
+
+    expect(mockOptionalProtocol.sendMessage).toHaveBeenCalledWith(
+      expect.objectContaining({
+        type: 'combat_command',
+        data: expect.objectContaining({
+          commands: [expect.objectContaining({ type: 'end_turn', actor_id: 'cmb-2' })],
+        }),
+      }),
+    );
+  });
+});
 
 describe('GameModeSwitch', () => {
   it('renders nothing for non-DM', () => {

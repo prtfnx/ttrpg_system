@@ -1,6 +1,7 @@
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { useGameStore } from '@/store';
 import { useGameModeStore } from '../../stores/gameModeStore';
 import { usePlanningStore } from '../../stores/planningStore';
 import { CommitButton } from '../CommitButton';
@@ -12,7 +13,7 @@ vi.mock('@lib/api', () => ({
 }));
 vi.mock('@lib/websocket', () => ({
   createMessage: vi.fn((type: string, payload: unknown) => ({ type, payload })),
-  MessageType: { ACTION_COMMIT: 'ACTION_COMMIT' },
+  MessageType: { COMBAT_COMMAND: 'COMBAT_COMMAND' },
 }));
 vi.mock('../../services/planning.service', () => ({
   planningService: { clearAll: vi.fn() },
@@ -26,7 +27,11 @@ const makeAction = (id: string) => ({
 });
 
 beforeEach(() => {
-  usePlanningStore.setState({ queue: [], isPlanningMode: false, sequenceId: 0, nextSequenceId: () => 1 } as never);
+  useGameStore.setState({
+    activeTableId: 'table-1',
+    sprites: [{ id: 'sprite-1', tableId: 'table-1', x: 10, y: 20, name: 'Hero', layer: 'tokens', texture: '', scale: { x: 1, y: 1 }, rotation: 0 }],
+  } as never);
+  usePlanningStore.setState({ queue: [], isPlanningMode: false, selectedSpriteId: 'sprite-1', sequenceId: 0, nextSequenceId: () => 1 } as never);
   useGameModeStore.setState({ mode: 'combat' } as never);
 });
 

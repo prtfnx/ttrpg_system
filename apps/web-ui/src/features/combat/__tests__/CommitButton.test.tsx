@@ -13,6 +13,12 @@ vi.mock('../stores/planningStore', () => ({
 vi.mock('../stores/gameModeStore', () => ({
   useGameModeStore: vi.fn(() => 'free_roam'),
 }));
+vi.mock('@/store', () => ({
+  useGameStore: vi.fn((selector) => selector({
+    activeTableId: 'table-1',
+    sprites: [{ id: 'sprite-1', tableId: 'table-1', x: 10, y: 20 }],
+  })),
+}));
 vi.mock('@lib/api', () => ({
   ProtocolService: {
     getProtocol: vi.fn(() => ({ sendMessage: mockSendMessage })),
@@ -20,7 +26,7 @@ vi.mock('@lib/api', () => ({
 }));
 vi.mock('@lib/websocket', () => ({
   createMessage: vi.fn((type, data) => ({ type, data })),
-  MessageType: { ACTION_COMMIT: 'action_commit' },
+  MessageType: { COMBAT_COMMAND: 'combat_command' },
 }));
 vi.mock('../services/planning.service', () => ({
   planningService: { clearAll: vi.fn() },
@@ -34,6 +40,7 @@ function setup(overrides: Record<string, unknown> = {}) {
   vi.mocked(usePlanningStore).mockReturnValue({
     queue: [],
     isPlanningMode: true,
+    selectedSpriteId: 'sprite-1',
     stopPlanning: mockStopPlanning,
     nextSequenceId: mockNextSequenceId,
     ...overrides,
@@ -57,16 +64,31 @@ describe('CommitButton', () => {
     expect(screen.getByRole('button', { name: /commit/i })).toBeInTheDocument();
   });
 
-  it('sends ACTION_COMMIT and clears planning on commit', async () => {
+  it('sends combat_command and leaves planning cleanup to server response', async () => {
     const user = userEvent.setup();
     setup({
       queue: [{ id: 'a1', action_type: 'move', target_x: 64, target_y: 64,
-                label: 'Move', sequence_index: 0 }],
+                cost_ft: 10, label: 'Move', sequence_index: 0 }],
     });
     render(<CommitButton />);
     await user.click(screen.getByRole('button', { name: /commit/i }));
     expect(mockSendMessage).toHaveBeenCalledWith(
-      expect.objectContaining({ type: 'action_commit', data: expect.objectContaining({ sequence_id: 42 }) })
+      expect.objectContaining({
+        type: 'combat_command',
+        data: expect.objectContaining({
+          sequence_id: 42,
+          commands: [expect.objectContaining({
+            type: 'move',
+            actor_id: 'sprite-1',
+            table_id: 'table-1',
+            from_x: 10,
+            from_y: 20,
+            target_x: 64,
+            target_y: 64,
+            cost_ft: 10,
+          })],
+        }),
+      })
     );
     // Planning cleared by ACTION_RESULT / ACTION_REJECTED, not optimistically on commit
     expect(mockStopPlanning).not.toHaveBeenCalled();

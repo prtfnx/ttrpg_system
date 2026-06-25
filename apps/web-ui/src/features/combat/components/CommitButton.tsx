@@ -5,12 +5,17 @@ import { ProtocolService } from '@lib/api';
 import { createMessage, MessageType } from '@lib/websocket';
 import { planningService } from '../services/planning.service';
 import { useGameModeStore } from '../stores/gameModeStore';
+import { useGameStore } from '@/store';
 
 export function CommitButton() {
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const { queue, isPlanningMode, stopPlanning, nextSequenceId } = usePlanningStore();
+  const { queue, isPlanningMode, selectedSpriteId, stopPlanning, nextSequenceId } = usePlanningStore();
   const mode = useGameModeStore((s) => s.mode);
+  const activeTableId = useGameStore((s) => s.activeTableId);
+  const selectedSprite = useGameStore((s) =>
+    selectedSpriteId ? s.sprites.find((sprite) => sprite.id === selectedSpriteId) : undefined
+  );
 
   // Only visible in planning mode with queued actions, or in FREE_ROAM always
   if (!isPlanningMode && mode !== 'free_roam') return null;
@@ -21,20 +26,43 @@ export function CommitButton() {
     setPending(true);
 
     const sequenceId = nextSequenceId();
-    const actions = queue.map((a) => ({
-      action_type: a.action_type,
-      target_x: a.target_x,
-      target_y: a.target_y,
-      target_id: a.target_id,
-      spell_id: a.spell_id,
-      item_id: a.item_id,
-      path: a.path,
-      sequence_index: a.sequence_index,
-    }));
+    const actorId = selectedSpriteId;
+    const tableId = activeTableId ?? selectedSprite?.tableId;
+
+    if (!actorId || !tableId || !selectedSprite) {
+      setError('Select a token before committing movement.');
+      setPending(false);
+      return;
+    }
+
+    const commands: Array<Record<string, unknown>> = [];
+    for (const action of queue) {
+      if (action.action_type !== 'move') {
+        setError(`Unsupported planned action: ${action.action_type}`);
+        setPending(false);
+        return;
+      }
+      if (action.target_x == null || action.target_y == null || action.cost_ft == null) {
+        setError('Movement plan is missing destination or cost.');
+        setPending(false);
+        return;
+      }
+      commands.push({
+        type: 'move',
+        actor_id: actorId,
+        table_id: tableId,
+        from_x: selectedSprite.x,
+        from_y: selectedSprite.y,
+        target_x: action.target_x,
+        target_y: action.target_y,
+        cost_ft: action.cost_ft,
+        path: action.path ?? [],
+      });
+    }
 
     ProtocolService.getProtocol()?.sendMessage(
-      createMessage(MessageType.ACTION_COMMIT, {
-        actions,
+      createMessage(MessageType.COMBAT_COMMAND, {
+        commands,
         sequence_id: sequenceId,
       })
     );

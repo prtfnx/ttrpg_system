@@ -1,5 +1,6 @@
 import { useInvitations } from '@features/session/hooks/useInvitations';
 import type { SessionRole } from '@features/session/types/roles';
+import { logger } from '@shared/utils/logger';
 import React, { useState } from 'react';
 import { toast } from 'react-toastify';
 import styles from './InvitationManager.module.css';
@@ -20,7 +21,7 @@ export const InvitationManager: React.FC<InvitationManagerProps> = ({ sessionCod
 
   const handleCreate = async () => {
     setCreating(true);
-    console.log('Creating invitation with params:', {
+    logger.debug('Creating invitation with params', {
       session_code: sessionCode,
       pre_assigned_role: selectedRole,
       expires_hours: expiresHours,
@@ -34,9 +35,9 @@ export const InvitationManager: React.FC<InvitationManagerProps> = ({ sessionCod
       max_uses: Math.max(1, Number(maxUses) || 1)
     });
 
-    console.log('Invitation creation result:', result);
+    logger.debug('Invitation creation result', result);
     if (result) {
-      console.log('Invitation created successfully:', {
+      logger.info('Invitation created successfully', {
         id: result.id,
         invite_code: result.invite_code,
         invite_url: result.invite_url,
@@ -44,7 +45,7 @@ export const InvitationManager: React.FC<InvitationManagerProps> = ({ sessionCod
       });
       toast.success('Invitation created!');
     } else {
-      console.error('Invitation creation failed - no result returned');
+      logger.error('Invitation creation failed - no result returned');
     }
     setCreating(false);
   };
@@ -61,7 +62,7 @@ export const InvitationManager: React.FC<InvitationManagerProps> = ({ sessionCod
   const handleDelete = async (id: number) => {
     if (!confirm('Permanently delete this invitation from the list?')) return;
 
-    console.log('Deleting invitation:', id);
+    logger.debug('Deleting invitation', { id });
     const success = await deleteInvitation(id);
     if (success) {
       toast.success('Invitation deleted');

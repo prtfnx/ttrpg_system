@@ -4,6 +4,7 @@
  */
 import { useOptionalProtocol } from '@lib/api';
 import { WebClientProtocol } from '@lib/websocket';
+import { logger } from '@shared/utils/logger';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import type { UserInfo } from '../services/auth.service';
 import { authService } from '../services/auth.service';
@@ -37,10 +38,10 @@ export function useAuthenticatedWebSocket({ sessionCode, userInfo }: UseAuthenti
           resolvedCode = byCode.session_code;
         } else if (byName) {
           resolvedCode = byName.session_code;
-          console.debug('[useAuthenticatedWebSocket] Resolved session name to code:', sessionCode, '->', resolvedCode);
+          logger.debug('Resolved session name to code', { sessionCode, resolvedCode });
         }
       } catch (e) {
-        console.warn('[useAuthenticatedWebSocket] Failed to resolve sessionCode:', e);
+        logger.warn('Failed to resolve sessionCode', e);
       }
 
       if (protocolRef.current && protocolRef.current.isConnected()) {
@@ -52,12 +53,16 @@ export function useAuthenticatedWebSocket({ sessionCode, userInfo }: UseAuthenti
       protocolRef.current = protocol;
       await protocol.connect();
       setConnectionState('connected');
-      console.log(`Connected to session ${resolvedCode} as ${userInfo.username} (${userInfo.role})`);
+      logger.info('Connected to authenticated session', {
+        sessionCode: resolvedCode,
+        username: userInfo.username,
+        role: userInfo.role,
+      });
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Connection failed';
       setError(errorMessage);
       setConnectionState('error');
-      console.error('WebSocket connection error:', err);
+      logger.error('WebSocket connection error', err);
       protocolRef.current = null;
     }
   }, [ctx, sessionCode, userInfo]);

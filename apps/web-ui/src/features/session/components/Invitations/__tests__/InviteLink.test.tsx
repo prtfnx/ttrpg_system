@@ -49,9 +49,9 @@ describe('InviteLink', () => {
     expect(screen.getByText('Used')).toBeInTheDocument();
   });
 
-  it('shows unlimited uses (∞) when max_uses is 0', () => {
+  it('shows unlimited uses when max_uses is 0', () => {
     render(<InviteLink invitation={makeInvitation({ max_uses: 0, uses_count: 1 })} onRevoke={vi.fn()} />);
-    expect(screen.getByText(/∞/)).toBeInTheDocument();
+    expect(screen.getByText(/Unlimited/)).toBeInTheDocument();
   });
 
   it('uses full URL as-is when invite_url starts with https://', () => {

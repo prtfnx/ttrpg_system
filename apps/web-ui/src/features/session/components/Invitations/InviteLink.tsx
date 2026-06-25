@@ -16,15 +16,6 @@ export const InviteLink: React.FC<InviteLinkProps> = ({ invitation, onRevoke, on
     ? invitation.invite_url
     : `${window.location.origin}${invitation.invite_url}`;
 
-  // Log to console for debugging
-  console.log('InviteLink render:', {
-    inviteCode: invitation.invite_code,
-    rawInviteUrl: invitation.invite_url,
-    fullUrl: fullUrl,
-    origin: window.location.origin,
-    isFullUrl: invitation.invite_url.startsWith('http://') || invitation.invite_url.startsWith('https://')
-  });
-
   const copyToClipboard = async () => {
     try {
       await navigator.clipboard.writeText(fullUrl);
@@ -48,7 +39,7 @@ export const InviteLink: React.FC<InviteLinkProps> = ({ invitation, onRevoke, on
         <span className={styles.role}>{invitation.pre_assigned_role}</span>
         <span className={styles.status}>
           {!invitation.is_active ? 'Revoked' :
-           isExpired ? '⌛ Expired' :
+           isExpired ? 'Expired' :
            isUsedUp ? 'Used' :
            'Active'}
         </span>
@@ -74,7 +65,7 @@ export const InviteLink: React.FC<InviteLinkProps> = ({ invitation, onRevoke, on
       <div className={styles.details}>
         <div className={styles.detailRow}>
           <span>Uses:</span>
-          <span>{invitation.uses_count}/{invitation.max_uses || '∞'}</span>
+          <span>{invitation.uses_count}/{invitation.max_uses || 'Unlimited'}</span>
         </div>
         {invitation.expires_at && (
           <div className={styles.detailRow}>

@@ -11,6 +11,7 @@ export interface UserInfo {
 }
 
 import type { SessionRole } from '@features/session/types/roles';
+import { logger } from '@shared/utils/logger';
 
 export interface SessionInfo {
   session_code: string;
@@ -56,7 +57,7 @@ class AuthService {
         return { success: false, message: errorMessage };
       }
     } catch (error) {
- console.error('Login error:', error);
+      logger.error('Login error', error);
       return { success: false, message: 'Network error occurred' };
     }
   }
@@ -87,7 +88,7 @@ class AuthService {
         return { success: false, message: errorMessage };
       }
     } catch (error) {
- console.error('Registration error:', error);
+      logger.error('Registration error', error);
       return { success: false, message: 'Network error occurred' };
     }
   }
@@ -214,7 +215,7 @@ class AuthService {
       }
       throw new Error(`Failed to fetch sessions: ${response.statusText}`);
     } catch (error) {
- console.error('Failed to fetch user sessions:', error);
+      logger.error('Failed to fetch user sessions', error);
       throw error;
     }
   }
@@ -246,16 +247,15 @@ class AuthService {
    * Initialize authentication from existing token
    */
   async initialize(): Promise<boolean> {
-    console.log(' Starting authentication initialization...');
+    logger.debug('Starting authentication initialization');
     const token = await this.extractToken();
     
     if (!token) {
-      console.log(' No token found, authentication failed');
+      logger.debug('No token found, authentication failed');
       return false;
     }
 
-    console.log(' Token found and user info already extracted');
-    console.log(' Current user info:', this.userInfo);
+    logger.debug('Token found and user info already extracted', this.userInfo);
     return true;
   }
 }

@@ -1,4 +1,5 @@
 import type { AcceptInvitationResponse, CreateInvitationRequest, SessionInvitation } from '../types/invitations';
+import { logger } from '@shared/utils/logger';
 
 class InvitationService {
   private baseURL = '/api/invitations';
@@ -23,15 +24,17 @@ class InvitationService {
   }
 
   async createInvitation(data: CreateInvitationRequest): Promise<SessionInvitation> {
-    console.log('InvitationService.createInvitation - Request data:', data);
-    console.log('InvitationService.createInvitation - Request URL:', `${this.baseURL}/create`);
+    logger.debug('Creating invitation', {
+      request: data,
+      url: `${this.baseURL}/create`,
+    });
 
     const result = await this.fetchAPI<SessionInvitation>('/create', {
       method: 'POST',
       body: JSON.stringify(data)
     });
 
-    console.log('InvitationService.createInvitation - Response:', result);
+    logger.debug('Invitation created', result);
     return result;
   }
 

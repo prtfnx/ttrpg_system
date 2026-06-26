@@ -382,17 +382,33 @@ export class WebClientProtocol {
     // ── Planning Commit (Phase 4) ──
     this.registerHandler(MessageType.ACTION_RESULT, async (m) => {
       const { usePlanningStore } = await import('@features/combat/stores/planningStore');
+      const { useOAStore } = await import('@features/combat/stores/oaStore');
       const data = m.data as { sequence_id?: number; applied?: unknown[]; combat?: unknown };
       if (data?.applied?.length) {
         usePlanningStore.getState().clearQueue();
         usePlanningStore.getState().stopPlanning();
+        useOAStore.getState().clearPendingCombatCommand();
       }
       if (data?.combat) {
         await setCombat(data);
       }
     });
     this.registerHandler(MessageType.ACTION_REJECTED, async (m) => {
-      const data = m.data as { reason?: string; failed_index?: number };
+      const data = m.data as {
+        reason?: string;
+        failed_index?: number;
+        details?: {
+          code?: string;
+          entity_id?: string;
+          triggers?: Array<{ combatant_id: string; name: string }>;
+        };
+      };
+      if (data?.details?.code === 'opportunity_attack_warning') {
+        const { useOAStore } = await import('@features/combat/stores/oaStore');
+        useOAStore.getState().setWarning(data.details.entity_id ?? '', data.details.triggers ?? []);
+        showToast.warning(data?.reason ?? 'Opportunity attack warning');
+        return;
+      }
       showToast.error(data?.reason ?? 'Action rejected');
     });
 

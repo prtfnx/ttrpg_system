@@ -84,13 +84,19 @@ describe('useEncounterStore', () => {
 // ─── oaStore ─────────────────────────────────────────────────────────────────
 
 describe('useOAStore', () => {
-  beforeEach(() => useOAStore.setState({ warningEntityId: null, warningTriggers: [], prompt: null }));
+  beforeEach(() => useOAStore.setState({
+    warningEntityId: null,
+    warningTriggers: [],
+    prompt: null,
+    pendingCombatCommand: null,
+  }));
 
   it('starts clean', () => {
     const s = useOAStore.getState();
     expect(s.warningEntityId).toBeNull();
     expect(s.warningTriggers).toHaveLength(0);
     expect(s.prompt).toBeNull();
+    expect(s.pendingCombatCommand).toBeNull();
   });
 
   it('setWarning sets entity id and triggers', () => {
@@ -109,13 +115,29 @@ describe('useOAStore', () => {
     expect(useOAStore.getState().prompt?.target_name).toBe('Orc');
   });
 
+  it('setPendingCombatCommand stores command data for confirmation', () => {
+    useOAStore.getState().setPendingCombatCommand({
+      sequence_id: 1,
+      commands: [{ type: 'move', actor_id: 'sprite-1' }],
+    });
+    expect(useOAStore.getState().pendingCombatCommand?.commands[0]).toMatchObject({
+      type: 'move',
+      actor_id: 'sprite-1',
+    });
+  });
+
   it('clearAll resets everything', () => {
     useOAStore.getState().setWarning('e1', [{ combatant_id: 'c1', name: 'X' }]);
     useOAStore.getState().setPrompt({ target_combatant_id: 't1', target_name: 'Y', attacker_combatant_id: 'a1' });
+    useOAStore.getState().setPendingCombatCommand({
+      sequence_id: 1,
+      commands: [{ type: 'move', actor_id: 'sprite-1' }],
+    });
     useOAStore.getState().clearAll();
     const s = useOAStore.getState();
     expect(s.warningEntityId).toBeNull();
     expect(s.warningTriggers).toHaveLength(0);
     expect(s.prompt).toBeNull();
+    expect(s.pendingCombatCommand).toBeNull();
   });
 });

@@ -9,6 +9,7 @@ import { MeasurementTool } from '@features/measurement';
 import { PaintPanel } from '@features/painting';
 import { canInteract, isDM, isElevated } from '@features/session/types/roles';
 import { ProtocolService } from '@lib/api';
+import { createMessage, MessageType } from '@lib/websocket';
 import { useRenderEngine, useWasmRuntime } from '@lib/wasm/runtime';
 import { AlignmentHelper } from '@shared/components';
 import DiceRoller from '@shared/components/DiceRoller';
@@ -80,6 +81,7 @@ export function ToolsPanel({ userInfo }: ToolsPanelProps) {
   const oaWarning = useOAStore((s) => s.warningEntityId);
   const oaTriggers = useOAStore((s) => s.warningTriggers);
   const oaPrompt = useOAStore((s) => s.prompt);
+  const pendingOACommand = useOAStore((s) => s.pendingCombatCommand);
   const clearOA = useOAStore((s) => s.clearAll);
   const [shapeColor, setShapeColor] = useState('#0080ff');
   const [shapeOpacity, setShapeOpacity] = useState(1.0);
@@ -663,8 +665,18 @@ export function ToolsPanel({ userInfo }: ToolsPanelProps) {
         <OAWarningModal
           triggers={oaTriggers}
           onConfirm={() => {
-            if (ProtocolService.hasProtocol())
+            if (ProtocolService.hasProtocol() && pendingOACommand) {
+              ProtocolService.getProtocol().sendMessage(createMessage(MessageType.COMBAT_COMMAND, {
+                ...pendingOACommand,
+                commands: pendingOACommand.commands.map((command) => (
+                  command.type === 'move'
+                    ? { ...command, confirm_opportunity_attacks: true }
+                    : command
+                )),
+              }));
+            } else if (ProtocolService.hasProtocol()) {
               ProtocolService.getProtocol().confirmMoveDespiteOA(oaWarning);
+            }
             clearOA();
           }}
           onCancel={clearOA}

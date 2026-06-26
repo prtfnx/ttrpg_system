@@ -26,9 +26,7 @@ vi.mock('@/store', () => ({
   })),
 }));
 vi.mock('@lib/api', () => ({
-  ProtocolService: {
-    getProtocol: vi.fn(() => ({ sendMessage: mockSendMessage })),
-  },
+  useOptionalProtocol: vi.fn(() => ({ protocol: { sendMessage: mockSendMessage } })),
 }));
 vi.mock('@lib/websocket', () => ({
   createMessage: vi.fn((type, data) => ({ type, data })),

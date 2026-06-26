@@ -8,9 +8,7 @@ import { usePlanningStore } from '../../stores/planningStore';
 import { CommitButton } from '../CommitButton';
 
 vi.mock('@lib/api', () => ({
-  ProtocolService: {
-    getProtocol: vi.fn(() => ({ sendMessage: vi.fn() })),
-  },
+  useOptionalProtocol: vi.fn(() => ({ protocol: { sendMessage: vi.fn() } })),
 }));
 vi.mock('@lib/websocket', () => ({
   createMessage: vi.fn((type: string, payload: unknown) => ({ type, payload })),

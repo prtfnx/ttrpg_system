@@ -1,9 +1,8 @@
 import { useState } from 'react';
 import styles from './CommitButton.module.css';
 import { usePlanningStore } from '../stores/planningStore';
-import { ProtocolService } from '@lib/api';
-import { createMessage, MessageType } from '@lib/websocket';
 import { planningService } from '../services/planning.service';
+import { useCombatCommands } from '../hooks/useCombatCommands';
 import { useGameModeStore } from '../stores/gameModeStore';
 import { useOAStore } from '../stores/oaStore';
 import { useGameStore } from '@/store';
@@ -14,6 +13,7 @@ export function CommitButton() {
   const { queue, isPlanningMode, selectedSpriteId, stopPlanning, nextSequenceId } = usePlanningStore();
   const mode = useGameModeStore((s) => s.mode);
   const activeTableId = useGameStore((s) => s.activeTableId);
+  const { sendCommandBatch } = useCombatCommands();
   const setPendingCombatCommand = useOAStore((s) => s.setPendingCombatCommand);
   const selectedSprite = useGameStore((s) =>
     selectedSpriteId ? s.sprites.find((sprite) => sprite.id === selectedSpriteId) : undefined
@@ -68,7 +68,7 @@ export function CommitButton() {
     };
 
     setPendingCombatCommand(payload);
-    ProtocolService.getProtocol()?.sendMessage(createMessage(MessageType.COMBAT_COMMAND, payload));
+    sendCommandBatch(payload);
 
     // Queue cleared and planning stopped by ACTION_RESULT / ACTION_REJECTED handlers
     setPending(false);

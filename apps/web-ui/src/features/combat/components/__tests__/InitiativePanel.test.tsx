@@ -11,18 +11,16 @@ vi.mock('@/store', () => ({
 }));
 
 vi.mock('@lib/api', () => ({
-  ProtocolService: {
-    getProtocol: () => ({ sendMessage: mockSend }),
-  },
+  useOptionalProtocol: vi.fn(() => ({ protocol: { sendMessage: mockSend } })),
 }));
 
 vi.mock('@lib/websocket', () => ({
-  createMessage: vi.fn((type, payload) => ({ type, payload })),
+  createMessage: vi.fn((type, payload) => ({ type, data: payload })),
   MessageType: {
-    INITIATIVE_ROLL: 'INITIATIVE_ROLL',
     DEATH_SAVE_ROLL: 'DEATH_SAVE_ROLL',
-    TURN_SKIP: 'TURN_SKIP',
     INITIATIVE_REMOVE: 'INITIATIVE_REMOVE',
+    INITIATIVE_ROLL: 'INITIATIVE_ROLL',
+    TURN_SKIP: 'TURN_SKIP',
   },
 }));
 
@@ -111,7 +109,7 @@ describe('InitiativePanel', () => {
     expect(screen.getByText('10')).toBeInTheDocument();
   });
 
-  it('shows — when initiative is null', () => {
+  it('shows dash when initiative is null', () => {
     useCombatStore.setState({
       combat: {
         ...baseCombat,
@@ -119,7 +117,7 @@ describe('InitiativePanel', () => {
       },
     });
     render(<InitiativePanel />);
-    expect(screen.getByText('—')).toBeInTheDocument();
+    expect(screen.getByText('-')).toBeInTheDocument();
   });
 
   it('DM sees skip and remove buttons', () => {

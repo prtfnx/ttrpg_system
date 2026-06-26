@@ -1,7 +1,7 @@
 import { useGameStore } from '@/store';
 import { isDM } from '@features/session/types/roles';
-import { ProtocolService } from '@lib/api';
-import { createMessage, MessageType } from '@lib/websocket';
+import { Dice5, Skull, Sparkles, X, Zap } from 'lucide-react';
+import { useCombatCommands } from '../hooks/useCombatCommands';
 import type { Combatant } from '../stores/combatStore';
 import { useCombatStore } from '../stores/combatStore';
 import { ConditionBadges } from './ConditionBadges';
@@ -37,6 +37,7 @@ export function InitiativePanel() {
   const combat = useCombatStore((s) => s.combat);
   const role = useGameStore((s) => s.sessionRole);
   const userId = useGameStore((s) => s.userId);
+  const { removeCombatant, rollDeathSave, rollInitiative, skipTurn } = useCombatCommands();
 
   if (!combat || combat.phase === 'inactive') return null;
 
@@ -45,30 +46,6 @@ export function InitiativePanel() {
 
   const isControlledByMe = (c: Combatant) =>
     userId !== null && c.controlled_by.includes(String(userId));
-
-  const rollInitiative = (combatant_id: string) => {
-    ProtocolService.getProtocol()?.sendMessage(
-      createMessage(MessageType.INITIATIVE_ROLL, { combatant_id })
-    );
-  };
-
-  const rollDeathSave = (combatant_id: string) => {
-    ProtocolService.getProtocol()?.sendMessage(
-      createMessage(MessageType.DEATH_SAVE_ROLL, { combatant_id })
-    );
-  };
-
-  const skipTurn = (combatant_id: string) => {
-    ProtocolService.getProtocol()?.sendMessage(
-      createMessage(MessageType.TURN_SKIP, { combatant_id })
-    );
-  };
-
-  const removeCombatant = (combatant_id: string) => {
-    ProtocolService.getProtocol()?.sendMessage(
-      createMessage(MessageType.INITIATIVE_REMOVE, { combatant_id })
-    );
-  };
 
   return (
     <div className={styles.panel}>
@@ -86,31 +63,43 @@ export function InitiativePanel() {
               c.is_defeated ? styles.defeated : '',
             ].join(' ')}
           >
-            <span className={styles.initiative}>{c.initiative ?? '—'}</span>
+            <span className={styles.initiative}>{c.initiative ?? '-'}</span>
             <div className={styles.nameCol}>
               <span className={styles.name}>{c.name}</span>
               <HpBar c={c} />
             </div>
             {c.concentration_spell && (
-              <span className={styles.concentrating} title={`Concentrating: ${c.concentration_spell}`}>🔮</span>
+              <span className={styles.concentrating} title={`Concentrating: ${c.concentration_spell}`}>
+                <Sparkles size={14} aria-hidden />
+              </span>
             )}
             {c.surprised && (
-              <span className={styles.surprisedBadge} title="Surprised — loses first turn">⚡</span>
+              <span className={styles.surprisedBadge} title="Surprised - loses first turn">
+                <Zap size={14} aria-hidden />
+              </span>
             )}
             {c.hp === 0 && (isDM(role) || isControlledByMe(c)) && (
-              <button className={styles.rollInitBtn} onClick={() => rollDeathSave(c.combatant_id)} title="Roll death save">💀</button>
+              <button className={styles.rollInitBtn} onClick={() => rollDeathSave(c.combatant_id)} title="Roll death save">
+                <Skull size={14} aria-hidden />
+              </button>
             )}
             {c.hp === 0 && ((c.death_save_successes ?? 0) > 0 || (c.death_save_failures ?? 0) > 0) && (
               <DeathSavePips successes={c.death_save_successes ?? 0} failures={c.death_save_failures ?? 0} />
             )}
             {c.initiative === null && isControlledByMe(c) && (
-              <button className={styles.rollInitBtn} onClick={() => rollInitiative(c.combatant_id)} title="Roll initiative">🎲</button>
+              <button className={styles.rollInitBtn} onClick={() => rollInitiative(c.combatant_id)} title="Roll initiative">
+                <Dice5 size={14} aria-hidden />
+              </button>
             )}
             <ConditionBadges conditions={c.conditions} />
             {isDM(role) && !c.is_defeated && (
               <div className={styles.actions}>
-                <button onClick={() => skipTurn(c.combatant_id)} title="Skip turn">⏭</button>
-                <button onClick={() => removeCombatant(c.combatant_id)} title="Remove">✕</button>
+                <button onClick={() => skipTurn(c.combatant_id)} title="Skip turn">
+                  <Zap size={14} aria-hidden />
+                </button>
+                <button onClick={() => removeCombatant(c.combatant_id)} title="Remove">
+                  <X size={14} aria-hidden />
+                </button>
               </div>
             )}
           </li>

@@ -10,7 +10,13 @@ vi.mock('@lib/api', () => ({
 
 vi.mock('@lib/websocket', () => ({
   createMessage: vi.fn((type, data) => ({ type, data })),
-  MessageType: { COMBAT_COMMAND: 'combat_command' },
+  MessageType: {
+    COMBAT_COMMAND: 'combat_command',
+    DEATH_SAVE_ROLL: 'death_save_roll',
+    INITIATIVE_REMOVE: 'initiative_remove',
+    INITIATIVE_ROLL: 'initiative_roll',
+    TURN_SKIP: 'turn_skip',
+  },
 }));
 
 describe('useCombatCommands', () => {
@@ -110,6 +116,38 @@ describe('useCombatCommands', () => {
           damage_type: 'fire',
         })],
       }),
+    }));
+  });
+
+  it('sends initiative and death-save protocol messages', () => {
+    const { result } = renderHook(() => useCombatCommands());
+
+    result.current.rollInitiative('cmb-1');
+    result.current.rollDeathSave('cmb-1');
+
+    expect(mockSendMessage).toHaveBeenCalledWith(expect.objectContaining({
+      type: 'initiative_roll',
+      data: { combatant_id: 'cmb-1' },
+    }));
+    expect(mockSendMessage).toHaveBeenCalledWith(expect.objectContaining({
+      type: 'death_save_roll',
+      data: { combatant_id: 'cmb-1' },
+    }));
+  });
+
+  it('sends DM initiative controls through protocol helpers', () => {
+    const { result } = renderHook(() => useCombatCommands());
+
+    result.current.skipTurn('cmb-2');
+    result.current.removeCombatant('cmb-2');
+
+    expect(mockSendMessage).toHaveBeenCalledWith(expect.objectContaining({
+      type: 'turn_skip',
+      data: { combatant_id: 'cmb-2' },
+    }));
+    expect(mockSendMessage).toHaveBeenCalledWith(expect.objectContaining({
+      type: 'initiative_remove',
+      data: { combatant_id: 'cmb-2' },
     }));
   });
 });

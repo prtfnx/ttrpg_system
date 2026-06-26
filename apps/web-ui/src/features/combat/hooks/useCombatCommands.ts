@@ -49,6 +49,11 @@ export function useCombatCommands() {
     return Boolean(protocol);
   }, [protocol]);
 
+  const sendProtocolMessage = useCallback((type: string, data: Record<string, unknown> = {}) => {
+    protocol?.sendMessage(createMessage(type, data));
+    return Boolean(protocol);
+  }, [protocol]);
+
   const sendCommand = useCallback((command: CombatCommandPayload, sequenceId = Date.now()) => (
     sendCommandBatch({
       sequence_id: sequenceId,
@@ -98,12 +103,33 @@ export function useCombatCommands() {
     })
   ), [sendCommand]);
 
+  const rollInitiative = useCallback((combatantId: string) => (
+    sendProtocolMessage(MessageType.INITIATIVE_ROLL, { combatant_id: combatantId })
+  ), [sendProtocolMessage]);
+
+  const rollDeathSave = useCallback((combatantId: string) => (
+    sendProtocolMessage(MessageType.DEATH_SAVE_ROLL, { combatant_id: combatantId })
+  ), [sendProtocolMessage]);
+
+  const skipTurn = useCallback((combatantId: string) => (
+    sendProtocolMessage(MessageType.TURN_SKIP, { combatant_id: combatantId })
+  ), [sendProtocolMessage]);
+
+  const removeCombatant = useCallback((combatantId: string) => (
+    sendProtocolMessage(MessageType.INITIATIVE_REMOVE, { combatant_id: combatantId })
+  ), [sendProtocolMessage]);
+
   return {
+    sendProtocolMessage,
     sendCommandBatch,
     sendCommand,
     sendUtilityAction,
     sendAttack,
     sendSpell,
+    rollInitiative,
+    rollDeathSave,
+    skipTurn,
+    removeCombatant,
     endTurn,
   };
 }

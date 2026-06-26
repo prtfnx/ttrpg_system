@@ -9,6 +9,7 @@ from database.crud import get_game_mode, get_session_rules_json
 from database.database import SessionLocal
 from pydantic import ValidationError
 from service.combat_command_service import CombatCommandContext, CombatCommandService
+from service.combatant_factory import CombatantFactory, CombatantFactoryContext
 from service.rules_engine import RulesEngine
 from utils.logger import setup_logger
 from utils.roles import is_dm
@@ -33,13 +34,22 @@ class _CombatMixin(_ProtocolBase):
         from service.combat_engine import CombatEngine
         settings = CombatSettings.from_dict(d['settings']) if d.get('settings') else None
         session_code = self._get_session_code()
+        entity_ids = [str(entity_id) for entity_id in d.get('entity_ids', []) if entity_id]
+        incoming_combatants = [item for item in d.get('combatants', []) if isinstance(item, dict)]
+        if not entity_ids:
+            entity_ids = [str(item.get('entity_id')) for item in incoming_combatants if item.get('entity_id')]
+        combatants = CombatantFactory().build_many(
+            entity_ids,
+            incoming_combatants,
+            self._combatant_factory_context(msg, table_id),
+        )
         state = CombatEngine.start_combat(
             session_id=session_code,
             table_id=table_id,
-            entity_ids=d.get('entity_ids', []),
+            entity_ids=entity_ids,
             settings=settings,
             names=d.get('names', {}),
-            combatants=d.get('combatants', []),
+            combatants=combatants,
         )
         resp = Message(MessageType.COMBAT_STATE, {'combat': state.to_dict()})
         await self.broadcast_to_session(resp, client_id)
@@ -121,7 +131,14 @@ class _CombatMixin(_ProtocolBase):
             return Message(MessageType.ERROR, {'error': 'entity_id required'})
         from service.combat_engine import CombatEngine
         session_code = self._get_session_code()
-        extra = {k: v for k, v in d.items() if k != 'entity_id'}
+        state = CombatEngine.get_state(session_code)
+        table_id = d.get('table_id') or (state.table_id if state else '')
+        resolved = CombatantFactory().build_payload(
+            str(entity_id),
+            d,
+            self._combatant_factory_context(msg, table_id),
+        )
+        extra = {k: v for k, v in resolved.items() if k != 'entity_id'}
         combatant = CombatEngine.add_combatant(session_code, entity_id, **extra)
         if not combatant:
             return Message(MessageType.ERROR, {'error': 'No active combat'})
@@ -506,6 +523,34 @@ class _CombatMixin(_ProtocolBase):
 
     def _get_table_by_id(self, table_id: str):
         return self.table_manager.tables_id.get(table_id) or self.table_manager.tables.get(table_id)
+
+    def _combatant_factory_context(self, msg: Message, table_id: str) -> CombatantFactoryContext:
+        session_id = self._get_session_id(msg)
+
+        def load_character(character_id: str) -> dict[str, Any] | None:
+            if not session_id or not character_id:
+                return None
+            try:
+                from database.models import SessionCharacter
+                with SessionLocal() as db:
+                    character = db.query(SessionCharacter).filter(
+                        SessionCharacter.session_id == session_id,
+                        SessionCharacter.character_id == character_id,
+                    ).first()
+                    if not character:
+                        return None
+                    data = json.loads(character.character_data)
+                    if isinstance(data, dict):
+                        data.setdefault('name', character.character_name)
+                        return data
+            except Exception as exc:
+                logger.debug('Could not load character %s for combatant factory: %s', character_id, exc)
+            return None
+
+        return CombatantFactoryContext(
+            table=self._get_table_by_id(str(table_id)) if table_id else None,
+            load_character=load_character,
+        )
 
     async def handle_combat_command(self, msg: Message, client_id: str) -> Message:
         service = CombatCommandService()

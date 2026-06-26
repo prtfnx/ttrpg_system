@@ -3,6 +3,7 @@
 CombatEngine is patched for all tests — we verify permission gates,
 validation, and correct MessageType in responses.
 """
+from types import SimpleNamespace
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
@@ -92,6 +93,49 @@ class TestCombatStart:
         resp = await proto.handle_combat_start(msg, "c1")
         assert resp.type == MessageType.COMBAT_STATE
         assert resp.data["combat"] == {"active": True, "combatants": []}
+
+    @patch("service.combat_engine.CombatEngine")
+    async def test_start_resolves_combatants_from_server_token(self, mock_engine):
+        mock_engine.start_combat.return_value = _combat_state()
+        token = SimpleNamespace(
+            sprite_id="sprite-1",
+            entity_id=1,
+            name="Server Token",
+            character_id="char-1",
+            controlled_by=[7],
+            hp=11,
+            max_hp=13,
+            ac=16,
+        )
+        proto = _ProtoStub(role="owner")
+        proto.table_manager.tables_id = {
+            "t1": SimpleNamespace(
+                entities={1: token},
+                find_entity_by_sprite_id=lambda sprite_id: token if sprite_id == "sprite-1" else None,
+            )
+        }
+        msg = Message(MessageType.COMBAT_START, {
+            "table_id": "t1",
+            "entity_ids": ["sprite-1"],
+            "combatants": [{
+                "entity_id": "sprite-1",
+                "name": "Spoofed",
+                "hp": 999,
+                "max_hp": 999,
+                "armor_class": 99,
+                "controlled_by": ["999"],
+            }],
+        })
+
+        resp = await proto.handle_combat_start(msg, "c1")
+
+        resolved = mock_engine.start_combat.call_args.kwargs["combatants"][0]
+        assert resp.type == MessageType.COMBAT_STATE
+        assert resolved["name"] == "Server Token"
+        assert resolved["hp"] == 11
+        assert resolved["max_hp"] == 13
+        assert resolved["armor_class"] == 16
+        assert resolved["controlled_by"] == ["7"]
 
 
 # ---------------------------------------------------------------------------
@@ -234,6 +278,51 @@ class TestInitiativeAdd:
             Message(MessageType.INITIATIVE_ADD, {"entity_id": "e1"}), "c1"
         )
         assert resp.type == MessageType.ERROR
+
+    @patch("service.combat_engine.CombatEngine")
+    async def test_add_resolves_combatant_from_server_token(self, mock_engine):
+        token = SimpleNamespace(
+            sprite_id="sprite-1",
+            entity_id=1,
+            name="Server Token",
+            character_id=None,
+            controlled_by=[7],
+            hp=10,
+            max_hp=12,
+            ac=15,
+        )
+        combatant = MagicMock()
+        combatant.to_dict.return_value = {"combatant_id": "cmb-1"}
+        state = _combat_state()
+        state.table_id = "t1"
+        mock_engine.get_state.return_value = state
+        mock_engine.add_combatant.return_value = combatant
+        proto = _ProtoStub(role="owner")
+        proto.table_manager.tables_id = {
+            "t1": SimpleNamespace(
+                entities={1: token},
+                find_entity_by_sprite_id=lambda sprite_id: token if sprite_id == "sprite-1" else None,
+            )
+        }
+
+        resp = await proto.handle_initiative_add(
+            Message(MessageType.INITIATIVE_ADD, {
+                "entity_id": "sprite-1",
+                "name": "Spoofed",
+                "hp": 999,
+                "max_hp": 999,
+                "armor_class": 99,
+            }),
+            "c1",
+        )
+
+        resolved = mock_engine.add_combatant.call_args.kwargs
+        assert resp.type == MessageType.INITIATIVE_ORDER
+        assert resolved["name"] == "Server Token"
+        assert resolved["hp"] == 10
+        assert resolved["max_hp"] == 12
+        assert resolved["armor_class"] == 15
+        assert resolved["controlled_by"] == ["7"]
 
 
 @pytest.mark.unit

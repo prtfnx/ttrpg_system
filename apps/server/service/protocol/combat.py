@@ -914,58 +914,58 @@ class _CombatMixin(_ProtocolBase):
         return None
 
     async def handle_combat_attack(self, msg: Message, client_id: str) -> Message:
-        from service.combat_engine import CombatEngine
         d = msg.data or {}
-        session_code = self._get_session_code()
-        state = CombatEngine.get_state(session_code)
-        if not state:
-            return Message(MessageType.ERROR, {'error': 'No active combat'})
-
         attacker_id = d.get('attacker_id', '')
         target_id = d.get('target_id', '')
-        user_id = self._get_user_id(msg, client_id)
-        turn_err = self._assert_current_turn(state, attacker_id, client_id, user_id)
-        if turn_err:
-            return Message(MessageType.ERROR, {'error': turn_err})
-
-        table_id = str(d.get('table_id', ''))
-        table = self._get_table_by_id(table_id)
-        result = CombatEngine.execute_attack(
-            session_code,
-            attacker_id=attacker_id,
-            target_id=target_id,
-            attack_bonus=int(d.get('attack_bonus', 0)),
-            damage_formula=d.get('damage_formula', '1d4'),
-            damage_type=d.get('damage_type', 'bludgeoning'),
-            attack_type=d.get('attack_type', 'melee'),
-            weapon_range_ft=float(d.get('range_ft', 5.0)),
-            table=table,
+        service = CombatCommandService()
+        result = service.apply(
+            service.parse_envelope({
+                'sequence_id': int(d.get('sequence_id', 0)),
+                'commands': [{
+                    'type': 'attack',
+                    'actor_id': attacker_id,
+                    'target_id': target_id,
+                    'table_id': str(d.get('table_id', '')),
+                    'attack_bonus': int(d.get('attack_bonus', 0)),
+                    'damage_formula': d.get('damage_formula', '1d4'),
+                    'damage_type': d.get('damage_type', 'bludgeoning'),
+                    'attack_type': d.get('attack_type', 'melee'),
+                    'range_ft': float(d.get('range_ft', 5.0)),
+                }],
+            }),
+            CombatCommandContext(
+                session_code=self._get_session_code(),
+                client_id=client_id,
+                role=self._get_client_role(client_id),
+                user_id=self._get_user_id(msg, client_id),
+                table_lookup=self._get_table_by_id,
+            ),
         )
-        if 'error' in result:
-            return Message(MessageType.ERROR, result)
+        if not result.accepted:
+            return Message(MessageType.ERROR, {'error': result.reason})
 
-        state = CombatEngine.get_state(session_code)
+        attack_result = result.applied[0]['result'] if result.applied else {}
         resp = Message(MessageType.ACTION_RESULT, {
-            **result,
+            **attack_result,
             'action_type': 'attack',
             'attacker_id': attacker_id,
             'target_id': target_id,
-            'combat': state.to_dict() if state else None,
+            'combat': result.combat,
         })
         await self.broadcast_to_session(resp, client_id)
 
-        if result.get('concentration_broken'):
+        if attack_result.get('concentration_broken'):
             await self.broadcast_to_session(
                 Message(MessageType.CONCENTRATION_BROKEN, {
-                    'combatant_id': target_id, 'spell': result['concentration_broken'],
-                    'roll': result.get('concentration_roll'),
+                    'combatant_id': target_id, 'spell': attack_result['concentration_broken'],
+                    'roll': attack_result.get('concentration_roll'),
                 }), client_id,
             )
-        elif result.get('concentration_saved'):
+        elif attack_result.get('concentration_saved'):
             await self.broadcast_to_session(
                 Message(MessageType.CONCENTRATION_SAVED, {
-                    'combatant_id': target_id, 'spell': result['concentration_saved'],
-                    'roll': result.get('concentration_roll'),
+                    'combatant_id': target_id, 'spell': attack_result['concentration_saved'],
+                    'roll': attack_result.get('concentration_roll'),
                 }), client_id,
             )
         return resp
@@ -991,36 +991,40 @@ class _CombatMixin(_ProtocolBase):
         return await self._handle_utility(msg, client_id, 'hide', CombatEngine)
 
     async def handle_combat_spell(self, msg: Message, client_id: str) -> Message:
-        from service.combat_engine import CombatEngine
-        session_code = self._get_session_code()
-        state = CombatEngine.get_state(session_code)
-        if not state:
-            return Message(MessageType.ERROR, {'error': 'No active combat'})
         d = msg.data or {}
         caster_id = d.get('combatant_id', '')
-        user_id = self._get_user_id(msg, client_id)
-        turn_err = self._assert_current_turn(state, caster_id, client_id, user_id)
-        if turn_err:
-            return Message(MessageType.ERROR, {'error': turn_err})
-        result = CombatEngine.execute_spell(
-            session_code,
-            caster_id=caster_id,
-            spell_name=d.get('spell_name', ''),
-            spell_level=d.get('spell_level', 1),
-            target_ids=d.get('target_ids', []),
-            damage_formula=d.get('damage_formula', ''),
-            save_ability=d.get('save_ability', ''),
-            save_dc=d.get('save_dc', 0),
-            damage_type=d.get('damage_type', 'fire'),
-            requires_attack_roll=d.get('requires_attack_roll', False),
-            attack_bonus=d.get('attack_bonus', 0),
-            is_concentration=d.get('is_concentration', False),
+        service = CombatCommandService()
+        result = service.apply(
+            service.parse_envelope({
+                'sequence_id': int(d.get('sequence_id', 0)),
+                'commands': [{
+                    'type': 'cast_spell',
+                    'actor_id': caster_id,
+                    'spell_name': d.get('spell_name', ''),
+                    'spell_level': d.get('spell_level', 1),
+                    'target_ids': d.get('target_ids', []),
+                    'damage_formula': d.get('damage_formula', ''),
+                    'save_ability': d.get('save_ability', ''),
+                    'save_dc': d.get('save_dc', 0),
+                    'damage_type': d.get('damage_type', 'fire'),
+                    'requires_attack_roll': d.get('requires_attack_roll', False),
+                    'attack_bonus': d.get('attack_bonus', 0),
+                    'is_concentration': d.get('is_concentration', False),
+                }],
+            }),
+            CombatCommandContext(
+                session_code=self._get_session_code(),
+                client_id=client_id,
+                role=self._get_client_role(client_id),
+                user_id=self._get_user_id(msg, client_id),
+                table_lookup=self._get_table_by_id,
+            ),
         )
-        if 'error' in result:
-            return Message(MessageType.ERROR, result)
-        state = CombatEngine.get_state(session_code)
+        if not result.accepted:
+            return Message(MessageType.ERROR, {'error': result.reason})
+        spell_result = result.applied[0]['result'] if result.applied else {}
         resp = Message(MessageType.ACTION_RESULT, {
-            **result, 'combat': state.to_dict() if state else None
+            **spell_result, 'combat': result.combat
         })
         await self.broadcast_to_session(resp, client_id)
         return resp

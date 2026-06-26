@@ -160,6 +160,60 @@ describe('ActionEconomyBar', () => {
 // ── GameModeSwitch ────────────────────────────────────────────────────────────
 
 describe('ActionPanel', () => {
+  it('sends attack commands with the selected target', () => {
+    const actor = makeCombatant({ combatant_id: 'attacker', name: 'Ada' });
+    const target = makeCombatant({ combatant_id: 'target', name: 'Borin', controlled_by: ['99'] });
+    useCombatStore.setState({ combat: { ...baseCombat, combatants: [actor, target] } });
+
+    render(<ActionPanel />);
+    fireEvent.click(screen.getByRole('button', { name: /attack/i }));
+
+    expect(mockOptionalProtocol.sendMessage).toHaveBeenCalledWith(
+      expect.objectContaining({
+        type: 'combat_command',
+        data: expect.objectContaining({
+          commands: [expect.objectContaining({
+            type: 'attack',
+            actor_id: 'attacker',
+            target_id: 'target',
+          })],
+        }),
+      }),
+    );
+  });
+
+  it('sends spell commands from caster controls', () => {
+    const actor = makeCombatant({
+      combatant_id: 'caster',
+      name: 'Ada',
+      spell_slots: { 1: 1 },
+      spell_slots_max: { 1: 1 },
+    });
+    const target = makeCombatant({ combatant_id: 'target', name: 'Borin', controlled_by: ['99'] });
+    useCombatStore.setState({ combat: { ...baseCombat, combatants: [actor, target] } });
+
+    render(<ActionPanel />);
+    fireEvent.change(screen.getByLabelText(/spell/i), { target: { value: 'Burning Hands' } });
+    fireEvent.change(screen.getByLabelText(/damage/i), { target: { value: '3d6' } });
+    fireEvent.click(screen.getByRole('button', { name: /cast spell/i }));
+
+    expect(mockOptionalProtocol.sendMessage).toHaveBeenCalledWith(
+      expect.objectContaining({
+        type: 'combat_command',
+        data: expect.objectContaining({
+          commands: [expect.objectContaining({
+            type: 'cast_spell',
+            actor_id: 'caster',
+            spell_name: 'Burning Hands',
+            spell_level: 1,
+            target_ids: ['target'],
+            damage_formula: '3d6',
+          })],
+        }),
+      }),
+    );
+  });
+
   it('sends utility actions through combat_command', () => {
     useCombatStore.setState({ combat: { ...baseCombat, combatants: [makeCombatant({ combatant_id: 'cmb-1' })] } });
 

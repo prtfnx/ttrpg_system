@@ -23,7 +23,46 @@
   gap: var(--spacing-xs);
 }
 
+.row {
+  display: grid;
+  grid-template-columns: 0.7fr 1.3fr;
+  gap: var(--spacing-xs);
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+  font-size: var(--font-size-xs);
+  color: var(--text-muted);
+}
+
+.select,
+.input {
+  width: 100%;
+  min-width: 0;
+  padding: var(--spacing-xs);
+  background: var(--bg-primary);
+  color: var(--text-primary);
+  border: 1px solid var(--border-primary);
+  border-radius: var(--radius-sm);
+  font-size: var(--font-size-xs);
+}
+
+.spellBox {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-xs);
+  padding-top: var(--spacing-xs);
+  border-top: 1px solid var(--border-primary);
+}
+
 .btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
   padding: var(--spacing-xs) var(--spacing-sm);
   background: var(--button-primary-bg);
   color: var(--button-primary-text);

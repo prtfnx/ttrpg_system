@@ -9,7 +9,7 @@ const mockSend = vi.fn();
 vi.mock('@/store', () => ({ useGameStore: vi.fn() }));
 
 vi.mock('@lib/api', () => ({
-  ProtocolService: { getProtocol: vi.fn(() => ({ sendMessage: mockSend })) },
+  useOptionalProtocol: vi.fn(() => ({ protocol: { sendMessage: mockSend } })),
 }));
 
 vi.mock('@lib/websocket', () => ({
@@ -30,8 +30,8 @@ beforeEach(() => {
 describe('EncounterBuilder', () => {
   it('renders title and description fields', () => {
     render(<EncounterBuilder />);
-    expect(screen.getByPlaceholderText('Encounter title…')).toBeInTheDocument();
-    expect(screen.getByPlaceholderText('Describe the situation…')).toBeInTheDocument();
+    expect(screen.getByPlaceholderText('Encounter title...')).toBeInTheDocument();
+    expect(screen.getByPlaceholderText('Describe the situation...')).toBeInTheDocument();
   });
 
   it('renders initial choice input', () => {
@@ -48,7 +48,7 @@ describe('EncounterBuilder', () => {
   it('remove button on second choice removes it', () => {
     render(<EncounterBuilder />);
     fireEvent.click(screen.getByText('+ Add'));
-    const removeBtns = screen.getAllByText('✕');
+    const removeBtns = screen.getAllByTitle('Remove choice');
     expect(removeBtns).toHaveLength(2);
     fireEvent.click(removeBtns[1]);
     expect(screen.queryByPlaceholderText('Choice 2')).not.toBeInTheDocument();
@@ -69,7 +69,7 @@ describe('EncounterBuilder', () => {
 
   it('calls sendMessage with ENCOUNTER_START when title is filled', () => {
     render(<EncounterBuilder />);
-    fireEvent.change(screen.getByPlaceholderText('Encounter title…'), {
+    fireEvent.change(screen.getByPlaceholderText('Encounter title...'), {
       target: { value: 'Goblin Ambush' },
     });
     fireEvent.change(screen.getByPlaceholderText('Choice 1'), {
@@ -77,13 +77,20 @@ describe('EncounterBuilder', () => {
     });
     fireEvent.click(screen.getByText('Launch Encounter'));
     expect(mockSend).toHaveBeenCalledWith(
-      expect.objectContaining({ type: 'ENCOUNTER_START' })
+      expect.objectContaining({
+        type: 'ENCOUNTER_START',
+        data: expect.objectContaining({
+          table_id: 'table-1',
+          title: 'Goblin Ambush',
+          choices: [expect.objectContaining({ text: 'Fight them' })],
+        }),
+      })
     );
   });
 
   it('clears fields after successful launch', () => {
     render(<EncounterBuilder />);
-    const titleInput = screen.getByPlaceholderText('Encounter title…');
+    const titleInput = screen.getByPlaceholderText('Encounter title...');
     fireEvent.change(titleInput, { target: { value: 'Test' } });
     fireEvent.click(screen.getByText('Launch Encounter'));
     expect((titleInput as HTMLInputElement).value).toBe('');

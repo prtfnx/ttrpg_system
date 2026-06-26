@@ -1,9 +1,10 @@
 import { useState } from 'react';
-import styles from './EncounterBuilder.module.css';
-import { ProtocolService } from '@lib/api';
-import { createMessage, MessageType } from '@lib/websocket';
 import { useGameStore } from '@/store';
+import { MessageType } from '@lib/websocket';
+import { X } from 'lucide-react';
+import { useCombatCommands } from '../hooks/useCombatCommands';
 import type { EncounterChoice } from '../stores/encounterStore';
+import styles from './EncounterBuilder.module.css';
 
 interface NewChoice {
   text: string;
@@ -16,6 +17,7 @@ const emptyChoice = (): NewChoice => ({ text: '', requires_roll: false, skill: '
 
 export function EncounterBuilder() {
   const tableId = useGameStore((s) => s.activeTableId ?? '');
+  const { sendProtocolMessage } = useCombatCommands();
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
   const [choices, setChoices] = useState<NewChoice[]>([emptyChoice()]);
@@ -42,7 +44,7 @@ export function EncounterBuilder() {
           dc: c.requires_roll ? Number(c.dc) : undefined,
         })),
     };
-    ProtocolService.getProtocol()?.sendMessage(createMessage(MessageType.ENCOUNTER_START, payload));
+    sendProtocolMessage(MessageType.ENCOUNTER_START, payload);
     setTitle('');
     setDescription('');
     setChoices([emptyChoice()]);
@@ -56,7 +58,7 @@ export function EncounterBuilder() {
           className={styles.input}
           value={title}
           onChange={(e) => setTitle(e.target.value)}
-          placeholder="Encounter title…"
+          placeholder="Encounter title..."
         />
       </div>
       <div className={styles.fieldGroup}>
@@ -66,7 +68,7 @@ export function EncounterBuilder() {
           value={description}
           onChange={(e) => setDescription(e.target.value)}
           rows={3}
-          placeholder="Describe the situation…"
+          placeholder="Describe the situation..."
         />
       </div>
       <div className={styles.choicesSection}>
@@ -108,7 +110,9 @@ export function EncounterBuilder() {
               </>
             )}
             {choices.length > 1 && (
-              <button className={styles.removeBtn} onClick={() => removeChoice(i)}>✕</button>
+              <button className={styles.removeBtn} onClick={() => removeChoice(i)} title="Remove choice">
+                <X size={14} aria-hidden="true" />
+              </button>
             )}
           </div>
         ))}

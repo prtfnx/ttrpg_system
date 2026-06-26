@@ -1,15 +1,16 @@
-import styles from './EncounterView.module.css';
-import { ProtocolService } from '@lib/api';
-import { createMessage, MessageType } from '@lib/websocket';
+import { MessageType } from '@lib/websocket';
+import { useCombatCommands } from '../hooks/useCombatCommands';
 import { useEncounterStore } from '../stores/encounterStore';
+import styles from './EncounterView.module.css';
 
 export function EncounterView() {
   const encounter = useEncounterStore((s) => s.encounter);
+  const { sendProtocolMessage } = useCombatCommands();
 
   if (!encounter || encounter.phase === 'setup') return null;
 
   const send = (type: MessageType, data: Record<string, unknown>) =>
-    ProtocolService.getProtocol()?.sendMessage(createMessage(type, data));
+    sendProtocolMessage(type, data);
 
   const makeChoice = (choice_id: string) =>
     send(MessageType.ENCOUNTER_CHOICE, { encounter_id: encounter.encounter_id, choice_id });
@@ -38,7 +39,7 @@ export function EncounterView() {
         <div className={styles.card}>
           <h3 className={styles.title}>Roll Required</h3>
           <p className={styles.desc}>
-            {skill} check — DC {dc}
+            {skill} check - DC {dc}
           </p>
           <button
             className={styles.choiceBtn}

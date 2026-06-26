@@ -7,9 +7,7 @@ import { EncounterView } from '../EncounterView';
 const mockSendMessage = vi.fn();
 
 vi.mock('@lib/api', () => ({
-  ProtocolService: {
-    getProtocol: vi.fn(() => ({ sendMessage: mockSendMessage })),
-  },
+  useOptionalProtocol: vi.fn(() => ({ protocol: { sendMessage: mockSendMessage } })),
 }));
 
 vi.mock('@lib/websocket', () => ({
@@ -22,6 +20,7 @@ vi.mock('@lib/websocket', () => ({
 }));
 
 beforeEach(() => {
+  vi.clearAllMocks();
   useEncounterStore.setState({ encounter: null });
 });
 
@@ -75,7 +74,7 @@ describe('EncounterView', () => {
     });
     render(<EncounterView />);
     expect(screen.getByText('Roll Required')).toBeInTheDocument();
-    expect(screen.getByText(/Perception.*DC 15/)).toBeInTheDocument();
+    expect(screen.getByText('Perception check - DC 15')).toBeInTheDocument();
     expect(screen.getByText('Roll Perception')).toBeInTheDocument();
   });
 
@@ -100,9 +99,7 @@ describe('EncounterView', () => {
     expect(screen.getByText(/Persuasion DC 12/)).toBeInTheDocument();
   });
 
-  it('clicking a choice calls sendMessage with ENCOUNTER_CHOICE', () => {
-    mockSendMessage.mockClear();
-
+  it('clicking a choice sends ENCOUNTER_CHOICE', () => {
     useEncounterStore.setState({
       encounter: {
         encounter_id: 'e1',
@@ -114,6 +111,11 @@ describe('EncounterView', () => {
     });
     render(<EncounterView />);
     fireEvent.click(screen.getByText('Attack'));
-    expect(mockSendMessage).toHaveBeenCalled();
+    expect(mockSendMessage).toHaveBeenCalledWith(
+      expect.objectContaining({
+        type: 'ENCOUNTER_CHOICE',
+        data: { encounter_id: 'e1', choice_id: 'fight' },
+      })
+    );
   });
 });

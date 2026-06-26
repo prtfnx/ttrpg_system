@@ -17,19 +17,10 @@ interface LinkedTokenOption {
   spriteId: string;
   characterId: string;
   characterName: string;
-  hp: number;
-  maxHp: number;
-  ac: number;
-  movementSpeed: number;
-  controlledBy: string[];
 }
 
 function stringId(value: unknown): string {
   return typeof value === 'string' ? value : '';
-}
-
-function numberOr(value: unknown, fallback: number): number {
-  return typeof value === 'number' && Number.isFinite(value) ? value : fallback;
 }
 
 function buildLinkedTokenOptions(
@@ -55,22 +46,11 @@ function buildLinkedTokenOptions(
     const spriteId = stringId(sprite.id) || stringId(sprite.sprite_id) || stringId(sprite.entity_id);
     if (!spriteId || seenSpriteIds.has(spriteId)) continue;
 
-    const stats = character.data?.stats ?? {};
-    const hp = numberOr(sprite.hp, numberOr(stats.hp, 0));
-    const maxHp = numberOr(sprite.maxHp, numberOr(stats.maxHp, hp));
-
     seenSpriteIds.add(spriteId);
     options.push({
       spriteId,
       characterId,
       characterName: character.name,
-      hp,
-      maxHp,
-      ac: numberOr(sprite.ac, numberOr(stats.ac, 10)),
-      movementSpeed: numberOr(stats.speed, 30),
-      controlledBy: Array.isArray(sprite.controlledBy) && sprite.controlledBy.length > 0
-        ? sprite.controlledBy.map(String)
-        : character.controlledBy.map(String),
     });
   }
 
@@ -93,12 +73,6 @@ function buildCombatantPayload(option: LinkedTokenOption): Record<string, unknow
     entity_id: option.spriteId,
     character_id: option.characterId,
     name: option.characterName,
-    hp: option.hp,
-    max_hp: option.maxHp,
-    armor_class: option.ac,
-    movement_speed: option.movementSpeed,
-    controlled_by: option.controlledBy,
-    is_npc: option.controlledBy.length === 0,
   };
 }
 

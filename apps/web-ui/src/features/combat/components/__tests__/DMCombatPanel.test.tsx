@@ -187,6 +187,7 @@ describe('DMCombatPanel - PreCombatSetup (no active combat)', () => {
     const user = userEvent.setup();
     render(<DMCombatPanel />);
     await user.click(screen.getByRole('button', { name: /start with table tokens/i }));
+    const message = mockSendMessage.mock.calls[0]?.[0] as { data: { combatants: Record<string, unknown>[] } };
     expect(mockSendMessage).toHaveBeenCalledWith(
       expect.objectContaining({
         type: 'COMBAT_START',
@@ -195,12 +196,14 @@ describe('DMCombatPanel - PreCombatSetup (no active combat)', () => {
           entity_ids: ['e1', 'e2'],
           names: { e1: 'Goblin', e2: 'Hero' },
           combatants: [
-            expect.objectContaining({ entity_id: 'e1', character_id: 'char1', hp: 7, armor_class: 15, is_npc: true }),
-            expect.objectContaining({ entity_id: 'e2', character_id: 'char2', hp: 20, armor_class: 17, is_npc: false }),
+            expect.objectContaining({ entity_id: 'e1', character_id: 'char1', name: 'Goblin' }),
+            expect.objectContaining({ entity_id: 'e2', character_id: 'char2', name: 'Hero' }),
           ],
         }),
       })
     );
+    expect(message.data.combatants[0]).not.toHaveProperty('hp');
+    expect(message.data.combatants[0]).not.toHaveProperty('armor_class');
   });
 });
 
@@ -232,6 +235,7 @@ describe('DMCombatPanel - active combat', () => {
 
     render(<DMCombatPanel />);
     await user.click(screen.getByRole('button', { name: /add missing/i }));
+    const message = mockSendMessage.mock.calls[0]?.[0] as { data: Record<string, unknown> };
 
     expect(mockSendMessage).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -240,15 +244,11 @@ describe('DMCombatPanel - active combat', () => {
           entity_id: 'e2',
           character_id: 'char2',
           name: 'Hero',
-          hp: 20,
-          max_hp: 20,
-          armor_class: 17,
-          movement_speed: 30,
-          controlled_by: ['1'],
-          is_npc: false,
         }),
       })
     );
+    expect(message.data).not.toHaveProperty('hp');
+    expect(message.data).not.toHaveProperty('armor_class');
     expect(mockSendMessage).not.toHaveBeenCalledWith(
       expect.objectContaining({
         type: 'INITIATIVE_ADD',

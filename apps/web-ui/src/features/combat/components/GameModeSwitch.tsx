@@ -1,7 +1,7 @@
 import { useGameStore } from '@/store';
 import { isDM } from '@features/session/types/roles';
-import { ProtocolService } from '@lib/api';
-import { createMessage, MessageType } from '@lib/websocket';
+import { MessageType } from '@lib/websocket';
+import { useCombatCommands } from '../hooks/useCombatCommands';
 import type { GameMode } from '../stores/gameModeStore';
 import { useGameModeStore } from '../stores/gameModeStore';
 import styles from './GameModeSwitch.module.css';
@@ -17,12 +17,12 @@ export function GameModeSwitch() {
   const mode = useGameModeStore((s) => s.mode);
   const roundNumber = useGameModeStore((s) => s.roundNumber);
   const role = useGameStore((s) => s.sessionRole);
+  const { sendProtocolMessage } = useCombatCommands();
 
   if (!isDM(role)) return null;
 
   const change = (next: GameMode) => {
-    const proto = ProtocolService.getProtocol();
-    proto?.sendMessage(createMessage(MessageType.GAME_MODE_CHANGE, { game_mode: next }));
+    sendProtocolMessage(MessageType.GAME_MODE_CHANGE, { game_mode: next });
   };
 
   return (

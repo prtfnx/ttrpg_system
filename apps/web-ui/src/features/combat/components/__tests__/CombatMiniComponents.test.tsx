@@ -11,7 +11,6 @@ import { TurnBanner } from '../TurnBanner';
 const mockOptionalProtocol = { sendMessage: vi.fn() };
 
 vi.mock('@lib/api', () => ({
-  ProtocolService: { getProtocol: vi.fn().mockReturnValue({ sendMessage: vi.fn() }) },
   useOptionalProtocol: vi.fn(() => ({ protocol: mockOptionalProtocol })),
 }));
 vi.mock('@lib/websocket', () => ({
@@ -273,5 +272,19 @@ describe('GameModeSwitch', () => {
     useGameModeStore.setState({ mode: 'free_roam', roundNumber: 0 });
     render(<GameModeSwitch />);
     expect(screen.queryByText(/Round/)).toBeNull();
+  });
+
+  it('sends mode changes through the combat command hook', () => {
+    useGameStore.setState({ sessionRole: 'owner' });
+    render(<GameModeSwitch />);
+
+    fireEvent.change(screen.getByRole('combobox'), { target: { value: 'fight' } });
+
+    expect(mockOptionalProtocol.sendMessage).toHaveBeenCalledWith(
+      expect.objectContaining({
+        type: 'GAME_MODE_CHANGE',
+        data: { game_mode: 'fight' },
+      })
+    );
   });
 });

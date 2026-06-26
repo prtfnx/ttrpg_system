@@ -9,7 +9,7 @@ vi.mock('../../stores/combatStore', () => ({
 }));
 
 vi.mock('@lib/api', () => ({
-  ProtocolService: { getProtocol: vi.fn(() => ({ sendMessage: mockSendMessage })) },
+  useOptionalProtocol: vi.fn(() => ({ protocol: { sendMessage: mockSendMessage } })),
 }));
 
 vi.mock('@lib/websocket', () => ({
@@ -70,20 +70,29 @@ describe('AIControlPanel', () => {
     mockStore({ combatants: [npc1] });
     render(<AIControlPanel />);
     fireEvent.change(screen.getByRole('combobox'), { target: { value: 'defensive' } });
-    expect(mockSendMessage).toHaveBeenCalled();
+    expect(mockSendMessage).toHaveBeenCalledWith(expect.objectContaining({
+      type: 'DM_TOGGLE_AI',
+      data: { combatant_id: 'npc-1', behavior: 'defensive' },
+    }));
   });
 
   it('calls toggleAI when checkbox changes', () => {
     mockStore({ combatants: [npc1] });
     render(<AIControlPanel />);
     fireEvent.click(screen.getByRole('checkbox'));
-    expect(mockSendMessage).toHaveBeenCalled();
+    expect(mockSendMessage).toHaveBeenCalledWith(expect.objectContaining({
+      type: 'DM_TOGGLE_AI',
+      data: { combatant_id: 'npc-1', enabled: false },
+    }));
   });
 
   it('calls triggerAI on Act button click', () => {
     mockStore({ combatants: [npc1] });
     render(<AIControlPanel />);
     fireEvent.click(screen.getByTitle('Trigger AI action now'));
-    expect(mockSendMessage).toHaveBeenCalled();
+    expect(mockSendMessage).toHaveBeenCalledWith(expect.objectContaining({
+      type: 'AI_ACTION',
+      data: { combatant_id: 'npc-1' },
+    }));
   });
 });

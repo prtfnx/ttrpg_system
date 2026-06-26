@@ -9,6 +9,7 @@ from database.crud import get_game_mode, get_session_rules_json
 from database.database import SessionLocal
 from pydantic import ValidationError
 from service.combat_command_service import CombatCommandContext, CombatCommandService
+from service.combat_state_presenter import CombatStatePresenter
 from service.combatant_factory import CombatantFactory, CombatantFactoryContext
 from service.rules_engine import RulesEngine
 from utils.logger import setup_logger
@@ -73,10 +74,12 @@ class _CombatMixin(_ProtocolBase):
         state = CombatEngine.get_state(session_code) or CombatEngine.restore(session_code)
         if not state:
             return Message(MessageType.COMBAT_STATE, {'combat': None})
-        if is_dm(self._get_client_role(client_id)):
-            return Message(MessageType.COMBAT_STATE, {'combat': state.to_dict()})
         return Message(MessageType.COMBAT_STATE, {
-            'combat': state.to_dict_for_player(state.settings.show_npc_hp_to_players)
+            'combat': CombatStatePresenter.for_client(
+                state,
+                self._get_client_role(client_id),
+                self._get_user_id(msg, client_id),
+            )
         })
 
     async def handle_initiative_roll(self, msg: Message, client_id: str) -> Message:

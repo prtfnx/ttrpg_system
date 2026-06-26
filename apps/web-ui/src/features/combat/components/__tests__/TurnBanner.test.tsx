@@ -4,21 +4,20 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { useCombatStore } from '../../stores/combatStore';
 import { TurnBanner } from '../TurnBanner';
 
+const mockSendMessage = vi.fn();
+
 vi.mock('@/store', () => ({
   useGameStore: (sel?: (s: { userId: number | null }) => unknown) =>
     sel ? sel({ userId: 42 }) : { userId: 42 },
 }));
 
 vi.mock('@lib/api', () => ({
-  ProtocolService: {
-    getProtocol: vi.fn(() => ({ sendMessage: vi.fn() })),
-    hasProtocol: vi.fn(() => true),
-  },
+  useOptionalProtocol: vi.fn(() => ({ protocol: { sendMessage: mockSendMessage } })),
 }));
 
 vi.mock('@lib/websocket', () => ({
   createMessage: vi.fn((type, data) => ({ type, data })),
-  MessageType: { TURN_END: 'turn_end' },
+  MessageType: { COMBAT_COMMAND: 'combat_command' },
 }));
 
 const baseCombatant = {
@@ -96,11 +95,7 @@ describe('TurnBanner', () => {
     expect(screen.getByText(/gandalf/i)).toBeTruthy();
   });
 
-  it('sends turn end message when End Turn clicked', async () => {
-    const { ProtocolService } = await import('@lib/api');
-    const sendMessage = vi.fn();
-    (ProtocolService.getProtocol as ReturnType<typeof vi.fn>).mockReturnValue({ sendMessage });
-
+  it('sends end turn through combat_command when End Turn clicked', async () => {
     useCombatStore.setState({
       combat: activeCombat,
       isMyTurn: true,
@@ -108,6 +103,14 @@ describe('TurnBanner', () => {
     } as never);
     render(<TurnBanner />);
     await userEvent.click(screen.getByRole('button', { name: /end turn/i }));
-    expect(sendMessage).toHaveBeenCalled();
+    expect(mockSendMessage).toHaveBeenCalledWith(expect.objectContaining({
+      type: 'combat_command',
+      data: expect.objectContaining({
+        commands: [expect.objectContaining({
+          type: 'end_turn',
+          actor_id: 'c1',
+        })],
+      }),
+    }));
   });
 });

@@ -1,5 +1,4 @@
 import { useGameStore } from '@/store';
-import { ProtocolService } from '@lib/api';
 import { fireEvent, render, screen } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { useCombatStore } from '../../stores/combatStore';
@@ -16,8 +15,12 @@ vi.mock('@lib/api', () => ({
   useOptionalProtocol: vi.fn(() => ({ protocol: mockOptionalProtocol })),
 }));
 vi.mock('@lib/websocket', () => ({
-  createMessage: vi.fn().mockReturnValue({}),
-  MessageType: { TURN_END: 'TURN_END', GAME_MODE_CHANGE: 'GAME_MODE_CHANGE' },
+  createMessage: vi.fn((type, data) => ({ type, data })),
+  MessageType: {
+    COMBAT_COMMAND: 'combat_command',
+    TURN_END: 'TURN_END',
+    GAME_MODE_CHANGE: 'GAME_MODE_CHANGE',
+  },
 }));
 vi.mock('@features/session/types/roles', () => ({
   isDM: (role: string) => role === 'owner' || role === 'dm',
@@ -100,9 +103,6 @@ describe('TurnBanner', () => {
   });
 
   it('calls endTurn on button click', () => {
-    const sendMessage = vi.fn();
-    // ProtocolService is already mocked at top — override for this test
-    vi.mocked(ProtocolService.getProtocol).mockReturnValue({ sendMessage } as never);
     const c = makeCombatant({ controlled_by: ['42'] });
     useCombatStore.setState({
       combat: { ...baseCombat, combatants: [c] },
@@ -110,7 +110,15 @@ describe('TurnBanner', () => {
     });
     render(<TurnBanner />);
     fireEvent.click(screen.getByRole('button', { name: /end turn/i }));
-    expect(sendMessage).toHaveBeenCalled();
+    expect(mockOptionalProtocol.sendMessage).toHaveBeenCalledWith(expect.objectContaining({
+      type: 'combat_command',
+      data: expect.objectContaining({
+        commands: [expect.objectContaining({
+          type: 'end_turn',
+          actor_id: c.combatant_id,
+        })],
+      }),
+    }));
   });
 });
 

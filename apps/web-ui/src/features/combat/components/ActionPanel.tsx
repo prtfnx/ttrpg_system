@@ -1,34 +1,19 @@
 import { useGameStore } from '@/store';
-import { useOptionalProtocol } from '@lib/api';
-import type { WebClientProtocol } from '@lib/websocket';
-import { MessageType } from '@lib/websocket/message';
-import { useCallback } from 'react';
+import { Eye, Footprints, Handshake, LogOut, Shield, Swords, Zap } from 'lucide-react';
+import type { CombatCommandType } from '../hooks/useCombatCommands';
+import { useCombatCommands } from '../hooks/useCombatCommands';
 import { useCombatStore } from '../stores/combatStore';
 import styles from './ActionPanel.module.css';
 
 interface ActionPanelProps {
   onSelectTarget?: (action: 'attack' | 'help') => void;
 }
-type ProtocolMessage = Parameters<WebClientProtocol['sendMessage']>[0];
-type CombatCommandType = 'dash' | 'dodge' | 'disengage' | 'hide' | 'end_turn';
-
 
 export function ActionPanel({ onSelectTarget }: ActionPanelProps) {
   const combat = useCombatStore((s) => s.combat);
   const userId = useGameStore((s) => s.userId);
-  const protocolCtx = useOptionalProtocol();
-  const protocol = protocolCtx?.protocol;
-  const send = useCallback(
-    (type: string, data: Record<string, unknown>) => {
-      protocol?.sendMessage({
-        type,
-        data,
-      } as ProtocolMessage);
-    },
-    [protocol],
-  );
+  const { sendUtilityAction } = useCombatCommands();
 
-  
   if (!combat || combat.phase !== 'active') return null;
 
   const active = combat.combatants.filter((c) => !c.is_defeated);
@@ -39,24 +24,14 @@ export function ActionPanel({ onSelectTarget }: ActionPanelProps) {
   }
 
   const sendCommand = (commandType: CombatCommandType) => {
-    send(MessageType.COMBAT_COMMAND, {
-      sequence_id: Date.now(),
-      commands: [{
-        type: commandType,
-        actor_id: current.combatant_id,
-      }],
-    });
-  };
-
-  const endTurn = () => {
-    sendCommand('end_turn');
+    sendUtilityAction(current.combatant_id, commandType);
   };
 
   const noAction = !current.has_action;
 
   return (
     <div className={styles.panel}>
-      <div className={styles.title}>Your Turn — {current.name}</div>
+      <div className={styles.title}>Your Turn - {current.name}</div>
       <div className={styles.grid}>
         <button
           className={styles.btn}
@@ -64,7 +39,7 @@ export function ActionPanel({ onSelectTarget }: ActionPanelProps) {
           onClick={() => onSelectTarget?.('attack')}
           title="Attack (action)"
         >
-          ⚔ Attack
+          <Swords size={14} aria-hidden /> Attack
         </button>
         <button
           className={styles.btn}
@@ -72,7 +47,7 @@ export function ActionPanel({ onSelectTarget }: ActionPanelProps) {
           onClick={() => sendCommand('dash')}
           title="Dash: double movement (action)"
         >
-          ⚡ Dash
+          <Zap size={14} aria-hidden /> Dash
         </button>
         <button
           className={styles.btn}
@@ -80,7 +55,7 @@ export function ActionPanel({ onSelectTarget }: ActionPanelProps) {
           onClick={() => sendCommand('dodge')}
           title="Dodge: attackers have disadvantage (action)"
         >
-          🛡 Dodge
+          <Shield size={14} aria-hidden /> Dodge
         </button>
         <button
           className={styles.btn}
@@ -88,7 +63,7 @@ export function ActionPanel({ onSelectTarget }: ActionPanelProps) {
           onClick={() => sendCommand('disengage')}
           title="Disengage: move without provoking OAs (action)"
         >
-          🏃 Disengage
+          <Footprints size={14} aria-hidden /> Disengage
         </button>
         <button
           className={styles.btn}
@@ -96,7 +71,7 @@ export function ActionPanel({ onSelectTarget }: ActionPanelProps) {
           onClick={() => onSelectTarget?.('help')}
           title="Help: give ally advantage (action)"
         >
-          🤝 Help
+          <Handshake size={14} aria-hidden /> Help
         </button>
         <button
           className={styles.btn}
@@ -104,14 +79,14 @@ export function ActionPanel({ onSelectTarget }: ActionPanelProps) {
           onClick={() => sendCommand('hide')}
           title="Hide: Stealth check (action)"
         >
-          👁 Hide
+          <Eye size={14} aria-hidden /> Hide
         </button>
         <button
           className={[styles.btn, styles.btnEnd].join(' ')}
-          onClick={endTurn}
+          onClick={() => sendCommand('end_turn')}
           title="End your turn"
         >
-          End Turn
+          <LogOut size={14} aria-hidden /> End Turn
         </button>
       </div>
     </div>

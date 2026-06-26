@@ -1,12 +1,14 @@
 import { useGameStore } from '@/store';
-import { ProtocolService } from '@lib/api';
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { useCombatStore } from '../../stores/combatStore';
 import { DMCombatPanel } from '../DMCombatPanel';
 
+const mockSendMessage = vi.fn();
+const mockUseOptionalProtocol = vi.fn();
+
 vi.mock('@lib/api', () => ({
-  ProtocolService: { getProtocol: vi.fn() },
+  useOptionalProtocol: () => mockUseOptionalProtocol(),
 }));
 
 vi.mock('@lib/websocket', () => ({
@@ -25,8 +27,6 @@ vi.mock('@lib/websocket', () => ({
     DM_SET_TERRAIN: 'DM_SET_TERRAIN',
   },
 }));
-
-const mockSendMessage = vi.fn();
 
 const mockCharacters = [
   {
@@ -153,7 +153,7 @@ const mockCombat = {
 };
 
 beforeEach(() => {
-  vi.mocked(ProtocolService.getProtocol).mockReturnValue({ sendMessage: mockSendMessage } as unknown as ReturnType<typeof ProtocolService.getProtocol>);
+  mockUseOptionalProtocol.mockReturnValue({ protocol: { sendMessage: mockSendMessage } });
   // Set a default activeTableId
   useGameStore.setState({
     activeTableId: 'table1',
@@ -167,7 +167,7 @@ afterEach(() => {
   vi.clearAllMocks();
 });
 
-describe('DMCombatPanel — PreCombatSetup (no active combat)', () => {
+describe('DMCombatPanel - PreCombatSetup (no active combat)', () => {
   beforeEach(() => {
     useCombatStore.setState({ combat: null });
   });
@@ -204,7 +204,7 @@ describe('DMCombatPanel — PreCombatSetup (no active combat)', () => {
   });
 });
 
-describe('DMCombatPanel — active combat', () => {
+describe('DMCombatPanel - active combat', () => {
   beforeEach(() => {
     useCombatStore.setState({ combat: mockCombat });
   });
@@ -258,7 +258,7 @@ describe('DMCombatPanel — active combat', () => {
   });
 });
 
-describe('DMCombatPanel — HP management', () => {
+describe('DMCombatPanel - HP management', () => {
   beforeEach(() => useCombatStore.setState({ combat: mockCombat }));
 
   it('Set HP sends DM_SET_HP with correct combatant and hp value', async () => {
@@ -308,7 +308,7 @@ describe('DMCombatPanel — HP management', () => {
   });
 });
 
-describe('DMCombatPanel — damage', () => {
+describe('DMCombatPanel - damage', () => {
   beforeEach(() => useCombatStore.setState({ combat: mockCombat }));
 
   it('Apply Damage sends DM_APPLY_DAMAGE with correct values', async () => {
@@ -334,7 +334,7 @@ describe('DMCombatPanel — damage', () => {
   });
 });
 
-describe('DMCombatPanel — conditions', () => {
+describe('DMCombatPanel - conditions', () => {
   beforeEach(() => useCombatStore.setState({ combat: mockCombat }));
 
   it('Add Condition sends CONDITION_ADD with correct payload', async () => {
@@ -353,7 +353,7 @@ describe('DMCombatPanel — conditions', () => {
   });
 });
 
-describe('DMCombatPanel — resistances', () => {
+describe('DMCombatPanel - resistances', () => {
   beforeEach(() => useCombatStore.setState({ combat: mockCombat }));
 
   it('sends DM_SET_RESISTANCES with parsed resistance list', async () => {
@@ -375,7 +375,7 @@ describe('DMCombatPanel — resistances', () => {
   });
 });
 
-describe('DMCombatPanel — surprise', () => {
+describe('DMCombatPanel - surprise', () => {
   beforeEach(() => useCombatStore.setState({ combat: mockCombat }));
 
   it('checking combatant and clicking Set Surprised sends DM_SET_SURPRISED', async () => {
@@ -394,7 +394,7 @@ describe('DMCombatPanel — surprise', () => {
   });
 });
 
-describe('DMCombatPanel — end combat + revert', () => {
+describe('DMCombatPanel - end combat + revert', () => {
   beforeEach(() => useCombatStore.setState({ combat: mockCombat }));
 
   it('End Combat with confirm=true sends COMBAT_END', async () => {
@@ -423,10 +423,10 @@ describe('DMCombatPanel — end combat + revert', () => {
   });
 });
 
-describe('DMCombatPanel — no protocol', () => {
+describe('DMCombatPanel - no protocol', () => {
   beforeEach(() => {
     useCombatStore.setState({ combat: null });
-    vi.mocked(ProtocolService.getProtocol).mockReturnValue(null as unknown as ReturnType<typeof ProtocolService.getProtocol>);
+    mockUseOptionalProtocol.mockReturnValue(null);
   });
 
   it('clicking Start with Table Tokens does not throw when protocol is null', async () => {

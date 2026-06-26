@@ -1,8 +1,8 @@
 import { useGameStore } from '@/store';
 import type { Character, Sprite } from '@/types';
-import { ProtocolService } from '@lib/api';
-import { createMessage, MessageType } from '@lib/websocket';
+import { MessageType } from '@lib/websocket';
 import { useMemo, useState } from 'react';
+import { useCombatCommands } from '../hooks/useCombatCommands';
 import { useCombatStore } from '../stores/combatStore';
 import styles from './DMCombatPanel.module.css';
 
@@ -112,15 +112,14 @@ function buildCombatStartData(activeTableId: string | null, options: LinkedToken
 }
 
 function PreCombatSetup() {
-  const send = (type: MessageType, data: Record<string, unknown>) =>
-    ProtocolService.getProtocol()?.sendMessage(createMessage(type, data));
+  const { sendProtocolMessage } = useCombatCommands();
   const activeTableId = useGameStore((s) => s.activeTableId);
   const linkedTokenOptions = useLinkedTokenOptions();
 
   const startCombat = () =>
-    send(MessageType.COMBAT_START, buildCombatStartData(activeTableId, linkedTokenOptions));
+    sendProtocolMessage(MessageType.COMBAT_START, buildCombatStartData(activeTableId, linkedTokenOptions));
   const startEmptyCombat = () =>
-    send(MessageType.COMBAT_START, { table_id: activeTableId ?? 'default' });
+    sendProtocolMessage(MessageType.COMBAT_START, { table_id: activeTableId ?? 'default' });
 
   return (
     <div className={styles.panel}>
@@ -156,6 +155,7 @@ function PreCombatSetup() {
 export function DMCombatPanel() {
   const combat = useCombatStore((s) => s.combat);
   const activeTableId = useGameStore((s) => s.activeTableId);
+  const { sendProtocolMessage } = useCombatCommands();
   const linkedTokenOptions = useLinkedTokenOptions();
   const [selectedId, setSelectedId] = useState('');
   const [hpValue, setHpValue] = useState('');
@@ -185,35 +185,32 @@ export function DMCombatPanel() {
 
   if (!combat) return <PreCombatSetup />;
 
-  const send = (type: MessageType, data: Record<string, unknown>) =>
-    ProtocolService.getProtocol()?.sendMessage(createMessage(type, data));
-
   const endCombat = () => {
     if (!confirm('End combat? This cannot be undone.')) return;
-    send(MessageType.COMBAT_END, {});
+    sendProtocolMessage(MessageType.COMBAT_END, {});
   };
 
   const setHp = () => {
     if (!selectedId || !hpValue) return;
-    send(MessageType.DM_SET_HP, { combatant_id: selectedId, hp: Number(hpValue) });
+    sendProtocolMessage(MessageType.DM_SET_HP, { combatant_id: selectedId, hp: Number(hpValue) });
     setHpValue('');
   };
 
   const setTempHp = () => {
     if (!selectedId || !tempHpValue) return;
-    send(MessageType.DM_SET_TEMP_HP, { combatant_id: selectedId, temp_hp: Number(tempHpValue) });
+    sendProtocolMessage(MessageType.DM_SET_TEMP_HP, { combatant_id: selectedId, temp_hp: Number(tempHpValue) });
     setTempHpValue('');
   };
 
   const applyDamage = () => {
     if (!selectedId || !damageValue) return;
-    send(MessageType.DM_APPLY_DAMAGE, { combatant_id: selectedId, amount: Number(damageValue) });
+    sendProtocolMessage(MessageType.DM_APPLY_DAMAGE, { combatant_id: selectedId, amount: Number(damageValue) });
     setDamageValue('');
   };
 
   const addCondition = () => {
     if (!selectedId) return;
-    send(MessageType.CONDITION_ADD, {
+    sendProtocolMessage(MessageType.CONDITION_ADD, {
       combatant_id: selectedId,
       condition_type: conditionType,
       duration: Number(conditionDuration),
@@ -224,7 +221,7 @@ export function DMCombatPanel() {
   const setResistances = () => {
     if (!selectedId) return;
     const toList = (s: string) => s.split(',').map((x) => x.trim().toLowerCase()).filter(Boolean);
-    send(MessageType.DM_SET_RESISTANCES, {
+    sendProtocolMessage(MessageType.DM_SET_RESISTANCES, {
       combatant_id: selectedId,
       resistances: toList(resistField),
       vulnerabilities: toList(vulnField),
@@ -234,7 +231,7 @@ export function DMCombatPanel() {
 
   const setSurprised = (surprised: boolean) => {
     if (!surprisedIds.length) return;
-    send(MessageType.DM_SET_SURPRISED, { combatant_ids: surprisedIds, surprised });
+    sendProtocolMessage(MessageType.DM_SET_SURPRISED, { combatant_ids: surprisedIds, surprised });
     setSurprisedIds([]);
   };
 
@@ -248,12 +245,12 @@ export function DMCombatPanel() {
     }
 
     for (const option of missingLinkedTokenOptions) {
-      send(MessageType.INITIATIVE_ADD, buildCombatantPayload(option));
+      sendProtocolMessage(MessageType.INITIATIVE_ADD, buildCombatantPayload(option));
     }
     setCombatantAddStatus(`Queued ${missingLinkedTokenOptions.length} table combatant${missingLinkedTokenOptions.length === 1 ? '' : 's'}.`);
   };
 
-  const revertLast = () => send(MessageType.DM_REVERT_ACTION, {});
+  const revertLast = () => sendProtocolMessage(MessageType.DM_REVERT_ACTION, {});
 
   return (
     <div className={styles.panel}>
@@ -295,7 +292,7 @@ export function DMCombatPanel() {
           value={selectedId}
           onChange={(e) => setSelectedId(e.target.value)}
         >
-          <option value="">— Select combatant —</option>
+          <option value="">Select combatant</option>
           {combat.combatants.map((c) => (
             <option key={c.combatant_id} value={c.combatant_id}>
               {linkedTokenBySpriteId.get(c.entity_id)?.characterName ?? c.name}
@@ -382,7 +379,7 @@ export function DMCombatPanel() {
       </div>
 
       <div className={styles.section}>
-        <label className={styles.label}>Surprise Round — mark surprised</label>
+        <label className={styles.label}>Surprise Round - mark surprised</label>
         <div className={styles.checkList}>
           {combat.combatants.map((c) => (
             <label key={c.combatant_id} className={styles.checkItem}>
@@ -407,9 +404,7 @@ export function DMCombatPanel() {
         <p className={styles.hint}>Mark cells as difficult terrain on the canvas, or clear all.</p>
         <div className={styles.row}>
           <button className={styles.btn} onClick={() =>
-            ProtocolService.getProtocol()?.sendMessage(
-              createMessage(MessageType.DM_SET_TERRAIN, { table_id: activeTableId, mode: 'clear', cells: [] })
-            )
+            sendProtocolMessage(MessageType.DM_SET_TERRAIN, { table_id: activeTableId, mode: 'clear', cells: [] })
           }>Clear All</button>
         </div>
       </div>

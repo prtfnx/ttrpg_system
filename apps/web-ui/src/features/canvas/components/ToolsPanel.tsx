@@ -3,13 +3,12 @@ import { DND_DISTANCES } from '@/utils/unitConverter';
 import { AssetManager } from '@features/assets';
 import { GridControls, LayerPanel } from '@features/canvas';
 import { useLayerHotkeys } from '@features/canvas/hooks';
-import { DMCombatPanel, FloatingInitiativeTracker, GameModeSwitch, OAPrompt, OAWarningModal, useOAStore } from '@features/combat';
+import { DMCombatPanel, FloatingInitiativeTracker, GameModeSwitch, OAPrompt, OAWarningModal, useCombatCommands, useOAStore } from '@features/combat';
 import { startDmPreview, stopDmPreview } from '@features/lighting';
 import { MeasurementTool } from '@features/measurement';
 import { PaintPanel } from '@features/painting';
 import { canInteract, isDM, isElevated } from '@features/session/types/roles';
 import { ProtocolService } from '@lib/api';
-import { createMessage, MessageType } from '@lib/websocket';
 import { useRenderEngine, useWasmRuntime } from '@lib/wasm/runtime';
 import { AlignmentHelper } from '@shared/components';
 import DiceRoller from '@shared/components/DiceRoller';
@@ -83,6 +82,7 @@ export function ToolsPanel({ userInfo }: ToolsPanelProps) {
   const oaPrompt = useOAStore((s) => s.prompt);
   const pendingOACommand = useOAStore((s) => s.pendingCombatCommand);
   const clearOA = useOAStore((s) => s.clearAll);
+  const { sendCommandBatch } = useCombatCommands();
   const [shapeColor, setShapeColor] = useState('#0080ff');
   const [shapeOpacity, setShapeOpacity] = useState(1.0);
   const [shapeFilled, setShapeFilled] = useState(false);
@@ -665,15 +665,15 @@ export function ToolsPanel({ userInfo }: ToolsPanelProps) {
         <OAWarningModal
           triggers={oaTriggers}
           onConfirm={() => {
-            if (ProtocolService.hasProtocol() && pendingOACommand) {
-              ProtocolService.getProtocol().sendMessage(createMessage(MessageType.COMBAT_COMMAND, {
+            if (pendingOACommand) {
+              sendCommandBatch({
                 ...pendingOACommand,
                 commands: pendingOACommand.commands.map((command) => (
                   command.type === 'move'
                     ? { ...command, confirm_opportunity_attacks: true }
                     : command
                 )),
-              }));
+              });
             } else if (ProtocolService.hasProtocol()) {
               ProtocolService.getProtocol().confirmMoveDespiteOA(oaWarning);
             }

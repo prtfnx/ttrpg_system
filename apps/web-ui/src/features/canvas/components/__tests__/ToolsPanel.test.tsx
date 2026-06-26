@@ -21,6 +21,7 @@ vi.mock('@features/combat', () => ({
   GameModeSwitch: () => null,
   OAPrompt: () => null,
   OAWarningModal: () => null,
+  useCombatCommands: vi.fn(() => ({ sendCommandBatch: vi.fn() })),
   useOAStore: vi.fn((sel: (s: Record<string, unknown>) => unknown) => sel({ warningEntityId: null, warningTriggers: [], prompt: null, clearAll: vi.fn() })),
 }));
 vi.mock('@features/lighting', () => ({

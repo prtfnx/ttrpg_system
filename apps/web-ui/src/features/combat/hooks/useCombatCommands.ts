@@ -15,6 +15,31 @@ export interface CombatCommandBatch {
   commands: CombatCommandPayload[];
 }
 
+export interface AttackCommandInput {
+  actorId: string;
+  targetId: string;
+  tableId?: string;
+  attackBonus?: number;
+  damageFormula?: string;
+  damageType?: string;
+  attackType?: string;
+  rangeFt?: number;
+}
+
+export interface SpellCommandInput {
+  actorId: string;
+  spellName: string;
+  spellLevel: number;
+  targetIds: string[];
+  damageFormula?: string;
+  saveAbility?: string;
+  saveDc?: number;
+  damageType?: string;
+  requiresAttackRoll?: boolean;
+  attackBonus?: number;
+  isConcentration?: boolean;
+}
+
 export function useCombatCommands() {
   const protocolCtx = useOptionalProtocol();
   const protocol = protocolCtx?.protocol;
@@ -42,10 +67,43 @@ export function useCombatCommands() {
     sendUtilityAction(actorId, 'end_turn')
   ), [sendUtilityAction]);
 
+  const sendAttack = useCallback((input: AttackCommandInput) => (
+    sendCommand({
+      type: 'attack',
+      actor_id: input.actorId,
+      target_id: input.targetId,
+      table_id: input.tableId,
+      attack_bonus: input.attackBonus ?? 0,
+      damage_formula: input.damageFormula || '1d4',
+      damage_type: input.damageType || 'bludgeoning',
+      attack_type: input.attackType || 'melee',
+      range_ft: input.rangeFt ?? 5,
+    })
+  ), [sendCommand]);
+
+  const sendSpell = useCallback((input: SpellCommandInput) => (
+    sendCommand({
+      type: 'cast_spell',
+      actor_id: input.actorId,
+      spell_name: input.spellName,
+      spell_level: input.spellLevel,
+      target_ids: input.targetIds,
+      damage_formula: input.damageFormula || '',
+      save_ability: input.saveAbility || '',
+      save_dc: input.saveDc ?? 0,
+      damage_type: input.damageType || 'fire',
+      requires_attack_roll: input.requiresAttackRoll ?? false,
+      attack_bonus: input.attackBonus ?? 0,
+      is_concentration: input.isConcentration ?? false,
+    })
+  ), [sendCommand]);
+
   return {
     sendCommandBatch,
     sendCommand,
     sendUtilityAction,
+    sendAttack,
+    sendSpell,
     endTurn,
   };
 }

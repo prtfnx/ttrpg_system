@@ -48,4 +48,68 @@ describe('useCombatCommands', () => {
       }),
     }));
   });
+
+  it('sends attacks with target and resolution fields', () => {
+    const { result } = renderHook(() => useCombatCommands());
+
+    result.current.sendAttack({
+      actorId: 'attacker-1',
+      targetId: 'target-1',
+      tableId: 'table-1',
+      attackBonus: 5,
+      damageFormula: '1d8+3',
+      damageType: 'slashing',
+      attackType: 'melee',
+      rangeFt: 5,
+    });
+
+    expect(mockSendMessage).toHaveBeenCalledWith(expect.objectContaining({
+      type: 'combat_command',
+      data: expect.objectContaining({
+        commands: [expect.objectContaining({
+          type: 'attack',
+          actor_id: 'attacker-1',
+          target_id: 'target-1',
+          table_id: 'table-1',
+          attack_bonus: 5,
+          damage_formula: '1d8+3',
+          damage_type: 'slashing',
+          attack_type: 'melee',
+          range_ft: 5,
+        })],
+      }),
+    }));
+  });
+
+  it('sends spells with slot and target data', () => {
+    const { result } = renderHook(() => useCombatCommands());
+
+    result.current.sendSpell({
+      actorId: 'caster-1',
+      spellName: 'Burning Hands',
+      spellLevel: 1,
+      targetIds: ['target-1'],
+      damageFormula: '3d6',
+      saveAbility: 'dex',
+      saveDc: 13,
+      damageType: 'fire',
+    });
+
+    expect(mockSendMessage).toHaveBeenCalledWith(expect.objectContaining({
+      type: 'combat_command',
+      data: expect.objectContaining({
+        commands: [expect.objectContaining({
+          type: 'cast_spell',
+          actor_id: 'caster-1',
+          spell_name: 'Burning Hands',
+          spell_level: 1,
+          target_ids: ['target-1'],
+          damage_formula: '3d6',
+          save_ability: 'dex',
+          save_dc: 13,
+          damage_type: 'fire',
+        })],
+      }),
+    }));
+  });
 });

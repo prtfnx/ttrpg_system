@@ -1,4 +1,11 @@
-from core_table.combat import Combatant, CombatPhase, CombatSettings, CombatState
+from core_table.combat import (
+    ActionCost,
+    CombatAction,
+    Combatant,
+    CombatPhase,
+    CombatSettings,
+    CombatState,
+)
 from service.combat_state_presenter import CombatStatePresenter
 
 
@@ -28,6 +35,9 @@ def _state() -> CombatState:
                 armor_class=13,
                 is_npc=True,
                 ai_enabled=True,
+                constitution_modifier=2,
+                damage_resistances=['fire'],
+                spell_slots={'1': 2},
             ),
             Combatant(
                 combatant_id='npc-hidden',
@@ -39,6 +49,31 @@ def _state() -> CombatState:
                 is_npc=True,
                 is_hidden=True,
                 ai_enabled=True,
+            ),
+        ],
+        action_log=[
+            CombatAction(
+                action_id='action-visible',
+                combat_id='combat-1',
+                round_number=1,
+                turn_index=0,
+                actor_id='pc-1',
+                action_type='attack',
+                action_cost=ActionCost.ACTION.value,
+                target_ids=['npc-1', 'npc-hidden'],
+                state_before={'combatants': [{'combatant_id': 'npc-1', 'hp': 12}]},
+                is_dm_override=True,
+            ),
+            CombatAction(
+                action_id='action-hidden',
+                combat_id='combat-1',
+                round_number=1,
+                turn_index=0,
+                actor_id='npc-hidden',
+                action_type='attack',
+                action_cost=ActionCost.ACTION.value,
+                target_ids=['pc-1'],
+                state_before={'combatants': []},
             ),
         ],
     )
@@ -64,8 +99,16 @@ def test_player_receives_filtered_npc_state_and_no_hidden_npcs():
     assert 'hp' not in npc
     assert npc['hp_descriptor'] == 'bloodied'
     assert 'ai_enabled' not in npc
+    assert 'armor_class' not in npc
+    assert 'constitution_modifier' not in npc
+    assert 'damage_resistances' not in npc
+    assert 'spell_slots' not in npc
     assert pc['hp'] == 20
     assert pc['controlled_by'] == ['7']
+    assert [action['action_id'] for action in view['action_log']] == ['action-visible']
+    assert view['action_log'][0]['target_ids'] == ['npc-1']
+    assert 'state_before' not in view['action_log'][0]
+    assert 'is_dm_override' not in view['action_log'][0]
 
 
 def test_spectator_does_not_receive_control_ownership():
@@ -84,3 +127,13 @@ def test_boolean_hp_visibility_is_normalized():
     npc = next(c for c in view['combatants'] if c['combatant_id'] == 'npc-1')
     assert 'hp' not in npc
     assert 'hp_descriptor' not in npc
+
+
+def test_player_receives_npc_ac_when_session_setting_allows_it():
+    state = _state()
+    state.settings.show_npc_ac_to_players = True
+
+    view = CombatStatePresenter.for_client(state, 'player', user_id=7)
+
+    npc = next(c for c in view['combatants'] if c['combatant_id'] == 'npc-1')
+    assert npc['armor_class'] == 13

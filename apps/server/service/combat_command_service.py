@@ -539,6 +539,7 @@ class CombatCommandService:
             state_after=current.to_dict(),
             created_by=context.user_id,
         )
+        current.state_version = persisted.state_version
         return CombatCommandResult.from_dict(
             persisted.result,
             duplicate=persisted.duplicate,

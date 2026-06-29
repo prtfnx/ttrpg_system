@@ -369,6 +369,7 @@ def test_accepted_command_is_persisted_with_before_and_after_snapshots():
     persisted = persistence.persist_accepted.call_args.kwargs
     assert result.accepted is True
     assert result.state_version == 1
+    assert CombatEngine.get_state("cmd").state_version == 1
     assert persisted["state_before"]["combatants"][0]["has_action"] is True
     assert persisted["state_after"]["combatants"][0]["has_action"] is False
     assert persisted["command_type"] == "dash"

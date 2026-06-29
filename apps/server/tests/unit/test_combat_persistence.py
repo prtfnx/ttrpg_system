@@ -2,7 +2,9 @@ import json
 
 import pytest
 from database.models import CombatActionJournal, CombatEncounter
+from service.combat_persistence_service import CombatPersistenceService
 from sqlalchemy.exc import IntegrityError
+from sqlalchemy.orm import sessionmaker
 
 
 @pytest.mark.unit
@@ -58,3 +60,92 @@ def test_combat_snapshot_starts_at_version_zero(test_db, test_game_session):
     test_db.commit()
 
     assert encounter.state_version == 0
+
+
+@pytest.mark.unit
+def test_accepted_command_atomically_updates_snapshot_and_journal(
+    test_db,
+    test_game_session,
+):
+    service = CombatPersistenceService(
+        sessionmaker(bind=test_db.get_bind(), expire_on_commit=False)
+    )
+    state_before = _state("combat-atomic", hp=20)
+    state_after = _state("combat-atomic", hp=15)
+
+    persisted = service.persist_accepted(
+        session_code=test_game_session.session_code,
+        requester_key="user:1",
+        sequence_id=42,
+        actor_id="actor-1",
+        command_type="attack",
+        command_payload={"commands": [{"type": "attack"}]},
+        result_payload={"accepted": True, "sequence_id": 42},
+        state_before=state_before,
+        state_after=state_after,
+        created_by=test_game_session.owner_id,
+    )
+
+    test_db.expire_all()
+    encounter = test_db.query(CombatEncounter).filter_by(
+        encounter_id="combat-atomic"
+    ).one()
+    action = test_db.query(CombatActionJournal).one()
+    assert persisted.state_version == 1
+    assert persisted.result["state_version"] == 1
+    assert encounter.state_version == 1
+    assert json.loads(encounter.combatants_json)[0]["hp"] == 15
+    assert action.state_version == 1
+    assert json.loads(action.state_before_json)["combatants"][0]["hp"] == 20
+
+
+@pytest.mark.unit
+def test_duplicate_command_returns_stored_result_without_advancing_snapshot(
+    test_db,
+    test_game_session,
+):
+    service = CombatPersistenceService(
+        sessionmaker(bind=test_db.get_bind(), expire_on_commit=False)
+    )
+    arguments = {
+        "session_code": test_game_session.session_code,
+        "requester_key": "user:1",
+        "sequence_id": 42,
+        "actor_id": "actor-1",
+        "command_type": "attack",
+        "command_payload": {"commands": [{"type": "attack"}]},
+        "result_payload": {"accepted": True, "sequence_id": 42},
+        "state_before": _state("combat-duplicate", hp=20),
+        "state_after": _state("combat-duplicate", hp=15),
+        "created_by": test_game_session.owner_id,
+    }
+
+    first = service.persist_accepted(**arguments)
+    arguments["state_after"] = _state("combat-duplicate", hp=1)
+    duplicate = service.persist_accepted(**arguments)
+
+    test_db.expire_all()
+    encounter = test_db.query(CombatEncounter).filter_by(
+        encounter_id="combat-duplicate"
+    ).one()
+    assert first.duplicate is False
+    assert duplicate.duplicate is True
+    assert duplicate.result == first.result
+    assert encounter.state_version == 1
+    assert json.loads(encounter.combatants_json)[0]["hp"] == 15
+    assert test_db.query(CombatActionJournal).count() == 1
+
+
+def _state(combat_id: str, hp: int) -> dict:
+    return {
+        "combat_id": combat_id,
+        "session_id": "TEST01",
+        "table_id": "table-1",
+        "phase": "active",
+        "round_number": 1,
+        "current_turn_index": 0,
+        "combatants": [{"combatant_id": "actor-1", "hp": hp}],
+        "settings": {},
+        "action_log": [],
+        "state_hash": f"hp-{hp}",
+    }

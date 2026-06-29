@@ -72,8 +72,13 @@ class CombatPersistenceService:
                 state_after,
             )
             next_version = int(encounter.state_version or 0) + 1
+            state_after = dict(state_after)
+            state_after['state_version'] = next_version
             stored_result = dict(result_payload)
             stored_result['state_version'] = next_version
+            if isinstance(stored_result.get('combat'), dict):
+                stored_result['combat'] = dict(stored_result['combat'])
+                stored_result['combat']['state_version'] = next_version
             self._update_snapshot(encounter, state_after, next_version)
             action = CombatActionJournal(
                 encounter_id=encounter_id,

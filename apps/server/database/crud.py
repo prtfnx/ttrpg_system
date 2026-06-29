@@ -1015,6 +1015,7 @@ def load_active_combat_encounter(db: Session, session_code: str) -> dict | None:
         'combatants': json.loads(enc.combatants_json or '[]'),
         'settings': json.loads(enc.settings_json or '{}'),
         'action_log': json.loads(enc.action_log_json or '[]'),
+        'state_version': enc.state_version,
     }
 
 

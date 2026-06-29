@@ -221,6 +221,7 @@ class CombatState:
     started_at: Optional[float] = None
     settings: CombatSettings = field(default_factory=CombatSettings)
     state_hash: str = ""
+    state_version: int = 0
 
     def active_combatants(self) -> list[Combatant]:
         if self.settings.skip_defeated:
@@ -261,6 +262,7 @@ class CombatState:
             'started_at': self.started_at,
             'settings': self.settings.to_dict(),
             'state_hash': self.compute_hash(),
+            'state_version': self.state_version,
         }
 
     def to_dict_for_player(self, rules_hp_vis: str = 'descriptor') -> dict:
@@ -278,6 +280,7 @@ class CombatState:
             started_at=data.get('started_at'),
             settings=CombatSettings.from_dict(data.get('settings', {})),
             state_hash=data.get('state_hash', ''),
+            state_version=int(data.get('state_version', 0)),
         )
         cs.combatants = [Combatant.from_dict(x) for x in data.get('combatants', [])]
         cs.action_log = [CombatAction.from_dict(x) for x in data.get('action_log', [])]

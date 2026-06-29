@@ -1,6 +1,8 @@
 import json
 
 import pytest
+from core_table.combat import CombatState
+from database.crud import load_active_combat_encounter
 from database.models import CombatActionJournal, CombatEncounter
 from service.combat_persistence_service import CombatPersistenceService
 from sqlalchemy.exc import IntegrityError
@@ -80,7 +82,11 @@ def test_accepted_command_atomically_updates_snapshot_and_journal(
         actor_id="actor-1",
         command_type="attack",
         command_payload={"commands": [{"type": "attack"}]},
-        result_payload={"accepted": True, "sequence_id": 42},
+        result_payload={
+            "accepted": True,
+            "sequence_id": 42,
+            "combat": state_after,
+        },
         state_before=state_before,
         state_after=state_after,
         created_by=test_game_session.owner_id,
@@ -93,10 +99,19 @@ def test_accepted_command_atomically_updates_snapshot_and_journal(
     action = test_db.query(CombatActionJournal).one()
     assert persisted.state_version == 1
     assert persisted.result["state_version"] == 1
+    assert persisted.result["combat"]["state_version"] == 1
     assert encounter.state_version == 1
     assert json.loads(encounter.combatants_json)[0]["hp"] == 15
     assert action.state_version == 1
     assert json.loads(action.state_before_json)["combatants"][0]["hp"] == 20
+
+    restored_data = load_active_combat_encounter(
+        test_db,
+        test_game_session.session_code,
+    )
+    restored = CombatState.from_dict(restored_data)
+    assert restored.state_version == 1
+    assert restored.combatants[0].hp == 15
 
 
 @pytest.mark.unit
@@ -144,7 +159,11 @@ def _state(combat_id: str, hp: int) -> dict:
         "phase": "active",
         "round_number": 1,
         "current_turn_index": 0,
-        "combatants": [{"combatant_id": "actor-1", "hp": hp}],
+        "combatants": [{
+            "combatant_id": "actor-1",
+            "entity_id": "sprite-1",
+            "hp": hp,
+        }],
         "settings": {},
         "action_log": [],
         "state_hash": f"hp-{hp}",

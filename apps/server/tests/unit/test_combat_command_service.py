@@ -1,4 +1,4 @@
-from unittest.mock import AsyncMock, patch
+from unittest.mock import AsyncMock, MagicMock, patch
 
 from service.attack_resolver import AttackResult
 from service.combat_command_service import (
@@ -6,6 +6,7 @@ from service.combat_command_service import (
     CombatCommandService,
 )
 from service.combat_engine import CombatEngine
+from service.combat_persistence_service import PersistedCombatCommand
 
 
 def _context(role: str = "owner", user_id: int | None = 1) -> CombatCommandContext:
@@ -343,3 +344,101 @@ def test_invalid_payload_is_rejected_before_application():
         assert "commands" in str(exc)
     else:
         raise AssertionError("Expected validation error")
+
+
+def test_accepted_command_is_persisted_with_before_and_after_snapshots():
+    state, actor, _target = _state()
+    persistence = MagicMock()
+    persistence.requester_key.return_value = "user:1"
+    persistence.find_result.return_value = None
+
+    def persist(**kwargs):
+        result = dict(kwargs["result_payload"])
+        result["state_version"] = 1
+        return PersistedCombatCommand(result=result, state_version=1)
+
+    persistence.persist_accepted.side_effect = persist
+    service = CombatCommandService(persistence=persistence)
+    envelope = service.parse_envelope({
+        "sequence_id": 14,
+        "commands": [{"type": "dash", "actor_id": actor.combatant_id}],
+    })
+
+    result = service.apply(envelope, _context(role="player"))
+
+    persisted = persistence.persist_accepted.call_args.kwargs
+    assert result.accepted is True
+    assert result.state_version == 1
+    assert persisted["state_before"]["combatants"][0]["has_action"] is True
+    assert persisted["state_after"]["combatants"][0]["has_action"] is False
+    assert persisted["command_type"] == "dash"
+    assert persisted["requester_key"] == "user:1"
+
+
+def test_duplicate_command_returns_stored_result_without_mutating_state():
+    state, actor, _target = _state()
+    persistence = MagicMock()
+    persistence.requester_key.return_value = "user:1"
+    persistence.find_result.return_value = PersistedCombatCommand(
+        result={
+            "accepted": True,
+            "sequence_id": 15,
+            "applied": [{"action_type": "dash", "actor_id": actor.combatant_id}],
+            "combat": state.to_dict(),
+            "state_version": 3,
+        },
+        state_version=3,
+        duplicate=True,
+    )
+    service = CombatCommandService(persistence=persistence)
+    envelope = service.parse_envelope({
+        "sequence_id": 15,
+        "commands": [{"type": "dash", "actor_id": actor.combatant_id}],
+    })
+
+    result = service.apply(envelope, _context(role="player"))
+
+    assert result.accepted is True
+    assert result.duplicate is True
+    assert result.state_version == 3
+    assert CombatEngine.get_state("cmd").combatants[0].has_action is True
+    persistence.persist_accepted.assert_not_called()
+
+
+async def test_persistence_failure_rolls_back_combat_and_token_movement():
+    state, actor, _target = _state()
+    move_sprite = AsyncMock(return_value={"success": True, "message": "ok"})
+    persistence = MagicMock()
+    persistence.requester_key.return_value = "user:1"
+    persistence.find_result.return_value = None
+    persistence.persist_accepted.side_effect = RuntimeError("database unavailable")
+    service = CombatCommandService(persistence=persistence)
+    envelope = service.parse_envelope({
+        "sequence_id": 16,
+        "commands": [{
+            "type": "move",
+            "actor_id": actor.combatant_id,
+            "table_id": "t1",
+            "from_x": 0,
+            "from_y": 0,
+            "target_x": 64,
+            "target_y": 0,
+            "cost_ft": 10,
+        }],
+    })
+
+    result = await service.apply_async(
+        envelope,
+        CombatCommandContext(
+            session_code="cmd",
+            client_id="c1",
+            role="player",
+            user_id=1,
+            move_sprite=move_sprite,
+        ),
+    )
+
+    assert result.accepted is False
+    assert result.reason == "Failed to persist combat command"
+    assert CombatEngine.get_state("cmd").combatants[0].movement_remaining == 30
+    assert move_sprite.await_count == 2

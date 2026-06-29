@@ -8,6 +8,7 @@ from typing import Any, Awaitable, Callable, Optional
 
 from core_table.combat import CombatAction, CombatState
 from pydantic import BaseModel, ConfigDict, Field, ValidationError, field_validator
+from service.combat_persistence_service import CombatPersistenceService
 from utils.roles import is_dm
 
 
@@ -95,6 +96,8 @@ class CombatCommandResult:
     failed_index: int | None = None
     reason: str = ""
     details: dict[str, Any] = dataclass_field(default_factory=dict)
+    state_version: int | None = None
+    duplicate: bool = False
 
     def to_dict(self) -> dict[str, Any]:
         data: dict[str, Any] = {
@@ -110,7 +113,30 @@ class CombatCommandResult:
             data["reason"] = self.reason
         if self.details:
             data["details"] = self.details
+        if self.state_version is not None:
+            data["state_version"] = self.state_version
+        if self.duplicate:
+            data["duplicate"] = True
         return data
+
+    @classmethod
+    def from_dict(
+        cls,
+        data: dict[str, Any],
+        *,
+        duplicate: bool = False,
+    ) -> "CombatCommandResult":
+        return cls(
+            accepted=bool(data.get("accepted")),
+            sequence_id=int(data.get("sequence_id", 0)),
+            applied=list(data.get("applied", [])),
+            combat=data.get("combat"),
+            failed_index=data.get("failed_index"),
+            reason=str(data.get("reason", "")),
+            details=dict(data.get("details", {})),
+            state_version=data.get("state_version"),
+            duplicate=duplicate,
+        )
 
 
 class CombatCommandService:
@@ -120,11 +146,16 @@ class CombatCommandService:
     service so turn checks, ownership, resources, and outcomes stay centralized.
     """
 
-    def __init__(self, combat_engine=None):
+    def __init__(
+        self,
+        combat_engine=None,
+        persistence: CombatPersistenceService | None = None,
+    ):
         if combat_engine is None:
             from service.combat_engine import CombatEngine
             combat_engine = CombatEngine
         self._engine = combat_engine
+        self._persistence = persistence
 
     def parse_envelope(self, payload: dict[str, Any]) -> CombatCommandEnvelope:
         return CombatCommandEnvelope.from_payload(payload)
@@ -142,6 +173,9 @@ class CombatCommandService:
             return self._reject(envelope.sequence_id, 0, "No active combat")
 
         snapshot = state.to_dict()
+        duplicate = self._find_duplicate(envelope, context, state.combat_id)
+        if duplicate:
+            return duplicate
         applied: list[dict[str, Any]] = []
 
         for idx, command in enumerate(envelope.commands):
@@ -177,13 +211,27 @@ class CombatCommandService:
                 return self._reject(envelope.sequence_id, idx, "Combat ended unexpectedly")
 
         current = self._engine.get_state(context.session_code)
-        self._persist(context.session_code)
-        return CombatCommandResult(
+        result = CombatCommandResult(
             accepted=True,
             sequence_id=envelope.sequence_id,
             applied=applied,
             combat=current.to_dict() if current else None,
         )
+        try:
+            return self._persist_result(
+                envelope,
+                context,
+                snapshot,
+                current,
+                result,
+            )
+        except Exception:
+            self._restore(context.session_code, snapshot)
+            return self._reject(
+                envelope.sequence_id,
+                0,
+                "Failed to persist combat command",
+            )
 
     async def apply_async(
         self,
@@ -195,6 +243,9 @@ class CombatCommandService:
             return self._reject(envelope.sequence_id, 0, "No active combat")
 
         snapshot = state.to_dict()
+        duplicate = self._find_duplicate(envelope, context, state.combat_id)
+        if duplicate:
+            return duplicate
         applied: list[dict[str, Any]] = []
         move_undos: list[tuple[str, str, dict[str, float], dict[str, float]]] = []
 
@@ -231,13 +282,27 @@ class CombatCommandService:
                 return self._reject(envelope.sequence_id, idx, "Combat ended unexpectedly")
 
         current = self._engine.get_state(context.session_code)
-        self._persist(context.session_code)
-        return CombatCommandResult(
+        result = CombatCommandResult(
             accepted=True,
             sequence_id=envelope.sequence_id,
             applied=applied,
             combat=current.to_dict() if current else None,
         )
+        try:
+            return self._persist_result(
+                envelope,
+                context,
+                snapshot,
+                current,
+                result,
+            )
+        except Exception:
+            await self._restore_async(context, snapshot, move_undos)
+            return self._reject(
+                envelope.sequence_id,
+                0,
+                "Failed to persist combat command",
+            )
 
     def _apply_one(
         self,
@@ -426,6 +491,58 @@ class CombatCommandService:
         persist = getattr(self._engine, "persist", None)
         if callable(persist):
             persist(session_code)
+
+    def _find_duplicate(
+        self,
+        envelope: CombatCommandEnvelope,
+        context: CombatCommandContext,
+        encounter_id: str,
+    ) -> CombatCommandResult | None:
+        if self._persistence is None:
+            return None
+        stored = self._persistence.find_result(
+            encounter_id,
+            self._persistence.requester_key(context.user_id, context.client_id),
+            envelope.sequence_id,
+        )
+        if stored is None:
+            return None
+        return CombatCommandResult.from_dict(stored.result, duplicate=True)
+
+    def _persist_result(
+        self,
+        envelope: CombatCommandEnvelope,
+        context: CombatCommandContext,
+        snapshot: dict[str, Any],
+        current: CombatState | None,
+        result: CombatCommandResult,
+    ) -> CombatCommandResult:
+        if self._persistence is None:
+            self._persist(context.session_code)
+            return result
+        if current is None:
+            raise RuntimeError("Combat ended before persistence")
+
+        command_types = [command.type.value for command in envelope.commands]
+        persisted = self._persistence.persist_accepted(
+            session_code=context.session_code,
+            requester_key=self._persistence.requester_key(
+                context.user_id,
+                context.client_id,
+            ),
+            sequence_id=envelope.sequence_id,
+            actor_id=result.applied[0].get("actor_id") if result.applied else None,
+            command_type=command_types[0] if len(command_types) == 1 else "batch",
+            command_payload=envelope.model_dump(mode="json"),
+            result_payload=result.to_dict(),
+            state_before=snapshot,
+            state_after=current.to_dict(),
+            created_by=context.user_id,
+        )
+        return CombatCommandResult.from_dict(
+            persisted.result,
+            duplicate=persisted.duplicate,
+        )
 
     async def _restore_async(
         self,

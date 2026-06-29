@@ -9,6 +9,7 @@ from database.crud import get_game_mode, get_session_rules_json
 from database.database import SessionLocal
 from pydantic import ValidationError
 from service.combat_command_service import CombatCommandContext, CombatCommandService
+from service.combat_persistence_service import CombatPersistenceService
 from service.combat_state_presenter import CombatStatePresenter
 from service.combatant_factory import CombatantFactory, CombatantFactoryContext
 from service.rules_engine import RulesEngine
@@ -66,6 +67,12 @@ class _CombatMixin(_ProtocolBase):
             )
 
         return self._combat_state_message(state, message_type, client_id, context)
+
+    def _get_combat_persistence_service(self) -> CombatPersistenceService | None:
+        if hasattr(self, 'combat_persistence_service'):
+            return self.combat_persistence_service
+        self.combat_persistence_service = CombatPersistenceService()
+        return self.combat_persistence_service
 
     async def handle_combat_start(self, msg: Message, client_id: str) -> Message:
         if not is_dm(self._get_client_role(client_id)):
@@ -643,7 +650,9 @@ class _CombatMixin(_ProtocolBase):
         )
 
     async def handle_combat_command(self, msg: Message, client_id: str) -> Message:
-        service = CombatCommandService()
+        service = CombatCommandService(
+            persistence=self._get_combat_persistence_service(),
+        )
         payload = msg.data or {}
 
         try:
@@ -675,6 +684,13 @@ class _CombatMixin(_ProtocolBase):
             state = CombatEngine.get_state(self._get_session_code())
             context = result.to_dict()
             context.pop('combat', None)
+            if result.duplicate:
+                return self._combat_state_message(
+                    state,
+                    response_type,
+                    client_id,
+                    context,
+                )
             return await self._broadcast_combat_state(
                 state,
                 response_type,

@@ -11,6 +11,7 @@ from core_table.protocol import Message, MessageType
 from core_table.session_rules import SessionRules
 from service.attack_resolver import AttackResult
 from service.combat_engine import CombatEngine
+from service.combat_persistence_service import PersistedCombatCommand
 from service.protocol.combat import _CombatMixin
 from service.spell_resolver import SpellResult
 
@@ -29,6 +30,7 @@ class _ProtoStub(_CombatMixin):
         self.table_manager.tables_id = {}
         self.table_manager.tables = {}
         self._rules_cache = {"TST": (SessionRules.defaults("TST"), "free_roam")}
+        self.combat_persistence_service = None
         self.broadcasts = []
         self.sent = []
 
@@ -848,6 +850,57 @@ class TestCombatCommand:
         assert proto.sent[0][0].type == MessageType.ACTION_RESULT
         assert proto.sent[0][1] == "c2"
         assert CombatEngine.get_state("TST").combatants[0].has_action is False
+
+    async def test_duplicate_command_returns_only_to_requesting_client(self):
+        CombatEngine._active.pop("TST", None)
+        state = CombatEngine.start_combat(
+            "TST",
+            "t1",
+            [],
+            combatants=[{
+                "entity_id": "sprite-a",
+                "name": "Ada",
+                "hp": 20,
+                "max_hp": 20,
+                "controlled_by": ["1"],
+            }],
+        )
+        actor = state.combatants[0]
+        persistence = MagicMock()
+        persistence.requester_key.return_value = "user:1"
+        persistence.find_result.return_value = PersistedCombatCommand(
+            result={
+                "accepted": True,
+                "sequence_id": 17,
+                "applied": [{"action_type": "dash", "actor_id": actor.combatant_id}],
+                "combat": state.to_dict(),
+                "state_version": 4,
+            },
+            state_version=4,
+            duplicate=True,
+        )
+        proto = _ProtoStub(client_info={
+            "c1": {"user_id": 1, "role": "player"},
+            "c2": {"user_id": 2, "role": "player"},
+        })
+        proto.combat_persistence_service = persistence
+
+        response = await proto.handle_combat_command(
+            Message(MessageType.COMBAT_COMMAND, {
+                "sequence_id": 17,
+                "commands": [{
+                    "type": "dash",
+                    "actor_id": actor.combatant_id,
+                }],
+            }),
+            "c1",
+        )
+
+        assert response.type == MessageType.ACTION_RESULT
+        assert response.data["duplicate"] is True
+        assert response.data["state_version"] == 4
+        assert proto.sent == []
+        assert actor.has_action is True
 
     async def test_move_command_spends_movement_and_uses_actions_core(self):
         CombatEngine._active.pop("TST", None)

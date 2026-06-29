@@ -23,6 +23,50 @@ logger = setup_logger(__name__)
 class _CombatMixin(_ProtocolBase):
     """Handler methods for combat domain."""
 
+    def _combat_client_ids(self) -> list[str]:
+        client_info = getattr(self.session_manager, 'client_info', None)
+        if isinstance(client_info, dict):
+            return list(client_info)
+
+        clients = getattr(self.session_manager, 'clients', None)
+        if isinstance(clients, dict):
+            return list(clients)
+
+        return list(getattr(self, 'clients', {}))
+
+    def _combat_state_message(
+        self,
+        state: Any,
+        message_type: MessageType,
+        recipient_id: str,
+        context: dict[str, Any] | None = None,
+    ) -> Message:
+        client_info = self._get_client_info(recipient_id)
+        data = dict(context or {})
+        data['combat'] = CombatStatePresenter.for_client(
+            state,
+            self._get_client_role(recipient_id),
+            client_info.get('user_id'),
+        )
+        return Message(message_type, data)
+
+    async def _broadcast_combat_state(
+        self,
+        state: Any,
+        message_type: MessageType,
+        client_id: str,
+        context: dict[str, Any] | None = None,
+    ) -> Message:
+        for recipient_id in self._combat_client_ids():
+            if recipient_id == client_id:
+                continue
+            await self.send_to_client(
+                self._combat_state_message(state, message_type, recipient_id, context),
+                recipient_id,
+            )
+
+        return self._combat_state_message(state, message_type, client_id, context)
+
     async def handle_combat_start(self, msg: Message, client_id: str) -> Message:
         if not is_dm(self._get_client_role(client_id)):
             return Message(MessageType.ERROR, {'error': 'Only DMs can start combat'})
@@ -52,9 +96,11 @@ class _CombatMixin(_ProtocolBase):
             names=d.get('names', {}),
             combatants=combatants,
         )
-        resp = Message(MessageType.COMBAT_STATE, {'combat': state.to_dict()})
-        await self.broadcast_to_session(resp, client_id)
-        return resp
+        return await self._broadcast_combat_state(
+            state,
+            MessageType.COMBAT_STATE,
+            client_id,
+        )
 
     async def handle_combat_end(self, msg: Message, client_id: str) -> Message:
         if not is_dm(self._get_client_role(client_id)):
@@ -63,9 +109,12 @@ class _CombatMixin(_ProtocolBase):
         state = CombatEngine.end_combat(self._get_session_code())
         if not state:
             return Message(MessageType.ERROR, {'error': 'No active combat'})
-        resp = Message(MessageType.COMBAT_STATE, {'combat': state.to_dict(), 'ended': True})
-        await self.broadcast_to_session(resp, client_id)
-        return resp
+        return await self._broadcast_combat_state(
+            state,
+            MessageType.COMBAT_STATE,
+            client_id,
+            {'ended': True},
+        )
 
     async def handle_combat_state_request(self, msg: Message, client_id: str) -> Message:
         from service.combat_engine import CombatEngine
@@ -290,9 +339,11 @@ class _CombatMixin(_ProtocolBase):
         if not CombatEngine.dm_set_hp(session_code, combatant_id, int(hp)):
             return Message(MessageType.ERROR, {'error': 'Failed'})
         state = CombatEngine.get_state(session_code)
-        resp = Message(MessageType.COMBAT_STATE, {'combat': state.to_dict() if state else None})
-        await self.broadcast_to_session(resp, client_id)
-        return resp
+        return await self._broadcast_combat_state(
+            state,
+            MessageType.COMBAT_STATE,
+            client_id,
+        )
 
     async def handle_dm_apply_damage(self, msg: Message, client_id: str) -> Message:
         if not is_dm(self._get_client_role(client_id)):
@@ -306,8 +357,12 @@ class _CombatMixin(_ProtocolBase):
         result = CombatEngine.apply_damage(session_code, combatant_id, int(amount),
                                            damage_type=d.get('damage_type', ''), is_dm=True)
         state = CombatEngine.get_state(session_code)
-        resp = Message(MessageType.COMBAT_STATE, {'combat': state.to_dict() if state else None, 'damage_result': result})
-        await self.broadcast_to_session(resp, client_id)
+        resp = await self._broadcast_combat_state(
+            state,
+            MessageType.COMBAT_STATE,
+            client_id,
+            {'damage_result': result},
+        )
         if result.get('concentration_broken'):
             conc_msg = Message(MessageType.CONCENTRATION_BROKEN, {
                 'combatant_id': combatant_id,
@@ -333,9 +388,11 @@ class _CombatMixin(_ProtocolBase):
         if not CombatEngine.dm_revert_last_action(session_code):
             return Message(MessageType.ERROR, {'error': 'Nothing to revert'})
         state = CombatEngine.get_state(session_code)
-        resp = Message(MessageType.COMBAT_STATE, {'combat': state.to_dict() if state else None})
-        await self.broadcast_to_session(resp, client_id)
-        return resp
+        return await self._broadcast_combat_state(
+            state,
+            MessageType.COMBAT_STATE,
+            client_id,
+        )
 
     async def handle_dm_add_action(self, msg: Message, client_id: str) -> Message:
         if not is_dm(self._get_client_role(client_id)):
@@ -349,9 +406,11 @@ class _CombatMixin(_ProtocolBase):
         session_code = self._get_session_code()
         CombatEngine.dm_grant_resource(session_code, combatant_id, resource)
         state = CombatEngine.get_state(session_code)
-        resp = Message(MessageType.COMBAT_STATE, {'combat': state.to_dict() if state else None})
-        await self.broadcast_to_session(resp, client_id)
-        return resp
+        return await self._broadcast_combat_state(
+            state,
+            MessageType.COMBAT_STATE,
+            client_id,
+        )
 
     async def handle_dm_add_movement(self, msg: Message, client_id: str) -> Message:
         if not is_dm(self._get_client_role(client_id)):
@@ -365,9 +424,11 @@ class _CombatMixin(_ProtocolBase):
         session_code = self._get_session_code()
         CombatEngine.dm_grant_resource(session_code, combatant_id, 'movement', amount)
         state = CombatEngine.get_state(session_code)
-        resp = Message(MessageType.COMBAT_STATE, {'combat': state.to_dict() if state else None})
-        await self.broadcast_to_session(resp, client_id)
-        return resp
+        return await self._broadcast_combat_state(
+            state,
+            MessageType.COMBAT_STATE,
+            client_id,
+        )
 
     async def handle_dm_toggle_ai(self, msg: Message, client_id: str) -> Message:
         if not is_dm(self._get_client_role(client_id)):
@@ -386,11 +447,12 @@ class _CombatMixin(_ProtocolBase):
                     c.ai_enabled = d['enabled']
                 if 'behavior' in d:
                     c.ai_behavior = d['behavior']
-                resp = Message(MessageType.COMBAT_STATE, {
-                    'combatant_id': combatant_id, 'ai_enabled': c.ai_enabled, 'ai_behavior': c.ai_behavior
-                })
-                await self.broadcast_to_session(resp, client_id)
-                return resp
+                return await self._broadcast_combat_state(
+                    state,
+                    MessageType.COMBAT_STATE,
+                    client_id,
+                    {'combatant_id': combatant_id},
+                )
         return Message(MessageType.ERROR, {'error': 'Combatant not found'})
 
     async def handle_ai_action(self, msg: Message, client_id: str) -> Message:
@@ -430,9 +492,12 @@ class _CombatMixin(_ProtocolBase):
         if not result:
             return Message(MessageType.ERROR, {'error': 'Combatant not found or no active combat'})
         state = CombatEngine.get_state(self._get_session_code())
-        resp = Message(MessageType.COMBAT_STATE, {'combat': state.to_dict() if state else None, 'temp_hp_set': result})
-        await self.broadcast_to_session(resp, client_id)
-        return resp
+        return await self._broadcast_combat_state(
+            state,
+            MessageType.COMBAT_STATE,
+            client_id,
+            {'temp_hp_set': result},
+        )
 
     async def handle_death_save_roll(self, msg: Message, client_id: str) -> Message:
         d = msg.data or {}
@@ -476,9 +541,12 @@ class _CombatMixin(_ProtocolBase):
         if not result:
             return Message(MessageType.ERROR, {'error': 'Combatant not found or no active combat'})
         state = CombatEngine.get_state(self._get_session_code())
-        resp = Message(MessageType.COMBAT_STATE, {'combat': state.to_dict() if state else None, 'resistances_update': result})
-        await self.broadcast_to_session(resp, client_id)
-        return resp
+        return await self._broadcast_combat_state(
+            state,
+            MessageType.COMBAT_STATE,
+            client_id,
+            {'resistances_update': result},
+        )
 
     async def handle_dm_set_surprised(self, msg: Message, client_id: str) -> Message:
         if not is_dm(self._get_client_role(client_id)):
@@ -493,9 +561,12 @@ class _CombatMixin(_ProtocolBase):
         if not result:
             return Message(MessageType.ERROR, {'error': 'No matching combatants or no active combat'})
         state = CombatEngine.get_state(self._get_session_code())
-        resp = Message(MessageType.COMBAT_STATE, {'combat': state.to_dict() if state else None, 'surprised_update': result})
-        await self.broadcast_to_session(resp, client_id)
-        return resp
+        return await self._broadcast_combat_state(
+            state,
+            MessageType.COMBAT_STATE,
+            client_id,
+            {'surprised_update': result},
+        )
 
     async def handle_dm_set_terrain(self, msg: Message, client_id: str) -> Message:
         if not is_dm(self._get_client_role(client_id)):

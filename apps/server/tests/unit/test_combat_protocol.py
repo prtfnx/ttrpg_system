@@ -19,17 +19,21 @@ from service.spell_resolver import SpellResult
 # ---------------------------------------------------------------------------
 
 class _ProtoStub(_CombatMixin):
-    def __init__(self, role="owner"):
+    def __init__(self, role="owner", client_info=None):
         self._role = role
-        self.session_manager = MagicMock()
+        self.client_info = client_info or {
+            "c1": {"user_id": 1, "role": role},
+        }
+        self.session_manager = SimpleNamespace(client_info=self.client_info)
         self.table_manager = MagicMock()
         self.table_manager.tables_id = {}
         self.table_manager.tables = {}
         self._rules_cache = {"TST": (SessionRules.defaults("TST"), "free_roam")}
         self.broadcasts = []
+        self.sent = []
 
     def _get_client_role(self, client_id):
-        return self._role
+        return self.client_info.get(client_id, {}).get("role", self._role)
 
     def _get_session_code(self, msg=None):
         return "TST"
@@ -38,10 +42,10 @@ class _ProtoStub(_CombatMixin):
         return 1
 
     def _get_user_id(self, msg, client_id=None):
-        return 1
+        return self.client_info.get(client_id or "c1", {}).get("user_id", 1)
 
     def _get_client_info(self, client_id):
-        return {"user_id": 1, "role": self._role}
+        return self.client_info.get(client_id, {})
 
     async def broadcast_to_session(self, message, client_id):
         self.broadcasts.append((message, client_id))
@@ -50,7 +54,7 @@ class _ProtoStub(_CombatMixin):
         pass
 
     async def send_to_client(self, message, client_id):
-        pass
+        self.sent.append((message, client_id))
 
     async def _broadcast_error(self, client_id, error_message):
         pass
@@ -63,6 +67,68 @@ def _combat_state():
     state.combatants = []
     state.settings.show_npc_hp_to_players = False
     return state
+
+
+@pytest.mark.unit
+class TestCombatStateBroadcast:
+    async def test_builds_a_role_filtered_state_for_each_recipient(self):
+        state = MagicMock()
+        state.settings.show_npc_hp_to_players = "descriptor"
+        state.to_dict.return_value = {
+            "active": True,
+            "combatants": [
+                {
+                    "combatant_id": "hidden-npc",
+                    "name": "Hidden Stalker",
+                    "hp": 30,
+                    "is_npc": True,
+                    "is_hidden": True,
+                    "ai_enabled": True,
+                },
+                {
+                    "combatant_id": "visible-npc",
+                    "name": "Guard",
+                    "hp": 4,
+                    "is_npc": True,
+                    "ai_enabled": True,
+                },
+            ],
+        }
+        state.to_dict_for_player.return_value = {
+            "active": True,
+            "combatants": [
+                {
+                    "combatant_id": "hidden-npc",
+                    "name": "Hidden Stalker",
+                    "is_npc": True,
+                    "is_hidden": True,
+                },
+                {
+                    "combatant_id": "visible-npc",
+                    "name": "Guard",
+                    "is_npc": True,
+                    "hp_descriptor": "bloodied",
+                },
+            ],
+        }
+        proto = _ProtoStub(client_info={
+            "dm-client": {"user_id": 1, "role": "owner"},
+            "player-client": {"user_id": 7, "role": "player"},
+        })
+
+        response = await proto._broadcast_combat_state(
+            state,
+            MessageType.COMBAT_STATE,
+            "dm-client",
+        )
+
+        assert response.data["combat"]["combatants"][0]["hp"] == 30
+        player_message, recipient_id = proto.sent[0]
+        player_combatants = player_message.data["combat"]["combatants"]
+        assert recipient_id == "player-client"
+        assert [combatant["combatant_id"] for combatant in player_combatants] == ["visible-npc"]
+        assert player_combatants[0]["hp_descriptor"] == "bloodied"
+        assert "ai_enabled" not in player_combatants[0]
 
 
 # ---------------------------------------------------------------------------

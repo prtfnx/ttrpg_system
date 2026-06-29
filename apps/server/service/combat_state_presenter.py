@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from copy import deepcopy
 from typing import Any
 
 from utils.roles import SessionRole, is_dm
@@ -57,6 +58,29 @@ class CombatStatePresenter:
         return view
 
     @staticmethod
+    def message_for_client(
+        state: Any,
+        role: str | None,
+        user_id: int | None,
+        context: dict[str, Any] | None = None,
+    ) -> dict[str, Any]:
+        combat = CombatStatePresenter.for_client(state, role, user_id)
+        data = deepcopy(context or {})
+        data.pop('combat', None)
+        if is_dm(role) or combat is None:
+            data['combat'] = combat
+            return data
+
+        visible_combatants = {
+            str(combatant['combatant_id']): combatant
+            for combatant in combat.get('combatants', [])
+            if combatant.get('combatant_id') is not None
+        }
+        CombatStatePresenter._sanitize_event_context(data, visible_combatants)
+        data['combat'] = combat
+        return data
+
+    @staticmethod
     def _npc_hp_visibility(value: Any) -> str:
         if value is True:
             return 'full'
@@ -112,3 +136,53 @@ class CombatStatePresenter:
             ]
             sanitized_actions.append(sanitized)
         return sanitized_actions
+
+    @staticmethod
+    def _sanitize_event_context(
+        context: dict[str, Any],
+        visible_combatants: dict[str, dict[str, Any]],
+    ) -> None:
+        if 'order' in context:
+            context['order'] = [
+                {
+                    'combatant_id': combatant['combatant_id'],
+                    'name': combatant.get('name', ''),
+                    'initiative': combatant.get('initiative'),
+                }
+                for combatant in visible_combatants.values()
+            ]
+
+        for key in ('combatant', 'current_combatant'):
+            value = context.get(key)
+            if not isinstance(value, dict):
+                continue
+            combatant_id = value.get('combatant_id')
+            context[key] = visible_combatants.get(str(combatant_id))
+
+        combatant_id = context.get('combatant_id')
+        if combatant_id is not None and str(combatant_id) not in visible_combatants:
+            for key in ('combatant_id', 'conditions', 'name', 'value'):
+                context.pop(key, None)
+
+        context.pop('resistances_update', None)
+        context.pop('surprised_update', None)
+        context.pop('temp_hp_set', None)
+        CombatStatePresenter._remove_private_result_fields(context)
+
+    @staticmethod
+    def _remove_private_result_fields(value: Any) -> None:
+        if isinstance(value, dict):
+            for key in (
+                'ai_behavior',
+                'ai_enabled',
+                'new_hp',
+                'spell_slots_remaining',
+                'state_before',
+                'temp_hp',
+            ):
+                value.pop(key, None)
+            for nested in value.values():
+                CombatStatePresenter._remove_private_result_fields(nested)
+        elif isinstance(value, list):
+            for nested in value:
+                CombatStatePresenter._remove_private_result_fields(nested)

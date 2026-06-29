@@ -137,3 +137,51 @@ def test_player_receives_npc_ac_when_session_setting_allows_it():
 
     npc = next(c for c in view['combatants'] if c['combatant_id'] == 'npc-1')
     assert npc['armor_class'] == 13
+
+
+def test_player_event_context_uses_only_visible_combatants():
+    data = CombatStatePresenter.message_for_client(
+        _state(),
+        'player',
+        user_id=7,
+        context={
+            'combatant_id': 'npc-hidden',
+            'name': 'Hidden Stalker',
+            'value': 18,
+            'order': [
+                {'combatant_id': 'npc-hidden', 'name': 'Hidden Stalker', 'initiative': 18},
+                {'combatant_id': 'pc-1', 'name': 'Spoofed Name', 'initiative': 12},
+            ],
+            'current_combatant': {
+                'combatant_id': 'npc-hidden',
+                'name': 'Hidden Stalker',
+                'hp': 30,
+            },
+            'result': {'new_hp': 4, 'temp_hp': 2, 'damage': 6},
+        },
+    )
+
+    assert 'combatant_id' not in data
+    assert 'name' not in data
+    assert 'value' not in data
+    assert [entry['combatant_id'] for entry in data['order']] == ['pc-1', 'npc-1']
+    assert data['order'][0]['name'] == 'Ada'
+    assert data['current_combatant'] is None
+    assert data['result'] == {'damage': 6}
+
+
+def test_dm_event_context_remains_complete():
+    context = {
+        'combatant_id': 'npc-hidden',
+        'result': {'new_hp': 24},
+    }
+
+    data = CombatStatePresenter.message_for_client(
+        _state(),
+        'owner',
+        user_id=1,
+        context=context,
+    )
+
+    assert data['combatant_id'] == 'npc-hidden'
+    assert data['result']['new_hp'] == 24

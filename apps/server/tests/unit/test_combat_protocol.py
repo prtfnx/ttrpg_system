@@ -130,6 +130,55 @@ class TestCombatStateBroadcast:
         assert player_combatants[0]["hp_descriptor"] == "bloodied"
         assert "ai_enabled" not in player_combatants[0]
 
+    async def test_initiative_broadcast_filters_embedded_combat_state(self):
+        state = MagicMock()
+        state.settings.show_npc_hp_to_players = "none"
+        state.settings.show_npc_ac_to_players = False
+        state.combatants = [
+            SimpleNamespace(combatant_id="hidden-npc", name="Hidden", initiative=19),
+            SimpleNamespace(combatant_id="pc-1", name="Ada", initiative=12),
+        ]
+        state.to_dict.return_value = {
+            "combatants": [
+                {
+                    "combatant_id": "hidden-npc",
+                    "name": "Hidden",
+                    "hp": 20,
+                    "is_npc": True,
+                    "is_hidden": True,
+                },
+                {
+                    "combatant_id": "pc-1",
+                    "name": "Ada",
+                    "hp": 20,
+                    "is_npc": False,
+                },
+            ],
+            "action_log": [],
+        }
+        state.to_dict_for_player.return_value = state.to_dict.return_value
+        proto = _ProtoStub(client_info={
+            "dm-client": {"user_id": 1, "role": "owner"},
+            "player-client": {"user_id": 7, "role": "player"},
+        })
+
+        with patch("service.combat_engine.CombatEngine") as mock_engine:
+            mock_engine.roll_initiative.return_value = 19
+            mock_engine.get_state.return_value = state
+            response = await proto.handle_initiative_roll(
+                Message(MessageType.INITIATIVE_ROLL, {"combatant_id": "hidden-npc"}),
+                "dm-client",
+            )
+
+        assert response.data["combatant_id"] == "hidden-npc"
+        player_message, recipient_id = proto.sent[0]
+        assert recipient_id == "player-client"
+        assert "combatant_id" not in player_message.data
+        assert [item["combatant_id"] for item in player_message.data["order"]] == ["pc-1"]
+        assert [
+            item["combatant_id"] for item in player_message.data["combat"]["combatants"]
+        ] == ["pc-1"]
+
 
 # ---------------------------------------------------------------------------
 # handle_combat_start
@@ -255,7 +304,22 @@ class TestInitiativeRoll:
     @patch("service.combat_engine.CombatEngine")
     async def test_successful_roll_returns_initiative_order(self, mock_engine):
         mock_engine.roll_initiative.return_value = 15
-        mock_engine.get_state.return_value = _combat_state()
+        state = _combat_state()
+        state.combatants = [
+            SimpleNamespace(combatant_id="c-1", name="Ada", initiative=15),
+        ]
+        state.to_dict_for_player.return_value = {
+            "active": True,
+            "combatants": [{
+                "combatant_id": "c-1",
+                "name": "Ada",
+                "initiative": 15,
+                "is_npc": False,
+                "controlled_by": ["1"],
+            }],
+            "action_log": [],
+        }
+        mock_engine.get_state.return_value = state
         proto = _ProtoStub(role="player")
         msg = Message(MessageType.INITIATIVE_ROLL, {"combatant_id": "c-1"})
         resp = await proto.handle_initiative_roll(msg, "c1")
@@ -756,7 +820,10 @@ class TestCombatCommand:
         state.current_turn_index = 0
         attacker = state.combatants[0]
         target = state.combatants[1]
-        proto = _ProtoStub(role="player")
+        proto = _ProtoStub(client_info={
+            "c1": {"user_id": 1, "role": "player"},
+            "c2": {"user_id": 2, "role": "player"},
+        })
 
         with patch.object(CombatEngine, "apply_damage", return_value={"new_hp": 15}):
             with patch("service.attack_resolver.AttackResolver") as resolver:
@@ -778,7 +845,8 @@ class TestCombatCommand:
         assert resp.data["accepted"] is True
         assert resp.data["sequence_id"] == 11
         assert resp.data["applied"][0]["action_type"] == "attack"
-        assert proto.broadcasts[0][0].type == MessageType.ACTION_RESULT
+        assert proto.sent[0][0].type == MessageType.ACTION_RESULT
+        assert proto.sent[0][1] == "c2"
         assert CombatEngine.get_state("TST").combatants[0].has_action is False
 
     async def test_move_command_spends_movement_and_uses_actions_core(self):
@@ -1133,6 +1201,44 @@ class TestDmToggleAi:
         )
         assert resp.type == MessageType.COMBAT_STATE
         assert combatant.ai_enabled is True
+
+
+@pytest.mark.unit
+class TestAiAction:
+    @patch("service.npc_ai.NPCAIEngine")
+    @patch("service.combat_engine.CombatEngine")
+    async def test_ai_suggestion_is_returned_only_to_requesting_dm(
+        self,
+        mock_engine,
+        mock_ai_engine,
+    ):
+        combatant = SimpleNamespace(
+            combatant_id="npc-1",
+            ai_behavior="tactical",
+        )
+        state = _combat_state()
+        state.combatants = [combatant]
+        mock_engine.get_state.return_value = state
+        mock_ai_engine.decide_action.return_value = SimpleNamespace(
+            action_type="attack",
+            target_id="pc-1",
+            move_to=None,
+            reasoning="Lowest armor class",
+        )
+        proto = _ProtoStub(client_info={
+            "dm-client": {"user_id": 1, "role": "owner"},
+            "player-client": {"user_id": 7, "role": "player"},
+        })
+
+        response = await proto.handle_ai_action(
+            Message(MessageType.AI_ACTION, {"combatant_id": "npc-1"}),
+            "dm-client",
+        )
+
+        assert response.type == MessageType.AI_SUGGESTION
+        assert response.data["decision"]["reasoning"] == "Lowest armor class"
+        assert proto.sent == []
+        assert proto.broadcasts == []
 
 
 # ---------------------------------------------------------------------------

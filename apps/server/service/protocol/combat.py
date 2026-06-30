@@ -581,15 +581,52 @@ class _CombatMixin(_ProtocolBase):
     async def handle_dm_revert_action(self, msg: Message, client_id: str) -> Message:
         if not is_dm(self._get_client_role(client_id)):
             return Message(MessageType.ERROR, {'error': 'DMs only'})
+        d = msg.data or {}
+        from core_table.combat import CombatState
         from service.combat_engine import CombatEngine
         session_code = self._get_session_code()
-        if not CombatEngine.dm_revert_last_action(session_code):
+        current_state = CombatEngine.get_state(session_code)
+        if not current_state:
+            return Message(MessageType.ERROR, {'error': 'No active combat'})
+
+        persistence = self._get_combat_persistence_service()
+        if persistence is None:
+            return Message(MessageType.ERROR, {'error': 'Combat persistence unavailable'})
+
+        last_action = persistence.last_action(current_state.combat_id)
+        if (
+            last_action is None
+            or last_action.command_type == 'dm_revert_action'
+            or not last_action.state_before
+        ):
             return Message(MessageType.ERROR, {'error': 'Nothing to revert'})
-        state = CombatEngine.get_state(session_code)
+
+        state_before = current_state.to_dict()
+        reverted_state = CombatState.from_dict(last_action.state_before)
+        CombatEngine._active[session_code] = reverted_state
+        result = {
+            'reverted': True,
+            'reverted_command_type': last_action.command_type,
+            'reverted_state_version': last_action.state_version,
+        }
+        persist_error = self._persist_direct_combat_mutation(
+            msg,
+            client_id,
+            session_code=session_code,
+            command_type='dm_revert_action',
+            actor_id=None,
+            command_payload=d,
+            result_payload=result,
+            state_before=state_before,
+            state_after=reverted_state,
+        )
+        if persist_error:
+            return Message(MessageType.ERROR, {'error': persist_error})
         return await self._broadcast_combat_state(
-            state,
+            reverted_state,
             MessageType.COMBAT_STATE,
             client_id,
+            result,
         )
 
     async def handle_dm_add_action(self, msg: Message, client_id: str) -> Message:

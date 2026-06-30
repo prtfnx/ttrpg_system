@@ -16,6 +16,13 @@ class PersistedCombatCommand:
     duplicate: bool = False
 
 
+@dataclass(frozen=True)
+class CombatJournalEntry:
+    command_type: str
+    state_before: dict[str, Any]
+    state_version: int
+
+
 class CombatPersistenceService:
     """Atomically append an accepted command and update its combat snapshot."""
 
@@ -40,6 +47,25 @@ class CombatPersistenceService:
                 sequence_id,
             )
             return self._stored_command(action, duplicate=True) if action else None
+
+    def last_action(self, encounter_id: str) -> CombatJournalEntry | None:
+        with self._session_factory() as db:
+            action = (
+                db.query(CombatActionJournal)
+                .filter(CombatActionJournal.encounter_id == encounter_id)
+                .order_by(
+                    CombatActionJournal.state_version.desc(),
+                    CombatActionJournal.id.desc(),
+                )
+                .first()
+            )
+            if not action:
+                return None
+            return CombatJournalEntry(
+                command_type=action.command_type,
+                state_before=json.loads(action.state_before_json or "{}"),
+                state_version=action.state_version,
+            )
 
     def persist_accepted(
         self,

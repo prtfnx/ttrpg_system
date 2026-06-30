@@ -151,6 +151,51 @@ def test_duplicate_command_returns_stored_result_without_advancing_snapshot(
     assert test_db.query(CombatActionJournal).count() == 1
 
 
+@pytest.mark.unit
+def test_last_action_returns_newest_journal_entry(
+    test_db,
+    test_game_session,
+):
+    encounter = CombatEncounter(
+        encounter_id="combat-last-action",
+        session_id=test_game_session.id,
+        table_id="table-1",
+        phase="active",
+    )
+    test_db.add(encounter)
+    test_db.flush()
+
+    for version, command_type, hp in (
+        (1, "attack", 20),
+        (2, "dm_set_hp", 15),
+    ):
+        test_db.add(CombatActionJournal(
+            encounter_id=encounter.encounter_id,
+            requester_key="user:1",
+            sequence_id=version,
+            actor_id="actor-1",
+            command_type=command_type,
+            command_payload_json=json.dumps({"commands": [{"type": command_type}]}),
+            result_payload_json=json.dumps({"accepted": True}),
+            state_before_json=json.dumps(_state(encounter.encounter_id, hp=hp)),
+            state_after_hash=f"state-{version}",
+            state_version=version,
+            created_by=test_game_session.owner_id,
+        ))
+    test_db.commit()
+
+    service = CombatPersistenceService(
+        sessionmaker(bind=test_db.get_bind(), expire_on_commit=False)
+    )
+
+    entry = service.last_action(encounter.encounter_id)
+
+    assert entry is not None
+    assert entry.command_type == "dm_set_hp"
+    assert entry.state_version == 2
+    assert entry.state_before["combatants"][0]["hp"] == 15
+
+
 def _state(combat_id: str, hp: int) -> dict:
     return {
         "combat_id": combat_id,

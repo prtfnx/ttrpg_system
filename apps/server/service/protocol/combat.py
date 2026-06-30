@@ -1,4 +1,5 @@
 import json
+import time
 import uuid
 from typing import Any
 
@@ -71,6 +72,74 @@ class _CombatMixin(_ProtocolBase):
             return self.combat_persistence_service
         self.combat_persistence_service = CombatPersistenceService()
         return self.combat_persistence_service
+
+    def _persist_direct_combat_mutation(
+        self,
+        msg: Message,
+        client_id: str,
+        *,
+        session_code: str,
+        command_type: str,
+        actor_id: str | None,
+        command_payload: dict[str, Any],
+        result_payload: dict[str, Any],
+        state_before: dict[str, Any] | None,
+        state_after: Any,
+    ) -> str | None:
+        if state_after is None:
+            return None
+
+        sequence_id = int(command_payload.get('sequence_id') or time.time_ns())
+        result = {
+            'accepted': True,
+            'sequence_id': sequence_id,
+            'applied': [{
+                'sequence_index': 0,
+                'action_type': command_type,
+                'actor_id': actor_id,
+                'result': result_payload,
+            }],
+            'combat': state_after.to_dict(),
+        }
+
+        persistence = self._get_combat_persistence_service()
+        if persistence is None:
+            from service.combat_engine import CombatEngine
+            CombatEngine.persist(session_code)
+            return None
+
+        try:
+            persisted = persistence.persist_accepted(
+                session_code=session_code,
+                requester_key=persistence.requester_key(
+                    self._get_user_id(msg, client_id),
+                    client_id,
+                ),
+                sequence_id=sequence_id,
+                actor_id=actor_id,
+                command_type=command_type,
+                command_payload={
+                    'sequence_id': sequence_id,
+                    'commands': [{
+                        'type': command_type,
+                        'actor_id': actor_id,
+                        **command_payload,
+                    }],
+                },
+                result_payload=result,
+                state_before=state_before or {},
+                state_after=state_after.to_dict(),
+                created_by=self._get_user_id(msg, client_id),
+            )
+            state_after.state_version = persisted.state_version
+            return None
+        except Exception as exc:
+            if state_before is not None:
+                from core_table.combat import CombatState
+                from service.combat_engine import CombatEngine
+                CombatEngine._active[session_code] = CombatState.from_dict(state_before)
+            logger.warning('Failed to persist direct combat mutation %s: %s', command_type, exc)
+            return 'Failed to persist combat mutation'
 
     async def handle_combat_start(self, msg: Message, client_id: str) -> Message:
         if not is_dm(self._get_client_role(client_id)):
@@ -324,9 +393,24 @@ class _CombatMixin(_ProtocolBase):
             return Message(MessageType.ERROR, {'error': 'combatant_id and hp required'})
         from service.combat_engine import CombatEngine
         session_code = self._get_session_code()
+        state_before_obj = CombatEngine.get_state(session_code)
+        state_before = state_before_obj.to_dict() if state_before_obj else None
         if not CombatEngine.dm_set_hp(session_code, combatant_id, int(hp)):
             return Message(MessageType.ERROR, {'error': 'Failed'})
         state = CombatEngine.get_state(session_code)
+        persist_error = self._persist_direct_combat_mutation(
+            msg,
+            client_id,
+            session_code=session_code,
+            command_type='dm_set_hp',
+            actor_id=combatant_id,
+            command_payload=d,
+            result_payload={'combatant_id': combatant_id, 'hp': int(hp)},
+            state_before=state_before,
+            state_after=state,
+        )
+        if persist_error:
+            return Message(MessageType.ERROR, {'error': persist_error})
         return await self._broadcast_combat_state(
             state,
             MessageType.COMBAT_STATE,
@@ -342,9 +426,26 @@ class _CombatMixin(_ProtocolBase):
             return Message(MessageType.ERROR, {'error': 'combatant_id and amount required'})
         from service.combat_engine import CombatEngine
         session_code = self._get_session_code()
+        state_before_obj = CombatEngine.get_state(session_code)
+        state_before = state_before_obj.to_dict() if state_before_obj else None
         result = CombatEngine.apply_damage(session_code, combatant_id, int(amount),
                                            damage_type=d.get('damage_type', ''), is_dm=True)
+        if result.get('error'):
+            return Message(MessageType.ERROR, result)
         state = CombatEngine.get_state(session_code)
+        persist_error = self._persist_direct_combat_mutation(
+            msg,
+            client_id,
+            session_code=session_code,
+            command_type='dm_apply_damage',
+            actor_id=combatant_id,
+            command_payload=d,
+            result_payload=result,
+            state_before=state_before,
+            state_after=state,
+        )
+        if persist_error:
+            return Message(MessageType.ERROR, {'error': persist_error})
         resp = await self._broadcast_combat_state(
             state,
             MessageType.COMBAT_STATE,

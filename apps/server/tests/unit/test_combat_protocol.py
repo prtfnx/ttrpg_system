@@ -70,6 +70,21 @@ def _combat_state():
     return state
 
 
+def _mock_persistence(version=1):
+    persistence = MagicMock()
+    persistence.requester_key.return_value = "user:1"
+
+    def persist_accepted(**kwargs):
+        result = dict(kwargs["result_payload"])
+        result["state_version"] = version
+        if isinstance(result.get("combat"), dict):
+            result["combat"]["state_version"] = version
+        return PersistedCombatCommand(result=result, state_version=version)
+
+    persistence.persist_accepted.side_effect = persist_accepted
+    return persistence
+
+
 @pytest.mark.unit
 class TestCombatStateBroadcast:
     async def test_builds_a_role_filtered_state_for_each_recipient(self):
@@ -532,6 +547,75 @@ class TestDmSetHp:
         )
         assert resp.type == MessageType.COMBAT_STATE
 
+    async def test_success_persists_snapshot_and_versions_live_state(self):
+        CombatEngine._active.pop("TST", None)
+        state = CombatEngine.start_combat(
+            "TST",
+            "t1",
+            [],
+            combatants=[{
+                "entity_id": "sprite-a",
+                "name": "Ada",
+                "hp": 20,
+                "max_hp": 20,
+            }],
+        )
+        actor = state.combatants[0]
+        persistence = _mock_persistence(version=5)
+        proto = _ProtoStub(role="owner")
+        proto.combat_persistence_service = persistence
+
+        resp = await proto.handle_dm_set_hp(
+            Message(MessageType.DM_SET_HP, {
+                "combatant_id": actor.combatant_id,
+                "hp": 7,
+                "sequence_id": 41,
+            }),
+            "c1",
+        )
+
+        persisted = persistence.persist_accepted.call_args.kwargs
+        assert resp.type == MessageType.COMBAT_STATE
+        assert resp.data["combat"]["state_version"] == 5
+        assert CombatEngine.get_state("TST").combatants[0].hp == 7
+        assert CombatEngine.get_state("TST").state_version == 5
+        assert persisted["command_type"] == "dm_set_hp"
+        assert persisted["sequence_id"] == 41
+        assert persisted["state_before"]["combatants"][0]["hp"] == 20
+        assert persisted["state_after"]["combatants"][0]["hp"] == 7
+
+    async def test_persistence_failure_rolls_back_hp_override(self):
+        CombatEngine._active.pop("TST", None)
+        state = CombatEngine.start_combat(
+            "TST",
+            "t1",
+            [],
+            combatants=[{
+                "entity_id": "sprite-a",
+                "name": "Ada",
+                "hp": 20,
+                "max_hp": 20,
+            }],
+        )
+        actor = state.combatants[0]
+        persistence = MagicMock()
+        persistence.requester_key.return_value = "user:1"
+        persistence.persist_accepted.side_effect = RuntimeError("database unavailable")
+        proto = _ProtoStub(role="owner")
+        proto.combat_persistence_service = persistence
+
+        resp = await proto.handle_dm_set_hp(
+            Message(MessageType.DM_SET_HP, {
+                "combatant_id": actor.combatant_id,
+                "hp": 1,
+                "sequence_id": 42,
+            }),
+            "c1",
+        )
+
+        assert resp.type == MessageType.ERROR
+        assert CombatEngine.get_state("TST").combatants[0].hp == 20
+
 
 @pytest.mark.unit
 class TestDmApplyDamage:
@@ -551,6 +635,44 @@ class TestDmApplyDamage:
             Message(MessageType.DM_APPLY_DAMAGE, {"combatant_id": "c1", "amount": 5}), "c1"
         )
         assert resp.type == MessageType.COMBAT_STATE
+
+    async def test_success_persists_snapshot_and_versions_live_state(self):
+        CombatEngine._active.pop("TST", None)
+        state = CombatEngine.start_combat(
+            "TST",
+            "t1",
+            [],
+            combatants=[{
+                "entity_id": "sprite-a",
+                "name": "Ada",
+                "hp": 20,
+                "max_hp": 20,
+            }],
+        )
+        actor = state.combatants[0]
+        persistence = _mock_persistence(version=6)
+        proto = _ProtoStub(role="owner")
+        proto.combat_persistence_service = persistence
+
+        resp = await proto.handle_dm_apply_damage(
+            Message(MessageType.DM_APPLY_DAMAGE, {
+                "combatant_id": actor.combatant_id,
+                "amount": 4,
+                "damage_type": "fire",
+                "sequence_id": 43,
+            }),
+            "c1",
+        )
+
+        persisted = persistence.persist_accepted.call_args.kwargs
+        assert resp.type == MessageType.COMBAT_STATE
+        assert resp.data["combat"]["state_version"] == 6
+        assert CombatEngine.get_state("TST").combatants[0].hp == 16
+        assert CombatEngine.get_state("TST").state_version == 6
+        assert persisted["command_type"] == "dm_apply_damage"
+        assert persisted["sequence_id"] == 43
+        assert persisted["state_before"]["combatants"][0]["hp"] == 20
+        assert persisted["state_after"]["combatants"][0]["hp"] == 16
 
 
 @pytest.mark.unit

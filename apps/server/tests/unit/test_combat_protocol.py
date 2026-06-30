@@ -921,6 +921,43 @@ class TestDeathSaveRoll:
         )
         assert resp.type == MessageType.DEATH_SAVE_RESULT
 
+    async def test_successful_roll_persists_snapshot_and_versions_live_state(self):
+        CombatEngine._active.pop("TST", None)
+        state = CombatEngine.start_combat(
+            "TST",
+            "t1",
+            [],
+            combatants=[{
+                "entity_id": "sprite-a",
+                "name": "Ada",
+                "hp": 0,
+                "max_hp": 20,
+                "controlled_by": ["1"],
+            }],
+        )
+        actor = state.combatants[0]
+        actor.hp = 0
+        persistence = _mock_persistence(version=11)
+        proto = _ProtoStub(role="player")
+        proto.combat_persistence_service = persistence
+
+        with patch("service.combat_engine.DiceEngine.roll", return_value=SimpleNamespace(total=15)):
+            resp = await proto.handle_death_save_roll(
+                Message(MessageType.DEATH_SAVE_ROLL, {
+                    "combatant_id": actor.combatant_id,
+                    "sequence_id": 48,
+                }),
+                "c1",
+            )
+
+        persisted = persistence.persist_accepted.call_args.kwargs
+        assert resp.type == MessageType.DEATH_SAVE_RESULT
+        assert resp.data["combat"]["state_version"] == 11
+        assert CombatEngine.get_state("TST").combatants[0].death_save_successes == 1
+        assert persisted["command_type"] == "death_save_roll"
+        assert persisted["state_before"]["combatants"][0]["death_save_successes"] == 0
+        assert persisted["state_after"]["combatants"][0]["death_save_successes"] == 1
+
 
 @pytest.mark.unit
 class TestCombatCommand:

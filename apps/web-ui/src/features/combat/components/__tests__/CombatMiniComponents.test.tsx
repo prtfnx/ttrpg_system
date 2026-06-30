@@ -17,7 +17,6 @@ vi.mock('@lib/websocket', () => ({
   createMessage: vi.fn((type, data) => ({ type, data })),
   MessageType: {
     COMBAT_COMMAND: 'combat_command',
-    TURN_END: 'TURN_END',
     GAME_MODE_CHANGE: 'GAME_MODE_CHANGE',
   },
 }));

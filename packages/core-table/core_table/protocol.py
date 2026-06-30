@@ -113,7 +113,6 @@ class MessageType(enum.Enum):    # Core messages
     PLAN_START = "plan_start"
     PLAN_ACK = "plan_ack"
     COMBAT_COMMAND = "combat_command"
-    ACTION_COMMIT = "action_commit"
     ACTION_RESULT = "action_result"
     ACTION_REJECTED = "action_rejected"
 
@@ -137,7 +136,6 @@ class MessageType(enum.Enum):    # Core messages
 
     # ── Turn Management ──
     TURN_START = "turn_start"
-    TURN_END = "turn_end"
     TURN_SKIP = "turn_skip"
     ROUND_START = "round_start"
     ROUND_END = "round_end"
@@ -200,14 +198,7 @@ class MessageType(enum.Enum):    # Core messages
     COVER_ZONES_SYNC = "cover_zones_sync"
 
     # ── Player Combat Actions ──
-    COMBAT_ATTACK    = "combat_attack"
-    COMBAT_SPELL     = "combat_spell"
     COMBAT_ABILITY   = "combat_ability"
-    COMBAT_DASH      = "combat_dash"
-    COMBAT_DISENGAGE = "combat_disengage"
-    COMBAT_DODGE     = "combat_dodge"
-    COMBAT_HELP      = "combat_help"
-    COMBAT_HIDE      = "combat_hide"
     COMBAT_READY     = "combat_ready"
     READY_TRIGGER_FIRE = "ready_trigger_fire"
     CONCENTRATION_SAVED = "concentration_saved"

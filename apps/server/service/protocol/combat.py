@@ -931,6 +931,7 @@ class _CombatMixin(_ProtocolBase):
             return Message(MessageType.ERROR, {'error': 'Table not found'})
         if not hasattr(table, 'difficult_terrain_cells'):
             table.difficult_terrain_cells = set()
+        previous_cells = set(table.difficult_terrain_cells)
         if mode == 'clear':
             table.difficult_terrain_cells.clear()
         elif mode == 'remove':
@@ -939,12 +940,29 @@ class _CombatMixin(_ProtocolBase):
         else:
             for col, row in cells:
                 table.difficult_terrain_cells.add((col, row))
+        persist_error = self._persist_table_state(table_id, msg)
+        if persist_error:
+            table.difficult_terrain_cells = previous_cells
+            return Message(MessageType.ERROR, {'error': persist_error})
         resp = Message(MessageType.DM_SET_TERRAIN, {
             'difficult_terrain': [list(c) for c in table.difficult_terrain_cells],
             'mode': mode,
         })
         await self.broadcast_to_session(resp, client_id)
         return resp
+
+    def _persist_table_state(self, table_id: str, msg: Message) -> str | None:
+        save_table = getattr(self.table_manager, 'save_table', None)
+        if not callable(save_table):
+            return None
+        try:
+            saved = save_table(table_id, session_id=self._get_session_id(msg))
+        except Exception as exc:
+            logger.warning('Failed to persist table %s: %s', table_id, exc)
+            return 'Failed to persist table state'
+        if saved is False:
+            return 'Failed to persist table state'
+        return None
 
     def _get_table_by_id(self, table_id: str):
         return self.table_manager.tables_id.get(table_id) or self.table_manager.tables.get(table_id)
@@ -1116,9 +1134,14 @@ class _CombatMixin(_ProtocolBase):
         zone = CoverZone.from_dict(d['zone'])
         if not hasattr(table, 'cover_zones'):
             table.cover_zones = []
+        previous_zones = list(table.cover_zones)
         # Replace if zone_id already exists
         table.cover_zones = [z for z in table.cover_zones if z.zone_id != zone.zone_id]
         table.cover_zones.append(zone)
+        persist_error = self._persist_table_state(table_id, msg)
+        if persist_error:
+            table.cover_zones = previous_zones
+            return Message(MessageType.ERROR, {'error': persist_error})
         resp = Message(MessageType.COVER_ZONE_ADD, {'zone': zone.to_dict()})
         await self.broadcast_to_session(resp, client_id)
         return resp
@@ -1132,8 +1155,13 @@ class _CombatMixin(_ProtocolBase):
         if table is None:
             return Message(MessageType.ERROR, {'error': 'Table not found'})
         zone_id = d.get('zone_id', '')
+        previous_zones = list(getattr(table, 'cover_zones', []))
         if hasattr(table, 'cover_zones'):
             table.cover_zones = [z for z in table.cover_zones if z.zone_id != zone_id]
+        persist_error = self._persist_table_state(table_id, msg)
+        if persist_error:
+            table.cover_zones = previous_zones
+            return Message(MessageType.ERROR, {'error': persist_error})
         resp = Message(MessageType.COVER_ZONE_REMOVE, {'zone_id': zone_id})
         await self.broadcast_to_session(resp, client_id)
         return resp

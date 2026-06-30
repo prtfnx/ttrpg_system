@@ -1629,11 +1629,13 @@ class TestDmSetTerrain:
         table.difficult_terrain_cells = set()
         proto.table_manager = MagicMock()
         proto.table_manager.tables_id = {"t1": table}
+        proto.table_manager.save_table.return_value = True
         resp = await proto.handle_dm_set_terrain(
             Message(MessageType.DM_SET_HP, {"table_id": "t1", "cells": [[2, 3]], "mode": "add"}), "c1"
         )
         assert resp.type == MessageType.DM_SET_TERRAIN
         assert (2, 3) in table.difficult_terrain_cells
+        proto.table_manager.save_table.assert_called_once_with("t1", session_id=1)
 
     async def test_clear_mode_empties_terrain(self):
         proto = _ProtoStub(role="owner")
@@ -1646,6 +1648,19 @@ class TestDmSetTerrain:
         )
         assert resp.type == MessageType.DM_SET_TERRAIN
         assert len(table.difficult_terrain_cells) == 0
+
+    async def test_persistence_failure_rolls_back_terrain(self):
+        proto = _ProtoStub(role="owner")
+        table = MagicMock()
+        table.difficult_terrain_cells = {(1, 1)}
+        proto.table_manager = MagicMock()
+        proto.table_manager.tables_id = {"t1": table}
+        proto.table_manager.save_table.return_value = False
+        resp = await proto.handle_dm_set_terrain(
+            Message(MessageType.DM_SET_HP, {"table_id": "t1", "cells": [[2, 3]], "mode": "add"}), "c1"
+        )
+        assert resp.type == MessageType.ERROR
+        assert table.difficult_terrain_cells == {(1, 1)}
 
 
 # ---------------------------------------------------------------------------
@@ -1679,6 +1694,68 @@ class TestCoverZoneHandlers:
             Message(MessageType.COVER_ZONE_REMOVE, {"table_id": "t1", "zone_id": "z1"}), "c1"
         )
         assert resp.type == MessageType.ERROR
+
+    async def test_add_persists_table_state(self):
+        proto = _ProtoStub(role="owner")
+        table = MagicMock()
+        table.cover_zones = []
+        proto.table_manager = MagicMock()
+        proto.table_manager.tables_id = {"t1": table}
+        proto.table_manager.save_table.return_value = True
+        resp = await proto.handle_cover_zone_add(
+            Message(MessageType.COVER_ZONE_ADD, {
+                "table_id": "t1",
+                "zone": {
+                    "zone_id": "z1",
+                    "shape_type": "rect",
+                    "coords": [0, 0, 4, 4],
+                    "cover_tier": "half",
+                },
+            }),
+            "c1",
+        )
+        assert resp.type == MessageType.COVER_ZONE_ADD
+        assert table.cover_zones[0].zone_id == "z1"
+        proto.table_manager.save_table.assert_called_once_with("t1", session_id=1)
+
+    async def test_add_persistence_failure_rolls_back_zone(self):
+        proto = _ProtoStub(role="owner")
+        existing = MagicMock()
+        existing.zone_id = "existing"
+        table = MagicMock()
+        table.cover_zones = [existing]
+        proto.table_manager = MagicMock()
+        proto.table_manager.tables_id = {"t1": table}
+        proto.table_manager.save_table.return_value = False
+        resp = await proto.handle_cover_zone_add(
+            Message(MessageType.COVER_ZONE_ADD, {
+                "table_id": "t1",
+                "zone": {
+                    "zone_id": "z1",
+                    "shape_type": "rect",
+                    "coords": [0, 0, 4, 4],
+                },
+            }),
+            "c1",
+        )
+        assert resp.type == MessageType.ERROR
+        assert table.cover_zones == [existing]
+
+    async def test_remove_persists_table_state(self):
+        proto = _ProtoStub(role="owner")
+        zone = MagicMock()
+        zone.zone_id = "z1"
+        table = MagicMock()
+        table.cover_zones = [zone]
+        proto.table_manager = MagicMock()
+        proto.table_manager.tables_id = {"t1": table}
+        proto.table_manager.save_table.return_value = True
+        resp = await proto.handle_cover_zone_remove(
+            Message(MessageType.COVER_ZONE_REMOVE, {"table_id": "t1", "zone_id": "z1"}), "c1"
+        )
+        assert resp.type == MessageType.COVER_ZONE_REMOVE
+        assert table.cover_zones == []
+        proto.table_manager.save_table.assert_called_once_with("t1", session_id=1)
 
     async def test_sync_returns_zones(self):
         proto = _ProtoStub(role="player")

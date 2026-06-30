@@ -13,7 +13,7 @@ import uuid
 
 import pytest
 from core_table.entities import Wall
-from core_table.table import Entity, VirtualTable
+from core_table.table import CoverZone, Entity, VirtualTable
 from database import crud, schemas
 
 # ---------------------------------------------------------------------------
@@ -331,6 +331,30 @@ class TestEntityVisionPersistence:
         loaded_wall = loaded_table.get_wall(wall.wall_id)
         assert loaded_wall is not None
         assert loaded_wall.to_dict() == wall.to_dict()
+
+    def test_terrain_and_cover_survive_full_table_save_and_load(self, test_db, session):
+        table = VirtualTable("Environment Round-trip Table", 50, 50)
+        table.difficult_terrain_cells = {(2, 3), (4, 5)}
+        table.cover_zones = [
+            CoverZone(
+                zone_id="zone-1",
+                shape_type="rect",
+                coords=[0, 0, 100, 100],
+                cover_tier="three_quarters",
+                label="Stone wall",
+            )
+        ]
+
+        crud.save_table_to_db(test_db, table, session.id)
+
+        loaded_table, ok = crud.load_table_from_db(test_db, str(table.table_id))
+
+        assert ok is True
+        assert loaded_table is not None
+        assert loaded_table.difficult_terrain_cells == {(2, 3), (4, 5)}
+        assert [zone.to_dict() for zone in loaded_table.cover_zones] == [
+            table.cover_zones[0].to_dict()
+        ]
 
 
 # ---------------------------------------------------------------------------

@@ -335,6 +335,7 @@ class _CombatMixin(_ProtocolBase):
         state = CombatEngine.get_state(self._get_session_code())
         if not state:
             return Message(MessageType.ERROR, {'error': 'No active combat'})
+        state_before = state.to_dict()
         for c in state.combatants:
             if c.combatant_id != combatant_id:
                 continue
@@ -342,6 +343,7 @@ class _CombatMixin(_ProtocolBase):
                 ctype = ConditionType(condition_str)
             except ValueError:
                 return Message(MessageType.ERROR, {'error': f'Unknown condition: {condition_str}'})
+            added = False
             if not any(x.condition_type == ctype for x in c.conditions):
                 c.conditions.append(ActiveCondition(
                     condition_id=str(uuid.uuid4()),
@@ -350,7 +352,22 @@ class _CombatMixin(_ProtocolBase):
                     duration_type='rounds' if d.get('duration') else 'permanent',
                     duration_remaining=d.get('duration'),
                 ))
+                added = True
             conditions = [x.to_dict() for x in c.conditions]
+            if added:
+                persist_error = self._persist_direct_combat_mutation(
+                    msg,
+                    client_id,
+                    session_code=self._get_session_code(),
+                    command_type='condition_add',
+                    actor_id=combatant_id,
+                    command_payload=d,
+                    result_payload={'combatant_id': combatant_id, 'conditions': conditions},
+                    state_before=state_before,
+                    state_after=state,
+                )
+                if persist_error:
+                    return Message(MessageType.ERROR, {'error': persist_error})
             return await self._broadcast_combat_state(
                 state,
                 MessageType.CONDITIONS_SYNC,
@@ -371,11 +388,27 @@ class _CombatMixin(_ProtocolBase):
         state = CombatEngine.get_state(self._get_session_code())
         if not state:
             return Message(MessageType.ERROR, {'error': 'No active combat'})
+        state_before = state.to_dict()
         for c in state.combatants:
             if c.combatant_id != combatant_id:
                 continue
+            original_count = len(c.conditions)
             c.conditions = [x for x in c.conditions if x.condition_type.value != condition_str]
             conditions = [x.to_dict() for x in c.conditions]
+            if len(c.conditions) != original_count:
+                persist_error = self._persist_direct_combat_mutation(
+                    msg,
+                    client_id,
+                    session_code=self._get_session_code(),
+                    command_type='condition_remove',
+                    actor_id=combatant_id,
+                    command_payload=d,
+                    result_payload={'combatant_id': combatant_id, 'conditions': conditions},
+                    state_before=state_before,
+                    state_after=state,
+                )
+                if persist_error:
+                    return Message(MessageType.ERROR, {'error': persist_error})
             return await self._broadcast_combat_state(
                 state,
                 MessageType.CONDITIONS_SYNC,

@@ -769,6 +769,43 @@ class TestConditionAdd:
         )
         assert resp.type == MessageType.CONDITIONS_SYNC
 
+    async def test_valid_condition_persists_snapshot_and_versions_live_state(self):
+        CombatEngine._active.pop("TST", None)
+        state = CombatEngine.start_combat(
+            "TST",
+            "t1",
+            [],
+            combatants=[{
+                "entity_id": "sprite-a",
+                "name": "Ada",
+                "hp": 20,
+                "max_hp": 20,
+            }],
+        )
+        actor = state.combatants[0]
+        persistence = _mock_persistence(version=9)
+        proto = _ProtoStub(role="owner")
+        proto.combat_persistence_service = persistence
+
+        resp = await proto.handle_condition_add(
+            Message(MessageType.CONDITION_ADD, {
+                "combatant_id": actor.combatant_id,
+                "condition_type": "poisoned",
+                "duration": 2,
+                "source": "dm",
+                "sequence_id": 46,
+            }),
+            "c1",
+        )
+
+        persisted = persistence.persist_accepted.call_args.kwargs
+        assert resp.type == MessageType.CONDITIONS_SYNC
+        assert resp.data["combat"]["state_version"] == 9
+        assert CombatEngine.get_state("TST").combatants[0].conditions[0].condition_type.value == "poisoned"
+        assert persisted["command_type"] == "condition_add"
+        assert persisted["state_before"]["combatants"][0]["conditions"] == []
+        assert persisted["state_after"]["combatants"][0]["conditions"][0]["condition_type"] == "poisoned"
+
 
 @pytest.mark.unit
 class TestConditionRemove:
@@ -789,6 +826,50 @@ class TestConditionRemove:
             Message(MessageType.CONDITION_REMOVE, {"combatant_id": "ghost", "condition_type": "poisoned"}), "c1"
         )
         assert resp.type == MessageType.ERROR
+
+    async def test_success_persists_snapshot_and_versions_live_state(self):
+        from core_table.conditions import ActiveCondition, ConditionType
+
+        CombatEngine._active.pop("TST", None)
+        state = CombatEngine.start_combat(
+            "TST",
+            "t1",
+            [],
+            combatants=[{
+                "entity_id": "sprite-a",
+                "name": "Ada",
+                "hp": 20,
+                "max_hp": 20,
+            }],
+        )
+        actor = state.combatants[0]
+        actor.conditions = [ActiveCondition(
+            condition_id="cond-1",
+            condition_type=ConditionType.POISONED,
+            source="dm",
+            duration_type="rounds",
+            duration_remaining=2,
+        )]
+        persistence = _mock_persistence(version=10)
+        proto = _ProtoStub(role="owner")
+        proto.combat_persistence_service = persistence
+
+        resp = await proto.handle_condition_remove(
+            Message(MessageType.CONDITION_REMOVE, {
+                "combatant_id": actor.combatant_id,
+                "condition_type": "poisoned",
+                "sequence_id": 47,
+            }),
+            "c1",
+        )
+
+        persisted = persistence.persist_accepted.call_args.kwargs
+        assert resp.type == MessageType.CONDITIONS_SYNC
+        assert resp.data["combat"]["state_version"] == 10
+        assert CombatEngine.get_state("TST").combatants[0].conditions == []
+        assert persisted["command_type"] == "condition_remove"
+        assert persisted["state_before"]["combatants"][0]["conditions"][0]["condition_type"] == "poisoned"
+        assert persisted["state_after"]["combatants"][0]["conditions"] == []
 
 
 # ---------------------------------------------------------------------------

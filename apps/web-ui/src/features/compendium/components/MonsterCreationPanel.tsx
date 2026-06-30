@@ -5,6 +5,7 @@
  */
 
 import '@shared/styles/MonsterCreationPanel.css';
+import { logger } from '@shared/utils/logger';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import {
@@ -156,7 +157,7 @@ export const MonsterCreationPanel: React.FC<MonsterCreationPanelProps> = ({
       setSearchResults(results);
       setCurrentPage(1);
     } catch (error) {
-      console.error('Search failed:', error);
+      logger.error('Monster search failed', error);
     } finally {
       setLoading(false);
     }
@@ -574,7 +575,7 @@ export const MonsterCreationPanel: React.FC<MonsterCreationPanelProps> = ({
         <h4>Monster Instances ({instances.length})</h4>
         <div className="monster-instances-actions">
           <button
-            onClick={() => console.log('Custom instance creation coming soon!')}
+            disabled
             className="monster-btn monster-btn-primary"
           >
             Create Custom Instance

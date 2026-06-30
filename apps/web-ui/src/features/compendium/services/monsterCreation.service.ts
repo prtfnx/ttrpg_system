@@ -5,6 +5,7 @@
  */
 
 import { EventSystem } from '@shared/services/eventSystem.service';
+import { logger } from '@shared/utils/logger';
 
 // === Core Types ===
 
@@ -270,7 +271,7 @@ export class MonsterCreationService extends EventSystem {
       });
       
     } catch (error) {
-      console.error('Failed to initialize with compendium:', error);
+      logger.error('Failed to initialize with compendium', error);
       this.emit('compendiumLoadError', { error });
     }
   }
@@ -289,12 +290,12 @@ export class MonsterCreationService extends EventSystem {
           loadedCount++;
         }
       } catch (error) {
-        console.warn(`Failed to convert monster ${name}:`, error);
+        logger.warn('Failed to convert monster', { name, error });
       }
     }
     
     this.stats.templatesLoaded = loadedCount;
-    console.log(`Loaded ${loadedCount} monster templates from compendium`);
+    logger.info('Loaded monster templates from compendium', { loadedCount });
   }
 
   /**
@@ -409,7 +410,7 @@ export class MonsterCreationService extends EventSystem {
       return template;
       
     } catch (error) {
-      console.error(`Failed to convert monster ${name}:`, error);
+      logger.error('Failed to convert monster', { name, error });
       return null;
     }
   }
@@ -768,7 +769,7 @@ export class MonsterCreationService extends EventSystem {
   createInstance(templateId: string, customName?: string, position?: { x: number; y: number; tableId?: string }): MonsterInstance | null {
     const template = this.templates.get(templateId);
     if (!template) {
-      console.error(`Template not found: ${templateId}`);
+      logger.error('Monster template not found', { templateId });
       return null;
     }
     
@@ -906,7 +907,10 @@ export class MonsterCreationService extends EventSystem {
       .filter(instance => instance.templateId === templateId);
     
     if (instancesUsingTemplate.length > 0) {
-      console.warn(`Cannot delete template ${templateId}: ${instancesUsingTemplate.length} instances still use it`);
+      logger.warn('Cannot delete monster template while instances use it', {
+        templateId,
+        instanceCount: instancesUsingTemplate.length,
+      });
       return false;
     }
     

@@ -3,6 +3,8 @@
  * Loads and caches compendium data from the backend API
  */
 
+import { logger } from '@shared/utils/logger';
+
 // Base API URL - use relative URL to work in all environments
 const API_BASE_URL = '/api/compendium';
 
@@ -210,7 +212,7 @@ class CompendiumService {
       this.cache.set(cacheKey, { data, timestamp: Date.now() });
       return data as unknown as T;
     } catch (error) {
-      console.error(`Error fetching compendium data from ${endpoint}:`, error);
+      logger.error('Error fetching compendium data', { endpoint, error });
       throw error;
     }
   }

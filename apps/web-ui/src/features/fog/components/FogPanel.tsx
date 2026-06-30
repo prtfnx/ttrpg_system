@@ -1,5 +1,6 @@
 import { useRenderEngine } from '@features/canvas';
 import { useProtocol } from '@lib/api';
+import { logger } from '@shared/utils/logger';
 import clsx from 'clsx';
 import React, { useCallback, useEffect, useState } from 'react'; // FogPanel.tsx
 import styles from './FogPanel.module.css';
@@ -26,7 +27,7 @@ export const FogPanel: React.FC = () => {
 
     const tableId = renderer.get_active_table_id();
     if (!tableId) {
-      console.warn('No active table ID, cannot send fog update');
+      logger.warn('No active table ID, cannot send fog update');
       return;
     }
 
@@ -39,7 +40,7 @@ export const FogPanel: React.FC = () => {
       .filter(rect => rect.mode === 'reveal')
       .map(rect => [[rect.startX, rect.startY], [rect.endX, rect.endY]] as [[number, number], [number, number]]);
 
-    console.log('Sending fog update to server:', { tableId, hideCount: hideRectangles.length, revealCount: revealRectangles.length });
+    logger.debug('Sending fog update to server', { tableId, hideCount: hideRectangles.length, revealCount: revealRectangles.length });
     protocol.updateFog(tableId, hideRectangles, revealRectangles);
   }, [protocol, renderer]);
 
@@ -110,7 +111,7 @@ export const FogPanel: React.FC = () => {
       previewOverlay.style.top = `${rect.top + rawY}px`;
       document.body.appendChild(previewOverlay);
       
-      console.log(`Fog drawing started (${fogDrawMode}): (${worldX}, ${worldY})`);
+      logger.debug('Fog drawing started', { mode: fogDrawMode, worldX, worldY });
     };
 
     const handleMouseMove = (e: MouseEvent) => {
@@ -187,7 +188,14 @@ export const FogPanel: React.FC = () => {
       // Send update to server
       sendFogUpdateToServer(updatedRectangles);
       
-      console.log(`Fog rectangle added (${fogDrawMode}): ${currentDrawing.id} - from (${currentDrawing.startX}, ${currentDrawing.startY}) to (${worldX}, ${worldY})`);
+      logger.debug('Fog rectangle added', {
+        id: currentDrawing.id,
+        mode: fogDrawMode,
+        startX: currentDrawing.startX,
+        startY: currentDrawing.startY,
+        endX: worldX,
+        endY: worldY,
+      });
       
       // Clean up preview overlay
       if (previewOverlay && previewOverlay.parentNode) {
@@ -219,10 +227,10 @@ export const FogPanel: React.FC = () => {
   const handleToggleFogMode = useCallback((mode: 'hide' | 'reveal') => {
     if (fogDrawMode === mode) {
       setFogDrawMode(null);
-      console.log('Fog drawing mode disabled');
+      logger.debug('Fog drawing mode disabled');
     } else {
       setFogDrawMode(mode);
-      console.log(`Fog drawing mode: ${mode}`);
+      logger.debug('Fog drawing mode enabled', { mode });
     }
   }, [fogDrawMode]);
 
@@ -231,7 +239,7 @@ export const FogPanel: React.FC = () => {
     renderer.clear_fog();
     setFogRectangles([]);
     sendFogUpdateToServer([]); // Send empty update to server
-    console.log('All fog cleared');
+    logger.debug('All fog cleared');
   }, [renderer, sendFogUpdateToServer]);
 
   const handleHideAll = useCallback(() => {
@@ -266,7 +274,7 @@ export const FogPanel: React.FC = () => {
     // Send update to server
     sendFogUpdateToServer(updatedRectangles);
 
-    console.log(`Entire table hidden with fog: (${startX}, ${startY}) to (${endX}, ${endY})`);
+    logger.debug('Entire table hidden with fog', { startX, startY, endX, endY });
   }, [renderer, sendFogUpdateToServer]);
 
   const handleRemoveRectangle = useCallback((id: string) => {
@@ -278,7 +286,7 @@ export const FogPanel: React.FC = () => {
     // Send update to server
     sendFogUpdateToServer(updatedRectangles);
     
-    console.log(`Removed fog rectangle: ${id}`);
+    logger.debug('Removed fog rectangle', { id });
   }, [renderer, fogRectangles, sendFogUpdateToServer]);
 
   return (

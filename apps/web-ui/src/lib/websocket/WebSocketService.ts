@@ -3,6 +3,8 @@
  * Provides connection management, message handling, and reconnection logic
  */
 
+import { logger } from '@shared/utils/logger';
+
 export interface WebSocketConfig {
   url: string;
   protocols?: string[];
@@ -85,7 +87,7 @@ export class WebSocketService {
             message.timestamp = Date.now();
             this.handleMessage(message);
           } catch (error) {
-            console.error('Failed to parse WebSocket message:', error);
+            logger.error('Failed to parse WebSocket message', error);
           }
         };
 
@@ -128,7 +130,7 @@ export class WebSocketService {
    */
   send(message: WebSocketMessage): boolean {
     if (!this.ws || this.ws.readyState !== WebSocket.OPEN) {
-      console.warn('WebSocket not connected, cannot send message:', message);
+      logger.warn('WebSocket not connected, cannot send message', message);
       return false;
     }
 
@@ -137,7 +139,7 @@ export class WebSocketService {
       this.ws.send(payload);
       return true;
     } catch (error) {
-      console.error('Failed to send WebSocket message:', error);
+      logger.error('Failed to send WebSocket message', error);
       return false;
     }
   }
@@ -222,7 +224,7 @@ export class WebSocketService {
         try {
           handler(message);
         } catch (error) {
-          console.error(`Error in message handler for type ${message.type}:`, error);
+          logger.error('Error in WebSocket message handler', { messageType: message.type, error });
         }
       });
     }
@@ -246,7 +248,7 @@ export class WebSocketService {
       try {
         await this.connect();
       } catch (error) {
-        console.error(`Reconnection attempt ${this.reconnectAttempts} failed:`, error);
+        logger.error('WebSocket reconnection attempt failed', { attempt: this.reconnectAttempts, error });
       }
     }, delay);
   }

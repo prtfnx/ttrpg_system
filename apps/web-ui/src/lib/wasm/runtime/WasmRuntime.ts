@@ -1,5 +1,6 @@
 import { assetIntegrationService } from '@features/assets';
 import { isDM, type SessionRole } from '@features/session/types/roles';
+import { logger } from '@shared/utils/logger';
 import { initializeWasmCore } from '../wasmCore';
 import { wasmBridgeService } from '../wasmBridge';
 import { emitWasmEvent, type WasmEventMap } from '../wasmEvents';
@@ -343,7 +344,7 @@ export class WasmRuntime implements WasmRuntimePort {
         this.renderEngine?.render();
         this.onFrame?.();
       } catch (error) {
-        console.error('Rust WASM render error:', error);
+        logger.error('Rust WASM render error', error);
       }
 
       if (this.renderEngine) {
@@ -368,12 +369,12 @@ export class WasmRuntime implements WasmRuntimePort {
 
   private handleRuntimeOperation(operation: WasmRuntimeOperation): void {
     if (operation.type !== 'spriteCreateRequested') {
-      console.warn('[WasmRuntime] Ignoring unknown WASM runtime operation:', operation.type);
+      logger.warn('[WasmRuntime] Ignoring unknown WASM runtime operation', { type: operation.type });
       return;
     }
 
     if (!this.protocol?.createSprite || !this.isRecord(operation.data)) {
-      console.warn('[WasmRuntime] Cannot route WASM sprite creation without protocol and payload.');
+      logger.warn('[WasmRuntime] Cannot route WASM sprite creation without protocol and payload.');
       return;
     }
 
@@ -400,7 +401,7 @@ export class WasmRuntime implements WasmRuntimePort {
       return;
     }
 
-    console.warn('[WasmRuntime] Ignoring unknown WASM runtime event:', event.type);
+    logger.warn('[WasmRuntime] Ignoring unknown WASM runtime event', { type: event.type });
   }
 
   private emitRuntimeBrowserEvent<K extends RuntimeBrowserEventName>(

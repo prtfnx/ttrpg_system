@@ -553,8 +553,11 @@ describe('WebSocketService - Exponential Backoff Tests', () => {
       await vi.advanceTimersByTimeAsync(105);
 
       expect(consoleErrorSpy).toHaveBeenCalledWith(
-        expect.stringMatching(/reconnection attempt.*failed/i),
-        expect.any(Error)
+        expect.stringMatching(/\[ERROR\] WebSocket reconnection attempt failed/),
+        expect.objectContaining({
+          attempt: 1,
+          error: expect.any(Error),
+        })
       );
 
       consoleErrorSpy.mockRestore();

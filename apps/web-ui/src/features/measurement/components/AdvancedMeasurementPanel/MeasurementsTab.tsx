@@ -8,6 +8,7 @@ interface MeasurementsTabProps {
   filteredMeasurements: MeasurementLine[];
   settings: MeasurementSettings | null;
   onClearMeasurements: () => void;
+  onRemoveMeasurement: (measurementId: string) => void;
   onSettingsUpdate: (updates: Partial<MeasurementSettings>) => void;
 }
 
@@ -16,6 +17,7 @@ export const MeasurementsTab: FC<MeasurementsTabProps> = ({
   filteredMeasurements,
   settings,
   onClearMeasurements,
+  onRemoveMeasurement,
   onSettingsUpdate
 }) => (
   <div className={styles.measurementsTab}>
@@ -85,7 +87,7 @@ export const MeasurementsTab: FC<MeasurementsTabProps> = ({
             ></div>
             <button 
               className={styles.deleteBtn}
-              onClick={() => console.log('Remove measurement:', measurement.id)}
+              onClick={() => onRemoveMeasurement(measurement.id)}
               title="Delete measurement"
             >
               

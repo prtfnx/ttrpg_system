@@ -113,6 +113,26 @@ describe('advancedMeasurementSystem', () => {
     });
   });
 
+  describe('removeMeasurement', () => {
+    it('removes a measurement and fires measurementRemoved callback', () => {
+      const cb = vi.fn();
+      advancedMeasurementSystem.subscribe('test', cb);
+      const id = advancedMeasurementSystem.startMeasurement({ x: 0, y: 0 });
+
+      cb.mockClear();
+      const removed = advancedMeasurementSystem.removeMeasurement(id);
+
+      expect(removed).toBe(true);
+      expect(advancedMeasurementSystem.getMeasurements()).toHaveLength(0);
+      expect(cb).toHaveBeenCalledWith('measurementRemoved', expect.objectContaining({ measurementId: id }));
+      advancedMeasurementSystem.unsubscribe('test');
+    });
+
+    it('returns false for an unknown measurement', () => {
+      expect(advancedMeasurementSystem.removeMeasurement('unknown')).toBe(false);
+    });
+  });
+
   describe('clearMeasurements', () => {
     it('clearMeasurements(false) removes non-persistent measurements', () => {
       advancedMeasurementSystem.startMeasurement({ x: 0, y: 0 }); // non-persistent

@@ -1,4 +1,5 @@
 import { useRenderEngine } from '@lib/wasm/runtime';
+import { logger } from '@shared/utils/logger';
 import { useEffect, useState } from 'react';
 
 interface MeasurementResult {
@@ -25,7 +26,7 @@ export function MeasurementTool({ isActive }: MeasurementToolProps) {
   // Listen for measurement completion from Rust
   useEffect(() => {
     const handleMeasurementComplete = (event: CustomEvent<MeasurementResult>) => {
-      console.log('[MeasurementTool] Received measurement from Rust:', event.detail);
+      logger.debug('[MeasurementTool] Received measurement from Rust', event.detail);
       setMeasurement(event.detail);
     };
 
@@ -61,45 +62,8 @@ export function MeasurementTool({ isActive }: MeasurementToolProps) {
     
     // Clear measurement by switching back to select mode
     renderEngine?.set_input_mode_select();
-    
-    console.log('[MeasurementTool] Measurement cleared');
+    logger.debug('[MeasurementTool] Measurement cleared');
   };
-
-  /* Save function disabled - actionsProtocol not available in WASM mode
-  const handleSave = async () => {
-    if (!measurement) return;
-
-    // Create a line sprite representing the measurement arrow
-    const sprite = {
-      type: 'line',
-      worldX: measurement.startX,
-      worldY: measurement.startY,
-      endX: measurement.endX,
-      endY: measurement.endY,
-      color: '#FFFF00', // Yellow arrow
-      lineWidth: 2,
-      metadata: {
-        measurement: true,
-        distance: measurement.distance,
-        feet: measurement.feet,
-        angle: measurement.angle
-      }
-    };
-
-    try {
-      // Send create sprite action to server via protocol
-      if (window.actionsProtocol) {
-        await window.actionsProtocol.createSprite(sprite);
-        console.log('[MeasurementTool] Measurement saved as sprite');
-        handleClear();
-      } else {
-        console.error('[MeasurementTool] Actions protocol not available');
-      }
-    } catch (error) {
-      console.error('[MeasurementTool] Failed to save measurement:', error);
-    }
-  };
-  */
 
   if (!measurement) return null;
 

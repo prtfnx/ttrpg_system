@@ -110,6 +110,22 @@ describe('useAdvancedMeasurement', () => {
     });
   });
 
+  describe('handleRemoveMeasurement', () => {
+    it('removes one measurement and refreshes measurements', async () => {
+      const removeSpy = vi.spyOn(advancedMeasurementSystem, 'removeMeasurement').mockReturnValue(true);
+      vi.spyOn(advancedMeasurementSystem, 'getMeasurements').mockReturnValue([]);
+      const { ref } = makeRef();
+      const { result } = renderHook(() => useAdvancedMeasurement({ isOpen: false, canvasRef: ref }));
+
+      await act(async () => {
+        result.current.handleRemoveMeasurement('measurement-1');
+      });
+
+      expect(removeSpy).toHaveBeenCalledWith('measurement-1');
+      expect(result.current.measurements).toHaveLength(0);
+    });
+  });
+
   describe('handleGridChange', () => {
     it('calls setActiveGrid on the service', async () => {
       const spy = vi.spyOn(advancedMeasurementSystem, 'setActiveGrid').mockImplementation(() => {});

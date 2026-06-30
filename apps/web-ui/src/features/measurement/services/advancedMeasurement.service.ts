@@ -4,6 +4,8 @@
  * and comprehensive grid management for tabletop gaming
  */
 
+import { logger } from '@shared/utils/logger';
+
 export interface MeasurementPoint {
   x: number;
   y: number;
@@ -273,6 +275,22 @@ class AdvancedMeasurementService {
       }
       this.notifyCallbacks('measurementCancelled', { measurementId });
     }
+  }
+
+  /**
+   * Remove a completed or active measurement
+   */
+  removeMeasurement(measurementId: string): boolean {
+    const removed = this.measurements.delete(measurementId);
+    if (!removed) return false;
+
+    if (this.activeMeasurement === measurementId) {
+      this.activeMeasurement = null;
+    }
+
+    this.rebuildSpatialIndex();
+    this.notifyCallbacks('measurementRemoved', { measurementId });
+    return true;
   }
 
   /**
@@ -1016,7 +1034,7 @@ class AdvancedMeasurementService {
       try {
         callback(event, data);
       } catch (error) {
-        console.error(`Error in measurement callback ${key}:`, error);
+        logger.error('Error in measurement callback', { key, error });
       }
     });
   }

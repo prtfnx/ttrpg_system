@@ -79,6 +79,9 @@ export const useAdvancedMeasurement = ({
           setMeasurements(advancedMeasurementSystem.getMeasurements());
           onMeasurementComplete?.(d.measurement as unknown as MeasurementLine);
           break;
+        case 'measurementRemoved':
+          setMeasurements(advancedMeasurementSystem.getMeasurements());
+          break;
         case 'shapeCreated':
           setShapes(advancedMeasurementSystem.getShapes());
           setIsCreatingShape(false);
@@ -140,7 +143,7 @@ export const useAdvancedMeasurement = ({
 
           case 'template':
             if (selectedTemplate) {
-              console.log('Template placement at:', point, 'template:', selectedTemplate);
+              setError('Template placement is not implemented yet.');
             }
             break;
 
@@ -186,6 +189,11 @@ export const useAdvancedMeasurement = ({
       advancedMeasurementSystem.clearMeasurements(true);
       setMeasurements([]);
     }
+  }, []);
+
+  const handleRemoveMeasurement = useCallback((measurementId: string) => {
+    advancedMeasurementSystem.removeMeasurement(measurementId);
+    setMeasurements(advancedMeasurementSystem.getMeasurements());
   }, []);
 
   const handleGridChange = useCallback((gridId: string) => {
@@ -307,6 +315,7 @@ export const useAdvancedMeasurement = ({
     fileInputRef,
     handleToolSelect,
     handleClearMeasurements,
+    handleRemoveMeasurement,
     handleGridChange,
     handleGridUpdate,
     handleSettingsUpdate,

@@ -45,6 +45,7 @@ const AdvancedMeasurementPanel: FC<AdvancedMeasurementPanelProps> = ({
     settings,
     handleToolSelect,
     handleClearMeasurements,
+    handleRemoveMeasurement,
     handleSettingsUpdate
   } = useAdvancedMeasurement({
     isOpen,
@@ -105,6 +106,7 @@ const AdvancedMeasurementPanel: FC<AdvancedMeasurementPanelProps> = ({
                   filteredMeasurements={filteredMeasurements}
                   settings={settings}
                   onClearMeasurements={handleClearMeasurements}
+                  onRemoveMeasurement={handleRemoveMeasurement}
                   onSettingsUpdate={handleSettingsUpdate}
                 />
               )}

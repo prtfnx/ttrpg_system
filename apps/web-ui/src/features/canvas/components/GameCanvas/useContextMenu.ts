@@ -4,6 +4,7 @@
 import { useGameStore } from '@/store';
 import type { WebClientProtocol } from '@lib/websocket';
 import type { RenderEngine } from '@lib/wasm/runtime';
+import { logger } from '@shared/utils/logger';
 import { useCallback, useEffect, useState, type RefObject } from 'react';
 
 interface ContextMenuState {
@@ -54,15 +55,15 @@ export const useContextMenu = ({ canvasRef, rustRenderManagerRef, protocol }: Us
       switch (action) {
         case 'delete':
           if (spriteId && protocol) {
-            console.log(' GameCanvas: Sending sprite delete request to server:', spriteId);
+            logger.debug('Sending sprite delete request to server', { spriteId });
             try {
               protocol.removeSprite(spriteId);
-              console.log(' GameCanvas: Sprite delete request sent to server');
+              logger.debug('Sprite delete request sent to server', { spriteId });
             } catch (error) {
-              console.error(' GameCanvas: Failed to send sprite delete request:', error);
+              logger.error('Failed to send sprite delete request', error);
             }
           } else if (spriteId) {
-            console.warn(' GameCanvas: Protocol not available, deleting sprite locally only');
+            logger.warn('Protocol not available, deleting sprite locally only', { spriteId });
             rustRenderManagerRef.current.remove_sprite(spriteId);
           }
           break;
@@ -146,10 +147,10 @@ export const useContextMenu = ({ canvasRef, rustRenderManagerRef, protocol }: Us
             })
           );
         } else {
-          console.warn('GameCanvas: move_sprite_to_layer returned false');
+          logger.warn('move_sprite_to_layer returned false', { spriteId: contextMenu.spriteId, layerId });
         }
       } catch (error) {
-        console.error(' GameCanvas: Failed to move sprite to layer:', error);
+        logger.error('Failed to move sprite to layer', error);
       }
 
       setContextMenu((prev) => ({

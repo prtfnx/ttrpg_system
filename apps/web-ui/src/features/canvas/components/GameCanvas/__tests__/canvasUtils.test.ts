@@ -160,7 +160,7 @@ describe('resizeCanvas', () => {
 
     resizeCanvas(canvas, dprRef, mockEngine as never);
 
-    expect(errorSpy).toHaveBeenCalledWith('WASM resize error:', expect.any(Error));
+    expect(errorSpy).toHaveBeenCalledWith('[ERROR] WASM resize error', expect.any(Error));
     errorSpy.mockRestore();
   });
 });

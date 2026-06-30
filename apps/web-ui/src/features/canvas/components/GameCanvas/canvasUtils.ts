@@ -3,6 +3,7 @@
  */
 
 import type { RenderEngine } from '@lib/wasm/runtime';
+import { logger } from '@shared/utils/logger';
 
 /**
  * Get nearest grid coordinate for snapping
@@ -47,7 +48,7 @@ export const resizeCanvas = (
 ): void => {
   const container = canvas.parentElement;
   if (!container) {
-    console.warn('Canvas has no parent container for sizing');
+    logger.warn('Canvas has no parent container for sizing');
     return;
   }
   
@@ -74,7 +75,7 @@ export const resizeCanvas = (
     try {
       rustRenderManager.resize_canvas(canvas.width, canvas.height);
     } catch (err) {
-      console.error('WASM resize error:', err);
+      logger.error('WASM resize error', err);
     }
   }
 };

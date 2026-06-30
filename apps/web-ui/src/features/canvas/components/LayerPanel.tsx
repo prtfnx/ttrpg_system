@@ -2,6 +2,7 @@ import { useGameStore } from '@/store';
 import { isDM } from '@features/session/types/roles';
 import { useProtocol } from '@lib/api';
 import { createMessage, MessageType } from '@lib/websocket';
+import { logger } from '@shared/utils/logger';
 import clsx from 'clsx';
 import type { LucideIcon } from 'lucide-react';
 import { Calendar, CloudFog, Construction, Crown, Eye, EyeOff, Layers, Lightbulb, Map, Mountain, Users } from 'lucide-react';
@@ -134,7 +135,7 @@ export function LayerPanel({ className, style: _style, id, initialLayers, ...oth
 
     const updateSpriteCounts = () => {
       if (!renderEngine) {
-        console.warn('[LayerPanel] RenderManager not available');
+        logger.warn('[LayerPanel] RenderManager not available');
         return;
       }
 
@@ -145,7 +146,7 @@ export function LayerPanel({ className, style: _style, id, initialLayers, ...oth
             const count = renderEngine.get_layer_sprite_count(layer.id);
             return { ...layer, spriteCount: count };
           } catch (error) {
- console.error(`[LayerPanel] Failed to get count for layer ${layer.id}:`, error);
+            logger.error('[LayerPanel] Failed to get count for layer', { layerId: layer.id, error });
             return { ...layer, spriteCount: 0 };
           }
         })
@@ -191,7 +192,7 @@ export function LayerPanel({ className, style: _style, id, initialLayers, ...oth
       try {
         renderEngine.set_active_layer(layerId);
       } catch (error) {
-        console.error(' LayerPanel: Failed to sync active layer to WASM:', error);
+        logger.error('LayerPanel failed to sync active layer to WASM', error);
       }
     }
     // Toggle expansion: if clicking the same layer, toggle it; if different, expand new one
@@ -209,9 +210,9 @@ export function LayerPanel({ className, style: _style, id, initialLayers, ...oth
     if (renderEngine) {
       try {
         renderEngine.set_layer_visibility(layerId, newVisibility);
-        console.log(` LayerPanel: Synced layer visibility to WASM: ${layerId} = ${newVisibility}`);
+        logger.debug('LayerPanel synced layer visibility to WASM', { layerId, visible: newVisibility });
       } catch (error) {
-        console.error(' LayerPanel: Failed to sync layer visibility to WASM:', error);
+        logger.error('LayerPanel failed to sync layer visibility to WASM', error);
       }
     }
     
@@ -239,9 +240,9 @@ export function LayerPanel({ className, style: _style, id, initialLayers, ...oth
     if (renderEngine) {
       try {
         renderEngine.set_layer_opacity(layerId, opacity);
-        console.log(` LayerPanel: Synced layer opacity to WASM: ${layerId} = ${opacity}`);
+        logger.debug('LayerPanel synced layer opacity to WASM', { layerId, opacity });
       } catch (error) {
-        console.error(' LayerPanel: Failed to sync layer opacity to WASM:', error);
+        logger.error('LayerPanel failed to sync layer opacity to WASM', error);
       }
     }
 

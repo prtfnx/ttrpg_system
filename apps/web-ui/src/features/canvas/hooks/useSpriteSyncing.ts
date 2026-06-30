@@ -1,5 +1,6 @@
 import { useGameStore } from '@/store';
 import { useWasmRuntime } from '@lib/wasm/runtime';
+import { logger } from '@shared/utils/logger';
 import { useCallback, useEffect } from 'react';
 
 export function useSpriteSyncing() {
@@ -97,7 +98,7 @@ export function useSpriteSyncing() {
       });
 
     } catch (error) {
-      console.warn('[SpriteSyncing] Error syncing sprites from Rust:', error);
+      logger.warn('[SpriteSyncing] Error syncing sprites from Rust', error);
     }
   }, [addSprite, removeSprite, updateSprite, wasmRuntime]);
 

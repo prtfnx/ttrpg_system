@@ -1,6 +1,7 @@
 import { useGameStore } from '@/store';
 import { isDM } from '@features/session/types/roles';
 import { useWasmRuntime } from '@lib/wasm/runtime';
+import { logger } from '@shared/utils/logger';
 import { AlertTriangle, Check } from 'lucide-react';
 import { useEffect, useState } from 'react';
 
@@ -109,10 +110,10 @@ export function EntitiesPanel() {
       });
       
       if (errors.length > 0) {
-        console.warn('Sprite sync completed with warnings:', errors);
+        logger.warn('Sprite sync completed with warnings', { errors });
       }
       
-      console.log(`[EntitiesPanel] Successfully synced ${processedSprites.length} sprites from Rust`)
+      logger.debug('[EntitiesPanel] Successfully synced sprites from Rust', { count: processedSprites.length })
       
     } catch (error) {
       setSyncState({
@@ -120,7 +121,7 @@ export function EntitiesPanel() {
         error: error instanceof Error ? error.message : 'Unknown sync error',
         progress: 0
       });
-      console.error('[EntitiesPanel] Error syncing sprites:', error)
+      logger.error('[EntitiesPanel] Error syncing sprites', error)
     }
   }
 

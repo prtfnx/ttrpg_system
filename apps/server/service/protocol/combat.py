@@ -493,8 +493,25 @@ class _CombatMixin(_ProtocolBase):
             return Message(MessageType.ERROR, {'error': 'combatant_id required'})
         from service.combat_engine import CombatEngine
         session_code = self._get_session_code()
-        CombatEngine.dm_grant_resource(session_code, combatant_id, resource)
+        state_before_obj = CombatEngine.get_state(session_code)
+        state_before = state_before_obj.to_dict() if state_before_obj else None
+        result = CombatEngine.dm_grant_resource(session_code, combatant_id, resource)
+        if result is False:
+            return Message(MessageType.ERROR, {'error': 'Combatant not found or no active combat'})
         state = CombatEngine.get_state(session_code)
+        persist_error = self._persist_direct_combat_mutation(
+            msg,
+            client_id,
+            session_code=session_code,
+            command_type='dm_grant_resource',
+            actor_id=combatant_id,
+            command_payload=d,
+            result_payload={'combatant_id': combatant_id, 'resource': resource},
+            state_before=state_before,
+            state_after=state,
+        )
+        if persist_error:
+            return Message(MessageType.ERROR, {'error': persist_error})
         return await self._broadcast_combat_state(
             state,
             MessageType.COMBAT_STATE,
@@ -511,8 +528,25 @@ class _CombatMixin(_ProtocolBase):
             return Message(MessageType.ERROR, {'error': 'combatant_id required'})
         from service.combat_engine import CombatEngine
         session_code = self._get_session_code()
-        CombatEngine.dm_grant_resource(session_code, combatant_id, 'movement', amount)
+        state_before_obj = CombatEngine.get_state(session_code)
+        state_before = state_before_obj.to_dict() if state_before_obj else None
+        result = CombatEngine.dm_grant_resource(session_code, combatant_id, 'movement', amount)
+        if result is False:
+            return Message(MessageType.ERROR, {'error': 'Combatant not found or no active combat'})
         state = CombatEngine.get_state(session_code)
+        persist_error = self._persist_direct_combat_mutation(
+            msg,
+            client_id,
+            session_code=session_code,
+            command_type='dm_grant_movement',
+            actor_id=combatant_id,
+            command_payload=d,
+            result_payload={'combatant_id': combatant_id, 'resource': 'movement', 'amount': amount},
+            state_before=state_before,
+            state_after=state,
+        )
+        if persist_error:
+            return Message(MessageType.ERROR, {'error': persist_error})
         return await self._broadcast_combat_state(
             state,
             MessageType.COMBAT_STATE,
@@ -532,10 +566,28 @@ class _CombatMixin(_ProtocolBase):
             return Message(MessageType.ERROR, {'error': 'No active combat'})
         for c in state.combatants:
             if c.combatant_id == combatant_id:
+                state_before = state.to_dict()
                 if 'enabled' in d:
                     c.ai_enabled = d['enabled']
                 if 'behavior' in d:
                     c.ai_behavior = d['behavior']
+                persist_error = self._persist_direct_combat_mutation(
+                    msg,
+                    client_id,
+                    session_code=self._get_session_code(),
+                    command_type='dm_toggle_ai',
+                    actor_id=combatant_id,
+                    command_payload=d,
+                    result_payload={
+                        'combatant_id': combatant_id,
+                        'ai_enabled': c.ai_enabled,
+                        'ai_behavior': c.ai_behavior,
+                    },
+                    state_before=state_before,
+                    state_after=state,
+                )
+                if persist_error:
+                    return Message(MessageType.ERROR, {'error': persist_error})
                 return await self._broadcast_combat_state(
                     state,
                     MessageType.COMBAT_STATE,
@@ -576,10 +628,26 @@ class _CombatMixin(_ProtocolBase):
         if not combatant_id or temp_hp is None:
             return Message(MessageType.ERROR, {'error': 'combatant_id and temp_hp required'})
         from service.combat_engine import CombatEngine
-        result = CombatEngine.set_temp_hp(self._get_session_code(), combatant_id, int(temp_hp))
+        session_code = self._get_session_code()
+        state_before_obj = CombatEngine.get_state(session_code)
+        state_before = state_before_obj.to_dict() if state_before_obj else None
+        result = CombatEngine.set_temp_hp(session_code, combatant_id, int(temp_hp))
         if not result:
             return Message(MessageType.ERROR, {'error': 'Combatant not found or no active combat'})
-        state = CombatEngine.get_state(self._get_session_code())
+        state = CombatEngine.get_state(session_code)
+        persist_error = self._persist_direct_combat_mutation(
+            msg,
+            client_id,
+            session_code=session_code,
+            command_type='dm_set_temp_hp',
+            actor_id=combatant_id,
+            command_payload=d,
+            result_payload=result,
+            state_before=state_before,
+            state_after=state,
+        )
+        if persist_error:
+            return Message(MessageType.ERROR, {'error': persist_error})
         return await self._broadcast_combat_state(
             state,
             MessageType.COMBAT_STATE,
@@ -624,14 +692,30 @@ class _CombatMixin(_ProtocolBase):
         if not combatant_id:
             return Message(MessageType.ERROR, {'error': 'combatant_id required'})
         from service.combat_engine import CombatEngine
+        session_code = self._get_session_code()
+        state_before_obj = CombatEngine.get_state(session_code)
+        state_before = state_before_obj.to_dict() if state_before_obj else None
         result = CombatEngine.set_resistances(
-            self._get_session_code(), combatant_id,
+            session_code, combatant_id,
             resistances=d.get('resistances'), vulnerabilities=d.get('vulnerabilities'),
             immunities=d.get('immunities'),
         )
         if not result:
             return Message(MessageType.ERROR, {'error': 'Combatant not found or no active combat'})
-        state = CombatEngine.get_state(self._get_session_code())
+        state = CombatEngine.get_state(session_code)
+        persist_error = self._persist_direct_combat_mutation(
+            msg,
+            client_id,
+            session_code=session_code,
+            command_type='dm_set_resistances',
+            actor_id=combatant_id,
+            command_payload=d,
+            result_payload=result,
+            state_before=state_before,
+            state_after=state,
+        )
+        if persist_error:
+            return Message(MessageType.ERROR, {'error': persist_error})
         return await self._broadcast_combat_state(
             state,
             MessageType.COMBAT_STATE,
@@ -648,10 +732,26 @@ class _CombatMixin(_ProtocolBase):
         if not combatant_ids:
             return Message(MessageType.ERROR, {'error': 'combatant_ids required'})
         from service.combat_engine import CombatEngine
-        result = CombatEngine.set_surprised(self._get_session_code(), combatant_ids, surprised)
+        session_code = self._get_session_code()
+        state_before_obj = CombatEngine.get_state(session_code)
+        state_before = state_before_obj.to_dict() if state_before_obj else None
+        result = CombatEngine.set_surprised(session_code, combatant_ids, surprised)
         if not result:
             return Message(MessageType.ERROR, {'error': 'No matching combatants or no active combat'})
-        state = CombatEngine.get_state(self._get_session_code())
+        state = CombatEngine.get_state(session_code)
+        persist_error = self._persist_direct_combat_mutation(
+            msg,
+            client_id,
+            session_code=session_code,
+            command_type='dm_set_surprised',
+            actor_id=','.join(combatant_ids),
+            command_payload=d,
+            result_payload=result,
+            state_before=state_before,
+            state_after=state,
+        )
+        if persist_error:
+            return Message(MessageType.ERROR, {'error': persist_error})
         return await self._broadcast_combat_state(
             state,
             MessageType.COMBAT_STATE,
@@ -1012,6 +1112,8 @@ class _CombatMixin(_ProtocolBase):
         if not is_dm(self._get_client_role(client_id)):
             return Message(MessageType.ERROR, {'error': 'DM only'})
         d = msg.data or {}
+        state_before_obj = CombatEngine.get_state(session_code)
+        state_before = state_before_obj.to_dict() if state_before_obj else None
         result = CombatEngine.restore_spell_slot(
             session_code,
             combatant_id=d.get('combatant_id', ''),
@@ -1020,6 +1122,19 @@ class _CombatMixin(_ProtocolBase):
         if 'error' in result:
             return Message(MessageType.ERROR, result)
         state = CombatEngine.get_state(session_code)
+        persist_error = self._persist_direct_combat_mutation(
+            msg,
+            client_id,
+            session_code=session_code,
+            command_type='dm_restore_spell_slot',
+            actor_id=d.get('combatant_id'),
+            command_payload=d,
+            result_payload=result,
+            state_before=state_before,
+            state_after=state,
+        )
+        if persist_error:
+            return Message(MessageType.ERROR, {'error': persist_error})
         return await self._broadcast_combat_state(
             state,
             MessageType.SPELL_SLOT_RECOVER,

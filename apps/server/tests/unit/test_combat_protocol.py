@@ -1045,6 +1045,41 @@ class TestDmSetTempHp:
         assert resp.type == MessageType.COMBAT_STATE
         assert resp.data["temp_hp_set"] is not None
 
+    async def test_success_persists_snapshot_and_versions_live_state(self):
+        CombatEngine._active.pop("TST", None)
+        state = CombatEngine.start_combat(
+            "TST",
+            "t1",
+            [],
+            combatants=[{
+                "entity_id": "sprite-a",
+                "name": "Ada",
+                "hp": 20,
+                "max_hp": 20,
+            }],
+        )
+        actor = state.combatants[0]
+        persistence = _mock_persistence(version=7)
+        proto = _ProtoStub(role="owner")
+        proto.combat_persistence_service = persistence
+
+        resp = await proto.handle_dm_set_temp_hp(
+            Message(MessageType.DM_SET_TEMP_HP, {
+                "combatant_id": actor.combatant_id,
+                "temp_hp": 5,
+                "sequence_id": 44,
+            }),
+            "c1",
+        )
+
+        persisted = persistence.persist_accepted.call_args.kwargs
+        assert resp.type == MessageType.COMBAT_STATE
+        assert resp.data["combat"]["state_version"] == 7
+        assert CombatEngine.get_state("TST").combatants[0].temp_hp == 5
+        assert persisted["command_type"] == "dm_set_temp_hp"
+        assert persisted["state_before"]["combatants"][0]["temp_hp"] == 0
+        assert persisted["state_after"]["combatants"][0]["temp_hp"] == 5
+
 
 # ---------------------------------------------------------------------------
 # handle_dm_set_resistances
@@ -1133,6 +1168,43 @@ class TestDmAddMovement:
             Message(MessageType.DM_SET_HP, {"combatant_id": "c1", "amount": 15}), "c1"
         )
         assert resp.type == MessageType.COMBAT_STATE
+
+    async def test_success_persists_snapshot_and_versions_live_state(self):
+        CombatEngine._active.pop("TST", None)
+        state = CombatEngine.start_combat(
+            "TST",
+            "t1",
+            [],
+            combatants=[{
+                "entity_id": "sprite-a",
+                "name": "Ada",
+                "hp": 20,
+                "max_hp": 20,
+                "movement_speed": 30,
+            }],
+        )
+        actor = state.combatants[0]
+        actor.movement_remaining = 10
+        persistence = _mock_persistence(version=8)
+        proto = _ProtoStub(role="owner")
+        proto.combat_persistence_service = persistence
+
+        resp = await proto.handle_dm_add_movement(
+            Message(MessageType.DM_ADD_MOVEMENT, {
+                "combatant_id": actor.combatant_id,
+                "amount": 15,
+                "sequence_id": 45,
+            }),
+            "c1",
+        )
+
+        persisted = persistence.persist_accepted.call_args.kwargs
+        assert resp.type == MessageType.COMBAT_STATE
+        assert resp.data["combat"]["state_version"] == 8
+        assert CombatEngine.get_state("TST").combatants[0].movement_remaining == 25
+        assert persisted["command_type"] == "dm_grant_movement"
+        assert persisted["state_before"]["combatants"][0]["movement_remaining"] == 10
+        assert persisted["state_after"]["combatants"][0]["movement_remaining"] == 25
 
 
 # ---------------------------------------------------------------------------

@@ -401,6 +401,43 @@ class TestInitiativeSet:
         )
         assert resp.type == MessageType.INITIATIVE_ORDER
 
+    async def test_success_persists_snapshot_and_versions_live_state(self):
+        CombatEngine._active.pop("TST", None)
+        state = CombatEngine.start_combat(
+            "TST",
+            "t1",
+            [],
+            combatants=[{
+                "entity_id": "sprite-a",
+                "name": "Ada",
+                "hp": 20,
+                "max_hp": 20,
+                "initiative": 5,
+            }],
+        )
+        actor = state.combatants[0]
+        initiative_before = actor.initiative
+        persistence = _mock_persistence(version=12)
+        proto = _ProtoStub(role="owner")
+        proto.combat_persistence_service = persistence
+
+        resp = await proto.handle_initiative_set(
+            Message(MessageType.INITIATIVE_SET, {
+                "combatant_id": actor.combatant_id,
+                "value": 18,
+                "sequence_id": 49,
+            }),
+            "c1",
+        )
+
+        persisted = persistence.persist_accepted.call_args.kwargs
+        assert resp.type == MessageType.INITIATIVE_ORDER
+        assert resp.data["combat"]["state_version"] == 12
+        assert CombatEngine.get_state("TST").combatants[0].initiative == 18
+        assert persisted["command_type"] == "initiative_set"
+        assert persisted["state_before"]["combatants"][0]["initiative"] == initiative_before
+        assert persisted["state_after"]["combatants"][0]["initiative"] == 18
+
 
 @pytest.mark.unit
 class TestInitiativeAdd:
@@ -470,6 +507,42 @@ class TestInitiativeAdd:
         assert resolved["armor_class"] == 15
         assert resolved["controlled_by"] == ["7"]
 
+    async def test_success_persists_added_combatant_and_versions_live_state(self):
+        CombatEngine._active.pop("TST", None)
+        CombatEngine.start_combat(
+            "TST",
+            "t1",
+            [],
+            combatants=[{
+                "entity_id": "sprite-a",
+                "name": "Ada",
+                "hp": 20,
+                "max_hp": 20,
+            }],
+        )
+        persistence = _mock_persistence(version=13)
+        proto = _ProtoStub(role="owner")
+        proto.combat_persistence_service = persistence
+
+        resp = await proto.handle_initiative_add(
+            Message(MessageType.INITIATIVE_ADD, {
+                "entity_id": "sprite-b",
+                "name": "Borin",
+                "hp": 12,
+                "max_hp": 12,
+                "sequence_id": 50,
+            }),
+            "c1",
+        )
+
+        persisted = persistence.persist_accepted.call_args.kwargs
+        assert resp.type == MessageType.INITIATIVE_ORDER
+        assert resp.data["combat"]["state_version"] == 13
+        assert len(CombatEngine.get_state("TST").combatants) == 2
+        assert persisted["command_type"] == "initiative_add"
+        assert len(persisted["state_before"]["combatants"]) == 1
+        assert len(persisted["state_after"]["combatants"]) == 2
+
 
 @pytest.mark.unit
 class TestInitiativeRemove:
@@ -489,6 +562,38 @@ class TestInitiativeRemove:
             Message(MessageType.INITIATIVE_REMOVE, {"combatant_id": "c1"}), "c1"
         )
         assert resp.type == MessageType.INITIATIVE_ORDER
+
+    async def test_success_persists_removed_combatant_and_versions_live_state(self):
+        CombatEngine._active.pop("TST", None)
+        state = CombatEngine.start_combat(
+            "TST",
+            "t1",
+            [],
+            combatants=[
+                {"entity_id": "sprite-a", "name": "Ada", "hp": 20, "max_hp": 20},
+                {"entity_id": "sprite-b", "name": "Borin", "hp": 12, "max_hp": 12},
+            ],
+        )
+        removed = state.combatants[1]
+        persistence = _mock_persistence(version=14)
+        proto = _ProtoStub(role="owner")
+        proto.combat_persistence_service = persistence
+
+        resp = await proto.handle_initiative_remove(
+            Message(MessageType.INITIATIVE_REMOVE, {
+                "combatant_id": removed.combatant_id,
+                "sequence_id": 51,
+            }),
+            "c1",
+        )
+
+        persisted = persistence.persist_accepted.call_args.kwargs
+        assert resp.type == MessageType.INITIATIVE_ORDER
+        assert resp.data["combat"]["state_version"] == 14
+        assert len(CombatEngine.get_state("TST").combatants) == 1
+        assert persisted["command_type"] == "initiative_remove"
+        assert len(persisted["state_before"]["combatants"]) == 2
+        assert len(persisted["state_after"]["combatants"]) == 1
 
 
 # ---------------------------------------------------------------------------
@@ -517,6 +622,37 @@ class TestTurnSkip:
         proto = _ProtoStub(role="owner")
         resp = await proto.handle_turn_skip(Message(MessageType.TURN_SKIP, {}), "c1")
         assert resp.type == MessageType.TURN_START
+
+    async def test_success_persists_turn_skip_and_versions_live_state(self):
+        CombatEngine._active.pop("TST", None)
+        state = CombatEngine.start_combat(
+            "TST",
+            "t1",
+            [],
+            combatants=[
+                {"entity_id": "sprite-a", "name": "Ada", "hp": 20, "max_hp": 20},
+                {"entity_id": "sprite-b", "name": "Borin", "hp": 12, "max_hp": 12},
+            ],
+        )
+        state.current_turn_index = 0
+        skipped = state.combatants[0]
+        persistence = _mock_persistence(version=15)
+        proto = _ProtoStub(role="owner")
+        proto.combat_persistence_service = persistence
+
+        resp = await proto.handle_turn_skip(
+            Message(MessageType.TURN_SKIP, {"sequence_id": 52}),
+            "c1",
+        )
+
+        persisted = persistence.persist_accepted.call_args.kwargs
+        assert resp.type == MessageType.TURN_START
+        assert resp.data["combat"]["state_version"] == 15
+        assert CombatEngine.get_state("TST").current_turn_index == 1
+        assert persisted["command_type"] == "turn_skip"
+        assert persisted["actor_id"] == skipped.combatant_id
+        assert persisted["state_before"]["current_turn_index"] == 0
+        assert persisted["state_after"]["current_turn_index"] == 1
 
 
 # ---------------------------------------------------------------------------

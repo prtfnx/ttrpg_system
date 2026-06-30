@@ -140,6 +140,8 @@ class VirtualTableBase(BaseModel):
     snap_to_grid: bool = True
     grid_color_hex: str = '#ffffff'
     background_color_hex: str = '#2a3441'
+    difficult_terrain: Optional[List[List[int]]] = None
+    cover_zones: Optional[List[Dict[str, Any]]] = None
 
 class VirtualTableCreate(VirtualTableBase):
     session_id: int
@@ -164,6 +166,8 @@ class VirtualTableUpdate(BaseModel):
     snap_to_grid: Optional[bool] = None
     grid_color_hex: Optional[str] = None
     background_color_hex: Optional[str] = None
+    difficult_terrain: Optional[List[List[int]]] = None
+    cover_zones: Optional[List[Dict[str, Any]]] = None
 
 class VirtualTable(VirtualTableBase):
     id: int

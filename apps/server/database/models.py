@@ -102,6 +102,8 @@ class VirtualTable(Base):
     snap_to_grid: Mapped[bool] = mapped_column(Boolean, default=True)
     grid_color_hex: Mapped[Optional[str]] = mapped_column(String(9), default='#ffffff')
     background_color_hex: Mapped[Optional[str]] = mapped_column(String(9), default='#2a3441')
+    difficult_terrain_json: Mapped[Optional[str]] = mapped_column(Text, default="[]")
+    cover_zones_json: Mapped[Optional[str]] = mapped_column(Text, default="[]")
 
     created_at: Mapped[Optional[datetime]] = mapped_column(DateTime, default=datetime.utcnow)
     updated_at: Mapped[Optional[datetime]] = mapped_column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)

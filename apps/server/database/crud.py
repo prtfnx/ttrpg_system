@@ -434,6 +434,8 @@ def create_virtual_table(db: Session, table_data: schemas.VirtualTableCreate) ->
         grid_cell_px=table_data.grid_cell_px,
         cell_distance=table_data.cell_distance,
         distance_unit=table_data.distance_unit,
+        difficult_terrain_json=json.dumps(table_data.difficult_terrain or []),
+        cover_zones_json=json.dumps(table_data.cover_zones or []),
     )
     db.add(db_table)
     db.commit()
@@ -458,6 +460,10 @@ def update_virtual_table(db: Session, table_id: str, table_update: schemas.Virtu
     for field, value in update_data.items():
         if field in ('layer_visibility', 'layer_settings') and value is not None:
             setattr(db_table, field, json.dumps(value))
+        elif field == 'difficult_terrain':
+            db_table.difficult_terrain_json = json.dumps(value or [])
+        elif field == 'cover_zones':
+            db_table.cover_zones_json = json.dumps(value or [])
         else:
             setattr(db_table, field, value)
 
@@ -581,6 +587,8 @@ def save_table_to_db(db: Session, virtual_table_obj, session_id: int) -> Optiona
             grid_cell_px=getattr(virtual_table_obj, 'grid_cell_px', 50.0),
             cell_distance=getattr(virtual_table_obj, 'cell_distance', 5.0),
             distance_unit=getattr(virtual_table_obj, 'distance_unit', 'ft'),
+            difficult_terrain=_serialize_difficult_terrain(virtual_table_obj),
+            cover_zones=_serialize_cover_zones(virtual_table_obj),
         )
         db_table = update_virtual_table(db, table_id_str, table_update)
     else:
@@ -602,6 +610,8 @@ def save_table_to_db(db: Session, virtual_table_obj, session_id: int) -> Optiona
             grid_cell_px=getattr(virtual_table_obj, 'grid_cell_px', 50.0),
             cell_distance=getattr(virtual_table_obj, 'cell_distance', 5.0),
             distance_unit=getattr(virtual_table_obj, 'distance_unit', 'ft'),
+            difficult_terrain=_serialize_difficult_terrain(virtual_table_obj),
+            cover_zones=_serialize_cover_zones(virtual_table_obj),
         )
         db_table = create_virtual_table(db, table_data)
 
@@ -657,6 +667,17 @@ def save_table_to_db(db: Session, virtual_table_obj, session_id: int) -> Optiona
     )
 
     return db_table
+
+
+def _serialize_difficult_terrain(virtual_table_obj) -> list[list[int]]:
+    cells = getattr(virtual_table_obj, 'difficult_terrain_cells', set()) or set()
+    return [[int(col), int(row)] for col, row in sorted(cells)]
+
+
+def _serialize_cover_zones(virtual_table_obj) -> list[dict]:
+    zones = getattr(virtual_table_obj, 'cover_zones', []) or []
+    return [zone.to_dict() if hasattr(zone, 'to_dict') else dict(zone) for zone in zones]
+
 
 def save_entity_to_db(db: Session, entity_obj, table_db_id: int) -> models.Entity:
     """
@@ -752,7 +773,7 @@ def load_table_from_db(db: Session, table_id: str):
     """
     try:
         from core_table.entities import Wall
-        from core_table.table import Entity, VirtualTable
+        from core_table.table import CoverZone, Entity, VirtualTable
 
         db_table = get_virtual_table_by_id(db, table_id)
         if not db_table:
@@ -782,6 +803,20 @@ def load_table_from_db(db: Session, table_id: str):
         virtual_table.grid_cell_px = float(db_table.grid_cell_px or 50.0)
         virtual_table.cell_distance = float(db_table.cell_distance or 5.0)
         virtual_table.distance_unit = db_table.distance_unit or 'ft'
+        if db_table.difficult_terrain_json:
+            cells = json.loads(db_table.difficult_terrain_json)
+            virtual_table.difficult_terrain_cells = {
+                (int(cell[0]), int(cell[1]))
+                for cell in cells
+                if isinstance(cell, list) and len(cell) >= 2
+            }
+        if db_table.cover_zones_json:
+            zones = json.loads(db_table.cover_zones_json)
+            virtual_table.cover_zones = [
+                CoverZone.from_dict(zone)
+                for zone in zones
+                if isinstance(zone, dict)
+            ]
 
         # Load entities
         db_entities = get_table_entities(db, db_table.id)

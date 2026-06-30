@@ -187,7 +187,6 @@ class ServerProtocol(
         self.register_handler(MessageType.INITIATIVE_SET,        self.handle_initiative_set)
         self.register_handler(MessageType.INITIATIVE_ADD,        self.handle_initiative_add)
         self.register_handler(MessageType.INITIATIVE_REMOVE,     self.handle_initiative_remove)
-        self.register_handler(MessageType.TURN_END,              self.handle_turn_end)
         self.register_handler(MessageType.TURN_SKIP,             self.handle_turn_skip)
         self.register_handler(MessageType.CONDITION_ADD,         self.handle_condition_add)
         self.register_handler(MessageType.CONDITION_REMOVE,      self.handle_condition_remove)
@@ -210,15 +209,6 @@ class ServerProtocol(
         self.register_handler(MessageType.OPPORTUNITY_ATTACK_RESOLVE,      self.handle_oa_resolve)
         self.register_handler(MessageType.AI_ACTION,             self.handle_ai_action)
         self.register_handler(MessageType.COMBAT_COMMAND,        self.handle_combat_command)
-        self.register_handler(MessageType.ACTION_COMMIT,         self.handle_action_commit)
-        # Player combat actions
-        self.register_handler(MessageType.COMBAT_ATTACK,    self.handle_combat_attack)
-        self.register_handler(MessageType.COMBAT_DASH,      self.handle_combat_dash)
-        self.register_handler(MessageType.COMBAT_DODGE,     self.handle_combat_dodge)
-        self.register_handler(MessageType.COMBAT_DISENGAGE, self.handle_combat_disengage)
-        self.register_handler(MessageType.COMBAT_HELP,      self.handle_combat_help)
-        self.register_handler(MessageType.COMBAT_HIDE,      self.handle_combat_hide)
-        self.register_handler(MessageType.COMBAT_SPELL,     self.handle_combat_spell)
         self.register_handler(MessageType.SPELL_SLOT_RECOVER, self.handle_dm_restore_spell_slot)
 
         # Encounters

@@ -13,7 +13,6 @@ from service.attack_resolver import AttackResult
 from service.combat_engine import CombatEngine
 from service.combat_persistence_service import PersistedCombatCommand
 from service.protocol.combat import _CombatMixin
-from service.spell_resolver import SpellResult
 
 # ---------------------------------------------------------------------------
 # Shared stub
@@ -478,52 +477,8 @@ class TestInitiativeRemove:
 
 
 # ---------------------------------------------------------------------------
-# handle_turn_end / turn_skip
+# handle_turn_skip
 # ---------------------------------------------------------------------------
-
-@pytest.mark.unit
-class TestTurnEnd:
-    async def test_missing_combatant_id_returns_error(self):
-        proto = _ProtoStub(role="owner")
-        resp = await proto.handle_turn_end(Message(MessageType.TURN_END, {}), "c1")
-        assert resp.type == MessageType.ERROR
-
-    @patch("service.combat_engine.CombatEngine")
-    async def test_no_combat_returns_error(self, mock_engine):
-        mock_engine.get_state.return_value = None
-        proto = _ProtoStub(role="owner")
-        resp = await proto.handle_turn_end(
-            Message(MessageType.TURN_END, {"combatant_id": "c1"}), "c1"
-        )
-        assert resp.type == MessageType.ERROR
-
-    @patch("service.combat_engine.CombatEngine")
-    async def test_player_not_current_combatant_returns_error(self, mock_engine):
-        state = _combat_state()
-        state.get_current_combatant.return_value = MagicMock(combatant_id="other")
-        state.settings.allow_player_end_turn = True
-        mock_engine.get_state.return_value = state
-        proto = _ProtoStub(role="player")
-        resp = await proto.handle_turn_end(
-            Message(MessageType.TURN_END, {"combatant_id": "mine"}), "c1"
-        )
-        assert resp.type == MessageType.ERROR
-
-    @patch("service.combat_engine.CombatEngine")
-    async def test_successful_end_turn_returns_turn_start(self, mock_engine):
-        state = _combat_state()
-        state.round_number = 2
-        next_combatant = MagicMock()
-        next_combatant.to_dict.return_value = {"combatant_id": "next", "name": "Alice"}
-        state.get_current_combatant.return_value = next_combatant
-        mock_engine.get_state.return_value = state
-        mock_engine.end_turn.return_value = True
-        proto = _ProtoStub(role="owner")
-        resp = await proto.handle_turn_end(
-            Message(MessageType.TURN_END, {"combatant_id": "c1"}), "c1"
-        )
-        assert resp.type == MessageType.TURN_START
-        assert resp.data["round_number"] == 2
 
 
 @pytest.mark.unit
@@ -764,21 +719,6 @@ class TestDeathSaveRoll:
         assert resp.type == MessageType.DEATH_SAVE_RESULT
 
 
-# ---------------------------------------------------------------------------
-# handle_action_commit — empty action list
-# ---------------------------------------------------------------------------
-
-@pytest.mark.unit
-class TestActionCommit:
-    async def test_empty_actions_returns_rejected(self):
-        proto = _ProtoStub(role="player")
-        resp = await proto.handle_action_commit(
-            Message(MessageType.ACTION_COMMIT, {"actions": [], "sequence_id": 1}), "c1"
-        )
-        assert resp.type == MessageType.ACTION_REJECTED
-        assert resp.data["sequence_id"] == 1
-
-
 @pytest.mark.unit
 class TestCombatCommand:
     async def test_invalid_payload_returns_rejected(self):
@@ -952,143 +892,6 @@ class TestCombatCommand:
         assert resp.type == MessageType.ACTION_RESULT
         assert CombatEngine.get_state("TST").combatants[0].movement_remaining == 20
         proto.actions.move_sprite.assert_awaited_once()
-
-    async def test_legacy_utility_message_uses_command_service(self):
-        CombatEngine._active.pop("TST", None)
-        state = CombatEngine.start_combat(
-            "TST",
-            "t1",
-            [],
-            combatants=[{
-                "entity_id": "sprite-a",
-                "name": "Ada",
-                "hp": 20,
-                "max_hp": 20,
-                "armor_class": 12,
-                "movement_speed": 30,
-                "controlled_by": ["1"],
-            }],
-        )
-        state.current_turn_index = 0
-        actor = state.combatants[0]
-        proto = _ProtoStub(role="player")
-
-        resp = await proto.handle_combat_dash(
-            Message(MessageType.COMBAT_DASH, {"combatant_id": actor.combatant_id, "sequence_id": 12}),
-            "c1",
-        )
-
-        assert resp.type == MessageType.ACTION_RESULT
-        assert resp.data["accepted"] is True
-        assert resp.data["sequence_id"] == 12
-        assert CombatEngine.get_state("TST").combatants[0].has_action is False
-
-    async def test_legacy_attack_message_uses_command_service(self):
-        CombatEngine._active.pop("TST", None)
-        state = CombatEngine.start_combat(
-            "TST",
-            "t1",
-            [],
-            combatants=[
-                {
-                    "entity_id": "sprite-a",
-                    "name": "Ada",
-                    "hp": 20,
-                    "max_hp": 20,
-                    "armor_class": 12,
-                    "movement_speed": 30,
-                    "controlled_by": ["1"],
-                },
-                {
-                    "entity_id": "sprite-b",
-                    "name": "Borin",
-                    "hp": 20,
-                    "max_hp": 20,
-                    "armor_class": 10,
-                    "movement_speed": 30,
-                    "controlled_by": ["2"],
-                },
-            ],
-        )
-        state.current_turn_index = 0
-        attacker = state.combatants[0]
-        target = state.combatants[1]
-        proto = _ProtoStub(role="player")
-
-        with patch.object(CombatEngine, "apply_damage", return_value={"new_hp": 15}):
-            with patch("service.attack_resolver.AttackResolver") as resolver:
-                resolver.return_value.resolve_attack.return_value = AttackResult(hit=True, damage_dealt=5)
-                resp = await proto.handle_combat_attack(
-                    Message(MessageType.COMBAT_ATTACK, {
-                        "attacker_id": attacker.combatant_id,
-                        "target_id": target.combatant_id,
-                        "damage_formula": "1d6",
-                    }),
-                    "c1",
-                )
-
-        assert resp.type == MessageType.ACTION_RESULT
-        assert resp.data["action_type"] == "attack"
-        assert resp.data["attacker_id"] == attacker.combatant_id
-        assert resp.data["target_id"] == target.combatant_id
-        assert CombatEngine.get_state("TST").combatants[0].has_action is False
-
-    async def test_legacy_spell_message_uses_command_service(self):
-        CombatEngine._active.pop("TST", None)
-        state = CombatEngine.start_combat(
-            "TST",
-            "t1",
-            [],
-            combatants=[
-                {
-                    "entity_id": "sprite-a",
-                    "name": "Ada",
-                    "hp": 20,
-                    "max_hp": 20,
-                    "armor_class": 12,
-                    "movement_speed": 30,
-                    "controlled_by": ["1"],
-                    "spell_slots": {1: 1},
-                    "spell_slots_max": {1: 1},
-                },
-                {
-                    "entity_id": "sprite-b",
-                    "name": "Borin",
-                    "hp": 20,
-                    "max_hp": 20,
-                    "armor_class": 10,
-                    "movement_speed": 30,
-                    "controlled_by": ["2"],
-                },
-            ],
-        )
-        state.current_turn_index = 0
-        caster = state.combatants[0]
-        target = state.combatants[1]
-        proto = _ProtoStub(role="player")
-
-        with patch("service.combat_engine.SpellResolver") as resolver:
-            resolver.return_value.resolve_spell.return_value = SpellResult(
-                success=True,
-                slot_used=1,
-                targets_hit=[target.combatant_id],
-                damage_results=[],
-            )
-            resp = await proto.handle_combat_spell(
-                Message(MessageType.COMBAT_SPELL, {
-                    "combatant_id": caster.combatant_id,
-                    "spell_name": "Magic Missile",
-                    "spell_level": 1,
-                    "target_ids": [target.combatant_id],
-                }),
-                "c1",
-            )
-
-        assert resp.type == MessageType.ACTION_RESULT
-        assert resp.data["spell"] == "Magic Missile"
-        assert resp.data["slot_used"] == 1
-        assert CombatEngine.get_state("TST").combatants[0].has_action is False
-
 
 # ---------------------------------------------------------------------------
 # handle_dm_set_temp_hp

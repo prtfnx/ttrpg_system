@@ -11,6 +11,7 @@ import { useWasmRuntime } from '@lib/wasm/runtime';
 import type { RenderEngine } from '@lib/wasm/runtime';
 import { createMessage, MessageType } from '@lib/websocket';
 import { DragDropImageHandler } from '@shared/components';
+import { logger } from '@shared/utils/logger';
 import type { LucideIcon } from 'lucide-react';
 import { ChevronRight, CloudFog, Construction, Crown, Lightbulb, Map as MapIcon, Mountain, Users } from 'lucide-react';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
@@ -182,7 +183,7 @@ export const GameCanvas: React.FC = () => {
   useEffect(() => {
     const engine = rustRenderManagerRef.current;
     if (engine) {
-      console.log('[Canvas] set_active_layer:', activeLayer);
+      logger.debug('[Canvas] set_active_layer', { activeLayer });
       engine.set_active_layer(activeLayer);
     }
  }, [activeLayer]); // rustRenderManagerRef.current is not reactive; initial sync happens at engine init
@@ -604,7 +605,7 @@ export const GameCanvas: React.FC = () => {
               resizeCanvas(canvas, dprRef, rustRenderManagerRef.current);
             }
           } catch (e) {
- console.error('Scheduled resize failed', e);
+            logger.error('Scheduled resize failed', e);
           }
           resizeTimeout = null;
         }, 10);
@@ -615,13 +616,13 @@ export const GameCanvas: React.FC = () => {
       try {
         updateConnectionState('connecting');
         if (!mounted) {
- console.warn('Component not mounted, aborting WASM init');
+          logger.warn('Component not mounted, aborting WASM init');
           return;
         }
 
         const canvas = canvasRef.current;
         if (!canvas) {
- console.error('[WASM] Canvas is null!');
+          logger.error('[WASM] Canvas is null');
           updateConnectionState('error');
           return;
         }
@@ -642,7 +643,7 @@ export const GameCanvas: React.FC = () => {
 
         // Initialize performance monitoring
         performanceService.initialize(rustRenderEngine);
- console.log('[PERFORMANCE] Service initialized');
+        logger.debug('[PERFORMANCE] Service initialized');
         resizeCanvas(canvas, dprRef, rustRenderEngine);
 
         canvas.addEventListener('mousedown', stableMouseDown);
@@ -662,17 +663,7 @@ export const GameCanvas: React.FC = () => {
         // Setup ResizeObserver
         try {
           resizeObserver = new ResizeObserver((entries) => {
-            console.log(' Canvas: ResizeObserver triggered, entries:', entries.length);
-            for (const entry of entries) {
- console.log(
-                '  - Element resized:',
-                entry.target.tagName,
-                entry.target.className,
-                entry.contentRect.width,
-                'x',
-                entry.contentRect.height
-              );
-            }
+            logger.debug('Canvas ResizeObserver triggered', { entryCount: entries.length });
             scheduleResize();
           });
           resizeObserver.observe(canvas);
@@ -680,11 +671,11 @@ export const GameCanvas: React.FC = () => {
           // Also observe the canvas container to catch flex layout changes
           const container = canvas.parentElement;
           if (container) {
- console.log(' Canvas: Also observing canvas container:', container.className);
+            logger.debug('Canvas observing parent container for resize', { className: container.className });
             resizeObserver.observe(container);
           }
         } catch (err) {
- console.warn('ResizeObserver unavailable or failed to observe canvas:', err);
+          logger.warn('ResizeObserver unavailable or failed to observe canvas', err);
         }
         try {
           window.addEventListener('resize', scheduleResize);
@@ -694,7 +685,7 @@ export const GameCanvas: React.FC = () => {
 
         updateConnectionState('connected');
       } catch (error) {
- console.error('Failed to load WASM module:', error);
+        logger.error('Failed to load WASM module', error);
         updateConnectionState('error');
       }
     };

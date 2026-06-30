@@ -1209,6 +1209,7 @@ class _CombatMixin(_ProtocolBase):
         tgt = next((c for c in state.combatants if c.combatant_id == target_id), None)
         if not atk or not tgt:
             return Message(MessageType.ERROR, {'error': 'Combatant not found'})
+        state_before = state.to_dict()
         atk.has_reaction = False
         from core_table.session_rules import SessionRules
         rules = SessionRules.defaults(session_code or 'default')
@@ -1219,15 +1220,36 @@ class _CombatMixin(_ProtocolBase):
             damage_type=d.get('damage_type', 'bludgeoning'),
             combat=state,
         )
+        damage_result = None
         if result.hit:
-            CombatEngine.apply_damage(session_code, tgt.combatant_id, result.damage_dealt)
-        resp = Message(MessageType.OPPORTUNITY_ATTACK_RESOLVE, {
+            damage_result = CombatEngine.apply_damage(session_code, tgt.combatant_id, result.damage_dealt)
+        state = CombatEngine.get_state(session_code)
+        result_payload = {
             'hit': result.hit, 'damage': result.damage_dealt,
             'attacker': attacker_id, 'target': target_id,
             'reason': result.reason,
-        })
-        await self.broadcast_to_session(resp, client_id)
-        return resp
+        }
+        if damage_result is not None:
+            result_payload['damage_result'] = damage_result
+        persist_error = self._persist_direct_combat_mutation(
+            msg,
+            client_id,
+            session_code=session_code,
+            command_type='opportunity_attack_resolve',
+            actor_id=attacker_id,
+            command_payload=d,
+            result_payload=result_payload,
+            state_before=state_before,
+            state_after=state,
+        )
+        if persist_error:
+            return Message(MessageType.ERROR, {'error': persist_error})
+        return await self._broadcast_combat_state(
+            state,
+            MessageType.OPPORTUNITY_ATTACK_RESOLVE,
+            client_id,
+            result_payload,
+        )
 
     async def handle_dm_restore_spell_slot(self, msg: Message, client_id: str) -> Message:
         from service.combat_engine import CombatEngine

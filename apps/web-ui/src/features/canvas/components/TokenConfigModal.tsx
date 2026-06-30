@@ -2,6 +2,7 @@ import { useGameStore } from '@/store';
 import { authService } from '@features/auth';
 import { isDM } from '@features/session/types/roles';
 import { useProtocol } from '@lib/api';
+import { logger } from '@shared/utils/logger';
 import { Check } from 'lucide-react';
 import React, { useEffect, useState } from 'react';
 import styles from './TokenConfigModal.module.css';
@@ -58,21 +59,10 @@ export const TokenConfigModal: React.FC<TokenConfigModalProps> = ({ spriteId, on
     const currentUserId = userInfo?.id || 0;
     
     if (protocol && isConnected && currentUserId && characters.length === 0) {
-      console.log('[TokenConfigModal] Loading character list for user:', currentUserId);
+      logger.debug('[TokenConfigModal] Loading character list for user', { currentUserId });
       protocol.requestCharacterList(currentUserId);
     }
  }, [protocol, isConnected, characters.length]);
-
-  // Debug logging
-  useEffect(() => {
- console.log('[TokenConfigModal] Characters updated:', {
-      spriteId,
-      sprite,
-      linkedCharacter,
-      charactersCount: characters.length,
-      characters: characters.map(c => ({ id: c.id, name: c.name, sessionId: c.sessionId }))
-    });
- }, [characters, spriteId, sprite, linkedCharacter]);
 
   // Update local state when sprite or linked character changes
   useEffect(() => {
@@ -151,7 +141,7 @@ export const TokenConfigModal: React.FC<TokenConfigModalProps> = ({ spriteId, on
   const handleHpChange = (newHp: number) => {
     setLocalHp(newHp);
     
- console.log('[TokenConfigModal] Updating HP:', { 
+    logger.debug('[TokenConfigModal] Updating HP', { 
       spriteId, 
       newHp, 
       currentCharacterId: sprite?.characterId,

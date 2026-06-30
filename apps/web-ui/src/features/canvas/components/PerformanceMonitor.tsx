@@ -208,7 +208,6 @@ export const PerformanceMonitor: React.FC<PerformanceMonitorProps> = ({
             <button 
               onClick={() => {
                 const report = performanceService.generateReport();
-                console.log(report);
                 navigator.clipboard?.writeText(report);
               }}
               className="action-btn"

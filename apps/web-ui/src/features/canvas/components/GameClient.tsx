@@ -9,6 +9,7 @@ import { SessionManagementPanel } from '@features/session';
 import { isDM, type SessionRole } from '@features/session/types/roles';
 import { useWasmRuntime } from '@lib/wasm/runtime';
 import { useWindowManager } from '@shared/components/FloatingWindow';
+import { logger } from '@shared/utils/logger';
 import clsx from 'clsx';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import React, { useEffect } from 'react';
@@ -45,8 +46,7 @@ class DebugErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBounda
     return { hasError: true, error };
   }
   componentDidCatch(error: Error, info: React.ErrorInfo) {
-    // Log error for debugging
- console.error('ErrorBoundary caught:', error, info);
+    logger.error('GameClient error boundary caught an error', { error, info });
   }
   render() {
     if (this.state.hasError) {
@@ -75,10 +75,10 @@ export function GameClient({ sessionCode, userInfo, userRole, onAuthError }: Gam
       const { asset_id } = customEvent.detail;
       
       if (protocol && protocol.downloadAsset) {
- console.log('Handling asset download request for:', asset_id);
+        logger.debug('Handling asset download request', { assetId: asset_id });
         protocol.downloadAsset(asset_id);
       } else {
- console.warn('Protocol not available for asset download:', asset_id);
+        logger.warn('Protocol not available for asset download', { assetId: asset_id });
       }
     };
 
@@ -181,7 +181,7 @@ const windowManager = useWindowManager();
     const handleTokenDoubleClick = (event: Event) => {
       const spriteId = (event as CustomEvent).detail?.spriteId;
       if (!spriteId) return;
-      console.log('[GameClient] Token double-click on sprite:', spriteId);
+      logger.debug('[GameClient] Token double-click on sprite', { spriteId });
       windowManagerRef.current.openWindow(
         `token-config-${spriteId}`,
         TokenConfigModal as unknown as React.ComponentType<Record<string, unknown>>,

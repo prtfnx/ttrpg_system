@@ -2489,7 +2489,7 @@ if (Symbol.dispose) TableManager.prototype[Symbol.dispose] = TableManager.protot
 
 /**
  * Table synchronization manager for TTRPG web client
- * Handles table data reception from server and bidirectional sprite updates
+ * Handles table data reception and applies authoritative server sprite updates.
  */
 export class TableSync {
     __destroy_into_raw() {
@@ -2501,26 +2501,6 @@ export class TableSync {
     free() {
         const ptr = this.__destroy_into_raw();
         wasm.__wbg_tablesync_free(ptr, 0);
-    }
-    /**
-     * Check for timed out actions and revert them
-     */
-    check_timeouts() {
-        const ret = wasm.tablesync_check_timeouts(this.__wbg_ptr);
-        if (ret[1]) {
-            throw takeFromExternrefTable0(ret[0]);
-        }
-    }
-    /**
-     * Confirm action completion from server
-     * @param {string} action_id
-     * @returns {boolean}
-     */
-    confirm_action(action_id) {
-        const ptr0 = passStringToWasm0(action_id, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
-        const len0 = WASM_VECTOR_LEN;
-        const ret = wasm.tablesync_confirm_action(this.__wbg_ptr, ptr0, len0);
-        return ret !== 0;
     }
     /**
      * Get sprites from current table (flattened from all layers)
@@ -2610,152 +2590,11 @@ export class TableSync {
         }
     }
     /**
-     * Revert action due to timeout or server rejection
-     * @param {string} action_id
-     */
-    revert_action(action_id) {
-        const ptr0 = passStringToWasm0(action_id, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
-        const len0 = WASM_VECTOR_LEN;
-        const ret = wasm.tablesync_revert_action(this.__wbg_ptr, ptr0, len0);
-        if (ret[1]) {
-            throw takeFromExternrefTable0(ret[0]);
-        }
-    }
-    /**
-     * Send sprite creation to server
-     * @param {any} sprite_data_js
-     */
-    send_sprite_create(sprite_data_js) {
-        const ret = wasm.tablesync_send_sprite_create(this.__wbg_ptr, sprite_data_js);
-        if (ret[1]) {
-            throw takeFromExternrefTable0(ret[0]);
-        }
-    }
-    /**
-     * Send sprite deletion to server with confirmation tracking
-     * @param {string} sprite_id
-     * @returns {string}
-     */
-    send_sprite_delete(sprite_id) {
-        let deferred3_0;
-        let deferred3_1;
-        try {
-            const ptr0 = passStringToWasm0(sprite_id, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
-            const len0 = WASM_VECTOR_LEN;
-            const ret = wasm.tablesync_send_sprite_delete(this.__wbg_ptr, ptr0, len0);
-            var ptr2 = ret[0];
-            var len2 = ret[1];
-            if (ret[3]) {
-                ptr2 = 0; len2 = 0;
-                throw takeFromExternrefTable0(ret[2]);
-            }
-            deferred3_0 = ptr2;
-            deferred3_1 = len2;
-            return getStringFromWasm0(ptr2, len2);
-        } finally {
-            wasm.__wbindgen_free(deferred3_0, deferred3_1, 1);
-        }
-    }
-    /**
-     * Send sprite move update to server with confirmation tracking
-     * @param {string} sprite_id
-     * @param {number} x
-     * @param {number} y
-     * @returns {string}
-     */
-    send_sprite_move(sprite_id, x, y) {
-        let deferred3_0;
-        let deferred3_1;
-        try {
-            const ptr0 = passStringToWasm0(sprite_id, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
-            const len0 = WASM_VECTOR_LEN;
-            const ret = wasm.tablesync_send_sprite_move(this.__wbg_ptr, ptr0, len0, x, y);
-            var ptr2 = ret[0];
-            var len2 = ret[1];
-            if (ret[3]) {
-                ptr2 = 0; len2 = 0;
-                throw takeFromExternrefTable0(ret[2]);
-            }
-            deferred3_0 = ptr2;
-            deferred3_1 = len2;
-            return getStringFromWasm0(ptr2, len2);
-        } finally {
-            wasm.__wbindgen_free(deferred3_0, deferred3_1, 1);
-        }
-    }
-    /**
-     * Send sprite rotation update to server with confirmation tracking
-     * @param {string} sprite_id
-     * @param {number} rotation
-     * @returns {string}
-     */
-    send_sprite_rotate(sprite_id, rotation) {
-        let deferred3_0;
-        let deferred3_1;
-        try {
-            const ptr0 = passStringToWasm0(sprite_id, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
-            const len0 = WASM_VECTOR_LEN;
-            const ret = wasm.tablesync_send_sprite_rotate(this.__wbg_ptr, ptr0, len0, rotation);
-            var ptr2 = ret[0];
-            var len2 = ret[1];
-            if (ret[3]) {
-                ptr2 = 0; len2 = 0;
-                throw takeFromExternrefTable0(ret[2]);
-            }
-            deferred3_0 = ptr2;
-            deferred3_1 = len2;
-            return getStringFromWasm0(ptr2, len2);
-        } finally {
-            wasm.__wbindgen_free(deferred3_0, deferred3_1, 1);
-        }
-    }
-    /**
-     * Send sprite scale update to server with confirmation tracking
-     * @param {string} sprite_id
-     * @param {number} scale_x
-     * @param {number} scale_y
-     * @returns {string}
-     */
-    send_sprite_scale(sprite_id, scale_x, scale_y) {
-        let deferred3_0;
-        let deferred3_1;
-        try {
-            const ptr0 = passStringToWasm0(sprite_id, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
-            const len0 = WASM_VECTOR_LEN;
-            const ret = wasm.tablesync_send_sprite_scale(this.__wbg_ptr, ptr0, len0, scale_x, scale_y);
-            var ptr2 = ret[0];
-            var len2 = ret[1];
-            if (ret[3]) {
-                ptr2 = 0; len2 = 0;
-                throw takeFromExternrefTable0(ret[2]);
-            }
-            deferred3_0 = ptr2;
-            deferred3_1 = len2;
-            return getStringFromWasm0(ptr2, len2);
-        } finally {
-            wasm.__wbindgen_free(deferred3_0, deferred3_1, 1);
-        }
-    }
-    /**
-     * Set action reverted handler
-     * @param {Function} callback
-     */
-    set_action_reverted_handler(callback) {
-        wasm.tablesync_set_action_reverted_handler(this.__wbg_ptr, callback);
-    }
-    /**
      * Set error handler
      * @param {Function} callback
      */
     set_error_handler(callback) {
         wasm.tablesync_set_error_handler(this.__wbg_ptr, callback);
-    }
-    /**
-     * Set grace period for server confirmations (milliseconds)
-     * @param {number} ms
-     */
-    set_grace_period(ms) {
-        wasm.tablesync_set_grace_period(this.__wbg_ptr, ms);
     }
     /**
      * Set the network client for sending messages
@@ -3396,10 +3235,6 @@ function __wbg_get_imports() {
         __wbg_send_4f53c94146f0274d: function() { return handleError(function (arg0, arg1, arg2) {
             arg0.send(getStringFromWasm0(arg1, arg2));
         }, arguments); },
-        __wbg_setTimeout_553bc247bec3e16e: function() { return handleError(function (arg0, arg1, arg2) {
-            const ret = arg0.setTimeout(arg1, arg2);
-            return ret;
-        }, arguments); },
         __wbg_set_08463b1df38a7e29: function(arg0, arg1, arg2) {
             const ret = arg0.set(arg1, arg2);
             return ret;
@@ -3543,33 +3378,33 @@ function __wbg_get_imports() {
             return ret;
         },
         __wbindgen_cast_0000000000000001: function(arg0, arg1) {
-            // Cast intrinsic for `Closure(Closure { owned: true, function: Function { arguments: [Externref], shim_idx: 200, ret: Result(Unit), inner_ret: Some(Result(Unit)) }, mutable: true }) -> Externref`.
+            // Cast intrinsic for `Closure(Closure { owned: true, function: Function { arguments: [Externref], shim_idx: 192, ret: Result(Unit), inner_ret: Some(Result(Unit)) }, mutable: true }) -> Externref`.
             const ret = makeMutClosure(arg0, arg1, wasm_bindgen__convert__closures_____invoke__h379eeb6857ff453f);
             return ret;
         },
         __wbindgen_cast_0000000000000002: function(arg0, arg1) {
-            // Cast intrinsic for `Closure(Closure { owned: true, function: Function { arguments: [NamedExternref("CloseEvent")], shim_idx: 76, ret: Unit, inner_ret: Some(Unit) }, mutable: true }) -> Externref`.
-            const ret = makeMutClosure(arg0, arg1, wasm_bindgen__convert__closures_____invoke__h6c2b06365ce6726d);
+            // Cast intrinsic for `Closure(Closure { owned: true, function: Function { arguments: [NamedExternref("CloseEvent")], shim_idx: 117, ret: Unit, inner_ret: Some(Unit) }, mutable: true }) -> Externref`.
+            const ret = makeMutClosure(arg0, arg1, wasm_bindgen__convert__closures_____invoke__h46355d3965ce5f88);
             return ret;
         },
         __wbindgen_cast_0000000000000003: function(arg0, arg1) {
-            // Cast intrinsic for `Closure(Closure { owned: true, function: Function { arguments: [NamedExternref("ErrorEvent")], shim_idx: 76, ret: Unit, inner_ret: Some(Unit) }, mutable: true }) -> Externref`.
-            const ret = makeMutClosure(arg0, arg1, wasm_bindgen__convert__closures_____invoke__h6c2b06365ce6726d_2);
+            // Cast intrinsic for `Closure(Closure { owned: true, function: Function { arguments: [NamedExternref("ErrorEvent")], shim_idx: 117, ret: Unit, inner_ret: Some(Unit) }, mutable: true }) -> Externref`.
+            const ret = makeMutClosure(arg0, arg1, wasm_bindgen__convert__closures_____invoke__h46355d3965ce5f88_2);
             return ret;
         },
         __wbindgen_cast_0000000000000004: function(arg0, arg1) {
-            // Cast intrinsic for `Closure(Closure { owned: true, function: Function { arguments: [NamedExternref("Event")], shim_idx: 76, ret: Unit, inner_ret: Some(Unit) }, mutable: true }) -> Externref`.
-            const ret = makeMutClosure(arg0, arg1, wasm_bindgen__convert__closures_____invoke__h6c2b06365ce6726d_3);
+            // Cast intrinsic for `Closure(Closure { owned: true, function: Function { arguments: [NamedExternref("Event")], shim_idx: 117, ret: Unit, inner_ret: Some(Unit) }, mutable: true }) -> Externref`.
+            const ret = makeMutClosure(arg0, arg1, wasm_bindgen__convert__closures_____invoke__h46355d3965ce5f88_3);
             return ret;
         },
         __wbindgen_cast_0000000000000005: function(arg0, arg1) {
-            // Cast intrinsic for `Closure(Closure { owned: true, function: Function { arguments: [NamedExternref("MessageEvent")], shim_idx: 76, ret: Unit, inner_ret: Some(Unit) }, mutable: true }) -> Externref`.
-            const ret = makeMutClosure(arg0, arg1, wasm_bindgen__convert__closures_____invoke__h6c2b06365ce6726d_4);
+            // Cast intrinsic for `Closure(Closure { owned: true, function: Function { arguments: [NamedExternref("MessageEvent")], shim_idx: 117, ret: Unit, inner_ret: Some(Unit) }, mutable: true }) -> Externref`.
+            const ret = makeMutClosure(arg0, arg1, wasm_bindgen__convert__closures_____invoke__h46355d3965ce5f88_4);
             return ret;
         },
         __wbindgen_cast_0000000000000006: function(arg0, arg1) {
-            // Cast intrinsic for `Closure(Closure { owned: true, function: Function { arguments: [], shim_idx: 75, ret: Unit, inner_ret: Some(Unit) }, mutable: true }) -> Externref`.
-            const ret = makeMutClosure(arg0, arg1, wasm_bindgen__convert__closures_____invoke__hb87dc99a98312fe0);
+            // Cast intrinsic for `Closure(Closure { owned: true, function: Function { arguments: [], shim_idx: 116, ret: Unit, inner_ret: Some(Unit) }, mutable: true }) -> Externref`.
+            const ret = makeMutClosure(arg0, arg1, wasm_bindgen__convert__closures_____invoke__h933b87fda231a098);
             return ret;
         },
         __wbindgen_cast_0000000000000007: function(arg0) {
@@ -3618,24 +3453,24 @@ function __wbg_get_imports() {
     };
 }
 
-function wasm_bindgen__convert__closures_____invoke__hb87dc99a98312fe0(arg0, arg1) {
-    wasm.wasm_bindgen__convert__closures_____invoke__hb87dc99a98312fe0(arg0, arg1);
+function wasm_bindgen__convert__closures_____invoke__h933b87fda231a098(arg0, arg1) {
+    wasm.wasm_bindgen__convert__closures_____invoke__h933b87fda231a098(arg0, arg1);
 }
 
-function wasm_bindgen__convert__closures_____invoke__h6c2b06365ce6726d(arg0, arg1, arg2) {
-    wasm.wasm_bindgen__convert__closures_____invoke__h6c2b06365ce6726d(arg0, arg1, arg2);
+function wasm_bindgen__convert__closures_____invoke__h46355d3965ce5f88(arg0, arg1, arg2) {
+    wasm.wasm_bindgen__convert__closures_____invoke__h46355d3965ce5f88(arg0, arg1, arg2);
 }
 
-function wasm_bindgen__convert__closures_____invoke__h6c2b06365ce6726d_2(arg0, arg1, arg2) {
-    wasm.wasm_bindgen__convert__closures_____invoke__h6c2b06365ce6726d_2(arg0, arg1, arg2);
+function wasm_bindgen__convert__closures_____invoke__h46355d3965ce5f88_2(arg0, arg1, arg2) {
+    wasm.wasm_bindgen__convert__closures_____invoke__h46355d3965ce5f88_2(arg0, arg1, arg2);
 }
 
-function wasm_bindgen__convert__closures_____invoke__h6c2b06365ce6726d_3(arg0, arg1, arg2) {
-    wasm.wasm_bindgen__convert__closures_____invoke__h6c2b06365ce6726d_3(arg0, arg1, arg2);
+function wasm_bindgen__convert__closures_____invoke__h46355d3965ce5f88_3(arg0, arg1, arg2) {
+    wasm.wasm_bindgen__convert__closures_____invoke__h46355d3965ce5f88_3(arg0, arg1, arg2);
 }
 
-function wasm_bindgen__convert__closures_____invoke__h6c2b06365ce6726d_4(arg0, arg1, arg2) {
-    wasm.wasm_bindgen__convert__closures_____invoke__h6c2b06365ce6726d_4(arg0, arg1, arg2);
+function wasm_bindgen__convert__closures_____invoke__h46355d3965ce5f88_4(arg0, arg1, arg2) {
+    wasm.wasm_bindgen__convert__closures_____invoke__h46355d3965ce5f88_4(arg0, arg1, arg2);
 }
 
 function wasm_bindgen__convert__closures_____invoke__h379eeb6857ff453f(arg0, arg1, arg2) {

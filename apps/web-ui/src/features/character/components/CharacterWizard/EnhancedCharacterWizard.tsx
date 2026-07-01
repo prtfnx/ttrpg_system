@@ -10,6 +10,7 @@
 
 import { zodResolver } from '@hookform/resolvers/zod';
 import { ErrorBoundary, LoadingSpinner } from '@shared/components';
+import { logger } from '@shared/utils/logger';
 import clsx from 'clsx';
 import { AlertTriangle, Check, Save, X } from 'lucide-react';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
@@ -184,7 +185,7 @@ export const EnhancedCharacterWizard: React.FC<EnhancedCharacterWizardProps> = (
           setHasUnsavedChanges(true);
         }
       } catch (error) {
-        console.warn('Failed to load persisted wizard data:', error);
+        logger.warn('Failed to load persisted wizard data', error);
       } finally {
         setIsInitializing(false);
       }
@@ -201,7 +202,7 @@ export const EnhancedCharacterWizard: React.FC<EnhancedCharacterWizardProps> = (
       const currentData = getValues();
       localStorage.setItem(WIZARD_STORAGE_KEY, JSON.stringify(currentData));
     } catch (error) {
-      console.warn('Failed to persist wizard data:', error);
+      logger.warn('Failed to persist wizard data', error);
     }
   }, [getValues]);
 
@@ -282,7 +283,7 @@ export const EnhancedCharacterWizard: React.FC<EnhancedCharacterWizardProps> = (
         localStorage.removeItem(WIZARD_STORAGE_KEY);
         onFinish(finalData);
       } catch (error) {
-        console.error('Final validation failed:', error);
+        logger.warn('Character wizard final validation failed', error);
         setStepErrors(prev => ({
           ...prev,
           [currentStepIndex]: 'Please complete all required fields'

@@ -1,6 +1,7 @@
 ﻿import type { Spell } from '@features/compendium';
 import { compendiumService } from '@features/compendium/services/compendiumService';
 import { ErrorBoundary } from '@shared/components';
+import { logger } from '@shared/utils/logger';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { useFormContext } from 'react-hook-form';
 import { spellManagementService } from '../../services/spellManagement.service';
@@ -106,7 +107,7 @@ export const SpellSelectionStep: React.FC<SpellSelectionStepProps> = ({
       setAvailableSpells(classSpells);
       setError(null);
     } catch (err) {
-      console.error('Failed to load spells:', err);
+      logger.error('Failed to load character spells', err);
       setError('Failed to load spell data. Please try again.');
     } finally {
       setLoading(false);

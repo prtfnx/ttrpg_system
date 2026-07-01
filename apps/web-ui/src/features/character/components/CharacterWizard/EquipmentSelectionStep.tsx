@@ -1,5 +1,6 @@
 ﻿import { useBackgrounds } from '@features/compendium';
 import { ErrorBoundary } from '@shared/components';
+import { logger } from '@shared/utils/logger';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { useFormContext } from 'react-hook-form';
 import {
@@ -141,7 +142,7 @@ export const EquipmentSelectionStep: React.FC<EquipmentSelectionStepProps> = ({
         setError(null);
       } catch (err) {
         setError(err instanceof Error ? err.message : 'Failed to load equipment');
-        console.error('Error loading equipment:', err);
+        logger.error('Failed to load character equipment', err);
       } finally {
         setLoading(false);
       }
@@ -224,7 +225,7 @@ export const EquipmentSelectionStep: React.FC<EquipmentSelectionStepProps> = ({
   const addItem = useCallback((equipment: Equipment) => {
     // Guard against missing equipment data
     if (!equipment || !equipment.name) {
-      console.error('addItem: Invalid equipment data:', equipment);
+      logger.warn('Rejected invalid character equipment selection', equipment);
       setError('Invalid equipment selected');
       return;
     }

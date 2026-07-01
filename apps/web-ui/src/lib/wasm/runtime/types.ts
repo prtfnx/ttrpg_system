@@ -235,8 +235,6 @@ export interface TableManager {
 }
 
 export interface TableSync {
-  check_timeouts(): void;
-  confirm_action(actionId: string): boolean;
   get_sprites(): unknown;
   get_sprites_by_layer(layerName: string): unknown;
   get_table_data(): unknown;
@@ -245,15 +243,7 @@ export interface TableSync {
   handle_sprite_update(updateData: unknown): void;
   handle_table_data(tableData: unknown): void;
   request_table(tableName: string): void;
-  revert_action(actionId: string): void;
-  send_sprite_create(spriteData: unknown): void;
-  send_sprite_delete(spriteId: string): void;
-  send_sprite_move(spriteId: string, x: number, y: number): string;
-  send_sprite_rotate(spriteId: string, rotation: number): string;
-  send_sprite_scale(spriteId: string, scaleX: number, scaleY: number): string;
-  set_action_reverted_handler(callback: Function): void;
   set_error_handler(callback: Function): void;
-  set_grace_period(ms: number): void;
   set_network_client(networkClient: unknown): void;
   set_sprite_update_handler(callback: Function): void;
   set_table_received_handler(callback: Function): void;

@@ -318,6 +318,35 @@ class TestTableSettingsUpdate:
 
 
 # ---------------------------------------------------------------------------
+# handle_table_update
+# ---------------------------------------------------------------------------
+
+@pytest.mark.unit
+class TestTableUpdate:
+    async def test_sprite_category_is_rejected(self):
+        proto = _ProtoStub()
+        proto.actions.update_sprite = AsyncMock()
+
+        resp = await proto.handle_table_update(
+            Message(MessageType.TABLE_UPDATE, {
+                "category": "sprite",
+                "type": "sprite_move",
+                "data": {
+                    "table_id": "t1",
+                    "sprite_id": "sp-1",
+                    "from": {"x": 0, "y": 0},
+                    "to": {"x": 10, "y": 10},
+                },
+            }),
+            "c1",
+        )
+
+        assert resp.type == MessageType.ERROR
+        assert "no longer supported" in resp.data["error"]
+        proto.actions.update_sprite.assert_not_awaited()
+
+
+# ---------------------------------------------------------------------------
 # handle_table_scale
 # ---------------------------------------------------------------------------
 

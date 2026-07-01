@@ -371,50 +371,16 @@ class _TablesMixin(_ProtocolBase):
                 if update_type is None:
                     logger.error(f"Missing 'type' field in table update from {client_id}: {msg.data}")
                     return Message(MessageType.ERROR, {'error': 'Missing required field: type'})
+                if update_category == 'sprite':
+                    return Message(MessageType.ERROR, {
+                        'error': 'Sprite-category table updates are no longer supported; use dedicated sprite messages',
+                    })
 
                 role = self._get_client_role(client_id)
-                user_id = self._get_user_id(msg, client_id)
 
                 response_error = None
                 response = None
-                if update_category == 'sprite':
-                    update_type_enum = MessageType(update_type)
-                    match update_type_enum:
-                        case MessageType.SPRITE_MOVE | MessageType.SPRITE_SCALE | MessageType.SPRITE_ROTATE:
-                            sprite_id = update_data.get('sprite_id')
-                            if not is_dm(role) and not await self._can_control_sprite(sprite_id, user_id):
-                                return Message(MessageType.ERROR, {'error': 'Permission denied'})
-                            await self.actions.update_sprite(table_id, sprite_id, data=update_data)
-                            response= Message(MessageType.SUCCESS, {
-                                'table_id': table_id,
-                                'sprite_id': sprite_id,
-                                'message': f'Sprite {update_type} successfully'
-                            })
-                        case MessageType.SPRITE_CREATE:
-                            if not is_dm(role):
-                                return Message(MessageType.ERROR, {'error': 'Only DMs can create sprites'})
-                            await self.actions.create_sprite_from_data(data=update_data,)
-                            return Message(MessageType.SUCCESS, {
-                                'table_id': table_id,
-                                'sprite_id': update_data.get('sprite_id'),
-                                'message': 'Sprite added successfully'
-                            })
-                        case MessageType.SPRITE_REMOVE:
-                            if not is_dm(role):
-                                return Message(MessageType.ERROR, {'error': 'Only DMs can delete sprites'})
-                            await self.actions.delete_sprite(table_id, update_data.get('sprite_id'))
-                            response = Message(MessageType.SUCCESS, {
-                                'table_id': table_id,
-                                'sprite_id': update_data.get('sprite_id'),
-                                'message': 'Sprite removed successfully'
-                            })
-                        case _:
-                            logger.error(f"Unknown sprite update type: {update_type} from {client_id}")
-                            response_error= Message(MessageType.ERROR, {
-                                'error': "Unknown sprite update type"
-                            })
-
-                elif update_category == 'table':
+                if update_category == 'table':
                     if not is_dm(role):
                         return Message(MessageType.ERROR, {'error': 'Only DMs can modify table settings'})
                     match update_type:

@@ -1,4 +1,5 @@
 import { AlertTriangle, BookOpen, CloudFog, Lightbulb, LogIn, Paintbrush, RefreshCw, RotateCcw } from 'lucide-react';
+import { logger } from '@shared/utils/logger';
 import type { ErrorInfo, ReactNode } from 'react';
 import React, { Component } from 'react';
 import styles from './ErrorBoundary.module.css';
@@ -52,7 +53,7 @@ class PanelErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundaryStat
   }
 
   componentDidCatch(error: Error, errorInfo: ErrorInfo) {
-    console.error(`${this.props.componentName || 'Component'} error:`, error, errorInfo);
+    logger.error(`${this.props.componentName || 'Component'} error`, error, errorInfo);
     
     // Report to error tracking service if available
     if (window.errorTracker) {
@@ -77,7 +78,7 @@ class PanelErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundaryStat
   }
 
   handleRetry = () => {
-    const maxRetries = this.props.maxRetries || 3;
+    const maxRetries = this.props.maxRetries ?? 3;
     if (this.state.retryCount < maxRetries) {
       this.setState({
         hasError: false,
@@ -91,7 +92,7 @@ class PanelErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundaryStat
   render() {
     if (this.state.hasError) {
       const fallback = this.props.fallback;
-      const maxRetries = this.props.maxRetries || 3;
+      const maxRetries = this.props.maxRetries ?? 3;
       
       // Handle both component and element types
       if (React.isValidElement(fallback)) {
@@ -327,68 +328,6 @@ export const SafeComponent: React.FC<{
   </PanelErrorBoundary>
 );
 
-// Legacy ErrorBoundary for backward compatibility
-export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundaryState> {
-  public state: ErrorBoundaryState = {
-    hasError: false,
-    retryCount: 0
-  };
-
-  public static getDerivedStateFromError(error: Error): Partial<ErrorBoundaryState> {
-    return { hasError: true, error };
-  }
-
-  public componentDidCatch(error: Error, errorInfo: ErrorInfo) {
-    console.error('ErrorBoundary caught an error:', error, errorInfo);
-    this.props.onError?.(error, errorInfo);
-  }
-
-  public render() {
-    if (this.state.hasError) {
-      if (this.props.fallback) {
-        // Use custom fallback if provided
-        const fallback = this.props.fallback;
-        
-        // Handle both component and element types
-        if (React.isValidElement(fallback)) {
-          return fallback;
-        }
-        
-        const FallbackComponent = fallback;
-        return (
-          <FallbackComponent
-            error={this.state.error}
-            errorInfo={this.state.errorInfo}
-            onRetry={() => this.setState({ hasError: false, error: undefined })}
-            canRetry={true}
-            componentName={this.props.componentName}
-          />
-        );
-      }
-
-      return (
-        <div className={styles.errorBoundary}>
-          <div className={styles.errorContent}>
-            <h2>Something went wrong</h2>
-            <details style={{ whiteSpace: 'pre-wrap' }}>
-              <summary>Error details</summary>
-              {this.state.error?.toString()}
-            </details>
-            <button 
-              onClick={() => this.setState({ hasError: false, error: undefined })}
-              className={styles.retryButton}
-            >
-              Try again
-            </button>
-          </div>
-        </div>
-      );
-    }
-
-    return this.props.children;
-  }
-}
-
-export { DefaultErrorFallback, PanelErrorBoundary };
+export { DefaultErrorFallback, PanelErrorBoundary, PanelErrorBoundary as ErrorBoundary };
 export type { ErrorBoundaryProps, ErrorFallbackProps };
 

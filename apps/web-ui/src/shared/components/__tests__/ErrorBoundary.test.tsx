@@ -1,5 +1,6 @@
 import { fireEvent, render, screen } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { logger } from '@shared/utils/logger';
 import {
     DefaultErrorFallback,
     ErrorBoundary,
@@ -11,8 +12,15 @@ import {
     SafePaintPanel,
 } from '../ErrorBoundary';
 
+vi.mock('@shared/utils/logger', () => ({
+  logger: {
+    error: vi.fn(),
+  },
+}));
+
 // Suppress console.error during error boundary tests
 beforeEach(() => {
+  vi.clearAllMocks();
   vi.spyOn(console, 'error').mockImplementation(() => {});
 });
 
@@ -22,7 +30,7 @@ function ThrowingComponent({ shouldThrow }: { shouldThrow?: boolean }) {
   return <div>Child content</div>;
 }
 
-describe('ErrorBoundary (legacy)', () => {
+describe('ErrorBoundary alias', () => {
   it('renders children when no error', () => {
     render(
       <ErrorBoundary>
@@ -39,7 +47,7 @@ describe('ErrorBoundary (legacy)', () => {
       </ErrorBoundary>
     );
     expect(screen.getByText('Something went wrong')).toBeTruthy();
-    expect(screen.getByText('Try again')).toBeTruthy();
+    expect(screen.getByText(/Try Again/i)).toBeTruthy();
   });
 
   it('calls onError prop when error is caught', () => {
@@ -50,6 +58,11 @@ describe('ErrorBoundary (legacy)', () => {
       </ErrorBoundary>
     );
     expect(onError).toHaveBeenCalledWith(expect.any(Error), expect.anything());
+    expect(logger.error).toHaveBeenCalledWith(
+      'Component error',
+      expect.any(Error),
+      expect.anything(),
+    );
   });
 
   it('retries on "Try again" click', () => {
@@ -59,7 +72,7 @@ describe('ErrorBoundary (legacy)', () => {
       </ErrorBoundary>
     );
     expect(screen.getByText('Something went wrong')).toBeTruthy();
-    fireEvent.click(screen.getByRole('button', { name: 'Try again' }));
+    fireEvent.click(screen.getByRole('button', { name: /Try Again/i }));
     // After retry it will re-throw since ThrowingComponent always throws
     // But the boundary should have tried to reset
     expect(screen.queryByText('Something went wrong')).toBeTruthy();

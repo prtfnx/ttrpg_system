@@ -1,4 +1,5 @@
 import { useRenderEngine } from '@features/canvas';
+import { logger } from '@shared/utils/logger';
 import clsx from 'clsx';
 import React, { useEffect, useRef, useState } from 'react';
 import { useBrushPresets, usePaintInteraction, usePaintSystem } from '../hooks/usePaintSystem';
@@ -202,10 +203,7 @@ export const PaintPanel: React.FC<PaintPanelProps> = ({
   // WASM table integration hook
   const { paintToTable, isIntegrated, engine } = usePaintTableIntegration();
   
-  const [paintState, paintControls] = usePaintSystem(engine, {
-    onStrokeCompleted: () => console.log('Stroke completed'),
-    onCanvasCleared: () => console.log('Canvas cleared'),
-  });
+  const [paintState, paintControls] = usePaintSystem(engine);
 
   const brushPresets = useBrushPresets();
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -282,7 +280,7 @@ export const PaintPanel: React.FC<PaintPanelProps> = ({
             persistence: true
           });
         } catch (error) {
-          console.error('Failed to load template to table:', error);
+          logger.error('Failed to load paint template into table', error);
         }
       }
       

@@ -2,7 +2,8 @@ import { useGameStore } from '@/store';
 import { ProtocolService } from '@lib/api';
 import { useWasmRuntime } from '@lib/wasm/runtime';
 import type { BrushPreset, RenderEngine } from '@lib/wasm/runtime';
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { logger } from '@shared/utils/logger';
+import { useCallback, useEffect, useState } from 'react';
 
 type PaintBlendMode = 'alpha' | 'additive' | 'modulate' | 'multiply';
 
@@ -35,22 +36,10 @@ export interface PaintControls {
   applyBrushPreset: (preset: BrushPreset) => void;
 }
 
-export interface PaintEvents {
-  onStrokeStarted?: () => void;
-  onStrokeUpdated?: () => void;
-  onStrokeCompleted?: () => void;
-  onStrokeCancelled?: () => void;
-  onStrokeUndone?: () => void;
-  onCanvasCleared?: () => void;
-}
-
 export function usePaintSystem(
-  renderEngine: RenderEngine | null,
-  events?: PaintEvents
+  renderEngine: RenderEngine | null
 ): [PaintState, PaintControls] {
   const { activeTableId } = useGameStore();
-  const eventsRef = useRef(events);
-  eventsRef.current = events;
 
   const [paintState, setPaintState] = useState<PaintState>({
     isActive: false,
@@ -70,7 +59,7 @@ export function usePaintSystem(
       return raw ? JSON.parse(JSON.stringify(raw)) as Record<string, unknown>[] : [];
     } catch (error) {
       const msg = error instanceof Error ? error.message : String(error);
-      console.debug('Error getting paint strokes:', msg);
+      logger.debug('Failed to read paint strokes', msg);
       return [];
     }
   }, [renderEngine]);
@@ -324,7 +313,7 @@ export function useBrushPresets() {
         await runtime.initialize();
         setPresets(runtime.getDefaultBrushPresets());
       } catch (error) {
-        console.error('Error loading brush presets:', error);
+        logger.error('Failed to load brush presets', error);
       }
     };
 

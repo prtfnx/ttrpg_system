@@ -9,6 +9,7 @@ import { useGameStore } from '@/store';
 import type { WallData } from '@/store';
 import type { Character } from '@/types';
 import { useAssetCharacterCache } from '@features/assets/services/assetCache';
+import { sendSpriteMovement } from '@features/combat/services/movementCommand.service';
 import { getCurrentWasmRuntime } from '@lib/wasm/runtime';
 import { logger, protocolLogger } from '@shared/utils/logger';
 import { showToast } from '@shared/utils/toast';
@@ -1442,10 +1443,12 @@ export class WebClientProtocol {
     validateTableId(activeTableId);
     const sprite = state.sprites.find((s) => s.id === spriteId);
     const from = { x: sprite?.x ?? x, y: sprite?.y ?? y };
-    this.sendMessage(createMessage(MessageType.SPRITE_MOVE, {
-      sprite_id: spriteId, table_id: activeTableId,
-      from, to: { x, y },
-    }, 1));
+    sendSpriteMovement(this, {
+      spriteId,
+      tableId: activeTableId,
+      from,
+      to: { x, y },
+    });
   }
 
   scaleSprite(spriteId: string, width: number, height: number): void {

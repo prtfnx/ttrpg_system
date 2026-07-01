@@ -7,6 +7,10 @@
 
 import { useGameStore } from '@/store';
 import { authService } from '@features/auth';
+import {
+  nextMovementSequenceId,
+  sendSpriteMovement,
+} from '@features/combat/services/movementCommand.service';
 import { isDM } from '@features/session/types/roles';
 import { useOptionalProtocol } from '@lib/api';
 import { onProtocolEvent, type ProtocolEventMap } from '@lib/websocket/protocolEvents';
@@ -42,8 +46,6 @@ class WasmBridgeService {
   private committedRotations = new Map<string, number>();
 
   private pendingActions = new Map<string, PendingAction>();
-  private nextActionId = 0;
-
   init() {
     if (this.isInitialized) return;
     this.eventCleanups = [
@@ -151,7 +153,7 @@ class WasmBridgeService {
       }
     }
 
-    const actionId = `a${++this.nextActionId}`;
+    const actionId = String(nextMovementSequenceId());
     const originalState = this.snapshotCommitted(spriteId, operation);
     const newState = this.dataToState(operation, data);
 
@@ -223,10 +225,15 @@ class WasmBridgeService {
     switch (op) {
       case 'move': {
         const prev = this.committedPositions.get(spriteId) ?? { x: data.x, y: data.y };
-        this.protocol?.sendMessage(createMessage(MessageType.SPRITE_MOVE, {
-          sprite_id: spriteId, table_id: tableId, action_id: actionId,
-          from: prev, to: { x: data.x, y: data.y },
-        }, 2));
+        if (this.protocol) {
+          sendSpriteMovement(this.protocol, {
+            spriteId,
+            tableId,
+            actionId,
+            from: prev,
+            to: { x: data.x, y: data.y },
+          });
+        }
         break;
       }
       case 'resize':

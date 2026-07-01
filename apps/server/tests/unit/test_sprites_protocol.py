@@ -9,6 +9,7 @@ from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 from core_table.protocol import Message, MessageType
+from service.combat_engine import CombatEngine
 from service.protocol.sprites import _SpritesMixin
 
 # ---------------------------------------------------------------------------
@@ -83,6 +84,19 @@ def _fail_result(message="failed"):
     r.data = None
     r.message = message
     return r
+
+
+@pytest.fixture
+def active_combat_token():
+    CombatEngine._active.pop("TST", None)
+    CombatEngine.start_combat(
+        "TST",
+        "t1",
+        [],
+        combatants=[{"entity_id": "sp-1", "name": "Ada"}],
+    )
+    yield
+    CombatEngine._active.pop("TST", None)
 
 
 # ---------------------------------------------------------------------------
@@ -508,6 +522,42 @@ class TestMoveSpriteResult:
 
         assert resp.type == MessageType.ERROR
         assert "control" in resp.data["error"].lower()
+
+    async def test_combat_token_requires_combat_command(self, active_combat_token):
+        proto = self._proto(role="player")
+        proto.actions.move_sprite = AsyncMock(return_value=_ok_result())
+
+        resp = await proto.handle_move_sprite(
+            Message(MessageType.SPRITE_MOVE, {
+                "sprite_id": "sp-1",
+                "table_id": "t1",
+                "from": {"x": 0, "y": 0},
+                "to": {"x": 50, "y": 50},
+            }),
+            "c1",
+        )
+
+        assert resp.type == MessageType.ACTION_REJECTED
+        assert "combat_command" in resp.data["reason"]
+        proto.actions.move_sprite.assert_not_awaited()
+
+    async def test_dm_can_explicitly_reposition_combat_token_as_table_edit(self, active_combat_token):
+        proto = self._proto(role="owner")
+        proto.actions.move_sprite = AsyncMock(return_value=_ok_result())
+
+        resp = await proto.handle_move_sprite(
+            Message(MessageType.SPRITE_MOVE, {
+                "sprite_id": "sp-1",
+                "table_id": "t1",
+                "from": {"x": 0, "y": 0},
+                "to": {"x": 50, "y": 50},
+                "table_edit_override": True,
+            }),
+            "c1",
+        )
+
+        assert resp.type == MessageType.SPRITE_RESPONSE
+        proto.actions.move_sprite.assert_awaited_once()
 
 
 # ---------------------------------------------------------------------------

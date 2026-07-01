@@ -187,9 +187,24 @@ class _SpritesMixin(_ProtocolBase):
             if not await self._can_control_sprite(sprite_id, user_id_check):
                 return Message(MessageType.ERROR, {'error': 'You do not control this sprite'})
 
+        from service.combat_engine import CombatEngine
+
+        combat_state = CombatEngine.get_state(self._get_session_code())
+        is_combat_token = combat_state is not None and any(
+            str(combatant.entity_id) == str(sprite_id)
+            for combatant in combat_state.combatants
+        )
+        table_edit_override = msg.data.get('table_edit_override') is True
+        if is_combat_token and not (is_dm(role) and table_edit_override):
+            return Message(MessageType.ACTION_REJECTED, {
+                'reason': 'Combat token movement requires combat_command',
+                'sprite_id': sprite_id,
+                **({'action_id': action_id} if action_id else {}),
+            })
+
         # Movement validation (server-authoritative)
         table = self.table_manager.tables_id.get(table_id) or self.table_manager.tables.get(table_id)
-        if table is not None:
+        if table is not None and not table_edit_override:
             try:
                 from core_table.session_rules import SessionRules
                 from database.crud import get_game_mode, get_session_rules_json
@@ -254,27 +269,6 @@ class _SpritesMixin(_ProtocolBase):
                         reject['action_id'] = action_id
                     return Message(MessageType.ACTION_REJECTED, reject)
 
-                # Opportunity attack detection (fight mode only)
-                if mv_result is not None and mv_result.valid and game_mode == 'fight':
-                    from service.combat_engine import CombatEngine
-                    combat_state = CombatEngine.get_state(self._get_session_code())
-                    oa_triggers = validator.check_opportunity_attacks(
-                        sprite_id, to_tuple(from_pos), table, combat_state,
-                        to_pos=to_tuple(to_pos),
-                    )
-                    if oa_triggers:
-                        key = f'{self._get_session_code()}:{sprite_id}'
-                        self.__class__._pending_moves[key] = {
-                            'from_pos': from_pos, 'to_pos': to_pos,
-                            'path': msg.data.get('path', []),
-                            'action_id': action_id,
-                        }
-                        warn = Message(MessageType.OPPORTUNITY_ATTACK_WARNING, {
-                            'entity_id': sprite_id,
-                            'triggers': oa_triggers,
-                        })
-                        await self.send_to_client(warn, client_id)
-                        return warn
             except Exception as e:
                 logger.warning(f"Movement validation error (non-fatal): {e}")
 

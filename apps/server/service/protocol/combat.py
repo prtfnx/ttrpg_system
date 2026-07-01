@@ -1241,31 +1241,6 @@ class _CombatMixin(_ProtocolBase):
             'effective_ac': tgt.armor_class + {'half': 2, 'three_quarters': 5}.get(cover, 0),
         })
 
-    async def handle_oa_confirm_move(self, msg: Message, client_id: str) -> Message:
-        """Player confirmed move despite OA warning — apply the pending move."""
-        d = msg.data or {}
-        session_code = self._get_session_code()
-        entity_id = d.get('entity_id', '')
-        # Ownership check: only DM or controlling player may confirm
-        role = self._get_client_role(client_id)
-        if not is_dm(role):
-            user_id_check = self._get_user_id(msg, client_id)
-            if not await self._can_control_sprite(entity_id, user_id_check):
-                return Message(MessageType.ERROR, {'error': 'You do not control this sprite'})
-        key = f'{session_code}:{entity_id}'
-        pending = self.__class__._pending_moves.pop(key, None)
-        if not pending:
-            return Message(MessageType.ERROR, {'error': 'No pending move'})
-        move_msg = Message(MessageType.SPRITE_MOVE, {
-            'sprite_id': entity_id,
-            'from': pending['from_pos'],
-            'to': pending['to_pos'],
-            'path': pending.get('path', []),
-            'action_id': pending.get('action_id'),
-        })
-        await self.broadcast_to_session(move_msg, client_id)
-        return move_msg
-
     async def handle_oa_resolve(self, msg: Message, client_id: str) -> Message:
         """Attacker resolves (or passes) an opportunity attack reaction."""
         from service.attack_resolver import AttackResolver

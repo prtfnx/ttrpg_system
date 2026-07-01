@@ -1,4 +1,4 @@
-from typing import Any, ClassVar, Dict, Optional
+from typing import Any, Dict, Optional
 
 from core_table.protocol import Message
 
@@ -17,8 +17,6 @@ class _ProtocolBase:
     actions: Any
     clients: Dict[str, Any]
     _rules_cache: Dict[str, Any]
-    _pending_moves: ClassVar[dict]
-
     # ── transport ────────────────────────────────────────────────────────────
     async def send_to_client(self, message: Message, client_id: str) -> None:
         raise NotImplementedError

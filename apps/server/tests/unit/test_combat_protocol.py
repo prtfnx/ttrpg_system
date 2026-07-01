@@ -1785,32 +1785,6 @@ class TestCoverZoneHandlers:
         assert resp.data["zones"] == []
 
 
-# ---------------------------------------------------------------------------
-# handle_oa_confirm_move
-# ---------------------------------------------------------------------------
-
-@pytest.mark.unit
-class TestOaConfirmMove:
-    async def test_no_pending_move_returns_error(self):
-        proto = _ProtoStub(role="owner")
-        _CombatMixin._pending_moves = {}
-        resp = await proto.handle_oa_confirm_move(
-            Message(MessageType.OPPORTUNITY_ATTACK_CONFIRM_MOVE, {"entity_id": "e1"}), "c1"
-        )
-        assert resp.type == MessageType.ERROR
-        assert "pending" in resp.data["error"].lower()
-
-    async def test_pending_move_broadcasts_sprite_move(self):
-        proto = _ProtoStub(role="owner")
-        key = "TST:e1"
-        _CombatMixin._pending_moves = {key: {"from_pos": [0, 0], "to_pos": [5, 5], "path": []}}
-        resp = await proto.handle_oa_confirm_move(
-            Message(MessageType.OPPORTUNITY_ATTACK_CONFIRM_MOVE, {"entity_id": "e1"}), "c1"
-        )
-        assert resp.type == MessageType.SPRITE_MOVE
-        assert _ProtoStub._pending_moves.get(key) is None
-
-
 @pytest.mark.unit
 class TestOaResolve:
     async def test_success_persists_reaction_damage_and_versions_live_state(self):

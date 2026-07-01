@@ -1,5 +1,5 @@
 import time
-from typing import Any, Callable, ClassVar, Dict
+from typing import Any, Callable, Dict
 
 from core_table.actions_core import ActionsCore
 from core_table.protocol import Message, MessageType
@@ -37,8 +37,6 @@ class ServerProtocol(
     _HelpersMixin,
     _ChatMixin,
 ):
-    # Class-level store for moves pending OA resolution: "{session}:{sprite_id}" -> move data
-    _pending_moves: ClassVar[dict] = {}
     """
     WebSocket message dispatcher for the TTRPG server.
 
@@ -205,7 +203,6 @@ class ServerProtocol(
         self.register_handler(MessageType.COVER_ZONE_REMOVE,     self.handle_cover_zone_remove)
         self.register_handler(MessageType.COVER_ZONES_SYNC,      self.handle_cover_zones_sync)
         self.register_handler(MessageType.ATTACK_PREVIEW,        self.handle_attack_preview)
-        self.register_handler(MessageType.OPPORTUNITY_ATTACK_CONFIRM_MOVE, self.handle_oa_confirm_move)
         self.register_handler(MessageType.OPPORTUNITY_ATTACK_RESOLVE,      self.handle_oa_resolve)
         self.register_handler(MessageType.AI_ACTION,             self.handle_ai_action)
         self.register_handler(MessageType.COMBAT_COMMAND,        self.handle_combat_command)

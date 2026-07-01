@@ -1,4 +1,5 @@
 import { useWasmRuntime, type WasmRuntime } from '@lib/wasm/runtime';
+import { logger } from '@shared/utils/logger';
 import { useCallback, useEffect, useRef, useState } from 'react';
 
 type NetworkClientInstance = NonNullable<ReturnType<WasmRuntime['getNetworkClient']>>;
@@ -111,12 +112,12 @@ export const useNetworkClient = (options: NetworkHookOptions = {}) => {
             options.onConnectionChange('error', errorText);
           }
 
-          console.error('Network client initialization failed:', e);
+          logger.error('Network client initialization failed', e);
         }
       }).catch((error: unknown) => {
         const msg = error instanceof Error ? error.message : String(error);
         const errorText = `Connection failed: ${msg}`;
-        console.error('Failed to load WASM network client:', error);
+        logger.error('Failed to load WASM network client', error);
         setNetworkState(prev => ({ ...prev, connectionState: 'error', isConnected: false, lastError: errorText }));
         queueMicrotask(() => {
           if (options.onError) options.onError(errorText);

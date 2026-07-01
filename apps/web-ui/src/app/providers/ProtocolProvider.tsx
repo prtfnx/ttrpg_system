@@ -1,6 +1,7 @@
 import { authService } from '@features/auth';
 import { ProtocolService } from '@lib/api/ProtocolService';
 import { WebClientProtocol } from '@lib/websocket';
+import { logger } from '@shared/utils/logger';
 import React, { createContext, useContext, useEffect, useMemo, useState } from 'react';
 
 interface ProtocolContextValue {
@@ -67,8 +68,8 @@ export function ProtocolProvider({ sessionCode, children }: ProviderProps) {
 
           const userInfo = authService.getUserInfo();
           if (userInfo?.id) userId = userInfo.id;
-        } catch (e) {
-          console.warn('[ProtocolProvider] Failed to resolve session', e);
+        } catch (error) {
+          logger.warn('[ProtocolProvider] Failed to resolve session', error);
         }
 
         const p = new WebClientProtocol(resolved, userId);
@@ -90,8 +91,8 @@ export function ProtocolProvider({ sessionCode, children }: ProviderProps) {
         }
 
         setConnectionState('connected');
-      } catch (err) {
-        console.error('[ProtocolProvider] Connection failed', err);
+      } catch (error) {
+        logger.error('[ProtocolProvider] Connection failed', error);
         setConnectionState('error');
       }
     }

@@ -3,6 +3,13 @@ import { createMockWasmRuntime, renderWithWasmRuntime } from '@test/utils/wasmRu
 import React from 'react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { useNetworkClient } from '@shared/hooks/useNetworkClient';
+import { logger } from '@shared/utils/logger';
+
+vi.mock('@shared/utils/logger', () => ({
+  logger: {
+    error: vi.fn(),
+  },
+}));
 
 const HookConsumer: React.FC<{
   onError?: (err: string) => void;
@@ -41,5 +48,9 @@ describe('useNetworkClient failure path', () => {
       expect(onError).toHaveBeenCalledWith(expect.stringContaining('NetworkClient unavailable'));
       expect(onConnectionChange).toHaveBeenCalledWith('error', expect.stringContaining('NetworkClient unavailable'));
     });
+    expect(logger.error).toHaveBeenCalledWith(
+      'Failed to load WASM network client',
+      expect.objectContaining({ message: 'NetworkClient unavailable from WASM runtime' }),
+    );
   });
 });

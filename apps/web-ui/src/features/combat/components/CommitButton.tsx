@@ -2,7 +2,10 @@ import { useState } from 'react';
 import styles from './CommitButton.module.css';
 import { usePlanningStore } from '../stores/planningStore';
 import { planningService } from '../services/planning.service';
-import { useCombatCommands } from '../hooks/useCombatCommands';
+import {
+  useCombatCommands,
+  type CombatCommandPayload,
+} from '../hooks/useCombatCommands';
 import { useGameModeStore } from '../stores/gameModeStore';
 import { useOAStore } from '../stores/oaStore';
 import { useGameStore } from '@/store';
@@ -37,7 +40,7 @@ export function CommitButton() {
       return;
     }
 
-    const commands: Array<Record<string, unknown>> = [];
+    const commands: CombatCommandPayload[] = [];
     for (const action of queue) {
       if (action.action_type !== 'move') {
         setError(`Unsupported planned action: ${action.action_type}`);

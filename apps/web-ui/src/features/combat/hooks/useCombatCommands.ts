@@ -1,16 +1,16 @@
 import { useOptionalProtocol } from '@lib/api';
-import { createMessage, MessageType } from '@lib/websocket';
+import { createMessage, MessageType, type MessageType as ProtocolMessageType } from '@lib/websocket';
 import { useCallback } from 'react';
 
 export type CombatCommandType = 'dash' | 'dodge' | 'disengage' | 'hide' | 'end_turn';
 
-export interface CombatCommandPayload {
+export interface CombatCommandPayload extends Record<string, unknown> {
   type: string;
   actor_id: string;
   [key: string]: unknown;
 }
 
-export interface CombatCommandBatch {
+export interface CombatCommandBatch extends Record<string, unknown> {
   sequence_id: number;
   commands: CombatCommandPayload[];
 }
@@ -49,7 +49,7 @@ export function useCombatCommands() {
     return Boolean(protocol);
   }, [protocol]);
 
-  const sendProtocolMessage = useCallback((type: string, data: Record<string, unknown> = {}) => {
+  const sendProtocolMessage = useCallback((type: ProtocolMessageType, data: Record<string, unknown> = {}) => {
     protocol?.sendMessage(createMessage(type, data));
     return Boolean(protocol);
   }, [protocol]);

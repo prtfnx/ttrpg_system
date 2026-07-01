@@ -1,4 +1,5 @@
 import { create } from 'zustand';
+import type { CombatCommandBatch } from '../hooks/useCombatCommands';
 
 interface OATrigger {
   combatant_id: string;
@@ -11,10 +12,7 @@ interface OAPromptData {
   attacker_combatant_id: string;
 }
 
-export interface PendingCombatCommand {
-  sequence_id: number;
-  commands: Array<Record<string, unknown>>;
-}
+export type PendingCombatCommand = CombatCommandBatch;
 
 interface OAStore {
   warningEntityId: string | null;

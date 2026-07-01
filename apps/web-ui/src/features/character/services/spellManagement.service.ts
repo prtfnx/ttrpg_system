@@ -432,7 +432,7 @@ class SpellManagementService {
   } {
     // Guard against undefined or null abilityScores
     if (!abilityScores || typeof abilityScores !== 'object') {
-      console.warn(' getSpellcastingStats: abilityScores is undefined/null, using defaults');
+      logger.warn('Spellcasting stats received invalid ability scores; using defaults');
       abilityScores = {
         strength: 10,
         dexterity: 10,

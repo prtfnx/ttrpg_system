@@ -743,7 +743,7 @@ class EquipmentManagementService {
         } as unknown as Equipment;
       });
     } catch (error) {
- console.error('Failed to fetch equipment from API:', error);
+      logger.error('Failed to fetch equipment from API', error);
       // For production, throw error instead of falling back to hardcoded data
       // This ensures proper error handling and prevents stale data usage
       throw new Error('Equipment data not available. Please check your connection and try again.');

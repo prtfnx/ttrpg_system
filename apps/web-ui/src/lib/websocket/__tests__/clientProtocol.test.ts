@@ -540,6 +540,33 @@ describe('WebClientProtocol', () => {
       expect(handler).toHaveBeenCalledOnce();
     });
 
+    it('ACTION_RESULT confirms the optimistic sprite action by sequence id', async () => {
+      const p = makeProtocol();
+      const handler = vi.fn();
+      window.addEventListener('sprite-action-confirmed', handler);
+
+      await dispatch(p, 'action_result', { sequence_id: 42, applied: [] });
+
+      window.removeEventListener('sprite-action-confirmed', handler);
+      expect(handler).toHaveBeenCalledOnce();
+      expect((handler.mock.calls[0][0] as CustomEvent).detail).toEqual({ actionId: '42' });
+    });
+
+    it('ACTION_REJECTED reverts the optimistic sprite action by sequence id', async () => {
+      const p = makeProtocol();
+      const handler = vi.fn();
+      window.addEventListener('sprite-action-rejected', handler);
+
+      await dispatch(p, 'action_rejected', { sequence_id: 43, reason: 'Not your turn' });
+
+      window.removeEventListener('sprite-action-rejected', handler);
+      expect(handler).toHaveBeenCalledOnce();
+      expect((handler.mock.calls[0][0] as CustomEvent).detail).toEqual({
+        actionId: '43',
+        reason: 'Not your turn',
+      });
+    });
+
     it('SUCCESS dispatches protocol-success event', async () => {
       const p = makeProtocol();
       const handler = vi.fn();

@@ -389,12 +389,16 @@ export class WebClientProtocol {
         usePlanningStore.getState().stopPlanning();
         useOAStore.getState().clearPendingCombatCommand();
       }
+      if (data?.sequence_id != null) {
+        emitProtocolEvent('sprite-action-confirmed', { actionId: String(data.sequence_id) });
+      }
       if (data?.combat) {
         await setCombat(data);
       }
     });
     this.registerHandler(MessageType.ACTION_REJECTED, async (m) => {
       const data = m.data as {
+        sequence_id?: number;
         reason?: string;
         failed_index?: number;
         details?: {
@@ -408,6 +412,12 @@ export class WebClientProtocol {
         useOAStore.getState().setWarning(data.details.entity_id ?? '', data.details.triggers ?? []);
         showToast.warning(data?.reason ?? 'Opportunity attack warning');
         return;
+      }
+      if (data?.sequence_id != null) {
+        emitProtocolEvent('sprite-action-rejected', {
+          actionId: String(data.sequence_id),
+          reason: data.reason ?? 'Action rejected',
+        });
       }
       showToast.error(data?.reason ?? 'Action rejected');
     });

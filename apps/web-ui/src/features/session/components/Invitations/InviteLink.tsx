@@ -1,4 +1,5 @@
 import type { SessionInvitation } from '@features/session/types/invitations';
+import { logger } from '@shared/utils/logger';
 import React, { useState } from 'react';
 import styles from './InviteLink.module.css';
 
@@ -22,7 +23,7 @@ export const InviteLink: React.FC<InviteLinkProps> = ({ invitation, onRevoke, on
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
     } catch (err) {
-      console.error('Failed to copy:', err);
+      logger.error('Failed to copy invitation link', err);
     }
   };
 

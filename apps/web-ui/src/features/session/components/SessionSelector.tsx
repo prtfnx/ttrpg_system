@@ -5,6 +5,7 @@
 import styles from '@/App.module.css';
 import { authService, type SessionInfo } from '@features/auth';
 import { getRoleDisplayName, type SessionRole } from '@features/session/types/roles';
+import { logger } from '@shared/utils/logger';
 import clsx from 'clsx';
 import { useEffect, useState } from 'react';
 
@@ -31,7 +32,7 @@ export function SessionSelector({ onSessionSelected }: SessionSelectorProps) {
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Failed to load sessions';
       setError(errorMessage);
-      console.error('Session loading error:', err);
+      logger.error('Failed to load sessions', err);
     } finally {
       setLoading(false);
     }

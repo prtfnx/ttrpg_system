@@ -1,4 +1,5 @@
 import clsx from 'clsx';
+import { logger } from '@shared/utils/logger';
 import React, { useRef, useState } from 'react';
 import { useAssetManager } from '../hooks/useAssetManager';
 import styles from './AssetPanel.module.css';
@@ -154,7 +155,7 @@ export const AssetPanel: React.FC = () => {
         refreshStats();
       }
     } catch (error) {
-      console.error('Download failed:', error);
+      logger.error('Asset download failed', error);
     }
   };
 

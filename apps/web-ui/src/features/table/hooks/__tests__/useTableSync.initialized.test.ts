@@ -16,11 +16,6 @@ let capturedTableSync: {
   handle_table_data: ReturnType<typeof vi.fn>;
   handle_sprite_update: ReturnType<typeof vi.fn>;
   request_table: ReturnType<typeof vi.fn>;
-  send_sprite_move: ReturnType<typeof vi.fn>;
-  send_sprite_scale: ReturnType<typeof vi.fn>;
-  send_sprite_rotate: ReturnType<typeof vi.fn>;
-  send_sprite_delete: ReturnType<typeof vi.fn>;
-  send_sprite_create: ReturnType<typeof vi.fn>;
   set_network_client: ReturnType<typeof vi.fn>;
 } | null = null;
 
@@ -41,11 +36,6 @@ function buildMockTableSync() {
     handle_table_data: vi.fn(),
     handle_sprite_update: vi.fn(),
     request_table: vi.fn(),
-    send_sprite_move: vi.fn(),
-    send_sprite_scale: vi.fn(),
-    send_sprite_rotate: vi.fn(),
-    send_sprite_delete: vi.fn(),
-    send_sprite_create: vi.fn(),
     set_network_client: vi.fn(),
   };
 
@@ -56,11 +46,6 @@ function buildMockTableSync() {
     handle_table_data = capturedTableSync!.handle_table_data;
     handle_sprite_update = capturedTableSync!.handle_sprite_update;
     request_table = capturedTableSync!.request_table;
-    send_sprite_move = capturedTableSync!.send_sprite_move;
-    send_sprite_scale = capturedTableSync!.send_sprite_scale;
-    send_sprite_rotate = capturedTableSync!.send_sprite_rotate;
-    send_sprite_delete = capturedTableSync!.send_sprite_delete;
-    send_sprite_create = capturedTableSync!.send_sprite_create;
     set_network_client = capturedTableSync!.set_network_client;
   }
 
@@ -265,51 +250,6 @@ describe('useTableSync – WASM initialized', () => {
     });
   });
 
-  describe('sprite action forwarding', () => {
-    it('moveSprite calls send_sprite_move', async () => {
-      const { result } = await initHook();
-
-      act(() => { result.current.moveSprite('s1', 50, 75); });
-
-      expect(capturedTableSync!.send_sprite_move).toHaveBeenCalledWith('s1', 50, 75);
-    });
-
-    it('scaleSprite calls send_sprite_scale', async () => {
-      const { result } = await initHook();
-
-      act(() => { result.current.scaleSprite('s1', 2, 2); });
-
-      expect(capturedTableSync!.send_sprite_scale).toHaveBeenCalledWith('s1', 2, 2);
-    });
-
-    it('rotateSprite calls send_sprite_rotate', async () => {
-      const { result } = await initHook();
-
-      act(() => { result.current.rotateSprite('s1', 45); });
-
-      expect(capturedTableSync!.send_sprite_rotate).toHaveBeenCalledWith('s1', 45);
-    });
-
-    it('deleteSprite calls send_sprite_delete', async () => {
-      const { result } = await initHook();
-
-      act(() => { result.current.deleteSprite('s1'); });
-
-      expect(capturedTableSync!.send_sprite_delete).toHaveBeenCalledWith('s1');
-    });
-
-    it('createSprite calls send_sprite_create and returns an id', async () => {
-      const { result } = await initHook();
-      const spriteData = { name: 'Orc', x: 0, y: 0, width: 50, height: 50, scale_x: 1, scale_y: 1, rotation: 0, layer: 'tokens', texture_path: '/orc.png', color: '#000', visible: true };
-
-      let id: string | undefined;
-      act(() => { id = result.current.createSprite(spriteData); });
-
-      expect(id).toMatch(/^sprite_/);
-      expect(capturedTableSync!.send_sprite_create).toHaveBeenCalledOnce();
-    });
-  });
-
   describe('handleNetworkMessage', () => {
     it('routes table_data type to handle_table_data', async () => {
       const { result } = await initHook();
@@ -338,19 +278,6 @@ describe('useTableSync – WASM initialized', () => {
       expect(capturedTableSync!.handle_sprite_update).toHaveBeenCalledWith(update);
     });
 
-    it('routes table_update with sprite category', async () => {
-      const { result } = await initHook();
-
-      act(() => {
-        result.current.handleNetworkMessage('table_update', {
-          category: 'sprite',
-          type: 'sprite_move',
-          data: { sprite_id: 's1', table_id: 'tbl-1' },
-        });
-      });
-
-      expect(capturedTableSync!.handle_sprite_update).toHaveBeenCalledOnce();
-    });
   });
 
   describe('window event forwarding', () => {

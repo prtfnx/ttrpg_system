@@ -64,11 +64,6 @@ interface WasmTableSyncClient {
   handle_table_data: (data: unknown) => void;
   handle_sprite_update: (data: unknown) => void;
   request_table: (id: string) => void;
-  send_sprite_move: (id: string, x: number, y: number) => void;
-  send_sprite_scale: (id: string, x: number, y: number) => void;
-  send_sprite_rotate: (id: string, rotation: number) => void;
-  send_sprite_delete: (id: string) => void;
-  send_sprite_create: (sprite: unknown) => void;
   add_sprite: (
     id: string,
     name: string,
@@ -350,87 +345,6 @@ export const useTableSync = (options: TableSyncHookOptions = {}) => {
   // eslint-disable-next-line react-hooks/exhaustive-deps -- intentional: options excluded to prevent loop
   }, [isConnected, options.onError]);
 
-  // Send sprite move update
-  const moveSprite = useCallback((spriteId: string, x: number, y: number) => {
-    if (!tableSyncRef.current) {
-      throw new Error('Table sync not initialized');
-    }
-
-    try {
-      tableSyncRef.current.send_sprite_move(spriteId, x, y);
-      logger.debug(`Sent sprite move: ${spriteId} to (${x}, ${y})`);
-    } catch (error) {
-      logger.error('Failed to send sprite move:', error);
-      throw error;
-    }
-  }, []);
-
-  // Send sprite scale update
-  const scaleSprite = useCallback((spriteId: string, scaleX: number, scaleY: number) => {
-    if (!tableSyncRef.current) {
-      throw new Error('Table sync not initialized');
-    }
-
-    try {
-      tableSyncRef.current.send_sprite_scale(spriteId, scaleX, scaleY);
-      logger.debug(`Sent sprite scale: ${spriteId} to (${scaleX}, ${scaleY})`);
-    } catch (error) {
-      logger.error('Failed to send sprite scale:', error);
-      throw error;
-    }
-  }, []);
-
-  // Send sprite rotation update
-  const rotateSprite = useCallback((spriteId: string, rotation: number) => {
-    if (!tableSyncRef.current) {
-      throw new Error('Table sync not initialized');
-    }
-
-    try {
-      tableSyncRef.current.send_sprite_rotate(spriteId, rotation);
-      logger.debug(`Sent sprite rotation: ${spriteId} to ${rotation}`);
-    } catch (error) {
-      logger.error('Failed to send sprite rotation:', error);
-      throw error;
-    }
-  }, []);
-
-  // Send sprite creation
-  const createSprite = useCallback((spriteData: Omit<SpriteData, 'sprite_id'>) => {
-    if (!tableSyncRef.current) {
-      throw new Error('Table sync not initialized');
-    }
-
-    const fullSpriteData: SpriteData = {
-      ...spriteData,
-      sprite_id: crypto.randomUUID(),
-    };
-
-    try {
-      tableSyncRef.current.send_sprite_create(fullSpriteData);
-      logger.debug(`Sent sprite create: ${fullSpriteData.sprite_id}`);
-      return fullSpriteData.sprite_id;
-    } catch (error) {
-      logger.error('Failed to send sprite create:', error);
-      throw error;
-    }
-  }, []);
-
-  // Send sprite deletion
-  const deleteSprite = useCallback((spriteId: string) => {
-    if (!tableSyncRef.current) {
-      throw new Error('Table sync not initialized');
-    }
-
-    try {
-      tableSyncRef.current.send_sprite_delete(spriteId);
-      logger.debug(`Sent sprite delete: ${spriteId}`);
-    } catch (error) {
-      logger.error('Failed to send sprite delete:', error);
-      throw error;
-    }
-  }, []);
-
   // Handle message from network client
   const handleNetworkMessage = useCallback((messageType: string, data: Record<string, unknown>) => {
     if (!tableSyncRef.current) return;
@@ -444,18 +358,6 @@ export const useTableSync = (options: TableSyncHookOptions = {}) => {
             tableSyncRef.current.handle_table_data(tableData);
           }
           break;
-        case 'table_update':
-          if (data && data.category === 'sprite') {
-            const spriteData = data.data as Record<string, unknown> | undefined;
-            const updateData = {
-              sprite_id: spriteData?.sprite_id || '',
-              table_id: spriteData?.table_id || state.tableId || '',
-              update_type: data.type || '',
-              data: data.data || {},
-            };
-            tableSyncRef.current.handle_sprite_update(updateData);
-          }
-          break;
         case 'sprite_update':
           if (data) {
             tableSyncRef.current.handle_sprite_update(data);
@@ -465,7 +367,7 @@ export const useTableSync = (options: TableSyncHookOptions = {}) => {
     } catch (error) {
       logger.error('Error handling network message:', error);
     }
-  }, [state.tableId]);
+  }, []);
 
   // Keep ref current so stableOnMessage always calls the latest handler
   useEffect(() => {
@@ -489,11 +391,6 @@ export const useTableSync = (options: TableSyncHookOptions = {}) => {
     
     // Actions
     requestTable,
-    moveSprite,
-    scaleSprite,
-    rotateSprite,
-    createSprite,
-    deleteSprite,
     
     // Network message handler
     handleNetworkMessage,

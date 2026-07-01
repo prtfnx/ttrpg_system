@@ -38,14 +38,9 @@ describe('useTableSync', () => {
       expect(result.current.error).toBeNull();
     });
 
-    it('exposes action functions', () => {
+    it('exposes synchronization functions', () => {
       const { result } = renderTableSync();
       expect(typeof result.current.requestTable).toBe('function');
-      expect(typeof result.current.moveSprite).toBe('function');
-      expect(typeof result.current.scaleSprite).toBe('function');
-      expect(typeof result.current.rotateSprite).toBe('function');
-      expect(typeof result.current.createSprite).toBe('function');
-      expect(typeof result.current.deleteSprite).toBe('function');
       expect(typeof result.current.handleNetworkMessage).toBe('function');
     });
   });
@@ -79,30 +74,10 @@ describe('useTableSync', () => {
   });
 
   describe('sprite actions – not initialized guard', () => {
-    it('moveSprite throws when table sync not ready', () => {
+    it('does not expose legacy sprite mutation functions', () => {
       const { result } = renderTableSync();
-      expect(() => result.current.moveSprite('s1', 10, 20)).toThrow('Table sync not initialized');
-    });
-
-    it('scaleSprite throws when table sync not ready', () => {
-      const { result } = renderTableSync();
-      expect(() => result.current.scaleSprite('s1', 2, 2)).toThrow('Table sync not initialized');
-    });
-
-    it('rotateSprite throws when table sync not ready', () => {
-      const { result } = renderTableSync();
-      expect(() => result.current.rotateSprite('s1', 45)).toThrow('Table sync not initialized');
-    });
-
-    it('deleteSprite throws when table sync not ready', () => {
-      const { result } = renderTableSync();
-      expect(() => result.current.deleteSprite('s1')).toThrow('Table sync not initialized');
-    });
-
-    it('createSprite throws when table sync not ready', () => {
-      const { result } = renderTableSync();
-      const spriteData = { name: 'Test', x: 0, y: 0, width: 50, height: 50, scale_x: 1, scale_y: 1, rotation: 0, layer: 'tokens', texture_path: '/token.png', color: '#fff', visible: true };
-      expect(() => result.current.createSprite(spriteData)).toThrow('Table sync not initialized');
+      expect('moveSprite' in result.current).toBe(false);
+      expect('createSprite' in result.current).toBe(false);
     });
   });
 

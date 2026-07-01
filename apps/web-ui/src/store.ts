@@ -854,7 +854,7 @@ export const useGameStore = create<GameStore>()(
 
 function sendProtocolMessage(type: string, data: Record<string, unknown> = {}): boolean {
   if (!ProtocolService.hasProtocol()) {
-    console.warn('[Store] Protocol not initialized');
+    logger.warn('[Store] Protocol not initialized');
     return false;
   }
 

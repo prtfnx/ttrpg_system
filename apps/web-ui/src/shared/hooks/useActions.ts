@@ -1,4 +1,5 @@
 import type { ActionsClient } from '@lib/wasm/runtime';
+import { logger } from '@shared/utils/logger';
 import { useCallback, useEffect, useRef, useState } from 'react';
 
 export type ActionsEngine = Pick<
@@ -136,7 +137,7 @@ export function useActions(actionsEngine: ActionsEngine | null, callbacks?: Acti
       actionsEngine.set_state_change_handler(handleStateChange);
       actionsEngine.set_error_handler(handleError);
     } catch (error) {
-      console.error('Error setting up actions handlers:', error);
+      logger.error('Failed to configure actions handlers', error);
     }
 
     return () => {
@@ -473,7 +474,7 @@ export function useActions(actionsEngine: ActionsEngine | null, callbacks?: Acti
         canRedo: actionsEngine.can_redo(),
       }));
     } catch (error) {
-      console.error('Error refreshing actions state:', error);
+      logger.error('Failed to refresh actions state', error);
     }
   }, [actionsEngine]);
 

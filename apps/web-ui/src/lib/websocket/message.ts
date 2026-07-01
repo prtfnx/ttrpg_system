@@ -232,7 +232,6 @@ export const MessageType = {
 
   // ── Opportunity Attacks ──
   OPPORTUNITY_ATTACK_WARNING: "opportunity_attack_warning",
-  OPPORTUNITY_ATTACK_CONFIRM_MOVE: "opportunity_attack_confirm_move",
   OPPORTUNITY_ATTACK_PROMPT: "opportunity_attack_prompt",
   OPPORTUNITY_ATTACK_RESOLVE: "opportunity_attack_resolve",
 

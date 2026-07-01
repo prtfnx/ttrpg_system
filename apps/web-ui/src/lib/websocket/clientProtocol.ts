@@ -1970,10 +1970,6 @@ export class WebClientProtocol {
 
   // ── Opportunity Attacks ──────────────────────────────────────────────────
 
-  confirmMoveDespiteOA(entityId: string): void {
-    this.sendMessage(createMessage(MessageType.OPPORTUNITY_ATTACK_CONFIRM_MOVE, { entity_id: entityId }));
-  }
-
   resolveOA(data: {
     use_reaction: boolean;
     attacker_combatant_id?: string;

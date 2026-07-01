@@ -674,8 +674,6 @@ export function ToolsPanel({ userInfo }: ToolsPanelProps) {
                     : command
                 )),
               });
-            } else if (ProtocolService.hasProtocol()) {
-              ProtocolService.getProtocol().confirmMoveDespiteOA(oaWarning);
             }
             clearOA();
           }}

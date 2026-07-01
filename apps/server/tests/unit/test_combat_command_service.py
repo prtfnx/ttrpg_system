@@ -160,7 +160,11 @@ async def test_move_command_rejects_failed_validation_before_moving_token():
         role="player",
         user_id=1,
         move_sprite=move_sprite,
-        validate_move=lambda *_args: {"success": False, "message": "Path blocked"},
+        validate_move=lambda *_args: {
+            "success": False,
+            "message": "Path blocked",
+            "movement_cost": 10,
+        },
     ))
 
     assert result.accepted is False
@@ -195,6 +199,7 @@ async def test_move_command_returns_opportunity_attack_warning_before_moving_tok
         move_sprite=move_sprite,
         validate_move=lambda *_args: {
             "success": True,
+            "movement_cost": 10,
             "opportunity_attack_triggers": [{
                 "combatant_id": target.combatant_id,
                 "name": target.name,
@@ -238,6 +243,7 @@ async def test_move_command_applies_after_confirming_opportunity_attack_warning(
         move_sprite=move_sprite,
         validate_move=lambda *_args: {
             "success": True,
+            "movement_cost": 10,
             "opportunity_attack_triggers": [{
                 "combatant_id": target.combatant_id,
                 "name": target.name,
@@ -264,7 +270,7 @@ async def test_move_command_spends_movement_and_moves_token():
             "from_y": 0,
             "target_x": 64,
             "target_y": 0,
-            "cost_ft": 10,
+            "cost_ft": 1,
         }],
     })
 
@@ -274,10 +280,13 @@ async def test_move_command_spends_movement_and_moves_token():
         role="player",
         user_id=1,
         move_sprite=move_sprite,
+        validate_move=lambda *_args: {"success": True, "movement_cost": 10},
     ))
 
     assert result.accepted is True
     assert CombatEngine.get_state("cmd").combatants[0].movement_remaining == 20
+    assert result.applied[0]["result"]["cost_ft"] == 10
+    assert result.applied[0]["result"]["declared_cost_ft"] == 1
     assert CombatEngine.get_state("cmd").action_log[-1].action_type == "move"
     assert CombatEngine.get_state("cmd").action_log[-1].state_before["movement_remaining"] == 30
     move_sprite.assert_awaited_once()
@@ -310,6 +319,7 @@ async def test_move_command_rolls_back_token_move_when_later_command_fails():
         role="owner",
         user_id=1,
         move_sprite=move_sprite,
+        validate_move=lambda *_args: {"success": True, "movement_cost": 10},
     ))
     restored_actor = CombatEngine.get_state("cmd").combatants[0]
 
@@ -436,6 +446,7 @@ async def test_persistence_failure_rolls_back_combat_and_token_movement():
             role="player",
             user_id=1,
             move_sprite=move_sprite,
+            validate_move=lambda *_args: {"success": True, "movement_cost": 10},
         ),
     )
 

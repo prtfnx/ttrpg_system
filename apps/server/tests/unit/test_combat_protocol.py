@@ -1309,18 +1309,20 @@ class TestCombatCommand:
                     "type": "move",
                     "actor_id": actor.combatant_id,
                     "table_id": "t1",
-                    "from_x": 0,
-                    "from_y": 0,
-                    "target_x": 64,
-                    "target_y": 0,
-                    "cost_ft": 10,
+                    "from_x": 32,
+                    "from_y": 32,
+                    "target_x": 96,
+                    "target_y": 32,
+                    "cost_ft": 30,
                 }],
             }),
             "c1",
         )
 
         assert resp.type == MessageType.ACTION_RESULT
-        assert CombatEngine.get_state("TST").combatants[0].movement_remaining == 20
+        assert CombatEngine.get_state("TST").combatants[0].movement_remaining == 25
+        assert resp.data["applied"][0]["result"]["cost_ft"] == 5
+        assert resp.data["applied"][0]["result"]["declared_cost_ft"] == 30
         proto.actions.move_sprite.assert_awaited_once()
 
 # ---------------------------------------------------------------------------

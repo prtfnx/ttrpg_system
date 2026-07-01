@@ -83,7 +83,7 @@ class CombatCommandContext:
         Callable[[str, str, dict[str, float], dict[str, float], str], Awaitable[dict[str, Any]]]
     ] = None
     validate_move: Optional[
-        Callable[[str, str, dict[str, float], dict[str, float], list[Any]], dict[str, Any]]
+        Callable[[str, str, dict[str, float], dict[str, float], list[Any], Any], dict[str, Any]]
     ] = None
 
 
@@ -390,39 +390,50 @@ class CombatCommandService:
             return {"error": "table_id required"}
         if command.target_x is None or command.target_y is None:
             return {"error": "target_x and target_y required"}
-        if command.cost_ft is None or command.cost_ft < 0:
-            return {"error": "cost_ft required"}
+        if command.from_x is None or command.from_y is None:
+            return {"error": "from_x and from_y required"}
+        if context.validate_move is None:
+            return {"error": "validate_move callback required"}
 
         actor = self._get_combatant(state, actor_id)
         if actor is None:
             return {"error": "Combatant not found"}
-        if command.cost_ft > actor.movement_remaining:
+
+        from_pos = {
+            "x": float(command.from_x),
+            "y": float(command.from_y),
+        }
+        to_pos = {"x": float(command.target_x), "y": float(command.target_y)}
+        validation = context.validate_move(
+            command.table_id,
+            actor.entity_id,
+            from_pos,
+            to_pos,
+            command.path,
+            actor,
+        )
+        if not validation.get("success", False):
+            return {"error": validation.get("message") or "Move validation failed"}
+        movement_cost = validation.get("movement_cost")
+        if not isinstance(movement_cost, (int, float)) or movement_cost < 0:
+            return {"error": "Movement validation did not return a valid cost"}
+        if movement_cost > actor.movement_remaining:
             return {
                 "error": (
-                    f"Insufficient movement: need {command.cost_ft:.0f}ft, "
+                    f"Insufficient movement: need {movement_cost:.0f}ft, "
                     f"have {actor.movement_remaining:.0f}ft"
                 )
             }
-
-        from_pos = {
-            "x": float(command.from_x if command.from_x is not None else command.target_x),
-            "y": float(command.from_y if command.from_y is not None else command.target_y),
-        }
-        to_pos = {"x": float(command.target_x), "y": float(command.target_y)}
-        if context.validate_move is not None:
-            validation = context.validate_move(command.table_id, actor.entity_id, from_pos, to_pos, command.path)
-            if not validation.get("success", False):
-                return {"error": validation.get("message") or "Move validation failed"}
-            triggers = validation.get("opportunity_attack_triggers") or []
-            if triggers and not command.confirm_opportunity_attacks:
-                return {
-                    "error": "Opportunity attack warning",
-                    "details": {
-                        "code": "opportunity_attack_warning",
-                        "entity_id": actor.entity_id,
-                        "triggers": triggers,
-                    },
-                }
+        triggers = validation.get("opportunity_attack_triggers") or []
+        if triggers and not command.confirm_opportunity_attacks:
+            return {
+                "error": "Opportunity attack warning",
+                "details": {
+                    "code": "opportunity_attack_warning",
+                    "entity_id": actor.entity_id,
+                    "triggers": triggers,
+                },
+            }
 
         actor_before = actor.to_dict()
         move_result = await context.move_sprite(
@@ -435,7 +446,7 @@ class CombatCommandService:
         if not move_result.get("success", False):
             return {"error": move_result.get("message") or "Move failed"}
 
-        actor.movement_remaining -= command.cost_ft
+        actor.movement_remaining -= movement_cost
         state.action_log.append(CombatAction(
             action_id=str(uuid.uuid4()),
             combat_id=state.combat_id,
@@ -455,7 +466,8 @@ class CombatCommandService:
             "entity_id": actor.entity_id,
             "from": from_pos,
             "to": to_pos,
-            "cost_ft": command.cost_ft,
+            "cost_ft": movement_cost,
+            "declared_cost_ft": command.cost_ft,
             "movement_remaining": actor.movement_remaining,
             "path": command.path,
         }

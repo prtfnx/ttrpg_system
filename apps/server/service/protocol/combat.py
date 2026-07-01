@@ -1069,6 +1069,7 @@ class _CombatMixin(_ProtocolBase):
         old_position: dict[str, float],
         new_position: dict[str, float],
         path: list[Any],
+        combatant: Any,
     ) -> dict[str, Any]:
         table = self._get_table_by_id(table_id)
         if table is None:
@@ -1102,13 +1103,25 @@ class _CombatMixin(_ProtocolBase):
         tier = getattr(rules, "server_validation_tier", "lightweight")
         from_pos = (float(old_position.get("x", 0)), float(old_position.get("y", 0)))
         to_pos = (float(new_position.get("x", 0)), float(new_position.get("y", 0)))
-        if tier == "trust_client":
-            result = None
-        elif tier == "lightweight":
-            result = validator.validate_lightweight(sprite_id, from_pos, to_pos, table, client_path=path)
+        if tier in {"trust_client", "lightweight"}:
+            result = validator.validate_lightweight(
+                sprite_id,
+                from_pos,
+                to_pos,
+                table,
+                combatant=combatant,
+                client_path=path,
+            )
         else:
-            result = validator.validate(sprite_id, from_pos, to_pos, table, client_path=path)
-        if result is not None and not result.valid:
+            result = validator.validate(
+                sprite_id,
+                from_pos,
+                to_pos,
+                table,
+                combatant=combatant,
+                client_path=path,
+            )
+        if not result.valid:
             return {"success": False, "message": result.reason}
 
         triggers = []
@@ -1120,7 +1133,13 @@ class _CombatMixin(_ProtocolBase):
                 CombatEngine.get_state(session_code),
                 to_pos=to_pos,
             )
-        return {"success": True, "message": "ok", "opportunity_attack_triggers": triggers}
+        return {
+            "success": True,
+            "message": "ok",
+            "movement_cost": result.movement_cost,
+            "path": result.valid_path,
+            "opportunity_attack_triggers": triggers,
+        }
 
     async def handle_cover_zone_add(self, msg: Message, client_id: str) -> Message:
         if not is_dm(self._get_client_role(client_id)):

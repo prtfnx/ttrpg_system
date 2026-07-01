@@ -523,6 +523,26 @@ class TestMoveSpriteResult:
         assert resp.type == MessageType.ERROR
         assert "control" in resp.data["error"].lower()
 
+    async def test_nested_sprite_operation_is_rejected(self):
+        proto = _ProtoStub(role="owner")
+        proto.actions.move_sprite = AsyncMock(return_value=_ok_result())
+        resp = await proto.handle_sprite_update(
+            Message(MessageType.SPRITE_UPDATE, {
+                "type": "sprite_move",
+                "data": {
+                    "sprite_id": "sp-1",
+                    "table_id": "t1",
+                    "from": {"x": 0, "y": 0},
+                    "to": {"x": 10, "y": 10},
+                },
+            }),
+            "c1",
+        )
+
+        assert resp.type == MessageType.ERROR
+        assert "no longer supported" in resp.data["error"]
+        proto.actions.move_sprite.assert_not_awaited()
+
     async def test_combat_token_requires_combat_command(self, active_combat_token):
         proto = self._proto(role="player")
         proto.actions.move_sprite = AsyncMock(return_value=_ok_result())

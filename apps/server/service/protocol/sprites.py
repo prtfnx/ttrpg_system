@@ -473,10 +473,12 @@ class _SpritesMixin(_ProtocolBase):
             logger.error(f"No data provided in sprite update from {client_id}")
             return Message(MessageType.ERROR, {'error': 'No data provided in sprite update'})
 
-        # Client sends flat structure: { sprite_id, table_id, character_id, hp, ... }
-        # Legacy support for nested structure: { type: 'sprite_move', data: { ... } }
-        type = msg.data.get('type')
-        update_data = msg.data.get('data', {}) if type else msg.data
+        if msg.data.get('type') and isinstance(msg.data.get('data'), dict):
+            return Message(MessageType.ERROR, {
+                'error': 'Nested sprite operations are no longer supported; use dedicated sprite messages',
+            })
+
+        update_data = msg.data
 
         # Extract sprite_id and table_id for permission checks
         sprite_id = update_data.get('sprite_id') or msg.data.get('sprite_id')
@@ -491,38 +493,6 @@ class _SpritesMixin(_ProtocolBase):
         if not is_dm(role) and not await self._can_control_sprite(sprite_id, user_id):
             logger.warning(f"User {user_id} attempted to update sprite {sprite_id} without permission")
             return Message(MessageType.ERROR, {'error': 'Permission denied: you cannot control this sprite'})
-
-        # Handle legacy type-based updates
-        if type:
-            if not update_data or 'table_name' not in update_data or 'sprite_id' not in update_data:
-                logger.error(f"Invalid sprite update data from {client_id}: {update_data}")
-                return Message(MessageType.ERROR, {'error': 'Invalid sprite update data'})
-            match type:
-                case 'sprite_move':
-                    if 'from' not in update_data or 'to' not in update_data:
-                        logger.error(f"Missing 'from' or 'to' field in sprite move update from {client_id}: {update_data}")
-                        return Message(MessageType.ERROR, {'error': 'Missing required fields: from, to'})
-
-                    await self.actions.move_sprite(table_id=update_data['table_id'],
-                                                   sprite_id=update_data['sprite_id'],
-                                                   old_position=update_data['from'],
-                                                   new_position=update_data['to'])
-                case 'sprite_scale':
-                    scale_x = float(update_data.get('scale_x', 1.0))
-                    scale_y = float(update_data.get('scale_y', scale_x))
-                    result = await self.actions.scale_sprite(
-                        table_id=table_id, sprite_id=sprite_id,
-                        scale_x=scale_x, scale_y=scale_y
-                    )
-                    if not result.success:
-                        return Message(MessageType.ERROR, {'error': result.message})
-                case 'sprite_rotate':
-                    angle = float(update_data.get('angle', update_data.get('rotation', 0.0)))
-                    result = await self.actions.rotate_sprite(
-                        table_id=table_id, sprite_id=sprite_id, angle=angle
-                    )
-                    if not result.success:
-                        return Message(MessageType.ERROR, {'error': result.message})
 
         # Extract character binding updates
         updates = {}

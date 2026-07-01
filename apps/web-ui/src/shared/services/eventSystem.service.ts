@@ -3,6 +3,8 @@
  * Production-quality event system with type safety and error handling
  */
 
+import { logger } from '@shared/utils/logger';
+
 export type EventHandler<T = unknown> = (data: T) => void;
 
 export interface EventSubscription {
@@ -89,7 +91,7 @@ export class EventSystem {
           handlersToRemove.push(subscription);
         }
       } catch (error) {
-        console.error(`Error in event handler for ${event}:`, error);
+        logger.error(`Error in event handler for ${event}`, error);
       }
     });
 

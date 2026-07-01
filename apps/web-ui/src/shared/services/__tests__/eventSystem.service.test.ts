@@ -1,5 +1,12 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { logger } from '@shared/utils/logger';
 import { EventSystem } from '../eventSystem.service';
+
+vi.mock('@shared/utils/logger', () => ({
+  logger: {
+    error: vi.fn(),
+  },
+}));
 
 describe('EventSystem', () => {
   let es: EventSystem;
@@ -30,8 +37,11 @@ describe('EventSystem', () => {
     });
 
     it('errors in handlers are caught and not rethrown', () => {
-      es.subscribe('k1', 'boom', () => { throw new Error('oops'); });
+      const error = new Error('oops');
+      es.subscribe('k1', 'boom', () => { throw error; });
+
       expect(() => es.emit('boom', null)).not.toThrow();
+      expect(logger.error).toHaveBeenCalledWith('Error in event handler for boom', error);
     });
   });
 

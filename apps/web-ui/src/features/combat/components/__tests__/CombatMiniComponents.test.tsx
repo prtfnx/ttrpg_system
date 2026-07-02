@@ -3,6 +3,7 @@ import { fireEvent, render, screen } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { useCombatStore } from '../../stores/combatStore';
 import { useGameModeStore } from '../../stores/gameModeStore';
+import { usePlanningStore } from '../../stores/planningStore';
 import { ActionPanel } from '../ActionPanel';
 import { ActionEconomyBar } from '../ActionEconomyBar';
 import { GameModeSwitch } from '../GameModeSwitch';
@@ -69,6 +70,12 @@ beforeEach(() => {
   useGameStore.setState({ userId: 42, sessionRole: 'player' });
   useCombatStore.setState({ combat: null, getCurrentCombatant: () => null });
   useGameModeStore.setState({ mode: 'free_roam', roundNumber: 0 });
+  usePlanningStore.setState({
+    queue: [],
+    isPlanningMode: false,
+    selectedSpriteId: null,
+    sequenceId: 0,
+  });
 });
 
 // ── TurnBanner ────────────────────────────────────────────────────────────────
@@ -210,6 +217,65 @@ describe('ActionPanel', () => {
         }),
       }),
     );
+  });
+
+  it('queues an attack instead of sending while planning', () => {
+    const actor = makeCombatant({ combatant_id: 'attacker', name: 'Ada' });
+    const target = makeCombatant({ combatant_id: 'target', name: 'Borin', controlled_by: ['99'] });
+    useCombatStore.setState({ combat: { ...baseCombat, combatants: [actor, target] } });
+    usePlanningStore.setState({ isPlanningMode: true, selectedSpriteId: actor.entity_id });
+
+    render(<ActionPanel />);
+    fireEvent.click(screen.getByRole('button', { name: /attack/i }));
+
+    expect(usePlanningStore.getState().queue).toEqual([
+      expect.objectContaining({
+        action_type: 'attack',
+        label: 'Attack Borin',
+        actor_id: 'attacker',
+        table_id: 'table1',
+        target_id: 'target',
+        cost_type: 'action',
+        sequence_index: 0,
+      }),
+    ]);
+    expect(mockOptionalProtocol.sendMessage).not.toHaveBeenCalled();
+  });
+
+  it('queues schema-complete spell intent while planning', () => {
+    const actor = makeCombatant({
+      combatant_id: 'caster',
+      name: 'Ada',
+      spell_slots: { 1: 1 },
+      spell_slots_max: { 1: 1 },
+      spell_save_dc: 14,
+      spell_attack_bonus: 6,
+    });
+    const target = makeCombatant({ combatant_id: 'target', name: 'Borin', controlled_by: ['99'] });
+    useCombatStore.setState({ combat: { ...baseCombat, combatants: [actor, target] } });
+    usePlanningStore.setState({ isPlanningMode: true, selectedSpriteId: actor.entity_id });
+
+    render(<ActionPanel />);
+    fireEvent.change(screen.getByLabelText(/spell/i), { target: { value: 'Burning Hands' } });
+    fireEvent.change(screen.getByLabelText(/damage/i), { target: { value: '3d6' } });
+    fireEvent.click(screen.getByRole('button', { name: /cast spell/i }));
+
+    expect(usePlanningStore.getState().queue).toEqual([
+      expect.objectContaining({
+        action_type: 'cast_spell',
+        label: 'Cast Burning Hands',
+        actor_id: 'caster',
+        target_ids: ['target'],
+        spell_name: 'Burning Hands',
+        spell_level: 1,
+        damage_formula: '3d6',
+        save_dc: 14,
+        attack_bonus: 6,
+        cost_type: 'action',
+        sequence_index: 0,
+      }),
+    ]);
+    expect(mockOptionalProtocol.sendMessage).not.toHaveBeenCalled();
   });
 
   it('sends utility actions through combat_command', () => {

@@ -4,10 +4,15 @@ import { useState } from 'react';
 import type { CombatCommandType } from '../hooks/useCombatCommands';
 import { useCombatCommands } from '../hooks/useCombatCommands';
 import { useCombatStore } from '../stores/combatStore';
+import { usePlanningStore } from '../stores/planningStore';
 import styles from './ActionPanel.module.css';
 
 interface ActionPanelProps {
   onSelectTarget?: (action: 'attack' | 'help') => void;
+}
+
+function plannedActionId(prefix: string): string {
+  return globalThis.crypto?.randomUUID?.() ?? `${prefix}-${Date.now()}`;
 }
 
 export function ActionPanel({ onSelectTarget }: ActionPanelProps) {
@@ -15,6 +20,8 @@ export function ActionPanel({ onSelectTarget }: ActionPanelProps) {
   const userId = useGameStore((s) => s.userId);
   const activeTableId = useGameStore((s) => s.activeTableId);
   const { sendAttack, sendSpell, sendUtilityAction } = useCombatCommands();
+  const isPlanningMode = usePlanningStore((s) => s.isPlanningMode);
+  const addAction = usePlanningStore((s) => s.addAction);
   const [targetId, setTargetId] = useState('');
   const [spellName, setSpellName] = useState('Magic Missile');
   const [spellLevel, setSpellLevel] = useState('1');
@@ -46,6 +53,19 @@ export function ActionPanel({ onSelectTarget }: ActionPanelProps) {
   const attackTarget = () => {
     if (!selectedTargetId) return;
     onSelectTarget?.('attack');
+    if (isPlanningMode) {
+      const target = targets.find((combatant) => combatant.combatant_id === selectedTargetId);
+      addAction({
+        id: plannedActionId('attack'),
+        action_type: 'attack',
+        label: `Attack ${target?.name ?? 'target'}`,
+        actor_id: current.combatant_id,
+        table_id: activeTableId ?? combat.table_id,
+        target_id: selectedTargetId,
+        cost_type: 'action',
+      });
+      return;
+    }
     sendAttack({
       actorId: current.combatant_id,
       targetId: selectedTargetId,
@@ -55,6 +75,23 @@ export function ActionPanel({ onSelectTarget }: ActionPanelProps) {
 
   const castSpell = () => {
     if (!selectedTargetId || !selectedSpellLevel || !spellName.trim()) return;
+    if (isPlanningMode) {
+      addAction({
+        id: plannedActionId('spell'),
+        action_type: 'cast_spell',
+        label: `Cast ${spellName.trim()}`,
+        actor_id: current.combatant_id,
+        target_ids: [selectedTargetId],
+        spell_name: spellName.trim(),
+        spell_level: Number(selectedSpellLevel),
+        damage_formula: spellDamage.trim(),
+        damage_type: 'fire',
+        save_dc: current.spell_save_dc ?? 0,
+        attack_bonus: current.spell_attack_bonus ?? 0,
+        cost_type: 'action',
+      });
+      return;
+    }
     sendSpell({
       actorId: current.combatant_id,
       spellName: spellName.trim(),

@@ -67,6 +67,7 @@ describe('CombatDock', () => {
     expect(screen.getByRole('region', { name: 'Combat dock' })).toBeTruthy();
     expect(screen.getByText('Combat · Round 3')).toBeTruthy();
     expect(screen.getByText("Ada's turn")).toBeTruthy();
+    expect(screen.getByRole('combobox', { name: 'Inspect combatant' })).toHaveValue('combatant-1');
     expect(screen.getByText('20/24 HP')).toBeTruthy();
     expect(screen.getByText('AC 16')).toBeTruthy();
     expect(screen.getByText('Initiative order')).toBeTruthy();

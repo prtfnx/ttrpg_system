@@ -2,6 +2,7 @@ import { useGameStore } from '@/store';
 import { isDM } from '@features/session/types/roles';
 import { ChevronDown, ChevronUp, Swords } from 'lucide-react';
 import { useState } from 'react';
+import { useCombatSelection } from '../hooks/useCombatSelection';
 import { useCombatStore } from '../stores/combatStore';
 import { ActionEconomyBar } from './ActionEconomyBar';
 import { ActionPanel } from './ActionPanel';
@@ -17,6 +18,7 @@ export function CombatDock() {
   const role = useGameStore((state) => state.sessionRole);
   const dmMode = isDM(role);
   const [expanded, setExpanded] = useState(true);
+  const { selectedCombatant, selectedCombatantId, selectCombatant } = useCombatSelection();
 
   if (!combat && !dmMode) return null;
 
@@ -49,12 +51,22 @@ export function CombatDock() {
             <>
               {current && (
                 <div className={styles.actorSummary}>
-                  <strong>{current.name}</strong>
-                  {current.hp != null && current.max_hp != null && (
-                    <span>{current.hp}/{current.max_hp} HP</span>
+                  <select
+                    aria-label="Inspect combatant"
+                    value={selectedCombatantId}
+                    onChange={(event) => selectCombatant(event.target.value)}
+                  >
+                    {combat.combatants.map((combatant) => (
+                      <option key={combatant.combatant_id} value={combatant.combatant_id}>
+                        {combatant.name}
+                      </option>
+                    ))}
+                  </select>
+                  {selectedCombatant?.hp != null && selectedCombatant.max_hp != null && (
+                    <span>{selectedCombatant.hp}/{selectedCombatant.max_hp} HP</span>
                   )}
-                  {current.armor_class != null && <span>AC {current.armor_class}</span>}
-                  <span>{current.movement_remaining}ft move</span>
+                  {selectedCombatant?.armor_class != null && <span>AC {selectedCombatant.armor_class}</span>}
+                  {selectedCombatant && <span>{selectedCombatant.movement_remaining}ft move</span>}
                 </div>
               )}
               <ActionEconomyBar />

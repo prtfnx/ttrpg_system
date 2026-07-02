@@ -77,3 +77,19 @@ def test_combatant_to_dict_includes_extensions():
     assert 'fire' in d['damage_resistances']
     assert d['concentration_spell'] == 'Bless'
     assert d['surprised'] is True
+
+
+def test_combatant_round_trip_preserves_action_and_spell_metadata():
+    combatant = make_combatant(
+        spell_save_dc=15,
+        spell_attack_bonus=7,
+        save_modifiers={'dexterity': 5},
+        actor_actions=[{'name': 'Fire Bolt', 'action_cost': 'action'}],
+    )
+
+    restored = Combatant.from_dict(combatant.to_dict())
+
+    assert restored.spell_save_dc == 15
+    assert restored.spell_attack_bonus == 7
+    assert restored.save_modifiers == {'dexterity': 5}
+    assert restored.actor_actions == [{'name': 'Fire Bolt', 'action_cost': 'action'}]

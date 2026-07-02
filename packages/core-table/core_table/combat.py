@@ -86,6 +86,10 @@ class Combatant:
     # Spell resources
     spell_slots: dict = field(default_factory=dict)      # {level_str: remaining}
     spell_slots_max: dict = field(default_factory=dict)  # {level_str: max}
+    spell_save_dc: int = 0
+    spell_attack_bonus: int = 0
+    save_modifiers: dict[str, int] = field(default_factory=dict)
+    actor_actions: list[dict] = field(default_factory=list)
 
     def is_alive(self) -> bool:
         return not self.is_defeated
@@ -127,6 +131,10 @@ class Combatant:
             'attacks_used_this_action': self.attacks_used_this_action,
             'spell_slots': self.spell_slots,
             'spell_slots_max': self.spell_slots_max,
+            'spell_save_dc': self.spell_save_dc,
+            'spell_attack_bonus': self.spell_attack_bonus,
+            'save_modifiers': self.save_modifiers,
+            'actor_actions': self.actor_actions,
         }
 
     def to_dict_for_player(self, hp_visibility: str) -> dict:

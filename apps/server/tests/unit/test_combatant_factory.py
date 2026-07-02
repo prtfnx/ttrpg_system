@@ -43,6 +43,13 @@ def test_character_values_fill_combat_resources():
         'data': {
             'stats': {'hp': 20, 'maxHp': 24, 'ac': 16, 'speed': 35, 'initiative': 3},
             'abilityScores': {'dex': 16, 'con': 14},
+            'savingThrows': {'dexterity': {'bonus': 5}, 'constitution': {'bonus': 4}},
+            'attacks': [{'name': 'Quarterstaff', 'damage': '1d6+2'}],
+            'bonusActions': [{'name': 'Misty Step'}],
+            'spellcasting': {
+                'spellSaveDC': 15,
+                'spellAttackBonus': 7,
+            },
             'spellSlots': {'1': {'total': 4}, '2': {'total': 2}, 'cantrips': {'total': 3}},
             'spellSlotsUsed': {'1': 1},
         },
@@ -63,6 +70,36 @@ def test_character_values_fill_combat_resources():
     assert payload['constitution_modifier'] == 2
     assert payload['spell_slots_max'] == {1: 4, 2: 2}
     assert payload['spell_slots'] == {1: 3, 2: 2}
+    assert payload['spell_save_dc'] == 15
+    assert payload['spell_attack_bonus'] == 7
+    assert payload['save_modifiers'] == {'dexterity': 5, 'constitution': 4}
+    assert payload['actor_actions'] == [
+        {'name': 'Quarterstaff', 'damage': '1d6+2', 'action_cost': 'action'},
+        {'name': 'Misty Step', 'action_cost': 'bonus_action'},
+    ]
+
+
+def test_nested_character_spellcasting_slots_preserve_used_counts():
+    character = {
+        'data': {
+            'spellcasting': {
+                'spellSlots': {
+                    'level1': {'max': 4, 'used': 2},
+                    'level2': {'max': 3, 'used': 1},
+                    'level3': {'max': 0, 'used': 0},
+                },
+            },
+        },
+    }
+
+    payload = CombatantFactory().build_payload(
+        'sprite-1',
+        {'character_id': 'char-1'},
+        CombatantFactoryContext(load_character=lambda character_id: character),
+    )
+
+    assert payload['spell_slots_max'] == {1: 4, 2: 3}
+    assert payload['spell_slots'] == {1: 2, 2: 2}
 
 
 def test_flat_compendium_npc_gets_canonical_combat_stats():

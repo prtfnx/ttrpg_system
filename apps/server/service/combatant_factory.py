@@ -142,6 +142,7 @@ class CombatantFactory:
             data.get('speed'),
         )
         death_saves = self._dict_value(stats.get('deathSaves') or stats.get('death_saves'))
+        spellcasting = self._dict_value(data.get('spellcasting'))
         values: dict[str, Any] = {
             'name': self._text_value(character.get('name')) or self._text_value(data.get('name')),
             'hp': self._int_value(hp, 0),
@@ -190,14 +191,43 @@ class CombatantFactory:
                 or str(data.get('type', '')).lower() == 'npc'
                 or str(character.get('type', '')).lower() == 'npc'
             ),
+            'spell_save_dc': self._int_value(
+                self._first_value(
+                    spellcasting.get('spellSaveDC'),
+                    spellcasting.get('spell_save_dc'),
+                    data.get('spellSaveDC'),
+                    data.get('spell_save_dc'),
+                ),
+                0,
+            ),
+            'spell_attack_bonus': self._int_value(
+                self._first_value(
+                    spellcasting.get('spellAttackBonus'),
+                    spellcasting.get('spell_attack_bonus'),
+                    data.get('spellAttackBonus'),
+                    data.get('spell_attack_bonus'),
+                ),
+                0,
+            ),
+            'save_modifiers': self._save_modifiers(
+                data.get('savingThrows') or data.get('saving_throws') or data.get('saves'),
+            ),
+            'actor_actions': self._actor_actions(data),
         }
-        spell_slots_max = self._spell_slots(data.get('spellSlots') or data.get('spell_slots'))
+        raw_spell_slots = (
+            data.get('spellSlots')
+            or data.get('spell_slots')
+            or spellcasting.get('spellSlots')
+            or spellcasting.get('spell_slots')
+        )
+        spell_slots_max = self._spell_slots(raw_spell_slots)
         if spell_slots_max:
             spell_slots_used = {
                 int(level): self._int_value(used, 0)
                 for level, used in self._dict_value(data.get('spellSlotsUsed') or data.get('spell_slots_used')).items()
                 if str(level).isdigit()
             }
+            spell_slots_used.update(self._nested_spell_slots_used(raw_spell_slots))
             values['spell_slots_max'] = spell_slots_max
             values['spell_slots'] = {
                 level: max(0, total - spell_slots_used.get(level, 0))
@@ -216,11 +246,67 @@ class CombatantFactory:
     def _spell_slots(self, raw_slots: Any) -> dict[int, int]:
         slots: dict[int, int] = {}
         for level, value in self._dict_value(raw_slots).items():
-            if not str(level).isdigit():
+            normalized_level = self._slot_level(level)
+            if normalized_level is None:
                 continue
-            total = value.get('total') if isinstance(value, Mapping) else value
-            slots[int(level)] = self._int_value(total, 0)
+            total = (
+                self._first_value(value.get('total'), value.get('max'))
+                if isinstance(value, Mapping)
+                else value
+            )
+            slots[normalized_level] = self._int_value(total, 0)
         return {level: total for level, total in slots.items() if total > 0}
+
+    def _nested_spell_slots_used(self, raw_slots: Any) -> dict[int, int]:
+        used_slots: dict[int, int] = {}
+        for level, value in self._dict_value(raw_slots).items():
+            normalized_level = self._slot_level(level)
+            if (
+                normalized_level is None
+                or not isinstance(value, Mapping)
+                or 'used' not in value
+            ):
+                continue
+            used_slots[normalized_level] = self._int_value(value.get('used'), 0)
+        return used_slots
+
+    def _slot_level(self, value: Any) -> int | None:
+        match = re.search(r'\d+', str(value))
+        return int(match.group(0)) if match else None
+
+    def _save_modifiers(self, raw_saves: Any) -> dict[str, int]:
+        modifiers: dict[str, int] = {}
+        for ability, raw_value in self._dict_value(raw_saves).items():
+            value = (
+                self._first_value(raw_value.get('bonus'), raw_value.get('modifier'))
+                if isinstance(raw_value, Mapping)
+                else raw_value
+            )
+            if value is not None:
+                modifiers[str(ability).lower()] = self._int_value(value, 0)
+        return modifiers
+
+    def _actor_actions(self, data: Mapping[str, Any]) -> list[dict[str, Any]]:
+        actions: list[dict[str, Any]] = []
+        sources = (
+            ('action', data.get('actions') or data.get('attacks')),
+            ('bonus_action', data.get('bonusActions') or data.get('bonus_actions')),
+            ('reaction', data.get('reactions')),
+            ('legendary', data.get('legendaryActions') or data.get('legendary_actions')),
+        )
+        for action_cost, raw_actions in sources:
+            if not isinstance(raw_actions, list):
+                continue
+            for raw_action in raw_actions:
+                if isinstance(raw_action, Mapping):
+                    action = dict(raw_action)
+                elif raw_action:
+                    action = {'name': str(raw_action)}
+                else:
+                    continue
+                action.setdefault('action_cost', action_cost)
+                actions.append(action)
+        return actions
 
     def _find_token(self, table: Any, entity_id: str) -> Any:
         if table is None:

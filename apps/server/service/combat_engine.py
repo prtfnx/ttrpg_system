@@ -3,6 +3,7 @@ import math
 import random
 import time
 import uuid
+from dataclasses import fields
 
 from core_table.combat import (
     CombatAction,
@@ -25,6 +26,42 @@ class CombatEngine:
 
     # session_code → CombatState (in-memory; persisted to DB on round/end)
     _active: dict[str, CombatState] = {}
+    _COMBATANT_PAYLOAD_FIELDS = {
+        field.name
+        for field in fields(Combatant)
+        if field.name not in {'combatant_id', 'entity_id', 'movement_remaining'}
+    }
+
+    @classmethod
+    def _combatant_from_payload(
+        cls,
+        entity_id: str,
+        payload: dict,
+        fallback_name: str = '',
+    ) -> Combatant:
+        values = {
+            key: value
+            for key, value in payload.items()
+            if key in cls._COMBATANT_PAYLOAD_FIELDS
+        }
+        movement_speed = float(values.get('movement_speed', 30) or 30)
+        controlled_by = [
+            str(value)
+            for value in (values.get('controlled_by') or [])
+            if value is not None
+        ]
+        values.update({
+            'name': str(values.get('name') or fallback_name or entity_id[:8]),
+            'movement_speed': movement_speed,
+            'controlled_by': controlled_by,
+            'is_npc': bool(values.get('is_npc', not controlled_by)),
+        })
+        return Combatant(
+            combatant_id=str(uuid.uuid4()),
+            entity_id=entity_id,
+            movement_remaining=movement_speed,
+            **values,
+        )
 
     # ── Persistence ─────────────────────────────────────────────────────────
 
@@ -89,21 +126,9 @@ class CombatEngine:
                 eid = str(item.get('entity_id') or '')
                 if not eid:
                     continue
-                movement_speed = float(item.get('movement_speed', 30) or 30)
-                controlled_by = [str(x) for x in (item.get('controlled_by') or []) if x is not None]
-                state.combatants.append(Combatant(
-                    combatant_id=str(uuid.uuid4()),
-                    entity_id=eid,
-                    character_id=item.get('character_id'),
-                    name=str(item.get('name') or names.get(eid, eid[:8])),
-                    hp=int(item.get('hp', 0) or 0),
-                    max_hp=int(item.get('max_hp', 0) or 0),
-                    armor_class=int(item.get('armor_class', 10) or 10),
-                    movement_speed=movement_speed,
-                    movement_remaining=movement_speed,
-                    controlled_by=controlled_by,
-                    is_npc=bool(item.get('is_npc', not controlled_by)),
-                ))
+                state.combatants.append(
+                    cls._combatant_from_payload(eid, item, names.get(eid, eid[:8])),
+                )
         else:
             for eid in entity_ids:
                 state.combatants.append(Combatant(
@@ -149,12 +174,7 @@ class CombatEngine:
         state = cls._active.get(session_id)
         if not state:
             return None
-        c = Combatant(
-            combatant_id=str(uuid.uuid4()), entity_id=entity_id,
-            movement_speed=kwargs.get('movement_speed', 30),
-            movement_remaining=kwargs.get('movement_speed', 30),
-            **{k: v for k, v in kwargs.items() if k not in ('movement_speed',)},
-        )
+        c = cls._combatant_from_payload(str(entity_id), kwargs)
         state.combatants.append(c)
         return c
 

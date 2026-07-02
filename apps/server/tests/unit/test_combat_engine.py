@@ -41,6 +41,15 @@ def test_start_combat_uses_rich_combatant_payload():
             'movement_speed': 35,
             'controlled_by': ['1'],
             'is_npc': False,
+            'initiative_modifier': 3,
+            'constitution_modifier': 2,
+            'temp_hp': 4,
+            'attacks_per_action': 2,
+            'damage_resistances': ['fire'],
+            'damage_vulnerabilities': ['cold'],
+            'damage_immunities': ['poison'],
+            'spell_slots': {1: 3, 2: 2},
+            'spell_slots_max': {1: 4, 2: 2},
         }],
     )
 
@@ -55,6 +64,40 @@ def test_start_combat_uses_rich_combatant_payload():
     assert combatant.movement_remaining == 35
     assert combatant.controlled_by == ['1']
     assert not combatant.is_npc
+    assert combatant.initiative_modifier == 3
+    assert combatant.constitution_modifier == 2
+    assert combatant.temp_hp == 4
+    assert combatant.attacks_per_action == 2
+    assert combatant.damage_resistances == ['fire']
+    assert combatant.damage_vulnerabilities == ['cold']
+    assert combatant.damage_immunities == ['poison']
+    assert combatant.spell_slots == {1: 3, 2: 2}
+    assert combatant.spell_slots_max == {1: 4, 2: 2}
+
+
+def test_add_combatant_preserves_rich_resources_and_ignores_unknown_fields():
+    CombatEngine.start_combat('sess1', 't1', [])
+
+    combatant = CombatEngine.add_combatant(
+        'sess1',
+        'token1',
+        name='Mage',
+        movement_speed=25,
+        initiative_modifier=4,
+        constitution_modifier=1,
+        spell_slots={1: 2},
+        spell_slots_max={1: 3},
+        unknown_client_field='ignored',
+    )
+
+    assert combatant is not None
+    assert combatant.name == 'Mage'
+    assert combatant.movement_speed == 25
+    assert combatant.movement_remaining == 25
+    assert combatant.initiative_modifier == 4
+    assert combatant.constitution_modifier == 1
+    assert combatant.spell_slots == {1: 2}
+    assert combatant.spell_slots_max == {1: 3}
 
 
 def test_end_combat_removes_state():

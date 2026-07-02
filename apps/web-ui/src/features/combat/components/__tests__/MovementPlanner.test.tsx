@@ -1,4 +1,4 @@
-import { fireEvent, render, screen } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { useSessionRulesStore } from '../../stores/sessionRulesStore';
 import { MovementPlanner } from '../MovementPlanner';
@@ -7,6 +7,7 @@ vi.mock('../../services/planning.service', () => ({
   planningService: {
     movementRange: vi.fn().mockResolvedValue({}),
     clearGhost: vi.fn(),
+    startGhost: vi.fn().mockResolvedValue(15),
   },
 }));
 
@@ -41,11 +42,32 @@ describe('MovementPlanner', () => {
     expect(onCancel).toHaveBeenCalled();
   });
 
-  it('calls onConfirm when Confirm clicked', () => {
+  it('previews a canvas destination before confirming it', async () => {
     const onConfirm = vi.fn();
-    render(<MovementPlanner {...baseProps} onConfirm={onConfirm} />);
+    render(
+      <>
+        <canvas data-testid="game-canvas" width={100} height={100} />
+        <MovementPlanner {...baseProps} onConfirm={onConfirm} />
+      </>,
+    );
+    const canvas = screen.getByTestId('game-canvas');
+    vi.spyOn(canvas, 'getBoundingClientRect').mockReturnValue({
+      x: 0,
+      y: 0,
+      top: 0,
+      left: 0,
+      right: 100,
+      bottom: 100,
+      width: 100,
+      height: 100,
+      toJSON: () => ({}),
+    });
+
+    fireEvent.click(canvas, { clientX: 25, clientY: 50 });
+    await waitFor(() => expect(screen.getByText('15ft')).toBeInTheDocument());
     fireEvent.click(screen.getByText('Confirm'));
-    expect(onConfirm).toHaveBeenCalled();
+
+    expect(onConfirm).toHaveBeenCalledWith(25, 50, 15);
   });
 
   it('shows hint text', () => {

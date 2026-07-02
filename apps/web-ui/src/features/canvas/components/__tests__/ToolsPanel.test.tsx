@@ -342,28 +342,11 @@ describe('ToolsPanel — wall list', () => {
 
 // ── combat section ────────────────────────────────────────────────────────────
 describe('ToolsPanel — combat section', () => {
-  it('DM sees Toggle Combat Panel and Toggle Initiative Tracker buttons', () => {
+  it('does not mount duplicate combat or initiative surfaces', () => {
     dmStore();
     render(<ToolsPanel userInfo={makeUser('dm')} />);
-    expect(screen.getByTitle('Toggle Combat Panel')).toBeInTheDocument();
-    expect(screen.getByTitle('Toggle Initiative Tracker')).toBeInTheDocument();
-  });
-
-  it('clicking Toggle Combat Panel shows DMCombatPanel', () => {
-    dmStore();
-    render(<ToolsPanel userInfo={makeUser('dm')} />);
-    // DMCombatPanel is mocked as () => null, so just check button becomes active
-    const btn = screen.getByTitle('Toggle Combat Panel');
-    fireEvent.click(btn);
-    expect(btn.classList.contains('active') || btn.getAttribute('class')).toBeTruthy();
-  });
-
-  it('clicking Toggle Initiative Tracker toggles it', () => {
-    dmStore();
-    render(<ToolsPanel userInfo={makeUser('dm')} />);
-    const btn = screen.getByTitle('Toggle Initiative Tracker');
-    fireEvent.click(btn);
-    expect(btn).toBeTruthy(); // fires without error
+    expect(screen.queryByTitle('Toggle Combat Panel')).not.toBeInTheDocument();
+    expect(screen.queryByTitle('Toggle Initiative Tracker')).not.toBeInTheDocument();
   });
 });
 

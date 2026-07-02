@@ -8,6 +8,7 @@ vi.mock('../ActionEconomyBar', () => ({ ActionEconomyBar: () => <div>Action econ
 vi.mock('../ActionPanel', () => ({ ActionPanel: () => <div>Player actions</div> }));
 vi.mock('../CommitButton', () => ({ CommitButton: () => <div>Commit plan</div> }));
 vi.mock('../DMCombatPanel', () => ({ DMCombatPanel: () => <div>DM work surface</div> }));
+vi.mock('../GameModeSwitch', () => ({ GameModeSwitch: () => <div>Game mode</div> }));
 vi.mock('../InitiativePanel', () => ({ InitiativePanel: () => <div>Initiative order</div> }));
 vi.mock('../PlanningQueue', () => ({ PlanningQueue: () => <div>Planned actions</div> }));
 
@@ -82,6 +83,7 @@ describe('CombatDock', () => {
 
     expect(screen.getByText('Combat setup')).toBeTruthy();
     expect(screen.getByText('DM controls')).toBeTruthy();
+    expect(screen.getByText('Game mode')).toBeTruthy();
     expect(screen.getByText('DM work surface')).toBeTruthy();
   });
 

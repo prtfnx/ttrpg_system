@@ -7,6 +7,7 @@ import { ActionEconomyBar } from './ActionEconomyBar';
 import { ActionPanel } from './ActionPanel';
 import { CommitButton } from './CommitButton';
 import { DMCombatPanel } from './DMCombatPanel';
+import { GameModeSwitch } from './GameModeSwitch';
 import { InitiativePanel } from './InitiativePanel';
 import { PlanningQueue } from './PlanningQueue';
 import styles from './CombatDock.module.css';
@@ -73,6 +74,7 @@ export function CombatDock() {
           {dmMode && (
             <details className={styles.dmTools} open={!combat}>
               <summary>DM controls</summary>
+              <GameModeSwitch />
               <DMCombatPanel />
             </details>
           )}

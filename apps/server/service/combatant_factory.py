@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import re
 from collections.abc import Callable, Mapping
 from dataclasses import dataclass
 from typing import Any
@@ -16,6 +17,16 @@ class CombatantFactoryContext:
 
 class CombatantFactory:
     """Build combatant payloads from server-owned token and character data."""
+
+    _DM_OVERRIDE_FIELDS = {
+        'armor_class',
+        'hp',
+        'is_hidden',
+        'is_npc',
+        'max_hp',
+        'movement_speed',
+        'name',
+    }
 
     def build_payload(
         self,
@@ -35,7 +46,9 @@ class CombatantFactory:
         token_values = self._token_values(token)
         character_values = self._character_values(character)
         fallback_values = self._fallback_values(entity_id, client_payload)
-        explicit_overrides = self._dict_value(client_payload.get('overrides') or client_payload.get('dm_overrides'))
+        explicit_overrides = self._override_values(
+            client_payload.get('overrides') or client_payload.get('dm_overrides'),
+        )
 
         payload = {
             **fallback_values,
@@ -98,20 +111,84 @@ class CombatantFactory:
     def _character_values(self, character: Mapping[str, Any] | None) -> dict[str, Any]:
         if not character:
             return {}
-        data = self._dict_value(character.get('data'))
+        nested_data = self._dict_value(character.get('data'))
+        data = nested_data or self._dict_value(character)
         stats = self._dict_value(data.get('stats'))
-        abilities = self._dict_value(data.get('abilityScores') or data.get('ability_scores'))
+        abilities = self._dict_value(
+            data.get('abilityScores')
+            or data.get('ability_scores')
+            or data.get('abilities')
+        )
+        monster_stats = stats if self._has_ability_scores(stats) else self._dict_value(data.get('attributes'))
+        dexterity = self._ability_score(abilities or monster_stats, 'dex')
+        constitution = self._ability_score(abilities or monster_stats, 'con')
+        hp = self._first_value(stats.get('hp'), data.get('current_hp'), data.get('hit_points'), data.get('hp'))
+        max_hp = self._first_value(
+            stats.get('maxHp'),
+            stats.get('max_hp'),
+            data.get('max_hp'),
+            data.get('hit_points'),
+            data.get('hp'),
+        )
+        armor_class = self._first_value(
+            stats.get('ac'),
+            stats.get('armor_class'),
+            data.get('armor_class'),
+            data.get('ac'),
+        )
+        speed = self._first_value(
+            stats.get('speed'),
+            data.get('movement_speed'),
+            data.get('speed'),
+        )
+        death_saves = self._dict_value(stats.get('deathSaves') or stats.get('death_saves'))
         values: dict[str, Any] = {
             'name': self._text_value(character.get('name')) or self._text_value(data.get('name')),
-            'hp': self._int_value(stats.get('hp'), 0),
-            'max_hp': self._int_value(stats.get('maxHp') or stats.get('max_hp'), 0),
-            'armor_class': self._int_value(stats.get('ac') or stats.get('armor_class'), 10),
-            'movement_speed': self._float_value(stats.get('speed') or data.get('speed'), 30),
-            'initiative_modifier': self._int_value(stats.get('initiative'), self._ability_modifier(abilities.get('dex'))),
-            'constitution_modifier': self._ability_modifier(abilities.get('con')),
+            'hp': self._int_value(hp, 0),
+            'max_hp': self._int_value(max_hp, 0),
+            'temp_hp': self._int_value(
+                self._first_value(stats.get('tempHp'), stats.get('temp_hp'), data.get('temp_hp')),
+                0,
+            ),
+            'armor_class': self._int_value(self._scalar_value(armor_class), 10),
+            'movement_speed': self._speed_value(speed, 30),
+            'initiative_modifier': self._int_value(
+                self._first_value(
+                    stats.get('initiative'),
+                    data.get('initiative_modifier'),
+                    data.get('initiative_bonus'),
+                ),
+                self._ability_modifier(dexterity),
+            ),
+            'constitution_modifier': self._int_value(
+                self._first_value(data.get('constitution_modifier'), data.get('con_modifier')),
+                self._ability_modifier(constitution),
+            ),
             'attacks_per_action': self._int_value(
-                stats.get('attacksPerAction') or stats.get('attacks_per_action') or data.get('attacksPerAction'),
+                self._first_value(
+                    stats.get('attacksPerAction'),
+                    stats.get('attacks_per_action'),
+                    data.get('attacksPerAction'),
+                    data.get('attacks_per_action'),
+                ),
                 1,
+            ),
+            'death_save_successes': self._int_value(death_saves.get('successes'), 0),
+            'death_save_failures': self._int_value(death_saves.get('failures'), 0),
+            'damage_resistances': self._string_list(
+                data.get('damageResistances') or data.get('damage_resistances'),
+            ),
+            'damage_vulnerabilities': self._string_list(
+                data.get('damageVulnerabilities') or data.get('damage_vulnerabilities'),
+            ),
+            'damage_immunities': self._string_list(
+                data.get('damageImmunities') or data.get('damage_immunities'),
+            ),
+            'is_npc': bool(
+                data.get('npc')
+                or data.get('is_npc')
+                or str(data.get('type', '')).lower() == 'npc'
+                or str(character.get('type', '')).lower() == 'npc'
             ),
         }
         spell_slots_max = self._spell_slots(data.get('spellSlots') or data.get('spell_slots'))
@@ -127,6 +204,14 @@ class CombatantFactory:
                 for level, total in spell_slots_max.items()
             }
         return {k: v for k, v in values.items() if v not in (None, '')}
+
+    def _override_values(self, raw_overrides: Any) -> dict[str, Any]:
+        overrides = self._dict_value(raw_overrides)
+        return {
+            key: value
+            for key, value in overrides.items()
+            if key in self._DM_OVERRIDE_FIELDS
+        }
 
     def _spell_slots(self, raw_slots: Any) -> dict[int, int]:
         slots: dict[int, int] = {}
@@ -156,6 +241,49 @@ class CombatantFactory:
             if str(self._get_attr(token, 'entity_id') or '') == entity_id:
                 return token
         return None
+
+    def _ability_score(self, abilities: Mapping[str, Any], short_name: str) -> Any:
+        aliases = {
+            'con': ('con', 'constitution', 'CON'),
+            'dex': ('dex', 'dexterity', 'DEX'),
+        }
+        for name in aliases[short_name]:
+            if name in abilities:
+                return abilities[name]
+        return None
+
+    def _has_ability_scores(self, values: Mapping[str, Any]) -> bool:
+        return any(key in values for key in ('STR', 'DEX', 'CON', 'strength', 'dexterity', 'constitution'))
+
+    def _first_value(self, *values: Any) -> Any:
+        for value in values:
+            if value is not None and value != '':
+                return value
+        return None
+
+    def _scalar_value(self, value: Any) -> Any:
+        if isinstance(value, list) and value:
+            return self._scalar_value(value[0])
+        if isinstance(value, Mapping):
+            return self._first_value(value.get('value'), value.get('ac'), value.get('base'))
+        return value
+
+    def _speed_value(self, value: Any, fallback: float) -> float:
+        if isinstance(value, Mapping):
+            value = self._first_value(value.get('walk'), value.get('walking'), value.get('value'))
+        if isinstance(value, str):
+            match = re.search(r'-?\d+(?:\.\d+)?', value)
+            value = match.group(0) if match else value
+        return self._float_value(value, fallback)
+
+    def _string_list(self, value: Any) -> list[str]:
+        if isinstance(value, str):
+            values = re.split(r'[,;]', value)
+        elif isinstance(value, (list, tuple, set)):
+            values = value
+        else:
+            return []
+        return [str(item).strip().lower() for item in values if str(item).strip()]
 
     def _ability_modifier(self, score: Any) -> int:
         if score is None:

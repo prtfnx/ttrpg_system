@@ -136,6 +136,94 @@ def test_command_batch_rolls_back_when_later_command_fails():
     assert restored_actor.movement_remaining == 30
 
 
+async def test_planned_move_attack_end_turn_resolves_as_one_batch():
+    state, actor, target = _state()
+    move_sprite = AsyncMock(return_value={"success": True, "message": "ok"})
+    service = CombatCommandService()
+    envelope = service.parse_envelope({
+        "sequence_id": 3,
+        "commands": [
+            {
+                "type": "move",
+                "actor_id": actor.entity_id,
+                "table_id": "t1",
+                "from_x": 0,
+                "from_y": 0,
+                "target_x": 64,
+                "target_y": 0,
+                "cost_ft": 10,
+            },
+            {
+                "type": "attack",
+                "actor_id": actor.combatant_id,
+                "target_id": target.combatant_id,
+                "damage_formula": "1d6",
+            },
+            {
+                "type": "end_turn",
+                "actor_id": actor.combatant_id,
+            },
+        ],
+    })
+
+    context = CombatCommandContext(
+        session_code="cmd",
+        client_id="c1",
+        role="player",
+        user_id=1,
+        move_sprite=move_sprite,
+        validate_move=lambda *_args: {
+            "success": True,
+            "movement_cost": 10,
+            "opportunity_attack_triggers": [],
+        },
+    )
+    with patch.object(CombatEngine, "apply_damage", return_value={"new_hp": 15}):
+        with patch("service.attack_resolver.AttackResolver") as resolver:
+            resolver.return_value.resolve_attack.return_value = AttackResult(
+                hit=True,
+                damage_dealt=5,
+            )
+            result = await service.apply_async(envelope, context)
+
+    current_state = CombatEngine.get_state("cmd")
+    assert result.accepted is True
+    assert [item["action_type"] for item in result.applied] == [
+        "move",
+        "attack",
+        "end_turn",
+    ]
+    assert current_state.combatants[0].movement_remaining == 20
+    assert current_state.combatants[0].has_action is False
+    assert current_state.get_current_combatant().combatant_id == target.combatant_id
+    move_sprite.assert_awaited_once()
+
+
+def test_planned_spell_consumes_action_and_spell_slot():
+    state, caster, target = _state()
+    caster.spell_slots = {1: 1}
+    caster.spell_slots_max = {1: 1}
+    service = CombatCommandService()
+    envelope = service.parse_envelope({
+        "sequence_id": 4,
+        "commands": [{
+            "type": "cast_spell",
+            "actor_id": caster.combatant_id,
+            "spell_name": "Magic Missile",
+            "spell_level": 1,
+            "target_ids": [target.combatant_id],
+        }],
+    })
+
+    result = service.apply(envelope, _context(role="player"))
+
+    current_caster = CombatEngine.get_state("cmd").combatants[0]
+    assert result.accepted is True
+    assert result.applied[0]["action_type"] == "cast_spell"
+    assert current_caster.has_action is False
+    assert current_caster.spell_slots[1] == 0
+
+
 async def test_move_command_rejects_failed_validation_before_moving_token():
     state, actor, _target = _state()
     move_sprite = AsyncMock(return_value={"success": True, "message": "ok"})

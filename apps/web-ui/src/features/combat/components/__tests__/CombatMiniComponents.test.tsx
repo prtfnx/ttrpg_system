@@ -155,6 +155,21 @@ describe('ActionEconomyBar', () => {
     expect(screen.getByText('Reaction')).toBeTruthy();
   });
 
+  it('shows the active actor economy to a DM without token ownership', () => {
+    useGameStore.setState({ sessionRole: 'owner', userId: 42 });
+    useCombatStore.setState({
+      combat: {
+        ...baseCombat,
+        combatants: [makeCombatant({ controlled_by: [] })],
+      },
+    });
+
+    render(<ActionEconomyBar />);
+
+    expect(screen.getByText('Action')).toBeTruthy();
+    expect(screen.getByText('30ft')).toBeTruthy();
+  });
+
   it('shows movement remaining', () => {
     useCombatStore.setState({ combat: { ...baseCombat, combatants: [makeCombatant({ controlled_by: ['42'], movement_remaining: 25 })] } });
     render(<ActionEconomyBar />);
@@ -165,6 +180,38 @@ describe('ActionEconomyBar', () => {
 // ── GameModeSwitch ────────────────────────────────────────────────────────────
 
 describe('ActionPanel', () => {
+  it('lets a DM resolve the active uncontrolled actor', () => {
+    useGameStore.setState({ sessionRole: 'owner', userId: 42 });
+    const actor = makeCombatant({
+      combatant_id: 'npc-actor',
+      name: 'Goblin',
+      controlled_by: [],
+    });
+    const target = makeCombatant({
+      combatant_id: 'target',
+      name: 'Borin',
+      controlled_by: ['99'],
+    });
+    useCombatStore.setState({ combat: { ...baseCombat, combatants: [actor, target] } });
+
+    render(<ActionPanel />);
+    fireEvent.click(screen.getByRole('button', { name: /attack/i }));
+
+    expect(screen.getByText('Active Actor - Goblin')).toBeTruthy();
+    expect(mockOptionalProtocol.sendMessage).toHaveBeenCalledWith(
+      expect.objectContaining({
+        type: 'combat_command',
+        data: expect.objectContaining({
+          commands: [expect.objectContaining({
+            type: 'attack',
+            actor_id: 'npc-actor',
+            target_id: 'target',
+          })],
+        }),
+      }),
+    );
+  });
+
   it('sends attack commands with the selected target', () => {
     const actor = makeCombatant({ combatant_id: 'attacker', name: 'Ada' });
     const target = makeCombatant({ combatant_id: 'target', name: 'Borin', controlled_by: ['99'] });

@@ -1,4 +1,5 @@
 import { useGameStore } from '@/store';
+import { isDM } from '@features/session/types/roles';
 import { Eye, Footprints, Handshake, LogOut, Shield, Swords, Zap } from 'lucide-react';
 import { useState } from 'react';
 import type { CombatCommandType } from '../hooks/useCombatCommands';
@@ -18,6 +19,8 @@ function plannedActionId(prefix: string): string {
 export function ActionPanel({ onSelectTarget }: ActionPanelProps) {
   const combat = useCombatStore((s) => s.combat);
   const userId = useGameStore((s) => s.userId);
+  const role = useGameStore((s) => s.sessionRole);
+  const dmMode = isDM(role);
   const activeTableId = useGameStore((s) => s.activeTableId);
   const { sendAttack, sendSpell, sendUtilityAction } = useCombatCommands();
   const isPlanningMode = usePlanningStore((s) => s.isPlanningMode);
@@ -32,7 +35,10 @@ export function ActionPanel({ onSelectTarget }: ActionPanelProps) {
   const active = combat.combatants.filter((c) => !c.is_defeated);
   const current = active[combat.current_turn_index % Math.max(active.length, 1)];
 
-  if (!current || userId === null || !current.controlled_by.includes(String(userId))) {
+  if (
+    !current
+    || (!dmMode && (userId === null || !current.controlled_by.includes(String(userId))))
+  ) {
     return null;
   }
 
@@ -106,7 +112,7 @@ export function ActionPanel({ onSelectTarget }: ActionPanelProps) {
 
   return (
     <div className={styles.panel}>
-      <div className={styles.title}>Your Turn - {current.name}</div>
+      <div className={styles.title}>{dmMode ? 'Active Actor' : 'Your Turn'} - {current.name}</div>
       {targets.length > 0 && (
         <label className={styles.field}>
           <span>Target</span>

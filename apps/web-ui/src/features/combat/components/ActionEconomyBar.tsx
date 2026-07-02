@@ -1,16 +1,22 @@
 import styles from './ActionEconomyBar.module.css';
 import { useCombatStore } from '../stores/combatStore';
 import { useGameStore } from '@/store';
+import { isDM } from '@features/session/types/roles';
 
 export function ActionEconomyBar() {
   const combat = useCombatStore((s) => s.combat);
   const userId = useGameStore((s) => s.userId);
+  const role = useGameStore((s) => s.sessionRole);
+  const dmMode = isDM(role);
 
   if (!combat || combat.phase !== 'active') return null;
 
   const active = combat.combatants.filter((c) => !c.is_defeated);
   const current = active[combat.current_turn_index % Math.max(active.length, 1)];
-  if (!current || userId === null || !current.controlled_by.includes(String(userId))) return null;
+  if (
+    !current
+    || (!dmMode && (userId === null || !current.controlled_by.includes(String(userId))))
+  ) return null;
 
   return (
     <div className={styles.bar}>

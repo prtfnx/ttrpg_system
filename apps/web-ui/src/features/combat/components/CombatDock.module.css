@@ -1,0 +1,116 @@
+.dock {
+  position: absolute;
+  left: 50%;
+  bottom: var(--space-md);
+  z-index: 90;
+  width: min(900px, calc(100% - 32px));
+  max-height: min(70vh, 680px);
+  transform: translateX(-50%);
+  overflow: hidden;
+  background: var(--panel-bg);
+  border: 1px solid var(--panel-border);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-xl);
+}
+
+.header {
+  width: 100%;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto 20px;
+  align-items: center;
+  gap: var(--space-md);
+  padding: var(--space-sm) var(--space-md);
+  background: var(--bg-secondary);
+  color: var(--text-primary);
+  border: 0;
+  cursor: pointer;
+  text-align: left;
+}
+
+.heading {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-sm);
+  min-width: 0;
+  font-weight: 700;
+}
+
+.currentName {
+  color: var(--text-muted);
+  font-size: var(--text-xs);
+}
+
+.body {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-sm);
+  max-height: calc(min(70vh, 680px) - 40px);
+  padding: var(--space-sm);
+  overflow: auto;
+}
+
+.actorSummary {
+  display: flex;
+  align-items: center;
+  gap: var(--space-md);
+  padding: var(--space-xs) var(--space-sm);
+  color: var(--text-secondary);
+  font-size: var(--text-xs);
+}
+
+.actorSummary strong {
+  color: var(--text-primary);
+}
+
+.combatGrid {
+  display: grid;
+  grid-template-columns: minmax(250px, 0.9fr) minmax(280px, 1.1fr);
+  gap: var(--space-sm);
+  min-height: 0;
+}
+
+.initiative,
+.actions {
+  min-width: 0;
+}
+
+.actions {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-sm);
+}
+
+.dmTools {
+  border-top: 1px solid var(--border-primary);
+  padding-top: var(--space-sm);
+}
+
+.dmTools summary {
+  color: var(--text-primary);
+  cursor: pointer;
+  font-weight: 600;
+}
+
+@media (max-width: 720px) {
+  .dock {
+    bottom: var(--space-xs);
+    width: calc(100% - 12px);
+    max-height: 80vh;
+  }
+
+  .header {
+    grid-template-columns: minmax(0, 1fr) 20px;
+  }
+
+  .currentName {
+    display: none;
+  }
+
+  .combatGrid {
+    grid-template-columns: 1fr;
+  }
+
+  .actorSummary {
+    flex-wrap: wrap;
+  }
+}

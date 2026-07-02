@@ -1,6 +1,7 @@
 export { ActionEconomyBar } from './components/ActionEconomyBar';
 export { AIControlPanel } from './components/AIControlPanel';
 export { CombatLog } from './components/CombatLog';
+export { CombatDock } from './components/CombatDock';
 export { CommitButton } from './components/CommitButton';
 export { ConditionBadges } from './components/ConditionBadges';
 export { DiceRoller } from './components/DiceRoller';

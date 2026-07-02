@@ -117,7 +117,7 @@ describe('RightPanel', () => {
       // Verify all production tabs are present with proper roles
       const tabs = [
         'Compendium', 'Tables', 'Quick Actions', 'Characters',
-        'Players', 'Initiative', 'Entities', 'Chat',
+        'Players', 'Entities', 'Chat',
         'Lighting', 'Fog', 'Backgrounds', 'Performance', 'Customize'
       ];
 
@@ -190,12 +190,12 @@ describe('RightPanel', () => {
       expect(playersTab).toHaveAttribute('aria-selected', 'true');
       expect(screen.getByRole('tabpanel')).toHaveAttribute('aria-label', 'players panel');
 
-      // Switch to Initiative
-      const initiativeTab = screen.getByRole('tab', { name: /initiative/i });
-      await user.click(initiativeTab);
+      // Switch to Chat
+      const chatTab = screen.getByRole('tab', { name: /^chat$/i });
+      await user.click(chatTab);
 
-      expect(initiativeTab).toHaveAttribute('aria-selected', 'true');
-      expect(screen.getByRole('tabpanel')).toHaveAttribute('aria-label', 'initiative panel');
+      expect(chatTab).toHaveAttribute('aria-selected', 'true');
+      expect(screen.getByRole('tabpanel')).toHaveAttribute('aria-label', 'chat panel');
     });
 
     it('properly manages aria-selected across tab switches', async () => {
@@ -320,12 +320,12 @@ describe('RightPanel', () => {
       let tabPanel = screen.getByRole('tabpanel');
       expect(tabPanel).toHaveAttribute('aria-label', 'players panel');
       
-      // Switch to Initiative which also receives props
-      const initiativeTab = screen.getByRole('tab', { name: /initiative/i });
-      await user.click(initiativeTab);
+      // Switch to Chat after verifying the prop-bearing Players panel
+      const chatTab = screen.getByRole('tab', { name: /^chat$/i });
+      await user.click(chatTab);
 
       tabPanel = screen.getByRole('tabpanel');
-      expect(tabPanel).toHaveAttribute('aria-label', 'initiative panel');
+      expect(tabPanel).toHaveAttribute('aria-label', 'chat panel');
     });
   });
 

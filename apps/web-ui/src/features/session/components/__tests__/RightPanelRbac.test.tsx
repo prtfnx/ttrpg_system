@@ -168,9 +168,9 @@ describe('RightPanel — tab visibility per role', () => {
       expect(screen.getByRole('tab', { name: /characters/i })).toBeInTheDocument();
     });
 
-    it('sees the Initiative tab', () => {
+    it('uses the combat dock instead of a duplicate Initiative tab', () => {
       renderPanel();
-      expect(screen.getByRole('tab', { name: /initiative/i })).toBeInTheDocument();
+      expect(screen.queryByRole('tab', { name: /initiative/i })).not.toBeInTheDocument();
     });
 
     it('does not see the Compendium tab', () => {
@@ -207,9 +207,9 @@ describe('RightPanel — tab visibility per role', () => {
       expect(screen.getByRole('tab', { name: /entities/i })).toBeInTheDocument();
     });
 
-    it('still sees the Initiative tab', () => {
+    it('does not receive a duplicate Initiative tab', () => {
       renderPanel();
-      expect(screen.getByRole('tab', { name: /initiative/i })).toBeInTheDocument();
+      expect(screen.queryByRole('tab', { name: /initiative/i })).not.toBeInTheDocument();
     });
   });
 

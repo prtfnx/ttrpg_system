@@ -18,6 +18,7 @@ export { PlanningQueue } from './components/PlanningQueue';
 export { TurnBanner } from './components/TurnBanner';
 export { useCombatCommands } from './hooks/useCombatCommands';
 export type { CombatCommandBatch, CombatCommandPayload, CombatCommandType } from './hooks/useCombatCommands';
+export { useCombatSelection } from './hooks/useCombatSelection';
 export { CombatPreviewService } from './services/combatPreview.service';
 export type { CombatStats, DiceResult } from './services/combatPreview.service';
 export { planningService } from './services/planning.service';

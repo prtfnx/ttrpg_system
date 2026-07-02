@@ -2,7 +2,6 @@ import { useGameStore } from '@/store';
 import { AssetPanel, BackgroundManagementPanel } from '@features/assets';
 import { CharacterPanel } from '@features/character';
 import { ChatPanel } from '@features/chat';
-import { InitiativePanel } from '@features/combat';
 import { CompendiumPanel } from '@features/compendium';
 import { FogPanel } from '@features/fog';
 import { LightingPanel } from '@features/lighting';
@@ -25,7 +24,7 @@ const isDevelopment = import.meta.env.DEV;
 
 type TabId = 'tables' | 'table-tools' | 'characters' | 'entities' | 'chat' | 'lighting' | 'fog' |
              'sync' | 'players' | 'actions' | 'quick-actions' | 'queue' | 'compendium' | 'assets' |
-             'network' | 'initiative' | 'performance' | 'backgrounds' | 'customize' | 'map';
+             'network' | 'performance' | 'backgrounds' | 'customize' | 'map';
 
 const TAB_VISIBLE: Record<TabId, (role: SessionRole) => boolean> = {
   // DM tabs
@@ -43,7 +42,6 @@ const TAB_VISIBLE: Record<TabId, (role: SessionRole) => boolean> = {
   'chat':          canInteract,
   // All interactive roles
   'entities':      () => true,
-  'initiative':    () => true,
   'customize':     () => true,
   // Map panel
   'map':           isDM,
@@ -58,7 +56,7 @@ const TAB_VISIBLE: Record<TabId, (role: SessionRole) => boolean> = {
 
 const DEFAULT_TAB_ORDER: TabId[] = [
   'tables', 'compendium', 'quick-actions', 'characters', 'entities',
-  'players', 'initiative', 'chat', 'lighting', 'fog',
+  'players', 'chat', 'lighting', 'fog',
   'backgrounds', 'map', 'performance', 'customize',
 ];
 
@@ -101,7 +99,6 @@ export function RightPanel(props: { sessionCode?: string; userInfo?: import('@fe
         {tab('quick-actions', 'Quick Actions')}
         {tab('characters', 'Characters')}
         {tab('players', 'Players')}
-        {tab('initiative', 'Initiative')}
         {tab('entities', 'Entities')}
         {tab('chat', 'Chat')}
         {tab('lighting', 'Lighting')}
@@ -124,7 +121,6 @@ export function RightPanel(props: { sessionCode?: string; userInfo?: import('@fe
         {isDevelopment && activeTab === 'sync' && <TableSyncPanel />}
         {activeTab === 'characters' && <CharacterPanel />}
         {activeTab === 'players' && <PlayerManagerPanel sessionCode={props.sessionCode!} userInfo={{...props.userInfo, role: isDM(sessionRole) ? 'dm' : 'player'} as import('@features/auth').UserInfo} />}
-        {activeTab === 'initiative' && <InitiativePanel />}
         {isDevelopment && activeTab === 'actions' && <ActionsPanel actionsEngine={actionsEngine} />}
         {isDevelopment && activeTab === 'queue' && <ActionQueuePanel sessionCode={props.sessionCode!} userInfo={props.userInfo!} />}
         {activeTab === 'entities' && <EntitiesPanel />}

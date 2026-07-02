@@ -617,18 +617,4 @@
   top: -9999px;
 }
 
-/* ===== Combat section ===== */
-.combatSection {
-  display: flex;
-  flex-direction: column;
-  gap: var(--spacing-xs);
-  border-top: 1px solid var(--border-primary);
-  padding-top: var(--spacing-sm);
-  margin-top: var(--spacing-xs);
-}
-
-.combatButtons {
-  display: flex;
-  gap: var(--spacing-xs);
-}
 

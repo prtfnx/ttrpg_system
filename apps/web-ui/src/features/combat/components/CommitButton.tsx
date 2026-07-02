@@ -2,10 +2,8 @@ import { useState } from 'react';
 import styles from './CommitButton.module.css';
 import { usePlanningStore } from '../stores/planningStore';
 import { planningService } from '../services/planning.service';
-import {
-  useCombatCommands,
-  type CombatCommandPayload,
-} from '../hooks/useCombatCommands';
+import { buildPlannedCombatCommands } from '../services/plannedCommand.service';
+import { useCombatCommands } from '../hooks/useCombatCommands';
 import { useGameModeStore } from '../stores/gameModeStore';
 import { useOAStore } from '../stores/oaStore';
 import { useGameStore } from '@/store';
@@ -30,47 +28,31 @@ export function CommitButton() {
     setError(null);
     setPending(true);
 
-    const sequenceId = nextSequenceId();
     const actorId = selectedSpriteId;
     const tableId = activeTableId ?? selectedSprite?.tableId;
 
-    if (!actorId || !tableId || !selectedSprite) {
-      setError('Select a token before committing movement.');
+    const built = buildPlannedCombatCommands(queue, {
+      actorId,
+      tableId: tableId ?? null,
+      actorPosition: selectedSprite
+        ? { x: selectedSprite.x, y: selectedSprite.y }
+        : undefined,
+    });
+    if (!built.ok) {
+      setError(built.error);
       setPending(false);
       return;
     }
 
-    const commands: CombatCommandPayload[] = [];
-    for (const action of queue) {
-      if (action.action_type !== 'move') {
-        setError(`Unsupported planned action: ${action.action_type}`);
-        setPending(false);
-        return;
-      }
-      if (action.target_x == null || action.target_y == null || action.cost_ft == null) {
-        setError('Movement plan is missing destination or cost.');
-        setPending(false);
-        return;
-      }
-      commands.push({
-        type: 'move',
-        actor_id: actorId,
-        table_id: tableId,
-        from_x: selectedSprite.x,
-        from_y: selectedSprite.y,
-        target_x: action.target_x,
-        target_y: action.target_y,
-        cost_ft: action.cost_ft,
-        path: action.path ?? [],
-      });
-    }
-
+    const sequenceId = nextSequenceId();
     const payload = {
-      commands,
+      commands: built.commands,
       sequence_id: sequenceId,
     };
 
-    setPendingCombatCommand(payload);
+    if (built.commands.some((command) => command.type === 'move')) {
+      setPendingCombatCommand(payload);
+    }
     sendCommandBatch(payload);
 
     // Queue cleared and planning stopped by ACTION_RESULT / ACTION_REJECTED handlers

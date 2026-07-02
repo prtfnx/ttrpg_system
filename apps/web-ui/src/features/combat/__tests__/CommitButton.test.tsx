@@ -101,4 +101,81 @@ describe('CommitButton', () => {
     // Planning cleared by ACTION_RESULT / ACTION_REJECTED, not optimistically on commit
     expect(mockStopPlanning).not.toHaveBeenCalled();
   });
+
+  it('sends queued attack and spell actions in one canonical batch', async () => {
+    const user = userEvent.setup();
+    setup({
+      queue: [
+        {
+          id: 'attack-1',
+          action_type: 'attack',
+          label: 'Attack Borin',
+          actor_id: 'combatant-1',
+          target_id: 'target-1',
+          damage_formula: '1d8+4',
+          sequence_index: 0,
+        },
+        {
+          id: 'spell-1',
+          action_type: 'cast_spell',
+          label: 'Cast Burning Hands',
+          actor_id: 'combatant-1',
+          spell_name: 'Burning Hands',
+          spell_level: 1,
+          target_ids: ['target-1'],
+          damage_formula: '3d6',
+          sequence_index: 1,
+        },
+      ],
+    });
+
+    render(<CommitButton />);
+    await user.click(screen.getByRole('button', { name: /commit/i }));
+
+    expect(mockSendMessage).toHaveBeenCalledWith(
+      expect.objectContaining({
+        type: 'combat_command',
+        data: expect.objectContaining({
+          sequence_id: 42,
+          commands: [
+            expect.objectContaining({
+              type: 'attack',
+              actor_id: 'combatant-1',
+              target_id: 'target-1',
+              damage_formula: '1d8+4',
+            }),
+            expect.objectContaining({
+              type: 'cast_spell',
+              actor_id: 'combatant-1',
+              spell_name: 'Burning Hands',
+              spell_level: 1,
+              target_ids: ['target-1'],
+              damage_formula: '3d6',
+            }),
+          ],
+        }),
+      }),
+    );
+    expect(mockSetPendingCombatCommand).not.toHaveBeenCalled();
+  });
+
+  it('keeps an invalid planned action visible for correction', async () => {
+    const user = userEvent.setup();
+    setup({
+      queue: [{
+        id: 'attack-1',
+        action_type: 'attack',
+        label: 'Attack',
+        actor_id: 'combatant-1',
+        sequence_index: 0,
+      }],
+    });
+
+    render(<CommitButton />);
+    await user.click(screen.getByRole('button', { name: /commit/i }));
+
+    expect(screen.getByText('Attack is missing a target.')).toBeInTheDocument();
+    expect(mockSendMessage).not.toHaveBeenCalled();
+    expect(mockStopPlanning).not.toHaveBeenCalled();
+  });
 });

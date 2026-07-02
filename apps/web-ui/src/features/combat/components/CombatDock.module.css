@@ -69,6 +69,21 @@
   min-height: 0;
 }
 
+.planningControls {
+  display: flex;
+  justify-content: flex-end;
+}
+
+.planningControls button {
+  padding: var(--space-xs) var(--space-md);
+  background: var(--button-primary-bg);
+  color: var(--button-primary-text);
+  border: 0;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  font-weight: 600;
+}
+
 .initiative,
 .actions {
   min-width: 0;

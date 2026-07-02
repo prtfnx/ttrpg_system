@@ -2,6 +2,7 @@ import { useGameStore } from '@/store';
 import { fireEvent, render, screen } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { useCombatStore } from '../../stores/combatStore';
+import { usePlanningStore } from '../../stores/planningStore';
 import { CombatDock } from '../CombatDock';
 
 vi.mock('../ActionEconomyBar', () => ({ ActionEconomyBar: () => <div>Action economy</div> }));
@@ -10,6 +11,11 @@ vi.mock('../CommitButton', () => ({ CommitButton: () => <div>Commit plan</div> }
 vi.mock('../DMCombatPanel', () => ({ DMCombatPanel: () => <div>DM work surface</div> }));
 vi.mock('../GameModeSwitch', () => ({ GameModeSwitch: () => <div>Game mode</div> }));
 vi.mock('../InitiativePanel', () => ({ InitiativePanel: () => <div>Initiative order</div> }));
+vi.mock('../MovementPlanner', () => ({
+  MovementPlanner: ({ onConfirm }: { onConfirm: (x: number, y: number, cost: number) => void }) => (
+    <button onClick={() => onConfirm(64, 96, 15)}>Confirm movement</button>
+  ),
+}));
 vi.mock('../PlanningQueue', () => ({ PlanningQueue: () => <div>Planned actions</div> }));
 
 const combat = {
@@ -50,7 +56,27 @@ const combat = {
 
 beforeEach(() => {
   useCombatStore.setState({ combat: null });
-  useGameStore.setState({ sessionRole: 'player', userId: 7 });
+  usePlanningStore.setState({
+    queue: [],
+    isPlanningMode: false,
+    selectedSpriteId: null,
+    sequenceId: 0,
+  });
+  useGameStore.setState({
+    sessionRole: 'player',
+    userId: 7,
+    sprites: [{
+      id: 'token-1',
+      tableId: 'table-1',
+      name: 'Ada',
+      x: 10,
+      y: 20,
+      layer: 'tokens',
+      texture: '',
+      scale: { x: 1, y: 1 },
+      rotation: 0,
+    }],
+  });
 });
 
 describe('CombatDock', () => {
@@ -96,5 +122,24 @@ describe('CombatDock', () => {
 
     expect(screen.queryByText('Initiative order')).toBeNull();
     expect(screen.getByRole('button', { expanded: false })).toBeTruthy();
+  });
+
+  it('starts planning and queues confirmed movement for the active actor', () => {
+    useCombatStore.setState({ combat });
+    render(<CombatDock />);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Plan turn' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Confirm movement' }));
+
+    expect(usePlanningStore.getState().selectedSpriteId).toBe('token-1');
+    expect(usePlanningStore.getState().queue).toEqual([
+      expect.objectContaining({
+        action_type: 'move',
+        target_x: 64,
+        target_y: 96,
+        cost_ft: 15,
+        cost_type: 'movement',
+      }),
+    ]);
   });
 });

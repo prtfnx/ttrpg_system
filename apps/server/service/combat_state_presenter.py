@@ -10,6 +10,7 @@ class CombatStatePresenter:
     _NPC_PRIVATE_FIELDS = {
         'ai_enabled',
         'ai_behavior',
+        'actor_actions',
         'attacks_per_action',
         'attacks_used_this_action',
         'constitution_modifier',
@@ -18,6 +19,9 @@ class CombatStatePresenter:
         'damage_resistances',
         'damage_vulnerabilities',
         'initiative_modifier',
+        'save_modifiers',
+        'spell_attack_bonus',
+        'spell_save_dc',
         'spell_slots',
         'spell_slots_max',
     }

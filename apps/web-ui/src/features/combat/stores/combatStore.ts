@@ -46,6 +46,10 @@ export interface Combatant {
   attacks_used_this_action?: number;
   spell_slots?: Record<string, number>;
   spell_slots_max?: Record<string, number>;
+  spell_save_dc?: number;
+  spell_attack_bonus?: number;
+  save_modifiers?: Record<string, number>;
+  actor_actions?: Array<Record<string, unknown>>;
 }
 
 export interface CombatSettings {

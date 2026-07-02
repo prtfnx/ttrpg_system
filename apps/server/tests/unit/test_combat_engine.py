@@ -50,6 +50,10 @@ def test_start_combat_uses_rich_combatant_payload():
             'damage_immunities': ['poison'],
             'spell_slots': {1: 3, 2: 2},
             'spell_slots_max': {1: 4, 2: 2},
+            'spell_save_dc': 15,
+            'spell_attack_bonus': 7,
+            'save_modifiers': {'dexterity': 5},
+            'actor_actions': [{'name': 'Fire Bolt', 'action_cost': 'action'}],
         }],
     )
 
@@ -73,6 +77,10 @@ def test_start_combat_uses_rich_combatant_payload():
     assert combatant.damage_immunities == ['poison']
     assert combatant.spell_slots == {1: 3, 2: 2}
     assert combatant.spell_slots_max == {1: 4, 2: 2}
+    assert combatant.spell_save_dc == 15
+    assert combatant.spell_attack_bonus == 7
+    assert combatant.save_modifiers == {'dexterity': 5}
+    assert combatant.actor_actions == [{'name': 'Fire Bolt', 'action_cost': 'action'}]
 
 
 def test_add_combatant_preserves_rich_resources_and_ignores_unknown_fields():

@@ -38,6 +38,10 @@ def _state() -> CombatState:
                 constitution_modifier=2,
                 damage_resistances=['fire'],
                 spell_slots={'1': 2},
+                spell_save_dc=13,
+                spell_attack_bonus=5,
+                save_modifiers={'dexterity': 4},
+                actor_actions=[{'name': 'Scimitar', 'action_cost': 'action'}],
             ),
             Combatant(
                 combatant_id='npc-hidden',
@@ -86,6 +90,8 @@ def test_dm_receives_full_combat_state():
     hidden = next(c for c in view['combatants'] if c['combatant_id'] == 'npc-hidden')
     assert npc['hp'] == 3
     assert npc['ai_enabled'] is True
+    assert npc['spell_save_dc'] == 13
+    assert npc['actor_actions'][0]['name'] == 'Scimitar'
     assert hidden['name'] == 'Hidden Stalker'
 
 
@@ -103,6 +109,10 @@ def test_player_receives_filtered_npc_state_and_no_hidden_npcs():
     assert 'constitution_modifier' not in npc
     assert 'damage_resistances' not in npc
     assert 'spell_slots' not in npc
+    assert 'spell_save_dc' not in npc
+    assert 'spell_attack_bonus' not in npc
+    assert 'save_modifiers' not in npc
+    assert 'actor_actions' not in npc
     assert pc['hp'] == 20
     assert pc['controlled_by'] == ['7']
     assert [action['action_id'] for action in view['action_log']] == ['action-visible']

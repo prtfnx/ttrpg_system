@@ -4,6 +4,7 @@ import { GameClient } from '@features/canvas';
 import { WindowManagerProvider } from '@shared/components/FloatingWindow';
 import { act, screen, waitFor, within } from '@testing-library/react';
 import { createMockWasmRuntime, renderWithWasmRuntime } from '@test/utils/wasmRuntimeTestUtils';
+import { logger } from '@shared/utils/logger';
 import type React from 'react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
@@ -23,6 +24,10 @@ vi.mock('@features/lighting/services/vision.service', () => ({
 // Mock child components to test GameClient in isolation
 vi.mock('@features/chat', () => ({
   ChatOverlay: () => null,
+}));
+
+vi.mock('@features/combat', () => ({
+  CombatDock: () => <div data-testid="combat-dock">CombatDock</div>,
 }));
 
 vi.mock('@features/canvas/components/TokenConfigModal', () => ({
@@ -128,6 +133,12 @@ describe('GameClient - Double-Click Detection Tests', () => {
   });
 
   describe('WASM to React Event Flow', () => {
+    it('mounts the unified combat dock on the canvas surface', () => {
+      renderGameClient();
+
+      expect(screen.getByTestId('combat-dock')).toBeInTheDocument();
+    });
+
     it('should listen for tokenDoubleClick event on mount', () => {
       const addEventListenerSpy = vi.spyOn(window, 'addEventListener');
       
@@ -157,7 +168,7 @@ describe('GameClient - Double-Click Detection Tests', () => {
     });
 
     it('should extract spriteId from event detail correctly', async () => {
-      const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
+      const loggerSpy = vi.spyOn(logger, 'debug').mockImplementation(() => {});
       
       renderGameClient();
 
@@ -167,12 +178,12 @@ describe('GameClient - Double-Click Detection Tests', () => {
       });
       act(() => { window.dispatchEvent(event); });
 
-      expect(consoleSpy).toHaveBeenCalledWith(
-        '[GameClient] Token double-click on sprite:',
-        testSpriteId
+      expect(loggerSpy).toHaveBeenCalledWith(
+        '[GameClient] Token double-click on sprite',
+        { spriteId: testSpriteId },
       );
 
-      consoleSpy.mockRestore();
+      loggerSpy.mockRestore();
     });
 
     it('should handle double-click on different sprite IDs', async () => {
@@ -322,7 +333,7 @@ describe('GameClient - Double-Click Detection Tests', () => {
 
   describe('Event Flow Validation', () => {
     it('should log double-click event with correct format', async () => {
-      const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
+      const loggerSpy = vi.spyOn(logger, 'debug').mockImplementation(() => {});
       
       renderGameClient();
 
@@ -331,12 +342,12 @@ describe('GameClient - Double-Click Detection Tests', () => {
       });
       act(() => { window.dispatchEvent(event); });
 
-      expect(consoleSpy).toHaveBeenCalledWith(
-        '[GameClient] Token double-click on sprite:',
-        'sprite-log-test'
+      expect(loggerSpy).toHaveBeenCalledWith(
+        '[GameClient] Token double-click on sprite',
+        { spriteId: 'sprite-log-test' },
       );
 
-      consoleSpy.mockRestore();
+      loggerSpy.mockRestore();
     });
 
     it('should handle CustomEvent type casting correctly', async () => {

@@ -7,14 +7,28 @@ export interface PlannedAction {
   id: string;  // client-side uuid for list key
   action_type: ActionType;
   label: string;          // display name
+  actor_id?: string;
+  table_id?: string;
   target_x?: number;
   target_y?: number;
   target_id?: string;
+  target_ids?: string[];
   spell_id?: string;
+  spell_name?: string;
+  spell_level?: number;
   item_id?: string;
   cost_ft?: number;       // movement cost if move action
   cost_type?: 'action' | 'bonus_action' | 'reaction' | 'movement' | 'free';
   path?: [number, number][];  // computed waypoints in pixel space
+  attack_bonus?: number;
+  damage_formula?: string;
+  damage_type?: string;
+  attack_type?: string;
+  range_ft?: number;
+  save_ability?: string;
+  save_dc?: number;
+  requires_attack_roll?: boolean;
+  is_concentration?: boolean;
   sequence_index: number;
 }
 

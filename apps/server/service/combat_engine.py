@@ -13,6 +13,7 @@ from core_table.combat import (
     CombatState,
 )
 from core_table.combat_fsm import CombatFSM
+from core_table.conditions import ActiveCondition, ConditionType
 from core_table.dice import DiceEngine
 from core_table.session_rules import SessionRules
 
@@ -454,6 +455,68 @@ class CombatEngine:
         return None
 
     # ── Resistances ─────────────────────────────────────────────────────────
+
+    @classmethod
+    def add_condition(
+        cls,
+        session_id: str,
+        combatant_id: str,
+        condition_type: str,
+        *,
+        source: str = 'dm',
+        duration: int | None = None,
+    ) -> dict:
+        state = cls._active.get(session_id)
+        if not state:
+            return {'error': 'No active combat'}
+        try:
+            parsed_type = ConditionType(condition_type)
+        except ValueError:
+            return {'error': f'Unknown condition: {condition_type}'}
+        for combatant in state.combatants:
+            if combatant.combatant_id != combatant_id:
+                continue
+            if not any(condition.condition_type == parsed_type for condition in combatant.conditions):
+                combatant.conditions.append(ActiveCondition(
+                    condition_id=str(uuid.uuid4()),
+                    condition_type=parsed_type,
+                    source=source,
+                    duration_type='rounds' if duration is not None else 'permanent',
+                    duration_remaining=duration,
+                ))
+            return {
+                'combatant_id': combatant_id,
+                'conditions': [condition.to_dict() for condition in combatant.conditions],
+            }
+        return {'error': 'Combatant not found'}
+
+    @classmethod
+    def remove_condition(
+        cls,
+        session_id: str,
+        combatant_id: str,
+        condition_type: str,
+    ) -> dict:
+        state = cls._active.get(session_id)
+        if not state:
+            return {'error': 'No active combat'}
+        try:
+            parsed_type = ConditionType(condition_type)
+        except ValueError:
+            return {'error': f'Unknown condition: {condition_type}'}
+        for combatant in state.combatants:
+            if combatant.combatant_id != combatant_id:
+                continue
+            combatant.conditions = [
+                condition
+                for condition in combatant.conditions
+                if condition.condition_type != parsed_type
+            ]
+            return {
+                'combatant_id': combatant_id,
+                'conditions': [condition.to_dict() for condition in combatant.conditions],
+            }
+        return {'error': 'Combatant not found'}
 
     @classmethod
     def set_resistances(cls, session_id: str, combatant_id: str,

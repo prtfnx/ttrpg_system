@@ -235,6 +235,99 @@ def test_invalid_dm_override_rolls_back_earlier_override():
     assert CombatEngine.get_state("cmd").combatants[1].hp == 20
 
 
+def test_dm_override_updates_conditions_traits_and_surprise_atomically():
+    state, _actor, target = _state()
+    service = CombatCommandService()
+    envelope = service.parse_envelope({
+        "sequence_id": 24,
+        "commands": [
+            {
+                "type": "dm_override",
+                "actor_id": target.combatant_id,
+                "override_type": "add_condition",
+                "condition_type": "poisoned",
+                "duration": 2,
+                "source": "trap",
+            },
+            {
+                "type": "dm_override",
+                "actor_id": target.combatant_id,
+                "override_type": "set_damage_traits",
+                "resistances": ["fire"],
+                "vulnerabilities": ["cold"],
+                "immunities": ["poison"],
+            },
+            {
+                "type": "dm_override",
+                "actor_id": target.combatant_id,
+                "override_type": "set_surprised",
+                "surprised": True,
+            },
+        ],
+    })
+
+    result = service.apply(envelope, _context(role="owner"))
+
+    updated = CombatEngine.get_state("cmd").combatants[1]
+    assert result.accepted is True
+    assert updated.conditions[0].condition_type.value == "poisoned"
+    assert updated.conditions[0].duration_remaining == 2
+    assert updated.conditions[0].source == "trap"
+    assert updated.damage_resistances == ["fire"]
+    assert updated.damage_vulnerabilities == ["cold"]
+    assert updated.damage_immunities == ["poison"]
+    assert updated.surprised is True
+
+
+def test_dm_override_removes_condition_from_selected_combatant():
+    state, _actor, target = _state()
+    CombatEngine.add_condition("cmd", target.combatant_id, "prone")
+    service = CombatCommandService()
+    envelope = service.parse_envelope({
+        "sequence_id": 25,
+        "commands": [{
+            "type": "dm_override",
+            "actor_id": target.combatant_id,
+            "override_type": "remove_condition",
+            "condition_type": "prone",
+        }],
+    })
+
+    result = service.apply(envelope, _context(role="owner"))
+
+    assert result.accepted is True
+    assert CombatEngine.get_state("cmd").combatants[1].conditions == []
+
+
+def test_invalid_condition_rolls_back_earlier_trait_override():
+    state, _actor, target = _state()
+    service = CombatCommandService()
+    envelope = service.parse_envelope({
+        "sequence_id": 26,
+        "commands": [
+            {
+                "type": "dm_override",
+                "actor_id": target.combatant_id,
+                "override_type": "set_damage_traits",
+                "resistances": ["fire"],
+            },
+            {
+                "type": "dm_override",
+                "actor_id": target.combatant_id,
+                "override_type": "add_condition",
+                "condition_type": "not-a-condition",
+            },
+        ],
+    })
+
+    result = service.apply(envelope, _context(role="owner"))
+
+    assert result.accepted is False
+    assert result.failed_index == 1
+    assert result.reason == "Unknown condition: not-a-condition"
+    assert CombatEngine.get_state("cmd").combatants[1].damage_resistances == []
+
+
 def test_command_batch_rolls_back_when_later_command_fails():
     state, actor, _target = _state()
     service = CombatCommandService()

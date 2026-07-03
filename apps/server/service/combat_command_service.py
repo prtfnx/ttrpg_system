@@ -31,6 +31,10 @@ class DMOverrideType(str, Enum):
     APPLY_DAMAGE = "apply_damage"
     APPLY_HEALING = "apply_healing"
     GRANT_RESOURCE = "grant_resource"
+    ADD_CONDITION = "add_condition"
+    REMOVE_CONDITION = "remove_condition"
+    SET_DAMAGE_TRAITS = "set_damage_traits"
+    SET_SURPRISED = "set_surprised"
 
 
 class DMResourceType(str, Enum):
@@ -69,6 +73,13 @@ class CombatCommand(BaseModel):
     override_type: Optional[DMOverrideType] = None
     value: Optional[float] = None
     resource: Optional[DMResourceType] = None
+    condition_type: Optional[str] = None
+    duration: Optional[int] = Field(default=None, ge=1)
+    source: str = "dm"
+    resistances: Optional[list[str]] = None
+    vulnerabilities: Optional[list[str]] = None
+    immunities: Optional[list[str]] = None
+    surprised: Optional[bool] = None
 
     @field_validator("target_ids", mode="before")
     @classmethod
@@ -457,6 +468,52 @@ class CombatCommandService:
                 "resource": command.resource.value,
                 "amount": amount,
             }
+
+        if command.override_type == DMOverrideType.ADD_CONDITION:
+            if not command.condition_type:
+                return {"error": "condition_type required"}
+            return self._engine.add_condition(
+                context.session_code,
+                actor_id,
+                command.condition_type,
+                source=command.source,
+                duration=command.duration,
+            )
+
+        if command.override_type == DMOverrideType.REMOVE_CONDITION:
+            if not command.condition_type:
+                return {"error": "condition_type required"}
+            return self._engine.remove_condition(
+                context.session_code,
+                actor_id,
+                command.condition_type,
+            )
+
+        if command.override_type == DMOverrideType.SET_DAMAGE_TRAITS:
+            if (
+                command.resistances is None
+                and command.vulnerabilities is None
+                and command.immunities is None
+            ):
+                return {"error": "damage traits required"}
+            result = self._engine.set_resistances(
+                context.session_code,
+                actor_id,
+                resistances=command.resistances,
+                vulnerabilities=command.vulnerabilities,
+                immunities=command.immunities,
+            )
+            return result or {"error": "Failed to set damage traits"}
+
+        if command.override_type == DMOverrideType.SET_SURPRISED:
+            if command.surprised is None:
+                return {"error": "surprised required"}
+            result = self._engine.set_surprised(
+                context.session_code,
+                [actor_id],
+                command.surprised,
+            )
+            return result or {"error": "Failed to set surprised state"}
 
         return {"error": "Unsupported DM override"}
 

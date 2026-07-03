@@ -7,17 +7,25 @@ const BEHAVIORS = ['aggressive', 'defensive', 'support', 'cowardly', 'berserker'
 
 export function AIControlPanel() {
   const combat = useCombatStore((s) => s.combat);
-  const { sendProtocolMessage } = useCombatCommands();
+  const { sendDMOverride, sendProtocolMessage } = useCombatCommands();
   if (!combat) return null;
 
   const npcs = combat.combatants.filter((c) => c.is_npc && !c.is_defeated);
   if (!npcs.length) return null;
 
   const toggleAI = (combatant_id: string, enabled: boolean) =>
-    sendProtocolMessage(MessageType.DM_TOGGLE_AI, { combatant_id, enabled });
+    sendDMOverride({
+      actorId: combatant_id,
+      overrideType: 'configure_ai',
+      aiEnabled: enabled,
+    });
 
   const setBehavior = (combatant_id: string, behavior: string) =>
-    sendProtocolMessage(MessageType.DM_TOGGLE_AI, { combatant_id, behavior });
+    sendDMOverride({
+      actorId: combatant_id,
+      overrideType: 'configure_ai',
+      aiBehavior: behavior,
+    });
 
   const triggerAI = (combatant_id: string) =>
     sendProtocolMessage(MessageType.AI_ACTION, { combatant_id });

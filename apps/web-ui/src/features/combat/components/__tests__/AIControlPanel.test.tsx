@@ -14,7 +14,7 @@ vi.mock('@lib/api', () => ({
 
 vi.mock('@lib/websocket', () => ({
   createMessage: vi.fn((type: string, data: unknown) => ({ type, data })),
-  MessageType: { DM_TOGGLE_AI: 'DM_TOGGLE_AI', AI_ACTION: 'AI_ACTION' },
+  MessageType: { COMBAT_COMMAND: 'combat_command', AI_ACTION: 'AI_ACTION' },
 }));
 
 vi.mock('../AIControlPanel.module.css', () => ({
@@ -66,23 +66,35 @@ describe('AIControlPanel', () => {
     expect(screen.getByTitle('Trigger AI action now')).toBeTruthy();
   });
 
-  it('calls setBehavior when select changes', () => {
+  it('changes AI behavior through a canonical DM override', () => {
     mockStore({ combatants: [npc1] });
     render(<AIControlPanel />);
     fireEvent.change(screen.getByRole('combobox'), { target: { value: 'defensive' } });
     expect(mockSendMessage).toHaveBeenCalledWith(expect.objectContaining({
-      type: 'DM_TOGGLE_AI',
-      data: { combatant_id: 'npc-1', behavior: 'defensive' },
+      type: 'combat_command',
+      data: expect.objectContaining({
+        commands: [expect.objectContaining({
+          actor_id: 'npc-1',
+          override_type: 'configure_ai',
+          ai_behavior: 'defensive',
+        })],
+      }),
     }));
   });
 
-  it('calls toggleAI when checkbox changes', () => {
+  it('toggles AI through a canonical DM override', () => {
     mockStore({ combatants: [npc1] });
     render(<AIControlPanel />);
     fireEvent.click(screen.getByRole('checkbox'));
     expect(mockSendMessage).toHaveBeenCalledWith(expect.objectContaining({
-      type: 'DM_TOGGLE_AI',
-      data: { combatant_id: 'npc-1', enabled: false },
+      type: 'combat_command',
+      data: expect.objectContaining({
+        commands: [expect.objectContaining({
+          actor_id: 'npc-1',
+          override_type: 'configure_ai',
+          ai_enabled: false,
+        })],
+      }),
     }));
   });
 

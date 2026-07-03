@@ -49,7 +49,9 @@ export type DMOverrideType =
   | 'add_condition'
   | 'remove_condition'
   | 'set_damage_traits'
-  | 'set_surprised';
+  | 'set_surprised'
+  | 'configure_ai'
+  | 'restore_spell_slot';
 
 export type DMResourceType = 'action' | 'bonus_action' | 'reaction' | 'movement';
 
@@ -66,6 +68,9 @@ export interface DMOverrideInput {
   vulnerabilities?: string[];
   immunities?: string[];
   surprised?: boolean;
+  aiEnabled?: boolean;
+  aiBehavior?: string;
+  slotLevel?: number;
 }
 
 function buildDMOverrideCommand(input: DMOverrideInput): CombatCommandPayload {
@@ -83,6 +88,9 @@ function buildDMOverrideCommand(input: DMOverrideInput): CombatCommandPayload {
     vulnerabilities: input.vulnerabilities,
     immunities: input.immunities,
     surprised: input.surprised,
+    ai_enabled: input.aiEnabled,
+    ai_behavior: input.aiBehavior,
+    slot_level: input.slotLevel,
   };
 }
 

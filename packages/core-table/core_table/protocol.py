@@ -150,7 +150,6 @@ class MessageType(enum.Enum):    # Core messages
     DM_MODIFY_ROLL = "dm_modify_roll"
     DM_SET_TERRAIN = "dm_set_terrain"
     DM_REVERT_ACTION = "dm_revert_action"
-    DM_TOGGLE_AI = "dm_toggle_ai"
 
     # ── NPC AI ──
     AI_ACTION = "ai_action"
@@ -204,7 +203,6 @@ class MessageType(enum.Enum):    # Core messages
 
     # ── Resource Tracking ──
     SPELL_SLOT_USE = "spell_slot_use"
-    SPELL_SLOT_RECOVER = "spell_slot_recover"
     RESOURCE_UPDATE = "resource_update"
     REST_SHORT = "rest_short"
     REST_LONG = "rest_long"

@@ -183,7 +183,6 @@ export const MessageType = {
   DM_OVERRIDE: "dm_override",
   DM_SET_TERRAIN: "dm_set_terrain",
   DM_REVERT_ACTION: "dm_revert_action",
-  DM_TOGGLE_AI: "dm_toggle_ai",
 
   // ── NPC AI ──
   AI_ACTION: "ai_action",

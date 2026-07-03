@@ -130,7 +130,7 @@ function PreCombatSetup() {
 export function DMCombatPanel() {
   const combat = useCombatStore((s) => s.combat);
   const activeTableId = useGameStore((s) => s.activeTableId);
-  const { sendDMOverride, sendProtocolMessage } = useCombatCommands();
+  const { sendDMOverride, sendDMOverrides, sendProtocolMessage } = useCombatCommands();
   const linkedTokenOptions = useLinkedTokenOptions();
   const [selectedId, setSelectedId] = useState('');
   const [hpValue, setHpValue] = useState('');
@@ -159,6 +159,10 @@ export function DMCombatPanel() {
   const tableCombatantsAlreadyAdded = linkedTokenOptions.length - missingLinkedTokenOptions.length;
 
   if (!combat) return <PreCombatSetup />;
+
+  const selectedCombatant = combat.combatants.find(
+    (combatant) => combatant.combatant_id === selectedId,
+  );
 
   const endCombat = () => {
     if (!confirm('End combat? This cannot be undone.')) return;
@@ -197,19 +201,32 @@ export function DMCombatPanel() {
 
   const addCondition = () => {
     if (!selectedId) return;
-    sendProtocolMessage(MessageType.CONDITION_ADD, {
-      combatant_id: selectedId,
-      condition_type: conditionType,
-      duration: Number(conditionDuration),
+    const duration = Number(conditionDuration);
+    if (!Number.isFinite(duration) || duration <= 0) return;
+    sendDMOverride({
+      actorId: selectedId,
+      overrideType: 'add_condition',
+      conditionType,
+      duration,
       source: 'dm',
+    });
+  };
+
+  const removeCondition = (conditionTypeToRemove: string) => {
+    if (!selectedId) return;
+    sendDMOverride({
+      actorId: selectedId,
+      overrideType: 'remove_condition',
+      conditionType: conditionTypeToRemove,
     });
   };
 
   const setResistances = () => {
     if (!selectedId) return;
     const toList = (s: string) => s.split(',').map((x) => x.trim().toLowerCase()).filter(Boolean);
-    sendProtocolMessage(MessageType.DM_SET_RESISTANCES, {
-      combatant_id: selectedId,
+    sendDMOverride({
+      actorId: selectedId,
+      overrideType: 'set_damage_traits',
       resistances: toList(resistField),
       vulnerabilities: toList(vulnField),
       immunities: toList(immuneField),
@@ -218,7 +235,11 @@ export function DMCombatPanel() {
 
   const setSurprised = (surprised: boolean) => {
     if (!surprisedIds.length) return;
-    sendProtocolMessage(MessageType.DM_SET_SURPRISED, { combatant_ids: surprisedIds, surprised });
+    sendDMOverrides(surprisedIds.map((actorId) => ({
+      actorId,
+      overrideType: 'set_surprised',
+      surprised,
+    })));
     setSurprisedIds([]);
   };
 
@@ -355,6 +376,15 @@ export function DMCombatPanel() {
           />
           <button className={styles.btn} onClick={addCondition}>Add</button>
         </div>
+        {selectedCombatant?.conditions.map((condition) => (
+          <button
+            key={condition.condition_id}
+            className={styles.btn}
+            onClick={() => removeCondition(condition.condition_type)}
+          >
+            Remove {condition.condition_type}
+          </button>
+        ))}
       </div>
 
       <div className={styles.section}>

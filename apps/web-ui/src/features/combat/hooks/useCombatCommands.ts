@@ -45,7 +45,11 @@ export type DMOverrideType =
   | 'set_temp_hp'
   | 'apply_damage'
   | 'apply_healing'
-  | 'grant_resource';
+  | 'grant_resource'
+  | 'add_condition'
+  | 'remove_condition'
+  | 'set_damage_traits'
+  | 'set_surprised';
 
 export type DMResourceType = 'action' | 'bonus_action' | 'reaction' | 'movement';
 
@@ -55,6 +59,31 @@ export interface DMOverrideInput {
   value?: number;
   resource?: DMResourceType;
   damageType?: string;
+  conditionType?: string;
+  duration?: number;
+  source?: string;
+  resistances?: string[];
+  vulnerabilities?: string[];
+  immunities?: string[];
+  surprised?: boolean;
+}
+
+function buildDMOverrideCommand(input: DMOverrideInput): CombatCommandPayload {
+  return {
+    type: 'dm_override',
+    actor_id: input.actorId,
+    override_type: input.overrideType,
+    value: input.value,
+    resource: input.resource,
+    damage_type: input.damageType || '',
+    condition_type: input.conditionType,
+    duration: input.duration,
+    source: input.source,
+    resistances: input.resistances,
+    vulnerabilities: input.vulnerabilities,
+    immunities: input.immunities,
+    surprised: input.surprised,
+  };
 }
 
 export function useCombatCommands() {
@@ -120,16 +149,16 @@ export function useCombatCommands() {
     })
   ), [sendCommand]);
 
-  const sendDMOverride = useCallback((input: DMOverrideInput) => (
-    sendCommand({
-      type: 'dm_override',
-      actor_id: input.actorId,
-      override_type: input.overrideType,
-      value: input.value,
-      resource: input.resource,
-      damage_type: input.damageType || '',
+  const sendDMOverrides = useCallback((inputs: DMOverrideInput[]) => (
+    inputs.length > 0 && sendCommandBatch({
+      sequence_id: Date.now(),
+      commands: inputs.map(buildDMOverrideCommand),
     })
-  ), [sendCommand]);
+  ), [sendCommandBatch]);
+
+  const sendDMOverride = useCallback((input: DMOverrideInput) => (
+    sendDMOverrides([input])
+  ), [sendDMOverrides]);
 
   const rollInitiative = useCallback((combatantId: string) => (
     sendProtocolMessage(MessageType.INITIATIVE_ROLL, { combatant_id: combatantId })
@@ -155,6 +184,7 @@ export function useCombatCommands() {
     sendAttack,
     sendSpell,
     sendDMOverride,
+    sendDMOverrides,
     rollInitiative,
     rollDeathSave,
     skipTurn,

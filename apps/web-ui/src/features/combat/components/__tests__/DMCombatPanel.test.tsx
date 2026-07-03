@@ -421,7 +421,7 @@ describe('DMCombatPanel - resource overrides', () => {
 describe('DMCombatPanel - conditions', () => {
   beforeEach(() => useCombatStore.setState({ combat: mockCombat }));
 
-  it('Add Condition sends CONDITION_ADD with correct payload', async () => {
+  it('adds a condition through a canonical DM override', async () => {
     const user = userEvent.setup();
     render(<DMCombatPanel />);
     const select = screen.getAllByRole('combobox')[0];
@@ -430,9 +430,56 @@ describe('DMCombatPanel - conditions', () => {
     await user.click(screen.getByRole('button', { name: /^add$/i }));
     expect(mockSendMessage).toHaveBeenCalledWith(
       expect.objectContaining({
-        type: 'CONDITION_ADD',
-        data: { combatant_id: 'c1', condition_type: 'poisoned', duration: 1, source: 'dm' },
+        type: 'combat_command',
+        data: expect.objectContaining({
+          commands: [expect.objectContaining({
+            actor_id: 'c1',
+            override_type: 'add_condition',
+            condition_type: 'poisoned',
+            duration: 1,
+            source: 'dm',
+          })],
+        }),
       })
+    );
+  });
+
+  it('removes an existing condition through a canonical DM override', async () => {
+    const user = userEvent.setup();
+    useCombatStore.setState({
+      combat: {
+        ...mockCombat,
+        combatants: mockCombat.combatants.map((combatant) => (
+          combatant.combatant_id === 'c1'
+            ? {
+                ...combatant,
+                conditions: [{
+                  condition_id: 'condition-1',
+                  condition_type: 'prone',
+                  source: 'dm',
+                  duration_type: 'permanent',
+                  duration_remaining: null,
+                }],
+              }
+            : combatant
+        )),
+      },
+    });
+    render(<DMCombatPanel />);
+    await user.selectOptions(screen.getAllByRole('combobox')[0], 'c1');
+    await user.click(screen.getByRole('button', { name: /remove prone/i }));
+
+    expect(mockSendMessage).toHaveBeenCalledWith(
+      expect.objectContaining({
+        type: 'combat_command',
+        data: expect.objectContaining({
+          commands: [expect.objectContaining({
+            actor_id: 'c1',
+            override_type: 'remove_condition',
+            condition_type: 'prone',
+          })],
+        }),
+      }),
     );
   });
 });
@@ -440,7 +487,7 @@ describe('DMCombatPanel - conditions', () => {
 describe('DMCombatPanel - resistances', () => {
   beforeEach(() => useCombatStore.setState({ combat: mockCombat }));
 
-  it('sends DM_SET_RESISTANCES with parsed resistance list', async () => {
+  it('sets parsed damage traits through a canonical DM override', async () => {
     const user = userEvent.setup();
     render(<DMCombatPanel />);
     const select = screen.getAllByRole('combobox')[0];
@@ -452,8 +499,14 @@ describe('DMCombatPanel - resistances', () => {
     await user.click(setBtn[setBtn.length - 1]);
     expect(mockSendMessage).toHaveBeenCalledWith(
       expect.objectContaining({
-        type: 'DM_SET_RESISTANCES',
-        data: expect.objectContaining({ combatant_id: 'c1', resistances: ['fire', 'cold'] }),
+        type: 'combat_command',
+        data: expect.objectContaining({
+          commands: [expect.objectContaining({
+            actor_id: 'c1',
+            override_type: 'set_damage_traits',
+            resistances: ['fire', 'cold'],
+          })],
+        }),
       })
     );
   });
@@ -462,7 +515,7 @@ describe('DMCombatPanel - resistances', () => {
 describe('DMCombatPanel - surprise', () => {
   beforeEach(() => useCombatStore.setState({ combat: mockCombat }));
 
-  it('checking combatant and clicking Set Surprised sends DM_SET_SURPRISED', async () => {
+  it('sets checked combatants as surprised through one canonical batch', async () => {
     const user = userEvent.setup();
     render(<DMCombatPanel />);
     // There are checkboxes for each combatant in the surprise section
@@ -471,8 +524,14 @@ describe('DMCombatPanel - surprise', () => {
     await user.click(screen.getByRole('button', { name: /set surprised/i }));
     expect(mockSendMessage).toHaveBeenCalledWith(
       expect.objectContaining({
-        type: 'DM_SET_SURPRISED',
-        data: { combatant_ids: ['c1'], surprised: true },
+        type: 'combat_command',
+        data: expect.objectContaining({
+          commands: [expect.objectContaining({
+            actor_id: 'c1',
+            override_type: 'set_surprised',
+            surprised: true,
+          })],
+        }),
       })
     );
   });

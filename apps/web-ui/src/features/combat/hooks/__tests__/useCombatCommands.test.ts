@@ -143,6 +143,41 @@ describe('useCombatCommands', () => {
     }));
   });
 
+  it('sends multiple DM status overrides as one atomic command batch', () => {
+    const { result } = renderHook(() => useCombatCommands());
+
+    result.current.sendDMOverrides([
+      {
+        actorId: 'target-1',
+        overrideType: 'set_surprised',
+        surprised: true,
+      },
+      {
+        actorId: 'target-2',
+        overrideType: 'set_surprised',
+        surprised: true,
+      },
+    ]);
+
+    expect(mockSendMessage).toHaveBeenCalledWith(expect.objectContaining({
+      type: 'combat_command',
+      data: expect.objectContaining({
+        commands: [
+          expect.objectContaining({
+            actor_id: 'target-1',
+            override_type: 'set_surprised',
+            surprised: true,
+          }),
+          expect.objectContaining({
+            actor_id: 'target-2',
+            override_type: 'set_surprised',
+            surprised: true,
+          }),
+        ],
+      }),
+    }));
+  });
+
   it('sends initiative and death-save protocol messages', () => {
     const { result } = renderHook(() => useCombatCommands());
 

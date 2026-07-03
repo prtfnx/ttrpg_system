@@ -328,6 +328,114 @@ def test_invalid_condition_rolls_back_earlier_trait_override():
     assert CombatEngine.get_state("cmd").combatants[1].damage_resistances == []
 
 
+def test_player_rolls_owned_initiative_outside_their_turn():
+    state, _actor, target = _state()
+    service = CombatCommandService()
+    envelope = service.parse_envelope({
+        "sequence_id": 27,
+        "commands": [{
+            "type": "roll_initiative",
+            "actor_id": target.combatant_id,
+        }],
+    })
+
+    result = service.apply(envelope, _context(role="player", user_id=2))
+
+    assert result.accepted is True
+    assert result.applied[0]["result"]["combatant_id"] == target.combatant_id
+    assert CombatEngine.get_state("cmd").combatants[1].initiative is not None
+
+
+def test_player_cannot_roll_unowned_initiative():
+    state, _actor, target = _state()
+    service = CombatCommandService()
+    envelope = service.parse_envelope({
+        "sequence_id": 28,
+        "commands": [{
+            "type": "roll_initiative",
+            "actor_id": target.combatant_id,
+        }],
+    })
+
+    result = service.apply(envelope, _context(role="player", user_id=99))
+
+    assert result.accepted is False
+    assert result.reason == "You do not control this combatant"
+    assert target.initiative is None
+
+
+def test_dm_sets_initiative_and_removes_combatant_outside_turn():
+    state, _actor, target = _state()
+    service = CombatCommandService()
+    set_result = service.apply(service.parse_envelope({
+        "sequence_id": 29,
+        "commands": [{
+            "type": "set_initiative",
+            "actor_id": target.combatant_id,
+            "initiative": 18,
+        }],
+    }), _context(role="owner"))
+
+    remove_result = service.apply(service.parse_envelope({
+        "sequence_id": 30,
+        "commands": [{
+            "type": "remove_combatant",
+            "actor_id": target.combatant_id,
+        }],
+    }), _context(role="owner"))
+
+    assert set_result.accepted is True
+    assert set_result.applied[0]["result"]["value"] == 18
+    assert remove_result.accepted is True
+    assert len(CombatEngine.get_state("cmd").combatants) == 1
+
+
+def test_dm_skip_turn_requires_current_actor_and_advances_turn():
+    state, actor, target = _state()
+    service = CombatCommandService()
+    wrong_actor = service.apply(service.parse_envelope({
+        "sequence_id": 31,
+        "commands": [{
+            "type": "skip_turn",
+            "actor_id": target.combatant_id,
+        }],
+    }), _context(role="owner"))
+
+    accepted = service.apply(service.parse_envelope({
+        "sequence_id": 32,
+        "commands": [{
+            "type": "skip_turn",
+            "actor_id": actor.combatant_id,
+        }],
+    }), _context(role="owner"))
+
+    assert wrong_actor.accepted is False
+    assert wrong_actor.reason == "Can only skip the current turn"
+    assert accepted.accepted is True
+    assert (
+        CombatEngine.get_state("cmd").get_current_combatant().combatant_id
+        == target.combatant_id
+    )
+
+
+def test_player_cannot_remove_combatant():
+    state, actor, _target = _state()
+    service = CombatCommandService()
+    envelope = service.parse_envelope({
+        "sequence_id": 33,
+        "commands": [{
+            "type": "remove_combatant",
+            "actor_id": actor.combatant_id,
+        }],
+    })
+
+    result = service.apply(envelope, _context(role="player", user_id=1))
+
+    assert result.accepted is False
+    assert result.reason == "DMs only"
+    assert len(CombatEngine.get_state("cmd").combatants) == 2
+
+
 def test_command_batch_rolls_back_when_later_command_fails():
     state, actor, _target = _state()
     service = CombatCommandService()

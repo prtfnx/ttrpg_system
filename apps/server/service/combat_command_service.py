@@ -23,6 +23,10 @@ class CombatCommandType(str, Enum):
     HIDE = "hide"
     END_TURN = "end_turn"
     DM_OVERRIDE = "dm_override"
+    ROLL_INITIATIVE = "roll_initiative"
+    SET_INITIATIVE = "set_initiative"
+    REMOVE_COMBATANT = "remove_combatant"
+    SKIP_TURN = "skip_turn"
 
 
 class DMOverrideType(str, Enum):
@@ -80,6 +84,7 @@ class CombatCommand(BaseModel):
     vulnerabilities: Optional[list[str]] = None
     immunities: Optional[list[str]] = None
     surprised: Optional[bool] = None
+    initiative: Optional[float] = None
 
     @field_validator("target_ids", mode="before")
     @classmethod
@@ -386,6 +391,46 @@ class CombatCommandService:
                 is_concentration=command.is_concentration,
             )
 
+        if command.type == CombatCommandType.ROLL_INITIATIVE:
+            value = self._engine.roll_initiative(context.session_code, actor_id)
+            if value is None:
+                return {"error": "Failed to roll initiative"}
+            return {
+                "combatant_id": actor_id,
+                "value": value,
+                "order": self._initiative_order(state),
+            }
+
+        if command.type == CombatCommandType.SET_INITIATIVE:
+            if command.initiative is None:
+                return {"error": "initiative required"}
+            if not self._engine.set_initiative(
+                context.session_code,
+                actor_id,
+                command.initiative,
+            ):
+                return {"error": "Failed to set initiative"}
+            return {
+                "combatant_id": actor_id,
+                "value": command.initiative,
+                "order": self._initiative_order(state),
+            }
+
+        if command.type == CombatCommandType.REMOVE_COMBATANT:
+            if not self._engine.remove_combatant(context.session_code, actor_id):
+                return {"error": "Failed to remove combatant"}
+            return {
+                "removed": actor_id,
+                "order": self._initiative_order(state),
+            }
+
+        if command.type == CombatCommandType.SKIP_TURN:
+            current = state.get_current_combatant()
+            if current is None or current.combatant_id != actor_id:
+                return {"error": "Can only skip the current turn"}
+            result = self._engine.next_turn(context.session_code)
+            return result or {"error": "Failed to skip turn"}
+
         if command.type == CombatCommandType.END_TURN:
             if not self._engine.end_turn(context.session_code, actor_id):
                 return {"error": "Cannot end turn"}
@@ -634,6 +679,17 @@ class CombatCommandService:
     def _get_combatant(self, state, combatant_id: str):
         return next((c for c in state.combatants if c.combatant_id == combatant_id), None)
 
+    @staticmethod
+    def _initiative_order(state) -> list[dict[str, Any]]:
+        return [
+            {
+                "combatant_id": combatant.combatant_id,
+                "name": combatant.name,
+                "initiative": combatant.initiative,
+            }
+            for combatant in state.combatants
+        ]
+
     def _assert_turn_and_control(
         self,
         state,
@@ -643,6 +699,23 @@ class CombatCommandService:
     ) -> str | None:
         if command.type == CombatCommandType.DM_OVERRIDE:
             return None if is_dm(context.role) else "DMs only"
+        if command.type in {
+            CombatCommandType.SET_INITIATIVE,
+            CombatCommandType.REMOVE_COMBATANT,
+            CombatCommandType.SKIP_TURN,
+        }:
+            return None if is_dm(context.role) else "DMs only"
+        if command.type == CombatCommandType.ROLL_INITIATIVE:
+            if is_dm(context.role):
+                return None
+            actor = self._get_combatant(state, actor_id)
+            if (
+                actor is None
+                or context.user_id is None
+                or str(context.user_id) not in actor.controlled_by
+            ):
+                return "You do not control this combatant"
+            return None
         current = state.get_current_combatant()
         if not current or current.combatant_id != actor_id:
             return "Not your turn"

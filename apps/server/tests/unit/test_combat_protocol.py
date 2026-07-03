@@ -732,26 +732,6 @@ class TestDmRevertAction:
         assert persisted["state_after"]["combatants"][0]["hp"] == 20
 
 
-@pytest.mark.unit
-class TestDmAddAction:
-    async def test_player_blocked(self):
-        proto = _ProtoStub(role="player")
-        resp = await proto.handle_dm_add_action(
-            Message(MessageType.DM_ADD_ACTION, {"combatant_id": "c1"}), "c1"
-        )
-        assert resp.type == MessageType.ERROR
-
-    @patch("service.combat_engine.CombatEngine")
-    async def test_success_returns_combat_state(self, mock_engine):
-        mock_engine.dm_grant_resource.return_value = None
-        mock_engine.get_state.return_value = _combat_state()
-        proto = _ProtoStub(role="owner")
-        resp = await proto.handle_dm_add_action(
-            Message(MessageType.DM_ADD_ACTION, {"combatant_id": "c1"}), "c1"
-        )
-        assert resp.type == MessageType.COMBAT_STATE
-
-
 # ---------------------------------------------------------------------------
 # handle_condition_add / condition_remove
 # ---------------------------------------------------------------------------
@@ -1243,74 +1223,6 @@ class TestDmSetSurprised:
             "c1",
         )
         assert resp.type == MessageType.COMBAT_STATE
-
-
-# ---------------------------------------------------------------------------
-# handle_dm_add_movement
-# ---------------------------------------------------------------------------
-
-@pytest.mark.unit
-class TestDmAddMovement:
-    async def test_player_blocked(self):
-        proto = _ProtoStub(role="player")
-        resp = await proto.handle_dm_add_movement(
-            Message(MessageType.DM_ADD_MOVEMENT, {"combatant_id": "c1", "amount": 10}), "c1"
-        )
-        assert resp.type == MessageType.ERROR
-
-    async def test_missing_combatant_id_returns_error(self):
-        proto = _ProtoStub(role="owner")
-        resp = await proto.handle_dm_add_movement(
-            Message(MessageType.DM_ADD_MOVEMENT, {}), "c1"
-        )
-        assert resp.type == MessageType.ERROR
-
-    @patch("service.combat_engine.CombatEngine")
-    async def test_success_returns_combat_state(self, mock_engine):
-        state = _combat_state()
-        mock_engine.get_state.return_value = state
-        proto = _ProtoStub(role="owner")
-        resp = await proto.handle_dm_add_movement(
-            Message(MessageType.DM_ADD_MOVEMENT, {"combatant_id": "c1", "amount": 15}), "c1"
-        )
-        assert resp.type == MessageType.COMBAT_STATE
-
-    async def test_success_persists_snapshot_and_versions_live_state(self):
-        CombatEngine._active.pop("TST", None)
-        state = CombatEngine.start_combat(
-            "TST",
-            "t1",
-            [],
-            combatants=[{
-                "entity_id": "sprite-a",
-                "name": "Ada",
-                "hp": 20,
-                "max_hp": 20,
-                "movement_speed": 30,
-            }],
-        )
-        actor = state.combatants[0]
-        actor.movement_remaining = 10
-        persistence = _mock_persistence(version=8)
-        proto = _ProtoStub(role="owner")
-        proto.combat_persistence_service = persistence
-
-        resp = await proto.handle_dm_add_movement(
-            Message(MessageType.DM_ADD_MOVEMENT, {
-                "combatant_id": actor.combatant_id,
-                "amount": 15,
-                "sequence_id": 45,
-            }),
-            "c1",
-        )
-
-        persisted = persistence.persist_accepted.call_args.kwargs
-        assert resp.type == MessageType.COMBAT_STATE
-        assert resp.data["combat"]["state_version"] == 8
-        assert CombatEngine.get_state("TST").combatants[0].movement_remaining == 25
-        assert persisted["command_type"] == "dm_grant_movement"
-        assert persisted["state_before"]["combatants"][0]["movement_remaining"] == 10
-        assert persisted["state_after"]["combatants"][0]["movement_remaining"] == 25
 
 
 # ---------------------------------------------------------------------------

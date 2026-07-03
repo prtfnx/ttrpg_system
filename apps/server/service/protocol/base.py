@@ -189,8 +189,6 @@ class ServerProtocol(
         self.register_handler(MessageType.CONDITION_ADD,         self.handle_condition_add)
         self.register_handler(MessageType.CONDITION_REMOVE,      self.handle_condition_remove)
         self.register_handler(MessageType.DM_REVERT_ACTION,      self.handle_dm_revert_action)
-        self.register_handler(MessageType.DM_ADD_ACTION,         self.handle_dm_add_action)
-        self.register_handler(MessageType.DM_ADD_MOVEMENT,       self.handle_dm_add_movement)
         self.register_handler(MessageType.DM_TOGGLE_AI,          self.handle_dm_toggle_ai)
         self.register_handler(MessageType.DEATH_SAVE_ROLL,       self.handle_death_save_roll)
         self.register_handler(MessageType.DM_SET_RESISTANCES,    self.handle_dm_set_resistances)

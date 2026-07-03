@@ -146,6 +146,28 @@ class CombatStatePresenter:
         context: dict[str, Any],
         visible_combatants: dict[str, dict[str, Any]],
     ) -> None:
+        applied = context.get('applied')
+        if isinstance(applied, list):
+            visible_ids = set(visible_combatants)
+            sanitized_applied = []
+            for item in applied:
+                if not isinstance(item, dict):
+                    continue
+                actor_id = item.get('actor_id')
+                if actor_id is not None and str(actor_id) not in visible_ids:
+                    continue
+                sanitized = dict(item)
+                result = sanitized.get('result')
+                if isinstance(result, dict):
+                    result = dict(result)
+                    CombatStatePresenter._sanitize_event_context(
+                        result,
+                        visible_combatants,
+                    )
+                    sanitized['result'] = result
+                sanitized_applied.append(sanitized)
+            context['applied'] = sanitized_applied
+
         if 'order' in context:
             context['order'] = [
                 {

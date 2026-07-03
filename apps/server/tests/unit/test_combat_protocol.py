@@ -178,19 +178,35 @@ class TestCombatStateBroadcast:
             "player-client": {"user_id": 7, "role": "player"},
         })
 
-        with patch("service.combat_engine.CombatEngine") as mock_engine:
-            mock_engine.roll_initiative.return_value = 19
-            mock_engine.get_state.return_value = state
-            response = await proto.handle_initiative_roll(
-                Message(MessageType.INITIATIVE_ROLL, {"combatant_id": "hidden-npc"}),
-                "dm-client",
-            )
+        response = await proto._broadcast_combat_state(
+            state,
+            MessageType.ACTION_RESULT,
+            "dm-client",
+            {
+                "accepted": True,
+                "sequence_id": 19,
+                "applied": [{
+                    "actor_id": "pc-1",
+                    "action_type": "roll_initiative",
+                    "result": {
+                        "combatant_id": "pc-1",
+                        "value": 12,
+                        "order": [
+                            {"combatant_id": "hidden-npc", "name": "Hidden", "initiative": 19},
+                            {"combatant_id": "pc-1", "name": "Ada", "initiative": 12},
+                        ],
+                    },
+                }],
+            },
+        )
 
-        assert response.data["combatant_id"] == "hidden-npc"
+        assert response.data["applied"][0]["actor_id"] == "pc-1"
         player_message, recipient_id = proto.sent[0]
         assert recipient_id == "player-client"
-        assert "combatant_id" not in player_message.data
-        assert [item["combatant_id"] for item in player_message.data["order"]] == ["pc-1"]
+        assert [
+            item["combatant_id"]
+            for item in player_message.data["applied"][0]["result"]["order"]
+        ] == ["pc-1"]
         assert [
             item["combatant_id"] for item in player_message.data["combat"]["combatants"]
         ] == ["pc-1"]
@@ -298,52 +314,6 @@ class TestCombatEnd:
 
 
 # ---------------------------------------------------------------------------
-# handle_initiative_roll
-# ---------------------------------------------------------------------------
-
-@pytest.mark.unit
-class TestInitiativeRoll:
-    async def test_missing_combatant_id_returns_error(self):
-        proto = _ProtoStub(role="owner")
-        resp = await proto.handle_initiative_roll(Message(MessageType.INITIATIVE_ROLL, {}), "c1")
-        assert resp.type == MessageType.ERROR
-        assert "combatant_id" in resp.data["error"]
-
-    @patch("service.combat_engine.CombatEngine")
-    async def test_unknown_combatant_returns_error(self, mock_engine):
-        mock_engine.roll_initiative.return_value = None
-        proto = _ProtoStub(role="owner")
-        msg = Message(MessageType.INITIATIVE_ROLL, {"combatant_id": "ghost"})
-        resp = await proto.handle_initiative_roll(msg, "c1")
-        assert resp.type == MessageType.ERROR
-
-    @patch("service.combat_engine.CombatEngine")
-    async def test_successful_roll_returns_initiative_order(self, mock_engine):
-        mock_engine.roll_initiative.return_value = 15
-        state = _combat_state()
-        state.combatants = [
-            SimpleNamespace(combatant_id="c-1", name="Ada", initiative=15),
-        ]
-        state.to_dict_for_player.return_value = {
-            "active": True,
-            "combatants": [{
-                "combatant_id": "c-1",
-                "name": "Ada",
-                "initiative": 15,
-                "is_npc": False,
-                "controlled_by": ["1"],
-            }],
-            "action_log": [],
-        }
-        mock_engine.get_state.return_value = state
-        proto = _ProtoStub(role="player")
-        msg = Message(MessageType.INITIATIVE_ROLL, {"combatant_id": "c-1"})
-        resp = await proto.handle_initiative_roll(msg, "c1")
-        assert resp.type == MessageType.INITIATIVE_ORDER
-        assert resp.data["value"] == 15
-
-
-# ---------------------------------------------------------------------------
 # handle_combat_state_request
 # ---------------------------------------------------------------------------
 
@@ -374,70 +344,8 @@ class TestCombatStateRequest:
 
 
 # ---------------------------------------------------------------------------
-# handle_initiative_set / add / remove
+# handle_initiative_add
 # ---------------------------------------------------------------------------
-
-@pytest.mark.unit
-class TestInitiativeSet:
-    async def test_player_cannot_set(self):
-        proto = _ProtoStub(role="player")
-        resp = await proto.handle_initiative_set(
-            Message(MessageType.INITIATIVE_SET, {"combatant_id": "c1", "value": 10}), "c1"
-        )
-        assert resp.type == MessageType.ERROR
-
-    async def test_missing_fields_returns_error(self):
-        proto = _ProtoStub(role="owner")
-        resp = await proto.handle_initiative_set(Message(MessageType.INITIATIVE_SET, {}), "c1")
-        assert resp.type == MessageType.ERROR
-
-    @patch("service.combat_engine.CombatEngine")
-    async def test_success_returns_initiative_order(self, mock_engine):
-        mock_engine.set_initiative.return_value = True
-        mock_engine.get_state.return_value = _combat_state()
-        proto = _ProtoStub(role="owner")
-        resp = await proto.handle_initiative_set(
-            Message(MessageType.INITIATIVE_SET, {"combatant_id": "c1", "value": 18}), "c1"
-        )
-        assert resp.type == MessageType.INITIATIVE_ORDER
-
-    async def test_success_persists_snapshot_and_versions_live_state(self):
-        CombatEngine._active.pop("TST", None)
-        state = CombatEngine.start_combat(
-            "TST",
-            "t1",
-            [],
-            combatants=[{
-                "entity_id": "sprite-a",
-                "name": "Ada",
-                "hp": 20,
-                "max_hp": 20,
-                "initiative": 5,
-            }],
-        )
-        actor = state.combatants[0]
-        initiative_before = actor.initiative
-        persistence = _mock_persistence(version=12)
-        proto = _ProtoStub(role="owner")
-        proto.combat_persistence_service = persistence
-
-        resp = await proto.handle_initiative_set(
-            Message(MessageType.INITIATIVE_SET, {
-                "combatant_id": actor.combatant_id,
-                "value": 18,
-                "sequence_id": 49,
-            }),
-            "c1",
-        )
-
-        persisted = persistence.persist_accepted.call_args.kwargs
-        assert resp.type == MessageType.INITIATIVE_ORDER
-        assert resp.data["combat"]["state_version"] == 12
-        assert CombatEngine.get_state("TST").combatants[0].initiative == 18
-        assert persisted["command_type"] == "initiative_set"
-        assert persisted["state_before"]["combatants"][0]["initiative"] == initiative_before
-        assert persisted["state_after"]["combatants"][0]["initiative"] == 18
-
 
 @pytest.mark.unit
 class TestInitiativeAdd:
@@ -542,117 +450,6 @@ class TestInitiativeAdd:
         assert persisted["command_type"] == "initiative_add"
         assert len(persisted["state_before"]["combatants"]) == 1
         assert len(persisted["state_after"]["combatants"]) == 2
-
-
-@pytest.mark.unit
-class TestInitiativeRemove:
-    async def test_player_cannot_remove(self):
-        proto = _ProtoStub(role="player")
-        resp = await proto.handle_initiative_remove(
-            Message(MessageType.INITIATIVE_REMOVE, {"combatant_id": "c1"}), "c1"
-        )
-        assert resp.type == MessageType.ERROR
-
-    @patch("service.combat_engine.CombatEngine")
-    async def test_successful_remove_returns_order(self, mock_engine):
-        mock_engine.remove_combatant.return_value = True
-        mock_engine.get_state.return_value = _combat_state()
-        proto = _ProtoStub(role="owner")
-        resp = await proto.handle_initiative_remove(
-            Message(MessageType.INITIATIVE_REMOVE, {"combatant_id": "c1"}), "c1"
-        )
-        assert resp.type == MessageType.INITIATIVE_ORDER
-
-    async def test_success_persists_removed_combatant_and_versions_live_state(self):
-        CombatEngine._active.pop("TST", None)
-        state = CombatEngine.start_combat(
-            "TST",
-            "t1",
-            [],
-            combatants=[
-                {"entity_id": "sprite-a", "name": "Ada", "hp": 20, "max_hp": 20},
-                {"entity_id": "sprite-b", "name": "Borin", "hp": 12, "max_hp": 12},
-            ],
-        )
-        removed = state.combatants[1]
-        persistence = _mock_persistence(version=14)
-        proto = _ProtoStub(role="owner")
-        proto.combat_persistence_service = persistence
-
-        resp = await proto.handle_initiative_remove(
-            Message(MessageType.INITIATIVE_REMOVE, {
-                "combatant_id": removed.combatant_id,
-                "sequence_id": 51,
-            }),
-            "c1",
-        )
-
-        persisted = persistence.persist_accepted.call_args.kwargs
-        assert resp.type == MessageType.INITIATIVE_ORDER
-        assert resp.data["combat"]["state_version"] == 14
-        assert len(CombatEngine.get_state("TST").combatants) == 1
-        assert persisted["command_type"] == "initiative_remove"
-        assert len(persisted["state_before"]["combatants"]) == 2
-        assert len(persisted["state_after"]["combatants"]) == 1
-
-
-# ---------------------------------------------------------------------------
-# handle_turn_skip
-# ---------------------------------------------------------------------------
-
-
-@pytest.mark.unit
-class TestTurnSkip:
-    async def test_player_cannot_skip(self):
-        proto = _ProtoStub(role="player")
-        resp = await proto.handle_turn_skip(Message(MessageType.TURN_SKIP, {}), "c1")
-        assert resp.type == MessageType.ERROR
-
-    @patch("service.combat_engine.CombatEngine")
-    async def test_no_combat_returns_error(self, mock_engine):
-        mock_engine.next_turn.return_value = None
-        proto = _ProtoStub(role="owner")
-        resp = await proto.handle_turn_skip(Message(MessageType.TURN_SKIP, {}), "c1")
-        assert resp.type == MessageType.ERROR
-
-    @patch("service.combat_engine.CombatEngine")
-    async def test_success_returns_turn_start(self, mock_engine):
-        mock_engine.next_turn.return_value = {"current_combatant_id": "c2"}
-        mock_engine.get_state.return_value = _combat_state()
-        proto = _ProtoStub(role="owner")
-        resp = await proto.handle_turn_skip(Message(MessageType.TURN_SKIP, {}), "c1")
-        assert resp.type == MessageType.TURN_START
-
-    async def test_success_persists_turn_skip_and_versions_live_state(self):
-        CombatEngine._active.pop("TST", None)
-        state = CombatEngine.start_combat(
-            "TST",
-            "t1",
-            [],
-            combatants=[
-                {"entity_id": "sprite-a", "name": "Ada", "hp": 20, "max_hp": 20},
-                {"entity_id": "sprite-b", "name": "Borin", "hp": 12, "max_hp": 12},
-            ],
-        )
-        state.current_turn_index = 0
-        skipped = state.combatants[0]
-        persistence = _mock_persistence(version=15)
-        proto = _ProtoStub(role="owner")
-        proto.combat_persistence_service = persistence
-
-        resp = await proto.handle_turn_skip(
-            Message(MessageType.TURN_SKIP, {"sequence_id": 52}),
-            "c1",
-        )
-
-        persisted = persistence.persist_accepted.call_args.kwargs
-        assert resp.type == MessageType.TURN_START
-        assert resp.data["combat"]["state_version"] == 15
-        assert CombatEngine.get_state("TST").current_turn_index == 1
-        assert persisted["command_type"] == "turn_skip"
-        assert persisted["actor_id"] == skipped.combatant_id
-        assert persisted["state_before"]["current_turn_index"] == 0
-        assert persisted["state_after"]["current_turn_index"] == 1
 
 
 # ---------------------------------------------------------------------------

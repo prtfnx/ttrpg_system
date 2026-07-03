@@ -1182,13 +1182,15 @@ class TestDmSetResistances:
     async def test_player_blocked(self):
         proto = _ProtoStub(role="player")
         resp = await proto.handle_dm_set_resistances(
-            Message(MessageType.DM_SET_HP, {"combatant_id": "c1"}), "c1"
+            Message(MessageType.DM_SET_RESISTANCES, {"combatant_id": "c1"}), "c1"
         )
         assert resp.type == MessageType.ERROR
 
     async def test_missing_combatant_id_returns_error(self):
         proto = _ProtoStub(role="owner")
-        resp = await proto.handle_dm_set_resistances(Message(MessageType.DM_SET_HP, {}), "c1")
+        resp = await proto.handle_dm_set_resistances(
+            Message(MessageType.DM_SET_RESISTANCES, {}), "c1"
+        )
         assert resp.type == MessageType.ERROR
 
     @patch("service.combat_engine.CombatEngine")
@@ -1198,7 +1200,11 @@ class TestDmSetResistances:
         mock_engine.get_state.return_value = state
         proto = _ProtoStub(role="owner")
         resp = await proto.handle_dm_set_resistances(
-            Message(MessageType.DM_SET_HP, {"combatant_id": "c1", "resistances": ["fire"]}), "c1"
+            Message(
+                MessageType.DM_SET_RESISTANCES,
+                {"combatant_id": "c1", "resistances": ["fire"]},
+            ),
+            "c1",
         )
         assert resp.type == MessageType.COMBAT_STATE
 
@@ -1212,13 +1218,15 @@ class TestDmSetSurprised:
     async def test_player_blocked(self):
         proto = _ProtoStub(role="player")
         resp = await proto.handle_dm_set_surprised(
-            Message(MessageType.DM_SET_HP, {"combatant_ids": ["c1"]}), "c1"
+            Message(MessageType.DM_SET_SURPRISED, {"combatant_ids": ["c1"]}), "c1"
         )
         assert resp.type == MessageType.ERROR
 
     async def test_missing_combatant_ids_returns_error(self):
         proto = _ProtoStub(role="owner")
-        resp = await proto.handle_dm_set_surprised(Message(MessageType.DM_SET_HP, {}), "c1")
+        resp = await proto.handle_dm_set_surprised(
+            Message(MessageType.DM_SET_SURPRISED, {}), "c1"
+        )
         assert resp.type == MessageType.ERROR
 
     @patch("service.combat_engine.CombatEngine")
@@ -1228,7 +1236,11 @@ class TestDmSetSurprised:
         mock_engine.get_state.return_value = state
         proto = _ProtoStub(role="owner")
         resp = await proto.handle_dm_set_surprised(
-            Message(MessageType.DM_SET_HP, {"combatant_ids": ["c1"], "surprised": True}), "c1"
+            Message(
+                MessageType.DM_SET_SURPRISED,
+                {"combatant_ids": ["c1"], "surprised": True},
+            ),
+            "c1",
         )
         assert resp.type == MessageType.COMBAT_STATE
 
@@ -1242,13 +1254,15 @@ class TestDmAddMovement:
     async def test_player_blocked(self):
         proto = _ProtoStub(role="player")
         resp = await proto.handle_dm_add_movement(
-            Message(MessageType.DM_SET_HP, {"combatant_id": "c1", "amount": 10}), "c1"
+            Message(MessageType.DM_ADD_MOVEMENT, {"combatant_id": "c1", "amount": 10}), "c1"
         )
         assert resp.type == MessageType.ERROR
 
     async def test_missing_combatant_id_returns_error(self):
         proto = _ProtoStub(role="owner")
-        resp = await proto.handle_dm_add_movement(Message(MessageType.DM_SET_HP, {}), "c1")
+        resp = await proto.handle_dm_add_movement(
+            Message(MessageType.DM_ADD_MOVEMENT, {}), "c1"
+        )
         assert resp.type == MessageType.ERROR
 
     @patch("service.combat_engine.CombatEngine")
@@ -1257,7 +1271,7 @@ class TestDmAddMovement:
         mock_engine.get_state.return_value = state
         proto = _ProtoStub(role="owner")
         resp = await proto.handle_dm_add_movement(
-            Message(MessageType.DM_SET_HP, {"combatant_id": "c1", "amount": 15}), "c1"
+            Message(MessageType.DM_ADD_MOVEMENT, {"combatant_id": "c1", "amount": 15}), "c1"
         )
         assert resp.type == MessageType.COMBAT_STATE
 
@@ -1308,13 +1322,15 @@ class TestDmToggleAi:
     async def test_player_blocked(self):
         proto = _ProtoStub(role="player")
         resp = await proto.handle_dm_toggle_ai(
-            Message(MessageType.DM_SET_HP, {"combatant_id": "c1"}), "c1"
+            Message(MessageType.DM_TOGGLE_AI, {"combatant_id": "c1"}), "c1"
         )
         assert resp.type == MessageType.ERROR
 
     async def test_missing_combatant_id_returns_error(self):
         proto = _ProtoStub(role="owner")
-        resp = await proto.handle_dm_toggle_ai(Message(MessageType.DM_SET_HP, {}), "c1")
+        resp = await proto.handle_dm_toggle_ai(
+            Message(MessageType.DM_TOGGLE_AI, {}), "c1"
+        )
         assert resp.type == MessageType.ERROR
 
     @patch("service.combat_engine.CombatEngine")
@@ -1324,7 +1340,11 @@ class TestDmToggleAi:
         mock_engine.get_state.return_value = state
         proto = _ProtoStub(role="owner")
         resp = await proto.handle_dm_toggle_ai(
-            Message(MessageType.DM_SET_HP, {"combatant_id": "missing", "enabled": True}), "c1"
+            Message(
+                MessageType.DM_TOGGLE_AI,
+                {"combatant_id": "missing", "enabled": True},
+            ),
+            "c1",
         )
         assert resp.type == MessageType.ERROR
 
@@ -1339,7 +1359,11 @@ class TestDmToggleAi:
         mock_engine.get_state.return_value = state
         proto = _ProtoStub(role="owner")
         resp = await proto.handle_dm_toggle_ai(
-            Message(MessageType.DM_SET_HP, {"combatant_id": "c1", "enabled": True}), "c1"
+            Message(
+                MessageType.DM_TOGGLE_AI,
+                {"combatant_id": "c1", "enabled": True},
+            ),
+            "c1",
         )
         assert resp.type == MessageType.COMBAT_STATE
         assert combatant.ai_enabled is True
@@ -1393,7 +1417,7 @@ class TestDmSetTerrain:
         proto = _ProtoStub(role="player")
         proto.table_manager = MagicMock()
         resp = await proto.handle_dm_set_terrain(
-            Message(MessageType.DM_SET_HP, {"table_id": "t1", "cells": [[1, 1]]}), "c1"
+            Message(MessageType.DM_SET_TERRAIN, {"table_id": "t1", "cells": [[1, 1]]}), "c1"
         )
         assert resp.type == MessageType.ERROR
 
@@ -1403,7 +1427,11 @@ class TestDmSetTerrain:
         proto.table_manager.tables_id = {}
         proto.table_manager.tables = {}
         resp = await proto.handle_dm_set_terrain(
-            Message(MessageType.DM_SET_HP, {"table_id": "missing", "cells": [[1, 1]]}), "c1"
+            Message(
+                MessageType.DM_SET_TERRAIN,
+                {"table_id": "missing", "cells": [[1, 1]]},
+            ),
+            "c1",
         )
         assert resp.type == MessageType.ERROR
 
@@ -1415,7 +1443,11 @@ class TestDmSetTerrain:
         proto.table_manager.tables_id = {"t1": table}
         proto.table_manager.save_table.return_value = True
         resp = await proto.handle_dm_set_terrain(
-            Message(MessageType.DM_SET_HP, {"table_id": "t1", "cells": [[2, 3]], "mode": "add"}), "c1"
+            Message(
+                MessageType.DM_SET_TERRAIN,
+                {"table_id": "t1", "cells": [[2, 3]], "mode": "add"},
+            ),
+            "c1",
         )
         assert resp.type == MessageType.DM_SET_TERRAIN
         assert (2, 3) in table.difficult_terrain_cells
@@ -1428,7 +1460,11 @@ class TestDmSetTerrain:
         proto.table_manager = MagicMock()
         proto.table_manager.tables_id = {"t1": table}
         resp = await proto.handle_dm_set_terrain(
-            Message(MessageType.DM_SET_HP, {"table_id": "t1", "cells": [], "mode": "clear"}), "c1"
+            Message(
+                MessageType.DM_SET_TERRAIN,
+                {"table_id": "t1", "cells": [], "mode": "clear"},
+            ),
+            "c1",
         )
         assert resp.type == MessageType.DM_SET_TERRAIN
         assert len(table.difficult_terrain_cells) == 0
@@ -1441,7 +1477,11 @@ class TestDmSetTerrain:
         proto.table_manager.tables_id = {"t1": table}
         proto.table_manager.save_table.return_value = False
         resp = await proto.handle_dm_set_terrain(
-            Message(MessageType.DM_SET_HP, {"table_id": "t1", "cells": [[2, 3]], "mode": "add"}), "c1"
+            Message(
+                MessageType.DM_SET_TERRAIN,
+                {"table_id": "t1", "cells": [[2, 3]], "mode": "add"},
+            ),
+            "c1",
         )
         assert resp.type == MessageType.ERROR
         assert table.difficult_terrain_cells == {(1, 1)}

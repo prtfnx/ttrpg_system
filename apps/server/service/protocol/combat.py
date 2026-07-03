@@ -1,6 +1,5 @@
 import json
 import time
-import uuid
 from typing import Any
 
 from core_table.protocol import Message, MessageType
@@ -398,101 +397,6 @@ class _CombatMixin(_ProtocolBase):
             result,
         )
 
-    async def handle_condition_add(self, msg: Message, client_id: str) -> Message:
-        if not is_dm(self._get_client_role(client_id)):
-            return Message(MessageType.ERROR, {'error': 'Only DMs can add conditions'})
-        d = msg.data or {}
-        combatant_id = d.get('combatant_id')
-        condition_str = d.get('condition_type')
-        if not combatant_id or not condition_str:
-            return Message(MessageType.ERROR, {'error': 'combatant_id and condition_type required'})
-        from core_table.conditions import ActiveCondition, ConditionType
-        from service.combat_engine import CombatEngine
-        state = CombatEngine.get_state(self._get_session_code())
-        if not state:
-            return Message(MessageType.ERROR, {'error': 'No active combat'})
-        state_before = state.to_dict()
-        for c in state.combatants:
-            if c.combatant_id != combatant_id:
-                continue
-            try:
-                ctype = ConditionType(condition_str)
-            except ValueError:
-                return Message(MessageType.ERROR, {'error': f'Unknown condition: {condition_str}'})
-            added = False
-            if not any(x.condition_type == ctype for x in c.conditions):
-                c.conditions.append(ActiveCondition(
-                    condition_id=str(uuid.uuid4()),
-                    condition_type=ctype,
-                    source=d.get('source', 'dm'),
-                    duration_type='rounds' if d.get('duration') else 'permanent',
-                    duration_remaining=d.get('duration'),
-                ))
-                added = True
-            conditions = [x.to_dict() for x in c.conditions]
-            if added:
-                persist_error = self._persist_direct_combat_mutation(
-                    msg,
-                    client_id,
-                    session_code=self._get_session_code(),
-                    command_type='condition_add',
-                    actor_id=combatant_id,
-                    command_payload=d,
-                    result_payload={'combatant_id': combatant_id, 'conditions': conditions},
-                    state_before=state_before,
-                    state_after=state,
-                )
-                if persist_error:
-                    return Message(MessageType.ERROR, {'error': persist_error})
-            return await self._broadcast_combat_state(
-                state,
-                MessageType.CONDITIONS_SYNC,
-                client_id,
-                {'combatant_id': combatant_id, 'conditions': conditions},
-            )
-        return Message(MessageType.ERROR, {'error': 'Combatant not found'})
-
-    async def handle_condition_remove(self, msg: Message, client_id: str) -> Message:
-        if not is_dm(self._get_client_role(client_id)):
-            return Message(MessageType.ERROR, {'error': 'Only DMs can remove conditions'})
-        d = msg.data or {}
-        combatant_id = d.get('combatant_id')
-        condition_str = d.get('condition_type')
-        if not combatant_id or not condition_str:
-            return Message(MessageType.ERROR, {'error': 'combatant_id and condition_type required'})
-        from service.combat_engine import CombatEngine
-        state = CombatEngine.get_state(self._get_session_code())
-        if not state:
-            return Message(MessageType.ERROR, {'error': 'No active combat'})
-        state_before = state.to_dict()
-        for c in state.combatants:
-            if c.combatant_id != combatant_id:
-                continue
-            original_count = len(c.conditions)
-            c.conditions = [x for x in c.conditions if x.condition_type.value != condition_str]
-            conditions = [x.to_dict() for x in c.conditions]
-            if len(c.conditions) != original_count:
-                persist_error = self._persist_direct_combat_mutation(
-                    msg,
-                    client_id,
-                    session_code=self._get_session_code(),
-                    command_type='condition_remove',
-                    actor_id=combatant_id,
-                    command_payload=d,
-                    result_payload={'combatant_id': combatant_id, 'conditions': conditions},
-                    state_before=state_before,
-                    state_after=state,
-                )
-                if persist_error:
-                    return Message(MessageType.ERROR, {'error': persist_error})
-            return await self._broadcast_combat_state(
-                state,
-                MessageType.CONDITIONS_SYNC,
-                client_id,
-                {'combatant_id': combatant_id, 'conditions': conditions},
-            )
-        return Message(MessageType.ERROR, {'error': 'Combatant not found'})
-
     async def handle_dm_revert_action(self, msg: Message, client_id: str) -> Message:
         if not is_dm(self._get_client_role(client_id)):
             return Message(MessageType.ERROR, {'error': 'DMs only'})
@@ -651,81 +555,6 @@ class _CombatMixin(_ProtocolBase):
             MessageType.DEATH_SAVE_RESULT,
             client_id,
             result,
-        )
-
-    async def handle_dm_set_resistances(self, msg: Message, client_id: str) -> Message:
-        if not is_dm(self._get_client_role(client_id)):
-            return Message(MessageType.ERROR, {'error': 'DMs only'})
-        d = msg.data or {}
-        combatant_id = d.get('combatant_id')
-        if not combatant_id:
-            return Message(MessageType.ERROR, {'error': 'combatant_id required'})
-        from service.combat_engine import CombatEngine
-        session_code = self._get_session_code()
-        state_before_obj = CombatEngine.get_state(session_code)
-        state_before = state_before_obj.to_dict() if state_before_obj else None
-        result = CombatEngine.set_resistances(
-            session_code, combatant_id,
-            resistances=d.get('resistances'), vulnerabilities=d.get('vulnerabilities'),
-            immunities=d.get('immunities'),
-        )
-        if not result:
-            return Message(MessageType.ERROR, {'error': 'Combatant not found or no active combat'})
-        state = CombatEngine.get_state(session_code)
-        persist_error = self._persist_direct_combat_mutation(
-            msg,
-            client_id,
-            session_code=session_code,
-            command_type='dm_set_resistances',
-            actor_id=combatant_id,
-            command_payload=d,
-            result_payload=result,
-            state_before=state_before,
-            state_after=state,
-        )
-        if persist_error:
-            return Message(MessageType.ERROR, {'error': persist_error})
-        return await self._broadcast_combat_state(
-            state,
-            MessageType.COMBAT_STATE,
-            client_id,
-            {'resistances_update': result},
-        )
-
-    async def handle_dm_set_surprised(self, msg: Message, client_id: str) -> Message:
-        if not is_dm(self._get_client_role(client_id)):
-            return Message(MessageType.ERROR, {'error': 'DMs only'})
-        d = msg.data or {}
-        combatant_ids = d.get('combatant_ids', [])
-        surprised = bool(d.get('surprised', True))
-        if not combatant_ids:
-            return Message(MessageType.ERROR, {'error': 'combatant_ids required'})
-        from service.combat_engine import CombatEngine
-        session_code = self._get_session_code()
-        state_before_obj = CombatEngine.get_state(session_code)
-        state_before = state_before_obj.to_dict() if state_before_obj else None
-        result = CombatEngine.set_surprised(session_code, combatant_ids, surprised)
-        if not result:
-            return Message(MessageType.ERROR, {'error': 'No matching combatants or no active combat'})
-        state = CombatEngine.get_state(session_code)
-        persist_error = self._persist_direct_combat_mutation(
-            msg,
-            client_id,
-            session_code=session_code,
-            command_type='dm_set_surprised',
-            actor_id=','.join(combatant_ids),
-            command_payload=d,
-            result_payload=result,
-            state_before=state_before,
-            state_after=state,
-        )
-        if persist_error:
-            return Message(MessageType.ERROR, {'error': persist_error})
-        return await self._broadcast_combat_state(
-            state,
-            MessageType.COMBAT_STATE,
-            client_id,
-            {'surprised_update': result},
         )
 
     async def handle_dm_set_terrain(self, msg: Message, client_id: str) -> Message:

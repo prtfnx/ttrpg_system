@@ -132,6 +132,7 @@ const mockCombat = {
       movement_remaining: 30, movement_speed: 30, hp: 20, max_hp: 20, temp_hp: 0,
       armor_class: 17, conditions: [], is_npc: false, is_hidden: false,
       is_defeated: false, controlled_by: ['player1'], ai_enabled: false, ai_behavior: 'none',
+      spell_slots: { 1: 0, 2: 0 }, spell_slots_max: { 1: 4, 2: 2 },
     },
   ],
   settings: {
@@ -412,6 +413,27 @@ describe('DMCombatPanel - resource overrides', () => {
     render(<DMCombatPanel />);
     expect(screen.getByRole('button', { name: /restore action/i })).toBeDisabled();
     expect(screen.getByRole('button', { name: /grant movement/i })).toBeDisabled();
+  });
+
+  it('restores an available spell slot through a canonical DM override', async () => {
+    const user = userEvent.setup();
+    render(<DMCombatPanel />);
+    await user.selectOptions(screen.getAllByRole('combobox')[0], 'c2');
+    await user.selectOptions(screen.getByLabelText(/spell slot level/i), '2');
+    await user.click(screen.getByRole('button', { name: /restore spell slot/i }));
+
+    expect(mockSendMessage).toHaveBeenCalledWith(
+      expect.objectContaining({
+        type: 'combat_command',
+        data: expect.objectContaining({
+          commands: [expect.objectContaining({
+            actor_id: 'c2',
+            override_type: 'restore_spell_slot',
+            slot_level: 2,
+          })],
+        }),
+      }),
+    );
   });
 });
 

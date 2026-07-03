@@ -352,7 +352,10 @@ export function DMCombatPanel() {
         </div>
       </div>
 
-      <DMResourcePanel combatantId={selectedId} />
+      <DMResourcePanel
+        combatantId={selectedId}
+        spellSlotLevels={Object.keys(selectedCombatant?.spell_slots_max ?? {}).map(Number)}
+      />
 
       <div className={styles.section}>
         <label className={styles.label}>Add Condition</label>

@@ -183,7 +183,6 @@ class ServerProtocol(
         self.register_handler(MessageType.COMBAT_STATE_REQUEST,  self.handle_combat_state_request)
         self.register_handler(MessageType.INITIATIVE_ADD,        self.handle_initiative_add)
         self.register_handler(MessageType.DM_REVERT_ACTION,      self.handle_dm_revert_action)
-        self.register_handler(MessageType.DM_TOGGLE_AI,          self.handle_dm_toggle_ai)
         self.register_handler(MessageType.DEATH_SAVE_ROLL,       self.handle_death_save_roll)
         self.register_handler(MessageType.DM_SET_TERRAIN,        self.handle_dm_set_terrain)
         self.register_handler(MessageType.COVER_ZONE_ADD,        self.handle_cover_zone_add)
@@ -193,7 +192,6 @@ class ServerProtocol(
         self.register_handler(MessageType.OPPORTUNITY_ATTACK_RESOLVE,      self.handle_oa_resolve)
         self.register_handler(MessageType.AI_ACTION,             self.handle_ai_action)
         self.register_handler(MessageType.COMBAT_COMMAND,        self.handle_combat_command)
-        self.register_handler(MessageType.SPELL_SLOT_RECOVER, self.handle_dm_restore_spell_slot)
 
         # Encounters
         self.register_handler(MessageType.ENCOUNTER_START,  self.handle_encounter_start)

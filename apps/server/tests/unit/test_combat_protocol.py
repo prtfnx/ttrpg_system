@@ -793,60 +793,8 @@ class TestCombatCommand:
         proto.actions.move_sprite.assert_awaited_once()
 
 # ---------------------------------------------------------------------------
-# handle_dm_toggle_ai / handle_ai_action
+# handle_ai_action
 # ---------------------------------------------------------------------------
-
-@pytest.mark.unit
-class TestDmToggleAi:
-    async def test_player_blocked(self):
-        proto = _ProtoStub(role="player")
-        resp = await proto.handle_dm_toggle_ai(
-            Message(MessageType.DM_TOGGLE_AI, {"combatant_id": "c1"}), "c1"
-        )
-        assert resp.type == MessageType.ERROR
-
-    async def test_missing_combatant_id_returns_error(self):
-        proto = _ProtoStub(role="owner")
-        resp = await proto.handle_dm_toggle_ai(
-            Message(MessageType.DM_TOGGLE_AI, {}), "c1"
-        )
-        assert resp.type == MessageType.ERROR
-
-    @patch("service.combat_engine.CombatEngine")
-    async def test_combatant_not_found_returns_error(self, mock_engine):
-        state = _combat_state()
-        state.combatants = []
-        mock_engine.get_state.return_value = state
-        proto = _ProtoStub(role="owner")
-        resp = await proto.handle_dm_toggle_ai(
-            Message(
-                MessageType.DM_TOGGLE_AI,
-                {"combatant_id": "missing", "enabled": True},
-            ),
-            "c1",
-        )
-        assert resp.type == MessageType.ERROR
-
-    @patch("service.combat_engine.CombatEngine")
-    async def test_success_returns_combat_state(self, mock_engine):
-        combatant = MagicMock()
-        combatant.combatant_id = "c1"
-        combatant.ai_enabled = False
-        combatant.ai_behavior = "aggressive"
-        state = _combat_state()
-        state.combatants = [combatant]
-        mock_engine.get_state.return_value = state
-        proto = _ProtoStub(role="owner")
-        resp = await proto.handle_dm_toggle_ai(
-            Message(
-                MessageType.DM_TOGGLE_AI,
-                {"combatant_id": "c1", "enabled": True},
-            ),
-            "c1",
-        )
-        assert resp.type == MessageType.COMBAT_STATE
-        assert combatant.ai_enabled is True
-
 
 @pytest.mark.unit
 class TestAiAction:

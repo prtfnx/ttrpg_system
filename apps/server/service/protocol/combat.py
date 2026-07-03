@@ -302,49 +302,6 @@ class _CombatMixin(_ProtocolBase):
             result,
         )
 
-    async def handle_dm_toggle_ai(self, msg: Message, client_id: str) -> Message:
-        if not is_dm(self._get_client_role(client_id)):
-            return Message(MessageType.ERROR, {'error': 'DMs only'})
-        d = msg.data or {}
-        combatant_id = d.get('combatant_id')
-        if not combatant_id:
-            return Message(MessageType.ERROR, {'error': 'combatant_id required'})
-        from service.combat_engine import CombatEngine
-        state = CombatEngine.get_state(self._get_session_code())
-        if not state:
-            return Message(MessageType.ERROR, {'error': 'No active combat'})
-        for c in state.combatants:
-            if c.combatant_id == combatant_id:
-                state_before = state.to_dict()
-                if 'enabled' in d:
-                    c.ai_enabled = d['enabled']
-                if 'behavior' in d:
-                    c.ai_behavior = d['behavior']
-                persist_error = self._persist_direct_combat_mutation(
-                    msg,
-                    client_id,
-                    session_code=self._get_session_code(),
-                    command_type='dm_toggle_ai',
-                    actor_id=combatant_id,
-                    command_payload=d,
-                    result_payload={
-                        'combatant_id': combatant_id,
-                        'ai_enabled': c.ai_enabled,
-                        'ai_behavior': c.ai_behavior,
-                    },
-                    state_before=state_before,
-                    state_after=state,
-                )
-                if persist_error:
-                    return Message(MessageType.ERROR, {'error': persist_error})
-                return await self._broadcast_combat_state(
-                    state,
-                    MessageType.COMBAT_STATE,
-                    client_id,
-                    {'combatant_id': combatant_id},
-                )
-        return Message(MessageType.ERROR, {'error': 'Combatant not found'})
-
     async def handle_ai_action(self, msg: Message, client_id: str) -> Message:
         if not is_dm(self._get_client_role(client_id)):
             return Message(MessageType.ERROR, {'error': 'DMs only'})
@@ -800,41 +757,5 @@ class _CombatMixin(_ProtocolBase):
             MessageType.OPPORTUNITY_ATTACK_RESOLVE,
             client_id,
             result_payload,
-        )
-
-    async def handle_dm_restore_spell_slot(self, msg: Message, client_id: str) -> Message:
-        from service.combat_engine import CombatEngine
-        session_code = self._get_session_code()
-        if not is_dm(self._get_client_role(client_id)):
-            return Message(MessageType.ERROR, {'error': 'DM only'})
-        d = msg.data or {}
-        state_before_obj = CombatEngine.get_state(session_code)
-        state_before = state_before_obj.to_dict() if state_before_obj else None
-        result = CombatEngine.restore_spell_slot(
-            session_code,
-            combatant_id=d.get('combatant_id', ''),
-            slot_level=d.get('slot_level', 1),
-        )
-        if 'error' in result:
-            return Message(MessageType.ERROR, result)
-        state = CombatEngine.get_state(session_code)
-        persist_error = self._persist_direct_combat_mutation(
-            msg,
-            client_id,
-            session_code=session_code,
-            command_type='dm_restore_spell_slot',
-            actor_id=d.get('combatant_id'),
-            command_payload=d,
-            result_payload=result,
-            state_before=state_before,
-            state_after=state,
-        )
-        if persist_error:
-            return Message(MessageType.ERROR, {'error': persist_error})
-        return await self._broadcast_combat_state(
-            state,
-            MessageType.SPELL_SLOT_RECOVER,
-            client_id,
-            result,
         )
 

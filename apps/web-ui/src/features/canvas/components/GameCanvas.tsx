@@ -3,6 +3,7 @@
  * Refactored to use extracted hooks and utilities for better maintainability
  */
 import { useGameStore } from '@/store';
+import { useCombatCommands } from '@features/combat/hooks/useCombatCommands';
 import { useCombatStore, type Combatant } from '@features/combat/stores/combatStore';
 import { useGameModeStore } from '@features/combat/stores/gameModeStore';
 import { isDM } from '@features/session/types/roles';
@@ -75,6 +76,7 @@ export const GameCanvas: React.FC = () => {
   const runtime = useWasmRuntime();
   // Protocol and store setup
   const protocol = useOptionalProtocol()?.protocol ?? null;
+  const { removeCombatant } = useCombatCommands();
   const updateConnectionState = useGameStore(s => s.updateConnectionState);
   const tables = useGameStore(s => s.tables);
   const activeTableId = useGameStore(s => s.activeTableId);
@@ -141,7 +143,7 @@ export const GameCanvas: React.FC = () => {
   const removeFromCombat = (entityId: string) => {
     const combatant = combatants.find((c) => c.entity_id === entityId);
     if (!combatant) return;
-    protocol?.sendMessage(createMessage(MessageType.INITIATIVE_REMOVE, { combatant_id: combatant.combatant_id }));
+    removeCombatant(combatant.combatant_id);
   };
 
   const { contextMenu, setContextMenu, handleContextMenuAction, handleMoveToLayer } = useContextMenu({

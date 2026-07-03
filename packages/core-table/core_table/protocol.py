@@ -127,16 +127,12 @@ class MessageType(enum.Enum):    # Core messages
     COMBAT_STATE_REQUEST = "combat_state_request"
 
     # ── Initiative ──
-    INITIATIVE_ROLL = "initiative_roll"
     INITIATIVE_ROLL_RESULT = "initiative_roll_result"
-    INITIATIVE_SET = "initiative_set"
     INITIATIVE_ADD = "initiative_add"
-    INITIATIVE_REMOVE = "initiative_remove"
     INITIATIVE_ORDER = "initiative_order"
 
     # ── Turn Management ──
     TURN_START = "turn_start"
-    TURN_SKIP = "turn_skip"
     ROUND_START = "round_start"
     ROUND_END = "round_end"
 

@@ -493,91 +493,6 @@ class _CombatMixin(_ProtocolBase):
             )
         return Message(MessageType.ERROR, {'error': 'Combatant not found'})
 
-    async def handle_dm_set_hp(self, msg: Message, client_id: str) -> Message:
-        if not is_dm(self._get_client_role(client_id)):
-            return Message(MessageType.ERROR, {'error': 'DMs only'})
-        d = msg.data or {}
-        combatant_id, hp = d.get('combatant_id'), d.get('hp')
-        if not combatant_id or hp is None:
-            return Message(MessageType.ERROR, {'error': 'combatant_id and hp required'})
-        from service.combat_engine import CombatEngine
-        session_code = self._get_session_code()
-        state_before_obj = CombatEngine.get_state(session_code)
-        state_before = state_before_obj.to_dict() if state_before_obj else None
-        if not CombatEngine.dm_set_hp(session_code, combatant_id, int(hp)):
-            return Message(MessageType.ERROR, {'error': 'Failed'})
-        state = CombatEngine.get_state(session_code)
-        persist_error = self._persist_direct_combat_mutation(
-            msg,
-            client_id,
-            session_code=session_code,
-            command_type='dm_set_hp',
-            actor_id=combatant_id,
-            command_payload=d,
-            result_payload={'combatant_id': combatant_id, 'hp': int(hp)},
-            state_before=state_before,
-            state_after=state,
-        )
-        if persist_error:
-            return Message(MessageType.ERROR, {'error': persist_error})
-        return await self._broadcast_combat_state(
-            state,
-            MessageType.COMBAT_STATE,
-            client_id,
-        )
-
-    async def handle_dm_apply_damage(self, msg: Message, client_id: str) -> Message:
-        if not is_dm(self._get_client_role(client_id)):
-            return Message(MessageType.ERROR, {'error': 'DMs only'})
-        d = msg.data or {}
-        combatant_id, amount = d.get('combatant_id'), d.get('amount')
-        if not combatant_id or amount is None:
-            return Message(MessageType.ERROR, {'error': 'combatant_id and amount required'})
-        from service.combat_engine import CombatEngine
-        session_code = self._get_session_code()
-        state_before_obj = CombatEngine.get_state(session_code)
-        state_before = state_before_obj.to_dict() if state_before_obj else None
-        result = CombatEngine.apply_damage(session_code, combatant_id, int(amount),
-                                           damage_type=d.get('damage_type', ''), is_dm=True)
-        if result.get('error'):
-            return Message(MessageType.ERROR, result)
-        state = CombatEngine.get_state(session_code)
-        persist_error = self._persist_direct_combat_mutation(
-            msg,
-            client_id,
-            session_code=session_code,
-            command_type='dm_apply_damage',
-            actor_id=combatant_id,
-            command_payload=d,
-            result_payload=result,
-            state_before=state_before,
-            state_after=state,
-        )
-        if persist_error:
-            return Message(MessageType.ERROR, {'error': persist_error})
-        resp = await self._broadcast_combat_state(
-            state,
-            MessageType.COMBAT_STATE,
-            client_id,
-            {'damage_result': result},
-        )
-        if result.get('concentration_broken'):
-            conc_msg = Message(MessageType.CONCENTRATION_BROKEN, {
-                'combatant_id': combatant_id,
-                'spell': result['concentration_broken'],
-                'roll': result.get('concentration_roll'),
-            })
-            await self.broadcast_to_session(conc_msg, client_id)
-        elif result.get('concentration_saved'):
-            await self.broadcast_to_session(
-                Message(MessageType.CONCENTRATION_SAVED, {
-                    'combatant_id': combatant_id,
-                    'spell': result['concentration_saved'],
-                    'roll': result.get('concentration_roll'),
-                }), client_id,
-            )
-        return resp
-
     async def handle_dm_revert_action(self, msg: Message, client_id: str) -> Message:
         if not is_dm(self._get_client_role(client_id)):
             return Message(MessageType.ERROR, {'error': 'DMs only'})
@@ -764,42 +679,6 @@ class _CombatMixin(_ProtocolBase):
             'move_to': decision.move_to, 'reasoning': decision.reasoning,
         }})
         return resp
-
-    async def handle_dm_set_temp_hp(self, msg: Message, client_id: str) -> Message:
-        if not is_dm(self._get_client_role(client_id)):
-            return Message(MessageType.ERROR, {'error': 'DMs only'})
-        d = msg.data or {}
-        combatant_id = d.get('combatant_id')
-        temp_hp = d.get('temp_hp') if d.get('temp_hp') is not None else d.get('amount')
-        if not combatant_id or temp_hp is None:
-            return Message(MessageType.ERROR, {'error': 'combatant_id and temp_hp required'})
-        from service.combat_engine import CombatEngine
-        session_code = self._get_session_code()
-        state_before_obj = CombatEngine.get_state(session_code)
-        state_before = state_before_obj.to_dict() if state_before_obj else None
-        result = CombatEngine.set_temp_hp(session_code, combatant_id, int(temp_hp))
-        if not result:
-            return Message(MessageType.ERROR, {'error': 'Combatant not found or no active combat'})
-        state = CombatEngine.get_state(session_code)
-        persist_error = self._persist_direct_combat_mutation(
-            msg,
-            client_id,
-            session_code=session_code,
-            command_type='dm_set_temp_hp',
-            actor_id=combatant_id,
-            command_payload=d,
-            result_payload=result,
-            state_before=state_before,
-            state_after=state,
-        )
-        if persist_error:
-            return Message(MessageType.ERROR, {'error': persist_error})
-        return await self._broadcast_combat_state(
-            state,
-            MessageType.COMBAT_STATE,
-            client_id,
-            {'temp_hp_set': result},
-        )
 
     async def handle_death_save_roll(self, msg: Message, client_id: str) -> Message:
         d = msg.data or {}

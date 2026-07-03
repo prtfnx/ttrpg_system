@@ -22,6 +22,22 @@ class CombatCommandType(str, Enum):
     HELP = "help"
     HIDE = "hide"
     END_TURN = "end_turn"
+    DM_OVERRIDE = "dm_override"
+
+
+class DMOverrideType(str, Enum):
+    SET_HP = "set_hp"
+    SET_TEMP_HP = "set_temp_hp"
+    APPLY_DAMAGE = "apply_damage"
+    APPLY_HEALING = "apply_healing"
+    GRANT_RESOURCE = "grant_resource"
+
+
+class DMResourceType(str, Enum):
+    ACTION = "action"
+    BONUS_ACTION = "bonus_action"
+    REACTION = "reaction"
+    MOVEMENT = "movement"
 
 
 class CombatCommand(BaseModel):
@@ -50,6 +66,9 @@ class CombatCommand(BaseModel):
     requires_attack_roll: bool = False
     is_concentration: bool = False
     confirm_opportunity_attacks: bool = False
+    override_type: Optional[DMOverrideType] = None
+    value: Optional[float] = None
+    resource: Optional[DMResourceType] = None
 
     @field_validator("target_ids", mode="before")
     @classmethod
@@ -184,7 +203,7 @@ class CombatCommandService:
                 self._restore(context.session_code, snapshot)
                 return self._reject(envelope.sequence_id, idx, "Combatant not found")
 
-            error = self._assert_turn_and_control(state, actor_id, context)
+            error = self._assert_turn_and_control(state, actor_id, command, context)
             if error:
                 self._restore(context.session_code, snapshot)
                 return self._reject(envelope.sequence_id, idx, error)
@@ -255,7 +274,7 @@ class CombatCommandService:
                 await self._restore_async(context, snapshot, move_undos)
                 return self._reject(envelope.sequence_id, idx, "Combatant not found")
 
-            error = self._assert_turn_and_control(state, actor_id, context)
+            error = self._assert_turn_and_control(state, actor_id, command, context)
             if error:
                 await self._restore_async(context, snapshot, move_undos)
                 return self._reject(envelope.sequence_id, idx, error)
@@ -311,6 +330,9 @@ class CombatCommandService:
         state,
         actor_id: str,
     ) -> dict[str, Any]:
+        if command.type == CombatCommandType.DM_OVERRIDE:
+            return self._apply_dm_override(command, context, state, actor_id)
+
         if command.type == CombatCommandType.ATTACK:
             if not command.target_id:
                 return {"error": "target_id required"}
@@ -363,6 +385,80 @@ class CombatCommandService:
             actor_id,
             command.type.value,
         )
+
+    def _apply_dm_override(
+        self,
+        command: CombatCommand,
+        context: CombatCommandContext,
+        state,
+        actor_id: str,
+    ) -> dict[str, Any]:
+        if command.override_type is None:
+            return {"error": "override_type required"}
+        actor = self._get_combatant(state, actor_id)
+        if actor is None:
+            return {"error": "Combatant not found"}
+
+        if command.override_type == DMOverrideType.SET_HP:
+            if command.value is None:
+                return {"error": "value required"}
+            if not self._engine.dm_set_hp(context.session_code, actor_id, int(command.value)):
+                return {"error": "Failed to set HP"}
+            return {
+                "override_type": command.override_type.value,
+                "combatant_id": actor_id,
+                "hp": actor.hp,
+            }
+
+        if command.override_type == DMOverrideType.SET_TEMP_HP:
+            if command.value is None:
+                return {"error": "value required"}
+            result = self._engine.set_temp_hp(
+                context.session_code,
+                actor_id,
+                int(command.value),
+            )
+            return result or {"error": "Failed to set temporary HP"}
+
+        if command.override_type == DMOverrideType.APPLY_DAMAGE:
+            if command.value is None or command.value < 0:
+                return {"error": "non-negative value required"}
+            return self._engine.apply_damage(
+                context.session_code,
+                actor_id,
+                int(command.value),
+                damage_type=command.damage_type,
+                is_dm=True,
+            )
+
+        if command.override_type == DMOverrideType.APPLY_HEALING:
+            if command.value is None or command.value < 0:
+                return {"error": "non-negative value required"}
+            return self._engine.apply_healing(
+                context.session_code,
+                actor_id,
+                int(command.value),
+            )
+
+        if command.override_type == DMOverrideType.GRANT_RESOURCE:
+            if command.resource is None:
+                return {"error": "resource required"}
+            amount = command.value if command.value is not None else 1
+            if not self._engine.dm_grant_resource(
+                context.session_code,
+                actor_id,
+                command.resource.value,
+                amount,
+            ):
+                return {"error": "Failed to grant resource"}
+            return {
+                "override_type": command.override_type.value,
+                "combatant_id": actor_id,
+                "resource": command.resource.value,
+                "amount": amount,
+            }
+
+        return {"error": "Unsupported DM override"}
 
     async def _apply_one_async(
         self,
@@ -485,8 +581,11 @@ class CombatCommandService:
         self,
         state,
         actor_id: str,
+        command: CombatCommand,
         context: CombatCommandContext,
     ) -> str | None:
+        if command.type == CombatCommandType.DM_OVERRIDE:
+            return None if is_dm(context.role) else "DMs only"
         current = state.get_current_combatant()
         if not current or current.combatant_id != actor_id:
             return "Not your turn"

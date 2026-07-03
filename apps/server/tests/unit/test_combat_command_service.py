@@ -115,6 +115,126 @@ def test_player_command_rejects_unowned_combatant():
     assert result.failed_index == 0
 
 
+def test_player_cannot_apply_dm_override_to_owned_actor():
+    state, actor, _target = _state()
+    service = CombatCommandService()
+    envelope = service.parse_envelope({
+        "sequence_id": 20,
+        "commands": [{
+            "type": "dm_override",
+            "actor_id": actor.combatant_id,
+            "override_type": "set_hp",
+            "value": 5,
+        }],
+    })
+
+    result = service.apply(envelope, _context(role="player"))
+
+    assert result.accepted is False
+    assert result.reason == "DMs only"
+    assert CombatEngine.get_state("cmd").combatants[0].hp == 20
+
+
+def test_dm_override_applies_outside_actor_turn():
+    state, actor, target = _state()
+    service = CombatCommandService()
+    envelope = service.parse_envelope({
+        "sequence_id": 21,
+        "commands": [{
+            "type": "dm_override",
+            "actor_id": target.combatant_id,
+            "override_type": "set_hp",
+            "value": 7,
+        }],
+    })
+
+    result = service.apply(envelope, _context(role="owner"))
+
+    assert result.accepted is True
+    assert result.applied[0]["result"] == {
+        "override_type": "set_hp",
+        "combatant_id": target.combatant_id,
+        "hp": 7,
+    }
+    assert CombatEngine.get_state("cmd").combatants[1].hp == 7
+    assert CombatEngine.get_state("cmd").get_current_combatant().combatant_id == actor.combatant_id
+
+
+def test_dm_override_batch_updates_resources_atomically():
+    state, actor, target = _state()
+    target.temp_hp = 5
+    target.has_action = False
+    service = CombatCommandService()
+    envelope = service.parse_envelope({
+        "sequence_id": 22,
+        "commands": [
+            {
+                "type": "dm_override",
+                "actor_id": target.combatant_id,
+                "override_type": "apply_damage",
+                "value": 8,
+                "damage_type": "force",
+            },
+            {
+                "type": "dm_override",
+                "actor_id": target.combatant_id,
+                "override_type": "set_temp_hp",
+                "value": 3,
+            },
+            {
+                "type": "dm_override",
+                "actor_id": target.combatant_id,
+                "override_type": "grant_resource",
+                "resource": "action",
+            },
+            {
+                "type": "dm_override",
+                "actor_id": target.combatant_id,
+                "override_type": "grant_resource",
+                "resource": "movement",
+                "value": 10,
+            },
+        ],
+    })
+
+    result = service.apply(envelope, _context(role="owner"))
+
+    updated = CombatEngine.get_state("cmd").combatants[1]
+    assert result.accepted is True
+    assert updated.hp == 17
+    assert updated.temp_hp == 3
+    assert updated.has_action is True
+    assert updated.movement_remaining == 40
+
+
+def test_invalid_dm_override_rolls_back_earlier_override():
+    state, actor, target = _state()
+    service = CombatCommandService()
+    envelope = service.parse_envelope({
+        "sequence_id": 23,
+        "commands": [
+            {
+                "type": "dm_override",
+                "actor_id": target.combatant_id,
+                "override_type": "set_hp",
+                "value": 4,
+            },
+            {
+                "type": "dm_override",
+                "actor_id": target.combatant_id,
+                "override_type": "grant_resource",
+            },
+        ],
+    })
+
+    result = service.apply(envelope, _context(role="owner"))
+
+    assert result.accepted is False
+    assert result.failed_index == 1
+    assert result.reason == "resource required"
+    assert CombatEngine.get_state("cmd").combatants[1].hp == 20
+
+
 def test_command_batch_rolls_back_when_later_command_fails():
     state, actor, _target = _state()
     service = CombatCommandService()

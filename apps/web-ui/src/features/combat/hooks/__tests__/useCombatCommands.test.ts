@@ -119,6 +119,30 @@ describe('useCombatCommands', () => {
     }));
   });
 
+  it('sends typed DM overrides through combat_command', () => {
+    const { result } = renderHook(() => useCombatCommands());
+
+    result.current.sendDMOverride({
+      actorId: 'target-1',
+      overrideType: 'apply_damage',
+      value: 8,
+      damageType: 'force',
+    });
+
+    expect(mockSendMessage).toHaveBeenCalledWith(expect.objectContaining({
+      type: 'combat_command',
+      data: expect.objectContaining({
+        commands: [expect.objectContaining({
+          type: 'dm_override',
+          actor_id: 'target-1',
+          override_type: 'apply_damage',
+          value: 8,
+          damage_type: 'force',
+        })],
+      }),
+    }));
+  });
+
   it('sends initiative and death-save protocol messages', () => {
     const { result } = renderHook(() => useCombatCommands());
 

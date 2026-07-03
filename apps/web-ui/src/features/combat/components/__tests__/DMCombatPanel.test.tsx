@@ -14,6 +14,7 @@ vi.mock('@lib/api', () => ({
 vi.mock('@lib/websocket', () => ({
   createMessage: vi.fn((type: string, data: unknown) => ({ type, data })),
   MessageType: {
+    COMBAT_COMMAND: 'combat_command',
     COMBAT_START: 'COMBAT_START',
     COMBAT_END: 'COMBAT_END',
     INITIATIVE_ADD: 'INITIATIVE_ADD',
@@ -261,7 +262,7 @@ describe('DMCombatPanel - active combat', () => {
 describe('DMCombatPanel - HP management', () => {
   beforeEach(() => useCombatStore.setState({ combat: mockCombat }));
 
-  it('Set HP sends DM_SET_HP with correct combatant and hp value', async () => {
+  it('Set HP sends a canonical DM override command', async () => {
     const user = userEvent.setup();
     render(<DMCombatPanel />);
 
@@ -279,7 +280,17 @@ describe('DMCombatPanel - HP management', () => {
     await user.click(setButtons[0]);
 
     expect(mockSendMessage).toHaveBeenCalledWith(
-      expect.objectContaining({ type: 'DM_SET_HP', data: { combatant_id: 'c1', hp: 15 } })
+      expect.objectContaining({
+        type: 'combat_command',
+        data: expect.objectContaining({
+          commands: [expect.objectContaining({
+            type: 'dm_override',
+            actor_id: 'c1',
+            override_type: 'set_hp',
+            value: 15,
+          })],
+        }),
+      })
     );
   });
 
@@ -293,7 +304,7 @@ describe('DMCombatPanel - HP management', () => {
     expect(mockSendMessage).not.toHaveBeenCalled();
   });
 
-  it('Temp HP sends DM_SET_TEMP_HP', async () => {
+  it('Temp HP sends a canonical DM override command', async () => {
     const user = userEvent.setup();
     render(<DMCombatPanel />);
     const select = screen.getAllByRole('combobox')[0];
@@ -303,7 +314,17 @@ describe('DMCombatPanel - HP management', () => {
     const setButtons = screen.getAllByRole('button', { name: /^set$/i });
     await user.click(setButtons[1]);
     expect(mockSendMessage).toHaveBeenCalledWith(
-      expect.objectContaining({ type: 'DM_SET_TEMP_HP', data: { combatant_id: 'c2', temp_hp: 5 } })
+      expect.objectContaining({
+        type: 'combat_command',
+        data: expect.objectContaining({
+          commands: [expect.objectContaining({
+            type: 'dm_override',
+            actor_id: 'c2',
+            override_type: 'set_temp_hp',
+            value: 5,
+          })],
+        }),
+      })
     );
   });
 });
@@ -311,7 +332,7 @@ describe('DMCombatPanel - HP management', () => {
 describe('DMCombatPanel - damage', () => {
   beforeEach(() => useCombatStore.setState({ combat: mockCombat }));
 
-  it('Apply Damage sends DM_APPLY_DAMAGE with correct values', async () => {
+  it('Apply Damage sends a canonical DM override command', async () => {
     const user = userEvent.setup();
     render(<DMCombatPanel />);
     const select = screen.getAllByRole('combobox')[0];
@@ -320,7 +341,17 @@ describe('DMCombatPanel - damage', () => {
     await user.type(dmgInput, '8');
     await user.click(screen.getByRole('button', { name: /apply/i }));
     expect(mockSendMessage).toHaveBeenCalledWith(
-      expect.objectContaining({ type: 'DM_APPLY_DAMAGE', data: { combatant_id: 'c1', amount: 8 } })
+      expect.objectContaining({
+        type: 'combat_command',
+        data: expect.objectContaining({
+          commands: [expect.objectContaining({
+            type: 'dm_override',
+            actor_id: 'c1',
+            override_type: 'apply_damage',
+            value: 8,
+          })],
+        }),
+      })
     );
   });
 

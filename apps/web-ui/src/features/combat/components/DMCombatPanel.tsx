@@ -129,7 +129,7 @@ function PreCombatSetup() {
 export function DMCombatPanel() {
   const combat = useCombatStore((s) => s.combat);
   const activeTableId = useGameStore((s) => s.activeTableId);
-  const { sendProtocolMessage } = useCombatCommands();
+  const { sendDMOverride, sendProtocolMessage } = useCombatCommands();
   const linkedTokenOptions = useLinkedTokenOptions();
   const [selectedId, setSelectedId] = useState('');
   const [hpValue, setHpValue] = useState('');
@@ -166,19 +166,31 @@ export function DMCombatPanel() {
 
   const setHp = () => {
     if (!selectedId || !hpValue) return;
-    sendProtocolMessage(MessageType.DM_SET_HP, { combatant_id: selectedId, hp: Number(hpValue) });
+    sendDMOverride({
+      actorId: selectedId,
+      overrideType: 'set_hp',
+      value: Number(hpValue),
+    });
     setHpValue('');
   };
 
   const setTempHp = () => {
     if (!selectedId || !tempHpValue) return;
-    sendProtocolMessage(MessageType.DM_SET_TEMP_HP, { combatant_id: selectedId, temp_hp: Number(tempHpValue) });
+    sendDMOverride({
+      actorId: selectedId,
+      overrideType: 'set_temp_hp',
+      value: Number(tempHpValue),
+    });
     setTempHpValue('');
   };
 
   const applyDamage = () => {
     if (!selectedId || !damageValue) return;
-    sendProtocolMessage(MessageType.DM_APPLY_DAMAGE, { combatant_id: selectedId, amount: Number(damageValue) });
+    sendDMOverride({
+      actorId: selectedId,
+      overrideType: 'apply_damage',
+      value: Number(damageValue),
+    });
     setDamageValue('');
   };
 

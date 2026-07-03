@@ -40,6 +40,23 @@ export interface SpellCommandInput {
   isConcentration?: boolean;
 }
 
+export type DMOverrideType =
+  | 'set_hp'
+  | 'set_temp_hp'
+  | 'apply_damage'
+  | 'apply_healing'
+  | 'grant_resource';
+
+export type DMResourceType = 'action' | 'bonus_action' | 'reaction' | 'movement';
+
+export interface DMOverrideInput {
+  actorId: string;
+  overrideType: DMOverrideType;
+  value?: number;
+  resource?: DMResourceType;
+  damageType?: string;
+}
+
 export function useCombatCommands() {
   const protocolCtx = useOptionalProtocol();
   const protocol = protocolCtx?.protocol;
@@ -103,6 +120,17 @@ export function useCombatCommands() {
     })
   ), [sendCommand]);
 
+  const sendDMOverride = useCallback((input: DMOverrideInput) => (
+    sendCommand({
+      type: 'dm_override',
+      actor_id: input.actorId,
+      override_type: input.overrideType,
+      value: input.value,
+      resource: input.resource,
+      damage_type: input.damageType || '',
+    })
+  ), [sendCommand]);
+
   const rollInitiative = useCallback((combatantId: string) => (
     sendProtocolMessage(MessageType.INITIATIVE_ROLL, { combatant_id: combatantId })
   ), [sendProtocolMessage]);
@@ -126,6 +154,7 @@ export function useCombatCommands() {
     sendUtilityAction,
     sendAttack,
     sendSpell,
+    sendDMOverride,
     rollInitiative,
     rollDeathSave,
     skipTurn,

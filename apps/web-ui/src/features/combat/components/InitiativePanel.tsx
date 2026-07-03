@@ -1,6 +1,7 @@
 import { useGameStore } from '@/store';
 import { isDM } from '@features/session/types/roles';
 import { Dice5, Skull, Sparkles, X, Zap } from 'lucide-react';
+import { useState } from 'react';
 import { useCombatCommands } from '../hooks/useCombatCommands';
 import type { Combatant } from '../stores/combatStore';
 import { useCombatStore } from '../stores/combatStore';
@@ -37,7 +38,14 @@ export function InitiativePanel() {
   const combat = useCombatStore((s) => s.combat);
   const role = useGameStore((s) => s.sessionRole);
   const userId = useGameStore((s) => s.userId);
-  const { removeCombatant, rollDeathSave, rollInitiative, skipTurn } = useCombatCommands();
+  const {
+    removeCombatant,
+    rollDeathSave,
+    rollInitiative,
+    setInitiative,
+    skipTurn,
+  } = useCombatCommands();
+  const [initiativeDrafts, setInitiativeDrafts] = useState<Record<string, string>>({});
 
   if (!combat || combat.phase === 'inactive') return null;
 
@@ -46,6 +54,16 @@ export function InitiativePanel() {
 
   const isControlledByMe = (c: Combatant) =>
     userId !== null && c.controlled_by.includes(String(userId));
+
+  const submitInitiative = (combatant: Combatant) => {
+    const rawValue = String(
+      initiativeDrafts[combatant.combatant_id] ?? combatant.initiative ?? '',
+    );
+    if (!rawValue.trim()) return;
+    const value = Number(rawValue);
+    if (!Number.isFinite(value)) return;
+    setInitiative(combatant.combatant_id, value);
+  };
 
   return (
     <div className={styles.panel}>
@@ -86,7 +104,7 @@ export function InitiativePanel() {
             {c.hp === 0 && ((c.death_save_successes ?? 0) > 0 || (c.death_save_failures ?? 0) > 0) && (
               <DeathSavePips successes={c.death_save_successes ?? 0} failures={c.death_save_failures ?? 0} />
             )}
-            {c.initiative === null && isControlledByMe(c) && (
+            {c.initiative === null && (isDM(role) || isControlledByMe(c)) && (
               <button className={styles.rollInitBtn} onClick={() => rollInitiative(c.combatant_id)} title="Roll initiative">
                 <Dice5 size={14} aria-hidden />
               </button>
@@ -94,9 +112,27 @@ export function InitiativePanel() {
             <ConditionBadges conditions={c.conditions} />
             {isDM(role) && !c.is_defeated && (
               <div className={styles.actions}>
-                <button onClick={() => skipTurn(c.combatant_id)} title="Skip turn">
-                  <Zap size={14} aria-hidden />
+                <input
+                  className={styles.initiativeInput}
+                  type="number"
+                  aria-label={`Initiative for ${c.name}`}
+                  value={initiativeDrafts[c.combatant_id] ?? c.initiative ?? ''}
+                  onChange={(event) => setInitiativeDrafts((drafts) => ({
+                    ...drafts,
+                    [c.combatant_id]: event.target.value,
+                  }))}
+                />
+                <button
+                  onClick={() => submitInitiative(c)}
+                  title={`Set initiative for ${c.name}`}
+                >
+                  Set
                 </button>
+                {c.combatant_id === current?.combatant_id && (
+                  <button onClick={() => skipTurn(c.combatant_id)} title="Skip turn">
+                    <Zap size={14} aria-hidden />
+                  </button>
+                )}
                 <button onClick={() => removeCombatant(c.combatant_id)} title="Remove">
                   <X size={14} aria-hidden />
                 </button>

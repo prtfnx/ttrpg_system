@@ -17,10 +17,8 @@ vi.mock('@lib/api', () => ({
 vi.mock('@lib/websocket', () => ({
   createMessage: vi.fn((type, payload) => ({ type, data: payload })),
   MessageType: {
+    COMBAT_COMMAND: 'combat_command',
     DEATH_SAVE_ROLL: 'DEATH_SAVE_ROLL',
-    INITIATIVE_REMOVE: 'INITIATIVE_REMOVE',
-    INITIATIVE_ROLL: 'INITIATIVE_ROLL',
-    TURN_SKIP: 'TURN_SKIP',
   },
 }));
 
@@ -134,18 +132,67 @@ describe('InitiativePanel', () => {
     expect(screen.queryByTitle('Skip turn')).toBeNull();
   });
 
-  it('DM click remove sends INITIATIVE_REMOVE', () => {
+  it('DM remove sends a canonical remove-combatant command', () => {
     useCombatStore.setState({ combat: baseCombat });
     render(<InitiativePanel />);
     fireEvent.click(screen.getByTitle('Remove'));
-    expect(mockSend).toHaveBeenCalledWith(expect.objectContaining({ type: 'INITIATIVE_REMOVE' }));
+    expect(mockSend).toHaveBeenCalledWith(expect.objectContaining({
+      type: 'combat_command',
+      data: expect.objectContaining({
+        commands: [expect.objectContaining({
+          type: 'remove_combatant',
+          actor_id: 'c1',
+        })],
+      }),
+    }));
   });
 
-  it('DM click skip sends TURN_SKIP', () => {
+  it('DM skip sends a canonical command for the current actor', () => {
     useCombatStore.setState({ combat: baseCombat });
     render(<InitiativePanel />);
     fireEvent.click(screen.getByTitle('Skip turn'));
-    expect(mockSend).toHaveBeenCalledWith(expect.objectContaining({ type: 'TURN_SKIP' }));
+    expect(mockSend).toHaveBeenCalledWith(expect.objectContaining({
+      type: 'combat_command',
+      data: expect.objectContaining({
+        commands: [expect.objectContaining({
+          type: 'skip_turn',
+          actor_id: 'c1',
+        })],
+      }),
+    }));
+  });
+
+  it('only shows skip on the current actor', () => {
+    useCombatStore.setState({
+      combat: {
+        ...baseCombat,
+        combatants: [
+          baseCombatant,
+          { ...baseCombatant, combatant_id: 'c2', entity_id: 'e2', name: 'Orc' },
+        ],
+      },
+    });
+    render(<InitiativePanel />);
+    expect(screen.getAllByTitle('Skip turn')).toHaveLength(1);
+  });
+
+  it('DM manually sets initiative through a canonical command', () => {
+    useCombatStore.setState({ combat: baseCombat });
+    render(<InitiativePanel />);
+    fireEvent.change(screen.getByLabelText('Initiative for Goblin'), {
+      target: { value: '17' },
+    });
+    fireEvent.click(screen.getByTitle('Set initiative for Goblin'));
+    expect(mockSend).toHaveBeenCalledWith(expect.objectContaining({
+      type: 'combat_command',
+      data: expect.objectContaining({
+        commands: [expect.objectContaining({
+          type: 'set_initiative',
+          actor_id: 'c1',
+          initiative: 17,
+        })],
+      }),
+    }));
   });
 
   it('player sees roll initiative button for own combatant', () => {
@@ -160,7 +207,7 @@ describe('InitiativePanel', () => {
     expect(screen.getByTitle('Roll initiative')).toBeInTheDocument();
   });
 
-  it('roll initiative click sends INITIATIVE_ROLL', () => {
+  it('roll initiative sends a canonical command', () => {
     setupStore({ role: 'player', userId: 99 });
     useCombatStore.setState({
       combat: {
@@ -170,7 +217,29 @@ describe('InitiativePanel', () => {
     });
     render(<InitiativePanel />);
     fireEvent.click(screen.getByTitle('Roll initiative'));
-    expect(mockSend).toHaveBeenCalledWith(expect.objectContaining({ type: 'INITIATIVE_ROLL' }));
+    expect(mockSend).toHaveBeenCalledWith(expect.objectContaining({
+      type: 'combat_command',
+      data: expect.objectContaining({
+        commands: [expect.objectContaining({
+          type: 'roll_initiative',
+          actor_id: 'c1',
+        })],
+      }),
+    }));
+  });
+
+  it('DM can roll initiative for an NPC', () => {
+    useCombatStore.setState({
+      combat: {
+        ...baseCombat,
+        combatants: [{ ...baseCombatant, initiative: null }],
+      },
+    });
+    render(<InitiativePanel />);
+    fireEvent.click(screen.getByTitle('Roll initiative'));
+    expect(mockSend).toHaveBeenCalledWith(expect.objectContaining({
+      type: 'combat_command',
+    }));
   });
 
   it('shows death save button for DM when hp is 0', () => {

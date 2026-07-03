@@ -13,9 +13,6 @@ vi.mock('@lib/websocket', () => ({
   MessageType: {
     COMBAT_COMMAND: 'combat_command',
     DEATH_SAVE_ROLL: 'death_save_roll',
-    INITIATIVE_REMOVE: 'initiative_remove',
-    INITIATIVE_ROLL: 'initiative_roll',
-    TURN_SKIP: 'turn_skip',
   },
 }));
 
@@ -178,15 +175,20 @@ describe('useCombatCommands', () => {
     }));
   });
 
-  it('sends initiative and death-save protocol messages', () => {
+  it('sends initiative rolls as commands and death saves as protocol messages', () => {
     const { result } = renderHook(() => useCombatCommands());
 
     result.current.rollInitiative('cmb-1');
     result.current.rollDeathSave('cmb-1');
 
     expect(mockSendMessage).toHaveBeenCalledWith(expect.objectContaining({
-      type: 'initiative_roll',
-      data: { combatant_id: 'cmb-1' },
+      type: 'combat_command',
+      data: expect.objectContaining({
+        commands: [expect.objectContaining({
+          type: 'roll_initiative',
+          actor_id: 'cmb-1',
+        })],
+      }),
     }));
     expect(mockSendMessage).toHaveBeenCalledWith(expect.objectContaining({
       type: 'death_save_roll',
@@ -194,19 +196,40 @@ describe('useCombatCommands', () => {
     }));
   });
 
-  it('sends DM initiative controls through protocol helpers', () => {
+  it('sends DM initiative controls through canonical commands', () => {
     const { result } = renderHook(() => useCombatCommands());
 
     result.current.skipTurn('cmb-2');
     result.current.removeCombatant('cmb-2');
+    result.current.setInitiative('cmb-2', 17);
 
     expect(mockSendMessage).toHaveBeenCalledWith(expect.objectContaining({
-      type: 'turn_skip',
-      data: { combatant_id: 'cmb-2' },
+      type: 'combat_command',
+      data: expect.objectContaining({
+        commands: [expect.objectContaining({
+          type: 'skip_turn',
+          actor_id: 'cmb-2',
+        })],
+      }),
     }));
     expect(mockSendMessage).toHaveBeenCalledWith(expect.objectContaining({
-      type: 'initiative_remove',
-      data: { combatant_id: 'cmb-2' },
+      type: 'combat_command',
+      data: expect.objectContaining({
+        commands: [expect.objectContaining({
+          type: 'remove_combatant',
+          actor_id: 'cmb-2',
+        })],
+      }),
+    }));
+    expect(mockSendMessage).toHaveBeenCalledWith(expect.objectContaining({
+      type: 'combat_command',
+      data: expect.objectContaining({
+        commands: [expect.objectContaining({
+          type: 'set_initiative',
+          actor_id: 'cmb-2',
+          initiative: 17,
+        })],
+      }),
     }));
   });
 });

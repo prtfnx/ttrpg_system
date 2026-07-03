@@ -161,20 +161,37 @@ export function useCombatCommands() {
   ), [sendDMOverrides]);
 
   const rollInitiative = useCallback((combatantId: string) => (
-    sendProtocolMessage(MessageType.INITIATIVE_ROLL, { combatant_id: combatantId })
-  ), [sendProtocolMessage]);
+    sendCommand({
+      type: 'roll_initiative',
+      actor_id: combatantId,
+    })
+  ), [sendCommand]);
+
+  const setInitiative = useCallback((combatantId: string, initiative: number) => (
+    sendCommand({
+      type: 'set_initiative',
+      actor_id: combatantId,
+      initiative,
+    })
+  ), [sendCommand]);
 
   const rollDeathSave = useCallback((combatantId: string) => (
     sendProtocolMessage(MessageType.DEATH_SAVE_ROLL, { combatant_id: combatantId })
   ), [sendProtocolMessage]);
 
   const skipTurn = useCallback((combatantId: string) => (
-    sendProtocolMessage(MessageType.TURN_SKIP, { combatant_id: combatantId })
-  ), [sendProtocolMessage]);
+    sendCommand({
+      type: 'skip_turn',
+      actor_id: combatantId,
+    })
+  ), [sendCommand]);
 
   const removeCombatant = useCallback((combatantId: string) => (
-    sendProtocolMessage(MessageType.INITIATIVE_REMOVE, { combatant_id: combatantId })
-  ), [sendProtocolMessage]);
+    sendCommand({
+      type: 'remove_combatant',
+      actor_id: combatantId,
+    })
+  ), [sendCommand]);
 
   return {
     sendProtocolMessage,
@@ -186,6 +203,7 @@ export function useCombatCommands() {
     sendDMOverride,
     sendDMOverrides,
     rollInitiative,
+    setInitiative,
     rollDeathSave,
     skipTurn,
     removeCombatant,

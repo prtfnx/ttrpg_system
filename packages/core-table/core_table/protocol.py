@@ -146,16 +146,12 @@ class MessageType(enum.Enum):    # Core messages
     EXPLORE_ROUND_RESULT = "explore_round_result"
 
     # ── Conditions ──
-    CONDITION_ADD = "condition_add"
-    CONDITION_REMOVE = "condition_remove"
     CONDITION_UPDATE = "condition_update"
     CONDITIONS_SYNC = "conditions_sync"
 
     # ── DM Controls ──
     DM_OVERRIDE = "dm_override"
     DM_MODIFY_ROLL = "dm_modify_roll"
-    DM_SET_RESISTANCES = "dm_set_resistances"
-    DM_SET_SURPRISED = "dm_set_surprised"
     DM_SET_TERRAIN = "dm_set_terrain"
     DM_REVERT_ACTION = "dm_revert_action"
     DM_TOGGLE_AI = "dm_toggle_ai"

@@ -5,6 +5,7 @@ import { useMemo, useState } from 'react';
 import { useCombatCommands } from '../hooks/useCombatCommands';
 import { useCombatStore } from '../stores/combatStore';
 import styles from './DMCombatPanel.module.css';
+import { DMResourcePanel } from './DMResourcePanel';
 
 type SpriteWithServerFields = Sprite & {
   table_id?: string;
@@ -329,6 +330,8 @@ export function DMCombatPanel() {
           <button className={styles.btn} onClick={applyDamage}>Apply</button>
         </div>
       </div>
+
+      <DMResourcePanel combatantId={selectedId} />
 
       <div className={styles.section}>
         <label className={styles.label}>Add Condition</label>

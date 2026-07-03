@@ -362,6 +362,62 @@ describe('DMCombatPanel - damage', () => {
   });
 });
 
+describe('DMCombatPanel - resource overrides', () => {
+  beforeEach(() => useCombatStore.setState({ combat: mockCombat }));
+
+  it('restores the selected combatant action through a canonical DM override', async () => {
+    const user = userEvent.setup();
+    render(<DMCombatPanel />);
+    await user.selectOptions(screen.getAllByRole('combobox')[0], 'c1');
+    await user.click(screen.getByRole('button', { name: /restore action/i }));
+
+    expect(mockSendMessage).toHaveBeenCalledWith(
+      expect.objectContaining({
+        type: 'combat_command',
+        data: expect.objectContaining({
+          commands: [expect.objectContaining({
+            type: 'dm_override',
+            actor_id: 'c1',
+            override_type: 'grant_resource',
+            resource: 'action',
+            value: 1,
+          })],
+        }),
+      }),
+    );
+  });
+
+  it('grants the entered movement to the selected combatant', async () => {
+    const user = userEvent.setup();
+    render(<DMCombatPanel />);
+    await user.selectOptions(screen.getAllByRole('combobox')[0], 'c2');
+    const movementInput = screen.getByPlaceholderText(/movement feet/i);
+    await user.clear(movementInput);
+    await user.type(movementInput, '15');
+    await user.click(screen.getByRole('button', { name: /grant movement/i }));
+
+    expect(mockSendMessage).toHaveBeenCalledWith(
+      expect.objectContaining({
+        type: 'combat_command',
+        data: expect.objectContaining({
+          commands: [expect.objectContaining({
+            actor_id: 'c2',
+            override_type: 'grant_resource',
+            resource: 'movement',
+            value: 15,
+          })],
+        }),
+      }),
+    );
+  });
+
+  it('keeps resource controls disabled until a combatant is selected', () => {
+    render(<DMCombatPanel />);
+    expect(screen.getByRole('button', { name: /restore action/i })).toBeDisabled();
+    expect(screen.getByRole('button', { name: /grant movement/i })).toBeDisabled();
+  });
+});
+
 describe('DMCombatPanel - conditions', () => {
   beforeEach(() => useCombatStore.setState({ combat: mockCombat }));
 

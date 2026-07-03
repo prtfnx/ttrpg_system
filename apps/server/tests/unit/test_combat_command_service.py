@@ -436,6 +436,72 @@ def test_player_cannot_remove_combatant():
     assert len(CombatEngine.get_state("cmd").combatants) == 2
 
 
+def test_dm_configures_ai_and_restores_spell_slot_atomically():
+    state, _actor, target = _state()
+    target.ai_enabled = False
+    target.ai_behavior = "tactical"
+    target.spell_slots = {1: 0}
+    target.spell_slots_max = {1: 2}
+    service = CombatCommandService()
+    envelope = service.parse_envelope({
+        "sequence_id": 34,
+        "commands": [
+            {
+                "type": "dm_override",
+                "actor_id": target.combatant_id,
+                "override_type": "configure_ai",
+                "ai_enabled": True,
+                "ai_behavior": "defensive",
+            },
+            {
+                "type": "dm_override",
+                "actor_id": target.combatant_id,
+                "override_type": "restore_spell_slot",
+                "slot_level": 1,
+            },
+        ],
+    })
+
+    result = service.apply(envelope, _context(role="owner"))
+
+    updated = CombatEngine.get_state("cmd").combatants[1]
+    assert result.accepted is True
+    assert updated.ai_enabled is True
+    assert updated.ai_behavior == "defensive"
+    assert updated.spell_slots[1] == 1
+
+
+def test_invalid_ai_behavior_rolls_back_spell_slot_restore():
+    state, _actor, target = _state()
+    target.spell_slots = {1: 0}
+    target.spell_slots_max = {1: 1}
+    service = CombatCommandService()
+    envelope = service.parse_envelope({
+        "sequence_id": 35,
+        "commands": [
+            {
+                "type": "dm_override",
+                "actor_id": target.combatant_id,
+                "override_type": "restore_spell_slot",
+                "slot_level": 1,
+            },
+            {
+                "type": "dm_override",
+                "actor_id": target.combatant_id,
+                "override_type": "configure_ai",
+                "ai_behavior": "chaotic-random",
+            },
+        ],
+    })
+
+    result = service.apply(envelope, _context(role="owner"))
+
+    assert result.accepted is False
+    assert result.failed_index == 1
+    assert result.reason == "Unknown AI behavior: chaotic-random"
+    assert CombatEngine.get_state("cmd").combatants[1].spell_slots[1] == 0
+
+
 def test_command_batch_rolls_back_when_later_command_fails():
     state, actor, _target = _state()
     service = CombatCommandService()

@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import time
 import uuid
+from copy import deepcopy
 from dataclasses import dataclass, field as dataclass_field
 from enum import Enum
 from typing import Any, Awaitable, Callable, Optional
@@ -39,6 +40,8 @@ class DMOverrideType(str, Enum):
     REMOVE_CONDITION = "remove_condition"
     SET_DAMAGE_TRAITS = "set_damage_traits"
     SET_SURPRISED = "set_surprised"
+    CONFIGURE_AI = "configure_ai"
+    RESTORE_SPELL_SLOT = "restore_spell_slot"
 
 
 class DMResourceType(str, Enum):
@@ -85,6 +88,9 @@ class CombatCommand(BaseModel):
     immunities: Optional[list[str]] = None
     surprised: Optional[bool] = None
     initiative: Optional[float] = None
+    ai_enabled: Optional[bool] = None
+    ai_behavior: Optional[str] = None
+    slot_level: Optional[int] = Field(default=None, ge=1, le=9)
 
     @field_validator("target_ids", mode="before")
     @classmethod
@@ -207,7 +213,7 @@ class CombatCommandService:
         if not state:
             return self._reject(envelope.sequence_id, 0, "No active combat")
 
-        snapshot = state.to_dict()
+        snapshot = deepcopy(state.to_dict())
         duplicate = self._find_duplicate(envelope, context, state.combat_id)
         if duplicate:
             return duplicate
@@ -277,7 +283,7 @@ class CombatCommandService:
         if not state:
             return self._reject(envelope.sequence_id, 0, "No active combat")
 
-        snapshot = state.to_dict()
+        snapshot = deepcopy(state.to_dict())
         duplicate = self._find_duplicate(envelope, context, state.combat_id)
         if duplicate:
             return duplicate
@@ -559,6 +565,23 @@ class CombatCommandService:
                 command.surprised,
             )
             return result or {"error": "Failed to set surprised state"}
+
+        if command.override_type == DMOverrideType.CONFIGURE_AI:
+            return self._engine.configure_ai(
+                context.session_code,
+                actor_id,
+                enabled=command.ai_enabled,
+                behavior=command.ai_behavior,
+            )
+
+        if command.override_type == DMOverrideType.RESTORE_SPELL_SLOT:
+            if command.slot_level is None:
+                return {"error": "slot_level required"}
+            return self._engine.restore_spell_slot(
+                context.session_code,
+                actor_id,
+                command.slot_level,
+            )
 
         return {"error": "Unsupported DM override"}
 

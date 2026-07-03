@@ -25,6 +25,15 @@ logger = logging.getLogger(__name__)
 class CombatEngine:
     """Server-authoritative combat orchestrator. One per active combat."""
 
+    AI_BEHAVIORS = {
+        'aggressive',
+        'defensive',
+        'support',
+        'cowardly',
+        'berserker',
+        'tactical',
+    }
+
     # session_code → CombatState (in-memory; persisted to DB on round/end)
     _active: dict[str, CombatState] = {}
     _COMBATANT_PAYLOAD_FIELDS = {
@@ -371,6 +380,36 @@ class CombatEngine:
                 c.movement_remaining += amount
             return True
         return False
+
+    @classmethod
+    def configure_ai(
+        cls,
+        session_id: str,
+        combatant_id: str,
+        *,
+        enabled: bool | None = None,
+        behavior: str | None = None,
+    ) -> dict:
+        state = cls._active.get(session_id)
+        if not state:
+            return {'error': 'No active combat'}
+        if enabled is None and behavior is None:
+            return {'error': 'AI configuration required'}
+        if behavior is not None and behavior not in cls.AI_BEHAVIORS:
+            return {'error': f'Unknown AI behavior: {behavior}'}
+        for combatant in state.combatants:
+            if combatant.combatant_id != combatant_id:
+                continue
+            if enabled is not None:
+                combatant.ai_enabled = enabled
+            if behavior is not None:
+                combatant.ai_behavior = behavior
+            return {
+                'combatant_id': combatant_id,
+                'ai_enabled': combatant.ai_enabled,
+                'ai_behavior': combatant.ai_behavior,
+            }
+        return {'error': 'Combatant not found'}
 
     @classmethod
     def dm_revert_last_action(cls, session_id: str) -> bool:

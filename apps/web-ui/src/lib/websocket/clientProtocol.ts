@@ -382,6 +382,14 @@ export class WebClientProtocol {
         usePlanningStore.getState().clearQueue();
         usePlanningStore.getState().stopPlanning();
         useOAStore.getState().clearPendingCombatCommand();
+        const resolvedOpportunityAttack = data.applied.some((item) => (
+          typeof item === 'object'
+          && item !== null
+          && (item as { action_type?: string }).action_type === 'resolve_opportunity_attack'
+        ));
+        if (resolvedOpportunityAttack) {
+          useOAStore.getState().clearAll();
+        }
       }
       if (data?.sequence_id != null) {
         emitProtocolEvent('sprite-action-confirmed', { actionId: String(data.sequence_id) });
@@ -1984,6 +1992,18 @@ export class WebClientProtocol {
     damage_formula?: string;
     damage_type?: string;
   }): void {
-    this.sendMessage(createMessage(MessageType.OPPORTUNITY_ATTACK_RESOLVE, data));
+    if (!data.attacker_combatant_id) return;
+    this.sendMessage(createMessage(MessageType.COMBAT_COMMAND, {
+      sequence_id: Date.now(),
+      commands: [{
+        type: 'resolve_opportunity_attack',
+        actor_id: data.attacker_combatant_id,
+        target_id: data.target_combatant_id,
+        use_reaction: data.use_reaction,
+        attack_bonus: data.attack_bonus ?? 0,
+        damage_formula: data.damage_formula || '1d6+0',
+        damage_type: data.damage_type || 'bludgeoning',
+      }],
+    }));
   }
 }

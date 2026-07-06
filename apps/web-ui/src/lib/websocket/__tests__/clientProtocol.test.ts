@@ -445,6 +445,39 @@ describe('WebClientProtocol', () => {
     });
   });
 
+  describe('resolveOA', () => {
+    it('sends opportunity attack resolution as a combat_command', () => {
+      const p = makeProtocol('S', 2);
+      const ws = makeOpenWs(p);
+
+      p.resolveOA({
+        use_reaction: true,
+        attacker_combatant_id: 'attacker-1',
+        target_combatant_id: 'target-1',
+        attack_bonus: 4,
+        damage_formula: '1d8+2',
+        damage_type: 'piercing',
+      });
+      p.sendBatch();
+
+      const msg = JSON.parse((ws.send as Mock).mock.calls[0][0]);
+      expect(msg.type).toBe('batch');
+      const inner = msg.data.messages[0];
+      expect(inner.type).toBe('combat_command');
+      expect(inner.data.commands).toEqual([
+        expect.objectContaining({
+          type: 'resolve_opportunity_attack',
+          actor_id: 'attacker-1',
+          target_id: 'target-1',
+          use_reaction: true,
+          attack_bonus: 4,
+          damage_formula: '1d8+2',
+          damage_type: 'piercing',
+        }),
+      ]);
+    });
+  });
+
   // ── Incoming handlers ─────────────────────────────────────────────────────
 
   describe('incoming message handlers', () => {

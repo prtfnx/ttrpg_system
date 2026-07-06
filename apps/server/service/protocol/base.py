@@ -187,7 +187,6 @@ class ServerProtocol(
         self.register_handler(MessageType.COVER_ZONE_REMOVE,     self.handle_cover_zone_remove)
         self.register_handler(MessageType.COVER_ZONES_SYNC,      self.handle_cover_zones_sync)
         self.register_handler(MessageType.ATTACK_PREVIEW,        self.handle_attack_preview)
-        self.register_handler(MessageType.OPPORTUNITY_ATTACK_RESOLVE,      self.handle_oa_resolve)
         self.register_handler(MessageType.AI_ACTION,             self.handle_ai_action)
         self.register_handler(MessageType.COMBAT_COMMAND,        self.handle_combat_command)
 

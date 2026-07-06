@@ -6,7 +6,7 @@ from service.combat_command_service import (
     CombatCommandService,
 )
 from service.combat_engine import CombatEngine
-from service.combat_persistence_service import PersistedCombatCommand
+from service.combat_persistence_service import CombatJournalEntry, PersistedCombatCommand
 
 
 def _context(role: str = "owner", user_id: int | None = 1) -> CombatCommandContext:
@@ -493,6 +493,97 @@ def test_player_cannot_remove_combatant():
     assert result.accepted is False
     assert result.reason == "DMs only"
     assert len(CombatEngine.get_state("cmd").combatants) == 2
+
+
+def test_player_cannot_revert_combat_action():
+    state, actor, _target = _state()
+    persistence = MagicMock()
+    persistence.requester_key.return_value = "user:1"
+    persistence.find_result.return_value = None
+    service = CombatCommandService(persistence=persistence)
+    envelope = service.parse_envelope({
+        "sequence_id": 39,
+        "commands": [{
+            "type": "revert_action",
+            "actor_id": "__dm__",
+        }],
+    })
+
+    result = service.apply(envelope, _context(role="player", user_id=1))
+
+    assert result.accepted is False
+    assert result.reason == "DMs only"
+    persistence.last_action.assert_not_called()
+
+
+def test_dm_revert_rejects_empty_journal():
+    state, actor, _target = _state()
+    persistence = MagicMock()
+    persistence.requester_key.return_value = "user:1"
+    persistence.find_result.return_value = None
+    persistence.last_action.return_value = None
+    service = CombatCommandService(persistence=persistence)
+    envelope = service.parse_envelope({
+        "sequence_id": 40,
+        "commands": [{
+            "type": "revert_action",
+            "actor_id": "__dm__",
+        }],
+    })
+
+    result = service.apply(envelope, _context(role="owner"))
+
+    assert result.accepted is False
+    assert result.reason == "Nothing to revert"
+    persistence.persist_accepted.assert_not_called()
+
+
+def test_dm_revert_restores_prior_state_and_persists_revert():
+    state, actor, _target = _state()
+    state_before_damage = state.to_dict()
+    actor.hp = 7
+    persistence = MagicMock()
+    persistence.requester_key.return_value = "user:1"
+    persistence.find_result.return_value = None
+    persistence.last_action.return_value = CombatJournalEntry(
+        command_type="dm_override",
+        state_before=state_before_damage,
+        state_version=4,
+    )
+
+    def persist(**kwargs):
+        result = dict(kwargs["result_payload"])
+        result["state_version"] = 5
+        if isinstance(result.get("combat"), dict):
+            result["combat"] = dict(result["combat"])
+            result["combat"]["state_version"] = 5
+        return PersistedCombatCommand(result=result, state_version=5)
+
+    persistence.persist_accepted.side_effect = persist
+    service = CombatCommandService(persistence=persistence)
+    envelope = service.parse_envelope({
+        "sequence_id": 41,
+        "commands": [{
+            "type": "revert_action",
+            "actor_id": "__dm__",
+        }],
+    })
+
+    result = service.apply(envelope, _context(role="owner"))
+
+    persisted = persistence.persist_accepted.call_args.kwargs
+    live_state = CombatEngine.get_state("cmd")
+    assert result.accepted is True
+    assert result.applied[0]["action_type"] == "revert_action"
+    assert result.applied[0]["actor_id"] is None
+    assert result.applied[0]["result"]["reverted"] is True
+    assert result.applied[0]["result"]["reverted_command_type"] == "dm_override"
+    assert live_state.combatants[0].hp == 20
+    assert live_state.state_version == 5
+    assert persisted["command_type"] == "revert_action"
+    assert persisted["actor_id"] is None
+    assert persisted["state_before"]["combatants"][0]["hp"] == 7
+    assert persisted["state_after"]["combatants"][0]["hp"] == 20
 
 
 def test_dm_configures_ai_and_restores_spell_slot_atomically():

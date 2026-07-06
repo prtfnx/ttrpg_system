@@ -29,6 +29,7 @@ class CombatCommandType(str, Enum):
     REMOVE_COMBATANT = "remove_combatant"
     SKIP_TURN = "skip_turn"
     ROLL_DEATH_SAVE = "roll_death_save"
+    REVERT_ACTION = "revert_action"
 
 
 class DMOverrideType(str, Enum):
@@ -221,10 +222,12 @@ class CombatCommandService:
         applied: list[dict[str, Any]] = []
 
         for idx, command in enumerate(envelope.commands):
-            actor_id = self._resolve_combatant_id(state, command.actor_id)
-            if actor_id is None:
-                self._restore(context.session_code, snapshot)
-                return self._reject(envelope.sequence_id, idx, "Combatant not found")
+            actor_id: str | None = None
+            if self._requires_existing_combatant(command):
+                actor_id = self._resolve_combatant_id(state, command.actor_id)
+                if actor_id is None:
+                    self._restore(context.session_code, snapshot)
+                    return self._reject(envelope.sequence_id, idx, "Combatant not found")
 
             error = self._assert_turn_and_control(state, actor_id, command, context)
             if error:
@@ -292,10 +295,12 @@ class CombatCommandService:
         move_undos: list[tuple[str, str, dict[str, float], dict[str, float]]] = []
 
         for idx, command in enumerate(envelope.commands):
-            actor_id = self._resolve_combatant_id(state, command.actor_id)
-            if actor_id is None:
-                await self._restore_async(context, snapshot, move_undos)
-                return self._reject(envelope.sequence_id, idx, "Combatant not found")
+            actor_id: str | None = None
+            if self._requires_existing_combatant(command):
+                actor_id = self._resolve_combatant_id(state, command.actor_id)
+                if actor_id is None:
+                    await self._restore_async(context, snapshot, move_undos)
+                    return self._reject(envelope.sequence_id, idx, "Combatant not found")
 
             error = self._assert_turn_and_control(state, actor_id, command, context)
             if error:
@@ -351,8 +356,12 @@ class CombatCommandService:
         command: CombatCommand,
         context: CombatCommandContext,
         state,
-        actor_id: str,
+        actor_id: str | None,
     ) -> dict[str, Any]:
+        if command.type == CombatCommandType.REVERT_ACTION:
+            return self._apply_revert_action(context, state)
+        if actor_id is None:
+            return {"error": "Combatant not found"}
         if command.type == CombatCommandType.DM_OVERRIDE:
             return self._apply_dm_override(command, context, state, actor_id)
 
@@ -454,6 +463,32 @@ class CombatCommandService:
             actor_id,
             command.type.value,
         )
+
+    def _apply_revert_action(
+        self,
+        context: CombatCommandContext,
+        state,
+    ) -> dict[str, Any]:
+        if self._persistence is None:
+            return {"error": "Combat persistence unavailable"}
+
+        last_action = self._persistence.last_action(state.combat_id)
+        if (
+            last_action is None
+            or last_action.command_type in {"dm_revert_action", "revert_action"}
+            or not last_action.state_before
+        ):
+            return {"error": "Nothing to revert"}
+
+        from core_table.combat import CombatState
+
+        reverted_state = CombatState.from_dict(last_action.state_before)
+        self._engine._active[context.session_code] = reverted_state
+        return {
+            "reverted": True,
+            "reverted_command_type": last_action.command_type,
+            "reverted_state_version": last_action.state_version,
+        }
 
     def _apply_dm_override(
         self,
@@ -597,7 +632,7 @@ class CombatCommandService:
         command: CombatCommand,
         context: CombatCommandContext,
         state,
-        actor_id: str,
+        actor_id: str | None,
         move_undos: list[tuple[str, str, dict[str, float], dict[str, float]]],
     ) -> dict[str, Any]:
         if command.type == CombatCommandType.MOVE:
@@ -723,7 +758,7 @@ class CombatCommandService:
     def _assert_turn_and_control(
         self,
         state,
-        actor_id: str,
+        actor_id: str | None,
         command: CombatCommand,
         context: CombatCommandContext,
     ) -> str | None:
@@ -733,6 +768,7 @@ class CombatCommandService:
             CombatCommandType.SET_INITIATIVE,
             CombatCommandType.REMOVE_COMBATANT,
             CombatCommandType.SKIP_TURN,
+            CombatCommandType.REVERT_ACTION,
         }:
             return None if is_dm(context.role) else "DMs only"
         if command.type in {
@@ -757,6 +793,10 @@ class CombatCommandService:
         if context.user_id is None or str(context.user_id) not in current.controlled_by:
             return "You do not control this combatant"
         return None
+
+    @staticmethod
+    def _requires_existing_combatant(command: CombatCommand) -> bool:
+        return command.type != CombatCommandType.REVERT_ACTION
 
     def _restore(self, session_code: str, snapshot: dict[str, Any]) -> None:
         self._engine._active[session_code] = CombatState.from_dict(snapshot)

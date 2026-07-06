@@ -121,14 +121,11 @@ class MessageType(enum.Enum):    # Core messages
     STATE_SYNC_RESPONSE = "state_sync_response"
 
     # ── Combat ──
-    COMBAT_START = "combat_start"
-    COMBAT_END = "combat_end"
     COMBAT_STATE = "combat_state"
     COMBAT_STATE_REQUEST = "combat_state_request"
 
     # ── Initiative ──
     INITIATIVE_ROLL_RESULT = "initiative_roll_result"
-    INITIATIVE_ADD = "initiative_add"
     INITIATIVE_ORDER = "initiative_order"
 
     # ── Turn Management ──

@@ -178,10 +178,7 @@ class ServerProtocol(
         self.register_handler(MessageType.SESSION_RULES_REQUEST, self.handle_session_rules_request)
 
         # Combat
-        self.register_handler(MessageType.COMBAT_START,          self.handle_combat_start)
-        self.register_handler(MessageType.COMBAT_END,            self.handle_combat_end)
         self.register_handler(MessageType.COMBAT_STATE_REQUEST,  self.handle_combat_state_request)
-        self.register_handler(MessageType.INITIATIVE_ADD,        self.handle_initiative_add)
         self.register_handler(MessageType.DM_SET_TERRAIN,        self.handle_dm_set_terrain)
         self.register_handler(MessageType.COVER_ZONE_ADD,        self.handle_cover_zone_add)
         self.register_handler(MessageType.COVER_ZONE_REMOVE,     self.handle_cover_zone_remove)

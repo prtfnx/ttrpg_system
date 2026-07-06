@@ -140,55 +140,6 @@ class _CombatMixin(_ProtocolBase):
             logger.warning('Failed to persist direct combat mutation %s: %s', command_type, exc)
             return 'Failed to persist combat mutation'
 
-    async def handle_combat_start(self, msg: Message, client_id: str) -> Message:
-        if not is_dm(self._get_client_role(client_id)):
-            return Message(MessageType.ERROR, {'error': 'Only DMs can start combat'})
-        d = msg.data or {}
-        table_id = d.get('table_id')
-        if not table_id:
-            return Message(MessageType.ERROR, {'error': 'table_id required'})
-
-        from core_table.combat import CombatSettings
-        from service.combat_engine import CombatEngine
-        settings = CombatSettings.from_dict(d['settings']) if d.get('settings') else None
-        session_code = self._get_session_code()
-        entity_ids = [str(entity_id) for entity_id in d.get('entity_ids', []) if entity_id]
-        incoming_combatants = [item for item in d.get('combatants', []) if isinstance(item, dict)]
-        if not entity_ids:
-            entity_ids = [str(item.get('entity_id')) for item in incoming_combatants if item.get('entity_id')]
-        combatants = CombatantFactory().build_many(
-            entity_ids,
-            incoming_combatants,
-            self._combatant_factory_context(msg, table_id),
-        )
-        state = CombatEngine.start_combat(
-            session_id=session_code,
-            table_id=table_id,
-            entity_ids=entity_ids,
-            settings=settings,
-            names=d.get('names', {}),
-            combatants=combatants,
-        )
-        return await self._broadcast_combat_state(
-            state,
-            MessageType.COMBAT_STATE,
-            client_id,
-        )
-
-    async def handle_combat_end(self, msg: Message, client_id: str) -> Message:
-        if not is_dm(self._get_client_role(client_id)):
-            return Message(MessageType.ERROR, {'error': 'Only DMs can end combat'})
-        from service.combat_engine import CombatEngine
-        state = CombatEngine.end_combat(self._get_session_code())
-        if not state:
-            return Message(MessageType.ERROR, {'error': 'No active combat'})
-        return await self._broadcast_combat_state(
-            state,
-            MessageType.COMBAT_STATE,
-            client_id,
-            {'ended': True},
-        )
-
     async def handle_combat_state_request(self, msg: Message, client_id: str) -> Message:
         from service.combat_engine import CombatEngine
         session_code = self._get_session_code()
@@ -203,53 +154,6 @@ class _CombatMixin(_ProtocolBase):
                 self._get_user_id(msg, client_id),
             )
         })
-
-    async def handle_initiative_add(self, msg: Message, client_id: str) -> Message:
-        if not is_dm(self._get_client_role(client_id)):
-            return Message(MessageType.ERROR, {'error': 'Only DMs can add combatants'})
-        d = msg.data or {}
-        entity_id = d.get('entity_id')
-        if not entity_id:
-            return Message(MessageType.ERROR, {'error': 'entity_id required'})
-        from service.combat_engine import CombatEngine
-        session_code = self._get_session_code()
-        state = CombatEngine.get_state(session_code)
-        state_before = state.to_dict() if state else None
-        table_id = d.get('table_id') or (state.table_id if state else '')
-        resolved = CombatantFactory().build_payload(
-            str(entity_id),
-            d,
-            self._combatant_factory_context(msg, table_id),
-        )
-        extra = {k: v for k, v in resolved.items() if k != 'entity_id'}
-        combatant = CombatEngine.add_combatant(session_code, entity_id, **extra)
-        if not combatant:
-            return Message(MessageType.ERROR, {'error': 'No active combat'})
-        state = CombatEngine.get_state(session_code)
-        order = [{'combatant_id': c.combatant_id, 'name': c.name, 'initiative': c.initiative}
-                 for c in (state.combatants if state else [])]
-        persist_error = self._persist_direct_combat_mutation(
-            msg,
-            client_id,
-            session_code=session_code,
-            command_type='initiative_add',
-            actor_id=combatant.combatant_id,
-            command_payload=d,
-            result_payload={'combatant': combatant.to_dict(), 'order': order},
-            state_before=state_before,
-            state_after=state,
-        )
-        if persist_error:
-            return Message(MessageType.ERROR, {'error': persist_error})
-        return await self._broadcast_combat_state(
-            state,
-            MessageType.INITIATIVE_ORDER,
-            client_id,
-            {
-                'combatant': combatant.to_dict(),
-                'order': order,
-            },
-        )
 
     async def handle_ai_action(self, msg: Message, client_id: str) -> Message:
         if not is_dm(self._get_client_role(client_id)):

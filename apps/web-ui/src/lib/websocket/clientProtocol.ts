@@ -358,11 +358,6 @@ export class WebClientProtocol {
       const d = m.data as { target_combatant_id: string; target_name: string; attacker_combatant_id: string };
       useOAStore.getState().setPrompt(d);
     });
-    this.registerHandler(MessageType.OPPORTUNITY_ATTACK_RESOLVE, async () => {
-      const { useOAStore } = await import('@features/combat/stores/oaStore');
-      useOAStore.getState().clearAll();
-    });
-
     // ── Encounters ──
     this.registerHandler(MessageType.ENCOUNTER_STATE, async (m) => {
       const { useEncounterStore } = await import('@features/combat/stores/encounterStore');

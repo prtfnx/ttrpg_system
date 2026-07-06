@@ -187,7 +187,6 @@ class MessageType(enum.Enum):    # Core messages
     # ── Opportunity Attacks ──
     OPPORTUNITY_ATTACK_WARNING = "opportunity_attack_warning"
     OPPORTUNITY_ATTACK_PROMPT = "opportunity_attack_prompt"
-    OPPORTUNITY_ATTACK_RESOLVE = "opportunity_attack_resolve"
 
     # ── Attack Preview ──
     ATTACK_PREVIEW = "attack_preview"

@@ -10,7 +10,6 @@ import { isDM } from '@features/session/types/roles';
 import { useOptionalProtocol } from '@lib/api';
 import { useWasmRuntime } from '@lib/wasm/runtime';
 import type { RenderEngine } from '@lib/wasm/runtime';
-import { createMessage, MessageType } from '@lib/websocket';
 import { DragDropImageHandler } from '@shared/components';
 import { logger } from '@shared/utils/logger';
 import type { LucideIcon } from 'lucide-react';
@@ -76,7 +75,7 @@ export const GameCanvas: React.FC = () => {
   const runtime = useWasmRuntime();
   // Protocol and store setup
   const protocol = useOptionalProtocol()?.protocol ?? null;
-  const { removeCombatant } = useCombatCommands();
+  const { addCombatant, removeCombatant } = useCombatCommands();
   const updateConnectionState = useGameStore(s => s.updateConnectionState);
   const tables = useGameStore(s => s.tables);
   const activeTableId = useGameStore(s => s.activeTableId);
@@ -137,7 +136,7 @@ export const GameCanvas: React.FC = () => {
   const inCombat = (entityId: string) => combatants.some((c) => c.entity_id === entityId);
 
   const addToCombat = (entityId: string) => {
-    protocol?.sendMessage(createMessage(MessageType.INITIATIVE_ADD, { entity_id: entityId }));
+    addCombatant({ entity_id: entityId });
   };
 
   const removeFromCombat = (entityId: string) => {

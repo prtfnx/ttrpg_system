@@ -15,9 +15,6 @@ vi.mock('@lib/websocket', () => ({
   createMessage: vi.fn((type: string, data: unknown) => ({ type, data })),
   MessageType: {
     COMBAT_COMMAND: 'combat_command',
-    COMBAT_START: 'COMBAT_START',
-    COMBAT_END: 'COMBAT_END',
-    INITIATIVE_ADD: 'INITIATIVE_ADD',
     DM_SET_TERRAIN: 'DM_SET_TERRAIN',
   },
 }));
@@ -258,12 +255,7 @@ describe('DMCombatPanel - active combat', () => {
     );
     expect(message.data.commands[0]).not.toHaveProperty('hp');
     expect(message.data.commands[0]).not.toHaveProperty('armor_class');
-    expect(mockSendMessage).not.toHaveBeenCalledWith(
-      expect.objectContaining({
-        type: 'INITIATIVE_ADD',
-        data: expect.objectContaining({ entity_id: 'e3' }),
-      })
-    );
+    expect(message.data.commands[0]).not.toEqual(expect.objectContaining({ entity_id: 'e3' }));
   });
 });
 

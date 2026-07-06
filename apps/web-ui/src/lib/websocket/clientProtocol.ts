@@ -311,11 +311,6 @@ export class WebClientProtocol {
       }
     };
     this.registerHandler(MessageType.COMBAT_STATE, async (m) => setCombat(m.data));
-    this.registerHandler(MessageType.COMBAT_START, async (m) => setCombat(m.data));
-    this.registerHandler(MessageType.COMBAT_END, async () => {
-      const { useCombatStore } = await import('@features/combat/stores/combatStore');
-      useCombatStore.getState().setCombat(null);
-    });
     this.registerHandler(MessageType.TURN_START, async (m) => setCombat(m.data));
     this.registerHandler(MessageType.INITIATIVE_ORDER, async (m) => setCombat(m.data));
     this.registerHandler(MessageType.CONDITIONS_SYNC, async (m) => {

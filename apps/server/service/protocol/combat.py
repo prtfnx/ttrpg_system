@@ -325,49 +325,6 @@ class _CombatMixin(_ProtocolBase):
         }})
         return resp
 
-    async def handle_death_save_roll(self, msg: Message, client_id: str) -> Message:
-        d = msg.data or {}
-        combatant_id = d.get('combatant_id')
-        if not combatant_id:
-            return Message(MessageType.ERROR, {'error': 'combatant_id required'})
-        from service.combat_engine import CombatEngine
-        session_code = self._get_session_code()
-        # Only the controlling player or DM may roll
-        state = CombatEngine.get_state(session_code)
-        if not state:
-            return Message(MessageType.ERROR, {'error': 'No active combat'})
-        combatant = next((c for c in state.combatants if c.combatant_id == combatant_id), None)
-        if not combatant:
-            return Message(MessageType.ERROR, {'error': 'Combatant not found'})
-        user_id = self._get_user_id(msg, client_id)
-        if not is_dm(self._get_client_role(client_id)):
-            if user_id is None or str(user_id) not in combatant.controlled_by:
-                return Message(MessageType.ERROR, {'error': 'Not your combatant'})
-        state_before = state.to_dict()
-        result = CombatEngine.roll_death_save(session_code, combatant_id)
-        if result is None:
-            return Message(MessageType.ERROR, {'error': 'Cannot roll — combatant is not downed'})
-        state = CombatEngine.get_state(session_code)
-        persist_error = self._persist_direct_combat_mutation(
-            msg,
-            client_id,
-            session_code=session_code,
-            command_type='death_save_roll',
-            actor_id=combatant_id,
-            command_payload=d,
-            result_payload=result,
-            state_before=state_before,
-            state_after=state,
-        )
-        if persist_error:
-            return Message(MessageType.ERROR, {'error': persist_error})
-        return await self._broadcast_combat_state(
-            state,
-            MessageType.DEATH_SAVE_RESULT,
-            client_id,
-            result,
-        )
-
     async def handle_dm_set_terrain(self, msg: Message, client_id: str) -> Message:
         if not is_dm(self._get_client_role(client_id)):
             return Message(MessageType.ERROR, {'error': 'DMs only'})

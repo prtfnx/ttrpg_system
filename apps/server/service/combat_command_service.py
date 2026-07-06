@@ -30,6 +30,7 @@ class CombatCommandType(str, Enum):
     SKIP_TURN = "skip_turn"
     ROLL_DEATH_SAVE = "roll_death_save"
     REVERT_ACTION = "revert_action"
+    RESOLVE_OPPORTUNITY_ATTACK = "resolve_opportunity_attack"
 
 
 class DMOverrideType(str, Enum):
@@ -93,6 +94,7 @@ class CombatCommand(BaseModel):
     ai_enabled: Optional[bool] = None
     ai_behavior: Optional[str] = None
     slot_level: Optional[int] = Field(default=None, ge=1, le=9)
+    use_reaction: bool = True
 
     @field_validator("target_ids", mode="before")
     @classmethod
@@ -365,6 +367,9 @@ class CombatCommandService:
         if command.type == CombatCommandType.DM_OVERRIDE:
             return self._apply_dm_override(command, context, state, actor_id)
 
+        if command.type == CombatCommandType.RESOLVE_OPPORTUNITY_ATTACK:
+            return self._apply_opportunity_attack(command, context, state, actor_id)
+
         if command.type == CombatCommandType.ATTACK:
             if not command.target_id:
                 return {"error": "target_id required"}
@@ -463,6 +468,65 @@ class CombatCommandService:
             actor_id,
             command.type.value,
         )
+
+    def _apply_opportunity_attack(
+        self,
+        command: CombatCommand,
+        context: CombatCommandContext,
+        state,
+        actor_id: str,
+    ) -> dict[str, Any]:
+        if not command.use_reaction:
+            return {
+                "resolved": True,
+                "passed": True,
+                "attacker": actor_id,
+                "target": command.target_id,
+            }
+        if not command.target_id:
+            return {"error": "target_id required"}
+        target_id = self._resolve_combatant_id(state, command.target_id)
+        if target_id is None:
+            return {"error": "target_id not found"}
+
+        attacker = self._get_combatant(state, actor_id)
+        target = self._get_combatant(state, target_id)
+        if attacker is None or target is None:
+            return {"error": "Combatant not found"}
+        if not attacker.has_reaction:
+            return {"error": "Reaction already used"}
+
+        from core_table.session_rules import SessionRules
+        from service.attack_resolver import AttackResolver
+
+        attacker.has_reaction = False
+        resolver = AttackResolver(SessionRules.defaults(context.session_code or "default"))
+        result = resolver.resolve_attack(
+            attacker,
+            target,
+            attack_bonus=command.attack_bonus,
+            damage_formula=command.damage_formula or "1d6+0",
+            damage_type=command.damage_type or "bludgeoning",
+            combat=state,
+        )
+        damage_result = None
+        if result.hit:
+            damage_result = self._engine.apply_damage(
+                context.session_code,
+                target_id,
+                result.damage_dealt,
+            )
+
+        payload = {
+            "hit": result.hit,
+            "damage": result.damage_dealt,
+            "attacker": actor_id,
+            "target": target_id,
+            "reason": result.reason,
+        }
+        if damage_result is not None:
+            payload["damage_result"] = damage_result
+        return payload
 
     def _apply_revert_action(
         self,
@@ -771,6 +835,17 @@ class CombatCommandService:
             CombatCommandType.REVERT_ACTION,
         }:
             return None if is_dm(context.role) else "DMs only"
+        if command.type == CombatCommandType.RESOLVE_OPPORTUNITY_ATTACK:
+            if is_dm(context.role):
+                return None
+            actor = self._get_combatant(state, actor_id)
+            if (
+                actor is None
+                or context.user_id is None
+                or str(context.user_id) not in actor.controlled_by
+            ):
+                return "You do not control this combatant"
+            return None
         if command.type in {
             CombatCommandType.ROLL_INITIATIVE,
             CombatCommandType.ROLL_DEATH_SAVE,

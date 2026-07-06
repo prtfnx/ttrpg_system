@@ -586,6 +586,127 @@ def test_dm_revert_restores_prior_state_and_persists_revert():
     assert persisted["state_after"]["combatants"][0]["hp"] == 20
 
 
+def test_player_resolves_owned_opportunity_attack_outside_their_turn():
+    state, target, attacker = _state()
+    persistence = MagicMock()
+    persistence.requester_key.return_value = "user:2"
+    persistence.find_result.return_value = None
+
+    def persist(**kwargs):
+        result = dict(kwargs["result_payload"])
+        result["state_version"] = 6
+        if isinstance(result.get("combat"), dict):
+            result["combat"] = dict(result["combat"])
+            result["combat"]["state_version"] = 6
+        return PersistedCombatCommand(result=result, state_version=6)
+
+    persistence.persist_accepted.side_effect = persist
+    service = CombatCommandService(persistence=persistence)
+    envelope = service.parse_envelope({
+        "sequence_id": 42,
+        "commands": [{
+            "type": "resolve_opportunity_attack",
+            "actor_id": attacker.combatant_id,
+            "target_id": target.combatant_id,
+            "attack_bonus": 5,
+            "damage_formula": "1d6+2",
+            "damage_type": "slashing",
+        }],
+    })
+
+    with patch("service.attack_resolver.AttackResolver") as resolver:
+        resolver.return_value.resolve_attack.return_value = AttackResult(
+            hit=True,
+            damage_dealt=5,
+            reason="Hit",
+        )
+        result = service.apply(envelope, _context(role="player", user_id=2))
+
+    persisted = persistence.persist_accepted.call_args.kwargs
+    live_state = CombatEngine.get_state("cmd")
+    assert result.accepted is True
+    assert result.applied[0]["action_type"] == "resolve_opportunity_attack"
+    assert result.applied[0]["result"]["hit"] is True
+    assert live_state.combatants[1].has_reaction is False
+    assert live_state.combatants[0].hp == 15
+    assert persisted["command_type"] == "resolve_opportunity_attack"
+    assert persisted["state_before"]["combatants"][1]["has_reaction"] is True
+    assert persisted["state_after"]["combatants"][1]["has_reaction"] is False
+    assert persisted["state_before"]["combatants"][0]["hp"] == 20
+    assert persisted["state_after"]["combatants"][0]["hp"] == 15
+
+
+def test_opportunity_attack_pass_does_not_spend_reaction():
+    state, target, attacker = _state()
+    service = CombatCommandService()
+    envelope = service.parse_envelope({
+        "sequence_id": 43,
+        "commands": [{
+            "type": "resolve_opportunity_attack",
+            "actor_id": attacker.combatant_id,
+            "target_id": target.combatant_id,
+            "use_reaction": False,
+        }],
+    })
+
+    result = service.apply(envelope, _context(role="player", user_id=2))
+
+    assert result.accepted is True
+    assert result.applied[0]["result"]["passed"] is True
+    assert CombatEngine.get_state("cmd").combatants[1].has_reaction is True
+    assert CombatEngine.get_state("cmd").combatants[0].hp == 20
+
+
+def test_player_cannot_resolve_unowned_opportunity_attack():
+    state, target, attacker = _state()
+    service = CombatCommandService()
+    envelope = service.parse_envelope({
+        "sequence_id": 44,
+        "commands": [{
+            "type": "resolve_opportunity_attack",
+            "actor_id": attacker.combatant_id,
+            "target_id": target.combatant_id,
+        }],
+    })
+
+    result = service.apply(envelope, _context(role="player", user_id=99))
+
+    assert result.accepted is False
+    assert result.reason == "You do not control this combatant"
+    assert CombatEngine.get_state("cmd").combatants[1].has_reaction is True
+
+
+def test_opportunity_attack_persistence_failure_rolls_back_reaction_and_damage():
+    state, target, attacker = _state()
+    persistence = MagicMock()
+    persistence.requester_key.return_value = "user:2"
+    persistence.find_result.return_value = None
+    persistence.persist_accepted.side_effect = RuntimeError("database unavailable")
+    service = CombatCommandService(persistence=persistence)
+    envelope = service.parse_envelope({
+        "sequence_id": 45,
+        "commands": [{
+            "type": "resolve_opportunity_attack",
+            "actor_id": attacker.combatant_id,
+            "target_id": target.combatant_id,
+        }],
+    })
+
+    with patch("service.attack_resolver.AttackResolver") as resolver:
+        resolver.return_value.resolve_attack.return_value = AttackResult(
+            hit=True,
+            damage_dealt=5,
+            reason="Hit",
+        )
+        result = service.apply(envelope, _context(role="player", user_id=2))
+
+    live_state = CombatEngine.get_state("cmd")
+    assert result.accepted is False
+    assert result.reason == "Failed to persist combat command"
+    assert live_state.combatants[1].has_reaction is True
+    assert live_state.combatants[0].hp == 20
+
+
 def test_dm_configures_ai_and_restores_spell_slot_atomically():
     state, _actor, target = _state()
     target.ai_enabled = False

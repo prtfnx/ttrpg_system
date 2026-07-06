@@ -149,7 +149,6 @@ class MessageType(enum.Enum):    # Core messages
     DM_OVERRIDE = "dm_override"
     DM_MODIFY_ROLL = "dm_modify_roll"
     DM_SET_TERRAIN = "dm_set_terrain"
-    DM_REVERT_ACTION = "dm_revert_action"
 
     # ── NPC AI ──
     AI_ACTION = "ai_action"

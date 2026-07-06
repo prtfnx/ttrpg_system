@@ -12,7 +12,6 @@ vi.mock('@lib/websocket', () => ({
   createMessage: vi.fn((type, data) => ({ type, data })),
   MessageType: {
     COMBAT_COMMAND: 'combat_command',
-    DEATH_SAVE_ROLL: 'death_save_roll',
   },
 }));
 
@@ -175,7 +174,7 @@ describe('useCombatCommands', () => {
     }));
   });
 
-  it('sends initiative rolls as commands and death saves as protocol messages', () => {
+  it('sends initiative rolls and death saves as canonical commands', () => {
     const { result } = renderHook(() => useCombatCommands());
 
     result.current.rollInitiative('cmb-1');
@@ -191,8 +190,13 @@ describe('useCombatCommands', () => {
       }),
     }));
     expect(mockSendMessage).toHaveBeenCalledWith(expect.objectContaining({
-      type: 'death_save_roll',
-      data: { combatant_id: 'cmb-1' },
+      type: 'combat_command',
+      data: expect.objectContaining({
+        commands: [expect.objectContaining({
+          type: 'roll_death_save',
+          actor_id: 'cmb-1',
+        })],
+      }),
     }));
   });
 

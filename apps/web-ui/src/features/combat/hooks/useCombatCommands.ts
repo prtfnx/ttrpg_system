@@ -184,8 +184,11 @@ export function useCombatCommands() {
   ), [sendCommand]);
 
   const rollDeathSave = useCallback((combatantId: string) => (
-    sendProtocolMessage(MessageType.DEATH_SAVE_ROLL, { combatant_id: combatantId })
-  ), [sendProtocolMessage]);
+    sendCommand({
+      type: 'roll_death_save',
+      actor_id: combatantId,
+    })
+  ), [sendCommand]);
 
   const skipTurn = useCallback((combatantId: string) => (
     sendCommand({

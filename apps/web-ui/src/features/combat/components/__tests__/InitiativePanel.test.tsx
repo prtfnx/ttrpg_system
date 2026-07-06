@@ -18,7 +18,6 @@ vi.mock('@lib/websocket', () => ({
   createMessage: vi.fn((type, payload) => ({ type, data: payload })),
   MessageType: {
     COMBAT_COMMAND: 'combat_command',
-    DEATH_SAVE_ROLL: 'DEATH_SAVE_ROLL',
   },
 }));
 
@@ -253,7 +252,7 @@ describe('InitiativePanel', () => {
     expect(screen.getByTitle('Roll death save')).toBeInTheDocument();
   });
 
-  it('click death save sends DEATH_SAVE_ROLL', () => {
+  it('click death save sends a canonical command', () => {
     useCombatStore.setState({
       combat: {
         ...baseCombat,
@@ -262,7 +261,15 @@ describe('InitiativePanel', () => {
     });
     render(<InitiativePanel />);
     fireEvent.click(screen.getByTitle('Roll death save'));
-    expect(mockSend).toHaveBeenCalledWith(expect.objectContaining({ type: 'DEATH_SAVE_ROLL' }));
+    expect(mockSend).toHaveBeenCalledWith(expect.objectContaining({
+      type: 'combat_command',
+      data: expect.objectContaining({
+        commands: [expect.objectContaining({
+          type: 'roll_death_save',
+          actor_id: 'c1',
+        })],
+      }),
+    }));
   });
 
   it('shows concentration badge when concentrating', () => {

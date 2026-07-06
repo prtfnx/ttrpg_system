@@ -28,6 +28,7 @@ class CombatCommandType(str, Enum):
     SET_INITIATIVE = "set_initiative"
     REMOVE_COMBATANT = "remove_combatant"
     SKIP_TURN = "skip_turn"
+    ROLL_DEATH_SAVE = "roll_death_save"
 
 
 class DMOverrideType(str, Enum):
@@ -407,6 +408,12 @@ class CombatCommandService:
                 "order": self._initiative_order(state),
             }
 
+        if command.type == CombatCommandType.ROLL_DEATH_SAVE:
+            result = self._engine.roll_death_save(context.session_code, actor_id)
+            if result is None:
+                return {"error": "Cannot roll — combatant is not downed"}
+            return result
+
         if command.type == CombatCommandType.SET_INITIATIVE:
             if command.initiative is None:
                 return {"error": "initiative required"}
@@ -728,7 +735,10 @@ class CombatCommandService:
             CombatCommandType.SKIP_TURN,
         }:
             return None if is_dm(context.role) else "DMs only"
-        if command.type == CombatCommandType.ROLL_INITIATIVE:
+        if command.type in {
+            CombatCommandType.ROLL_INITIATIVE,
+            CombatCommandType.ROLL_DEATH_SAVE,
+        }:
             if is_dm(context.role):
                 return None
             actor = self._get_combatant(state, actor_id)

@@ -364,6 +364,65 @@ def test_player_cannot_roll_unowned_initiative():
     assert target.initiative is None
 
 
+def test_player_rolls_owned_death_save_outside_their_turn():
+    state, _actor, target = _state()
+    target.hp = 0
+    service = CombatCommandService()
+    envelope = service.parse_envelope({
+        "sequence_id": 36,
+        "commands": [{
+            "type": "roll_death_save",
+            "actor_id": target.combatant_id,
+        }],
+    })
+
+    with patch("service.combat_engine.DiceEngine.roll", return_value=MagicMock(total=15)):
+        result = service.apply(envelope, _context(role="player", user_id=2))
+
+    assert result.accepted is True
+    assert result.applied[0]["action_type"] == "roll_death_save"
+    assert result.applied[0]["result"]["combatant_id"] == target.combatant_id
+    assert result.applied[0]["result"]["result"] == "success"
+    assert CombatEngine.get_state("cmd").combatants[1].death_save_successes == 1
+
+
+def test_player_cannot_roll_unowned_death_save():
+    state, _actor, target = _state()
+    target.hp = 0
+    service = CombatCommandService()
+    envelope = service.parse_envelope({
+        "sequence_id": 37,
+        "commands": [{
+            "type": "roll_death_save",
+            "actor_id": target.combatant_id,
+        }],
+    })
+
+    result = service.apply(envelope, _context(role="player", user_id=99))
+
+    assert result.accepted is False
+    assert result.reason == "You do not control this combatant"
+    assert CombatEngine.get_state("cmd").combatants[1].death_save_successes == 0
+
+
+def test_death_save_rejects_combatant_that_is_not_downed():
+    state, _actor, target = _state()
+    service = CombatCommandService()
+    envelope = service.parse_envelope({
+        "sequence_id": 38,
+        "commands": [{
+            "type": "roll_death_save",
+            "actor_id": target.combatant_id,
+        }],
+    })
+
+    result = service.apply(envelope, _context(role="owner"))
+
+    assert result.accepted is False
+    assert result.reason == "Cannot roll — combatant is not downed"
+    assert CombatEngine.get_state("cmd").combatants[1].death_save_successes == 0
+
+
 def test_dm_sets_initiative_and_removes_combatant_outside_turn():
     state, _actor, target = _state()
     service = CombatCommandService()

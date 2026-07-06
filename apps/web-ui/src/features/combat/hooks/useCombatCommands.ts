@@ -15,6 +15,19 @@ export interface CombatCommandBatch extends Record<string, unknown> {
   commands: CombatCommandPayload[];
 }
 
+export interface CombatantReferenceInput {
+  entity_id: string;
+  character_id?: string;
+  name?: string;
+}
+
+export interface StartCombatInput {
+  tableId: string;
+  entityIds?: string[];
+  names?: Record<string, string>;
+  combatants?: CombatantReferenceInput[];
+}
+
 export interface AttackCommandInput {
   actorId: string;
   targetId: string;
@@ -211,6 +224,35 @@ export function useCombatCommands() {
     })
   ), [sendCommand]);
 
+  const startCombat = useCallback((input: StartCombatInput) => (
+    sendCommand({
+      type: 'start_combat',
+      actor_id: '__dm__',
+      table_id: input.tableId,
+      entity_ids: input.entityIds ?? [],
+      names: input.names ?? {},
+      combatants: input.combatants ?? [],
+    })
+  ), [sendCommand]);
+
+  const addCombatant = useCallback((input: CombatantReferenceInput) => (
+    sendCommand({
+      type: 'add_combatant',
+      actor_id: '__dm__',
+      entity_id: input.entity_id,
+      character_id: input.character_id,
+      name: input.name,
+      combatants: [input],
+    })
+  ), [sendCommand]);
+
+  const endCombat = useCallback(() => (
+    sendCommand({
+      type: 'end_combat',
+      actor_id: '__dm__',
+    })
+  ), [sendCommand]);
+
   return {
     sendProtocolMessage,
     sendCommandBatch,
@@ -226,6 +268,9 @@ export function useCombatCommands() {
     skipTurn,
     removeCombatant,
     revertLastAction,
+    startCombat,
+    addCombatant,
+    endCombat,
     endTurn,
   };
 }

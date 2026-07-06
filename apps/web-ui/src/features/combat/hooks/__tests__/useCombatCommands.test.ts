@@ -252,4 +252,52 @@ describe('useCombatCommands', () => {
       }),
     }));
   });
+
+  it('sends combat lifecycle controls as canonical DM commands', () => {
+    const { result } = renderHook(() => useCombatCommands());
+
+    result.current.startCombat({
+      tableId: 'table-1',
+      entityIds: ['sprite-1'],
+      names: { 'sprite-1': 'Ada' },
+      combatants: [{ entity_id: 'sprite-1', character_id: 'char-1', name: 'Ada' }],
+    });
+    result.current.addCombatant({ entity_id: 'sprite-2', character_id: 'char-2', name: 'Borin' });
+    result.current.endCombat();
+
+    expect(mockSendMessage).toHaveBeenCalledWith(expect.objectContaining({
+      type: 'combat_command',
+      data: expect.objectContaining({
+        commands: [expect.objectContaining({
+          type: 'start_combat',
+          actor_id: '__dm__',
+          table_id: 'table-1',
+          entity_ids: ['sprite-1'],
+          names: { 'sprite-1': 'Ada' },
+          combatants: [{ entity_id: 'sprite-1', character_id: 'char-1', name: 'Ada' }],
+        })],
+      }),
+    }));
+    expect(mockSendMessage).toHaveBeenCalledWith(expect.objectContaining({
+      type: 'combat_command',
+      data: expect.objectContaining({
+        commands: [expect.objectContaining({
+          type: 'add_combatant',
+          actor_id: '__dm__',
+          entity_id: 'sprite-2',
+          character_id: 'char-2',
+          name: 'Borin',
+        })],
+      }),
+    }));
+    expect(mockSendMessage).toHaveBeenCalledWith(expect.objectContaining({
+      type: 'combat_command',
+      data: expect.objectContaining({
+        commands: [expect.objectContaining({
+          type: 'end_combat',
+          actor_id: '__dm__',
+        })],
+      }),
+    }));
+  });
 });

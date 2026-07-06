@@ -130,7 +130,7 @@ function PreCombatSetup() {
 export function DMCombatPanel() {
   const combat = useCombatStore((s) => s.combat);
   const activeTableId = useGameStore((s) => s.activeTableId);
-  const { sendDMOverride, sendDMOverrides, sendProtocolMessage } = useCombatCommands();
+  const { revertLastAction, sendDMOverride, sendDMOverrides, sendProtocolMessage } = useCombatCommands();
   const linkedTokenOptions = useLinkedTokenOptions();
   const [selectedId, setSelectedId] = useState('');
   const [hpValue, setHpValue] = useState('');
@@ -258,7 +258,7 @@ export function DMCombatPanel() {
     setCombatantAddStatus(`Queued ${missingLinkedTokenOptions.length} table combatant${missingLinkedTokenOptions.length === 1 ? '' : 's'}.`);
   };
 
-  const revertLast = () => sendProtocolMessage(MessageType.DM_REVERT_ACTION, {});
+  const revertLast = () => revertLastAction();
 
   return (
     <div className={styles.panel}>

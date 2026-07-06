@@ -236,4 +236,20 @@ describe('useCombatCommands', () => {
       }),
     }));
   });
+
+  it('sends revert as a canonical DM command', () => {
+    const { result } = renderHook(() => useCombatCommands());
+
+    result.current.revertLastAction();
+
+    expect(mockSendMessage).toHaveBeenCalledWith(expect.objectContaining({
+      type: 'combat_command',
+      data: expect.objectContaining({
+        commands: [expect.objectContaining({
+          type: 'revert_action',
+          actor_id: '__dm__',
+        })],
+      }),
+    }));
+  });
 });

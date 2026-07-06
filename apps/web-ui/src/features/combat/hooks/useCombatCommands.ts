@@ -204,6 +204,13 @@ export function useCombatCommands() {
     })
   ), [sendCommand]);
 
+  const revertLastAction = useCallback(() => (
+    sendCommand({
+      type: 'revert_action',
+      actor_id: '__dm__',
+    })
+  ), [sendCommand]);
+
   return {
     sendProtocolMessage,
     sendCommandBatch,
@@ -218,6 +225,7 @@ export function useCombatCommands() {
     rollDeathSave,
     skipTurn,
     removeCombatant,
+    revertLastAction,
     endTurn,
   };
 }

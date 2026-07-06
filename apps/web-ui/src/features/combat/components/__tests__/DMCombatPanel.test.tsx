@@ -18,7 +18,6 @@ vi.mock('@lib/websocket', () => ({
     COMBAT_START: 'COMBAT_START',
     COMBAT_END: 'COMBAT_END',
     INITIATIVE_ADD: 'INITIATIVE_ADD',
-    DM_REVERT_ACTION: 'DM_REVERT_ACTION',
     DM_SET_TERRAIN: 'DM_SET_TERRAIN',
   },
 }));
@@ -577,11 +576,19 @@ describe('DMCombatPanel - end combat + revert', () => {
     vi.unstubAllGlobals();
   });
 
-  it('Revert button sends DM_REVERT_ACTION', async () => {
+  it('Revert button sends a canonical DM command', async () => {
     const user = userEvent.setup();
     render(<DMCombatPanel />);
     await user.click(screen.getByRole('button', { name: /revert/i }));
-    expect(mockSendMessage).toHaveBeenCalledWith(expect.objectContaining({ type: 'DM_REVERT_ACTION' }));
+    expect(mockSendMessage).toHaveBeenCalledWith(expect.objectContaining({
+      type: 'combat_command',
+      data: expect.objectContaining({
+        commands: [expect.objectContaining({
+          type: 'revert_action',
+          actor_id: '__dm__',
+        })],
+      }),
+    }));
   });
 });
 

@@ -178,27 +178,35 @@ describe('DMCombatPanel - PreCombatSetup (no active combat)', () => {
     expect(screen.getByRole('button', { name: /start empty/i })).toBeTruthy();
   });
 
-  it('clicking Start with Table Tokens sends COMBAT_START with current table token entities', async () => {
+  it('clicking Start with Table Tokens sends a canonical start combat command with current table token entities', async () => {
     const user = userEvent.setup();
     render(<DMCombatPanel />);
     await user.click(screen.getByRole('button', { name: /start with table tokens/i }));
-    const message = mockSendMessage.mock.calls[0]?.[0] as { data: { combatants: Record<string, unknown>[] } };
+    const message = mockSendMessage.mock.calls[0]?.[0] as {
+      data: { commands: Array<{ combatants: Record<string, unknown>[] }> };
+    };
     expect(mockSendMessage).toHaveBeenCalledWith(
       expect.objectContaining({
-        type: 'COMBAT_START',
+        type: 'combat_command',
         data: expect.objectContaining({
-          table_id: 'table1',
-          entity_ids: ['e1', 'e2'],
-          names: { e1: 'Goblin', e2: 'Hero' },
-          combatants: [
-            expect.objectContaining({ entity_id: 'e1', character_id: 'char1', name: 'Goblin' }),
-            expect.objectContaining({ entity_id: 'e2', character_id: 'char2', name: 'Hero' }),
+          commands: [
+            expect.objectContaining({
+              type: 'start_combat',
+              actor_id: '__dm__',
+              table_id: 'table1',
+              entity_ids: ['e1', 'e2'],
+              names: { e1: 'Goblin', e2: 'Hero' },
+              combatants: [
+                expect.objectContaining({ entity_id: 'e1', character_id: 'char1', name: 'Goblin' }),
+                expect.objectContaining({ entity_id: 'e2', character_id: 'char2', name: 'Hero' }),
+              ],
+            }),
           ],
         }),
       })
     );
-    expect(message.data.combatants[0]).not.toHaveProperty('hp');
-    expect(message.data.combatants[0]).not.toHaveProperty('armor_class');
+    expect(message.data.commands[0].combatants[0]).not.toHaveProperty('hp');
+    expect(message.data.commands[0].combatants[0]).not.toHaveProperty('armor_class');
   });
 });
 
@@ -230,20 +238,26 @@ describe('DMCombatPanel - active combat', () => {
 
     render(<DMCombatPanel />);
     await user.click(screen.getByRole('button', { name: /add missing/i }));
-    const message = mockSendMessage.mock.calls[0]?.[0] as { data: Record<string, unknown> };
+    const message = mockSendMessage.mock.calls[0]?.[0] as {
+      data: { commands: Array<Record<string, unknown>> };
+    };
 
     expect(mockSendMessage).toHaveBeenCalledWith(
       expect.objectContaining({
-        type: 'INITIATIVE_ADD',
+        type: 'combat_command',
         data: expect.objectContaining({
-          entity_id: 'e2',
-          character_id: 'char2',
-          name: 'Hero',
+          commands: [expect.objectContaining({
+            type: 'add_combatant',
+            actor_id: '__dm__',
+            entity_id: 'e2',
+            character_id: 'char2',
+            name: 'Hero',
+          })],
         }),
       })
     );
-    expect(message.data).not.toHaveProperty('hp');
-    expect(message.data).not.toHaveProperty('armor_class');
+    expect(message.data.commands[0]).not.toHaveProperty('hp');
+    expect(message.data.commands[0]).not.toHaveProperty('armor_class');
     expect(mockSendMessage).not.toHaveBeenCalledWith(
       expect.objectContaining({
         type: 'INITIATIVE_ADD',
@@ -558,21 +572,29 @@ describe('DMCombatPanel - surprise', () => {
 describe('DMCombatPanel - end combat + revert', () => {
   beforeEach(() => useCombatStore.setState({ combat: mockCombat }));
 
-  it('End Combat with confirm=true sends COMBAT_END', async () => {
+  it('End Combat with confirm=true sends a canonical end combat command', async () => {
     const user = userEvent.setup();
     vi.stubGlobal('confirm', vi.fn(() => true));
     render(<DMCombatPanel />);
     await user.click(screen.getByRole('button', { name: /end combat/i }));
-    expect(mockSendMessage).toHaveBeenCalledWith(expect.objectContaining({ type: 'COMBAT_END' }));
+    expect(mockSendMessage).toHaveBeenCalledWith(expect.objectContaining({
+      type: 'combat_command',
+      data: expect.objectContaining({
+        commands: [expect.objectContaining({
+          type: 'end_combat',
+          actor_id: '__dm__',
+        })],
+      }),
+    }));
     vi.unstubAllGlobals();
   });
 
-  it('End Combat with confirm=false does NOT send COMBAT_END', async () => {
+  it('End Combat with confirm=false does not send a command', async () => {
     const user = userEvent.setup();
     vi.stubGlobal('confirm', vi.fn(() => false));
     render(<DMCombatPanel />);
     await user.click(screen.getByRole('button', { name: /end combat/i }));
-    expect(mockSendMessage).not.toHaveBeenCalledWith(expect.objectContaining({ type: 'COMBAT_END' }));
+    expect(mockSendMessage).not.toHaveBeenCalled();
     vi.unstubAllGlobals();
   });
 

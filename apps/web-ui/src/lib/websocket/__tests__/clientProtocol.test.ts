@@ -33,6 +33,7 @@ vi.mock('@lib/wasm/runtime', () => ({ getCurrentWasmRuntime: vi.fn(() => mocks.r
 
 import { WebClientProtocol } from '../clientProtocol';
 import { MessageType } from '../message';
+import { useCombatStore } from '@features/combat/stores/combatStore';
 
 // ---------------------------------------------------------------------------
 // Store mock helpers
@@ -583,6 +584,43 @@ describe('WebClientProtocol', () => {
       window.removeEventListener('sprite-action-confirmed', handler);
       expect(handler).toHaveBeenCalledOnce();
       expect((handler.mock.calls[0][0] as CustomEvent).detail).toEqual({ actionId: '42' });
+    });
+
+    it('ACTION_RESULT clears combat after an accepted end combat command', async () => {
+      const p = makeProtocol();
+      useCombatStore.setState({
+        combat: {
+          combat_id: 'combat-1',
+          session_id: 'session-1',
+          table_id: 'table-1',
+          phase: 'active',
+          round_number: 1,
+          current_turn_index: 0,
+          combatants: [],
+          action_log: [],
+          started_at: Date.now(),
+          settings: {
+            auto_roll_npc_initiative: false,
+            auto_sort_initiative: true,
+            skip_defeated: true,
+            allow_player_end_turn: true,
+            show_npc_hp_to_players: 'hidden',
+            group_initiative: false,
+            ai_auto_act: false,
+            death_saves_enabled: true,
+            critical_hit_rule: 'double_dice',
+          },
+          state_hash: 'hash',
+        },
+      });
+
+      await dispatch(p, 'action_result', {
+        sequence_id: 44,
+        applied: [{ action_type: 'end_combat', actor_id: '__dm__' }],
+        combat: { combat_id: 'combat-1', phase: 'ended' },
+      });
+
+      expect(useCombatStore.getState().combat).toBeNull();
     });
 
     it('ACTION_REJECTED reverts the optimistic sprite action by sequence id', async () => {

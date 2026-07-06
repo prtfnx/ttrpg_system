@@ -385,11 +385,25 @@ export class WebClientProtocol {
         if (resolvedOpportunityAttack) {
           useOAStore.getState().clearAll();
         }
+        const endedCombat = data.applied.some((item) => (
+          typeof item === 'object'
+          && item !== null
+          && (item as { action_type?: string }).action_type === 'end_combat'
+        ));
+        if (endedCombat) {
+          const { useCombatStore } = await import('@features/combat/stores/combatStore');
+          useCombatStore.getState().setCombat(null);
+        }
       }
       if (data?.sequence_id != null) {
         emitProtocolEvent('sprite-action-confirmed', { actionId: String(data.sequence_id) });
       }
-      if (data?.combat) {
+      const endedCombat = data?.applied?.some((item) => (
+        typeof item === 'object'
+        && item !== null
+        && (item as { action_type?: string }).action_type === 'end_combat'
+      ));
+      if (data?.combat && !endedCombat) {
         await setCombat(data);
       }
     });

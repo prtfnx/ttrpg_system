@@ -2,7 +2,7 @@ import { useGameStore } from '@/store';
 import type { Character, Sprite } from '@/types';
 import { MessageType } from '@lib/websocket';
 import { useMemo, useState } from 'react';
-import { useCombatCommands } from '../hooks/useCombatCommands';
+import { useCombatCommands, type CombatantReferenceInput } from '../hooks/useCombatCommands';
 import { useCombatStore } from '../stores/combatStore';
 import styles from './DMCombatPanel.module.css';
 import { DMResourcePanel } from './DMResourcePanel';
@@ -69,7 +69,7 @@ function useLinkedTokenOptions(): LinkedTokenOption[] {
   );
 }
 
-function buildCombatantPayload(option: LinkedTokenOption): Record<string, unknown> {
+function buildCombatantPayload(option: LinkedTokenOption): CombatantReferenceInput {
   return {
     entity_id: option.spriteId,
     character_id: option.characterId,
@@ -87,14 +87,20 @@ function buildCombatStartData(activeTableId: string | null, options: LinkedToken
 }
 
 function PreCombatSetup() {
-  const { sendProtocolMessage } = useCombatCommands();
+  const { startCombat } = useCombatCommands();
   const activeTableId = useGameStore((s) => s.activeTableId);
   const linkedTokenOptions = useLinkedTokenOptions();
 
-  const startCombat = () =>
-    sendProtocolMessage(MessageType.COMBAT_START, buildCombatStartData(activeTableId, linkedTokenOptions));
-  const startEmptyCombat = () =>
-    sendProtocolMessage(MessageType.COMBAT_START, { table_id: activeTableId ?? 'default' });
+  const startWithTableTokens = () => {
+    const data = buildCombatStartData(activeTableId, linkedTokenOptions);
+    startCombat({
+      tableId: data.table_id,
+      entityIds: data.entity_ids,
+      names: data.names,
+      combatants: data.combatants,
+    });
+  };
+  const startEmptyCombat = () => startCombat({ tableId: activeTableId ?? 'default' });
 
   return (
     <div className={styles.panel}>
@@ -113,7 +119,7 @@ function PreCombatSetup() {
       <div className={styles.setupActions}>
         <button
           className={styles.startBtn}
-          onClick={startCombat}
+          onClick={startWithTableTokens}
           disabled={linkedTokenOptions.length === 0}
           title="Start combat and add linked token characters from the current table"
         >
@@ -130,7 +136,14 @@ function PreCombatSetup() {
 export function DMCombatPanel() {
   const combat = useCombatStore((s) => s.combat);
   const activeTableId = useGameStore((s) => s.activeTableId);
-  const { revertLastAction, sendDMOverride, sendDMOverrides, sendProtocolMessage } = useCombatCommands();
+  const {
+    revertLastAction,
+    sendDMOverride,
+    sendDMOverrides,
+    sendProtocolMessage,
+    addCombatant,
+    endCombat: sendEndCombat,
+  } = useCombatCommands();
   const linkedTokenOptions = useLinkedTokenOptions();
   const [selectedId, setSelectedId] = useState('');
   const [hpValue, setHpValue] = useState('');
@@ -166,7 +179,7 @@ export function DMCombatPanel() {
 
   const endCombat = () => {
     if (!confirm('End combat? This cannot be undone.')) return;
-    sendProtocolMessage(MessageType.COMBAT_END, {});
+    sendEndCombat();
   };
 
   const setHp = () => {
@@ -253,7 +266,7 @@ export function DMCombatPanel() {
     }
 
     for (const option of missingLinkedTokenOptions) {
-      sendProtocolMessage(MessageType.INITIATIVE_ADD, buildCombatantPayload(option));
+      addCombatant(buildCombatantPayload(option));
     }
     setCombatantAddStatus(`Queued ${missingLinkedTokenOptions.length} table combatant${missingLinkedTokenOptions.length === 1 ? '' : 's'}.`);
   };

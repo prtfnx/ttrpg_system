@@ -164,10 +164,6 @@ class MessageType(enum.Enum):    # Core messages
     ENCOUNTER_RESULT = "encounter_result"
     ENCOUNTER_STATE = "encounter_state"
 
-    # ── Death Saves ──
-    DEATH_SAVE_ROLL = "death_save_roll"
-    DEATH_SAVE_RESULT = "death_save_result"
-
     # ── Concentration ──
     CONCENTRATION_BROKEN = "concentration_broken"
 

@@ -324,13 +324,6 @@ export class WebClientProtocol {
       if (d?.combatant_id) useCombatStore.getState().setConditions(d.combatant_id, d.conditions);
     });
 
-    // ── Death saves ──
-    this.registerHandler(MessageType.DEATH_SAVE_RESULT, async (m) => {
-      const { useCombatStore } = await import('@features/combat/stores/combatStore');
-      const d = m.data as { combat?: import('@features/combat/stores/combatStore').CombatState; combatant_id: string; roll: number; result: string; successes: number; failures: number };
-      if (d?.combat) useCombatStore.getState().setCombat(d.combat);
-    });
-
     // ── Concentration ──
     this.registerHandler(MessageType.CONCENTRATION_BROKEN, async (m) => {
       const d = m.data as { combatant_id: string; spell: string };

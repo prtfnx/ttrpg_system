@@ -377,6 +377,11 @@ class _CombatMixin(_ProtocolBase):
                 table_lookup=self._get_table_by_id,
                 move_sprite=self._move_sprite_for_combat_command,
                 validate_move=self._validate_move_for_combat_command,
+                build_combatants=lambda table_id, entity_ids, combatants: CombatantFactory().build_many(
+                    entity_ids,
+                    combatants,
+                    self._combatant_factory_context(msg, table_id),
+                ),
             ),
         )
         response_type = MessageType.ACTION_RESULT if result.accepted else MessageType.ACTION_REJECTED
@@ -385,6 +390,13 @@ class _CombatMixin(_ProtocolBase):
             state = CombatEngine.get_state(self._get_session_code())
             context = result.to_dict()
             context.pop('combat', None)
+            if state is None:
+                response = Message(response_type, result.to_dict())
+                for recipient_id in self._combat_client_ids():
+                    if recipient_id == client_id:
+                        continue
+                    await self.send_to_client(response, recipient_id)
+                return response
             if result.duplicate:
                 return self._combat_state_message(
                     state,

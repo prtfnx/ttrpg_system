@@ -14,6 +14,9 @@ from utils.roles import is_dm
 
 
 class CombatCommandType(str, Enum):
+    START_COMBAT = "start_combat"
+    END_COMBAT = "end_combat"
+    ADD_COMBATANT = "add_combatant"
     MOVE = "move"
     ATTACK = "attack"
     CAST_SPELL = "cast_spell"
@@ -59,6 +62,13 @@ class CombatCommand(BaseModel):
 
     type: CombatCommandType
     actor_id: str = Field(min_length=1)
+    entity_id: Optional[str] = None
+    entity_ids: list[str] = Field(default_factory=list)
+    combatants: list[dict[str, Any]] = Field(default_factory=list)
+    names: dict[str, str] = Field(default_factory=dict)
+    settings: Optional[dict[str, Any]] = None
+    name: Optional[str] = None
+    character_id: Optional[str] = None
     target_id: Optional[str] = None
     target_ids: list[str] = Field(default_factory=list)
     table_id: Optional[str] = None
@@ -105,6 +115,15 @@ class CombatCommand(BaseModel):
             return [str(v) for v in value]
         return [str(value)]
 
+    @field_validator("entity_ids", mode="before")
+    @classmethod
+    def _coerce_entity_ids(cls, value: Any) -> list[str]:
+        if value is None:
+            return []
+        if isinstance(value, list):
+            return [str(v) for v in value if v]
+        return [str(value)]
+
 
 class CombatCommandEnvelope(BaseModel):
     model_config = ConfigDict(extra="forbid")
@@ -129,6 +148,9 @@ class CombatCommandContext:
     ] = None
     validate_move: Optional[
         Callable[[str, str, dict[str, float], dict[str, float], list[Any], Any], dict[str, Any]]
+    ] = None
+    build_combatants: Optional[
+        Callable[[str, list[str], list[dict[str, Any]]], list[dict[str, Any]]]
     ] = None
 
 
@@ -285,12 +307,20 @@ class CombatCommandService:
         envelope: CombatCommandEnvelope,
         context: CombatCommandContext,
     ) -> CombatCommandResult:
+        single_command_types = {CombatCommandType.START_COMBAT, CombatCommandType.END_COMBAT}
+        if len(envelope.commands) > 1 and any(command.type in single_command_types for command in envelope.commands):
+            return self._reject(
+                envelope.sequence_id,
+                0,
+                "Combat lifecycle commands must be sent individually",
+            )
+
         state = self._engine.get_state(context.session_code)
-        if not state:
+        if not state and envelope.commands[0].type != CombatCommandType.START_COMBAT:
             return self._reject(envelope.sequence_id, 0, "No active combat")
 
-        snapshot = deepcopy(state.to_dict())
-        duplicate = self._find_duplicate(envelope, context, state.combat_id)
+        snapshot = deepcopy(state.to_dict()) if state else None
+        duplicate = self._find_duplicate(envelope, context, state.combat_id) if state else None
         if duplicate:
             return duplicate
         applied: list[dict[str, Any]] = []
@@ -299,6 +329,9 @@ class CombatCommandService:
         for idx, command in enumerate(envelope.commands):
             actor_id: str | None = None
             if self._requires_existing_combatant(command):
+                if state is None:
+                    await self._restore_async(context, snapshot, move_undos)
+                    return self._reject(envelope.sequence_id, idx, "No active combat")
                 actor_id = self._resolve_combatant_id(state, command.actor_id)
                 if actor_id is None:
                     await self._restore_async(context, snapshot, move_undos)
@@ -322,11 +355,11 @@ class CombatCommandService:
             applied.append({
                 "sequence_index": idx,
                 "action_type": command.type.value,
-                "actor_id": actor_id,
+                "actor_id": result.get("combatant_id") or actor_id or command.actor_id,
                 "result": result,
             })
             state = self._engine.get_state(context.session_code)
-            if not state:
+            if not state and command.type != CombatCommandType.END_COMBAT:
                 await self._restore_async(context, snapshot, move_undos)
                 return self._reject(envelope.sequence_id, idx, "Combat ended unexpectedly")
 
@@ -335,7 +368,7 @@ class CombatCommandService:
             accepted=True,
             sequence_id=envelope.sequence_id,
             applied=applied,
-            combat=current.to_dict() if current else None,
+            combat=current.to_dict() if current else result.get("combat"),
         )
         try:
             return self._persist_result(
@@ -360,6 +393,8 @@ class CombatCommandService:
         state,
         actor_id: str | None,
     ) -> dict[str, Any]:
+        if command.type in {CombatCommandType.START_COMBAT, CombatCommandType.END_COMBAT, CombatCommandType.ADD_COMBATANT}:
+            return {"error": "Combat lifecycle commands require async application"}
         if command.type == CombatCommandType.REVERT_ACTION:
             return self._apply_revert_action(context, state)
         if actor_id is None:
@@ -699,9 +734,90 @@ class CombatCommandService:
         actor_id: str | None,
         move_undos: list[tuple[str, str, dict[str, float], dict[str, float]]],
     ) -> dict[str, Any]:
+        if command.type == CombatCommandType.START_COMBAT:
+            return self._apply_start_combat(command, context)
+        if command.type == CombatCommandType.END_COMBAT:
+            return self._apply_end_combat(context)
+        if command.type == CombatCommandType.ADD_COMBATANT:
+            return self._apply_add_combatant(command, context, state)
         if command.type == CombatCommandType.MOVE:
             return await self._apply_move(command, context, state, actor_id, move_undos)
         return self._apply_one(command, context, state, actor_id)
+
+    def _apply_start_combat(
+        self,
+        command: CombatCommand,
+        context: CombatCommandContext,
+    ) -> dict[str, Any]:
+        if not command.table_id:
+            return {"error": "table_id required"}
+
+        from core_table.combat import CombatSettings
+
+        incoming_combatants = [item for item in command.combatants if isinstance(item, dict)]
+        entity_ids = list(command.entity_ids)
+        if not entity_ids:
+            entity_ids = [str(item.get("entity_id")) for item in incoming_combatants if item.get("entity_id")]
+        combatants = (
+            context.build_combatants(command.table_id, entity_ids, incoming_combatants)
+            if context.build_combatants is not None
+            else incoming_combatants
+        )
+        settings = CombatSettings.from_dict(command.settings) if command.settings else None
+        state = self._engine.start_combat(
+            session_id=context.session_code,
+            table_id=command.table_id,
+            entity_ids=entity_ids,
+            settings=settings,
+            names=command.names,
+            combatants=combatants,
+        )
+        return {
+            "combat": state.to_dict(),
+            "table_id": command.table_id,
+            "combatant_count": len(state.combatants),
+        }
+
+    def _apply_end_combat(self, context: CombatCommandContext) -> dict[str, Any]:
+        state = self._engine.end_combat(context.session_code)
+        if not state:
+            return {"error": "No active combat"}
+        return {"combat": state.to_dict(), "ended": True}
+
+    def _apply_add_combatant(
+        self,
+        command: CombatCommand,
+        context: CombatCommandContext,
+        state,
+    ) -> dict[str, Any]:
+        if state is None:
+            return {"error": "No active combat"}
+        entity_id = command.entity_id or command.actor_id
+        if not entity_id or entity_id == "__dm__":
+            return {"error": "entity_id required"}
+        table_id = command.table_id or getattr(state, "table_id", "")
+        incoming = {
+            "entity_id": entity_id,
+            "character_id": command.character_id,
+            "name": command.name,
+        }
+        incoming_combatants = command.combatants or [incoming]
+        resolved = (
+            context.build_combatants(table_id, [str(entity_id)], incoming_combatants)
+            if context.build_combatants is not None
+            else incoming_combatants
+        )
+        payload = dict(resolved[0]) if resolved else incoming
+        extra = {k: v for k, v in payload.items() if k != "entity_id"}
+        combatant = self._engine.add_combatant(context.session_code, str(entity_id), **extra)
+        if not combatant:
+            return {"error": "No active combat"}
+        current = self._engine.get_state(context.session_code) or state
+        return {
+            "combatant_id": combatant.combatant_id,
+            "combatant": combatant.to_dict(),
+            "order": self._initiative_order(current),
+        }
 
     async def _apply_move(
         self,
@@ -826,6 +942,12 @@ class CombatCommandService:
         command: CombatCommand,
         context: CombatCommandContext,
     ) -> str | None:
+        if command.type in {
+            CombatCommandType.START_COMBAT,
+            CombatCommandType.END_COMBAT,
+            CombatCommandType.ADD_COMBATANT,
+        }:
+            return None if is_dm(context.role) else "DMs only"
         if command.type == CombatCommandType.DM_OVERRIDE:
             return None if is_dm(context.role) else "DMs only"
         if command.type in {
@@ -871,9 +993,17 @@ class CombatCommandService:
 
     @staticmethod
     def _requires_existing_combatant(command: CombatCommand) -> bool:
-        return command.type != CombatCommandType.REVERT_ACTION
+        return command.type not in {
+            CombatCommandType.START_COMBAT,
+            CombatCommandType.END_COMBAT,
+            CombatCommandType.ADD_COMBATANT,
+            CombatCommandType.REVERT_ACTION,
+        }
 
-    def _restore(self, session_code: str, snapshot: dict[str, Any]) -> None:
+    def _restore(self, session_code: str, snapshot: dict[str, Any] | None) -> None:
+        if snapshot is None:
+            self._engine._active.pop(session_code, None)
+            return
         self._engine._active[session_code] = CombatState.from_dict(snapshot)
 
     def _persist(self, session_code: str) -> None:
@@ -909,7 +1039,8 @@ class CombatCommandService:
         if self._persistence is None:
             self._persist(context.session_code)
             return result
-        if current is None:
+        state_after = current.to_dict() if current is not None else result.combat
+        if state_after is None:
             raise RuntimeError("Combat ended before persistence")
 
         command_types = [command.type.value for command in envelope.commands]
@@ -925,10 +1056,11 @@ class CombatCommandService:
             command_payload=envelope.model_dump(mode="json"),
             result_payload=result.to_dict(),
             state_before=snapshot,
-            state_after=current.to_dict(),
+            state_after=state_after,
             created_by=context.user_id,
         )
-        current.state_version = persisted.state_version
+        if current is not None:
+            current.state_version = persisted.state_version
         return CombatCommandResult.from_dict(
             persisted.result,
             duplicate=persisted.duplicate,
@@ -937,7 +1069,7 @@ class CombatCommandService:
     async def _restore_async(
         self,
         context: CombatCommandContext,
-        snapshot: dict[str, Any],
+        snapshot: dict[str, Any] | None,
         move_undos: list[tuple[str, str, dict[str, float], dict[str, float]]],
     ) -> None:
         if context.move_sprite is not None:

@@ -115,6 +115,143 @@ def test_player_command_rejects_unowned_combatant():
     assert result.failed_index == 0
 
 
+async def test_dm_starts_combat_with_server_built_combatants():
+    CombatEngine._active.pop("cmd", None)
+    build_combatants = MagicMock(return_value=[{
+        "entity_id": "sprite-a",
+        "name": "Server Ada",
+        "hp": 17,
+        "max_hp": 19,
+        "armor_class": 14,
+        "movement_speed": 35,
+        "controlled_by": ["1"],
+    }])
+    service = CombatCommandService()
+    envelope = service.parse_envelope({
+        "sequence_id": 101,
+        "commands": [{
+            "type": "start_combat",
+            "actor_id": "__dm__",
+            "table_id": "t1",
+            "entity_ids": ["sprite-a"],
+            "combatants": [{
+                "entity_id": "sprite-a",
+                "character_id": "char-a",
+                "name": "Client Ada",
+            }],
+        }],
+    })
+
+    result = await service.apply_async(envelope, CombatCommandContext(
+        session_code="cmd",
+        client_id="c1",
+        role="owner",
+        user_id=1,
+        build_combatants=build_combatants,
+    ))
+
+    state = CombatEngine.get_state("cmd")
+    assert result.accepted is True
+    assert result.applied[0]["action_type"] == "start_combat"
+    assert state is not None
+    assert state.table_id == "t1"
+    assert state.combatants[0].name == "Server Ada"
+    assert state.combatants[0].hp == 17
+    build_combatants.assert_called_once_with(
+        "t1",
+        ["sprite-a"],
+        [{"entity_id": "sprite-a", "character_id": "char-a", "name": "Client Ada"}],
+    )
+
+
+async def test_player_cannot_start_combat_command():
+    CombatEngine._active.pop("cmd", None)
+    service = CombatCommandService()
+    envelope = service.parse_envelope({
+        "sequence_id": 102,
+        "commands": [{
+            "type": "start_combat",
+            "actor_id": "__dm__",
+            "table_id": "t1",
+        }],
+    })
+
+    result = await service.apply_async(envelope, _context(role="player"))
+
+    assert result.accepted is False
+    assert result.reason == "DMs only"
+    assert CombatEngine.get_state("cmd") is None
+
+
+async def test_dm_adds_combatant_with_server_built_payload():
+    state, _actor, _target = _state()
+    build_combatants = MagicMock(return_value=[{
+        "entity_id": "sprite-c",
+        "name": "Server Cora",
+        "hp": 22,
+        "max_hp": 22,
+        "armor_class": 16,
+        "movement_speed": 30,
+        "controlled_by": ["3"],
+    }])
+    service = CombatCommandService()
+    envelope = service.parse_envelope({
+        "sequence_id": 103,
+        "commands": [{
+            "type": "add_combatant",
+            "actor_id": "__dm__",
+            "entity_id": "sprite-c",
+            "combatants": [{
+                "entity_id": "sprite-c",
+                "character_id": "char-c",
+                "name": "Client Cora",
+            }],
+        }],
+    })
+
+    result = await service.apply_async(envelope, CombatCommandContext(
+        session_code="cmd",
+        client_id="c1",
+        role="owner",
+        user_id=1,
+        build_combatants=build_combatants,
+    ))
+
+    added = CombatEngine.get_state("cmd").combatants[-1]
+    assert result.accepted is True
+    assert result.applied[0]["action_type"] == "add_combatant"
+    assert result.applied[0]["actor_id"] == added.combatant_id
+    assert added.entity_id == "sprite-c"
+    assert added.name == "Server Cora"
+    assert added.hp == 22
+    build_combatants.assert_called_once_with(
+        state.table_id,
+        ["sprite-c"],
+        [{"entity_id": "sprite-c", "character_id": "char-c", "name": "Client Cora"}],
+    )
+
+
+async def test_dm_ends_combat_through_command():
+    _state()
+    service = CombatCommandService()
+    envelope = service.parse_envelope({
+        "sequence_id": 104,
+        "commands": [{
+            "type": "end_combat",
+            "actor_id": "__dm__",
+        }],
+    })
+
+    result = await service.apply_async(envelope, _context(role="owner"))
+
+    assert result.accepted is True
+    assert result.applied[0]["action_type"] == "end_combat"
+    assert result.applied[0]["result"]["ended"] is True
+    assert result.combat is not None
+    assert result.combat["phase"] == "ended"
+    assert CombatEngine.get_state("cmd") is None
+
+
 def test_player_cannot_apply_dm_override_to_owned_actor():
     state, actor, _target = _state()
     service = CombatCommandService()

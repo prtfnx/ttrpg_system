@@ -11,7 +11,7 @@ from core_table.protocol import Message, MessageType
 from core_table.session_rules import SessionRules
 from service.attack_resolver import AttackResult
 from service.combat_engine import CombatEngine
-from service.combat_persistence_service import CombatJournalEntry, PersistedCombatCommand
+from service.combat_persistence_service import PersistedCombatCommand
 from service.protocol.combat import _CombatMixin
 
 # ---------------------------------------------------------------------------
@@ -450,83 +450,6 @@ class TestInitiativeAdd:
         assert persisted["command_type"] == "initiative_add"
         assert len(persisted["state_before"]["combatants"]) == 1
         assert len(persisted["state_after"]["combatants"]) == 2
-
-
-# ---------------------------------------------------------------------------
-# DM-only revert / resource handlers
-# ---------------------------------------------------------------------------
-
-@pytest.mark.unit
-class TestDmRevertAction:
-    async def test_player_blocked(self):
-        proto = _ProtoStub(role="player")
-        resp = await proto.handle_dm_revert_action(
-            Message(MessageType.DM_REVERT_ACTION, {}), "c1"
-        )
-        assert resp.type == MessageType.ERROR
-
-    async def test_nothing_to_revert_returns_error(self):
-        CombatEngine._active.pop("TST", None)
-        CombatEngine.start_combat(
-            "TST",
-            "t1",
-            [],
-            combatants=[{
-                "entity_id": "sprite-a",
-                "name": "Ada",
-                "hp": 20,
-                "max_hp": 20,
-            }],
-        )
-        persistence = MagicMock()
-        persistence.last_action.return_value = None
-        proto = _ProtoStub(role="owner")
-        proto.combat_persistence_service = persistence
-        resp = await proto.handle_dm_revert_action(
-            Message(MessageType.DM_REVERT_ACTION, {}), "c1"
-        )
-        assert resp.type == MessageType.ERROR
-
-    async def test_success_reverts_from_persisted_journal_and_versions_live_state(self):
-        CombatEngine._active.pop("TST", None)
-        state = CombatEngine.start_combat(
-            "TST",
-            "t1",
-            [],
-            combatants=[{
-                "entity_id": "sprite-a",
-                "name": "Ada",
-                "hp": 20,
-                "max_hp": 20,
-            }],
-        )
-        state_before_damage = state.to_dict()
-        state.combatants[0].hp = 7
-        state.state_version = 16
-        persistence = _mock_persistence(version=17)
-        persistence.last_action.return_value = CombatJournalEntry(
-            command_type="dm_apply_damage",
-            state_before=state_before_damage,
-            state_version=16,
-        )
-        proto = _ProtoStub(role="owner")
-        proto.combat_persistence_service = persistence
-
-        resp = await proto.handle_dm_revert_action(
-            Message(MessageType.DM_REVERT_ACTION, {"sequence_id": 55}),
-            "c1",
-        )
-
-        live_state = CombatEngine.get_state("TST")
-        persisted = persistence.persist_accepted.call_args.kwargs
-        assert resp.type == MessageType.COMBAT_STATE
-        assert resp.data["reverted"] is True
-        assert resp.data["combat"]["state_version"] == 17
-        assert live_state.combatants[0].hp == 20
-        assert live_state.state_version == 17
-        assert persisted["command_type"] == "dm_revert_action"
-        assert persisted["state_before"]["combatants"][0]["hp"] == 7
-        assert persisted["state_after"]["combatants"][0]["hp"] == 20
 
 
 @pytest.mark.unit

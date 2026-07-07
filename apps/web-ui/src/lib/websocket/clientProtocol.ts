@@ -132,7 +132,7 @@ export class WebClientProtocol {
     ];
     
     if (critical.includes(message.type)) {
-      logger.debug('� Protocol: Sending critical message:', message.type);
+      logger.debug('Protocol: Sending critical message:', message.type);
       if (this.websocket?.readyState === WebSocket.OPEN) {
         this.websocket.send(JSON.stringify(message));
       } else {
@@ -191,7 +191,7 @@ export class WebClientProtocol {
           5
         ));
       } else {
-        logger.warn('️ Protocol: Invalid protocol-send-message event detail', detail);
+        logger.warn('Protocol: Invalid protocol-send-message event detail', detail);
       }
     };
     
@@ -292,7 +292,7 @@ export class WebClientProtocol {
       useSessionRulesStore.getState().setRules(m.data as never);
     });
 
-    // ── Combat ──
+    // Combat.
     const setCombat = async (data: unknown) => {
       const { useCombatStore } = await import('@features/combat/stores/combatStore');
       const d = data as Record<string, unknown> | null;
@@ -319,19 +319,19 @@ export class WebClientProtocol {
       if (d?.combatant_id) useCombatStore.getState().setConditions(d.combatant_id, d.conditions);
     });
 
-    // ── Concentration ──
+    // Concentration.
     this.registerHandler(MessageType.CONCENTRATION_BROKEN, async (m) => {
       const d = m.data as { combatant_id: string; spell: string };
       logger.warn(`[Combat] Concentration broken for ${d?.combatant_id} (${d?.spell})`);
     });
 
-    // ── Cover zones ──
+    // Cover zones.
     this.registerHandler(MessageType.COVER_ZONES_SYNC, async (m) => {
       const { useCoverStore } = await import('@features/combat/stores/coverStore');
       const d = m.data as { zones: import('@features/combat/stores/coverStore').CoverZone[] };
       useCoverStore.getState().setZones(d?.zones ?? []);
     });
-    // ── Opportunity Attacks ──
+    // Opportunity attacks.
     this.registerHandler(MessageType.OPPORTUNITY_ATTACK_WARNING, async (m) => {
       const { useOAStore } = await import('@features/combat/stores/oaStore');
       const d = m.data as { entity_id: string; triggers: Array<{ combatant_id: string; name: string }> };
@@ -342,7 +342,7 @@ export class WebClientProtocol {
       const d = m.data as { target_combatant_id: string; target_name: string; attacker_combatant_id: string };
       useOAStore.getState().setPrompt(d);
     });
-    // ── Encounters ──
+    // Encounters.
     this.registerHandler(MessageType.ENCOUNTER_STATE, async (m) => {
       const { useEncounterStore } = await import('@features/combat/stores/encounterStore');
       useEncounterStore.getState().setEncounter(m.data as never);
@@ -352,7 +352,7 @@ export class WebClientProtocol {
       useEncounterStore.getState().setEncounter(null);
     });
 
-    // ── Planning Commit (Phase 4) ──
+    // Planning commit.
     this.registerHandler(MessageType.ACTION_RESULT, async (m) => {
       const { usePlanningStore } = await import('@features/combat/stores/planningStore');
       const { useOAStore } = await import('@features/combat/stores/oaStore');
@@ -436,7 +436,7 @@ export class WebClientProtocol {
       showToast.error(data?.reason ?? 'Action rejected');
     });
 
-    // ── Paint strokes ──
+    // Paint strokes.
     this.registerHandler(MessageType.PAINT_STROKE_CREATE, this.handlePaintStrokeCreate.bind(this));
     this.registerHandler(MessageType.PAINT_STROKE_DELETE, this.handlePaintStrokeDelete.bind(this));
     this.registerHandler(MessageType.PAINT_STROKE_CLEAR, this.handlePaintStrokeClear.bind(this));
@@ -488,7 +488,7 @@ export class WebClientProtocol {
         };
 
         this.websocket.onclose = (event) => {
-          logger.debug(`[Protocol] ️ WebSocket CLOSED - code: ${event.code}, reason: '${event.reason}', wasClean: ${event.wasClean}`);
+          logger.debug(`[Protocol] WebSocket CLOSED - code: ${event.code}, reason: '${event.reason}', wasClean: ${event.wasClean}`);
           protocolLogger.connection('WebSocket connection closed', { code: event.code, reason: event.reason });
           this.connectionAlive = false;
           this.notifyConnectionState('disconnected');
@@ -498,12 +498,12 @@ export class WebClientProtocol {
           if (event.code === 1008) {
             logger.debug(`[Protocol]  Code 1008 detected. Reason: '${event.reason}'`);
             if (event.reason === 'Kicked from session') {
-              logger.warn('️ KICKED FROM SESSION - NOT RECONNECTING');
+              logger.warn('KICKED FROM SESSION - NOT RECONNECTING');
               showToast.error('You have been kicked from the session');
               reject(new Error('Kicked from session'));
               return; // Prevent reconnection
             } else {
-              logger.warn(`️ Code 1008 but different reason: '${event.reason}'`);
+              logger.warn(`Code 1008 but different reason: '${event.reason}'`);
               reject(new Error('Authentication failed or not authorized'));
               return; // Prevent reconnection
             }
@@ -587,7 +587,7 @@ export class WebClientProtocol {
           // Check if pong was received AFTER we sent this ping
           const timeSincePing = Date.now() - pingTime;
           if (this.lastPongReceived < pingTime) {
-            logger.error(`[Protocol] ️️️ PONG TIMEOUT! No pong received for ${timeSincePing}ms after ping (timeout: ${this.PONG_TIMEOUT_MS}ms)`);
+            logger.error(`[Protocol] PONG TIMEOUT! No pong received for ${timeSincePing}ms after ping (timeout: ${this.PONG_TIMEOUT_MS}ms)`);
             logger.error('[Protocol] Connection appears dead - disconnecting and reconnecting...');
             this.connectionAlive = false;
             this.notifyConnectionState('timeout');
@@ -850,7 +850,7 @@ export class WebClientProtocol {
     if (data?.layer_settings && typeof data.layer_settings === 'object') {
       this.applyLayerSettings(data.layer_settings as Record<string, Record<string, unknown>>);
     }
-    // Load paint strokes on join — server sends to_dict() format: [{stroke_id, stroke_data: <JSON>, ...}]
+    // Load paint strokes on join - server sends to_dict() format: [{stroke_id, stroke_data: <JSON>, ...}]
     const rawData = message.data as { paint_strokes?: { stroke_id: string; stroke_data: string }[] };
     if (Array.isArray(rawData?.paint_strokes) && rawData.paint_strokes.length > 0) {
       const runtime = getCurrentWasmRuntime();
@@ -1026,7 +1026,7 @@ export class WebClientProtocol {
           version: version,
           syncStatus: 'synced'
         });
-        logger.debug(`Character synced: temp ID ${tempChar.id} → real ID ${realId}`);
+        logger.debug(`Character synced: temp ID ${tempChar.id} -> real ID ${realId}`);
       }
     } else if (message.data?.success === false) {
       // Handle save failure
@@ -1102,7 +1102,7 @@ export class WebClientProtocol {
     if (operation === 'delete' && characterId) {
       // Handle character deletion broadcast
       store.removeCharacter(characterId);
-      logger.debug(`️ Character deleted (broadcast): ${characterId}`);
+      logger.debug(`Character deleted (broadcast): ${characterId}`);
       emitProtocolEvent('character-deleted', { character_id: characterId });
       return;
     }
@@ -1128,7 +1128,7 @@ export class WebClientProtocol {
         const existing = store.characters.find(c => c.id === character.id);
         if (existing) {
           store.updateCharacter(character.id, character);
-          logger.debug(`️ Character updated (broadcast): ${character.name}`);
+          logger.debug(`Character updated (broadcast): ${character.name}`);
         } else {
           store.addCharacter(character);
           logger.debug(`Character added (broadcast): ${character.name}`);
@@ -1179,7 +1179,7 @@ export class WebClientProtocol {
       
       if (error === 'Version conflict' && currentVersion !== undefined) {
         // Version conflict - auto-retry with latest version
-        logger.warn(`️ Version conflict for character ${characterId}. Current version: ${currentVersion}`);
+        logger.warn(`Version conflict for character ${characterId}. Current version: ${currentVersion}`);
         showToast.warning('Character was modified by another user. Retrying with latest version...');
         
         // Fetch latest version from server
@@ -1302,7 +1302,7 @@ export class WebClientProtocol {
     const data = message.data as { stroke?: { stroke_id?: string; created_by?: number; stroke_data?: string } };
     const stroke = data?.stroke;
     if (!stroke) return;
-    // Skip our own strokes — server excludes sender from broadcast, but sends response back
+    // Skip our own strokes - server excludes sender from broadcast, but sends response back
     if (stroke.created_by != null && stroke.created_by === this.userId) return;
     // stroke_data is the raw DrawStroke JSON from WASM
     const drawStrokeJson = stroke.stroke_data;
@@ -1342,7 +1342,7 @@ export class WebClientProtocol {
     }
   }
 
-  /** Apply a map of { layerName → settings } to the WASM engine and Zustand store. */
+  /** Apply a map of { layerName -> settings } to the WASM engine and Zustand store. */
   private applyLayerSettings(settings: Record<string, Record<string, unknown>>): void {
     getCurrentWasmRuntime()?.applyLayerSettings(settings);
     const store = useGameStore.getState();
@@ -1980,7 +1980,7 @@ export class WebClientProtocol {
     this.sendMessage(createMessage(MessageType.TEST, data));
   }
 
-  // ── Cover Zones ──────────────────────────────────────────────────────────
+  // Cover zones.
 
   requestCoverZonesSync(tableId: string): void {
     this.sendMessage(createMessage(MessageType.COVER_ZONES_SYNC, { table_id: tableId }));
@@ -2010,7 +2010,7 @@ export class WebClientProtocol {
     }));
   }
 
-  // ── Opportunity Attacks ──────────────────────────────────────────────────
+  // Opportunity attacks.
 
   resolveOA(data: {
     use_reaction: boolean;

@@ -3,7 +3,7 @@ use wasm_bindgen::prelude::*;
 use serde::{Serialize, Deserialize};
 use crate::collision::CollisionSystem;
 
-// ── Ghost token ───────────────────────────────────────────────────────
+// Ghost token preview state.
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct GhostToken {
@@ -12,12 +12,12 @@ pub struct GhostToken {
     pub real_y: f32,
     pub preview_x: f32,
     pub preview_y: f32,
-    pub path: Vec<[f32; 2]>, // waypoints from real → preview
+    pub path: Vec<[f32; 2]>, // waypoints from real position to preview position
     pub movement_cost_ft: f32,
     pub opacity: f32,
 }
 
-// ── AoE template ─────────────────────────────────────────────────────
+// AoE template preview state.
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(tag = "shape")]
@@ -46,7 +46,7 @@ fn tokens_in_aoe(template: &AoeTemplate, token_positions: &[[f32; 2]]) -> Vec<St
                 let dist = (dx*dx + dy*dy).sqrt();
                 if dist > *length { return false; }
                 let tok_angle = (dy).atan2(dx);
-                let half = (0.5_f32).atan(); // 5e cone: ±26.565° half-angle (53.13° total)
+                let half = (0.5_f32).atan(); // 5e cone: +/-26.565 degrees half-angle (53.13 degrees total)
                 let diff = (tok_angle - angle).abs() % (2.0 * std::f32::consts::PI);
                 diff <= half || diff >= (2.0 * std::f32::consts::PI - half)
             }
@@ -69,10 +69,12 @@ fn tokens_in_aoe(template: &AoeTemplate, token_positions: &[[f32; 2]]) -> Vec<St
     }).map(|(i, _)| i.to_string()).collect()
 }
 
-// ── Planning manager ──────────────────────────────────────────────────
+// Planning manager.
 
-/// Client-side planning layer — computes previews without mutating game state.
-/// All results are read-only overlays on top of committed state.
+/// Client-side planning layer: computes previews without mutating game state.
+/// All results are read-only overlays on top of committed state. The FastAPI
+/// combat command service remains authoritative for accepted combat mutations,
+/// final movement cost, visibility, resources, and outcomes.
 #[wasm_bindgen]
 pub struct PlanningManager {
     ghost_tokens: HashMap<String, GhostToken>,
@@ -95,7 +97,7 @@ impl PlanningManager {
         }
     }
 
-    // ── Collision setup ───────────────────────────────────────────────
+    // Collision setup.
 
     pub fn set_walls(&mut self, json: &str) {
         let sys = self.collision.get_or_insert_with(|| CollisionSystem::new(self.grid_size));
@@ -107,7 +109,7 @@ impl PlanningManager {
         sys.set_obstacles(json);
     }
 
-    // ── Ghost tokens ──────────────────────────────────────────────────
+    // Ghost tokens.
 
     /// Start previewing a token move. Returns movement cost in feet.
     pub fn start_ghost(&mut self, sprite_id: &str, real_x: f32, real_y: f32, preview_x: f32, preview_y: f32, speed_ft: f32) -> f32 {
@@ -167,14 +169,14 @@ impl PlanningManager {
         }
     }
 
-    // ── Movement range overlay ────────────────────────────────────────
+    // Movement range overlay.
 
     /// Compute movement range BFS. Returns JSON with {normal, dash, blocked} cell arrays.
     pub fn movement_range(&self, sx: f32, sy: f32, speed_ft: f32, diagonal_5_10_5: bool) -> JsValue {
         if let Some(sys) = &self.collision {
             sys.movement_range(sx, sy, speed_ft, self.ft_per_unit, diagonal_5_10_5)
         } else {
-            // No collision data — return single ring of reachable cells
+            // No collision data: return single ring of reachable cells.
             let cells = simple_range_cells(sx, sy, speed_ft, self.grid_size, self.ft_per_unit);
             serde_wasm_bindgen::to_value(&serde_json::json!({
                 "normal": cells,
@@ -184,7 +186,7 @@ impl PlanningManager {
         }
     }
 
-    // ── Distance measurement ──────────────────────────────────────────
+    // Distance measurement.
 
     pub fn measure_ft(&self, x1: f32, y1: f32, x2: f32, y2: f32) -> f32 {
         if let Some(sys) = &self.collision {
@@ -194,7 +196,7 @@ impl PlanningManager {
         }
     }
 
-    // ── AoE templates ─────────────────────────────────────────────────
+    // AoE templates.
 
     /// Set sphere AoE template
     pub fn set_aoe_sphere(&mut self, cx: f32, cy: f32, radius: f32) {
@@ -243,7 +245,7 @@ impl PlanningManager {
         serde_wasm_bindgen::to_value(&indices).unwrap_or(JsValue::NULL)
     }
 
-    // ── Line of sight ─────────────────────────────────────────────────
+    // Line of sight.
 
     /// True if there is clear line of sight from (x1,y1) to (x2,y2)
     pub fn has_los(&self, x1: f32, y1: f32, x2: f32, y2: f32) -> bool {
@@ -254,7 +256,7 @@ impl PlanningManager {
     }
 }
 
-// ── Fallback helpers (no collision data) ──────────────────────────────
+// Fallback helpers for preview mode without collision data.
 
 fn distance_ft_simple(x1: f32, y1: f32, x2: f32, y2: f32, grid_size: f32, ft_per_unit: f32) -> f32 {
     let g = grid_size;
@@ -282,7 +284,7 @@ fn simple_range_cells(sx: f32, sy: f32, speed_ft: f32, grid_size: f32, ft_per_un
     result
 }
 
-// ── Tests ─────────────────────────────────────────────────────────────
+// Tests.
 
 #[cfg(test)]
 mod tests {
@@ -291,7 +293,7 @@ mod tests {
     #[test]
     fn ghost_snaps_to_grid() {
         let mut pm = PlanningManager::new(64.0, 5.0 / 64.0);
-        // click at 90,90 → should snap to center of cell (1,1) = 96,96
+        // Click at 90,90; should snap to center of cell (1,1) = 96,96.
         let cost = pm.start_ghost("s1", 32.0, 32.0, 90.0, 90.0, 30.0);
         let g = pm.ghost_tokens.get("s1").unwrap();
         assert!((g.preview_x - 96.0).abs() < 1.0);
@@ -325,7 +327,7 @@ mod tests {
         assert!(pm.has_los(0.0, 0.0, 100.0, 100.0));
     }
 
-    // ── Collision setup tests ─────────────────────────────────────────
+    // Collision setup tests.
 
     #[test]
     fn set_walls_creates_collision_system() {
@@ -360,7 +362,7 @@ mod tests {
         assert!(d_with_collision > 0.0);
     }
 
-    // ── Ghost token management tests ──────────────────────────────────
+    // Ghost token management tests.
 
     #[test]
     fn clear_ghost_removes_single() {
@@ -396,7 +398,7 @@ mod tests {
     #[test]
     fn ghost_opacity_within_speed() {
         let mut pm = PlanningManager::new(64.0, 5.0 / 64.0);
-        // Short move within speed → 0.45 opacity
+        // Short move within speed gives 0.45 opacity.
         pm.start_ghost("s1", 32.0, 32.0, 90.0, 90.0, 300.0);
         let g = pm.ghost_tokens.get("s1").unwrap();
         assert!((g.opacity - 0.45).abs() < 0.01);
@@ -405,7 +407,7 @@ mod tests {
     #[test]
     fn ghost_opacity_beyond_speed() {
         let mut pm = PlanningManager::new(64.0, 5.0 / 64.0);
-        // Very far move with tiny speed → 0.2 opacity
+        // Very far move with tiny speed gives 0.2 opacity.
         pm.start_ghost("s1", 0.0, 0.0, 5000.0, 5000.0, 5.0);
         let g = pm.ghost_tokens.get("s1").unwrap();
         assert!((g.opacity - 0.2).abs() < 0.01);
@@ -430,7 +432,7 @@ mod tests {
         assert!(g.preview_x > 100.0);
     }
 
-    // ── AoE template tests ────────────────────────────────────────────
+    // AoE template tests.
 
     #[test]
     fn set_aoe_cone() {
@@ -492,7 +494,7 @@ mod tests {
         }
     }
 
-    // ── tokens_in_aoe for different shapes ────────────────────────────
+    // tokens_in_aoe for different shapes.
 
     #[test]
     fn tokens_in_aoe_cube() {
@@ -518,7 +520,7 @@ mod tests {
         assert!(hits.is_empty());
     }
 
-    // ── distance_ft_simple helper ─────────────────────────────────────
+    // distance_ft_simple helper.
 
     #[test]
     fn distance_ft_simple_straight() {

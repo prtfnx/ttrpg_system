@@ -15,7 +15,10 @@ interface MovementRange {
   blocked: unknown[];
 }
 
-// Grid size and ft-per-unit defaults — should be overridden by session settings
+// Grid size and ft-per-unit defaults should be overridden by session settings.
+// This service is preview-only: it may estimate movement, LOS, and AoE candidates
+// for responsive UI, but the server remains authoritative for accepted combat
+// mutations, final movement cost, visibility, resources, and outcomes.
 const GRID_SIZE = 64;
 
 let manager: PlanningManager | null = null;

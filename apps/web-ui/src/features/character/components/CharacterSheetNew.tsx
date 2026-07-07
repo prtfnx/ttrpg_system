@@ -292,7 +292,7 @@ export const CharacterSheet: React.FC<CharacterSheetProps> = ({ character, onSav
 
       {/* Main layout: sidebar + content */}
       <div className={styles.sheetLayout}>
-        {/* Left sidebar � always visible */}
+        {/* Left sidebar - always visible */}
         <aside className={styles.sidebar}>
           <div className={styles.abilitiesColumn}>
             {Object.entries(abilities).map(([key, rawVal]) => {
@@ -317,7 +317,7 @@ export const CharacterSheet: React.FC<CharacterSheetProps> = ({ character, onSav
                       className={styles.abilityArrow}
                       onClick={() => handleAbilityUpdate(key, Math.max(1, score - 1))}
                       aria-label={`Decrease ${ABILITY_SHORT[key]}`}
-                    >−</button>
+                    >-</button>
                     <input
                       type="number"
                       className={styles.abilityScore}
@@ -450,8 +450,7 @@ export const CharacterSheet: React.FC<CharacterSheetProps> = ({ character, onSav
                   </div>
                 </div>
 
-                {/* Death saves — only at 0 HP */}
-                {/* Death saves � only at 0 HP */}
+                {/* Death saves - only at 0 HP */}
                 {(stats.hp || 0) === 0 && (
                   <div className={styles.deathSavesBlock}>
                     <span className={styles.deathTitle}>Death Saves</span>
@@ -590,7 +589,7 @@ export const CharacterSheet: React.FC<CharacterSheetProps> = ({ character, onSav
                   <textarea
                     value={(character.data?.bio as string) || ''}
                     onChange={e => onSave({ data: { ...data, bio: e.target.value } })}
-                    placeholder="Backstory, personality, goals�"
+                    placeholder="Backstory, personality, goals..."
                     rows={6}
                     className={styles.bioTextarea}
                   />

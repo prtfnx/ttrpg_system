@@ -17,6 +17,9 @@ class CombatCommandType(str, Enum):
     START_COMBAT = "start_combat"
     END_COMBAT = "end_combat"
     ADD_COMBATANT = "add_combatant"
+    SET_TERRAIN = "set_terrain"
+    ADD_COVER_ZONE = "add_cover_zone"
+    REMOVE_COVER_ZONE = "remove_cover_zone"
     MOVE = "move"
     ATTACK = "attack"
     CAST_SPELL = "cast_spell"
@@ -69,6 +72,10 @@ class CombatCommand(BaseModel):
     settings: Optional[dict[str, Any]] = None
     name: Optional[str] = None
     character_id: Optional[str] = None
+    cells: list[Any] = Field(default_factory=list)
+    mode: str = "add"
+    zone: Optional[dict[str, Any]] = None
+    zone_id: Optional[str] = None
     target_id: Optional[str] = None
     target_ids: list[str] = Field(default_factory=list)
     table_id: Optional[str] = None
@@ -152,6 +159,7 @@ class CombatCommandContext:
     build_combatants: Optional[
         Callable[[str, list[str], list[dict[str, Any]]], list[dict[str, Any]]]
     ] = None
+    save_table: Optional[Callable[[str], str | None]] = None
 
 
 @dataclass
@@ -315,8 +323,13 @@ class CombatCommandService:
                 "Combat lifecycle commands must be sent individually",
             )
 
+        table_environment_types = self._table_environment_types()
         state = self._engine.get_state(context.session_code)
-        if not state and envelope.commands[0].type != CombatCommandType.START_COMBAT:
+        if (
+            not state
+            and envelope.commands[0].type != CombatCommandType.START_COMBAT
+            and envelope.commands[0].type not in table_environment_types
+        ):
             return self._reject(envelope.sequence_id, 0, "No active combat")
 
         snapshot = deepcopy(state.to_dict()) if state else None
@@ -359,7 +372,11 @@ class CombatCommandService:
                 "result": result,
             })
             state = self._engine.get_state(context.session_code)
-            if not state and command.type != CombatCommandType.END_COMBAT:
+            if (
+                not state
+                and command.type != CombatCommandType.END_COMBAT
+                and command.type not in table_environment_types
+            ):
                 await self._restore_async(context, snapshot, move_undos)
                 return self._reject(envelope.sequence_id, idx, "Combat ended unexpectedly")
 
@@ -370,6 +387,8 @@ class CombatCommandService:
             applied=applied,
             combat=current.to_dict() if current else result.get("combat"),
         )
+        if current is None and all(command.type in table_environment_types for command in envelope.commands):
+            return result
         try:
             return self._persist_result(
                 envelope,
@@ -393,7 +412,12 @@ class CombatCommandService:
         state,
         actor_id: str | None,
     ) -> dict[str, Any]:
-        if command.type in {CombatCommandType.START_COMBAT, CombatCommandType.END_COMBAT, CombatCommandType.ADD_COMBATANT}:
+        if command.type in {
+            CombatCommandType.START_COMBAT,
+            CombatCommandType.END_COMBAT,
+            CombatCommandType.ADD_COMBATANT,
+            *self._table_environment_types(),
+        }:
             return {"error": "Combat lifecycle commands require async application"}
         if command.type == CombatCommandType.REVERT_ACTION:
             return self._apply_revert_action(context, state)
@@ -740,6 +764,12 @@ class CombatCommandService:
             return self._apply_end_combat(context)
         if command.type == CombatCommandType.ADD_COMBATANT:
             return self._apply_add_combatant(command, context, state)
+        if command.type == CombatCommandType.SET_TERRAIN:
+            return self._apply_set_terrain(command, context)
+        if command.type == CombatCommandType.ADD_COVER_ZONE:
+            return self._apply_add_cover_zone(command, context)
+        if command.type == CombatCommandType.REMOVE_COVER_ZONE:
+            return self._apply_remove_cover_zone(command, context)
         if command.type == CombatCommandType.MOVE:
             return await self._apply_move(command, context, state, actor_id, move_undos)
         return self._apply_one(command, context, state, actor_id)
@@ -818,6 +848,93 @@ class CombatCommandService:
             "combatant": combatant.to_dict(),
             "order": self._initiative_order(current),
         }
+
+    def _apply_set_terrain(
+        self,
+        command: CombatCommand,
+        context: CombatCommandContext,
+    ) -> dict[str, Any]:
+        if not command.table_id:
+            return {"error": "table_id required"}
+        table = context.table_lookup(command.table_id)
+        if table is None:
+            return {"error": "Table not found"}
+        if not hasattr(table, "difficult_terrain_cells"):
+            table.difficult_terrain_cells = set()
+        previous_cells = set(table.difficult_terrain_cells)
+        try:
+            if command.mode == "clear":
+                table.difficult_terrain_cells.clear()
+            elif command.mode == "remove":
+                for col, row in command.cells:
+                    table.difficult_terrain_cells.discard((col, row))
+            else:
+                for col, row in command.cells:
+                    table.difficult_terrain_cells.add((col, row))
+        except (TypeError, ValueError):
+            table.difficult_terrain_cells = previous_cells
+            return {"error": "Invalid terrain cells"}
+        persist_error = self._save_table(context, command.table_id)
+        if persist_error:
+            table.difficult_terrain_cells = previous_cells
+            return {"error": persist_error}
+        return {
+            "table_id": command.table_id,
+            "mode": command.mode,
+            "difficult_terrain": [list(cell) for cell in table.difficult_terrain_cells],
+        }
+
+    def _apply_add_cover_zone(
+        self,
+        command: CombatCommand,
+        context: CombatCommandContext,
+    ) -> dict[str, Any]:
+        if not command.table_id:
+            return {"error": "table_id required"}
+        if not command.zone:
+            return {"error": "zone required"}
+        table = context.table_lookup(command.table_id)
+        if table is None:
+            return {"error": "Table not found"}
+        from core_table.table import CoverZone
+        zone = CoverZone.from_dict(command.zone)
+        if not hasattr(table, "cover_zones"):
+            table.cover_zones = []
+        previous_zones = list(table.cover_zones)
+        table.cover_zones = [item for item in table.cover_zones if item.zone_id != zone.zone_id]
+        table.cover_zones.append(zone)
+        persist_error = self._save_table(context, command.table_id)
+        if persist_error:
+            table.cover_zones = previous_zones
+            return {"error": persist_error}
+        return {"table_id": command.table_id, "zone": zone.to_dict()}
+
+    def _apply_remove_cover_zone(
+        self,
+        command: CombatCommand,
+        context: CombatCommandContext,
+    ) -> dict[str, Any]:
+        if not command.table_id:
+            return {"error": "table_id required"}
+        if not command.zone_id:
+            return {"error": "zone_id required"}
+        table = context.table_lookup(command.table_id)
+        if table is None:
+            return {"error": "Table not found"}
+        previous_zones = list(getattr(table, "cover_zones", []))
+        if hasattr(table, "cover_zones"):
+            table.cover_zones = [item for item in table.cover_zones if item.zone_id != command.zone_id]
+        persist_error = self._save_table(context, command.table_id)
+        if persist_error:
+            table.cover_zones = previous_zones
+            return {"error": persist_error}
+        return {"table_id": command.table_id, "zone_id": command.zone_id}
+
+    @staticmethod
+    def _save_table(context: CombatCommandContext, table_id: str) -> str | None:
+        if context.save_table is None:
+            return None
+        return context.save_table(table_id)
 
     async def _apply_move(
         self,
@@ -946,6 +1063,7 @@ class CombatCommandService:
             CombatCommandType.START_COMBAT,
             CombatCommandType.END_COMBAT,
             CombatCommandType.ADD_COMBATANT,
+            *self._table_environment_types(),
         }:
             return None if is_dm(context.role) else "DMs only"
         if command.type == CombatCommandType.DM_OVERRIDE:
@@ -997,7 +1115,16 @@ class CombatCommandService:
             CombatCommandType.START_COMBAT,
             CombatCommandType.END_COMBAT,
             CombatCommandType.ADD_COMBATANT,
+            *CombatCommandService._table_environment_types(),
             CombatCommandType.REVERT_ACTION,
+        }
+
+    @staticmethod
+    def _table_environment_types() -> set[CombatCommandType]:
+        return {
+            CombatCommandType.SET_TERRAIN,
+            CombatCommandType.ADD_COVER_ZONE,
+            CombatCommandType.REMOVE_COVER_ZONE,
         }
 
     def _restore(self, session_code: str, snapshot: dict[str, Any] | None) -> None:

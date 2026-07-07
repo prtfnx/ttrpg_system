@@ -286,6 +286,7 @@ class _CombatMixin(_ProtocolBase):
                     combatants,
                     self._combatant_factory_context(msg, table_id),
                 ),
+                save_table=lambda table_id: self._persist_table_state(table_id, msg),
             ),
         )
         response_type = MessageType.ACTION_RESULT if result.accepted else MessageType.ACTION_REJECTED

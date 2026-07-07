@@ -252,6 +252,144 @@ async def test_dm_ends_combat_through_command():
     assert CombatEngine.get_state("cmd") is None
 
 
+async def test_dm_sets_terrain_through_command_without_active_combat():
+    CombatEngine._active.pop("cmd", None)
+    table = MagicMock()
+    table.difficult_terrain_cells = {(1, 1)}
+    save_table = MagicMock(return_value=None)
+    service = CombatCommandService()
+    envelope = service.parse_envelope({
+        "sequence_id": 105,
+        "commands": [{
+            "type": "set_terrain",
+            "actor_id": "__dm__",
+            "table_id": "t1",
+            "mode": "add",
+            "cells": [[2, 3]],
+        }],
+    })
+
+    result = await service.apply_async(envelope, CombatCommandContext(
+        session_code="cmd",
+        client_id="c1",
+        role="owner",
+        user_id=1,
+        table_lookup=lambda table_id: table if table_id == "t1" else None,
+        save_table=save_table,
+    ))
+
+    assert result.accepted is True
+    assert result.applied[0]["action_type"] == "set_terrain"
+    assert (1, 1) in table.difficult_terrain_cells
+    assert (2, 3) in table.difficult_terrain_cells
+    assert sorted(result.applied[0]["result"]["difficult_terrain"]) == [[1, 1], [2, 3]]
+    save_table.assert_called_once_with("t1")
+
+
+async def test_player_cannot_set_table_environment_command():
+    CombatEngine._active.pop("cmd", None)
+    service = CombatCommandService()
+    envelope = service.parse_envelope({
+        "sequence_id": 106,
+        "commands": [{
+            "type": "set_terrain",
+            "actor_id": "__dm__",
+            "table_id": "t1",
+            "mode": "clear",
+        }],
+    })
+
+    result = await service.apply_async(envelope, _context(role="player"))
+
+    assert result.accepted is False
+    assert result.reason == "DMs only"
+
+
+async def test_dm_adds_and_removes_cover_zone_through_commands():
+    CombatEngine._active.pop("cmd", None)
+    table = MagicMock()
+    table.cover_zones = []
+    service = CombatCommandService()
+    zone = {
+        "zone_id": "z1",
+        "shape_type": "rect",
+        "coords": [0, 0, 10, 10],
+        "cover_tier": "half",
+        "label": "Crates",
+    }
+
+    add_result = await service.apply_async(service.parse_envelope({
+        "sequence_id": 107,
+        "commands": [{
+            "type": "add_cover_zone",
+            "actor_id": "__dm__",
+            "table_id": "t1",
+            "zone": zone,
+        }],
+    }), CombatCommandContext(
+        session_code="cmd",
+        client_id="c1",
+        role="owner",
+        user_id=1,
+        table_lookup=lambda table_id: table if table_id == "t1" else None,
+    ))
+    remove_result = await service.apply_async(service.parse_envelope({
+        "sequence_id": 108,
+        "commands": [{
+            "type": "remove_cover_zone",
+            "actor_id": "__dm__",
+            "table_id": "t1",
+            "zone_id": "z1",
+        }],
+    }), CombatCommandContext(
+        session_code="cmd",
+        client_id="c1",
+        role="owner",
+        user_id=1,
+        table_lookup=lambda table_id: table if table_id == "t1" else None,
+    ))
+
+    assert add_result.accepted is True
+    assert add_result.applied[0]["result"]["zone"]["zone_id"] == "z1"
+    assert remove_result.accepted is True
+    assert table.cover_zones == []
+
+
+async def test_cover_zone_persistence_failure_rolls_back():
+    CombatEngine._active.pop("cmd", None)
+    existing = MagicMock()
+    existing.zone_id = "keep"
+    table = MagicMock()
+    table.cover_zones = [existing]
+    service = CombatCommandService()
+    envelope = service.parse_envelope({
+        "sequence_id": 109,
+        "commands": [{
+            "type": "add_cover_zone",
+            "actor_id": "__dm__",
+            "table_id": "t1",
+            "zone": {
+                "zone_id": "z1",
+                "shape_type": "rect",
+                "coords": [0, 0, 10, 10],
+            },
+        }],
+    })
+
+    result = await service.apply_async(envelope, CombatCommandContext(
+        session_code="cmd",
+        client_id="c1",
+        role="owner",
+        user_id=1,
+        table_lookup=lambda table_id: table if table_id == "t1" else None,
+        save_table=lambda _table_id: "Failed to persist table state",
+    ))
+
+    assert result.accepted is False
+    assert result.reason == "Failed to persist table state"
+    assert table.cover_zones == [existing]
+
+
 def test_player_cannot_apply_dm_override_to_owned_actor():
     state, actor, _target = _state()
     service = CombatCommandService()

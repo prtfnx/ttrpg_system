@@ -331,17 +331,6 @@ export class WebClientProtocol {
       const d = m.data as { zones: import('@features/combat/stores/coverStore').CoverZone[] };
       useCoverStore.getState().setZones(d?.zones ?? []);
     });
-    this.registerHandler(MessageType.COVER_ZONE_ADD, async (m) => {
-      const { useCoverStore } = await import('@features/combat/stores/coverStore');
-      const d = m.data as { zone: import('@features/combat/stores/coverStore').CoverZone };
-      if (d?.zone) useCoverStore.getState().addZone(d.zone);
-    });
-    this.registerHandler(MessageType.COVER_ZONE_REMOVE, async (m) => {
-      const { useCoverStore } = await import('@features/combat/stores/coverStore');
-      const d = m.data as { zone_id: string };
-      if (d?.zone_id) useCoverStore.getState().removeZone(d.zone_id);
-    });
-
     // ── Opportunity Attacks ──
     this.registerHandler(MessageType.OPPORTUNITY_ATTACK_WARNING, async (m) => {
       const { useOAStore } = await import('@features/combat/stores/oaStore');

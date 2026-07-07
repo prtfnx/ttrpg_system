@@ -178,7 +178,6 @@ export const MessageType = {
 
   // ── DM Combat Controls ──
   DM_OVERRIDE: "dm_override",
-  DM_SET_TERRAIN: "dm_set_terrain",
 
   // ── NPC AI ──
   AI_ACTION: "ai_action",
@@ -203,8 +202,6 @@ export const MessageType = {
   TERRAIN_ZONES_SYNC: "terrain_zones_sync",
 
   // ── Cover Zones ──
-  COVER_ZONE_ADD: "cover_zone_add",
-  COVER_ZONE_REMOVE: "cover_zone_remove",
   COVER_ZONE_UPDATE: "cover_zone_update",
   COVER_ZONES_SYNC: "cover_zones_sync",
 

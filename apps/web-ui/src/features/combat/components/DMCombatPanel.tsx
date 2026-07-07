@@ -1,6 +1,5 @@
 import { useGameStore } from '@/store';
 import type { Character, Sprite } from '@/types';
-import { MessageType } from '@lib/websocket';
 import { useMemo, useState } from 'react';
 import { useCombatCommands, type CombatantReferenceInput } from '../hooks/useCombatCommands';
 import { useCombatStore } from '../stores/combatStore';
@@ -140,9 +139,9 @@ export function DMCombatPanel() {
     revertLastAction,
     sendDMOverride,
     sendDMOverrides,
-    sendProtocolMessage,
     addCombatant,
     endCombat: sendEndCombat,
+    setTerrain,
   } = useCombatCommands();
   const linkedTokenOptions = useLinkedTokenOptions();
   const [selectedId, setSelectedId] = useState('');
@@ -439,7 +438,7 @@ export function DMCombatPanel() {
         <p className={styles.hint}>Mark cells as difficult terrain on the canvas, or clear all.</p>
         <div className={styles.row}>
           <button className={styles.btn} onClick={() =>
-            sendProtocolMessage(MessageType.DM_SET_TERRAIN, { table_id: activeTableId, mode: 'clear', cells: [] })
+            setTerrain({ tableId: activeTableId ?? 'default', mode: 'clear' })
           }>Clear All</button>
         </div>
       </div>

@@ -28,6 +28,12 @@ export interface StartCombatInput {
   combatants?: CombatantReferenceInput[];
 }
 
+export interface SetTerrainInput {
+  tableId: string;
+  mode: 'add' | 'remove' | 'clear';
+  cells?: Array<[number, number]>;
+}
+
 export interface AttackCommandInput {
   actorId: string;
   targetId: string;
@@ -253,6 +259,16 @@ export function useCombatCommands() {
     })
   ), [sendCommand]);
 
+  const setTerrain = useCallback((input: SetTerrainInput) => (
+    sendCommand({
+      type: 'set_terrain',
+      actor_id: '__dm__',
+      table_id: input.tableId,
+      mode: input.mode,
+      cells: input.cells ?? [],
+    })
+  ), [sendCommand]);
+
   return {
     sendProtocolMessage,
     sendCommandBatch,
@@ -271,6 +287,7 @@ export function useCombatCommands() {
     startCombat,
     addCombatant,
     endCombat,
+    setTerrain,
     endTurn,
   };
 }

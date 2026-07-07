@@ -300,4 +300,26 @@ describe('useCombatCommands', () => {
       }),
     }));
   });
+
+  it('sends table terrain edits as canonical DM commands', () => {
+    const { result } = renderHook(() => useCombatCommands());
+
+    result.current.setTerrain({
+      tableId: 'table-1',
+      mode: 'clear',
+    });
+
+    expect(mockSendMessage).toHaveBeenCalledWith(expect.objectContaining({
+      type: 'combat_command',
+      data: expect.objectContaining({
+        commands: [expect.objectContaining({
+          type: 'set_terrain',
+          actor_id: '__dm__',
+          table_id: 'table-1',
+          mode: 'clear',
+          cells: [],
+        })],
+      }),
+    }));
+  });
 });

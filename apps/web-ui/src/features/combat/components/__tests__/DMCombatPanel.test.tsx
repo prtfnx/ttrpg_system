@@ -15,7 +15,6 @@ vi.mock('@lib/websocket', () => ({
   createMessage: vi.fn((type: string, data: unknown) => ({ type, data })),
   MessageType: {
     COMBAT_COMMAND: 'combat_command',
-    DM_SET_TERRAIN: 'DM_SET_TERRAIN',
   },
 }));
 
@@ -256,6 +255,26 @@ describe('DMCombatPanel - active combat', () => {
     expect(message.data.commands[0]).not.toHaveProperty('hp');
     expect(message.data.commands[0]).not.toHaveProperty('armor_class');
     expect(message.data.commands[0]).not.toEqual(expect.objectContaining({ entity_id: 'e3' }));
+  });
+
+  it('clears difficult terrain through a canonical command', async () => {
+    const user = userEvent.setup();
+    render(<DMCombatPanel />);
+
+    await user.click(screen.getByRole('button', { name: /clear all/i }));
+
+    expect(mockSendMessage).toHaveBeenCalledWith(expect.objectContaining({
+      type: 'combat_command',
+      data: expect.objectContaining({
+        commands: [expect.objectContaining({
+          type: 'set_terrain',
+          actor_id: '__dm__',
+          table_id: 'table1',
+          mode: 'clear',
+          cells: [],
+        })],
+      }),
+    }));
   });
 });
 

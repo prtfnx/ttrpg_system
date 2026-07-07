@@ -34,6 +34,7 @@ vi.mock('@lib/wasm/runtime', () => ({ getCurrentWasmRuntime: vi.fn(() => mocks.r
 import { WebClientProtocol } from '../clientProtocol';
 import { MessageType } from '../message';
 import { useCombatStore } from '@features/combat/stores/combatStore';
+import { useCoverStore } from '@features/combat/stores/coverStore';
 
 // ---------------------------------------------------------------------------
 // Store mock helpers
@@ -479,6 +480,51 @@ describe('WebClientProtocol', () => {
     });
   });
 
+  describe('cover zones', () => {
+    it('sends add/remove cover zone as combat_command batches', () => {
+      const p = makeProtocol('S', 2);
+      const ws = makeOpenWs(p);
+      const zone = {
+        zone_id: 'z1',
+        shape_type: 'rect',
+        coords: [0, 0, 10, 10],
+        cover_tier: 'half',
+        label: 'Crates',
+      };
+
+      p.addCoverZone('table-1', zone);
+      p.removeCoverZone('table-1', 'z1');
+      p.sendBatch();
+
+      const msg = JSON.parse((ws.send as Mock).mock.calls[0][0]);
+      expect(msg.type).toBe('batch');
+      expect(msg.data.messages).toEqual([
+        expect.objectContaining({
+          type: 'combat_command',
+          data: expect.objectContaining({
+            commands: [expect.objectContaining({
+              type: 'add_cover_zone',
+              actor_id: '__dm__',
+              table_id: 'table-1',
+              zone,
+            })],
+          }),
+        }),
+        expect.objectContaining({
+          type: 'combat_command',
+          data: expect.objectContaining({
+            commands: [expect.objectContaining({
+              type: 'remove_cover_zone',
+              actor_id: '__dm__',
+              table_id: 'table-1',
+              zone_id: 'z1',
+            })],
+          }),
+        }),
+      ]);
+    });
+  });
+
   // ── Incoming handlers ─────────────────────────────────────────────────────
 
   describe('incoming message handlers', () => {
@@ -621,6 +667,38 @@ describe('WebClientProtocol', () => {
       });
 
       expect(useCombatStore.getState().combat).toBeNull();
+    });
+
+    it('ACTION_RESULT applies accepted cover zone mutations to the cover store', async () => {
+      const p = makeProtocol();
+      const zone = {
+        zone_id: 'z1',
+        shape_type: 'rect' as const,
+        coords: [0, 0, 10, 10],
+        cover_tier: 'half' as const,
+        label: 'Crates',
+      };
+      useCoverStore.setState({ zones: [] });
+
+      await dispatch(p, 'action_result', {
+        sequence_id: 45,
+        applied: [{
+          action_type: 'add_cover_zone',
+          actor_id: '__dm__',
+          result: { zone },
+        }],
+      });
+      expect(useCoverStore.getState().zones).toEqual([zone]);
+      await dispatch(p, 'action_result', {
+        sequence_id: 46,
+        applied: [{
+          action_type: 'remove_cover_zone',
+          actor_id: '__dm__',
+          result: { zone_id: 'z1' },
+        }],
+      });
+
+      expect(useCoverStore.getState().zones).toEqual([]);
     });
 
     it('ACTION_REJECTED reverts the optimistic sprite action by sequence id', async () => {

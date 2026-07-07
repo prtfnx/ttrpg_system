@@ -389,6 +389,25 @@ export class WebClientProtocol {
           const { useCombatStore } = await import('@features/combat/stores/combatStore');
           useCombatStore.getState().setCombat(null);
         }
+        const coverZoneAdded = data.applied.find((item) => (
+          typeof item === 'object'
+          && item !== null
+          && (item as { action_type?: string }).action_type === 'add_cover_zone'
+        )) as { result?: { zone?: import('@features/combat/stores/coverStore').CoverZone } } | undefined;
+        const coverZoneRemoved = data.applied.find((item) => (
+          typeof item === 'object'
+          && item !== null
+          && (item as { action_type?: string }).action_type === 'remove_cover_zone'
+        )) as { result?: { zone_id?: string } } | undefined;
+        if (coverZoneAdded?.result?.zone || coverZoneRemoved?.result?.zone_id) {
+          const { useCoverStore } = await import('@features/combat/stores/coverStore');
+          if (coverZoneAdded?.result?.zone) {
+            useCoverStore.getState().addZone(coverZoneAdded.result.zone);
+          }
+          if (coverZoneRemoved?.result?.zone_id) {
+            useCoverStore.getState().removeZone(coverZoneRemoved.result.zone_id);
+          }
+        }
       }
       if (data?.sequence_id != null) {
         emitProtocolEvent('sprite-action-confirmed', { actionId: String(data.sequence_id) });
@@ -1979,11 +1998,27 @@ export class WebClientProtocol {
   }
 
   addCoverZone(tableId: string, zone: Record<string, unknown>): void {
-    this.sendMessage(createMessage(MessageType.COVER_ZONE_ADD, { table_id: tableId, zone }));
+    this.sendMessage(createMessage(MessageType.COMBAT_COMMAND, {
+      sequence_id: Date.now(),
+      commands: [{
+        type: 'add_cover_zone',
+        actor_id: '__dm__',
+        table_id: tableId,
+        zone,
+      }],
+    }));
   }
 
   removeCoverZone(tableId: string, zoneId: string): void {
-    this.sendMessage(createMessage(MessageType.COVER_ZONE_REMOVE, { table_id: tableId, zone_id: zoneId }));
+    this.sendMessage(createMessage(MessageType.COMBAT_COMMAND, {
+      sequence_id: Date.now(),
+      commands: [{
+        type: 'remove_cover_zone',
+        actor_id: '__dm__',
+        table_id: tableId,
+        zone_id: zoneId,
+      }],
+    }));
   }
 
   // ── Opportunity Attacks ──────────────────────────────────────────────────

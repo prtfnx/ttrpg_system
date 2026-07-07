@@ -145,7 +145,6 @@ class MessageType(enum.Enum):    # Core messages
     # ── DM Controls ──
     DM_OVERRIDE = "dm_override"
     DM_MODIFY_ROLL = "dm_modify_roll"
-    DM_SET_TERRAIN = "dm_set_terrain"
 
     # ── NPC AI ──
     AI_ACTION = "ai_action"
@@ -170,8 +169,6 @@ class MessageType(enum.Enum):    # Core messages
     TERRAIN_ZONES_SYNC = "terrain_zones_sync"
 
     # ── Cover Zones ──
-    COVER_ZONE_ADD = "cover_zone_add"
-    COVER_ZONE_REMOVE = "cover_zone_remove"
     COVER_ZONE_UPDATE = "cover_zone_update"
     COVER_ZONES_SYNC = "cover_zones_sync"
 

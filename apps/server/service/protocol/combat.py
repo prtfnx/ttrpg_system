@@ -178,38 +178,6 @@ class _CombatMixin(_ProtocolBase):
         }})
         return resp
 
-    async def handle_dm_set_terrain(self, msg: Message, client_id: str) -> Message:
-        if not is_dm(self._get_client_role(client_id)):
-            return Message(MessageType.ERROR, {'error': 'DMs only'})
-        d = msg.data or {}
-        cells = d.get('cells', [])        # list of [col, row]
-        mode = d.get('mode', 'add')       # 'add' | 'remove' | 'clear'
-        table_id = str(d.get('table_id', ''))
-        table = self.table_manager.tables_id.get(table_id) or self.table_manager.tables.get(table_id)
-        if table is None:
-            return Message(MessageType.ERROR, {'error': 'Table not found'})
-        if not hasattr(table, 'difficult_terrain_cells'):
-            table.difficult_terrain_cells = set()
-        previous_cells = set(table.difficult_terrain_cells)
-        if mode == 'clear':
-            table.difficult_terrain_cells.clear()
-        elif mode == 'remove':
-            for col, row in cells:
-                table.difficult_terrain_cells.discard((col, row))
-        else:
-            for col, row in cells:
-                table.difficult_terrain_cells.add((col, row))
-        persist_error = self._persist_table_state(table_id, msg)
-        if persist_error:
-            table.difficult_terrain_cells = previous_cells
-            return Message(MessageType.ERROR, {'error': persist_error})
-        resp = Message(MessageType.DM_SET_TERRAIN, {
-            'difficult_terrain': [list(c) for c in table.difficult_terrain_cells],
-            'mode': mode,
-        })
-        await self.broadcast_to_session(resp, client_id)
-        return resp
-
     def _persist_table_state(self, table_id: str, msg: Message) -> str | None:
         save_table = getattr(self.table_manager, 'save_table', None)
         if not callable(save_table):
@@ -412,50 +380,6 @@ class _CombatMixin(_ProtocolBase):
             "path": result.valid_path,
             "opportunity_attack_triggers": triggers,
         }
-
-    async def handle_cover_zone_add(self, msg: Message, client_id: str) -> Message:
-        if not is_dm(self._get_client_role(client_id)):
-            return Message(MessageType.ERROR, {'error': 'DMs only'})
-        from core_table.table import CoverZone
-        d = msg.data or {}
-        table_id = str(d.get('table_id', ''))
-        table = self._get_table_by_id(table_id)
-        if table is None:
-            return Message(MessageType.ERROR, {'error': 'Table not found'})
-        zone = CoverZone.from_dict(d['zone'])
-        if not hasattr(table, 'cover_zones'):
-            table.cover_zones = []
-        previous_zones = list(table.cover_zones)
-        # Replace if zone_id already exists
-        table.cover_zones = [z for z in table.cover_zones if z.zone_id != zone.zone_id]
-        table.cover_zones.append(zone)
-        persist_error = self._persist_table_state(table_id, msg)
-        if persist_error:
-            table.cover_zones = previous_zones
-            return Message(MessageType.ERROR, {'error': persist_error})
-        resp = Message(MessageType.COVER_ZONE_ADD, {'zone': zone.to_dict()})
-        await self.broadcast_to_session(resp, client_id)
-        return resp
-
-    async def handle_cover_zone_remove(self, msg: Message, client_id: str) -> Message:
-        if not is_dm(self._get_client_role(client_id)):
-            return Message(MessageType.ERROR, {'error': 'DMs only'})
-        d = msg.data or {}
-        table_id = str(d.get('table_id', ''))
-        table = self._get_table_by_id(table_id)
-        if table is None:
-            return Message(MessageType.ERROR, {'error': 'Table not found'})
-        zone_id = d.get('zone_id', '')
-        previous_zones = list(getattr(table, 'cover_zones', []))
-        if hasattr(table, 'cover_zones'):
-            table.cover_zones = [z for z in table.cover_zones if z.zone_id != zone_id]
-        persist_error = self._persist_table_state(table_id, msg)
-        if persist_error:
-            table.cover_zones = previous_zones
-            return Message(MessageType.ERROR, {'error': persist_error})
-        resp = Message(MessageType.COVER_ZONE_REMOVE, {'zone_id': zone_id})
-        await self.broadcast_to_session(resp, client_id)
-        return resp
 
     async def handle_cover_zones_sync(self, msg: Message, client_id: str) -> Message:
         d = msg.data or {}

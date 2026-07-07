@@ -179,9 +179,6 @@ class ServerProtocol(
 
         # Combat
         self.register_handler(MessageType.COMBAT_STATE_REQUEST,  self.handle_combat_state_request)
-        self.register_handler(MessageType.DM_SET_TERRAIN,        self.handle_dm_set_terrain)
-        self.register_handler(MessageType.COVER_ZONE_ADD,        self.handle_cover_zone_add)
-        self.register_handler(MessageType.COVER_ZONE_REMOVE,     self.handle_cover_zone_remove)
         self.register_handler(MessageType.COVER_ZONES_SYNC,      self.handle_cover_zones_sync)
         self.register_handler(MessageType.ATTACK_PREVIEW,        self.handle_attack_preview)
         self.register_handler(MessageType.AI_ACTION,             self.handle_ai_action)

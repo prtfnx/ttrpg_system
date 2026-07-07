@@ -169,7 +169,6 @@ class MessageType(enum.Enum):    # Core messages
     TERRAIN_ZONES_SYNC = "terrain_zones_sync"
 
     # ── Cover Zones ──
-    COVER_ZONE_UPDATE = "cover_zone_update"
     COVER_ZONES_SYNC = "cover_zones_sync"
 
     # ── Player Combat Actions ──

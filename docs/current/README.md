@@ -61,6 +61,9 @@ older plans or reports in `docs/`.
   behavior, restore sequence, script caveats, R2 asset notes, and checks.
 - [Security](operations/SECURITY.md): current auth, cookies, roles, rate
   limits, audit coverage, known gaps, and verification.
+- [Observability and logging](operations/OBSERVABILITY_AND_LOGGING.md):
+  stdout logs, browser logger behavior, health check, audit records, asset
+  counters, and current gaps.
 
 ## How To
 

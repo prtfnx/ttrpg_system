@@ -67,6 +67,7 @@ Canvas or WASM contributor:
 | [Database migrations](operations/DATABASE_MIGRATIONS.md) | operations | operators and persistence maintainers | new |
 | [Backup and restore](operations/BACKUP_AND_RESTORE.md) | operations | operators and persistence maintainers | new |
 | [Security](operations/SECURITY.md) | operations | operators and maintainers | new |
+| [Observability and logging](operations/OBSERVABILITY_AND_LOGGING.md) | operations | operators and maintainers | new |
 | [Add a database migration](how-to/ADD_DATABASE_MIGRATION.md) | how-to | persistence contributors | new |
 | [Add a WebSocket message](how-to/ADD_WEBSOCKET_MESSAGE.md) | how-to | protocol contributors | new |
 | [Add a combat command](how-to/ADD_COMBAT_COMMAND.md) | how-to | combat contributors | new |
@@ -113,7 +114,7 @@ Current HTTP router modules under `apps/server/routers/`:
 
 Create these next, in this order:
 
-1. Observability and release checklist operations docs.
+1. Release checklist operations doc.
 2. Focused feature pages for auth, sessions, canvas, assets, characters, chat,
    encounters, and customization.
 3. ADRs for server authority, combat commands, and WASM runtime ownership.

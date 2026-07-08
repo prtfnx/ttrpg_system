@@ -64,6 +64,9 @@ older plans or reports in `docs/`.
 - [Observability and logging](operations/OBSERVABILITY_AND_LOGGING.md):
   stdout logs, browser logger behavior, health check, audit records, asset
   counters, and current gaps.
+- [Release checklist](operations/RELEASE_CHECKLIST.md): source-checked
+  preflight, tests, full build artifacts, Render deployment caveats, smoke
+  checks, and rollback notes.
 
 ## How To
 

@@ -68,6 +68,7 @@ Canvas or WASM contributor:
 | [Backup and restore](operations/BACKUP_AND_RESTORE.md) | operations | operators and persistence maintainers | new |
 | [Security](operations/SECURITY.md) | operations | operators and maintainers | new |
 | [Observability and logging](operations/OBSERVABILITY_AND_LOGGING.md) | operations | operators and maintainers | new |
+| [Release checklist](operations/RELEASE_CHECKLIST.md) | operations | operators and maintainers | new |
 | [Add a database migration](how-to/ADD_DATABASE_MIGRATION.md) | how-to | persistence contributors | new |
 | [Add a WebSocket message](how-to/ADD_WEBSOCKET_MESSAGE.md) | how-to | protocol contributors | new |
 | [Add a combat command](how-to/ADD_COMBAT_COMMAND.md) | how-to | combat contributors | new |
@@ -114,10 +115,9 @@ Current HTTP router modules under `apps/server/routers/`:
 
 Create these next, in this order:
 
-1. Release checklist operations doc.
-2. Focused feature pages for auth, sessions, canvas, assets, characters, chat,
+1. Focused feature pages for auth, sessions, canvas, assets, characters, chat,
    encounters, and customization.
-3. ADRs for server authority, combat commands, and WASM runtime ownership.
+2. ADRs for server authority, combat commands, and WASM runtime ownership.
 
 Do not move historical plans into `docs/current/`. Extract current facts into
 focused pages instead.

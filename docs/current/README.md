@@ -3,6 +3,14 @@
 These pages describe the current app from source code. They do not depend on
 older plans or reports in `docs/`.
 
+## Start here
+
+- [Documentation map](DOCS_MAP.md): reader paths, current coverage, and missing
+  durable docs.
+- [Docs style](DOC_STYLE.md): how to add current docs without drifting into
+  plans or guesses.
+- [Glossary](GLOSSARY.md): shared project terms.
+
 ## Read first
 
 - [App architecture](APP_ARCHITECTURE.md): how the server, React client, Python
@@ -25,9 +33,38 @@ older plans or reports in `docs/`.
 - [Source map](SOURCE_MAP.md): where the main code lives.
 - [Development](DEVELOPMENT.md): local commands and verification by code area.
 
+## Read by task
+
+New developer:
+
+1. [Development](DEVELOPMENT.md)
+2. [Source map](SOURCE_MAP.md)
+3. [App architecture](APP_ARCHITECTURE.md)
+4. [Testing strategy](TESTING_STRATEGY.md)
+
+Protocol change:
+
+1. [Protocol boundary](PROTOCOL_BOUNDARY.md)
+2. [Server architecture](SERVER_ARCHITECTURE.md)
+3. [Web UI architecture](WEB_UI_ARCHITECTURE.md)
+
+Combat change:
+
+1. [Battle flow](BATTLE_FLOW.md)
+2. [State ownership](STATE_OWNERSHIP.md)
+3. [Testing strategy](TESTING_STRATEGY.md)
+
+WASM or canvas change:
+
+1. [WASM React boundary](WASM_REACT_BOUNDARY.md)
+2. [Rust/WASM engine](RUST_WASM_ENGINE.md)
+3. [Web UI architecture](WEB_UI_ARCHITECTURE.md)
+
 ## Maintenance
 
 - Update these pages when code ownership changes.
 - Keep plans, audits, and migration notes outside `docs/current/`.
 - If an old page is still correct, rewrite the useful part here in current
   language instead of moving the whole file unchanged.
+- Check source code and tests before writing facts. If a page is correct but
+  incomplete, mark it as partial instead of sounding certain.

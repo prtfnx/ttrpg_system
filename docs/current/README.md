@@ -44,6 +44,10 @@ older plans or reports in `docs/`.
 - [Combat commands](reference/COMBAT_COMMANDS.md): current
   `combat_command` envelope, command types, authority rules, and change
   checklist.
+- [Environment variables](reference/ENVIRONMENT_VARIABLES.md): current server
+  configuration, secrets, email, R2, and Render notes.
+- [Database schema](reference/DATABASE_SCHEMA.md): model families,
+  persistence owners, combat journal, assets, and migrations.
 
 ## Read by task
 

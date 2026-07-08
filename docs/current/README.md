@@ -37,6 +37,14 @@ older plans or reports in `docs/`.
 - [Source map](SOURCE_MAP.md): where the main code lives.
 - [Development](DEVELOPMENT.md): local commands and verification by code area.
 
+## Reference
+
+- [WebSocket messages](reference/WEBSOCKET_MESSAGES.md): registered server
+  message handlers, response families, and protocol ownership.
+- [Combat commands](reference/COMBAT_COMMANDS.md): current
+  `combat_command` envelope, command types, authority rules, and change
+  checklist.
+
 ## Read by task
 
 New developer:
@@ -50,15 +58,17 @@ New developer:
 
 Protocol change:
 
-1. [Protocol boundary](PROTOCOL_BOUNDARY.md)
-2. [Server architecture](SERVER_ARCHITECTURE.md)
-3. [Web UI architecture](WEB_UI_ARCHITECTURE.md)
+1. [WebSocket messages](reference/WEBSOCKET_MESSAGES.md)
+2. [Protocol boundary](PROTOCOL_BOUNDARY.md)
+3. [Server architecture](SERVER_ARCHITECTURE.md)
+4. [Web UI architecture](WEB_UI_ARCHITECTURE.md)
 
 Combat change:
 
-1. [Battle flow](BATTLE_FLOW.md)
-2. [State ownership](STATE_OWNERSHIP.md)
-3. [Testing strategy](TESTING_STRATEGY.md)
+1. [Combat commands](reference/COMBAT_COMMANDS.md)
+2. [Battle flow](BATTLE_FLOW.md)
+3. [State ownership](STATE_OWNERSHIP.md)
+4. [Testing strategy](TESTING_STRATEGY.md)
 
 WASM or canvas change:
 

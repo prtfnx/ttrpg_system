@@ -58,6 +58,8 @@ Canvas or WASM contributor:
 | [Testing strategy](TESTING_STRATEGY.md) | how-to | contributors | usable |
 | [Source map](SOURCE_MAP.md) | reference | contributors | usable |
 | [Development](DEVELOPMENT.md) | how-to/reference | contributors | usable |
+| [WebSocket messages](reference/WEBSOCKET_MESSAGES.md) | reference | protocol contributors | new |
+| [Combat commands](reference/COMBAT_COMMANDS.md) | reference | combat contributors | new |
 | [Docs style](DOC_STYLE.md) | reference | doc contributors | new |
 | [Glossary](GLOSSARY.md) | reference | all contributors | new |
 
@@ -94,12 +96,10 @@ Current HTTP router modules under `apps/server/routers/`:
 
 Create these next, in this order:
 
-1. WebSocket message reference: complete protocol message catalog.
-2. Combat command reference: complete `combat_command` catalog.
-3. Environment and configuration reference.
-4. Database schema and migration guide.
-5. Deployment, backup, restore, and troubleshooting operations docs.
-6. ADRs for server authority, combat commands, and WASM runtime ownership.
+1. Environment and configuration reference.
+2. Database schema and migration guide.
+3. Deployment, backup, restore, and troubleshooting operations docs.
+4. ADRs for server authority, combat commands, and WASM runtime ownership.
 
 Do not move historical plans into `docs/current/`. Extract current facts into
 focused pages instead.

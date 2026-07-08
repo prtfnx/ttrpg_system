@@ -1,0 +1,147 @@
+# Database schema
+
+Audience: contributors changing persistence, migrations, or server state.
+
+Status: partial. This page describes the current model families and migration
+flow. It is not a complete column-by-column schema.
+
+Last source audit: 2026-07-08
+
+## Source of truth
+
+SQLAlchemy models live in `apps/server/database/models.py`.
+
+Database setup lives in `apps/server/database/database.py`.
+
+Database CRUD and helpers live in:
+
+- `apps/server/database/crud.py`
+- `apps/server/database/session_utils.py`
+- `apps/server/service/combat_persistence_service.py`
+- `apps/server/service/asset_manager.py`
+
+Migrations live in `apps/server/database/migrations/`.
+
+## Database URL
+
+`DATABASE_URL` controls the database connection.
+
+If it is unset, the server uses local SQLite:
+
+```text
+apps/server/ttrpg.db
+```
+
+Server startup calls `create_tables()`, which runs
+`Base.metadata.create_all(bind=engine)` and then a small inline compatibility
+migration block for selected columns/tables.
+
+## Current model families
+
+| Table | Model | Purpose |
+| --- | --- | --- |
+| `users` | `User` | account identity, password hash, verification, Google id, session version |
+| `game_sessions` | `GameSession` | session metadata, owner, session code, ban list, rules JSON, game mode |
+| `game_players` | `GamePlayer` | user membership in a session, role, connection state, active table |
+| `virtual_tables` | `VirtualTable` | persisted table state, dimensions, position, layers, lighting, grid, terrain, cover |
+| `entities` | `Entity` | table sprites/tokens, ownership, character link, transform, vision, token stats |
+| `assets` | `Asset` | uploaded asset metadata and R2 object references |
+| `session_characters` | `SessionCharacter` | character JSON blobs scoped to a session |
+| `session_invitations` | `SessionInvitation` | invite code, role, limits, expiry, active state |
+| `email_verification_tokens` | `EmailVerificationToken` | signup verification token state |
+| `password_reset_tokens` | `PasswordResetToken` | password reset token hashes and expiry |
+| `pending_email_changes` | `PendingEmailChange` | pending email-change token hashes and expiry |
+| `combat_encounters` | `CombatEncounter` | current combat snapshot by encounter |
+| `combat_actions` | `CombatActionJournal` | accepted combat command journal and idempotency key |
+| `walls` | `Wall` | persistent wall/door segments for movement, light, sight, and sound |
+| `audit_logs` | `AuditLog` | security and audit events |
+| `character_logs` | `CharacterLog` | per-character action log entries |
+| `chat_messages` | `ChatMessage` | persisted session chat messages |
+| `paint_strokes` | `PaintStroke` | persisted table drawing strokes |
+
+## Important relationships
+
+- `GameSession.owner_id` points to `User`.
+- `GamePlayer` joins users to sessions and stores the session role.
+- `VirtualTable.session_id` points to `GameSession`.
+- `Entity.table_id` points to `VirtualTable.id`.
+- `Wall.table_id` and `PaintStroke.table_id` point to
+  `VirtualTable.table_id`.
+- `Entity.character_id` can point to `SessionCharacter.character_id`.
+- `CombatActionJournal.encounter_id` points to
+  `CombatEncounter.encounter_id`.
+
+Several gameplay fields are JSON strings in the database. Examples include
+session rules, table layer settings, combatants, action logs, terrain, cover,
+character data, chat message payloads, and paint stroke data.
+
+## Combat persistence
+
+Accepted combat commands are persisted through
+`CombatPersistenceService.persist_accepted`.
+
+The service:
+
+- finds duplicate commands by `encounter_id`, requester key, and `sequence_id`;
+- creates or updates a `combat_encounters` snapshot;
+- increments `state_version`;
+- appends a `combat_actions` row with command payload, result payload,
+  state-before JSON, state-after hash, and creator.
+
+The `combat_actions` table has a uniqueness constraint on
+`encounter_id`, `requester_key`, and `sequence_id`.
+
+## Asset persistence
+
+Asset metadata is stored in `assets`.
+
+R2 object operations are handled by `R2AssetManager`; server-side upload,
+download, validation, and permission behavior is coordinated by
+`ServerAssetManager`.
+
+The database stores metadata such as:
+
+- original asset name;
+- R2 asset id;
+- content type;
+- file size;
+- xxHash;
+- uploader and optional session;
+- R2 key and bucket.
+
+## Migrations
+
+Numbered migration files currently run from:
+
+```text
+apps/server/database/migrations/
+```
+
+The migration runner is:
+
+```text
+apps/server/database/migrations/run_migrations.py
+```
+
+It:
+
+- expects the database file to exist first;
+- creates a `schema_migrations` table if needed;
+- applies pending numbered `.py` migrations in sorted order;
+- records applied migrations;
+- creates a timestamped SQLite backup before running from its main entrypoint.
+
+Current numbered migrations run from `001_add_obstacle_metadata.py` through
+`023_add_table_environment_state.py`.
+
+## Change checklist
+
+1. Update the SQLAlchemy model.
+2. Add or update CRUD/session helper behavior.
+3. Add a numbered migration when existing databases need a schema change.
+4. Update tests for model, CRUD, route, or protocol behavior.
+5. Update references for environment, protocol, or feature behavior if the
+   persisted contract changed.
+6. For combat persistence changes, update
+   [Combat commands](COMBAT_COMMANDS.md) if command idempotency, rollback, or
+   journal behavior changes.

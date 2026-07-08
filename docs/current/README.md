@@ -53,6 +53,8 @@ older plans or reports in `docs/`.
 
 - [Deployment](operations/DEPLOYMENT.md): current Render service, full app
   build path, required environment, database notes, and smoke checks.
+- [Configuration](operations/CONFIGURATION.md): server settings, production
+  secrets, browser config, R2, CORS, cookies, and change checklist.
 
 ## How To
 

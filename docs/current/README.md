@@ -59,6 +59,8 @@ older plans or reports in `docs/`.
   local and production sequence, rollback reality, and verification.
 - [Backup and restore](operations/BACKUP_AND_RESTORE.md): SQLite backup
   behavior, restore sequence, script caveats, R2 asset notes, and checks.
+- [Security](operations/SECURITY.md): current auth, cookies, roles, rate
+  limits, audit coverage, known gaps, and verification.
 
 ## How To
 

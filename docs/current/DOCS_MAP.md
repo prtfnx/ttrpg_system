@@ -68,6 +68,10 @@ Canvas or WASM contributor:
 | [Add a web UI panel](how-to/ADD_WEB_UI_PANEL.md) | how-to | web contributors | new |
 | [Add a WASM export](how-to/ADD_WASM_EXPORT.md) | how-to | WASM contributors | new |
 | [Add a canvas tool](how-to/ADD_CANVAS_TOOL.md) | how-to | canvas contributors | new |
+| [Add an HTTP route](how-to/ADD_HTTP_ROUTE.md) | how-to | server contributors | new |
+| [Add asset storage behavior](how-to/ADD_ASSET_STORAGE_BEHAVIOR.md) | how-to | asset and WASM contributors | new |
+| [Add character or compendium behavior](how-to/ADD_CHARACTER_OR_COMPENDIUM_BEHAVIOR.md) | how-to | character and compendium contributors | new |
+| [Debug common failures](how-to/DEBUG_COMMON_FAILURES.md) | how-to | contributors | new |
 | [Docs style](DOC_STYLE.md) | reference | doc contributors | new |
 | [Glossary](GLOSSARY.md) | reference | all contributors | new |
 
@@ -104,8 +108,9 @@ Current HTTP router modules under `apps/server/routers/`:
 
 Create these next, in this order:
 
-1. HTTP route, asset storage, and character/compendium how-to guides.
-2. Deployment, backup, restore, and troubleshooting operations docs.
+1. Deployment, backup, restore, and troubleshooting operations docs.
+2. Focused feature pages for auth, sessions, canvas, assets, characters, chat,
+   encounters, and customization.
 3. ADRs for server authority, combat commands, and WASM runtime ownership.
 
 Do not move historical plans into `docs/current/`. Extract current facts into

@@ -63,6 +63,14 @@ older plans or reports in `docs/`.
   bindings, runtime port, and runtime tests.
 - [Add a canvas tool](how-to/ADD_CANVAS_TOOL.md): tool UI, active tool state,
   runtime callbacks, server boundary, and tests.
+- [Add an HTTP route](how-to/ADD_HTTP_ROUTE.md): FastAPI router ownership,
+  authentication, route inclusion, and integration tests.
+- [Add asset storage behavior](how-to/ADD_ASSET_STORAGE_BEHAVIOR.md):
+  presigned URL flow, R2, upload confirmation, hashes, and tests.
+- [Add character or compendium behavior](how-to/ADD_CHARACTER_OR_COMPENDIUM_BEHAVIOR.md):
+  character WebSocket writes, compendium REST reads, ownership, and tests.
+- [Debug common failures](how-to/DEBUG_COMMON_FAILURES.md): boundary-first
+  checks for server, protocol, WASM, persistence, assets, and compendium data.
 
 ## Read by task
 
@@ -98,6 +106,14 @@ WASM or canvas change:
 3. [WASM React boundary](WASM_REACT_BOUNDARY.md)
 4. [Rust/WASM engine](RUST_WASM_ENGINE.md)
 5. [Web UI architecture](WEB_UI_ARCHITECTURE.md)
+
+HTTP, assets, or character data:
+
+1. [Add an HTTP route](how-to/ADD_HTTP_ROUTE.md)
+2. [Add asset storage behavior](how-to/ADD_ASSET_STORAGE_BEHAVIOR.md)
+3. [Add character or compendium behavior](how-to/ADD_CHARACTER_OR_COMPENDIUM_BEHAVIOR.md)
+4. [Debug common failures](how-to/DEBUG_COMMON_FAILURES.md)
+5. [Database schema](reference/DATABASE_SCHEMA.md)
 
 ## Maintenance
 

@@ -62,6 +62,9 @@ Canvas or WASM contributor:
 | [Combat commands](reference/COMBAT_COMMANDS.md) | reference | combat contributors | new |
 | [Environment variables](reference/ENVIRONMENT_VARIABLES.md) | reference | operators and server contributors | new |
 | [Database schema](reference/DATABASE_SCHEMA.md) | reference | persistence contributors | new |
+| [Add a database migration](how-to/ADD_DATABASE_MIGRATION.md) | how-to | persistence contributors | new |
+| [Add a WebSocket message](how-to/ADD_WEBSOCKET_MESSAGE.md) | how-to | protocol contributors | new |
+| [Add a combat command](how-to/ADD_COMBAT_COMMAND.md) | how-to | combat contributors | new |
 | [Docs style](DOC_STYLE.md) | reference | doc contributors | new |
 | [Glossary](GLOSSARY.md) | reference | all contributors | new |
 
@@ -98,7 +101,8 @@ Current HTTP router modules under `apps/server/routers/`:
 
 Create these next, in this order:
 
-1. Dedicated migration how-to.
+1. HTTP route, web UI panel, WASM export, canvas tool, asset storage, and
+   character/compendium how-to guides.
 2. Deployment, backup, restore, and troubleshooting operations docs.
 3. ADRs for server authority, combat commands, and WASM runtime ownership.
 

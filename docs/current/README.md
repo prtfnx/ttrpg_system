@@ -49,6 +49,15 @@ older plans or reports in `docs/`.
 - [Database schema](reference/DATABASE_SCHEMA.md): model families,
   persistence owners, combat journal, assets, and migrations.
 
+## How To
+
+- [Add a database migration](how-to/ADD_DATABASE_MIGRATION.md): model,
+  migration, runner, and verification checklist.
+- [Add a WebSocket message](how-to/ADD_WEBSOCKET_MESSAGE.md): enum, handler,
+  registration, browser protocol, and tests.
+- [Add a combat command](how-to/ADD_COMBAT_COMMAND.md): server-authoritative
+  command schema, mutation, persistence, browser send path, and tests.
+
 ## Read by task
 
 New developer:
@@ -62,17 +71,19 @@ New developer:
 
 Protocol change:
 
-1. [WebSocket messages](reference/WEBSOCKET_MESSAGES.md)
-2. [Protocol boundary](PROTOCOL_BOUNDARY.md)
-3. [Server architecture](SERVER_ARCHITECTURE.md)
-4. [Web UI architecture](WEB_UI_ARCHITECTURE.md)
+1. [Add a WebSocket message](how-to/ADD_WEBSOCKET_MESSAGE.md)
+2. [WebSocket messages](reference/WEBSOCKET_MESSAGES.md)
+3. [Protocol boundary](PROTOCOL_BOUNDARY.md)
+4. [Server architecture](SERVER_ARCHITECTURE.md)
+5. [Web UI architecture](WEB_UI_ARCHITECTURE.md)
 
 Combat change:
 
-1. [Combat commands](reference/COMBAT_COMMANDS.md)
-2. [Battle flow](BATTLE_FLOW.md)
-3. [State ownership](STATE_OWNERSHIP.md)
-4. [Testing strategy](TESTING_STRATEGY.md)
+1. [Add a combat command](how-to/ADD_COMBAT_COMMAND.md)
+2. [Combat commands](reference/COMBAT_COMMANDS.md)
+3. [Battle flow](BATTLE_FLOW.md)
+4. [State ownership](STATE_OWNERSHIP.md)
+5. [Testing strategy](TESTING_STRATEGY.md)
 
 WASM or canvas change:
 

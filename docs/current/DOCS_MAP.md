@@ -44,9 +44,12 @@ Canvas or WASM contributor:
 | Page | Type | Main audience | Status |
 | --- | --- | --- | --- |
 | [README](README.md) | index | all contributors | partial |
+| [Product overview](overview/PRODUCT_OVERVIEW.md) | overview | new contributors | new |
+| [Local first run](tutorials/LOCAL_FIRST_RUN.md) | tutorial | new contributors | new |
 | [App architecture](APP_ARCHITECTURE.md) | explanation | maintainers | usable |
 | [Server architecture](SERVER_ARCHITECTURE.md) | explanation | server contributors | usable |
 | [Web UI architecture](WEB_UI_ARCHITECTURE.md) | explanation | web contributors | usable |
+| [Feature map](explanation/FEATURE_MAP.md) | explanation/reference | feature contributors | new |
 | [Protocol boundary](PROTOCOL_BOUNDARY.md) | explanation/how-to | protocol contributors | usable |
 | [Battle flow](BATTLE_FLOW.md) | explanation/how-to | combat contributors | usable |
 | [WASM React boundary](WASM_REACT_BOUNDARY.md) | explanation/how-to | web and WASM contributors | usable |
@@ -91,15 +94,12 @@ Current HTTP router modules under `apps/server/routers/`:
 
 Create these next, in this order:
 
-1. Product overview: what the app does for DMs and players.
-2. Local first-run tutorial: install, build WASM, run server and web UI.
-3. Feature map: visible app features linked to source and tests.
-4. WebSocket message reference: complete protocol message catalog.
-5. Combat command reference: complete `combat_command` catalog.
-6. Environment and configuration reference.
-7. Database schema and migration guide.
-8. Deployment, backup, restore, and troubleshooting operations docs.
-9. ADRs for server authority, combat commands, and WASM runtime ownership.
+1. WebSocket message reference: complete protocol message catalog.
+2. Combat command reference: complete `combat_command` catalog.
+3. Environment and configuration reference.
+4. Database schema and migration guide.
+5. Deployment, backup, restore, and troubleshooting operations docs.
+6. ADRs for server authority, combat commands, and WASM runtime ownership.
 
 Do not move historical plans into `docs/current/`. Extract current facts into
 focused pages instead.

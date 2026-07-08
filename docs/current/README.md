@@ -7,6 +7,10 @@ older plans or reports in `docs/`.
 
 - [Documentation map](DOCS_MAP.md): reader paths, current coverage, and missing
   durable docs.
+- [Product overview](overview/PRODUCT_OVERVIEW.md): what the app is and how a
+  user enters it.
+- [Local first run](tutorials/LOCAL_FIRST_RUN.md): set up, build, and smoke
+  test the integrated app.
 - [Docs style](DOC_STYLE.md): how to add current docs without drifting into
   plans or guesses.
 - [Glossary](GLOSSARY.md): shared project terms.
@@ -37,10 +41,12 @@ older plans or reports in `docs/`.
 
 New developer:
 
-1. [Development](DEVELOPMENT.md)
-2. [Source map](SOURCE_MAP.md)
-3. [App architecture](APP_ARCHITECTURE.md)
-4. [Testing strategy](TESTING_STRATEGY.md)
+1. [Product overview](overview/PRODUCT_OVERVIEW.md)
+2. [Local first run](tutorials/LOCAL_FIRST_RUN.md)
+3. [Development](DEVELOPMENT.md)
+4. [Source map](SOURCE_MAP.md)
+5. [App architecture](APP_ARCHITECTURE.md)
+6. [Testing strategy](TESTING_STRATEGY.md)
 
 Protocol change:
 

@@ -49,6 +49,12 @@ older plans or reports in `docs/`.
 - [Database schema](reference/DATABASE_SCHEMA.md): model families,
   persistence owners, combat journal, assets, and migrations.
 
+## Feature Guides
+
+- [Auth and roles](features/AUTH_AND_ROLES.md): account auth, JWT cookies,
+  Google OAuth, session roles, permissions, role changes, invitations, and
+  current rough edges.
+
 ## Operations
 
 - [Deployment](operations/DEPLOYMENT.md): current Render service, full app

@@ -57,6 +57,12 @@ older plans or reports in `docs/`.
   registration, browser protocol, and tests.
 - [Add a combat command](how-to/ADD_COMBAT_COMMAND.md): server-authoritative
   command schema, mutation, persistence, browser send path, and tests.
+- [Add a web UI panel](how-to/ADD_WEB_UI_PANEL.md): RightPanel, ToolsPanel,
+  role visibility, state ownership, and tests.
+- [Add a WASM export](how-to/ADD_WASM_EXPORT.md): Rust export, generated
+  bindings, runtime port, and runtime tests.
+- [Add a canvas tool](how-to/ADD_CANVAS_TOOL.md): tool UI, active tool state,
+  runtime callbacks, server boundary, and tests.
 
 ## Read by task
 
@@ -87,9 +93,11 @@ Combat change:
 
 WASM or canvas change:
 
-1. [WASM React boundary](WASM_REACT_BOUNDARY.md)
-2. [Rust/WASM engine](RUST_WASM_ENGINE.md)
-3. [Web UI architecture](WEB_UI_ARCHITECTURE.md)
+1. [Add a canvas tool](how-to/ADD_CANVAS_TOOL.md)
+2. [Add a WASM export](how-to/ADD_WASM_EXPORT.md)
+3. [WASM React boundary](WASM_REACT_BOUNDARY.md)
+4. [Rust/WASM engine](RUST_WASM_ENGINE.md)
+5. [Web UI architecture](WEB_UI_ARCHITECTURE.md)
 
 ## Maintenance
 

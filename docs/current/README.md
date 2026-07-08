@@ -57,6 +57,8 @@ older plans or reports in `docs/`.
   secrets, browser config, R2, CORS, cookies, and change checklist.
 - [Database migrations](operations/DATABASE_MIGRATIONS.md): runner behavior,
   local and production sequence, rollback reality, and verification.
+- [Backup and restore](operations/BACKUP_AND_RESTORE.md): SQLite backup
+  behavior, restore sequence, script caveats, R2 asset notes, and checks.
 
 ## How To
 

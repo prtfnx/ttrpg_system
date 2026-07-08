@@ -49,6 +49,11 @@ older plans or reports in `docs/`.
 - [Database schema](reference/DATABASE_SCHEMA.md): model families,
   persistence owners, combat journal, assets, and migrations.
 
+## Operations
+
+- [Deployment](operations/DEPLOYMENT.md): current Render service, full app
+  build path, required environment, database notes, and smoke checks.
+
 ## How To
 
 - [Add a database migration](how-to/ADD_DATABASE_MIGRATION.md): model,

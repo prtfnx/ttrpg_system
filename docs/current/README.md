@@ -55,6 +55,8 @@ older plans or reports in `docs/`.
   build path, required environment, database notes, and smoke checks.
 - [Configuration](operations/CONFIGURATION.md): server settings, production
   secrets, browser config, R2, CORS, cookies, and change checklist.
+- [Database migrations](operations/DATABASE_MIGRATIONS.md): runner behavior,
+  local and production sequence, rollback reality, and verification.
 
 ## How To
 

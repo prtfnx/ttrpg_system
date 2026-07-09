@@ -13,7 +13,7 @@ Current docs already separate these concerns:
 
 - `docs/current/README.md` is the entry point for current documentation.
 - `docs/current/DOC_STYLE.md` defines the house style.
-- `docs/current/DOCS_MAP.md` maps current pages and missing durable docs.
+- `docs/current/DOCS_MAP.md` maps current pages and maintenance notes.
 - `docs/DOCUMENTATION_COMPLETION_PLAN_2026-07-08.md` and
   `docs/DOCUMENTATION_PROGRESS_2026-07-08.md` stay outside `docs/current/`.
 

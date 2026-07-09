@@ -35,7 +35,7 @@ External links and same-page anchors are skipped.
 
 ## Fixing Failures
 
-For a broken relative link, update the target path or add the missing durable
+For a broken relative link, update the target path or add the missing current
 page. If the intended target is historical context, do not make it the primary
 authority for a current page.
 

@@ -76,6 +76,12 @@ older plans or reports in `docs/`.
   current browser/server gaps.
 - [Chat](features/CHAT.md): chat send/history flow, persistence, whispers,
   optimistic browser state, overlay/panel UI, and roll display.
+- [Encounters](features/ENCOUNTERS.md): choice encounter prompts, in-memory
+  engine state, browser combat UI, combat encounter persistence boundary, and
+  current integration edges.
+- [Settings and customization](features/SETTINGS_AND_CUSTOMIZATION.md): account
+  settings, session settings, table settings, browser preferences, performance
+  settings, and persistence ownership.
 
 ## Operations
 
@@ -143,8 +149,9 @@ Combat change:
 1. [Add a combat command](how-to/ADD_COMBAT_COMMAND.md)
 2. [Combat commands](reference/COMBAT_COMMANDS.md)
 3. [Battle flow](BATTLE_FLOW.md)
-4. [State ownership](STATE_OWNERSHIP.md)
-5. [Testing strategy](TESTING_STRATEGY.md)
+4. [Encounters](features/ENCOUNTERS.md)
+5. [State ownership](STATE_OWNERSHIP.md)
+6. [Testing strategy](TESTING_STRATEGY.md)
 
 WASM or canvas change:
 
@@ -174,6 +181,14 @@ Session or table behavior:
 6. [Auth and roles](features/AUTH_AND_ROLES.md)
 7. [WebSocket messages](reference/WEBSOCKET_MESSAGES.md)
 8. [State ownership](STATE_OWNERSHIP.md)
+
+Settings or customization:
+
+1. [Settings and customization](features/SETTINGS_AND_CUSTOMIZATION.md)
+2. [Auth and roles](features/AUTH_AND_ROLES.md)
+3. [Sessions and invitations](features/SESSIONS_AND_INVITATIONS.md)
+4. [Tables and canvas](features/TABLES_AND_CANVAS.md)
+5. [State ownership](STATE_OWNERSHIP.md)
 
 ## Maintenance
 

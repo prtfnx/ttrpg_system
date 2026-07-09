@@ -6,7 +6,7 @@ without reading the whole tree.
 Status: partial. This map covers the current docs and the next durable docs to
 create. It should change as pages are added.
 
-Last source audit: 2026-07-08
+Last source audit: 2026-07-09
 
 ## Reader paths
 
@@ -71,6 +71,8 @@ Canvas or WASM contributor:
 | [Assets and storage](features/ASSETS_AND_STORAGE.md) | feature guide | asset and storage contributors | new |
 | [Characters and compendiums](features/CHARACTERS_AND_COMPENDIUMS.md) | feature guide | character and compendium contributors | new |
 | [Chat](features/CHAT.md) | feature guide | chat contributors | new |
+| [Encounters](features/ENCOUNTERS.md) | feature guide | combat and encounter contributors | new |
+| [Settings and customization](features/SETTINGS_AND_CUSTOMIZATION.md) | feature guide | settings and UI contributors | new |
 | [Deployment](operations/DEPLOYMENT.md) | operations | operators and maintainers | new |
 | [Configuration](operations/CONFIGURATION.md) | operations | operators and maintainers | new |
 | [Database migrations](operations/DATABASE_MIGRATIONS.md) | operations | operators and persistence maintainers | new |
@@ -124,8 +126,8 @@ Current HTTP router modules under `apps/server/routers/`:
 
 Create these next, in this order:
 
-1. Focused feature pages for encounters and customization.
-2. ADRs for server authority, combat commands, and WASM runtime ownership.
+1. ADRs for server authority, combat commands, and WASM runtime ownership.
+2. Docs quality checks for broken relative links and required metadata.
 
 Do not move historical plans into `docs/current/`. Extract current facts into
 focused pages instead.

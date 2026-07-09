@@ -32,6 +32,7 @@ Keep ADRs short. They record durable decisions, not implementation plans.
 - [ADR-003: React Owns UI Workflow, Server Owns Accepted State](ADR-003-react-ui-server-accepted-state.md)
 - [ADR-004: WasmRuntime Owns the Rust Boundary](ADR-004-wasm-runtime-owns-rust-boundary.md)
 - [ADR-005: Core-Table Is Reusable Domain Logic](ADR-005-core-table-is-reusable-domain-logic.md)
+- [ADR-006: Docs Current Is Current Truth](ADR-006-docs-current-is-current-truth.md)
 
 ## When To Add One
 

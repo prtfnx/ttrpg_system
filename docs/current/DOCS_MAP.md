@@ -80,6 +80,8 @@ Canvas or WASM contributor:
 | [Security](operations/SECURITY.md) | operations | operators and maintainers | new |
 | [Observability and logging](operations/OBSERVABILITY_AND_LOGGING.md) | operations | operators and maintainers | new |
 | [Release checklist](operations/RELEASE_CHECKLIST.md) | operations | operators and maintainers | new |
+| [Architecture decisions](decisions/README.md) | index | maintainers | new |
+| [ADR-001: Server authority for multiplayer state](decisions/ADR-001-server-authority-for-multiplayer-state.md) | decision | maintainers | new |
 | [Add a database migration](how-to/ADD_DATABASE_MIGRATION.md) | how-to | persistence contributors | new |
 | [Add a WebSocket message](how-to/ADD_WEBSOCKET_MESSAGE.md) | how-to | protocol contributors | new |
 | [Add a combat command](how-to/ADD_COMBAT_COMMAND.md) | how-to | combat contributors | new |
@@ -126,7 +128,8 @@ Current HTTP router modules under `apps/server/routers/`:
 
 Create these next, in this order:
 
-1. ADRs for server authority, combat commands, and WASM runtime ownership.
+1. ADRs for combat commands, React/server state split, WASM runtime ownership,
+   `core-table` ownership, and docs/current policy.
 2. Docs quality checks for broken relative links and required metadata.
 
 Do not move historical plans into `docs/current/`. Extract current facts into

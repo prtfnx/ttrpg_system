@@ -1,0 +1,36 @@
+# Architecture Decisions
+
+Audience: maintainers and contributors who need the reason behind current
+architecture rules.
+
+Status: usable.
+
+Last source audit: 2026-07-09
+
+## Format
+
+Decision pages use this shape:
+
+```markdown
+# ADR-NNN: Title
+
+Status: accepted | proposed | superseded
+Date: YYYY-MM-DD
+
+## Context
+## Decision
+## Consequences
+## Links
+```
+
+Keep ADRs short. They record durable decisions, not implementation plans.
+
+## Current Decisions
+
+- [ADR-001: Server Authority for Multiplayer State](ADR-001-server-authority-for-multiplayer-state.md)
+
+## When To Add One
+
+Add an ADR when a rule should survive refactors and code reviews, especially
+around authority, persistence, protocol shape, React/server ownership,
+Rust/WASM boundaries, or documentation policy.

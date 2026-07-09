@@ -102,6 +102,14 @@ older plans or reports in `docs/`.
   preflight, tests, full build artifacts, Render deployment caveats, smoke
   checks, and rollback notes.
 
+## Decisions
+
+- [Architecture decisions](decisions/README.md): accepted architecture choices
+  that should survive refactors.
+- [ADR-001: Server authority for multiplayer state](decisions/ADR-001-server-authority-for-multiplayer-state.md):
+  why shared state is accepted by server routes, protocol handlers, and
+  persistence before browsers mirror it.
+
 ## How To
 
 - [Add a database migration](how-to/ADD_DATABASE_MIGRATION.md): model,

@@ -32,6 +32,7 @@ themselves.
    definitions.
 6. If the Rust exports changed, rebuild generated WASM bindings before testing
    the browser path.
+7. Run `pnpm.cmd run docs:check` if any current docs changed.
 
 ## Local verification
 
@@ -75,6 +76,12 @@ The `-Test` mode currently runs Rust native tests and web jsdom tests. It does
 not run Python tests. The full build mode builds WASM, builds Vite, copies
 `apps/web-ui/dist` to `apps/server/static/ui`, copies generated WASM under that
 static UI folder, and runs `apps/server/scripts/update_vite_assets.py`.
+
+Docs:
+
+```powershell
+pnpm.cmd run docs:check
+```
 
 ## Build artifacts to check
 

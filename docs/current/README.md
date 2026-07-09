@@ -5,8 +5,8 @@ older plans or reports in `docs/`.
 
 ## Start here
 
-- [Documentation map](DOCS_MAP.md): reader paths, current coverage, and missing
-  durable docs.
+- [Documentation map](DOCS_MAP.md): reader paths, current coverage, and
+  maintenance notes.
 - [Product overview](overview/PRODUCT_OVERVIEW.md): what the app is and how a
   user enters it.
 - [Local first run](tutorials/LOCAL_FIRST_RUN.md): set up, build, and smoke
@@ -48,6 +48,8 @@ older plans or reports in `docs/`.
   configuration, secrets, email, R2, and Render notes.
 - [Database schema](reference/DATABASE_SCHEMA.md): model families,
   persistence owners, combat journal, assets, and migrations.
+- [Docs quality checks](reference/DOCS_QUALITY_CHECKS.md): local link and
+  metadata checks for `docs/current/`.
 
 ## Feature Guides
 
@@ -109,6 +111,16 @@ older plans or reports in `docs/`.
 - [ADR-001: Server authority for multiplayer state](decisions/ADR-001-server-authority-for-multiplayer-state.md):
   why shared state is accepted by server routes, protocol handlers, and
   persistence before browsers mirror it.
+- [ADR-002: Command-oriented combat mutations](decisions/ADR-002-command-oriented-combat-mutations.md):
+  why combat writes use `combat_command`.
+- [ADR-003: React owns UI workflow, server owns accepted state](decisions/ADR-003-react-ui-server-accepted-state.md):
+  where local UI state ends and accepted state begins.
+- [ADR-004: WasmRuntime owns the Rust boundary](decisions/ADR-004-wasm-runtime-owns-rust-boundary.md):
+  why feature code goes through the runtime instead of generated bindings.
+- [ADR-005: Core-table is reusable domain logic](decisions/ADR-005-core-table-is-reusable-domain-logic.md):
+  what belongs in the shared Python package.
+- [ADR-006: Docs current is current truth](decisions/ADR-006-docs-current-is-current-truth.md):
+  why plans and progress notes stay outside `docs/current/`.
 
 ## How To
 
@@ -206,3 +218,4 @@ Settings or customization:
   language instead of moving the whole file unchanged.
 - Check source code and tests before writing facts. If a page is correct but
   incomplete, mark it as partial instead of sounding certain.
+- Run `pnpm.cmd run docs:check` from PowerShell before committing doc changes.

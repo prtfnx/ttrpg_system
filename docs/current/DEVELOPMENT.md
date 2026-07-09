@@ -87,6 +87,14 @@ behavior. Use browser WASM tests for canvas, WebGL, and DOM-bound behavior.
 Current docs live in `docs/current/`. Treat other docs as historical until
 reviewed against source code.
 
+Run from the repository root:
+
+```powershell
+pnpm.cmd run docs:check
+```
+
+The checker validates relative links and required current-doc metadata.
+
 When adding docs:
 
 - Start from code and tests.

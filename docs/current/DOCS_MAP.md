@@ -3,8 +3,8 @@
 Audience: maintainers and contributors who need to find the right current doc
 without reading the whole tree.
 
-Status: partial. This map covers the current docs and the next durable docs to
-create. It should change as pages are added.
+Status: usable. This map covers the current docs and maintenance notes. It
+should change as pages are added.
 
 Last source audit: 2026-07-09
 
@@ -43,7 +43,7 @@ Canvas or WASM contributor:
 
 | Page | Type | Main audience | Status |
 | --- | --- | --- | --- |
-| [README](README.md) | index | all contributors | partial |
+| [README](README.md) | index | all contributors | usable |
 | [Product overview](overview/PRODUCT_OVERVIEW.md) | overview | new contributors | new |
 | [Local first run](tutorials/LOCAL_FIRST_RUN.md) | tutorial | new contributors | new |
 | [App architecture](APP_ARCHITECTURE.md) | explanation | maintainers | usable |
@@ -130,11 +130,12 @@ Current HTTP router modules under `apps/server/routers/`:
 
 `auth`, `compendium`, `demo`, `game`, `invitations`, `users`.
 
-## Missing durable docs
+## Maintenance Notes
 
-Create these next, in this order:
-
-1. Review current docs for duplication and stale historical wording.
+No durable doc gaps remain from
+`docs/DOCUMENTATION_COMPLETION_PLAN_2026-07-08.md`.
 
 Do not move historical plans into `docs/current/`. Extract current facts into
 focused pages instead.
+
+Run `pnpm.cmd run docs:check` after changing current docs.

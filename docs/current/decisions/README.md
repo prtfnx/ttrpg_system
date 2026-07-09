@@ -28,6 +28,8 @@ Keep ADRs short. They record durable decisions, not implementation plans.
 ## Current Decisions
 
 - [ADR-001: Server Authority for Multiplayer State](ADR-001-server-authority-for-multiplayer-state.md)
+- [ADR-002: Command-Oriented Combat Mutations](ADR-002-command-oriented-combat-mutations.md)
+- [ADR-003: React Owns UI Workflow, Server Owns Accepted State](ADR-003-react-ui-server-accepted-state.md)
 
 ## When To Add One
 

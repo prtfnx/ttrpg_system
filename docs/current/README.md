@@ -59,6 +59,12 @@ older plans or reports in `docs/`.
   persistence.
 - [Tables and canvas](features/TABLES_AND_CANVAS.md): table list/create/load,
   active-table switching, canvas ownership, table settings, and WASM boundary.
+- [Sprites, tokens, and entities](features/SPRITES_TOKENS_AND_ENTITIES.md):
+  sprite protocol, token authority, entity persistence, text sprites,
+  character links, and vision fields.
+- [Walls, lighting, fog, and vision](features/WALLS_LIGHTING_FOG_AND_VISION.md):
+  walls, doors, fog rectangles, table lighting settings, vision polygons, and
+  WASM rendering responsibilities.
 
 ## Operations
 
@@ -149,9 +155,11 @@ Session or table behavior:
 
 1. [Sessions and invitations](features/SESSIONS_AND_INVITATIONS.md)
 2. [Tables and canvas](features/TABLES_AND_CANVAS.md)
-3. [Auth and roles](features/AUTH_AND_ROLES.md)
-4. [WebSocket messages](reference/WEBSOCKET_MESSAGES.md)
-5. [State ownership](STATE_OWNERSHIP.md)
+3. [Sprites, tokens, and entities](features/SPRITES_TOKENS_AND_ENTITIES.md)
+4. [Walls, lighting, fog, and vision](features/WALLS_LIGHTING_FOG_AND_VISION.md)
+5. [Auth and roles](features/AUTH_AND_ROLES.md)
+6. [WebSocket messages](reference/WEBSOCKET_MESSAGES.md)
+7. [State ownership](STATE_OWNERSHIP.md)
 
 ## Maintenance
 

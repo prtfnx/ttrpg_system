@@ -71,6 +71,11 @@ older plans or reports in `docs/`.
 - [Assets and storage](features/ASSETS_AND_STORAGE.md): asset upload/download,
   R2 metadata, xxHash, pending upload confirmation, texture loading, and known
   storage gaps.
+- [Characters and compendiums](features/CHARACTERS_AND_COMPENDIUMS.md):
+  character protocol, rolls, XP, token sync, compendium REST routes, and
+  current browser/server gaps.
+- [Chat](features/CHAT.md): chat send/history flow, persistence, whispers,
+  optimistic browser state, overlay/panel UI, and roll display.
 
 ## Operations
 
@@ -154,9 +159,10 @@ HTTP, assets, or character data:
 1. [Add an HTTP route](how-to/ADD_HTTP_ROUTE.md)
 2. [Add asset storage behavior](how-to/ADD_ASSET_STORAGE_BEHAVIOR.md)
 3. [Assets and storage](features/ASSETS_AND_STORAGE.md)
-4. [Add character or compendium behavior](how-to/ADD_CHARACTER_OR_COMPENDIUM_BEHAVIOR.md)
-5. [Debug common failures](how-to/DEBUG_COMMON_FAILURES.md)
-6. [Database schema](reference/DATABASE_SCHEMA.md)
+4. [Characters and compendiums](features/CHARACTERS_AND_COMPENDIUMS.md)
+5. [Add character or compendium behavior](how-to/ADD_CHARACTER_OR_COMPENDIUM_BEHAVIOR.md)
+6. [Debug common failures](how-to/DEBUG_COMMON_FAILURES.md)
+7. [Database schema](reference/DATABASE_SCHEMA.md)
 
 Session or table behavior:
 

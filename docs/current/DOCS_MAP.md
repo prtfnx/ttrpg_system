@@ -69,6 +69,8 @@ Canvas or WASM contributor:
 | [Walls, lighting, fog, and vision](features/WALLS_LIGHTING_FOG_AND_VISION.md) | feature guide | canvas and vision contributors | new |
 | [Measurement and painting](features/MEASUREMENT_AND_PAINTING.md) | feature guide | tool and paint contributors | new |
 | [Assets and storage](features/ASSETS_AND_STORAGE.md) | feature guide | asset and storage contributors | new |
+| [Characters and compendiums](features/CHARACTERS_AND_COMPENDIUMS.md) | feature guide | character and compendium contributors | new |
+| [Chat](features/CHAT.md) | feature guide | chat contributors | new |
 | [Deployment](operations/DEPLOYMENT.md) | operations | operators and maintainers | new |
 | [Configuration](operations/CONFIGURATION.md) | operations | operators and maintainers | new |
 | [Database migrations](operations/DATABASE_MIGRATIONS.md) | operations | operators and persistence maintainers | new |
@@ -122,8 +124,7 @@ Current HTTP router modules under `apps/server/routers/`:
 
 Create these next, in this order:
 
-1. Focused feature pages for characters/compendiums, chat, encounters, and
-   customization.
+1. Focused feature pages for encounters and customization.
 2. ADRs for server authority, combat commands, and WASM runtime ownership.
 
 Do not move historical plans into `docs/current/`. Extract current facts into

@@ -54,6 +54,11 @@ older plans or reports in `docs/`.
 - [Auth and roles](features/AUTH_AND_ROLES.md): account auth, JWT cookies,
   Google OAuth, session roles, permissions, role changes, invitations, and
   current rough edges.
+- [Sessions and invitations](features/SESSIONS_AND_INVITATIONS.md): session
+  entry, player management, invite routes, session rules, game mode, and
+  persistence.
+- [Tables and canvas](features/TABLES_AND_CANVAS.md): table list/create/load,
+  active-table switching, canvas ownership, table settings, and WASM boundary.
 
 ## Operations
 
@@ -139,6 +144,14 @@ HTTP, assets, or character data:
 3. [Add character or compendium behavior](how-to/ADD_CHARACTER_OR_COMPENDIUM_BEHAVIOR.md)
 4. [Debug common failures](how-to/DEBUG_COMMON_FAILURES.md)
 5. [Database schema](reference/DATABASE_SCHEMA.md)
+
+Session or table behavior:
+
+1. [Sessions and invitations](features/SESSIONS_AND_INVITATIONS.md)
+2. [Tables and canvas](features/TABLES_AND_CANVAS.md)
+3. [Auth and roles](features/AUTH_AND_ROLES.md)
+4. [WebSocket messages](reference/WEBSOCKET_MESSAGES.md)
+5. [State ownership](STATE_OWNERSHIP.md)
 
 ## Maintenance
 

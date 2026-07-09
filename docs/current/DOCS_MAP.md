@@ -62,6 +62,7 @@ Canvas or WASM contributor:
 | [Combat commands](reference/COMBAT_COMMANDS.md) | reference | combat contributors | new |
 | [Environment variables](reference/ENVIRONMENT_VARIABLES.md) | reference | operators and server contributors | new |
 | [Database schema](reference/DATABASE_SCHEMA.md) | reference | persistence contributors | new |
+| [Docs quality checks](reference/DOCS_QUALITY_CHECKS.md) | reference | doc contributors | new |
 | [Auth and roles](features/AUTH_AND_ROLES.md) | feature guide | auth and session contributors | new |
 | [Sessions and invitations](features/SESSIONS_AND_INVITATIONS.md) | feature guide | session contributors | new |
 | [Tables and canvas](features/TABLES_AND_CANVAS.md) | feature guide | table and canvas contributors | new |
@@ -133,8 +134,7 @@ Current HTTP router modules under `apps/server/routers/`:
 
 Create these next, in this order:
 
-1. Docs quality checks for broken relative links and required metadata.
-2. Review current docs for duplication and stale historical wording.
+1. Review current docs for duplication and stale historical wording.
 
 Do not move historical plans into `docs/current/`. Extract current facts into
 focused pages instead.

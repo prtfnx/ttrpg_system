@@ -9,6 +9,7 @@
     "test:run": "turbo test:run",
     "test:coverage": "turbo test:coverage",
     "lint": "turbo lint",
+    "docs:check": "python scripts/check_docs.py",
     "bench": "turbo bench",
     "clean": "turbo clean"
   },

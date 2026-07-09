@@ -65,6 +65,12 @@ older plans or reports in `docs/`.
 - [Walls, lighting, fog, and vision](features/WALLS_LIGHTING_FOG_AND_VISION.md):
   walls, doors, fog rectangles, table lighting settings, vision polygons, and
   WASM rendering responsibilities.
+- [Measurement and painting](features/MEASUREMENT_AND_PAINTING.md): local
+  measurement tools, table-unit sync, WASM paint strokes, paint persistence,
+  and join-time paint sync.
+- [Assets and storage](features/ASSETS_AND_STORAGE.md): asset upload/download,
+  R2 metadata, xxHash, pending upload confirmation, texture loading, and known
+  storage gaps.
 
 ## Operations
 
@@ -147,9 +153,10 @@ HTTP, assets, or character data:
 
 1. [Add an HTTP route](how-to/ADD_HTTP_ROUTE.md)
 2. [Add asset storage behavior](how-to/ADD_ASSET_STORAGE_BEHAVIOR.md)
-3. [Add character or compendium behavior](how-to/ADD_CHARACTER_OR_COMPENDIUM_BEHAVIOR.md)
-4. [Debug common failures](how-to/DEBUG_COMMON_FAILURES.md)
-5. [Database schema](reference/DATABASE_SCHEMA.md)
+3. [Assets and storage](features/ASSETS_AND_STORAGE.md)
+4. [Add character or compendium behavior](how-to/ADD_CHARACTER_OR_COMPENDIUM_BEHAVIOR.md)
+5. [Debug common failures](how-to/DEBUG_COMMON_FAILURES.md)
+6. [Database schema](reference/DATABASE_SCHEMA.md)
 
 Session or table behavior:
 
@@ -157,9 +164,10 @@ Session or table behavior:
 2. [Tables and canvas](features/TABLES_AND_CANVAS.md)
 3. [Sprites, tokens, and entities](features/SPRITES_TOKENS_AND_ENTITIES.md)
 4. [Walls, lighting, fog, and vision](features/WALLS_LIGHTING_FOG_AND_VISION.md)
-5. [Auth and roles](features/AUTH_AND_ROLES.md)
-6. [WebSocket messages](reference/WEBSOCKET_MESSAGES.md)
-7. [State ownership](STATE_OWNERSHIP.md)
+5. [Measurement and painting](features/MEASUREMENT_AND_PAINTING.md)
+6. [Auth and roles](features/AUTH_AND_ROLES.md)
+7. [WebSocket messages](reference/WEBSOCKET_MESSAGES.md)
+8. [State ownership](STATE_OWNERSHIP.md)
 
 ## Maintenance
 

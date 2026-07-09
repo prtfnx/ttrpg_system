@@ -84,6 +84,8 @@ Canvas or WASM contributor:
 | [ADR-001: Server authority for multiplayer state](decisions/ADR-001-server-authority-for-multiplayer-state.md) | decision | maintainers | new |
 | [ADR-002: Command-oriented combat mutations](decisions/ADR-002-command-oriented-combat-mutations.md) | decision | combat contributors | new |
 | [ADR-003: React owns UI workflow, server owns accepted state](decisions/ADR-003-react-ui-server-accepted-state.md) | decision | web and protocol contributors | new |
+| [ADR-004: WasmRuntime owns the Rust boundary](decisions/ADR-004-wasm-runtime-owns-rust-boundary.md) | decision | web and WASM contributors | new |
+| [ADR-005: Core-table is reusable domain logic](decisions/ADR-005-core-table-is-reusable-domain-logic.md) | decision | server and domain contributors | new |
 | [Add a database migration](how-to/ADD_DATABASE_MIGRATION.md) | how-to | persistence contributors | new |
 | [Add a WebSocket message](how-to/ADD_WEBSOCKET_MESSAGE.md) | how-to | protocol contributors | new |
 | [Add a combat command](how-to/ADD_COMBAT_COMMAND.md) | how-to | combat contributors | new |
@@ -130,8 +132,7 @@ Current HTTP router modules under `apps/server/routers/`:
 
 Create these next, in this order:
 
-1. ADRs for WASM runtime ownership, `core-table` ownership, and docs/current
-   policy.
+1. ADR for docs/current policy.
 2. Docs quality checks for broken relative links and required metadata.
 
 Do not move historical plans into `docs/current/`. Extract current facts into

@@ -49,6 +49,7 @@ class GameSession(Base):
     tables = relationship("VirtualTable", back_populates="session")
     invitations = relationship("SessionInvitation", back_populates="session")
     chat_messages = relationship("ChatMessage", back_populates="session", cascade="all, delete-orphan")
+    assets = relationship("SessionAsset", back_populates="session", cascade="all, delete-orphan")
 
 
 class GamePlayer(Base):
@@ -175,7 +176,7 @@ class Asset(Base):
     __tablename__ = "assets"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
-    asset_name: Mapped[str] = mapped_column(String(255), unique=True, index=True, nullable=False)  # Original filename
+    asset_name: Mapped[str] = mapped_column(String(255), index=True, nullable=False)  # Stored/display filename
     r2_asset_id: Mapped[str] = mapped_column(String(100), unique=True, index=True, nullable=False)  # R2 asset ID
     content_type: Mapped[str] = mapped_column(String(100), nullable=False)  # MIME type
     file_size: Mapped[int] = mapped_column(Integer, nullable=False)  # Size in bytes
@@ -196,6 +197,55 @@ class Asset(Base):
 
     # Relationships
     uploader = relationship("User")
+    session = relationship("GameSession")
+    session_links = relationship("SessionAsset", back_populates="asset", cascade="all, delete-orphan")
+
+
+class SessionAsset(Base):
+    """Session-visible asset link.
+
+    The binary object remains globally identified by content hash/R2 key, while
+    this table controls which sessions can list or download it.
+    """
+    __tablename__ = "session_assets"
+    __table_args__ = (
+        UniqueConstraint("session_id", "asset_id", name="uq_session_asset"),
+    )
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
+    session_id: Mapped[int] = mapped_column(Integer, ForeignKey("game_sessions.id"), nullable=False, index=True)
+    asset_id: Mapped[int] = mapped_column(Integer, ForeignKey("assets.id"), nullable=False, index=True)
+    display_name: Mapped[str] = mapped_column(String(255), nullable=False)
+    added_by: Mapped[int] = mapped_column(Integer, ForeignKey("users.id"), nullable=False)
+    created_at: Mapped[Optional[datetime]] = mapped_column(DateTime, default=datetime.utcnow)
+    last_accessed: Mapped[Optional[datetime]] = mapped_column(DateTime, default=datetime.utcnow)
+
+    session = relationship("GameSession", back_populates="assets")
+    asset = relationship("Asset", back_populates="session_links")
+    added_by_user = relationship("User", foreign_keys=[added_by])
+
+
+class AssetUploadIntent(Base):
+    """Durable upload transaction created before a presigned R2 PUT is issued."""
+    __tablename__ = "asset_upload_intents"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
+    asset_id: Mapped[str] = mapped_column(String(100), nullable=False, index=True)
+    filename: Mapped[str] = mapped_column(String(255), nullable=False)
+    r2_key: Mapped[str] = mapped_column(String(500), nullable=False)
+    session_id: Mapped[Optional[int]] = mapped_column(Integer, ForeignKey("game_sessions.id"), nullable=True, index=True)
+    session_code: Mapped[str] = mapped_column(String(20), nullable=False, index=True)
+    uploaded_by: Mapped[int] = mapped_column(Integer, ForeignKey("users.id"), nullable=False, index=True)
+    content_type: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)
+    file_size: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
+    xxhash: Mapped[Optional[str]] = mapped_column(String(32), nullable=True, index=True)
+    status: Mapped[str] = mapped_column(String(20), nullable=False, default="awaiting_upload", index=True)
+    error_message: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    created_at: Mapped[Optional[datetime]] = mapped_column(DateTime, default=datetime.utcnow)
+    expires_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True, index=True)
+    confirmed_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
+
+    uploader = relationship("User", foreign_keys=[uploaded_by])
     session = relationship("GameSession")
 
 class SessionCharacter(Base):

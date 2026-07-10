@@ -67,6 +67,45 @@ def _run_migrations():
         "CREATE INDEX IF NOT EXISTS ix_chat_messages_table_id ON chat_messages (table_id)",
         "CREATE INDEX IF NOT EXISTS ix_chat_messages_created_at ON chat_messages (created_at)",
         "CREATE INDEX IF NOT EXISTS ix_chat_messages_session_created_at ON chat_messages (session_id, created_at)",
+        """
+        CREATE TABLE IF NOT EXISTS session_assets (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            session_id INTEGER NOT NULL REFERENCES game_sessions(id) ON DELETE CASCADE,
+            asset_id INTEGER NOT NULL REFERENCES assets(id) ON DELETE CASCADE,
+            display_name VARCHAR(255) NOT NULL,
+            added_by INTEGER NOT NULL REFERENCES users(id),
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            last_accessed TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            CONSTRAINT uq_session_asset UNIQUE (session_id, asset_id)
+        )
+        """,
+        "CREATE INDEX IF NOT EXISTS ix_session_assets_session_id ON session_assets (session_id)",
+        "CREATE INDEX IF NOT EXISTS ix_session_assets_asset_id ON session_assets (asset_id)",
+        """
+        CREATE TABLE IF NOT EXISTS asset_upload_intents (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            asset_id VARCHAR(100) NOT NULL,
+            filename VARCHAR(255) NOT NULL,
+            r2_key VARCHAR(500) NOT NULL,
+            session_id INTEGER REFERENCES game_sessions(id),
+            session_code VARCHAR(20) NOT NULL,
+            uploaded_by INTEGER NOT NULL REFERENCES users(id),
+            content_type VARCHAR(100),
+            file_size INTEGER,
+            xxhash VARCHAR(32),
+            status VARCHAR(20) NOT NULL DEFAULT 'awaiting_upload',
+            error_message TEXT,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            expires_at TIMESTAMP,
+            confirmed_at TIMESTAMP
+        )
+        """,
+        "CREATE INDEX IF NOT EXISTS ix_asset_upload_intents_asset_id ON asset_upload_intents (asset_id)",
+        "CREATE INDEX IF NOT EXISTS ix_asset_upload_intents_session_id ON asset_upload_intents (session_id)",
+        "CREATE INDEX IF NOT EXISTS ix_asset_upload_intents_session_code ON asset_upload_intents (session_code)",
+        "CREATE INDEX IF NOT EXISTS ix_asset_upload_intents_uploaded_by ON asset_upload_intents (uploaded_by)",
+        "CREATE INDEX IF NOT EXISTS ix_asset_upload_intents_status ON asset_upload_intents (status)",
+        "CREATE INDEX IF NOT EXISTS ix_asset_upload_intents_expires_at ON asset_upload_intents (expires_at)",
     ]
     with engine.connect() as conn:
         for sql in migrations:

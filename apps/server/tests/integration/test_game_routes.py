@@ -106,6 +106,17 @@ class TestGameSessionAccess:
         response = auth_client.get(f"/game/session/{test_game_session.session_code}")
         assert response.status_code == 200
 
+    def test_session_page_uses_membership_role(self, client, game_session_with_players, co_dm_user):
+        from routers.users import create_access_token
+
+        token = create_access_token(data={"sub": co_dm_user.username, "sv": co_dm_user.session_version or 0})
+        client.cookies.set("token", token)
+
+        response = client.get(f"/game/session/{game_session_with_players.session_code}")
+
+        assert response.status_code == 200
+        assert b'"userRole": "co_dm"' in response.content
+
     def test_access_session_requires_membership(self, client, test_game_session, player_user):
         from routers.users import create_access_token
 
@@ -113,6 +124,25 @@ class TestGameSessionAccess:
         client.cookies.set("token", token)
 
         response = client.get(f"/game/session/{test_game_session.session_code}", follow_redirects=False)
+
+        assert response.status_code in (302, 403)
+
+    def test_session_me_returns_current_membership(self, auth_client, test_game_session):
+        response = auth_client.get(f"/game/api/sessions/{test_game_session.session_code}/me")
+
+        assert response.status_code == 200
+        data = response.json()
+        assert data["role"] == "owner"
+        assert "visible_layers" in data
+        assert "permissions" in data
+
+    def test_session_me_requires_membership(self, client, test_game_session, player_user):
+        from routers.users import create_access_token
+
+        token = create_access_token(data={"sub": player_user.username, "sv": player_user.session_version or 0})
+        client.cookies.set("token", token)
+
+        response = client.get(f"/game/api/sessions/{test_game_session.session_code}/me", follow_redirects=False)
 
         assert response.status_code in (302, 403)
 

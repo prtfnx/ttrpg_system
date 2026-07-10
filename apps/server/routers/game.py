@@ -126,22 +126,8 @@ async def game_session_page(
         logger.debug("game_session_page: User is not a session member")
         raise HTTPException(status_code=403, detail="Invitation required to access this session")
 
-    # Determine user role - DM if they own the session, otherwise player
-    # Debug: Check what we actually have
-    logger.debug(f"game_session: {game_session}")
-    logger.debug(f"game_session type: {type(game_session)}")
-    logger.debug(f"game_session.__dict__: {game_session.__dict__}")
-
-    # Try accessing using getattr safely
-    session_owner_id = getattr(game_session, 'owner_id', None)
-    current_user_id = getattr(current_user, 'id', None)
-
-    logger.debug(f"session_owner_id: {session_owner_id}, type: {type(session_owner_id)}")
-    logger.debug(f"current_user_id: {current_user_id}, type: {type(current_user_id)}")
-
-    user_role = "owner" if session_owner_id == current_user_id else "player"
-
-    logger.debug(f"user_role determined: {user_role}")
+    user_role = player.role or "player"
+    logger.debug(f"user_role resolved from membership: {user_role}")
 
     # Serve the React web client - user is already authenticated
     # The existing token cookie from their login will be used by the React client
@@ -316,6 +302,35 @@ async def get_session_players(
         "joined_at": p.joined_at.isoformat() if p.joined_at else None,
         "permissions": get_permissions(p.role)
     } for p in players_data]
+
+@router.get("/api/sessions/{session_code}/me")
+async def get_session_membership(
+    session_code: str,
+    current_user: Annotated[schemas.User, Depends(get_current_active_user)],
+    db: Session = Depends(get_db)
+):
+    """Return the current user's role and permissions in one session."""
+    session = crud.get_game_session_by_code(db, session_code)
+    if not session:
+        raise HTTPException(status_code=404, detail="Session not found")
+
+    player = db.query(models.GamePlayer).filter(
+        models.GamePlayer.session_id == session.id,
+        models.GamePlayer.user_id == current_user.id
+    ).first()
+
+    if not player:
+        raise HTTPException(status_code=403, detail="Access denied")
+
+    role = player.role or "player"
+    return {
+        "session_code": session.session_code,
+        "user_id": current_user.id,
+        "username": current_user.username,
+        "role": role,
+        "permissions": get_permissions(role),
+        "visible_layers": get_visible_layers(role),
+    }
 
 @router.post("/api/sessions/{session_code}/players/{user_id}/role")
 async def change_player_role(

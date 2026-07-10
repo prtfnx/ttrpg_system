@@ -12,6 +12,7 @@ import { logger } from '@shared/utils/logger';
 interface AssetUploadResponse {
   success: boolean;
   asset_id?: string;
+  upload_url?: string;
   presigned_url?: string;
   error?: string;
 }
@@ -88,7 +89,9 @@ class AssetIntegrationService {
       this.handleAssetUploadResponse((event as CustomEvent).detail);
     };
     window.addEventListener('asset-upload-response', handleAssetUploadResponse);
+    window.addEventListener('asset-uploaded', handleAssetUploadResponse);
     this.eventListeners.push(() => window.removeEventListener('asset-upload-response', handleAssetUploadResponse));
+    this.eventListeners.push(() => window.removeEventListener('asset-uploaded', handleAssetUploadResponse));
 
     // Asset upload completed (to R2)
     const handleAssetUploadCompleted = (event: Event) => {
@@ -146,12 +149,13 @@ class AssetIntegrationService {
       return;
     }
 
-    if (data.presigned_url && data.asset_id) {
+    const uploadUrl = data.upload_url || data.presigned_url;
+    if (uploadUrl && data.asset_id) {
       // Proceed with upload to presigned URL
       window.dispatchEvent(new CustomEvent('asset-upload-ready', { 
         detail: { 
           asset_id: data.asset_id, 
-          upload_url: data.presigned_url 
+          upload_url: uploadUrl
         } 
       }));
     }
@@ -288,7 +292,7 @@ class AssetIntegrationService {
       data: { 
         filename: fileName,
         file_size: fileSize,
-        file_type: fileType
+        content_type: fileType
       }
     });
   }

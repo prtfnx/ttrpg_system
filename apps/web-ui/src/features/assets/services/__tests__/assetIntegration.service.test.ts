@@ -32,13 +32,14 @@ afterEach(() => {
 
 describe('AssetIntegrationService', () => {
   describe('initialize / dispose', () => {
-    it('adds 4 event listeners on initialize', () => {
+    it('adds asset event listeners on initialize', () => {
       const spy = vi.spyOn(window, 'addEventListener');
       assetIntegrationService.initialize();
       const calls = spy.mock.calls.map(c => c[0]);
       expect(calls).toContain('asset-downloaded');
       expect(calls).toContain('asset-list-updated');
       expect(calls).toContain('asset-upload-response');
+      expect(calls).toContain('asset-uploaded');
       expect(calls).toContain('asset-upload-completed');
     });
 
@@ -47,7 +48,7 @@ describe('AssetIntegrationService', () => {
       assetIntegrationService.initialize();
       assetIntegrationService.dispose();
       expect((assetIntegrationService as Svc)['eventListeners']).toHaveLength(0);
-      expect(spy).toHaveBeenCalledTimes(4);
+      expect(spy).toHaveBeenCalledTimes(5);
     });
 
     it('dispose is safe when called without initialize', () => {
@@ -84,7 +85,7 @@ describe('AssetIntegrationService', () => {
       const d = received[0].detail.data;
       expect(d.filename).toBe('sprite.png');
       expect(d.file_size).toBe(2048);
-      expect(d.file_type).toBe('image/png');
+      expect(d.content_type).toBe('image/png');
     });
   });
 
@@ -131,6 +132,16 @@ describe('AssetIntegrationService', () => {
       const ready: CustomEvent[] = [];
       window.addEventListener('asset-upload-ready', e => ready.push(e as CustomEvent));
       dispatch('asset-upload-response', { success: true, asset_id: 'a1', presigned_url: 'https://s3.example/upload' });
+      expect(ready).toHaveLength(1);
+      expect(ready[0].detail.asset_id).toBe('a1');
+      expect(ready[0].detail.upload_url).toBe('https://s3.example/upload');
+    });
+
+    it('dispatches asset-upload-ready from canonical asset-uploaded event with upload_url', () => {
+      assetIntegrationService.initialize();
+      const ready: CustomEvent[] = [];
+      window.addEventListener('asset-upload-ready', e => ready.push(e as CustomEvent));
+      dispatch('asset-uploaded', { success: true, asset_id: 'a1', upload_url: 'https://s3.example/upload' });
       expect(ready).toHaveLength(1);
       expect(ready[0].detail.asset_id).toBe('a1');
       expect(ready[0].detail.upload_url).toBe('https://s3.example/upload');

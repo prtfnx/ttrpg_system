@@ -345,7 +345,11 @@ export class WebClientProtocol {
     // Encounters.
     this.registerHandler(MessageType.ENCOUNTER_STATE, async (m) => {
       const { useEncounterStore } = await import('@features/combat/stores/encounterStore');
-      useEncounterStore.getState().setEncounter(m.data as never);
+      useEncounterStore.getState().applyEncounterMessage(m.data);
+    });
+    this.registerHandler(MessageType.ENCOUNTER_RESULT, async (m) => {
+      const { useEncounterStore } = await import('@features/combat/stores/encounterStore');
+      useEncounterStore.getState().applyEncounterMessage(m.data);
     });
     this.registerHandler(MessageType.ENCOUNTER_END, async () => {
       const { useEncounterStore } = await import('@features/combat/stores/encounterStore');

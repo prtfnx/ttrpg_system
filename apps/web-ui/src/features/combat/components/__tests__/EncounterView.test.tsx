@@ -6,6 +6,13 @@ import { EncounterView } from '../EncounterView';
 
 const mockSendMessage = vi.fn();
 
+vi.mock('@/store', () => ({
+  useGameStore: vi.fn((selector?: (s: { userId: number }) => unknown) => {
+    const state = { userId: 7 };
+    return selector ? selector(state) : state;
+  }),
+}));
+
 vi.mock('@lib/api', () => ({
   useOptionalProtocol: vi.fn(() => ({ protocol: { sendMessage: mockSendMessage } })),
 }));
@@ -69,7 +76,9 @@ describe('EncounterView', () => {
         description: '',
         phase: 'awaiting_roll',
         choices: [],
-        pending_roll: { skill: 'Perception', dc: 15, choice_id: 'c1' },
+        pending_rolls: {
+          '7': { roll_skill: 'Perception', roll_dc: 15, choice_id: 'c1' },
+        },
       },
     });
     render(<EncounterView />);
@@ -84,11 +93,11 @@ describe('EncounterView', () => {
         encounter_id: 'e1',
         title: 'Crossroads',
         description: 'What do you do?',
-        phase: 'pending',
+        phase: 'presenting',
         choices: [
-          { id: 'c1', text: 'Fight' },
-          { id: 'c2', text: 'Flee' },
-          { id: 'c3', text: 'Negotiate', requires_roll: true, skill: 'Persuasion', dc: 12 },
+          { choice_id: 'c1', text: 'Fight' },
+          { choice_id: 'c2', text: 'Flee' },
+          { choice_id: 'c3', text: 'Negotiate', requires_roll: true, roll_skill: 'Persuasion', roll_dc: 12 },
         ],
       },
     });
@@ -105,8 +114,8 @@ describe('EncounterView', () => {
         encounter_id: 'e1',
         title: 'Battle',
         description: '',
-        phase: 'pending',
-        choices: [{ id: 'fight', text: 'Attack' }],
+        phase: 'presenting',
+        choices: [{ choice_id: 'fight', text: 'Attack' }],
       },
     });
     render(<EncounterView />);

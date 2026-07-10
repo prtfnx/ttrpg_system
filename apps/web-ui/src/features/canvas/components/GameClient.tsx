@@ -3,7 +3,7 @@ import { RightPanel } from '@app/RightPanel';
 import type { UserInfo } from '@features/auth';
 import { useAuthenticatedWebSocket } from '@features/auth';
 import { ChatOverlay } from '@features/chat';
-import { CombatDock } from '@features/combat';
+import { CombatDock, EncounterView } from '@features/combat';
 import { visionService } from '@features/lighting/services/vision.service';
 import { SessionManagementPanel } from '@features/session';
 import { isDM, type SessionRole } from '@features/session/types/roles';
@@ -277,6 +277,7 @@ const windowManager = useWindowManager();
         <div className={styles.canvasContainer}>
           <GameCanvas />
           <CombatDock />
+          <EncounterView />
           <ChatOverlay />
 
           {/* Panel toggle tabs — always in canvasContainer to avoid overflow clipping */}

@@ -1,3 +1,4 @@
+import { useGameStore } from '@/store';
 import { MessageType } from '@lib/websocket';
 import { useCombatCommands } from '../hooks/useCombatCommands';
 import { useEncounterStore } from '../stores/encounterStore';
@@ -5,6 +6,7 @@ import styles from './EncounterView.module.css';
 
 export function EncounterView() {
   const encounter = useEncounterStore((s) => s.encounter);
+  const userId = useGameStore((s) => s.userId);
   const { sendProtocolMessage } = useCombatCommands();
 
   if (!encounter || encounter.phase === 'setup') return null;
@@ -14,6 +16,10 @@ export function EncounterView() {
 
   const makeChoice = (choice_id: string) =>
     send(MessageType.ENCOUNTER_CHOICE, { encounter_id: encounter.encounter_id, choice_id });
+
+  const pendingRoll = userId != null
+    ? encounter.pending_rolls?.[String(userId)]
+    : undefined;
 
   if (encounter.phase === 'completed') {
     return (
@@ -32,20 +38,21 @@ export function EncounterView() {
     );
   }
 
-  if (encounter.phase === 'awaiting_roll' && encounter.pending_roll) {
-    const { skill, dc } = encounter.pending_roll;
+  if (pendingRoll) {
+    const skill = pendingRoll.roll_skill || pendingRoll.roll_ability || 'Skill';
+    const dc = pendingRoll.roll_dc;
     return (
       <div className={styles.modal}>
         <div className={styles.card}>
           <h3 className={styles.title}>Roll Required</h3>
           <p className={styles.desc}>
-            {skill} check - DC {dc}
+            {skill} check{dc != null ? ` - DC ${dc}` : ''}
           </p>
           <button
             className={styles.choiceBtn}
             onClick={() => send(MessageType.ENCOUNTER_ROLL, {
               encounter_id: encounter.encounter_id,
-              choice_id: encounter.pending_roll!.choice_id,
+              choice_id: pendingRoll.choice_id,
             })}
           >
             Roll {skill}
@@ -62,10 +69,12 @@ export function EncounterView() {
         <p className={styles.desc}>{encounter.description}</p>
         <div className={styles.choices}>
           {encounter.choices.map((c) => (
-            <button key={c.id} className={styles.choiceBtn} onClick={() => makeChoice(c.id)}>
+            <button key={c.choice_id} className={styles.choiceBtn} onClick={() => makeChoice(c.choice_id)}>
               {c.text}
-              {c.requires_roll && c.skill && (
-                <span className={styles.rollHint}> [{c.skill} DC {c.dc}]</span>
+              {c.requires_roll && (c.roll_skill || c.roll_ability) && (
+                <span className={styles.rollHint}>
+                  {' '}[{c.roll_skill || c.roll_ability}{c.roll_dc != null ? ` DC ${c.roll_dc}` : ''}]
+                </span>
               )}
             </button>
           ))}

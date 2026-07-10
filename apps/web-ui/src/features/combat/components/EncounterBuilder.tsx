@@ -37,11 +37,11 @@ export function EncounterBuilder() {
       choices: choices
         .filter((c) => c.text.trim())
         .map((c, i) => ({
-          id: `c${i}`,
+          choice_id: `c${i}`,
           text: c.text.trim(),
           requires_roll: c.requires_roll,
-          skill: c.requires_roll ? c.skill : undefined,
-          dc: c.requires_roll ? Number(c.dc) : undefined,
+          roll_skill: c.requires_roll ? c.skill : undefined,
+          roll_dc: c.requires_roll ? Number(c.dc) : undefined,
         })),
     };
     sendProtocolMessage(MessageType.ENCOUNTER_START, payload);

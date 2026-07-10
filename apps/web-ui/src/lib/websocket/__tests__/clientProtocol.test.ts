@@ -35,6 +35,7 @@ import { WebClientProtocol } from '../clientProtocol';
 import { MessageType } from '../message';
 import { useCombatStore } from '@features/combat/stores/combatStore';
 import { useCoverStore } from '@features/combat/stores/coverStore';
+import { useEncounterStore } from '@features/combat/stores/encounterStore';
 
 // ---------------------------------------------------------------------------
 // Store mock helpers
@@ -618,6 +619,26 @@ describe('WebClientProtocol', () => {
       await dispatch(p, 'error', { message: 'bad' });
       window.removeEventListener('protocol-error', handler);
       expect(handler).toHaveBeenCalledOnce();
+    });
+
+    it('ENCOUNTER_RESULT updates the encounter store from server snapshot', async () => {
+      const p = makeProtocol();
+      useEncounterStore.setState({ encounter: null });
+
+      await dispatch(p, 'encounter_result', {
+        player_id: '1',
+        status: 'choice_recorded',
+        encounter: {
+          encounter_id: 'enc-1',
+          title: 'Crossroads',
+          description: 'Pick one',
+          phase: 'awaiting_choice',
+          choices: [{ choice_id: 'left', text: 'Left' }],
+        },
+      });
+
+      expect(useEncounterStore.getState().encounter?.encounter_id).toBe('enc-1');
+      expect(useEncounterStore.getState().encounter?.choices[0].choice_id).toBe('left');
     });
 
     it('ACTION_RESULT confirms the optimistic sprite action by sequence id', async () => {

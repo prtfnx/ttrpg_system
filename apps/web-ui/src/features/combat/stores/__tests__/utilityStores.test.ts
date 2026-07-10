@@ -79,6 +79,43 @@ describe('useEncounterStore', () => {
     useEncounterStore.getState().setEncounter(makeEncounter('e2'));
     expect(useEncounterStore.getState().encounter?.encounter_id).toBe('e2');
   });
+
+  it('applyEncounterMessage unwraps server encounter envelope', () => {
+    useEncounterStore.getState().applyEncounterMessage({
+      encounter: {
+        encounter_id: 'env-1',
+        title: 'Crossroads',
+        description: 'Pick a road',
+        phase: 'presenting',
+        choices: [{ choice_id: 'left', text: 'Left' }],
+      },
+    });
+    const encounter = useEncounterStore.getState().encounter;
+    expect(encounter?.encounter_id).toBe('env-1');
+    expect(encounter?.choices[0].choice_id).toBe('left');
+  });
+
+  it('applyEncounterMessage normalizes legacy browser choice aliases', () => {
+    useEncounterStore.getState().applyEncounterMessage({
+      encounter: {
+        encounter_id: 'legacy-1',
+        title: 'Trap',
+        description: '',
+        phase: 'presenting',
+        choices: [{ id: 'inspect', text: 'Inspect', requires_roll: true, skill: 'Investigation', dc: '14' }],
+      },
+    });
+    const choice = useEncounterStore.getState().encounter?.choices[0];
+    expect(choice?.choice_id).toBe('inspect');
+    expect(choice?.roll_skill).toBe('Investigation');
+    expect(choice?.roll_dc).toBe(14);
+  });
+
+  it('applyEncounterMessage clears ended results without a snapshot', () => {
+    useEncounterStore.getState().setEncounter(makeEncounter());
+    useEncounterStore.getState().applyEncounterMessage({ ended: true });
+    expect(useEncounterStore.getState().encounter).toBeNull();
+  });
 });
 
 // ─── oaStore ─────────────────────────────────────────────────────────────────

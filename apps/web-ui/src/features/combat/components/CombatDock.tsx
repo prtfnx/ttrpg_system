@@ -8,6 +8,7 @@ import { ActionEconomyBar } from './ActionEconomyBar';
 import { ActionPanel } from './ActionPanel';
 import { CommitButton } from './CommitButton';
 import { DMCombatPanel } from './DMCombatPanel';
+import { EncounterBuilder } from './EncounterBuilder';
 import { GameModeSwitch } from './GameModeSwitch';
 import { InitiativePanel } from './InitiativePanel';
 import { MovementPlanner } from './MovementPlanner';
@@ -135,6 +136,7 @@ export function CombatDock() {
             <details className={styles.dmTools} open={!combat}>
               <summary>DM controls</summary>
               <GameModeSwitch />
+              <EncounterBuilder />
               <DMCombatPanel />
             </details>
           )}

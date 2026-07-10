@@ -299,12 +299,18 @@ def get_game_mode(db: Session, session_code: str) -> str:
 
 
 # Game Player operations
-def join_game_session(db: Session, session_code: str, user_id: int, character_name: Optional[str] = None):
+def join_game_session(
+    db: Session,
+    session_code: str,
+    user_id: int,
+    character_name: Optional[str] = None,
+    *,
+    create_if_missing: bool = False,
+):
     session = get_game_session_by_code(db, session_code)
     if not session:
         return None
 
-    # Check if user already joined
     existing_player = db.query(models.GamePlayer).filter(
         models.GamePlayer.session_id == session.id,
         models.GamePlayer.user_id == user_id
@@ -316,7 +322,11 @@ def join_game_session(db: Session, session_code: str, user_id: int, character_na
         db.commit()
         return existing_player
 
-    # Create new player — owner keeps their role, everyone else defaults to "player"
+    if not create_if_missing:
+        return None
+
+    # Explicit creation is only for trusted callers such as migrations or
+    # invite acceptance flows. Public session-code entry must not create access.
     role = "owner" if user_id == session.owner_id else "player"
     db_player = models.GamePlayer(
         session_id=session.id,

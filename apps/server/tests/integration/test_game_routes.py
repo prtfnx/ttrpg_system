@@ -60,6 +60,24 @@ class TestJoinGameSession:
         )
         assert response.status_code == 302
 
+    def test_join_session_requires_invitation_for_non_member(self, client, test_game_session, player_user):
+        from routers.users import create_access_token
+
+        token = create_access_token(data={"sub": player_user.username, "sv": player_user.session_version or 0})
+        client.cookies.set("token", token)
+
+        response = client.post(
+            "/game/join",
+            data={
+                "session_code": test_game_session.session_code,
+                "character_name": "Hero"
+            },
+            follow_redirects=False
+        )
+
+        assert response.status_code == 403
+        assert b"invitation" in response.content.lower()
+
     def test_join_session_invalid_code(self, auth_client):
         response = auth_client.post(
             "/game/join",
@@ -87,6 +105,16 @@ class TestGameSessionAccess:
     def test_access_own_session(self, auth_client, test_game_session):
         response = auth_client.get(f"/game/session/{test_game_session.session_code}")
         assert response.status_code == 200
+
+    def test_access_session_requires_membership(self, client, test_game_session, player_user):
+        from routers.users import create_access_token
+
+        token = create_access_token(data={"sub": player_user.username, "sv": player_user.session_version or 0})
+        client.cookies.set("token", token)
+
+        response = client.get(f"/game/session/{test_game_session.session_code}", follow_redirects=False)
+
+        assert response.status_code in (302, 403)
 
     def test_session_code_uniqueness(self, test_db, test_user):
         from routers.game import generate_unique_session_code
@@ -135,6 +163,20 @@ class TestGameFlow:
         location = create_resp.headers["location"]
         session_code = location.split("/")[-1]
 
+        # GM creates an invitation while still authenticated
+        invite_resp = client.post(
+            "/api/invitations/create",
+            json={
+                "session_code": session_code,
+                "pre_assigned_role": "player",
+                "expires_hours": 24,
+                "max_uses": 1,
+            },
+            follow_redirects=False
+        )
+        assert invite_resp.status_code == 201
+        invite_code = invite_resp.json()["invite_code"]
+
         # Register player
         client.cookies.clear()
         client.post(
@@ -155,7 +197,14 @@ class TestGameFlow:
         )
         assert "token" in player_login.cookies
 
-        # Player joins
+        # Player accepts the invitation, which creates membership
+        accept_resp = client.post(
+            f"/api/invitations/{invite_code}/accept",
+            follow_redirects=False
+        )
+        assert accept_resp.status_code == 200
+
+        # Existing member can now join from the dashboard form
         join_resp = client.post(
             "/game/join",
             data={

@@ -92,8 +92,8 @@ async def join_game_session(
         return templates.TemplateResponse(request, "game_lobby.html", {
             "user": current_user,
             "sessions": [session for session, role in crud.get_user_game_sessions(db, current_user.id)],
-            "error": "Could not join game session"
-        })
+            "error": "You need an active invitation before joining this session"
+        }, status_code=403)
 
     return RedirectResponse(
         url=f"/game/session/{session_code}",
@@ -118,12 +118,13 @@ async def game_session_page(
 
     logger.debug(f"game_session_page: Game session found: {game_session.name}")
 
-    # Check if user is part of this session
+    # Check if user is part of this session. Invitations and session creation
+    # create membership; a guessed session code must not.
     player = crud.join_game_session(db, session_code, current_user.id)
     logger.debug(f"game_session_page: Player join result: {player}")
     if not player:
-        logger.debug("game_session_page: Failed to join session")
-        raise HTTPException(status_code=403, detail="Not authorized to join this session")
+        logger.debug("game_session_page: User is not a session member")
+        raise HTTPException(status_code=403, detail="Invitation required to access this session")
 
     # Determine user role - DM if they own the session, otherwise player
     # Debug: Check what we actually have

@@ -38,6 +38,7 @@ def test_submit_roll_choice_requires_roll():
     EncounterEngine.create('sess1', 'Test', 'A test.', CHOICES, ['p1'])
     result = EncounterEngine.submit_choice('sess1', 'p1', 'c2')
     assert result['status'] == 'roll_required'
+    assert result['pending_roll']['choice_id'] == 'c2'
     enc = EncounterEngine.get('sess1')
     assert enc is not None
     assert enc.phase == EncounterPhase.AWAITING_ROLL
@@ -76,3 +77,34 @@ def test_invalid_choice():
 def test_no_active_encounter():
     result = EncounterEngine.submit_choice('sess_none', 'p1', 'c1')
     assert 'error' in result
+
+
+def test_browser_choice_shape_is_normalized():
+    enc = EncounterEngine.create('sess1', 'Browser', 'Shape', [
+        {'id': 'inspect', 'text': 'Inspect', 'requires_roll': True, 'skill': 'Investigation', 'dc': '14'},
+    ], [])
+    choice = enc.choices[0]
+    assert choice.choice_id == 'inspect'
+    assert choice.roll_skill == 'Investigation'
+    assert choice.roll_dc == 14
+
+
+def test_participant_required_when_list_present():
+    EncounterEngine.create('sess1', 'Test', 'A test.', CHOICES, ['p1'])
+    result = EncounterEngine.submit_choice('sess1', 'p2', 'c1')
+    assert result['error'] == 'player is not a participant'
+
+
+def test_stale_encounter_id_rejected():
+    EncounterEngine.create('sess1', 'Test', 'A test.', CHOICES, ['p1'])
+    result = EncounterEngine.submit_choice('sess1', 'p1', 'c1', encounter_id='old')
+    assert result['error'] == 'stale encounter'
+
+
+def test_restore_active_snapshot():
+    enc = EncounterEngine.create('sess1', 'Test', 'A test.', CHOICES, ['p1'])
+    snapshot = enc.to_dict(dm=True)
+    EncounterEngine._active.clear()
+    restored = EncounterEngine.restore(snapshot)
+    assert restored.encounter_id == enc.encounter_id
+    assert EncounterEngine.get('sess1') is restored

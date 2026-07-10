@@ -83,13 +83,6 @@ describe('InviteLink', () => {
     expect(screen.queryByText('Revoke')).not.toBeInTheDocument();
   });
 
-  it('shows Delete button when onDelete is provided', () => {
-    const onDelete = vi.fn();
-    render(<InviteLink invitation={makeInvitation()} onRevoke={vi.fn()} onDelete={onDelete} />);
-    fireEvent.click(screen.getByText('Delete'));
-    expect(onDelete).toHaveBeenCalledWith(1);
-  });
-
   it('shows expires date when expires_at is provided', () => {
     render(<InviteLink invitation={makeInvitation({ expires_at: '2099-12-31T12:00:00Z' })} onRevoke={vi.fn()} />);
     expect(screen.getByText(/Expires/)).toBeInTheDocument();

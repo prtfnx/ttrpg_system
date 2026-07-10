@@ -10,7 +10,6 @@ const mockInvitations = vi.hoisted(() => ({
   error: null as string | null,
   createInvitation: vi.fn(),
   revokeInvitation: vi.fn(),
-  deleteInvitation: vi.fn(),
   refetch: vi.fn()
 }));
 
@@ -36,12 +35,11 @@ Object.defineProperty(window, 'confirm', {
 
 // Mock the InviteLink component to focus on manager behavior
 vi.mock('../InviteLink', () => ({
-  InviteLink: ({ invitation, onRevoke, onDelete }: { invitation: { id: number; pre_assigned_role: string; invite_code: string }; onRevoke: (id: number) => void; onDelete: (id: number) => void }) => (
+  InviteLink: ({ invitation, onRevoke }: { invitation: { id: number; pre_assigned_role: string; invite_code: string }; onRevoke: (id: number) => void }) => (
     <div data-testid={`invite-link-${invitation.id}`}>
       <span>Role: {invitation.pre_assigned_role}</span>
       <span>Code: {invitation.invite_code}</span>
       <button onClick={() => onRevoke(invitation.id)}>Revoke</button>
-      <button onClick={() => onDelete(invitation.id)}>Delete</button>
     </div>
   )
 }));
@@ -305,18 +303,6 @@ describe('InvitationManager - Game Master Invitation Workflows', () => {
       expect(mockToast.success).not.toHaveBeenCalled();
     });
 
-    it('permanently deletes invitation after confirmation', async () => {
-      mockInvitations.deleteInvitation.mockResolvedValue(true);
-
-      render(<InvitationManager sessionCode={sessionCode} onClose={onClose} />);
-
-      await user.click(screen.getAllByText('Delete')[0]);
-
-      expect(window.confirm).toHaveBeenCalledWith('Permanently delete this invitation from the list?');
-      expect(mockInvitations.deleteInvitation).toHaveBeenCalledWith(1);
-      expect(mockToast.success).toHaveBeenCalledWith('Invitation deleted');
-    });
-
     it('handles operation failures gracefully', async () => {
       mockInvitations.revokeInvitation.mockResolvedValue(false);
 
@@ -413,27 +399,6 @@ describe('InvitationManager - Game Master Invitation Workflows', () => {
       });
     });
 
-    it('handles cleanup workflow: review and delete old invitations', async () => {
-      mockInvitations.invitations = [
-        {
-          id: 10,
-          invite_code: 'OLD123',
-          pre_assigned_role: 'player',
-          expires_at: new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString(), // Expired
-          max_uses: 1,
-          current_uses: 0
-        }
-      ];
-      mockInvitations.deleteInvitation.mockResolvedValue(true);
-
-      render(<InvitationManager sessionCode={sessionCode} onClose={onClose} />);
-
-      // Delete the expired invitation
-      await user.click(screen.getByText('Delete'));
-
-      expect(mockInvitations.deleteInvitation).toHaveBeenCalledWith(10);
-      expect(mockToast.success).toHaveBeenCalledWith('Invitation deleted');
-    });
   });
 
   describe('Form validation and user input', () => {

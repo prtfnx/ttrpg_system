@@ -9,7 +9,6 @@ vi.mock('../../services/invitation.service', () => ({
     listSessionInvitations: vi.fn(),
     createInvitation: vi.fn(),
     revokeInvitation: vi.fn(),
-    deleteInvitation: vi.fn(),
   },
 }));
 
@@ -49,7 +48,6 @@ describe('useInvitations', () => {
     vi.mocked(invitationService.listSessionInvitations).mockResolvedValue([...mockInvitations]);
     vi.mocked(invitationService.createInvitation).mockResolvedValue({ ...mockInvitations[0], id: 3 });
     vi.mocked(invitationService.revokeInvitation).mockResolvedValue({ success: true, message: 'revoked' });
-    vi.mocked(invitationService.deleteInvitation).mockResolvedValue({ success: true, message: 'deleted' });
   });
 
   describe('Initialization', () => {
@@ -166,43 +164,6 @@ describe('useInvitations', () => {
 
       expect(success).toBe(false);
       expect(result.current.error).toBe('Revoke failed');
-    });
-  });
-
-  describe('deleteInvitation', () => {
-    it('calls service with invitation id', async () => {
-      const { result } = renderHook(() => useInvitations(sessionCode));
-      await waitFor(() => expect(result.current.invitations).toHaveLength(2));
-
-      await act(async () => {
-        await result.current.deleteInvitation(2);
-      });
-
-      expect(invitationService.deleteInvitation).toHaveBeenCalledWith(2);
-    });
-
-    it('refetches after delete', async () => {
-      const { result } = renderHook(() => useInvitations(sessionCode));
-      await waitFor(() => expect(result.current.invitations).toHaveLength(2));
-
-      await act(async () => {
-        await result.current.deleteInvitation(2);
-      });
-
-      expect(invitationService.listSessionInvitations).toHaveBeenCalledTimes(2);
-    });
-
-    it('returns false and sets error on failure', async () => {
-      vi.mocked(invitationService.deleteInvitation).mockRejectedValueOnce(new Error('Delete failed'));
-      const { result } = renderHook(() => useInvitations(sessionCode));
-
-      let success = true;
-      await act(async () => {
-        success = await result.current.deleteInvitation(2);
-      });
-
-      expect(success).toBe(false);
-      expect(result.current.error).toBe('Delete failed');
     });
   });
 

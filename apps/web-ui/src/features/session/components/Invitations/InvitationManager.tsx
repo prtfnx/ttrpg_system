@@ -13,7 +13,7 @@ interface InvitationManagerProps {
 }
 
 export const InvitationManager: React.FC<InvitationManagerProps> = ({ sessionCode, onClose, standalone }) => {
-  const { invitations, loading, error, refetch: retry, createInvitation, revokeInvitation, deleteInvitation } = useInvitations(sessionCode);
+  const { invitations, loading, error, refetch: retry, createInvitation, revokeInvitation } = useInvitations(sessionCode);
   const [selectedRole, setSelectedRole] = useState<SessionRole>('player');
   const [expiresHours, setExpiresHours] = useState(24);
   const [maxUses, setMaxUses] = useState<string | number>(1);
@@ -56,16 +56,6 @@ export const InvitationManager: React.FC<InvitationManagerProps> = ({ sessionCod
     const success = await revokeInvitation(id);
     if (success) {
       toast.success('Invitation revoked');
-    }
-  };
-
-  const handleDelete = async (id: number) => {
-    if (!confirm('Permanently delete this invitation from the list?')) return;
-
-    logger.debug('Deleting invitation', { id });
-    const success = await deleteInvitation(id);
-    if (success) {
-      toast.success('Invitation deleted');
     }
   };
 
@@ -166,7 +156,6 @@ export const InvitationManager: React.FC<InvitationManagerProps> = ({ sessionCod
                   key={invite.id}
                   invitation={invite}
                   onRevoke={handleRevoke}
-                  onDelete={handleDelete}
                 />
               ))}
             </div>

@@ -6,10 +6,9 @@ import styles from './InviteLink.module.css';
 interface InviteLinkProps {
   invitation: SessionInvitation;
   onRevoke: (id: number) => void;
-  onDelete?: (id: number) => void;
 }
 
-export const InviteLink: React.FC<InviteLinkProps> = ({ invitation, onRevoke, onDelete }) => {
+export const InviteLink: React.FC<InviteLinkProps> = ({ invitation, onRevoke }) => {
   const [copied, setCopied] = useState(false);
 
   // Check if invite_url is already a full URL (starts with http:// or https://)
@@ -89,14 +88,6 @@ export const InviteLink: React.FC<InviteLinkProps> = ({ invitation, onRevoke, on
         </button>
       )}
 
-      {onDelete && (
-        <button
-          className={styles.deleteBtn}
-          onClick={() => onDelete(invitation.id)}
-        >
-          Delete
-        </button>
-      )}
     </div>
   );
 };

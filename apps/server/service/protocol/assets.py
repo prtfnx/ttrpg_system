@@ -4,7 +4,7 @@ from typing import Optional
 import xxhash
 from core_table.protocol import Message, MessageType
 from database.database import SessionLocal
-from database.models import Asset
+from database.models import Asset, GameSession, SessionAsset
 from service.asset_manager import AssetRequest, get_server_asset_manager
 from utils.logger import setup_logger
 from utils.roles import is_dm
@@ -62,6 +62,7 @@ class _AssetsMixin(_ProtocolBase):
                 return Message(MessageType.ASSET_UPLOAD_RESPONSE, {
                     'success': True,
                     'upload_url': response.url,
+                    'presigned_url': response.url,
                     'asset_id': response.asset_id,
                     'expires_in': response.expires_in,
                     'instructions': response.instructions,
@@ -131,14 +132,18 @@ class _AssetsMixin(_ProtocolBase):
             return Message(MessageType.ERROR, {'error': 'Internal server error'})
 
     async def handle_asset_list_request(self, msg: Message, client_id: str) -> Message:
-        """Handle asset list request - return list of assets in R2"""
+        """Handle asset list request - return session-visible asset metadata."""
         logger.debug(f"Handling asset list request from {client_id}: {msg}")
         try:
-            # For now, return empty list - this can be implemented later
+            session_code = (msg.data or {}).get('session_code') or self._get_session_code(msg)
+            if not session_code:
+                return Message(MessageType.ERROR, {'error': 'Session code is required'})
+
+            assets = get_server_asset_manager().get_session_assets(session_code)
             return Message(MessageType.ASSET_LIST_RESPONSE, {
-                'assets': [],
-                'count': 0,
-                'message': 'Asset listing not fully implemented yet'
+                'success': True,
+                'assets': assets,
+                'count': len(assets)
             })
         except Exception as e:
             logger.error(f"Error handling asset list request: {e}")
@@ -332,6 +337,8 @@ class _AssetsMixin(_ProtocolBase):
 
             user_id = self._get_user_id(msg, client_id)
             role = self._get_client_role(client_id)
+            session_code = msg.data.get('session_code') or self._get_session_code(msg)
+            should_delete_object = False
 
             db = SessionLocal()
             try:
@@ -339,24 +346,48 @@ class _AssetsMixin(_ProtocolBase):
                 if not asset:
                     return Message(MessageType.ERROR, {'error': 'Asset not found'})
 
+                session = db.query(GameSession).filter(GameSession.session_code == session_code).first() if session_code else None
+                link = None
+                if session:
+                    link = db.query(SessionAsset).filter(
+                        SessionAsset.session_id == session.id,
+                        SessionAsset.asset_id == asset.id
+                    ).first()
+                    if not link and asset.session_id != session.id:
+                        return Message(MessageType.ERROR, {'error': 'Asset not available in this session'})
+
                 if not is_dm(role) and asset.uploaded_by != user_id:
                     return Message(MessageType.ERROR, {'error': 'Permission denied'})
 
                 r2_key = asset.r2_key
-                db.delete(asset)
+                if link:
+                    db.delete(link)
+                    db.flush()
+                    remaining_links = db.query(SessionAsset).filter(SessionAsset.asset_id == asset.id).count()
+                    should_delete_object = remaining_links == 0 and asset.session_id in (None, session.id)
+                else:
+                    should_delete_object = True
+
+                if should_delete_object:
+                    db.delete(asset)
                 db.commit()
             finally:
                 db.close()
 
             # Delete from R2 (best-effort — DB record already removed)
-            try:
-                asset_manager = get_server_asset_manager()
-                asset_manager.r2_manager.delete_file(r2_key)
-            except Exception as r2_err:
-                logger.warning(f"R2 delete failed for {r2_key}, DB record removed: {r2_err}")
+            if should_delete_object:
+                try:
+                    asset_manager = get_server_asset_manager()
+                    asset_manager.r2_manager.delete_file(r2_key)
+                except Exception as r2_err:
+                    logger.warning(f"R2 delete failed for {r2_key}, DB record removed: {r2_err}")
 
             logger.info(f"Asset {asset_id} deleted by {client_id}")
-            return Message(MessageType.SUCCESS, {'asset_id': asset_id, 'deleted': True})
+            return Message(MessageType.SUCCESS, {
+                'asset_id': asset_id,
+                'deleted': True,
+                'object_deleted': should_delete_object
+            })
         except Exception as e:
             logger.error(f"Error handling asset delete request: {e}")
             return Message(MessageType.ERROR, {'error': 'Internal server error'})

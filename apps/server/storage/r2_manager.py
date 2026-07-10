@@ -482,7 +482,13 @@ class R2AssetManager:
             logger.error(f"Error getting hash for {file_key}: {e}")
             return None
 
-    def generate_presigned_upload_url(self, file_key: str, xxhash: str, expiration: int = 3600) -> Optional[str]:
+    def generate_presigned_upload_url(
+        self,
+        file_key: str,
+        xxhash: str,
+        content_type: Optional[str] = None,
+        expiration: int = 3600
+    ) -> Optional[str]:
         """Generate presigned URL for upload with required xxHash metadata"""
         try:
             # Validate expiration (Cloudflare R2 limit: 7 days)
@@ -491,17 +497,21 @@ class R2AssetManager:
                 logger.warning(f"Expiration {expiration}s exceeds R2 limit, using {max_expiration}s")
                 expiration = max_expiration
 
+            params: Dict[str, Any] = {
+                'Bucket': _settings.r2_bucket_name,
+                'Key': file_key,
+                'Metadata': {
+                    'xxhash': xxhash,
+                    'upload-timestamp': str(int(datetime.now().timestamp()))
+                }
+            }
+            if content_type:
+                params['ContentType'] = content_type
+
             # Generate presigned URL for PUT with required metadata
             url = self.s3_client.generate_presigned_url(
                 'put_object',
-                Params={
-                    'Bucket': _settings.r2_bucket_name,
-                    'Key': file_key,
-                    'Metadata': {
-                        'xxhash': xxhash,
-                        'upload-timestamp': str(int(datetime.now().timestamp()))
-                    }
-                },
+                Params=params,
                 ExpiresIn=expiration
             )
 

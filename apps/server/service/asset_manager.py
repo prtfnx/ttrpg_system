@@ -12,7 +12,7 @@ from typing import Dict, List, Optional, Tuple
 import xxhash
 from config import Settings
 from database.database import SessionLocal
-from database.models import Asset, GameSession
+from database.models import Asset, AssetUploadIntent, GamePlayer, GameSession, SessionAsset
 from storage.r2_manager import R2AssetManager
 
 logger = logging.getLogger(__name__)
@@ -53,8 +53,6 @@ class ServerAssetManager:
 
     def __init__(self):
         self.r2_manager = R2AssetManager()
-        self.asset_registry: Dict[str, dict] = {}  # asset_id -> metadata
-        self.pending_uploads: Dict[str, dict] = {}  # asset_id -> pending upload metadata (NOT in DB yet)
         self.session_permissions: Dict[str, Dict[int, AssetPermission]] = {}  # session_code -> user_id -> permissions
 
         # Rate limiting
@@ -179,6 +177,107 @@ class ServerAssetManager:
         file_ext = os.path.splitext(filename)[1]
         return f"sessions/{session_code}/assets/{asset_id}{file_ext}"
 
+    def _get_session(self, db, session_code: str) -> Optional[GameSession]:
+        return db.query(GameSession).filter(GameSession.session_code == session_code).first()
+
+    def _user_can_access_session(self, db, session: Optional[GameSession], user_id: int) -> bool:
+        if session is None:
+            return True
+        if session.owner_id == user_id:
+            return True
+        return db.query(GamePlayer).filter(
+            GamePlayer.session_id == session.id,
+            GamePlayer.user_id == user_id
+        ).first() is not None
+
+    def _asset_has_session_access(self, db, asset: Asset, session: Optional[GameSession]) -> bool:
+        if session is None:
+            return True
+        linked = db.query(SessionAsset).filter(
+            SessionAsset.session_id == session.id,
+            SessionAsset.asset_id == asset.id
+        ).first()
+        if linked:
+            linked.last_accessed = datetime.utcnow()
+            return True
+        return asset.session_id == session.id
+
+    def _link_asset_to_session(self, db, asset: Asset, session: Optional[GameSession],
+                               user_id: int, display_name: str) -> None:
+        if session is None:
+            return
+        link = db.query(SessionAsset).filter(
+            SessionAsset.session_id == session.id,
+            SessionAsset.asset_id == asset.id
+        ).first()
+        if link:
+            link.last_accessed = datetime.utcnow()
+            return
+        db.add(SessionAsset(
+            session_id=session.id,
+            asset_id=asset.id,
+            display_name=display_name,
+            added_by=user_id,
+            created_at=datetime.utcnow(),
+            last_accessed=datetime.utcnow()
+        ))
+
+    def _link_existing_asset_to_session(self, asset_id: str, session_code: str,
+                                        user_id: int, display_name: str) -> None:
+        db = SessionLocal()
+        try:
+            asset = db.query(Asset).filter(Asset.r2_asset_id == asset_id).first()
+            session = self._get_session(db, session_code)
+            if asset:
+                self._link_asset_to_session(db, asset, session, user_id, display_name)
+                db.commit()
+        except Exception as e:
+            db.rollback()
+            logger.error(f"Error linking duplicate asset {asset_id} to session {session_code}: {e}")
+        finally:
+            db.close()
+
+    def _make_unique_asset_name(self, db, filename: str, asset_id: str) -> str:
+        existing = db.query(Asset).filter(Asset.asset_name == filename).first()
+        if not existing:
+            return filename
+        stem, ext = os.path.splitext(filename)
+        return f"{stem}-{asset_id[:8]}{ext}"
+
+    def _record_upload_intent(self, metadata: dict, expires_in: int) -> None:
+        db = SessionLocal()
+        try:
+            session = self._get_session(db, metadata["session_code"])
+            stale = db.query(AssetUploadIntent).filter(
+                AssetUploadIntent.asset_id == metadata["asset_id"],
+                AssetUploadIntent.session_code == metadata["session_code"],
+                AssetUploadIntent.uploaded_by == metadata["uploaded_by"],
+                AssetUploadIntent.status == "awaiting_upload"
+            ).all()
+            for intent in stale:
+                intent.status = "superseded"
+
+            db.add(AssetUploadIntent(
+                asset_id=metadata["asset_id"],
+                filename=metadata["filename"],
+                r2_key=metadata["r2_key"],
+                session_id=session.id if session else None,
+                session_code=metadata["session_code"],
+                uploaded_by=metadata["uploaded_by"],
+                content_type=metadata.get("content_type"),
+                file_size=metadata.get("file_size"),
+                xxhash=metadata.get("xxhash"),
+                status="awaiting_upload",
+                created_at=datetime.utcnow(),
+                expires_at=datetime.utcnow() + timedelta(seconds=expires_in),
+            ))
+            db.commit()
+        except Exception:
+            db.rollback()
+            raise
+        finally:
+            db.close()
+
     async def request_upload_url(self, request: AssetRequest) -> PresignedUrlResponse:
         """Generate presigned URL for file upload"""
         try:
@@ -252,7 +351,7 @@ class ServerAssetManager:
                     error="Failed to generate upload URL"
                 )
 
-            # Store pending upload metadata (NOT in database yet)
+            # Store durable upload intent metadata.
             pending_metadata = {
                 "asset_id": asset_id,
                 "filename": request.filename,
@@ -267,8 +366,7 @@ class ServerAssetManager:
                 "status": "awaiting_upload"
             }
 
-            # Store in pending uploads (in-memory only, not in database)
-            self.pending_uploads[asset_id] = pending_metadata
+            self._record_upload_intent(pending_metadata, expiry_seconds)
 
             logger.info(f"Generated upload URL for {request.username}: {request.filename} -> {asset_id} (pending confirmation)")
 
@@ -313,24 +411,17 @@ class ServerAssetManager:
               # Get asset metadata from database first, then fallback to memory
             asset_metadata = None
             if request.asset_id:
-                asset_metadata = self._get_asset_by_id_from_db(request.asset_id)
-
-            # Fallback to memory registry if not found in database
-            if not asset_metadata and request.asset_id in self.asset_registry:
-                asset_metadata = self.asset_registry[request.asset_id]
+                asset_metadata = self._get_asset_by_id_from_db(
+                    request.asset_id,
+                    session_code=request.session_code,
+                    user_id=request.user_id
+                )
 
             if not asset_metadata:
                 return PresignedUrlResponse(
                     success=False,
                     error="Asset not found"
                 )
-
-            # Check if asset belongs to the session
-            # if asset_metadata["session_code"] != request.session_code:
-            #     return PresignedUrlResponse(
-            #         success=False,
-            #         error="Asset not available in this session"
-            #     )
 
             # Generate presigned URL (24 hours for session assets)
             expiry_seconds = 86400
@@ -382,6 +473,17 @@ class ServerAssetManager:
                     error="Asset not found",
                     instructions="You may need to upload this asset first"
                 )
+            scoped_metadata = self._get_asset_by_id_from_db(
+                asset_metadata["asset_id"],
+                session_code=session_code,
+                user_id=user_id
+            )
+            if not scoped_metadata:
+                return PresignedUrlResponse(
+                    success=False,
+                    error="Asset not available in this session"
+                )
+            asset_metadata = scoped_metadata
 
             # Generate presigned URL (24 hours for session assets)
             expiry_seconds = 86400
@@ -417,53 +519,68 @@ class ServerAssetManager:
                            error_message: Optional[str] = None) -> bool:
         """Confirm that an upload was completed successfully or failed - CREATES DB ENTRY"""
         try:
-            # Get pending upload metadata
-            pending_metadata = self.pending_uploads.get(asset_id)
-            if not pending_metadata:
-                logger.error(f"Asset {asset_id} not found in pending uploads for confirmation")
-                return False
+            db = SessionLocal()
+            try:
+                intent = db.query(AssetUploadIntent).filter(
+                    AssetUploadIntent.asset_id == asset_id,
+                    AssetUploadIntent.uploaded_by == user_id,
+                    AssetUploadIntent.status == "awaiting_upload"
+                ).order_by(AssetUploadIntent.created_at.desc()).first()
 
-            # Verify user has permission to confirm this upload
-            if pending_metadata.get("uploaded_by") != user_id:
-                logger.error(f"User {user_id} not authorized to confirm upload for asset {asset_id}")
-                return False
+                if not intent:
+                    logger.error(f"Asset {asset_id} has no durable pending upload intent")
+                    return False
 
-            if upload_success:
-                # Move from pending to confirmed and CREATE database entry
-                confirmed_metadata = pending_metadata.copy()
-                confirmed_metadata["status"] = "uploaded"
-                confirmed_metadata["uploaded_at"] = datetime.now().isoformat()
+                if intent.expires_at and intent.expires_at < datetime.utcnow():
+                    intent.status = "expired"
+                    intent.error_message = "Upload confirmation arrived after presigned URL expiry"
+                    db.commit()
+                    logger.error(f"Asset {asset_id} upload intent expired before confirmation")
+                    return False
 
-                # Optionally verify asset exists in R2
-                if self.r2_manager.is_r2_configured():
-                    r2_key = confirmed_metadata.get("r2_key")
-                    if r2_key and await self._verify_asset_in_r2(r2_key):
-                        logger.info(f"Asset {asset_id} confirmed in R2 storage")
-                    else:
-                        logger.warning(f"Asset {asset_id} not found in R2, but marking as uploaded")
+                if not upload_success:
+                    intent.status = "failed"
+                    intent.error_message = error_message
+                    intent.confirmed_at = datetime.utcnow()
+                    db.commit()
+                    logger.warning(f"Asset {asset_id} upload failed: {error_message}")
+                    return True
 
-                # NOW create the database entry (only on successful upload)
-                self._save_asset_to_db(confirmed_metadata)
+                if not await self._verify_asset_in_r2(intent.r2_key):
+                    intent.status = "missing_object"
+                    intent.error_message = "R2 object did not exist at confirmation time"
+                    intent.confirmed_at = datetime.utcnow()
+                    db.commit()
+                    logger.error(f"Asset {asset_id} not found in R2; refusing DB asset commit")
+                    return False
 
-                # Move to main registry and remove from pending
-                self.asset_registry[asset_id] = confirmed_metadata
-                self.pending_uploads.pop(asset_id, None)
+                confirmed_metadata = {
+                    "asset_id": intent.asset_id,
+                    "filename": intent.filename,
+                    "r2_key": intent.r2_key,
+                    "session_code": intent.session_code,
+                    "uploaded_by": intent.uploaded_by,
+                    "file_size": intent.file_size,
+                    "content_type": intent.content_type,
+                    "xxhash": intent.xxhash,
+                    "status": "uploaded",
+                    "uploaded_at": datetime.utcnow().isoformat()
+                }
 
-                logger.info(f"Asset {asset_id} confirmed as uploaded successfully and saved to database")
+                if not self._save_asset_to_db(confirmed_metadata):
+                    intent.status = "metadata_failed"
+                    intent.error_message = "Failed to save asset metadata"
+                    intent.confirmed_at = datetime.utcnow()
+                    db.commit()
+                    return False
 
-            else:
-                # For failed uploads, just remove from pending (no database entry)
-                failed_metadata = pending_metadata.copy()
-                failed_metadata["status"] = "failed"
-                failed_metadata["error"] = error_message
-                failed_metadata["failed_at"] = datetime.now().isoformat()
-
-                # Remove from pending uploads (no database entry for failed uploads)
-                self.pending_uploads.pop(asset_id, None)
-
-                logger.warning(f"Asset {asset_id} upload failed, removed from pending: {error_message}")
-
-            return True
+                intent.status = "uploaded"
+                intent.confirmed_at = datetime.utcnow()
+                db.commit()
+                logger.info(f"Asset {asset_id} confirmed and saved to database")
+                return True
+            finally:
+                db.close()
 
         except Exception as e:
             logger.error(f"Error confirming upload for asset {asset_id}: {e}")
@@ -485,18 +602,49 @@ class ServerAssetManager:
                     logger.warning(f"Session {session_code} not found")
                     return []
 
-                # Get all assets for this session
-                assets = db.query(Asset).filter(Asset.session_id == session.id).all()
+                linked_assets = (
+                    db.query(SessionAsset, Asset)
+                    .join(Asset, SessionAsset.asset_id == Asset.id)
+                    .filter(SessionAsset.session_id == session.id)
+                    .order_by(SessionAsset.created_at.desc())
+                    .all()
+                )
 
                 result = []
-                for asset in assets:
+                seen_ids = set()
+                for link, asset in linked_assets:
+                    seen_ids.add(asset.r2_asset_id)
                     result.append({
+                        "id": asset.r2_asset_id,
                         "asset_id": asset.r2_asset_id,
+                        "name": link.display_name,
+                        "filename": link.display_name,
+                        "uploaded_by": asset.uploaded_by,
+                        "created_at": (asset.created_at.isoformat() if asset.created_at else None),
+                        "file_size": asset.file_size,
+                        "size": asset.file_size,
+                        "content_type": asset.content_type,
+                        "type": asset.content_type,
+                        "xxhash": asset.xxhash,
+                        "last_accessed": (asset.last_accessed.isoformat() if asset.last_accessed else None)
+                    })
+
+                legacy_assets = db.query(Asset).filter(Asset.session_id == session.id).all()
+                for asset in legacy_assets:
+                    if asset.r2_asset_id in seen_ids:
+                        continue
+                    result.append({
+                        "id": asset.r2_asset_id,
+                        "asset_id": asset.r2_asset_id,
+                        "name": asset.asset_name,
                         "filename": asset.asset_name,
                         "uploaded_by": asset.uploaded_by,
                         "created_at": (asset.created_at.isoformat() if asset.created_at else None),
                         "file_size": asset.file_size,
+                        "size": asset.file_size,
                         "content_type": asset.content_type,
+                        "type": asset.content_type,
+                        "xxhash": asset.xxhash,
                         "last_accessed": (asset.last_accessed.isoformat() if asset.last_accessed else None)
                     })
 
@@ -509,7 +657,7 @@ class ServerAssetManager:
         except Exception as e:
             logger.error(f"Error getting session assets: {e}")
             return []
-        return assets
+        return []
 
     def cleanup_session(self, session_code: str):
         """Clean up session-specific data"""
@@ -523,18 +671,26 @@ class ServerAssetManager:
 
     def get_stats(self) -> dict:
         """Get asset management statistics"""
-        total_assets = len(self.asset_registry)
-        uploaded_assets = len([a for a in self.asset_registry.values() if a["status"] == "uploaded"])
-        pending_uploads = len(self.pending_uploads)
+        db = SessionLocal()
+        try:
+            total_assets = db.query(Asset).count()
+            pending_uploads = db.query(AssetUploadIntent).filter(
+                AssetUploadIntent.status == "awaiting_upload"
+            ).count()
+            failed_uploads = db.query(AssetUploadIntent).filter(
+                AssetUploadIntent.status.in_(["failed", "missing_object", "metadata_failed", "expired"])
+            ).count()
+        finally:
+            db.close()
 
         return {
             "total_confirmed_assets": total_assets,
-            "uploaded_assets": uploaded_assets,
+            "uploaded_assets": total_assets,
             "pending_uploads": pending_uploads,
-            "failed_uploads": total_assets - uploaded_assets,
+            "failed_uploads": failed_uploads,
             "r2_configured": self.r2_manager.is_r2_configured(),
             "active_sessions": len(self.session_permissions),
-            "note": "Only confirmed uploads are in database"
+            "note": "Confirmed assets and pending upload intents are durable"
         }
 
     def calculate_file_xxhash(self, file_path: str) -> str:
@@ -606,6 +762,12 @@ class ServerAssetManager:
             existing_asset = self._get_asset_by_xxhash_from_db(file_xxhash)
             if existing_asset:
                 logger.info(f"Duplicate file detected by xxHash: {file_xxhash}, returning existing asset")
+                self._link_existing_asset_to_session(
+                    existing_asset["asset_id"],
+                    request.session_code,
+                    request.user_id,
+                    request.filename
+                )
                 return PresignedUrlResponse(
                     success=True,
                     asset_id=existing_asset["asset_id"],
@@ -622,6 +784,7 @@ class ServerAssetManager:
             presigned_url = self.r2_manager.generate_presigned_upload_url(
                 r2_key,
                 file_xxhash,
+                content_type=request.content_type,
                 expiration=expiry_seconds
             )
 
@@ -631,7 +794,7 @@ class ServerAssetManager:
                     error="Failed to generate upload URL"
                 )
 
-            # Store asset metadata in pending uploads (NOT in database yet)
+            # Store durable upload intent metadata.
             pending_metadata = {
                 "asset_id": asset_id,
                 "filename": request.filename,
@@ -647,8 +810,7 @@ class ServerAssetManager:
                 "status": "awaiting_upload"
             }
 
-            # Store in pending uploads (in-memory only, not in database)
-            self.pending_uploads[asset_id] = pending_metadata
+            self._record_upload_intent(pending_metadata, expiry_seconds)
 
             logger.info(f"Generated upload URL for {request.username}: {request.filename} -> {asset_id} (pending confirmation)")
 
@@ -673,30 +835,33 @@ class ServerAssetManager:
         try:
             db = SessionLocal()
             try:
+                session = None
+                if asset_data.get("session_code"):
+                    session = db.query(GameSession).filter(GameSession.session_code == asset_data["session_code"]).first()
+
                 # Check if asset already exists by xxHash (duplicate detection)
                 if asset_data.get("xxhash"):
                     existing_asset = db.query(Asset).filter(Asset.xxhash == asset_data["xxhash"]).first()
                     if existing_asset:
-                        logger.warning(f"Asset with xxHash {asset_data['xxhash']} already exists")
+                        self._link_asset_to_session(
+                            db,
+                            existing_asset,
+                            session,
+                            asset_data["uploaded_by"],
+                            asset_data["filename"]
+                        )
+                        db.commit()
+                        logger.info(f"Linked existing asset with xxHash {asset_data['xxhash']} to session")
                         return True
 
-                # Check if asset already exists by name
-                existing_asset = db.query(Asset).filter(Asset.asset_name == asset_data["filename"]).first()
-                if existing_asset:
-                    logger.warning(f"Asset {asset_data['filename']} already exists in database")
-                    return True
-
-                # Get session ID if session_code provided
-                session_id = None
-                if asset_data.get("session_code"):
-                    session = db.query(GameSession).filter(GameSession.session_code == asset_data["session_code"]).first()
-                    session_id = session.id if session else None
+                session_id = session.id if session else None
+                stored_name = self._make_unique_asset_name(db, asset_data["filename"], asset_data["asset_id"])
 
                 # Create new asset record
                 new_asset = Asset(
-                    asset_name=asset_data["filename"],
+                    asset_name=stored_name,
                     r2_asset_id=asset_data["asset_id"],
-                    content_type=asset_data["content_type"],
+                    content_type=asset_data.get("content_type") or "application/octet-stream",
                     file_size=asset_data["file_size"] or 0,
 
                     xxhash=asset_data.get("xxhash", ""),
@@ -709,6 +874,8 @@ class ServerAssetManager:
                 )
 
                 db.add(new_asset)
+                db.flush()
+                self._link_asset_to_session(db, new_asset, session, asset_data["uploaded_by"], asset_data["filename"])
                 db.commit()
                 logger.info(f"Saved asset {asset_data['filename']} to database with xxHash {asset_data.get('xxhash', 'N/A')}")
                 return True
@@ -753,13 +920,27 @@ class ServerAssetManager:
             logger.error(f"Error getting asset from database: {e}")
             return None
 
-    def _get_asset_by_id_from_db(self, asset_id: str) -> Optional[dict]:
+    def _get_asset_by_id_from_db(
+        self,
+        asset_id: str,
+        session_code: Optional[str] = None,
+        user_id: Optional[int] = None
+    ) -> Optional[dict]:
         """Get asset metadata from database by R2 asset ID"""
         try:
             db = SessionLocal()
             try:
                 asset = db.query(Asset).filter(Asset.r2_asset_id == asset_id).first()
                 if asset:
+                    requested_session_code = session_code
+                    session = self._get_session(db, session_code) if session_code else None
+                    if user_id is not None and not self._user_can_access_session(db, session, user_id):
+                        logger.warning(f"User {user_id} is not a member of session {session_code}")
+                        return None
+                    if session_code and not self._asset_has_session_access(db, asset, session):
+                        logger.warning(f"Asset {asset_id} is not available in session {session_code}")
+                        return None
+
                     # Update last accessed time
                     db.query(Asset).filter(Asset.r2_asset_id == asset_id).update(
                         {Asset.last_accessed: datetime.utcnow()}
@@ -767,10 +948,10 @@ class ServerAssetManager:
                     db.commit()
 
                     # Get session_code from session_id
-                    session_code = None
+                    legacy_session_code = requested_session_code
                     if asset.session_id is not None:
                         session = db.query(GameSession).filter(GameSession.id == asset.session_id).first()
-                        session_code = session.session_code if session else None
+                        legacy_session_code = session.session_code if session else requested_session_code
 
                     return {
                         "asset_id": asset.r2_asset_id,
@@ -780,7 +961,8 @@ class ServerAssetManager:
                         "file_size": asset.file_size,
                         "uploaded_by": asset.uploaded_by,
                         "session_id": asset.session_id,
-                        "session_code": session_code,
+                        "session_code": legacy_session_code,
+                        "xxhash": asset.xxhash,
                         "created_at": (asset.created_at.isoformat() if asset.created_at else None),
                         "last_accessed": (asset.last_accessed.isoformat() if asset.last_accessed else None)
                     }
@@ -878,7 +1060,10 @@ class ServerAssetManager:
                     # Filter by session if provided
                     session = db.query(GameSession).filter(GameSession.session_code == session_code).first()
                     if session:
-                        query = query.filter(Asset.session_id == session.id)
+                        linked_asset_ids = db.query(SessionAsset.asset_id).filter(SessionAsset.session_id == session.id)
+                        query = query.filter(
+                            (Asset.session_id == session.id) | (Asset.id.in_(linked_asset_ids))
+                        )
 
                 # Only check assets older than max_age_hours
                 cutoff_time = datetime.now() - timedelta(hours=max_age_hours)
@@ -889,22 +1074,15 @@ class ServerAssetManager:
 
                 for asset in assets:
                     try:
-                        # Check if asset exists in R2
-                        r2_key = f"sessions/{asset.session.session_code}/assets/{asset.r2_asset_id}.{asset.filename.split('.')[-1]}"
-                        exists_in_r2 = await self._verify_asset_in_r2(r2_key)
+                        exists_in_r2 = await self._verify_asset_in_r2(asset.r2_key)
 
                         if not exists_in_r2:
                             cleanup_stats["phantom_assets_found"] += 1
-                            logger.warning(f"Legacy phantom asset found: {asset.r2_asset_id} ({asset.filename}) - not in R2")
+                            logger.warning(f"Legacy phantom asset found: {asset.r2_asset_id} ({asset.asset_name}) - not in R2")
 
                             # Remove from database
                             db.delete(asset)
                             cleanup_stats["assets_cleaned"] += 1
-
-                            # Remove from memory registry if present
-                            asset_id_str = str(asset.r2_asset_id)
-                            if asset_id_str:
-                                self.asset_registry.pop(asset_id_str, None)
 
                     except Exception as e:
                         logger.error(f"Error checking asset {asset.r2_asset_id}: {e}")
@@ -945,22 +1123,23 @@ class ServerAssetManager:
                     verification_report["errors"].append(f"Session {session_code} not found")
                     return verification_report
 
-                # Get all assets for session
-                assets = db.query(Asset).filter(Asset.session_id == session.id).all()
+                linked_asset_ids = db.query(SessionAsset.asset_id).filter(SessionAsset.session_id == session.id)
+                assets = db.query(Asset).filter(
+                    (Asset.session_id == session.id) | (Asset.id.in_(linked_asset_ids))
+                ).all()
                 verification_report["total_assets"] = len(assets)
 
                 for asset in assets:
                     try:
-                        r2_key = f"sessions/{session_code}/assets/{asset.r2_asset_id}.{asset.filename.split('.')[-1]}"
-                        exists_in_r2 = await self._verify_asset_in_r2(r2_key)
+                        exists_in_r2 = await self._verify_asset_in_r2(asset.r2_key)
 
                         if exists_in_r2:
                             verification_report["verified_assets"] += 1
                         else:
                             verification_report["missing_assets"].append({
                                 "asset_id": asset.r2_asset_id,
-                                "filename": asset.filename,
-                                "r2_key": r2_key,
+                                "filename": asset.asset_name,
+                                "r2_key": asset.r2_key,
                                 "created_at": (asset.created_at.isoformat() if asset.created_at else None) if hasattr(asset.created_at, 'isoformat') and asset.created_at is not None else str(asset.created_at)
                             })
                     except Exception as e:
@@ -981,34 +1160,26 @@ class ServerAssetManager:
         These represent presigned URLs that were generated but never used.
         """
         try:
-            current_time = datetime.now()
-            cutoff_time = current_time - timedelta(hours=max_age_hours)
-
+            cutoff_time = datetime.utcnow() - timedelta(hours=max_age_hours)
             cleanup_stats = {
-                "total_pending": len(self.pending_uploads),
+                "total_pending": 0,
                 "stale_uploads": 0,
                 "cleaned_uploads": 0
             }
 
-            stale_asset_ids = []
-
-            for asset_id, metadata in self.pending_uploads.items():
-                try:
-                    # Parse creation time
-                    created_at_str = metadata.get("presigned_url_generated_at")
-                    if created_at_str:
-                        created_at = datetime.fromisoformat(created_at_str)
-                        if created_at < cutoff_time:
-                            stale_asset_ids.append(asset_id)
-                            cleanup_stats["stale_uploads"] += 1
-                except Exception as e:
-                    logger.error(f"Error parsing date for pending upload {asset_id}: {e}")
-
-            # Remove stale pending uploads
-            for asset_id in stale_asset_ids:
-                metadata = self.pending_uploads.pop(asset_id, {})
-                logger.info(f"Cleaned stale pending upload: {asset_id} ({metadata.get('filename', 'unknown')})")
-                cleanup_stats["cleaned_uploads"] += 1
+            db = SessionLocal()
+            try:
+                pending = db.query(AssetUploadIntent).filter(AssetUploadIntent.status == "awaiting_upload")
+                cleanup_stats["total_pending"] = pending.count()
+                stale_uploads = pending.filter(AssetUploadIntent.created_at < cutoff_time).all()
+                cleanup_stats["stale_uploads"] = len(stale_uploads)
+                for intent in stale_uploads:
+                    intent.status = "expired"
+                    intent.error_message = f"No upload confirmation within {max_age_hours} hours"
+                    cleanup_stats["cleaned_uploads"] += 1
+                db.commit()
+            finally:
+                db.close()
 
             logger.info(f"Cleaned {cleanup_stats['cleaned_uploads']} stale pending uploads (older than {max_age_hours}h)")
             return cleanup_stats
@@ -1022,20 +1193,27 @@ class ServerAssetManager:
         try:
             current_time = datetime.now()
             stats = {
-                "total_pending": len(self.pending_uploads),
+                "total_pending": 0,
                 "by_age": {"under_1h": 0, "1h_to_2h": 0, "over_2h": 0},
                 "by_session": {},
                 "oldest_pending": None
             }
 
             oldest_time = None
+            db = SessionLocal()
+            try:
+                pending = db.query(AssetUploadIntent).filter(
+                    AssetUploadIntent.status == "awaiting_upload"
+                ).all()
+                stats["total_pending"] = len(pending)
+            finally:
+                db.close()
 
-            for asset_id, metadata in self.pending_uploads.items():
+            for intent in pending:
                 try:
                     # Age analysis
-                    created_at_str = metadata.get("presigned_url_generated_at")
-                    if created_at_str:
-                        created_at = datetime.fromisoformat(created_at_str)
+                    if intent.created_at:
+                        created_at = intent.created_at
                         age_hours = (current_time - created_at).total_seconds() / 3600
 
                         if age_hours < 1:
@@ -1048,18 +1226,18 @@ class ServerAssetManager:
                         if oldest_time is None or created_at < oldest_time:
                             oldest_time = created_at
                             stats["oldest_pending"] = {
-                                "asset_id": asset_id,
-                                "filename": metadata.get("filename"),
+                                "asset_id": intent.asset_id,
+                                "filename": intent.filename,
                                 "age_hours": age_hours,
-                                "created_at": created_at_str
+                                "created_at": created_at.isoformat()
                             }
 
                     # Session analysis
-                    session_code = metadata.get("session_code", "unknown")
+                    session_code = intent.session_code or "unknown"
                     stats["by_session"][session_code] = stats["by_session"].get(session_code, 0) + 1
 
                 except Exception as e:
-                    logger.error(f"Error analyzing pending upload {asset_id}: {e}")
+                    logger.error(f"Error analyzing pending upload {intent.asset_id}: {e}")
 
             return stats
 

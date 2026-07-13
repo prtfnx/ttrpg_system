@@ -218,3 +218,34 @@ async def test_download_url_requires_session_asset_link(
 
     assert denied.success is False
     assert denied.error == "Asset not found"
+
+
+async def test_legacy_session_id_does_not_bypass_session_link(
+    monkeypatch, test_db, test_user, test_game_session
+):
+    manager = _manager(monkeypatch, test_db)
+    legacy_asset = models.Asset(
+        asset_name="legacy.png",
+        r2_asset_id="legacy-asset",
+        content_type="image/png",
+        file_size=1234,
+        xxhash="legacy-hash",
+        uploaded_by=test_user.id,
+        session_id=test_game_session.id,
+        r2_key="sessions/legacy/assets/legacy.png",
+        r2_bucket="assets",
+    )
+    test_db.add(legacy_asset)
+    test_db.commit()
+
+    assert manager.get_session_assets(test_game_session.session_code, test_user.id) == []
+    denied = await manager.request_download_url(
+        AssetRequest(
+            user_id=test_user.id,
+            username=test_user.username,
+            session_code=test_game_session.session_code,
+            asset_id=legacy_asset.r2_asset_id,
+        )
+    )
+    assert denied.success is False
+    assert denied.error == "Asset not found"

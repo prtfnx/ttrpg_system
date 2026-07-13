@@ -365,7 +365,7 @@ class _AssetsMixin(_ProtocolBase):
                     SessionAsset.session_id == session.id,
                     SessionAsset.asset_id == asset.id
                 ).first()
-                if not link and asset.session_id != session.id:
+                if not link:
                     return Message(MessageType.ERROR, {'error': 'Asset not available in this session'})
 
                 can_moderate = session.owner_id == user_id or (
@@ -379,9 +379,7 @@ class _AssetsMixin(_ProtocolBase):
                     db.delete(link)
                     db.flush()
                     remaining_links = db.query(SessionAsset).filter(SessionAsset.asset_id == asset.id).count()
-                    should_delete_object = remaining_links == 0 and asset.session_id in (None, session.id)
-                else:
-                    should_delete_object = True
+                    should_delete_object = remaining_links == 0
 
                 if should_delete_object:
                     asset_manager = get_server_asset_manager()

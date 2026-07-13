@@ -210,7 +210,7 @@ class ServerAssetManager:
         if linked:
             linked.last_accessed = datetime.utcnow()
             return True
-        return asset.session_id == session.id
+        return False
 
     def _link_asset_to_session(self, db, asset: Asset, session: Optional[GameSession],
                                user_id: int, display_name: str) -> None:
@@ -523,33 +523,12 @@ class ServerAssetManager:
                 )
 
                 result = []
-                seen_ids = set()
                 for link, asset in linked_assets:
-                    seen_ids.add(asset.r2_asset_id)
                     result.append({
                         "id": asset.r2_asset_id,
                         "asset_id": asset.r2_asset_id,
                         "name": link.display_name,
                         "filename": link.display_name,
-                        "uploaded_by": asset.uploaded_by,
-                        "created_at": (asset.created_at.isoformat() if asset.created_at else None),
-                        "file_size": asset.file_size,
-                        "size": asset.file_size,
-                        "content_type": asset.content_type,
-                        "type": asset.content_type,
-                        "xxhash": asset.xxhash,
-                        "last_accessed": (asset.last_accessed.isoformat() if asset.last_accessed else None)
-                    })
-
-                legacy_assets = db.query(Asset).filter(Asset.session_id == session.id).all()
-                for asset in legacy_assets:
-                    if asset.r2_asset_id in seen_ids:
-                        continue
-                    result.append({
-                        "id": asset.r2_asset_id,
-                        "asset_id": asset.r2_asset_id,
-                        "name": asset.asset_name,
-                        "filename": asset.asset_name,
                         "uploaded_by": asset.uploaded_by,
                         "created_at": (asset.created_at.isoformat() if asset.created_at else None),
                         "file_size": asset.file_size,
@@ -839,7 +818,6 @@ class ServerAssetManager:
             try:
                 asset = db.query(Asset).filter(Asset.r2_asset_id == asset_id).first()
                 if asset:
-                    requested_session_code = session_code
                     session = self._get_session(db, session_code) if session_code else None
                     if user_id is not None and not self._user_can_access_session(db, session, user_id):
                         logger.warning(f"User {user_id} is not a member of session {session_code}")
@@ -854,12 +832,6 @@ class ServerAssetManager:
                     )
                     db.commit()
 
-                    # Get session_code from session_id
-                    legacy_session_code = requested_session_code
-                    if asset.session_id is not None:
-                        session = db.query(GameSession).filter(GameSession.id == asset.session_id).first()
-                        legacy_session_code = session.session_code if session else requested_session_code
-
                     return {
                         "asset_id": asset.r2_asset_id,
                         "filename": asset.asset_name,
@@ -867,8 +839,8 @@ class ServerAssetManager:
                         "content_type": asset.content_type,
                         "file_size": asset.file_size,
                         "uploaded_by": asset.uploaded_by,
-                        "session_id": asset.session_id,
-                        "session_code": legacy_session_code,
+                        "session_id": session.id if session else None,
+                        "session_code": session_code,
                         "xxhash": asset.xxhash,
                         "created_at": (asset.created_at.isoformat() if asset.created_at else None),
                         "last_accessed": (asset.last_accessed.isoformat() if asset.last_accessed else None)
@@ -897,7 +869,6 @@ class ServerAssetManager:
                         "file_size": asset.file_size,
                         "xxhash": asset.xxhash,
                         "uploaded_by": asset.uploaded_by,
-                        "session_id": asset.session_id,
                         "created_at": (asset.created_at.isoformat() if asset.created_at else None)
                     }
                 return None
@@ -982,9 +953,7 @@ class ServerAssetManager:
                     session = db.query(GameSession).filter(GameSession.session_code == session_code).first()
                     if session:
                         linked_asset_ids = db.query(SessionAsset.asset_id).filter(SessionAsset.session_id == session.id)
-                        query = query.filter(
-                            (Asset.session_id == session.id) | (Asset.id.in_(linked_asset_ids))
-                        )
+                        query = query.filter(Asset.id.in_(linked_asset_ids))
 
                 # Only check assets older than max_age_hours
                 cutoff_time = datetime.now() - timedelta(hours=max_age_hours)
@@ -1045,9 +1014,7 @@ class ServerAssetManager:
                     return verification_report
 
                 linked_asset_ids = db.query(SessionAsset.asset_id).filter(SessionAsset.session_id == session.id)
-                assets = db.query(Asset).filter(
-                    (Asset.session_id == session.id) | (Asset.id.in_(linked_asset_ids))
-                ).all()
+                assets = db.query(Asset).filter(Asset.id.in_(linked_asset_ids)).all()
                 verification_report["total_assets"] = len(assets)
 
                 for asset in assets:

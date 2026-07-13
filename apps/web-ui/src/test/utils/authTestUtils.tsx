@@ -26,7 +26,6 @@ export const createAuthTestWrapper = (options: CreateAuthTestWrapperOptions = {}
   const mockUser: UserInfo | null = options.user ? {
     id: 1,
     username: 'testuser',
-    role: 'player',
     permissions: ['chat.send', 'chat.receive', 'compendium.read'],
     ...options.user
   } : null;
@@ -75,7 +74,6 @@ export const createAuthenticatedWrapper = (userOverrides: Partial<UserInfo> = {}
     user: {
       id: 1,
       username: 'authenticateduser',
-      role: 'player',
       permissions: [
         'chat.send',
         'chat.receive',
@@ -137,7 +135,6 @@ export const createUserWithPermissions = (permissions: string[]) => {
     user: {
       id: 2,
       username: 'permissionuser',
-      role: 'player',
       permissions
     },
     isAuthenticated: true

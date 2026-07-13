@@ -1,8 +1,18 @@
 import pytest
 
+from routers.auth import oauth
+
 
 @pytest.mark.integration
 class TestOAuthGoogle:
+    def test_oauth_state_uses_signed_session_storage(self):
+        assert oauth.cache is None
+
+    def test_login_page_does_not_create_placeholder_session(self, client):
+        response = client.get("/users/login", follow_redirects=False)
+        assert response.status_code == 200
+        assert "session" not in response.cookies
+
     def test_google_login_available(self, client):
         """Endpoint responds: redirects to Google or returns 503 if not configured"""
         response = client.get("/auth/google", follow_redirects=False)

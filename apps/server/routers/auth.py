@@ -29,7 +29,6 @@ Setup requirements:
 
 import re
 import secrets
-import time
 from datetime import timedelta
 
 from authlib.integrations.starlette_client import OAuth, OAuthError
@@ -48,34 +47,9 @@ logger = setup_logger(__name__)
 settings = Settings()
 
 
-class _InMemoryOAuthCache:
-    """
-    Server-side store for OAuth state/nonce data.
-    Avoids relying on Set-Cookie round-trips for CSRF token storage —
-    which fail on first attempt when the browser has no existing session cookie.
-    Single-process only; swap for Redis in a multi-worker deployment.
-    """
-    def __init__(self):
-        self._store: dict = {}
-
-    async def get(self, key: str):
-        item = self._store.get(key)
-        if item is None:
-            return None
-        if item["exp"] < time.time():
-            del self._store[key]
-            return None
-        return item["value"]
-
-    async def set(self, key: str, value: str, timeout: int = 300):
-        self._store[key] = {"value": value, "exp": time.time() + timeout}
-
-    async def delete(self, key: str):
-        self._store.pop(key, None)
-
-
-# Initialize OAuth with server-side state cache (no session-cookie dependency)
-oauth = OAuth(cache=_InMemoryOAuthCache())
+# Authlib stores state, nonce, and PKCE data in Starlette's signed session.
+# This keeps the flow bound to the initiating browser and works across workers.
+oauth = OAuth()
 
 # Check if OAuth is configured
 OAUTH_CONFIGURED = bool(settings.GOOGLE_CLIENT_ID and settings.GOOGLE_CLIENT_SECRET)

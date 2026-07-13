@@ -33,7 +33,7 @@ vi.mock('@lib/websocket', () => ({
 
 import { ActionQueuePanel } from '../ActionQueuePanel';
 
-const userInfo = { id: 1, username: 'testUser', role: 'player' as const, permissions: [] };
+const userInfo = { id: 1, username: 'testUser', permissions: [] };
 
 describe('ActionQueuePanel', () => {
   beforeEach(() => {

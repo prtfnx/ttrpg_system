@@ -28,7 +28,7 @@ import { WebClientProtocol } from '@lib/websocket';
 import { authService } from '../../services/auth.service';
 import { useAuthenticatedWebSocket } from '../useAuthenticatedWebSocket';
 
-const user = { id: 1, username: 'alice', role: 'dm' as const };
+const user = { id: 1, username: 'alice' };
 const props = { sessionCode: 'TEST-CODE', userInfo: user as Parameters<typeof useAuthenticatedWebSocket>[0]['userInfo'] };
 
 beforeEach(() => {

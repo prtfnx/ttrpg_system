@@ -80,7 +80,7 @@ vi.mock('@features/assets', () => ({
 
 describe('RightPanel', () => {
   const user = userEvent.setup();
-  const mockUserInfo = { id: 123, username: 'testuser', role: 'player' as const, permissions: [] };
+  const mockUserInfo = { id: 123, username: 'testuser', permissions: [] };
   const mockSessionCode = 'TEST123';
 
   // Wrapper component to provide required context
@@ -308,7 +308,7 @@ describe('RightPanel', () => {
 
   describe('Session and User Props', () => {
     it('passes session code and user info to appropriate panels', async () => {
-      const customUserInfo = { id: 456, username: 'customuser', role: 'owner', permissions: [] } as unknown as UserInfo;
+      const customUserInfo: UserInfo = { id: 456, username: 'customuser', permissions: [] };
       const customSessionCode = 'CUSTOM789';
 
       renderWithProviders(<RightPanel sessionCode={customSessionCode} userInfo={customUserInfo} />);

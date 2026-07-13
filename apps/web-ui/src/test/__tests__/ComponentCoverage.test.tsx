@@ -224,7 +224,6 @@ describe('AssetPanel Component', () => {
 // Test PaintPanel Component  
 describe('PaintPanel Component', () => {
   const mockProps = {
-    userInfo: { id: 'user1', username: 'artist', role: 'dm' },
     isVisible: true,
     onToggle: vi.fn(),
     onClose: vi.fn(),

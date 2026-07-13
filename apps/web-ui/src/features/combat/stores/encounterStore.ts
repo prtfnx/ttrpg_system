@@ -7,8 +7,9 @@ export interface EncounterChoice {
   roll_ability?: string;
   roll_skill?: string;
   roll_dc?: number;
-  visible_to?: string[];
 }
+
+export type EncounterPhase = 'presenting' | 'awaiting_choice' | 'awaiting_roll' | 'completed';
 
 export interface EncounterPendingRoll {
   choice_id: string;
@@ -23,7 +24,7 @@ export interface EncounterState {
   table_id?: string;
   title: string;
   description: string;
-  phase: string;
+  phase: EncounterPhase;
   choices: EncounterChoice[];
   result?: string;
   participants?: string[];
@@ -49,29 +50,24 @@ function stringArray(value: unknown): string[] {
 
 function normalizeChoice(value: unknown): EncounterChoice {
   const raw = asRecord(value);
-  const dc = raw.roll_dc ?? raw.dc;
+  const dc = raw.roll_dc;
   return {
-    choice_id: String(raw.choice_id ?? raw.id ?? ''),
+    choice_id: String(raw.choice_id ?? ''),
     text: String(raw.text ?? ''),
     requires_roll: Boolean(raw.requires_roll),
     roll_ability: typeof raw.roll_ability === 'string' ? raw.roll_ability : undefined,
-    roll_skill: typeof raw.roll_skill === 'string'
-      ? raw.roll_skill
-      : typeof raw.skill === 'string' ? raw.skill : undefined,
+    roll_skill: typeof raw.roll_skill === 'string' ? raw.roll_skill : undefined,
     roll_dc: typeof dc === 'number' ? dc : dc != null ? Number(dc) : undefined,
-    visible_to: stringArray(raw.visible_to),
   };
 }
 
 function normalizePendingRoll(value: unknown): EncounterPendingRoll {
   const raw = asRecord(value);
-  const dc = raw.roll_dc ?? raw.dc;
+  const dc = raw.roll_dc;
   return {
     choice_id: String(raw.choice_id ?? ''),
     roll_ability: typeof raw.roll_ability === 'string' ? raw.roll_ability : undefined,
-    roll_skill: typeof raw.roll_skill === 'string'
-      ? raw.roll_skill
-      : typeof raw.skill === 'string' ? raw.skill : undefined,
+    roll_skill: typeof raw.roll_skill === 'string' ? raw.roll_skill : undefined,
     roll_dc: typeof dc === 'number' ? dc : dc != null ? Number(dc) : undefined,
   };
 }
@@ -86,13 +82,18 @@ export function normalizeEncounterPayload(data: unknown): EncounterState | null 
     Object.entries(pendingRollsRaw).map(([playerId, roll]) => [playerId, normalizePendingRoll(roll)])
   );
 
+  const phase = String(raw.phase ?? 'presenting');
+  const normalizedPhase: EncounterPhase = (
+    phase === 'awaiting_choice' || phase === 'awaiting_roll' || phase === 'completed'
+  ) ? phase : 'presenting';
+
   return {
     encounter_id: String(raw.encounter_id),
     session_id: typeof raw.session_id === 'string' ? raw.session_id : undefined,
     table_id: typeof raw.table_id === 'string' ? raw.table_id : undefined,
     title: String(raw.title ?? 'Encounter'),
     description: String(raw.description ?? ''),
-    phase: String(raw.phase ?? 'presenting'),
+    phase: normalizedPhase,
     choices: Array.isArray(raw.choices) ? raw.choices.map(normalizeChoice) : [],
     participants: stringArray(raw.participants),
     player_choices: asRecord(raw.player_choices) as Record<string, string>,

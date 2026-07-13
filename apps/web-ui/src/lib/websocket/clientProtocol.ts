@@ -351,11 +351,6 @@ export class WebClientProtocol {
       const { useEncounterStore } = await import('@features/combat/stores/encounterStore');
       useEncounterStore.getState().applyEncounterMessage(m.data);
     });
-    this.registerHandler(MessageType.ENCOUNTER_END, async () => {
-      const { useEncounterStore } = await import('@features/combat/stores/encounterStore');
-      useEncounterStore.getState().setEncounter(null);
-    });
-
     // Planning commit.
     this.registerHandler(MessageType.ACTION_RESULT, async (m) => {
       const { usePlanningStore } = await import('@features/combat/stores/planningStore');
@@ -687,6 +682,14 @@ export class WebClientProtocol {
       type R = import('@features/combat/stores/sessionRulesStore').SessionRules;
       const merged = { session_id: '', ...DEFAULT_RULES, ...(data.session_rules as Partial<R>) } as R;
       useSessionRulesStore.getState().setRules(merged);
+    }
+    if ('choice_encounter' in data) {
+      const { useEncounterStore } = await import('@features/combat/stores/encounterStore');
+      if (data.choice_encounter && typeof data.choice_encounter === 'object') {
+        useEncounterStore.getState().applyEncounterMessage({ encounter: data.choice_encounter });
+      } else {
+        useEncounterStore.getState().setEncounter(null);
+      }
     }
 
     this.requestTableList();

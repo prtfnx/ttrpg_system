@@ -92,7 +92,18 @@ describe('EncounterBuilder', () => {
     render(<EncounterBuilder />);
     const titleInput = screen.getByPlaceholderText('Encounter title...');
     fireEvent.change(titleInput, { target: { value: 'Test' } });
+    fireEvent.change(screen.getByPlaceholderText('Choice 1'), {
+      target: { value: 'Continue' },
+    });
     fireEvent.click(screen.getByText('Launch Encounter'));
     expect((titleInput as HTMLInputElement).value).toBe('');
+  });
+
+  it('requires at least one non-empty choice', () => {
+    render(<EncounterBuilder />);
+    fireEvent.change(screen.getByPlaceholderText('Encounter title...'), {
+      target: { value: 'Empty prompt' },
+    });
+    expect(screen.getByText('Launch Encounter')).toBeDisabled();
   });
 });

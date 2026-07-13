@@ -7,8 +7,8 @@ import { EncounterView } from '../EncounterView';
 const mockSendMessage = vi.fn();
 
 vi.mock('@/store', () => ({
-  useGameStore: vi.fn((selector?: (s: { userId: number }) => unknown) => {
-    const state = { userId: 7 };
+  useGameStore: vi.fn((selector?: (s: { userId: number; sessionRole: 'owner' }) => unknown) => {
+    const state = { userId: 7, sessionRole: 'owner' as const };
     return selector ? selector(state) : state;
   }),
 }));
@@ -37,20 +37,6 @@ describe('EncounterView', () => {
     expect(container).toBeEmptyDOMElement();
   });
 
-  it('renders nothing when phase is "setup"', () => {
-    useEncounterStore.setState({
-      encounter: {
-        encounter_id: 'e1',
-        title: 'Test',
-        description: 'desc',
-        phase: 'setup',
-        choices: [],
-      },
-    });
-    const { container } = render(<EncounterView />);
-    expect(container).toBeEmptyDOMElement();
-  });
-
   it('renders completed encounter with result and close button', () => {
     useEncounterStore.setState({
       encounter: {
@@ -66,6 +52,22 @@ describe('EncounterView', () => {
     expect(screen.getByText('Dragon Attack')).toBeInTheDocument();
     expect(screen.getByText('You survived!')).toBeInTheDocument();
     expect(screen.getByText('Close')).toBeInTheDocument();
+  });
+
+  it('closes a completed encounter locally without sending another end command', () => {
+    useEncounterStore.setState({
+      encounter: {
+        encounter_id: 'e1',
+        title: 'Finished',
+        description: '',
+        phase: 'completed',
+        choices: [],
+      },
+    });
+    render(<EncounterView />);
+    fireEvent.click(screen.getByText('Close'));
+    expect(useEncounterStore.getState().encounter).toBeNull();
+    expect(mockSendMessage).not.toHaveBeenCalled();
   });
 
   it('renders awaiting_roll phase with skill and DC', () => {
@@ -124,6 +126,26 @@ describe('EncounterView', () => {
       expect.objectContaining({
         type: 'ENCOUNTER_CHOICE',
         data: { encounter_id: 'e1', choice_id: 'fight' },
+      })
+    );
+  });
+
+  it('lets a GM end an active encounter', () => {
+    useEncounterStore.setState({
+      encounter: {
+        encounter_id: 'e1',
+        title: 'Battle',
+        description: '',
+        phase: 'presenting',
+        choices: [{ choice_id: 'fight', text: 'Attack' }],
+      },
+    });
+    render(<EncounterView />);
+    fireEvent.click(screen.getByText('End Encounter'));
+    expect(mockSendMessage).toHaveBeenCalledWith(
+      expect.objectContaining({
+        type: 'ENCOUNTER_END',
+        data: { encounter_id: 'e1' },
       })
     );
   });

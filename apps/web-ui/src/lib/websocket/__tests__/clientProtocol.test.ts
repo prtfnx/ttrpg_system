@@ -641,6 +641,25 @@ describe('WebClientProtocol', () => {
       expect(useEncounterStore.getState().encounter?.choices[0].choice_id).toBe('left');
     });
 
+    it('WELCOME restores the active choice encounter', async () => {
+      const p = makeProtocol();
+      useEncounterStore.setState({ encounter: null });
+
+      await dispatch(p, 'welcome', {
+        user_id: 1,
+        role: 'player',
+        choice_encounter: {
+          encounter_id: 'enc-restored',
+          title: 'Restored prompt',
+          description: 'Continue choosing',
+          phase: 'presenting',
+          choices: [{ choice_id: 'continue', text: 'Continue' }],
+        },
+      });
+
+      expect(useEncounterStore.getState().encounter?.encounter_id).toBe('enc-restored');
+    });
+
     it('ACTION_RESULT confirms the optimistic sprite action by sequence id', async () => {
       const p = makeProtocol();
       const handler = vi.fn();

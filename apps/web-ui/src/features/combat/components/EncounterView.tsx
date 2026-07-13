@@ -1,4 +1,5 @@
 import { useGameStore } from '@/store';
+import { isDM } from '@features/session/types/roles';
 import { MessageType } from '@lib/websocket';
 import { useCombatCommands } from '../hooks/useCombatCommands';
 import { useEncounterStore } from '../stores/encounterStore';
@@ -6,10 +7,12 @@ import styles from './EncounterView.module.css';
 
 export function EncounterView() {
   const encounter = useEncounterStore((s) => s.encounter);
+  const clearEncounter = useEncounterStore((s) => s.setEncounter);
   const userId = useGameStore((s) => s.userId);
+  const sessionRole = useGameStore((s) => s.sessionRole);
   const { sendProtocolMessage } = useCombatCommands();
 
-  if (!encounter || encounter.phase === 'setup') return null;
+  if (!encounter) return null;
 
   const send = (type: MessageType, data: Record<string, unknown>) =>
     sendProtocolMessage(type, data);
@@ -29,7 +32,7 @@ export function EncounterView() {
           <p className={styles.result}>{encounter.result}</p>
           <button
             className={styles.choiceBtn}
-            onClick={() => send(MessageType.ENCOUNTER_END, { encounter_id: encounter.encounter_id })}
+            onClick={() => clearEncounter(null)}
           >
             Close
           </button>
@@ -37,6 +40,10 @@ export function EncounterView() {
       </div>
     );
   }
+
+  const submittedChoice = userId != null
+    ? encounter.player_choices?.[String(userId)]
+    : undefined;
 
   if (pendingRoll) {
     const skill = pendingRoll.roll_skill || pendingRoll.roll_ability || 'Skill';
@@ -67,18 +74,30 @@ export function EncounterView() {
       <div className={styles.card}>
         <h3 className={styles.title}>{encounter.title}</h3>
         <p className={styles.desc}>{encounter.description}</p>
-        <div className={styles.choices}>
-          {encounter.choices.map((c) => (
-            <button key={c.choice_id} className={styles.choiceBtn} onClick={() => makeChoice(c.choice_id)}>
-              {c.text}
-              {c.requires_roll && (c.roll_skill || c.roll_ability) && (
-                <span className={styles.rollHint}>
-                  {' '}[{c.roll_skill || c.roll_ability}{c.roll_dc != null ? ` DC ${c.roll_dc}` : ''}]
-                </span>
-              )}
-            </button>
-          ))}
-        </div>
+        {submittedChoice ? (
+          <p className={styles.result}>Choice submitted. Waiting for the GM.</p>
+        ) : (
+          <div className={styles.choices}>
+            {encounter.choices.map((c) => (
+              <button key={c.choice_id} className={styles.choiceBtn} onClick={() => makeChoice(c.choice_id)}>
+                {c.text}
+                {c.requires_roll && (c.roll_skill || c.roll_ability) && (
+                  <span className={styles.rollHint}>
+                    {' '}[{c.roll_skill || c.roll_ability}{c.roll_dc != null ? ` DC ${c.roll_dc}` : ''}]
+                  </span>
+                )}
+              </button>
+            ))}
+          </div>
+        )}
+        {isDM(sessionRole) && (
+          <button
+            className={styles.choiceBtn}
+            onClick={() => send(MessageType.ENCOUNTER_END, { encounter_id: encounter.encounter_id })}
+          >
+            End Encounter
+          </button>
+        )}
       </div>
     </div>
   );

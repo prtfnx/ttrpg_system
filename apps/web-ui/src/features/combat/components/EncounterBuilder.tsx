@@ -29,13 +29,13 @@ export function EncounterBuilder() {
     setChoices((prev) => prev.map((c, idx) => (idx === i ? { ...c, ...patch } : c)));
 
   const launch = () => {
-    if (!title.trim()) return;
+    const validChoices = choices.filter((choice) => choice.text.trim());
+    if (!title.trim() || validChoices.length === 0) return;
     const payload: { table_id: string; title: string; description: string; choices: EncounterChoice[] } = {
       table_id: tableId,
       title: title.trim(),
       description: description.trim(),
-      choices: choices
-        .filter((c) => c.text.trim())
+      choices: validChoices
         .map((c, i) => ({
           choice_id: `c${i}`,
           text: c.text.trim(),
@@ -117,7 +117,11 @@ export function EncounterBuilder() {
           </div>
         ))}
       </div>
-      <button className={styles.launchBtn} onClick={launch} disabled={!title.trim()}>
+      <button
+        className={styles.launchBtn}
+        onClick={launch}
+        disabled={!title.trim() || !choices.some((choice) => choice.text.trim())}
+      >
         Launch Encounter
       </button>
     </div>

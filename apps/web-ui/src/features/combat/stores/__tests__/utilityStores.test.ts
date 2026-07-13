@@ -95,14 +95,20 @@ describe('useEncounterStore', () => {
     expect(encounter?.choices[0].choice_id).toBe('left');
   });
 
-  it('applyEncounterMessage normalizes legacy browser choice aliases', () => {
+  it('applyEncounterMessage preserves the canonical choice contract', () => {
     useEncounterStore.getState().applyEncounterMessage({
       encounter: {
-        encounter_id: 'legacy-1',
+        encounter_id: 'canonical-1',
         title: 'Trap',
         description: '',
         phase: 'presenting',
-        choices: [{ id: 'inspect', text: 'Inspect', requires_roll: true, skill: 'Investigation', dc: '14' }],
+        choices: [{
+          choice_id: 'inspect',
+          text: 'Inspect',
+          requires_roll: true,
+          roll_skill: 'Investigation',
+          roll_dc: 14,
+        }],
       },
     });
     const choice = useEncounterStore.getState().encounter?.choices[0];

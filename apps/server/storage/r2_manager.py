@@ -312,6 +312,21 @@ class R2AssetManager:
             logger.error(f"Get object info failed: {e}")
             return None
 
+    def get_object_bytes(self, file_key: str, max_bytes: int) -> bytes:
+        """Read a private object with a hard memory limit for content inspection."""
+        response = self.s3_client.get_object(
+            Bucket=_settings.r2_bucket_name,
+            Key=file_key
+        )
+        body = response["Body"]
+        try:
+            data = body.read(max_bytes + 1)
+        finally:
+            body.close()
+        if len(data) > max_bytes:
+            raise ValueError(f"R2 object exceeds inspection limit of {max_bytes} bytes")
+        return data
+
     def get_stats(self) -> Dict[str, Dict[str, int]]:
         """Get usage statistics"""
         return self._stats.copy()

@@ -1,3 +1,6 @@
+import base64
+
+import xxhash
 from sqlalchemy.orm import sessionmaker
 
 from core_table.protocol import Message, MessageType
@@ -8,18 +11,26 @@ from service.asset_manager import AssetRequest, ServerAssetManager
 from service.protocol.assets import _AssetsMixin
 
 
+VALID_PNG = base64.b64decode(
+    "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII="
+)
+VALID_XXHASH = xxhash.xxh64(VALID_PNG).hexdigest()
+
+
 class FakeR2Manager:
     def __init__(
         self,
         object_exists=True,
         *,
-        size=1234,
+        object_data=VALID_PNG,
+        size=None,
         content_type="image/png",
-        xxhash="0123456789abcdef",
+        xxhash=VALID_XXHASH,
         delete_success=True,
     ):
         self._object_exists = object_exists
-        self.size = size
+        self.object_data = object_data
+        self.size = len(object_data) if size is None else size
         self.content_type = content_type
         self.xxhash = xxhash
         self.delete_success = delete_success
@@ -47,6 +58,11 @@ class FakeR2Manager:
             "metadata": {"xxhash": self.xxhash},
         }
 
+    def get_object_bytes(self, file_key, max_bytes):
+        if len(self.object_data) > max_bytes:
+            raise ValueError("object too large")
+        return self.object_data
+
     def delete_file(self, file_key):
         self.deleted_keys.append(file_key)
         return self.delete_success
@@ -72,7 +88,9 @@ def _manager(monkeypatch, test_db, object_exists=True, **r2_kwargs):
     return manager
 
 
-async def _request_upload(manager, test_user, test_game_session, xxhash="0123456789abcdef"):
+async def _request_upload(
+    manager, test_user, test_game_session, xxhash=VALID_XXHASH, file_size=len(VALID_PNG)
+):
     return await manager.request_upload_url_with_hash(
         AssetRequest(
             user_id=test_user.id,
@@ -80,7 +98,7 @@ async def _request_upload(manager, test_user, test_game_session, xxhash="0123456
             session_code=test_game_session.session_code,
             asset_id=xxhash[:16],
             filename="map.png",
-            file_size=1234,
+            file_size=file_size,
             content_type="image/png",
             file_xxhash=xxhash,
         ),
@@ -105,7 +123,7 @@ async def test_upload_confirmation_creates_asset_and_session_link(
     assert confirmed is True
     asset = test_db.query(models.Asset).one()
     assert asset.r2_asset_id == response.asset_id
-    assert asset.xxhash == "0123456789abcdef"
+    assert asset.xxhash == VALID_XXHASH
     assert asset.session_id is None
     link = test_db.query(models.SessionAsset).one()
     assert link.asset_id == asset.id
@@ -145,6 +163,56 @@ async def test_upload_confirmation_rejects_object_metadata_mismatch(
     assert intent.status == "verification_failed"
     assert "content type" in intent.error_message
     assert manager.r2_manager.deleted_keys == [intent.r2_key]
+
+
+async def test_upload_confirmation_rejects_spoofed_image_bytes(
+    monkeypatch, test_db, test_user, test_game_session
+):
+    spoofed = b"not really a png"
+    spoofed_hash = xxhash.xxh64(spoofed).hexdigest()
+    manager = _manager(
+        monkeypatch,
+        test_db,
+        object_data=spoofed,
+        xxhash=spoofed_hash,
+    )
+    response = await _request_upload(
+        manager,
+        test_user,
+        test_game_session,
+        xxhash=spoofed_hash,
+        file_size=len(spoofed),
+    )
+
+    confirmed = await manager.confirm_upload(response.asset_id, test_user.id, upload_success=True)
+
+    assert confirmed is False
+    intent = test_db.query(models.AssetUploadIntent).one()
+    assert intent.status == "verification_failed"
+    assert "image bytes failed validation" in intent.error_message
+    assert manager.r2_manager.deleted_keys == [intent.r2_key]
+
+
+async def test_upload_rejects_svg_before_presigning(
+    monkeypatch, test_db, test_user, test_game_session
+):
+    manager = _manager(monkeypatch, test_db)
+    response = await manager.request_upload_url_with_hash(
+        AssetRequest(
+            user_id=test_user.id,
+            username=test_user.username,
+            session_code=test_game_session.session_code,
+            asset_id=VALID_XXHASH[:16],
+            filename="map.svg",
+            file_size=100,
+            content_type="image/svg+xml",
+            file_xxhash=VALID_XXHASH,
+        ),
+        VALID_XXHASH,
+    )
+
+    assert response.success is False
+    assert "Only raster images" in response.error
 
 
 async def test_upload_requires_durable_session_membership(

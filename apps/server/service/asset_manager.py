@@ -5,13 +5,17 @@ Handles presigned URLs, asset validation, and client permissions
 import logging
 import os
 import time
+import warnings
 from dataclasses import dataclass
 from datetime import datetime, timedelta
+from io import BytesIO
 from typing import Dict, List, Optional, Tuple
 
+import xxhash
 from config import Settings
 from database.database import SessionLocal
 from database.models import Asset, AssetUploadIntent, GamePlayer, GameSession, SessionAsset
+from PIL import Image, UnidentifiedImageError
 from storage.r2_manager import R2AssetManager
 
 logger = logging.getLogger(__name__)
@@ -60,8 +64,14 @@ class ServerAssetManager:
 
         # Asset validation settings
         self.max_file_size = 50 * 1024 * 1024  # 50MB default
-        self.allowed_extensions = {'.png', '.jpg', '.jpeg', '.gif', '.bmp', '.webp', '.svg'}
-        self.allowed_mime_types = {'image/png', 'image/jpeg', 'image/gif', 'image/bmp', 'image/webp', 'image/svg+xml'}
+        self.allowed_image_types = {
+            '.png': ('image/png', 'PNG'),
+            '.jpg': ('image/jpeg', 'JPEG'),
+            '.jpeg': ('image/jpeg', 'JPEG'),
+            '.gif': ('image/gif', 'GIF'),
+            '.bmp': ('image/bmp', 'BMP'),
+            '.webp': ('image/webp', 'WEBP'),
+        }
 
         logger.info("ServerAssetManager initialized")
 
@@ -152,15 +162,17 @@ class ServerAssetManager:
 
         # Check file extension
         file_ext = os.path.splitext(request.filename.lower())[1]
-        if file_ext not in self.allowed_extensions:
-            return False, f"File type {file_ext} not allowed. Allowed: {', '.join(self.allowed_extensions)}"
+        if file_ext not in self.allowed_image_types:
+            return False, f"File type {file_ext} not allowed. Only raster images are supported"
 
-        # Check MIME type if provided
-        if request.content_type and request.content_type not in self.allowed_mime_types:
-            return False, f"Content type {request.content_type} not allowed"
+        expected_content_type = self.allowed_image_types[file_ext][0]
+        if request.content_type != expected_content_type:
+            return False, f"Content type must be {expected_content_type} for {file_ext} files"
 
         # Check file size
-        if request.file_size and request.file_size > self.max_file_size:
+        if request.file_size is None or request.file_size <= 0:
+            return False, "File size must be a positive number"
+        if request.file_size > self.max_file_size:
             return False, f"File size {request.file_size} exceeds limit of {self.max_file_size} bytes"
 
         return True, None
@@ -449,13 +461,18 @@ class ServerAssetManager:
                     logger.warning(f"Asset {asset_id} upload failed: {error_message}")
                     return True
 
-                verified, verification_error, object_found = self._verify_uploaded_asset(intent)
+                verified, verification_error, object_found, reject_object = self._verify_uploaded_asset(intent)
                 if not verified:
-                    intent.status = "verification_failed" if object_found else "missing_object"
+                    if not object_found:
+                        intent.status = "missing_object"
+                    elif reject_object:
+                        intent.status = "verification_failed"
+                    else:
+                        intent.status = "inspection_failed"
                     intent.error_message = verification_error
                     intent.confirmed_at = datetime.utcnow()
                     db.commit()
-                    if object_found:
+                    if reject_object:
                         self._delete_rejected_upload(intent.r2_key)
                     logger.error(
                         f"Asset {asset_id} failed R2 verification; refusing DB asset commit: "
@@ -570,7 +587,8 @@ class ServerAssetManager:
             ).count()
             failed_uploads = db.query(AssetUploadIntent).filter(
                 AssetUploadIntent.status.in_([
-                    "failed", "missing_object", "verification_failed", "metadata_failed", "expired"
+                    "failed", "missing_object", "verification_failed", "inspection_failed",
+                    "metadata_failed", "expired"
                 ])
             ).count()
         finally:
@@ -890,22 +908,22 @@ class ServerAssetManager:
             logger.error(f"Error verifying asset in R2: {e}")
             return False
 
-    def _verify_uploaded_asset(self, intent: AssetUploadIntent) -> Tuple[bool, str, bool]:
+    def _verify_uploaded_asset(self, intent: AssetUploadIntent) -> Tuple[bool, str, bool, bool]:
         """Verify an uploaded object against its signed durable intent."""
         try:
             object_info = self.r2_manager.get_object_info(intent.r2_key)
         except Exception as exc:
             logger.error(f"Error reading R2 metadata for {intent.r2_key}: {exc}")
-            return False, "Unable to read R2 object metadata", False
+            return False, "Unable to read R2 object metadata", False, False
 
         if not object_info:
-            return False, "R2 object did not exist at confirmation time", False
+            return False, "R2 object did not exist at confirmation time", False, False
 
         actual_size = object_info.get("size")
         if intent.file_size is not None and actual_size != intent.file_size:
-            return False, f"Uploaded size {actual_size} did not match expected size {intent.file_size}", True
+            return False, f"Uploaded size {actual_size} did not match expected size {intent.file_size}", True, True
         if actual_size is None or actual_size <= 0 or actual_size > self.max_file_size:
-            return False, f"Uploaded size {actual_size} is outside the allowed range", True
+            return False, f"Uploaded size {actual_size} is outside the allowed range", True, True
 
         actual_content_type = (object_info.get("content_type") or "").split(";", 1)[0].strip().lower()
         expected_content_type = (intent.content_type or "").strip().lower()
@@ -913,13 +931,40 @@ class ServerAssetManager:
             return False, (
                 f"Uploaded content type {actual_content_type or 'missing'} did not match "
                 f"expected content type {expected_content_type or 'missing'}"
-            ), True
+            ), True, True
 
         actual_xxhash = (object_info.get("metadata") or {}).get("xxhash")
         if not intent.xxhash or actual_xxhash != intent.xxhash:
-            return False, "Uploaded xxHash metadata did not match the upload intent", True
+            return False, "Uploaded xxHash metadata did not match the upload intent", True, True
 
-        return True, "", True
+        try:
+            object_bytes = self.r2_manager.get_object_bytes(intent.r2_key, self.max_file_size)
+        except Exception as exc:
+            logger.error(f"Error reading R2 object bytes for {intent.r2_key}: {exc}")
+            return False, "Unable to inspect uploaded image bytes", True, False
+
+        calculated_xxhash = xxhash.xxh64(object_bytes).hexdigest()
+        if calculated_xxhash != intent.xxhash:
+            return False, "Uploaded content hash did not match the upload intent", True, True
+
+        file_ext = os.path.splitext(intent.filename.lower())[1]
+        expected_format = self.allowed_image_types.get(file_ext, (None, None))[1]
+        try:
+            with warnings.catch_warnings():
+                warnings.simplefilter("error", Image.DecompressionBombWarning)
+                with Image.open(BytesIO(object_bytes)) as image:
+                    if image.format != expected_format:
+                        return False, (
+                            f"Decoded image format {image.format or 'unknown'} did not match "
+                            f"expected format {expected_format or 'unknown'}"
+                        ), True, True
+                    image.verify()
+                with Image.open(BytesIO(object_bytes)) as image:
+                    image.load()
+        except (UnidentifiedImageError, OSError, Image.DecompressionBombError, Image.DecompressionBombWarning) as exc:
+            return False, f"Uploaded image bytes failed validation: {exc}", True, True
+
+        return True, "", True, False
 
     def _delete_rejected_upload(self, r2_key: str) -> None:
         try:

@@ -210,7 +210,6 @@ beforeEach(() => {
 
 describe('Web Client TypeScript & WASM Systems Integration Tests', () => {
   const user = userEvent.setup();
-  void { id: 1, username: 'testuser', role: 'dm' as const, permissions: ['all'] };
 
   describe('WASM Integration System', () => {
     it('should initialize WASM module and provide TypeScript bridge', async () => {

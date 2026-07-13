@@ -11,7 +11,7 @@ vi.mock('../../services/sessionManagement.service', () => ({
 import { sessionManagementService } from '../../services/sessionManagement.service';
 
 const mockPlayers = [
-  { userId: 1, username: 'Alice', role: 'dm' },
+  { userId: 1, username: 'Alice', role: 'owner' },
   { userId: 2, username: 'Bob', role: 'player' },
 ];
 

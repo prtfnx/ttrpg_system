@@ -5,6 +5,7 @@
  * Use these factories instead of inline object literals in tests.
  */
 import type { Character, Sprite } from '@/types';
+import type { SessionRole } from '@features/session/types/roles';
 
 export type { Sprite };
 
@@ -24,7 +25,7 @@ export interface TableInfo {
 export interface SessionInfo {
   session_code: string;
   session_name: string;
-  role: 'dm' | 'player';
+  role: SessionRole;
   created_at: string;
 }
 
@@ -95,7 +96,7 @@ export function createTestSession(overrides: Partial<SessionInfo> = {}): Session
   return {
     session_code: code,
     session_name: 'Test Campaign',
-    role: 'dm',
+    role: 'owner',
     created_at: new Date().toISOString(),
     ...overrides,
   };

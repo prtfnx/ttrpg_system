@@ -92,8 +92,8 @@ vi.mock('@/store', () => ({
 
 import { useGameStore } from '@/store';
 
-function makeUser(role: 'dm' | 'player' = 'player'): UserInfo {
-  return { id: 1, username: 'tester', email: 'x@x.com', role } as unknown as UserInfo;
+function makeUser(_role: 'dm' | 'player' = 'player'): UserInfo {
+  return { id: 1, username: 'tester', email: 'x@x.com' };
 }
 
 beforeEach(() => {

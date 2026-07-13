@@ -5,13 +5,14 @@ Provides HTTP/webhook and WebSocket endpoints for client communication
 import asyncio
 import os
 from contextlib import asynccontextmanager
+from pathlib import Path
 
 import uvicorn
 from api import game_ws
 from config import Settings
 from core_table.server import TableManager
 from database import models
-from database.database import create_tables, get_db
+from database.database import create_tables, engine, get_db
 from fastapi import Depends, FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse, RedirectResponse
@@ -20,6 +21,8 @@ from fastapi.templating import Jinja2Templates
 from routers import auth, compendium, demo, game, invitations, users
 from routers.users import get_current_user_optional
 from service.game_session import ConnectionManager
+from service.readiness import ReadinessChecker
+from storage.r2_manager import R2AssetManager
 from sqlalchemy.orm import Session
 from starlette.middleware.sessions import SessionMiddleware
 from utils.logger import setup_logger
@@ -239,6 +242,18 @@ async def health_check():
         },
         status_code=200
     )
+
+
+@app.get("/ready")
+async def readiness_check():
+    """Verify release-critical database, UI artifact, and R2 dependencies."""
+    result = ReadinessChecker(
+        settings=settings,
+        engine=engine,
+        r2_manager=R2AssetManager(),
+        static_ui_path=Path(__file__).resolve().parent / "static" / "ui" / "index.html",
+    ).run()
+    return JSONResponse(content=result, status_code=200 if result["status"] == "ready" else 503)
 
 if __name__ == "__main__":
 

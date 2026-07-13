@@ -79,9 +79,15 @@ def test_no_active_encounter():
     assert 'error' in result
 
 
-def test_browser_choice_shape_is_normalized():
+def test_canonical_choice_shape_is_preserved():
     enc = EncounterEngine.create('sess1', 'Browser', 'Shape', [
-        {'id': 'inspect', 'text': 'Inspect', 'requires_roll': True, 'skill': 'Investigation', 'dc': '14'},
+        {
+            'choice_id': 'inspect',
+            'text': 'Inspect',
+            'requires_roll': True,
+            'roll_skill': 'Investigation',
+            'roll_dc': '14',
+        },
     ], [])
     choice = enc.choices[0]
     assert choice.choice_id == 'inspect'

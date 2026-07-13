@@ -19,6 +19,7 @@ def _make_service(session_code="TST"):
          patch("service.game_session_protocol.get_server_asset_manager"):
         mock_sp.return_value.handlers = {}
         mock_sp.return_value.handle_client = AsyncMock()
+        mock_sp.return_value._load_active_choice_encounter.return_value = None
         svc = GameSessionProtocolService.__new__(GameSessionProtocolService)
         svc.session_code = session_code
         svc.db_session = None
@@ -53,6 +54,27 @@ class TestClientLifecycle:
         ws.send_text.assert_awaited_once()
         payload = json.loads(ws.send_text.call_args[0][0])
         assert payload["type"] == MessageType.WELCOME.value
+
+    async def test_add_client_restores_active_choice_encounter(self):
+        svc = _make_service()
+        encounter = MagicMock()
+        encounter.to_dict.return_value = {
+            "encounter_id": "enc-1",
+            "title": "Crossroads",
+            "phase": "presenting",
+        }
+        svc.server_protocol._load_active_choice_encounter.return_value = encounter
+        ws = _ws()
+
+        await svc.add_client(
+            ws,
+            "c1",
+            {"user_id": 1, "username": "Alice", "role": "player"},
+        )
+
+        payload = json.loads(ws.send_text.call_args[0][0])
+        assert payload["data"]["choice_encounter"]["encounter_id"] == "enc-1"
+        encounter.to_dict.assert_called_once_with(dm=False)
 
     async def test_add_client_stores_info(self):
         svc = _make_service()

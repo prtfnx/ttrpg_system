@@ -21,6 +21,20 @@ class _ProtoStub(_EncounterMixin):
         self.session_manager = MagicMock()
         self.clients = {}
         self._rules_cache = {}
+        self.broadcasts = []
+        self.saved_encounters = []
+
+    def _encounter_store(self):
+        owner = self
+
+        class _Store:
+            def load_active(self, session_code, encounter_id=None):
+                return None
+
+            def save_snapshot(self, **kwargs):
+                owner.saved_encounters.append(kwargs)
+
+        return _Store()
 
     def _get_client_role(self, client_id): return self._role
     def _get_session_id(self, msg): return 1
@@ -30,7 +44,8 @@ class _ProtoStub(_EncounterMixin):
     def _has_kick_permission(self, client_info): return False
     def _has_ban_permission(self, client_info): return False
 
-    async def broadcast_to_session(self, message, client_id): pass
+    async def broadcast_to_session(self, message, client_id):
+        self.broadcasts.append((message, client_id))
     async def broadcast_filtered(self, message, layer, client_id): pass
     async def send_to_client(self, message, client_id): pass
     async def _broadcast_error(self, client_id, error_message): pass
@@ -45,7 +60,13 @@ def _mock_encounter(**kwargs):
     enc = MagicMock()
     enc.encounter_id = kwargs.get("encounter_id", "enc-1")
     enc.player_choices = kwargs.get("player_choices", {})
-    enc.to_dict.return_value = {"encounter_id": enc.encounter_id, "title": "Test"}
+    enc.to_dict.side_effect = lambda dm=False: {
+        "encounter_id": enc.encounter_id,
+        "session_id": "TST",
+        "title": "Test",
+        "phase": "presenting",
+        "dm_notes": "secret" if dm else "",
+    }
     return enc
 
 
@@ -72,13 +93,33 @@ class TestEncounterStart:
 
     @patch("service.encounter_engine.EncounterEngine")
     async def test_owner_creates_encounter_and_returns_dm_view(self, mock_engine):
+        mock_engine.get.return_value = None
         mock_engine.create.return_value = _mock_encounter()
         proto = _ProtoStub(role="owner")
         msg = Message(MessageType.ENCOUNTER_START, {
-            "title": "Trap Room", "choices": ["run", "fight"], "participants": []
+            "title": "Trap Room",
+            "choices": [
+                {"choice_id": "run", "text": "Run"},
+                {"choice_id": "fight", "text": "Fight"},
+            ],
+            "participants": [],
         })
         resp = await proto.handle_encounter_start(msg, "c1")
         assert resp.type == MessageType.ENCOUNTER_STATE
+        assert resp.data["encounter"]["dm_notes"] == "secret"
+        assert proto.broadcasts[0][0].data["encounter"]["dm_notes"] == ""
+
+    @patch("service.encounter_engine.EncounterEngine")
+    async def test_second_active_encounter_is_rejected(self, mock_engine):
+        mock_engine.get.return_value = _mock_encounter()
+        proto = _ProtoStub(role="owner")
+        msg = Message(MessageType.ENCOUNTER_START, {
+            "title": "Second", "choices": [{"choice_id": "c1", "text": "Go"}]
+        })
+        resp = await proto.handle_encounter_start(msg, "c1")
+        assert resp.type == MessageType.ERROR
+        assert "active encounter" in resp.data["error"].lower()
+        mock_engine.create.assert_not_called()
 
 
 # ---------------------------------------------------------------------------
@@ -102,11 +143,15 @@ class TestEncounterEnd:
 
     @patch("service.encounter_engine.EncounterEngine")
     async def test_successful_end_returns_result(self, mock_engine):
-        mock_engine.end_encounter.return_value = _mock_encounter(encounter_id="enc-42", player_choices={})
+        encounter = _mock_encounter(encounter_id="enc-42", player_choices={})
+        mock_engine.get.return_value = encounter
+        mock_engine.end_encounter.return_value = encounter
         proto = _ProtoStub(role="owner")
         resp = await proto.handle_encounter_end(Message(MessageType.ENCOUNTER_END, {}), "c1")
         assert resp.type == MessageType.ENCOUNTER_RESULT
         assert resp.data["encounter_id"] == "enc-42"
+        assert resp.data["encounter"]["dm_notes"] == "secret"
+        assert proto.broadcasts[0][0].data["encounter"]["dm_notes"] == ""
 
 
 # ---------------------------------------------------------------------------
@@ -133,11 +178,18 @@ class TestEncounterChoice:
 
     @patch("service.encounter_engine.EncounterEngine")
     async def test_valid_choice_returns_result(self, mock_engine):
-        mock_engine.submit_choice.return_value = {"selected": "run", "resolved": False}
+        encounter = _mock_encounter()
+        mock_engine.get.return_value = encounter
+        mock_engine.submit_choice.return_value = {
+            "status": "choice_recorded",
+            "encounter": encounter.to_dict(dm=True),
+        }
         proto = _ProtoStub()
         msg = Message(MessageType.ENCOUNTER_CHOICE, {"choice_id": "run"})
         resp = await proto.handle_encounter_choice(msg, "c1")
         assert resp.type == MessageType.ENCOUNTER_RESULT
+        assert resp.data["encounter"]["dm_notes"] == ""
+        assert proto.saved_encounters[0]["encounter"]["dm_notes"] == "secret"
 
 
 # ---------------------------------------------------------------------------
@@ -147,6 +199,14 @@ class TestEncounterChoice:
 @pytest.mark.unit
 @pytest.mark.asyncio
 class TestEncounterRoll:
+    async def test_non_integer_bonus_returns_error(self):
+        proto = _ProtoStub()
+        resp = await proto.handle_encounter_roll(
+            Message(MessageType.ENCOUNTER_ROLL, {"bonus": "many"}),
+            "c1",
+        )
+        assert resp.type == MessageType.ERROR
+
     @patch("service.encounter_engine.EncounterEngine")
     async def test_engine_error_propagated(self, mock_engine):
         mock_engine.submit_roll.return_value = {"error": "No active encounter"}

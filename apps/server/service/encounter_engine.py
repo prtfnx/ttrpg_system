@@ -9,11 +9,9 @@ from core_table.dice import DiceEngine, DiceRollResult
 
 
 class EncounterPhase(str, Enum):
-    SETUP = "setup"
     PRESENTING = "presenting"
     AWAITING_CHOICE = "awaiting_choice"
     AWAITING_ROLL = "awaiting_roll"
-    RESOLVING = "resolving"
     COMPLETED = "completed"
 
 
@@ -25,23 +23,21 @@ class EncounterChoice:
     roll_ability: Optional[str] = None
     roll_dc: Optional[int] = None
     roll_skill: Optional[str] = None
-    visible_to: list[str] = field(default_factory=list)
 
     @classmethod
     def from_payload(cls, payload: dict[str, Any]) -> "EncounterChoice":
-        """Normalize legacy/browser aliases into the canonical encounter DTO."""
-        raw_dc = payload.get("roll_dc") if payload.get("roll_dc") is not None else payload.get("dc")
+        """Build a choice from the canonical encounter DTO."""
+        raw_dc = payload.get("roll_dc")
         return cls(
-            choice_id=str(payload.get("choice_id") or payload.get("id") or uuid.uuid4()),
+            choice_id=str(payload.get("choice_id") or uuid.uuid4()),
             text=str(payload["text"]),
             requires_roll=bool(payload.get("requires_roll", False)),
-            roll_ability=payload.get("roll_ability") or payload.get("ability"),
+            roll_ability=payload.get("roll_ability"),
             roll_dc=int(raw_dc) if raw_dc is not None and raw_dc != "" else None,
-            roll_skill=payload.get("roll_skill") or payload.get("skill"),
-            visible_to=[str(v) for v in payload.get("visible_to", [])],
+            roll_skill=payload.get("roll_skill"),
         )
 
-    def to_dict(self, dm: bool = False) -> dict:
+    def to_dict(self) -> dict:
         return {
             "choice_id": self.choice_id,
             "text": self.text,
@@ -49,7 +45,6 @@ class EncounterChoice:
             "roll_ability": self.roll_ability,
             "roll_dc": self.roll_dc,
             "roll_skill": self.roll_skill,
-            "visible_to": self.visible_to if dm else [],
         }
 
 
@@ -81,7 +76,7 @@ class EncounterState:
     title: str
     description: str
     table_id: str = ""
-    phase: EncounterPhase = EncounterPhase.SETUP
+    phase: EncounterPhase = EncounterPhase.PRESENTING
     choices: list[EncounterChoice] = field(default_factory=list)
     participants: list[str] = field(default_factory=list)
     roll_results: list[EncounterRollResult] = field(default_factory=list)
@@ -98,7 +93,7 @@ class EncounterState:
             "title": self.title,
             "description": self.description,
             "phase": self.phase.value,
-            "choices": [c.to_dict(dm=dm) for c in self.choices],
+            "choices": [c.to_dict() for c in self.choices],
             "participants": self.participants,
             "player_choices": self.player_choices,
             "pending_rolls": self.pending_rolls,
@@ -184,7 +179,7 @@ class EncounterEngine:
         encounter_id: str | None = None,
     ) -> dict:
         enc = cls._active.get(session_id)
-        if not enc or enc.phase in (EncounterPhase.SETUP, EncounterPhase.COMPLETED):
+        if not enc or enc.phase == EncounterPhase.COMPLETED:
             return {"error": "no active encounter"}
         if encounter_id and enc.encounter_id != encounter_id:
             return {"error": "stale encounter"}
@@ -228,7 +223,7 @@ class EncounterEngine:
         encounter_id: str | None = None,
     ) -> dict:
         enc = cls._active.get(session_id)
-        if not enc or enc.phase in (EncounterPhase.SETUP, EncounterPhase.COMPLETED):
+        if not enc or enc.phase == EncounterPhase.COMPLETED:
             return {"error": "no roll expected"}
         if encounter_id and enc.encounter_id != encounter_id:
             return {"error": "stale encounter"}

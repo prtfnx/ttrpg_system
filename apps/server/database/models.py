@@ -417,6 +417,58 @@ class CombatActionJournal(Base):
     created_at: Mapped[Optional[datetime]] = mapped_column(DateTime, default=datetime.utcnow)
 
 
+class ChoiceEncounter(Base):
+    """Durable snapshot for the lightweight choice encounter workflow."""
+    __tablename__ = "choice_encounters"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
+    encounter_id: Mapped[str] = mapped_column(String(36), unique=True, index=True, nullable=False)
+    session_id: Mapped[int] = mapped_column(Integer, ForeignKey("game_sessions.id"), nullable=False, index=True)
+    session_code: Mapped[str] = mapped_column(String(20), nullable=False, index=True)
+    table_id: Mapped[Optional[str]] = mapped_column(String(36), nullable=True)
+    title: Mapped[str] = mapped_column(String(255), nullable=False)
+    description: Mapped[str] = mapped_column(Text, nullable=False, default="")
+    phase: Mapped[str] = mapped_column(String(30), nullable=False)
+    state_json: Mapped[str] = mapped_column(Text, nullable=False)
+    participants_json: Mapped[str] = mapped_column(Text, nullable=False, default="[]")
+    choices_json: Mapped[str] = mapped_column(Text, nullable=False, default="[]")
+    dm_notes: Mapped[str] = mapped_column(Text, nullable=False, default="")
+    created_by: Mapped[Optional[int]] = mapped_column(Integer, ForeignKey("users.id"), nullable=True)
+    created_at: Mapped[Optional[datetime]] = mapped_column(DateTime, default=datetime.utcnow)
+    updated_at: Mapped[Optional[datetime]] = mapped_column(
+        DateTime,
+        default=datetime.utcnow,
+        onupdate=datetime.utcnow,
+    )
+    ended_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
+    version: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+
+
+class ChoiceEncounterEvent(Base):
+    """Append-only event emitted by an accepted choice encounter transition."""
+    __tablename__ = "choice_encounter_events"
+    __table_args__ = (
+        UniqueConstraint(
+            "encounter_id",
+            "sequence",
+            name="uq_choice_encounter_event_sequence",
+        ),
+    )
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
+    encounter_id: Mapped[str] = mapped_column(
+        String(36),
+        ForeignKey("choice_encounters.encounter_id"),
+        nullable=False,
+        index=True,
+    )
+    sequence: Mapped[int] = mapped_column(Integer, nullable=False)
+    event_type: Mapped[str] = mapped_column(String(50), nullable=False)
+    actor_id: Mapped[Optional[str]] = mapped_column(String(128), nullable=True)
+    payload_json: Mapped[str] = mapped_column(Text, nullable=False)
+    created_at: Mapped[Optional[datetime]] = mapped_column(DateTime, default=datetime.utcnow, index=True)
+
+
 class Wall(Base):
     """Persistent wall segment — feeds directly into lighting and vision pipeline."""
     __tablename__ = "walls"

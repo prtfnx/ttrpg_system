@@ -209,6 +209,7 @@ class GameSessionProtocolService:
         # Load game mode and rules for this session
         game_mode = 'free_roam'
         rules_dict: dict = {}
+        choice_encounter = None
         if self.db_session and self.game_session_db_id:
             try:
                 sess = self.db_session.get(db_models.GameSession, self.game_session_db_id)
@@ -219,6 +220,15 @@ class GameSessionProtocolService:
                     rules_dict.setdefault('session_id', self.session_code)
             except Exception:
                 pass
+
+        try:
+            active_encounter = self.server_protocol._load_active_choice_encounter(
+                self.session_code
+            )
+            if active_encounter:
+                choice_encounter = active_encounter.to_dict(dm=_is_dm(role))
+        except Exception:
+            logger.exception("Failed to restore active choice encounter for welcome")
 
         await self._send_message(websocket, Message(
             MessageType.WELCOME,
@@ -234,6 +244,7 @@ class GameSessionProtocolService:
                 "visible_layers": get_visible_layers(role),
                 "game_mode": game_mode,
                 "session_rules": rules_dict,
+                "choice_encounter": choice_encounter,
             }
         ))
 

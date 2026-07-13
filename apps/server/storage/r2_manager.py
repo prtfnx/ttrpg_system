@@ -269,6 +269,28 @@ class R2AssetManager:
             logger.error(f"Delete failed: {e}")
             return False
 
+    def promote_file(self, source_key: str, destination_key: str) -> bool:
+        """Copy a verified object to its durable key before removing the pending object."""
+        try:
+            if not self.object_exists(destination_key):
+                self.s3_client.copy_object(
+                    Bucket=_settings.r2_bucket_name,
+                    CopySource={"Bucket": _settings.r2_bucket_name, "Key": source_key},
+                    Key=destination_key,
+                    MetadataDirective="COPY"
+                )
+                if not self.object_exists(destination_key):
+                    logger.error(f"Promoted object verification failed for {destination_key}")
+                    return False
+            if not self.delete_file(source_key):
+                logger.error(f"Could not remove pending object after promotion: {source_key}")
+                return False
+            logger.info(f"Promoted R2 object {source_key} -> {destination_key}")
+            return True
+        except Exception as exc:
+            logger.error(f"Failed to promote R2 object {source_key}: {exc}")
+            return False
+
     def list_objects(self, prefix: str = "", max_keys: int = 1000) -> List[Dict[str, Any]]:
         """List objects in R2 bucket"""
         try:

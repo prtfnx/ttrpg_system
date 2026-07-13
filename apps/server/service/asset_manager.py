@@ -177,10 +177,15 @@ class ServerAssetManager:
 
         return True, None
 
-    def _generate_r2_key(self, asset_id: str, filename: str, session_code: str) -> str:
-        """Generate R2 object key with proper organization"""
+    def _generate_r2_key(self, asset_id: str, filename: str) -> str:
+        """Generate the stable content-addressed R2 object key."""
         file_ext = os.path.splitext(filename)[1]
-        return f"sessions/{session_code}/assets/{asset_id}{file_ext}"
+        return f"assets/{asset_id}{file_ext}"
+
+    def _generate_pending_r2_key(self, asset_id: str, filename: str, session_code: str) -> str:
+        """Generate a lifecycle-managed key for an unconfirmed upload."""
+        file_ext = os.path.splitext(filename)[1]
+        return f"pending/{session_code}/{asset_id}{file_ext}"
 
     def _get_session(self, db, session_code: str) -> Optional[GameSession]:
         return db.query(GameSession).filter(GameSession.session_code == session_code).first()
@@ -480,10 +485,20 @@ class ServerAssetManager:
                     )
                     return False
 
+                final_r2_key = self._generate_r2_key(intent.asset_id, intent.filename)
+                if intent.r2_key != final_r2_key:
+                    if not self.r2_manager.promote_file(intent.r2_key, final_r2_key):
+                        intent.status = "promotion_failed"
+                        intent.error_message = "Verified upload could not be promoted to durable storage"
+                        intent.confirmed_at = datetime.utcnow()
+                        db.commit()
+                        return False
+                    intent.r2_key = final_r2_key
+
                 confirmed_metadata = {
                     "asset_id": intent.asset_id,
                     "filename": intent.filename,
-                    "r2_key": intent.r2_key,
+                    "r2_key": final_r2_key,
                     "session_code": intent.session_code,
                     "uploaded_by": intent.uploaded_by,
                     "file_size": intent.file_size,
@@ -588,7 +603,7 @@ class ServerAssetManager:
             failed_uploads = db.query(AssetUploadIntent).filter(
                 AssetUploadIntent.status.in_([
                     "failed", "missing_object", "verification_failed", "inspection_failed",
-                    "metadata_failed", "expired"
+                    "promotion_failed", "metadata_failed", "expired"
                 ])
             ).count()
         finally:
@@ -682,7 +697,7 @@ class ServerAssetManager:
 
             # Use the asset_id from the request (already validated above)
             asset_id = request.asset_id
-            r2_key = self._generate_r2_key(asset_id, request.filename, request.session_code)
+            r2_key = self._generate_pending_r2_key(asset_id, request.filename, request.session_code)
 
             # Generate presigned URL with xxHash metadata (1 hour expiry)
             expiry_seconds = 3600

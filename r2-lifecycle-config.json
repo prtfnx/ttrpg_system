@@ -1,0 +1,17 @@
+{
+  "Rules": [
+    {
+      "ID": "expire-unconfirmed-asset-uploads",
+      "Status": "Enabled",
+      "Filter": {
+        "Prefix": "pending/"
+      },
+      "Expiration": {
+        "Days": 1
+      },
+      "AbortIncompleteMultipartUpload": {
+        "DaysAfterInitiation": 1
+      }
+    }
+  ]
+}

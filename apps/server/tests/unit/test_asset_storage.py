@@ -27,6 +27,7 @@ class FakeR2Manager:
         content_type="image/png",
         xxhash=VALID_XXHASH,
         delete_success=True,
+        promote_success=True,
     ):
         self._object_exists = object_exists
         self.object_data = object_data
@@ -34,7 +35,9 @@ class FakeR2Manager:
         self.content_type = content_type
         self.xxhash = xxhash
         self.delete_success = delete_success
+        self.promote_success = promote_success
         self.deleted_keys = []
+        self.promotions = []
 
     def is_r2_configured(self):
         return True
@@ -66,6 +69,10 @@ class FakeR2Manager:
     def delete_file(self, file_key):
         self.deleted_keys.append(file_key)
         return self.delete_success
+
+    def promote_file(self, source_key, destination_key):
+        self.promotions.append((source_key, destination_key))
+        return self.promote_success
 
 
 class AssetProtocolStub(_AssetsMixin):
@@ -125,6 +132,13 @@ async def test_upload_confirmation_creates_asset_and_session_link(
     assert asset.r2_asset_id == response.asset_id
     assert asset.xxhash == VALID_XXHASH
     assert asset.session_id is None
+    assert asset.r2_key == f"assets/{VALID_XXHASH[:16]}.png"
+    assert manager.r2_manager.promotions == [
+        (
+            f"pending/{test_game_session.session_code}/{VALID_XXHASH[:16]}.png",
+            f"assets/{VALID_XXHASH[:16]}.png",
+        )
+    ]
     link = test_db.query(models.SessionAsset).one()
     assert link.asset_id == asset.id
     assert link.session_id == test_game_session.id
@@ -191,6 +205,22 @@ async def test_upload_confirmation_rejects_spoofed_image_bytes(
     assert intent.status == "verification_failed"
     assert "image bytes failed validation" in intent.error_message
     assert manager.r2_manager.deleted_keys == [intent.r2_key]
+    assert intent.r2_key.startswith("pending/")
+
+
+async def test_upload_confirmation_keeps_pending_state_when_promotion_fails(
+    monkeypatch, test_db, test_user, test_game_session
+):
+    manager = _manager(monkeypatch, test_db, promote_success=False)
+    response = await _request_upload(manager, test_user, test_game_session)
+
+    confirmed = await manager.confirm_upload(response.asset_id, test_user.id, upload_success=True)
+
+    assert confirmed is False
+    assert test_db.query(models.Asset).count() == 0
+    intent = test_db.query(models.AssetUploadIntent).one()
+    assert intent.status == "promotion_failed"
+    assert intent.r2_key.startswith("pending/")
 
 
 async def test_upload_rejects_svg_before_presigning(

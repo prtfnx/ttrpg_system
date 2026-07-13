@@ -41,7 +41,7 @@ window.ReactGameComponents = {
       <AuthProvider>
         <WasmRuntimeProvider>
           <div className="panel-container">
-            <ToolsPanel userInfo={{ id: 0, username: "unknown", role: "player", permissions: [] }} />
+            <ToolsPanel userInfo={{ id: 0, username: "unknown", permissions: [] }} />
           </div>
         </WasmRuntimeProvider>
       </AuthProvider>

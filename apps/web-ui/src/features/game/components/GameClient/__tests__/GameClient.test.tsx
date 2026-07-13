@@ -77,7 +77,6 @@ function createTestUserInfo(overrides: Partial<UserInfo> = {}): UserInfo {
   return {
     id: 123,
     username: 'testuser',
-    role: 'player',
     permissions: [],
     ...overrides,
   };

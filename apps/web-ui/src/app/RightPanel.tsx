@@ -60,7 +60,7 @@ const DEFAULT_TAB_ORDER: TabId[] = [
   'backgrounds', 'map', 'performance', 'customize',
 ];
 
-export function RightPanel(props: { sessionCode?: string; userInfo?: import('@features/auth').UserInfo; userRole?: string }) {
+export function RightPanel(props: { sessionCode?: string; userInfo?: import('@features/auth').UserInfo; userRole?: SessionRole }) {
   const [activeTab, setActiveTab] = useState<TabId>('entities');
   const sessionRole = (useGameStore(s => s.sessionRole) ?? props.userRole ?? 'player') as SessionRole;
   const actionsEngine = useActionsEngine();
@@ -120,7 +120,13 @@ export function RightPanel(props: { sessionCode?: string; userInfo?: import('@fe
         {isDevelopment && activeTab === 'table-tools' && <TablePanel />}
         {isDevelopment && activeTab === 'sync' && <TableSyncPanel />}
         {activeTab === 'characters' && <CharacterPanel />}
-        {activeTab === 'players' && <PlayerManagerPanel sessionCode={props.sessionCode!} userInfo={{...props.userInfo, role: isDM(sessionRole) ? 'dm' : 'player'} as import('@features/auth').UserInfo} />}
+        {activeTab === 'players' && props.sessionCode && props.userInfo && (
+          <PlayerManagerPanel
+            sessionCode={props.sessionCode}
+            userInfo={props.userInfo}
+            sessionRole={sessionRole}
+          />
+        )}
         {isDevelopment && activeTab === 'actions' && <ActionsPanel actionsEngine={actionsEngine} />}
         {isDevelopment && activeTab === 'queue' && <ActionQueuePanel sessionCode={props.sessionCode!} userInfo={props.userInfo!} />}
         {activeTab === 'entities' && <EntitiesPanel />}

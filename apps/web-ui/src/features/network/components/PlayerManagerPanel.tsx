@@ -1,6 +1,7 @@
 
 import type { UserInfo } from '@features/auth';
 import { useAuthenticatedWebSocket } from '@features/auth';
+import { isDM, type SessionRole } from '@features/session/types/roles';
 import { createMessage, MessageType } from '@lib/websocket';
 import React, { useEffect, useState } from "react";
 import styles from './PlayerManagerPanel.module.css';
@@ -12,7 +13,13 @@ interface Player {
   role: "dm" | "player";
 }
 
-export const PlayerManagerPanel: React.FC<{ sessionCode: string; userInfo: UserInfo }> = ({ sessionCode, userInfo }) => {
+interface PlayerManagerPanelProps {
+  sessionCode: string;
+  userInfo: UserInfo;
+  sessionRole: SessionRole;
+}
+
+export const PlayerManagerPanel: React.FC<PlayerManagerPanelProps> = ({ sessionCode, userInfo, sessionRole }) => {
   const { protocol } = useAuthenticatedWebSocket({ sessionCode, userInfo });
   const [players, setPlayers] = useState<Player[]>([]);
   const [error, setError] = useState<string | null>(null);
@@ -55,7 +62,7 @@ export const PlayerManagerPanel: React.FC<{ sessionCode: string; userInfo: UserI
     protocol?.sendMessage(createMessage(MessageType.PLAYER_BAN_REQUEST, { id }, 1));
   };
 
-  if (userInfo.role !== "dm") {
+  if (!isDM(sessionRole)) {
     return (
       <div className={styles.panel}>
         <h3>Player Management</h3>

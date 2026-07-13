@@ -9,6 +9,7 @@ export interface UserInfo {
   email?: string | null;
   disabled?: boolean;
   created_at?: string | null;
+  permissions?: string[];
 }
 
 import type { SessionRole } from '@features/session/types/roles';

@@ -56,7 +56,6 @@ export function useAuthenticatedWebSocket({ sessionCode, userInfo }: UseAuthenti
       logger.info('Connected to authenticated session', {
         sessionCode: resolvedCode,
         username: userInfo.username,
-        role: userInfo.role,
       });
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Connection failed';

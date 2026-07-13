@@ -9,7 +9,6 @@ from dataclasses import dataclass
 from datetime import datetime, timedelta
 from typing import Dict, List, Optional, Tuple
 
-import xxhash
 from config import Settings
 from database.database import SessionLocal
 from database.models import Asset, AssetUploadIntent, GamePlayer, GameSession, SessionAsset
@@ -166,12 +165,6 @@ class ServerAssetManager:
 
         return True, None
 
-    def _generate_asset_id(self, filedata:bytes) -> str:
-        """Generate unique asset ID based on file content"""
-        hasher = xxhash.xxh64()
-        hasher.update(filedata)
-        return hasher.hexdigest()[:16]
-
     def _generate_r2_key(self, asset_id: str, filename: str, session_code: str) -> str:
         """Generate R2 object key with proper organization"""
         file_ext = os.path.splitext(filename)[1]
@@ -182,13 +175,30 @@ class ServerAssetManager:
 
     def _user_can_access_session(self, db, session: Optional[GameSession], user_id: int) -> bool:
         if session is None:
-            return True
+            return False
         if session.owner_id == user_id:
             return True
         return db.query(GamePlayer).filter(
             GamePlayer.session_id == session.id,
             GamePlayer.user_id == user_id
         ).first() is not None
+
+    def _user_can_upload_to_session(self, session_code: str, user_id: int) -> bool:
+        """Authorize uploads from durable session membership and role data."""
+        db = SessionLocal()
+        try:
+            session = self._get_session(db, session_code)
+            if session is None:
+                return False
+            if session.owner_id == user_id:
+                return True
+            player = db.query(GamePlayer).filter(
+                GamePlayer.session_id == session.id,
+                GamePlayer.user_id == user_id
+            ).first()
+            return player is not None and player.role not in {"observer", "spectator"}
+        finally:
+            db.close()
 
     def _asset_has_session_access(self, db, asset: Asset, session: Optional[GameSession]) -> bool:
         if session is None:
@@ -277,113 +287,6 @@ class ServerAssetManager:
             raise
         finally:
             db.close()
-
-    async def request_upload_url(self, request: AssetRequest) -> PresignedUrlResponse:
-        """Generate presigned URL for file upload"""
-        try:
-            # Check if R2 is configured
-            if not self.r2_manager.is_r2_configured():
-                return PresignedUrlResponse(
-                    success=False,
-                    error="Cloud storage not configured"
-                )
-
-            # Check permissions
-            permissions = self._get_permissions(request.session_code, request.user_id)
-            if not permissions.can_upload:
-                return PresignedUrlResponse(
-                    success=False,
-                    error="Upload permission denied"
-                )
-
-            # Check rate limits
-            if not self._check_rate_limit(request.user_id, "upload", 50):  # 50 uploads per hour
-                return PresignedUrlResponse(
-                    success=False,
-                    error="Upload rate limit exceeded. Please try again later."
-                )
-
-            # Validate file request
-            valid, error_msg = self._validate_file_request(request)
-            if not valid:
-                return PresignedUrlResponse(
-                    success=False,
-                    error=error_msg
-                )
-
-            # Validate required fields
-            if not request.asset_id:
-                return PresignedUrlResponse(
-                    success=False,
-                    error="asset_id is required"
-                )
-
-            if not request.filename:
-                return PresignedUrlResponse(
-                    success=False,
-                    error="filename is required"
-                )
-
-            asset_id = request.asset_id  # Now we know it's not None
-            # Check if asset already exists in the database
-            existing_asset = self._get_asset_by_id_from_db(asset_id)
-            if existing_asset:
-                return PresignedUrlResponse(
-                    success=True,
-                    asset_id=asset_id,
-                    url=None,  # No upload needed
-                    instructions="Asset already exists"
-                )
-            # Generate asset ID and R2 key
-            r2_key = self._generate_r2_key(asset_id, request.filename, request.session_code)
-
-            # Generate presigned URL (1 hour expiry)
-            expiry_seconds = 3600
-            presigned_url = self.r2_manager.generate_presigned_url(
-                r2_key,
-                method="PUT",
-                expiration=expiry_seconds
-            )
-
-            if not presigned_url:
-                return PresignedUrlResponse(
-                    success=False,
-                    error="Failed to generate upload URL"
-                )
-
-            # Store durable upload intent metadata.
-            pending_metadata = {
-                "asset_id": asset_id,
-                "filename": request.filename,
-                "r2_key": r2_key,
-                "session_code": request.session_code,
-                "uploaded_by": request.user_id,
-                "username": request.username,
-                "file_size": request.file_size,
-                "content_type": request.content_type,
-                "created_at": datetime.now().isoformat(),
-                "presigned_url_generated_at": datetime.now().isoformat(),
-                "status": "awaiting_upload"
-            }
-
-            self._record_upload_intent(pending_metadata, expiry_seconds)
-
-            logger.info(f"Generated upload URL for {request.username}: {request.filename} -> {asset_id} (pending confirmation)")
-
-            return PresignedUrlResponse(
-                success=True,
-                url=presigned_url,
-                asset_id=asset_id,
-                expires_in=expiry_seconds,
-                instructions="PUT the file directly to this URL with the original Content-Type header"
-            )
-
-        except Exception as e:
-            logger.error(f"Error generating upload URL: {e}")
-            return PresignedUrlResponse(
-                success=False,
-                error="Internal server error"
-            )
 
     async def request_download_url(self, request: AssetRequest) -> PresignedUrlResponse:
         """Generate presigned URL for file download"""
@@ -546,12 +449,18 @@ class ServerAssetManager:
                     logger.warning(f"Asset {asset_id} upload failed: {error_message}")
                     return True
 
-                if not await self._verify_asset_in_r2(intent.r2_key):
-                    intent.status = "missing_object"
-                    intent.error_message = "R2 object did not exist at confirmation time"
+                verified, verification_error, object_found = self._verify_uploaded_asset(intent)
+                if not verified:
+                    intent.status = "verification_failed" if object_found else "missing_object"
+                    intent.error_message = verification_error
                     intent.confirmed_at = datetime.utcnow()
                     db.commit()
-                    logger.error(f"Asset {asset_id} not found in R2; refusing DB asset commit")
+                    if object_found:
+                        self._delete_rejected_upload(intent.r2_key)
+                    logger.error(
+                        f"Asset {asset_id} failed R2 verification; refusing DB asset commit: "
+                        f"{verification_error}"
+                    )
                     return False
 
                 confirmed_metadata = {
@@ -586,7 +495,7 @@ class ServerAssetManager:
             logger.error(f"Error confirming upload for asset {asset_id}: {e}")
             return False
 
-    def get_session_assets(self, session_code: str) -> List[dict]:
+    def get_session_assets(self, session_code: str, user_id: int) -> List[dict]:
         """Get list of assets available in a session.
 
         This helper is used by the management UI to populate the asset
@@ -600,6 +509,9 @@ class ServerAssetManager:
                 session = db.query(GameSession).filter(GameSession.session_code == session_code).first()
                 if not session:
                     logger.warning(f"Session {session_code} not found")
+                    return []
+                if not self._user_can_access_session(db, session, user_id):
+                    logger.warning(f"User {user_id} cannot list assets for session {session_code}")
                     return []
 
                 linked_assets = (
@@ -678,7 +590,9 @@ class ServerAssetManager:
                 AssetUploadIntent.status == "awaiting_upload"
             ).count()
             failed_uploads = db.query(AssetUploadIntent).filter(
-                AssetUploadIntent.status.in_(["failed", "missing_object", "metadata_failed", "expired"])
+                AssetUploadIntent.status.in_([
+                    "failed", "missing_object", "verification_failed", "metadata_failed", "expired"
+                ])
             ).count()
         finally:
             db.close()
@@ -692,18 +606,6 @@ class ServerAssetManager:
             "active_sessions": len(self.session_permissions),
             "note": "Confirmed assets and pending upload intents are durable"
         }
-
-    def calculate_file_xxhash(self, file_path: str) -> str:
-        """Calculate xxHash for a file"""
-        try:
-            hasher = xxhash.xxh64()
-            with open(file_path, 'rb') as f:
-                for chunk in iter(lambda: f.read(65536), b""):
-                    hasher.update(chunk)
-            return hasher.hexdigest()
-        except Exception as e:
-            logger.error(f"Error calculating xxHash: {e}")
-            return ""
 
     async def request_upload_url_with_hash(self, request: AssetRequest, file_xxhash: str) -> PresignedUrlResponse:
         """Generate presigned URL for file upload with pre-calculated hash"""
@@ -726,6 +628,12 @@ class ServerAssetManager:
                 return PresignedUrlResponse(
                     success=False,
                     error="Cloud storage not configured"
+                )
+
+            if not self._user_can_upload_to_session(request.session_code, request.user_id):
+                return PresignedUrlResponse(
+                    success=False,
+                    error="Upload permission denied"
                 )
 
             # Check permissions
@@ -854,7 +762,6 @@ class ServerAssetManager:
                         logger.info(f"Linked existing asset with xxHash {asset_data['xxhash']} to session")
                         return True
 
-                session_id = session.id if session else None
                 stored_name = self._make_unique_asset_name(db, asset_data["filename"], asset_data["asset_id"])
 
                 # Create new asset record
@@ -866,7 +773,7 @@ class ServerAssetManager:
 
                     xxhash=asset_data.get("xxhash", ""),
                     uploaded_by=asset_data["uploaded_by"],
-                    session_id=session_id,
+                    session_id=None,
                     r2_key=asset_data["r2_key"],
                     r2_bucket=Settings().r2_bucket_name or "default",
                     created_at=datetime.utcnow(),
@@ -1012,29 +919,43 @@ class ServerAssetManager:
             logger.error(f"Error verifying asset in R2: {e}")
             return False
 
-    def _update_asset_status_in_db(self, asset_id: str, status: str, error_message: Optional[str] = None):
-        """Update asset status in database"""
+    def _verify_uploaded_asset(self, intent: AssetUploadIntent) -> Tuple[bool, str, bool]:
+        """Verify an uploaded object against its signed durable intent."""
         try:
-            db = SessionLocal()
-            try:
-                asset = db.query(Asset).filter_by(r2_asset_id=asset_id).first()
-                if asset:
-                    asset.status = status
-                    if error_message:
-                        asset.error_message = error_message
-                    if status == "uploaded":
-                        asset.uploaded_at = datetime.now()
-                    elif status == "failed":
-                        asset.failed_at = datetime.now()
+            object_info = self.r2_manager.get_object_info(intent.r2_key)
+        except Exception as exc:
+            logger.error(f"Error reading R2 metadata for {intent.r2_key}: {exc}")
+            return False, "Unable to read R2 object metadata", False
 
-                    db.commit()
-                    logger.debug(f"Updated asset {asset_id} status to {status}")
-                else:
-                    logger.warning(f"Asset {asset_id} not found in database for status update")
-            finally:
-                db.close()
-        except Exception as e:
-            logger.error(f"Error updating asset status in database: {e}")
+        if not object_info:
+            return False, "R2 object did not exist at confirmation time", False
+
+        actual_size = object_info.get("size")
+        if intent.file_size is not None and actual_size != intent.file_size:
+            return False, f"Uploaded size {actual_size} did not match expected size {intent.file_size}", True
+        if actual_size is None or actual_size <= 0 or actual_size > self.max_file_size:
+            return False, f"Uploaded size {actual_size} is outside the allowed range", True
+
+        actual_content_type = (object_info.get("content_type") or "").split(";", 1)[0].strip().lower()
+        expected_content_type = (intent.content_type or "").strip().lower()
+        if not expected_content_type or actual_content_type != expected_content_type:
+            return False, (
+                f"Uploaded content type {actual_content_type or 'missing'} did not match "
+                f"expected content type {expected_content_type or 'missing'}"
+            ), True
+
+        actual_xxhash = (object_info.get("metadata") or {}).get("xxhash")
+        if not intent.xxhash or actual_xxhash != intent.xxhash:
+            return False, "Uploaded xxHash metadata did not match the upload intent", True
+
+        return True, "", True
+
+    def _delete_rejected_upload(self, r2_key: str) -> None:
+        try:
+            if not self.r2_manager.delete_file(r2_key):
+                logger.error(f"Failed to delete rejected R2 upload {r2_key}")
+        except Exception as exc:
+            logger.error(f"Failed to delete rejected R2 upload {r2_key}: {exc}")
 
     async def cleanup_phantom_assets(self, session_code: Optional[str] = None,
                                    max_age_hours: int = 24) -> dict:

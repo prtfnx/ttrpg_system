@@ -4,10 +4,9 @@ from typing import Optional
 import xxhash
 from core_table.protocol import Message, MessageType
 from database.database import SessionLocal
-from database.models import Asset, GameSession, SessionAsset
+from database.models import Asset, GamePlayer, GameSession, SessionAsset
 from service.asset_manager import AssetRequest, get_server_asset_manager
 from utils.logger import setup_logger
-from utils.roles import is_dm
 
 from ._protocol_base import _ProtocolBase
 
@@ -139,7 +138,11 @@ class _AssetsMixin(_ProtocolBase):
             if not session_code:
                 return Message(MessageType.ERROR, {'error': 'Session code is required'})
 
-            assets = get_server_asset_manager().get_session_assets(session_code)
+            user_id = self._get_user_id(msg, client_id)
+            if user_id is None:
+                return Message(MessageType.ERROR, {'error': 'Authentication required'})
+
+            assets = get_server_asset_manager().get_session_assets(session_code, user_id)
             return Message(MessageType.ASSET_LIST_RESPONSE, {
                 'success': True,
                 'assets': assets,
@@ -336,8 +339,9 @@ class _AssetsMixin(_ProtocolBase):
                 return Message(MessageType.ERROR, {'error': 'asset_id is required'})
 
             user_id = self._get_user_id(msg, client_id)
-            role = self._get_client_role(client_id)
             session_code = msg.data.get('session_code') or self._get_session_code(msg)
+            if not session_code:
+                return Message(MessageType.ERROR, {'error': 'Session code is required'})
             should_delete_object = False
 
             db = SessionLocal()
@@ -346,17 +350,28 @@ class _AssetsMixin(_ProtocolBase):
                 if not asset:
                     return Message(MessageType.ERROR, {'error': 'Asset not found'})
 
-                session = db.query(GameSession).filter(GameSession.session_code == session_code).first() if session_code else None
-                link = None
-                if session:
-                    link = db.query(SessionAsset).filter(
-                        SessionAsset.session_id == session.id,
-                        SessionAsset.asset_id == asset.id
-                    ).first()
-                    if not link and asset.session_id != session.id:
-                        return Message(MessageType.ERROR, {'error': 'Asset not available in this session'})
+                session = db.query(GameSession).filter(GameSession.session_code == session_code).first()
+                if not session:
+                    return Message(MessageType.ERROR, {'error': 'Session not found'})
+                player = db.query(GamePlayer).filter(
+                    GamePlayer.session_id == session.id,
+                    GamePlayer.user_id == user_id
+                ).first()
+                is_session_member = session.owner_id == user_id or player is not None
+                if not is_session_member:
+                    return Message(MessageType.ERROR, {'error': 'Session access denied'})
 
-                if not is_dm(role) and asset.uploaded_by != user_id:
+                link = db.query(SessionAsset).filter(
+                    SessionAsset.session_id == session.id,
+                    SessionAsset.asset_id == asset.id
+                ).first()
+                if not link and asset.session_id != session.id:
+                    return Message(MessageType.ERROR, {'error': 'Asset not available in this session'})
+
+                can_moderate = session.owner_id == user_id or (
+                    player is not None and player.role in {"owner", "co_dm"}
+                )
+                if not can_moderate and asset.uploaded_by != user_id:
                     return Message(MessageType.ERROR, {'error': 'Permission denied'})
 
                 r2_key = asset.r2_key
@@ -369,18 +384,14 @@ class _AssetsMixin(_ProtocolBase):
                     should_delete_object = True
 
                 if should_delete_object:
+                    asset_manager = get_server_asset_manager()
+                    if not asset_manager.r2_manager.delete_file(r2_key):
+                        db.rollback()
+                        return Message(MessageType.ERROR, {'error': 'Failed to delete asset from storage'})
                     db.delete(asset)
                 db.commit()
             finally:
                 db.close()
-
-            # Delete from R2 (best-effort — DB record already removed)
-            if should_delete_object:
-                try:
-                    asset_manager = get_server_asset_manager()
-                    asset_manager.r2_manager.delete_file(r2_key)
-                except Exception as r2_err:
-                    logger.warning(f"R2 delete failed for {r2_key}, DB record removed: {r2_err}")
 
             logger.info(f"Asset {asset_id} deleted by {client_id}")
             return Message(MessageType.SUCCESS, {

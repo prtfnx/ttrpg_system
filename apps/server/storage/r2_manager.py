@@ -305,6 +305,7 @@ class R2AssetManager:
                 'size': response['ContentLength'],
                 'last_modified': response['LastModified'],
                 'content_type': response.get('ContentType', 'unknown'),
+                'metadata': response.get('Metadata', {}),
                 'url': self._build_public_url(file_key)
             }
         except ClientError as e:
@@ -501,8 +502,7 @@ class R2AssetManager:
                 'Bucket': _settings.r2_bucket_name,
                 'Key': file_key,
                 'Metadata': {
-                    'xxhash': xxhash,
-                    'upload-timestamp': str(int(datetime.now().timestamp()))
+                    'xxhash': xxhash
                 }
             }
             if content_type:

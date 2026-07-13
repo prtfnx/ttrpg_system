@@ -57,7 +57,7 @@ describe('AuthProvider', () => {
   });
 
   it('sets authenticated state when service returns user', async () => {
-    const user = { id: 1, username: 'alice', role: 'dm' as const, permissions: [] };
+    const user = { id: 1, username: 'alice', permissions: [] };
     mockAuthService.getUserInfo.mockReturnValue(user);
     mockAuthService.isAuthenticated.mockReturnValue(true);
 
@@ -130,7 +130,7 @@ describe('AuthProvider', () => {
   });
 
   it('hasPermission returns true when user has permission', async () => {
-    const user = { id: 1, username: 'bob', role: 'dm' as const, permissions: ['admin'] };
+    const user = { id: 1, username: 'bob', permissions: ['admin'] };
     mockAuthService.getUserInfo.mockReturnValue(user);
     mockAuthService.isAuthenticated.mockReturnValue(true);
 
@@ -142,7 +142,7 @@ describe('AuthProvider', () => {
   });
 
   it('hasPermission includes realtime session permissions', async () => {
-    const user = { id: 1, username: 'bob', role: 'player' as const, permissions: [] };
+    const user = { id: 1, username: 'bob', permissions: [] };
     mockAuthService.getUserInfo.mockReturnValue(user);
     mockAuthService.isAuthenticated.mockReturnValue(true);
     useGameStore.setState({ permissions: ['compendium:read'] });
@@ -163,7 +163,7 @@ describe('AuthProvider', () => {
   });
 
   it('requireAuth returns operation result when authenticated', async () => {
-    mockAuthService.getUserInfo.mockReturnValue({ id: 1, username: 'alice', role: 'dm' as const, permissions: [] });
+    mockAuthService.getUserInfo.mockReturnValue({ id: 1, username: 'alice', permissions: [] });
     mockAuthService.isAuthenticated.mockReturnValue(true);
 
     let ctx!: AuthCtx;
@@ -173,7 +173,7 @@ describe('AuthProvider', () => {
   });
 
   it('updateUser merges user data', async () => {
-    const user = { id: 1, username: 'alice', role: 'dm' as const, permissions: [] };
+    const user = { id: 1, username: 'alice', permissions: [] };
     mockAuthService.getUserInfo.mockReturnValue(user);
     mockAuthService.isAuthenticated.mockReturnValue(true);
 

@@ -42,7 +42,7 @@ describe('authService.login', () => {
     // login fetches /users/login then calls initialize -> extractToken -> /users/me
     mockFetch
       .mockResolvedValueOnce({ ok: true, status: 200 } as Response) // POST /users/login
-      .mockResolvedValueOnce(okResponse({ id: 1, username: 'alice', role: 'dm', permissions: [] })); // GET /users/me
+      .mockResolvedValueOnce(okResponse({ id: 1, username: 'alice' })); // GET /users/me
 
     const result = await authService.login('alice', 'pass');
     expect(result.success).toBe(true);
@@ -97,7 +97,7 @@ describe('authService.register', () => {
 describe('authService.extractToken', () => {
   it('returns token and sets userInfo on /users/me 200', async () => {
     mockFetch.mockResolvedValueOnce(
-      okResponse({ id: 2, username: 'carol', role: 'player', permissions: ['read'] })
+      okResponse({ id: 2, username: 'carol' })
     );
     const token = await authService.extractToken();
     expect(token).toBe('authenticated-via-cookie');
@@ -164,7 +164,7 @@ describe('authService.initialize', () => {
 
   it('returns true when token extracted', async () => {
     mockFetch.mockResolvedValueOnce(
-      okResponse({ id: 5, username: 'frank', role: 'player', permissions: [] })
+      okResponse({ id: 5, username: 'frank' })
     );
     const result = await authService.initialize();
     expect(result).toBe(true);
@@ -174,7 +174,7 @@ describe('authService.initialize', () => {
 describe('authService.getUserSessions', () => {
   it('returns sessions array on success', async () => {
     mockFetch.mockResolvedValueOnce(
-      okResponse({ sessions: [{ session_code: 's1', session_name: 'Game Night', role: 'dm', created_at: '' }] })
+      okResponse({ sessions: [{ session_code: 's1', session_name: 'Game Night', role: 'owner', created_at: '' }] })
     );
     const sessions = await authService.getUserSessions();
     expect(sessions).toHaveLength(1);

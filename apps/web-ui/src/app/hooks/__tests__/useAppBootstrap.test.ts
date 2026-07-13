@@ -32,7 +32,6 @@ vi.mock('@shared/utils/logger', () => ({
 const userInfo = {
   id: 1,
   username: 'ash',
-  role: 'player' as const,
   permissions: [],
 };
 

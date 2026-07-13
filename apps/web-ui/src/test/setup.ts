@@ -22,7 +22,7 @@ globalThis.fetch = vi.fn().mockImplementation((url: string) => {
     return Promise.resolve({
       ok: true,
       status: 200,
-      json: () => Promise.resolve({ id: 1, username: 'testuser', role: 'dm' }),
+      json: () => Promise.resolve({ id: 1, username: 'testuser' }),
       text: () => Promise.resolve('{}'),
     });
   }

@@ -6,8 +6,9 @@
 export interface UserInfo {
   id: number;
   username: string;
-  role: 'dm' | 'player';
- permissions: string[];
+  email?: string | null;
+  disabled?: boolean;
+  created_at?: string | null;
 }
 
 import type { SessionRole } from '@features/session/types/roles';
@@ -123,8 +124,9 @@ class AuthService {
         this.userInfo = {
           id: userData.id,
           username: userData.username,
-          role: userData.role || 'player',
-          permissions: userData.permissions || []
+          email: userData.email ?? null,
+          disabled: userData.disabled ?? false,
+          created_at: userData.created_at ?? null,
         };
         this.token = 'authenticated-via-cookie';
         return this.token;
@@ -153,41 +155,22 @@ class AuthService {
    * Validate token with server and extract user info
    */
   async validateToken(token: string): Promise<UserInfo | null> {
-    // Token refresh logic
     try {
-      let response = await fetch('/users/me', {
+      const response = await fetch('/users/me', {
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'
         },
         credentials: 'include'
       });
-      if (response.status === 401) {
-        // Try to refresh token
-        const refreshResponse = await fetch('/users/refresh', {
-          method: 'POST',
-          credentials: 'include',
-          headers: { 'Content-Type': 'application/json' }
-        });
-        if (refreshResponse.ok) {
-          const refreshData = await refreshResponse.json();
-          this.token = refreshData.token;
-          response = await fetch('/users/me', {
-            headers: {
-              'Authorization': `Bearer ${this.token}`,
-              'Content-Type': 'application/json'
-            },
-            credentials: 'include'
-          });
-        }
-      }
       if (response.ok) {
         const userData = await response.json();
         this.userInfo = {
           id: userData.id,
           username: userData.username,
-          role: userData.role || 'player',
-          permissions: userData.permissions || []
+          email: userData.email ?? null,
+          disabled: userData.disabled ?? false,
+          created_at: userData.created_at ?? null,
         };
         return this.userInfo;
       }

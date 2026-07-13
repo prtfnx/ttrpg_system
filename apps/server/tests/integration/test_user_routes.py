@@ -95,9 +95,16 @@ class TestProtectedEndpoints:
         response = client.get("/users/me", follow_redirects=False)
         assert response.status_code in [302, 401]
 
-    def test_profile_with_auth(self, auth_client):
+    def test_profile_with_auth_returns_account_identity_only(
+        self, auth_client, test_user, test_game_session
+    ):
         response = auth_client.get("/users/me", headers={"accept": "application/json"})
         assert response.status_code == 200
+        data = response.json()
+        assert data["id"] == test_user.id
+        assert data["username"] == test_user.username
+        assert "role" not in data
+        assert "permissions" not in data
 
     def test_dashboard_without_auth(self, client):
         response = client.get("/users/dashboard", follow_redirects=False)

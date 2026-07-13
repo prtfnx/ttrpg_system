@@ -120,21 +120,18 @@ describe('authService.extractToken', () => {
 describe('authService.validateToken', () => {
   it('returns userInfo on valid token', async () => {
     mockFetch.mockResolvedValueOnce(
-      okResponse({ id: 3, username: 'dave', role: 'dm', permissions: [] })
+      okResponse({ id: 3, username: 'dave', email: 'dave@example.com' })
     );
     const info = await authService.validateToken('tok-abc');
     expect(info?.username).toBe('dave');
-    expect(info?.role).toBe('dm');
+    expect(info?.email).toBe('dave@example.com');
   });
 
-  it('attempts token refresh on 401', async () => {
-    mockFetch
-      .mockResolvedValueOnce(errorResponse(401))                            // /users/me -> 401
-      .mockResolvedValueOnce(okResponse({ token: 'new-tok' }))              // /users/refresh -> ok
-      .mockResolvedValueOnce(okResponse({ id: 4, username: 'eve', role: 'player', permissions: [] })); // /users/me retry
-
+  it('returns null without retrying on 401', async () => {
+    mockFetch.mockResolvedValueOnce(errorResponse(401));
     const info = await authService.validateToken('old-tok');
-    expect(info?.username).toBe('eve');
+    expect(info).toBeNull();
+    expect(mockFetch).toHaveBeenCalledTimes(1);
   });
 
   it('returns null on fetch error', async () => {

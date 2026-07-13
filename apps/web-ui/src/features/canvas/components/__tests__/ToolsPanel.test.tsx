@@ -183,6 +183,16 @@ describe('ToolsPanel — toolbar tools', () => {
     expect(screen.getByTitle('Draw Shapes')).toBeInTheDocument();
     expect(screen.getByTitle('Draw Wall')).toBeInTheDocument();
   });
+
+  it('keeps the unfinished asset manager hidden by default', () => {
+    vi.mocked(useGameStore).mockImplementation(
+      ((sel?: (s: typeof baseStoreState) => unknown) =>
+        sel ? sel({ ...baseStoreState, sessionRole: 'dm' }) : { ...baseStoreState, sessionRole: 'dm' }
+      ) as unknown as typeof useGameStore
+    );
+    render(<ToolsPanel userInfo={makeUser('dm')} />);
+    expect(screen.queryByTitle('Asset Manager')).not.toBeInTheDocument();
+  });
 });
 
 describe('ToolsPanel — table switcher', () => {

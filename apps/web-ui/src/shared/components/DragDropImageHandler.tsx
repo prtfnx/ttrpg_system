@@ -24,6 +24,21 @@ interface PendingUpload {
   fileName: string;
 }
 
+const SUPPORTED_IMAGE_TYPES: Record<string, string> = {
+  '.png': 'image/png',
+  '.jpg': 'image/jpeg',
+  '.jpeg': 'image/jpeg',
+  '.gif': 'image/gif',
+  '.bmp': 'image/bmp',
+  '.webp': 'image/webp',
+};
+
+export const isSupportedAssetImage = (file: Pick<File, 'name' | 'type'>): boolean => {
+  const dotIndex = file.name.lastIndexOf('.');
+  const extension = dotIndex >= 0 ? file.name.slice(dotIndex).toLowerCase() : '';
+  return SUPPORTED_IMAGE_TYPES[extension] === file.type;
+};
+
 export const DragDropImageHandler: React.FC<DragDropImageHandlerProps> = ({
   children
 }) => {
@@ -277,7 +292,7 @@ export const DragDropImageHandler: React.FC<DragDropImageHandlerProps> = ({
     setDragOver(false);
 
     const files = Array.from(e.dataTransfer.files);
-    const imageFiles = files.filter(file => file.type.startsWith('image/'));
+    const imageFiles = files.filter(isSupportedAssetImage);
     
     if (imageFiles.length === 0) {
       // Handle compendium entry drops
@@ -290,6 +305,13 @@ export const DragDropImageHandler: React.FC<DragDropImageHandlerProps> = ({
             detail: { ...entry, dropX: e.clientX - rect.left, dropY: e.clientY - rect.top }
           }));
         } catch {}
+      } else if (files.length > 0) {
+        setUploadState({
+          status: 'failed',
+          progress: 0,
+          message: 'Only PNG, JPEG, GIF, BMP, and WebP images are supported',
+          fileName: files[0].name,
+        });
       }
       return;
     }

@@ -65,6 +65,7 @@ interface ToolsPanelProps {
 }
 
 type TabId = 'tools' | 'lighting' | 'layers' | 'dev';
+const assetManagerEnabled = import.meta.env.DEV && import.meta.env.VITE_ENABLE_ASSET_MANAGER === 'true';
 
 export function ToolsPanel({ userInfo }: ToolsPanelProps) {
   useLayerHotkeys();
@@ -396,7 +397,7 @@ export function ToolsPanel({ userInfo }: ToolsPanelProps) {
           {/* Assets & Paint */}
           <div>
             <div className={styles.creationButtons}>
-              {elevatedMode && (
+              {assetManagerEnabled && elevatedMode && (
                 <button className={styles.toolButton} onClick={() => setAssetManagerVisible(true)} title="Asset Manager">
                   <Folder size={14} aria-hidden /> Assets
                 </button>
@@ -632,7 +633,9 @@ export function ToolsPanel({ userInfo }: ToolsPanelProps) {
       {/* Tool Overlays - always mounted */}
       <MeasurementTool isActive={measurementActive} />
       <AlignmentHelper isActive={alignmentActive} />
-      <AssetManager isVisible={assetManagerVisible} onClose={() => setAssetManagerVisible(false)} sessionCode={sessionId || ""} userInfo={userInfo} />
+      {assetManagerEnabled && (
+        <AssetManager isVisible={assetManagerVisible} onClose={() => setAssetManagerVisible(false)} sessionCode={sessionId || ""} userInfo={userInfo} />
+      )}
 
       {/* Opportunity Attack modals */}
       {oaWarning && (dmMode || canControlSprite(oaWarning, userId ?? undefined)) && (

@@ -39,16 +39,17 @@ class R2StorageAdmin:
 
     def apply_bucket_configuration(
         self,
-        origin: str,
+        origins: list[str],
         cors_path: Path,
         lifecycle_path: Path,
     ) -> dict:
-        if not origin.startswith("https://"):
-            raise ValueError("Production R2 CORS origin must use https://")
+        normalized_origins = sorted({origin.rstrip("/") for origin in origins})
+        if not normalized_origins or any(not origin.startswith("https://") for origin in normalized_origins):
+            raise ValueError("Every production R2 CORS origin must use https://")
 
         cors_rules = json.loads(cors_path.read_text(encoding="utf-8"))
         for rule in cors_rules:
-            rule["AllowedOrigins"] = [origin.rstrip("/")]
+            rule["AllowedOrigins"] = normalized_origins
         lifecycle = json.loads(lifecycle_path.read_text(encoding="utf-8"))
 
         self.client.put_bucket_cors(
@@ -59,7 +60,11 @@ class R2StorageAdmin:
             Bucket=self.bucket,
             LifecycleConfiguration=lifecycle,
         )
-        return {"origin": origin.rstrip("/"), "cors_rules": len(cors_rules), "lifecycle_rules": len(lifecycle["Rules"])}
+        return {
+            "origins": normalized_origins,
+            "cors_rules": len(cors_rules),
+            "lifecycle_rules": len(lifecycle["Rules"]),
+        }
 
     def smoke_test(self) -> dict:
         key = f"pending/operations/smoke-{uuid.uuid4().hex}.txt"
@@ -205,7 +210,7 @@ def _build_parser() -> argparse.ArgumentParser:
     subparsers = parser.add_subparsers(dest="command", required=True)
 
     configure = subparsers.add_parser("apply-config", help="Apply production CORS and lifecycle policy")
-    configure.add_argument("--origin", required=True)
+    configure.add_argument("--origin", action="append", required=True)
     configure.add_argument("--cors-file", type=Path, default=REPO_ROOT / "r2-cors-config.json")
     configure.add_argument("--lifecycle-file", type=Path, default=REPO_ROOT / "r2-lifecycle-config.json")
 

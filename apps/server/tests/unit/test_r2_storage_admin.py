@@ -73,15 +73,18 @@ def test_apply_configuration_uses_only_production_origin(tmp_path):
     admin = storage_admin.R2StorageAdmin(client, "assets")
 
     result = admin.apply_bucket_configuration(
-        "https://table.example.com/",
+        ["https://table.example.com/", "https://admin.example.com"],
         cors_path,
         lifecycle_path,
     )
 
     rules = client.cors["CORSConfiguration"]["CORSRules"]
-    assert rules[0]["AllowedOrigins"] == ["https://table.example.com"]
+    assert rules[0]["AllowedOrigins"] == [
+        "https://admin.example.com",
+        "https://table.example.com",
+    ]
     assert client.lifecycle["LifecycleConfiguration"]["Rules"][0]["ID"] == "pending"
-    assert result["origin"] == "https://table.example.com"
+    assert result["origins"] == rules[0]["AllowedOrigins"]
 
 
 def test_smoke_test_round_trips_and_deletes_object():

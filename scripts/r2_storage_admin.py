@@ -20,8 +20,9 @@ sys.path.insert(0, str(SERVER_ROOT))
 
 from config import Settings  # noqa: E402
 from database.database import SessionLocal  # noqa: E402
-from database.models import Asset  # noqa: E402
+from database.models import Asset, SessionAsset, User  # noqa: E402
 from storage.r2_manager import R2AssetManager  # noqa: E402
+from sqlalchemy import func  # noqa: E402
 
 
 class R2StorageAdmin:
@@ -197,10 +198,36 @@ def _as_utc(value) -> datetime:
     return value.astimezone(timezone.utc)
 
 
-def _database_asset_keys() -> list[str]:
+def _database_asset_inventory() -> dict:
     db = SessionLocal()
     try:
-        return [row[0] for row in db.query(Asset.r2_key).all()]
+        link_counts = dict(
+            db.query(SessionAsset.asset_id, func.count(SessionAsset.id))
+            .group_by(SessionAsset.asset_id)
+            .all()
+        )
+        rows = (
+            db.query(Asset, User.id)
+            .outerjoin(User, User.id == Asset.uploaded_by)
+            .order_by(Asset.id)
+            .all()
+        )
+        orphaned_uploaders = [
+            {
+                "asset_id": asset.r2_asset_id,
+                "r2_key": asset.r2_key,
+                "uploaded_by": asset.uploaded_by,
+                "session_links": link_counts.get(asset.id, 0),
+            }
+            for asset, uploader_id in rows
+            if uploader_id is None
+        ]
+        return {
+            "keys": [asset.r2_key for asset, _ in rows],
+            "asset_rows": len(rows),
+            "orphaned_uploader_count": len(orphaned_uploaders),
+            "orphaned_uploaders": orphaned_uploaders,
+        }
     finally:
         db.close()
 
@@ -246,11 +273,13 @@ def main() -> int:
     elif args.command == "smoke":
         result = admin.smoke_test()
     elif args.command == "audit":
+        inventory = _database_asset_inventory()
         result = admin.audit_orphans(
-            _database_asset_keys(),
+            inventory.pop("keys"),
             min_age_hours=args.min_age_hours,
             delete=args.delete_orphans,
         )
+        result["database_integrity"] = inventory
     elif args.command == "backup":
         result = admin.backup(args.snapshot)
     else:

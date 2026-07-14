@@ -3,6 +3,9 @@ import io
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
+from sqlalchemy.orm import sessionmaker
+
+from database import models
 
 SCRIPT_PATH = Path(__file__).resolve().parents[4] / "scripts" / "r2_storage_admin.py"
 spec = importlib.util.spec_from_file_location("r2_storage_admin", SCRIPT_PATH)
@@ -140,3 +143,42 @@ def test_backup_writes_manifest_and_restore_is_explicit():
     assert applied["dry_run"] is False
     assert client.copies[-1]["Bucket"] == "assets"
     assert client.copies[-1]["Key"] == "assets/map.png"
+
+
+def test_database_inventory_reports_assets_with_missing_uploaders(
+    monkeypatch, test_db, test_user
+):
+    valid_asset = models.Asset(
+        asset_name="valid.png",
+        r2_asset_id="valid",
+        content_type="image/png",
+        file_size=1,
+        uploaded_by=test_user.id,
+        r2_key="assets/valid.png",
+        r2_bucket="assets",
+    )
+    orphaned_asset = models.Asset(
+        asset_name="orphaned.png",
+        r2_asset_id="orphaned",
+        content_type="image/png",
+        file_size=1,
+        uploaded_by=99999,
+        r2_key="assets/orphaned.png",
+        r2_bucket="assets",
+    )
+    test_db.add_all([valid_asset, orphaned_asset])
+    test_db.commit()
+    testing_session = sessionmaker(bind=test_db.get_bind())
+    monkeypatch.setattr(storage_admin, "SessionLocal", testing_session)
+
+    inventory = storage_admin._database_asset_inventory()
+
+    assert inventory["asset_rows"] == 2
+    assert inventory["keys"] == ["assets/valid.png", "assets/orphaned.png"]
+    assert inventory["orphaned_uploader_count"] == 1
+    assert inventory["orphaned_uploaders"] == [{
+        "asset_id": "orphaned",
+        "r2_key": "assets/orphaned.png",
+        "uploaded_by": 99999,
+        "session_links": 0,
+    }]

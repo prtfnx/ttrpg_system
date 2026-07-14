@@ -854,6 +854,22 @@ describe('WebClientProtocol', () => {
       await (p as unknown as Record<string, (...a: unknown[]) => Promise<void>>)['handleIncomingMessage'](raw);
       expect(handler).not.toHaveBeenCalled();
     });
+
+    it('keeps independent subscribers for the same message type', async () => {
+      const p = makeProtocol();
+      const first = vi.fn().mockResolvedValue(undefined);
+      const second = vi.fn().mockResolvedValue(undefined);
+      p.registerHandler('shared_type', first);
+      p.registerHandler('shared_type', second);
+      const raw = JSON.stringify({ type: 'shared_type', data: {}, version: '0.1', priority: 5 });
+
+      await (p as unknown as Record<string, (...a: unknown[]) => Promise<void>>)['handleIncomingMessage'](raw);
+      p.unregisterHandler('shared_type', first);
+      await (p as unknown as Record<string, (...a: unknown[]) => Promise<void>>)['handleIncomingMessage'](raw);
+
+      expect(first).toHaveBeenCalledTimes(1);
+      expect(second).toHaveBeenCalledTimes(2);
+    });
   });
 
   // ── connect() lifecycle ──────────────────────────────────────────────────

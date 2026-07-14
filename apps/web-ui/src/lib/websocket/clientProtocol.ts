@@ -20,7 +20,7 @@ import { validateTableId } from './tableProtocolAdapter';
 
 
 export class WebClientProtocol {
-  private handlers = new Map<string, MessageHandler>();
+  private handlers = new Map<string, Set<MessageHandler>>();
   private websocket: WebSocket | null = null;
   private connecting: boolean = false;
   private messageQueue: Message[] = [];
@@ -443,12 +443,21 @@ export class WebClientProtocol {
   }
 
   registerHandler(type: string, handler: MessageHandler): void {
-    this.handlers.set(type, handler);
+    const handlers = this.handlers.get(type) ?? new Set<MessageHandler>();
+    handlers.add(handler);
+    this.handlers.set(type, handlers);
   }
 
-  // Allow consumers to unregister handlers when they unmount
-  unregisterHandler(type: string): void {
-    this.handlers.delete(type);
+  // Supplying a handler removes only that subscriber. Omitting it preserves
+  // the legacy "remove all" behavior for protocol-owned teardown.
+  unregisterHandler(type: string, handler?: MessageHandler): void {
+    if (!handler) {
+      this.handlers.delete(type);
+      return;
+    }
+    const handlers = this.handlers.get(type);
+    handlers?.delete(handler);
+    if (handlers?.size === 0) this.handlers.delete(type);
   }
 
   async connect(): Promise<void> {
@@ -537,10 +546,12 @@ export class WebClientProtocol {
         logger.debug('[Protocol]  Received PONG message from server');
       }
       
-      const handler = this.handlers.get(message.type);
+      const handlers = this.handlers.get(message.type);
       
-      if (handler) {
-        await handler(message);
+      if (handlers?.size) {
+        for (const handler of Array.from(handlers)) {
+          await handler(message);
+        }
       } else {
         logger.warn('No handler for message type:', message.type);
       }
@@ -750,9 +761,11 @@ export class WebClientProtocol {
       for (const msgData of message.data.messages) {
         try {
           // Handle each message individually
-          const handler = this.handlers.get(msgData.type);
-          if (handler) {
-            await handler(msgData);
+          const handlers = this.handlers.get(msgData.type);
+          if (handlers?.size) {
+            for (const handler of Array.from(handlers)) {
+              await handler(msgData);
+            }
           } else {
             logger.warn('No handler for batched message type:', msgData.type);
           }

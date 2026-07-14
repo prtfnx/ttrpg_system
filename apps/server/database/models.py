@@ -184,7 +184,6 @@ class Asset(Base):
 
     # Metadata
     uploaded_by: Mapped[int] = mapped_column(Integer, ForeignKey("users.id"), nullable=False)
-    session_id: Mapped[Optional[int]] = mapped_column(Integer, ForeignKey("game_sessions.id"), nullable=True)  # Optional session association
 
     # Timestamps
     created_at: Mapped[Optional[datetime]] = mapped_column(DateTime, default=datetime.utcnow)
@@ -197,7 +196,6 @@ class Asset(Base):
 
     # Relationships
     uploader = relationship("User")
-    session = relationship("GameSession")
     session_links = relationship("SessionAsset", back_populates="asset", cascade="all, delete-orphan")
 
 

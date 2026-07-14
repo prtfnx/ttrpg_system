@@ -385,26 +385,15 @@ class ServerAssetManager:
                     error="Download permission denied"
                 )
 
-            # Get asset from database by filename
-            asset_metadata = self._get_asset_from_db(filename)
+            # Resolve the session-visible display name, which may be shared by
+            # assets in other sessions.
+            asset_metadata = self._get_asset_from_db(filename, session_code, user_id)
             if not asset_metadata:
                 return PresignedUrlResponse(
                     success=False,
                     error="Asset not found",
                     instructions="You may need to upload this asset first"
                 )
-            scoped_metadata = self._get_asset_by_id_from_db(
-                asset_metadata["asset_id"],
-                session_code=session_code,
-                user_id=user_id
-            )
-            if not scoped_metadata:
-                return PresignedUrlResponse(
-                    success=False,
-                    error="Asset not available in this session"
-                )
-            asset_metadata = scoped_metadata
-
             # Generate presigned URL (24 hours for session assets)
             expiry_seconds = 86400
             presigned_url = self.r2_manager.generate_presigned_url(
@@ -785,7 +774,6 @@ class ServerAssetManager:
 
                     xxhash=asset_data.get("xxhash", ""),
                     uploaded_by=asset_data["uploaded_by"],
-                    session_id=None,
                     r2_key=asset_data["r2_key"],
                     r2_bucket=Settings().r2_bucket_name or "default",
                     created_at=datetime.utcnow(),
@@ -806,15 +794,31 @@ class ServerAssetManager:
             logger.error(f"Error saving asset to database: {e}")
             return False
 
-    def _get_asset_from_db(self, asset_name: str) -> Optional[dict]:
-        """Get asset metadata from database by name"""
+    def _get_asset_from_db(
+        self,
+        display_name: str,
+        session_code: str,
+        user_id: int,
+    ) -> Optional[dict]:
+        """Get asset metadata by its session-scoped display name."""
         try:
             db = SessionLocal()
             try:
-                asset = db.query(Asset).filter(Asset.asset_name == asset_name).first()
+                session = self._get_session(db, session_code)
+                if not self._user_can_access_session(db, session, user_id):
+                    return None
+                asset = (
+                    db.query(Asset)
+                    .join(SessionAsset, SessionAsset.asset_id == Asset.id)
+                    .filter(
+                        SessionAsset.session_id == session.id,
+                        SessionAsset.display_name == display_name,
+                    )
+                    .first()
+                )
                 if asset:
                     # Update last accessed time
-                    db.query(Asset).filter(Asset.asset_name == asset_name).update(
+                    db.query(Asset).filter(Asset.id == asset.id).update(
                         {Asset.last_accessed: datetime.utcnow()}
                     )
                     db.commit()
@@ -826,7 +830,8 @@ class ServerAssetManager:
                         "content_type": asset.content_type,
                         "file_size": asset.file_size,
                         "uploaded_by": asset.uploaded_by,
-                        "session_id": asset.session_id,
+                        "session_id": session.id,
+                        "session_code": session_code,
                         "created_at": (asset.created_at.isoformat() if asset.created_at else None),
                         "last_accessed": (asset.last_accessed.isoformat() if asset.last_accessed else None)
                     }

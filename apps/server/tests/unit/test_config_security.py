@@ -56,3 +56,18 @@ def test_production_accepts_explicit_origins_and_strong_secrets():
     assert settings.is_production
     assert settings.cors_origin_list == ["https://app.example.com", "https://admin.example.com"]
     assert settings.resolved_session_secret == "s" * 40
+
+
+def test_observability_settings_are_normalized_and_bounded():
+    settings = Settings(LOG_LEVEL="warning", LOG_FORMAT="TEXT", OTEL_TRACES_SAMPLER_ARG=0.5)
+    assert settings.LOG_LEVEL == "WARNING"
+    assert settings.LOG_FORMAT == "text"
+
+    with pytest.raises(ValueError, match="OTEL_TRACES_SAMPLER_ARG"):
+        Settings(OTEL_TRACES_SAMPLER_ARG=1.1)
+
+    with pytest.raises(ValueError, match="WS_MAX_MESSAGE_BYTES"):
+        Settings(WS_MAX_MESSAGE_BYTES=100)
+
+    with pytest.raises(ValueError, match="WS_MESSAGES_PER_MINUTE"):
+        Settings(WS_MESSAGES_PER_MINUTE=0)

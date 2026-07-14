@@ -4,6 +4,9 @@ Provides HTTP/webhook and WebSocket endpoints for client communication
 """
 import asyncio
 import os
+import re
+import time
+import uuid
 from contextlib import asynccontextmanager
 from pathlib import Path
 
@@ -25,12 +28,17 @@ from service.readiness import ReadinessChecker
 from storage.r2_manager import R2AssetManager
 from sqlalchemy.orm import Session
 from starlette.middleware.sessions import SessionMiddleware
-from utils.logger import setup_logger
+from utils.logger import bind_log_context, configure_logging, reset_log_context, setup_logger
 from utils.rate_limiter import login_limiter, registration_limiter
 
-logger = setup_logger("main.py") # set level in logger.py to DEBUG for detailed logs
 settings = Settings()
+configure_logging(level=settings.LOG_LEVEL, log_format=settings.LOG_FORMAT)
+logger = setup_logger(__name__)
 environment = settings.ENVIRONMENT.lower()
+_REQUEST_ID = re.compile(r"^[A-Za-z0-9._-]{8,128}$")
+_TRACEPARENT = re.compile(
+    r"^[\da-f]{2}-([\da-f]{32})-([\da-f]{16})-[\da-f]{2}$", re.IGNORECASE
+)
 
 # Application state
 class AppState:
@@ -44,11 +52,14 @@ app_state = AppState()
 async def lifespan(app: FastAPI):
     """Manage server lifecycle"""
     # Startup
-    logger.info("Starting TTRPG Server...")
+    logger.info(
+        "Application starting",
+        extra={"event_name": "application.starting", "service_version": settings.SERVICE_VERSION},
+    )
 
     # Create database tables
     create_tables()
-    logger.info("Database tables created/verified")
+    logger.info("Database schema initialized", extra={"event_name": "database.schema.initialized"})
 
     # Store app state in FastAPI app
     app.state.connection_manager = app_state.connection_manager
@@ -65,7 +76,7 @@ async def lifespan(app: FastAPI):
         await cleanup_task
     except asyncio.CancelledError:
         pass
-    logger.info("Server shutdown complete")
+    logger.info("Application stopped", extra={"event_name": "application.stopped"})
 
 async def rate_limiter_cleanup_task():
     """Background task to clean up old rate limiter entries"""
@@ -78,8 +89,11 @@ async def rate_limiter_cleanup_task():
             logger.debug("Rate limiter cleanup completed")
         except asyncio.CancelledError:
             break
-        except Exception as e:
-            logger.error(f"Rate limiter cleanup error: {e}")
+        except Exception:
+            logger.exception(
+                "Rate limiter cleanup failed",
+                extra={"event_name": "rate_limiter.cleanup.failed"},
+            )
 
 # Create FastAPI app
 app = FastAPI(
@@ -89,6 +103,50 @@ app = FastAPI(
     lifespan=lifespan
 )
 
+
+@app.middleware("http")
+async def request_observability(request: Request, call_next):
+    """Correlate HTTP work and emit one bounded completion event."""
+    supplied_id = request.headers.get("x-request-id", "")
+    request_id = supplied_id if _REQUEST_ID.fullmatch(supplied_id) else uuid.uuid4().hex
+    trace_match = _TRACEPARENT.fullmatch(request.headers.get("traceparent", ""))
+    context_token = bind_log_context(
+        request_id=request_id,
+        trace_id=trace_match.group(1).lower() if trace_match else None,
+        http_method=request.method,
+    )
+    started = time.perf_counter()
+    try:
+        response = await call_next(request)
+    except Exception:
+        logger.exception(
+            "Unhandled HTTP request failure",
+            extra={
+                "event_name": "http.request.failed",
+                "http_route": request.url.path,
+                "duration_ms": round((time.perf_counter() - started) * 1000, 3),
+                "outcome": "error",
+            },
+        )
+        raise
+    else:
+        response.headers["X-Request-ID"] = request_id
+        if not request.url.path.startswith("/health/"):
+            route = request.scope.get("route")
+            logger.info(
+                "HTTP request completed",
+                extra={
+                    "event_name": "http.request.completed",
+                    "http_route": getattr(route, "path", request.url.path),
+                    "http_status_code": response.status_code,
+                    "duration_ms": round((time.perf_counter() - started) * 1000, 3),
+                    "outcome": "error" if response.status_code >= 500 else "success",
+                },
+            )
+        return response
+    finally:
+        reset_log_context(context_token)
+
 # Add CORS middleware
 app.add_middleware(
     CORSMiddleware,
@@ -96,6 +154,7 @@ app.add_middleware(
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
+    expose_headers=["X-Request-ID"],
 )
 
 # Add Session middleware for OAuth state management
@@ -176,16 +235,6 @@ async def root():
     """Root endpoint - redirect to login"""
     return RedirectResponse(url="/users/login")
 
-@app.get("/test-404")
-async def test_404():
-    """Test route to trigger 404 page"""
-    raise HTTPException(status_code=404, detail="Test 404 page")
-
-@app.get("/test-auth-error")
-async def test_auth_error():
-    """Test route to trigger auth error page"""
-    raise HTTPException(status_code=401, detail="Test authentication error")
-
 @app.get("/invite/{invite_code}")
 async def invitation_page(invite_code: str, request: Request, db: Session = Depends(get_db)):
     """Invitation acceptance page"""
@@ -231,21 +280,21 @@ async def invitation_page(invite_code: str, request: Request, db: Session = Depe
         }
     )
 
-@app.get("/health")
+@app.get("/health/live")
 async def health_check():
-    """Health check endpoint for Render.com"""
+    """Constant-time process liveness check."""
     return JSONResponse(
         content={
             "status": "healthy",
             "service": "ttrpg-server",
-            "version": "1.0.0"
+            "version": settings.SERVICE_VERSION
         },
         status_code=200
     )
 
 
-@app.get("/ready")
-async def readiness_check():
+@app.get("/health/ready")
+def readiness_check():
     """Verify release-critical database, UI artifact, and R2 dependencies."""
     result = ReadinessChecker(
         settings=settings,
@@ -254,6 +303,12 @@ async def readiness_check():
         static_ui_path=Path(__file__).resolve().parent / "static" / "ui" / "index.html",
     ).run()
     return JSONResponse(content=result, status_code=200 if result["status"] == "ready" else 503)
+
+
+@app.get("/health", include_in_schema=False)
+async def legacy_health_alias():
+    """Compatibility alias; deployment probes /health/ready."""
+    return await health_check()
 
 if __name__ == "__main__":
 
@@ -266,9 +321,10 @@ if __name__ == "__main__":
     # If PORT is set by cloud provider (Render, Heroku, etc.), bind to 0.0.0.0
     # Otherwise, bind to localhost for local development
     host = "0.0.0.0" if "PORT" in os.environ or os.environ.get("ENVIRONMENT") == "production" else "127.0.0.1"
-    logger.info(f"Starting server on {host}:{port}")
-    logger.info(f"PORT environment variable: {os.environ.get('PORT', 'Not set')}")
-    logger.info(f"ENVIRONMENT: {os.environ.get('ENVIRONMENT', 'test')}")
+    logger.info(
+        "Starting HTTP server",
+        extra={"event_name": "http.server.starting", "host": host, "port": port},
+    )
 
     # Run server
     logger.debug("Running Uvicorn server...")

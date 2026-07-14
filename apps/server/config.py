@@ -51,6 +51,20 @@ class Settings(BaseSettings):
     BASE_URL: str = "http://localhost:8000"
     CORS_ORIGINS: str = "*"
 
+    # Observability
+    LOG_LEVEL: str = "INFO"
+    LOG_FORMAT: str = "json"
+    SERVICE_NAME: str = "ttrpg-server"
+    SERVICE_VERSION: str = "development"
+    SERVICE_INSTANCE_ID: str = ""
+    OTEL_EXPORTER_OTLP_ENDPOINT: str = ""
+    OTEL_EXPORTER_OTLP_HEADERS: str = ""
+    OTEL_TRACES_SAMPLER_ARG: float = 0.1
+    BROWSER_TELEMETRY_ENABLED: bool = True
+    BROWSER_TELEMETRY_SAMPLE_RATE: float = 0.1
+    WS_MAX_MESSAGE_BYTES: int = 64 * 1024
+    WS_MESSAGES_PER_MINUTE: int = 120
+
     # Google OAuth credentials (optional - OAuth disabled if not set)
     GOOGLE_CLIENT_ID: str = ""
     GOOGLE_CLIENT_SECRET: str = ""
@@ -72,6 +86,20 @@ class Settings(BaseSettings):
 
     @model_validator(mode="after")
     def validate_production_security(self):
+        self.LOG_LEVEL = self.LOG_LEVEL.upper()
+        self.LOG_FORMAT = self.LOG_FORMAT.lower()
+        if self.LOG_LEVEL not in {"DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"}:
+            raise ValueError("LOG_LEVEL must be DEBUG, INFO, WARNING, ERROR, or CRITICAL.")
+        if self.LOG_FORMAT not in {"json", "text"}:
+            raise ValueError("LOG_FORMAT must be json or text.")
+        if not 0 <= self.OTEL_TRACES_SAMPLER_ARG <= 1:
+            raise ValueError("OTEL_TRACES_SAMPLER_ARG must be between 0 and 1.")
+        if not 0 <= self.BROWSER_TELEMETRY_SAMPLE_RATE <= 1:
+            raise ValueError("BROWSER_TELEMETRY_SAMPLE_RATE must be between 0 and 1.")
+        if not 1024 <= self.WS_MAX_MESSAGE_BYTES <= 1024 * 1024:
+            raise ValueError("WS_MAX_MESSAGE_BYTES must be between 1024 and 1048576.")
+        if not 1 <= self.WS_MESSAGES_PER_MINUTE <= 6000:
+            raise ValueError("WS_MESSAGES_PER_MINUTE must be between 1 and 6000.")
         if _is_production(self.ENVIRONMENT):
             if not self.SECRET_KEY or len(self.SECRET_KEY) < 32 or self.SECRET_KEY == DEFAULT_SECRET_KEY:
                 raise ValueError(

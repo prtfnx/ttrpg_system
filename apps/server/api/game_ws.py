@@ -17,6 +17,12 @@ from routers.users import ALGORITHM, SECRET_KEY
 from service.game_session import ConnectionManager, get_connection_manager
 from sqlalchemy.orm import Session
 from utils.logger import log_context, setup_logger
+from utils.observability import (
+    WS_ACTIVE,
+    WS_DURATION,
+    record_ws_connection,
+    record_ws_message,
+)
 
 
 logger = setup_logger(__name__)
@@ -71,6 +77,7 @@ async def websocket_game_endpoint(
     """Authenticate from the HTTP-only cookie and join a durable game session."""
     connection_id = uuid.uuid4().hex
     connected = False
+    connection_started = time.perf_counter()
     db = SessionLocal()
     with log_context(
         connection_id=connection_id,
@@ -78,6 +85,7 @@ async def websocket_game_endpoint(
     ):
         try:
             if not _origin_is_allowed(websocket.headers.get("origin")):
+                record_ws_connection("rejected", "origin")
                 logger.warning(
                     "WebSocket Origin rejected",
                     extra={
@@ -92,6 +100,7 @@ async def websocket_game_endpoint(
             token = websocket.cookies.get("token")
             user = get_user_from_token(token, db) if token else None
             if not user:
+                record_ws_connection("rejected", "authentication")
                 logger.warning(
                     "WebSocket authentication failed",
                     extra={
@@ -105,6 +114,7 @@ async def websocket_game_endpoint(
 
             db_game_session = crud.get_game_session_by_code(db, session_code)
             if not db_game_session:
+                record_ws_connection("rejected", "session_not_found")
                 logger.info(
                     "WebSocket session does not exist",
                     extra={
@@ -121,6 +131,7 @@ async def websocket_game_endpoint(
                 models.GamePlayer.user_id == user.id,
             ).first()
             if not db_player:
+                record_ws_connection("rejected", "not_member")
                 logger.warning(
                     "WebSocket membership check failed",
                     extra={
@@ -142,6 +153,8 @@ async def websocket_game_endpoint(
                 connection_id=connection_id,
             )
             connected = True
+            WS_ACTIVE.inc()
+            record_ws_connection("opened")
             logger.info(
                 "WebSocket connected",
                 extra={
@@ -196,6 +209,12 @@ async def websocket_game_endpoint(
                         message_data["message_id"] = message_id
                     with log_context(message_id=message_id):
                         await connection_manager.handle_message(websocket, message_data)
+                        record_ws_message(
+                            "inbound",
+                            message_data.get("type"),
+                            "success",
+                            time.perf_counter() - message_started,
+                        )
                         logger.debug(
                             "WebSocket message processed",
                             extra={
@@ -208,6 +227,9 @@ async def websocket_game_endpoint(
                             },
                         )
                 except (json.JSONDecodeError, ValueError):
+                    record_ws_message(
+                        "inbound", "unknown", "rejected", time.perf_counter() - message_started
+                    )
                     logger.info(
                         "Invalid WebSocket message rejected",
                         extra={
@@ -222,6 +244,7 @@ async def websocket_game_endpoint(
                         websocket,
                     )
         except WebSocketDisconnect as exc:
+            record_ws_connection("closed")
             logger.info(
                 "WebSocket disconnected",
                 extra={
@@ -231,6 +254,7 @@ async def websocket_game_endpoint(
                 },
             )
         except Exception:
+            record_ws_connection("error", "server_error")
             logger.exception(
                 "WebSocket connection failed",
                 extra={"event_name": "websocket.connection.failed", "outcome": "error"},
@@ -242,5 +266,7 @@ async def websocket_game_endpoint(
                     pass
         finally:
             if connected:
+                WS_ACTIVE.dec()
+                WS_DURATION.observe(time.perf_counter() - connection_started)
                 await connection_manager.disconnect(websocket)
             db.close()

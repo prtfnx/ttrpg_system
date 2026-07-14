@@ -51,11 +51,22 @@ def test_production_accepts_explicit_origins_and_strong_secrets():
         SECRET_KEY="j" * 40,
         SESSION_SECRET="s" * 40,
         CORS_ORIGINS="https://app.example.com, https://admin.example.com",
+        METRICS_TOKEN="m" * 40,
     )
 
     assert settings.is_production
     assert settings.cors_origin_list == ["https://app.example.com", "https://admin.example.com"]
     assert settings.resolved_session_secret == "s" * 40
+
+
+def test_production_requires_metrics_authentication_token():
+    with pytest.raises(ValueError, match="METRICS_TOKEN"):
+        Settings(
+            ENVIRONMENT="production",
+            SECRET_KEY="j" * 40,
+            SESSION_SECRET="s" * 40,
+            CORS_ORIGINS="https://app.example.com",
+        )
 
 
 def test_observability_settings_are_normalized_and_bounded():

@@ -17,6 +17,7 @@ from database.database import SessionLocal
 from database.models import Asset, AssetUploadIntent, GamePlayer, GameSession, SessionAsset
 from PIL import Image, UnidentifiedImageError
 from storage.r2_manager import R2AssetManager
+from utils.observability import track_asset_operation
 
 logger = logging.getLogger(__name__)
 
@@ -305,6 +306,7 @@ class ServerAssetManager:
         finally:
             db.close()
 
+    @track_asset_operation("download_url")
     async def request_download_url(self, request: AssetRequest) -> PresignedUrlResponse:
         """Generate presigned URL for file download"""
         try:
@@ -374,6 +376,7 @@ class ServerAssetManager:
                 error="Internal server error"
             )
 
+    @track_asset_operation("download_url_by_filename")
     async def request_download_url_by_filename(self, filename: str, session_code: str, user_id: int) -> PresignedUrlResponse:
         """Get download URL for an asset by filename (for existing assets)"""
         try:
@@ -424,6 +427,7 @@ class ServerAssetManager:
                 error="Internal server error"
             )
 
+    @track_asset_operation("confirm_upload")
     async def confirm_upload(self, asset_id: str, user_id: int, upload_success: bool = True,
                            error_message: Optional[str] = None) -> bool:
         """Confirm that an upload was completed successfully or failed - CREATES DB ENTRY"""
@@ -608,6 +612,7 @@ class ServerAssetManager:
             "note": "Confirmed assets and pending upload intents are durable"
         }
 
+    @track_asset_operation("upload_url")
     async def request_upload_url_with_hash(self, request: AssetRequest, file_xxhash: str) -> PresignedUrlResponse:
         """Generate presigned URL for file upload with pre-calculated hash"""
         try:
@@ -997,6 +1002,7 @@ class ServerAssetManager:
         except Exception as exc:
             logger.error(f"Failed to delete rejected R2 upload {r2_key}: {exc}")
 
+    @track_asset_operation("cleanup_phantoms")
     async def cleanup_phantom_assets(self, session_code: Optional[str] = None,
                                    max_age_hours: int = 24) -> dict:
         """
@@ -1060,6 +1066,7 @@ class ServerAssetManager:
             logger.error(f"Error during phantom asset cleanup: {e}")
             return {"error": str(e)}
 
+    @track_asset_operation("verify_session")
     async def verify_all_session_assets(self, session_code: str) -> dict:
         """
         Verify all assets for a session exist in R2.

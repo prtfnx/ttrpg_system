@@ -60,6 +60,8 @@ class Settings(BaseSettings):
     OTEL_EXPORTER_OTLP_ENDPOINT: str = ""
     OTEL_EXPORTER_OTLP_HEADERS: str = ""
     OTEL_TRACES_SAMPLER_ARG: float = 0.1
+    METRICS_ENABLED: bool = True
+    METRICS_TOKEN: str = ""
     BROWSER_TELEMETRY_ENABLED: bool = True
     BROWSER_TELEMETRY_SAMPLE_RATE: float = 0.1
     WS_MAX_MESSAGE_BYTES: int = 64 * 1024
@@ -108,6 +110,10 @@ class Settings(BaseSettings):
 
             resolve_session_secret(self.SESSION_SECRET, self.ENVIRONMENT)
             parse_cors_origins(self.CORS_ORIGINS, self.ENVIRONMENT)
+            if self.METRICS_ENABLED and len(self.METRICS_TOKEN) < 32:
+                raise ValueError(
+                    "METRICS_TOKEN must be at least 32 characters when metrics are enabled in production."
+                )
 
         return self
 

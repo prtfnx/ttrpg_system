@@ -5,6 +5,7 @@ Provides HTTP/webhook and WebSocket endpoints for client communication
 import asyncio
 import os
 import re
+import secrets
 import time
 import uuid
 from contextlib import asynccontextmanager
@@ -18,7 +19,8 @@ from database import models
 from database.database import create_tables, engine, get_db
 from fastapi import Depends, FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import JSONResponse, RedirectResponse
+from fastapi.responses import JSONResponse, RedirectResponse, Response
+from prometheus_client import CONTENT_TYPE_LATEST, generate_latest
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from routers import auth, compendium, demo, game, invitations, users
@@ -29,6 +31,7 @@ from storage.r2_manager import R2AssetManager
 from sqlalchemy.orm import Session
 from starlette.middleware.sessions import SessionMiddleware
 from utils.logger import bind_log_context, configure_logging, reset_log_context, setup_logger
+from utils.observability import configure_tracing, observe_http
 from utils.rate_limiter import login_limiter, registration_limiter
 
 settings = Settings()
@@ -102,6 +105,7 @@ app = FastAPI(
     version="1.0.0",
     lifespan=lifespan
 )
+configure_tracing(app, engine, settings)
 
 
 @app.middleware("http")
@@ -119,6 +123,13 @@ async def request_observability(request: Request, call_next):
     try:
         response = await call_next(request)
     except Exception:
+        route = request.scope.get("route")
+        observe_http(
+            request.method,
+            getattr(route, "path", "unmatched"),
+            500,
+            time.perf_counter() - started,
+        )
         logger.exception(
             "Unhandled HTTP request failure",
             extra={
@@ -131,13 +142,20 @@ async def request_observability(request: Request, call_next):
         raise
     else:
         response.headers["X-Request-ID"] = request_id
+        route = request.scope.get("route")
+        route_path = getattr(route, "path", "unmatched")
+        observe_http(
+            request.method,
+            route_path,
+            response.status_code,
+            time.perf_counter() - started,
+        )
         if not request.url.path.startswith("/health/"):
-            route = request.scope.get("route")
             logger.info(
                 "HTTP request completed",
                 extra={
                     "event_name": "http.request.completed",
-                    "http_route": getattr(route, "path", request.url.path),
+                    "http_route": route_path,
                     "http_status_code": response.status_code,
                     "duration_ms": round((time.perf_counter() - started) * 1000, 3),
                     "outcome": "error" if response.status_code >= 500 else "success",
@@ -309,6 +327,18 @@ def readiness_check():
 async def legacy_health_alias():
     """Compatibility alias; deployment probes /health/ready."""
     return await health_check()
+
+
+@app.get("/metrics", include_in_schema=False)
+def service_metrics(request: Request):
+    """Expose Prometheus metrics behind a deployment-managed bearer token."""
+    if not settings.METRICS_ENABLED:
+        raise HTTPException(status_code=404, detail="Not found")
+    supplied = request.headers.get("authorization", "")
+    expected = f"Bearer {settings.METRICS_TOKEN}"
+    if not settings.METRICS_TOKEN or not secrets.compare_digest(supplied, expected):
+        raise HTTPException(status_code=401, detail="Authentication required")
+    return Response(content=generate_latest(), media_type=CONTENT_TYPE_LATEST)
 
 if __name__ == "__main__":
 

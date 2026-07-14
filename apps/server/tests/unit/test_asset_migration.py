@@ -3,6 +3,7 @@ import sqlite3
 
 
 migration = importlib.import_module("database.migrations.025_normalize_asset_sessions")
+cleanup_migration = importlib.import_module("database.migrations.026_drop_legacy_asset_session")
 
 
 def _create_legacy_database(db_path):
@@ -48,13 +49,19 @@ def test_upgrade_backfills_link_and_removes_filename_uniqueness(tmp_path):
             "SELECT session_id, asset_id, display_name, added_by FROM session_assets"
         ).fetchone()
         assert link == (10, 100, "map.png", 1)
+        columns = {row[1] for row in conn.execute("PRAGMA table_info('assets')")}
+        assert "session_id" not in columns
 
         conn.execute("""
             INSERT INTO assets (
                 id, asset_name, r2_asset_id, content_type, file_size, uploaded_by,
-                session_id, r2_key, r2_bucket
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-        """, (101, "map.png", "asset-b", "image/png", 20, 1, 20, "b.png", "assets"))
+                r2_key, r2_bucket
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+        """, (101, "map.png", "asset-b", "image/png", 20, 1, "b.png", "assets"))
+        conn.execute("""
+            INSERT INTO session_assets (session_id, asset_id, display_name, added_by)
+            VALUES (20, 101, 'map.png', 1)
+        """)
         conn.commit()
 
     migration.upgrade(str(db_path))
@@ -62,3 +69,23 @@ def test_upgrade_backfills_link_and_removes_filename_uniqueness(tmp_path):
     with sqlite3.connect(db_path) as conn:
         assert conn.execute("SELECT COUNT(*) FROM assets WHERE asset_name = 'map.png'").fetchone()[0] == 2
         assert conn.execute("SELECT COUNT(*) FROM session_assets").fetchone()[0] == 2
+
+
+def test_cleanup_migration_removes_session_column_from_already_normalized_database(tmp_path):
+    db_path = tmp_path / "normalized.db"
+    _create_legacy_database(db_path)
+    migration.upgrade(str(db_path))
+
+    with sqlite3.connect(db_path) as conn:
+        conn.execute("ALTER TABLE assets ADD COLUMN session_id INTEGER REFERENCES game_sessions(id)")
+        conn.execute("UPDATE assets SET session_id = 10")
+        conn.commit()
+
+    cleanup_migration.upgrade(str(db_path))
+    cleanup_migration.upgrade(str(db_path))
+
+    with sqlite3.connect(db_path) as conn:
+        columns = {row[1] for row in conn.execute("PRAGMA table_info('assets')")}
+        assert "session_id" not in columns
+        assert conn.execute("SELECT COUNT(*) FROM assets").fetchone()[0] == 1
+        assert conn.execute("SELECT COUNT(*) FROM session_assets").fetchone()[0] == 1

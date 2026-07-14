@@ -19,7 +19,11 @@ def _asset_name_has_unique_index(cursor: sqlite3.Cursor) -> bool:
     return False
 
 
-def _rebuild_assets_without_filename_uniqueness(cursor: sqlite3.Cursor) -> None:
+def _asset_has_session_id(cursor: sqlite3.Cursor) -> bool:
+    return any(row[1] == "session_id" for row in cursor.execute("PRAGMA table_info('assets')"))
+
+
+def _rebuild_assets_without_legacy_ownership(cursor: sqlite3.Cursor) -> None:
     cursor.execute("""
         CREATE TABLE assets_normalized (
             id INTEGER NOT NULL PRIMARY KEY,
@@ -29,7 +33,6 @@ def _rebuild_assets_without_filename_uniqueness(cursor: sqlite3.Cursor) -> None:
             file_size INTEGER NOT NULL,
             xxhash VARCHAR(32),
             uploaded_by INTEGER NOT NULL REFERENCES users(id),
-            session_id INTEGER REFERENCES game_sessions(id),
             created_at DATETIME,
             updated_at DATETIME,
             last_accessed DATETIME,
@@ -40,12 +43,12 @@ def _rebuild_assets_without_filename_uniqueness(cursor: sqlite3.Cursor) -> None:
     cursor.execute("""
         INSERT INTO assets_normalized (
             id, asset_name, r2_asset_id, content_type, file_size, xxhash,
-            uploaded_by, session_id, created_at, updated_at, last_accessed,
+            uploaded_by, created_at, updated_at, last_accessed,
             r2_key, r2_bucket
         )
         SELECT
             id, asset_name, r2_asset_id, content_type, file_size, xxhash,
-            uploaded_by, session_id, created_at, updated_at, last_accessed,
+            uploaded_by, created_at, updated_at, last_accessed,
             r2_key, r2_bucket
         FROM assets
     """)
@@ -60,6 +63,7 @@ def upgrade(db_path: str):
     with sqlite3.connect(db_path) as conn:
         cursor = conn.cursor()
         cursor.execute("PRAGMA foreign_keys = OFF")
+        has_legacy_session_id = _asset_has_session_id(cursor)
         cursor.execute("""
             CREATE TABLE IF NOT EXISTS session_assets (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -72,23 +76,24 @@ def upgrade(db_path: str):
                 CONSTRAINT uq_session_asset UNIQUE (session_id, asset_id)
             )
         """)
-        cursor.execute("""
-            INSERT OR IGNORE INTO session_assets (
-                session_id, asset_id, display_name, added_by, created_at, last_accessed
-            )
-            SELECT
-                session_id,
-                id,
-                asset_name,
-                uploaded_by,
-                COALESCE(created_at, CURRENT_TIMESTAMP),
-                COALESCE(last_accessed, created_at, CURRENT_TIMESTAMP)
-            FROM assets
-            WHERE session_id IS NOT NULL
-        """)
+        if has_legacy_session_id:
+            cursor.execute("""
+                INSERT OR IGNORE INTO session_assets (
+                    session_id, asset_id, display_name, added_by, created_at, last_accessed
+                )
+                SELECT
+                    session_id,
+                    id,
+                    asset_name,
+                    uploaded_by,
+                    COALESCE(created_at, CURRENT_TIMESTAMP),
+                    COALESCE(last_accessed, created_at, CURRENT_TIMESTAMP)
+                FROM assets
+                WHERE session_id IS NOT NULL
+            """)
 
-        if _asset_name_has_unique_index(cursor):
-            _rebuild_assets_without_filename_uniqueness(cursor)
+        if has_legacy_session_id or _asset_name_has_unique_index(cursor):
+            _rebuild_assets_without_legacy_ownership(cursor)
 
         cursor.execute("CREATE INDEX IF NOT EXISTS ix_session_assets_session_id ON session_assets (session_id)")
         cursor.execute("CREATE INDEX IF NOT EXISTS ix_session_assets_asset_id ON session_assets (asset_id)")

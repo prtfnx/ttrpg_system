@@ -553,9 +553,18 @@ class CharacterLog(Base):
 class ChatMessage(Base):
     """Persisted session chat message."""
     __tablename__ = "chat_messages"
+    __table_args__ = (
+        UniqueConstraint(
+            "session_id",
+            "user_id",
+            "client_operation_id",
+            name="uq_chat_sender_operation",
+        ),
+    )
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
     message_id: Mapped[str] = mapped_column(String(64), unique=True, index=True, nullable=False)
+    client_operation_id: Mapped[str] = mapped_column(String(64), nullable=False)
     session_id: Mapped[int] = mapped_column(Integer, ForeignKey("game_sessions.id"), nullable=False, index=True)
     user_id: Mapped[Optional[int]] = mapped_column(Integer, ForeignKey("users.id"), nullable=True, index=True)
     username: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)
@@ -584,6 +593,9 @@ class ChatMessage(Base):
             }
         if self.created_at and "created_at" not in message:
             message["created_at"] = self.created_at.isoformat()
+        message.setdefault("id", self.message_id)
+        message.setdefault("client_operation_id", self.client_operation_id)
+        message.setdefault("server_cursor", self.id)
         if self.attachments_json and "attachments" not in message:
             try:
                 message["attachments"] = json.loads(self.attachments_json)

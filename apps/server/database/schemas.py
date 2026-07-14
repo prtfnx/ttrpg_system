@@ -231,6 +231,7 @@ class GamePlayer(GamePlayerBase):
 # Chat schemas
 class ChatMessageBase(BaseModel):
     message_id: str
+    client_operation_id: str
     session_id: int
     user_id: Optional[int] = None
     username: Optional[str] = None

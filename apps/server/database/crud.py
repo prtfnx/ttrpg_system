@@ -360,6 +360,7 @@ def create_chat_message(db: Session, chat_data: schemas.ChatMessageCreate) -> mo
     attachments_json = json.dumps(chat_data.attachments) if chat_data.attachments is not None else None
     db_message = models.ChatMessage(
         message_id=chat_data.message_id,
+        client_operation_id=chat_data.client_operation_id,
         session_id=chat_data.session_id,
         user_id=chat_data.user_id,
         username=chat_data.username,
@@ -377,8 +378,19 @@ def create_chat_message(db: Session, chat_data: schemas.ChatMessageCreate) -> mo
     return db_message
 
 
-def get_chat_message_by_message_id(db: Session, message_id: str) -> Optional[models.ChatMessage]:
-    return db.query(models.ChatMessage).filter(models.ChatMessage.message_id == message_id).first()
+def get_chat_message_by_client_operation(
+    db: Session,
+    *,
+    session_id: int,
+    user_id: int,
+    client_operation_id: str,
+) -> Optional[models.ChatMessage]:
+    """Resolve an idempotent send only within its authenticated tenant/sender."""
+    return db.query(models.ChatMessage).filter(
+        models.ChatMessage.session_id == session_id,
+        models.ChatMessage.user_id == user_id,
+        models.ChatMessage.client_operation_id == client_operation_id,
+    ).first()
 
 
 def get_session_chat_messages(
@@ -390,7 +402,6 @@ def get_session_chat_messages(
     channel: Optional[str] = None,
     user_id: Optional[int] = None,
     visible_to_user_id: Optional[int] = None,
-    all_messages: bool = False,
 ) -> list[models.ChatMessage]:
     """Load chat messages newest-window first, returned in chronological order."""
     query = db.query(models.ChatMessage).filter(models.ChatMessage.session_id == session_id)
@@ -413,9 +424,8 @@ def get_session_chat_messages(
         query = query.filter(models.ChatMessage.channel != "whisper")
 
     query = query.order_by(models.ChatMessage.id.desc())
-    if not all_messages:
-        safe_limit = max(1, min(int(limit or 30), 500))
-        query = query.limit(safe_limit)
+    safe_limit = max(1, min(int(limit or 30), 100))
+    query = query.limit(safe_limit)
 
     messages = query.all()
     return list(reversed(messages))

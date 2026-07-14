@@ -61,6 +61,7 @@ class TestChatCRUD:
     def test_create_and_load_session_chat_messages(self, test_db, test_game_session, test_user):
         message = crud.create_chat_message(test_db, schemas.ChatMessageCreate(
             message_id="msg-1",
+            client_operation_id="op-1",
             session_id=test_game_session.id,
             user_id=test_user.id,
             username=test_user.username,
@@ -78,6 +79,7 @@ class TestChatCRUD:
     def test_chat_history_hides_whispers_from_other_users(self, test_db, test_game_session, test_user, player_user):
         crud.create_chat_message(test_db, schemas.ChatMessageCreate(
             message_id="public-1",
+            client_operation_id="public-op-1",
             session_id=test_game_session.id,
             user_id=test_user.id,
             username=test_user.username,
@@ -86,6 +88,7 @@ class TestChatCRUD:
         ))
         crud.create_chat_message(test_db, schemas.ChatMessageCreate(
             message_id="whisper-1",
+            client_operation_id="whisper-op-1",
             session_id=test_game_session.id,
             user_id=test_user.id,
             username=test_user.username,
@@ -105,10 +108,11 @@ class TestChatCRUD:
         assert [m.message_id for m in visible_to_recipient] == ["public-1", "whisper-1"]
         assert [m.message_id for m in visible_to_unknown] == ["public-1"]
 
-    def test_chat_history_defaults_to_last_30_and_can_load_all(self, test_db, test_game_session, test_user):
-        for idx in range(35):
+    def test_chat_history_defaults_to_last_30_and_caps_page_size(self, test_db, test_game_session, test_user):
+        for idx in range(105):
             crud.create_chat_message(test_db, schemas.ChatMessageCreate(
                 message_id=f"msg-{idx}",
+                client_operation_id=f"op-{idx}",
                 session_id=test_game_session.id,
                 user_id=test_user.id,
                 username=test_user.username,
@@ -127,11 +131,11 @@ class TestChatCRUD:
             test_game_session.id,
             visible_to_user_id=test_user.id,
         )
-        all_messages = crud.get_session_chat_messages(
+        capped_messages = crud.get_session_chat_messages(
             test_db,
             test_game_session.id,
             visible_to_user_id=test_user.id,
-            all_messages=True,
+            limit=500,
         )
         last_five = crud.get_session_chat_messages(
             test_db,
@@ -141,7 +145,31 @@ class TestChatCRUD:
         )
 
         assert len(recent) == 30
-        assert recent[0].message_id == "msg-5"
-        assert recent[-1].message_id == "msg-34"
-        assert len(all_messages) == 35
-        assert [m.message_id for m in last_five] == ["msg-30", "msg-31", "msg-32", "msg-33", "msg-34"]
+        assert recent[0].message_id == "msg-75"
+        assert recent[-1].message_id == "msg-104"
+        assert len(capped_messages) == 100
+        assert capped_messages[0].message_id == "msg-5"
+        assert [m.message_id for m in last_five] == ["msg-100", "msg-101", "msg-102", "msg-103", "msg-104"]
+
+    def test_chat_idempotency_lookup_is_scoped_to_sender(
+        self, test_db, test_game_session, test_user, player_user
+    ):
+        for message_id, sender in (("server-1", test_user), ("server-2", player_user)):
+            crud.create_chat_message(test_db, schemas.ChatMessageCreate(
+                message_id=message_id,
+                client_operation_id="same-client-operation",
+                session_id=test_game_session.id,
+                user_id=sender.id,
+                username=sender.username,
+                text="Hello",
+                message_json={"id": message_id, "text": "Hello", "user": sender.username},
+            ))
+
+        resolved = crud.get_chat_message_by_client_operation(
+            test_db,
+            session_id=test_game_session.id,
+            user_id=player_user.id,
+            client_operation_id="same-client-operation",
+        )
+
+        assert resolved.message_id == "server-2"

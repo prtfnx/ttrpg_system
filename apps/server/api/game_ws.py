@@ -1,355 +1,246 @@
-"""
-WebSocket endpoints for game sessions
-"""
+"""Authenticated WebSocket endpoint for game sessions."""
+
+from __future__ import annotations
+
+import hashlib
 import json
-import os
 import time
-from typing import Optional
+import uuid
+from collections import deque
 
 import jwt
+from config import Settings
 from database import crud, models
-from database.database import get_db
-from fastapi import APIRouter, Depends, Request, WebSocket, WebSocketDisconnect, status
-from fastapi.templating import Jinja2Templates
+from database.database import SessionLocal
+from fastapi import APIRouter, Depends, WebSocket, WebSocketDisconnect, status
 from routers.users import ALGORITHM, SECRET_KEY
 from service.game_session import ConnectionManager, get_connection_manager
 from sqlalchemy.orm import Session
-from utils.logger import setup_logger
-from utils.roles import get_permissions, get_visible_layers
+from utils.logger import log_context, setup_logger
+
 
 logger = setup_logger(__name__)
-
 router = APIRouter()
-templates_dir = os.path.join(os.path.dirname(os.path.dirname(__file__)), "templates")
-templates = Jinja2Templates(directory=templates_dir)
+settings = Settings()
+
+
+def _session_reference(session_code: str) -> str:
+    """Pseudonymous session reference safe for diagnostic logs."""
+    return hashlib.sha256(session_code.encode("utf-8")).hexdigest()[:12]
+
+
+def _origin_is_allowed(origin: str | None) -> bool:
+    """Apply the HTTP origin allowlist to browser WebSocket handshakes."""
+    allowed = settings.cors_origin_list
+    if "*" in allowed and not settings.is_production:
+        return True
+    return bool(origin and origin in allowed)
+
 
 def get_user_from_token(token: str, db: Session):
-    """Get user from JWT token for WebSocket authentication"""
+    """Resolve a user without ever recording token material."""
     try:
-        logger.info(f"Validating JWT token: {token[:20]}...")
         payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
         username = payload.get("sub")
-        if username is None:
-            logger.error("No username in JWT payload")
+        if not isinstance(username, str) or not username:
+            logger.warning(
+                "WebSocket JWT has no subject",
+                extra={"event_name": "websocket.authentication.rejected", "reason": "missing_subject"},
+            )
             return None
-        user = crud.get_user_by_username(db, username=username)
-        if user:
-            logger.info(f"User {username} validated successfully")
-        else:
-            logger.error(f"User {username} not found in database")
-        return user
-    except Exception as e:
-        logger.error(f"Token validation error: {e}")
-        return None
-
-@router.websocket("/")
-async def websocket_general_endpoint(
-    websocket: WebSocket,
-    connection_manager: ConnectionManager = Depends(get_connection_manager)
-):
-    """General WebSocket endpoint that redirects based on headers"""
-    logger.info("General WebSocket connection attempt")
-
-
-    try:
-        # Extract session_code and token from headers
-        logger.info(f"WebSocket headers: {websocket.headers}")
-        headers = dict(websocket.headers)
-        session_code = headers.get("session_code")
-
-        token = (
-            headers.get("authorization", "").replace("Bearer ", "") or
-            headers.get("Authorization", "").replace("Bearer ", "") or
-            websocket.query_params.get("token")
+        return crud.get_user_by_username(db, username=username)
+    except jwt.ExpiredSignatureError:
+        logger.info(
+            "WebSocket JWT expired",
+            extra={"event_name": "websocket.authentication.rejected", "reason": "expired"},
         )
-        if not session_code:
-            logger.error("No session_code provided in headers")
-            await websocket.close(code=status.WS_1008_POLICY_VIOLATION)
-            return
-
-        if not token:
-            logger.error("No token provided in headers or query params")
-            await websocket.close(code=status.WS_1008_POLICY_VIOLATION)
-            return
-
-        logger.info(f"Redirecting to game session: {session_code}")
-
-        # Call the game endpoint directly
-        await websocket_game_endpoint(websocket, session_code, token, connection_manager)
-
-    except Exception as e:
-        logger.error(f"Error in general WebSocket endpoint: {e}")
-        await websocket.close(code=status.WS_1011_INTERNAL_ERROR)
-
+    except jwt.InvalidTokenError:
+        logger.warning(
+            "WebSocket JWT invalid",
+            extra={"event_name": "websocket.authentication.rejected", "reason": "invalid"},
+        )
+    return None
 
 
 @router.websocket("/ws/game/{session_code}")
 async def websocket_game_endpoint(
     websocket: WebSocket,
     session_code: str,
-    token: Optional[str] = None,
-    connection_manager: ConnectionManager = Depends(get_connection_manager)
+    connection_manager: ConnectionManager = Depends(get_connection_manager),
 ):
-    """WebSocket endpoint for game sessions"""
-    # Get database session
-    db = next(get_db())
-
-    try:
-        # Authenticate user via token (multiple sources)
-        user = None
-        token_value = None
-
-        # Track where the token came from for debugging
-        auth_source = None
-        # Method 1: Query parameter token
-        if not token:
-            token_value = websocket.query_params.get("token")
-            if token_value:
-                auth_source = 'query'
-        else:
-            token_value = token
-            auth_source = 'param'
-
-        # Method 2: Authorization header
-        if not token_value:
-            auth_header = dict(websocket.headers).get("authorization")
-            if auth_header:
-                token_value = auth_header.replace("Bearer ", "")
-                auth_source = auth_source or 'header'
-
-        # Method 3: HTTP-only cookie (most secure)
-        if not token_value:
-            # Extract token from Cookie header
-            cookie_header = dict(websocket.headers).get("cookie")
-            if cookie_header:
-                # Parse cookies from header
-                cookies = {}
-                for cookie in cookie_header.split(';'):
-                    if '=' in cookie:
-                        key, value = cookie.strip().split('=', 1)
-                        cookies[key] = value
-                token_value = cookies.get('token')
-                if token_value:
-                    auth_source = auth_source or 'cookie'
-
-        if token_value:
-            user = get_user_from_token(token_value, db)
-
-        if not user:
-            logger.error("Authentication failed - no valid token or cookie")
-            await websocket.close(code=status.WS_1008_POLICY_VIOLATION)
-            return        # Check if session exists in database
-        logger.info(f"User {user.username} connecting to session {session_code}")
-
-        # Debug: log detailed info about the session lookup request before querying DB
+    """Authenticate from the HTTP-only cookie and join a durable game session."""
+    connection_id = uuid.uuid4().hex
+    connected = False
+    db = SessionLocal()
+    with log_context(
+        connection_id=connection_id,
+        session_ref=_session_reference(session_code),
+    ):
         try:
-            headers_keys = list(dict(websocket.headers).keys())
-        except Exception:
-            headers_keys = []
-        try:
-            db_bind = getattr(db, 'bind', None)
-            # Safely stringify bind info without assuming attributes
-            if db_bind is None:
-                db_bind_info = 'None'
-            else:
-                try:
-                    db_bind_info = str(db_bind)
-                except Exception:
-                    db_bind_info = repr(db_bind)
-        except Exception:
-            db_bind_info = 'unknown'
-        # Mask token length instead of printing token itself
-        token_info = f"len={len(token_value)}" if token_value else 'None'
-        logger.debug(f"Session lookup request: session_code={session_code!r}, token_info={token_info}, auth_source={auth_source}, headers={headers_keys}, db_bind={db_bind_info}")
+            if not _origin_is_allowed(websocket.headers.get("origin")):
+                logger.warning(
+                    "WebSocket Origin rejected",
+                    extra={
+                        "event_name": "websocket.connection.rejected",
+                        "reason": "origin",
+                        "outcome": "rejected",
+                    },
+                )
+                await websocket.close(code=status.WS_1008_POLICY_VIOLATION)
+                return
 
-        # Debug: list current sessions to help diagnose missing session issues
-        try:
-            current_sessions = crud.list_game_sessions(db)
-            logger.debug(f"Current DB sessions: {current_sessions}")
-        except Exception as e:
-            logger.debug(f"Failed to list DB sessions: {e}")
+            token = websocket.cookies.get("token")
+            user = get_user_from_token(token, db) if token else None
+            if not user:
+                logger.warning(
+                    "WebSocket authentication failed",
+                    extra={
+                        "event_name": "websocket.connection.rejected",
+                        "reason": "authentication",
+                        "outcome": "rejected",
+                    },
+                )
+                await websocket.close(code=status.WS_1008_POLICY_VIOLATION)
+                return
 
-        # Verify session exists in database
-        db_game_session = crud.get_game_session_by_code(db, session_code)
-        if not db_game_session:
-            logger.error(f"Game session {session_code} not found in database")
-            await websocket.close(code=status.WS_1003_UNSUPPORTED_DATA)
-            return
+            db_game_session = crud.get_game_session_by_code(db, session_code)
+            if not db_game_session:
+                logger.info(
+                    "WebSocket session does not exist",
+                    extra={
+                        "event_name": "websocket.connection.rejected",
+                        "reason": "session_not_found",
+                        "outcome": "rejected",
+                    },
+                )
+                await websocket.close(code=status.WS_1008_POLICY_VIOLATION)
+                return
 
-        logger.info(f"Game session found: {db_game_session.name}")
-        user_id = user.id
-        username = user.username
+            db_player = db.query(models.GamePlayer).filter(
+                models.GamePlayer.session_id == db_game_session.id,
+                models.GamePlayer.user_id == user.id,
+            ).first()
+            if not db_player:
+                logger.warning(
+                    "WebSocket membership check failed",
+                    extra={
+                        "event_name": "websocket.connection.rejected",
+                        "reason": "not_member",
+                        "user_id": user.id,
+                        "outcome": "rejected",
+                    },
+                )
+                await websocket.close(code=status.WS_1008_POLICY_VIOLATION)
+                return
 
-        # Resolve role from DB — player must have joined via HTTP first
-        db_player = db.query(models.GamePlayer).filter(
-            models.GamePlayer.session_id == db_game_session.id,
-            models.GamePlayer.user_id == user_id
-        ).first()
-        if not db_player:
-            logger.warning(f"User {username} has no GamePlayer record for session {session_code}")
-            await websocket.close(code=status.WS_1008_POLICY_VIOLATION)
-            return
+            client_id = await connection_manager.connect(
+                websocket,
+                session_code,
+                user.id,
+                user.username,
+                db_player.role or "player",
+                connection_id=connection_id,
+            )
+            connected = True
+            logger.info(
+                "WebSocket connected",
+                extra={
+                    "event_name": "websocket.connection.opened",
+                    "client_id": client_id,
+                    "user_id": user.id,
+                    "role": db_player.role or "player",
+                    "outcome": "success",
+                },
+            )
 
-        player_role = db_player.role or "player"
-        logger.debug(f"User {username} role in session {session_code}: {player_role}")
-
-        logger.info(f"Connecting user {username} with ID {user_id} to session {session_code}")
-        await connection_manager.connect(websocket, session_code, user_id, username, player_role)
-        # Send welcome message
-        await connection_manager.send_personal_message({
-            "type": "welcome",
-            "username": username,
-            "data": {
-                "user_id": user_id,
-                "role": player_role,
-                "permissions": get_permissions(player_role),
-                "visible_layers": get_visible_layers(player_role),
-                "session_name": db_game_session.name,
-                "session_code": session_code,
-                "players": connection_manager.get_session_players(session_code)
-            }
-        }, websocket)
-
-        # Listen for messages
-        while True:
-            try:
-                data = await websocket.receive_text()
-                message_data = json.loads(data)
-                await connection_manager.handle_message(websocket, message_data)
-            except json.JSONDecodeError:
-                await connection_manager.send_personal_message({
-                    "type": "error",
-                    "data": {"message": "Invalid JSON format"}
-                }, websocket)
-            except WebSocketDisconnect:
-                logger.info(f"WebSocket disconnected: {websocket.client}")
-                await connection_manager.disconnect(websocket)
-                break
-            except Exception as e:
-                logger.error(f"Error processing message: {e}")
-                break
-
-    except WebSocketDisconnect:
-        await connection_manager.disconnect(websocket)
-    except Exception as e:
-        logger.error(f"WebSocket error: {e}")
-        await connection_manager.disconnect(websocket)
-    finally:
-        db.close()
-
-@router.get("/test")
-async def websocket_test_page(request: Request):
-    """WebSocket test page using template"""
-    return templates.TemplateResponse(request, "websocket_test.html", {})
-
-@router.get("/client")
-async def game_client_page(request: Request):
-    """Integrated game client with React UI + WASM rendering"""
-    # Read vite_assets.html for asset injection
-    try:
-        with open("templates/vite_assets.html", "r", encoding="utf-8") as f:
-            vite_assets = f.read()
-    except Exception:
-        vite_assets = ""
-    return templates.TemplateResponse(
-        request,
-        "game_client.html",
-        {"vite_assets": vite_assets}
-    )
-
-@router.websocket("/ws")
-async def websocket_test_endpoint(websocket: WebSocket):
-    """Simple WebSocket endpoint for testing without authentication"""
-    await websocket.accept()
-    logger.info(f"Test WebSocket connection accepted from {websocket.client}")
-
-    # Send welcome message
-    welcome_msg = {
-        "type": "welcome",
-        "data": {"session_id": "test_session_123"},
-        "timestamp": time.time()
-    }
-    await websocket.send_text(json.dumps(welcome_msg))
-
-    try:
-        while True:
-            data = await websocket.receive_text()
-            try:
-                message = json.loads(data)
-                logger.info(f"Received test message: {message}")
-
-                # Echo the message back or handle specific types
-                if message.get("type") == "ping":
-                    response = {
-                        "type": "pong",
-                        "timestamp": time.time()
-                    }
-                elif message.get("type") == "sprite_create":
-                    # Echo sprite creation with an ID
-                    sprite_data = message.get("data", {})
-                    sprite_data["id"] = f"sprite_{int(time.time() * 1000)}"
-                    response = {
-                        "type": "sprite_create",
-                        "data": sprite_data,
-                        "timestamp": time.time()
-                    }
-                elif message.get("type") == "table_request":
-                    # Send back some test sprites
-                    response = {
-                        "type": "table_data",
-                        "data": {
-                            "sprites": [
-                                {
-                                    "id": "test_1",
-                                    "name": "Test Hero",
-                                    "x": 100,
-                                    "y": 100,
-                                    "width": 40,
-                                    "height": 40,
-                                    "layer": "tokens",
-                                    "scale_x": 1.0,
-                                    "scale_y": 1.0,
-                                    "rotation": 0.0,
-                                    "texture_path": "hero.png",
-                                    "visible": True,
-                                    "color": "#00CC33"
-                                },
-                                {
-                                    "id": "test_2",
-                                    "name": "Test Enemy",
-                                    "x": 200,
-                                    "y": 150,
-                                    "width": 35,
-                                    "height": 35,
-                                    "layer": "tokens",
-                                    "scale_x": 1.0,
-                                    "scale_y": 1.0,
-                                    "rotation": 0.0,
-                                    "texture_path": "enemy.png",
-                                    "visible": True,
-                                    "color": "#CC3300"
-                                }
-                            ]
+            message_times: deque[float] = deque()
+            while True:
+                raw_message = await websocket.receive_text()
+                message_started = time.perf_counter()
+                payload_bytes = len(raw_message.encode("utf-8"))
+                if payload_bytes > settings.WS_MAX_MESSAGE_BYTES:
+                    logger.info(
+                        "Oversized WebSocket message rejected",
+                        extra={
+                            "event_name": "websocket.message.rejected",
+                            "reason": "message_too_large",
+                            "payload_bytes": payload_bytes,
+                            "outcome": "rejected",
                         },
-                        "timestamp": time.time()
-                    }
-                else:
-                    # Echo back the message
-                    response = message.copy()
-                    response["timestamp"] = time.time()
+                    )
+                    await websocket.close(code=status.WS_1009_MESSAGE_TOO_BIG)
+                    return
 
-                await websocket.send_text(json.dumps(response))
-
-            except json.JSONDecodeError:
-                error_msg = {
-                    "type": "error",
-                    "data": {"message": "Invalid JSON format"},
-                    "timestamp": time.time()
-                }
-                await websocket.send_text(json.dumps(error_msg))
-
-    except WebSocketDisconnect:
-        logger.info(f"Test WebSocket disconnected: {websocket.client}")
-    except Exception as e:
-        logger.error(f"Test WebSocket error: {e}")
-        await websocket.close()
+                now = time.monotonic()
+                while message_times and now - message_times[0] >= 60:
+                    message_times.popleft()
+                if len(message_times) >= settings.WS_MESSAGES_PER_MINUTE:
+                    logger.info(
+                        "WebSocket message rate exceeded",
+                        extra={
+                            "event_name": "websocket.message.rejected",
+                            "reason": "rate_limit",
+                            "outcome": "rejected",
+                        },
+                    )
+                    await websocket.close(code=status.WS_1008_POLICY_VIOLATION)
+                    return
+                message_times.append(now)
+                try:
+                    message_data = json.loads(raw_message)
+                    if not isinstance(message_data, dict):
+                        raise ValueError("WebSocket message must be an object")
+                    message_id = message_data.get("message_id")
+                    if not isinstance(message_id, str) or not message_id:
+                        message_id = uuid.uuid4().hex
+                        message_data["message_id"] = message_id
+                    with log_context(message_id=message_id):
+                        await connection_manager.handle_message(websocket, message_data)
+                        logger.debug(
+                            "WebSocket message processed",
+                            extra={
+                                "event_name": "websocket.message.processed",
+                                "message_type": str(message_data.get("type", "unknown"))[:80],
+                                "duration_ms": round(
+                                    (time.perf_counter() - message_started) * 1000, 3
+                                ),
+                                "outcome": "success",
+                            },
+                        )
+                except (json.JSONDecodeError, ValueError):
+                    logger.info(
+                        "Invalid WebSocket message rejected",
+                        extra={
+                            "event_name": "websocket.message.rejected",
+                            "reason": "invalid_json",
+                            "payload_bytes": payload_bytes,
+                            "outcome": "rejected",
+                        },
+                    )
+                    await connection_manager.send_personal_message(
+                        {"type": "error", "data": {"message": "Invalid message format"}},
+                        websocket,
+                    )
+        except WebSocketDisconnect as exc:
+            logger.info(
+                "WebSocket disconnected",
+                extra={
+                    "event_name": "websocket.connection.closed",
+                    "close_code": exc.code,
+                    "outcome": "closed",
+                },
+            )
+        except Exception:
+            logger.exception(
+                "WebSocket connection failed",
+                extra={"event_name": "websocket.connection.failed", "outcome": "error"},
+            )
+            if not connected:
+                try:
+                    await websocket.close(code=status.WS_1011_INTERNAL_ERROR)
+                except RuntimeError:
+                    pass
+        finally:
+            if connected:
+                await connection_manager.disconnect(websocket)
+            db.close()

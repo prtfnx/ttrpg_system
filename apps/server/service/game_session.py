@@ -1,10 +1,9 @@
 """
 WebSocket-based game session manager with integrated table protocol
 """
-import hashlib
 import json
-import time
-from datetime import datetime
+import uuid
+from datetime import datetime, timezone
 from typing import Any, Dict, List, Optional, Union
 
 from core_table.protocol import Message, MessageType
@@ -12,7 +11,6 @@ from core_table.protocol import Message, MessageType
 # Database imports
 from database.database import SessionLocal
 from database.session_utils import (
-    create_game_session_with_persistence,
     load_game_session_protocol_from_db,
 )
 from fastapi import WebSocket
@@ -35,98 +33,71 @@ class ConnectionManager:
         self.db_sessions: Dict[str, Any] = {}  # session_code -> db_session
         self.game_session_db_ids: Dict[str, int] = {}  # session_code -> game_session_db_id
 
-    def _generate_client_id(self, user_id: int, username: str) -> str:
+    def _generate_client_id(self) -> str:
         """Generate unique client ID for protocol"""
-        return hashlib.md5(f"{user_id}_{username}_{time.time()}".encode()).hexdigest()[:8]
+        return uuid.uuid4().hex[:16]
 
     async def connect(self, websocket: WebSocket, session_code: str,
-                      user_id: int, username: str, role: str = "player"):
+                      user_id: int, username: str, role: str = "player",
+                      connection_id: str | None = None) -> str:
         """Connect a user to a game session with protocol support"""
+        client_id = self._generate_client_id()
+        if session_code not in self.sessions_protocols:
+            db_session = SessionLocal()
+            protocol_service, error = load_game_session_protocol_from_db(db_session, session_code)
+            if not protocol_service:
+                db_session.close()
+                logger.error(
+                    "Durable game session initialization failed",
+                    extra={
+                        "event_name": "websocket.session.initialization_failed",
+                        "reason": "database_load_failed",
+                        "outcome": "error",
+                    },
+                )
+                raise RuntimeError("Durable game session could not be initialized")
+            self.db_sessions[session_code] = db_session
+            self.sessions_protocols[session_code] = protocol_service
+            if protocol_service.game_session_db_id is not None:
+                self.game_session_db_ids[session_code] = protocol_service.game_session_db_id
+        else:
+            protocol_service = self.sessions_protocols[session_code]
 
         await websocket.accept()
-        logger.info(f"WebSocket connection accepted for user {username} in session {session_code}")
-        if session_code not in self.active_connections:
-            self.active_connections[session_code] = []
-
-        self.active_connections[session_code].append(websocket)
+        self.active_connections.setdefault(session_code, []).append(websocket)
         self.connection_info[websocket] = {
             "session_code": session_code,
             "user_id": user_id,
             "username": username,
             "role": role,
-            "connected_at": datetime.now()
+            "client_id": client_id,
+            "connection_id": connection_id or uuid.uuid4().hex,
+            "connected_at": datetime.now(timezone.utc),
         }
-        client_id = self._generate_client_id(user_id, username)
-
-        # Add to protocol service
-        logger.debug(f"Initializing protocol service for session {session_code} with client_id {client_id}")
-
-        # Try to load from database first
-        db_session = None
-        logger.debug(f"Checking if session {session_code} exists in active protocols {self.sessions_protocols.keys()}")
-        if session_code not in self.sessions_protocols:
-            logger.debug(f"Session {session_code} not found in active protocols, initializing new one")
-            try:                # Create database session
-                db_session = SessionLocal()
-                self.db_sessions[session_code] = db_session
-
-                # Try to load existing session or create new one
-                protocol_service, error = load_game_session_protocol_from_db(
-                    db_session, session_code
-                )
-                logger.debug(f"Loaded protocol service: {protocol_service}, error: {error}")
-                if protocol_service:
-                    logger.info(f"Loaded existing session {session_code} from database")
-                    if protocol_service.game_session_db_id is not None:
-                        self.game_session_db_ids[session_code] = protocol_service.game_session_db_id
-                else:
-                    # Create new session with database persistence
-                    logger.info(f"Creating new session {session_code} with database persistence")
-                    protocol_service, error = create_game_session_with_persistence(
-                        db_session, session_code, user_id
-                    )
-                    if protocol_service:
-                        if protocol_service.game_session_db_id is not None:
-                            self.game_session_db_ids[session_code] = protocol_service.game_session_db_id
-                    else:
-                        logger.warning(f"Failed to create persistent session: {error}")
-                        # Fallback to non-persistent session
-                        protocol_service = GameSessionProtocolService(session_code)
-
-                self.sessions_protocols[session_code] = protocol_service
-
-            except Exception as e:
-                logger.error(f"Database session initialization failed: {e}")
-                # Fallback to non-persistent session
-                protocol_service = GameSessionProtocolService(session_code)
-                self.sessions_protocols[session_code] = protocol_service
-        else:
-            protocol_service = self.sessions_protocols[session_code]
-        logger.info(f"Adding client {client_id} to protocol service for session {session_code}")
 
         # Setup R2 asset permissions using the role resolved by the caller
         user_role = role
 
         asset_manager = get_server_asset_manager()
         asset_manager.setup_session_permissions(session_code, user_id, username, user_role)
-        logger.info(f"Setup R2 asset permissions for {username} as {user_role} in session {session_code}")
-
         try:
             await protocol_service.add_client(websocket, client_id, {
                 "user_id": user_id,
                 "username": username,
                 "role": role,
-                "session_code": session_code
+                "session_code": session_code,
+                "connection_id": self.connection_info[websocket]["connection_id"],
             })
-        except PermissionError as e:
-            logger.warning(f"Rejected banned user {username}: {e}")
-            await websocket.send_json({"type": "error", "message": str(e)})
+        except PermissionError:
+            logger.warning(
+                "Banned WebSocket user rejected",
+                extra={"event_name": "websocket.connection.rejected", "reason": "banned"},
+            )
+            await websocket.send_json({"type": "error", "message": "Access denied"})
             await websocket.close(code=4003)
             self.active_connections[session_code].remove(websocket)
             del self.connection_info[websocket]
-            return
-        logger.info(f"Protocol service initialized for session {session_code} with client_id {client_id}")
-        logger.info(f"User {username} connected to session {session_code} with client_id {client_id}")
+            raise
         message = Message(
             MessageType.PLAYER_JOINED, {
                 "username": username,
@@ -137,8 +108,8 @@ class ConnectionManager:
             }
         )
         # Notify other players
-        logger.info(f"Broadcasting player join message for user {username} in session {session_code}")
         await self.broadcast_to_session(session_code, message,exclude_websocket=websocket)
+        return client_id
 
     async def disconnect(self, websocket: WebSocket):
         """Disconnect a user from their game session with protocol cleanup"""
@@ -190,7 +161,14 @@ class ConnectionManager:
 
         del self.connection_info[websocket]
 
-        logger.info(f"User {username} disconnected from session {session_code}")
+        logger.info(
+            "WebSocket client removed",
+            extra={
+                "event_name": "websocket.client.removed",
+                "user_id": info["user_id"],
+                "client_id": info.get("client_id"),
+            },
+        )
         # Notify other players of the departure (protocol messages are handled
         # by the protocol service itself when appropriate)
         await self.broadcast_to_session(session_code,
@@ -206,8 +184,11 @@ class ConnectionManager:
         """Send message to specific websocket"""
         try:
             await websocket.send_text(json.dumps(message))
-        except Exception as e:
-            logger.error(f"Error sending personal message: {e}")
+        except Exception:
+            logger.exception(
+                "WebSocket send failed",
+                extra={"event_name": "websocket.send.failed", "outcome": "error"},
+            )
 
     async def broadcast_to_session(self, session_code: str, message: Union[Message, dict], exclude_websocket: Optional[WebSocket] = None):
         """Broadcast message to all users in a session"""
@@ -221,8 +202,11 @@ class ConnectionManager:
 
             try:
                 await websocket.send_text(message_text)
-            except Exception as e:
-                logger.error(f"Error broadcasting to websocket: {e}")
+            except Exception:
+                logger.exception(
+                    "WebSocket broadcast send failed",
+                    extra={"event_name": "websocket.broadcast.failed", "outcome": "error"},
+                )
                 disconnected_websockets.append(websocket)
 
         # Clean up disconnected websockets
@@ -246,8 +230,6 @@ class ConnectionManager:
             session_code = info["session_code"]
             username = info["username"]
 
-            logger.debug(f"Received message: {message_data}")
-
             # Check if this is a protocol message (contains MessageType fields)
             if self._is_protocol_message(message_data):
                 logger.debug(f"Processing as protocol message: {message_data.get('type')}")
@@ -260,8 +242,15 @@ class ConnectionManager:
                         protocol_message_str = json.dumps(message_data)
                         await protocol_service.handle_protocol_message(websocket, protocol_message_str)
                         return
-                    except Exception as e:
-                        logger.error(f"Error handling protocol message: {e}")
+                    except Exception:
+                        logger.exception(
+                            "Protocol message failed",
+                            extra={
+                                "event_name": "websocket.protocol.failed",
+                                "message_type": str(message_type)[:80],
+                                "outcome": "error",
+                            },
+                        )
                         # Fall through to regular message handling
                 else:
                     logger.error(f"No protocol service found for session: {session_code}")
@@ -301,8 +290,15 @@ class ConnectionManager:
                     "data": {"message": f"Unknown message type: {message_type}"}
                 }, websocket)
 
-        except Exception as e:
-            logger.error(f"Error handling message: {e}")
+        except Exception:
+            logger.exception(
+                "WebSocket message handling failed",
+                extra={
+                    "event_name": "websocket.message.failed",
+                    "message_type": str(message_data.get("type", "unknown"))[:80],
+                    "outcome": "error",
+                },
+            )
             await self.send_personal_message({
                 "type": "error",
                 "data": {"message": "Error processing message"}
@@ -322,7 +318,7 @@ class ConnectionManager:
                 logger.debug(f"Invalid protocol message type: {message_type}")
                 return False
         else:
-            logger.debug(f"Message missing 'type' field: {message_data}")
+            logger.debug("WebSocket message missing type")
             return False
 
 

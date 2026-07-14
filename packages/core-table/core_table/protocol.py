@@ -1,6 +1,7 @@
 import enum
 import json
 import time
+import uuid
 from dataclasses import dataclass, field
 from typing import Any, Dict, List, Optional
 
@@ -282,6 +283,9 @@ class Message:
     version: str = "0.1"
     priority: int = 5     # Message priority (5=normal, 2=high, 0=critical)
     sequence_id: Optional[int] = None  # For message ordering and deduplication
+    message_id: str = field(default_factory=lambda: uuid.uuid4().hex)
+    correlation_id: Optional[str] = None
+    causation_id: Optional[str] = None
 
     def __post_init__(self):
         if self.timestamp is None:
@@ -295,7 +299,10 @@ class Message:
             'timestamp': self.timestamp,
             'version': self.version,
             'priority': self.priority,
-            'sequence_id': self.sequence_id
+            'sequence_id': self.sequence_id,
+            'message_id': self.message_id,
+            'correlation_id': self.correlation_id,
+            'causation_id': self.causation_id,
         })
 
     @classmethod
@@ -308,7 +315,10 @@ class Message:
             timestamp=data.get('timestamp'),
             version=data.get('version', '1.0'),
             priority=data.get('priority', 5),
-            sequence_id=data.get('sequence_id')
+            sequence_id=data.get('sequence_id'),
+            message_id=data.get('message_id') or uuid.uuid4().hex,
+            correlation_id=data.get('correlation_id'),
+            causation_id=data.get('causation_id'),
         )
 
 # Protocol handlers interface for extension

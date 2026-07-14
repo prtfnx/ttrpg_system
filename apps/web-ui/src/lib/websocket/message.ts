@@ -234,9 +234,19 @@ export interface Message {
   version: string;
   priority: number;
   sequence_id?: number;
+  message_id?: string;
+  correlation_id?: string;
+  causation_id?: string;
 }
 
 export type MessageHandler = (message: Message) => Promise<void> | void;
+
+function createMessageId(): string {
+  if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
+    return crypto.randomUUID();
+  }
+  return `${Date.now().toString(36)}-${Math.random().toString(36).slice(2)}`;
+}
 
 /**
  * Create a standardized message with proper formatting
@@ -252,6 +262,7 @@ export function createMessage(
     timestamp: Date.now() / 1000,
     version: "0.1",
     priority,
+    message_id: createMessageId(),
   };
 }
 
@@ -271,6 +282,9 @@ export function parseMessage(jsonStr: string): Message {
     timestamp: data.timestamp,
     version: data.version || "0.1",
     priority: data.priority || 5,
-    sequence_id: data.sequence_id
+    sequence_id: data.sequence_id,
+    message_id: data.message_id || createMessageId(),
+    correlation_id: data.correlation_id,
+    causation_id: data.causation_id,
   };
 }

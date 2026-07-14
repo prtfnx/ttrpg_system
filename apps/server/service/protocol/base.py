@@ -196,12 +196,21 @@ class ServerProtocol(
 
     async def handle_client(self, msg: Message, client_id: str) -> bool:
         """Dispatch an incoming message to the registered handler."""
-        logger.debug(f"msg received: {msg}")
-        logger.debug(f"Handling message type: {msg.type} for client {client_id}")
+        logger.debug(
+            "Dispatching WebSocket protocol message",
+            extra={
+                "event_name": "websocket.message.dispatch",
+                "message_type": msg.type.value,
+                "message_id": msg.message_id,
+                "correlation_id": msg.correlation_id or msg.message_id,
+                "client_id": client_id,
+            },
+        )
         if msg.type in self.handlers:
             response = await self.handlers[msg.type](msg, client_id)
             if response:
-                logger.debug(f"Sending response to client {client_id}: {response}")
+                response.correlation_id = msg.correlation_id or msg.message_id
+                response.causation_id = msg.message_id
                 await self.send_to_client(response, client_id)
             return True
         logger.warning(f"No handler registered for message type: {msg.type}")

@@ -1,13 +1,19 @@
+import json
+import re
 import uuid
 
 from core_table.protocol import Message, MessageType
-from database import crud, schemas
+from database import crud, models, schemas
 from database.database import SessionLocal
 from utils.logger import setup_logger
 
 from ._protocol_base import _ProtocolBase
 
 logger = setup_logger(__name__)
+_CLIENT_OPERATION_ID = re.compile(r"^[A-Za-z0-9._-]{1,64}$")
+_CHANNELS = {"public", "whisper"}
+_MAX_ATTACHMENTS = 4
+_MAX_ATTACHMENT_BYTES = 4096
 
 
 class _ChatMixin(_ProtocolBase):
@@ -36,16 +42,51 @@ class _ChatMixin(_ProtocolBase):
         if len(text) > 500:
             return Message(MessageType.ERROR, {'error': 'Chat message too long'})
 
-        message_id = str(message_payload.get('id') or msg.data.get('message_id') or uuid.uuid4())
+        if user_id is None:
+            return Message(MessageType.ERROR, {'error': 'Authenticated user is required'})
+
+        client_operation_id = str(
+            message_payload.get('client_operation_id')
+            or message_payload.get('id')
+            or msg.data.get('client_operation_id')
+            or msg.data.get('message_id')
+            or ''
+        )
+        if not _CLIENT_OPERATION_ID.fullmatch(client_operation_id):
+            return Message(MessageType.ERROR, {'error': 'Invalid chat client operation id'})
+
         channel = str(msg.data.get('channel') or message_payload.get('channel') or 'public')
+        if channel not in _CHANNELS:
+            return Message(MessageType.ERROR, {'error': 'Invalid chat channel'})
         recipient_user_id = msg.data.get('recipient_user_id') or message_payload.get('recipient_user_id')
         table_id = msg.data.get('table_id') or message_payload.get('table_id')
         attachments = msg.data.get('attachments') or message_payload.get('attachments')
         client_timestamp = message_payload.get('timestamp') or msg.data.get('timestamp')
+        if attachments is not None:
+            if not isinstance(attachments, list) or len(attachments) > _MAX_ATTACHMENTS:
+                return Message(MessageType.ERROR, {'error': 'Invalid chat attachments'})
+            if not all(isinstance(attachment, dict) for attachment in attachments):
+                return Message(MessageType.ERROR, {'error': 'Invalid chat attachments'})
+            if len(json.dumps(attachments, separators=(',', ':')).encode('utf-8')) > _MAX_ATTACHMENT_BYTES:
+                return Message(MessageType.ERROR, {'error': 'Chat attachments are too large'})
+
+        recipient_id: int | None = None
+        if channel == 'whisper':
+            try:
+                recipient_id = int(recipient_user_id)
+            except (TypeError, ValueError):
+                return Message(MessageType.ERROR, {'error': 'Whisper recipient is required'})
+            if recipient_id == int(user_id):
+                return Message(MessageType.ERROR, {'error': 'Whisper recipient must be another user'})
+        elif recipient_user_id is not None:
+            return Message(MessageType.ERROR, {'error': 'Public chat cannot specify a recipient'})
+
+        server_message_id = str(uuid.uuid4())
 
         saved_message_payload = {
             **message_payload,
-            'id': message_id,
+            'id': server_message_id,
+            'client_operation_id': client_operation_id,
             'user': username,
             'text': text.strip(),
             'timestamp': client_timestamp or int((msg.timestamp or 0) * 1000),
@@ -54,24 +95,38 @@ class _ChatMixin(_ProtocolBase):
             saved_message_payload['attachments'] = attachments
         if channel:
             saved_message_payload['channel'] = channel
-        if recipient_user_id is not None:
-            saved_message_payload['recipient_user_id'] = recipient_user_id
+        if recipient_id is not None:
+            saved_message_payload['recipient_user_id'] = recipient_id
         if table_id:
             saved_message_payload['table_id'] = table_id
 
         db = SessionLocal()
         try:
-            existing = crud.get_chat_message_by_message_id(db, message_id)
+            if recipient_id is not None:
+                recipient = db.query(models.GamePlayer.id).filter(
+                    models.GamePlayer.session_id == session_id,
+                    models.GamePlayer.user_id == recipient_id,
+                ).first()
+                if recipient is None:
+                    return Message(MessageType.ERROR, {'error': 'Whisper recipient is not in this session'})
+
+            existing = crud.get_chat_message_by_client_operation(
+                db,
+                session_id=session_id,
+                user_id=int(user_id),
+                client_operation_id=client_operation_id,
+            )
             if existing:
                 saved = existing
             else:
                 saved = crud.create_chat_message(db, schemas.ChatMessageCreate(
-                    message_id=message_id,
+                    message_id=server_message_id,
+                    client_operation_id=client_operation_id,
                     session_id=session_id,
                     user_id=user_id,
                     username=username,
                     channel=channel,
-                    recipient_user_id=int(recipient_user_id) if recipient_user_id is not None else None,
+                    recipient_user_id=recipient_id,
                     table_id=table_id,
                     text=text.strip(),
                     message_json=saved_message_payload,
@@ -79,21 +134,23 @@ class _ChatMixin(_ProtocolBase):
                     client_timestamp=float(client_timestamp) if client_timestamp is not None else None,
                 ))
             persisted_message = saved.to_dict()
-        except Exception as e:
-            logger.error(f"handle_chat persistence error: {e}")
-            return Message(MessageType.ERROR, {'error': str(e)})
+        except Exception:
+            logger.exception("Chat persistence failed")
+            return Message(MessageType.ERROR, {'error': 'Chat message could not be persisted'})
         finally:
             db.close()
 
-        outbound = Message(MessageType.CHAT, {'message': persisted_message})
-        if channel == 'whisper' and recipient_user_id is not None:
-            await self._send_chat_to_user(outbound, int(recipient_user_id), exclude_client=client_id)
-        else:
-            await self.broadcast_to_session(outbound, client_id)
+        if not existing:
+            outbound = Message(MessageType.CHAT, {'message': persisted_message})
+            if channel == 'whisper':
+                await self._send_chat_to_user(outbound, recipient_id, exclude_client=client_id)
+            else:
+                await self.broadcast_to_session(outbound, client_id)
 
         return Message(MessageType.CHAT_CONFIRMATION, {
             'message': 'Chat message received successfully',
             'chat_message': persisted_message,
+            'client_operation_id': client_operation_id,
             'persisted': True,
         })
 
@@ -108,8 +165,14 @@ class _ChatMixin(_ProtocolBase):
         data = msg.data or {}
         user_id = self._get_user_id(msg, client_id)
         requested_count = data.get('count', data.get('limit', 30))
-        all_messages = bool(data.get('all')) or requested_count == 'all'
-        count = 30 if all_messages else int(requested_count or 30)
+        if data.get('all') or requested_count == 'all':
+            return Message(MessageType.ERROR, {'error': 'Unbounded chat history is not supported'})
+        try:
+            count = max(1, min(int(requested_count or 30), 100))
+            before_id = int(data['before_id']) if data.get('before_id') is not None else None
+            after_id = int(data['after_id']) if data.get('after_id') is not None else None
+        except (TypeError, ValueError):
+            return Message(MessageType.ERROR, {'error': 'Invalid chat history cursor or count'})
 
         db = SessionLocal()
         try:
@@ -117,24 +180,25 @@ class _ChatMixin(_ProtocolBase):
                 db,
                 session_id=session_id,
                 limit=None if all_messages else count,
-                before_id=data.get('before_id'),
-                after_id=data.get('after_id'),
+                before_id=before_id,
+                after_id=after_id,
                 channel=data.get('channel'),
                 user_id=data.get('user_id'),
                 visible_to_user_id=user_id,
-                all_messages=all_messages,
             )
             payload = [message.to_dict() for message in messages]
-        except Exception as e:
-            logger.error(f"handle_chat_request error: {e}")
-            return Message(MessageType.ERROR, {'error': str(e)})
+            next_cursor = messages[0].id if len(messages) == count else None
+        except Exception:
+            logger.exception("Chat history request failed")
+            return Message(MessageType.ERROR, {'error': 'Chat history could not be loaded'})
         finally:
             db.close()
 
         return Message(MessageType.CHAT, {
             'messages': payload,
             'count': len(payload),
-            'requested_count': 'all' if all_messages else count,
+            'requested_count': count,
+            'next_cursor': next_cursor,
             'session_id': self._get_session_code(msg),
         })
 
@@ -146,5 +210,4 @@ class _ChatMixin(_ProtocolBase):
                 continue
             if int(info.get('user_id') or 0) == user_id:
                 await self.send_to_client(message, target_client_id)
-
 

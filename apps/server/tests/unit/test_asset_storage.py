@@ -379,3 +379,69 @@ async def test_filename_download_is_scoped_to_session_link(
     assert response.success is True
     assert response.url == "https://r2.example/get/assets/second.png"
     assert response.asset_id == "second-asset"
+
+    ambiguous_asset = models.Asset(
+        asset_name="map.png",
+        r2_asset_id="ambiguous-asset",
+        content_type="image/png",
+        file_size=99,
+        xxhash="ambiguous-hash",
+        uploaded_by=other_user.id,
+        r2_key="assets/ambiguous.png",
+        r2_bucket="assets",
+    )
+    test_db.add(ambiguous_asset)
+    test_db.flush()
+    test_db.add(models.SessionAsset(
+        session_id=other_session.id,
+        asset_id=ambiguous_asset.id,
+        display_name="map.png",
+        added_by=other_user.id,
+    ))
+    test_db.commit()
+
+    ambiguous = await manager.request_download_url_by_filename(
+        "map.png",
+        other_session.session_code,
+        other_user.id,
+    )
+    assert ambiguous.success is False
+    assert ambiguous.error == "Asset not found"
+
+
+async def test_table_asset_enrichment_uses_only_session_links(
+    monkeypatch, test_db, test_user, test_game_session
+):
+    manager = _manager(monkeypatch, test_db)
+    response = await _request_upload(manager, test_user, test_game_session)
+    assert await manager.confirm_upload(response.asset_id, test_user.id, upload_success=True)
+    monkeypatch.setattr(asset_protocol_module, "get_server_asset_manager", lambda: manager)
+    protocol = AssetProtocolStub(test_user.id, test_game_session.session_code)
+    table_data = {
+        "layers": {
+            "map": {
+                "entity-1": {"texture_path": "local/maps/map.png"},
+                "entity-2": {"texture_path": "local/maps/not-linked.png"},
+            }
+        }
+    }
+
+    enriched = await protocol.add_asset_hashes_to_table(
+        table_data,
+        test_game_session.session_code,
+        test_user.id,
+    )
+    enriched = await protocol.ensure_assets_in_r2(
+        enriched,
+        test_game_session.session_code,
+        test_user.id,
+    )
+
+    linked = enriched["layers"]["map"]["entity-1"]
+    assert linked["asset_id"] == response.asset_id
+    assert linked["asset_xxhash"] == VALID_XXHASH
+    assert linked["r2_asset_url"] == f"https://r2.example/get/assets/{response.asset_id}.png"
+    assert enriched["layers"]["map"]["entity-2"] == {
+        "texture_path": "local/maps/not-linked.png"
+    }
+    assert test_db.query(models.Asset).count() == 1

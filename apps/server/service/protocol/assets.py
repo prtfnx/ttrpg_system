@@ -1,7 +1,5 @@
-import os
 from typing import Optional
 
-import xxhash
 from core_table.protocol import Message, MessageType
 from database.database import SessionLocal
 from database.models import Asset, GamePlayer, GameSession, SessionAsset
@@ -110,7 +108,7 @@ class _AssetsMixin(_ProtocolBase):
 
             if response.success:
                 # Get asset xxHash from database
-                asset_xxhash = await self._get_asset_xxhash(asset_id)
+                asset_xxhash = await self._get_asset_xxhash(asset_id, session_code, user_id)
 
                 return Message(MessageType.ASSET_DOWNLOAD_RESPONSE, {
                     'success': True,
@@ -199,135 +197,55 @@ class _AssetsMixin(_ProtocolBase):
             return Message(MessageType.ERROR, {'error': error_msg})
 
     async def add_asset_hashes_to_table(self, table_data: dict, session_code: str, user_id: int) -> dict:
-        """Add xxHash information to all entity assets in table data"""
+        """Add identifiers for assets visible through this session."""
         try:
-            # Get all layers data
-            layers = table_data.get('layers', {})
-
-            # Process each layer
-            for layer_name, layer_entities in layers.items():
+            by_id, by_name = self._session_asset_indexes(session_code, user_id)
+            for layer_entities in table_data.get('layers', {}).values():
                 if not isinstance(layer_entities, dict):
                     continue
-
-                # Process each entity in the layer
-                for entity_id, entity_data in layer_entities.items():
+                for entity_data in layer_entities.values():
                     if not isinstance(entity_data, dict):
                         continue
-
-                    texture_path = entity_data.get('texture_path')
-                    if not texture_path:
-                        continue
-
-                    logger.debug(f"Processing asset for entity {entity_id}: {texture_path}")
-                    # Calculate or get xxHash for the asset
-                    asset_xxhash = await self._get_asset_xxhash_by_path(texture_path)
-                    logger.debug(f"xxHash for {texture_path}: {asset_xxhash}")
-                    if asset_xxhash:
-                        entity_data['asset_xxhash'] = asset_xxhash
-                        # Generate asset_id from xxHash (same as client logic)
-                        entity_data['asset_id'] = asset_xxhash[:16]
-                        logger.debug(f"Added xxHash {asset_xxhash} to entity {entity_id}")
-                    else:
-                        logger.warning(f"Could not get xxHash for asset: {texture_path}")
+                    asset = self._resolve_entity_asset(entity_data, by_id, by_name)
+                    if asset:
+                        entity_data['asset_id'] = asset['asset_id']
+                        entity_data['asset_xxhash'] = asset.get('xxhash')
 
             return table_data
         except Exception as e:
             logger.error(f"Error adding asset hashes to table: {e}")
             return table_data
 
-    async def _get_asset_xxhash(self, asset_id: str) -> Optional[str]:
-            """Get xxHash for asset by asset_id"""
-            try:
-                db_session = SessionLocal()
-                try:
-                    asset = db_session.query(Asset).filter_by(r2_asset_id=asset_id).first()
-                    val = getattr(asset, 'xxhash', None) if asset is not None else None
-                    if isinstance(val, str) and val:
-                        return val
-                    return None
-                finally:
-                    db_session.close()
-            except Exception as e:
-                logger.error(f"Error getting asset xxHash for {asset_id}: {e}")
-                return None
+    def _session_asset_indexes(self, session_code: str, user_id: int) -> tuple[dict, dict]:
+        records = get_server_asset_manager().get_session_assets(session_code, user_id)
+        by_id = {record['asset_id']: record for record in records}
+        by_name: dict[str, Optional[dict]] = {}
+        for record in records:
+            name = record['filename']
+            by_name[name] = record if name not in by_name else None
+        return by_id, by_name
 
-    async def _get_asset_xxhash_by_path(self, texture_path: str) -> Optional[str]:
-        """Get xxHash for asset by texture path"""
+    @staticmethod
+    def _resolve_entity_asset(entity_data: dict, by_id: dict, by_name: dict) -> Optional[dict]:
+        asset_id = entity_data.get('asset_id')
+        if asset_id:
+            return by_id.get(asset_id)
+        texture_path = entity_data.get('texture_path')
+        if not isinstance(texture_path, str) or not texture_path:
+            return None
+        display_name = texture_path.replace('\\', '/').rsplit('/', 1)[-1]
+        return by_name.get(display_name)
 
-        # If it's a local file, calculate xxHash
-        logger.debug(f"Getting xxHash for texture path: {texture_path}")
-        file_path = None
-        calculated_hash = None
-
-        if os.path.exists(texture_path):
-            file_path = texture_path
-        else:
-            # Fall back to looking for the file by name inside static/assets/
-            _server_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-            fallback = os.path.join(_server_dir, 'static', 'assets', os.path.basename(texture_path))
-            if os.path.exists(fallback):
-                file_path = fallback
-
-        if file_path:
-            calculated_hash = self._calculate_file_xxhash(file_path)
-            logger.debug(f"Calculated xxHash for {file_path}: {calculated_hash}")
-
-        # Update db or try to find in database
-        asset_name = os.path.basename(texture_path)
-        asset_type = os.path.splitext(asset_name)[1].lower()  # Get file extension
-        db_session = SessionLocal()
-        try:
-            if file_path and calculated_hash:
-                # Check if asset already exists in database
-                asset = db_session.query(Asset).filter_by(asset_name=asset_name).first()
-                if asset:
-                    try:
-                        setattr(asset, 'xxhash', calculated_hash)
-                    except Exception:
-                        # Best effort: some SQLAlchemy models may use Column descriptors; ignore failures
-                        pass
-                    logger.debug(f"Updated existing asset {asset_name} with xxHash: {calculated_hash}")
-                else:
-                    # Use content-based asset_id (first 16 chars of xxhash)
-                    asset_id = calculated_hash[:16]
-                    new_asset = Asset(
-                        asset_name=asset_name,
-                        r2_asset_id=asset_id,  # Content-based, consistent with client
-                        content_type=asset_type,
-                        file_size=os.path.getsize(file_path),
-                        xxhash=calculated_hash,
-                        uploaded_by=1,
-                        r2_key=f"local/{asset_name}",
-                        r2_bucket="local"
-                    )
-                    db_session.add(new_asset)
-                    logger.debug(f"Created new asset entry for {asset_name} with xxHash: {calculated_hash}")
-                db_session.commit()
-                return calculated_hash
-            else:
-                asset = db_session.query(Asset).filter_by(asset_name=asset_name).first()
-                val = getattr(asset, 'xxhash', None) if asset is not None else None
-                if isinstance(val, str) and val:
-                    return val
-                return None
-        except Exception as e:
-            logger.error(f"Error calculating xxHash for {texture_path}: {e}")
-            db_session.rollback()
-            return calculated_hash
-        finally:
-            db_session.close()
-
-    def _calculate_file_xxhash(self, file_path: str) -> str:
-        """Calculate xxHash for a file"""
-        try:
-            hasher = xxhash.xxh64()
-            with open(file_path, 'rb') as f:
-                for chunk in iter(lambda: f.read(65536), b""):
-                    hasher.update(chunk)
-            return hasher.hexdigest()
-        except Exception as e:
-            logger.error(f"Error calculating xxHash for {file_path}: {e}")
-            return ""
+    async def _get_asset_xxhash(
+        self,
+        asset_id: str,
+        session_code: str,
+        user_id: int,
+    ) -> Optional[str]:
+        by_id, _ = self._session_asset_indexes(session_code, user_id)
+        asset = by_id.get(asset_id)
+        value = asset.get('xxhash') if asset else None
+        return value if isinstance(value, str) and value else None
 
     async def handle_asset_delete_request(self, msg: Message, client_id: str) -> Message:
         """Handle asset deletion request. DM or asset owner can delete."""
@@ -402,86 +320,39 @@ class _AssetsMixin(_ProtocolBase):
             return Message(MessageType.ERROR, {'error': 'Internal server error'})
 
     async def ensure_assets_in_r2(self, table_data: dict, session_code: str, user_id: int) -> dict:
-        """Ensure all entity assets are available in R2 and provide download URLs"""
+        """Attach download URLs for assets visible through this session."""
         try:
-            get_server_asset_manager()
-
-            # Get all layers data
-            layers = table_data.get('layers', {})
-
-            # Process each layer
-            for layer_name, layer_entities in layers.items():
+            asset_manager = get_server_asset_manager()
+            by_id, by_name = self._session_asset_indexes(session_code, user_id)
+            urls: dict[str, str] = {}
+            for layer_entities in table_data.get('layers', {}).values():
                 if not isinstance(layer_entities, dict):
                     continue
-
-                # Process each entity in the layer
-                for entity_id, entity_data in layer_entities.items():
+                for entity_data in layer_entities.values():
                     if not isinstance(entity_data, dict):
                         continue
-
-                    if hasattr(entity_data, 'r2_asset_url'):
+                    asset = self._resolve_entity_asset(entity_data, by_id, by_name)
+                    if not asset:
                         continue
-                    texture_path = entity_data.get('texture_path')
-
-                    # Convert local path to asset name
-                    if not texture_path:
-                        logger.warning(f"No texture_path for entity {entity_id}, skipping asset processing.")
-                        continue
-                    asset_name = os.path.basename(texture_path)
-                    logger.debug(f"Processing asset for entity {entity_id}: {asset_name}")
-
-                    # Check if asset exists in database
-                    r2_url = await self._get_or_upload_asset(asset_name, texture_path, session_code, user_id)
-
-                    if r2_url:
-
-                        entity_data['r2_asset_url'] = r2_url
-                        logger.info(f"Updated entity {entity_id} with R2 URL: {r2_url}")
-                    else:
-                        logger.warning(f"Failed to get R2 URL for asset: {asset_name}")
+                    asset_id = asset['asset_id']
+                    if asset_id not in urls:
+                        response = await asset_manager.request_download_url(AssetRequest(
+                            user_id=user_id,
+                            username="server",
+                            session_code=session_code,
+                            asset_id=asset_id,
+                        ))
+                        if not response.success or not response.url:
+                            continue
+                        urls[asset_id] = response.url
+                    entity_data['asset_id'] = asset_id
+                    entity_data['asset_xxhash'] = asset.get('xxhash')
+                    entity_data['r2_asset_url'] = urls[asset_id]
 
             return table_data
         except Exception as e:
             logger.error(f"Error ensuring assets in R2: {e}")
-            return table_data  # Return original data if asset processing fails
-
-    async def _get_or_upload_asset(self, asset_name: str, local_path: str, session_code: str, user_id: int) -> Optional[str]:
-        """Get existing R2 URL or upload asset and return R2 URL"""
-        try:
-            # Check if asset already exists in database
-            db_session = SessionLocal()
-            try:
-                existing_asset = db_session.query(Asset).filter_by(asset_name=asset_name).first()
-
-                if existing_asset:
-                    # Asset exists, generate download URL
-                    logger.debug(f"Asset {asset_name} exists in database with R2 ID: {existing_asset.r2_asset_id}")
-
-                    asset_manager = get_server_asset_manager()
-                    request = AssetRequest(
-                        user_id=user_id,
-                        username="server",
-                        session_code=session_code,
-                        asset_id=str(existing_asset.r2_asset_id)
-                    )
-
-                    response = await asset_manager.request_download_url(request)
-                    if response.success:
-                        logger.info(f"Generated download URL for existing asset: {asset_name}")
-                        return response.url
-                    else:
-                        logger.error(f"Failed to generate download URL for existing asset {asset_name}: {response.error}")
-                        return None
-                  # Asset doesn't exist - let the normal asset upload flow handle this
-                logger.info(f"Asset {asset_name} not found in database, will be uploaded via normal client flow")
-                # Return None so the client knows to upload this asset through the normal flow
-                return None
-
-            finally:
-                db_session.close()
-        except Exception as e:
-            logger.error(f"Error getting or uploading asset {asset_name}: {e}")
-            return None
+            return table_data
 
     async def handle_asset_hash_check(self, msg: Message, client_id: str) -> Message:
         """Handle asset hash verification request"""
@@ -496,7 +367,11 @@ class _AssetsMixin(_ProtocolBase):
                 return Message(MessageType.ERROR, {'error': 'asset_id and hash are required'})
 
             # Get server hash for asset
-            server_hash = await self._get_asset_xxhash(asset_id)
+            session_code = (msg.data or {}).get('session_code') or self._get_session_code(msg)
+            user_id = self._get_user_id(msg, client_id)
+            if not session_code or user_id is None:
+                return Message(MessageType.ERROR, {'error': 'Session and authentication are required'})
+            server_hash = await self._get_asset_xxhash(asset_id, session_code, user_id)
 
             if server_hash:
                 hash_match = server_hash == client_hash

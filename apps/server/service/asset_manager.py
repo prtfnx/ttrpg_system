@@ -807,15 +807,19 @@ class ServerAssetManager:
                 session = self._get_session(db, session_code)
                 if not self._user_can_access_session(db, session, user_id):
                     return None
-                asset = (
+                matches = (
                     db.query(Asset)
                     .join(SessionAsset, SessionAsset.asset_id == Asset.id)
                     .filter(
                         SessionAsset.session_id == session.id,
                         SessionAsset.display_name == display_name,
                     )
-                    .first()
+                    .limit(2)
+                    .all()
                 )
+                if len(matches) != 1:
+                    return None
+                asset = matches[0]
                 if asset:
                     # Update last accessed time
                     db.query(Asset).filter(Asset.id == asset.id).update(

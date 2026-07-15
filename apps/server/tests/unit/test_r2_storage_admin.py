@@ -3,6 +3,7 @@ import io
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
+import pytest
 from sqlalchemy.orm import sessionmaker
 
 from database import models
@@ -55,7 +56,11 @@ class FakeClient:
         self.payloads[(Bucket, Key)] = payload
 
     def head_object(self, Bucket, Key):
-        return {"ContentLength": len(self.payloads[(Bucket, Key)])}
+        if (Bucket, Key) in self.payloads:
+            size = len(self.payloads[(Bucket, Key)])
+        else:
+            size = next(item["Size"] for item in self.objects[Bucket] if item["Key"] == Key)
+        return {"ContentLength": size}
 
     def get_object(self, Bucket, Key):
         return {"Body": FakeBody(self.payloads[(Bucket, Key)])}
@@ -65,6 +70,16 @@ class FakeClient:
 
     def copy_object(self, **kwargs):
         self.copies.append(kwargs)
+        source = kwargs["CopySource"]
+        source_item = next(
+            item for item in self.objects[source["Bucket"]]
+            if item["Key"] == source["Key"]
+        )
+        self.objects.setdefault(kwargs["Bucket"], []).append({
+            "Key": kwargs["Key"],
+            "Size": source_item["Size"],
+            "ETag": source_item.get("ETag"),
+        })
 
 
 def test_apply_configuration_uses_only_production_origin(tmp_path):
@@ -125,24 +140,37 @@ def test_backup_writes_manifest_and_restore_is_explicit():
         {"Key": "assets/map.png", "Size": 12, "ETag": "etag"},
     ]
     admin = storage_admin.R2StorageAdmin(client, "assets", "assets-backup")
+    database_binding = {
+        "backup_set_id": "snapshot-1",
+        "manifest_sha256": "manifest-digest",
+        "database_sha256": "database-digest",
+    }
 
-    backup = admin.backup("snapshot-1")
+    backup = admin.backup(database_binding, "snapshot-1")
 
     assert backup["manifest_key"] == "snapshots/snapshot-1/manifest.json"
     assert client.copies[0]["Bucket"] == "assets-backup"
     assert ("assets-backup", backup["manifest_key"]) in client.payloads
 
-    client.objects["assets-backup"] = [
-        {"Key": "snapshots/snapshot-1/assets/map.png"},
-    ]
-    dry_run = admin.restore("snapshot-1")
+    dry_run = admin.restore("snapshot-1", database_binding)
     assert dry_run == {"snapshot": "snapshot-1", "objects": ["assets/map.png"], "dry_run": True}
     assert len(client.copies) == 1
 
-    applied = admin.restore("snapshot-1", apply=True)
+    applied = admin.restore("snapshot-1", database_binding, apply=True)
     assert applied["dry_run"] is False
     assert client.copies[-1]["Bucket"] == "assets"
     assert client.copies[-1]["Key"] == "assets/map.png"
+
+
+def test_restore_rejects_database_manifest_mismatch():
+    client = FakeClient()
+    client.objects["assets"] = [{"Key": "assets/map.png", "Size": 12, "ETag": "etag"}]
+    admin = storage_admin.R2StorageAdmin(client, "assets", "assets-backup")
+    binding = {"backup_set_id": "snapshot-1", "manifest_sha256": "one", "database_sha256": "db"}
+    admin.backup(binding, "snapshot-1")
+
+    with pytest.raises(ValueError, match="not bound"):
+        admin.restore("snapshot-1", {**binding, "manifest_sha256": "other"})
 
 
 def test_database_inventory_reports_assets_with_missing_uploaders(

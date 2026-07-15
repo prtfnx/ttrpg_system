@@ -6,6 +6,7 @@ the same way as the server.
 """
 
 import argparse
+import hashlib
 import json
 import os
 import sys
@@ -122,15 +123,18 @@ class R2StorageAdmin:
             "dry_run": not delete,
         }
 
-    def backup(self, snapshot: str | None = None) -> dict:
+    def backup(self, database_binding: dict, snapshot: str | None = None) -> dict:
         backup_bucket = self._require_backup_bucket()
-        snapshot = snapshot or datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
+        snapshot = snapshot or database_binding["backup_set_id"]
+        if snapshot != database_binding["backup_set_id"]:
+            raise ValueError("R2 snapshot must equal the database backup-set ID")
         prefix = f"snapshots/{snapshot}/"
         objects = self.list_objects(self.bucket, "assets/")
         manifest = {
             "snapshot": snapshot,
             "source_bucket": self.bucket,
             "created_at": datetime.now(timezone.utc).isoformat(),
+            "database": database_binding,
             "objects": [],
         }
 
@@ -143,6 +147,9 @@ class R2StorageAdmin:
                 Key=backup_key,
                 MetadataDirective="COPY",
             )
+            copied = self.client.head_object(Bucket=backup_bucket, Key=backup_key)
+            if copied.get("ContentLength") != item.get("Size"):
+                raise RuntimeError(f"R2 backup verification failed for {source_key}")
             manifest["objects"].append({
                 "key": source_key,
                 "backup_key": backup_key,
@@ -159,17 +166,28 @@ class R2StorageAdmin:
         )
         return {"snapshot": snapshot, "objects": len(objects), "manifest_key": manifest_key}
 
-    def restore(self, snapshot: str, apply: bool = False) -> dict:
+    def restore(self, snapshot: str, database_binding: dict, apply: bool = False) -> dict:
         backup_bucket = self._require_backup_bucket()
-        prefix = f"snapshots/{snapshot}/assets/"
-        objects = self.list_objects(backup_bucket, prefix)
+        manifest_key = f"snapshots/{snapshot}/manifest.json"
+        response = self.client.get_object(Bucket=backup_bucket, Key=manifest_key)
+        body = response["Body"]
+        try:
+            manifest = json.loads(body.read())
+        finally:
+            body.close()
+        if manifest.get("snapshot") != snapshot or manifest.get("database") != database_binding:
+            raise ValueError("R2 snapshot is not bound to the selected database backup set")
         restore_pairs = sorted(
             (
-                item["Key"],
-                item["Key"].removeprefix(f"snapshots/{snapshot}/"),
+                item["backup_key"],
+                item["key"],
             )
-            for item in objects
+            for item in manifest.get("objects", [])
         )
+        for item in manifest.get("objects", []):
+            head = self.client.head_object(Bucket=backup_bucket, Key=item["backup_key"])
+            if head.get("ContentLength") != item.get("size"):
+                raise RuntimeError(f"R2 restore verification failed for {item['key']}")
         if apply:
             for source_key, destination_key in restore_pairs:
                 self.client.copy_object(
@@ -196,6 +214,24 @@ def _as_utc(value) -> datetime:
     if value.tzinfo is None:
         return value.replace(tzinfo=timezone.utc)
     return value.astimezone(timezone.utc)
+
+
+def _database_manifest_binding(path: Path) -> dict:
+    raw = path.read_bytes()
+    manifest = json.loads(raw)
+    backup_set_id = manifest.get("backup_set_id")
+    if manifest.get("schema_version") != 1 or not isinstance(backup_set_id, str):
+        raise ValueError("Invalid database backup-set manifest")
+    if manifest.get("r2_snapshot") != backup_set_id:
+        raise ValueError("Database manifest must bind R2 to the same backup-set ID")
+    database_sha256 = manifest.get("database", {}).get("sha256")
+    if not isinstance(database_sha256, str) or len(database_sha256) != 64:
+        raise ValueError("Database manifest is missing its checksum")
+    return {
+        "backup_set_id": backup_set_id,
+        "manifest_sha256": hashlib.sha256(raw).hexdigest(),
+        "database_sha256": database_sha256,
+    }
 
 
 def _database_asset_inventory() -> dict:
@@ -249,9 +285,11 @@ def _build_parser() -> argparse.ArgumentParser:
 
     backup = subparsers.add_parser("backup", help="Copy durable assets to the backup bucket")
     backup.add_argument("--snapshot")
+    backup.add_argument("--database-manifest", type=Path, required=True)
 
     restore = subparsers.add_parser("restore", help="Restore a snapshot; dry-run unless --apply")
     restore.add_argument("--snapshot", required=True)
+    restore.add_argument("--database-manifest", type=Path, required=True)
     restore.add_argument("--apply", action="store_true")
     return parser
 
@@ -281,9 +319,11 @@ def main() -> int:
         )
         result["database_integrity"] = inventory
     elif args.command == "backup":
-        result = admin.backup(args.snapshot)
+        binding = _database_manifest_binding(args.database_manifest)
+        result = admin.backup(binding, args.snapshot)
     else:
-        result = admin.restore(args.snapshot, apply=args.apply)
+        binding = _database_manifest_binding(args.database_manifest)
+        result = admin.restore(args.snapshot, binding, apply=args.apply)
 
     print(json.dumps(result, indent=2, default=str))
     return 0

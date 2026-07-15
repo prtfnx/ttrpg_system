@@ -6,7 +6,11 @@ import { ChatPanel } from '../ChatPanel';
 
 // Mock heavy hooks
 vi.mock('../../hooks/useChatWebSocket', () => ({
-  useChatWebSocket: () => ({ sendMessage: mockSendMessage, loadAllMessages: mockLoadAllMessages }),
+  useChatWebSocket: () => ({
+    sendMessage: mockSendMessage,
+    retryMessage: mockRetryMessage,
+    loadOlderMessages: mockLoadOlderMessages,
+  }),
 }));
 vi.mock('../../../auth', () => ({
   useAuth: () => ({ user: { username: 'Tester' } }),
@@ -16,12 +20,14 @@ vi.mock('@shared/config/appConfig', () => ({
 }));
 
 const mockSendMessage = vi.fn();
-const mockLoadAllMessages = vi.fn();
+const mockLoadOlderMessages = vi.fn();
+const mockRetryMessage = vi.fn();
 
 beforeEach(() => {
   useChatStore.setState({ messages: [] });
   mockSendMessage.mockReset();
-  mockLoadAllMessages.mockReset();
+  mockLoadOlderMessages.mockReset();
+  mockRetryMessage.mockReset();
 });
 
 describe('ChatPanel', () => {
@@ -29,7 +35,7 @@ describe('ChatPanel', () => {
     render(<ChatPanel />);
     expect(screen.getByPlaceholderText('Type a message...')).toBeTruthy();
     expect(screen.getByRole('button', { name: 'Send' })).toBeTruthy();
-    expect(screen.getByRole('button', { name: 'Load all messages' })).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Load older messages' })).toBeTruthy();
   });
 
   it('sends message on button click', async () => {
@@ -59,17 +65,17 @@ describe('ChatPanel', () => {
     expect(mockSendMessage).not.toHaveBeenCalled();
   });
 
-  it('shows unknown command error', async () => {
+  it('rejects unsupported slash commands instead of sending public text', async () => {
     render(<ChatPanel />);
     await userEvent.type(screen.getByPlaceholderText('Type a message...'), '/badcmd{Enter}');
-    expect(screen.getByText(/Unknown command/)).toBeTruthy();
+    expect(screen.getByText(/Slash commands are not supported/)).toBeTruthy();
     expect(mockSendMessage).not.toHaveBeenCalled();
   });
 
-  it('sends valid command /roll', async () => {
+  it('does not advertise roll text as a server command', async () => {
     render(<ChatPanel />);
     await userEvent.type(screen.getByPlaceholderText('Type a message...'), '/roll 1d6{Enter}');
-    expect(mockSendMessage).toHaveBeenCalledWith('/roll 1d6');
+    expect(mockSendMessage).not.toHaveBeenCalled();
   });
 
   it('renders existing messages', () => {
@@ -81,9 +87,26 @@ describe('ChatPanel', () => {
     expect(screen.getByText('Hello')).toBeTruthy();
   });
 
-  it('loads all messages on history button click', async () => {
+  it('loads an older bounded page on history button click', async () => {
     render(<ChatPanel />);
-    await userEvent.click(screen.getByRole('button', { name: 'Load all messages' }));
-    expect(mockLoadAllMessages).toHaveBeenCalledOnce();
+    await userEvent.click(screen.getByRole('button', { name: 'Load older messages' }));
+    expect(mockLoadOlderMessages).toHaveBeenCalledOnce();
+  });
+
+  it('offers retry for failed messages', async () => {
+    useChatStore.setState({
+      messages: [{
+        id: 'operation-1',
+        client_operation_id: 'operation-1',
+        user: 'Tester',
+        text: 'Hello',
+        timestamp: Date.now(),
+        deliveryStatus: 'failed',
+      }],
+    });
+    render(<ChatPanel />);
+
+    await userEvent.click(screen.getByRole('button', { name: 'Retry' }));
+    expect(mockRetryMessage).toHaveBeenCalledWith('operation-1');
   });
 });

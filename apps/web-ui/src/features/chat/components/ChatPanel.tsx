@@ -8,7 +8,7 @@ import styles from './ChatPanel.module.css';
 export function ChatPanel() {
   const { user } = useAuth();
   const { messages } = useChatStore();
-  const { sendMessage, loadAllMessages } = useChatWebSocket(config.getWebSocketUrl(), user?.username || 'Anonymous');
+  const { sendMessage, retryMessage, loadOlderMessages } = useChatWebSocket(config.getWebSocketUrl(), user?.username || 'Anonymous');
   const [input, setInput] = useState('');
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -25,16 +25,10 @@ export function ChatPanel() {
       const message = input.trim();
       setErrorMessage(null); // Clear previous errors
       
-      // Check for commands
       if (message.startsWith('/')) {
-        const command = message.split(' ')[0];
-        const validCommands = ['/roll', '/whisper', '/help', '/clear'];
-        
-        if (!validCommands.includes(command)) {
-          setErrorMessage(`Unknown command: ${command}. Type /help for available commands.`);
-          setInput('');
-          return;
-        }
+        setErrorMessage('Slash commands are not supported. Use the character controls for rolls.');
+        setInput('');
+        return;
       }
       
       sendMessage(message);
@@ -45,8 +39,8 @@ export function ChatPanel() {
   return (
     <div className={styles.panel}>
       <div className={styles.historyActions}>
-        <button className={styles.historyBtn} onClick={loadAllMessages} type="button">
-          Load all messages
+        <button className={styles.historyBtn} onClick={loadOlderMessages} type="button">
+          Load older messages
         </button>
       </div>
       <div className={styles.messages}>
@@ -54,6 +48,12 @@ export function ChatPanel() {
           <div key={msg.id} className={styles.message} title={msg.tooltip}>
             <span className={styles.username}>{msg.user}:</span> <span>{msg.text}</span>
             <span className={styles.timestamp}>{new Date(msg.timestamp).toLocaleTimeString()}</span>
+            {msg.deliveryStatus === 'pending' && <span aria-label="Sending"> · sending</span>}
+            {msg.deliveryStatus === 'failed' && (
+              <button type="button" onClick={() => retryMessage(msg.client_operation_id ?? msg.id)}>
+                Retry
+              </button>
+            )}
           </div>
         ))}
         {errorMessage && (

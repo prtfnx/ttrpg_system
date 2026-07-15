@@ -273,6 +273,48 @@ class SessionCharacter(Base):
 
     # Explicit relationship for last modifier to avoid FK ambiguity
     last_modified_by_user = relationship("User", foreign_keys=[last_modified_by])
+    permissions = relationship(
+        "CharacterPermission",
+        back_populates="character",
+        cascade="all, delete-orphan",
+    )
+
+
+class CharacterPermission(Base):
+    """Normalized per-character sharing policy for one session member."""
+    __tablename__ = "character_permissions"
+    __table_args__ = (
+        UniqueConstraint("character_id", "user_id", name="uq_character_permission_user"),
+    )
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    character_id: Mapped[str] = mapped_column(
+        String(36),
+        ForeignKey("session_characters.character_id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    session_id: Mapped[int] = mapped_column(
+        Integer,
+        ForeignKey("game_sessions.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    user_id: Mapped[int] = mapped_column(
+        Integer,
+        ForeignKey("users.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    can_view: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
+    can_edit: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
+    can_control: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
+    granted_by: Mapped[int] = mapped_column(Integer, ForeignKey("users.id"), nullable=False)
+    created_at: Mapped[Optional[datetime]] = mapped_column(DateTime, default=datetime.utcnow)
+
+    character = relationship("SessionCharacter", back_populates="permissions")
+    user = relationship("User", foreign_keys=[user_id])
+    grantor = relationship("User", foreign_keys=[granted_by])
 
 class SessionInvitation(Base):
     __tablename__ = "session_invitations"

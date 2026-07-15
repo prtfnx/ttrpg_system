@@ -12,6 +12,7 @@ from fastapi import APIRouter, Depends, HTTPException, Request
 from fastapi.responses import RedirectResponse
 from sqlalchemy.orm import Session
 from utils.logger import setup_logger
+from utils.audit import audit_event
 from utils.roles import SessionRole, is_dm, is_valid_role
 
 from .users import get_current_active_user
@@ -27,6 +28,7 @@ def generate_invite_code(length: int = 12) -> str:
 @router.post("/create", response_model=schemas.InvitationResponse, status_code=201)
 async def create_invitation(
     invite_data: schemas.CreateInvitationRequest,
+    request: Request,
     current_user: Annotated[schemas.User, Depends(get_current_active_user)],
     db: Session = Depends(get_db)
 ):
@@ -64,11 +66,14 @@ async def create_invitation(
     )
     db.add(invitation)
 
-    audit = models.AuditLog(
-        event_type="INVITATION_CREATED",
+    audit = audit_event(
+        "INVITATION_CREATED",
         session_code=invite_data.session_code,
         user_id=current_user.id,
-        details=f'{{"role": "{invite_data.pre_assigned_role}", "max_uses": {invite_data.max_uses}}}'
+        target_type="invitation",
+        target_id=invite_code[:8],
+        request=request,
+        details={"role": invite_data.pre_assigned_role, "max_uses": invite_data.max_uses},
     )
     db.add(audit)
     db.commit()
@@ -106,6 +111,7 @@ async def list_session_invitations(
 @router.delete("/{invitation_id}")
 async def revoke_invitation(
     invitation_id: int,
+    request: Request,
     current_user: Annotated[schemas.User, Depends(get_current_active_user)],
     db: Session = Depends(get_db)
 ):
@@ -134,11 +140,13 @@ async def revoke_invitation(
 
     invitation.is_active = False
 
-    audit = models.AuditLog(
-        event_type="INVITATION_REVOKED",
+    audit = audit_event(
+        "INVITATION_REVOKED",
         session_code=session.session_code,
         user_id=current_user.id,
-        details=f'{{"invitation_id": {invitation_id}}}'
+        target_type="invitation",
+        target_id=invitation_id,
+        request=request,
     )
     db.add(audit)
     db.commit()
@@ -216,11 +224,14 @@ async def accept_invitation(
     if invitation.max_uses > 0 and invitation.uses_count >= invitation.max_uses:
         invitation.is_active = False
 
-    audit = models.AuditLog(
-        event_type="INVITATION_ACCEPTED",
+    audit = audit_event(
+        "INVITATION_ACCEPTED",
         session_code=session.session_code,
         user_id=current_user.id,
-        details=f'{{"invite_code": "{invite_code[:8]}...", "role": "{assigned_role}"}}'
+        target_type="invitation",
+        target_id=invitation.id,
+        request=request,
+        details={"role": assigned_role},
     )
     db.add(audit)
     db.commit()

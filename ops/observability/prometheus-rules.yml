@@ -52,3 +52,12 @@ groups:
         annotations:
           summary: Durable asset operations are failing
           runbook_url: ops/observability/RUNBOOKS.md#asset-operation-failures
+
+      - alert: TtrpgBrowserErrorBurst
+        expr: sum(increase(ttrpg_browser_errors_total[10m])) > 10
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: Browser errors increased after a release
+          runbook_url: ops/observability/RUNBOOKS.md#browser-error-burst

@@ -49,6 +49,11 @@ ASSET_OPERATION_DURATION = Histogram(
     "Asset operation duration.",
     ("operation",),
 )
+BROWSER_ERRORS = Counter(
+    "ttrpg_browser_errors_total",
+    "Accepted browser error reports.",
+    ("event_type", "release"),
+)
 
 _KNOWN_MESSAGE_TYPES: set[str] | None = None
 

@@ -5,12 +5,14 @@ import { ToolsPanel } from '@features/canvas/components/ToolsPanel';
 import { CharacterPanel } from '@features/character/components/CharacterPanel';
 import { WasmRuntimeProvider } from '@lib/wasm/runtime';
 import { logger } from '@shared/utils/logger';
+import { installBrowserTelemetry } from '@shared/utils/browserTelemetry';
 import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 import App from './App.tsx';
 import './index.css';
 
 const isDev = import.meta.env.DEV;
+installBrowserTelemetry();
 
 // Conditionally wrap with StrictMode — only in development to avoid double effects in production
 function AppWrapper() {

@@ -9,6 +9,7 @@ import secrets
 import time
 import uuid
 from contextlib import asynccontextmanager
+from datetime import datetime, timedelta
 from pathlib import Path
 
 import uvicorn
@@ -16,14 +17,14 @@ from api import game_ws
 from config import Settings
 from core_table.server import TableManager
 from database import models
-from database.database import engine, get_db, schema_is_current
+from database.database import SessionLocal, engine, get_db, schema_is_current
 from fastapi import Depends, FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse, RedirectResponse, Response
 from prometheus_client import CONTENT_TYPE_LATEST, generate_latest
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
-from routers import auth, compendium, demo, game, invitations, users
+from routers import auth, compendium, demo, game, invitations, telemetry, users
 from routers.users import get_current_user_optional
 from service.game_session import ConnectionManager
 from service.readiness import ReadinessChecker
@@ -74,13 +75,19 @@ async def lifespan(app: FastAPI):
 
     # Start cleanup task for rate limiters
     cleanup_task = asyncio.create_task(rate_limiter_cleanup_task())
+    audit_retention_cleanup = asyncio.create_task(audit_retention_task())
 
     yield
 
     # Shutdown
     cleanup_task.cancel()
+    audit_retention_cleanup.cancel()
     try:
         await cleanup_task
+    except asyncio.CancelledError:
+        pass
+    try:
+        await audit_retention_cleanup
     except asyncio.CancelledError:
         pass
     logger.info("Application stopped", extra={"event_name": "application.stopped"})
@@ -100,6 +107,37 @@ async def rate_limiter_cleanup_task():
             logger.exception(
                 "Rate limiter cleanup failed",
                 extra={"event_name": "rate_limiter.cleanup.failed"},
+            )
+
+
+async def audit_retention_task():
+    """Apply the configured audit retention window without blocking startup."""
+    while True:
+        try:
+            await asyncio.sleep(86400)
+            db = SessionLocal()
+            try:
+                deleted = db.query(models.AuditLog).filter(
+                    models.AuditLog.timestamp < datetime.utcnow() - timedelta(
+                        days=settings.AUDIT_RETENTION_DAYS
+                    )
+                ).delete(synchronize_session=False)
+                db.commit()
+                logger.info(
+                    "Audit retention cleanup completed",
+                    extra={
+                        "event_name": "audit.retention.completed",
+                        "deleted_count": deleted,
+                    },
+                )
+            finally:
+                db.close()
+        except asyncio.CancelledError:
+            break
+        except Exception:
+            logger.exception(
+                "Audit retention cleanup failed",
+                extra={"event_name": "audit.retention.failed", "outcome": "error"},
             )
 
 # Create FastAPI app
@@ -251,6 +289,7 @@ app.include_router(compendium.router)
 app.include_router(invitations.router, prefix="/api/invitations", tags=["invitations"])
 app.include_router(demo.router)
 app.include_router(game_ws.router)
+app.include_router(telemetry.router)
 
 @app.get("/")
 async def root():

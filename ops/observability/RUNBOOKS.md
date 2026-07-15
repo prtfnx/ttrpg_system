@@ -53,6 +53,25 @@ URLs, raw WebSocket payloads, or asset contents into incidents.
 4. Do not delete database metadata until storage deletion succeeds. Reconcile
    orphans with the administrative storage script after the incident.
 
+## Browser error burst
+
+1. Compare the `current` and `other` release labels and the deployment start
+   time. The endpoint intentionally rejects arbitrary metric-cardinality labels.
+2. Inspect `browser.error.reported` events by path and error fingerprint. The
+   intake contains no query string, application state, cookie, or protocol
+   payload.
+3. Reproduce with the exact release, then correlate nearby HTTP request IDs and
+   WebSocket connection/message IDs.
+4. Roll back only after confirming database migration compatibility.
+
+## Audit-event retention
+
+Security events use schema version 1 and share the transaction of the state
+change they describe. The daily retention task deletes events older than
+`AUDIT_RETENTION_DAYS` (365 by deployment default). Any legal-hold or longer
+retention requirement must be implemented in the external log/archive system
+before reducing this window.
+
 ## Incident closure
 
 Record start/end time, impact, release version, triggering alert, representative

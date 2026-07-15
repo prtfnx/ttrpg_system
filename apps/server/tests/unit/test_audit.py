@@ -1,15 +1,18 @@
 """Unit tests for utils/audit.py — pure functions and DB-mocked functions."""
 from datetime import datetime
+import json
 from unittest.mock import MagicMock
 
 import pytest
 from utils.audit import (
+    audit_event,
     create_audit_log,
     extract_client_info,
     filter_audit_logs,
     format_audit_details,
     get_audit_summary,
 )
+from utils.logger import log_context
 
 
 class TestExtractClientInfo:
@@ -70,8 +73,10 @@ class TestCreateAuditLog:
         db = MagicMock()
         log = create_audit_log(db, "player_kicked", session_code="ABC1", user_id=1)
         db.add.assert_called_once_with(log)
-        db.commit.assert_called_once()
+        db.commit.assert_not_called()
         assert log.event_type == "player_kicked"
+        assert log.action == "player_kicked"
+        assert log.schema_version == 1
 
     def test_formats_additional_data_when_no_details(self):
         db = MagicMock()
@@ -92,8 +97,20 @@ class TestCreateAuditLog:
         db = MagicMock()
         db.commit.side_effect = Exception("DB error")
         with pytest.raises(Exception, match="DB error"):
-            create_audit_log(db, "event")
+            create_audit_log(db, "event", commit=True)
         db.rollback.assert_called_once()
+
+    def test_correlates_and_recursively_redacts_details(self):
+        with log_context(request_id="req-12345678", trace_id="a" * 32):
+            log = audit_event(
+                "account_changed",
+                details={"nested": {"token": "secret-token", "field": "safe"}},
+            )
+        payload = json.loads(log.details_json)
+        assert log.request_id == "req-12345678"
+        assert log.trace_id == "a" * 32
+        assert payload["data"]["nested"]["token"] == "[REDACTED]"
+        assert payload["data"]["nested"]["field"] == "safe"
 
 
 class TestFilterAuditLogs:

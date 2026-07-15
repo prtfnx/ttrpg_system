@@ -35,6 +35,13 @@
       "title": "Asset operation outcomes",
       "targets": [{"expr": "sum by (operation, outcome) (rate(ttrpg_asset_operations_total[5m]))"}],
       "gridPos": {"h": 8, "w": 12, "x": 12, "y": 8}
+    },
+    {
+      "id": 5,
+      "type": "timeseries",
+      "title": "Browser error reports",
+      "targets": [{"expr": "sum by (event_type, release) (rate(ttrpg_browser_errors_total[5m]))"}],
+      "gridPos": {"h": 8, "w": 24, "x": 0, "y": 16}
     }
   ]
 }

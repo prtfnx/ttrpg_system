@@ -41,6 +41,8 @@ services:
         value: INFO
       - key: LOG_FORMAT
         value: json
+      - key: AUDIT_RETENTION_DAYS
+        value: 365
       - key: SERVICE_NAME
         value: ttrpg-server
       - key: OTEL_EXPORTER_OTLP_ENDPOINT

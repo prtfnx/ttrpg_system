@@ -167,13 +167,13 @@ class TestAuditLogModel:
         assert audit_log.user_agent == "Test-Browser/1.0"
         assert audit_log.details == "Test audit log entry"
 
-    def test_audit_log_timestamp_auto_generated(self, test_db):
+    def test_audit_log_timestamp_auto_generated(self, test_db, test_user):
         """Test that audit log timestamps are automatically generated"""
 
         audit_log = AuditLog(
             event_type="timestamp_test",
             session_code="TS123",
-            user_id=1,
+            user_id=test_user.id,
             ip_address="127.0.0.1",
             details="Timestamp test"
         )

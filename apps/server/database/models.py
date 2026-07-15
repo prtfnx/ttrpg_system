@@ -2,6 +2,8 @@
 Database models for TTRPG server
 """
 import json
+import os
+import uuid
 from datetime import datetime
 from typing import Optional
 
@@ -524,12 +526,31 @@ class AuditLog(Base):
     __tablename__ = "audit_logs"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
+    event_id: Mapped[str] = mapped_column(
+        String(36), unique=True, index=True, nullable=False, default=lambda: str(uuid.uuid4())
+    )
     event_type: Mapped[str] = mapped_column(String(50), nullable=False, index=True)
+    action: Mapped[str] = mapped_column(String(80), nullable=False, index=True, default="unknown")
+    outcome: Mapped[str] = mapped_column(String(20), nullable=False, index=True, default="success")
+    target_type: Mapped[Optional[str]] = mapped_column(String(50), nullable=True)
+    target_id: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)
     session_code: Mapped[Optional[str]] = mapped_column(String(20), nullable=True, index=True)
     user_id: Mapped[Optional[int]] = mapped_column(Integer, ForeignKey("users.id"), nullable=True)
     ip_address: Mapped[Optional[str]] = mapped_column(String(45), nullable=True)  # IPv6 support
     user_agent: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     details: Mapped[Optional[str]] = mapped_column(Text, nullable=True)  # JSON details
+    details_json: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    request_id: Mapped[Optional[str]] = mapped_column(String(128), nullable=True, index=True)
+    trace_id: Mapped[Optional[str]] = mapped_column(String(32), nullable=True, index=True)
+    source_service: Mapped[str] = mapped_column(
+        String(100), nullable=False, default=lambda: os.getenv("SERVICE_NAME", "ttrpg-server")
+    )
+    service_version: Mapped[str] = mapped_column(
+        String(100), nullable=False, default=lambda: os.getenv(
+            "SERVICE_VERSION", os.getenv("RENDER_GIT_COMMIT", "development")
+        )
+    )
+    schema_version: Mapped[int] = mapped_column(Integer, nullable=False, default=1)
     timestamp: Mapped[Optional[datetime]] = mapped_column(DateTime, default=datetime.utcnow, index=True)
 
     # Relationship

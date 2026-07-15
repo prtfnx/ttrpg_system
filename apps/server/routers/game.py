@@ -16,6 +16,7 @@ from models import game as game_models
 from service.game_session import get_connection_manager
 from sqlalchemy.orm import Session
 from utils.logger import setup_logger
+from utils.audit import audit_event
 from utils.roles import can_assign_role, get_permissions, get_visible_layers, is_dm
 
 from .users import get_current_active_user
@@ -337,6 +338,7 @@ async def change_player_role(
     session_code: str,
     user_id: int,
     role_data: schemas.RoleChangeRequest,
+    request: Request,
     current_user: Annotated[schemas.User, Depends(get_current_active_user)],
     db: Session = Depends(get_db)
 ):
@@ -368,11 +370,14 @@ async def change_player_role(
     old_role = target_player.role
     target_player.role = role_data.role
 
-    audit = models.AuditLog(
-        event_type="PLAYER_ROLE_CHANGED",
+    audit = audit_event(
+        "PLAYER_ROLE_CHANGED",
         session_code=session_code,
         user_id=current_user.id,
-        details=f'{{"target_user": {user_id}, "old_role": "{old_role}", "new_role": "{role_data.role}"}}'
+        target_type="user",
+        target_id=user_id,
+        request=request,
+        details={"target_user": user_id, "old_role": old_role, "new_role": role_data.role},
     )
     db.add(audit)
     db.commit()
@@ -398,6 +403,7 @@ async def change_player_role(
 async def kick_player(
     session_code: str,
     user_id: int,
+    request: Request,
     current_user: Annotated[schemas.User, Depends(get_current_active_user)],
     db: Session = Depends(get_db)
 ):
@@ -430,11 +436,14 @@ async def kick_player(
 
     db.delete(target)
 
-    audit = models.AuditLog(
-        event_type="PLAYER_KICKED",
+    audit = audit_event(
+        "PLAYER_KICKED",
         session_code=session_code,
         user_id=current_user.id,
-        details=f'{{"kicked_user": {user_id}, "kicked_username": "{target.user.username}"}}'
+        target_type="user",
+        target_id=user_id,
+        request=request,
+        details={"kicked_user": user_id},
     )
     db.add(audit)
     db.commit()

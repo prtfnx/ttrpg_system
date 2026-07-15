@@ -66,6 +66,7 @@ class Settings(BaseSettings):
     METRICS_TOKEN: str = ""
     BROWSER_TELEMETRY_ENABLED: bool = True
     BROWSER_TELEMETRY_SAMPLE_RATE: float = 0.1
+    AUDIT_RETENTION_DAYS: int = 365
     WS_MAX_MESSAGE_BYTES: int = 64 * 1024
     WS_MESSAGES_PER_MINUTE: int = 120
 
@@ -100,6 +101,8 @@ class Settings(BaseSettings):
             raise ValueError("OTEL_TRACES_SAMPLER_ARG must be between 0 and 1.")
         if not 0 <= self.BROWSER_TELEMETRY_SAMPLE_RATE <= 1:
             raise ValueError("BROWSER_TELEMETRY_SAMPLE_RATE must be between 0 and 1.")
+        if not 30 <= self.AUDIT_RETENTION_DAYS <= 3650:
+            raise ValueError("AUDIT_RETENTION_DAYS must be between 30 and 3650.")
         if not 1024 <= self.WS_MAX_MESSAGE_BYTES <= 1024 * 1024:
             raise ValueError("WS_MAX_MESSAGE_BYTES must be between 1024 and 1048576.")
         if not 1 <= self.WS_MESSAGES_PER_MINUTE <= 6000:

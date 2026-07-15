@@ -21,6 +21,7 @@ from models import auth as auth_models
 from service.email import send_email_change_notify, send_email_change_verify, send_password_changed, send_password_reset
 from sqlalchemy.orm import Session
 from utils.logger import setup_logger
+from utils.audit import audit_event
 from utils.rate_limiter import get_client_ip, login_limiter, password_reset_limiter, registration_limiter
 
 logger = setup_logger(__name__)
@@ -645,11 +646,13 @@ async def reset_password_submit(
     record.user.password_set_at = datetime.utcnow()
     record.user.session_version = (record.user.session_version or 0) + 1
 
-    db.add(models.AuditLog(
-        event_type="password_reset",
+    db.add(audit_event(
+        "password_reset",
         user_id=record.user.id,
-        ip_address=get_client_ip(request),
-        details='{"method":"email_token"}',
+        target_type="user",
+        target_id=record.user.id,
+        request=request,
+        details={"method": "email_token"},
     ))
     db.commit()
 
@@ -722,7 +725,9 @@ async def settings_password(
     user.password_set_at = datetime.utcnow()
     user.session_version = (user.session_version or 0) + 1
 
-    db.add(models.AuditLog(event_type="password_change", user_id=user.id, ip_address=get_client_ip(request)))
+    db.add(audit_event(
+        "password_change", user_id=user.id, target_type="user", target_id=user.id, request=request
+    ))
     db.commit()
 
     if user.email:
@@ -813,11 +818,12 @@ def verify_email_change(request: Request, token: str = "", db: Session = Depends
         }, status_code=400)
     user.email = record.new_email
 
-    db.add(models.AuditLog(
-        event_type="email_change",
+    db.add(audit_event(
+        "email_change",
         user_id=user.id,
-        ip_address=get_client_ip(request),
-        details=f'{{"new_email":"{record.new_email}"}}',
+        target_type="user",
+        target_id=user.id,
+        request=request,
     ))
     db.commit()
 
@@ -844,7 +850,9 @@ async def settings_delete(
     user.disabled = True
     user.session_version = (user.session_version or 0) + 1
 
-    db.add(models.AuditLog(event_type="account_delete", user_id=user.id, ip_address=get_client_ip(request)))
+    db.add(audit_event(
+        "account_delete", user_id=user.id, target_type="user", target_id=user.id, request=request
+    ))
     db.commit()
 
     response = RedirectResponse("/users/login?msg=account_deleted", status_code=302)

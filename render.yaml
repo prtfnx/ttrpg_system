@@ -5,13 +5,19 @@ services:
   - type: web
     name: ttrpg-server
     env: python
-    plan: free  # Use 'starter' or 'standard' for paid plans
+    # Persistent SQLite requires a paid single-instance service with an attached disk.
+    plan: starter
     rootDir: apps/server
     buildCommand: |
       pip install --upgrade pip
       pip install -e ../../packages/core-table
       pip install -r requirements.txt
     startCommand: uvicorn main:app --host 0.0.0.0 --port $PORT
+    preDeployCommand: python database/migrations/run_migrations.py
+    disk:
+      name: ttrpg-data
+      mountPath: /var/data
+      sizeGB: 1
     envVars:
       - key: PYTHON_VERSION
         value: "3.11"
@@ -20,10 +26,38 @@ services:
       - key: ENVIRONMENT
         value: production
       - key: DATABASE_URL
-        sync: false
+        value: sqlite:////var/data/ttrpg.db
       - key: SECRET_KEY
         generateValue: true
+      - key: SESSION_SECRET
+        generateValue: true
       - key: CORS_ORIGINS
-        value: "*"
-    healthCheckPath: /health
+        sync: false
+      - key: BASE_URL
+        sync: false
+      - key: METRICS_TOKEN
+        generateValue: true
+      - key: LOG_LEVEL
+        value: INFO
+      - key: LOG_FORMAT
+        value: json
+      - key: SERVICE_NAME
+        value: ttrpg-server
+      - key: OTEL_EXPORTER_OTLP_ENDPOINT
+        sync: false
+      - key: OTEL_EXPORTER_OTLP_HEADERS
+        sync: false
+      - key: R2_ENABLED
+        value: true
+      - key: R2_ACCOUNT_ID
+        sync: false
+      - key: R2_ACCESS_KEY
+        sync: false
+      - key: R2_SECRET_KEY
+        sync: false
+      - key: R2_BUCKET_NAME
+        sync: false
+      - key: R2_PUBLIC_URL
+        sync: false
+    healthCheckPath: /health/ready
     autoDeploy: true

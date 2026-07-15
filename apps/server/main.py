@@ -16,7 +16,7 @@ from api import game_ws
 from config import Settings
 from core_table.server import TableManager
 from database import models
-from database.database import create_tables, engine, get_db
+from database.database import engine, get_db, schema_is_current
 from fastapi import Depends, FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse, RedirectResponse, Response
@@ -60,9 +60,13 @@ async def lifespan(app: FastAPI):
         extra={"event_name": "application.starting", "service_version": settings.SERVICE_VERSION},
     )
 
-    # Create database tables
-    create_tables()
-    logger.info("Database schema initialized", extra={"event_name": "database.schema.initialized"})
+    if settings.is_production and not schema_is_current():
+        logger.critical(
+            "Database schema is not at the release migration head",
+            extra={"event_name": "database.schema.rejected", "outcome": "error"},
+        )
+        raise RuntimeError("Database schema is not current")
+    logger.info("Database schema accepted", extra={"event_name": "database.schema.accepted"})
 
     # Store app state in FastAPI app
     app.state.connection_manager = app_state.connection_manager

@@ -1,0 +1,54 @@
+groups:
+  - name: ttrpg-release
+    rules:
+      - alert: TtrpgServiceUnavailable
+        expr: up{job="ttrpg-server"} == 0
+        for: 2m
+        labels:
+          severity: critical
+        annotations:
+          summary: TTRPG server is unavailable
+          runbook_url: ops/observability/RUNBOOKS.md#service-unavailable
+
+      - alert: TtrpgHighHttpErrorRate
+        expr: |
+          sum(rate(ttrpg_http_requests_total{status_class="5xx"}[5m]))
+          /
+          clamp_min(sum(rate(ttrpg_http_requests_total[5m])), 0.001) > 0.05
+        for: 10m
+        labels:
+          severity: critical
+        annotations:
+          summary: More than 5% of HTTP requests return 5xx
+          runbook_url: ops/observability/RUNBOOKS.md#high-http-error-rate
+
+      - alert: TtrpgHighHttpLatency
+        expr: |
+          histogram_quantile(
+            0.95,
+            sum by (le) (rate(ttrpg_http_request_duration_seconds_bucket[10m]))
+          ) > 1
+        for: 15m
+        labels:
+          severity: warning
+        annotations:
+          summary: HTTP p95 latency exceeds one second
+          runbook_url: ops/observability/RUNBOOKS.md#high-http-latency
+
+      - alert: TtrpgWebSocketFailures
+        expr: increase(ttrpg_websocket_connections_total{outcome="error"}[10m]) > 3
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: Repeated WebSocket server failures detected
+          runbook_url: ops/observability/RUNBOOKS.md#websocket-failures
+
+      - alert: TtrpgAssetOperationFailures
+        expr: sum(increase(ttrpg_asset_operations_total{outcome="error"}[10m])) > 2
+        for: 5m
+        labels:
+          severity: critical
+        annotations:
+          summary: Durable asset operations are failing
+          runbook_url: ops/observability/RUNBOOKS.md#asset-operation-failures

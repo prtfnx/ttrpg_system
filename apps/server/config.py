@@ -1,3 +1,5 @@
+import os
+
 from pydantic import model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
@@ -55,7 +57,7 @@ class Settings(BaseSettings):
     LOG_LEVEL: str = "INFO"
     LOG_FORMAT: str = "json"
     SERVICE_NAME: str = "ttrpg-server"
-    SERVICE_VERSION: str = "development"
+    SERVICE_VERSION: str = os.getenv("RENDER_GIT_COMMIT", "development")
     SERVICE_INSTANCE_ID: str = ""
     OTEL_EXPORTER_OTLP_ENDPOINT: str = ""
     OTEL_EXPORTER_OTLP_HEADERS: str = ""

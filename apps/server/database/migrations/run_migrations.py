@@ -1,149 +1,215 @@
-"""
-Database Migration Runner
-Applies all pending migrations to the database
-"""
+"""Strict SQLite schema runner used by release and readiness workflows."""
+
+from __future__ import annotations
+
+import argparse
+import importlib
 import os
 import sqlite3
 import sys
+import time
 from pathlib import Path
 
-# Add apps/server directory to path
-sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '../..')))
+SERVER_DIR = Path(__file__).resolve().parents[2]
+if str(SERVER_DIR) not in sys.path:
+    sys.path.insert(0, str(SERVER_DIR))
 
-from database.database import DB_PATH
 from utils.logger import setup_logger
 
 logger = setup_logger(__name__)
 
+
+def expected_migration_names() -> list[str]:
+    migrations_dir = Path(__file__).parent
+    return [path.stem for path in sorted(migrations_dir.glob("[0-9][0-9][0-9]_*.py"))]
+
+
 class MigrationRunner:
     def __init__(self, db_path: str):
-        self.db_path = db_path
+        self.db_path = str(Path(db_path).resolve())
         self.migrations_dir = Path(__file__).parent
 
-    def ensure_migrations_table(self):
-        """Create migrations tracking table if it doesn't exist"""
-        conn = sqlite3.connect(self.db_path)
-        cursor = conn.cursor()
-        cursor.execute("""
-            CREATE TABLE IF NOT EXISTS schema_migrations (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                migration_name VARCHAR(255) UNIQUE NOT NULL,
-                applied_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    def migration_names(self) -> list[str]:
+        return expected_migration_names()
+
+    def ensure_migrations_table(self) -> None:
+        with sqlite3.connect(self.db_path) as connection:
+            connection.execute(
+                """
+                CREATE TABLE IF NOT EXISTS schema_migrations (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    migration_name VARCHAR(255) UNIQUE NOT NULL,
+                    applied_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                )
+                """
             )
-        """)
-        conn.commit()
-        conn.close()
 
-    def get_applied_migrations(self):
-        """Get list of already applied migrations"""
-        conn = sqlite3.connect(self.db_path)
-        cursor = conn.cursor()
-        cursor.execute("SELECT migration_name FROM schema_migrations ORDER BY id")
-        applied = [row[0] for row in cursor.fetchall()]
-        conn.close()
-        return applied
+    def get_applied_migrations(self) -> list[str]:
+        with sqlite3.connect(self.db_path) as connection:
+            exists = connection.execute(
+                "SELECT 1 FROM sqlite_master WHERE type='table' AND name='schema_migrations'"
+            ).fetchone()
+            if not exists:
+                return []
+            return [
+                row[0]
+                for row in connection.execute(
+                    "SELECT migration_name FROM schema_migrations ORDER BY id"
+                ).fetchall()
+            ]
 
-    def mark_migration_applied(self, migration_name: str):
-        """Mark migration as applied"""
-        conn = sqlite3.connect(self.db_path)
-        cursor = conn.cursor()
-        cursor.execute(
-            "INSERT INTO schema_migrations (migration_name) VALUES (?)",
-            (migration_name,)
+    def mark_migration_applied(self, migration_name: str) -> None:
+        with sqlite3.connect(self.db_path) as connection:
+            connection.execute(
+                "INSERT OR IGNORE INTO schema_migrations (migration_name) VALUES (?)",
+                (migration_name,),
+            )
+
+    def schema_status(self) -> dict[str, list[str] | bool]:
+        expected = self.migration_names()
+        applied = self.get_applied_migrations()
+        return {
+            "current": applied == expected,
+            "missing": [name for name in expected if name not in applied],
+            "unexpected": [name for name in applied if name not in expected],
+        }
+
+    def _has_application_schema(self) -> bool:
+        if not Path(self.db_path).exists() or Path(self.db_path).stat().st_size == 0:
+            return False
+        with sqlite3.connect(self.db_path) as connection:
+            tables = {
+                row[0]
+                for row in connection.execute(
+                    "SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%'"
+                )
+            }
+        return bool(tables - {"schema_migrations"})
+
+    def _bootstrap_current_schema(self) -> None:
+        from sqlalchemy import create_engine
+
+        from database.models import Base
+
+        bootstrap_engine = create_engine(f"sqlite:///{Path(self.db_path).as_posix()}")
+        try:
+            Base.metadata.create_all(bind=bootstrap_engine)
+        finally:
+            bootstrap_engine.dispose()
+        self.ensure_migrations_table()
+        for migration_name in self.migration_names():
+            self.mark_migration_applied(migration_name)
+        logger.info(
+            "Fresh database schema bootstrapped at migration head",
+            extra={"event_name": "database.schema.bootstrapped"},
         )
-        conn.commit()
-        conn.close()
 
-    def run_migrations(self):
-        """Run all pending migrations"""
-        if not os.path.exists(self.db_path):
-            logger.error(f"Database not found at {self.db_path}")
-            logger.info("Run the server first to create the database.")
+    def provision(self) -> bool:
+        """Create a fresh schema or apply every pending numbered migration."""
+        Path(self.db_path).parent.mkdir(parents=True, exist_ok=True)
+        if not self._has_application_schema():
+            self._bootstrap_current_schema()
+            return True
+        return self.run_migrations()
+
+    def run_migrations(self) -> bool:
+        if not Path(self.db_path).is_file():
+            logger.error(
+                "Migration database does not exist",
+                extra={"event_name": "database.migration.failed", "reason": "missing_database"},
+            )
             return False
 
-        logger.info(f"Running migrations on: {self.db_path}")
-
-        # Ensure migrations tracking table exists
         self.ensure_migrations_table()
+        applied = set(self.get_applied_migrations())
+        expected = self.migration_names()
+        unexpected = sorted(applied - set(expected))
+        if unexpected:
+            logger.error(
+                "Database has unknown migration revisions",
+                extra={
+                    "event_name": "database.migration.failed",
+                    "reason": "schema_ahead",
+                    "unexpected_revisions": unexpected,
+                },
+            )
+            return False
 
-        # Get applied migrations
-        applied = self.get_applied_migrations()
-        logger.info(f"Already applied: {len(applied)} migrations")
-
-        # Find migration files
-        migration_files = sorted([
-            f for f in os.listdir(self.migrations_dir)
-            if f.endswith('.py') and f[0].isdigit() and f != 'run_migrations.py'
-        ])
-
-        if not migration_files:
-            logger.info("No migration files found")
-            return True
-
-        # Run pending migrations
-        pending_count = 0
-        for migration_file in migration_files:
-            migration_name = migration_file[:-3]  # Remove .py extension
-
+        for migration_name in expected:
             if migration_name in applied:
-                logger.info(f"[SKIP]  Skipping {migration_name} (already applied)")
                 continue
-
-            logger.info(f" Applying {migration_name}...")
-
-            # Import and run migration
             try:
-                module_name = f"database.migrations.{migration_name}"
-                migration_module = __import__(module_name, fromlist=['upgrade'])
-
-                # Run upgrade
+                migration_module = importlib.import_module(
+                    f"database.migrations.{migration_name}"
+                )
                 migration_module.upgrade(self.db_path)
-
-                # Mark as applied
                 self.mark_migration_applied(migration_name)
-
-                logger.info(f" {migration_name} applied successfully")
-                pending_count += 1
-
-            except Exception as e:
-                logger.error(f" Failed to apply {migration_name}: {e}")
+                logger.info(
+                    "Database migration applied",
+                    extra={
+                        "event_name": "database.migration.applied",
+                        "migration": migration_name,
+                    },
+                )
+            except Exception:
+                logger.exception(
+                    "Database migration failed",
+                    extra={
+                        "event_name": "database.migration.failed",
+                        "migration": migration_name,
+                    },
+                )
                 return False
+        return bool(self.schema_status()["current"])
 
-        if pending_count == 0:
-            logger.info(" All migrations up to date")
-        else:
-            logger.info(f" Applied {pending_count} new migrations")
+    def create_verified_backup(self) -> Path:
+        """Create and verify a consistent online SQLite backup before upgrade."""
+        backup_path = Path(f"{self.db_path}.backup_{int(time.time())}")
+        with sqlite3.connect(self.db_path) as source, sqlite3.connect(backup_path) as target:
+            source.backup(target)
+            integrity = target.execute("PRAGMA integrity_check").fetchone()
+            if not integrity or integrity[0] != "ok":
+                raise RuntimeError("Backup integrity verification failed")
+        if backup_path.stat().st_size == 0:
+            raise RuntimeError("Backup is empty")
+        return backup_path
 
-        return True
+
+def sqlite_path_from_database_url(database_url: str) -> str:
+    from sqlalchemy.engine import make_url
+
+    url = make_url(database_url)
+    if url.get_backend_name() != "sqlite" or not url.database or url.database == ":memory:":
+        raise ValueError("The numbered migration runner requires a file-backed SQLite DATABASE_URL")
+    return str(Path(url.database).resolve())
+
+
+def main() -> int:
+    parser = argparse.ArgumentParser(description="Provision or verify the SQLite schema")
+    parser.add_argument("--check", action="store_true", help="Only verify migration head")
+    parser.add_argument("--no-backup", action="store_true", help="Skip pre-upgrade backup")
+    args = parser.parse_args()
+
+    from database.database import DATABASE_URL
+
+    try:
+        runner = MigrationRunner(sqlite_path_from_database_url(DATABASE_URL))
+        if args.check:
+            return 0 if runner.schema_status()["current"] else 1
+        if runner._has_application_schema() and not args.no_backup:
+            backup_path = runner.create_verified_backup()
+            logger.info(
+                "Pre-migration backup verified",
+                extra={"event_name": "database.backup.verified", "backup_path": str(backup_path)},
+            )
+        return 0 if runner.provision() else 1
+    except Exception:
+        logger.exception(
+            "Database provisioning failed",
+            extra={"event_name": "database.provision.failed", "outcome": "error"},
+        )
+        return 1
+
 
 if __name__ == "__main__":
-    import shutil
-    import time
-
-    print("=" * 60)
-    print("Database Migration Runner")
-    print("=" * 60)
-    print(f"\nDatabase: {DB_PATH}")
-
-    if not os.path.exists(DB_PATH):
-        print("\n Database not found!")
-        print("Please run the server first to create the database.")
-        sys.exit(1)
-
-    # Create backup
-    backup_path = f"{DB_PATH}.backup_{int(time.time())}"
-    print(f"\nCreating backup: {os.path.basename(backup_path)}")
-    shutil.copy2(DB_PATH, backup_path)
-    print("Backup created")
-
-    # Run migrations
-    runner = MigrationRunner(DB_PATH)
-    print("\n Running migrations...\n")
-
-    if runner.run_migrations():
-        print("\n All migrations completed successfully!")
-        print(f" Backup available at: {backup_path}")
-    else:
-        print("\n Migration failed!")
-        print(f"Restore from backup: {backup_path}")
-        sys.exit(1)
+    sys.exit(main())

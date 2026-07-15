@@ -12,7 +12,8 @@ const makeMsg = (overrides?: Partial<ChatMessage>): ChatMessage => ({
 
 describe('chatStore', () => {
   beforeEach(() => {
-    useChatStore.getState().clearMessages();
+    useChatStore.setState({ activeSessionId: null, messages: [], messagesBySession: {} });
+    useChatStore.getState().setActiveSession('session-a');
   });
 
   it('starts with no messages', () => {
@@ -49,5 +50,32 @@ describe('chatStore', () => {
     useChatStore.getState().addMessage(makeMsg());
     useChatStore.getState().setMessages([]);
     expect(useChatStore.getState().messages).toHaveLength(0);
+  });
+
+  it('keeps messages isolated when the active session changes', () => {
+    useChatStore.getState().addMessage(makeMsg({ id: 'a', text: 'Session A' }));
+    useChatStore.getState().setActiveSession('session-b');
+    expect(useChatStore.getState().messages).toEqual([]);
+
+    useChatStore.getState().addMessage(makeMsg({ id: 'b', text: 'Session B' }));
+    useChatStore.getState().setActiveSession('session-a');
+    expect(useChatStore.getState().messages.map((message) => message.id)).toEqual(['a']);
+  });
+
+  it('replaces an optimistic message with the persisted confirmation', () => {
+    useChatStore.getState().addMessage(makeMsg({
+      id: 'operation-1',
+      client_operation_id: 'operation-1',
+      deliveryStatus: 'pending',
+    }));
+
+    useChatStore.getState().confirmMessage('operation-1', makeMsg({
+      id: 'server-1',
+      client_operation_id: 'operation-1',
+    }));
+
+    expect(useChatStore.getState().messages).toEqual([
+      expect.objectContaining({ id: 'server-1', deliveryStatus: 'sent' }),
+    ]);
   });
 });

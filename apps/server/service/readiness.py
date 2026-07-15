@@ -19,17 +19,19 @@ REQUIRED_TABLES = {
 
 
 class ReadinessChecker:
-    def __init__(self, settings, engine, r2_manager, static_ui_path: Path):
+    def __init__(self, settings, engine, r2_manager, static_ui_path: Path, compendium_artifact=None):
         self.settings = settings
         self.engine = engine
         self.r2_manager = r2_manager
         self.static_ui_path = static_ui_path
+        self.compendium_artifact = compendium_artifact
 
     def run(self) -> dict:
         checks = {
             "database": self._check_database(),
             "static_ui": self._check_static_ui(),
             "asset_storage": self._check_asset_storage_configuration(),
+            "compendium": self._check_compendium_artifact(),
         }
         return {
             "status": "ready" if all(check["ok"] for check in checks.values()) else "not_ready",
@@ -78,3 +80,18 @@ class ReadinessChecker:
         if self.settings.is_production:
             return {"ok": False, "code": "asset_storage_not_configured"}
         return {"ok": True, "skipped": True}
+
+    def _check_compendium_artifact(self) -> dict:
+        # Import lazily so readiness unit tests and migration tooling do not load
+        # the large artifact as a side effect of importing this module.
+        artifact = self.compendium_artifact
+        if artifact is None:
+            from routers.compendium import compendium_service
+
+            artifact = compendium_service
+        result = artifact.readiness()
+        if self.settings.is_production and result.get("ok") and not result.get("verified"):
+            return {"ok": False, "code": "compendium_manifest_required"}
+        if not self.settings.is_production and result.get("ok") and not result.get("verified"):
+            return {**result, "skipped": True}
+        return result

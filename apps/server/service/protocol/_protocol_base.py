@@ -70,3 +70,14 @@ class _ProtocolBase:
 
     async def _set_player_active_table(self, user_id: int, session_code: str, table_id: Optional[str]) -> bool:
         raise NotImplementedError
+
+    # ── cross-mixin: characters ──────────────────────────────────────────────
+    async def _broadcast_character_event(
+        self,
+        message: Message,
+        session_id: int,
+        character_id: str,
+        exclude_client: Optional[str] = None,
+        target_clients: Optional[list[str]] = None,
+    ) -> None:
+        raise NotImplementedError

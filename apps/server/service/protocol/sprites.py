@@ -585,12 +585,12 @@ class _SpritesMixin(_ProtocolBase):
                         bypass_owner_check=is_dm(role)
                     )
                     if char_result.success:
-                        await self.broadcast_to_session(
+                        await self._broadcast_character_event(
                             Message(MessageType.CHARACTER_UPDATE_RESPONSE, {
                                 'character_id': character_id,
                                 'updates': {'data': {'stats': char_stat_updates}},
                                 'source': 'token_sync'
-                            }), client_id
+                            }), session_id, character_id, client_id
                         )
                     else:
                         logger.warning(f"Token→character sync failed for {character_id}: {char_result.message}")

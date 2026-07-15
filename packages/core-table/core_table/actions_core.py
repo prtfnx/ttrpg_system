@@ -1073,7 +1073,10 @@ class ActionsCore(AsyncActionsProtocol):
                 return ActionResult(
                     success=True,
                     message=result.get('message', 'Character saved'),
-                    data={'character_id': result.get('character_id')}
+                    data={
+                        'character_id': result.get('character_id'),
+                        'version': result.get('version'),
+                    }
                 )
             else:
                 logger.error(f"Character save failed: {result.get('error')}")
@@ -1192,13 +1195,22 @@ class ActionsCore(AsyncActionsProtocol):
                 return ActionResult(
                     success=True,
                     message='Character updated',
-                    data={'character_id': character_id, 'version': result.get('version')}
+                    data={
+                        'character_id': character_id,
+                        'version': result.get('version'),
+                        'character_data': result.get('character_data'),
+                    }
                 )
             else:
                 logger.error(f"Character update failed: {result.get('error')}")
                 return ActionResult(
                     success=False,
-                    message=result.get('error', 'Character update failed')
+                    message=result.get('error', 'Character update failed'),
+                    data={
+                        'character_id': character_id,
+                        'current_version': result.get('current_version'),
+                        'character_data': result.get('character_data'),
+                    },
                 )
         except Exception as e:
             logger.error(f"Error in update_character: {e}")
@@ -1228,6 +1240,88 @@ class ActionsCore(AsyncActionsProtocol):
         try:
             from managers.character_manager import get_server_character_manager
 
+            char_manager = get_server_character_manager()
+            char_result = char_manager.load_character(session_id, character_id, user_id)
+            if not char_result.get('success'):
+                return ActionResult(False, 'Character not found or access denied')
+
+            char_data = char_result.get('character_data') or {}
+            inner = char_data.get('data', char_data)
+            if not isinstance(inner, dict):
+                return ActionResult(False, 'Character data is invalid')
+
+            roll_type = str(roll_type or '').lower()
+            skill = str(skill or '').strip()
+            allowed_rolls = {'skill_check', 'saving_throw', 'ability_check', 'attack', 'death_save'}
+            if roll_type not in allowed_rolls:
+                return ActionResult(False, 'Unsupported character roll type')
+
+            abilities = inner.get('abilityScores') or inner.get('abilities') or {}
+            proficiency_bonus = int(inner.get('proficiencyBonus') or 2)
+            if not isinstance(abilities, dict) or not 0 <= proficiency_bonus <= 10:
+                return ActionResult(False, 'Character roll statistics are invalid')
+            skills = inner.get('skills') if isinstance(inner.get('skills'), dict) else {}
+            saving_throws = (
+                inner.get('savingThrows') if isinstance(inner.get('savingThrows'), dict) else {}
+            )
+            ability_aliases = {
+                'strength': 'str', 'str': 'str',
+                'dexterity': 'dex', 'dex': 'dex',
+                'constitution': 'con', 'con': 'con',
+                'intelligence': 'int', 'int': 'int',
+                'wisdom': 'wis', 'wis': 'wis',
+                'charisma': 'cha', 'cha': 'cha',
+            }
+            skill_abilities = {
+                'acrobatics': 'dex', 'animal handling': 'wis', 'arcana': 'int',
+                'athletics': 'str', 'deception': 'cha', 'history': 'int',
+                'insight': 'wis', 'intimidation': 'cha', 'investigation': 'int',
+                'medicine': 'wis', 'nature': 'int', 'perception': 'wis',
+                'performance': 'cha', 'persuasion': 'cha', 'religion': 'int',
+                'sleight of hand': 'dex', 'stealth': 'dex', 'survival': 'wis',
+            }
+
+            def ability_modifier(ability: str) -> int:
+                score = int(abilities.get(ability, 10))
+                if not 1 <= score <= 30:
+                    raise ValueError('Character ability score is out of range')
+                return (score - 10) // 2
+
+            normalized_skill = skill.lower()
+            if roll_type == 'death_save':
+                resolved_modifier = 0
+            elif roll_type == 'skill_check':
+                ability = skill_abilities.get(normalized_skill)
+                if not ability:
+                    return ActionResult(False, 'Unsupported skill')
+                proficient = any(
+                    str(name).lower() == normalized_skill and bool(value)
+                    for name, value in skills.items()
+                )
+                resolved_modifier = ability_modifier(ability) + (proficiency_bonus if proficient else 0)
+            elif roll_type in {'ability_check', 'saving_throw'}:
+                ability = ability_aliases.get(normalized_skill)
+                if not ability:
+                    return ActionResult(False, 'Unsupported ability')
+                resolved_modifier = ability_modifier(ability)
+                if roll_type == 'saving_throw':
+                    proficient = any(
+                        ability_aliases.get(str(name).lower()) == ability and bool(value)
+                        for name, value in saving_throws.items()
+                    )
+                    if proficient:
+                        resolved_modifier += proficiency_bonus
+            else:
+                attack_ability = {'melee': 'str', 'ranged': 'dex'}.get(normalized_skill)
+                if not attack_ability:
+                    return ActionResult(False, 'Unsupported attack type')
+                resolved_modifier = ability_modifier(attack_ability) + proficiency_bonus
+
+            roll_modes = inner.get('rollModes') or {}
+            mode = roll_modes.get(f'{roll_type}:{normalized_skill}', roll_modes.get(roll_type))
+            advantage = mode == 'advantage'
+            disadvantage = mode == 'disadvantage'
+
             # Server owns the dice — clients cannot spoof results
             roll1 = secrets.randbelow(20) + 1
             if advantage:
@@ -1240,25 +1334,17 @@ class ActionsCore(AsyncActionsProtocol):
                 roll2 = None
                 die_roll = roll1
 
-            total = die_roll + modifier
-            sign = '+' if modifier >= 0 else ''
-            desc = f"{skill} ({roll_type}): d20={die_roll}{sign}{modifier} = {total}"
+            total = die_roll + resolved_modifier
+            sign = '+' if resolved_modifier >= 0 else ''
+            desc = f"{skill} ({roll_type}): d20={die_roll}{sign}{resolved_modifier} = {total}"
             if advantage and roll2 is not None:
                 desc += f' (Adv: [{roll1},{roll2}])'
             elif disadvantage and roll2 is not None:
                 desc += f' (Dis: [{roll1},{roll2}])'
 
-            char_manager = get_server_character_manager()
             char_manager.log_event(character_id, session_id, user_id, 'skill_roll', desc)
 
-            character_name = 'Unknown'
-            try:
-                char_result = char_manager.load_character(session_id, character_id, user_id)
-                if char_result.get('success'):
-                    char_data = char_result.get('character_data', {})
-                    character_name = char_data.get('name') or char_data.get('data', {}).get('name') or 'Unknown'
-            except Exception:
-                pass
+            character_name = char_data.get('name') or inner.get('name') or 'Unknown'
 
             result_data = {
                 'character_id': character_id,
@@ -1266,7 +1352,7 @@ class ActionsCore(AsyncActionsProtocol):
                 'user_id': user_id,
                 'roll_type': roll_type,
                 'skill': skill,
-                'modifier': modifier,
+                'modifier': resolved_modifier,
                 'die_roll': die_roll,
                 'total': total,
                 'advantage': advantage,
@@ -1284,10 +1370,7 @@ class ActionsCore(AsyncActionsProtocol):
                 result_data['stabilized'] = stabilized
                 result_data['double_failure'] = double_failure
 
-                char_result = char_manager.load_character(session_id, character_id, user_id)
                 if char_result.get('success'):
-                    char_data = char_result.get('character_data', {})
-                    inner = char_data.get('data', {})
                     current = inner.get('stats', {}).get('deathSaves', {'successes': 0, 'failures': 0})
 
                     if stabilized:

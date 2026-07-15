@@ -126,6 +126,8 @@ class TestBypassOwnerCheck:
 
         r = manager.update_character(sid, "hero-1", {"data": {"stats": {"hp": 8}}}, uid)
         assert r["success"] is True
+        loaded = manager.load_character(sid, "hero-1", uid)
+        assert loaded["character_data"]["data"]["stats"] == {"hp": 8, "maxHp": 20}
 
     def test_non_owner_blocked_without_bypass(self, manager, user_and_session, db_mod):
         uid, sid = user_and_session
@@ -199,6 +201,16 @@ class TestSaveCharacter:
         r = manager.save_character(999999, {"character_id": "x", "name": "X"}, 1)
         assert r["success"] is False
         assert "not found" in r["error"].lower()
+
+    def test_save_rejects_oversized_character(self, manager, user_and_session):
+        uid, sid = user_and_session
+        r = manager.save_character(
+            sid,
+            {"character_id": "huge", "name": "Huge", "data": {"notes": "x" * (513 * 1024)}},
+            uid,
+        )
+        assert r["success"] is False
+        assert "512" in r["error"]
 
     def test_save_updates_existing_character(self, manager, user_and_session):
         uid, sid = user_and_session
@@ -348,6 +360,8 @@ class TestUpdateVersionConflict:
         r = manager.update_character(sid, "vc1", {"name": "Updated"}, uid, expected_version=99)
         assert r["success"] is False
         assert "version" in r["error"].lower()
+        assert r["current_version"] == 1
+        assert r["character_data"]["name"] == "Versioned"
 
     def test_correct_version_accepted(self, manager, user_and_session):
         uid, sid = user_and_session

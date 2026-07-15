@@ -6,6 +6,7 @@ Handles character persistence in the database for game sessions
 
 import json
 import uuid
+from copy import deepcopy
 from datetime import datetime
 from typing import Any, Dict, Optional
 
@@ -15,6 +16,32 @@ from sqlalchemy import and_
 from utils.logger import setup_logger
 
 logger = setup_logger(__name__)
+MAX_CHARACTER_BYTES = 512 * 1024
+
+
+def apply_json_merge_patch(target: Any, patch: Any) -> Any:
+    """Apply RFC 7396 merge-patch semantics without mutating the inputs."""
+    if not isinstance(patch, dict):
+        return deepcopy(patch)
+    result = deepcopy(target) if isinstance(target, dict) else {}
+    for key, value in patch.items():
+        if value is None:
+            result.pop(key, None)
+        else:
+            result[key] = apply_json_merge_patch(result.get(key), value)
+    return result
+
+
+def _serialize_character(character: dict) -> str:
+    if not isinstance(character, dict):
+        raise ValueError("Character payload must be an object")
+    name = character.get("name")
+    if name is not None and (not isinstance(name, str) or len(name) > 100):
+        raise ValueError("Character name must be a string of at most 100 characters")
+    serialized = json.dumps(character, separators=(",", ":"))
+    if len(serialized.encode("utf-8")) > MAX_CHARACTER_BYTES:
+        raise ValueError("Character payload exceeds the 512 KiB limit")
+    return serialized
 
 
 class ServerCharacterManager:
@@ -43,11 +70,12 @@ class ServerCharacterManager:
                 character_name = character_data.get('name', 'Unnamed Character')
 
                 # Serialize character data
-                character_json = json.dumps(character_data)
+                character_json = _serialize_character(character_data)
 
                 # Check if character already exists
                 existing = db.query(SessionCharacter).filter(
-                    SessionCharacter.character_id == character_id
+                    SessionCharacter.character_id == character_id,
+                    SessionCharacter.session_id == session_id,
                 ).first()
 
                 # ensure new_version defined for return value
@@ -66,7 +94,8 @@ class ServerCharacterManager:
                         current_version = 1
                     new_version = current_version + 1
                     db.query(SessionCharacter).filter(
-                        SessionCharacter.character_id == character_id
+                        SessionCharacter.character_id == character_id,
+                        SessionCharacter.session_id == session_id,
                     ).update({
                         SessionCharacter.character_name: character_name,
                         SessionCharacter.character_data: character_json,
@@ -96,6 +125,8 @@ class ServerCharacterManager:
                     'version': new_version
                 }
 
+        except ValueError as e:
+            return {'success': False, 'error': str(e)}
         except Exception as e:
             logger.error(f"Error saving character: {e}")
             return {
@@ -146,7 +177,16 @@ class ServerCharacterManager:
                 # Version check
                 current_version = getattr(existing, 'version', 1) or 1
                 if expected_version is not None and int(expected_version) != int(current_version):
-                    return {'success': False, 'error': 'Version conflict', 'current_version': current_version}
+                    try:
+                        current_character = json.loads(str(existing.character_data or '{}'))
+                    except (TypeError, json.JSONDecodeError):
+                        current_character = None
+                    return {
+                        'success': False,
+                        'error': 'Version conflict',
+                        'current_version': current_version,
+                        'character_data': current_character,
+                    }
 
                 # Merge JSON
                 try:
@@ -155,10 +195,8 @@ class ServerCharacterManager:
                 except Exception:
                     current_json = {}
 
-                if isinstance(current_json, dict) and isinstance(updates, dict):
-                    merged = {**current_json, **updates}
-                else:
-                    merged = updates
+                merged = apply_json_merge_patch(current_json, updates)
+                merged_json = _serialize_character(merged)
 
                 # Spell slot validation
                 slot_error = self._validate_spell_slots(current_json, updates)
@@ -167,19 +205,43 @@ class ServerCharacterManager:
 
                 new_version = int(current_version) + 1
 
-                db.query(SessionCharacter).filter(SessionCharacter.character_id == character_id).update({
-                    SessionCharacter.character_data: json.dumps(merged),
+                affected = db.query(SessionCharacter).filter(
+                    SessionCharacter.character_id == character_id,
+                    SessionCharacter.session_id == session_id,
+                    SessionCharacter.version == current_version,
+                ).update({
+                    SessionCharacter.character_data: merged_json,
                     SessionCharacter.updated_at: datetime.utcnow(),
                     SessionCharacter.version: new_version,
                     SessionCharacter.last_modified_by: user_id
-                })
+                }, synchronize_session=False)
+
+                if affected != 1:
+                    db.rollback()
+                    latest_version = db.query(SessionCharacter.version).filter(
+                        SessionCharacter.character_id == character_id,
+                        SessionCharacter.session_id == session_id,
+                    ).scalar()
+                    return {
+                        'success': False,
+                        'error': 'Version conflict',
+                        'current_version': latest_version,
+                    }
 
                 # Auto-log key character changes
                 self._detect_and_log(db, character_id, session_id, user_id, current_json, updates)
 
                 db.commit()
 
-                return {'success': True, 'character_id': character_id, 'version': new_version}
+                return {
+                    'success': True,
+                    'character_id': character_id,
+                    'version': new_version,
+                    'character_data': merged,
+                }
+
+        except ValueError as e:
+            return {'success': False, 'error': str(e)}
 
         except Exception as e:
             logger.error(f"Error updating character: {e}")

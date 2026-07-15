@@ -1,4 +1,3 @@
-import json
 import re
 import uuid
 
@@ -12,8 +11,6 @@ from ._protocol_base import _ProtocolBase
 logger = setup_logger(__name__)
 _CLIENT_OPERATION_ID = re.compile(r"^[A-Za-z0-9._-]{1,64}$")
 _CHANNELS = {"public", "whisper"}
-_MAX_ATTACHMENTS = 4
-_MAX_ATTACHMENT_BYTES = 4096
 
 
 class _ChatMixin(_ProtocolBase):
@@ -21,7 +18,6 @@ class _ChatMixin(_ProtocolBase):
 
     async def handle_chat(self, msg: Message, client_id: str) -> Message:
         """Persist a chat message and broadcast it to other visible clients."""
-        logger.debug(f"Chat message received: {msg}")
         if not msg.data:
             return Message(MessageType.ERROR, {'error': 'No data provided in chat message'})
 
@@ -35,7 +31,7 @@ class _ChatMixin(_ProtocolBase):
 
         client_info = self._get_client_info(client_id)
         user_id = self._get_user_id(msg, client_id)
-        username = client_info.get('username') or message_payload.get('user') or 'Unknown'
+        username = client_info.get('username') or 'Unknown'
         text = message_payload.get('text') or msg.data.get('text')
         if not isinstance(text, str) or not text.strip():
             return Message(MessageType.ERROR, {'error': 'Chat message text is required'})
@@ -62,13 +58,9 @@ class _ChatMixin(_ProtocolBase):
         table_id = msg.data.get('table_id') or message_payload.get('table_id')
         attachments = msg.data.get('attachments') or message_payload.get('attachments')
         client_timestamp = message_payload.get('timestamp') or msg.data.get('timestamp')
-        if attachments is not None:
-            if not isinstance(attachments, list) or len(attachments) > _MAX_ATTACHMENTS:
-                return Message(MessageType.ERROR, {'error': 'Invalid chat attachments'})
-            if not all(isinstance(attachment, dict) for attachment in attachments):
-                return Message(MessageType.ERROR, {'error': 'Invalid chat attachments'})
-            if len(json.dumps(attachments, separators=(',', ':')).encode('utf-8')) > _MAX_ATTACHMENT_BYTES:
-                return Message(MessageType.ERROR, {'error': 'Chat attachments are too large'})
+        if attachments not in (None, []):
+            return Message(MessageType.ERROR, {'error': 'Chat attachments are not supported'})
+        attachments = None
 
         recipient_id: int | None = None
         if channel == 'whisper':
@@ -157,7 +149,6 @@ class _ChatMixin(_ProtocolBase):
 
     async def handle_chat_request(self, msg: Message, client_id: str) -> Message:
         """Handle chat history request"""
-        logger.debug(f"Chat history request received: {msg}")
         session_id = self._get_session_id(msg)
         if session_id is None:
             return Message(MessageType.ERROR, {'error': 'No session available for chat history'})
@@ -179,7 +170,7 @@ class _ChatMixin(_ProtocolBase):
             messages = crud.get_session_chat_messages(
                 db,
                 session_id=session_id,
-                limit=None if all_messages else count,
+                limit=count,
                 before_id=before_id,
                 after_id=after_id,
                 channel=data.get('channel'),

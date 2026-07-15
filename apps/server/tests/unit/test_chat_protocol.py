@@ -135,3 +135,33 @@ async def test_unbounded_history_is_rejected(chat_db):
     )
 
     assert result.type == MessageType.ERROR
+
+
+@pytest.mark.asyncio
+async def test_bounded_history_returns_visible_messages(chat_db):
+    _, session_id, alice_id, _, _ = chat_db
+    harness = ChatHarness(session_id, alice_id, {"alice-client": {"user_id": alice_id, "username": "alice"}})
+    await harness.handle_chat(_message(), "alice-client")
+
+    result = await harness.handle_chat_request(
+        Message(MessageType.CHAT_REQUEST, {"count": 30}),
+        "alice-client",
+    )
+
+    assert result.type == MessageType.CHAT
+    assert result.data["count"] == 1
+    assert result.data["messages"][0]["user"] == "alice"
+
+
+@pytest.mark.asyncio
+async def test_attachment_metadata_is_rejected_until_asset_contract_exists(chat_db):
+    _, session_id, alice_id, _, _ = chat_db
+    harness = ChatHarness(session_id, alice_id, {"alice-client": {"user_id": alice_id, "username": "alice"}})
+
+    result = await harness.handle_chat(
+        _message(attachments=[{"url": "https://untrusted.example/secret"}]),
+        "alice-client",
+    )
+
+    assert result.type == MessageType.ERROR
+    harness.broadcast_to_session.assert_not_awaited()

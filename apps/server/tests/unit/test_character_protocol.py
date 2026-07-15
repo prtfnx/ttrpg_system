@@ -60,11 +60,25 @@ def user_and_session(db_mod):
         db.close()
 
 
-def _save_char(manager, session_id, user_id, char_id="char-1", hp=0, successes=0, failures=0):
+def _save_char(
+    manager,
+    session_id,
+    user_id,
+    char_id="char-1",
+    hp=0,
+    successes=0,
+    failures=0,
+    roll_modes=None,
+):
     r = manager.save_character(session_id, {
         "character_id": char_id,
         "name": "Test Hero",
         "data": {
+            "abilityScores": {"str": 16, "dex": 8, "con": 10, "int": 10, "wis": 10, "cha": 10},
+            "proficiencyBonus": 2,
+            "skills": {"Athletics": False},
+            "savingThrows": {"dex": False},
+            "rollModes": roll_modes or {},
             "stats": {
                 "hp": hp,
                 "maxHp": 10,
@@ -94,7 +108,8 @@ class TestCharacterRollGeneric:
         tm = TableManager()
         actions = ActionsCore(tm)
 
-        return await actions.character_roll(sid, "char-1", uid, roll_type, roll_type, modifier, adv, dis)
+        intent = {"skill_check": "Athletics", "saving_throw": "dex", "attack": "melee"}[roll_type]
+        return await actions.character_roll(sid, "char-1", uid, roll_type, intent, modifier, adv, dis)
 
     async def test_skill_check_returns_valid_roll(self, manager, user_and_session):
         r = await self._run(manager, user_and_session, "skill_check", modifier=3)
@@ -118,12 +133,12 @@ class TestCharacterRollGeneric:
         from core_table.server import TableManager
 
         uid, sid = user_and_session
-        _save_char(manager, sid, uid)
+        _save_char(manager, sid, uid, roll_modes={"skill_check:athletics": "advantage"})
         tm = TableManager()
         actions = ActionsCore(tm)
 
         for _ in range(20):
-            r = await actions.character_roll(sid, "char-1", uid, "skill_check", "test", 0, advantage=True)
+            r = await actions.character_roll(sid, "char-1", uid, "skill_check", "Athletics", 999, advantage=False)
             assert r.success
             assert 1 <= r.data["die_roll"] <= 20
 
@@ -132,12 +147,12 @@ class TestCharacterRollGeneric:
         from core_table.server import TableManager
 
         uid, sid = user_and_session
-        _save_char(manager, sid, uid)
+        _save_char(manager, sid, uid, roll_modes={"skill_check:athletics": "disadvantage"})
         tm = TableManager()
         actions = ActionsCore(tm)
 
         for _ in range(20):
-            r = await actions.character_roll(sid, "char-1", uid, "skill_check", "test", 0, disadvantage=True)
+            r = await actions.character_roll(sid, "char-1", uid, "skill_check", "Athletics", 999, disadvantage=False)
             assert r.success
             assert 1 <= r.data["die_roll"] <= 20
 
@@ -580,12 +595,19 @@ class TestCharacterUpdate:
             "character_id": "c1", "updates": {"hp": 5}, "session_code": "TST",
         })
         with patch.object(proto.actions, "update_character", new=AsyncMock(
-            return_value=MagicMock(success=False, message="Version conflict")
+            return_value=MagicMock(
+                success=False,
+                message="Version conflict",
+                data={"current_version": 4, "character_data": {"name": "Canonical"}},
+            )
         )):
             resp = await proto.handle_character_update(msg, "client1")
 
         assert resp.data["success"] is False
         assert "Version conflict" in resp.data["error"]
+        assert resp.data["character_id"] == "c1"
+        assert resp.data["current_version"] == 4
+        assert resp.data["character_data"]["name"] == "Canonical"
 
 
 # ---------------------------------------------------------------------------

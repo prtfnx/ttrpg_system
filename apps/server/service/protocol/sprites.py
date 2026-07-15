@@ -565,7 +565,9 @@ class _SpritesMixin(_ProtocolBase):
                         from database.models import Entity as DBEntity
                         db = SessionLocal()
                         try:
-                            entity_row = db.query(DBEntity).filter_by(id=sprite_id).first()
+                            entity_row = db.query(DBEntity).filter(
+                                DBEntity.sprite_id == sprite_id
+                            ).first()
                             if entity_row:
                                 character_id = entity_row.character_id
                         finally:

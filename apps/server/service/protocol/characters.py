@@ -235,7 +235,14 @@ class _CharactersMixin(_ProtocolBase):
 
                 return Message(MessageType.CHARACTER_UPDATE_RESPONSE, {'success': True, 'character_id': character_id, 'message': result.message if hasattr(result, 'message') else 'updated', 'version': returned_version})
             else:
-                return Message(MessageType.CHARACTER_UPDATE_RESPONSE, {'success': False, 'error': result.message})
+                result_data = result.data if isinstance(result.data, dict) else {}
+                return Message(MessageType.CHARACTER_UPDATE_RESPONSE, {
+                    'success': False,
+                    'error': result.message,
+                    'character_id': character_id,
+                    'current_version': result_data.get('current_version'),
+                    'character_data': result_data.get('character_data'),
+                })
 
         except Exception as e:
             logger.error(f"Error handling character update: {e}")
@@ -268,15 +275,16 @@ class _CharactersMixin(_ProtocolBase):
             return Message(MessageType.ERROR, {'error': 'No active session'})
         user_id = self._get_user_id(msg, client_id) or 0
         d = msg.data
-        # Server computes roll — only accept intent (skill, modifier, advantage) from client
+        # The client names the intent only. Modifier and roll mode are resolved
+        # from the authorized canonical character sheet by ActionsCore.
         result = await self.actions.character_roll(
             session_id=session_id, user_id=user_id,
             character_id=d.get('character_id', ''),
             roll_type=d.get('roll_type', 'skill_check'),
             skill=d.get('skill', ''),
-            modifier=int(d.get('modifier', 0)),
-            advantage=bool(d.get('advantage', False)),
-            disadvantage=bool(d.get('disadvantage', False)),
+            modifier=0,
+            advantage=False,
+            disadvantage=False,
         )
         if not result.success:
             return Message(MessageType.ERROR, {'error': result.message})
@@ -413,9 +421,18 @@ class _CharactersMixin(_ProtocolBase):
         Called after character updates to keep token stats in sync.
         """
         try:
-            # Only sync if HP, max_hp, or AC were updated
-            stat_fields = {'hp', 'max_hp', 'ac'}
-            updated_stats = {k: v for k, v in updates.items() if k in stat_fields}
+            nested_stats = (updates.get('data') or {}).get('stats') or {}
+            root_stats = updates.get('stats') or {}
+            source_stats = {**root_stats, **nested_stats, **updates}
+            updated_stats = {}
+            if 'hp' in source_stats:
+                updated_stats['hp'] = source_stats['hp']
+            if 'maxHp' in source_stats:
+                updated_stats['max_hp'] = source_stats['maxHp']
+            elif 'max_hp' in source_stats:
+                updated_stats['max_hp'] = source_stats['max_hp']
+            if 'ac' in source_stats:
+                updated_stats['ac'] = source_stats['ac']
 
             if not updated_stats:
                 return  # No stats to sync
@@ -428,18 +445,17 @@ class _CharactersMixin(_ProtocolBase):
                 from database.models import Entity as DBEntity
                 from database.models import VirtualTable as DBVirtualTable
 
-                # Find the table_id for this session
-                table_record = db.query(DBVirtualTable).filter(
+                table_records = db.query(DBVirtualTable).filter(
                     DBVirtualTable.session_id == session_id
-                ).first()
+                ).all()
 
-                if not table_record:
+                if not table_records:
                     logger.debug(f"No table found for session {session_id}")
                     return
 
-                # Find all entities with this character_id in the table
+                table_by_id = {table.id: table for table in table_records}
                 linked_entities = db.query(DBEntity).filter(
-                    DBEntity.table_id == table_record.id,
+                    DBEntity.table_id.in_(table_by_id),
                     DBEntity.character_id == character_id
                 ).all()
 
@@ -448,21 +464,38 @@ class _CharactersMixin(_ProtocolBase):
                     return
 
                 # Update each linked entity
+                broadcasts = []
                 for entity in linked_entities:
                     # Update database entity
                     for field, value in updated_stats.items():
                         setattr(entity, field, value)
 
-                    # Update in-memory entity if it exists
-                    table = self.table_manager.get_table_by_session_id(session_id)
+                    table_record = table_by_id.get(entity.table_id)
+                    table = self.table_manager.tables.get(
+                        str(table_record.table_id) if table_record else ""
+                    )
                     if table:
-                        in_memory_entity = table.entities.get(entity.id)
+                        in_memory_entity = table.entities.get(entity.sprite_id)
                         if in_memory_entity:
                             for field, value in updated_stats.items():
                                 setattr(in_memory_entity, field, value)
 
+                    broadcasts.append((
+                        entity.sprite_id,
+                        table_record.table_id if table_record else None,
+                    ))
+
                 db.commit()
                 logger.info(f"Synced stats from character {character_id} to {len(linked_entities)} token(s)")
+
+                for sprite_id, table_id in broadcasts:
+                    await self.broadcast_to_session(Message(MessageType.SPRITE_UPDATE, {
+                        'sprite_id': sprite_id,
+                        'table_id': table_id,
+                        'updates': updated_stats,
+                        'operation': 'update',
+                        'source': 'character_sync',
+                    }), '')
 
             finally:
                 db.close()

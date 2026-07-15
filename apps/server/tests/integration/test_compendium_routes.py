@@ -13,10 +13,14 @@ class TestCompendiumStatus:
         assert response.status_code == 200
 
     def test_status_structure(self, client):
-        data = client.get(f"{BASE}/status").json()
+        response = client.get(f"{BASE}/status")
+        data = response.json()
         assert "status" in data
+        assert "artifact_version" in data
+        assert "verified" in data
         assert "data_availability" in data
         assert "counts" in data
+        assert response.headers["cache-control"] == "no-store"
 
 
 @pytest.mark.integration
@@ -57,7 +61,15 @@ class TestCompendiumSpells:
         assert client.get(f"{BASE}/spells?school=evocation").status_code in DATA_CODES
 
     def test_get_spells_with_limit(self, client):
-        assert client.get(f"{BASE}/spells?limit=5").status_code in DATA_CODES
+        response = client.get(f"{BASE}/spells?limit=5")
+        assert response.status_code in DATA_CODES
+        if response.status_code == 200:
+            assert response.json()["count"] <= 5
+            assert response.headers["etag"]
+            assert "max-age=300" in response.headers["cache-control"]
+
+    def test_get_spells_rejects_unbounded_limit(self, client):
+        assert client.get(f"{BASE}/spells?limit=501").status_code == 422
 
     def test_get_spell_not_found(self, client):
         assert client.get(f"{BASE}/spells/nonexistent_spell_xyz").status_code in ITEM_CODES
@@ -100,8 +112,8 @@ class TestCompendiumEquipment:
 
 
 @pytest.mark.integration
-class TestCompendiumReload:
-    def test_reload_endpoint(self, client):
+class TestCompendiumMutationBoundary:
+    def test_reload_endpoint_is_not_exposed(self, client):
         response = client.post(f"{BASE}/reload")
-        assert response.status_code in [200, 500]
+        assert response.status_code == 404
 

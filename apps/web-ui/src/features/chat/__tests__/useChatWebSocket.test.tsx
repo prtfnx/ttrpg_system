@@ -6,6 +6,7 @@ import { MessageType } from '@lib/websocket';
 
 // Minimal protocol mock — no real WebSocket needed
 const makeProtocol = (connected = false) => ({
+  getSessionCode: vi.fn().mockReturnValue('session-a'),
   registerHandler: vi.fn(),
   unregisterHandler: vi.fn(),
   onConnectionStateChange: vi.fn(),
@@ -32,7 +33,7 @@ import { useOptionalProtocol } from '@lib/api';
 
 describe('useChatWebSocket', () => {
   beforeEach(() => {
-    useChatStore.getState().clearMessages();
+    useChatStore.setState({ activeSessionId: null, messages: [], messagesBySession: {} });
     vi.clearAllMocks();
   });
 
@@ -53,13 +54,14 @@ describe('useChatWebSocket', () => {
       expect(useChatStore.getState().messages).toHaveLength(0);
     });
 
-    it('adds message to store for valid text (no protocol, no open ws)', () => {
+    it('marks a message failed when no authenticated protocol is available', () => {
       const { result } = renderHook(() => useChatWebSocket('ws://test', 'Alice'));
       act(() => { result.current.sendMessage('Hello!'); });
       const msgs = useChatStore.getState().messages;
       expect(msgs).toHaveLength(1);
       expect(msgs[0].text).toBe('Hello!');
       expect(msgs[0].user).toBe('Alice');
+      expect(msgs[0].deliveryStatus).toBe('failed');
     });
 
     it('sends via protocol when connected', () => {
@@ -132,7 +134,7 @@ describe('useChatWebSocket', () => {
       expect(unsubscribe).toHaveBeenCalled();
     });
 
-    it('can request all chat messages', () => {
+    it('loads one bounded older history page', () => {
       const protocol = makeProtocol(true);
       vi.mocked(useOptionalProtocol).mockReturnValue({ protocol } as unknown as ReturnType<typeof useOptionalProtocol>);
       const { result } = renderHook(() => useChatWebSocket('ws://test', 'Bob'));
@@ -142,8 +144,49 @@ describe('useChatWebSocket', () => {
 
       expect(protocol.sendMessage).toHaveBeenCalledWith(expect.objectContaining({
         type: MessageType.CHAT_REQUEST,
-        data: { all: true },
+        data: { count: 100 },
       }));
+    });
+
+    it('reconciles an optimistic message from server confirmation', () => {
+      const protocol = makeProtocol(true);
+      vi.mocked(useOptionalProtocol).mockReturnValue({ protocol } as unknown as ReturnType<typeof useOptionalProtocol>);
+      const { result } = renderHook(() => useChatWebSocket('ws://test', 'Bob'));
+      act(() => { result.current.sendMessage('Hello'); });
+      const operationId = useChatStore.getState().messages[0].client_operation_id!;
+      const confirmationHandler = protocol.registerHandler.mock.calls.find(
+        ([type]) => type === MessageType.CHAT_CONFIRMATION
+      )![1];
+
+      act(() => {
+        confirmationHandler({
+          type: MessageType.CHAT_CONFIRMATION,
+          data: {
+            client_operation_id: operationId,
+            chat_message: { id: 'server-1', client_operation_id: operationId, user: 'Bob', text: 'Hello', timestamp: 1 },
+          },
+          version: '0.1',
+          priority: 5,
+        });
+      });
+
+      expect(useChatStore.getState().messages).toEqual([
+        expect.objectContaining({ id: 'server-1', deliveryStatus: 'sent' }),
+      ]);
+    });
+
+    it('shares one transport binding between simultaneous chat surfaces', () => {
+      const protocol = makeProtocol(true);
+      vi.mocked(useOptionalProtocol).mockReturnValue({ protocol } as unknown as ReturnType<typeof useOptionalProtocol>);
+      const first = renderHook(() => useChatWebSocket('ws://test', 'Bob'));
+      const second = renderHook(() => useChatWebSocket('ws://test', 'Bob'));
+
+      expect(protocol.registerHandler).toHaveBeenCalledTimes(2);
+      expect(protocol.sendMessage).toHaveBeenCalledTimes(1);
+      first.unmount();
+      expect(protocol.unregisterHandler).not.toHaveBeenCalled();
+      second.unmount();
+      expect(protocol.unregisterHandler).toHaveBeenCalledTimes(2);
     });
   });
 

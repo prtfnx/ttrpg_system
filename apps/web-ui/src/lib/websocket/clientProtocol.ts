@@ -165,6 +165,10 @@ export class WebClientProtocol {
     return this.userId;
   }
 
+  getSessionCode(): string {
+    return this.sessionCode;
+  }
+
   // Compendium helpers
   addCompendiumSprite(tableId: string, spriteData: Record<string, unknown>): void {
     validateTableId(tableId);

@@ -2,135 +2,113 @@
 
 Audience: operators and maintainers protecting persisted game data.
 
-Status: usable for current SQLite-backed deployments. Non-SQLite production
-backup is not implemented in this repo.
+Status: implemented for the current SQLite plus Cloudflare R2 deployment.
+Provider-native tooling is required for non-SQLite databases.
 
-Last source audit: 2026-07-08
+Last source audit: 2026-07-14
 
-## Current persisted data
+## Backup-set contract
 
-The default local database is:
+An application backup is one database snapshot and one R2 snapshot with the
+same backup-set ID. Do not restore components from different sets.
 
-```text
-apps/server/ttrpg.db
+`scripts/backup_database.py` uses SQLite's online backup API and creates:
+
+- `database.sqlite3`;
+- `manifest.json` with the application commit, migration ledger, byte count,
+  SHA-256 checksum, SQLite `quick_check`, foreign-key result, and R2 snapshot ID.
+
+`scripts/r2_storage_admin.py` copies durable `assets/` objects to the separate
+bucket configured by `R2_BACKUP_BUCKET_NAME`. Its manifest records object sizes
+and binds the snapshot to the exact database-manifest and database checksums.
+Every copied object is checked before the R2 manifest is published.
+
+Backups contain authentication and game data. Store the database backup root
+outside the repository and disposable application filesystem, restrict access,
+and use encrypted storage with independent retention. The R2 backup bucket must
+not be the live asset bucket.
+
+## Create and verify a backup set
+
+Choose one unique ID. Production paths below are examples; use the mounted
+database path and an externally persisted backup destination for the actual
+deployment.
+
+```bash
+set_id="release-20260714T120000Z"
+python scripts/backup_database.py backup \
+  --database /var/data/ttrpg.db \
+  --output-dir /secure-backups/ttrpg \
+  --backup-set-id "$set_id"
+python scripts/r2_storage_admin.py backup \
+  --snapshot "$set_id" \
+  --database-manifest "/secure-backups/ttrpg/$set_id/manifest.json"
+python scripts/backup_database.py verify \
+  --manifest "/secure-backups/ttrpg/$set_id/manifest.json"
 ```
 
-`DATABASE_URL` overrides that path. When the URL contains `sqlite`, SQLAlchemy
-uses SQLite-specific `check_same_thread=False`.
+The R2 command requires the normal R2 credentials plus
+`R2_BACKUP_BUCKET_NAME`. It rejects a snapshot name that differs from the
+database backup-set ID. Any zero-byte file, failed SQLite integrity check,
+checksum mismatch, incomplete R2 copy, or component mismatch fails the command.
 
-Cloud asset bytes are not stored in SQLite. The `assets` table stores metadata
-and R2 object references; the actual uploaded files live in Cloudflare R2 when
-R2 is enabled.
+Run backups from scheduled infrastructure, capture command exit status and
+manifest location, and alert on missed or failed runs. The migration runner's
+local pre-migration copy is only a last line of defense; it is not a separate
+failure domain.
 
-## What exists today
+## Restore rehearsal
 
-Current backup-related code:
+Restore is dry-run by default. First copy the database set to an isolated host,
+configure access to the backup R2 bucket, and verify both halves:
 
-- `apps/server/database/migrations/run_migrations.py` creates a timestamped
-  SQLite file backup before applying migrations when run as a script.
-- `scripts/backup_database.py` contains `DatabaseBackupManager`, which uses the
-  SQLite backup API and can restore a backup over a target database.
-- `scripts/backup_database.ps1` copies a database file and rotates old backups.
-
-Important caveat: both top-level backup scripts still default to old
-`server_host` paths. Do not run them blindly. Pass current paths explicitly or
-update the scripts before making them part of normal operations.
-
-## Before risky changes
-
-Before a migration, deploy, or manual database edit:
-
-1. Stop writes if possible.
-2. Identify the active database path from `DATABASE_URL`.
-3. Create a backup outside the app directory or deployment container.
-4. Record the app commit, migration list, and backup filename.
-5. Test restore on a copy before touching production.
-
-The migration runner's local backup is a useful last line of defense, but it is
-not enough by itself for production. It sits beside the SQLite file and can be
-lost with the same disk.
-
-## Manual SQLite backup
-
-For local development, a simple offline file copy is usually enough after the
-server is stopped:
-
-```powershell
-Copy-Item apps\server\ttrpg.db backups\dev\ttrpg_backup_YYYYMMDD_HHMMSS.db
+```bash
+python scripts/backup_database.py restore \
+  --manifest "/secure-backups/ttrpg/$set_id/manifest.json" \
+  --database /rehearsal/ttrpg.db \
+  --output-dir /secure-backups/rehearsal
+python scripts/r2_storage_admin.py restore \
+  --snapshot "$set_id" \
+  --database-manifest "/secure-backups/ttrpg/$set_id/manifest.json"
 ```
 
-For a live SQLite database, prefer the SQLite backup API. The repo's Python
-helper already has that behavior in `DatabaseBackupManager.create_backup`.
+Then use `--apply` only in an approved rehearsal or maintenance window. The R2
+restore is additive and manifest-driven. Restore and verify R2 first so every
+database asset reference will have an object, then atomically replace SQLite:
 
-If you use `scripts/backup_database.py`, instantiate the manager with the
-current path:
-
-```python
-from scripts.backup_database import DatabaseBackupManager
-
-manager = DatabaseBackupManager("apps/server/ttrpg.db", "backups/dev")
-manager.create_backup()
+```bash
+python scripts/r2_storage_admin.py restore \
+  --snapshot "$set_id" \
+  --database-manifest "/secure-backups/ttrpg/$set_id/manifest.json" \
+  --apply
+python scripts/backup_database.py restore \
+  --manifest "/secure-backups/ttrpg/$set_id/manifest.json" \
+  --database /var/data/ttrpg.db \
+  --output-dir /secure-backups/pre-restore \
+  --apply
 ```
 
-Do not rely on its default development entrypoint until the stale
-`server_host/ttrpg.db` path is fixed.
+The database tool verifies the source, creates a new verified backup of the
+current target, restores into a temporary SQLite file, verifies it again, and
+uses an atomic filesystem replacement. Stop the application or otherwise block
+all writers before `--apply`; an open SQLite file can prevent replacement and
+must never be restored underneath active writers.
 
-## Restore
+## Post-restore acceptance
 
-Restore should happen with the app stopped or with all writers blocked.
+Before reopening traffic:
 
-Safe sequence:
+1. Run the numbered migration runner only if the selected release expects a
+   schema newer than the restored ledger.
+2. Confirm `/health/ready` is ready and reports the expected schema revision.
+3. Run `r2_storage_admin.py audit` and require no database keys missing in R2.
+4. Log in, open a known session and table, load a character, and verify public
+   chat plus a whisper from the restored period.
+5. Load at least one linked asset and perform a small R2 smoke round trip.
+6. Record start/end time, chosen manifest, achieved recovery point and recovery
+   time, validation evidence, and the approving operator.
 
-1. Confirm the backup file exists and is the intended version.
-2. Create a pre-restore backup of the current database.
-3. Replace the database file with the chosen backup.
-4. Start the server.
-5. Run a smoke check for login, session open, table load, and recent changed
-   feature data.
-6. Check `schema_migrations` if the restore crosses a migration boundary.
-
-For SQLite, restoring is usually a file replacement. For non-SQLite databases,
-use the provider's native restore tooling; the repo does not currently provide
-a tested restore path.
-
-## R2 assets
-
-Database backup does not back up R2 object data.
-
-If R2 is part of the deployment, backup planning also needs:
-
-- bucket retention or lifecycle policy;
-- credentials recovery plan;
-- a way to confirm that `assets.r2_key` rows still point to objects;
-- a tested answer for DB restored to a point before or after R2 object changes.
-
-The current asset delete handler removes the DB row first and then attempts R2
-deletion best-effort. A database restore can therefore bring back metadata for
-an object that no longer exists in R2.
-
-## Verification
-
-After a restore, check:
-
-```powershell
-cd apps/server
-python -m pytest tests\unit\test_models.py tests\unit\test_crud.py
-```
-
-Then run a manual smoke path:
-
-1. Open `/health`.
-2. Log in.
-3. Open a known session.
-4. Load a table with entities.
-5. Load a character.
-6. If R2 is enabled, open an asset-backed sprite or upload a small image.
-
-## Checklist
-
-- Active database path is known.
-- Backup is stored outside the app's disposable runtime.
-- Restore was tested on a copy.
-- R2 object data is considered separately from database rows.
-- Pre-restore backup exists before replacing the database.
-- Smoke check passes after restore.
+Define accepted RPO, RTO, backup frequency, retention, and the restore-drill
+owner outside the codebase. Exercise a clean-environment restore at least
+quarterly and after material persistence changes; a successful backup command
+without a successful restore rehearsal is not recovery evidence.

@@ -168,9 +168,9 @@ export function useChatWebSocket(_url: string, user: string) {
     }
 
     if (protocol?.isConnected()) {
-      protocol.sendMessage({
-        type: MessageType.CHAT_MESSAGE,
-        data: {
+      protocol.sendMessage(createMessage(
+        MessageType.CHAT_MESSAGE,
+        {
           message: {
             id: operationId,
             client_operation_id: operationId,
@@ -179,7 +179,7 @@ export function useChatWebSocket(_url: string, user: string) {
             timestamp: Date.now(),
           },
         },
-      } as Message);
+      ));
     } else {
       useChatStore.getState().failMessage(operationId);
     }

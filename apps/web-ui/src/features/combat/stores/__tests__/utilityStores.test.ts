@@ -10,7 +10,7 @@ function makeZone(id: string): CoverZone {
 }
 
 function makeEncounter(id = 'enc-1'): EncounterState {
-  return { encounter_id: id, title: 'Test', description: 'desc', phase: 'idle', choices: [] };
+  return { encounter_id: id, title: 'Test', description: 'desc', phase: 'presenting', choices: [] };
 }
 
 // ─── coverStore ─────────────────────────────────────────────────────────────

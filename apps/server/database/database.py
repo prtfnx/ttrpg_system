@@ -5,7 +5,6 @@ from __future__ import annotations
 import os
 
 from sqlalchemy import create_engine, event
-from sqlalchemy.engine import Engine
 from sqlalchemy.orm import sessionmaker
 
 from .models import Base
@@ -21,7 +20,7 @@ engine = create_engine(
 )
 
 
-@event.listens_for(Engine, "connect")
+@event.listens_for(engine, "connect")
 def _configure_sqlite_connection(dbapi_connection, connection_record) -> None:
     """Make SQLite integrity and writer behavior explicit on every connection."""
     if dbapi_connection.__class__.__module__.split(".")[0] != "sqlite3":

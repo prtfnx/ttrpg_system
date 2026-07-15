@@ -1093,13 +1093,15 @@ class ActionsCore(AsyncActionsProtocol):
             )
 
     async def load_character(self, session_id: int, character_id: str,
-                           user_id: int) -> ActionResult:
+                           user_id: int, bypass_owner_check: bool = False) -> ActionResult:
         """Load a character from the database"""
         try:
             from managers.character_manager import get_server_character_manager
 
             char_manager = get_server_character_manager()
-            result = char_manager.load_character(session_id, character_id, user_id)
+            result = char_manager.load_character(
+                session_id, character_id, user_id, bypass_owner_check
+            )
 
             if result['success']:
                 logger.info(f"Character loaded successfully: {character_id}")
@@ -1122,13 +1124,15 @@ class ActionsCore(AsyncActionsProtocol):
                 message=f"Server error: {str(e)}"
             )
 
-    async def list_characters(self, session_id: int, user_id: int) -> ActionResult:
+    async def list_characters(
+        self, session_id: int, user_id: int, bypass_owner_check: bool = False
+    ) -> ActionResult:
         """List characters for a session and user"""
         try:
             from managers.character_manager import get_server_character_manager
 
             char_manager = get_server_character_manager()
-            result = char_manager.list_characters(session_id, user_id)
+            result = char_manager.list_characters(session_id, user_id, bypass_owner_check)
 
             if result['success']:
                 characters = result.get('characters', [])
@@ -1153,13 +1157,15 @@ class ActionsCore(AsyncActionsProtocol):
             )
 
     async def delete_character(self, session_id: int, character_id: str,
-                             user_id: int) -> ActionResult:
+                             user_id: int, bypass_owner_check: bool = False) -> ActionResult:
         """Delete a character from the database"""
         try:
             from managers.character_manager import get_server_character_manager
 
             char_manager = get_server_character_manager()
-            result = char_manager.delete_character(session_id, character_id, user_id)
+            result = char_manager.delete_character(
+                session_id, character_id, user_id, bypass_owner_check
+            )
 
             if result['success']:
                 logger.info(f"Character deleted successfully: {character_id}")
@@ -1219,12 +1225,21 @@ class ActionsCore(AsyncActionsProtocol):
                 message=f"Server error: {str(e)}"
             )
 
-    async def get_character_log(self, session_id: int, character_id: str, user_id: int, limit: int = 50) -> ActionResult:
+    async def get_character_log(
+        self,
+        session_id: int,
+        character_id: str,
+        user_id: int,
+        limit: int = 50,
+        bypass_owner_check: bool = False,
+    ) -> ActionResult:
         """Return recent character log entries."""
         try:
             from managers.character_manager import get_server_character_manager
             char_manager = get_server_character_manager()
-            result = char_manager.get_character_logs(character_id, session_id, limit)
+            result = char_manager.get_character_logs(
+                character_id, session_id, user_id, limit, bypass_owner_check
+            )
             if result['success']:
                 return ActionResult(True, 'Log retrieved', {'logs': result['logs']})
             return ActionResult(False, result.get('error', 'Failed to get log'))
@@ -1234,14 +1249,17 @@ class ActionsCore(AsyncActionsProtocol):
 
     async def character_roll(self, session_id: int, character_id: str, user_id: int,
                              roll_type: str, skill: str, modifier: int,
-                             advantage: bool = False, disadvantage: bool = False) -> ActionResult:
+                             advantage: bool = False, disadvantage: bool = False,
+                             bypass_owner_check: bool = False) -> ActionResult:
         """Roll d20 server-side and log result for broadcast. Clients send intent only."""
         import secrets
         try:
             from managers.character_manager import get_server_character_manager
 
             char_manager = get_server_character_manager()
-            char_result = char_manager.load_character(session_id, character_id, user_id)
+            char_result = char_manager.load_character(
+                session_id, character_id, user_id, bypass_owner_check
+            )
             if not char_result.get('success'):
                 return ActionResult(False, 'Character not found or access denied')
 

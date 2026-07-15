@@ -11,6 +11,51 @@ logger = setup_logger(__name__)
 class _CharactersMixin(_ProtocolBase):
     """Handler methods for characters domain."""
 
+    def _character_client_ids(
+        self,
+        session_id: int,
+        character_id: str,
+        exclude_client: str | None = None,
+    ) -> list[str] | None:
+        client_info = getattr(self.session_manager, 'client_info', None)
+        if not isinstance(client_info, dict):
+            return None
+        from managers.character_manager import get_server_character_manager
+
+        manager = get_server_character_manager()
+        allowed = []
+        for target_client_id, info in client_info.items():
+            if target_client_id == exclude_client:
+                continue
+            user_id = info.get('user_id')
+            if user_id is None:
+                continue
+            if manager.can_view_character(
+                session_id,
+                character_id,
+                int(user_id),
+                bypass_owner_check=is_dm(info.get('role')),
+            ):
+                allowed.append(target_client_id)
+        return allowed
+
+    async def _broadcast_character_event(
+        self,
+        message: Message,
+        session_id: int,
+        character_id: str,
+        exclude_client: str | None = None,
+        target_clients: list[str] | None = None,
+    ) -> None:
+        targets = target_clients
+        if targets is None:
+            targets = self._character_client_ids(session_id, character_id, exclude_client)
+        if targets is None:
+            await self.broadcast_to_session(message, exclude_client or '')
+            return
+        for target_client_id in targets:
+            await self.send_to_client(message, target_client_id)
+
     async def handle_character_save_request(self, msg: Message, client_id: str) -> Message:
         """Handle character save request"""
         logger.debug(f"Character save request received: {msg}")
@@ -47,12 +92,12 @@ class _CharactersMixin(_ProtocolBase):
             # Broadcast full character data so other clients can update their state
             char_for_broadcast = dict(character_data)
             char_for_broadcast['character_id'] = character_id_saved
-            await self.broadcast_to_session(Message(MessageType.CHARACTER_UPDATE, {
+            await self._broadcast_character_event(Message(MessageType.CHARACTER_UPDATE, {
                 'operation': 'save',
                 'character_id': character_id_saved,
                 'character_data': char_for_broadcast,
                 'version': version_saved,
-            }), client_id)
+            }), session_id, character_id_saved, client_id)
 
             return Message(MessageType.CHARACTER_SAVE_RESPONSE, {
                 'success': True,
@@ -93,7 +138,12 @@ class _CharactersMixin(_ProtocolBase):
                 'error': f'Session {session_code} not found'
             })
 
-        result = await self.actions.load_character(session_id, character_id, user_id)
+        result = await self.actions.load_character(
+            session_id,
+            character_id,
+            user_id,
+            bypass_owner_check=is_dm(self._get_client_role(client_id)),
+        )
 
         if result.success:
             resdata = result.data or {}
@@ -129,8 +179,9 @@ class _CharactersMixin(_ProtocolBase):
             })
 
         role = self._get_client_role(client_id)
-        user_id_for_filter = 0 if is_dm(role) else user_id
-        result = await self.actions.list_characters(session_id, user_id_for_filter)
+        result = await self.actions.list_characters(
+            session_id, user_id, bypass_owner_check=is_dm(role)
+        )
 
         if result.success:
             resdata = result.data or {}
@@ -173,13 +224,19 @@ class _CharactersMixin(_ProtocolBase):
                 'error': f'Session {session_code} not found'
             })
 
-        result = await self.actions.delete_character(session_id, character_id, user_id)
+        target_clients = self._character_client_ids(session_id, character_id, client_id)
+        result = await self.actions.delete_character(
+            session_id,
+            character_id,
+            user_id,
+            bypass_owner_check=is_dm(self._get_client_role(client_id)),
+        )
 
         if result.success:
-            await self.broadcast_to_session(Message(MessageType.CHARACTER_UPDATE, {
+            await self._broadcast_character_event(Message(MessageType.CHARACTER_UPDATE, {
                 'operation': 'delete',
                 'character_id': character_id,
-            }), client_id)
+            }), session_id, character_id, client_id, target_clients)
 
             return Message(MessageType.CHARACTER_DELETE_RESPONSE, {
                 'success': True,
@@ -215,7 +272,14 @@ class _CharactersMixin(_ProtocolBase):
             if not hasattr(self.actions, 'update_character'):
                 return Message(MessageType.CHARACTER_UPDATE_RESPONSE, {'success': False, 'error': 'Server does not support character delta updates'})
 
-            result = await self.actions.update_character(session_id=session_id, character_id=character_id, updates=updates, user_id=user_id, expected_version=version)
+            result = await self.actions.update_character(
+                session_id=session_id,
+                character_id=character_id,
+                updates=updates,
+                user_id=user_id,
+                expected_version=version,
+                bypass_owner_check=is_dm(self._get_client_role(client_id)),
+            )
 
             if result.success:
                 # Sync character stats to linked tokens
@@ -231,7 +295,9 @@ class _CharactersMixin(_ProtocolBase):
                     'updates': updates,
                     'version': returned_version if returned_version is not None else version
                 })
-                await self.broadcast_to_session(broadcast, client_id)
+                await self._broadcast_character_event(
+                    broadcast, session_id, character_id, client_id
+                )
 
                 return Message(MessageType.CHARACTER_UPDATE_RESPONSE, {'success': True, 'character_id': character_id, 'message': result.message if hasattr(result, 'message') else 'updated', 'version': returned_version})
             else:
@@ -258,7 +324,13 @@ class _CharactersMixin(_ProtocolBase):
         limit = int(msg.data.get('limit', 50))
         if not character_id or not session_id:
             return Message(MessageType.CHARACTER_LOG_RESPONSE, {'success': False, 'error': 'character_id and session required'})
-        result = await self.actions.get_character_log(session_id, character_id, user_id, limit)
+        result = await self.actions.get_character_log(
+            session_id,
+            character_id,
+            user_id,
+            limit,
+            bypass_owner_check=is_dm(self._get_client_role(client_id)),
+        )
         if result.success:
             return Message(MessageType.CHARACTER_LOG_RESPONSE, {
                 'success': True, 'character_id': character_id,
@@ -285,6 +357,7 @@ class _CharactersMixin(_ProtocolBase):
             modifier=0,
             advantage=False,
             disadvantage=False,
+            bypass_owner_check=is_dm(self._get_client_role(client_id)),
         )
         if not result.success:
             return Message(MessageType.ERROR, {'error': result.message})
@@ -314,7 +387,9 @@ class _CharactersMixin(_ProtocolBase):
         from managers.character_manager import get_server_character_manager
         char_mgr = get_server_character_manager()
 
-        load_result = char_mgr.load_character(session_id, character_id, user_id=0)
+        load_result = char_mgr.load_character(
+            session_id, character_id, user_id=user_id, bypass_owner_check=True
+        )
         if not load_result.get('success'):
             return Message(MessageType.XP_AWARD_RESPONSE, {'success': False, 'error': load_result.get('error', 'Character not found')})
 
@@ -388,7 +463,12 @@ class _CharactersMixin(_ProtocolBase):
         char_mgr = get_server_character_manager()
 
         is_dm_client = is_dm(self._get_client_role(client_id))
-        load_result = char_mgr.load_character(session_id, character_id, user_id=user_id if not is_dm_client else 0)
+        load_result = char_mgr.load_character(
+            session_id,
+            character_id,
+            user_id=user_id,
+            bypass_owner_check=is_dm_client,
+        )
         if not load_result.get('success'):
             return Message(MessageType.MULTICLASS_RESPONSE, {'success': False, 'error': load_result.get('error', 'Character not found')})
 

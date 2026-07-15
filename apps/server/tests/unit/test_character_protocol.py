@@ -474,7 +474,7 @@ class TestCharacterLoadRequest:
 @pytest.mark.unit
 class TestCharacterListRequest:
     async def test_dm_gets_all_characters(self):
-        """DM passes user_id=0 to list_characters so they see everyone's characters."""
+        """DM keeps an auditable identity and receives an explicit policy bypass."""
         from core_table.protocol import Message, MessageType
 
         proto = _make_proto()
@@ -491,9 +491,7 @@ class TestCharacterListRequest:
 
         assert resp.data["success"] is True
         assert len(resp.data["characters"]) == 2
-        # DM filter: user_id=0 means all characters
-        list_mock.assert_awaited_once()
-        assert list_mock.call_args[0][1] == 0  # user_id_for_filter
+        list_mock.assert_awaited_once_with(1, 1, bypass_owner_check=True)
 
     async def test_player_gets_own_characters(self):
         """Player passes their own user_id so list_characters filters."""
@@ -512,7 +510,7 @@ class TestCharacterListRequest:
         with patch.object(proto.actions, "list_characters", new=list_mock):
             await proto.handle_character_list_request(msg, "player1")
 
-        assert list_mock.call_args[0][1] == 42  # user_id passed through
+        list_mock.assert_awaited_once_with(1, 42, bypass_owner_check=False)
 
     async def test_session_not_found_returns_error(self):
         from core_table.protocol import Message, MessageType
@@ -688,6 +686,36 @@ class TestXpAward:
         assert resp.data["success"] is False
         assert "DM" in resp.data["error"]
         proto.broadcast_to_session.assert_not_awaited()  # type: ignore[attr-defined]
+
+    async def test_character_event_is_sent_only_to_authorized_clients(self):
+        from core_table.protocol import Message, MessageType
+
+        proto = _make_proto()
+        proto.session_manager.client_info = {
+            "owner-client": {"user_id": 1, "role": "player"},
+            "viewer-client": {"user_id": 2, "role": "player"},
+            "other-client": {"user_id": 3, "role": "player"},
+            "dm-client": {"user_id": 4, "role": "owner"},
+        }
+        manager = MagicMock()
+        manager.can_view_character.side_effect = (
+            lambda _session, _character, user_id, bypass_owner_check=False:
+            user_id in {1, 2} or bypass_owner_check
+        )
+        with patch(
+            "managers.character_manager.get_server_character_manager",
+            return_value=manager,
+        ):
+            await proto._broadcast_character_event(
+                Message(MessageType.CHARACTER_UPDATE, {"character_id": "char-1"}),
+                1,
+                "char-1",
+                "owner-client",
+            )
+
+        delivered = {call.args[1] for call in proto.send_to_client.await_args_list}
+        assert delivered == {"viewer-client", "dm-client"}
+        proto.broadcast_to_session.assert_not_awaited()
 
     async def test_session_not_found_returns_error(self):
         from core_table.protocol import Message, MessageType

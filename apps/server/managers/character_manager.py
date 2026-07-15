@@ -11,8 +11,14 @@ from datetime import datetime
 from typing import Any, Dict, Optional
 
 from database.database import SessionLocal
-from database.models import CharacterLog, GameSession, SessionCharacter
-from sqlalchemy import and_
+from database.models import (
+    CharacterLog,
+    CharacterPermission,
+    GamePlayer,
+    GameSession,
+    SessionCharacter,
+)
+from sqlalchemy import and_, or_
 from utils.logger import setup_logger
 
 logger = setup_logger(__name__)
@@ -50,6 +56,84 @@ class ServerCharacterManager:
     def __init__(self):
         logger.info("ServerCharacterManager initialized")
         # No need to manually create table - SQLAlchemy migrations handle this
+
+    @staticmethod
+    def _can_view(db: Any, character: SessionCharacter, user_id: int, bypass: bool = False) -> bool:
+        if bypass or int(character.owner_user_id) == int(user_id):
+            return True
+        return db.query(CharacterPermission.id).filter(
+            CharacterPermission.character_id == character.character_id,
+            CharacterPermission.session_id == character.session_id,
+            CharacterPermission.user_id == user_id,
+            CharacterPermission.can_view.is_(True),
+        ).first() is not None
+
+    @staticmethod
+    def _can_edit(db: Any, character: SessionCharacter, user_id: int, bypass: bool = False) -> bool:
+        if bypass or int(character.owner_user_id) == int(user_id):
+            return True
+        return db.query(CharacterPermission.id).filter(
+            CharacterPermission.character_id == character.character_id,
+            CharacterPermission.session_id == character.session_id,
+            CharacterPermission.user_id == user_id,
+            CharacterPermission.can_edit.is_(True),
+        ).first() is not None
+
+    @staticmethod
+    def _sync_controlled_by(
+        db: Any,
+        character: SessionCharacter,
+        controlled_by: Any,
+        granted_by: int,
+    ) -> Optional[str]:
+        if not isinstance(controlled_by, list):
+            return "controlledBy must be an array of session user ids"
+        try:
+            requested = {int(user_id) for user_id in controlled_by}
+        except (TypeError, ValueError):
+            return "controlledBy contains an invalid user id"
+        requested.discard(int(character.owner_user_id))
+        if requested:
+            members = {
+                row[0]
+                for row in db.query(GamePlayer.user_id).filter(
+                    GamePlayer.session_id == character.session_id,
+                    GamePlayer.user_id.in_(requested),
+                ).all()
+            }
+            if members != requested:
+                return "Every character controller must be a member of this session"
+        db.query(CharacterPermission).filter(
+            CharacterPermission.character_id == character.character_id,
+        ).delete(synchronize_session=False)
+        for user_id in requested:
+            db.add(CharacterPermission(
+                character_id=character.character_id,
+                session_id=character.session_id,
+                user_id=user_id,
+                can_view=True,
+                can_edit=True,
+                can_control=True,
+                granted_by=granted_by,
+            ))
+        return None
+
+    def can_view_character(
+        self,
+        session_id: int,
+        character_id: str,
+        user_id: int,
+        bypass_owner_check: bool = False,
+    ) -> bool:
+        with SessionLocal() as db:
+            character = db.query(SessionCharacter).filter(
+                SessionCharacter.session_id == session_id,
+                SessionCharacter.character_id == character_id,
+            ).first()
+            return bool(
+                character
+                and self._can_view(db, character, user_id, bypass_owner_check)
+            )
 
     def save_character(self, session_id: int, character_data: Dict[str, Any],
                       user_id: int) -> Dict[str, Any]:
@@ -114,7 +198,19 @@ class ServerCharacterManager:
                         owner_user_id=user_id
                     )
                     db.add(new_character)
+                    db.flush()
                     logger.info(f"Created character {character_name} (ID: {character_id})")
+
+                if 'controlledBy' in character_data:
+                    permission_error = self._sync_controlled_by(
+                        db,
+                        existing or new_character,
+                        character_data.get('controlledBy'),
+                        user_id,
+                    )
+                    if permission_error:
+                        db.rollback()
+                        return {'success': False, 'error': permission_error}
 
                 db.commit()
 
@@ -171,8 +267,11 @@ class ServerCharacterManager:
                 if not existing:
                     return {'success': False, 'error': 'Character not found'}
 
-                if not bypass_owner_check and str(getattr(existing, 'owner_user_id', '')) != str(user_id):
+                is_owner = int(existing.owner_user_id) == int(user_id)
+                if not self._can_edit(db, existing, user_id, bypass_owner_check):
                     return {'success': False, 'error': 'Permission denied'}
+                if 'controlledBy' in updates and not (is_owner or bypass_owner_check):
+                    return {'success': False, 'error': 'Only the owner or a DM can change sharing'}
 
                 # Version check
                 current_version = getattr(existing, 'version', 1) or 1
@@ -228,6 +327,17 @@ class ServerCharacterManager:
                         'current_version': latest_version,
                     }
 
+                if 'controlledBy' in updates:
+                    permission_error = self._sync_controlled_by(
+                        db,
+                        existing,
+                        merged.get('controlledBy', []),
+                        user_id,
+                    )
+                    if permission_error:
+                        db.rollback()
+                        return {'success': False, 'error': permission_error}
+
                 # Auto-log key character changes
                 self._detect_and_log(db, character_id, session_id, user_id, current_json, updates)
 
@@ -248,7 +358,7 @@ class ServerCharacterManager:
             return {'success': False, 'error': f'Database error: {str(e)}'}
 
     def load_character(self, session_id: int, character_id: str,
-                      user_id: int) -> Dict[str, Any]:
+                      user_id: int, bypass_owner_check: bool = False) -> Dict[str, Any]:
         """Load a character from the database"""
         try:
             with SessionLocal() as db:
@@ -257,11 +367,12 @@ class ServerCharacterManager:
                     and_(
                         SessionCharacter.character_id == character_id,
                         SessionCharacter.session_id == session_id,
-                        SessionCharacter.owner_user_id == user_id
                     )
                 ).first()
 
-                if not character:
+                if not character or not self._can_view(
+                    db, character, user_id, bypass_owner_check
+                ):
                     return {
                         'success': False,
                         'error': f'Character {character_id} not found or access denied'
@@ -291,15 +402,30 @@ class ServerCharacterManager:
                 'error': f'Database error: {str(e)}'
             }
 
-    def list_characters(self, session_id: int, user_id: int) -> Dict[str, Any]:
-        """List characters for a session. DMs (user_id=0) get all characters."""
+    def list_characters(
+        self,
+        session_id: int,
+        user_id: int,
+        bypass_owner_check: bool = False,
+    ) -> Dict[str, Any]:
+        """List only characters visible under the server sharing policy."""
         try:
             with SessionLocal() as db:
                 query = db.query(SessionCharacter).filter(
                     SessionCharacter.session_id == session_id
                 )
-                if user_id:  # user_id=0 means DM — return all
-                    query = query.filter(SessionCharacter.owner_user_id == user_id)
+                if not bypass_owner_check:
+                    query = query.outerjoin(
+                        CharacterPermission,
+                        and_(
+                            CharacterPermission.character_id == SessionCharacter.character_id,
+                            CharacterPermission.user_id == user_id,
+                            CharacterPermission.can_view.is_(True),
+                        ),
+                    ).filter(or_(
+                        SessionCharacter.owner_user_id == user_id,
+                        CharacterPermission.id.is_not(None),
+                    ))
                 characters = query.order_by(SessionCharacter.updated_at.desc()).all()
 
                 character_list = []
@@ -329,7 +455,7 @@ class ServerCharacterManager:
             }
 
     def delete_character(self, session_id: int, character_id: str,
-                        user_id: int) -> Dict[str, Any]:
+                        user_id: int, bypass_owner_check: bool = False) -> Dict[str, Any]:
         """Delete a character from the database"""
         try:
             with SessionLocal() as db:
@@ -338,11 +464,12 @@ class ServerCharacterManager:
                     and_(
                         SessionCharacter.character_id == character_id,
                         SessionCharacter.session_id == session_id,
-                        SessionCharacter.owner_user_id == user_id
                     )
                 ).first()
 
-                if not character:
+                if not character or not (
+                    bypass_owner_check or int(character.owner_user_id) == int(user_id)
+                ):
                     return {
                         'success': False,
                         'error': f'Character {character_id} not found or access denied'
@@ -436,10 +563,25 @@ class ServerCharacterManager:
                 self._log(db, character_id, session_id, user_id, 'item_change',
                           f"Removed {len(old_items) - len(new_items)} item(s)")
 
-    def get_character_logs(self, character_id: str, session_id: int, limit: int = 50) -> Dict[str, Any]:
+    def get_character_logs(
+        self,
+        character_id: str,
+        session_id: int,
+        user_id: int,
+        limit: int = 50,
+        bypass_owner_check: bool = False,
+    ) -> Dict[str, Any]:
         """Return recent log entries for a character."""
         try:
             with SessionLocal() as db:
+                character = db.query(SessionCharacter).filter(
+                    SessionCharacter.character_id == character_id,
+                    SessionCharacter.session_id == session_id,
+                ).first()
+                if not character or not self._can_view(
+                    db, character, user_id, bypass_owner_check
+                ):
+                    return {'success': False, 'error': 'Character not found or access denied'}
                 entries = (
                     db.query(CharacterLog)
                     .filter(CharacterLog.character_id == character_id,

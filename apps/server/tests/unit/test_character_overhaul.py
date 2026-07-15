@@ -178,6 +178,50 @@ class TestBypassOwnerCheck:
         assert loaded["character_data"]["data"]["stats"]["hp"] == 3
 
 
+@pytest.mark.unit
+class TestCharacterSharingPolicy:
+    def test_controller_can_read_and_edit_but_cannot_reshare_or_delete(
+        self, manager, user_and_session, db_mod
+    ):
+        uid, sid = user_and_session
+        from database.models import GamePlayer, User
+
+        with db_mod.SessionLocal() as db:
+            controller = User(
+                username="controller",
+                email="controller@example.com",
+                full_name="Controller",
+                hashed_password="x",
+            )
+            db.add(controller)
+            db.flush()
+            db.add(GamePlayer(session_id=sid, user_id=controller.id, role="player"))
+            db.commit()
+            controller_id = controller.id
+
+        saved = manager.save_character(sid, {
+            "character_id": "shared-1",
+            "name": "Shared",
+            "controlledBy": [controller_id],
+            "data": {"stats": {"hp": 10, "maxHp": 20}},
+        }, uid)
+        assert saved["success"] is True
+        assert manager.load_character(sid, "shared-1", controller_id)["success"] is True
+        assert len(manager.list_characters(sid, controller_id)["characters"]) == 1
+
+        updated = manager.update_character(
+            sid, "shared-1", {"data": {"stats": {"hp": 7}}}, controller_id
+        )
+        assert updated["success"] is True
+        assert updated["character_data"]["data"]["stats"]["maxHp"] == 20
+
+        reshared = manager.update_character(
+            sid, "shared-1", {"controlledBy": []}, controller_id
+        )
+        assert reshared["success"] is False
+        assert manager.delete_character(sid, "shared-1", controller_id)["success"] is False
+
+
 # ---------------------------------------------------------------------------
 # save_character
 # ---------------------------------------------------------------------------
@@ -308,7 +352,7 @@ class TestListCharacters:
         manager.save_character(sid, {"character_id": "dm1", "name": "P1 Char"}, uid)
         manager.save_character(sid, {"character_id": "dm2", "name": "P2 Char"}, p2_id)
         # user_id=0 means DM — get all
-        r = manager.list_characters(sid, 0)
+        r = manager.list_characters(sid, uid, bypass_owner_check=True)
         assert r["success"] is True
         assert len(r["characters"]) == 2
 
@@ -388,13 +432,13 @@ class TestCharacterLogs:
         }
         manager.save_character(sid, char, uid)
         manager.update_character(sid, "log1", {"data": {"stats": {"hp": 5, "maxHp": 20}}}, uid)
-        r = manager.get_character_logs("log1", sid)
+        r = manager.get_character_logs("log1", sid, uid)
         assert r["success"] is True
         hp_logs = [log for log in r["logs"] if log["action_type"] == "hp_change"]
         assert len(hp_logs) >= 1
 
-    def test_get_logs_empty_returns_empty_list(self, manager, user_and_session):
+    def test_get_logs_for_missing_character_is_denied(self, manager, user_and_session):
         uid, sid = user_and_session
-        r = manager.get_character_logs("no-such-char", sid)
-        assert r["success"] is True
-        assert r["logs"] == []
+        r = manager.get_character_logs("no-such-char", sid, uid)
+        assert r["success"] is False
+        assert "access" in r["error"].lower()

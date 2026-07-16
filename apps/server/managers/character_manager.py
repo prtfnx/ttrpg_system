@@ -14,6 +14,7 @@ from database.database import SessionLocal
 from database.models import (
     CharacterLog,
     CharacterPermission,
+    Entity,
     GamePlayer,
     GameSession,
     SessionCharacter,
@@ -130,6 +131,7 @@ class ServerCharacterManager:
             character = db.query(SessionCharacter).filter(
                 SessionCharacter.session_id == session_id,
                 SessionCharacter.character_id == character_id,
+                SessionCharacter.archived_at.is_(None),
             ).first()
             return bool(
                 character
@@ -170,6 +172,11 @@ class ServerCharacterManager:
                 # ensure new_version defined for return value
                 new_version = 1
                 if existing:
+                    if existing.archived_at is not None:
+                        return {
+                            'success': False,
+                            'error': 'Character is archived and cannot be overwritten',
+                        }
                     # Update existing character (only if owned by user)
                     if str(getattr(existing, 'owner_user_id', '')) != str(user_id):  # type: ignore
                         return {
@@ -266,7 +273,8 @@ class ServerCharacterManager:
 
                 existing = db.query(SessionCharacter).filter(
                     SessionCharacter.character_id == character_id,
-                    SessionCharacter.session_id == session_id
+                    SessionCharacter.session_id == session_id,
+                    SessionCharacter.archived_at.is_(None),
                 ).with_for_update().first()
 
                 if not existing:
@@ -315,6 +323,7 @@ class ServerCharacterManager:
                     SessionCharacter.character_id == character_id,
                     SessionCharacter.session_id == session_id,
                     SessionCharacter.version == current_version,
+                    SessionCharacter.archived_at.is_(None),
                 ).update({
                     SessionCharacter.character_data: merged_json,
                     SessionCharacter.updated_at: datetime.utcnow(),
@@ -327,6 +336,7 @@ class ServerCharacterManager:
                     latest_version = db.query(SessionCharacter.version).filter(
                         SessionCharacter.character_id == character_id,
                         SessionCharacter.session_id == session_id,
+                        SessionCharacter.archived_at.is_(None),
                     ).scalar()
                     return {
                         'success': False,
@@ -374,6 +384,7 @@ class ServerCharacterManager:
                     and_(
                         SessionCharacter.character_id == character_id,
                         SessionCharacter.session_id == session_id,
+                        SessionCharacter.archived_at.is_(None),
                     )
                 ).first()
 
@@ -421,7 +432,8 @@ class ServerCharacterManager:
         try:
             with SessionLocal() as db:
                 query = db.query(SessionCharacter).filter(
-                    SessionCharacter.session_id == session_id
+                    SessionCharacter.session_id == session_id,
+                    SessionCharacter.archived_at.is_(None),
                 )
                 if not bypass_owner_check:
                     query = query.outerjoin(
@@ -467,10 +479,9 @@ class ServerCharacterManager:
 
     def delete_character(self, session_id: int, character_id: str,
                         user_id: int, bypass_owner_check: bool = False) -> Dict[str, Any]:
-        """Delete a character from the database"""
+        """Archive a character, unlink its tokens, and preserve its audit log."""
         try:
             with SessionLocal() as db:
-                # Find and delete character (only if owned by user)
                 character = db.query(SessionCharacter).filter(
                     and_(
                         SessionCharacter.character_id == character_id,
@@ -486,15 +497,53 @@ class ServerCharacterManager:
                         'error': f'Character {character_id} not found or access denied'
                     }
 
+                if character.archived_at is not None:
+                    return {
+                        'success': True,
+                        'archived': True,
+                        'already_archived': True,
+                        'unlinked_tokens': 0,
+                        'message': f'Character {character.character_name} is already archived',
+                    }
+
                 character_name = character.character_name
-                db.delete(character)
+                unlinked_tokens = db.query(Entity).filter(
+                    Entity.character_id == character_id,
+                ).update(
+                    {Entity.character_id: None},
+                    synchronize_session=False,
+                )
+                db.query(CharacterPermission).filter(
+                    CharacterPermission.character_id == character_id,
+                ).delete(synchronize_session=False)
+
+                archived_at = datetime.utcnow()
+                character.archived_at = archived_at
+                character.archived_by = user_id
+                character.last_modified_by = user_id
+                character.updated_at = archived_at
+                character.version = int(character.version or 1) + 1
+                self._log(
+                    db,
+                    character_id,
+                    session_id,
+                    user_id,
+                    'character_archived',
+                    f'Character archived; unlinked {unlinked_tokens} token(s)',
+                )
                 db.commit()
 
-                logger.info(f"Deleted character {character_name} (ID: {character_id}) for user {user_id}")
+                logger.info(
+                    f"Archived character {character_name} (ID: {character_id}); "
+                    f"unlinked {unlinked_tokens} token(s)"
+                )
 
                 return {
                     'success': True,
-                    'message': f'Character {character_name} deleted successfully'
+                    'archived': True,
+                    'already_archived': False,
+                    'unlinked_tokens': unlinked_tokens,
+                    'message': f'Character {character_name} archived successfully',
                 }
 
         except Exception as e:

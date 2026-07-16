@@ -363,12 +363,80 @@ class TestListCharacters:
 
 @pytest.mark.unit
 class TestDeleteCharacter:
-    def test_delete_own_character(self, manager, user_and_session):
+    def test_delete_archives_unlinks_tokens_and_preserves_logs(
+        self, manager, user_and_session, db_mod
+    ):
         uid, sid = user_and_session
         manager.save_character(sid, {"character_id": "del1", "name": "Gone"}, uid)
+        from database.models import CharacterLog, Entity, SessionCharacter, VirtualTable
+
+        db = db_mod.SessionLocal()
+        try:
+            table = VirtualTable(
+                table_id="table-1",
+                session_id=sid,
+                name="Map",
+                width=100,
+                height=100,
+            )
+            db.add(table)
+            db.flush()
+            token = Entity(
+                entity_id=1,
+                sprite_id="token-1",
+                table_id=table.id,
+                name="Gone token",
+                position_x=0,
+                position_y=0,
+                layer="tokens",
+                character_id="del1",
+            )
+            db.add(token)
+            db.add(CharacterLog(
+                character_id="del1",
+                session_id=sid,
+                user_id=uid,
+                action_type="skill_roll",
+                description="A retained log entry",
+            ))
+            db.commit()
+        finally:
+            db.close()
+
         r = manager.delete_character(sid, "del1", uid)
         assert r["success"] is True
-        assert "deleted" in r["message"].lower()
+        assert r["archived"] is True
+        assert r["unlinked_tokens"] == 1
+
+        assert manager.load_character(sid, "del1", uid)["success"] is False
+        assert manager.list_characters(sid, uid)["characters"] == []
+        logs = manager.get_character_logs("del1", sid, uid)
+        assert logs["success"] is True
+        assert {entry["action_type"] for entry in logs["logs"]} == {
+            "character_archived",
+            "skill_roll",
+        }
+
+        db = db_mod.SessionLocal()
+        try:
+            archived = db.query(SessionCharacter).filter_by(character_id="del1").one()
+            token = db.query(Entity).filter_by(sprite_id="token-1").one()
+            assert archived.archived_at is not None
+            assert archived.archived_by == uid
+            assert token.character_id is None
+        finally:
+            db.close()
+
+    def test_archive_is_idempotent(self, manager, user_and_session):
+        uid, sid = user_and_session
+        manager.save_character(sid, {"character_id": "del-repeat", "name": "Gone"}, uid)
+        first = manager.delete_character(sid, "del-repeat", uid)
+        second = manager.delete_character(sid, "del-repeat", uid)
+        assert first["already_archived"] is False
+        assert second["success"] is True
+        assert second["already_archived"] is True
+        logs = manager.get_character_logs("del-repeat", sid, uid)
+        assert [entry["action_type"] for entry in logs["logs"]] == ["character_archived"]
 
     def test_delete_nonexistent_returns_error(self, manager, user_and_session):
         uid, sid = user_and_session

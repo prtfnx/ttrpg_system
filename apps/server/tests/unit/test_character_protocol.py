@@ -118,6 +118,23 @@ class TestCharacterRollGeneric:
         assert r.data["total"] == r.data["die_roll"] + 3
         assert r.data["roll_type"] == "skill_check"
 
+        from database.database import SessionLocal
+        from database.models import CharacterLog, ChatMessage
+
+        db = SessionLocal()
+        try:
+            saved = db.query(ChatMessage).one()
+            activity = db.query(CharacterLog).one()
+            payload = saved.to_dict()
+            assert saved.channel == "public"
+            assert payload["kind"] == "system"
+            assert payload["system_event"]["schemaVersion"] == 1
+            assert payload["system_event"]["type"] == "character_roll"
+            assert payload["system_event"]["payload"]["total"] == r.data["total"]
+            assert activity.action_type == "skill_roll"
+        finally:
+            db.close()
+
     async def test_saving_throw_returns_valid_roll(self, manager, user_and_session):
         r = await self._run(manager, user_and_session, "saving_throw", modifier=-1)
         assert r.success
@@ -261,16 +278,21 @@ class TestCharacterRollHandlerBroadcast:
                 success=True,
                 data={"character_id": "char-1", "die_roll": 14, "total": 16, "roll_type": "skill_check",
                       "skill": "athletics", "modifier": 2, "advantage": False, "disadvantage": False,
-                      "description": "athletics (skill_check): d20=14+2 = 16"},
+                      "description": "athletics (skill_check): d20=14+2 = 16",
+                      "chat_message": {"id": "chat-1", "kind": "system", "text": "roll"}},
                 message="Roll completed",
             )
         )):
             await proto.handle_character_roll(msg, "client1")
 
-        proto.broadcast_to_session.assert_awaited_once() # type: ignore[attr-defined]
-        broadcast_msg = proto.broadcast_to_session.call_args[0][0] # type: ignore[attr-defined]
-        assert broadcast_msg.type == MessageType.CHARACTER_ROLL_RESULT
-        assert broadcast_msg.data["character_id"] == "char-1"
+        assert proto.broadcast_to_session.await_count == 2 # type: ignore[attr-defined]
+        chat_msg = proto.broadcast_to_session.await_args_list[0].args[0] # type: ignore[attr-defined]
+        roll_msg = proto.broadcast_to_session.await_args_list[1].args[0] # type: ignore[attr-defined]
+        assert chat_msg.type == MessageType.CHAT
+        assert chat_msg.data["message"]["id"] == "chat-1"
+        assert roll_msg.type == MessageType.CHARACTER_ROLL_RESULT
+        assert roll_msg.data["character_id"] == "char-1"
+        assert "chat_message" not in roll_msg.data
 
 
 # ---------------------------------------------------------------------------

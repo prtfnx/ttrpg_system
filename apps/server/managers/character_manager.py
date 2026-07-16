@@ -7,17 +7,19 @@ Handles character persistence in the database for game sessions
 import json
 import uuid
 from copy import deepcopy
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Any, Dict, Optional
 
 from database.database import SessionLocal
 from database.models import (
     CharacterLog,
     CharacterPermission,
+    ChatMessage,
     Entity,
     GamePlayer,
     GameSession,
     SessionCharacter,
+    User,
 )
 from sqlalchemy import and_, or_
 from service.character_schema import validate_character_document
@@ -412,7 +414,8 @@ class ServerCharacterManager:
 
                 return {
                     'success': True,
-                    'character_data': character_data
+                    'character_data': character_data,
+                    'version': character.version,
                 }
 
         except Exception as e:
@@ -579,6 +582,116 @@ class ServerCharacterManager:
                 db.commit()
         except Exception as e:
             logger.error(f"log_event failed: {e}")
+
+    def persist_character_roll(
+        self,
+        character_id: str,
+        session_id: int,
+        user_id: int,
+        roll_data: Dict[str, Any],
+        *,
+        expected_version: int,
+        death_saves: Optional[Dict[str, int]] = None,
+        bypass_owner_check: bool = False,
+    ) -> Dict[str, Any]:
+        """Atomically persist roll state, activity log, and typed public chat."""
+        try:
+            with SessionLocal() as db:
+                character = db.query(SessionCharacter).filter(
+                    SessionCharacter.character_id == character_id,
+                    SessionCharacter.session_id == session_id,
+                    SessionCharacter.archived_at.is_(None),
+                ).with_for_update().first()
+                if not character or not self._can_view(
+                    db, character, user_id, bypass_owner_check
+                ):
+                    return {'success': False, 'error': 'Character not found or access denied'}
+                if int(character.version or 1) != int(expected_version):
+                    return {'success': False, 'error': 'Character changed before roll persistence'}
+
+                actor = db.query(User).filter(User.id == user_id).first()
+                if not actor:
+                    return {'success': False, 'error': 'Roll actor not found'}
+
+                if death_saves is not None:
+                    document = validate_character_document(json.loads(character.character_data))
+                    inner = document.get('data', document)
+                    if not isinstance(inner, dict):
+                        return {'success': False, 'error': 'Character data is invalid'}
+                    updated_inner = {
+                        **inner,
+                        'stats': {
+                            **(inner.get('stats') or {}),
+                            'deathSaves': death_saves,
+                        },
+                    }
+                    if isinstance(document.get('data'), dict):
+                        document = {**document, 'data': updated_inner}
+                    else:
+                        document = updated_inner
+                    document = validate_character_document(document)
+                    character.character_data = _serialize_character(document)
+                    character.updated_at = datetime.utcnow()
+                    character.last_modified_by = user_id
+                    character.version = int(character.version or 1) + 1
+
+                description = str(roll_data.get('description') or 'Character roll')
+                self._log(
+                    db,
+                    character_id,
+                    session_id,
+                    user_id,
+                    'skill_roll',
+                    description,
+                )
+
+                message_id = str(uuid.uuid4())
+                operation_id = f'system.roll.{uuid.uuid4()}'
+                timestamp_ms = int(datetime.now(timezone.utc).timestamp() * 1000)
+                message_text = f"{character.character_name} — {description}"
+                message_payload = {
+                    'id': message_id,
+                    'client_operation_id': operation_id,
+                    'user': 'System',
+                    'text': message_text,
+                    'timestamp': timestamp_ms,
+                    'channel': 'public',
+                    'kind': 'system',
+                    'system_event': {
+                        'schemaVersion': 1,
+                        'type': 'character_roll',
+                        'actor': {
+                            'user_id': user_id,
+                            'username': actor.username,
+                        },
+                        'payload': dict(roll_data),
+                    },
+                }
+                chat_message = ChatMessage(
+                    message_id=message_id,
+                    client_operation_id=operation_id,
+                    session_id=session_id,
+                    user_id=user_id,
+                    username='System',
+                    channel='public',
+                    recipient_user_id=None,
+                    text=message_text,
+                    message_json=json.dumps(message_payload, separators=(",", ":")),
+                    client_timestamp=float(timestamp_ms),
+                )
+                db.add(chat_message)
+                db.commit()
+                db.refresh(chat_message)
+                return {
+                    'success': True,
+                    'chat_message': chat_message.to_dict(),
+                    'version': character.version,
+                }
+        except (TypeError, ValueError, json.JSONDecodeError) as e:
+            return {'success': False, 'error': str(e)}
+        except Exception as e:
+            logger.error(f"persist_character_roll failed: {e}")
+            return {'success': False, 'error': 'Roll could not be persisted'}
 
     def _detect_and_log(self, db: Any, character_id: str, session_id: int, user_id: int,
                         old_json: dict, updates: dict) -> None:

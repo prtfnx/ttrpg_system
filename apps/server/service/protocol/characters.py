@@ -361,8 +361,21 @@ class _CharactersMixin(_ProtocolBase):
         )
         if not result.success:
             return Message(MessageType.ERROR, {'error': result.message})
-        # Broadcast to ALL clients including sender so the roller sees their own result in chat
-        await self.broadcast_to_session(Message(MessageType.CHARACTER_ROLL_RESULT, result.data))
+        chat_message = result.data.get('chat_message')
+        if not isinstance(chat_message, dict):
+            return Message(MessageType.ERROR, {'error': 'Persisted roll chat message is missing'})
+        roll_data = {
+            key: value
+            for key, value in result.data.items()
+            if key != 'chat_message'
+        }
+        # CHAT is durable history; CHARACTER_ROLL_RESULT drives live activity UI.
+        await self.broadcast_to_session(
+            Message(MessageType.CHAT, {'message': chat_message})
+        )
+        await self.broadcast_to_session(
+            Message(MessageType.CHARACTER_ROLL_RESULT, roll_data)
+        )
         return Message(MessageType.SUCCESS, {'message': 'Roll completed'})
 
     async def handle_xp_award(self, msg: Message, client_id: str) -> Message:

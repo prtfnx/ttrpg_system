@@ -1360,8 +1360,6 @@ class ActionsCore(AsyncActionsProtocol):
             elif disadvantage and roll2 is not None:
                 desc += f' (Dis: [{roll1},{roll2}])'
 
-            char_manager.log_event(character_id, session_id, user_id, 'skill_roll', desc)
-
             character_name = char_data.get('name') or inner.get('name') or 'Unknown'
 
             result_data = {
@@ -1388,25 +1386,33 @@ class ActionsCore(AsyncActionsProtocol):
                 result_data['stabilized'] = stabilized
                 result_data['double_failure'] = double_failure
 
-                if char_result.get('success'):
-                    current = inner.get('stats', {}).get('deathSaves', {'successes': 0, 'failures': 0})
+                current = inner.get('stats', {}).get('deathSaves', {'successes': 0, 'failures': 0})
 
-                    if stabilized:
-                        new_saves = {'successes': 3, 'failures': current.get('failures', 0)}
-                    elif double_failure:
-                        new_saves = {'successes': current.get('successes', 0), 'failures': min(3, current.get('failures', 0) + 2)}
-                    elif passed:
-                        new_saves = {'successes': min(3, current.get('successes', 0) + 1), 'failures': current.get('failures', 0)}
-                    else:
-                        new_saves = {'successes': current.get('successes', 0), 'failures': min(3, current.get('failures', 0) + 1)}
+                if stabilized:
+                    new_saves = {'successes': 3, 'failures': current.get('failures', 0)}
+                elif double_failure:
+                    new_saves = {'successes': current.get('successes', 0), 'failures': min(3, current.get('failures', 0) + 2)}
+                elif passed:
+                    new_saves = {'successes': min(3, current.get('successes', 0) + 1), 'failures': current.get('failures', 0)}
+                else:
+                    new_saves = {'successes': current.get('successes', 0), 'failures': min(3, current.get('failures', 0) + 1)}
+                result_data['death_saves'] = new_saves
 
-                    updated_stats = {**inner.get('stats', {}), 'deathSaves': new_saves}
-                    char_manager.update_character(
-                        session_id, character_id,
-                        {'data': {**inner, 'stats': updated_stats}},
-                        user_id, bypass_owner_check=True
-                    )
-                    result_data['death_saves'] = new_saves
+            persistence = char_manager.persist_character_roll(
+                character_id,
+                session_id,
+                user_id,
+                result_data,
+                expected_version=int(char_result.get('version') or 1),
+                death_saves=result_data.get('death_saves'),
+                bypass_owner_check=bypass_owner_check,
+            )
+            if not persistence.get('success'):
+                return ActionResult(
+                    False,
+                    persistence.get('error', 'Roll could not be persisted'),
+                )
+            result_data['chat_message'] = persistence['chat_message']
 
             return ActionResult(True, 'Roll completed', result_data)
         except Exception as e:

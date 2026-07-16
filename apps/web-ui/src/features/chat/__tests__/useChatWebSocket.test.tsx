@@ -109,6 +109,50 @@ describe('useChatWebSocket', () => {
       ]);
     });
 
+    it('adds a persisted typed roll received through public chat', () => {
+      const protocol = makeProtocol(true);
+      vi.mocked(useOptionalProtocol).mockReturnValue({ protocol } as unknown as ReturnType<typeof useOptionalProtocol>);
+      renderHook(() => useChatWebSocket('ws://test', 'Bob'));
+      const handler = protocol.registerHandler.mock.calls[0][1];
+
+      act(() => {
+        handler({
+          type: MessageType.CHAT_MESSAGE,
+          data: {
+            message: {
+              id: 'roll-chat-1',
+              user: 'System',
+              text: 'Thorin — attack: 18',
+              timestamp: 1,
+              channel: 'public',
+              kind: 'system',
+              system_event: {
+                schemaVersion: 1,
+                type: 'character_roll',
+                actor: { user_id: 7, username: 'Bob' },
+                payload: {
+                  character_id: 'char-1', character_name: 'Thorin', user_id: 7,
+                  roll_type: 'attack', skill: 'melee', modifier: 5,
+                  die_roll: 13, total: 18, advantage: false, disadvantage: false,
+                  description: 'attack: 18',
+                },
+              },
+            },
+          },
+          version: '0.1',
+          priority: 5,
+        });
+      });
+
+      expect(useChatStore.getState().messages).toEqual([
+        expect.objectContaining({
+          id: 'roll-chat-1',
+          kind: 'system',
+          deliveryStatus: 'sent',
+        }),
+      ]);
+    });
+
     it('requests chat history when protocol connects after mount', () => {
       const unsubscribe = vi.fn();
       const protocol = makeProtocol(false);
@@ -190,41 +234,4 @@ describe('useChatWebSocket', () => {
     });
   });
 
-  describe('roll result events', () => {
-    it('adds a chat message when character-roll-result fires', () => {
-      renderHook(() => useChatWebSocket('ws://test', 'Alice'));
-      act(() => {
-        window.dispatchEvent(new CustomEvent('character-roll-result', {
-          detail: {
-            character_name: 'Thorin',
-            roll_type: 'attack',
-            total: 18,
-          },
-        }));
-      });
-      const msgs = useChatStore.getState().messages;
-      expect(msgs).toHaveLength(1);
-      expect(msgs[0].text).toContain('Thorin');
-      expect(msgs[0].text).toContain('18');
-      expect(msgs[0].user).toBe('🎲');
-    });
-
-    it('includes skill name in roll message when provided', () => {
-      renderHook(() => useChatWebSocket('ws://test', 'Alice'));
-      act(() => {
-        window.dispatchEvent(new CustomEvent('character-roll-result', {
-          detail: { character_name: 'Aria', roll_type: 'skill', skill: 'Stealth', total: 22 },
-        }));
-      });
-      const text = useChatStore.getState().messages[0].text;
-      expect(text).toContain('Stealth');
-    });
-
-    it('removes the event listener on unmount', () => {
-      const spy = vi.spyOn(window, 'removeEventListener');
-      const { unmount } = renderHook(() => useChatWebSocket('ws://test', 'Alice'));
-      unmount();
-      expect(spy).toHaveBeenCalledWith('character-roll-result', expect.any(Function));
-    });
-  });
 });

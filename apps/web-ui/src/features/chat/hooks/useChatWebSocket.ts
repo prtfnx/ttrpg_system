@@ -16,7 +16,6 @@ interface ChatBinding {
 }
 
 const protocolBindings = new WeakMap<WebClientProtocol, ChatBinding>();
-let rollSubscribers = 0;
 
 function mergeMessages(messages: ChatMessage[]) {
   const current = useChatStore.getState().messages;
@@ -89,55 +88,6 @@ function detachProtocol(protocol: WebClientProtocol) {
   protocolBindings.delete(protocol);
 }
 
-function addRollMessage(event: Event) {
-  const data = (event as CustomEvent).detail ?? {};
-  const name = data.character_name || data.characterName || 'Unknown';
-  const type = (data.roll_type || 'roll').replace(/_/g, ' ');
-  const skill = data.skill || data.ability || '';
-  const total = data.total ?? data.result ?? '?';
-  const what = skill ? `${type}: ${skill}` : type;
-  const dieRoll = data.die_roll ?? data.d20;
-  const modifier = data.modifier ?? 0;
-  const sign = modifier >= 0 ? '+' : '';
-  const breakdown = dieRoll != null
-    ? ` (d20: ${dieRoll}${modifier !== 0 ? `${sign}${modifier}` : ''})`
-    : '';
-  const advantage = data.advantage ? ' [ADV]' : data.disadvantage ? ' [DIS]' : '';
-  useChatStore.getState().addMessage({
-    id: crypto.randomUUID(),
-    user: '🎲',
-    text: `${name} — ${what} = ${total}${breakdown}${advantage}`,
-    timestamp: Date.now(),
-    deliveryStatus: 'sent',
-  });
-}
-
-function addRollError(event: Event) {
-  const data = (event as CustomEvent).detail ?? {};
-  useChatStore.getState().addMessage({
-    id: crypto.randomUUID(),
-    user: '⚠',
-    text: `Server error: ${data.error || data.message || 'Roll failed — no response from server.'}`,
-    timestamp: Date.now(),
-    deliveryStatus: 'sent',
-  });
-}
-
-function attachRollEvents(): () => void {
-  rollSubscribers += 1;
-  if (rollSubscribers === 1) {
-    window.addEventListener('character-roll-result', addRollMessage);
-    window.addEventListener('protocol-error', addRollError);
-  }
-  return () => {
-    rollSubscribers -= 1;
-    if (rollSubscribers === 0) {
-      window.removeEventListener('character-roll-result', addRollMessage);
-      window.removeEventListener('protocol-error', addRollError);
-    }
-  };
-}
-
 function newOperationId(): string {
   return crypto.randomUUID();
 }
@@ -150,7 +100,6 @@ export function useChatWebSocket(_url: string, user: string) {
     useChatStore.getState().setActiveSession(sessionId);
   }, [sessionId]);
 
-  useEffect(() => attachRollEvents(), []);
   useEffect(() => protocol ? attachProtocol(protocol) : undefined, [protocol]);
 
   const sendOperation = useCallback((text: string, operationId: string, optimistic = true) => {

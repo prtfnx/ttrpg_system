@@ -1,5 +1,25 @@
 import { create } from 'zustand';
 
+export interface CharacterRollSystemEvent {
+  schemaVersion: 1;
+  type: 'character_roll';
+  actor: { user_id: number; username: string };
+  payload: {
+    character_id: string;
+    character_name: string;
+    user_id: number;
+    roll_type: string;
+    skill: string;
+    modifier: number;
+    die_roll: number;
+    total: number;
+    advantage: boolean;
+    disadvantage: boolean;
+    description: string;
+    death_saves?: { successes: number; failures: number };
+  };
+}
+
 export interface ChatMessage {
   id: string;
   client_operation_id?: string;
@@ -8,6 +28,9 @@ export interface ChatMessage {
   text: string;
   timestamp: number;
   tooltip?: string;
+  channel?: 'public' | 'whisper';
+  kind?: 'system';
+  system_event?: CharacterRollSystemEvent;
   deliveryStatus?: 'pending' | 'sent' | 'failed';
 }
 

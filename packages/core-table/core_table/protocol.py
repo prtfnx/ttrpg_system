@@ -209,6 +209,20 @@ class MessageType(enum.Enum):    # Core messages
     # Skill/ability/saving-throw rolls
     CHARACTER_ROLL = "character_roll"
     CHARACTER_ROLL_RESULT = "character_roll_result"
+    # Resumable character wizard drafts
+    CHARACTER_DRAFT_CREATE_REQUEST = "character_draft_create_request"
+    CHARACTER_DRAFT_CREATE_RESPONSE = "character_draft_create_response"
+    CHARACTER_DRAFT_LIST_REQUEST = "character_draft_list_request"
+    CHARACTER_DRAFT_LIST_RESPONSE = "character_draft_list_response"
+    CHARACTER_DRAFT_LOAD_REQUEST = "character_draft_load_request"
+    CHARACTER_DRAFT_LOAD_RESPONSE = "character_draft_load_response"
+    CHARACTER_DRAFT_UPDATE_REQUEST = "character_draft_update_request"
+    CHARACTER_DRAFT_UPDATE_RESPONSE = "character_draft_update_response"
+    CHARACTER_DRAFT_FINALIZE_REQUEST = "character_draft_finalize_request"
+    CHARACTER_DRAFT_FINALIZE_RESPONSE = "character_draft_finalize_response"
+    CHARACTER_DRAFT_ABANDON_REQUEST = "character_draft_abandon_request"
+    CHARACTER_DRAFT_ABANDON_RESPONSE = "character_draft_abandon_response"
+    CHARACTER_DRAFT_UPDATED = "character_draft_updated"
     # XP award (DM → server → all clients for that character)
     XP_AWARD = "xp_award"
     XP_AWARD_RESPONSE = "xp_award_response"

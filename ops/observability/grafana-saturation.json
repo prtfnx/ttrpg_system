@@ -1,0 +1,13 @@
+{
+  "title": "TTRPG Saturation",
+  "schemaVersion": 39,
+  "version": 1,
+  "refresh": "30s",
+  "time": {"from": "now-6h", "to": "now"},
+  "panels": [
+    {"id": 1, "type": "timeseries", "title": "Database pool state", "targets": [{"expr": "ttrpg_database_pool_connections"}], "gridPos": {"h": 8, "w": 12, "x": 0, "y": 0}},
+    {"id": 2, "type": "timeseries", "title": "Active WebSocket connections", "targets": [{"expr": "ttrpg_websocket_active_connections"}], "gridPos": {"h": 8, "w": 12, "x": 12, "y": 0}},
+    {"id": 3, "type": "timeseries", "title": "Pending upload count", "targets": [{"expr": "ttrpg_pending_uploads"}], "gridPos": {"h": 8, "w": 12, "x": 0, "y": 8}},
+    {"id": 4, "type": "timeseries", "title": "Oldest pending upload age", "targets": [{"expr": "ttrpg_pending_upload_oldest_age_seconds"}], "gridPos": {"h": 8, "w": 12, "x": 12, "y": 8}}
+  ]
+}

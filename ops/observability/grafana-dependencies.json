@@ -1,0 +1,13 @@
+{
+  "title": "TTRPG Dependencies",
+  "schemaVersion": 39,
+  "version": 1,
+  "refresh": "30s",
+  "time": {"from": "now-6h", "to": "now"},
+  "panels": [
+    {"id": 1, "type": "timeseries", "title": "Database operations by outcome", "targets": [{"expr": "sum by (operation, outcome) (rate(ttrpg_database_operations_total[5m]))"}], "gridPos": {"h": 8, "w": 12, "x": 0, "y": 0}},
+    {"id": 2, "type": "timeseries", "title": "Database operation p95", "targets": [{"expr": "histogram_quantile(0.95, sum by (le, operation) (rate(ttrpg_database_operation_duration_seconds_bucket[5m])))"}], "gridPos": {"h": 8, "w": 12, "x": 12, "y": 0}},
+    {"id": 3, "type": "timeseries", "title": "Transaction outcomes", "targets": [{"expr": "sum by (outcome) (rate(ttrpg_database_transactions_total[5m]))"}], "gridPos": {"h": 8, "w": 12, "x": 0, "y": 8}},
+    {"id": 4, "type": "timeseries", "title": "Email delivery outcomes", "targets": [{"expr": "sum by (operation, outcome) (rate(ttrpg_email_deliveries_total[15m]))"}], "gridPos": {"h": 8, "w": 12, "x": 12, "y": 8}}
+  ]
+}

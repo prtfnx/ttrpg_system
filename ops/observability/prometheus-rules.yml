@@ -61,3 +61,69 @@ groups:
         annotations:
           summary: Browser errors increased after a release
           runbook_url: ops/observability/RUNBOOKS.md#browser-error-burst
+
+      - alert: TtrpgDatabaseErrors
+        expr: sum(increase(ttrpg_database_operations_total{outcome="error"}[5m])) > 0
+        for: 2m
+        labels:
+          severity: critical
+        annotations:
+          summary: Database operations are failing
+          runbook_url: ops/observability/RUNBOOKS.md#database-errors-or-saturation
+
+      - alert: TtrpgDatabasePoolSaturation
+        expr: |
+          ttrpg_database_pool_connections{state="checked_out"}
+          /
+          clamp_min(ttrpg_database_pool_connections{state="size"}, 1) > 0.8
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: Database connection pool is persistently saturated
+          runbook_url: ops/observability/RUNBOOKS.md#database-errors-or-saturation
+
+      - alert: TtrpgPendingUploadStale
+        expr: ttrpg_pending_uploads > 0 and ttrpg_pending_upload_oldest_age_seconds > 7200
+        for: 15m
+        labels:
+          severity: warning
+        annotations:
+          summary: A durable asset upload intent has been pending for over two hours
+          runbook_url: ops/observability/RUNBOOKS.md#stale-pending-uploads
+
+      - alert: TtrpgBackupMissingOrStale
+        expr: ttrpg_backup_last_success_timestamp_seconds == 0 or time() - ttrpg_backup_last_success_timestamp_seconds > 86400
+        for: 15m
+        labels:
+          severity: critical
+        annotations:
+          summary: No verified backup is visible or the newest backup is older than 24 hours
+          runbook_url: ops/observability/RUNBOOKS.md#missing-or-stale-backup
+
+      - alert: TtrpgEmailDeliveryFailures
+        expr: sum(increase(ttrpg_email_deliveries_total{outcome="error"}[15m])) > 2
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: Repeated transactional email delivery failures detected
+          runbook_url: ops/observability/RUNBOOKS.md#email-delivery-failures
+
+      - alert: TtrpgRateLimitAnomaly
+        expr: sum(increase(ttrpg_rate_limit_decisions_total{outcome="rejected"}[10m])) > 50
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: Rate-limit rejections are unusually high
+          runbook_url: ops/observability/RUNBOOKS.md#authentication-or-rate-limit-anomaly
+
+      - alert: TtrpgOtlpExporterMissing
+        expr: ttrpg_observability_exporter_configured{exporter="otlp_traces"} == 0
+        for: 30m
+        labels:
+          severity: warning
+        annotations:
+          summary: OTLP trace export is not configured
+          runbook_url: ops/observability/RUNBOOKS.md#telemetry-exporter-missing

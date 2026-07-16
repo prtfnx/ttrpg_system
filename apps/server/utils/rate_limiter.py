@@ -14,6 +14,8 @@ from utils.observability import record_rate_limit
 
 class RateLimiter:
     def __init__(self, name: str = "unknown", *, max_identifiers: int = 10_000):
+        if max_identifiers < 1:
+            raise ValueError("max_identifiers must be positive")
         self.name = name
         self.max_identifiers = max_identifiers
         self.requests: Dict[str, Deque[float]] = OrderedDict()
@@ -31,7 +33,9 @@ class RateLimiter:
         Returns:
             True if request is allowed, False if rate limited
         """
-        now = time.time()
+        if max_requests < 1 or window_minutes <= 0:
+            raise ValueError("rate-limit thresholds must be positive")
+        now = time.monotonic()
         window_seconds = window_minutes * 60
         cutoff_time = now - window_seconds
 
@@ -62,6 +66,8 @@ class RateLimiter:
         Returns:
             Seconds until reset, or 0 if not rate limited
         """
+        if window_minutes <= 0:
+            raise ValueError("window_minutes must be positive")
         with self._lock:
             user_requests = self.requests.get(identifier)
             if not user_requests:
@@ -70,14 +76,16 @@ class RateLimiter:
         window_seconds = window_minutes * 60
         reset_time = oldest_request + window_seconds
 
-        return max(0, int(reset_time - time.time()))
+        return max(0, int(reset_time - time.monotonic()))
 
     def cleanup_old_entries(self, hours_old: int = 1):
         """
         Clean up old entries to prevent memory leaks.
         Should be called periodically.
         """
-        cutoff_time = time.time() - (hours_old * 3600)
+        if hours_old <= 0:
+            raise ValueError("hours_old must be positive")
+        cutoff_time = time.monotonic() - (hours_old * 3600)
 
         with self._lock:
             for identifier in list(self.requests.keys()):

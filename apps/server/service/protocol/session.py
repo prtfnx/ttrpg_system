@@ -123,9 +123,9 @@ class _SessionMixin(_ProtocolBase):
             response = Message(MessageType.SESSION_RULES_CHANGED, {'rules': rules.to_dict()})
             await self.broadcast_to_session(response, client_id)
             return response
-        except Exception as e:
-            logger.error(f"handle_session_rules_update error: {e}")
-            return Message(MessageType.ERROR, {'error': str(e)})
+        except Exception:
+            logger.exception("Session rules update failed")
+            return Message(MessageType.ERROR, {"error": "Session rules update failed"})
 
     async def handle_session_rules_request(self, msg: Message, client_id: str) -> Message:
         """Client requests current session rules.  Sends directly back."""

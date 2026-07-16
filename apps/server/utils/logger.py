@@ -22,13 +22,14 @@ _HANDLER_MARKER = "_ttrpg_handler"
 _RESERVED = set(logging.makeLogRecord({}).__dict__) | {"message", "asctime"}
 _SENSITIVE_KEY = re.compile(
     r"(?:authorization|cookie|password|passwd|secret|token|credential|api[_-]?key|"
-    r"presigned|upload_url|session_id)",
+    r"presigned|upload_url|session_id|verification_url|invite[_-]?code|reset[_-]?code)",
     re.IGNORECASE,
 )
 _BEARER = re.compile(r"(?i)\bBearer\s+[A-Za-z0-9._~+/-]+=*")
 _JWT = re.compile(r"\beyJ[A-Za-z0-9_-]{8,}\.[A-Za-z0-9_-]{8,}\.[A-Za-z0-9_-]{8,}\b")
 _SECRET_QUERY = re.compile(
-    r"(?i)([?&](?:token|access_token|code|signature|x-amz-signature)=)[^&#\s]+"
+    r"(?i)([?&](?:token|access_token|code|signature|sig|x-amz-(?:credential|signature|"
+    r"security-token)|x-goog-(?:credential|signature))=)[^&#\s]+"
 )
 
 

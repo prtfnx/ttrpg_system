@@ -25,6 +25,18 @@ def test_strings_redact_jwts_and_prevent_log_injection():
     assert "\\r\\n" in value
 
 
+def test_signed_url_credentials_are_redacted():
+    value = (
+        "https://example.test/object?X-Amz-Credential=ACCESS%2Fscope"
+        "&X-Amz-Signature=signature-value"
+    )
+
+    sanitized = sanitize_log_value(value)
+
+    assert "ACCESS" not in sanitized
+    assert "signature-value" not in sanitized
+
+
 def test_json_formatter_includes_context_and_exception(monkeypatch):
     monkeypatch.setenv("SERVICE_VERSION", "abc123")
     formatter = JsonFormatter()

@@ -546,9 +546,10 @@ def register_user_view(
         db.add(email_token)
         db.commit()
 
-        # Log verification URL (in production, send email)
-        verification_url = f"/users/verify?token={verification_token}"
-        logger.info(f"Email verification URL for {username}: {verification_url}")
+        logger.info(
+            "Email verification requested",
+            extra={"event_name": "authentication.email_verification.requested"},
+        )
 
         # Handle invite code - auto-accept after registration
         if invite_code:

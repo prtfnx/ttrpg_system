@@ -553,7 +553,10 @@ class _CharactersMixin(_ProtocolBase):
 
         except Exception:
             logger.exception("Character update request failed")
-            return Message(MessageType.CHARACTER_UPDATE_RESPONSE, {'success': False, 'error': str(e)})
+            return Message(
+                MessageType.CHARACTER_UPDATE_RESPONSE,
+                {"success": False, "error": "Character update failed"},
+            )
 
     async def handle_character_log_request(self, msg: Message, client_id: str) -> Message:
         """Return character action log entries."""

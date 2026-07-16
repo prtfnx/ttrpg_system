@@ -58,14 +58,20 @@ async def get_current_user(request: Request, db: Session = Depends(get_db)):
 
     # Try to get token from cookie first (manual reading for reliability)
     token = request.cookies.get("token")
-    logger.debug(f"get_current_user: token from cookie: {token}")
+    logger.debug(
+        "Authentication token discovered in cookie",
+        extra={"event_name": "authentication.token.discovered", "source": "cookie"},
+    )
 
     # If no token in cookie, try Authorization header
     if not token:
         authorization = request.headers.get("Authorization")
         if authorization and authorization.startswith("Bearer "):
             token = authorization.split(" ")[1]
-            logger.debug(f"get_current_user: token from Authorization header: {token}")
+            logger.debug(
+                "Authentication token discovered in header",
+                extra={"event_name": "authentication.token.discovered", "source": "header"},
+            )
 
     if not token:
         logger.debug("get_current_user: No token found, raising credentials_exception")
@@ -76,9 +82,15 @@ async def get_current_user(request: Request, db: Session = Depends(get_db)):
         if username is None:
             logger.debug("get_current_user: No username in payload")
             raise credentials_exception
-        logger.debug(f"get_current_user: Successfully decoded token for username: {username}")
+        logger.debug(
+            "Authentication token decoded",
+            extra={"event_name": "authentication.token.decoded"},
+        )
     except InvalidTokenError as e:
-        logger.debug(f"get_current_user: Token validation failed: {e}")
+        logger.debug(
+            "Authentication token validation failed",
+            extra={"event_name": "authentication.token.rejected", "reason": type(e).__name__},
+        )
         raise credentials_exception
 
     user = crud.get_user_by_username(db, username=username)
@@ -87,7 +99,7 @@ async def get_current_user(request: Request, db: Session = Depends(get_db)):
         raise credentials_exception
     if (user.session_version or 0) != payload.get("sv", 0):
         raise credentials_exception
-    logger.debug(f"get_current_user: User {username} found and authenticated")
+    logger.debug("User authenticated", extra={"event_name": "authentication.succeeded"})
     return user
 
 async def get_current_user_optional(request: Request, db: Session = Depends(get_db)):
@@ -116,7 +128,10 @@ async def get_current_user_optional(request: Request, db: Session = Depends(get_
         user = crud.get_user_by_username(db, username=username)
         return user
     except (InvalidTokenError, Exception) as e:
-        logger.debug(f"get_current_user_optional: Authentication failed: {e}")
+        logger.debug(
+            "Optional authentication failed",
+            extra={"event_name": "authentication.optional.failed", "reason": type(e).__name__},
+        )
         return None
 
 async def get_current_active_user(current_user: Annotated[schemas.User, Depends(get_current_user)]):
@@ -169,10 +184,18 @@ async def users_me(
 @router.post("/token")
 async def login_for_access_token(
     form_data: Annotated[OAuth2PasswordRequestForm, Depends()],
+    request: Request,
     db: Session = Depends(get_db)
 ) -> auth_models.Token:
     user = crud.authenticate_user(db, form_data.username, form_data.password)
     if not user:
+        db.add(audit_event(
+            "authentication.login",
+            outcome="failure",
+            request=request,
+            details={"reason": "invalid_credentials"},
+        ))
+        db.commit()
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Incorrect username or password",
@@ -183,6 +206,13 @@ async def login_for_access_token(
         data={"sub": user.username, "sv": user.session_version or 0},
         expires_delta=access_token_expires
     )
+    db.add(audit_event(
+        "authentication.login",
+        user_id=user.id,
+        request=request,
+        details={"method": "password"},
+    ))
+    db.commit()
     return auth_models.Token(access_token=access_token, token_type="bearer")
 
 @router.get("/me/items/")
@@ -250,7 +280,7 @@ async def login(
         }, status_code=400)  # 400 Bad Request
 
     try:
-        token = await login_for_access_token(form_data, db)
+        token = await login_for_access_token(form_data, request, db)
         if not token:
             return templates.TemplateResponse(request, "login.html", {
                 "error": "Incorrect username or password"

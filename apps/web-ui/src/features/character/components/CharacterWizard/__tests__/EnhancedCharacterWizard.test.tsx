@@ -1,5 +1,5 @@
 import '@testing-library/jest-dom';
-import { render, screen, waitFor } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { EnhancedCharacterWizard } from '../EnhancedCharacterWizard';
@@ -44,10 +44,53 @@ describe('EnhancedCharacterWizard', () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
-    // Mock localStorage
-    Storage.prototype.getItem = vi.fn(() => null);
-    Storage.prototype.setItem = vi.fn();
-    Storage.prototype.removeItem = vi.fn();
+  });
+
+  describe('Server draft lifecycle', () => {
+    it('autosaves changed form values with the canonical draft version', async () => {
+      const onSave = vi.fn();
+      render(
+        <EnhancedCharacterWizard
+          isOpen
+          draftId="draft-1"
+          draftVersion={4}
+          initialData={{ name: 'Before' }}
+          onSave={onSave}
+          onFinish={mockOnFinish}
+          onCancel={mockOnCancel}
+        />
+      );
+
+      fireEvent.change(screen.getByLabelText(/character name/i), { target: { value: 'After' } });
+
+      await waitFor(() => expect(onSave).toHaveBeenCalled(), { timeout: 2000 });
+      expect(onSave).toHaveBeenLastCalledWith(
+        expect.objectContaining({ name: 'After' }),
+        0,
+        4,
+      );
+    });
+
+    it('renders a DM snapshot read-only without scheduling saves', () => {
+      const onSave = vi.fn();
+      render(
+        <EnhancedCharacterWizard
+          isOpen
+          draftId="draft-2"
+          draftVersion={2}
+          initialData={{ name: 'Player Hero' }}
+          initialStep={0}
+          readOnly
+          onSave={onSave}
+          onFinish={mockOnFinish}
+          onCancel={mockOnCancel}
+        />
+      );
+
+      expect(screen.getByRole('status')).toHaveTextContent(/DM view.*read-only/i);
+      expect(screen.getByLabelText(/character name/i)).toBeDisabled();
+      expect(onSave).not.toHaveBeenCalled();
+    });
   });
 
   describe('Wizard Opening and Closing', () => {

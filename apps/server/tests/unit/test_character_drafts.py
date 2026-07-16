@@ -131,6 +131,7 @@ class TestCharacterDraftLifecycle:
             session_id, draft["draft_id"], owner, draft["version"], final_data()
         )
         assert result["success"] is True
+        assert result["draft_id"] == draft["draft_id"]
         assert result["character_id"] == draft["draft_id"]
         assert manager.list_drafts(session_id, owner)["drafts"] == []
         assert manager.list_drafts(

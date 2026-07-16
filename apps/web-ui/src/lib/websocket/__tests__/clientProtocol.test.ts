@@ -448,6 +448,47 @@ describe('WebClientProtocol', () => {
     });
   });
 
+  describe('character drafts', () => {
+    it('sends durable draft mutations immediately with optimistic versions', () => {
+      const p = makeProtocol('ROOM', 7);
+      const ws = makeOpenWs(p);
+
+      p.createCharacterDraft({ name: 'Ari' }, 1);
+      p.updateCharacterDraft('draft-1', { name: 'Aria' }, 2, 4);
+      p.finalizeCharacterDraft('draft-1', { name: 'Aria' }, 5);
+      p.abandonCharacterDraft('draft-2', 3);
+
+      const sent = (ws.send as Mock).mock.calls.map(call => JSON.parse(call[0]));
+      expect(sent.map(message => message.type)).toEqual([
+        'character_draft_create_request',
+        'character_draft_update_request',
+        'character_draft_finalize_request',
+        'character_draft_abandon_request',
+      ]);
+      expect(sent[1].data).toMatchObject({
+        draft_id: 'draft-1', current_step: 2, expected_version: 4,
+      });
+      expect(sent[2].data.expected_version).toBe(5);
+      expect(sent[3].data.expected_version).toBe(3);
+    });
+
+    it('batches draft list and load queries', () => {
+      const p = makeProtocol('ROOM', 7);
+      const ws = makeOpenWs(p);
+
+      p.requestCharacterDrafts();
+      p.loadCharacterDraft('draft-1');
+      p.sendBatch();
+
+      const batch = JSON.parse((ws.send as Mock).mock.calls[0][0]);
+      expect(batch.data.messages.map((message: { type: string }) => message.type)).toEqual([
+        'character_draft_list_request',
+        'character_draft_load_request',
+      ]);
+      expect(batch.data.messages[1].data.draft_id).toBe('draft-1');
+    });
+  });
+
   describe('resolveOA', () => {
     it('sends opportunity attack resolution as a combat_command', () => {
       const p = makeProtocol('S', 2);
@@ -1249,6 +1290,29 @@ describe('WebClientProtocol', () => {
       await dispatch(p, 'character_roll_result', { roll: 15 });
       window.removeEventListener('character-roll-result', fn);
       expect(fn).toHaveBeenCalledOnce();
+    });
+
+    it('CHARACTER_DRAFT_FINALIZE_RESPONSE stores the character and exposes draft identity', async () => {
+      const store = mocks.storeState as Record<string, unknown>;
+      const addCharacter = vi.fn();
+      store.addCharacter = addCharacter;
+      const p = makeProtocol('ROOM', 7);
+      const fn = vi.fn();
+      window.addEventListener('character-draft-finalized', fn);
+
+      await dispatch(p, 'character_draft_finalize_response', {
+        success: true,
+        draft_id: 'draft-1',
+        character_id: 'char-1',
+        version: 1,
+        character_data: { name: 'Aria', data: { class: 'wizard' } },
+      });
+
+      window.removeEventListener('character-draft-finalized', fn);
+      expect(addCharacter).toHaveBeenCalledWith(expect.objectContaining({
+        id: 'char-1', name: 'Aria', ownerId: 7,
+      }));
+      expect((fn.mock.calls[0][0] as CustomEvent).detail.draft_id).toBe('draft-1');
     });
 
     it('TABLE_ACTIVE_RESPONSE sets activeTableId on success', async () => {

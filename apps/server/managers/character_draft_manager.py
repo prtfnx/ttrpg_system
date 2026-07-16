@@ -273,6 +273,7 @@ class CharacterDraftManager:
                 db.commit()
                 return {
                     "success": True,
+                    "draft_id": draft_id,
                     "character_id": draft_id,
                     "version": 1,
                     "character_data": document,

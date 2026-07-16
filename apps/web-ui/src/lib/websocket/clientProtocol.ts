@@ -127,6 +127,8 @@ export class WebClientProtocol {
       'table_data', 'table_update', 'table_list_request', 'table_request', 'new_table_request', 'table_delete',
       'sprite_create', 'sprite_remove', 'player_kick_request', 'player_ban_request', 'player_list_request',
       'character_save', 'character_load', 'character_roll',
+      'character_draft_create_request', 'character_draft_update_request',
+      'character_draft_finalize_request', 'character_draft_abandon_request',
       'asset_upload_request', 'asset_download_request', 'asset_list_request', 'asset_delete_request', 'asset_hash_check',
       'paint_stroke_create', 'paint_stroke_delete', 'paint_stroke_clear',
     ];
@@ -277,6 +279,25 @@ export class WebClientProtocol {
     // Character log and roll results
     this.registerHandler(MessageType.CHARACTER_LOG_RESPONSE, this.handleCharacterLogResponse.bind(this));
     this.registerHandler(MessageType.CHARACTER_ROLL_RESULT, this.handleCharacterRollResult.bind(this));
+    this.registerHandler(MessageType.CHARACTER_DRAFT_CREATE_RESPONSE, async (m) => {
+      emitProtocolEvent('character-draft-created', m.data as never);
+    });
+    this.registerHandler(MessageType.CHARACTER_DRAFT_LIST_RESPONSE, async (m) => {
+      emitProtocolEvent('character-draft-list-updated', m.data as never);
+    });
+    this.registerHandler(MessageType.CHARACTER_DRAFT_LOAD_RESPONSE, async (m) => {
+      emitProtocolEvent('character-draft-loaded', m.data as never);
+    });
+    this.registerHandler(MessageType.CHARACTER_DRAFT_UPDATE_RESPONSE, async (m) => {
+      emitProtocolEvent('character-draft-saved', m.data as never);
+    });
+    this.registerHandler(MessageType.CHARACTER_DRAFT_FINALIZE_RESPONSE, this.handleCharacterDraftFinalized.bind(this));
+    this.registerHandler(MessageType.CHARACTER_DRAFT_ABANDON_RESPONSE, async (m) => {
+      emitProtocolEvent('character-draft-abandoned', m.data);
+    });
+    this.registerHandler(MessageType.CHARACTER_DRAFT_UPDATED, async (m) => {
+      emitProtocolEvent('character-draft-updated', m.data);
+    });
     // Dynamic lighting settings broadcast
     this.registerHandler(MessageType.TABLE_SETTINGS_CHANGED, this.handleTableSettingsChanged.bind(this));
     // Wall segment sync
@@ -1113,6 +1134,33 @@ export class WebClientProtocol {
     emitProtocolEvent('character-list-updated', message.data);
   }
 
+  private async handleCharacterDraftFinalized(message: Message): Promise<void> {
+    const data = (message.data ?? {}) as Record<string, unknown>;
+    if (data.success && data.character_id && data.character_data) {
+      const document = data.character_data as Record<string, unknown>;
+      const characterData = (document.data ?? {}) as Record<string, unknown>;
+      const store = useGameStore.getState();
+      const character = {
+        id: String(data.character_id),
+        sessionId: this.sessionCode,
+        name: String(document.name ?? characterData.name ?? 'Unnamed'),
+        ownerId: Number(this.userId ?? 0),
+        controlledBy: Array.isArray(document.controlledBy) ? document.controlledBy as number[] : [],
+        data: characterData,
+        version: Number(data.version ?? 1),
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+        syncStatus: 'synced' as const,
+      };
+      if (store.characters.some(existing => existing.id === character.id)) {
+        store.updateCharacter(character.id, character);
+      } else {
+        store.addCharacter(character);
+      }
+    }
+    emitProtocolEvent('character-draft-finalized', message.data);
+  }
+
   // Handle incoming character delta updates broadcast from server
   private async handleCharacterUpdate(message: Message): Promise<void> {
     logger.debug('Character update received:', message.data);
@@ -1605,6 +1653,63 @@ export class WebClientProtocol {
       character_data: characterData,
       user_id: effectiveUserId,
       session_code: this.sessionCode
+    }));
+  }
+
+  createCharacterDraft(draftData: Record<string, unknown>, currentStep = 0): void {
+    this.sendMessage(createMessage(MessageType.CHARACTER_DRAFT_CREATE_REQUEST, {
+      session_code: this.sessionCode,
+      draft_data: draftData,
+      current_step: currentStep,
+    }));
+  }
+
+  requestCharacterDrafts(): void {
+    this.sendMessage(createMessage(MessageType.CHARACTER_DRAFT_LIST_REQUEST, {
+      session_code: this.sessionCode,
+    }));
+  }
+
+  loadCharacterDraft(draftId: string): void {
+    this.sendMessage(createMessage(MessageType.CHARACTER_DRAFT_LOAD_REQUEST, {
+      session_code: this.sessionCode,
+      draft_id: draftId,
+    }));
+  }
+
+  updateCharacterDraft(
+    draftId: string,
+    draftData: Record<string, unknown>,
+    currentStep: number,
+    expectedVersion: number,
+  ): void {
+    this.sendMessage(createMessage(MessageType.CHARACTER_DRAFT_UPDATE_REQUEST, {
+      session_code: this.sessionCode,
+      draft_id: draftId,
+      draft_data: draftData,
+      current_step: currentStep,
+      expected_version: expectedVersion,
+    }));
+  }
+
+  finalizeCharacterDraft(
+    draftId: string,
+    characterData: Record<string, unknown>,
+    expectedVersion: number,
+  ): void {
+    this.sendMessage(createMessage(MessageType.CHARACTER_DRAFT_FINALIZE_REQUEST, {
+      session_code: this.sessionCode,
+      draft_id: draftId,
+      character_data: characterData,
+      expected_version: expectedVersion,
+    }));
+  }
+
+  abandonCharacterDraft(draftId: string, expectedVersion: number): void {
+    this.sendMessage(createMessage(MessageType.CHARACTER_DRAFT_ABANDON_REQUEST, {
+      session_code: this.sessionCode,
+      draft_id: draftId,
+      expected_version: expectedVersion,
     }));
   }
 

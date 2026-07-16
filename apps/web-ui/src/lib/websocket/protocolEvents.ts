@@ -1,3 +1,5 @@
+import type { CharacterDraft } from '@features/character/characterDraft';
+
 type ProtocolRecord = Record<string, unknown> | undefined;
 
 export type ProtocolEventMap = {
@@ -9,6 +11,13 @@ export type ProtocolEventMap = {
   'asset-uploaded': ProtocolRecord;
   'auth-status-changed': ProtocolRecord;
   'character-delete-response': ProtocolRecord;
+  'character-draft-abandoned': ProtocolRecord;
+  'character-draft-created': { success: boolean; draft?: CharacterDraft; error?: string };
+  'character-draft-finalized': ProtocolRecord;
+  'character-draft-list-updated': { success: boolean; drafts?: CharacterDraft[]; error?: string };
+  'character-draft-loaded': { success: boolean; draft?: CharacterDraft; error?: string };
+  'character-draft-saved': { success: boolean; draft?: CharacterDraft; current_draft?: CharacterDraft; error?: string };
+  'character-draft-updated': ProtocolRecord;
   'character-deleted': { character_id: string };
   'character-list-updated': ProtocolRecord;
   'character-loaded': ProtocolRecord;

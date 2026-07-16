@@ -385,7 +385,8 @@ class TestAuditLogUtilities:
         })
 
         assert "invitation_created" in details
-        assert "ABC123" in details
+        assert "ABC123" not in details
+        assert '"invite_code":"[REDACTED]"' in details
         assert "player" in details
         assert "24" in details
 
@@ -402,5 +403,9 @@ class TestAuditLogUtilities:
 
         client_info = extract_client_info(mock_request)
 
-        assert client_info["ip_address"] == "203.0.113.1"  # Should use X-Forwarded-For if available
+        assert client_info["ip_address"] == "192.168.1.50"
+        trusted_proxy_info = extract_client_info(
+            mock_request, trust_proxy_headers=True
+        )
+        assert trusted_proxy_info["ip_address"] == "203.0.113.1"
         assert client_info["user_agent"] == "Mozilla/5.0 Test Browser"

@@ -1,9 +1,6 @@
-from unittest.mock import Mock
-
-import pytest
-from fastapi import HTTPException
+from main import app
 from database import models
-from routers.audit import read_session_audit_logs
+from routers.audit import get_current_active_user
 
 
 def test_owner_can_read_paginated_session_audit_and_read_is_audited(
@@ -21,32 +18,32 @@ def test_owner_can_read_paginated_session_audit_and_read_is_audited(
     assert len(body["items"]) == 1
     assert body["items"][0]["action"] == "login"
     assert body["has_more"] is False
-    assert body["next_before_id"] is None
+    assert body["next_cursor"] is None
     assert "event_type" not in body["items"][0]
     read_event = test_db.query(models.AuditLog).filter_by(action="audit.read").one()
     assert read_event.user_id == test_game_session.owner_id
     assert read_event.details_json is not None
 
 
-def test_player_cannot_read_session_audit(auth_client, test_db, test_game_session, player_user):
+def test_player_cannot_read_session_audit(client, test_db, test_game_session, player_user):
     test_db.add(models.GamePlayer(
         user_id=player_user.id, session_id=test_game_session.id, role="player"
     ))
     test_db.commit()
 
-    with pytest.raises(HTTPException) as error:
-        read_session_audit_logs(
-            test_game_session.session_code,
-            Mock(headers={}, client=None),
-            player_user,
-            test_db,
-            None,
-            None,
-            50,
-            None,
-        )
+    async def override_current_user():
+        return player_user
 
-    assert error.value.status_code == 403
+    app.dependency_overrides[get_current_active_user] = override_current_user
+    try:
+        response = client.get(
+            f"/api/sessions/{test_game_session.session_code}/audit-logs",
+            headers={"accept": "application/json"},
+        )
+    finally:
+        app.dependency_overrides.pop(get_current_active_user, None)
+
+    assert response.status_code == 403
     denied = test_db.query(models.AuditLog).filter_by(action="audit.read", outcome="denied").one()
     assert denied.user_id == player_user.id
 
@@ -63,6 +60,6 @@ def test_cursor_pagination_is_stable(auth_client, test_game_session, audit_log_f
     assert page["has_more"] is True
     next_page = auth_client.get(
         f"/api/sessions/{test_game_session.session_code}/audit-logs"
-        f"?limit=1&before_id={page['next_before_id']}"
+        f"?limit=1&cursor={page['next_cursor']}"
     ).json()
     assert next_page["items"][0]["event_id"] == first.event_id

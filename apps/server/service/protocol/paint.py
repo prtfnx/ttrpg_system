@@ -37,9 +37,9 @@ class _PaintMixin(_ProtocolBase):
         try:
             stroke = crud.create_paint_stroke(db, table_id, stroke_id, stroke_data_str, user_id)
             stroke_dict = stroke.to_dict()
-        except Exception as e:
-            logger.error(f"handle_paint_stroke_create error: {e}")
-            return Message(MessageType.ERROR, {'error': str(e)})
+        except Exception:
+            logger.exception("Paint stroke creation failed")
+            return Message(MessageType.ERROR, {"error": "Paint stroke creation failed"})
         finally:
             db.close()
 
@@ -62,9 +62,9 @@ class _PaintMixin(_ProtocolBase):
         db = SessionLocal()
         try:
             deleted = crud.delete_paint_stroke(db, stroke_id)
-        except Exception as e:
-            logger.error(f"handle_paint_stroke_delete error: {e}")
-            return Message(MessageType.ERROR, {'error': str(e)})
+        except Exception:
+            logger.exception("Paint stroke deletion failed")
+            return Message(MessageType.ERROR, {"error": "Paint stroke deletion failed"})
         finally:
             db.close()
 
@@ -89,9 +89,9 @@ class _PaintMixin(_ProtocolBase):
         db = SessionLocal()
         try:
             count = crud.clear_paint_strokes_for_table(db, table_id)
-        except Exception as e:
-            logger.error(f"handle_paint_stroke_clear error: {e}")
-            return Message(MessageType.ERROR, {'error': str(e)})
+        except Exception:
+            logger.exception("Paint layer clearing failed")
+            return Message(MessageType.ERROR, {"error": "Paint layer clearing failed"})
         finally:
             db.close()
 

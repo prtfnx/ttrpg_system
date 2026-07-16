@@ -105,7 +105,10 @@ class ServerAssetManager:
             )
 
         self.session_permissions[session_code][user_id] = permissions
-        logger.info(f"Set {role} permissions for user {username} ({user_id}) in session {session_code}")
+        logger.info(
+            "Asset permissions updated",
+            extra={"event_name": "asset.permissions.updated", "role": role},
+        )
 
     def _get_permissions(self, session_code: str, user_id: int) -> AssetPermission:
         """Get user permissions for a session"""
@@ -259,9 +262,9 @@ class ServerAssetManager:
             if asset:
                 self._link_asset_to_session(db, asset, session, user_id, display_name)
                 db.commit()
-        except Exception as e:
+        except Exception:
             db.rollback()
-            logger.error(f"Error linking duplicate asset {asset_id} to session {session_code}: {e}")
+            logger.exception("Duplicate asset session link failed")
         finally:
             db.close()
 
@@ -359,7 +362,10 @@ class ServerAssetManager:
                     error="Failed to generate download URL"
                 )
 
-            logger.info(f"Generated download URL for {request.username}: {request.asset_id}")
+            logger.info(
+                "Asset download URL generated",
+                extra={"event_name": "asset.download_url.generated", "outcome": "success"},
+            )
 
             return PresignedUrlResponse(
                 success=True,
@@ -369,8 +375,8 @@ class ServerAssetManager:
                 instructions="GET request to download the file"
             )
 
-        except Exception as e:
-            logger.error(f"Error generating download URL: {e}")
+        except Exception:
+            logger.exception("Asset download URL generation failed")
             return PresignedUrlResponse(
                 success=False,
                 error="Internal server error"
@@ -411,7 +417,10 @@ class ServerAssetManager:
                     error="Failed to generate download URL"
                 )
 
-            logger.info(f"Generated download URL for existing asset: {filename}")
+            logger.info(
+                "Existing asset download URL generated",
+                extra={"event_name": "asset.download_url.generated", "outcome": "success"},
+            )
 
             return PresignedUrlResponse(
                 success=True,
@@ -420,8 +429,8 @@ class ServerAssetManager:
                 expires_in=expiry_seconds
             )
 
-        except Exception as e:
-            logger.error(f"Error generating download URL for filename {filename}: {e}")
+        except Exception:
+            logger.exception("Asset download URL generation failed")
             return PresignedUrlResponse(
                 success=False,
                 error="Internal server error"
@@ -456,7 +465,10 @@ class ServerAssetManager:
                     intent.error_message = error_message
                     intent.confirmed_at = datetime.utcnow()
                     db.commit()
-                    logger.warning(f"Asset {asset_id} upload failed: {error_message}")
+                    logger.warning(
+                        "Asset upload reported failed",
+                        extra={"event_name": "asset.upload.failed", "outcome": "failure"},
+                    )
                     return True
 
                 verified, verification_error, object_found, reject_object = self._verify_uploaded_asset(intent)
@@ -516,8 +528,8 @@ class ServerAssetManager:
             finally:
                 db.close()
 
-        except Exception as e:
-            logger.error(f"Error confirming upload for asset {asset_id}: {e}")
+        except Exception:
+            logger.exception("Asset upload confirmation failed")
             return False
 
     def get_session_assets(self, session_code: str, user_id: int) -> List[dict]:
@@ -570,8 +582,8 @@ class ServerAssetManager:
             finally:
                 db.close()
 
-        except Exception as e:
-            logger.error(f"Error getting session assets: {e}")
+        except Exception:
+            logger.exception("Session asset listing failed")
             return []
         return []
 
@@ -675,7 +687,10 @@ class ServerAssetManager:
             # Check for duplicate files by xxHash
             existing_asset = self._get_asset_by_xxhash_from_db(file_xxhash)
             if existing_asset:
-                logger.info(f"Duplicate file detected by xxHash: {file_xxhash}, returning existing asset")
+                logger.info(
+                    "Duplicate asset content detected",
+                    extra={"event_name": "asset.duplicate.detected"},
+                )
                 self._link_existing_asset_to_session(
                     existing_asset["asset_id"],
                     request.session_code,
@@ -726,7 +741,10 @@ class ServerAssetManager:
 
             self._record_upload_intent(pending_metadata, expiry_seconds)
 
-            logger.info(f"Generated upload URL for {request.username}: {request.filename} -> {asset_id} (pending confirmation)")
+            logger.info(
+                "Asset upload URL generated",
+                extra={"event_name": "asset.upload_url.generated", "outcome": "success"},
+            )
 
             return PresignedUrlResponse(
                 success=True,
@@ -737,8 +755,8 @@ class ServerAssetManager:
                 instructions="PUT the file with x-amz-meta-xxhash header containing the xxHash"
             )
 
-        except Exception as e:
-            logger.error(f"Error generating upload URL with hash: {e}")
+        except Exception:
+            logger.exception("Asset upload URL generation failed")
             return PresignedUrlResponse(
                 success=False,
                 error="Internal server error"
@@ -765,7 +783,10 @@ class ServerAssetManager:
                             asset_data["filename"]
                         )
                         db.commit()
-                        logger.info(f"Linked existing asset with xxHash {asset_data['xxhash']} to session")
+                        logger.info(
+                            "Existing asset linked to session",
+                            extra={"event_name": "asset.session_link.created", "outcome": "success"},
+                        )
                         return True
 
                 stored_name = self._make_unique_asset_name(db, asset_data["filename"], asset_data["asset_id"])
@@ -789,14 +810,17 @@ class ServerAssetManager:
                 db.flush()
                 self._link_asset_to_session(db, new_asset, session, asset_data["uploaded_by"], asset_data["filename"])
                 db.commit()
-                logger.info(f"Saved asset {asset_data['filename']} to database with xxHash {asset_data.get('xxhash', 'N/A')}")
+                logger.info(
+                    "Asset metadata persisted",
+                    extra={"event_name": "asset.metadata.persisted", "outcome": "success"},
+                )
                 return True
 
             finally:
                 db.close()
 
-        except Exception as e:
-            logger.error(f"Error saving asset to database: {e}")
+        except Exception:
+            logger.exception("Asset metadata persistence failed")
             return False
 
     def _get_asset_from_db(
@@ -849,8 +873,8 @@ class ServerAssetManager:
             finally:
                 db.close()
 
-        except Exception as e:
-            logger.error(f"Error getting asset from database: {e}")
+        except Exception:
+            logger.exception("Asset lookup failed")
             return None
 
     def _get_asset_by_id_from_db(
@@ -897,8 +921,8 @@ class ServerAssetManager:
             finally:
                 db.close()
 
-        except Exception as e:
-            logger.error(f"Error getting asset by ID from database: {e}")
+        except Exception:
+            logger.exception("Asset ID lookup failed")
             return None
 
     def _get_asset_by_xxhash_from_db(self, xxhash: str) -> Optional[dict]:
@@ -923,8 +947,8 @@ class ServerAssetManager:
             finally:
                 db.close()
 
-        except Exception as e:
-            logger.error(f"Error getting asset by xxHash from database: {e}")
+        except Exception:
+            logger.exception("Asset hash lookup failed")
             return None
 
     async def _verify_asset_in_r2(self, r2_key: str) -> bool:
@@ -933,16 +957,16 @@ class ServerAssetManager:
             # Use R2Manager to check if object exists
             exists = self.r2_manager.object_exists(r2_key)
             return exists
-        except Exception as e:
-            logger.error(f"Error verifying asset in R2: {e}")
+        except Exception:
+            logger.exception("R2 asset verification failed")
             return False
 
     def _verify_uploaded_asset(self, intent: AssetUploadIntent) -> Tuple[bool, str, bool, bool]:
         """Verify an uploaded object against its signed durable intent."""
         try:
             object_info = self.r2_manager.get_object_info(intent.r2_key)
-        except Exception as exc:
-            logger.error(f"Error reading R2 metadata for {intent.r2_key}: {exc}")
+        except Exception:
+            logger.exception("R2 upload metadata read failed")
             return False, "Unable to read R2 object metadata", False, False
 
         if not object_info:
@@ -968,8 +992,8 @@ class ServerAssetManager:
 
         try:
             object_bytes = self.r2_manager.get_object_bytes(intent.r2_key, self.max_file_size)
-        except Exception as exc:
-            logger.error(f"Error reading R2 object bytes for {intent.r2_key}: {exc}")
+        except Exception:
+            logger.exception("R2 object inspection failed")
             return False, "Unable to inspect uploaded image bytes", True, False
 
         calculated_xxhash = xxhash.xxh64(object_bytes).hexdigest()
@@ -990,224 +1014,22 @@ class ServerAssetManager:
                     image.verify()
                 with Image.open(BytesIO(object_bytes)) as image:
                     image.load()
-        except (UnidentifiedImageError, OSError, Image.DecompressionBombError, Image.DecompressionBombWarning) as exc:
-            return False, f"Uploaded image bytes failed validation: {exc}", True, True
+        except (
+            UnidentifiedImageError,
+            OSError,
+            Image.DecompressionBombError,
+            Image.DecompressionBombWarning,
+        ):
+            return False, "Uploaded image bytes failed validation", True, True
 
         return True, "", True, False
 
     def _delete_rejected_upload(self, r2_key: str) -> None:
         try:
             if not self.r2_manager.delete_file(r2_key):
-                logger.error(f"Failed to delete rejected R2 upload {r2_key}")
-        except Exception as exc:
-            logger.error(f"Failed to delete rejected R2 upload {r2_key}: {exc}")
-
-    @track_asset_operation("cleanup_phantoms")
-    async def cleanup_phantom_assets(self, session_code: Optional[str] = None,
-                                   max_age_hours: int = 24) -> dict:
-        """
-        Clean up database entries for assets that don't exist in R2.
-        Note: With the new approach, this should rarely find anything since
-        DB entries are only created after upload confirmation.
-        """
-        try:
-            db = SessionLocal()
-            cleanup_stats = {
-                "assets_checked": 0,
-                "phantom_assets_found": 0,
-                "assets_cleaned": 0,
-                "errors": 0,
-                "note": "With new upload flow, phantom assets should be rare"
-            }
-
-            try:
-                # Query for assets to check
-                query = db.query(Asset)
-                if session_code:
-                    # Filter by session if provided
-                    session = db.query(GameSession).filter(GameSession.session_code == session_code).first()
-                    if session:
-                        linked_asset_ids = db.query(SessionAsset.asset_id).filter(SessionAsset.session_id == session.id)
-                        query = query.filter(Asset.id.in_(linked_asset_ids))
-
-                # Only check assets older than max_age_hours
-                cutoff_time = datetime.now() - timedelta(hours=max_age_hours)
-                query = query.filter(Asset.created_at < cutoff_time)
-
-                assets = query.all()
-                cleanup_stats["assets_checked"] = len(assets)
-
-                for asset in assets:
-                    try:
-                        exists_in_r2 = await self._verify_asset_in_r2(asset.r2_key)
-
-                        if not exists_in_r2:
-                            cleanup_stats["phantom_assets_found"] += 1
-                            logger.warning(f"Legacy phantom asset found: {asset.r2_asset_id} ({asset.asset_name}) - not in R2")
-
-                            # Remove from database
-                            db.delete(asset)
-                            cleanup_stats["assets_cleaned"] += 1
-
-                    except Exception as e:
-                        logger.error(f"Error checking asset {asset.r2_asset_id}: {e}")
-                        cleanup_stats["errors"] += 1
-
-                # Commit all deletions
-                db.commit()
-
-                logger.info(f"Legacy phantom cleanup completed: {cleanup_stats}")
-                return cleanup_stats
-
-            finally:
-                db.close()
-
-        except Exception as e:
-            logger.error(f"Error during phantom asset cleanup: {e}")
-            return {"error": str(e)}
-
-    @track_asset_operation("verify_session")
-    async def verify_all_session_assets(self, session_code: str) -> dict:
-        """
-        Verify all assets for a session exist in R2.
-        Returns verification report.
-        """
-        try:
-            db = SessionLocal()
-            verification_report = {
-                "session_code": session_code,
-                "total_assets": 0,
-                "verified_assets": 0,
-                "missing_assets": [],
-                "errors": []
-            }
-
-            try:
-                # Get session
-                session = db.query(GameSession).filter(GameSession.session_code == session_code).first()
-                if not session:
-                    verification_report["errors"].append(f"Session {session_code} not found")
-                    return verification_report
-
-                linked_asset_ids = db.query(SessionAsset.asset_id).filter(SessionAsset.session_id == session.id)
-                assets = db.query(Asset).filter(Asset.id.in_(linked_asset_ids)).all()
-                verification_report["total_assets"] = len(assets)
-
-                for asset in assets:
-                    try:
-                        exists_in_r2 = await self._verify_asset_in_r2(asset.r2_key)
-
-                        if exists_in_r2:
-                            verification_report["verified_assets"] += 1
-                        else:
-                            verification_report["missing_assets"].append({
-                                "asset_id": asset.r2_asset_id,
-                                "filename": asset.asset_name,
-                                "r2_key": asset.r2_key,
-                                "created_at": (asset.created_at.isoformat() if asset.created_at else None) if hasattr(asset.created_at, 'isoformat') and asset.created_at is not None else str(asset.created_at)
-                            })
-                    except Exception as e:
-                        verification_report["errors"].append(f"Error verifying {asset.r2_asset_id}: {str(e)}")
-
-                return verification_report
-
-            finally:
-                db.close()
-
-        except Exception as e:
-            logger.error(f"Error during asset verification: {e}")
-            return {"error": str(e)}
-
-    def cleanup_stale_pending_uploads(self, max_age_hours: int = 2) -> dict:
-        """
-        Clean up pending uploads that are older than max_age_hours.
-        These represent presigned URLs that were generated but never used.
-        """
-        try:
-            cutoff_time = datetime.utcnow() - timedelta(hours=max_age_hours)
-            cleanup_stats = {
-                "total_pending": 0,
-                "stale_uploads": 0,
-                "cleaned_uploads": 0
-            }
-
-            db = SessionLocal()
-            try:
-                pending = db.query(AssetUploadIntent).filter(AssetUploadIntent.status == "awaiting_upload")
-                cleanup_stats["total_pending"] = pending.count()
-                stale_uploads = pending.filter(AssetUploadIntent.created_at < cutoff_time).all()
-                cleanup_stats["stale_uploads"] = len(stale_uploads)
-                for intent in stale_uploads:
-                    intent.status = "expired"
-                    intent.error_message = f"No upload confirmation within {max_age_hours} hours"
-                    cleanup_stats["cleaned_uploads"] += 1
-                db.commit()
-            finally:
-                db.close()
-
-            logger.info(f"Cleaned {cleanup_stats['cleaned_uploads']} stale pending uploads (older than {max_age_hours}h)")
-            return cleanup_stats
-
-        except Exception as e:
-            logger.error(f"Error during stale upload cleanup: {e}")
-            return {"error": str(e)}
-
-    def get_pending_uploads_stats(self) -> dict:
-        """Get statistics about pending uploads"""
-        try:
-            current_time = datetime.now()
-            stats = {
-                "total_pending": 0,
-                "by_age": {"under_1h": 0, "1h_to_2h": 0, "over_2h": 0},
-                "by_session": {},
-                "oldest_pending": None
-            }
-
-            oldest_time = None
-            db = SessionLocal()
-            try:
-                pending = db.query(AssetUploadIntent).filter(
-                    AssetUploadIntent.status == "awaiting_upload"
-                ).all()
-                stats["total_pending"] = len(pending)
-            finally:
-                db.close()
-
-            for intent in pending:
-                try:
-                    # Age analysis
-                    if intent.created_at:
-                        created_at = intent.created_at
-                        age_hours = (current_time - created_at).total_seconds() / 3600
-
-                        if age_hours < 1:
-                            stats["by_age"]["under_1h"] += 1
-                        elif age_hours < 2:
-                            stats["by_age"]["1h_to_2h"] += 1
-                        else:
-                            stats["by_age"]["over_2h"] += 1
-
-                        if oldest_time is None or created_at < oldest_time:
-                            oldest_time = created_at
-                            stats["oldest_pending"] = {
-                                "asset_id": intent.asset_id,
-                                "filename": intent.filename,
-                                "age_hours": age_hours,
-                                "created_at": created_at.isoformat()
-                            }
-
-                    # Session analysis
-                    session_code = intent.session_code or "unknown"
-                    stats["by_session"][session_code] = stats["by_session"].get(session_code, 0) + 1
-
-                except Exception as e:
-                    logger.error(f"Error analyzing pending upload {intent.asset_id}: {e}")
-
-            return stats
-
-        except Exception as e:
-            logger.error(f"Error getting pending upload stats: {e}")
-            return {"error": str(e)}
+                logger.error("Rejected R2 upload cleanup failed")
+        except Exception:
+            logger.exception("Rejected R2 upload cleanup failed")
 
 # Global instance
 _server_asset_manager = None

@@ -145,7 +145,10 @@ _AUTH_REASONS = {
     "none", "invalid_credentials", "invalid_token", "inactive", "rate_limit",
     "provider_error", "configuration", "unknown",
 }
-_LIMITERS = {"login", "registration", "password_reset", "browser_telemetry", "demo", "unknown"}
+_LIMITERS = {
+    "login", "registration", "password_reset", "browser_telemetry", "demo",
+    "security_audit", "unknown",
+}
 _EMAIL_OPERATIONS = {"password_reset", "password_changed", "email_change_verify", "email_change_notify", "unknown"}
 _JOB_NAMES = {"rate_limit_cleanup", "audit_retention", "database_backup", "database_restore", "r2_smoke", "r2_orphan_audit", "r2_backup", "r2_restore", "migration", "unknown"}
 

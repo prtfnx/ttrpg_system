@@ -79,7 +79,10 @@ async def create_invitation(
     db.commit()
     db.refresh(invitation)
 
-    logger.info(f"Invitation created: code={invite_code[:8]}... session={invite_data.session_code}")
+    logger.info(
+        "Invitation created",
+        extra={"event_name": "invitation.created", "outcome": "success"},
+    )
 
     return schemas.InvitationResponse.from_orm(invitation)
 

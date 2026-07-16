@@ -45,6 +45,9 @@ services:
         value: 365
       - key: BACKUP_ROOT
         value: /var/data/backups
+      # Render is the only public ingress and supplies the first X-Forwarded-For value.
+      - key: TRUST_PROXY_HEADERS
+        value: true
       - key: SERVICE_NAME
         value: ttrpg-server
       - key: OTEL_EXPORTER_OTLP_ENDPOINT

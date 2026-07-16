@@ -1,7 +1,10 @@
 from datetime import timedelta
+from types import SimpleNamespace
+from unittest.mock import MagicMock
 
 import jwt
 import pytest
+from fastapi import HTTPException
 
 
 @pytest.mark.unit
@@ -44,3 +47,40 @@ class TestPasswordHashing:
         assert crud.verify_password("Pass1234", test_user.hashed_password)
         # Wrong password should not verify
         assert not crud.verify_password("wrongpass", test_user.hashed_password)
+
+
+@pytest.mark.unit
+class TestPasswordAuditBehavior:
+    def test_failed_login_records_coarse_event(self, monkeypatch):
+        from routers.users import _authenticate_password
+
+        monkeypatch.setattr("routers.users.crud.authenticate_user", lambda *args: False)
+        db = MagicMock()
+        request = SimpleNamespace(headers={}, client=None, state=SimpleNamespace())
+        form = SimpleNamespace(username="unknown", password="WrongPass1")
+
+        with pytest.raises(HTTPException) as error:
+            _authenticate_password(form, request, db)
+
+        assert error.value.status_code == 401
+        row = db.add.call_args.args[0]
+        assert row.action == "authentication.login"
+        assert row.outcome == "failure"
+        assert "WrongPass1" not in row.details_json
+        assert request.state.security_decision_audited is True
+
+    def test_successful_login_fails_closed_when_audit_sink_fails(self, monkeypatch):
+        from routers.users import _authenticate_password
+
+        user = SimpleNamespace(id=7, username="player", session_version=0)
+        monkeypatch.setattr("routers.users.crud.authenticate_user", lambda *args: user)
+        db = MagicMock()
+        db.commit.side_effect = RuntimeError("write unavailable")
+        request = SimpleNamespace(headers={}, client=None, state=SimpleNamespace())
+        form = SimpleNamespace(username="player", password="Pass1234")
+
+        with pytest.raises(HTTPException) as error:
+            _authenticate_password(form, request, db)
+
+        assert error.value.status_code == 503
+        db.rollback.assert_called_once()

@@ -50,6 +50,78 @@ def create_access_token(data: dict, expires_delta: timedelta | None = None):
     encoded_jwt = jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
     return encoded_jwt
 
+
+def _record_password_login(
+    db: Session,
+    request: Request,
+    *,
+    outcome: str,
+    reason: str,
+    user_id: int | None = None,
+    fail_closed: bool = False,
+) -> bool:
+    """Persist one coarse login event and make sink-failure behavior explicit."""
+    try:
+        db.add(audit_event(
+            "authentication.login",
+            outcome=outcome,
+            user_id=user_id,
+            request=request,
+            details={"reason": reason},
+        ))
+        db.commit()
+        request.state.security_decision_audited = True
+        return True
+    except Exception:
+        db.rollback()
+        logger.exception(
+            "Password login audit persistence failed",
+            extra={"event_name": "audit.authentication.failed", "outcome": "error"},
+        )
+        if fail_closed:
+            raise HTTPException(
+                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                detail="Authentication temporarily unavailable",
+            )
+        return False
+
+
+def _authenticate_password(
+    form_data: OAuth2PasswordRequestForm,
+    request: Request,
+    db: Session,
+) -> auth_models.Token:
+    user = crud.authenticate_user(db, form_data.username, form_data.password)
+    if not user:
+        record_auth("password", "failure", "invalid_credentials")
+        _record_password_login(
+            db,
+            request,
+            outcome="failure",
+            reason="invalid_credentials",
+        )
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Incorrect username or password",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+
+    request.state.user_id = user.id
+    record_auth("password", "success")
+    _record_password_login(
+        db,
+        request,
+        outcome="success",
+        reason="password",
+        user_id=user.id,
+        fail_closed=True,
+    )
+    access_token = create_access_token(
+        data={"sub": user.username, "sv": user.session_version or 0},
+        expires_delta=timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES),
+    )
+    return auth_models.Token(access_token=access_token, token_type="bearer")
+
 async def get_current_user(request: Request, db: Session = Depends(get_db)):
     credentials_exception = HTTPException(
         status_code=status.HTTP_401_UNAUTHORIZED,
@@ -175,36 +247,20 @@ async def login_for_access_token(
     request: Request,
     db: Session = Depends(get_db)
 ) -> auth_models.Token:
-    user = crud.authenticate_user(db, form_data.username, form_data.password)
-    if not user:
-        record_auth("password", "failure", "invalid_credentials")
-        db.add(audit_event(
-            "authentication.login",
-            outcome="failure",
-            request=request,
-            details={"reason": "invalid_credentials"},
-        ))
-        db.commit()
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Incorrect username or password",
-            headers={"WWW-Authenticate": "Bearer"},
+    client_ip = get_client_ip(request)
+    if not login_limiter.is_allowed(client_ip, max_requests=10, window_minutes=5):
+        record_auth("password", "denied", "rate_limit")
+        _record_password_login(
+            db,
+            request,
+            outcome="denied",
+            reason="rate_limit",
         )
-    access_token_expires = timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
-    access_token = create_access_token(
-        data={"sub": user.username, "sv": user.session_version or 0},
-        expires_delta=access_token_expires
-    )
-    request.state.user_id = user.id
-    record_auth("password", "success")
-    db.add(audit_event(
-        "authentication.login",
-        user_id=user.id,
-        request=request,
-        details={"method": "password"},
-    ))
-    db.commit()
-    return auth_models.Token(access_token=access_token, token_type="bearer")
+        raise HTTPException(
+            status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+            detail="Too many login attempts",
+        )
+    return _authenticate_password(form_data, request, db)
 
 @router.get("/me/items/")
 async def read_own_items(
@@ -274,7 +330,7 @@ async def login(
         }, status_code=400)  # 400 Bad Request
 
     try:
-        token = await login_for_access_token(form_data, request, db)
+        token = _authenticate_password(form_data, request, db)
         if not token:
             return templates.TemplateResponse(request, "login.html", {
                 "error": "Incorrect username or password"
@@ -342,7 +398,11 @@ async def login(
             path="/"
         )
         return response
-    except HTTPException:
+    except HTTPException as exc:
+        if exc.status_code == status.HTTP_503_SERVICE_UNAVAILABLE:
+            return templates.TemplateResponse(request, "login.html", {
+                "error": "Authentication is temporarily unavailable"
+            }, status_code=503)
         return templates.TemplateResponse(request, "login.html", {
             "error": "Incorrect username or password"
         }, status_code=401)  # 401 Unauthorized
@@ -486,9 +546,10 @@ def register_user_view(
         db.add(email_token)
         db.commit()
 
-        # Log verification URL (in production, send email)
-        verification_url = f"/users/verify?token={verification_token}"
-        logger.info(f"Email verification URL for {username}: {verification_url}")
+        logger.info(
+            "Email verification requested",
+            extra={"event_name": "authentication.email_verification.requested"},
+        )
 
         # Handle invite code - auto-accept after registration
         if invite_code:

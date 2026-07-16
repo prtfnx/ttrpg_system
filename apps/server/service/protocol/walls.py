@@ -29,9 +29,9 @@ class _WallsMixin(_ProtocolBase):
         try:
             wall_dict = await self.actions.create_wall(table_id=table_id, wall_data=wall_data,
                                                        session_id=self._get_session_id(msg))
-        except Exception as e:
-            logger.error(f"handle_wall_create error: {e}")
-            return Message(MessageType.ERROR, {'error': str(e)})
+        except Exception:
+            logger.exception("Wall creation failed")
+            return Message(MessageType.ERROR, {"error": "Wall creation failed"})
 
         await self.broadcast_to_session(
             Message(MessageType.WALL_DATA, {'operation': 'create', 'wall': wall_dict, 'table_id': table_id}),
@@ -55,9 +55,9 @@ class _WallsMixin(_ProtocolBase):
         try:
             wall_dict = await self.actions.update_wall(table_id=table_id, wall_id=wall_id, updates=updates,
                                                        session_id=self._get_session_id(msg))
-        except Exception as e:
-            logger.error(f"handle_wall_update error: {e}")
-            return Message(MessageType.ERROR, {'error': str(e)})
+        except Exception:
+            logger.exception("Wall update failed")
+            return Message(MessageType.ERROR, {"error": "Wall update failed"})
 
         await self.broadcast_to_session(
             Message(MessageType.WALL_DATA, {'operation': 'update', 'wall': wall_dict, 'table_id': table_id}),
@@ -80,9 +80,9 @@ class _WallsMixin(_ProtocolBase):
         try:
             await self.actions.delete_wall(table_id=table_id, wall_id=wall_id,
                                            session_id=self._get_session_id(msg))
-        except Exception as e:
-            logger.error(f"handle_wall_remove error: {e}")
-            return Message(MessageType.ERROR, {'error': str(e)})
+        except Exception:
+            logger.exception("Wall removal failed")
+            return Message(MessageType.ERROR, {"error": "Wall removal failed"})
 
         await self.broadcast_to_session(
             Message(MessageType.WALL_DATA, {'operation': 'remove', 'wall_id': wall_id, 'table_id': table_id}),
@@ -111,8 +111,8 @@ class _WallsMixin(_ProtocolBase):
                 wd['created_by']  = user_id
                 wall_dict = await self.actions.create_wall(table_id=table_id, wall_data=wd, session_id=session_id)
                 created.append(wall_dict)
-            except Exception as e:
-                logger.warning(f"Skipping wall in batch due to error: {e}")
+            except Exception:
+                logger.exception("Wall skipped during batch creation")
 
         await self.broadcast_to_session(
             Message(MessageType.WALL_DATA, {'operation': 'batch_create', 'walls': created, 'table_id': table_id}),
@@ -153,9 +153,9 @@ class _WallsMixin(_ProtocolBase):
                 updates={'door_state': new_state},
                 session_id=self._get_session_id(msg),
             )
-        except Exception as e:
-            logger.error(f"handle_door_toggle error: {e}")
-            return Message(MessageType.ERROR, {'error': str(e)})
+        except Exception:
+            logger.exception("Door state update failed")
+            return Message(MessageType.ERROR, {"error": "Door state update failed"})
 
         await self.broadcast_to_session(
             Message(MessageType.WALL_DATA, {'operation': 'update', 'wall': wall_dict, 'table_id': table_id}),

@@ -15,6 +15,7 @@ if str(SERVER_DIR) not in sys.path:
     sys.path.insert(0, str(SERVER_DIR))
 
 from utils.logger import setup_logger
+from utils.audit import persist_operational_event
 
 logger = setup_logger(__name__)
 
@@ -197,13 +198,27 @@ def main() -> int:
         if args.check:
             return 0 if runner.schema_status()["current"] else 1
         if runner._has_application_schema() and not args.no_backup:
-            backup_path = runner.create_verified_backup()
+            runner.create_verified_backup()
             logger.info(
                 "Pre-migration backup verified",
-                extra={"event_name": "database.backup.verified", "backup_path": str(backup_path)},
+                extra={"event_name": "database.backup.verified", "outcome": "success"},
             )
-        return 0 if runner.provision() else 1
+        succeeded = runner.provision()
+        persist_operational_event(
+            "database.migration",
+            "success" if succeeded else "failure",
+            target_type="database_schema",
+            details={"revision_count": len(runner.migration_names())},
+            fail_closed=succeeded,
+        )
+        return 0 if succeeded else 1
     except Exception:
+        persist_operational_event(
+            "database.migration",
+            "failure",
+            target_type="database_schema",
+            fail_closed=False,
+        )
         logger.exception(
             "Database provisioning failed",
             extra={"event_name": "database.provision.failed", "outcome": "error"},

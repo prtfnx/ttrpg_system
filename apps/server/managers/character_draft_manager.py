@@ -167,18 +167,6 @@ class CharacterDraftManager:
             serialized = json.dumps(validated, separators=(",", ":"))
             with SessionLocal() as db:
                 now = datetime.utcnow()
-                character = SessionCharacter(
-                    character_id=draft_id,
-                    session_id=session_id,
-                    character_name=str(name),
-                    character_data=json.dumps(document, separators=(",", ":")),
-                    owner_user_id=user_id,
-                    version=1,
-                    last_modified_by=user_id,
-                )
-                db.add(character)
-                db.flush()
-
                 affected = db.query(CharacterDraft).filter(
                     CharacterDraft.session_id == session_id,
                     CharacterDraft.draft_id == draft_id,
@@ -255,6 +243,18 @@ class CharacterDraftManager:
                     SessionCharacter.character_id == draft_id
                 ).first():
                     return {"success": False, "error": "Draft was already converted"}
+
+                character = SessionCharacter(
+                    character_id=draft_id,
+                    session_id=session_id,
+                    character_name=str(name),
+                    character_data=json.dumps(document, separators=(",", ":")),
+                    owner_user_id=user_id,
+                    version=1,
+                    last_modified_by=user_id,
+                )
+                db.add(character)
+                db.flush()
 
                 affected = db.query(CharacterDraft).filter(
                     CharacterDraft.id == draft.id,

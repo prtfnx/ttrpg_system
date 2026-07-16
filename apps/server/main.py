@@ -24,7 +24,7 @@ from fastapi.responses import JSONResponse, RedirectResponse, Response
 from prometheus_client import CONTENT_TYPE_LATEST, generate_latest
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
-from routers import auth, compendium, demo, game, invitations, telemetry, users
+from routers import audit, auth, compendium, demo, game, invitations, telemetry, users
 from routers.users import get_current_user_optional
 from service.game_session import ConnectionManager
 from service.readiness import ReadinessChecker
@@ -290,6 +290,7 @@ app.include_router(invitations.router, prefix="/api/invitations", tags=["invitat
 app.include_router(demo.router)
 app.include_router(game_ws.router)
 app.include_router(telemetry.router)
+app.include_router(audit.router)
 
 @app.get("/")
 async def root():

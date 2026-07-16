@@ -264,6 +264,12 @@ class SessionCharacter(Base):
     # Versioning for optimistic concurrency
     version: Mapped[int] = mapped_column(Integer, default=1)
     last_modified_by: Mapped[Optional[int]] = mapped_column(Integer, ForeignKey("users.id"), nullable=True)
+    archived_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True, index=True)
+    archived_by: Mapped[Optional[int]] = mapped_column(
+        Integer,
+        ForeignKey("users.id", ondelete="SET NULL"),
+        nullable=True,
+    )
 
     # Relationships
     session = relationship("GameSession")
@@ -273,6 +279,7 @@ class SessionCharacter(Base):
 
     # Explicit relationship for last modifier to avoid FK ambiguity
     last_modified_by_user = relationship("User", foreign_keys=[last_modified_by])
+    archived_by_user = relationship("User", foreign_keys=[archived_by])
     permissions = relationship(
         "CharacterPermission",
         back_populates="character",

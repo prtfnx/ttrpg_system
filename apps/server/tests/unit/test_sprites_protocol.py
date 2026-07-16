@@ -57,6 +57,11 @@ class _ProtoStub(_SpritesMixin):
     async def _can_control_sprite(self, sprite_id, user_id):
         return True
 
+    async def _broadcast_character_event(
+        self, message, session_id, character_id, exclude_client=None, target_clients=None
+    ):
+        await self.broadcast_to_session(message, exclude_client or "")
+
     async def ensure_assets_in_r2(self, table_data, session_code, user_id):
         return table_data
 

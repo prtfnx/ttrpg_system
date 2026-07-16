@@ -74,8 +74,8 @@ class _AssetsMixin(_ProtocolBase):
                     'instructions': response.instructions
                 })
 
-        except Exception as e:
-            logger.error(f"Error handling asset upload request: {e}")
+        except Exception:
+            logger.exception("Asset upload request failed")
             return Message(MessageType.ERROR, {'error': 'Internal server error'})
 
     async def handle_asset_download_request(self, msg: Message, client_id: str) -> Message:
@@ -125,13 +125,13 @@ class _AssetsMixin(_ProtocolBase):
                     'instructions': "Please upload the asset first"
                 })
 
-        except Exception as e:
-            logger.error(f"Error handling asset download request: {e}")
+        except Exception:
+            logger.exception("Asset download request failed")
             return Message(MessageType.ERROR, {'error': 'Internal server error'})
 
     async def handle_asset_list_request(self, msg: Message, client_id: str) -> Message:
         """Handle asset list request - return session-visible asset metadata."""
-        logger.debug(f"Handling asset list request from {client_id}: {msg}")
+        logger.debug("Asset list requested", extra={"event_name": "asset.list.requested"})
         try:
             session_code = (msg.data or {}).get('session_code') or self._get_session_code(msg)
             if not session_code:
@@ -147,8 +147,8 @@ class _AssetsMixin(_ProtocolBase):
                 'assets': assets,
                 'count': len(assets)
             })
-        except Exception as e:
-            logger.error(f"Error handling asset list request: {e}")
+        except Exception:
+            logger.exception("Asset list request failed")
             return Message(MessageType.ERROR, {'error': 'Internal server error'})
 
     async def handle_asset_upload_confirm(self, msg: Message, client_id: str) -> Message:
@@ -167,7 +167,13 @@ class _AssetsMixin(_ProtocolBase):
             if not asset_id:
                 return Message(MessageType.ERROR, {'error': 'Asset ID is required'})
 
-            logger.info(f"Processing upload confirmation for asset {asset_id}: {'success' if upload_success else 'failed'}")
+            logger.info(
+                "Asset upload confirmation received",
+                extra={
+                    "event_name": "asset.upload_confirmation.received",
+                    "outcome": "success" if upload_success else "failure",
+                },
+            )
 
             # Get asset manager and confirm upload
             asset_manager = get_server_asset_manager()
@@ -180,22 +186,26 @@ class _AssetsMixin(_ProtocolBase):
             )
 
             if confirmed:
-                status_msg = "Upload confirmed successfully" if upload_success else f"Upload failure recorded: {error_message}"
-                logger.info(f"Asset {asset_id} confirmation completed: {status_msg}")
+                status_msg = "Upload confirmed successfully" if upload_success else "Upload failure recorded"
+                logger.info(
+                    "Asset upload confirmation completed",
+                    extra={
+                        "event_name": "asset.upload_confirmation.completed",
+                        "outcome": "success" if upload_success else "failure",
+                    },
+                )
                 return Message(MessageType.SUCCESS, {
                     'message': status_msg,
                     'asset_id': asset_id,
                     'status': 'uploaded' if upload_success else 'failed'
                 })
             else:
-                error_msg = f"Failed to confirm upload for asset {asset_id}"
-                logger.error(error_msg)
-                return Message(MessageType.ERROR, {'error': error_msg})
+                logger.error("Asset upload confirmation failed")
+                return Message(MessageType.ERROR, {'error': 'Failed to confirm upload'})
 
-        except Exception as e:
-            error_msg = f"Error processing upload confirmation: {e}"
-            logger.error(error_msg)
-            return Message(MessageType.ERROR, {'error': error_msg})
+        except Exception:
+            logger.exception("Asset upload confirmation failed")
+            return Message(MessageType.ERROR, {'error': 'Internal server error'})
 
     async def add_asset_hashes_to_table(self, table_data: dict, session_code: str, user_id: int) -> dict:
         """Add identifiers for assets visible through this session."""
@@ -213,8 +223,8 @@ class _AssetsMixin(_ProtocolBase):
                         entity_data['asset_xxhash'] = asset.get('xxhash')
 
             return table_data
-        except Exception as e:
-            logger.error(f"Error adding asset hashes to table: {e}")
+        except Exception:
+            logger.exception("Table asset enrichment failed")
             return table_data
 
     def _session_asset_indexes(self, session_code: str, user_id: int) -> tuple[dict, dict]:
@@ -358,14 +368,17 @@ class _AssetsMixin(_ProtocolBase):
             finally:
                 db.close()
 
-            logger.info(f"Asset {asset_id} deleted by {client_id}")
+            logger.info(
+                "Asset deleted",
+                extra={"event_name": "asset.delete.completed", "outcome": "success"},
+            )
             return Message(MessageType.SUCCESS, {
                 'asset_id': asset_id,
                 'deleted': True,
                 'object_deleted': should_delete_object
             })
-        except Exception as e:
-            logger.error(f"Error handling asset delete request: {e}")
+        except Exception:
+            logger.exception("Asset delete request failed")
             return Message(MessageType.ERROR, {'error': 'Internal server error'})
 
     async def ensure_assets_in_r2(self, table_data: dict, session_code: str, user_id: int) -> dict:
@@ -399,8 +412,8 @@ class _AssetsMixin(_ProtocolBase):
                     entity_data['r2_asset_url'] = urls[asset_id]
 
             return table_data
-        except Exception as e:
-            logger.error(f"Error ensuring assets in R2: {e}")
+        except Exception:
+            logger.exception("Asset URL enrichment failed")
             return table_data
 
     async def handle_asset_hash_check(self, msg: Message, client_id: str) -> Message:
@@ -433,6 +446,6 @@ class _AssetsMixin(_ProtocolBase):
             else:
                 return Message(MessageType.ERROR, {'error': 'Asset not found or hash unavailable'})
 
-        except Exception as e:
-            logger.error(f"Error handling asset hash check: {e}")
+        except Exception:
+            logger.exception("Asset hash-check request failed")
             return Message(MessageType.ERROR, {'error': 'Internal server error'})

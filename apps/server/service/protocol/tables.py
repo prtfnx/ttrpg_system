@@ -13,7 +13,7 @@ class _TablesMixin(_ProtocolBase):
 
     async def handle_delete_table(self, msg: Message, client_id: str) -> Message:
         """Handle delete table request"""
-        logger.debug(f"Delete table request received: {msg}")
+        logger.debug("Table delete requested", extra={"event_name": "table.delete.requested"})
         if not is_dm(self._get_client_role(client_id)):
             return Message(MessageType.ERROR, {'error': 'Only DMs can delete tables'})
         if not msg.data:
@@ -44,7 +44,7 @@ class _TablesMixin(_ProtocolBase):
 
     async def handle_table_list_request(self, msg: Message, client_id: str) -> Message:
         """Handle table list request"""
-        logger.debug(f"Table list request received: {msg}")
+        logger.debug("Table list requested", extra={"event_name": "table.list.requested"})
 
         try:
             result = await self.actions.get_all_tables()
@@ -57,25 +57,24 @@ class _TablesMixin(_ProtocolBase):
             else:
                 error_msg = getattr(result, 'message', 'Unknown error')
                 return Message(MessageType.ERROR, {'error': f'Failed to get table list: {error_msg}'})
-        except Exception as e:
-            logger.error(f"Error handling table list request: {e}")
+        except Exception:
+            logger.exception("Table list request failed")
             return Message(MessageType.ERROR, {'error': 'Internal server error'})
 
     async def handle_new_table_request(self, msg: Message, client_id: str) -> Message:
         """Handle new table request"""
-        logger.debug(f"New table request received: {msg}")
+        logger.debug("Table creation requested", extra={"event_name": "table.create.requested"})
         if not is_dm(self._get_client_role(client_id)):
             return Message(MessageType.ERROR, {'error': 'Only DMs can create tables'})
         if not msg.data:
             return Message(MessageType.ERROR, {'error': 'No data provided in new table request'})
         table_name = msg.data.get('table_name', 'default')
         local_table_id = msg.data.get('local_table_id')  # BEST PRACTICE: Preserve local ID for sync mapping
-        logger.info(f"DEBUG: Extracted local_table_id = '{local_table_id}' (type: {type(local_table_id).__name__})")
 
         # BEST PRACTICE: Get session_id for database persistence
         session_id = self._get_session_id(msg)
         if session_id:
-            logger.info(f"Creating table with session_id: {session_id}")
+            logger.debug("Persistent table creation requested", extra={"event_name": "table.create.persistent"})
         else:
             logger.warning("No session_id available - table will not be persisted to database")
 
@@ -97,10 +96,13 @@ class _TablesMixin(_ProtocolBase):
             elif isinstance(table_obj, dict):
                 table_data = table_obj
             await self.ensure_assets_in_r2(table_data, msg.data.get('session_code', 'default'), self._get_user_id(msg, client_id) or 0)
-            logger.info(f"Processing table {table_name} with {len(table_data.get('layers', {}))} layers")
+            logger.debug(
+                "Table creation processed",
+                extra={"event_name": "table.create.processed", "layer_count": len(table_data.get('layers', {}))},
+            )
 
             if local_table_id:
-                logger.info(f"Sync completed: local table '{local_table_id}' → server table '{table_data.get('table_id')}'")
+                logger.debug("Table identity synchronized", extra={"event_name": "table.identity.synchronized"})
 
             # Broadcast new table creation to all clients in the session
             update_message = Message(MessageType.TABLE_UPDATE, {
@@ -119,22 +121,16 @@ class _TablesMixin(_ProtocolBase):
             }
             if local_table_id:
                 response_data['local_table_id'] = local_table_id
-                logger.info(f"DEBUG: Added local_table_id to response: {local_table_id}")
-            else:
-                logger.warning("DEBUG: local_table_id is falsy, not adding to response")
-
-            logger.info(f"DEBUG: Final response_data keys: {list(response_data.keys())}")
             return Message(MessageType.NEW_TABLE_RESPONSE, response_data)
 
     async def handle_table_request(self, msg: Message, client_id: str) -> Message:
         """Handle table request"""
-        logger.debug(f"Table request received: {msg}")
+        logger.debug("Table load requested", extra={"event_name": "table.load.requested"})
         if not msg.data:
             return Message(MessageType.ERROR, {'error': 'No data provided in table request'})
         table_name = msg.data.get('table_name', 'default')
         table_id = msg.data.get('table_id', table_name)
         user_id = self._get_user_id(msg, client_id) or 0
-        logger.info(f"Current tables: {self.table_manager.tables.items()}")
         result = await self.actions.get_table(table_id)
 
         if not result.success or not result.data or result.data.get('table') is None:
@@ -332,8 +328,8 @@ class _TablesMixin(_ProtocolBase):
                     crud.update_virtual_table(db, str(table.table_id), update)
                 finally:
                     db.close()
-            except Exception as e:
-                logger.error(f"Failed to persist table lighting settings: {e}")
+            except Exception:
+                logger.exception("Table lighting persistence failed")
 
         # Broadcast to all clients in session
         broadcast_data = {
@@ -356,7 +352,7 @@ class _TablesMixin(_ProtocolBase):
 
     async def handle_table_update(self, msg: Message, client_id: str) -> Message:
         """Handle and broadcast table update with sprite movement support"""
-        logger.debug(f"Handling table update from {client_id}: {msg}")
+        logger.debug("Table update requested", extra={"event_name": "table.update.requested"})
         try:
             if not msg.data:
                 logger.error(f"No data provided in table update from {client_id}")
@@ -369,7 +365,10 @@ class _TablesMixin(_ProtocolBase):
 
                 # Validate required fields
                 if update_type is None:
-                    logger.error(f"Missing 'type' field in table update from {client_id}: {msg.data}")
+                    logger.info(
+                        "Table update rejected",
+                        extra={"event_name": "table.update.rejected", "reason": "missing_type"},
+                    )
                     return Message(MessageType.ERROR, {'error': 'Missing required field: type'})
                 if update_category == 'sprite':
                     return Message(MessageType.ERROR, {
@@ -422,8 +421,8 @@ class _TablesMixin(_ProtocolBase):
                 else:
                     raise ValueError("No response generated for table update")
 
-        except Exception as e:
-            logger.error(f"Error handling table update from {client_id}: {e}")
+        except Exception:
+            logger.exception("Table update request failed")
             await self._broadcast_error(client_id, "Update failed")
             return Message(MessageType.ERROR, {'error': "Update failed"})
 
@@ -453,8 +452,8 @@ class _TablesMixin(_ProtocolBase):
 
             return Message(MessageType.SUCCESS, {'message': 'Table scale updated'})
 
-        except Exception as e:
-            logger.error(f"Error handling table scale: {e}")
+        except Exception:
+            logger.exception("Table scale request failed")
             return Message(MessageType.ERROR, {'error': 'Internal server error'})
 
     async def handle_table_move(self, msg: Message, client_id: str) -> Message:
@@ -484,8 +483,8 @@ class _TablesMixin(_ProtocolBase):
 
             return Message(MessageType.SUCCESS, {'message': 'Table position updated'})
 
-        except Exception as e:
-            logger.error(f"Error handling table move: {e}")
+        except Exception:
+            logger.exception("Table move request failed")
             return Message(MessageType.ERROR, {'error': 'Internal server error'})
 
     async def handle_table_active_request(self, msg: Message, client_id: str) -> Message:
@@ -514,8 +513,8 @@ class _TablesMixin(_ProtocolBase):
                 'success': active_table_id is not None
             })
 
-        except Exception as e:
-            logger.error(f"Error handling table active request: {e}")
+        except Exception:
+            logger.exception("Active-table request failed")
             return Message(MessageType.ERROR, {'error': 'Internal server error'})
 
     async def handle_table_active_set(self, msg: Message, client_id: str) -> Message:
@@ -541,8 +540,8 @@ class _TablesMixin(_ProtocolBase):
                 logger.error(f"Failed to update active table for user {user_id} to {table_id}")
                 return Message(MessageType.ERROR, {'error': 'Failed to update active table'})
 
-        except Exception as e:
-            logger.error(f"Error handling table active set: {e}")
+        except Exception:
+            logger.exception("Active-table update failed")
             return Message(MessageType.ERROR, {'error': 'Internal server error'})
 
     async def handle_table_active_set_all(self, msg: Message, client_id: str) -> Message:

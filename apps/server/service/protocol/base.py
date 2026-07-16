@@ -227,11 +227,11 @@ class ServerProtocol(
         return Message(MessageType.SUCCESS, {'pong_acknowledged': True})
 
     async def handle_success(self, msg: Message, client_id: str) -> Message:
-        logger.debug(f"Received success from {client_id}: {msg}")
+        logger.debug("Client success received", extra={"event_name": "protocol.success.received"})
         return Message(MessageType.SUCCESS, {'acknowledged': True})
 
     async def handle_error(self, msg: Message, client_id: str) -> Message:
-        logger.warning(f"Error message received from {client_id}: {msg}")
+        logger.warning("Client error received", extra={"event_name": "protocol.error.received"})
         return Message(MessageType.SUCCESS, {'error_acknowledged': True})
 
     async def handle_test(self, msg: Message, client_id: str) -> Message:
@@ -267,8 +267,8 @@ class ServerProtocol(
                         responses.append(response)
                 else:
                     logger.warning(f"No handler for batch message type: {individual_msg.type}")
-            except Exception as e:
-                logger.error(f"Error processing batch message: {e}")
+            except Exception:
+                logger.exception("Batch message processing failed")
                 responses.append(Message(MessageType.ERROR, {
                     'error': f'Batch message processing error: {str(e)}',
                     'original_message': msg_data,

@@ -14,7 +14,7 @@ class _PlayersMixin(_ProtocolBase):
 
     async def handle_player_list_request(self, msg: Message, client_id: str) -> Message:
         """Handle player list request"""
-        logger.debug(f"Player list request received from {client_id}: {msg}")
+        logger.debug("Player list requested", extra={"event_name": "player.list.requested"})
 
         try:
             # Get session_code from message data
@@ -38,13 +38,13 @@ class _PlayersMixin(_ProtocolBase):
                     'session_code': session_code,
                     'error': 'Session manager not available'
                 })
-        except Exception as e:
-            logger.error(f"Error handling player list request: {e}")
+        except Exception:
+            logger.exception("Player list request failed")
             return Message(MessageType.ERROR, {'error': 'Failed to get player list'})
 
     async def handle_player_kick_request(self, msg: Message, client_id: str) -> Message:
         """Handle player kick request"""
-        logger.debug(f"Player kick request received from {client_id}: {msg}")
+        logger.debug("Player kick requested", extra={"event_name": "player.kick.requested"})
 
         try:
             if not msg.data:
@@ -81,13 +81,13 @@ class _PlayersMixin(_ProtocolBase):
             else:
                 return Message(MessageType.ERROR, {'error': 'Session manager not available'})
 
-        except Exception as e:
-            logger.error(f"Error handling player kick request: {e}")
+        except Exception:
+            logger.exception("Player kick request failed")
             return Message(MessageType.ERROR, {'error': 'Failed to kick player'})
 
     async def handle_player_ban_request(self, msg: Message, client_id: str) -> Message:
         """Handle player ban request"""
-        logger.debug(f"Player ban request received from {client_id}: {msg}")
+        logger.debug("Player ban requested", extra={"event_name": "player.ban.requested"})
 
         try:
             if not msg.data:
@@ -126,13 +126,16 @@ class _PlayersMixin(_ProtocolBase):
             else:
                 return Message(MessageType.ERROR, {'error': 'Session manager not available'})
 
-        except Exception as e:
-            logger.error(f"Error handling player ban request: {e}")
+        except Exception:
+            logger.exception("Player ban request failed")
             return Message(MessageType.ERROR, {'error': 'Failed to ban player'})
 
     async def handle_connection_status_request(self, msg: Message, client_id: str) -> Message:
         """Handle connection status request"""
-        logger.debug(f"Connection status request received from {client_id}: {msg}")
+        logger.debug(
+            "Connection status requested",
+            extra={"event_name": "connection.status.requested"},
+        )
 
         try:
             session_code = msg.data.get('session_code') if msg.data else None
@@ -154,8 +157,8 @@ class _PlayersMixin(_ProtocolBase):
                     'error': 'Session manager not available'
                 })
 
-        except Exception as e:
-            logger.error(f"Error handling connection status request: {e}")
+        except Exception:
+            logger.exception("Connection status request failed")
             return Message(MessageType.ERROR, {'error': 'Failed to get connection status'})
 
     def _get_client_info(self, client_id: str) -> dict:
@@ -196,8 +199,8 @@ class _PlayersMixin(_ProtocolBase):
                 'action_type': action_type
             })
 
-        except Exception as e:
-            logger.error(f"Error handling player action: {e}")
+        except Exception:
+            logger.exception("Player action request failed")
             return Message(MessageType.ERROR, {'error': 'Internal server error'})
 
     async def handle_player_ready(self, msg: Message, client_id: str) -> Message:
@@ -219,8 +222,8 @@ class _PlayersMixin(_ProtocolBase):
 
             return Message(MessageType.SUCCESS, {'message': 'Player marked as ready'})
 
-        except Exception as e:
-            logger.error(f"Error handling player ready: {e}")
+        except Exception:
+            logger.exception("Player ready request failed")
             return Message(MessageType.ERROR, {'error': 'Internal server error'})
 
     async def handle_player_unready(self, msg: Message, client_id: str) -> Message:
@@ -242,8 +245,8 @@ class _PlayersMixin(_ProtocolBase):
 
             return Message(MessageType.SUCCESS, {'message': 'Player marked as unready'})
 
-        except Exception as e:
-            logger.error(f"Error handling player unready: {e}")
+        except Exception:
+            logger.exception("Player unready request failed")
             return Message(MessageType.ERROR, {'error': 'Internal server error'})
 
     async def handle_player_status(self, msg: Message, client_id: str) -> Message:
@@ -263,8 +266,8 @@ class _PlayersMixin(_ProtocolBase):
             else:
                 return Message(MessageType.ERROR, {'error': 'Client not found'})
 
-        except Exception as e:
-            logger.error(f"Error handling player status: {e}")
+        except Exception:
+            logger.exception("Player status request failed")
             return Message(MessageType.ERROR, {'error': 'Internal server error'})
 
     async def handle_file_data(self, msg: Message, client_id: str) -> Message:
@@ -288,6 +291,6 @@ class _PlayersMixin(_ProtocolBase):
                 'file_id': file_id
             })
 
-        except Exception as e:
-            logger.error(f"Error handling file data: {e}")
+        except Exception:
+            logger.exception("Unsupported file-data request failed")
             return Message(MessageType.ERROR, {'error': 'Internal server error'})

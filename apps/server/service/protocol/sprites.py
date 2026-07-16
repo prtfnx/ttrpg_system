@@ -16,7 +16,7 @@ class _SpritesMixin(_ProtocolBase):
 
     async def handle_create_sprite(self, msg: Message, client_id: str) -> Message:
         """Handle create sprite request"""
-        logger.debug(f"Create sprite request received: {msg}")
+        logger.debug("Sprite create requested", extra={"event_name": "sprite.create.requested"})
         if not msg.data:
             return Message(MessageType.ERROR, {'error': 'No data provided in create sprite request'})
         sprite_data = msg.data.get('sprite_data')
@@ -93,7 +93,10 @@ class _SpritesMixin(_ProtocolBase):
                 sprite_data['controlled_by'] = json.dumps([user_id])
 
         result = await self.actions.create_sprite(table_id=table_id, sprite_data=sprite_data, session_id=session_id)
-        logger.debug(f"Create sprite result: {result}")
+        logger.debug(
+            "Sprite create completed",
+            extra={"event_name": "sprite.create.completed", "outcome": "success" if result.success else "failure"},
+        )
         # Safely extract result data
         result_data = result.data or {}
         if not result.success or not result_data or result_data.get('sprite_data') is None:
@@ -106,7 +109,6 @@ class _SpritesMixin(_ProtocolBase):
                     sprite_data = sprite_data.to_dict() or {}
                 except Exception:
                     sprite_data = {}
-            logger.debug(f"Sprite creation result - sprite_data: {sprite_data}")
             # Ensure table_id is embedded in sprite_data so the client can assign it
             # to WASM sprites (without it the sprite gets table_id='default_table' and is never rendered)
             if isinstance(sprite_data, dict):
@@ -115,7 +117,6 @@ class _SpritesMixin(_ProtocolBase):
                 'sprite_id': sprite_data.get('sprite_id') if isinstance(sprite_data, dict) else None,
                 'sprite_data': sprite_data
             }
-            logger.debug(f"Sending sprite response: {response_data}")
 
             # Broadcast sprite creation only to clients who can see this layer
             update_message = Message(MessageType.SPRITE_UPDATE, {
@@ -130,7 +131,7 @@ class _SpritesMixin(_ProtocolBase):
 
     async def handle_delete_sprite(self, msg: Message, client_id: str) -> Message:
         """Handle delete sprite request"""
-        logger.debug(f"Delete sprite request received: {msg}")
+        logger.debug("Sprite delete requested", extra={"event_name": "sprite.delete.requested"})
         if not is_dm(self._get_client_role(client_id)):
             return Message(MessageType.ERROR, {'error': 'Only DMs can delete sprites'})
         if not msg.data:
@@ -165,7 +166,7 @@ class _SpritesMixin(_ProtocolBase):
 
     async def handle_move_sprite(self, msg: Message, client_id: str) -> Message:
         """Handle move sprite request"""
-        logger.debug(f"Move sprite request received: {msg}")
+        logger.debug("Sprite move requested", extra={"event_name": "sprite.move.requested"})
         if not msg.data:
             return Message(MessageType.ERROR, {'error': 'No data provided in move sprite request'})
 
@@ -313,7 +314,7 @@ class _SpritesMixin(_ProtocolBase):
 
     async def handle_scale_sprite(self, msg: Message, client_id: str) -> Message:
         """Handle scale sprite request"""
-        logger.debug(f"Scale sprite request received: {msg}")
+        logger.debug("Sprite scale requested", extra={"event_name": "sprite.scale.requested"})
         if not msg.data:
             return Message(MessageType.ERROR, {'error': 'No data provided in scale sprite request'})
 
@@ -358,7 +359,7 @@ class _SpritesMixin(_ProtocolBase):
 
     async def handle_rotate_sprite(self, msg: Message, client_id: str) -> Message:
         """Handle rotate sprite request"""
-        logger.debug(f"Rotate sprite request received: {msg}")
+        logger.debug("Sprite rotation requested", extra={"event_name": "sprite.rotate.requested"})
         if not msg.data:
             return Message(MessageType.ERROR, {'error': 'No data provided in rotate sprite request'})
 
@@ -468,7 +469,7 @@ class _SpritesMixin(_ProtocolBase):
 
     async def handle_sprite_update(self, msg: Message, client_id: str) -> Message:
         """Handle sprite update message with character binding and token stats support"""
-        logger.info(f"Handling sprite update from {client_id}: {msg}")
+        logger.info("Sprite update requested", extra={"event_name": "sprite.update.requested"})
         if not msg.data:
             logger.error(f"No data provided in sprite update from {client_id}")
             return Message(MessageType.ERROR, {'error': 'No data provided in sprite update'})
@@ -593,7 +594,10 @@ class _SpritesMixin(_ProtocolBase):
                             }), session_id, character_id, client_id
                         )
                     else:
-                        logger.warning(f"Token→character sync failed for {character_id}: {char_result.message}")
+                        logger.warning(
+                            "Token-to-character synchronization rejected",
+                            extra={"event_name": "character.token_sync.rejected"},
+                        )
 
         # Only broadcast if there were actual field changes
         if updates:
@@ -623,7 +627,10 @@ class _SpritesMixin(_ProtocolBase):
             'user_id': int (optional)
         }
         """
-        logger.debug(f"Compendium sprite add received from {client_id}: {msg}")
+        logger.debug(
+            "Compendium sprite add requested",
+            extra={"event_name": "compendium.sprite.add.requested"},
+        )
         if not msg.data:
             return Message(MessageType.ERROR, {'error': 'No data provided in compendium sprite add'})
 
@@ -656,7 +663,7 @@ class _SpritesMixin(_ProtocolBase):
                 token_info = token_service.get_token_info(monster_name, monster_type)
                 if token_info.get('asset_id'):
                     asset_id = token_info['asset_id']
-                    logger.info(f"Resolved token for '{monster_name}': {asset_id}")
+                    logger.info("Compendium token resolved", extra={"event_name": "compendium.token.resolved"})
             except Exception as e:
                 logger.warning(f"Token resolution failed: {e}")
 
@@ -678,9 +685,9 @@ class _SpritesMixin(_ProtocolBase):
                     char_result = await self.actions.save_character(session_id, char_data, user_id)
                     if char_result.success:
                         character_id = char_result.data.get('character_id', '')
-                        logger.info(f"Created NPC character '{char_data['name']}': {character_id}")
+                        logger.info("NPC character created", extra={"event_name": "character.npc.created"})
                     else:
-                        logger.warning(f"Character creation failed: {char_result.message}")
+                        logger.warning("NPC character creation rejected")
             except Exception as e:
                 logger.warning(f"Character creation error: {e}")
 
@@ -700,7 +707,7 @@ class _SpritesMixin(_ProtocolBase):
         try:
             result = await self.actions.create_sprite_from_data(sprite_data_with_table)
             if not result.success:
-                logger.error(f"Failed to create compendium sprite: {result.message}")
+                logger.error("Compendium sprite creation rejected")
                 return Message(MessageType.ERROR, {'error': f'Failed to create sprite: {result.message}'})
 
             created_sprite = (result.data or {}).get('sprite_data') or sprite_data_with_table
@@ -725,12 +732,15 @@ class _SpritesMixin(_ProtocolBase):
             })
 
         except Exception as e:
-            logger.error(f"Error processing compendium sprite add: {e}")
+            logger.exception("Compendium sprite creation failed")
             return Message(MessageType.ERROR, {'error': 'Internal server error'})
 
     async def handle_compendium_sprite_update(self, msg: Message, client_id: str) -> Message:
         # Minimal implementation: delegate to generic sprite update flow where possible
-        logger.debug(f"Compendium sprite update received from {client_id}: {msg}")
+        logger.debug(
+            "Compendium sprite update requested",
+            extra={"event_name": "compendium.sprite.update.requested"},
+        )
         if not msg.data:
             return Message(MessageType.ERROR, {'error': 'No data provided in compendium sprite update'})
         # For now, reuse existing update methods by wrapping into a table_update if appropriate
@@ -747,11 +757,14 @@ class _SpritesMixin(_ProtocolBase):
             else:
                 return Message(MessageType.ERROR, {'error': result.message})
         except Exception as e:
-            logger.error(f"Error in compendium sprite update: {e}")
+            logger.exception("Compendium sprite update failed")
             return Message(MessageType.ERROR, {'error': 'Internal server error'})
 
     async def handle_compendium_sprite_remove(self, msg: Message, client_id: str) -> Message:
-        logger.debug(f"Compendium sprite remove received from {client_id}: {msg}")
+        logger.debug(
+            "Compendium sprite removal requested",
+            extra={"event_name": "compendium.sprite.remove.requested"},
+        )
         if not msg.data:
             return Message(MessageType.ERROR, {'error': 'No data provided in compendium sprite remove'})
         table_id = msg.data.get('table_id') or 'default'
@@ -773,7 +786,7 @@ class _SpritesMixin(_ProtocolBase):
             else:
                 return Message(MessageType.ERROR, {'error': result.message})
         except Exception as e:
-            logger.error(f"Error removing compendium sprite: {e}")
+            logger.exception("Compendium sprite removal failed")
             return Message(MessageType.ERROR, {'error': 'Internal server error'})
 
     async def handle_sprite_request(self, msg: Message, client_id: str) -> Message:
@@ -813,5 +826,5 @@ class _SpritesMixin(_ProtocolBase):
                 return Message(MessageType.ERROR, {'error': 'Sprite not found'})
 
         except Exception as e:
-            logger.error(f"Error handling sprite request: {e}")
+            logger.exception("Sprite request failed")
             return Message(MessageType.ERROR, {'error': 'Internal server error'})

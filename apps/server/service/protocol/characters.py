@@ -58,7 +58,7 @@ class _CharactersMixin(_ProtocolBase):
 
     async def handle_character_save_request(self, msg: Message, client_id: str) -> Message:
         """Handle character save request"""
-        logger.debug(f"Character save request received: {msg}")
+        logger.debug("Character save requested", extra={"event_name": "character.save.requested"})
         if not msg.data:
             return Message(MessageType.CHARACTER_SAVE_RESPONSE, {
                 'success': False,
@@ -113,7 +113,7 @@ class _CharactersMixin(_ProtocolBase):
 
     async def handle_character_load_request(self, msg: Message, client_id: str) -> Message:
         """Handle character load request"""
-        logger.debug(f"Character load request received: {msg}")
+        logger.debug("Character load requested", extra={"event_name": "character.load.requested"})
         if not msg.data:
             return Message(MessageType.CHARACTER_LOAD_RESPONSE, {
                 'success': False,
@@ -160,7 +160,7 @@ class _CharactersMixin(_ProtocolBase):
 
     async def handle_character_list_request(self, msg: Message, client_id: str) -> Message:
         """Handle character list request"""
-        logger.debug(f"Character list request received: {msg}")
+        logger.debug("Character list requested", extra={"event_name": "character.list.requested"})
         if not msg.data:
             return Message(MessageType.CHARACTER_LIST_RESPONSE, {
                 'success': False,
@@ -199,7 +199,7 @@ class _CharactersMixin(_ProtocolBase):
 
     async def handle_character_delete_request(self, msg: Message, client_id: str) -> Message:
         """Handle character delete request"""
-        logger.debug(f"Character delete request received: {msg}")
+        logger.debug("Character delete requested", extra={"event_name": "character.delete.requested"})
         if not msg.data:
             return Message(MessageType.CHARACTER_DELETE_RESPONSE, {
                 'success': False,
@@ -251,7 +251,7 @@ class _CharactersMixin(_ProtocolBase):
 
     async def handle_character_update(self, msg: Message, client_id: str) -> Message:
         """Handle partial character updates (delta) with optimistic version checking"""
-        logger.debug(f"Character update request received: {msg}")
+        logger.debug("Character update requested", extra={"event_name": "character.update.requested"})
         if not msg.data:
             return Message(MessageType.CHARACTER_UPDATE_RESPONSE, {'success': False, 'error': 'No data provided'})
 
@@ -310,8 +310,8 @@ class _CharactersMixin(_ProtocolBase):
                     'character_data': result_data.get('character_data'),
                 })
 
-        except Exception as e:
-            logger.error(f"Error handling character update: {e}")
+        except Exception:
+            logger.exception("Character update request failed")
             return Message(MessageType.CHARACTER_UPDATE_RESPONSE, {'success': False, 'error': str(e)})
 
     async def handle_character_log_request(self, msg: Message, client_id: str) -> Message:
@@ -530,7 +530,10 @@ class _CharactersMixin(_ProtocolBase):
             if not updated_stats:
                 return  # No stats to sync
 
-            logger.debug(f"Syncing character {character_id} stats to linked tokens: {updated_stats}")
+            logger.debug(
+                "Character stats synchronization started",
+                extra={"event_name": "character.stats_sync.started"},
+            )
 
             # Get all entities linked to this character
             db = SessionLocal()
@@ -594,4 +597,4 @@ class _CharactersMixin(_ProtocolBase):
                 db.close()
 
         except Exception as e:
-            logger.error(f"Error syncing character stats to tokens: {e}")
+            logger.exception("Character-to-token synchronization failed")

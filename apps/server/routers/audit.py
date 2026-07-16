@@ -1,7 +1,8 @@
-"""Owner/DM-scoped security audit inspection."""
+"""Owner-scoped, paginated security audit inspection."""
 
 from __future__ import annotations
 
+import json
 from typing import Annotated
 
 from database import crud, models
@@ -12,13 +13,18 @@ from routers.users import get_current_active_user
 from sqlalchemy import desc
 from sqlalchemy.orm import Session
 from utils.audit import audit_event
-from utils.roles import is_dm
 
 router = APIRouter(prefix="/api/sessions", tags=["audit"])
 
 
 def _audit_response(row: models.AuditLog) -> dict:
     """Return the stable audit envelope without exposing legacy duplicate fields."""
+    details = None
+    if row.details_json:
+        try:
+            details = json.loads(row.details_json)
+        except (TypeError, json.JSONDecodeError):
+            details = None
     return {
         "event_id": row.event_id,
         "timestamp": row.timestamp.isoformat() if row.timestamp else None,
@@ -32,7 +38,7 @@ def _audit_response(row: models.AuditLog) -> dict:
         "source_service": row.source_service,
         "service_version": row.service_version,
         "schema_version": row.schema_version,
-        "details": row.details_json or row.details,
+        "details": details,
     }
 
 
@@ -45,29 +51,24 @@ def read_session_audit_logs(
     action: str | None = Query(default=None, max_length=80),
     outcome: str | None = Query(default=None, pattern="^(success|failure|denied)$"),
     limit: int = Query(default=50, ge=1, le=100),
-    offset: int = Query(default=0, ge=0, le=100_000),
+    before_id: int | None = Query(default=None, ge=1),
 ):
     """Read security events for a session and audit the read itself."""
     session = crud.get_game_session_by_code(db, session_code)
     if not session:
         raise HTTPException(status_code=404, detail="Session not found")
 
-    membership = db.query(models.GamePlayer).filter(
-        models.GamePlayer.session_id == session.id,
-        models.GamePlayer.user_id == current_user.id,
-    ).first()
-    if not membership or not is_dm(membership.role):
-        if membership:
-            db.add(audit_event(
-                "audit.read",
-                outcome="denied",
-                session_code=session_code,
-                user_id=current_user.id,
-                target_type="audit_log",
-                request=request,
-                details={"reason": "insufficient_role"},
-            ))
-            db.commit()
+    if session.owner_id != current_user.id:
+        db.add(audit_event(
+            "audit.read",
+            outcome="denied",
+            session_code=session_code,
+            user_id=current_user.id,
+            target_type="audit_log",
+            request=request,
+            details={"reason": "owner_required"},
+        ))
+        db.commit()
         raise HTTPException(status_code=403, detail="Audit access required")
 
     query = db.query(models.AuditLog).filter(models.AuditLog.session_code == session_code)
@@ -75,8 +76,11 @@ def read_session_audit_logs(
         query = query.filter(models.AuditLog.action == action.strip().lower())
     if outcome:
         query = query.filter(models.AuditLog.outcome == outcome)
-    total = query.count()
-    rows = query.order_by(desc(models.AuditLog.timestamp), desc(models.AuditLog.id)).offset(offset).limit(limit).all()
+    if before_id:
+        query = query.filter(models.AuditLog.id < before_id)
+    page = query.order_by(desc(models.AuditLog.id)).limit(limit + 1).all()
+    has_more = len(page) > limit
+    rows = page[:limit]
 
     db.add(audit_event(
         "audit.read",
@@ -84,7 +88,18 @@ def read_session_audit_logs(
         user_id=current_user.id,
         target_type="audit_log",
         request=request,
-        details={"action": action.strip().lower() if action else None, "outcome": outcome, "limit": limit, "offset": offset},
+        details={
+            "action": action.strip().lower() if action else None,
+            "outcome": outcome,
+            "limit": limit,
+            "before_id": before_id,
+            "returned": len(rows),
+        },
     ))
     db.commit()
-    return {"items": [_audit_response(row) for row in rows], "total": total, "limit": limit, "offset": offset}
+    return {
+        "items": [_audit_response(row) for row in rows],
+        "limit": limit,
+        "has_more": has_more,
+        "next_before_id": rows[-1].id if has_more and rows else None,
+    }

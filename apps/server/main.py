@@ -32,7 +32,8 @@ from storage.r2_manager import R2AssetManager
 from sqlalchemy.orm import Session
 from starlette.middleware.sessions import SessionMiddleware
 from utils.logger import bind_log_context, configure_logging, reset_log_context, setup_logger
-from utils.observability import configure_tracing, observe_http
+from utils.audit import persist_http_security_decision
+from utils.observability import configure_tracing, observe_http, record_job, refresh_durable_metrics
 from utils.rate_limiter import login_limiter, registration_limiter
 
 settings = Settings()
@@ -95,15 +96,19 @@ async def lifespan(app: FastAPI):
 async def rate_limiter_cleanup_task():
     """Background task to clean up old rate limiter entries"""
     while True:
+        started = time.perf_counter()
         try:
             # Clean up entries older than 1 hour every 30 minutes
             await asyncio.sleep(1800)  # 30 minutes
+            started = time.perf_counter()
             registration_limiter.cleanup_old_entries(hours_old=1)
             login_limiter.cleanup_old_entries(hours_old=1)
+            record_job("rate_limit_cleanup", "success", time.perf_counter() - started)
             logger.debug("Rate limiter cleanup completed")
         except asyncio.CancelledError:
             break
         except Exception:
+            record_job("rate_limit_cleanup", "error", time.perf_counter() - started)
             logger.exception(
                 "Rate limiter cleanup failed",
                 extra={"event_name": "rate_limiter.cleanup.failed"},
@@ -113,8 +118,10 @@ async def rate_limiter_cleanup_task():
 async def audit_retention_task():
     """Apply the configured audit retention window without blocking startup."""
     while True:
+        started = time.perf_counter()
         try:
             await asyncio.sleep(86400)
+            started = time.perf_counter()
             db = SessionLocal()
             try:
                 deleted = db.query(models.AuditLog).filter(
@@ -123,6 +130,7 @@ async def audit_retention_task():
                     )
                 ).delete(synchronize_session=False)
                 db.commit()
+                record_job("audit_retention", "success", time.perf_counter() - started)
                 logger.info(
                     "Audit retention cleanup completed",
                     extra={
@@ -135,6 +143,7 @@ async def audit_retention_task():
         except asyncio.CancelledError:
             break
         except Exception:
+            record_job("audit_retention", "error", time.perf_counter() - started)
             logger.exception(
                 "Audit retention cleanup failed",
                 extra={"event_name": "audit.retention.failed", "outcome": "error"},
@@ -192,6 +201,7 @@ async def request_observability(request: Request, call_next):
             response.status_code,
             time.perf_counter() - started,
         )
+        persist_http_security_decision(request, response.status_code, route_path)
         if not request.url.path.startswith("/health/"):
             logger.info(
                 "HTTP request completed",
@@ -367,14 +377,8 @@ def readiness_check():
     return JSONResponse(content=result, status_code=200 if result["status"] == "ready" else 503)
 
 
-@app.get("/health", include_in_schema=False)
-async def legacy_health_alias():
-    """Compatibility alias; deployment probes /health/ready."""
-    return await health_check()
-
-
 @app.get("/metrics", include_in_schema=False)
-def service_metrics(request: Request):
+def service_metrics(request: Request, db: Session = Depends(get_db)):
     """Expose Prometheus metrics behind a deployment-managed bearer token."""
     if not settings.METRICS_ENABLED:
         raise HTTPException(status_code=404, detail="Not found")
@@ -382,6 +386,7 @@ def service_metrics(request: Request):
     expected = f"Bearer {settings.METRICS_TOKEN}"
     if not settings.METRICS_TOKEN or not secrets.compare_digest(supplied, expected):
         raise HTTPException(status_code=401, detail="Authentication required")
+    refresh_durable_metrics(db, settings.BACKUP_ROOT)
     return Response(content=generate_latest(), media_type=CONTENT_TYPE_LATEST)
 
 if __name__ == "__main__":

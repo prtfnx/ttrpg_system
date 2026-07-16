@@ -18,9 +18,10 @@ def test_owner_can_read_paginated_session_audit_and_read_is_audited(
 
     assert response.status_code == 200
     body = response.json()
-    assert body["total"] == 1
     assert len(body["items"]) == 1
     assert body["items"][0]["action"] == "login"
+    assert body["has_more"] is False
+    assert body["next_before_id"] is None
     assert "event_type" not in body["items"][0]
     read_event = test_db.query(models.AuditLog).filter_by(action="audit.read").one()
     assert read_event.user_id == test_game_session.owner_id
@@ -42,9 +43,26 @@ def test_player_cannot_read_session_audit(auth_client, test_db, test_game_sessio
             None,
             None,
             50,
-            0,
+            None,
         )
 
     assert error.value.status_code == 403
     denied = test_db.query(models.AuditLog).filter_by(action="audit.read", outcome="denied").one()
     assert denied.user_id == player_user.id
+
+
+def test_cursor_pagination_is_stable(auth_client, test_game_session, audit_log_factory):
+    first = audit_log_factory(action="one", event_type="ONE")
+    second = audit_log_factory(action="two", event_type="TWO")
+
+    page = auth_client.get(
+        f"/api/sessions/{test_game_session.session_code}/audit-logs?limit=1"
+    ).json()
+
+    assert page["items"][0]["event_id"] == second.event_id
+    assert page["has_more"] is True
+    next_page = auth_client.get(
+        f"/api/sessions/{test_game_session.session_code}/audit-logs"
+        f"?limit=1&before_id={page['next_before_id']}"
+    ).json()
+    assert next_page["items"][0]["event_id"] == first.event_id

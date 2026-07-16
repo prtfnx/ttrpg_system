@@ -5,7 +5,7 @@ import pytest
 from database.models import AuditLog, GamePlayer, SessionInvitation
 from routers.invitations import generate_invite_code
 from sqlalchemy.exc import IntegrityError
-from utils.audit import extract_client_info, filter_audit_logs, format_audit_details
+from utils.audit import extract_client_info, format_audit_details
 from utils.roles import can_modify_role, has_session_admin_permission
 from utils.security import sanitize_session_code, sanitize_user_input, validate_invite_code_format
 
@@ -404,20 +404,3 @@ class TestAuditLogUtilities:
 
         assert client_info["ip_address"] == "203.0.113.1"  # Should use X-Forwarded-For if available
         assert client_info["user_agent"] == "Mozilla/5.0 Test Browser"
-
-    def test_audit_log_filtering(self):
-        """Test filtering audit logs by various criteria"""
-
-        # This would test a utility function for filtering audit logs
-        # (Implementation would depend on admin panel requirements)
-        logs = [
-            {"event_type": "invitation_created", "timestamp": "2026-02-11T10:00:00Z"},
-            {"event_type": "role_changed", "timestamp": "2026-02-11T11:00:00Z"},
-            {"event_type": "player_kicked", "timestamp": "2026-02-11T12:00:00Z"}
-        ]
-
-        filtered = filter_audit_logs(logs, event_types=["invitation_created", "role_changed"])
-
-        assert len(filtered) == 2
-        assert filtered[0]["event_type"] == "invitation_created"
-        assert filtered[1]["event_type"] == "role_changed"

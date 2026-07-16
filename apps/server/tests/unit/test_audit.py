@@ -1,47 +1,41 @@
-"""Unit tests for utils/audit.py — pure functions and DB-mocked functions."""
-from datetime import datetime
+"""Unit tests for the normalized security-audit boundary."""
+
 import json
 from unittest.mock import MagicMock
 
-import pytest
 from utils.audit import (
     audit_event,
-    create_audit_log,
     extract_client_info,
-    filter_audit_logs,
     format_audit_details,
-    get_audit_summary,
+    persist_http_security_decision,
 )
 from utils.logger import log_context
 
 
 class TestExtractClientInfo:
     def test_extracts_forwarded_ip(self):
-        req = MagicMock()
-        req.headers = {"x-forwarded-for": "1.2.3.4, 5.6.7.8"}
-        req.client.host = "10.0.0.1"
-        info = extract_client_info(req)
-        assert info["ip_address"] == "1.2.3.4"
+        request = MagicMock()
+        request.headers = {"x-forwarded-for": "1.2.3.4, 5.6.7.8"}
+        request.client.host = "10.0.0.1"
+        assert extract_client_info(request)["ip_address"] == "1.2.3.4"
 
     def test_falls_back_to_client_host(self):
-        req = MagicMock()
-        req.headers = {}
-        req.client.host = "10.0.0.1"
-        info = extract_client_info(req)
-        assert info["ip_address"] == "10.0.0.1"
+        request = MagicMock()
+        request.headers = {}
+        request.client.host = "10.0.0.1"
+        assert extract_client_info(request)["ip_address"] == "10.0.0.1"
 
     def test_extracts_user_agent(self):
-        req = MagicMock()
-        req.headers = {"user-agent": "Mozilla/5.0"}
-        req.client = None
-        info = extract_client_info(req)
-        assert info["user_agent"] == "Mozilla/5.0"
+        request = MagicMock()
+        request.headers = {"user-agent": "Mozilla/5.0"}
+        request.client = None
+        assert extract_client_info(request)["user_agent"] == "Mozilla/5.0"
 
     def test_missing_headers_returns_none(self):
-        req = MagicMock()
-        req.headers = {}
-        req.client = None
-        info = extract_client_info(req)
+        request = MagicMock()
+        request.headers = {}
+        request.client = None
+        info = extract_client_info(request)
         assert info["ip_address"] is None
         assert info["user_agent"] is None
 
@@ -52,13 +46,11 @@ class TestFormatAuditDetails:
         assert "login" in result
         assert "alice" in result
 
-    def test_redacts_password(self):
-        result = format_audit_details("register", {"password": "secret123"})
+    def test_redacts_secrets_recursively(self):
+        result = format_audit_details(
+            "register", {"nested": {"password": "secret123", "token": "abc123"}}
+        )
         assert "secret123" not in result
-        assert "[REDACTED]" in result
-
-    def test_redacts_token(self):
-        result = format_audit_details("auth", {"token": "abc123"})
         assert "abc123" not in result
         assert "[REDACTED]" in result
 
@@ -68,93 +60,34 @@ class TestFormatAuditDetails:
         assert "afk" in result
 
 
-class TestCreateAuditLog:
-    def test_creates_audit_log_with_db(self):
-        db = MagicMock()
-        log = create_audit_log(db, "player_kicked", session_code="ABC1", user_id=1)
-        db.add.assert_called_once_with(log)
-        db.commit.assert_not_called()
-        assert log.event_type == "player_kicked"
-        assert log.action == "player_kicked"
-        assert log.schema_version == 1
-
-    def test_formats_additional_data_when_no_details(self):
-        db = MagicMock()
-        log = create_audit_log(db, "login", additional_data={"ip": "1.2.3.4"})
-        assert log.details is not None
-        assert "1.2.3.4" in log.details
-
-    def test_appends_additional_data_to_existing_details(self):
-        db = MagicMock()
-        log = create_audit_log(
-            db, "login", details="manual note", additional_data={"ip": "1.2.3.4"}
-        )
-        assert log.details is not None
-        assert "manual note" in log.details
-        assert "1.2.3.4" in log.details
-
-    def test_rollback_on_db_error(self):
-        db = MagicMock()
-        db.commit.side_effect = Exception("DB error")
-        with pytest.raises(Exception, match="DB error"):
-            create_audit_log(db, "event", commit=True)
-        db.rollback.assert_called_once()
-
+class TestAuditEvent:
     def test_correlates_and_recursively_redacts_details(self):
         with log_context(request_id="req-12345678", trace_id="a" * 32):
-            log = audit_event(
+            row = audit_event(
                 "account_changed",
                 details={"nested": {"token": "secret-token", "field": "safe"}},
             )
-        payload = json.loads(log.details_json)
-        assert log.request_id == "req-12345678"
-        assert log.trace_id == "a" * 32
+        payload = json.loads(row.details_json)
+        assert row.request_id == "req-12345678"
+        assert row.trace_id == "a" * 32
         assert payload["data"]["nested"]["token"] == "[REDACTED]"
         assert payload["data"]["nested"]["field"] == "safe"
 
-
-class TestFilterAuditLogs:
-    def _logs(self):
-        return [
-            {"event_type": "login", "session_code": "S1", "user_id": 1, "timestamp": "2026-01-01T00:00:00Z"},
-            {"event_type": "kick", "session_code": "S1", "user_id": 2, "timestamp": "2026-01-02T00:00:00Z"},
-            {"event_type": "login", "session_code": "S2", "user_id": 1, "timestamp": "2026-01-03T00:00:00Z"},
-        ]
-
-    def test_filter_by_event_type(self):
-        result = filter_audit_logs(self._logs(), event_types=["login"])
-        assert len(result) == 2
-        assert all(log["event_type"] == "login" for log in result)
-
-    def test_filter_by_session_code(self):
-        result = filter_audit_logs(self._logs(), session_code="S2")
-        assert len(result) == 1
-
-    def test_filter_by_user_id(self):
-        result = filter_audit_logs(self._logs(), user_id=2)
-        assert len(result) == 1
-        assert result[0]["event_type"] == "kick"
-
-    def test_filter_by_date_range(self):
-        from datetime import timezone
-        start = datetime(2026, 1, 2, tzinfo=timezone.utc)
-        result = filter_audit_logs(self._logs(), start_date=start)
-        assert len(result) == 2
-
-    def test_no_filters_returns_all(self):
-        assert len(filter_audit_logs(self._logs())) == 3
-
-
-class TestGetAuditSummary:
-    def test_returns_summary_structure(self):
+    def test_denied_http_decision_commits_independently(self, monkeypatch):
         db = MagicMock()
-        log1 = MagicMock(event_type="login", user_id=1)
-        log2 = MagicMock(event_type="login", user_id=2)
-        log3 = MagicMock(event_type="kick", user_id=1)
-        db.query.return_value.filter.return_value.all.return_value = [log1, log2, log3]
+        monkeypatch.setattr("utils.audit.SessionLocal", lambda: db)
+        request = MagicMock()
+        request.state.user_id = 17
+        request.method = "DELETE"
+        request.headers = {}
+        request.client = None
 
-        summary = get_audit_summary(db, "TEST", days=7)
-        assert summary["total_events"] == 3
-        assert summary["event_types"]["login"] == 2
-        assert summary["unique_users"] == 2
-        assert summary["session_code"] == "TEST"
+        persist_http_security_decision(request, 403, "/api/sessions/{session_code}")
+
+        row = db.add.call_args.args[0]
+        assert row.action == "authorization.http_denied"
+        assert row.outcome == "denied"
+        assert row.user_id == 17
+        assert row.target_id == "/api/sessions/{session_code}"
+        db.commit.assert_called_once()
+        db.close.assert_called_once()

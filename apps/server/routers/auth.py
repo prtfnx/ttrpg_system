@@ -38,7 +38,9 @@ from database.database import get_db
 from fastapi import APIRouter, Depends, HTTPException, Request
 from fastapi.responses import JSONResponse, RedirectResponse
 from sqlalchemy.orm import Session
+from utils.audit import audit_event
 from utils.logger import setup_logger
+from utils.observability import record_auth
 
 from .users import ACCESS_TOKEN_EXPIRE_MINUTES, create_access_token
 
@@ -66,12 +68,34 @@ if OAUTH_CONFIGURED:
                 'prompt': 'select_account'  # Always show account selector
             }
         )
-        logger.info("Google OAuth configured successfully")
-    except Exception as e:
-        logger.error(f"Failed to configure Google OAuth: {e}")
+        logger.info("Google OAuth configured", extra={"event_name": "oauth.configured"})
+    except Exception as exc:
+        logger.error(
+            "Google OAuth configuration failed",
+            extra={"event_name": "oauth.configuration.failed", "error_type": type(exc).__name__},
+        )
         OAUTH_CONFIGURED = False
 else:
-    logger.warning("Google OAuth not configured - GOOGLE_CLIENT_ID or GOOGLE_CLIENT_SECRET missing")
+    logger.warning("Google OAuth is disabled", extra={"event_name": "oauth.disabled"})
+
+
+def _record_oauth_failure(db: Session, request: Request, reason: str) -> None:
+    record_auth("oauth", "failure", reason)
+    try:
+        db.rollback()
+        db.add(audit_event(
+            "authentication.oauth",
+            outcome="failure",
+            request=request,
+            details={"reason": reason},
+        ))
+        db.commit()
+    except Exception:
+        db.rollback()
+        logger.exception(
+            "OAuth failure audit persistence failed",
+            extra={"event_name": "audit.oauth.failed", "outcome": "error"},
+        )
 
 
 @router.get("/google")
@@ -83,6 +107,7 @@ async def google_login(request: Request):
     Generates and stores CSRF protection state in session.
     """
     if not OAUTH_CONFIGURED:
+        record_auth("oauth", "failure", "configuration")
         logger.warning("OAuth login attempted but not configured")
         return JSONResponse(
             status_code=503,
@@ -104,14 +129,18 @@ async def google_login(request: Request):
         base_url = settings.BASE_URL.rstrip('/')
         redirect_uri = f"{base_url}/auth/callback"
 
-        logger.info(f"Initiating Google OAuth flow with redirect_uri: {redirect_uri}")
+        logger.info("Initiating Google OAuth flow", extra={"event_name": "oauth.flow.started"})
 
         # Redirect to Google's authorization endpoint
         # authlib generates and stores state internally for CSRF protection
         return await oauth.google.authorize_redirect(request, redirect_uri)
 
-    except Exception as e:
-        logger.error(f"Error initiating Google OAuth: {e}", exc_info=True)
+    except Exception as exc:
+        record_auth("oauth", "failure", "provider_error")
+        logger.error(
+            "OAuth initiation failed",
+            extra={"event_name": "oauth.flow.failed", "error_type": type(exc).__name__},
+        )
         return RedirectResponse(
             url="/users/login?error=oauth_init_failed",
             status_code=302
@@ -127,6 +156,7 @@ async def google_callback(request: Request, db: Session = Depends(get_db)):
     retrieves user info, and creates or links user account.
     """
     if not OAUTH_CONFIGURED:
+        record_auth("oauth", "failure", "configuration")
         logger.error("OAuth callback received but OAuth not configured")
         return RedirectResponse(url="/users/login?error=oauth_not_configured")
 
@@ -134,9 +164,10 @@ async def google_callback(request: Request, db: Session = Depends(get_db)):
         # Check for error from Google before attempting token exchange
         error = request.query_params.get('error')
         if error:
-            logger.warning(f"Google OAuth error: {error}")
+            _record_oauth_failure(db, request, "provider_error")
+            logger.warning("OAuth provider rejected authentication")
             return RedirectResponse(
-                url=f"/users/login?error=oauth_failed&reason={error}",
+                url="/users/login?error=oauth_failed&reason=provider_error",
                 status_code=302
             )
 
@@ -156,10 +187,10 @@ async def google_callback(request: Request, db: Session = Depends(get_db)):
         name = userinfo.get('name', '')
 
         if not google_id or not email:
-            logger.error(f"Missing required user info - google_id: {google_id}, email: {email}")
+            logger.error("OAuth provider response is missing required identity fields")
             raise HTTPException(status_code=400, detail="Incomplete user information from Google")
 
-        logger.info(f"OAuth successful for email: {email}")
+        logger.info("OAuth identity received", extra={"event_name": "oauth.identity.received"})
 
         # Find or create user
         user = db.query(models.User).filter(
@@ -167,7 +198,7 @@ async def google_callback(request: Request, db: Session = Depends(get_db)):
         ).first()
 
         if user:
-            logger.info(f"Found existing user with google_id: {user.username}")
+            logger.info("OAuth user resolved", extra={"event_name": "oauth.user.resolved"})
         else:
             # Check if user exists with this email
             user = db.query(models.User).filter(
@@ -176,7 +207,7 @@ async def google_callback(request: Request, db: Session = Depends(get_db)):
 
             if user:
                 # Link Google account to existing user
-                logger.info(f"Linking Google account to existing user: {user.username}")
+                logger.info("Linking OAuth identity", extra={"event_name": "oauth.user.linked"})
                 user.google_id = google_id
                 user.is_verified = True
             else:
@@ -197,7 +228,7 @@ async def google_callback(request: Request, db: Session = Depends(get_db)):
                     username = f"{base_username}{counter}"
                     counter += 1
 
-                logger.info(f"Creating new user: {username} (email: {email})")
+                logger.info("Creating OAuth user", extra={"event_name": "oauth.user.created"})
 
                 user = models.User(
                     username=username,
@@ -212,6 +243,16 @@ async def google_callback(request: Request, db: Session = Depends(get_db)):
 
             db.commit()
             db.refresh(user)
+
+        request.state.user_id = user.id
+        record_auth("oauth", "success")
+        db.add(audit_event(
+            "authentication.oauth",
+            user_id=user.id,
+            request=request,
+            details={"provider": "google"},
+        ))
+        db.commit()
 
         # Create JWT access token
         access_token = create_access_token(
@@ -236,23 +277,35 @@ async def google_callback(request: Request, db: Session = Depends(get_db)):
             path="/"
         )
 
-        logger.info(f"OAuth login successful for user: {user.username}")
+        logger.info("OAuth login completed", extra={"event_name": "oauth.login.completed"})
         return response
 
-    except OAuthError as e:
-        logger.error(f"OAuth error in callback: {e}", exc_info=True)
+    except OAuthError as exc:
+        _record_oauth_failure(db, request, "provider_error")
+        logger.error(
+            "OAuth callback failed",
+            extra={"event_name": "oauth.callback.failed", "error_type": type(exc).__name__},
+        )
         return RedirectResponse(
             url="/users/login?error=oauth_failed&reason=authentication_failed",
             status_code=302
         )
-    except HTTPException as e:
-        logger.error(f"HTTP error in OAuth callback: {e.detail}", exc_info=True)
+    except HTTPException as exc:
+        _record_oauth_failure(db, request, "invalid_credentials")
+        logger.error(
+            "OAuth callback was rejected",
+            extra={"event_name": "oauth.callback.rejected", "error_type": type(exc).__name__},
+        )
         return RedirectResponse(
-            url=f"/users/login?error=oauth_failed&reason={e.detail}",
+            url="/users/login?error=oauth_failed&reason=invalid_response",
             status_code=302
         )
-    except Exception as e:
-        logger.error(f"Unexpected error in OAuth callback: {e}", exc_info=True)
+    except Exception as exc:
+        _record_oauth_failure(db, request, "unknown")
+        logger.error(
+            "Unexpected OAuth callback failure",
+            extra={"event_name": "oauth.callback.failed", "error_type": type(exc).__name__},
+        )
         return RedirectResponse(
             url="/users/login?error=oauth_failed&reason=unexpected_error",
             status_code=302

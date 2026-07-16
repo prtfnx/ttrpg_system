@@ -30,7 +30,7 @@ logger = logging.getLogger(__name__)
 settings = Settings()
 
 # Rate limiter for demo access (3 per hour)
-demo_limiter = RateLimiter()
+demo_limiter = RateLimiter("demo")
 
 DEMO_SESSION_CODE = "DEMO2026"
 DEMO_JWT_EXPIRY_MINUTES = 30

@@ -4,6 +4,7 @@ from core_table.protocol import Message, MessageType
 from database.database import SessionLocal
 from database.models import Asset, GamePlayer, GameSession, SessionAsset
 from service.asset_manager import AssetRequest, get_server_asset_manager
+from utils.audit import audit_event
 from utils.logger import setup_logger
 
 from ._protocol_base import _ProtocolBase
@@ -277,6 +278,16 @@ class _AssetsMixin(_ProtocolBase):
                 ).first()
                 is_session_member = session.owner_id == user_id or player is not None
                 if not is_session_member:
+                    db.add(audit_event(
+                        "asset.delete",
+                        outcome="denied",
+                        session_code=session_code,
+                        user_id=user_id,
+                        target_type="asset",
+                        target_id=asset_id,
+                        details={"reason": "not_session_member"},
+                    ))
+                    db.commit()
                     return Message(MessageType.ERROR, {'error': 'Session access denied'})
 
                 link = db.query(SessionAsset).filter(
@@ -284,12 +295,32 @@ class _AssetsMixin(_ProtocolBase):
                     SessionAsset.asset_id == asset.id
                 ).first()
                 if not link:
+                    db.add(audit_event(
+                        "asset.delete",
+                        outcome="denied",
+                        session_code=session_code,
+                        user_id=user_id,
+                        target_type="asset",
+                        target_id=asset_id,
+                        details={"reason": "not_linked_to_session"},
+                    ))
+                    db.commit()
                     return Message(MessageType.ERROR, {'error': 'Asset not available in this session'})
 
                 can_moderate = session.owner_id == user_id or (
                     player is not None and player.role in {"owner", "co_dm"}
                 )
                 if not can_moderate and asset.uploaded_by != user_id:
+                    db.add(audit_event(
+                        "asset.delete",
+                        outcome="denied",
+                        session_code=session_code,
+                        user_id=user_id,
+                        target_type="asset",
+                        target_id=asset_id,
+                        details={"reason": "insufficient_permission"},
+                    ))
+                    db.commit()
                     return Message(MessageType.ERROR, {'error': 'Permission denied'})
 
                 r2_key = asset.r2_key
@@ -303,8 +334,26 @@ class _AssetsMixin(_ProtocolBase):
                     asset_manager = get_server_asset_manager()
                     if not asset_manager.r2_manager.delete_file(r2_key):
                         db.rollback()
+                        db.add(audit_event(
+                            "asset.delete",
+                            outcome="failure",
+                            session_code=session_code,
+                            user_id=user_id,
+                            target_type="asset",
+                            target_id=asset_id,
+                            details={"reason": "storage_delete_failed"},
+                        ))
+                        db.commit()
                         return Message(MessageType.ERROR, {'error': 'Failed to delete asset from storage'})
                     db.delete(asset)
+                db.add(audit_event(
+                    "asset.delete",
+                    session_code=session_code,
+                    user_id=user_id,
+                    target_type="asset",
+                    target_id=asset_id,
+                    details={"object_deleted": should_delete_object},
+                ))
                 db.commit()
             finally:
                 db.close()

@@ -284,6 +284,10 @@ async def test_delete_keeps_metadata_when_storage_delete_fails(
     assert result.data["error"] == "Failed to delete asset from storage"
     assert test_db.query(models.Asset).count() == 1
     assert test_db.query(models.SessionAsset).count() == 1
+    audit = test_db.query(models.AuditLog).filter_by(action="asset.delete").one()
+    assert audit.outcome == "failure"
+    assert audit.target_id == response.asset_id
+    assert "storage_delete_failed" in audit.details_json
 
 
 async def test_download_url_requires_session_asset_link(

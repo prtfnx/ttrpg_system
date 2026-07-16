@@ -22,6 +22,7 @@ from service.email import send_email_change_notify, send_email_change_verify, se
 from sqlalchemy.orm import Session
 from utils.logger import setup_logger
 from utils.audit import audit_event
+from utils.observability import record_auth
 from utils.rate_limiter import get_client_ip, login_limiter, password_reset_limiter, registration_limiter
 
 logger = setup_logger(__name__)
@@ -58,35 +59,24 @@ async def get_current_user(request: Request, db: Session = Depends(get_db)):
 
     # Try to get token from cookie first (manual reading for reliability)
     token = request.cookies.get("token")
-    logger.debug(
-        "Authentication token discovered in cookie",
-        extra={"event_name": "authentication.token.discovered", "source": "cookie"},
-    )
 
     # If no token in cookie, try Authorization header
     if not token:
         authorization = request.headers.get("Authorization")
         if authorization and authorization.startswith("Bearer "):
             token = authorization.split(" ")[1]
-            logger.debug(
-                "Authentication token discovered in header",
-                extra={"event_name": "authentication.token.discovered", "source": "header"},
-            )
 
     if not token:
-        logger.debug("get_current_user: No token found, raising credentials_exception")
+        record_auth("token", "denied", "invalid_token")
         raise credentials_exception
     try:
         payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
         username = payload.get("sub")
         if username is None:
-            logger.debug("get_current_user: No username in payload")
+            record_auth("token", "denied", "invalid_token")
             raise credentials_exception
-        logger.debug(
-            "Authentication token decoded",
-            extra={"event_name": "authentication.token.decoded"},
-        )
     except InvalidTokenError as e:
+        record_auth("token", "denied", "invalid_token")
         logger.debug(
             "Authentication token validation failed",
             extra={"event_name": "authentication.token.rejected", "reason": type(e).__name__},
@@ -95,11 +85,13 @@ async def get_current_user(request: Request, db: Session = Depends(get_db)):
 
     user = crud.get_user_by_username(db, username=username)
     if user is None:
-        logger.debug(f"get_current_user: User {username} not found in database")
+        record_auth("token", "denied", "invalid_token")
         raise credentials_exception
     if (user.session_version or 0) != payload.get("sv", 0):
+        record_auth("token", "denied", "invalid_token")
         raise credentials_exception
-    logger.debug("User authenticated", extra={"event_name": "authentication.succeeded"})
+    request.state.user_id = user.id
+    record_auth("token", "success")
     return user
 
 async def get_current_user_optional(request: Request, db: Session = Depends(get_db)):
@@ -127,11 +119,7 @@ async def get_current_user_optional(request: Request, db: Session = Depends(get_
 
         user = crud.get_user_by_username(db, username=username)
         return user
-    except (InvalidTokenError, Exception) as e:
-        logger.debug(
-            "Optional authentication failed",
-            extra={"event_name": "authentication.optional.failed", "reason": type(e).__name__},
-        )
+    except Exception:
         return None
 
 async def get_current_active_user(current_user: Annotated[schemas.User, Depends(get_current_user)]):
@@ -189,6 +177,7 @@ async def login_for_access_token(
 ) -> auth_models.Token:
     user = crud.authenticate_user(db, form_data.username, form_data.password)
     if not user:
+        record_auth("password", "failure", "invalid_credentials")
         db.add(audit_event(
             "authentication.login",
             outcome="failure",
@@ -206,6 +195,8 @@ async def login_for_access_token(
         data={"sub": user.username, "sv": user.session_version or 0},
         expires_delta=access_token_expires
     )
+    request.state.user_id = user.id
+    record_auth("password", "success")
     db.add(audit_event(
         "authentication.login",
         user_id=user.id,
@@ -263,6 +254,7 @@ async def login(
 
     # Rate limiting check - 10 login attempts per 5 minutes per IP
     if not login_limiter.is_allowed(client_ip, max_requests=10, window_minutes=5):
+        record_auth("password", "denied", "rate_limit")
         time_until_reset = login_limiter.get_time_until_reset(client_ip, window_minutes=5)
         return templates.TemplateResponse(request, "login.html", {
             "error": f"Too many login attempts. Please try again in {time_until_reset} seconds."
@@ -270,11 +262,13 @@ async def login(
 
     # Validate input lengths
     if len(form_data.username) < 4:
+        record_auth("password", "failure", "invalid_credentials")
         return templates.TemplateResponse(request, "login.html", {
             "error": "Username must be at least 4 characters long"
         }, status_code=400)  # 400 Bad Request
 
     if len(form_data.password) < 8:
+        record_auth("password", "failure", "invalid_credentials")
         return templates.TemplateResponse(request, "login.html", {
             "error": "Password must be at least 8 characters long"
         }, status_code=400)  # 400 Bad Request

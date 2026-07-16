@@ -2,6 +2,7 @@ import importlib.util
 import io
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
+from unittest.mock import MagicMock
 
 import pytest
 from sqlalchemy.orm import sessionmaker
@@ -210,3 +211,25 @@ def test_database_inventory_reports_assets_with_missing_uploaders(
         "uploaded_by": 99999,
         "session_links": 0,
     }]
+
+
+def test_privileged_storage_audit_excludes_object_keys(monkeypatch):
+    db = MagicMock()
+    monkeypatch.setattr(storage_admin, "SessionLocal", lambda: db)
+
+    storage_admin._record_admin_audit(
+        "audit",
+        "success",
+        {
+            "dry_run": True,
+            "missing_objects": ["assets/private-one.png"],
+            "orphan_objects": ["assets/private-two.png"],
+        },
+    )
+
+    row = db.add.call_args.args[0]
+    assert row.action == "r2.audit"
+    assert "private-one" not in row.details_json
+    assert "private-two" not in row.details_json
+    assert '"missing_count":1' in row.details_json
+    assert '"orphan_count":1' in row.details_json

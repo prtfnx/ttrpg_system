@@ -36,6 +36,10 @@ def _configure_sqlite_connection(dbapi_connection, connection_record) -> None:
 
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
+from utils.observability import install_database_metrics
+
+install_database_metrics(engine, SessionLocal)
+
 
 def provision_database() -> None:
     """Provision the file-backed SQLite schema through the single numbered runner."""

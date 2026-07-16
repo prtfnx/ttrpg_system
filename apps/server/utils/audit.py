@@ -5,15 +5,19 @@ from __future__ import annotations
 import json
 import os
 import uuid
-from datetime import datetime, timedelta
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, Optional
 
 from database import models
-from sqlalchemy.orm import Session
-
+from database.database import SessionLocal
 from .logger import current_log_context, sanitize_log_value, setup_logger
 
 logger = setup_logger(__name__)
+
+_HTTP_SECURITY_ACTIONS = {
+    401: "authentication.http_denied",
+    403: "authorization.http_denied",
+    429: "rate_limit.http_rejected",
+}
 
 
 def extract_client_info(request) -> Dict[str, Optional[str]]:
@@ -81,121 +85,28 @@ def audit_event(
     )
 
 
-def create_audit_log(
-    db: Session,
-    event_type: str,
-    session_code: Optional[str] = None,
-    user_id: Optional[int] = None,
-    ip_address: Optional[str] = None,
-    user_agent: Optional[str] = None,
-    details: Optional[str] = None,
-    additional_data: Optional[Dict[str, Any]] = None,
-    *,
-    commit: bool = False,
-) -> models.AuditLog:
-    data: Dict[str, Any] = dict(additional_data or {})
-    if details:
-        data["note"] = details
-    row = audit_event(
-        event_type,
-        session_code=session_code,
-        user_id=user_id,
-        details=data,
-    )
-    if ip_address:
-        row.ip_address = ip_address[:45]
-    if user_agent:
-        row.user_agent = user_agent[:512]
-    db.add(row)
-    if commit:
-        try:
-            db.commit()
-        except Exception:
-            db.rollback()
-            logger.exception(
-                "Audit event persistence failed",
-                extra={"event_name": "audit.persistence.failed", "action": row.action},
-            )
-            raise
-    return row
-
-
-def filter_audit_logs(
-    logs: List[Dict[str, Any]],
-    event_types: Optional[List[str]] = None,
-    session_code: Optional[str] = None,
-    user_id: Optional[int] = None,
-    start_date: Optional[datetime] = None,
-    end_date: Optional[datetime] = None,
-) -> List[Dict[str, Any]]:
-    filtered = list(logs)
-    if event_types:
-        filtered = [item for item in filtered if item.get("event_type") in event_types]
-    if session_code:
-        filtered = [item for item in filtered if item.get("session_code") == session_code]
-    if user_id is not None:
-        filtered = [item for item in filtered if item.get("user_id") == user_id]
-    if start_date:
-        filtered = [
-            item for item in filtered
-            if item.get("timestamp")
-            and datetime.fromisoformat(item["timestamp"].replace("Z", "+00:00")) >= start_date
-        ]
-    if end_date:
-        filtered = [
-            item for item in filtered
-            if item.get("timestamp")
-            and datetime.fromisoformat(item["timestamp"].replace("Z", "+00:00")) <= end_date
-        ]
-    return filtered
-
-
-def get_audit_summary(db: Session, session_code: str, days: int = 30) -> Dict[str, Any]:
-    cutoff_date = datetime.utcnow() - timedelta(days=days)
-    logs = db.query(models.AuditLog).filter(
-        models.AuditLog.session_code == session_code,
-        models.AuditLog.timestamp >= cutoff_date,
-    ).all()
-    event_counts: Dict[str, int] = {}
-    users = set()
-    for row in logs:
-        event_counts[row.event_type] = event_counts.get(row.event_type, 0) + 1
-        if row.user_id:
-            users.add(row.user_id)
-    return {
-        "total_events": len(logs),
-        "event_types": event_counts,
-        "unique_users": len(users),
-        "date_range_days": days,
-        "session_code": session_code,
-    }
-
-
-def log_invitation_event(
-    db: Session, event_type: str, invitation: models.SessionInvitation,
-    user_id: int, request=None, additional_details: str = "",
-) -> None:
-    db.add(audit_event(
-        event_type,
-        session_code=invitation.session.session_code if invitation.session else None,
-        user_id=user_id,
-        target_type="invitation",
-        target_id=invitation.id,
-        request=request,
-        details={"role": invitation.pre_assigned_role, "note": additional_details},
-    ))
-
-
-def log_session_management_event(
-    db: Session, event_type: str, session_code: str, target_user_id: int,
-    admin_user_id: int, request=None, additional_details: str = "",
-) -> None:
-    db.add(audit_event(
-        event_type,
-        session_code=session_code,
-        user_id=admin_user_id,
-        target_type="user",
-        target_id=target_user_id,
-        request=request,
-        details={"note": additional_details},
-    ))
+def persist_http_security_decision(request: Any, status_code: int, route: str) -> None:
+    """Persist denied HTTP decisions independently of a rolled-back request transaction."""
+    action = _HTTP_SECURITY_ACTIONS.get(status_code)
+    if not action:
+        return
+    db = SessionLocal()
+    try:
+        db.add(audit_event(
+            action,
+            outcome="denied",
+            user_id=getattr(request.state, "user_id", None),
+            target_type="http_route",
+            target_id=route,
+            request=request,
+            details={"method": request.method, "status_code": status_code},
+        ))
+        db.commit()
+    except Exception:
+        db.rollback()
+        logger.exception(
+            "Security decision audit persistence failed",
+            extra={"event_name": "audit.security_decision.failed", "outcome": "error"},
+        )
+    finally:
+        db.close()

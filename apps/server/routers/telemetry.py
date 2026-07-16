@@ -15,7 +15,7 @@ from utils.rate_limiter import RateLimiter, get_client_ip
 router = APIRouter(prefix="/api/telemetry", tags=["telemetry"])
 logger = setup_logger(__name__)
 settings = Settings()
-telemetry_limiter = RateLimiter()
+telemetry_limiter = RateLimiter("browser_telemetry")
 
 
 class BrowserErrorReport(BaseModel):

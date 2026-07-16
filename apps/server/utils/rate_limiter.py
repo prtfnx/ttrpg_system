@@ -5,9 +5,12 @@ import time
 from collections import defaultdict, deque
 from typing import Deque, Dict
 
+from utils.observability import record_rate_limit
+
 
 class RateLimiter:
-    def __init__(self):
+    def __init__(self, name: str = "unknown"):
+        self.name = name
         # Store requests by IP address
         self.requests: Dict[str, Deque[float]] = defaultdict(deque)
 
@@ -37,8 +40,10 @@ class RateLimiter:
         # Check if under the limit
         if len(user_requests) < max_requests:
             user_requests.append(now)
+            record_rate_limit(self.name, True)
             return True
 
+        record_rate_limit(self.name, False)
         return False
 
     def get_time_until_reset(self, identifier: str, window_minutes: float = 5) -> int:
@@ -83,9 +88,9 @@ class RateLimiter:
         self.requests.clear()
 
 # Global rate limiter instances
-registration_limiter = RateLimiter()
-login_limiter = RateLimiter()
-password_reset_limiter = RateLimiter()
+registration_limiter = RateLimiter("registration")
+login_limiter = RateLimiter("login")
+password_reset_limiter = RateLimiter("password_reset")
 
 def get_client_ip(request) -> str:
     """

@@ -24,6 +24,7 @@ from database.database import SessionLocal  # noqa: E402
 from database.models import Asset, SessionAsset, User  # noqa: E402
 from storage.r2_manager import R2AssetManager  # noqa: E402
 from sqlalchemy import func  # noqa: E402
+from utils.audit import audit_event  # noqa: E402
 
 
 class R2StorageAdmin:
@@ -268,6 +269,30 @@ def _database_asset_inventory() -> dict:
         db.close()
 
 
+def _record_admin_audit(command: str, outcome: str, result: dict | None = None) -> None:
+    """Record privileged storage administration without object keys or bucket names."""
+    db = SessionLocal()
+    try:
+        payload = result or {}
+        db.add(audit_event(
+            f"r2.{command.replace('-', '_')}",
+            outcome=outcome,
+            target_type="object_storage",
+            details={
+                "dry_run": payload.get("dry_run"),
+                "objects": payload.get("objects") if isinstance(payload.get("objects"), int) else None,
+                "missing_count": len(payload.get("missing_objects", [])),
+                "orphan_count": len(payload.get("orphan_objects", [])),
+            },
+        ))
+        db.commit()
+    except Exception:
+        db.rollback()
+        raise
+    finally:
+        db.close()
+
+
 def _build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description="R2 asset storage operations")
     subparsers = parser.add_subparsers(dest="command", required=True)
@@ -306,24 +331,30 @@ def main() -> int:
         os.getenv("R2_BACKUP_BUCKET_NAME"),
     )
 
-    if args.command == "apply-config":
-        result = admin.apply_bucket_configuration(args.origin, args.cors_file, args.lifecycle_file)
-    elif args.command == "smoke":
-        result = admin.smoke_test()
-    elif args.command == "audit":
-        inventory = _database_asset_inventory()
-        result = admin.audit_orphans(
-            inventory.pop("keys"),
-            min_age_hours=args.min_age_hours,
-            delete=args.delete_orphans,
-        )
-        result["database_integrity"] = inventory
-    elif args.command == "backup":
-        binding = _database_manifest_binding(args.database_manifest)
-        result = admin.backup(binding, args.snapshot)
-    else:
-        binding = _database_manifest_binding(args.database_manifest)
-        result = admin.restore(args.snapshot, binding, apply=args.apply)
+    try:
+        if args.command == "apply-config":
+            result = admin.apply_bucket_configuration(args.origin, args.cors_file, args.lifecycle_file)
+        elif args.command == "smoke":
+            result = admin.smoke_test()
+        elif args.command == "audit":
+            inventory = _database_asset_inventory()
+            result = admin.audit_orphans(
+                inventory.pop("keys"),
+                min_age_hours=args.min_age_hours,
+                delete=args.delete_orphans,
+            )
+            result["database_integrity"] = inventory
+        elif args.command == "backup":
+            binding = _database_manifest_binding(args.database_manifest)
+            result = admin.backup(binding, args.snapshot)
+        else:
+            binding = _database_manifest_binding(args.database_manifest)
+            result = admin.restore(args.snapshot, binding, apply=args.apply)
+    except Exception:
+        _record_admin_audit(args.command, "failure")
+        raise
+
+    _record_admin_audit(args.command, "success", result)
 
     print(json.dumps(result, indent=2, default=str))
     return 0

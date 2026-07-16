@@ -56,6 +56,247 @@ class _CharactersMixin(_ProtocolBase):
         for target_client_id in targets:
             await self.send_to_client(message, target_client_id)
 
+    def _draft_client_ids(
+        self,
+        session_id: int,
+        draft_id: str,
+        exclude_client: str | None = None,
+    ) -> list[str]:
+        client_info = getattr(self.session_manager, 'client_info', None)
+        if not isinstance(client_info, dict):
+            return []
+        from managers.character_draft_manager import get_character_draft_manager
+
+        manager = get_character_draft_manager()
+        allowed = []
+        for target_client_id, info in client_info.items():
+            if target_client_id == exclude_client:
+                continue
+            user_id = info.get('user_id')
+            if user_id is None:
+                continue
+            if manager.can_view_draft(
+                session_id,
+                draft_id,
+                int(user_id),
+                bypass_owner_check=is_dm(info.get('role')),
+            ):
+                allowed.append(target_client_id)
+        return allowed
+
+    async def _broadcast_draft_event(
+        self,
+        message: Message,
+        session_id: int,
+        draft_id: str,
+        exclude_client: str | None = None,
+    ) -> None:
+        for target_client_id in self._draft_client_ids(
+            session_id, draft_id, exclude_client
+        ):
+            await self.send_to_client(message, target_client_id)
+
+    @staticmethod
+    def _draft_error(message_type: MessageType, error: str, **extra) -> Message:
+        return Message(message_type, {'success': False, 'error': error, **extra})
+
+    async def handle_character_draft_create(self, msg: Message, client_id: str) -> Message:
+        from managers.character_draft_manager import get_character_draft_manager
+
+        session_id = self._get_session_id(msg)
+        user_id = self._get_user_id(msg, client_id)
+        data = msg.data or {}
+        if not session_id or user_id is None or not isinstance(data.get('draft_data'), dict):
+            return self._draft_error(
+                MessageType.CHARACTER_DRAFT_CREATE_RESPONSE,
+                'Authenticated session and draft_data are required',
+            )
+        result = get_character_draft_manager().create_draft(
+            session_id, user_id, data['draft_data'], data.get('current_step', 0)
+        )
+        if not result.get('success'):
+            return self._draft_error(
+                MessageType.CHARACTER_DRAFT_CREATE_RESPONSE, result['error']
+            )
+        draft = result['draft']
+        await self._broadcast_draft_event(
+            Message(MessageType.CHARACTER_DRAFT_UPDATED, {
+                'operation': 'created', 'draft': draft,
+            }),
+            session_id,
+            draft['draft_id'],
+            client_id,
+        )
+        return Message(MessageType.CHARACTER_DRAFT_CREATE_RESPONSE, {
+            'success': True, 'draft': draft,
+        })
+
+    async def handle_character_draft_list(self, msg: Message, client_id: str) -> Message:
+        from managers.character_draft_manager import get_character_draft_manager
+
+        session_id = self._get_session_id(msg)
+        user_id = self._get_user_id(msg, client_id)
+        if not session_id or user_id is None:
+            return self._draft_error(
+                MessageType.CHARACTER_DRAFT_LIST_RESPONSE, 'Authenticated session is required'
+            )
+        result = get_character_draft_manager().list_drafts(
+            session_id,
+            user_id,
+            bypass_owner_check=is_dm(self._get_client_role(client_id)),
+        )
+        if not result.get('success'):
+            return self._draft_error(MessageType.CHARACTER_DRAFT_LIST_RESPONSE, result['error'])
+        return Message(MessageType.CHARACTER_DRAFT_LIST_RESPONSE, {
+            'success': True, 'drafts': result['drafts'],
+        })
+
+    async def handle_character_draft_load(self, msg: Message, client_id: str) -> Message:
+        from managers.character_draft_manager import get_character_draft_manager
+
+        session_id = self._get_session_id(msg)
+        user_id = self._get_user_id(msg, client_id)
+        draft_id = (msg.data or {}).get('draft_id')
+        if not session_id or user_id is None or not draft_id:
+            return self._draft_error(
+                MessageType.CHARACTER_DRAFT_LOAD_RESPONSE, 'draft_id is required'
+            )
+        result = get_character_draft_manager().load_draft(
+            session_id,
+            str(draft_id),
+            user_id,
+            bypass_owner_check=is_dm(self._get_client_role(client_id)),
+        )
+        if not result.get('success'):
+            return self._draft_error(MessageType.CHARACTER_DRAFT_LOAD_RESPONSE, result['error'])
+        return Message(MessageType.CHARACTER_DRAFT_LOAD_RESPONSE, {
+            'success': True, 'draft': result['draft'],
+        })
+
+    async def handle_character_draft_update(self, msg: Message, client_id: str) -> Message:
+        from managers.character_draft_manager import get_character_draft_manager
+
+        session_id = self._get_session_id(msg)
+        user_id = self._get_user_id(msg, client_id)
+        data = msg.data or {}
+        if (
+            not session_id or user_id is None or not data.get('draft_id')
+            or not isinstance(data.get('draft_data'), dict)
+            or not isinstance(data.get('expected_version'), int)
+        ):
+            return self._draft_error(
+                MessageType.CHARACTER_DRAFT_UPDATE_RESPONSE,
+                'draft_id, draft_data, and expected_version are required',
+            )
+        result = get_character_draft_manager().update_draft(
+            session_id,
+            str(data['draft_id']),
+            user_id,
+            data['draft_data'],
+            data.get('current_step', 0),
+            data['expected_version'],
+        )
+        if not result.get('success'):
+            return self._draft_error(
+                MessageType.CHARACTER_DRAFT_UPDATE_RESPONSE,
+                result['error'],
+                current_draft=result.get('current_draft'),
+            )
+        draft = result['draft']
+        await self._broadcast_draft_event(
+            Message(MessageType.CHARACTER_DRAFT_UPDATED, {
+                'operation': 'updated', 'draft': draft,
+            }),
+            session_id,
+            draft['draft_id'],
+            client_id,
+        )
+        return Message(MessageType.CHARACTER_DRAFT_UPDATE_RESPONSE, {
+            'success': True, 'draft': draft,
+        })
+
+    async def handle_character_draft_finalize(self, msg: Message, client_id: str) -> Message:
+        from managers.character_draft_manager import get_character_draft_manager
+
+        session_id = self._get_session_id(msg)
+        user_id = self._get_user_id(msg, client_id)
+        data = msg.data or {}
+        if (
+            not session_id or user_id is None or not data.get('draft_id')
+            or not isinstance(data.get('character_data'), dict)
+            or not isinstance(data.get('expected_version'), int)
+        ):
+            return self._draft_error(
+                MessageType.CHARACTER_DRAFT_FINALIZE_RESPONSE,
+                'draft_id, character_data, and expected_version are required',
+            )
+        result = get_character_draft_manager().finalize_draft(
+            session_id,
+            str(data['draft_id']),
+            user_id,
+            data['expected_version'],
+            data['character_data'],
+        )
+        if not result.get('success'):
+            return self._draft_error(
+                MessageType.CHARACTER_DRAFT_FINALIZE_RESPONSE,
+                result['error'],
+                current_draft=result.get('current_draft'),
+            )
+        await self._broadcast_draft_event(
+            Message(MessageType.CHARACTER_DRAFT_UPDATED, {
+                'operation': 'converted',
+                'draft_id': data['draft_id'],
+                'character_id': result['character_id'],
+            }),
+            session_id,
+            str(data['draft_id']),
+            client_id,
+        )
+        await self._broadcast_character_event(
+            Message(MessageType.CHARACTER_UPDATE, {
+                'operation': 'create',
+                'character_id': result['character_id'],
+                'character_data': result['character_data'],
+                'version': result['version'],
+            }),
+            session_id,
+            result['character_id'],
+            client_id,
+        )
+        return Message(MessageType.CHARACTER_DRAFT_FINALIZE_RESPONSE, result)
+
+    async def handle_character_draft_abandon(self, msg: Message, client_id: str) -> Message:
+        from managers.character_draft_manager import get_character_draft_manager
+
+        session_id = self._get_session_id(msg)
+        user_id = self._get_user_id(msg, client_id)
+        data = msg.data or {}
+        if (
+            not session_id or user_id is None or not data.get('draft_id')
+            or not isinstance(data.get('expected_version'), int)
+        ):
+            return self._draft_error(
+                MessageType.CHARACTER_DRAFT_ABANDON_RESPONSE,
+                'draft_id and expected_version are required',
+            )
+        result = get_character_draft_manager().abandon_draft(
+            session_id, str(data['draft_id']), user_id, data['expected_version']
+        )
+        if not result.get('success'):
+            return self._draft_error(
+                MessageType.CHARACTER_DRAFT_ABANDON_RESPONSE, result['error']
+            )
+        await self._broadcast_draft_event(
+            Message(MessageType.CHARACTER_DRAFT_UPDATED, {
+                'operation': 'abandoned', 'draft_id': data['draft_id'],
+            }),
+            session_id,
+            str(data['draft_id']),
+            client_id,
+        )
+        return Message(MessageType.CHARACTER_DRAFT_ABANDON_RESPONSE, result)
+
     async def handle_character_save_request(self, msg: Message, client_id: str) -> Message:
         """Handle character save request"""
         logger.debug("Character save requested", extra={"event_name": "character.save.requested"})

@@ -158,6 +158,12 @@ class ServerProtocol(
             self.register_handler(MessageType.XP_AWARD, self.handle_xp_award)
         if hasattr(MessageType, 'MULTICLASS_REQUEST'):
             self.register_handler(MessageType.MULTICLASS_REQUEST, self.handle_multiclass_request)
+        self.register_handler(MessageType.CHARACTER_DRAFT_CREATE_REQUEST, self.handle_character_draft_create)
+        self.register_handler(MessageType.CHARACTER_DRAFT_LIST_REQUEST, self.handle_character_draft_list)
+        self.register_handler(MessageType.CHARACTER_DRAFT_LOAD_REQUEST, self.handle_character_draft_load)
+        self.register_handler(MessageType.CHARACTER_DRAFT_UPDATE_REQUEST, self.handle_character_draft_update)
+        self.register_handler(MessageType.CHARACTER_DRAFT_FINALIZE_REQUEST, self.handle_character_draft_finalize)
+        self.register_handler(MessageType.CHARACTER_DRAFT_ABANDON_REQUEST, self.handle_character_draft_abandon)
 
         # Walls & doors
         self.register_handler(MessageType.WALL_CREATE,       self.handle_wall_create)

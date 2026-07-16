@@ -19,6 +19,7 @@ from database.models import (
     SessionCharacter,
 )
 from sqlalchemy import and_, or_
+from service.character_schema import validate_character_document
 from utils.logger import setup_logger
 
 logger = setup_logger(__name__)
@@ -151,7 +152,11 @@ class ServerCharacterManager:
                 # Generate or use existing character ID (canonical key: 'character_id')
                 # Do NOT accept legacy 'id' fallback - callers must use `character_id`.
                 character_id = character_data.get('character_id') or str(uuid.uuid4())
-                character_name = character_data.get('name', 'Unnamed Character')
+                character_data = validate_character_document({
+                    **character_data,
+                    'character_id': character_id,
+                })
+                character_name = character_data['name']
 
                 # Serialize character data
                 character_json = _serialize_character(character_data)
@@ -294,7 +299,9 @@ class ServerCharacterManager:
                 except Exception:
                     current_json = {}
 
-                merged = apply_json_merge_patch(current_json, updates)
+                merged = validate_character_document(
+                    apply_json_merge_patch(current_json, updates)
+                )
                 merged_json = _serialize_character(merged)
 
                 # Spell slot validation
@@ -380,7 +387,9 @@ class ServerCharacterManager:
 
                 # Deserialize character data
                 try:
-                    character_data = json.loads(character.character_data)  # type: ignore
+                    character_data = validate_character_document(
+                        json.loads(character.character_data)  # type: ignore
+                    )
                 except (json.JSONDecodeError, AttributeError) as e:
                     logger.error(f"Error deserializing character data: {e}")
                     return {
@@ -434,7 +443,9 @@ class ServerCharacterManager:
                         'character_id': char.character_id,
                         'character_name': char.character_name,
                         'owner_user_id': char.owner_user_id,
-                        'character_data': json.loads(char.character_data) if char.character_data else {},
+                        'character_data': validate_character_document(
+                            json.loads(char.character_data)
+                        ) if char.character_data else {},
                         'version': char.version,
                         'created_at': char.created_at.isoformat() if char.created_at else None,
                         'updated_at': char.updated_at.isoformat() if char.updated_at else None

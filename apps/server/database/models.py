@@ -323,6 +323,53 @@ class CharacterPermission(Base):
     user = relationship("User", foreign_keys=[user_id])
     grantor = relationship("User", foreign_keys=[granted_by])
 
+
+class CharacterDraft(Base):
+    """Server-authoritative, resumable character-wizard work in progress."""
+    __tablename__ = "character_drafts"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
+    draft_id: Mapped[str] = mapped_column(String(36), unique=True, nullable=False, index=True)
+    session_id: Mapped[int] = mapped_column(
+        Integer,
+        ForeignKey("game_sessions.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    owner_user_id: Mapped[int] = mapped_column(
+        Integer,
+        ForeignKey("users.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    draft_data: Mapped[str] = mapped_column(Text, nullable=False)
+    schema_version: Mapped[int] = mapped_column(Integer, nullable=False, default=1)
+    current_step: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    version: Mapped[int] = mapped_column(Integer, nullable=False, default=1)
+    status: Mapped[str] = mapped_column(String(20), nullable=False, default="active", index=True)
+    converted_character_id: Mapped[Optional[str]] = mapped_column(
+        String(36),
+        ForeignKey("session_characters.character_id", ondelete="SET NULL"),
+        nullable=True,
+    )
+    created_at: Mapped[Optional[datetime]] = mapped_column(DateTime, default=datetime.utcnow)
+    updated_at: Mapped[Optional[datetime]] = mapped_column(
+        DateTime,
+        default=datetime.utcnow,
+        onupdate=datetime.utcnow,
+        index=True,
+    )
+    last_modified_by: Mapped[Optional[int]] = mapped_column(
+        Integer,
+        ForeignKey("users.id", ondelete="SET NULL"),
+        nullable=True,
+    )
+
+    session = relationship("GameSession")
+    owner = relationship("User", foreign_keys=[owner_user_id])
+    last_modifier = relationship("User", foreign_keys=[last_modified_by])
+    converted_character = relationship("SessionCharacter", foreign_keys=[converted_character_id])
+
 class SessionInvitation(Base):
     __tablename__ = "session_invitations"
 

@@ -20,6 +20,8 @@ function CharacterPanel() {
     characters,
     isConnected,
     currentUserId,
+    drafts,
+    activeDraft,
     showWizard,
     expandedCharId,
     wizardKey,
@@ -32,6 +34,9 @@ function CharacterPanel() {
     selectedCharacter,
     handleCharacterClick,
     handleCreateCharacter,
+    handleResumeDraft,
+    handleSaveDraft,
+    handleAbandonDraft,
     handleWizardFinish,
     handleRetrySave,
     handleAddToken,
@@ -56,6 +61,7 @@ function CharacterPanel() {
     handleSavePermissions,
     handleDragStart,
     setShowWizard,
+    setActiveDraft,
     setShareDialogCharId,
     setSearchFilter,
     setEditFormData,
@@ -85,7 +91,7 @@ function CharacterPanel() {
       {!isConnected && (
         <div className={styles.offlineBanner} title="Not connected to server">
           <AlertTriangle size={12} aria-hidden />
-          Offline — changes saved locally only
+          Offline — changes saved locally only; character drafts unavailable
         </div>
       )}
       
@@ -155,7 +161,45 @@ function CharacterPanel() {
       )}
 
       <div className={styles.characterList} role="list" aria-label="Character list">
-        {characters.length === 0 && (
+        {drafts.length > 0 && (
+          <section className={styles.draftSection} aria-label="Characters in progress">
+            <h3>In progress</h3>
+            {drafts.map(draft => {
+              const isOwner = draft.owner_user_id === effectiveUserId;
+              const draftName = String(draft.draft_data.name || '').trim() || 'Untitled character';
+              return (
+                <article className={styles.draftCard} key={draft.draft_id} role="listitem">
+                  <button
+                    type="button"
+                    className={styles.draftOpenButton}
+                    onClick={() => handleResumeDraft(draft.draft_id)}
+                  >
+                    <span className={styles.draftName}>{draftName}</span>
+                    <span className={styles.draftMeta}>
+                      {isOwner ? 'Your draft' : `Player ${draft.owner_user_id}`} · Step {draft.current_step + 1} of 8
+                    </span>
+                  </button>
+                  <span className={styles.draftActions}>
+                    <button type="button" className={styles.compactBtn} onClick={() => handleResumeDraft(draft.draft_id)}>
+                      {isOwner ? 'Resume' : 'View'}
+                    </button>
+                    {isOwner && (
+                      <button
+                        type="button"
+                        className={clsx(styles.compactBtn, styles.draftDeleteButton)}
+                        onClick={event => handleAbandonDraft(draft, event)}
+                      >
+                        Abandon
+                      </button>
+                    )}
+                  </span>
+                </article>
+              );
+            })}
+          </section>
+        )}
+
+        {characters.length === 0 && drafts.length === 0 && (
           <div className={styles.emptyState}>No characters yet. Click <strong>+</strong> to create one.</div>
         )}
 
@@ -338,12 +382,21 @@ function CharacterPanel() {
         })}
       </div>
 
-      {showWizard && (
+      {showWizard && activeDraft && (
         <EnhancedCharacterWizard
           key={wizardKey}
           isOpen={showWizard}
+          draftId={activeDraft.draft_id}
+          draftVersion={activeDraft.version}
+          initialData={activeDraft.draft_data}
+          initialStep={activeDraft.current_step}
+          readOnly={activeDraft.owner_user_id !== effectiveUserId}
+          onSave={handleSaveDraft}
           onFinish={handleWizardFinish}
-          onCancel={() => setShowWizard(false)}
+          onCancel={() => {
+            setShowWizard(false);
+            setActiveDraft(null);
+          }}
         />
       )}
 

@@ -2,7 +2,9 @@ import { useGameStore } from '@/store';
 import type { Character } from '@/types';
 import { authService } from '@features/auth';
 import type { WizardFormData } from '@features/character/components/CharacterWizard/WizardFormData';
+import type { CharacterDraft } from '@features/character/characterDraft';
 import { useProtocol } from '@lib/api';
+import { onProtocolEvent } from '@lib/websocket/protocolEvents';
 import {
     cloneCharacter,
     downloadCharacterAsJSON,
@@ -49,6 +51,8 @@ export function useCharacterPanel() {
   } = useGameStore();
 
   const [showWizard, setShowWizard] = useState(false);
+  const [drafts, setDrafts] = useState<CharacterDraft[]>([]);
+  const [activeDraft, setActiveDraft] = useState<CharacterDraft | null>(null);
   const [expandedCharId, setExpandedCharId] = useState<string | null>(null);
   const [wizardKey, setWizardKey] = useState(0);
   const [editingCharId, setEditingCharId] = useState<string | null>(null);
@@ -70,8 +74,100 @@ export function useCharacterPanel() {
   useEffect(() => {
     if (protocol && isConnected && currentUserId) {
       protocol.requestCharacterList(currentUserId);
+      protocol.requestCharacterDrafts();
     }
   }, [protocol, isConnected, currentUserId]);
+
+  useEffect(() => {
+    const upsertDraft = (draft: CharacterDraft) => {
+      setDrafts(current => {
+        const remaining = current.filter(item => item.draft_id !== draft.draft_id);
+        return [draft, ...remaining].sort((a, b) => (b.updated_at ?? '').localeCompare(a.updated_at ?? ''));
+      });
+    };
+    const removeDraft = (draftId: string) => {
+      setDrafts(current => current.filter(item => item.draft_id !== draftId));
+      setActiveDraft(current => current?.draft_id === draftId ? null : current);
+    };
+
+    const cleanups = [
+      onProtocolEvent('character-draft-list-updated', detail => {
+        if (detail.success) setDrafts(detail.drafts ?? []);
+        else showToast.error(detail.error || 'Failed to load character drafts');
+      }),
+      onProtocolEvent('character-draft-created', detail => {
+        if (!detail.success || !detail.draft) {
+          showToast.error(detail.error || 'Failed to start character draft');
+          return;
+        }
+        upsertDraft(detail.draft);
+        setActiveDraft(detail.draft);
+        setWizardKey(key => key + 1);
+        setShowWizard(true);
+      }),
+      onProtocolEvent('character-draft-loaded', detail => {
+        if (!detail.success || !detail.draft) {
+          showToast.error(detail.error || 'Failed to open character draft');
+          return;
+        }
+        upsertDraft(detail.draft);
+        setActiveDraft(detail.draft);
+        setWizardKey(key => key + 1);
+        setShowWizard(true);
+      }),
+      onProtocolEvent('character-draft-saved', detail => {
+        const canonical = detail.draft ?? detail.current_draft;
+        if (canonical) {
+          upsertDraft(canonical);
+          setActiveDraft(current => current?.draft_id === canonical.draft_id ? canonical : current);
+        }
+        if (!detail.success) {
+          setWizardKey(key => key + 1);
+          showToast.warning(detail.error || 'Draft changed on another client; latest server version loaded.');
+        }
+      }),
+      onProtocolEvent('character-draft-updated', rawDetail => {
+        const detail = (rawDetail ?? {}) as { operation?: string; draft?: CharacterDraft; draft_id?: string };
+        if (detail.draft) {
+          const remoteDraft = detail.draft;
+          upsertDraft(remoteDraft);
+          setActiveDraft(current => {
+            if (current?.draft_id !== remoteDraft.draft_id) return current;
+            return current.owner_user_id === currentUserId ? current : remoteDraft;
+          });
+        } else if (detail.draft_id && ['converted', 'abandoned'].includes(detail.operation || '')) {
+          removeDraft(detail.draft_id);
+          setShowWizard(current => activeDraft?.draft_id === detail.draft_id ? false : current);
+        }
+      }),
+      onProtocolEvent('character-draft-finalized', rawDetail => {
+        const detail = (rawDetail ?? {}) as { success?: boolean; draft_id?: string; character_id?: string; error?: string; current_draft?: CharacterDraft };
+        if (!detail.success) {
+          if (detail.current_draft) {
+            upsertDraft(detail.current_draft);
+            setActiveDraft(detail.current_draft);
+            setWizardKey(key => key + 1);
+          }
+          showToast.error(detail.error || 'Failed to create character from draft');
+          return;
+        }
+        if (detail.draft_id) removeDraft(detail.draft_id);
+        setShowWizard(false);
+        if (detail.character_id) setExpandedCharId(detail.character_id);
+        showToast.success('Character created successfully');
+      }),
+      onProtocolEvent('character-draft-abandoned', rawDetail => {
+        const detail = (rawDetail ?? {}) as { success?: boolean; draft_id?: string; error?: string };
+        if (!detail.success) {
+          showToast.error(detail.error || 'Failed to abandon character draft');
+          return;
+        }
+        if (detail.draft_id) removeDraft(detail.draft_id);
+        setShowWizard(false);
+      }),
+    ];
+    return () => cleanups.forEach(cleanup => cleanup());
+  }, [activeDraft?.draft_id, currentUserId]);
 
   // Connection notifications
   useEffect(() => {
@@ -160,16 +256,47 @@ export function useCharacterPanel() {
   };
 
   const handleCreateCharacter = () => {
-    setWizardKey(k => k + 1);
-    setShowWizard(true);
+    if (!protocol || !isConnected || !currentUserId) {
+      showToast.error('Connect and sign in before creating a character');
+      return;
+    }
+    protocol.createCharacterDraft({}, 0);
   };
 
-  const handleWizardFinish = async (data: WizardFormData) => {
-    const tempId = genId();
-    
-    if (!currentUserId) {
-      showToast.error('Please log in to create characters');
-      setShowWizard(false);
+  const handleResumeDraft = (draftId: string) => {
+    if (!protocol || !isConnected) {
+      showToast.error('Connect to the server to open this draft');
+      return;
+    }
+    protocol.loadCharacterDraft(draftId);
+  };
+
+  const handleSaveDraft = (
+    data: Partial<WizardFormData>,
+    currentStep: number,
+    expectedVersion: number,
+  ) => {
+    if (!protocol || !isConnected || !activeDraft) {
+      showToast.error('Draft was not saved because the connection is unavailable');
+      return;
+    }
+    protocol.updateCharacterDraft(activeDraft.draft_id, data, currentStep, expectedVersion);
+  };
+
+  const handleAbandonDraft = (draft: CharacterDraft, event?: React.MouseEvent) => {
+    event?.stopPropagation();
+    if (draft.owner_user_id !== currentUserId) return;
+    if (!protocol || !isConnected) {
+      showToast.error('Connect to the server to abandon this draft');
+      return;
+    }
+    if (!window.confirm('Abandon this character draft? This cannot be undone.')) return;
+    protocol.abandonCharacterDraft(draft.draft_id, draft.version);
+  };
+
+  const handleWizardFinish = async (data: WizardFormData, expectedVersion = activeDraft?.version) => {
+    if (!protocol || !isConnected || !activeDraft || expectedVersion === undefined) {
+      showToast.error('Connect to the server before creating this character');
       return;
     }
 
@@ -214,36 +341,7 @@ export function useCharacterPanel() {
       proficiencyBonus: 2,
     };
     
-    const newCharacter = {
-      id: tempId,
-      sessionId: sessionId?.toString() || '',
-      name: data.name || `${data.race} ${data.class}`,
-      ownerId: currentUserId,
-      controlledBy: [] as number[],
-      data: characterData,
-      version: 1,
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
-      syncStatus: 'syncing' as const,
-    };
-    
-    addCharacter(newCharacter as unknown as Character);
-    setShowWizard(false);
-    setExpandedCharId(tempId);
-    
-    if (protocol && isConnected) {
-      try {
-        const saveBlob = { character_id: tempId, ...characterData };
-        registerPendingOperation(tempId, 'create', newCharacter as unknown as Character);
-        protocol.saveCharacter(saveBlob, currentUserId);
-      } catch (_error) {
-        confirmPendingOperation(tempId);
-        updateCharacter(tempId, { syncStatus: 'error' });
-        showToast.error(`Failed to save character "${newCharacter.name}". Click retry to try again.`);
-      }
-    } else {
-      updateCharacter(tempId, { syncStatus: 'local' });
-    }
+    protocol.finalizeCharacterDraft(activeDraft.draft_id, characterData, expectedVersion);
   };
 
   const handleRetrySave = async (charId: string) => {
@@ -589,6 +687,8 @@ export function useCharacterPanel() {
     characters,
     isConnected,
     currentUserId,
+    drafts,
+    activeDraft,
     showWizard,
     expandedCharId,
     wizardKey,
@@ -604,6 +704,9 @@ export function useCharacterPanel() {
     // Actions
     handleCharacterClick,
     handleCreateCharacter,
+    handleResumeDraft,
+    handleSaveDraft,
+    handleAbandonDraft,
     handleWizardFinish,
     handleRetrySave,
     handleAddToken,
@@ -629,6 +732,7 @@ export function useCharacterPanel() {
     handleSavePermissions,
     handleDragStart,
     setShowWizard,
+    setActiveDraft,
     setExpandedCharId,
     setEditFormData,
     setShareDialogCharId,

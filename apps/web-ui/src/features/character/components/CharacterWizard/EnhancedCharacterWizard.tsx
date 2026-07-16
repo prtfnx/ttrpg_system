@@ -4,7 +4,7 @@
  * - Comprehensive form validation with Zod schemas
  * - Error boundaries for each step
  * - Loading states and skeleton UI
- * - LocalStorage persistence
+ * - Server-backed draft persistence
  * - Accessibility (ARIA) support
  */
 
@@ -13,7 +13,7 @@ import { ErrorBoundary, LoadingSpinner } from '@shared/components';
 import { logger } from '@shared/utils/logger';
 import clsx from 'clsx';
 import { AlertTriangle, Check, Save, X } from 'lucide-react';
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { FormProvider, useForm } from 'react-hook-form';
 import { z } from 'zod';
@@ -100,14 +100,16 @@ const WIZARD_STEPS: WizardStep[] = [
   }
 ];
 
-// Local storage key for wizard persistence
-const WIZARD_STORAGE_KEY = 'characterWizard_draft';
-
 interface EnhancedCharacterWizardProps {
   isOpen: boolean;
-  onFinish: (character: WizardFormData) => void;
+  onFinish: (character: WizardFormData, expectedVersion?: number) => void | Promise<void>;
   onCancel: () => void;
   initialData?: Partial<WizardFormData>;
+  initialStep?: number;
+  draftId?: string;
+  draftVersion?: number;
+  readOnly?: boolean;
+  onSave?: (data: Partial<WizardFormData>, currentStep: number, expectedVersion: number) => void;
   className?: string;
 }
 
@@ -116,6 +118,11 @@ export const EnhancedCharacterWizard: React.FC<EnhancedCharacterWizardProps> = (
   onFinish,
   onCancel,
   initialData,
+  initialStep = 0,
+  draftId,
+  draftVersion = 1,
+  readOnly = false,
+  onSave,
   className = ''
 }) => {
   const [currentStepIndex, setCurrentStepIndex] = useState(0);
@@ -123,6 +130,11 @@ export const EnhancedCharacterWizard: React.FC<EnhancedCharacterWizardProps> = (
   const [stepErrors, setStepErrors] = useState<Record<number, string>>({});
   const [isInitializing, setIsInitializing] = useState(true);
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
+  const [saveState, setSaveState] = useState<'idle' | 'pending' | 'saved'>('idle');
+  const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const initializedRef = useRef(false);
+  const previousVersionRef = useRef(draftVersion);
+  const previousStepRef = useRef(initialStep);
 
   // Form setup with enhanced validation
   const form = useForm<WizardFormData>({
@@ -164,7 +176,7 @@ export const EnhancedCharacterWizard: React.FC<EnhancedCharacterWizardProps> = (
     mode: 'onChange'
   });
 
-  const { reset, getValues, formState } = form;
+  const { reset, getValues } = form;
   
   // DON'T watch fields here - it causes infinite re-renders!
   // Child components will watch what they need via useFormContext
@@ -174,52 +186,75 @@ export const EnhancedCharacterWizard: React.FC<EnhancedCharacterWizardProps> = (
   const isFirstStep = currentStepIndex === 0;
   const isLastStep = currentStepIndex === WIZARD_STEPS.length - 1;
 
-  // Load persisted data on mount
+  // A server draft is the only source of resumable wizard state. Resetting here
+  // also lets a DM see a newly received remote snapshot without local leakage.
   useEffect(() => {
-    const loadPersistedData = () => {
-      try {
-        const stored = localStorage.getItem(WIZARD_STORAGE_KEY);
-        if (stored && !initialData) {
-          const parsedData = JSON.parse(stored);
-          reset(parsedData);
-          setHasUnsavedChanges(true);
-        }
-      } catch (error) {
-        logger.warn('Failed to load persisted wizard data', error);
-      } finally {
-        setIsInitializing(false);
-      }
-    };
-
     if (isOpen) {
-      loadPersistedData();
+      if (initializedRef.current && !readOnly) return;
+      reset({
+        name: '', race: '', class: '', background: '',
+        strength: 8, dexterity: 8, constitution: 8,
+        intelligence: 8, wisdom: 8, charisma: 8,
+        skills: [],
+        spells: { cantrips: [], knownSpells: [], preparedSpells: [] },
+        equipment: {
+          items: [],
+          currency: { cp: 0, sp: 0, ep: 0, gp: 0, pp: 0 },
+          carrying_capacity: { current_weight: 0, max_weight: 0, encumbered_at: 0, heavily_encumbered_at: 0 }
+        },
+        advancement: { experiencePoints: 0, currentLevel: 1, levelHistory: [] },
+        ...initialData
+      });
+      const safeStep = Math.max(0, Math.min(initialStep, WIZARD_STEPS.length - 1));
+      setCurrentStepIndex(safeStep);
+      setCompletedSteps(new Set(Array.from({ length: safeStep }, (_, index) => index)));
+      setHasUnsavedChanges(false);
+      setSaveState(draftId ? 'saved' : 'idle');
+      initializedRef.current = true;
+      setIsInitializing(false);
     }
-  }, [isOpen, reset, initialData]);
+  }, [draftId, initialData, initialStep, isOpen, readOnly, reset]);
 
-  // Persist data to localStorage on changes
-  const persistData = useCallback(() => {
-    try {
-      const currentData = getValues();
-      localStorage.setItem(WIZARD_STORAGE_KEY, JSON.stringify(currentData));
-    } catch (error) {
-      logger.warn('Failed to persist wizard data', error);
-    }
-  }, [getValues]);
+  const scheduleSave = useCallback((data: Partial<WizardFormData>, step: number) => {
+    if (!draftId || !onSave || readOnly || !initializedRef.current) return;
+    if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
+    setHasUnsavedChanges(true);
+    setSaveState('pending');
+    saveTimerRef.current = setTimeout(() => {
+      onSave(data, step, draftVersion);
+      saveTimerRef.current = null;
+    }, 1000);
+  }, [draftId, draftVersion, onSave, readOnly]);
 
-  // Auto-save on data changes (use formState.isDirty to avoid infinite loops)
+  // Subscribe to actual value changes. isDirty only changes once and caused
+  // subsequent edits in the old local draft to be silently omitted.
   useEffect(() => {
-    if (!isInitializing && isOpen && formState.isDirty) {
-      const timeoutId = setTimeout(() => {
-        persistData();
-        setHasUnsavedChanges(true);
-      }, 1000);
+    if (!isOpen || isInitializing || readOnly || !draftId) return;
+    const subscription = form.watch(values => scheduleSave(values as Partial<WizardFormData>, currentStepIndex));
+    return () => subscription.unsubscribe();
+  }, [currentStepIndex, draftId, form, isInitializing, isOpen, readOnly, scheduleSave]);
 
-      return () => clearTimeout(timeoutId);
+  useEffect(() => {
+    if (currentStepIndex === previousStepRef.current) return;
+    previousStepRef.current = currentStepIndex;
+    scheduleSave(getValues(), currentStepIndex);
+  }, [currentStepIndex, getValues, scheduleSave]);
+
+  useEffect(() => () => {
+    if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
+  }, []);
+
+  useEffect(() => {
+    if (draftVersion > previousVersionRef.current) {
+      previousVersionRef.current = draftVersion;
+      setHasUnsavedChanges(false);
+      setSaveState('saved');
     }
-  }, [formState.isDirty, persistData, isInitializing, isOpen]);
+  }, [draftVersion]);
 
   // Check if step can be navigated to
   const canNavigateToStep = useCallback((stepIndex: number): boolean => {
+    if (readOnly) return true;
     if (stepIndex <= currentStepIndex) return true; // Can always go back
     if (stepIndex === 0) return true; // Can always go to first step
     
@@ -231,7 +266,7 @@ export const EnhancedCharacterWizard: React.FC<EnhancedCharacterWizardProps> = (
       }
     }
     return true;
-  }, [currentStepIndex, completedSteps]);
+  }, [currentStepIndex, completedSteps, readOnly]);
 
   // Validate current step
   const validateCurrentStep = useCallback(async (): Promise<boolean> => {
@@ -267,6 +302,11 @@ export const EnhancedCharacterWizard: React.FC<EnhancedCharacterWizardProps> = (
 
   // Navigation handlers
   const handleNext = useCallback(async () => {
+    if (readOnly) {
+      if (!isLastStep) setCurrentStepIndex(currentStepIndex + 1);
+      return;
+    }
+
     const isValid = await validateCurrentStep();
     if (!isValid && !currentStep.canSkip) return;
 
@@ -279,9 +319,11 @@ export const EnhancedCharacterWizard: React.FC<EnhancedCharacterWizardProps> = (
         const finalData = getValues();
         await enhancedWizardSchema.parseAsync(finalData);
         
-        // Clear persisted data on successful completion
-        localStorage.removeItem(WIZARD_STORAGE_KEY);
-        onFinish(finalData);
+        if (saveTimerRef.current) {
+          clearTimeout(saveTimerRef.current);
+          saveTimerRef.current = null;
+        }
+        await onFinish(finalData, draftVersion);
       } catch (error) {
         logger.warn('Character wizard final validation failed', error);
         setStepErrors(prev => ({
@@ -305,7 +347,7 @@ export const EnhancedCharacterWizard: React.FC<EnhancedCharacterWizardProps> = (
       }
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps -- shouldShowStep has [] deps and never changes
-  }, [validateCurrentStep, currentStep.canSkip, isLastStep, currentStepIndex, getValues, onFinish]);
+  }, [validateCurrentStep, currentStep.canSkip, isLastStep, currentStepIndex, getValues, onFinish, readOnly, draftVersion]);
 
   const handlePrevious = useCallback(() => {
     if (!isFirstStep) {
@@ -349,15 +391,12 @@ export const EnhancedCharacterWizard: React.FC<EnhancedCharacterWizardProps> = (
 
   // Handle wizard close
   const handleClose = useCallback(() => {
-    if (hasUnsavedChanges) {
-      const confirmClose = window.confirm(
-        'You have unsaved changes. Are you sure you want to close the wizard? Your progress will be saved automatically.'
-      );
-      if (!confirmClose) return;
+    if (!readOnly && hasUnsavedChanges && draftId && onSave) {
+      if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
+      onSave(getValues(), currentStepIndex, draftVersion);
     }
-    
     onCancel();
-  }, [hasUnsavedChanges, onCancel]);
+  }, [currentStepIndex, draftId, draftVersion, getValues, hasUnsavedChanges, onCancel, onSave, readOnly]);
 
   // Keyboard navigation
   useEffect(() => {
@@ -514,9 +553,16 @@ export const EnhancedCharacterWizard: React.FC<EnhancedCharacterWizardProps> = (
                 )}
               </div>
               
-              <div className={styles['step-content']}>
-                {renderCurrentStep()}
-              </div>
+              {readOnly && (
+                <div className={styles['step-error-message']} role="status">
+                  DM view: this live draft is read-only. Only its owner can change or finalize it.
+                </div>
+              )}
+              <fieldset disabled={readOnly} style={{ border: 0, margin: 0, minWidth: 0, padding: 0 }}>
+                <div className={styles['step-content']}>
+                  {renderCurrentStep()}
+                </div>
+              </fieldset>
             </div>
 
             {/* Footer with navigation */}
@@ -532,7 +578,7 @@ export const EnhancedCharacterWizard: React.FC<EnhancedCharacterWizardProps> = (
                 </button>
                 
                 <div className={styles['wizard-actions-right']}>
-                  {currentStep.canSkip && (
+                  {!readOnly && currentStep.canSkip && (
                     <button
                       type="button"
                       className={clsx(styles['wizard-btn'], styles['wizard-btn-tertiary'])}
@@ -547,14 +593,15 @@ export const EnhancedCharacterWizard: React.FC<EnhancedCharacterWizardProps> = (
                     className={clsx(styles['wizard-btn'], styles['wizard-btn-primary'])}
                     onClick={handleNext}
                   >
-                    {isLastStep ? 'Create Character' : 'Next →'}
+                    {readOnly && isLastStep ? 'End of draft' : isLastStep ? 'Create Character' : 'Next →'}
                   </button>
                 </div>
               </div>
               
-              {hasUnsavedChanges && (
+              {draftId && !readOnly && (
                 <div className={styles['auto-save-indicator']}>
-                  <Save size={14} aria-hidden /> Changes saved automatically
+                  <Save size={14} aria-hidden />
+                  {saveState === 'pending' ? 'Saving draft…' : 'Draft saved to server'}
                 </div>
               )}
             </div>

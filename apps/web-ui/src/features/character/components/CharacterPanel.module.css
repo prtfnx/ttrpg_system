@@ -173,6 +173,71 @@
   padding: 16px 20px;
 }
 
+.draftSection {
+  margin-bottom: 18px;
+  padding-bottom: 6px;
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+.draftSection h3 {
+  margin: 0 0 8px;
+  color: var(--text-secondary);
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.draftCard {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 8px;
+  padding: 10px 12px;
+  border: 1px dashed var(--primary-500);
+  border-radius: 8px;
+  background: var(--bg-secondary);
+}
+
+.draftOpenButton {
+  display: flex;
+  flex: 1;
+  min-width: 0;
+  flex-direction: column;
+  align-items: flex-start;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+  text-align: left;
+}
+
+.draftName {
+  overflow: hidden;
+  width: 100%;
+  color: var(--text-primary);
+  font-size: 14px;
+  font-weight: 600;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.draftMeta {
+  margin-top: 3px;
+  color: var(--text-muted);
+  font-size: 11px;
+}
+
+.draftActions {
+  display: flex;
+  gap: 6px;
+}
+
+.draftDeleteButton {
+  color: var(--color-danger);
+}
+
 .emptyState {
   text-align: center;
   padding: 48px 24px;

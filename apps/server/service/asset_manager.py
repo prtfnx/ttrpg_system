@@ -105,7 +105,10 @@ class ServerAssetManager:
             )
 
         self.session_permissions[session_code][user_id] = permissions
-        logger.info(f"Set {role} permissions for user {username} ({user_id}) in session {session_code}")
+        logger.info(
+            "Asset permissions updated",
+            extra={"event_name": "asset.permissions.updated", "role": role},
+        )
 
     def _get_permissions(self, session_code: str, user_id: int) -> AssetPermission:
         """Get user permissions for a session"""
@@ -359,7 +362,10 @@ class ServerAssetManager:
                     error="Failed to generate download URL"
                 )
 
-            logger.info(f"Generated download URL for {request.username}: {request.asset_id}")
+            logger.info(
+                "Asset download URL generated",
+                extra={"event_name": "asset.download_url.generated", "outcome": "success"},
+            )
 
             return PresignedUrlResponse(
                 success=True,
@@ -411,7 +417,10 @@ class ServerAssetManager:
                     error="Failed to generate download URL"
                 )
 
-            logger.info(f"Generated download URL for existing asset: {filename}")
+            logger.info(
+                "Existing asset download URL generated",
+                extra={"event_name": "asset.download_url.generated", "outcome": "success"},
+            )
 
             return PresignedUrlResponse(
                 success=True,
@@ -420,8 +429,8 @@ class ServerAssetManager:
                 expires_in=expiry_seconds
             )
 
-        except Exception as e:
-            logger.error(f"Error generating download URL for filename {filename}: {e}")
+        except Exception:
+            logger.exception("Asset download URL generation failed")
             return PresignedUrlResponse(
                 success=False,
                 error="Internal server error"
@@ -456,7 +465,10 @@ class ServerAssetManager:
                     intent.error_message = error_message
                     intent.confirmed_at = datetime.utcnow()
                     db.commit()
-                    logger.warning(f"Asset {asset_id} upload failed: {error_message}")
+                    logger.warning(
+                        "Asset upload reported failed",
+                        extra={"event_name": "asset.upload.failed", "outcome": "failure"},
+                    )
                     return True
 
                 verified, verification_error, object_found, reject_object = self._verify_uploaded_asset(intent)
@@ -516,8 +528,8 @@ class ServerAssetManager:
             finally:
                 db.close()
 
-        except Exception as e:
-            logger.error(f"Error confirming upload for asset {asset_id}: {e}")
+        except Exception:
+            logger.exception("Asset upload confirmation failed")
             return False
 
     def get_session_assets(self, session_code: str, user_id: int) -> List[dict]:
@@ -570,8 +582,8 @@ class ServerAssetManager:
             finally:
                 db.close()
 
-        except Exception as e:
-            logger.error(f"Error getting session assets: {e}")
+        except Exception:
+            logger.exception("Session asset listing failed")
             return []
         return []
 
@@ -726,7 +738,10 @@ class ServerAssetManager:
 
             self._record_upload_intent(pending_metadata, expiry_seconds)
 
-            logger.info(f"Generated upload URL for {request.username}: {request.filename} -> {asset_id} (pending confirmation)")
+            logger.info(
+                "Asset upload URL generated",
+                extra={"event_name": "asset.upload_url.generated", "outcome": "success"},
+            )
 
             return PresignedUrlResponse(
                 success=True,
@@ -737,8 +752,8 @@ class ServerAssetManager:
                 instructions="PUT the file with x-amz-meta-xxhash header containing the xxHash"
             )
 
-        except Exception as e:
-            logger.error(f"Error generating upload URL with hash: {e}")
+        except Exception:
+            logger.exception("Asset upload URL generation failed")
             return PresignedUrlResponse(
                 success=False,
                 error="Internal server error"
@@ -765,7 +780,10 @@ class ServerAssetManager:
                             asset_data["filename"]
                         )
                         db.commit()
-                        logger.info(f"Linked existing asset with xxHash {asset_data['xxhash']} to session")
+                        logger.info(
+                            "Existing asset linked to session",
+                            extra={"event_name": "asset.session_link.created", "outcome": "success"},
+                        )
                         return True
 
                 stored_name = self._make_unique_asset_name(db, asset_data["filename"], asset_data["asset_id"])
@@ -789,14 +807,17 @@ class ServerAssetManager:
                 db.flush()
                 self._link_asset_to_session(db, new_asset, session, asset_data["uploaded_by"], asset_data["filename"])
                 db.commit()
-                logger.info(f"Saved asset {asset_data['filename']} to database with xxHash {asset_data.get('xxhash', 'N/A')}")
+                logger.info(
+                    "Asset metadata persisted",
+                    extra={"event_name": "asset.metadata.persisted", "outcome": "success"},
+                )
                 return True
 
             finally:
                 db.close()
 
-        except Exception as e:
-            logger.error(f"Error saving asset to database: {e}")
+        except Exception:
+            logger.exception("Asset metadata persistence failed")
             return False
 
     def _get_asset_from_db(
@@ -849,8 +870,8 @@ class ServerAssetManager:
             finally:
                 db.close()
 
-        except Exception as e:
-            logger.error(f"Error getting asset from database: {e}")
+        except Exception:
+            logger.exception("Asset lookup failed")
             return None
 
     def _get_asset_by_id_from_db(
@@ -897,8 +918,8 @@ class ServerAssetManager:
             finally:
                 db.close()
 
-        except Exception as e:
-            logger.error(f"Error getting asset by ID from database: {e}")
+        except Exception:
+            logger.exception("Asset ID lookup failed")
             return None
 
     def _get_asset_by_xxhash_from_db(self, xxhash: str) -> Optional[dict]:
@@ -923,8 +944,8 @@ class ServerAssetManager:
             finally:
                 db.close()
 
-        except Exception as e:
-            logger.error(f"Error getting asset by xxHash from database: {e}")
+        except Exception:
+            logger.exception("Asset hash lookup failed")
             return None
 
     async def _verify_asset_in_r2(self, r2_key: str) -> bool:
@@ -933,16 +954,16 @@ class ServerAssetManager:
             # Use R2Manager to check if object exists
             exists = self.r2_manager.object_exists(r2_key)
             return exists
-        except Exception as e:
-            logger.error(f"Error verifying asset in R2: {e}")
+        except Exception:
+            logger.exception("R2 asset verification failed")
             return False
 
     def _verify_uploaded_asset(self, intent: AssetUploadIntent) -> Tuple[bool, str, bool, bool]:
         """Verify an uploaded object against its signed durable intent."""
         try:
             object_info = self.r2_manager.get_object_info(intent.r2_key)
-        except Exception as exc:
-            logger.error(f"Error reading R2 metadata for {intent.r2_key}: {exc}")
+        except Exception:
+            logger.exception("R2 upload metadata read failed")
             return False, "Unable to read R2 object metadata", False, False
 
         if not object_info:

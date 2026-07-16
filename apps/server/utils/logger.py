@@ -150,6 +150,20 @@ class TextFormatter(logging.Formatter):
             record.msg, record.args = original_msg, original_args
 
 
+class ExceptionContextFilter(logging.Filter):
+    """Preserve active exception context for legacy error calls during migration."""
+
+    def filter(self, record: logging.LogRecord) -> bool:
+        active_exception = sys.exc_info()
+        if (
+            record.levelno >= logging.ERROR
+            and not record.exc_info
+            and active_exception[0] is not None
+        ):
+            record.exc_info = active_exception
+        return True
+
+
 def configure_logging(*, level: str | int | None = None, log_format: str | None = None) -> None:
     """Configure one root stdout handler; safe to call more than once."""
     global _CONFIGURED
@@ -168,6 +182,8 @@ def configure_logging(*, level: str | int | None = None, log_format: str | None 
         setattr(handler, _HANDLER_MARKER, True)
         root.addHandler(handler)
     handler.setLevel(resolved_level)
+    if not any(isinstance(item, ExceptionContextFilter) for item in handler.filters):
+        handler.addFilter(ExceptionContextFilter())
     handler.setFormatter(JsonFormatter() if resolved_format == "json" else TextFormatter())
     root.setLevel(resolved_level)
     logging.captureWarnings(True)

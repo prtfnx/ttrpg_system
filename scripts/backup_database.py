@@ -11,12 +11,19 @@ import re
 import shutil
 import sqlite3
 import subprocess
+import sys
 import tempfile
 from datetime import datetime, timezone
 from pathlib import Path
 from urllib.parse import unquote
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
+SERVER_ROOT = REPO_ROOT / "apps" / "server"
+if str(SERVER_ROOT) not in sys.path:
+    sys.path.insert(0, str(SERVER_ROOT))
+
+from utils.audit import persist_operational_event  # noqa: E402
+
 DEFAULT_DATABASE = REPO_ROOT / "apps" / "server" / "ttrpg.db"
 DEFAULT_BACKUP_ROOT = REPO_ROOT / "backups"
 _BACKUP_SET_ID = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$")
@@ -211,16 +218,36 @@ def _parser() -> argparse.ArgumentParser:
 
 def main() -> int:
     args = _parser().parse_args()
-    if args.command == "verify":
-        result = SQLiteBackupSet.verify(args.manifest)
-    else:
-        manager = SQLiteBackupSet(_database_path(args.database), args.output_dir)
-        if args.command == "backup":
-            manifest_path = manager.create(args.backup_set_id, r2_snapshot=args.r2_snapshot)
-            result = SQLiteBackupSet.verify(manifest_path)
-            result["manifest_path"] = str(manifest_path)
+    action = f"database.{args.command}"
+    try:
+        if args.command == "verify":
+            result = SQLiteBackupSet.verify(args.manifest)
         else:
-            result = manager.restore(args.manifest, apply=args.apply)
+            manager = SQLiteBackupSet(_database_path(args.database), args.output_dir)
+            if args.command == "backup":
+                manifest_path = manager.create(args.backup_set_id, r2_snapshot=args.r2_snapshot)
+                result = SQLiteBackupSet.verify(manifest_path)
+                result["manifest_path"] = str(manifest_path)
+            else:
+                result = manager.restore(args.manifest, apply=args.apply)
+    except Exception:
+        persist_operational_event(
+            action,
+            "failure",
+            target_type="database_backup",
+            fail_closed=False,
+        )
+        raise
+
+    persist_operational_event(
+        action,
+        "success",
+        target_type="database_backup",
+        details={
+            "backup_set_id": result.get("backup_set_id"),
+            "dry_run": result.get("dry_run"),
+        },
+    )
     print(json.dumps(result, indent=2))
     return 0
 

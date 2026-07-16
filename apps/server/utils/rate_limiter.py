@@ -2,17 +2,22 @@
 Rate limiting utilities for flood protection
 """
 import time
-from collections import defaultdict, deque
+from collections import OrderedDict, deque
+from functools import lru_cache
+from ipaddress import ip_address
+from threading import RLock
 from typing import Deque, Dict
 
+from config import Settings
 from utils.observability import record_rate_limit
 
 
 class RateLimiter:
-    def __init__(self, name: str = "unknown"):
+    def __init__(self, name: str = "unknown", *, max_identifiers: int = 10_000):
         self.name = name
-        # Store requests by IP address
-        self.requests: Dict[str, Deque[float]] = defaultdict(deque)
+        self.max_identifiers = max_identifiers
+        self.requests: Dict[str, Deque[float]] = OrderedDict()
+        self._lock = RLock()
 
     def is_allowed(self, identifier: str, max_requests: int = 5, window_minutes: float = 5) -> bool:
         """
@@ -30,21 +35,25 @@ class RateLimiter:
         window_seconds = window_minutes * 60
         cutoff_time = now - window_seconds
 
-        # Get requests for this identifier
-        user_requests = self.requests[identifier]
+        with self._lock:
+            user_requests = self.requests.get(identifier)
+            if user_requests is None:
+                if len(self.requests) >= self.max_identifiers:
+                    self.requests.popitem(last=False)
+                user_requests = deque()
+                self.requests[identifier] = user_requests
+            else:
+                self.requests.move_to_end(identifier)
 
-        # Remove old requests outside the window
-        while user_requests and user_requests[0] < cutoff_time:
-            user_requests.popleft()
+            while user_requests and user_requests[0] < cutoff_time:
+                user_requests.popleft()
 
-        # Check if under the limit
-        if len(user_requests) < max_requests:
-            user_requests.append(now)
-            record_rate_limit(self.name, True)
-            return True
+            allowed = len(user_requests) < max_requests
+            if allowed:
+                user_requests.append(now)
 
-        record_rate_limit(self.name, False)
-        return False
+        record_rate_limit(self.name, allowed)
+        return allowed
 
     def get_time_until_reset(self, identifier: str, window_minutes: float = 5) -> int:
         """
@@ -53,14 +62,11 @@ class RateLimiter:
         Returns:
             Seconds until reset, or 0 if not rate limited
         """
-        if identifier not in self.requests:
-            return 0
-
-        user_requests = self.requests[identifier]
-        if not user_requests:
-            return 0
-
-        oldest_request = user_requests[0]
+        with self._lock:
+            user_requests = self.requests.get(identifier)
+            if not user_requests:
+                return 0
+            oldest_request = user_requests[0]
         window_seconds = window_minutes * 60
         reset_time = oldest_request + window_seconds
 
@@ -73,39 +79,47 @@ class RateLimiter:
         """
         cutoff_time = time.time() - (hours_old * 3600)
 
-        # Clean up requests older than cutoff
-        for identifier in list(self.requests.keys()):
-            user_requests = self.requests[identifier]
-            while user_requests and user_requests[0] < cutoff_time:
-                user_requests.popleft()
+        with self._lock:
+            for identifier in list(self.requests.keys()):
+                user_requests = self.requests[identifier]
+                while user_requests and user_requests[0] < cutoff_time:
+                    user_requests.popleft()
 
-            # Remove empty entries
-            if not user_requests:
-                del self.requests[identifier]
+                if not user_requests:
+                    del self.requests[identifier]
 
     def clear(self):
         """Clear all rate limiting data. Useful for testing."""
-        self.requests.clear()
+        with self._lock:
+            self.requests.clear()
 
 # Global rate limiter instances
 registration_limiter = RateLimiter("registration")
 login_limiter = RateLimiter("login")
 password_reset_limiter = RateLimiter("password_reset")
 
-def get_client_ip(request) -> str:
-    """
-    Extract client IP address from request.
-    Handles proxy headers for accurate IP detection.
-    """
-    # Check for forwarded headers (when behind proxy/load balancer)
-    forwarded_for = request.headers.get("X-Forwarded-For")
-    if forwarded_for:
-        # Take the first IP in case of multiple proxies
-        return forwarded_for.split(",")[0].strip()
 
-    real_ip = request.headers.get("X-Real-IP")
-    if real_ip:
-        return real_ip.strip()
+@lru_cache(maxsize=1)
+def _trust_proxy_headers() -> bool:
+    return Settings().TRUST_PROXY_HEADERS
 
-    # Fallback to direct client IP
-    return request.client.host if request.client else "unknown"
+
+def _normalized_ip(value: object) -> str | None:
+    try:
+        return str(ip_address(str(value).strip()))
+    except ValueError:
+        return None
+
+
+def get_client_ip(request, *, trust_proxy_headers: bool | None = None) -> str:
+    """Return a validated client IP, trusting forwarding headers only by policy."""
+    trust_proxy_headers = (
+        _trust_proxy_headers() if trust_proxy_headers is None else trust_proxy_headers
+    )
+    if trust_proxy_headers:
+        forwarded_for = request.headers.get("x-forwarded-for", "")
+        forwarded = _normalized_ip(forwarded_for.split(",", 1)[0])
+        if forwarded:
+            return forwarded
+    direct = _normalized_ip(getattr(getattr(request, "client", None), "host", None))
+    return direct or "unknown"

@@ -21,7 +21,7 @@ from database.database import get_db
 from fastapi import APIRouter, Depends, HTTPException, Request
 from fastapi.responses import RedirectResponse
 from sqlalchemy.orm import Session
-from utils.rate_limiter import RateLimiter
+from utils.rate_limiter import RateLimiter, get_client_ip
 
 from .users import create_access_token
 
@@ -34,14 +34,6 @@ demo_limiter = RateLimiter("demo")
 
 DEMO_SESSION_CODE = "DEMO2026"
 DEMO_JWT_EXPIRY_MINUTES = 30
-
-
-def get_client_ip(request: Request) -> str:
-    """Extract client IP from request headers or connection"""
-    forwarded = request.headers.get("X-Forwarded-For")
-    if forwarded:
-        return forwarded.split(",")[0].strip()
-    return request.client.host if request.client else "unknown"
 
 
 def get_or_create_demo_session(db: Session) -> models.GameSession:

@@ -10,6 +10,7 @@ from typing import Any, Dict, Optional
 from database import models
 from database.database import SessionLocal
 from .logger import current_log_context, sanitize_log_value, setup_logger
+from .rate_limiter import RateLimiter, get_client_ip
 
 logger = setup_logger(__name__)
 
@@ -18,16 +19,17 @@ _HTTP_SECURITY_ACTIONS = {
     403: "authorization.http_denied",
     429: "rate_limit.http_rejected",
 }
+_security_audit_by_client = RateLimiter("security_audit", max_identifiers=10_000)
+_security_audit_global = RateLimiter("security_audit", max_identifiers=1)
 
 
-def extract_client_info(request) -> Dict[str, Optional[str]]:
+def extract_client_info(
+    request, *, trust_proxy_headers: bool | None = None
+) -> Dict[str, Optional[str]]:
     ip_address = None
-    if request is not None and hasattr(request, "headers"):
-        forwarded = request.headers.get("x-forwarded-for")
-        if forwarded:
-            ip_address = forwarded.split(",", 1)[0].strip()[:45]
-    if not ip_address and request is not None and getattr(request, "client", None):
-        ip_address = request.client.host[:45]
+    if request is not None:
+        resolved = get_client_ip(request, trust_proxy_headers=trust_proxy_headers)
+        ip_address = resolved if resolved != "unknown" else None
     user_agent = None
     if request is not None and hasattr(request, "headers"):
         user_agent = request.headers.get("user-agent")
@@ -88,7 +90,15 @@ def audit_event(
 def persist_http_security_decision(request: Any, status_code: int, route: str) -> None:
     """Persist denied HTTP decisions independently of a rolled-back request transaction."""
     action = _HTTP_SECURITY_ACTIONS.get(status_code)
-    if not action:
+    if not action or getattr(request.state, "security_decision_audited", False):
+        return
+    client_ip = get_client_ip(request)
+    if not _security_audit_global.is_allowed("global", max_requests=500, window_minutes=1):
+        return
+    identity = f"{status_code}:{route}:{client_ip}"
+    if not _security_audit_by_client.is_allowed(
+        identity, max_requests=20, window_minutes=5
+    ):
         return
     db = SessionLocal()
     try:
@@ -108,5 +118,41 @@ def persist_http_security_decision(request: Any, status_code: int, route: str) -
             "Security decision audit persistence failed",
             extra={"event_name": "audit.security_decision.failed", "outcome": "error"},
         )
+    finally:
+        db.close()
+
+
+def persist_operational_event(
+    action: str,
+    outcome: str,
+    *,
+    target_type: str,
+    details: Dict[str, Any] | None = None,
+    fail_closed: bool = True,
+) -> bool:
+    """Persist a privileged operator event outside a request transaction."""
+    db = SessionLocal()
+    try:
+        db.add(audit_event(
+            action,
+            outcome=outcome,
+            target_type=target_type,
+            details=details,
+        ))
+        db.commit()
+        return True
+    except Exception:
+        db.rollback()
+        logger.exception(
+            "Operational audit persistence failed",
+            extra={
+                "event_name": "audit.operation.failed",
+                "audit_action": action,
+                "outcome": "error",
+            },
+        )
+        if fail_closed:
+            raise RuntimeError("Operational audit persistence failed")
+        return False
     finally:
         db.close()

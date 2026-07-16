@@ -88,6 +88,26 @@ class TestUserLogin:
         )
         assert response.status_code == 401
 
+    def test_token_endpoint_rate_limits_failed_audit_writes(self, client, test_db):
+        from database import models
+
+        responses = [
+            client.post(
+                "/users/token",
+                data={"username": "ghostuser", "password": "NoSuchPass1"},
+                headers={"accept": "application/json"},
+            )
+            for _ in range(11)
+        ]
+
+        assert [response.status_code for response in responses[:10]] == [401] * 10
+        assert responses[-1].status_code == 429
+        events = test_db.query(models.AuditLog).filter_by(
+            action="authentication.login"
+        ).all()
+        assert len(events) == 11
+        assert events[-1].outcome == "denied"
+
 
 @pytest.mark.integration
 class TestProtectedEndpoints:

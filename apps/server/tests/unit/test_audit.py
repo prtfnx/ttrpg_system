@@ -1,6 +1,7 @@
 """Unit tests for the normalized security-audit boundary."""
 
 import json
+from types import SimpleNamespace
 from unittest.mock import MagicMock
 
 from utils.audit import (
@@ -8,16 +9,28 @@ from utils.audit import (
     extract_client_info,
     format_audit_details,
     persist_http_security_decision,
+    persist_operational_event,
 )
 from utils.logger import log_context
 
 
 class TestExtractClientInfo:
-    def test_extracts_forwarded_ip(self):
+    def test_forwarded_ip_requires_explicit_trust(self):
         request = MagicMock()
         request.headers = {"x-forwarded-for": "1.2.3.4, 5.6.7.8"}
         request.client.host = "10.0.0.1"
-        assert extract_client_info(request)["ip_address"] == "1.2.3.4"
+        assert extract_client_info(request)["ip_address"] == "10.0.0.1"
+        assert extract_client_info(
+            request, trust_proxy_headers=True
+        )["ip_address"] == "1.2.3.4"
+
+    def test_invalid_forwarded_ip_falls_back_to_direct_peer(self):
+        request = MagicMock()
+        request.headers = {"x-forwarded-for": "spoofed"}
+        request.client.host = "10.0.0.1"
+        assert extract_client_info(
+            request, trust_proxy_headers=True
+        )["ip_address"] == "10.0.0.1"
 
     def test_falls_back_to_client_host(self):
         request = MagicMock()
@@ -77,7 +90,7 @@ class TestAuditEvent:
         db = MagicMock()
         monkeypatch.setattr("utils.audit.SessionLocal", lambda: db)
         request = MagicMock()
-        request.state.user_id = 17
+        request.state = SimpleNamespace(user_id=17)
         request.method = "DELETE"
         request.headers = {}
         request.client = None
@@ -91,3 +104,44 @@ class TestAuditEvent:
         assert row.target_id == "/api/sessions/{session_code}"
         db.commit.assert_called_once()
         db.close.assert_called_once()
+
+    def test_explicitly_audited_decision_is_not_duplicated(self, monkeypatch):
+        db = MagicMock()
+        monkeypatch.setattr("utils.audit.SessionLocal", lambda: db)
+        request = MagicMock()
+        request.state = SimpleNamespace(user_id=17, security_decision_audited=True)
+
+        persist_http_security_decision(request, 403, "/protected")
+
+        db.add.assert_not_called()
+
+    def test_privileged_operation_commits_independently(self, monkeypatch):
+        db = MagicMock()
+        monkeypatch.setattr("utils.audit.SessionLocal", lambda: db)
+
+        assert persist_operational_event(
+            "database.backup",
+            "success",
+            target_type="database_backup",
+            details={"dry_run": False},
+        )
+
+        row = db.add.call_args.args[0]
+        assert row.action == "database.backup"
+        assert row.outcome == "success"
+        assert "dry_run" in row.details_json
+        db.commit.assert_called_once()
+        db.close.assert_called_once()
+
+    def test_privileged_operation_can_fail_open_when_schema_is_unavailable(self, monkeypatch):
+        db = MagicMock()
+        db.commit.side_effect = RuntimeError("missing audit schema")
+        monkeypatch.setattr("utils.audit.SessionLocal", lambda: db)
+
+        assert not persist_operational_event(
+            "database.migration",
+            "failure",
+            target_type="database_schema",
+            fail_closed=False,
+        )
+        db.rollback.assert_called_once()

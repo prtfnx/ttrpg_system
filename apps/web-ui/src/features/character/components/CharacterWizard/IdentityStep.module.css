@@ -99,11 +99,11 @@
 }
 
 .portrait {
-  width: 100px;
-  height: 100px;
+  width: var(--size-25);
+  height: var(--size-25);
   object-fit: cover;
   border-radius: var(--radius-full);
-  border: 3px solid var(--color-primary);
+  border: var(--border-width-thick) solid var(--color-primary);
   box-shadow: var(--shadow-md);
   flex-shrink: 0;
 }
@@ -115,11 +115,11 @@
 }
 
 .portraitPlaceholder {
-  width: 100px;
-  height: 100px;
+  width: var(--size-25);
+  height: var(--size-25);
   border-radius: var(--radius-full);
   background: var(--bg-tertiary);
-  border: 2px dashed var(--border-primary);
+  border: var(--border-width-md) dashed var(--border-primary);
   display: flex;
   align-items: center;
   justify-content: center;

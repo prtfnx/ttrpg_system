@@ -5,8 +5,8 @@
 }
 
 .title {
-  font-weight: 700;
-  font-size: 18px;
+  font-weight: var(--font-bold);
+  font-size: var(--text-lg);
   color: var(--text-primary);
   margin-bottom: var(--space-sm);
 }
@@ -39,7 +39,7 @@
 .skillLabel {
   display: flex;
   align-items: center;
-  gap: 4px;
+  gap: var(--space-1);
   font-size: var(--text-sm);
   color: var(--text-primary);
   cursor: pointer;
@@ -73,7 +73,7 @@
 .nextBtn {
   margin-top: var(--space-md);
   align-self: flex-end;
-  padding: 8px 24px;
+  padding: var(--space-sm) var(--space-xl);
   font-weight: var(--font-semibold);
   font-size: var(--text-base);
   background: var(--color-primary);

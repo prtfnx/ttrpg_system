@@ -116,14 +116,14 @@
 }
 
 .abilityLabel {
-  min-width: 100px;
+  min-width: var(--size-25);
   font-weight: var(--font-semibold);
   color: var(--text-primary);
 }
 
 .select {
   padding: var(--space-sm);
-  min-width: 100px;
+  min-width: var(--size-25);
   background: var(--bg-tertiary);
   border: var(--border-width) solid var(--border-primary);
   border-radius: var(--radius-sm);
@@ -133,7 +133,7 @@
 
 .input {
   padding: var(--space-sm);
-  width: 80px;
+  width: var(--size-20);
   background: var(--bg-tertiary);
   border: var(--border-width) solid var(--border-primary);
   border-radius: var(--radius-sm);
@@ -148,8 +148,8 @@
 }
 
 .decBtn {
-  width: 26px;
-  height: 26px;
+  width: var(--size-6-5);
+  height: var(--size-6-5);
   border: var(--border-width) solid var(--border-primary);
   border-radius: var(--radius-xs);
   cursor: pointer;
@@ -180,8 +180,8 @@
 }
 
 .incBtn {
-  width: 26px;
-  height: 26px;
+  width: var(--size-6-5);
+  height: var(--size-6-5);
   border: var(--border-width) solid var(--border-primary);
   border-radius: var(--radius-xs);
   cursor: pointer;
@@ -212,7 +212,7 @@
 }
 
 .scoreDisplay {
-  min-width: 40px;
+  min-width: var(--size-10);
   text-align: center;
   font-weight: var(--font-semibold);
   color: var(--text-primary);
@@ -228,7 +228,7 @@
 .costNote {
   font-size: var(--text-xs);
   color: var(--text-muted);
-  min-width: 60px;
+  min-width: var(--size-15);
 }
 
 .errorText {

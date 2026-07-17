@@ -10,8 +10,8 @@
 }
 
 .portrait {
-  width: 80px;
-  height: 80px;
+  width: var(--size-20);
+  height: var(--size-20);
   object-fit: cover;
   border-radius: var(--radius-md);
   border: var(--border-width) solid var(--border-primary);

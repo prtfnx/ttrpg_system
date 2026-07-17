@@ -95,8 +95,8 @@
 }
 
 .search-input:focus {
-  border-color: var(--blue-600);
-  box-shadow: 0 0 0 var(--border-width-thick) var(--blue-100);
+  border-color: var(--input-border-focus);
+  box-shadow: var(--focus-ring);
 }
 
 .filter-select {
@@ -110,7 +110,7 @@
 }
 
 .clear-filters:hover {
-  background: var(--gray-700);
+  background: var(--button-secondary-hover);
 }
 
 .level-filters {
@@ -161,7 +161,7 @@
   display: inline-flex;
   align-items: center;
   gap: var(--space-xs);
-  background: var(--blue-600);
+  background: var(--button-primary-bg);
 }
 
 .filter-tag button {
@@ -211,8 +211,8 @@
 }
 
 .spell-card-compact:hover {
-  border-color: var(--blue-600);
-  box-shadow: 0 var(--space-xs) var(--space-xs) var(--blue-100);
+  border-color: var(--border-accent);
+  box-shadow: var(--shadow-md);
 }
 
 .spell-card-compact.selected {
@@ -486,7 +486,7 @@
 }
 
 .remove-spell-btn:hover {
-  background: var(--red-700);
+  background: var(--button-danger-hover);
   transform: scale(1.1);
 }
 
@@ -527,10 +527,10 @@
 .spinner {
   width: var(--space-2xl);
   height: var(--space-2xl);
-  border: var(--border-width-thick) solid var(--gray-200);
-  border-top: var(--border-width-thick) solid var(--blue-600);
+  border: var(--border-width-thick) solid var(--border-primary);
+  border-top: var(--border-width-thick) solid var(--color-primary);
   border-radius: var(--radius-full);
-  animation: spin var(--duration-normal) linear infinite;
+  animation: spin var(--duration-spin) linear infinite;
 }
 
 @keyframes spin {

@@ -57,7 +57,7 @@
 }
 
 .carryTrack {
-  height: 6px;
+  height: var(--space-1-5);
   background: var(--bg-tertiary);
   border-radius: var(--radius-full);
   overflow: hidden;
@@ -67,21 +67,21 @@
   height: 100%;
   background: var(--color-success);
   border-radius: var(--radius-full);
-  transition: width var(--duration-normal);
+  transition: width var(--transition-normal);
 }
 
 .carryFillWarn {
   height: 100%;
   background: var(--color-warning);
   border-radius: var(--radius-full);
-  transition: width var(--duration-normal);
+  transition: width var(--transition-normal);
 }
 
 .carryFillOver {
   height: 100%;
   background: var(--color-danger);
   border-radius: var(--radius-full);
-  transition: width var(--duration-normal);
+  transition: width var(--transition-normal);
 }
 
 /* Items list */

@@ -157,7 +157,7 @@
 }
 
 .export-button-primary:disabled {
-  background: var(--gray-600);
+  background: var(--button-disabled-bg);
   cursor: not-allowed;
 }
 
@@ -189,7 +189,7 @@
 }
 
 .import-button-secondary:hover {
-  background: var(--gray-700);
+  background: var(--button-secondary-hover);
 }
 
 .url-import {
@@ -243,7 +243,7 @@
   border: var(--border-width-thick) solid var(--status-info-bg);
   border-top: var(--border-width-thick) solid var(--status-info-border);
   border-radius: var(--radius-full);
-  animation: spin var(--duration-normal) linear infinite;
+  animation: spin var(--duration-spin) linear infinite;
 }
 
 @keyframes spin {
@@ -316,7 +316,7 @@
 }
 
 .cancel-import-secondary:hover {
-  background: var(--gray-700);
+  background: var(--button-secondary-hover);
 }
 
 /* PDF Tab Styles */
@@ -396,7 +396,7 @@
 }
 
 .pdf-button-secondary:hover {
-  background: var(--gray-700);
+  background: var(--button-secondary-hover);
 }
 
 /* Navigation */
@@ -413,7 +413,7 @@
 }
 
 .nav-button-secondary:hover {
-  background: var(--gray-700);
+  background: var(--button-secondary-hover);
 }
 
 .nav-button-primary {

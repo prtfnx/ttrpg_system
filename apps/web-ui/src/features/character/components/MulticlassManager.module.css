@@ -19,7 +19,7 @@
 }
 
 .requirementsBtn {
-  padding: 4px 8px;
+  padding: var(--space-1) var(--space-sm);
   background: transparent;
   border: var(--border-width) solid var(--border-primary);
   border-radius: var(--radius-xs);
@@ -49,7 +49,7 @@
 }
 
 .classChip {
-  padding: 4px 8px;
+  padding: var(--space-1) var(--space-sm);
   background: var(--color-info-overlay);
   border: var(--border-width) solid var(--color-info);
   border-radius: var(--radius-xs);
@@ -98,7 +98,7 @@
 
 .select {
   width: 100%;
-  padding: 6px 10px;
+  padding: var(--space-1-5) var(--space-2-5);
   border: var(--border-width) solid var(--border-primary);
   border-radius: var(--radius-sm);
   font-size: var(--text-sm);
@@ -107,7 +107,7 @@
 }
 
 .multiclassBtn {
-  padding: 6px 12px;
+  padding: var(--space-1-5) var(--space-md);
   background: var(--color-success);
   color: var(--text-inverse-primary);
   border: none;
@@ -160,7 +160,7 @@
 
 .confirmBtn {
   margin-top: var(--space-sm);
-  padding: 6px 12px;
+  padding: var(--space-1-5) var(--space-md);
   background: var(--color-success);
   color: var(--text-inverse-primary);
   border: none;

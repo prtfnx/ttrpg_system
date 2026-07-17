@@ -54,7 +54,7 @@
 }
 
 .spellList {
-  max-height: 200px;
+  max-height: var(--size-50);
   overflow-y: auto;
   border: var(--border-width) solid var(--border-primary);
   border-radius: var(--radius-sm);
@@ -120,7 +120,7 @@
 }
 
 .removeBtn {
-  padding: 4px 8px;
+  padding: var(--space-1) var(--space-sm);
   background: var(--color-danger);
   color: var(--text-inverse-primary);
   border: none;
@@ -151,7 +151,7 @@
 }
 
 .toggleBtn {
-  padding: 4px 8px;
+  padding: var(--space-1) var(--space-sm);
   background: transparent;
   border: var(--border-width) solid var(--border-primary);
   border-radius: var(--radius-xs);
@@ -184,7 +184,7 @@
 }
 
 .ritualChip {
-  padding: 4px 8px;
+  padding: var(--space-1) var(--space-sm);
   background: var(--color-accent-hover);
   border: var(--border-width) solid var(--color-accent);
   border-radius: var(--radius-xs);
@@ -235,7 +235,7 @@
 }
 
 .castBtn {
-  padding: 8px 16px;
+  padding: var(--space-sm) var(--space-lg);
   background: var(--color-accent);
   color: var(--text-inverse-primary);
   border: none;
@@ -249,7 +249,7 @@
 }
 
 .cancelBtn {
-  padding: 8px 16px;
+  padding: var(--space-sm) var(--space-lg);
   background: var(--bg-elevated);
   color: var(--text-secondary);
   border: none;

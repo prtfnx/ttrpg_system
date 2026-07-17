@@ -269,6 +269,13 @@
   --wizard-success-bg: rgba(76, 175, 80, 0.9);
   --wizard-shimmer: var(--overlay-medium);
   --wizard-glow-white: rgba(255, 255, 255, 0.3);
+  --wizard-backdrop-blur: 0.5rem;
+  --wizard-control-blur: 0.625rem;
+  --wizard-panel-max-width: 87.5rem;
+  --wizard-panel-min-height: 37.5rem;
+  --wizard-content-min-height: 25rem;
+  --wizard-field-min-height: 6.25rem;
+  --wizard-enter-offset: 2.5rem;
 
   /* ============================================
      ACTIVE/SELECTED STATE SYSTEM

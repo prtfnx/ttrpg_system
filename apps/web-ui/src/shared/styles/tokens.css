@@ -323,6 +323,7 @@
   --duration-fast: 150ms;
   --duration-base: 250ms;
   --duration-slow: 350ms;
+  --duration-spin: 800ms;
   --duration-pulse: 2s;
   
   /* ===== TRANSITION TIMINGS ===== */
@@ -353,6 +354,7 @@
     --duration-fast: 0ms;
     --duration-base: 0ms;
     --duration-slow: 0ms;
+    --duration-spin: 0ms;
     --duration-pulse: 0ms;
   }
 }

@@ -1,7 +1,7 @@
 /* Feat Selection Step Styles */
 .featSelection-step {
   composes: wizard-column from './CharacterWizard/CharacterWizardBase.module.css';
-  max-width: 1200px;
+  max-width: var(--size-300);
   margin: 0 auto;
 }
 
@@ -30,7 +30,7 @@
   composes: wizard-button-outline from './CharacterWizard/CharacterWizardBase.module.css';
   padding: var(--space-md) var(--space-2xl);
   font-size: var(--text-lg);
-  min-width: 200px;
+  min-width: var(--size-50);
 }
 
 .choice-btn:hover {
@@ -81,7 +81,7 @@
 
 .abilities-grid {
   composes: wizard-grid from './CharacterWizard/CharacterWizardBase.module.css';
-  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(var(--size-75), 1fr));
 }
 
 .ability-improvement {
@@ -121,8 +121,8 @@
 }
 
 .improvement-btn {
-  width: 35px;
-  height: 35px;
+  width: var(--size-8-75);
+  height: var(--size-8-75);
   border: var(--border-width) solid var(--border-primary);
   border-radius: var(--radius-full);
   background: var(--bg-primary);
@@ -149,7 +149,7 @@
   font-size: var(--text-xl);
   font-weight: var(--font-bold);
   color: var(--text-primary);
-  min-width: 20px;
+  min-width: var(--size-5);
 }
 
 .ability-warning {
@@ -171,7 +171,7 @@
 
 .search-container {
   flex: 1;
-  max-width: 400px;
+  max-width: var(--size-100);
 }
 
 .feat-search {
@@ -203,7 +203,7 @@
 
 .feats-grid {
   composes: wizard-grid from './CharacterWizard/CharacterWizardBase.module.css';
-  grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(var(--size-100), 1fr));
 }
 
 /* Feat Cards */
@@ -480,7 +480,7 @@
 }
 
 /* Responsive Design */
-@media (max-width: 768px) {
+@media (max-width: 48rem) {
   .feats-grid {
     grid-template-columns: 1fr;
   }

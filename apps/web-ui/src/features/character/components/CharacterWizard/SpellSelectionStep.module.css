@@ -7,7 +7,7 @@
 /* Spell Selection Step - D&D Beyond Inspired UI - Refactored with CharacterWizardBase */
 .spell-selection-step {
   padding: var(--space-lg);
-  max-width: 1400px;
+  max-width: var(--size-350);
   margin: 0 auto;
 }
 
@@ -49,7 +49,7 @@
   align-items: center;
   gap: var(--space-xs);
   background: var(--bg-secondary);
-  border: 1px solid var(--border-subtle);
+  border: var(--border-width-sm) solid var(--border-subtle);
   border-radius: var(--radius-md);
   padding: var(--space-xs) var(--space-sm);
   font-size: var(--text-sm);
@@ -59,7 +59,7 @@
 .spell-limit-source {
   font-size: var(--text-xs);
   color: var(--text-tertiary);
-  border-left: 1px solid var(--border-subtle);
+  border-left: var(--border-width-sm) solid var(--border-subtle);
   padding-left: var(--space-xs);
   margin-left: var(--space-xs);
 }
@@ -67,14 +67,14 @@
 /* Main Content Layout - Side by Side */
 .spell-content {
   composes: wizard-grid from './CharacterWizardBase.module.css';
-  grid-template-columns: 1fr 350px;
+  grid-template-columns: 1fr var(--size-87-5);
   gap: var(--space-lg);
   margin-bottom: var(--space-lg);
 }
 
 /* Left Side: Available Spells */
 .available-spells-section {
-  min-height: 500px;
+  min-height: var(--size-125);
 }
 
 /* Filters Section */
@@ -404,7 +404,7 @@
 .selected-spell-section {
   margin-bottom: var(--space-md);
   flex-shrink: 0;
-  max-height: 300px;
+  max-height: var(--size-75);
   overflow-y: auto;
   padding-right: var(--space-xs);
 }
@@ -555,7 +555,7 @@
 }
 
 /* Responsive Design */
-@media (max-width: 1024px) {
+@media (max-width: 64rem) {
   .spell-content {
     grid-template-columns: 1fr;
   }

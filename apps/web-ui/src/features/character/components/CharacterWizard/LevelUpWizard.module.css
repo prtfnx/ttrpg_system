@@ -243,7 +243,7 @@
 
 .ability-increase label {
   font-weight: var(--font-semibold);
-  min-width: 100px;
+  min-width: var(--size-25);
 }
 
 .ability-control {
@@ -255,7 +255,7 @@
 .current-score,
 .new-score {
   font-weight: var(--font-semibold);
-  min-width: 24px;
+  min-width: var(--size-6);
   text-align: center;
 }
 
@@ -287,7 +287,7 @@
 .increase-amount {
   font-weight: var(--font-semibold);
   color: var(--color-success);
-  min-width: 24px;
+  min-width: var(--size-6);
   text-align: center;
 }
 
@@ -345,7 +345,7 @@
 
 .choice-selection label {
   font-weight: var(--font-semibold);
-  min-width: 120px;
+  min-width: var(--size-30);
 }
 
 .choice-selection select {
@@ -372,7 +372,7 @@
 
 .spell-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(var(--size-50), 1fr));
   gap: var(--space-sm);
 }
 
@@ -462,7 +462,7 @@
 }
 
 /* Responsive Design */
-@media (max-width: 768px) {
+@media (max-width: 48rem) {
   .wizard-content {
     padding: var(--space-lg);
   }

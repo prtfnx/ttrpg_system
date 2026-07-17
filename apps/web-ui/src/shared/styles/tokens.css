@@ -166,28 +166,54 @@
   /* Fixed increments for compact controls and exact geometry. Prefer the
      fluid scale above for layout spacing. */
   --space-0-5: 0.125rem;
+  --space-0-25: 0.0625rem;
+  --space-0-75: 0.1875rem;
   --space-1: 0.25rem;
   --space-1-5: 0.375rem;
+  --space-2-5: 0.625rem;
   --space-2xs: 0.125rem;
   --space-5xl: 6rem;
 
   /* Fixed component geometry on a 0.25rem base scale. */
   --size-2: 0.5rem;
+  --size-2-5: 0.625rem;
+  --size-3-5: 0.875rem;
+  --size-4: 1rem;
   --size-4-5: 1.125rem;
+  --size-5: 1.25rem;
   --size-6: 1.5rem;
+  --size-6-5: 1.625rem;
+  --size-7: 1.75rem;
   --size-8: 2rem;
+  --size-8-75: 2.1875rem;
   --size-9: 2.25rem;
+  --size-10: 2.5rem;
+  --size-11: 2.75rem;
   --size-12: 3rem;
+  --size-13: 3.25rem;
+  --size-14: 3.5rem;
   --size-15: 3.75rem;
+  --size-16: 4rem;
   --size-20: 5rem;
+  --size-22: 5.5rem;
   --size-25: 6.25rem;
   --size-30: 7.5rem;
+  --size-37-5: 9.375rem;
+  --size-45: 11.25rem;
   --size-50: 12.5rem;
   --size-62: 15.5rem;
+  --size-62-5: 15.625rem;
   --size-70: 17.5rem;
   --size-75: 18.75rem;
   --size-80: 20rem;
+  --size-87-5: 21.875rem;
+  --size-100: 25rem;
   --size-125: 31.25rem;
+  --size-150: 37.5rem;
+  --size-200: 50rem;
+  --size-225: 56.25rem;
+  --size-300: 75rem;
+  --size-350: 87.5rem;
   
   /* ===== BORDER RADIUS SCALE ===== */
   /* Rounded corners for UI elements */
@@ -219,6 +245,8 @@
   --text-3xl: clamp(1.875rem, 3vw, 2.5rem);       /* 30-40px */
   --text-4xl: clamp(2.25rem, 4vw, 3rem);          /* 36-48px */
   --text-2xs: 0.6875rem;
+  --text-3xs: 0.625rem;
+  --text-4xs: 0.5625rem;
   --text-md: 0.9375rem;
   --text-5xl: 3rem;
   

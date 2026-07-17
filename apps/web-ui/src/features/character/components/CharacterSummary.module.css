@@ -1,6 +1,6 @@
 .summary {
   padding: var(--space-lg);
-  border: 2px solid var(--border-primary);
+  border: var(--border-width-md) solid var(--border-primary);
   border-radius: var(--radius-lg);
   background: var(--bg-secondary);
   box-shadow: var(--shadow-lg);
@@ -10,7 +10,7 @@
   text-align: center;
   margin-bottom: var(--space-lg);
   padding-bottom: var(--space-md);
-  border-bottom: 2px solid var(--border-primary);
+  border-bottom: var(--border-width-md) solid var(--border-primary);
 }
 
 .charName {
@@ -33,14 +33,14 @@
 
 .statsGrid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(var(--size-30), 1fr));
   gap: var(--space-md);
   margin-bottom: var(--space-lg);
 }
 
 .statCard {
   background: var(--bg-tertiary);
-  border: 2px solid var(--border-primary);
+  border: var(--border-width-md) solid var(--border-primary);
   border-radius: var(--radius-md);
   padding: var(--space-md);
   text-align: center;
@@ -48,7 +48,7 @@
 
 .statLabel {
   font-size: 0.8em;
-  font-weight: 600;
+  font-weight: var(--font-semibold);
   text-transform: uppercase;
   letter-spacing: 0.05em;
 }
@@ -129,7 +129,7 @@
 .abilityCode {
   font-size: 0.7em;
   color: var(--text-muted);
-  font-weight: 600;
+  font-weight: var(--font-semibold);
   text-transform: uppercase;
   letter-spacing: 0.05em;
 }
@@ -138,18 +138,18 @@
   font-size: 1.2em;
   font-weight: bold;
   color: var(--text-primary);
-  margin: 2px 0;
+  margin: var(--space-0-5) 0;
 }
 
 .abilityModPos {
   font-size: 0.8em;
-  font-weight: 500;
+  font-weight: var(--font-medium);
   color: var(--color-success);
 }
 
 .abilityModNeg {
   font-size: 0.8em;
-  font-weight: 500;
+  font-weight: var(--font-medium);
   color: var(--color-danger);
 }
 
@@ -174,14 +174,14 @@
 
 .progressTrack {
   width: 100%;
-  height: 8px;
+  height: var(--size-2);
   background: var(--bg-elevated);
-  border-radius: var(--radius-full, 9999px);
+  border-radius: var(--radius-full);
 }
 
 .progressFill {
   height: 100%;
   background: linear-gradient(90deg, var(--color-primary), var(--color-primary-active));
-  border-radius: var(--radius-full, 9999px);
+  border-radius: var(--radius-full);
   transition: width 0.3s ease;
 }

@@ -1,4 +1,4 @@
-﻿/* Character Sheet  D&D style VTT layout */
+/* Character Sheet  D&D style VTT layout */
 
 /* ===== ROOT ===== */
 .characterSheetRedesigned {
@@ -23,7 +23,7 @@
 /* ===== HEADER ===== */
 .sheetHeader {
   background: var(--bg-elevated);
-  border-bottom: 2px solid var(--border-primary);
+  border-bottom: var(--border-width-md) solid var(--border-primary);
   padding: var(--space-md) var(--space-lg);
   display: flex;
   justify-content: space-between;
@@ -64,15 +64,15 @@
 
 .profBonusDisplay {
   background: var(--bg-elevated);
-  border: 1px solid var(--color-primary);
+  border: var(--border-width-sm) solid var(--color-primary);
   border-radius: var(--radius-md);
   padding: var(--space-xs) var(--space-md);
   text-align: center;
-  min-width: 64px;
+  min-width: var(--size-16);
 }
 
 .profLabel {
-  font-size: 10px;
+  font-size: var(--text-3xs);
   text-transform: uppercase;
   letter-spacing: 0.05em;
   color: var(--text-secondary);
@@ -89,7 +89,7 @@
 .popoutBtn {
   background: var(--bg-elevated);
   color: var(--text-secondary);
-  border: 1px solid var(--border-primary);
+  border: var(--border-width-sm) solid var(--border-primary);
   border-radius: var(--radius-md);
   padding: var(--space-xs) var(--space-sm);
   cursor: pointer;
@@ -113,10 +113,10 @@
 
 /* ===== SIDEBAR ===== */
 .sidebar {
-  width: 88px;
+  width: var(--size-22);
   flex-shrink: 0;
   background: var(--bg-tertiary);
-  border-right: 1px solid var(--border-primary);
+  border-right: var(--border-width-sm) solid var(--border-primary);
   overflow-y: auto;
   overflow-x: hidden;
   display: flex;
@@ -133,14 +133,14 @@
 
 .abilityBlock {
   background: var(--bg-elevated);
-  border: 1px solid var(--border-primary);
+  border: var(--border-width-sm) solid var(--border-primary);
   border-radius: var(--radius-md);
   padding: var(--space-xs);
   text-align: center;
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 2px;
+  gap: var(--space-0-5);
   cursor: default;
   transition: border-color 0.15s;
 }
@@ -148,7 +148,7 @@
 .abilityBlock:hover { border-color: var(--color-primary); }
 
 .abilityLabel {
-  font-size: 10px;
+  font-size: var(--text-3xs);
   font-weight: var(--font-bold);
   color: var(--text-muted);
   text-transform: uppercase;
@@ -172,19 +172,19 @@
 .abilityScoreRow {
   display: flex;
   align-items: center;
-  gap: 2px;
+  gap: var(--space-0-5);
   width: 100%;
   justify-content: center;
 }
 
 .abilityArrow {
-  width: 16px;
-  height: 20px;
+  width: var(--size-4);
+  height: var(--size-5);
   background: var(--bg-secondary);
-  border: 1px solid var(--border-secondary);
+  border: var(--border-width-sm) solid var(--border-secondary);
   border-radius: var(--radius-sm);
   color: var(--text-secondary);
-  font-size: 11px;
+  font-size: var(--text-2xs);
   line-height: 1;
   cursor: pointer;
   padding: 0;
@@ -202,15 +202,15 @@
 }
 
 .abilityScore {
-  width: 44px;
+  width: var(--size-11);
   background: var(--bg-secondary);
-  border: 1px solid var(--border-secondary);
+  border: var(--border-width-sm) solid var(--border-secondary);
   border-radius: var(--radius-sm);
   color: var(--text-primary);
   font-size: var(--text-xs);
   font-weight: var(--font-semibold);
   text-align: center;
-  padding: 2px;
+  padding: var(--space-0-5);
   -moz-appearance: textfield;
 }
 
@@ -228,22 +228,22 @@
 .abilitySaveRow {
   display: flex;
   align-items: center;
-  gap: 3px;
-  font-size: 10px;
+  gap: var(--space-0-75);
+  font-size: var(--text-3xs);
   color: var(--text-muted);
   cursor: pointer;
-  border-top: 1px solid var(--border-secondary);
-  padding-top: 2px;
-  margin-top: 1px;
+  border-top: var(--border-width-sm) solid var(--border-secondary);
+  padding-top: var(--space-0-5);
+  margin-top: var(--space-0-25);
   width: 100%;
   justify-content: center;
 }
 
 .saveDot {
-  width: 8px;
-  height: 8px;
+  width: var(--size-2);
+  height: var(--size-2);
   border-radius: 50%;
-  border: 1px solid var(--text-muted);
+  border: var(--border-width-sm) solid var(--text-muted);
   display: inline-block;
   flex-shrink: 0;
   transition: background 0.15s, border-color 0.15s;
@@ -257,17 +257,17 @@
 .saveBonus {
   font-weight: var(--font-bold);
   color: var(--text-secondary);
-  font-size: 10px;
+  font-size: var(--text-3xs);
 }
 
 .saveLabel {
-  font-size: 9px;
+  font-size: var(--text-4xs);
   color: var(--text-muted);
 }
 
 .sidebarExtras {
   padding-top: var(--space-xs);
-  border-top: 1px solid var(--border-primary);
+  border-top: var(--border-width-sm) solid var(--border-primary);
   display: flex;
   flex-direction: column;
   gap: var(--space-xs);
@@ -278,11 +278,11 @@
   flex-direction: column;
   align-items: center;
   text-align: center;
-  gap: 2px;
+  gap: var(--space-0-5);
 }
 
 .passiveLabel {
-  font-size: 9px;
+  font-size: var(--text-4xs);
   text-transform: uppercase;
   color: var(--text-muted);
   line-height: 1;
@@ -299,7 +299,7 @@
   align-items: center;
   gap: var(--space-xs);
   cursor: pointer;
-  font-size: 10px;
+  font-size: var(--text-3xs);
   color: var(--text-secondary);
   justify-content: center;
 }
@@ -318,7 +318,7 @@
 .sheetTabs {
   display: flex;
   background: var(--bg-tertiary);
-  border-bottom: 1px solid var(--border-primary);
+  border-bottom: var(--border-width-sm) solid var(--border-primary);
   flex-shrink: 0;
 }
 
@@ -327,7 +327,7 @@
   padding: var(--space-sm) var(--space-md);
   background: transparent;
   border: none;
-  border-bottom: 2px solid transparent;
+  border-bottom: var(--border-width-md) solid transparent;
   color: var(--text-secondary);
   font-size: var(--text-xs);
   font-weight: var(--font-semibold);
@@ -372,23 +372,23 @@
 
 .combatStat {
   background: var(--bg-elevated);
-  border: 1px solid var(--border-primary);
+  border: var(--border-width-sm) solid var(--border-primary);
   border-radius: var(--radius-md);
   padding: var(--space-sm) var(--space-xs);
   text-align: center;
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 2px;
+  gap: var(--space-0-5);
 }
 
 .combatIcon { font-size: var(--text-base); line-height: 1; }
 
 .combatInput {
-  width: 56px;
+  width: var(--size-14);
   background: transparent;
   border: none;
-  border-bottom: 1px solid var(--border-hover);
+  border-bottom: var(--border-width-sm) solid var(--border-hover);
   color: var(--text-primary);
   font-size: var(--text-lg);
   font-weight: var(--font-bold);
@@ -408,7 +408,7 @@
 }
 
 .combatLabel {
-  font-size: 10px;
+  font-size: var(--text-3xs);
   color: var(--text-muted);
   text-transform: uppercase;
   letter-spacing: 0.04em;
@@ -419,8 +419,8 @@
   color: white;
   border: none;
   border-radius: var(--radius-sm);
-  padding: 1px var(--space-xs);
-  font-size: 10px;
+  padding: var(--space-0-25) var(--space-xs);
+  font-size: var(--text-3xs);
   cursor: pointer;
   font-weight: var(--font-semibold);
 }
@@ -430,13 +430,13 @@
 /* ===== HP BLOCK ===== */
 .hpBlock {
   background: var(--bg-elevated);
-  border: 1px solid var(--red-800);
+  border: var(--border-width-sm) solid var(--red-800);
   border-radius: var(--radius-md);
   padding: var(--space-sm) var(--space-md);
 }
 
 .hpBarWrap {
-  height: 8px;
+  height: var(--size-2);
   background: var(--bg-tertiary);
   border-radius: var(--radius-full);
   overflow: hidden;
@@ -462,8 +462,8 @@
   color: var(--text-primary);
   background: transparent;
   border: none;
-  border-bottom: 1px solid var(--border-hover);
-  width: 60px;
+  border-bottom: var(--border-width-sm) solid var(--border-hover);
+  width: var(--size-15);
   text-align: center;
   padding: 0;
 }
@@ -478,8 +478,8 @@
   color: var(--text-secondary);
   background: transparent;
   border: none;
-  border-bottom: 1px solid var(--border-hover);
-  width: 52px;
+  border-bottom: var(--border-width-sm) solid var(--border-hover);
+  width: var(--size-13);
   text-align: center;
   padding: 0;
 }
@@ -491,9 +491,9 @@
   font-weight: var(--font-semibold);
   color: var(--blue-300);
   background: var(--blue-900);
-  border: 1px solid var(--blue-600);
+  border: var(--border-width-sm) solid var(--blue-600);
   border-radius: var(--radius-full);
-  padding: 1px var(--space-sm);
+  padding: var(--space-0-25) var(--space-sm);
   margin-left: auto;
 }
 
@@ -505,9 +505,9 @@
 }
 
 .hpAmountInput {
-  width: 56px;
+  width: var(--size-14);
   background: var(--bg-secondary);
-  border: 1px solid var(--border-primary);
+  border: var(--border-width-sm) solid var(--border-primary);
   border-radius: var(--radius-sm);
   color: var(--text-primary);
   font-size: var(--text-sm);
@@ -557,20 +557,20 @@
 }
 
 .tempHpLabel input {
-  width: 52px;
+  width: var(--size-13);
   background: var(--bg-secondary);
-  border: 1px solid var(--border-primary);
+  border: var(--border-width-sm) solid var(--border-primary);
   border-radius: var(--radius-sm);
   color: var(--text-primary);
   font-size: var(--text-xs);
   text-align: center;
-  padding: 2px;
+  padding: var(--space-0-5);
 }
 
 /* ===== DEATH SAVES ===== */
 .deathSavesBlock {
   background: var(--bg-elevated);
-  border: 1px solid var(--purple-700);
+  border: var(--border-width-sm) solid var(--purple-700);
   border-radius: var(--radius-md);
   padding: var(--space-sm) var(--space-md);
   display: flex;
@@ -597,7 +597,7 @@
   font-size: var(--text-sm);
   font-weight: var(--font-bold);
   color: var(--green-400);
-  width: 16px;
+  width: var(--size-4);
 }
 
 .deathFailLabel { color: var(--red-400); }
@@ -615,11 +615,11 @@
 .conditionBadge {
   background: var(--red-950);
   color: var(--red-300);
-  padding: 2px var(--space-sm);
+  padding: var(--space-0-5) var(--space-sm);
   border-radius: var(--radius-full);
   font-size: var(--text-xs);
   font-weight: var(--font-semibold);
-  border: 1px solid var(--red-700);
+  border: var(--border-width-sm) solid var(--red-700);
 }
 
 /* ===== SKILLS ===== */
@@ -637,14 +637,14 @@
 .skillsGrid {
   display: grid;
   grid-template-columns: repeat(2, 1fr);
-  gap: 1px;
+  gap: var(--space-0-25);
 }
 
 .skillRow {
   display: flex;
   align-items: center;
   gap: var(--space-xs);
-  padding: 3px var(--space-xs);
+  padding: var(--space-0-75) var(--space-xs);
   border-radius: var(--radius-sm);
   cursor: pointer;
 }
@@ -652,10 +652,10 @@
 .skillRow:hover { background: var(--bg-elevated); }
 
 .profDot {
-  width: 8px;
-  height: 8px;
+  width: var(--size-2);
+  height: var(--size-2);
   border-radius: 50%;
-  border: 1px solid var(--text-muted);
+  border: var(--border-width-sm) solid var(--text-muted);
   display: inline-block;
   flex-shrink: 0;
   cursor: pointer;
@@ -675,7 +675,7 @@
   font-weight: var(--font-bold);
   cursor: pointer;
   padding: 0;
-  min-width: 28px;
+  min-width: var(--size-7);
   text-align: left;
 }
 
@@ -692,9 +692,9 @@
 }
 
 .skillAbility {
-  font-size: 10px;
+  font-size: var(--text-3xs);
   color: var(--text-muted);
-  width: 24px;
+  width: var(--size-6);
   text-align: right;
   flex-shrink: 0;
 }
@@ -702,7 +702,7 @@
 /* ===== ATTACKS ===== */
 .attacksBlock {
   background: var(--bg-elevated);
-  border: 1px solid var(--border-primary);
+  border: var(--border-width-sm) solid var(--border-primary);
   border-radius: var(--radius-md);
   padding: var(--space-sm) var(--space-md);
 }
@@ -720,7 +720,7 @@
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 2px 0;
+  padding: var(--space-0-5) 0;
   font-size: var(--text-xs);
 }
 
@@ -730,7 +730,7 @@
 /* ===== FEATURES ===== */
 .featuresBlock {
   background: var(--bg-elevated);
-  border: 1px solid var(--border-primary);
+  border: var(--border-width-sm) solid var(--border-primary);
   border-radius: var(--radius-md);
   padding: var(--space-sm) var(--space-md);
 }
@@ -747,18 +747,18 @@
 .featureItem {
   font-size: var(--text-xs);
   color: var(--text-primary);
-  padding: 3px 0 3px var(--space-sm);
-  border-left: 2px solid var(--color-primary);
+  padding: var(--space-0-75) 0 var(--space-0-75) var(--space-sm);
+  border-left: var(--border-width-md) solid var(--color-primary);
   margin-bottom: var(--space-xs);
 }
 
 /* ===== DEATH SAVE PIPS + ROLL ===== */
 .deathPip {
   display: inline-block;
-  width: 14px;
-  height: 14px;
+  width: var(--size-3-5);
+  height: var(--size-3-5);
   border-radius: var(--radius-full);
-  border: 2px solid var(--border-primary);
+  border: var(--border-width-md) solid var(--border-primary);
   background: transparent;
 }
 
@@ -774,12 +774,12 @@
 
 .deathRollBtn {
   margin-left: auto;
-  padding: 3px var(--space-sm);
+  padding: var(--space-0-75) var(--space-sm);
   font-size: var(--text-xs);
   font-weight: var(--font-semibold);
   background: var(--red-900);
   color: var(--red-300);
-  border: 1px solid var(--red-700);
+  border: var(--border-width-sm) solid var(--red-700);
   border-radius: var(--radius-sm);
   cursor: pointer;
 }
@@ -804,7 +804,7 @@
   font-weight: var(--font-semibold);
   border-radius: var(--radius-sm);
   cursor: pointer;
-  border: 1px solid var(--border-primary);
+  border: var(--border-width-sm) solid var(--border-primary);
 }
 
 .shortRestBtn {
@@ -832,10 +832,10 @@
   justify-content: space-between;
   align-items: center;
   width: 100%;
-  padding: 3px var(--space-xs);
+  padding: var(--space-0-75) var(--space-xs);
   font-size: var(--text-xs);
   background: transparent;
-  border: 1px solid transparent;
+  border: var(--border-width-sm) solid transparent;
   border-radius: var(--radius-sm);
   cursor: pointer;
   color: var(--text-secondary);
@@ -865,7 +865,7 @@
 .bioTextarea {
   width: 100%;
   background: var(--bg-elevated);
-  border: 1px solid var(--border-primary);
+  border: var(--border-width-sm) solid var(--border-primary);
   border-radius: var(--radius-md);
   color: var(--text-primary);
   font-size: var(--text-sm);
@@ -887,9 +887,9 @@
   gap: var(--space-xs);
   font-size: var(--text-xs);
   background: var(--bg-elevated);
-  border: 1px solid var(--border-primary);
+  border: var(--border-width-sm) solid var(--border-primary);
   border-radius: var(--radius-md);
-  padding: 3px var(--space-sm);
+  padding: var(--space-0-75) var(--space-sm);
 }
 
 .noTokens { font-size: var(--text-xs); color: var(--text-muted); }
@@ -901,7 +901,7 @@
 .tokenSelect {
   flex: 1;
   background: var(--bg-elevated);
-  border: 1px solid var(--border-primary);
+  border: var(--border-width-sm) solid var(--border-primary);
   border-radius: var(--radius-sm);
   color: var(--text-primary);
   font-size: var(--text-xs);
@@ -928,7 +928,7 @@
   font-size: var(--text-xs);
   color: var(--text-secondary);
   background: var(--bg-elevated);
-  border: 1px dashed var(--border-primary);
+  border: var(--border-width-sm) dashed var(--border-primary);
   border-radius: var(--radius-sm);
   padding: var(--space-xs);
   cursor: pointer;
@@ -938,17 +938,17 @@
 .imagePreview { margin: var(--space-sm) 0; }
 
 .previewImg {
-  max-width: 80px;
-  max-height: 80px;
+  max-width: var(--size-20);
+  max-height: var(--size-20);
   border-radius: var(--radius-md);
-  border: 2px solid var(--color-primary);
+  border: var(--border-width-md) solid var(--color-primary);
   display: block;
 }
 
 .createTokenBtn {
   background: var(--bg-elevated);
   color: var(--text-muted);
-  border: 1px solid var(--border-primary);
+  border: var(--border-width-sm) solid var(--border-primary);
   border-radius: var(--radius-sm);
   padding: var(--space-xs) var(--space-md);
   font-size: var(--text-xs);

@@ -65,7 +65,7 @@
 
 .abilities-grid {
   composes: wizard-grid from './CharacterWizardBase.module.css';
-  grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(var(--size-30), 1fr));
   margin-bottom: var(--space-2xl);
 }
 
@@ -107,7 +107,7 @@
 .skills-grid,
 .saves-grid {
   composes: wizard-grid from './CharacterWizardBase.module.css';
-  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(var(--size-50), 1fr));
 }
 
 .skill-item,
@@ -144,7 +144,7 @@
   composes: wizard-badge-primary from './CharacterWizardBase.module.css';
   font-weight: var(--font-bold);
   background: var(--red-50);
-  min-width: 40px;
+  min-width: var(--size-10);
   text-align: center;
 }
 
@@ -165,7 +165,7 @@
 
 .combat-stats-grid {
   composes: wizard-grid from './CharacterWizardBase.module.css';
-  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(var(--size-37-5), 1fr));
 }
 
 .combat-stat {
@@ -244,7 +244,7 @@
 
 .spellcasting-stats {
   composes: wizard-grid from './CharacterWizardBase.module.css';
-  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(var(--size-50), 1fr));
 }
 
 .spellcasting-stat {
@@ -254,7 +254,7 @@
 
 .spells-list {
   composes: wizard-grid from './CharacterWizardBase.module.css';
-  grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(var(--size-62-5), 1fr));
   margin-bottom: var(--space-xl);
 }
 
@@ -398,11 +398,11 @@
 .bio-content {
   composes: wizard-card-section from './CharacterWizardBase.module.css';
   line-height: var(--line-height-relaxed);
-  min-height: 100px;
+  min-height: var(--size-25);
 }
 
 /* Responsive Design */
-@media (max-width: 768px) {
+@media (max-width: 48rem) {
   .character-sheet {
     margin: 0;
     border-radius: 0;
@@ -457,7 +457,7 @@
   }
 }
 
-@media (max-width: 480px) {
+@media (max-width: 30rem) {
   .sheet-tabs {
     flex-direction: column;
   }

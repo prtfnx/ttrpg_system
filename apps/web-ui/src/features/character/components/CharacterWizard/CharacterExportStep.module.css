@@ -1,7 +1,7 @@
 /* Character Export Step Styles - Refactored with CharacterWizardBase */
 
 .character-export-step {
-  max-width: 900px;
+  max-width: var(--size-225);
   margin: 0 auto;
 }
 
@@ -130,7 +130,7 @@
 
 .character-summary {
   composes: wizard-grid from './CharacterWizardBase.module.css';
-  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(var(--size-62-5), 1fr));
   gap: var(--space-xs);
   font-size: var(--text-sm);
 }
@@ -425,7 +425,7 @@
 }
 
 /* Responsive */
-@media (max-width: 768px) {
+@media (max-width: 48rem) {
   .character-export-step {
     padding: 0 var(--space-md);
   }

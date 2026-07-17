@@ -2,7 +2,7 @@
 
 .character-advancement-step {
   padding: var(--space-2xl);
-  max-width: 1200px;
+  max-width: var(--size-300);
   margin: 0 auto;
 }
 
@@ -45,7 +45,7 @@
 /* Current Status Styles */
 .status-grid {
   composes: wizard-grid from './CharacterWizardBase.module.css';
-  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(var(--size-62-5), 1fr));
   gap: var(--space-lg);
 }
 
@@ -102,7 +102,7 @@
 
 .xp-input-group label {
   font-weight: var(--font-semibold);
-  min-width: 100px;
+  min-width: var(--size-25);
 }
 
 .xp-input {
@@ -293,7 +293,7 @@
 .history-level {
   font-weight: var(--font-bold);
   color: var(--color-danger);
-  min-width: 80px;
+  min-width: var(--size-20);
   text-align: center;
   font-size: var(--text-base);
 }
@@ -301,7 +301,7 @@
 .history-class {
   font-weight: var(--font-semibold);
   color: var(--text-primary);
-  min-width: 150px;
+  min-width: var(--size-37-5);
 }
 
 .history-details {
@@ -339,7 +339,7 @@
   background: var(--bg-primary);
   border: var(--border-width-thick) solid var(--color-danger);
   border-radius: var(--radius-md);
-  min-width: 150px;
+  min-width: var(--size-37-5);
 }
 
 .multiclass-entry strong {
@@ -366,7 +366,7 @@
 }
 
 /* Responsive Design */
-@media (max-width: 768px) {
+@media (max-width: 48rem) {
   .character-advancement-step {
     padding: var(--space-lg);
   }
@@ -384,7 +384,7 @@
   }
   
   .status-grid {
-    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    grid-template-columns: repeat(auto-fit, minmax(var(--size-50), 1fr));
     gap: var(--space-lg);
   }
   
@@ -418,6 +418,6 @@
   }
   
   .multiclass-entry {
-    min-width: 120px;
+    min-width: var(--size-30);
   }
 }

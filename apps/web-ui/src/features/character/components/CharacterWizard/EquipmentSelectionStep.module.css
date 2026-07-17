@@ -1,6 +1,6 @@
 /* Equipment Selection Step Styles */
 .equipment-selection-step {
-  max-width: 1400px;
+  max-width: var(--size-350);
   margin: 0 auto;
   padding: var(--space-md);
   font-family: var(--font-primary);
@@ -19,7 +19,7 @@
   flex-direction: column;
   justify-content: center;
   align-items: center;
-  min-height: 400px;
+  min-height: var(--size-100);
 }
 
 .loading-spinner {
@@ -53,7 +53,7 @@
 /* Equipment Summary */
 .equipment-summary {
   composes: wizard-grid from './CharacterWizardBase.module.css';
-  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(var(--size-45), 1fr));
   background: var(--bg-secondary);
   padding: var(--space-sm) var(--space-md);
   border-radius: var(--radius-md);
@@ -96,7 +96,7 @@
   grid-template-columns: 2fr 1fr;
   gap: var(--space-md);
   margin-bottom: var(--space-md);
-  min-height: 500px;
+  min-height: var(--size-125);
 }
 
 /* Standard Starting Equipment */
@@ -154,7 +154,7 @@
   background: var(--bg-primary);
   border: var(--border-width) solid var(--border-secondary);
   border-radius: var(--radius-full);
-  padding: 2px var(--space-sm);
+  padding: var(--space-0-5) var(--space-sm);
   font-size: var(--text-sm);
   color: var(--text-secondary);
 }
@@ -263,7 +263,7 @@
 
 .equipmentGrid {
   composes: wizard-grid from './CharacterWizardBase.module.css';
-  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(var(--size-70), 1fr));
   overflow-y: auto;
   padding-right: var(--space-xs);
   flex: 1;
@@ -345,7 +345,7 @@
 
 .add-equipment-button {
   composes: wizard-button-primary from './CharacterWizardBase.module.css';
-  padding: 2px var(--space-sm);
+  padding: var(--space-0-5) var(--space-sm);
   font-size: var(--text-lg);
   line-height: 1;
   flex-shrink: 0;
@@ -443,8 +443,8 @@
   background: var(--color-danger);
   border: none;
   border-radius: var(--radius-sm);
-  width: 28px;
-  height: 28px;
+  width: var(--size-7);
+  height: var(--size-7);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -485,7 +485,7 @@
   border-radius: var(--radius-md);
   cursor: pointer;
   transition: all var(--transition-normal) ease;
-  min-width: 120px;
+  min-width: var(--size-30);
 }
 
 .back-button {
@@ -514,14 +514,14 @@
 }
 
 /* Responsive Design */
-@media (max-width: 1200px) {
+@media (max-width: 75rem) {
   .equipment-content {
     grid-template-columns: 1fr;
     gap: var(--space-xl);
   }
 }
 
-@media (max-width: 768px) {
+@media (max-width: 48rem) {
   .equipment-selection-step {
     padding: var(--space-md);
   }

@@ -161,7 +161,7 @@
 
 .equippedBtn {
   font-size: var(--text-xs);
-  padding: 2px var(--space-xs);
+  padding: var(--space-0-5) var(--space-xs);
   background: var(--color-primary);
   color: var(--text-inverse-primary);
   border: none;
@@ -176,7 +176,7 @@
 
 .unequippedBtn {
   font-size: var(--text-xs);
-  padding: 2px var(--space-xs);
+  padding: var(--space-0-5) var(--space-xs);
   background: var(--bg-tertiary);
   color: var(--text-muted);
   border: var(--border-width) solid var(--border-secondary);

@@ -30,9 +30,9 @@
 
 .progressTrack {
   width: 100%;
-  height: 8px;
+  height: var(--size-2);
   background: var(--bg-elevated);
-  border-radius: var(--radius-full, 9999px);
+  border-radius: var(--radius-full);
   overflow: hidden;
   margin-bottom: var(--space-xs);
 }
@@ -40,7 +40,7 @@
 .progressFill {
   height: 100%;
   transition: width 0.3s ease;
-  border-radius: var(--radius-full, 9999px);
+  border-radius: var(--radius-full);
 }
 
 .progressFillActive {
@@ -83,7 +83,7 @@
 
 .input {
   width: 100%;
-  padding: 6px 10px;
+  padding: var(--space-1-5) var(--space-2-5);
   border: var(--border-width) solid var(--border-primary);
   border-radius: var(--radius-sm);
   font-size: var(--text-sm);
@@ -93,7 +93,7 @@
 }
 
 .addBtn {
-  padding: 6px 12px;
+  padding: var(--space-1-5) var(--space-md);
   background: var(--color-success);
   color: var(--text-inverse-primary);
   border: none;
@@ -111,7 +111,7 @@
 }
 
 .levelUpBtn {
-  padding: 6px 12px;
+  padding: var(--space-1-5) var(--space-md);
   background: var(--color-primary);
   color: var(--text-inverse-primary);
   border: none;
@@ -146,7 +146,7 @@
 
 .levelUpBtnMt {
   margin-top: var(--space-sm);
-  padding: 6px 12px;
+  padding: var(--space-1-5) var(--space-md);
   background: var(--color-primary);
   color: var(--text-inverse-primary);
   border: none;

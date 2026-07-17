@@ -24,7 +24,6 @@ export const SyncStatusIcon: React.FC<SyncStatusIconProps> = ({ status }) => {
     <span
       className={`${styles.syncStatusIcon} ${cls}`}
       title={tooltip}
-      style={{ marginLeft: '4px', display: 'inline-flex' }}
     >
       <Icon
         size={14}

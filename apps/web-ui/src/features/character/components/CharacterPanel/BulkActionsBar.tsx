@@ -28,13 +28,13 @@ export const BulkActionsBar: React.FC<BulkActionsBarProps> = ({
     </div>
     {selectedCount > 0 && (
       <div className={styles.bulkActionsRight}>
-        <button className={clsx(styles.bulkActionBtn, "export")} onClick={onBulkExport}>
+        <button className={clsx(styles.bulkActionBtn, styles.export)} onClick={onBulkExport}>
           <Download size={14} aria-hidden /> Export Selected
         </button>
-        <button className={clsx(styles.bulkActionBtn, "share")} onClick={onBulkShare}>
+        <button className={clsx(styles.bulkActionBtn, styles.share)} onClick={onBulkShare}>
           <Users size={14} aria-hidden /> Share Selected
         </button>
-        <button className={clsx(styles.bulkActionBtn, "delete")} onClick={onBulkDelete}>
+        <button className={clsx(styles.bulkActionBtn, styles.delete)} onClick={onBulkDelete}>
           <Trash2 size={14} aria-hidden /> Delete Selected
         </button>
       </div>

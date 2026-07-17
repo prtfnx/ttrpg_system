@@ -43,7 +43,7 @@ export const CharacterStats: React.FC<CharacterStatsProps> = ({
     <>
       {/* Stats Section */}
       {isEditing ? (
-        <div className={clsx(styles.detailsSection, "editMode")}>
+        <div className={clsx(styles.detailsSection, styles.editMode)}>
           <h4>Edit Stats</h4>
           <div className={styles.statRow}>
             <label>HP:</label>
@@ -83,8 +83,8 @@ export const CharacterStats: React.FC<CharacterStatsProps> = ({
             <span>ft</span>
           </div>
           <div className={styles.editActions}>
-            <button className={clsx(styles.actionBtn, "save")} onClick={onSaveEdit}>Save</button>
-            <button className={clsx(styles.actionBtn, "cancel")} onClick={onCancelEdit}>Cancel</button>
+            <button className={clsx(styles.actionBtn, styles.save)} onClick={onSaveEdit}>Save</button>
+            <button className={clsx(styles.actionBtn, styles.cancel)} onClick={onCancelEdit}>Cancel</button>
           </div>
         </div>
       ) : (
@@ -107,7 +107,7 @@ export const CharacterStats: React.FC<CharacterStatsProps> = ({
             <span>{character.version}</span>
           </div>
           {canEdit && (
-            <button className={clsx(styles.actionBtn, "edit")} onClick={onStartEdit}>
+            <button className={clsx(styles.actionBtn, styles.edit)} onClick={onStartEdit}>
               Edit Stats
             </button>
           )}
@@ -115,7 +115,7 @@ export const CharacterStats: React.FC<CharacterStatsProps> = ({
       )}
 
       {/* Conditions Section */}
-      <div className="details-section conditions-section">
+      <div className={clsx(styles.detailsSection, styles.conditionsSection)}>
         <h4>Conditions</h4>
         <div className={styles.conditionsList}>
           {conditions.length === 0 && (
@@ -151,7 +151,7 @@ export const CharacterStats: React.FC<CharacterStatsProps> = ({
               aria-label="Add condition"
             />
             <button
-              className={clsx(styles.actionBtn, "addCondition")}
+              className={clsx(styles.actionBtn, styles.addCondition)}
               onClick={onAddCondition}
               aria-label="Add condition"
             >

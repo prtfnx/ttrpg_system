@@ -19,6 +19,23 @@ pytest tests/ -q
 ruff check .
 ```
 
+### PostgreSQL integration contract
+
+Database-sensitive integration tests use an explicitly disposable database from
+`TEST_POSTGRESQL_DATABASE_URL`. They skip when the variable is absent and
+refuse to migrate a non-empty database without an `alembic_version` ledger.
+
+CI supplies a fresh PostgreSQL service and requires:
+
+- baseline upgrade from an empty database;
+- `alembic current --check-heads` and `alembic check`;
+- named uniqueness and foreign-key action inspection;
+- PostgreSQL identifier-length validation;
+- real `SELECT ... FOR UPDATE` serialization.
+
+SQLite remains useful for fast unit tests, but it is not evidence for hosted
+schema, constraint, or locking behavior.
+
 ## Core table
 
 Use pytest in `packages/core-table`.

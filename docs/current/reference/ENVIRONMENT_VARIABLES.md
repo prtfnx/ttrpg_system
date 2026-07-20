@@ -18,6 +18,7 @@ are loaded by Pydantic settings.
 | `DB_MAX_OVERFLOW` | `5` | Temporary connections above the pool size. |
 | `DB_POOL_TIMEOUT_SECONDS` | `10` | Bounded pool checkout wait. |
 | `DB_CONNECT_TIMEOUT_SECONDS` | `10` | Bounded PostgreSQL connect wait. |
+| `TEST_POSTGRESQL_DATABASE_URL` | unset | Empty/disposable PostgreSQL target for integration tests; never point it at a durable application database. |
 
 SQLite is a development/unit-test convenience only. Hosted state must use
 PostgreSQL and Alembic.

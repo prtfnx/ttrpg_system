@@ -2,7 +2,7 @@ name: CI
 
 on:
   push:
-    branches: [main, "feature/**"]
+    branches: [main, "feature/**", "feat/**"]
   pull_request:
     branches: [main]
 
@@ -77,6 +77,20 @@ jobs:
   server:
     name: Server (lint + test + coverage)
     runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:17-alpine
+        env:
+          POSTGRES_DB: ttrpg_test
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d ttrpg_test"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -93,6 +107,23 @@ jobs:
       - name: Mypy type check
         run: mypy apps/server --ignore-missing-imports --no-error-summary
         continue-on-error: true
+      - name: PostgreSQL migration and behavior gates
+        run: >-
+          pytest
+          tests/integration/test_alembic_baseline.py
+          tests/integration/test_postgresql_contract.py
+          --no-cov
+        working-directory: apps/server
+        env:
+          TEST_POSTGRESQL_DATABASE_URL: postgresql://postgres:postgres@localhost:5432/ttrpg_test
+          PYTHONPATH: ${{ github.workspace }}/apps/server:${{ github.workspace }}/packages/core-table
+      - name: Alembic head and drift gates
+        run: |
+          alembic current --check-heads
+          alembic check
+        working-directory: apps/server
+        env:
+          DATABASE_URL: postgresql://postgres:postgres@localhost:5432/ttrpg_test
       - name: Run tests with coverage
         run: pytest --cov=. --cov-report=xml
         working-directory: apps/server

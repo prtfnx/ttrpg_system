@@ -33,6 +33,10 @@ alembic check
 `alembic check` detects model changes that would produce migration operations;
 it does not prove that a data transformation is correct.
 
+CI repeats these commands against a fresh PostgreSQL service and runs the
+PostgreSQL contract tests. Local runs can opt in by setting
+`TEST_POSTGRESQL_DATABASE_URL` to an empty disposable database.
+
 ## Render Free startup
 
 Render Free has no pre-deploy command. The development service starts through

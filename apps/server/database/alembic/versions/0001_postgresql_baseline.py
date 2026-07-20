@@ -1,7 +1,7 @@
 """PostgreSQL baseline for the current 24-table application schema.
 
 Revision ID: 0001_postgresql_baseline
-Revises: 
+Revises:
 Create Date: 2026-07-17 14:37:18.276166
 """
 

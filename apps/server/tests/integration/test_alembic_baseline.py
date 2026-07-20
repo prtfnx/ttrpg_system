@@ -1,12 +1,15 @@
+import os
 from contextlib import redirect_stdout
 from io import StringIO
 from pathlib import Path
 
 from alembic import command
 from alembic.config import Config
+import pytest
 from sqlalchemy import create_engine, inspect, text
 
 from database.models import Base
+from database.url import normalize_database_url
 
 
 SERVER_ROOT = Path(__file__).resolve().parents[2]
@@ -73,3 +76,26 @@ def test_baseline_compiles_for_postgresql(monkeypatch):
     assert "SERIAL" in sql
     assert "PRAGMA" not in sql
     assert "schema_migrations" not in sql
+
+
+@pytest.mark.skipif(
+    not os.getenv("TEST_POSTGRESQL_DATABASE_URL"),
+    reason="TEST_POSTGRESQL_DATABASE_URL is not configured",
+)
+def test_baseline_upgrades_an_empty_postgresql_database(monkeypatch):
+    database_url = os.environ["TEST_POSTGRESQL_DATABASE_URL"]
+    engine = create_engine(normalize_database_url(database_url))
+    try:
+        existing_tables = set(inspect(engine).get_table_names())
+        assert not existing_tables, (
+            "TEST_POSTGRESQL_DATABASE_URL must point to an empty disposable database"
+        )
+
+        config = _config(monkeypatch, database_url)
+        command.upgrade(config, "head")
+        assert set(inspect(engine).get_table_names()) == (
+            set(Base.metadata.tables) | {"alembic_version"}
+        )
+        command.check(config)
+    finally:
+        engine.dispose()

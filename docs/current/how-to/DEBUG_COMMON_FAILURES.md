@@ -97,12 +97,12 @@ Check the owner:
 - compendium data: exported JSON files, not normal app persistence;
 - assets: `Asset` rows are created only after upload confirmation.
 
-For schema changes, remember that `create_tables()` does not replace numbered
-migrations.
+For schema changes, models do not replace Alembic revisions.
 
 ```powershell
 cd apps/server
-python database\migrations\run_migrations.py
+alembic current --check-heads
+alembic check
 ```
 
 ## Asset image does not appear

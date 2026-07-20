@@ -5,7 +5,7 @@ Audience: contributors changing persistence, migrations, or server state.
 Status: partial. This page describes the current model families and migration
 flow. It is not a complete column-by-column schema.
 
-Last source audit: 2026-07-08
+Last source audit: 2026-07-17
 
 ## Source of truth
 
@@ -20,21 +20,21 @@ Database CRUD and helpers live in:
 - `apps/server/service/combat_persistence_service.py`
 - `apps/server/service/asset_manager.py`
 
-Migrations live in `apps/server/database/migrations/`.
+Alembic revisions live in `apps/server/database/alembic/versions/`.
 
 ## Database URL
 
 `DATABASE_URL` controls the database connection.
 
-If it is unset, the server uses local SQLite:
+If it is unset in development, the server uses local SQLite:
 
 ```text
 apps/server/ttrpg.db
 ```
 
-Server startup calls `create_tables()`, which runs
-`Base.metadata.create_all(bind=engine)` and then a small inline compatibility
-migration block for selected columns/tables.
+Production requires PostgreSQL. Render startup applies `alembic upgrade head`
+and production startup verifies that the database and repository Alembic heads
+match. `Base.metadata.create_all()` is limited to isolated tests.
 
 ## Current model families
 
@@ -46,13 +46,19 @@ migration block for selected columns/tables.
 | `virtual_tables` | `VirtualTable` | persisted table state, dimensions, position, layers, lighting, grid, terrain, cover |
 | `entities` | `Entity` | table sprites/tokens, ownership, character link, transform, vision, token stats |
 | `assets` | `Asset` | uploaded asset metadata and R2 object references |
+| `session_assets` | `SessionAsset` | session visibility and display names for global R2 assets |
+| `asset_upload_intents` | `AssetUploadIntent` | durable staged-upload confirmation state |
 | `session_characters` | `SessionCharacter` | character JSON blobs scoped to a session |
+| `character_permissions` | `CharacterPermission` | explicit character sharing and control grants |
+| `character_drafts` | `CharacterDraft` | resumable, versioned character-creation drafts |
 | `session_invitations` | `SessionInvitation` | invite code, role, limits, expiry, active state |
 | `email_verification_tokens` | `EmailVerificationToken` | signup verification token state |
 | `password_reset_tokens` | `PasswordResetToken` | password reset token hashes and expiry |
 | `pending_email_changes` | `PendingEmailChange` | pending email-change token hashes and expiry |
 | `combat_encounters` | `CombatEncounter` | current combat snapshot by encounter |
 | `combat_actions` | `CombatActionJournal` | accepted combat command journal and idempotency key |
+| `choice_encounters` | `ChoiceEncounter` | current lightweight choice-encounter snapshot |
+| `choice_encounter_events` | `ChoiceEncounterEvent` | append-only accepted choice transitions |
 | `walls` | `Wall` | persistent wall/door segments for movement, light, sight, and sound |
 | `audit_logs` | `AuditLog` | security and audit events |
 | `character_logs` | `CharacterLog` | per-character action log entries |
@@ -106,39 +112,26 @@ The database stores metadata such as:
 - content type;
 - file size;
 - xxHash;
-- uploader and optional session;
+- uploader and session links;
 - R2 key and bucket.
 
 ## Migrations
 
-Numbered migration files currently run from:
+Alembic revisions live under:
 
 ```text
-apps/server/database/migrations/
+apps/server/database/alembic/versions/
 ```
 
-The migration runner is:
-
-```text
-apps/server/database/migrations/run_migrations.py
-```
-
-It:
-
-- expects the database file to exist first;
-- creates a `schema_migrations` table if needed;
-- applies pending numbered `.py` migrations in sorted order;
-- records applied migrations;
-- creates a timestamped SQLite backup before running from its main entrypoint.
-
-Current numbered migrations run from `001_add_obstacle_metadata.py` through
-`023_add_table_environment_state.py`.
+The current PostgreSQL baseline is `0001_postgresql_baseline`. Alembic records
+the deployed revision in `alembic_version`. The old numbered SQLite runner and
+ledger were retired; they are not an upgrade path for existing SQLite files.
 
 ## Change checklist
 
 1. Update the SQLAlchemy model.
 2. Add or update CRUD/session helper behavior.
-3. Add a numbered migration when existing databases need a schema change.
+3. Generate and review an incremental Alembic revision.
 4. Update tests for model, CRUD, route, or protocol behavior.
 5. Update references for environment, protocol, or feature behavior if the
    persisted contract changed.

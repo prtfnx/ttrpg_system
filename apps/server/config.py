@@ -74,7 +74,6 @@ class Settings(BaseSettings):
     BROWSER_TELEMETRY_ENABLED: bool = True
     BROWSER_TELEMETRY_SAMPLE_RATE: float = 0.1
     AUDIT_RETENTION_DAYS: int = 365
-    BACKUP_ROOT: str = "../../backups"
     TRUST_PROXY_HEADERS: bool = False
     WS_MAX_MESSAGE_BYTES: int = 64 * 1024
     WS_MESSAGES_PER_MINUTE: int = 120

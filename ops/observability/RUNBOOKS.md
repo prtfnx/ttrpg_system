@@ -10,11 +10,11 @@ URLs, raw WebSocket payloads, or asset contents into incidents.
    or fatal startup event.
 2. Check `/health/ready`. `schema_revision_mismatch` requires completing or
    rolling back the pre-deploy migration before traffic is restored.
-3. Confirm the persistent disk is mounted at `/var/data` and the instance is
-   still single-writer.
-4. Roll back the application only when its expected schema revision is
-   compatible with the database. Otherwise restore a verified backup to a new
-   path and switch after validation.
+3. Confirm the Render `DATABASE_URL` selects the intended Neon branch and that
+   Neon is available.
+4. Roll back the application only when its expected Alembic head is compatible
+   with the database. Otherwise recover to a new Neon branch and switch after
+   validation.
 
 ## High HTTP error rate
 
@@ -27,11 +27,11 @@ URLs, raw WebSocket payloads, or asset contents into incidents.
 ## High HTTP latency
 
 1. Compare route-level p95 latency and SQL span duration.
-2. Check SQLite writer contention, disk capacity, and `busy_timeout` failures.
+2. Check PostgreSQL pool saturation, Neon compute availability, and SQL spans.
 3. Check R2 operation latency separately; the readiness endpoint intentionally
    does not perform remote dependency calls.
-4. Reduce load or disable the affected non-critical operation before scaling;
-   file-backed SQLite must remain single-writer.
+4. Reduce load or disable the affected non-critical operation before changing
+   pool or instance limits.
 
 ## WebSocket failures
 
@@ -69,10 +69,10 @@ URLs, raw WebSocket payloads, or asset contents into incidents.
 1. Separate failed operation labels from pool saturation; neither label contains
    a query, table, tenant, or exception string.
 2. Correlate the affected request or WebSocket message to its SQL span and
-   structured exception. Check readiness, disk space, WAL growth, and busy
-   timeout errors.
-3. Preserve the single-writer SQLite topology. Do not add another instance to
-   clear pool pressure.
+   structured exception. Check readiness, Neon availability, connection
+   limits, and pool checkout timeouts.
+3. Do not raise pool limits until the Neon branch connection budget and
+   concurrent Render instances are understood.
 4. Shed non-critical work or roll back only after verifying schema compatibility.
 
 ## Stale pending uploads
@@ -83,15 +83,6 @@ URLs, raw WebSocket payloads, or asset contents into incidents.
    presigned URLs into incident notes.
 3. Reconcile expired intents with the existing cleanup operation; preserve a
    recent intent until object existence and ownership have been verified.
-
-## Missing or stale backup
-
-1. Confirm `BACKUP_ROOT` points inside the persistent disk and inspect the newest
-   manifest timestamp. A timestamp of zero means no valid schema-v1 manifest was
-   discovered.
-2. Run the coordinated database/R2 backup procedure and verify both manifests.
-3. Do not clear the alert using an unverified file copy. Escalate if a verified
-   recovery point cannot be produced inside the accepted RPO.
 
 ## Email delivery failures
 

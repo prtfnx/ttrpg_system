@@ -83,8 +83,16 @@ def migrate_database_for_start(engine: Engine) -> tuple[str, ...]:
             return database_heads(connection)
         finally:
             if is_postgresql:
-                connection.execute(
-                    text("SELECT pg_advisory_unlock(:lock_id)"),
-                    {"lock_id": MIGRATION_ADVISORY_LOCK_ID},
-                )
-                connection.commit()
+                try:
+                    if connection.in_transaction():
+                        connection.rollback()
+                    connection.execute(
+                        text("SELECT pg_advisory_unlock(:lock_id)"),
+                        {"lock_id": MIGRATION_ADVISORY_LOCK_ID},
+                    )
+                    connection.commit()
+                except Exception:
+                    # Invalidating closes the DBAPI session, which also releases
+                    # session-level advisory locks instead of returning a
+                    # potentially locked connection to the pool.
+                    connection.invalidate()

@@ -3,7 +3,7 @@
 Status: current and practical. Use this before a production deploy or a
 release-like handoff.
 
-Last source audit: 2026-07-08
+Last source audit: 2026-07-17
 
 ## Scope
 
@@ -26,8 +26,8 @@ themselves.
    Rust/WASM, persistence/migration, or deployment/configuration.
 2. Read the matching docs in `docs/current/`.
 3. If behavior changed, update the current doc in the same branch.
-4. If a database shape changed, add a numbered migration in
-   `apps/server/database/migrations/`.
+4. If a database shape changed, add and review an Alembic revision under
+   `apps/server/database/alembic/versions/`.
 5. If a WebSocket message changed, update both browser and server protocol
    definitions.
 6. If the Rust exports changed, rebuild generated WASM bindings before testing
@@ -104,7 +104,7 @@ Production must have:
 - `ENVIRONMENT=production`
 - `SESSION_SECRET` set to a strong value with at least 32 characters
 - `CORS_ORIGINS` set deliberately, not accidentally left broad
-- a valid database path or `DATABASE_URL`
+- the intended PostgreSQL `DATABASE_URL`
 - Google OAuth values if Google login is enabled
 - email provider values if email/reset flows are enabled
 - R2 values if object storage is enabled
@@ -118,12 +118,12 @@ Set `SESSION_SECRET` explicitly in Render.
 Before deploy:
 
 1. Read `docs/current/operations/DATABASE_MIGRATIONS.md`.
-2. Back up the current SQLite database.
-3. Run the migration runner against a copy if the release includes migrations.
-4. Confirm the migration output and resulting schema.
+2. Apply migrations to a disposable PostgreSQL database.
+3. Run `alembic current --check-heads` and `alembic check`.
+4. Confirm the resulting 24-table schema and critical PostgreSQL behavior.
 
-Do not treat migration rollback as automatic. Current migrations are forward
-scripts, and the runner creates timestamped backups before applying them.
+Do not treat migration rollback as automatic. Prefer a reviewed forward fix;
+use Neon branch recovery only within the documented development policy.
 
 ## Deployment
 
@@ -136,8 +136,8 @@ buildCommand:
   pip install -e ../../packages/core-table
   pip install -r requirements.txt
 startCommand:
-  uvicorn main:app --host 0.0.0.0 --port $PORT
-healthCheckPath: /health
+  python scripts/migrate_and_start.py
+healthCheckPath: /health/ready
 ```
 
 Because this Render build does not run the React/WASM build, change the Render
@@ -147,7 +147,7 @@ the generated files remain ignored and are not uploaded with the deploy.
 
 ## Smoke test after deploy
 
-1. Open `/health` and expect `status: healthy`.
+1. Open `/health/live` and `/health/ready`.
 2. Open the landing/login flow.
 3. Register or log in with a test account.
 4. Create or open a game session.
@@ -162,11 +162,11 @@ the generated files remain ignored and are not uploaded with the deploy.
 ## Rollback notes
 
 - Code rollback is normal Git/deployment rollback.
-- SQLite rollback means restoring a backup file.
-- R2 object data is separate from SQLite metadata.
+- Database recovery uses a verified Neon branch during development.
+- R2 object data is separate from PostgreSQL metadata.
 - Generated UI assets can be stale independently of Python server code.
-- If a migration already changed production data, decide whether restore or a
-  corrective forward migration is safer before changing files.
+- If a migration already changed data, decide whether branch recovery or a
+  corrective forward migration is safer before deploying code.
 
 ## Release notes
 

@@ -1,4 +1,3 @@
-import json
 from datetime import datetime, timedelta, timezone
 
 import pytest
@@ -40,7 +39,7 @@ def test_operational_metric_labels_are_bounded():
     assert "attacker-job" not in metrics
 
 
-def test_durable_upload_and_backup_gauges_refresh(test_db, test_user, tmp_path):
+def test_durable_upload_gauges_refresh(test_db, test_user):
     created_at = datetime.now(timezone.utc).replace(tzinfo=None) - timedelta(minutes=5)
     test_db.add(models.AssetUploadIntent(
         asset_id="asset-observe",
@@ -52,20 +51,11 @@ def test_durable_upload_and_backup_gauges_refresh(test_db, test_user, tmp_path):
         created_at=created_at,
     ))
     test_db.commit()
-    manifest_dir = tmp_path / "backup-1"
-    manifest_dir.mkdir()
-    backup_time = datetime.now(timezone.utc) - timedelta(hours=2)
-    (manifest_dir / "manifest.json").write_text(
-        json.dumps({"schema_version": 1, "created_at": backup_time.isoformat()}),
-        encoding="utf-8",
-    )
-
-    refresh_durable_metrics(test_db, tmp_path)
+    refresh_durable_metrics(test_db)
 
     metrics = generate_latest().decode("utf-8")
     assert "ttrpg_pending_uploads 1.0" in metrics
     assert "ttrpg_pending_upload_oldest_age_seconds" in metrics
-    assert "ttrpg_backup_last_success_timestamp_seconds" in metrics
 
 
 @pytest.mark.asyncio

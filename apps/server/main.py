@@ -399,7 +399,7 @@ def service_metrics(request: Request, db: Session = Depends(get_db)):
     expected = f"Bearer {settings.METRICS_TOKEN}"
     if not settings.METRICS_TOKEN or not secrets.compare_digest(supplied, expected):
         raise HTTPException(status_code=401, detail="Authentication required")
-    refresh_durable_metrics(db, settings.BACKUP_ROOT)
+    refresh_durable_metrics(db)
     return Response(content=generate_latest(), media_type=CONTENT_TYPE_LATEST)
 
 if __name__ == "__main__":

@@ -92,15 +92,6 @@ groups:
           summary: A durable asset upload intent has been pending for over two hours
           runbook_url: ops/observability/RUNBOOKS.md#stale-pending-uploads
 
-      - alert: TtrpgBackupMissingOrStale
-        expr: ttrpg_backup_last_success_timestamp_seconds == 0 or time() - ttrpg_backup_last_success_timestamp_seconds > 86400
-        for: 15m
-        labels:
-          severity: critical
-        annotations:
-          summary: No verified backup is visible or the newest backup is older than 24 hours
-          runbook_url: ops/observability/RUNBOOKS.md#missing-or-stale-backup
-
       - alert: TtrpgEmailDeliveryFailures
         expr: sum(increase(ttrpg_email_deliveries_total{outcome="error"}[15m])) > 2
         for: 5m

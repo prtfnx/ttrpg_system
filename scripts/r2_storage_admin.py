@@ -1,14 +1,12 @@
 """Operational controls for R2 asset storage.
 
-Mutating reconciliation and restore operations are dry-run by default. Run this
+Mutating reconciliation operations are dry-run by default. Run this
 from the repository root so application settings and the asset database resolve
 the same way as the server.
 """
 
 import argparse
-import hashlib
 import json
-import os
 import sys
 import uuid
 from datetime import datetime, timedelta, timezone
@@ -28,10 +26,9 @@ from utils.audit import audit_event  # noqa: E402
 
 
 class R2StorageAdmin:
-    def __init__(self, client, bucket: str, backup_bucket: str | None = None):
+    def __init__(self, client, bucket: str):
         self.client = client
         self.bucket = bucket
-        self.backup_bucket = backup_bucket
 
     def list_objects(self, bucket: str, prefix: str = "") -> list[dict]:
         paginator = self.client.get_paginator("list_objects_v2")
@@ -124,115 +121,12 @@ class R2StorageAdmin:
             "dry_run": not delete,
         }
 
-    def backup(self, database_binding: dict, snapshot: str | None = None) -> dict:
-        backup_bucket = self._require_backup_bucket()
-        snapshot = snapshot or database_binding["backup_set_id"]
-        if snapshot != database_binding["backup_set_id"]:
-            raise ValueError("R2 snapshot must equal the database backup-set ID")
-        prefix = f"snapshots/{snapshot}/"
-        objects = self.list_objects(self.bucket, "assets/")
-        manifest = {
-            "snapshot": snapshot,
-            "source_bucket": self.bucket,
-            "created_at": datetime.now(timezone.utc).isoformat(),
-            "database": database_binding,
-            "objects": [],
-        }
-
-        for item in objects:
-            source_key = item["Key"]
-            backup_key = f"{prefix}{source_key}"
-            self.client.copy_object(
-                Bucket=backup_bucket,
-                CopySource={"Bucket": self.bucket, "Key": source_key},
-                Key=backup_key,
-                MetadataDirective="COPY",
-            )
-            copied = self.client.head_object(Bucket=backup_bucket, Key=backup_key)
-            if copied.get("ContentLength") != item.get("Size"):
-                raise RuntimeError(f"R2 backup verification failed for {source_key}")
-            manifest["objects"].append({
-                "key": source_key,
-                "backup_key": backup_key,
-                "size": item.get("Size"),
-                "etag": item.get("ETag"),
-            })
-
-        manifest_key = f"{prefix}manifest.json"
-        self.client.put_object(
-            Bucket=backup_bucket,
-            Key=manifest_key,
-            Body=json.dumps(manifest, indent=2).encode("utf-8"),
-            ContentType="application/json",
-        )
-        return {"snapshot": snapshot, "objects": len(objects), "manifest_key": manifest_key}
-
-    def restore(self, snapshot: str, database_binding: dict, apply: bool = False) -> dict:
-        backup_bucket = self._require_backup_bucket()
-        manifest_key = f"snapshots/{snapshot}/manifest.json"
-        response = self.client.get_object(Bucket=backup_bucket, Key=manifest_key)
-        body = response["Body"]
-        try:
-            manifest = json.loads(body.read())
-        finally:
-            body.close()
-        if manifest.get("snapshot") != snapshot or manifest.get("database") != database_binding:
-            raise ValueError("R2 snapshot is not bound to the selected database backup set")
-        restore_pairs = sorted(
-            (
-                item["backup_key"],
-                item["key"],
-            )
-            for item in manifest.get("objects", [])
-        )
-        for item in manifest.get("objects", []):
-            head = self.client.head_object(Bucket=backup_bucket, Key=item["backup_key"])
-            if head.get("ContentLength") != item.get("size"):
-                raise RuntimeError(f"R2 restore verification failed for {item['key']}")
-        if apply:
-            for source_key, destination_key in restore_pairs:
-                self.client.copy_object(
-                    Bucket=self.bucket,
-                    CopySource={"Bucket": backup_bucket, "Key": source_key},
-                    Key=destination_key,
-                    MetadataDirective="COPY",
-                )
-        return {
-            "snapshot": snapshot,
-            "objects": [destination for _, destination in restore_pairs],
-            "dry_run": not apply,
-        }
-
-    def _require_backup_bucket(self) -> str:
-        if not self.backup_bucket or self.backup_bucket == self.bucket:
-            raise ValueError("R2_BACKUP_BUCKET_NAME must name a separate bucket")
-        return self.backup_bucket
-
-
 def _as_utc(value) -> datetime:
     if value is None:
         return datetime.min.replace(tzinfo=timezone.utc)
     if value.tzinfo is None:
         return value.replace(tzinfo=timezone.utc)
     return value.astimezone(timezone.utc)
-
-
-def _database_manifest_binding(path: Path) -> dict:
-    raw = path.read_bytes()
-    manifest = json.loads(raw)
-    backup_set_id = manifest.get("backup_set_id")
-    if manifest.get("schema_version") != 1 or not isinstance(backup_set_id, str):
-        raise ValueError("Invalid database backup-set manifest")
-    if manifest.get("r2_snapshot") != backup_set_id:
-        raise ValueError("Database manifest must bind R2 to the same backup-set ID")
-    database_sha256 = manifest.get("database", {}).get("sha256")
-    if not isinstance(database_sha256, str) or len(database_sha256) != 64:
-        raise ValueError("Database manifest is missing its checksum")
-    return {
-        "backup_set_id": backup_set_id,
-        "manifest_sha256": hashlib.sha256(raw).hexdigest(),
-        "database_sha256": database_sha256,
-    }
 
 
 def _database_asset_inventory() -> dict:
@@ -308,14 +202,6 @@ def _build_parser() -> argparse.ArgumentParser:
     audit.add_argument("--min-age-hours", type=int, default=24)
     audit.add_argument("--delete-orphans", action="store_true")
 
-    backup = subparsers.add_parser("backup", help="Copy durable assets to the backup bucket")
-    backup.add_argument("--snapshot")
-    backup.add_argument("--database-manifest", type=Path, required=True)
-
-    restore = subparsers.add_parser("restore", help="Restore a snapshot; dry-run unless --apply")
-    restore.add_argument("--snapshot", required=True)
-    restore.add_argument("--database-manifest", type=Path, required=True)
-    restore.add_argument("--apply", action="store_true")
     return parser
 
 
@@ -325,11 +211,7 @@ def main() -> int:
     manager = R2AssetManager()
     if not manager.is_r2_configured():
         raise SystemExit("R2 is not configured")
-    admin = R2StorageAdmin(
-        manager.s3_client,
-        settings.r2_bucket_name,
-        os.getenv("R2_BACKUP_BUCKET_NAME"),
-    )
+    admin = R2StorageAdmin(manager.s3_client, settings.r2_bucket_name)
 
     try:
         if args.command == "apply-config":
@@ -344,12 +226,6 @@ def main() -> int:
                 delete=args.delete_orphans,
             )
             result["database_integrity"] = inventory
-        elif args.command == "backup":
-            binding = _database_manifest_binding(args.database_manifest)
-            result = admin.backup(binding, args.snapshot)
-        else:
-            binding = _database_manifest_binding(args.database_manifest)
-            result = admin.restore(args.snapshot, binding, apply=args.apply)
     except Exception:
         _record_admin_audit(args.command, "failure")
         raise

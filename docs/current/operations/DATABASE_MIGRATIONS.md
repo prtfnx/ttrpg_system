@@ -4,129 +4,57 @@ Audience: operators and maintainers running schema changes.
 
 Status: usable.
 
-Last source audit: 2026-07-08
+Last source audit: 2026-07-17
 
-## Current migration system
+## Contract
 
-Migrations live in:
+Alembic is the only hosted schema authority:
 
-```text
-apps/server/database/migrations/
-```
+- configuration: `apps/server/alembic.ini`;
+- environment: `apps/server/database/alembic/env.py`;
+- revisions: `apps/server/database/alembic/versions/`;
+- deployed revision ledger: `alembic_version`;
+- current baseline: `0001_postgresql_baseline`.
 
-The runner is:
+The retired numbered SQLite runner is available only in Git history. Existing
+SQLite application databases are disposable and cannot be upgraded by the
+active code.
 
-```text
-apps/server/database/migrations/run_migrations.py
-```
+## Operator commands
 
-It uses the SQLite database path from `apps/server/database/database.py`. When
-`DATABASE_URL` is unset, that path is:
-
-```text
-apps/server/ttrpg.db
-```
-
-Current numbered migrations run from `001_add_obstacle_metadata.py` through
-`023_add_table_environment_state.py`.
-
-## What the runner does
-
-`MigrationRunner.run_migrations()`:
-
-1. checks that the database file exists;
-2. creates `schema_migrations` if needed;
-3. reads already-applied migration names;
-4. finds numbered `.py` migration files in sorted order;
-5. imports each pending migration;
-6. runs `upgrade(db_path)`;
-7. records the migration name after success.
-
-When `run_migrations.py` is executed as a script, it also creates a timestamped
-SQLite file backup before applying migrations.
-
-## Run locally
-
-Start the server once if the database does not exist yet. Then run:
+Run from `apps/server` with `DATABASE_URL` set to the intended database:
 
 ```powershell
-cd apps/server
-python database\migrations\run_migrations.py
+alembic upgrade head
+alembic current --check-heads
+alembic check
 ```
 
-A successful run prints the backup filename and reports whether pending
-migrations were applied.
+`alembic check` detects model changes that would produce migration operations;
+it does not prove that a data transformation is correct.
 
-## Before production
+## Render Free startup
 
-Do not run a new migration against the only copy of production data first.
+Render Free has no pre-deploy command. The development service starts through
+`scripts/migrate_and_start.py`, which:
 
-Recommended sequence:
+1. opens the configured database;
+2. serializes PostgreSQL migration attempts with an advisory lock;
+3. upgrades to `head`;
+4. verifies repository and database heads match;
+5. replaces itself with Uvicorn.
 
-1. Copy the production database or restore a recent backup into a test
-   environment.
-2. Run the migration runner against that copy.
-3. Start the server against the migrated copy.
-4. Run a focused smoke check for the changed feature.
-5. Confirm rollback expectations before touching production.
+Migration or verification failure prevents application traffic. The wrapper
+logs bounded event names and revision identifiers, never the connection URL.
 
-For SQLite production data, the runner's automatic backup is useful but not a
-backup strategy by itself. Make an external copy before the deploy window.
+## Rollout and recovery
 
-## Rollback reality
+Test each revision on a disposable PostgreSQL database before deployment.
+Prefer forward fixes. Do not run a downgrade against newer writes unless its
+data behavior was explicitly designed and rehearsed.
 
-Migration files may define `downgrade(db_path)`, but the runner does not call
-downgrades.
+For the disposable Free development environment, recovery is branch-based:
+stop writes, create/reset the Neon development branch, apply `alembic upgrade
+head`, smoke-test it, then update Render's `DATABASE_URL`.
 
-SQLite also cannot safely reverse every schema change. Many current downgrades
-are no-ops. Treat rollback as restoring the database backup unless a specific
-migration has a tested manual recovery plan.
-
-## Common failure modes
-
-Database file is missing:
-
-- the runner exits before applying anything;
-- start the server once or point `DATABASE_URL` at the intended database.
-
-Migration import fails:
-
-- check imports inside the migration file;
-- current migrations should import from `utils.logger`, not old
-  `server_host` paths.
-
-Column already exists:
-
-- newer migrations should be idempotent where possible;
-- check table columns with `PRAGMA table_info(...)` before adding columns.
-
-Production starts but data looks old:
-
-- confirm `DATABASE_URL` points at the same database you migrated;
-- confirm the migration name exists in `schema_migrations`;
-- confirm the model and loader code read the new column or table.
-
-## Verification
-
-After applying migrations:
-
-```powershell
-cd apps/server
-python -m pytest tests\unit\test_models.py tests\unit\test_crud.py
-```
-
-For feature-specific schema changes, run the owning tests too. Examples:
-
-- combat persistence: `tests\unit\test_combat_persistence.py`;
-- character persistence: `tests\unit\test_character_overhaul.py`;
-- route behavior: matching files under `tests\integration\`.
-
-## Change checklist
-
-- New migration has the next numeric prefix.
-- Migration has `upgrade(db_path: str)`.
-- Existing data path was tested on a copy.
-- Database backup exists outside the app process.
-- `schema_migrations` records the migration after success.
-- Server starts against the migrated database.
-- Feature smoke check passes.
+See [Backup and restore](BACKUP_AND_RESTORE.md) for the current recovery limits.

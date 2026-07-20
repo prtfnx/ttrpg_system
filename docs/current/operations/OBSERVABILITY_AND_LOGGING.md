@@ -46,7 +46,7 @@ error path logs.
 ```
 
 This only proves that the FastAPI process can answer the route. It does not
-check SQLite access, migration state, R2 credentials, email configuration,
+check PostgreSQL access, migration state, R2 credentials, email configuration,
 WebSocket readiness, or whether the React static files were copied.
 
 Use it as a process liveness check, not as a full readiness check.
@@ -104,14 +104,15 @@ Asset upload failure:
 1. Check browser network errors around presigned URL use.
 2. Check server logs from `service/asset_manager.py` and
    `storage/r2_manager.py`.
-3. Remember that R2 object data is outside SQLite backups; SQLite only stores
-   metadata for confirmed uploads.
+3. Remember that R2 object data is outside PostgreSQL; the database stores
+   metadata and session links, not object bytes.
 
 Database failure:
 
-1. Check server stdout for SQLAlchemy or migration errors.
-2. Check `apps/server/database/migrations/run_migrations.py` output.
-3. Confirm the configured SQLite file path before inspecting data manually.
+1. Check `/health/ready` for bounded database and revision codes.
+2. Check the startup wrapper's bounded Alembic events.
+3. Confirm the intended Neon branch/database in the provider console without
+   copying the connection secret into logs or incidents.
 
 ## Known gaps
 

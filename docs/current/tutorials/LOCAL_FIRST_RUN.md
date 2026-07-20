@@ -87,8 +87,15 @@ The default URL is:
 http://localhost:8000
 ```
 
-The server creates or verifies local SQLite tables on startup. By default the
-database file is `apps/server/ttrpg.db` unless `DATABASE_URL` is set.
+Before first start, set `DATABASE_URL` and apply the Alembic baseline:
+
+```powershell
+cd apps/server
+alembic upgrade head
+```
+
+Local SQLite remains available as a disposable convenience, but PostgreSQL is
+required for hosted and database-sensitive integration testing.
 
 ## First smoke path
 

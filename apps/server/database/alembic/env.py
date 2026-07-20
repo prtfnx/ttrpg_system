@@ -20,7 +20,7 @@ target_metadata = Base.metadata
 
 
 def _database_url():
-    raw_database_url = os.getenv("DATABASE_URL")
+    raw_database_url = config.attributes.get("database_url") or os.getenv("DATABASE_URL")
     if not raw_database_url:
         raise RuntimeError("DATABASE_URL is required for Alembic commands")
     return normalize_database_url(raw_database_url)
@@ -42,6 +42,17 @@ def run_migrations_offline() -> None:
 
 def run_migrations_online() -> None:
     """Run migrations against the configured database."""
+    supplied_connection = config.attributes.get("connection")
+    if supplied_connection is not None:
+        context.configure(
+            connection=supplied_connection,
+            target_metadata=target_metadata,
+            compare_type=True,
+        )
+        with context.begin_transaction():
+            context.run_migrations()
+        return
+
     connectable = create_engine(
         _database_url(),
         poolclass=pool.NullPool,

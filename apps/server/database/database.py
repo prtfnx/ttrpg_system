@@ -11,6 +11,8 @@ from sqlalchemy.orm import Session, sessionmaker
 
 from config import Settings
 from .models import Base
+from .schema import schema_is_current as _schema_is_current
+from .schema import upgrade_database_to_head
 from .url import normalize_database_url
 
 
@@ -65,19 +67,12 @@ install_database_metrics(engine, SessionLocal)
 
 
 def provision_database() -> None:
-    """Provision the file-backed SQLite schema through the single numbered runner."""
-    from .migrations.run_migrations import MigrationRunner, sqlite_path_from_database_url
-
-    runner = MigrationRunner(sqlite_path_from_database_url(DATABASE_URL))
-    if not runner.provision():
-        raise RuntimeError("Database schema provisioning failed")
+    """Upgrade the configured database to the repository's Alembic head."""
+    upgrade_database_to_head(normalize_database_url(DATABASE_URL))
 
 
 def schema_is_current() -> bool:
-    from .migrations.run_migrations import MigrationRunner, sqlite_path_from_database_url
-
-    runner = MigrationRunner(sqlite_path_from_database_url(DATABASE_URL))
-    return bool(runner.schema_status()["current"])
+    return _schema_is_current(engine)
 
 
 def get_db() -> Iterator[Session]:

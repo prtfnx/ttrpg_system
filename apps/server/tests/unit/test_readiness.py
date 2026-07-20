@@ -3,7 +3,7 @@ import json
 from pathlib import Path
 from types import SimpleNamespace
 
-from database.migrations.run_migrations import expected_migration_names
+from database.schema import repository_heads
 from service.compendium_artifact import CompendiumArtifact, REQUIRED_FILES
 from service.readiness import ReadinessChecker
 from sqlalchemy import create_engine, text
@@ -39,19 +39,12 @@ def _engine_at_head(*, omit_last_migration=False):
             "users",
         ):
             connection.execute(text(f"CREATE TABLE {table} (id INTEGER PRIMARY KEY)"))
-        connection.execute(
-            text(
-                "CREATE TABLE schema_migrations ("
-                "id INTEGER PRIMARY KEY AUTOINCREMENT, migration_name VARCHAR(255) UNIQUE NOT NULL)"
-            )
-        )
-        names = expected_migration_names()
-        if omit_last_migration:
-            names = names[:-1]
-        for name in names:
+        connection.execute(text("CREATE TABLE alembic_version (version_num VARCHAR(32) PRIMARY KEY)"))
+        names = repository_heads()
+        if not omit_last_migration:
             connection.execute(
-                text("INSERT INTO schema_migrations (migration_name) VALUES (:name)"),
-                {"name": name},
+                text("INSERT INTO alembic_version (version_num) VALUES (:name)"),
+                {"name": names[0]},
             )
     return engine
 
@@ -70,7 +63,7 @@ def test_production_readiness_passes_at_schema_head(tmp_path):
     result = checker.run()
 
     assert result["status"] == "ready"
-    assert result["checks"]["database"]["revision"] == expected_migration_names()[-1]
+    assert result["checks"]["database"]["revision"] == repository_heads()[0]
 
 
 def test_readiness_rejects_schema_behind_head(tmp_path):
@@ -85,6 +78,26 @@ def test_readiness_rejects_schema_behind_head(tmp_path):
 
     assert result["status"] == "not_ready"
     assert result["checks"]["database"]["code"] == "schema_revision_mismatch"
+
+
+def test_database_failure_is_bounded_and_does_not_log_connection_details(tmp_path, caplog):
+    class UnavailableEngine:
+        def connect(self):
+            raise RuntimeError("postgresql://role:secret@database.example/ttrpg")
+
+    checker = ReadinessChecker(
+        _settings(production=False),
+        UnavailableEngine(),
+        FakeR2Manager(configured=False),
+        tmp_path / "missing.html",
+        FakeCompendiumArtifact(),
+    )
+
+    result = checker._check_database()
+
+    assert result == {"ok": False, "code": "database_unavailable"}
+    assert "secret" not in caplog.text
+    assert "database.example" not in caplog.text
 
 
 def test_production_readiness_reports_missing_r2_configuration(tmp_path):

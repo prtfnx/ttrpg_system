@@ -62,12 +62,25 @@ async def lifespan(app: FastAPI):
         extra={"event_name": "application.starting", "service_version": settings.SERVICE_VERSION},
     )
 
-    if settings.is_production and not schema_is_current():
-        logger.critical(
-            "Database schema is not at the release migration head",
-            extra={"event_name": "database.schema.rejected", "outcome": "error"},
-        )
-        raise RuntimeError("Database schema is not current")
+    if settings.is_production:
+        schema_unavailable = False
+        try:
+            schema_current = schema_is_current()
+        except Exception:
+            schema_unavailable = True
+            schema_current = False
+        if schema_unavailable:
+            logger.critical(
+                "Database schema status is unavailable",
+                extra={"event_name": "database.schema.unavailable", "outcome": "error"},
+            )
+            raise RuntimeError("Database schema status is unavailable") from None
+        if not schema_current:
+            logger.critical(
+                "Database schema is not at the release migration head",
+                extra={"event_name": "database.schema.rejected", "outcome": "error"},
+            )
+            raise RuntimeError("Database schema is not current")
     logger.info("Database schema accepted", extra={"event_name": "database.schema.accepted"})
 
     # Store app state in FastAPI app

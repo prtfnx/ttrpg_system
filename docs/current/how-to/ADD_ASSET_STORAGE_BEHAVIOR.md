@@ -45,15 +45,14 @@ Read:
 5. Keep `asset_id` content-addressed when the browser provides xxHash data.
 6. Store durable metadata in the `Asset` model only after successful upload
    confirmation.
-7. Treat R2 deletion as best-effort unless the code is changed deliberately:
-   the current delete handler removes the DB row first, then attempts R2
-   deletion.
+7. Delete the R2 object before removing its metadata. The current handler keeps
+   database rows when storage deletion fails so the operation can be retried.
 
 Current validation limits in `ServerAssetManager`:
 
 - max file size: 50 MB;
-- extensions: `.png`, `.jpg`, `.jpeg`, `.gif`, `.bmp`, `.webp`, `.svg`;
-- MIME types: PNG, JPEG, GIF, BMP, WebP, SVG.
+- extensions: `.png`, `.jpg`, `.jpeg`, `.gif`, `.bmp`, `.webp`;
+- MIME types: PNG, JPEG, GIF, BMP, WebP.
 
 Current role defaults:
 

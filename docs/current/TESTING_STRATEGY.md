@@ -23,7 +23,10 @@ ruff check .
 
 Database-sensitive integration tests use an explicitly disposable database from
 `TEST_POSTGRESQL_DATABASE_URL`. They skip when the variable is absent and
-refuse to migrate a non-empty database without an `alembic_version` ledger.
+fail closed unless its database name contains `test`. Every application table
+must be empty at suite start. An operator can use
+`ALLOW_POSTGRESQL_INTEGRATION_TARGET=1` only for a uniquely named, short-lived
+schema that will be dropped after the run.
 
 CI supplies a fresh PostgreSQL service and requires:
 
@@ -31,10 +34,18 @@ CI supplies a fresh PostgreSQL service and requires:
 - `alembic current --check-heads` and `alembic check`;
 - named uniqueness and foreign-key action inspection;
 - PostgreSQL identifier-length validation;
-- real `SELECT ... FOR UPDATE` serialization.
+- invalid foreign-key rejection;
+- real `SELECT ... FOR UPDATE` serialization;
+- concurrent chat and combat idempotency constraints;
+- readiness at head and on a deliberately mismatched revision;
+- recovery when `pool_pre_ping` encounters a terminated idle backend;
+- ORM writes and generated primary keys across every model family.
 
 SQLite remains useful for fast unit tests, but it is not evidence for hosted
 schema, constraint, or locking behavior.
+
+Never point this suite at the populated Neon development database or its
+`public` schema.
 
 ## Core table
 

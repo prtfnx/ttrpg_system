@@ -5,7 +5,7 @@ Audience: operators and maintainers protecting persisted game data.
 Status: development recovery only. Independent production backup is not yet
 implemented.
 
-Last source audit: 2026-07-17
+Last source audit: 2026-07-20
 
 ## Current development contract
 
@@ -19,6 +19,16 @@ For the Free development deployment:
 - keep R2 lifecycle protection configured;
 - use `scripts/r2_storage_admin.py audit` to compare relational asset keys with
   R2 objects.
+
+The R2 audit inventories the entire dedicated bucket because valid legacy keys
+are not limited to an `assets/` prefix. Its default output contains counts
+only; `--verbose` is an explicit operator choice that can reveal object keys.
+The R2 token must allow bucket listing for audits and object deletion for smoke
+cleanup and normal asset removal.
+
+If a smoke test reports `r2_delete_failed` with `cleanup_required=true`, fix
+the token and remove the temporary objects under `pending/operations/smoke-`.
+Do not keep running the smoke command while cleanup is denied.
 
 The former SQLite file backup tool and SQLite-bound R2 snapshot workflow were
 removed. Their manifests cannot represent a PostgreSQL recovery point.

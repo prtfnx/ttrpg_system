@@ -4,7 +4,7 @@ Audience: contributors and operators configuring the FastAPI server.
 
 Status: usable.
 
-Last source audit: 2026-07-17
+Last source audit: 2026-07-20
 
 Server settings are defined in `apps/server/config.py`; ignored `.env` files
 are loaded by Pydantic settings.
@@ -13,7 +13,8 @@ are loaded by Pydantic settings.
 
 | Variable | Default | Notes |
 | --- | --- | --- |
-| `DATABASE_URL` | `sqlite:///./ttrpg.db` | PostgreSQL is mandatory when `ENVIRONMENT=production`. Provider `postgresql://` URLs are normalized to Psycopg 3. |
+| `DATABASE_URL` | `sqlite:///./ttrpg.db` | Runtime application connection. PostgreSQL is mandatory when `ENVIRONMENT=production`; provider URLs are normalized to Psycopg 3. |
+| `DATABASE_MIGRATION_URL` | unset | Optional schema-owner connection used by Alembic/startup migrations. Falls back to `DATABASE_URL`; production accepts PostgreSQL only. |
 | `DB_POOL_SIZE` | `5` | Persistent PostgreSQL pool connections. |
 | `DB_MAX_OVERFLOW` | `5` | Temporary connections above the pool size. |
 | `DB_POOL_TIMEOUT_SECONDS` | `10` | Bounded pool checkout wait. |
@@ -37,9 +38,10 @@ PostgreSQL and Alembic.
 
 ## Database-sensitive Render settings
 
-`render.yaml` keeps `DATABASE_URL` as `sync: false`; add it in the Render
+`render.yaml` keeps both database URLs as `sync: false`; add them in the Render
 dashboard. Use the intended Neon branch/database, require SSL, and never log or
-commit the value.
+commit either value. Prefer a restricted role for `DATABASE_URL` and a direct
+owner connection for `DATABASE_MIGRATION_URL`.
 
 R2, email, OAuth, and observability variables remain defined in `config.py` and
 `render.yaml`. See [Deployment](../operations/DEPLOYMENT.md) for the required

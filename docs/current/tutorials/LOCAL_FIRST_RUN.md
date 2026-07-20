@@ -5,7 +5,7 @@ Audience: new contributors setting up the app on Windows/PowerShell.
 Status: partial. This covers the current server-integrated run path. It does
 not cover production deployment.
 
-Last source audit: 2026-07-08
+Last source audit: 2026-07-20
 
 ## What you will run
 
@@ -96,6 +96,11 @@ alembic upgrade head
 
 Local SQLite remains available as a disposable convenience, but PostgreSQL is
 required for hosted and database-sensitive integration testing.
+
+For a local PostgreSQL setup, `DATABASE_URL` may use the same role while
+developing. To rehearse the production privilege split, set
+`DATABASE_MIGRATION_URL` to the schema owner and `DATABASE_URL` to a restricted
+runtime role.
 
 ## First smoke path
 

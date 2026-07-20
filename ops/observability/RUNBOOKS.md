@@ -8,10 +8,12 @@ URLs, raw WebSocket payloads, or asset contents into incidents.
 
 1. Check `/health/live`; if it fails, inspect the latest `application.starting`
    or fatal startup event.
-2. Check `/health/ready`. `schema_revision_mismatch` requires completing or
-   rolling back the pre-deploy migration before traffic is restored.
-3. Confirm the Render `DATABASE_URL` selects the intended Neon branch and that
-   Neon is available.
+2. Check `/health/ready`. `schema_revision_mismatch` requires completing a
+   reviewed migration or recovering to a verified Neon branch before traffic
+   is restored.
+3. Confirm `DATABASE_MIGRATION_URL` selects the intended schema-owner
+   connection and `DATABASE_URL` selects the intended runtime role, without
+   printing either value. Confirm Neon is available.
 4. Roll back the application only when its expected Alembic head is compatible
    with the database. Otherwise recover to a new Neon branch and switch after
    validation.
@@ -50,8 +52,13 @@ URLs, raw WebSocket payloads, or asset contents into incidents.
    `/health/ready`.
 3. For confirmation failures, preserve the durable upload intent and inspect
    object metadata/hash validation before retrying.
-4. Do not delete database metadata until storage deletion succeeds. Reconcile
-   orphans with the administrative storage script after the incident.
+4. The current delete path keeps database metadata when R2 deletion fails, so
+   the request can be retried without losing the authoritative object key.
+   Reconcile historical or independently created orphans with the
+   administrative storage script after the incident.
+5. `r2_delete_failed` requires object-delete permission;
+   `ListObjectsV2 AccessDenied` requires bucket-list permission. Do not repeat
+   smoke tests while cleanup is denied.
 
 ## Browser error burst
 

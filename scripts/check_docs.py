@@ -1,11 +1,11 @@
 """Check current documentation links and required metadata."""
+
 from __future__ import annotations
 
 import re
 import sys
 from pathlib import Path
 from urllib.parse import unquote
-
 
 ROOT = Path(__file__).resolve().parents[1]
 DOCS_ROOT = ROOT / "docs" / "current"

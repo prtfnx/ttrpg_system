@@ -97,8 +97,9 @@ When permissions have not been set for a session, the manager grants player
 permissions for test or unknown sessions. Established sessions without explicit
 permissions fall back to read-only defaults.
 
-Deletion is allowed for DMs or the asset owner. The server deletes the database
-row first, then tries to delete the R2 object best-effort.
+Deletion is allowed for DMs or the asset owner. The server deletes the R2
+object first and removes database metadata only after storage deletion
+succeeds. A storage failure keeps the rows so the operation can be retried.
 
 ## Table integration
 

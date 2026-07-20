@@ -4,7 +4,7 @@ Audience: operators and maintainers running schema changes.
 
 Status: usable.
 
-Last source audit: 2026-07-17
+Last source audit: 2026-07-20
 
 ## Contract
 
@@ -22,7 +22,9 @@ place.
 
 ## Operator commands
 
-Run from `apps/server` with `DATABASE_URL` set to the intended database:
+Run from `apps/server` with `DATABASE_MIGRATION_URL` set to the intended
+schema-owner connection. Alembic falls back to `DATABASE_URL` when the
+dedicated value is absent:
 
 ```powershell
 alembic upgrade head
@@ -34,8 +36,11 @@ alembic check
 it does not prove that a data transformation is correct.
 
 CI repeats these commands against a fresh PostgreSQL service and runs the
-PostgreSQL contract tests. Local runs can opt in by setting
-`TEST_POSTGRESQL_DATABASE_URL` to an empty disposable database.
+PostgreSQL contract tests. Local runs opt in with
+`TEST_POSTGRESQL_DATABASE_URL`. The target database name must contain `test`,
+all application tables must be empty at suite start, and the explicit
+`ALLOW_POSTGRESQL_INTEGRATION_TARGET=1` escape hatch is reserved for a
+short-lived isolated schema created by the operator.
 
 ## One-time SQLite data transfer
 
@@ -84,13 +89,21 @@ Render Free has no pre-deploy command. The development service starts through
 `scripts/migrate_and_start.py`, which:
 
 1. opens the configured database;
-2. serializes PostgreSQL migration attempts with an advisory lock;
-3. upgrades to `head`;
-4. verifies repository and database heads match;
-5. replaces itself with Uvicorn.
+2. uses `DATABASE_MIGRATION_URL` when configured;
+3. serializes PostgreSQL migration attempts with an advisory lock;
+4. upgrades to `head`;
+5. verifies repository and database heads match;
+6. disposes the migration engine;
+7. replaces itself with Uvicorn, which uses `DATABASE_URL`.
 
 Migration or verification failure prevents application traffic. The wrapper
 logs bounded event names and revision identifiers, never the connection URL.
+
+`DATABASE_MIGRATION_URL` should use a direct schema-owner connection.
+`DATABASE_URL` should use a restricted application role with only the DML and
+sequence privileges required at runtime. The split limits the effect of an
+application compromise even though Render Free must retain the migration
+credential for its startup wrapper.
 
 ## Rollout and recovery
 

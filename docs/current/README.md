@@ -98,8 +98,8 @@ older plans or reports in `docs/`.
 - [Security](operations/SECURITY.md): current auth, cookies, roles, rate
   limits, audit coverage, known gaps, and verification.
 - [Observability and logging](operations/OBSERVABILITY_AND_LOGGING.md):
-  stdout logs, browser logger behavior, health check, audit records, asset
-  counters, and current gaps.
+  structured logs, request correlation, health/readiness, protected metrics,
+  optional traces, and R2 operational checks.
 - [Release checklist](operations/RELEASE_CHECKLIST.md): source-checked
   preflight, tests, full build artifacts, Render deployment caveats, smoke
   checks, and rollback notes.

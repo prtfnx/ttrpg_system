@@ -4,7 +4,7 @@ Audience: contributors changing persisted server data.
 
 Status: usable.
 
-Last source audit: 2026-07-17
+Last source audit: 2026-07-20
 
 PostgreSQL schema history is managed only by Alembic. Models describe current
 intent; committed revisions describe how deployed databases reach that intent.
@@ -13,8 +13,9 @@ intent; committed revisions describe how deployed databases reach that intent.
 
 1. Update `apps/server/database/models.py`.
 2. Add or update the application behavior and tests that use the schema.
-3. From `apps/server`, point `DATABASE_URL` at a disposable PostgreSQL
-   database containing the current Alembic head.
+3. From `apps/server`, point `DATABASE_MIGRATION_URL` at a disposable
+   PostgreSQL database containing the current Alembic head. If unset, Alembic
+   uses `DATABASE_URL`.
 4. Generate a candidate:
 
    ```powershell

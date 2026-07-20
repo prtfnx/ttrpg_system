@@ -5,7 +5,7 @@ Audience: contributors changing persistence, migrations, or server state.
 Status: partial. This page describes the current model families and migration
 flow. It is not a complete column-by-column schema.
 
-Last source audit: 2026-07-17
+Last source audit: 2026-07-20
 
 ## Source of truth
 
@@ -24,7 +24,9 @@ Alembic revisions live in `apps/server/database/alembic/versions/`.
 
 ## Database URL
 
-`DATABASE_URL` controls the database connection.
+`DATABASE_URL` controls normal application connections.
+`DATABASE_MIGRATION_URL` optionally supplies a separate schema-owner connection
+for Alembic.
 
 If it is unset in development, the server uses local SQLite:
 
@@ -35,6 +37,36 @@ apps/server/ttrpg.db
 Production requires PostgreSQL. Render startup applies `alembic upgrade head`
 and production startup verifies that the database and repository Alembic heads
 match. `Base.metadata.create_all()` is limited to isolated tests.
+
+Provider `postgresql://` URLs are normalized to SQLAlchemy's Psycopg 3 driver.
+PostgreSQL connections use a bounded `QueuePool` with `pool_pre_ping` so an
+idle connection discarded while Neon compute sleeps is replaced on checkout.
+This does not retry a transaction interrupted after it started.
+
+## Hosted persistence flow
+
+```text
+HTTP routes / WebSocket handlers / services
+                   |
+                   v
+          SQLAlchemy SessionLocal
+                   |
+                   v
+        Psycopg 3 pooled connection
+                   |
+                   v
+             Neon PostgreSQL
+          /                    \
+relational game state       asset metadata
+                                  |
+                                  v
+                         Cloudflare R2 bytes
+```
+
+Alembic, not application request code, owns schema changes. The Render startup
+wrapper uses the migration connection, takes a PostgreSQL advisory lock,
+upgrades and verifies the schema, disposes that engine, and only then starts
+the runtime application.
 
 ## Current model families
 

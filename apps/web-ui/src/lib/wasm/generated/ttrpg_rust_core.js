@@ -1018,8 +1018,10 @@ export class PaintSystem {
 if (Symbol.dispose) PaintSystem.prototype[Symbol.dispose] = PaintSystem.prototype.free;
 
 /**
- * Client-side planning layer — computes previews without mutating game state.
- * All results are read-only overlays on top of committed state.
+ * Client-side planning layer: computes previews without mutating game state.
+ * All results are read-only overlays on top of committed state. The FastAPI
+ * combat command service remains authoritative for accepted combat mutations,
+ * final movement cost, visibility, resources, and outcomes.
  */
 export class PlanningManager {
     __destroy_into_raw() {

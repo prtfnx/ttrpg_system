@@ -12,6 +12,13 @@ TEMPLATES = REPO_ROOT / "apps" / "server" / "templates"
 BASE = "/static/ui/"
 
 
+def _write_atomic(path: Path, content: str) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    temporary = path.with_suffix(f"{path.suffix}.tmp")
+    temporary.write_text(content, encoding="utf-8")
+    temporary.replace(path)
+
+
 def _collect_chunks(manifest: dict, key: str, visited: set) -> list[dict]:
     """BFS over the import graph, return all reachable chunk entries (deduped)."""
     chunks = []
@@ -58,12 +65,19 @@ def _entry_tags(manifest: dict, key: str) -> list[str]:
     return lines
 
 
-def main():
-    if not MANIFEST.exists():
-        print(f"ERROR: {MANIFEST} not found. Run `pnpm build` in apps/web-ui first.")
-        sys.exit(1)
+def generate_templates(
+    manifest_path: Path = MANIFEST,
+    templates_dir: Path = TEMPLATES,
+) -> tuple[Path, Path]:
+    """Generate server template fragments from one Vite manifest."""
+    if not manifest_path.is_file():
+        raise FileNotFoundError(
+            f"{manifest_path} not found. Run the web production build first."
+        )
 
-    manifest = json.loads(MANIFEST.read_text(encoding="utf-8"))
+    manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+    if "index.html" not in manifest:
+        raise ValueError("Vite manifest does not contain the index.html entry")
 
     # --- vite_assets.html (main app) ---
     icon = next((v["file"] for k, v in manifest.items() if "vite.svg" in k), None)
@@ -71,21 +85,40 @@ def main():
     if icon:
         main_lines.append(f'<link rel="icon" type="image/svg+xml" href="{BASE}{icon}" />')
     main_lines += _entry_tags(manifest, "index.html")
-    out = TEMPLATES / "vite_assets.html"
-    out.write_text("{# Auto-generated from Vite manifest #}\n" + "\n".join(main_lines) + "\n", encoding="utf-8")
-    print(f"  Written: {out.relative_to(REPO_ROOT)}")
+    vite_output = templates_dir / "vite_assets.html"
+    _write_atomic(
+        vite_output,
+        "{# Auto-generated from Vite manifest #}\n"
+        + "\n".join(main_lines)
+        + "\n",
+    )
 
     # --- admin_assets.html ---
     # The former dedicated integration entry was removed; main.tsx now exposes
     # ReactGameComponents for embedded admin/server pages as well as standalone app boot.
     admin_lines = _entry_tags(manifest, "index.html")
-    out = TEMPLATES / "admin_assets.html"
-    out.write_text("{# Auto-generated admin assets #}\n" + "\n".join(admin_lines) + "\n", encoding="utf-8")
-    print(f"  Written: {out.relative_to(REPO_ROOT)}")
+    admin_output = templates_dir / "admin_assets.html"
+    _write_atomic(
+        admin_output,
+        "{# Auto-generated admin assets #}\n"
+        + "\n".join(admin_lines)
+        + "\n",
+    )
+    return vite_output, admin_output
 
+
+def main() -> int:
+    try:
+        outputs = generate_templates()
+    except (FileNotFoundError, ValueError, json.JSONDecodeError) as exc:
+        print(f"ERROR: {exc}", file=sys.stderr)
+        return 1
+    for output in outputs:
+        print(f"  Written: {output.relative_to(REPO_ROOT)}")
     print("Done.")
+    return 0
 
 
 if __name__ == "__main__":
-    main()
+    raise SystemExit(main())
 

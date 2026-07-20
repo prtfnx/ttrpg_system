@@ -1,15 +1,13 @@
 import base64
 
 import xxhash
-from sqlalchemy.orm import sessionmaker
-
 from core_table.protocol import Message, MessageType
 from database import crud, models, schemas
 from service import asset_manager as asset_manager_module
-from service.protocol import assets as asset_protocol_module
 from service.asset_manager import AssetRequest, ServerAssetManager
+from service.protocol import assets as asset_protocol_module
 from service.protocol.assets import _AssetsMixin
-
+from sqlalchemy.orm import sessionmaker
 
 VALID_PNG = base64.b64decode(
     "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII="

@@ -4,7 +4,7 @@ Audience: contributors and operators changing runtime configuration.
 
 Status: usable.
 
-Last source audit: 2026-07-08
+Last source audit: 2026-07-20
 
 ## Source of truth
 
@@ -50,11 +50,13 @@ In production, set:
 - `ENVIRONMENT=production`;
 - `SESSION_SECRET`, at least 32 characters;
 - `SECRET_KEY`, a real JWT secret;
-- `DATABASE_URL`, pointing at persistent storage;
+- `DATABASE_URL`, using the Neon runtime application role;
+- `DATABASE_MIGRATION_URL`, using the Neon schema-owner role;
 - `BASE_URL`, matching the public app origin when OAuth or email links are
   enabled.
 
 `main.py` refuses to start in production without a strong `SESSION_SECRET`.
+It also rejects SQLite database URLs and wildcard CORS in production.
 
 ## Auth and email
 
@@ -82,11 +84,19 @@ When enabled, the manager requires:
 - `r2_bucket_name`;
 - either `r2_endpoint`, `r2_account_id`, or `R2_ACCOUNT_ID`.
 
-`R2_ACCOUNT_ID` is read directly by `R2AssetManager`; the rest are Pydantic
-settings fields and currently use lowercase names.
+Environment names are case-insensitive through Pydantic settings. The Render
+Blueprint uses uppercase `R2_*` names.
 
 Asset upload/download flows return clear errors when R2 is not configured.
 Leave R2 disabled unless you are testing cloud asset storage.
+
+The operational R2 token also needs:
+
+- object put, head/get, and delete for asset and smoke flows;
+- bucket object listing for the orphan audit.
+
+Use a token scoped to the dedicated application bucket. Missing delete
+permission leaves stale objects even when the relational row has been removed.
 
 ## Browser configuration
 

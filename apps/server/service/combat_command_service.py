@@ -3,7 +3,8 @@ from __future__ import annotations
 import time
 import uuid
 from copy import deepcopy
-from dataclasses import dataclass, field as dataclass_field
+from dataclasses import dataclass
+from dataclasses import field as dataclass_field
 from enum import Enum
 from typing import Any, Awaitable, Callable, Optional
 

@@ -8,7 +8,6 @@
     {"id": 1, "type": "timeseries", "title": "Authentication outcomes", "targets": [{"expr": "sum by (operation, outcome, reason) (rate(ttrpg_auth_operations_total[10m]))"}], "gridPos": {"h": 8, "w": 12, "x": 0, "y": 0}},
     {"id": 2, "type": "timeseries", "title": "Rate-limit rejections", "targets": [{"expr": "sum by (limiter) (rate(ttrpg_rate_limit_decisions_total{outcome=\"rejected\"}[10m]))"}], "gridPos": {"h": 8, "w": 12, "x": 12, "y": 0}},
     {"id": 3, "type": "timeseries", "title": "Background job outcomes", "targets": [{"expr": "sum by (job, outcome) (increase(ttrpg_background_jobs_total[1h]))"}], "gridPos": {"h": 8, "w": 12, "x": 0, "y": 8}},
-    {"id": 4, "type": "stat", "title": "Newest verified backup age", "targets": [{"expr": "time() - ttrpg_backup_last_success_timestamp_seconds"}], "gridPos": {"h": 8, "w": 6, "x": 12, "y": 8}},
-    {"id": 5, "type": "stat", "title": "OTLP trace exporter configured", "targets": [{"expr": "ttrpg_observability_exporter_configured{exporter=\"otlp_traces\"}"}], "gridPos": {"h": 8, "w": 6, "x": 18, "y": 8}}
+    {"id": 5, "type": "stat", "title": "OTLP trace exporter configured", "targets": [{"expr": "ttrpg_observability_exporter_configured{exporter=\"otlp_traces\"}"}], "gridPos": {"h": 8, "w": 12, "x": 12, "y": 8}}
   ]
 }

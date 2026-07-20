@@ -5,9 +5,8 @@ from pathlib import Path
 from unittest.mock import MagicMock
 
 import pytest
-from sqlalchemy.orm import sessionmaker
-
 from database import models
+from sqlalchemy.orm import sessionmaker
 
 SCRIPT_PATH = Path(__file__).resolve().parents[4] / "scripts" / "r2_storage_admin.py"
 spec = importlib.util.spec_from_file_location("r2_storage_admin", SCRIPT_PATH)
@@ -116,6 +115,19 @@ def test_smoke_test_round_trips_and_deletes_object():
     assert client.deleted == [("assets", result["key"])]
 
 
+def test_smoke_test_reports_cleanup_failure_without_object_key():
+    client = FakeClient()
+    client.delete_object = MagicMock(side_effect=PermissionError("denied"))
+    admin = storage_admin.R2StorageAdmin(client, "assets")
+
+    with pytest.raises(storage_admin.StorageAdminError) as error:
+        admin.smoke_test()
+
+    assert error.value.code == "r2_delete_failed"
+    assert error.value.cleanup_required is True
+    assert "smoke-" not in str(error.value)
+
+
 def test_orphan_audit_is_dry_run_and_age_gated():
     client = FakeClient()
     old = datetime.now(timezone.utc) - timedelta(days=2)
@@ -133,45 +145,6 @@ def test_orphan_audit_is_dry_run_and_age_gated():
     assert report["aged_orphans"] == ["assets/orphan-old.png"]
     assert report["deleted_orphans"] == []
     assert client.deleted == []
-
-
-def test_backup_writes_manifest_and_restore_is_explicit():
-    client = FakeClient()
-    client.objects["assets"] = [
-        {"Key": "assets/map.png", "Size": 12, "ETag": "etag"},
-    ]
-    admin = storage_admin.R2StorageAdmin(client, "assets", "assets-backup")
-    database_binding = {
-        "backup_set_id": "snapshot-1",
-        "manifest_sha256": "manifest-digest",
-        "database_sha256": "database-digest",
-    }
-
-    backup = admin.backup(database_binding, "snapshot-1")
-
-    assert backup["manifest_key"] == "snapshots/snapshot-1/manifest.json"
-    assert client.copies[0]["Bucket"] == "assets-backup"
-    assert ("assets-backup", backup["manifest_key"]) in client.payloads
-
-    dry_run = admin.restore("snapshot-1", database_binding)
-    assert dry_run == {"snapshot": "snapshot-1", "objects": ["assets/map.png"], "dry_run": True}
-    assert len(client.copies) == 1
-
-    applied = admin.restore("snapshot-1", database_binding, apply=True)
-    assert applied["dry_run"] is False
-    assert client.copies[-1]["Bucket"] == "assets"
-    assert client.copies[-1]["Key"] == "assets/map.png"
-
-
-def test_restore_rejects_database_manifest_mismatch():
-    client = FakeClient()
-    client.objects["assets"] = [{"Key": "assets/map.png", "Size": 12, "ETag": "etag"}]
-    admin = storage_admin.R2StorageAdmin(client, "assets", "assets-backup")
-    binding = {"backup_set_id": "snapshot-1", "manifest_sha256": "one", "database_sha256": "db"}
-    admin.backup(binding, "snapshot-1")
-
-    with pytest.raises(ValueError, match="not bound"):
-        admin.restore("snapshot-1", {**binding, "manifest_sha256": "other"})
 
 
 def test_database_inventory_reports_assets_with_missing_uploaders(

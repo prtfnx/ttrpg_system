@@ -2,7 +2,7 @@ name: CI
 
 on:
   push:
-    branches: [main, "feature/**"]
+    branches: [main, "feature/**", "feat/**"]
   pull_request:
     branches: [main]
 
@@ -26,6 +26,10 @@ jobs:
       - run: pnpm lint --filter @ttrpg/web-ui
       - name: Run tests with coverage
         run: pnpm test:coverage --filter @ttrpg/web-ui
+      - name: Build and package production UI
+        run: |
+          pnpm --filter @ttrpg/web-ui build
+          python apps/server/scripts/package_web_ui.py
       - name: Upload web coverage
         uses: actions/upload-artifact@v4
         with:
@@ -43,14 +47,8 @@ jobs:
           targets: wasm32-unknown-unknown
           components: llvm-tools-preview
       - uses: taiki-e/install-action@cargo-llvm-cov
-      - name: Install wasm-pack and binaryen
-        run: |
-          curl https://rustwasm.github.io/wasm-pack/installer/init.sh -sSf | sh
-          # apt binaryen is too old for table.fill (misc 0x11) from current rustc.
-          # Use a pinned release from GitHub instead.
-          wget -q https://github.com/WebAssembly/binaryen/releases/download/version_119/binaryen-version_119-x86_64-linux.tar.gz
-          tar -xzf binaryen-version_119-x86_64-linux.tar.gz
-          sudo cp binaryen-version_119/bin/wasm-opt /usr/local/bin/wasm-opt
+      - name: Install wasm-pack
+        run: curl https://rustwasm.github.io/wasm-pack/installer/init.sh -sSf | sh
       - name: Run tests with coverage
         run: cargo llvm-cov --lib --lcov --output-path coverage.lcov
         working-directory: packages/rust-core
@@ -69,14 +67,34 @@ jobs:
         run: wasm-pack test --headless --chrome --test wasm_browser
         working-directory: packages/rust-core
       - name: Build WASM
-        run: wasm-pack build --target web --release --features wasm-start
+        run: >-
+          wasm-pack build
+          --target web
+          --release
+          --out-dir ../../apps/web-ui/src/lib/wasm/generated
+          --
+          --features wasm-start
         working-directory: packages/rust-core
-      - name: Optimize WASM with wasm-opt
-        run: wasm-opt -O -o packages/rust-core/pkg/ttrpg_rust_core_bg.wasm packages/rust-core/pkg/ttrpg_rust_core_bg.wasm
+      - name: Verify tracked WASM is current
+        run: git diff --exit-code -- apps/web-ui/src/lib/wasm/generated
 
   server:
     name: Server (lint + test + coverage)
     runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:17-alpine
+        env:
+          POSTGRES_DB: ttrpg_test
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d ttrpg_test"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -93,6 +111,23 @@ jobs:
       - name: Mypy type check
         run: mypy apps/server --ignore-missing-imports --no-error-summary
         continue-on-error: true
+      - name: PostgreSQL migration and behavior gates
+        run: >-
+          pytest
+          tests/integration/test_alembic_baseline.py
+          tests/integration/test_postgresql_contract.py
+          --no-cov
+        working-directory: apps/server
+        env:
+          TEST_POSTGRESQL_DATABASE_URL: postgresql://postgres:postgres@localhost:5432/ttrpg_test
+          PYTHONPATH: ${{ github.workspace }}/apps/server:${{ github.workspace }}/packages/core-table
+      - name: Alembic head and drift gates
+        run: |
+          alembic current --check-heads
+          alembic check
+        working-directory: apps/server
+        env:
+          DATABASE_URL: postgresql://postgres:postgres@localhost:5432/ttrpg_test
       - name: Run tests with coverage
         run: pytest --cov=. --cov-report=xml
         working-directory: apps/server

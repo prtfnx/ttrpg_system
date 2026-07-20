@@ -731,7 +731,7 @@ class _SpritesMixin(_ProtocolBase):
                 'operation': 'create'
             })
 
-        except Exception as e:
+        except Exception:
             logger.exception("Compendium sprite creation failed")
             return Message(MessageType.ERROR, {'error': 'Internal server error'})
 
@@ -756,7 +756,7 @@ class _SpritesMixin(_ProtocolBase):
                 return Message(MessageType.SUCCESS, {'sprite_id': sprite_id})
             else:
                 return Message(MessageType.ERROR, {'error': result.message})
-        except Exception as e:
+        except Exception:
             logger.exception("Compendium sprite update failed")
             return Message(MessageType.ERROR, {'error': 'Internal server error'})
 
@@ -785,7 +785,7 @@ class _SpritesMixin(_ProtocolBase):
                 return Message(MessageType.SPRITE_RESPONSE, {'sprite_id': sprite_id, 'operation': 'delete', 'success': True})
             else:
                 return Message(MessageType.ERROR, {'error': result.message})
-        except Exception as e:
+        except Exception:
             logger.exception("Compendium sprite removal failed")
             return Message(MessageType.ERROR, {'error': 'Internal server error'})
 
@@ -825,6 +825,6 @@ class _SpritesMixin(_ProtocolBase):
             else:
                 return Message(MessageType.ERROR, {'error': 'Sprite not found'})
 
-        except Exception as e:
+        except Exception:
             logger.exception("Sprite request failed")
             return Message(MessageType.ERROR, {'error': 'Internal server error'})

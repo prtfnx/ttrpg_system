@@ -11,8 +11,8 @@ from database.database import get_db
 from fastapi import APIRouter, Depends, HTTPException, Request
 from fastapi.responses import RedirectResponse
 from sqlalchemy.orm import Session
-from utils.logger import setup_logger
 from utils.audit import audit_event
+from utils.logger import setup_logger
 from utils.roles import SessionRole, is_dm, is_valid_role
 
 from .users import get_current_active_user

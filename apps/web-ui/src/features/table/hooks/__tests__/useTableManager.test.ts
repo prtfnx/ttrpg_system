@@ -89,7 +89,7 @@ describe('useTableManager', () => {
 
       const { result } = renderUseTableManagerWithoutWaiting();
 
-      await waitFor(() => expect(consoleSpy).toHaveBeenCalledWith('Failed to initialize Table Manager:', expect.any(Error)));
+      await waitFor(() => expect(consoleSpy).toHaveBeenCalledWith('[ERROR] Failed to initialize Table Manager:', expect.any(Error)));
       expect(result.current.tableManager).toBeNull();
     });
   });
@@ -334,7 +334,7 @@ describe('useTableManager', () => {
         result.current.refreshTables();
       });
 
-      expect(consoleSpy).toHaveBeenCalledWith('Failed to refresh tables:', expect.any(Error));
+      expect(consoleSpy).toHaveBeenCalledWith('[ERROR] Failed to refresh tables:', expect.any(Error));
       expect(result.current.tables).toEqual([]); // Should remain empty on error
     });
   });

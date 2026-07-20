@@ -1,5 +1,5 @@
-from main import app
 from database import models
+from main import app
 from routers.audit import get_current_active_user
 
 

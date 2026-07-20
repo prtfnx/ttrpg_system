@@ -1,0 +1,9 @@
+Alembic is the only hosted schema authority.
+
+Run migration commands from apps/server with DATABASE_URL set:
+
+    alembic upgrade head
+    alembic current --check-heads
+    alembic check
+
+SQLite remains supported for isolated unit tests, not hosted deployments.

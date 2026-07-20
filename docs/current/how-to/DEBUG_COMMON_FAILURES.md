@@ -5,7 +5,7 @@ render, build, or persist.
 
 Status: usable.
 
-Last source audit: 2026-07-08
+Last source audit: 2026-07-20
 
 ## Start with the boundary
 
@@ -15,7 +15,8 @@ Most failures belong to one of these boundaries:
 - WebSocket protocol: message enum, handler registration, client helper, or
   role/session metadata.
 - WASM runtime: Rust export, generated binding, runtime port, or canvas event.
-- Persistence: SQLAlchemy model, migration, SQLite file, or session ownership.
+- Persistence: SQLAlchemy model, Alembic revision, Neon connection/role, or
+  session ownership.
 - Storage: R2 configuration, presigned URL, upload confirmation, or asset hash.
 
 Find the boundary first. It is faster than guessing through the whole app.
@@ -31,15 +32,18 @@ python main.py
 
 Common causes:
 
-- `ENVIRONMENT=production` without a strong `SESSION_SECRET`.
+- `ENVIRONMENT=production` with a weak secret, wildcard CORS, or non-PostgreSQL
+  database URL.
 - Missing Python dependencies.
 - Database import or migration errors.
+- A missing packaged UI or verified production compendium artifact.
 - A router was added but not importable from `main.py`.
 
-The health endpoint is:
+The health endpoints are:
 
 ```text
-/health
+/health/live
+/health/ready
 ```
 
 ## HTTP route returns the wrong thing
@@ -97,13 +101,17 @@ Check the owner:
 - compendium data: exported JSON files, not normal app persistence;
 - assets: `Asset` rows are created only after upload confirmation.
 
-For schema changes, remember that `create_tables()` does not replace numbered
-migrations.
+For schema changes, models do not replace Alembic revisions.
 
 ```powershell
 cd apps/server
-python database\migrations\run_migrations.py
+alembic current --check-heads
+alembic check
 ```
+
+If the app is deployed, check whether `DATABASE_MIGRATION_URL` can migrate and
+whether the restricted `DATABASE_URL` can perform normal reads/writes. Do not
+paste either URL into logs or issues.
 
 ## Asset image does not appear
 

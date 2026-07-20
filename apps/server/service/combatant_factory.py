@@ -5,7 +5,6 @@ from collections.abc import Callable, Mapping
 from dataclasses import dataclass
 from typing import Any
 
-
 CharacterLoader = Callable[[str], Mapping[str, Any] | None]
 
 

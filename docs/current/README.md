@@ -91,15 +91,15 @@ older plans or reports in `docs/`.
   build path, required environment, database notes, and smoke checks.
 - [Configuration](operations/CONFIGURATION.md): server settings, production
   secrets, browser config, R2, CORS, cookies, and change checklist.
-- [Database migrations](operations/DATABASE_MIGRATIONS.md): runner behavior,
-  local and production sequence, rollback reality, and verification.
-- [Backup and restore](operations/BACKUP_AND_RESTORE.md): SQLite backup
-  behavior, restore sequence, script caveats, R2 asset notes, and checks.
+- [Database migrations](operations/DATABASE_MIGRATIONS.md): Alembic lifecycle,
+  Render startup sequence, recovery policy, and verification.
+- [Backup and restore](operations/BACKUP_AND_RESTORE.md): Neon development
+  recovery, current production blocker, and R2 asset boundaries.
 - [Security](operations/SECURITY.md): current auth, cookies, roles, rate
   limits, audit coverage, known gaps, and verification.
 - [Observability and logging](operations/OBSERVABILITY_AND_LOGGING.md):
-  stdout logs, browser logger behavior, health check, audit records, asset
-  counters, and current gaps.
+  structured logs, request correlation, health/readiness, protected metrics,
+  optional traces, and R2 operational checks.
 - [Release checklist](operations/RELEASE_CHECKLIST.md): source-checked
   preflight, tests, full build artifacts, Render deployment caveats, smoke
   checks, and rollback notes.

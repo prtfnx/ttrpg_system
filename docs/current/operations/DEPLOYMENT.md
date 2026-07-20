@@ -2,131 +2,126 @@
 
 Audience: operators and contributors preparing a deploy.
 
-Status: partial. This page documents the deploy path currently present in the
-repo and calls out the known gap in the Render build.
+Status: usable for the application and database path. A licensed, verified
+compendium artifact is still required before the production readiness check can
+pass.
 
-Last source audit: 2026-07-08
+Last source audit: 2026-07-20
 
-## Current deployment target
+## Current target
 
-The checked-in cloud target is Render. The root `render.yaml` defines one Python
-web service:
+The root `render.yaml` defines one Render Free Python web service in Frankfurt:
 
-- service name: `ttrpg-server`;
-- root directory: `apps/server`;
-- build: install server dependencies and install `packages/core-table`;
-- start: `uvicorn main:app --host 0.0.0.0 --port $PORT`;
-- health check: `/health`;
-- environment: `production`.
+- source root: the repository root, so the build can access every monorepo
+  package;
+- relational state: Neon PostgreSQL;
+- object bytes: Cloudflare R2;
+- local filesystem: build output and disposable runtime files only;
+- startup: `cd apps/server && python scripts/migrate_and_start.py`;
+- health check: `/health/ready`;
+- no persistent disk or paid pre-deploy command.
 
-The server mounts `apps/server/static` at `/static` when that directory exists.
-The React app is expected under `/static/ui/`, matching the Vite `base` setting
-in `apps/web-ui/vite.config.ts`.
+Keep the Render and Neon regions close to reduce request and WebSocket
+transaction latency.
 
-## Important gap
+## Build and startup flow
 
-`render.yaml` currently does not build the React app or Rust/WASM package. It
-only installs and starts the FastAPI service.
+```text
+Render build
+  |
+  +-- install core-table + server dependencies
+  +-- install pnpm workspace dependencies
+  +-- Vite production build (uses tracked, optimized WASM)
+  +-- package_web_ui.py
+        |
+        +-- apps/server/static/ui
+        +-- templates/vite_assets.html
+        +-- templates/admin_assets.html
 
-For a deploy that includes the current game client, the server must also have:
+Render start
+  |
+  +-- DATABASE_MIGRATION_URL (schema owner, when configured)
+  +-- PostgreSQL advisory lock
+  +-- alembic upgrade head + head verification
+  +-- dispose migration engine
+  +-- exec Uvicorn
+        |
+        +-- DATABASE_URL (runtime application role)
+        +-- Neon PostgreSQL: relational state and R2 metadata
+        +-- Cloudflare R2: asset bytes
+```
 
-- `apps/server/static/ui`;
-- `apps/server/templates/vite_assets.html`;
-- `apps/server/templates/admin_assets.html`.
+The UI packager validates the Vite manifest and required WASM files, generates
+template fragments, and atomically replaces the server UI directory. A partial
+build cannot silently replace the previous packaged UI.
 
-Those are produced by the repo build helper, not by the current Render build
-command.
+The startup wrapper fails before application traffic if migration or head
+verification fails. Production startup independently checks database
+connectivity and Alembic head.
 
-## Full app build
+## Required secrets and configuration
 
-From the repository root on Windows/PowerShell:
+Configure in the Render dashboard:
+
+- `DATABASE_URL`: SSL-enabled Neon URL for the runtime application role;
+- `DATABASE_MIGRATION_URL`: direct SSL-enabled Neon owner/migration URL;
+- `SECRET_KEY`, `SESSION_SECRET`, and `METRICS_TOKEN`;
+- explicit `CORS_ORIGINS` and the public `BASE_URL`;
+- the required `R2_*` values;
+- optional OAuth, email, and telemetry values used by the deployment.
+
+For an initial development cutover, `DATABASE_MIGRATION_URL` may equal
+`DATABASE_URL`. Separate them before public use so normal requests do not run
+with schema-owner privileges.
+
+Never store either database URL in `render.yaml`, source, documentation, logs,
+or health responses. Render supplies `PORT`; do not generate or hard-code it.
+
+## Compendium artifact gate
+
+Production readiness requires all compendium export files plus a verified
+`manifest.json`. The manifest records the artifact version, exact required
+files, sizes, and SHA-256 checksums.
+
+The repository does not currently contain a licensed production artifact or a
+trusted download location. Do not commit local ignored exports, disable this
+readiness gate, or invent a manifest. Before deployment, publish an approved
+artifact through the project's release process and make it available to the
+Render build.
+
+## Verification
+
+Before deploying, use a uniquely named, disposable PostgreSQL database or
+schema:
 
 ```powershell
-.\build_and_deploy.ps1
+cd apps/server
+alembic upgrade head
+alembic current --check-heads
+alembic check
+python -m pytest `
+  tests/integration/test_alembic_baseline.py `
+  tests/integration/test_postgresql_contract.py `
+  --no-cov
 ```
 
-That script currently:
+Then build the deployable browser assets from the repository root:
 
-1. builds Rust/WASM from `packages/rust-core`;
-2. writes generated bindings to `apps/web-ui/src/lib/wasm/generated`;
-3. syncs generated WASM type files into `apps/web-ui/src/lib/wasm`;
-4. runs TypeScript and Vite build in `apps/web-ui`;
-5. copies `apps/web-ui/dist` into `apps/server/static/ui`;
-6. copies generated WASM files into `apps/server/static/ui/wasm`;
-7. regenerates Vite asset template tags from the Vite manifest.
-
-The template generator is `apps/server/scripts/update_vite_assets.py`.
-
-## Server-only Render build
-
-The current Render build command is:
-
-```text
-pip install --upgrade pip
-pip install -e ../../packages/core-table
-pip install -r requirements.txt
+```powershell
+pnpm --filter @ttrpg/web-ui build
+python apps/server/scripts/package_web_ui.py
 ```
 
-The current Render start command is:
+After deploying:
 
-```text
-uvicorn main:app --host 0.0.0.0 --port $PORT
-```
+1. Confirm the bounded migration-completed event and expected revision.
+2. Confirm `/health/live` and `/health/ready`.
+3. Verify Neon contains `alembic_version` and all 24 application tables.
+4. Exercise registration, login, sessions, a critical game mutation, chat, and
+   R2 upload/read/delete.
+5. Redeploy the same commit, then cold-start after Render and Neon sleep.
+6. Confirm the previously written records and assets still exist.
+7. Confirm no database URL, object key, or credential appears in logs.
 
-This is enough to start FastAPI routes, templates, WebSocket entrypoints, and
-the health endpoint. It is not enough to regenerate the bundled React client.
-
-## Required environment
-
-At minimum, production needs:
-
-- `ENVIRONMENT=production`;
-- `PORT`, supplied by Render;
-- `DATABASE_URL`;
-- `SECRET_KEY`;
-- `SESSION_SECRET`, at least 32 characters.
-
-`render.yaml` generates `SECRET_KEY`, but it does not list `SESSION_SECRET`.
-`apps/server/main.py` raises at startup in production when `SESSION_SECRET` is
-missing or shorter than 32 characters.
-
-Optional production integrations:
-
-- Google OAuth: `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, `BASE_URL`;
-- email: `RESEND_API_KEY`, `EMAIL_FROM`;
-- Cloudflare R2 assets: lowercase `r2_*` settings, plus `R2_ACCOUNT_ID` support
-  in the R2 manager.
-
-See [Environment variables](../reference/ENVIRONMENT_VARIABLES.md) for the
-complete current list.
-
-## Database and migrations
-
-The server creates tables during startup through `create_tables()`. Numbered
-migrations are separate and live under `apps/server/database/migrations/`.
-
-Before deploying schema changes to an existing database, run the migration path
-against a copy of the target database and confirm the app can start. Do not
-assume `create_tables()` replaces a migration.
-
-## Smoke check
-
-After deploy:
-
-1. Open `/health` and confirm a 200 response.
-2. Open `/users/login`.
-3. Log in or register in the configured auth mode.
-4. Create or open a game session.
-5. Confirm the game page loads React assets from `/static/ui/`.
-6. Confirm the browser opens the game WebSocket.
-7. If R2 is enabled, upload and re-open one asset.
-
-## Deployment checklist
-
-- Production `SESSION_SECRET` is set and long enough.
-- Database URL points at the intended persistent database.
-- Migrations were tested against a copy of the deployed database.
-- Full UI assets exist if the deployment should serve the React game client.
-- `vite_assets.html` matches the current Vite manifest.
-- `/health` responds after deploy.
-- One real session page loads without missing `/static/ui/` files.
+Do not delete an old Render disk or Neon branch until the new service is
+verified and an operator has explicitly accepted any data loss.

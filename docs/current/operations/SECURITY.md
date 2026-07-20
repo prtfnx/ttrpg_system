@@ -6,7 +6,7 @@ public routes.
 Status: partial. This page documents current controls and known gaps visible in
 the codebase.
 
-Last source audit: 2026-07-08
+Last source audit: 2026-07-20
 
 ## Main security boundaries
 
@@ -30,14 +30,24 @@ Production must set:
 
 - `SECRET_KEY` for JWT signing;
 - `SESSION_SECRET` for Starlette session cookies;
-- `DATABASE_URL` for persistent data;
+- `DATABASE_URL` for runtime PostgreSQL access;
+- `DATABASE_MIGRATION_URL` for schema-owner access during migration;
 - OAuth, email, and R2 secrets only when those integrations are enabled.
 
-`main.py` refuses to start in production unless `SESSION_SECRET` exists and is
-at least 32 characters. `render.yaml` currently generates `SECRET_KEY`, but it
-does not list `SESSION_SECRET`.
+`Settings` refuses production startup unless both application secrets are
+strong, CORS is explicit, the metrics token is strong when metrics are
+enabled, and both configured database URLs use PostgreSQL. `render.yaml`
+generates the application secrets and metrics token.
 
 Keep `.env` files and database files out of commits.
+
+Use separate Neon roles before public use:
+
+- `DATABASE_MIGRATION_URL`: direct owner connection for Alembic;
+- `DATABASE_URL`: restricted runtime role with only required schema usage,
+  table DML, and sequence privileges.
+
+Do not grant migration DDL or schema ownership to the runtime role.
 
 ## Cookies and tokens
 
@@ -137,7 +147,8 @@ admin behavior, add an audit row deliberately.
 
 ## Known gaps to preserve honestly
 
-- `CORS_ORIGINS` defaults to `*`, and `render.yaml` currently sets `*`.
+- `CORS_ORIGINS` defaults to `*` for development; production validation rejects
+  it and Render requires an explicit dashboard value.
 - OAuth state cache is in-memory and single-process.
 - Rate limiting is in-memory and single-process.
 - There is no repo-wide Content Security Policy documented in current server

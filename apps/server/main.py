@@ -21,18 +21,18 @@ from database.database import SessionLocal, engine, get_db, schema_is_current
 from fastapi import Depends, FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse, RedirectResponse, Response
-from prometheus_client import CONTENT_TYPE_LATEST, generate_latest
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
+from prometheus_client import CONTENT_TYPE_LATEST, generate_latest
 from routers import audit, auth, compendium, demo, game, invitations, telemetry, users
 from routers.users import get_current_user_optional
 from service.game_session import ConnectionManager
 from service.readiness import ReadinessChecker
-from storage.r2_manager import R2AssetManager
 from sqlalchemy.orm import Session
 from starlette.middleware.sessions import SessionMiddleware
-from utils.logger import bind_log_context, configure_logging, reset_log_context, setup_logger
+from storage.r2_manager import R2AssetManager
 from utils.audit import persist_http_security_decision
+from utils.logger import bind_log_context, configure_logging, reset_log_context, setup_logger
 from utils.observability import configure_tracing, observe_http, record_job, refresh_durable_metrics
 from utils.rate_limiter import login_limiter, registration_limiter
 
@@ -62,12 +62,25 @@ async def lifespan(app: FastAPI):
         extra={"event_name": "application.starting", "service_version": settings.SERVICE_VERSION},
     )
 
-    if settings.is_production and not schema_is_current():
-        logger.critical(
-            "Database schema is not at the release migration head",
-            extra={"event_name": "database.schema.rejected", "outcome": "error"},
-        )
-        raise RuntimeError("Database schema is not current")
+    if settings.is_production:
+        schema_unavailable = False
+        try:
+            schema_current = schema_is_current()
+        except Exception:
+            schema_unavailable = True
+            schema_current = False
+        if schema_unavailable:
+            logger.critical(
+                "Database schema status is unavailable",
+                extra={"event_name": "database.schema.unavailable", "outcome": "error"},
+            )
+            raise RuntimeError("Database schema status is unavailable") from None
+        if not schema_current:
+            logger.critical(
+                "Database schema is not at the release migration head",
+                extra={"event_name": "database.schema.rejected", "outcome": "error"},
+            )
+            raise RuntimeError("Database schema is not current")
     logger.info("Database schema accepted", extra={"event_name": "database.schema.accepted"})
 
     # Store app state in FastAPI app
@@ -386,7 +399,7 @@ def service_metrics(request: Request, db: Session = Depends(get_db)):
     expected = f"Bearer {settings.METRICS_TOKEN}"
     if not settings.METRICS_TOKEN or not secrets.compare_digest(supplied, expected):
         raise HTTPException(status_code=401, detail="Authentication required")
-    refresh_durable_metrics(db, settings.BACKUP_ROOT)
+    refresh_durable_metrics(db)
     return Response(content=generate_latest(), media_type=CONTENT_TYPE_LATEST)
 
 if __name__ == "__main__":

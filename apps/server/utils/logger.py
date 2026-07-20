@@ -13,7 +13,6 @@ import traceback
 from datetime import datetime, timezone
 from typing import Any, Iterator, Mapping
 
-
 _LOG_CONTEXT: contextvars.ContextVar[dict[str, Any]] = contextvars.ContextVar(
     "log_context", default={}
 )

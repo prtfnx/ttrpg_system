@@ -1,5 +1,4 @@
 import pytest
-
 from config import DEFAULT_SECRET_KEY, DEFAULT_SESSION_SECRET, Settings
 
 
@@ -52,11 +51,37 @@ def test_production_accepts_explicit_origins_and_strong_secrets():
         SESSION_SECRET="s" * 40,
         CORS_ORIGINS="https://app.example.com, https://admin.example.com",
         METRICS_TOKEN="m" * 40,
+        DATABASE_URL="postgresql://app:secret@database.example/ttrpg",
     )
 
     assert settings.is_production
     assert settings.cors_origin_list == ["https://app.example.com", "https://admin.example.com"]
     assert settings.resolved_session_secret == "s" * 40
+
+
+def test_production_requires_postgresql():
+    with pytest.raises(ValueError, match="DATABASE_URL"):
+        Settings(
+            ENVIRONMENT="production",
+            SECRET_KEY="j" * 40,
+            SESSION_SECRET="s" * 40,
+            CORS_ORIGINS="https://app.example.com",
+            METRICS_TOKEN="m" * 40,
+            DATABASE_URL="sqlite:///./ttrpg.db",
+        )
+
+
+def test_production_migration_database_requires_postgresql():
+    with pytest.raises(ValueError, match="DATABASE_MIGRATION_URL"):
+        Settings(
+            ENVIRONMENT="production",
+            SECRET_KEY="j" * 40,
+            SESSION_SECRET="s" * 40,
+            CORS_ORIGINS="https://app.example.com",
+            METRICS_TOKEN="m" * 40,
+            DATABASE_URL="postgresql://app:secret@database.example/ttrpg",
+            DATABASE_MIGRATION_URL="sqlite:///./migration.db",
+        )
 
 
 def test_production_requires_metrics_authentication_token():

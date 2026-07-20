@@ -4,29 +4,28 @@
 services:
   - type: web
     name: ttrpg-server
-    env: python
-    # Persistent SQLite requires a paid single-instance service with an attached disk.
-    plan: starter
-    rootDir: apps/server
+    runtime: python
+    plan: free
+    region: frankfurt
     buildCommand: |
       pip install --upgrade pip
-      pip install -e ../../packages/core-table
-      pip install -r requirements.txt
-    startCommand: uvicorn main:app --host 0.0.0.0 --port $PORT
-    preDeployCommand: python database/migrations/run_migrations.py
-    disk:
-      name: ttrpg-data
-      mountPath: /var/data
-      sizeGB: 1
+      pip install -e packages/core-table
+      pip install -r apps/server/requirements.txt
+      pnpm install --frozen-lockfile
+      pnpm --filter @ttrpg/web-ui build
+      python apps/server/scripts/package_web_ui.py
+    startCommand: cd apps/server && python scripts/migrate_and_start.py
     envVars:
       - key: PYTHON_VERSION
         value: "3.11"
-      - key: PORT
-        generateValue: true
+      - key: NODE_VERSION
+        value: "22"
       - key: ENVIRONMENT
         value: production
       - key: DATABASE_URL
-        value: sqlite:////var/data/ttrpg.db
+        sync: false
+      - key: DATABASE_MIGRATION_URL
+        sync: false
       - key: SECRET_KEY
         generateValue: true
       - key: SESSION_SECRET
@@ -43,8 +42,6 @@ services:
         value: json
       - key: AUDIT_RETENTION_DAYS
         value: 365
-      - key: BACKUP_ROOT
-        value: /var/data/backups
       # Render is the only public ingress and supplies the first X-Forwarded-For value.
       - key: TRUST_PROXY_HEADERS
         value: true

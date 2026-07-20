@@ -3,15 +3,12 @@
 from __future__ import annotations
 
 import functools
-import json
 import time
 from collections.abc import Callable
 from datetime import datetime, timezone
-from pathlib import Path
 from typing import Any
 
 from prometheus_client import Counter, Gauge, Histogram
-
 
 HTTP_REQUESTS = Counter(
     "ttrpg_http_requests_total",
@@ -120,10 +117,6 @@ PENDING_UPLOAD_OLDEST_AGE = Gauge(
     "ttrpg_pending_upload_oldest_age_seconds",
     "Age of the oldest durable upload intent awaiting confirmation.",
 )
-BACKUP_LAST_SUCCESS = Gauge(
-    "ttrpg_backup_last_success_timestamp_seconds",
-    "Creation time of the newest local verified-backup manifest, or zero if absent.",
-)
 OBSERVABILITY_EXPORTER_CONFIGURED = Gauge(
     "ttrpg_observability_exporter_configured",
     "Whether an observability exporter is configured.",
@@ -150,7 +143,7 @@ _LIMITERS = {
     "security_audit", "unknown",
 }
 _EMAIL_OPERATIONS = {"password_reset", "password_changed", "email_change_verify", "email_change_notify", "unknown"}
-_JOB_NAMES = {"rate_limit_cleanup", "audit_retention", "database_backup", "database_restore", "r2_smoke", "r2_orphan_audit", "r2_backup", "r2_restore", "migration", "unknown"}
+_JOB_NAMES = {"rate_limit_cleanup", "audit_retention", "r2_smoke", "r2_orphan_audit", "migration", "unknown"}
 
 
 def _message_type(value: Any) -> str:
@@ -323,8 +316,8 @@ def install_database_metrics(engine: Any, session_factory: Any) -> None:
     _DATABASE_METRICS_INSTALLED = True
 
 
-def refresh_durable_metrics(db: Any, backup_root: str | Path) -> None:
-    """Refresh bounded DB/disk gauges only when the protected metrics endpoint is scraped."""
+def refresh_durable_metrics(db: Any) -> None:
+    """Refresh bounded durable-state gauges when the metrics endpoint is scraped."""
     try:
         from database.models import AssetUploadIntent
 
@@ -342,19 +335,6 @@ def refresh_durable_metrics(db: Any, backup_root: str | Path) -> None:
             oldest_age = max((datetime.now(timezone.utc) - created_at).total_seconds(), 0.0)
         PENDING_UPLOAD_OLDEST_AGE.set(oldest_age)
 
-        latest_backup = 0.0
-        root = Path(backup_root)
-        if root.is_dir():
-            for manifest_path in root.glob("*/manifest.json"):
-                try:
-                    manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
-                    if manifest.get("schema_version") != 1:
-                        continue
-                    created_at = datetime.fromisoformat(str(manifest["created_at"]).replace("Z", "+00:00"))
-                    latest_backup = max(latest_backup, created_at.timestamp())
-                except (OSError, ValueError, KeyError, TypeError, json.JSONDecodeError):
-                    continue
-        BACKUP_LAST_SUCCESS.set(latest_backup)
         METRIC_REFRESHES.labels("success").inc()
     except Exception:
         METRIC_REFRESHES.labels("error").inc()

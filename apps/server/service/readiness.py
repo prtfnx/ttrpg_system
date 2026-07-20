@@ -2,7 +2,7 @@
 
 from pathlib import Path
 
-from database.migrations.run_migrations import expected_migration_names
+from database.schema import database_heads, repository_heads
 from sqlalchemy import inspect, text
 from utils.logger import setup_logger
 
@@ -11,8 +11,8 @@ logger = setup_logger(__name__)
 REQUIRED_TABLES = {
     "assets",
     "asset_upload_intents",
+    "alembic_version",
     "game_sessions",
-    "schema_migrations",
     "session_assets",
     "users",
 }
@@ -45,27 +45,27 @@ class ReadinessChecker:
                 tables = set(inspect(connection).get_table_names())
                 if REQUIRED_TABLES - tables:
                     return {"ok": False, "code": "required_schema_missing"}
-                applied = [
-                    row[0]
-                    for row in connection.execute(
-                        text("SELECT migration_name FROM schema_migrations ORDER BY id")
-                    ).fetchall()
-                ]
-            expected = expected_migration_names()
+                applied = database_heads(connection)
+            expected = repository_heads()
             if applied != expected:
                 return {
                     "ok": False,
                     "code": "schema_revision_mismatch",
-                    "expected_revision": expected[-1] if expected else None,
-                    "applied_revision": applied[-1] if applied else None,
+                    "expected_revision": ",".join(expected) if expected else None,
+                    "applied_revision": ",".join(applied) if applied else None,
                 }
-            return {"ok": True, "revision": expected[-1] if expected else None}
+            return {"ok": True, "revision": ",".join(expected) if expected else None}
         except Exception:
-            logger.exception(
+            database_unavailable = True
+        else:
+            database_unavailable = False
+
+        if database_unavailable:
+            logger.error(
                 "Database readiness check failed",
                 extra={"event_name": "readiness.database.failed", "outcome": "error"},
             )
-            return {"ok": False, "code": "database_unavailable"}
+        return {"ok": False, "code": "database_unavailable"}
 
     def _check_static_ui(self) -> dict:
         if not self.settings.is_production:

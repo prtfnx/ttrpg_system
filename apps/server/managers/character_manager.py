@@ -21,8 +21,8 @@ from database.models import (
     SessionCharacter,
     User,
 )
-from sqlalchemy import and_, or_
 from service.character_schema import validate_character_document
+from sqlalchemy import and_, or_
 from utils.logger import setup_logger
 
 logger = setup_logger(__name__)

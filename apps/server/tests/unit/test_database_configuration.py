@@ -1,5 +1,6 @@
 from config import Settings
-from database.database import create_database_engine, normalize_database_url
+from database.database import create_database_engine
+from database.url import normalize_database_url
 
 
 def test_provider_postgresql_url_uses_psycopg3_without_losing_query_options():

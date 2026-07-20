@@ -6,19 +6,12 @@ from collections.abc import Iterator
 from typing import Any
 
 from sqlalchemy import create_engine, event
-from sqlalchemy.engine import Engine, URL, make_url
+from sqlalchemy.engine import Engine, URL
 from sqlalchemy.orm import Session, sessionmaker
 
 from config import Settings
 from .models import Base
-
-
-def normalize_database_url(raw_database_url: str) -> URL:
-    """Return a SQLAlchemy URL using Psycopg 3 for provider PostgreSQL URLs."""
-    url = make_url(raw_database_url)
-    if url.drivername == "postgresql":
-        return url.set(drivername="postgresql+psycopg")
-    return url
+from .url import normalize_database_url
 
 
 def _engine_options(settings: Settings, url: URL) -> dict[str, Any]:

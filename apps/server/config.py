@@ -53,6 +53,13 @@ class Settings(BaseSettings):
     BASE_URL: str = "http://localhost:8000"
     CORS_ORIGINS: str = "*"
 
+    # Database
+    DATABASE_URL: str = "sqlite:///./ttrpg.db"
+    DB_POOL_SIZE: int = 5
+    DB_MAX_OVERFLOW: int = 5
+    DB_POOL_TIMEOUT_SECONDS: int = 10
+    DB_CONNECT_TIMEOUT_SECONDS: int = 10
+
     # Observability
     LOG_LEVEL: str = "INFO"
     LOG_FORMAT: str = "json"
@@ -109,6 +116,14 @@ class Settings(BaseSettings):
             raise ValueError("WS_MAX_MESSAGE_BYTES must be between 1024 and 1048576.")
         if not 1 <= self.WS_MESSAGES_PER_MINUTE <= 6000:
             raise ValueError("WS_MESSAGES_PER_MINUTE must be between 1 and 6000.")
+        if not 1 <= self.DB_POOL_SIZE <= 50:
+            raise ValueError("DB_POOL_SIZE must be between 1 and 50.")
+        if not 0 <= self.DB_MAX_OVERFLOW <= 50:
+            raise ValueError("DB_MAX_OVERFLOW must be between 0 and 50.")
+        if not 1 <= self.DB_POOL_TIMEOUT_SECONDS <= 120:
+            raise ValueError("DB_POOL_TIMEOUT_SECONDS must be between 1 and 120.")
+        if not 1 <= self.DB_CONNECT_TIMEOUT_SECONDS <= 120:
+            raise ValueError("DB_CONNECT_TIMEOUT_SECONDS must be between 1 and 120.")
         if _is_production(self.ENVIRONMENT):
             if not self.SECRET_KEY or len(self.SECRET_KEY) < 32 or self.SECRET_KEY == DEFAULT_SECRET_KEY:
                 raise ValueError(
@@ -121,6 +136,9 @@ class Settings(BaseSettings):
                 raise ValueError(
                     "METRICS_TOKEN must be at least 32 characters when metrics are enabled in production."
                 )
+            database_scheme = self.DATABASE_URL.partition(":")[0].lower()
+            if database_scheme not in {"postgresql", "postgresql+psycopg"}:
+                raise ValueError("DATABASE_URL must use PostgreSQL in production.")
 
         return self
 

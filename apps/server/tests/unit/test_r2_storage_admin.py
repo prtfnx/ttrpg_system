@@ -4,6 +4,7 @@ from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from unittest.mock import MagicMock
 
+import pytest
 from database import models
 from sqlalchemy.orm import sessionmaker
 
@@ -112,6 +113,19 @@ def test_smoke_test_round_trips_and_deletes_object():
 
     assert result["success"] is True
     assert client.deleted == [("assets", result["key"])]
+
+
+def test_smoke_test_reports_cleanup_failure_without_object_key():
+    client = FakeClient()
+    client.delete_object = MagicMock(side_effect=PermissionError("denied"))
+    admin = storage_admin.R2StorageAdmin(client, "assets")
+
+    with pytest.raises(storage_admin.StorageAdminError) as error:
+        admin.smoke_test()
+
+    assert error.value.code == "r2_delete_failed"
+    assert error.value.cleanup_required is True
+    assert "smoke-" not in str(error.value)
 
 
 def test_orphan_audit_is_dry_run_and_age_gated():

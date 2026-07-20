@@ -13,16 +13,29 @@ from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Iterable
 
+from dotenv import load_dotenv
+from sqlalchemy import func
+
 REPO_ROOT = Path(__file__).resolve().parents[1]
 SERVER_ROOT = REPO_ROOT / "apps" / "server"
 sys.path.insert(0, str(SERVER_ROOT))
+
+load_dotenv(SERVER_ROOT / ".env", override=False)
 
 from config import Settings  # noqa: E402
 from database.database import SessionLocal  # noqa: E402
 from database.models import Asset, SessionAsset, User  # noqa: E402
 from storage.r2_manager import R2AssetManager  # noqa: E402
-from sqlalchemy import func  # noqa: E402
 from utils.audit import audit_event  # noqa: E402
+
+
+class StorageAdminError(RuntimeError):
+    """Operational failure with a bounded, credential-safe error code."""
+
+    def __init__(self, code: str, *, cleanup_required: bool = False):
+        super().__init__(code)
+        self.code = code
+        self.cleanup_required = cleanup_required
 
 
 class R2StorageAdmin:
@@ -69,6 +82,7 @@ class R2StorageAdmin:
     def smoke_test(self) -> dict:
         key = f"pending/operations/smoke-{uuid.uuid4().hex}.txt"
         payload = b"r2-storage-smoke-test"
+        created = False
         try:
             self.client.put_object(
                 Bucket=self.bucket,
@@ -76,6 +90,7 @@ class R2StorageAdmin:
                 Body=payload,
                 ContentType="text/plain",
             )
+            created = True
             head = self.client.head_object(Bucket=self.bucket, Key=key)
             response = self.client.get_object(Bucket=self.bucket, Key=key)
             body = response["Body"]
@@ -87,7 +102,14 @@ class R2StorageAdmin:
                 raise RuntimeError("R2 smoke object did not round-trip exactly")
             return {"success": True, "key": key, "bytes": len(payload)}
         finally:
-            self.client.delete_object(Bucket=self.bucket, Key=key)
+            if created:
+                try:
+                    self.client.delete_object(Bucket=self.bucket, Key=key)
+                except Exception:
+                    raise StorageAdminError(
+                        "r2_delete_failed",
+                        cleanup_required=True,
+                    ) from None
 
     def audit_orphans(
         self,
@@ -96,7 +118,7 @@ class R2StorageAdmin:
         delete: bool = False,
     ) -> dict:
         known_keys = set(database_keys)
-        objects = self.list_objects(self.bucket, "assets/")
+        objects = self.list_objects(self.bucket)
         object_keys = {item["Key"] for item in objects}
         missing = sorted(known_keys - object_keys)
         orphan_objects = [item for item in objects if item["Key"] not in known_keys]
@@ -187,6 +209,14 @@ def _record_admin_audit(command: str, outcome: str, result: dict | None = None) 
         db.close()
 
 
+def _record_failure(command: str) -> bool:
+    try:
+        _record_admin_audit(command, "failure")
+    except Exception:
+        return False
+    return True
+
+
 def _build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description="R2 asset storage operations")
     subparsers = parser.add_subparsers(dest="command", required=True)
@@ -201,6 +231,11 @@ def _build_parser() -> argparse.ArgumentParser:
     audit = subparsers.add_parser("audit", help="Compare durable DB keys with R2 assets")
     audit.add_argument("--min-age-hours", type=int, default=24)
     audit.add_argument("--delete-orphans", action="store_true")
+    audit.add_argument(
+        "--verbose",
+        action="store_true",
+        help="Include object keys instead of only bounded counts",
+    )
 
     return parser
 
@@ -226,13 +261,50 @@ def main() -> int:
                 delete=args.delete_orphans,
             )
             result["database_integrity"] = inventory
+    except StorageAdminError as exc:
+        print(
+            json.dumps({
+                "success": False,
+                "command": args.command,
+                "error": exc.code,
+                "cleanup_required": exc.cleanup_required,
+                "audit_recorded": _record_failure(args.command),
+            }),
+            file=sys.stderr,
+        )
+        return 1
     except Exception:
-        _record_admin_audit(args.command, "failure")
-        raise
+        print(
+            json.dumps({
+                "success": False,
+                "command": args.command,
+                "error": "r2_operation_failed",
+                "audit_recorded": _record_failure(args.command),
+            }),
+            file=sys.stderr,
+        )
+        return 1
 
     _record_admin_audit(args.command, "success", result)
 
-    print(json.dumps(result, indent=2, default=str))
+    output = result
+    if args.command == "smoke":
+        output = {
+            "success": result["success"],
+            "bytes": result["bytes"],
+        }
+    elif args.command == "audit" and not args.verbose:
+        output = {
+            "database_objects": result["database_objects"],
+            "r2_objects": result["r2_objects"],
+            "missing_count": len(result["missing_objects"]),
+            "orphan_count": len(result["orphan_objects"]),
+            "aged_orphan_count": len(result["aged_orphans"]),
+            "deleted_orphan_count": len(result["deleted_orphans"]),
+            "dry_run": result["dry_run"],
+            "database_integrity": result["database_integrity"],
+        }
+    print(json.dumps(output, indent=2, default=str))
     return 0
 
 

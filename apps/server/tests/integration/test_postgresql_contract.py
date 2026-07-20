@@ -11,11 +11,13 @@ from pathlib import Path
 import pytest
 from alembic import command
 from alembic.config import Config
+from database import models
 from database.models import Base
 from database.schema import repository_heads, schema_is_current
 from database.url import normalize_database_url
 from sqlalchemy import create_engine, inspect, text
 from sqlalchemy.exc import IntegrityError
+from sqlalchemy.orm import Session
 
 SERVER_ROOT = Path(__file__).resolve().parents[2]
 ALEMBIC_INI = SERVER_ROOT / "alembic.ini"
@@ -206,3 +208,164 @@ def test_postgresql_for_update_serializes_competing_writers(postgresql_engine):
         contender.join(timeout=2)
         with postgresql_engine.begin() as connection:
             connection.execute(text("DELETE FROM users WHERE id = :id"), {"id": user_id})
+
+
+def test_postgresql_orm_round_trip_covers_core_persistence_families(
+    postgresql_engine,
+):
+    suffix = uuid.uuid4().hex[:12]
+    connection = postgresql_engine.connect()
+    transaction = connection.begin()
+    db = Session(bind=connection)
+    try:
+        owner = models.User(
+            username=f"orm-{suffix}",
+            email=f"orm-{suffix}@example.test",
+            hashed_password="not-a-real-hash",
+        )
+        db.add(owner)
+        db.flush()
+
+        game = models.GameSession(
+            name="PostgreSQL ORM smoke",
+            session_code=suffix.upper(),
+            owner_id=owner.id,
+        )
+        db.add(game)
+        db.flush()
+
+        membership = models.GamePlayer(session_id=game.id, user_id=owner.id)
+        table = models.VirtualTable(
+            table_id=str(uuid.uuid4()),
+            name="ORM table",
+            width=20,
+            height=20,
+            session_id=game.id,
+        )
+        db.add_all([membership, table])
+        db.flush()
+
+        character = models.SessionCharacter(
+            character_id=str(uuid.uuid4()),
+            session_id=game.id,
+            character_name="ORM hero",
+            character_data='{"name":"ORM hero"}',
+            owner_user_id=owner.id,
+        )
+        entity = models.Entity(
+            entity_id=1,
+            sprite_id=str(uuid.uuid4()),
+            table_id=table.id,
+            name="ORM token",
+            position_x=1,
+            position_y=2,
+            layer="tokens",
+            character_id=character.character_id,
+        )
+        wall = models.Wall(
+            wall_id=str(uuid.uuid4()),
+            table_id=table.table_id,
+            x1=0,
+            y1=0,
+            x2=5,
+            y2=5,
+        )
+        stroke = models.PaintStroke(
+            stroke_id=str(uuid.uuid4()),
+            table_id=table.table_id,
+            created_by=owner.id,
+            stroke_data='{"points":[[0,0],[1,1]]}',
+        )
+        db.add_all([character, entity, wall, stroke])
+        db.flush()
+
+        permission = models.CharacterPermission(
+            character_id=character.character_id,
+            session_id=game.id,
+            user_id=owner.id,
+            granted_by=owner.id,
+        )
+        chat = models.ChatMessage(
+            message_id=str(uuid.uuid4()),
+            client_operation_id=f"chat-{suffix}",
+            session_id=game.id,
+            user_id=owner.id,
+            username=owner.username,
+            text="PostgreSQL ORM smoke",
+            message_json='{"text":"PostgreSQL ORM smoke"}',
+        )
+        combat = models.CombatEncounter(
+            encounter_id=str(uuid.uuid4()),
+            session_id=game.id,
+            table_id=table.table_id,
+        )
+        choice = models.ChoiceEncounter(
+            encounter_id=str(uuid.uuid4()),
+            session_id=game.id,
+            session_code=game.session_code,
+            table_id=table.table_id,
+            title="ORM choice",
+            description="Choose",
+            phase="active",
+            state_json="{}",
+            participants_json="[]",
+            choices_json="[]",
+            dm_notes="",
+            created_by=owner.id,
+        )
+        db.add_all([permission, chat, combat, choice])
+        db.flush()
+
+        combat_action = models.CombatActionJournal(
+            encounter_id=combat.encounter_id,
+            requester_key=f"user:{owner.id}",
+            sequence_id=1,
+            actor_id=character.character_id,
+            command_type="orm_smoke",
+            command_payload_json="{}",
+            result_payload_json="{}",
+            state_before_json="{}",
+            state_after_hash="0" * 64,
+            state_version=1,
+            created_by=owner.id,
+        )
+        choice_event = models.ChoiceEncounterEvent(
+            encounter_id=choice.encounter_id,
+            sequence=1,
+            event_type="created",
+            actor_id=str(owner.id),
+            payload_json="{}",
+        )
+        asset = models.Asset(
+            asset_name="orm-smoke.png",
+            r2_asset_id=f"orm-{suffix}",
+            content_type="image/png",
+            file_size=1,
+            uploaded_by=owner.id,
+            r2_key=f"assets/orm-{suffix}.png",
+            r2_bucket="test-assets",
+        )
+        db.add_all([combat_action, choice_event, asset])
+        db.flush()
+
+        asset_link = models.SessionAsset(
+            session_id=game.id,
+            asset_id=asset.id,
+            display_name="ORM smoke",
+            added_by=owner.id,
+        )
+        db.add(asset_link)
+        db.flush()
+
+        assert db.get(models.User, owner.id).username == owner.username
+        assert db.get(models.VirtualTable, table.id).table_id == table.table_id
+        assert db.get(models.Entity, entity.id).character_id == character.character_id
+        assert db.get(models.ChatMessage, chat.id).client_operation_id == f"chat-{suffix}"
+        assert db.get(models.CombatActionJournal, combat_action.id).state_version == 1
+        assert db.get(models.ChoiceEncounterEvent, choice_event.id).sequence == 1
+        assert db.get(models.SessionAsset, asset_link.id).asset_id == asset.id
+    finally:
+        db.close()
+        if transaction.is_active:
+            transaction.rollback()
+        connection.close()

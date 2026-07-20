@@ -80,20 +80,24 @@ def test_baseline_compiles_for_postgresql(monkeypatch):
     not os.getenv("TEST_POSTGRESQL_DATABASE_URL"),
     reason="TEST_POSTGRESQL_DATABASE_URL is not configured",
 )
-def test_baseline_upgrades_an_empty_postgresql_database(monkeypatch):
+def test_baseline_upgrades_postgresql_database_to_head(monkeypatch):
     database_url = os.environ["TEST_POSTGRESQL_DATABASE_URL"]
     engine = create_engine(normalize_database_url(database_url))
     try:
         existing_tables = set(inspect(engine).get_table_names())
-        assert not existing_tables, (
-            "TEST_POSTGRESQL_DATABASE_URL must point to an empty disposable database"
+        expected_tables = set(Base.metadata.tables) | {"alembic_version"}
+        unexpected_tables = existing_tables - expected_tables
+        assert not unexpected_tables, (
+            "TEST_POSTGRESQL_DATABASE_URL contains tables outside the application schema: "
+            f"{sorted(unexpected_tables)}"
+        )
+        assert not existing_tables or "alembic_version" in existing_tables, (
+            "Refusing to migrate a non-empty PostgreSQL database without alembic_version"
         )
 
         config = _config(monkeypatch, database_url)
         command.upgrade(config, "head")
-        assert set(inspect(engine).get_table_names()) == (
-            set(Base.metadata.tables) | {"alembic_version"}
-        )
+        assert set(inspect(engine).get_table_names()) == expected_tables
         command.check(config)
     finally:
         engine.dispose()

@@ -35,7 +35,6 @@ class _SessionMixin(_ProtocolBase):
                 import json as _json
 
                 from database import crud, schemas
-                from database.database import SessionLocal
                 db = SessionLocal()
                 try:
                     db_table = crud.get_virtual_table_by_id(db, table_id)
@@ -75,7 +74,6 @@ class _SessionMixin(_ProtocolBase):
         if session_code:
             try:
                 from database.crud import update_game_mode
-                from database.database import SessionLocal
                 db = SessionLocal()
                 try:
                     update_game_mode(db, session_code, target_mode)
@@ -110,7 +108,6 @@ class _SessionMixin(_ProtocolBase):
 
             rules_json = json.dumps(rules.to_dict())
             from database.crud import update_session_rules_json
-            from database.database import SessionLocal
             db = SessionLocal()
             try:
                 update_session_rules_json(db, session_code, rules_json)
@@ -137,7 +134,6 @@ class _SessionMixin(_ProtocolBase):
                 import json
 
                 from database.crud import get_game_mode, get_session_rules_json
-                from database.database import SessionLocal
                 db = SessionLocal()
                 try:
                     rules_json = get_session_rules_json(db, session_code)

@@ -28,6 +28,7 @@ vi.mock('@features/chat', () => ({
 
 vi.mock('@features/combat', () => ({
   CombatDock: () => <div data-testid="combat-dock">CombatDock</div>,
+  EncounterView: () => null,
 }));
 
 vi.mock('@features/canvas/components/TokenConfigModal', () => ({

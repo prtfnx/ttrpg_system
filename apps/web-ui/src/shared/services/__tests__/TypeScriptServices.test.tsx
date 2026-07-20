@@ -15,6 +15,11 @@ const mockRenderEngine = {
   move_sprite: vi.fn(),
   get_sprite_info: vi.fn().mockReturnValue({ id: 'sprite_123', x: 100, y: 150 }),
   create_table: vi.fn().mockReturnValue({ success: true, table_id: 'table_456' }),
+  handle_table_data: vi.fn(),
+  set_grid_size: vi.fn(),
+  set_grid_enabled: vi.fn(),
+  set_grid_snapping: vi.fn(),
+  clear_layer: vi.fn(),
   add_sprite_to_layer: vi.fn().mockReturnValue(true),
   load_texture: vi.fn().mockResolvedValue({ success: true, texture_id: 'texture_789' }),
   get_performance_metrics: vi.fn().mockReturnValue({

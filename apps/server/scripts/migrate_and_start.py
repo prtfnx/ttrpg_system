@@ -16,11 +16,15 @@ logger = logging.getLogger("database.startup")
 
 def migrate() -> tuple[str, ...]:
     """Apply and verify migrations without logging connection details."""
-    from database.database import engine
+    from database.database import create_migration_engine, database_settings
     from database.schema import migrate_database_for_start
 
     logger.info("database.migration.started")
-    revisions = migrate_database_for_start(engine)
+    migration_engine = create_migration_engine(database_settings)
+    try:
+        revisions = migrate_database_for_start(migration_engine)
+    finally:
+        migration_engine.dispose()
     logger.info(
         "database.migration.completed",
         extra={"revision": ",".join(revisions)},

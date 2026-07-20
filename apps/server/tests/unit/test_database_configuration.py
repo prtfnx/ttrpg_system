@@ -1,5 +1,7 @@
+from pathlib import Path
+
 from config import Settings
-from database.database import create_database_engine
+from database.database import create_database_engine, create_migration_engine
 from database.url import normalize_database_url
 
 
@@ -44,3 +46,18 @@ def test_unsupported_database_backend_is_rejected():
         assert str(exc) == "Unsupported database backend: mysql"
     else:
         raise AssertionError("Expected an unsupported database backend error")
+
+
+def test_migration_engine_prefers_dedicated_url(tmp_path):
+    runtime_database = tmp_path / "runtime.db"
+    migration_database = tmp_path / "migration.db"
+    settings = Settings(
+        DATABASE_URL=f"sqlite:///{runtime_database.as_posix()}",
+        DATABASE_MIGRATION_URL=f"sqlite:///{migration_database.as_posix()}",
+    )
+
+    engine = create_migration_engine(settings)
+    try:
+        assert Path(engine.url.database) == migration_database
+    finally:
+        engine.dispose()

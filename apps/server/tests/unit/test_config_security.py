@@ -71,6 +71,19 @@ def test_production_requires_postgresql():
         )
 
 
+def test_production_migration_database_requires_postgresql():
+    with pytest.raises(ValueError, match="DATABASE_MIGRATION_URL"):
+        Settings(
+            ENVIRONMENT="production",
+            SECRET_KEY="j" * 40,
+            SESSION_SECRET="s" * 40,
+            CORS_ORIGINS="https://app.example.com",
+            METRICS_TOKEN="m" * 40,
+            DATABASE_URL="postgresql://app:secret@database.example/ttrpg",
+            DATABASE_MIGRATION_URL="sqlite:///./migration.db",
+        )
+
+
 def test_production_requires_metrics_authentication_token():
     with pytest.raises(ValueError, match="METRICS_TOKEN"):
         Settings(

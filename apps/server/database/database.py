@@ -33,9 +33,12 @@ def _engine_options(settings: Settings, url: URL) -> dict[str, Any]:
     return options
 
 
-def create_database_engine(settings: Settings) -> Engine:
+def create_database_engine(
+    settings: Settings,
+    database_url: str | URL | None = None,
+) -> Engine:
     """Build a database engine with dialect-specific connection behavior."""
-    url = normalize_database_url(settings.DATABASE_URL)
+    url = normalize_database_url(database_url or settings.DATABASE_URL)
     database_engine = create_engine(url, **_engine_options(settings, url))
 
     if url.get_backend_name() == "sqlite":
@@ -56,6 +59,12 @@ def create_database_engine(settings: Settings) -> Engine:
     return database_engine
 
 
+def create_migration_engine(settings: Settings) -> Engine:
+    """Build the short-lived schema-owner engine used only by Alembic."""
+    database_url = settings.DATABASE_MIGRATION_URL or settings.DATABASE_URL
+    return create_database_engine(settings, database_url)
+
+
 database_settings = Settings()
 DATABASE_URL = database_settings.DATABASE_URL
 engine = create_database_engine(database_settings)
@@ -66,7 +75,11 @@ install_database_metrics(engine, SessionLocal)
 
 def provision_database() -> None:
     """Upgrade the configured database to the repository's Alembic head."""
-    upgrade_database_to_head(normalize_database_url(DATABASE_URL))
+    database_url = (
+        database_settings.DATABASE_MIGRATION_URL
+        or database_settings.DATABASE_URL
+    )
+    upgrade_database_to_head(normalize_database_url(database_url))
 
 
 def schema_is_current() -> bool:

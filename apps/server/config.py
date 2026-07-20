@@ -55,6 +55,7 @@ class Settings(BaseSettings):
 
     # Database
     DATABASE_URL: str = "sqlite:///./ttrpg.db"
+    DATABASE_MIGRATION_URL: str | None = None
     DB_POOL_SIZE: int = 5
     DB_MAX_OVERFLOW: int = 5
     DB_POOL_TIMEOUT_SECONDS: int = 10
@@ -138,6 +139,12 @@ class Settings(BaseSettings):
             database_scheme = self.DATABASE_URL.partition(":")[0].lower()
             if database_scheme not in {"postgresql", "postgresql+psycopg"}:
                 raise ValueError("DATABASE_URL must use PostgreSQL in production.")
+            if self.DATABASE_MIGRATION_URL:
+                migration_scheme = self.DATABASE_MIGRATION_URL.partition(":")[0].lower()
+                if migration_scheme not in {"postgresql", "postgresql+psycopg"}:
+                    raise ValueError(
+                        "DATABASE_MIGRATION_URL must use PostgreSQL in production."
+                    )
 
         return self
 

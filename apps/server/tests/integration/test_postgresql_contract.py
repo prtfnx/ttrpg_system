@@ -7,6 +7,7 @@ import threading
 import time
 import uuid
 from pathlib import Path
+from types import SimpleNamespace
 
 import pytest
 from alembic import command
@@ -15,9 +16,11 @@ from database import models
 from database.models import Base
 from database.schema import repository_heads, schema_is_current
 from database.url import normalize_database_url
+from service.readiness import ReadinessChecker
 from sqlalchemy import create_engine, inspect, text
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
+from sqlalchemy.pool import NullPool
 
 SERVER_ROOT = Path(__file__).resolve().parents[2]
 ALEMBIC_INI = SERVER_ROOT / "alembic.ini"
@@ -34,7 +37,16 @@ pytestmark = [
 
 @pytest.fixture(scope="module")
 def postgresql_engine():
-    engine = create_engine(normalize_database_url(POSTGRESQL_URL), pool_pre_ping=True)
+    normalized_url = normalize_database_url(POSTGRESQL_URL)
+    assert normalized_url.database is not None
+    assert (
+        "test" in normalized_url.database.lower()
+        or os.getenv("ALLOW_POSTGRESQL_INTEGRATION_TARGET") == "1"
+    ), (
+        "Refusing PostgreSQL integration tests unless the database name contains "
+        "'test' or ALLOW_POSTGRESQL_INTEGRATION_TARGET=1 is explicitly set"
+    )
+    engine = create_engine(normalized_url, pool_pre_ping=True)
     expected_tables = set(Base.metadata.tables) | {"alembic_version"}
     existing_tables = set(inspect(engine).get_table_names())
     unexpected_tables = existing_tables - expected_tables
@@ -49,6 +61,22 @@ def postgresql_engine():
     config = Config(ALEMBIC_INI)
     config.attributes["database_url"] = POSTGRESQL_URL
     command.upgrade(config, "head")
+    with engine.connect() as connection:
+        nonempty_tables = {
+            table_name: connection.execute(
+                text(f'SELECT COUNT(*) FROM "{table_name}"')
+            ).scalar_one()
+            for table_name in Base.metadata.tables
+        }
+    nonempty_tables = {
+        table_name: count
+        for table_name, count in nonempty_tables.items()
+        if count
+    }
+    assert not nonempty_tables, (
+        "Refusing PostgreSQL integration tests against nonempty application tables: "
+        f"{sorted(nonempty_tables)}"
+    )
 
     try:
         yield engine
@@ -150,6 +178,188 @@ def test_postgresql_enforces_named_membership_uniqueness(postgresql_engine):
             transaction.rollback()
 
 
+def test_postgresql_rejects_invalid_foreign_keys(postgresql_engine):
+    suffix = uuid.uuid4().hex[:12]
+    with postgresql_engine.connect() as connection:
+        transaction = connection.begin()
+        try:
+            with pytest.raises(IntegrityError) as error:
+                with connection.begin_nested():
+                    connection.execute(
+                        text(
+                            "INSERT INTO game_sessions "
+                            "(name, session_code, owner_id, is_active, is_demo) "
+                            "VALUES (:name, :code, :owner_id, true, false)"
+                        ),
+                        {
+                            "name": "Invalid owner",
+                            "code": suffix.upper(),
+                            "owner_id": 2_147_483_647,
+                        },
+                    )
+
+            assert (
+                error.value.orig.diag.constraint_name
+                == "fk_game_sessions_owner_id_users"
+            )
+        finally:
+            transaction.rollback()
+
+
+def _run_competing_inserts(
+    engine,
+    statement: str,
+    parameters: list[dict],
+) -> list[str]:
+    barrier = threading.Barrier(len(parameters))
+    outcomes: list[str] = []
+    failures: list[BaseException] = []
+    outcome_lock = threading.Lock()
+
+    def insert(parameters_for_writer: dict) -> None:
+        try:
+            with engine.connect() as connection:
+                transaction = connection.begin()
+                try:
+                    barrier.wait(timeout=5)
+                    connection.execute(text(statement), parameters_for_writer)
+                    transaction.commit()
+                    outcome = "committed"
+                except IntegrityError as exc:
+                    transaction.rollback()
+                    outcome = exc.orig.diag.constraint_name
+                with outcome_lock:
+                    outcomes.append(outcome)
+        except BaseException as exc:
+            with outcome_lock:
+                failures.append(exc)
+
+    threads = [
+        threading.Thread(target=insert, args=(item,), daemon=True)
+        for item in parameters
+    ]
+    for thread in threads:
+        thread.start()
+    for thread in threads:
+        thread.join(timeout=10)
+
+    assert all(not thread.is_alive() for thread in threads)
+    assert not failures
+    return outcomes
+
+
+def test_postgresql_serializes_chat_and_combat_idempotency(postgresql_engine):
+    suffix = uuid.uuid4().hex[:12]
+    with postgresql_engine.begin() as connection:
+        user_id = connection.execute(
+            text(
+                "INSERT INTO users "
+                "(username, hashed_password, disabled, is_verified, session_version) "
+                "VALUES (:username, :password, false, false, 0) RETURNING id"
+            ),
+            {"username": f"idempotency-{suffix}", "password": "not-a-real-hash"},
+        ).scalar_one()
+        session_id = connection.execute(
+            text(
+                "INSERT INTO game_sessions "
+                "(name, session_code, owner_id, is_active, is_demo) "
+                "VALUES (:name, :code, :owner_id, true, false) RETURNING id"
+            ),
+            {
+                "name": "Idempotency contract",
+                "code": suffix.upper(),
+                "owner_id": user_id,
+            },
+        ).scalar_one()
+        encounter_id = str(uuid.uuid4())
+        connection.execute(
+            text(
+                "INSERT INTO combat_encounters "
+                "(encounter_id, session_id, table_id, round_number, "
+                "current_turn_index, state_version) "
+                "VALUES (:encounter_id, :session_id, :table_id, 0, 0, 0)"
+            ),
+            {
+                "encounter_id": encounter_id,
+                "session_id": session_id,
+                "table_id": str(uuid.uuid4()),
+            },
+        )
+
+    try:
+        operation_id = f"chat-{suffix}"
+        chat_outcomes = _run_competing_inserts(
+            postgresql_engine,
+            "INSERT INTO chat_messages "
+            "(message_id, client_operation_id, session_id, user_id, channel, "
+            "text, message_json) "
+            "VALUES (:message_id, :operation_id, :session_id, :user_id, "
+            "'public', 'hello', '{}')",
+            [
+                {
+                    "message_id": str(uuid.uuid4()),
+                    "operation_id": operation_id,
+                    "session_id": session_id,
+                    "user_id": user_id,
+                }
+                for _ in range(2)
+            ],
+        )
+        assert sorted(chat_outcomes) == [
+            "committed",
+            "uq_chat_sender_operation",
+        ]
+
+        action_parameters = {
+            "encounter_id": encounter_id,
+            "requester_key": f"user:{user_id}",
+            "sequence_id": 1,
+            "created_by": user_id,
+        }
+        combat_outcomes = _run_competing_inserts(
+            postgresql_engine,
+            "INSERT INTO combat_actions "
+            "(encounter_id, requester_key, sequence_id, command_type, "
+            "command_payload_json, result_payload_json, state_before_json, "
+            "state_after_hash, state_version, created_by) "
+            "VALUES (:encounter_id, :requester_key, :sequence_id, 'test', "
+            "'{}', '{}', '{}', :state_hash, 1, :created_by)",
+            [
+                {**action_parameters, "state_hash": character}
+                for character in ("a" * 64, "b" * 64)
+            ],
+        )
+        assert sorted(combat_outcomes) == [
+            "committed",
+            "uq_combat_action_request",
+        ]
+    finally:
+        with postgresql_engine.begin() as connection:
+            connection.execute(
+                text("DELETE FROM combat_actions WHERE encounter_id = :encounter_id"),
+                {"encounter_id": encounter_id},
+            )
+            connection.execute(
+                text("DELETE FROM chat_messages WHERE session_id = :session_id"),
+                {"session_id": session_id},
+            )
+            connection.execute(
+                text(
+                    "DELETE FROM combat_encounters "
+                    "WHERE encounter_id = :encounter_id"
+                ),
+                {"encounter_id": encounter_id},
+            )
+            connection.execute(
+                text("DELETE FROM game_sessions WHERE id = :session_id"),
+                {"session_id": session_id},
+            )
+            connection.execute(
+                text("DELETE FROM users WHERE id = :user_id"),
+                {"user_id": user_id},
+            )
+
+
 def test_postgresql_for_update_serializes_competing_writers(postgresql_engine):
     suffix = uuid.uuid4().hex[:12]
     with postgresql_engine.begin() as connection:
@@ -208,6 +418,70 @@ def test_postgresql_for_update_serializes_competing_writers(postgresql_engine):
         contender.join(timeout=2)
         with postgresql_engine.begin() as connection:
             connection.execute(text("DELETE FROM users WHERE id = :id"), {"id": user_id})
+
+
+def test_postgresql_readiness_detects_revision_mismatch(postgresql_engine):
+    checker = ReadinessChecker(
+        SimpleNamespace(is_production=False),
+        postgresql_engine,
+        r2_manager=None,
+        static_ui_path=Path("unused"),
+        compendium_artifact=None,
+    )
+    assert checker._check_database() == {
+        "ok": True,
+        "revision": "0001_postgresql_baseline",
+    }
+
+    with postgresql_engine.begin() as connection:
+        connection.execute(text("DELETE FROM alembic_version"))
+    try:
+        result = checker._check_database()
+        assert result["ok"] is False
+        assert result["code"] == "schema_revision_mismatch"
+        assert result["applied_revision"] is None
+    finally:
+        with postgresql_engine.begin() as connection:
+            connection.execute(
+                text(
+                    "INSERT INTO alembic_version (version_num) "
+                    "VALUES ('0001_postgresql_baseline')"
+                )
+            )
+
+
+def test_postgresql_pre_ping_recycles_terminated_connection(postgresql_engine):
+    engine = create_engine(
+        postgresql_engine.url,
+        pool_pre_ping=True,
+        pool_size=1,
+        max_overflow=0,
+    )
+    terminator = create_engine(
+        postgresql_engine.url,
+        poolclass=NullPool,
+    )
+    try:
+        with engine.connect() as connection:
+            stale_backend_pid = connection.execute(
+                text("SELECT pg_backend_pid()")
+            ).scalar_one()
+
+        with terminator.begin() as connection:
+            assert connection.execute(
+                text("SELECT pg_terminate_backend(:pid)"),
+                {"pid": stale_backend_pid},
+            ).scalar_one()
+
+        with engine.connect() as connection:
+            replacement_backend_pid = connection.execute(
+                text("SELECT pg_backend_pid()")
+            ).scalar_one()
+            assert connection.execute(text("SELECT 1")).scalar_one() == 1
+        assert replacement_backend_pid != stale_backend_pid
+    finally:
+        engine.dispose()
+        terminator.dispose()
 
 
 def test_postgresql_orm_round_trip_covers_core_persistence_families(

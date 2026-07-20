@@ -56,8 +56,8 @@ class _EncounterMixin(_ProtocolBase):
             for choice in choices
         ):
             return Message(MessageType.ERROR, {'error': 'choices required'})
-        from service.encounter_engine import EncounterEngine
         from service.choice_encounter_persistence_service import ChoiceEncounterPersistenceError
+        from service.encounter_engine import EncounterEngine
         session_code = self._get_session_code()
         created_by = self._get_user_id(msg, client_id)
         try:
@@ -99,8 +99,8 @@ class _EncounterMixin(_ProtocolBase):
     async def handle_encounter_end(self, msg: Message, client_id: str) -> Message:
         if not is_dm(self._get_client_role(client_id)):
             return Message(MessageType.ERROR, {'error': 'Only DMs can end encounters'})
-        from service.encounter_engine import EncounterEngine
         from service.choice_encounter_persistence_service import ChoiceEncounterPersistenceError
+        from service.encounter_engine import EncounterEngine
         d = msg.data or {}
         session_code = self._get_session_code()
         try:
@@ -146,8 +146,8 @@ class _EncounterMixin(_ProtocolBase):
         if not choice_id:
             return Message(MessageType.ERROR, {'error': 'choice_id required'})
         player_id = str(self._get_user_id(msg, client_id) or client_id)
-        from service.encounter_engine import EncounterEngine
         from service.choice_encounter_persistence_service import ChoiceEncounterPersistenceError
+        from service.encounter_engine import EncounterEngine
         session_code = self._get_session_code()
         try:
             active = self._load_active_choice_encounter(session_code, d.get('encounter_id'))
@@ -188,8 +188,8 @@ class _EncounterMixin(_ProtocolBase):
         except (TypeError, ValueError):
             return Message(MessageType.ERROR, {'error': 'bonus must be an integer'})
         player_id = str(self._get_user_id(msg, client_id) or client_id)
-        from service.encounter_engine import EncounterEngine
         from service.choice_encounter_persistence_service import ChoiceEncounterPersistenceError
+        from service.encounter_engine import EncounterEngine
         session_code = self._get_session_code()
         try:
             active = self._load_active_choice_encounter(session_code, d.get('encounter_id'))

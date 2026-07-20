@@ -6,10 +6,9 @@ import os
 from logging.config import fileConfig
 
 from alembic import context
-from sqlalchemy import create_engine, pool
-
 from database.models import Base
 from database.url import normalize_database_url
+from sqlalchemy import create_engine, pool
 
 config = context.config
 

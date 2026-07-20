@@ -4,10 +4,8 @@ from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from unittest.mock import MagicMock
 
-import pytest
-from sqlalchemy.orm import sessionmaker
-
 from database import models
+from sqlalchemy.orm import sessionmaker
 
 SCRIPT_PATH = Path(__file__).resolve().parents[4] / "scripts" / "r2_storage_admin.py"
 spec = importlib.util.spec_from_file_location("r2_storage_admin", SCRIPT_PATH)

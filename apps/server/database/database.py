@@ -5,12 +5,12 @@ from __future__ import annotations
 from collections.abc import Iterator
 from typing import Any
 
-from sqlalchemy import create_engine, event
-from sqlalchemy.engine import Engine, URL
-from sqlalchemy.orm import Session, sessionmaker
-
 from config import Settings
-from .models import Base
+from sqlalchemy import create_engine, event
+from sqlalchemy.engine import URL, Engine
+from sqlalchemy.orm import Session, sessionmaker
+from utils.observability import install_database_metrics
+
 from .schema import schema_is_current as _schema_is_current
 from .schema import upgrade_database_to_head
 from .url import normalize_database_url
@@ -60,8 +60,6 @@ database_settings = Settings()
 DATABASE_URL = database_settings.DATABASE_URL
 engine = create_database_engine(database_settings)
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
-
-from utils.observability import install_database_metrics
 
 install_database_metrics(engine, SessionLocal)
 

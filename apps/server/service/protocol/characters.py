@@ -840,5 +840,5 @@ class _CharactersMixin(_ProtocolBase):
             finally:
                 db.close()
 
-        except Exception as e:
+        except Exception:
             logger.exception("Character-to-token synchronization failed")

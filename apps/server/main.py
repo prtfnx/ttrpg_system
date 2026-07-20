@@ -21,18 +21,18 @@ from database.database import SessionLocal, engine, get_db, schema_is_current
 from fastapi import Depends, FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse, RedirectResponse, Response
-from prometheus_client import CONTENT_TYPE_LATEST, generate_latest
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
+from prometheus_client import CONTENT_TYPE_LATEST, generate_latest
 from routers import audit, auth, compendium, demo, game, invitations, telemetry, users
 from routers.users import get_current_user_optional
 from service.game_session import ConnectionManager
 from service.readiness import ReadinessChecker
-from storage.r2_manager import R2AssetManager
 from sqlalchemy.orm import Session
 from starlette.middleware.sessions import SessionMiddleware
-from utils.logger import bind_log_context, configure_logging, reset_log_context, setup_logger
+from storage.r2_manager import R2AssetManager
 from utils.audit import persist_http_security_decision
+from utils.logger import bind_log_context, configure_logging, reset_log_context, setup_logger
 from utils.observability import configure_tracing, observe_http, record_job, refresh_durable_metrics
 from utils.rate_limiter import login_limiter, registration_limiter
 

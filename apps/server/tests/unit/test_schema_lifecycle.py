@@ -1,6 +1,4 @@
 from alembic import command
-from sqlalchemy import create_engine
-
 from database.models import Base
 from database.schema import (
     alembic_config,
@@ -9,6 +7,7 @@ from database.schema import (
     schema_is_current,
     upgrade_database_to_head,
 )
+from sqlalchemy import create_engine
 
 
 def test_schema_lifecycle_tracks_repository_head(tmp_path):

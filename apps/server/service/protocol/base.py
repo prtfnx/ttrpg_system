@@ -273,10 +273,10 @@ class ServerProtocol(
                         responses.append(response)
                 else:
                     logger.warning(f"No handler for batch message type: {individual_msg.type}")
-            except Exception:
+            except Exception as exc:
                 logger.exception("Batch message processing failed")
                 responses.append(Message(MessageType.ERROR, {
-                    'error': f'Batch message processing error: {str(e)}',
+                    'error': f'Batch message processing error: {str(exc)}',
                     'original_message': msg_data,
                 }))
         if responses:

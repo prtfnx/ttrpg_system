@@ -8,8 +8,8 @@ from typing import Annotated, Any
 
 from database import crud, models
 from database.database import get_db
-from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from database.schemas import User
+from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from pydantic import BaseModel
 from routers.users import get_current_active_user
 from sqlalchemy import desc

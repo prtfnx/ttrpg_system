@@ -1,7 +1,5 @@
+from database.models import NAMING_CONVENTION, Base
 from sqlalchemy import ForeignKeyConstraint, PrimaryKeyConstraint, UniqueConstraint
-
-from database.models import Base, NAMING_CONVENTION
-
 
 EXPECTED_TABLES = {
     "asset_upload_intents",

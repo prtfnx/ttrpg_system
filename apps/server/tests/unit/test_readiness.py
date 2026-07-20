@@ -4,7 +4,7 @@ from pathlib import Path
 from types import SimpleNamespace
 
 from database.schema import repository_heads
-from service.compendium_artifact import CompendiumArtifact, REQUIRED_FILES
+from service.compendium_artifact import REQUIRED_FILES, CompendiumArtifact
 from service.readiness import ReadinessChecker
 from sqlalchemy import create_engine, text
 

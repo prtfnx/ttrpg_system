@@ -7,9 +7,8 @@ Create Date: 2026-07-17 14:37:18.276166
 
 from typing import Sequence, Union
 
-from alembic import op
 import sqlalchemy as sa
-
+from alembic import op
 
 revision: str = '0001_postgresql_baseline'
 down_revision: Union[str, Sequence[str], None] = None

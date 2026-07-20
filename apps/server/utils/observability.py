@@ -10,7 +10,6 @@ from typing import Any
 
 from prometheus_client import Counter, Gauge, Histogram
 
-
 HTTP_REQUESTS = Counter(
     "ttrpg_http_requests_total",
     "Completed HTTP requests.",

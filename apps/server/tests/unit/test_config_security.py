@@ -1,5 +1,4 @@
 import pytest
-
 from config import DEFAULT_SECRET_KEY, DEFAULT_SESSION_SECRET, Settings
 
 

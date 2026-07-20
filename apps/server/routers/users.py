@@ -20,8 +20,8 @@ from jwt.exceptions import InvalidTokenError
 from models import auth as auth_models
 from service.email import send_email_change_notify, send_email_change_verify, send_password_changed, send_password_reset
 from sqlalchemy.orm import Session
-from utils.logger import setup_logger
 from utils.audit import audit_event
+from utils.logger import setup_logger
 from utils.observability import record_auth
 from utils.rate_limiter import get_client_ip, login_limiter, password_reset_limiter, registration_limiter
 

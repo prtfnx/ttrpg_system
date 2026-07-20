@@ -1,6 +1,5 @@
-from sqlalchemy import create_engine
-
 from database.schema import migrate_database_for_start, repository_heads
+from sqlalchemy import create_engine
 
 
 def test_startup_migration_upgrades_and_verifies_head(tmp_path):

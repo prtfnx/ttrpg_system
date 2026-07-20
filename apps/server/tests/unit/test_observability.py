@@ -1,9 +1,8 @@
 from datetime import datetime, timedelta, timezone
 
 import pytest
-from prometheus_client import generate_latest
-
 from database import models
+from prometheus_client import generate_latest
 from utils.observability import (
     observe_http,
     record_auth,

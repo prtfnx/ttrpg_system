@@ -15,8 +15,8 @@ from fastapi.templating import Jinja2Templates
 from models import game as game_models
 from service.game_session import get_connection_manager
 from sqlalchemy.orm import Session
-from utils.logger import setup_logger
 from utils.audit import audit_event
+from utils.logger import setup_logger
 from utils.roles import can_assign_role, get_permissions, get_visible_layers, is_dm
 
 from .users import get_current_active_user

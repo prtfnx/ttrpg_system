@@ -24,7 +24,6 @@ from utils.observability import (
     record_ws_message,
 )
 
-
 logger = setup_logger(__name__)
 router = APIRouter()
 settings = Settings()

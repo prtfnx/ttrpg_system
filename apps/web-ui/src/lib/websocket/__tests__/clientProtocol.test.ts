@@ -448,6 +448,28 @@ describe('WebClientProtocol', () => {
     });
   });
 
+  describe('character advancement commands', () => {
+    it('sends XP awards and multiclass requests immediately', () => {
+      const p = makeProtocol('ROOM', 7);
+      const ws = makeOpenWs(p);
+
+      p.awardCharacterXP('char-1', 250, 'quest', 'Ruins');
+      p.requestCharacterMulticlass('char-1', 'wizard');
+
+      const sent = (ws.send as Mock).mock.calls.map(call => JSON.parse(call[0]));
+      expect(sent).toEqual([
+        expect.objectContaining({
+          type: 'xp_award',
+          data: expect.objectContaining({ character_id: 'char-1', amount: 250 }),
+        }),
+        expect.objectContaining({
+          type: 'multiclass_request',
+          data: expect.objectContaining({ character_id: 'char-1', new_class: 'wizard' }),
+        }),
+      ]);
+    });
+  });
+
   describe('character drafts', () => {
     it('sends durable draft mutations immediately with optimistic versions', () => {
       const p = makeProtocol('ROOM', 7);
@@ -1290,6 +1312,27 @@ describe('WebClientProtocol', () => {
       await dispatch(p, 'character_roll_result', { roll: 15 });
       window.removeEventListener('character-roll-result', fn);
       expect(fn).toHaveBeenCalledOnce();
+    });
+
+    it('XP_AWARD_RESPONSE applies the canonical character and version', async () => {
+      const store = mocks.storeState as Record<string, unknown>;
+      const updateCharacter = vi.fn();
+      store.updateCharacter = updateCharacter;
+      store.characters = [{ id: 'c-xp', data: {} }];
+      const p = makeProtocol();
+
+      await dispatch(p, 'xp_award_response', {
+        success: true,
+        character_id: 'c-xp',
+        version: 6,
+        character_data: { name: 'Hero', data: { experience: 900, level: 3 } },
+      });
+
+      expect(updateCharacter).toHaveBeenCalledWith('c-xp', expect.objectContaining({
+        name: 'Hero',
+        data: { experience: 900, level: 3 },
+        version: 6,
+      }));
     });
 
     it('CHARACTER_DRAFT_FINALIZE_RESPONSE stores the character and exposes draft identity', async () => {

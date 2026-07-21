@@ -751,13 +751,30 @@ class _CharactersMixin(_ProtocolBase):
 
         inner = char_data.get('data', char_data)
         classes = list(inner.get('classes', []))
+        if not classes:
+            primary_classes = [
+                name.strip().lower()
+                for name in str(inner.get('class', '')).split('/')
+                if name.strip()
+            ]
+            if len(primary_classes) == 1:
+                classes = [{'name': primary_classes[0], 'level': int(inner.get('level', 1))}]
+            elif primary_classes:
+                return Message(
+                    MessageType.MULTICLASS_RESPONSE,
+                    {
+                        'success': False,
+                        'error': 'Legacy multiclass data must be normalized before adding another class',
+                    },
+                )
         classes.append({'name': new_class.lower(), 'level': 1})
+        total_level = sum(int(character_class.get('level', 1)) for character_class in classes)
 
         updates: dict = {}
         if 'data' in char_data:
-            updates = {'data': {**inner, 'classes': classes}}
+            updates = {'data': {**inner, 'classes': classes, 'level': total_level}}
         else:
-            updates = {**char_data, 'classes': classes}
+            updates = {**char_data, 'classes': classes, 'level': total_level}
 
         save_result = char_mgr.update_character(
             session_id,

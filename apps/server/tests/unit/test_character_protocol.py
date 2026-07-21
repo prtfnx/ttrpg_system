@@ -890,3 +890,29 @@ class TestMulticlassRequest:
         assert "rogue" in class_names
         assert char_mgr.update_character.call_args.kwargs["expected_version"] == 7
         assert resp.data["version"] == 8
+
+    async def test_legacy_primary_class_is_preserved(self):
+        from core_table.protocol import Message, MessageType
+
+        proto = _make_proto()
+        msg = Message(MessageType.MULTICLASS_REQUEST, {
+            "character_id": "c1", "new_class": "rogue",
+        })
+        char_mgr = MagicMock()
+        char_mgr.load_character.return_value = {
+            "success": True,
+            "version": 3,
+            "character_data": {"data": {"class": "fighter", "level": 4}},
+        }
+        char_mgr.validate_multiclass.return_value = (True, None)
+        char_mgr.update_character.return_value = {"success": True, "version": 4}
+
+        with patch("managers.character_manager.get_server_character_manager", return_value=char_mgr):
+            resp = await proto.handle_multiclass_request(msg, "client1")
+
+        assert resp.data["classes"] == [
+            {"name": "fighter", "level": 4},
+            {"name": "rogue", "level": 1},
+        ]
+        updates = char_mgr.update_character.call_args.args[2]
+        assert updates["data"]["level"] == 5

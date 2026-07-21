@@ -631,13 +631,16 @@ class _CharactersMixin(_ProtocolBase):
             return Message(MessageType.XP_AWARD_RESPONSE, {'success': False, 'error': 'No data provided'})
 
         character_id = msg.data.get('character_id')
-        amount = int(msg.data.get('amount', 0))
-        source = msg.data.get('source', 'other')
-        description = msg.data.get('description', '')
+        try:
+            amount = int(msg.data.get('amount', 0))
+        except (TypeError, ValueError):
+            amount = 0
+        source = str(msg.data.get('source', 'other')).strip()[:50] or 'other'
+        description = str(msg.data.get('description', '')).strip()[:300]
         session_id = self._get_session_id(msg)
         user_id = self._get_user_id(msg, client_id) or 0
 
-        if not character_id or amount <= 0:
+        if not character_id or not 0 < amount <= 1_000_000:
             return Message(MessageType.XP_AWARD_RESPONSE, {'success': False, 'error': 'character_id and positive amount required'})
         if not session_id:
             return Message(MessageType.XP_AWARD_RESPONSE, {'success': False, 'error': 'Session not found'})
@@ -672,7 +675,14 @@ class _CharactersMixin(_ProtocolBase):
                 updates['level'] = new_level
                 updates['pending_level_up'] = True
 
-        save_result = char_mgr.update_character(session_id, character_id, updates, user_id=0, bypass_owner_check=True)
+        save_result = char_mgr.update_character(
+            session_id,
+            character_id,
+            updates,
+            user_id=user_id,
+            expected_version=load_result.get('version'),
+            bypass_owner_check=True,
+        )
         if not save_result.get('success'):
             return Message(MessageType.XP_AWARD_RESPONSE, {'success': False, 'error': save_result.get('error', 'Save failed')})
 
@@ -695,8 +705,15 @@ class _CharactersMixin(_ProtocolBase):
             'success': True, 'character_id': character_id,
             'amount': amount, 'new_xp': new_xp,
             'leveled_up': leveled_up, 'new_level': new_level if leveled_up else old_level,
+            'version': save_result.get('version'),
+            'character_data': save_result.get('character_data'),
         }
-        await self.broadcast_to_session(Message(MessageType.XP_AWARD_RESPONSE, resp_data), client_id)
+        await self._broadcast_character_event(
+            Message(MessageType.XP_AWARD_RESPONSE, resp_data),
+            session_id,
+            character_id,
+            client_id,
+        )
         return Message(MessageType.XP_AWARD_RESPONSE, resp_data)
 
     async def handle_multiclass_request(self, msg: Message, client_id: str) -> Message:
@@ -742,12 +759,31 @@ class _CharactersMixin(_ProtocolBase):
         else:
             updates = {**char_data, 'classes': classes}
 
-        save_result = char_mgr.update_character(session_id, character_id, updates, user_id=user_id, bypass_owner_check=is_dm_client)
+        save_result = char_mgr.update_character(
+            session_id,
+            character_id,
+            updates,
+            user_id=user_id,
+            expected_version=load_result.get('version'),
+            bypass_owner_check=is_dm_client,
+        )
         if not save_result.get('success'):
             return Message(MessageType.MULTICLASS_RESPONSE, {'success': False, 'error': save_result.get('error', 'Save failed')})
 
-        resp_data = {'success': True, 'character_id': character_id, 'new_class': new_class, 'classes': classes}
-        await self.broadcast_to_session(Message(MessageType.MULTICLASS_RESPONSE, resp_data), client_id)
+        resp_data = {
+            'success': True,
+            'character_id': character_id,
+            'new_class': new_class,
+            'classes': classes,
+            'version': save_result.get('version'),
+            'character_data': save_result.get('character_data'),
+        }
+        await self._broadcast_character_event(
+            Message(MessageType.MULTICLASS_RESPONSE, resp_data),
+            session_id,
+            character_id,
+            client_id,
+        )
         return Message(MessageType.MULTICLASS_RESPONSE, resp_data)
 
     async def _sync_character_stats_to_tokens(self, session_id: int, character_id: str, updates: dict):

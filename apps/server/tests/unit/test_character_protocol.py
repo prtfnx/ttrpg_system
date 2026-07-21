@@ -688,6 +688,7 @@ class TestXpAward:
     def _char_data(self, xp=0, level=1):
         return {
             "success": True,
+            "version": 4,
             "character_data": {
                 "character_id": "c1", "name": "Hero",
                 "data": {"experience": xp, "level": level, "stats": {}},
@@ -763,7 +764,11 @@ class TestXpAward:
         })
         char_mgr = MagicMock()
         char_mgr.load_character.return_value = self._char_data(xp=100, level=1)
-        char_mgr.update_character.return_value = {"success": True}
+        char_mgr.update_character.return_value = {
+            "success": True,
+            "version": 5,
+            "character_data": {"data": {"experience": 150, "level": 1}},
+        }
 
         db_mock = MagicMock()
         db_mock.__enter__ = MagicMock(return_value=db_mock)
@@ -776,7 +781,9 @@ class TestXpAward:
         assert resp.data["success"] is True
         assert resp.data["new_xp"] == 150
         assert resp.data["leveled_up"] is False
-        proto.broadcast_to_session.assert_awaited_once()  # type: ignore[attr-defined]
+        char_mgr.update_character.assert_called_once()
+        assert char_mgr.update_character.call_args.kwargs["expected_version"] == 4
+        assert resp.data["version"] == 5
 
     async def test_xp_award_triggers_level_up(self):
         from core_table.protocol import Message, MessageType
@@ -789,7 +796,7 @@ class TestXpAward:
         })
         char_mgr = MagicMock()
         char_mgr.load_character.return_value = self._char_data(xp=250, level=1)
-        char_mgr.update_character.return_value = {"success": True}
+        char_mgr.update_character.return_value = {"success": True, "version": 5}
 
         db_mock = MagicMock()
         db_mock.__enter__ = MagicMock(return_value=db_mock)
@@ -867,10 +874,11 @@ class TestMulticlassRequest:
         char_mgr = MagicMock()
         char_mgr.load_character.return_value = {
             "success": True,
+            "version": 7,
             "character_data": {"data": {"classes": [{"name": "fighter", "level": 3}]}},
         }
         char_mgr.validate_multiclass.return_value = (True, None)
-        char_mgr.update_character.return_value = {"success": True}
+        char_mgr.update_character.return_value = {"success": True, "version": 8}
 
         with patch("managers.character_manager.get_server_character_manager", return_value=char_mgr):
             resp = await proto.handle_multiclass_request(msg, "client1")
@@ -880,4 +888,5 @@ class TestMulticlassRequest:
         class_names = [c["name"] for c in resp.data["classes"]]
         assert "fighter" in class_names
         assert "rogue" in class_names
-        proto.broadcast_to_session.assert_awaited_once()  # type: ignore[attr-defined]
+        assert char_mgr.update_character.call_args.kwargs["expected_version"] == 7
+        assert resp.data["version"] == 8

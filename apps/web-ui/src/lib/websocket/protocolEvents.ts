@@ -26,6 +26,7 @@ export type ProtocolEventMap = {
   'character-saved': ProtocolRecord;
   'character-update-response': ProtocolRecord;
   'character-updated': ProtocolRecord;
+  'multiclass-response': ProtocolRecord;
   'compendium-sprite-added': ProtocolRecord;
   'compendium-sprite-removed': ProtocolRecord;
   'compendium-sprite-updated': ProtocolRecord;
@@ -70,6 +71,7 @@ export type ProtocolEventMap = {
   'table-response': ProtocolRecord;
   'table-settings-changed': ProtocolRecord;
   'table-updated': ProtocolRecord;
+  'xp-award-response': ProtocolRecord;
 };
 
 export function emitProtocolEvent<K extends keyof ProtocolEventMap>(

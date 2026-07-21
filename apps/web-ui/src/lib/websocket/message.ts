@@ -115,6 +115,10 @@ export const MessageType = {
   // Skill/ability/saving-throw rolls
   CHARACTER_ROLL: "character_roll",
   CHARACTER_ROLL_RESULT: "character_roll_result",
+  XP_AWARD: "xp_award",
+  XP_AWARD_RESPONSE: "xp_award_response",
+  MULTICLASS_REQUEST: "multiclass_request",
+  MULTICLASS_RESPONSE: "multiclass_response",
   CHARACTER_DRAFT_CREATE_REQUEST: "character_draft_create_request",
   CHARACTER_DRAFT_CREATE_RESPONSE: "character_draft_create_response",
   CHARACTER_DRAFT_LIST_REQUEST: "character_draft_list_request",

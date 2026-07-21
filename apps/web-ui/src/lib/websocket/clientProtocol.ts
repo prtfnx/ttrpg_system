@@ -126,7 +126,7 @@ export class WebClientProtocol {
     const critical = [
       'table_data', 'table_update', 'table_list_request', 'table_request', 'new_table_request', 'table_delete',
       'sprite_create', 'sprite_remove', 'player_kick_request', 'player_ban_request', 'player_list_request',
-      'character_save', 'character_load', 'character_roll',
+      'character_save', 'character_load', 'character_roll', 'xp_award', 'multiclass_request',
       'character_draft_create_request', 'character_draft_update_request',
       'character_draft_finalize_request', 'character_draft_abandon_request',
       'asset_upload_request', 'asset_download_request', 'asset_list_request', 'asset_delete_request', 'asset_hash_check',
@@ -279,6 +279,12 @@ export class WebClientProtocol {
     // Character log and roll results
     this.registerHandler(MessageType.CHARACTER_LOG_RESPONSE, this.handleCharacterLogResponse.bind(this));
     this.registerHandler(MessageType.CHARACTER_ROLL_RESULT, this.handleCharacterRollResult.bind(this));
+    this.registerHandler(MessageType.XP_AWARD_RESPONSE, (message) => {
+      this.handleCharacterAdvancementResponse(message, 'xp-award-response');
+    });
+    this.registerHandler(MessageType.MULTICLASS_RESPONSE, (message) => {
+      this.handleCharacterAdvancementResponse(message, 'multiclass-response');
+    });
     this.registerHandler(MessageType.CHARACTER_DRAFT_CREATE_RESPONSE, async (m) => {
       emitProtocolEvent('character-draft-created', m.data as never);
     });
@@ -1302,6 +1308,32 @@ export class WebClientProtocol {
     emitProtocolEvent('character-roll-result', message.data);
   }
 
+  private handleCharacterAdvancementResponse(
+    message: Message,
+    eventName: 'xp-award-response' | 'multiclass-response',
+  ): void {
+    const data = (message.data ?? {}) as Record<string, unknown>;
+    const characterId = typeof data.character_id === 'string' ? data.character_id : '';
+    if (data.success && characterId) {
+      const canonical = data.character_data as Record<string, unknown> | undefined;
+      const current = useGameStore.getState().characters.find(character => character.id === characterId);
+      const characterData = canonical?.data as Character['data'] | undefined;
+      useGameStore.getState().updateCharacter(characterId, {
+        ...(canonical?.name ? { name: String(canonical.name) } : {}),
+        ...(characterData ? { data: characterData } : {}),
+        ...(typeof data.version === 'number' ? { version: data.version } : {}),
+        updatedAt: new Date().toISOString(),
+        syncStatus: 'synced',
+      });
+      if (!canonical && current) {
+        this.loadCharacter(characterId);
+      }
+    } else if (data.error) {
+      showToast.error(String(data.error));
+    }
+    emitProtocolEvent(eventName, message.data);
+  }
+
   private async handleTableSettingsChanged(message: Message): Promise<void> {
     const data = message.data as {
       dynamic_lighting_enabled: boolean;
@@ -1780,6 +1812,26 @@ export class WebClientProtocol {
       limit,
       user_id: this.userId,
       session_code: this.sessionCode
+    }));
+  }
+
+  awardCharacterXP(characterId: string, amount: number, source: string, description = ''): void {
+    if (this.userId === null) return;
+    this.sendMessage(createMessage(MessageType.XP_AWARD, {
+      character_id: characterId,
+      amount,
+      source,
+      description,
+      session_code: this.sessionCode,
+    }));
+  }
+
+  requestCharacterMulticlass(characterId: string, newClass: string): void {
+    if (this.userId === null) return;
+    this.sendMessage(createMessage(MessageType.MULTICLASS_REQUEST, {
+      character_id: characterId,
+      new_class: newClass,
+      session_code: this.sessionCode,
     }));
   }
 

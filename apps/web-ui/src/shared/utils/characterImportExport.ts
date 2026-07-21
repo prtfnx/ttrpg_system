@@ -8,7 +8,7 @@
 import type { Character } from '@/types';
 
 // Version for file format compatibility
-const EXPORT_FORMAT_VERSION = '1.0';
+export const EXPORT_FORMAT_VERSION = '1.0';
 
 // Interface for exported character file
 export interface ExportedCharacter {
@@ -158,9 +158,9 @@ export function validateImportedCharacter(data: unknown): ImportValidationResult
 
   // Check version
   if (!obj.version) {
-    warnings.push('No version specified in import file');
+    errors.push(`Import file version is required; supported version: ${EXPORT_FORMAT_VERSION}`);
   } else if (obj.version !== EXPORT_FORMAT_VERSION) {
-    warnings.push(`Import file version (${obj.version}) differs from current version (${EXPORT_FORMAT_VERSION})`);
+    errors.push(`Unsupported import file version (${String(obj.version)}); supported version: ${EXPORT_FORMAT_VERSION}`);
   }
 
   // Check required character fields

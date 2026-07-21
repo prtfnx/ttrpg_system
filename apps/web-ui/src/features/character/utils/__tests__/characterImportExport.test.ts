@@ -187,18 +187,18 @@ describe('Character Import/Export', () => {
       expect(result.errors).toHaveLength(0);
     });
 
-    it('should accept data without version with warning', () => {
+    it('should reject data without a version', () => {
       const dataWithoutVersion = {
         character: mockCharacter
       };
 
       const result = validateImportedCharacter(dataWithoutVersion);
       
-      expect(result.valid).toBe(true);
-      expect(result.warnings).toContain('No version specified in import file');
+      expect(result.valid).toBe(false);
+      expect(result.errors).toContain('Import file version is required; supported version: 1.0');
     });
 
-    it('should warn about version mismatch', () => {
+    it('should reject an unsupported version', () => {
       const futureVersion = {
         version: '2.0',
         character: mockCharacter
@@ -206,8 +206,8 @@ describe('Character Import/Export', () => {
 
       const result = validateImportedCharacter(futureVersion);
       
-      expect(result.valid).toBe(true);
-      expect(result.warnings.some(w => w.includes('differs from current version'))).toBe(true);
+      expect(result.valid).toBe(false);
+      expect(result.errors).toContain('Unsupported import file version (2.0); supported version: 1.0');
     });
 
     it('should reject missing character data', () => {
@@ -367,15 +367,14 @@ describe('Character Import/Export', () => {
       }).toThrow('Invalid character file');
     });
 
-    it('should return warnings from validation', () => {
-      const jsonWithWarnings = JSON.stringify({
+    it('should reject unsupported export versions', () => {
+      const unsupportedJSON = JSON.stringify({
         version: '2.0', // Different version
         character: mockCharacter
       });
 
-      const result = importCharacterFromJSON(jsonWithWarnings, 5, 'session');
-      
-      expect(result.warnings.length).toBeGreaterThan(0);
+      expect(() => importCharacterFromJSON(unsupportedJSON, 5, 'session'))
+        .toThrow('Unsupported import file version (2.0)');
     });
   });
 

@@ -1,139 +1,96 @@
 # Characters and compendiums
 
-Audience: contributors changing character sheets, character persistence,
-compendium data, character-token links, rolls, XP, or multiclass behavior.
+Audience: contributors changing character persistence, drafts, rules, imports,
+compendium data, or character-token links.
 
-Status: current but partial.
+Status: current but partial. Character storage and authority are implemented.
+A licensed production compendium artifact is still required.
 
-Last source audit: 2026-07-09
+Last source audit: 2026-07-21
 
-## Source owners
+## Ownership
 
-- `apps/server/service/protocol/characters.py`: character save, load, list,
-  delete, delta update, logs, rolls, XP award, and multiclass handlers.
-- `apps/server/managers/character_manager.py`: server character persistence
-  and ownership checks used by actions.
-- `apps/server/routers/compendium.py`: REST API for races, classes,
-  backgrounds, spells, equipment, monsters, feats, advancement, and
-  multiclass reference data.
-- `apps/server/database/models.py`: `SessionCharacter`, `CharacterLog`, and
-  token links through `Entity.character_id`.
-- `apps/web-ui/src/features/character/`: character panel, sheet, wizard,
-  inventory, spell, XP, advancement, import/export, and sharing UI.
-- `apps/web-ui/src/features/compendium/`: compendium browser, hooks, monster
-  creation, and compendium service.
-- `packages/core-table/core_table/Character.py`: reusable D&D 5e character
-  model.
-- `packages/core-table/core_table/compendiums/`: exported compendium data and
-  loaders.
+- `service/protocol/characters.py` owns character WebSocket commands.
+- `managers/character_manager.py` owns persistence, sharing, concurrency, and
+  archive behavior.
+- `service/character_schema.py` owns the versioned character document.
+- `service/character_rules.py` is the versioned XP and multiclass rules source.
+- `managers/character_draft_manager.py` owns durable wizard drafts.
+- `routers/compendium.py` exposes read-only, bounded compendium REST routes.
+- `service/compendium_artifact.py` verifies production artifact manifests.
+- `apps/web-ui/src/features/character/` owns editing and wizard workflows.
 
-## What the feature does
+## Persisted character flow
 
-Characters are session-owned records with JSON character data, owner/user
-metadata, and a version. The server owns persistence and permission checks.
-The browser owns editing workflows, wizard state, import/export, and display.
+Characters are stored in `session_characters`. The JSON document uses schema
+version 1 and is validated on create, load, list, update, and draft conversion.
+Unknown feature fields survive validation so newer clients do not lose data.
 
-Compendium data is read-only REST data loaded from JSON exports inside the
-installed `core_table` package. Character creation and spell/equipment
-selection use that API through `compendiumService`.
+One access policy covers load, list, update, roll, logs, and event delivery.
+Owners and explicit editors can edit. Session DMs can inspect and administer.
+Only owners and DMs can change sharing or archive a character.
 
-## Character protocol
+Updates use recursive JSON Merge Patch semantics and an atomic version
+compare-and-swap. A conflict returns the canonical document and current version.
+Accepted HP, max-HP, and AC changes synchronize every linked token in the
+session and use normal authorized sprite broadcasts.
 
-Current character messages:
+Deletion is an idempotent archive operation. It detaches linked tokens and
+removes active sharing grants while retaining character logs and an archive
+event.
 
-- `character_save_request`
-- `character_save_response`
-- `character_load_request`
-- `character_load_response`
-- `character_list_request`
-- `character_list_response`
-- `character_delete_request`
-- `character_delete_response`
-- `character_update`
-- `character_update_response`
-- `character_log_request`
-- `character_log_response`
-- `character_roll`
-- `character_roll_result`
-- `xp_award`
-- `xp_award_response`
-- `multiclass_request`
-- `multiclass_response`
+## Draft flow
 
-Save and delete broadcast `character_update` to other clients. Delta update
-uses optimistic version checking in the action layer and broadcasts the
-accepted update with the returned version.
+Wizard drafts are durable and session-scoped. An owner can create, list, load,
+autosave, resume, finalize, or abandon a draft across clients. A DM can inspect
+but cannot modify or finalize another user's draft. Version compare-and-swap
+rejects stale saves. Finalization creates the playable character and marks the
+draft converted in one transaction.
 
-DMs list all characters in a session. Non-DM users list characters filtered to
-their user id.
+## Rolls and advancement
 
-## Rolls, XP, and logs
+A roll request names intent only. The server verifies character access and
+derives the modifier and roll mode from the canonical sheet. A successful roll
+atomically persists character activity and a typed public system-chat record.
 
-`character_roll` sends intent to the server: character id, roll type, skill,
-modifier, advantage, and disadvantage. The server computes the d20 roll through
-the action layer and broadcasts `character_roll_result` to all clients.
+XP awards are DM-only. `xp_award` resolves the pinned
+`dnd5e-2014-v1` XP table, updates through character version
+compare-and-swap, and returns the canonical document. Players see XP as
+read-only state.
 
-`xp_award` is DM-only. The handler updates XP, marks pending level-up when the
-D&D 5e threshold changes level, writes a `CharacterLog` entry, and broadcasts
-`xp_award_response`.
+Multiclass changes use `multiclass_request`. The server validates the pinned
+prerequisites, preserves a legacy primary class when normalizing the class
+array, enforces the total-level cap, and returns the canonical document. The
+browser does not carry fallback prerequisite tables.
 
-Character logs are returned by `character_log_request` and come from
-`CharacterLog`.
+## Import and export
 
-## Token sync
+Browser exports use format `1.0`. Import accepts exactly that version,
+regenerates identity and session fields, and then saves through normal server
+validation. Missing and unknown format versions fail closed. The server
+character document separately accepts legacy unversioned documents through its
+deterministic schema-version migration.
 
-Characters and tokens meet at `Entity.character_id`.
+## Compendium artifact
 
-After a character delta update, the server syncs HP, max HP, and AC to linked
-tokens for the session. The reverse direction also exists in the sprite
-handler: token HP, max HP, and AC updates can write back to the linked
-character.
+The loader activates all five data files atomically. Production requires a
+manifest containing the artifact/schema version, exact file list, byte counts,
+SHA-256 digests, source, source version, license, and attribution. Readiness
+fails when the artifact is absent, corrupt, incomplete, or unattributed.
 
-See [Sprites, tokens, and entities](SPRITES_TOKENS_AND_ENTITIES.md) for token
-authority and vision fields.
+Collection routes are bounded and paginated where appropriate. Verified
+generations use ETags and shared cache headers. Runtime reload is not public.
 
-## Compendium API
+The repository intentionally does not contain an approved production dataset.
+Do not publish ignored local exports or invent a manifest to bypass readiness.
 
-Current REST routes include:
+## Verification
 
-- `/api/compendium/status`
-- `/api/compendium/races`
-- `/api/compendium/races/{race_name}`
-- `/api/compendium/classes`
-- `/api/compendium/classes/{class_name}`
-- `/api/compendium/classes/{class_name}/subclasses`
-- `/api/compendium/backgrounds`
-- `/api/compendium/backgrounds/{background_name}`
-- `/api/compendium/spells`
-- `/api/compendium/spells/{spell_name}`
-- `/api/compendium/equipment`
-- `/api/compendium/monsters`
-- `/api/compendium/monsters/{monster_name}`
-- `/api/compendium/feats`
-- `/api/compendium/feats/{feat_name}`
-- `/api/compendium/advancement`
-- `/api/compendium/classes/{class_name}/multiclass`
-- `/api/compendium/classes/multiclass/all`
+Run:
 
-The browser `CompendiumService` caches responses for five minutes and includes
-authentication cookies in fetch requests.
-
-## Tests to run
-
-- `apps/server/tests/unit/test_character_protocol.py`
-- `apps/server/tests/unit/test_character_overhaul.py`
-- `apps/server/tests/integration/test_compendium_routes.py`
-- `apps/web-ui/src/features/character/**/__tests__/`
-- `apps/web-ui/src/features/compendium/**/__tests__/`
-- `packages/core-table/tests/test_character.py`
-
-Use server tests for persistence, ownership, rolls, XP, multiclass, and
-compendium route changes. Use Vitest for wizard, sheet, panel, service, and
-token binding changes.
-
-## Known edges
-
-- `xp_award` and `multiclass_request` exist in the Python protocol enum, but
-  the browser message constants currently do not expose them.
-- Compendium reload is a development endpoint and reloads JSON from the server
-  process, not from the browser cache.
+- `tests/unit/test_character_protocol.py`;
+- `tests/unit/test_character_overhaul.py`;
+- `tests/unit/test_character_drafts.py`;
+- `tests/integration/test_compendium_routes.py`;
+- character and compendium Vitest suites;
+- `src/lib/websocket/__tests__/clientProtocol.test.ts`.

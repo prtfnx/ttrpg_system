@@ -1,119 +1,79 @@
 # Chat
 
-Audience: contributors changing chat messages, chat history, roll-to-chat
-display, or chat UI.
+Audience: contributors changing chat delivery, history, privacy, or chat UI.
 
-Status: current but partial.
+Status: current but partial. Code-level delivery boundaries are implemented.
+Retention, moderation, export, and DM-whisper policy remain product decisions.
 
-Last source audit: 2026-07-09
+Last source audit: 2026-07-21
 
-## Source owners
+## Ownership
 
-- `apps/server/service/protocol/chat.py`: chat send, persistence, broadcast,
-  whisper delivery, and history request handlers.
-- `apps/server/database/models.py`: `ChatMessage`.
-- `apps/web-ui/src/features/chat/`: chat store, panel, overlay, and WebSocket
-  hook.
-- `apps/web-ui/src/lib/websocket/clientProtocol.ts`: protocol handler
-  registration and message send path.
-- `packages/core-table/core_table/protocol.py`: chat message enum values.
-
-## What the feature does
-
-Chat is session-scoped WebSocket state with database history. The browser keeps
-an in-memory chat store for display. The server persists accepted messages and
-returns history on request.
-
-The chat UI has two surfaces:
-
-- `ChatPanel`: main chat panel with input, history list, command validation,
-  and "Load all messages".
-- `ChatOverlay`: floating recent-message view with local overlay settings.
-
-## Protocol messages
-
-Current chat messages:
-
-- `chat`
-- `chat_confirmation`
-- `chat_request`
-
-Sending a message uses `chat` with a `message` object. Requesting history uses
-`chat_request` with a count, `all`, or filters.
+- `service/protocol/chat.py` validates, persists, and delivers chat.
+- `database/models.py` defines `ChatMessage`.
+- `apps/web-ui/src/features/chat/` owns session-keyed UI state and delivery
+  status.
+- `apps/web-ui/src/lib/websocket/clientProtocol.ts` owns shared transport
+  subscriptions.
 
 ## Send flow
 
-1. `useChatWebSocket.sendMessage()` validates non-empty text and a 500
-   character limit.
-2. The browser adds the message to `useChatStore` optimistically.
-3. If the app protocol is connected, the hook sends the message through the
-   current protocol. Otherwise it can use a raw WebSocket fallback.
-4. `handle_chat()` validates session, payload shape, text, and length.
-5. The server writes `ChatMessage` unless the same `message_id` already exists.
-6. Public messages broadcast `chat` to the session.
-7. The sender receives `chat_confirmation` with the persisted message.
+1. The browser creates a bounded client operation id and a pending row in the
+   active session's chat store.
+2. `chat` reaches the authenticated game WebSocket.
+3. The server derives sender identity and session membership from the
+   connection. Client identity fields are not trusted.
+4. Text, channel, recipient, and attachment policy are validated.
+5. The server persists a server UUID plus the sender-scoped operation id.
+6. Public messages broadcast to the session. Whispers go only to the sender
+   and a distinct active session member.
+7. Confirmation or error moves the pending row to sent or failed. Retrying uses
+   the same operation id and does not rebroadcast a committed duplicate.
 
-Whispers use `channel: whisper` and `recipient_user_id`. The server sends the
-outbound `chat` only to matching connected user ids, excluding the sender
-client. The sender still receives confirmation.
+A malformed whisper never falls through to public delivery. Attachment metadata
+is rejected until it can reference an authorized asset.
 
-## History flow
+## History and roll messages
 
-`chat_request` reads persisted messages for the current session. It supports:
+History defaults to 30 rows and caps each request at 100. It uses opaque server
+cursors and filters whisper visibility before serialization. There is no
+unbounded `all` request.
 
-- recent count, defaulting to 30;
-- `all: true`;
-- `before_id`;
-- `after_id`;
-- `channel`;
-- `user_id`;
-- visibility filtering for the requesting user.
+Successful character rolls persist as typed public `kind: system` chat rows
+with `system_event.type: character_roll`. Reconnect and history therefore show
+the same roll as live delivery; the browser no longer synthesizes transient
+roll-chat rows.
 
-The server responds with `chat` containing `messages`, count metadata, and the
-session id. The browser merges history by id and sorts by timestamp.
+## Browser state
 
-## Roll display
+Chat state, cursors, pending operations, and cleanup are keyed by game session.
+The overlay and panel share one ref-counted protocol binding. Protocol message
+subscriptions support multiple independent consumers.
 
-`useChatWebSocket` listens for `character-roll-result` browser events. It adds
-a local dice-result message to the chat store with roll total and optional
-breakdown. This is display behavior; the server-side roll authority is in the
-character protocol.
+## Transport controls
 
-## Persistence
+The WebSocket requires the HTTP-only auth cookie, active membership, and an
+allowed Origin. Incoming frames and per-connection message rates are bounded.
+Logs omit cookies, tokens, payloads, and private content. Outbound protocol
+sends have a configurable deadline; a slow peer is disconnected through the
+normal cleanup path instead of stalling fan-out indefinitely.
 
-`ChatMessage` stores:
+Production-shaped load tests still need to set the final timeout and capacity
+limits for the deployed Render tier.
 
-- message id;
-- session id;
-- optional user id;
-- username;
-- text;
-- channel;
-- optional recipient user id;
-- optional table id;
-- serialized message JSON;
-- optional attachments JSON;
-- client timestamp and server creation time.
+## Remaining product policy
 
-`to_dict()` reconstructs the stored message JSON and fills in missing
-timestamps or attachments when available.
+Before public release, decide and document:
 
-## Tests to run
+- retention and deletion/export behavior;
+- moderation and abuse response;
+- whether a DM may inspect whispers;
+- whether authorized asset attachments are supported;
+- legal/privacy notice and message quotas.
 
-- chat server tests under `apps/server/tests/`
-- `apps/web-ui/src/features/chat/__tests__/chatStore.test.ts`
-- `apps/web-ui/src/features/chat/__tests__/useChatWebSocket.test.tsx`
-- `apps/web-ui/src/features/chat/components/__tests__/ChatPanel.test.tsx`
-- `apps/web-ui/src/features/chat/components/__tests__/ChatOverlay.test.tsx`
-- `apps/web-ui/src/lib/websocket/__tests__/clientProtocol.test.ts`
+## Verification
 
-Use server tests for persistence, history, dedupe, and whisper behavior. Use
-Vitest for browser validation, optimistic store behavior, history merging, and
-roll display.
-
-## Known edges
-
-- The browser validates slash commands in `ChatPanel`, but command execution is
-  not a separate server command system.
-- Browser optimistic messages can appear before the server confirmation comes
-  back.
+Run `tests/unit/test_chat_protocol.py`,
+`tests/unit/test_game_ws_security.py`,
+`tests/unit/test_game_session_protocol.py`, the chat Vitest suites, and the
+browser protocol suite.

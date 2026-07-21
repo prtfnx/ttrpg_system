@@ -1,133 +1,70 @@
 # Assets and storage
 
-Audience: contributors changing asset upload, download, R2/local storage,
-texture loading, or asset-backed table data.
+Audience: contributors changing asset upload, authorization, R2, or recovery.
 
-Status: current but partial.
+Status: current. Image upload and storage integrity are implemented. Independent
+production backup remains an operations blocker.
 
-Last source audit: 2026-07-09
+Last source audit: 2026-07-21
 
-## Source owners
+## Ownership
 
-- `apps/server/service/protocol/assets.py`: asset upload, download, list,
-  confirmation, delete, hash check, and table asset hash helpers.
-- `apps/server/service/asset_manager.py`: presigned URL generation,
-  permissions, rate limits, pending uploads, R2 metadata, and database writes.
-- `apps/server/storage/`: storage backend and R2 manager.
-- `apps/server/database/models.py`: `Asset` metadata.
-- `apps/web-ui/src/features/assets/`: asset manager panels, background panel,
-  asset cache, and integration service.
-- `apps/web-ui/src/features/canvas/components/GameClient.tsx`: handles
-  renderer asset download requests.
-- `apps/web-ui/src/lib/websocket/clientProtocol.ts`: asset protocol senders,
-  incoming handlers, and asset DOM events.
-- `packages/rust-core/src/net/asset_manager.rs`: WASM-side asset cache,
-  xxHash lookup, downloads, and stats.
+- `service/protocol/assets.py` owns the WebSocket asset contract.
+- `service/asset_manager.py` owns authorization, intents, validation, and
+  metadata transactions.
+- `storage/r2.py` owns Cloudflare R2 operations.
+- `database/models.py` defines `Asset`, `SessionAsset`, and
+  `AssetUploadIntent`.
+- `scripts/r2_storage_admin.py` owns CORS/lifecycle setup, smoke tests, and
+  database-to-bucket audits.
 
-## What the feature does
+## Supported content
 
-Assets are image files used by sprites, backgrounds, and renderer textures. The
-server stores metadata in the database and stores file bytes in R2 when R2 is
-configured. The browser asks the server for upload and download URLs over the
-WebSocket protocol, then loads downloaded image data into the WASM texture
-cache.
-
-## Protocol messages
-
-Current asset messages:
-
-- `asset_upload_request`
-- `asset_upload_response`
-- `asset_upload_confirm`
-- `asset_download_request`
-- `asset_download_response`
-- `asset_list_request`
-- `asset_list_response`
-- `asset_delete_request`
-- `asset_delete_response`
-- `asset_hash_check`
-- `file_data`
-
-`file_data` is not a supported direct file-transfer path. The server returns an
-error that tells callers to use the asset upload flow.
+Release uploads accept PNG, JPEG, GIF, BMP, and WebP only. The browser performs
+an early check, but the server is authoritative. Confirmation verifies signed
+metadata, byte size, xxHash, and Pillow decoding so an extension or content type
+cannot disguise another payload.
 
 ## Upload flow
 
-1. The browser sends `asset_upload_request` with filename, file size, content
-   type, session code, client asset id, and xxHash.
-2. `handle_asset_upload_request()` calls
-   `request_upload_url_with_hash()`.
-3. `ServerAssetManager` validates extension, MIME type, size, permissions, and
-   rate limit.
-4. The manager creates a pending upload entry in memory and returns a presigned
-   PUT URL.
-5. The browser uploads directly to that URL.
-6. The browser sends `asset_upload_confirm`.
-7. The server verifies the pending upload belongs to the same user, creates the
-   `Asset` row, and moves metadata into the in-memory registry.
+1. An authenticated session member requests an upload for a bounded image and
+   hash-derived asset id.
+2. The server validates role, rate, type, size, hash, and session context, then
+   persists an upload intent.
+3. The browser uploads to a signed
+   `pending/{session}/{asset}.{ext}` R2 key.
+4. Confirmation reloads the object, verifies metadata and bytes, recomputes the
+   hash, and decodes the image.
+5. Verified bytes move to `assets/{asset}.{ext}`.
+6. `assets` stores object metadata. `session_assets` stores session
+   visibility and display names.
+7. List, lookup, download, table enrichment, and deletion resolve through an
+   authorized session link. Ambiguous filenames fail closed.
 
-Database rows are created after successful upload confirmation, not when the
-presigned URL is generated.
+Upload intents are durable; a process restart does not turn an unconfirmed
+object into a usable asset. The removed local metadata fallback and legacy
+`assets.session_id` column are not active paths.
 
-## Download and texture flow
+## Permissions
 
-1. The browser or WASM integration asks for an asset by id.
-2. `handle_asset_download_request()` asks the asset manager for a presigned GET
-   URL.
-3. The response includes the download URL, asset id, expiry, and server xxHash
-   when known.
-4. `assetIntegrationService` fetches the image or decodes base64 data.
-5. The image is loaded into the current render engine with `load_texture()`.
+Membership is checked for every operation. Role policy governs uploads and
+moderation. Reads require a link to the active session. Delete checks session
+visibility and owner/DM authority. Object keys and presigned URLs are not
+written to normal logs.
 
-`GameClient` listens for `request-asset-download` and calls
-`protocol.downloadAsset()` when the renderer needs a texture.
+## Operations
 
-## Persistence and permissions
+Readiness validates required production R2 configuration and live dependency
+operations. The admin script applies CORS/lifecycle rules, runs a create/read/
+delete smoke check, and audits database keys against the whole dedicated bucket.
+Normal output is count-only; verbose output can reveal object keys.
 
-`Asset` stores asset name, R2 asset id, content type, size, xxHash, uploader,
-session id, R2 key, bucket, and access timestamps.
+Relational metadata is now PostgreSQL. The retired SQLite/R2 snapshot workflow
+must not be used as production recovery evidence. Follow
+[Backup and restore](../operations/BACKUP_AND_RESTORE.md).
 
-Asset manager permissions are role-shaped but currently stored in memory:
+## Verification
 
-- DM-like roles can upload, download, share, and moderate.
-- Players can upload and download.
-- Observers can download.
-
-When permissions have not been set for a session, the manager grants player
-permissions for test or unknown sessions. Established sessions without explicit
-permissions fall back to read-only defaults.
-
-Deletion is allowed for DMs or the asset owner. The server deletes the R2
-object first and removes database metadata only after storage deletion
-succeeds. A storage failure keeps the rows so the operation can be retried.
-
-## Table integration
-
-Table responses and table creation helpers can add asset hashes or R2 URLs to
-entity data. `add_asset_hashes_to_table()` calculates xxHash for local static
-assets when files exist and writes missing local asset metadata to the database.
-`ensure_assets_in_r2()` adds a download URL when a matching asset row already
-exists.
-
-## Tests to run
-
-- `apps/web-ui/src/features/assets/services/__tests__/assetCache.test.ts`
-- `apps/web-ui/src/features/assets/services/__tests__/assetIntegration.service.test.ts`
-- `apps/web-ui/src/features/assets/services/__tests__/performanceOptimizedBackground.service.test.ts`
-- `apps/web-ui/src/features/assets/__tests__/AssetManagementPerformance.test.tsx`
-- `apps/web-ui/src/lib/websocket/__tests__/clientProtocol.test.ts`
-- asset-related server tests under `apps/server/tests/`
-- `packages/rust-core/tests/wasm_browser.rs`
-- `packages/rust-core/tests/wasm_node.rs`
-
-Run browser tests for upload/download events and WASM texture loading. Run
-server tests when changing permission, R2, database, or hash behavior.
-
-## Known edges
-
-- `asset_list_request` currently returns an empty list with a message that
-  listing is not fully implemented.
-- `assetIntegrationService` expects `presigned_url`, while the server upload
-  response currently uses `upload_url`.
-- Pending uploads are in memory. A process restart loses unconfirmed upload
-  state.
+Run asset-storage unit tests, R2 administration tests, browser asset tests, and
+the release smoke flow documented in
+[Release checklist](../operations/RELEASE_CHECKLIST.md).

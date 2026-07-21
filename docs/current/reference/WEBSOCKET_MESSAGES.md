@@ -5,7 +5,7 @@ Audience: contributors changing browser/server protocol behavior.
 Status: partial. This page catalogs the currently registered server handlers
 and the main browser message families. It does not document every payload field.
 
-Last source audit: 2026-07-08
+Last source audit: 2026-07-21
 
 ## Source of truth
 
@@ -19,12 +19,11 @@ Current message definitions live in two places:
 Server handler registration lives in
 `apps/server/service/protocol/base.py`.
 
-The browser and Python enums are close but not identical. For example, Python
-currently includes messages such as `dm_modify_roll`, `ai_config`,
-`spell_slot_use`, `resource_update`, `rest_short`, `rest_long`, `xp_award`, and
-`multiclass_request`; the browser enum does not list all of those. Treat enum
-drift as a protocol maintenance issue and verify both sides before adding a
-message.
+The browser and Python enums cover different runtime responsibilities and are
+not expected to be textually identical. Every active browser/server flow must,
+however, define the same wire value on both sides. XP awards and multiclass
+requests are exposed by both enums and by typed browser protocol methods.
+Verify the sender, receiver, and their tests before adding a message.
 
 ## Message envelope
 
@@ -39,11 +38,17 @@ Browser messages use this shape:
   version: string;
   priority: number;
   sequence_id?: number;
+  message_id?: string;
+  causation_id?: string;
+  correlation_id?: string;
+  traceparent?: string;
 }
 ```
 
-The Python `Message` dataclass uses the same core fields. Normal priority is
-`5`; lower numbers are more urgent in the existing comments.
+The Python `Message` dataclass uses the same core fields. Correlation and trace
+fields connect an accepted command to its response without trusting them for
+identity or authorization. Normal priority is `5`; lower numbers are more
+urgent in the existing comments.
 
 ## Registered server inbound messages
 
@@ -115,6 +120,10 @@ That file owns:
 Feature code should prefer protocol helper methods or focused hooks over raw
 `sendMessage` calls. Combat mutations are stricter: use `combat_command`, not
 new direct mutation messages.
+
+Protocol sends use the bounded `WS_SEND_TIMEOUT_SECONDS` deadline. A timed-out
+peer is handled through normal disconnect cleanup so one slow connection cannot
+hold a protocol broadcast indefinitely.
 
 ## Adding or changing a message
 

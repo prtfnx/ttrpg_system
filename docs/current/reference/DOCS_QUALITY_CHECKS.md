@@ -2,9 +2,9 @@
 
 Audience: contributors changing files under `docs/current/`.
 
-Status: new.
+Status: current.
 
-Last source audit: 2026-07-09
+Last source audit: 2026-07-21
 
 ## Command
 
@@ -21,6 +21,10 @@ python scripts/check_docs.py
 ```
 
 The script has no third-party Python dependencies.
+
+The independent `docs` job in `.github/workflows/ci.yml` runs this command on
+every pull request and push. Documentation failures do not wait for server or
+browser dependency installation.
 
 ## What It Checks
 

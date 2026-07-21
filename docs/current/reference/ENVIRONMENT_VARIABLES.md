@@ -35,6 +35,7 @@ PostgreSQL and Alembic.
 | `SECRET_KEY` | development placeholder | Must be a strong non-default production secret. |
 | `SESSION_SECRET` | development placeholder | Must be at least 32 characters in production. |
 | `METRICS_TOKEN` | empty | Required when production metrics are enabled. |
+| `WS_SEND_TIMEOUT_SECONDS` | `5.0` | Per-message protocol send deadline. Valid range is 0.1-60 seconds; tune only with production load evidence. |
 
 ## Database-sensitive Render settings
 

@@ -3,9 +3,9 @@
 Audience: contributors changing session entry, player management, invitations,
 or session-level rules.
 
-Status: current but partial.
+Status: current.
 
-Last source audit: 2026-07-09
+Last source audit: 2026-07-21
 
 ## Source owners
 
@@ -25,8 +25,9 @@ Last source audit: 2026-07-09
 ## What the feature does
 
 A session is the multiplayer room identified by `game_sessions.session_code`.
-The owner creates it through `/game/create`; users join through `/game/join`,
-the session page, or an invitation accept flow. Membership and authority live in
+The owner creates it through `/game/create`. Existing members may reopen it;
+new members must accept an active invitation. Entering or guessing a session
+code does not create membership. Membership and authority live in
 `game_players`, not in the account record.
 
 Invitations are REST-managed links. They store an invite code, target session,
@@ -39,15 +40,18 @@ Session entry:
 
 1. The user authenticates through account auth.
 2. The browser opens `/game/session/{session_code}`.
-3. The server validates membership and renders initial session data.
+3. The server validates membership and renders the persisted session role.
 4. `GameClient` opens the authenticated WebSocket.
-5. The protocol `WELCOME` message gives the browser the authoritative session
-   role, permissions, visible layers, and user context.
+5. The protocol `WELCOME` message confirms the authoritative session role,
+   permissions, visible layers, and user context. Later role changes update the
+   same browser state.
 
 Player management:
 
 - `GET /game/api/sessions/{session_code}/players` returns players with roles
   and permissions.
+- `GET /game/api/sessions/{session_code}/me` returns the current member's role,
+  permissions, and visible layers.
 - `POST /game/api/sessions/{session_code}/players/{user_id}/role` changes a
   role after `can_assign_role()` passes.
 - `DELETE /game/api/sessions/{session_code}/players/{user_id}` removes a
@@ -103,10 +107,5 @@ validate against `core_table.game_mode.GameMode`, persist, and broadcast.
 Run the matching server `pytest` target for route/protocol changes and the
 matching Vitest files for browser session UI changes.
 
-## Known edges
-
-- The rendered session page still derives an initial `owner` or `player` role
-  before the WebSocket welcome message supplies the authoritative session role.
-- Invitation service includes client methods for revoke and refresh paths, but
-  the current router exposes delete-based revocation and does not expose a
-  refresh route.
+Invitation revocation uses `DELETE /api/invitations/{invitation_id}` in both the
+browser and server. There is no invitation refresh or alternate delete path.

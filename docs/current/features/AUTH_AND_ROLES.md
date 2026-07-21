@@ -1,10 +1,9 @@
 # Auth and roles
 
-Status: current but uneven. Account authentication works through server routes
-and HTTP-only cookies. Session authorization is a separate role system attached
-to each game session.
+Status: current. Account authentication and per-session authorization are
+separate server-owned systems.
 
-Last source audit: 2026-07-08
+Last source audit: 2026-07-21
 
 ## Source owners
 
@@ -70,23 +69,22 @@ the cookie is HTTP-only, the browser stores a sentinel token value
 `useAuth()`, and merges account permissions from `/users/me` with session
 permissions stored in the game store.
 
-Current rough edges:
-
-- `authService.validateToken()` tries to call `/users/refresh`, but there is no
-  matching server route.
-- `UserInfo.role` is typed as `dm | player`, while session roles are
-  `owner | co_dm | trusted_player | player | spectator`.
-- `/users/me` returns a broad account-level `dm`/`player` view based on owned
-  sessions. It is not the same as the current session role.
+`/users/me` and browser `UserInfo` contain account identity only. They do not
+carry or infer a game role. The rendered session page and WebSocket welcome use
+the persisted `GamePlayer.role`; subsequent role-change messages refresh the
+same session authority in the game store. An expired cookie becomes an
+unauthenticated browser session; there is no refresh-route dependency.
 
 ## Google OAuth
 
 Google OAuth is optional and lives in `apps/server/routers/auth.py`.
 
 When configured, `/auth/google` starts the flow and `/auth/callback` creates or
-links a user, then sets the same `token` cookie as password login. OAuth state
-and nonce are stored in an in-memory server-side cache, so this flow assumes a
-single process unless that cache is replaced.
+links a user, then sets the same `token` cookie as password login. Authlib keeps
+state, nonce, and PKCE data in the signed, HTTP-only Starlette session so the
+callback remains bound to the initiating browser and works across workers.
+
+Production startup rejects placeholder signing secrets and wildcard CORS.
 
 ## Session roles
 

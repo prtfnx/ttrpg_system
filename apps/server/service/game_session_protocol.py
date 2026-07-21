@@ -4,11 +4,13 @@ Game Session Protocol Service for TTRPG Web Server
 This class wraps the core_table ServerProtocol to provide persistent
 storage, ban handling, and client management for a multiplayer session.
 """
+import asyncio
 import json
 import time
 from datetime import datetime
 from typing import Dict, List, Optional
 
+from config import Settings
 from core_table.protocol import Message, MessageType
 from core_table.server import TableManager
 from database import models as db_models
@@ -22,6 +24,7 @@ from .asset_manager import get_server_asset_manager
 from .server_protocol import ServerProtocol
 
 logger = setup_logger(__name__)
+settings = Settings()
 
 
 
@@ -321,8 +324,11 @@ class GameSessionProtocolService:
     # Utility Methods
 
     async def _send_message(self, websocket: WebSocket, message: Message):
-        """Send message to WebSocket"""
-        await websocket.send_text(message.to_json())
+        """Send one message without allowing a slow peer to stall fan-out."""
+        await asyncio.wait_for(
+            websocket.send_text(message.to_json()),
+            timeout=settings.WS_SEND_TIMEOUT_SECONDS,
+        )
 
     async def _send_error(
         self,

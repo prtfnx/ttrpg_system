@@ -78,6 +78,7 @@ class Settings(BaseSettings):
     TRUST_PROXY_HEADERS: bool = False
     WS_MAX_MESSAGE_BYTES: int = 64 * 1024
     WS_MESSAGES_PER_MINUTE: int = 120
+    WS_SEND_TIMEOUT_SECONDS: float = 5.0
 
     # Google OAuth credentials (optional - OAuth disabled if not set)
     GOOGLE_CLIENT_ID: str = ""
@@ -116,6 +117,8 @@ class Settings(BaseSettings):
             raise ValueError("WS_MAX_MESSAGE_BYTES must be between 1024 and 1048576.")
         if not 1 <= self.WS_MESSAGES_PER_MINUTE <= 6000:
             raise ValueError("WS_MESSAGES_PER_MINUTE must be between 1 and 6000.")
+        if not 0.1 <= self.WS_SEND_TIMEOUT_SECONDS <= 60:
+            raise ValueError("WS_SEND_TIMEOUT_SECONDS must be between 0.1 and 60.")
         if not 1 <= self.DB_POOL_SIZE <= 50:
             raise ValueError("DB_POOL_SIZE must be between 1 and 50.")
         if not 0 <= self.DB_MAX_OVERFLOW <= 50:

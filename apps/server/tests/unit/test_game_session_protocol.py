@@ -4,6 +4,7 @@ Tests for GameSessionProtocolService.
 Focus: client lifecycle (add/remove/ban), message dispatch routing,
 broadcast behaviour, and session stats. No real DB or WebSocket — all mocked.
 """
+import asyncio
 import json
 from unittest.mock import AsyncMock, MagicMock, patch
 
@@ -107,6 +108,27 @@ class TestClientLifecycle:
         ws = _ws()
         with pytest.raises(PermissionError, match="Banned"):
             await svc.add_client(ws, "c1", {"user_id": 7, "username": "Cheater", "role": "player"})
+
+    async def test_send_timeout_disconnects_slow_client(self, monkeypatch):
+        svc = _make_service()
+        ws = _ws()
+        blocker = asyncio.Event()
+
+        async def slow_send(_payload):
+            await blocker.wait()
+
+        ws.send_text.side_effect = slow_send
+        svc.clients["c1"] = ws
+        svc.client_info["c1"] = {"user_id": 1, "username": "Slow"}
+        svc.websocket_to_client[ws] = "c1"
+        monkeypatch.setattr(
+            "service.game_session_protocol.settings.WS_SEND_TIMEOUT_SECONDS",
+            0.01,
+        )
+
+        await svc.send_to_client(Message(MessageType.PING, {}), "c1")
+
+        assert "c1" not in svc.clients
 
 
 # ---------------------------------------------------------------------------

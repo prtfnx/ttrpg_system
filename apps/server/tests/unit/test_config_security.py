@@ -108,5 +108,8 @@ def test_observability_settings_are_normalized_and_bounded():
     with pytest.raises(ValueError, match="WS_MESSAGES_PER_MINUTE"):
         Settings(WS_MESSAGES_PER_MINUTE=0)
 
+    with pytest.raises(ValueError, match="WS_SEND_TIMEOUT_SECONDS"):
+        Settings(WS_SEND_TIMEOUT_SECONDS=0)
+
     with pytest.raises(ValueError, match="AUDIT_RETENTION_DAYS"):
         Settings(AUDIT_RETENTION_DAYS=7)

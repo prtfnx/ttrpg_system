@@ -2,6 +2,7 @@ import '@testing-library/jest-dom';
 import { fireEvent, render, screen } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 import { MulticlassManager } from '../MulticlassManager';
+import type { ClassMulticlassData } from '../../../compendium/services/compendiumService';
 
 const highScores = {
   strength: 16, dexterity: 14, constitution: 14,
@@ -13,6 +14,16 @@ const lowScores = {
   intelligence: 8, wisdom: 8, charisma: 8,
 };
 
+const classPrerequisites: Record<string, ClassMulticlassData> = {
+  wizard: {
+    class: 'wizard',
+    ruleset_version: 'dnd5e-2014-v1',
+    prerequisites: { intelligence: 13 },
+    proficiencies: [],
+    spellcasting_type: 'full',
+  },
+};
+
 describe('MulticlassManager', () => {
   it('shows level 2 requirement message when level < 2', () => {
     render(
@@ -21,6 +32,7 @@ describe('MulticlassManager', () => {
         currentLevel={1}
         abilityScores={highScores}
         onMulticlass={vi.fn()}
+        classPrerequisites={classPrerequisites}
       />
     );
     expect(screen.getByText(/Multiclassing becomes available at level 2/)).toBeInTheDocument();
@@ -33,6 +45,7 @@ describe('MulticlassManager', () => {
         currentLevel={5}
         abilityScores={highScores}
         onMulticlass={vi.fn()}
+        classPrerequisites={classPrerequisites}
       />
     );
     expect(screen.getByLabelText('Add Class:')).toBeInTheDocument();
@@ -45,6 +58,7 @@ describe('MulticlassManager', () => {
         currentLevel={5}
         abilityScores={highScores}
         onMulticlass={vi.fn()}
+        classPrerequisites={classPrerequisites}
       />
     );
     expect(screen.getByText('Fighter')).toBeInTheDocument();
@@ -58,6 +72,7 @@ describe('MulticlassManager', () => {
         currentLevel={5}
         abilityScores={highScores}
         onMulticlass={vi.fn()}
+        classPrerequisites={classPrerequisites}
       />
     );
     const btn = screen.getByText('Show Requirements');
@@ -75,6 +90,7 @@ describe('MulticlassManager', () => {
         currentLevel={5}
         abilityScores={highScores}
         onMulticlass={vi.fn()}
+        classPrerequisites={classPrerequisites}
       />
     );
     const select = screen.getByLabelText('Add Class:') as HTMLSelectElement;
@@ -90,6 +106,7 @@ describe('MulticlassManager', () => {
         currentLevel={5}
         abilityScores={highScores}
         onMulticlass={vi.fn()}
+        classPrerequisites={classPrerequisites}
       />
     );
     expect(screen.getByText('Multiclass')).toBeDisabled();
@@ -102,6 +119,7 @@ describe('MulticlassManager', () => {
         currentLevel={5}
         abilityScores={highScores}
         onMulticlass={vi.fn()}
+        classPrerequisites={classPrerequisites}
       />
     );
     const select = screen.getByLabelText('Add Class:');
@@ -118,6 +136,7 @@ describe('MulticlassManager', () => {
         currentLevel={5}
         abilityScores={highScores}
         onMulticlass={onMulticlass}
+        classPrerequisites={classPrerequisites}
       />
     );
     fireEvent.change(screen.getByLabelText('Add Class:'), { target: { value: 'wizard' } });
@@ -133,6 +152,7 @@ describe('MulticlassManager', () => {
         currentLevel={5}
         abilityScores={lowScores}
         onMulticlass={onMulticlass}
+        classPrerequisites={classPrerequisites}
       />
     );
     // wizard needs INT >= 13, but lowScores.intelligence = 8 -> prereqs not met

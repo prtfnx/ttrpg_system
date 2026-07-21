@@ -10,22 +10,6 @@ interface MulticlassManagerProps {
   classPrerequisites?: Record<string, ClassMulticlassData>;
 }
 
-// Fallback D&D 5e Multiclassing Prerequisites
-const MULTICLASS_PREREQUISITES: Record<string, Record<string, number>> = {
-  'barbarian': { strength: 13 },
-  'bard': { charisma: 13 },
-  'cleric': { wisdom: 13 },
-  'druid': { wisdom: 13 },
-  'fighter': { strength: 13, dexterity: 13 },
-  'monk': { dexterity: 13, wisdom: 13 },
-  'paladin': { strength: 13, charisma: 13 },
-  'ranger': { dexterity: 13, wisdom: 13 },
-  'rogue': { dexterity: 13 },
-  'sorcerer': { charisma: 13 },
-  'warlock': { charisma: 13 },
-  'wizard': { intelligence: 13 },
-};
-
 const AVAILABLE_CLASSES = [
   'barbarian', 'bard', 'cleric', 'druid', 'fighter',
   'monk', 'paladin', 'ranger', 'rogue', 'sorcerer', 'warlock', 'wizard',
@@ -40,7 +24,7 @@ function checkPrereqs(
   compendiumData?: Record<string, ClassMulticlassData>
 ): boolean {
   const cls = targetClass.toLowerCase();
-  const prereqs = compendiumData?.[cls]?.prerequisites ?? MULTICLASS_PREREQUISITES[cls];
+  const prereqs = compendiumData?.[cls]?.prerequisites;
   if (!prereqs) return false;
   if (cls === 'fighter') return (abilityScores.strength ?? 0) >= 13 || (abilityScores.dexterity ?? 0) >= 13;
   return Object.entries(prereqs).every(([ability, min]) => (abilityScores[ability] ?? 0) >= min);
@@ -61,6 +45,15 @@ export function MulticlassManager({
       <div className={styles.container}>
         <h3 className={styles.title}>Multiclassing</h3>
         <p className={styles.requirementsText}>Multiclassing becomes available at level 2.</p>
+      </div>
+    );
+  }
+
+  if (!classPrerequisites) {
+    return (
+      <div className={styles.container}>
+        <h3 className={styles.title}>Multiclassing</h3>
+        <p className={styles.requirementsText}>Loading authoritative multiclass rules…</p>
       </div>
     );
   }

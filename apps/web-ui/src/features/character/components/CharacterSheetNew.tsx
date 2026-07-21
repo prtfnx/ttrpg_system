@@ -195,7 +195,12 @@ export const CharacterSheet: React.FC<CharacterSheetProps> = ({ character, onSav
     ProtocolService.getProtocol().awardCharacterXP(character.id, amount, source, description);
   };
 
-  const currentClasses = (data.class || '').split('/').map((c: string) => c.trim()).filter(Boolean);
+  const canonicalClasses = Array.isArray(data.classes)
+    ? (data.classes as Array<{ name?: unknown }>).map(entry => String(entry.name ?? '')).filter(Boolean)
+    : [];
+  const currentClasses = canonicalClasses.length > 0
+    ? canonicalClasses
+    : (data.class || '').split('/').map((c: string) => c.trim()).filter(Boolean);
   const fullAbilityScores: Record<string, number> = {
     strength: abilities.str, dexterity: abilities.dex, constitution: abilities.con,
     intelligence: abilities.int, wisdom: abilities.wis, charisma: abilities.cha,

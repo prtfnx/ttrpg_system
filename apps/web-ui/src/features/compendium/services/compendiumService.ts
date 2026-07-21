@@ -157,6 +157,7 @@ export interface SpellsResponse {
 }
 
 export interface AdvancementConfig {
+  ruleset_version: string;
   xp_table: number[];
   proficiency_bonus: number[];
   asi_levels: Record<string, number[]>;
@@ -164,6 +165,8 @@ export interface AdvancementConfig {
 }
 
 export interface ClassMulticlassData {
+  ruleset_version: string;
+  class: string;
   prerequisites: Record<string, number>;
   proficiencies: string[];
   spellcasting_type: 'full' | 'half' | 'third' | 'pact' | 'none';

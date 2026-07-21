@@ -5,11 +5,8 @@ import type { AdvancementConfig } from '../../compendium/services/compendiumServ
 interface ExperienceTrackerProps {
   currentLevel: number;
   currentExperience: number;
-  onExperienceChange: (newExperience: number) => void;
-  onLevelUp: (newLevel: number) => void;
   advancementConfig?: AdvancementConfig;
   isDM?: boolean;
-  characterId?: string;
   onAwardXP?: (amount: number, source: string, description: string) => void;
 }
 
@@ -24,13 +21,10 @@ const XP_SOURCES = ['quest', 'discovery', 'roleplay', 'combat', 'other'];
 export function ExperienceTracker({
   currentLevel,
   currentExperience,
-  onExperienceChange,
-  onLevelUp,
   advancementConfig,
   isDM = false,
   onAwardXP,
 }: ExperienceTrackerProps) {
-  const [experienceToAdd, setExperienceToAdd] = useState('');
   const [showAwardDialog, setShowAwardDialog] = useState(false);
   const [awardAmount, setAwardAmount] = useState('');
   const [awardSource, setAwardSource] = useState('quest');
@@ -38,42 +32,15 @@ export function ExperienceTracker({
 
   const xpTable = advancementConfig?.xp_table ?? EXPERIENCE_THRESHOLDS;
 
-  const calculateLevel = (exp: number) => {
-    for (let i = xpTable.length - 1; i >= 0; i--) {
-      if (exp >= xpTable[i]) return i + 1;
-    }
-    return 1;
-  };
-
   const nextLevelExp = xpTable[currentLevel] ?? xpTable[xpTable.length - 1];
   const prevLevelExp = xpTable[currentLevel - 1] ?? 0;
   const progressToNext = currentLevel < 20
     ? ((currentExperience - prevLevelExp) / (nextLevelExp - prevLevelExp)) * 100
     : 100;
-  const canLevelUp = currentLevel < 20 && currentExperience >= nextLevelExp;
-
-  const handleAddExperience = () => {
-    const expToAdd = parseInt(experienceToAdd);
-    if (!isNaN(expToAdd) && expToAdd > 0) {
-      const newExp = currentExperience + expToAdd;
-      onExperienceChange(newExp);
-      const newLevel = calculateLevel(newExp);
-      if (newLevel > currentLevel) onLevelUp(newLevel);
-      setExperienceToAdd('');
-    }
-  };
-
   const handleAwardXP = () => {
     const amount = parseInt(awardAmount);
     if (!isNaN(amount) && amount > 0) {
-      if (onAwardXP) {
-        onAwardXP(amount, awardSource, awardDesc);
-      } else {
-        const newExp = currentExperience + amount;
-        onExperienceChange(newExp);
-        const newLevel = calculateLevel(newExp);
-        if (newLevel > currentLevel) onLevelUp(newLevel);
-      }
+      onAwardXP?.(amount, awardSource, awardDesc);
       setAwardAmount('');
       setAwardDesc('');
       setShowAwardDialog(false);
@@ -135,38 +102,7 @@ export function ExperienceTracker({
         </div>
       )}
 
-      {!isDM && (
-        <div className={styles.inputRow}>
-          <div className={styles.inputField}>
-            <label htmlFor="add-experience" className={styles.inputLabel}>Add Experience:</label>
-            <input
-              id="add-experience" type="number" min="0"
-              value={experienceToAdd}
-              onChange={e => setExperienceToAdd(e.target.value)}
-              placeholder="Enter XP to add"
-              className={styles.input}
-            />
-          </div>
-          <button
-            className={styles.addBtn}
-            onClick={handleAddExperience}
-            disabled={!experienceToAdd || isNaN(parseInt(experienceToAdd))}
-          >
-            Add Experience
-          </button>
-          {canLevelUp && (
-            <button className={styles.levelUpBtn} onClick={() => onLevelUp(currentLevel + 1)}>
-              Level Up
-            </button>
-          )}
-        </div>
-      )}
-
-      {isDM && !showAwardDialog && canLevelUp && (
-        <button className={styles.levelUpBtnMt} onClick={() => onLevelUp(currentLevel + 1)}>
-          Level Up
-        </button>
-      )}
+      {!isDM && <div className={styles.progressNote}>Only a DM can award XP.</div>}
     </div>
   );
 }

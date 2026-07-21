@@ -180,8 +180,19 @@ export const CharacterSheet: React.FC<CharacterSheetProps> = ({ character, onSav
   };
 
   const handleMulticlass = (newClass: string) => {
-    const classes = [...currentClasses, newClass];
-    onSave({ data: { ...data, class: classes.join('/') } });
+    if (!isConnected || !ProtocolService.hasProtocol()) {
+      showToast.error('Cannot multiclass while disconnected');
+      return;
+    }
+    ProtocolService.getProtocol().requestCharacterMulticlass(character.id, newClass);
+  };
+
+  const handleAwardXP = (amount: number, source: string, description: string) => {
+    if (!isConnected || !ProtocolService.hasProtocol()) {
+      showToast.error('Cannot award XP while disconnected');
+      return;
+    }
+    ProtocolService.getProtocol().awardCharacterXP(character.id, amount, source, description);
   };
 
   const currentClasses = (data.class || '').split('/').map((c: string) => c.trim()).filter(Boolean);
@@ -554,10 +565,9 @@ export const CharacterSheet: React.FC<CharacterSheetProps> = ({ character, onSav
                 <ExperienceTracker
                   currentLevel={data.level || 1}
                   currentExperience={data.experience || 0}
-                  onExperienceChange={newExp => onSave({ data: { ...data, experience: newExp } })}
-                  onLevelUp={newLevel => onSave({ data: { ...data, level: newLevel } })}
                   advancementConfig={advancementConfig ?? undefined}
                   isDM={isDMUser}
+                  onAwardXP={handleAwardXP}
                 />
               </div>
             )}

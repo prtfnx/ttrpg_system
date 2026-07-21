@@ -3,9 +3,9 @@
 Audience: contributors changing measurement tools, brush tools, paint sync, or
 table units.
 
-Status: current but partial. Paint strokes persist and replay. Measurements and
-paint templates are browser-local, and multiplayer paint undo still needs an
-explicit authoritative identity contract.
+Status: current but partial. Paint strokes, replay, and creator-owned undo are
+implemented. Measurements and paint templates are browser-local product
+choices.
 
 Last source audit: 2026-07-21
 
@@ -33,26 +33,24 @@ visibility, ownership, lifetime, and reconnect model before adding persistence.
 ## Paint flow
 
 The WASM paint system owns active drawing and rendering. A completed stroke is
-sent to the server, persisted for its table, and broadcast to the session.
-Joining clients receive persisted strokes in the table response.
+sent with its stable id. The server requires the serialized stroke id to match,
+accepts it for a table in the authenticated session, persists it, and broadcasts
+the canonical record. An identical retry by the creator is idempotent. Joining
+clients receive persisted strokes in the table response.
 
-Roles allowed to interact can create strokes. Delete and clear are DM-only on
-the server. Accepted create, delete, and clear operations broadcast the same
-mutation so clients converge.
+Roles allowed to interact can create strokes and delete their own strokes. DMs
+can delete any stroke in their session and clear a table. Create, delete, and
+clear first constrain the supplied table to the authenticated session; a DM
+cannot mutate a foreign session by knowing a table or stroke id. Accepted
+operations broadcast the same mutation so clients converge.
 
-## Unresolved boundary
+## Undo and redo
 
-Local undo asks WASM for its last stroke id and sends that id to the server;
-redo sends the restored stroke again. That assumes the local id is the same
-stable server identity and leaves non-DM undo inconsistent with the DM-only
-delete policy.
-
-Before calling collaborative undo/redo complete:
-
-1. make create return or acknowledge the authoritative stroke id;
-2. retain that id in the browser history entry;
-3. define whether creators may delete their own stroke or undo remains DM-only;
-4. test two clients, reconnect, retry/idempotency, and unauthorized deletion.
+Local undo removes the last WASM stroke and requests deletion with its accepted
+id. The server permits that only when the connected user created the stroke or
+has a DM role. Redo recreates the same stroke through the idempotent create
+path. Cross-session table access, mismatched identities, and deletion of another
+creator's stroke fail closed.
 
 Paint templates are browser-local. Persist them only after deciding whether
 they belong to a user, session, or table.

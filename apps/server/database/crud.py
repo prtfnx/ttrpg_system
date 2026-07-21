@@ -997,8 +997,27 @@ def get_paint_strokes_for_table(db: Session, table_id: str) -> list[models.Paint
     return db.query(models.PaintStroke).filter(models.PaintStroke.table_id == table_id).order_by(models.PaintStroke.created_at).all()
 
 
-def delete_paint_stroke(db: Session, stroke_id: str) -> bool:
-    stroke = db.query(models.PaintStroke).filter(models.PaintStroke.stroke_id == stroke_id).first()
+def get_paint_stroke(db: Session, table_id: str, stroke_id: str) -> Optional[models.PaintStroke]:
+    return db.query(models.PaintStroke).filter(
+        models.PaintStroke.table_id == table_id,
+        models.PaintStroke.stroke_id == stroke_id,
+    ).first()
+
+
+def delete_paint_stroke(
+    db: Session,
+    table_id: str,
+    stroke_id: str,
+    *,
+    created_by: Optional[int] = None,
+) -> bool:
+    query = db.query(models.PaintStroke).filter(
+        models.PaintStroke.table_id == table_id,
+        models.PaintStroke.stroke_id == stroke_id,
+    )
+    if created_by is not None:
+        query = query.filter(models.PaintStroke.created_by == created_by)
+    stroke = query.first()
     if not stroke:
         return False
     db.delete(stroke)

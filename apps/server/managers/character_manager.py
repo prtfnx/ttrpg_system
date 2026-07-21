@@ -21,6 +21,7 @@ from database.models import (
     SessionCharacter,
     User,
 )
+from service.character_rules import multiclass_prerequisites
 from service.character_schema import validate_character_document
 from sqlalchemy import and_, or_
 from utils.logger import setup_logger
@@ -795,26 +796,11 @@ class ServerCharacterManager:
             logger.error(f"Error getting session ID: {e}")
             return None
 
-    # D&D 5e multiclass prerequisites (ability score minimums)
-    _MULTICLASS_PREREQS: Dict[str, Dict[str, int]] = {
-        'barbarian': {'strength': 13},
-        'bard': {'charisma': 13},
-        'cleric': {'wisdom': 13},
-        'druid': {'wisdom': 13},
-        'fighter': {'strength': 13, 'dexterity': 13},
-        'monk': {'dexterity': 13, 'wisdom': 13},
-        'paladin': {'strength': 13, 'charisma': 13},
-        'ranger': {'dexterity': 13, 'wisdom': 13},
-        'rogue': {'dexterity': 13},
-        'sorcerer': {'charisma': 13},
-        'warlock': {'charisma': 13},
-        'wizard': {'intelligence': 13},
-    }
-
     def validate_multiclass(self, character_data: dict, new_class: str) -> tuple:
         """Validate D&D 5e multiclass prerequisites. Returns (valid, error_message)."""
         new_class_lower = new_class.lower()
-        if new_class_lower not in self._MULTICLASS_PREREQS:
+        prereqs = multiclass_prerequisites(new_class_lower)
+        if prereqs is None:
             return False, f"Unknown class: {new_class}"
 
         data = character_data.get('data', character_data)
@@ -835,8 +821,6 @@ class ServerCharacterManager:
             'intelligence': 'int', 'wisdom': 'wis', 'charisma': 'cha',
         }
         scores = data.get('abilityScores', data.get('ability_scores', {}))
-        prereqs = self._MULTICLASS_PREREQS[new_class_lower]
-
         # Fighter uses OR logic for Strength/Dexterity; other classes use AND logic for listed prerequisites
         if new_class_lower == 'fighter':
             str_val = int((scores.get('strength') or scores.get('str') or {}).get('score', 0) if isinstance(scores.get('strength') or scores.get('str'), dict) else scores.get('strength') or scores.get('str') or 0)

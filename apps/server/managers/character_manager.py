@@ -43,6 +43,24 @@ def apply_json_merge_patch(target: Any, patch: Any) -> Any:
     return result
 
 
+_ADVANCEMENT_FIELDS = (
+    'class',
+    'classes',
+    'experience',
+    'currentXP',
+    'level',
+    'pending_level_up',
+    'proficiencyBonus',
+)
+
+
+def _advancement_state(document: dict[str, Any]) -> dict[str, Any]:
+    data = document.get('data', document)
+    if not isinstance(data, dict):
+        return {}
+    return {field: deepcopy(data.get(field)) for field in _ADVANCEMENT_FIELDS}
+
+
 def _serialize_character(character: dict) -> str:
     if not isinstance(character, dict):
         raise ValueError("Character payload must be an object")
@@ -172,7 +190,6 @@ class ServerCharacterManager:
                     SessionCharacter.session_id == session_id,
                 ).first()
 
-                # ensure new_version defined for return value
                 new_version = 1
                 if existing:
                     if existing.archived_at is not None:
@@ -186,23 +203,10 @@ class ServerCharacterManager:
                             'success': False,
                             'error': f'Permission denied: Character belongs to user {existing.owner_user_id}'
                         }
-                    # Update the fields with version increment and audit
-                    try:
-                        current_version = int(getattr(existing, 'version', 1) or 1)
-                    except Exception:
-                        current_version = 1
-                    new_version = current_version + 1
-                    db.query(SessionCharacter).filter(
-                        SessionCharacter.character_id == character_id,
-                        SessionCharacter.session_id == session_id,
-                    ).update({
-                        SessionCharacter.character_name: character_name,
-                        SessionCharacter.character_data: character_json,
-                        SessionCharacter.updated_at: datetime.utcnow(),
-                        SessionCharacter.version: new_version,
-                        SessionCharacter.last_modified_by: user_id
-                    })
-                    logger.info(f"Updated character {character_name} (ID: {character_id}) to version {new_version}")
+                    return {
+                        'success': False,
+                        'error': 'Character already exists; use the versioned update command',
+                    }
                 else:
                     # Insert new character
                     new_character = SessionCharacter(
@@ -262,7 +266,16 @@ class ServerCharacterManager:
                 return f'Cannot use more spell slots than available at level {level_str} (max {total})'
         return None
 
-    def update_character(self, session_id: int, character_id: str, updates: Dict[str, Any], user_id: int, expected_version: Optional[int] = None, bypass_owner_check: bool = False) -> Dict[str, Any]:
+    def update_character(
+        self,
+        session_id: int,
+        character_id: str,
+        updates: Dict[str, Any],
+        user_id: int,
+        expected_version: Optional[int] = None,
+        bypass_owner_check: bool = False,
+        allow_advancement_updates: bool = False,
+    ) -> Dict[str, Any]:
         """Perform a versioned update of a character's JSON data in a single DB transaction.
         Merges JSON if appropriate and enforces optimistic concurrency if expected_version provided.
         bypass_owner_check=True allows DM-initiated updates (e.g. token HP sync).
@@ -313,6 +326,14 @@ class ServerCharacterManager:
                 merged = validate_character_document(
                     apply_json_merge_patch(current_json, updates)
                 )
+                if (
+                    not allow_advancement_updates
+                    and _advancement_state(merged) != _advancement_state(current_json)
+                ):
+                    return {
+                        'success': False,
+                        'error': 'XP, level, class, and proficiency changes require an advancement command',
+                    }
                 merged_json = _serialize_character(merged)
 
                 # Spell slot validation

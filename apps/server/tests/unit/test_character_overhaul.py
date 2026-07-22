@@ -114,7 +114,83 @@ class TestSpellSlotValidation:
 
 
 # ---------------------------------------------------------------------------
-# bypass_owner_check — DM token sync
+# Advancement authority
+# ---------------------------------------------------------------------------
+
+@pytest.mark.unit
+class TestAdvancementAuthority:
+    def _save_character(self, manager, session_id, user_id):
+        result = manager.save_character(
+            session_id,
+            {
+                "character_id": "advance-1",
+                "name": "Hero",
+                "data": {
+                    "class": "fighter",
+                    "classes": [{"name": "fighter", "level": 1}],
+                    "experience": 0,
+                    "level": 1,
+                    "proficiencyBonus": 2,
+                    "stats": {"hp": 10, "maxHp": 10},
+                },
+            },
+            user_id,
+        )
+        assert result["success"]
+
+    def test_generic_update_cannot_change_advancement_fields(self, manager, user_and_session):
+        uid, sid = user_and_session
+        self._save_character(manager, sid, uid)
+
+        result = manager.update_character(
+            sid,
+            "advance-1",
+            {"data": {"experience": 999, "level": 20}},
+            uid,
+        )
+
+        assert result["success"] is False
+        assert "advancement command" in result["error"]
+
+    def test_unchanged_snapshot_fields_do_not_block_normal_edit(self, manager, user_and_session):
+        uid, sid = user_and_session
+        self._save_character(manager, sid, uid)
+
+        result = manager.update_character(
+            sid,
+            "advance-1",
+            {
+                "data": {
+                    "class": "fighter",
+                    "classes": [{"name": "fighter", "level": 1}],
+                    "experience": 0,
+                    "level": 1,
+                    "proficiencyBonus": 2,
+                    "stats": {"hp": 8, "maxHp": 10},
+                },
+            },
+            uid,
+        )
+
+        assert result["success"] is True
+
+    def test_advancement_command_can_change_protected_fields(self, manager, user_and_session):
+        uid, sid = user_and_session
+        self._save_character(manager, sid, uid)
+
+        result = manager.update_character(
+            sid,
+            "advance-1",
+            {"data": {"experience": 300, "level": 2, "proficiencyBonus": 2}},
+            uid,
+            allow_advancement_updates=True,
+        )
+
+        assert result["success"] is True
+
+
+# ---------------------------------------------------------------------------
+# bypass_owner_check - DM token sync
 # ---------------------------------------------------------------------------
 
 @pytest.mark.unit
@@ -256,12 +332,12 @@ class TestSaveCharacter:
         assert r["success"] is False
         assert "512" in r["error"]
 
-    def test_save_updates_existing_character(self, manager, user_and_session):
+    def test_save_rejects_existing_character_without_version(self, manager, user_and_session):
         uid, sid = user_and_session
         manager.save_character(sid, {"character_id": "c2", "name": "Old Name"}, uid)
         r = manager.save_character(sid, {"character_id": "c2", "name": "New Name"}, uid)
-        assert r["success"] is True
-        assert r["version"] == 2
+        assert r["success"] is False
+        assert "versioned update" in r["error"]
 
     def test_save_another_users_character_denied(self, manager, user_and_session, db_mod):
         uid, sid = user_and_session

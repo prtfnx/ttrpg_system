@@ -682,6 +682,7 @@ class _CharactersMixin(_ProtocolBase):
             user_id=user_id,
             expected_version=load_result.get('version'),
             bypass_owner_check=True,
+            allow_advancement_updates=True,
         )
         if not save_result.get('success'):
             return Message(MessageType.XP_AWARD_RESPONSE, {'success': False, 'error': save_result.get('error', 'Save failed')})
@@ -783,6 +784,7 @@ class _CharactersMixin(_ProtocolBase):
             user_id=user_id,
             expected_version=load_result.get('version'),
             bypass_owner_check=is_dm_client,
+            allow_advancement_updates=True,
         )
         if not save_result.get('success'):
             return Message(MessageType.MULTICLASS_RESPONSE, {'success': False, 'error': save_result.get('error', 'Save failed')})

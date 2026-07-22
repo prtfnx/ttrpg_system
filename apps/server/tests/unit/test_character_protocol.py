@@ -225,10 +225,17 @@ class TestDeathSaveRoll:
         assert r.data["death_saves"]["failures"] == 2
 
     async def test_death_saves_accumulate_across_rolls(self, manager, user_and_session):
+        from core_table.actions_core import ActionsCore
+        from core_table.server import TableManager
+
         r1, uid, sid = await self._roll_with_fixed_die(manager, user_and_session, 15)
         assert r1.data["death_saves"]["successes"] == 1
 
-        r2, _, _ = await self._roll_with_fixed_die(manager, (uid, sid), 18, init_successes=1)
+        actions = ActionsCore(TableManager())
+        with patch("secrets.randbelow", return_value=17):
+            r2 = await actions.character_roll(
+                sid, "char-1", uid, "death_save", "death_save", 0
+            )
         assert r2.data["death_saves"]["successes"] == 2
 
     async def test_failures_capped_at_3(self, manager, user_and_session):

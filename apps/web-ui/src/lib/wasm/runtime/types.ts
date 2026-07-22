@@ -14,10 +14,10 @@ export interface ActionsClient {
   get_table_info(tableId: string): unknown;
   move_sprite_to_layer(spriteId: string, newLayer: string): unknown;
   redo(): unknown;
-  set_action_handler(callback: Function): void;
-  set_error_handler(callback: Function): void;
+  set_action_handler(callback: (actionType: string, data: unknown) => void): void;
+  set_error_handler(callback: (error: string) => void): void;
   set_layer_visibility(layer: string, visible: boolean): unknown;
-  set_state_change_handler(callback: Function): void;
+  set_state_change_handler(callback: (eventType: string, targetId: string) => void): void;
   undo(): unknown;
   update_sprite(spriteId: string, updates: unknown): unknown;
   update_table(tableId: string, updates: unknown): unknown;
@@ -68,9 +68,9 @@ export interface NetworkClient {
   send_sprite_update(spriteData: unknown): void;
   send_table_request(requestData: unknown): void;
   send_table_update(tableData: unknown): void;
-  set_connection_handler(callback: Function): void;
-  set_error_handler(callback: Function): void;
-  set_message_handler(callback: Function): void;
+  set_connection_handler(callback: (state: string, error?: string) => void): void;
+  set_error_handler(callback: (error: string) => void): void;
+  set_message_handler(callback: (messageType: string, data: unknown) => void): void;
   set_user_info(userId: number, username: string, sessionCode?: string | null, jwtToken?: string | null): void;
   sync_action(actionData: string): void;
 }
@@ -197,8 +197,8 @@ export interface RenderEngine {
   set_light_color(id: string, r: number, g: number, b: number, a: number): void;
   set_light_intensity(id: string, intensity: number): void;
   set_light_radius(id: string, radius: number): void;
-  set_runtime_event_handler(callback: Function): void;
-  set_runtime_operation_handler(callback: Function): void;
+  set_runtime_event_handler(callback: (event: { type?: string; data?: unknown }) => void): void;
+  set_runtime_operation_handler(callback: (operation: { type?: string; data?: unknown }) => void): void;
   set_shape_style(color: string, opacity: number, filled: boolean): void;
   set_tool_mode(mode: string): void;
   set_zoom(zoom: number): void;
@@ -243,10 +243,10 @@ export interface TableSync {
   handle_sprite_update(updateData: unknown): void;
   handle_table_data(tableData: unknown): void;
   request_table(tableName: string): void;
-  set_error_handler(callback: Function): void;
+  set_error_handler(callback: (error: string) => void): void;
   set_network_client(networkClient: unknown): void;
-  set_sprite_update_handler(callback: Function): void;
-  set_table_received_handler(callback: Function): void;
+  set_sprite_update_handler(callback: (data: unknown) => void): void;
+  set_table_received_handler(callback: (data: unknown) => void): void;
 }
 
 export interface BrushPreset {

@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useCombatCommands, type DMResourceType } from '../hooks/useCombatCommands';
 import styles from './DMCombatPanel.module.css';
 
@@ -7,17 +7,22 @@ interface DMResourcePanelProps {
   spellSlotLevels?: number[];
 }
 
+const NO_SPELL_SLOT_LEVELS: number[] = [];
+
 export function DMResourcePanel({
   combatantId,
-  spellSlotLevels = [],
+  spellSlotLevels = NO_SPELL_SLOT_LEVELS,
 }: DMResourcePanelProps) {
   const { sendDMOverride } = useCombatCommands();
   const [movementFeet, setMovementFeet] = useState('30');
   const [slotLevel, setSlotLevel] = useState('');
   const disabled = !combatantId;
-  const availableSlotLevels = [...new Set(spellSlotLevels)]
-    .filter((level) => Number.isInteger(level) && level >= 1 && level <= 9)
-    .sort((left, right) => left - right);
+  const availableSlotLevels = useMemo(
+    () => [...new Set(spellSlotLevels)]
+      .filter((level) => Number.isInteger(level) && level >= 1 && level <= 9)
+      .sort((left, right) => left - right),
+    [spellSlotLevels],
+  );
 
   useEffect(() => {
     setSlotLevel(
@@ -25,7 +30,7 @@ export function DMResourcePanel({
         ? String(availableSlotLevels[0])
         : '',
     );
-  }, [availableSlotLevels.join(',')]);
+  }, [availableSlotLevels]);
 
   const restoreResource = (resource: DMResourceType) => {
     if (disabled) return;

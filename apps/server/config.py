@@ -80,6 +80,9 @@ class Settings(BaseSettings):
     WS_MESSAGES_PER_MINUTE: int = 120
     WS_SEND_TIMEOUT_SECONDS: float = 5.0
 
+    # Optional complete replacement for the bundled SRD starter artifact.
+    COMPENDIUM_DIR: str = ""
+
     # Google OAuth credentials (optional - OAuth disabled if not set)
     GOOGLE_CLIENT_ID: str = ""
     GOOGLE_CLIENT_SECRET: str = ""

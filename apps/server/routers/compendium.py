@@ -35,13 +35,22 @@ router = APIRouter(
     dependencies=[Depends(_set_cache_headers)],
 )
 
-# Compendium exports directory inside the installed core_table package
 assert core_table.__file__ is not None, "core_table must be a file-based module"
-COMPENDIUM_DIR = Path(core_table.__file__).parent / "compendiums" / "exports"
+BUNDLED_COMPENDIUM_DIR = Path(core_table.__file__).parent / "compendiums" / "bundled_srd51"
+
+
+def resolve_compendium_dir(settings: Settings) -> Path:
+    """Resolve an operator-supplied artifact, otherwise use the bundled starter."""
+    configured = settings.COMPENDIUM_DIR.strip()
+    return Path(configured).expanduser().resolve() if configured else BUNDLED_COMPENDIUM_DIR.resolve()
+
+
+settings = Settings()
+COMPENDIUM_DIR = resolve_compendium_dir(settings)
 
 compendium_service = CompendiumArtifact(
     COMPENDIUM_DIR,
-    require_manifest=Settings().is_production,
+    require_manifest=settings.is_production,
 )
 
 
@@ -58,6 +67,7 @@ async def get_compendium_status():
         "status": "online" if compendium_service.data else "unavailable",
         "artifact_version": compendium_service.artifact_version,
         "verified": compendium_service.verified,
+        "artifact": compendium_service.metadata,
         "data_availability": {
             "character_data": "character_data" in compendium_service.data,
             "spell_data": "spell_data" in compendium_service.data,

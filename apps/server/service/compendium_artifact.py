@@ -38,6 +38,7 @@ class CompendiumArtifact:
         self.data: dict[str, dict[str, Any]] = {}
         self.artifact_version: str | None = None
         self.verified = False
+        self.metadata: dict[str, Any] = {}
         self.error_code: str | None = None
         self.load()
 
@@ -62,6 +63,7 @@ class CompendiumArtifact:
             self._validate_shapes(loaded)
             self.data = loaded
             self.verified = manifest is not None
+            self.metadata = self._manifest_metadata(manifest)
             self.artifact_version = (
                 manifest["artifact_version"]
                 if manifest is not None
@@ -114,6 +116,29 @@ class CompendiumArtifact:
         for filename, entry in files.items():
             self._validate_provenance(filename, entry)
         return manifest
+
+    @staticmethod
+    def _manifest_metadata(manifest: dict[str, Any] | None) -> dict[str, Any]:
+        if manifest is None:
+            return {}
+
+        def unique_entries(field: str) -> list[dict[str, Any]]:
+            entries: list[dict[str, Any]] = []
+            seen: set[str] = set()
+            for file_entry in manifest["files"].values():
+                value = file_entry[field]
+                identity = json.dumps(value, sort_keys=True)
+                if identity not in seen:
+                    seen.add(identity)
+                    entries.append(value)
+            return entries
+
+        return {
+            "ruleset": manifest.get("ruleset"),
+            "scope": manifest.get("scope"),
+            "sources": unique_entries("source"),
+            "licenses": unique_entries("license"),
+        }
 
     @staticmethod
     def _validate_provenance(filename: str, entry: Any) -> None:

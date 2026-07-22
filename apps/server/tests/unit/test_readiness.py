@@ -3,7 +3,9 @@ import json
 from pathlib import Path
 from types import SimpleNamespace
 
+import core_table
 from database.schema import repository_heads
+from routers.compendium import BUNDLED_COMPENDIUM_DIR, resolve_compendium_dir
 from service.compendium_artifact import REQUIRED_FILES, CompendiumArtifact
 from service.readiness import ReadinessChecker
 from sqlalchemy import create_engine, text
@@ -191,3 +193,25 @@ def test_compendium_artifact_rejects_checksum_mismatch_atomically(tmp_path):
 
     assert artifact.data == {}
     assert artifact.readiness() == {"ok": False, "code": "compendium_artifact_invalid"}
+
+
+def test_bundled_srd_starter_is_verified_and_complete():
+    assert core_table.__file__ is not None
+
+    artifact = CompendiumArtifact(BUNDLED_COMPENDIUM_DIR, require_manifest=True)
+
+    assert artifact.readiness()["ok"] is True
+    assert artifact.verified is True
+    assert artifact.metadata["ruleset"] == "dnd5e-2014-v1"
+    assert artifact.metadata["scope"] == "starter"
+    assert artifact.metadata["licenses"][0]["id"] == "CC-BY-4.0"
+    assert len(artifact.data["character_data"]["races"]) == 9
+    assert len(artifact.data["character_data"]["classes"]) == 12
+    assert len(artifact.data["spell_data"]["spells"]) == 56
+    assert len(artifact.data["bestiary_data"]["monsters"]) == 201
+
+
+def test_compendium_directory_can_replace_bundled_artifact(tmp_path):
+    settings = SimpleNamespace(COMPENDIUM_DIR=str(tmp_path))
+
+    assert resolve_compendium_dir(settings) == tmp_path.resolve()

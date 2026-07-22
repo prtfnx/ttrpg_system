@@ -1,0 +1,1348 @@
+{
+  "backgrounds": [
+    {
+      "equipment": [
+        "Holy symbol",
+        "Prayer book or prayer wheel",
+        "5 sticks of incense",
+        "Vestments",
+        "Common clothes",
+        "Pouch containing 15 gp"
+      ],
+      "features": [
+        {
+          "description": "You have spent your life in the service of a temple to a specific god or pantheon of gods. You act as an intermediary between the realm of the holy and the mortal world, performing sacred rites and offering sacrifices in order to conduct worshipers into the presence of the divine. You are not necessarily a cleric-performing sacred rites is not the same thing as channeling divine power.\n\nChoose a god, a pantheon of gods, or some other quasi-divine being from among those listed in \"Fantasy-Historical Pantheons\" or those specified by your GM, and work with your GM to detail the nature of your religious service. Were you a lesser functionary in a temple, raised from childhood to assist the priests in the sacred rites? Or were you a high priest who suddenly experienced a call to serve your god in a different way? Perhaps you were the leader of a small cult outside of any established temple structure, or even an occult group that served a fiendish master that you now deny.",
+          "feature_type": "description",
+          "name": "Description"
+        },
+        {
+          "description": "As an acolyte, you command the respect of those who share your faith, and you can perform the religious ceremonies of your deity. You and your adventuring companions can expect to receive free healing and care at a temple, shrine, or other established presence of your faith, though you must provide any material components needed for spells. Those who share your religion will support you (but only you) at a modest lifestyle.  You might also have ties to a specific temple dedicated to your chosen deity or pantheon, and you have a residence there. This could be the temple where you used to serve, if you remain on good terms with it, or a temple where you have found a new home. While near your temple, you can call upon the priests for assistance, provided the assistance you ask for is not hazardous and you remain in good standing with your temple.",
+          "feature_type": "feature",
+          "name": "Shelter of the Faithful"
+        }
+      ],
+      "language_proficiencies": [
+        "Two languages of your choice"
+      ],
+      "name": "Acolyte",
+      "skill_proficiencies": [
+        "Insight",
+        "Religion"
+      ],
+      "source": "SRD 5.1",
+      "tool_proficiencies": []
+    }
+  ],
+  "classes": [
+    {
+      "armor_proficiencies": [
+        "Light armor",
+        "medium armor",
+        "shields"
+      ],
+      "description": "SRD 5.1 barbarian class.",
+      "features": {},
+      "hit_die": 12,
+      "name": "Barbarian",
+      "num_skills": 2,
+      "primary_abilities": [
+        "Strength"
+      ],
+      "saving_throw_proficiencies": [
+        "Strength",
+        "Constitution"
+      ],
+      "skill_proficiencies": [
+        "Animal Handling",
+        "Athletics",
+        "Intimidation",
+        "Nature",
+        "Perception",
+        "Survival"
+      ],
+      "source": "SRD 5.1",
+      "spell_ability": null,
+      "spell_slots": {},
+      "starting_wealth": "",
+      "subclasses": [
+        {
+          "features": {},
+          "name": "Path of the Berserker",
+          "short_name": "Path of the Berserker",
+          "source": "SRD 5.1"
+        }
+      ],
+      "tool_proficiencies": [],
+      "weapon_proficiencies": [
+        "Simple weapons",
+        "martial weapons"
+      ]
+    },
+    {
+      "armor_proficiencies": [
+        "Light armor"
+      ],
+      "description": "SRD 5.1 bard class.",
+      "features": {},
+      "hit_die": 8,
+      "name": "Bard",
+      "num_skills": 3,
+      "primary_abilities": [
+        "Charisma"
+      ],
+      "saving_throw_proficiencies": [
+        "Dexterity",
+        "Charisma"
+      ],
+      "skill_proficiencies": [
+        "Acrobatics",
+        "Animal Handling",
+        "Arcana",
+        "Athletics",
+        "Deception",
+        "History",
+        "Insight",
+        "Intimidation",
+        "Investigation",
+        "Medicine",
+        "Nature",
+        "Perception",
+        "Performance",
+        "Persuasion",
+        "Religion",
+        "Sleight of Hand",
+        "Stealth",
+        "Survival"
+      ],
+      "source": "SRD 5.1",
+      "spell_ability": "Charisma",
+      "spell_slots": {},
+      "starting_wealth": "",
+      "subclasses": [
+        {
+          "features": {},
+          "name": "College of Lore",
+          "short_name": "College of Lore",
+          "source": "SRD 5.1"
+        }
+      ],
+      "tool_proficiencies": [
+        "Three musical instruments of your choice"
+      ],
+      "weapon_proficiencies": [
+        "Simple weapons",
+        "hand crossbows",
+        "longswords",
+        "rapiers",
+        "shortswords"
+      ]
+    },
+    {
+      "armor_proficiencies": [
+        "Light armor",
+        "medium armor",
+        "shields"
+      ],
+      "description": "SRD 5.1 cleric class.",
+      "features": {},
+      "hit_die": 8,
+      "name": "Cleric",
+      "num_skills": 2,
+      "primary_abilities": [
+        "Wisdom"
+      ],
+      "saving_throw_proficiencies": [
+        "Wisdom",
+        "Charisma"
+      ],
+      "skill_proficiencies": [
+        "History",
+        "Insight",
+        "Medicine",
+        "Persuasion",
+        "Religion"
+      ],
+      "source": "SRD 5.1",
+      "spell_ability": "Wisdom",
+      "spell_slots": {},
+      "starting_wealth": "",
+      "subclasses": [
+        {
+          "features": {},
+          "name": "Life Domain",
+          "short_name": "Life Domain",
+          "source": "SRD 5.1"
+        }
+      ],
+      "tool_proficiencies": [],
+      "weapon_proficiencies": [
+        "Simple weapons"
+      ]
+    },
+    {
+      "armor_proficiencies": [
+        "Light armor",
+        "medium armor",
+        "shields (druids will not wear armor",
+        "use shields made of metal)"
+      ],
+      "description": "SRD 5.1 druid class.",
+      "features": {},
+      "hit_die": 8,
+      "name": "Druid",
+      "num_skills": 2,
+      "primary_abilities": [
+        "Wisdom"
+      ],
+      "saving_throw_proficiencies": [
+        "Intelligence",
+        "Wisdom"
+      ],
+      "skill_proficiencies": [
+        "Arcana",
+        "Animal Handling",
+        "Insight",
+        "Medicine",
+        "Nature",
+        "Perception",
+        "Religion",
+        "Survival"
+      ],
+      "source": "SRD 5.1",
+      "spell_ability": "Wisdom",
+      "spell_slots": {},
+      "starting_wealth": "",
+      "subclasses": [
+        {
+          "features": {},
+          "name": "Circle of the Land",
+          "short_name": "Circle of the Land",
+          "source": "SRD 5.1"
+        }
+      ],
+      "tool_proficiencies": [
+        "Herbalism kit"
+      ],
+      "weapon_proficiencies": [
+        "Clubs",
+        "daggers",
+        "darts",
+        "javelins",
+        "maces",
+        "quarterstaffs",
+        "scimitars",
+        "sickles",
+        "slings",
+        "spears"
+      ]
+    },
+    {
+      "armor_proficiencies": [
+        "All armor",
+        "shields"
+      ],
+      "description": "SRD 5.1 fighter class.",
+      "features": {},
+      "hit_die": 10,
+      "name": "Fighter",
+      "num_skills": 2,
+      "primary_abilities": [
+        "Strength",
+        "Dexterity"
+      ],
+      "saving_throw_proficiencies": [
+        "Strength",
+        "Constitution"
+      ],
+      "skill_proficiencies": [
+        "Acrobatics",
+        "Animal Handling",
+        "Athletics",
+        "History",
+        "Insight",
+        "Intimidation",
+        "Perception",
+        "Survival"
+      ],
+      "source": "SRD 5.1",
+      "spell_ability": null,
+      "spell_slots": {},
+      "starting_wealth": "",
+      "subclasses": [
+        {
+          "features": {},
+          "name": "Champion",
+          "short_name": "Champion",
+          "source": "SRD 5.1"
+        }
+      ],
+      "tool_proficiencies": [],
+      "weapon_proficiencies": [
+        "Simple weapons",
+        "martial weapons"
+      ]
+    },
+    {
+      "armor_proficiencies": [],
+      "description": "SRD 5.1 monk class.",
+      "features": {},
+      "hit_die": 8,
+      "name": "Monk",
+      "num_skills": 2,
+      "primary_abilities": [
+        "Dexterity",
+        "Wisdom"
+      ],
+      "saving_throw_proficiencies": [
+        "Strength",
+        "Dexterity"
+      ],
+      "skill_proficiencies": [
+        "Acrobatics",
+        "Athletics",
+        "History",
+        "Insight",
+        "Religion",
+        "Stealth"
+      ],
+      "source": "SRD 5.1",
+      "spell_ability": null,
+      "spell_slots": {},
+      "starting_wealth": "",
+      "subclasses": [
+        {
+          "features": {},
+          "name": "Way of the Open Hand",
+          "short_name": "Way of the Open Hand",
+          "source": "SRD 5.1"
+        }
+      ],
+      "tool_proficiencies": [
+        "Choose one type of artisan’s tools",
+        "one musical instrument"
+      ],
+      "weapon_proficiencies": [
+        "Simple weapons",
+        "shortswords"
+      ]
+    },
+    {
+      "armor_proficiencies": [
+        "All armor",
+        "shields"
+      ],
+      "description": "SRD 5.1 paladin class.",
+      "features": {},
+      "hit_die": 10,
+      "name": "Paladin",
+      "num_skills": 2,
+      "primary_abilities": [
+        "Strength",
+        "Charisma"
+      ],
+      "saving_throw_proficiencies": [
+        "Wisdom",
+        "Charisma"
+      ],
+      "skill_proficiencies": [
+        "Athletics",
+        "Insight",
+        "Intimidation",
+        "Medicine",
+        "Persuasion",
+        "Religion"
+      ],
+      "source": "SRD 5.1",
+      "spell_ability": "Charisma",
+      "spell_slots": {},
+      "starting_wealth": "",
+      "subclasses": [
+        {
+          "features": {},
+          "name": "Oath of Devotion",
+          "short_name": "Oath of Devotion",
+          "source": "SRD 5.1"
+        }
+      ],
+      "tool_proficiencies": [],
+      "weapon_proficiencies": [
+        "Simple weapons",
+        "martial weapons"
+      ]
+    },
+    {
+      "armor_proficiencies": [
+        "Light armor",
+        "medium armor",
+        "shields"
+      ],
+      "description": "SRD 5.1 ranger class.",
+      "features": {},
+      "hit_die": 10,
+      "name": "Ranger",
+      "num_skills": 3,
+      "primary_abilities": [
+        "Dexterity",
+        "Wisdom"
+      ],
+      "saving_throw_proficiencies": [
+        "Strength",
+        "Dexterity"
+      ],
+      "skill_proficiencies": [
+        "Animal Handling",
+        "Athletics",
+        "Insight",
+        "Investigation",
+        "Nature",
+        "Perception",
+        "Stealth",
+        "Survival"
+      ],
+      "source": "SRD 5.1",
+      "spell_ability": "Wisdom",
+      "spell_slots": {},
+      "starting_wealth": "",
+      "subclasses": [
+        {
+          "features": {},
+          "name": "Hunter",
+          "short_name": "Hunter",
+          "source": "SRD 5.1"
+        }
+      ],
+      "tool_proficiencies": [],
+      "weapon_proficiencies": [
+        "Simple weapons",
+        "martial weapons"
+      ]
+    },
+    {
+      "armor_proficiencies": [
+        "Light armor"
+      ],
+      "description": "SRD 5.1 rogue class.",
+      "features": {},
+      "hit_die": 8,
+      "name": "Rogue",
+      "num_skills": 4,
+      "primary_abilities": [
+        "Dexterity"
+      ],
+      "saving_throw_proficiencies": [
+        "Dexterity",
+        "Intelligence"
+      ],
+      "skill_proficiencies": [
+        "Acrobatics",
+        "Athletics",
+        "Deception",
+        "Insight",
+        "Intimidation",
+        "Investigation",
+        "Perception",
+        "Performance",
+        "Persuasion",
+        "Sleight of Hand",
+        "Stealth"
+      ],
+      "source": "SRD 5.1",
+      "spell_ability": null,
+      "spell_slots": {},
+      "starting_wealth": "",
+      "subclasses": [
+        {
+          "features": {},
+          "name": "Thief",
+          "short_name": "Thief",
+          "source": "SRD 5.1"
+        }
+      ],
+      "tool_proficiencies": [
+        "Thieves’ tools"
+      ],
+      "weapon_proficiencies": [
+        "Simple weapons",
+        "hand crossbows",
+        "longswords",
+        "rapiers",
+        "shortswords"
+      ]
+    },
+    {
+      "armor_proficiencies": [],
+      "description": "SRD 5.1 sorcerer class.",
+      "features": {},
+      "hit_die": 6,
+      "name": "Sorcerer",
+      "num_skills": 2,
+      "primary_abilities": [
+        "Charisma"
+      ],
+      "saving_throw_proficiencies": [
+        "Constitution",
+        "Charisma"
+      ],
+      "skill_proficiencies": [
+        "Arcana",
+        "Deception",
+        "Insight",
+        "Intimidation",
+        "Persuasion",
+        "Religion"
+      ],
+      "source": "SRD 5.1",
+      "spell_ability": "Charisma",
+      "spell_slots": {},
+      "starting_wealth": "",
+      "subclasses": [
+        {
+          "features": {},
+          "name": "Draconic Bloodline",
+          "short_name": "Draconic Bloodline",
+          "source": "SRD 5.1"
+        }
+      ],
+      "tool_proficiencies": [],
+      "weapon_proficiencies": [
+        "Daggers",
+        "darts",
+        "slings",
+        "quarterstaffs",
+        "light crossbows"
+      ]
+    },
+    {
+      "armor_proficiencies": [
+        "Light armor"
+      ],
+      "description": "SRD 5.1 warlock class.",
+      "features": {},
+      "hit_die": 8,
+      "name": "Warlock",
+      "num_skills": 2,
+      "primary_abilities": [
+        "Charisma"
+      ],
+      "saving_throw_proficiencies": [
+        "Wisdom",
+        "Charisma"
+      ],
+      "skill_proficiencies": [
+        "Arcana",
+        "Deception",
+        "History",
+        "Intimidation",
+        "Investigation",
+        "Nature",
+        "Religion"
+      ],
+      "source": "SRD 5.1",
+      "spell_ability": "Charisma",
+      "spell_slots": {},
+      "starting_wealth": "",
+      "subclasses": [
+        {
+          "features": {},
+          "name": "The Fiend",
+          "short_name": "The Fiend",
+          "source": "SRD 5.1"
+        }
+      ],
+      "tool_proficiencies": [],
+      "weapon_proficiencies": [
+        "Simple weapons"
+      ]
+    },
+    {
+      "armor_proficiencies": [],
+      "description": "SRD 5.1 wizard class.",
+      "features": {},
+      "hit_die": 6,
+      "name": "Wizard",
+      "num_skills": 2,
+      "primary_abilities": [
+        "Intelligence"
+      ],
+      "saving_throw_proficiencies": [
+        "Intelligence",
+        "Wisdom"
+      ],
+      "skill_proficiencies": [
+        "Arcana",
+        "History",
+        "Insight",
+        "Investigation",
+        "Medicine",
+        "Religion"
+      ],
+      "source": "SRD 5.1",
+      "spell_ability": "Intelligence",
+      "spell_slots": {},
+      "starting_wealth": "",
+      "subclasses": [
+        {
+          "features": {},
+          "name": "School of Evocation",
+          "short_name": "School of Evocation",
+          "source": "SRD 5.1"
+        }
+      ],
+      "tool_proficiencies": [],
+      "weapon_proficiencies": [
+        "Daggers",
+        "darts",
+        "slings",
+        "quarterstaffs",
+        "light crossbows"
+      ]
+    }
+  ],
+  "metadata": {
+    "format_version": "1.0",
+    "ruleset": "dnd5e-2014-v1",
+    "source": "SRD 5.1"
+  },
+  "races": [
+    {
+      "ability_score_increases": [
+        {
+          "ability": "Constitution",
+          "increase": 2
+        },
+        {
+          "ability": "Wisdom",
+          "increase": 1
+        }
+      ],
+      "condition_immunities": [],
+      "damage_immunities": [],
+      "damage_resistances": [
+        "poison"
+      ],
+      "darkvision": 60,
+      "languages": [
+        "Common",
+        "Dwarvish"
+      ],
+      "name": "Hill Dwarf",
+      "size": "Medium",
+      "skill_proficiencies": [],
+      "source": "SRD 5.1",
+      "speed": 25,
+      "spell_ability": null,
+      "traits": [
+        {
+          "description": "Your Constitution score increases by 2.",
+          "name": "Ability Score Increase",
+          "source": "SRD 5.1"
+        },
+        {
+          "description": "Dwarves mature at the same rate as humans, but they’re considered young until they reach the age of 50. On average, they live about 350 years.",
+          "name": "Age",
+          "source": "SRD 5.1"
+        },
+        {
+          "description": "Most dwarves are lawful, believing firmly in the benefits of a well-ordered society. They tend toward good as well, with a strong sense of fair play and a belief that everyone deserves to share in the benefits of a just order.",
+          "name": "Alignment",
+          "source": "SRD 5.1"
+        },
+        {
+          "description": "Dwarves stand between 4 and 5 feet tall and average about 150 pounds. Your size is Medium.",
+          "name": "Size",
+          "source": "SRD 5.1"
+        },
+        {
+          "description": "Your base walking speed is 25 feet. Your speed is not reduced by wearing heavy armor.",
+          "name": "Speed",
+          "source": "SRD 5.1"
+        },
+        {
+          "description": "Accustomed to life underground, you have superior vision in dark and dim conditions. You can see in dim light within 60 feet of you as if it were bright light, and in darkness as if it were dim light. You can’t discern color in darkness, only shades of gray.",
+          "name": "Darkvision",
+          "source": "SRD 5.1"
+        },
+        {
+          "description": "You have advantage on saving throws against poison, and you have resistance against poison damage.",
+          "name": "Dwarven Resilience",
+          "source": "SRD 5.1"
+        },
+        {
+          "description": "You have proficiency with the battleaxe, handaxe, light hammer, and warhammer.",
+          "name": "Dwarven Combat Training",
+          "source": "SRD 5.1"
+        },
+        {
+          "description": "You gain proficiency with the artisan’s tools of your choice: smith’s tools, brewer’s supplies, or mason’s tools.",
+          "name": "Tool Proficiency",
+          "source": "SRD 5.1"
+        },
+        {
+          "description": "Whenever you make an Intelligence (History) check related to the origin of stonework, you are considered proficient in the History skill and add double your proficiency bonus to the check, instead of your normal proficiency bonus.",
+          "name": "Stonecunning",
+          "source": "SRD 5.1"
+        },
+        {
+          "description": "You can speak, read, and write Common and Dwarvish. Dwarvish is full of hard consonants and guttural sounds, and those characteristics spill over into whatever other language a dwarf might speak.",
+          "name": "Languages",
+          "source": "SRD 5.1"
+        },
+        {
+          "description": "Your Wisdom score increases by 1.",
+          "name": "Ability Score Increase",
+          "source": "SRD 5.1"
+        },
+        {
+          "description": "Your hit point maximum increases by 1, and it increases by 1 every time you gain a level.",
+          "name": "Dwarven Toughness",
+          "source": "SRD 5.1"
+        }
+      ]
+    },
+    {
+      "ability_score_increases": [
+        {
+          "ability": "Dexterity",
+          "increase": 2
+        },
+        {
+          "ability": "Intelligence",
+          "increase": 1
+        }
+      ],
+      "condition_immunities": [],
+      "damage_immunities": [],
+      "damage_resistances": [],
+      "darkvision": 60,
+      "languages": [
+        "Common",
+        "Elvish",
+        "One language of your choice"
+      ],
+      "name": "High Elf",
+      "size": "Medium",
+      "skill_proficiencies": [
+        "Perception"
+      ],
+      "source": "SRD 5.1",
+      "speed": 30,
+      "spell_ability": "Intelligence",
+      "traits": [
+        {
+          "description": "Your Dexterity score increases by 2.",
+          "name": "Ability Score Increase",
+          "source": "SRD 5.1"
+        },
+        {
+          "description": "Although elves reach physical maturity at about the same age as humans, the elven understanding of adulthood goes beyond physical growth to encompass worldly experience. An elf typically claims adulthood and an adult name around the age of 100 and can live to be 750 years old.",
+          "name": "Age",
+          "source": "SRD 5.1"
+        },
+        {
+          "description": "Elves love freedom, variety, and self-expression, so they lean strongly toward the gentler aspects of chaos. They value and protect others’ freedom as well as their own, and they are more often good than not.",
+          "name": "Alignment",
+          "source": "SRD 5.1"
+        },
+        {
+          "description": "Elves range from under 5 to over 6 feet tall and have slender builds. Your size is Medium.",
+          "name": "Size",
+          "source": "SRD 5.1"
+        },
+        {
+          "description": "Your base walking speed is 30 feet.",
+          "name": "Speed",
+          "source": "SRD 5.1"
+        },
+        {
+          "description": "Accustomed to twilit forests and the night sky, you have superior vision in dark and dim conditions. You can see in dim light within 60 feet of you as if it were bright light, and in darkness as if it were dim light. You can’t discern color in darkness, only shades of gray.",
+          "name": "Darkvision",
+          "source": "SRD 5.1"
+        },
+        {
+          "description": "You have proficiency in the Perception skill.",
+          "name": "Keen Senses",
+          "source": "SRD 5.1"
+        },
+        {
+          "description": "You have advantage on saving throws against being charmed, and magic can’t put you to sleep.",
+          "name": "Fey Ancestry",
+          "source": "SRD 5.1"
+        },
+        {
+          "description": "Elves don’t need to sleep. Instead, they meditate deeply, remaining semiconscious, for 4 hours a day. (The Common word for such meditation is “trance.”) While meditating, you can dream after a fashion; such dreams are actually mental exercises that have become reflexive through years of practice. After resting in this way, you gain the same benefit that a human does from 8 hours of sleep.",
+          "name": "Trance",
+          "source": "SRD 5.1"
+        },
+        {
+          "description": "You can speak, read, and write Common and Elvish. Elvish is fluid, with subtle intonations and intricate grammar. Elven literature is rich and varied, and their songs and poems are famous among other races. Many bards learn their language so they can add Elvish ballads to",
+          "name": "Languages",
+          "source": "SRD 5.1"
+        },
+        {
+          "description": "Your Intelligence score increases by 1.",
+          "name": "Ability Score Increase",
+          "source": "SRD 5.1"
+        },
+        {
+          "description": "You have proficiency with the longsword,",
+          "name": "Elf Weapon Training",
+          "source": "SRD 5.1"
+        },
+        {
+          "description": "You know one cantrip of your choice from the wizard spell list. Intelligence is your spellcasting ability for it.",
+          "name": "Cantrip",
+          "source": "SRD 5.1"
+        },
+        {
+          "description": "You can speak, read, and write one extra language of your choice.",
+          "name": "Extra Language",
+          "source": "SRD 5.1"
+        }
+      ]
+    },
+    {
+      "ability_score_increases": [
+        {
+          "ability": "Dexterity",
+          "increase": 2
+        },
+        {
+          "ability": "Charisma",
+          "increase": 1
+        }
+      ],
+      "condition_immunities": [],
+      "damage_immunities": [],
+      "damage_resistances": [],
+      "darkvision": 0,
+      "languages": [
+        "Common",
+        "Halfling"
+      ],
+      "name": "Lightfoot Halfling",
+      "size": "Small",
+      "skill_proficiencies": [],
+      "source": "SRD 5.1",
+      "speed": 25,
+      "spell_ability": null,
+      "traits": [
+        {
+          "description": "Your Dexterity score increases by 2.",
+          "name": "Ability Score Increase",
+          "source": "SRD 5.1"
+        },
+        {
+          "description": "A halfling reaches adulthood at the age of 20 and generally lives into the middle of his or her second century.",
+          "name": "Age",
+          "source": "SRD 5.1"
+        },
+        {
+          "description": "Most halflings are lawful good. As a rule, they are good-hearted and kind, hate to see others in pain, and have no tolerance for oppression. They are also very orderly and traditional, leaning heavily on the support of their",
+          "name": "Alignment",
+          "source": "SRD 5.1"
+        },
+        {
+          "description": "Halflings average about 3 feet tall and weigh about 40 pounds. Your size is Small.",
+          "name": "Size",
+          "source": "SRD 5.1"
+        },
+        {
+          "description": "Your base walking speed is 25 feet.",
+          "name": "Speed",
+          "source": "SRD 5.1"
+        },
+        {
+          "description": "When you roll a 1 on the d20 for an attack roll, ability check, or saving throw, you can reroll the die and must use the new roll.",
+          "name": "Lucky",
+          "source": "SRD 5.1"
+        },
+        {
+          "description": "You have advantage on saving throws against being frightened.",
+          "name": "Brave",
+          "source": "SRD 5.1"
+        },
+        {
+          "description": "You can move through the space of any creature that is of a size larger than yours.",
+          "name": "Halfling Nimbleness",
+          "source": "SRD 5.1"
+        },
+        {
+          "description": "You can speak, read, and write Common and Halfling. The Halfling language isn’t secret, but halflings are loath to share it with others. They write very little, so they don’t have a rich body of literature. Their oral tradition, however, is very strong. Almost all halflings speak Common to converse with the people in whose lands they dwell or through which they are traveling.",
+          "name": "Languages",
+          "source": "SRD 5.1"
+        },
+        {
+          "description": "Your Charisma score increases by 1.",
+          "name": "Ability Score Increase",
+          "source": "SRD 5.1"
+        },
+        {
+          "description": "You can attempt to hide even when you are obscured only by a creature that is at least one size larger than you.",
+          "name": "Naturally Stealthy",
+          "source": "SRD 5.1"
+        }
+      ]
+    },
+    {
+      "ability_score_increases": [
+        {
+          "ability": "Strength",
+          "increase": 1
+        },
+        {
+          "ability": "Dexterity",
+          "increase": 1
+        },
+        {
+          "ability": "Constitution",
+          "increase": 1
+        },
+        {
+          "ability": "Intelligence",
+          "increase": 1
+        },
+        {
+          "ability": "Wisdom",
+          "increase": 1
+        },
+        {
+          "ability": "Charisma",
+          "increase": 1
+        }
+      ],
+      "condition_immunities": [],
+      "damage_immunities": [],
+      "damage_resistances": [],
+      "darkvision": 0,
+      "languages": [
+        "Common",
+        "One language of your choice"
+      ],
+      "name": "Human",
+      "size": "Medium",
+      "skill_proficiencies": [],
+      "source": "SRD 5.1",
+      "speed": 30,
+      "spell_ability": null,
+      "traits": [
+        {
+          "description": "Your ability scores each increase by 1.",
+          "name": "Ability Score Increase",
+          "source": "SRD 5.1"
+        },
+        {
+          "description": "Humans reach adulthood in their late teens and live less than a century.",
+          "name": "Age",
+          "source": "SRD 5.1"
+        },
+        {
+          "description": "Humans tend toward no particular alignment. The best and the worst are found among them.",
+          "name": "Alignment",
+          "source": "SRD 5.1"
+        },
+        {
+          "description": "Humans vary widely in height and build, from barely 5 feet to well over 6 feet tall. Regardless of your position in that range, your size is Medium.",
+          "name": "Size",
+          "source": "SRD 5.1"
+        },
+        {
+          "description": "Your base walking speed is 30 feet.",
+          "name": "Speed",
+          "source": "SRD 5.1"
+        },
+        {
+          "description": "You can speak, read, and write Common and one extra language of your choice. Humans typically learn the languages of other peoples they deal with, including obscure dialects. They are fond of sprinkling their speech with words borrowed from other tongues: Orc curses, Elvish musical expressions, Dwarvish military phrases, and so on.",
+          "name": "Languages",
+          "source": "SRD 5.1"
+        }
+      ]
+    },
+    {
+      "ability_score_increases": [
+        {
+          "ability": "Strength",
+          "increase": 2
+        },
+        {
+          "ability": "Charisma",
+          "increase": 1
+        }
+      ],
+      "condition_immunities": [],
+      "damage_immunities": [],
+      "damage_resistances": [],
+      "darkvision": 0,
+      "languages": [
+        "Common",
+        "Draconic"
+      ],
+      "name": "Dragonborn",
+      "size": "Medium",
+      "skill_proficiencies": [],
+      "source": "SRD 5.1",
+      "speed": 30,
+      "spell_ability": null,
+      "traits": [
+        {
+          "description": "Your Strength score increases by 2, and your Charisma score increases by",
+          "name": "Ability Score Increase",
+          "source": "SRD 5.1"
+        },
+        {
+          "description": "Young dragonborn grow quickly. They walk hours after hatching, attain the size and development of a 10-year-old human child by the age of 3, and reach adulthood by 15. They live to be around 80.",
+          "name": "Age",
+          "source": "SRD 5.1"
+        },
+        {
+          "description": "Dragonborn tend to extremes, making a conscious choice for one side or the other in the cosmic war between good and evil. Most dragonborn are good, but those who side with evil can be terrible villains.",
+          "name": "Alignment",
+          "source": "SRD 5.1"
+        },
+        {
+          "description": "Dragonborn are taller and heavier than humans, standing well over 6 feet tall and averaging almost 250 pounds. Your size is Medium.",
+          "name": "Size",
+          "source": "SRD 5.1"
+        },
+        {
+          "description": "Your base walking speed is 30 feet.",
+          "name": "Speed",
+          "source": "SRD 5.1"
+        },
+        {
+          "description": "You have draconic ancestry. Choose one type of dragon from the Draconic Ancestry table. Your breath weapon and damage resistance are determined by the dragon type, as shown in the table.",
+          "name": "Draconic Ancestry",
+          "source": "SRD 5.1"
+        },
+        {
+          "description": "You can use your action to exhale destructive energy. Your draconic ancestry determines the size, shape, and damage type of the exhalation.",
+          "name": "Breath Weapon",
+          "source": "SRD 5.1"
+        },
+        {
+          "description": "You have resistance to the damage type associated with your draconic ancestry.",
+          "name": "Damage Resistance",
+          "source": "SRD 5.1"
+        },
+        {
+          "description": "You can speak, read, and write Common and Draconic. Draconic is thought to be one of the oldest languages and is often used in the study of magic. The language sounds harsh to most other creatures and includes numerous hard consonants and sibilants.",
+          "name": "Languages",
+          "source": "SRD 5.1"
+        }
+      ]
+    },
+    {
+      "ability_score_increases": [
+        {
+          "ability": "Intelligence",
+          "increase": 2
+        },
+        {
+          "ability": "Constitution",
+          "increase": 1
+        }
+      ],
+      "condition_immunities": [],
+      "damage_immunities": [],
+      "damage_resistances": [],
+      "darkvision": 60,
+      "languages": [
+        "Common",
+        "Gnomish"
+      ],
+      "name": "Rock Gnome",
+      "size": "Small",
+      "skill_proficiencies": [],
+      "source": "SRD 5.1",
+      "speed": 25,
+      "spell_ability": null,
+      "traits": [
+        {
+          "description": "Your Intelligence score increases by 2.",
+          "name": "Ability Score Increase",
+          "source": "SRD 5.1"
+        },
+        {
+          "description": "Gnomes mature at the same rate humans do, and most are expected to settle down into an adult life by around age 40. They can live 350 to almost 500 years.",
+          "name": "Age",
+          "source": "SRD 5.1"
+        },
+        {
+          "description": "Gnomes are most often good. Those who tend toward law are sages, engineers, researchers, scholars, investigators, or inventors. Those who tend toward chaos are minstrels, tricksters, wanderers, or fanciful jewelers. Gnomes are good-hearted, and even the tricksters among them are more playful than vicious.",
+          "name": "Alignment",
+          "source": "SRD 5.1"
+        },
+        {
+          "description": "Gnomes are between 3 and 4 feet tall and average about 40 pounds. Your size is Small.",
+          "name": "Size",
+          "source": "SRD 5.1"
+        },
+        {
+          "description": "Your base walking speed is 25 feet.",
+          "name": "Speed",
+          "source": "SRD 5.1"
+        },
+        {
+          "description": "Accustomed to life underground, you have superior vision in dark and dim conditions. You can see in dim light within 60 feet of you as if it were bright light, and in darkness as if it were dim light. You can’t discern color in darkness, only shades of gray.",
+          "name": "Darkvision",
+          "source": "SRD 5.1"
+        },
+        {
+          "description": "You have advantage on all Intelligence, Wisdom, and Charisma saving throws against magic.",
+          "name": "Gnome Cunning",
+          "source": "SRD 5.1"
+        },
+        {
+          "description": "You can speak, read, and write Common and Gnomish. The Gnomish language, which uses the Dwarvish script, is renowned for its technical treatises and its catalogs of knowledge about the natural world.",
+          "name": "Languages",
+          "source": "SRD 5.1"
+        },
+        {
+          "description": "Your Constitution score increases by 1.",
+          "name": "Ability Score Increase",
+          "source": "SRD 5.1"
+        },
+        {
+          "description": "Whenever you make an Intelligence (History) check related to magic items, alchemical objects, or technological devices, you can add twice your proficiency bonus, instead of any proficiency bonus you normally apply.",
+          "name": "Artificer’s Lore",
+          "source": "SRD 5.1"
+        },
+        {
+          "description": "You have proficiency with artisan’s tools (tinker’s tools). Using those tools, you can spend 1 hour and 10 gp worth of materials to construct a Tiny clockwork device (AC 5, 1 hp). The device ceases to function after 24 hours (unless you spend 1 hour repairing it to keep the device functioning), or when you use your action to dismantle it; at that time, you can reclaim the materials used to create it. You can have up to three such devices active at a time.",
+          "name": "Tinker",
+          "source": "SRD 5.1"
+        }
+      ]
+    },
+    {
+      "ability_score_increases": [
+        {
+          "ability": "Charisma",
+          "increase": 2
+        },
+        {
+          "ability": "Two other ability scores",
+          "increase": 1
+        }
+      ],
+      "condition_immunities": [],
+      "damage_immunities": [],
+      "damage_resistances": [],
+      "darkvision": 60,
+      "languages": [
+        "Common",
+        "Elvish",
+        "One language of your choice"
+      ],
+      "name": "Half-Elf",
+      "size": "Medium",
+      "skill_proficiencies": [
+        "Two skills of your choice"
+      ],
+      "source": "SRD 5.1",
+      "speed": 30,
+      "spell_ability": null,
+      "traits": [
+        {
+          "description": "Your Charisma score increases by 2, and two other ability scores of your choice increase by 1.",
+          "name": "Ability Score Increase",
+          "source": "SRD 5.1"
+        },
+        {
+          "description": "Half-elves mature at the same rate humans do and reach adulthood around the age of 20. They live much longer than humans, however, often exceeding 180 years.",
+          "name": "Age",
+          "source": "SRD 5.1"
+        },
+        {
+          "description": "Half-elves share the chaotic bent of their elven heritage. They value both personal freedom and creative expression, demonstrating neither love of leaders nor desire for followers. They chafe at rules, resent others’ demands, and",
+          "name": "Alignment",
+          "source": "SRD 5.1"
+        },
+        {
+          "description": "Half-elves are about the same size as humans, ranging from 5 to 6 feet tall. Your size is Medium.",
+          "name": "Size",
+          "source": "SRD 5.1"
+        },
+        {
+          "description": "Your base walking speed is 30 feet.",
+          "name": "Speed",
+          "source": "SRD 5.1"
+        },
+        {
+          "description": "Thanks to your elf blood, you have superior vision in dark and dim conditions. You can see in dim light within 60 feet of you as if it were bright light, and in darkness as if it were dim light. You can’t discern color in darkness, only shades of gray.",
+          "name": "Darkvision",
+          "source": "SRD 5.1"
+        },
+        {
+          "description": "You have advantage on saving throws against being charmed, and magic can’t put you to sleep.",
+          "name": "Fey Ancestry",
+          "source": "SRD 5.1"
+        },
+        {
+          "description": "You gain proficiency in two skills of your choice.",
+          "name": "Skill Versatility",
+          "source": "SRD 5.1"
+        },
+        {
+          "description": "You can speak, read, and write Common, Elvish, and one extra language of your choice.",
+          "name": "Languages",
+          "source": "SRD 5.1"
+        }
+      ]
+    },
+    {
+      "ability_score_increases": [
+        {
+          "ability": "Strength",
+          "increase": 2
+        },
+        {
+          "ability": "Constitution",
+          "increase": 1
+        }
+      ],
+      "condition_immunities": [],
+      "damage_immunities": [],
+      "damage_resistances": [],
+      "darkvision": 60,
+      "languages": [
+        "Common",
+        "Orc"
+      ],
+      "name": "Half-Orc",
+      "size": "Medium",
+      "skill_proficiencies": [
+        "Intimidation"
+      ],
+      "source": "SRD 5.1",
+      "speed": 30,
+      "spell_ability": null,
+      "traits": [
+        {
+          "description": "Your Strength score increases by 2, and your Constitution score increases by 1.",
+          "name": "Ability Score Increase",
+          "source": "SRD 5.1"
+        },
+        {
+          "description": "Half-orcs mature a little faster than humans, reaching adulthood around age 14. They age noticeably faster and rarely live longer than 75 years.",
+          "name": "Age",
+          "source": "SRD 5.1"
+        },
+        {
+          "description": "Half-orcs inherit a tendency toward chaos from their orc parents and are not strongly inclined toward good. Half-orcs raised among orcs and willing to live out their lives among them are usually evil.",
+          "name": "Alignment",
+          "source": "SRD 5.1"
+        },
+        {
+          "description": "Half-orcs are somewhat larger and bulkier than humans, and they range from 5 to well over 6 feet tall. Your size is Medium.",
+          "name": "Size",
+          "source": "SRD 5.1"
+        },
+        {
+          "description": "Your base walking speed is 30 feet.",
+          "name": "Speed",
+          "source": "SRD 5.1"
+        },
+        {
+          "description": "Thanks to your orc blood, you have superior vision in dark and dim conditions. You can see in dim light within 60 feet of you as if it were bright light, and in darkness as if it were dim light. You can’t discern color in darkness, only shades of gray.",
+          "name": "Darkvision",
+          "source": "SRD 5.1"
+        },
+        {
+          "description": "You gain proficiency in the Intimidation skill.",
+          "name": "Menacing",
+          "source": "SRD 5.1"
+        },
+        {
+          "description": "When you are reduced to 0 hit points but not killed outright, you can drop to 1 hit point instead. You can’t use this feature again until you finish a long rest.",
+          "name": "Relentless Endurance",
+          "source": "SRD 5.1"
+        },
+        {
+          "description": "When you score a critical hit with a melee weapon attack, you can roll one of the weapon’s damage dice one additional time and add it to the extra damage of the critical hit.",
+          "name": "Savage Attacks",
+          "source": "SRD 5.1"
+        },
+        {
+          "description": "You can speak, read, and write Common and Orc. Orc is a harsh, grating language with hard consonants. It has no script of its own but is written in the Dwarvish script.",
+          "name": "Languages",
+          "source": "SRD 5.1"
+        }
+      ]
+    },
+    {
+      "ability_score_increases": [
+        {
+          "ability": "Charisma",
+          "increase": 2
+        },
+        {
+          "ability": "Intelligence",
+          "increase": 1
+        }
+      ],
+      "condition_immunities": [],
+      "damage_immunities": [],
+      "damage_resistances": [
+        "fire"
+      ],
+      "darkvision": 60,
+      "languages": [
+        "Common",
+        "Infernal"
+      ],
+      "name": "Tiefling",
+      "size": "Medium",
+      "skill_proficiencies": [],
+      "source": "SRD 5.1",
+      "speed": 30,
+      "spell_ability": "Charisma",
+      "traits": [
+        {
+          "description": "Your Intelligence score increases by 1, and your Charisma score increases by 2.",
+          "name": "Ability Score Increase",
+          "source": "SRD 5.1"
+        },
+        {
+          "description": "Tieflings mature at the same rate as humans but live a few years longer.",
+          "name": "Age",
+          "source": "SRD 5.1"
+        },
+        {
+          "description": "Tieflings might not have an innate tendency toward",
+          "name": "Alignment",
+          "source": "SRD 5.1"
+        },
+        {
+          "description": "Tieflings are about the same size and build as humans. Your size is Medium.",
+          "name": "Size",
+          "source": "SRD 5.1"
+        },
+        {
+          "description": "Your base walking speed is 30 feet.",
+          "name": "Speed",
+          "source": "SRD 5.1"
+        },
+        {
+          "description": "Thanks to your infernal heritage, you have superior vision in dark and dim conditions. You can see in dim light within 60 feet of you as if it were bright light, and in darkness as if it were dim light. You can’t discern color in darkness, only",
+          "name": "Darkvision",
+          "source": "SRD 5.1"
+        },
+        {
+          "description": "You have resistance to fire damage.",
+          "name": "Hellish Resistance",
+          "source": "SRD 5.1"
+        },
+        {
+          "description": "You know the thaumaturgy",
+          "name": "Infernal Legacy",
+          "source": "SRD 5.1"
+        },
+        {
+          "description": "You can speak, read, and write Common and Infernal.",
+          "name": "Languages",
+          "source": "SRD 5.1"
+        }
+      ]
+    }
+  ]
+}

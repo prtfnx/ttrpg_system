@@ -1,0 +1,1409 @@
+{
+  "metadata": {
+    "format_version": "1.0",
+    "ruleset": "dnd5e-2014-v1",
+    "scope": "starter levels 0-1",
+    "source": "SRD 5.1",
+    "spell_count": 56
+  },
+  "spells": {
+    "Acid Splash": {
+      "casting_time": "1 action",
+      "classes": [
+        "Sorcerer",
+        "Wizard"
+      ],
+      "components": {
+        "material": false,
+        "material_consumed": false,
+        "material_cost": null,
+        "material_description": "",
+        "somatic": true,
+        "verbal": true
+      },
+      "concentration": false,
+      "description": "You hurl a bubble of acid. Choose one creature within range, or choose two creatures within range that are within 5 feet of each other. A target must succeed on a Dexterity saving throw or take 1d6 acid damage.  This spell’s damage increases by 1d6 when you reach 5th level (2d6), 11th level (3d6), and 17th level (4d6).",
+      "duration": "Instantaneous",
+      "higher_levels": "",
+      "level": 0,
+      "name": "Acid Splash",
+      "range": "60 feet",
+      "ritual": false,
+      "school": "Conjuration",
+      "source": "SRD 5.1"
+    },
+    "Bless": {
+      "casting_time": "1 action",
+      "classes": [
+        "Paladin"
+      ],
+      "components": {
+        "material": true,
+        "material_consumed": false,
+        "material_cost": null,
+        "material_description": "a sprinkling of holy water",
+        "somatic": true,
+        "verbal": true
+      },
+      "concentration": true,
+      "description": "You bless up to three creatures of your choice within range. Whenever a target makes an attack roll or a saving throw before the spell ends, the target can roll a d4 and add the number rolled to the attack roll or saving throw.",
+      "duration": "Concentration, up to 1 minute",
+      "higher_levels": "At Higher Levels. When you cast this spell using a spell slot of 2nd level or higher, you can target one additional creature for each slot level above 1st.",
+      "level": 1,
+      "name": "Bless",
+      "range": "30 feet",
+      "ritual": false,
+      "school": "Enchantment",
+      "source": "SRD 5.1"
+    },
+    "Burning Hands": {
+      "casting_time": "1 action",
+      "classes": [
+        "Sorcerer",
+        "Wizard"
+      ],
+      "components": {
+        "material": false,
+        "material_consumed": false,
+        "material_cost": null,
+        "material_description": "",
+        "somatic": true,
+        "verbal": true
+      },
+      "concentration": false,
+      "description": "As you hold your hands with thumbs touching and fingers spread, a thin sheet of flames shoots forth from your outstretched fingertips. Each creature in a 15-foot cone must make a Dexterity saving throw. A creature takes 3d6 fire damage on a failed save, or half as much damage on a successful one.  The fire ignites any flammable objects in the area that aren’t being worn or carried.",
+      "duration": "Instantaneous",
+      "higher_levels": "At Higher Levels. When you cast this spell using a spell slot of 2nd level or higher, the damage increases by 1d6 for each slot level above 1st.",
+      "level": 1,
+      "name": "Burning Hands",
+      "range": "Self (15-foot cone)",
+      "ritual": false,
+      "school": "Evocation",
+      "source": "SRD 5.1"
+    },
+    "Charm Person": {
+      "casting_time": "1 action",
+      "classes": [
+        "Sorcerer",
+        "Warlock",
+        "Wizard"
+      ],
+      "components": {
+        "material": false,
+        "material_consumed": false,
+        "material_cost": null,
+        "material_description": "",
+        "somatic": true,
+        "verbal": true
+      },
+      "concentration": false,
+      "description": "You attempt to charm a humanoid you can see within range. It must make a Wisdom saving throw, and does so with advantage if you or your companions are fighting it. If it fails the saving throw, it is charmed by you until the spell ends or until you or your companions do anything harmful to it. The charmed creature regards you as a friendly acquaintance. When the spell ends, the creature knows it was charmed by you.",
+      "duration": "1 hour",
+      "higher_levels": "At Higher Levels. When you cast this spell using a spell slot of 2nd level or higher, you can target one additional creature for each slot level above 1st. The creatures must be within 30 feet of each other when you target them.",
+      "level": 1,
+      "name": "Charm Person",
+      "range": "30 feet",
+      "ritual": false,
+      "school": "Enchantment",
+      "source": "SRD 5.1"
+    },
+    "Chill Touch": {
+      "casting_time": "1 action",
+      "classes": [
+        "Sorcerer",
+        "Warlock",
+        "Wizard"
+      ],
+      "components": {
+        "material": false,
+        "material_consumed": false,
+        "material_cost": null,
+        "material_description": "",
+        "somatic": true,
+        "verbal": true
+      },
+      "concentration": false,
+      "description": "You create a ghostly, skeletal hand in the space of a creature within range. Make a ranged spell attack against the creature to assail it with the chill of the grave. On a hit, the target takes 1d8 necrotic damage, and it can’t regain hit points until the start of your next turn. Until then, the hand clings to the target.\n\nIf you hit an undead target, it also has disadvantage on attack rolls\n\nagainst you until the end of your next turn.\n\nThis spell’s damage increases by 1d8 when you reach 5th level (2d8), 11th level (3d8), and 17th level (4d8).",
+      "duration": "1 round",
+      "higher_levels": "",
+      "level": 0,
+      "name": "Chill Touch",
+      "range": "120 feet",
+      "ritual": false,
+      "school": "Necromancy",
+      "source": "SRD 5.1"
+    },
+    "Command": {
+      "casting_time": "1 action",
+      "classes": [
+        "Cleric",
+        "Paladin"
+      ],
+      "components": {
+        "material": false,
+        "material_consumed": false,
+        "material_cost": null,
+        "material_description": "",
+        "somatic": false,
+        "verbal": true
+      },
+      "concentration": false,
+      "description": "You speak a one-word command to a creature you can see within range. The target must succeed on a Wisdom saving throw or follow the command on its next turn. The spell has no effect if the target is undead, if it doesn’t understand your language, or if your command is directly harmful to it.\n\nSome typical commands and their effects follow. You might issue a command other than one described here. If you do so, the GM determines how\n\nthe target behaves. If the target can’t follow your command, the spell ends.\n\nApproach. The target moves toward you by the shortest and most direct route, ending its turn if it moves within 5 feet of you.\n\nDrop. The target drops whatever it is holding and then ends its turn.\n\nFlee. The target spends its turn moving away from you by the fastest available means.\n\nGrovel. The target falls prone and then ends its turn.\n\nHalt. The target doesn’t move and takes no actions. A flying creature stays aloft, provided that it is able to do so. If it must move to stay aloft, it flies the minimum distance needed to remain in the air.",
+      "duration": "1 round",
+      "higher_levels": "At Higher Levels. When you cast this spell using a spell slot of 2nd level or higher, you can affect one additional creature for each slot level above 1st. The creatures must be within 30 feet of each other when you target them.",
+      "level": 1,
+      "name": "Command",
+      "range": "60 feet",
+      "ritual": false,
+      "school": "Enchantment",
+      "source": "SRD 5.1"
+    },
+    "Cure Wounds": {
+      "casting_time": "1 action",
+      "classes": [
+        "Cleric",
+        "Druid",
+        "Paladin",
+        "Ranger"
+      ],
+      "components": {
+        "material": false,
+        "material_consumed": false,
+        "material_cost": null,
+        "material_description": "",
+        "somatic": true,
+        "verbal": true
+      },
+      "concentration": false,
+      "description": "A creature you touch regains a number of hit points equal to 1d8 + your spellcasting ability modifier. This spell has no effect on undead or constructs.",
+      "duration": "Instantaneous",
+      "higher_levels": "At Higher Levels. When you cast this spell using a spell slot of 2nd level or higher, the healing increases by 1d8 for each slot level above 1st.",
+      "level": 1,
+      "name": "Cure Wounds",
+      "range": "Touch",
+      "ritual": false,
+      "school": "Evocation",
+      "source": "SRD 5.1"
+    },
+    "Dancing Lights": {
+      "casting_time": "1 action",
+      "classes": [
+        "Bard",
+        "Sorcerer",
+        "Wizard"
+      ],
+      "components": {
+        "material": true,
+        "material_consumed": false,
+        "material_cost": null,
+        "material_description": "a bit of phosphorus or wychwood, or a glowworm",
+        "somatic": true,
+        "verbal": true
+      },
+      "concentration": true,
+      "description": "You create up to four torch-sized lights within range, making them appear as torches, lanterns, or glowing orbs that hover in the air for the duration. You can also combine the four lights into one glowing vaguely humanoid form of Medium size. Whichever form you choose, each light sheds dim light in a 10-foot radius.  As a bonus action on your turn, you can move the lights up to 60 feet to a new spot within range. A light must be within 20 feet of another light created by this spell, and a light winks out if it exceeds the spell’s range.",
+      "duration": "Concentration, up to 1 minute",
+      "higher_levels": "",
+      "level": 0,
+      "name": "Dancing Lights",
+      "range": "120 feet",
+      "ritual": false,
+      "school": "Evocation",
+      "source": "SRD 5.1"
+    },
+    "Detect Magic": {
+      "casting_time": "1 action",
+      "classes": [
+        "Cleric",
+        "Druid",
+        "Paladin",
+        "Sorcerer",
+        "Wizard"
+      ],
+      "components": {
+        "material": false,
+        "material_consumed": false,
+        "material_cost": null,
+        "material_description": "",
+        "somatic": true,
+        "verbal": true
+      },
+      "concentration": true,
+      "description": "For the duration, you sense the presence of magic within 30 feet of you. If you sense magic in this way, you can use your action to see a faint aura around any visible creature or object in the area that bears magic, and you learn its school of magic, if any.\n\nThe spell can penetrate most barriers, but it is blocked by 1 foot of stone, 1 inch of common metal, a thin sheet of lead, or 3 feet of wood or dirt.",
+      "duration": "Concentration, up to 10 minutes",
+      "higher_levels": "",
+      "level": 1,
+      "name": "Detect Magic",
+      "range": "Self",
+      "ritual": true,
+      "school": "Divination",
+      "source": "SRD 5.1"
+    },
+    "Disguise Self": {
+      "casting_time": "1 action",
+      "classes": [
+        "Sorcerer",
+        "Wizard"
+      ],
+      "components": {
+        "material": false,
+        "material_consumed": false,
+        "material_cost": null,
+        "material_description": "",
+        "somatic": true,
+        "verbal": true
+      },
+      "concentration": false,
+      "description": "You make yourself-including your clothing, armor, weapons, and other belongings on your person-look different until the spell ends or until you use your action to dismiss it. You can seem 1 foot shorter or taller and can appear thin, fat, or in between. You can’t change your body type, so you must adopt a form that has the same basic arrangement of limbs. Otherwise, the extent of the illusion is up to you.\n\nThe changes wrought by this spell fail to hold up to physical inspection. For example, if you use this spell to add a hat to your outfit, objects pass through the hat, and anyone who touches it would feel nothing or would feel your head\n\nand hair. If you use this spell to appear thinner than you are, the hand of someone who reaches out to touch you would bump into you while it was seemingly still in midair.\n\nTo discern that you are disguised, a creature can use its action to inspect your appearance and must succeed on an Intelligence (Investigation) check against your spell save DC.",
+      "duration": "1 hour",
+      "higher_levels": "",
+      "level": 1,
+      "name": "Disguise Self",
+      "range": "Self",
+      "ritual": false,
+      "school": "Illusion",
+      "source": "SRD 5.1"
+    },
+    "Divine Favor": {
+      "casting_time": "1 bonus action",
+      "classes": [
+        "Paladin"
+      ],
+      "components": {
+        "material": false,
+        "material_consumed": false,
+        "material_cost": null,
+        "material_description": "",
+        "somatic": true,
+        "verbal": true
+      },
+      "concentration": true,
+      "description": "Your prayer empowers you with divine radiance. Until the spell ends, your weapon attacks deal an extra 1d4 radiant damage on a hit.",
+      "duration": "Concentration, up to 1 minute",
+      "higher_levels": "",
+      "level": 1,
+      "name": "Divine Favor",
+      "range": "Self",
+      "ritual": false,
+      "school": "Evocation",
+      "source": "SRD 5.1"
+    },
+    "Druidcraft": {
+      "casting_time": "1 action",
+      "classes": [
+        "Druid"
+      ],
+      "components": {
+        "material": false,
+        "material_consumed": false,
+        "material_cost": null,
+        "material_description": "",
+        "somatic": true,
+        "verbal": true
+      },
+      "concentration": false,
+      "description": "Whispering to the spirits of nature, you create one of the following effects within range:\n\n•You create a tiny, harmless sensory effect that predicts what the weather will be at your location for the next 24 hours. The effect might manifest asa golden orb for clear skies, a cloud for rain, falling snowflakes for snow, and so on. This effect persists for 1 round.\n\n•You instantly make a flower blossom, a seed pod open, or a leaf bud bloom.\n\n•You create an instantaneous, harmless sensory effect, such as falling leaves, a puff of wind, the sound of a small animal, or the faint odor of skunk.The effect must fit in a 5-foot cube.\n\n•You instantly light or snuff out a candle, a torch, ora small campfire.",
+      "duration": "Instantaneous",
+      "higher_levels": "",
+      "level": 0,
+      "name": "Druidcraft",
+      "range": "30 feet",
+      "ritual": false,
+      "school": "Transmutation",
+      "source": "SRD 5.1"
+    },
+    "Eldritch Blast": {
+      "casting_time": "1 action",
+      "classes": [
+        "Warlock"
+      ],
+      "components": {
+        "material": false,
+        "material_consumed": false,
+        "material_cost": null,
+        "material_description": "",
+        "somatic": true,
+        "verbal": true
+      },
+      "concentration": false,
+      "description": "A beam of\n\ncrackling energy streaks toward a creature within range. Make a ranged spell attack against the target. On a hit, the target takes 1d10 force damage.\n\nThe spell creates more than one beam when you reach higher levels: two beams at 5th level, three beams at 11th level, and four beams at 17th level. You can direct the beams at the same target or at different ones. Make a separate attack roll for each beam.",
+      "duration": "Instantaneous",
+      "higher_levels": "",
+      "level": 0,
+      "name": "Eldritch Blast",
+      "range": "120 feet",
+      "ritual": false,
+      "school": "Evocation",
+      "source": "SRD 5.1"
+    },
+    "Entangle": {
+      "casting_time": "1 action",
+      "classes": [
+        "Druid"
+      ],
+      "components": {
+        "material": false,
+        "material_consumed": false,
+        "material_cost": null,
+        "material_description": "",
+        "somatic": true,
+        "verbal": true
+      },
+      "concentration": true,
+      "description": "Grasping weeds and vines sprout from the ground in a 20-foot square starting from a point within range. For the duration, these plants turn the ground in the area into difficult terrain.  A creature in the area when you cast the spell must succeed on a Strength saving throw or be restrained by the entangling plants until the spell ends. A creature restrained by the plants can use its action to make a Strength check against your spell save DC. On a success, it frees itself.\n\nWhen the spell ends, the conjured plants wilt away.",
+      "duration": "Concentration, up to 1 minute",
+      "higher_levels": "",
+      "level": 1,
+      "name": "Entangle",
+      "range": "90 feet",
+      "ritual": false,
+      "school": "Conjuration",
+      "source": "SRD 5.1"
+    },
+    "Faerie Fire": {
+      "casting_time": "1 action",
+      "classes": [
+        "Druid"
+      ],
+      "components": {
+        "material": false,
+        "material_consumed": false,
+        "material_cost": null,
+        "material_description": "",
+        "somatic": false,
+        "verbal": true
+      },
+      "concentration": true,
+      "description": "Each object in a 20-foot cube within range is outlined in blue, green, or violet light (your choice). Any creature in the area when the spell is cast is also outlined in light if it fails a Dexterity saving throw. For the duration, objects and affected creatures shed dim light in a 10-foot radius.\n\nAny attack roll against an affected creature or object has advantage if the attacker can see it, and the affected creature or object can’t benefit from being invisible.",
+      "duration": "Concentration, up to 1 minute",
+      "higher_levels": "",
+      "level": 1,
+      "name": "Faerie Fire",
+      "range": "60 feet",
+      "ritual": false,
+      "school": "Evocation",
+      "source": "SRD 5.1"
+    },
+    "False Life": {
+      "casting_time": "1 action",
+      "classes": [
+        "Sorcerer",
+        "Wizard"
+      ],
+      "components": {
+        "material": true,
+        "material_consumed": false,
+        "material_cost": null,
+        "material_description": "a small amount of alcohol or distilled spirits",
+        "somatic": true,
+        "verbal": true
+      },
+      "concentration": false,
+      "description": "Bolstering yourself with a necromantic facsimile of life, you gain 1d4 + 4 temporary hit points for the duration.",
+      "duration": "1 hour",
+      "higher_levels": "At Higher Levels. When you cast this spell using a spell slot of 2nd level or higher, you gain 5 additional temporary hit points for each slot level above 1st.",
+      "level": 1,
+      "name": "False Life",
+      "range": "Self",
+      "ritual": false,
+      "school": "Necromancy",
+      "source": "SRD 5.1"
+    },
+    "Feather Fall": {
+      "casting_time": "1 reaction, which you take when you or a creature within 60 feet of you falls",
+      "classes": [
+        "Sorcerer",
+        "Wizard"
+      ],
+      "components": {
+        "material": true,
+        "material_consumed": false,
+        "material_cost": null,
+        "material_description": "a small feather or piece of down",
+        "somatic": false,
+        "verbal": true
+      },
+      "concentration": false,
+      "description": "Choose up to five falling creatures within range. A falling creature’s rate of descent slows to 60 feet per round until the spell ends. If the creature lands before the spell ends, it takes no falling damage and can land on its feet, and the spell ends for that creature.",
+      "duration": "1 minute",
+      "higher_levels": "",
+      "level": 1,
+      "name": "Feather Fall",
+      "range": "60 feet",
+      "ritual": false,
+      "school": "Transmutation",
+      "source": "SRD 5.1"
+    },
+    "Find Familiar": {
+      "casting_time": "1 hour",
+      "classes": [
+        "Wizard"
+      ],
+      "components": {
+        "material": true,
+        "material_consumed": false,
+        "material_cost": null,
+        "material_description": "10 gp worth of charcoal, incense, and herbs that must be consumed by fire in a brass brazier",
+        "somatic": true,
+        "verbal": true
+      },
+      "concentration": false,
+      "description": "You gain the service of a familiar, a spirit that takes an animal form you choose: bat, cat, crab, frog (toad), hawk, lizard, octopus, owl, poisonous snake, fish (quipper), rat, raven, sea horse, spider, or weasel. Appearing in an unoccupied space within range, the familiar has the statistics of the chosen form, though it is a celestial, fey, or fiend (your choice) instead of a beast.  Your familiar acts independently of you, but it always obeys your commands. In combat, it rolls its own initiative and acts on its own turn. A familiar can't attack, but it can take other actions as normal.  When the familiar drops to 0 hit points, it disappears, leaving behind no physical form. It reappears after you cast this spell again  While your familiar is within 100 feet of you, you can communicate with it telepathically. Additionally, as an action, you can see through your familiar's eyes and hear what it hears until the start of your next turn, gaining the benefits of any special senses that the familiar has. During this time, you are deaf and blind with regard to your own senses.  As an action, you can temporarily dismiss your familiar. It disappears into a pocket dimension where it awaits your summons. Alternatively, you can dismiss it forever. As an action while it is temporarily dismissed, you can cause it to reappear in any unoccupied space within 30 feet of you.  You can't have more than one familiar at a time. If you cast this spell while you already have a familiar, you instead cause it to adopt a new form. Choose one of the forms from the above list. Your familiar transforms into the chosen creature.  Finally, when you cast a spell with a range of touch, your familiar can deliver the spell as if it had cast the spell. Your familiar must be within 100 feet of you, and it must use its reaction to deliver the spell when you cast it. If the spell requires an attack roll, you use your attack modifier for the roll.",
+      "duration": "Instantaneous",
+      "higher_levels": "",
+      "level": 1,
+      "name": "Find Familiar",
+      "range": "10 feet",
+      "ritual": true,
+      "school": "Conjuration",
+      "source": "SRD 5.1"
+    },
+    "Fire Bolt": {
+      "casting_time": "1 action",
+      "classes": [
+        "Sorcerer",
+        "Wizard"
+      ],
+      "components": {
+        "material": false,
+        "material_consumed": false,
+        "material_cost": null,
+        "material_description": "",
+        "somatic": true,
+        "verbal": true
+      },
+      "concentration": false,
+      "description": "You hurl a mote of fire at a creature or object within range. Make a ranged spell attack against the target. On a hit, the target takes 1d10 fire damage. A flammable object hit by this spell ignites if it isn't being worn or carried.\n\nThis spell's damage increases by 1d10 when you reach 5th level (2d10), 11th level (3d10), and 17th level (4d10).",
+      "duration": "Instantaneous",
+      "higher_levels": "",
+      "level": 0,
+      "name": "Fire Bolt",
+      "range": "120 feet",
+      "ritual": false,
+      "school": "Evocation",
+      "source": "SRD 5.1"
+    },
+    "Fog Cloud": {
+      "casting_time": "1 action",
+      "classes": [
+        "Druid",
+        "Sorcerer",
+        "Wizard"
+      ],
+      "components": {
+        "material": false,
+        "material_consumed": false,
+        "material_cost": null,
+        "material_description": "",
+        "somatic": true,
+        "verbal": true
+      },
+      "concentration": true,
+      "description": "You create a 20-foot-radius sphere of fog centered on a point within range. The sphere spreads around corners, and its area is heavily obscured. It lasts for the duration or until a wind of moderate or greater speed (at least 10 miles per hour) disperses it.",
+      "duration": "Concentration, up to 1 hour",
+      "higher_levels": "At Higher Levels.When you cast this spell using a spell slot of 2nd level or higher, the radius of the fog increases by 20 feet for each slot level above 1st.",
+      "level": 1,
+      "name": "Fog Cloud",
+      "range": "120 feet",
+      "ritual": false,
+      "school": "Conjuration",
+      "source": "SRD 5.1"
+    },
+    "Goodberry": {
+      "casting_time": "1 action",
+      "classes": [
+        "Druid",
+        "Ranger"
+      ],
+      "components": {
+        "material": true,
+        "material_consumed": false,
+        "material_cost": null,
+        "material_description": "a sprig of mistletoe",
+        "somatic": true,
+        "verbal": true
+      },
+      "concentration": false,
+      "description": "Up to ten berries appear in your hand and are infused with magic for the duration. A creature can use its action to eat one berry. Eating a berry restores 1 hit point, and the berry provides enough nourishment to sustain a creature for one day.  The berries lose their potency if they have not been consumed within 24 hours of the casting of this spell.",
+      "duration": "Instantaneous",
+      "higher_levels": "",
+      "level": 1,
+      "name": "Goodberry",
+      "range": "Touch",
+      "ritual": false,
+      "school": "Transmutation",
+      "source": "SRD 5.1"
+    },
+    "Guidance": {
+      "casting_time": "1 action",
+      "classes": [
+        "Cleric",
+        "Druid"
+      ],
+      "components": {
+        "material": false,
+        "material_consumed": false,
+        "material_cost": null,
+        "material_description": "",
+        "somatic": true,
+        "verbal": true
+      },
+      "concentration": true,
+      "description": "You touch one willing creature. Once before\n\nthe spell ends, the target can roll a d4 and add the number rolled to one ability check of its choice. It can roll the die before or after making the ability check. The spell then ends.",
+      "duration": "Concentration, up to 1 minute",
+      "higher_levels": "",
+      "level": 0,
+      "name": "Guidance",
+      "range": "Touch",
+      "ritual": false,
+      "school": "Divination",
+      "source": "SRD 5.1"
+    },
+    "Guiding Bolt": {
+      "casting_time": "1 action",
+      "classes": [
+        "Cleric"
+      ],
+      "components": {
+        "material": false,
+        "material_consumed": false,
+        "material_cost": null,
+        "material_description": "",
+        "somatic": true,
+        "verbal": true
+      },
+      "concentration": false,
+      "description": "A flash of light streaks toward a creature of your choice within range. Make a ranged spell attack against the target. On a hit, the target takes 4d6 radiant damage, and the next attack roll made\n\nagainst this target before the end of your next turn has advantage, thanks to the mystical dim light glittering on the target until then.",
+      "duration": "1 round",
+      "higher_levels": "At Higher Levels. When you cast this spell using a spell slot of 2nd level or higher, the damage increases by 1d6 for each slot level above 1st.",
+      "level": 1,
+      "name": "Guiding Bolt",
+      "range": "120 feet",
+      "ritual": false,
+      "school": "Evocation",
+      "source": "SRD 5.1"
+    },
+    "Healing Word": {
+      "casting_time": "1 bonus action",
+      "classes": [
+        "Druid"
+      ],
+      "components": {
+        "material": false,
+        "material_consumed": false,
+        "material_cost": null,
+        "material_description": "",
+        "somatic": false,
+        "verbal": true
+      },
+      "concentration": false,
+      "description": "A creature of your choice that you can see within range regains hit points equal to 1d4 + your spellcasting ability modifier. This spell has no effect on undead or constructs.",
+      "duration": "Instantaneous",
+      "higher_levels": "At Higher Levels.When you cast this spell using a spell slot of 2nd level or higher, the healing increases by 1d4 for each slot level above 1st.",
+      "level": 1,
+      "name": "Healing Word",
+      "range": "60 feet",
+      "ritual": false,
+      "school": "Evocation",
+      "source": "SRD 5.1"
+    },
+    "Heroism": {
+      "casting_time": "1 action",
+      "classes": [
+        "Paladin"
+      ],
+      "components": {
+        "material": false,
+        "material_consumed": false,
+        "material_cost": null,
+        "material_description": "",
+        "somatic": true,
+        "verbal": true
+      },
+      "concentration": true,
+      "description": "A willing creature you touch is imbued with bravery. Until the spell ends, the creature is immune to being frightened and gains temporary hit points equal to your spellcasting ability modifier at the start of each of its turns. When the spell ends, the target loses any remaining temporary hit points from this spell.",
+      "duration": "Concentration, up to 1 minute",
+      "higher_levels": "At Higher Levels. When you cast this spell using a spell slot of 2nd level or higher, you can target one additional creature for each slot level above 1st.",
+      "level": 1,
+      "name": "Heroism",
+      "range": "Touch",
+      "ritual": false,
+      "school": "Enchantment",
+      "source": "SRD 5.1"
+    },
+    "Hideous Laughter": {
+      "casting_time": "1 action",
+      "classes": [
+        "Wizard"
+      ],
+      "components": {
+        "material": true,
+        "material_consumed": false,
+        "material_cost": null,
+        "material_description": "tiny tarts and a feather that is waved in the air",
+        "somatic": true,
+        "verbal": true
+      },
+      "concentration": true,
+      "description": "A creature of your choice that you can see within range perceives everything as hilariously funny and falls into fits of laughter if this spell affects it. The target must succeed on a Wisdom saving throw or fall prone, becoming incapacitated and unable to stand up for the duration. A creature with an Intelligence score of 4 or less isn’t affected.\n\nAt the end of each of its turns, and each time it takes damage, the target can make another Wisdom saving throw. The target has advantage on the saving throw if it’s triggered by damage. On a success, the spell ends.",
+      "duration": "Concentration, up to 1 minute",
+      "higher_levels": "",
+      "level": 1,
+      "name": "Hideous Laughter",
+      "range": "30 feet",
+      "ritual": false,
+      "school": "Enchantment",
+      "source": "SRD 5.1"
+    },
+    "Hunter's Mark": {
+      "casting_time": "1 bonus action",
+      "classes": [
+        "Ranger"
+      ],
+      "components": {
+        "material": false,
+        "material_consumed": false,
+        "material_cost": null,
+        "material_description": "",
+        "somatic": false,
+        "verbal": true
+      },
+      "concentration": true,
+      "description": "You choose a creature you can see within range and mystically mark it as your quarry. Until the spell ends, you deal an extra 1d6 damage to the target whenever you hit it with a weapon attack, and you have advantage on any Wisdom (Perception) or Wisdom (Survival) check you make to find it. If the target drops to 0 hit points before this spell ends, you can use a bonus action on a subsequent turn of yours to mark a new creature.",
+      "duration": "Concentration, up to 1 hour",
+      "higher_levels": "At Higher Levels. When you cast this spell using a spell slot of 3rd or 4th level, you can maintain your concentration on the spell for up to 8 hours. When you use a spell slot of 5th level or higher, you can maintain your concentration on the spell for up to 24 hours.",
+      "level": 1,
+      "name": "Hunter's Mark",
+      "range": "90 feet",
+      "ritual": false,
+      "school": "Divination",
+      "source": "SRD 5.1"
+    },
+    "Identify": {
+      "casting_time": "1 minute",
+      "classes": [
+        "Bard",
+        "Wizard"
+      ],
+      "components": {
+        "material": true,
+        "material_consumed": false,
+        "material_cost": null,
+        "material_description": "a pearl worth at least 100 gp and an owl feather",
+        "somatic": true,
+        "verbal": true
+      },
+      "concentration": false,
+      "description": "You choose one object that you must touch throughout the casting of the spell. If it is a magic item or some other magic-imbued object, you learn its properties and how to use them, whether it requires attunement to use, and how many charges it has, if any. You learn whether any spells are affecting the item and what they are. If the item was created by a spell, you learn which spell created it.  If you instead touch a creature throughout the casting, you learn what spells, if any, are currently affecting it.",
+      "duration": "Instantaneous",
+      "higher_levels": "",
+      "level": 1,
+      "name": "Identify",
+      "range": "Touch",
+      "ritual": true,
+      "school": "Divination",
+      "source": "SRD 5.1"
+    },
+    "Inflict Wounds": {
+      "casting_time": "1 action",
+      "classes": [
+        "Cleric"
+      ],
+      "components": {
+        "material": false,
+        "material_consumed": false,
+        "material_cost": null,
+        "material_description": "",
+        "somatic": true,
+        "verbal": true
+      },
+      "concentration": false,
+      "description": "Make a melee spell attack against a creature you can reach. On a hit, the target takes 3d10 necrotic damage.",
+      "duration": "Instantaneous",
+      "higher_levels": "At Higher Levels. When you cast this spell using a spell slot of 2nd level or higher, the damage increases by 1d10 for each slot level above 1st.",
+      "level": 1,
+      "name": "Inflict Wounds",
+      "range": "Touch",
+      "ritual": false,
+      "school": "Necromancy",
+      "source": "SRD 5.1"
+    },
+    "Light": {
+      "casting_time": "1 action",
+      "classes": [
+        "Sorcerer",
+        "Wizard"
+      ],
+      "components": {
+        "material": true,
+        "material_consumed": false,
+        "material_cost": null,
+        "material_description": "a firefly or phosphorescent moss",
+        "somatic": false,
+        "verbal": true
+      },
+      "concentration": false,
+      "description": "You touch one object that is no larger than 10 feet in any dimension. Until the spell ends, the object sheds bright light in a 20-foot radius and dim light for an additional 20 feet. The light can be colored as you like. Completely covering the object with something opaque blocks the light. The spell ends if you cast it again or dismiss it as an action.  If you target an object held or worn by a hostile creature, that creature must succeed on a Dexterity saving throw to avoid the spell.",
+      "duration": "1 hour",
+      "higher_levels": "",
+      "level": 0,
+      "name": "Light",
+      "range": "Touch",
+      "ritual": false,
+      "school": "Evocation",
+      "source": "SRD 5.1"
+    },
+    "Mage Armor": {
+      "casting_time": "1 action",
+      "classes": [
+        "Sorcerer"
+      ],
+      "components": {
+        "material": true,
+        "material_consumed": false,
+        "material_cost": null,
+        "material_description": "a piece of cured leather",
+        "somatic": true,
+        "verbal": true
+      },
+      "concentration": false,
+      "description": "You touch a willing creature who isn’t wearing armor, and a protective magical force surrounds it until the spell ends. The target’s base AC becomes 13 +its Dexterity modifier. The spell ends if the target dons armor or if you dismiss the spell as an action.",
+      "duration": "8 hours",
+      "higher_levels": "",
+      "level": 1,
+      "name": "Mage Armor",
+      "range": "Touch",
+      "ritual": false,
+      "school": "Abjuration",
+      "source": "SRD 5.1"
+    },
+    "Mage Hand": {
+      "casting_time": "1 action",
+      "classes": [
+        "Bard",
+        "Sorcerer",
+        "Warlock",
+        "Wizard"
+      ],
+      "components": {
+        "material": false,
+        "material_consumed": false,
+        "material_cost": null,
+        "material_description": "",
+        "somatic": true,
+        "verbal": true
+      },
+      "concentration": false,
+      "description": "A spectral, floating hand appears at a point you choose within range. The hand lasts for the duration or until you dismiss it as an action. The hand vanishes if it is ever more than 30 feet away from you or if you cast this spell again.\n\nYou can use your action to control the hand. You can use the hand to manipulate an object, open an unlocked door or container, stow or retrieve an item from an open container, or pour the contents out of a vial. You can move the hand up to 30 feet each time you use it.\n\nThe hand can’t attack, activate magic items, or carry more than 10 pounds.",
+      "duration": "1 minute",
+      "higher_levels": "",
+      "level": 0,
+      "name": "Mage Hand",
+      "range": "30 feet",
+      "ritual": false,
+      "school": "Conjuration",
+      "source": "SRD 5.1"
+    },
+    "Magic Missile": {
+      "casting_time": "1 action",
+      "classes": [
+        "Sorcerer",
+        "Wizard"
+      ],
+      "components": {
+        "material": false,
+        "material_consumed": false,
+        "material_cost": null,
+        "material_description": "",
+        "somatic": true,
+        "verbal": true
+      },
+      "concentration": false,
+      "description": "You create three glowing darts of magical force. Each dart hits a creature of your choice that you can see within range. A dart deals 1d4 + 1 force damage to its target. The darts all strike simultaneously, and you can direct them to hit one creature or several.",
+      "duration": "Instantaneous",
+      "higher_levels": "At Higher Levels.When you cast this spell using a spell slot of 2nd level or higher, the spell creates one more dart for each slot level above 1st.",
+      "level": 1,
+      "name": "Magic Missile",
+      "range": "120 feet",
+      "ritual": false,
+      "school": "Evocation",
+      "source": "SRD 5.1"
+    },
+    "Mending": {
+      "casting_time": "1 minute",
+      "classes": [
+        "Cleric",
+        "Druid",
+        "Sorcerer",
+        "Wizard"
+      ],
+      "components": {
+        "material": true,
+        "material_consumed": false,
+        "material_cost": null,
+        "material_description": "two lodestones",
+        "somatic": true,
+        "verbal": true
+      },
+      "concentration": false,
+      "description": "This spell repairs a single break or tear in an object you touch, such as a broken chain link, two halves of a broken key, a torn cloak, or a leaking wineskin. As long as the break or tear is no larger than 1 foot in any dimension, you mend it, leaving no trace of the former damage. This spell can physically repair a magic item or construct, but the spell can’t restore magic to such an object.",
+      "duration": "Instantaneous",
+      "higher_levels": "",
+      "level": 0,
+      "name": "Mending",
+      "range": "Touch",
+      "ritual": false,
+      "school": "Transmutation",
+      "source": "SRD 5.1"
+    },
+    "Message": {
+      "casting_time": "1 action",
+      "classes": [
+        "Bard",
+        "Sorcerer",
+        "Wizard"
+      ],
+      "components": {
+        "material": true,
+        "material_consumed": false,
+        "material_cost": null,
+        "material_description": "a short piece of copper wire",
+        "somatic": true,
+        "verbal": true
+      },
+      "concentration": false,
+      "description": "You point your finger toward a creature within range and whisper a message. The target (and only the target) hears the message and can reply in a whisper that only you can hear.  You can cast this spell through solid objects if you are familiar with the target and know it is beyond the barrier. Magical silence, 1 foot of stone, 1 inch of common metal, a thin sheet of lead, or 3 feet of wood blocks the spell. The spell doesn’t have to follow a straight line and can travel freely around corners or through openings.",
+      "duration": "1 round",
+      "higher_levels": "",
+      "level": 0,
+      "name": "Message",
+      "range": "120 feet",
+      "ritual": false,
+      "school": "Transmutation",
+      "source": "SRD 5.1"
+    },
+    "Minor Illusion": {
+      "casting_time": "1 action",
+      "classes": [
+        "Sorcerer",
+        "Warlock",
+        "Wizard"
+      ],
+      "components": {
+        "material": true,
+        "material_consumed": false,
+        "material_cost": null,
+        "material_description": "a bit of fleece",
+        "somatic": true,
+        "verbal": false
+      },
+      "concentration": false,
+      "description": "You create a sound or an image of an object within range that lasts for the duration. The illusion also ends if you dismiss it as an action or cast this spell again.\n\nIf you create a sound, its volume can range from a whisper to a scream. It can be your voice, someone else’s voice, a lion’s roar, a beating\n\nof drums, or any other sound you choose. The sound continues unabated throughout the duration, or you can make discrete sounds at different times before the spell ends.\n\nIf you create an image of an object-such as a chair, muddy footprints, or a small chest-it must be no larger than a 5-foot cube. The image can’t create sound, light, smell, or any other sensory effect. Physical interaction with the image reveals it to be an illusion, because things can pass through it.  If a creature uses its action to examine the sound or image, the creature can determine that it is an illusion with a successful Intelligence (Investigation) check against your spell save DC. If a creature discerns the illusion for what it is, the illusion becomes faint to the creature.",
+      "duration": "1 minute",
+      "higher_levels": "",
+      "level": 0,
+      "name": "Minor Illusion",
+      "range": "30 feet",
+      "ritual": false,
+      "school": "Illusion",
+      "source": "SRD 5.1"
+    },
+    "Poison Spray": {
+      "casting_time": "1 action",
+      "classes": [
+        "Druid",
+        "Sorcerer",
+        "Warlock",
+        "Wizard"
+      ],
+      "components": {
+        "material": false,
+        "material_consumed": false,
+        "material_cost": null,
+        "material_description": "",
+        "somatic": true,
+        "verbal": true
+      },
+      "concentration": false,
+      "description": "You extend your hand toward a creature you can see within range and project a puff of noxious gas from your palm. The creature must succeed on a Constitution saving throw or take 1d12 poison damage.\n\nThis spell's damage increases by 1d12 when you reach 5th level (2d12), 11th level (3d12), and 17th level (4d12).",
+      "duration": "Instantaneous",
+      "higher_levels": "",
+      "level": 0,
+      "name": "Poison Spray",
+      "range": "10 feet",
+      "ritual": false,
+      "school": "Conjuration",
+      "source": "SRD 5.1"
+    },
+    "Prestidigitation": {
+      "casting_time": "1 action",
+      "classes": [
+        "Bard",
+        "Sorcerer",
+        "Warlock",
+        "Wizard"
+      ],
+      "components": {
+        "material": false,
+        "material_consumed": false,
+        "material_cost": null,
+        "material_description": "",
+        "somatic": true,
+        "verbal": true
+      },
+      "concentration": false,
+      "description": "This spell is a minor magical trick that novice spellcasters use for practice. You create one of the following magical effects within range:\n\n•You create an instantaneous, harmless sensory effect, such as a shower of sparks, a puff of wind,faint musical notes, or an odd odor.\n\n•You instantaneously light or snuff out a candle, a torch, or a small campfire.\n\n•You instantaneously clean or soil an object no larger than 1 cubic foot.\n\n•You chill, warm, or flavor up to 1 cubic foot of nonliving material for 1 hour.\n\n•You make a color, a small mark, or a symbol appear on an object or a surface for 1 hour.\n\n•You create a nonmagical trinket or an illusory image that can fit in your hand and that lasts until the end of your next turn.If you cast this spell multiple times, you can have up to three of its non-instantaneous effects active at a time, and you can dismiss such an effect as an action.",
+      "duration": "Up to 1 hour",
+      "higher_levels": "",
+      "level": 0,
+      "name": "Prestidigitation",
+      "range": "10 feet",
+      "ritual": false,
+      "school": "Transmutation",
+      "source": "SRD 5.1"
+    },
+    "Produce Flame": {
+      "casting_time": "1 action",
+      "classes": [
+        "Druid"
+      ],
+      "components": {
+        "material": false,
+        "material_consumed": false,
+        "material_cost": null,
+        "material_description": "",
+        "somatic": true,
+        "verbal": true
+      },
+      "concentration": false,
+      "description": "A flickering flame appears in your hand. The flame remains there for the duration and harms neither you nor your equipment. The flame sheds bright light in a 10-foot radius and dim light for an additional 10 feet. The spell ends if you dismiss it as an action or if you cast it again.  You can also attack with the flame, although doing so ends the spell. When you cast this spell, or as an action on a later turn, you can hurl the flame at a creature within 30 feet of you. Make a ranged spell attack. On a hit, the target takes 1d8 fire damage.  This spell’s damage increases by 1d8 when you reach 5th level (2d8), 11th level (3d8), and 17th level (4d8).",
+      "duration": "10 minutes",
+      "higher_levels": "",
+      "level": 0,
+      "name": "Produce Flame",
+      "range": "Self",
+      "ritual": false,
+      "school": "Conjuration",
+      "source": "SRD 5.1"
+    },
+    "Protection from Evil and Good": {
+      "casting_time": "1 action",
+      "classes": [
+        "Cleric",
+        "Paladin"
+      ],
+      "components": {
+        "material": true,
+        "material_consumed": false,
+        "material_cost": null,
+        "material_description": "holy water or powdered silver and iron, which the spell consumes",
+        "somatic": true,
+        "verbal": true
+      },
+      "concentration": true,
+      "description": "Until the spell ends, one willing creature you touch is protected against certain types of creatures: aberrations, celestials, elementals, fey, fiends, and undead.  The protection grants several benefits. Creatures of those types have disadvantage on attack rolls against the target. The target also can’t be charmed, frightened, or possessed by them. If the target is already charmed, frightened, or possessed by such a creature, the target has advantage on any new saving throw against the relevant effect.",
+      "duration": "Concentration up to 10 minutes",
+      "higher_levels": "",
+      "level": 1,
+      "name": "Protection from Evil and Good",
+      "range": "Touch",
+      "ritual": false,
+      "school": "Abjuration",
+      "source": "SRD 5.1"
+    },
+    "Purify Food and Drink": {
+      "casting_time": "1 action",
+      "classes": [
+        "Cleric",
+        "Druid",
+        "Paladin"
+      ],
+      "components": {
+        "material": false,
+        "material_consumed": false,
+        "material_cost": null,
+        "material_description": "",
+        "somatic": true,
+        "verbal": true
+      },
+      "concentration": false,
+      "description": "All nonmagical food and drink within a 5-foot-radius sphere centered on a point of your choice within range is purified and rendered free of poison and disease.",
+      "duration": "Instantaneous",
+      "higher_levels": "",
+      "level": 1,
+      "name": "Purify Food and Drink",
+      "range": "10 feet",
+      "ritual": true,
+      "school": "Transmutation",
+      "source": "SRD 5.1"
+    },
+    "Ray of Frost": {
+      "casting_time": "1 action",
+      "classes": [
+        "Sorcerer",
+        "Wizard"
+      ],
+      "components": {
+        "material": false,
+        "material_consumed": false,
+        "material_cost": null,
+        "material_description": "",
+        "somatic": true,
+        "verbal": true
+      },
+      "concentration": false,
+      "description": "A frigid beam of blue-white light streaks toward a creature within range. Make a ranged spell attack against the target. On a hit, it takes 1d8 cold damage, and its speed is reduced by 10 feet until the start of your next turn.  The spell’s damage increases by 1d8 when you reach 5th level (2d8), 11th level (3d8), and 17th level (4d8).",
+      "duration": "Instantaneous",
+      "higher_levels": "",
+      "level": 0,
+      "name": "Ray of Frost",
+      "range": "60 feet",
+      "ritual": false,
+      "school": "Evocation",
+      "source": "SRD 5.1"
+    },
+    "Resistance": {
+      "casting_time": "1 action",
+      "classes": [
+        "Druid"
+      ],
+      "components": {
+        "material": true,
+        "material_consumed": false,
+        "material_cost": null,
+        "material_description": "a miniature cloak",
+        "somatic": true,
+        "verbal": true
+      },
+      "concentration": true,
+      "description": "You touch one willing creature. Once before the spell ends, the target can roll a d4 and add the number rolled to one saving throw of its choice. It can roll the die before or after making the saving throw. The spell then ends.",
+      "duration": "Concentration, up to 1 minute",
+      "higher_levels": "",
+      "level": 0,
+      "name": "Resistance",
+      "range": "Touch",
+      "ritual": false,
+      "school": "Abjuration",
+      "source": "SRD 5.1"
+    },
+    "Sacred Flame": {
+      "casting_time": "1 action",
+      "classes": [
+        "Cleric"
+      ],
+      "components": {
+        "material": false,
+        "material_consumed": false,
+        "material_cost": null,
+        "material_description": "",
+        "somatic": true,
+        "verbal": true
+      },
+      "concentration": false,
+      "description": "Flame-like radiance descends on a creature that you can see within range. The target must succeed on a Dexterity saving throw or take 1d8 radiant damage. The target gains no benefit from cover for this saving throw.  The spell’s damage increases by 1d8 when you reach 5th level (2d8), 11th level (3d8), and 17th level (4d8).",
+      "duration": "Instantaneous",
+      "higher_levels": "",
+      "level": 0,
+      "name": "Sacred Flame",
+      "range": "60 feet",
+      "ritual": false,
+      "school": "Evocation",
+      "source": "SRD 5.1"
+    },
+    "Sanctuary": {
+      "casting_time": "1 bonus action",
+      "classes": [
+        "Cleric"
+      ],
+      "components": {
+        "material": true,
+        "material_consumed": false,
+        "material_cost": null,
+        "material_description": "a small silver mirror",
+        "somatic": true,
+        "verbal": true
+      },
+      "concentration": false,
+      "description": "You ward a creature within range against attack. Until the spell ends, any creature who targets the warded creature with an attack or a harmful spell must first make a Wisdom saving throw. On a failed save, the creature must choose a new target or lose the attack or spell. This spell doesn’t protect the warded creature from area effects, such as the explosion of a fireball.\n\nIf the warded creature makes an attack or casts a spell that affects an enemy creature, this spell ends.",
+      "duration": "1 minute",
+      "higher_levels": "",
+      "level": 1,
+      "name": "Sanctuary",
+      "range": "30 feet",
+      "ritual": false,
+      "school": "Abjuration",
+      "source": "SRD 5.1"
+    },
+    "Shield": {
+      "casting_time": "1 reaction, which you take when you are hit by an attack or targeted by the magic missile spell",
+      "classes": [
+        "Sorcerer",
+        "Wizard"
+      ],
+      "components": {
+        "material": false,
+        "material_consumed": false,
+        "material_cost": null,
+        "material_description": "",
+        "somatic": true,
+        "verbal": true
+      },
+      "concentration": false,
+      "description": "An invisible barrier of magical force appears and protects you. Until the start of your next turn, you have a +5 bonus to AC, including against the triggering attack, and you take no damage frommagic missile.",
+      "duration": "1 round",
+      "higher_levels": "",
+      "level": 1,
+      "name": "Shield",
+      "range": "Self",
+      "ritual": false,
+      "school": "Abjuration",
+      "source": "SRD 5.1"
+    },
+    "Shillelagh": {
+      "casting_time": "1 bonus action",
+      "classes": [
+        "Druid"
+      ],
+      "components": {
+        "material": true,
+        "material_consumed": false,
+        "material_cost": null,
+        "material_description": "mistletoe, a shamrock leaf, and a club or quarterstaff",
+        "somatic": true,
+        "verbal": true
+      },
+      "concentration": false,
+      "description": "The wood of a club or quarterstaff you are holding is imbued with nature’s power. For the duration, you can use your spellcasting ability instead of Strength for the attack and damage rolls of melee attacks using that weapon, and the weapon’s damage die becomes a d8. The weapon also becomes magical, if it isn’t already. The spell ends if you cast it again or if you let go of the weapon.",
+      "duration": "1 minute",
+      "higher_levels": "",
+      "level": 0,
+      "name": "Shillelagh",
+      "range": "Touch",
+      "ritual": false,
+      "school": "Transmutation",
+      "source": "SRD 5.1"
+    },
+    "Shocking Grasp": {
+      "casting_time": "1 action",
+      "classes": [
+        "Sorcerer",
+        "Wizard"
+      ],
+      "components": {
+        "material": false,
+        "material_consumed": false,
+        "material_cost": null,
+        "material_description": "",
+        "somatic": true,
+        "verbal": true
+      },
+      "concentration": false,
+      "description": "Lightning springs from your hand to deliver a shock to a creature you try to touch. Make a melee spell attack against the target. You have advantage on the attack roll if the target is wearing armor made of metal. On a hit, the target takes 1d8 lightning damage, and it can’t take reactions until the start of its next turn.\n\nThe spell’s damage increases by 1d8 when you reach 5th level (2d8), 11th level (3d8), and 17th level (4d8).",
+      "duration": "Instantaneous",
+      "higher_levels": "",
+      "level": 0,
+      "name": "Shocking Grasp",
+      "range": "Touch",
+      "ritual": false,
+      "school": "Evocation",
+      "source": "SRD 5.1"
+    },
+    "Silent Image": {
+      "casting_time": "1 action",
+      "classes": [
+        "Sorcerer"
+      ],
+      "components": {
+        "material": true,
+        "material_consumed": false,
+        "material_cost": null,
+        "material_description": "a bit of fleece",
+        "somatic": true,
+        "verbal": true
+      },
+      "concentration": true,
+      "description": "You create the image of an\n\nobject, a creature, or some other visible phenomenon that is no larger than a 15-foot cube. The image appears at a spot within range and lasts for the duration. The image is purely visual; it isn’t accompanied by sound, smell, or other sensory effects.\n\nYou can use your action to cause the image to move to any spot within range. As the image changes location, you can alter its appearance so that its movements appear natural for the image. For example, if you create an image of a creature and move it, you can alter the image so that it appears to be walking.\n\nPhysical interaction with the image reveals it to be an illusion, because things can pass through it. A creature that uses its action to examine the image can determine that it is an illusion with a successful Intelligence (Investigation) check against your spell save DC. If a creature discerns the illusion for what it is, the creature can see through the image.",
+      "duration": "Concentration, up to 10 minutes",
+      "higher_levels": "",
+      "level": 1,
+      "name": "Silent Image",
+      "range": "60 feet",
+      "ritual": false,
+      "school": "Illusion",
+      "source": "SRD 5.1"
+    },
+    "Sleep": {
+      "casting_time": "1 action",
+      "classes": [
+        "Sorcerer"
+      ],
+      "components": {
+        "material": true,
+        "material_consumed": false,
+        "material_cost": null,
+        "material_description": "a pinch of fine sand, rose petals, or a cricket",
+        "somatic": true,
+        "verbal": true
+      },
+      "concentration": false,
+      "description": "This spell sends creatures into a magical slumber. Roll 5d8; the total is how many hit points of creatures this spell can affect. Creatures within 20 feet of a point you choose within range are affected in ascending order of their current hit points (ignoring unconscious creatures).\n\nStarting with the creature that has the lowest current hit points, each creature affected by this spell falls unconscious until the spell ends, the sleeper takes damage, or someone uses an action to shake or slap the sleeper awake. Subtract each creature’s hit points from the total before moving on to the creature with the next lowest hit points. A creature’s hit points must be equal to or less than the remaining total for that creature to be affected.\n\nUndead and creatures immune to being charmed aren’t affected by this spell.",
+      "duration": "1 minute",
+      "higher_levels": "At Higher Levels.When you cast this spell using a spell slot of 2nd level or higher, roll an additional 2d8 for each slot level above 1st.",
+      "level": 1,
+      "name": "Sleep",
+      "range": "90 feet",
+      "ritual": false,
+      "school": "Enchantment",
+      "source": "SRD 5.1"
+    },
+    "Spare the Dying": {
+      "casting_time": "1 action",
+      "classes": [
+        "Cleric"
+      ],
+      "components": {
+        "material": false,
+        "material_consumed": false,
+        "material_cost": null,
+        "material_description": "",
+        "somatic": true,
+        "verbal": true
+      },
+      "concentration": false,
+      "description": "You touch a living creature that has 0 hit points. The creature becomes stable. This spell has no effect on undead or constructs.",
+      "duration": "Instantaneous",
+      "higher_levels": "",
+      "level": 0,
+      "name": "Spare the Dying",
+      "range": "Touch",
+      "ritual": false,
+      "school": "Necromancy",
+      "source": "SRD 5.1"
+    },
+    "Speak with Animals": {
+      "casting_time": "1 action",
+      "classes": [
+        "Druid",
+        "Ranger"
+      ],
+      "components": {
+        "material": false,
+        "material_consumed": false,
+        "material_cost": null,
+        "material_description": "",
+        "somatic": true,
+        "verbal": true
+      },
+      "concentration": false,
+      "description": "You gain the ability to comprehend and verbally communicate with beasts for the duration. The knowledge and awareness of many beasts is limited by their intelligence, but at minimum, beasts can give you information about nearby locations and monsters, including whatever they can perceive or have perceived within the past day. You might be able to persuade a beast to perform a small favor for you, at the GM’s discretion.",
+      "duration": "10 minutes",
+      "higher_levels": "",
+      "level": 1,
+      "name": "Speak with Animals",
+      "range": "Self",
+      "ritual": true,
+      "school": "Divination",
+      "source": "SRD 5.1"
+    },
+    "Thaumaturgy": {
+      "casting_time": "1 action",
+      "classes": [
+        "Cleric"
+      ],
+      "components": {
+        "material": false,
+        "material_consumed": false,
+        "material_cost": null,
+        "material_description": "",
+        "somatic": false,
+        "verbal": true
+      },
+      "concentration": false,
+      "description": "You manifest a minor wonder, a sign of supernatural power, within range. You create one of the following magical effects within range:\n\n•Your voice booms up to three times as loud as normal for 1 minute.\n\n•You cause flames to flicker, brighten, dim, or change color for 1 minute.\n\n•You cause harmless tremors in the ground for 1minute.\n\n•You create an instantaneous sound that originates from a point of your choice within range, such as a rumble of thunder, the cry of a raven, or ominous whispers.\n\n•You instantaneously cause an unlocked door or window to fly open or slam shut.\n\n•You alter the appearance of your eyes for 1 minute.If you cast this spell multiple times, you can have up to three of its 1-minute effects active at a time, and you can dismiss such an effect as an action.",
+      "duration": "Up to 1 minute",
+      "higher_levels": "",
+      "level": 0,
+      "name": "Thaumaturgy",
+      "range": "30 feet",
+      "ritual": false,
+      "school": "Transmutation",
+      "source": "SRD 5.1"
+    },
+    "Thunderwave": {
+      "casting_time": "1 action",
+      "classes": [
+        "Druid",
+        "Sorcerer",
+        "Wizard"
+      ],
+      "components": {
+        "material": false,
+        "material_consumed": false,
+        "material_cost": null,
+        "material_description": "",
+        "somatic": true,
+        "verbal": true
+      },
+      "concentration": false,
+      "description": "A wave of thunderous force sweeps out from you. Each creature in a 15-foot cube originating from you must make a Constitution saving throw. On a failed save, a creature takes 2d8 thunder damage and is pushed 10 feet away from you. On a successful save, the creature takes half as much damage and isn’t pushed. In addition, unsecured objects that are completely within the area of effect are automatically pushed 10 feet away from you by the spell’s effect, and the spell emits a thunderous boom audible out to 300 feet.",
+      "duration": "Instantaneous",
+      "higher_levels": "At Higher Levels. When you cast this spell using a spell slot of 2nd level or higher, the damage increases by 1d8 for each slot level above 1st.",
+      "level": 1,
+      "name": "Thunderwave",
+      "range": "Self (15-foot cube)",
+      "ritual": false,
+      "school": "Evocation",
+      "source": "SRD 5.1"
+    },
+    "True Strike": {
+      "casting_time": "1 action",
+      "classes": [
+        "Sorcerer",
+        "Warlock",
+        "Wizard"
+      ],
+      "components": {
+        "material": false,
+        "material_consumed": false,
+        "material_cost": null,
+        "material_description": "",
+        "somatic": true,
+        "verbal": false
+      },
+      "concentration": true,
+      "description": "You extend your hand and point a finger at a target in range. Your magic grants you a brief insight into the target’s defenses. On your next turn, you gain advantage on your first attack roll against the target, provided that this spell hasn’t ended.",
+      "duration": "Concentration, up to 1 round",
+      "higher_levels": "",
+      "level": 0,
+      "name": "True Strike",
+      "range": "30 feet",
+      "ritual": false,
+      "school": "Divination",
+      "source": "SRD 5.1"
+    },
+    "Vicious Mockery": {
+      "casting_time": "1 action",
+      "classes": [
+        "Bard"
+      ],
+      "components": {
+        "material": false,
+        "material_consumed": false,
+        "material_cost": null,
+        "material_description": "",
+        "somatic": false,
+        "verbal": true
+      },
+      "concentration": false,
+      "description": "You unleash a string of insults laced with subtle enchantments at a creature you can see within range. If the target can hear you (though it need not understand you), it must succeed on a Wisdom saving throw or take 1d4 psychic damage and have disadvantage on the next attack roll it makes before the end of its next turn.  This spell's damage increases by 1d4 when you reach 5th level (2d4), 11th level (3d4), and 17th level (4d4).",
+      "duration": "Instantaneous",
+      "higher_levels": "",
+      "level": 0,
+      "name": "Vicious Mockery",
+      "range": "60 feet",
+      "ritual": false,
+      "school": "Enchantment",
+      "source": "SRD 5.1"
+    }
+  }
+}

@@ -1,0 +1,20 @@
+{
+  "feats": [
+    {
+      "asi": null,
+      "benefits": [
+        "You have advantage on attack rolls against a creature you are grappling.",
+        "You can use your action to try to pin a creature grappled by you. To do so, make another grapple check. If you succeed, you and the creature are both restrained until the grapple ends."
+      ],
+      "description": "You’ve developed the skills necessary to hold your own in close-quarters grappling. You gain the following benefits:",
+      "name": "Grappler",
+      "prerequisite": "Strength 13 or higher",
+      "source": "SRD 5.1"
+    }
+  ],
+  "metadata": {
+    "format_version": "1.0",
+    "ruleset": "dnd5e-2014-v1",
+    "source": "SRD 5.1"
+  }
+}

@@ -35,6 +35,12 @@ compare-and-swap. A conflict returns the canonical document and current version.
 Accepted HP, max-HP, and AC changes synchronize every linked token in the
 session and use normal authorized sprite broadcasts.
 
+`character_save_request` creates a character only. It cannot overwrite an
+existing id without a version. XP, level, class, class-list, pending-level, and
+proficiency changes are protected from generic deltas even when the browser
+sends an otherwise unchanged full nested snapshot; use the advancement commands
+below.
+
 Deletion is an idempotent archive operation. It detaches linked tokens and
 removes active sharing grants while retaining character logs and an archive
 event.

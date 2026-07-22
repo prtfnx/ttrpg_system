@@ -1,0 +1,2669 @@
+{
+  "equipment": {
+    "adventuring_gear": [
+      {
+        "cost": {
+          "copper": 0,
+          "electrum": 0,
+          "gold": 2.0,
+          "platinum": 0,
+          "silver": 0
+        },
+        "cost_display": "2 gp",
+        "description": "",
+        "item_type": "adventuring_gear",
+        "name": "Abacus",
+        "properties": [],
+        "source": "SRD 5.1",
+        "weight": 2.0
+      },
+      {
+        "cost": {
+          "copper": 0,
+          "electrum": 0,
+          "gold": 25.0,
+          "platinum": 0,
+          "silver": 0
+        },
+        "cost_display": "25 gp",
+        "description": "",
+        "item_type": "adventuring_gear",
+        "name": "Acid (vial)",
+        "properties": [],
+        "source": "SRD 5.1",
+        "weight": 1.0
+      },
+      {
+        "cost": {
+          "copper": 0,
+          "electrum": 0,
+          "gold": 50.0,
+          "platinum": 0,
+          "silver": 0
+        },
+        "cost_display": "50 gp",
+        "description": "",
+        "item_type": "adventuring_gear",
+        "name": "Alchemist’s fire (flask)",
+        "properties": [],
+        "source": "SRD 5.1",
+        "weight": 1.0
+      },
+      {
+        "cost": {
+          "copper": 0,
+          "electrum": 0,
+          "gold": 5.0,
+          "platinum": 0,
+          "silver": 0
+        },
+        "cost_display": "5 gp",
+        "description": "",
+        "item_type": "adventuring_gear",
+        "name": "Amulet",
+        "properties": [],
+        "source": "SRD 5.1",
+        "weight": 1.0
+      },
+      {
+        "cost": {
+          "copper": 0,
+          "electrum": 0,
+          "gold": 50.0,
+          "platinum": 0,
+          "silver": 0
+        },
+        "cost_display": "50 gp",
+        "description": "",
+        "item_type": "adventuring_gear",
+        "name": "Antitoxin (vial)",
+        "properties": [],
+        "source": "SRD 5.1",
+        "weight": 0
+      },
+      {
+        "cost": {
+          "copper": 0,
+          "electrum": 0,
+          "gold": 1.0,
+          "platinum": 0,
+          "silver": 0
+        },
+        "cost_display": "1 gp",
+        "description": "",
+        "item_type": "adventuring_gear",
+        "name": "Arrows (20)",
+        "properties": [],
+        "source": "SRD 5.1",
+        "weight": 1.0
+      },
+      {
+        "cost": {
+          "copper": 0,
+          "electrum": 0,
+          "gold": 2.0,
+          "platinum": 0,
+          "silver": 0
+        },
+        "cost_display": "2 gp",
+        "description": "",
+        "item_type": "adventuring_gear",
+        "name": "Backpack",
+        "properties": [],
+        "source": "SRD 5.1",
+        "weight": 5.0
+      },
+      {
+        "cost": {
+          "copper": 0,
+          "electrum": 0,
+          "gold": 1.0,
+          "platinum": 0,
+          "silver": 0
+        },
+        "cost_display": "1 gp",
+        "description": "",
+        "item_type": "adventuring_gear",
+        "name": "Ball bearings (bag of 1,000)",
+        "properties": [],
+        "source": "SRD 5.1",
+        "weight": 2.0
+      },
+      {
+        "cost": {
+          "copper": 0,
+          "electrum": 0,
+          "gold": 2.0,
+          "platinum": 0,
+          "silver": 0
+        },
+        "cost_display": "2 gp",
+        "description": "",
+        "item_type": "adventuring_gear",
+        "name": "Barrel",
+        "properties": [],
+        "source": "SRD 5.1",
+        "weight": 70.0
+      },
+      {
+        "cost": {
+          "copper": 0,
+          "electrum": 0,
+          "gold": 0,
+          "platinum": 0,
+          "silver": 4.0
+        },
+        "cost_display": "4 sp",
+        "description": "",
+        "item_type": "adventuring_gear",
+        "name": "Basket",
+        "properties": [],
+        "source": "SRD 5.1",
+        "weight": 2.0
+      },
+      {
+        "cost": {
+          "copper": 0,
+          "electrum": 0,
+          "gold": 1.0,
+          "platinum": 0,
+          "silver": 0
+        },
+        "cost_display": "1 gp",
+        "description": "",
+        "item_type": "adventuring_gear",
+        "name": "Bedroll",
+        "properties": [],
+        "source": "SRD 5.1",
+        "weight": 7.0
+      },
+      {
+        "cost": {
+          "copper": 0,
+          "electrum": 0,
+          "gold": 1.0,
+          "platinum": 0,
+          "silver": 0
+        },
+        "cost_display": "1 gp",
+        "description": "",
+        "item_type": "adventuring_gear",
+        "name": "Bell",
+        "properties": [],
+        "source": "SRD 5.1",
+        "weight": 0
+      },
+      {
+        "cost": {
+          "copper": 0,
+          "electrum": 0,
+          "gold": 0,
+          "platinum": 0,
+          "silver": 5.0
+        },
+        "cost_display": "5 sp",
+        "description": "",
+        "item_type": "adventuring_gear",
+        "name": "Blanket",
+        "properties": [],
+        "source": "SRD 5.1",
+        "weight": 3.0
+      },
+      {
+        "cost": {
+          "copper": 0,
+          "electrum": 0,
+          "gold": 1.0,
+          "platinum": 0,
+          "silver": 0
+        },
+        "cost_display": "1 gp",
+        "description": "A set of pulleys with a cable threaded through them and a hook to attach to objects, a block and tackle allows you to hoist up to four times the weight you can normally lift.",
+        "item_type": "adventuring_gear",
+        "name": "Block  and tackle",
+        "properties": [],
+        "source": "SRD 5.1",
+        "weight": 5.0
+      },
+      {
+        "cost": {
+          "copper": 0,
+          "electrum": 0,
+          "gold": 1.0,
+          "platinum": 0,
+          "silver": 0
+        },
+        "cost_display": "1 gp",
+        "description": "",
+        "item_type": "adventuring_gear",
+        "name": "Blowgun needles (50)",
+        "properties": [],
+        "source": "SRD 5.1",
+        "weight": 1.0
+      },
+      {
+        "cost": {
+          "copper": 0,
+          "electrum": 0,
+          "gold": 25.0,
+          "platinum": 0,
+          "silver": 0
+        },
+        "cost_display": "25 gp",
+        "description": "A book might contain poetry, historical accounts, information pertaining to a particular field of lore, diagrams and notes on gnomish contraptions, or just about anything else that can be represented using text or pictures. A book of spells is a spellbook (described later in this section).",
+        "item_type": "adventuring_gear",
+        "name": "Book",
+        "properties": [],
+        "source": "SRD 5.1",
+        "weight": 5.0
+      },
+      {
+        "cost": {
+          "copper": 0,
+          "electrum": 0,
+          "gold": 2.0,
+          "platinum": 0,
+          "silver": 0
+        },
+        "cost_display": "2 gp",
+        "description": "",
+        "item_type": "adventuring_gear",
+        "name": "Bottle, glass",
+        "properties": [],
+        "source": "SRD 5.1",
+        "weight": 2.0
+      },
+      {
+        "cost": {
+          "copper": 5.0,
+          "electrum": 0,
+          "gold": 0,
+          "platinum": 0,
+          "silver": 0
+        },
+        "cost_display": "5 cp",
+        "description": "",
+        "item_type": "adventuring_gear",
+        "name": "Bucket",
+        "properties": [],
+        "source": "SRD 5.1",
+        "weight": 2.0
+      },
+      {
+        "cost": {
+          "copper": 0,
+          "electrum": 0,
+          "gold": 1.0,
+          "platinum": 0,
+          "silver": 0
+        },
+        "cost_display": "1 gp",
+        "description": "",
+        "item_type": "adventuring_gear",
+        "name": "Caltrops (bag of 20)",
+        "properties": [],
+        "source": "SRD 5.1",
+        "weight": 2.0
+      },
+      {
+        "cost": {
+          "copper": 1.0,
+          "electrum": 0,
+          "gold": 0,
+          "platinum": 0,
+          "silver": 0
+        },
+        "cost_display": "1 cp",
+        "description": "For 1 hour, a candle sheds bright light in a 5-foot radius and dim light for an additional 5 feet.",
+        "item_type": "adventuring_gear",
+        "name": "Candle",
+        "properties": [],
+        "source": "SRD 5.1",
+        "weight": 0
+      },
+      {
+        "cost": {
+          "copper": 0,
+          "electrum": 0,
+          "gold": 1.0,
+          "platinum": 0,
+          "silver": 0
+        },
+        "cost_display": "1 gp",
+        "description": "This wooden case can hold up to twenty crossbow bolts.",
+        "item_type": "adventuring_gear",
+        "name": "Case, crossbow bolt",
+        "properties": [],
+        "source": "SRD 5.1",
+        "weight": 1.0
+      },
+      {
+        "cost": {
+          "copper": 0,
+          "electrum": 0,
+          "gold": 1.0,
+          "platinum": 0,
+          "silver": 0
+        },
+        "cost_display": "1 gp",
+        "description": "This cylindrical leather case can hold up to ten rolled-up sheets of paper or five rolled-up sheets of parchment.",
+        "item_type": "adventuring_gear",
+        "name": "Case, map or scroll",
+        "properties": [],
+        "source": "SRD 5.1",
+        "weight": 1.0
+      },
+      {
+        "cost": {
+          "copper": 0,
+          "electrum": 0,
+          "gold": 5.0,
+          "platinum": 0,
+          "silver": 0
+        },
+        "cost_display": "5 gp",
+        "description": "",
+        "item_type": "adventuring_gear",
+        "name": "Chain (10 feet)",
+        "properties": [],
+        "source": "SRD 5.1",
+        "weight": 10.0
+      },
+      {
+        "cost": {
+          "copper": 1.0,
+          "electrum": 0,
+          "gold": 0,
+          "platinum": 0,
+          "silver": 0
+        },
+        "cost_display": "1 cp",
+        "description": "",
+        "item_type": "adventuring_gear",
+        "name": "Chalk (1 piece)",
+        "properties": [],
+        "source": "SRD 5.1",
+        "weight": 0
+      },
+      {
+        "cost": {
+          "copper": 0,
+          "electrum": 0,
+          "gold": 5.0,
+          "platinum": 0,
+          "silver": 0
+        },
+        "cost_display": "5 gp",
+        "description": "",
+        "item_type": "adventuring_gear",
+        "name": "Chest",
+        "properties": [],
+        "source": "SRD 5.1",
+        "weight": 25.0
+      },
+      {
+        "cost": {
+          "copper": 0,
+          "electrum": 0,
+          "gold": 25.0,
+          "platinum": 0,
+          "silver": 0
+        },
+        "cost_display": "25 gp",
+        "description": "A climber’s kit includes special pitons, boot tips, gloves, and a harness. You can use the climber’s kit as an action to anchor yourself; when you do, you can’t fall more than 25 feet from the point where you anchored yourself, and you can’t climb more than 25 feet away from that point without undoing the anchor.",
+        "item_type": "adventuring_gear",
+        "name": "Climber’s kit",
+        "properties": [],
+        "source": "SRD 5.1",
+        "weight": 12.0
+      },
+      {
+        "cost": {
+          "copper": 0,
+          "electrum": 0,
+          "gold": 0,
+          "platinum": 0,
+          "silver": 5.0
+        },
+        "cost_display": "5 sp",
+        "description": "",
+        "item_type": "adventuring_gear",
+        "name": "Clothes, common",
+        "properties": [],
+        "source": "SRD 5.1",
+        "weight": 3.0
+      },
+      {
+        "cost": {
+          "copper": 0,
+          "electrum": 0,
+          "gold": 5.0,
+          "platinum": 0,
+          "silver": 0
+        },
+        "cost_display": "5 gp",
+        "description": "",
+        "item_type": "adventuring_gear",
+        "name": "Clothes, costume",
+        "properties": [],
+        "source": "SRD 5.1",
+        "weight": 4.0
+      },
+      {
+        "cost": {
+          "copper": 0,
+          "electrum": 0,
+          "gold": 15.0,
+          "platinum": 0,
+          "silver": 0
+        },
+        "cost_display": "15 gp",
+        "description": "",
+        "item_type": "adventuring_gear",
+        "name": "Clothes, fine",
+        "properties": [],
+        "source": "SRD 5.1",
+        "weight": 6.0
+      },
+      {
+        "cost": {
+          "copper": 0,
+          "electrum": 0,
+          "gold": 2.0,
+          "platinum": 0,
+          "silver": 0
+        },
+        "cost_display": "2 gp",
+        "description": "",
+        "item_type": "adventuring_gear",
+        "name": "Clothes, traveler’s",
+        "properties": [],
+        "source": "SRD 5.1",
+        "weight": 4.0
+      },
+      {
+        "cost": {
+          "copper": 0,
+          "electrum": 0,
+          "gold": 25.0,
+          "platinum": 0,
+          "silver": 0
+        },
+        "cost_display": "25 gp",
+        "description": "A component pouch is a small, watertight leather belt pouch that has compartments to hold all the material components and other special items you need to cast your spells, except for those components that have a specific cost (as indicated in a spell's description).",
+        "item_type": "adventuring_gear",
+        "name": "Component pouch",
+        "properties": [],
+        "source": "SRD 5.1",
+        "weight": 2.0
+      },
+      {
+        "cost": {
+          "copper": 0,
+          "electrum": 0,
+          "gold": 1.0,
+          "platinum": 0,
+          "silver": 0
+        },
+        "cost_display": "1 gp",
+        "description": "",
+        "item_type": "adventuring_gear",
+        "name": "Crossbow bolts (20)",
+        "properties": [],
+        "source": "SRD 5.1",
+        "weight": 0
+      },
+      {
+        "cost": {
+          "copper": 0,
+          "electrum": 0,
+          "gold": 2.0,
+          "platinum": 0,
+          "silver": 0
+        },
+        "cost_display": "2 gp",
+        "description": "Using a crowbar grants advantage to Strength checks where the crowbar’s leverage can be applied.",
+        "item_type": "adventuring_gear",
+        "name": "Crowbar",
+        "properties": [],
+        "source": "SRD 5.1",
+        "weight": 5.0
+      },
+      {
+        "cost": {
+          "copper": 0,
+          "electrum": 0,
+          "gold": 10.0,
+          "platinum": 0,
+          "silver": 0
+        },
+        "cost_display": "10 gp",
+        "description": "",
+        "item_type": "adventuring_gear",
+        "name": "Crystal",
+        "properties": [],
+        "source": "SRD 5.1",
+        "weight": 1.0
+      },
+      {
+        "cost": {
+          "copper": 0,
+          "electrum": 0,
+          "gold": 5.0,
+          "platinum": 0,
+          "silver": 0
+        },
+        "cost_display": "5 gp",
+        "description": "",
+        "item_type": "adventuring_gear",
+        "name": "Emblem",
+        "properties": [],
+        "source": "SRD 5.1",
+        "weight": 0
+      },
+      {
+        "cost": {
+          "copper": 0,
+          "electrum": 0,
+          "gold": 1.0,
+          "platinum": 0,
+          "silver": 0
+        },
+        "cost_display": "1 gp",
+        "description": "This kit includes a wooden rod, silken line, corkwood bobbers, steel hooks, lead sinkers, velvet lures, and narrow",
+        "item_type": "adventuring_gear",
+        "name": "Fishing tackle",
+        "properties": [],
+        "source": "SRD 5.1",
+        "weight": 4.0
+      },
+      {
+        "cost": {
+          "copper": 2.0,
+          "electrum": 0,
+          "gold": 0,
+          "platinum": 0,
+          "silver": 0
+        },
+        "cost_display": "2 cp",
+        "description": "",
+        "item_type": "adventuring_gear",
+        "name": "Flask or tankard",
+        "properties": [],
+        "source": "SRD 5.1",
+        "weight": 1.0
+      },
+      {
+        "cost": {
+          "copper": 0,
+          "electrum": 0,
+          "gold": 2.0,
+          "platinum": 0,
+          "silver": 0
+        },
+        "cost_display": "2 gp",
+        "description": "",
+        "item_type": "adventuring_gear",
+        "name": "Grappling hook",
+        "properties": [],
+        "source": "SRD 5.1",
+        "weight": 4.0
+      },
+      {
+        "cost": {
+          "copper": 0,
+          "electrum": 0,
+          "gold": 1.0,
+          "platinum": 0,
+          "silver": 0
+        },
+        "cost_display": "1 gp",
+        "description": "",
+        "item_type": "adventuring_gear",
+        "name": "Hammer",
+        "properties": [],
+        "source": "SRD 5.1",
+        "weight": 3.0
+      },
+      {
+        "cost": {
+          "copper": 0,
+          "electrum": 0,
+          "gold": 2.0,
+          "platinum": 0,
+          "silver": 0
+        },
+        "cost_display": "2 gp",
+        "description": "",
+        "item_type": "adventuring_gear",
+        "name": "Hammer, sledge",
+        "properties": [],
+        "source": "SRD 5.1",
+        "weight": 10.0
+      },
+      {
+        "cost": {
+          "copper": 0,
+          "electrum": 0,
+          "gold": 5.0,
+          "platinum": 0,
+          "silver": 0
+        },
+        "cost_display": "5 gp",
+        "description": "This kit is a leather pouch containing bandages, salves, and splints. The kit has ten uses. As an action, you can expend one use of the kit to stabilize a creature that has 0 hit points, without needing to make a Wisdom (Medicine) check.",
+        "item_type": "adventuring_gear",
+        "name": "Healer’s kit",
+        "properties": [],
+        "source": "SRD 5.1",
+        "weight": 3.0
+      },
+      {
+        "cost": {
+          "copper": 0,
+          "electrum": 0,
+          "gold": 25.0,
+          "platinum": 0,
+          "silver": 0
+        },
+        "cost_display": "25 gp",
+        "description": "",
+        "item_type": "adventuring_gear",
+        "name": "Holy water (flask)",
+        "properties": [],
+        "source": "SRD 5.1",
+        "weight": 1.0
+      },
+      {
+        "cost": {
+          "copper": 0,
+          "electrum": 0,
+          "gold": 25.0,
+          "platinum": 0,
+          "silver": 0
+        },
+        "cost_display": "25 gp",
+        "description": "",
+        "item_type": "adventuring_gear",
+        "name": "Hourglass",
+        "properties": [],
+        "source": "SRD 5.1",
+        "weight": 1.0
+      },
+      {
+        "cost": {
+          "copper": 0,
+          "electrum": 0,
+          "gold": 5.0,
+          "platinum": 0,
+          "silver": 0
+        },
+        "cost_display": "5 gp",
+        "description": "When you use your action to set it, this trap forms a saw-toothed steel ring that snaps shut when a creature steps on a pressure plate in the center. The trap is affixed by a heavy chain to an immobile object, such as a tree or a spike driven into the ground. A creature that steps on the plate must succeed on a DC 13 Dexterity saving throw or take 1d4 piercing damage and stop moving. Thereafter, until the creature breaks free of the trap, its movement is limited by the length of the chain (typically 3 feet long). A creature can use its action to make a DC 13 Strength check, freeing itself or another creature within its reach on a success. Each failed check deals 1 piercing damage to the trapped creature.",
+        "item_type": "adventuring_gear",
+        "name": "Hunting trap",
+        "properties": [],
+        "source": "SRD 5.1",
+        "weight": 25.0
+      },
+      {
+        "cost": {
+          "copper": 0,
+          "electrum": 0,
+          "gold": 10.0,
+          "platinum": 0,
+          "silver": 0
+        },
+        "cost_display": "10 gp",
+        "description": "",
+        "item_type": "adventuring_gear",
+        "name": "Ink (1 ounce bottle)",
+        "properties": [],
+        "source": "SRD 5.1",
+        "weight": 0
+      },
+      {
+        "cost": {
+          "copper": 2.0,
+          "electrum": 0,
+          "gold": 0,
+          "platinum": 0,
+          "silver": 0
+        },
+        "cost_display": "2 cp",
+        "description": "",
+        "item_type": "adventuring_gear",
+        "name": "Ink pen",
+        "properties": [],
+        "source": "SRD 5.1",
+        "weight": 0
+      },
+      {
+        "cost": {
+          "copper": 2.0,
+          "electrum": 0,
+          "gold": 0,
+          "platinum": 0,
+          "silver": 0
+        },
+        "cost_display": "2 cp",
+        "description": "",
+        "item_type": "adventuring_gear",
+        "name": "Jug or pitcher",
+        "properties": [],
+        "source": "SRD 5.1",
+        "weight": 4.0
+      },
+      {
+        "cost": {
+          "copper": 0,
+          "electrum": 0,
+          "gold": 0,
+          "platinum": 0,
+          "silver": 1.0
+        },
+        "cost_display": "1 sp",
+        "description": "",
+        "item_type": "adventuring_gear",
+        "name": "Ladder (10 -- foot)",
+        "properties": [],
+        "source": "SRD 5.1",
+        "weight": 25.0
+      },
+      {
+        "cost": {
+          "copper": 0,
+          "electrum": 0,
+          "gold": 0,
+          "platinum": 0,
+          "silver": 5.0
+        },
+        "cost_display": "5 sp",
+        "description": "A lamp casts bright light in a 15-foot radius and dim light for an additional 30 feet. Once lit, it burns for 6 hours on a flask (1 pint) of oil.",
+        "item_type": "adventuring_gear",
+        "name": "Lamp",
+        "properties": [],
+        "source": "SRD 5.1",
+        "weight": 1.0
+      },
+      {
+        "cost": {
+          "copper": 0,
+          "electrum": 0,
+          "gold": 10.0,
+          "platinum": 0,
+          "silver": 0
+        },
+        "cost_display": "10 gp",
+        "description": "A bullseye lantern casts bright light in a 60-foot cone and dim light for an additional 60 feet. Once lit, it burns for 6 hours on a flask (1 pint) of oil.",
+        "item_type": "adventuring_gear",
+        "name": "Lantern, bullseye",
+        "properties": [],
+        "source": "SRD 5.1",
+        "weight": 2.0
+      },
+      {
+        "cost": {
+          "copper": 0,
+          "electrum": 0,
+          "gold": 5.0,
+          "platinum": 0,
+          "silver": 0
+        },
+        "cost_display": "5 gp",
+        "description": "A hooded lantern casts bright light in a 30-foot radius and dim light for an additional 30 feet. Once lit, it burns for 6 hours on a flask (1 pint) of oil. As an action, you can lower the hood, reducing the light to dim light in a 5-foot radius.",
+        "item_type": "adventuring_gear",
+        "name": "Lantern, hooded",
+        "properties": [],
+        "source": "SRD 5.1",
+        "weight": 2.0
+      },
+      {
+        "cost": {
+          "copper": 0,
+          "electrum": 0,
+          "gold": 10.0,
+          "platinum": 0,
+          "silver": 0
+        },
+        "cost_display": "10 gp",
+        "description": "A key is provided with the lock. Without the key, a creature proficient with thieves’ tools can pick this lock with a successful DC 15 Dexterity check. Your GM may decide that better locks are available for higher prices.",
+        "item_type": "adventuring_gear",
+        "name": "Lock",
+        "properties": [],
+        "source": "SRD 5.1",
+        "weight": 1.0
+      },
+      {
+        "cost": {
+          "copper": 0,
+          "electrum": 0,
+          "gold": 100.0,
+          "platinum": 0,
+          "silver": 0
+        },
+        "cost_display": "100 gp",
+        "description": "This lens allows a closer look at small objects. It is also useful as a substitute for flint and steel when starting fires. Lighting a fire with a magnifying glass requires light as bright as sunlight to focus, tinder to ignite, and about 5 minutes for the fire to ignite. A magnifying glass grants advantage on any ability check made to appraise or inspect an item that is small or highly detailed.",
+        "item_type": "adventuring_gear",
+        "name": "Magnifying glass",
+        "properties": [],
+        "source": "SRD 5.1",
+        "weight": 0
+      },
+      {
+        "cost": {
+          "copper": 0,
+          "electrum": 0,
+          "gold": 2.0,
+          "platinum": 0,
+          "silver": 0
+        },
+        "cost_display": "2 gp",
+        "description": "These metal restraints can bind a Small or Medium creature. Escaping the manacles requires a successful DC 20 Dexterity check. Breaking them requires a successful DC 20 Strength check. Each set of manacles comes with one key. Without the key, a creature proficient with thieves’ tools can pick the manacles’ lock with a successful DC 15 Dexterity check. Manacles have 15 hit points.",
+        "item_type": "adventuring_gear",
+        "name": "Manacles",
+        "properties": [],
+        "source": "SRD 5.1",
+        "weight": 6.0
+      },
+      {
+        "cost": {
+          "copper": 0,
+          "electrum": 0,
+          "gold": 0,
+          "platinum": 0,
+          "silver": 2.0
+        },
+        "cost_display": "2 sp",
+        "description": "This tin box contains a cup and simple cutlery. The box clamps together, and one side can be used as a cooking pan and the other as a plate or shallow bowl.",
+        "item_type": "adventuring_gear",
+        "name": "Mess kit",
+        "properties": [],
+        "source": "SRD 5.1",
+        "weight": 1.0
+      },
+      {
+        "cost": {
+          "copper": 0,
+          "electrum": 0,
+          "gold": 5.0,
+          "platinum": 0,
+          "silver": 0
+        },
+        "cost_display": "5 gp",
+        "description": "",
+        "item_type": "adventuring_gear",
+        "name": "Mirror, steel",
+        "properties": [],
+        "source": "SRD 5.1",
+        "weight": 2.0
+      },
+      {
+        "cost": {
+          "copper": 0,
+          "electrum": 0,
+          "gold": 0,
+          "platinum": 0,
+          "silver": 1.0
+        },
+        "cost_display": "1 sp",
+        "description": "",
+        "item_type": "adventuring_gear",
+        "name": "Oil (flask)",
+        "properties": [],
+        "source": "SRD 5.1",
+        "weight": 1.0
+      },
+      {
+        "cost": {
+          "copper": 0,
+          "electrum": 0,
+          "gold": 20.0,
+          "platinum": 0,
+          "silver": 0
+        },
+        "cost_display": "20 gp",
+        "description": "",
+        "item_type": "adventuring_gear",
+        "name": "Orb",
+        "properties": [],
+        "source": "SRD 5.1",
+        "weight": 3.0
+      },
+      {
+        "cost": {
+          "copper": 0,
+          "electrum": 0,
+          "gold": 0,
+          "platinum": 0,
+          "silver": 2.0
+        },
+        "cost_display": "2 sp",
+        "description": "",
+        "item_type": "adventuring_gear",
+        "name": "Paper (one sheet)",
+        "properties": [],
+        "source": "SRD 5.1",
+        "weight": 0
+      },
+      {
+        "cost": {
+          "copper": 0,
+          "electrum": 0,
+          "gold": 0,
+          "platinum": 0,
+          "silver": 1.0
+        },
+        "cost_display": "1 sp",
+        "description": "",
+        "item_type": "adventuring_gear",
+        "name": "Parchment (one sheet)",
+        "properties": [],
+        "source": "SRD 5.1",
+        "weight": 0
+      },
+      {
+        "cost": {
+          "copper": 0,
+          "electrum": 0,
+          "gold": 5.0,
+          "platinum": 0,
+          "silver": 0
+        },
+        "cost_display": "5 gp",
+        "description": "",
+        "item_type": "adventuring_gear",
+        "name": "Perfume (vial)",
+        "properties": [],
+        "source": "SRD 5.1",
+        "weight": 0
+      },
+      {
+        "cost": {
+          "copper": 0,
+          "electrum": 0,
+          "gold": 2.0,
+          "platinum": 0,
+          "silver": 0
+        },
+        "cost_display": "2 gp",
+        "description": "",
+        "item_type": "adventuring_gear",
+        "name": "Pick, miner’s",
+        "properties": [],
+        "source": "SRD 5.1",
+        "weight": 10.0
+      },
+      {
+        "cost": {
+          "copper": 5.0,
+          "electrum": 0,
+          "gold": 0,
+          "platinum": 0,
+          "silver": 0
+        },
+        "cost_display": "5 cp",
+        "description": "",
+        "item_type": "adventuring_gear",
+        "name": "Piton",
+        "properties": [],
+        "source": "SRD 5.1",
+        "weight": 4.0
+      },
+      {
+        "cost": {
+          "copper": 0,
+          "electrum": 0,
+          "gold": 100.0,
+          "platinum": 0,
+          "silver": 0
+        },
+        "cost_display": "100 gp",
+        "description": "",
+        "item_type": "adventuring_gear",
+        "name": "Poison, basic (vial)",
+        "properties": [],
+        "source": "SRD 5.1",
+        "weight": 0
+      },
+      {
+        "cost": {
+          "copper": 5.0,
+          "electrum": 0,
+          "gold": 0,
+          "platinum": 0,
+          "silver": 0
+        },
+        "cost_display": "5 cp",
+        "description": "",
+        "item_type": "adventuring_gear",
+        "name": "Pole (10 -- foot)",
+        "properties": [],
+        "source": "SRD 5.1",
+        "weight": 7.0
+      },
+      {
+        "cost": {
+          "copper": 0,
+          "electrum": 0,
+          "gold": 2.0,
+          "platinum": 0,
+          "silver": 0
+        },
+        "cost_display": "2 gp",
+        "description": "",
+        "item_type": "adventuring_gear",
+        "name": "Pot, iron",
+        "properties": [],
+        "source": "SRD 5.1",
+        "weight": 10.0
+      },
+      {
+        "cost": {
+          "copper": 0,
+          "electrum": 0,
+          "gold": 50.0,
+          "platinum": 0,
+          "silver": 0
+        },
+        "cost_display": "50 gp",
+        "description": "A character who drinks the magical red fluid in this vial regains 2d4 + 2 hit points. Drinking or administering a potion takes an action.",
+        "item_type": "adventuring_gear",
+        "name": "Potion of healing",
+        "properties": [],
+        "source": "SRD 5.1",
+        "weight": 2.0
+      },
+      {
+        "cost": {
+          "copper": 0,
+          "electrum": 0,
+          "gold": 0,
+          "platinum": 0,
+          "silver": 5.0
+        },
+        "cost_display": "5 sp",
+        "description": "A cloth or leather pouch can hold up to 20 sling bullets or 50 blowgun needles, among other things. A compartmentalized pouch for holding spell components is called a component pouch (described earlier in this section).",
+        "item_type": "adventuring_gear",
+        "name": "Pouch",
+        "properties": [],
+        "source": "SRD 5.1",
+        "weight": 1.0
+      },
+      {
+        "cost": {
+          "copper": 0,
+          "electrum": 0,
+          "gold": 1.0,
+          "platinum": 0,
+          "silver": 0
+        },
+        "cost_display": "1 gp",
+        "description": "A quiver can hold up to 20 arrows.",
+        "item_type": "adventuring_gear",
+        "name": "Quiver",
+        "properties": [],
+        "source": "SRD 5.1",
+        "weight": 1.0
+      },
+      {
+        "cost": {
+          "copper": 0,
+          "electrum": 0,
+          "gold": 4.0,
+          "platinum": 0,
+          "silver": 0
+        },
+        "cost_display": "4 gp",
+        "description": "You can use a portable ram to break down doors. When doing so, you gain a +4 bonus on the Strength check. One other character can help you use the ram, giving you advantage",
+        "item_type": "adventuring_gear",
+        "name": "Ram, portable",
+        "properties": [],
+        "source": "SRD 5.1",
+        "weight": 35.0
+      },
+      {
+        "cost": {
+          "copper": 0,
+          "electrum": 0,
+          "gold": 0,
+          "platinum": 0,
+          "silver": 5.0
+        },
+        "cost_display": "5 sp",
+        "description": "",
+        "item_type": "adventuring_gear",
+        "name": "Rations (1 day)",
+        "properties": [],
+        "source": "SRD 5.1",
+        "weight": 2.0
+      },
+      {
+        "cost": {
+          "copper": 0,
+          "electrum": 0,
+          "gold": 5.0,
+          "platinum": 0,
+          "silver": 0
+        },
+        "cost_display": "5 gp",
+        "description": "",
+        "item_type": "adventuring_gear",
+        "name": "Reliquary",
+        "properties": [],
+        "source": "SRD 5.1",
+        "weight": 2.0
+      },
+      {
+        "cost": {
+          "copper": 0,
+          "electrum": 0,
+          "gold": 1.0,
+          "platinum": 0,
+          "silver": 0
+        },
+        "cost_display": "1 gp",
+        "description": "",
+        "item_type": "adventuring_gear",
+        "name": "Robes",
+        "properties": [],
+        "source": "SRD 5.1",
+        "weight": 4.0
+      },
+      {
+        "cost": {
+          "copper": 0,
+          "electrum": 0,
+          "gold": 10.0,
+          "platinum": 0,
+          "silver": 0
+        },
+        "cost_display": "10 gp",
+        "description": "",
+        "item_type": "adventuring_gear",
+        "name": "Rod",
+        "properties": [],
+        "source": "SRD 5.1",
+        "weight": 2.0
+      },
+      {
+        "cost": {
+          "copper": 0,
+          "electrum": 0,
+          "gold": 1.0,
+          "platinum": 0,
+          "silver": 0
+        },
+        "cost_display": "1 gp",
+        "description": "",
+        "item_type": "adventuring_gear",
+        "name": "Rope, hempen (50 feet)",
+        "properties": [],
+        "source": "SRD 5.1",
+        "weight": 10.0
+      },
+      {
+        "cost": {
+          "copper": 0,
+          "electrum": 0,
+          "gold": 10.0,
+          "platinum": 0,
+          "silver": 0
+        },
+        "cost_display": "10 gp",
+        "description": "",
+        "item_type": "adventuring_gear",
+        "name": "Rope, silk (50 feet)",
+        "properties": [],
+        "source": "SRD 5.1",
+        "weight": 5.0
+      },
+      {
+        "cost": {
+          "copper": 1.0,
+          "electrum": 0,
+          "gold": 0,
+          "platinum": 0,
+          "silver": 0
+        },
+        "cost_display": "1 cp",
+        "description": "",
+        "item_type": "adventuring_gear",
+        "name": "Sack",
+        "properties": [],
+        "source": "SRD 5.1",
+        "weight": 2.0
+      },
+      {
+        "cost": {
+          "copper": 0,
+          "electrum": 0,
+          "gold": 5.0,
+          "platinum": 0,
+          "silver": 0
+        },
+        "cost_display": "5 gp",
+        "description": "A scale includes a small balance, pans, and a suitable assortment of weights up to 2 pounds. With it, you can measure the exact weight of small objects, such as raw precious metals or trade goods, to help determine their worth.",
+        "item_type": "adventuring_gear",
+        "name": "Scale, merchant’s",
+        "properties": [],
+        "source": "SRD 5.1",
+        "weight": 3.0
+      },
+      {
+        "cost": {
+          "copper": 0,
+          "electrum": 0,
+          "gold": 0,
+          "platinum": 0,
+          "silver": 5.0
+        },
+        "cost_display": "5 sp",
+        "description": "",
+        "item_type": "adventuring_gear",
+        "name": "Sealing wax",
+        "properties": [],
+        "source": "SRD 5.1",
+        "weight": 0
+      },
+      {
+        "cost": {
+          "copper": 0,
+          "electrum": 0,
+          "gold": 2.0,
+          "platinum": 0,
+          "silver": 0
+        },
+        "cost_display": "2 gp",
+        "description": "",
+        "item_type": "adventuring_gear",
+        "name": "Shovel",
+        "properties": [],
+        "source": "SRD 5.1",
+        "weight": 5.0
+      },
+      {
+        "cost": {
+          "copper": 5.0,
+          "electrum": 0,
+          "gold": 0,
+          "platinum": 0,
+          "silver": 0
+        },
+        "cost_display": "5 cp",
+        "description": "",
+        "item_type": "adventuring_gear",
+        "name": "Signal whistle",
+        "properties": [],
+        "source": "SRD 5.1",
+        "weight": 0
+      },
+      {
+        "cost": {
+          "copper": 0,
+          "electrum": 0,
+          "gold": 5.0,
+          "platinum": 0,
+          "silver": 0
+        },
+        "cost_display": "5 gp",
+        "description": "",
+        "item_type": "adventuring_gear",
+        "name": "Signet ring",
+        "properties": [],
+        "source": "SRD 5.1",
+        "weight": 0
+      },
+      {
+        "cost": {
+          "copper": 4.0,
+          "electrum": 0,
+          "gold": 0,
+          "platinum": 0,
+          "silver": 0
+        },
+        "cost_display": "4 cp",
+        "description": "",
+        "item_type": "adventuring_gear",
+        "name": "Sling bullets (20)",
+        "properties": [],
+        "source": "SRD 5.1",
+        "weight": 0
+      },
+      {
+        "cost": {
+          "copper": 2.0,
+          "electrum": 0,
+          "gold": 0,
+          "platinum": 0,
+          "silver": 0
+        },
+        "cost_display": "2 cp",
+        "description": "",
+        "item_type": "adventuring_gear",
+        "name": "Soap",
+        "properties": [],
+        "source": "SRD 5.1",
+        "weight": 0
+      },
+      {
+        "cost": {
+          "copper": 0,
+          "electrum": 0,
+          "gold": 50.0,
+          "platinum": 0,
+          "silver": 0
+        },
+        "cost_display": "50 gp",
+        "description": "Essential for wizards, a spellbook is a leather-bound tome with 100 blank vellum pages suitable for recording spells.",
+        "item_type": "adventuring_gear",
+        "name": "Spellbook",
+        "properties": [],
+        "source": "SRD 5.1",
+        "weight": 3.0
+      },
+      {
+        "cost": {
+          "copper": 0,
+          "electrum": 0,
+          "gold": 1.0,
+          "platinum": 0,
+          "silver": 0
+        },
+        "cost_display": "1 gp",
+        "description": "",
+        "item_type": "adventuring_gear",
+        "name": "Spikes, iron (10)",
+        "properties": [],
+        "source": "SRD 5.1",
+        "weight": 5.0
+      },
+      {
+        "cost": {
+          "copper": 0,
+          "electrum": 0,
+          "gold": 1.0,
+          "platinum": 0,
+          "silver": 0
+        },
+        "cost_display": "1 gp",
+        "description": "",
+        "item_type": "adventuring_gear",
+        "name": "Sprig of mistletoe",
+        "properties": [],
+        "source": "SRD 5.1",
+        "weight": 0
+      },
+      {
+        "cost": {
+          "copper": 0,
+          "electrum": 0,
+          "gold": 1000.0,
+          "platinum": 0,
+          "silver": 0
+        },
+        "cost_display": "1,000 gp",
+        "description": "Objects viewed through a spyglass are magnified to twice their size.",
+        "item_type": "adventuring_gear",
+        "name": "Spyglass",
+        "properties": [],
+        "source": "SRD 5.1",
+        "weight": 1.0
+      },
+      {
+        "cost": {
+          "copper": 0,
+          "electrum": 0,
+          "gold": 5.0,
+          "platinum": 0,
+          "silver": 0
+        },
+        "cost_display": "5 gp",
+        "description": "",
+        "item_type": "adventuring_gear",
+        "name": "Staff",
+        "properties": [],
+        "source": "SRD 5.1",
+        "weight": 4.0
+      },
+      {
+        "cost": {
+          "copper": 0,
+          "electrum": 0,
+          "gold": 2.0,
+          "platinum": 0,
+          "silver": 0
+        },
+        "cost_display": "2 gp",
+        "description": "",
+        "item_type": "adventuring_gear",
+        "name": "Tent, two -- person",
+        "properties": [],
+        "source": "SRD 5.1",
+        "weight": 20.0
+      },
+      {
+        "cost": {
+          "copper": 0,
+          "electrum": 0,
+          "gold": 0,
+          "platinum": 0,
+          "silver": 5.0
+        },
+        "cost_display": "5 sp",
+        "description": "This small container holds flint, fire steel, and tinder (usually dry cloth soaked in light oil) used to kindle a fire. Using it to light a torch-or anything else with abundant, exposed fuel-takes an action. Lighting any other fire takes 1 minute.",
+        "item_type": "adventuring_gear",
+        "name": "Tinderbox",
+        "properties": [],
+        "source": "SRD 5.1",
+        "weight": 1.0
+      },
+      {
+        "cost": {
+          "copper": 1.0,
+          "electrum": 0,
+          "gold": 0,
+          "platinum": 0,
+          "silver": 0
+        },
+        "cost_display": "1 cp",
+        "description": "A torch burns for 1 hour, providing bright light in a 20-foot radius and dim light for an additional 20 feet. If you make a melee attack with a burning torch and hit, it deals 1 fire damage.",
+        "item_type": "adventuring_gear",
+        "name": "Torch",
+        "properties": [],
+        "source": "SRD 5.1",
+        "weight": 1.0
+      },
+      {
+        "cost": {
+          "copper": 0,
+          "electrum": 0,
+          "gold": 1.0,
+          "platinum": 0,
+          "silver": 0
+        },
+        "cost_display": "1 gp",
+        "description": "",
+        "item_type": "adventuring_gear",
+        "name": "Totem",
+        "properties": [],
+        "source": "SRD 5.1",
+        "weight": 0
+      },
+      {
+        "cost": {
+          "copper": 0,
+          "electrum": 0,
+          "gold": 1.0,
+          "platinum": 0,
+          "silver": 0
+        },
+        "cost_display": "1 gp",
+        "description": "",
+        "item_type": "adventuring_gear",
+        "name": "Vial",
+        "properties": [],
+        "source": "SRD 5.1",
+        "weight": 0
+      },
+      {
+        "cost": {
+          "copper": 0,
+          "electrum": 0,
+          "gold": 10.0,
+          "platinum": 0,
+          "silver": 0
+        },
+        "cost_display": "10 gp",
+        "description": "",
+        "item_type": "adventuring_gear",
+        "name": "Wand",
+        "properties": [],
+        "source": "SRD 5.1",
+        "weight": 1.0
+      },
+      {
+        "cost": {
+          "copper": 0,
+          "electrum": 0,
+          "gold": 0,
+          "platinum": 0,
+          "silver": 2.0
+        },
+        "cost_display": "2 sp",
+        "description": "",
+        "item_type": "adventuring_gear",
+        "name": "Waterskin",
+        "properties": [],
+        "source": "SRD 5.1",
+        "weight": 5.0
+      },
+      {
+        "cost": {
+          "copper": 1.0,
+          "electrum": 0,
+          "gold": 0,
+          "platinum": 0,
+          "silver": 0
+        },
+        "cost_display": "1 cp",
+        "description": "",
+        "item_type": "adventuring_gear",
+        "name": "Whetstone",
+        "properties": [],
+        "source": "SRD 5.1",
+        "weight": 1.0
+      },
+      {
+        "cost": {
+          "copper": 0,
+          "electrum": 0,
+          "gold": 5.0,
+          "platinum": 0,
+          "silver": 0
+        },
+        "cost_display": "5 gp",
+        "description": "",
+        "item_type": "adventuring_gear",
+        "name": "Wooden staff",
+        "properties": [],
+        "source": "SRD 5.1",
+        "weight": 4.0
+      },
+      {
+        "cost": {
+          "copper": 0,
+          "electrum": 0,
+          "gold": 10.0,
+          "platinum": 0,
+          "silver": 0
+        },
+        "cost_display": "10 gp",
+        "description": "",
+        "item_type": "adventuring_gear",
+        "name": "Yew wand",
+        "properties": [],
+        "source": "SRD 5.1",
+        "weight": 1.0
+      }
+    ],
+    "armor": [
+      {
+        "armor_category": "Medium Armor",
+        "armor_class": "14 + Dex modifier (max 2)",
+        "cost": {
+          "copper": 0,
+          "electrum": 0,
+          "gold": 400.0,
+          "platinum": 0,
+          "silver": 0
+        },
+        "cost_display": "400 gp",
+        "description": "",
+        "item_type": "armor",
+        "name": "Breastplate",
+        "properties": [],
+        "source": "SRD 5.1",
+        "stealth": "-",
+        "strength_requirement": "-",
+        "weight": 20.0
+      },
+      {
+        "armor_category": "Heavy Armor",
+        "armor_class": "16",
+        "cost": {
+          "copper": 0,
+          "electrum": 0,
+          "gold": 75.0,
+          "platinum": 0,
+          "silver": 0
+        },
+        "cost_display": "75 gp",
+        "description": "",
+        "item_type": "armor",
+        "name": "Chain mail",
+        "properties": [],
+        "source": "SRD 5.1",
+        "stealth": "Disadvantage",
+        "strength_requirement": "Str   13",
+        "weight": 55.0
+      },
+      {
+        "armor_category": "Medium Armor",
+        "armor_class": "13 + Dex modifier (max 2)",
+        "cost": {
+          "copper": 0,
+          "electrum": 0,
+          "gold": 50.0,
+          "platinum": 0,
+          "silver": 0
+        },
+        "cost_display": "50 gp",
+        "description": "",
+        "item_type": "armor",
+        "name": "Chain shirt",
+        "properties": [],
+        "source": "SRD 5.1",
+        "stealth": "-",
+        "strength_requirement": "-",
+        "weight": 20.0
+      },
+      {
+        "armor_category": "Medium Armor",
+        "armor_class": "15 + Dex modifier (max 2)",
+        "cost": {
+          "copper": 0,
+          "electrum": 0,
+          "gold": 750.0,
+          "platinum": 0,
+          "silver": 0
+        },
+        "cost_display": "750 gp",
+        "description": "",
+        "item_type": "armor",
+        "name": "Half plate",
+        "properties": [],
+        "source": "SRD 5.1",
+        "stealth": "Disadvantage",
+        "strength_requirement": "-",
+        "weight": 40.0
+      },
+      {
+        "armor_category": "Medium Armor",
+        "armor_class": "12 + Dex modifier (max 2)",
+        "cost": {
+          "copper": 0,
+          "electrum": 0,
+          "gold": 10.0,
+          "platinum": 0,
+          "silver": 0
+        },
+        "cost_display": "10 gp",
+        "description": "",
+        "item_type": "armor",
+        "name": "Hide",
+        "properties": [],
+        "source": "SRD 5.1",
+        "stealth": "-",
+        "strength_requirement": "-",
+        "weight": 12.0
+      },
+      {
+        "armor_category": "Light Armor",
+        "armor_class": "11 + Dex modifier",
+        "cost": {
+          "copper": 0,
+          "electrum": 0,
+          "gold": 10.0,
+          "platinum": 0,
+          "silver": 0
+        },
+        "cost_display": "10 gp",
+        "description": "",
+        "item_type": "armor",
+        "name": "Leather",
+        "properties": [],
+        "source": "SRD 5.1",
+        "stealth": "-",
+        "strength_requirement": "-",
+        "weight": 10.0
+      },
+      {
+        "armor_category": "Light Armor",
+        "armor_class": "11 + Dex modifier",
+        "cost": {
+          "copper": 0,
+          "electrum": 0,
+          "gold": 5.0,
+          "platinum": 0,
+          "silver": 0
+        },
+        "cost_display": "5 gp",
+        "description": "",
+        "item_type": "armor",
+        "name": "Padded",
+        "properties": [],
+        "source": "SRD 5.1",
+        "stealth": "Disadvantage",
+        "strength_requirement": "-",
+        "weight": 8.0
+      },
+      {
+        "armor_category": "Heavy Armor",
+        "armor_class": "18",
+        "cost": {
+          "copper": 0,
+          "electrum": 0,
+          "gold": 1500.0,
+          "platinum": 0,
+          "silver": 0
+        },
+        "cost_display": "1,500 gp",
+        "description": "",
+        "item_type": "armor",
+        "name": "Plate",
+        "properties": [],
+        "source": "SRD 5.1",
+        "stealth": "Disadvantage",
+        "strength_requirement": "Str 15",
+        "weight": 65.0
+      },
+      {
+        "armor_category": "Heavy Armor",
+        "armor_class": "14",
+        "cost": {
+          "copper": 0,
+          "electrum": 0,
+          "gold": 30.0,
+          "platinum": 0,
+          "silver": 0
+        },
+        "cost_display": "30 gp",
+        "description": "",
+        "item_type": "armor",
+        "name": "Ring mail",
+        "properties": [],
+        "source": "SRD 5.1",
+        "stealth": "Disadvantage",
+        "strength_requirement": "-",
+        "weight": 40.0
+      },
+      {
+        "armor_category": "Medium Armor",
+        "armor_class": "14 + Dex  modifier (max 2)",
+        "cost": {
+          "copper": 0,
+          "electrum": 0,
+          "gold": 50.0,
+          "platinum": 0,
+          "silver": 0
+        },
+        "cost_display": "50 gp",
+        "description": "",
+        "item_type": "armor",
+        "name": "Scale mail",
+        "properties": [],
+        "source": "SRD 5.1",
+        "stealth": "Disadvantage",
+        "strength_requirement": "-",
+        "weight": 45.0
+      },
+      {
+        "armor_category": "Shield",
+        "armor_class": "+2",
+        "cost": {
+          "copper": 0,
+          "electrum": 0,
+          "gold": 10.0,
+          "platinum": 0,
+          "silver": 0
+        },
+        "cost_display": "10 gp",
+        "description": "",
+        "item_type": "armor",
+        "name": "Shield",
+        "properties": [],
+        "source": "SRD 5.1",
+        "stealth": "-",
+        "strength_requirement": "-",
+        "weight": 6.0
+      },
+      {
+        "armor_category": "Heavy Armor",
+        "armor_class": "17",
+        "cost": {
+          "copper": 0,
+          "electrum": 0,
+          "gold": 200.0,
+          "platinum": 0,
+          "silver": 0
+        },
+        "cost_display": "200 gp",
+        "description": "",
+        "item_type": "armor",
+        "name": "Splint",
+        "properties": [],
+        "source": "SRD 5.1",
+        "stealth": "Disadvantage",
+        "strength_requirement": "Str 15",
+        "weight": 60.0
+      },
+      {
+        "armor_category": "Light Armor",
+        "armor_class": "12 + Dex modifier",
+        "cost": {
+          "copper": 0,
+          "electrum": 0,
+          "gold": 45.0,
+          "platinum": 0,
+          "silver": 0
+        },
+        "cost_display": "45 gp",
+        "description": "",
+        "item_type": "armor",
+        "name": "Studded leather",
+        "properties": [],
+        "source": "SRD 5.1",
+        "stealth": "-",
+        "strength_requirement": "-",
+        "weight": 13.0
+      }
+    ],
+    "weapons": [
+      {
+        "cost": {
+          "copper": 0,
+          "electrum": 0,
+          "gold": 10.0,
+          "platinum": 0,
+          "silver": 0
+        },
+        "cost_display": "10 gp",
+        "damage_roll": "1d8",
+        "damage_type": "slashing",
+        "description": "",
+        "item_type": "weapon",
+        "name": "Battleaxe",
+        "properties": [
+          "Versatile (1d10)"
+        ],
+        "source": "SRD 5.1",
+        "weapon_category": "Martial Melee Weapons",
+        "weight": 4.0
+      },
+      {
+        "cost": {
+          "copper": 0,
+          "electrum": 0,
+          "gold": 10.0,
+          "platinum": 0,
+          "silver": 0
+        },
+        "cost_display": "10 gp",
+        "damage_roll": "1",
+        "damage_type": "piercing",
+        "description": "",
+        "item_type": "weapon",
+        "name": "Blowgun",
+        "properties": [
+          "Ammunition (range   25/100)",
+          "loading"
+        ],
+        "source": "SRD 5.1",
+        "weapon_category": "Martial Ranged Weapons",
+        "weight": 1.0
+      },
+      {
+        "cost": {
+          "copper": 0,
+          "electrum": 0,
+          "gold": 0,
+          "platinum": 0,
+          "silver": 1.0
+        },
+        "cost_display": "1 sp",
+        "damage_roll": "1d4",
+        "damage_type": "bludgeoning",
+        "description": "",
+        "item_type": "weapon",
+        "name": "Club",
+        "properties": [
+          "Light"
+        ],
+        "source": "SRD 5.1",
+        "weapon_category": "Simple Melee Weapons",
+        "weight": 2.0
+      },
+      {
+        "cost": {
+          "copper": 0,
+          "electrum": 0,
+          "gold": 75.0,
+          "platinum": 0,
+          "silver": 0
+        },
+        "cost_display": "75 gp",
+        "damage_roll": "1d6",
+        "damage_type": "piercing",
+        "description": "",
+        "item_type": "weapon",
+        "name": "Crossbow, hand",
+        "properties": [
+          "Ammunition (range 30/120)",
+          "light",
+          "loading"
+        ],
+        "source": "SRD 5.1",
+        "weapon_category": "Martial Ranged Weapons",
+        "weight": 3.0
+      },
+      {
+        "cost": {
+          "copper": 0,
+          "electrum": 0,
+          "gold": 50.0,
+          "platinum": 0,
+          "silver": 0
+        },
+        "cost_display": "50 gp",
+        "damage_roll": "1d10",
+        "damage_type": "piercing",
+        "description": "",
+        "item_type": "weapon",
+        "name": "Crossbow, heavy",
+        "properties": [
+          "Ammunition (range 100/400)",
+          "heavy",
+          "loading",
+          "two -- handed"
+        ],
+        "source": "SRD 5.1",
+        "weapon_category": "Martial Ranged Weapons",
+        "weight": 18.0
+      },
+      {
+        "cost": {
+          "copper": 0,
+          "electrum": 0,
+          "gold": 25.0,
+          "platinum": 0,
+          "silver": 0
+        },
+        "cost_display": "25 gp",
+        "damage_roll": "1d8",
+        "damage_type": "piercing",
+        "description": "",
+        "item_type": "weapon",
+        "name": "Crossbow, light",
+        "properties": [
+          "Ammunition (range  80/320)",
+          "loading",
+          "two -- handed"
+        ],
+        "source": "SRD 5.1",
+        "weapon_category": "Simple Ranged Weapons",
+        "weight": 5.0
+      },
+      {
+        "cost": {
+          "copper": 0,
+          "electrum": 0,
+          "gold": 2.0,
+          "platinum": 0,
+          "silver": 0
+        },
+        "cost_display": "2 gp",
+        "damage_roll": "1d4",
+        "damage_type": "piercing",
+        "description": "",
+        "item_type": "weapon",
+        "name": "Dagger",
+        "properties": [
+          "Finesse",
+          "light",
+          "thrown (range 20/60)"
+        ],
+        "source": "SRD 5.1",
+        "weapon_category": "Simple Melee Weapons",
+        "weight": 1.0
+      },
+      {
+        "cost": {
+          "copper": 5.0,
+          "electrum": 0,
+          "gold": 0,
+          "platinum": 0,
+          "silver": 0
+        },
+        "cost_display": "5 cp",
+        "damage_roll": "1d4",
+        "damage_type": "piercing",
+        "description": "",
+        "item_type": "weapon",
+        "name": "Dart",
+        "properties": [
+          "Finesse",
+          "thrown (range 20/60)"
+        ],
+        "source": "SRD 5.1",
+        "weapon_category": "Simple Ranged Weapons",
+        "weight": 4.0
+      },
+      {
+        "cost": {
+          "copper": 0,
+          "electrum": 0,
+          "gold": 10.0,
+          "platinum": 0,
+          "silver": 0
+        },
+        "cost_display": "10 gp",
+        "damage_roll": "1d8",
+        "damage_type": "bludgeoning",
+        "description": "",
+        "item_type": "weapon",
+        "name": "Flail",
+        "properties": [
+          "-"
+        ],
+        "source": "SRD 5.1",
+        "weapon_category": "Martial Melee Weapons",
+        "weight": 2.0
+      },
+      {
+        "cost": {
+          "copper": 0,
+          "electrum": 0,
+          "gold": 20.0,
+          "platinum": 0,
+          "silver": 0
+        },
+        "cost_display": "20 gp",
+        "damage_roll": "1d10",
+        "damage_type": "slashing",
+        "description": "",
+        "item_type": "weapon",
+        "name": "Glaive",
+        "properties": [
+          "Heavy",
+          "reach",
+          "two -- handed"
+        ],
+        "source": "SRD 5.1",
+        "weapon_category": "Martial Melee Weapons",
+        "weight": 6.0
+      },
+      {
+        "cost": {
+          "copper": 0,
+          "electrum": 0,
+          "gold": 30.0,
+          "platinum": 0,
+          "silver": 0
+        },
+        "cost_display": "30 gp",
+        "damage_roll": "1d12",
+        "damage_type": "slashing",
+        "description": "",
+        "item_type": "weapon",
+        "name": "Greataxe",
+        "properties": [
+          "Heavy",
+          "two -- handed"
+        ],
+        "source": "SRD 5.1",
+        "weapon_category": "Martial Melee Weapons",
+        "weight": 7.0
+      },
+      {
+        "cost": {
+          "copper": 0,
+          "electrum": 0,
+          "gold": 0,
+          "platinum": 0,
+          "silver": 2.0
+        },
+        "cost_display": "2 sp",
+        "damage_roll": "1d8",
+        "damage_type": "bludgeoning",
+        "description": "",
+        "item_type": "weapon",
+        "name": "Greatclub",
+        "properties": [
+          "Two -- handed"
+        ],
+        "source": "SRD 5.1",
+        "weapon_category": "Simple Melee Weapons",
+        "weight": 10.0
+      },
+      {
+        "cost": {
+          "copper": 0,
+          "electrum": 0,
+          "gold": 50.0,
+          "platinum": 0,
+          "silver": 0
+        },
+        "cost_display": "50 gp",
+        "damage_roll": "2d6",
+        "damage_type": "slashing",
+        "description": "",
+        "item_type": "weapon",
+        "name": "Greatsword",
+        "properties": [
+          "Heavy",
+          "two -- handed"
+        ],
+        "source": "SRD 5.1",
+        "weapon_category": "Martial Melee Weapons",
+        "weight": 6.0
+      },
+      {
+        "cost": {
+          "copper": 0,
+          "electrum": 0,
+          "gold": 20.0,
+          "platinum": 0,
+          "silver": 0
+        },
+        "cost_display": "20 gp",
+        "damage_roll": "1d10",
+        "damage_type": "slashing",
+        "description": "",
+        "item_type": "weapon",
+        "name": "Halberd",
+        "properties": [
+          "Heavy",
+          "reach",
+          "two -- handed"
+        ],
+        "source": "SRD 5.1",
+        "weapon_category": "Martial Melee Weapons",
+        "weight": 6.0
+      },
+      {
+        "cost": {
+          "copper": 0,
+          "electrum": 0,
+          "gold": 5.0,
+          "platinum": 0,
+          "silver": 0
+        },
+        "cost_display": "5 gp",
+        "damage_roll": "1d6",
+        "damage_type": "slashing",
+        "description": "",
+        "item_type": "weapon",
+        "name": "Handaxe",
+        "properties": [
+          "Light",
+          "thrown (range 20/60)"
+        ],
+        "source": "SRD 5.1",
+        "weapon_category": "Simple Melee Weapons",
+        "weight": 2.0
+      },
+      {
+        "cost": {
+          "copper": 0,
+          "electrum": 0,
+          "gold": 0,
+          "platinum": 0,
+          "silver": 5.0
+        },
+        "cost_display": "5 sp",
+        "damage_roll": "1d6",
+        "damage_type": "piercing",
+        "description": "",
+        "item_type": "weapon",
+        "name": "Javelin",
+        "properties": [
+          "Thrown (range 30/120)"
+        ],
+        "source": "SRD 5.1",
+        "weapon_category": "Simple Melee Weapons",
+        "weight": 2.0
+      },
+      {
+        "cost": {
+          "copper": 0,
+          "electrum": 0,
+          "gold": 10.0,
+          "platinum": 0,
+          "silver": 0
+        },
+        "cost_display": "10 gp",
+        "damage_roll": "1d12",
+        "damage_type": "piercing",
+        "description": "",
+        "item_type": "weapon",
+        "name": "Lance",
+        "properties": [
+          "Reach",
+          "special"
+        ],
+        "source": "SRD 5.1",
+        "weapon_category": "Martial Melee Weapons",
+        "weight": 6.0
+      },
+      {
+        "cost": {
+          "copper": 0,
+          "electrum": 0,
+          "gold": 2.0,
+          "platinum": 0,
+          "silver": 0
+        },
+        "cost_display": "2 gp",
+        "damage_roll": "1d4",
+        "damage_type": "bludgeoning",
+        "description": "",
+        "item_type": "weapon",
+        "name": "Light hammer",
+        "properties": [
+          "Light",
+          "thrown (range 20/60)"
+        ],
+        "source": "SRD 5.1",
+        "weapon_category": "Simple Melee Weapons",
+        "weight": 2.0
+      },
+      {
+        "cost": {
+          "copper": 0,
+          "electrum": 0,
+          "gold": 50.0,
+          "platinum": 0,
+          "silver": 0
+        },
+        "cost_display": "50 gp",
+        "damage_roll": "1d8",
+        "damage_type": "piercing",
+        "description": "",
+        "item_type": "weapon",
+        "name": "Longbow",
+        "properties": [
+          "Ammunition (range  150/600)",
+          "heavy",
+          "two -- handed"
+        ],
+        "source": "SRD 5.1",
+        "weapon_category": "Martial Ranged Weapons",
+        "weight": 2.0
+      },
+      {
+        "cost": {
+          "copper": 0,
+          "electrum": 0,
+          "gold": 15.0,
+          "platinum": 0,
+          "silver": 0
+        },
+        "cost_display": "15 gp",
+        "damage_roll": "1d8",
+        "damage_type": "slashing",
+        "description": "",
+        "item_type": "weapon",
+        "name": "Longsword",
+        "properties": [
+          "Versatile (1d10)"
+        ],
+        "source": "SRD 5.1",
+        "weapon_category": "Martial Melee Weapons",
+        "weight": 3.0
+      },
+      {
+        "cost": {
+          "copper": 0,
+          "electrum": 0,
+          "gold": 5.0,
+          "platinum": 0,
+          "silver": 0
+        },
+        "cost_display": "5 gp",
+        "damage_roll": "1d6",
+        "damage_type": "bludgeoning",
+        "description": "",
+        "item_type": "weapon",
+        "name": "Mace",
+        "properties": [
+          "-"
+        ],
+        "source": "SRD 5.1",
+        "weapon_category": "Simple Melee Weapons",
+        "weight": 4.0
+      },
+      {
+        "cost": {
+          "copper": 0,
+          "electrum": 0,
+          "gold": 10.0,
+          "platinum": 0,
+          "silver": 0
+        },
+        "cost_display": "10 gp",
+        "damage_roll": "2d6",
+        "damage_type": "bludgeoning",
+        "description": "",
+        "item_type": "weapon",
+        "name": "Maul",
+        "properties": [
+          "Heavy",
+          "two -- handed"
+        ],
+        "source": "SRD 5.1",
+        "weapon_category": "Martial Melee Weapons",
+        "weight": 10.0
+      },
+      {
+        "cost": {
+          "copper": 0,
+          "electrum": 0,
+          "gold": 15.0,
+          "platinum": 0,
+          "silver": 0
+        },
+        "cost_display": "15 gp",
+        "damage_roll": "1d8",
+        "damage_type": "piercing",
+        "description": "",
+        "item_type": "weapon",
+        "name": "Morningstar",
+        "properties": [
+          "-"
+        ],
+        "source": "SRD 5.1",
+        "weapon_category": "Martial Melee Weapons",
+        "weight": 4.0
+      },
+      {
+        "cost": {
+          "copper": 0,
+          "electrum": 0,
+          "gold": 1.0,
+          "platinum": 0,
+          "silver": 0
+        },
+        "cost_display": "1 gp",
+        "damage_roll": "-",
+        "damage_type": "",
+        "description": "",
+        "item_type": "weapon",
+        "name": "Net",
+        "properties": [
+          "Special",
+          "thrown (range 5/15)"
+        ],
+        "source": "SRD 5.1",
+        "weapon_category": "Martial Ranged Weapons",
+        "weight": 3.0
+      },
+      {
+        "cost": {
+          "copper": 0,
+          "electrum": 0,
+          "gold": 5.0,
+          "platinum": 0,
+          "silver": 0
+        },
+        "cost_display": "5 gp",
+        "damage_roll": "1d10",
+        "damage_type": "piercing",
+        "description": "",
+        "item_type": "weapon",
+        "name": "Pike",
+        "properties": [
+          "Heavy",
+          "reach",
+          "two -- handed"
+        ],
+        "source": "SRD 5.1",
+        "weapon_category": "Martial Melee Weapons",
+        "weight": 18.0
+      },
+      {
+        "cost": {
+          "copper": 0,
+          "electrum": 0,
+          "gold": 0,
+          "platinum": 0,
+          "silver": 2.0
+        },
+        "cost_display": "2 sp",
+        "damage_roll": "1d6",
+        "damage_type": "bludgeoning",
+        "description": "",
+        "item_type": "weapon",
+        "name": "Quarterstaff",
+        "properties": [
+          "Versatile (1d8)"
+        ],
+        "source": "SRD 5.1",
+        "weapon_category": "Simple Melee Weapons",
+        "weight": 4.0
+      },
+      {
+        "cost": {
+          "copper": 0,
+          "electrum": 0,
+          "gold": 25.0,
+          "platinum": 0,
+          "silver": 0
+        },
+        "cost_display": "25 gp",
+        "damage_roll": "1d8",
+        "damage_type": "piercing",
+        "description": "",
+        "item_type": "weapon",
+        "name": "Rapier",
+        "properties": [
+          "Finesse"
+        ],
+        "source": "SRD 5.1",
+        "weapon_category": "Martial Melee Weapons",
+        "weight": 2.0
+      },
+      {
+        "cost": {
+          "copper": 0,
+          "electrum": 0,
+          "gold": 25.0,
+          "platinum": 0,
+          "silver": 0
+        },
+        "cost_display": "25 gp",
+        "damage_roll": "1d6",
+        "damage_type": "slashing",
+        "description": "",
+        "item_type": "weapon",
+        "name": "Scimitar",
+        "properties": [
+          "Finesse",
+          "light"
+        ],
+        "source": "SRD 5.1",
+        "weapon_category": "Martial Melee Weapons",
+        "weight": 3.0
+      },
+      {
+        "cost": {
+          "copper": 0,
+          "electrum": 0,
+          "gold": 25.0,
+          "platinum": 0,
+          "silver": 0
+        },
+        "cost_display": "25 gp",
+        "damage_roll": "1d6",
+        "damage_type": "piercing",
+        "description": "",
+        "item_type": "weapon",
+        "name": "Shortbow",
+        "properties": [
+          "Ammunition (range 80/320)",
+          "two -- handed"
+        ],
+        "source": "SRD 5.1",
+        "weapon_category": "Simple Ranged Weapons",
+        "weight": 2.0
+      },
+      {
+        "cost": {
+          "copper": 0,
+          "electrum": 0,
+          "gold": 10.0,
+          "platinum": 0,
+          "silver": 0
+        },
+        "cost_display": "10 gp",
+        "damage_roll": "1d6",
+        "damage_type": "piercing",
+        "description": "",
+        "item_type": "weapon",
+        "name": "Shortsword",
+        "properties": [
+          "Finesse",
+          "light"
+        ],
+        "source": "SRD 5.1",
+        "weapon_category": "Martial Melee Weapons",
+        "weight": 2.0
+      },
+      {
+        "cost": {
+          "copper": 0,
+          "electrum": 0,
+          "gold": 1.0,
+          "platinum": 0,
+          "silver": 0
+        },
+        "cost_display": "1 gp",
+        "damage_roll": "1d4",
+        "damage_type": "slashing",
+        "description": "",
+        "item_type": "weapon",
+        "name": "Sickle",
+        "properties": [
+          "Light"
+        ],
+        "source": "SRD 5.1",
+        "weapon_category": "Simple Melee Weapons",
+        "weight": 2.0
+      },
+      {
+        "cost": {
+          "copper": 0,
+          "electrum": 0,
+          "gold": 0,
+          "platinum": 0,
+          "silver": 1.0
+        },
+        "cost_display": "1 sp",
+        "damage_roll": "1d4",
+        "damage_type": "bludgeoning",
+        "description": "",
+        "item_type": "weapon",
+        "name": "Sling",
+        "properties": [
+          "Ammunition (range 30/120)"
+        ],
+        "source": "SRD 5.1",
+        "weapon_category": "Simple Ranged Weapons",
+        "weight": 0
+      },
+      {
+        "cost": {
+          "copper": 0,
+          "electrum": 0,
+          "gold": 1.0,
+          "platinum": 0,
+          "silver": 0
+        },
+        "cost_display": "1 gp",
+        "damage_roll": "1d6",
+        "damage_type": "piercing",
+        "description": "",
+        "item_type": "weapon",
+        "name": "Spear",
+        "properties": [
+          "Thrown (range 20/60)",
+          "versatile (1d8)"
+        ],
+        "source": "SRD 5.1",
+        "weapon_category": "Simple Melee Weapons",
+        "weight": 3.0
+      },
+      {
+        "cost": {
+          "copper": 0,
+          "electrum": 0,
+          "gold": 5.0,
+          "platinum": 0,
+          "silver": 0
+        },
+        "cost_display": "5 gp",
+        "damage_roll": "1d6",
+        "damage_type": "piercing",
+        "description": "",
+        "item_type": "weapon",
+        "name": "Trident",
+        "properties": [
+          "Thrown (range 20/60)",
+          "versatile (1d8)"
+        ],
+        "source": "SRD 5.1",
+        "weapon_category": "Martial Melee Weapons",
+        "weight": 4.0
+      },
+      {
+        "cost": {
+          "copper": 0,
+          "electrum": 0,
+          "gold": 5.0,
+          "platinum": 0,
+          "silver": 0
+        },
+        "cost_display": "5 gp",
+        "damage_roll": "1d8",
+        "damage_type": "piercing",
+        "description": "",
+        "item_type": "weapon",
+        "name": "War pick",
+        "properties": [
+          "-"
+        ],
+        "source": "SRD 5.1",
+        "weapon_category": "Martial Melee Weapons",
+        "weight": 2.0
+      },
+      {
+        "cost": {
+          "copper": 0,
+          "electrum": 0,
+          "gold": 15.0,
+          "platinum": 0,
+          "silver": 0
+        },
+        "cost_display": "15 gp",
+        "damage_roll": "1d8",
+        "damage_type": "bludgeoning",
+        "description": "",
+        "item_type": "weapon",
+        "name": "Warhammer",
+        "properties": [
+          "Versatile (1d10)"
+        ],
+        "source": "SRD 5.1",
+        "weapon_category": "Martial Melee Weapons",
+        "weight": 2.0
+      },
+      {
+        "cost": {
+          "copper": 0,
+          "electrum": 0,
+          "gold": 2.0,
+          "platinum": 0,
+          "silver": 0
+        },
+        "cost_display": "2 gp",
+        "damage_roll": "1d4",
+        "damage_type": "slashing",
+        "description": "",
+        "item_type": "weapon",
+        "name": "Whip",
+        "properties": [
+          "Finesse",
+          "reach"
+        ],
+        "source": "SRD 5.1",
+        "weapon_category": "Martial Melee Weapons",
+        "weight": 3.0
+      }
+    ]
+  },
+  "metadata": {
+    "format_version": "1.0",
+    "item_count": 149,
+    "ruleset": "dnd5e-2014-v1",
+    "source": "SRD 5.1"
+  }
+}

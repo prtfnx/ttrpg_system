@@ -1,0 +1,78 @@
+{
+  "artifact_version": "srd51-starter-c05c0438-v1",
+  "files": {
+    "bestiary_optimized.json": {
+      "bytes": 624827,
+      "license": {
+        "attribution": "This work includes material taken from the System Reference Document 5.1 (“SRD 5.1”) by Wizards of the Coast LLC and available at https://dnd.wizards.com/resources/systems-reference-document. The SRD 5.1 is licensed under the Creative Commons Attribution 4.0 International License available at https://creativecommons.org/licenses/by/4.0/legalcode.",
+        "id": "CC-BY-4.0",
+        "url": "https://creativecommons.org/licenses/by/4.0/legalcode"
+      },
+      "sha256": "79bffd2f7c18ef138709e2d2b28a48c7f2f7d4572e0e9bda5fe89b96ae892b6e",
+      "source": {
+        "name": "Tabyltop CC-SRD conversion of SRD 5.1",
+        "url": "https://raw.githubusercontent.com/Tabyltop/CC-SRD/c05c0438ea6c638bb7cb25224d97c9bd0e187c49/Monsters-SRD5.1-CCBY4.0License-TT.json",
+        "version": "c05c0438ea6c638bb7cb25224d97c9bd0e187c49"
+      }
+    },
+    "character_data.json": {
+      "bytes": 43605,
+      "license": {
+        "attribution": "This work includes material taken from the System Reference Document 5.1 (“SRD 5.1”) by Wizards of the Coast LLC and available at https://dnd.wizards.com/resources/systems-reference-document. The SRD 5.1 is licensed under the Creative Commons Attribution 4.0 International License available at https://creativecommons.org/licenses/by/4.0/legalcode.",
+        "id": "CC-BY-4.0",
+        "url": "https://creativecommons.org/licenses/by/4.0/legalcode"
+      },
+      "sha256": "732f4924a7d8fe08cd60cce7136ca012de1171a19b53775be9944b13865f4ac8",
+      "source": {
+        "name": "Tabyltop CC-SRD conversion of SRD 5.1",
+        "url": "https://raw.githubusercontent.com/Tabyltop/CC-SRD/c05c0438ea6c638bb7cb25224d97c9bd0e187c49/SRD5.1-CCBY4.0License-TT.json",
+        "version": "c05c0438ea6c638bb7cb25224d97c9bd0e187c49"
+      }
+    },
+    "equipment_data.json": {
+      "bytes": 69114,
+      "license": {
+        "attribution": "This work includes material taken from the System Reference Document 5.1 (“SRD 5.1”) by Wizards of the Coast LLC and available at https://dnd.wizards.com/resources/systems-reference-document. The SRD 5.1 is licensed under the Creative Commons Attribution 4.0 International License available at https://creativecommons.org/licenses/by/4.0/legalcode.",
+        "id": "CC-BY-4.0",
+        "url": "https://creativecommons.org/licenses/by/4.0/legalcode"
+      },
+      "sha256": "02fd8c3e046ac5f2cee5a2012d4a3653c99dc73f0d11ecf87f058c3ca2eb5753",
+      "source": {
+        "name": "Tabyltop CC-SRD conversion of SRD 5.1",
+        "url": "https://raw.githubusercontent.com/Tabyltop/CC-SRD/c05c0438ea6c638bb7cb25224d97c9bd0e187c49/SRD5.1-CCBY4.0License-TT.json",
+        "version": "c05c0438ea6c638bb7cb25224d97c9bd0e187c49"
+      }
+    },
+    "feats_data.json": {
+      "bytes": 708,
+      "license": {
+        "attribution": "This work includes material taken from the System Reference Document 5.1 (“SRD 5.1”) by Wizards of the Coast LLC and available at https://dnd.wizards.com/resources/systems-reference-document. The SRD 5.1 is licensed under the Creative Commons Attribution 4.0 International License available at https://creativecommons.org/licenses/by/4.0/legalcode.",
+        "id": "CC-BY-4.0",
+        "url": "https://creativecommons.org/licenses/by/4.0/legalcode"
+      },
+      "sha256": "a210a8abd4786fe0742e2bdc116b70536a6ac103e70d3774dc6fa3a0dc918684",
+      "source": {
+        "name": "Tabyltop CC-SRD conversion of SRD 5.1",
+        "url": "https://raw.githubusercontent.com/Tabyltop/CC-SRD/c05c0438ea6c638bb7cb25224d97c9bd0e187c49/SRD5.1-CCBY4.0License-TT.json",
+        "version": "c05c0438ea6c638bb7cb25224d97c9bd0e187c49"
+      }
+    },
+    "spellbook_optimized.json": {
+      "bytes": 63824,
+      "license": {
+        "attribution": "This work includes material taken from the System Reference Document 5.1 (“SRD 5.1”) by Wizards of the Coast LLC and available at https://dnd.wizards.com/resources/systems-reference-document. The SRD 5.1 is licensed under the Creative Commons Attribution 4.0 International License available at https://creativecommons.org/licenses/by/4.0/legalcode.",
+        "id": "CC-BY-4.0",
+        "url": "https://creativecommons.org/licenses/by/4.0/legalcode"
+      },
+      "sha256": "50101cbc9499b8708c734d3faa8c553962eee4d55cc4e75e5aa4afcda2dd2008",
+      "source": {
+        "name": "Tabyltop CC-SRD conversion of SRD 5.1",
+        "url": "https://raw.githubusercontent.com/Tabyltop/CC-SRD/c05c0438ea6c638bb7cb25224d97c9bd0e187c49/SRD5.1-CCBY4.0License-TT.json",
+        "version": "c05c0438ea6c638bb7cb25224d97c9bd0e187c49"
+      }
+    }
+  },
+  "ruleset": "dnd5e-2014-v1",
+  "schema_version": 1,
+  "scope": "starter"
+}

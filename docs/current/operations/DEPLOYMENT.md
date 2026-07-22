@@ -2,11 +2,9 @@
 
 Audience: operators and contributors preparing a deploy.
 
-Status: usable for the application and database path. A licensed, verified
-compendium artifact is still required before the production readiness check can
-pass.
+Status: usable for the application, database, and bundled compendium path.
 
-Last source audit: 2026-07-20
+Last source audit: 2026-07-22
 
 ## Current target
 
@@ -79,15 +77,18 @@ or health responses. Render supplies `PORT`; do not generate or hard-code it.
 
 ## Compendium artifact gate
 
-Production readiness requires all compendium export files plus a verified
-`manifest.json`. The manifest records the artifact version, exact required
-files, sizes, and SHA-256 checksums.
+Production uses the packaged, manifest-verified SRD 5.1 starter by default.
+The build needs no compendium download. Its manifest records the artifact
+version, ruleset, starter scope, exact required files, source revision,
+license, attribution, sizes, and SHA-256 checksums.
 
-The repository does not currently contain a licensed production artifact or a
-trusted download location. Do not commit local ignored exports, disable this
-readiness gate, or invent a manifest. Before deployment, publish an approved
-artifact through the project's release process and make it available to the
-Render build.
+To deploy a separately licensed complete catalog, set `COMPENDIUM_DIR` to an
+absolute runtime directory containing the same five JSON payloads and a valid
+`manifest.json`. The current Render service has no persistent disk, so a custom
+directory must be supplied by the image/build or another durable deployment
+mechanism. Do not point it at ignored local exports. See
+[Characters and compendiums](../features/CHARACTERS_AND_COMPENDIUMS.md) for the
+contract and manifest command.
 
 ## Verification
 

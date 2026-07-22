@@ -3,7 +3,7 @@
 Status: current and practical. Use this before a production deploy or a
 release-like handoff.
 
-Last source audit: 2026-07-20
+Last source audit: 2026-07-22
 
 ## Scope
 
@@ -93,11 +93,14 @@ Confirm:
 - `apps/server/static/ui/wasm/` contains the generated JS and optimized WASM;
 - `apps/server/templates/vite_assets.html` and `admin_assets.html` match the
   current manifest;
-- the production compendium exports and verified `manifest.json` come from an
-  approved, licensed artifact source.
+- the bundled compendium manifest verifies all five SRD starter payloads;
+- `THIRD_PARTY_NOTICES.md` and `/api/compendium/status` expose the active SRD
+  attribution and provenance.
 
-The compendium gate is mandatory. Local ignored exports without a trusted
-manifest are not a deployable release artifact.
+The compendium gate is mandatory. When `COMPENDIUM_DIR` replaces the bundled
+starter, verify that the external catalog has distribution rights, the exact
+five-file shape, and a manifest produced after the final payload change. Local
+ignored exports are not a deployable release artifact.
 
 ## Configuration preflight
 
@@ -110,6 +113,8 @@ Production requires:
 - Neon `DATABASE_URL` for the runtime role;
 - Neon `DATABASE_MIGRATION_URL` for the owner/migration role;
 - complete R2 settings with put, get/head, delete, and list permissions;
+- optional `COMPENDIUM_DIR` only when deploying a separately licensed complete
+  catalog;
 - optional OAuth, email, and telemetry settings used by the release.
 
 Confirm database URLs use SSL and are absent from Git, logs, tickets, and

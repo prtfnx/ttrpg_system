@@ -3,10 +3,10 @@
 Audience: contributors changing character persistence, drafts, rules, imports,
 compendium data, or character-token links.
 
-Status: current but partial. Character storage and authority are implemented.
-A licensed production compendium artifact is still required.
+Status: usable. Character storage and authority and the bundled starter
+compendium are implemented.
 
-Last source audit: 2026-07-21
+Last source audit: 2026-07-22
 
 ## Ownership
 
@@ -79,16 +79,64 @@ deterministic schema-version migration.
 
 ## Compendium artifact
 
-The loader activates all five data files atomically. Production requires a
-manifest containing the artifact/schema version, exact file list, byte counts,
-SHA-256 digests, source, source version, license, and attribution. Readiness
-fails when the artifact is absent, corrupt, incomplete, or unattributed.
+The default artifact is the generated SRD 5.1 starter in
+`packages/core-table/core_table/compendiums/bundled_srd51/`. It matches the
+pinned `dnd5e-2014-v1` ruleset and contains:
+
+- 9 race options and all 12 SRD classes;
+- the Acolyte background and Grappler feat;
+- 56 level-zero and level-one starter spells;
+- 149 armor, weapon, and adventuring-gear entries;
+- 201 monsters.
+
+This is a starter catalog, not every SRD rule or every published fifth-edition
+option. The manifest reports `scope: starter`. The source conversion commit and
+input hashes are pinned by `scripts/compendium/build_srd51_starter.py`.
+
+The loader activates all five data files atomically. Every production artifact
+requires a manifest containing the artifact/schema version, exact file list,
+byte counts, SHA-256 digests, source, source version, license, and attribution.
+Readiness fails when the artifact is absent, corrupt, incomplete, or
+unattributed. `/api/compendium/status` exposes the active scope, ruleset,
+sources, and licenses.
 
 Collection routes are bounded and paginated where appropriate. Verified
 generations use ETags and shared cache headers. Runtime reload is not public.
 
-The repository intentionally does not contain an approved production dataset.
-Do not publish ignored local exports or invent a manifest to bypass readiness.
+The bundled content uses SRD 5.1 under CC BY 4.0. Required attribution is in
+`THIRD_PARTY_NOTICES.md` and in the artifact manifest. The mixed local exports
+under the ignored `compendiums/exports/` path are not the bundled source and
+must not be redistributed.
+
+## Replace the starter with a complete artifact
+
+Set `COMPENDIUM_DIR` to an absolute directory containing these exact files:
+
+- `character_data.json`;
+- `spellbook_optimized.json`;
+- `equipment_data.json`;
+- `bestiary_optimized.json`;
+- `feats_data.json`;
+- `manifest.json`.
+
+Create the manifest after assembling data you are authorized to distribute:
+
+```powershell
+python scripts/compendium/create_manifest.py C:\compendiums\licensed-full `
+  --artifact-version licensed-full-v1 `
+  --source-name "Licensed source" `
+  --source-url "https://example.com/source" `
+  --source-version "1" `
+  --license-id "CC-BY-4.0" `
+  --license-url "https://creativecommons.org/licenses/by/4.0/legalcode" `
+  --attribution-file C:\compendiums\licensed-full\ATTRIBUTION.txt
+```
+
+The tool validates the required top-level JSON keys, hashes the generation,
+and refuses to overwrite a manifest unless `--replace` is explicit. A manifest
+records integrity and provenance; it does not grant rights to unlicensed data.
+Restart the server after changing `COMPENDIUM_DIR`; runtime reload is not
+public.
 
 ## Verification
 
@@ -98,5 +146,6 @@ Run:
 - `tests/unit/test_character_overhaul.py`;
 - `tests/unit/test_character_drafts.py`;
 - `tests/integration/test_compendium_routes.py`;
+- `tests/unit/test_compendium_manifest_tool.py`;
 - character and compendium Vitest suites;
 - `src/lib/websocket/__tests__/clientProtocol.test.ts`.

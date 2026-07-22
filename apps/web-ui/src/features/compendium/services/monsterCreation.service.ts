@@ -6,6 +6,7 @@
 
 import { EventSystem } from '@shared/services/eventSystem.service';
 import { logger } from '@shared/utils/logger';
+import { parseCompendiumSpeed } from './compendiumNormalization';
 
 // === Core Types ===
 
@@ -419,29 +420,7 @@ export class MonsterCreationService extends EventSystem {
    * Parse speed from various formats
    */
   private parseSpeed(speedData: unknown): Record<string, number> {
-    const speeds: Record<string, number> = { walk: 30 };
-    
-    if (typeof speedData === 'number') {
-      speeds.walk = speedData;
-    } else if (typeof speedData === 'string') {
-      // Parse "30 ft., fly 60 ft." format
-      const matches = speedData.matchAll(/(\w+)\s+(\d+)/g);
-      for (const match of matches) {
-        const type = match[1].toLowerCase();
-        const value = parseInt(match[2]);
-        if (type === 'speed') {
-          speeds.walk = value;
-        } else {
-          speeds[type] = value;
-        }
-      }
-    } else if (speedData && typeof speedData === 'object') {
-      Object.entries(speedData).forEach(([key, value]) => {
-        speeds[key.toLowerCase()] = parseInt(value as string) || 0;
-      });
-    }
-    
-    return speeds;
+    return parseCompendiumSpeed(speedData);
   }
 
   /**

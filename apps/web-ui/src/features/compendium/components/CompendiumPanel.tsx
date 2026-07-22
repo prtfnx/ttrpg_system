@@ -1,6 +1,7 @@
 import { useAuth } from '@features/auth';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { compendiumService } from '../services/compendiumService';
+import { formatEquipmentCost } from '../services/compendiumNormalization';
 import { monsterCreationSystem, type MonsterInstance } from '../services/monsterCreation.service';
 import styles from './CompendiumPanel.module.css';
 import { MonsterCreationPanel } from './MonsterCreationPanel';
@@ -106,8 +107,8 @@ export const CompendiumPanel: React.FC<CompendiumPanelProps> = ({ category, clas
               id: `${cat}_${item.name}`.toLowerCase().replace(/\s+/g, '-'),
               type: 'equipment',
               name: item.name as string,
-              description: `${cat} — ${item.cost ?? '—'}`,
-              cost: item.cost as string | undefined,
+              description: `${cat} — ${formatEquipmentCost(item.cost, item.cost_display)}`,
+              cost: formatEquipmentCost(item.cost, item.cost_display),
               raw: item,
             });
           }

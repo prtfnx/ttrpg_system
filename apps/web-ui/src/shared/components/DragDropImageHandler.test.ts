@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { isSupportedAssetImage } from './DragDropImageHandler';
+import { isSupportedAssetImage } from './assetImageValidation';
 
 
 describe('isSupportedAssetImage', () => {

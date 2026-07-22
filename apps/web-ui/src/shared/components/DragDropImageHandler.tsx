@@ -5,6 +5,7 @@ import { useProtocol } from '@lib/api';
 import { createMessage, MessageType } from '@lib/websocket';
 import { logger } from '@shared/utils/logger';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
+import { isSupportedAssetImage } from './assetImageValidation';
 
 interface DragDropImageHandlerProps {
   children: React.ReactNode;
@@ -23,21 +24,6 @@ interface PendingUpload {
   assetId: string;
   fileName: string;
 }
-
-const SUPPORTED_IMAGE_TYPES: Record<string, string> = {
-  '.png': 'image/png',
-  '.jpg': 'image/jpeg',
-  '.jpeg': 'image/jpeg',
-  '.gif': 'image/gif',
-  '.bmp': 'image/bmp',
-  '.webp': 'image/webp',
-};
-
-export const isSupportedAssetImage = (file: Pick<File, 'name' | 'type'>): boolean => {
-  const dotIndex = file.name.lastIndexOf('.');
-  const extension = dotIndex >= 0 ? file.name.slice(dotIndex).toLowerCase() : '';
-  return SUPPORTED_IMAGE_TYPES[extension] === file.type;
-};
 
 export const DragDropImageHandler: React.FC<DragDropImageHandlerProps> = ({
   children

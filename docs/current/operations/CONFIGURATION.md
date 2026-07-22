@@ -4,7 +4,7 @@ Audience: contributors and operators changing runtime configuration.
 
 Status: usable.
 
-Last source audit: 2026-07-20
+Last source audit: 2026-07-22
 
 ## Source of truth
 
@@ -97,6 +97,24 @@ The operational R2 token also needs:
 
 Use a token scoped to the dedicated application bucket. Missing delete
 permission leaves stale objects even when the relational row has been removed.
+
+## Compendium
+
+With `COMPENDIUM_DIR` unset, the server loads the packaged, manifest-verified
+SRD 5.1 starter. Set it only to replace the entire generation with a separately
+licensed catalog. The value should be an absolute directory containing the
+five required JSON payloads and `manifest.json`.
+
+The server resolves the directory once at process startup and activates the
+generation only after every size, checksum, JSON shape, source, and license
+field validates. A bad external artifact fails readiness instead of falling
+back silently to the starter. Remove `COMPENDIUM_DIR` to restore the bundled
+generation on the next restart.
+
+Use the manifest tool and contract documented in
+[Characters and compendiums](../features/CHARACTERS_AND_COMPENDIUMS.md). Do not
+use ignored local exports unless their source and redistribution rights have
+been established independently.
 
 ## Browser configuration
 

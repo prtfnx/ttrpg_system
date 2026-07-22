@@ -4,7 +4,7 @@ Audience: contributors and operators configuring the FastAPI server.
 
 Status: usable.
 
-Last source audit: 2026-07-20
+Last source audit: 2026-07-22
 
 Server settings are defined in `apps/server/config.py`; ignored `.env` files
 are loaded by Pydantic settings.
@@ -36,6 +36,17 @@ PostgreSQL and Alembic.
 | `SESSION_SECRET` | development placeholder | Must be at least 32 characters in production. |
 | `METRICS_TOKEN` | empty | Required when production metrics are enabled. |
 | `WS_SEND_TIMEOUT_SECONDS` | `5.0` | Per-message protocol send deadline. Valid range is 0.1-60 seconds; tune only with production load evidence. |
+
+## Compendium
+
+| Variable | Default | Notes |
+| --- | --- | --- |
+| `COMPENDIUM_DIR` | bundled `core_table/compendiums/bundled_srd51` | Optional absolute directory for a separately licensed complete artifact. It must contain the exact five JSON payloads and a verified `manifest.json`. Restart the server after changing it. |
+
+The bundled SRD 5.1 starter is production-valid and needs no environment
+setting. See [Characters and compendiums](../features/CHARACTERS_AND_COMPENDIUMS.md)
+before replacing it; a manifest records integrity and attribution but does not
+grant distribution rights.
 
 ## Database-sensitive Render settings
 

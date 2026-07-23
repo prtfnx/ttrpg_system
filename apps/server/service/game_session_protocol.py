@@ -39,9 +39,12 @@ class GameSessionProtocolService:
         self.table_manager = TableManager(db_session)
         logger.info(f"TableManager initialized for session {session_code}")
 
-        self.server_protocol = ServerProtocol(self.table_manager, session_manager=self)
+        self.server_protocol = ServerProtocol(
+            self.table_manager,
+            session_manager=self,
+            transport_send=self.send_to_client,
+        )
         logger.info(f"ServerProtocol initialized for session {session_code}")
-        self.server_protocol.send_to_client = self.send_to_client  # For compatibility with server protocol
 
         # Client connections within this game session
         logger.info(f"Initializing GameSessionProtocolService for session {session_code}")

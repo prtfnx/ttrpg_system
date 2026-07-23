@@ -1,5 +1,6 @@
 import time
-from typing import Any, Callable, Dict
+from collections.abc import Awaitable, Callable
+from typing import Any, Dict
 
 from core_table.actions_core import ActionsCore
 from core_table.protocol import Message, MessageType
@@ -55,10 +56,16 @@ class ServerProtocol(
       chat.py        — chat message handling and history retrieval
     """
 
-    def __init__(self, table_manager, session_manager=None):
+    def __init__(
+        self,
+        table_manager,
+        session_manager=None,
+        transport_send: Callable[[Message, str], Awaitable[None]] | None = None,
+    ):
         logger.info("Initializing ServerProtocol")
         self.table_manager = table_manager
         self.session_manager = session_manager
+        self._transport_send = transport_send
         self.clients: Dict[str, Any] = {}
         self.handlers: Dict[MessageType, Callable] = {}
         self.init_handlers()

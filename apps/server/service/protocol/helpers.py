@@ -17,8 +17,9 @@ class _HelpersMixin(_ProtocolBase):
 
     async def send_to_client(self, message: Message, client_id: str):
         """Send message to specific client"""
-        # Overload this method in server implementation to use choosed transport
-        raise NotImplementedError("Subclasses must implement send_to_client method")
+        if self._transport_send is None:
+            raise RuntimeError("No client transport is configured")
+        await self._transport_send(message, client_id)
 
     async def broadcast_to_session(self, message: Message, client_id: Optional[str] = None):
         """Send message to all clients in the session. Excludes client_id if provided."""

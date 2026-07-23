@@ -37,6 +37,12 @@ jobs:
       - run: pnpm lint --filter @ttrpg/web-ui
       - name: Run tests with coverage
         run: pnpm test:coverage --filter @ttrpg/web-ui
+      - name: Install Chromium for browser tests
+        run: pnpm exec playwright install --with-deps chromium
+        working-directory: apps/web-ui
+      - name: Run browser and WASM integration tests
+        run: pnpm exec vitest run --project browser --project browser-components
+        working-directory: apps/web-ui
       - name: Build and package production UI
         run: |
           pnpm --filter @ttrpg/web-ui build

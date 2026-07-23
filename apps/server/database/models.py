@@ -19,7 +19,7 @@ from sqlalchemy import (
     Text,
     UniqueConstraint,
 )
-from sqlalchemy.orm import Mapped, declarative_base, mapped_column, relationship
+from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
 
 NAMING_CONVENTION = {
     "ix": "ix_%(column_0_label)s",
@@ -29,7 +29,10 @@ NAMING_CONVENTION = {
     "pk": "pk_%(table_name)s",
 }
 
-Base = declarative_base(metadata=MetaData(naming_convention=NAMING_CONVENTION))
+class Base(DeclarativeBase):
+    """Typed SQLAlchemy declarative base for all application models."""
+
+    metadata = MetaData(naming_convention=NAMING_CONVENTION)
 
 class User(Base):
     __tablename__ = "users"

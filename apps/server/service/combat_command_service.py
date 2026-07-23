@@ -267,21 +267,21 @@ class CombatCommandService:
                 self._restore(context.session_code, snapshot)
                 return self._reject(envelope.sequence_id, idx, error)
 
-            result = self._apply_one(command, context, state, actor_id)
-            if "error" in result:
+            command_result = self._apply_one(command, context, state, actor_id)
+            if "error" in command_result:
                 self._restore(context.session_code, snapshot)
                 return self._reject(
                     envelope.sequence_id,
                     idx,
-                    str(result["error"]),
-                    self._result_details(result),
+                    str(command_result["error"]),
+                    self._result_details(command_result),
                 )
 
             applied.append({
                 "sequence_index": idx,
                 "action_type": command.type.value,
                 "actor_id": actor_id,
-                "result": result,
+                "result": command_result,
             })
             state = self._engine.get_state(context.session_code)
             if not state:
@@ -289,7 +289,7 @@ class CombatCommandService:
                 return self._reject(envelope.sequence_id, idx, "Combat ended unexpectedly")
 
         current = self._engine.get_state(context.session_code)
-        result = CombatCommandResult(
+        accepted_result = CombatCommandResult(
             accepted=True,
             sequence_id=envelope.sequence_id,
             applied=applied,
@@ -301,7 +301,7 @@ class CombatCommandService:
                 context,
                 snapshot,
                 current,
-                result,
+                accepted_result,
             )
         except Exception:
             self._restore(context.session_code, snapshot)
@@ -356,21 +356,27 @@ class CombatCommandService:
                 await self._restore_async(context, snapshot, move_undos)
                 return self._reject(envelope.sequence_id, idx, error)
 
-            result = await self._apply_one_async(command, context, state, actor_id, move_undos)
-            if "error" in result:
+            command_result = await self._apply_one_async(
+                command, context, state, actor_id, move_undos
+            )
+            if "error" in command_result:
                 await self._restore_async(context, snapshot, move_undos)
                 return self._reject(
                     envelope.sequence_id,
                     idx,
-                    str(result["error"]),
-                    self._result_details(result),
+                    str(command_result["error"]),
+                    self._result_details(command_result),
                 )
 
             applied.append({
                 "sequence_index": idx,
                 "action_type": command.type.value,
-                "actor_id": result.get("combatant_id") or actor_id or command.actor_id,
-                "result": result,
+                "actor_id": (
+                    command_result.get("combatant_id")
+                    or actor_id
+                    or command.actor_id
+                ),
+                "result": command_result,
             })
             state = self._engine.get_state(context.session_code)
             if (
@@ -382,21 +388,25 @@ class CombatCommandService:
                 return self._reject(envelope.sequence_id, idx, "Combat ended unexpectedly")
 
         current = self._engine.get_state(context.session_code)
-        result = CombatCommandResult(
+        accepted_result = CombatCommandResult(
             accepted=True,
             sequence_id=envelope.sequence_id,
             applied=applied,
-            combat=current.to_dict() if current else result.get("combat"),
+            combat=(
+                current.to_dict()
+                if current
+                else command_result.get("combat")
+            ),
         )
         if current is None and all(command.type in table_environment_types for command in envelope.commands):
-            return result
+            return accepted_result
         try:
             return self._persist_result(
                 envelope,
                 context,
                 snapshot,
                 current,
-                result,
+                accepted_result,
             )
         except Exception:
             await self._restore_async(context, snapshot, move_undos)
@@ -772,6 +782,8 @@ class CombatCommandService:
         if command.type == CombatCommandType.REMOVE_COVER_ZONE:
             return self._apply_remove_cover_zone(command, context)
         if command.type == CombatCommandType.MOVE:
+            if actor_id is None:
+                return {"error": "Combatant not found"}
             return await self._apply_move(command, context, state, actor_id, move_undos)
         return self._apply_one(command, context, state, actor_id)
 
@@ -826,7 +838,9 @@ class CombatCommandService:
         entity_id = command.entity_id or command.actor_id
         if not entity_id or entity_id == "__dm__":
             return {"error": "entity_id required"}
-        table_id = command.table_id or getattr(state, "table_id", "")
+        table_id = command.table_id or str(getattr(state, "table_id", "") or "")
+        if not table_id:
+            return {"error": "table_id required"}
         incoming = {
             "entity_id": entity_id,
             "character_id": command.character_id,
@@ -1076,6 +1090,8 @@ class CombatCommandService:
             CombatCommandType.REVERT_ACTION,
         }:
             return None if is_dm(context.role) else "DMs only"
+        if actor_id is None:
+            return "Combatant not found"
         if command.type == CombatCommandType.RESOLVE_OPPORTUNITY_ATTACK:
             if is_dm(context.role):
                 return None
@@ -1160,7 +1176,7 @@ class CombatCommandService:
         self,
         envelope: CombatCommandEnvelope,
         context: CombatCommandContext,
-        snapshot: dict[str, Any],
+        snapshot: dict[str, Any] | None,
         current: CombatState | None,
         result: CombatCommandResult,
     ) -> CombatCommandResult:
@@ -1183,7 +1199,7 @@ class CombatCommandService:
             command_type=command_types[0] if len(command_types) == 1 else "batch",
             command_payload=envelope.model_dump(mode="json"),
             result_payload=result.to_dict(),
-            state_before=snapshot,
+            state_before=snapshot or {},
             state_after=state_after,
             created_by=context.user_id,
         )

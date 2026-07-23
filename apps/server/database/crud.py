@@ -462,7 +462,9 @@ def create_virtual_table(db: Session, table_data: schemas.VirtualTableCreate) ->
     db.refresh(db_table)
     return db_table
 
-def get_virtual_table_by_id(db: Session, table_id: str) -> models.VirtualTable:
+def get_virtual_table_by_id(
+    db: Session, table_id: str
+) -> Optional[models.VirtualTable]:
     """Get virtual table by table_id (UUID)"""
     return db.query(models.VirtualTable).filter(models.VirtualTable.table_id == table_id).first()
 
@@ -545,7 +547,9 @@ def create_entity(db: Session, entity_data: schemas.EntityCreate, table_db_id: i
     db.refresh(db_entity)
     return db_entity
 
-def get_entity_by_sprite_id(db: Session, sprite_id: str) -> models.Entity:
+def get_entity_by_sprite_id(
+    db: Session, sprite_id: str
+) -> Optional[models.Entity]:
     """Get entity by sprite_id (UUID)"""
     return db.query(models.Entity).filter(models.Entity.sprite_id == sprite_id).first()
 
@@ -637,7 +641,7 @@ def save_table_to_db(db: Session, virtual_table_obj, session_id: int) -> Optiona
 
     if db_table is None:
         logger.error(f"Failed to create/update virtual table {table_id_str}")
-        return
+        return None
 
     # Synchronize entities: First get current entities in database for this table
     current_db_entities = db.query(models.Entity).filter(models.Entity.table_id == db_table.id).all()
@@ -690,7 +694,9 @@ def save_table_to_db(db: Session, virtual_table_obj, session_id: int) -> Optiona
 
 
 def _serialize_difficult_terrain(virtual_table_obj) -> list[list[int]]:
-    cells = getattr(virtual_table_obj, 'difficult_terrain_cells', set()) or set()
+    cells: set[tuple[int, int]] = (
+        getattr(virtual_table_obj, 'difficult_terrain_cells', set()) or set()
+    )
     return [[int(col), int(row)] for col, row in sorted(cells)]
 
 
@@ -784,6 +790,10 @@ def save_entity_to_db(db: Session, entity_obj, table_db_id: int) -> models.Entit
         )
         db_entity = create_entity(db, entity_data, table_db_id)
 
+    if db_entity is None:
+        raise RuntimeError(
+            f"Entity {entity_obj.sprite_id} disappeared while it was being updated"
+        )
     return db_entity
 
 def load_table_from_db(db: Session, table_id: str):

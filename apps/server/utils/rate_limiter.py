@@ -6,7 +6,6 @@ from collections import OrderedDict, deque
 from functools import lru_cache
 from ipaddress import ip_address
 from threading import RLock
-from typing import Deque, Dict
 
 from config import Settings
 from utils.observability import record_rate_limit
@@ -18,7 +17,7 @@ class RateLimiter:
             raise ValueError("max_identifiers must be positive")
         self.name = name
         self.max_identifiers = max_identifiers
-        self.requests: Dict[str, Deque[float]] = OrderedDict()
+        self.requests: OrderedDict[str, deque[float]] = OrderedDict()
         self._lock = RLock()
 
     def is_allowed(self, identifier: str, max_requests: int = 5, window_minutes: float = 5) -> bool:

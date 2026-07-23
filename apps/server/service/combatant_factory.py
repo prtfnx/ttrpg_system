@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import re
-from collections.abc import Callable, Mapping
+from collections.abc import Callable, Iterable, Mapping
 from dataclasses import dataclass
 from typing import Any
 
@@ -362,6 +362,7 @@ class CombatantFactory:
         return self._float_value(value, fallback)
 
     def _string_list(self, value: Any) -> list[str]:
+        values: Iterable[Any]
         if isinstance(value, str):
             values = re.split(r'[,;]', value)
         elif isinstance(value, (list, tuple, set)):

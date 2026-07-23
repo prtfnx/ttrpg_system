@@ -114,7 +114,9 @@ class MovementValidator:
         # Speed check (only when rules say so and combatant info is available)
         movement_cost = 0.0
         if self.rules.enforce_movement_speed and combatant is not None:
-            difficult = getattr(table, 'difficult_terrain_cells', set())
+            difficult: set[tuple[int, int]] = getattr(
+                table, 'difficult_terrain_cells', set()
+            )
             # Sum cost of each segment in the actual path (accounts for detours)
             for seg_start, seg_end in zip(path, path[1:]):
                 seg_cost = PathfindingSystem.get_movement_cost(
@@ -240,7 +242,9 @@ class MovementValidator:
 
         movement_cost = 0.0
         if self.rules.enforce_movement_speed and combatant is not None:
-            difficult = getattr(table, 'difficult_terrain_cells', set())
+            difficult: set[tuple[int, int]] = getattr(
+                table, 'difficult_terrain_cells', set()
+            )
             for seg_start, seg_end in zip(path, path[1:]):
                 seg_cost = PathfindingSystem.get_movement_cost(
                     seg_start, seg_end, grid_size=grid,

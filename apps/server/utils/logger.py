@@ -9,6 +9,7 @@ import logging
 import os
 import re
 import sys
+import time
 import traceback
 from datetime import datetime, timezone
 from typing import Any, Iterator, Mapping
@@ -136,7 +137,10 @@ class JsonFormatter(logging.Formatter):
 
 
 class TextFormatter(logging.Formatter):
-    converter = lambda *args: datetime.now(timezone.utc).timetuple()  # noqa: E731
+    def converter(self, timestamp: float | None) -> time.struct_time:
+        if timestamp is None:
+            return datetime.now(timezone.utc).timetuple()
+        return datetime.fromtimestamp(timestamp, timezone.utc).timetuple()
 
     def __init__(self) -> None:
         super().__init__("%(asctime)sZ - %(name)s - %(levelname)s - %(message)s")

@@ -1,3 +1,5 @@
+from datetime import datetime, timedelta
+
 import pytest
 from database import crud, schemas
 
@@ -104,9 +106,55 @@ class TestChatCRUD:
             visible_to_user_id=player_user.id,
         )
         visible_to_unknown = crud.get_session_chat_messages(test_db, test_game_session.id)
+        visible_to_moderator = crud.get_session_chat_messages(
+            test_db,
+            test_game_session.id,
+            viewer_is_moderator=True,
+        )
 
         assert [m.message_id for m in visible_to_recipient] == ["public-1", "whisper-1"]
         assert [m.message_id for m in visible_to_unknown] == ["public-1"]
+        assert [m.message_id for m in visible_to_moderator] == [
+            "public-1",
+            "whisper-1",
+        ]
+
+    def test_chat_retention_deletes_only_expired_rows(
+        self, test_db, test_game_session, test_user
+    ):
+        expired = crud.create_chat_message(test_db, schemas.ChatMessageCreate(
+            message_id="expired",
+            client_operation_id="expired-op",
+            session_id=test_game_session.id,
+            user_id=test_user.id,
+            username=test_user.username,
+            text="Old",
+            message_json={"id": "expired", "text": "Old"},
+        ))
+        current = crud.create_chat_message(test_db, schemas.ChatMessageCreate(
+            message_id="current",
+            client_operation_id="current-op",
+            session_id=test_game_session.id,
+            user_id=test_user.id,
+            username=test_user.username,
+            text="Current",
+            message_json={"id": "current", "text": "Current"},
+        ))
+        expired.created_at = datetime.utcnow() - timedelta(days=366)
+        current.created_at = datetime.utcnow()
+        test_db.commit()
+
+        deleted = crud.delete_expired_chat_messages(
+            test_db,
+            datetime.utcnow() - timedelta(days=365),
+        )
+
+        assert deleted == 1
+        assert crud.get_session_chat_message(
+            test_db,
+            session_id=test_game_session.id,
+            message_id="current",
+        ) is not None
 
     def test_chat_history_defaults_to_last_30_and_caps_page_size(self, test_db, test_game_session, test_user):
         for idx in range(105):

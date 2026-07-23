@@ -393,6 +393,19 @@ def get_chat_message_by_client_operation(
     ).first()
 
 
+def get_session_chat_message(
+    db: Session,
+    *,
+    session_id: int,
+    message_id: str,
+) -> Optional[models.ChatMessage]:
+    """Resolve a chat message only inside its owning session."""
+    return db.query(models.ChatMessage).filter(
+        models.ChatMessage.session_id == session_id,
+        models.ChatMessage.message_id == message_id,
+    ).first()
+
+
 def get_session_chat_messages(
     db: Session,
     session_id: int,
@@ -402,6 +415,7 @@ def get_session_chat_messages(
     channel: Optional[str] = None,
     user_id: Optional[int] = None,
     visible_to_user_id: Optional[int] = None,
+    viewer_is_moderator: bool = False,
 ) -> list[models.ChatMessage]:
     """Load chat messages newest-window first, returned in chronological order."""
     query = db.query(models.ChatMessage).filter(models.ChatMessage.session_id == session_id)
@@ -414,7 +428,9 @@ def get_session_chat_messages(
         query = query.filter(models.ChatMessage.channel == channel)
     if user_id is not None:
         query = query.filter(models.ChatMessage.user_id == user_id)
-    if visible_to_user_id is not None:
+    if viewer_is_moderator:
+        pass
+    elif visible_to_user_id is not None:
         query = query.filter(or_(
             models.ChatMessage.channel != "whisper",
             models.ChatMessage.user_id == visible_to_user_id,
@@ -429,6 +445,15 @@ def get_session_chat_messages(
 
     messages = query.all()
     return list(reversed(messages))
+
+
+def delete_expired_chat_messages(db: Session, cutoff: datetime) -> int:
+    """Permanently remove chat records after the configured retention window."""
+    deleted = db.query(models.ChatMessage).filter(
+        models.ChatMessage.created_at < cutoff
+    ).delete(synchronize_session=False)
+    db.commit()
+    return int(deleted)
 
 # Virtual Table operations
 def create_virtual_table(db: Session, table_data: schemas.VirtualTableCreate) -> models.VirtualTable:

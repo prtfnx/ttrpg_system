@@ -30,7 +30,10 @@
 # ============================================================
 # Rust
 # ============================================================
+# The generated WASM artifact is an application deliverable. Keep its resolved
+# dependency graph stable across local and CI rebuilds.
 **/Cargo.lock
+!packages/rust-core/Cargo.lock
 
 # ============================================================
 # IDE & OS

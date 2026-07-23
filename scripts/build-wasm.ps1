@@ -11,14 +11,34 @@ $Root    = $PSScriptRoot | Split-Path -Parent
 $RustDir = "$Root\packages\rust-core"
 $WasmOut = "$Root\apps\web-ui\src\lib\wasm\generated"
 
+function Invoke-WasmPack {
+    param([string[]]$BuildArguments)
+
+    & wasm-pack build @BuildArguments
+    if ($LASTEXITCODE -ne 0) {
+        throw "wasm-pack build failed with exit code $LASTEXITCODE"
+    }
+}
+
 Push-Location $RustDir
 try {
     if ($dev) {
         Write-Host "[WASM] dev build (debug logging)" -ForegroundColor Cyan
-        wasm-pack build --target web --out-dir $WasmOut --features wasm-start,dev-logging
+        Invoke-WasmPack @(
+            "--target", "web",
+            "--out-dir", $WasmOut,
+            "--features", "wasm-start,dev-logging",
+            "--locked"
+        )
     } else {
         Write-Host "[WASM] release build" -ForegroundColor Cyan
-        wasm-pack build --release --target web --out-dir $WasmOut --features wasm-start
+        Invoke-WasmPack @(
+            "--release",
+            "--target", "web",
+            "--out-dir", $WasmOut,
+            "--features", "wasm-start",
+            "--locked"
+        )
     }
 } finally {
     Pop-Location

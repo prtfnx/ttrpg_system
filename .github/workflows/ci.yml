@@ -63,7 +63,7 @@ jobs:
         with:
           tool: wasm-pack@0.13.1
       - name: Run tests with coverage
-        run: cargo llvm-cov --lib --lcov --output-path coverage.lcov
+        run: cargo llvm-cov --locked --lib --lcov --output-path coverage.lcov
         working-directory: packages/rust-core
       - name: Upload Rust coverage
         uses: actions/upload-artifact@v4
@@ -72,12 +72,12 @@ jobs:
           path: packages/rust-core/coverage.lcov
         if: always()
       - name: WASM node tests
-        run: wasm-pack test --node --test wasm_node
+        run: wasm-pack test --node --test wasm_node --locked
         working-directory: packages/rust-core
       - name: Install Chrome for browser tests
         uses: browser-actions/setup-chrome@v1
       - name: WASM browser tests
-        run: wasm-pack test --headless --chrome --test wasm_browser
+        run: wasm-pack test --headless --chrome --test wasm_browser --locked
         working-directory: packages/rust-core
       - name: Build WASM
         run: >-
@@ -87,6 +87,7 @@ jobs:
           --out-dir ../../apps/web-ui/src/lib/wasm/generated
           --
           --features wasm-start
+          --locked
         working-directory: packages/rust-core
       - name: Verify tracked WASM is current
         run: git diff --exit-code -- apps/web-ui/src/lib/wasm/generated

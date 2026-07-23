@@ -227,7 +227,13 @@ def _run_competing_inserts(
                     outcome = "committed"
                 except IntegrityError as exc:
                     transaction.rollback()
-                    outcome = exc.orig.diag.constraint_name
+                    constraint_name = getattr(
+                        getattr(exc.orig, "diag", None),
+                        "constraint_name",
+                        None,
+                    )
+                    assert isinstance(constraint_name, str)
+                    outcome = constraint_name
                 with outcome_lock:
                     outcomes.append(outcome)
         except BaseException as exc:

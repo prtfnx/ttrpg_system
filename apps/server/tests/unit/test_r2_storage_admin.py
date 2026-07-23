@@ -10,8 +10,8 @@ from sqlalchemy.orm import sessionmaker
 
 SCRIPT_PATH = Path(__file__).resolve().parents[4] / "scripts" / "r2_storage_admin.py"
 spec = importlib.util.spec_from_file_location("r2_storage_admin", SCRIPT_PATH)
-storage_admin = importlib.util.module_from_spec(spec)
 assert spec and spec.loader
+storage_admin = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(storage_admin)
 
 

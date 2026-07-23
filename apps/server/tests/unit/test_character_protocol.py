@@ -366,7 +366,8 @@ class TestCharacterSaveBroadcast:
         )):
             await proto.handle_character_save_request(msg, "c1")
 
-        proto.broadcast_to_session.assert_not_awaited  # type: ignore[attr-defined]()
+        assert isinstance(proto.broadcast_to_session, AsyncMock)
+        proto.broadcast_to_session.assert_not_awaited()
 
 
 # ---------------------------------------------------------------------------

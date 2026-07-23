@@ -834,7 +834,9 @@ class ServerAssetManager:
             db = SessionLocal()
             try:
                 session = self._get_session(db, session_code)
-                if not self._user_can_access_session(db, session, user_id):
+                if session is None or not self._user_can_access_session(
+                    db, session, user_id
+                ):
                     return None
                 matches = (
                     db.query(Asset)

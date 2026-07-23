@@ -330,6 +330,11 @@ class _CharactersMixin(_ProtocolBase):
         if result.success:
             resdata = result.data or {}
             character_id_saved = resdata.get('character_id')
+            if not isinstance(character_id_saved, str) or not character_id_saved:
+                return Message(MessageType.CHARACTER_SAVE_RESPONSE, {
+                    'success': False,
+                    'error': 'Character save returned an invalid identifier',
+                })
             version_saved = resdata.get('version', 1)
             # Broadcast full character data so other clients can update their state
             char_for_broadcast = dict(character_data)
@@ -616,10 +621,12 @@ class _CharactersMixin(_ProtocolBase):
         }
         # CHAT is durable history; CHARACTER_ROLL_RESULT drives live activity UI.
         await self.broadcast_to_session(
-            Message(MessageType.CHAT, {'message': chat_message})
+            Message(MessageType.CHAT, {'message': chat_message}),
+            '',
         )
         await self.broadcast_to_session(
-            Message(MessageType.CHARACTER_ROLL_RESULT, roll_data)
+            Message(MessageType.CHARACTER_ROLL_RESULT, roll_data),
+            '',
         )
         return Message(MessageType.SUCCESS, {'message': 'Roll completed'})
 

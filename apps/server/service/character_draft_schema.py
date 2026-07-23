@@ -55,9 +55,10 @@ def validate_character_draft(payload: dict[str, Any]) -> dict[str, Any]:
     """Validate a lossless, partial wizard snapshot and bound its storage cost."""
     if not isinstance(payload, dict):
         raise ValueError("Character draft must be an object")
-    document = {
+    draft_data: dict[str, Any] = deepcopy(payload)
+    document: dict[str, Any] = {
         "schemaVersion": CURRENT_DRAFT_SCHEMA_VERSION,
-        "data": deepcopy(payload),
+        "data": draft_data,
     }
     try:
         CharacterDraftDocument.model_validate(document)
@@ -70,4 +71,4 @@ def validate_character_draft(payload: dict[str, Any]) -> dict[str, Any]:
         raise ValueError("Character draft must contain valid JSON values") from exc
     if len(serialized.encode("utf-8")) > MAX_DRAFT_BYTES:
         raise ValueError("Character draft exceeds the 512 KiB limit")
-    return document["data"]
+    return draft_data

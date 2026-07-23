@@ -1,7 +1,12 @@
+from __future__ import annotations
+
 from collections.abc import Awaitable, Callable
-from typing import Any, Dict, Optional
+from typing import TYPE_CHECKING, Any, Dict, Optional
 
 from core_table.protocol import Message
+
+if TYPE_CHECKING:
+    from service.combat_persistence_service import CombatPersistenceService
 
 
 class _ProtocolBase:
@@ -19,6 +24,7 @@ class _ProtocolBase:
     clients: Dict[str, Any]
     _rules_cache: Dict[str, Any]
     _transport_send: Callable[[Message, str], Awaitable[None]] | None
+    combat_persistence_service: CombatPersistenceService | None
     # ── transport ────────────────────────────────────────────────────────────
     async def send_to_client(self, message: Message, client_id: str) -> None:
         raise NotImplementedError

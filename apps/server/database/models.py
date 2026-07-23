@@ -714,6 +714,15 @@ class ChatMessage(Base):
     message_json: Mapped[str] = mapped_column(Text, nullable=False)
     attachments_json: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     client_timestamp: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
+    redacted_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
+    redacted_by_user_id: Mapped[Optional[int]] = mapped_column(
+        Integer, ForeignKey("users.id"), nullable=True
+    )
+    deleted_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
+    deleted_by_user_id: Mapped[Optional[int]] = mapped_column(
+        Integer, ForeignKey("users.id"), nullable=True
+    )
+    moderation_reason: Mapped[Optional[str]] = mapped_column(String(500), nullable=True)
     created_at: Mapped[Optional[datetime]] = mapped_column(DateTime, default=datetime.utcnow, index=True)
 
     session = relationship("GameSession", back_populates="chat_messages")
@@ -735,11 +744,27 @@ class ChatMessage(Base):
         message.setdefault("id", self.message_id)
         message.setdefault("client_operation_id", self.client_operation_id)
         message.setdefault("server_cursor", self.id)
-        if self.attachments_json and "attachments" not in message:
+        if self.deleted_at is not None:
+            message["text"] = "[message deleted]"
+            message["deleted"] = True
+            message["deleted_at"] = self.deleted_at.isoformat()
+            message["deleted_by_user_id"] = self.deleted_by_user_id
+            message.pop("attachments", None)
+            message.pop("system_event", None)
+        elif self.redacted_at is not None:
+            message["text"] = "[message redacted]"
+            message["redacted"] = True
+            message["redacted_at"] = self.redacted_at.isoformat()
+            message["redacted_by_user_id"] = self.redacted_by_user_id
+            message.pop("attachments", None)
+            message.pop("system_event", None)
+        elif self.attachments_json and "attachments" not in message:
             try:
                 message["attachments"] = json.loads(self.attachments_json)
             except Exception:
                 pass
+        if self.moderation_reason:
+            message["moderation_reason"] = self.moderation_reason
         return message
 
 

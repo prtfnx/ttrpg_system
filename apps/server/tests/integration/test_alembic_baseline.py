@@ -12,7 +12,7 @@ from sqlalchemy import create_engine, inspect, text
 
 SERVER_ROOT = Path(__file__).resolve().parents[2]
 ALEMBIC_INI = SERVER_ROOT / "alembic.ini"
-BASELINE_REVISION = "0001_postgresql_baseline"
+HEAD_REVISION = "0002_chat_moderation"
 
 
 def _config(monkeypatch, database_url: str) -> Config:
@@ -40,7 +40,7 @@ def test_baseline_upgrades_an_empty_database_to_model_head(tmp_path, monkeypatch
         engine.dispose()
 
     assert tables == set(Base.metadata.tables) | {"alembic_version"}
-    assert revision == BASELINE_REVISION
+    assert revision == HEAD_REVISION
     command.check(config)
 
 

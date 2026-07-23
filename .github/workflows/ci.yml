@@ -116,10 +116,8 @@ jobs:
           python-version: "3.11"
       - name: Install core-table
         run: pip install -e packages/core-table
-      - name: Install server dependencies
-        run: pip install -r apps/server/requirements.txt
-      - name: Install lint/type-check tools
-        run: pip install ruff mypy pytest-cov
+      - name: Install locked server development dependencies
+        run: pip install --require-hashes -r apps/server/requirements-dev.txt
       - name: Ruff lint
         run: ruff check apps/server packages/core-table
       - name: Mypy type check

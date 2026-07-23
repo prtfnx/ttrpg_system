@@ -10,14 +10,14 @@ services:
     buildCommand: |
       pip install --upgrade pip
       pip install -e packages/core-table
-      pip install -r apps/server/requirements.txt
+      pip install --require-hashes -r apps/server/requirements.txt
       pnpm install --frozen-lockfile
       pnpm --filter @ttrpg/web-ui build
       python apps/server/scripts/package_web_ui.py
     startCommand: cd apps/server && python scripts/migrate_and_start.py
     envVars:
       - key: PYTHON_VERSION
-        value: "3.11"
+        value: "3.11.14"
       - key: NODE_VERSION
         value: "22"
       - key: ENVIRONMENT

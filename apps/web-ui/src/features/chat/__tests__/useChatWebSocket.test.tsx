@@ -225,12 +225,12 @@ describe('useChatWebSocket', () => {
       const first = renderHook(() => useChatWebSocket('ws://test', 'Bob'));
       const second = renderHook(() => useChatWebSocket('ws://test', 'Bob'));
 
-      expect(protocol.registerHandler).toHaveBeenCalledTimes(2);
+      expect(protocol.registerHandler).toHaveBeenCalledTimes(3);
       expect(protocol.sendMessage).toHaveBeenCalledTimes(1);
       first.unmount();
       expect(protocol.unregisterHandler).not.toHaveBeenCalled();
       second.unmount();
-      expect(protocol.unregisterHandler).toHaveBeenCalledTimes(2);
+      expect(protocol.unregisterHandler).toHaveBeenCalledTimes(3);
     });
   });
 

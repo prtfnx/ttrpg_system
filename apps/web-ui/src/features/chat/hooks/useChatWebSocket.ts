@@ -12,6 +12,7 @@ interface ChatBinding {
   references: number;
   messageHandler: MessageHandler;
   confirmationHandler: MessageHandler;
+  moderationHandler: MessageHandler;
   unsubscribeConnection?: () => void;
 }
 
@@ -61,9 +62,19 @@ function attachProtocol(protocol: WebClientProtocol): () => void {
       useChatStore.getState().confirmMessage(operationId, persisted as ChatMessage);
     }
   };
+  const moderationHandler: MessageHandler = async (message: Message) => {
+    const moderated = message.data?.message;
+    if (moderated) {
+      useChatStore.getState().addMessage({
+        ...(moderated as ChatMessage),
+        deliveryStatus: 'sent',
+      });
+    }
+  };
 
   protocol.registerHandler(MessageType.CHAT_MESSAGE, messageHandler);
   protocol.registerHandler(MessageType.CHAT_CONFIRMATION, confirmationHandler);
+  protocol.registerHandler(MessageType.CHAT_MODERATION, moderationHandler);
   if (protocol.isConnected()) requestHistory(protocol);
   const unsubscribeConnection = protocol.onConnectionStateChange?.((state) => {
     if (state === 'connected') requestHistory(protocol);
@@ -72,6 +83,7 @@ function attachProtocol(protocol: WebClientProtocol): () => void {
     references: 1,
     messageHandler,
     confirmationHandler,
+    moderationHandler,
     unsubscribeConnection,
   });
   return () => detachProtocol(protocol);
@@ -85,6 +97,7 @@ function detachProtocol(protocol: WebClientProtocol) {
   binding.unsubscribeConnection?.();
   protocol.unregisterHandler(MessageType.CHAT_MESSAGE, binding.messageHandler);
   protocol.unregisterHandler(MessageType.CHAT_CONFIRMATION, binding.confirmationHandler);
+  protocol.unregisterHandler(MessageType.CHAT_MODERATION, binding.moderationHandler);
   protocolBindings.delete(protocol);
 }
 
@@ -155,9 +168,23 @@ export function useChatWebSocket(_url: string, user: string) {
     requestHistory(protocol, MAX_HISTORY_PAGE, cursors.length ? Math.min(...cursors) : undefined);
   }, [protocol]);
 
+  const moderateMessage = useCallback((
+    messageId: string,
+    action: 'redact' | 'delete',
+    reason?: string,
+  ) => {
+    if (!protocol?.isConnected()) return;
+    protocol.sendMessage(createMessage(MessageType.CHAT_MODERATE, {
+      message_id: messageId,
+      action,
+      ...(reason?.trim() ? { reason: reason.trim() } : {}),
+    }));
+  }, [protocol]);
+
   return {
     sendMessage,
     retryMessage,
+    moderateMessage,
     loadOlderMessages,
     loadAllMessages: loadOlderMessages,
     loadRecentMessages: (count = DEFAULT_HISTORY_COUNT) => {

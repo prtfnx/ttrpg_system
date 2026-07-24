@@ -1,6 +1,7 @@
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { useGameStore } from '@/store';
 import { useChatStore } from '../../chatStore';
 import { ChatPanel } from '../ChatPanel';
 
@@ -9,11 +10,12 @@ vi.mock('../../hooks/useChatWebSocket', () => ({
   useChatWebSocket: () => ({
     sendMessage: mockSendMessage,
     retryMessage: mockRetryMessage,
+    moderateMessage: mockModerateMessage,
     loadOlderMessages: mockLoadOlderMessages,
   }),
 }));
 vi.mock('../../../auth', () => ({
-  useAuth: () => ({ user: { username: 'Tester' } }),
+  useAuth: () => ({ user: { id: 1, username: 'Tester' } }),
 }));
 vi.mock('@shared/config/appConfig', () => ({
   config: { getWebSocketUrl: () => 'ws://localhost' },
@@ -22,12 +24,15 @@ vi.mock('@shared/config/appConfig', () => ({
 const mockSendMessage = vi.fn();
 const mockLoadOlderMessages = vi.fn();
 const mockRetryMessage = vi.fn();
+const mockModerateMessage = vi.fn();
 
 beforeEach(() => {
   useChatStore.setState({ messages: [] });
+  useGameStore.setState({ sessionRole: 'player' });
   mockSendMessage.mockReset();
   mockLoadOlderMessages.mockReset();
   mockRetryMessage.mockReset();
+  mockModerateMessage.mockReset();
 });
 
 describe('ChatPanel', () => {
@@ -108,5 +113,29 @@ describe('ChatPanel', () => {
 
     await userEvent.click(screen.getByRole('button', { name: 'Retry' }));
     expect(mockRetryMessage).toHaveBeenCalledWith('operation-1');
+  });
+
+  it('lets a user redact their own persisted message', async () => {
+    useChatStore.setState({
+      messages: [{
+        id: 'server-1',
+        user: 'Tester',
+        user_id: 1,
+        text: 'Correction needed',
+        timestamp: Date.now(),
+        deliveryStatus: 'sent',
+      }],
+    });
+    render(<ChatPanel />);
+
+    await userEvent.click(screen.getByRole('button', {
+      name: 'Redact message from Tester',
+    }));
+
+    expect(mockModerateMessage).toHaveBeenCalledWith(
+      'server-1',
+      'redact',
+      undefined,
+    );
   });
 });

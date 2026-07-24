@@ -26,6 +26,8 @@ export interface MeasurementLine {
   persistent: boolean;
   label?: string;
   created: number;
+  createdBy?: number;
+  tableId?: string;
 }
 
 export interface GridConfiguration {
@@ -72,6 +74,16 @@ export interface GeometricShape {
   area?: number;
   perimeter?: number;
   created: number;
+  createdBy?: number;
+  tableId?: string;
+}
+
+export interface SharedMeasurementRecord {
+  measurement_id: string;
+  table_id: string;
+  created_by: number;
+  kind: 'line' | 'shape';
+  measurement: MeasurementLine | GeometricShape;
 }
 
 export interface MeasurementTemplate {
@@ -308,6 +320,83 @@ class AdvancedMeasurementService {
     this.activeMeasurement = null;
     this.rebuildSpatialIndex();
     this.notifyCallbacks('measurementsCleared', { count: toRemove.length });
+  }
+
+  /**
+   * Replace table geometry from a server snapshot. This intentionally emits a
+   * reconciliation event instead of local create/complete events, preventing
+   * incoming state from being written back to the server.
+   */
+  replaceSharedMeasurements(records: SharedMeasurementRecord[]): void {
+    this.measurements.clear();
+    this.shapes.clear();
+    for (const record of records) {
+      this.applySharedMeasurement(record, false);
+    }
+    this.activeMeasurement = null;
+    this.rebuildSpatialIndex();
+    this.notifyCallbacks('sharedMeasurementsChanged', {});
+  }
+
+  applyRemoteMeasurement(record: SharedMeasurementRecord): void {
+    this.applySharedMeasurement(record, true);
+  }
+
+  removeRemoteMeasurement(measurementId: string): void {
+    this.measurements.delete(measurementId);
+    this.shapes.delete(measurementId);
+    this.rebuildSpatialIndex();
+    this.notifyCallbacks('sharedMeasurementsChanged', {});
+  }
+
+  clearRemoteMeasurements(createdBy: number | null): void {
+    if (createdBy === null) {
+      this.measurements.clear();
+      this.shapes.clear();
+    } else {
+      for (const [id, measurement] of this.measurements) {
+        if (measurement.createdBy === createdBy) this.measurements.delete(id);
+      }
+      for (const [id, shape] of this.shapes) {
+        if (shape.createdBy === createdBy) this.shapes.delete(id);
+      }
+    }
+    this.activeMeasurement = null;
+    this.rebuildSpatialIndex();
+    this.notifyCallbacks('sharedMeasurementsChanged', {});
+  }
+
+  private applySharedMeasurement(
+    record: SharedMeasurementRecord,
+    notify: boolean,
+  ): void {
+    if (
+      !record
+      || typeof record.measurement_id !== 'string'
+      || typeof record.table_id !== 'string'
+      || (record.kind !== 'line' && record.kind !== 'shape')
+      || !record.measurement
+      || record.measurement.id !== record.measurement_id
+    ) {
+      return;
+    }
+
+    const shared = {
+      ...record.measurement,
+      createdBy: record.created_by,
+      tableId: record.table_id,
+    };
+    if (record.kind === 'line') {
+      this.shapes.delete(record.measurement_id);
+      this.measurements.set(record.measurement_id, shared as MeasurementLine);
+    } else {
+      this.measurements.delete(record.measurement_id);
+      this.shapes.set(record.measurement_id, shared as GeometricShape);
+    }
+    if (notify) {
+      this.rebuildSpatialIndex();
+      this.notifyCallbacks('sharedMeasurementsChanged', {});
+    }
   }
 
   // GEOMETRIC SHAPE OPERATIONS

@@ -1745,5 +1745,108 @@ describe('WebClientProtocol', () => {
       expect(sent.type).toBe('paint_stroke_clear');
     });
   });
+
+  describe('measurement synchronization', () => {
+    async function dispatch(p: WebClientProtocol, type: string, data: Record<string, unknown>) {
+      const raw = JSON.stringify({ type, data, version: '0.1', priority: 5 });
+      await (p as unknown as Record<string, (...a: unknown[]) => Promise<void>>)['handleIncomingMessage'](raw);
+    }
+
+    it('emits incoming sync data for the measurement service', async () => {
+      const p = makeProtocol();
+      const fn = vi.fn();
+      window.addEventListener('measurements-synced', fn);
+
+      await dispatch(p, 'measurement_sync', {
+        table_id: 'table-abc',
+        measurements: [{ measurement_id: 'line-1', kind: 'line' }],
+      });
+
+      window.removeEventListener('measurements-synced', fn);
+      expect(fn).toHaveBeenCalledOnce();
+      expect((fn.mock.calls[0][0] as CustomEvent).detail.table_id).toBe('table-abc');
+    });
+
+    it('sends a completed measurement against the active table', () => {
+      const p = makeProtocol();
+      const ws = makeOpenWs(p);
+
+      p.upsertMeasurement('line', {
+        id: 'line-1',
+        start: { x: 1, y: 2 },
+        end: { x: 3, y: 4 },
+      });
+
+      const sent = JSON.parse(ws.send.mock.calls[0][0] as string);
+      expect(sent).toMatchObject({
+        type: 'measurement_upsert',
+        data: {
+          table_id: 'table-abc',
+          measurement_id: 'line-1',
+          kind: 'line',
+        },
+      });
+    });
+
+    it('requests table-scoped measurement state', () => {
+      const p = makeProtocol();
+      const ws = makeOpenWs(p);
+
+      p.requestMeasurementSync();
+
+      const sent = JSON.parse(ws.send.mock.calls[0][0] as string);
+      expect(sent).toMatchObject({
+        type: 'measurement_sync',
+        data: { table_id: 'table-abc' },
+      });
+    });
+  });
+
+  describe('paint template synchronization', () => {
+    async function dispatch(p: WebClientProtocol, type: string, data: Record<string, unknown>) {
+      const raw = JSON.stringify({ type, data, version: '0.1', priority: 5 });
+      await (p as unknown as Record<string, (...a: unknown[]) => Promise<void>>)['handleIncomingMessage'](raw);
+    }
+
+    it('emits the authoritative session template snapshot', async () => {
+      const p = makeProtocol();
+      const fn = vi.fn();
+      window.addEventListener('paint-templates-synced', fn);
+
+      await dispatch(p, 'paint_template_sync', {
+        templates: [{ id: 'template-1', name: 'Fire', strokes: [] }],
+      });
+
+      window.removeEventListener('paint-templates-synced', fn);
+      expect(fn).toHaveBeenCalledOnce();
+    });
+
+    it('sends template upserts immediately', () => {
+      const p = makeProtocol();
+      const ws = makeOpenWs(p);
+
+      p.upsertPaintTemplate({
+        id: 'template-1',
+        name: 'Fire',
+        strokes: [],
+      });
+
+      const sent = JSON.parse(ws.send.mock.calls[0][0] as string);
+      expect(sent).toMatchObject({
+        type: 'paint_template_upsert',
+        data: { id: 'template-1', name: 'Fire' },
+      });
+    });
+
+    it('requests the session template snapshot', () => {
+      const p = makeProtocol();
+      const ws = makeOpenWs(p);
+
+      p.requestPaintTemplateSync();
+
+      const sent = JSON.parse(ws.send.mock.calls[0][0] as string);
+      expect(sent.type).toBe('paint_template_sync');
+    });
+  });
 });
 

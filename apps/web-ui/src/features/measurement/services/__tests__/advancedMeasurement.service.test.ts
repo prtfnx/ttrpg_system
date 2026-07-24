@@ -151,6 +151,81 @@ describe('advancedMeasurementSystem', () => {
     });
   });
 
+  describe('shared measurement reconciliation', () => {
+    const line = {
+      id: 'line-1',
+      start: { x: 0, y: 0, id: 'start', timestamp: 1 },
+      end: { x: 3, y: 4, id: 'end', timestamp: 1 },
+      distance: 5,
+      gridDistance: 1,
+      angle: 53,
+      color: '#fff',
+      thickness: 2,
+      style: 'solid' as const,
+      persistent: true,
+      created: 1,
+    };
+
+    it('replaces local geometry with a server snapshot', () => {
+      advancedMeasurementSystem.startMeasurement({ x: 10, y: 10 });
+
+      advancedMeasurementSystem.replaceSharedMeasurements([{
+        measurement_id: line.id,
+        table_id: 'table-1',
+        created_by: 42,
+        kind: 'line',
+        measurement: line,
+      }]);
+
+      expect(advancedMeasurementSystem.getMeasurements()).toEqual([
+        expect.objectContaining({
+          id: 'line-1',
+          createdBy: 42,
+          tableId: 'table-1',
+        }),
+      ]);
+    });
+
+    it('removes only geometry created by the cleared user', () => {
+      advancedMeasurementSystem.replaceSharedMeasurements([
+        {
+          measurement_id: line.id,
+          table_id: 'table-1',
+          created_by: 42,
+          kind: 'line',
+          measurement: line,
+        },
+        {
+          measurement_id: 'line-2',
+          table_id: 'table-1',
+          created_by: 7,
+          kind: 'line',
+          measurement: { ...line, id: 'line-2' },
+        },
+      ]);
+
+      advancedMeasurementSystem.clearRemoteMeasurements(42);
+
+      expect(advancedMeasurementSystem.getMeasurements().map(item => item.id)).toEqual(['line-2']);
+    });
+
+    it('uses a reconciliation event that cannot be mistaken for a local write', () => {
+      const cb = vi.fn();
+      advancedMeasurementSystem.subscribe('sync-test', cb);
+
+      advancedMeasurementSystem.applyRemoteMeasurement({
+        measurement_id: line.id,
+        table_id: 'table-1',
+        created_by: 42,
+        kind: 'line',
+        measurement: line,
+      });
+
+      expect(cb).toHaveBeenCalledWith('sharedMeasurementsChanged', {});
+      expect(cb).not.toHaveBeenCalledWith('measurementCompleted', expect.anything());
+    });
+  });
+
   describe('calculateDistance', () => {
     it('Pythagorean triple: (0,0) → (3,4) = 5', () => {
       expect(advancedMeasurementSystem.calculateDistance({ x: 0, y: 0 }, { x: 3, y: 4 })).toBeCloseTo(5, 5);

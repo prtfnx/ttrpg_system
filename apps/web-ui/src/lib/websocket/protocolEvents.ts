@@ -36,6 +36,13 @@ export type ProtocolEventMap = {
   'paint-stroke-created': ProtocolRecord;
   'paint-stroke-deleted': ProtocolRecord;
   'paint-strokes-cleared': ProtocolRecord;
+  'paint-template-upserted': ProtocolRecord;
+  'paint-template-deleted': ProtocolRecord;
+  'paint-templates-synced': ProtocolRecord;
+  'measurement-upserted': ProtocolRecord;
+  'measurement-deleted': ProtocolRecord;
+  'measurements-cleared': ProtocolRecord;
+  'measurements-synced': ProtocolRecord;
   'player-action-response': ProtocolRecord;
   'player-action-update': ProtocolRecord;
   'player-ban-response': ProtocolRecord;

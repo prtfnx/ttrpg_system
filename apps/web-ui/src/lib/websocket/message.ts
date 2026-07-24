@@ -11,6 +11,8 @@ export const MessageType = {
   CHAT_MESSAGE: "chat",
   CHAT_CONFIRMATION: "chat_confirmation",
   CHAT_REQUEST: "chat_request",
+  CHAT_MODERATE: "chat_moderate",
+  CHAT_MODERATION: "chat_moderation",
   TEST: "test",
   SUCCESS: "success",
   WELCOME: "welcome",
@@ -156,6 +158,15 @@ export const MessageType = {
   PAINT_STROKE_DELETE: "paint_stroke_delete",
   PAINT_STROKE_CLEAR: "paint_stroke_clear",
   PAINT_SYNC: "paint_sync",
+  PAINT_TEMPLATE_UPSERT: "paint_template_upsert",
+  PAINT_TEMPLATE_DELETE: "paint_template_delete",
+  PAINT_TEMPLATE_SYNC: "paint_template_sync",
+
+  // Shared measurements
+  MEASUREMENT_UPSERT: "measurement_upsert",
+  MEASUREMENT_DELETE: "measurement_delete",
+  MEASUREMENT_CLEAR: "measurement_clear",
+  MEASUREMENT_SYNC: "measurement_sync",
 
   // ── Game Mode ──
   GAME_MODE_CHANGE: "game_mode_change",

@@ -13,7 +13,9 @@ from .chat import _ChatMixin
 from .combat import _CombatMixin
 from .encounter import _EncounterMixin
 from .helpers import _HelpersMixin
+from .measurements import _MeasurementsMixin
 from .paint import _PaintMixin
+from .paint_templates import _PaintTemplatesMixin
 from .players import _PlayersMixin
 from .session import _SessionMixin
 from .sprites import _SpritesMixin
@@ -32,6 +34,8 @@ class ServerProtocol(
     _AuthMixin,
     _WallsMixin,
     _PaintMixin,
+    _PaintTemplatesMixin,
+    _MeasurementsMixin,
     _SessionMixin,
     _CombatMixin,
     _EncounterMixin,
@@ -183,6 +187,13 @@ class ServerProtocol(
         self.register_handler(MessageType.PAINT_STROKE_CREATE, self.handle_paint_stroke_create)
         self.register_handler(MessageType.PAINT_STROKE_DELETE, self.handle_paint_stroke_delete)
         self.register_handler(MessageType.PAINT_STROKE_CLEAR,  self.handle_paint_stroke_clear)
+        self.register_handler(MessageType.PAINT_TEMPLATE_UPSERT, self.handle_paint_template_upsert)
+        self.register_handler(MessageType.PAINT_TEMPLATE_DELETE, self.handle_paint_template_delete)
+        self.register_handler(MessageType.PAINT_TEMPLATE_SYNC, self.handle_paint_template_sync)
+        self.register_handler(MessageType.MEASUREMENT_UPSERT, self.handle_measurement_upsert)
+        self.register_handler(MessageType.MEASUREMENT_DELETE, self.handle_measurement_delete)
+        self.register_handler(MessageType.MEASUREMENT_CLEAR, self.handle_measurement_clear)
+        self.register_handler(MessageType.MEASUREMENT_SYNC, self.handle_measurement_sync)
 
         # Session
         self.register_handler(MessageType.LAYER_SETTINGS_UPDATE, self.handle_layer_settings_update)
@@ -206,6 +217,7 @@ class ServerProtocol(
         # Chat
         self.register_handler(MessageType.CHAT, self.handle_chat)
         self.register_handler(MessageType.CHAT_REQUEST, self.handle_chat_request)
+        self.register_handler(MessageType.CHAT_MODERATE, self.handle_chat_moderate)
 
     async def handle_client(self, msg: Message, client_id: str) -> bool:
         """Dispatch an incoming message to the registered handler."""

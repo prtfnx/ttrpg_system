@@ -251,6 +251,17 @@ class MessageType(enum.Enum):    # Core messages
     PAINT_STROKE_CLEAR  = "paint_stroke_clear"   # DM → server: wipe all strokes on a table
     PAINT_SYNC          = "paint_sync"           # server → client: full stroke list (on join)
 
+    # Session-scoped reusable paint templates
+    PAINT_TEMPLATE_UPSERT = "paint_template_upsert"
+    PAINT_TEMPLATE_DELETE = "paint_template_delete"
+    PAINT_TEMPLATE_SYNC = "paint_template_sync"
+
+    # Shared completed measurements
+    MEASUREMENT_UPSERT = "measurement_upsert"
+    MEASUREMENT_DELETE = "measurement_delete"
+    MEASUREMENT_CLEAR = "measurement_clear"
+    MEASUREMENT_SYNC = "measurement_sync"
+
     # Layer settings persistence (DM-only write, broadcast to all)
     LAYER_SETTINGS_UPDATE = "layer_settings_update"  # DM → server + server → all clients
 
@@ -259,6 +270,8 @@ class MessageType(enum.Enum):    # Core messages
                   # to display
     CHAT_CONFIRMATION = "chat_confirmation"  # server → sender: confirm receipt and persistence of chat message
     CHAT_REQUEST = "chat_request"  # client → server: request chat history or specific chat data
+    CHAT_MODERATE = "chat_moderate"  # client → server: redact or delete a persisted message
+    CHAT_MODERATION = "chat_moderation"  # server → visible clients: moderated tombstone
 
     # Extension point for new message types
     CUSTOM = "custom"

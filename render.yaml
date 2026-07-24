@@ -5,8 +5,13 @@ services:
   - type: web
     name: ttrpg-server
     runtime: python
-    plan: free
+    # Maintenance mode requires a paid web-service instance.
+    plan: starter
+    numInstances: 1
     region: frankfurt
+    maxShutdownDelaySeconds: 60
+    maintenanceMode:
+      enabled: false
     buildCommand: |
       pip install --upgrade pip
       pip install -e packages/core-table
@@ -42,6 +47,8 @@ services:
         value: json
       - key: AUDIT_RETENTION_DAYS
         value: 365
+      - key: CHAT_RETENTION_DAYS
+        value: 365
       # Render is the only public ingress and supplies the first X-Forwarded-For value.
       - key: TRUST_PROXY_HEADERS
         value: true
@@ -64,4 +71,5 @@ services:
       - key: R2_PUBLIC_URL
         sync: false
     healthCheckPath: /health/ready
-    autoDeploy: true
+    # Stateful WebSocket releases use the reviewed maintenance-mode runbook.
+    autoDeployTrigger: "off"

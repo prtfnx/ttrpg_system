@@ -180,6 +180,53 @@ class ConnectionManager:
             }
         ))
 
+    async def close_all(self, reason: str = "Service restarting") -> int:
+        """Drain all sockets so session state is flushed before process exit."""
+        websockets = list(self.connection_info)
+        for websocket in websockets:
+            try:
+                await websocket.send_json({
+                    "type": "error",
+                    "data": {
+                        "error": reason,
+                        "retryable": True,
+                    },
+                })
+            except Exception:
+                logger.debug(
+                    "WebSocket shutdown notice could not be delivered",
+                    extra={"event_name": "websocket.shutdown.notice_failed"},
+                )
+
+        for websocket in websockets:
+            try:
+                await self.disconnect(websocket)
+            except Exception:
+                logger.exception(
+                    "WebSocket cleanup failed during shutdown",
+                    extra={
+                        "event_name": "websocket.shutdown.cleanup_failed",
+                        "outcome": "error",
+                    },
+                )
+            finally:
+                try:
+                    await websocket.close(code=1012)
+                except Exception:
+                    logger.debug(
+                        "WebSocket was already closed during shutdown",
+                        extra={"event_name": "websocket.shutdown.already_closed"},
+                    )
+
+        logger.info(
+            "WebSocket connections drained",
+            extra={
+                "event_name": "websocket.shutdown.drained",
+                "connection_count": len(websockets),
+            },
+        )
+        return len(websockets)
+
     async def send_personal_message(self, message: dict, websocket: WebSocket):
         """Send message to specific websocket"""
         try:

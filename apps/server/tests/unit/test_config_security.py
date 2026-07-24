@@ -113,3 +113,6 @@ def test_observability_settings_are_normalized_and_bounded():
 
     with pytest.raises(ValueError, match="AUDIT_RETENTION_DAYS"):
         Settings(AUDIT_RETENTION_DAYS=7)
+
+    with pytest.raises(ValueError, match="CHAT_RETENTION_DAYS"):
+        Settings(CHAT_RETENTION_DAYS=7)

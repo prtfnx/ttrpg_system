@@ -16,7 +16,7 @@ import uvicorn
 from api import game_ws
 from config import Settings
 from core_table.server import TableManager
-from database import models
+from database import crud, models
 from database.database import SessionLocal, engine, get_db, schema_is_current
 from fastapi import Depends, FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
@@ -32,6 +32,7 @@ from sqlalchemy.orm import Session
 from starlette.middleware.sessions import SessionMiddleware
 from storage.r2_manager import R2AssetManager
 from utils.audit import persist_http_security_decision
+from utils.http_security import add_security_headers, trusted_origins, unsafe_request_rejection
 from utils.logger import bind_log_context, configure_logging, reset_log_context, setup_logger
 from utils.observability import configure_tracing, observe_http, record_job, refresh_durable_metrics
 from utils.rate_limiter import login_limiter, registration_limiter
@@ -90,18 +91,25 @@ async def lifespan(app: FastAPI):
     # Start cleanup task for rate limiters
     cleanup_task = asyncio.create_task(rate_limiter_cleanup_task())
     audit_retention_cleanup = asyncio.create_task(audit_retention_task())
+    chat_retention_cleanup = asyncio.create_task(chat_retention_task())
 
     yield
 
     # Shutdown
+    await app_state.connection_manager.close_all()
     cleanup_task.cancel()
     audit_retention_cleanup.cancel()
+    chat_retention_cleanup.cancel()
     try:
         await cleanup_task
     except asyncio.CancelledError:
         pass
     try:
         await audit_retention_cleanup
+    except asyncio.CancelledError:
+        pass
+    try:
+        await chat_retention_cleanup
     except asyncio.CancelledError:
         pass
     logger.info("Application stopped", extra={"event_name": "application.stopped"})
@@ -162,6 +170,39 @@ async def audit_retention_task():
                 extra={"event_name": "audit.retention.failed", "outcome": "error"},
             )
 
+
+async def chat_retention_task():
+    """Permanently remove chat after the configured data-retention window."""
+    while True:
+        started = time.perf_counter()
+        try:
+            await asyncio.sleep(86400)
+            started = time.perf_counter()
+            db = SessionLocal()
+            try:
+                deleted = crud.delete_expired_chat_messages(
+                    db,
+                    datetime.utcnow() - timedelta(days=settings.CHAT_RETENTION_DAYS),
+                )
+                record_job("chat_retention", "success", time.perf_counter() - started)
+                logger.info(
+                    "Chat retention cleanup completed",
+                    extra={
+                        "event_name": "chat.retention.completed",
+                        "deleted_count": deleted,
+                    },
+                )
+            finally:
+                db.close()
+        except asyncio.CancelledError:
+            break
+        except Exception:
+            record_job("chat_retention", "error", time.perf_counter() - started)
+            logger.exception(
+                "Chat retention cleanup failed",
+                extra={"event_name": "chat.retention.failed", "outcome": "error"},
+            )
+
 # Create FastAPI app
 app = FastAPI(
     title="TTRPG Web Server",
@@ -170,6 +211,22 @@ app = FastAPI(
     lifespan=lifespan
 )
 configure_tracing(app, engine, settings)
+_TRUSTED_BROWSER_ORIGINS = trusted_origins(
+    settings.BASE_URL,
+    settings.cors_origin_list,
+)
+
+
+@app.middleware("http")
+async def browser_security(request: Request, call_next):
+    """Apply browser write isolation and baseline response hardening."""
+    rejection = unsafe_request_rejection(request, _TRUSTED_BROWSER_ORIGINS)
+    if rejection:
+        response = JSONResponse(status_code=403, content={"detail": rejection})
+    else:
+        response = await call_next(request)
+    add_security_headers(response, production=settings.is_production)
+    return response
 
 
 @app.middleware("http")

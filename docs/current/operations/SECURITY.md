@@ -3,10 +3,10 @@
 Audience: operators and contributors changing auth, roles, session access, or
 public routes.
 
-Status: partial. This page documents current controls and known gaps visible in
-the codebase.
+Status: current. This page documents current controls and the remaining
+single-instance limitations visible in the codebase.
 
-Last source audit: 2026-07-20
+Last source audit: 2026-07-23
 
 ## Main security boundaries
 
@@ -20,6 +20,9 @@ The app currently relies on:
 - in-memory rate limiters for login, registration, password reset, and demo
   access;
 - audit rows for selected admin and account events.
+- trusted-origin and Fetch Metadata enforcement for unsafe browser writes;
+- response security headers, including CSP, clickjacking, MIME-sniffing,
+  referrer, browser-feature, opener-isolation, and production HSTS controls.
 
 Do not treat hidden UI controls as authorization. Server routes and WebSocket
 handlers must enforce the rule.
@@ -145,16 +148,27 @@ secret.
 Audit coverage is not complete for every sensitive operation. When adding new
 admin behavior, add an audit row deliberately.
 
+## Browser-write and response protection
+
+Unsafe cookie-authenticated browser requests must originate from a configured
+same-site origin. Cross-site Fetch Metadata is rejected, untrusted
+`Origin`/`Referer` is rejected, and a cookie-authenticated write without either
+header is rejected. Non-browser clients that do not present the browser cookie
+remain subject to their route authentication contract.
+
+The global response policy emits CSP, `X-Content-Type-Options`,
+`X-Frame-Options`, `Referrer-Policy`, `Permissions-Policy`, and
+`Cross-Origin-Opener-Policy`; production also emits HSTS. The present CSP
+allows existing inline script and style blocks. Removing those allowances
+requires migrating server templates to nonces or external assets.
+
 ## Known gaps to preserve honestly
 
 - `CORS_ORIGINS` defaults to `*` for development; production validation rejects
   it and Render requires an explicit dashboard value.
 - OAuth state cache is in-memory and single-process.
 - Rate limiting is in-memory and single-process.
-- There is no repo-wide Content Security Policy documented in current server
-  code.
-- CSRF protection is explicit for OAuth state, but normal form routes mainly
-  rely on SameSite cookies and server-side validation.
+- The CSP still permits existing inline script and style blocks.
 
 Do not document these as solved until code changes make them true.
 

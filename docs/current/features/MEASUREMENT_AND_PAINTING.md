@@ -3,32 +3,36 @@
 Audience: contributors changing measurement tools, brush tools, paint sync, or
 table units.
 
-Status: current but partial. Paint strokes, replay, and creator-owned undo are
-implemented. Measurements and paint templates are browser-local product
-choices.
+Status: current. Paint strokes, completed measurement geometry, and paint
+templates are server-authoritative multiplayer state.
 
-Last source audit: 2026-07-21
+Last source audit: 2026-07-23
 
 ## Ownership
 
 - `apps/web-ui/src/features/measurement/` owns browser measurement state.
 - `apps/web-ui/src/features/painting/` owns painting UI and template state.
+- `apps/server/service/protocol/measurements.py` authorizes completed
+  measurement writes and snapshot synchronization.
 - `apps/server/service/protocol/paint.py` authorizes and persists paint writes.
-- `apps/server/service/protocol/tables.py` includes paint state during table
-  synchronization.
-- `apps/server/database/models.py` defines `PaintStroke`.
+- `apps/server/database/models.py` defines `SharedMeasurement`, `PaintStroke`,
+  and `PaintTemplate`.
 - `packages/rust-core/src/systems/paint.rs` owns canvas paint rendering and
   local stroke history.
 
 ## Measurement flow
 
 The browser calculates distances, angles, shapes, snapping, and spell-template
-geometry. Table unit changes synchronize the measurement service and WASM
-runtime. Export/import applies to the local measurement document only.
+geometry. A completed line or shape is sent with a stable id; the server
+validates finite, bounded geometry, persists it for the active table, and
+broadcasts the canonical record. Clients request an authoritative snapshot
+after reconnect and table changes and reconcile dedicated server events
+without echoing them back.
 
-Measurements are not shared multiplayer state and are not restored by the
-server. If shared measurements become a release requirement, define their
-visibility, ownership, lifetime, and reconnect model before adding persistence.
+Creators can replace or delete their own geometry. DMs can delete any
+measurement and clear a table; spectators cannot write. A table is limited to
+500 records and each serialized geometry payload to 64 KiB. Active drag
+previews remain local and ephemeral.
 
 ## Paint flow
 
@@ -52,8 +56,16 @@ has a DM role. Redo recreates the same stroke through the idempotent create
 path. Cross-session table access, mismatched identities, and deletion of another
 creator's stroke fail closed.
 
-Paint templates are browser-local. Persist them only after deciding whether
-they belong to a user, session, or table.
+Paint templates are session-scoped and server-authoritative. The browser keeps
+only an optimistic in-memory cache, requests a snapshot on session entry and
+reconnect, and reconciles confirmations and live changes. Creators may replace
+or delete their own templates; DMs may delete any template. Import/export
+remains available.
+
+The server validates template names, descriptions, WASM stroke structure,
+finite coordinates, stroke widths, thumbnail media/base64 shape, and bounded
+payloads. Limits are 100 templates per session, 500 strokes per template,
+20,000 points per stroke, 1 MiB per template, and 128 KiB per thumbnail.
 
 ## Verification
 

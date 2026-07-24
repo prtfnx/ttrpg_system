@@ -3,7 +3,7 @@
 Status: current and practical. Use this before a production deploy or a
 release-like handoff.
 
-Last source audit: 2026-07-22
+Last source audit: 2026-07-23
 
 ## Scope
 
@@ -67,7 +67,7 @@ Rust/WASM:
 
 ```powershell
 cd packages/rust-core
-cargo test
+cargo test --locked
 wasm-pack build `
   --target web `
   --release `
@@ -125,7 +125,8 @@ command output.
 1. Read [Database migrations](DATABASE_MIGRATIONS.md).
 2. Upgrade and test a disposable PostgreSQL database or Neon branch.
 3. Run `alembic current --check-heads` and `alembic check`.
-4. Confirm the 24 application tables plus `alembic_version`.
+4. Confirm the application tables at the current Alembic head plus
+   `alembic_version`.
 5. Confirm constraints, concurrent idempotency, readiness mismatch, and stale
    connection recovery tests pass.
 6. Prefer a forward fix; use Neon branch recovery only within the documented
@@ -137,7 +138,7 @@ Render runs the repository-root build:
 
 ```text
 pip install -e packages/core-table
-pip install -r apps/server/requirements.txt
+pip install --require-hashes -r apps/server/requirements.txt
 pnpm install --frozen-lockfile
 pnpm --filter @ttrpg/web-ui build
 python apps/server/scripts/package_web_ui.py
@@ -151,6 +152,12 @@ cd apps/server && python scripts/migrate_and_start.py
 
 The wrapper takes a PostgreSQL advisory lock, upgrades and verifies Alembic,
 disposes the migration engine, and replaces itself with Uvicorn.
+
+The Blueprint uses one Starter instance, disables automatic deploys, and
+provides a 60-second graceful shutdown window. Enable maintenance mode before
+the reviewed manual deploy, confirm revision/artifact health, then disable it
+and run the smoke test. Connected clients receive a retryable shutdown notice
+and WebSocket close code `1012`.
 
 ## Smoke test after deploy
 

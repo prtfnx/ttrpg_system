@@ -4,11 +4,12 @@ Audience: operators and contributors preparing a deploy.
 
 Status: usable for the application, database, and bundled compendium path.
 
-Last source audit: 2026-07-22
+Last source audit: 2026-07-23
 
 ## Current target
 
-The root `render.yaml` defines one Render Free Python web service in Frankfurt:
+The root `render.yaml` defines one Render Starter Python web service in
+Frankfurt:
 
 - source root: the repository root, so the build can access every monorepo
   package;
@@ -17,7 +18,10 @@ The root `render.yaml` defines one Render Free Python web service in Frankfurt:
 - local filesystem: build output and disposable runtime files only;
 - startup: `cd apps/server && python scripts/migrate_and_start.py`;
 - health check: `/health/ready`;
-- no persistent disk or paid pre-deploy command.
+- exactly one instance, manual reviewed deploys, and a 60-second shutdown
+  window;
+- maintenance mode available for the operator-controlled release window;
+- no persistent disk.
 
 Keep the Render and Neon regions close to reduce request and WebSocket
 transaction latency.
@@ -56,6 +60,23 @@ build cannot silently replace the previous packaged UI.
 The startup wrapper fails before application traffic if migration or head
 verification fails. Production startup independently checks database
 connectivity and Alembic head.
+
+## Maintenance release flow
+
+Automatic deploys are disabled. For each reviewed release:
+
+1. Confirm CI, the disposable PostgreSQL migration contract, and the release
+   artifact are green.
+2. Enable Render maintenance mode and confirm new public traffic is rejected.
+3. Trigger a manual deploy of the recorded commit and observe migration/startup
+   logs. The old process sends connected clients a retryable shutdown notice,
+   persists final protocol state, and closes WebSockets with code `1012`.
+4. Confirm the deploy is healthy, at the expected Alembic revision, and serving
+   the expected artifact and compendium digests.
+5. Disable maintenance mode, then run the public smoke test.
+
+Do not scale above one instance until the in-memory OAuth state cache, rate
+limits, and connection coordination have shared-store designs.
 
 ## Required secrets and configuration
 
@@ -117,7 +138,8 @@ After deploying:
 
 1. Confirm the bounded migration-completed event and expected revision.
 2. Confirm `/health/live` and `/health/ready`.
-3. Verify Neon contains `alembic_version` and all 24 application tables.
+3. Verify Neon contains `alembic_version` and all application tables expected
+   by the current Alembic head.
 4. Exercise registration, login, sessions, a critical game mutation, chat, and
    R2 upload/read/delete.
 5. Redeploy the same commit, then cold-start after Render and Neon sleep.

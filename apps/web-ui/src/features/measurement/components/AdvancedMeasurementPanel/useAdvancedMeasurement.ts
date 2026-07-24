@@ -4,8 +4,13 @@ import {
   type GridConfiguration,
   type MeasurementLine,
   type MeasurementSettings,
+  type SharedMeasurementRecord,
   type MeasurementTemplate
 } from '@features/measurement/services/advancedMeasurement.service';
+import { isDM } from '@features/session/types/roles';
+import { ProtocolService } from '@lib/api';
+import { onProtocolEvent } from '@lib/websocket/protocolEvents';
+import { useGameStore } from '@/store';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import type { TabType } from './TabNavigation';
 import type { ActiveTool } from './ToolSelection';
@@ -41,6 +46,7 @@ export const useAdvancedMeasurement = ({
   const [isCreatingShape, setIsCreatingShape] = useState(false);
   const [shapePoints, setShapePoints] = useState<{ x: number; y: number }[]>([]);
   const [activeMeasurement, setActiveMeasurement] = useState<string | null>(null);
+  const activeTableId = useGameStore(state => state.activeTableId);
   
   const [searchQuery, setSearchQuery] = useState('');
   const [showAdvancedSettings, setShowAdvancedSettings] = useState(false);
@@ -77,7 +83,16 @@ export const useAdvancedMeasurement = ({
         case 'measurementCompleted':
           setActiveMeasurement(null);
           setMeasurements(advancedMeasurementSystem.getMeasurements());
-          onMeasurementComplete?.(d.measurement as unknown as MeasurementLine);
+          {
+            const measurement = d.measurement as unknown as MeasurementLine;
+            onMeasurementComplete?.(measurement);
+            if (ProtocolService.hasProtocol()) {
+              ProtocolService.getProtocol().upsertMeasurement(
+                'line',
+                measurement as unknown as Record<string, unknown>,
+              );
+            }
+          }
           break;
         case 'measurementRemoved':
           setMeasurements(advancedMeasurementSystem.getMeasurements());
@@ -86,6 +101,16 @@ export const useAdvancedMeasurement = ({
           setShapes(advancedMeasurementSystem.getShapes());
           setIsCreatingShape(false);
           setShapePoints([]);
+          if (ProtocolService.hasProtocol()) {
+            ProtocolService.getProtocol().upsertMeasurement(
+              'shape',
+              d.shape as unknown as Record<string, unknown>,
+            );
+          }
+          break;
+        case 'sharedMeasurementsChanged':
+          setMeasurements(advancedMeasurementSystem.getMeasurements());
+          setShapes(advancedMeasurementSystem.getShapes());
           break;
         case 'activeGridChanged':
           setActiveGrid(advancedMeasurementSystem.getActiveGrid());
@@ -104,6 +129,52 @@ export const useAdvancedMeasurement = ({
       advancedMeasurementSystem.unsubscribe('ui');
     };
   }, [onMeasurementStart, onMeasurementUpdate, onMeasurementComplete]);
+
+  useEffect(() => {
+    const belongsToActiveTable = (data: Record<string, unknown> | undefined) =>
+      Boolean(activeTableId && data?.table_id === activeTableId);
+
+    const stopUpsert = onProtocolEvent('measurement-upserted', data => {
+      if (!belongsToActiveTable(data)) return;
+      advancedMeasurementSystem.applyRemoteMeasurement(
+        data as unknown as SharedMeasurementRecord,
+      );
+    });
+    const stopDelete = onProtocolEvent('measurement-deleted', data => {
+      if (!belongsToActiveTable(data) || typeof data?.measurement_id !== 'string') return;
+      advancedMeasurementSystem.removeRemoteMeasurement(data.measurement_id);
+    });
+    const stopClear = onProtocolEvent('measurements-cleared', data => {
+      if (!belongsToActiveTable(data)) return;
+      advancedMeasurementSystem.clearRemoteMeasurements(
+        typeof data?.created_by === 'number' ? data.created_by : null,
+      );
+    });
+    const stopSync = onProtocolEvent('measurements-synced', data => {
+      if (!belongsToActiveTable(data) || !Array.isArray(data?.measurements)) return;
+      advancedMeasurementSystem.replaceSharedMeasurements(
+        data.measurements as SharedMeasurementRecord[],
+      );
+    });
+    const stopConnected = onProtocolEvent('protocol-connected', () => {
+      ProtocolService.getProtocol().requestMeasurementSync();
+    });
+
+    return () => {
+      stopUpsert();
+      stopDelete();
+      stopClear();
+      stopSync();
+      stopConnected();
+    };
+  }, [activeTableId]);
+
+  useEffect(() => {
+    advancedMeasurementSystem.replaceSharedMeasurements([]);
+    if (activeTableId && ProtocolService.hasProtocol()) {
+      ProtocolService.getProtocol().requestMeasurementSync();
+    }
+  }, [activeTableId]);
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -186,14 +257,23 @@ export const useAdvancedMeasurement = ({
 
   const handleClearMeasurements = useCallback(() => {
     if (window.confirm('Clear all measurements? This cannot be undone.')) {
-      advancedMeasurementSystem.clearMeasurements(true);
-      setMeasurements([]);
+      if (ProtocolService.hasProtocol()) {
+        ProtocolService.getProtocol().clearMeasurements(
+          isDM(useGameStore.getState().sessionRole),
+        );
+      } else {
+        advancedMeasurementSystem.clearRemoteMeasurements(null);
+      }
     }
   }, []);
 
   const handleRemoveMeasurement = useCallback((measurementId: string) => {
-    advancedMeasurementSystem.removeMeasurement(measurementId);
-    setMeasurements(advancedMeasurementSystem.getMeasurements());
+    if (ProtocolService.hasProtocol()) {
+      ProtocolService.getProtocol().deleteMeasurement(measurementId);
+    } else {
+      advancedMeasurementSystem.removeMeasurement(measurementId);
+      setMeasurements(advancedMeasurementSystem.getMeasurements());
+    }
   }, []);
 
   const handleGridChange = useCallback((gridId: string) => {

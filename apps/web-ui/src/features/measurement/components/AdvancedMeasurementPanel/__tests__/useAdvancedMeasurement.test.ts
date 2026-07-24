@@ -2,6 +2,7 @@ import { act, renderHook } from '@testing-library/react';
 import { createRef } from 'react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { advancedMeasurementSystem } from '@features/measurement/services/advancedMeasurement.service';
+import { ProtocolService } from '@lib/api';
 import { useAdvancedMeasurement } from '../useAdvancedMeasurement';
 
 // Reset singleton state before each test
@@ -34,7 +35,7 @@ describe('useAdvancedMeasurement', () => {
     });
 
     it('does not load data when isOpen=false', () => {
-      const getSpy = vi.spyOn(advancedMeasurementSystem, 'getMeasurements');
+      const getSpy = vi.spyOn(advancedMeasurementSystem, 'getSettings');
       const { ref } = makeRef();
       renderHook(() => useAdvancedMeasurement({ isOpen: false, canvasRef: ref }));
       expect(getSpy).not.toHaveBeenCalled();
@@ -88,13 +89,13 @@ describe('useAdvancedMeasurement', () => {
 
   describe('handleClearMeasurements', () => {
     it('clears measurements when user confirms', async () => {
-      const clearSpy = vi.spyOn(advancedMeasurementSystem, 'clearMeasurements').mockImplementation(() => {});
+      const clearSpy = vi.spyOn(advancedMeasurementSystem, 'clearRemoteMeasurements').mockImplementation(() => {});
       const { ref } = makeRef();
       const { result } = renderHook(() => useAdvancedMeasurement({ isOpen: false, canvasRef: ref }));
       await act(async () => {
         result.current.handleClearMeasurements();
       });
-      expect(clearSpy).toHaveBeenCalledWith(true);
+      expect(clearSpy).toHaveBeenCalledWith(null);
       expect(result.current.measurements).toHaveLength(0);
     });
 
@@ -176,6 +177,26 @@ describe('useAdvancedMeasurement', () => {
         canvas.dispatchEvent(new MouseEvent('click', { bubbles: true, clientX: 100, clientY: 200 }));
       });
       expect(startSpy).toHaveBeenCalledWith({ x: 100, y: 200 });
+    });
+
+    it('sends a completed measurement through the durable protocol', async () => {
+      const upsertMeasurement = vi.fn();
+      vi.spyOn(ProtocolService, 'hasProtocol').mockReturnValue(true);
+      vi.spyOn(ProtocolService, 'getProtocol').mockReturnValue({
+        upsertMeasurement,
+        requestMeasurementSync: vi.fn(),
+      } as unknown as ReturnType<typeof ProtocolService.getProtocol>);
+      const { ref } = makeRef();
+      renderHook(() => useAdvancedMeasurement({ isOpen: false, canvasRef: ref }));
+
+      const id = advancedMeasurementSystem.startMeasurement({ x: 0, y: 0 });
+      advancedMeasurementSystem.updateMeasurement(id, { x: 10, y: 10 });
+      advancedMeasurementSystem.completeMeasurement(id);
+
+      expect(upsertMeasurement).toHaveBeenCalledWith(
+        'line',
+        expect.objectContaining({ id }),
+      );
     });
   });
 

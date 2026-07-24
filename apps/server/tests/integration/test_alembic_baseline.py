@@ -12,7 +12,7 @@ from sqlalchemy import create_engine, inspect, text
 
 SERVER_ROOT = Path(__file__).resolve().parents[2]
 ALEMBIC_INI = SERVER_ROOT / "alembic.ini"
-HEAD_REVISION = "0002_chat_moderation"
+HEAD_REVISION = "0003_shared_canvas_state"
 
 
 def _config(monkeypatch, database_url: str) -> Config:

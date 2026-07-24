@@ -74,6 +74,7 @@ class GameSession(Base):
     invitations = relationship("SessionInvitation", back_populates="session")
     chat_messages = relationship("ChatMessage", back_populates="session", cascade="all, delete-orphan")
     assets = relationship("SessionAsset", back_populates="session", cascade="all, delete-orphan")
+    paint_templates = relationship("PaintTemplate", back_populates="session", cascade="all, delete-orphan")
 
 
 class GamePlayer(Base):
@@ -138,6 +139,7 @@ class VirtualTable(Base):
     entities = relationship("Entity", back_populates="table", cascade="all, delete-orphan")
     walls = relationship("Wall", back_populates="table", cascade="all, delete-orphan", foreign_keys="Wall.table_id", primaryjoin="VirtualTable.table_id==Wall.table_id")
     paint_strokes = relationship("PaintStroke", back_populates="table", cascade="all, delete-orphan", foreign_keys="PaintStroke.table_id")
+    shared_measurements = relationship("SharedMeasurement", back_populates="table", cascade="all, delete-orphan")
 
 class Entity(Base):
     __tablename__ = "entities"
@@ -789,4 +791,98 @@ class PaintStroke(Base):
             'created_by': self.created_by,
             'stroke_data': self.stroke_data,
             'created_at': self.created_at.isoformat() if self.created_at else None,
+        }
+
+
+class SharedMeasurement(Base):
+    """A completed line or shape shared on one virtual table."""
+    __tablename__ = "shared_measurements"
+    __table_args__ = (
+        UniqueConstraint(
+            "table_id",
+            "measurement_id",
+            name="uq_shared_measurement_table_id",
+        ),
+    )
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
+    measurement_id: Mapped[str] = mapped_column(String(64), nullable=False)
+    table_id: Mapped[str] = mapped_column(
+        String(36),
+        ForeignKey("virtual_tables.table_id"),
+        nullable=False,
+        index=True,
+    )
+    created_by: Mapped[int] = mapped_column(
+        Integer, ForeignKey("users.id"), nullable=False
+    )
+    kind: Mapped[str] = mapped_column(String(20), nullable=False)
+    measurement_data: Mapped[str] = mapped_column(Text, nullable=False)
+    created_at: Mapped[Optional[datetime]] = mapped_column(
+        DateTime, default=datetime.utcnow
+    )
+    updated_at: Mapped[Optional[datetime]] = mapped_column(
+        DateTime, default=datetime.utcnow, onupdate=datetime.utcnow
+    )
+
+    table = relationship("VirtualTable", back_populates="shared_measurements")
+    creator = relationship("User", foreign_keys=[created_by])
+
+    def to_dict(self) -> dict:
+        return {
+            "measurement_id": self.measurement_id,
+            "table_id": self.table_id,
+            "created_by": self.created_by,
+            "kind": self.kind,
+            "measurement": json.loads(self.measurement_data),
+            "created_at": self.created_at.isoformat() if self.created_at else None,
+            "updated_at": self.updated_at.isoformat() if self.updated_at else None,
+        }
+
+
+class PaintTemplate(Base):
+    """A reusable paint template shared by one game session."""
+    __tablename__ = "paint_templates"
+    __table_args__ = (
+        UniqueConstraint(
+            "session_id",
+            "template_id",
+            name="uq_paint_template_session_id",
+        ),
+    )
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
+    template_id: Mapped[str] = mapped_column(String(64), nullable=False)
+    session_id: Mapped[int] = mapped_column(
+        Integer, ForeignKey("game_sessions.id"), nullable=False, index=True
+    )
+    created_by: Mapped[int] = mapped_column(
+        Integer, ForeignKey("users.id"), nullable=False
+    )
+    name: Mapped[str] = mapped_column(String(100), nullable=False)
+    description: Mapped[Optional[str]] = mapped_column(String(500), nullable=True)
+    strokes_json: Mapped[str] = mapped_column(Text, nullable=False)
+    thumbnail: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    created_at: Mapped[Optional[datetime]] = mapped_column(
+        DateTime, default=datetime.utcnow
+    )
+    updated_at: Mapped[Optional[datetime]] = mapped_column(
+        DateTime, default=datetime.utcnow, onupdate=datetime.utcnow
+    )
+
+    session = relationship("GameSession", back_populates="paint_templates")
+    creator = relationship("User", foreign_keys=[created_by])
+
+    def to_dict(self) -> dict:
+        strokes = json.loads(self.strokes_json)
+        return {
+            "id": self.template_id,
+            "name": self.name,
+            "description": self.description,
+            "strokes": strokes,
+            "thumbnail": self.thumbnail,
+            "created_by": self.created_by,
+            "created": self.created_at.isoformat() if self.created_at else None,
+            "updated": self.updated_at.isoformat() if self.updated_at else None,
+            "strokeCount": len(strokes),
         }

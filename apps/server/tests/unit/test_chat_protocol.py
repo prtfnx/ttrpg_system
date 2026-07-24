@@ -30,6 +30,9 @@ class ChatHarness(_ChatMixin):
     def _get_client_info(self, client_id):
         return self.session_manager.client_info[client_id]
 
+    def _get_client_role(self, client_id):
+        return self.session_manager.client_info[client_id].get("role", "player")
+
 
 @pytest.fixture()
 def chat_db(monkeypatch):
@@ -122,6 +125,69 @@ async def test_whisper_is_scoped_and_idempotent(chat_db):
     harness.broadcast_to_session.assert_not_awaited()
     with session_factory() as db:
         assert db.query(models.ChatMessage).count() == 1
+
+
+@pytest.mark.asyncio
+async def test_whisper_is_visible_live_and_in_history_to_dm(chat_db):
+    _, session_id, alice_id, bob_id, _ = chat_db
+    clients = {
+        "alice-client": {"user_id": alice_id, "username": "alice", "role": "player"},
+        "bob-client": {"user_id": bob_id, "username": "bob", "role": "player"},
+        "dm-client": {"user_id": alice_id, "username": "alice", "role": "co_dm"},
+    }
+    harness = ChatHarness(session_id, alice_id, clients)
+    await harness.handle_chat(
+        _message(channel="whisper", recipient_user_id=bob_id),
+        "alice-client",
+    )
+
+    delivered_clients = {
+        call.args[1] for call in harness.send_to_client.await_args_list
+    }
+    assert delivered_clients == {"bob-client", "dm-client"}
+
+    result = await harness.handle_chat_request(
+        Message(MessageType.CHAT_REQUEST, {"count": 30}),
+        "dm-client",
+    )
+    assert result.data["messages"][0]["text"] == "secret"
+
+
+@pytest.mark.asyncio
+async def test_owner_redacts_own_message_and_dm_deletes_any_message(chat_db):
+    session_factory, session_id, alice_id, bob_id, _ = chat_db
+    clients = {
+        "alice-client": {"user_id": alice_id, "username": "alice", "role": "player"},
+        "bob-client": {"user_id": bob_id, "username": "bob", "role": "co_dm"},
+    }
+    harness = ChatHarness(session_id, alice_id, clients)
+    sent = await harness.handle_chat(_message(), "alice-client")
+    message_id = sent.data["chat_message"]["id"]
+
+    redacted = await harness.handle_chat_moderate(
+        Message(MessageType.CHAT_MODERATE, {
+            "message_id": message_id,
+            "action": "redact",
+        }),
+        "alice-client",
+    )
+    assert redacted.data["message"]["text"] == "[message redacted]"
+
+    harness.user_id = bob_id
+    deleted = await harness.handle_chat_moderate(
+        Message(MessageType.CHAT_MODERATE, {
+            "message_id": message_id,
+            "action": "delete",
+            "reason": "table moderation",
+        }),
+        "bob-client",
+    )
+    assert deleted.data["message"]["text"] == "[message deleted]"
+    with session_factory() as db:
+        row = db.query(models.ChatMessage).filter_by(message_id=message_id).one()
+        assert row.text == "secret"
+        assert row.deleted_at is not None
+        assert db.query(models.AuditLog).filter_by(action="chat.delete").count() == 1
 
 
 @pytest.mark.asyncio

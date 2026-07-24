@@ -143,7 +143,10 @@ _LIMITERS = {
     "security_audit", "unknown",
 }
 _EMAIL_OPERATIONS = {"password_reset", "password_changed", "email_change_verify", "email_change_notify", "unknown"}
-_JOB_NAMES = {"rate_limit_cleanup", "audit_retention", "r2_smoke", "r2_orphan_audit", "migration", "unknown"}
+_JOB_NAMES = {
+    "rate_limit_cleanup", "audit_retention", "chat_retention", "r2_smoke",
+    "r2_orphan_audit", "migration", "unknown",
+}
 
 
 def _message_type(value: Any) -> str:

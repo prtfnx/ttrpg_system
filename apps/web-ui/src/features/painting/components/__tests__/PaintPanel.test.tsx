@@ -49,6 +49,8 @@ vi.mock('../../services/paintTemplate.service', () => ({
     saveTemplate: vi.fn(),
     getTemplate: vi.fn(() => null),
     deleteTemplate: vi.fn(),
+    subscribe: vi.fn(() => vi.fn()),
+    requestSync: vi.fn(),
   },
 }));
 

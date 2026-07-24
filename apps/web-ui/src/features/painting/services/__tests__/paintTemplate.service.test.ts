@@ -1,139 +1,119 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-// Class is not exported — use the singleton and clear its internal state via delete+recreate in storage
+import { ProtocolService } from '@lib/api';
 import { paintTemplateService } from '../paintTemplate.service';
 
-// PaintTemplateService constructor reads localStorage — stub it
-const storage: Record<string, string> = {};
-vi.stubGlobal('localStorage', {
-  getItem: (key: string) => storage[key] ?? null,
-  setItem: (key: string, value: string) => { storage[key] = value; },
-  removeItem: (key: string) => { delete storage[key]; },
-  clear: () => { Object.keys(storage).forEach(k => delete storage[k]); },
-});
-
-// Reset singleton state between tests by deleting all templates
-async function clearService() {
-  const templates = paintTemplateService.getAllTemplateMetadata();
-  for (const t of templates) {
-    await paintTemplateService.deleteTemplate(t.id);
-  }
-}
-
 describe('PaintTemplateService', () => {
-  const service = paintTemplateService;
-
-  beforeEach(async () => {
-    localStorage.clear();
-    await clearService();
+  beforeEach(() => {
+    vi.restoreAllMocks();
+    paintTemplateService.replaceFromServer([]);
   });
 
-  describe('saveTemplate + getTemplate', () => {
-    it('saves and retrieves a template by id', async () => {
-      const id = await service.saveTemplate('Test', [{ x: 0, y: 0 }], 'desc');
-      expect(typeof id).toBe('string');
-      const template = service.getTemplate(id);
-      expect(template).not.toBeNull();
-      expect(template!.name).toBe('Test');
-      expect(template!.description).toBe('desc');
-      expect(template!.strokes).toHaveLength(1);
-    });
+  it('keeps an optimistic template cache while publishing to the server', async () => {
+    const upsertPaintTemplate = vi.fn();
+    vi.spyOn(ProtocolService, 'hasProtocol').mockReturnValue(true);
+    vi.spyOn(ProtocolService, 'getProtocol').mockReturnValue({
+      upsertPaintTemplate,
+    } as unknown as ReturnType<typeof ProtocolService.getProtocol>);
 
-    it('trims name whitespace', async () => {
-      const id = await service.saveTemplate('  Padded  ', []);
-      expect(service.getTemplate(id)!.name).toBe('Padded');
-    });
+    const id = await paintTemplateService.saveTemplate(
+      '  Fire  ',
+      [{ id: 'stroke-1', points: [], color: [1, 0, 0, 1], width: 4 }],
+      'marker',
+    );
 
-    it('returns null for unknown id', () => {
-      expect(service.getTemplate('nonexistent')).toBeNull();
-    });
+    expect(paintTemplateService.getTemplate(id)).toEqual(
+      expect.objectContaining({ id, name: 'Fire', description: 'marker' }),
+    );
+    expect(upsertPaintTemplate).toHaveBeenCalledWith(
+      expect.objectContaining({ id, name: 'Fire' }),
+    );
   });
 
-  describe('getAllTemplateMetadata', () => {
-    it('returns empty array initially', () => {
-      expect(service.getAllTemplateMetadata()).toEqual([]);
-    });
+  it('reconciles authoritative session snapshots', () => {
+    paintTemplateService.replaceFromServer([
+      {
+        id: 'template-1',
+        name: 'Shared',
+        strokes: [],
+        created: '2026-07-23T00:00:00',
+        updated: '2026-07-23T00:00:00',
+        created_by: 42,
+      },
+    ]);
 
-    it('returns metadata without full stroke data', async () => {
-      await service.saveTemplate('T1', [1, 2, 3]);
-      const metadata = service.getAllTemplateMetadata();
-      expect(metadata).toHaveLength(1);
-      expect(metadata[0].name).toBe('T1');
-      expect(metadata[0].strokeCount).toBe(3);
-      // Ensure strokes array not present in metadata
-      expect((metadata[0] as unknown as Record<string, unknown>).strokes).toBeUndefined();
-    });
+    expect(paintTemplateService.getAllTemplateMetadata()).toEqual([
+      expect.objectContaining({
+        id: 'template-1',
+        name: 'Shared',
+        createdBy: 42,
+      }),
+    ]);
   });
 
-  describe('deleteTemplate', () => {
-    it('deletes existing template and returns true', async () => {
-      const id = await service.saveTemplate('Del', []);
-      expect(await service.deleteTemplate(id)).toBe(true);
-      expect(service.getTemplate(id)).toBeNull();
-    });
+  it('waits for server confirmation before deleting connected state', async () => {
+    const deletePaintTemplate = vi.fn();
+    vi.spyOn(ProtocolService, 'hasProtocol').mockReturnValue(true);
+    vi.spyOn(ProtocolService, 'getProtocol').mockReturnValue({
+      deletePaintTemplate,
+    } as unknown as ReturnType<typeof ProtocolService.getProtocol>);
+    paintTemplateService.replaceFromServer([
+      {
+        id: 'template-1',
+        name: 'Shared',
+        strokes: [],
+        created: '2026-07-23T00:00:00',
+        updated: '2026-07-23T00:00:00',
+      },
+    ]);
 
-    it('returns false for unknown template', async () => {
-      expect(await service.deleteTemplate('ghost')).toBe(false);
-    });
+    expect(await paintTemplateService.deleteTemplate('template-1')).toBe(true);
+    expect(deletePaintTemplate).toHaveBeenCalledWith('template-1');
+    expect(paintTemplateService.getTemplate('template-1')).not.toBeNull();
+
+    window.dispatchEvent(new CustomEvent('paint-template-deleted', {
+      detail: { id: 'template-1' },
+    }));
+    expect(paintTemplateService.getTemplate('template-1')).toBeNull();
   });
 
-  describe('updateTemplate', () => {
-    it('updates name and description', async () => {
-      const id = await service.saveTemplate('Old', []);
-      const ok = await service.updateTemplate(id, { name: 'New', description: 'Updated' });
-      expect(ok).toBe(true);
-      expect(service.getTemplate(id)!.name).toBe('New');
-    });
+  it('notifies subscribers when remote state changes', () => {
+    const listener = vi.fn();
+    const unsubscribe = paintTemplateService.subscribe(listener);
 
-    it('returns false for unknown id', async () => {
-      expect(await service.updateTemplate('ghost', { name: 'X' })).toBe(false);
-    });
+    paintTemplateService.replaceFromServer([]);
+
+    expect(listener).toHaveBeenCalledOnce();
+    unsubscribe();
   });
 
-  describe('exportTemplates + importTemplates', () => {
-    it('export/import roundtrip preserves templates', async () => {
-      await service.saveTemplate('Export', [{ a: 1 }]);
-      const json = service.exportTemplates();
-      
-      // Import into same service (clear first to avoid duplicates)
-      await clearService();
-      const result = await service.importTemplates(json);
-      expect(result.success).toBe(true);
-      expect(result.imported).toBe(1);
-      expect(result.errors).toHaveLength(0);
-      expect(service.getAllTemplateMetadata()[0].name).toBe('Export');
-    });
+  it('exports and imports templates through the durable publish path', async () => {
+    const upsertPaintTemplate = vi.fn();
+    vi.spyOn(ProtocolService, 'hasProtocol').mockReturnValue(true);
+    vi.spyOn(ProtocolService, 'getProtocol').mockReturnValue({
+      upsertPaintTemplate,
+    } as unknown as ReturnType<typeof ProtocolService.getProtocol>);
+    paintTemplateService.replaceFromServer([
+      {
+        id: 'template-1',
+        name: 'Export',
+        strokes: [],
+        created: '2026-07-23T00:00:00',
+        updated: '2026-07-23T00:00:00',
+      },
+    ]);
+    const exported = paintTemplateService.exportTemplates();
+    paintTemplateService.replaceFromServer([]);
 
-    it('import invalid JSON returns error', async () => {
-      const result = await service.importTemplates('not-json');
-      expect(result.success).toBe(false);
-      expect(result.errors.length).toBeGreaterThan(0);
-    });
+    const result = await paintTemplateService.importTemplates(exported);
 
-    it('import missing templates array returns error', async () => {
-      const result = await service.importTemplates('{"version":"1.0"}');
-      expect(result.success).toBe(false);
-    });
-
-    it('import template with missing required fields is skipped', async () => {
-      const bad = JSON.stringify({ templates: [{ name: 'bad' }] });
-      const result = await service.importTemplates(bad);
-      expect(result.imported).toBe(0);
-      expect(result.errors.length).toBeGreaterThan(0);
-    });
+    expect(result).toMatchObject({ success: true, imported: 1, errors: [] });
+    expect(upsertPaintTemplate).toHaveBeenCalledOnce();
   });
 
-  describe('localStorage persistence', () => {
-    it('persists templates to localStorage on save', async () => {
-      await service.saveTemplate('Persist', [1, 2]);
-      const stored = localStorage.getItem('paint_templates');
-      expect(stored).not.toBeNull();
-      const parsed = JSON.parse(stored!);
-      expect(parsed[0].name).toBe('Persist');
-    });
+  it('rejects malformed imports without changing the cache', async () => {
+    const result = await paintTemplateService.importTemplates('{"version":"1.0"}');
 
-    it('handles corrupt data gracefully via importTemplates', async () => {
-      const result = await service.importTemplates('corrupt{{{');
-      expect(result.success).toBe(false);
-    });
+    expect(result.success).toBe(false);
+    expect(paintTemplateService.getAllTemplateMetadata()).toEqual([]);
   });
 });

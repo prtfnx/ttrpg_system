@@ -242,9 +242,15 @@ export const PaintPanel: React.FC<PaintPanelProps> = ({
     tableIntegration: isIntegrated && paintMode === 'table'
   };
 
-  // Load templates on mount
+  // Keep the panel reconciled with session-backed templates.
   useEffect(() => {
-    setTemplates(paintTemplateService.getAllTemplateMetadata());
+    const refreshTemplates = () => {
+      setTemplates(paintTemplateService.getAllTemplateMetadata());
+    };
+    refreshTemplates();
+    const unsubscribe = paintTemplateService.subscribe(refreshTemplates);
+    paintTemplateService.requestSync();
+    return unsubscribe;
   }, []);
 
   // Template management functions

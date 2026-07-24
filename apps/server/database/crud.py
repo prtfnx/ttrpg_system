@@ -1066,6 +1066,199 @@ def clear_paint_strokes_for_table(db: Session, table_id: str) -> int:
     return count
 
 
+def get_shared_measurements(
+    db: Session, table_id: str
+) -> list[models.SharedMeasurement]:
+    return (
+        db.query(models.SharedMeasurement)
+        .filter(models.SharedMeasurement.table_id == table_id)
+        .order_by(models.SharedMeasurement.created_at, models.SharedMeasurement.id)
+        .all()
+    )
+
+
+def get_shared_measurement(
+    db: Session,
+    table_id: str,
+    measurement_id: str,
+) -> Optional[models.SharedMeasurement]:
+    return db.query(models.SharedMeasurement).filter(
+        models.SharedMeasurement.table_id == table_id,
+        models.SharedMeasurement.measurement_id == measurement_id,
+    ).first()
+
+
+def upsert_shared_measurement(
+    db: Session,
+    *,
+    table_id: str,
+    measurement_id: str,
+    created_by: int,
+    kind: str,
+    measurement_data: str,
+) -> models.SharedMeasurement:
+    measurement = get_shared_measurement(db, table_id, measurement_id)
+    if measurement is None:
+        measurement = models.SharedMeasurement(
+            table_id=table_id,
+            measurement_id=measurement_id,
+            created_by=created_by,
+            kind=kind,
+            measurement_data=measurement_data,
+        )
+        db.add(measurement)
+    else:
+        if measurement.created_by != created_by:
+            raise PermissionError("Only the creator can update a measurement")
+        measurement.kind = kind
+        measurement.measurement_data = measurement_data
+        measurement.updated_at = datetime.utcnow()
+    db.commit()
+    db.refresh(measurement)
+    return measurement
+
+
+def delete_shared_measurement(
+    db: Session,
+    table_id: str,
+    measurement_id: str,
+    *,
+    created_by: Optional[int] = None,
+) -> bool:
+    query = db.query(models.SharedMeasurement).filter(
+        models.SharedMeasurement.table_id == table_id,
+        models.SharedMeasurement.measurement_id == measurement_id,
+    )
+    if created_by is not None:
+        query = query.filter(models.SharedMeasurement.created_by == created_by)
+    measurement = query.first()
+    if measurement is None:
+        return False
+    db.delete(measurement)
+    db.commit()
+    return True
+
+
+def clear_shared_measurements(
+    db: Session,
+    table_id: str,
+    *,
+    created_by: Optional[int] = None,
+) -> int:
+    query = db.query(models.SharedMeasurement).filter(
+        models.SharedMeasurement.table_id == table_id
+    )
+    if created_by is not None:
+        query = query.filter(models.SharedMeasurement.created_by == created_by)
+    count = query.delete(synchronize_session=False)
+    db.commit()
+    return int(count)
+
+
+def get_paint_templates(
+    db: Session, session_id: int
+) -> list[models.PaintTemplate]:
+    return (
+        db.query(models.PaintTemplate)
+        .filter(models.PaintTemplate.session_id == session_id)
+        .order_by(models.PaintTemplate.created_at, models.PaintTemplate.id)
+        .all()
+    )
+
+
+def get_paint_template(
+    db: Session,
+    session_id: int,
+    template_id: str,
+) -> Optional[models.PaintTemplate]:
+    return db.query(models.PaintTemplate).filter(
+        models.PaintTemplate.session_id == session_id,
+        models.PaintTemplate.template_id == template_id,
+    ).first()
+
+
+def create_paint_template(
+    db: Session,
+    *,
+    session_id: int,
+    template_id: str,
+    created_by: int,
+    name: str,
+    description: Optional[str],
+    strokes_json: str,
+    thumbnail: Optional[str],
+) -> models.PaintTemplate:
+    template = models.PaintTemplate(
+        session_id=session_id,
+        template_id=template_id,
+        created_by=created_by,
+        name=name,
+        description=description,
+        strokes_json=strokes_json,
+        thumbnail=thumbnail,
+    )
+    db.add(template)
+    db.commit()
+    db.refresh(template)
+    return template
+
+
+def upsert_paint_template(
+    db: Session,
+    *,
+    session_id: int,
+    template_id: str,
+    created_by: int,
+    name: str,
+    description: Optional[str],
+    strokes_json: str,
+    thumbnail: Optional[str],
+) -> models.PaintTemplate:
+    template = get_paint_template(db, session_id, template_id)
+    if template is None:
+        return create_paint_template(
+            db,
+            session_id=session_id,
+            template_id=template_id,
+            created_by=created_by,
+            name=name,
+            description=description,
+            strokes_json=strokes_json,
+            thumbnail=thumbnail,
+        )
+    if template.created_by != created_by:
+        raise PermissionError("Paint templates can only be updated by their creator")
+
+    template.name = name
+    template.description = description
+    template.strokes_json = strokes_json
+    template.thumbnail = thumbnail
+    db.commit()
+    db.refresh(template)
+    return template
+
+
+def delete_paint_template(
+    db: Session,
+    session_id: int,
+    template_id: str,
+    *,
+    created_by: Optional[int] = None,
+) -> bool:
+    query = db.query(models.PaintTemplate).filter(
+        models.PaintTemplate.session_id == session_id,
+        models.PaintTemplate.template_id == template_id,
+    )
+    if created_by is not None:
+        query = query.filter(models.PaintTemplate.created_by == created_by)
+    template = query.first()
+    if template is None:
+        return False
+    db.delete(template)
+    db.commit()
+    return True
+
+
 # ── CombatEncounter persistence ───────────────────────────────────────────────
 
 def upsert_combat_encounter(db: Session, session_code: str, state_dict: dict) -> None:

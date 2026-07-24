@@ -128,7 +128,6 @@ jobs:
         run: ruff check apps/server packages/core-table
       - name: Mypy type check
         run: mypy apps/server --ignore-missing-imports --no-error-summary
-        continue-on-error: true
       - name: PostgreSQL migration and behavior gates
         run: >-
           pytest

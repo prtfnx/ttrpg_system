@@ -7,6 +7,9 @@ extend-exclude = ["legacy", ".venv"]
 select = ["E", "F", "W", "I"]
 ignore = ["E501"]
 
+[tool.mypy]
+exclude = 'apps[\\/]server[\\/]static'
+
 [tool.pytest.ini_options]
 testpaths = ["apps/server/tests", "packages/core-table/tests"]
 python_files = "test_*.py"

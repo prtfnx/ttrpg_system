@@ -333,8 +333,11 @@ export const MonsterCreationPanel: React.FC<MonsterCreationPanelProps> = ({
             className="monster-health-fill"
             style={{ 
               width: `${(instance.currentHitPoints / instance.maxHitPoints) * 100}%`,
-              backgroundColor: instance.currentHitPoints > instance.maxHitPoints * 0.5 ? '#4caf50' :
-                             instance.currentHitPoints > instance.maxHitPoints * 0.25 ? '#ff9800' : '#f44336'
+              backgroundColor: instance.currentHitPoints > instance.maxHitPoints * 0.5
+                ? 'var(--color-success)'
+                : instance.currentHitPoints > instance.maxHitPoints * 0.25
+                  ? 'var(--color-warning)'
+                  : 'var(--color-danger)'
             }}
           />
         </div>

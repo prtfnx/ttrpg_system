@@ -342,7 +342,11 @@ export const TokenConfigModal: React.FC<TokenConfigModalProps> = ({ spriteId, on
                 className={styles.hpBarFill}
                 style={{ 
                   width: `${hpPercentage}%`,
-                  backgroundColor: hpPercentage > 50 ? '#4ade80' : hpPercentage > 25 ? '#fbbf24' : '#ef4444'
+                  backgroundColor: hpPercentage > 50
+                    ? 'var(--status-success)'
+                    : hpPercentage > 25
+                      ? 'var(--status-warning)'
+                      : 'var(--status-error)'
                 }}
               />
               <span className={styles.hpBarText}>{localHp} / {localMaxHp}</span>

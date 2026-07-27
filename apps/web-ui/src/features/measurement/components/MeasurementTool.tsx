@@ -147,8 +147,8 @@ export function MeasurementTool({ isActive }: MeasurementToolProps) {
         }
         
         .measurement-instructions {
-          background: rgba(0, 100, 200, 0.9);
-          color: white;
+          background: var(--color-primary);
+          color: var(--text-on-accent);
           padding: 8px 12px;
           border-radius: 4px;
           font-size: 14px;
@@ -156,14 +156,14 @@ export function MeasurementTool({ isActive }: MeasurementToolProps) {
         }
         
         .measurement-results {
-          background: rgba(0, 0, 0, 0.9);
-          color: white;
+          background: var(--overlay-dark-heavy);
+          color: var(--text-on-overlay);
           padding: 16px;
           border-radius: 8px;
           font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
           min-width: 280px;
-          box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4);
-          border: 1px solid rgba(255, 255, 255, 0.1);
+          box-shadow: var(--shadow-lg);
+          border: var(--border-width) solid var(--white-alpha-10);
         }
         
         .measurement-header {
@@ -172,13 +172,13 @@ export function MeasurementTool({ isActive }: MeasurementToolProps) {
           align-items: center;
           margin-bottom: 12px;
           padding-bottom: 8px;
-          border-bottom: 1px solid rgba(255, 255, 255, 0.2);
+          border-bottom: var(--border-width) solid var(--white-alpha-20);
         }
         
         .measurement-header h4 {
           margin: 0;
           font-size: 16px;
-          color: #fff;
+          color: var(--text-primary);
         }
         
         .unit-selector {
@@ -188,9 +188,9 @@ export function MeasurementTool({ isActive }: MeasurementToolProps) {
         
         .unit-btn {
           padding: 4px 8px;
-          background: rgba(255, 255, 255, 0.1);
-          color: #ccc;
-          border: 1px solid rgba(255, 255, 255, 0.2);
+          background: var(--white-alpha-10);
+          color: var(--text-secondary);
+          border: var(--border-width) solid var(--white-alpha-20);
           border-radius: 3px;
           cursor: pointer;
           font-size: 12px;
@@ -198,14 +198,14 @@ export function MeasurementTool({ isActive }: MeasurementToolProps) {
         }
         
         .unit-btn:hover {
-          background: rgba(255, 255, 255, 0.2);
-          color: white;
+          background: var(--white-alpha-20);
+          color: var(--text-primary);
         }
         
         .unit-btn.active {
-          background: #4CAF50;
-          color: white;
-          border-color: #4CAF50;
+          background: var(--color-success);
+          color: var(--text-on-accent);
+          border-color: var(--color-success);
         }
         
         .measurement-item {
@@ -218,28 +218,28 @@ export function MeasurementTool({ isActive }: MeasurementToolProps) {
         .measurement-item.primary {
           font-size: 18px;
           font-weight: bold;
-          border-bottom: 1px solid rgba(255, 255, 255, 0.2);
+          border-bottom: var(--border-width) solid var(--white-alpha-20);
           padding-bottom: 8px;
           margin-bottom: 12px;
         }
         
         .measurement-item.secondary {
           font-size: 14px;
-          color: #aaa;
+          color: var(--text-muted);
           margin-bottom: 12px;
         }
         
         .label {
-          color: #ccc;
+          color: var(--text-secondary);
         }
         
         .value {
-          color: #4CAF50;
+          color: var(--status-success);
           font-weight: bold;
         }
         
         .measurement-item.primary .value {
-          color: #66BB6A;
+          color: var(--green-400);
           font-size: 20px;
         }
         
@@ -248,13 +248,13 @@ export function MeasurementTool({ isActive }: MeasurementToolProps) {
           gap: 8px;
           margin-top: 12px;
           padding-top: 8px;
-          border-top: 1px solid rgba(255, 255, 255, 0.2);
+          border-top: var(--border-width) solid var(--white-alpha-20);
         }
         
         .clear-measurement, .save-measurement {
           flex: 1;
           padding: 8px 12px;
-          color: white;
+          color: var(--text-on-accent);
           border: none;
           border-radius: 4px;
           cursor: pointer;
@@ -264,19 +264,19 @@ export function MeasurementTool({ isActive }: MeasurementToolProps) {
         }
         
         .clear-measurement {
-          background: #f44336;
+          background: var(--button-danger-bg);
         }
         
         .clear-measurement:hover {
-          background: #d32f2f;
+          background: var(--button-danger-hover);
         }
         
         .save-measurement {
-          background: #2196F3;
+          background: var(--button-primary-bg);
         }
         
         .save-measurement:hover {
-          background: #1976D2;
+          background: var(--button-primary-hover);
         }
       `}</style>
     </div>

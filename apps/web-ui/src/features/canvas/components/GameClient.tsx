@@ -50,7 +50,7 @@ class DebugErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBounda
   }
   render() {
     if (this.state.hasError) {
-      return <div style={{background:'#f00',color:'#fff',padding:32,fontWeight:700,fontSize:24}}>[ERROR] {this.state.error?.toString()}</div>;
+      return <div className={styles.errorFallback}>[ERROR] {this.state.error?.toString()}</div>;
     }
     return this.props.children;
   }

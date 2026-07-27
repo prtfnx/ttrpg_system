@@ -82,7 +82,11 @@ export const CharacterSheet: React.FC<CharacterSheetProps> = ({ character, onSav
   const getModifier = (score: number) => Math.floor((score - 10) / 2);
   const modStr = (mod: number) => mod >= 0 ? `+${mod}` : `${mod}`;
   const hpPct = Math.min(1, (stats.hp || 0) / Math.max(1, stats.maxHp || 10));
-  const hpBarColor = hpPct > 0.5 ? 'var(--green-600)' : hpPct > 0.25 ? '#eab308' : 'var(--red-600, #dc2626)';
+  const hpBarColor = hpPct > 0.5
+    ? 'var(--color-success)'
+    : hpPct > 0.25
+      ? 'var(--color-warning)'
+      : 'var(--color-danger)';
 
   const handleHPChange = (delta: number) => {
     const currentTempHp = stats.tempHp || 0;

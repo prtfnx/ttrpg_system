@@ -8,6 +8,14 @@
   overflow: hidden;
 }
 
+.errorFallback {
+  padding: var(--size-8);
+  background: var(--color-danger);
+  color: var(--text-on-error);
+  font-size: var(--text-2xl);
+  font-weight: var(--font-bold);
+}
+
 .leftPanel {
   display: flex;
   flex-direction: column;

@@ -48,10 +48,10 @@ export const PerformanceMonitor: React.FC<PerformanceMonitorProps> = ({
   if (!isVisible || !metrics) return null;
 
   const getFPSColor = (fps: number): string => {
-    if (fps >= 55) return '#4ade80'; // Green
-    if (fps >= 40) return '#facc15'; // Yellow
-    if (fps >= 25) return '#fb923c'; // Orange
-    return '#ef4444'; // Red
+    if (fps >= 55) return 'var(--status-success)';
+    if (fps >= 40) return 'var(--yellow-400)';
+    if (fps >= 25) return 'var(--status-warning)';
+    return 'var(--status-error)';
   };
 
   const getMemoryUsagePercent = (): number => {
@@ -88,7 +88,7 @@ export const PerformanceMonitor: React.FC<PerformanceMonitorProps> = ({
             className="memory-fill"
             style={{ 
               width: `${Math.min(100, getMemoryUsagePercent())}%`,
-              backgroundColor: getMemoryUsagePercent() > 80 ? '#ef4444' : '#4ade80'
+              backgroundColor: getMemoryUsagePercent() > 80 ? 'var(--status-error)' : 'var(--status-success)'
             }}
           />
         </div>

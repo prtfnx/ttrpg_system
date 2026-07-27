@@ -120,8 +120,8 @@ export const KeyboardShortcutsDisplay: React.FC<ShortcutsDisplayProps> = ({
           position: absolute;
           top: 10px;
           right: 10px;
-          background: rgba(0, 0, 0, 0.8);
-          color: white;
+          background: var(--overlay-dark-medium);
+          color: var(--text-on-overlay);
           padding: 10px;
           border-radius: 5px;
           font-size: 12px;
@@ -136,7 +136,7 @@ export const KeyboardShortcutsDisplay: React.FC<ShortcutsDisplayProps> = ({
         .shortcuts-section h4 {
           margin: 0 0 5px 0;
           font-size: 14px;
-          color: #ccc;
+          color: var(--text-secondary);
         }
         
         .shortcut-item {
@@ -151,7 +151,7 @@ export const KeyboardShortcutsDisplay: React.FC<ShortcutsDisplayProps> = ({
         }
         
         .shortcut-item kbd {
-          background: #333;
+          background: var(--bg-elevated);
           padding: 2px 6px;
           border-radius: 3px;
           font-family: monospace;

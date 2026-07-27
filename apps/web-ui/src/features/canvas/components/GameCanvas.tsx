@@ -995,8 +995,8 @@ export const GameCanvas: React.FC = () => {
             position: 'absolute',
             top: 8,
             left: 8,
-            background: 'rgba(0,0,0,0.8)',
-            color: '#0f0',
+            background: 'var(--overlay-dark-medium)',
+            color: 'var(--status-success)',
             fontSize: 14,
             padding: 10,
             borderRadius: 8,
@@ -1007,7 +1007,10 @@ export const GameCanvas: React.FC = () => {
           }}
         >
           <div>
-            <b>FPS:</b> <span style={{ color: fps > 30 ? '#0f0' : fps > 15 ? '#ff0' : '#f00' }}>{fps}</span>
+            <b>FPS:</b>{' '}
+            <span style={{ color: fps > 30 ? 'var(--status-success)' : fps > 15 ? 'var(--yellow-400)' : 'var(--status-error)' }}>
+              {fps}
+            </span>
           </div>
           <div>
             <b>Canvas CSS:</b> {debugPanel.cssWidth} x {debugPanel.cssHeight}
@@ -1026,7 +1029,7 @@ export const GameCanvas: React.FC = () => {
           </div>
           {activeTable && (
             <>
-              <div style={{ borderTop: '1px solid #333', marginTop: 8, paddingTop: 8 }}>
+              <div style={{ borderTop: 'var(--border-width) solid var(--border-primary)', marginTop: 8, paddingTop: 8 }}>
                 <b>Table:</b> {activeTable.table_name}
               </div>
               <div>
@@ -1080,9 +1083,9 @@ export const GameCanvas: React.FC = () => {
             style={{
               width: 40,
               height: 40,
-              border: '1px solid #ccc',
+              border: 'var(--border-width) solid var(--border-primary)',
               borderRadius: '4px',
-              background: 'rgba(255,255,255,0.9)',
+              background: 'var(--bg-elevated)',
               cursor: 'pointer',
               fontSize: '18px',
               fontWeight: 'bold',
@@ -1102,9 +1105,9 @@ export const GameCanvas: React.FC = () => {
             style={{
               width: 40,
               height: 40,
-              border: '1px solid #ccc',
+              border: 'var(--border-width) solid var(--border-primary)',
               borderRadius: '4px',
-              background: 'rgba(255,255,255,0.9)',
+              background: 'var(--bg-elevated)',
               cursor: 'pointer',
               fontSize: '18px',
               fontWeight: 'bold',

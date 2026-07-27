@@ -244,7 +244,7 @@ export const AssetPanel: React.FC = () => {
           onDrop={handleDrop}
           onClick={() => fileInputRef.current?.click()}
           style={{
-            border: '2px dashed #ccc',
+            border: 'var(--border-width-md) dashed var(--border-primary)',
             borderRadius: '8px',
             padding: '20px',
             textAlign: 'center',
@@ -389,7 +389,7 @@ export const AssetPanel: React.FC = () => {
         onDrop={handleDrop}
         onDragOver={handleDragOver}
         style={{
-          border: '2px dashed #3b82f6',
+          border: 'var(--border-width-md) dashed var(--border-accent)',
           padding: 20,
           marginBottom: 16,
           textAlign: 'center',

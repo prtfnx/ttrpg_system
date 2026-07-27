@@ -104,9 +104,9 @@ export function GridControls() {
                   onClick={() => handleUnitChange(u)}
                   style={{
                     padding: '2px 8px',
-                    background: distanceUnit === u ? '#4a7ec7' : '#333',
-                    color: '#fff',
-                    border: '1px solid #555',
+                    background: distanceUnit === u ? 'var(--button-primary-bg)' : 'var(--button-secondary-bg)',
+                    color: distanceUnit === u ? 'var(--button-primary-text)' : 'var(--button-secondary-text)',
+                    border: 'var(--border-width) solid var(--button-secondary-border)',
                     borderRadius: '3px',
                     cursor: 'pointer',
                   }}

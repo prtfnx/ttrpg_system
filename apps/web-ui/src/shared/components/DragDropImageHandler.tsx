@@ -446,8 +446,8 @@ export const DragDropImageHandler: React.FC<DragDropImageHandlerProps> = ({
             left: 0,
             right: 0,
             bottom: 0,
-            backgroundColor: 'rgba(59, 130, 246, 0.1)',
-            border: '2px dashed #3b82f6',
+            backgroundColor: 'var(--color-primary-overlay)',
+            border: 'var(--border-width-md) dashed var(--border-accent)',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
@@ -503,19 +503,19 @@ export const DragDropImageHandler: React.FC<DragDropImageHandlerProps> = ({
                 style={{
                   width: `${uploadState.progress}%`,
                   height: '100%',
-                  backgroundColor: '#3b82f6',
+                  backgroundColor: 'var(--color-primary)',
                   transition: 'width 0.2s ease',
                 }}
               />
             </div>
           )}
           {uploadState.status === 'completed' && (
-            <div style={{ color: '#10b981', fontSize: '12px' }}>
+            <div style={{ color: 'var(--status-success)', fontSize: 'var(--text-xs)' }}>
               Success!
             </div>
           )}
           {uploadState.status === 'failed' && (
-            <div style={{ color: '#f87171', fontSize: '12px' }}>
+            <div style={{ color: 'var(--status-error)', fontSize: 'var(--text-xs)' }}>
               Failed
             </div>
           )}

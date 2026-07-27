@@ -100,7 +100,7 @@ export function TextSpriteModal({ isOpen, position, onConfirm, onCancel }: TextS
               style={{
                 fontSize: `${fontSize}px`,
                 color: color,
-                backgroundColor: '#2d2d2d',
+                backgroundColor: 'var(--bg-tertiary)',
                 padding: '16px',
                 borderRadius: '4px',
                 textAlign: 'center',

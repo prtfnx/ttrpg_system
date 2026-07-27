@@ -340,11 +340,11 @@ export const FogPanel: React.FC = () => {
             <div style={{ 
               marginTop: '12px', 
               padding: '8px', 
-              backgroundColor: fogDrawMode === 'hide' ? 'rgba(239, 68, 68, 0.15)' : 'rgba(34, 197, 94, 0.15)',
-              border: `1px solid ${fogDrawMode === 'hide' ? 'rgba(239, 68, 68, 0.5)' : 'rgba(34, 197, 94, 0.5)'}`,
+              backgroundColor: fogDrawMode === 'hide' ? 'var(--status-error-bg)' : 'var(--status-success-bg)',
+              border: `var(--border-width) solid ${fogDrawMode === 'hide' ? 'var(--status-error-border)' : 'var(--status-success-border)'}`,
               borderRadius: '4px',
               fontSize: '13px',
-              color: 'var(--text-primary, #ffffff)'
+              color: 'var(--text-primary)'
             }}>
               <strong>{fogDrawMode === 'hide' ? 'Hide' : 'Reveal'} Mode Active</strong> - Click and drag on the canvas to draw fog rectangles
             </div>
@@ -356,7 +356,7 @@ export const FogPanel: React.FC = () => {
         <h4>Fog Rectangles ({fogRectangles.length})</h4>
         <div className={styles.activityLog} style={{ maxHeight: '300px', overflowY: 'auto' }}>
           {fogRectangles.length === 0 ? (
-            <div style={{ padding: '12px', textAlign: 'center', color: 'var(--text-secondary, #9ca3af)', fontSize: '13px' }}>
+            <div style={{ padding: '12px', textAlign: 'center', color: 'var(--text-secondary)', fontSize: '13px' }}>
               No fog rectangles yet. Click a mode button and draw on the canvas!
             </div>
           ) : (
@@ -370,18 +370,18 @@ export const FogPanel: React.FC = () => {
                   alignItems: 'center',
                   padding: '8px',
                   marginBottom: '4px',
-                  backgroundColor: rect.mode === 'hide' ? 'rgba(239, 68, 68, 0.15)' : 'rgba(34, 197, 94, 0.15)',
-                  border: `1px solid ${rect.mode === 'hide' ? 'rgba(239, 68, 68, 0.3)' : 'rgba(34, 197, 94, 0.3)'}`,
+                  backgroundColor: rect.mode === 'hide' ? 'var(--status-error-bg)' : 'var(--status-success-bg)',
+                  border: `var(--border-width) solid ${rect.mode === 'hide' ? 'var(--status-error-border)' : 'var(--status-success-border)'}`,
                   borderRadius: '4px'
                 }}
               >
                 <div style={{ flex: 1 }}>
                   <div>
-                    <span style={{ fontWeight: '500', color: 'var(--text-primary, #ffffff)' }}>
+                    <span style={{ fontWeight: 'var(--font-medium)', color: 'var(--text-primary)' }}>
                       {rect.mode === 'hide' ? '[H]' : '[R]'} {rect.mode.toUpperCase()}
                     </span>
                   </div>
-                  <div style={{ fontSize: '11px', color: 'var(--text-secondary, #9ca3af)', marginTop: '2px' }}>
+                  <div style={{ fontSize: '11px', color: 'var(--text-secondary)', marginTop: '2px' }}>
                     ({rect.startX.toFixed(0)}, {rect.startY.toFixed(0)}) → ({rect.endX.toFixed(0)}, {rect.endY.toFixed(0)})
                   </div>
                 </div>
@@ -405,26 +405,26 @@ export const FogPanel: React.FC = () => {
           <div style={{ 
             padding: '12px', 
             backgroundColor: 'var(--bg-secondary)', 
-            border: '1px solid var(--border-color, #4b5563)',
+            border: 'var(--border-width) solid var(--border-primary)',
             borderRadius: '4px', 
             textAlign: 'center' 
           }}>
-            <div style={{ fontSize: '24px', fontWeight: 'bold', color: 'var(--text-primary, #ffffff)' }}>
+            <div style={{ fontSize: '24px', fontWeight: 'var(--font-bold)', color: 'var(--text-primary)' }}>
               {fogRectangles.filter(r => r.mode === 'hide').length}
             </div>
-            <div style={{ fontSize: '11px', color: 'var(--text-secondary, #9ca3af)' }}>[H] Hidden Areas</div>
+            <div style={{ fontSize: '11px', color: 'var(--text-secondary)' }}>[H] Hidden Areas</div>
           </div>
           <div style={{ 
             padding: '12px', 
             backgroundColor: 'var(--bg-secondary)', 
-            border: '1px solid var(--border-color, #4b5563)',
+            border: 'var(--border-width) solid var(--border-primary)',
             borderRadius: '4px', 
             textAlign: 'center' 
           }}>
-            <div style={{ fontSize: '24px', fontWeight: 'bold', color: 'var(--text-primary, #ffffff)' }}>
+            <div style={{ fontSize: '24px', fontWeight: 'var(--font-bold)', color: 'var(--text-primary)' }}>
               {fogRectangles.filter(r => r.mode === 'reveal').length}
             </div>
-            <div style={{ fontSize: '11px', color: 'var(--text-secondary, #9ca3af)' }}>[R] Revealed Areas</div>
+            <div style={{ fontSize: '11px', color: 'var(--text-secondary)' }}>[R] Revealed Areas</div>
           </div>
         </div>
       </div>

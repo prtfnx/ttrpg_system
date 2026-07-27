@@ -498,7 +498,7 @@ export function TextSpriteCreator({
                   ref={canvasRef}
                   className="text-preview"
                   style={{
-                    border: '1px solid #ddd',
+                    border: 'var(--border-width) solid var(--border-primary)',
                     borderRadius: '4px',
                     maxWidth: '100%',
                     maxHeight: '300px'
@@ -520,8 +520,8 @@ export function TextSpriteCreator({
                 className="btn-delete"
                 disabled={isDeleting}
                 style={{
-                  background: '#dc3545',
-                  color: 'white',
+                  background: 'var(--button-danger-bg)',
+                  color: 'var(--button-danger-text)',
                   padding: '0.75rem 1.5rem',
                   border: 'none',
                   borderRadius: '6px',

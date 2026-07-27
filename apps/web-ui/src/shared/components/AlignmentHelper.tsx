@@ -218,18 +218,18 @@ export function AlignmentHelper({ isActive }: AlignmentHelperProps) {
           top: 50%;
           right: 20px;
           transform: translateY(-50%);
-          background: rgba(55, 65, 81, 0.95);
-          color: white;
+          background: var(--overlay-dark-95);
+          color: var(--text-on-overlay);
           padding: 16px;
           border-radius: 8px;
-          box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+          box-shadow: var(--shadow-lg);
           min-width: 200px;
           z-index: 1000;
         }
         
         .alignment-controls h4 {
           margin: 0 0 12px 0;
-          color: #e5e7eb;
+          color: var(--text-primary);
           font-size: 14px;
         }
         
@@ -240,7 +240,7 @@ export function AlignmentHelper({ isActive }: AlignmentHelperProps) {
         .alignment-group label {
           display: block;
           font-size: 12px;
-          color: #9ca3af;
+          color: var(--text-muted);
           margin-bottom: 4px;
         }
         
@@ -251,8 +251,8 @@ export function AlignmentHelper({ isActive }: AlignmentHelperProps) {
         
         .button-group button {
           padding: 6px 8px;
-          background: #4b5563;
-          color: white;
+          background: var(--button-secondary-bg);
+          color: var(--button-secondary-text);
           border: none;
           border-radius: 4px;
           cursor: pointer;
@@ -261,20 +261,20 @@ export function AlignmentHelper({ isActive }: AlignmentHelperProps) {
         }
         
         .button-group button:hover {
-          background: #6b7280;
+          background: var(--button-secondary-hover);
         }
         
         .button-group button:active {
-          background: #374151;
+          background: var(--button-secondary-active);
         }
         
         .selection-info {
           font-size: 11px;
-          color: #9ca3af;
+          color: var(--text-muted);
           text-align: center;
           margin-top: 8px;
           padding-top: 8px;
-          border-top: 1px solid #4b5563;
+          border-top: var(--border-width) solid var(--border-primary);
         }
       `}</style>
     </div>

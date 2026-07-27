@@ -53,6 +53,10 @@
   --text-accent: var(--color-primary-light);
   --text-inverse: var(--gray-900);
   --text-inverse-primary: var(--gray-50);  /* Text on dark backgrounds */
+  --text-inverse-secondary: var(--gray-700);
+  --text-on-accent: var(--white);
+  --text-on-error: var(--white);
+  --text-on-overlay: var(--white);
   
   /* Borders - Visual separation */
   --border-primary: var(--gray-700);
@@ -99,6 +103,11 @@
   --color-accent: var(--indigo-500);
   --color-accent-hover: var(--indigo-400);
   --color-accent-active: var(--indigo-600);
+  --accent-bg: rgba(99, 102, 241, 0.2);
+  --accent-bg-subtle: rgba(99, 102, 241, 0.1);
+  --accent-glow: rgba(99, 102, 241, 0.3);
+  --accent-glow-intense: rgba(99, 102, 241, 0.5);
+  --accent-hover: var(--color-accent-hover);
   --color-on-danger: var(--text-primary);
   --color-danger-dark: var(--color-danger-active);
   
@@ -108,6 +117,10 @@
   --hover-overlay-light: rgba(255, 255, 255, 0.1);  /* For lighter hover on dark */
   --active-overlay-light: rgba(255, 255, 255, 0.15); /* For lighter active on dark */
   --focus-ring: 0 0 0 3px rgba(59, 130, 246, 0.5);
+  --focus-ring-primary: var(--focus-ring);
+  --focus-ring-accent: 0 0 0 3px rgba(99, 102, 241, 0.5);
+  --focus-ring-accent-thin: 0 0 0 2px rgba(99, 102, 241, 0.4);
+  --ring-blue: var(--focus-ring);
   --overlay-dark: var(--modal-overlay);
   
   /* Legacy aliases (deprecated - use semantic tokens above) */
@@ -176,7 +189,9 @@
   --button-disabled-text: var(--text-disabled);
   --button-disabled-border: var(--gray-700);
   --button-disabled-opacity: 0.6;
-  --font-primary: var(--font-family);
+  --font-primary: var(--font-sans);
+  --bg-disabled: var(--bg-tertiary);
+  --border-disabled: var(--border-primary);
   
   /* Input Fields */
   --input-bg: var(--bg-primary);
@@ -196,14 +211,19 @@
   
   /* Status Indicators */
   --status-success-bg: rgba(22, 163, 74, 0.1);
+  --status-success: var(--status-success-text);
   --status-success-text: var(--green-400);
   --status-success-border: var(--green-600);
   
   --status-error-bg: rgba(220, 38, 38, 0.1);
+  --status-error: var(--status-error-text);
+  --status-error-hover: var(--color-danger-hover);
   --status-error-text: var(--red-400);
   --status-error-border: var(--red-600);
   
   --status-warning-bg: rgba(249, 115, 22, 0.1);
+  --status-warning: var(--status-warning-text);
+  --status-warning-hover: var(--color-warning-hover);
   --status-warning-text: var(--orange-400);
   --status-warning-border: var(--orange-500);
   
@@ -233,12 +253,16 @@
   --shadow-xl: 0 20px 25px rgba(0, 0, 0, 0.6);
   --shadow-2xl: 0 25px 50px rgba(0, 0, 0, 0.7);
   --shadow-text-readable: 0 1px 3px rgb(0 0 0 / 80%), 0 0 6px rgb(0 0 0 / 60%);
+  --shadow-text: var(--shadow-text-readable);
   /* Directional panel edge shadows */
   --shadow-panel-left:  2px 0 8px rgba(0, 0, 0, 0.5);
   --shadow-panel-right: -2px 0 8px rgba(0, 0, 0, 0.5);
   /* Contextual shadows */
   --shadow-overlay: 0 8px 24px rgb(0 0 0 / 40%);
   --shadow-danger: 0 2px 8px rgb(239 68 68 / 30%);
+  --shadow-glow-primary: 0 0 1rem var(--color-primary-glow);
+  --shadow-glow-indigo-sm: 0 0 0.5rem var(--accent-glow);
+  --shadow-glow-warning-lg: 0 0 1.5rem var(--color-warning-overlay);
 
   /* ============================================
      EXTENDED OVERLAY SYSTEM
@@ -254,6 +278,24 @@
   --overlay-dark-light: rgba(0, 0, 0, 0.7);
   --overlay-dark-medium: rgba(0, 0, 0, 0.8);
   --overlay-dark-heavy: rgba(0, 0, 0, 0.9);
+  --overlay-bg: var(--modal-overlay);
+  --overlay-dark-20: rgba(0, 0, 0, 0.2);
+  --overlay-dark-30: rgba(0, 0, 0, 0.3);
+  --overlay-dark-80: rgba(0, 0, 0, 0.8);
+  --overlay-dark-95: rgba(0, 0, 0, 0.95);
+
+  --white-alpha-3: rgba(255, 255, 255, 0.03);
+  --white-alpha-5: rgba(255, 255, 255, 0.05);
+  --white-alpha-10: rgba(255, 255, 255, 0.1);
+  --white-alpha-20: rgba(255, 255, 255, 0.2);
+  --white-alpha-30: rgba(255, 255, 255, 0.3);
+  --white-alpha-60: rgba(255, 255, 255, 0.6);
+  --white-alpha-70: rgba(255, 255, 255, 0.7);
+  --white-alpha-80: rgba(255, 255, 255, 0.8);
+  --white-overlay-20: var(--white-alpha-20);
+  --blue-500-alpha-10: rgba(59, 130, 246, 0.1);
+  --blue-500-alpha-20: rgba(59, 130, 246, 0.2);
+  --blue-500-alpha-30: rgba(59, 130, 246, 0.3);
   
   --border-overlay-light: rgba(255, 255, 255, 0.2);
   --border-overlay-medium: rgba(255, 255, 255, 0.3);
@@ -455,13 +497,16 @@
   --spacing-2xl: var(--space-2xl);
 
   /* Typography */
-  --font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', sans-serif;
+  --font-family: var(--font-sans);
   --font-size-xs: var(--text-xs);
   --font-size-sm: var(--text-sm);
+  --font-size-md: var(--text-md);
   --font-size-base: var(--text-base);
   --font-size-lg: var(--text-lg);
   --font-size-xl: var(--text-xl);
   --font-size-2xl: var(--text-2xl);
+  --line-tight: var(--leading-tight);
+  --transition-base: var(--duration-base);
 }
 
 /* Base Component Styles */

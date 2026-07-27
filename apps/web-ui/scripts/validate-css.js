@@ -61,6 +61,7 @@ const FUNCTIONAL_PX_PATTERNS = [
   /text-shadow:[^;]*\d+px/,            // Text shadow spread values
   /filter:[^;]*blur\(\d+px\)/,         // Blur filters
   /backdrop-filter:[^;]*blur\(\d+px\)/, // Backdrop blur filters
+  /\b(?:top|right|bottom|left):\s*-\d{4,}px/, // Off-screen accessibility positioning
 ];
 
 // Properties that should use design tokens
@@ -101,9 +102,11 @@ const violations = {
   hexColors: [],
   pxSpacing: [],
   remSpacing: [],
-  numericFontWeight: []
+  numericFontWeight: [],
+  undefinedCustomProperties: []
 };
 
+const definedCustomProperties = new Set();
 let totalFiles = 0;
 let scannedFiles = 0;
 
@@ -178,13 +181,14 @@ function scanFile(filePath) {
     // Check for actionable px spacing values
     if (line.includes('px') && !isFunctionalPxUsage(line)) {
       if (hasActionableProperty(line)) {
-        const pxMatch = line.match(/:\s*[^;]*(\d+\.?\d*)px/);
-        if (pxMatch) {
+        const pxValues = [...line.matchAll(/-?(?:\d*\.)?\d+px\b/g)]
+          .map(match => match[0]);
+        if (pxValues.length > 0) {
           violations.pxSpacing.push({
             file: path.relative(process.cwd(), filePath),
             line: index + 1,
             code: line.trim(),
-            value: pxMatch[1] + 'px'
+            values: pxValues
           });
         }
       }
@@ -215,7 +219,40 @@ function scanFile(filePath) {
         values: fontWeightMatches
       });
     }
+
+    const customPropertyReferences = line.matchAll(/var\(\s*(--[a-zA-Z0-9_-]+)\s*\)/g);
+    for (const match of customPropertyReferences) {
+      const token = match[1];
+      if (!definedCustomProperties.has(token)) {
+        violations.undefinedCustomProperties.push({
+          file: path.relative(process.cwd(), filePath),
+          line: index + 1,
+          code: line.trim(),
+          token
+        });
+      }
+    }
   });
+}
+
+/**
+ * Collect custom-property definitions before validating references.
+ */
+function collectCustomPropertyDefinitions(dir) {
+  const entries = fs.readdirSync(dir, { withFileTypes: true });
+
+  for (const entry of entries) {
+    const fullPath = path.join(dir, entry.name);
+    if (entry.isDirectory()) {
+      collectCustomPropertyDefinitions(fullPath);
+    } else if (entry.isFile() && entry.name.endsWith('.css')) {
+      const content = fs.readFileSync(fullPath, 'utf8');
+      const definitions = content.matchAll(/(--[a-zA-Z0-9_-]+)\s*:/g);
+      for (const match of definitions) {
+        definedCustomProperties.add(match[1]);
+      }
+    }
+  }
 }
 
 /**
@@ -244,7 +281,8 @@ function printReport(verbose = false) {
     violations.hexColors.length +
     violations.pxSpacing.length +
     violations.remSpacing.length +
-    violations.numericFontWeight.length;
+    violations.numericFontWeight.length +
+    violations.undefinedCustomProperties.length;
   
   console.log('\n📊 CSS Validation Report');
   console.log('========================\n');
@@ -287,7 +325,7 @@ function printReport(verbose = false) {
       violations.pxSpacing.forEach(v => {
         console.log(`  ${v.file}:${v.line}`);
         console.log(`    ${v.code}`);
-        console.log(`    Value: ${v.value}`);
+        console.log(`    Values: ${v.values.join(', ')}`);
         console.log();
       });
     } else {
@@ -347,6 +385,29 @@ function printReport(verbose = false) {
       });
     }
   }
+
+  if (violations.undefinedCustomProperties.length > 0) {
+    console.log(`\n❌ Undefined Custom Properties: ${violations.undefinedCustomProperties.length}`);
+    console.log('─'.repeat(60));
+    console.log('Define each token globally or provide an explicit fallback.\n');
+
+    if (verbose) {
+      violations.undefinedCustomProperties.forEach(v => {
+        console.log(`  ${v.file}:${v.line}`);
+        console.log(`    ${v.code}`);
+        console.log(`    Undefined: ${v.token}`);
+        console.log();
+      });
+    } else {
+      const byToken = {};
+      violations.undefinedCustomProperties.forEach(v => {
+        byToken[v.token] = (byToken[v.token] || 0) + 1;
+      });
+      Object.entries(byToken).forEach(([token, count]) => {
+        console.log(`  ${token}: ${count} references`);
+      });
+    }
+  }
   
   // Summary
   if (totalViolations === 0) {
@@ -372,6 +433,7 @@ function main() {
   
   console.log('🔍 Scanning CSS files for violations...\n');
   
+  collectCustomPropertyDefinitions(SRC_DIR);
   scanDirectory(SRC_DIR);
   printReport(verbose);
   
@@ -379,7 +441,8 @@ function main() {
     violations.hexColors.length +
     violations.pxSpacing.length +
     violations.remSpacing.length +
-    violations.numericFontWeight.length;
+    violations.numericFontWeight.length +
+    violations.undefinedCustomProperties.length;
   
   process.exit(totalViolations > 0 ? 1 : 0);
 }

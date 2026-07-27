@@ -81,12 +81,13 @@ describe('CollapsedView', () => {
       expect(mockOnToggle).toHaveBeenCalledTimes(3);
     });
 
-    it('does not prevent default admin panel link behavior', async () => {
+    it('does not route the admin panel link through the panel toggle', async () => {
       render(<CollapsedView sessionCode={testSessionCode} onToggle={mockOnToggle} />);
 
       const adminLink = screen.getByRole('link', { name: 'Admin Panel' });
-      
-      // Click on admin link - should not call onToggle
+      // Keep navigation outside this unit test; jsdom does not implement it.
+      adminLink.addEventListener('click', event => event.preventDefault(), { once: true });
+
       await user.click(adminLink);
       expect(mockOnToggle).not.toHaveBeenCalled();
     });

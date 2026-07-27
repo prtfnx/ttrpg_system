@@ -14,7 +14,7 @@
   display: flex;
   justify-content: space-between;
   align-items: center;
-  font-weight: 600;
+  font-weight: var(--font-semibold);
   color: var(--text-primary);
 }
 
@@ -120,5 +120,5 @@
 
 .moveBadge.overBudget {
   color: var(--status-error-text);
-  font-weight: 600;
+  font-weight: var(--font-semibold);
 }

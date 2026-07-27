@@ -28,7 +28,7 @@
 }
 
 .title {
-  font-weight: 600;
+  font-weight: var(--font-semibold);
   font-size: var(--font-size-xs);
   color: var(--text-primary);
 }

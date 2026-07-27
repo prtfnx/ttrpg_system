@@ -106,7 +106,7 @@
   border: none;
   border-radius: var(--radius-md);
   font-size: 13px;
-  font-weight: 600;
+  font-weight: var(--font-semibold);
   cursor: pointer;
 }
 

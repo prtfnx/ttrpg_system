@@ -43,7 +43,7 @@
 }
 
 .username {
-  font-weight: 600;
+  font-weight: var(--font-semibold);
   color: var(--color-accent);
 }
 
@@ -94,7 +94,7 @@
   border-radius: var(--radius-xs);
   background: var(--color-accent);
   color: var(--text-inverse-primary);
-  font-weight: 700;
+  font-weight: var(--font-bold);
   border: none;
   font-size: 15px;
   cursor: pointer;

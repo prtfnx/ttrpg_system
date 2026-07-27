@@ -27,7 +27,7 @@
   border-radius: var(--radius-sm);
   cursor: pointer;
   font-size: var(--font-size-xs);
-  font-weight: 600;
+  font-weight: var(--font-semibold);
 }
 
 .startBtn:disabled,
@@ -45,7 +45,7 @@
   border-radius: var(--radius-sm);
   cursor: pointer;
   font-size: var(--font-size-xs);
-  font-weight: 600;
+  font-weight: var(--font-semibold);
 }
 
 .endBtn {
@@ -57,7 +57,7 @@
   border-radius: var(--radius-sm);
   cursor: pointer;
   font-size: var(--font-size-xs);
-  font-weight: 600;
+  font-weight: var(--font-semibold);
 }
 
 .revertBtn {

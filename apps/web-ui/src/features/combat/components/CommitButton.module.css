@@ -16,7 +16,7 @@
   color: var(--text-primary);
   border: none;
   border-radius: var(--radius-md);
-  font-weight: 600;
+  font-weight: var(--font-semibold);
   cursor: pointer;
   transition: filter 0.15s;
 }

@@ -155,7 +155,7 @@
 
 .badge {
   font-size: 9px;
-  font-weight: 600;
+  font-weight: var(--font-semibold);
   text-transform: uppercase;
   padding: 2px 5px;
   border-radius: 10px;
@@ -168,7 +168,7 @@
 
 .entryName {
   font-size: 13px;
-  font-weight: 500;
+  font-weight: var(--font-medium);
   flex: 1;
   min-width: 0;
   overflow: hidden;

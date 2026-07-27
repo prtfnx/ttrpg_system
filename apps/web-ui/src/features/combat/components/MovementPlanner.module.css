@@ -11,7 +11,7 @@
   justify-content: space-between;
   align-items: center;
   margin-bottom: 8px;
-  font-weight: 600;
+  font-weight: var(--font-semibold);
   color: var(--text-primary);
 }
 

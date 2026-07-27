@@ -36,7 +36,7 @@
   position: fixed;
   margin-top: var(--space-2xs);
   background: var(--bg-primary);
-  border: 2px solid var(--border-secondary);
+  border: var(--border-width-md) solid var(--border-secondary);
   border-radius: var(--radius-md);
   box-shadow: var(--shadow-overlay);
   min-width: 180px;
@@ -56,7 +56,7 @@
   cursor: pointer;
   text-align: left;
   transition: var(--transition-fast);
-  border-bottom: 1px solid var(--border-primary);
+  border-bottom: var(--border-width) solid var(--border-primary);
 }
 
 .option:last-child {

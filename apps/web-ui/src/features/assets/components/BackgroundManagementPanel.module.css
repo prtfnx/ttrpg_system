@@ -127,7 +127,7 @@
 .config-option.active {
   border-color: var(--accent-primary);
   background: linear-gradient(135deg, var(--accent-bg), var(--accent-bg-subtle));
-  box-shadow: 0 0 20px var(--accent-glow);
+  box-shadow: 0 0 var(--space-5) var(--accent-glow);
 }
 
 .config-option:disabled {
@@ -429,7 +429,7 @@
   justify-content: center;
   gap: var(--space-lg);
   color: var(--text-on-overlay);
-  backdrop-filter: blur(8px);
+  backdrop-filter: blur(var(--space-2));
 }
 
 .loading-overlay p {

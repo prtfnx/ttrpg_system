@@ -492,7 +492,7 @@ input[type="range"] {
 
 .preset-button.active {
   border-color: var(--accent-primary);
-  box-shadow: 0 0 16px var(--accent-glow);
+  box-shadow: 0 0 var(--space-4) var(--accent-glow);
   transform: scale(1.05);
   background: var(--accent-bg-subtle);
 }

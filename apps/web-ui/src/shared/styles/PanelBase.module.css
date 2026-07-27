@@ -15,7 +15,7 @@
   align-items: center;
   justify-content: center;
   z-index: 2000;
-  backdrop-filter: blur(4px);
+  backdrop-filter: blur(var(--space-1));
   animation: fadeIn 0.2s ease-out;
 }
 
@@ -273,14 +273,14 @@
   background: var(--color-success);
   border-radius: 50%;
   cursor: pointer;
-  box-shadow: 0 2px 8px var(--color-success-glow);
+  box-shadow: 0 var(--space-0-5) var(--space-2) var(--color-success-glow);
   transition: all 0.2s ease;
 }
 
 .setting-slider::-webkit-slider-thumb:hover,
 .control-slider::-webkit-slider-thumb:hover {
   transform: scale(1.1);
-  box-shadow: 0 4px 12px var(--color-success-glow);
+  box-shadow: 0 var(--space-1) var(--space-3) var(--color-success-glow);
 }
 
 .setting-slider::-moz-range-thumb,
@@ -291,7 +291,7 @@
   border-radius: 50%;
   cursor: pointer;
   border: none;
-  box-shadow: 0 2px 8px var(--color-success-glow);
+  box-shadow: 0 var(--space-0-5) var(--space-2) var(--color-success-glow);
 }
 
 /* ===== Toggle Switches ===== */
@@ -369,7 +369,7 @@
 .panel-button.primary:hover:not(:disabled) {
   background: var(--button-primary-hover);
   transform: translateY(-1px);
-  box-shadow: 0 4px 12px var(--color-primary-glow);
+  box-shadow: 0 var(--space-1) var(--space-3) var(--color-primary-glow);
 }
 
 .panel-button.success {
@@ -381,7 +381,7 @@
 .panel-button.success:hover:not(:disabled) {
   background: var(--button-success-hover);
   transform: translateY(-1px);
-  box-shadow: 0 4px 12px var(--color-success-glow);
+  box-shadow: 0 var(--space-1) var(--space-3) var(--color-success-glow);
 }
 
 .panel-button.danger {
@@ -393,7 +393,7 @@
 .panel-button.danger:hover:not(:disabled) {
   background: var(--button-danger-hover);
   transform: translateY(-1px);
-  box-shadow: 0 4px 12px var(--color-danger-glow);
+  box-shadow: 0 var(--space-1) var(--space-3) var(--color-danger-glow);
 }
 
 .panel-button.secondary {

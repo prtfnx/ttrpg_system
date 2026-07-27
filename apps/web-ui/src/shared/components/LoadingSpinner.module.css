@@ -14,21 +14,21 @@
 
 /* Size variants */
 .small .spinnerCircle {
-  width: 16px;
-  height: 16px;
+  width: var(--space-4);
+  height: var(--space-4);
   border-width: var(--border-width);
 }
 
 .medium .spinnerCircle {
-  width: 24px;
-  height: 24px;
+  width: var(--space-6);
+  height: var(--space-6);
   border-width: var(--border-width-thick);
 }
 
 .large .spinnerCircle {
   width: 40px;
   height: 40px;
-  border-width: 3px;
+  border-width: var(--border-width-thick);
 }
 
 @keyframes spin {

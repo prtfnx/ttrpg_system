@@ -1,6 +1,6 @@
 .floatingWindow {
   background: var(--bg-primary);
-  border: 1px solid var(--border-primary);
+  border: var(--border-width) solid var(--border-primary);
   border-radius: var(--radius-lg);
   box-shadow: var(--shadow-2xl);
   display: flex;
@@ -10,7 +10,7 @@
 
 .titleBar {
   background: var(--bg-elevated);
-  border-bottom: 1px solid var(--border-primary);
+  border-bottom: var(--border-width) solid var(--border-primary);
   padding: var(--space-xs) var(--space-sm);
   display: flex;
   align-items: center;
@@ -45,12 +45,12 @@
 
 .titleBtn {
   background: transparent;
-  border: 1px solid var(--border-primary);
+  border: var(--border-width) solid var(--border-primary);
   border-radius: var(--radius-sm);
   color: var(--text-secondary);
   cursor: pointer;
-  width: 20px;
-  height: 20px;
+  width: var(--space-5);
+  height: var(--space-5);
   display: flex;
   align-items: center;
   justify-content: center;

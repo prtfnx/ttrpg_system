@@ -1,6 +1,6 @@
 .panel {
   background: var(--panel-bg);
-  border: 1px solid var(--panel-border);
+  border: var(--border-width) solid var(--panel-border);
   border-radius: var(--radius-md);
   box-shadow: var(--shadow-lg);
   z-index: 200;
@@ -17,7 +17,7 @@
   background: var(--overlay-dark-medium);
   cursor: grab;
   user-select: none;
-  border-bottom: 1px solid var(--panel-border);
+  border-bottom: var(--border-width) solid var(--panel-border);
   height: 32px;
   box-sizing: border-box;
   flex-shrink: 0;

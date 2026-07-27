@@ -364,7 +364,7 @@
   gap: var(--space-xs);
   background: var(--bg-secondary);
   border: var(--border-width) solid var(--border-primary);
-  border-top: 3px solid transparent;
+  border-top: var(--border-width-thick) solid transparent;
   border-radius: var(--radius-sm);
   padding: var(--space-sm);
   cursor: pointer;
@@ -399,7 +399,7 @@
 .tableThumbnail {
   width: 100%;
   aspect-ratio: 16 / 9;
-  border: 1px solid var(--border-secondary);
+  border: var(--border-width) solid var(--border-secondary);
   border-radius: var(--radius-xs);
   background: var(--bg-tertiary);
   overflow: hidden;
@@ -413,7 +413,7 @@
   min-width: 0;
   display: flex;
   flex-direction: column;
-  gap: 1px;
+  gap: var(--space-0-25);
   cursor: pointer;
 }
 
@@ -444,8 +444,8 @@
 /* Bulk mode checkbox */
 .bulkCheckbox {
   cursor: pointer;
-  width: 14px;
-  height: 14px;
+  width: var(--space-3-5);
+  height: var(--space-3-5);
   margin: 0;
   flex-shrink: 0;
   accent-color: var(--color-info);
@@ -454,8 +454,8 @@
 /* Sync Status Badge */
 .syncBadge {
   flex-shrink: 0;
-  width: 16px;
-  height: 16px;
+  width: var(--space-4);
+  height: var(--space-4);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -480,7 +480,7 @@
 .tableCardActions {
   display: flex;
   align-items: center;
-  gap: 2px;
+  gap: var(--space-0-5);
   flex-wrap: nowrap;
   overflow: hidden;
 }
@@ -489,7 +489,7 @@
   composes: panel-button secondary from '@shared/styles/PanelBase.module.css';
   flex: 1 1 0;
   min-width: 0;
-  height: 20px;
+  height: var(--space-5);
   padding: 0;
   display: inline-flex;
   align-items: center;
@@ -523,7 +523,7 @@
 
 @keyframes slideUp {
   from {
-    transform: translateY(20px);
+    transform: translateY(var(--space-5));
     opacity: 0;
   }
   to {
@@ -611,7 +611,7 @@
 /* Settings Modal */
 .settingsModal {
   composes: panel-overlay from '@shared/styles/PanelBase.module.css';
-  backdrop-filter: blur(4px);
+  backdrop-filter: blur(var(--space-1));
 }
 
 .settingsModalContent {
@@ -636,7 +636,7 @@
 .settingsSection {
   margin-bottom: var(--space-lg);
   padding-bottom: var(--space-lg);
-  border-bottom: 1px solid var(--border-primary);
+  border-bottom: var(--border-width) solid var(--border-primary);
 }
 
 .settingsSection:last-of-type {

@@ -52,19 +52,24 @@ def reset_rate_limiters():
     yield
 
 @pytest.fixture(scope="function")
-def client(test_db):
+def client(test_db, test_db_engine, monkeypatch):
+    from utils import audit as audit_module
+
     def override_get_db():
         try:
             yield test_db
         finally:
             pass
 
+    audit_session_factory = sessionmaker(
+        autocommit=False,
+        autoflush=False,
+        bind=test_db_engine,
+    )
+    monkeypatch.setattr(audit_module, "SessionLocal", audit_session_factory)
     app.dependency_overrides[get_db] = override_get_db
 
-    with TestClient(
-        app,
-        headers={"Origin": "http://localhost:8000"},
-    ) as test_client:
+    with TestClient(app, headers={"Origin": main.settings.BASE_URL}) as test_client:
         yield test_client
 
     app.dependency_overrides.clear()

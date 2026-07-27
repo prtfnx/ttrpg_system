@@ -10,7 +10,7 @@
 
 .modal {
   background: var(--panel-bg);
-  border: 1px solid var(--border-primary);
+  border: var(--border-width) solid var(--border-primary);
   border-radius: var(--radius-md);
   box-shadow: var(--shadow-lg);
   padding: var(--spacing-lg);
@@ -57,7 +57,7 @@
 .btnSecondary {
   background: var(--overlay-dark-medium);
   color: var(--text-primary);
-  border: 1px solid var(--border-primary);
+  border: var(--border-width) solid var(--border-primary);
   border-radius: var(--radius-sm);
   padding: var(--spacing-xs) var(--spacing-sm);
   cursor: pointer;

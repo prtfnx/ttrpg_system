@@ -1,7 +1,7 @@
 .wrapper {
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: var(--space-1-5);
 }
 
 .error {
@@ -11,7 +11,7 @@
 }
 
 .btn {
-  padding: 10px 20px;
+  padding: var(--space-2-5) var(--space-5);
   background: var(--color-accent);
   color: var(--text-primary);
   border: none;
@@ -32,10 +32,10 @@
 }
 
 .cancelBtn {
-  padding: 6px 16px;
+  padding: var(--space-1-5) var(--space-4);
   background: transparent;
   color: var(--text-muted);
-  border: 1px solid var(--border-primary);
+  border: var(--border-width) solid var(--border-primary);
   border-radius: var(--radius-sm);
   cursor: pointer;
 }

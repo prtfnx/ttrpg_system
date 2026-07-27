@@ -10,32 +10,32 @@
 
 .card {
   background: var(--panel-bg);
-  border: 1px solid var(--panel-border);
+  border: var(--border-width) solid var(--panel-border);
   border-radius: var(--radius-lg);
-  padding: 24px;
+  padding: var(--space-6);
   max-width: 420px;
   width: 90%;
   display: flex;
   flex-direction: column;
-  gap: 14px;
+  gap: var(--space-3-5);
 }
 
 .title {
-  font-size: 18px;
+  font-size: var(--text-lg);
   font-weight: var(--font-bold);
   color: var(--text-primary);
   margin: 0;
 }
 
 .desc {
-  font-size: 14px;
+  font-size: var(--text-sm);
   color: var(--text-secondary);
   line-height: 1.5;
   margin: 0;
 }
 
 .result {
-  font-size: 14px;
+  font-size: var(--text-sm);
   color: var(--status-success-text);
   font-style: italic;
   margin: 0;
@@ -44,16 +44,16 @@
 .choices {
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: var(--space-2);
 }
 
 .choiceBtn {
-  padding: 10px 14px;
+  padding: var(--space-2-5) var(--space-3-5);
   background: var(--color-primary-overlay);
-  border: 1px solid var(--color-accent);
+  border: var(--border-width) solid var(--color-accent);
   border-radius: var(--radius-md);
   color: var(--text-primary);
-  font-size: 13px;
+  font-size: var(--text-xs);
   cursor: pointer;
   text-align: left;
   transition: background 0.15s;
@@ -65,6 +65,6 @@
 
 .rollHint {
   color: var(--color-accent-hover);
-  font-size: 11px;
+  font-size: var(--text-2xs);
   font-style: italic;
 }

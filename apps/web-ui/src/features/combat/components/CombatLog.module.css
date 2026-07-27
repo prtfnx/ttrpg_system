@@ -1,28 +1,28 @@
 .log {
   display: flex;
   flex-direction: column;
-  gap: 2px;
+  gap: var(--space-0-5);
   max-height: 240px;
   overflow-y: auto;
-  padding: 4px 8px;
-  font-size: 12px;
+  padding: var(--space-1) var(--space-2);
+  font-size: var(--text-xs);
   background: var(--overlay-dark-subtle);
   border-radius: var(--radius-md);
 }
 
 .empty {
   color: var(--text-muted);
-  font-size: 12px;
-  padding: 8px;
+  font-size: var(--text-xs);
+  padding: var(--space-2);
   text-align: center;
 }
 
 .entry {
   display: flex;
   flex-wrap: wrap;
-  gap: 4px;
-  padding: 2px 0;
-  border-bottom: 1px solid var(--border-primary);
+  gap: var(--space-1);
+  padding: var(--space-0-5) 0;
+  border-bottom: var(--border-width) solid var(--border-primary);
   color: var(--text-primary);
 }
 

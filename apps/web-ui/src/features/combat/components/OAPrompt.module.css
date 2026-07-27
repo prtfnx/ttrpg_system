@@ -3,7 +3,7 @@
   bottom: var(--spacing-lg);
   right: var(--spacing-lg);
   background: var(--panel-bg);
-  border: 1px solid var(--border-primary);
+  border: var(--border-width) solid var(--border-primary);
   border-radius: var(--radius-md);
   box-shadow: var(--shadow-lg);
   padding: var(--spacing-md);
@@ -36,7 +36,7 @@
 .btnSecondary {
   background: transparent;
   color: var(--text-muted);
-  border: 1px solid var(--border-primary);
+  border: var(--border-width) solid var(--border-primary);
   border-radius: var(--radius-sm);
   padding: var(--spacing-xs) var(--spacing-sm);
   cursor: pointer;

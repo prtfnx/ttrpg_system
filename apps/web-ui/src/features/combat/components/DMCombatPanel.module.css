@@ -41,7 +41,7 @@
   padding: var(--spacing-xs) var(--spacing-sm);
   background: var(--bg-secondary);
   color: var(--text-primary);
-  border: 1px solid var(--border-primary);
+  border: var(--border-width) solid var(--border-primary);
   border-radius: var(--radius-sm);
   cursor: pointer;
   font-size: var(--font-size-xs);
@@ -92,7 +92,7 @@
   flex: 1;
   padding: var(--spacing-xs) var(--spacing-sm);
   background: var(--input-bg);
-  border: 1px solid var(--input-border);
+  border: var(--border-width) solid var(--input-border);
   border-radius: var(--radius-sm);
   color: var(--input-text);
   font-size: var(--font-size-xs);
@@ -103,7 +103,7 @@
   flex: 1;
   padding: var(--spacing-xs) var(--spacing-sm);
   background: var(--input-bg);
-  border: 1px solid var(--input-border);
+  border: var(--border-width) solid var(--input-border);
   border-radius: var(--radius-sm);
   color: var(--input-text);
   font-size: var(--font-size-xs);
@@ -154,9 +154,9 @@
 }
 
 .eligibleList span {
-  padding: 2px var(--spacing-xs);
+  padding: var(--space-0-5) var(--spacing-xs);
   background: var(--bg-secondary);
-  border: 1px solid var(--border-primary);
+  border: var(--border-width) solid var(--border-primary);
   border-radius: var(--radius-sm);
   color: var(--text-primary);
   font-size: var(--font-size-xs);

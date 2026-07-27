@@ -1,13 +1,13 @@
 .badges {
   display: flex;
   flex-wrap: wrap;
-  gap: 2px;
+  gap: var(--space-0-5);
 }
 
 .badge {
-  padding: 1px 4px;
+  padding: var(--space-0-25) var(--space-1);
   border-radius: var(--radius-sm);
-  font-size: 10px;
+  font-size: var(--text-3xs);
   font-weight: bold;
   color: var(--text-primary);
   cursor: default;

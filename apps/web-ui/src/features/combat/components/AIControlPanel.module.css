@@ -1,30 +1,30 @@
 .panel {
   display: flex;
   flex-direction: column;
-  gap: 6px;
-  padding: 10px 12px;
+  gap: var(--space-1-5);
+  padding: var(--space-2-5) var(--space-3);
   background: var(--modal-overlay);
   border-radius: var(--radius-md);
 }
 
 .title {
-  font-size: 11px;
+  font-size: var(--text-2xs);
   color: var(--color-accent);
   text-transform: uppercase;
   letter-spacing: 0.08em;
   font-weight: var(--font-bold);
-  margin-bottom: 2px;
+  margin-bottom: var(--space-0-5);
 }
 
 .row {
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: var(--space-1-5);
 }
 
 .name {
   flex: 1;
-  font-size: 12px;
+  font-size: var(--text-xs);
   color: var(--text-primary);
   overflow: hidden;
   text-overflow: ellipsis;
@@ -32,30 +32,30 @@
 }
 
 .select {
-  padding: 3px 6px;
+  padding: var(--space-0-75) var(--space-1-5);
   background: var(--hover-overlay);
-  border: 1px solid var(--border-primary);
+  border: var(--border-width) solid var(--border-primary);
   border-radius: var(--radius-sm);
   color: var(--text-primary);
-  font-size: 11px;
+  font-size: var(--text-2xs);
 }
 
 .toggle {
   display: flex;
   align-items: center;
-  gap: 3px;
-  font-size: 11px;
+  gap: var(--space-0-75);
+  font-size: var(--text-2xs);
   color: var(--text-secondary);
   cursor: pointer;
   white-space: nowrap;
 }
 
 .actBtn {
-  padding: 3px 8px;
+  padding: var(--space-0-75) var(--space-2);
   background: var(--button-primary-bg);
   color: var(--button-primary-text);
   border: none;
   border-radius: var(--radius-sm);
   cursor: pointer;
-  font-size: 11px;
+  font-size: var(--text-2xs);
 }

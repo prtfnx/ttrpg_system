@@ -1,18 +1,18 @@
 .picker {
   position: absolute;
-  bottom: 12px;
-  left: 12px;
+  bottom: var(--space-3);
+  left: var(--space-3);
   z-index: 1200;
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 2px;
+  gap: var(--space-0-5);
   background: var(--overlay-dark-subtle);
   border: var(--border-width) solid rgb(255 255 255 / 12%);
   border-radius: var(--radius-lg);
-  padding: 8px 4px;
+  padding: var(--space-2) var(--space-1);
   box-shadow: var(--shadow-lg);
-  backdrop-filter: blur(8px);
+  backdrop-filter: blur(var(--space-2));
   pointer-events: all;
   min-width: 44px;
   width: 44px;
@@ -51,7 +51,7 @@
   color: var(--color-info);
   padding-top: var(--space-xs);
   border-top: var(--border-width) solid rgb(255 255 255 / 12%);
-  margin-top: 2px;
+  margin-top: var(--space-0-5);
   white-space: nowrap;
   text-align: center;
   width: 36px;

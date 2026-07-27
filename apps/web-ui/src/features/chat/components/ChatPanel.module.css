@@ -22,12 +22,12 @@
 }
 
 .historyBtn {
-  padding: 6px 10px;
+  padding: var(--space-1-5) var(--space-2-5);
   border-radius: var(--radius-xs);
   border: var(--border-width) solid var(--border-primary);
   background: var(--bg-primary);
   color: var(--text-secondary);
-  font-size: 13px;
+  font-size: var(--text-xs);
   cursor: pointer;
 }
 
@@ -37,8 +37,8 @@
 }
 
 .message {
-  margin-bottom: 6px;
-  font-size: 15px;
+  margin-bottom: var(--space-1-5);
+  font-size: var(--text-md);
   color: var(--text-primary);
 }
 
@@ -49,17 +49,17 @@
 
 .timestamp {
   color: var(--text-muted);
-  font-size: 12px;
+  font-size: var(--text-xs);
   margin-left: var(--space-sm);
 }
 
 .moderationBtn {
   margin-left: var(--space-xs);
-  padding: 2px 5px;
+  padding: var(--space-0-5) var(--space-1-25);
   border: 0;
   background: transparent;
   color: var(--text-muted);
-  font-size: 12px;
+  font-size: var(--text-xs);
   cursor: pointer;
 }
 
@@ -69,8 +69,8 @@
 }
 
 .errorMsg {
-  margin-bottom: 6px;
-  font-size: 15px;
+  margin-bottom: var(--space-1-5);
+  font-size: var(--text-md);
   color: var(--color-danger);
 }
 
@@ -86,17 +86,17 @@
   border: var(--border-width) solid var(--border-primary);
   background: var(--bg-primary);
   color: var(--text-primary);
-  font-size: 15px;
+  font-size: var(--text-md);
 }
 
 .sendBtn {
-  padding: 8px 18px;
+  padding: var(--space-2) var(--space-4-5);
   border-radius: var(--radius-xs);
   background: var(--color-accent);
   color: var(--text-inverse-primary);
   font-weight: var(--font-bold);
   border: none;
-  font-size: 15px;
+  font-size: var(--text-md);
   cursor: pointer;
 }
 

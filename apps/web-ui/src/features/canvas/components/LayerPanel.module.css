@@ -75,7 +75,7 @@
   background-color: var(--bg-primary);
   border: var(--border-width) solid var(--border-secondary);
   border-radius: var(--radius-sm);
-  padding: 4px 6px 4px 8px;
+  padding: var(--space-1) var(--space-1-5) var(--space-1) var(--space-2);
   cursor: pointer;
   transition: background var(--transition-fast), border-color var(--transition-fast);
   overflow: hidden;
@@ -89,8 +89,8 @@
 .layerItem.active {
   background-color: var(--bg-tertiary);
   border-color: var(--accent-primary);
-  border-width: 2px;
-  padding: 3px 5px 3px 7px;
+  border-width: var(--border-width-md);
+  padding: var(--space-0-75) var(--space-1-25) var(--space-0-75) var(--space-1-75);
 }
 
 /* Layer Main Content - Horizontal Layout */
@@ -103,7 +103,7 @@
 .layerInfo {
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: var(--space-1-5);
   flex: 1;
   min-width: 0;
 }
@@ -131,7 +131,7 @@
 }
 
 .spriteCount {
-  font-size: 10px;
+  font-size: var(--text-3xs);
   color: var(--text-muted);
   line-height: 1;
 }
@@ -275,7 +275,7 @@
   align-items: center;
   padding: var(--space-xs) var(--space-sm);
   background: var(--active-bg-gradient-start);
-  border: 1px solid var(--blue-500);
+  border: var(--border-width) solid var(--blue-500);
   border-radius: var(--radius-sm);
   margin-bottom: var(--space-sm);
   font-size: var(--text-xs);
@@ -290,8 +290,8 @@
 /* Hidden test button (loading state fog toggle) */
 .fogTestBtn {
   position: absolute;
-  left: 10px;
-  top: 10px;
+  left: var(--space-2-5);
+  top: var(--space-2-5);
   z-index: 1000;
 }
 

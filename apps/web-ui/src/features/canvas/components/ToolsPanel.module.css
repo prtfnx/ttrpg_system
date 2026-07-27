@@ -18,7 +18,7 @@
 /* Tab bar */
 .tabBar {
   display: flex;
-  gap: 2px;
+  gap: var(--space-0-5);
   padding: var(--space-xs);
   border-bottom: var(--border-width) solid var(--border-primary);
   flex-shrink: 0;
@@ -33,7 +33,7 @@
   cursor: pointer;
   font-size: var(--text-xs);
   font-weight: var(--font-medium);
-  padding: 3px 8px;
+  padding: var(--space-0-75) var(--space-2);
   transition: all var(--transition-fast);
   white-space: nowrap;
 }
@@ -139,7 +139,7 @@
 /* Development Controls */
 .devControls {
   background: var(--bg-tertiary);
-  border: 2px solid var(--color-warning);
+  border: var(--border-width-md) solid var(--color-warning);
   border-radius: var(--radius-md);
   padding: var(--spacing-md);
   margin-bottom: var(--spacing-lg);
@@ -186,7 +186,7 @@
   gap: var(--spacing-xs);
   margin-top: var(--spacing-md);
   padding-top: var(--spacing-md);
-  border-top: 1px solid var(--border-primary);
+  border-top: var(--border-width) solid var(--border-primary);
 }
 
 .roleToggle label {
@@ -238,12 +238,12 @@
 .layerToolbar {
   display: flex;
   flex-wrap: wrap;
-  gap: 2px;
+  gap: var(--space-0-5);
   margin-bottom: var(--space-sm);
   background: var(--bg-secondary);
-  border: 1px solid var(--border-primary);
+  border: var(--border-width) solid var(--border-primary);
   border-radius: var(--radius-sm);
-  padding: 3px;
+  padding: var(--space-0-75);
 }
 
 .layerBtn {
@@ -253,14 +253,14 @@
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 1px;
-  padding: 4px 2px;
+  gap: var(--space-0-25);
+  padding: var(--space-1) var(--space-0-5);
   background: transparent;
-  border: 1px solid transparent;
+  border: var(--border-width) solid transparent;
   border-radius: var(--radius-sm);
   color: var(--text-muted);
   cursor: pointer;
-  font-size: 9px;
+  font-size: var(--text-4xs);
   transition: background 0.1s, border-color 0.1s, color 0.1s;
 }
 
@@ -276,7 +276,7 @@
 }
 
 .layerBtnHotkey {
-  font-size: 8px;
+  font-size: var(--text-5xs);
   opacity: 0.7;
   font-weight: bold;
 }
@@ -391,8 +391,8 @@
 }
 
 .colorPresets button {
-  width: 20px;
-  height: 20px;
+  width: var(--space-5);
+  height: var(--space-5);
   border: var(--border-width) solid var(--border-primary);
   border-radius: var(--radius-sm);
   cursor: pointer;
@@ -484,9 +484,9 @@
   gap: var(--space-xs);
   width: 100%;
   padding: var(--space-xs) var(--space-sm);
-  margin-bottom: 2px;
+  margin-bottom: var(--space-0-5);
   background: transparent;
-  border: 1px solid var(--border-primary);
+  border: var(--border-width) solid var(--border-primary);
   border-radius: var(--radius-sm);
   color: var(--text-primary);
   cursor: pointer;
@@ -525,7 +525,7 @@
   right: 0;
   z-index: 999;
   background: var(--bg-elevated);
-  border: 1px solid var(--border-primary);
+  border: var(--border-width) solid var(--border-primary);
   border-radius: var(--radius-sm);
   max-height: 200px;
   overflow-y: auto;
@@ -572,7 +572,7 @@
   display: flex;
   align-items: center;
   gap: var(--space-xs);
-  margin-bottom: 2px;
+  margin-bottom: var(--space-0-5);
   font-size: var(--text-xs);
 }
 

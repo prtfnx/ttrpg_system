@@ -220,4 +220,5 @@ class TestChatCRUD:
             client_operation_id="same-client-operation",
         )
 
+        assert resolved is not None
         assert resolved.message_id == "server-2"

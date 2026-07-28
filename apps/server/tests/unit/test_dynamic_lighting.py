@@ -149,6 +149,7 @@ class TestDynamicLightingPersistence:
 
         # Verify it actually survived a DB round-trip
         fetched = crud.get_virtual_table_by_id(test_db, db_table.table_id)
+        assert fetched is not None
         assert fetched.dynamic_lighting_enabled is True
 
     def test_dm_sets_ambient_light(self, test_db, db_table):
@@ -157,6 +158,7 @@ class TestDynamicLightingPersistence:
         crud.update_virtual_table(test_db, db_table.table_id, update)
 
         fetched = crud.get_virtual_table_by_id(test_db, db_table.table_id)
+        assert fetched is not None
         assert fetched.ambient_light_level == pytest.approx(0.25)
 
     def test_dm_sets_fog_exploration_mode(self, test_db, db_table):
@@ -165,6 +167,7 @@ class TestDynamicLightingPersistence:
         crud.update_virtual_table(test_db, db_table.table_id, update)
 
         fetched = crud.get_virtual_table_by_id(test_db, db_table.table_id)
+        assert fetched is not None
         assert fetched.fog_exploration_mode == "persist_dimmed"
 
     def test_multiple_lighting_fields_updated_atomically(self, test_db, db_table):
@@ -177,6 +180,7 @@ class TestDynamicLightingPersistence:
         crud.update_virtual_table(test_db, db_table.table_id, update)
 
         fetched = crud.get_virtual_table_by_id(test_db, db_table.table_id)
+        assert fetched is not None
         assert fetched.dynamic_lighting_enabled is True
         assert fetched.fog_exploration_mode == "persist_dimmed"
         assert fetched.ambient_light_level == pytest.approx(0.5)
@@ -187,6 +191,7 @@ class TestDynamicLightingPersistence:
         crud.update_virtual_table(test_db, db_table.table_id, schemas.VirtualTableUpdate(dynamic_lighting_enabled=False))
 
         fetched = crud.get_virtual_table_by_id(test_db, db_table.table_id)
+        assert fetched is not None
         assert fetched.dynamic_lighting_enabled is False
 
 

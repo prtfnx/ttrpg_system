@@ -1,3 +1,5 @@
+# pyright: reportAttributeAccessIssue=false
+
 """
 Tests for character-related protocol handlers and dice-rolling logic.
 

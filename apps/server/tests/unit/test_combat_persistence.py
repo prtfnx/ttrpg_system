@@ -109,6 +109,7 @@ def test_accepted_command_atomically_updates_snapshot_and_journal(
         test_db,
         test_game_session.session_code,
     )
+    assert restored_data is not None
     restored = CombatState.from_dict(restored_data)
     assert restored.state_version == 1
     assert restored.combatants[0].hp == 15

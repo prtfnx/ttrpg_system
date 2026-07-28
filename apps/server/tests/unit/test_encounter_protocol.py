@@ -1,3 +1,5 @@
+# pyright: reportIncompatibleMethodOverride=false
+
 """
 Tests for _EncounterMixin protocol handlers.
 

@@ -1,3 +1,5 @@
+# pyright: reportOptionalMemberAccess=false
+
 from unittest.mock import AsyncMock, MagicMock, patch
 
 from service.attack_resolver import AttackResult

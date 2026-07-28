@@ -80,6 +80,7 @@ class TestAuditEvent:
                 "account_changed",
                 details={"nested": {"token": "secret-token", "field": "safe"}},
             )
+        assert row.details_json is not None
         payload = json.loads(row.details_json)
         assert row.request_id == "req-12345678"
         assert row.trace_id == "a" * 32

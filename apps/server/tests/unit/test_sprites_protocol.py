@@ -1,3 +1,5 @@
+# pyright: reportAttributeAccessIssue=false
+
 """
 Tests for the _SpritesMixin protocol handlers.
 

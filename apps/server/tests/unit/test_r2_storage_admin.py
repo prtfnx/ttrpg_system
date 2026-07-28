@@ -96,11 +96,13 @@ def test_apply_configuration_uses_only_production_origin(tmp_path):
         lifecycle_path,
     )
 
+    assert client.cors is not None
     rules = client.cors["CORSConfiguration"]["CORSRules"]
     assert rules[0]["AllowedOrigins"] == [
         "https://admin.example.com",
         "https://table.example.com",
     ]
+    assert client.lifecycle is not None
     assert client.lifecycle["LifecycleConfiguration"]["Rules"][0]["ID"] == "pending"
     assert result["origins"] == rules[0]["AllowedOrigins"]
 

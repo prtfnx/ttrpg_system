@@ -177,6 +177,7 @@ class TestGridPersistence:
         crud.update_virtual_table(test_db, db_table.table_id, update)
 
         fetched = crud.get_virtual_table_by_id(test_db, db_table.table_id)
+        assert fetched is not None
         assert fetched.grid_cell_px == pytest.approx(100.0)
         # Other fields unchanged
         assert fetched.cell_distance == pytest.approx(5.0)
@@ -188,6 +189,7 @@ class TestGridPersistence:
         crud.update_virtual_table(test_db, db_table.table_id, update)
 
         fetched = crud.get_virtual_table_by_id(test_db, db_table.table_id)
+        assert fetched is not None
         assert fetched.cell_distance == pytest.approx(10.0)
         assert fetched.grid_cell_px == pytest.approx(50.0)
 
@@ -197,6 +199,7 @@ class TestGridPersistence:
         crud.update_virtual_table(test_db, db_table.table_id, update)
 
         fetched = crud.get_virtual_table_by_id(test_db, db_table.table_id)
+        assert fetched is not None
         assert fetched.distance_unit == "m"
         assert fetched.cell_distance == pytest.approx(1.5)
 
@@ -210,6 +213,7 @@ class TestGridPersistence:
         crud.update_virtual_table(test_db, db_table.table_id, update)
 
         fetched = crud.get_virtual_table_by_id(test_db, db_table.table_id)
+        assert fetched is not None
         assert fetched.grid_cell_px == pytest.approx(75.0)
         assert fetched.cell_distance == pytest.approx(5.0)
         assert fetched.distance_unit == "ft"
@@ -220,6 +224,7 @@ class TestGridPersistence:
         crud.update_virtual_table(test_db, db_table.table_id, schemas.VirtualTableUpdate(dynamic_lighting_enabled=True))
 
         fetched = crud.get_virtual_table_by_id(test_db, db_table.table_id)
+        assert fetched is not None
         assert fetched.grid_cell_px == pytest.approx(80.0)
         assert fetched.dynamic_lighting_enabled is True
 

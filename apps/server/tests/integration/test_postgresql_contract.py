@@ -37,6 +37,7 @@ pytestmark = [
 
 @pytest.fixture(scope="module")
 def postgresql_engine():
+    assert POSTGRESQL_URL is not None
     normalized_url = normalize_database_url(POSTGRESQL_URL)
     assert normalized_url.database is not None
     assert (
@@ -173,7 +174,9 @@ def test_postgresql_enforces_named_membership_uniqueness(postgresql_engine):
                         membership,
                     )
 
-            assert error.value.orig.diag.constraint_name == "uq_gameplayer_session_user"
+            diagnostic = getattr(error.value.orig, "diag", None)
+            assert diagnostic is not None
+            assert diagnostic.constraint_name == "uq_gameplayer_session_user"
         finally:
             transaction.rollback()
 
@@ -198,10 +201,9 @@ def test_postgresql_rejects_invalid_foreign_keys(postgresql_engine):
                         },
                     )
 
-            assert (
-                error.value.orig.diag.constraint_name
-                == "fk_game_sessions_owner_id_users"
-            )
+            diagnostic = getattr(error.value.orig, "diag", None)
+            assert diagnostic is not None
+            assert diagnostic.constraint_name == "fk_game_sessions_owner_id_users"
         finally:
             transaction.rollback()
 
@@ -637,13 +639,27 @@ def test_postgresql_orm_round_trip_covers_core_persistence_families(
         db.add(asset_link)
         db.flush()
 
-        assert db.get(models.User, owner.id).username == owner.username
-        assert db.get(models.VirtualTable, table.id).table_id == table.table_id
-        assert db.get(models.Entity, entity.id).character_id == character.character_id
-        assert db.get(models.ChatMessage, chat.id).client_operation_id == f"chat-{suffix}"
-        assert db.get(models.CombatActionJournal, combat_action.id).state_version == 1
-        assert db.get(models.ChoiceEncounterEvent, choice_event.id).sequence == 1
-        assert db.get(models.SessionAsset, asset_link.id).asset_id == asset.id
+        stored_owner = db.get(models.User, owner.id)
+        stored_table = db.get(models.VirtualTable, table.id)
+        stored_entity = db.get(models.Entity, entity.id)
+        stored_chat = db.get(models.ChatMessage, chat.id)
+        stored_action = db.get(models.CombatActionJournal, combat_action.id)
+        stored_choice = db.get(models.ChoiceEncounterEvent, choice_event.id)
+        stored_asset_link = db.get(models.SessionAsset, asset_link.id)
+        assert stored_owner is not None
+        assert stored_table is not None
+        assert stored_entity is not None
+        assert stored_chat is not None
+        assert stored_action is not None
+        assert stored_choice is not None
+        assert stored_asset_link is not None
+        assert stored_owner.username == owner.username
+        assert stored_table.table_id == table.table_id
+        assert stored_entity.character_id == character.character_id
+        assert stored_chat.client_operation_id == f"chat-{suffix}"
+        assert stored_action.state_version == 1
+        assert stored_choice.sequence == 1
+        assert stored_asset_link.asset_id == asset.id
     finally:
         db.close()
         if transaction.is_active:

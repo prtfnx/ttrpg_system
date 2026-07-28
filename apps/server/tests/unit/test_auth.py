@@ -1,3 +1,5 @@
+# pyright: reportArgumentType=false
+
 from datetime import timedelta
 from types import SimpleNamespace
 from unittest.mock import MagicMock

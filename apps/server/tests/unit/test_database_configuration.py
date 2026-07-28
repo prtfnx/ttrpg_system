@@ -58,6 +58,7 @@ def test_migration_engine_prefers_dedicated_url(tmp_path):
 
     engine = create_migration_engine(settings)
     try:
+        assert engine.url.database is not None
         assert Path(engine.url.database) == migration_database
     finally:
         engine.dispose()

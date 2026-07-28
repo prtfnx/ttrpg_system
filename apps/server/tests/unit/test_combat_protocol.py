@@ -312,7 +312,9 @@ class TestCombatCommand:
         assert resp.data["applied"][0]["action_type"] == "attack"
         assert proto.sent[0][0].type == MessageType.ACTION_RESULT
         assert proto.sent[0][1] == "c2"
-        assert CombatEngine.get_state("TST").combatants[0].has_action is False
+        live_state = CombatEngine.get_state("TST")
+        assert live_state is not None
+        assert live_state.combatants[0].has_action is False
 
     async def test_duplicate_command_returns_only_to_requesting_client(self):
         CombatEngine._active.pop("TST", None)
@@ -413,7 +415,9 @@ class TestCombatCommand:
         )
 
         assert resp.type == MessageType.ACTION_RESULT
-        assert CombatEngine.get_state("TST").combatants[0].movement_remaining == 25
+        live_state = CombatEngine.get_state("TST")
+        assert live_state is not None
+        assert live_state.combatants[0].movement_remaining == 25
         assert resp.data["applied"][0]["result"]["cost_ft"] == 5
         assert resp.data["applied"][0]["result"]["declared_cost_ft"] == 30
         proto.actions.move_sprite.assert_awaited_once()

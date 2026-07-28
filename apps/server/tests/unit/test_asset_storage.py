@@ -1,3 +1,5 @@
+# pyright: reportAttributeAccessIssue=false
+
 import base64
 
 import xxhash
@@ -239,6 +241,7 @@ async def test_upload_rejects_svg_before_presigning(
     )
 
     assert response.success is False
+    assert response.error is not None
     assert "Only raster images" in response.error
 
 

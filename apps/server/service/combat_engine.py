@@ -777,7 +777,7 @@ class CombatEngine:
             return {'error': 'No action remaining'}
 
         targets = [x for x in state.combatants if x.combatant_id in target_ids]
-        resolver = SpellResolver(state.settings.rules if hasattr(state.settings, 'rules') else SessionRules(session_id=session_id))
+        resolver = SpellResolver(SessionRules(session_id=session_id))
         result = resolver.resolve_spell(
             caster, spell_name, spell_level, targets,
             damage_formula=damage_formula, save_ability=save_ability,

@@ -58,7 +58,7 @@ class EncounterRollResult:
     success: bool
 
     def to_dict(self) -> dict:
-        roll_dict = self.roll.to_dict() if hasattr(self.roll, "to_dict") else dict(self.roll)
+        roll_dict = self.roll.to_dict() if isinstance(self.roll, DiceRollResult) else dict(self.roll)
         return {
             "player_id": self.player_id,
             "choice_id": self.choice_id,

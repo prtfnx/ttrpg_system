@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import re
-from collections.abc import Callable, Iterable, Mapping
+from collections.abc import Callable, Iterable, Mapping, Sequence
 from dataclasses import dataclass
 from typing import Any
 
@@ -65,7 +65,7 @@ class CombatantFactory:
     def build_many(
         self,
         entity_ids: list[str],
-        client_payloads: list[Mapping[str, Any]] | None = None,
+        client_payloads: Sequence[Mapping[str, Any]] | None = None,
         context: CombatantFactoryContext | None = None,
     ) -> list[dict[str, Any]]:
         by_entity = {

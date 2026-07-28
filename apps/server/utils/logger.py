@@ -137,10 +137,7 @@ class JsonFormatter(logging.Formatter):
 
 
 class TextFormatter(logging.Formatter):
-    def converter(self, timestamp: float | None) -> time.struct_time:
-        if timestamp is None:
-            return datetime.now(timezone.utc).timetuple()
-        return datetime.fromtimestamp(timestamp, timezone.utc).timetuple()
+    converter = time.gmtime
 
     def __init__(self) -> None:
         super().__init__("%(asctime)sZ - %(name)s - %(levelname)s - %(message)s")

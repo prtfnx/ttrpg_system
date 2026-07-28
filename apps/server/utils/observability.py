@@ -286,7 +286,9 @@ def install_database_metrics(engine: Any, session_factory: Any) -> None:
         ):
             value = getattr(pool, method, None)
             if callable(value):
-                DB_POOL_CONNECTIONS.labels(state).set(max(value(), 0))
+                raw_value = value()
+                if isinstance(raw_value, (int, float)):
+                    DB_POOL_CONNECTIONS.labels(state).set(max(raw_value, 0))
 
     @event.listens_for(engine, "checkout")
     def pool_checkout(dbapi_connection, connection_record, connection_proxy):

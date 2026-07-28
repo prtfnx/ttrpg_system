@@ -10,6 +10,8 @@ import type { WallData } from '@/store';
 import type { Character } from '@/types';
 import { useAssetCharacterCache } from '@features/assets/services/assetCache';
 import { sendSpriteMovement } from '@features/combat/services/movementCommand.service';
+import { useCombatStore } from '@features/combat/stores/combatStore';
+import { useOAStore } from '@features/combat/stores/oaStore';
 import { getCurrentWasmRuntime } from '@lib/wasm/runtime';
 import { logger, protocolLogger } from '@shared/utils/logger';
 import { showToast } from '@shared/utils/toast';
@@ -327,7 +329,6 @@ export class WebClientProtocol {
 
     // Combat.
     const setCombat = async (data: unknown) => {
-      const { useCombatStore } = await import('@features/combat/stores/combatStore');
       const d = data as Record<string, unknown> | null;
       const maybeCombat = d && typeof d === 'object' && 'combat' in d ? d.combat : data;
       if (maybeCombat === null) {
@@ -347,7 +348,6 @@ export class WebClientProtocol {
     this.registerHandler(MessageType.TURN_START, async (m) => setCombat(m.data));
     this.registerHandler(MessageType.INITIATIVE_ORDER, async (m) => setCombat(m.data));
     this.registerHandler(MessageType.CONDITIONS_SYNC, async (m) => {
-      const { useCombatStore } = await import('@features/combat/stores/combatStore');
       const d = m.data as { combatant_id: string; conditions: never[] };
       if (d?.combatant_id) useCombatStore.getState().setConditions(d.combatant_id, d.conditions);
     });
@@ -366,12 +366,10 @@ export class WebClientProtocol {
     });
     // Opportunity attacks.
     this.registerHandler(MessageType.OPPORTUNITY_ATTACK_WARNING, async (m) => {
-      const { useOAStore } = await import('@features/combat/stores/oaStore');
       const d = m.data as { entity_id: string; triggers: Array<{ combatant_id: string; name: string }> };
       useOAStore.getState().setWarning(d?.entity_id ?? '', d?.triggers ?? []);
     });
     this.registerHandler(MessageType.OPPORTUNITY_ATTACK_PROMPT, async (m) => {
-      const { useOAStore } = await import('@features/combat/stores/oaStore');
       const d = m.data as { target_combatant_id: string; target_name: string; attacker_combatant_id: string };
       useOAStore.getState().setPrompt(d);
     });
@@ -387,7 +385,6 @@ export class WebClientProtocol {
     // Planning commit.
     this.registerHandler(MessageType.ACTION_RESULT, async (m) => {
       const { usePlanningStore } = await import('@features/combat/stores/planningStore');
-      const { useOAStore } = await import('@features/combat/stores/oaStore');
       const data = m.data as { sequence_id?: number; applied?: unknown[]; combat?: unknown };
       if (data?.applied?.length) {
         usePlanningStore.getState().clearQueue();
@@ -407,7 +404,6 @@ export class WebClientProtocol {
           && (item as { action_type?: string }).action_type === 'end_combat'
         ));
         if (endedCombat) {
-          const { useCombatStore } = await import('@features/combat/stores/combatStore');
           useCombatStore.getState().setCombat(null);
         }
         const coverZoneAdded = data.applied.find((item) => (
@@ -454,7 +450,6 @@ export class WebClientProtocol {
         };
       };
       if (data?.details?.code === 'opportunity_attack_warning') {
-        const { useOAStore } = await import('@features/combat/stores/oaStore');
         useOAStore.getState().setWarning(data.details.entity_id ?? '', data.details.triggers ?? []);
         showToast.warning(data?.reason ?? 'Opportunity attack warning');
         return;

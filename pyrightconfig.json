@@ -52,8 +52,8 @@
   "reportUntypedFunctionDecorator": "none",
   "reportUntypedClassDecorator": "none",
   "reportUntypedBaseClass": "none",
-  "reportConstantRedefinition": "warning",
+  "reportConstantRedefinition": "none",
   "stubPath": "",
   "venvPath": ".",
-  "venv": ".venv"
+  "venv": ".venv311"
 }

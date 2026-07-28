@@ -1,5 +1,5 @@
 {
-  "python.defaultInterpreterPath": "${workspaceFolder}/.venv/Scripts/python.exe",
+  "python.defaultInterpreterPath": "${workspaceFolder}/.venv311/Scripts/python.exe",
   "python.analysis.typeCheckingMode": "basic",
   "python.analysis.diagnosticMode": "workspace",
   "python.analysis.exclude": [
@@ -32,14 +32,12 @@
     "reportUntypedFunctionDecorator": "none",
     "reportUntypedClassDecorator": "none",
     "reportUntypedBaseClass": "none",
-    "reportConstantRedefinition": "warning",
+    "reportConstantRedefinition": "none",
     "reportArgumentType": "warning",
     "reportCallIssue": "warning",
     "reportAttributeAccessIssue": "warning"
   },
-  "python.linting.enabled": true,
-  "python.linting.pylintEnabled": false,
-  "python.linting.flake8Enabled": false,
+  "pylint.enabled": false,
   "files.exclude": {
     "**/__pycache__": true,
     "**/.pytest_cache": true,

@@ -176,14 +176,22 @@ class GameServer:
     """Main game server that uses ServerProtocol (legacy — real server is apps/server)"""
     def __init__(self, table_manager: Optional[TableManager] = None):
         self.table_manager = table_manager or TableManager()
+        self.clients: Dict[str, asyncio.StreamWriter] = {}
+        self.client_addresses: Dict[str, str] = {}
         try:
             from service.server_protocol import ServerProtocol  # noqa: F811 — lives in apps/server
-            self.protocol = ServerProtocol(self.table_manager)
+            self.protocol = ServerProtocol(
+                self.table_manager,
+                transport_send=self._send_protocol_message,
+            )
         except ImportError:
             self.protocol = None  # type: ignore[assignment]
             logger.warning("ServerProtocol not available — GameServer running without protocol handler")
-        self.clients: Dict[str, asyncio.StreamWriter] = {}
-        self.client_addresses: Dict[str, str] = {}
+
+    async def _send_protocol_message(self, message: Message, client_id: str) -> None:
+        writer = self.clients.get(client_id)
+        if writer is not None:
+            await self._send_to_client(writer, message)
 
     async def handle_client(self, reader: asyncio.StreamReader, writer: asyncio.StreamWriter):
         """Handle individual client connection with proper message parsing"""
@@ -234,7 +242,8 @@ class GameServer:
                             logger.error("ServerProtocol not available")
                             continue
                         try:
-                            await self.protocol.handle_client(client_id, writer, message_str)
+                            message = Message.from_json(message_str)
+                            await self.protocol.handle_client(message, client_id)
                         except json.JSONDecodeError as e:
                             logger.error(f"Invalid JSON from {client_id}: {e}")
                             error_msg = Message(MessageType.ERROR, {'error': 'Invalid JSON format'})
@@ -268,10 +277,6 @@ class GameServer:
     async def _cleanup_client(self, client_id: str, writer: asyncio.StreamWriter):
         """Clean up client connection"""
         logger.info(f"Cleaning up client {client_id}")
-
-        # Remove from protocol
-        if self.protocol:
-            self.protocol.disconnect_client(client_id)
 
         # Remove from our tracking
         self.clients.pop(client_id, None)

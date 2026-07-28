@@ -1278,10 +1278,10 @@ class ActionsCore(AsyncActionsProtocol):
             proficiency_bonus = int(inner.get('proficiencyBonus') or 2)
             if not isinstance(abilities, dict) or not 0 <= proficiency_bonus <= 10:
                 return ActionResult(False, 'Character roll statistics are invalid')
-            skills = inner.get('skills') if isinstance(inner.get('skills'), dict) else {}
-            saving_throws = (
-                inner.get('savingThrows') if isinstance(inner.get('savingThrows'), dict) else {}
-            )
+            raw_skills = inner.get('skills')
+            skills = raw_skills if isinstance(raw_skills, dict) else {}
+            raw_saving_throws = inner.get('savingThrows')
+            saving_throws = raw_saving_throws if isinstance(raw_saving_throws, dict) else {}
             ability_aliases = {
                 'strength': 'str', 'str': 'str',
                 'dexterity': 'dex', 'dex': 'dex',

@@ -47,9 +47,14 @@ button {
   font-family: inherit;
   cursor: pointer;
 }
-button:focus,
-button:focus-visible {
-  outline: var(--space-xs) auto -webkit-focus-ring-color;
+
+:where(button, a, input, select, textarea, [role='button'], [tabindex]):focus-visible {
+  outline: var(--border-width-md) solid var(--accent-primary) !important;
+  outline-offset: var(--border-width-md);
+}
+
+:where(button, input, select, textarea):disabled {
+  cursor: not-allowed;
 }
 
 /* Force dark theme - disable light mode media query */

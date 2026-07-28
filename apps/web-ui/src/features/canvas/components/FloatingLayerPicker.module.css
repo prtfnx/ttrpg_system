@@ -8,7 +8,7 @@
   align-items: center;
   gap: var(--space-0-5);
   background: var(--overlay-dark-subtle);
-  border: var(--border-width) solid rgb(255 255 255 / 12%);
+  border: var(--border-width) solid var(--white-alpha-10);
   border-radius: var(--radius-lg);
   padding: var(--space-2) var(--space-1);
   box-shadow: var(--shadow-lg);
@@ -50,7 +50,7 @@
   font-weight: var(--font-semibold);
   color: var(--color-info);
   padding-top: var(--space-xs);
-  border-top: var(--border-width) solid rgb(255 255 255 / 12%);
+  border-top: var(--border-width) solid var(--white-alpha-10);
   margin-top: var(--space-0-5);
   white-space: nowrap;
   text-align: center;

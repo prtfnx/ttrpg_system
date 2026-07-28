@@ -46,9 +46,12 @@ class GameWSUser(User):
     abstract = False
 
     def on_start(self):
-        origin = ORIGIN or self.host
+        host = self.host
+        if host is None:
+            raise RuntimeError("Locust host is required")
+        origin = ORIGIN or host
         self.ws = websocket.create_connection(
-            _websocket_url(self.host, SESSION),
+            _websocket_url(host, SESSION),
             cookie=f"token={TOKEN}",
             origin=origin,
             timeout=10,

@@ -85,6 +85,7 @@ def _state() -> CombatState:
 
 def test_dm_receives_full_combat_state():
     view = CombatStatePresenter.for_client(_state(), 'owner', user_id=1)
+    assert view is not None
 
     npc = next(c for c in view['combatants'] if c['combatant_id'] == 'npc-1')
     hidden = next(c for c in view['combatants'] if c['combatant_id'] == 'npc-hidden')
@@ -97,6 +98,7 @@ def test_dm_receives_full_combat_state():
 
 def test_player_receives_filtered_npc_state_and_no_hidden_npcs():
     view = CombatStatePresenter.for_client(_state(), 'player', user_id=7)
+    assert view is not None
 
     ids = {c['combatant_id'] for c in view['combatants']}
     npc = next(c for c in view['combatants'] if c['combatant_id'] == 'npc-1')
@@ -123,6 +125,7 @@ def test_player_receives_filtered_npc_state_and_no_hidden_npcs():
 
 def test_spectator_does_not_receive_control_ownership():
     view = CombatStatePresenter.for_client(_state(), 'spectator', user_id=None)
+    assert view is not None
 
     pc = next(c for c in view['combatants'] if c['combatant_id'] == 'pc-1')
     assert 'controlled_by' not in pc
@@ -133,6 +136,7 @@ def test_boolean_hp_visibility_is_normalized():
     state.settings.show_npc_hp_to_players = False
 
     view = CombatStatePresenter.for_client(state, 'player', user_id=7)
+    assert view is not None
 
     npc = next(c for c in view['combatants'] if c['combatant_id'] == 'npc-1')
     assert 'hp' not in npc
@@ -144,6 +148,7 @@ def test_player_receives_npc_ac_when_session_setting_allows_it():
     state.settings.show_npc_ac_to_players = True
 
     view = CombatStatePresenter.for_client(state, 'player', user_id=7)
+    assert view is not None
 
     npc = next(c for c in view['combatants'] if c['combatant_id'] == 'npc-1')
     assert npc['armor_class'] == 13

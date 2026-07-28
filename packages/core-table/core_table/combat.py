@@ -201,7 +201,7 @@ class CombatSettings:
     auto_sort_initiative: bool = True
     skip_defeated: bool = True
     allow_player_end_turn: bool = True
-    show_npc_hp_to_players: str = "descriptor"
+    show_npc_hp_to_players: str | bool = "descriptor"
     show_npc_ac_to_players: bool = False
     group_initiative: bool = False
     ai_auto_act: bool = False

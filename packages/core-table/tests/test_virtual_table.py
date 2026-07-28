@@ -14,6 +14,11 @@ def add_entity(table: VirtualTable, x: int = 0, y: int = 0, layer: str = 'tokens
     return table.add_entity(data)
 
 
+def entity_id(entity: Entity) -> int:
+    assert entity.entity_id is not None
+    return entity.entity_id
+
+
 class TestVirtualTableInit:
     def test_defaults(self):
         t = make_table()
@@ -83,7 +88,7 @@ class TestAddEntity:
         t = make_table()
         e1 = add_entity(t, x=0, y=0)
         e2 = add_entity(t, x=1, y=1)
-        assert e2.entity_id == e1.entity_id + 1
+        assert entity_id(e2) == entity_id(e1) + 1
 
 
 class TestFindEntity:
@@ -102,13 +107,13 @@ class TestMoveEntity:
     def test_move_to_valid_position(self):
         t = make_table()
         e = add_entity(t, x=0, y=0)
-        t.move_entity(e.entity_id, (3, 3))
+        t.move_entity(entity_id(e), (3, 3))
         assert e.position == (3, 3)
 
     def test_old_position_cleared(self):
         t = make_table()
         e = add_entity(t, x=0, y=0)
-        t.move_entity(e.entity_id, (1, 1))
+        t.move_entity(entity_id(e), (1, 1))
         assert t.grid['tokens'][0][0] is None
 
     def test_move_occupied_raises_and_rolls_back(self):
@@ -116,7 +121,7 @@ class TestMoveEntity:
         e1 = add_entity(t, x=0, y=0)
         add_entity(t, x=1, y=1)
         with pytest.raises(ValueError, match='occupied'):
-            t.move_entity(e1.entity_id, (1, 1))
+            t.move_entity(entity_id(e1), (1, 1))
         assert e1.position == (0, 0)
 
     def test_move_missing_entity_raises(self):
@@ -129,20 +134,20 @@ class TestRemoveEntity:
     def test_entity_removed_from_dict(self):
         t = make_table()
         e = add_entity(t)
-        t.remove_entity(e.entity_id)
+        t.remove_entity(entity_id(e))
         assert e.entity_id not in t.entities
 
     def test_sprite_mapping_cleaned_up(self):
         t = make_table()
         e = add_entity(t)
         sid = e.sprite_id
-        t.remove_entity(e.entity_id)
+        t.remove_entity(entity_id(e))
         assert sid not in t.sprite_to_entity
 
     def test_grid_cell_cleared(self):
         t = make_table()
         e = add_entity(t, x=2, y=3)
-        t.remove_entity(e.entity_id)
+        t.remove_entity(entity_id(e))
         assert t.grid['tokens'][3][2] is None
 
     def test_remove_missing_raises(self):
@@ -152,7 +157,7 @@ class TestRemoveEntity:
 
 
 class TestWalls:
-    def _wall(self, wall_id: str = None) -> Wall:
+    def _wall(self, wall_id: str | None = None) -> Wall:
         return Wall(table_id='test', x1=0, y1=0, x2=10, y2=0, wall_id=wall_id or str(uuid.uuid4()))
 
     def test_add_wall(self):
@@ -175,7 +180,9 @@ class TestWalls:
         w = self._wall()
         t.add_wall(w)
         t.update_wall(w.wall_id, {'door_state': 'open'})
-        assert t.get_wall(w.wall_id).door_state == 'open'
+        updated = t.get_wall(w.wall_id)
+        assert updated is not None
+        assert updated.door_state == 'open'
 
     def test_remove_wall(self):
         t = make_table()

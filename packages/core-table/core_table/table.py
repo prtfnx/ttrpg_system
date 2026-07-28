@@ -245,7 +245,7 @@ class VirtualTable:
             return 10.0
         return self.grid_cell_px / self.cell_distance
 
-    def add_entity(self, entity_data: Dict[str, Any]) -> Optional['Entity']:
+    def add_entity(self, entity_data: Dict[str, Any]) -> 'Entity':
         """Add entity and return it"""
         position = entity_data.get('position')
         if position:

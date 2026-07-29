@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { useFormContext } from 'react-hook-form';
+import clsx from 'clsx';
 import type { Feat, FeatChoice } from '../../services/featSelection.service';
 import { featSelectionService } from '../../services/featSelection.service';
 import styles from './FeatSelectionStep.module.css';
@@ -41,26 +42,33 @@ const FeatDisplay: React.FC<FeatDisplayProps> = ({
   const analysis = featSelectionService.analyzeFeatVsASI(feat, characterAbilityScores, characterClass);
 
   return (
-    <div className={`feat-card ${isSelected ? 'selected' : ''}`}>
-      <div className="feat-header" onClick={onSelect}>
-        <div className="feat-info">
-          <h4 className={styles.featName}>{feat.name}</h4>
-          <div className="feat-tags">
-            {feat.tags.map((tag, index) => (
-              <span key={index} className={`feat-tag feat-tag-${tag.toLowerCase()}`}>
-                {tag}
-              </span>
-            ))}
-            {feat.is_half_feat && (
-              <span className="feat-tag feat-tag-half">Half Feat</span>
-            )}
-          </div>
-          <span className="feat-source">Source: {feat.source}</span>
-        </div>
-        <div className="feat-controls">
+    <div className={clsx(styles.featCard, isSelected && styles.featCardSelected)}>
+      <div className={styles.featHeader}>
+        <button
+          type="button"
+          className={styles.featSelectButton}
+          onClick={onSelect}
+          aria-pressed={isSelected}
+        >
+          <span className={styles.featInfo}>
+            <span className={styles.featName}>{feat.name}</span>
+            <span className={styles.featTags}>
+              {feat.tags.map((tag, index) => (
+                <span key={index} className={clsx(styles.featTag, styles[`featTag${tag}`])}>
+                  {tag}
+                </span>
+              ))}
+              {feat.is_half_feat && (
+                <span className={clsx(styles.featTag, styles.featTagHalf)}>Half Feat</span>
+              )}
+            </span>
+            <span className={styles.featSource}>Source: {feat.source}</span>
+          </span>
+        </button>
+        <div className={styles.featControls}>
           <button
             type="button"
-            className="details-toggle"
+            className={styles.detailsToggle}
             onClick={(e) => {
               e.stopPropagation();
               setShowDetails(!showDetails);
@@ -85,15 +93,15 @@ const FeatDisplay: React.FC<FeatDisplayProps> = ({
       )}
 
       {showDetails && (
-        <div className="feat-details">
-          <div className="feat-benefits">
+        <div className={styles.featDetails}>
+          <div className={styles.featBenefits}>
             <h5>Benefits:</h5>
             <ul>
               {feat.benefits.map((benefit, index) => (
-                <li key={index} className={`benefit-${benefit.type}`}>
+                <li key={index}>
                   <strong>{benefit.type.replace('_', ' ').toUpperCase()}:</strong> {benefit.description}
                   {benefit.choices && (
-                    <div className="benefit-choices">
+                    <div className={styles.benefitChoices}>
                       Choose from: {benefit.choices.join(', ')}
                     </div>
                   )}
@@ -102,27 +110,27 @@ const FeatDisplay: React.FC<FeatDisplayProps> = ({
             </ul>
           </div>
 
-          <div className="feat-analysis">
+          <div className={styles.featAnalysis}>
             <button
               type="button"
-              className="analysis-toggle"
+              className={styles.analysisToggle}
               onClick={() => setShowAnalysis(!showAnalysis)}
             >
               {showAnalysis ? 'Hide' : 'Show'} Feat vs ASI Analysis
             </button>
 
             {showAnalysis && (
-              <div className="analysis-content">
-                <div className="recommendation">
-                  <h6>Recommendation: <span className={`rec-${analysis.recommendation}`}>
+              <div className={styles.analysisContent}>
+                <div className={styles.recommendation}>
+                  <h6>Recommendation: <span className={styles[`rec${analysis.recommendation[0].toUpperCase()}${analysis.recommendation.slice(1)}`]}>
                     {analysis.recommendation === 'feat' ? 'Take This Feat' : 
                      analysis.recommendation === 'asi' ? 'Take ASI Instead' : 'Either Option'}
                   </span></h6>
-                  <p className="reasoning">{analysis.reasoning}</p>
+                  <p className={styles.reasoning}>{analysis.reasoning}</p>
                 </div>
                 
-                <div className="comparison">
-                  <div className="comparison-column">
+                <div className={styles.comparison}>
+                  <div className={styles.comparisonColumn}>
                     <h6>Feat Benefits:</h6>
                     <ul>
                       {analysis.featBenefits.map((benefit, index) => (
@@ -131,7 +139,7 @@ const FeatDisplay: React.FC<FeatDisplayProps> = ({
                     </ul>
                   </div>
                   
-                  <div className="comparison-column">
+                  <div className={styles.comparisonColumn}>
                     <h6>ASI Benefits:</h6>
                     <ul>
                       {analysis.asiBenefits.map((benefit, index) => (
@@ -182,18 +190,18 @@ const ASISelection: React.FC<ASISelectionProps> = ({ currentScores, onASIChange,
   const usedPoints = Object.values(improvements).reduce((sum, val) => sum + val, 0);
 
   return (
-    <div className="asi-selection">
-      <h3>Ability Score Improvement</h3>
-      <p className="asi-description">
+    <div className={styles.asiSelection}>
+      <h3 className={styles.sectionTitle}>Ability Score Improvement</h3>
+      <p className={styles.asiDescription}>
         You can increase your ability scores. You have {availablePoints} points to distribute, 
         with a maximum of 1 point per ability score.
       </p>
       
-      <div className="points-display">
-        <span className="points-used">{usedPoints}</span> / <span className="points-total">{availablePoints}</span> points used
+      <div className={styles.pointsDisplay}>
+        <span className={styles.pointsUsed}>{usedPoints}</span> / <span className={styles.pointsTotal}>{availablePoints}</span> points used
       </div>
 
-      <div className="abilities-grid">
+      <div className={styles.abilitiesGrid}>
         {abilities.map(ability => {
           const currentScore = currentScores[ability] || 10;
           const improvement = improvements[ability] || 0;
@@ -203,35 +211,35 @@ const ASISelection: React.FC<ASISelectionProps> = ({ currentScores, onASIChange,
           const modifierChange = newModifier - currentModifier;
 
           return (
-            <div key={ability} className="ability-improvement">
-              <h4 className="ability-name">{ability}</h4>
-              <div className="ability-scores">
-                <div className="current-score">
+            <div key={ability} className={styles.abilityImprovement}>
+              <h4 className={styles.abilityName}>{ability}</h4>
+              <div className={styles.abilityScores}>
+                <div className={styles.currentScore}>
                   Current: {currentScore} ({currentModifier >= 0 ? '+' : ''}{currentModifier})
                 </div>
                 {improvement > 0 && (
-                  <div className="new-score">
+                  <div className={styles.newScore}>
                     New: {newScore} ({newModifier >= 0 ? '+' : ''}{newModifier})
                     {modifierChange > 0 && (
-                      <span className="modifier-increase"> (+{modifierChange} modifier!)</span>
+                      <span className={styles.modifierIncrease}> (+{modifierChange} modifier!)</span>
                     )}
                   </div>
                 )}
               </div>
               
-              <div className="improvement-controls">
+              <div className={styles.improvementControls}>
                 <button
                   type="button"
-                  className="improvement-btn"
+                  className={styles.improvementBtn}
                   onClick={() => handleImprovement(ability, -1)}
                   disabled={improvement === 0}
                 >
                   -
                 </button>
-                <span className="improvement-value">{improvement}</span>
+                <span className={styles.improvementValue}>{improvement}</span>
                 <button
                   type="button"
-                  className="improvement-btn"
+                  className={styles.improvementBtn}
                   onClick={() => handleImprovement(ability, 1)}
                   disabled={
                     usedPoints >= availablePoints || 
@@ -244,7 +252,7 @@ const ASISelection: React.FC<ASISelectionProps> = ({ currentScores, onASIChange,
               </div>
 
               {newScore >= 20 && (
-                <div className="ability-warning">Maximum ability score reached</div>
+                <div className={styles.abilityWarning}>Maximum ability score reached</div>
               )}
             </div>
           );
@@ -392,17 +400,17 @@ const FeatSelectionStep: React.FC<FeatSelectionStepProps> = ({ onNext, onBack })
 
   if (!hasASIChoice) {
     return (
-      <div className="feat-selection-step">
-        <div className="step-header">
+      <div className={styles.featSelectionStep}>
+        <div className={styles.stepHeader}>
           <h2>Feat Selection</h2>
           <p>Your character doesn't receive an Ability Score Improvement or feat at level {characterLevel}.</p>
         </div>
 
-        <div className="step-navigation">
-          <button type="button" onClick={onBack} className="btn btn-secondary">
+        <div className={styles.stepNavigation}>
+          <button type="button" onClick={onBack} className={styles.btnSecondary}>
             Back
           </button>
-          <button type="button" onClick={onNext} className="btn btn-primary">
+          <button type="button" onClick={onNext} className={styles.btnPrimary}>
             Next: Continue
           </button>
         </div>
@@ -411,24 +419,26 @@ const FeatSelectionStep: React.FC<FeatSelectionStepProps> = ({ onNext, onBack })
   }
 
   return (
-    <div className="feat-selection-step">
-      <div className="step-header">
+    <div className={styles.featSelectionStep}>
+      <div className={styles.stepHeader}>
         <h2>Ability Score Improvement or Feat</h2>
         <p>At level {characterLevel}, you can choose to either increase your ability scores or take a feat.</p>
       </div>
 
-      <div className="choice-selector">
+      <div className={styles.choiceSelector}>
         <button
           type="button"
-          className={`choice-btn ${selectionType === 'asi' ? 'selected' : ''}`}
+          className={clsx(styles.choiceBtn, selectionType === 'asi' && styles.choiceBtnSelected)}
           onClick={() => handleSelectionTypeChange('asi')}
+          aria-pressed={selectionType === 'asi'}
         >
           Ability Score Improvement
         </button>
         <button
           type="button"
-          className={`choice-btn ${selectionType === 'feat' ? 'selected' : ''}`}
+          className={clsx(styles.choiceBtn, selectionType === 'feat' && styles.choiceBtnSelected)}
           onClick={() => handleSelectionTypeChange('feat')}
+          aria-pressed={selectionType === 'feat'}
         >
           Take a Feat
         </button>
@@ -444,21 +454,21 @@ const FeatSelectionStep: React.FC<FeatSelectionStepProps> = ({ onNext, onBack })
 
       {selectionType === 'feat' && (
         <div className={styles.featSelection}>
-          <div className="feat-filters">
-            <div className="search-container">
+          <div className={styles.featFilters}>
+            <div className={styles.searchContainer}>
               <input
                 type="text"
                 placeholder="Search feats..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                className="feat-search"
+                className={styles.featSearch}
               />
             </div>
             
             <select
               value={featFilter}
               onChange={(e) => setFeatFilter(e.target.value)}
-              className="feat-filter"
+              className={styles.featFilter}
             >
               <option value="all">All Feats</option>
               <option value="Combat">Combat</option>
@@ -469,9 +479,9 @@ const FeatSelectionStep: React.FC<FeatSelectionStepProps> = ({ onNext, onBack })
           </div>
 
           {recommendations.length > 0 && (
-            <div className="feat-recommendations">
-              <h3>Recommended Feats</h3>
-              <div className="feats-grid">
+            <div className={styles.featRecommendations}>
+              <h3 className={styles.recommendationTitle}>Recommended Feats</h3>
+              <div className={styles.featsGrid}>
                 {recommendations.slice(0, 3).map((feat, index) => (
                   <FeatDisplay
                     key={index}
@@ -486,9 +496,9 @@ const FeatSelectionStep: React.FC<FeatSelectionStepProps> = ({ onNext, onBack })
             </div>
           )}
 
-          <div className="all-feats">
-            <h3>All Available Feats ({filteredFeats.length})</h3>
-            <div className="feats-grid">
+          <div className={styles.allFeats}>
+            <h3 className={styles.sectionTitle}>All Available Feats ({filteredFeats.length})</h3>
+            <div className={styles.featsGrid}>
               {filteredFeats.map((feat, index) => (
                 <FeatDisplay
                   key={index}
@@ -505,20 +515,20 @@ const FeatSelectionStep: React.FC<FeatSelectionStepProps> = ({ onNext, onBack })
       )}
 
       {errors.feat_choices && (
-        <div className="error-message">
+        <div className={styles.errorMessage}>
           Please make a selection before proceeding.
         </div>
       )}
 
-      <div className="step-navigation">
-        <button type="button" onClick={onBack} className="btn btn-secondary">
+      <div className={styles.stepNavigation}>
+        <button type="button" onClick={onBack} className={styles.btnSecondary}>
           Back
         </button>
         <button 
           type="button" 
           onClick={handleNext}
           disabled={!canProceed()}
-          className="btn btn-primary"
+          className={styles.btnPrimary}
         >
           Next: Continue
         </button>

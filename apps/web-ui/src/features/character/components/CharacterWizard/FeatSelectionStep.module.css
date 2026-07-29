@@ -1,126 +1,126 @@
 /* Feat Selection Step Styles */
-.featSelection-step {
-  composes: wizard-column from './CharacterWizard/CharacterWizardBase.module.css';
+.featSelectionStep {
+  composes: wizard-column from './CharacterWizardBase.module.css';
   max-width: var(--size-300);
   margin: 0 auto;
 }
 
-.step-header {
-  composes: wizard-header-centered from './CharacterWizard/CharacterWizardBase.module.css';
+.stepHeader {
+  composes: wizard-header-centered from './CharacterWizardBase.module.css';
 }
 
-.step-header h2 {
+.stepHeader h2 {
   color: var(--text-primary);
   margin-bottom: var(--space-sm);
 }
 
-.step-header p {
+.stepHeader p {
   color: var(--text-secondary);
   font-size: var(--text-lg);
 }
 
 /* Choice Selector */
-.choice-selector {
-  composes: wizard-row from './CharacterWizard/CharacterWizardBase.module.css';
+.choiceSelector {
+  composes: wizard-row from './CharacterWizardBase.module.css';
   justify-content: center;
   margin-bottom: var(--space-3xl);
 }
 
-.choice-btn {
-  composes: wizard-button-outline from './CharacterWizard/CharacterWizardBase.module.css';
+.choiceBtn {
+  composes: wizard-button-outline from './CharacterWizardBase.module.css';
   padding: var(--space-md) var(--space-2xl);
   font-size: var(--text-lg);
   min-width: var(--size-50);
 }
 
-.choice-btn:hover {
+.choiceBtn:hover {
   border-color: var(--border-accent);
   box-shadow: var(--shadow-md);
 }
 
-.choice-btn-selected {
-  composes: choice-btn;
-  border-color: var(--green-600);
-  background: var(--green-50);
-  color: var(--green-600);
+.choiceBtnSelected {
+  composes: choiceBtn;
+  border-color: var(--status-success-border);
+  background: var(--status-success-bg);
+  color: var(--status-success-text);
   box-shadow: var(--shadow-lg);
 }
 
 /* ASI Selection */
-.asi-selection {
-  composes: wizard-card from './CharacterWizard/CharacterWizardBase.module.css';
+.asiSelection {
+  composes: wizard-card from './CharacterWizardBase.module.css';
   margin-bottom: var(--space-2xl);
 }
 
-.asi-selection h3 {
-  composes: wizard-header-secondary from './CharacterWizard/CharacterWizardBase.module.css';
+.sectionTitle {
+  composes: wizard-header-secondary from './CharacterWizardBase.module.css';
 }
 
-.asi-description {
+.asiDescription {
   text-align: center;
   color: var(--text-secondary);
   margin-bottom: var(--space-lg);
 }
 
-.points-display {
+.pointsDisplay {
   text-align: center;
   font-size: var(--text-xl);
   margin-bottom: var(--space-2xl);
   color: var(--text-primary);
 }
 
-.points-used {
+.pointsUsed {
   color: var(--color-danger);
   font-weight: var(--font-bold);
 }
 
-.points-total {
-  color: var(--green-600);
+.pointsTotal {
+  color: var(--status-success-text);
   font-weight: var(--font-bold);
 }
 
-.abilities-grid {
-  composes: wizard-grid from './CharacterWizard/CharacterWizardBase.module.css';
+.abilitiesGrid {
+  composes: wizard-grid from './CharacterWizardBase.module.css';
   grid-template-columns: repeat(auto-fit, minmax(var(--size-75), 1fr));
 }
 
-.ability-improvement {
-  composes: wizard-card-section from './CharacterWizard/CharacterWizardBase.module.css';
+.abilityImprovement {
+  composes: wizard-card-section from './CharacterWizardBase.module.css';
   text-align: center;
 }
 
-.ability-name {
+.abilityName {
   color: var(--text-primary);
   margin-bottom: var(--space-sm);
   font-size: var(--text-lg);
 }
 
-.ability-scores {
+.abilityScores {
   margin-bottom: var(--space-md);
 }
 
-.current-score {
+.currentScore {
   color: var(--text-secondary);
   margin-bottom: var(--space-xs);
 }
 
-.new-score {
-  color: var(--green-600);
+.newScore {
+  color: var(--status-success-text);
   font-weight: var(--font-semibold);
 }
 
-.modifier-increase {
+.modifierIncrease {
   color: var(--color-danger);
   font-weight: var(--font-bold);
 }
 
-.improvement-controls {
-  composes: wizard-row from './CharacterWizard/CharacterWizardBase.module.css';
+.improvementControls {
+  composes: wizard-row from './CharacterWizardBase.module.css';
   justify-content: center;
   margin-bottom: var(--space-sm);
 }
 
-.improvement-btn {
+.improvementBtn {
   width: var(--size-8-75);
   height: var(--size-8-75);
   border: var(--border-width) solid var(--border-primary);
@@ -133,26 +133,26 @@
   transition: var(--transition-fast);
 }
 
-.improvement-btn:hover:not(:disabled) {
+.improvementBtn:hover:not(:disabled) {
   background: var(--button-primary-bg);
-  color: var(--text-inverse-primary);
+  color: var(--button-primary-text);
   border-color: var(--button-primary-border);
 }
 
-.improvement-btn:disabled {
+.improvementBtn:disabled {
   background: var(--button-disabled-bg);
   color: var(--button-disabled-text);
   cursor: not-allowed;
 }
 
-.improvement-value {
+.improvementValue {
   font-size: var(--text-xl);
   font-weight: var(--font-bold);
   color: var(--text-primary);
   min-width: var(--size-5);
 }
 
-.ability-warning {
+.abilityWarning {
   color: var(--color-danger);
   font-size: var(--text-sm);
   font-style: italic;
@@ -163,52 +163,48 @@
   margin-bottom: var(--space-2xl);
 }
 
-.feat-filters {
-  composes: wizard-row from './CharacterWizard/CharacterWizardBase.module.css';
+.featFilters {
+  composes: wizard-row from './CharacterWizardBase.module.css';
   justify-content: center;
   margin-bottom: var(--space-2xl);
 }
 
-.search-container {
+.searchContainer {
   flex: 1;
   max-width: var(--size-100);
 }
 
-.feat-search {
-  composes: wizard-input from './CharacterWizard/CharacterWizardBase.module.css';
+.featSearch {
+  composes: wizard-input from './CharacterWizardBase.module.css';
   width: 100%;
 }
 
-.feat-search:focus {
+.featSearch:focus {
   outline: none;
   border-color: var(--input-border-focus);
 }
 
-.feat-filter {
-  composes: wizard-select from './CharacterWizard/CharacterWizardBase.module.css';
+.featFilter {
+  composes: wizard-select from './CharacterWizardBase.module.css';
 }
 
-.feat-recommendations {
+.featRecommendations {
   margin-bottom: var(--space-3xl);
 }
 
-.feat-recommendations h3 {
-  composes: wizard-header-secondary from './CharacterWizard/CharacterWizardBase.module.css';
+.recommendationTitle {
+  composes: sectionTitle;
   color: var(--color-accent);
 }
 
-.all-feats h3 {
-  composes: wizard-header-secondary from './CharacterWizard/CharacterWizardBase.module.css';
-}
-
-.feats-grid {
-  composes: wizard-grid from './CharacterWizard/CharacterWizardBase.module.css';
+.featsGrid {
+  composes: wizard-grid from './CharacterWizardBase.module.css';
   grid-template-columns: repeat(auto-fit, minmax(var(--size-100), 1fr));
 }
 
 /* Feat Cards */
 .featCard {
-  composes: wizard-card-interactive from './CharacterWizard/CharacterWizardBase.module.css';
+  composes: wizard-card-interactive from './CharacterWizardBase.module.css';
 }
 
 .featCard:hover {
@@ -216,21 +212,31 @@
   box-shadow: var(--shadow-md);
 }
 
-.featCard-selected {
+.featCardSelected {
   composes: featCard;
   border-color: var(--color-accent);
   background: var(--active-bg-gradient-end);
   box-shadow: var(--shadow-lg);
 }
 
-.feat-header {
-  composes: wizard-row from './CharacterWizard/CharacterWizardBase.module.css';
+.featHeader {
+  composes: wizard-row from './CharacterWizardBase.module.css';
   justify-content: space-between;
   align-items: flex-start;
   margin-bottom: var(--space-md);
 }
 
-.feat-info {
+.featSelectButton {
+  flex: 1;
+  padding: 0;
+  background: transparent;
+  color: inherit;
+  border: none;
+  text-align: left;
+}
+
+.featInfo {
+  display: block;
   flex: 1;
 }
 
@@ -240,95 +246,95 @@
   font-size: var(--text-xl);
 }
 
-.feat-tags {
-  composes: wizard-row from './CharacterWizard/CharacterWizardBase.module.css';
+.featTags {
+  composes: wizard-row from './CharacterWizardBase.module.css';
   flex-wrap: wrap;
   gap: var(--space-2xs);
   margin-bottom: var(--space-xs);
 }
 
-.feat-tag {
-  composes: wizard-badge from './CharacterWizard/CharacterWizardBase.module.css';
+.featTag {
+  composes: wizard-badge from './CharacterWizardBase.module.css';
   color: var(--text-inverse-primary);
 }
 
-.feat-tag-combat {
-  composes: feat-tag;
+.featTagCombat {
+  composes: featTag;
   background: var(--color-danger);
 }
 
-.feat-tag-magic {
-  composes: feat-tag;
+.featTagMagic {
+  composes: featTag;
   background: var(--color-accent);
 }
 
-.feat-tag-utility {
-  composes: feat-tag;
-  background: var(--green-600);
+.featTagUtility {
+  composes: featTag;
+  background: var(--color-success);
 }
 
-.feat-tag-social {
-  composes: feat-tag;
+.featTagSocial {
+  composes: featTag;
   background: var(--color-warning);
 }
 
-.feat-tag-half {
-  composes: feat-tag;
+.featTagHalf {
+  composes: featTag;
   background: var(--color-primary);
 }
 
-.feat-tag-damage {
-  composes: feat-tag;
+.featTagDamage {
+  composes: featTag;
   background: var(--color-danger-active);
 }
 
-.feat-tag-defense {
-  composes: feat-tag;
+.featTagDefense {
+  composes: featTag;
   background: var(--color-info-active);
 }
 
-.feat-tag-ranged {
-  composes: feat-tag;
+.featTagRanged {
+  composes: featTag;
   background: var(--color-info);
 }
 
-.feat-tag-healing {
-  composes: feat-tag;
+.featTagHealing {
+  composes: featTag;
   background: var(--color-warning-active);
 }
 
-.feat-tag-exploration {
-  composes: feat-tag;
+.featTagExploration {
+  composes: featTag;
   background: var(--color-accent-active);
 }
 
-.feat-tag-stealth {
-  composes: feat-tag;
+.featTagStealth {
+  composes: featTag;
   background: var(--bg-elevated);
 }
 
-.feat-tag-athletics {
-  composes: feat-tag;
+.featTagAthletics {
+  composes: featTag;
   background: var(--color-warning);
 }
 
-.feat-tag-tank {
-  composes: feat-tag;
+.featTagTank {
+  composes: featTag;
   background: var(--bg-elevated-hover);
 }
 
-.feat-source {
+.featSource {
   color: var(--text-secondary);
   font-size: var(--text-sm);
 }
 
-.feat-controls {
-  composes: wizard-column from './CharacterWizard/CharacterWizardBase.module.css';
+.featControls {
+  composes: wizard-column from './CharacterWizardBase.module.css';
   gap: var(--space-xs);
 }
 
-.details-toggle {
-  composes: wizard-button-secondary from './CharacterWizard/CharacterWizardBase.module.css';
+.detailsToggle {
+  composes: wizard-button-secondary from './CharacterWizardBase.module.css';
   font-size: var(--text-xs);
   white-space: nowrap;
 }
@@ -340,7 +346,7 @@
 }
 
 .featPrerequisites {
-  composes: wizard-badge-warning from './CharacterWizard/CharacterWizardBase.module.css';
+  composes: wizard-badge-warning from './CharacterWizardBase.module.css';
   padding: var(--space-md);
   margin-bottom: var(--space-md);
 }
@@ -356,45 +362,45 @@
   color: var(--status-warning-text);
 }
 
-.feat-details {
+.featDetails {
   margin-top: var(--space-lg);
   padding-top: var(--space-lg);
   border-top: var(--border-width) solid var(--border-secondary);
 }
 
-.feat-benefits h5 {
-  color: var(--green-600);
+.featBenefits h5 {
+  color: var(--status-success-text);
   margin-bottom: var(--space-sm);
 }
 
-.feat-benefits ul {
+.featBenefits ul {
   margin: 0 0 var(--space-lg) 0;
   padding-left: var(--space-lg);
 }
 
-.feat-benefits li {
+.featBenefits li {
   margin-bottom: var(--space-xs);
   line-height: var(--line-height-normal);
 }
 
-.benefit-choices {
+.benefitChoices {
   margin-top: var(--space-xs);
   font-style: italic;
   color: var(--text-secondary);
   font-size: var(--text-sm);
 }
 
-.feat-analysis {
+.featAnalysis {
   margin-top: var(--space-lg);
 }
 
-.analysis-toggle {
-  composes: wizard-button-secondary from './CharacterWizard/CharacterWizardBase.module.css';
+.analysisToggle {
+  composes: wizard-button-secondary from './CharacterWizardBase.module.css';
   width: 100%;
 }
 
-.analysis-content {
-  composes: wizard-card-section from './CharacterWizard/CharacterWizardBase.module.css';
+.analysisContent {
+  composes: wizard-card-section from './CharacterWizardBase.module.css';
   margin-top: var(--space-md);
 }
 
@@ -408,17 +414,17 @@
   color: var(--text-primary);
 }
 
-.rec-feat {
-  color: var(--green-600);
+.recFeat {
+  color: var(--status-success-text);
   font-weight: var(--font-bold);
 }
 
-.rec-asi {
+.recAsi {
   color: var(--color-danger);
   font-weight: var(--font-bold);
 }
 
-.rec-either {
+.recEither {
   color: var(--status-warning-text);
   font-weight: var(--font-bold);
 }
@@ -429,51 +435,51 @@
 }
 
 .comparison {
-  composes: wizard-grid from './CharacterWizard/CharacterWizardBase.module.css';
+  composes: wizard-grid from './CharacterWizardBase.module.css';
   grid-template-columns: 1fr 1fr;
 }
 
-.comparison-column h6 {
+.comparisonColumn h6 {
   color: var(--text-primary);
   margin-bottom: var(--space-sm);
   text-align: center;
 }
 
-.comparison-column ul {
+.comparisonColumn ul {
   margin: 0;
   padding-left: var(--space-lg);
 }
 
-.comparison-column li {
+.comparisonColumn li {
   margin-bottom: var(--space-xs);
   font-size: var(--text-sm);
   line-height: var(--line-height-normal);
 }
 
 /* Navigation */
-.step-navigation {
-  composes: wizard-navigation from './CharacterWizard/CharacterWizardBase.module.css';
+.stepNavigation {
+  composes: wizard-navigation from './CharacterWizardBase.module.css';
 }
 
 .btn {
-  composes: wizard-button-primary from './CharacterWizard/CharacterWizardBase.module.css';
+  composes: wizard-button-primary from './CharacterWizardBase.module.css';
 }
 
-.btn-primary {
-  composes: wizard-button-primary from './CharacterWizard/CharacterWizardBase.module.css';
+.btnPrimary {
+  composes: wizard-button-primary from './CharacterWizardBase.module.css';
 }
 
-.btn-primary:disabled {
+.btnPrimary:disabled {
   opacity: 0.5;
   cursor: not-allowed;
 }
 
-.btn-secondary {
-  composes: wizard-button-secondary from './CharacterWizard/CharacterWizardBase.module.css';
+.btnSecondary {
+  composes: wizard-button-secondary from './CharacterWizardBase.module.css';
 }
 
-.error-message {
-  composes: wizard-badge-danger from './CharacterWizard/CharacterWizardBase.module.css';
+.errorMessage {
+  composes: wizard-badge-danger from './CharacterWizardBase.module.css';
   padding: var(--space-md);
   margin-top: var(--space-md);
   text-align: center;
@@ -481,16 +487,16 @@
 
 /* Responsive Design */
 @media (max-width: 48rem) {
-  .feats-grid {
+  .featsGrid {
     grid-template-columns: 1fr;
   }
   
-  .choice-selector {
+  .choiceSelector {
     flex-direction: column;
     align-items: center;
   }
   
-  .abilities-grid {
+  .abilitiesGrid {
     grid-template-columns: 1fr;
   }
   
@@ -499,12 +505,12 @@
     gap: var(--space-md);
   }
   
-  .feat-filters {
+  .featFilters {
     flex-direction: column;
     align-items: stretch;
   }
   
-  .search-container {
+  .searchContainer {
     max-width: none;
   }
 }

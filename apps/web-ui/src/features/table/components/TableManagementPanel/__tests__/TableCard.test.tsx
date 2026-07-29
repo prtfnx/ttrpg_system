@@ -43,7 +43,19 @@ describe('TableCard', () => {
   it('calls onOpen when name is clicked', async () => {
     const onOpen = vi.fn();
     render(<TableCard {...defaultProps} onOpen={onOpen} />);
-    await userEvent.click(screen.getByText('Main'));
+    await userEvent.click(screen.getByRole('button', { name: 'Main' }));
+    expect(onOpen).toHaveBeenCalledWith('t1');
+  });
+
+  it('exposes the preview as a named keyboard control', async () => {
+    const user = userEvent.setup();
+    const onOpen = vi.fn();
+    render(<TableCard {...defaultProps} onOpen={onOpen} />);
+
+    const preview = screen.getByRole('button', { name: 'Open Main table' });
+    preview.focus();
+    await user.keyboard('{Enter}');
+
     expect(onOpen).toHaveBeenCalledWith('t1');
   });
 
@@ -76,7 +88,7 @@ describe('TableCard', () => {
 
   it('shows bulk checkbox in bulk mode', () => {
     render(<TableCard {...defaultProps} isBulkMode={true} />);
-    expect(screen.getByRole('checkbox')).toBeTruthy();
+    expect(screen.getByRole('checkbox', { name: 'Select Main' })).toBeTruthy();
   });
 
   it('checkbox calls onSelect', async () => {

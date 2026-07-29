@@ -3,7 +3,9 @@ import { isDM } from '@features/session/types/roles';
 import { useWasmRuntime } from '@lib/wasm/runtime';
 import { logger } from '@shared/utils/logger';
 import { AlertTriangle, Check } from 'lucide-react';
-import { useEffect, useState } from 'react';
+import clsx from 'clsx';
+import { useEffect, useState, type CSSProperties } from 'react';
+import styles from './EntitiesPanel.module.css';
 
 interface SyncState {
   status: 'idle' | 'syncing' | 'error' | 'success';
@@ -143,29 +145,25 @@ export function EntitiesPanel() {
   }, []) // Remove dependencies to avoid constant re-syncing
 
   return (
-    <div className="entities-section" style={{ background: 'transparent' }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-        <h2>Entities ({sprites.length})</h2>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+    <section className={styles.panel}>
+      <div className={styles.header}>
+        <h2 className={styles.title}>Entities ({sprites.length})</h2>
+        <div className={styles.controls} aria-live="polite">
           {syncState.status === 'error' && (
-            <span style={{ color: 'red', fontSize: '12px', display: 'inline-flex', alignItems: 'center', gap: '4px' }} title={syncState.error}>
+            <span className={clsx(styles.status, styles.statusError)} title={syncState.error}>
               <AlertTriangle size={12} aria-hidden /> Sync Error
             </span>
           )}
           {syncState.status === 'success' && syncState.lastSync && (
-            <span style={{ color: 'green', fontSize: '12px', display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+            <span className={clsx(styles.status, styles.statusSuccess)}>
               <Check size={12} aria-hidden /> {new Date(syncState.lastSync).toLocaleTimeString()}
             </span>
           )}
-          <button 
+          <button
+            type="button"
             onClick={syncSpritesFromRust}
             disabled={syncState.status === 'syncing'}
-            style={{ 
-              padding: '4px 8px', 
-              fontSize: '12px',
-              opacity: syncState.status === 'syncing' ? 0.6 : 1,
-              cursor: syncState.status === 'syncing' ? 'wait' : 'pointer'
-            }}
+            className={styles.refreshButton}
           >
             {syncState.status === 'syncing' ? (
               syncState.progress ? `Syncing... ${syncState.progress}%` : 'Syncing...'
@@ -174,7 +172,7 @@ export function EntitiesPanel() {
         </div>
       </div>
       
-      <div className="sprite-list">
+      <div className={styles.spriteList}>
         {(() => {
           const visibleSprites = isDM(sessionRole)
             ? sprites
@@ -183,25 +181,16 @@ export function EntitiesPanel() {
                 return s.isVisible !== false;
               });
           return visibleSprites.length === 0 ? (
-          <div style={{ color: 'var(--text-muted)', textAlign: 'center', padding: '2rem' }}>
+          <div className={styles.emptyState}>
             {syncState.status === 'syncing' ? (
               <div>
                 <div>Syncing sprites...</div>
                 {syncState.progress && (
-                  <div style={{ 
-                    width: '100%', 
-                    height: '4px', 
-                    backgroundColor: 'var(--bg-tertiary)', 
-                    borderRadius: '2px',
-                    marginTop: '8px',
-                    overflow: 'hidden'
-                  }}>
-                    <div style={{
-                      width: `${syncState.progress}%`,
-                      height: '100%',
-                      backgroundColor: 'var(--color-primary)',
-                      transition: 'width 0.3s ease'
-                    }} />
+                  <div className={styles.progressTrack}>
+                    <div
+                      className={styles.progressFill}
+                      style={{ '--sync-progress': `${syncState.progress}%` } as CSSProperties}
+                    />
                   </div>
                 )}
               </div>
@@ -216,21 +205,23 @@ export function EntitiesPanel() {
               ? sprite.scale
               : { x: 1, y: 1 };
             return (
-              <div
+              <button
+                type="button"
                 key={sprite.id}
-                className={`sprite-item ${selectedSprites.includes(sprite.id) ? 'selected' : ''}`}
+                className={clsx(styles.spriteItem, selectedSprites.includes(sprite.id) && styles.spriteItemSelected)}
                 onClick={() => selectSprite(sprite.id)}
+                aria-pressed={selectedSprites.includes(sprite.id)}
               >
-                <h3>{sprite.name} ({sprite.id})</h3>
-                <p>Position: ({sprite.x}, {sprite.y})</p>
-                <p>Layer: {sprite.layer}</p>
-                <p>Scale: {scale.x.toFixed(2)} x {scale.y.toFixed(2)}</p>
-              </div>
+                <span className={styles.spriteName}>{sprite.name} ({sprite.id})</span>
+                <span className={styles.spriteMeta}>Position: ({sprite.x}, {sprite.y})</span>
+                <span className={styles.spriteMeta}>Layer: {sprite.layer}</span>
+                <span className={styles.spriteMeta}>Scale: {scale.x.toFixed(2)} x {scale.y.toFixed(2)}</span>
+              </button>
             );
           })
         );
         })()}
       </div>
-    </div>
+    </section>
   )
 }

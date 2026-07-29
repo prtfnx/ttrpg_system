@@ -47,16 +47,29 @@ export const TableCard: FC<TableCardProps> = ({
             onChange={() => onSelect(table.table_id)}
             className={styles.bulkCheckbox}
             onClick={e => e.stopPropagation()}
+            aria-label={`Select ${table.table_name}`}
           />
         )}
-        <span className={styles.tableCardName} title={table.table_name} onClick={() => onOpen(table.table_id)}>{table.table_name}</span>
+        <button
+          type="button"
+          className={styles.tableCardName}
+          title={table.table_name}
+          onClick={() => onOpen(table.table_id)}
+        >
+          {table.table_name}
+        </button>
         {syncBadge}
       </div>
 
       {/* Proportional preview — uses WASM screenshot for active, placeholder for inactive */}
-      <div className={styles.tableThumbnail} onClick={() => onOpen(table.table_id)}>
+      <button
+        type="button"
+        className={styles.tableThumbnail}
+        onClick={() => onOpen(table.table_id)}
+        aria-label={`Open ${table.table_name} table`}
+      >
         <TablePreview table={table} width={130} height={73} />
-      </div>
+      </button>
 
       {/* Meta info */}
       <span className={styles.tableCardMeta}>
@@ -66,22 +79,22 @@ export const TableCard: FC<TableCardProps> = ({
 
       {/* Action buttons row */}
       <div className={styles.tableCardActions}>
-        <button onClick={(e) => { e.stopPropagation(); onOpen(table.table_id); }} className={styles.actionBtn} title="Open">
-          <ExternalLink size={12} />
+        <button onClick={(e) => { e.stopPropagation(); onOpen(table.table_id); }} className={styles.actionBtn} title="Open" aria-label={`Open ${table.table_name}`}>
+          <ExternalLink size={12} aria-hidden />
         </button>
-        <button onClick={(e) => { e.stopPropagation(); onSettings(table.table_id); }} className={styles.actionBtn} title="Settings">
-          <Settings2 size={12} />
+        <button onClick={(e) => { e.stopPropagation(); onSettings(table.table_id); }} className={styles.actionBtn} title="Settings" aria-label={`Settings for ${table.table_name}`}>
+          <Settings2 size={12} aria-hidden />
         </button>
-        <button onClick={(e) => { e.stopPropagation(); onDuplicate(table.table_id); }} className={styles.actionBtn} title="Duplicate">
-          <Copy size={12} />
+        <button onClick={(e) => { e.stopPropagation(); onDuplicate(table.table_id); }} className={styles.actionBtn} title="Duplicate" aria-label={`Duplicate ${table.table_name}`}>
+          <Copy size={12} aria-hidden />
         </button>
         {canSetForAll && (
-          <button onClick={handleSetForAll} className={styles.actionBtn} title="Switch all players">
-            <Users size={12} />
+          <button onClick={handleSetForAll} className={styles.actionBtn} title="Switch all players" aria-label={`Switch all players to ${table.table_name}`}>
+            <Users size={12} aria-hidden />
           </button>
         )}
-        <button onClick={(e) => { e.stopPropagation(); onDelete(table.table_id); }} className={clsx(styles.actionBtn, styles.actionBtnDelete)} title="Delete">
-          <Trash2 size={12} />
+        <button onClick={(e) => { e.stopPropagation(); onDelete(table.table_id); }} className={clsx(styles.actionBtn, styles.actionBtnDelete)} title="Delete" aria-label={`Delete ${table.table_name}`}>
+          <Trash2 size={12} aria-hidden />
         </button>
       </div>
     </div>

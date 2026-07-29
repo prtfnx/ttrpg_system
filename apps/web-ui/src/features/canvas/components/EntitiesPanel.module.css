@@ -1,0 +1,122 @@
+.panel {
+  color: var(--text-primary);
+}
+
+.header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-sm);
+}
+
+.title {
+  margin: 0;
+  font-size: var(--text-lg);
+}
+
+.controls,
+.status {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-xs);
+}
+
+.status {
+  font-size: var(--text-xs);
+}
+
+.statusError {
+  color: var(--status-error-text);
+}
+
+.statusSuccess {
+  color: var(--status-success-text);
+}
+
+.refreshButton {
+  padding: var(--space-xs) var(--space-sm);
+  background: var(--button-secondary-bg);
+  color: var(--button-secondary-text);
+  border: var(--border-width) solid var(--button-secondary-border);
+  border-radius: var(--radius-sm);
+  font-size: var(--text-xs);
+}
+
+.refreshButton:hover:not(:disabled) {
+  background: var(--button-secondary-hover);
+}
+
+.refreshButton:disabled {
+  opacity: var(--button-disabled-opacity);
+  cursor: wait;
+}
+
+.spriteList {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-xs);
+  margin-top: var(--space-sm);
+}
+
+.spriteItem {
+  width: 100%;
+  padding: var(--space-sm);
+  background: var(--bg-secondary);
+  color: var(--text-secondary);
+  border: var(--border-width) solid var(--border-primary);
+  border-radius: var(--radius-sm);
+  text-align: left;
+  transition: background-color var(--transition-fast), border-color var(--transition-fast);
+}
+
+.spriteItem:hover {
+  background: var(--bg-hover);
+  border-color: var(--border-hover);
+}
+
+.spriteItemSelected {
+  background: var(--bg-active);
+  border-color: var(--border-accent);
+}
+
+.spriteName {
+  display: block;
+  margin-bottom: var(--space-xs);
+  color: var(--text-primary);
+  font-size: var(--text-sm);
+  font-weight: var(--font-semibold);
+}
+
+.spriteMeta {
+  display: block;
+  font-size: var(--text-xs);
+  line-height: var(--leading-normal);
+}
+
+.emptyState {
+  padding: var(--space-2xl);
+  color: var(--text-muted);
+  text-align: center;
+}
+
+.emptyState p {
+  margin: 0;
+}
+
+.progressTrack {
+  width: 100%;
+  height: var(--size-1);
+  margin-top: var(--space-sm);
+  overflow: hidden;
+  background: var(--progress-bg);
+  border-radius: var(--radius-xs);
+}
+
+.progressFill {
+  --sync-progress: 0%;
+
+  width: var(--sync-progress);
+  height: 100%;
+  background: var(--progress-fill);
+  transition: width var(--transition-fast);
+}

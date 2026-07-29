@@ -1,5 +1,11 @@
 # Testing strategy
 
+Audience: contributors choosing and running verification for a change.
+
+Status: current.
+
+Last source audit: 2026-07-29
+
 Tests should sit at the boundary where behavior is owned. Avoid testing a lower
 layer through an unrelated higher layer when a direct boundary test is clearer.
 
@@ -47,6 +53,25 @@ schema, constraint, or locking behavior.
 Never point this suite at the populated Neon development database or its
 `public` schema.
 
+### Authenticated WebSocket load test
+
+`apps/server/tests/loadtest/locustfile.py` requires an authenticated disposable
+session. Set `LOAD_TEST_TOKEN` and `LOAD_TEST_SESSION`, then pass the HTTP
+origin explicitly with Locust's required `--host` option:
+
+```powershell
+$env:LOAD_TEST_TOKEN = "<valid JWT>"
+$env:LOAD_TEST_SESSION = "<session code>"
+$env:LOAD_TEST_ORIGIN = "http://localhost:8000"
+locust -f apps/server/tests/loadtest/locustfile.py `
+  --host http://localhost:8000
+```
+
+Optional sprite-mutation coverage also needs `LOAD_TEST_TABLE` and
+`LOAD_TEST_SPRITE` for a sprite controlled by every load-test identity. Run
+this only against a disposable local or reviewed test session, never
+production.
+
 ## Core table
 
 Use pytest in `packages/core-table`.
@@ -79,6 +104,8 @@ pnpm.cmd exec tsc -b --pretty false
 pnpm.cmd exec vitest run --project jsdom
 pnpm.cmd exec vitest run --project browser
 pnpm.cmd exec vitest run --project browser-components
+pnpm.cmd run lint:css
+pnpm.cmd run validate:css
 ```
 
 ## Rust/WASM

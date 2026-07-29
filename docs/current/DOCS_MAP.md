@@ -6,7 +6,7 @@ without reading the whole tree.
 Status: usable. This map covers the current docs and maintenance notes. It
 should change as pages are added.
 
-Last source audit: 2026-07-09
+Last source audit: 2026-07-29
 
 ## Reader paths
 
@@ -63,6 +63,7 @@ Canvas or WASM contributor:
 | [Environment variables](reference/ENVIRONMENT_VARIABLES.md) | reference | operators and server contributors | new |
 | [Database schema](reference/DATABASE_SCHEMA.md) | reference | persistence contributors | new |
 | [Docs quality checks](reference/DOCS_QUALITY_CHECKS.md) | reference | doc contributors | new |
+| [Editor workspace](reference/EDITOR_WORKSPACE.md) | reference | contributors using VS Code | current |
 | [Auth and roles](features/AUTH_AND_ROLES.md) | feature guide | auth and session contributors | new |
 | [Sessions and invitations](features/SESSIONS_AND_INVITATIONS.md) | feature guide | session contributors | new |
 | [Tables and canvas](features/TABLES_AND_CANVAS.md) | feature guide | table and canvas contributors | new |

@@ -1,5 +1,11 @@
 # Source map
 
+Audience: contributors locating the owner of code, configuration, or tests.
+
+Status: current.
+
+Last source audit: 2026-07-29
+
 This map lists the main source areas and their current responsibility.
 
 ## Workspace
@@ -7,6 +13,12 @@ This map lists the main source areas and their current responsibility.
 - `package.json`: pnpm/Turbo workspace commands.
 - `pnpm-workspace.yaml`: workspace package list.
 - `turbo.json`: task orchestration.
+- `ttrpg_system.code-workspace`: leaf-only VS Code roots, shared tasks,
+  extension recommendations, and debug configurations.
+- `pyrightconfig.json`: repository-wide Python analysis policy.
+- `apps/server/pyrightconfig.json` and
+  `packages/core-table/pyrightconfig.json`: leaf-scoped Pylance/Pyright
+  projects.
 - `build_and_deploy.ps1`: local build/deploy script.
 
 ## Server

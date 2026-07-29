@@ -1,9 +1,20 @@
 # Development
 
+Audience: contributors changing code or running local verification.
+
+Status: current.
+
+Last source audit: 2026-07-29
+
 This page lists the common local commands and the checks that match the main
 code areas.
 
 ## Workspace
+
+For VS Code, open `ttrpg_system.code-workspace`. It exposes the four
+semi-independent app/package leaves without also opening an overlapping
+repository root. See [Editor workspace](reference/EDITOR_WORKSPACE.md) for
+folder ownership, Pylance scopes, tasks, and stale-diagnostic troubleshooting.
 
 Run from the repository root:
 
@@ -26,6 +37,8 @@ pnpm.cmd exec tsc -b --pretty false
 pnpm.cmd exec vitest run --project jsdom
 pnpm.cmd exec vitest run --project browser
 pnpm.cmd exec vitest run --project browser-components
+pnpm.cmd run lint:css
+pnpm.cmd run validate:css
 ```
 
 Use JSDOM tests for React logic, stores, protocol adapters, and runtime
@@ -45,6 +58,7 @@ Run from `apps/server`:
 ```powershell
 pytest tests/ -q
 ruff check .
+pnpm.cmd dlx pyright@1.1.411 --project pyrightconfig.json
 ```
 
 Use unit tests for protocol handlers and services. Use integration or e2e tests
@@ -63,10 +77,17 @@ Run from `packages/core-table`:
 ```powershell
 pytest -q
 ruff check .
+pnpm.cmd dlx pyright@1.1.411 --project pyrightconfig.json
 ```
 
 This package should stay free of FastAPI and browser concerns. Put reusable
 tabletop rules here.
+
+Run the repository-wide Python contract from the repository root:
+
+```powershell
+pnpm.cmd dlx pyright@1.1.411 --project pyrightconfig.json
+```
 
 ## Rust/WASM
 

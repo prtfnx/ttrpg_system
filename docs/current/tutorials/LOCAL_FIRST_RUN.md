@@ -5,7 +5,7 @@ Audience: new contributors setting up the app on Windows/PowerShell.
 Status: partial. This covers the current server-integrated run path. It does
 not cover production deployment.
 
-Last source audit: 2026-07-20
+Last source audit: 2026-07-29
 
 ## What you will run
 
@@ -38,8 +38,8 @@ pnpm install
 Create and activate a Python virtual environment:
 
 ```powershell
-python -m venv .venv
-.\.venv\Scripts\Activate.ps1
+py -3.11 -m venv .venv311
+.\.venv311\Scripts\Activate.ps1
 ```
 
 Install the editable Python domain package and server dependencies:
@@ -50,6 +50,11 @@ Install the editable Python domain package and server dependencies:
 
 That script installs `packages/core-table` in editable mode and then installs
 `apps/server/requirements.txt`.
+
+For VS Code, open `ttrpg_system.code-workspace` after setup. Its Python leaf
+settings and Pyright configurations use `.venv311`. See
+[Editor workspace](../reference/EDITOR_WORKSPACE.md) for the folder layout and
+diagnostic commands.
 
 ## Build the browser client for the server
 
@@ -151,7 +156,7 @@ pytest -q
 
 Missing `core_table` import:
 
-- Activate `.venv`.
+- Activate `.venv311`.
 - Run `.\scripts\setup-python.ps1` again.
 
 Stale or missing WASM bindings:

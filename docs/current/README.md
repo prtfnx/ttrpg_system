@@ -50,6 +50,8 @@ older plans or reports in `docs/`.
   persistence owners, combat journal, assets, and migrations.
 - [Docs quality checks](reference/DOCS_QUALITY_CHECKS.md): local link and
   metadata checks for `docs/current/`.
+- [Editor workspace](reference/EDITOR_WORKSPACE.md): leaf-only VS Code roots,
+  Python analysis scopes, shared tasks, and diagnostic troubleshooting.
 
 ## Feature Guides
 

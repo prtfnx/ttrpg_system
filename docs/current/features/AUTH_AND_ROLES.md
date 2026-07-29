@@ -3,12 +3,14 @@
 Status: current. Account authentication and per-session authorization are
 separate server-owned systems.
 
-Last source audit: 2026-07-21
+Last source audit: 2026-07-29
 
 ## Source owners
 
 - `apps/server/routers/users.py`: username/password login, registration,
   account settings, password reset, email verification, logout, `/users/me`.
+- `apps/server/service/authentication.py`: shared access-token validation for
+  HTTP and WebSocket entry points.
 - `apps/server/routers/auth.py`: optional Google OAuth login and callback.
 - `apps/server/utils/roles.py`: session role names, permissions, visible
   layers, role assignment rules, and sprite limits.
@@ -52,12 +54,19 @@ The cookie is HTTP-only, `sameSite=lax`, and secure only when
 `ENVIRONMENT=production`. The token lifetime is currently 360 minutes.
 
 `get_current_user()` reads the cookie first, then an `Authorization: Bearer`
-header. It validates the JWT, loads the user by username, and rejects the token
-if its `sv` claim no longer matches `users.session_version`.
+header. HTTP and WebSocket entry points use the same token resolver. It
+validates the JWT, loads the user by username, rejects disabled users, and
+rejects the token if its `sv` claim no longer matches
+`users.session_version`.
 
 Password reset, password change, and account deletion bump `session_version` to
 invalidate old JWTs. Password change re-issues a token so the current browser
 can stay logged in.
+
+The game WebSocket validates the HTTP-only cookie before accepting the
+connection. A missing, expired, malformed, revoked, or disabled-account token
+closes the handshake with WebSocket policy-violation code `1008`. It never
+records token material in logs.
 
 ## Browser auth
 

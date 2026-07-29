@@ -6,7 +6,7 @@ public routes.
 Status: current. This page documents current controls and the remaining
 single-instance limitations visible in the codebase.
 
-Last source audit: 2026-07-23
+Last source audit: 2026-07-29
 
 ## Main security boundaries
 
@@ -69,6 +69,12 @@ JWT payloads include:
 
 Password reset, password change, and account delete increment
 `session_version`, invalidating older tokens.
+
+`apps/server/service/authentication.py` owns token-to-active-user validation
+for HTTP and WebSocket entry points. Both paths reject expired or malformed
+tokens, missing users, mismatched session versions, and disabled accounts. The
+game WebSocket performs this check before accepting a connection and closes a
+rejected handshake with policy-violation code `1008`.
 
 ## Passwords and account recovery
 
@@ -184,7 +190,7 @@ python -m pytest tests\unit\test_security.py tests\unit\test_roles.py tests\unit
 For auth route changes, also run:
 
 ```powershell
-python -m pytest tests\unit\test_auth.py tests\integration\test_auth_routes.py tests\integration\test_user_routes.py
+python -m pytest tests\unit\test_auth.py tests\unit\test_game_ws_security.py tests\integration\test_auth_routes.py tests\integration\test_user_routes.py
 ```
 
 ## Change checklist

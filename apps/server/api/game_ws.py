@@ -8,12 +8,11 @@ import time
 import uuid
 from collections import deque
 
-import jwt
 from config import Settings
 from database import crud, models
 from database.database import SessionLocal
 from fastapi import APIRouter, Depends, WebSocket, WebSocketDisconnect, status
-from routers.users import ALGORITHM, SECRET_KEY
+from service.authentication import AccessTokenRejected, resolve_active_user_from_token
 from service.game_session import ConnectionManager, get_connection_manager
 from sqlalchemy.orm import Session
 from utils.logger import log_context, setup_logger
@@ -45,26 +44,17 @@ def _origin_is_allowed(origin: str | None) -> bool:
 def get_user_from_token(token: str, db: Session):
     """Resolve a user without ever recording token material."""
     try:
-        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
-        username = payload.get("sub")
-        if not isinstance(username, str) or not username:
-            logger.warning(
-                "WebSocket JWT has no subject",
-                extra={"event_name": "websocket.authentication.rejected", "reason": "missing_subject"},
-            )
-            return None
-        return crud.get_user_by_username(db, username=username)
-    except jwt.ExpiredSignatureError:
-        logger.info(
-            "WebSocket JWT expired",
-            extra={"event_name": "websocket.authentication.rejected", "reason": "expired"},
+        return resolve_active_user_from_token(token, db)
+    except AccessTokenRejected as error:
+        log = logger.info if error.reason == "expired" else logger.warning
+        log(
+            "WebSocket access token rejected",
+            extra={
+                "event_name": "websocket.authentication.rejected",
+                "reason": error.reason,
+            },
         )
-    except jwt.InvalidTokenError:
-        logger.warning(
-            "WebSocket JWT invalid",
-            extra={"event_name": "websocket.authentication.rejected", "reason": "invalid"},
-        )
-    return None
+        return None
 
 
 @router.websocket("/ws/game/{session_code}")

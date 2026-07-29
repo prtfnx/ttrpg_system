@@ -16,8 +16,13 @@ from fastapi import APIRouter, Depends, Form, HTTPException, Request, status
 from fastapi.responses import RedirectResponse
 from fastapi.security import OAuth2PasswordRequestForm
 from fastapi.templating import Jinja2Templates
-from jwt.exceptions import InvalidTokenError
 from models import auth as auth_models
+from service.authentication import (
+    ALGORITHM,
+    SECRET_KEY,
+    AccessTokenRejected,
+    resolve_active_user_from_token,
+)
 from service.email import send_email_change_notify, send_email_change_verify, send_password_changed, send_password_reset
 from sqlalchemy.orm import Session
 from utils.audit import audit_event
@@ -36,8 +41,6 @@ templates = Jinja2Templates(directory=templates_dir)
 def get_settings():
     return config.Settings()
 ACCESS_TOKEN_EXPIRE_MINUTES = 360
-SECRET_KEY = get_settings().SECRET_KEY
-ALGORITHM = get_settings().ALGORITHM
 
 
 def create_access_token(data: dict, expires_delta: timedelta | None = None):
@@ -142,25 +145,16 @@ async def get_current_user(request: Request, db: Session = Depends(get_db)):
         record_auth("token", "denied", "invalid_token")
         raise credentials_exception
     try:
-        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
-        username = payload.get("sub")
-        if username is None:
-            record_auth("token", "denied", "invalid_token")
-            raise credentials_exception
-    except InvalidTokenError as e:
+        user = resolve_active_user_from_token(token, db)
+    except AccessTokenRejected as error:
         record_auth("token", "denied", "invalid_token")
         logger.debug(
             "Authentication token validation failed",
-            extra={"event_name": "authentication.token.rejected", "reason": type(e).__name__},
+            extra={
+                "event_name": "authentication.token.rejected",
+                "reason": error.reason,
+            },
         )
-        raise credentials_exception
-
-    user = crud.get_user_by_username(db, username=username)
-    if user is None:
-        record_auth("token", "denied", "invalid_token")
-        raise credentials_exception
-    if (user.session_version or 0) != payload.get("sv", 0):
-        record_auth("token", "denied", "invalid_token")
         raise credentials_exception
     request.state.user_id = user.id
     record_auth("token", "success")
@@ -184,14 +178,8 @@ async def get_current_user_optional(request: Request, db: Session = Depends(get_
         if not token:
             return None
 
-        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
-        username = payload.get("sub")
-        if username is None:
-            return None
-
-        user = crud.get_user_by_username(db, username=username)
-        return user
-    except Exception:
+        return resolve_active_user_from_token(token, db)
+    except AccessTokenRejected:
         return None
 
 async def get_current_active_user(current_user: Annotated[schemas.User, Depends(get_current_user)]):

@@ -1,54 +1,64 @@
+import {
+  applyUiPreferences,
+  DEFAULT_UI_PREFERENCES,
+  loadUiPreferences,
+  saveUiPreferences,
+  type ButtonStyle,
+  type ColorScheme,
+  type Theme,
+  type UiPreferences,
+} from '@features/customization/uiPreferences';
+import clsx from 'clsx';
 import { useState } from 'react';
 import { Moon, Paintbrush, Settings, Sliders } from 'lucide-react';
 import styles from './CustomizePanel.module.css';
 
-type Theme = 'dark' | 'light' | 'high-contrast' | 'cyberpunk' | 'forest';
-type ButtonStyle = 'rounded' | 'sharp' | 'pill';
-type ColorScheme = 'blue' | 'purple' | 'green' | 'red' | 'orange';
+const colorSwatchClass: Record<ColorScheme, string> = {
+  blue: styles.blueSwatch,
+  purple: styles.purpleSwatch,
+  green: styles.greenSwatch,
+  red: styles.redSwatch,
+  orange: styles.orangeSwatch,
+};
 
 export function CustomizePanel() {
-  const [theme, setTheme] = useState<Theme>('dark');
-  const [buttonStyle, setButtonStyle] = useState<ButtonStyle>('rounded');
-  const [colorScheme, setColorScheme] = useState<ColorScheme>('blue');
-  const [accentOpacity, setAccentOpacity] = useState(100);
-  const [borderRadius, setBorderRadius] = useState(8);
+  const [preferences, setPreferences] = useState<UiPreferences>(loadUiPreferences);
+  const { theme, buttonStyle, colorScheme, accentOpacity, borderRadius } = preferences;
+
+  const updatePreferences = (changes: Partial<UiPreferences>) => {
+    setPreferences(current => {
+      const next = { ...current, ...changes };
+      applyUiPreferences(next);
+      saveUiPreferences(next);
+      return next;
+    });
+  };
 
   const handleThemeChange = (newTheme: Theme) => {
-    setTheme(newTheme);
-    document.documentElement.setAttribute('data-theme', newTheme);
-    localStorage.setItem('app-theme', newTheme);
+    updatePreferences({ theme: newTheme });
   };
 
   const handleButtonStyleChange = (newStyle: ButtonStyle) => {
-    setButtonStyle(newStyle);
-    document.documentElement.setAttribute('data-button-style', newStyle);
-    localStorage.setItem('button-style', newStyle);
+    updatePreferences({ buttonStyle: newStyle });
   };
 
   const handleColorSchemeChange = (newScheme: ColorScheme) => {
-    setColorScheme(newScheme);
-    document.documentElement.setAttribute('data-color-scheme', newScheme);
-    localStorage.setItem('color-scheme', newScheme);
+    updatePreferences({ colorScheme: newScheme });
   };
 
   const handleAccentOpacityChange = (value: number) => {
-    setAccentOpacity(value);
-    document.documentElement.style.setProperty('--accent-opacity', `${value / 100}`);
-    localStorage.setItem('accent-opacity', value.toString());
+    updatePreferences({ accentOpacity: value });
   };
 
   const handleBorderRadiusChange = (value: number) => {
-    setBorderRadius(value);
-    document.documentElement.style.setProperty('--custom-radius', `${value}px`);
-    localStorage.setItem('border-radius', value.toString());
+    updatePreferences({ borderRadius: value });
   };
 
   const resetToDefaults = () => {
-    handleThemeChange('dark');
-    handleButtonStyleChange('rounded');
-    handleColorSchemeChange('blue');
-    handleAccentOpacityChange(100);
-    handleBorderRadiusChange(8);
+    const defaults = { ...DEFAULT_UI_PREFERENCES };
+    setPreferences(defaults);
+    applyUiPreferences(defaults);
+    saveUiPreferences(defaults);
   };
 
   return (
@@ -65,6 +75,7 @@ export function CustomizePanel() {
           <button
             className={`${styles.themeCard} ${theme === 'dark' ? styles.active : ''}`}
             onClick={() => handleThemeChange('dark')}
+            aria-pressed={theme === 'dark'}
           >
             <div className={`${styles.themePreview} ${styles.darkPreview}`}></div>
             <span>Dark</span>
@@ -72,6 +83,7 @@ export function CustomizePanel() {
           <button
             className={`${styles.themeCard} ${theme === 'light' ? styles.active : ''}`}
             onClick={() => handleThemeChange('light')}
+            aria-pressed={theme === 'light'}
           >
             <div className={`${styles.themePreview} ${styles.lightPreview}`}></div>
             <span>Light</span>
@@ -79,6 +91,7 @@ export function CustomizePanel() {
           <button
             className={`${styles.themeCard} ${theme === 'high-contrast' ? styles.active : ''}`}
             onClick={() => handleThemeChange('high-contrast')}
+            aria-pressed={theme === 'high-contrast'}
           >
             <div className={`${styles.themePreview} ${styles.highContrastPreview}`}></div>
             <span>High Contrast</span>
@@ -86,6 +99,7 @@ export function CustomizePanel() {
           <button
             className={`${styles.themeCard} ${theme === 'cyberpunk' ? styles.active : ''}`}
             onClick={() => handleThemeChange('cyberpunk')}
+            aria-pressed={theme === 'cyberpunk'}
           >
             <div className={`${styles.themePreview} ${styles.cyberpunkPreview}`}></div>
             <span>Cyberpunk</span>
@@ -93,6 +107,7 @@ export function CustomizePanel() {
           <button
             className={`${styles.themeCard} ${theme === 'forest' ? styles.active : ''}`}
             onClick={() => handleThemeChange('forest')}
+            aria-pressed={theme === 'forest'}
           >
             <div className={`${styles.themePreview} ${styles.forestPreview}`}></div>
             <span>Forest</span>
@@ -107,10 +122,10 @@ export function CustomizePanel() {
           {(['blue', 'purple', 'green', 'red', 'orange'] as ColorScheme[]).map((color) => (
             <button
               key={color}
-              className={`${styles.colorButton} ${colorScheme === color ? styles.active : ''}`}
-              style={{ backgroundColor: `var(--${color}-500, #${color === 'blue' ? '3b82f6' : color === 'purple' ? 'a855f7' : color === 'green' ? '22c55e' : color === 'red' ? 'ef4444' : 'f97316'})` }}
+              className={clsx(styles.colorButton, colorSwatchClass[color], colorScheme === color && styles.active)}
               onClick={() => handleColorSchemeChange(color)}
               aria-label={`${color} accent`}
+              aria-pressed={colorScheme === color}
             >
               {colorScheme === color && <span className={styles.checkmark}><Sliders size={12} aria-hidden /></span>}
             </button>
@@ -124,21 +139,21 @@ export function CustomizePanel() {
         <div className={styles.buttonStyleGrid}>
           <button
             className={`${styles.stylePreviewButton} ${buttonStyle === 'rounded' ? styles.active : ''}`}
-            style={{ borderRadius: '8px' }}
+            aria-pressed={buttonStyle === 'rounded'}
             onClick={() => handleButtonStyleChange('rounded')}
           >
             Rounded
           </button>
           <button
-            className={`${styles.stylePreviewButton} ${buttonStyle === 'sharp' ? styles.active : ''}`}
-            style={{ borderRadius: '2px' }}
+            className={`${styles.stylePreviewButton} ${styles.sharpPreviewButton} ${buttonStyle === 'sharp' ? styles.active : ''}`}
+            aria-pressed={buttonStyle === 'sharp'}
             onClick={() => handleButtonStyleChange('sharp')}
           >
             Sharp
           </button>
           <button
-            className={`${styles.stylePreviewButton} ${buttonStyle === 'pill' ? styles.active : ''}`}
-            style={{ borderRadius: '24px' }}
+            className={`${styles.stylePreviewButton} ${styles.pillPreviewButton} ${buttonStyle === 'pill' ? styles.active : ''}`}
+            aria-pressed={buttonStyle === 'pill'}
             onClick={() => handleButtonStyleChange('pill')}
           >
             Pill
@@ -151,11 +166,12 @@ export function CustomizePanel() {
         <h3 className={styles.sectionTitle}><Settings size={14} aria-hidden /> Advanced</h3>
         
         <div className={styles.settingRow}>
-          <label className={styles.settingLabel}>
+          <label className={styles.settingLabel} htmlFor="accent-opacity">
             Accent Opacity
             <span className={styles.settingValue}>{accentOpacity}%</span>
           </label>
           <input
+            id="accent-opacity"
             type="range"
             min="10"
             max="100"
@@ -167,11 +183,12 @@ export function CustomizePanel() {
         </div>
 
         <div className={styles.settingRow}>
-          <label className={styles.settingLabel}>
+          <label className={styles.settingLabel} htmlFor="border-radius">
             Border Radius
             <span className={styles.settingValue}>{borderRadius}px</span>
           </label>
           <input
+            id="border-radius"
             type="range"
             min="0"
             max="24"

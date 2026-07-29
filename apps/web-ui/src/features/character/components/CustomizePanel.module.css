@@ -125,12 +125,32 @@
 }
 
 .colorButton.active {
-  border-color: var(--text-inverse-primary);
+  border-color: var(--text-on-accent);
   box-shadow: var(--shadow-xl);
 }
 
+.blueSwatch {
+  background-color: var(--swatch-blue);
+}
+
+.purpleSwatch {
+  background-color: var(--swatch-purple);
+}
+
+.greenSwatch {
+  background-color: var(--swatch-green);
+}
+
+.redSwatch {
+  background-color: var(--swatch-red);
+}
+
+.orangeSwatch {
+  background-color: var(--swatch-orange);
+}
+
 .checkmark {
-  color: white;
+  color: var(--text-on-accent);
   font-size: var(--text-xl);
   font-weight: var(--font-bold);
   text-shadow: var(--shadow-text-readable);
@@ -152,6 +172,15 @@
   transition: all var(--transition-fast);
   font-size: var(--text-sm);
   font-weight: var(--font-medium);
+  border-radius: var(--custom-radius);
+}
+
+.sharpPreviewButton {
+  border-radius: var(--radius-none);
+}
+
+.pillPreviewButton {
+  border-radius: var(--radius-full);
 }
 
 .stylePreviewButton:hover {

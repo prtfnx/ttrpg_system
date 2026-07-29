@@ -14,7 +14,9 @@ describe('CustomizePanel', () => {
     document.documentElement.removeAttribute('data-theme');
     document.documentElement.removeAttribute('data-button-style');
     document.documentElement.removeAttribute('data-color-scheme');
+    document.documentElement.removeAttribute('data-custom-radius');
     document.documentElement.style.removeProperty('--accent-opacity');
+    document.documentElement.style.removeProperty('--accent-overlay-percent');
     document.documentElement.style.removeProperty('--custom-radius');
   });
 
@@ -289,6 +291,18 @@ describe('CustomizePanel', () => {
   });
 
   describe('persistence', () => {
+    it('restores saved choices in the panel state', () => {
+      localStorage.setItem('app-theme', 'forest');
+      localStorage.setItem('button-style', 'pill');
+      localStorage.setItem('color-scheme', 'purple');
+
+      render(<CustomizePanel />);
+
+      expect(screen.getByText('Forest').closest('button')).toHaveAttribute('aria-pressed', 'true');
+      expect(screen.getByText('Pill').closest('button')).toHaveAttribute('aria-pressed', 'true');
+      expect(screen.getByLabelText('purple accent')).toHaveAttribute('aria-pressed', 'true');
+    });
+
     it('persists multiple setting changes', async () => {
       const user = userEvent.setup();
       render(<CustomizePanel />);

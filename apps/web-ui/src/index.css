@@ -48,6 +48,30 @@ button {
   cursor: pointer;
 }
 
+/* Preference-level geometry overrides keep component CSS token-driven. */
+[data-custom-radius='true'] {
+  --radius-xs: calc(var(--custom-radius) * 0.25);
+  --radius-sm: calc(var(--custom-radius) * 0.5);
+  --radius-md: var(--custom-radius);
+  --radius-lg: calc(var(--custom-radius) * 1.5);
+  --radius-xl: calc(var(--custom-radius) * 2);
+  --radius-2xl: calc(var(--custom-radius) * 3);
+}
+
+[data-button-style='sharp'] button {
+  --radius-xs: var(--radius-none);
+  --radius-sm: var(--radius-none);
+  --radius-md: var(--radius-none);
+  --radius-lg: var(--radius-none);
+}
+
+[data-button-style='pill'] button {
+  --radius-xs: var(--radius-full);
+  --radius-sm: var(--radius-full);
+  --radius-md: var(--radius-full);
+  --radius-lg: var(--radius-full);
+}
+
 :where(button, a, input, select, textarea, [role='button'], [tabindex]):focus-visible {
   outline: var(--border-width-md) solid var(--accent-primary) !important;
   outline-offset: var(--border-width-md);

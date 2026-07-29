@@ -3,6 +3,7 @@ import { AuthProvider } from '@features/auth';
 import { EntitiesPanel } from '@features/canvas/components/EntitiesPanel';
 import { ToolsPanel } from '@features/canvas/components/ToolsPanel';
 import { CharacterPanel } from '@features/character/components/CharacterPanel';
+import { initializeUiPreferences } from '@features/customization/uiPreferences';
 import { WasmRuntimeProvider } from '@lib/wasm/runtime';
 import { logger } from '@shared/utils/logger';
 import { installBrowserTelemetry } from '@shared/utils/browserTelemetry';
@@ -12,6 +13,7 @@ import App from './App.tsx';
 import './index.css';
 
 const isDev = import.meta.env.DEV;
+initializeUiPreferences();
 installBrowserTelemetry();
 
 // Conditionally wrap with StrictMode — only in development to avoid double effects in production

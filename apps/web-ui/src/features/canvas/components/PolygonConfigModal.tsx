@@ -2,7 +2,8 @@ import { useGameStore } from '@/store';
 import { useProtocol } from '@lib/api';
 import { useRenderEngine } from '@lib/wasm/runtime';
 import { createMessage, MessageType } from '@lib/websocket';
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useId, useState } from 'react';
+import styles from './CanvasConfigModal.module.css';
 
 interface Point { x: number; y: number; }
 
@@ -15,6 +16,7 @@ interface PolygonDraft {
 const DEFAULT_LAYER = 'obstacles';
 
 export const PolygonConfigModal: React.FC = () => {
+  const titleId = useId();
   const { protocol } = useProtocol();
   const renderEngine = useRenderEngine();
   const tableId = useGameStore(s => s.activeTableId);
@@ -101,14 +103,14 @@ export const PolygonConfigModal: React.FC = () => {
   if (!draft) return null;
 
   return (
-    <div style={overlay}>
-      <div style={modal}>
-        <h3 style={{ margin: '0 0 12px', fontSize: 15 }}>New Polygon Obstacle</h3>
-        <p style={{ color: 'var(--text-muted)', fontSize: 12, marginBottom: 12 }}>
+    <div className={styles.overlay}>
+      <div className={styles.modal} role="dialog" aria-modal="true" aria-labelledby={titleId}>
+        <h3 className={styles.title} id={titleId}>New Polygon Obstacle</h3>
+        <p className={styles.description}>
           {draft.vertices.length} vertices placed
         </p>
 
-        <label style={row}>
+        <label className={styles.row}>
           Layer
           <select value={draft.layer} onChange={e => setDraft(prev => prev ? { ...prev, layer: e.target.value } : prev)}>
             <option value="obstacles">Obstacles</option>
@@ -116,43 +118,22 @@ export const PolygonConfigModal: React.FC = () => {
           </select>
         </label>
 
-        <label style={row}>
+        <label className={styles.row}>
           Label (optional)
           <input
             type="text"
             value={draft.label}
             onChange={e => setDraft(prev => prev ? { ...prev, label: e.target.value } : prev)}
             placeholder="e.g. Wall, Pillar"
-            style={{ flex: 1, background: 'var(--bg-tertiary)', border: '1px solid var(--border-primary)', color: 'var(--text-primary)', borderRadius: 4, padding: '4px 8px' }}
+            className={styles.textInput}
           />
         </label>
 
-        <div style={{ display: 'flex', gap: 8, marginTop: 14, justifyContent: 'flex-end' }}>
-          <button onClick={close} style={btnSecondary}>Cancel</button>
-          <button onClick={submit} style={btnPrimary}>Create Obstacle</button>
+        <div className={styles.actions}>
+          <button onClick={close} className={styles.btnSecondary}>Cancel</button>
+          <button onClick={submit} className={styles.btnPrimary}>Create Obstacle</button>
         </div>
       </div>
     </div>
   );
-};
-
-const overlay: React.CSSProperties = {
-  position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.6)',
-  display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 10000,
-};
-const modal: React.CSSProperties = {
-  background: 'var(--bg-secondary)', color: 'var(--text-primary)', border: '1px solid var(--border-primary)',
-  borderRadius: 8, padding: 20, minWidth: 280, fontSize: 13,
-};
-const row: React.CSSProperties = {
-  display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8,
-  justifyContent: 'space-between',
-};
-const btnPrimary: React.CSSProperties = {
-  background: 'var(--color-primary)', color: 'var(--text-inverse-primary)', border: 'none', borderRadius: 4,
-  padding: '6px 14px', cursor: 'pointer', fontWeight: 600,
-};
-const btnSecondary: React.CSSProperties = {
-  background: 'var(--bg-elevated)', color: 'var(--text-secondary)', border: 'none', borderRadius: 4,
-  padding: '6px 14px', cursor: 'pointer',
 };

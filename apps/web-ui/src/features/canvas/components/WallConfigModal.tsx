@@ -1,7 +1,7 @@
 import { useGameStore, type WallData } from '@/store';
 import { useProtocol } from '@lib/api';
-import React, { useCallback, useEffect, useState } from 'react';
-import styles from './WallConfigModal.module.css';
+import React, { useCallback, useEffect, useId, useState } from 'react';
+import styles from './CanvasConfigModal.module.css';
 
 interface WallDraft extends Omit<WallData, 'wall_id' | 'table_id'> {
   x1: number; y1: number; x2: number; y2: number;
@@ -21,6 +21,7 @@ const DEFAULTS: WallDraft = {
 };
 
 export const WallConfigModal: React.FC = () => {
+  const titleId = useId();
   const { protocol } = useProtocol();
   const tableId = useGameStore(s => s.activeTableId);
   const addWall = useGameStore(s => s.addWall);
@@ -73,8 +74,8 @@ export const WallConfigModal: React.FC = () => {
 
   return (
     <div className={styles.overlay}>
-      <div className={styles.modal}>
-        <h3>New Wall Segment</h3>
+      <div className={styles.modal} role="dialog" aria-modal="true" aria-labelledby={titleId}>
+        <h3 className={styles.title} id={titleId}>New Wall Segment</h3>
 
         <label className={styles.row}>
           Type

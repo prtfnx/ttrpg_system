@@ -24,7 +24,9 @@
 
 /* Modal Content */
 .modalContent {
-  background: white;
+  background: var(--panel-bg);
+  color: var(--text-primary);
+  border: var(--border-width) solid var(--panel-border);
   border-radius: var(--radius-md);
   box-shadow: var(--shadow-2xl);
   max-height: 90vh;
@@ -103,8 +105,8 @@
   color: var(--text-primary);
 }
 
-.modalCloseButton:focus {
-  outline: var(--border-width-thick) solid var(--blue-600);
+.modalCloseButton:focus-visible {
+  outline: var(--border-width-thick) solid var(--border-focus);
   outline-offset: var(--space-xs);
 }
 

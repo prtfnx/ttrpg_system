@@ -42,7 +42,7 @@ describe('WallConfigModal', () => {
   it('shows modal after wallDrawn event', () => {
     render(<WallConfigModal />);
     dispatchWallDrawn();
-    expect(screen.getByText('New Wall Segment')).toBeInTheDocument();
+    expect(screen.getByRole('dialog', { name: 'New Wall Segment' })).toBeInTheDocument();
   });
 
   it('Cancel button closes the modal', () => {

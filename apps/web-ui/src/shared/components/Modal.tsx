@@ -1,6 +1,6 @@
 import clsx from 'clsx';
 import type { ReactNode } from 'react';
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useId, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import styles from './Modal.module.css';
 
@@ -20,6 +20,7 @@ interface Props {
 }
 
 export function Modal({ isOpen, onClose, title, children, closeOnEscape = true, closeOnOverlayClick = true, size = 'medium' }: Props) {
+  const titleId = useId();
   const [isAnimating, setIsAnimating] = useState(false);
   const modalRef = useRef<HTMLDivElement>(null);
   const previousActiveElement = useRef<Element | null>(null);
@@ -80,12 +81,12 @@ export function Modal({ isOpen, onClose, title, children, closeOnEscape = true, 
         className={clsx(styles.modalContent, styles[size])}
         role="dialog"
         aria-modal="true"
-        aria-labelledby={title ? 'modal-title' : undefined}
+        aria-labelledby={title ? titleId : undefined}
         tabIndex={-1}
       >
         {title && (
           <div className={styles.modalHeader}>
-            <h2 id="modal-title" className={styles.modalTitle}>{title}</h2>
+            <h2 id={titleId} className={styles.modalTitle}>{title}</h2>
             <button type="button" className={styles.modalCloseButton} onClick={onClose} aria-label="Close modal">×</button>
           </div>
         )}

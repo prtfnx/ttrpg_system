@@ -50,7 +50,7 @@ describe('PolygonConfigModal', () => {
   it('shows modal after polygonCreated event', () => {
     render(<PolygonConfigModal />);
     dispatchPolygonCreated();
-    expect(screen.getByText('New Polygon Obstacle')).toBeInTheDocument();
+    expect(screen.getByRole('dialog', { name: 'New Polygon Obstacle' })).toBeInTheDocument();
     expect(screen.getByText(/3 vertices/)).toBeInTheDocument();
   });
 

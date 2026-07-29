@@ -64,6 +64,7 @@ Canvas or WASM contributor:
 | [Database schema](reference/DATABASE_SCHEMA.md) | reference | persistence contributors | new |
 | [Docs quality checks](reference/DOCS_QUALITY_CHECKS.md) | reference | doc contributors | new |
 | [Editor workspace](reference/EDITOR_WORKSPACE.md) | reference | contributors using VS Code | current |
+| [UI theme tokens](reference/UI_THEME_TOKENS.md) | reference | web UI contributors | current |
 | [Auth and roles](features/AUTH_AND_ROLES.md) | feature guide | auth and session contributors | new |
 | [Sessions and invitations](features/SESSIONS_AND_INVITATIONS.md) | feature guide | session contributors | new |
 | [Tables and canvas](features/TABLES_AND_CANVAS.md) | feature guide | table and canvas contributors | new |

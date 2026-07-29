@@ -4,7 +4,7 @@ Audience: contributors adding a visible React panel or tab.
 
 Status: usable.
 
-Last source audit: 2026-07-08
+Last source audit: 2026-07-29
 
 ## Pick the right surface
 
@@ -87,6 +87,18 @@ tool-like UI rather than adding a landing-page or marketing layout.
 
 Use existing shared components when available under `apps/web-ui/src/shared/`.
 
+Use semantic and component tokens for colors, borders, states, and shared
+control behavior. Use the primitive spacing, size, typography, radius, and
+font-weight scales for panel geometry. Preserve the global keyboard focus
+indicator and give selectable controls a matching ARIA state.
+
+Keep static visual rules out of JSX inline styles. Runtime-derived position,
+progress, or user-selected values may stay inline, but theme values should
+still resolve through CSS custom properties.
+
+See [UI theme tokens](../reference/UI_THEME_TOKENS.md) before adding a new
+token or interaction style.
+
 ## Verification
 
 Run from `apps/web-ui`:
@@ -94,6 +106,8 @@ Run from `apps/web-ui`:
 ```powershell
 pnpm.cmd exec tsc -b --pretty false
 pnpm.cmd exec vitest run --project jsdom
+pnpm.cmd run lint:css
+pnpm.cmd run validate:css
 ```
 
 For a focused change, run the colocated test file. Use browser tests only when
@@ -106,4 +120,6 @@ the panel depends on real browser APIs that jsdom cannot model.
 - State owner is clear.
 - Server-bound actions use protocol helpers or hooks.
 - WASM-bound actions go through runtime hooks, not generated bindings.
+- Static styles use the shared token system.
+- Hover, active, disabled, and focus-visible states are consistent.
 - Tests cover visible behavior and any boundary call.

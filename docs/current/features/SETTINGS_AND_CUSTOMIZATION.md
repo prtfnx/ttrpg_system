@@ -5,7 +5,7 @@ settings, or browser-only UI preferences.
 
 Status: current but split across several feature owners.
 
-Last source audit: 2026-07-09
+Last source audit: 2026-07-29
 
 ## Ownership
 
@@ -22,6 +22,8 @@ that applies them:
 - Interface customization lives in
   `apps/web-ui/src/features/character/components/CustomizePanel.tsx`, exported
   through `features/customization/index.ts`.
+- Interface preference loading, validation, persistence, and document updates
+  live in `apps/web-ui/src/features/customization/uiPreferences.ts`.
 - Canvas performance settings live in
   `apps/web-ui/src/features/canvas/services/performance.service.ts` and
   `components/PerformanceSettingsPanel.tsx`.
@@ -69,9 +71,25 @@ browser protocol to the runtime and store.
 
 ## Browser-Only Preferences
 
-`CustomizePanel` changes document attributes and CSS variables immediately, then
-writes the value to `localStorage`. It currently covers theme, button style,
-accent color, accent opacity, and border radius.
+`initializeUiPreferences` runs before React mounts. It reads supported values
+from `localStorage`, rejects unknown choices and out-of-range numbers, then
+applies the current preferences to the document. Storage failures fall back to
+the defaults without preventing the UI from loading.
+
+`CustomizePanel` applies and saves changes immediately. It currently covers:
+
+- dark, light, high-contrast, cyberpunk, and forest themes through
+  `data-theme`;
+- blue, purple, green, red, and orange accent schemes through
+  `data-color-scheme`;
+- rounded, sharp, and pill buttons through `data-button-style`;
+- accent opacity through `--accent-opacity` and
+  `--accent-overlay-percent`;
+- the shared radius scale through `--custom-radius`.
+
+Reset applies and persists the complete default preference set. Theme and
+accent selectors remap shared semantic tokens, so token-driven components
+change consistently without feature code branching on the selected theme.
 
 Canvas performance settings are also browser-local. `performanceService` stores
 settings under `ttrpg_performance_settings` in `localStorage`; the panel can
@@ -86,6 +104,7 @@ apply manual settings or choose a level from current performance metrics.
 Useful coverage lives in:
 
 - `apps/web-ui/src/features/customization/components/CustomizePanel/__tests__/CustomizePanel.test.tsx`
+- `apps/web-ui/src/features/customization/__tests__/uiPreferences.test.ts`
 - `apps/web-ui/src/features/canvas/services/__tests__/performance.service.test.ts`
 - `apps/web-ui/src/features/canvas/components/__tests__/PerformanceSettingsPanel.test.tsx`
 - `apps/server/tests/unit/test_tables_protocol.py`

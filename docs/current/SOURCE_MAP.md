@@ -52,6 +52,14 @@ This map lists the main source areas and their current responsibility.
 - `apps/web-ui/src/features/combat/`: combat dock, command hook, planning,
   DM controls, action panels, combat stores, and focused tests.
 - `apps/web-ui/src/shared/`: shared UI, hooks, services, and utilities.
+- `apps/web-ui/src/shared/styles/tokens.css`: primitive color, geometry,
+  typography, motion, and elevation scales.
+- `apps/web-ui/src/shared/styles/theme.css`: semantic and component token
+  mappings plus theme/customization overrides.
+- `apps/web-ui/scripts/validate-css.js`: token-reference and hardcoded-value
+  validation for component CSS.
+- `apps/web-ui/src/features/customization/uiPreferences.ts`: validated local
+  preference persistence and document-level theme hooks.
 - `apps/web-ui/src/lib/websocket/`: browser WebSocket protocol adapter and
   message definitions.
 - `apps/web-ui/src/lib/api/ProtocolService.ts`: active protocol singleton for

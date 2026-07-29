@@ -45,6 +45,10 @@ Use JSDOM tests for React logic, stores, protocol adapters, and runtime
 contracts. Use browser tests for real browser APIs such as canvas, WebGL, and
 WASM behavior that jsdom cannot model.
 
+For component styling and token ownership, follow
+[UI theme tokens](reference/UI_THEME_TOKENS.md). Run both `lint:css` and
+`validate:css` for CSS changes; they enforce different parts of the contract.
+
 Focused combat UI/protocol checks:
 
 ```powershell

@@ -52,6 +52,8 @@ older plans or reports in `docs/`.
   metadata checks for `docs/current/`.
 - [Editor workspace](reference/EDITOR_WORKSPACE.md): leaf-only VS Code roots,
   Python analysis scopes, shared tasks, and diagnostic troubleshooting.
+- [UI theme tokens](reference/UI_THEME_TOKENS.md): token ownership, component
+  styling rules, interaction states, and CSS verification.
 
 ## Feature Guides
 

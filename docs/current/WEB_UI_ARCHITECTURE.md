@@ -1,5 +1,12 @@
 # Web UI architecture
 
+Audience: contributors changing React, browser state, protocol integration, or
+web styling.
+
+Status: current.
+
+Last source audit: 2026-07-29
+
 The web UI is a Vite React app. React owns user workflows and browser state.
 Protocol code owns the WebSocket connection. `WasmRuntime` owns Rust/WASM.
 
@@ -9,6 +16,12 @@ Protocol code owns the WebSocket connection. `WasmRuntime` owns Rust/WASM.
 - `apps/web-ui/src/features/`: feature UI and feature services.
 - `apps/web-ui/src/shared/`: shared components, hooks, styles, test helpers,
   and utilities.
+- `apps/web-ui/src/shared/styles/tokens.css`: primitive design scales and
+  palette.
+- `apps/web-ui/src/shared/styles/theme.css`: semantic, component, and
+  theme/customization token mappings.
+- `apps/web-ui/src/features/customization/uiPreferences.ts`: validated
+  browser preference loading and document-level token hooks.
 - `apps/web-ui/src/lib/websocket/`: client protocol and WebSocket message
   types.
 - `apps/web-ui/src/lib/api/ProtocolService.ts`: singleton access to the active
@@ -59,6 +72,21 @@ Important combat pieces:
 Avoid adding new browser globals as state. If a value must cross domains, pass
 it through a provider, store, protocol method, or runtime port.
 
+## Styling ownership
+
+`apps/web-ui/src/index.css` loads primitive tokens before semantic theme
+tokens and owns shared focus-visible and disabled-control behavior. Feature
+components keep static styles in their CSS or CSS modules and consume tokens
+from the shared system.
+
+Use semantic/component tokens for colors and interaction states. Use primitive
+spacing, size, radius, typography, and font-weight scales for geometry. Keep
+inline styles for genuinely runtime-derived values rather than static visual
+rules.
+
+See [UI theme tokens](reference/UI_THEME_TOKENS.md) for the complete contract
+and verification commands.
+
 ## Feature code rules
 
 - UI components should call hooks, stores, services, or runtime ports.
@@ -100,3 +128,5 @@ accepted command still goes to the server for final validation and mutation.
 - JSDOM tests: `pnpm.cmd exec vitest run --project jsdom` from `apps/web-ui`.
 - Browser tests: `pnpm.cmd exec vitest run --project browser` from
   `apps/web-ui`.
+- CSS lint: `pnpm.cmd run lint:css` from `apps/web-ui`.
+- Token validation: `pnpm.cmd run validate:css` from `apps/web-ui`.

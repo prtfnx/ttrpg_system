@@ -1,0 +1,89 @@
+.toolbar {
+  --editor-x: 0px;
+  --toolbar-y: 0px;
+
+  position: fixed;
+  left: var(--editor-x);
+  top: var(--toolbar-y);
+  z-index: var(--z-popover);
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  padding: var(--space-sm) var(--space-md);
+  transform: translateX(-50%);
+  background: var(--overlay-dark-95);
+  color: var(--text-on-overlay);
+  border: var(--border-width) solid var(--border-focus);
+  border-radius: var(--radius-sm);
+  box-shadow: var(--shadow-overlay);
+  font-size: var(--text-xs);
+}
+
+.controlLabel {
+  display: flex;
+  align-items: center;
+  gap: var(--space-xs);
+}
+
+.sizeSlider {
+  width: var(--size-20);
+}
+
+.sizeValue {
+  min-width: var(--size-8);
+  color: var(--text-on-overlay);
+}
+
+.colorInput {
+  width: var(--size-8);
+  height: var(--size-5);
+  padding: 0;
+  border: none;
+  cursor: pointer;
+}
+
+.toolbarButton {
+  padding: var(--space-xs) var(--space-md);
+  border: none;
+  border-radius: var(--radius-sm);
+  font-size: var(--text-xs);
+}
+
+.confirmButton {
+  background: var(--button-primary-bg);
+  color: var(--button-primary-text);
+}
+
+.confirmButton:hover {
+  background: var(--button-primary-hover);
+}
+
+.cancelButton {
+  background: var(--button-secondary-bg);
+  color: var(--button-secondary-text);
+}
+
+.cancelButton:hover {
+  background: var(--button-secondary-hover);
+}
+
+.textInput {
+  --editor-x: 0px;
+  --editor-y: 0px;
+  --editor-font-size: var(--text-base);
+  --editor-color: var(--text-on-overlay);
+
+  position: fixed;
+  left: var(--editor-x);
+  top: var(--editor-y);
+  z-index: var(--z-modal);
+  min-width: var(--size-25);
+  padding: var(--space-2xs) var(--space-xs);
+  transform: translateX(-50%);
+  background: transparent;
+  color: var(--editor-color);
+  border: none;
+  outline: var(--border-width-md) solid var(--border-focus);
+  font-family: var(--font-mono);
+  font-size: var(--editor-font-size);
+}

@@ -4,8 +4,9 @@ import { spriteCreationService } from '@features/canvas/services/spriteCreation.
 import { useProtocol } from '@lib/api';
 import { createMessage, MessageType } from '@lib/websocket';
 import { logger } from '@shared/utils/logger';
-import React, { useCallback, useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState, type CSSProperties } from 'react';
 import { isSupportedAssetImage } from './assetImageValidation';
+import styles from './DragDropImageHandler.module.css';
 
 interface DragDropImageHandlerProps {
   children: React.ReactNode;
@@ -429,43 +430,14 @@ export const DragDropImageHandler: React.FC<DragDropImageHandlerProps> = ({
       onDragOver={handleDragOver}
       onDragLeave={handleDragLeave}
       onDrop={handleDrop}
-      style={{
-        position: 'relative',
-        width: '100%',
-        height: '100%',
-      }}
+      className={styles.container}
     >
       {children}
       
       {/* Drag overlay */}
       {dragOver && (
-        <div
-          style={{
-            position: 'absolute',
-            top: 0,
-            left: 0,
-            right: 0,
-            bottom: 0,
-            backgroundColor: 'var(--color-primary-overlay)',
-            border: 'var(--border-width-md) dashed var(--border-accent)',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            zIndex: 1000,
-            pointerEvents: 'none',
-          }}
-        >
-          <div
-            style={{
-              backgroundColor: 'rgba(0, 0, 0, 0.8)',
-              color: 'white',
-              padding: '20px',
-              borderRadius: '8px',
-              textAlign: 'center',
-              fontSize: '18px',
-              fontWeight: 'bold',
-            }}
-          >
+        <div className={styles.dragOverlay}>
+          <div className={styles.dropPrompt}>
             Drop image here to create sprite
           </div>
         </div>
@@ -473,49 +445,25 @@ export const DragDropImageHandler: React.FC<DragDropImageHandlerProps> = ({
       
       {/* Upload status overlay */}
       {uploadState.status !== 'idle' && (
-        <div
-          style={{
-            position: 'absolute',
-            top: '20px',
-            right: '20px',
-            backgroundColor: 'rgba(0, 0, 0, 0.9)',
-            color: 'white',
-            padding: '12px 16px',
-            borderRadius: '8px',
-            zIndex: 1001,
-            minWidth: '200px',
-          }}
-        >
-          <div style={{ marginBottom: '8px', fontSize: '14px' }}>
+        <div className={styles.uploadStatus}>
+          <div className={styles.uploadMessage}>
             {uploadState.message}
           </div>
           {uploadState.status === 'uploading' && (
-            <div
-              style={{
-                width: '100%',
-                height: '4px',
-                backgroundColor: 'rgba(255, 255, 255, 0.2)',
-                borderRadius: '2px',
-                overflow: 'hidden',
-              }}
-            >
+            <div className={styles.progressTrack}>
               <div
-                style={{
-                  width: `${uploadState.progress}%`,
-                  height: '100%',
-                  backgroundColor: 'var(--color-primary)',
-                  transition: 'width 0.2s ease',
-                }}
+                className={styles.progressFill}
+                style={{ '--upload-progress': `${uploadState.progress}%` } as CSSProperties}
               />
             </div>
           )}
           {uploadState.status === 'completed' && (
-            <div style={{ color: 'var(--status-success)', fontSize: 'var(--text-xs)' }}>
+            <div className={`${styles.result} ${styles.success}`}>
               Success!
             </div>
           )}
           {uploadState.status === 'failed' && (
-            <div style={{ color: 'var(--status-error)', fontSize: 'var(--text-xs)' }}>
+            <div className={`${styles.result} ${styles.error}`}>
               Failed
             </div>
           )}

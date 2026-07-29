@@ -3,7 +3,8 @@ import type { RenderEngine } from '@lib/wasm/runtime';
 import { useRenderEngine } from '@lib/wasm/runtime';
 import { logger } from '@shared/utils/logger';
 import { Check, X } from 'lucide-react';
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, type CSSProperties } from 'react';
+import styles from './TextSpriteTool.module.css';
 
 interface TextSpriteToolProps {
   activeLayer: string;
@@ -103,24 +104,13 @@ function InlineTextEditor({ worldPosition, renderEngine, onComplete, onCancel }:
     <>
       {/* Floating toolbar above input - centered */}
       <div
+        className={styles.toolbar}
         style={{
-          position: 'fixed',
-          left: `${screenPos.x}px`,
-          top: `${screenPos.y - 50}px`,
-          transform: 'translateX(-50%)',  // Center toolbar horizontally
-          display: 'flex',
-          gap: '8px',
-          alignItems: 'center',
-          background: 'rgba(30, 30, 30, 0.95)',
-          padding: '6px 12px',
-          borderRadius: '6px',
-          border: 'var(--border-width) solid var(--border-focus)',
-          zIndex: 10000,
-          fontSize: '12px',
-          color: 'var(--text-secondary)',
-        }}
+          '--editor-x': `${screenPos.x}px`,
+          '--toolbar-y': `${screenPos.y - 50}px`,
+        } as CSSProperties}
       >
-        <label style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+        <label className={styles.controlLabel}>
           Size:
           <input
             type="range"
@@ -128,47 +118,32 @@ function InlineTextEditor({ worldPosition, renderEngine, onComplete, onCancel }:
             max="48"
             value={fontSize}
             onChange={(e) => setFontSize(Number(e.target.value))}
-            style={{ width: '80px' }}
+            className={styles.sizeSlider}
           />
-          <span style={{ minWidth: '30px', color: 'var(--text-primary)' }}>{fontSize}px</span>
+          <span className={styles.sizeValue}>{fontSize}px</span>
         </label>
         
-        <label style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+        <label className={styles.controlLabel}>
           Color:
           <input
             type="color"
             value={color}
             onChange={(e) => setColor(e.target.value)}
-            style={{ width: '30px', height: '20px', border: 'none', cursor: 'pointer' }}
+            className={styles.colorInput}
           />
         </label>
         
         <button
           onClick={() => text.trim() && onComplete(text.trim(), fontSize, color)}
           aria-label="Confirm"
-          style={{
-            padding: '4px 12px',
-            background: 'var(--color-primary)',
-            color: 'var(--text-inverse-primary)',
-            border: 'none',
-            borderRadius: '4px',
-            cursor: 'pointer',
-            fontSize: '12px',
-          }}
+          className={`${styles.toolbarButton} ${styles.confirmButton}`}
         >
           <Check size={14} aria-hidden />
         </button>
         <button
           onClick={onCancel}
-          style={{
-            padding: '4px 12px',
-            background: 'var(--bg-elevated)',
-            color: 'var(--text-primary)',
-            border: 'none',
-            borderRadius: '4px',
-            cursor: 'pointer',
-            fontSize: '12px',
-          }}
+          aria-label="Cancel"
+          className={`${styles.toolbarButton} ${styles.cancelButton}`}
         >
           <X size={14} aria-hidden />
         </button>
@@ -181,21 +156,13 @@ function InlineTextEditor({ worldPosition, renderEngine, onComplete, onCancel }:
         value={text}
         onChange={(e) => setText(e.target.value)}
         placeholder="Type text..."
+        className={styles.textInput}
         style={{
-          position: 'fixed',
-          left: `${screenPos.x}px`,
-          top: `${screenPos.y}px`,
-          transform: 'translateX(-50%)',  // Center horizontally at the x position
-          fontSize: `${fontSize}px`,
-          color: color,
-          fontFamily: 'Consolas, monospace',
-          background: 'transparent',
-          border: 'none',
-          outline: 'var(--border-width-md) solid var(--border-focus)',
-          padding: '2px 4px',
-          zIndex: 9999,
-          minWidth: '100px',
-        }}
+          '--editor-x': `${screenPos.x}px`,
+          '--editor-y': `${screenPos.y}px`,
+          '--editor-font-size': `${fontSize}px`,
+          '--editor-color': color,
+        } as CSSProperties}
       />
     </>
   );

@@ -276,9 +276,7 @@ export const AssetPanel: React.FC = () => {
               <div className={styles.progressFill} style={{ width: `${uploadProgress}%` }}></div>
             </div>
           </div>
-          <div data-testid="upload-errors" style={{ display: uploadError ? 'block' : 'none', color: 'red' }}>
-            {uploadError}
-          </div>
+          {uploadError && <div data-testid="upload-errors" className={styles.uploadError}>{uploadError}</div>}
           
           {/* Performance monitoring */}
           <div className={styles.performanceStats} style={{ fontSize: '12px', color: 'var(--text-muted)' }}>
@@ -362,9 +360,7 @@ export const AssetPanel: React.FC = () => {
             <div className={styles.progressFill} style={{ width: uploading ? '50%' : '0%' }}></div>
           </div>
         </div>
-        <div data-testid="upload-errors" style={{ display: uploadError ? 'block' : 'none', color: 'red' }}>
-          {uploadError}
-        </div>
+        {uploadError && <div data-testid="upload-errors" className={styles.uploadError}>{uploadError}</div>}
         
         {/* Performance monitoring */}
         <div className={styles.performanceStats} style={{ fontSize: '12px', color: 'var(--text-muted)' }}>

@@ -5,13 +5,11 @@ services:
   - type: web
     name: ttrpg-server
     runtime: python
-    # Maintenance mode requires a paid web-service instance.
-    plan: starter
+    # Free is intentional for preview only. Public production must use a paid plan.
+    plan: free
     numInstances: 1
     region: frankfurt
     maxShutdownDelaySeconds: 60
-    maintenanceMode:
-      enabled: false
     buildCommand: |
       pip install --upgrade pip
       pip install -e packages/core-table
@@ -71,5 +69,5 @@ services:
       - key: R2_PUBLIC_URL
         sync: false
     healthCheckPath: /health/ready
-    # Stateful WebSocket releases use the reviewed maintenance-mode runbook.
+    # Preview releases are manually reviewed; automatic deploys remain disabled.
     autoDeployTrigger: "off"

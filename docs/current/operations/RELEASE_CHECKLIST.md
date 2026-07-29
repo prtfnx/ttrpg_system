@@ -1,9 +1,9 @@
 # Release checklist
 
-Status: current and practical. Use this before a production deploy or a
-release-like handoff.
+Status: current and practical. The checked-in Render target is a Free preview;
+use the production upgrade gate below before public-production approval.
 
-Last source audit: 2026-07-23
+Last source audit: 2026-07-29
 
 ## Scope
 
@@ -153,11 +153,17 @@ cd apps/server && python scripts/migrate_and_start.py
 The wrapper takes a PostgreSQL advisory lock, upgrades and verifies Alembic,
 disposes the migration engine, and replaces itself with Uvicorn.
 
-The Blueprint uses one Starter instance, disables automatic deploys, and
-provides a 60-second graceful shutdown window. Enable maintenance mode before
-the reviewed manual deploy, confirm revision/artifact health, then disable it
-and run the smoke test. Connected clients receive a retryable shutdown notice
-and WebSocket close code `1012`.
+The Blueprint uses one Free preview instance, disables automatic deploys, and
+provides a 60-second graceful shutdown window. Free has no Render maintenance
+mode, so only backward-compatible expand/contract migrations may run while the
+old and new deploys can overlap. Trigger the reviewed deploy manually, confirm
+revision/artifact health, and run the smoke test. Connected clients receive a
+retryable shutdown notice and WebSocket close code `1012`.
+
+Before public production, change the Blueprint to `plan: starter` or a larger
+capacity-tested paid instance, restore `maintenanceMode.enabled: false`, and
+use the maintenance release flow in [Deployment](DEPLOYMENT.md). Record the
+selected plan and acceptance evidence in the release record.
 
 ## Smoke test after deploy
 

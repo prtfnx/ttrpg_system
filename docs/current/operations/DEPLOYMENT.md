@@ -2,13 +2,14 @@
 
 Audience: operators and contributors preparing a deploy.
 
-Status: usable for the application, database, and bundled compendium path.
+Status: usable for a Free preview deployment. Public production requires a
+paid, capacity-tested Render instance.
 
-Last source audit: 2026-07-23
+Last source audit: 2026-07-29
 
 ## Current target
 
-The root `render.yaml` defines one Render Starter Python web service in
+The root `render.yaml` defines one Render Free Python preview web service in
 Frankfurt:
 
 - source root: the repository root, so the build can access every monorepo
@@ -20,11 +21,18 @@ Frankfurt:
 - health check: `/health/ready`;
 - exactly one instance, manual reviewed deploys, and a 60-second shutdown
   window;
-- maintenance mode available for the operator-controlled release window;
 - no persistent disk.
 
 Keep the Render and Neon regions close to reduce request and WebSocket
 transaction latency.
+
+The Free instance is a preview choice, not a public-production target. It can
+spin down after 15 minutes without inbound HTTP or WebSocket traffic, takes
+approximately one minute to wake, has monthly usage limits, can be restarted
+without advance notice, and does not provide maintenance mode, shell access,
+one-off jobs, or persistent disks. The browser's 30-second WebSocket heartbeat
+keeps an active game session from being idle, but an unused preview is expected
+to sleep.
 
 ## Build and startup flow
 
@@ -61,22 +69,51 @@ The startup wrapper fails before application traffic if migration or head
 verification fails. Production startup independently checks database
 connectivity and Alembic head.
 
-## Maintenance release flow
+## Free preview release flow
 
 Automatic deploys are disabled. For each reviewed release:
 
 1. Confirm CI, the disposable PostgreSQL migration contract, and the release
    artifact are green.
-2. Enable Render maintenance mode and confirm new public traffic is rejected.
-3. Trigger a manual deploy of the recorded commit and observe migration/startup
+2. Confirm every database change is backward-compatible with the currently
+   deployed application. Render temporarily overlaps old and new instances
+   during its zero-downtime deploy, and Free has no maintenance mode.
+3. Announce the preview restart and trigger a manual deploy of the recorded
+   commit. Observe migration/startup
    logs. The old process sends connected clients a retryable shutdown notice,
    persists final protocol state, and closes WebSockets with code `1012`.
 4. Confirm the deploy is healthy, at the expected Alembic revision, and serving
    the expected artifact and compendium digests.
-5. Disable maintenance mode, then run the public smoke test.
+5. Run the preview smoke test, including cold-start and WebSocket reconnect.
 
 Do not scale above one instance until the in-memory OAuth state cache, rate
 limits, and connection coordination have shared-store designs.
+
+Use expand/contract migrations for the preview: add compatible schema first,
+deploy code that works with both shapes, and remove obsolete schema only in a
+later release. Do not deploy a destructive or backward-incompatible migration
+while an older instance can still write.
+
+## Production upgrade requirement
+
+Before treating this service as public production:
+
+1. Change `plan: free` to `plan: starter` or a larger instance selected from
+   production-shaped load results.
+2. Restore the paid-only Blueprint setting:
+
+   ```yaml
+   maintenanceMode:
+     enabled: false
+   ```
+
+3. Use maintenance mode for migration-sensitive releases, then verify the
+   deployed revision and artifacts before reopening public traffic.
+4. Re-run capacity, cold-start, reconnect, observability, backup, and restore
+   acceptance on the selected paid plan.
+
+`ENVIRONMENT=production` remains correct for the Free public preview. It keeps
+strong-secret, cookie, origin, CORS, and PostgreSQL startup checks enabled.
 
 ## Required secrets and configuration
 

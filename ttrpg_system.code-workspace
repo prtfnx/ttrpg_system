@@ -1,16 +1,200 @@
 {
 	"folders": [
-		{ "name": "root", "path": "." },
-		{ "name": "web-ui", "path": "apps/web-ui" },
-		{ "name": "rust-core", "path": "packages/rust-core" }
+		{
+			"name": "web-ui",
+			"path": "apps/web-ui"
+		},
+		{
+			"name": "server",
+			"path": "apps/server"
+		},
+		{
+			"name": "rust-core",
+			"path": "packages/rust-core"
+		},
+		{
+			"name": "core-table",
+			"path": "packages/core-table"
+		}
 	],
 	"settings": {
-		"python.analysis.extraPaths": [
-			"packages/core-table"
+		"files.exclude": {
+			"**/__pycache__": true,
+			"**/.pytest_cache": true,
+			"**/node_modules": true
+		},
+		"search.exclude": {
+			"**/node_modules": true,
+			"**/.venv": true,
+			"**/trash": true,
+			"**/__pycache__": true,
+			"**/cache": true,
+			"**/downloads": true
+		},
+		"files.watcherExclude": {
+			"**/.venv/**": true,
+			"**/node_modules/**": true,
+			"**/__pycache__/**": true,
+			"**/cache/**": true,
+			"**/trash/**": true,
+			"**/downloads/**": true,
+			"**/.pytest_cache/**": true
+		},
+		"pylint.enabled": false,
+		"python.analysis.diagnosticMode": "workspace",
+		"python.analysis.indexing": true,
+		"python.analysis.packageIndexDepths": [
+			{
+				"name": "",
+				"depth": 3,
+				"includeAllSymbols": false
+			}
 		],
-		"powershell.cwd": "root",
+		"powershell.cwd": "${workspaceFolder:server}/../..",
 		"rust-analyzer.trace.server": "off",
-		"rust-analyzer.linkedProjects": ["packages/rust-core/Cargo.toml"],
-		"rust-analyzer.testExplorer": true
+		"rust-analyzer.linkedProjects": [
+			"${workspaceFolder:rust-core}/Cargo.toml"
+		],
+		"rust-analyzer.testExplorer": true,
+		"testing.coverageBarThresholds": {
+			"red": 0,
+			"yellow": 60,
+			"green": 80
+		},
+		"testing.showCoverageInExplorer": true,
+		"testing.defaultGutterClickAction": "run",
+		"testing.gutterEnabled": true,
+		"typescript.tsserver.maxTsServerMemory": 4096
+	},
+	"tasks": {
+		"version": "2.0.0",
+		"tasks": [
+			{
+				"label": "Dev: Web UI",
+				"type": "shell",
+				"command": "pnpm dev",
+				"options": {
+					"cwd": "${workspaceFolder:web-ui}"
+				},
+				"group": "build",
+				"isBackground": true,
+				"problemMatcher": []
+			},
+			{
+				"label": "Dev: Server",
+				"type": "shell",
+				"command": ".\\scripts\\dev-server.ps1",
+				"options": {
+					"cwd": "${workspaceFolder:server}/../.."
+				},
+				"isBackground": true,
+				"problemMatcher": []
+			},
+			{
+				"label": "Build and Deploy",
+				"type": "shell",
+				"command": ".\\build_and_deploy.ps1",
+				"options": {
+					"cwd": "${workspaceFolder:server}/../.."
+				},
+				"problemMatcher": [],
+				"group": {
+					"kind": "build",
+					"isDefault": true
+				}
+			},
+			{
+				"label": "Build and Deploy (dev)",
+				"type": "shell",
+				"command": ".\\build_and_deploy.ps1 -dev",
+				"options": {
+					"cwd": "${workspaceFolder:server}/../.."
+				},
+				"problemMatcher": [],
+				"group": "build"
+			},
+			{
+				"label": "Build: WASM only",
+				"type": "shell",
+				"command": ".\\build_and_deploy.ps1 -WasmOnly",
+				"options": {
+					"cwd": "${workspaceFolder:server}/../.."
+				},
+				"problemMatcher": [],
+				"group": "build"
+			},
+			{
+				"label": "Setup: Python venv",
+				"type": "shell",
+				"command": ".\\scripts\\setup-python.ps1",
+				"options": {
+					"cwd": "${workspaceFolder:server}/../.."
+				},
+				"problemMatcher": []
+			},
+			{
+				"label": "Test: WASM (Node)",
+				"type": "shell",
+				"command": "wasm-pack test --node .",
+				"options": {
+					"cwd": "${workspaceFolder:rust-core}"
+				},
+				"group": "test",
+				"problemMatcher": []
+			},
+			{
+				"label": "Test: WASM (Browser/Chrome)",
+				"type": "shell",
+				"command": "wasm-pack test --headless --chrome .",
+				"options": {
+					"cwd": "${workspaceFolder:rust-core}"
+				},
+				"group": "test",
+				"problemMatcher": []
+			}
+		]
+	},
+	"launch": {
+		"version": "0.2.0",
+		"configurations": [
+			{
+				"name": "Python Debugger: Current File",
+				"type": "debugpy",
+				"request": "launch",
+				"program": "${file}",
+				"cwd": "${workspaceFolder}",
+				"console": "integratedTerminal"
+			},
+			{
+				"name": "Debug: pytest at cursor",
+				"type": "debugpy",
+				"request": "launch",
+				"module": "pytest",
+				"args": [
+					"${relativeFile}",
+					"-v",
+					"--no-cov",
+					"-x"
+				],
+				"cwd": "${workspaceFolder}",
+				"purpose": [
+					"debug-test"
+				],
+				"console": "integratedTerminal",
+				"justMyCode": false
+			}
+		]
+	},
+	"extensions": {
+		"recommendations": [
+			"dbaeumer.vscode-eslint",
+			"charliermarsh.ruff",
+			"ms-python.python",
+			"ms-python.debugpy",
+			"ms-python.vscode-pylance",
+			"rust-lang.rust-analyzer",
+			"stylelint.vscode-stylelint",
+			"vitest.explorer"
+		]
 	}
 }

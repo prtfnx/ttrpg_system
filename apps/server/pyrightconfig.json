@@ -1,0 +1,27 @@
+{
+	"extends": "../../pyrightconfig.json",
+	"include": [
+		"."
+	],
+	"exclude": [
+		"static",
+		"**/__pycache__",
+		"**/.pytest_cache",
+		"**/cache",
+		"**/downloads",
+		"**/.*"
+	],
+	"extraPaths": [
+		"../../packages/core-table"
+	],
+	"executionEnvironments": [
+		{
+			"root": ".",
+			"extraPaths": [
+				"../../packages/core-table"
+			]
+		}
+	],
+	"venvPath": "../..",
+	"venv": ".venv311"
+}

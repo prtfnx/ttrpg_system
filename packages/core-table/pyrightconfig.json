@@ -1,0 +1,30 @@
+{
+	"extends": "../../pyrightconfig.json",
+	"include": [
+		"core_table",
+		"tests"
+	],
+	"exclude": [
+		"core_table/compendiums/equipment",
+		"core_table/compendiums/monsters",
+		"core_table/compendiums/spells",
+		"**/__pycache__",
+		"**/.pytest_cache",
+		"**/cache",
+		"**/downloads",
+		"**/.*"
+	],
+	"extraPaths": [
+		"../../apps/server"
+	],
+	"executionEnvironments": [
+		{
+			"root": ".",
+			"extraPaths": [
+				"../../apps/server"
+			]
+		}
+	],
+	"venvPath": "../..",
+	"venv": ".venv311"
+}

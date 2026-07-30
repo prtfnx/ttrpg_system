@@ -171,6 +171,8 @@ describe('LayerPanel - Game Master Layer Management', () => {
 
       const dmToggle = screen.getByRole('button', { name: /toggle dm layer/i });
       expect(dmToggle).toBeInTheDocument();
+      expect(screen.getByTestId('layer-item-map')).toHaveAttribute('data-visible', 'true');
+      expect(screen.getByTestId('layer-item-dungeon_master')).toHaveAttribute('data-visible', 'false');
     });
   });
 

@@ -6,7 +6,7 @@ import { logger } from '@shared/utils/logger';
 import clsx from 'clsx';
 import type { LucideIcon } from 'lucide-react';
 import { Calendar, CloudFog, Construction, Crown, Eye, EyeOff, Layers, Lightbulb, Map, Mountain, Users } from 'lucide-react';
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useRenderEngine } from '../hooks/useRenderEngine';
 import styles from './LayerPanel.module.css';
 
@@ -23,42 +23,17 @@ interface LayerPanelProps extends React.HTMLProps<HTMLDivElement> {
   initialLayers?: Layer[];
 }
 
-// Dynamic height calculation constants (aligned with UI plan)
-const LAYER_ITEM_HEIGHT = 60; // Height per layer item (collapsed compact height)
-const PANEL_PADDING = 20; // Total vertical padding inside the panel
-const HEADER_HEIGHT = 40; // Header section height
-const ACTIVE_LAYER_HEIGHT = 50; // Active layer display height
-const FOOTER_HEIGHT = 40; // Footer height
-
-const calculateDynamicHeight = (layerCount: number): { height: number; maxHeight: number; isClamped: boolean } => {
-  const contentHeight =
-    HEADER_HEIGHT +
-    ACTIVE_LAYER_HEIGHT +
-    (layerCount * LAYER_ITEM_HEIGHT) +
-    FOOTER_HEIGHT +
-    PANEL_PADDING;
-
-  const maxHeight = window.innerHeight * 0.6; // Max 60% of viewport
-  const clamped = contentHeight > maxHeight;
-
-  return {
-    height: Math.min(contentHeight, maxHeight),
-    maxHeight,
-    isClamped: clamped
-  };
-};
-
 const DEFAULT_LAYERS: Layer[] = [
-  { id: 'map', name: 'Map', icon: Map, color: '#8b5cf6', spriteCount: 0 },
-  { id: 'tokens', name: 'Tokens', icon: Users, color: '#06b6d4', spriteCount: 0 },
-  { id: 'dungeon_master', name: 'DM Layer', icon: Crown, color: '#dc2626', spriteCount: 0 },
-  { id: 'light', name: 'Lighting', icon: Lightbulb, color: '#f59e0b', spriteCount: 0 },
-  { id: 'height', name: 'Height', icon: Mountain, color: '#10b981', spriteCount: 0 },
-  { id: 'obstacles', name: 'Obstacles', icon: Construction, color: '#ef4444', spriteCount: 0 },
-  { id: 'fog_of_war', name: 'Fog of War', icon: CloudFog, color: '#6b7280', spriteCount: 0 },
+  { id: 'map', name: 'Map', icon: Map, color: 'var(--purple-500)', spriteCount: 0 },
+  { id: 'tokens', name: 'Tokens', icon: Users, color: 'var(--cyan-500)', spriteCount: 0 },
+  { id: 'dungeon_master', name: 'DM Layer', icon: Crown, color: 'var(--red-600)', spriteCount: 0 },
+  { id: 'light', name: 'Lighting', icon: Lightbulb, color: 'var(--orange-500)', spriteCount: 0 },
+  { id: 'height', name: 'Height', icon: Mountain, color: 'var(--green-500)', spriteCount: 0 },
+  { id: 'obstacles', name: 'Obstacles', icon: Construction, color: 'var(--red-500)', spriteCount: 0 },
+  { id: 'fog_of_war', name: 'Fog of War', icon: CloudFog, color: 'var(--gray-500)', spriteCount: 0 },
 ];
 
-export function LayerPanel({ className, style: _style, id, initialLayers, ...otherProps }: LayerPanelProps) {
+export function LayerPanel({ className, style, id, initialLayers, ...otherProps }: LayerPanelProps) {
   const gameStore = useGameStore() || {};
   const {
     activeLayer = '',
@@ -81,11 +56,6 @@ export function LayerPanel({ className, style: _style, id, initialLayers, ...oth
  const [layers, setLayers] = useState<Layer[]>(initialLayers ?? []);
  const [isLoading, setIsLoading] = useState(true);
  const [expandedLayer, setExpandedLayer] = useState<string | null>(null);
-
-  // Calculate dynamic dimensions
-  const dynamicDimensions = useMemo(() => {
-    return calculateDynamicHeight(layers.length);
- }, [layers.length]);
 
   useEffect(() => {
     // Initialize layers
@@ -258,7 +228,7 @@ export function LayerPanel({ className, style: _style, id, initialLayers, ...oth
 
   if (isLoading) {
     return (
-      <div className={clsx(styles.layerPanel, styles.loading, className)} id={id} {...otherProps}>
+      <div className={clsx(styles.layerPanel, styles.loading, className)} id={id} style={style} {...otherProps}>
         <div className={styles.loadingContent}>
           <div className={styles.spinner}></div>
           <span>Initializing layers...</span>
@@ -277,7 +247,7 @@ export function LayerPanel({ className, style: _style, id, initialLayers, ...oth
   }
 
   return (
-    <div className={clsx(styles.layerPanel, className)} id={id} {...otherProps}>
+    <div className={clsx(styles.layerPanel, className)} id={id} style={style} {...otherProps}>
       <div className={styles.layerPanelHeader}>
         <h3>Layers</h3>
         <div className={styles.layerCount}>
@@ -297,7 +267,7 @@ export function LayerPanel({ className, style: _style, id, initialLayers, ...oth
         <span className={styles.activeLayerName}>{activeLayer}</span>
       </div>
 
-      <div className={styles.layerList} style={dynamicDimensions.isClamped ? { overflowY: 'auto' } : undefined}>
+      <div className={styles.layerList}>
         {layers.map((layer) => {
           const isActive = activeLayer === layer.id;
           const isVisible = layerVisibility[layer.id] ?? true;
@@ -307,8 +277,9 @@ export function LayerPanel({ className, style: _style, id, initialLayers, ...oth
           return (
             <div
               key={layer.id}
-              className={clsx(styles.layerItem, isActive && styles.active, isVisible ? styles.visible : styles.hiddenLayer)}
+              className={clsx(styles.layerItem, isActive && styles.active, !isVisible && styles.hiddenLayer)}
               onClick={() => handleLayerClick(layer.id)}
+              data-visible={isVisible}
               data-testid={`layer-item-${layer.id}`}
             >
               <div className={styles.layerMain}>

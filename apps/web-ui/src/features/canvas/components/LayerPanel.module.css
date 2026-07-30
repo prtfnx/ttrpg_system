@@ -93,6 +93,16 @@
   padding: var(--space-0-75) var(--space-1-25) var(--space-0-75) var(--space-1-75);
 }
 
+.layerItem.hiddenLayer {
+  background-color: var(--bg-disabled);
+  border-color: var(--border-primary);
+}
+
+.hiddenLayer .layerInfo,
+.hiddenLayer .layerColorIndicator {
+  opacity: 0.5;
+}
+
 /* Layer Main Content - Horizontal Layout */
 .layerMain {
   display: flex;

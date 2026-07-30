@@ -182,6 +182,19 @@ class TestHandleProtocolMessage:
         payload = json.loads(ws.send_text.call_args[0][0])
         assert payload["type"] == MessageType.ERROR.value
 
+    async def test_dispatch_releases_current_task_database_session(self):
+        svc = _make_service()
+        ws = _ws()
+        svc.clients["c1"] = ws
+        svc.client_info["c1"] = {"user_id": 1, "username": "Alice"}
+        svc.websocket_to_client[ws] = "c1"
+        svc.db_session = MagicMock()
+        svc.server_protocol.handlers = {MessageType.PING: AsyncMock()}
+
+        await svc.handle_protocol_message(ws, Message(MessageType.PING, {}).to_json())
+
+        svc.db_session.remove.assert_called_once_with()
+
 
 # ---------------------------------------------------------------------------
 # broadcast_to_session / broadcast_filtered / send_to_client
@@ -302,6 +315,18 @@ class TestForceSave:
         svc.table_manager.save_to_database = MagicMock(side_effect=Exception("DB error"))
         result = svc.force_save()
         assert result is False
+
+
+def test_table_save_releases_task_scoped_database_session(monkeypatch):
+    from core_table.server import TableManager
+
+    db_session = MagicMock()
+    manager = TableManager(db_session)
+    table = manager.create_table("Persistent", 10, 10)
+    monkeypatch.setattr("database.crud.save_table_to_db", MagicMock())
+
+    assert manager.save_table(str(table.table_id), session_id=1) is True
+    db_session.remove.assert_called_once_with()
 
 
 # ---------------------------------------------------------------------------

@@ -67,7 +67,7 @@ async def websocket_game_endpoint(
     connection_id = uuid.uuid4().hex
     connected = False
     connection_started = time.perf_counter()
-    db = SessionLocal()
+    db: Session | None = SessionLocal()
     with log_context(
         connection_id=connection_id,
         session_ref=_session_reference(session_code),
@@ -133,12 +133,18 @@ async def websocket_game_endpoint(
                 await websocket.close(code=status.WS_1008_POLICY_VIOLATION)
                 return
 
+            user_id = user.id
+            username = user.username
+            role = db_player.role or "player"
+            db.close()
+            db = None
+
             client_id = await connection_manager.connect(
                 websocket,
                 session_code,
-                user.id,
-                user.username,
-                db_player.role or "player",
+                user_id,
+                username,
+                role,
                 connection_id=connection_id,
             )
             connected = True
@@ -149,8 +155,8 @@ async def websocket_game_endpoint(
                 extra={
                     "event_name": "websocket.connection.opened",
                     "client_id": client_id,
-                    "user_id": user.id,
-                    "role": db_player.role or "player",
+                    "user_id": user_id,
+                    "role": role,
                     "outcome": "success",
                 },
             )
@@ -258,4 +264,5 @@ async def websocket_game_endpoint(
                 WS_ACTIVE.dec()
                 WS_DURATION.observe(time.perf_counter() - connection_started)
                 await connection_manager.disconnect(websocket)
-            db.close()
+            if db is not None:
+                db.close()

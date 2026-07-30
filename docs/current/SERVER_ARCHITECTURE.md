@@ -28,6 +28,13 @@ game_ws.py -> ConnectionManager -> GameSessionProtocolService -> ServerProtocol
 - Loads or creates persistent session state.
 - Disconnects clients and cleans session state.
 
+The connection manager does not retain one SQLAlchemy `Session` for the
+lifetime of a game. It gives each protocol service a task-scoped session
+registry. The handshake, client initialization, each inbound protocol message,
+and each persistence operation release their current task session when the
+logical operation ends. Delayed table saves also release their own task
+session.
+
 `GameSessionProtocolService` owns session protocol state:
 
 - Creates a `TableManager`.
@@ -104,6 +111,9 @@ WebSocket, and deployment behavior in `apps/server`.
 ## Verification
 
 - Server tests: `pytest tests/ -q` from `apps/server`.
+- WebSocket database-session tests:
+  `pytest tests/unit/test_database_session_scope.py tests/unit/test_game_session_protocol.py -q`
+  from `apps/server`.
 - Server lint: `ruff check .` from `apps/server`.
 - Core table tests: `pytest -q` from `packages/core-table`.
 

@@ -82,6 +82,12 @@ class GameSessionProtocolService:
             )
             raise
 
+    def _release_db_session(self) -> None:
+        """Release the current task's scoped session when the registry owns it."""
+        remove = getattr(self.db_session, "remove", None)
+        if callable(remove):
+            remove()
+
     def save_to_database(self) -> bool:
         """Save current state to database - delegates to to_db()"""
         return self.to_db()
@@ -123,15 +129,34 @@ class GameSessionProtocolService:
 
     async def add_client(self, websocket: WebSocket, client_id: str, user_info: dict):
         """Add a client to this game session. Raises PermissionError if the player is banned."""
-        if self.db_session and self.game_session_db_id:
-            sess = self.db_session.get(db_models.GameSession, self.game_session_db_id)
-            if sess and sess.ban_list:
-                ban_list = json.loads(sess.ban_list)
-                user_id = str(user_info.get('user_id', ''))
-                username = user_info.get('username', '')
-                for ban in ban_list:
-                    if ban.get('player_id') == user_id or ban.get('username') == username:
-                        raise PermissionError(f"Banned: {ban.get('reason', 'no reason given')}")
+        game_mode = 'free_roam'
+        rules_dict: dict = {}
+        try:
+            if self.db_session and self.game_session_db_id:
+                sess = self.db_session.get(db_models.GameSession, self.game_session_db_id)
+                if sess and sess.ban_list:
+                    ban_list = json.loads(sess.ban_list)
+                    user_id = str(user_info.get('user_id', ''))
+                    username = user_info.get('username', '')
+                    for ban in ban_list:
+                        if ban.get('player_id') == user_id or ban.get('username') == username:
+                            raise PermissionError(f"Banned: {ban.get('reason', 'no reason given')}")
+
+                if sess:
+                    game_mode = sess.game_mode or 'free_roam'
+                    try:
+                        rules_dict = json.loads(sess.session_rules_json or '{}')
+                        rules_dict.setdefault('session_id', self.session_code)
+                    except (json.JSONDecodeError, TypeError):
+                        logger.warning(
+                            "Stored session rules are invalid",
+                            extra={
+                                "event_name": "game_session.rules.invalid",
+                                "outcome": "rejected",
+                            },
+                        )
+        finally:
+            self._release_db_session()
 
         self.clients[client_id] = websocket
         self.client_info[client_id] = {
@@ -145,20 +170,7 @@ class GameSessionProtocolService:
           # Send welcome message with protocol support
         role = user_info.get('role', 'player')
 
-        # Load game mode and rules for this session
-        game_mode = 'free_roam'
-        rules_dict: dict = {}
         choice_encounter = None
-        if self.db_session and self.game_session_db_id:
-            try:
-                sess = self.db_session.get(db_models.GameSession, self.game_session_db_id)
-                if sess:
-                    game_mode = sess.game_mode or 'free_roam'
-                    import json as _json
-                    rules_dict = _json.loads(sess.session_rules_json or '{}')
-                    rules_dict.setdefault('session_id', self.session_code)
-            except Exception:
-                pass
 
         try:
             active_encounter = self.server_protocol._load_active_choice_encounter(
@@ -253,6 +265,8 @@ class GameSessionProtocolService:
                 extra={"event_name": "websocket.message.failed", "outcome": "error"},
             )
             await self._send_error(websocket, "Internal server error")
+        finally:
+            self._release_db_session()
 
     async def broadcast_to_session(self, message: Message, exclude_client: Optional[str] = None):
         """Broadcast message to all clients in this game session"""
@@ -416,6 +430,8 @@ class GameSessionProtocolService:
             if self.db_session:
                 self.db_session.rollback()
             return False
+        finally:
+            self._release_db_session()
 
     async def kick_player(self, target_player_id: str, target_username: str, reason: str, kicked_by_client_id: str) -> bool:
         """Kick a player from the session"""
@@ -481,14 +497,17 @@ class GameSessionProtocolService:
                 # Persist ban in the database if available
                 banner_username = self.client_info.get(banned_by_client_id, {}).get('username', 'unknown')
                 if self.db_session and self.game_session_db_id:
-                    append_ban_to_session(self.db_session, self.game_session_db_id, {
-                        "player_id": target_player_id,
-                        "username": target_username,
-                        "reason": reason,
-                        "duration": duration,
-                        "banned_by": banner_username,
-                        "timestamp": datetime.utcnow().isoformat()
-                    })
+                    try:
+                        append_ban_to_session(self.db_session, self.game_session_db_id, {
+                            "player_id": target_player_id,
+                            "username": target_username,
+                            "reason": reason,
+                            "duration": duration,
+                            "banned_by": banner_username,
+                            "timestamp": datetime.utcnow().isoformat()
+                        })
+                    finally:
+                        self._release_db_session()
                 logger.info(f"Player {target_username} banned by {banner_username} for {duration}: {reason}")
 
                 # Broadcast ban notification

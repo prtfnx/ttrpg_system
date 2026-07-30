@@ -4,12 +4,12 @@ WebSocket-based game session manager with integrated table protocol
 import json
 import uuid
 from datetime import datetime, timezone
-from typing import Any, Dict, List, Optional, Union
+from typing import Dict, List, Optional, Union
 
 from core_table.protocol import Message, MessageType
 
 # Database imports
-from database.database import SessionLocal
+from database.database import create_task_scoped_session
 from database.session_utils import (
     load_game_session_protocol_from_db,
 )
@@ -29,8 +29,6 @@ class ConnectionManager:
         self.active_connections: Dict[str, List[WebSocket]] = {}        # websocket -> user_info (includes role)
         self.connection_info: Dict[WebSocket, dict] = {}
         self.sessions_protocols: Dict[str, GameSessionProtocolService] = {}
-        # Database sessions for persistence
-        self.db_sessions: Dict[str, Any] = {}  # session_code -> db_session
         self.game_session_db_ids: Dict[str, int] = {}  # session_code -> game_session_db_id
 
     def _generate_client_id(self) -> str:
@@ -43,10 +41,16 @@ class ConnectionManager:
         """Connect a user to a game session with protocol support"""
         client_id = self._generate_client_id()
         if session_code not in self.sessions_protocols:
-            db_session = SessionLocal()
-            protocol_service, error = load_game_session_protocol_from_db(db_session, session_code)
+            db_session = create_task_scoped_session()
+            try:
+                protocol_service, error = load_game_session_protocol_from_db(
+                    db_session(),
+                    session_code,
+                    persistence_session=db_session,
+                )
+            finally:
+                db_session.remove()
             if not protocol_service:
-                db_session.close()
                 logger.error(
                     "Durable game session initialization failed",
                     extra={
@@ -56,7 +60,6 @@ class ConnectionManager:
                     },
                 )
                 raise RuntimeError("Durable game session could not be initialized")
-            self.db_sessions[session_code] = db_session
             self.sessions_protocols[session_code] = protocol_service
             if protocol_service.game_session_db_id is not None:
                 self.game_session_db_ids[session_code] = protocol_service.game_session_db_id
@@ -142,14 +145,6 @@ class ConnectionManager:
 
                     protocol_service.cleanup()
                     del self.sessions_protocols[session_code]
-
-                    # Clean up database session
-                    if session_code in self.db_sessions:
-                        try:
-                            self.db_sessions[session_code].close()
-                            del self.db_sessions[session_code]
-                        except Exception as e:
-                            logger.error(f"Error closing database session: {e}")
 
                     # Clean up R2 asset session data
                     asset_manager = get_server_asset_manager()

@@ -2,13 +2,15 @@
 
 from __future__ import annotations
 
+import asyncio
 from collections.abc import Iterator
+from threading import get_ident
 from typing import Any
 
 from config import Settings
 from sqlalchemy import create_engine, event
 from sqlalchemy.engine import URL, Engine
-from sqlalchemy.orm import Session, sessionmaker
+from sqlalchemy.orm import Session, scoped_session, sessionmaker
 from utils.observability import install_database_metrics
 
 from .schema import schema_is_current as _schema_is_current
@@ -71,6 +73,20 @@ engine = create_database_engine(database_settings)
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
 install_database_metrics(engine, SessionLocal)
+
+
+def _database_session_scope() -> object:
+    """Scope synchronous ORM sessions to the current async task or thread."""
+    try:
+        task = asyncio.current_task()
+    except RuntimeError:
+        task = None
+    return task if task is not None else get_ident()
+
+
+def create_task_scoped_session() -> scoped_session[Session]:
+    """Create a session registry that provides one Session per async task."""
+    return scoped_session(SessionLocal, scopefunc=_database_session_scope)
 
 
 def provision_database() -> None:

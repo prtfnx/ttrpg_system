@@ -24,6 +24,12 @@ class TableManager:
         """Set database session for persistence operations"""
         self.db_session = db_session
 
+    def release_db_session(self) -> None:
+        """Release a task-scoped session without closing caller-owned sessions."""
+        remove = getattr(self.db_session, "remove", None)
+        if callable(remove):
+            remove()
+
     def _create_default_table(self) -> VirtualTable:
         """Create a default table"""
         table = VirtualTable("default", 100, 100)
@@ -154,6 +160,8 @@ class TableManager:
         except Exception as e:
             logger.error(f"Error saving table ID '{table_id}' to database: {e}")
             return False
+        finally:
+            self.release_db_session()
 
     def load_table(self, table_id: str) -> bool:
         """Load a specific table from database"""

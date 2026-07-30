@@ -6,7 +6,7 @@ import logging
 from typing import Optional, Tuple
 
 from service.game_session_protocol import GameSessionProtocolService
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, scoped_session
 
 from . import crud, schemas
 
@@ -81,7 +81,9 @@ def load_game_session_with_persistence(
 
 def load_game_session_protocol_from_db(
     db: Session,
-    session_code: str
+    session_code: str,
+    *,
+    persistence_session: Session | scoped_session[Session] | None = None,
 ) -> Tuple[Optional[GameSessionProtocolService], Optional[str]]:
     """
     Load GameSessionProtocolService from database with all tables reconstructed
@@ -96,7 +98,7 @@ def load_game_session_protocol_from_db(
             return None, f"Session {session_code} not found"        # Create GameSessionProtocolService with database integration
         protocol_service = GameSessionProtocolService(
             session_code=session_code,
-            db_session=db,
+            db_session=persistence_session if persistence_session is not None else db,
             game_session_db_id=db_session.id
         )
 

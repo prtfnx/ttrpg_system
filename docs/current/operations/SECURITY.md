@@ -76,6 +76,11 @@ tokens, missing users, mismatched session versions, and disabled accounts. The
 game WebSocket performs this check before accepting a connection and closes a
 rejected handshake with policy-violation code `1008`.
 
+The WebSocket handshake closes its authentication database session before
+accepting the long-lived message loop. Protocol persistence uses one
+synchronous SQLAlchemy session per async task and removes it after each logical
+operation. No ORM session is shared for the lifetime of a game session.
+
 ## Passwords and account recovery
 
 Passwords are hashed with bcrypt.

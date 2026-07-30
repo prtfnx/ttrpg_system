@@ -1,6 +1,6 @@
 /* Text Sprite Modal Styles - Using TextSpriteBase patterns */
 
-.textSpriteModal-overlay {
+.textSpriteModalOverlay {
   composes: modal-overlay from './TextSpriteBase.module.css';
 }
 
@@ -51,14 +51,14 @@
   box-shadow: var(--ring-blue);
 }
 
-.textSpriteModal .char-count {
+.textSpriteModal .charCount {
   text-align: right;
   font-size: var(--text-xs);
   color: var(--gray-500);
   margin-top: var(--space-1);
 }
 
-.textSpriteModal .form-row {
+.textSpriteModal .formRow {
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: var(--space-lg);
@@ -128,7 +128,7 @@
   composes: color-value from './TextSpriteBase.module.css';
 }
 
-.textSpriteModal .preview-section {
+.textSpriteModal .previewSection {
   margin-top: var(--space-2xl);
   margin-bottom: var(--space-xl);
 }
@@ -137,7 +137,7 @@
   composes: control-label from './TextSpriteBase.module.css';
 }
 
-.textSpriteModal .text-preview {
+.textSpriteModal .textPreview {
   min-height: var(--size-20);
   display: flex;
   align-items: center;
@@ -181,11 +181,11 @@
     max-height: 95vh;
   }
 
-  .textSpriteModal .form-row {
+  .textSpriteModal .formRow {
     grid-template-columns: 1fr;
   }
 
-  .textSpriteModal .modal-body {
+  .textSpriteModal .modalBody {
     padding: var(--space-lg);
   }
 }

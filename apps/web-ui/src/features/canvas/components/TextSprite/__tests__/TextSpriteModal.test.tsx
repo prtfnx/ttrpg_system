@@ -59,23 +59,24 @@ describe('TextSpriteModal', () => {
 
   it('calls onCancel when overlay is clicked', () => {
     const onCancel = vi.fn();
-    render(<TextSpriteModal isOpen={true} position={position} onConfirm={vi.fn()} onCancel={onCancel} />);
-    fireEvent.click(document.querySelector('.text-sprite-modal-overlay')!);
+    const { container } = render(
+      <TextSpriteModal isOpen={true} position={position} onConfirm={vi.fn()} onCancel={onCancel} />
+    );
+    fireEvent.click(container.firstElementChild!);
     expect(onCancel).toHaveBeenCalled();
   });
 
   it('calls onCancel when Escape key pressed', () => {
     const onCancel = vi.fn();
     render(<TextSpriteModal isOpen={true} position={position} onConfirm={vi.fn()} onCancel={onCancel} />);
-    fireEvent.keyDown(document.querySelector('[class*="textSpriteModal"]')!, { key: 'Escape' });
+    fireEvent.keyDown(screen.getByRole('dialog'), { key: 'Escape' });
     expect(onCancel).toHaveBeenCalled();
   });
 
   it('calls onConfirm on Enter key', () => {
     const onConfirm = vi.fn();
     render(<TextSpriteModal isOpen={true} position={position} onConfirm={onConfirm} onCancel={vi.fn()} />);
-    const modal = document.querySelector('[class*="textSpriteModal"]')!;
-    fireEvent.keyDown(modal, { key: 'Enter', shiftKey: false });
+    fireEvent.keyDown(screen.getByRole('dialog'), { key: 'Enter', shiftKey: false });
     expect(onConfirm).toHaveBeenCalled();
   });
 

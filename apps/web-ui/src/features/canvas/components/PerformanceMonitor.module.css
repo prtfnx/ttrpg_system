@@ -8,28 +8,28 @@
   pointer-events: auto;
 }
 
-.performanceMonitor--top-left {
+.topLeft {
   top: var(--space-md);
   left: var(--space-md);
 }
 
-.performanceMonitor--top-right {
+.topRight {
   top: var(--space-md);
   right: var(--space-md);
 }
 
-.performanceMonitor--bottom-left {
+.bottomLeft {
   bottom: var(--space-md);
   left: var(--space-md);
 }
 
-.performanceMonitor--bottom-right {
+.bottomRight {
   bottom: var(--space-md);
   right: var(--space-md);
 }
 
 /* Compact Display */
-.performance-monitor__compact {
+.compact {
   background: var(--overlay-dark-95);
   border: var(--border-width) solid var(--white-alpha-20);
   border-radius: var(--radius-md);
@@ -42,31 +42,44 @@
   min-width: 100px;
 }
 
-.performance-monitor__compact:hover {
+.compact:hover {
   background: var(--overlay-dark);
   border-color: var(--white-alpha-30);
   transform: scale(1.02);
 }
 
-.fps-display {
+.fpsDisplay {
   display: flex;
   align-items: baseline;
   gap: var(--space-xs);
 }
 
-.fps-value {
+.fpsValue {
   font-size: var(--text-base);
   font-weight: var(--font-bold);
   font-variant-numeric: tabular-nums;
 }
 
-.fps-label {
+.fpsLabel {
   font-size: var(--text-2xs);
   opacity: 0.7;
   text-transform: uppercase;
 }
 
-.memory-bar {
+.memoryDisplay {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-xs);
+}
+
+.memoryLabel,
+.frameTimeDisplay {
+  color: var(--white-alpha-70);
+  font-size: var(--text-2xs);
+  font-variant-numeric: tabular-nums;
+}
+
+.memoryBar {
   width: var(--space-3xl);
   height: var(--space-xs);
   background: var(--white-alpha-20);
@@ -74,14 +87,14 @@
   overflow: hidden;
 }
 
-.memory-fill {
+.memoryFill {
   height: 100%;
   transition: var(--transition-normal);
   border-radius: var(--radius-2xs);
 }
 
 /* Expanded Panel */
-.performance-monitor__expanded {
+.expanded {
   position: absolute;
   top: 100%;
   right: 0;
@@ -95,21 +108,21 @@
   box-shadow: var(--shadow-2xl);
 }
 
-.performanceMonitor--bottom-left .performance-monitor__expanded,
-.performanceMonitor--bottom-right .performance-monitor__expanded {
+.bottomLeft .expanded,
+.bottomRight .expanded {
   bottom: 100%;
   top: auto;
   margin-top: 0;
   margin-bottom: var(--space-sm);
 }
 
-.performanceMonitor--top-left .performance-monitor__expanded,
-.performanceMonitor--bottom-left .performance-monitor__expanded {
+.topLeft .expanded,
+.bottomLeft .expanded {
   right: auto;
   left: 0;
 }
 
-.performance-header {
+.performanceHeader {
   display: flex;
   justify-content: space-between;
   align-items: center;
@@ -118,14 +131,14 @@
   border-bottom: var(--border-width) solid var(--white-alpha-10);
 }
 
-.performance-header h3 {
+.performanceHeader h3 {
   margin: 0;
   font-size: var(--text-sm);
   font-weight: var(--font-semibold);
   color: var(--white);
 }
 
-.close-btn {
+.closeBtn {
   background: none;
   border: none;
   color: var(--white-alpha-60);
@@ -140,19 +153,19 @@
   transition: var(--transition-fast);
 }
 
-.close-btn:hover {
+.closeBtn:hover {
   background: var(--white-alpha-10);
   color: var(--white);
 }
 
 /* Metrics Grid */
-.performance-grid {
+.performanceGrid {
   display: grid;
   gap: var(--space-xl);
   margin-bottom: var(--space-xl);
 }
 
-.metric-group {
+.metricGroup {
   background: var(--white-alpha-5);
   border-radius: var(--radius-md);
   padding: var(--space-lg);
@@ -167,7 +180,7 @@
   margin-bottom: var(--space-sm);
 }
 
-.metric-row {
+.metricRow {
   display: flex;
   justify-content: space-between;
   align-items: center;
@@ -175,22 +188,22 @@
   font-variant-numeric: tabular-nums;
 }
 
-.metric-row:last-child {
+.metricRow:last-child {
   margin-bottom: 0;
 }
 
-.metric-row span:first-child {
+.metricRow span:first-child {
   color: var(--white-alpha-70);
   font-size: var(--text-2xs);
 }
 
-.metric-row span:last-child {
+.metricRow span:last-child {
   color: var(--white);
   font-weight: var(--font-medium);
 }
 
 /* Performance Actions */
-.performance-actions {
+.performanceActions {
   display: flex;
   flex-wrap: wrap;
   gap: var(--space-sm);
@@ -198,7 +211,7 @@
   border-top: var(--border-width) solid var(--white-alpha-10);
 }
 
-.action-btn {
+.actionBtn {
   background: var(--white-alpha-10);
   border: var(--border-width) solid var(--white-alpha-20);
   color: var(--white);
@@ -211,42 +224,42 @@
   min-width: 0;
 }
 
-.action-btn:hover {
+.actionBtn:hover {
   background: var(--white-alpha-20);
   border-color: var(--white-alpha-30);
   transform: translateY(-1px);
 }
 
-.action-btn:active {
+.actionBtn:active {
   transform: translateY(0);
 }
 
 /* Responsive Adjustments */
 @media (max-width: 768px) {
-  .performance-monitor__expanded {
+  .expanded {
     min-width: 280px;
     padding: var(--space-lg);
   }
 
-  .performance-grid {
+  .performanceGrid {
     gap: var(--space-lg);
   }
 
-  .metric-group {
+  .metricGroup {
     padding: var(--space-md);
   }
 
-  .performance-actions {
+  .performanceActions {
     flex-direction: column;
   }
 
-  .action-btn {
+  .actionBtn {
     flex: none;
   }
 }
 
 /* Animation for expanding */
-.performance-monitor__expanded {
+.expanded {
   animation: expandIn var(--transition-fast) ease-out;
 }
 

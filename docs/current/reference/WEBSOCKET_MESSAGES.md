@@ -5,7 +5,7 @@ Audience: contributors changing browser/server protocol behavior.
 Status: partial. This page catalogs the currently registered server handlers
 and the main browser message families. It does not document every payload field.
 
-Last source audit: 2026-07-21
+Last source audit: 2026-07-29
 
 ## Source of truth
 
@@ -116,6 +116,14 @@ That file owns:
 - registered browser handlers;
 - typed send helper methods;
 - store/runtime updates after server messages.
+
+Reconnect behavior has one owner. `WebClientProtocol` retries transient
+transport and server-availability closes with capped exponential backoff and
+full jitter, up to ten attempts. Manual disconnect cancels pending work.
+Heartbeat timeout closes the stale socket and enters the same retry path.
+Close codes for normal shutdown, policy/auth rejection, protocol errors,
+unsupported or invalid payloads, oversized messages, and banned users do not
+retry. `ProtocolProvider` reflects protocol recovery in React connection state.
 
 Feature code should prefer protocol helper methods or focused hooks over raw
 `sendMessage` calls. Combat mutations are stricter: use `combat_command`, not

@@ -36,6 +36,9 @@ export class WebClientProtocol {
   private readonly MAX_RECONNECT_ATTEMPTS = 10;
   private readonly BASE_RECONNECT_DELAY = 1000;
   private readonly MAX_RECONNECT_DELAY = 30000;
+  private reconnectTimer: number | null = null;
+  private reconnectEnabled = false;
+  private rejectPendingConnection: ((error: Error) => void) | null = null;
 
   // Heartbeat mechanism to detect dead connections
   private lastPongReceived: number = Date.now();
@@ -512,6 +515,12 @@ export class WebClientProtocol {
   }
 
   async connect(): Promise<void> {
+    this.reconnectEnabled = true;
+    this.cancelReconnectTimer();
+    return this.openSocket();
+  }
+
+  private async openSocket(): Promise<void> {
     // Use dynamic WebSocket URL based on current location
     const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
     const host = window.location.host;
@@ -527,11 +536,37 @@ export class WebClientProtocol {
           return reject(new Error('Already connecting'));
         }
         this.connecting = true;
-        this.websocket = new WebSocket(wsUrl);
+        if (this.websocket?.readyState === WebSocket.OPEN && this.connectionAlive) {
+          this.connecting = false;
+          return resolve();
+        }
 
-        this.websocket.onopen = () => {
+        const socket = new WebSocket(wsUrl);
+        this.websocket = socket;
+        let settled = false;
+        const resolveConnection = () => {
+          if (settled) return;
+          settled = true;
+          if (this.rejectPendingConnection === rejectConnection) {
+            this.rejectPendingConnection = null;
+          }
+          resolve();
+        };
+        const rejectConnection = (error: Error) => {
+          if (settled) return;
+          settled = true;
+          if (this.rejectPendingConnection === rejectConnection) {
+            this.rejectPendingConnection = null;
+          }
+          reject(error);
+        };
+        this.rejectPendingConnection = rejectConnection;
+
+        socket.onopen = () => {
+          if (this.websocket !== socket) return;
           protocolLogger.connection('WebSocket connected to authenticated session', this.sessionCode);
           this.connectionAlive = true;
+          this.reconnectAttempts = 0;
           this.lastPongReceived = Date.now();
           this.notifyConnectionState('connected');
           this.flushMessageQueue();
@@ -539,51 +574,60 @@ export class WebClientProtocol {
           // Auto-start heartbeat for connection monitoring
           this.startPing();
           this.connecting = false;
-          resolve();
+          resolveConnection();
         };
 
-        this.websocket.onmessage = (event) => {
+        socket.onmessage = (event) => {
+          if (this.websocket !== socket) return;
           this.handleIncomingMessage(event.data);
         };
 
-        this.websocket.onclose = (event) => {
+        socket.onclose = (event) => {
+          if (this.websocket !== socket) return;
           logger.debug(`[Protocol] WebSocket CLOSED - code: ${event.code}, reason: '${event.reason}', wasClean: ${event.wasClean}`);
           protocolLogger.connection('WebSocket connection closed', { code: event.code, reason: event.reason });
+          this.websocket = null;
           this.connectionAlive = false;
           this.notifyConnectionState('disconnected');
           this.stopPingInterval();
           this.connecting = false;
           
-          if (event.code === 1008) {
+          if (event.code === 1008 || event.code === 4003) {
+            this.reconnectEnabled = false;
             logger.debug(`[Protocol]  Code 1008 detected. Reason: '${event.reason}'`);
             if (event.reason === 'Kicked from session') {
               logger.warn('KICKED FROM SESSION - NOT RECONNECTING');
               showToast.error('You have been kicked from the session');
-              reject(new Error('Kicked from session'));
+              rejectConnection(new Error('Kicked from session'));
               return; // Prevent reconnection
             } else {
               logger.warn(`Code 1008 but different reason: '${event.reason}'`);
-              reject(new Error('Authentication failed or not authorized'));
+              rejectConnection(new Error('Authentication failed or not authorized'));
               return; // Prevent reconnection
             }
-          } else if (event.code !== 1000) {
-            // Abnormal closure - attempt reconnection
-            logger.debug(`[Protocol] Abnormal closure (code ${event.code}) - attempting reconnection...`);
-            this.attemptReconnect();
+          } else if (this.isRetryableCloseCode(event.code)) {
+            logger.debug(`[Protocol] Retryable closure (code ${event.code}) - scheduling reconnection...`);
+            rejectConnection(new Error(`WebSocket closed before connecting (code ${event.code})`));
+            this.scheduleReconnect();
           } else {
-            logger.debug('[Protocol] Clean closure (code 1000) - no reconnection');
+            this.reconnectEnabled = false;
+            logger.debug(`[Protocol] Terminal closure (code ${event.code}) - no reconnection`);
+            rejectConnection(new Error(`WebSocket closed (code ${event.code})`));
           }
         };
 
-        this.websocket.onerror = (error) => {
+        socket.onerror = (error) => {
+          if (this.websocket !== socket) return;
           logger.error('WebSocket error:', error);
-          this.stopPingInterval();
-          this.connecting = false;
-          reject(new Error('WebSocket connection failed'));
+          rejectConnection(new Error('WebSocket connection failed'));
+          this.notifyConnectionState('disconnected');
+          this.closeForReconnect('Transport error');
         };
 
       } catch (error) {
+        this.connecting = false;
         reject(error);
+        this.scheduleReconnect();
       }
     });
   }
@@ -652,9 +696,7 @@ export class WebClientProtocol {
             logger.error('[Protocol] Connection appears dead - disconnecting and reconnecting...');
             this.connectionAlive = false;
             this.notifyConnectionState('timeout');
-            // Attempt reconnection
-            this.disconnect();
-            this.attemptReconnect();
+            this.closeForReconnect('Heartbeat timeout');
           } else {
             logger.debug('[Protocol]  Pong received within timeout window');
           }
@@ -692,27 +734,60 @@ export class WebClientProtocol {
     this.stopPing();
   }
 
-  private attemptReconnect(): void {
+  private isRetryableCloseCode(code: number): boolean {
+    return ![1000, 1002, 1003, 1007, 1008, 1009, 1010, 4003].includes(code);
+  }
+
+  private cancelReconnectTimer(): void {
+    if (this.reconnectTimer !== null) {
+      window.clearTimeout(this.reconnectTimer);
+      this.reconnectTimer = null;
+    }
+  }
+
+  private closeForReconnect(reason: string): void {
+    const socket = this.websocket;
+    this.websocket = null;
+    this.connectionAlive = false;
+    this.connecting = false;
+    this.stopPingInterval();
+    if (socket) {
+      socket.onopen = null;
+      socket.onmessage = null;
+      socket.onerror = null;
+      socket.onclose = null;
+      socket.close(4000, reason);
+    }
+    this.scheduleReconnect();
+  }
+
+  private scheduleReconnect(): void {
+    if (!this.reconnectEnabled || this.reconnectTimer !== null || this.connecting) {
+      return;
+    }
     if (this.reconnectAttempts >= this.MAX_RECONNECT_ATTEMPTS) {
       logger.error('[Protocol] Max reconnection attempts reached');
       return;
     }
 
     this.reconnectAttempts++;
-    const delay = Math.min(
+    const backoffCap = Math.min(
       this.BASE_RECONNECT_DELAY * Math.pow(2, this.reconnectAttempts - 1),
       this.MAX_RECONNECT_DELAY
     );
+    const delay = Math.floor(Math.random() * backoffCap);
 
     logger.debug(`[Protocol] Reconnecting in ${delay}ms (attempt ${this.reconnectAttempts}/${this.MAX_RECONNECT_ATTEMPTS})`);
 
-    window.setTimeout(async () => {
+    this.reconnectTimer = window.setTimeout(async () => {
+      this.reconnectTimer = null;
+      if (!this.reconnectEnabled) return;
       try {
-        await this.connect();
-        this.reconnectAttempts = 0;
+        await this.openSocket();
         logger.debug('[Protocol] Reconnection successful');
       } catch (error) {
         logger.error('[Protocol] Reconnection failed:', error);
+        this.scheduleReconnect();
       }
     }, delay);
   }
@@ -1985,12 +2060,23 @@ export class WebClientProtocol {
   }
 
   disconnect(): void {
+    this.reconnectEnabled = false;
+    this.reconnectAttempts = 0;
+    this.cancelReconnectTimer();
+    this.rejectPendingConnection?.(new Error('WebSocket connection cancelled'));
+    this.rejectPendingConnection = null;
     this.connectionAlive = false;
     this.notifyConnectionState('disconnected');
     this.stopPingInterval();
-    if (this.websocket) {
-      this.websocket.close();
-      this.websocket = null;
+    this.connecting = false;
+    const socket = this.websocket;
+    this.websocket = null;
+    if (socket) {
+      socket.onopen = null;
+      socket.onmessage = null;
+      socket.onerror = null;
+      socket.onclose = null;
+      socket.close(1000, 'Client disconnect');
     }
   }
 

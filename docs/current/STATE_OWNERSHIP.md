@@ -36,6 +36,12 @@ Use protocol state for:
 - Registered message handlers.
 - Sending typed protocol commands.
 
+`WebClientProtocol` owns exactly one reconnect timer. Manual disconnect
+cancels that timer and disables automatic reconnect. Retryable transport
+failures use capped exponential backoff with full jitter; policy, protocol,
+unsupported-data, invalid-payload, oversized-message, and banned-user closes
+are terminal. A successful connection resets the retry budget.
+
 `ProtocolService` exists for code that cannot use React context directly.
 
 ## React app state

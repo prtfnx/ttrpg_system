@@ -50,6 +50,7 @@ export function ProtocolProvider({ sessionCode, children }: ProviderProps) {
   useEffect(() => {
     let mounted = true;
     let currentProtocol: WebClientProtocol | null = null;
+    let unsubscribeConnectionState: (() => void) | null = null;
 
     async function init() {
       setConnectionState('connecting');
@@ -74,6 +75,16 @@ export function ProtocolProvider({ sessionCode, children }: ProviderProps) {
 
         const p = new WebClientProtocol(resolved, userId);
         currentProtocol = p;
+        unsubscribeConnectionState = p.onConnectionStateChange((state) => {
+          if (!mounted) return;
+          if (state === 'connected') {
+            setConnectionState('connected');
+          } else if (state === 'timeout') {
+            setConnectionState('error');
+          } else {
+            setConnectionState('disconnected');
+          }
+        });
 
         if (!mounted) {
           p.disconnect();
@@ -92,6 +103,11 @@ export function ProtocolProvider({ sessionCode, children }: ProviderProps) {
 
         setConnectionState('connected');
       } catch (error) {
+        if (!mounted) return;
+        if (error instanceof Error && error.message.includes('cancelled')) {
+          setConnectionState('disconnected');
+          return;
+        }
         logger.error('[ProtocolProvider] Connection failed', error);
         setConnectionState('error');
       }
@@ -101,6 +117,7 @@ export function ProtocolProvider({ sessionCode, children }: ProviderProps) {
 
     return () => {
       mounted = false;
+      unsubscribeConnectionState?.();
       currentProtocol?.disconnect();
       ProtocolService.clearProtocol();
       setProtocol(null);

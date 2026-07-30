@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi, type Mock } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi, type Mock } from 'vitest';
 
 // vi.hoisted runs before module imports — these refs are usable in vi.mock factories
 const mocks = vi.hoisted(() => {
@@ -140,6 +140,12 @@ describe('WebClientProtocol', () => {
     Object.assign(mocks.storeState, makeStoreState());
   });
 
+  afterEach(() => {
+    vi.useRealTimers();
+    vi.restoreAllMocks();
+    vi.unstubAllGlobals();
+  });
+
   // ── Construction ──────────────────────────────────────────────────────────
 
   describe('constructor', () => {
@@ -223,6 +229,31 @@ describe('WebClientProtocol', () => {
       (p as unknown as Record<string, unknown>)['connectionAlive'] = true;
       p.disconnect();
       expect((p as unknown as Record<string, unknown>)['connectionAlive']).toBe(false);
+    });
+
+    it('rejects an in-flight connection when disconnected', async () => {
+      const ws = {
+        readyState: WebSocket.CONNECTING,
+        send: vi.fn(),
+        close: vi.fn(),
+        onopen: null as (() => void) | null,
+        onclose: null as ((e: Partial<CloseEvent>) => void) | null,
+        onerror: null as ((e: Event) => void) | null,
+        onmessage: null as ((e: MessageEvent) => void) | null,
+      };
+      vi.stubGlobal('WebSocket', Object.assign(vi.fn(function() { return ws; }), {
+        CONNECTING: 0,
+        OPEN: 1,
+        CLOSING: 2,
+        CLOSED: 3,
+      }));
+      const protocol = makeProtocol();
+      const connection = protocol.connect();
+
+      protocol.disconnect();
+
+      await expect(connection).rejects.toThrow('cancelled');
+      expect(ws.close).toHaveBeenCalledWith(1000, 'Client disconnect');
     });
   });
 
@@ -1799,6 +1830,147 @@ describe('WebClientProtocol', () => {
         type: 'measurement_sync',
         data: { table_id: 'table-abc' },
       });
+    });
+  });
+
+  describe('automatic reconnect', () => {
+    function makeLifecycleWs() {
+      return {
+        readyState: WebSocket.CONNECTING as number,
+        send: vi.fn(),
+        close: vi.fn(),
+        onopen: null as (() => void) | null,
+        onclose: null as ((e: Partial<CloseEvent>) => void) | null,
+        onerror: null as ((e: Event) => void) | null,
+        onmessage: null as ((e: MessageEvent) => void) | null,
+      };
+    }
+
+    function installWebSocketFactory() {
+      const sockets: ReturnType<typeof makeLifecycleWs>[] = [];
+      const constructor = vi.fn(function() {
+        const socket = makeLifecycleWs();
+        sockets.push(socket);
+        return socket;
+      });
+      vi.stubGlobal('WebSocket', Object.assign(constructor, {
+        CONNECTING: 0,
+        OPEN: 1,
+        CLOSING: 2,
+        CLOSED: 3,
+      }));
+      return { sockets, constructor };
+    }
+
+    async function openInitialConnection(
+      protocol: WebClientProtocol,
+      sockets: ReturnType<typeof makeLifecycleWs>[],
+    ) {
+      const connection = protocol.connect();
+      sockets[0].readyState = WebSocket.OPEN;
+      sockets[0].onopen!();
+      await connection;
+    }
+
+    it('cancels a pending retry on intentional disconnect', async () => {
+      vi.useFakeTimers();
+      vi.spyOn(Math, 'random').mockReturnValue(0.5);
+      const { sockets, constructor } = installWebSocketFactory();
+      const protocol = makeProtocol();
+      await openInitialConnection(protocol, sockets);
+
+      sockets[0].onclose!({ code: 1006, reason: '', wasClean: false });
+      expect(vi.getTimerCount()).toBe(1);
+
+      protocol.disconnect();
+      await vi.advanceTimersByTimeAsync(30_000);
+
+      expect(constructor).toHaveBeenCalledTimes(1);
+      expect(vi.getTimerCount()).toBe(0);
+    });
+
+    it('continues retrying after a reconnect attempt fails', async () => {
+      vi.useFakeTimers();
+      vi.spyOn(Math, 'random').mockReturnValue(0);
+      const { sockets, constructor } = installWebSocketFactory();
+      const protocol = makeProtocol();
+      await openInitialConnection(protocol, sockets);
+
+      sockets[0].onclose!({ code: 1006, reason: '', wasClean: false });
+      vi.runOnlyPendingTimers();
+      expect(constructor).toHaveBeenCalledTimes(2);
+
+      sockets[1].onerror!(new Event('error'));
+      await Promise.resolve();
+      await Promise.resolve();
+      vi.runOnlyPendingTimers();
+
+      expect(constructor).toHaveBeenCalledTimes(3);
+    });
+
+    it('resets the retry budget after recovery', async () => {
+      vi.useFakeTimers();
+      vi.spyOn(Math, 'random').mockReturnValue(0);
+      const { sockets } = installWebSocketFactory();
+      const protocol = makeProtocol();
+      const listener = vi.fn();
+      protocol.onConnectionStateChange(listener);
+      await openInitialConnection(protocol, sockets);
+
+      sockets[0].onclose!({ code: 1012, reason: 'Restarting', wasClean: true });
+      vi.runOnlyPendingTimers();
+      sockets[1].readyState = WebSocket.OPEN;
+      sockets[1].onopen!();
+      await Promise.resolve();
+
+      expect((protocol as unknown as Record<string, unknown>)['reconnectAttempts']).toBe(0);
+      expect(listener).toHaveBeenLastCalledWith('connected');
+    });
+
+    it('does not retry terminal policy closures', async () => {
+      vi.useFakeTimers();
+      const { sockets, constructor } = installWebSocketFactory();
+      const protocol = makeProtocol();
+      const connection = protocol.connect();
+
+      sockets[0].onclose!({
+        code: 1008,
+        reason: 'Authentication failed',
+        wasClean: true,
+      });
+
+      await expect(connection).rejects.toThrow('Authentication failed');
+      await vi.advanceTimersByTimeAsync(30_000);
+      expect(constructor).toHaveBeenCalledTimes(1);
+    });
+
+    it('stops after the configured retry budget is exhausted', async () => {
+      vi.useFakeTimers();
+      const { sockets, constructor } = installWebSocketFactory();
+      const protocol = makeProtocol();
+      await openInitialConnection(protocol, sockets);
+      (protocol as unknown as Record<string, unknown>)['reconnectAttempts'] = 10;
+
+      sockets[0].onclose!({ code: 1006, reason: '', wasClean: false });
+      await vi.advanceTimersByTimeAsync(30_000);
+
+      expect(constructor).toHaveBeenCalledTimes(1);
+      expect(vi.getTimerCount()).toBe(0);
+    });
+
+    it('routes heartbeat timeout through one reconnect path', async () => {
+      vi.useFakeTimers();
+      vi.spyOn(Math, 'random').mockReturnValue(0);
+      const { sockets, constructor } = installWebSocketFactory();
+      const protocol = makeProtocol();
+      await openInitialConnection(protocol, sockets);
+
+      await vi.advanceTimersByTimeAsync(35_000);
+      vi.runOnlyPendingTimers();
+
+      expect(sockets[0].close).toHaveBeenCalledOnce();
+      expect(sockets[0].close).toHaveBeenCalledWith(4000, 'Heartbeat timeout');
+      expect(constructor).toHaveBeenCalledTimes(2);
     });
   });
 

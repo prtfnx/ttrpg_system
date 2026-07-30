@@ -179,12 +179,28 @@ describe('AssetPanel Component', () => {
 
   test('shows asset organization controls', () => {
     render(<AssetPanel />);
-    
-    // Should have some way to organize/filter assets
-    const organizationElements = screen.queryAllByText(/filter|sort|category|type/i);
-    
-    // At least some organizational feature should exist
-    expect(organizationElements.length >= 0).toBe(true);
+
+    expect(screen.getByRole('button', { name: 'Images' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Models' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Audio' })).toBeInTheDocument();
+  });
+
+  test('filters the displayed assets by category and search term', async () => {
+    const user = userEvent.setup();
+    render(<AssetPanel />);
+
+    const imagesButton = screen.getByRole('button', { name: 'Images' });
+    await user.click(imagesButton);
+
+    expect(imagesButton).toHaveAttribute('aria-pressed', 'true');
+    expect(screen.getByText('dragon.png')).toBeInTheDocument();
+    expect(screen.queryByText('music.mp3')).not.toBeInTheDocument();
+
+    await user.clear(screen.getByPlaceholderText('Search assets'));
+    await user.type(screen.getByPlaceholderText('Search assets'), 'missing');
+
+    expect(screen.getByRole('status')).toHaveTextContent('Filtering assets');
+    expect(screen.getByText('No assets found')).toBeInTheDocument();
   });
 
   test('handles file selection interactions', async () => {

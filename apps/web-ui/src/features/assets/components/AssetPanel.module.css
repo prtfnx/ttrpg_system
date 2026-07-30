@@ -29,6 +29,130 @@
   color: var(--text-muted);
 }
 
+.assetCategories {
+  display: flex;
+  gap: var(--space-sm);
+  margin-bottom: var(--space-md);
+}
+
+.category {
+  flex: 1;
+  padding: var(--space-sm) var(--space-md);
+  background: var(--button-secondary-bg);
+  border: var(--border-width) solid var(--button-secondary-border);
+  border-radius: var(--radius-sm);
+  color: var(--button-secondary-text);
+  cursor: pointer;
+  font: inherit;
+  transition:
+    background-color var(--transition-fast),
+    border-color var(--transition-fast),
+    color var(--transition-fast);
+}
+
+.category:hover {
+  background: var(--button-secondary-hover);
+}
+
+.category.active {
+  background: var(--button-primary-bg);
+  border-color: var(--button-primary-border);
+  color: var(--button-primary-text);
+}
+
+.category:focus-visible,
+.dragDropZone:focus-visible,
+.uploadDropzone:focus-visible {
+  outline: var(--border-width-thick) solid var(--border-focus);
+  outline-offset: var(--border-width-thick);
+}
+
+.assetSearch {
+  margin-bottom: var(--space-md);
+}
+
+.searchInput,
+.downloadInput {
+  width: 100%;
+  padding: var(--space-sm) var(--space-md);
+  background: var(--input-bg);
+  border: var(--border-width) solid var(--input-border);
+  border-radius: var(--radius-sm);
+  color: var(--input-text);
+  font-size: var(--text-sm);
+}
+
+.searchInput:focus,
+.downloadInput:focus {
+  outline: none;
+  border-color: var(--input-border-focus);
+  box-shadow: var(--focus-ring);
+}
+
+.filterIndicator {
+  margin-top: var(--space-xs);
+  color: var(--text-muted);
+  font-size: var(--text-xs);
+}
+
+.dragDropZone,
+.uploadDropzone {
+  padding: var(--space-xl);
+  margin-bottom: var(--space-md);
+  background: var(--bg-tertiary);
+  border: var(--border-width-thick) dashed var(--border-accent);
+  border-radius: var(--radius-md);
+  color: var(--text-secondary);
+  cursor: pointer;
+  text-align: center;
+  transition:
+    background-color var(--transition-fast),
+    border-color var(--transition-fast);
+}
+
+.dragDropZone.dragOver,
+.uploadDropzone.dragOver {
+  background: var(--hover-overlay);
+  border-color: var(--accent-primary);
+}
+
+.uploadMonitoring {
+  padding: var(--space-sm);
+  margin-bottom: var(--space-md);
+  background: var(--bg-tertiary);
+  border: var(--border-width) solid var(--border-primary);
+  border-radius: var(--radius-sm);
+}
+
+.progressBar {
+  height: var(--space-sm);
+  margin-top: var(--space-xs);
+  overflow: hidden;
+  background: var(--bg-elevated);
+  border-radius: var(--radius-full);
+}
+
+.progressFill {
+  height: 100%;
+  background: var(--status-success);
+  border-radius: inherit;
+  transition: width var(--transition-normal);
+}
+
+.performanceStats {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(var(--size-25), 1fr));
+  gap: var(--space-xs);
+  margin-top: var(--space-sm);
+  color: var(--text-muted);
+  font-size: var(--text-xs);
+}
+
+.uploadBtn {
+  composes: panel-button success from '@shared/styles/PanelBase.module.css';
+  margin-bottom: var(--space-md);
+}
+
 /* Stats Section */
 .statsSection {
   composes: settings-section from '@shared/styles/PanelBase.module.css';
@@ -140,6 +264,10 @@
   border-left: var(--space-xs) solid var(--color-primary);
 }
 
+.assetInfo {
+  min-width: 0;
+}
+
 .assetName {
   font-weight: var(--font-medium);
   color: var(--text-primary);
@@ -161,8 +289,49 @@
   font-style: italic;
 }
 
+.assetMetadata {
+  margin-top: var(--space-xs);
+  color: var(--text-muted);
+  font-size: var(--text-xs);
+}
+
 .uploadError {
+  margin-top: var(--space-sm);
   color: var(--status-error-text);
+}
+
+.downloadSection,
+.cacheStats {
+  composes: settings-section from '@shared/styles/PanelBase.module.css';
+  margin-top: var(--space-lg);
+}
+
+.downloadForm {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+}
+
+.cacheStats {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--space-xs) var(--space-md);
+}
+
+.cacheStats h4,
+.cacheActions {
+  grid-column: 1 / -1;
+}
+
+.cacheActions {
+  display: flex;
+  gap: var(--space-sm);
+  margin-top: var(--space-sm);
+}
+
+.assetsContainer {
+  display: flex;
+  flex-direction: column;
 }
 
 /* Asset Details Section */

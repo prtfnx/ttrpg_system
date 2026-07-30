@@ -35,6 +35,7 @@ export const AssetPanel: React.FC = () => {
     { id: 'asset2', name: 'music.mp3', size: 5242880, type: 'audio/mp3' }
   ]);
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
+  const [searchTerm, setSearchTerm] = useState('');
 
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -70,6 +71,13 @@ export const AssetPanel: React.FC = () => {
     const files = Array.from(e.dataTransfer.files);
     if (files.length > 0) {
       handleFiles(files);
+    }
+  };
+
+  const handleUploadZoneKeyDown = (e: React.KeyboardEvent<HTMLDivElement>) => {
+    if (e.key === 'Enter' || e.key === ' ') {
+      e.preventDefault();
+      fileInputRef.current?.click();
     }
   };
 
@@ -131,7 +139,7 @@ export const AssetPanel: React.FC = () => {
   const selectedAssetInfo = selectedAsset ? getAssetInfo(selectedAsset) : null;
 
   // Filter assets by category
-  const filteredAssets = selectedCategory === 'all' ? mockAssets : 
+  const categoryAssets = selectedCategory === 'all' ? mockAssets :
     mockAssets.filter(asset => {
       switch(selectedCategory) {
         case 'images':
@@ -144,6 +152,9 @@ export const AssetPanel: React.FC = () => {
           return true;
       }
     });
+  const filteredAssets = categoryAssets.filter(asset =>
+    asset.name.toLowerCase().includes(searchTerm.trim().toLowerCase())
+  );
 
   const handleDownload = async () => {
     if (!downloadUrl.trim()) return;
@@ -184,30 +195,33 @@ export const AssetPanel: React.FC = () => {
       <div className={styles.assetPanel}>
         <h3>Asset Manager</h3>
         <div className={styles.assetCategories}>
-          <div 
+          <button
+            type="button"
             className={clsx(styles.category, selectedCategory === 'images' && styles.active)}
             onClick={() => setSelectedCategory('images')}
-            role="button"
             aria-label="Images"
+            aria-pressed={selectedCategory === 'images'}
           >
             Images
-          </div>
-          <div 
+          </button>
+          <button
+            type="button"
             className={clsx(styles.category, selectedCategory === 'models' && styles.active)}
             onClick={() => setSelectedCategory('models')}
-            role="button"
             aria-label="Models"
+            aria-pressed={selectedCategory === 'models'}
           >
             Models
-          </div>
-          <div 
+          </button>
+          <button
+            type="button"
             className={clsx(styles.category, selectedCategory === 'audio' && styles.active)}
             onClick={() => setSelectedCategory('audio')}
-            role="button"
             aria-label="Audio"
+            aria-pressed={selectedCategory === 'audio'}
           >
             Audio
-          </div>
+          </button>
         </div>
 
         {/* Asset Search */}
@@ -216,42 +230,22 @@ export const AssetPanel: React.FC = () => {
             type="text"
             placeholder="Search assets"
             className={styles.searchInput}
-            onChange={(e) => {
-              if (e.target.value) {
-                // Show filtering indication
-                const indicator = document.createElement('div');
-                indicator.textContent = 'Filtering assets';
-                indicator.className = 'filter-indicator';
-                const searchDiv = e.target.parentElement;
-                if (searchDiv && !searchDiv.querySelector('.filter-indicator')) {
-                  searchDiv.appendChild(indicator);
-                }
-              } else {
-                // Remove filtering indication
-                const indicator = e.target.parentElement?.querySelector('.filter-indicator');
-                if (indicator) {
-                  indicator.remove();
-                }
-              }
-            }}
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
           />
+          {searchTerm && <div className={styles.filterIndicator} role="status">Filtering assets</div>}
         </div>
 
         {/* Drag and Drop Zone */}
         <div 
-          className={styles.dragDropZone}
+          className={clsx(styles.dragDropZone, isDragOver && styles.dragOver)}
           onDragOver={handleDragOver}
+          onDragLeave={() => setIsDragOver(false)}
           onDrop={handleDrop}
           onClick={() => fileInputRef.current?.click()}
-          style={{
-            border: 'var(--border-width-md) dashed var(--border-primary)',
-            borderRadius: '8px',
-            padding: '20px',
-            textAlign: 'center',
-            margin: '10px 0',
-            cursor: 'pointer',
-            backgroundColor: isDragOver ? 'var(--hover-overlay)' : 'transparent'
-          }}
+          onKeyDown={handleUploadZoneKeyDown}
+          role="button"
+          tabIndex={0}
         >
           <p>Drag files here or click to upload</p>
           <small>Supported formats: Images, Audio, Models (max 50MB)</small>
@@ -279,7 +273,7 @@ export const AssetPanel: React.FC = () => {
           {uploadError && <div data-testid="upload-errors" className={styles.uploadError}>{uploadError}</div>}
           
           {/* Performance monitoring */}
-          <div className={styles.performanceStats} style={{ fontSize: '12px', color: 'var(--text-muted)' }}>
+          <div className={styles.performanceStats}>
             <div data-testid="files-total">{uploadStats.filesTotal}</div>
             <div data-testid="files-processed">{uploadStats.filesProcessed}</div>
             <div data-testid="assets-loaded">{mockAssets.length}</div>
@@ -304,12 +298,15 @@ export const AssetPanel: React.FC = () => {
             <div key={asset.id} className={styles.assetItem}>
               <div className={styles.assetInfo}>
                 <div className={styles.assetName}>{asset.name}</div>
-                <div className={styles.assetDetails}>
+                <div className={styles.assetMetadata}>
                   {(asset.size / 1024 / 1024).toFixed(2)} MB • {asset.type}
                 </div>
               </div>
             </div>
           ))}
+          {filteredAssets.length === 0 && (
+            <div className={styles.noAssets}>No assets found</div>
+          )}
         </div>
 
         <div>Initializing Asset Manager...</div>
@@ -323,24 +320,30 @@ export const AssetPanel: React.FC = () => {
 
       {/* Asset Categories */}
       <div className={styles.assetCategories}>
-        <div 
+        <button
+          type="button"
           className={clsx(styles.category, selectedCategory === 'images' && styles.active)}
           onClick={() => setSelectedCategory('images')}
+          aria-pressed={selectedCategory === 'images'}
         >
           Images
-        </div>
-        <div 
+        </button>
+        <button
+          type="button"
           className={clsx(styles.category, selectedCategory === 'models' && styles.active)}
           onClick={() => setSelectedCategory('models')}
+          aria-pressed={selectedCategory === 'models'}
         >
           Models
-        </div>
-        <div 
+        </button>
+        <button
+          type="button"
           className={clsx(styles.category, selectedCategory === 'audio' && styles.active)}
           onClick={() => setSelectedCategory('audio')}
+          aria-pressed={selectedCategory === 'audio'}
         >
           Audio
-        </div>
+        </button>
       </div>
 
       {/* Asset Search */}
@@ -349,7 +352,10 @@ export const AssetPanel: React.FC = () => {
           type="text"
           placeholder="Search assets"
           className={styles.searchInput}
+          value={searchTerm}
+          onChange={(e) => setSearchTerm(e.target.value)}
         />
+        {searchTerm && <div className={styles.filterIndicator} role="status">Filtering assets</div>}
       </div>
 
       {/* Upload Status Monitoring */}
@@ -363,7 +369,7 @@ export const AssetPanel: React.FC = () => {
         {uploadError && <div data-testid="upload-errors" className={styles.uploadError}>{uploadError}</div>}
         
         {/* Performance monitoring */}
-        <div className={styles.performanceStats} style={{ fontSize: '12px', color: 'var(--text-muted)' }}>
+        <div className={styles.performanceStats}>
           <div data-testid="files-total">{mockAssets.length}</div>
           <div data-testid="files-processed">{mockAssets.length}</div>
           <div data-testid="assets-loaded">{mockAssets.length}</div>
@@ -381,27 +387,23 @@ export const AssetPanel: React.FC = () => {
 
       {/* Drag-and-drop upload zone - Primary upload interface */}
       <div
-        className={styles.uploadDropzone}
+        className={clsx(styles.uploadDropzone, isDragOver && styles.dragOver)}
         onDrop={handleDrop}
         onDragOver={handleDragOver}
-        style={{
-          border: 'var(--border-width-md) dashed var(--border-accent)',
-          padding: 20,
-          marginBottom: 16,
-          textAlign: 'center',
-          background: 'var(--bg-tertiary)',
-          borderRadius: '8px',
-          cursor: 'pointer'
-        }}
-        onClick={() => document.getElementById('file-input')?.click()}
+        onDragLeave={() => setIsDragOver(false)}
+        onClick={() => fileInputRef.current?.click()}
+        onKeyDown={handleUploadZoneKeyDown}
+        role="button"
+        tabIndex={0}
       >
         {uploading ? 'Uploading...' : 'Drag files here or click to upload'}
-        {uploadError && <div style={{color:'var(--color-danger)',marginTop:8}}>{uploadError}</div>}
+        {uploadError && <div className={styles.uploadError}>{uploadError}</div>}
       </div>
 
       {/* Hidden file input for click-to-upload */}
       <input
         id="file-input"
+        ref={fileInputRef}
         type="file"
         style={{ display: 'none' }}
         onChange={handleFileInputChange}
@@ -409,7 +411,7 @@ export const AssetPanel: React.FC = () => {
       />
 
       {/* Upload Button (secondary interface) */}
-      <button className={styles.uploadBtn} role="button" onClick={() => document.getElementById('file-input')?.click()}>
+      <button className={styles.uploadBtn} onClick={() => fileInputRef.current?.click()}>
         Upload Asset
       </button>
       
@@ -420,7 +422,7 @@ export const AssetPanel: React.FC = () => {
           <div key={asset.id} className={styles.assetItem}>
             <div className={styles.assetInfo}>
               <div className={styles.assetName}>{asset.name}</div>
-              <div className={styles.assetDetails}>
+              <div className={styles.assetMetadata}>
                 {formatFileSize(asset.size)} • {asset.type}
               </div>
             </div>
@@ -435,15 +437,15 @@ export const AssetPanel: React.FC = () => {
       </div>
 
       {/* Download Section */}
-      <div className="download-section">
+      <div className={styles.downloadSection}>
         <h4>Download Asset</h4>
-        <div className="download-form">
+        <div className={styles.downloadForm}>
           <input
             type="url"
             placeholder="Enter asset URL"
             value={downloadUrl}
             onChange={(e) => setDownloadUrl(e.target.value)}
-            className="download-input"
+            className={styles.downloadInput}
           />
           <button onClick={handleDownload} disabled={!downloadUrl.trim()} className={styles.assetButton}>
             Download
@@ -453,7 +455,7 @@ export const AssetPanel: React.FC = () => {
 
       {/* Cache Stats */}
       {stats && (
-        <div className="cache-stats">
+        <div className={styles.cacheStats}>
           <h4>Cache Statistics</h4>
           <div>Assets: {stats.total_assets}</div>
           <div>Size: {formatFileSize(stats.total_size)}</div>
@@ -461,7 +463,7 @@ export const AssetPanel: React.FC = () => {
           <div>Misses: {stats.cache_misses}</div>
           <div>Downloads: {stats.total_downloads}</div>
           <div>Failed: {stats.failed_downloads}</div>
-          <div className="cache-actions">
+          <div className={styles.cacheActions}>
             <button onClick={handleCleanup} className={styles.assetButton}>Cleanup</button>
             <button onClick={handleClearAll} className={styles.assetButton}>Clear All</button>
           </div>
@@ -471,13 +473,13 @@ export const AssetPanel: React.FC = () => {
       {/* Asset List */}
       <div className={styles.assetList}>
         <h4>Cached Assets ({assets.length})</h4>
-        <div className="assets-container">
+        <div className={styles.assetsContainer}>
           {assets.map(asset => {
             const info = getAssetInfo(asset.id);
             return (
               <div
                 key={asset.id}
-                className={`asset-item ${selectedAsset === asset.id ? 'selected' : ''}`}
+                className={clsx(styles.assetItem, selectedAsset === asset.id && styles.selected)}
                 onClick={() => setSelectedAsset(asset.id)}
               >
                 <div className={styles.assetName}>{info?.name || asset.id}</div>

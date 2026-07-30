@@ -1,39 +1,39 @@
 /* Text Sprite Editor - Inline editing on canvas - Using TextSpriteBase patterns */
 
-.text-sprite-input input {
+.textSpriteInput input {
   caret-color: var(--blue-500);
 }
 
-.text-sprite-input input::selection {
+.textSpriteInput input::selection {
   background: var(--blue-500-alpha-30);
 }
 
 /* Floating toolbar */
-.text-sprite-toolbar {
+.textSpriteToolbar {
   pointer-events: all;
   composes: fade-in from './TextSpriteBase.module.css';
 }
 
-.toolbar-container {
+.toolbarContainer {
   composes: toolbar-container from './TextSpriteBase.module.css';
 }
 
-.toolbar-group {
+.toolbarGroup {
   composes: toolbar-group from './TextSpriteBase.module.css';
 }
 
 /* Cannot compose on child selectors - define directly */
-.toolbar-group label {
+.toolbarGroup label {
   font-size: var(--text-xs);
   color: var(--gray-400);
   font-weight: var(--font-medium);
 }
 
-.toolbar-select {
+.toolbarSelect {
   composes: toolbar-select from './TextSpriteBase.module.css';
 }
 
-.toolbar-color {
+.toolbarColor {
   width: var(--size-9);
   height: var(--size-7);
   border: var(--border-width-md) solid var(--gray-700);
@@ -42,32 +42,32 @@
   background: none;
 }
 
-.toolbar-color:hover {
+.toolbarColor:hover {
   border-color: var(--blue-500);
 }
 
-.toolbar-button {
+.toolbarButton {
   composes: toolbar-button from './TextSpriteBase.module.css';
 }
 
-.toolbar-button:hover:not(:disabled) {
+.toolbarButton:hover:not(:disabled) {
   background: var(--gray-700);
   border-color: var(--blue-500);
 }
 
-.toolbar-button:disabled {
+.toolbarButton:disabled {
   opacity: 0.4;
   cursor: not-allowed;
 }
 
 /* Cannot compose on compound selectors */
-.toolbar-button.active {
+.toolbarButton.active {
   background: var(--blue-500);
   border-color: var(--blue-500);
   color: var(--white);
 }
 
-.toolbar-button.finish {
+.toolbarButton.finish {
   background: var(--green-600);
   border-color: var(--green-600);
   color: var(--white);
@@ -75,27 +75,27 @@
   font-size: var(--text-lg);
 }
 
-.toolbar-button.finish:hover:not(:disabled) {
+.toolbarButton.finish:hover:not(:disabled) {
   background: var(--green-700);
   transform: translateY(calc(-1 * var(--space-1)));
 }
 
-.toolbar-button.cancel {
+.toolbarButton.cancel {
   background: var(--red-600);
   border-color: var(--red-600);
   color: var(--white);
   font-weight: var(--font-bold);
 }
 
-.toolbar-button.cancel:hover {
+.toolbarButton.cancel:hover {
   background: var(--red-700);
 }
 
-.toolbar-divider {
+.toolbarDivider {
   composes: toolbar-divider from './TextSpriteBase.module.css';
 }
 
-.toolbar-hint {
+.toolbarHint {
   position: absolute;
   top: 100%;
   left: 0;
@@ -120,7 +120,7 @@
   }
 }
 
-.text-sprite-input {
+.textSpriteInput {
   animation: fadeIn var(--transition-fast) ease-out;
 }
 

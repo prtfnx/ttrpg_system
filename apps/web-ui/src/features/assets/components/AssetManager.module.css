@@ -363,7 +363,7 @@
   background: var(--button-success-hover);
 }
 
-.cancel-button {
+.cancelButton {
   padding: var(--space-xs) var(--space-md);
   background: var(--button-warning-bg);
   border: var(--border-width) solid var(--button-warning-border);
@@ -374,11 +374,11 @@
   transition: all var(--duration-base) ease;
 }
 
-.cancel-button:hover {
+.cancelButton:hover {
   background: var(--button-warning-hover);
 }
 
-.remove-button {
+.removeButton {
   padding: var(--space-xs) var(--space-md);
   background: var(--button-danger-bg);
   border: var(--border-width) solid var(--button-danger-border);
@@ -389,11 +389,11 @@
   transition: all var(--duration-base) ease;
 }
 
-.remove-button:hover {
+.removeButton:hover {
   background: var(--button-danger-hover);
 }
 
-.no-uploads {
+.noUploads {
   padding: var(--space-3xl) var(--space-xl);
   text-align: center;
   color: var(--text-muted);
@@ -407,11 +407,11 @@
   overflow-y: auto;
 }
 
-.setting-group {
+.settingGroup {
   margin-bottom: var(--space-2xl);
 }
 
-.setting-group h3 {
+.settingGroup h3 {
   color: var(--text-primary);
   margin: 0 0 var(--space-lg) 0;
   font-size: var(--text-lg);
@@ -435,14 +435,14 @@
   margin-bottom: var(--space-xs);
 }
 
-.setting-description {
+.settingDescription {
   color: var(--text-secondary);
   font-size: var(--text-sm);
   line-height: var(--leading-normal);
 }
 
 /* Loading Overlay */
-.loading-overlay {
+.loadingOverlay {
   position: absolute;
   top: 0;
   left: 0;
@@ -455,7 +455,7 @@
   z-index: var(--z-popover);
 }
 
-.loading-spinner {
+.loadingSpinner {
   color: var(--color-success);
   font-size: var(--text-lg);
   font-weight: var(--font-medium);

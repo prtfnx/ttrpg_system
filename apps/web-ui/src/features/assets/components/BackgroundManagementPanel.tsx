@@ -5,6 +5,7 @@
  */
 
 import { ErrorBoundary, LoadingSpinner } from '@shared/components';
+import clsx from 'clsx';
 import { AlertTriangle, Eye, EyeOff, Pencil, Trash2, X } from 'lucide-react';
 import React, { useCallback, useEffect, useState } from 'react';
 import type { RenderEngine } from '@lib/wasm/runtime';
@@ -366,7 +367,7 @@ const BackgroundManagementPanel: React.FC<BackgroundManagementPanelProps> = ({
                 {configurations.map(config => (
                   <button
                     key={config.id}
-                    className={`config-option ${activeConfiguration === config.id ? 'active' : ''}`}
+                    className={clsx(styles.configOption, activeConfiguration === config.id && styles.active)}
                     onClick={() => setActiveConfiguration(config.id)}
                     disabled={isLoading}
                   >
@@ -384,7 +385,14 @@ const BackgroundManagementPanel: React.FC<BackgroundManagementPanelProps> = ({
                 <div className={styles.metricsGrid}>
                   <div className={styles.metric}>
                     <span className={styles.metricLabel}>FPS:</span>
-                    <span className={`metric-value ${performanceMetrics.fps < 30 ? 'warning' : performanceMetrics.fps < 60 ? 'caution' : 'good'}`}>
+                    <span className={clsx(
+                      styles.metricValue,
+                      performanceMetrics.fps < 30
+                        ? styles.warning
+                        : performanceMetrics.fps < 60
+                          ? styles.caution
+                          : styles.good
+                    )}>
                       {performanceMetrics.fps.toFixed(1)}
                     </span>
                   </div>
@@ -453,7 +461,7 @@ const BackgroundManagementPanel: React.FC<BackgroundManagementPanelProps> = ({
                   {currentConfig.layers
                     .sort((a, b) => a.zIndex - b.zIndex)
                     .map(layer => (
-                    <div key={layer.id} className={`layer-item ${selectedLayerId === layer.id ? 'selected' : ''}`}>
+                    <div key={layer.id} className={clsx(styles.layerItem, selectedLayerId === layer.id && styles.selected)}>
                       <div className={styles.layerHeader} onClick={() => setSelectedLayerId(layer.id)}>
                         <div className={styles.layerInfo}>
                           <span className={styles.layerName}>{layer.name}</span>
@@ -556,11 +564,11 @@ const BackgroundManagementPanel: React.FC<BackgroundManagementPanelProps> = ({
               <div className={styles.weatherEffects}>
                 {weatherEffects.map(effect => (
                   <div key={effect.id} className={styles.weatherEffect}>
-                    <div className="effect-info">
-                      <span className="effect-type">{effect.type}</span>
+                    <div className={styles.effectInfo}>
+                      <span className={styles.effectType}>{effect.type}</span>
                       <span className={styles.effectIntensity}>Intensity: {(effect.intensity * 100).toFixed(0)}%</span>
                     </div>
-                    <div className="effect-controls">
+                    <div className={styles.effectControls}>
                       <input
                         type="range"
                         className={styles.effectControlSlider}
@@ -574,7 +582,7 @@ const BackgroundManagementPanel: React.FC<BackgroundManagementPanelProps> = ({
                         }}
                       />
                       <button
-                        className="remove-effect"
+                        className={styles.removeEffect}
                         onClick={() => handleRemoveWeatherEffect(effect.id)}
                         aria-label="Remove weather effect"
                       >
@@ -585,7 +593,7 @@ const BackgroundManagementPanel: React.FC<BackgroundManagementPanelProps> = ({
                 ))}
                 
                 <button
-                  className="add-weather-btn"
+                  className={styles.addWeatherBtn}
                   onClick={() => setIsAddingWeatherEffect(true)}
                   disabled={isAddingWeatherEffect}
                 >
@@ -625,7 +633,7 @@ const BackgroundManagementPanel: React.FC<BackgroundManagementPanelProps> = ({
             </div>
 
             {isLoading && (
-              <div className="loading-overlay">
+              <div className={styles.loadingOverlay}>
                 <LoadingSpinner size="large" />
                 <p>Loading background configuration...</p>
               </div>

@@ -108,7 +108,7 @@
   gap: var(--space-md);
 }
 
-.config-option {
+.configOption {
   background: linear-gradient(135deg, var(--gray-700) 0%, var(--gray-800) 100%);
   border: var(--border-width-thick) solid var(--border-primary);
   border-radius: var(--radius-lg);
@@ -118,19 +118,19 @@
   text-align: left;
 }
 
-.config-option:hover {
+.configOption:hover {
   border-color: var(--accent-primary);
   transform: translateY(calc(var(--space-xs) * -0.5));
   box-shadow: var(--shadow-xl);
 }
 
-.config-option.active {
+.configOption.active {
   border-color: var(--accent-primary);
   background: linear-gradient(135deg, var(--accent-bg), var(--accent-bg-subtle));
   box-shadow: 0 0 var(--space-5) var(--accent-glow);
 }
 
-.config-option:disabled {
+.configOption:disabled {
   opacity: 0.5;
   cursor: not-allowed;
   transform: none;
@@ -224,15 +224,15 @@
   overflow: hidden;
 }
 
-.layer-item {
+.layerItem {
   border-bottom: var(--border-width) solid var(--border-primary);
 }
 
-.layer-item:last-child {
+.layerItem:last-child {
   border-bottom: none;
 }
 
-.layer-item.selected {
+.layerItem.selected {
   background: var(--accent-bg-subtle);
 }
 
@@ -291,7 +291,7 @@
   color: var(--text-primary);
 }
 
-.layerDetails-panel {
+.layerDetailsPanel {
   background: var(--bg-tertiary);
   padding: var(--space-md);
   border-top: var(--border-width) solid var(--border-primary);
@@ -342,13 +342,13 @@
   align-items: center;
 }
 
-.effect-info {
+.effectInfo {
   display: flex;
   flex-direction: column;
   gap: var(--space-xs);
 }
 
-.effect-type {
+.effectType {
   font-size: var(--text-base);
   font-weight: var(--font-semibold);
   color: var(--text-primary);
@@ -361,7 +361,7 @@
   font-family: var(--font-mono, 'Fira Code', 'Monaco', 'Consolas', monospace);
 }
 
-.effect-controls {
+.effectControls {
   display: flex;
   align-items: center;
   gap: var(--space-md);
@@ -372,7 +372,7 @@
   width: 120px;
 }
 
-.remove-effect {
+.removeEffect {
   background: none;
   border: none;
   font-size: var(--text-lg);
@@ -383,18 +383,18 @@
   color: var(--status-error);
 }
 
-.remove-effect:hover {
+.removeEffect:hover {
   background: var(--status-error-bg);
   transform: scale(1.1);
 }
 
-.add-weather-btn {
+.addWeatherBtn {
   composes: panel-button success from '@shared/styles/PanelBase.module.css';
   padding: var(--space-sm) var(--space-lg);
   align-self: flex-start;
 }
 
-.add-weather-form {
+.addWeatherForm {
   background: var(--bg-tertiary);
   border: var(--border-width) solid var(--border-primary);
   border-radius: var(--radius-lg);
@@ -416,7 +416,7 @@
 }
 
 /* Loading Overlay */
-.loading-overlay {
+.loadingOverlay {
   position: absolute;
   top: 0;
   left: 0;
@@ -432,7 +432,7 @@
   backdrop-filter: blur(var(--space-2));
 }
 
-.loading-overlay p {
+.loadingOverlay p {
   font-size: var(--text-lg);
   font-weight: var(--font-medium);
   color: var(--text-primary);
@@ -466,7 +466,7 @@
     grid-template-columns: 1fr;
   }
   
-  .layerDetails-panel {
+  .layerDetailsPanel {
     grid-template-columns: 1fr;
     gap: var(--space-md);
   }
@@ -481,24 +481,24 @@
     padding: var(--space-md);
   }
   
-  .layerDetails-panel {
+  .layerDetailsPanel {
     padding: var(--space-md);
   }
   
-  .effect-controls {
+  .effectControls {
     flex-direction: column;
     gap: var(--space-sm);
   }
   
-  .effect-controls input[type="range"] {
+  .effectControls input[type="range"] {
     width: 100px;
   }
 }
 
 /* Accessibility - reduced motion */
 @media (prefers-reduced-motion: reduce) {
-  .config-option:hover,
-  .add-weather-btn:hover:not(:disabled) {
+  .configOption:hover,
+  .addWeatherBtn:hover:not(:disabled) {
     transform: none;
   }
 }

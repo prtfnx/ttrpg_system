@@ -1,3 +1,4 @@
+import clsx from 'clsx';
 import React, { useEffect, useState } from 'react';
 import styles from './SpellManager.module.css';
 import type { WizardFormData } from './WizardFormData';
@@ -218,32 +219,32 @@ export const SpellManager: React.FC<SpellManagerProps> = ({
   };
 
   const renderSlotsTab = () => (
-    <div className="slots-tab">
-      <div className="spell-slots-header">
+    <div className={styles.slotsTab}>
+      <div className={styles.spellSlotsHeader}>
         <h3>Spell Slots</h3>
-        <div className="rest-buttons">
-          <button className="rest-btn short" onClick={shortRest}>Short Rest</button>
-          <button className="rest-btn long" onClick={longRest}>Long Rest</button>
+        <div className={styles.restButtons}>
+          <button className={clsx(styles.restBtn, styles.restBtnShort)} onClick={shortRest}>Short Rest</button>
+          <button className={clsx(styles.restBtn, styles.restBtnLong)} onClick={longRest}>Long Rest</button>
         </div>
       </div>
 
-      <div className="spell-slots-grid">
+      <div className={styles.spellSlotsGrid}>
         {Object.entries(spellSlots).map(([level, slots]) => {
           const levelNum = parseInt(level.replace('level', ''));
           const available = slots.total - slots.used;
           
           return (
-            <div key={level} className="spell-slot-level">
-              <div className="slot-header">
+            <div key={level} className={styles.spellSlotLevel}>
+              <div className={styles.slotHeader}>
                 <h4>Level {levelNum}</h4>
-                <div className="slot-counter">{available}/{slots.total}</div>
+                <div className={styles.slotCounter}>{available}/{slots.total}</div>
               </div>
               
-              <div className="slot-circles">
+              <div className={styles.slotCircles}>
                 {Array.from({ length: slots.total }, (_, i) => (
                   <div
                     key={i}
-                    className={`slot-circle ${i < slots.used ? 'used' : 'available'}`}
+                    className={clsx(styles.slotCircle, i < slots.used ? styles.used : styles.available)}
                     onClick={() => {
                       if (i < slots.used) {
                         restoreSpellSlot(levelNum);
@@ -255,16 +256,16 @@ export const SpellManager: React.FC<SpellManagerProps> = ({
                 ))}
               </div>
               
-              <div className="slot-controls">
+              <div className={styles.slotControls}>
                 <button 
-                  className="use-slot-btn"
+                  className={styles.useSlotBtn}
                   onClick={() => consumeSpellSlot(levelNum)}
                   disabled={available === 0}
                 >
                   Use Slot
                 </button>
                 <button 
-                  className="restore-slot-btn"
+                  className={styles.restoreSlotBtn}
                   onClick={() => restoreSpellSlot(levelNum)}
                   disabled={slots.used === 0}
                 >
@@ -277,7 +278,7 @@ export const SpellManager: React.FC<SpellManagerProps> = ({
       </div>
 
       {Object.keys(spellSlots).length === 0 && (
-        <div className="no-slots">
+        <div className={styles.noSlots}>
           This character class doesn't have spell slots.
         </div>
       )}
@@ -285,17 +286,17 @@ export const SpellManager: React.FC<SpellManagerProps> = ({
   );
 
   const renderPrepareTab = () => (
-    <div className="prepare-tab">
+    <div className={styles.prepareTab}>
       <h3>Prepare Spells</h3>
       
-      <div className="spell-categories">
-        <div className="cantrips-section">
+      <div className={styles.spellCategories}>
+        <div className={styles.cantripsSection}>
           <h4>Cantrips</h4>
           <div className={styles.spellList}>
             {character.spells?.cantrips?.map((spell, index) => (
-              <div key={index} className="prepared-spell cantrip">
-                <span className="spell-name">{spell}</span>
-                <button className="remove-spell" onClick={() => {
+              <div key={index} className={clsx(styles.preparedSpell, styles.cantrip)}>
+                <span className={styles.spellName}>{spell}</span>
+                <button className={styles.removeSpell} onClick={() => {
                   // Remove cantrip logic
                   if (onUpdateCharacter) {
                     const updated = { ...character };
@@ -304,17 +305,17 @@ export const SpellManager: React.FC<SpellManagerProps> = ({
                   }
                 }}>×</button>
               </div>
-            )) || <div className="no-spells">No cantrips prepared</div>}
+            )) || <div className={styles.noSpells}>No cantrips prepared</div>}
           </div>
         </div>
 
-        <div className="known-spells-section">
+        <div className={styles.knownSpellsSection}>
           <h4>Known Spells</h4>
           <div className={styles.spellList}>
             {character.spells?.knownSpells?.map((spell, index) => (
-              <div key={index} className="prepared-spell known">
-                <span className="spell-name">{spell}</span>
-                <button className="remove-spell" onClick={() => {
+              <div key={index} className={clsx(styles.preparedSpell, styles.known)}>
+                <span className={styles.spellName}>{spell}</span>
+                <button className={styles.removeSpell} onClick={() => {
                   // Remove known spell logic
                   if (onUpdateCharacter) {
                     const updated = { ...character };
@@ -323,17 +324,17 @@ export const SpellManager: React.FC<SpellManagerProps> = ({
                   }
                 }}>×</button>
               </div>
-            )) || <div className="no-spells">No spells known</div>}
+            )) || <div className={styles.noSpells}>No spells known</div>}
           </div>
         </div>
 
-        <div className="prepared-spells-section">
+        <div className={styles.preparedSpellsSection}>
           <h4>Prepared Spells</h4>
           <div className={styles.spellList}>
             {character.spells?.preparedSpells?.map((spell, index) => (
-              <div key={index} className="prepared-spell prepared">
-                <span className="spell-name">{spell}</span>
-                <button className="remove-spell" onClick={() => {
+              <div key={index} className={clsx(styles.preparedSpell, styles.prepared)}>
+                <span className={styles.spellName}>{spell}</span>
+                <button className={styles.removeSpell} onClick={() => {
                   // Remove prepared spell logic
                   if (onUpdateCharacter) {
                     const updated = { ...character };
@@ -342,7 +343,7 @@ export const SpellManager: React.FC<SpellManagerProps> = ({
                   }
                 }}>×</button>
               </div>
-            )) || <div className="no-spells">No spells prepared</div>}
+            )) || <div className={styles.noSpells}>No spells prepared</div>}
           </div>
         </div>
       </div>
@@ -350,13 +351,14 @@ export const SpellManager: React.FC<SpellManagerProps> = ({
   );
 
   const renderCastTab = () => (
-    <div className="cast-tab">
-      <div className="casting-controls">
+    <div className={styles.castTab}>
+      <div className={styles.castingControls}>
         <h3>Cast Spell</h3>
-        <div className="casting-level">
+        <div className={styles.castingLevel}>
           <label htmlFor="casting-level">Casting Level:</label>
           <select 
             id="casting-level"
+            className={styles.castingLevelSelect}
             value={castingLevel} 
             onChange={(e) => setCastingLevel(parseInt(e.target.value))}
           >
@@ -377,9 +379,9 @@ export const SpellManager: React.FC<SpellManagerProps> = ({
         </div>
       </div>
 
-      <div className="castable-spells">
+      <div className={styles.castableSpells}>
         <h4>Available Spells to Cast</h4>
-        <div className="spell-grid">
+        <div className={styles.spellGrid}>
           {knownSpellNames.map((spellName, index) => {
             const spellData: SpellData = {
               name: spellName,
@@ -393,20 +395,20 @@ export const SpellManager: React.FC<SpellManagerProps> = ({
             };
             
             return (
-              <div key={index} className="castable-spell-card">
-                <div className="spell-header">
+              <div key={index} className={styles.castableSpellCard}>
+                <div className={styles.spellHeader}>
                   <h5>{spellData.name}</h5>
-                  <div className="spell-level">
+                  <div className={styles.spellLevel}>
                     {spellData.level === 0 ? 'Cantrip' : `Level ${spellData.level}`}
                   </div>
                 </div>
-                <div className="spell-school">{spellData.school}</div>
-                <div className="spell-casting-info">
+                <div className={styles.spellSchool}>{spellData.school}</div>
+                <div className={styles.spellCastingInfo}>
                   <div>Time: {spellData.castingTime}</div>
                   <div>Range: {spellData.range}</div>
                 </div>
                 <button 
-                  className="cast-spell-btn"
+                  className={styles.castSpellBtn}
                   onClick={() => castSpell(spellData)}
                   disabled={spellData.level > 0 && castingLevel < spellData.level}
                 >
@@ -421,21 +423,21 @@ export const SpellManager: React.FC<SpellManagerProps> = ({
   );
 
   const renderLibraryTab = () => (
-    <div className="library-tab">
-      <div className="library-header">
+    <div className={styles.libraryTab}>
+      <div className={styles.libraryHeader}>
         <h3>Spell Library</h3>
-        <div className="library-filters">
+        <div className={styles.libraryFilters}>
           <input
             type="text"
             placeholder="Search spells..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            className="search-input"
+            className={styles.searchInput}
           />
           <select 
             value={filterLevel || ''} 
             onChange={(e) => setFilterLevel(e.target.value ? parseInt(e.target.value) : null)}
-            className="filter-select"
+            className={styles.filterSelect}
           >
             <option value="">All Levels</option>
             <option value={0}>Cantrips</option>
@@ -446,7 +448,7 @@ export const SpellManager: React.FC<SpellManagerProps> = ({
           <select 
             value={filterSchool} 
             onChange={(e) => setFilterSchool(e.target.value)}
-            className="filter-select"
+            className={styles.filterSelect}
           >
             <option value="">All Schools</option>
             <option value="Abjuration">Abjuration</option>
@@ -461,31 +463,31 @@ export const SpellManager: React.FC<SpellManagerProps> = ({
         </div>
       </div>
 
-      <div className="spell-library-grid">
+      <div className={styles.spellLibraryGrid}>
         {getFilteredSpells().map((spell, index) => (
-          <div key={index} className="library-spell-card">
-            <div className="spell-header">
+          <div key={index} className={styles.librarySpellCard}>
+            <div className={styles.spellHeader}>
               <h4>{spell.name}</h4>
-              <div className="spell-level">
+              <div className={styles.spellLevel}>
                 {spell.level === 0 ? 'Cantrip' : `Level ${spell.level}`}
               </div>
             </div>
-            <div className="spell-school">{spell.school}</div>
-            <div className="spell-stats">
-              <div><strong>Time:</strong> {spell.castingTime}</div>
-              <div><strong>Range:</strong> {spell.range}</div>
-              <div><strong>Duration:</strong> {spell.duration}</div>
-              <div><strong>Components:</strong> {spell.components}</div>
+            <div className={styles.spellSchool}>{spell.school}</div>
+            <div className={styles.spellStats}>
+              <div className={styles.spellStatItem}><strong>Time:</strong> {spell.castingTime}</div>
+              <div className={styles.spellStatItem}><strong>Range:</strong> {spell.range}</div>
+              <div className={styles.spellStatItem}><strong>Duration:</strong> {spell.duration}</div>
+              <div className={styles.spellStatItem}><strong>Components:</strong> {spell.components}</div>
             </div>
             {spell.damage && (
-              <div className="spell-damage"><strong>Damage:</strong> {spell.damage}</div>
+              <div className={styles.spellDamage}><strong>Damage:</strong> {spell.damage}</div>
             )}
             {spell.savingThrow && (
-              <div className="spell-save"><strong>Save:</strong> {spell.savingThrow}</div>
+              <div className={styles.spellSave}><strong>Save:</strong> {spell.savingThrow}</div>
             )}
-            <div className="spell-description">{spell.description}</div>
+            <div className={styles.spellDescription}>{spell.description}</div>
             <button 
-              className="view-spell-btn"
+              className={styles.viewSpellBtn}
               onClick={() => setSelectedSpell(spell)}
             >
               View Details
@@ -499,42 +501,42 @@ export const SpellManager: React.FC<SpellManagerProps> = ({
   return (
     <div className={styles.spellManager}>
       {/* Header */}
-      <div className="manager-header">
-        <div className="manager-title">
-          <h2>Spell Manager</h2>
-          <div className="character-info">
+      <div className={styles.managerHeader}>
+        <div>
+          <h2 className={styles.managerTitleHeading}>Spell Manager</h2>
+          <div className={styles.characterInfo}>
             {character.name} - {character.class} Level {character.advancement?.currentLevel || 1}
           </div>
         </div>
         {onClose && (
-          <button className="close-manager" onClick={onClose}>
+          <button className={styles.closeManager} onClick={onClose}>
             <span>×</span>
           </button>
         )}
       </div>
 
       {/* Tabs */}
-      <div className="manager-tabs">
+      <div className={styles.managerTabs}>
         <button 
-          className={`tab-button ${activeTab === 'slots' ? 'active' : ''}`}
+          className={clsx(styles.spellTabButton, activeTab === 'slots' && styles.spellTabButtonActive)}
           onClick={() => setActiveTab('slots')}
         >
           Spell Slots
         </button>
         <button 
-          className={`tab-button ${activeTab === 'prepare' ? 'active' : ''}`}
+          className={clsx(styles.spellTabButton, activeTab === 'prepare' && styles.spellTabButtonActive)}
           onClick={() => setActiveTab('prepare')}
         >
           Prepare
         </button>
         <button 
-          className={`tab-button ${activeTab === 'cast' ? 'active' : ''}`}
+          className={clsx(styles.spellTabButton, activeTab === 'cast' && styles.spellTabButtonActive)}
           onClick={() => setActiveTab('cast')}
         >
           Cast
         </button>
         <button 
-          className={`tab-button ${activeTab === 'library' ? 'active' : ''}`}
+          className={clsx(styles.spellTabButton, activeTab === 'library' && styles.spellTabButtonActive)}
           onClick={() => setActiveTab('library')}
         >
           Library
@@ -542,7 +544,7 @@ export const SpellManager: React.FC<SpellManagerProps> = ({
       </div>
 
       {/* Content */}
-      <div className="manager-content">
+      <div className={styles.managerContent}>
         {activeTab === 'slots' && renderSlotsTab()}
         {activeTab === 'prepare' && renderPrepareTab()}
         {activeTab === 'cast' && renderCastTab()}
@@ -551,29 +553,29 @@ export const SpellManager: React.FC<SpellManagerProps> = ({
 
       {/* Spell Detail Modal */}
       {selectedSpell && (
-        <div className="spell-modal-overlay" onClick={() => setSelectedSpell(null)}>
-          <div className="spell-modal" onClick={(e) => e.stopPropagation()}>
-            <div className="modal-header">
+        <div className={styles.spellModalOverlay} onClick={() => setSelectedSpell(null)}>
+          <div className={styles.spellModal} onClick={(e) => e.stopPropagation()}>
+            <div className={styles.modalHeader}>
               <h3>{selectedSpell.name}</h3>
-              <button className="close-modal" onClick={() => setSelectedSpell(null)}>×</button>
+              <button className={styles.closeModal} onClick={() => setSelectedSpell(null)}>×</button>
             </div>
-            <div className="modal-content">
-              <div className="spell-level-school">
+            <div className={styles.modalContent}>
+              <div className={styles.spellLevelSchool}>
                 {selectedSpell.level === 0 ? 'Cantrip' : `Level ${selectedSpell.level}`} {selectedSpell.school}
               </div>
-              <div className="spell-stats-detailed">
+              <div className={styles.spellStatsDetailed}>
                 <div><strong>Casting Time:</strong> {selectedSpell.castingTime}</div>
                 <div><strong>Range:</strong> {selectedSpell.range}</div>
                 <div><strong>Components:</strong> {selectedSpell.components}</div>
                 <div><strong>Duration:</strong> {selectedSpell.duration}</div>
               </div>
               {selectedSpell.damage && (
-                <div className="spell-damage"><strong>Damage:</strong> {selectedSpell.damage}</div>
+                <div className={styles.spellDamage}><strong>Damage:</strong> {selectedSpell.damage}</div>
               )}
               {selectedSpell.savingThrow && (
-                <div className="spell-save"><strong>Saving Throw:</strong> {selectedSpell.savingThrow}</div>
+                <div className={styles.spellSave}><strong>Saving Throw:</strong> {selectedSpell.savingThrow}</div>
               )}
-              <div className="spell-description-detailed">{selectedSpell.description}</div>
+              <div className={styles.spellDescriptionDetailed}>{selectedSpell.description}</div>
             </div>
           </div>
         </div>

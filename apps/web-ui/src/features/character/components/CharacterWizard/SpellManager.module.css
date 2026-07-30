@@ -8,52 +8,52 @@
 }
 
 /* Header */
-.manager-header {
+.managerHeader {
   composes: wizard-header-purple from './CharacterWizardBase.module.css';
 }
 
-.manager-title-heading {
+.managerTitleHeading {
   composes: wizard-title from './CharacterWizardBase.module.css';
 }
 
-.character-info {
+.characterInfo {
   composes: wizard-subtitle from './CharacterWizardBase.module.css';
 }
 
-.close-manager {
+.closeManager {
   composes: wizard-close-button from './CharacterWizardBase.module.css';
 }
 
 /* Tabs */
-.manager-tabs {
+.managerTabs {
   composes: wizard-tabs from './CharacterWizardBase.module.css';
 }
 
-.spell-tab-button {
+.spellTabButton {
   composes: wizard-tab-button from './CharacterWizardBase.module.css';
 }
 
-.spell-tab-button-active {
+.spellTabButtonActive {
   composes: wizard-tab-button-active-purple from './CharacterWizardBase.module.css';
 }
 
 /* Content */
-.manager-content {
+.managerContent {
   composes: wizard-content from './CharacterWizardBase.module.css';
 }
 
 /* Slots Tab */
-.slots-tab {
+.slotsTab {
   composes: wizard-column from './CharacterWizardBase.module.css';
 }
 
-.spell-slots-header {
+.spellSlotsHeader {
   composes: wizard-row from './CharacterWizardBase.module.css';
   justify-content: space-between;
   margin-bottom: var(--space-lg);
 }
 
-.spell-slots-header h3 {
+.spellSlotsHeader h3 {
   color: var(--purple-950);
   margin: 0;
   font-size: var(--text-2xl);
@@ -62,33 +62,33 @@
   font-weight: var(--font-bold);
 }
 
-.rest-buttons {
+.restButtons {
   composes: wizard-row from './CharacterWizardBase.module.css';
 }
 
-.rest-btn {
+.restBtn {
   composes: wizard-button-secondary from './CharacterWizardBase.module.css';
 }
 
-.rest-btn-short {
+.restBtnShort {
   background: var(--blue-600);
   color: var(--text-inverse-primary);
   border: none;
 }
 
-.rest-btn-short:hover {
+.restBtnShort:hover {
   background: var(--blue-500);
 }
 
-.rest-btn-long {
+.restBtnLong {
   composes: wizard-button-success from './CharacterWizardBase.module.css';
 }
 
-.spell-slots-grid {
+.spellSlotsGrid {
   composes: wizard-grid from './CharacterWizardBase.module.css';
 }
 
-.spell-slot-level {
+.spellSlotLevel {
   composes: wizard-card from './CharacterWizardBase.module.css';
   display: flex;
   flex-direction: column;
@@ -96,35 +96,35 @@
   transition: all var(--transition-fast);
 }
 
-.spell-slot-level:hover {
+.spellSlotLevel:hover {
   border-color: var(--purple-950);
   box-shadow: var(--shadow-md);
 }
 
-.slot-header {
+.slotHeader {
   composes: wizard-row from './CharacterWizardBase.module.css';
   justify-content: space-between;
 }
 
-.slot-header h4 {
+.slotHeader h4 {
   margin: 0;
   color: var(--purple-950);
   font-size: var(--text-lg);
   font-weight: var(--font-semibold);
 }
 
-.slot-counter {
+.slotCounter {
   composes: wizard-badge-primary from './CharacterWizardBase.module.css';
   background: var(--purple-950);
 }
 
-.slot-circles {
+.slotCircles {
   composes: wizard-row from './CharacterWizardBase.module.css';
   justify-content: center;
   flex-wrap: wrap;
 }
 
-.slot-circle {
+.slotCircle {
   width: calc(var(--space-md) * 2);
   height: calc(var(--space-md) * 2);
   border-radius: var(--radius-full);
@@ -138,49 +138,49 @@
   color: var(--text-inverse-primary);
 }
 
-.slot-circle.available {
+.slotCircle.available {
   background: var(--purple-950);
 }
 
-.slot-circle.used {
+.slotCircle.used {
   background: var(--color-danger);
   border-color: var(--color-danger);
 }
 
-.slot-circle:hover {
+.slotCircle:hover {
   transform: scale(1.1);
   box-shadow: var(--shadow-md);
 }
 
-.slot-controls {
+.slotControls {
   composes: wizard-row from './CharacterWizardBase.module.css';
   justify-content: center;
 }
 
-.use-slot-btn,
-.restore-slot-btn {
+.useSlotBtn,
+.restoreSlotBtn {
   flex: 1;
   composes: wizard-button-small from './CharacterWizardBase.module.css';
 }
 
-.use-slot-btn {
+.useSlotBtn {
   composes: wizard-button-danger from './CharacterWizardBase.module.css';
   composes: wizard-button-small from './CharacterWizardBase.module.css';
 }
 
-.restore-slot-btn {
+.restoreSlotBtn {
   composes: wizard-button-success from './CharacterWizardBase.module.css';
   composes: wizard-button-small from './CharacterWizardBase.module.css';
 }
 
-.use-slot-btn:disabled,
-.restore-slot-btn:disabled {
+.useSlotBtn:disabled,
+.restoreSlotBtn:disabled {
   background: var(--gray-600);
   cursor: not-allowed;
   opacity: 0.6;
 }
 
-.no-slots {
+.noSlots {
   text-align: center;
   color: var(--text-secondary);
   font-style: italic;
@@ -190,12 +190,12 @@
 }
 
 /* Prepare Tab */
-.prepare-tab {
+.prepareTab {
   composes: wizard-column from './CharacterWizardBase.module.css';
   gap: var(--space-2xl);
 }
 
-.prepare-tab h3 {
+.prepareTab h3 {
   color: var(--purple-700);
   margin: 0 0 var(--space-xl) 0;
   font-size: var(--text-2xl);
@@ -203,14 +203,14 @@
   padding-bottom: var(--space-xs);
 }
 
-.spell-categories {
+.spellCategories {
   composes: wizard-column from './CharacterWizardBase.module.css';
   gap: var(--space-2xl);
 }
 
-.cantrips-section h4,
-.known-spells-section h4,
-.prepared-spells-section h4 {
+.cantripsSection h4,
+.knownSpellsSection h4,
+.preparedSpellsSection h4 {
   color: var(--purple-700);
   margin: 0 0 var(--space-md) 0;
   font-size: var(--text-lg);
@@ -221,7 +221,7 @@
   grid-template-columns: repeat(auto-fill, minmax(var(--size-62-5), 1fr));
 }
 
-.prepared-spell {
+.preparedSpell {
   composes: wizard-row from './CharacterWizardBase.module.css';
   justify-content: space-between;
   align-items: center;
@@ -230,32 +230,32 @@
   transition: all var(--transition-normal) ease;
 }
 
-.prepared-spell.cantrip {
+.preparedSpell.cantrip {
   background: var(--spell-bg-evocation);
   border: var(--border-width-thick) solid var(--green-600);
 }
 
-.prepared-spell.known {
+.preparedSpell.known {
   background: var(--spell-bg-abjuration);
   border: var(--border-width-thick) solid var(--blue-600);
 }
 
-.prepared-spell.prepared {
+.preparedSpell.prepared {
   background: var(--spell-bg-enchantment);
   border: var(--border-width-thick) solid var(--purple-600);
 }
 
-.prepared-spell:hover {
+.preparedSpell:hover {
   transform: translateY(calc(var(--space-xs) * -0.5));
   box-shadow: var(--shadow-md);
 }
 
-.spell-name {
+.spellName {
   font-weight: var(--font-semibold);
   color: var(--text-primary);
 }
 
-.remove-spell {
+.removeSpell {
   background: var(--color-danger);
   color: var(--text-inverse-primary);
   border: none;
@@ -270,12 +270,12 @@
   transition: all var(--transition-normal) ease;
 }
 
-.remove-spell:hover {
+.removeSpell:hover {
   background: var(--color-danger-active);
   transform: scale(1.1);
 }
 
-.no-spells {
+.noSpells {
   grid-column: 1 / -1;
   text-align: center;
   color: var(--text-secondary);
@@ -286,12 +286,12 @@
 }
 
 /* Cast Tab */
-.cast-tab {
+.castTab {
   composes: wizard-column from './CharacterWizardBase.module.css';
   gap: var(--space-2xl);
 }
 
-.casting-controls {
+.castingControls {
   composes: wizard-row from './CharacterWizardBase.module.css';
   justify-content: space-between;
   align-items: center;
@@ -299,81 +299,81 @@
   border-bottom: var(--border-width-thick) solid var(--border-secondary);
 }
 
-.casting-controls h3 {
+.castingControls h3 {
   color: var(--purple-700);
   margin: 0;
   font-size: var(--text-2xl);
 }
 
-.casting-level {
+.castingLevel {
   composes: wizard-row from './CharacterWizardBase.module.css';
   align-items: center;
   gap: var(--space-sm);
 }
 
-.casting-level label {
+.castingLevel label {
   font-weight: var(--font-semibold);
   color: var(--text-primary);
 }
 
-.casting-level-select {
+.castingLevelSelect {
   composes: wizard-select from './CharacterWizardBase.module.css';
   padding: var(--space-xs) var(--space-sm);
 }
 
-.casting-level-select:focus {
+.castingLevelSelect:focus {
   border-color: var(--purple-700);
 }
 
-.castable-spells h4 {
+.castableSpells h4 {
   color: var(--purple-700);
   margin: 0 0 var(--space-lg) 0;
   font-size: var(--text-xl);
 }
 
-.spell-grid {
+.spellGrid {
   composes: wizard-grid from './CharacterWizardBase.module.css';
   grid-template-columns: repeat(auto-fill, minmax(var(--size-75), 1fr));
   gap: var(--space-lg);
 }
 
-.castable-spell-card {
+.castableSpellCard {
   composes: wizard-card-elevated from './CharacterWizardBase.module.css';
   transition: all var(--transition-normal) ease;
 }
 
-.castable-spell-card:hover {
+.castableSpellCard:hover {
   border-color: var(--purple-700);
   transform: translateY(calc(var(--space-xs) * -0.5));
   box-shadow: var(--shadow-lg);
 }
 
-.spell-header {
+.spellHeader {
   composes: wizard-row from './CharacterWizardBase.module.css';
   justify-content: space-between;
   align-items: flex-start;
   margin-bottom: var(--space-sm);
 }
 
-.spell-header h5 {
+.spellHeader h5 {
   margin: 0;
   color: var(--text-primary);
   font-size: var(--text-lg);
   font-weight: var(--font-bold);
 }
 
-.spell-level {
+.spellLevel {
   composes: wizard-badge-primary from './CharacterWizardBase.module.css';
   background: var(--purple-700);
 }
 
-.spell-school {
+.spellSchool {
   color: var(--text-secondary);
   font-style: italic;
   margin-bottom: var(--space-sm);
 }
 
-.spell-casting-info {
+.spellCastingInfo {
   composes: wizard-column from './CharacterWizardBase.module.css';
   gap: var(--space-xs);
   margin-bottom: var(--space-md);
@@ -381,17 +381,17 @@
   color: var(--text-secondary);
 }
 
-.cast-spell-btn {
+.castSpellBtn {
   composes: wizard-button-primary from './CharacterWizardBase.module.css';
   background: linear-gradient(135deg, var(--purple-700) 0%, var(--purple-600) 100%);
 }
 
-.cast-spell-btn:hover:not(:disabled) {
+.castSpellBtn:hover:not(:disabled) {
   transform: translateY(calc(var(--space-xs) * -0.25));
   box-shadow: var(--shadow-lg);
 }
 
-.cast-spell-btn:disabled {
+.castSpellBtn:disabled {
   background: var(--gray-600);
   cursor: not-allowed;
   opacity: 0.6;
@@ -400,83 +400,83 @@
 }
 
 /* Library Tab */
-.library-tab {
+.libraryTab {
   composes: wizard-column from './CharacterWizardBase.module.css';
   gap: var(--space-xl);
 }
 
-.library-header {
+.libraryHeader {
   composes: wizard-column from './CharacterWizardBase.module.css';
   gap: var(--space-lg);
   padding-bottom: var(--space-xl);
   border-bottom: var(--border-width-thick) solid var(--border-secondary);
 }
 
-.library-header h3 {
+.libraryHeader h3 {
   color: var(--purple-700);
   margin: 0;
   font-size: var(--text-2xl);
 }
 
-.library-filters {
+.libraryFilters {
   composes: wizard-row from './CharacterWizardBase.module.css';
   gap: var(--space-md);
   flex-wrap: wrap;
   align-items: center;
 }
 
-.search-input {
+.searchInput {
   composes: wizard-input from './CharacterWizardBase.module.css';
   flex: 1;
   min-width: var(--size-62-5);
 }
 
-.filter-select {
+.filterSelect {
   composes: wizard-select from './CharacterWizardBase.module.css';
 }
 
-.search-input:focus,
-.filter-select:focus {
+.searchInput:focus,
+.filterSelect:focus {
   border-color: var(--purple-700);
 }
 
-.spell-library-grid {
+.spellLibraryGrid {
   composes: wizard-grid from './CharacterWizardBase.module.css';
   grid-template-columns: repeat(auto-fill, minmax(var(--size-87-5), 1fr));
 }
 
-.library-spell-card {
+.librarySpellCard {
   composes: wizard-card-elevated from './CharacterWizardBase.module.css';
   transition: all var(--transition-normal) ease;
 }
 
-.library-spell-card:hover {
+.librarySpellCard:hover {
   border-color: var(--purple-700);
   transform: translateY(calc(var(--space-xs) * -0.5));
   box-shadow: var(--shadow-lg);
 }
 
-.library-spell-card .spell-header h4 {
+.librarySpellCard .spellHeader h4 {
   margin: 0;
   color: var(--text-primary);
   font-size: var(--text-lg);
   font-weight: var(--font-bold);
 }
 
-.spell-stats {
+.spellStats {
   composes: wizard-column from './CharacterWizardBase.module.css';
   gap: var(--space-xs);
   margin: var(--space-sm) 0;
   font-size: var(--text-sm);
 }
 
-.spell-stat-item {
+.spellStatItem {
   composes: wizard-row from './CharacterWizardBase.module.css';
   gap: var(--space-xs);
 }
 
-.spell-damage,
-.spell-save {
+.spellDamage,
+.spellSave {
   margin: var(--space-xs) 0;
   padding: var(--space-xs) var(--space-sm);
   background: var(--spell-bg-necromancy);
@@ -484,7 +484,7 @@
   font-size: var(--text-sm);
 }
 
-.spell-description {
+.spellDescription {
   margin: var(--space-sm) 0;
   line-height: var(--line-normal);
   color: var(--text-secondary);
@@ -498,52 +498,52 @@
   -webkit-box-orient: vertical;
 }
 
-.view-spell-btn {
+.viewSpellBtn {
   composes: wizard-button-secondary from './CharacterWizardBase.module.css';
   margin-top: var(--space-sm);
 }
 
 /* Modal */
-.spell-modal-overlay {
+.spellModalOverlay {
   composes: wizard-overlay from './CharacterWizardBase.module.css';
   padding: var(--space-lg);
 }
 
-.spell-modal {
+.spellModal {
   composes: wizard-modal from './CharacterWizardBase.module.css';
   max-width: var(--size-150);
   max-height: 80vh;
   overflow-y: auto;
 }
 
-.modal-header {
+.modalHeader {
   composes: wizard-header-primary from './CharacterWizardBase.module.css';
   background: linear-gradient(135deg, var(--purple-700) 0%, var(--purple-600) 100%);
   padding: var(--space-lg) var(--space-xl);
   border-radius: var(--radius-md) var(--radius-md) 0 0;
 }
 
-.modal-header h3 {
+.modalHeader h3 {
   margin: 0;
   font-size: var(--text-xl);
 }
 
-.close-modal {
+.closeModal {
   composes: wizard-close-button from './CharacterWizardBase.module.css';
 }
 
-.modal-content {
+.modalContent {
   composes: wizard-content from './CharacterWizardBase.module.css';
 }
 
-.spell-level-school {
+.spellLevelSchool {
   color: var(--purple-700);
   font-weight: var(--font-semibold);
   margin-bottom: var(--space-md);
   font-size: var(--text-base);
 }
 
-.spell-stats-detailed {
+.spellStatsDetailed {
   composes: wizard-grid from './CharacterWizardBase.module.css';
   grid-template-columns: repeat(auto-fit, minmax(var(--size-37-5), 1fr));
   margin-bottom: var(--space-md);
@@ -552,19 +552,19 @@
   border-radius: var(--radius-md);
 }
 
-.spell-stats-detailed > div {
+.spellStatsDetailed > div {
   font-size: var(--text-sm);
 }
 
-.modal-content .spell-damage,
-.modal-content .spell-save {
+.modalContent .spellDamage,
+.modalContent .spellSave {
   padding: var(--space-sm);
   background: var(--spell-bg-necromancy);
   border-radius: var(--radius-md);
   margin-bottom: var(--space-md);
 }
 
-.spell-description-detailed {
+.spellDescriptionDetailed {
   line-height: var(--line-relaxed);
   color: var(--text-primary);
   font-size: var(--text-base);
@@ -577,78 +577,78 @@
     border-radius: 0;
   }
   
-  .manager-header {
+  .managerHeader {
     padding: var(--space-md) var(--space-lg);
     flex-direction: column;
     gap: var(--space-sm);
     text-align: center;
   }
   
-  .manager-content {
+  .managerContent {
     padding: var(--space-lg);
   }
   
-  .spell-slots-grid {
+  .spellSlotsGrid {
     grid-template-columns: 1fr;
   }
   
-  .spell-grid,
-  .spell-library-grid {
+  .spellGrid,
+  .spellLibraryGrid {
     grid-template-columns: 1fr;
   }
   
-  .library-filters {
+  .libraryFilters {
     flex-direction: column;
     align-items: stretch;
   }
   
-  .search-input {
+  .searchInput {
     min-width: auto;
   }
   
-  .casting-controls {
+  .castingControls {
     flex-direction: column;
     gap: var(--space-md);
     align-items: stretch;
   }
   
-  .spell-modal {
+  .spellModal {
     margin: var(--space-lg);
     max-height: calc(100vh - var(--space-2xl));
   }
   
-  .spell-stats-detailed {
+  .spellStatsDetailed {
     grid-template-columns: 1fr;
   }
 }
 
 @media (max-width: 30rem) {
-  .manager-tabs {
+  .managerTabs {
     flex-direction: column;
   }
   
-  .spellManager .tab-button {
+  .spellManager .spellTabButton {
     text-align: center;
     border-bottom: var(--border-width) solid var(--border-secondary);
     border-right: none;
   }
   
-  .spellManager .tab-button.active {
+  .spellManager .spellTabButton.spellTabButtonActive {
     border-bottom: var(--border-width) solid var(--purple-900);
     border-right: none;
   }
   
-  .spell-slots-header {
+  .spellSlotsHeader {
     flex-direction: column;
     gap: var(--space-md);
     align-items: stretch;
   }
   
-  .rest-buttons {
+  .restButtons {
     justify-content: center;
   }
   
-  .slot-circles {
+  .slotCircles {
     justify-content: center;
   }
 }

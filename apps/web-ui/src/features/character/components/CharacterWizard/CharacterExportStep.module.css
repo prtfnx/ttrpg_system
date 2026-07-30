@@ -1,27 +1,27 @@
 /* Character Export Step Styles - Refactored with CharacterWizardBase */
 
-.character-export-step {
+.characterExportStep {
   max-width: var(--size-225);
   margin: 0 auto;
 }
 
-.step-header {
+.stepHeader {
   margin-bottom: var(--space-2xl);
   text-align: center;
 }
 
-.step-header h3 {
+.stepHeader h3 {
   font-size: var(--text-2xl);
   color: var(--color-danger);
   margin-bottom: var(--space-xs);
 }
 
-.step-header p {
+.stepHeader p {
   color: var(--text-secondary);
   font-size: var(--text-base);
 }
 
-.export-import-tabs {
+.exportImportTabs {
   background: var(--bg-secondary);
   border-radius: var(--radius-md);
   padding: 0;
@@ -29,55 +29,55 @@
   box-shadow: var(--shadow-md);
 }
 
-.tab-navigation {
+.tabNavigation {
   composes: wizard-tabs from './CharacterWizardBase.module.css';
   background: var(--bg-primary);
   border-radius: var(--radius-md) var(--radius-md) 0 0;
 }
 
-.tab-button {
+.tabButton {
   composes: wizard-tab-button from './CharacterWizardBase.module.css';
   flex: 1;
   border-radius: var(--radius-md) var(--radius-md) 0 0;
 }
 
-.tab-button:hover {
+.tabButton:hover {
   background: var(--bg-secondary);
   color: var(--text-primary);
 }
 
-.tab-button-active {
+.tabButtonActive {
   composes: wizard-tab-button-active-danger from './CharacterWizardBase.module.css';
 }
 
-.tab-content {
+.tabContent {
   composes: wizard-content from './CharacterWizardBase.module.css';
   background: var(--bg-primary);
   border-radius: 0 0 var(--radius-md) var(--radius-md);
 }
 
 /* Export Tab Styles */
-.export-tab-heading,
-.import-tab-heading,
+.exportTabHeading,
+.importTabHeading,
 .pdf-tab-heading {
   color: var(--color-danger);
   font-size: var(--text-xl);
   margin-bottom: var(--space-sm);
 }
 
-.tab-description {
+.tabDescription {
   color: var(--text-secondary);
   margin-bottom: var(--space-xl);
   line-height: var(--line-normal);
 }
 
-.export-format-selection {
+.exportFormatSelection {
   composes: wizard-column from './CharacterWizardBase.module.css';
   gap: var(--space-md);
   margin-bottom: var(--space-xl);
 }
 
-.format-option-label {
+.formatOptionLabel {
   display: flex;
   align-items: flex-start;
   gap: var(--space-md);
@@ -88,30 +88,30 @@
   transition: all var(--transition-normal) ease;
 }
 
-.format-option-label:hover {
+.formatOptionLabel:hover {
   border-color: var(--color-danger);
   background: var(--bg-primary);
 }
 
-.format-option-label input[type="radio"] {
+.formatOptionLabel input[type="radio"] {
   margin-top: var(--space-2xs);
 }
 
-.format-option-checked {
+.formatOptionChecked {
   color: var(--color-danger);
 }
 
-.format-option {
+.formatOption {
   composes: wizard-column from './CharacterWizardBase.module.css';
   gap: var(--space-xs);
 }
 
-.format-option strong {
+.formatOption strong {
   font-size: var(--text-base);
   font-weight: var(--font-semibold);
 }
 
-.format-option span {
+.formatOption span {
   font-size: var(--text-sm);
   color: var(--text-secondary);
 }
@@ -128,18 +128,18 @@
   font-size: var(--text-base);
 }
 
-.character-summary {
+.characterSummary {
   composes: wizard-grid from './CharacterWizardBase.module.css';
   grid-template-columns: repeat(auto-fit, minmax(var(--size-62-5), 1fr));
   gap: var(--space-xs);
   font-size: var(--text-sm);
 }
 
-.character-summary div {
+.characterSummary div {
   padding: var(--space-xs) 0;
 }
 
-.character-summary strong {
+.characterSummary strong {
   color: var(--text-primary);
 }
 
@@ -147,68 +147,68 @@
   text-align: center;
 }
 
-.export-button-primary {
+.exportButtonPrimary {
   composes: wizard-button-danger from './CharacterWizardBase.module.css';
   padding: var(--space-md) var(--space-2xl);
 }
 
-.export-button-primary:hover:not(:disabled) {
+.exportButtonPrimary:hover:not(:disabled) {
   background: var(--color-danger-active);
 }
 
-.export-button-primary:disabled {
+.exportButtonPrimary:disabled {
   background: var(--button-disabled-bg);
   cursor: not-allowed;
 }
 
 /* Import Tab Styles */
-.import-methods {
+.importMethods {
   composes: wizard-column from './CharacterWizardBase.module.css';
   gap: var(--space-xl);
   margin-bottom: var(--space-xl);
 }
 
-.import-method {
+.importMethod {
   composes: wizard-card from './CharacterWizardBase.module.css';
   background: var(--bg-secondary);
 }
 
-.import-method h5 {
+.importMethod h5 {
   color: var(--color-danger);
   margin-bottom: var(--space-md);
   font-size: var(--text-base);
 }
 
-.import-method input[type="file"] {
+.importMethod input[type="file"] {
   display: none;
 }
 
-.import-button-secondary {
+.importButtonSecondary {
   composes: wizard-button-secondary from './CharacterWizardBase.module.css';
   font-size: var(--text-sm);
 }
 
-.import-button-secondary:hover {
+.importButtonSecondary:hover {
   background: var(--button-secondary-hover);
 }
 
-.url-import {
+.urlImport {
   composes: wizard-row from './CharacterWizardBase.module.css';
   align-items: center;
 }
 
-.url-input {
+.urlInput {
   composes: wizard-input from './CharacterWizardBase.module.css';
   flex: 1;
 }
 
-.import-status {
+.importStatus {
   padding: var(--space-md);
   border-radius: var(--radius-md);
   margin-bottom: var(--space-lg);
 }
 
-.import-status-loading {
+.importStatusLoading {
   composes: wizard-badge-info from './CharacterWizardBase.module.css';
   background: var(--status-info-bg);
   border: var(--border-width) solid var(--status-info-border);
@@ -219,7 +219,7 @@
   padding: var(--space-md);
 }
 
-.import-status-error {
+.importStatusError {
   composes: wizard-badge-danger from './CharacterWizardBase.module.css';
   background: var(--status-danger-bg);
   border: var(--border-width) solid var(--status-danger-border);
@@ -227,7 +227,7 @@
   padding: var(--space-md);
 }
 
-.import-status h5 {
+.importStatus h5 {
   margin-bottom: var(--space-sm);
   font-size: var(--text-base);
 }
@@ -251,27 +251,27 @@
   100% { transform: rotate(360deg); }
 }
 
-.import-preview {
+.importPreview {
   composes: wizard-card from './CharacterWizardBase.module.css';
   background: var(--status-success-bg);
   border: var(--border-width) solid var(--status-success-border);
   margin-bottom: var(--space-lg);
 }
 
-.import-preview h5 {
+.importPreview h5 {
   color: var(--status-success-text);
   margin-bottom: var(--space-md);
   font-size: var(--text-base);
 }
 
-.preview-character {
+.previewCharacter {
   composes: wizard-column from './CharacterWizardBase.module.css';
   gap: var(--space-xs);
   font-size: var(--text-sm);
   margin-bottom: var(--space-md);
 }
 
-.preview-character strong {
+.previewCharacter strong {
   color: var(--status-success-text);
 }
 
@@ -290,32 +290,32 @@
   font-size: var(--text-sm);
 }
 
-.warning-message {
+.warningMessage {
   color: var(--status-warning-text);
   font-size: var(--text-xs);
   margin: var(--space-2xs) 0;
 }
 
-.preview-actions {
+.previewActions {
   composes: wizard-row from './CharacterWizardBase.module.css';
   justify-content: flex-end;
 }
 
-.apply-import-primary {
+.applyImportPrimary {
   composes: wizard-button-success from './CharacterWizardBase.module.css';
   font-size: var(--text-sm);
 }
 
-.apply-import-primary:hover {
+.applyImportPrimary:hover {
   background: var(--green-700);
 }
 
-.cancel-import-secondary {
+.cancelImportSecondary {
   composes: wizard-button-secondary from './CharacterWizardBase.module.css';
   font-size: var(--text-sm);
 }
 
-.cancel-import-secondary:hover {
+.cancelImportSecondary:hover {
   background: var(--button-secondary-hover);
 }
 

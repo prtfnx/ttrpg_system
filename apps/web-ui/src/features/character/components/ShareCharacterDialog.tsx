@@ -1,3 +1,4 @@
+import clsx from 'clsx';
 import React, { useState } from 'react';
 import styles from './ShareCharacterDialog.module.css';
 
@@ -50,76 +51,74 @@ export const ShareCharacterDialog: React.FC<ShareCharacterDialogProps> = ({
   return (
     <div className={styles.shareDialogOverlay} onClick={onClose}>
       <div className={styles.shareDialog} onClick={e => e.stopPropagation()}>
-        <div className="share-dialog-header">
+        <div className={styles.shareDialogHeader}>
           <h3>Share Character</h3>
           <button className={styles.closeBtn} onClick={onClose} title="Close">
             ×
           </button>
         </div>
 
-        <div className="share-dialog-content">
-          <div className="character-info">
-            <div className="info-row">
-              <span className="label">Character:</span>
-              <span className="value">{characterName}</span>
+        <div className={styles.shareDialogContent}>
+          <div className={styles.characterInfo}>
+            <div className={styles.infoRow}>
+              <span className={styles.label}>Character:</span>
+              <span className={styles.value}>{characterName}</span>
             </div>
-            <div className="info-row">
-              <span className="label">Owner:</span>
-              <span className="value">User {ownerId}</span>
+            <div className={styles.infoRow}>
+              <span className={styles.label}>Owner:</span>
+              <span className={styles.value}>User {ownerId}</span>
             </div>
           </div>
 
           <div className={styles.permissionsSection}>
-            <div className="section-header">
+            <div className={styles.sectionHeader}>
               <h4>Grant Control To:</h4>
-              <div className="bulk-actions">
-                <button className="link-btn" onClick={handleSelectAll}>
+              <div className={styles.bulkActions}>
+                <button className={styles.linkBtn} onClick={handleSelectAll}>
                   Select All
                 </button>
-                <button className="link-btn" onClick={handleDeselectAll}>
+                <button className={styles.linkBtn} onClick={handleDeselectAll}>
                   Deselect All
                 </button>
               </div>
             </div>
 
-            <div className="user-list">
+            <div className={styles.userList}>
               {availableUsers.length === 0 && (
-                <div className="no-users">
+                <div className={styles.noUsers}>
                   No other users in this session
                 </div>
               )}
               {availableUsers.map(user => (
                 <label
                   key={user.id}
-                  className={`user-checkbox ${
-                    selectedUsers.has(user.id) ? 'checked' : ''
-                  }`}
+                  className={clsx(styles.userCheckbox, selectedUsers.has(user.id) && styles.checked)}
                 >
                   <input
                     type="checkbox"
                     checked={selectedUsers.has(user.id)}
                     onChange={() => handleToggleUser(user.id)}
                   />
-                  <span className="user-name">{user.name}</span>
+                  <span className={styles.userName}>{user.name}</span>
                   {user.id === ownerId && (
-                    <span className="owner-badge">Owner</span>
+                    <span className={styles.ownerBadge}>Owner</span>
                   )}
                 </label>
               ))}
             </div>
           </div>
 
-          <div className="permission-note">
+          <div className={styles.permissionNote}>
             <strong>Note:</strong> Users with control can edit stats, add conditions,
             and manage tokens for this character.
           </div>
         </div>
 
-        <div className="share-dialog-footer">
-          <button className="btn-secondary" onClick={onClose}>
+        <div className={styles.shareDialogFooter}>
+          <button className={styles.btnSecondary} onClick={onClose}>
             Cancel
           </button>
-          <button className="btn-primary" onClick={handleSave}>
+          <button className={styles.btnPrimary} onClick={handleSave}>
             Save Changes
           </button>
         </div>

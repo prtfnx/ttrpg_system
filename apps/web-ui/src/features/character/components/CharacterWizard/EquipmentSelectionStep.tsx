@@ -353,8 +353,8 @@ export const EquipmentSelectionStep: React.FC<EquipmentSelectionStepProps> = ({
 
   if (loading) {
     return (
-      <div className="equipment-selection-step loading">
-        <div className="loading-spinner">Loading equipment...</div>
+      <div className={styles['loading-state']}>
+        <div className={styles['loading-spinner']}>Loading equipment...</div>
       </div>
     );
   }

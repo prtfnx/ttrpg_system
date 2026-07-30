@@ -1,5 +1,6 @@
 ﻿import { CharacterExportService } from '@features/character/services/characterExport.service';
 import { CharacterImportService, type ImportResult } from '@features/character/services/characterImport.service';
+import clsx from 'clsx';
 import { useCallback, useRef, useState } from 'react';
 import { useFormContext } from 'react-hook-form';
 import styles from './CharacterExportStep.module.css';
@@ -100,52 +101,52 @@ export function CharacterExportStep({ onNext: _onNext, onBack: _onBack }: Charac
   }, [importPreview, characterData, setValue]);
 
   return (
-    <div className="character-export-step">
-      <div className="step-header">
+    <div className={styles.characterExportStep}>
+      <div className={styles.stepHeader}>
         <h3>Character Export & Import</h3>
         <p>Export your character for backup and sharing, or import an existing character.</p>
       </div>
 
-      <div className="export-import-tabs">
-        <div className="tab-navigation">
+      <div className={styles.exportImportTabs}>
+        <div className={styles.tabNavigation}>
           <button
             type="button"
-            className={`tab-button ${activeTab === 'export' ? 'active' : ''}`}
+            className={clsx(styles.tabButton, activeTab === 'export' && styles.tabButtonActive)}
             onClick={() => setActiveTab('export')}
           >
             Export
           </button>
           <button
             type="button"
-            className={`tab-button ${activeTab === 'import' ? 'active' : ''}`}
+            className={clsx(styles.tabButton, activeTab === 'import' && styles.tabButtonActive)}
             onClick={() => setActiveTab('import')}
           >
             Import
           </button>
         </div>
 
-        <div className="tab-content">
+        <div className={styles.tabContent}>
           {activeTab === 'export' && (
-            <div className="export-tab">
-              <h4>Export Character Data</h4>
-              <div className="export-format-selection">
-                <label>
+            <div>
+              <h4 className={styles.exportTabHeading}>Export Character Data</h4>
+              <div className={styles.exportFormatSelection}>
+                <label className={clsx(styles.formatOptionLabel, exportFormat === 'd5e' && styles.formatOptionChecked)}>
                   <input type="radio" value="d5e" checked={exportFormat === 'd5e'} onChange={(e) => setExportFormat(e.target.value as ExportFormat)} />
-                  <div className="format-option">
+                  <div className={styles.formatOption}>
                     <strong>D&D 5e Complete</strong>
                     <span>Full character data with all calculations and computed values</span>
                   </div>
                 </label>
-                <label>
+                <label className={clsx(styles.formatOptionLabel, exportFormat === 'dndBeyond' && styles.formatOptionChecked)}>
                   <input type="radio" value="dndBeyond" checked={exportFormat === 'dndBeyond'} onChange={(e) => setExportFormat(e.target.value as ExportFormat)} />
-                  <div className="format-option">
+                  <div className={styles.formatOption}>
                     <strong>D&D Beyond Compatible</strong>
                     <span>Format compatible with D&D Beyond character sheets</span>
                   </div>
                 </label>
-                <label>
+                <label className={clsx(styles.formatOptionLabel, exportFormat === 'characterSheet' && styles.formatOptionChecked)}>
                   <input type="radio" value="characterSheet" checked={exportFormat === 'characterSheet'} onChange={(e) => setExportFormat(e.target.value as ExportFormat)} />
-                  <div className="format-option">
+                  <div className={styles.formatOption}>
                     <strong>Character Sheet Data</strong>
                     <span>Simplified format focused on character sheet display</span>
                   </div>
@@ -154,7 +155,7 @@ export function CharacterExportStep({ onNext: _onNext, onBack: _onBack }: Charac
 
               <div className={styles.exportPreview}>
                 <h5>Character Summary</h5>
-                <div>
+                <div className={styles.characterSummary}>
                   <div><strong>Name:</strong> {characterData.name || 'Unnamed'}</div>
                   <div><strong>Race:</strong> {characterData.race}</div>
                   <div><strong>Class:</strong> {characterData.class}</div>
@@ -164,7 +165,7 @@ export function CharacterExportStep({ onNext: _onNext, onBack: _onBack }: Charac
 
               <button
                 type="button"
-                className="export-button primary"
+                className={styles.exportButtonPrimary}
                 onClick={handleExport}
                 disabled={!characterData.name || !characterData.race || !characterData.class}
               >
@@ -174,45 +175,47 @@ export function CharacterExportStep({ onNext: _onNext, onBack: _onBack }: Charac
           )}
 
           {activeTab === 'import' && (
-            <div className="import-tab">
-              <h4>Import Character</h4>
-              <p>Import from a JSON file or URL. Supported formats: D&D 5e, D&D Beyond, Roll20.</p>
+            <div>
+              <h4 className={styles.importTabHeading}>Import Character</h4>
+              <p className={styles.tabDescription}>Import from a JSON file or URL. Supported formats: D&D 5e, D&D Beyond, Roll20.</p>
 
-              <div className="import-methods">
-                <div className="import-method">
+              <div className={styles.importMethods}>
+                <div className={styles.importMethod}>
                   <h5>From File</h5>
                   <input ref={fileInputRef} type="file" accept=".json" onChange={(e) => { const f = e.target.files?.[0]; if (f) handleFileImport(f); }} style={{ display: 'none' }} />
-                  <button type="button" onClick={() => fileInputRef.current?.click()}>Choose JSON File</button>
+                  <button className={styles.importButtonSecondary} type="button" onClick={() => fileInputRef.current?.click()}>Choose JSON File</button>
                 </div>
-                <div className="import-method">
+                <div className={styles.importMethod}>
                   <h5>From URL</h5>
-                  <input ref={urlInputRef} type="url" placeholder="Enter character data URL..." />
-                  <button type="button" onClick={() => { const url = urlInputRef.current?.value; if (url) handleUrlImport(url); }}>Import from URL</button>
+                  <div className={styles.urlImport}>
+                    <input className={styles.urlInput} ref={urlInputRef} type="url" placeholder="Enter character data URL..." />
+                    <button className={styles.importButtonSecondary} type="button" onClick={() => { const url = urlInputRef.current?.value; if (url) handleUrlImport(url); }}>Import from URL</button>
+                  </div>
                 </div>
               </div>
 
-              {isImporting && <div className="import-status">Importing character...</div>}
+              {isImporting && <div className={clsx(styles.importStatus, styles.importStatusLoading)}>Importing character...</div>}
 
               {importResult && !importResult.success && (
-                <div className="import-error">
+                <div className={clsx(styles.importStatus, styles.importStatusError)}>
                   <strong>Import Failed</strong>
                   {importResult.errors?.map((e, i) => <p key={i}>{e}</p>)}
                 </div>
               )}
 
               {importResult?.success && importPreview && (
-                <div className="import-preview">
+                <div className={styles.importPreview}>
                   <h5>Preview</h5>
-                  <div>
+                  <div className={styles.previewCharacter}>
                     <div><strong>Name:</strong> {importPreview.name}</div>
                     <div><strong>Race:</strong> {importPreview.race}</div>
                     <div><strong>Class:</strong> {importPreview.class}</div>
                     <div><strong>Background:</strong> {importPreview.background}</div>
                   </div>
-                  {importResult.warnings?.map((w, i) => <p key={i} className="warning">{w}</p>)}
-                  <div className="preview-actions">
-                    <button type="button" onClick={applyImport}>Apply Import</button>
-                    <button type="button" onClick={() => { setImportResult(null); setImportPreview(null); }}>Cancel</button>
+                  {importResult.warnings?.map((w, i) => <p key={i} className={styles.warningMessage}>{w}</p>)}
+                  <div className={styles.previewActions}>
+                    <button className={styles.applyImportPrimary} type="button" onClick={applyImport}>Apply Import</button>
+                    <button className={styles.cancelImportSecondary} type="button" onClick={() => { setImportResult(null); setImportPreview(null); }}>Cancel</button>
                   </div>
                 </div>
               )}

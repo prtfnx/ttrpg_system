@@ -121,10 +121,14 @@ export const ActionsPanel: React.FC<ActionsPanelProps> = ({ actionsEngine, class
               <h4>Tables ({actions.tables.size})</h4>
               {Array.from(actions.tables.values()).map(table => (
                 <div key={table.table_id} className={clsx(styles.listItem, selectedTable === table.table_id && styles.selected)}>
-                  <div className={styles.itemInfo} onClick={() => setSelectedTable(table.table_id)}>
+                  <button
+                    type="button"
+                    className={styles.itemInfo}
+                    onClick={() => setSelectedTable(table.table_id)}
+                  >
                     <strong>{table.name}</strong>
                     <span>{table.width}x{table.height}</span>
-                  </div>
+                  </button>
                   <div className={styles.itemActions}>
                     <button 
                       onClick={() => handleUpdateTable(table.table_id, { scale_x: 1.5, scale_y: 1.5 })}

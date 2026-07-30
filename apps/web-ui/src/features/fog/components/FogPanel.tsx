@@ -297,11 +297,11 @@ export const FogPanel: React.FC = () => {
       
       <div className={styles.panelSection}>
         <div className={styles.controlGroup}>
-          <div style={{ marginBottom: '12px', color: 'var(--text-muted)', fontSize: '13px' }}>
+          <p className={styles.instructions}>
             Click a mode button, then click and drag on canvas to draw rectangles
-          </div>
+          </p>
           
-          <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+          <div className={styles.buttonRow}>
             <button 
               onClick={() => handleToggleFogMode('hide')}
               disabled={!renderer}
@@ -337,15 +337,7 @@ export const FogPanel: React.FC = () => {
           </div>
 
           {fogDrawMode && (
-            <div style={{ 
-              marginTop: '12px', 
-              padding: '8px', 
-              backgroundColor: fogDrawMode === 'hide' ? 'var(--status-error-bg)' : 'var(--status-success-bg)',
-              border: `var(--border-width) solid ${fogDrawMode === 'hide' ? 'var(--status-error-border)' : 'var(--status-success-border)'}`,
-              borderRadius: '4px',
-              fontSize: '13px',
-              color: 'var(--text-primary)'
-            }}>
+            <div className={clsx(styles.fogModeActive, styles[fogDrawMode])}>
               <strong>{fogDrawMode === 'hide' ? 'Hide' : 'Reveal'} Mode Active</strong> - Click and drag on the canvas to draw fog rectangles
             </div>
           )}
@@ -354,41 +346,30 @@ export const FogPanel: React.FC = () => {
 
       <div className={styles.panelSection}>
         <h4>Fog Rectangles ({fogRectangles.length})</h4>
-        <div className={styles.activityLog} style={{ maxHeight: '300px', overflowY: 'auto' }}>
+        <div className={styles.activityLog}>
           {fogRectangles.length === 0 ? (
-            <div style={{ padding: '12px', textAlign: 'center', color: 'var(--text-secondary)', fontSize: '13px' }}>
+            <div className={styles.emptyState}>
               No fog rectangles yet. Click a mode button and draw on the canvas!
             </div>
           ) : (
             fogRectangles.map(rect => (
               <div
                 key={rect.id}
-                className={styles.activityItem}
-                style={{ 
-                  display: 'flex', 
-                  justifyContent: 'space-between', 
-                  alignItems: 'center',
-                  padding: '8px',
-                  marginBottom: '4px',
-                  backgroundColor: rect.mode === 'hide' ? 'var(--status-error-bg)' : 'var(--status-success-bg)',
-                  border: `var(--border-width) solid ${rect.mode === 'hide' ? 'var(--status-error-border)' : 'var(--status-success-border)'}`,
-                  borderRadius: '4px'
-                }}
+                className={clsx(styles.activityItem, styles[rect.mode])}
               >
-                <div style={{ flex: 1 }}>
+                <div className={styles.rectangleInfo}>
                   <div>
-                    <span style={{ fontWeight: 'var(--font-medium)', color: 'var(--text-primary)' }}>
+                    <span className={styles.rectangleTitle}>
                       {rect.mode === 'hide' ? '[H]' : '[R]'} {rect.mode.toUpperCase()}
                     </span>
                   </div>
-                  <div style={{ fontSize: '11px', color: 'var(--text-secondary)', marginTop: '2px' }}>
+                  <div className={styles.rectangleCoordinates}>
                     ({rect.startX.toFixed(0)}, {rect.startY.toFixed(0)}) → ({rect.endX.toFixed(0)}, {rect.endY.toFixed(0)})
                   </div>
                 </div>
                 <button
                   className={clsx(styles.panelButton, styles.danger, styles.small)}
                   onClick={() => handleRemoveRectangle(rect.id)}
-                  style={{ padding: '4px 8px', fontSize: '12px' }}
                   title="Remove this fog rectangle"
                 >
                   x
@@ -401,30 +382,18 @@ export const FogPanel: React.FC = () => {
 
       <div className={styles.panelSection}>
         <h4>Statistics</h4>
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
-          <div style={{ 
-            padding: '12px', 
-            backgroundColor: 'var(--bg-secondary)', 
-            border: 'var(--border-width) solid var(--border-primary)',
-            borderRadius: '4px', 
-            textAlign: 'center' 
-          }}>
-            <div style={{ fontSize: '24px', fontWeight: 'var(--font-bold)', color: 'var(--text-primary)' }}>
+        <div className={styles.statistics}>
+          <div className={styles.statisticCard}>
+            <div className={styles.statisticValue}>
               {fogRectangles.filter(r => r.mode === 'hide').length}
             </div>
-            <div style={{ fontSize: '11px', color: 'var(--text-secondary)' }}>[H] Hidden Areas</div>
+            <div className={styles.statisticLabel}>[H] Hidden Areas</div>
           </div>
-          <div style={{ 
-            padding: '12px', 
-            backgroundColor: 'var(--bg-secondary)', 
-            border: 'var(--border-width) solid var(--border-primary)',
-            borderRadius: '4px', 
-            textAlign: 'center' 
-          }}>
-            <div style={{ fontSize: '24px', fontWeight: 'var(--font-bold)', color: 'var(--text-primary)' }}>
+          <div className={styles.statisticCard}>
+            <div className={styles.statisticValue}>
               {fogRectangles.filter(r => r.mode === 'reveal').length}
             </div>
-            <div style={{ fontSize: '11px', color: 'var(--text-secondary)' }}>[R] Revealed Areas</div>
+            <div className={styles.statisticLabel}>[R] Revealed Areas</div>
           </div>
         </div>
       </div>

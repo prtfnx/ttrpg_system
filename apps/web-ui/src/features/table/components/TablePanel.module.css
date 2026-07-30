@@ -33,6 +33,16 @@
   font-size: var(--font-size-sm);
 }
 
+.sizeInputs,
+.formButtons {
+  display: flex;
+  gap: var(--space-sm);
+}
+
+.sizeInputs {
+  margin-bottom: var(--space-sm);
+}
+
 .sizeInputs label {
   flex: 1;
   display: flex;
@@ -110,6 +120,13 @@
   background: var(--bg-tertiary);
 }
 
+.tableHeader {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  margin-bottom: var(--space-xs);
+}
+
 .tableItem.active {
   border-color: var(--color-info);
   background: var(--bg-active);
@@ -142,6 +159,11 @@
   margin-bottom: var(--spacing-sm);
 }
 
+.tableSize,
+.tableScale {
+  font-variant-numeric: tabular-nums;
+}
+
 .tableControls {
   border-top: var(--border-width) solid var(--border-primary);
   padding-top: var(--spacing-sm);
@@ -155,6 +177,28 @@
 .zoomLabel {
   font-size: var(--font-size-xs);
   color: var(--text-secondary);
+}
+
+.gridControls,
+.panControls,
+.zoomControls {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-sm);
+}
+
+.panButtons {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-xs);
+}
+
+.panRow,
+.zoomButtons {
+  display: flex;
+  gap: var(--space-xs);
 }
 
 .gridControls input[type="number"] {

@@ -109,6 +109,20 @@
   padding: var(--space-sm) var(--space-md);
 }
 
+.lightControlButton {
+  background: var(--button-secondary-bg);
+  border-color: var(--button-secondary-border);
+  color: var(--button-secondary-text);
+}
+
+.clearLightsButton {
+  composes: panel-button from '@shared/styles/PanelBase.module.css';
+  padding: var(--space-sm) var(--space-md);
+  background: var(--button-danger-bg);
+  border-color: var(--button-danger-border);
+  color: var(--button-danger-text);
+}
+
 .addLightButton:disabled {
   opacity: 0.5;
   cursor: not-allowed;
@@ -268,7 +282,7 @@
   flex: 1;
 }
 
-input[type="range"] {
+.lighting-panel input[type="range"] {
   width: 100%;
 }
 

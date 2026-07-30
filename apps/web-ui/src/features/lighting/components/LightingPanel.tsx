@@ -263,20 +263,20 @@ export const LightingPanel: React.FC = () => {
 
   return (
     <div className={styles['lighting-panel']}>
-      <div className={styles['panel-header']}>
+      <div className={styles.panelHeader}>
         <h3>Lighting System</h3>
       </div>
 
       {placementMode && (
         <div className={styles['placement-indicator']}>
           <span>Placing: {placementMode.name}</span>
-          <button aria-label="Cancel" onClick={() => { setPlacementMode(null); window.dispatchEvent(new CustomEvent('cancelLightPlacement')); }}>
+          <button className={styles['cancel-button']} aria-label="Cancel" onClick={() => { setPlacementMode(null); window.dispatchEvent(new CustomEvent('cancelLightPlacement')); }}>
             <X size={14} />
           </button>
         </div>
       )}
 
-      <div className={styles['preset-section']}>
+      <div className={styles['light-presets']}>
         <h4>Quick Place Lights</h4>
         <div className={styles['preset-buttons']}>
           {LIGHT_PRESETS.map((preset) => (
@@ -316,10 +316,10 @@ export const LightingPanel: React.FC = () => {
       </div>
 
       <div className={styles['light-controls']}>
-        <button onClick={toggleAllLights} disabled={lights.length === 0}>
+        <button className={styles.lightControlButton} onClick={toggleAllLights} disabled={lights.length === 0}>
           {lights.every(l => l.isOn) ? 'Turn Off All' : 'Turn On All'}
         </button>
-        <button onClick={clearAllLights} disabled={lights.length === 0}>
+        <button className={styles.clearLightsButton} onClick={clearAllLights} disabled={lights.length === 0}>
           <Trash2 size={14} /> Clear All
         </button>
       </div>
@@ -343,17 +343,17 @@ export const LightingPanel: React.FC = () => {
                     <Icon size={14} /> {light.presetName ?? light.id}
                   </span>
                   <div className={styles['light-actions']}>
-                    <button title="Move" onClick={(e) => { e.stopPropagation(); startMovingLight(light); }}>
+                    <button className={styles['move-button']} title="Move" onClick={(e) => { e.stopPropagation(); startMovingLight(light); }}>
                       <MoveHorizontal size={14} />
                     </button>
                     <button
                       title="Toggle"
-                      className={styles[light.isOn ? 'on' : 'off']}
+                      className={`${styles['toggle-button']} ${styles[light.isOn ? 'on' : 'off']}`}
                       onClick={(e) => { e.stopPropagation(); updateLightProperty(light.id, 'isOn', !light.isOn); }}
                     >
                       <Sun size={14} />
                     </button>
-                    <button title="Remove" onClick={(e) => { e.stopPropagation(); removeLight(light.id); }}>
+                    <button className={styles['remove-button']} title="Remove" onClick={(e) => { e.stopPropagation(); removeLight(light.id); }}>
                       <X size={14} />
                     </button>
                   </div>
@@ -381,8 +381,8 @@ export const LightingPanel: React.FC = () => {
           <div className={styles['property-group']}>
             <label>Position</label>
             <div className={styles['position-controls']}>
-              <input type="number" placeholder="X" value={selectedLight.x} onChange={(e) => updateLightProperty(selectedLight.id, 'x', parseFloat(e.target.value) || 0)} />
-              <input type="number" placeholder="Y" value={selectedLight.y} onChange={(e) => updateLightProperty(selectedLight.id, 'y', parseFloat(e.target.value) || 0)} />
+              <input className={styles.positionInput} type="number" placeholder="X" value={selectedLight.x} onChange={(e) => updateLightProperty(selectedLight.id, 'x', parseFloat(e.target.value) || 0)} />
+              <input className={styles.positionInput} type="number" placeholder="Y" value={selectedLight.y} onChange={(e) => updateLightProperty(selectedLight.id, 'y', parseFloat(e.target.value) || 0)} />
             </div>
           </div>
 

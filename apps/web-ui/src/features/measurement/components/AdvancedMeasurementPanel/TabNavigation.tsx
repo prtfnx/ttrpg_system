@@ -1,4 +1,6 @@
+import clsx from 'clsx';
 import type { FC } from 'react';
+import styles from '../AdvancedMeasurementPanel.module.css';
 
 type TabType = 'measure' | 'shapes' | 'grids' | 'templates' | 'settings';
 
@@ -8,12 +10,14 @@ interface TabNavigationProps {
 }
 
 export const TabNavigation: FC<TabNavigationProps> = ({ selectedTab, onTabChange }) => (
-  <div className="tab-navigation">
+  <div className={styles.tabNavigation}>
     {(['measure', 'shapes', 'grids', 'templates', 'settings'] as TabType[]).map(tab => (
       <button
+        type="button"
         key={tab}
-        className={`tab-btn ${selectedTab === tab ? 'active' : ''}`}
+        className={clsx(styles['tab-btn'], selectedTab === tab && styles.active)}
         onClick={() => onTabChange(tab)}
+        aria-pressed={selectedTab === tab}
       >
         {tab.charAt(0).toUpperCase() + tab.slice(1)}
       </button>

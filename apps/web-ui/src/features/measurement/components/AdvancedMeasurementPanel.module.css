@@ -37,7 +37,7 @@
   align-items: center;
   padding: var(--space-lg) var(--space-xl);
   background: linear-gradient(135deg, var(--orange-500) 0%, var(--orange-600) 50%, var(--orange-500) 100%);
-  color: white;
+  color: var(--text-on-accent);
   border-bottom: var(--border-width) solid var(--border-secondary);
 }
 
@@ -54,7 +54,7 @@
 .closeBtn {
   background: none;
   border: none;
-  color: white;
+  color: var(--text-on-accent);
   font-size: var(--text-xl);
   cursor: pointer;
   padding: var(--space-sm);
@@ -86,7 +86,7 @@
 
 .errorMessage {
   background: linear-gradient(135deg, var(--color-danger) 0%, var(--color-danger-active) 100%);
-  color: white;
+  color: var(--text-on-error);
   padding: var(--space-md) var(--space-lg);
   border-radius: var(--radius-lg);
   margin-bottom: var(--space-lg);
@@ -104,7 +104,7 @@
 .errorDismiss {
   background: none;
   border: none;
-  color: white;
+  color: var(--text-on-error);
   cursor: pointer;
   margin-left: auto;
   padding: var(--space-sm);
@@ -394,7 +394,7 @@
 .measurementDetails, .shapeDetails {
   font-size: var(--text-xs);
   color: var(--text-muted);
-  font-family: 'Fira Code', 'Monaco', 'Consolas', monospace;
+  font-family: var(--font-mono);
 }
 
 .measurement-label, .shape-label {
@@ -420,7 +420,7 @@
   width: var(--space-xl);
   height: var(--space-xl);
   margin-left: calc(-1 * var(--space-sm));
-  border: var(--border-width-thick) solid white;
+  border: var(--border-width-thick) solid var(--text-on-accent);
 }
 
 .deleteBtn {

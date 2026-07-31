@@ -1,4 +1,5 @@
 import { advancedMeasurementSystem, type MeasurementLine, type MeasurementSettings } from '@features/measurement/services/advancedMeasurement.service';
+import { Trash2 } from 'lucide-react';
 import type { FC } from 'react';
 import styles from '../AdvancedMeasurementPanel.module.css';
 import type { ActiveTool } from './ToolSelection';
@@ -20,7 +21,7 @@ export const MeasurementsTab: FC<MeasurementsTabProps> = ({
   onRemoveMeasurement,
   onSettingsUpdate
 }) => (
-  <div className={styles.measurementsTab}>
+  <section aria-label="Measurements">
     <div className={styles.sectionHeader}>
       <h3>Measurements ({filteredMeasurements.length})</h3>
       <div className={styles.sectionControls}>
@@ -77,20 +78,21 @@ export const MeasurementsTab: FC<MeasurementsTabProps> = ({
             <div className={styles.measurementDetails}>
               Angle: {measurement.angle.toFixed(1)}° | 
               Length: {measurement.distance.toFixed(1)}px
-              {measurement.label && <span className="measurement-label"> | {measurement.label}</span>}
+              {measurement.label && <span className={styles['measurement-label']}> | {measurement.label}</span>}
             </div>
           </div>
-          <div className="measurement-controls">
+          <div className={styles['measurement-controls']}>
             <div 
-              className="color-indicator" 
+              className={styles['color-indicator']}
               style={{ backgroundColor: measurement.color }}
             ></div>
             <button 
               className={styles.deleteBtn}
               onClick={() => onRemoveMeasurement(measurement.id)}
               title="Delete measurement"
+              aria-label="Delete measurement"
             >
-              
+              <Trash2 size={14} aria-hidden />
             </button>
           </div>
         </div>
@@ -107,5 +109,5 @@ export const MeasurementsTab: FC<MeasurementsTabProps> = ({
         </div>
       )}
     </div>
-  </div>
+  </section>
 );

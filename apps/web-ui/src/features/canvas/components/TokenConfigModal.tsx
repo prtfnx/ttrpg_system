@@ -3,6 +3,7 @@ import { authService } from '@features/auth';
 import { isDM } from '@features/session/types/roles';
 import { useProtocol } from '@lib/api';
 import { logger } from '@shared/utils/logger';
+import clsx from 'clsx';
 import { Check } from 'lucide-react';
 import React, { useEffect, useState } from 'react';
 import styles from './TokenConfigModal.module.css';
@@ -315,6 +316,7 @@ export const TokenConfigModal: React.FC<TokenConfigModalProps> = ({ spriteId, on
               <label>HP:</label>
               <div className={styles.hpInputGroup}>
                 <button
+                  type="button"
                   className={styles.hpButton}
                   onClick={() => handleHpChange(Math.max(0, localHp - 1))}
                 >
@@ -329,6 +331,7 @@ export const TokenConfigModal: React.FC<TokenConfigModalProps> = ({ spriteId, on
                   max={localMaxHp}
                 />
                 <button
+                  type="button"
                   className={styles.hpButton}
                   onClick={() => handleHpChange(Math.min(localMaxHp, localHp + 1))}
                 >
@@ -339,15 +342,15 @@ export const TokenConfigModal: React.FC<TokenConfigModalProps> = ({ spriteId, on
             
             <div className={styles.hpBarContainer}>
               <div
-                className={styles.hpBarFill}
-                style={{ 
-                  width: `${hpPercentage}%`,
-                  backgroundColor: hpPercentage > 50
-                    ? 'var(--status-success)'
+                className={clsx(
+                  styles.hpBarFill,
+                  hpPercentage > 50
+                    ? styles.hpHealthy
                     : hpPercentage > 25
-                      ? 'var(--status-warning)'
-                      : 'var(--status-error)'
-                }}
+                      ? styles.hpWarning
+                      : styles.hpCritical
+                )}
+                style={{ width: `${hpPercentage}%` }}
               />
               <span className={styles.hpBarText}>{localHp} / {localMaxHp}</span>
             </div>
@@ -382,7 +385,7 @@ export const TokenConfigModal: React.FC<TokenConfigModalProps> = ({ spriteId, on
           <div className={styles.configSection}>
             <div className={styles.statRow}>
               <label>Aura Radius:</label>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+              <div className={styles.inlineField}>
                 <input
                   type="number"
                   value={localAuraRadius}
@@ -391,13 +394,14 @@ export const TokenConfigModal: React.FC<TokenConfigModalProps> = ({ spriteId, on
                   min="0"
                   step="5"
                 />
-                <span style={{ color: 'var(--text-muted)' }}>ft</span>
+                <span className={styles.unitLabel}>ft</span>
                 <input
+                  className={styles.colorInput}
                   type="color"
                   value={localAuraColor}
                   onChange={(e) => handleAuraColorChange(e.target.value)}
                   title="Aura color"
-                  style={{ width: '32px', height: '24px', padding: '0', border: 'none', cursor: 'pointer', background: 'none' }}
+                  aria-label="Aura color"
                 />
               </div>
             </div>
@@ -405,10 +409,10 @@ export const TokenConfigModal: React.FC<TokenConfigModalProps> = ({ spriteId, on
 
           {canManageOwnership && (
             <div className={styles.configSection}>
-              <h4 style={{ margin: '0 0 8px', fontSize: '13px', color: 'var(--text-secondary)' }}>Vision</h4>
+              <h4 className={styles.sectionTitle}>Vision</h4>
               <div className={styles.statRow}>
                 <label>Vision Radius:</label>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                <div className={styles.inlineField}>
                   <input
                     type="number"
                     value={localVisionRadius}
@@ -427,10 +431,10 @@ export const TokenConfigModal: React.FC<TokenConfigModalProps> = ({ spriteId, on
                     min="0"
                     step="5"
                   />
-                  <span style={{ color: 'var(--text-muted)' }}>{distanceUnit}</span>
+                  <span className={styles.unitLabel}>{distanceUnit}</span>
                 </div>
               </div>
-              <div className={styles.statRow} style={{ marginTop: '6px' }}>
+              <div className={clsx(styles.statRow, styles.darkvisionRow)}>
                 <label>
                   <input
                     type="checkbox"
@@ -457,7 +461,6 @@ export const TokenConfigModal: React.FC<TokenConfigModalProps> = ({ spriteId, on
                     className={styles.hpInput}
                     min="0"
                     step="5"
-                    style={{ marginLeft: '8px' }}
                   />
                 )}
               </div>
@@ -471,7 +474,7 @@ export const TokenConfigModal: React.FC<TokenConfigModalProps> = ({ spriteId, on
               <p className={styles.characterDetails}>
                 Level {linkedCharacter.data?.level || 1} {linkedCharacter.data?.race || 'Unknown'} {linkedCharacter.data?.class || 'Unknown'}
               </p>
-              <p className={styles.syncNote} style={{ fontSize: '12px', color: 'var(--text-muted)', marginTop: '8px', display: 'flex', alignItems: 'center', gap: '4px' }}>
+              <p className={styles.syncNote}>
                 <Check size={14} aria-hidden /> Token stats synced with character
               </p>
             </div>
@@ -479,7 +482,7 @@ export const TokenConfigModal: React.FC<TokenConfigModalProps> = ({ spriteId, on
           
           {!linkedCharacter && (
             <div className={styles.noCharacterMessage}>
-              <p style={{ color: 'var(--text-muted)', fontStyle: 'italic' }}>
+              <p>
                 No character linked - token stats are independent
               </p>
             </div>

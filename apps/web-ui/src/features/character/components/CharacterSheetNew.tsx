@@ -353,9 +353,12 @@ export const CharacterSheet: React.FC<CharacterSheetProps> = ({ character, onSav
                     >+</button>
                   </div>
                   <div className={styles.abilitySaveRow}>
-                    <span
+                    <button
+                      type="button"
                       className={clsx(styles.saveDot, isProfSave && styles.saveProficient)}
                       title="Toggle saving throw proficiency"
+                      aria-label={`Toggle ${ABILITY_SHORT[key]} saving throw proficiency`}
+                      aria-pressed={isProfSave}
                       onClick={() => onSave({ data: { ...data, savingThrows: { ...savingThrows, [key]: !isProfSave } } })}
                     />
                     <button
@@ -517,8 +520,11 @@ export const CharacterSheet: React.FC<CharacterSheetProps> = ({ character, onSav
                       const bonus = mod + (isProficient ? profBonus : 0);
                       return (
                         <div key={skill.name} className={styles.skillRow}>
-                          <span
+                          <button
+                            type="button"
                             className={clsx(styles.profDot, isProficient && styles.proficient)}
+                            aria-label={`Toggle ${skill.name} proficiency`}
+                            aria-pressed={isProficient}
                             onClick={() => onSave({ data: { ...data, skills: { ...skills, [skill.name]: !isProficient } } })}
                           />
                           <button type="button" className={styles.skillRollBtn}
@@ -526,7 +532,14 @@ export const CharacterSheet: React.FC<CharacterSheetProps> = ({ character, onSav
                             title={`Roll ${skill.name}`}>
                             {modStr(bonus)}
                           </button>
-                          <span className={styles.skillName} onClick={() => handleSkillRoll(skill.name, bonus)}>{skill.name}</span>
+                          <button
+                            type="button"
+                            className={styles.skillName}
+                            onClick={() => handleSkillRoll(skill.name, bonus)}
+                            title={`Roll ${skill.name}`}
+                          >
+                            {skill.name}
+                          </button>
                           <span className={styles.skillAbility}>{ABILITY_SHORT[skill.ability].slice(0, 3)}</span>
                         </div>
                       );

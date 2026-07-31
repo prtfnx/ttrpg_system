@@ -242,10 +242,12 @@
 .saveDot {
   width: var(--size-2);
   height: var(--size-2);
+  padding: 0;
   border-radius: 50%;
   border: var(--border-width-sm) solid var(--text-muted);
   display: inline-block;
   flex-shrink: 0;
+  cursor: pointer;
   transition: background 0.15s, border-color 0.15s;
 }
 
@@ -654,6 +656,7 @@
 .profDot {
   width: var(--size-2);
   height: var(--size-2);
+  padding: 0;
   border-radius: 50%;
   border: var(--border-width-sm) solid var(--text-muted);
   display: inline-block;
@@ -683,12 +686,23 @@
 
 .skillName {
   flex: 1;
+  padding: 0;
+  background: transparent;
+  border: none;
   font-size: var(--text-xs);
   color: var(--text-primary);
+  text-align: left;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
   cursor: pointer;
+}
+
+.saveDot:focus-visible,
+.profDot:focus-visible,
+.skillName:focus-visible {
+  outline: var(--border-width-thick) solid var(--color-primary);
+  outline-offset: var(--space-0-5);
 }
 
 .skillAbility {

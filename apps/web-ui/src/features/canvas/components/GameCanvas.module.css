@@ -14,6 +14,49 @@
   cursor: crosshair;
 }
 
+.gameCanvas:focus-visible {
+  outline: var(--border-width-thick) solid var(--border-focus);
+  outline-offset: calc(-1 * var(--border-width-thick));
+}
+
+.testOnly {
+  display: none;
+}
+
+.testDraggableToken {
+  position: absolute;
+  left: var(--size-25);
+  top: var(--size-25);
+  z-index: 10;
+  display: none;
+  width: var(--size-8);
+  height: var(--size-8);
+  background: transparent;
+  border-radius: var(--radius-full);
+  cursor: grab;
+}
+
+.previewCanvas,
+.visionCanvas,
+.wallCanvas {
+  position: absolute;
+  top: 0;
+  left: 0;
+  pointer-events: none;
+}
+
+.previewCanvas {
+  z-index: 100;
+}
+
+.visionCanvas {
+  z-index: 101;
+}
+
+.wallCanvas {
+  z-index: 102;
+}
+
 .canvasOverlay {
   position: absolute;
   top: var(--space-md);
@@ -65,8 +108,10 @@
 }
 
 .contextMenuItem {
+  width: 100%;
   padding: var(--space-2) var(--space-3);
   cursor: pointer;
+  border: 0;
   border-bottom: var(--border-width) solid var(--border-primary);
   color: var(--text-primary);
   background: transparent;
@@ -75,25 +120,38 @@
   gap: var(--space-2);
   justify-content: space-between;
   position: relative;
+  font: inherit;
+  text-align: left;
 }
 
-.contextMenuItem:last-child {
+.contextMenu > .contextMenuItem:last-child,
+.contextMenuSub .contextMenuItem:last-child {
   border-bottom: none;
 }
 
-.contextMenuItem:hover {
+.contextMenuItem:hover,
+.contextMenuItem:focus-visible {
   background: var(--hover-overlay);
 }
 
 .contextMenuItemDanger {
+  width: 100%;
   padding: var(--space-2) var(--space-3);
   cursor: pointer;
   color: var(--color-danger);
   background: transparent;
+  border: 0;
+  font: inherit;
+  text-align: left;
 }
 
-.contextMenuItemDanger:hover {
+.contextMenuItemDanger:hover,
+.contextMenuItemDanger:focus-visible {
   background: var(--color-danger-overlay);
+}
+
+.contextMenuItemWithSubmenu {
+  position: relative;
 }
 
 .contextMenuSub {
@@ -137,14 +195,64 @@
 
 .debugOverlay {
   position: absolute;
-  top: var(--space-md);
-  left: var(--space-md);
-  background-color: var(--bg-overlay);
+  top: var(--space-sm);
+  left: var(--space-sm);
+  min-width: var(--size-50);
+  background-color: var(--overlay-dark-medium);
   color: var(--white);
-  padding: var(--space-sm);
-  border-radius: var(--radius-xs);
+  padding: var(--space-md);
+  border-radius: var(--radius-md);
   font-family: var(--font-mono);
-  font-size: var(--text-xs);
+  font-size: var(--text-sm);
   pointer-events: none;
   z-index: 1000;
+}
+
+.fpsHealthy {
+  color: var(--status-success);
+}
+
+.fpsWarning {
+  color: var(--yellow-400);
+}
+
+.fpsCritical {
+  color: var(--status-error);
+}
+
+.debugTable {
+  margin-top: var(--space-sm);
+  padding-top: var(--space-sm);
+  border-top: var(--border-width) solid var(--border-primary);
+}
+
+.zoomControls {
+  position: absolute;
+  right: var(--space-xl);
+  bottom: var(--space-xl);
+  z-index: 1000;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-sm);
+}
+
+.zoomButton {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: var(--size-10);
+  height: var(--size-10);
+  background: var(--bg-elevated);
+  border: var(--border-width) solid var(--border-primary);
+  border-radius: var(--radius-sm);
+  color: var(--text-primary);
+  cursor: pointer;
+  font-size: var(--text-lg);
+  font-weight: var(--font-bold);
+}
+
+.zoomButton:hover,
+.zoomButton:focus-visible {
+  background: var(--hover-bg);
+  border-color: var(--border-focus);
 }

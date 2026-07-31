@@ -807,30 +807,19 @@ export const GameCanvas: React.FC = () => {
 
   return (
     <DragDropImageHandler>
-      <div className={styles.gameCanvasContainer} style={{ position: 'relative' }}>
+      <div className={styles.gameCanvasContainer}>
         {/* Layer elements for testing */}
-        <div data-testid="layer-background" data-visible="true" style={{ display: 'none' }} />
-        <div data-testid="layer-tokens" data-visible="true" style={{ display: 'none' }} />
-        <div data-testid="layer-fog-of-war" data-visible="true" style={{ display: 'none' }} />
+        <div className={styles.testOnly} data-testid="layer-background" data-visible="true" />
+        <div className={styles.testOnly} data-testid="layer-tokens" data-visible="true" />
+        <div className={styles.testOnly} data-testid="layer-fog-of-war" data-visible="true" />
 
         {/* Floating layer picker — DM only, always visible on canvas */}
         <FloatingLayerPicker />
 
         {/* Draggable tokens for testing */}
         <div
+          className={styles.testDraggableToken}
           data-testid="draggable-token-wizard"
-          style={{
-            position: 'absolute',
-            left: '100px',
-            top: '100px',
-            width: '30px',
-            height: '30px',
-            background: 'transparent',
-            borderRadius: '50%',
-            cursor: 'grab',
-            zIndex: 10,
-            display: 'none',
-          }}
           draggable
         />
 
@@ -839,7 +828,6 @@ export const GameCanvas: React.FC = () => {
           className={styles.gameCanvas}
           data-testid="game-canvas"
           tabIndex={0}
-          style={{ outline: 'none' }}
           width={800}
           height={600}
         />
@@ -847,37 +835,19 @@ export const GameCanvas: React.FC = () => {
         {/* Light placement preview overlay */}
         <canvas
           ref={previewCanvasRef}
-          style={{
-            position: 'absolute',
-            top: 0,
-            left: 0,
-            pointerEvents: 'none',
-            zIndex: 100,
-          }}
+          className={styles.previewCanvas}
         />
 
         {/* Vision rings overlay — DM view: token vision/darkvision indicator circles */}
         <canvas
           ref={visionRingsCanvasRef}
-          style={{
-            position: 'absolute',
-            top: 0,
-            left: 0,
-            pointerEvents: 'none',
-            zIndex: 101,
-          }}
+          className={styles.visionCanvas}
         />
 
         {/* Wall overlay — DM view: wall segments drawn by WASM get_wall_render_data */}
         <canvas
           ref={wallCanvasRef}
-          style={{
-            position: 'absolute',
-            top: 0,
-            left: 0,
-            pointerEvents: 'none',
-            zIndex: 102,
-          }}
+          className={styles.wallCanvas}
         />
 
         {/* Context Menu */}
@@ -889,155 +859,171 @@ export const GameCanvas: React.FC = () => {
           >
             {contextMenu.spriteId ? (
               <>
-                <div
+                <button
+                  type="button"
                   className={styles.contextMenuItem}
                   onClick={() => handleContextMenuAction('copy')}
                 >
                   Copy Sprite
-                </div>
+                </button>
                 {contextMenu.copiedSprite && (
-                  <div
+                  <button
+                    type="button"
                     className={styles.contextMenuItem}
                     onClick={() => handleContextMenuAction('paste')}
                   >
                     Paste Sprite
-                  </div>
+                  </button>
                 )}
 
                 {/* Move to Layer submenu */}
-                <div
-                  className={styles.contextMenuItem}
+                <div className={styles.contextMenuItemWithSubmenu}
                   onMouseOver={() => {
                     setContextMenu((prev) => ({ ...prev, showLayerSubmenu: true }));
                   }}
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    setContextMenu((prev) => ({ ...prev, showLayerSubmenu: !prev.showLayerSubmenu }));
-                  }}
                 >
-                  <span>Move to Layer</span>
-                  <ChevronRight size={10} aria-hidden />
+                  <button
+                    type="button"
+                    className={styles.contextMenuItem}
+                    aria-haspopup="menu"
+                    aria-expanded={contextMenu.showLayerSubmenu}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setContextMenu((prev) => ({ ...prev, showLayerSubmenu: !prev.showLayerSubmenu }));
+                    }}
+                  >
+                    <span>Move to Layer</span>
+                    <ChevronRight size={10} aria-hidden />
+                  </button>
 
                   {/* Layer submenu */}
                   {contextMenu.showLayerSubmenu && (
                     <div
                       className={styles.contextMenuSub}
+                      role="menu"
+                      aria-label="Move sprite to layer"
                       onClick={(e) => e.stopPropagation()}
                     >
                       {AVAILABLE_LAYERS.map((layer) => (
-                        <div
+                        <button
+                          type="button"
+                          role="menuitem"
                           key={layer.id}
                           className={styles.contextMenuItem}
                           onClick={() => handleMoveToLayer(layer.id)}
                         >
                           <layer.icon size={14} aria-hidden />
                           <span>{layer.name}</span>
-                        </div>
+                        </button>
                       ))}
                     </div>
                   )}
                 </div>
 
-                <div
+                <button
+                  type="button"
                   className={styles.contextMenuItem}
                   onClick={() => handleContextMenuAction('resize')}
                 >
                   Resize Sprite
-                </div>
-                <div
+                </button>
+                <button
+                  type="button"
                   className={styles.contextMenuItem}
                   onClick={() => handleContextMenuAction('rotate')}
                 >
                   Rotate Sprite
-                </div>
-                <div
+                </button>
+                <button
+                  type="button"
                   className={styles.contextMenuItemDanger}
                   onClick={() => handleContextMenuAction('delete')}
                 >
                   Delete Sprite
-                </div>
+                </button>
                 {/* Combat context menu items — DM only, fight mode */}
                 {isDM(sessionRole) && isFight && contextMenu.spriteId && (
                   inCombat(contextMenu.spriteId) ? (
-                    <div
+                    <button
+                      type="button"
                       className={styles.contextMenuItem}
                       onClick={() => { removeFromCombat(contextMenu.spriteId!); setContextMenu((p) => ({ ...p, visible: false })); }}
                     >
                       Remove from Combat
-                    </div>
+                    </button>
                   ) : (
-                    <div
+                    <button
+                      type="button"
                       className={styles.contextMenuItem}
                       onClick={() => { addToCombat(contextMenu.spriteId!); setContextMenu((p) => ({ ...p, visible: false })); }}
                     >
                       Add to Combat
-                    </div>
+                    </button>
                   )
                 )}
               </>
             ) : (
               // Show paste option when clicking on empty space if there's a copied sprite
               contextMenu.copiedSprite && (
-                <div
+                <button
+                  type="button"
                   className={styles.contextMenuItem}
                   onClick={() => handleContextMenuAction('paste')}
                 >
                   Paste Sprite
-                </div>
+                </button>
               )
             )}
           </div>
         )}
 
-        {/* Persistent debug panel */}
-        <div
-          style={{
-            position: 'absolute',
-            top: 8,
-            left: 8,
-            background: 'var(--overlay-dark-medium)',
-            color: 'var(--status-success)',
-            fontSize: 14,
-            padding: 10,
-            borderRadius: 8,
-            zIndex: 1000,
-            pointerEvents: 'none',
-            fontFamily: 'monospace',
-            minWidth: 220,
-          }}
-        >
-          <div>
-            <b>FPS:</b>{' '}
-            <span style={{ color: fps > 30 ? 'var(--status-success)' : fps > 15 ? 'var(--yellow-400)' : 'var(--status-error)' }}>
-              {fps}
-            </span>
+        {/* Development-only canvas diagnostics */}
+        {import.meta.env.DEV && (
+          <div className={styles.debugOverlay}>
+            <div>
+              <b>FPS:</b>{' '}
+              <span className={fps > 30 ? styles.fpsHealthy : fps > 15 ? styles.fpsWarning : styles.fpsCritical}>
+                {fps}
+              </span>
+            </div>
+            <div>
+              <b>Canvas CSS:</b> {debugPanel.cssWidth} x {debugPanel.cssHeight}
+            </div>
+            <div>
+              <b>Canvas Device:</b> {debugPanel.deviceWidth} x {debugPanel.deviceHeight}
+            </div>
+            <div>
+              <b>Mouse CSS:</b> {debugPanel.mouseCss.x.toFixed(1)}, {debugPanel.mouseCss.y.toFixed(1)}
+            </div>
+            <div>
+              <b>Mouse Device:</b> {debugPanel.mouseDevice.x.toFixed(1)}, {debugPanel.mouseDevice.y.toFixed(1)}
+            </div>
+            <div>
+              <b>World:</b> {debugPanel.world.x.toFixed(2)}, {debugPanel.world.y.toFixed(2)}
+            </div>
+            <div>
+              <b>Screen:</b> {debugCursorScreen.x.toFixed(2)}, {debugCursorScreen.y.toFixed(2)}
+            </div>
+            <div>
+              <b>Cursor World:</b> {debugCursorWorld.x.toFixed(2)}, {debugCursorWorld.y.toFixed(2)}
+            </div>
+            <div>
+              <b>Grid:</b> {debugGrid.x}, {debugGrid.y}
+            </div>
+            {activeTable && (
+              <>
+                <div className={styles.debugTable}>
+                  <b>Table:</b> {activeTable.table_name}
+                </div>
+                <div>
+                  <b>Size:</b> {activeTable.width} x {activeTable.height}
+                </div>
+              </>
+            )}
+            <div className={styles.testOnly} data-testid="viewport-culling-enabled">true</div>
+            <div className={styles.testOnly} data-testid="render-count">{Math.floor(Date.now() / 1000) % 1000}</div>
           </div>
-          <div>
-            <b>Canvas CSS:</b> {debugPanel.cssWidth} x {debugPanel.cssHeight}
-          </div>
-          <div>
-            <b>Canvas Device:</b> {debugPanel.deviceWidth} x {debugPanel.deviceHeight}
-          </div>
-          <div>
-            <b>Mouse CSS:</b> {debugPanel.mouseCss.x.toFixed(1)}, {debugPanel.mouseCss.y.toFixed(1)}
-          </div>
-          <div>
-            <b>Mouse Device:</b> {debugPanel.mouseDevice.x.toFixed(1)}, {debugPanel.mouseDevice.y.toFixed(1)}
-          </div>
-          <div>
-            <b>World:</b> {debugPanel.world.x.toFixed(2)}, {debugPanel.world.y.toFixed(2)}
-          </div>
-          {activeTable && (
-            <>
-              <div style={{ borderTop: 'var(--border-width) solid var(--border-primary)', marginTop: 8, paddingTop: 8 }}>
-                <b>Table:</b> {activeTable.table_name}
-              </div>
-              <div>
-                <b>Size:</b> {activeTable.width} x {activeTable.height}
-              </div>
-            </>
-          )}
-        </div>
+        )}
 
         {/* Performance Monitor */}
         <PerformanceMonitor
@@ -1046,50 +1032,12 @@ export const GameCanvas: React.FC = () => {
           position="top-right"
         />
 
-        {/* Debug overlay conditionally rendered in development */}
-        {import.meta.env.DEV && (
-          <div className={styles.debugOverlay}>
-            <div>
-              Screen: {debugCursorScreen.x.toFixed(2)}, {debugCursorScreen.y.toFixed(2)}
-            </div>
-            <div>
-              World: {debugCursorWorld.x.toFixed(2)}, {debugCursorWorld.y.toFixed(2)}
-            </div>
-            <div>
-              Grid: {debugGrid.x}, {debugGrid.y}
-            </div>
-
-            {/* Performance monitoring elements */}
-            <div data-testid="viewport-culling-enabled">true</div>
-            <div data-testid="render-count">{Math.floor(Date.now() / 1000) % 1000}</div>
-          </div>
-        )}
-
         {/* Zoom Controls */}
-        <div
-          style={{
-            position: 'absolute',
-            bottom: 20,
-            right: 20,
-            display: 'flex',
-            flexDirection: 'column',
-            gap: '8px',
-            zIndex: 1000,
-          }}
-        >
+        <div className={styles.zoomControls}>
           <button
-            role="button"
+            type="button"
             aria-label="Zoom in"
-            style={{
-              width: 40,
-              height: 40,
-              border: 'var(--border-width) solid var(--border-primary)',
-              borderRadius: '4px',
-              background: 'var(--bg-elevated)',
-              cursor: 'pointer',
-              fontSize: '18px',
-              fontWeight: 'bold',
-            }}
+            className={styles.zoomButton}
             onClick={() => {
               const canvas = canvasRef.current;
               const rm = rustRenderManagerRef.current;
@@ -1100,18 +1048,9 @@ export const GameCanvas: React.FC = () => {
             +
           </button>
           <button
-            role="button"
+            type="button"
             aria-label="Zoom out"
-            style={{
-              width: 40,
-              height: 40,
-              border: 'var(--border-width) solid var(--border-primary)',
-              borderRadius: '4px',
-              background: 'var(--bg-elevated)',
-              cursor: 'pointer',
-              fontSize: '18px',
-              fontWeight: 'bold',
-            }}
+            className={styles.zoomButton}
             onClick={() => {
               const canvas = canvasRef.current;
               const rm = rustRenderManagerRef.current;

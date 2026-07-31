@@ -124,6 +124,10 @@
   border-radius: var(--radius-sm);
 }
 
+.hiddenInput {
+  display: none;
+}
+
 .progressBar {
   height: var(--space-sm);
   margin-top: var(--space-xs);

@@ -246,6 +246,7 @@ export const AssetPanel: React.FC = () => {
           onKeyDown={handleUploadZoneKeyDown}
           role="button"
           tabIndex={0}
+          aria-label="Choose asset files"
         >
           <p>Drag files here or click to upload</p>
           <small>Supported formats: Images, Audio, Models (max 50MB)</small>
@@ -257,7 +258,7 @@ export const AssetPanel: React.FC = () => {
           type="file"
           multiple
           onChange={handleFileInputChange}
-          style={{ display: 'none' }}
+          className={styles.hiddenInput}
           accept="image/*,audio/*,.fbx,.obj,.gltf,.glb"
           data-testid="file-input"
         />
@@ -265,7 +266,15 @@ export const AssetPanel: React.FC = () => {
         {/* Upload Status Monitoring */}
         <div className={styles.uploadMonitoring}>
           <div data-testid="upload-status">{uploadStatus}</div>
-          <div data-testid="upload-progress" style={{ display: uploadProgress > 0 ? 'block' : 'none' }}>
+          <div
+            data-testid="upload-progress"
+            role="progressbar"
+            aria-label="Asset upload progress"
+            aria-valuemin={0}
+            aria-valuemax={100}
+            aria-valuenow={uploadProgress}
+            hidden={uploadProgress <= 0}
+          >
             <div className={styles.progressBar}>
               <div className={styles.progressFill} style={{ width: `${uploadProgress}%` }}></div>
             </div>
@@ -287,7 +296,7 @@ export const AssetPanel: React.FC = () => {
           </div>
         </div>
 
-        <button className={styles.uploadBtn} onClick={() => fileInputRef.current?.click()}>
+        <button type="button" className={styles.uploadBtn} onClick={() => fileInputRef.current?.click()}>
           Upload Asset
         </button>
 
@@ -361,9 +370,17 @@ export const AssetPanel: React.FC = () => {
       {/* Upload Status Monitoring */}
       <div className={styles.uploadMonitoring}>
         <div data-testid="upload-status">{uploadStatus}</div>
-        <div data-testid="upload-progress" style={{ display: uploading ? 'block' : 'none' }}>
+        <div
+          data-testid="upload-progress"
+          role="progressbar"
+          aria-label="Asset upload progress"
+          aria-valuemin={0}
+          aria-valuemax={100}
+          aria-valuenow={uploadProgress}
+          hidden={!uploading}
+        >
           <div className={styles.progressBar}>
-            <div className={styles.progressFill} style={{ width: uploading ? '50%' : '0%' }}></div>
+            <div className={styles.progressFill} style={{ width: `${uploadProgress}%` }}></div>
           </div>
         </div>
         {uploadError && <div data-testid="upload-errors" className={styles.uploadError}>{uploadError}</div>}
@@ -395,6 +412,7 @@ export const AssetPanel: React.FC = () => {
         onKeyDown={handleUploadZoneKeyDown}
         role="button"
         tabIndex={0}
+        aria-label="Choose asset files"
       >
         {uploading ? 'Uploading...' : 'Drag files here or click to upload'}
         {uploadError && <div className={styles.uploadError}>{uploadError}</div>}
@@ -405,13 +423,13 @@ export const AssetPanel: React.FC = () => {
         id="file-input"
         ref={fileInputRef}
         type="file"
-        style={{ display: 'none' }}
+        className={styles.hiddenInput}
         onChange={handleFileInputChange}
         accept="image/*,audio/*,video/*,.pdf,.txt"
       />
 
       {/* Upload Button (secondary interface) */}
-      <button className={styles.uploadBtn} onClick={() => fileInputRef.current?.click()}>
+      <button type="button" className={styles.uploadBtn} onClick={() => fileInputRef.current?.click()}>
         Upload Asset
       </button>
       

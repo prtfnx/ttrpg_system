@@ -11,6 +11,29 @@
   composes: wizard-header-primary from './CharacterWizardBase.module.css';
 }
 
+.character-title {
+  display: flex;
+  align-items: center;
+  gap: var(--space-md);
+}
+
+.character-portrait {
+  width: var(--size-16);
+  height: var(--size-16);
+  border: var(--border-width-thick) solid var(--text-inverse-primary);
+  border-radius: var(--radius-full);
+  object-fit: cover;
+}
+
+.character-info {
+  min-width: 0;
+}
+
+.character-info h2 {
+  margin: 0 0 var(--space-xs);
+  overflow-wrap: anywhere;
+}
+
 .character-title h1 {
   margin: 0 0 var(--space-xs) 0;
   font-size: var(--text-3xl);
@@ -53,7 +76,13 @@
   gap: var(--space-xl);
 }
 
+.ability-scores,
+.combat-stats {
+  min-width: 0;
+}
+
 .ability-scores h3,
+.combat-stats h3,
 .skills-section h3,
 .saves-section h3 {
   color: var(--red-900);

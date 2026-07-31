@@ -195,8 +195,7 @@ export const NetworkPanel: React.FC = () => {
         </div>
         <button
           onClick={handleConnect}
-          className={networkState.isConnected ? styles.disconnect : styles.connect}
-          role="button"
+          className={`${styles.networkButton} ${networkState.isConnected ? styles.disconnect : styles.connect}`}
           aria-label={networkState.isConnected ? 'Disconnect' : 'Connect'}
         >
           {networkState.isConnected ? 'Disconnect' : 'Connect'}
@@ -212,9 +211,7 @@ export const NetworkPanel: React.FC = () => {
         }) && (
           <button
             onClick={handleConnect}
-            className={styles.connect}
-            style={{ marginLeft: '10px' }}
-            role="button"
+            className={`${styles.networkButton} ${styles.connect} ${styles.retryButton}`}
             aria-label="Retry"
           >
             Retry
@@ -282,10 +279,10 @@ export const NetworkPanel: React.FC = () => {
         <div className={styles['testing-section']}>
           <h4>Testing Tools</h4>
           <div className={styles['button-group']}>
-            <button onClick={sendPing}>
+            <button className={styles.networkButton} onClick={sendPing}>
               Send Ping
             </button>
-            <button onClick={handleSendTestSprite}>
+            <button className={styles.networkButton} onClick={handleSendTestSprite}>
               Send Test Sprite
             </button>
           </div>
@@ -325,7 +322,7 @@ export const NetworkPanel: React.FC = () => {
       <div className={styles['message-log']}>
         <div className={styles['log-header']}>
           <h4>Message Log ({messages.length})</h4>
-          <button onClick={clearMessages} className={styles['clear-button']}>
+          <button onClick={clearMessages} className={`${styles.networkButton} ${styles['clear-button']}`}>
             Clear
           </button>
         </div>

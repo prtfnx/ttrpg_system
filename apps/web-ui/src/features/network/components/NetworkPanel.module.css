@@ -42,7 +42,9 @@
   color: var(--accent-error);
 }
 
-.client-info, .user-info {
+.client-info,
+.latency-info,
+.user-info {
   font-size: var(--text-xs);
   color: var(--text-muted);
   margin-bottom: var(--space-xs);
@@ -92,7 +94,7 @@
 
 .input-group textarea {
   resize: vertical;
-  font-family: monospace;
+  font-family: var(--font-mono);
 }
 
 /* Buttons */
@@ -119,7 +121,7 @@
   background-color: var(--hover-bg);
 }
 
-button:disabled {
+.networkButton:disabled {
   opacity: 0.6;
   cursor: not-allowed;
   background-color: var(--disabled-bg);
@@ -127,7 +129,7 @@ button:disabled {
 
 .connect {
   background-color: var(--accent-success);
-  color: white;
+  color: var(--text-on-accent);
   border-color: var(--accent-success);
 }
 
@@ -137,12 +139,16 @@ button:disabled {
 
 .disconnect {
   background-color: var(--accent-error);
-  color: white;
+  color: var(--text-on-error);
   border-color: var(--accent-error);
 }
 
 .disconnect:hover:not(:disabled) {
   background-color: var(--red-700);
+}
+
+.retryButton {
+  margin-left: var(--space-sm);
 }
 
 /* Sections */
@@ -180,7 +186,7 @@ button:disabled {
   padding: var(--space-xs) var(--space-sm);
   font-size: var(--text-2xs);
   background-color: var(--text-muted);
-  color: white;
+  color: var(--text-on-accent);
   border-color: var(--text-muted);
 }
 
@@ -227,7 +233,7 @@ button:disabled {
   background-color: var(--bg-elevated);
   padding: var(--space-sm);
   border-radius: var(--radius-sm);
-  font-family: monospace;
+  font-family: var(--font-mono);
   white-space: pre-wrap;
   max-height: 100px;
   overflow-y: auto;
@@ -252,7 +258,7 @@ button:disabled {
     flex-direction: column;
   }
   
-  button {
+  .networkButton {
     width: 100%;
   }
 }

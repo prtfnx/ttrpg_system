@@ -370,7 +370,7 @@ describe('Web Client TypeScript & WASM Systems Integration Tests', () => {
       render(<AssetPanel />);
       
       // User expects upload functionality
-      const uploadButton = screen.getByRole('button', { name: /upload/i });
+      const uploadButton = screen.getByRole('button', { name: 'Upload Asset' });
       await user.click(uploadButton);
       
       // User expects file input to be available

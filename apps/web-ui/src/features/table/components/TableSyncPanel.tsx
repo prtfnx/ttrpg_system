@@ -1,4 +1,5 @@
 import { useNetworkClient } from '@shared/hooks/useNetworkClient';
+import clsx from 'clsx';
 import { useEffect, useState } from 'react';
 import { useTableSync } from '../hooks/useTableSync';
 import styles from './TableSyncPanel.module.css';
@@ -73,9 +74,9 @@ function TableSyncPanel() {
 
   if (isLoading) {
     return (
-      <div className="panel-base">
-        <div className="loading-state">
-          <div className="loading-spinner">...</div>
+      <div className={styles.panelBase}>
+        <div className={styles.loadingState}>
+          <div className={styles.loadingSpinner}>...</div>
           <p>Loading table sync...</p>
         </div>
       </div>
@@ -83,45 +84,53 @@ function TableSyncPanel() {
   }
 
   return (
-    <div className="panel-base">
+    <div className={styles.panelBase}>
       <div className={styles.panelHeader}>
         <h3>Table Sync</h3>
-        <div className={`status-indicator ${isConnected ? 'connected' : 'disconnected'}`}>
+        <div
+          className={clsx(
+            styles.statusIndicator,
+            isConnected ? styles.connected : styles.disconnected,
+          )}
+          role="status"
+        >
           <span>{isConnected ? '[ok]' : '[x]'}</span>
           <span>{isConnected ? 'Connected' : 'Disconnected'}</span>
         </div>
       </div>
 
       {error && (
-        <div className="error-banner">
+        <div className={styles.errorBanner} role="alert">
           <span>[x] {error}</span>
         </div>
       )}
 
-      <div className="panel-section">
+      <div className={styles.panelSection}>
         <h4>Table Request</h4>
-        <div className="control-group">
-          <div className="input-group">
-            <label>Table ID</label>
+        <div className={styles.controlGroup}>
+          <div className={styles.inputGroup}>
+            <label className={styles.inputLabel} htmlFor="table-sync-id">Table ID</label>
             <input
+              id="table-sync-id"
               type="text"
               placeholder="Enter table ID"
               value={currentTableId}
               onChange={(e) => setCurrentTableId(e.target.value)}
-              className="panel-input"
+              className={styles.panelInput}
             />
           </div>
           <button
+            type="button"
             onClick={handleRequestTable}
             disabled={!tableSync || !isConnected}
-            className="panel-button primary"
+            className={styles.primaryButton}
           >
             Request Table
           </button>
         </div>
       </div>
 
-      <div className="panel-section">
+      <div className={styles.panelSection}>
         <h4>Runtime State</h4>
         <div className={styles.stateGrid}>
           <div>
@@ -139,26 +148,26 @@ function TableSyncPanel() {
         </div>
       </div>
 
-      <div className="panel-section">
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
+      <div className={styles.panelSection}>
+        <div className={styles.activityHeader}>
           <h4>Activity Log</h4>
-          <button onClick={clearLog} className="panel-button">
+          <button type="button" onClick={clearLog} className={styles.panelButton}>
             Clear
           </button>
         </div>
 
-        <div className="activity-log">
+        <div className={styles.activityLog}>
           {activityLog.length === 0 ? (
-            <div className="empty-state">
+            <div className={styles.emptyState}>
               <span>No activity yet.</span>
             </div>
           ) : (
             activityLog.map((log) => (
-              <div key={log.id} className={`log-entry ${log.type}`}>
-                <span className="log-timestamp">
+              <div key={log.id} className={clsx(styles.logEntry, styles[log.type])}>
+                <span className={styles.logTimestamp}>
                   {log.timestamp.toLocaleTimeString()}
                 </span>
-                <span className="log-message">{log.message}</span>
+                <span className={styles.logMessage}>{log.message}</span>
               </div>
             ))
           )}

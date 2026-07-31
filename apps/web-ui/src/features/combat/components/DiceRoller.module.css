@@ -4,7 +4,7 @@
 
 .diceRoller {
   composes: wizard-column from '../../character/components/CharacterWizard/CharacterWizardBase.module.css';
-  max-width: 300px;
+  max-width: var(--size-75);
 }
 
 .diceRoller.disabled {
@@ -114,7 +114,7 @@
 .dice-formula {
   font-size: var(--text-xs);
   opacity: 0.8;
-  font-family: 'Courier New', monospace;
+  font-family: var(--font-mono);
 }
 
 /* Dice result */
@@ -161,7 +161,7 @@
   border-radius: var(--radius-md);
   padding: var(--space-sm) var(--space-md);
   box-shadow: var(--shadow-lg);
-  z-index: 10;
+  z-index: var(--z-content);
   min-width: var(--size-50);
   margin-top: var(--space-xs);
   animation: slideDown 0.3s ease-out;
@@ -186,7 +186,7 @@
 .roll-breakdown {
   composes: wizard-row from '../../character/components/CharacterWizard/CharacterWizardBase.module.css';
   justify-content: center;
-  font-family: 'Courier New', monospace;
+  font-family: var(--font-mono);
   font-weight: var(--font-semibold);
 }
 
@@ -225,7 +225,7 @@
 /* Roll history */
 .dice-history {
   composes: wizard-card-section from '../../character/components/CharacterWizard/CharacterWizardBase.module.css';
-  max-height: 200px;
+  max-height: var(--size-50);
   overflow-y: auto;
 }
 
@@ -291,7 +291,7 @@
 }
 
 .history-formula {
-  font-family: 'Courier New', monospace;
+  font-family: var(--font-mono);
   font-weight: var(--font-semibold);
   color: var(--text-secondary);
 }
@@ -328,7 +328,7 @@
 }
 
 /* Responsive design */
-@media (max-width: 768px) {
+@media (max-width: 48rem) {
   .diceRoller {
     max-width: none;
   }

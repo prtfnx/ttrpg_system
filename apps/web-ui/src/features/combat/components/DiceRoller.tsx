@@ -1,6 +1,8 @@
 import { CombatPreviewService, type DiceResult } from '@features/combat';
+import clsx from 'clsx';
 import { Dices, Star, X, Zap } from 'lucide-react';
 import React, { useState } from 'react';
+import styles from './DiceRoller.module.css';
 
 interface DiceRollerProps {
   formula?: string;
@@ -72,45 +74,48 @@ export const DiceRoller: React.FC<DiceRollerProps> = ({
   };
 
   return (
-    <div className={`dice-roller ${variant} ${disabled ? 'disabled' : ''}`}>
-      <div className="dice-roller-main">
+    <div className={clsx(styles.diceRoller, styles[variant], disabled && styles.disabled)}>
+      <div className={styles['diceRoller-main']}>
         <button
           type="button"
           onClick={handleRoll}
           disabled={disabled || isRolling}
-          className={`dice-button ${isRolling ? 'rolling' : ''}`}
+          className={clsx(styles['dice-button'], isRolling && styles.rolling)}
           title={`Roll ${formula}`}
         >
-          <div className="dice-icon">
+          <div className={styles['dice-icon']}>
             <Dices size={20} aria-hidden />
           </div>
-          <div className="dice-info">
-            {label && <span className="dice-label">{label}</span>}
-            <span className="dice-formula">{formula}</span>
+          <div className={styles['dice-info']}>
+            {label && <span className={styles['dice-label']}>{label}</span>}
+            <span className={styles['dice-formula']}>{formula}</span>
           </div>
           {result && !isRolling && (
-            <div className={`dice-result ${getRollQuality(result)}`}>
+            <div className={clsx(styles.diceResult, styles[getRollQuality(result)])} aria-live="polite">
               {result.total}
             </div>
           )}
         </button>
 
         {result && showDetails && (
-          <div className={`roll-details ${getRollQuality(result)}`}>
-            <div className="roll-breakdown">
-              <span className="formula-text">{formatRollDetails(result)}</span>
-              <span className="equals">=</span>
-              <span className="total">{result.total}</span>
+          <div
+            className={clsx(styles['roll-details'], styles[getRollQuality(result)])}
+            role="status"
+          >
+            <div className={styles['roll-breakdown']}>
+              <span className={styles['formula-text']}>{formatRollDetails(result)}</span>
+              <span className={styles.equals}>=</span>
+              <span className={styles.total}>{result.total}</span>
             </div>
             
             {getRollQuality(result) === 'critical' && (
-              <div className="critical-indicator">
+              <div className={styles['critical-indicator']}>
                 <Star size={14} aria-hidden /> Critical Success!
               </div>
             )}
             
             {getRollQuality(result) === 'low' && result.rolls[0] === 1 && (
-              <div className="fumble-indicator">
+              <div className={styles['fumble-indicator']}>
                 <Zap size={14} aria-hidden /> Critical Failure!
               </div>
             )}
@@ -119,24 +124,28 @@ export const DiceRoller: React.FC<DiceRollerProps> = ({
       </div>
 
       {showHistory && rollHistory.length > 0 && (
-        <div className="dice-history">
-          <div className="history-header">
+        <div className={styles['dice-history']}>
+          <div className={styles['history-header']}>
             <span>Recent Rolls</span>
             <button
               type="button"
               onClick={() => setRollHistory([])}
-              className="clear-history"
+              className={styles['clear-history']}
               title="Clear History"
+              aria-label="Clear roll history"
             >
               <X size={14} aria-hidden />
             </button>
           </div>
-          <div className="history-list">
+          <div className={styles['history-list']}>
             {rollHistory.slice(0, 5).map((historyResult, index) => (
-              <div key={index} className={`history-item ${getRollQuality(historyResult)}`}>
-                <span className="history-formula">{historyResult.formula}</span>
-                <span className="history-result">{historyResult.total}</span>
-                <span className="history-time">
+              <div
+                key={index}
+                className={clsx(styles['history-item'], styles[getRollQuality(historyResult)])}
+              >
+                <span className={styles['history-formula']}>{historyResult.formula}</span>
+                <span className={styles['history-result']}>{historyResult.total}</span>
+                <span className={styles['history-time']}>
                   {historyResult.timestamp.toLocaleTimeString([], { 
                     hour: '2-digit', 
                     minute: '2-digit' 
@@ -275,7 +284,7 @@ export const CustomDiceRoll: React.FC<{
     <button
       type="button"
       onClick={handleClick}
-      className="dice-trigger"
+      className={styles['dice-trigger']}
     >
       {children}
     </button>

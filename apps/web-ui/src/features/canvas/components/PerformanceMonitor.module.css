@@ -40,12 +40,21 @@
   backdrop-filter: blur(var(--blur-sm));
   transition: var(--transition-fast);
   min-width: 100px;
+  color: inherit;
+  cursor: pointer;
+  font: inherit;
+  text-align: left;
 }
 
 .compact:hover {
   background: var(--overlay-dark);
   border-color: var(--white-alpha-30);
   transform: scale(1.02);
+}
+
+.compact:focus-visible {
+  outline: var(--border-width-thick) solid var(--border-focus);
+  outline-offset: var(--space-2xs);
 }
 
 .fpsDisplay {
@@ -58,6 +67,22 @@
   font-size: var(--text-base);
   font-weight: var(--font-bold);
   font-variant-numeric: tabular-nums;
+}
+
+.fpsExcellent {
+  color: var(--status-success);
+}
+
+.fpsGood {
+  color: var(--yellow-400);
+}
+
+.fpsWarning {
+  color: var(--status-warning);
+}
+
+.fpsCritical {
+  color: var(--status-error);
 }
 
 .fpsLabel {
@@ -91,6 +116,14 @@
   height: 100%;
   transition: var(--transition-normal);
   border-radius: var(--radius-2xs);
+}
+
+.memoryHealthy {
+  background-color: var(--status-success);
+}
+
+.memoryCritical {
+  background-color: var(--status-error);
 }
 
 /* Expanded Panel */
@@ -200,6 +233,22 @@
 .metricRow span:last-child {
   color: var(--white);
   font-weight: var(--font-medium);
+}
+
+.metricRow .fpsExcellent {
+  color: var(--status-success);
+}
+
+.metricRow .fpsGood {
+  color: var(--yellow-400);
+}
+
+.metricRow .fpsWarning {
+  color: var(--status-warning);
+}
+
+.metricRow .fpsCritical {
+  color: var(--status-error);
 }
 
 /* Performance Actions */

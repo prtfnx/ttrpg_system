@@ -1,3 +1,4 @@
+import clsx from 'clsx';
 import React, { useEffect, useState } from 'react';
 import fpsService, { type FPSMetrics } from '../services/fps.service';
 import type { PerformanceMetrics } from '../services/performance.service';
@@ -54,11 +55,11 @@ export const PerformanceMonitor: React.FC<PerformanceMonitorProps> = ({
 
   if (!isVisible || !metrics) return null;
 
-  const getFPSColor = (fps: number): string => {
-    if (fps >= 55) return 'var(--status-success)';
-    if (fps >= 40) return 'var(--yellow-400)';
-    if (fps >= 25) return 'var(--status-warning)';
-    return 'var(--status-error)';
+  const getFPSClass = (fps: number): string => {
+    if (fps >= 55) return styles.fpsExcellent;
+    if (fps >= 40) return styles.fpsGood;
+    if (fps >= 25) return styles.fpsWarning;
+    return styles.fpsCritical;
   };
 
   const getMemoryUsagePercent = (): number => {
@@ -74,16 +75,14 @@ export const PerformanceMonitor: React.FC<PerformanceMonitorProps> = ({
   return (
     <div className={`${styles.performanceMonitor} ${positionClassNames[position]}`}>
       {/* Compact FPS Display */}
-      <div 
+      <button
+        type="button"
         className={styles.compact}
         onClick={() => setExpanded(!expanded)}
-        style={{ cursor: 'pointer' }}
+        aria-expanded={expanded}
       >
         <div className={styles.fpsDisplay}>
-          <span 
-            className={styles.fpsValue}
-            style={{ color: getFPSColor(fpsMetrics.average) }}
-          >
+          <span className={clsx(styles.fpsValue, getFPSClass(fpsMetrics.average))}>
             {Math.round(fpsMetrics.average)}
           </span>
           <span className={styles.fpsLabel}>FPS</span>
@@ -93,11 +92,11 @@ export const PerformanceMonitor: React.FC<PerformanceMonitorProps> = ({
           <span className={styles.memoryLabel}>Memory</span>
           <div className={styles.memoryBar}>
             <div
-              className={styles.memoryFill}
-              style={{
-                width: `${Math.min(100, getMemoryUsagePercent())}%`,
-                backgroundColor: getMemoryUsagePercent() > 80 ? 'var(--status-error)' : 'var(--status-success)'
-              }}
+              className={clsx(
+                styles.memoryFill,
+                getMemoryUsagePercent() > 80 ? styles.memoryCritical : styles.memoryHealthy
+              )}
+              style={{ width: `${Math.min(100, getMemoryUsagePercent())}%` }}
             />
           </div>
         </div>
@@ -105,7 +104,7 @@ export const PerformanceMonitor: React.FC<PerformanceMonitorProps> = ({
         <div className={styles.frameTimeDisplay}>
           <span>Frame Time: {fpsMetrics.frameTime.toFixed(1)}ms</span>
         </div>
-      </div>
+      </button>
 
       {/* Expanded Performance Panel */}
       {expanded && (
@@ -113,7 +112,7 @@ export const PerformanceMonitor: React.FC<PerformanceMonitorProps> = ({
           <div className={styles.performanceHeader}>
             <h3>Performance Monitor</h3>
             {onToggle && (
-              <button onClick={onToggle} className={styles.closeBtn}>×</button>
+              <button type="button" onClick={onToggle} className={styles.closeBtn} aria-label="Close performance monitor">×</button>
             )}
           </div>
 
@@ -123,25 +122,25 @@ export const PerformanceMonitor: React.FC<PerformanceMonitorProps> = ({
               <div className={styles.metricLabel}>Frame Rate</div>
               <div className={styles.metricRow}>
                 <span>Current:</span>
-                <span style={{ color: getFPSColor(fpsMetrics.current) }}>
+                <span className={getFPSClass(fpsMetrics.current)}>
                   {Math.round(fpsMetrics.current)} FPS
                 </span>
               </div>
               <div className={styles.metricRow}>
                 <span>Average:</span>
-                <span style={{ color: getFPSColor(fpsMetrics.average) }}>
+                <span className={getFPSClass(fpsMetrics.average)}>
                   {Math.round(fpsMetrics.average)} FPS
                 </span>
               </div>
               <div className={styles.metricRow}>
                 <span>Min:</span>
-                <span style={{ color: getFPSColor(fpsMetrics.min) }}>
+                <span className={getFPSClass(fpsMetrics.min)}>
                   {Math.round(fpsMetrics.min)} FPS
                 </span>
               </div>
               <div className={styles.metricRow}>
                 <span>Max:</span>
-                <span style={{ color: getFPSColor(fpsMetrics.max) }}>
+                <span className={getFPSClass(fpsMetrics.max)}>
                   {Math.round(fpsMetrics.max)} FPS
                 </span>
               </div>
@@ -203,18 +202,21 @@ export const PerformanceMonitor: React.FC<PerformanceMonitorProps> = ({
           {/* Performance Actions */}
           <div className={styles.performanceActions}>
             <button 
+              type="button"
               onClick={() => performanceService.clearSpriteCache()}
               className={styles.actionBtn}
             >
               Clear Sprite Cache
             </button>
             <button 
+              type="button"
               onClick={() => performanceService.clearTextureCache()}
               className={styles.actionBtn}
             >
               Clear Texture Cache
             </button>
             <button 
+              type="button"
               onClick={() => {
                 const report = performanceService.generateReport();
                 navigator.clipboard?.writeText(report);

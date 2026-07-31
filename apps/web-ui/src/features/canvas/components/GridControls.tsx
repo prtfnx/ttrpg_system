@@ -2,6 +2,8 @@ import { useGameStore } from '@/store';
 import type { DistanceUnit } from '@/utils/unitConverter';
 import { ProtocolService } from '@lib/api';
 import { useWasmRuntime } from '@lib/wasm/runtime';
+import clsx from 'clsx';
+import styles from './GridControls.module.css';
 
 export function GridControls() {
   const runtime = useWasmRuntime();
@@ -60,56 +62,53 @@ export function GridControls() {
   };
 
   return (
-    <div className="game-panel">
-      <h3 className="panel-title">Grid Controls</h3>
+    <section className={styles.gridControls}>
+      <h3 className={styles.title}>Grid Controls</h3>
       
-      <div className="form-container">
-        <label className="checkbox-label">
+      <div className={styles.formContainer}>
+        <label className={styles.checkboxLabel}>
           <input type="checkbox" checked={gridEnabled} onChange={handleGridToggle} />
           Show Grid
         </label>
-        <label className="checkbox-label">
+        <label className={styles.checkboxLabel}>
           <input type="checkbox" checked={gridSnapping} onChange={handleSnapToggle} />
           Snap to Grid
         </label>
 
-        <div className="form-group">
-          <label className="form-label">Cell size: {gridSize}px</label>
+        <div className={styles.formGroup}>
+          <label className={styles.formLabel} htmlFor="grid-cell-size">Cell size: {gridSize}px</label>
           <input
+            id="grid-cell-size"
             type="range"
             min="20"
             max="200"
             step="5"
             value={gridSize}
             onChange={(e) => handleSizeChange(Number(e.target.value))}
-            className="range-input"
+            className={styles.rangeInput}
           />
         </div>
 
-        <div className="form-group">
-          <label className="form-label">Distance per cell</label>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+        <div className={styles.formGroup}>
+          <label className={styles.formLabel} htmlFor="grid-cell-distance">Distance per cell</label>
+          <div className={styles.distanceRow}>
             <input
+              id="grid-cell-distance"
               type="number"
               min="0.5"
               step="0.5"
               value={cellDistance}
               onChange={(e) => handleDistanceChange(parseFloat(e.target.value) || 5)}
-              style={{ width: '60px' }}
+              className={styles.distanceInput}
             />
-            <div style={{ display: 'flex', gap: '3px' }}>
+            <div className={styles.unitToggle}>
               {(['ft', 'm'] as DistanceUnit[]).map(u => (
                 <button
+                  type="button"
                   key={u}
                   onClick={() => handleUnitChange(u)}
-                  style={{
-                    padding: '2px 8px',
-                    background: distanceUnit === u ? 'var(--button-primary-bg)' : 'var(--button-secondary-bg)',
-                    color: distanceUnit === u ? 'var(--button-primary-text)' : 'var(--button-secondary-text)',
-                    border: 'var(--border-width) solid var(--button-secondary-border)',
-                    borderRadius: '3px',
-                    cursor: 'pointer',
-                  }}
+                  className={clsx(styles.unitButton, distanceUnit === u && styles.active)}
+                  aria-pressed={distanceUnit === u}
                 >
                   {u}
                 </button>
@@ -118,10 +117,10 @@ export function GridControls() {
           </div>
         </div>
 
-        <div style={{ fontSize: '11px', color: 'var(--text-muted)', marginTop: '2px' }}>
+        <div className={styles.summary}>
           {pixelsPerUnit.toFixed(1)} px/{distanceUnit} · 1 cell = {cellDistance} {distanceUnit}
         </div>
       </div>
-    </div>
+    </section>
   );
 }

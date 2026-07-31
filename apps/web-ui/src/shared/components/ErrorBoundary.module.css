@@ -260,7 +260,7 @@
 
 .errorContent .retryButton {
   background: var(--blue-600);
-  color: white;
+  color: var(--button-primary-text);
   border: none;
   border-radius: var(--radius-sm);
   padding: var(--space-sm) var(--space-md);

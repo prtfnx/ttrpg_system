@@ -329,7 +329,7 @@
   left: var(--space-xs);
   width: var(--space-lg);
   height: var(--space-lg);
-  background: white;
+  background: var(--white);
   border-radius: 50%;
   transition: all 0.3s ease;
 }

@@ -28,7 +28,6 @@
 .statusIndicator {
   padding: var(--space-sm) var(--space-md);
   border-radius: var(--radius-sm);
-  color: white;
   font-size: var(--text-xs);
   font-weight: var(--font-medium);
   text-shadow: var(--shadow-text);
@@ -37,16 +36,19 @@
 
 .statusConnected {
   background-color: var(--green-400);
+  color: var(--button-success-text);
   opacity: 0.7;
 }
 
 .statusConnecting {
   background-color: var(--yellow-400);
+  color: var(--button-warning-text);
   opacity: 1;
 }
 
 .statusError {
   background-color: var(--red-500);
+  color: var(--button-danger-text);
   opacity: 1;
 }
 
@@ -108,13 +110,13 @@
 
 .statusDisconnected {
   background-color: var(--gray-500);
+  color: var(--text-on-accent);
   opacity: 1;
 }
 
 .wsStatus {
   padding: var(--space-xs) var(--space-sm);
   border-radius: var(--radius-xs);
-  color: white;
   font-size: var(--text-2xs);
   font-weight: var(--font-medium);
   text-shadow: var(--shadow-text);
@@ -123,11 +125,13 @@
 
 .wsConnected {
   background-color: var(--green-600);
+  color: var(--button-success-text);
   opacity: 0.8;
 }
 
 .wsDisconnected {
   background-color: var(--orange-500);
+  color: var(--button-warning-text);
   opacity: 1;
 }
 
@@ -136,10 +140,10 @@
   top: var(--space-md);
   left: var(--space-md);
   background-color: var(--bg-overlay);
-  color: white;
+  color: var(--white);
   padding: var(--space-sm);
   border-radius: var(--radius-xs);
-  font-family: monospace;
+  font-family: var(--font-mono);
   font-size: var(--text-xs);
   pointer-events: none;
   z-index: 1000;

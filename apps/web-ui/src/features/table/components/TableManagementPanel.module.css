@@ -86,7 +86,7 @@
 }
 
 .newTableBtn.active {
-  background: var(--button-primary-hover, color-mix(in srgb, var(--button-primary-bg) 80%, black));
+  background: var(--button-primary-hover);
 }
 
 /* Bulk Actions Bar */

@@ -652,7 +652,7 @@
 .toggle-btn {
   background: linear-gradient(135deg, var(--indigo-500) 0%, var(--indigo-600) 100%);
   border: none;
-  color: white;
+  color: var(--text-on-accent);
   padding: var(--space-sm) var(--space-md);
   border-radius: var(--radius-md);
   font-size: var(--text-sm);
@@ -719,7 +719,7 @@
   align-items: center;
   justify-content: center;
   gap: var(--space-md);
-  color: white;
+  color: var(--white);
   border-radius: var(--space-lg);
 }
 

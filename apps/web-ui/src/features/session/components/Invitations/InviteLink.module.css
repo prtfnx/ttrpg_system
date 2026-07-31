@@ -26,7 +26,7 @@
 .role {
   padding: var(--space-xs) var(--space-sm);
   background: var(--color-primary);
-  color: white;
+  color: var(--text-on-accent);
   border-radius: var(--radius-sm);
   font-size: var(--text-xs);
   font-weight: var(--font-medium);
@@ -63,7 +63,7 @@
 .copyBtn {
   padding: var(--space-sm) var(--space-md);
   background: var(--color-primary);
-  color: white;
+  color: var(--text-on-accent);
   border: none;
   border-radius: var(--radius-sm);
   font-size: var(--text-sm);
@@ -108,7 +108,7 @@
 
 .revokeBtn:hover:not(:disabled) {
   background: var(--color-danger);
-  color: white;
+  color: var(--text-on-error);
 }
 
 .revokeBtn:disabled {

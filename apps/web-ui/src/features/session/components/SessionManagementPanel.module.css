@@ -97,7 +97,7 @@
 
 .closeBtn:hover {
   background: var(--color-danger-hover);
-  color: white;
+  color: var(--text-on-error);
   transform: scale(1.1);
   box-shadow: var(--shadow-danger);
 }

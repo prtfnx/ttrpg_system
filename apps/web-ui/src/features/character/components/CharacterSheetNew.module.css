@@ -416,7 +416,7 @@
 
 .hitDieBtn {
   background: var(--color-primary);
-  color: white;
+  color: var(--text-on-accent);
   border: none;
   border-radius: var(--radius-sm);
   padding: var(--space-0-25) var(--space-xs);
@@ -519,7 +519,7 @@
 
 .damageBtn {
   background: var(--color-danger);
-  color: white;
+  color: var(--text-on-error);
   border: none;
   border-radius: var(--radius-sm);
   padding: var(--space-xs) var(--space-sm);
@@ -534,7 +534,7 @@
 
 .healBtn {
   background: var(--color-success);
-  color: white;
+  color: var(--text-on-accent);
   border: none;
   border-radius: var(--radius-sm);
   padding: var(--space-xs) var(--space-sm);
@@ -818,7 +818,7 @@
 
 .longRestBtn {
   background: var(--color-primary);
-  color: white;
+  color: var(--text-on-accent);
   border-color: var(--color-primary);
 }
 
@@ -910,7 +910,7 @@
 
 .linkBtn {
   background: var(--color-primary);
-  color: white;
+  color: var(--text-on-accent);
   border: none;
   border-radius: var(--radius-sm);
   padding: var(--space-xs) var(--space-md);
@@ -958,7 +958,7 @@
 
 .createTokenBtn.ready {
   background: var(--color-success);
-  color: white;
+  color: var(--text-on-accent);
   border-color: var(--color-success);
   cursor: pointer;
 }

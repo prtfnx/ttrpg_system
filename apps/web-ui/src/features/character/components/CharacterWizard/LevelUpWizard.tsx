@@ -4,7 +4,9 @@
  */
 
 import { useEffect, useState } from 'react';
+import clsx from 'clsx';
 import { AdvancementSystemService, type AdvancedCharacter, type LevelProgression, type MulticlassRequirements } from '../../services/advancementSystem.service';
+import styles from './LevelUpWizard.module.css';
 
 interface LevelUpWizardProps {
   character: AdvancedCharacter;
@@ -90,13 +92,19 @@ export function LevelUpWizard({ character, onComplete, onCancel }: LevelUpWizard
 
   if (!character) {
     return (
-      <div className="level-up-wizard">
-        <div className="wizard-header">
+      <div className={styles['level-up-wizard']}>
+        <div className={styles['wizard-header']}>
           <h2>Error</h2>
           <p>Character data is missing. Please go back and complete the previous steps.</p>
         </div>
-        <div className="wizard-actions">
-          <button onClick={onCancel} className="btn-secondary">Back</button>
+        <div className={styles['wizard-navigation']}>
+          <button
+            type="button"
+            onClick={onCancel}
+            className={clsx(styles['nav-button'], styles.secondary)}
+          >
+            Back
+          </button>
         </div>
       </div>
     );
@@ -104,13 +112,19 @@ export function LevelUpWizard({ character, onComplete, onCancel }: LevelUpWizard
   
   if (!character.totalLevel || !character.experiencePoints) {
     return (
-      <div className="level-up-wizard">
-        <div className="wizard-header">
+      <div className={styles['level-up-wizard']}>
+        <div className={styles['wizard-header']}>
           <h2>Error</h2>
           <p>Character data is incomplete. Missing level or experience points.</p>
         </div>
-        <div className="wizard-actions">
-          <button onClick={onCancel} className="btn-secondary">Back</button>
+        <div className={styles['wizard-navigation']}>
+          <button
+            type="button"
+            onClick={onCancel}
+            className={clsx(styles['nav-button'], styles.secondary)}
+          >
+            Back
+          </button>
         </div>
       </div>
     );
@@ -118,16 +132,16 @@ export function LevelUpWizard({ character, onComplete, onCancel }: LevelUpWizard
   
   if (!canLevelUp) {
     return (
-      <div className="level-up-wizard">
-        <div className="wizard-header">
+      <div className={styles['level-up-wizard']}>
+        <div className={styles['wizard-header']}>
           <h2>Level Up Not Available</h2>
           <p>Your character does not have enough experience to level up.</p>
         </div>
-        <div className="wizard-navigation">
+        <div className={styles['wizard-navigation']}>
           <button 
             type="button" 
             onClick={onCancel}
-            className="nav-button secondary"
+            className={clsx(styles['nav-button'], styles.secondary)}
           >
             Close
           </button>
@@ -175,11 +189,11 @@ export function LevelUpWizard({ character, onComplete, onCancel }: LevelUpWizard
   };
   
   const renderClassChoice = () => (
-    <div className="level-up-step">
+    <div className={styles['level-up-step']}>
       <h3>Choose Class for Level {nextLevel}</h3>
-      <div className="class-options">
+      <div className={styles['class-options']}>
         {/* Current class option */}
-        <div className="class-option primary">
+        <div className={clsx(styles['class-option'], styles.primary)}>
           <label>
             <input
               type="radio"
@@ -187,7 +201,7 @@ export function LevelUpWizard({ character, onComplete, onCancel }: LevelUpWizard
               checked={choices.class === (character.classLevels[0]?.class || character.class)}
               onChange={(e) => setChoices(prev => ({ ...prev, class: e.target.value }))}
             />
-            <div className="class-info">
+            <div className={styles['class-info']}>
               <strong>Continue as {character.classLevels[0]?.class || character.class}</strong>
               <span>Level {(character.classLevels[0]?.level || 0) + 1}</span>
             </div>
@@ -196,7 +210,7 @@ export function LevelUpWizard({ character, onComplete, onCancel }: LevelUpWizard
         
         {/* Multiclass options */}
         {multiclassOptions.filter(opt => opt.met).map(option => (
-          <div key={option.class} className="class-option multiclass">
+          <div key={option.class} className={clsx(styles['class-option'], styles.multiclass)}>
             <label>
               <input
                 type="radio"
@@ -204,7 +218,7 @@ export function LevelUpWizard({ character, onComplete, onCancel }: LevelUpWizard
                 checked={choices.class === option.class}
                 onChange={(e) => setChoices(prev => ({ ...prev, class: e.target.value }))}
               />
-              <div className="class-info">
+              <div className={styles['class-info']}>
                 <strong>Multiclass into {option.class}</strong>
                 <span>Level 1 {option.class}</span>
               </div>
@@ -214,10 +228,10 @@ export function LevelUpWizard({ character, onComplete, onCancel }: LevelUpWizard
         
         {/* Unavailable multiclass options */}
         {multiclassOptions.filter(opt => !opt.met).map(option => (
-          <div key={option.class} className="class-option disabled">
-            <div className="class-info">
+          <div key={option.class} className={clsx(styles['class-option'], styles.disabled)}>
+            <div className={styles['class-info']}>
               <strong>{option.class}</strong>
-              <span className="requirements-not-met">
+              <span className={styles['requirements-not-met']}>
                 Requires: {option.missing.join(', ')}
               </span>
             </div>
@@ -228,10 +242,10 @@ export function LevelUpWizard({ character, onComplete, onCancel }: LevelUpWizard
   );
   
   const renderHitPointChoice = () => (
-    <div className="level-up-step">
+    <div className={styles['level-up-step']}>
       <h3>Hit Point Increase</h3>
-      <div className="hit-point-options">
-        <div className="hp-method">
+      <div className={styles['hit-point-options']}>
+        <div className={styles['hp-method']}>
           <label>
             <input
               type="radio"
@@ -243,14 +257,14 @@ export function LevelUpWizard({ character, onComplete, onCancel }: LevelUpWizard
                 hitPointIncrease: levelProgression?.hitPointIncrease || 0
               }))}
             />
-            <div className="method-info">
+            <div className={styles['method-info']}>
               <strong>Take Average</strong>
               <span>Gain {levelProgression?.hitPointIncrease} hit points (recommended)</span>
             </div>
           </label>
         </div>
         
-        <div className="hp-method">
+        <div className={styles['hp-method']}>
           <label>
             <input
               type="radio"
@@ -258,7 +272,7 @@ export function LevelUpWizard({ character, onComplete, onCancel }: LevelUpWizard
               checked={choices.hitPointMethod === 'roll'}
               onChange={(e) => setChoices(prev => ({ ...prev, hitPointMethod: e.target.value as 'average' | 'roll' }))}
             />
-            <div className="method-info">
+            <div className={styles['method-info']}>
               <strong>Roll Hit Die</strong>
               <span>Roll for hit points (minimum 1 + CON modifier)</span>
             </div>
@@ -266,10 +280,10 @@ export function LevelUpWizard({ character, onComplete, onCancel }: LevelUpWizard
         </div>
         
         {choices.hitPointMethod === 'roll' && (
-          <div className="hp-roll-section">
+          <div className={styles['hp-roll-section']}>
             <button 
               type="button" 
-              className="roll-button"
+              className={styles['roll-button']}
               onClick={() => {
                 // In a real implementation, this would be a proper dice roll
                 const hitDie = choices.class === 'Wizard' ? 6 : choices.class === 'Fighter' ? 10 : 8;
@@ -282,7 +296,7 @@ export function LevelUpWizard({ character, onComplete, onCancel }: LevelUpWizard
               Roll Hit Die
             </button>
             {choices.hitPointRoll && (
-              <div className="roll-result">
+              <div className={styles['roll-result']}>
                 <span>Rolled: {choices.hitPointRoll}</span>
                 <span>+ {Math.floor((character.constitution - 10) / 2)} (CON)</span>
                 <span>= {choices.hitPointIncrease} HP gained</span>
@@ -292,11 +306,11 @@ export function LevelUpWizard({ character, onComplete, onCancel }: LevelUpWizard
         )}
       </div>
       
-      <div className="hp-preview">
-        <div className="hp-current">
+      <div className={styles['hp-preview']}>
+        <div className={styles['hp-current']}>
           Current HP: {character.hitPoints.maximum}
         </div>
-        <div className="hp-new">
+        <div className={styles['hp-new']}>
           New HP: {character.hitPoints.maximum + choices.hitPointIncrease}
         </div>
       </div>
@@ -307,10 +321,10 @@ export function LevelUpWizard({ character, onComplete, onCancel }: LevelUpWizard
     if (!levelProgression?.asiOrFeatAvailable) return null;
     
     return (
-      <div className="level-up-step">
+      <div className={styles['level-up-step']}>
         <h3>Ability Score Improvement or Feat</h3>
-        <div className="asi-feat-options">
-          <div className="option-type">
+        <div className={styles['asi-feat-options']}>
+          <div className={styles['option-type']}>
             <label>
               <input
                 type="radio"
@@ -318,14 +332,14 @@ export function LevelUpWizard({ character, onComplete, onCancel }: LevelUpWizard
                 checked={choices.asiOrFeat === 'asi'}
                 onChange={(e) => setChoices(prev => ({ ...prev, asiOrFeat: e.target.value as 'asi' | 'feat' }))}
               />
-              <div className="choice-info">
+              <div className={styles['choice-info']}>
                 <strong>Ability Score Improvement</strong>
                 <span>Increase your ability scores by 2 points total</span>
               </div>
             </label>
           </div>
           
-          <div className="option-type">
+          <div className={styles['option-type']}>
             <label>
               <input
                 type="radio"
@@ -333,7 +347,7 @@ export function LevelUpWizard({ character, onComplete, onCancel }: LevelUpWizard
                 checked={choices.asiOrFeat === 'feat'}
                 onChange={(e) => setChoices(prev => ({ ...prev, asiOrFeat: e.target.value as 'asi' | 'feat' }))}
               />
-              <div className="choice-info">
+              <div className={styles['choice-info']}>
                 <strong>Choose a Feat</strong>
                 <span>Gain a special ability or training</span>
               </div>
@@ -342,19 +356,19 @@ export function LevelUpWizard({ character, onComplete, onCancel }: LevelUpWizard
         </div>
         
         {choices.asiOrFeat === 'asi' && (
-          <div className="asi-selection">
+          <div className={styles['asi-selection']}>
             <h4>Allocate 2 points among your abilities:</h4>
-            <div className="ability-increases">
+            <div className={styles['ability-increases']}>
               {['strength', 'dexterity', 'constitution', 'intelligence', 'wisdom', 'charisma'].map(ability => {
                 const currentScore = (character as unknown as Record<string, number>)[ability];
                 const increase = choices.asiChoices?.[ability] || 0;
                 const maxIncrease = Math.min(2, 20 - currentScore);
                 
                 return (
-                  <div key={ability} className="ability-increase">
+                  <div key={ability} className={styles['ability-increase']}>
                     <label>{ability.charAt(0).toUpperCase() + ability.slice(1)}</label>
-                    <div className="ability-control">
-                      <span className="current-score">{currentScore}</span>
+                    <div className={styles['ability-control']}>
+                      <span className={styles['current-score']}>{currentScore}</span>
                       <button
                         type="button"
                         onClick={() => {
@@ -370,7 +384,7 @@ export function LevelUpWizard({ character, onComplete, onCancel }: LevelUpWizard
                       >
                         -
                       </button>
-                      <span className="increase-amount">+{increase}</span>
+                      <span className={styles['increase-amount']}>+{increase}</span>
                       <button
                         type="button"
                         onClick={() => {
@@ -384,20 +398,20 @@ export function LevelUpWizard({ character, onComplete, onCancel }: LevelUpWizard
                       >
                         +
                       </button>
-                      <span className="new-score">→ {currentScore + increase}</span>
+                      <span className={styles['new-score']}>→ {currentScore + increase}</span>
                     </div>
                   </div>
                 );
               })}
             </div>
-            <div className="asi-summary">
+            <div className={styles['asi-summary']}>
               Points remaining: {2 - Object.values(choices.asiChoices || {}).reduce((sum, val) => sum + val, 0)}
             </div>
           </div>
         )}
         
         {choices.asiOrFeat === 'feat' && (
-          <div className="feat-selection">
+          <div className={styles['feat-selection']}>
             <h4>Choose a Feat:</h4>
             <select
               value={choices.featChoice || ''}
@@ -424,15 +438,15 @@ export function LevelUpWizard({ character, onComplete, onCancel }: LevelUpWizard
     if (featuresWithChoices.length === 0) return null;
     
     return (
-      <div className="level-up-step">
+      <div className={styles['level-up-step']}>
         <h3>Feature Choices</h3>
-        <div className="feature-choices">
+        <div className={styles['feature-choices']}>
           {featuresWithChoices.map((feature, index) => (
-            <div key={index} className="feature-choice">
+            <div key={index} className={styles['feature-choice']}>
               <h4>{feature.name}</h4>
               <p>{feature.description}</p>
               {feature.choices?.map((choice, choiceIndex) => (
-                <div key={choiceIndex} className="choice-selection">
+                <div key={choiceIndex} className={styles['choice-selection']}>
                   <label>{choice.name}:</label>
                   <select
                     value={choices.featureChoices[`${feature.name}-${choice.name}`] || ''}
@@ -462,14 +476,14 @@ export function LevelUpWizard({ character, onComplete, onCancel }: LevelUpWizard
     if (!levelProgression?.newSpells) return null;
     
     return (
-      <div className="level-up-step">
+      <div className={styles['level-up-step']}>
         <h3>New Spells</h3>
-        <div className="spell-selection">
+        <div className={styles['spell-selection']}>
           {levelProgression.newSpells.newCantrips > 0 && (
-            <div className="cantrip-selection">
+            <div className={styles['cantrip-selection']}>
               <h4>Choose {levelProgression.newSpells.newCantrips} Cantrips:</h4>
               {/* Cantrip selection would go here - simplified for now */}
-              <div className="spell-grid">
+              <div className={styles['spell-grid']}>
                 {['Mage Hand', 'Prestidigitation', 'Fire Bolt', 'Minor Illusion'].map(cantrip => (
                   <label key={cantrip}>
                     <input
@@ -491,10 +505,10 @@ export function LevelUpWizard({ character, onComplete, onCancel }: LevelUpWizard
           )}
           
           {levelProgression.newSpells.newSpells > 0 && (
-            <div className="spell-selection">
+            <div className={styles['spell-selection']}>
               <h4>Choose {levelProgression.newSpells.newSpells} Spells:</h4>
               {/* Spell selection would go here - simplified for now */}
-              <div className="spell-grid">
+              <div className={styles['spell-grid']}>
                 {['Magic Missile', 'Shield', 'Burning Hands', 'Identify'].map(spell => (
                   <label key={spell}>
                     <input
@@ -520,10 +534,10 @@ export function LevelUpWizard({ character, onComplete, onCancel }: LevelUpWizard
   };
   
   const renderReview = () => (
-    <div className="level-up-step">
+    <div className={styles['level-up-step']}>
       <h3>Review Level Up</h3>
-      <div className="level-up-summary">
-        <div className="summary-section">
+      <div className={styles['level-up-summary']}>
+        <div className={styles['summary-section']}>
           <h4>Level Progression</h4>
           <p>Advancing to Level {nextLevel} {choices.class}</p>
           <p>Hit Points: +{choices.hitPointIncrease} ({character.hitPoints.maximum} → {character.hitPoints.maximum + choices.hitPointIncrease})</p>
@@ -531,7 +545,7 @@ export function LevelUpWizard({ character, onComplete, onCancel }: LevelUpWizard
         </div>
         
         {levelProgression?.asiOrFeatAvailable && (
-          <div className="summary-section">
+          <div className={styles['summary-section']}>
             <h4>Ability Improvement</h4>
             {choices.asiOrFeat === 'asi' && choices.asiChoices && (
               <div>
@@ -552,7 +566,7 @@ export function LevelUpWizard({ character, onComplete, onCancel }: LevelUpWizard
         )}
         
         {levelProgression?.newFeatures && levelProgression.newFeatures.length > 0 && (
-          <div className="summary-section">
+          <div className={styles['summary-section']}>
             <h4>New Features</h4>
             <ul>
               {levelProgression.newFeatures.map((feature, index) => (
@@ -563,7 +577,7 @@ export function LevelUpWizard({ character, onComplete, onCancel }: LevelUpWizard
         )}
         
         {(choices.newSpells.length > 0 || choices.newCantrips.length > 0) && (
-          <div className="summary-section">
+          <div className={styles['summary-section']}>
             <h4>New Spells</h4>
             {choices.newCantrips.length > 0 && (
               <p>Cantrips: {choices.newCantrips.join(', ')}</p>
@@ -578,12 +592,19 @@ export function LevelUpWizard({ character, onComplete, onCancel }: LevelUpWizard
   );
   
   return (
-    <div className="level-up-wizard">
-      <div className="wizard-header">
+    <div className={styles['level-up-wizard']}>
+      <div className={styles['wizard-header']}>
         <h2>Level Up to {nextLevel}</h2>
-        <div className="progress-bar">
+        <div
+          className={styles['progress-bar']}
+          role="progressbar"
+          aria-label="Level up progress"
+          aria-valuemin={1}
+          aria-valuemax={6}
+          aria-valuenow={['class-choice', 'hit-points', 'asi-feat', 'features', 'spells', 'review'].indexOf(currentStep) + 1}
+        >
           <div 
-            className="progress-fill" 
+            className={styles['progress-fill']}
             style={{ 
               width: `${(['class-choice', 'hit-points', 'asi-feat', 'features', 'spells', 'review'].indexOf(currentStep) + 1) / 6 * 100}%` 
             }}
@@ -591,7 +612,7 @@ export function LevelUpWizard({ character, onComplete, onCancel }: LevelUpWizard
         </div>
       </div>
       
-      <div className="wizard-content">
+      <div className={styles['wizard-content']}>
         {currentStep === 'class-choice' && renderClassChoice()}
         {currentStep === 'hit-points' && renderHitPointChoice()}
         {currentStep === 'asi-feat' && renderASIFeatChoice()}
@@ -600,12 +621,12 @@ export function LevelUpWizard({ character, onComplete, onCancel }: LevelUpWizard
         {currentStep === 'review' && renderReview()}
       </div>
       
-      <div className="wizard-navigation">
+      <div className={styles['wizard-navigation']}>
         <button 
           type="button" 
           onClick={() => handleStepNavigation('back')}
           disabled={currentStep === 'class-choice'}
-          className="nav-button secondary"
+          className={clsx(styles['nav-button'], styles.secondary)}
         >
           Back
         </button>
@@ -614,7 +635,7 @@ export function LevelUpWizard({ character, onComplete, onCancel }: LevelUpWizard
           <button
             type="button"
             onClick={handleFinishLevelUp}
-            className="nav-button primary"
+            className={clsx(styles['nav-button'], styles.primary)}
           >
             Complete Level Up
           </button>
@@ -622,7 +643,7 @@ export function LevelUpWizard({ character, onComplete, onCancel }: LevelUpWizard
           <button
             type="button"
             onClick={() => handleStepNavigation('next')}
-            className="nav-button primary"
+            className={clsx(styles['nav-button'], styles.primary)}
           >
             Next
           </button>
@@ -631,7 +652,7 @@ export function LevelUpWizard({ character, onComplete, onCancel }: LevelUpWizard
         <button
           type="button"
           onClick={onCancel}
-          className="nav-button cancel"
+          className={clsx(styles['nav-button'], styles.cancel)}
         >
           Cancel
         </button>

@@ -456,6 +456,10 @@
   composes: wizard-button-primary from './CharacterWizardBase.module.css';
 }
 
+.nav-button.cancel {
+  composes: wizard-button-danger from './CharacterWizardBase.module.css';
+}
+
 .nav-button:disabled {
   opacity: 0.5;
   cursor: not-allowed;

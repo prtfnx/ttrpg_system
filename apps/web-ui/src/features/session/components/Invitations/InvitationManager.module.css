@@ -107,7 +107,7 @@
   width: 100%;
   padding: var(--space-md) var(--space-lg);
   background: var(--color-primary);
-  color: white;
+  color: var(--text-on-accent);
   border: none;
   border-radius: var(--radius-md);
   font-weight: var(--font-semibold);
@@ -145,4 +145,33 @@
   padding: var(--space-2xl);
   text-align: center;
   color: var(--text-secondary);
+}
+
+.error {
+  display: flex;
+  align-items: center;
+  gap: var(--space-xs);
+  margin-bottom: var(--space-md);
+  padding: var(--space-sm) var(--space-md);
+  background: var(--status-error-bg);
+  border: var(--border-width) solid var(--status-error-border);
+  border-radius: var(--radius-sm);
+  color: var(--status-error-text);
+  font-size: var(--text-sm);
+}
+
+.retryBtn {
+  margin-left: auto;
+  padding: var(--space-xs) var(--space-sm);
+  background: var(--button-danger-bg);
+  border: var(--border-width) solid var(--button-danger-border);
+  border-radius: var(--radius-sm);
+  color: var(--button-danger-text);
+  cursor: pointer;
+  font-size: var(--text-xs);
+  font-weight: var(--font-medium);
+}
+
+.retryBtn:hover {
+  background: var(--button-danger-hover);
 }

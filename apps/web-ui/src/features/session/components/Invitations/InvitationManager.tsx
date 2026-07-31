@@ -138,7 +138,7 @@ export const InvitationManager: React.FC<InvitationManagerProps> = ({ sessionCod
             <div className={styles.error}>
               <span>Error loading invitations:</span>
               <span> {error}</span>
-              <button onClick={() => retry?.()}>Retry</button>
+              <button className={styles.retryBtn} onClick={() => retry?.()}>Retry</button>
             </div>
           )}
 

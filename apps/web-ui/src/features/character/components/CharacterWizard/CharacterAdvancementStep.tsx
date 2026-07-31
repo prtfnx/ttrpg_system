@@ -1,10 +1,12 @@
 import { AdvancementSystemService } from '@features/character/services/advancementSystem.service';
 import type { AdvancedCharacter } from '@features/character/services/advancementSystem.service';
+import clsx from 'clsx';
 import React from 'react';
 import { useFormContext } from 'react-hook-form';
 import { LevelUpWizard } from './LevelUpWizard';
 import type { WizardFormData } from './WizardFormData';
 import { XPTracker } from './XPTracker';
+import styles from './CharacterAdvancementStep.module.css';
 
 interface CharacterAdvancementStepProps {
   onNext?: () => void;
@@ -177,34 +179,34 @@ export const CharacterAdvancementStep: React.FC<CharacterAdvancementStepProps> =
   }
 
   return (
-    <div className="character-advancement-step">
-      <div className="advancement-header">
+    <div className={styles['character-advancement-step']}>
+      <div className={styles['advancement-header']}>
         <h2>Character Advancement</h2>
         <p>Manage your character's experience points and level progression.</p>
       </div>
 
-      <div className="advancement-content">
+      <div className={styles['advancement-content']}>
         {/* Current Status */}
-        <div className="advancement-section">
+        <div className={styles['advancement-section']}>
           <h3>Current Status</h3>
-          <div className="status-grid">
-            <div className="status-item">
+          <div className={styles['status-grid']}>
+            <div className={styles['status-item']}>
               <label>Current Level</label>
-              <div className="status-value level">{currentLevel}</div>
+              <div className={clsx(styles['status-value'], styles.level)}>{currentLevel}</div>
             </div>
-            <div className="status-item">
+            <div className={styles['status-item']}>
               <label>Experience Points</label>
-              <div className="status-value xp">{currentXP.toLocaleString()} XP</div>
+              <div className={clsx(styles['status-value'], styles.xp)}>{currentXP.toLocaleString()} XP</div>
             </div>
-            <div className="status-item">
+            <div className={styles['status-item']}>
               <label>Next Level</label>
-              <div className="status-value next-level">
+              <div className={clsx(styles['status-value'], styles['next-level'])}>
                 {currentLevel < 20 ? `Level ${nextLevel}` : 'Max Level'}
               </div>
             </div>
-            <div className="status-item">
+            <div className={styles['status-item']}>
               <label>XP Needed</label>
-              <div className="status-value xp-needed">
+              <div className={clsx(styles['status-value'], styles['xp-needed'])}>
                 {currentLevel < 20 ? `${xpNeeded.toLocaleString()} XP` : 'N/A'}
               </div>
             </div>
@@ -212,7 +214,7 @@ export const CharacterAdvancementStep: React.FC<CharacterAdvancementStepProps> =
         </div>
 
         {/* XP Management */}
-        <div className="advancement-section">
+        <div className={styles['advancement-section']}>
           <XPTracker
             currentXP={currentXP}
             currentLevel={currentLevel}
@@ -221,12 +223,12 @@ export const CharacterAdvancementStep: React.FC<CharacterAdvancementStepProps> =
         </div>
 
         {/* Level Up Actions */}
-        <div className="advancement-section">
+        <div className={styles['advancement-section']}>
           <h3>Level Up</h3>
-          <div className="level-up-controls">
+          <div className={styles['level-up-controls']}>
             {canLevelUp || targetLevel ? (
-              <div className="level-up-ready">
-                <div className="level-up-notice">
+              <div className={styles['level-up-ready']}>
+                <div className={styles['level-up-notice']}>
                   <h4>Level Up Available!</h4>
                   <p>
                     You have enough experience to advance to level {targetLevel || nextLevel}!
@@ -235,13 +237,13 @@ export const CharacterAdvancementStep: React.FC<CharacterAdvancementStepProps> =
                 <button
                   type="button"
                   onClick={handleLevelUp}
-                  className="level-up-btn primary"
+                  className={clsx(styles['level-up-btn'], styles.primary)}
                 >
                   Level Up to {targetLevel || nextLevel}
                 </button>
               </div>
             ) : (
-              <div className="level-up-waiting">
+              <div className={styles['level-up-waiting']}>
                 <p>
                   {currentLevel < 20
                     ? `You need ${xpNeeded.toLocaleString()} more XP to reach level ${nextLevel}.`
@@ -252,7 +254,7 @@ export const CharacterAdvancementStep: React.FC<CharacterAdvancementStepProps> =
                   <button
                     type="button"
                     onClick={handleManualLevelUp}
-                    className="level-up-btn secondary"
+                    className={clsx(styles['level-up-btn'], styles.secondary)}
                   >
                     Manual Level Up
                   </button>
@@ -264,17 +266,17 @@ export const CharacterAdvancementStep: React.FC<CharacterAdvancementStepProps> =
 
         {/* Level History */}
         {data.advancement?.levelHistory && data.advancement.levelHistory.length > 0 && (
-          <div className="advancement-section">
+          <div className={styles['advancement-section']}>
             <h3>Level History</h3>
-            <div className="level-history">
+            <div className={styles['level-history']}>
               {data.advancement.levelHistory.map((entry, index: number) => (
-                <div key={index} className="history-entry">
-                  <div className="history-level">Level {entry.level}</div>
-                  <div className="history-class">
+                <div key={index} className={styles['history-entry']}>
+                  <div className={styles['history-level']}>Level {entry.level}</div>
+                  <div className={styles['history-class']}>
                     {entry.className}
                     {entry.subclassName && ` (${entry.subclassName})`}
                   </div>
-                  <div className="history-details">
+                  <div className={styles['history-details']}>
                     <span>HP: +{entry.hitPointIncrease}</span>
                     {entry.abilityScoreImprovements && (
                       <span>ASI: {entry.abilityScoreImprovements.map((asi) => `${asi.ability} +${asi.increase}`).join(', ')}</span>
@@ -289,20 +291,20 @@ export const CharacterAdvancementStep: React.FC<CharacterAdvancementStepProps> =
 
         {/* Multiclassing Info */}
         {data.classes && data.classes.length > 1 && (
-          <div className="advancement-section">
+          <div className={styles['advancement-section']}>
             <h3>Multiclassing</h3>
-            <div className="multiclass-info">
+            <div className={styles['multiclass-info']}>
               <p>Your character is multiclassed across the following classes:</p>
-              <div className="multiclass-breakdown">
+              <div className={styles['multiclass-breakdown']}>
                 {data.classes.map((cls, index: number) => (
-                  <div key={index} className="multiclass-entry">
+                  <div key={index} className={styles['multiclass-entry']}>
                     <strong>{cls.name}</strong>
                     <span>Level {cls.level}</span>
                     {cls.subclass && <span>({cls.subclass})</span>}
                   </div>
                 ))}
               </div>
-              <div className="total-level">
+              <div className={styles['total-level']}>
                 <strong>Total Character Level: {data.classes.reduce((sum: number, cls) => sum + cls.level, 0)}</strong>
               </div>
             </div>

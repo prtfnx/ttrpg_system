@@ -54,7 +54,7 @@ export const PlayerList: React.FC<PlayerListProps> = ({
     <div className={styles.container}>
       <div className={styles.list}>
         {grouped.map(({ role, list }) => (
-          <div key={role}>
+          <section className={styles.group} key={role}>
             <h4 className={styles.groupHeader}>{ROLE_LABELS[role] ?? role} ({list.length})</h4>
             {list.map(player => (
               <div key={player.id} className={styles.player} data-testid="player-item">
@@ -85,13 +85,14 @@ export const PlayerList: React.FC<PlayerListProps> = ({
                     onClick={() => handleKick(player)}
                     disabled={changing}
                     title="Kick player"
+                    aria-label={`Kick ${player.username}`}
                   >
-                    x
+                    ×
                   </button>
                 )}
               </div>
             ))}
-          </div>
+          </section>
         ))}
       </div>
     </div>

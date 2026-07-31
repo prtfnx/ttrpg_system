@@ -496,7 +496,7 @@ const FeatSelectionStep: React.FC<FeatSelectionStepProps> = ({ onNext, onBack })
             </div>
           )}
 
-          <div className={styles.allFeats}>
+          <section>
             <h3 className={styles.sectionTitle}>All Available Feats ({filteredFeats.length})</h3>
             <div className={styles.featsGrid}>
               {filteredFeats.map((feat, index) => (
@@ -510,7 +510,7 @@ const FeatSelectionStep: React.FC<FeatSelectionStepProps> = ({ onNext, onBack })
                 />
               ))}
             </div>
-          </div>
+          </section>
         </div>
       )}
 

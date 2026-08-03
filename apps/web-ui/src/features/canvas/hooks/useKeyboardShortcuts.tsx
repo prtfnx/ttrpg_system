@@ -3,9 +3,11 @@
  * Provides UI for displaying available shortcuts and their status
  */
 import { inputManager } from '@features/canvas/services';
-import React, { useEffect, useState } from 'react';
+import clsx from 'clsx';
+import React, { useEffect, useId, useState } from 'react';
 
 import type { KeyboardShortcut } from '@features/canvas/services';
+import styles from './useKeyboardShortcuts.module.css';
 
 export interface ShortcutsDisplayProps {
   visible?: boolean;
@@ -78,6 +80,7 @@ export const KeyboardShortcutsDisplay: React.FC<ShortcutsDisplayProps> = ({
   className = '' 
 }) => {
   const { getEnabledShortcuts, getDisabledShortcuts } = useKeyboardShortcuts();
+  const titleId = useId();
 
   if (!visible) return null;
 
@@ -92,79 +95,32 @@ export const KeyboardShortcutsDisplay: React.FC<ShortcutsDisplayProps> = ({
   };
 
   return (
-    <div className={`keyboard-shortcuts ${className}`}>
-      <h3>Keyboard Shortcuts</h3>
+    <aside className={clsx(styles.keyboardShortcuts, className)} aria-labelledby={titleId}>
+      <h3 id={titleId}>Keyboard Shortcuts</h3>
       
-      <div className="shortcuts-section">
+      <section className={styles.shortcutsSection}>
         <h4>Available</h4>
-        {getEnabledShortcuts().map(shortcut => (
-          <div key={shortcut.action} className="shortcut-item enabled">
-            <kbd>{formatShortcut(shortcut)}</kbd>
-            <span>{shortcut.description}</span>
-          </div>
-        ))}
-      </div>
+        <ul className={styles.shortcutsList}>
+          {getEnabledShortcuts().map(shortcut => (
+            <li key={shortcut.action} className={styles.shortcutItem}>
+              <kbd>{formatShortcut(shortcut)}</kbd>
+              <span>{shortcut.description}</span>
+            </li>
+          ))}
+        </ul>
+      </section>
 
-      <div className="shortcuts-section">
+      <section className={styles.shortcutsSection}>
         <h4>Disabled</h4>
-        {getDisabledShortcuts().map(shortcut => (
-          <div key={shortcut.action} className="shortcut-item disabled">
-            <kbd>{formatShortcut(shortcut)}</kbd>
-            <span>{shortcut.description}</span>
-          </div>
-        ))}
-      </div>
-      
-      <style>{`
-        .keyboard-shortcuts {
-          position: absolute;
-          top: 10px;
-          right: 10px;
-          background: var(--overlay-dark-medium);
-          color: var(--text-on-overlay);
-          padding: 10px;
-          border-radius: 5px;
-          font-size: 12px;
-          max-width: 300px;
-          z-index: 1000;
-        }
-        
-        .shortcuts-section {
-          margin-bottom: 15px;
-        }
-        
-        .shortcuts-section h4 {
-          margin: 0 0 5px 0;
-          font-size: 14px;
-          color: var(--text-secondary);
-        }
-        
-        .shortcut-item {
-          display: flex;
-          justify-content: space-between;
-          padding: 2px 0;
-          align-items: center;
-        }
-        
-        .shortcut-item.disabled {
-          opacity: 0.5;
-        }
-        
-        .shortcut-item kbd {
-          background: var(--bg-elevated);
-          padding: 2px 6px;
-          border-radius: 3px;
-          font-family: monospace;
-          font-size: 11px;
-          min-width: 60px;
-          text-align: center;
-        }
-        
-        .shortcut-item span {
-          margin-left: 10px;
-          flex: 1;
-        }
-      `}</style>
-    </div>
+        <ul className={styles.shortcutsList}>
+          {getDisabledShortcuts().map(shortcut => (
+            <li key={shortcut.action} className={clsx(styles.shortcutItem, styles.disabled)}>
+              <kbd>{formatShortcut(shortcut)}</kbd>
+              <span>{shortcut.description}</span>
+            </li>
+          ))}
+        </ul>
+      </section>
+    </aside>
   );
 };

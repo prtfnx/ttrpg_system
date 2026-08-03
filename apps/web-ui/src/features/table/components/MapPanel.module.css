@@ -1,0 +1,135 @@
+.mapPanel {
+  composes: panel-container from '@shared/styles/PanelBase.module.css';
+  width: 100%;
+  max-width: none;
+  max-height: none;
+}
+
+.panelHeader {
+  composes: panel-header from '@shared/styles/PanelBase.module.css';
+}
+
+.panelContent {
+  composes: panel-content from '@shared/styles/PanelBase.module.css';
+  max-height: none;
+}
+
+.settingsSection {
+  composes: settings-section from '@shared/styles/PanelBase.module.css';
+}
+
+.settingsSection:first-child {
+  margin-top: 0;
+}
+
+.settingsSection:last-child {
+  margin-bottom: 0;
+}
+
+.settingsSection h4 {
+  margin: 0 0 var(--space-md);
+  color: var(--text-primary);
+  font-size: var(--text-sm);
+  font-weight: var(--font-semibold);
+  letter-spacing: var(--tracking-wide);
+  text-transform: uppercase;
+}
+
+.settingRow {
+  display: grid;
+  grid-template-columns: minmax(var(--size-20), 1fr) minmax(0, 2fr) auto;
+  gap: var(--space-sm);
+  align-items: center;
+  margin-bottom: var(--space-md);
+}
+
+.settingRow:last-child {
+  margin-bottom: 0;
+}
+
+.settingRow > label {
+  color: var(--text-secondary);
+  font-size: var(--text-sm);
+  font-weight: var(--font-medium);
+}
+
+.numberInput {
+  composes: control-input from '@shared/styles/PanelBase.module.css';
+}
+
+.selectInput {
+  composes: control-select from '@shared/styles/PanelBase.module.css';
+}
+
+.numberInput,
+.selectInput {
+  min-width: 0;
+}
+
+.colorInput {
+  width: var(--size-12);
+  height: var(--size-8);
+  padding: var(--space-0-5);
+  background: var(--bg-elevated);
+  border: var(--border-width) solid var(--border-primary);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+}
+
+.rangeInput {
+  composes: control-slider from '@shared/styles/PanelBase.module.css';
+  min-width: 0;
+}
+
+.checkboxLabel {
+  display: inline-flex;
+  grid-column: 1 / -1;
+  gap: var(--space-sm);
+  align-items: center;
+  cursor: pointer;
+}
+
+.presetButtons,
+.buttonRow {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-sm);
+}
+
+.presetButton {
+  composes: panel-button secondary from '@shared/styles/PanelBase.module.css';
+}
+
+.actionButton {
+  composes: panel-button secondary from '@shared/styles/PanelBase.module.css';
+}
+
+.dangerButton {
+  composes: panel-button danger from '@shared/styles/PanelBase.module.css';
+}
+
+@media (max-width: 36rem) {
+  .panelContent {
+    padding: var(--space-md);
+  }
+
+  .settingRow {
+    grid-template-columns: 1fr auto;
+  }
+
+  .settingRow > label:not(.checkboxLabel) {
+    grid-column: 1 / -1;
+  }
+
+  .numberInput,
+  .selectInput,
+  .rangeInput {
+    grid-column: 1;
+  }
+
+  .presetButton,
+  .actionButton,
+  .dangerButton {
+    flex: 1 1 var(--size-25);
+  }
+}

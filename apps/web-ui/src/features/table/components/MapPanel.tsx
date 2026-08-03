@@ -1,7 +1,9 @@
 import { useRenderEngine } from '@features/canvas';
 import { ProtocolService } from '@lib/api';
+import clsx from 'clsx';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { useGameStore } from '../../../store';
+import styles from './MapPanel.module.css';
 
 interface GridSettings {
   enabled: boolean;
@@ -139,35 +141,41 @@ export const MapPanel: React.FC<MapPanelProps> = ({ className, style, id, ...res
   }, [engine]);
 
   return (
-    <div className={`map-panel ${className || ''}`} style={style} id={id} {...rest}>
-      <div className="panel-header">
+    <div className={clsx(styles.mapPanel, className)} style={style} id={id} {...rest}>
+      <div className={styles.panelHeader}>
         <h3>Map & Grid</h3>
       </div>
 
-      <div className="panel-content">
-        <div className="settings-section">
+      <div className={styles.panelContent}>
+        <div className={styles.settingsSection}>
           <h4>Map Settings</h4>
-          <div className="setting-row">
-            <label>Width:</label>
+          <div className={styles.settingRow}>
+            <label htmlFor="map-width">Width:</label>
             <input
+              id="map-width"
+              className={styles.numberInput}
               type="number" min="500" max="10000" step="100"
               value={settings.width}
               onChange={e => updateSettings({ ...settings, width: parseInt(e.target.value) || 2000 })}
             />
             <span>px</span>
           </div>
-          <div className="setting-row">
-            <label>Height:</label>
+          <div className={styles.settingRow}>
+            <label htmlFor="map-height">Height:</label>
             <input
+              id="map-height"
+              className={styles.numberInput}
               type="number" min="500" max="10000" step="100"
               value={settings.height}
               onChange={e => updateSettings({ ...settings, height: parseInt(e.target.value) || 2000 })}
             />
             <span>px</span>
           </div>
-          <div className="setting-row">
-            <label>Background:</label>
+          <div className={styles.settingRow}>
+            <label htmlFor="map-background">Background:</label>
             <input
+              id="map-background"
+              className={styles.colorInput}
               type="color"
               value={settings.backgroundColor}
               onChange={e => updateSettings({ ...settings, backgroundColor: e.target.value })}
@@ -175,10 +183,10 @@ export const MapPanel: React.FC<MapPanelProps> = ({ className, style, id, ...res
           </div>
         </div>
 
-        <div className="settings-section">
+        <div className={styles.settingsSection}>
           <h4>Grid Settings</h4>
-          <div className="setting-row">
-            <label>
+          <div className={styles.settingRow}>
+            <label className={styles.checkboxLabel}>
               <input
                 type="checkbox"
                 checked={settings.gridSettings.enabled}
@@ -187,9 +195,11 @@ export const MapPanel: React.FC<MapPanelProps> = ({ className, style, id, ...res
               Enable Grid
             </label>
           </div>
-          <div className="setting-row">
-            <label>Grid Size:</label>
+          <div className={styles.settingRow}>
+            <label htmlFor="grid-size">Grid Size:</label>
             <input
+              id="grid-size"
+              className={styles.numberInput}
               type="number" min="10" max="200"
               value={settings.gridSettings.size}
               onChange={e => updateGrid({ size: parseInt(e.target.value) || 50 })}
@@ -197,9 +207,11 @@ export const MapPanel: React.FC<MapPanelProps> = ({ className, style, id, ...res
             />
             <span>px</span>
           </div>
-          <div className="setting-row">
-            <label>Grid Type:</label>
+          <div className={styles.settingRow}>
+            <label htmlFor="grid-type">Grid Type:</label>
             <select
+              id="grid-type"
+              className={styles.selectInput}
               value={settings.gridSettings.type}
               onChange={e => updateGrid({ type: e.target.value as 'square' | 'hex' })}
               disabled={!settings.gridSettings.enabled}
@@ -208,18 +220,22 @@ export const MapPanel: React.FC<MapPanelProps> = ({ className, style, id, ...res
               <option value="hex">Hexagonal</option>
             </select>
           </div>
-          <div className="setting-row">
-            <label>Grid Color:</label>
+          <div className={styles.settingRow}>
+            <label htmlFor="grid-color">Grid Color:</label>
             <input
+              id="grid-color"
+              className={styles.colorInput}
               type="color"
               value={settings.gridSettings.color}
               onChange={e => updateGrid({ color: e.target.value })}
               disabled={!settings.gridSettings.enabled}
             />
           </div>
-          <div className="setting-row">
-            <label>Opacity:</label>
+          <div className={styles.settingRow}>
+            <label htmlFor="grid-opacity">Opacity:</label>
             <input
+              id="grid-opacity"
+              className={styles.rangeInput}
               type="range" min="0" max="1" step="0.05"
               value={settings.gridSettings.opacity}
               onChange={e => updateGrid({ opacity: parseFloat(e.target.value) })}
@@ -227,8 +243,8 @@ export const MapPanel: React.FC<MapPanelProps> = ({ className, style, id, ...res
             />
             <span>{Math.round(settings.gridSettings.opacity * 100)}%</span>
           </div>
-          <div className="setting-row">
-            <label>
+          <div className={styles.settingRow}>
+            <label className={styles.checkboxLabel}>
               <input
                 type="checkbox"
                 checked={settings.gridSettings.snapToGrid}
@@ -240,13 +256,14 @@ export const MapPanel: React.FC<MapPanelProps> = ({ className, style, id, ...res
           </div>
         </div>
 
-        <div className="settings-section">
+        <div className={styles.settingsSection}>
           <h4>Grid Presets</h4>
-          <div className="preset-buttons">
+          <div className={styles.presetButtons}>
             {gridPresets.map(preset => (
               <button
                 key={preset.name}
-                className="preset-btn"
+                type="button"
+                className={styles.presetButton}
                 onClick={() => updateGrid({ size: preset.size, type: preset.type })}
               >
                 {preset.name}
@@ -255,20 +272,20 @@ export const MapPanel: React.FC<MapPanelProps> = ({ className, style, id, ...res
           </div>
         </div>
 
-        <div className="settings-section">
+        <div className={styles.settingsSection}>
           <h4>Camera</h4>
-          <div className="button-row">
-            <button className="action-btn" onClick={resetCamera}>Reset</button>
-            <button className="action-btn" onClick={centerOnMap}>Center</button>
-            <button className="action-btn" onClick={fitToScreen}>Fit Screen</button>
+          <div className={styles.buttonRow}>
+            <button type="button" className={styles.actionButton} onClick={resetCamera}>Reset</button>
+            <button type="button" className={styles.actionButton} onClick={centerOnMap}>Center</button>
+            <button type="button" className={styles.actionButton} onClick={fitToScreen}>Fit Screen</button>
           </div>
         </div>
 
-        <div className="settings-section">
+        <div className={styles.settingsSection}>
           <h4>Actions</h4>
-          <div className="button-row">
-            <button className="action-btn" onClick={handleExportMap}>Export PNG</button>
-            <button className="action-btn danger-btn" onClick={clearMap}>Clear Map</button>
+          <div className={styles.buttonRow}>
+            <button type="button" className={styles.actionButton} onClick={handleExportMap}>Export PNG</button>
+            <button type="button" className={styles.dangerButton} onClick={clearMap}>Clear Map</button>
           </div>
         </div>
       </div>

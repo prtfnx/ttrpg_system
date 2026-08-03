@@ -147,7 +147,7 @@ describe('TemplateSelectionStep - Template Type Selection', () => {
     );
 
     const scratchButton = screen.getByText('Start from Scratch').closest('button');
-    expect(scratchButton).toHaveClass('active');
+    expect(scratchButton).toHaveAttribute('aria-pressed', 'true');
   });
 
   it('should switch to PC mode when PC button is clicked', async () => {
@@ -161,7 +161,7 @@ describe('TemplateSelectionStep - Template Type Selection', () => {
     const pcModeButton = screen.getByRole('button', { name: /player character.*full character sheet/i });
     await user.click(pcModeButton);
 
-    expect(pcModeButton).toHaveClass('active');
+    expect(pcModeButton).toHaveAttribute('aria-pressed', 'true');
     expect(screen.getByText('Player Character Templates')).toBeInTheDocument();
   });
 
@@ -176,7 +176,7 @@ describe('TemplateSelectionStep - Template Type Selection', () => {
     const npcModeButton = screen.getByRole('button', { name: /npc\/monster.*simplified stat/i });
     await user.click(npcModeButton);
 
-    expect(npcModeButton).toHaveClass('active');
+    expect(npcModeButton).toHaveAttribute('aria-pressed', 'true');
     expect(screen.getByText('NPC/Monster Templates')).toBeInTheDocument();
   });
 
@@ -195,11 +195,11 @@ describe('TemplateSelectionStep - Template Type Selection', () => {
     // Now select the Player Character template card
     const templateCards = screen.getAllByRole('button');
     const pcTemplateCard = templateCards.find(btn => 
-      btn.classList.contains('template-card') && btn.textContent?.includes('Player Character')
+      btn.hasAttribute('data-template-card') && btn.textContent?.includes('Player Character')
     );
     await user.click(pcTemplateCard!);
 
-    expect(pcTemplateCard).toHaveClass('selected');
+    expect(pcTemplateCard).toHaveAttribute('aria-pressed', 'true');
 
     // Switch to NPC
     const npcButton = screen.getByText('NPC/Monster').closest('button');
@@ -228,7 +228,7 @@ describe('TemplateSelectionStep - PC Templates', () => {
     await waitFor(() => {
       // Check for template cards (not the mode button)
       const templateCards = screen.getAllByRole('button').filter(btn => 
-        btn.classList.contains('template-card')
+        btn.hasAttribute('data-template-card')
       );
       expect(templateCards.length).toBeGreaterThanOrEqual(2);
       expect(screen.getByText('Wizard (Spellcaster)')).toBeInTheDocument();
@@ -247,7 +247,7 @@ describe('TemplateSelectionStep - PC Templates', () => {
     await user.click(pcModeButton);
 
     await waitFor(() => {
-      const icons = document.querySelectorAll('.template-icon');
+      const icons = document.querySelectorAll('[data-template-icon]');
       expect(icons.length).toBeGreaterThan(0); // Template cards with icons are rendered
       expect(screen.getByText('wizard')).toBeInTheDocument(); // Wizard icon text
       expect(screen.getByText(/Full character sheet for player characters/i)).toBeInTheDocument();
@@ -268,13 +268,13 @@ describe('TemplateSelectionStep - PC Templates', () => {
 
     // Find and click the Player Character template card
     const templateCards = screen.getAllByRole('button').filter(btn => 
-      btn.classList.contains('template-card')
+      btn.hasAttribute('data-template-card')
     );
     const pcCard = templateCards.find(btn => btn.textContent?.includes('Player Character'));
     await user.click(pcCard!);
 
     await waitFor(() => {
-      expect(pcCard).toHaveClass('selected');
+      expect(pcCard).toHaveAttribute('aria-pressed', 'true');
     });
   });
 
@@ -295,7 +295,7 @@ describe('TemplateSelectionStep - PC Templates', () => {
     await waitFor(() => {
       expect(screen.getByText(/Template selected:/i)).toBeInTheDocument();
       // Multiple "Wizard" texts exist (card name and summary), so be more specific
-      const summaryBox = document.querySelector('.summary-box.success');
+      const summaryBox = document.querySelector('[data-summary-tone="success"]');
       expect(summaryBox?.textContent).toContain('Wizard');
     });
   });
@@ -352,13 +352,13 @@ describe('TemplateSelectionStep - NPC Templates', () => {
     await user.click(npcModeButton);
 
     const templateCards = screen.getAllByRole('button').filter(btn => 
-      btn.classList.contains('template-card')
+      btn.hasAttribute('data-template-card')
     );
     const npcCard = templateCards.find(btn => btn.textContent?.includes('NPC / Monster'));
     await user.click(npcCard!);
 
     await waitFor(() => {
-      expect(npcCard).toHaveClass('selected');
+      expect(npcCard).toHaveAttribute('aria-pressed', 'true');
     });
   });
 
@@ -379,7 +379,7 @@ describe('TemplateSelectionStep - NPC Templates', () => {
     await waitFor(() => {
       expect(screen.getByText(/Template selected:/i)).toBeInTheDocument();
       // Check that the summary contains the template name
-      const summaryBox = document.querySelector('.summary-box.success');
+      const summaryBox = document.querySelector('[data-summary-tone="success"]');
       expect(summaryBox?.textContent).toContain('Guard');
     });
   });
@@ -394,7 +394,7 @@ describe('TemplateSelectionStep - Scratch Mode', () => {
     );
 
     // Multiple "Starting from scratch" texts exist (info box and summary), be more specific
-    const infoBox = document.querySelector('.template-scratch-info .info-box');
+    const infoBox = document.querySelector('[data-scratch-info]');
     expect(infoBox?.textContent).toContain('Starting from scratch');
     expect(screen.getByText(/guide you through each step/i)).toBeInTheDocument();
   });
@@ -416,10 +416,7 @@ describe('TemplateSelectionStep - Scratch Mode', () => {
       </TestWrapper>
     );
 
-    // Should not find any template cards (buttons with template-card class)
-    const allButtons = screen.getAllByRole('button');
-    const templateCards = allButtons.filter(btn => btn.classList.contains('template-card'));
-    expect(templateCards.length).toBe(0);
+    expect(document.querySelectorAll('[data-template-card]')).toHaveLength(0);
   });
 });
 
@@ -451,14 +448,14 @@ describe('TemplateSelectionStep - Template Data Application', () => {
     await user.click(pcModeButton);
 
     const templateCards = screen.getAllByRole('button').filter(btn => 
-      btn.classList.contains('template-card')
+      btn.hasAttribute('data-template-card')
     );
     const pcCard = templateCards.find(btn => btn.textContent?.includes('Player Character'));
     await user.click(pcCard!);
 
     // Template data should be applied (checked via form state in real implementation)
     await waitFor(() => {
-      expect(pcCard).toHaveClass('selected');
+      expect(pcCard).toHaveAttribute('aria-pressed', 'true');
     });
   });
 
@@ -475,13 +472,13 @@ describe('TemplateSelectionStep - Template Data Application', () => {
     await user.click(npcModeButton);
 
     const templateCards = screen.getAllByRole('button').filter(btn => 
-      btn.classList.contains('template-card')
+      btn.hasAttribute('data-template-card')
     );
     const npcCard = templateCards.find(btn => btn.textContent?.includes('NPC / Monster'));
     await user.click(npcCard!);
 
     await waitFor(() => {
-      expect(npcCard).toHaveClass('selected');
+      expect(npcCard).toHaveAttribute('aria-pressed', 'true');
     });
   });
 });
@@ -531,21 +528,21 @@ describe('TemplateSelectionStep - Visual Feedback', () => {
     await user.click(pcModeButton);
 
     const templateCards = screen.getAllByRole('button').filter(btn => 
-      btn.classList.contains('template-card')
+      btn.hasAttribute('data-template-card')
     );
     
     // Select Player Character template
     const pcCard = templateCards.find(btn => btn.textContent?.includes('Player Character'));
     await user.click(pcCard!);
-    expect(pcCard).toHaveClass('selected');
+    expect(pcCard).toHaveAttribute('aria-pressed', 'true');
 
     // Select Wizard template
     const wizardCard = templateCards.find(btn => btn.textContent?.includes('Wizard (Spellcaster)'));
     await user.click(wizardCard!);
 
     await waitFor(() => {
-      expect(wizardCard).toHaveClass('selected');
-      expect(pcCard).not.toHaveClass('selected');
+      expect(wizardCard).toHaveAttribute('aria-pressed', 'true');
+      expect(pcCard).toHaveAttribute('aria-pressed', 'false');
     });
   });
 

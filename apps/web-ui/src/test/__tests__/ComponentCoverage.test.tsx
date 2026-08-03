@@ -107,7 +107,7 @@ vi.mock('../../hooks/useAssetManager', () => ({
  */
 
 import '@testing-library/jest-dom';
-import { screen, waitFor } from '@testing-library/react';
+import { screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, test, vi } from 'vitest';
 
@@ -119,7 +119,6 @@ import { CanvasRenderer } from '@features/canvas/components/GameCanvas/CanvasRen
 import { ChatPanel } from '@features/chat';
 import { FogPanel } from '@features/fog';
 import { LightingPanel } from '@features/lighting';
-import { NetworkPanel } from '@features/network';
 import { PaintPanel } from '@features/painting';
 
 // Mock external dependencies
@@ -369,50 +368,6 @@ describe('FogPanel Component', () => {
   });
 });
 
-// Test NetworkPanel Component
-describe('NetworkPanel Component', () => {
-  test('renders network status information', () => {
-    render(<NetworkPanel />);
-    
-    // Should show network-related information
-    const networkElements = screen.queryAllByText(/network|connection|status|connect|disconnect|server|client/i);
-    expect(networkElements.length).toBeGreaterThan(0);
-  });  test('displays connection controls', () => {
-    render(<NetworkPanel />);
-    
-    // Should have connection buttons
-    const connectionButtons = screen.queryAllByRole('button', { 
-      name: /connect|disconnect|host|join/i 
-    });
-    
-    expect(connectionButtons.length >= 0).toBe(true);
-  });
-
-  test('shows network statistics when connected', async () => {
-    render(<NetworkPanel />);
-    
-    // Look for network stats
-    await waitFor(() => {
-      const statsElements = screen.queryAllByText(/ping|latency|ms|players|connected/i);
-      // Stats might not be visible initially
-      expect(statsElements.length >= 0).toBe(true);
-    });
-  });
-
-  test('handles connection status changes', async () => {
-    const user = userEvent.setup();
-    render(<NetworkPanel />);
-    
-    const connectButtons = screen.queryAllByRole('button', { name: /connect/i });
-    
-    if (connectButtons.length > 0) {
-      await user.click(connectButtons[0]);
-      // Should handle connection attempts
-      expect(true).toBe(true);
-    }
-  });
-});
-
 // Test GameCanvas Component
 describe('GameCanvas Component', () => {
   test('renders canvas element with proper accessibility', () => {
@@ -612,7 +567,6 @@ describe('Component Integration', () => {
     expect(() => {
       renderWithProviders(
         <div>
-          <NetworkPanel />
           <ChatPanel />
           <PerformanceMonitor isVisible={true} />
         </div>
@@ -621,7 +575,7 @@ describe('Component Integration', () => {
   });
 
   test('components handle rapid mounting/unmounting', () => {
-    const components = [AssetPanel, PaintPanel, FogPanel, NetworkPanel];
+    const components = [AssetPanel, PaintPanel, FogPanel];
     
     components.forEach(Component => {
       expect(() => {
@@ -637,7 +591,6 @@ describe('Component Integration', () => {
       { Component: AssetPanel, props: {} },
       { Component: PaintPanel, props: { isVisible: true } },
       { Component: FogPanel, props: {} },
-      { Component: NetworkPanel, props: {} },
     ];
     
     components.forEach(({ Component, props }) => {

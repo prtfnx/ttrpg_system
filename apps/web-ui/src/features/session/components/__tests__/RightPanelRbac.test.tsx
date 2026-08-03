@@ -48,7 +48,6 @@ vi.mock('@features/measurement', () => ({
 vi.mock('@features/table', () => ({
   TableManagementPanel: () => <div>Table Panel</div>,
   TablePanel: () => null,
-  TableSyncPanel: () => null,
 }));
 vi.mock('@features/canvas/components/EntitiesPanel', () => ({
   EntitiesPanel: () => <div>Entities Panel</div>,
@@ -58,9 +57,6 @@ vi.mock('@features/canvas/components/PerformanceSettingsPanel', () => ({
 }));
 vi.mock('@features/network/components/PlayerManagerPanel', () => ({
   PlayerManagerPanel: () => <div>Players Panel</div>,
-}));
-vi.mock('@features/network/components/NetworkPanel', () => ({
-  NetworkPanel: () => null,
 }));
 vi.mock('@features/actions/components/ActionsQuickPanel', () => ({
   ActionsQuickPanel: () => <div>Quick Actions Panel</div>,

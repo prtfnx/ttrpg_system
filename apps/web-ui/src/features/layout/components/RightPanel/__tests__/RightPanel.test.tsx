@@ -12,7 +12,6 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 vi.mock('@features/table', () => ({
   TableManagementPanel: () => <div data-testid="table-management-panel">Table Management</div>,
   TablePanel: () => <div data-testid="table-panel">Table Tools Panel</div>,
-  TableSyncPanel: () => <div data-testid="table-sync-panel">Table Sync Panel</div>,
   MapPanel: () => <div data-testid="map-panel">Map Panel</div>,
 }));
 
@@ -42,10 +41,6 @@ vi.mock('@features/actions/components/ActionQueuePanel', () => ({
 
 vi.mock('@features/network/components/PlayerManagerPanel', () => ({
   PlayerManagerPanel: () => <div data-testid="player-manager-panel">Player Manager</div>,
-}));
-
-vi.mock('@features/network/components/NetworkPanel', () => ({
-  NetworkPanel: () => <div data-testid="network-panel">Network Panel</div>,
 }));
 
 vi.mock('@features/combat', () => ({
@@ -280,11 +275,9 @@ describe('RightPanel', () => {
 
       const devTabs = [
         { name: 'Table Tools', pattern: /^table tools$/i },
-        { name: 'Sync', pattern: /^sync$/i },
         { name: 'Actions', pattern: /^actions$/i },  // Exact match to avoid 'Quick Actions'
         { name: 'Queue', pattern: /^queue$/i },
-        { name: 'Assets', pattern: /^assets$/i },
-        { name: 'Network', pattern: /^network$/i }
+        { name: 'Assets', pattern: /^assets$/i }
       ];
       
       devTabs.forEach(({ name: _name, pattern }) => {
@@ -292,16 +285,19 @@ describe('RightPanel', () => {
         expect(tab).toBeInTheDocument();
         expect(tab).toHaveAttribute('aria-selected', 'false');
       });
+
+      expect(screen.queryByRole('tab', { name: /^network$/i })).not.toBeInTheDocument();
+      expect(screen.queryByRole('tab', { name: /^sync$/i })).not.toBeInTheDocument();
     });
 
     it('can switch to development tabs', async () => {
       renderWithProviders(<RightPanel sessionCode={mockSessionCode} userInfo={mockUserInfo} />);
 
       // Test switching to a dev tab
-      const syncTab = screen.getByRole('tab', { name: /^sync$/i });
-      await user.click(syncTab);
+      const actionsTab = screen.getByRole('tab', { name: /^actions$/i });
+      await user.click(actionsTab);
 
-      expect(syncTab).toHaveAttribute('aria-selected', 'true');
+      expect(actionsTab).toHaveAttribute('aria-selected', 'true');
       // Note: The actual panel rendering depends on dynamic imports
     });
   });

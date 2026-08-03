@@ -23,7 +23,6 @@ import { AuthProvider } from '@features/auth';
 import { GameCanvas, PerformanceMonitor } from '@features/canvas';
 import { CharacterPanel } from '@features/character';
 import { ChatPanel } from '@features/chat';
-import { NetworkPanel } from '@features/network';
 
 //Mock WASM module with realistic interface
 const mockLoadTexture = vi.fn().mockResolvedValue(true);
@@ -307,29 +306,7 @@ describe('Web Client TypeScript & WASM Systems Integration Tests', () => {
     });
   });
 
-  describe('WebSocket Network System', () => {
-    it('should provide typed WebSocket communication', async () => {
-      render(<NetworkPanel />);
-      
-      // User expects connection status to be clearly displayed
-      expect(screen.getByTestId('connection-status')).toBeInTheDocument();
-      expect(screen.getByTestId('connection-status')).toHaveTextContent(/disconnected/i);
-      
-      // User expects latency monitoring
-      expect(screen.getByText(/latency.*ms/i)).toBeInTheDocument();
-    });
-
-    it('should handle WebSocket reconnection automatically', async () => {
-      render(<NetworkPanel />);
-      
-      // User expects reconnection button when disconnected
-      const reconnectButton = screen.queryByRole('button', { name: /reconnect/i });
-      if (reconnectButton) {
-        await user.click(reconnectButton);
-        expect(screen.getByText(/attempting.*reconnect/i)).toBeInTheDocument();
-      }
-    });
-
+  describe('WebSocket protocol integration', () => {
     it('should provide typed message validation', async () => {
       render(
         <AuthProvider>
@@ -561,14 +538,12 @@ describe('Web Client TypeScript & WASM Systems Integration Tests', () => {
     it('should provide consistent state management across TypeScript systems', async () => {
       render(
         <div>
-          <NetworkPanel />
           <PerformanceMonitor isVisible={true} />
           <GameCanvas />
         </div>
       );
       
       // User expects all systems to reflect the same application state
-      expect(screen.getByTestId('connection-status')).toHaveTextContent(/disconnected/i);
       // Use getAllByText to handle multiple FPS displays and just check one exists
       const fpsElements = screen.getAllByText(/fps/i);
       expect(fpsElements.length).toBeGreaterThan(0);

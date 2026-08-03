@@ -5,7 +5,7 @@ web styling.
 
 Status: current.
 
-Last source audit: 2026-07-29
+Last source audit: 2026-08-03
 
 The web UI is a Vite React app. React owns user workflows and browser state.
 Protocol code owns the WebSocket connection. `WasmRuntime` owns Rust/WASM.
@@ -69,6 +69,10 @@ Important combat pieces:
 - `WebClientProtocol` is for network messages and protocol handlers.
 - `WasmRuntime` is for Rust object lifecycle and renderer access.
 
+Development panels do not create independent WebSocket connections. Network
+diagnostics must read the active `ProtocolProvider` state so diagnostics cannot
+replace handlers or disconnect the application transport.
+
 Avoid adding new browser globals as state. If a value must cross domains, pass
 it through a provider, store, protocol method, or runtime port.
 
@@ -93,6 +97,8 @@ and verification commands.
 - UI components should not import generated WASM bindings.
 - Protocol handlers should normalize server messages before updating store or
   runtime state.
+- Feature hooks and development tools must not construct a second network
+  client. Use `ProtocolProvider` or `ProtocolService` for browser transport.
 - Shared utilities should not depend on a mounted React tree unless their name
   makes that dependency clear.
 - Tests should mock the boundary being used: protocol, runtime, store, or DOM.

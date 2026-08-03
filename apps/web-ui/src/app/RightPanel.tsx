@@ -6,7 +6,7 @@ import { CompendiumPanel } from '@features/compendium';
 import { FogPanel } from '@features/fog';
 import { LightingPanel } from '@features/lighting';
 import { type SessionRole, canInteract, isDM, isElevated } from '@features/session/types/roles';
-import { MapPanel, TableManagementPanel, TablePanel, TableSyncPanel } from '@features/table';
+import { MapPanel, TableManagementPanel, TablePanel } from '@features/table';
 import { useActionsEngine, useRenderEngine } from '@lib/wasm/runtime';
 import clsx from 'clsx';
 import { useEffect, useState } from 'react';
@@ -16,15 +16,14 @@ import { ActionsQuickPanel } from '../features/actions/components/ActionsQuickPa
 import { EntitiesPanel } from '../features/canvas/components/EntitiesPanel';
 import PerformanceSettingsPanel from '../features/canvas/components/PerformanceSettingsPanel';
 import { CustomizePanel } from '../features/character/components/CustomizePanel';
-import { NetworkPanel } from '../features/network/components/NetworkPanel';
 import { PlayerManagerPanel } from '../features/network/components/PlayerManagerPanel';
 import styles from './RightPanel.module.css';
 
 const isDevelopment = import.meta.env.DEV;
 
 type TabId = 'tables' | 'table-tools' | 'characters' | 'entities' | 'chat' | 'lighting' | 'fog' |
-             'sync' | 'players' | 'actions' | 'quick-actions' | 'queue' | 'compendium' | 'assets' |
-             'network' | 'performance' | 'backgrounds' | 'customize' | 'map';
+             'players' | 'actions' | 'quick-actions' | 'queue' | 'compendium' | 'assets' |
+             'performance' | 'backgrounds' | 'customize' | 'map';
 
 const TAB_VISIBLE: Record<TabId, (role: SessionRole) => boolean> = {
   // DM tabs
@@ -47,11 +46,9 @@ const TAB_VISIBLE: Record<TabId, (role: SessionRole) => boolean> = {
   'map':           isDM,
   // Dev-only (always gated by isDevelopment at render time)
   'table-tools':   isDM,
-  'sync':          isDM,
   'actions':       isDM,
   'queue':         isDM,
   'assets':        isDM,
-  'network':       isDM,
 };
 
 const DEFAULT_TAB_ORDER: TabId[] = [
@@ -108,17 +105,14 @@ export function RightPanel(props: { sessionCode?: string; userInfo?: import('@fe
         {tab('customize', 'Customize')}
         {tab('map', 'Map')}
         {isDevelopment && tab('table-tools', 'Table Tools')}
-        {isDevelopment && tab('sync', 'Sync')}
         {isDevelopment && tab('actions', 'Actions')}
         {isDevelopment && tab('queue', 'Queue')}
         {isDevelopment && tab('assets', 'Assets')}
-        {isDevelopment && tab('network', 'Network')}
       </div>
       <div className={styles.tabContent} role="tabpanel" aria-label={`${activeTab} panel`}>
         {activeTab === 'tables' && <TableManagementPanel />}
         {activeTab === 'quick-actions' && <ActionsQuickPanel actionsEngine={actionsEngine} />}
         {isDevelopment && activeTab === 'table-tools' && <TablePanel />}
-        {isDevelopment && activeTab === 'sync' && <TableSyncPanel />}
         {activeTab === 'characters' && <CharacterPanel />}
         {activeTab === 'players' && props.sessionCode && props.userInfo && (
           <PlayerManagerPanel
@@ -138,7 +132,6 @@ export function RightPanel(props: { sessionCode?: string; userInfo?: import('@fe
         {activeTab === 'customize' && <CustomizePanel />}
         {activeTab === 'compendium' && <CompendiumPanel />}
         {isDevelopment && activeTab === 'assets' && <AssetPanel />}
-        {isDevelopment && activeTab === 'network' && <NetworkPanel />}
         {activeTab === 'map' && <MapPanel />}
       </div>
     </div>

@@ -3,8 +3,9 @@ import type { SessionRules } from '@features/combat/stores/sessionRulesStore';
 import { useSessionRulesStore } from '@features/combat/stores/sessionRulesStore';
 import { ProtocolService } from '@lib/api';
 import { createMessage, MessageType } from '@lib/websocket';
-import { isDM } from '../types/roles';
 import { showToast } from '@shared/utils';
+import { isDM } from '../types/roles';
+import styles from './SessionRulesTab.module.css';
 
 function Toggle({ label, field, draft, update }: {
   label: string;
@@ -15,7 +16,7 @@ function Toggle({ label, field, draft, update }: {
   const rules = useSessionRulesStore((s) => s.rules);
   const value = field in draft ? draft[field] : rules?.[field];
   return (
-    <label className="rules-toggle">
+    <label className={styles.rulesToggle}>
       <input
         type="checkbox"
         checked={Boolean(value)}
@@ -37,7 +38,7 @@ function NumberInput({ label, field, draft, update, min, max }: {
   const rules = useSessionRulesStore((s) => s.rules);
   const value = field in draft ? draft[field] : rules?.[field];
   return (
-    <label className="rules-input">
+    <label className={styles.rulesInput}>
       {label}
       <input
         type="number"
@@ -60,7 +61,7 @@ function Select<T extends string>({ label, field, options, draft, update }: {
   const rules = useSessionRulesStore((s) => s.rules);
   const value = (field in draft ? draft[field] : rules?.[field]) as T;
   return (
-    <label className="rules-input">
+    <label className={styles.rulesInput}>
       {label}
       <select value={value ?? ''} onChange={(e) => update({ [field]: e.target.value as T } as Partial<SessionRules>)}>
         {options.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
@@ -84,7 +85,7 @@ export function SessionRulesTab() {
   };
 
   return (
-    <div className="session-rules-tab">
+    <div className={styles.sessionRulesTab}>
       <h3>Session Rules</h3>
 
       <section>
@@ -144,9 +145,9 @@ export function SessionRulesTab() {
       </section>
 
       {isDM(role) && (
-        <div className="rules-actions">
-          <button onClick={save} disabled={!isDirty}>Save Rules</button>
-          <button onClick={reset} disabled={!isDirty}>Reset</button>
+        <div className={styles.rulesActions}>
+          <button type="button" className={styles.saveButton} onClick={save} disabled={!isDirty}>Save Rules</button>
+          <button type="button" className={styles.resetButton} onClick={reset} disabled={!isDirty}>Reset</button>
         </div>
       )}
     </div>

@@ -1,0 +1,105 @@
+.sessionRulesTab {
+  display: grid;
+  gap: var(--space-lg);
+  color: var(--text-primary);
+}
+
+.sessionRulesTab > h3 {
+  margin: 0;
+  font-size: var(--text-lg);
+  font-weight: var(--font-semibold);
+}
+
+.sessionRulesTab section {
+  display: grid;
+  gap: var(--space-md);
+  padding: var(--space-lg);
+  background: var(--bg-elevated);
+  border: var(--border-width) solid var(--border-primary);
+  border-radius: var(--radius-md);
+}
+
+.sessionRulesTab section h4 {
+  margin: 0;
+  color: var(--text-secondary);
+  font-size: var(--text-sm);
+  font-weight: var(--font-semibold);
+  letter-spacing: var(--tracking-wide);
+  text-transform: uppercase;
+}
+
+.rulesToggle {
+  display: flex;
+  gap: var(--space-sm);
+  align-items: center;
+  color: var(--text-secondary);
+  font-size: var(--text-sm);
+  cursor: pointer;
+}
+
+.rulesToggle input {
+  flex: 0 0 auto;
+  accent-color: var(--color-primary);
+}
+
+.rulesInput {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(var(--size-30), 1fr);
+  gap: var(--space-md);
+  align-items: center;
+  color: var(--text-secondary);
+  font-size: var(--text-sm);
+}
+
+.rulesInput input,
+.rulesInput select {
+  min-width: 0;
+  width: 100%;
+  padding: var(--space-sm) var(--space-md);
+  color: var(--text-primary);
+  background: var(--bg-primary);
+  border: var(--border-width) solid var(--border-primary);
+  border-radius: var(--radius-sm);
+  font: inherit;
+}
+
+.rulesInput input:hover,
+.rulesInput select:hover {
+  border-color: var(--border-hover);
+}
+
+.rulesInput input:focus-visible,
+.rulesInput select:focus-visible {
+  border-color: var(--border-focus);
+  outline: none;
+  box-shadow: var(--focus-ring);
+}
+
+.rulesActions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-sm);
+  justify-content: flex-end;
+  padding-top: var(--space-md);
+  border-top: var(--border-width) solid var(--border-primary);
+}
+
+.saveButton {
+  composes: panel-button primary from '@shared/styles/PanelBase.module.css';
+}
+
+.resetButton {
+  composes: panel-button secondary from '@shared/styles/PanelBase.module.css';
+}
+
+@media (max-width: 36rem) {
+  .rulesInput {
+    grid-template-columns: 1fr;
+    gap: var(--space-xs);
+  }
+
+  .saveButton,
+  .resetButton {
+    flex: 1 1 var(--size-25);
+  }
+}

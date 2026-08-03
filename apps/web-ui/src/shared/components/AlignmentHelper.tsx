@@ -2,6 +2,7 @@ import { useGameStore } from '@/store';
 import { ProtocolService } from '@lib/api';
 import { getSpriteCenter, getSpriteHeight, getSpriteWidth } from '@shared/utils/spriteHelpers';
 import { useEffect, useState } from 'react';
+import styles from './AlignmentHelper.module.css';
 
 interface AlignmentHelperProps {
   isActive: boolean;
@@ -177,106 +178,41 @@ export function AlignmentHelper({ isActive }: AlignmentHelperProps) {
   if (!isActive) return null;
 
   return (
-    <div className="alignment-helper">
-      <div className="alignment-controls">
+    <aside className={styles.alignmentHelper} aria-label="Sprite alignment tools">
+      <div className={styles.alignmentControls}>
         <h4>Align Selected Sprites</h4>
         
-        <div className="alignment-group">
-          <label>Horizontal:</label>
-          <div className="button-group">
-            <button onClick={() => alignSprites('left')} title="Align Left">&larr;</button>
-            <button onClick={() => alignSprites('center')} title="Align Center">&harr;</button>
-            <button onClick={() => alignSprites('right')} title="Align Right">&rarr;</button>
+        <div className={styles.alignmentGroup} role="group" aria-label="Horizontal alignment">
+          <span className={styles.groupLabel}>Horizontal:</span>
+          <div className={styles.buttonGroup}>
+            <button type="button" disabled={selectedSprites.length < 2} onClick={() => alignSprites('left')} aria-label="Align Left">&larr;</button>
+            <button type="button" disabled={selectedSprites.length < 2} onClick={() => alignSprites('center')} aria-label="Align Center">&harr;</button>
+            <button type="button" disabled={selectedSprites.length < 2} onClick={() => alignSprites('right')} aria-label="Align Right">&rarr;</button>
           </div>
         </div>
         
-        <div className="alignment-group">
-          <label>Vertical:</label>
-          <div className="button-group">
-            <button onClick={() => alignSprites('top')} title="Align Top">&uarr;</button>
-            <button onClick={() => alignSprites('middle')} title="Align Middle">&varr;</button>
-            <button onClick={() => alignSprites('bottom')} title="Align Bottom">&darr;</button>
+        <div className={styles.alignmentGroup} role="group" aria-label="Vertical alignment">
+          <span className={styles.groupLabel}>Vertical:</span>
+          <div className={styles.buttonGroup}>
+            <button type="button" disabled={selectedSprites.length < 2} onClick={() => alignSprites('top')} aria-label="Align Top">&uarr;</button>
+            <button type="button" disabled={selectedSprites.length < 2} onClick={() => alignSprites('middle')} aria-label="Align Middle">&varr;</button>
+            <button type="button" disabled={selectedSprites.length < 2} onClick={() => alignSprites('bottom')} aria-label="Align Bottom">&darr;</button>
           </div>
         </div>
         
-        <div className="alignment-group">
-          <label>Distribute:</label>
-          <div className="button-group">
-            <button onClick={() => alignSprites('distribute-h')} title="Distribute Horizontally">H</button>
-            <button onClick={() => alignSprites('distribute-v')} title="Distribute Vertically">V</button>
+        <div className={styles.alignmentGroup} role="group" aria-label="Sprite distribution">
+          <span className={styles.groupLabel}>Distribute:</span>
+          <div className={styles.buttonGroup}>
+            <button type="button" disabled={selectedSprites.length < 3} onClick={() => alignSprites('distribute-h')} aria-label="Distribute Horizontally">H</button>
+            <button type="button" disabled={selectedSprites.length < 3} onClick={() => alignSprites('distribute-v')} aria-label="Distribute Vertically">V</button>
           </div>
         </div>
         
-        <div className="selection-info">
+        <div className={styles.selectionInfo} aria-live="polite">
           {selectedSprites.length} sprites selected
         </div>
       </div>
       
-      <style>{`
-        .alignment-helper {
-          position: fixed;
-          top: 50%;
-          right: 20px;
-          transform: translateY(-50%);
-          background: var(--overlay-dark-95);
-          color: var(--text-on-overlay);
-          padding: 16px;
-          border-radius: 8px;
-          box-shadow: var(--shadow-lg);
-          min-width: 200px;
-          z-index: 1000;
-        }
-        
-        .alignment-controls h4 {
-          margin: 0 0 12px 0;
-          color: var(--text-primary);
-          font-size: 14px;
-        }
-        
-        .alignment-group {
-          margin-bottom: 12px;
-        }
-        
-        .alignment-group label {
-          display: block;
-          font-size: 12px;
-          color: var(--text-muted);
-          margin-bottom: 4px;
-        }
-        
-        .button-group {
-          display: flex;
-          gap: 4px;
-        }
-        
-        .button-group button {
-          padding: 6px 8px;
-          background: var(--button-secondary-bg);
-          color: var(--button-secondary-text);
-          border: none;
-          border-radius: 4px;
-          cursor: pointer;
-          font-size: 12px;
-          transition: background-color 0.2s;
-        }
-        
-        .button-group button:hover {
-          background: var(--button-secondary-hover);
-        }
-        
-        .button-group button:active {
-          background: var(--button-secondary-active);
-        }
-        
-        .selection-info {
-          font-size: 11px;
-          color: var(--text-muted);
-          text-align: center;
-          margin-top: 8px;
-          padding-top: 8px;
-          border-top: var(--border-width) solid var(--border-primary);
-        }
-      `}</style>
-    </div>
+    </aside>
   );
 }

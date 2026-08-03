@@ -1,0 +1,88 @@
+.alignmentHelper {
+  position: fixed;
+  z-index: var(--z-dropdown);
+  top: 50%;
+  right: var(--space-xl);
+  min-width: var(--size-50);
+  padding: var(--space-lg);
+  color: var(--text-on-overlay);
+  background: var(--overlay-dark-95);
+  border: var(--border-width) solid var(--border-primary);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-lg);
+  transform: translateY(-50%);
+}
+
+.alignmentControls h4 {
+  margin: 0 0 var(--space-md);
+  color: var(--text-on-overlay);
+  font-size: var(--text-sm);
+}
+
+.alignmentGroup {
+  margin-bottom: var(--space-md);
+}
+
+.groupLabel {
+  display: block;
+  margin-bottom: var(--space-xs);
+  color: var(--text-muted);
+  font-size: var(--text-xs);
+}
+
+.buttonGroup {
+  display: flex;
+  gap: var(--space-xs);
+}
+
+.buttonGroup button {
+  flex: 1;
+  min-width: var(--size-8);
+  padding: var(--space-xs) var(--space-sm);
+  color: var(--button-secondary-text);
+  background: var(--button-secondary-bg);
+  border: var(--border-width) solid var(--border-primary);
+  border-radius: var(--radius-sm);
+  font-size: var(--text-xs);
+  cursor: pointer;
+  transition: background-color var(--transition-fast) ease, border-color var(--transition-fast) ease;
+}
+
+.buttonGroup button:hover:not(:disabled) {
+  background: var(--button-secondary-hover);
+  border-color: var(--border-hover);
+}
+
+.buttonGroup button:active:not(:disabled) {
+  background: var(--button-secondary-active);
+}
+
+.buttonGroup button:focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring);
+}
+
+.buttonGroup button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.selectionInfo {
+  margin-top: var(--space-sm);
+  padding-top: var(--space-sm);
+  color: var(--text-muted);
+  border-top: var(--border-width) solid var(--border-primary);
+  font-size: var(--text-2xs);
+  text-align: center;
+}
+
+@media (max-width: 48rem) {
+  .alignmentHelper {
+    right: var(--space-md);
+    bottom: var(--space-md);
+    top: auto;
+    left: var(--space-md);
+    min-width: 0;
+    transform: none;
+  }
+}

@@ -71,7 +71,7 @@ describe('AlignmentHelper', () => {
   it('align left: calls sendMessage for each selected sprite', () => {
     setupStore(['a', 'b']);
     render(<AlignmentHelper isActive={true} />);
-    fireEvent.click(screen.getByTitle('Align Left'));
+    fireEvent.click(screen.getByRole('button', { name: 'Align Left' }));
     expect(mockProtocol.updateSprite).toHaveBeenCalledTimes(2);
     // Both sprites moved to leftmost x (100)
     expect(mockProtocol.updateSprite).toHaveBeenCalledWith('a', { x: 100 });
@@ -81,14 +81,14 @@ describe('AlignmentHelper', () => {
   it('align right: calls sendMessage for each selected sprite', () => {
     setupStore(['a', 'b']);
     render(<AlignmentHelper isActive={true} />);
-    fireEvent.click(screen.getByTitle('Align Right'));
+    fireEvent.click(screen.getByRole('button', { name: 'Align Right' }));
     expect(mockProtocol.updateSprite).toHaveBeenCalledTimes(2);
   });
 
   it('align top: calls sendMessage with y = topmost', () => {
     setupStore(['a', 'b']);
     render(<AlignmentHelper isActive={true} />);
-    fireEvent.click(screen.getByTitle('Align Top'));
+    fireEvent.click(screen.getByRole('button', { name: 'Align Top' }));
     expect(mockProtocol.updateSprite).toHaveBeenCalledWith('a', { y: 50 });
     expect(mockProtocol.updateSprite).toHaveBeenCalledWith('b', { y: 50 });
   });
@@ -96,28 +96,28 @@ describe('AlignmentHelper', () => {
   it('align bottom: calls sendMessage for each selected sprite', () => {
     setupStore(['a', 'b']);
     render(<AlignmentHelper isActive={true} />);
-    fireEvent.click(screen.getByTitle('Align Bottom'));
+    fireEvent.click(screen.getByRole('button', { name: 'Align Bottom' }));
     expect(mockProtocol.updateSprite).toHaveBeenCalledTimes(2);
   });
 
   it('align center: calls sendMessage for each selected sprite', () => {
     setupStore(['a', 'b']);
     render(<AlignmentHelper isActive={true} />);
-    fireEvent.click(screen.getByTitle('Align Center'));
+    fireEvent.click(screen.getByRole('button', { name: 'Align Center' }));
     expect(mockProtocol.updateSprite).toHaveBeenCalledTimes(2);
   });
 
   it('align middle: calls sendMessage for each selected sprite', () => {
     setupStore(['a', 'b']);
     render(<AlignmentHelper isActive={true} />);
-    fireEvent.click(screen.getByTitle('Align Middle'));
+    fireEvent.click(screen.getByRole('button', { name: 'Align Middle' }));
     expect(mockProtocol.updateSprite).toHaveBeenCalledTimes(2);
   });
 
   it('distribute-h: requires 3+ sprites, skips when fewer', () => {
     setupStore(['a', 'b']); // only 2 sprites
     render(<AlignmentHelper isActive={true} />);
-    fireEvent.click(screen.getByTitle('Distribute Horizontally'));
+    fireEvent.click(screen.getByRole('button', { name: 'Distribute Horizontally' }));
     expect(mockProtocol.updateSprite).not.toHaveBeenCalled();
   });
 
@@ -125,7 +125,7 @@ describe('AlignmentHelper', () => {
     setupStore(['a', 'b', 'c']);
     render(<AlignmentHelper isActive={true} />);
     act(() => {
-      fireEvent.click(screen.getByTitle('Distribute Horizontally'));
+      fireEvent.click(screen.getByRole('button', { name: 'Distribute Horizontally' }));
     });
     expect(mockProtocol.updateSprite).toHaveBeenCalledTimes(3);
   });
@@ -133,14 +133,14 @@ describe('AlignmentHelper', () => {
   it('distribute-v: requires 3+ sprites, skips when fewer', () => {
     setupStore(['a', 'b']); // only 2 sprites
     render(<AlignmentHelper isActive={true} />);
-    fireEvent.click(screen.getByTitle('Distribute Vertically'));
+    fireEvent.click(screen.getByRole('button', { name: 'Distribute Vertically' }));
     expect(mockProtocol.updateSprite).not.toHaveBeenCalled();
   });
 
   it('does nothing when fewer than 2 sprites selected', () => {
     setupStore(['a']); // only 1 sprite
     render(<AlignmentHelper isActive={true} />);
-    fireEvent.click(screen.getByTitle('Align Left'));
+    fireEvent.click(screen.getByRole('button', { name: 'Align Left' }));
     expect(mockProtocol.updateSprite).not.toHaveBeenCalled();
   });
 });

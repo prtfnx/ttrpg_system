@@ -1,6 +1,8 @@
 import { useRenderEngine } from '@lib/wasm/runtime';
 import { logger } from '@shared/utils/logger';
+import clsx from 'clsx';
 import { useEffect, useState } from 'react';
+import styles from './MeasurementTool.module.css';
 
 interface MeasurementResult {
   distance: number;
@@ -71,18 +73,20 @@ export function MeasurementTool({ isActive }: MeasurementToolProps) {
   // No need for screen coordinate conversion or HTML overlay positioning
 
   return (
-    <div className="measurement-tool">
+    <aside className={styles.measurementTool} aria-label="Measurement results">
       {/* Label removed - now rendered in WebGL by Rust text_renderer.rs */}
       
-      <div className="measurement-overlay">
-        <div className="measurement-results">
-          <div className="measurement-header">
+      <div className={styles.measurementOverlay}>
+        <div className={styles.measurementResults}>
+          <div className={styles.measurementHeader}>
             <h4>Measurement Results</h4>
-            <div className="unit-selector">
+            <div className={styles.unitSelector} role="group" aria-label="Measurement unit">
               {(['ft', 'm', 'grid', 'px'] as const).map(unit => (
                 <button
                   key={unit}
-                  className={`unit-btn ${currentUnit === unit ? 'active' : ''}`}
+                  type="button"
+                  className={clsx(styles.unitButton, currentUnit === unit && styles.active)}
+                  aria-pressed={currentUnit === unit}
                   onClick={() => setCurrentUnit(unit)}
                 >
                   {unit}
@@ -91,29 +95,30 @@ export function MeasurementTool({ isActive }: MeasurementToolProps) {
             </div>
           </div>
           
-          <div className="measurement-item primary">
-            <span className="label">Distance:</span>
-            <span className="value">{formatDistance(measurement)}</span>
+          <div className={clsx(styles.measurementItem, styles.primary)}>
+            <span className={styles.label}>Distance:</span>
+            <span className={styles.value}>{formatDistance(measurement)}</span>
           </div>
           
-          <div className="measurement-item secondary">
-            <span className="label">Grid Units:</span>
-            <span className="value">{measurement.gridUnits.toFixed(1)} squares</span>
+          <div className={clsx(styles.measurementItem, styles.secondary)}>
+            <span className={styles.label}>Grid Units:</span>
+            <span className={styles.value}>{measurement.gridUnits.toFixed(1)} squares</span>
           </div>
           
-          <div className="measurement-item">
-            <span className="label">Angle:</span>
-            <span className="value">{measurement.angle.toFixed(1)}°</span>
+          <div className={styles.measurementItem}>
+            <span className={styles.label}>Angle:</span>
+            <span className={styles.value}>{measurement.angle.toFixed(1)}°</span>
           </div>
           
-          <div className="measurement-item">
-            <span className="label">Pixels:</span>
-            <span className="value">{measurement.distance.toFixed(1)}px</span>
+          <div className={styles.measurementItem}>
+            <span className={styles.label}>Pixels:</span>
+            <span className={styles.value}>{measurement.distance.toFixed(1)}px</span>
           </div>
           
-          <div className="measurement-actions">
+          <div className={styles.measurementActions}>
             <button 
-              className="clear-measurement"
+              type="button"
+              className={styles.clearMeasurement}
               onClick={handleClear}
             >
               Clear Measurement
@@ -130,155 +135,6 @@ export function MeasurementTool({ isActive }: MeasurementToolProps) {
         </div>
       </div>
       
-      <style>{`
-        .measurement-tool {
-          position: absolute;
-          top: 0;
-          left: 0;
-          pointer-events: none;
-          z-index: 1000;
-        }
-        
-        .measurement-overlay {
-          position: fixed;
-          top: 20px;
-          right: 20px;
-          pointer-events: auto;
-        }
-        
-        .measurement-instructions {
-          background: var(--color-primary);
-          color: var(--text-on-accent);
-          padding: 8px 12px;
-          border-radius: 4px;
-          font-size: 14px;
-          margin-bottom: 8px;
-        }
-        
-        .measurement-results {
-          background: var(--overlay-dark-heavy);
-          color: var(--text-on-overlay);
-          padding: 16px;
-          border-radius: 8px;
-          font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-          min-width: 280px;
-          box-shadow: var(--shadow-lg);
-          border: var(--border-width) solid var(--white-alpha-10);
-        }
-        
-        .measurement-header {
-          display: flex;
-          justify-content: space-between;
-          align-items: center;
-          margin-bottom: 12px;
-          padding-bottom: 8px;
-          border-bottom: var(--border-width) solid var(--white-alpha-20);
-        }
-        
-        .measurement-header h4 {
-          margin: 0;
-          font-size: 16px;
-          color: var(--text-primary);
-        }
-        
-        .unit-selector {
-          display: flex;
-          gap: 4px;
-        }
-        
-        .unit-btn {
-          padding: 4px 8px;
-          background: var(--white-alpha-10);
-          color: var(--text-secondary);
-          border: var(--border-width) solid var(--white-alpha-20);
-          border-radius: 3px;
-          cursor: pointer;
-          font-size: 12px;
-          transition: all 0.2s;
-        }
-        
-        .unit-btn:hover {
-          background: var(--white-alpha-20);
-          color: var(--text-primary);
-        }
-        
-        .unit-btn.active {
-          background: var(--color-success);
-          color: var(--text-on-accent);
-          border-color: var(--color-success);
-        }
-        
-        .measurement-item {
-          display: flex;
-          justify-content: space-between;
-          margin-bottom: 8px;
-          padding: 4px 0;
-        }
-        
-        .measurement-item.primary {
-          font-size: 18px;
-          font-weight: bold;
-          border-bottom: var(--border-width) solid var(--white-alpha-20);
-          padding-bottom: 8px;
-          margin-bottom: 12px;
-        }
-        
-        .measurement-item.secondary {
-          font-size: 14px;
-          color: var(--text-muted);
-          margin-bottom: 12px;
-        }
-        
-        .label {
-          color: var(--text-secondary);
-        }
-        
-        .value {
-          color: var(--status-success);
-          font-weight: bold;
-        }
-        
-        .measurement-item.primary .value {
-          color: var(--green-400);
-          font-size: 20px;
-        }
-        
-        .measurement-actions {
-          display: flex;
-          gap: 8px;
-          margin-top: 12px;
-          padding-top: 8px;
-          border-top: var(--border-width) solid var(--white-alpha-20);
-        }
-        
-        .clear-measurement, .save-measurement {
-          flex: 1;
-          padding: 8px 12px;
-          color: var(--text-on-accent);
-          border: none;
-          border-radius: 4px;
-          cursor: pointer;
-          font-size: 12px;
-          font-weight: 500;
-          transition: background 0.2s;
-        }
-        
-        .clear-measurement {
-          background: var(--button-danger-bg);
-        }
-        
-        .clear-measurement:hover {
-          background: var(--button-danger-hover);
-        }
-        
-        .save-measurement {
-          background: var(--button-primary-bg);
-        }
-        
-        .save-measurement:hover {
-          background: var(--button-primary-hover);
-        }
-      `}</style>
-    </div>
+    </aside>
   );
 }

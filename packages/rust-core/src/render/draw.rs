@@ -16,9 +16,14 @@ impl RenderEngine {
         );
         
         let viewport_bounds = self.get_world_view_bounds();
-        
-        let (tx, ty, tw, th) = self.table_manager.get_active_table_world_bounds()
-            .expect("CRITICAL: No active table found during rendering! Table-centric architecture requires a table to exist.");
+
+        let Some(active_table_id) = self.table_manager.active_table_id().map(str::to_owned) else {
+            return Ok(());
+        };
+        let Some((tx, ty, tw, th)) = self.table_manager.get_active_table_world_bounds() else {
+            web_sys::console::warn_1(&"[RUST] Active table has no render bounds".into());
+            return Ok(());
+        };
         
         let table_bounds = Rect::new(tx as f32, ty as f32, tw as f32, th as f32);
         
@@ -39,10 +44,6 @@ impl RenderEngine {
 
         let mut sorted_layers: Vec<_> = self.layer_manager.get_layers().iter().collect();
         sorted_layers.sort_by_key(|(_, layer)| layer.settings.z_order);
-
-        let active_table_id = self.table_manager.active_table_id()
-            .expect("CRITICAL: No active table ID during rendering! Table-centric architecture requires a table to exist.")
-            .to_owned();
 
         let active_layer = self.active_layer.clone();
 

@@ -141,9 +141,7 @@ impl RenderEngine {
             let cx = (sprite_data.coord_x + 25.0) as f32;
             let cy = (sprite_data.coord_y + 25.0) as f32;
             let light_id = format!("token_light_{}", sprite_data.sprite_id);
-            let active_table = self.table_manager.get_active_table_id().unwrap_or_else(|| table_id.to_string());
-            let mut light = crate::lighting::Light::new(light_id, cx, cy);
-            light.table_id = active_table;
+            let mut light = crate::lighting::Light::new(light_id, cx, cy, table_id.to_string());
             light.set_radius(radius as f32);
             if let Some(hex) = aura_color {
                 if let Some(color) = parse_hex_color(&hex) {

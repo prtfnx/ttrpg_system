@@ -40,6 +40,9 @@ engine and canvas-side geometry/rendering work through `WasmRuntime`.
 An empty session has no table until a DM creates one or persisted tables load.
 The domain manager and renderer do not invent a default table. Every active
 table and sprite table ID comes from persisted or server-confirmed state.
+Before the first table payload arrives, the renderer draws an empty frame and
+table-scoped interactions are no-ops. The browser rejects table and sprite
+sync payloads that omit a non-empty `table_id`.
 
 ## Main workflows
 

@@ -63,6 +63,11 @@ sight previews, and AoE candidate targets. It is not a combat authority.
 The engine is created by `init_game_renderer(canvas)`. TypeScript creates it
 inside `WasmRuntime.attachCanvas`.
 
+A new engine has no active table and can render an empty frame safely. The
+first normalized server table payload creates and activates the matching Rust
+table. Sprite, light, fog, shape, and input operations are ignored until that
+active table exists; Rust never substitutes an invented table ID.
+
 ## Runtime callbacks
 
 Rust should not call app-level browser globals. It reports app intent through

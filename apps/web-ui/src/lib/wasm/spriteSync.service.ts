@@ -75,6 +75,8 @@ interface SpritePayload {
   coord_y?: number;
 }
 
+type TableScopedSpritePayload = SpritePayload & { table_id: string };
+
 // Engine with non-standard methods not yet in wasm.d.ts
 type RenderEngineExt = RenderEngine & {
   update_sprite_controlled_by?: (spriteId: string, ids: number[]) => void;
@@ -159,36 +161,42 @@ export class SpriteSyncService {
   addSpriteToWasm(spriteData: SpritePayload): void {
     const engine = this.getEngine();
     if (!engine) return;
+    const tableId = spriteData.table_id?.trim();
+    if (!tableId) {
+      logger.warn('[SpriteSyncService] Ignoring sprite without an authoritative table_id', spriteData);
+      return;
+    }
+    const normalizedSpriteData = { ...spriteData, table_id: tableId };
 
     try {
-      const layer = spriteData.layer || 'tokens';
+      const layer = normalizedSpriteData.layer || 'tokens';
 
       // '__LIGHT__' sentinel for dynamic lights
-      const isLight = spriteData.texture_path === '__LIGHT__' && spriteData.layer === 'light';
+      const isLight = normalizedSpriteData.texture_path === '__LIGHT__' && normalizedSpriteData.layer === 'light';
 
       // __FOG_HIDE__ / __FOG_REVEAL__ are sentinel values for fog of war
-      const isFogHide = spriteData.texture_path === '__FOG_HIDE__';
-      const isFogReveal = spriteData.texture_path === '__FOG_REVEAL__';
+      const isFogHide = normalizedSpriteData.texture_path === '__FOG_HIDE__';
+      const isFogReveal = normalizedSpriteData.texture_path === '__FOG_REVEAL__';
 
       if (isLight) {
-        this.addLightToWasm(engine, spriteData);
+        this.addLightToWasm(engine, normalizedSpriteData);
         return;
       }
 
       if (isFogHide || isFogReveal) {
-        this.addFogToWasm(engine, spriteData, isFogReveal ? 'reveal' : 'hide');
+        this.addFogToWasm(engine, normalizedSpriteData, isFogReveal ? 'reveal' : 'hide');
         return;
       }
 
       // Polygon obstacle (no texture, geometry only)
-      const polyVertices = spriteData.polygon_vertices ?? spriteData.obstacle_data?.vertices ?? null;
-      if (spriteData.obstacle_type === 'polygon' && polyVertices && Array.isArray(polyVertices)) {
-        this.addPolygonToWasm(engine, spriteData, polyVertices, layer);
+      const polyVertices = normalizedSpriteData.polygon_vertices ?? normalizedSpriteData.obstacle_data?.vertices ?? null;
+      if (normalizedSpriteData.obstacle_type === 'polygon' && polyVertices && Array.isArray(polyVertices)) {
+        this.addPolygonToWasm(engine, normalizedSpriteData, polyVertices, layer);
         return;
       }
 
       // Regular sprite
-      this.addRegularSpriteToWasm(engine, spriteData, layer);
+      this.addRegularSpriteToWasm(engine, normalizedSpriteData, layer);
 
     } catch (err) {
       logger.error('[SpriteSyncService] addSpriteToWasm failed:', err, spriteData);
@@ -395,6 +403,7 @@ export class SpriteSyncService {
         scale_x: data.scale_x || 1,
         scale_y: data.scale_y || 1,
         tint_color: data.tint_color || [1, 1, 1, 1],
+        table_id: data.table_id ?? useGameStore.getState().activeTableId ?? undefined,
       };
       this.addSpriteToWasm(spriteData);
       if (String(spriteData.id).startsWith('opt_')) this.startOptimisticTimer(spriteData.id);
@@ -414,7 +423,7 @@ export class SpriteSyncService {
       const worldY = ((data.dropY ?? 0) - camera.y) / camera.zoom;
       const tempId = `comp_${Date.now()}`;
 
-      this.addSpriteToWasm({ sprite_id: tempId, x: worldX, y: worldY, width: 64, height: 64, asset_id: '', layer: 'tokens', name: data.name || 'Unknown' });
+      this.addSpriteToWasm({ sprite_id: tempId, table_id: tableId, x: worldX, y: worldY, width: 64, height: 64, asset_id: '', layer: 'tokens', name: data.name || 'Unknown' });
       this.startOptimisticTimer(tempId);
 
       emitProtocolEvent('protocol-send-message', {
@@ -432,7 +441,7 @@ export class SpriteSyncService {
 
   // ── Sprite shape helpers ──────────────────────────────────────────────────
 
-  private addLightToWasm(engine: RenderEngine, spriteData: SpritePayload): void {
+  private addLightToWasm(engine: RenderEngine, spriteData: TableScopedSpritePayload): void {
     let x = 0, y = 0;
     if (Array.isArray(spriteData.position) && spriteData.position.length >= 2) {
       [x, y] = spriteData.position;
@@ -467,7 +476,7 @@ export class SpriteSyncService {
     });
   }
 
-  private addFogToWasm(engine: RenderEngine, spriteData: SpritePayload, mode: 'hide' | 'reveal'): void {
+  private addFogToWasm(engine: RenderEngine, spriteData: TableScopedSpritePayload, mode: 'hide' | 'reveal'): void {
     let startX = 0, startY = 0;
     if (Array.isArray(spriteData.position) && spriteData.position.length >= 2) {
       [startX, startY] = spriteData.position;
@@ -481,7 +490,7 @@ export class SpriteSyncService {
     engine.add_fog_rectangle(fogId, startX, startY, startX + width, startY + height, mode);
   }
 
-  private addPolygonToWasm(engine: RenderEngine, spriteData: SpritePayload, vertices: Array<unknown>, layer: string): void {
+  private addPolygonToWasm(engine: RenderEngine, spriteData: TableScopedSpritePayload, vertices: Array<unknown>, layer: string): void {
     // Normalize vertices: server sends [[x,y]] arrays; client creation sends [{x,y}] objects
     const normalizedVerts: Array<[number, number]> = (vertices as Array<unknown>).map(v => {
       if (Array.isArray(v) && v.length >= 2) return [Number(v[0]), Number(v[1])] as [number, number];
@@ -508,7 +517,7 @@ export class SpriteSyncService {
       scale_x: spriteData.scale_x || 1.0, scale_y: spriteData.scale_y || 1.0,
       rotation: spriteData.rotation || 0.0, layer,
       texture_id: '', tint_color: [1.0, 1.0, 1.0, 1.0],
-      table_id: spriteData.table_id || 'default_table',
+      table_id: spriteData.table_id,
       controlled_by: [],
       obstacle_type: 'polygon',
       polygon_vertices: normalizedVerts,
@@ -522,14 +531,14 @@ export class SpriteSyncService {
       useGameStore.getState().addSprite({
         id: spriteId,
         name: spriteData.name || 'Polygon Obstacle',
-        tableId: spriteData.table_id || 'default_table',
+        tableId: spriteData.table_id,
         x, y, layer, texture: '',
         scale: { x: 1, y: 1 }, rotation: 0, syncStatus: 'synced' as const,
       });
     } catch { /* non-critical */ }
   }
 
-  private addRegularSpriteToWasm(engine: RenderEngine, spriteData: SpritePayload, layer: string): void {
+  private addRegularSpriteToWasm(engine: RenderEngine, spriteData: TableScopedSpritePayload, layer: string): void {
     let x = 0, y = 0;
     if (Array.isArray(spriteData.position) && spriteData.position.length >= 2) {
       [x, y] = spriteData.position;
@@ -567,7 +576,7 @@ export class SpriteSyncService {
       rotation: spriteData.rotation || 0.0, layer,
       texture_id: assetId || '',
       tint_color: tintColor,
-      table_id: spriteData.table_id || 'default_table',
+      table_id: spriteData.table_id,
       // controlled_by: normalize to number[] — server may send string IDs
       controlled_by: (() => {
         const raw = Array.isArray(spriteData.controlled_by)

@@ -77,9 +77,13 @@ export class TableSyncService {
 
     try {
       const tableData = data.table_data || data;
+      const tableId = tableData.table_id?.trim();
+      if (!tableId) {
+        logger.warn('[TableSyncService] Ignoring table data without an authoritative table_id');
+        return;
+      }
 
       // Sync UUID from server to React store when server returns authoritative ID
-      const tableId = tableData.table_id;
       const tableName = tableData.table_name;
       const isUUID = tableId && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(tableId);
       if (isUUID && tableName) {
@@ -100,33 +104,31 @@ export class TableSyncService {
       }
 
       // Push table data to WASM
-      if (tableData.table_id) {
-        const formattedLayers: Record<string, unknown[]> = {};
-        if (tableData.layers && typeof tableData.layers === 'object') {
-          const layers = tableData.layers;
-          Object.keys(layers).forEach(name => {
-            formattedLayers[name] = Array.isArray(layers[name]) ? layers[name] : [];
-          });
-        }
-        if (Object.keys(formattedLayers).length === 0) {
-          formattedLayers['background'] = [];
-          formattedLayers['tokens'] = [];
-          formattedLayers['objects'] = [];
-          formattedLayers['foreground'] = [];
-        }
-        engine.handle_table_data({
-          table_id: tableData.table_id,
-          table_name: tableData.table_name || tableData.name || tableData.table_id,
-          name: tableData.table_name || tableData.name || tableData.table_id,
-          width: tableData.width || 20, height: tableData.height || 20,
-          scale: tableData.scale || 1.0,
-          x_moved: tableData.x_moved || 0, y_moved: tableData.y_moved || 0,
-          show_grid: tableData.grid_enabled ?? true,
-          cell_side: tableData.grid_size || 50,
-          layers: formattedLayers,
+      const formattedLayers: Record<string, unknown[]> = {};
+      if (tableData.layers && typeof tableData.layers === 'object') {
+        const layers = tableData.layers;
+        Object.keys(layers).forEach(name => {
+          formattedLayers[name] = Array.isArray(layers[name]) ? layers[name] : [];
         });
-        try { useGameStore.getState().setActiveTableId?.(tableData.table_id); } catch { /* non-critical */ }
       }
+      if (Object.keys(formattedLayers).length === 0) {
+        formattedLayers['background'] = [];
+        formattedLayers['tokens'] = [];
+        formattedLayers['objects'] = [];
+        formattedLayers['foreground'] = [];
+      }
+      engine.handle_table_data({
+        table_id: tableId,
+        table_name: tableData.table_name || tableData.name || tableId,
+        name: tableData.table_name || tableData.name || tableId,
+        width: tableData.width || 20, height: tableData.height || 20,
+        scale: tableData.scale || 1.0,
+        x_moved: tableData.x_moved || 0, y_moved: tableData.y_moved || 0,
+        show_grid: tableData.grid_enabled ?? true,
+        cell_side: tableData.grid_size || 50,
+        layers: formattedLayers,
+      });
+      try { useGameStore.getState().setActiveTableId?.(tableId); } catch { /* non-critical */ }
 
       // Grid config
       if (tableData.grid_size) engine.set_grid_size(tableData.grid_size);
@@ -138,7 +140,9 @@ export class TableSyncService {
         CLEARABLE_TABLE_LAYERS.forEach(layerName => engine.clear_layer(layerName));
         Object.entries(tableData.layers as Record<string, unknown>).forEach(([layerName, layerData]) => {
           if (Array.isArray(layerData)) {
-            layerData.forEach((s: Record<string, unknown>) => { s['layer'] = layerName; s['table_id'] = tableData.table_id || 'default_table'; this.spriteSync.addSpriteToWasm(s); });
+            layerData.forEach((sprite: Record<string, unknown>) => {
+              this.spriteSync.addSpriteToWasm({ ...sprite, layer: layerName, table_id: tableId });
+            });
           } else if (layerData && typeof layerData === 'object') {
             const ld = layerData as Record<string, unknown>;
             const sprites = ld['sprites'] ?? Object.values(ld);
@@ -146,8 +150,7 @@ export class TableSyncService {
               if (!s || typeof s !== 'object') return;
               const sprite = s as Record<string, unknown>;
               if (!sprite['sprite_id'] && !sprite['id']) return;
-              sprite['layer'] = layerName; sprite['table_id'] = tableData.table_id || 'default_table';
-              this.spriteSync.addSpriteToWasm(sprite);
+              this.spriteSync.addSpriteToWasm({ ...sprite, layer: layerName, table_id: tableId });
             });
           }
         });
@@ -155,19 +158,20 @@ export class TableSyncService {
 
       // Fallback flat array
       if (data.sprites && Array.isArray(data.sprites)) {
-        data.sprites.forEach((s: unknown) => this.spriteSync.addSpriteToWasm(s as Record<string, unknown>));
+        data.sprites.forEach((sprite: unknown) => {
+          if (!sprite || typeof sprite !== 'object') return;
+          this.spriteSync.addSpriteToWasm({ ...(sprite as Record<string, unknown>), table_id: tableId });
+        });
       }
 
-      if (tableData.background_image) this.loadBackgroundImage(engine, tableData.background_image);
+      if (tableData.background_image) this.loadBackgroundImage(engine, tableData.background_image, tableId);
 
       // Emit completion so thumbnail service can generate
-      if (tableData.table_id) {
-        let spriteCount = 0;
-        Object.values(tableData.layers ?? {}).forEach((ld: unknown) => {
-          spriteCount += Array.isArray(ld) ? ld.length : ld && typeof ld === 'object' ? Object.keys(ld).length : 0;
-        });
-        emitWasmEvent('table-sprites-loaded', { table_id: tableData.table_id, count: spriteCount });
-      }
+      let spriteCount = 0;
+      Object.values(tableData.layers ?? {}).forEach((ld: unknown) => {
+        spriteCount += Array.isArray(ld) ? ld.length : ld && typeof ld === 'object' ? Object.keys(ld).length : 0;
+      });
+      emitWasmEvent('table-sprites-loaded', { table_id: tableId, count: spriteCount });
 
     } catch (err) {
       logger.error('[TableSyncService] handleTableDataReceived failed:', err);
@@ -186,7 +190,7 @@ export class TableSyncService {
     }
   }
 
-  private loadBackgroundImage(engine: RenderEngine, imagePath: string): void {
+  private loadBackgroundImage(engine: RenderEngine, imagePath: string, tableId: string): void {
     try {
       engine.add_sprite_to_layer('background', {
         id: `background_${Date.now()}`,
@@ -195,6 +199,7 @@ export class TableSyncService {
         scale_x: 1.0, scale_y: 1.0, rotation: 0.0,
         layer: 'background', texture_id: imagePath,
         tint_color: [1.0, 1.0, 1.0, 1.0],
+        table_id: tableId,
       });
     } catch (err) {
       logger.error('[TableSyncService] loadBackgroundImage failed:', err);

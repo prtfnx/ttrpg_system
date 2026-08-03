@@ -89,18 +89,18 @@ describe('SpriteSyncService', () => {
 
   describe('addSpriteToWasm routing', () => {
     it('routes __LIGHT__ with layer=light to add_light', () => {
-      service.addSpriteToWasm({ texture_path: '__LIGHT__', layer: 'light', sprite_id: 'l1', x: 10, y: 20 });
+      service.addSpriteToWasm({ texture_path: '__LIGHT__', layer: 'light', sprite_id: 'l1', table_id: 'tbl1', x: 10, y: 20 });
       expect(engine.add_light).toHaveBeenCalledWith('l1', 10, 20);
       expect(engine.add_sprite_to_layer).not.toHaveBeenCalled();
     });
 
     it('routes __FOG_HIDE__ to add_fog_rectangle with hide mode', () => {
-      service.addSpriteToWasm({ texture_path: '__FOG_HIDE__', sprite_id: 'f1', x: 0, y: 0, scale_x: 100, scale_y: 100 });
+      service.addSpriteToWasm({ texture_path: '__FOG_HIDE__', sprite_id: 'f1', table_id: 'tbl1', x: 0, y: 0, scale_x: 100, scale_y: 100 });
       expect(engine.add_fog_rectangle).toHaveBeenCalledWith('f1', 0, 0, 100, 100, 'hide');
     });
 
     it('routes __FOG_REVEAL__ to add_fog_rectangle with reveal mode', () => {
-      service.addSpriteToWasm({ texture_path: '__FOG_REVEAL__', sprite_id: 'f2', x: 5, y: 5, scale_x: 50, scale_y: 50 });
+      service.addSpriteToWasm({ texture_path: '__FOG_REVEAL__', sprite_id: 'f2', table_id: 'tbl1', x: 5, y: 5, scale_x: 50, scale_y: 50 });
       expect(engine.add_fog_rectangle).toHaveBeenCalledWith('f2', 5, 5, 55, 55, 'reveal');
     });
 
@@ -116,7 +116,7 @@ describe('SpriteSyncService', () => {
     it('routes polygon obstacle with server array-format vertices correctly', () => {
       // Server sends obstacle_data.vertices as [[x,y]] arrays, not {x,y} objects
       const arrayVerts = [[0, 0], [10, 0], [5, 10]];
-      service.addSpriteToWasm({ obstacle_type: 'polygon', obstacle_data: { vertices: arrayVerts as never }, sprite_id: 'poly2' });
+      service.addSpriteToWasm({ obstacle_type: 'polygon', obstacle_data: { vertices: arrayVerts as never }, sprite_id: 'poly2', table_id: 'tbl1' });
       expect(engine.add_sprite_to_layer).toHaveBeenCalledWith(
         expect.any(String),
         expect.objectContaining({ id: 'poly2', obstacle_type: 'polygon', polygon_vertices: [[0, 0], [10, 0], [5, 10]] }),
@@ -124,8 +124,18 @@ describe('SpriteSyncService', () => {
     });
 
     it('routes regular sprite to add_sprite_to_layer', () => {
-      service.addSpriteToWasm({ texture_path: 'hero.png', sprite_id: 's1', layer: 'tokens', x: 5, y: 5 });
-      expect(engine.add_sprite_to_layer).toHaveBeenCalledWith('tokens', expect.objectContaining({ id: 's1' }));
+      service.addSpriteToWasm({ texture_path: 'hero.png', sprite_id: 's1', table_id: 'tbl1', layer: 'tokens', x: 5, y: 5 });
+      expect(engine.add_sprite_to_layer).toHaveBeenCalledWith(
+        'tokens',
+        expect.objectContaining({ id: 's1', table_id: 'tbl1' }),
+      );
+    });
+
+    it('rejects a sprite without an authoritative table_id', () => {
+      service.addSpriteToWasm({ texture_path: 'hero.png', sprite_id: 's1', layer: 'tokens' });
+      expect(engine.add_sprite_to_layer).not.toHaveBeenCalled();
+      expect(engine.add_light).not.toHaveBeenCalled();
+      expect(engine.add_fog_rectangle).not.toHaveBeenCalled();
     });
 
     it('is a no-op when engine is null', () => {
@@ -135,7 +145,7 @@ describe('SpriteSyncService', () => {
     });
 
     it('__LIGHT__ without layer=light falls through to regular sprite path', () => {
-      service.addSpriteToWasm({ texture_path: '__LIGHT__', layer: 'tokens', sprite_id: 's2' });
+      service.addSpriteToWasm({ texture_path: '__LIGHT__', layer: 'tokens', sprite_id: 's2', table_id: 'tbl1' });
       // isLight requires BOTH texture_path === '__LIGHT__' AND layer === 'light'
       expect(engine.add_light).not.toHaveBeenCalled();
       expect(engine.add_sprite_to_layer).toHaveBeenCalled();
@@ -177,7 +187,7 @@ describe('SpriteSyncService', () => {
 
     it('sprite-created dispatches add_sprite_to_layer', () => {
       window.dispatchEvent(new CustomEvent('sprite-created', {
-        detail: { sprite_id: 'x1', texture_path: 'img.png', layer: 'tokens', x: 1, y: 2 },
+        detail: { sprite_id: 'x1', texture_path: 'img.png', layer: 'tokens', table_id: 'tbl1', x: 1, y: 2 },
       }));
       expect(engine.add_sprite_to_layer).toHaveBeenCalled();
     });
@@ -215,7 +225,7 @@ describe('SpriteSyncService', () => {
     it('optimistic-sprite-create event adds sprite', () => {
       vi.useFakeTimers();
       window.dispatchEvent(new CustomEvent('optimistic-sprite-create', {
-        detail: { sprite_id: 'opt-1', texture_path: 'unit.png', layer: 'tokens', x: 0, y: 0 },
+        detail: { sprite_id: 'opt-1', texture_path: 'unit.png', layer: 'tokens', table_id: 'tbl1', x: 0, y: 0 },
       }));
       expect(engine.add_sprite_to_layer).toHaveBeenCalled();
       vi.useRealTimers();
@@ -223,7 +233,7 @@ describe('SpriteSyncService', () => {
 
     it('sprite-created with __LIGHT__ calls add_light', () => {
       window.dispatchEvent(new CustomEvent('sprite-created', {
-        detail: { sprite_id: 'l2', texture_path: '__LIGHT__', layer: 'light', x: 0, y: 0 },
+        detail: { sprite_id: 'l2', texture_path: '__LIGHT__', layer: 'light', table_id: 'tbl1', x: 0, y: 0 },
       }));
       expect(engine.add_light).toHaveBeenCalledWith('l2', 0, 0);
     });

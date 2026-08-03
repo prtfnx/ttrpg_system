@@ -206,7 +206,7 @@ export const LightingPanel: React.FC = () => {
   };
 
   const updateLightProperty = (lightId: string, property: keyof Light, value: Light[keyof Light]) => {
-    if (!engine) return;
+    if (!engine || !activeTableId) return;
     const light = lights.find(l => l.id === lightId);
     if (!light) return;
 
@@ -221,7 +221,7 @@ export const LightingPanel: React.FC = () => {
     } catch {}
 
     const updated = { ...light, [property]: value };
-    const spriteData = lightToSprite(updated, activeTableId ?? 'default_table');
+    const spriteData = lightToSprite(updated, activeTableId);
     if (protocol) protocol.updateSprite(lightId, spriteData);
     useGameStore.getState().updateSprite(lightId, { x: updated.x, y: updated.y, metadata: spriteData.metadata });
   };
@@ -238,15 +238,15 @@ export const LightingPanel: React.FC = () => {
   };
 
   const toggleAllLights = () => {
-    if (!engine) return;
+    if (!engine || !activeTableId) return;
     const allOn = lights.every(l => l.isOn);
     for (const l of lights) {
       if (l.isOn === allOn) try { engine.toggle_light(l.id); } catch {}
     }
     for (const l of lights) {
       const updated = { ...l, isOn: !allOn };
-      protocol?.updateSprite(l.id, lightToSprite(updated, activeTableId ?? ''));
-      useGameStore.getState().updateSprite(l.id, { metadata: lightToSprite(updated, activeTableId ?? '').metadata });
+      protocol?.updateSprite(l.id, lightToSprite(updated, activeTableId));
+      useGameStore.getState().updateSprite(l.id, { metadata: lightToSprite(updated, activeTableId).metadata });
     }
   };
 

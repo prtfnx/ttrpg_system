@@ -109,8 +109,7 @@ class _SpritesMixin(_ProtocolBase):
                     sprite_data = sprite_data.to_dict() or {}
                 except Exception:
                     sprite_data = {}
-            # Ensure table_id is embedded in sprite_data so the client can assign it
-            # to WASM sprites (without it the sprite gets table_id='default_table' and is never rendered)
+            # Embed the authoritative table ID for the WASM renderer.
             if isinstance(sprite_data, dict):
                 sprite_data['table_id'] = table_id
             response_data = {

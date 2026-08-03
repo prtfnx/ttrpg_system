@@ -179,8 +179,10 @@ impl RenderEngine {
             return;
         }
         
-        let table_id = self.table_manager.get_active_table_id()
-            .unwrap_or("default_table".to_string());
+        let Some(table_id) = self.table_manager.get_active_table_id() else {
+            web_sys::console::warn_1(&"[RUST] Ignoring mouse-up without an active table".into());
+            return;
+        };
         let converter = self.table_manager.get_unit_converter(&table_id);
         
         let grid_cell_px = self.grid_system.get_size();

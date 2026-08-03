@@ -6,11 +6,9 @@ use std::collections::HashMap;
 // ── Helpers ──
 
 fn make_sprite(id: usize, x: f64, y: f64, table_id: &str) -> Sprite {
-    let mut s = Sprite::new(
-        format!("sprite_{id}"), x, y, 64.0, 64.0, "tokens".to_string(),
-    );
-    s.table_id = table_id.to_string();
-    s
+    Sprite::new(
+        format!("sprite_{id}"), x, y, 64.0, 64.0, "tokens".to_string(), table_id.to_string(),
+    )
 }
 
 fn make_layers(n_sprites: usize) -> HashMap<String, Layer> {

@@ -57,10 +57,10 @@ pub struct Sprite {
 }
 
 impl Sprite {
-    pub fn new(id: String, world_x: f64, world_y: f64, width: f64, height: f64, layer: String) -> Self {
+    pub fn new(id: String, world_x: f64, world_y: f64, width: f64, height: f64, layer: String, table_id: String) -> Self {
         Self {
             id,
-            table_id: "default_table".to_string(), // Default to default_table
+            table_id,
             world_x,
             world_y,
             width,
@@ -471,7 +471,7 @@ mod tests {
 
     #[test]
     fn sprite_new_defaults() {
-        let s = Sprite::new("s1".into(), 10.0, 20.0, 50.0, 50.0, "tokens".into());
+        let s = Sprite::new("s1".into(), 10.0, 20.0, 50.0, 50.0, "tokens".into(), "table-1".into());
         assert_eq!(s.id, "s1");
         assert_eq!(s.scale_x, 1.0);
         assert_eq!(s.scale_y, 1.0);
@@ -482,7 +482,7 @@ mod tests {
 
     #[test]
     fn sprite_world_bounds_no_scale() {
-        let s = Sprite::new("b".into(), 0.0, 0.0, 100.0, 100.0, "tokens".into());
+        let s = Sprite::new("b".into(), 0.0, 0.0, 100.0, 100.0, "tokens".into(), "table-1".into());
         let bounds = s.world_bounds();
         // center = (50, 50), half = (50, 50)
         assert!((bounds.min.x - 0.0).abs() < 0.01);
@@ -493,19 +493,19 @@ mod tests {
 
     #[test]
     fn sprite_contains_center_point() {
-        let s = Sprite::new("c".into(), 0.0, 0.0, 100.0, 100.0, "tokens".into());
+        let s = Sprite::new("c".into(), 0.0, 0.0, 100.0, 100.0, "tokens".into(), "table-1".into());
         assert!(s.contains_world_point(Vec2::new(50.0, 50.0)));
     }
 
     #[test]
     fn sprite_does_not_contain_outside_point() {
-        let s = Sprite::new("d".into(), 0.0, 0.0, 100.0, 100.0, "tokens".into());
+        let s = Sprite::new("d".into(), 0.0, 0.0, 100.0, 100.0, "tokens".into(), "table-1".into());
         assert!(!s.contains_world_point(Vec2::new(150.0, 50.0)));
     }
 
     #[test]
     fn sprite_serde_roundtrip() {
-        let s = Sprite::new("rt".into(), 5.0, 10.0, 30.0, 40.0, "maps".into());
+        let s = Sprite::new("rt".into(), 5.0, 10.0, 30.0, 40.0, "maps".into(), "table-1".into());
         let json = serde_json::to_string(&s).unwrap();
         let s2: Sprite = serde_json::from_str(&json).unwrap();
         assert_eq!(s.id, s2.id);

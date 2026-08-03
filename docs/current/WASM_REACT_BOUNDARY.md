@@ -86,6 +86,12 @@ Server update:
 WebClientProtocol -> store/runtime method -> Rust renderer
 ```
 
+Table and sprite synchronization must include a non-empty authoritative
+`table_id`. The TypeScript boundary rejects incomplete payloads and attaches
+the received table ID to every normalized layer, flat sprite, and background
+sprite before calling Rust. It does not infer a renderer table from a fallback
+name.
+
 Combat preview:
 
 ```text

@@ -109,13 +109,12 @@ impl RenderEngine {
     pub fn add_light(&mut self, id: &str, x: f32, y: f32) {
         web_sys::console::log_1(&format!("[RUST] add_light called: id={}, x={}, y={}", id, x, y).into());
         
-        let active_table_opt = self.table_manager.get_active_table_id();
-        web_sys::console::log_1(&format!("[RUST] get_active_table_id returned: {:?}", active_table_opt).into());
+        let Some(table_id) = self.table_manager.get_active_table_id() else {
+            web_sys::console::warn_1(&"[RUST] Ignoring light without an active table".into());
+            return;
+        };
         
-        let table_id = active_table_opt.unwrap_or("default_table".to_string());
-        
-        let mut light = crate::lighting::Light::new(id.to_string(), x, y);
-        light.table_id = table_id.clone();
+        let light = crate::lighting::Light::new(id.to_string(), x, y, table_id.clone());
         
         self.lighting.add_light(light);
         web_sys::console::log_1(&format!("[RUST] Light added to table '{}'. Total lights: {}", 
@@ -174,8 +173,10 @@ impl RenderEngine {
 
     #[wasm_bindgen]
     pub fn add_fog_rectangle(&mut self, id: &str, start_x: f32, start_y: f32, end_x: f32, end_y: f32, mode: &str) {
-        let table_id = self.table_manager.get_active_table_id()
-            .unwrap_or("default_table".to_string());
+        let Some(table_id) = self.table_manager.get_active_table_id() else {
+            web_sys::console::warn_1(&"[RUST] Ignoring fog rectangle without an active table".into());
+            return;
+        };
         
         self.fog.add_fog_rectangle(id.to_string(), start_x, start_y, end_x, end_y, mode, table_id.clone());
         #[cfg(debug_assertions)]
@@ -194,8 +195,10 @@ impl RenderEngine {
 
     #[wasm_bindgen]
     pub fn hide_entire_table(&mut self, table_width: f32, table_height: f32) {
-        let table_id = self.table_manager.get_active_table_id()
-            .unwrap_or("default_table".to_string());
+        let Some(table_id) = self.table_manager.get_active_table_id() else {
+            web_sys::console::warn_1(&"[RUST] Ignoring full-table fog without an active table".into());
+            return;
+        };
         
         self.fog.hide_entire_table(table_width, table_height, table_id);
     }

@@ -94,8 +94,10 @@ impl RenderEngine {
 impl RenderEngine {
     pub(crate) fn create_rectangle_sprite_with_options(&mut self, x: f32, y: f32, width: f32, height: f32, layer_name: &str, color: &str, opacity: f32, filled: bool) -> String {
         let sprite_id = format!("rect_{}", js_sys::Date::now() as u64);
-        let active_table_id = self.table_manager.get_active_table_id()
-            .unwrap_or("default_table".to_string());
+        let Some(active_table_id) = self.table_manager.get_active_table_id() else {
+            web_sys::console::warn_1(&"[RUST] Ignoring rectangle without an active table".into());
+            return String::new();
+        };
         let sprite = Sprite {
             id: sprite_id.clone(),
             world_x: x as f64,
@@ -124,8 +126,10 @@ impl RenderEngine {
     pub(crate) fn create_circle_sprite_with_options(&mut self, x: f32, y: f32, radius: f32, layer_name: &str, color: &str, opacity: f32, filled: bool) -> String {
         let sprite_id = format!("circle_{}", js_sys::Date::now() as u64);
         let diameter = radius * 2.0;
-        let active_table_id = self.table_manager.get_active_table_id()
-            .unwrap_or("default_table".to_string());
+        let Some(active_table_id) = self.table_manager.get_active_table_id() else {
+            web_sys::console::warn_1(&"[RUST] Ignoring circle without an active table".into());
+            return String::new();
+        };
         let sprite = Sprite {
             id: sprite_id.clone(),
             world_x: (x - radius) as f64,
@@ -158,8 +162,10 @@ impl RenderEngine {
         let length = (dx * dx + dy * dy).sqrt();
         let center_x = (start_x + end_x) / 2.0;
         let center_y = (start_y + end_y) / 2.0;
-        let active_table_id = self.table_manager.get_active_table_id()
-            .unwrap_or("default_table".to_string());
+        let Some(active_table_id) = self.table_manager.get_active_table_id() else {
+            web_sys::console::warn_1(&"[RUST] Ignoring line without an active table".into());
+            return String::new();
+        };
         // Store actual endpoints in polygon_vertices for precise rendering
         let sprite = Sprite {
             id: sprite_id.clone(),

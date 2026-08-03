@@ -41,10 +41,10 @@ pub struct Light {
 }
 
 impl Light {
-    pub fn new(id: String, x: f32, y: f32) -> Self {
+    pub fn new(id: String, x: f32, y: f32, table_id: String) -> Self {
         Self {
             id,
-            table_id: "default_table".to_string(),
+            table_id,
             position: Vec2::new(x, y),
             color: Color::new(1.0, 1.0, 0.9, 1.0), // Warm white
             intensity: 1.0,
@@ -847,7 +847,7 @@ mod tests {
 
     #[test]
     fn light_new_defaults() {
-        let l = Light::new("l1".to_string(), 100.0, 200.0);
+        let l = Light::new("l1".to_string(), 100.0, 200.0, "table-1".to_string());
         assert_eq!(l.id, "l1");
         assert_eq!(l.position.x, 100.0);
         assert_eq!(l.position.y, 200.0);
@@ -860,14 +860,14 @@ mod tests {
 
     #[test]
     fn set_radius_clamps_to_minimum() {
-        let mut l = Light::new("l1".to_string(), 0.0, 0.0);
+        let mut l = Light::new("l1".to_string(), 0.0, 0.0, "table-1".to_string());
         l.set_radius(1.0); // below min
         assert_eq!(l.radius, 10.0);
     }
 
     #[test]
     fn set_radius_sets_dirty() {
-        let mut l = Light::new("l1".to_string(), 0.0, 0.0);
+        let mut l = Light::new("l1".to_string(), 0.0, 0.0, "table-1".to_string());
         l.dirty = false;
         l.set_radius(300.0);
         assert!(l.dirty);
@@ -875,7 +875,7 @@ mod tests {
 
     #[test]
     fn set_intensity_clamps_range() {
-        let mut l = Light::new("l1".to_string(), 0.0, 0.0);
+        let mut l = Light::new("l1".to_string(), 0.0, 0.0, "table-1".to_string());
         l.set_intensity(-1.0);
         assert_eq!(l.intensity, 0.0);
         l.set_intensity(99.0);
@@ -886,7 +886,7 @@ mod tests {
 
     #[test]
     fn set_falloff_clamps_range() {
-        let mut l = Light::new("l1".to_string(), 0.0, 0.0);
+        let mut l = Light::new("l1".to_string(), 0.0, 0.0, "table-1".to_string());
         l.set_falloff(0.0);
         assert_eq!(l.falloff, 0.5);
         l.set_falloff(10.0);
@@ -897,7 +897,7 @@ mod tests {
 
     #[test]
     fn toggle_flips_is_on() {
-        let mut l = Light::new("l1".to_string(), 0.0, 0.0);
+        let mut l = Light::new("l1".to_string(), 0.0, 0.0, "table-1".to_string());
         assert!(l.is_on);
         l.toggle();
         assert!(!l.is_on);
@@ -907,7 +907,7 @@ mod tests {
 
     #[test]
     fn set_position_marks_dirty_on_change() {
-        let mut l = Light::new("l1".to_string(), 0.0, 0.0);
+        let mut l = Light::new("l1".to_string(), 0.0, 0.0, "table-1".to_string());
         l.dirty = false;
         l.set_position(Vec2::new(50.0, 50.0));
         assert!(l.dirty);
@@ -915,7 +915,7 @@ mod tests {
 
     #[test]
     fn set_position_no_dirty_on_same_position() {
-        let mut l = Light::new("l1".to_string(), 50.0, 50.0);
+        let mut l = Light::new("l1".to_string(), 50.0, 50.0, "table-1".to_string());
         l.dirty = false;
         l.set_position(Vec2::new(50.0, 50.0)); // same coords
         assert!(!l.dirty);
@@ -923,21 +923,21 @@ mod tests {
 
     #[test]
     fn set_color_updates_color() {
-        let mut l = Light::new("l1".to_string(), 0.0, 0.0);
+        let mut l = Light::new("l1".to_string(), 0.0, 0.0, "table-1".to_string());
         l.set_color(Color::new(1.0, 0.0, 0.0, 1.0));
         assert_eq!(l.color.r, 1.0);
         assert_eq!(l.color.g, 0.0);
     }
 
     #[test]
-    fn light_default_table_id() {
-        let l = Light::new("l1".to_string(), 0.0, 0.0);
-        assert_eq!(l.table_id, "default_table");
+    fn light_uses_explicit_table_id() {
+        let l = Light::new("l1".to_string(), 0.0, 0.0, "table-1".to_string());
+        assert_eq!(l.table_id, "table-1");
     }
 
     #[test]
     fn set_radius_no_dirty_on_same_radius() {
-        let mut l = Light::new("l1".to_string(), 0.0, 0.0);
+        let mut l = Light::new("l1".to_string(), 0.0, 0.0, "table-1".to_string());
         l.dirty = false;
         l.set_radius(200.0); // same as default
         assert!(!l.dirty);
@@ -945,7 +945,7 @@ mod tests {
 
     #[test]
     fn light_serializes_and_deserializes() {
-        let l = Light::new("test_light".to_string(), 42.0, 84.0);
+        let l = Light::new("test_light".to_string(), 42.0, 84.0, "table-1".to_string());
         let json = serde_json::to_string(&l).unwrap();
         let l2: Light = serde_json::from_str(&json).unwrap();
         assert_eq!(l2.id, "test_light");

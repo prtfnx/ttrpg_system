@@ -288,9 +288,7 @@ mod tests {
     use crate::types::Sprite;
 
     fn make_sprite(id: &str, x: f64, y: f64, layer: &str) -> Sprite {
-        let mut s = Sprite::new(id.into(), x, y, 50.0, 50.0, layer.into());
-        s.table_id = "table1".into();
-        s
+        Sprite::new(id.into(), x, y, 50.0, 50.0, layer.into(), "table1".into())
     }
 
     #[test]

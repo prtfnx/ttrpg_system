@@ -92,6 +92,21 @@ describe('TableSyncService', () => {
       svc.dispose();
     });
 
+    it('rejects table data without an authoritative table_id', () => {
+      const svc = makeService();
+      svc.init();
+      dispatch('table-data-received', {
+        table_name: 'Missing ID',
+        grid_size: 50,
+        layers: { tokens: [{ sprite_id: 's1' }] },
+      });
+      expect(mockEngine.handle_table_data).not.toHaveBeenCalled();
+      expect(mockEngine.set_grid_size).not.toHaveBeenCalled();
+      expect(mockEngine.clear_layer).not.toHaveBeenCalled();
+      expect(mockSpriteSync.addSpriteToWasm).not.toHaveBeenCalled();
+      svc.dispose();
+    });
+
     it('sets grid config when provided', () => {
       const svc = makeService();
       svc.init();
@@ -117,7 +132,9 @@ describe('TableSyncService', () => {
         },
       });
       expect(mockEngine.clear_layer).toHaveBeenCalledWith('tokens');
-      expect(mockSpriteSync.addSpriteToWasm).toHaveBeenCalled();
+      expect(mockSpriteSync.addSpriteToWasm).toHaveBeenCalledWith(
+        expect.objectContaining({ sprite_id: 's1', table_id: 't1' }),
+      );
       svc.dispose();
     });
 
@@ -128,7 +145,9 @@ describe('TableSyncService', () => {
         table_id: 't1',
         sprites: [{ sprite_id: 's2' }],
       });
-      expect(mockSpriteSync.addSpriteToWasm).toHaveBeenCalledWith(expect.objectContaining({ sprite_id: 's2' }));
+      expect(mockSpriteSync.addSpriteToWasm).toHaveBeenCalledWith(
+        expect.objectContaining({ sprite_id: 's2', table_id: 't1' }),
+      );
       svc.dispose();
     });
 
@@ -154,7 +173,7 @@ describe('TableSyncService', () => {
       });
       expect(mockEngine.add_sprite_to_layer).toHaveBeenCalledWith(
         'background',
-        expect.objectContaining({ texture_id: '/assets/bg.png' })
+        expect.objectContaining({ texture_id: '/assets/bg.png', table_id: 't1' })
       );
       svc.dispose();
     });

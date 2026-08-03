@@ -60,6 +60,8 @@ fn init_renderer_resize_render_and_drop_do_not_throw() {
     let mut renderer = ttrpg_rust_core::init_game_renderer(canvas)
         .expect("renderer should initialize with a browser canvas");
 
+    assert_eq!(renderer.get_active_table_id(), None);
+
     renderer.resize_canvas(320.0, 240.0);
     renderer.set_camera(10.0, 20.0, 1.25);
     renderer.set_grid_enabled(true);

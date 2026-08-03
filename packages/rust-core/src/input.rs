@@ -1004,7 +1004,7 @@ mod tests {
 
     #[test]
     fn resize_handle_top_left_corner() {
-        let sprite = Sprite::new("s1".into(), 100.0, 100.0, 200.0, 200.0, "tokens".into());
+        let sprite = Sprite::new("s1".into(), 100.0, 100.0, 200.0, 200.0, "tokens".into(), "table-1".into());
         let handle = HandleDetector::get_resize_handle_for_non_rotated_sprite(
             &sprite, Vec2::new(100.0, 100.0), 1.0
         );
@@ -1013,7 +1013,7 @@ mod tests {
 
     #[test]
     fn resize_handle_bottom_right_corner() {
-        let sprite = Sprite::new("s1".into(), 100.0, 100.0, 200.0, 200.0, "tokens".into());
+        let sprite = Sprite::new("s1".into(), 100.0, 100.0, 200.0, 200.0, "tokens".into(), "table-1".into());
         let handle = HandleDetector::get_resize_handle_for_non_rotated_sprite(
             &sprite, Vec2::new(300.0, 300.0), 1.0
         );
@@ -1022,7 +1022,7 @@ mod tests {
 
     #[test]
     fn resize_handle_none_for_center() {
-        let sprite = Sprite::new("s1".into(), 100.0, 100.0, 200.0, 200.0, "tokens".into());
+        let sprite = Sprite::new("s1".into(), 100.0, 100.0, 200.0, 200.0, "tokens".into(), "table-1".into());
         let handle = HandleDetector::get_resize_handle_for_non_rotated_sprite(
             &sprite, Vec2::new(200.0, 200.0), 1.0
         );
@@ -1038,7 +1038,7 @@ mod tests {
 
     #[test]
     fn cursor_detection_more_precise_than_resize() {
-        let sprite = Sprite::new("s1".into(), 100.0, 100.0, 200.0, 200.0, "tokens".into());
+        let sprite = Sprite::new("s1".into(), 100.0, 100.0, 200.0, 200.0, "tokens".into(), "table-1".into());
         // At 6px from edge: resize (threshold 8) detects, cursor (threshold 4) does not
         let handle_resize = HandleDetector::get_resize_handle_for_non_rotated_sprite(
             &sprite, Vec2::new(106.0, 200.0), 1.0

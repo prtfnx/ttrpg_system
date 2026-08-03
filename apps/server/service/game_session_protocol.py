@@ -72,7 +72,7 @@ class GameSessionProtocolService:
                 "Durable game-session state loaded",
                 extra={
                     "event_name": "game_session.storage.loaded",
-                    "table_count": max(len(self.table_manager.tables) - 1, 0),
+                    "table_count": len(self.table_manager.tables),
                 },
             )
         except Exception:

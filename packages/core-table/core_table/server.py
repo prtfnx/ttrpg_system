@@ -19,7 +19,7 @@ class TableManager:
         self.tables: Dict[str, VirtualTable] = {}
         self.tables_id: dict[str, VirtualTable] = {}
         self.db_session = db_session  # SQLAlchemy session for database operations
-        self.default_table = self._create_default_table()
+
     def set_db_session(self, db_session):
         """Set database session for persistence operations"""
         self.db_session = db_session
@@ -30,19 +30,11 @@ class TableManager:
         if callable(remove):
             remove()
 
-    def _create_default_table(self) -> VirtualTable:
-        """Create a default table"""
-        table = VirtualTable("default", 100, 100)
-        table_id = str(table.table_id)
-        self.tables[table_id] = table  # Use UUID as key, not "default"
-        self.tables_id[table_id] = table
-        return table
-
-    def get_table(self, table_id: Optional[str] = None) -> VirtualTable:
-        """Get table by UUID or return default"""
-        if table_id and table_id in self.tables:
-            return self.tables[table_id]
-        return self.default_table
+    def get_table(self, table_id: Optional[str] = None) -> Optional[VirtualTable]:
+        """Get a table by UUID, or return ``None`` for a missing identity."""
+        if not table_id:
+            return None
+        return self.tables.get(table_id)
 
     def get_table_by_name(self, name: str) -> Optional[VirtualTable]:
         """Get table by display name, or None if not found."""
@@ -65,7 +57,7 @@ class TableManager:
 
     def remove_table(self, table_id: str):
         """Remove table from manager by UUID"""
-        if table_id in self.tables and table_id != "default":
+        if table_id in self.tables:
             table = self.tables[table_id]
 
             # Remove from both dictionaries
@@ -79,8 +71,9 @@ class TableManager:
 
     def apply_update(self, data: Dict):
         """Apply general table updates"""
-        table_id = data.get('table_id', 'default')
-        self.get_table(table_id)
+        table_id = data.get('table_id')
+        if not table_id or self.get_table(table_id) is None:
+            return False
 
         update_type = data.get('type')
         if update_type == 'scale':
@@ -90,12 +83,13 @@ class TableManager:
             # Handle grid changes
             pass
         # Add more general update types as needed
+        return True
 
     def clear_tables(self):
         """Clear all tables"""
         self.tables.clear()
-        self.default_table = self._create_default_table()
-        logger.info("Cleared all tables, reset to default")
+        self.tables_id.clear()
+        logger.info("Cleared all tables")
 
     def save_to_database(self, session_id: int) -> bool:
         """Save all tables to database"""
@@ -106,12 +100,9 @@ class TableManager:
         try:
             from database import crud
 
-            default_table_id = str(self.default_table.table_id)
             for table_id, table in self.tables.items():
-                # Skip default table (compare by UUID, not name)
-                if table_id != default_table_id:
-                    crud.save_table_to_db(self.db_session, table, session_id)
-                    logger.info(f"Saved table '{table.display_name}' (ID: {table_id}) to database")
+                crud.save_table_to_db(self.db_session, table, session_id)
+                logger.info(f"Saved table '{table.display_name}' (ID: {table_id}) to database")
 
             return True
         except Exception as e:

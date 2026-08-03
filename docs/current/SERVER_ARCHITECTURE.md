@@ -1,5 +1,11 @@
 # Server architecture
 
+Audience: contributors changing the Python server or shared domain package.
+
+Status: usable.
+
+Last source audit: 2026-08-03
+
 The server is a FastAPI app with WebSocket sessions and a Python tabletop
 domain package behind it.
 
@@ -43,6 +49,10 @@ session.
 - Loads tables from the database when available.
 - Saves session state through database helpers.
 - Coordinates server-side asset permissions.
+
+`TableManager` starts empty. It contains only tables created for or loaded
+from the current session. Missing table IDs return no table; the domain layer
+does not create or substitute an unpersisted default table.
 
 ## Protocol handlers
 

@@ -5,7 +5,7 @@ canvas bootstrap, or table settings.
 
 Status: current but partial.
 
-Last source audit: 2026-07-09
+Last source audit: 2026-08-03
 
 ## Source owners
 
@@ -17,8 +17,8 @@ Last source audit: 2026-07-09
   walls, paint strokes, layer settings, and table lighting columns.
 - `apps/web-ui/src/store.ts`: table list, active table, optimistic create,
   switch, delete, units, walls, and table lighting state.
-- `apps/web-ui/src/features/table/`: table management panels, sync panel,
-  thumbnails, templates, and table hooks.
+- `apps/web-ui/src/features/table/`: table management panels, thumbnails,
+  templates, and table hooks.
 - `apps/web-ui/src/features/canvas/components/GameCanvas.tsx`: canvas surface.
 - `apps/web-ui/src/features/canvas/components/GameClient.tsx`: game shell,
   WebSocket connection, runtime user context, and canvas/panel layout.
@@ -36,6 +36,10 @@ for a table.
 The canvas is the interactive render surface. React owns panels, selected
 tools, active table choice, and protocol calls. Rust/WASM owns the render
 engine and canvas-side geometry/rendering work through `WasmRuntime`.
+
+An empty session has no table until a DM creates one or persisted tables load.
+The domain manager and renderer do not invent a default table. Every active
+table and sprite table ID comes from persisted or server-confirmed state.
 
 ## Main workflows
 

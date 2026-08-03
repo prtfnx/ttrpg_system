@@ -1,6 +1,7 @@
 import { ProtocolService } from '@lib/api';
 import { createMessage, MessageType } from '@lib/websocket';
-import { useState } from 'react';
+import { useId, useState } from 'react';
+import styles from './DiceRoller.module.css';
 
 /**
  * DiceRoller - Minimal, reusable dice roller component for TTRPGs.
@@ -18,6 +19,7 @@ export interface DiceRollerProps {
 
 
 export function DiceRoller({ dice = 20, count = 1, onRoll }: DiceRollerProps) {
+  const diceTypeId = useId();
   const [results, setResults] = useState<number[]>([]);
   const [rolling, setRolling] = useState(false);
   const [selectedDice, setSelectedDice] = useState<DiceType>(dice);
@@ -40,14 +42,15 @@ export function DiceRoller({ dice = 20, count = 1, onRoll }: DiceRollerProps) {
   }
 
   return (
-    <div className="game-panel">
-      <h3 className="panel-title">Dice Roller</h3>
-      <div className="dice-controls">
-        <span className="form-label">Roll:</span>
+    <div className={styles.diceRoller}>
+      <h3 className={styles.title}>Dice Roller</h3>
+      <div className={styles.controls}>
+        <label className={styles.formLabel} htmlFor={diceTypeId}>Roll:</label>
         <select
+          id={diceTypeId}
           value={selectedDice}
           onChange={e => setSelectedDice(Number(e.target.value) as DiceType)}
-          className="form-select"
+          className={styles.formSelect}
         >
           <option value={4}>d4</option>
           <option value={6}>d6</option>
@@ -57,22 +60,23 @@ export function DiceRoller({ dice = 20, count = 1, onRoll }: DiceRollerProps) {
           <option value={20}>d20</option>
           <option value={100}>d100</option>
         </select>
-        <span className="dice-count">(x{count})</span>
+        <span className={styles.diceCount}>(x{count})</span>
       </div>
       <button
+        type="button"
         onClick={rollDice}
         disabled={rolling}
-        className="btn-primary"
+        className={styles.rollButton}
         aria-label={`Roll ${count}d${selectedDice}`}
       >
         Roll
       </button>
-      <div className="dice-results">
+      <div className={styles.results} aria-live="polite">
         {results.length > 0 && (
           <span>
             Result: {results.join(', ')}
             {results.length > 1 && (
-              <span className="dice-total">
+              <span className={styles.total}>
                 (Total: {results.reduce((a, b) => a + b, 0)})
               </span>
             )}
@@ -80,7 +84,7 @@ export function DiceRoller({ dice = 20, count = 1, onRoll }: DiceRollerProps) {
         )}
       </div>
       {sentToChat && (
-        <div className="chat-sent-message">Sent to chat!</div>
+        <div className={styles.chatSent} role="status">Sent to chat!</div>
       )}
     </div>
   );

@@ -1,0 +1,82 @@
+.diceRoller {
+  display: grid;
+  gap: var(--space-md);
+  padding: var(--space-lg);
+  color: var(--text-primary);
+  background: var(--bg-elevated);
+  border: var(--border-width) solid var(--border-primary);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-sm);
+}
+
+.title {
+  margin: 0;
+  font-size: var(--text-lg);
+  font-weight: var(--font-semibold);
+}
+
+.controls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-sm);
+  align-items: center;
+}
+
+.formLabel {
+  color: var(--text-secondary);
+  font-size: var(--text-sm);
+  font-weight: var(--font-medium);
+}
+
+.formSelect {
+  min-width: var(--size-20);
+  padding: var(--space-sm) var(--space-md);
+  color: var(--text-primary);
+  background: var(--bg-primary);
+  border: var(--border-width) solid var(--border-primary);
+  border-radius: var(--radius-sm);
+  font: inherit;
+}
+
+.formSelect:hover {
+  border-color: var(--border-hover);
+}
+
+.formSelect:focus-visible {
+  border-color: var(--border-focus);
+  outline: none;
+  box-shadow: var(--focus-ring);
+}
+
+.diceCount {
+  color: var(--text-muted);
+  font-size: var(--text-sm);
+}
+
+.rollButton {
+  composes: panel-button primary from '@shared/styles/PanelBase.module.css';
+  width: 100%;
+}
+
+.results {
+  min-height: var(--size-6);
+  color: var(--text-secondary);
+  font-size: var(--text-sm);
+  text-align: center;
+}
+
+.total {
+  margin-left: var(--space-xs);
+  color: var(--text-primary);
+  font-weight: var(--font-semibold);
+}
+
+.chatSent {
+  padding: var(--space-xs) var(--space-sm);
+  color: var(--status-success-text);
+  background: var(--status-success-bg);
+  border: var(--border-width) solid var(--status-success-border);
+  border-radius: var(--radius-sm);
+  font-size: var(--text-sm);
+  text-align: center;
+}

@@ -26,7 +26,6 @@ const mocks = vi.hoisted(() => {
     renderEngine,
     actionsFree: vi.fn(),
     assetFree: vi.fn(),
-    networkFree: vi.fn(),
     planningFree: vi.fn(),
     tableFree: vi.fn(),
     tableSyncFree: vi.fn(),
@@ -47,7 +46,6 @@ vi.mock('../../wasmCore', () => ({
 vi.mock('../../generated/ttrpg_rust_core', () => ({
   ActionsClient: vi.fn(function () { return { free: mocks.actionsFree }; }),
   AssetManager: vi.fn(function () { return { free: mocks.assetFree }; }),
-  NetworkClient: vi.fn(function () { return { free: mocks.networkFree }; }),
   PlanningManager: vi.fn(function () { return { free: mocks.planningFree }; }),
   TableManager: vi.fn(function () { return { free: mocks.tableFree }; }),
   TableSync: vi.fn(function () { return { free: mocks.tableSyncFree }; }),
@@ -108,7 +106,7 @@ describe('WasmRuntime', () => {
     vi.unstubAllGlobals();
   });
 
-  it('initializes the wasm module and owned clients once', async () => {
+  it('initializes the wasm module and owned engine objects once', async () => {
     await runtime.initialize();
     await runtime.initialize();
 
@@ -121,6 +119,7 @@ describe('WasmRuntime', () => {
     });
     expect(runtime.getActionsEngine()).not.toBeNull();
     expect(runtime.getTableSync()).not.toBeNull();
+    expect('getNetworkClient' in runtime).toBe(false);
     expect(runtime.getDefaultBrushPresets()).toEqual([{ id: 'round' }]);
   });
 

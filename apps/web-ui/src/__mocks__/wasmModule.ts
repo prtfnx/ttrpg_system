@@ -169,7 +169,6 @@ export function createMockRenderEngine() {
     set_action_handler: vi.fn(),
     set_state_change_handler: vi.fn(),
     set_actions_error_handler: vi.fn(),
-    set_actions_auto_sync: vi.fn(),
 
     // Table data
     get_table_info: vi.fn().mockReturnValue(null),
@@ -177,12 +176,10 @@ export function createMockRenderEngine() {
     get_sprites_by_layer: vi.fn().mockReturnValue([]),
     get_table_data: vi.fn().mockReturnValue(null),
     get_table_id: vi.fn().mockReturnValue(undefined),
-    set_network_client: vi.fn(),
     handle_table_data: vi.fn(),
     handle_sprite_update: vi.fn(),
     update_sprite_scale: vi.fn(),
     update_sprite_position: vi.fn(),
-    request_table: vi.fn(),
     set_table_received_handler: vi.fn(),
     set_sprite_update_handler: vi.fn(),
     set_table_error_handler: vi.fn(),

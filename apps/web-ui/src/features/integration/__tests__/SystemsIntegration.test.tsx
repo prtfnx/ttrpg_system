@@ -27,15 +27,6 @@ import { ChatPanel } from '@features/chat';
 //Mock WASM module with realistic interface
 const mockLoadTexture = vi.fn().mockResolvedValue(true);
 const mockRenderEngine = createMockRenderEngine();
-const mockNetworkClient = {
-  set_message_handler: vi.fn(),
-  set_connection_handler: vi.fn(),
-  set_error_handler: vi.fn(),
-  get_client_id: vi.fn(() => 'integration-client'),
-  connect: vi.fn(),
-  disconnect: vi.fn(),
-  send_message: vi.fn(),
-};
 const mockAssetManager = {
   initialize: vi.fn().mockResolvedValue(undefined),
   download_asset: vi.fn().mockResolvedValue('asset_123'),
@@ -56,7 +47,6 @@ function render(ui: React.ReactElement) {
     ui,
     createMockWasmRuntime({
       getRenderEngine: vi.fn(() => mockRenderEngine as never),
-      getNetworkClient: vi.fn(() => mockNetworkClient as never),
       getAssetManager: vi.fn(() => mockAssetManager as never),
       getActionsEngine: vi.fn(() => mockActionsClient as never),
     }),
@@ -65,21 +55,6 @@ function render(ui: React.ReactElement) {
 
 const mockWasmModule = {
   RenderEngine: vi.fn().mockImplementation(() => mockRenderEngine),
-  NetworkClient: vi.fn().mockImplementation(() => ({
-    connect: vi.fn().mockResolvedValue(true),
-    disconnect: vi.fn(),
-    send_message: vi.fn(),
-    is_connected: vi.fn().mockReturnValue(true)
-  })),
-  // Add NetworkClientClass for constructor compatibility
-  NetworkClientClass: function NetworkClientClass() {
-    return {
-      connect: vi.fn().mockResolvedValue(true),
-      disconnect: vi.fn(),
-      send_message: vi.fn(),
-      is_connected: vi.fn().mockReturnValue(true)
-    };
-  },
   ActionsClient: vi.fn().mockImplementation(() => ({
     set_action_handler: vi.fn(),
     set_state_change_handler: vi.fn(),

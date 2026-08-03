@@ -7,7 +7,6 @@ import { emitWasmEvent, type WasmEventMap } from '../wasmEvents';
 import {
   ActionsClient,
   AssetManager,
-  NetworkClient,
   PlanningManager,
   TableManager,
   TableSync,
@@ -78,7 +77,6 @@ export class WasmRuntime implements WasmRuntimePort {
   private renderEngine: RenderEngine | null = null;
   private actionsEngine: ActionsClient | null = null;
   private assetManager: AssetManager | null = null;
-  private networkClient: NetworkClient | null = null;
   private planningManager: PlanningManager | null = null;
   private tableManager: TableManager | null = null;
   private tableSync: TableSync | null = null;
@@ -104,7 +102,6 @@ export class WasmRuntime implements WasmRuntimePort {
       .then(() => {
         this.actionsEngine ??= new ActionsClient();
         this.assetManager ??= new AssetManager();
-        this.networkClient ??= new NetworkClient();
         this.tableManager ??= new TableManager();
         this.tableSync ??= new TableSync();
         this.store.setSnapshot({
@@ -177,14 +174,12 @@ export class WasmRuntime implements WasmRuntimePort {
 
     try { this.actionsEngine?.free(); } catch {}
     try { this.assetManager?.free(); } catch {}
-    try { this.networkClient?.free(); } catch {}
     try { this.planningManager?.free(); } catch {}
     try { this.tableManager?.free(); } catch {}
     try { this.tableSync?.free(); } catch {}
 
     this.actionsEngine = null;
     this.assetManager = null;
-    this.networkClient = null;
     this.planningManager = null;
     this.tableManager = null;
     this.tableSync = null;
@@ -212,10 +207,6 @@ export class WasmRuntime implements WasmRuntimePort {
 
   getAssetManager(): AssetManager | null {
     return this.assetManager;
-  }
-
-  getNetworkClient(): NetworkClient | null {
-    return this.networkClient;
   }
 
   getPlanningManager(): PlanningManager | null {

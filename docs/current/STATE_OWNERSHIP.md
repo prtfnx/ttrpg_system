@@ -1,5 +1,11 @@
 # State ownership
 
+Audience: contributors deciding where new state or behavior belongs.
+
+Status: usable.
+
+Last source audit: 2026-08-03
+
 The app has several state owners. Keep each kind of state in the place that can
 maintain it without reaching across domains.
 
@@ -89,6 +95,10 @@ Use Rust engine state for:
 
 Rust should report app-level intent through runtime callbacks, not browser
 globals.
+
+Rust does not own browser transport. `WebClientProtocol` receives and sends
+network messages; runtime methods pass normalized data and compute requests
+across the WASM boundary.
 
 For combat, Rust planning state is preview state only. It may estimate movement
 range, path, LOS, and AoE candidates. It does not decide final legality or

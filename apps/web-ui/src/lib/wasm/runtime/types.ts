@@ -45,36 +45,6 @@ export interface AssetManager {
   set_max_cache_size(sizeBytes: bigint): void;
 }
 
-export interface NetworkClient {
-  authenticate(username: string, password: string): void;
-  confirm_asset_upload(assetId: string, uploadSuccess: boolean): void;
-  connect(url: string): void;
-  disconnect(): void;
-  get_client_id(): string;
-  get_connection_state(): string;
-  get_session_code(): string | undefined;
-  get_username(): string | undefined;
-  is_connected(): boolean;
-  join_session(sessionCode: string): void;
-  request_asset_download(assetId: string): void;
-  request_asset_upload(filename: string, fileHash: string, fileSize: bigint): void;
-  request_player_list(): void;
-  request_table_list(): void;
-  send_message(messageType: string, data: unknown): void;
-  send_new_table_request(tableName: string): void;
-  send_ping(): void;
-  send_sprite_create(spriteData: unknown): void;
-  send_sprite_remove(spriteId: string): void;
-  send_sprite_update(spriteData: unknown): void;
-  send_table_request(requestData: unknown): void;
-  send_table_update(tableData: unknown): void;
-  set_connection_handler(callback: (state: string, error?: string) => void): void;
-  set_error_handler(callback: (error: string) => void): void;
-  set_message_handler(callback: (messageType: string, data: unknown) => void): void;
-  set_user_info(userId: number, username: string, sessionCode?: string | null, jwtToken?: string | null): void;
-  sync_action(actionData: string): void;
-}
-
 export interface PlanningManager {
   clear_all(): void;
   clear_aoe(): void;
@@ -242,9 +212,7 @@ export interface TableSync {
   handle_error(errorMessage: string): void;
   handle_sprite_update(updateData: unknown): void;
   handle_table_data(tableData: unknown): void;
-  request_table(tableName: string): void;
   set_error_handler(callback: (error: string) => void): void;
-  set_network_client(networkClient: unknown): void;
   set_sprite_update_handler(callback: (data: unknown) => void): void;
   set_table_received_handler(callback: (data: unknown) => void): void;
 }

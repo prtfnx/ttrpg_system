@@ -1,7 +1,15 @@
 # Rust/WASM engine
 
+Audience: contributors changing the browser engine or its TypeScript boundary.
+
+Status: usable.
+
+Last source audit: 2026-08-03
+
 The Rust crate is the local engine behind the browser canvas. It should stay
-focused on rendering, geometry-heavy behavior, and explicit WASM exports.
+focused on compute-heavy rendering, geometry, visibility, collision, planning,
+and explicit WASM exports. TypeScript owns browser transport and application
+orchestration.
 
 ## Crate shape
 
@@ -15,8 +23,8 @@ focused on rendering, geometry-heavy behavior, and explicit WASM exports.
   systems.
 - `packages/rust-core/src/actions/` contains undoable table and sprite action
   helpers.
-- `packages/rust-core/src/net/` contains WASM-facing network, asset, and table
-  sync helpers.
+- `packages/rust-core/src/net/` contains the asset hashing/cache helper and the
+  table-data ingestion adapter. It does not own a WebSocket connection.
 - `packages/rust-core/src/lighting/` contains lighting and visibility logic.
 
 ## Main exported objects
@@ -29,7 +37,6 @@ The app currently depends on these generated WASM exports through
 - `RenderEngine`
 - `ActionsClient`
 - `AssetManager`
-- `NetworkClient`
 - `PlanningManager`
 - `TableManager`
 - `TableSync`
@@ -66,6 +73,10 @@ callbacks owned by `WasmRuntime`:
   listeners.
 
 This keeps Rust from knowing about React, Zustand, or WebSocket objects.
+
+`WebClientProtocol` is the only WebSocket owner. Rust exports do not connect,
+authenticate, reconnect, or send protocol messages. `TableSync` accepts data
+that TypeScript already received and normalized; it does not request data.
 
 Combat-specific rule: Rust may preview an action, but it must not accept the
 action. Final combat legality, resource spending, movement cost, cover/terrain

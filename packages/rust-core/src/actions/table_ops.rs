@@ -32,10 +32,6 @@ impl ActionsClient {
         self.add_to_history(action);
         self.notify_state_change("table_created", &table_id);
 
-        if self.auto_sync {
-            self.sync_table_create(&table_info);
-        }
-
         let result = ActionResult {
             success: true,
             message: format!("Table '{}' created successfully", name),
@@ -57,10 +53,6 @@ impl ActionsClient {
 
             self.add_to_history(action);
             self.notify_state_change("table_deleted", table_id);
-
-            if self.auto_sync {
-                self.sync_table_delete(table_id);
-            }
 
             let result = ActionResult {
                 success: true,
@@ -155,10 +147,6 @@ impl ActionsClient {
 
             self.add_to_history(action);
             self.notify_state_change("table_updated", table_id);
-
-            if self.auto_sync {
-                self.sync_table_update(table_id, updates);
-            }
 
             let result = ActionResult {
                 success: true,

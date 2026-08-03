@@ -1,5 +1,11 @@
 # WASM React boundary
 
+Audience: contributors changing React-to-Rust integration.
+
+Status: usable.
+
+Last source audit: 2026-08-03
+
 React does not own Rust objects directly. It talks to `WasmRuntime`, and
 `WasmRuntime` owns the generated wasm-bindgen module.
 
@@ -97,7 +103,11 @@ cover, terrain, resources, and turns are accepted by the server through
   `window.wasmInitialized`.
 - Do not import generated bindings from feature code.
 - Do not dispatch app-level browser events from Rust.
+- Do not add WebSocket ownership or protocol serialization to Rust. Browser
+  transport belongs to `WebClientProtocol`.
 - Add new Rust-facing behavior through `WasmRuntimePort`.
+- Prefer Rust for measured compute-heavy engine work. Keep UI workflows,
+  transport lifecycle, and application state in TypeScript.
 - Keep runtime tests at the port/callback boundary, not at React component
   implementation details.
 - Keep combat-facing WASM behavior preview-only. Do not add a Rust export that

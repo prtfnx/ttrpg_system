@@ -40,10 +40,6 @@ impl ActionsClient {
         self.add_to_history(action);
         self.notify_state_change("sprite_created", &sprite_id);
 
-        if self.auto_sync {
-            self.sync_sprite_create(table_id, &sprite_info);
-        }
-
         let result = ActionResult {
             success: true,
             message: "Sprite created successfully".to_string(),
@@ -65,10 +61,6 @@ impl ActionsClient {
 
             self.add_to_history(action);
             self.notify_state_change("sprite_deleted", sprite_id);
-
-            if self.auto_sync {
-                self.sync_sprite_delete(sprite_id);
-            }
 
             let result = ActionResult {
                 success: true,
@@ -158,10 +150,6 @@ impl ActionsClient {
             self.add_to_history(action);
             self.notify_state_change("sprite_updated", sprite_id);
 
-            if self.auto_sync {
-                self.sync_sprite_update(sprite_id, updates);
-            }
-
             let result = ActionResult {
                 success: true,
                 message: "Sprite updated successfully".to_string(),
@@ -248,17 +236,6 @@ impl ActionsClient {
             };
 
             self.add_to_history(action.clone());
-            
-            if self.auto_sync {
-                if let Some(ref network_client) = self.network_client {
-                    if let Ok(action_json) = serde_json::to_string(&action) {
-                        let sync_result = network_client.sync_action(&action_json);
-                        if sync_result.is_err() {
-                            web_sys::console::warn_1(&format!("Failed to sync sprite layer change to network: {:?}", sync_result.err()).into());
-                        }
-                    }
-                }
-            }
             
             self.notify_state_change("sprite_layer_changed", sprite_id);
 

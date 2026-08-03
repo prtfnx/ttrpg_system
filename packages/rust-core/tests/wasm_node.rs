@@ -164,6 +164,37 @@ fn actions_client_undo_and_redo_table_create() {
     assert!(!client.can_redo(), "redo stack should be empty after redo");
 }
 
+// TableSync is an inbound engine adapter. Browser transport remains in TypeScript.
+
+#[wasm_bindgen_test]
+fn table_sync_ingests_normalized_table_data() {
+    let mut sync = core::TableSync::new();
+    let table = serde_json::json!({
+        "table_id": "table-1",
+        "table_name": "Dungeon",
+        "width": 800.0,
+        "height": 600.0,
+        "scale": 1.0,
+        "layers": {
+            "tokens": [{
+                "sprite_id": "sprite-1",
+                "texture_path": "/assets/token.png",
+                "coord_x": 10.0,
+                "coord_y": 20.0,
+                "scale_x": 1.0,
+                "scale_y": 1.0,
+                "layer": "tokens"
+            }]
+        }
+    });
+    let value = js_sys::JSON::parse(&table.to_string()).unwrap();
+
+    sync.handle_table_data(&value).unwrap();
+
+    assert_eq!(sync.get_table_id().as_deref(), Some("table-1"));
+    assert_eq!(js_sys::Array::from(&sync.get_sprites()).length(), 1);
+}
+
 #[wasm_bindgen_test]
 fn unit_converter_dnd_default_pixels_per_unit_positive() {
     let uc = core::unit_converter::UnitConverter::dnd_default();

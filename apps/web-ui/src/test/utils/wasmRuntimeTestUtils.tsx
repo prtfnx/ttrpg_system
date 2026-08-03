@@ -32,7 +32,6 @@ export function createMockWasmRuntime(overrides: Partial<MockWasmRuntime> = {}):
     getRenderEngine: vi.fn(() => null),
     getActionsEngine: vi.fn(() => null),
     getAssetManager: vi.fn(() => null),
-    getNetworkClient: vi.fn(() => null),
     getPlanningManager: vi.fn(() => null),
     getTableManager: vi.fn(() => null),
     getTableSync: vi.fn(() => null),

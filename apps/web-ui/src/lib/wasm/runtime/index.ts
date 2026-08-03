@@ -13,7 +13,6 @@ export type {
   ActionsClient,
   AssetManager,
   BrushPreset,
-  NetworkClient,
   PlanningManager,
   RenderEngine,
   TableManager,

@@ -11,9 +11,6 @@ pub struct TableSync {
     current_table: Option<TableData>,
     table_id: Option<String>,
 
-    // Network integration
-    network_client: Option<js_sys::Object>,
-
     // Event callbacks
     on_table_received: Option<Function>,
     on_sprite_update: Option<Function>,
@@ -133,17 +130,10 @@ impl TableSync {
         Self {
             current_table: None,
             table_id: None,
-            network_client: None,
             on_table_received: None,
             on_sprite_update: None,
             on_error: None,
         }
-    }
-
-    /// Set the network client for sending messages
-    #[wasm_bindgen]
-    pub fn set_network_client(&mut self, network_client: &js_sys::Object) {
-        self.network_client = Some(network_client.clone());
     }
 
     /// Set callback for when table data is received
@@ -162,31 +152,6 @@ impl TableSync {
     #[wasm_bindgen]
     pub fn set_error_handler(&mut self, callback: &Function) {
         self.on_error = Some(callback.clone());
-    }
-
-    /// Request table data from server
-    #[wasm_bindgen]
-    pub fn request_table(&self, table_name: &str) -> Result<(), JsValue> {
-        if let Some(ref network_client) = self.network_client {
-            let request_data = serde_json::json!({
-                "table_name": table_name
-            });
-
-            let js_data = serde_wasm_bindgen::to_value(&request_data)?;
-
-            // Call network client's send_table_request method
-            let send_method =
-                js_sys::Reflect::get(network_client, &JsValue::from_str("send_table_request"))?;
-            if let Ok(send_fn) = send_method.dyn_into::<Function>() {
-                send_fn.call1(network_client, &js_data)?;
-            } else {
-                return Err(JsValue::from_str("send_table_request method not found"));
-            }
-        } else {
-            return Err(JsValue::from_str("Network client not set"));
-        }
-
-        Ok(())
     }
 
     /// Handle table data received from server

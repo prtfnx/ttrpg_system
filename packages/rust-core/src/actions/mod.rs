@@ -6,7 +6,6 @@ use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use js_sys::Function;
 use crate::types::{Position, Size};
-use crate::network::NetworkClient;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ActionResult {
@@ -59,10 +58,6 @@ pub struct ActionsClient {
     pub(crate) redo_stack: Vec<ActionHistoryEntry>,
     pub(crate) max_history: usize,
     
-    // Network integration
-    pub(crate) network_client: Option<NetworkClient>,
-    pub(crate) auto_sync: bool,
-    
     // Event handlers
     pub(crate) on_action_callback: Option<Function>,
     pub(crate) on_state_change_callback: Option<Function>,
@@ -91,8 +86,6 @@ impl ActionsClient {
             undo_stack: Vec::new(),
             redo_stack: Vec::new(),
             max_history: 100,
-            network_client: None,
-            auto_sync: true,
             on_action_callback: None,
             on_state_change_callback: None,
             on_error_callback: None,
@@ -113,30 +106,6 @@ impl ActionsClient {
     #[wasm_bindgen]
     pub fn set_error_handler(&mut self, callback: &Function) {
         self.on_error_callback = Some(callback.clone());
-    }
-
-    #[wasm_bindgen]
-    pub fn set_network_client(&mut self, network_client: &NetworkClient) {
-        self.network_client = Some(network_client.clone());
-        self.auto_sync = true;
-        web_sys::console::log_1(&"ActionsClient: Network client connected for action sync".into());
-    }
-
-    #[wasm_bindgen] 
-    pub fn disconnect_network_client(&mut self) {
-        self.network_client = None;
-        self.auto_sync = false;
-        web_sys::console::log_1(&"ActionsClient: Network client disconnected".into());
-    }
-
-    #[wasm_bindgen]
-    pub fn is_network_connected(&self) -> bool {
-        self.network_client.is_some()
-    }
-
-    #[wasm_bindgen]
-    pub fn set_auto_sync(&mut self, enabled: bool) {
-        self.auto_sync = enabled;
     }
 
     // Undo/Redo System
@@ -310,29 +279,6 @@ impl ActionsClient {
         }
     }
 
-    pub(crate) fn sync_table_create(&self, table_info: &TableInfo) {
-        web_sys::console::log_1(&format!("Syncing table create: {}", table_info.table_id).into());
-    }
-
-    pub(crate) fn sync_table_delete(&self, table_id: &str) {
-        web_sys::console::log_1(&format!("Syncing table delete: {}", table_id).into());
-    }
-
-    pub(crate) fn sync_table_update(&self, table_id: &str, _updates: &JsValue) {
-        web_sys::console::log_1(&format!("Syncing table update: {}", table_id).into());
-    }
-
-    pub(crate) fn sync_sprite_create(&self, table_id: &str, sprite_info: &SpriteInfo) {
-        web_sys::console::log_1(&format!("Syncing sprite create: {} in table {}", sprite_info.sprite_id, table_id).into());
-    }
-
-    pub(crate) fn sync_sprite_delete(&self, sprite_id: &str) {
-        web_sys::console::log_1(&format!("Syncing sprite delete: {}", sprite_id).into());
-    }
-
-    pub(crate) fn sync_sprite_update(&self, sprite_id: &str, _updates: &JsValue) {
-        web_sys::console::log_1(&format!("Syncing sprite update: {}", sprite_id).into());
-    }
 }
 
 #[cfg(test)]

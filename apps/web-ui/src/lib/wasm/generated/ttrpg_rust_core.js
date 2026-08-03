@@ -82,9 +82,6 @@ export class ActionsClient {
         const ret = wasm.actionsclient_delete_table(this.__wbg_ptr, ptr0, len0);
         return ret;
     }
-    disconnect_network_client() {
-        wasm.actionsclient_disconnect_network_client(this.__wbg_ptr);
-    }
     /**
      * @returns {any}
      */
@@ -140,13 +137,6 @@ export class ActionsClient {
         return ret;
     }
     /**
-     * @returns {boolean}
-     */
-    is_network_connected() {
-        const ret = wasm.actionsclient_is_network_connected(this.__wbg_ptr);
-        return ret !== 0;
-    }
-    /**
      * @param {string} sprite_id
      * @param {string} new_layer
      * @returns {any}
@@ -179,12 +169,6 @@ export class ActionsClient {
         wasm.actionsclient_set_action_handler(this.__wbg_ptr, callback);
     }
     /**
-     * @param {boolean} enabled
-     */
-    set_auto_sync(enabled) {
-        wasm.actionsclient_set_auto_sync(this.__wbg_ptr, enabled);
-    }
-    /**
      * @param {Function} callback
      */
     set_error_handler(callback) {
@@ -200,13 +184,6 @@ export class ActionsClient {
         const len0 = WASM_VECTOR_LEN;
         const ret = wasm.actionsclient_set_layer_visibility(this.__wbg_ptr, ptr0, len0, visible);
         return ret;
-    }
-    /**
-     * @param {NetworkClient} network_client
-     */
-    set_network_client(network_client) {
-        _assertClass(network_client, NetworkClient);
-        wasm.actionsclient_set_network_client(this.__wbg_ptr, network_client.__wbg_ptr);
     }
     /**
      * @param {Function} callback
@@ -567,296 +544,6 @@ export class CollisionSystem {
     }
 }
 if (Symbol.dispose) CollisionSystem.prototype[Symbol.dispose] = CollisionSystem.prototype.free;
-
-export class NetworkClient {
-    __destroy_into_raw() {
-        const ptr = this.__wbg_ptr;
-        this.__wbg_ptr = 0;
-        NetworkClientFinalization.unregister(this);
-        return ptr;
-    }
-    free() {
-        const ptr = this.__destroy_into_raw();
-        wasm.__wbg_networkclient_free(ptr, 0);
-    }
-    /**
-     * @param {string} username
-     * @param {string} password
-     */
-    authenticate(username, password) {
-        const ptr0 = passStringToWasm0(username, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
-        const len0 = WASM_VECTOR_LEN;
-        const ptr1 = passStringToWasm0(password, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
-        const len1 = WASM_VECTOR_LEN;
-        const ret = wasm.networkclient_authenticate(this.__wbg_ptr, ptr0, len0, ptr1, len1);
-        if (ret[1]) {
-            throw takeFromExternrefTable0(ret[0]);
-        }
-    }
-    /**
-     * @param {string} asset_id
-     * @param {boolean} upload_success
-     */
-    confirm_asset_upload(asset_id, upload_success) {
-        const ptr0 = passStringToWasm0(asset_id, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
-        const len0 = WASM_VECTOR_LEN;
-        const ret = wasm.networkclient_confirm_asset_upload(this.__wbg_ptr, ptr0, len0, upload_success);
-        if (ret[1]) {
-            throw takeFromExternrefTable0(ret[0]);
-        }
-    }
-    /**
-     * @param {string} url
-     */
-    connect(url) {
-        const ptr0 = passStringToWasm0(url, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
-        const len0 = WASM_VECTOR_LEN;
-        const ret = wasm.networkclient_connect(this.__wbg_ptr, ptr0, len0);
-        if (ret[1]) {
-            throw takeFromExternrefTable0(ret[0]);
-        }
-    }
-    disconnect() {
-        wasm.networkclient_disconnect(this.__wbg_ptr);
-    }
-    /**
-     * @returns {string}
-     */
-    get_client_id() {
-        let deferred1_0;
-        let deferred1_1;
-        try {
-            const ret = wasm.networkclient_get_client_id(this.__wbg_ptr);
-            deferred1_0 = ret[0];
-            deferred1_1 = ret[1];
-            return getStringFromWasm0(ret[0], ret[1]);
-        } finally {
-            wasm.__wbindgen_free(deferred1_0, deferred1_1, 1);
-        }
-    }
-    /**
-     * @returns {string}
-     */
-    get_connection_state() {
-        let deferred1_0;
-        let deferred1_1;
-        try {
-            const ret = wasm.networkclient_get_connection_state(this.__wbg_ptr);
-            deferred1_0 = ret[0];
-            deferred1_1 = ret[1];
-            return getStringFromWasm0(ret[0], ret[1]);
-        } finally {
-            wasm.__wbindgen_free(deferred1_0, deferred1_1, 1);
-        }
-    }
-    /**
-     * @returns {string | undefined}
-     */
-    get_session_code() {
-        const ret = wasm.networkclient_get_session_code(this.__wbg_ptr);
-        let v1;
-        if (ret[0] !== 0) {
-            v1 = getStringFromWasm0(ret[0], ret[1]).slice();
-            wasm.__wbindgen_free(ret[0], ret[1] * 1, 1);
-        }
-        return v1;
-    }
-    /**
-     * @returns {string | undefined}
-     */
-    get_username() {
-        const ret = wasm.networkclient_get_username(this.__wbg_ptr);
-        let v1;
-        if (ret[0] !== 0) {
-            v1 = getStringFromWasm0(ret[0], ret[1]).slice();
-            wasm.__wbindgen_free(ret[0], ret[1] * 1, 1);
-        }
-        return v1;
-    }
-    /**
-     * @returns {boolean}
-     */
-    is_connected() {
-        const ret = wasm.networkclient_is_connected(this.__wbg_ptr);
-        return ret !== 0;
-    }
-    /**
-     * @param {string} session_code
-     */
-    join_session(session_code) {
-        const ptr0 = passStringToWasm0(session_code, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
-        const len0 = WASM_VECTOR_LEN;
-        const ret = wasm.networkclient_join_session(this.__wbg_ptr, ptr0, len0);
-        if (ret[1]) {
-            throw takeFromExternrefTable0(ret[0]);
-        }
-    }
-    constructor() {
-        const ret = wasm.networkclient_new();
-        this.__wbg_ptr = ret >>> 0;
-        NetworkClientFinalization.register(this, this.__wbg_ptr, this);
-        return this;
-    }
-    /**
-     * @param {string} asset_id
-     */
-    request_asset_download(asset_id) {
-        const ptr0 = passStringToWasm0(asset_id, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
-        const len0 = WASM_VECTOR_LEN;
-        const ret = wasm.networkclient_request_asset_download(this.__wbg_ptr, ptr0, len0);
-        if (ret[1]) {
-            throw takeFromExternrefTable0(ret[0]);
-        }
-    }
-    /**
-     * @param {string} filename
-     * @param {string} file_hash
-     * @param {bigint} file_size
-     */
-    request_asset_upload(filename, file_hash, file_size) {
-        const ptr0 = passStringToWasm0(filename, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
-        const len0 = WASM_VECTOR_LEN;
-        const ptr1 = passStringToWasm0(file_hash, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
-        const len1 = WASM_VECTOR_LEN;
-        const ret = wasm.networkclient_request_asset_upload(this.__wbg_ptr, ptr0, len0, ptr1, len1, file_size);
-        if (ret[1]) {
-            throw takeFromExternrefTable0(ret[0]);
-        }
-    }
-    request_player_list() {
-        const ret = wasm.networkclient_request_player_list(this.__wbg_ptr);
-        if (ret[1]) {
-            throw takeFromExternrefTable0(ret[0]);
-        }
-    }
-    request_table_list() {
-        const ret = wasm.networkclient_request_table_list(this.__wbg_ptr);
-        if (ret[1]) {
-            throw takeFromExternrefTable0(ret[0]);
-        }
-    }
-    /**
-     * @param {string} message_type
-     * @param {any} data
-     */
-    send_message(message_type, data) {
-        const ptr0 = passStringToWasm0(message_type, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
-        const len0 = WASM_VECTOR_LEN;
-        const ret = wasm.networkclient_send_message(this.__wbg_ptr, ptr0, len0, data);
-        if (ret[1]) {
-            throw takeFromExternrefTable0(ret[0]);
-        }
-    }
-    /**
-     * @param {string} table_name
-     */
-    send_new_table_request(table_name) {
-        const ptr0 = passStringToWasm0(table_name, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
-        const len0 = WASM_VECTOR_LEN;
-        const ret = wasm.networkclient_send_new_table_request(this.__wbg_ptr, ptr0, len0);
-        if (ret[1]) {
-            throw takeFromExternrefTable0(ret[0]);
-        }
-    }
-    send_ping() {
-        const ret = wasm.networkclient_send_ping(this.__wbg_ptr);
-        if (ret[1]) {
-            throw takeFromExternrefTable0(ret[0]);
-        }
-    }
-    /**
-     * @param {any} sprite_data
-     */
-    send_sprite_create(sprite_data) {
-        const ret = wasm.networkclient_send_sprite_create(this.__wbg_ptr, sprite_data);
-        if (ret[1]) {
-            throw takeFromExternrefTable0(ret[0]);
-        }
-    }
-    /**
-     * @param {string} sprite_id
-     */
-    send_sprite_remove(sprite_id) {
-        const ptr0 = passStringToWasm0(sprite_id, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
-        const len0 = WASM_VECTOR_LEN;
-        const ret = wasm.networkclient_send_sprite_remove(this.__wbg_ptr, ptr0, len0);
-        if (ret[1]) {
-            throw takeFromExternrefTable0(ret[0]);
-        }
-    }
-    /**
-     * @param {any} sprite_data
-     */
-    send_sprite_update(sprite_data) {
-        const ret = wasm.networkclient_send_sprite_update(this.__wbg_ptr, sprite_data);
-        if (ret[1]) {
-            throw takeFromExternrefTable0(ret[0]);
-        }
-    }
-    /**
-     * @param {any} request_data
-     */
-    send_table_request(request_data) {
-        const ret = wasm.networkclient_send_table_request(this.__wbg_ptr, request_data);
-        if (ret[1]) {
-            throw takeFromExternrefTable0(ret[0]);
-        }
-    }
-    /**
-     * @param {any} table_data
-     */
-    send_table_update(table_data) {
-        const ret = wasm.networkclient_send_table_update(this.__wbg_ptr, table_data);
-        if (ret[1]) {
-            throw takeFromExternrefTable0(ret[0]);
-        }
-    }
-    /**
-     * @param {Function} callback
-     */
-    set_connection_handler(callback) {
-        wasm.networkclient_set_connection_handler(this.__wbg_ptr, callback);
-    }
-    /**
-     * @param {Function} callback
-     */
-    set_error_handler(callback) {
-        wasm.networkclient_set_error_handler(this.__wbg_ptr, callback);
-    }
-    /**
-     * @param {Function} callback
-     */
-    set_message_handler(callback) {
-        wasm.networkclient_set_message_handler(this.__wbg_ptr, callback);
-    }
-    /**
-     * @param {number} user_id
-     * @param {string} username
-     * @param {string | null} [session_code]
-     * @param {string | null} [jwt_token]
-     */
-    set_user_info(user_id, username, session_code, jwt_token) {
-        const ptr0 = passStringToWasm0(username, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
-        const len0 = WASM_VECTOR_LEN;
-        var ptr1 = isLikeNone(session_code) ? 0 : passStringToWasm0(session_code, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
-        var len1 = WASM_VECTOR_LEN;
-        var ptr2 = isLikeNone(jwt_token) ? 0 : passStringToWasm0(jwt_token, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
-        var len2 = WASM_VECTOR_LEN;
-        wasm.networkclient_set_user_info(this.__wbg_ptr, user_id, ptr0, len0, ptr1, len1, ptr2, len2);
-    }
-    /**
-     * @param {string} action_data
-     */
-    sync_action(action_data) {
-        const ptr0 = passStringToWasm0(action_data, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
-        const len0 = WASM_VECTOR_LEN;
-        const ret = wasm.networkclient_sync_action(this.__wbg_ptr, ptr0, len0);
-        if (ret[1]) {
-            throw takeFromExternrefTable0(ret[0]);
-        }
-    }
-}
-if (Symbol.dispose) NetworkClient.prototype[Symbol.dispose] = NetworkClient.prototype.free;
 
 export class PaintSystem {
     __destroy_into_raw() {
@@ -2580,30 +2267,11 @@ export class TableSync {
         return this;
     }
     /**
-     * Request table data from server
-     * @param {string} table_name
-     */
-    request_table(table_name) {
-        const ptr0 = passStringToWasm0(table_name, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
-        const len0 = WASM_VECTOR_LEN;
-        const ret = wasm.tablesync_request_table(this.__wbg_ptr, ptr0, len0);
-        if (ret[1]) {
-            throw takeFromExternrefTable0(ret[0]);
-        }
-    }
-    /**
      * Set error handler
      * @param {Function} callback
      */
     set_error_handler(callback) {
         wasm.tablesync_set_error_handler(this.__wbg_ptr, callback);
-    }
-    /**
-     * Set the network client for sending messages
-     * @param {object} network_client
-     */
-    set_network_client(network_client) {
-        wasm.tablesync_set_network_client(this.__wbg_ptr, network_client);
     }
     /**
      * Set callback for sprite updates
@@ -2893,13 +2561,6 @@ function __wbg_get_imports() {
         __wbg_clear_98a9ca84e00ae8e2: function(arg0, arg1) {
             arg0.clear(arg1 >>> 0);
         },
-        __wbg_close_f181fdc02ee236e6: function() { return handleError(function (arg0) {
-            arg0.close();
-        }, arguments); },
-        __wbg_code_c96efa5c1a80b2d9: function(arg0) {
-            const ret = arg0.code;
-            return ret;
-        },
         __wbg_colorMask_134144611b082d70: function(arg0, arg1, arg2, arg3, arg4) {
             arg0.colorMask(arg1 !== 0, arg2 !== 0, arg3 !== 0, arg4 !== 0);
         },
@@ -2929,10 +2590,6 @@ function __wbg_get_imports() {
         __wbg_createTexture_ab0a6dde87005cb1: function(arg0) {
             const ret = arg0.createTexture();
             return isLikeNone(ret) ? 0 : addToExternrefTable0(ret);
-        },
-        __wbg_data_60b50110c5bd9349: function(arg0) {
-            const ret = arg0.data;
-            return ret;
         },
         __wbg_disableVertexAttribArray_a1f4414d0521b130: function(arg0, arg1) {
             arg0.disableVertexAttribArray(arg1 >>> 0);
@@ -3027,10 +2684,6 @@ function __wbg_get_imports() {
             return ret;
         },
         __wbg_get_ed0642c4b9d31ddf: function() { return handleError(function (arg0, arg1) {
-            const ret = Reflect.get(arg0, arg1);
-            return ret;
-        }, arguments); },
-        __wbg_get_f96702c6245e4ef9: function() { return handleError(function (arg0, arg1) {
             const ret = Reflect.get(arg0, arg1);
             return ret;
         }, arguments); },
@@ -3145,10 +2798,6 @@ function __wbg_get_imports() {
             const ret = new Map();
             return ret;
         },
-        __wbg_new_a2d8434834334bbf: function() { return handleError(function (arg0, arg1) {
-            const ret = new WebSocket(getStringFromWasm0(arg0, arg1));
-            return ret;
-        }, arguments); },
         __wbg_new_a560378ea1240b14: function(arg0) {
             const ret = new Uint8Array(arg0);
             return ret;
@@ -3168,7 +2817,7 @@ function __wbg_get_imports() {
                     const a = state0.a;
                     state0.a = 0;
                     try {
-                        return wasm_bindgen__convert__closures_____invoke__h2bc1731c5b684db1(a, state0.b, arg0, arg1);
+                        return wasm_bindgen__convert__closures_____invoke__h37ec37fce59d16cc(a, state0.b, arg0, arg1);
                     } finally {
                         state0.a = a;
                     }
@@ -3220,13 +2869,6 @@ function __wbg_get_imports() {
             const ret = Math.random();
             return ret;
         },
-        __wbg_reason_85e58391371e868d: function(arg0, arg1) {
-            const ret = arg1.reason;
-            const ptr1 = passStringToWasm0(ret, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
-            const len1 = WASM_VECTOR_LEN;
-            getDataViewMemory0().setInt32(arg0 + 4 * 1, len1, true);
-            getDataViewMemory0().setInt32(arg0 + 4 * 0, ptr1, true);
-        },
         __wbg_renderbufferStorage_d95f75be57ae52b3: function(arg0, arg1, arg2, arg3, arg4) {
             arg0.renderbufferStorage(arg1 >>> 0, arg2 >>> 0, arg3, arg4);
         },
@@ -3234,9 +2876,6 @@ function __wbg_get_imports() {
             const ret = Promise.resolve(arg0);
             return ret;
         },
-        __wbg_send_4f53c94146f0274d: function() { return handleError(function (arg0, arg1, arg2) {
-            arg0.send(getStringFromWasm0(arg1, arg2));
-        }, arguments); },
         __wbg_set_08463b1df38a7e29: function(arg0, arg1, arg2) {
             const ret = arg0.set(arg1, arg2);
             return ret;
@@ -3260,23 +2899,11 @@ function __wbg_get_imports() {
         __wbg_set_mode_d1b643087602281a: function(arg0, arg1) {
             arg0.mode = __wbindgen_enum_RequestMode[arg1];
         },
-        __wbg_set_onclose_47cce56c686db4fb: function(arg0, arg1) {
-            arg0.onclose = arg1;
-        },
-        __wbg_set_onerror_3db8bc3e52b2b10b: function(arg0, arg1) {
-            arg0.onerror = arg1;
-        },
         __wbg_set_onerror_e34026e082457bd6: function(arg0, arg1) {
             arg0.onerror = arg1;
         },
         __wbg_set_onload_3c53c47535b74614: function(arg0, arg1) {
             arg0.onload = arg1;
-        },
-        __wbg_set_onmessage_45bd33b110c54f5b: function(arg0, arg1) {
-            arg0.onmessage = arg1;
-        },
-        __wbg_set_onopen_7ffeb01f8a628209: function(arg0, arg1) {
-            arg0.onopen = arg1;
         },
         __wbg_set_src_5d34b11a5c99434b: function(arg0, arg1, arg2) {
             arg0.src = getStringFromWasm0(arg1, arg2);
@@ -3380,61 +3007,41 @@ function __wbg_get_imports() {
             return ret;
         },
         __wbindgen_cast_0000000000000001: function(arg0, arg1) {
-            // Cast intrinsic for `Closure(Closure { owned: true, function: Function { arguments: [Externref], shim_idx: 192, ret: Result(Unit), inner_ret: Some(Result(Unit)) }, mutable: true }) -> Externref`.
-            const ret = makeMutClosure(arg0, arg1, wasm_bindgen__convert__closures_____invoke__h379eeb6857ff453f);
+            // Cast intrinsic for `Closure(Closure { owned: true, function: Function { arguments: [Externref], shim_idx: 166, ret: Result(Unit), inner_ret: Some(Result(Unit)) }, mutable: true }) -> Externref`.
+            const ret = makeMutClosure(arg0, arg1, wasm_bindgen__convert__closures_____invoke__h642cd14eabb614b4);
             return ret;
         },
         __wbindgen_cast_0000000000000002: function(arg0, arg1) {
-            // Cast intrinsic for `Closure(Closure { owned: true, function: Function { arguments: [NamedExternref("CloseEvent")], shim_idx: 117, ret: Unit, inner_ret: Some(Unit) }, mutable: true }) -> Externref`.
-            const ret = makeMutClosure(arg0, arg1, wasm_bindgen__convert__closures_____invoke__h46355d3965ce5f88);
+            // Cast intrinsic for `Closure(Closure { owned: true, function: Function { arguments: [], shim_idx: 57, ret: Unit, inner_ret: Some(Unit) }, mutable: true }) -> Externref`.
+            const ret = makeMutClosure(arg0, arg1, wasm_bindgen__convert__closures_____invoke__h77a134a8105407ab);
             return ret;
         },
-        __wbindgen_cast_0000000000000003: function(arg0, arg1) {
-            // Cast intrinsic for `Closure(Closure { owned: true, function: Function { arguments: [NamedExternref("ErrorEvent")], shim_idx: 117, ret: Unit, inner_ret: Some(Unit) }, mutable: true }) -> Externref`.
-            const ret = makeMutClosure(arg0, arg1, wasm_bindgen__convert__closures_____invoke__h46355d3965ce5f88_2);
-            return ret;
-        },
-        __wbindgen_cast_0000000000000004: function(arg0, arg1) {
-            // Cast intrinsic for `Closure(Closure { owned: true, function: Function { arguments: [NamedExternref("Event")], shim_idx: 117, ret: Unit, inner_ret: Some(Unit) }, mutable: true }) -> Externref`.
-            const ret = makeMutClosure(arg0, arg1, wasm_bindgen__convert__closures_____invoke__h46355d3965ce5f88_3);
-            return ret;
-        },
-        __wbindgen_cast_0000000000000005: function(arg0, arg1) {
-            // Cast intrinsic for `Closure(Closure { owned: true, function: Function { arguments: [NamedExternref("MessageEvent")], shim_idx: 117, ret: Unit, inner_ret: Some(Unit) }, mutable: true }) -> Externref`.
-            const ret = makeMutClosure(arg0, arg1, wasm_bindgen__convert__closures_____invoke__h46355d3965ce5f88_4);
-            return ret;
-        },
-        __wbindgen_cast_0000000000000006: function(arg0, arg1) {
-            // Cast intrinsic for `Closure(Closure { owned: true, function: Function { arguments: [], shim_idx: 116, ret: Unit, inner_ret: Some(Unit) }, mutable: true }) -> Externref`.
-            const ret = makeMutClosure(arg0, arg1, wasm_bindgen__convert__closures_____invoke__h933b87fda231a098);
-            return ret;
-        },
-        __wbindgen_cast_0000000000000007: function(arg0) {
+        __wbindgen_cast_0000000000000003: function(arg0) {
             // Cast intrinsic for `F64 -> Externref`.
             const ret = arg0;
             return ret;
         },
-        __wbindgen_cast_0000000000000008: function(arg0) {
+        __wbindgen_cast_0000000000000004: function(arg0) {
             // Cast intrinsic for `I64 -> Externref`.
             const ret = arg0;
             return ret;
         },
-        __wbindgen_cast_0000000000000009: function(arg0, arg1) {
+        __wbindgen_cast_0000000000000005: function(arg0, arg1) {
             // Cast intrinsic for `Ref(Slice(F32)) -> NamedExternref("Float32Array")`.
             const ret = getArrayF32FromWasm0(arg0, arg1);
             return ret;
         },
-        __wbindgen_cast_000000000000000a: function(arg0, arg1) {
+        __wbindgen_cast_0000000000000006: function(arg0, arg1) {
             // Cast intrinsic for `Ref(Slice(U16)) -> NamedExternref("Uint16Array")`.
             const ret = getArrayU16FromWasm0(arg0, arg1);
             return ret;
         },
-        __wbindgen_cast_000000000000000b: function(arg0, arg1) {
+        __wbindgen_cast_0000000000000007: function(arg0, arg1) {
             // Cast intrinsic for `Ref(String) -> Externref`.
             const ret = getStringFromWasm0(arg0, arg1);
             return ret;
         },
-        __wbindgen_cast_000000000000000c: function(arg0) {
+        __wbindgen_cast_0000000000000008: function(arg0) {
             // Cast intrinsic for `U64 -> Externref`.
             const ret = BigInt.asUintN(64, arg0);
             return ret;
@@ -3455,35 +3062,19 @@ function __wbg_get_imports() {
     };
 }
 
-function wasm_bindgen__convert__closures_____invoke__h933b87fda231a098(arg0, arg1) {
-    wasm.wasm_bindgen__convert__closures_____invoke__h933b87fda231a098(arg0, arg1);
+function wasm_bindgen__convert__closures_____invoke__h77a134a8105407ab(arg0, arg1) {
+    wasm.wasm_bindgen__convert__closures_____invoke__h77a134a8105407ab(arg0, arg1);
 }
 
-function wasm_bindgen__convert__closures_____invoke__h46355d3965ce5f88(arg0, arg1, arg2) {
-    wasm.wasm_bindgen__convert__closures_____invoke__h46355d3965ce5f88(arg0, arg1, arg2);
-}
-
-function wasm_bindgen__convert__closures_____invoke__h46355d3965ce5f88_2(arg0, arg1, arg2) {
-    wasm.wasm_bindgen__convert__closures_____invoke__h46355d3965ce5f88_2(arg0, arg1, arg2);
-}
-
-function wasm_bindgen__convert__closures_____invoke__h46355d3965ce5f88_3(arg0, arg1, arg2) {
-    wasm.wasm_bindgen__convert__closures_____invoke__h46355d3965ce5f88_3(arg0, arg1, arg2);
-}
-
-function wasm_bindgen__convert__closures_____invoke__h46355d3965ce5f88_4(arg0, arg1, arg2) {
-    wasm.wasm_bindgen__convert__closures_____invoke__h46355d3965ce5f88_4(arg0, arg1, arg2);
-}
-
-function wasm_bindgen__convert__closures_____invoke__h379eeb6857ff453f(arg0, arg1, arg2) {
-    const ret = wasm.wasm_bindgen__convert__closures_____invoke__h379eeb6857ff453f(arg0, arg1, arg2);
+function wasm_bindgen__convert__closures_____invoke__h642cd14eabb614b4(arg0, arg1, arg2) {
+    const ret = wasm.wasm_bindgen__convert__closures_____invoke__h642cd14eabb614b4(arg0, arg1, arg2);
     if (ret[1]) {
         throw takeFromExternrefTable0(ret[0]);
     }
 }
 
-function wasm_bindgen__convert__closures_____invoke__h2bc1731c5b684db1(arg0, arg1, arg2, arg3) {
-    wasm.wasm_bindgen__convert__closures_____invoke__h2bc1731c5b684db1(arg0, arg1, arg2, arg3);
+function wasm_bindgen__convert__closures_____invoke__h37ec37fce59d16cc(arg0, arg1, arg2, arg3) {
+    wasm.wasm_bindgen__convert__closures_____invoke__h37ec37fce59d16cc(arg0, arg1, arg2, arg3);
 }
 
 
@@ -3497,9 +3088,6 @@ const AssetManagerFinalization = (typeof FinalizationRegistry === 'undefined')
 const CollisionSystemFinalization = (typeof FinalizationRegistry === 'undefined')
     ? { register: () => {}, unregister: () => {} }
     : new FinalizationRegistry(ptr => wasm.__wbg_collisionsystem_free(ptr >>> 0, 1));
-const NetworkClientFinalization = (typeof FinalizationRegistry === 'undefined')
-    ? { register: () => {}, unregister: () => {} }
-    : new FinalizationRegistry(ptr => wasm.__wbg_networkclient_free(ptr >>> 0, 1));
 const PaintSystemFinalization = (typeof FinalizationRegistry === 'undefined')
     ? { register: () => {}, unregister: () => {} }
     : new FinalizationRegistry(ptr => wasm.__wbg_paintsystem_free(ptr >>> 0, 1));
@@ -3520,12 +3108,6 @@ function addToExternrefTable0(obj) {
     const idx = wasm.__externref_table_alloc();
     wasm.__wbindgen_externrefs.set(idx, obj);
     return idx;
-}
-
-function _assertClass(instance, klass) {
-    if (!(instance instanceof klass)) {
-        throw new Error(`expected instance of ${klass.name}`);
-    }
 }
 
 const CLOSURE_DTORS = (typeof FinalizationRegistry === 'undefined')

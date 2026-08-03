@@ -3,7 +3,6 @@ import type {
   ActionsClient,
   AssetManager,
   BrushPreset,
-  NetworkClient,
   PlanningManager,
   RenderEngine,
   TableManager,
@@ -31,7 +30,6 @@ export interface WasmRuntimePort {
   getRenderEngine(): RenderEngine | null;
   getActionsEngine(): ActionsClient | null;
   getAssetManager(): AssetManager | null;
-  getNetworkClient(): NetworkClient | null;
   getPlanningManager(): PlanningManager | null;
   getTableManager(): TableManager | null;
   getTableSync(): TableSync | null;

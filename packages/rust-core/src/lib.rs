@@ -173,8 +173,6 @@ mod event_system;
 #[cfg(target_arch = "wasm32")]
 mod net;
 #[cfg(target_arch = "wasm32")]
-pub(crate) use net::client as network;
-#[cfg(target_arch = "wasm32")]
 pub(crate) use net::table_sync;
 #[cfg(target_arch = "wasm32")]
 mod actions;
@@ -185,8 +183,6 @@ pub use types::*;
 #[cfg(target_arch = "wasm32")]
 pub use lighting::LightingSystem;
 pub use lighting::{Light, LightType};
-#[cfg(target_arch = "wasm32")]
-pub use net::client::NetworkClient;
 #[cfg(target_arch = "wasm32")]
 pub use actions::ActionsClient;
 #[cfg(target_arch = "wasm32")]

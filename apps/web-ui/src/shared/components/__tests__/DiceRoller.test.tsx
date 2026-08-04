@@ -14,7 +14,7 @@ vi.mock('@lib/api', () => ({
 
 vi.mock('@lib/websocket', () => ({
   createMessage: vi.fn((type: string, data: unknown) => ({ type, data })),
-  MessageType: { CHAT_MESSAGE: 'chat' },
+  MessageType: { CHAT: 'chat' },
 }));
 
 beforeEach(() => {

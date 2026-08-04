@@ -4,7 +4,7 @@ Audience: contributors changing browser/server protocol behavior.
 
 Status: usable.
 
-Last source audit: 2026-07-08
+Last source audit: 2026-08-04
 
 ## Before you start
 
@@ -20,9 +20,10 @@ mutation message unless the boundary really is not a combat command.
 ## Steps
 
 1. Pick the owner module under `apps/server/service/protocol/`.
-2. Add the message value to `packages/core-table/core_table/protocol.py`.
-3. Add the message value to `apps/web-ui/src/lib/websocket/message.ts` if the
-   browser sends or handles it.
+2. Add the message name and wire value to
+   `packages/core-table/protocol/message.schema.json`.
+3. Run `python packages/core-table/scripts/generate_protocol_types.py` to
+   update the Python and TypeScript bindings.
 4. Add a server handler method on the matching protocol mixin.
 5. Register the handler in `ServerProtocol.init_handlers` in
    `apps/server/service/protocol/base.py`.
@@ -82,6 +83,8 @@ Add a focused feature test if the message is triggered by UI.
 
 - Message exists in the Python enum.
 - Message exists in the TypeScript enum when the browser uses it.
+- `python packages/core-table/scripts/generate_protocol_types.py --check`
+  passes.
 - Server handler is registered.
 - Handler validates required ids and role rules.
 - Client handler updates the correct owner: store, runtime, or feature state.

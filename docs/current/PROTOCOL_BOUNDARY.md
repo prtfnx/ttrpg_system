@@ -1,12 +1,18 @@
 # Protocol boundary
 
+Audience: contributors changing browser/server WebSocket messages.
+
+Status: current but partial.
+
+Last source audit: 2026-08-04
+
 The protocol boundary connects browser clients to a game session on the server.
 It is message-based and should stay explicit.
 
 ## Client side
 
-- `apps/web-ui/src/lib/websocket/message.ts` defines browser message types and
-  the `Message` shape.
+- `apps/web-ui/src/lib/websocket/message.ts` contains the generated browser
+  message-type registry and defines the `Message` shape.
 - `apps/web-ui/src/lib/websocket/clientProtocol.ts` owns the browser WebSocket,
   reconnect behavior, batching, handlers, and send helpers.
 - `apps/web-ui/src/lib/api/ProtocolService.ts` stores the active
@@ -21,7 +27,14 @@ It is message-based and should stay explicit.
   registration.
 - `apps/server/service/protocol/base.py` registers server message handlers.
 - Domain handlers live in `apps/server/service/protocol/`.
-- Shared tabletop message types also exist in `packages/core-table/core_table/protocol.py`.
+- `packages/core-table/protocol/message.schema.json` is the canonical message
+  envelope and message-type registry.
+- `packages/core-table/core_table/protocol.py` contains the generated Python
+  message-type enum and the shared message objects.
+
+Run `python packages/core-table/scripts/generate_protocol_types.py` after
+changing the schema. Run the same command with `--check` in verification to
+detect stale Python or TypeScript bindings.
 
 ## Message flow
 
@@ -52,8 +65,9 @@ React combat UI -> useCombatCommands -> combat_command
 
 ## Adding a message
 
-1. Add the message type on the client in `apps/web-ui/src/lib/websocket/message.ts`.
-2. Add or confirm the matching server message type in `core_table.protocol`.
+1. Add the message name and wire value to
+   `packages/core-table/protocol/message.schema.json`.
+2. Run `python packages/core-table/scripts/generate_protocol_types.py`.
 3. Add a client send helper or handler in `WebClientProtocol`.
 4. Add a server handler in the matching `apps/server/service/protocol/` mixin.
 5. Register the server handler in `apps/server/service/protocol/base.py`.

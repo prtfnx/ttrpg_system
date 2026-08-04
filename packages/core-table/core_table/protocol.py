@@ -6,22 +6,19 @@ from dataclasses import dataclass, field
 from typing import Any, Dict, List, Optional
 
 
-class MessageType(enum.Enum):    # Core messages
+# BEGIN GENERATED MESSAGE TYPES - run packages/core-table/scripts/generate_protocol_types.py
+class MessageType(enum.Enum):
     PING = "ping"
     PONG = "pong"
     ERROR = "error"
     TEST = "test"
     SUCCESS = "success"
     WELCOME = "welcome"
-
-    # Authentication messages
     AUTH_REGISTER = "auth_register"
     AUTH_LOGIN = "auth_login"
     AUTH_LOGOUT = "auth_logout"
     AUTH_TOKEN = "auth_token"
     AUTH_STATUS = "auth_status"
-
-    # Table sync
     NEW_TABLE_REQUEST = "new_table_request"
     NEW_TABLE_RESPONSE = "new_table_response"
     TABLE_REQUEST = "table_request"
@@ -38,9 +35,6 @@ class MessageType(enum.Enum):    # Core messages
     TABLE_ACTIVE_SET = "table_active_set"
     TABLE_ACTIVE_SET_ALL = "table_active_set_all"
     TABLE_ACTIVE_SET_ALL_RESPONSE = "table_active_set_all_response"
-
-
-    # Player actions
     PLAYER_ACTION = "player_action"
     PLAYER_ACTION_RESPONSE = "player_action_response"
     PLAYER_ACTION_UPDATE = "player_action_update"
@@ -59,9 +53,6 @@ class MessageType(enum.Enum):    # Core messages
     PLAYER_ROLE_CHANGED = "player_role_changed"
     CONNECTION_STATUS_REQUEST = "connection_status_request"
     CONNECTION_STATUS_RESPONSE = "connection_status_response"
-
-
-    # Sprite sync
     SPRITE_REQUEST = "sprite_request"
     SPRITE_RESPONSE = "sprite_response"
     SPRITE_DATA = "sprite_data"
@@ -71,16 +62,11 @@ class MessageType(enum.Enum):    # Core messages
     SPRITE_MOVE = "sprite_move"
     SPRITE_SCALE = "sprite_scale"
     SPRITE_ROTATE = "sprite_rotate"
-    # Live drag previews — broadcast only, never persisted
     SPRITE_DRAG_PREVIEW = "sprite_drag_preview"
     SPRITE_RESIZE_PREVIEW = "sprite_resize_preview"
     SPRITE_ROTATE_PREVIEW = "sprite_rotate_preview"
-
-    # File transfer
     FILE_REQUEST = "file_request"
     FILE_DATA = "file_data"
-
-    # R2 Asset Management
     ASSET_UPLOAD_REQUEST = "asset_upload_request"
     ASSET_UPLOAD_RESPONSE = "asset_upload_response"
     ASSET_DOWNLOAD_REQUEST = "asset_download_request"
@@ -91,105 +77,61 @@ class MessageType(enum.Enum):    # Core messages
     ASSET_DELETE_REQUEST = "asset_delete_request"
     ASSET_DELETE_RESPONSE = "asset_delete_response"
     ASSET_HASH_CHECK = "asset_hash_check"
-
-    # Compendium operations
     COMPENDIUM_SPRITE_ADD = "compendium_sprite_add"
     COMPENDIUM_SPRITE_UPDATE = "compendium_sprite_update"
     COMPENDIUM_SPRITE_REMOVE = "compendium_sprite_remove"
-
-    # Character management
     CHARACTER_SAVE_REQUEST = "character_save_request"
     CHARACTER_SAVE_RESPONSE = "character_save_response"
-
-    # ── Game Mode ──
     GAME_MODE_CHANGE = "game_mode_change"
     GAME_MODE_STATE = "game_mode_state"
-
-    # ── Session Rules ──
     SESSION_RULES_UPDATE = "session_rules_update"
     SESSION_RULES_CHANGED = "session_rules_changed"
     SESSION_RULES_REQUEST = "session_rules_request"
-
-    # ── Planning / Preview ──
     PLAN_START = "plan_start"
     PLAN_ACK = "plan_ack"
     COMBAT_COMMAND = "combat_command"
     ACTION_RESULT = "action_result"
     ACTION_REJECTED = "action_rejected"
-
-    # ── State Sync ──
     STATE_SYNC_REQUEST = "state_sync_request"
     STATE_SYNC_RESPONSE = "state_sync_response"
-
-    # ── Combat ──
     COMBAT_STATE = "combat_state"
     COMBAT_STATE_REQUEST = "combat_state_request"
-
-    # ── Initiative ──
     INITIATIVE_ROLL_RESULT = "initiative_roll_result"
     INITIATIVE_ORDER = "initiative_order"
-
-    # ── Turn Management ──
     TURN_START = "turn_start"
     ROUND_START = "round_start"
     ROUND_END = "round_end"
-
-    # ── Explore Mode ──
     EXPLORE_SUBMIT = "explore_submit"
     EXPLORE_ROUND_RESOLVE = "explore_round_resolve"
     EXPLORE_ROUND_RESULT = "explore_round_result"
-
-    # ── Conditions ──
     CONDITION_UPDATE = "condition_update"
     CONDITIONS_SYNC = "conditions_sync"
-
-    # ── DM Controls ──
     DM_OVERRIDE = "dm_override"
     DM_MODIFY_ROLL = "dm_modify_roll"
-
-    # ── NPC AI ──
     AI_ACTION = "ai_action"
     AI_SUGGESTION = "ai_suggestion"
     AI_CONFIG = "ai_config"
-
-    # ── Encounter (Non-Combat) ──
     ENCOUNTER_START = "encounter_start"
     ENCOUNTER_END = "encounter_end"
     ENCOUNTER_CHOICE = "encounter_choice"
     ENCOUNTER_ROLL = "encounter_roll"
     ENCOUNTER_RESULT = "encounter_result"
     ENCOUNTER_STATE = "encounter_state"
-
-    # ── Concentration ──
     CONCENTRATION_BROKEN = "concentration_broken"
-
-    # ── Terrain Zones ──
     TERRAIN_ZONE_ADD = "terrain_zone_add"
     TERRAIN_ZONE_REMOVE = "terrain_zone_remove"
     TERRAIN_ZONE_UPDATE = "terrain_zone_update"
     TERRAIN_ZONES_SYNC = "terrain_zones_sync"
-
-    # ── Cover Zones ──
     COVER_ZONES_SYNC = "cover_zones_sync"
-
-    # ── Player Combat Actions ──
-    COMBAT_ABILITY   = "combat_ability"
-    COMBAT_READY     = "combat_ready"
+    COMBAT_ABILITY = "combat_ability"
+    COMBAT_READY = "combat_ready"
     READY_TRIGGER_FIRE = "ready_trigger_fire"
     CONCENTRATION_SAVED = "concentration_saved"
-
-    # ── Opportunity Attacks ──
     OPPORTUNITY_ATTACK_WARNING = "opportunity_attack_warning"
     OPPORTUNITY_ATTACK_PROMPT = "opportunity_attack_prompt"
-
-    # ── Attack Preview ──
     ATTACK_PREVIEW = "attack_preview"
     ATTACK_PREVIEW_RESULT = "attack_preview_result"
-
-    # ── Turn Skip / Surprised ──
     TURN_SKIPPED = "turn_skipped"
-
-    # ── Resource Tracking ──
     SPELL_SLOT_USE = "spell_slot_use"
     RESOURCE_UPDATE = "resource_update"
     REST_SHORT = "rest_short"
@@ -200,16 +142,12 @@ class MessageType(enum.Enum):    # Core messages
     CHARACTER_LIST_RESPONSE = "character_list_response"
     CHARACTER_DELETE_REQUEST = "character_delete_request"
     CHARACTER_DELETE_RESPONSE = "character_delete_response"
-    # Delta/real-time character update
     CHARACTER_UPDATE = "character_update"
     CHARACTER_UPDATE_RESPONSE = "character_update_response"
-    # Character action log
     CHARACTER_LOG_REQUEST = "character_log_request"
     CHARACTER_LOG_RESPONSE = "character_log_response"
-    # Skill/ability/saving-throw rolls
     CHARACTER_ROLL = "character_roll"
     CHARACTER_ROLL_RESULT = "character_roll_result"
-    # Resumable character wizard drafts
     CHARACTER_DRAFT_CREATE_REQUEST = "character_draft_create_request"
     CHARACTER_DRAFT_CREATE_RESPONSE = "character_draft_create_response"
     CHARACTER_DRAFT_LIST_REQUEST = "character_draft_list_request"
@@ -223,58 +161,38 @@ class MessageType(enum.Enum):    # Core messages
     CHARACTER_DRAFT_ABANDON_REQUEST = "character_draft_abandon_request"
     CHARACTER_DRAFT_ABANDON_RESPONSE = "character_draft_abandon_response"
     CHARACTER_DRAFT_UPDATED = "character_draft_updated"
-    # XP award (DM → server → all clients for that character)
     XP_AWARD = "xp_award"
     XP_AWARD_RESPONSE = "xp_award_response"
-    # Multiclass request (player → server → broadcast CHARACTER_UPDATE)
     MULTICLASS_REQUEST = "multiclass_request"
     MULTICLASS_RESPONSE = "multiclass_response"
-
-    # Batch messaging for performance
     BATCH = "batch"
-
-    # Dynamic lighting / table settings
-    TABLE_SETTINGS_UPDATE = "table_settings_update"    # DM → server: change lighting settings
-    TABLE_SETTINGS_CHANGED = "table_settings_changed"  # server → all clients: settings broadcast
-
-    # Wall segment system
-    WALL_CREATE      = "wall_create"        # DM → server: add a wall
-    WALL_UPDATE      = "wall_update"        # DM → server: modify wall properties
-    WALL_REMOVE      = "wall_remove"        # DM → server: delete a wall
-    WALL_BATCH_CREATE = "wall_batch_create" # DM → server: add many walls at once
-    WALL_DATA        = "wall_data"          # server → client(s): single or batch wall state
-    DOOR_TOGGLE      = "door_toggle"        # any permitted role → server: toggle door state
-
-    # Paint stroke sync
-    PAINT_STROKE_CREATE = "paint_stroke_create"  # DM/player → server: persist a completed stroke
-    PAINT_STROKE_DELETE = "paint_stroke_delete"  # DM → server: remove one stroke by id
-    PAINT_STROKE_CLEAR  = "paint_stroke_clear"   # DM → server: wipe all strokes on a table
-    PAINT_SYNC          = "paint_sync"           # server → client: full stroke list (on join)
-
-    # Session-scoped reusable paint templates
+    TABLE_SETTINGS_UPDATE = "table_settings_update"
+    TABLE_SETTINGS_CHANGED = "table_settings_changed"
+    WALL_CREATE = "wall_create"
+    WALL_UPDATE = "wall_update"
+    WALL_REMOVE = "wall_remove"
+    WALL_BATCH_CREATE = "wall_batch_create"
+    WALL_DATA = "wall_data"
+    DOOR_TOGGLE = "door_toggle"
+    PAINT_STROKE_CREATE = "paint_stroke_create"
+    PAINT_STROKE_DELETE = "paint_stroke_delete"
+    PAINT_STROKE_CLEAR = "paint_stroke_clear"
+    PAINT_SYNC = "paint_sync"
     PAINT_TEMPLATE_UPSERT = "paint_template_upsert"
     PAINT_TEMPLATE_DELETE = "paint_template_delete"
     PAINT_TEMPLATE_SYNC = "paint_template_sync"
-
-    # Shared completed measurements
     MEASUREMENT_UPSERT = "measurement_upsert"
     MEASUREMENT_DELETE = "measurement_delete"
     MEASUREMENT_CLEAR = "measurement_clear"
     MEASUREMENT_SYNC = "measurement_sync"
-
-    # Layer settings persistence (DM-only write, broadcast to all)
-    LAYER_SETTINGS_UPDATE = "layer_settings_update"  # DM → server + server → all clients
-
-    # Chat messages
-    CHAT = "chat" # client → server: server → client - send a chat message to be broadcast to all clients or to client
-                  # to display
-    CHAT_CONFIRMATION = "chat_confirmation"  # server → sender: confirm receipt and persistence of chat message
-    CHAT_REQUEST = "chat_request"  # client → server: request chat history or specific chat data
-    CHAT_MODERATE = "chat_moderate"  # client → server: redact or delete a persisted message
-    CHAT_MODERATION = "chat_moderation"  # server → visible clients: moderated tombstone
-
-    # Extension point for new message types
+    LAYER_SETTINGS_UPDATE = "layer_settings_update"
+    CHAT = "chat"
+    CHAT_CONFIRMATION = "chat_confirmation"
+    CHAT_REQUEST = "chat_request"
+    CHAT_MODERATE = "chat_moderate"
+    CHAT_MODERATION = "chat_moderation"
     CUSTOM = "custom"
+# END GENERATED MESSAGE TYPES
 
 @dataclass
 class BatchMessage:

@@ -72,7 +72,7 @@ function attachProtocol(protocol: WebClientProtocol): () => void {
     }
   };
 
-  protocol.registerHandler(MessageType.CHAT_MESSAGE, messageHandler);
+  protocol.registerHandler(MessageType.CHAT, messageHandler);
   protocol.registerHandler(MessageType.CHAT_CONFIRMATION, confirmationHandler);
   protocol.registerHandler(MessageType.CHAT_MODERATION, moderationHandler);
   if (protocol.isConnected()) requestHistory(protocol);
@@ -95,7 +95,7 @@ function detachProtocol(protocol: WebClientProtocol) {
   binding.references -= 1;
   if (binding.references > 0) return;
   binding.unsubscribeConnection?.();
-  protocol.unregisterHandler(MessageType.CHAT_MESSAGE, binding.messageHandler);
+  protocol.unregisterHandler(MessageType.CHAT, binding.messageHandler);
   protocol.unregisterHandler(MessageType.CHAT_CONFIRMATION, binding.confirmationHandler);
   protocol.unregisterHandler(MessageType.CHAT_MODERATION, binding.moderationHandler);
   protocolBindings.delete(protocol);
@@ -131,7 +131,7 @@ export function useChatWebSocket(_url: string, user: string) {
 
     if (protocol?.isConnected()) {
       protocol.sendMessage(createMessage(
-        MessageType.CHAT_MESSAGE,
+        MessageType.CHAT,
         {
           message: {
             id: operationId,

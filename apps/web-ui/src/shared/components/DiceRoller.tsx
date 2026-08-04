@@ -35,7 +35,7 @@ export function DiceRoller({ dice = 20, count = 1, onRoll }: DiceRollerProps) {
     // Send to chat if possible
     const text = `Rolled ${count}d${selectedDice}: ${newResults.join(', ')}${newResults.length > 1 ? ` (Total: ${newResults.reduce((a, b) => a + b, 0)})` : ''}`;
     if (ProtocolService.hasProtocol()) {
-      ProtocolService.getProtocol().sendMessage(createMessage(MessageType.CHAT_MESSAGE, { text }));
+      ProtocolService.getProtocol().sendMessage(createMessage(MessageType.CHAT, { text }));
       setSentToChat(true);
       setTimeout(() => setSentToChat(false), 1200);
     }

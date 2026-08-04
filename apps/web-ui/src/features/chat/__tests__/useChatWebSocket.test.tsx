@@ -75,7 +75,7 @@ describe('useChatWebSocket', () => {
       act(() => { result.current.sendMessage('Hey'); });
       expect(protocol.sendMessage).toHaveBeenCalledTimes(2);
       expect(protocol.sendMessage).toHaveBeenLastCalledWith(expect.objectContaining({
-        type: MessageType.CHAT_MESSAGE,
+        type: MessageType.CHAT,
         data: expect.objectContaining({
           message: expect.objectContaining({ user: 'Bob', text: 'Hey' }),
         }),
@@ -91,7 +91,7 @@ describe('useChatWebSocket', () => {
 
       act(() => {
         handler({
-          type: MessageType.CHAT_MESSAGE,
+          type: MessageType.CHAT,
           data: {
             messages: [
               { id: '1', user: 'Alice', text: 'Old message', timestamp: 1 },
@@ -117,7 +117,7 @@ describe('useChatWebSocket', () => {
 
       act(() => {
         handler({
-          type: MessageType.CHAT_MESSAGE,
+          type: MessageType.CHAT,
           data: {
             message: {
               id: 'roll-chat-1',

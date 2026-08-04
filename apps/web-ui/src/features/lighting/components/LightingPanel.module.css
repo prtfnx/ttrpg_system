@@ -143,7 +143,6 @@
   border: var(--border-width) solid var(--border-primary);
   border-radius: var(--radius-md);
   margin-bottom: var(--space-sm);
-  cursor: pointer;
   background: var(--gray-800);
   transition: all var(--duration-base);
 }
@@ -157,6 +156,22 @@
   border-color: var(--accent-primary);
   background: var(--accent-bg-subtle);
   box-shadow: 0 0 0 var(--border-width) var(--accent-primary);
+}
+
+.lightSelectionButton {
+  min-width: 0;
+  padding: 0;
+  color: inherit;
+  text-align: left;
+  background: transparent;
+  border: none;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+}
+
+.lightSelectionButton:focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring);
 }
 
 .light-header {
@@ -190,6 +205,13 @@
 .move-button:hover {
   transform: scale(1.2);
   color: var(--text-primary);
+}
+
+.move-button:focus-visible,
+.toggle-button:focus-visible,
+.remove-button:focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring);
 }
 
 .toggle-button.on {

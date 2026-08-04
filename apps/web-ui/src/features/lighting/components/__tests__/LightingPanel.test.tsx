@@ -93,6 +93,16 @@ describe('LightingPanel', () => {
       expect(screen.queryByText(/no lights placed/i)).not.toBeInTheDocument();
     });
 
+    it('selects a light through its accessible selection button', () => {
+      render(<LightingPanel />);
+      const selectButton = screen.getByRole('button', { name: /select torch light/i });
+
+      fireEvent.click(selectButton);
+
+      expect(selectButton).toHaveAttribute('aria-pressed', 'true');
+      expect(screen.getByText(/properties: torch_1/i)).toBeInTheDocument();
+    });
+
     it('ignores sprites from other tables', () => {
       useGameStore.setState({ sprites: [makeLight({ tableId: 'other' }) as unknown as Sprite] } as unknown as Parameters<typeof useGameStore.setState>[0]);
       render(<LightingPanel />);

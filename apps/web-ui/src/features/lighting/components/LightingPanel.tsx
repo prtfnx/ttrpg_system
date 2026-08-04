@@ -316,15 +316,15 @@ export const LightingPanel: React.FC = () => {
       </div>
 
       <div className={styles['light-controls']}>
-        <button className={styles.lightControlButton} onClick={toggleAllLights} disabled={lights.length === 0}>
+        <button type="button" className={styles.lightControlButton} onClick={toggleAllLights} disabled={lights.length === 0}>
           {lights.every(l => l.isOn) ? 'Turn Off All' : 'Turn On All'}
         </button>
-        <button className={styles.clearLightsButton} onClick={clearAllLights} disabled={lights.length === 0}>
+        <button type="button" className={styles.clearLightsButton} onClick={clearAllLights} disabled={lights.length === 0}>
           <Trash2 size={14} /> Clear All
         </button>
       </div>
 
-      <div className={styles['light-list']}>
+      <div className={styles['light-list']} role="list">
         <h4>Lights ({lights.length})</h4>
         {lights.length === 0 ? (
           <p className={styles['empty-message']}>No lights placed</p>
@@ -335,26 +335,35 @@ export const LightingPanel: React.FC = () => {
             return (
               <div
                 key={light.id}
+                role="listitem"
                 className={`${styles['light-item']} ${selectedLightId === light.id ? styles.selected : ''}`}
-                onClick={() => setSelectedLightId(light.id)}
               >
                 <div className={styles['light-header']}>
-                  <span className={styles['light-name']}>
-                    <Icon size={14} /> {light.presetName ?? light.id}
-                  </span>
+                  <button
+                    type="button"
+                    className={styles.lightSelectionButton}
+                    aria-label={`Select ${light.presetName ?? light.id} light`}
+                    aria-pressed={selectedLightId === light.id}
+                    onClick={() => setSelectedLightId(light.id)}
+                  >
+                    <span className={styles['light-name']}>
+                      <Icon size={14} aria-hidden="true" /> {light.presetName ?? light.id}
+                    </span>
+                  </button>
                   <div className={styles['light-actions']}>
-                    <button className={styles['move-button']} title="Move" onClick={(e) => { e.stopPropagation(); startMovingLight(light); }}>
-                      <MoveHorizontal size={14} />
+                    <button type="button" className={styles['move-button']} aria-label={`Move ${light.presetName ?? light.id} light`} onClick={() => startMovingLight(light)}>
+                      <MoveHorizontal size={14} aria-hidden="true" />
                     </button>
                     <button
-                      title="Toggle"
+                      type="button"
+                      aria-label={`${light.isOn ? 'Turn off' : 'Turn on'} ${light.presetName ?? light.id} light`}
                       className={`${styles['toggle-button']} ${styles[light.isOn ? 'on' : 'off']}`}
-                      onClick={(e) => { e.stopPropagation(); updateLightProperty(light.id, 'isOn', !light.isOn); }}
+                      onClick={() => updateLightProperty(light.id, 'isOn', !light.isOn)}
                     >
-                      <Sun size={14} />
+                      <Sun size={14} aria-hidden="true" />
                     </button>
-                    <button className={styles['remove-button']} title="Remove" onClick={(e) => { e.stopPropagation(); removeLight(light.id); }}>
-                      <X size={14} />
+                    <button type="button" className={styles['remove-button']} aria-label={`Remove ${light.presetName ?? light.id} light`} onClick={() => removeLight(light.id)}>
+                      <X size={14} aria-hidden="true" />
                     </button>
                   </div>
                 </div>

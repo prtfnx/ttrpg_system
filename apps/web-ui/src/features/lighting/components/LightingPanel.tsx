@@ -351,18 +351,19 @@ export const LightingPanel: React.FC = () => {
                     </span>
                   </button>
                   <div className={styles['light-actions']}>
-                    <button type="button" className={styles['move-button']} aria-label={`Move ${light.presetName ?? light.id} light`} onClick={() => startMovingLight(light)}>
+                    <button type="button" className={styles['move-button']} title="Move" aria-label={`Move ${light.presetName ?? light.id} light`} onClick={() => startMovingLight(light)}>
                       <MoveHorizontal size={14} aria-hidden="true" />
                     </button>
                     <button
                       type="button"
+                      title="Toggle"
                       aria-label={`${light.isOn ? 'Turn off' : 'Turn on'} ${light.presetName ?? light.id} light`}
                       className={`${styles['toggle-button']} ${styles[light.isOn ? 'on' : 'off']}`}
                       onClick={() => updateLightProperty(light.id, 'isOn', !light.isOn)}
                     >
                       <Sun size={14} aria-hidden="true" />
                     </button>
-                    <button type="button" className={styles['remove-button']} aria-label={`Remove ${light.presetName ?? light.id} light`} onClick={() => removeLight(light.id)}>
+                    <button type="button" className={styles['remove-button']} title="Remove" aria-label={`Remove ${light.presetName ?? light.id} light`} onClick={() => removeLight(light.id)}>
                       <X size={14} aria-hidden="true" />
                     </button>
                   </div>

@@ -93,6 +93,28 @@ def _fail_result(message="failed"):
     return r
 
 
+@pytest.mark.unit
+@pytest.mark.parametrize(
+    ("handler_name", "message_type", "data"),
+    [
+        ("handle_create_sprite", MessageType.SPRITE_CREATE, {"sprite_data": {"x": 0, "y": 0}}),
+        ("handle_delete_sprite", MessageType.SPRITE_REMOVE, {"sprite_id": "sp-1"}),
+        ("handle_move_sprite", MessageType.SPRITE_MOVE, {"sprite_id": "sp-1", "from": {"x": 0, "y": 0}, "to": {"x": 1, "y": 1}}),
+        ("handle_scale_sprite", MessageType.SPRITE_SCALE, {"sprite_id": "sp-1", "width": 1, "height": 1}),
+        ("handle_rotate_sprite", MessageType.SPRITE_ROTATE, {"sprite_id": "sp-1", "rotation": 45}),
+        ("handle_sprite_update", MessageType.SPRITE_UPDATE, {"sprite_id": "sp-1", "hp": 5}),
+        ("handle_compendium_sprite_add", MessageType.SPRITE_CREATE, {"sprite_data": {"x": 0, "y": 0}}),
+        ("handle_compendium_sprite_update", MessageType.SPRITE_UPDATE, {"sprite_data": {"sprite_id": "sp-1"}}),
+        ("handle_compendium_sprite_remove", MessageType.SPRITE_REMOVE, {"sprite_id": "sp-1"}),
+    ],
+)
+async def test_sprite_mutations_require_table_id(handler_name, message_type, data):
+    proto = _ProtoStub(role="owner")
+    response = await getattr(proto, handler_name)(Message(message_type, data), "c1")
+    assert response.type == MessageType.ERROR
+    assert response.data["error"] == "table_id is required"
+
+
 @pytest.fixture
 def active_combat_token():
     CombatEngine._active.pop("TST", None)
@@ -128,7 +150,7 @@ class TestCreateSprite:
 
     async def test_spectator_cannot_create_sprite(self):
         proto = _ProtoStub(role="spectator")
-        msg = Message(MessageType.SPRITE_CREATE, {"sprite_data": {"x": 0, "y": 0}})
+        msg = Message(MessageType.SPRITE_CREATE, {"table_id": "t1", "sprite_data": {"x": 0, "y": 0}})
         resp = await proto.handle_create_sprite(msg, "c1")
         assert resp.type == MessageType.ERROR
         assert "permission" in resp.data["error"].lower()
@@ -136,6 +158,7 @@ class TestCreateSprite:
     async def test_player_blocked_from_dm_layer(self):
         proto = _ProtoStub(role="player")
         msg = Message(MessageType.SPRITE_CREATE, {
+            "table_id": "t1",
             "sprite_data": {"layer": "dungeon_master", "x": 0, "y": 0}
         })
         resp = await proto.handle_create_sprite(msg, "c1")
@@ -146,7 +169,7 @@ class TestCreateSprite:
         proto.actions.create_sprite = AsyncMock(return_value=_ok_result(
             sprite_data={"sprite_id": "sp-1", "x": 10, "y": 20, "layer": "tokens"}
         ))
-        msg = Message(MessageType.SPRITE_CREATE, {"sprite_data": {"x": 10, "y": 20, "layer": "tokens"}})
+        msg = Message(MessageType.SPRITE_CREATE, {"table_id": "t1", "sprite_data": {"x": 10, "y": 20, "layer": "tokens"}})
         resp = await proto.handle_create_sprite(msg, "c1")
         assert resp.type == MessageType.SPRITE_RESPONSE
         assert resp.data["sprite_id"] == "sp-1"
@@ -154,7 +177,7 @@ class TestCreateSprite:
     async def test_failed_action_returns_error(self):
         proto = _ProtoStub(role="owner")
         proto.actions.create_sprite = AsyncMock(return_value=_fail_result())
-        msg = Message(MessageType.SPRITE_CREATE, {"sprite_data": {"x": 0, "y": 0}})
+        msg = Message(MessageType.SPRITE_CREATE, {"table_id": "t1", "sprite_data": {"x": 0, "y": 0}})
         resp = await proto.handle_create_sprite(msg, "c1")
         assert resp.type == MessageType.ERROR
 
@@ -169,6 +192,7 @@ class TestCreateSprite:
 
         proto.actions.create_sprite = _capture
         msg = Message(MessageType.SPRITE_CREATE, {
+            "table_id": "t1",
             "character_id": "char-42",
             "sprite_data": {"x": 0, "y": 0},
         })
@@ -224,6 +248,7 @@ class TestMoveSprite:
     async def test_spectator_cannot_move_sprite(self):
         proto = _ProtoStub(role="spectator")
         msg = Message(MessageType.SPRITE_MOVE, {
+            "table_id": "t1",
             "sprite_id": "sp-1",
             "from": {"x": 0, "y": 0},
             "to": {"x": 10, "y": 10},
@@ -233,7 +258,7 @@ class TestMoveSprite:
 
     async def test_missing_position_fields_returns_error(self):
         proto = _ProtoStub(role="dm")
-        msg = Message(MessageType.SPRITE_MOVE, {"sprite_id": "sp-1"})
+        msg = Message(MessageType.SPRITE_MOVE, {"table_id": "t1", "sprite_id": "sp-1"})
         resp = await proto.handle_move_sprite(msg, "c1")
         assert resp.type == MessageType.ERROR
 
@@ -242,6 +267,7 @@ class TestMoveSprite:
         proto.table_manager.tables_id = {}
         proto.table_manager.tables = {}
         msg = Message(MessageType.SPRITE_MOVE, {
+            "table_id": "t1",
             "from": {"x": 0, "y": 0},
             "to": {"x": 10, "y": 10},
         })
@@ -268,7 +294,7 @@ class TestScaleSprite:
 
     async def test_spectator_cannot_scale(self):
         proto = _ProtoStub(role="spectator")
-        msg = Message(MessageType.SPRITE_SCALE, {"sprite_id": "sp-1", "width": 2.0, "height": 2.0})
+        msg = Message(MessageType.SPRITE_SCALE, {"sprite_id": "sp-1", "table_id": "t1", "width": 2.0, "height": 2.0})
         resp = await proto.handle_scale_sprite(msg, "c1")
         assert resp.type == MessageType.ERROR
         assert "spectator" in resp.data["error"].lower()
@@ -297,13 +323,13 @@ class TestScaleSprite:
 class TestRotateSprite:
     async def test_missing_rotation_returns_error(self):
         proto = _ProtoStub(role="owner")
-        msg = Message(MessageType.SPRITE_ROTATE, {"sprite_id": "sp-1"})
+        msg = Message(MessageType.SPRITE_ROTATE, {"sprite_id": "sp-1", "table_id": "t1"})
         resp = await proto.handle_rotate_sprite(msg, "c1")
         assert resp.type == MessageType.ERROR
 
     async def test_spectator_cannot_rotate(self):
         proto = _ProtoStub(role="spectator")
-        msg = Message(MessageType.SPRITE_ROTATE, {"sprite_id": "sp-1", "rotation": 45.0})
+        msg = Message(MessageType.SPRITE_ROTATE, {"sprite_id": "sp-1", "table_id": "t1", "rotation": 45.0})
         resp = await proto.handle_rotate_sprite(msg, "c1")
         assert resp.type == MessageType.ERROR
 
@@ -390,7 +416,7 @@ class TestSpriteUpdate:
     async def test_player_without_ownership_denied(self):
         proto = _ProtoStub(role="player")
         proto._can_control_sprite = AsyncMock(return_value=False)
-        msg = Message(MessageType.SPRITE_UPDATE, {"sprite_id": "sp-1", "hp": 5})
+        msg = Message(MessageType.SPRITE_UPDATE, {"sprite_id": "sp-1", "table_id": "t1", "hp": 5})
         resp = await proto.handle_sprite_update(msg, "c1")
         assert resp.type == MessageType.ERROR
         assert "permission" in resp.data["error"].lower()
@@ -606,6 +632,7 @@ class TestCompendiumSpriteAdd:
     async def test_spectator_blocked(self):
         proto = self._proto(role="spectator")
         msg = Message(MessageType.SPRITE_CREATE, {
+            "table_id": "t1",
             "sprite_data": {"x": 0, "y": 0},
         })
         resp = await proto.handle_compendium_sprite_add(msg, "c1")

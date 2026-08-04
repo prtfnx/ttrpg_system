@@ -361,7 +361,7 @@ class _TablesMixin(_ProtocolBase):
                 update_category = msg.data.get('category', 'table')
                 update_type = msg.data.get('type')
                 update_data = msg.data.get('data', {})
-                table_id = update_data.get('table_id', 'default')
+                table_id = update_data.get('table_id')
 
                 # Validate required fields
                 if update_type is None:
@@ -370,6 +370,9 @@ class _TablesMixin(_ProtocolBase):
                         extra={"event_name": "table.update.rejected", "reason": "missing_type"},
                     )
                     return Message(MessageType.ERROR, {'error': 'Missing required field: type'})
+                if not isinstance(table_id, str) or not table_id.strip():
+                    return Message(MessageType.ERROR, {'error': 'Missing required field: table_id'})
+                table_id = table_id.strip()
                 if update_category == 'sprite':
                     return Message(MessageType.ERROR, {
                         'error': 'Sprite-category table updates are no longer supported; use dedicated sprite messages',

@@ -11,6 +11,14 @@ from ._protocol_base import _ProtocolBase
 logger = setup_logger(__name__)
 
 
+def _get_required_table_id(data: dict[str, object]) -> str | None:
+    """Return a normalized table ID, or None when the request omitted it."""
+    table_id = data.get('table_id')
+    if not isinstance(table_id, str) or not table_id.strip():
+        return None
+    return table_id.strip()
+
+
 class _SpritesMixin(_ProtocolBase):
     """Handler methods for sprites domain."""
 
@@ -31,7 +39,9 @@ class _SpritesMixin(_ProtocolBase):
                     sprite_data = dict(sprite_data)
             except Exception:
                 sprite_data = {}
-        table_id = msg.data.get('table_id', 'default')
+        table_id = _get_required_table_id(msg.data)
+        if table_id is None:
+            return Message(MessageType.ERROR, {'error': 'table_id is required'})
 
         # Get session_id for database persistence
         session_id = self._get_session_id(msg)
@@ -136,7 +146,9 @@ class _SpritesMixin(_ProtocolBase):
         if not msg.data:
             return Message(MessageType.ERROR, {'error': 'No data provided in delete sprite request'})
 
-        table_id = msg.data.get('table_id', 'default')
+        table_id = _get_required_table_id(msg.data)
+        if table_id is None:
+            return Message(MessageType.ERROR, {'error': 'table_id is required'})
         sprite_id = msg.data.get('sprite_id')
 
         if not sprite_id:
@@ -169,7 +181,9 @@ class _SpritesMixin(_ProtocolBase):
         if not msg.data:
             return Message(MessageType.ERROR, {'error': 'No data provided in move sprite request'})
 
-        table_id = msg.data.get('table_id', 'default')
+        table_id = _get_required_table_id(msg.data)
+        if table_id is None:
+            return Message(MessageType.ERROR, {'error': 'table_id is required'})
         sprite_id = msg.data.get('sprite_id')
         from_pos = msg.data.get('from')
         to_pos = msg.data.get('to')
@@ -317,7 +331,9 @@ class _SpritesMixin(_ProtocolBase):
         if not msg.data:
             return Message(MessageType.ERROR, {'error': 'No data provided in scale sprite request'})
 
-        table_id = msg.data.get('table_id', 'default')
+        table_id = _get_required_table_id(msg.data)
+        if table_id is None:
+            return Message(MessageType.ERROR, {'error': 'table_id is required'})
         sprite_id = msg.data.get('sprite_id')
         width = msg.data.get('width')
         height = msg.data.get('height')
@@ -362,7 +378,9 @@ class _SpritesMixin(_ProtocolBase):
         if not msg.data:
             return Message(MessageType.ERROR, {'error': 'No data provided in rotate sprite request'})
 
-        table_id = msg.data.get('table_id', 'default')
+        table_id = _get_required_table_id(msg.data)
+        if table_id is None:
+            return Message(MessageType.ERROR, {'error': 'table_id is required'})
         sprite_id = msg.data.get('sprite_id')
         rotation = msg.data.get('rotation')
         action_id = msg.data.get('action_id')  # For confirmation tracking
@@ -482,7 +500,9 @@ class _SpritesMixin(_ProtocolBase):
 
         # Extract sprite_id and table_id for permission checks
         sprite_id = update_data.get('sprite_id') or msg.data.get('sprite_id')
-        table_id: str = update_data.get('table_id') or update_data.get('table_name') or 'default'
+        table_id = _get_required_table_id(update_data)
+        if table_id is None:
+            return Message(MessageType.ERROR, {'error': 'table_id is required'})
 
         if not sprite_id:
             return Message(MessageType.ERROR, {'error': 'Missing sprite_id'})
@@ -633,7 +653,9 @@ class _SpritesMixin(_ProtocolBase):
         if not msg.data:
             return Message(MessageType.ERROR, {'error': 'No data provided in compendium sprite add'})
 
-        table_id = msg.data.get('table_id') or msg.data.get('table_name') or 'default'
+        table_id = _get_required_table_id(msg.data)
+        if table_id is None:
+            return Message(MessageType.ERROR, {'error': 'table_id is required'})
         sprite_data = msg.data.get('sprite_data')
         monster_data = msg.data.get('monster_data')
         msg.data.get('session_code', msg.data.get('session', 'default'))
@@ -746,7 +768,9 @@ class _SpritesMixin(_ProtocolBase):
         try:
             # If caller provided full sprite data with table_id, use update_sprite
             sprite_data = msg.data.get('sprite_data')
-            table_id = msg.data.get('table_id') or sprite_data.get('table_id') if sprite_data else 'default'
+            table_id = _get_required_table_id(msg.data)
+            if table_id is None:
+                return Message(MessageType.ERROR, {'error': 'table_id is required'})
             sprite_id = (sprite_data or {}).get('sprite_id')
             if not sprite_id:
                 return Message(MessageType.ERROR, {'error': 'sprite_id required for compendium sprite update'})
@@ -766,7 +790,9 @@ class _SpritesMixin(_ProtocolBase):
         )
         if not msg.data:
             return Message(MessageType.ERROR, {'error': 'No data provided in compendium sprite remove'})
-        table_id = msg.data.get('table_id') or 'default'
+        table_id = _get_required_table_id(msg.data)
+        if table_id is None:
+            return Message(MessageType.ERROR, {'error': 'table_id is required'})
         sprite_id = msg.data.get('sprite_id')
         if not sprite_id:
             return Message(MessageType.ERROR, {'error': 'sprite_id required to remove compendium sprite'})

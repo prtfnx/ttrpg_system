@@ -5,7 +5,7 @@ character-token links, or vision fields on tokens.
 
 Status: current but partial.
 
-Last source audit: 2026-07-09
+Last source audit: 2026-08-03
 
 ## Source owners
 
@@ -59,7 +59,9 @@ Current sprite messages:
 - `compendium_sprite_remove`
 
 Nested sprite operations inside `sprite_update` are rejected. Use the dedicated
-sprite messages.
+sprite messages. Every persistent sprite mutation and compendium sprite
+mutation requires a non-empty top-level `table_id`; the server rejects missing
+IDs instead of routing the request to an implicit table.
 
 ## Authority rules
 

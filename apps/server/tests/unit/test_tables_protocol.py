@@ -323,6 +323,19 @@ class TestTableSettingsUpdate:
 
 @pytest.mark.unit
 class TestTableUpdate:
+    async def test_missing_table_id_is_rejected(self):
+        proto = _ProtoStub()
+        resp = await proto.handle_table_update(
+            Message(MessageType.TABLE_UPDATE, {
+                "category": "table",
+                "type": "table_update",
+                "data": {},
+            }),
+            "c1",
+        )
+        assert resp.type == MessageType.ERROR
+        assert "table_id" in resp.data["error"]
+
     async def test_sprite_category_is_rejected(self):
         proto = _ProtoStub()
         proto.actions.update_sprite = AsyncMock()

@@ -5,7 +5,7 @@ canvas bootstrap, or table settings.
 
 Status: current but partial.
 
-Last source audit: 2026-08-03
+Last source audit: 2026-08-04
 
 ## Source owners
 
@@ -101,6 +101,11 @@ Table management uses these current WebSocket messages:
 
 Sprite-category `table_update` payloads are rejected. Use dedicated sprite
 messages for sprite changes.
+
+`table_settings_update` accepts JSON booleans for
+`dynamic_lighting_enabled`, `grid_enabled`, and `snap_to_grid`. The server
+rejects strings, numbers, and `null` for these fields instead of coercing
+them.
 
 ## State and persistence
 

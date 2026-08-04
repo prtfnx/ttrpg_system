@@ -301,6 +301,47 @@ class TestTableSettingsUpdate:
         resp = await proto.handle_table_settings_update(msg, "c1")
         assert resp.type == MessageType.ERROR
 
+    @pytest.mark.parametrize(
+        ("field_name", "invalid_value"),
+        [
+            ("dynamic_lighting_enabled", "false"),
+            ("dynamic_lighting_enabled", 0),
+            ("dynamic_lighting_enabled", None),
+            ("grid_enabled", "false"),
+            ("grid_enabled", 1),
+            ("grid_enabled", None),
+            ("snap_to_grid", "true"),
+            ("snap_to_grid", 0),
+            ("snap_to_grid", None),
+        ],
+    )
+    async def test_non_boolean_table_flags_are_rejected(self, field_name, invalid_value):
+        proto = self._proto()
+        proto.broadcast_to_session = AsyncMock()
+        table = proto.table_manager.tables_id["t1"]
+        original_values = (
+            table.dynamic_lighting_enabled,
+            table.grid_enabled,
+            table.snap_to_grid,
+        )
+
+        resp = await proto.handle_table_settings_update(
+            Message(
+                MessageType.TABLE_SETTINGS_CHANGED,
+                {"table_id": "t1", field_name: invalid_value},
+            ),
+            "c1",
+        )
+
+        assert resp.type == MessageType.ERROR
+        assert resp.data["error"] == f"{field_name} must be a boolean"
+        assert (
+            table.dynamic_lighting_enabled,
+            table.grid_enabled,
+            table.snap_to_grid,
+        ) == original_values
+        proto.broadcast_to_session.assert_not_awaited()
+
     async def test_valid_settings_applied_and_broadcast(self):
         proto = self._proto()
         broadcasts = []
@@ -310,10 +351,14 @@ class TestTableSettingsUpdate:
             "dynamic_lighting_enabled": True,
             "fog_exploration_mode": "persist_dimmed",
             "ambient_light_level": 0.5,
+            "grid_enabled": False,
+            "snap_to_grid": False,
         })
         resp = await proto.handle_table_settings_update(msg, "c1")
         assert resp.type == MessageType.TABLE_SETTINGS_CHANGED
         assert resp.data["dynamic_lighting_enabled"] is True
+        assert resp.data["grid_enabled"] is False
+        assert resp.data["snap_to_grid"] is False
         assert len(broadcasts) == 1
 
 

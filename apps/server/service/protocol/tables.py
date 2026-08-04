@@ -237,6 +237,15 @@ class _TablesMixin(_ProtocolBase):
         grid_color_hex = msg.data.get('grid_color_hex')
         background_color_hex = msg.data.get('background_color_hex')
 
+        boolean_fields = (
+            'dynamic_lighting_enabled',
+            'grid_enabled',
+            'snap_to_grid',
+        )
+        for field_name in boolean_fields:
+            if field_name in msg.data and not isinstance(msg.data[field_name], bool):
+                return Message(MessageType.ERROR, {'error': f'{field_name} must be a boolean'})
+
         if fog_mode is not None and fog_mode not in VALID_FOG_MODES:
             return Message(MessageType.ERROR, {'error': f'fog_exploration_mode must be one of {VALID_FOG_MODES}'})
         if ambient is not None:
@@ -280,12 +289,7 @@ class _TablesMixin(_ProtocolBase):
             return Message(MessageType.ERROR, {'error': 'Table not found'})
 
         if dynamic_lighting is not None:
-            # Strict bool parsing - JSON booleans from client are already bool,
-            # but guard against truthy strings like 'false'/'0'
-            if isinstance(dynamic_lighting, bool):
-                table.dynamic_lighting_enabled = dynamic_lighting
-            else:
-                table.dynamic_lighting_enabled = bool(dynamic_lighting)
+            table.dynamic_lighting_enabled = dynamic_lighting
         if fog_mode is not None:
             table.fog_exploration_mode = fog_mode
         if ambient is not None:
@@ -297,9 +301,9 @@ class _TablesMixin(_ProtocolBase):
         if distance_unit is not None:
             table.distance_unit = distance_unit
         if grid_enabled is not None:
-            table.grid_enabled = bool(grid_enabled)
+            table.grid_enabled = grid_enabled
         if snap_to_grid is not None:
-            table.snap_to_grid = bool(snap_to_grid)
+            table.snap_to_grid = snap_to_grid
         if grid_color_hex is not None:
             table.grid_color_hex = grid_color_hex
         if background_color_hex is not None:

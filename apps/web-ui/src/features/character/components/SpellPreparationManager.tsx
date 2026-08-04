@@ -121,7 +121,7 @@ export function SpellPreparationManager({
       <div className={styles.container}>
         <div className={styles.header}>
           <h3 className={styles.title}>Spell Management</h3>
-          <div style={{ display: 'flex', gap: 16, alignItems: 'center' }}>
+          <div className={styles.headerCounters}>
             <div className={styles.counter}>{preparedSpells.length} / {maxPreparedSpells} prepared</div>
             <div className={styles.counter}>Spell Slots Used: <span data-testid="spell-slots-used">{spellSlotsUsed}</span></div>
           </div>
@@ -175,19 +175,25 @@ export function SpellPreparationManager({
                 <div
                   key={spell.id}
                   className={`${styles.preparedItem} ${selectedSpell?.id === spell.id ? styles.preparedItemSelected : ''}`}
-                  onClick={() => { setSelectedSpell(spell); setIsRitualCasting(false); }}
                 >
                   <div className={styles.preparedItemRow}>
-                    <div>
+                    <button
+                      type="button"
+                      className={styles.preparedSelectionButton}
+                      aria-label={`View details for ${spell.name}`}
+                      aria-pressed={selectedSpell?.id === spell.id && !isRitualCasting}
+                      onClick={() => { setSelectedSpell(spell); setIsRitualCasting(false); }}
+                    >
                       <div className={styles.spellName}>
                         {spell.name}
                         {spell.ritual && <span className={styles.ritualBadge}>(Ritual)</span>}
                       </div>
                       <div className={styles.spellMeta}>Level {spell.level} {spell.school}</div>
-                    </div>
+                    </button>
                     <button
+                      type="button"
                       className={styles.removeBtn}
-                      onClick={(e) => { e.stopPropagation(); onUnprepareSpell(spell.id); }}
+                      onClick={() => onUnprepareSpell(spell.id)}
                     >
                       Remove
                     </button>
@@ -203,7 +209,7 @@ export function SpellPreparationManager({
       <div className={styles.ritualSection}>
         <div className={styles.ritualHeader}>
           <h4 className={styles.sectionLabel}>Ritual Spells</h4>
-          <button className={styles.toggleBtn} onClick={() => setShowRitualSpells(!showRitualSpells)}>
+          <button type="button" className={styles.toggleBtn} onClick={() => setShowRitualSpells(!showRitualSpells)}>
             {showRitualSpells ? 'Hide' : 'Show'}
           </button>
         </div>

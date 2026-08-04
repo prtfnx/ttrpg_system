@@ -491,22 +491,28 @@ export const AssetPanel: React.FC = () => {
       {/* Asset List */}
       <div className={styles.assetList}>
         <h4>Cached Assets ({assets.length})</h4>
-        <div className={styles.assetsContainer}>
+        <div className={styles.assetsContainer} role="list">
           {assets.map(asset => {
             const info = getAssetInfo(asset.id);
             return (
               <div
                 key={asset.id}
+                role="listitem"
                 className={clsx(styles.assetItem, selectedAsset === asset.id && styles.selected)}
-                onClick={() => setSelectedAsset(asset.id)}
               >
-                <div className={styles.assetName}>{info?.name || asset.id}</div>
+                <button
+                  type="button"
+                  className={styles.assetSelectionButton}
+                  aria-label={`Select cached asset ${info?.name || asset.id}`}
+                  aria-pressed={selectedAsset === asset.id}
+                  onClick={() => setSelectedAsset(asset.id)}
+                >
+                  <span className={styles.assetName}>{info?.name || asset.id}</span>
+                </button>
                 <div className={styles.assetSize}>{info ? formatFileSize(info.size) : 'Unknown'}</div>
                 <button
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    handleRemove(asset.id);
-                  }}
+                  type="button"
+                  onClick={() => handleRemove(asset.id)}
                   className={styles.assetButton}
                 >
                   Remove

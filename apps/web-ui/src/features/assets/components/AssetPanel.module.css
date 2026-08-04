@@ -255,7 +255,6 @@
   align-items: center;
   padding: var(--space-sm);
   border-bottom: var(--border-width) solid var(--border-secondary);
-  cursor: pointer;
   transition: background-color var(--transition-fast);
 }
 
@@ -266,6 +265,22 @@
 .assetItem.selected {
   background-color: var(--bg-active);
   border-left: var(--space-xs) solid var(--color-primary);
+}
+
+.assetSelectionButton {
+  min-width: 0;
+  padding: 0;
+  color: inherit;
+  text-align: left;
+  background: transparent;
+  border: none;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+}
+
+.assetSelectionButton:focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring);
 }
 
 .assetInfo {

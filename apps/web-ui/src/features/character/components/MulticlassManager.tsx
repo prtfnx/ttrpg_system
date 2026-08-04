@@ -154,7 +154,7 @@ export function MulticlassManager({
             <div className={styles.proficiencyText}>Check PHB for proficiencies gained.</div>
           )}
           {selectedData?.spellcasting_type && selectedData.spellcasting_type !== 'none' && (
-            <div className={styles.proficiencyText} style={{ marginTop: '4px' }}>
+            <div className={`${styles.proficiencyText} ${styles.spellcastingText}`}>
               Spellcasting: {selectedData.spellcasting_type} caster
             </div>
           )}

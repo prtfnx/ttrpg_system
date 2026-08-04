@@ -182,7 +182,7 @@ export function CharacterExportStep({ onNext: _onNext, onBack: _onBack }: Charac
               <div className={styles.importMethods}>
                 <div className={styles.importMethod}>
                   <h5>From File</h5>
-                  <input ref={fileInputRef} type="file" accept=".json" onChange={(e) => { const f = e.target.files?.[0]; if (f) handleFileImport(f); }} style={{ display: 'none' }} />
+                  <input ref={fileInputRef} type="file" accept=".json" onChange={(e) => { const f = e.target.files?.[0]; if (f) handleFileImport(f); }} />
                   <button className={styles.importButtonSecondary} type="button" onClick={() => fileInputRef.current?.click()}>Choose JSON File</button>
                 </div>
                 <div className={styles.importMethod}>

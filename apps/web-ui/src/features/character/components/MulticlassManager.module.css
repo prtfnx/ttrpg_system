@@ -158,6 +158,10 @@
   color: var(--color-success);
 }
 
+.spellcastingText {
+  margin-top: var(--space-xs);
+}
+
 .confirmBtn {
   margin-top: var(--space-sm);
   padding: var(--space-1-5) var(--space-md);

@@ -558,7 +558,7 @@ export const EnhancedCharacterWizard: React.FC<EnhancedCharacterWizardProps> = (
                   DM view: this live draft is read-only. Only its owner can change or finalize it.
                 </div>
               )}
-              <fieldset disabled={readOnly} style={{ border: 0, margin: 0, minWidth: 0, padding: 0 }}>
+              <fieldset className={styles.readOnlyFieldset} disabled={readOnly}>
                 <div className={styles['step-content']}>
                   {renderCurrentStep()}
                 </div>

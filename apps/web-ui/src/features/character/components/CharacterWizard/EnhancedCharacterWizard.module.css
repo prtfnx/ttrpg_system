@@ -631,3 +631,9 @@
   color: var(--status-warning-text);
   border: var(--border-width-sm) solid var(--status-warning-border);
 }
+.readOnlyFieldset {
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}

@@ -5,10 +5,22 @@ import sys
 from utils.logger import (
     ExceptionContextFilter,
     JsonFormatter,
+    TextFormatter,
     bind_log_context,
     reset_log_context,
     sanitize_log_value,
 )
+
+
+def test_text_formatter_uses_utc_timestamps():
+    formatter = TextFormatter()
+    record = logging.getLogger("test").makeRecord(
+        "test", logging.INFO, __file__, 1, "ready", (), None
+    )
+    record.created = 0
+    record.msecs = 0
+
+    assert formatter.format(record).startswith("1970-01-01 00:00:00,000Z")
 
 
 def test_nested_sensitive_fields_are_redacted():

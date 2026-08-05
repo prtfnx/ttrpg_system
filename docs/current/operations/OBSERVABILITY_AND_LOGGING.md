@@ -4,13 +4,15 @@ Status: usable. Structured logs, request correlation, protected Prometheus
 metrics, audit retention, and optional OTLP traces are implemented. External
 dashboards and alert delivery remain operator work.
 
-Last source audit: 2026-07-20
+Last source audit: 2026-08-04
 
 ## Logging
 
 `apps/server/utils/logger.py` configures one stdout handler. Production defaults
 to JSON; local development can use text. Log values are bounded and redact
 credential-like keys, bearer tokens, JWTs, and signed query parameters.
+Both formats emit UTC timestamps. Each text formatter uses a typed UTC
+converter instead of replacing `logging.Formatter` state globally.
 
 Every HTTP request receives an `X-Request-ID`. A valid inbound request ID is
 preserved; otherwise the server creates one. Request and trace context flows

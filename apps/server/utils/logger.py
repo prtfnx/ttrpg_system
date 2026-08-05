@@ -136,11 +136,14 @@ class JsonFormatter(logging.Formatter):
         return json.dumps(event, separators=(",", ":"), ensure_ascii=False, default=str)
 
 
-class TextFormatter(logging.Formatter):
-    converter = time.gmtime
+def _utc_time(timestamp: float | None = None) -> time.struct_time:
+    return time.gmtime(timestamp)
 
+
+class TextFormatter(logging.Formatter):
     def __init__(self) -> None:
         super().__init__("%(asctime)sZ - %(name)s - %(levelname)s - %(message)s")
+        self.converter = _utc_time
 
     def format(self, record: logging.LogRecord) -> str:
         original_msg, original_args = record.msg, record.args

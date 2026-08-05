@@ -4,7 +4,7 @@ Audience: contributors choosing and running verification for a change.
 
 Status: current.
 
-Last source audit: 2026-07-29
+Last source audit: 2026-08-04
 
 Tests should sit at the boundary where behavior is owned. Avoid testing a lower
 layer through an unrelated higher layer when a direct boundary test is clearer.
@@ -116,6 +116,7 @@ behavior.
 Run from `packages/rust-core`:
 
 ```powershell
+cargo fmt --all -- --check
 cargo test
 cargo check --target wasm32-unknown-unknown --features wasm-start
 wasm-pack test --node

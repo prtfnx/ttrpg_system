@@ -1,4 +1,4 @@
-use criterion::{black_box, criterion_group, criterion_main, Criterion, BenchmarkId};
+use criterion::{black_box, criterion_group, criterion_main, BenchmarkId, Criterion};
 use ttrpg_rust_core::CollisionSystem;
 
 fn walls_json(n: usize) -> String {
@@ -39,7 +39,14 @@ fn bench_line_blocked(c: &mut Criterion) {
     for n in [10, 50, 200] {
         let sys = setup_system(n, n / 2);
         group.bench_with_input(BenchmarkId::from_parameter(n), &n, |b, _| {
-            b.iter(|| sys.line_blocked(black_box(0.0), black_box(0.0), black_box(800.0), black_box(600.0)))
+            b.iter(|| {
+                sys.line_blocked(
+                    black_box(0.0),
+                    black_box(0.0),
+                    black_box(800.0),
+                    black_box(600.0),
+                )
+            })
         });
     }
     group.finish();
@@ -50,7 +57,14 @@ fn bench_find_path(c: &mut Criterion) {
     for n in [10, 50, 200] {
         let sys = setup_system(n, n / 2);
         group.bench_with_input(BenchmarkId::from_parameter(n), &n, |b, _| {
-            b.iter(|| sys.find_path(black_box(0.0), black_box(0.0), black_box(800.0), black_box(600.0)))
+            b.iter(|| {
+                sys.find_path(
+                    black_box(0.0),
+                    black_box(0.0),
+                    black_box(800.0),
+                    black_box(600.0),
+                )
+            })
         });
     }
     group.finish();
@@ -70,5 +84,10 @@ fn bench_rebuild_index(c: &mut Criterion) {
     group.finish();
 }
 
-criterion_group!(benches, bench_line_blocked, bench_find_path, bench_rebuild_index);
+criterion_group!(
+    benches,
+    bench_line_blocked,
+    bench_find_path,
+    bench_rebuild_index
+);
 criterion_main!(benches);

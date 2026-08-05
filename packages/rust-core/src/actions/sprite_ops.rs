@@ -1,15 +1,21 @@
-use wasm_bindgen::prelude::*;
 use std::collections::HashMap;
+use wasm_bindgen::prelude::*;
 
-use super::{ActionsClient, ActionResult, SpriteInfo, ActionHistoryEntry};
+use super::{ActionHistoryEntry, ActionResult, ActionsClient, SpriteInfo};
 use crate::types::{Position, Size};
 
 #[wasm_bindgen]
 impl ActionsClient {
     #[wasm_bindgen]
-    pub fn create_sprite(&mut self, table_id: &str, layer: &str, position: &JsValue, texture_name: &str) -> JsValue {
+    pub fn create_sprite(
+        &mut self,
+        table_id: &str,
+        layer: &str,
+        position: &JsValue,
+        texture_name: &str,
+    ) -> JsValue {
         let sprite_id = self.generate_id();
-        
+
         let pos = serde_wasm_bindgen::from_value::<Position>(position.clone())
             .unwrap_or(Position { x: 0.0, y: 0.0 });
 
@@ -17,7 +23,10 @@ impl ActionsClient {
             sprite_id: sprite_id.clone(),
             layer: layer.to_string(),
             position: pos,
-            size: Size { width: 64.0, height: 64.0 },
+            size: Size {
+                width: 64.0,
+                height: 64.0,
+            },
             rotation: 0.0,
             texture_name: texture_name.to_string(),
             visible: true,
@@ -94,7 +103,10 @@ impl ActionsClient {
         };
 
         if let Some(sprite_info) = self.sprites.get_mut(sprite_id) {
-            if let Ok(update_map) = serde_wasm_bindgen::from_value::<HashMap<String, serde_json::Value>>(updates.clone()) {
+            if let Ok(update_map) = serde_wasm_bindgen::from_value::<
+                HashMap<String, serde_json::Value>,
+            >(updates.clone())
+            {
                 for (key, value) in update_map {
                     match key.as_str() {
                         "layer" => {
@@ -153,7 +165,9 @@ impl ActionsClient {
             let result = ActionResult {
                 success: true,
                 message: "Sprite updated successfully".to_string(),
-                data: Some(serde_json::to_value(&updated_sprite).unwrap_or(serde_json::Value::Null)),
+                data: Some(
+                    serde_json::to_value(&updated_sprite).unwrap_or(serde_json::Value::Null),
+                ),
             };
 
             serde_wasm_bindgen::to_value(&result).unwrap_or(JsValue::NULL)
@@ -236,13 +250,15 @@ impl ActionsClient {
             };
 
             self.add_to_history(action.clone());
-            
+
             self.notify_state_change("sprite_layer_changed", sprite_id);
 
             let result = ActionResult {
                 success: true,
                 message: format!("Sprite moved from '{}' to '{}' layer", old_layer, new_layer),
-                data: Some(serde_json::to_value(&updated_sprite).unwrap_or(serde_json::Value::Null)),
+                data: Some(
+                    serde_json::to_value(&updated_sprite).unwrap_or(serde_json::Value::Null),
+                ),
             };
 
             serde_wasm_bindgen::to_value(&result).unwrap_or(JsValue::NULL)
@@ -261,12 +277,16 @@ impl ActionsClient {
     #[wasm_bindgen]
     pub fn batch_actions(&mut self, actions: &JsValue) -> JsValue {
         let mut results = Vec::new();
-        
-        if let Ok(action_list) = serde_wasm_bindgen::from_value::<Vec<serde_json::Value>>(actions.clone()) {
+
+        if let Ok(action_list) =
+            serde_wasm_bindgen::from_value::<Vec<serde_json::Value>>(actions.clone())
+        {
             for action_data in action_list {
                 if let Some(action_type) = action_data.get("type").and_then(|v| v.as_str()) {
-                    let params = action_data.get("params").unwrap_or(&serde_json::Value::Null);
-                    
+                    let params = action_data
+                        .get("params")
+                        .unwrap_or(&serde_json::Value::Null);
+
                     let result = match action_type {
                         "create_table" => {
                             if let (Some(name), Some(width), Some(height)) = (
@@ -280,18 +300,18 @@ impl ActionsClient {
                                     success: false,
                                     message: "Invalid parameters for create_table".to_string(),
                                     data: None,
-                                }).unwrap_or(JsValue::NULL)
+                                })
+                                .unwrap_or(JsValue::NULL)
                             }
                         }
-                        _ => {
-                            serde_wasm_bindgen::to_value(&ActionResult {
-                                success: false,
-                                message: format!("Unknown action type: {}", action_type),
-                                data: None,
-                            }).unwrap_or(JsValue::NULL)
-                        }
+                        _ => serde_wasm_bindgen::to_value(&ActionResult {
+                            success: false,
+                            message: format!("Unknown action type: {}", action_type),
+                            data: None,
+                        })
+                        .unwrap_or(JsValue::NULL),
                     };
-                    
+
                     results.push(result);
                 }
             }

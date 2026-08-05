@@ -1,7 +1,7 @@
-use wasm_bindgen::prelude::*;
 use crate::types::*;
+use wasm_bindgen::prelude::*;
 
-use super::{RenderEngine, parse_hex_color};
+use super::{parse_hex_color, RenderEngine};
 
 #[wasm_bindgen]
 impl RenderEngine {
@@ -9,37 +9,58 @@ impl RenderEngine {
     #[wasm_bindgen]
     pub fn handle_table_data(&mut self, table_data_js: &JsValue) -> Result<(), JsValue> {
         self.table_sync.handle_table_data(table_data_js)?;
-        
+
         let table_data = self.table_sync.get_table_data();
         if table_data.is_null() {
             return Err(JsValue::from_str("Failed to get table data"));
         }
 
         let table: crate::table_sync::TableData = serde_wasm_bindgen::from_value(table_data)
-            .map_err(|e| JsValue::from_str(&format!("Failed to parse table data for rendering: {}", e)))?;
+            .map_err(|e| {
+                JsValue::from_str(&format!("Failed to parse table data for rendering: {}", e))
+            })?;
 
         if let Some(table_id) = self.table_sync.get_table_id() {
-            web_sys::console::log_1(&format!("[RUST] handle_table_data: Setting active table to '{}'", table_id).into());
-            
+            web_sys::console::log_1(
+                &format!(
+                    "[RUST] handle_table_data: Setting active table to '{}'",
+                    table_id
+                )
+                .into(),
+            );
+
             let old_table_id = self.table_manager.get_active_table_id();
-            let is_switching_tables = old_table_id.as_ref().is_some_and(|old_id| old_id != &table_id);
-            
+            let is_switching_tables = old_table_id
+                .as_ref()
+                .is_some_and(|old_id| old_id != &table_id);
+
             if is_switching_tables {
                 if let Some(old_id) = old_table_id {
-                    web_sys::console::log_1(&format!("[TABLE-SWITCH] [SYNC] Switching from table '{}' to '{}'", old_id, table_id).into());
-                    
+                    web_sys::console::log_1(
+                        &format!(
+                            "[TABLE-SWITCH] [SYNC] Switching from table '{}' to '{}'",
+                            old_id, table_id
+                        )
+                        .into(),
+                    );
+
                     let sprites_removed = self.layer_manager.clear_sprites_for_table(&old_id);
                     let lights_removed = self.lighting.clear_lights_for_table(&old_id);
                     let fog_removed = self.fog.clear_fog_for_table(&old_id);
-                    
+
                     web_sys::console::log_1(&format!(
                         "[TABLE-SWITCH] [DEL] Cleaned up old table '{}': {} sprites, {} lights, {} fog",
                         old_id, sprites_removed, lights_removed, fog_removed
                     ).into());
                 }
             }
-            
-            self.table_manager.create_table(&table_id, &table.table_name, table.width, table.height)?;
+
+            self.table_manager.create_table(
+                &table_id,
+                &table.table_name,
+                table.width,
+                table.height,
+            )?;
             self.table_manager.set_active_table(&table_id);
             self.table_manager.set_table_units(
                 &table_id,
@@ -48,20 +69,41 @@ impl RenderEngine {
                 &table.distance_unit,
             );
             self.grid_system.sync_from_table(table.grid_cell_px as f32);
-            
+
             let active = self.table_manager.get_active_table_id();
-            web_sys::console::log_1(&format!("[RUST] handle_table_data: Active table is now: {:?}", active).into());
-            
+            web_sys::console::log_1(
+                &format!(
+                    "[RUST] handle_table_data: Active table is now: {:?}",
+                    active
+                )
+                .into(),
+            );
+
             if let Some((tx, ty, tw, th)) = self.table_manager.get_active_table_world_bounds() {
                 self.camera.set_table_bounds(tx, ty, tw, th);
-                web_sys::console::log_1(&format!("[TABLE-SWITCH] [TARGET] Updated camera bounds: {}x{}", tw, th).into());
-                
-                self.fog.set_table_bounds(tx as f32, ty as f32, tw as f32, th as f32);
-                web_sys::console::log_1(&format!("[TABLE-SWITCH] [FOG] Updated fog bounds: {}x{}", tw, th).into());
-                
+                web_sys::console::log_1(
+                    &format!(
+                        "[TABLE-SWITCH] [TARGET] Updated camera bounds: {}x{}",
+                        tw, th
+                    )
+                    .into(),
+                );
+
+                self.fog
+                    .set_table_bounds(tx as f32, ty as f32, tw as f32, th as f32);
+                web_sys::console::log_1(
+                    &format!("[TABLE-SWITCH] [FOG] Updated fog bounds: {}x{}", tw, th).into(),
+                );
+
                 self.camera.center_on(tx, ty);
-                web_sys::console::log_1(&format!("[TABLE-SWITCH] [CAM] Camera positioned at table origin ({}, {})", tx, ty).into());
-                
+                web_sys::console::log_1(
+                    &format!(
+                        "[TABLE-SWITCH] [CAM] Camera positioned at table origin ({}, {})",
+                        tx, ty
+                    )
+                    .into(),
+                );
+
                 self.update_view_matrix();
                 web_sys::console::log_1(&"[TABLE-SWITCH] [OK] View matrix updated".into());
             }
@@ -76,13 +118,23 @@ impl RenderEngine {
             }
         }
 
-        web_sys::console::log_1(&format!("Successfully synced table '{}' with {} layers", 
-            table.table_name, table.layers.len()).into());
+        web_sys::console::log_1(
+            &format!(
+                "Successfully synced table '{}' with {} layers",
+                table.table_name,
+                table.layers.len()
+            )
+            .into(),
+        );
 
         Ok(())
     }
 
-    fn add_sprite_from_table_data(&mut self, sprite_data: &crate::table_sync::SpriteData, table_id: &str) -> Result<(), JsValue> {
+    fn add_sprite_from_table_data(
+        &mut self,
+        sprite_data: &crate::table_sync::SpriteData,
+        table_id: &str,
+    ) -> Result<(), JsValue> {
         let character_id = sprite_data.character_id.clone();
         let controlled_by = sprite_data.controlled_by.clone().unwrap_or_default();
         let aura_radius = if let Some(units) = sprite_data.aura_radius_units {
@@ -94,16 +146,27 @@ impl RenderEngine {
         let aura_color = sprite_data.aura_color.clone();
 
         // Extract polygon vertices from obstacle_data if obstacle_type is "polygon"
-        let polygon_vertices: Option<Vec<[f32; 2]>> = if sprite_data.obstacle_type.as_deref() == Some("polygon") {
-            sprite_data.obstacle_data.as_ref()
-                .and_then(|d| d.get("vertices"))
-                .and_then(|v| serde_json::from_value::<Vec<[f32; 2]>>(v.clone()).ok())
-        } else {
-            None
-        };
+        let polygon_vertices: Option<Vec<[f32; 2]>> =
+            if sprite_data.obstacle_type.as_deref() == Some("polygon") {
+                sprite_data
+                    .obstacle_data
+                    .as_ref()
+                    .and_then(|d| d.get("vertices"))
+                    .and_then(|v| serde_json::from_value::<Vec<[f32; 2]>>(v.clone()).ok())
+            } else {
+                None
+            };
 
-        let width = if sprite_data.width > 0.0 { sprite_data.width } else { 50.0 };
-        let height = if sprite_data.height > 0.0 { sprite_data.height } else { 50.0 };
+        let width = if sprite_data.width > 0.0 {
+            sprite_data.width
+        } else {
+            50.0
+        };
+        let height = if sprite_data.height > 0.0 {
+            sprite_data.height
+        } else {
+            50.0
+        };
 
         let sprite = Sprite {
             id: sprite_data.sprite_id.clone(),
@@ -135,7 +198,8 @@ impl RenderEngine {
         };
 
         let sprite_js = serde_wasm_bindgen::to_value(&sprite)?;
-        self.layer_manager.add_sprite_to_layer(&sprite_data.layer, &sprite_js)?;
+        self.layer_manager
+            .add_sprite_to_layer(&sprite_data.layer, &sprite_js)?;
 
         if let Some(radius) = aura_radius {
             let cx = (sprite_data.coord_x + 25.0) as f32;
@@ -177,5 +241,4 @@ impl RenderEngine {
         js_sys::Reflect::set(&event, &"data".into(), &data).unwrap();
         let _ = handler.call1(&JsValue::NULL, &event.into());
     }
-
 }

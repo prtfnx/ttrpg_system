@@ -1,4 +1,4 @@
-use crate::math::{Vec2, Mat3, Rect};
+use crate::math::{Mat3, Rect, Vec2};
 
 #[derive(Debug, Clone)]
 #[cfg_attr(not(target_arch = "wasm32"), allow(dead_code))]
@@ -31,33 +31,39 @@ impl Camera {
     pub fn set_table_bounds(&mut self, x: f64, y: f64, width: f64, height: f64) {
         self.table_bounds = Some((x, y, width, height));
         #[cfg(target_arch = "wasm32")]
-        web_sys::console::log_1(&format!(
-            "[CAMERA] Table bounds set: origin=({}, {}), size={}x{}", 
-            x, y, width, height
-        ).into());
+        web_sys::console::log_1(
+            &format!(
+                "[CAMERA] Table bounds set: origin=({}, {}), size={}x{}",
+                x, y, width, height
+            )
+            .into(),
+        );
     }
-    
+
     pub fn view_matrix(&self, _canvas_size: Vec2) -> Mat3 {
         Mat3::from_scale_translation(
             Vec2::splat(self.zoom as f32),
-            Vec2::new(-self.world_x as f32 * self.zoom as f32, -self.world_y as f32 * self.zoom as f32)
+            Vec2::new(
+                -self.world_x as f32 * self.zoom as f32,
+                -self.world_y as f32 * self.zoom as f32,
+            ),
         )
     }
-    
+
     pub fn screen_to_world(&self, screen_pos: Vec2) -> Vec2 {
         Vec2::new(
             (screen_pos.x / self.zoom as f32) + self.world_x as f32,
-            (screen_pos.y / self.zoom as f32) + self.world_y as f32
+            (screen_pos.y / self.zoom as f32) + self.world_y as f32,
         )
     }
-    
+
     pub fn world_to_screen(&self, world_pos: Vec2) -> Vec2 {
         Vec2::new(
             (world_pos.x - self.world_x as f32) * self.zoom as f32,
-            (world_pos.y - self.world_y as f32) * self.zoom as f32
+            (world_pos.y - self.world_y as f32) * self.zoom as f32,
         )
     }
-    
+
     pub fn handle_wheel(&mut self, screen_x: f32, screen_y: f32, delta_y: f32) {
         let zoom_factor = if delta_y > 0.0 { 0.9 } else { 1.1 };
         let world_point_before = self.screen_to_world(Vec2::new(screen_x, screen_y));
@@ -68,16 +74,22 @@ impl Camera {
         let world_delta = world_point_before - world_point_after;
         self.world_x += world_delta.x as f64;
         self.world_y += world_delta.y as f64;
-        
+
         // Use debug log to avoid spamming console during frequent wheel events
         #[cfg(all(debug_assertions, target_arch = "wasm32"))]
-        web_sys::console::debug_1(&format!(
-            "[CAMERA-DEBUG] Zoom: {} → {} | Camera moved: ({}, {}) → ({}, {})",
-            old_zoom, self.zoom, 
-            self.world_x - world_delta.x as f64, self.world_y - world_delta.y as f64,
-            self.world_x, self.world_y
-        ).into());
-        
+        web_sys::console::debug_1(
+            &format!(
+                "[CAMERA-DEBUG] Zoom: {} → {} | Camera moved: ({}, {}) → ({}, {})",
+                old_zoom,
+                self.zoom,
+                self.world_x - world_delta.x as f64,
+                self.world_y - world_delta.y as f64,
+                self.world_x,
+                self.world_y
+            )
+            .into(),
+        );
+
         // Clamp to table bounds after zoom to prevent jump on first drag
         if let Some((tx, ty, tw, th)) = self.table_bounds {
             if self.allow_outside_table {
@@ -90,7 +102,7 @@ impl Camera {
             }
         }
     }
-    
+
     pub fn center_on(&mut self, world_x: f64, world_y: f64) {
         self.world_x = world_x;
         self.world_y = world_y;
@@ -106,7 +118,7 @@ impl Camera {
     pub fn pan(&mut self, world_delta_x: f64, world_delta_y: f64) {
         self.world_x += world_delta_x;
         self.world_y += world_delta_y;
-        
+
         // Clamp to table bounds if set
         if let Some((tx, ty, tw, th)) = self.table_bounds {
             if self.allow_outside_table {
@@ -121,7 +133,7 @@ impl Camera {
             }
         }
     }
-    
+
     pub fn pan_by_screen_delta(&mut self, screen_delta: Vec2) {
         let world_delta_x = screen_delta.x as f64 / self.zoom;
         let world_delta_y = screen_delta.y as f64 / self.zoom;
@@ -133,16 +145,18 @@ impl Camera {
         // Calculate the center of the rectangle
         let rect_center = Vec2::new(
             rect.min.x + (rect.max.x - rect.min.x) * 0.5,
-            rect.min.y + (rect.max.y - rect.min.y) * 0.5
+            rect.min.y + (rect.max.y - rect.min.y) * 0.5,
         );
 
         // Calculate zoom to fit the rectangle with padding
         let rect_width = rect.max.x - rect.min.x + padding * 2.0;
         let rect_height = rect.max.y - rect.min.y + padding * 2.0;
-        
+
         let zoom_x = canvas_size.x / rect_width;
         let zoom_y = canvas_size.y / rect_height;
-        let new_zoom = zoom_x.min(zoom_y).clamp(self.min_zoom as f32, self.max_zoom as f32) as f64;
+        let new_zoom = zoom_x
+            .min(zoom_y)
+            .clamp(self.min_zoom as f32, self.max_zoom as f32) as f64;
 
         self.set_camera(rect_center.x as f64, rect_center.y as f64, new_zoom);
     }
@@ -153,7 +167,12 @@ mod tests {
     use crate::math::Vec2;
 
     fn cam_at(wx: f64, wy: f64, zoom: f64) -> Camera {
-        Camera { world_x: wx, world_y: wy, zoom, ..Default::default() }
+        Camera {
+            world_x: wx,
+            world_y: wy,
+            zoom,
+            ..Default::default()
+        }
     }
 
     #[test]
@@ -190,7 +209,12 @@ mod tests {
 
     #[test]
     fn handle_wheel_zoom_in_clamped() {
-        let mut c = Camera { min_zoom: 0.1, max_zoom: 5.0, zoom: 0.15, ..Default::default() };
+        let mut c = Camera {
+            min_zoom: 0.1,
+            max_zoom: 5.0,
+            zoom: 0.15,
+            ..Default::default()
+        };
         // delta_y < 0 zooms in (×1.1) → from 0.15 to 0.165, well within bounds
         c.handle_wheel(0.0, 0.0, -1.0);
         assert!(c.zoom > 0.15 && c.zoom <= 5.0);
@@ -198,7 +222,12 @@ mod tests {
 
     #[test]
     fn handle_wheel_zoom_out_clamped_at_min() {
-        let mut c = Camera { min_zoom: 0.1, max_zoom: 5.0, zoom: 0.1, ..Default::default() };
+        let mut c = Camera {
+            min_zoom: 0.1,
+            max_zoom: 5.0,
+            zoom: 0.1,
+            ..Default::default()
+        };
         // delta_y > 0 zooms out (×0.9) — already at min, should stay at min_zoom
         c.handle_wheel(0.0, 0.0, 1.0);
         assert!((c.zoom - 0.1).abs() < 1e-6);

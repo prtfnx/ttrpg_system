@@ -1,6 +1,6 @@
+use crate::input::ResizeHandle;
 use crate::math::Vec2;
 use crate::types::Sprite;
-use crate::input::ResizeHandle;
 
 pub struct SpriteManager;
 
@@ -9,9 +9,9 @@ impl SpriteManager {
         let original_pos = Vec2::new(sprite.world_x as f32, sprite.world_y as f32);
         let original_size = Vec2::new(
             (sprite.width * sprite.scale_x) as f32,
-            (sprite.height * sprite.scale_y) as f32
+            (sprite.height * sprite.scale_y) as f32,
         );
-        
+
         match handle {
             ResizeHandle::TopLeft => {
                 let new_width = (original_pos.x + original_size.x - world_pos.x).max(10.0);
@@ -61,32 +61,37 @@ impl SpriteManager {
             }
         }
     }
-    
-    pub fn update_rotation(sprite: &mut Sprite, world_pos: Vec2, start_angle: f64, initial_rotation: f64) {
+
+    pub fn update_rotation(
+        sprite: &mut Sprite,
+        world_pos: Vec2,
+        start_angle: f64,
+        initial_rotation: f64,
+    ) {
         let sprite_center = Vec2::new(
             sprite.world_x as f32 + (sprite.width * sprite.scale_x) as f32 * 0.5,
-            sprite.world_y as f32 + (sprite.height * sprite.scale_y) as f32 * 0.5
+            sprite.world_y as f32 + (sprite.height * sprite.scale_y) as f32 * 0.5,
         );
         let dx = world_pos.x - sprite_center.x;
         let dy = world_pos.y - sprite_center.y;
         let current_angle = dy.atan2(dx) as f64;
-        
+
         // Calculate relative rotation from start position
         let delta_rotation = current_angle - start_angle;
         sprite.rotation = initial_rotation + delta_rotation;
     }
-    
+
     pub fn get_rotation_handle_position(sprite: &Sprite, zoom: f64) -> Vec2 {
         let sprite_pos = Vec2::new(sprite.world_x as f32, sprite.world_y as f32);
         let sprite_size = Vec2::new(
             (sprite.width * sprite.scale_x) as f32,
-            (sprite.height * sprite.scale_y) as f32
+            (sprite.height * sprite.scale_y) as f32,
         );
         Vec2::new(
             sprite_pos.x + sprite_size.x * 0.5,
-            sprite_pos.y - 20.0 / zoom as f32
+            sprite_pos.y - 20.0 / zoom as f32,
         )
     }
-    
+
     // Additional sprite operation methods for better separation of concerns
 }

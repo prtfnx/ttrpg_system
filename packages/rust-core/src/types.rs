@@ -1,5 +1,5 @@
-use serde::{Serialize, Deserialize};
-use crate::math::{Vec2, Rect};
+use crate::math::{Rect, Vec2};
+use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Position {
@@ -27,12 +27,12 @@ pub struct Sprite {
     pub layer: String,
     pub texture_id: String,
     pub tint_color: [f32; 4],
-    
+
     // Character binding (optional)
     pub character_id: Option<String>,
     #[serde(default)]
     pub controlled_by: Vec<i32>,
-    
+
     // Token stats (independent of character)
     pub hp: Option<i32>,
     pub max_hp: Option<i32>,
@@ -40,7 +40,7 @@ pub struct Sprite {
     pub aura_radius: Option<f64>,
     #[serde(default)]
     pub aura_color: Option<String>,
-    
+
     // Text sprite fields
     pub is_text_sprite: Option<bool>,
     pub text_content: Option<String>,
@@ -49,15 +49,23 @@ pub struct Sprite {
 
     // Obstacle shape metadata
     #[serde(default)]
-    pub obstacle_type: Option<String>,  // "rectangle" | "circle" | "line" | "polygon"
+    pub obstacle_type: Option<String>, // "rectangle" | "circle" | "line" | "polygon"
     #[serde(default)]
-    pub polygon_vertices: Option<Vec<[f32; 2]>>,  // world-space vertices for polygon obstacles
+    pub polygon_vertices: Option<Vec<[f32; 2]>>, // world-space vertices for polygon obstacles
     #[serde(default)]
-    pub shape_filled: Option<bool>,  // true = filled shape, false = outline only
+    pub shape_filled: Option<bool>, // true = filled shape, false = outline only
 }
 
 impl Sprite {
-    pub fn new(id: String, world_x: f64, world_y: f64, width: f64, height: f64, layer: String, table_id: String) -> Self {
+    pub fn new(
+        id: String,
+        world_x: f64,
+        world_y: f64,
+        width: f64,
+        height: f64,
+        layer: String,
+        table_id: String,
+    ) -> Self {
         Self {
             id,
             table_id,
@@ -87,17 +95,17 @@ impl Sprite {
             shape_filled: None,
         }
     }
-    
+
     pub fn world_bounds(&self) -> Rect {
         let scaled_width = (self.width * self.scale_x) as f32;
         let scaled_height = (self.height * self.scale_y) as f32;
         let center = Vec2::new(
             (self.world_x + scaled_width as f64 * 0.5) as f32,
-            (self.world_y + scaled_height as f64 * 0.5) as f32
+            (self.world_y + scaled_height as f64 * 0.5) as f32,
         );
         Rect::from_center_size(center, Vec2::new(scaled_width, scaled_height))
     }
-    
+
     pub fn contains_world_point(&self, world_point: Vec2) -> bool {
         if self.rotation == 0.0 {
             // Simple bounding box check for non-rotated sprites
@@ -108,23 +116,25 @@ impl Sprite {
             let scaled_height = (self.height * self.scale_y) as f32;
             let center = Vec2::new(
                 (self.world_x + scaled_width as f64 * 0.5) as f32,
-                (self.world_y + scaled_height as f64 * 0.5) as f32
+                (self.world_y + scaled_height as f64 * 0.5) as f32,
             );
-            
+
             // Translate to sprite center
             let relative_point = world_point - center;
-            
+
             // Rotate the point by negative rotation to undo sprite rotation
             let cos_rot = (-self.rotation as f32).cos();
             let sin_rot = (-self.rotation as f32).sin();
             let local_x = relative_point.x * cos_rot - relative_point.y * sin_rot;
             let local_y = relative_point.x * sin_rot + relative_point.y * cos_rot;
-            
+
             // Check if the rotated point is within the sprite bounds
             let half_width = scaled_width * 0.5;
             let half_height = scaled_height * 0.5;
-            local_x >= -half_width && local_x <= half_width &&
-            local_y >= -half_height && local_y <= half_height
+            local_x >= -half_width
+                && local_x <= half_width
+                && local_y >= -half_height
+                && local_y <= half_height
         }
     }
 }
@@ -136,9 +146,12 @@ mod shape_tests {
     fn shape_sprite(obstacle_type: &str, filled: bool) -> Sprite {
         Sprite {
             id: obstacle_type.to_string(),
-            world_x: 10.0, world_y: 20.0,
-            width: 100.0, height: 50.0,
-            scale_x: 1.0, scale_y: 1.0,
+            world_x: 10.0,
+            world_y: 20.0,
+            width: 100.0,
+            height: 50.0,
+            scale_x: 1.0,
+            scale_y: 1.0,
             obstacle_type: Some(obstacle_type.to_string()),
             shape_filled: Some(filled),
             tint_color: [1.0, 0.0, 0.0, 1.0],
@@ -158,7 +171,10 @@ mod shape_tests {
         let s = shape_sprite("rectangle", true);
         assert_eq!(s.obstacle_type.as_deref(), Some("rectangle"));
         assert_eq!(s.shape_filled, Some(true));
-        assert!(s.texture_id.is_empty(), "shape sprites must not have a baked texture");
+        assert!(
+            s.texture_id.is_empty(),
+            "shape sprites must not have a baked texture"
+        );
     }
 
     #[test]
@@ -173,9 +189,12 @@ mod shape_tests {
     fn line_sprite_stores_endpoints_in_polygon_vertices() {
         let s = Sprite {
             id: "line_1".to_string(),
-            world_x: 0.0, world_y: 0.0,
-            width: 100.0, height: 4.0,
-            scale_x: 1.0, scale_y: 1.0,
+            world_x: 0.0,
+            world_y: 0.0,
+            width: 100.0,
+            height: 4.0,
+            scale_x: 1.0,
+            scale_y: 1.0,
             obstacle_type: Some("line".to_string()),
             shape_filled: Some(false),
             polygon_vertices: Some(vec![[0.0, 0.0], [100.0, 50.0]]),
@@ -208,9 +227,12 @@ mod shape_tests {
     fn sprite_serde_roundtrip_with_shape_fields() {
         let s = Sprite {
             id: "rect_test".to_string(),
-            world_x: 5.0, world_y: 10.0,
-            width: 80.0, height: 40.0,
-            scale_x: 1.0, scale_y: 1.0,
+            world_x: 5.0,
+            world_y: 10.0,
+            width: 80.0,
+            height: 40.0,
+            scale_x: 1.0,
+            scale_y: 1.0,
             obstacle_type: Some("rectangle".to_string()),
             shape_filled: Some(false),
             tint_color: [0.2, 0.4, 0.8, 0.9],
@@ -291,7 +313,7 @@ impl Layer {
             selectable: true,
         }
     }
-    
+
     pub fn new_with_settings(settings: LayerSettings) -> Self {
         Self {
             sprites: Vec::new(),
@@ -299,32 +321,32 @@ impl Layer {
             selectable: true,
         }
     }
-    
+
     // Convenience methods for backward compatibility
     pub fn opacity(&self) -> f32 {
         self.settings.opacity
     }
-    
+
     pub fn visible(&self) -> bool {
         self.settings.visible
     }
-    
+
     pub fn z_order(&self) -> i32 {
         self.settings.z_order
     }
-    
+
     pub fn set_opacity(&mut self, opacity: f32) {
         self.settings.opacity = opacity.clamp(0.0, 1.0);
     }
-    
+
     pub fn set_visibility(&mut self, visible: bool) {
         self.settings.visible = visible;
     }
-    
+
     pub fn set_blend_mode(&mut self, blend_mode: BlendMode) {
         self.settings.blend_mode = blend_mode;
     }
-    
+
     pub fn set_color(&mut self, r: f32, g: f32, b: f32) {
         self.settings.color = [r.clamp(0.0, 1.0), g.clamp(0.0, 1.0), b.clamp(0.0, 1.0)];
     }
@@ -379,31 +401,31 @@ impl Color {
     pub fn new(r: f32, g: f32, b: f32, a: f32) -> Self {
         Self { r, g, b, a }
     }
-    
+
     pub fn white() -> Self {
         Self::new(1.0, 1.0, 1.0, 1.0)
     }
-    
+
     pub fn black() -> Self {
         Self::new(0.0, 0.0, 0.0, 1.0)
     }
-    
+
     pub fn red() -> Self {
         Self::new(1.0, 0.0, 0.0, 1.0)
     }
-    
+
     pub fn green() -> Self {
         Self::new(0.0, 1.0, 0.0, 1.0)
     }
-    
+
     pub fn blue() -> Self {
         Self::new(0.0, 0.0, 1.0, 1.0)
     }
-    
+
     pub fn yellow() -> Self {
         Self::new(1.0, 1.0, 0.0, 1.0)
     }
-    
+
     pub fn to_array(&self) -> [f32; 4] {
         [self.r, self.g, self.b, self.a]
     }
@@ -451,18 +473,29 @@ pub struct Wall {
     pub y1: f32,
     pub x2: f32,
     pub y2: f32,
-    #[serde(default)] pub wall_type:       WallType,
-    #[serde(default = "default_true")] pub blocks_movement: bool,
-    #[serde(default = "default_true")] pub blocks_light:    bool,
-    #[serde(default = "default_true")] pub blocks_sight:    bool,
-    #[serde(default = "default_true")] pub blocks_sound:    bool,
-    #[serde(default)] pub is_door:    bool,
-    #[serde(default)] pub door_state: DoorState,
-    #[serde(default)] pub is_secret:  bool,
-    #[serde(default)] pub direction:  WallDirection,
+    #[serde(default)]
+    pub wall_type: WallType,
+    #[serde(default = "default_true")]
+    pub blocks_movement: bool,
+    #[serde(default = "default_true")]
+    pub blocks_light: bool,
+    #[serde(default = "default_true")]
+    pub blocks_sight: bool,
+    #[serde(default = "default_true")]
+    pub blocks_sound: bool,
+    #[serde(default)]
+    pub is_door: bool,
+    #[serde(default)]
+    pub door_state: DoorState,
+    #[serde(default)]
+    pub is_secret: bool,
+    #[serde(default)]
+    pub direction: WallDirection,
 }
 
-fn default_true() -> bool { true }
+fn default_true() -> bool {
+    true
+}
 
 #[cfg(test)]
 mod tests {
@@ -471,7 +504,15 @@ mod tests {
 
     #[test]
     fn sprite_new_defaults() {
-        let s = Sprite::new("s1".into(), 10.0, 20.0, 50.0, 50.0, "tokens".into(), "table-1".into());
+        let s = Sprite::new(
+            "s1".into(),
+            10.0,
+            20.0,
+            50.0,
+            50.0,
+            "tokens".into(),
+            "table-1".into(),
+        );
         assert_eq!(s.id, "s1");
         assert_eq!(s.scale_x, 1.0);
         assert_eq!(s.scale_y, 1.0);
@@ -482,7 +523,15 @@ mod tests {
 
     #[test]
     fn sprite_world_bounds_no_scale() {
-        let s = Sprite::new("b".into(), 0.0, 0.0, 100.0, 100.0, "tokens".into(), "table-1".into());
+        let s = Sprite::new(
+            "b".into(),
+            0.0,
+            0.0,
+            100.0,
+            100.0,
+            "tokens".into(),
+            "table-1".into(),
+        );
         let bounds = s.world_bounds();
         // center = (50, 50), half = (50, 50)
         assert!((bounds.min.x - 0.0).abs() < 0.01);
@@ -493,19 +542,43 @@ mod tests {
 
     #[test]
     fn sprite_contains_center_point() {
-        let s = Sprite::new("c".into(), 0.0, 0.0, 100.0, 100.0, "tokens".into(), "table-1".into());
+        let s = Sprite::new(
+            "c".into(),
+            0.0,
+            0.0,
+            100.0,
+            100.0,
+            "tokens".into(),
+            "table-1".into(),
+        );
         assert!(s.contains_world_point(Vec2::new(50.0, 50.0)));
     }
 
     #[test]
     fn sprite_does_not_contain_outside_point() {
-        let s = Sprite::new("d".into(), 0.0, 0.0, 100.0, 100.0, "tokens".into(), "table-1".into());
+        let s = Sprite::new(
+            "d".into(),
+            0.0,
+            0.0,
+            100.0,
+            100.0,
+            "tokens".into(),
+            "table-1".into(),
+        );
         assert!(!s.contains_world_point(Vec2::new(150.0, 50.0)));
     }
 
     #[test]
     fn sprite_serde_roundtrip() {
-        let s = Sprite::new("rt".into(), 5.0, 10.0, 30.0, 40.0, "maps".into(), "table-1".into());
+        let s = Sprite::new(
+            "rt".into(),
+            5.0,
+            10.0,
+            30.0,
+            40.0,
+            "maps".into(),
+            "table-1".into(),
+        );
         let json = serde_json::to_string(&s).unwrap();
         let s2: Sprite = serde_json::from_str(&json).unwrap();
         assert_eq!(s.id, s2.id);
@@ -539,4 +612,3 @@ mod tests {
         assert_eq!([b.r, b.g, b.b, b.a], [0.0, 0.0, 0.0, 1.0]);
     }
 }
-

@@ -5,8 +5,8 @@
 // are unavailable in Node.js (WebGl2RenderingContext, canvas, DOM events).
 #![cfg(target_arch = "wasm32")]
 
-use wasm_bindgen::JsCast;
 use wasm_bindgen::prelude::Closure;
+use wasm_bindgen::JsCast;
 use wasm_bindgen_test::*;
 use web_sys::HtmlCanvasElement;
 
@@ -86,11 +86,11 @@ fn runtime_callback_registration_and_cleanup_do_not_throw() {
     let event_handler = Closure::<dyn FnMut(wasm_bindgen::JsValue)>::new(|_| {});
 
     renderer.set_runtime_operation_handler(
-        operation_handler.as_ref().unchecked_ref::<js_sys::Function>(),
+        operation_handler
+            .as_ref()
+            .unchecked_ref::<js_sys::Function>(),
     );
-    renderer.set_runtime_event_handler(
-        event_handler.as_ref().unchecked_ref::<js_sys::Function>(),
-    );
+    renderer.set_runtime_event_handler(event_handler.as_ref().unchecked_ref::<js_sys::Function>());
     renderer.clear_runtime_operation_handler();
     renderer.clear_runtime_event_handler();
 

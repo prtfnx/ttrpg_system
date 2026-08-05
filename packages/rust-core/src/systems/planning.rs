@@ -1,7 +1,7 @@
+use crate::collision::CollisionSystem;
+use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use wasm_bindgen::prelude::*;
-use serde::{Serialize, Deserialize};
-use crate::collision::CollisionSystem;
 
 // Ghost token preview state.
 
@@ -25,48 +25,85 @@ pub enum AoeTemplate {
     #[serde(rename = "sphere")]
     Sphere { cx: f32, cy: f32, radius: f32 },
     #[serde(rename = "cone")]
-    Cone { ox: f32, oy: f32, angle: f32, length: f32 },
+    Cone {
+        ox: f32,
+        oy: f32,
+        angle: f32,
+        length: f32,
+    },
     #[serde(rename = "line")]
-    Line { x1: f32, y1: f32, x2: f32, y2: f32, width: f32 },
+    Line {
+        x1: f32,
+        y1: f32,
+        x2: f32,
+        y2: f32,
+        width: f32,
+    },
     #[serde(rename = "cube")]
     Cube { cx: f32, cy: f32, side: f32 },
 }
 
 /// Return indices of tokens within the AoE template
 fn tokens_in_aoe(template: &AoeTemplate, token_positions: &[[f32; 2]]) -> Vec<String> {
-    token_positions.iter().enumerate().filter(|(_, p)| {
-        let px = p[0]; let py = p[1];
-        match template {
-            AoeTemplate::Sphere { cx, cy, radius } => {
-                let dx = px - cx; let dy = py - cy;
-                dx*dx + dy*dy <= radius*radius
+    token_positions
+        .iter()
+        .enumerate()
+        .filter(|(_, p)| {
+            let px = p[0];
+            let py = p[1];
+            match template {
+                AoeTemplate::Sphere { cx, cy, radius } => {
+                    let dx = px - cx;
+                    let dy = py - cy;
+                    dx * dx + dy * dy <= radius * radius
+                }
+                AoeTemplate::Cone {
+                    ox,
+                    oy,
+                    angle,
+                    length,
+                } => {
+                    let dx = px - ox;
+                    let dy = py - oy;
+                    let dist = (dx * dx + dy * dy).sqrt();
+                    if dist > *length {
+                        return false;
+                    }
+                    let tok_angle = (dy).atan2(dx);
+                    let half = (0.5_f32).atan(); // 5e cone: +/-26.565 degrees half-angle (53.13 degrees total)
+                    let diff = (tok_angle - angle).abs() % (2.0 * std::f32::consts::PI);
+                    diff <= half || diff >= (2.0 * std::f32::consts::PI - half)
+                }
+                AoeTemplate::Line {
+                    x1,
+                    y1,
+                    x2,
+                    y2,
+                    width,
+                } => {
+                    // Distance from point to line segment
+                    let dx = x2 - x1;
+                    let dy = y2 - y1;
+                    let len2 = dx * dx + dy * dy;
+                    if len2 < 1e-6 {
+                        return false;
+                    }
+                    let t = ((px - x1) * dx + (py - y1) * dy) / len2;
+                    let t = t.clamp(0.0, 1.0);
+                    let nx = x1 + t * dx;
+                    let ny = y1 + t * dy;
+                    let ex = px - nx;
+                    let ey = py - ny;
+                    (ex * ex + ey * ey).sqrt() <= *width * 0.5
+                }
+                AoeTemplate::Cube { cx, cy, side } => {
+                    let h = side * 0.5;
+                    (px - cx).abs() <= h && (py - cy).abs() <= h
+                }
             }
-            AoeTemplate::Cone { ox, oy, angle, length } => {
-                let dx = px - ox; let dy = py - oy;
-                let dist = (dx*dx + dy*dy).sqrt();
-                if dist > *length { return false; }
-                let tok_angle = (dy).atan2(dx);
-                let half = (0.5_f32).atan(); // 5e cone: +/-26.565 degrees half-angle (53.13 degrees total)
-                let diff = (tok_angle - angle).abs() % (2.0 * std::f32::consts::PI);
-                diff <= half || diff >= (2.0 * std::f32::consts::PI - half)
-            }
-            AoeTemplate::Line { x1, y1, x2, y2, width } => {
-                // Distance from point to line segment
-                let dx = x2 - x1; let dy = y2 - y1;
-                let len2 = dx*dx + dy*dy;
-                if len2 < 1e-6 { return false; }
-                let t = ((px - x1)*dx + (py - y1)*dy) / len2;
-                let t = t.clamp(0.0, 1.0);
-                let nx = x1 + t*dx; let ny = y1 + t*dy;
-                let ex = px - nx; let ey = py - ny;
-                (ex*ex + ey*ey).sqrt() <= *width * 0.5
-            }
-            AoeTemplate::Cube { cx, cy, side } => {
-                let h = side * 0.5;
-                (px - cx).abs() <= h && (py - cy).abs() <= h
-            }
-        }
-    }).map(|(i, _)| i.to_string()).collect()
+        })
+        .map(|(i, _)| i.to_string())
+        .collect()
 }
 
 // Planning manager.
@@ -100,19 +137,31 @@ impl PlanningManager {
     // Collision setup.
 
     pub fn set_walls(&mut self, json: &str) {
-        let sys = self.collision.get_or_insert_with(|| CollisionSystem::new(self.grid_size));
+        let sys = self
+            .collision
+            .get_or_insert_with(|| CollisionSystem::new(self.grid_size));
         sys.set_walls(json);
     }
 
     pub fn set_obstacles(&mut self, json: &str) {
-        let sys = self.collision.get_or_insert_with(|| CollisionSystem::new(self.grid_size));
+        let sys = self
+            .collision
+            .get_or_insert_with(|| CollisionSystem::new(self.grid_size));
         sys.set_obstacles(json);
     }
 
     // Ghost tokens.
 
     /// Start previewing a token move. Returns movement cost in feet.
-    pub fn start_ghost(&mut self, sprite_id: &str, real_x: f32, real_y: f32, preview_x: f32, preview_y: f32, speed_ft: f32) -> f32 {
+    pub fn start_ghost(
+        &mut self,
+        sprite_id: &str,
+        real_x: f32,
+        real_y: f32,
+        preview_x: f32,
+        preview_y: f32,
+        speed_ft: f32,
+    ) -> f32 {
         // Snap preview to grid
         let g = self.grid_size;
         let snapped_x = (preview_x / g).floor() * g + g * 0.5;
@@ -124,23 +173,33 @@ impl PlanningManager {
             let waypoints = raw.chunks(2).map(|c| [c[0], c[1]]).collect();
             (waypoints, cost)
         } else {
-            let cost = distance_ft_simple(real_x, real_y, snapped_x, snapped_y, self.grid_size, self.ft_per_unit);
+            let cost = distance_ft_simple(
+                real_x,
+                real_y,
+                snapped_x,
+                snapped_y,
+                self.grid_size,
+                self.ft_per_unit,
+            );
             (vec![[real_x, real_y], [snapped_x, snapped_y]], cost)
         };
 
         // Ghost is dimmer if out of movement range
         let opacity = if cost <= speed_ft { 0.45 } else { 0.2 };
 
-        self.ghost_tokens.insert(sprite_id.to_string(), GhostToken {
-            sprite_id: sprite_id.to_string(),
-            real_x,
-            real_y,
-            preview_x: snapped_x,
-            preview_y: snapped_y,
-            path,
-            movement_cost_ft: cost,
-            opacity,
-        });
+        self.ghost_tokens.insert(
+            sprite_id.to_string(),
+            GhostToken {
+                sprite_id: sprite_id.to_string(),
+                real_x,
+                real_y,
+                preview_x: snapped_x,
+                preview_y: snapped_y,
+                path,
+                movement_cost_ft: cost,
+                opacity,
+            },
+        );
         cost
     }
 
@@ -172,7 +231,13 @@ impl PlanningManager {
     // Movement range overlay.
 
     /// Compute movement range BFS. Returns JSON with {normal, dash, blocked} cell arrays.
-    pub fn movement_range(&self, sx: f32, sy: f32, speed_ft: f32, diagonal_5_10_5: bool) -> JsValue {
+    pub fn movement_range(
+        &self,
+        sx: f32,
+        sy: f32,
+        speed_ft: f32,
+        diagonal_5_10_5: bool,
+    ) -> JsValue {
         if let Some(sys) = &self.collision {
             sys.movement_range(sx, sy, speed_ft, self.ft_per_unit, diagonal_5_10_5)
         } else {
@@ -182,7 +247,8 @@ impl PlanningManager {
                 "normal": cells,
                 "dash": [],
                 "blocked": []
-            })).unwrap_or(JsValue::NULL)
+            }))
+            .unwrap_or(JsValue::NULL)
         }
     }
 
@@ -205,12 +271,23 @@ impl PlanningManager {
 
     /// Set cone AoE template (angle in radians)
     pub fn set_aoe_cone(&mut self, ox: f32, oy: f32, angle: f32, length: f32) {
-        self.aoe_template = Some(AoeTemplate::Cone { ox, oy, angle, length });
+        self.aoe_template = Some(AoeTemplate::Cone {
+            ox,
+            oy,
+            angle,
+            length,
+        });
     }
 
     /// Set line AoE template
     pub fn set_aoe_line(&mut self, x1: f32, y1: f32, x2: f32, y2: f32, width: f32) {
-        self.aoe_template = Some(AoeTemplate::Line { x1, y1, x2, y2, width });
+        self.aoe_template = Some(AoeTemplate::Line {
+            x1,
+            y1,
+            x2,
+            y2,
+            width,
+        });
     }
 
     /// Set cube AoE template
@@ -237,7 +314,8 @@ impl PlanningManager {
             Some(t) => t,
             None => return JsValue::NULL,
         };
-        let positions: Vec<[f32; 2]> = flat.chunks(2)
+        let positions: Vec<[f32; 2]> = flat
+            .chunks(2)
             .filter(|c| c.len() == 2)
             .map(|c| [c[0], c[1]])
             .collect();
@@ -266,7 +344,13 @@ fn distance_ft_simple(x1: f32, y1: f32, x2: f32, y2: f32, grid_size: f32, ft_per
     cells * (g * ft_per_unit)
 }
 
-fn simple_range_cells(sx: f32, sy: f32, speed_ft: f32, grid_size: f32, ft_per_unit: f32) -> Vec<[f32; 2]> {
+fn simple_range_cells(
+    sx: f32,
+    sy: f32,
+    speed_ft: f32,
+    grid_size: f32,
+    ft_per_unit: f32,
+) -> Vec<[f32; 2]> {
     let cells_radius = (speed_ft / (grid_size * ft_per_unit)).ceil() as i32;
     let scx = (sx / grid_size).floor() as i32;
     let scy = (sy / grid_size).floor() as i32;
@@ -439,7 +523,12 @@ mod tests {
         let mut pm = PlanningManager::new(64.0, 5.0 / 64.0);
         pm.set_aoe_cone(0.0, 0.0, 1.0, 60.0);
         match pm.aoe_template {
-            Some(AoeTemplate::Cone { ox, oy: _, angle, length }) => {
+            Some(AoeTemplate::Cone {
+                ox,
+                oy: _,
+                angle,
+                length,
+            }) => {
                 assert_eq!(ox, 0.0);
                 assert_eq!(angle, 1.0);
                 assert_eq!(length, 60.0);
@@ -453,7 +542,13 @@ mod tests {
         let mut pm = PlanningManager::new(64.0, 5.0 / 64.0);
         pm.set_aoe_line(0.0, 0.0, 100.0, 0.0, 10.0);
         match pm.aoe_template {
-            Some(AoeTemplate::Line { x1: _, y1: _, x2, y2: _, width }) => {
+            Some(AoeTemplate::Line {
+                x1: _,
+                y1: _,
+                x2,
+                y2: _,
+                width,
+            }) => {
                 assert_eq!(x2, 100.0);
                 assert_eq!(width, 10.0);
             }
@@ -499,7 +594,11 @@ mod tests {
     #[test]
     fn tokens_in_aoe_cube() {
         let positions = vec![[15.0, 15.0], [100.0, 100.0]];
-        let template = AoeTemplate::Cube { cx: 10.0, cy: 10.0, side: 20.0 };
+        let template = AoeTemplate::Cube {
+            cx: 10.0,
+            cy: 10.0,
+            side: 20.0,
+        };
         let hits = tokens_in_aoe(&template, &positions);
         assert_eq!(hits, vec!["0"]); // only first token inside
     }
@@ -507,7 +606,13 @@ mod tests {
     #[test]
     fn tokens_in_aoe_line() {
         let positions = vec![[50.0, 0.0], [50.0, 100.0]];
-        let template = AoeTemplate::Line { x1: 0.0, y1: 0.0, x2: 100.0, y2: 0.0, width: 10.0 };
+        let template = AoeTemplate::Line {
+            x1: 0.0,
+            y1: 0.0,
+            x2: 100.0,
+            y2: 0.0,
+            width: 10.0,
+        };
         let hits = tokens_in_aoe(&template, &positions);
         assert_eq!(hits, vec!["0"]); // first on the line, second too far
     }
@@ -515,7 +620,11 @@ mod tests {
     #[test]
     fn tokens_in_aoe_empty_positions() {
         let positions: Vec<[f32; 2]> = vec![];
-        let template = AoeTemplate::Sphere { cx: 0.0, cy: 0.0, radius: 100.0 };
+        let template = AoeTemplate::Sphere {
+            cx: 0.0,
+            cy: 0.0,
+            radius: 100.0,
+        };
         let hits = tokens_in_aoe(&template, &positions);
         assert!(hits.is_empty());
     }

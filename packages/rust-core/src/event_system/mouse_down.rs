@@ -1,8 +1,8 @@
-use crate::math::Vec2;
-use crate::types::Layer;
-use crate::input::{InputHandler, InputMode, HandleDetector, ToolMode};
-use crate::sprite_manager::SpriteManager;
+use crate::input::{HandleDetector, InputHandler, InputMode, ToolMode};
 use crate::lighting::LightingSystem;
+use crate::math::Vec2;
+use crate::sprite_manager::SpriteManager;
+use crate::types::Layer;
 use crate::wall_manager::WallManager;
 use std::collections::HashMap;
 
@@ -24,40 +24,82 @@ impl EventSystem {
         runtime_event_handler: Option<&js_sys::Function>,
     ) -> MouseEventResult {
         input.alt_pressed = alt_pressed;
-        web_sys::console::log_1(&format!("[RUST EVENT] Mouse down at world: {}, {}, input_mode: {:?}", world_pos.x, world_pos.y, input.input_mode).into());
-        
+        web_sys::console::log_1(
+            &format!(
+                "[RUST EVENT] Mouse down at world: {}, {}, input_mode: {:?}",
+                world_pos.x, world_pos.y, input.input_mode
+            )
+            .into(),
+        );
+
         // Handle fog drawing modes FIRST
         if matches!(input.input_mode, InputMode::FogDraw | InputMode::FogErase) {
             input.start_fog_draw(world_pos, input.fog_mode);
-            web_sys::console::log_1(&format!("[RUST EVENT] Started fog drawing at: {}, {} mode: {:?}", world_pos.x, world_pos.y, input.fog_mode).into());
+            web_sys::console::log_1(
+                &format!(
+                    "[RUST EVENT] Started fog drawing at: {}, {} mode: {:?}",
+                    world_pos.x, world_pos.y, input.fog_mode
+                )
+                .into(),
+            );
             return MouseEventResult::Handled;
         }
-        
+
         // Handle tool-specific input modes
         match input.input_mode {
             InputMode::Measurement => {
                 input.start_measurement(world_pos);
-                web_sys::console::log_1(&format!("[RUST EVENT] Started measurement at: {}, {}", world_pos.x, world_pos.y).into());
+                web_sys::console::log_1(
+                    &format!(
+                        "[RUST EVENT] Started measurement at: {}, {}",
+                        world_pos.x, world_pos.y
+                    )
+                    .into(),
+                );
                 return MouseEventResult::Handled;
             }
             InputMode::CreateRectangle => {
                 input.start_shape_creation(world_pos);
-                web_sys::console::log_1(&format!("[RUST EVENT] Started rectangle creation at: {}, {}", world_pos.x, world_pos.y).into());
+                web_sys::console::log_1(
+                    &format!(
+                        "[RUST EVENT] Started rectangle creation at: {}, {}",
+                        world_pos.x, world_pos.y
+                    )
+                    .into(),
+                );
                 return MouseEventResult::Handled;
             }
             InputMode::CreateCircle => {
                 input.start_shape_creation(world_pos);
-                web_sys::console::log_1(&format!("[RUST EVENT] Started circle creation at: {}, {}", world_pos.x, world_pos.y).into());
+                web_sys::console::log_1(
+                    &format!(
+                        "[RUST EVENT] Started circle creation at: {}, {}",
+                        world_pos.x, world_pos.y
+                    )
+                    .into(),
+                );
                 return MouseEventResult::Handled;
             }
             InputMode::CreateLine => {
                 input.start_shape_creation(world_pos);
-                web_sys::console::log_1(&format!("[RUST EVENT] Started line creation at: {}, {}", world_pos.x, world_pos.y).into());
+                web_sys::console::log_1(
+                    &format!(
+                        "[RUST EVENT] Started line creation at: {}, {}",
+                        world_pos.x, world_pos.y
+                    )
+                    .into(),
+                );
                 return MouseEventResult::Handled;
             }
             InputMode::CreateText => {
                 input.start_shape_creation(world_pos);
-                web_sys::console::log_1(&format!("[RUST EVENT] Started text creation at: {}, {}", world_pos.x, world_pos.y).into());
+                web_sys::console::log_1(
+                    &format!(
+                        "[RUST EVENT] Started text creation at: {}, {}",
+                        world_pos.x, world_pos.y
+                    )
+                    .into(),
+                );
                 return MouseEventResult::Handled;
             }
             InputMode::Paint => {
@@ -69,7 +111,13 @@ impl EventSystem {
                     let min_len = 5.0_f32;
                     let len = ((end.x - start.x).powi(2) + (end.y - start.y).powi(2)).sqrt();
                     if len >= min_len {
-                        Self::dispatch_wall_drawn(runtime_event_handler, start.x, start.y, end.x, end.y);
+                        Self::dispatch_wall_drawn(
+                            runtime_event_handler,
+                            start.x,
+                            start.y,
+                            end.x,
+                            end.y,
+                        );
                     }
                 }
                 return MouseEventResult::Handled;
@@ -85,17 +133,30 @@ impl EventSystem {
             }
             _ => {}
         }
-        
+
         // Check for light drag mode
         if input.input_mode == InputMode::LightDrag || active_layer == "light" {
             let tolerance = (30.0_f32 / camera_zoom as f32).max(15.0);
-            web_sys::console::log_1(&format!(
-                "[RUST LIGHT] active_layer='{}', light_count={}, pos=({:.1},{:.1}), tol={:.1}",
-                active_layer, lighting.get_light_count(), world_pos.x, world_pos.y, tolerance
-            ).into());
+            web_sys::console::log_1(
+                &format!(
+                    "[RUST LIGHT] active_layer='{}', light_count={}, pos=({:.1},{:.1}), tol={:.1}",
+                    active_layer,
+                    lighting.get_light_count(),
+                    world_pos.x,
+                    world_pos.y,
+                    tolerance
+                )
+                .into(),
+            );
             if let Some(light_id) = lighting.get_light_at_position(world_pos, tolerance) {
                 if let Some(light_pos) = lighting.get_light_position(&light_id) {
-                    web_sys::console::log_1(&format!("[RUST LIGHT] Found light '{}' at ({:.1},{:.1})", light_id, light_pos.x, light_pos.y).into());
+                    web_sys::console::log_1(
+                        &format!(
+                            "[RUST LIGHT] Found light '{}' at ({:.1},{:.1})",
+                            light_id, light_pos.x, light_pos.y
+                        )
+                        .into(),
+                    );
                     input.start_light_drag(light_id.to_string(), world_pos, light_pos);
                     return MouseEventResult::Handled;
                 }
@@ -107,7 +168,9 @@ impl EventSystem {
         // Auto wall interaction when active layer is "obstacles"
         if active_layer == "obstacles" && !ctrl_pressed {
             // Endpoint drag takes priority (12px), then full-wall drag (15px)
-            if let Some((wall_id, endpoint)) = wall_manager.find_endpoint_at(world_pos.x, world_pos.y, 12.0) {
+            if let Some((wall_id, endpoint)) =
+                wall_manager.find_endpoint_at(world_pos.x, world_pos.y, 12.0)
+            {
                 input.input_mode = InputMode::WallEndpointDrag;
                 input.set_single_wall_selection(wall_id.clone());
                 input.dragged_wall_id = Some(wall_id);
@@ -123,35 +186,53 @@ impl EventSystem {
                 return MouseEventResult::Handled;
             }
         }
-        
+
         // Handle sprite interactions
         if !ctrl_pressed {
             // Check resize handles across all sprites
             let mut sorted_layers: Vec<_> = layers.iter().collect();
             sorted_layers.sort_by_key(|(_, layer)| std::cmp::Reverse(layer.z_order()));
             for (layer_name, layer) in sorted_layers.iter() {
-                if !layer.selectable { continue; }
-                if layer_name.as_str() != active_layer { continue; }
+                if !layer.selectable {
+                    continue;
+                }
+                if layer_name.as_str() != active_layer {
+                    continue;
+                }
                 for sprite in layer.sprites.iter().rev() {
-                    if let Some(handle) = HandleDetector::get_resize_handle_for_non_rotated_sprite(sprite, world_pos, camera_zoom) {
+                    if let Some(handle) = HandleDetector::get_resize_handle_for_non_rotated_sprite(
+                        sprite,
+                        world_pos,
+                        camera_zoom,
+                    ) {
                         if !input.is_sprite_selected(&sprite.id) {
                             input.set_single_selection(sprite.id.clone());
                         }
                         input.input_mode = InputMode::SpriteResize(handle);
                         input.selected_sprite_id = Some(sprite.id.clone());
-                        let sprite_top_left = Vec2::new(sprite.world_x as f32, sprite.world_y as f32);
+                        let sprite_top_left =
+                            Vec2::new(sprite.world_x as f32, sprite.world_y as f32);
                         input.drag_offset = world_pos - sprite_top_left;
                         return MouseEventResult::Handled;
                     }
-                    
-                    let rot_handle_pos = SpriteManager::get_rotation_handle_position(sprite, camera_zoom);
+
+                    let rot_handle_pos =
+                        SpriteManager::get_rotation_handle_position(sprite, camera_zoom);
                     let handle_size = 16.0 / camera_zoom as f32;
-                    if HandleDetector::point_in_handle(world_pos, rot_handle_pos.x, rot_handle_pos.y, handle_size) {
+                    if HandleDetector::point_in_handle(
+                        world_pos,
+                        rot_handle_pos.x,
+                        rot_handle_pos.y,
+                        handle_size,
+                    ) {
                         if !input.is_sprite_selected(&sprite.id) {
                             input.set_single_selection(sprite.id.clone());
                         }
                         input.input_mode = InputMode::SpriteRotate;
-                        let center = Vec2::new(sprite.world_x as f32 + (sprite.width * sprite.scale_x) as f32 / 2.0, sprite.world_y as f32 + (sprite.height * sprite.scale_y) as f32 / 2.0);
+                        let center = Vec2::new(
+                            sprite.world_x as f32 + (sprite.width * sprite.scale_x) as f32 / 2.0,
+                            sprite.world_y as f32 + (sprite.height * sprite.scale_y) as f32 / 2.0,
+                        );
                         input.rotation_start_angle = (world_pos - center).angle() as f64;
                         input.sprite_initial_rotation = sprite.rotation;
                         input.selected_sprite_id = Some(sprite.id.clone());
@@ -159,7 +240,7 @@ impl EventSystem {
                     }
                 }
             }
-            
+
             // Check for regular sprite selection
             let clicked_sprite = Self::find_sprite_at_position(world_pos, layers, active_layer);
             if let Some(sprite_id) = clicked_sprite {
@@ -167,12 +248,13 @@ impl EventSystem {
                     input.selected_sprite_id = Some(sprite_id.clone());
                     input.input_mode = InputMode::SpriteMove;
                     if let Some((sprite, _)) = Self::find_sprite(&sprite_id, layers) {
-                        let sprite_top_left = Vec2::new(sprite.world_x as f32, sprite.world_y as f32);
+                        let sprite_top_left =
+                            Vec2::new(sprite.world_x as f32, sprite.world_y as f32);
                         input.drag_offset = world_pos - sprite_top_left;
                     }
                     return MouseEventResult::Handled;
                 }
-                
+
                 input.set_single_selection(sprite_id.clone());
                 input.input_mode = InputMode::SpriteMove;
                 if let Some((sprite, _)) = Self::find_sprite(&sprite_id, layers) {
@@ -183,7 +265,7 @@ impl EventSystem {
                 return MouseEventResult::Handled;
             }
         }
-        
+
         // Handle Ctrl+click sprite selection
         if ctrl_pressed {
             let clicked_sprite = Self::find_sprite_at_position(world_pos, layers, active_layer);
@@ -205,7 +287,12 @@ impl EventSystem {
                         let cell = grid_cell_px as f64;
                         sprite.world_x = (sprite.world_x / cell).round() * cell;
                         sprite.world_y = (sprite.world_y / cell).round() * cell;
-                        Self::dispatch_drag_preview(runtime_event_handler, &sprite_id, sprite.world_x, sprite.world_y);
+                        Self::dispatch_drag_preview(
+                            runtime_event_handler,
+                            &sprite_id,
+                            sprite.world_x,
+                            sprite.world_y,
+                        );
                     }
                     input.set_single_selection(sprite_id);
                     return MouseEventResult::Handled;

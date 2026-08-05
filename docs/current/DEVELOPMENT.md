@@ -4,7 +4,7 @@ Audience: contributors changing code or running local verification.
 
 Status: current.
 
-Last source audit: 2026-07-29
+Last source audit: 2026-08-04
 
 This page lists the common local commands and the checks that match the main
 code areas.
@@ -98,6 +98,7 @@ pnpm.cmd dlx pyright@1.1.411 --project pyrightconfig.json
 Run from `packages/rust-core`:
 
 ```powershell
+cargo fmt --all -- --check
 cargo test
 cargo check --target wasm32-unknown-unknown --features wasm-start
 wasm-pack test --node

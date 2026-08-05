@@ -8,23 +8,23 @@ impl Vec2 {
     pub const fn new(x: f32, y: f32) -> Self {
         Self { x, y }
     }
-    
+
     pub const fn splat(v: f32) -> Self {
         Self { x: v, y: v }
     }
-    
+
     pub fn extend(self, z: f32) -> Vec3 {
         Vec3::new(self.x, self.y, z)
     }
-    
+
     pub fn length(self) -> f32 {
         (self.x * self.x + self.y * self.y).sqrt()
     }
-    
+
     pub fn length_squared(self) -> f32 {
         self.x * self.x + self.y * self.y
     }
-    
+
     pub fn normalize(self) -> Self {
         let len = self.length();
         if len > 0.0 {
@@ -43,21 +43,30 @@ impl Vec2 {
 impl std::ops::Add for Vec2 {
     type Output = Self;
     fn add(self, other: Self) -> Self {
-        Self { x: self.x + other.x, y: self.y + other.y }
+        Self {
+            x: self.x + other.x,
+            y: self.y + other.y,
+        }
     }
 }
 
 impl std::ops::Sub for Vec2 {
     type Output = Self;
     fn sub(self, other: Self) -> Self {
-        Self { x: self.x - other.x, y: self.y - other.y }
+        Self {
+            x: self.x - other.x,
+            y: self.y - other.y,
+        }
     }
 }
 
 impl std::ops::Mul<f32> for Vec2 {
     type Output = Self;
     fn mul(self, scalar: f32) -> Self {
-        Self { x: self.x * scalar, y: self.y * scalar }
+        Self {
+            x: self.x * scalar,
+            y: self.y * scalar,
+        }
     }
 }
 
@@ -72,7 +81,7 @@ impl Vec3 {
     pub const fn new(x: f32, y: f32, z: f32) -> Self {
         Self { x, y, z }
     }
-    
+
     pub fn truncate(self) -> Vec2 {
         Vec2::new(self.x, self.y)
     }
@@ -90,15 +99,21 @@ impl Mat3 {
                 Vec3::new(scale.x, 0.0, 0.0),
                 Vec3::new(0.0, scale.y, 0.0),
                 Vec3::new(translation.x, translation.y, 1.0),
-            ]
+            ],
         }
     }
-    
+
     pub fn to_array(self) -> [f32; 9] {
         [
-            self.cols[0].x, self.cols[0].y, self.cols[0].z,
-            self.cols[1].x, self.cols[1].y, self.cols[1].z,
-            self.cols[2].x, self.cols[2].y, self.cols[2].z,
+            self.cols[0].x,
+            self.cols[0].y,
+            self.cols[0].z,
+            self.cols[1].x,
+            self.cols[1].y,
+            self.cols[1].z,
+            self.cols[2].x,
+            self.cols[2].y,
+            self.cols[2].z,
         ]
     }
 }
@@ -136,7 +151,7 @@ impl Rect {
             max: Vec2::new(x + width, y + height),
         }
     }
-    
+
     pub fn from_center_size(center: Vec2, size: Vec2) -> Self {
         let half_size = size * 0.5;
         Self {
@@ -144,10 +159,12 @@ impl Rect {
             max: center + half_size,
         }
     }
-    
+
     pub fn contains(&self, point: Vec2) -> bool {
-        point.x >= self.min.x && point.x <= self.max.x &&
-        point.y >= self.min.y && point.y <= self.max.y
+        point.x >= self.min.x
+            && point.x <= self.max.x
+            && point.y >= self.min.y
+            && point.y <= self.max.y
     }
 }
 

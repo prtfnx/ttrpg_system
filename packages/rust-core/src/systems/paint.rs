@@ -1,9 +1,9 @@
-use wasm_bindgen::prelude::*;
-use serde::{Serialize, Deserialize};
-use std::collections::HashMap;
 use crate::math::Vec2;
-use crate::webgl_renderer::WebGLRenderer;
 use crate::types::BlendMode;
+use crate::webgl_renderer::WebGLRenderer;
+use serde::{Deserialize, Serialize};
+use std::collections::HashMap;
+use wasm_bindgen::prelude::*;
 
 #[wasm_bindgen]
 pub struct PaintSystem {
@@ -11,20 +11,20 @@ pub struct PaintSystem {
     table_strokes: HashMap<String, Vec<DrawStroke>>,
     table_redo_stacks: HashMap<String, Vec<DrawStroke>>,
     current_table_id: Option<String>,
-    
+
     current_stroke: Option<DrawStroke>,
     is_drawing: bool,
-    
+
     // Brush settings
     current_color: [f32; 4],
     current_width: f32,
     current_blend_mode: BlendMode,
-    
+
     // Canvas settings
     canvas_width: f32,
     canvas_height: f32,
     paint_mode: bool,
-    
+
     // Drawing state
     last_point: Option<Vec2>,
 }
@@ -61,7 +61,7 @@ impl DrawStroke {
             id: format!("stroke_{}", js_sys::Math::random()),
         }
     }
-    
+
     pub fn add_point(&mut self, x: f32, y: f32, pressure: f32) {
         self.points.push(DrawPoint::new(x, y, pressure));
     }
@@ -88,23 +88,26 @@ impl PaintSystem {
             last_point: None,
         }
     }
-    
+
     // Table management
     #[wasm_bindgen]
     pub fn set_current_table(&mut self, table_id: &str) {
         let table_id_string = table_id.to_string();
         self.current_table_id = Some(table_id_string.clone());
-        
+
         // Initialize table storage if it doesn't exist
         if !self.table_strokes.contains_key(&table_id_string) {
-            self.table_strokes.insert(table_id_string.clone(), Vec::new());
+            self.table_strokes
+                .insert(table_id_string.clone(), Vec::new());
             self.table_redo_stacks.insert(table_id_string, Vec::new());
-            web_sys::console::log_1(&format!("Initialized paint storage for table: {}", table_id).into());
+            web_sys::console::log_1(
+                &format!("Initialized paint storage for table: {}", table_id).into(),
+            );
         } else {
             web_sys::console::log_1(&format!("Switched to table: {}", table_id).into());
         }
     }
-    
+
     // Helper to get current table's strokes (mutable)
     fn get_current_strokes_mut(&mut self) -> Option<&mut Vec<DrawStroke>> {
         if let Some(ref table_id) = self.current_table_id {
@@ -113,7 +116,7 @@ impl PaintSystem {
             None
         }
     }
-    
+
     // Helper to get current table's strokes (immutable)
     fn get_current_strokes(&self) -> Option<&Vec<DrawStroke>> {
         if let Some(ref table_id) = self.current_table_id {
@@ -122,7 +125,7 @@ impl PaintSystem {
             None
         }
     }
-    
+
     // Helper to get current table's redo stack (mutable)
     fn get_current_redo_stack_mut(&mut self) -> Option<&mut Vec<DrawStroke>> {
         if let Some(ref table_id) = self.current_table_id {
@@ -131,7 +134,7 @@ impl PaintSystem {
             None
         }
     }
-    
+
     // Canvas management
     #[wasm_bindgen]
     pub fn enter_paint_mode(&mut self, width: f32, height: f32) {
@@ -140,7 +143,7 @@ impl PaintSystem {
         self.paint_mode = true;
         web_sys::console::log_1(&"Entered paint mode".into());
     }
-    
+
     #[wasm_bindgen]
     pub fn exit_paint_mode(&mut self) {
         self.paint_mode = false;
@@ -149,18 +152,18 @@ impl PaintSystem {
         self.last_point = None;
         web_sys::console::log_1(&"Exited paint mode".into());
     }
-    
+
     // Brush settings
     #[wasm_bindgen]
     pub fn set_brush_color(&mut self, r: f32, g: f32, b: f32, a: f32) {
         self.current_color = [r, g, b, a];
     }
-    
+
     #[wasm_bindgen]
     pub fn set_brush_width(&mut self, width: f32) {
         self.current_width = width.max(0.5);
     }
-    
+
     #[wasm_bindgen]
     pub fn set_blend_mode(&mut self, blend_mode: &str) {
         self.current_blend_mode = match blend_mode {
@@ -171,38 +174,38 @@ impl PaintSystem {
             _ => BlendMode::Alpha,
         };
     }
-    
+
     // Drawing operations
     #[wasm_bindgen]
     pub fn start_stroke(&mut self, world_x: f32, world_y: f32, pressure: f32) -> bool {
         if !self.paint_mode {
             return false;
         }
-        
+
         let mut stroke = DrawStroke::new(self.current_color, self.current_width);
         stroke.blend_mode = self.current_blend_mode.clone();
         stroke.add_point(world_x, world_y, pressure);
-        
+
         self.current_stroke = Some(stroke);
         self.is_drawing = true;
         self.last_point = Some(Vec2::new(world_x, world_y));
-        
+
         true
     }
-    
+
     #[wasm_bindgen]
     pub fn add_stroke_point(&mut self, world_x: f32, world_y: f32, pressure: f32) -> bool {
         if !self.is_drawing {
             return false;
         }
-        
+
         if let Some(ref mut stroke) = self.current_stroke {
             let current = Vec2::new(world_x, world_y);
-            
+
             // Always add points for smooth strokes, with minimal distance filtering
             if let Some(last) = self.last_point {
                 let distance = (current - last).length();
-                
+
                 // Use much smaller threshold to maintain stroke continuity
                 if distance > 0.2 {
                     // Add intermediate points if the distance is large to avoid gaps
@@ -215,7 +218,7 @@ impl PaintSystem {
                             stroke.add_point(interp_x, interp_y, pressure);
                         }
                     }
-                    
+
                     stroke.add_point(world_x, world_y, pressure);
                     self.last_point = Some(current);
                     return true;
@@ -228,13 +231,13 @@ impl PaintSystem {
         }
         false
     }
-    
+
     #[wasm_bindgen]
     pub fn end_stroke(&mut self) -> bool {
         if !self.is_drawing {
             return false;
         }
-        
+
         if let Some(stroke) = self.current_stroke.take() {
             if stroke.points.len() > 1 {
                 // Add to current table's strokes
@@ -249,12 +252,12 @@ impl PaintSystem {
                 }
             }
         }
-        
+
         self.is_drawing = false;
         self.last_point = None;
         true
     }
-    
+
     // Stroke management
     #[wasm_bindgen]
     pub fn clear_all_strokes(&mut self) {
@@ -269,7 +272,7 @@ impl PaintSystem {
         self.is_drawing = false;
         self.last_point = None;
     }
-    
+
     #[wasm_bindgen]
     pub fn undo_last_stroke(&mut self) -> bool {
         if let Some(strokes) = self.get_current_strokes_mut() {
@@ -283,7 +286,7 @@ impl PaintSystem {
         }
         false
     }
-    
+
     #[wasm_bindgen]
     pub fn redo_last_stroke(&mut self) -> bool {
         if let Some(redo_stack) = self.get_current_redo_stack_mut() {
@@ -297,7 +300,7 @@ impl PaintSystem {
         }
         false
     }
-    
+
     #[wasm_bindgen]
     pub fn can_undo(&self) -> bool {
         if let Some(strokes) = self.get_current_strokes() {
@@ -306,7 +309,7 @@ impl PaintSystem {
             false
         }
     }
-    
+
     #[wasm_bindgen]
     pub fn can_redo(&self) -> bool {
         if let Some(ref table_id) = self.current_table_id {
@@ -338,7 +341,9 @@ impl PaintSystem {
                 false
             }
             Err(e) => {
-                web_sys::console::warn_1(&format!("add_remote_stroke_json parse error: {}", e).into());
+                web_sys::console::warn_1(
+                    &format!("add_remote_stroke_json parse error: {}", e).into(),
+                );
                 false
             }
         }
@@ -392,35 +397,35 @@ impl PaintSystem {
                 self.render_stroke(stroke, renderer)?;
             }
         }
-        
+
         // Render current stroke being drawn
         if let Some(ref stroke) = self.current_stroke {
             self.render_stroke(stroke, renderer)?;
         }
-        
+
         Ok(())
     }
-    
+
     fn render_stroke(&self, stroke: &DrawStroke, renderer: &WebGLRenderer) -> Result<(), JsValue> {
         if stroke.points.len() < 2 {
             return Ok(());
         }
-        
+
         // Set blend mode for this stroke
         renderer.set_blend_mode(&stroke.blend_mode);
-        
+
         // Simple approach: just extract x,y coordinates for LINE_STRIP
         let mut vertices = Vec::new();
         for point in &stroke.points {
             vertices.push(point.x);
             vertices.push(point.y);
         }
-        
+
         if !vertices.is_empty() {
             // Use WebGL's built-in line rendering with lineWidth and LINE_STRIP
             renderer.draw_line_strip(&vertices, stroke.color, stroke.width)?;
         }
-        
+
         Ok(())
     }
 }
@@ -442,7 +447,7 @@ impl BrushPreset {
             "multiply" => BlendMode::Multiply,
             _ => BlendMode::Alpha,
         };
-        
+
         Self {
             color: [r, g, b, a],
             width,
@@ -455,16 +460,17 @@ impl BrushPreset {
 #[wasm_bindgen]
 pub fn create_default_brush_presets() -> Vec<JsValue> {
     let presets = vec![
-        BrushPreset::new(1.0, 0.0, 0.0, 1.0, 3.0, "alpha"),     // Red marker
-        BrushPreset::new(0.0, 1.0, 0.0, 1.0, 3.0, "alpha"),     // Green marker  
-        BrushPreset::new(0.0, 0.0, 1.0, 1.0, 3.0, "alpha"),     // Blue marker
-        BrushPreset::new(1.0, 1.0, 0.0, 1.0, 5.0, "alpha"),     // Yellow highlighter
-        BrushPreset::new(1.0, 0.5, 0.0, 0.8, 8.0, "additive"),  // Orange glow
-        BrushPreset::new(0.0, 0.0, 0.0, 1.0, 2.0, "multiply"),  // Black pen
-        BrushPreset::new(1.0, 1.0, 1.0, 0.3, 12.0, "alpha"),    // White eraser
+        BrushPreset::new(1.0, 0.0, 0.0, 1.0, 3.0, "alpha"), // Red marker
+        BrushPreset::new(0.0, 1.0, 0.0, 1.0, 3.0, "alpha"), // Green marker
+        BrushPreset::new(0.0, 0.0, 1.0, 1.0, 3.0, "alpha"), // Blue marker
+        BrushPreset::new(1.0, 1.0, 0.0, 1.0, 5.0, "alpha"), // Yellow highlighter
+        BrushPreset::new(1.0, 0.5, 0.0, 0.8, 8.0, "additive"), // Orange glow
+        BrushPreset::new(0.0, 0.0, 0.0, 1.0, 2.0, "multiply"), // Black pen
+        BrushPreset::new(1.0, 1.0, 1.0, 0.3, 12.0, "alpha"), // White eraser
     ];
-    
-    presets.into_iter()
+
+    presets
+        .into_iter()
         .map(|preset| serde_wasm_bindgen::to_value(&preset).unwrap_or(JsValue::NULL))
         .collect()
 }

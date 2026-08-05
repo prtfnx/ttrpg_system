@@ -1,8 +1,8 @@
-use wasm_bindgen::prelude::*;
-use serde::Deserialize;
-use crate::types::*;
-use crate::math::*;
 use crate::input::InputMode;
+use crate::math::*;
+use crate::types::*;
+use serde::Deserialize;
+use wasm_bindgen::prelude::*;
 
 use super::RenderEngine;
 
@@ -20,12 +20,12 @@ impl RenderEngine {
         self.canvas_size = Vec2::new(width, height);
         self.update_view_matrix();
     }
-    
+
     pub fn set_zoom(&mut self, zoom: f64) {
         self.camera.zoom = zoom.clamp(0.1, 5.0);
         self.update_view_matrix();
     }
-    
+
     #[wasm_bindgen]
     pub fn set_camera(&mut self, world_x: f64, world_y: f64, zoom: f64) {
         self.camera.world_x = world_x;
@@ -33,29 +33,32 @@ impl RenderEngine {
         self.camera.zoom = zoom.clamp(0.1, 5.0);
         self.update_view_matrix();
     }
-    
+
     #[wasm_bindgen]
     pub fn screen_to_world(&self, screen_x: f32, screen_y: f32) -> Vec<f64> {
         let world = self.camera.screen_to_world(Vec2::new(screen_x, screen_y));
         vec![world.x as f64, world.y as f64]
     }
-    
+
     #[wasm_bindgen]
     pub fn world_to_screen(&self, world_x: f32, world_y: f32) -> Vec<f64> {
         let screen = self.camera.world_to_screen(Vec2::new(world_x, world_y));
         vec![screen.x as f64, screen.y as f64]
     }
-    
+
     #[wasm_bindgen]
     pub fn get_active_table_world_bounds(&self) -> Result<Vec<f64>, JsValue> {
-        self.table_manager.get_active_table_world_bounds()
+        self.table_manager
+            .get_active_table_world_bounds()
             .map(|(x, y, w, h)| vec![x, y, w, h])
             .ok_or_else(|| {
-                web_sys::console::error_1(&"[TABLE-ERROR] [ERR] CRITICAL: No active table found!".into());
+                web_sys::console::error_1(
+                    &"[TABLE-ERROR] [ERR] CRITICAL: No active table found!".into(),
+                );
                 JsValue::from_str("No active table found")
             })
     }
-    
+
     #[wasm_bindgen]
     pub fn get_active_table_id(&self) -> Option<String> {
         self.table_manager.get_active_table_id()
@@ -70,12 +73,12 @@ impl RenderEngine {
     pub fn set_grid_snapping(&mut self, enabled: bool) {
         self.grid_system.set_snapping(enabled);
     }
-    
+
     #[wasm_bindgen]
     pub fn set_grid_size(&mut self, size: f32) {
         self.grid_system.set_size(size);
     }
-    
+
     // Lighting system methods
     #[wasm_bindgen]
     pub fn set_ambient_light(&mut self, level: f32) {
@@ -107,18 +110,26 @@ impl RenderEngine {
 
     #[wasm_bindgen]
     pub fn add_light(&mut self, id: &str, x: f32, y: f32) {
-        web_sys::console::log_1(&format!("[RUST] add_light called: id={}, x={}, y={}", id, x, y).into());
-        
+        web_sys::console::log_1(
+            &format!("[RUST] add_light called: id={}, x={}, y={}", id, x, y).into(),
+        );
+
         let Some(table_id) = self.table_manager.get_active_table_id() else {
             web_sys::console::warn_1(&"[RUST] Ignoring light without an active table".into());
             return;
         };
-        
+
         let light = crate::lighting::Light::new(id.to_string(), x, y, table_id.clone());
-        
+
         self.lighting.add_light(light);
-        web_sys::console::log_1(&format!("[RUST] Light added to table '{}'. Total lights: {}", 
-            table_id, self.lighting.get_light_count()).into());
+        web_sys::console::log_1(
+            &format!(
+                "[RUST] Light added to table '{}'. Total lights: {}",
+                table_id,
+                self.lighting.get_light_count()
+            )
+            .into(),
+        );
     }
 
     #[wasm_bindgen]
@@ -172,15 +183,35 @@ impl RenderEngine {
     }
 
     #[wasm_bindgen]
-    pub fn add_fog_rectangle(&mut self, id: &str, start_x: f32, start_y: f32, end_x: f32, end_y: f32, mode: &str) {
+    pub fn add_fog_rectangle(
+        &mut self,
+        id: &str,
+        start_x: f32,
+        start_y: f32,
+        end_x: f32,
+        end_y: f32,
+        mode: &str,
+    ) {
         let Some(table_id) = self.table_manager.get_active_table_id() else {
-            web_sys::console::warn_1(&"[RUST] Ignoring fog rectangle without an active table".into());
+            web_sys::console::warn_1(
+                &"[RUST] Ignoring fog rectangle without an active table".into(),
+            );
             return;
         };
-        
-        self.fog.add_fog_rectangle(id.to_string(), start_x, start_y, end_x, end_y, mode, table_id.clone());
+
+        self.fog.add_fog_rectangle(
+            id.to_string(),
+            start_x,
+            start_y,
+            end_x,
+            end_y,
+            mode,
+            table_id.clone(),
+        );
         #[cfg(debug_assertions)]
-        web_sys::console::debug_1(&format!("[RUST-DEBUG] Fog rectangle added to table '{}'", table_id).into());
+        web_sys::console::debug_1(
+            &format!("[RUST-DEBUG] Fog rectangle added to table '{}'", table_id).into(),
+        );
     }
 
     #[wasm_bindgen]
@@ -196,11 +227,14 @@ impl RenderEngine {
     #[wasm_bindgen]
     pub fn hide_entire_table(&mut self, table_width: f32, table_height: f32) {
         let Some(table_id) = self.table_manager.get_active_table_id() else {
-            web_sys::console::warn_1(&"[RUST] Ignoring full-table fog without an active table".into());
+            web_sys::console::warn_1(
+                &"[RUST] Ignoring full-table fog without an active table".into(),
+            );
             return;
         };
-        
-        self.fog.hide_entire_table(table_width, table_height, table_id);
+
+        self.fog
+            .hide_entire_table(table_width, table_height, table_id);
     }
 
     pub fn is_point_in_fog(&self, x: f32, y: f32) -> bool {
@@ -208,7 +242,10 @@ impl RenderEngine {
     }
 
     pub fn is_in_fog_draw_mode(&self) -> bool {
-        matches!(self.input.input_mode, InputMode::FogDraw | InputMode::FogErase)
+        matches!(
+            self.input.input_mode,
+            InputMode::FogDraw | InputMode::FogErase
+        )
     }
 
     pub fn is_in_light_drag_mode(&self) -> bool {
@@ -219,7 +256,9 @@ impl RenderEngine {
     #[wasm_bindgen]
     pub fn add_wall(&mut self, wall_json: &str) -> bool {
         let ok = self.wall_manager.add_wall_from_json(wall_json);
-        if ok { self.obstacles_dirty = true; }
+        if ok {
+            self.obstacles_dirty = true;
+        }
         ok
     }
 
@@ -236,7 +275,9 @@ impl RenderEngine {
     #[wasm_bindgen]
     pub fn update_wall(&mut self, wall_id: &str, updates_json: &str) -> bool {
         let ok = self.wall_manager.update_from_json(wall_id, updates_json);
-        if ok { self.obstacles_dirty = true; }
+        if ok {
+            self.obstacles_dirty = true;
+        }
         ok
     }
 
@@ -261,7 +302,8 @@ impl RenderEngine {
     /// Returns wall IDs in the same order as get_wall_render_data().
     #[wasm_bindgen]
     pub fn get_wall_ids(&self) -> Vec<JsValue> {
-        self.wall_manager.get_wall_ids()
+        self.wall_manager
+            .get_wall_ids()
             .into_iter()
             .map(|id| JsValue::from_str(&id))
             .collect()
@@ -282,9 +324,9 @@ impl RenderEngine {
     #[wasm_bindgen]
     pub fn set_tool_mode(&mut self, mode: &str) {
         self.input.tool_mode = match mode {
-            "move"  => crate::input::ToolMode::Move,
+            "move" => crate::input::ToolMode::Move,
             "align" => crate::input::ToolMode::Align,
-            _       => crate::input::ToolMode::Select,
+            _ => crate::input::ToolMode::Select,
         };
         self.input.input_mode = InputMode::None;
     }
@@ -293,7 +335,9 @@ impl RenderEngine {
     #[wasm_bindgen]
     pub fn align_selected_to_grid(&mut self) {
         let cell = self.grid_system.get_size() as f64;
-        if cell <= 0.0 { return; }
+        if cell <= 0.0 {
+            return;
+        }
         let ids: Vec<String> = self.input.selected_sprite_ids.iter().cloned().collect();
         for id in &ids {
             // Collect snapped position first, then apply
@@ -308,7 +352,8 @@ impl RenderEngine {
                 })
             };
             if let Some((x, y)) = snapped {
-                self.layer_manager.update_sprite_position(id, crate::math::Vec2::new(x as f32, y as f32));
+                self.layer_manager
+                    .update_sprite_position(id, crate::math::Vec2::new(x as f32, y as f32));
             }
         }
     }
@@ -361,12 +406,12 @@ impl RenderEngine {
     pub fn set_layer_opacity(&mut self, layer_name: &str, opacity: f32) -> bool {
         self.layer_manager.set_layer_opacity(layer_name, opacity)
     }
-    
+
     #[wasm_bindgen]
     pub fn set_layer_visibility(&mut self, layer_name: &str, visible: bool) -> bool {
         self.layer_manager.set_layer_visibility(layer_name, visible)
     }
-    
+
     #[wasm_bindgen]
     pub fn set_layer_blend_mode(&mut self, layer_name: &str, blend_mode: &str) -> bool {
         use crate::types::BlendMode;
@@ -377,9 +422,10 @@ impl RenderEngine {
             "multiply" => BlendMode::Multiply,
             _ => return false,
         };
-        self.layer_manager.set_layer_blend_mode(layer_name, blend_mode)
+        self.layer_manager
+            .set_layer_blend_mode(layer_name, blend_mode)
     }
-    
+
     #[wasm_bindgen]
     pub fn set_layer_color(&mut self, layer_name: &str, r: f32, g: f32, b: f32) -> bool {
         self.layer_manager.set_layer_color(layer_name, r, g, b)
@@ -389,7 +435,7 @@ impl RenderEngine {
     pub fn get_layer_names(&self) -> Vec<String> {
         self.layer_manager.get_layers().keys().cloned().collect()
     }
-    
+
     #[wasm_bindgen]
     pub fn get_layer_sprite_count(&self, layer_name: &str) -> usize {
         if let Some(layer) = self.layer_manager.get_layer(layer_name) {
@@ -416,7 +462,7 @@ impl RenderEngine {
     pub fn paint_enter_mode(&mut self, width: f32, height: f32) {
         self.paint.enter_paint_mode(width, height);
     }
-    
+
     #[wasm_bindgen]
     pub fn paint_exit_mode(&mut self) {
         self.paint.exit_paint_mode();
@@ -425,12 +471,12 @@ impl RenderEngine {
     pub fn paint_set_brush_color(&mut self, r: f32, g: f32, b: f32, a: f32) {
         self.paint.set_brush_color(r, g, b, a);
     }
-    
+
     #[wasm_bindgen]
     pub fn paint_set_brush_width(&mut self, width: f32) {
         self.paint.set_brush_width(width);
     }
-    
+
     #[wasm_bindgen]
     pub fn paint_set_blend_mode(&mut self, blend_mode: &str) {
         self.paint.set_blend_mode(blend_mode);
@@ -439,12 +485,12 @@ impl RenderEngine {
     pub fn paint_start_stroke(&mut self, world_x: f32, world_y: f32, pressure: f32) -> bool {
         self.paint.start_stroke(world_x, world_y, pressure)
     }
-    
+
     #[wasm_bindgen]
     pub fn paint_add_point(&mut self, world_x: f32, world_y: f32, pressure: f32) -> bool {
         self.paint.add_stroke_point(world_x, world_y, pressure)
     }
-    
+
     #[wasm_bindgen]
     pub fn paint_end_stroke(&mut self) -> bool {
         self.paint.end_stroke()

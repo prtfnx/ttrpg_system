@@ -3,7 +3,11 @@ use wasm_bindgen::JsValue;
 use super::EventSystem;
 
 impl EventSystem {
-    fn emit_runtime_event(handler: Option<&js_sys::Function>, event_type: &str, data: js_sys::Object) {
+    fn emit_runtime_event(
+        handler: Option<&js_sys::Function>,
+        event_type: &str,
+        data: js_sys::Object,
+    ) {
         let Some(handler) = handler else { return };
 
         let event = js_sys::Object::new();
@@ -12,7 +16,12 @@ impl EventSystem {
         let _ = handler.call1(&JsValue::NULL, &event.into());
     }
 
-    pub(crate) fn dispatch_drag_preview(handler: Option<&js_sys::Function>, sprite_id: &str, x: f64, y: f64) {
+    pub(crate) fn dispatch_drag_preview(
+        handler: Option<&js_sys::Function>,
+        sprite_id: &str,
+        x: f64,
+        y: f64,
+    ) {
         let detail = js_sys::Object::new();
         js_sys::Reflect::set(&detail, &"spriteId".into(), &JsValue::from_str(sprite_id)).ok();
         js_sys::Reflect::set(&detail, &"x".into(), &JsValue::from_f64(x)).ok();
@@ -20,7 +29,12 @@ impl EventSystem {
         Self::emit_runtime_event(handler, "spriteDragPreview", detail);
     }
 
-    pub(crate) fn dispatch_resize_preview(handler: Option<&js_sys::Function>, sprite_id: &str, width: f64, height: f64) {
+    pub(crate) fn dispatch_resize_preview(
+        handler: Option<&js_sys::Function>,
+        sprite_id: &str,
+        width: f64,
+        height: f64,
+    ) {
         let detail = js_sys::Object::new();
         js_sys::Reflect::set(&detail, &"spriteId".into(), &JsValue::from_str(sprite_id)).ok();
         js_sys::Reflect::set(&detail, &"width".into(), &JsValue::from_f64(width)).ok();
@@ -28,14 +42,23 @@ impl EventSystem {
         Self::emit_runtime_event(handler, "spriteResizePreview", detail);
     }
 
-    pub(crate) fn dispatch_rotate_preview(handler: Option<&js_sys::Function>, sprite_id: &str, rotation: f64) {
+    pub(crate) fn dispatch_rotate_preview(
+        handler: Option<&js_sys::Function>,
+        sprite_id: &str,
+        rotation: f64,
+    ) {
         let detail = js_sys::Object::new();
         js_sys::Reflect::set(&detail, &"spriteId".into(), &JsValue::from_str(sprite_id)).ok();
         js_sys::Reflect::set(&detail, &"rotation".into(), &JsValue::from_f64(rotation)).ok();
         Self::emit_runtime_event(handler, "spriteRotatePreview", detail);
     }
 
-    pub(crate) fn dispatch_light_moved(handler: Option<&js_sys::Function>, light_id: &str, x: f32, y: f32) {
+    pub(crate) fn dispatch_light_moved(
+        handler: Option<&js_sys::Function>,
+        light_id: &str,
+        x: f32,
+        y: f32,
+    ) {
         let detail = js_sys::Object::new();
         js_sys::Reflect::set(&detail, &"lightId".into(), &JsValue::from_str(light_id)).ok();
         js_sys::Reflect::set(&detail, &"x".into(), &JsValue::from_f64(x as f64)).ok();
@@ -43,7 +66,14 @@ impl EventSystem {
         Self::emit_runtime_event(handler, "lightMoved", detail);
     }
 
-    pub(crate) fn dispatch_wall_moved(handler: Option<&js_sys::Function>, wall_id: &str, x1: f32, y1: f32, x2: f32, y2: f32) {
+    pub(crate) fn dispatch_wall_moved(
+        handler: Option<&js_sys::Function>,
+        wall_id: &str,
+        x1: f32,
+        y1: f32,
+        x2: f32,
+        y2: f32,
+    ) {
         let detail = js_sys::Object::new();
         js_sys::Reflect::set(&detail, &"wallId".into(), &JsValue::from_str(wall_id)).ok();
         js_sys::Reflect::set(&detail, &"x1".into(), &JsValue::from_f64(x1 as f64)).ok();
@@ -53,7 +83,13 @@ impl EventSystem {
         Self::emit_runtime_event(handler, "wallMoved", detail);
     }
 
-    pub(crate) fn dispatch_wall_drawn(handler: Option<&js_sys::Function>, x1: f32, y1: f32, x2: f32, y2: f32) {
+    pub(crate) fn dispatch_wall_drawn(
+        handler: Option<&js_sys::Function>,
+        x1: f32,
+        y1: f32,
+        x2: f32,
+        y2: f32,
+    ) {
         let detail = js_sys::Object::new();
         js_sys::Reflect::set(&detail, &"x1".into(), &JsValue::from_f64(x1 as f64)).ok();
         js_sys::Reflect::set(&detail, &"y1".into(), &JsValue::from_f64(y1 as f64)).ok();
@@ -62,7 +98,10 @@ impl EventSystem {
         Self::emit_runtime_event(handler, "wallDrawn", detail);
     }
 
-    pub(crate) fn dispatch_polygon_created(handler: Option<&js_sys::Function>, vertices: &[crate::math::Vec2]) {
+    pub(crate) fn dispatch_polygon_created(
+        handler: Option<&js_sys::Function>,
+        vertices: &[crate::math::Vec2],
+    ) {
         let arr = js_sys::Array::new();
         for vertex in vertices {
             let point = js_sys::Object::new();
@@ -93,14 +132,39 @@ impl EventSystem {
         end: crate::math::Vec2,
     ) {
         let detail = js_sys::Object::new();
-        js_sys::Reflect::set(&detail, &"distance".into(), &JsValue::from_f64(distance as f64)).ok();
-        js_sys::Reflect::set(&detail, &"gameUnits".into(), &JsValue::from_f64(game_units as f64)).ok();
-        js_sys::Reflect::set(&detail, &"gridUnits".into(), &JsValue::from_f64(game_units as f64)).ok();
+        js_sys::Reflect::set(
+            &detail,
+            &"distance".into(),
+            &JsValue::from_f64(distance as f64),
+        )
+        .ok();
+        js_sys::Reflect::set(
+            &detail,
+            &"gameUnits".into(),
+            &JsValue::from_f64(game_units as f64),
+        )
+        .ok();
+        js_sys::Reflect::set(
+            &detail,
+            &"gridUnits".into(),
+            &JsValue::from_f64(game_units as f64),
+        )
+        .ok();
         js_sys::Reflect::set(&detail, &"feet".into(), &JsValue::from_f64(feet as f64)).ok();
         js_sys::Reflect::set(&detail, &"meters".into(), &JsValue::from_f64(meters as f64)).ok();
         js_sys::Reflect::set(&detail, &"angle".into(), &JsValue::from_f64(angle as f64)).ok();
-        js_sys::Reflect::set(&detail, &"startX".into(), &JsValue::from_f64(start.x as f64)).ok();
-        js_sys::Reflect::set(&detail, &"startY".into(), &JsValue::from_f64(start.y as f64)).ok();
+        js_sys::Reflect::set(
+            &detail,
+            &"startX".into(),
+            &JsValue::from_f64(start.x as f64),
+        )
+        .ok();
+        js_sys::Reflect::set(
+            &detail,
+            &"startY".into(),
+            &JsValue::from_f64(start.y as f64),
+        )
+        .ok();
         js_sys::Reflect::set(&detail, &"endX".into(), &JsValue::from_f64(end.x as f64)).ok();
         js_sys::Reflect::set(&detail, &"endY".into(), &JsValue::from_f64(end.y as f64)).ok();
         Self::emit_runtime_event(handler, "measurementComplete", detail);
@@ -113,7 +177,12 @@ impl EventSystem {
         Self::emit_runtime_event(handler, "textSpriteClick", detail);
     }
 
-    pub(crate) fn dispatch_sprite_operation(handler: Option<&js_sys::Function>, sprite_id: &str, operation: &str, data: js_sys::Object) {
+    pub(crate) fn dispatch_sprite_operation(
+        handler: Option<&js_sys::Function>,
+        sprite_id: &str,
+        operation: &str,
+        data: js_sys::Object,
+    ) {
         let detail = js_sys::Object::new();
         js_sys::Reflect::set(&detail, &"spriteId".into(), &JsValue::from_str(sprite_id)).ok();
         js_sys::Reflect::set(&detail, &"operation".into(), &JsValue::from_str(operation)).ok();

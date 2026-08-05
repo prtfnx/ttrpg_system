@@ -1,6 +1,6 @@
-use wasm_bindgen::prelude::*;
 use crate::math::Rect;
 use crate::sprite_renderer::SpriteRenderer;
+use wasm_bindgen::prelude::*;
 
 use super::RenderEngine;
 
@@ -12,9 +12,9 @@ impl RenderEngine {
             self.background_color[0],
             self.background_color[1],
             self.background_color[2],
-            self.background_color[3]
+            self.background_color[3],
         );
-        
+
         let viewport_bounds = self.get_world_view_bounds();
 
         let Some(active_table_id) = self.table_manager.active_table_id().map(str::to_owned) else {
@@ -24,23 +24,24 @@ impl RenderEngine {
             web_sys::console::warn_1(&"[RUST] Active table has no render bounds".into());
             return Ok(());
         };
-        
+
         let table_bounds = Rect::new(tx as f32, ty as f32, tw as f32, th as f32);
-        
+
         let intersect_min_x = viewport_bounds.min.x.max(table_bounds.min.x);
         let intersect_min_y = viewport_bounds.min.y.max(table_bounds.min.y);
         let intersect_max_x = viewport_bounds.max.x.min(table_bounds.max.x);
         let intersect_max_y = viewport_bounds.max.y.min(table_bounds.max.y);
-        let grid_draw_bounds = if intersect_max_x > intersect_min_x && intersect_max_y > intersect_min_y {
-            Some(Rect::new(
-                intersect_min_x,
-                intersect_min_y,
-                intersect_max_x - intersect_min_x,
-                intersect_max_y - intersect_min_y,
-            ))
-        } else {
-            None
-        };
+        let grid_draw_bounds =
+            if intersect_max_x > intersect_min_x && intersect_max_y > intersect_min_y {
+                Some(Rect::new(
+                    intersect_min_x,
+                    intersect_min_y,
+                    intersect_max_x - intersect_min_x,
+                    intersect_max_y - intersect_min_y,
+                ))
+            } else {
+                None
+            };
 
         let mut sorted_layers: Vec<_> = self.layer_manager.get_layers().iter().collect();
         sorted_layers.sort_by_key(|(_, layer)| layer.settings.z_order);
@@ -52,10 +53,19 @@ impl RenderEngine {
             if *layer_name == "map" && layer.settings.visible {
                 self.renderer.set_blend_mode(&layer.settings.blend_mode);
                 self.renderer.set_layer_color(&layer.settings.color);
-                let effective_opacity = Self::get_effective_layer_opacity(&layer.settings, layer_name, &active_layer);
+                let effective_opacity =
+                    Self::get_effective_layer_opacity(&layer.settings, layer_name, &active_layer);
                 for sprite in &layer.sprites {
                     if sprite.table_id == active_table_id {
-                        SpriteRenderer::draw_sprite(sprite, effective_opacity, &self.renderer, &self.texture_manager, &self.text_renderer, &self.input, self.camera.zoom)?;
+                        SpriteRenderer::draw_sprite(
+                            sprite,
+                            effective_opacity,
+                            &self.renderer,
+                            &self.texture_manager,
+                            &self.text_renderer,
+                            &self.input,
+                            self.camera.zoom,
+                        )?;
                     }
                 }
             }
@@ -75,11 +85,20 @@ impl RenderEngine {
             {
                 self.renderer.set_blend_mode(&layer.settings.blend_mode);
                 self.renderer.set_layer_color(&layer.settings.color);
-                let effective_opacity = Self::get_effective_layer_opacity(&layer.settings, layer_name, &active_layer);
-                
+                let effective_opacity =
+                    Self::get_effective_layer_opacity(&layer.settings, layer_name, &active_layer);
+
                 for sprite in &layer.sprites {
                     if sprite.table_id == active_table_id {
-                        SpriteRenderer::draw_sprite(sprite, effective_opacity, &self.renderer, &self.texture_manager, &self.text_renderer, &self.input, self.camera.zoom)?;
+                        SpriteRenderer::draw_sprite(
+                            sprite,
+                            effective_opacity,
+                            &self.renderer,
+                            &self.texture_manager,
+                            &self.text_renderer,
+                            &self.input,
+                            self.camera.zoom,
+                        )?;
                     }
                 }
             }
@@ -89,22 +108,39 @@ impl RenderEngine {
             self.update_lighting_obstacles();
             self.obstacles_dirty = false;
         }
-        
-        self.lighting.render_lights_filtered(&self.view_matrix.to_array(), self.canvas_size.x, self.canvas_size.y, Some(&active_table_id))?;
-        
+
+        self.lighting.render_lights_filtered(
+            &self.view_matrix.to_array(),
+            self.canvas_size.x,
+            self.canvas_size.y,
+            Some(&active_table_id),
+        )?;
+
         self.paint.render_strokes(&self.renderer)?;
 
-        self.fog.render_fog_filtered(&self.view_matrix.to_array(), self.canvas_size.x, self.canvas_size.y, Some(&active_table_id))?;
-        
+        self.fog.render_fog_filtered(
+            &self.view_matrix.to_array(),
+            self.canvas_size.x,
+            self.canvas_size.y,
+            Some(&active_table_id),
+        )?;
+
         if let Some((min, max)) = self.input.get_area_selection_rect() {
             SpriteRenderer::draw_area_selection_rect(min, max, &self.renderer)?;
         }
-        
+
         if let Some((start, end)) = self.input.get_measurement_line() {
             let conv = self.table_manager.get_unit_converter(&active_table_id);
-            SpriteRenderer::draw_measurement_line(start, end, &self.renderer, &self.text_renderer, &self.texture_manager, &conv)?;
+            SpriteRenderer::draw_measurement_line(
+                start,
+                end,
+                &self.renderer,
+                &self.text_renderer,
+                &self.texture_manager,
+                &conv,
+            )?;
         }
-        
+
         if let Some((start, end)) = self.input.get_shape_creation_rect() {
             match self.input.input_mode {
                 crate::input::InputMode::CreateRectangle => {
@@ -124,10 +160,16 @@ impl RenderEngine {
             SpriteRenderer::draw_line_preview(start, end, &self.renderer)?;
         }
 
-        if self.input.input_mode == crate::input::InputMode::CreatePolygon && !self.input.polygon_vertices.is_empty() {
-            SpriteRenderer::draw_polygon_preview(&self.input.polygon_vertices, self.input.polygon_cursor, &self.renderer)?;
+        if self.input.input_mode == crate::input::InputMode::CreatePolygon
+            && !self.input.polygon_vertices.is_empty()
+        {
+            SpriteRenderer::draw_polygon_preview(
+                &self.input.polygon_vertices,
+                self.input.polygon_cursor,
+                &self.renderer,
+            )?;
         }
-        
+
         Ok(())
     }
 }

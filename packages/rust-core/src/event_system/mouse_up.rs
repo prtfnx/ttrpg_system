@@ -1,10 +1,10 @@
+use crate::fog::{FogMode, FogOfWarSystem};
+use crate::input::{FogDrawMode, InputHandler, InputMode};
+use crate::lighting::LightingSystem;
 use crate::math::Vec2;
 use crate::types::Layer;
-use crate::input::{InputHandler, InputMode, FogDrawMode};
-use crate::lighting::LightingSystem;
-use crate::fog::{FogOfWarSystem, FogMode};
-use crate::wall_manager::WallManager;
 use crate::unit_converter::UnitConverter;
+use crate::wall_manager::WallManager;
 use std::collections::HashMap;
 use wasm_bindgen::JsValue;
 
@@ -40,7 +40,12 @@ impl EventSystem {
                 );
                 if let Some(light_id) = &input.selected_light_id {
                     lighting.update_light_position(light_id, final_pos);
-                    Self::dispatch_light_moved(runtime_event_handler, light_id, final_pos.x, final_pos.y);
+                    Self::dispatch_light_moved(
+                        runtime_event_handler,
+                        light_id,
+                        final_pos.x,
+                        final_pos.y,
+                    );
                 }
                 input.end_light_drag();
                 MouseEventResult::Handled
@@ -69,16 +74,24 @@ impl EventSystem {
                         FogDrawMode::Reveal => FogMode::Reveal,
                         FogDrawMode::Hide => FogMode::Hide,
                     };
-                    
+
                     let id = format!("fog_rect_{}", js_sys::Date::now() as u64);
                     let mode_str = match fog_mode {
                         FogMode::Reveal => "reveal",
                         FogMode::Hide => "hide",
                     };
-                    
+
                     let min_size = 10.0;
                     if (end.x - start.x).abs() > min_size && (end.y - start.y).abs() > min_size {
-                        fog.add_fog_rectangle(id, start.x, start.y, end.x, end.y, mode_str, table_id.clone());
+                        fog.add_fog_rectangle(
+                            id,
+                            start.x,
+                            start.y,
+                            end.x,
+                            end.y,
+                            mode_str,
+                            table_id.clone(),
+                        );
                     }
                 }
                 input.input_mode = InputMode::None;
@@ -93,18 +106,32 @@ impl EventSystem {
                 let current_input_mode = input.input_mode;
                 let snap = !input.alt_pressed && grid_cell_px > 0.0;
                 // Collect other selected sprites before mutably borrowing layers
-                let other_selected: Vec<String> = input.selected_sprite_ids.iter()
+                let other_selected: Vec<String> = input
+                    .selected_sprite_ids
+                    .iter()
                     .filter(|id| Some(*id) != sprite_id_opt.as_ref())
                     .cloned()
                     .collect();
-                
-                web_sys::console::log_1(&format!("[RUST EVENT] Mouse up in mode: {:?}, sprite: {:?}", current_input_mode, sprite_id_opt).into());
-                
+
+                web_sys::console::log_1(
+                    &format!(
+                        "[RUST EVENT] Mouse up in mode: {:?}, sprite: {:?}",
+                        current_input_mode, sprite_id_opt
+                    )
+                    .into(),
+                );
+
                 if matches!(current_input_mode, InputMode::SpriteMove) {
                     if let Some(ref sprite_id_str) = sprite_id_opt {
                         let current_time = js_sys::Date::now();
                         if input.check_double_click(sprite_id_str, current_time) {
-                            web_sys::console::log_1(&format!("[RUST EVENT] [OK] Double-click detected on sprite: {}", sprite_id_str).into());
+                            web_sys::console::log_1(
+                                &format!(
+                                    "[RUST EVENT] [OK] Double-click detected on sprite: {}",
+                                    sprite_id_str
+                                )
+                                .into(),
+                            );
                             Self::dispatch_token_double_click(runtime_event_handler, sprite_id_str);
                         }
                     }
@@ -119,7 +146,12 @@ impl EventSystem {
                                 InputMode::SpriteMove => {
                                     sprite.world_x = (sprite.world_x / cell).round() * cell;
                                     sprite.world_y = (sprite.world_y / cell).round() * cell;
-                                    Self::dispatch_drag_preview(runtime_event_handler, sprite_id, sprite.world_x, sprite.world_y);
+                                    Self::dispatch_drag_preview(
+                                        runtime_event_handler,
+                                        sprite_id,
+                                        sprite.world_x,
+                                        sprite.world_y,
+                                    );
                                 }
                                 InputMode::SpriteResize(_) => {
                                     let snapped_x = (sprite.world_x / cell).round() * cell;
@@ -137,16 +169,22 @@ impl EventSystem {
                                 }
                                 InputMode::SpriteRotate => {
                                     let quarter_pi = std::f64::consts::FRAC_PI_4; // snap to 45°
-                                    sprite.rotation = (sprite.rotation / quarter_pi).round() * quarter_pi;
+                                    sprite.rotation =
+                                        (sprite.rotation / quarter_pi).round() * quarter_pi;
                                 }
                                 _ => {}
                             }
                         }
                     }
                 }
-                
+
                 if let Some(sprite_id) = &sprite_id_opt {
-                    self.notify_operation_complete(current_input_mode, sprite_id, layers, runtime_event_handler);
+                    self.notify_operation_complete(
+                        current_input_mode,
+                        sprite_id,
+                        layers,
+                        runtime_event_handler,
+                    );
                 }
 
                 // Snap and notify all other selected sprites (SpriteMove only)
@@ -157,12 +195,22 @@ impl EventSystem {
                             if let Some((sprite, _)) = Self::find_sprite_mut(other_id, layers) {
                                 sprite.world_x = (sprite.world_x / cell).round() * cell;
                                 sprite.world_y = (sprite.world_y / cell).round() * cell;
-                                Self::dispatch_drag_preview(runtime_event_handler, other_id, sprite.world_x, sprite.world_y);
+                                Self::dispatch_drag_preview(
+                                    runtime_event_handler,
+                                    other_id,
+                                    sprite.world_x,
+                                    sprite.world_y,
+                                );
                             }
                         }
                     }
                     for other_id in &other_selected {
-                        self.notify_operation_complete(current_input_mode, other_id, layers, runtime_event_handler);
+                        self.notify_operation_complete(
+                            current_input_mode,
+                            other_id,
+                            layers,
+                            runtime_event_handler,
+                        );
                     }
                 }
 
@@ -176,14 +224,23 @@ impl EventSystem {
                     let dy = end.y - start.y;
                     let distance = (dx * dx + dy * dy).sqrt();
                     let angle = dy.atan2(dx) * 180.0 / std::f32::consts::PI;
-                    
+
                     let game_dist = converter.to_units(distance);
                     let feet = converter.to_feet(game_dist);
                     let meters = converter.to_meters(game_dist);
-                    
+
                     web_sys::console::log_1(&format!("[RUST EVENT] Measurement complete: {:.2} px ({:.1} {}) from ({:.1}, {:.1}) to ({:.1}, {:.1})", distance, game_dist, converter.unit().label(), start.x, start.y, end.x, end.y).into());
-                    
-                    Self::dispatch_measurement_complete(runtime_event_handler, distance, game_dist, feet, meters, angle, start, end);
+
+                    Self::dispatch_measurement_complete(
+                        runtime_event_handler,
+                        distance,
+                        game_dist,
+                        feet,
+                        meters,
+                        angle,
+                        start,
+                        end,
+                    );
                 }
                 MouseEventResult::Handled
             }
@@ -193,9 +250,12 @@ impl EventSystem {
                     let min_y = start.y.min(end.y);
                     let width = (end.x - start.x).abs();
                     let height = (end.y - start.y).abs();
-                    
+
                     if width > 10.0 && height > 10.0 {
-                        return MouseEventResult::CreateSprite(format!("rectangle:{}:{}:{}:{}", min_x, min_y, width, height));
+                        return MouseEventResult::CreateSprite(format!(
+                            "rectangle:{}:{}:{}:{}",
+                            min_x, min_y, width, height
+                        ));
                     }
                 }
                 MouseEventResult::Handled
@@ -203,9 +263,12 @@ impl EventSystem {
             InputMode::CreateCircle => {
                 if let Some((start, end)) = input.end_shape_creation() {
                     let radius = ((end.x - start.x).powi(2) + (end.y - start.y).powi(2)).sqrt();
-                    
+
                     if radius > 5.0 {
-                        return MouseEventResult::CreateSprite(format!("circle:{}:{}:{}", start.x, start.y, radius));
+                        return MouseEventResult::CreateSprite(format!(
+                            "circle:{}:{}:{}",
+                            start.x, start.y, radius
+                        ));
                     }
                 }
                 MouseEventResult::Handled
@@ -213,9 +276,12 @@ impl EventSystem {
             InputMode::CreateLine => {
                 if let Some((start, end)) = input.end_shape_creation() {
                     let length = ((end.x - start.x).powi(2) + (end.y - start.y).powi(2)).sqrt();
-                    
+
                     if length > 5.0 {
-                        return MouseEventResult::CreateSprite(format!("line:{}:{}:{}:{}", start.x, start.y, end.x, end.y));
+                        return MouseEventResult::CreateSprite(format!(
+                            "line:{}:{}:{}:{}",
+                            start.x, start.y, end.x, end.y
+                        ));
                     }
                 }
                 MouseEventResult::Handled
@@ -226,9 +292,7 @@ impl EventSystem {
                 }
                 MouseEventResult::Handled
             }
-            InputMode::DrawWall | InputMode::CreatePolygon => {
-                MouseEventResult::Handled
-            }
+            InputMode::DrawWall | InputMode::CreatePolygon => MouseEventResult::Handled,
             _ => {
                 input.input_mode = InputMode::None;
                 MouseEventResult::Handled
@@ -243,7 +307,9 @@ impl EventSystem {
         layers: &HashMap<String, Layer>,
         runtime_event_handler: Option<&js_sys::Function>,
     ) {
-        let Some((sprite, _)) = Self::find_sprite(sprite_id, layers) else { return };
+        let Some((sprite, _)) = Self::find_sprite(sprite_id, layers) else {
+            return;
+        };
 
         let data = js_sys::Object::new();
         let operation = match operation_mode {
@@ -253,12 +319,27 @@ impl EventSystem {
                 "move"
             }
             InputMode::SpriteResize(_) => {
-                js_sys::Reflect::set(&data, &"width".into(), &JsValue::from_f64(sprite.width * sprite.scale_x)).ok();
-                js_sys::Reflect::set(&data, &"height".into(), &JsValue::from_f64(sprite.height * sprite.scale_y)).ok();
+                js_sys::Reflect::set(
+                    &data,
+                    &"width".into(),
+                    &JsValue::from_f64(sprite.width * sprite.scale_x),
+                )
+                .ok();
+                js_sys::Reflect::set(
+                    &data,
+                    &"height".into(),
+                    &JsValue::from_f64(sprite.height * sprite.scale_y),
+                )
+                .ok();
                 "resize"
             }
             InputMode::SpriteRotate => {
-                js_sys::Reflect::set(&data, &"rotation".into(), &JsValue::from_f64(sprite.rotation.to_degrees())).ok();
+                js_sys::Reflect::set(
+                    &data,
+                    &"rotation".into(),
+                    &JsValue::from_f64(sprite.rotation.to_degrees()),
+                )
+                .ok();
                 "rotate"
             }
             _ => return,

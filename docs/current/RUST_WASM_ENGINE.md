@@ -94,6 +94,7 @@ Native Rust tests cover pure logic. WASM builds cover browser-facing exports.
 Use:
 
 ```powershell
+cargo fmt --all -- --check
 cargo test
 cargo check --target wasm32-unknown-unknown --features wasm-start
 wasm-pack test --node

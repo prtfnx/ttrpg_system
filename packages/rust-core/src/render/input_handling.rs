@@ -1,8 +1,8 @@
-use wasm_bindgen::prelude::*;
-use crate::math::*;
-use crate::input::{InputMode, HandleDetector};
-use crate::sprite_manager::SpriteManager;
 use crate::event_system::MouseEventResult;
+use crate::input::{HandleDetector, InputMode};
+use crate::math::*;
+use crate::sprite_manager::SpriteManager;
+use wasm_bindgen::prelude::*;
 
 use super::RenderEngine;
 
@@ -14,21 +14,35 @@ impl RenderEngine {
         let uid_opt = self.current_user_id;
 
         let user_can_control = |s: &crate::types::Sprite| -> bool {
-            if self.is_gm { return true; }
-            let Some(uid) = uid_opt else { return false; };
+            if self.is_gm {
+                return true;
+            }
+            let Some(uid) = uid_opt else {
+                return false;
+            };
             !s.controlled_by.is_empty() && s.controlled_by.contains(&uid)
         };
 
         if let Some(selected_id) = &self.input.selected_sprite_id {
             if let Some((sprite, _)) = self.layer_manager.find_sprite(selected_id) {
                 if user_can_control(sprite) {
-                    let rotate_handle_pos = SpriteManager::get_rotation_handle_position(sprite, self.camera.zoom);
+                    let rotate_handle_pos =
+                        SpriteManager::get_rotation_handle_position(sprite, self.camera.zoom);
                     let handle_size = 16.0 / self.camera.zoom as f32;
-                    if HandleDetector::point_in_handle(world_pos, rotate_handle_pos.x, rotate_handle_pos.y, handle_size) {
+                    if HandleDetector::point_in_handle(
+                        world_pos,
+                        rotate_handle_pos.x,
+                        rotate_handle_pos.y,
+                        handle_size,
+                    ) {
                         return "crosshair".to_string();
                     }
                     if sprite.rotation == 0.0 {
-                        if let Some(handle) = HandleDetector::get_resize_handle_for_cursor_detection(sprite, world_pos, self.camera.zoom) {
+                        if let Some(handle) = HandleDetector::get_resize_handle_for_cursor_detection(
+                            sprite,
+                            world_pos,
+                            self.camera.zoom,
+                        ) {
                             return HandleDetector::get_cursor_for_handle(handle).to_string();
                         }
                     }
@@ -49,10 +63,16 @@ impl RenderEngine {
 
         "default".to_string()
     }
-    
+
     /// Full modifier support: ctrl for multi-select, alt to disable grid snap.
     #[wasm_bindgen]
-    pub fn handle_mouse_down_full(&mut self, screen_x: f32, screen_y: f32, ctrl_pressed: bool, alt_pressed: bool) -> Option<String> {
+    pub fn handle_mouse_down_full(
+        &mut self,
+        screen_x: f32,
+        screen_y: f32,
+        ctrl_pressed: bool,
+        alt_pressed: bool,
+    ) -> Option<String> {
         self.handle_mouse_down_internal(screen_x, screen_y, ctrl_pressed, alt_pressed);
         self.input.selected_sprite_id.clone()
     }
@@ -63,16 +83,22 @@ impl RenderEngine {
         self.input.last_mouse_screen = Vec2::new(screen_x, screen_y);
         self.input.input_mode = InputMode::CameraPan;
     }
-    
-    fn handle_mouse_down_internal(&mut self, screen_x: f32, screen_y: f32, ctrl_pressed: bool, alt_pressed: bool) {
+
+    fn handle_mouse_down_internal(
+        &mut self,
+        screen_x: f32,
+        screen_y: f32,
+        ctrl_pressed: bool,
+        alt_pressed: bool,
+    ) {
         let world_pos = self.camera.screen_to_world(Vec2::new(screen_x, screen_y));
         self.input.last_mouse_screen = Vec2::new(screen_x, screen_y);
-        
+
         if self.input.input_mode == InputMode::Paint {
             self.paint.start_stroke(world_pos.x, world_pos.y, 1.0);
             return;
         }
-        
+
         let grid_cell_px = self.grid_system.get_size();
         let result = self.event_system.handle_mouse_down(
             world_pos,
@@ -87,16 +113,22 @@ impl RenderEngine {
             grid_cell_px,
             self.runtime_event_handler.as_ref(),
         );
-        
+
         let uid_opt = self.current_user_id;
-        let dragging = matches!(self.input.input_mode, InputMode::SpriteMove | InputMode::SpriteResize(_) | InputMode::SpriteRotate);
+        let dragging = matches!(
+            self.input.input_mode,
+            InputMode::SpriteMove | InputMode::SpriteResize(_) | InputMode::SpriteRotate
+        );
         let selected_id = self.input.selected_sprite_id.clone();
         let block_drag = !self.is_gm
             && dragging
             && (uid_opt.is_none()
-                || selected_id.as_deref()
+                || selected_id
+                    .as_deref()
                     .and_then(|id| self.layer_manager.find_sprite(id))
-                    .map(|(s, _)| s.controlled_by.is_empty() || !s.controlled_by.contains(&uid_opt.unwrap()))
+                    .map(|(s, _)| {
+                        s.controlled_by.is_empty() || !s.controlled_by.contains(&uid_opt.unwrap())
+                    })
                     .unwrap_or(true));
         if block_drag {
             self.input.input_mode = InputMode::None;
@@ -108,31 +140,44 @@ impl RenderEngine {
         // CameraOperation variant removal.
         let _ = result;
     }
-    
+
     #[wasm_bindgen]
     pub fn handle_mouse_move(&mut self, screen_x: f32, screen_y: f32) {
         let current_screen = Vec2::new(screen_x, screen_y);
         let world_pos = self.camera.screen_to_world(current_screen);
-        
+
         if self.input.input_mode == InputMode::Paint {
             self.paint.add_stroke_point(world_pos.x, world_pos.y, 1.0);
             self.input.last_mouse_screen = current_screen;
             return;
         }
-        
+
         if self.input.input_mode == InputMode::CameraPan {
             let last_screen = self.input.last_mouse_screen;
             let screen_delta = current_screen - last_screen;
             #[cfg(debug_assertions)]
-            web_sys::console::debug_1(&format!("[RUST-DEBUG] Camera panning by screen delta: {}, {}", -screen_delta.x, -screen_delta.y).into());
-            self.camera.pan_by_screen_delta(Vec2::new(-screen_delta.x, -screen_delta.y));
+            web_sys::console::debug_1(
+                &format!(
+                    "[RUST-DEBUG] Camera panning by screen delta: {}, {}",
+                    -screen_delta.x, -screen_delta.y
+                )
+                .into(),
+            );
+            self.camera
+                .pan_by_screen_delta(Vec2::new(-screen_delta.x, -screen_delta.y));
             self.input.last_mouse_screen = current_screen;
             self.update_view_matrix();
             #[cfg(debug_assertions)]
-            web_sys::console::debug_1(&format!("[RUST-DEBUG] Camera position now: {}, {}", self.camera.world_x, self.camera.world_y).into());
+            web_sys::console::debug_1(
+                &format!(
+                    "[RUST-DEBUG] Camera position now: {}, {}",
+                    self.camera.world_x, self.camera.world_y
+                )
+                .into(),
+            );
             return;
         }
-        
+
         let result = self.event_system.handle_mouse_move(
             world_pos,
             &mut self.input,
@@ -144,15 +189,24 @@ impl RenderEngine {
 
         if self.input.input_mode == InputMode::WallDrag {
             self.obstacles_dirty = true;
-        } else if matches!(self.input.input_mode, InputMode::SpriteMove | InputMode::SpriteResize(_)) {
+        } else if matches!(
+            self.input.input_mode,
+            InputMode::SpriteMove | InputMode::SpriteResize(_)
+        ) {
             if let Some(ref sprite_id) = self.input.selected_sprite_id.clone() {
-                let on_obstacles = self.layer_manager.find_sprite(sprite_id).map(|(_, l)| l == "obstacles").unwrap_or(false);
-                if on_obstacles { self.obstacles_dirty = true; }
+                let on_obstacles = self
+                    .layer_manager
+                    .find_sprite(sprite_id)
+                    .map(|(_, l)| l == "obstacles")
+                    .unwrap_or(false);
+                if on_obstacles {
+                    self.obstacles_dirty = true;
+                }
             }
         }
-        
+
         self.input.last_mouse_screen = current_screen;
-        
+
         match result {
             MouseEventResult::Handled => {
                 self.view_matrix = self.camera.view_matrix(self.canvas_size);
@@ -160,10 +214,10 @@ impl RenderEngine {
             MouseEventResult::CreateSprite(_) => {}
             MouseEventResult::None => {}
         }
-        
+
         self.input.last_mouse_screen = current_screen;
     }
-    
+
     #[wasm_bindgen]
     pub fn set_alt_pressed(&mut self, alt: bool) {
         self.input.alt_pressed = alt;
@@ -172,19 +226,19 @@ impl RenderEngine {
     #[wasm_bindgen]
     pub fn handle_mouse_up(&mut self, screen_x: f32, screen_y: f32) {
         let world_pos = self.camera.screen_to_world(Vec2::new(screen_x, screen_y));
-        
+
         if self.input.input_mode == InputMode::Paint {
             web_sys::console::log_1(&"[RUST] Paint mode active, ending paint stroke".into());
             self.paint.end_stroke();
             return;
         }
-        
+
         let Some(table_id) = self.table_manager.get_active_table_id() else {
             web_sys::console::warn_1(&"[RUST] Ignoring mouse-up without an active table".into());
             return;
         };
         let converter = self.table_manager.get_unit_converter(&table_id);
-        
+
         let grid_cell_px = self.grid_system.get_size();
         let result = self.event_system.handle_mouse_up(
             world_pos,
@@ -199,7 +253,7 @@ impl RenderEngine {
             grid_cell_px,
             self.runtime_event_handler.as_ref(),
         );
-        
+
         match result {
             MouseEventResult::Handled => {}
             MouseEventResult::CreateSprite(sprite_data) => {
@@ -218,12 +272,32 @@ impl RenderEngine {
                         parts[1].parse::<f32>(),
                         parts[2].parse::<f32>(),
                         parts[3].parse::<f32>(),
-                        parts[4].parse::<f32>()
+                        parts[4].parse::<f32>(),
                     ) {
                         let (color, opacity, filled) = self.get_shape_settings();
                         let active_layer = self.active_layer.clone();
-                        let sprite_id = self.create_rectangle_sprite_with_options(x, y, width, height, &active_layer, &color, opacity, filled);
-                        self.emit_shape_create_requested("rectangle", &sprite_id, x, y, width, height, &active_layer, &color, filled, opacity);
+                        let sprite_id = self.create_rectangle_sprite_with_options(
+                            x,
+                            y,
+                            width,
+                            height,
+                            &active_layer,
+                            &color,
+                            opacity,
+                            filled,
+                        );
+                        self.emit_shape_create_requested(
+                            "rectangle",
+                            &sprite_id,
+                            x,
+                            y,
+                            width,
+                            height,
+                            &active_layer,
+                            &color,
+                            filled,
+                            opacity,
+                        );
                         self.emit_sprite_added_event();
                     }
                 }
@@ -233,13 +307,31 @@ impl RenderEngine {
                     if let (Ok(x), Ok(y), Ok(radius)) = (
                         parts[1].parse::<f32>(),
                         parts[2].parse::<f32>(),
-                        parts[3].parse::<f32>()
+                        parts[3].parse::<f32>(),
                     ) {
                         let (color, opacity, filled) = self.get_shape_settings();
                         let active_layer = self.active_layer.clone();
-                        let sprite_id = self.create_circle_sprite_with_options(x, y, radius, &active_layer, &color, opacity, filled);
+                        let sprite_id = self.create_circle_sprite_with_options(
+                            x,
+                            y,
+                            radius,
+                            &active_layer,
+                            &color,
+                            opacity,
+                            filled,
+                        );
                         let diameter = radius * 2.0;
-                        self.emit_circle_create_requested(&sprite_id, x, y, radius, diameter, &active_layer, &color, filled, opacity);
+                        self.emit_circle_create_requested(
+                            &sprite_id,
+                            x,
+                            y,
+                            radius,
+                            diameter,
+                            &active_layer,
+                            &color,
+                            filled,
+                            opacity,
+                        );
                         self.emit_sprite_added_event();
                     }
                 }
@@ -250,12 +342,29 @@ impl RenderEngine {
                         parts[1].parse::<f32>(),
                         parts[2].parse::<f32>(),
                         parts[3].parse::<f32>(),
-                        parts[4].parse::<f32>()
+                        parts[4].parse::<f32>(),
                     ) {
                         let (color, opacity, _) = self.get_shape_settings();
                         let active_layer = self.active_layer.clone();
-                        let sprite_id = self.create_line_sprite_with_options(x1, y1, x2, y2, &active_layer, &color, opacity);
-                        self.emit_line_create_requested(&sprite_id, x1, y1, x2, y2, &active_layer, &color, opacity);
+                        let sprite_id = self.create_line_sprite_with_options(
+                            x1,
+                            y1,
+                            x2,
+                            y2,
+                            &active_layer,
+                            &color,
+                            opacity,
+                        );
+                        self.emit_line_create_requested(
+                            &sprite_id,
+                            x1,
+                            y1,
+                            x2,
+                            y2,
+                            &active_layer,
+                            &color,
+                            opacity,
+                        );
                         self.emit_sprite_added_event();
                     }
                 }
@@ -264,7 +373,19 @@ impl RenderEngine {
         }
     }
 
-    fn emit_shape_create_requested(&self, shape_type: &str, sprite_id: &str, x: f32, y: f32, width: f32, height: f32, layer: &str, color: &str, filled: bool, opacity: f32) {
+    fn emit_shape_create_requested(
+        &self,
+        shape_type: &str,
+        sprite_id: &str,
+        x: f32,
+        y: f32,
+        width: f32,
+        height: f32,
+        layer: &str,
+        color: &str,
+        filled: bool,
+        opacity: f32,
+    ) {
         let metadata = format!(
             r#"{{"shape_color":"{}","shape_filled":{},"opacity":{:.3}}}"#,
             color, filled, opacity
@@ -288,7 +409,18 @@ impl RenderEngine {
         self.emit_runtime_operation("spriteCreateRequested", data);
     }
 
-    fn emit_circle_create_requested(&self, sprite_id: &str, x: f32, y: f32, radius: f32, diameter: f32, layer: &str, color: &str, filled: bool, opacity: f32) {
+    fn emit_circle_create_requested(
+        &self,
+        sprite_id: &str,
+        x: f32,
+        y: f32,
+        radius: f32,
+        diameter: f32,
+        layer: &str,
+        color: &str,
+        filled: bool,
+        opacity: f32,
+    ) {
         let metadata = format!(
             r#"{{"shape_color":"{}","shape_filled":{},"opacity":{:.3}}}"#,
             color, filled, opacity
@@ -311,7 +443,17 @@ impl RenderEngine {
         self.emit_runtime_operation("spriteCreateRequested", data);
     }
 
-    fn emit_line_create_requested(&self, sprite_id: &str, x1: f32, y1: f32, x2: f32, y2: f32, layer: &str, color: &str, opacity: f32) {
+    fn emit_line_create_requested(
+        &self,
+        sprite_id: &str,
+        x1: f32,
+        y1: f32,
+        x2: f32,
+        y2: f32,
+        layer: &str,
+        color: &str,
+        opacity: f32,
+    ) {
         let min_x = x1.min(x2);
         let min_y = y1.min(y2);
         let width = (x2 - x1).abs().max(2.0);
@@ -375,7 +517,13 @@ impl RenderEngine {
     #[wasm_bindgen]
     pub fn handle_wheel(&mut self, screen_x: f32, screen_y: f32, delta_y: f32) {
         #[cfg(debug_assertions)]
-        web_sys::console::debug_1(&format!("[RUST-DEBUG] Wheel event at screen: {}, {}, delta: {}", screen_x, screen_y, delta_y).into());
+        web_sys::console::debug_1(
+            &format!(
+                "[RUST-DEBUG] Wheel event at screen: {}, {}, delta: {}",
+                screen_x, screen_y, delta_y
+            )
+            .into(),
+        );
         self.camera.handle_wheel(screen_x, screen_y, delta_y);
         self.update_view_matrix();
     }
@@ -402,7 +550,8 @@ impl RenderEngine {
                 self.obstacles_dirty = true;
                 if let Some((x1, y1, x2, y2)) = self.wall_manager.get_wall_endpoints(&wall_id) {
                     let detail = js_sys::Object::new();
-                    js_sys::Reflect::set(&detail, &"wallId".into(), &JsValue::from_str(&wall_id)).ok();
+                    js_sys::Reflect::set(&detail, &"wallId".into(), &JsValue::from_str(&wall_id))
+                        .ok();
                     js_sys::Reflect::set(&detail, &"x1".into(), &JsValue::from_f64(x1 as f64)).ok();
                     js_sys::Reflect::set(&detail, &"y1".into(), &JsValue::from_f64(y1 as f64)).ok();
                     js_sys::Reflect::set(&detail, &"x2".into(), &JsValue::from_f64(x2 as f64)).ok();
@@ -462,12 +611,14 @@ impl RenderEngine {
                 self.input.cancel_polygon();
                 true
             }
-            InputMode::CreateRectangle | InputMode::CreateCircle | InputMode::CreateLine | InputMode::CreateText => {
+            InputMode::CreateRectangle
+            | InputMode::CreateCircle
+            | InputMode::CreateLine
+            | InputMode::CreateText => {
                 self.input.cancel_shape_creation();
                 true
             }
             _ => false,
         }
     }
-
 }

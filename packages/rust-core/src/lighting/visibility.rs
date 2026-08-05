@@ -52,7 +52,7 @@ impl VisibilityCalculator {
     pub fn add_segment(&mut self, p1: Point, p2: Point) {
         let segment_idx = self.segments.len();
         let segment = LineSegment::new(p1, p2);
-        
+
         self.segments.push(segment);
         self.spatial_grid.add_segment(segment_idx, &segment);
     }
@@ -184,4 +184,3 @@ mod tests {
         assert_eq!(segs[2].p1.x, 4.0);
     }
 }
-

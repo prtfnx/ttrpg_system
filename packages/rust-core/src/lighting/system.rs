@@ -1,16 +1,18 @@
 #[cfg(target_arch = "wasm32")]
-use wasm_bindgen::prelude::*;
+use super::visibility::{Point, VisibilityCalculator};
+use crate::math::Vec2;
+use crate::types::Color;
+use serde::{Deserialize, Serialize};
 #[cfg(target_arch = "wasm32")]
-use web_sys::{WebGl2RenderingContext as WebGlRenderingContext, WebGlProgram, WebGlShader, WebGlBuffer};
+use std::cell::RefCell;
 #[cfg(target_arch = "wasm32")]
 use std::collections::HashMap;
 #[cfg(target_arch = "wasm32")]
-use std::cell::RefCell;
-use serde::{Serialize, Deserialize};
-use crate::math::Vec2;
-use crate::types::Color;
+use wasm_bindgen::prelude::*;
 #[cfg(target_arch = "wasm32")]
-use super::visibility::{VisibilityCalculator, Point};
+use web_sys::{
+    WebGl2RenderingContext as WebGlRenderingContext, WebGlBuffer, WebGlProgram, WebGlShader,
+};
 
 /// Light types supported by the system
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -26,15 +28,15 @@ pub struct Light {
     pub position: Vec2,
     pub color: Color,
     pub intensity: f32,
-    pub radius: f32,          // pixels — used for rendering
+    pub radius: f32,               // pixels — used for rendering
     pub radius_units: Option<f32>, // game units (ft/m) — source of truth
     pub falloff: f32,
     pub is_on: bool,
     pub light_type: LightType,
-    
+
     #[serde(skip)]
     pub(crate) dirty: bool,
-    
+
     #[serde(skip)]
     #[cfg(target_arch = "wasm32")]
     pub(crate) cached_polygon: Option<Vec<Point>>,
@@ -60,8 +62,9 @@ impl Light {
     }
 
     pub fn set_position(&mut self, position: Vec2) {
-        if (self.position.x - position.x).abs() > 0.01 || 
-           (self.position.y - position.y).abs() > 0.01 {
+        if (self.position.x - position.x).abs() > 0.01
+            || (self.position.y - position.y).abs() > 0.01
+        {
             self.position = position;
             self.dirty = true;
         }
@@ -114,19 +117,20 @@ pub struct LightingSystem {
 impl LightingSystem {
     pub fn new(gl: WebGlRenderingContext) -> Result<Self, JsValue> {
         // Verify stencil buffer is available
-        let stencil_bits = gl.get_parameter(web_sys::WebGl2RenderingContext::STENCIL_BITS)
+        let stencil_bits = gl
+            .get_parameter(web_sys::WebGl2RenderingContext::STENCIL_BITS)
             .ok()
             .and_then(|v| v.as_f64())
             .unwrap_or(0.0) as i32;
-        
+
         log_info!("[PAINT] Stencil buffer bits: {}", stencil_bits);
-        
+
         if stencil_bits == 0 {
             log_error!("[ERR] No stencil buffer available! Shadow casting will not work.");
         } else {
             log_info!("[OK] Stencil buffer is available");
         }
-        
+
         let mut system = Self {
             gl,
             light_shader: None,
@@ -136,10 +140,10 @@ impl LightingSystem {
             obstacles_dirty: true,
             vertex_buffer: None,
         };
-        
+
         system.init_shaders()?;
         system.init_buffers()?;
-        
+
         Ok(system)
     }
 
@@ -193,45 +197,71 @@ impl LightingSystem {
         "#;
 
         self.light_shader = Some(self.create_program(vertex_source, fragment_source)?);
-        
+
         Ok(())
     }
 
     fn init_buffers(&mut self) -> Result<(), JsValue> {
         self.vertex_buffer = Some(
-            self.gl.create_buffer()
-                .ok_or("Failed to create vertex buffer")?
+            self.gl
+                .create_buffer()
+                .ok_or("Failed to create vertex buffer")?,
         );
         Ok(())
     }
 
-    fn create_program(&self, vertex_source: &str, fragment_source: &str) -> Result<WebGlProgram, JsValue> {
-        let vertex_shader = self.compile_shader(WebGlRenderingContext::VERTEX_SHADER, vertex_source)?;
-        let fragment_shader = self.compile_shader(WebGlRenderingContext::FRAGMENT_SHADER, fragment_source)?;
-        
+    fn create_program(
+        &self,
+        vertex_source: &str,
+        fragment_source: &str,
+    ) -> Result<WebGlProgram, JsValue> {
+        let vertex_shader =
+            self.compile_shader(WebGlRenderingContext::VERTEX_SHADER, vertex_source)?;
+        let fragment_shader =
+            self.compile_shader(WebGlRenderingContext::FRAGMENT_SHADER, fragment_source)?;
+
         let program = self.gl.create_program().ok_or("Failed to create program")?;
         self.gl.attach_shader(&program, &vertex_shader);
         self.gl.attach_shader(&program, &fragment_shader);
         self.gl.link_program(&program);
-        
-        if !self.gl.get_program_parameter(&program, WebGlRenderingContext::LINK_STATUS).as_bool().unwrap_or(false) {
+
+        if !self
+            .gl
+            .get_program_parameter(&program, WebGlRenderingContext::LINK_STATUS)
+            .as_bool()
+            .unwrap_or(false)
+        {
             let info = self.gl.get_program_info_log(&program).unwrap_or_default();
-            return Err(JsValue::from_str(&format!("Failed to link program: {}", info)));
+            return Err(JsValue::from_str(&format!(
+                "Failed to link program: {}",
+                info
+            )));
         }
-        
+
         Ok(program)
     }
 
     fn compile_shader(&self, shader_type: u32, source: &str) -> Result<WebGlShader, JsValue> {
-        let shader = self.gl.create_shader(shader_type).ok_or("Failed to create shader")?;
+        let shader = self
+            .gl
+            .create_shader(shader_type)
+            .ok_or("Failed to create shader")?;
         self.gl.shader_source(&shader, source);
         self.gl.compile_shader(&shader);
-        
-        if !self.gl.get_shader_parameter(&shader, WebGlRenderingContext::COMPILE_STATUS).as_bool().unwrap_or(false) {
+
+        if !self
+            .gl
+            .get_shader_parameter(&shader, WebGlRenderingContext::COMPILE_STATUS)
+            .as_bool()
+            .unwrap_or(false)
+        {
             let info = self.gl.get_shader_info_log(&shader).unwrap_or_default();
-            return Err(JsValue::from_str(&format!("Failed to compile shader: {}", info)));
+            return Err(JsValue::from_str(&format!(
+                "Failed to compile shader: {}",
+                info
+            )));
         }
-        
+
         Ok(shader)
     }
 
@@ -264,21 +294,21 @@ impl LightingSystem {
 
     /// Set obstacles for shadow casting
     pub fn set_obstacles(&mut self, obstacles: &[f32]) {
-        // web_sys::console::log_1(&format!("[LIGHTING-DEBUG] [IN] Received {} floats = {} segments", 
+        // web_sys::console::log_1(&format!("[LIGHTING-DEBUG] [IN] Received {} floats = {} segments",
         //     obstacles.len(), obstacles.len() / 4).into());
-        
+
         let mut calc = self.visibility_calculator.borrow_mut();
         calc.clear();
         calc.add_segments_from_array(obstacles);
-        
+
         // let segment_count = calc.get_segments().len();
-        // web_sys::console::log_1(&format!("[LIGHTING-DEBUG] [GEOM] VisibilityCalculator now has {} segments", 
+        // web_sys::console::log_1(&format!("[LIGHTING-DEBUG] [GEOM] VisibilityCalculator now has {} segments",
         //     segment_count).into());
-        
+
         drop(calc); // Release borrow
-        
+
         self.obstacles_dirty = true;
-        
+
         // Mark all lights dirty
         for light in self.lights.values_mut() {
             light.mark_dirty();
@@ -287,42 +317,69 @@ impl LightingSystem {
 
     /// Render all lights with shadow casting
     /// Strategy: Render full light circle, then subtract shadow volumes
-    pub fn render_lights(&mut self, view_matrix: &[f32; 9], canvas_width: f32, canvas_height: f32) -> Result<(), JsValue> {
+    pub fn render_lights(
+        &mut self,
+        view_matrix: &[f32; 9],
+        canvas_width: f32,
+        canvas_height: f32,
+    ) -> Result<(), JsValue> {
         // Default: render all lights (backwards compatibility)
         self.render_lights_filtered(view_matrix, canvas_width, canvas_height, None)
     }
-    
+
     /// Render lights filtered by table_id
-    pub fn render_lights_filtered(&mut self, view_matrix: &[f32; 9], canvas_width: f32, canvas_height: f32, table_id: Option<&str>) -> Result<(), JsValue> {
-        let program = self.light_shader.as_ref().ok_or("Light shader not initialized")?;
-        
+    pub fn render_lights_filtered(
+        &mut self,
+        view_matrix: &[f32; 9],
+        canvas_width: f32,
+        canvas_height: f32,
+        table_id: Option<&str>,
+    ) -> Result<(), JsValue> {
+        let program = self
+            .light_shader
+            .as_ref()
+            .ok_or("Light shader not initialized")?;
+
         // Enable stencil test for shadow masking
         self.gl.enable(WebGlRenderingContext::STENCIL_TEST);
         self.gl.stencil_mask(0xFF);
         self.gl.clear_stencil(0);
         self.gl.clear(WebGlRenderingContext::STENCIL_BUFFER_BIT);
-        
+
         // Enable additive blending for light accumulation
         self.gl.enable(WebGlRenderingContext::BLEND);
-        self.gl.blend_func(WebGlRenderingContext::ONE, WebGlRenderingContext::ONE);
-        
+        self.gl
+            .blend_func(WebGlRenderingContext::ONE, WebGlRenderingContext::ONE);
+
         self.gl.use_program(Some(program));
-        
+
         let view_matrix_location = self.gl.get_uniform_location(program, "u_view_matrix");
         if let Some(location) = view_matrix_location {
-            self.gl.uniform_matrix3fv_with_f32_array(Some(&location), false, view_matrix);
+            self.gl
+                .uniform_matrix3fv_with_f32_array(Some(&location), false, view_matrix);
         }
-        
+
         let canvas_size_location = self.gl.get_uniform_location(program, "u_canvas_size");
         if let Some(location) = canvas_size_location {
-            self.gl.uniform2f(Some(&location), canvas_width, canvas_height);
+            self.gl
+                .uniform2f(Some(&location), canvas_width, canvas_height);
         }
-        
+
         // Render each light — capture result to ensure cleanup runs regardless
         let light_ids: Vec<String> = self.lights.keys().cloned().collect();
         let mut render_result: Result<(), JsValue> = Ok(());
         for light_id in light_ids {
-            let (id, position, color, intensity, radius, falloff, cached_polygon, dirty, _light_table_id) = {
+            let (
+                id,
+                position,
+                color,
+                intensity,
+                radius,
+                falloff,
+                cached_polygon,
+                dirty,
+                _light_table_id,
+            ) = {
                 if let Some(light) = self.lights.get(&light_id) {
                     if !light.is_on {
                         continue;
@@ -347,8 +404,18 @@ impl LightingSystem {
                     continue;
                 }
             };
-            
-            match self.render_single_light(program, &id, position, color, intensity, radius, falloff, cached_polygon, dirty) {
+
+            match self.render_single_light(
+                program,
+                &id,
+                position,
+                color,
+                intensity,
+                radius,
+                falloff,
+                cached_polygon,
+                dirty,
+            ) {
                 Ok((new_polygon, new_dirty)) => {
                     if let Some(light) = self.lights.get_mut(&light_id) {
                         light.cached_polygon = new_polygon;
@@ -361,15 +428,18 @@ impl LightingSystem {
                 }
             }
         }
-        
+
         // ALWAYS restore GL state — even if rendering failed
         self.gl.color_mask(true, true, true, true);
-        self.gl.blend_func(WebGlRenderingContext::SRC_ALPHA, WebGlRenderingContext::ONE_MINUS_SRC_ALPHA);
+        self.gl.blend_func(
+            WebGlRenderingContext::SRC_ALPHA,
+            WebGlRenderingContext::ONE_MINUS_SRC_ALPHA,
+        );
         self.gl.disable(WebGlRenderingContext::STENCIL_TEST);
         self.gl.stencil_mask(0xFF);
-        
+
         self.obstacles_dirty = false;
-        
+
         render_result
     }
 
@@ -390,33 +460,40 @@ impl LightingSystem {
     ) -> Result<(Option<Vec<Point>>, bool), JsValue> {
         // Check if light is inside an opaque obstacle
         if self.is_light_occluded(position) {
-            log_debug!("[SKIP] Light at ({:.1}, {:.1}) is inside obstacle, skipping render", 
-                position.x, position.y);
+            log_debug!(
+                "[SKIP] Light at ({:.1}, {:.1}) is inside obstacle, skipping render",
+                position.x,
+                position.y
+            );
             return Ok((None, false));
         }
-        
+
         // Set light-specific uniforms
         self.set_light_uniforms_explicit(program, &position, &color, intensity, radius, falloff)?;
-        
+
         // CORRECTED APPROACH: Use stencil buffer to BLOCK shadows
         // 1. Render shadow quads to stencil buffer (mark as 1 where shadows are)
         // 2. Render full light circle where stencil = 0 (NOT in shadow)
-        
+
         // Step 1: Compute and render shadow quads to stencil
         let shadow_quads = self.compute_shadow_quads(position, radius);
-        
-        // web_sys::console::log_1(&format!("[STENCIL-DEBUG] [DARK] Computing shadows for light at ({:.1}, {:.1}), found {} shadow quads", 
+
+        // web_sys::console::log_1(&format!("[STENCIL-DEBUG] [DARK] Computing shadows for light at ({:.1}, {:.1}), found {} shadow quads",
         //     position.x, position.y, shadow_quads.len()).into());
-        
+
         if !shadow_quads.is_empty() {
             // Write shadows to stencil (set to 1)
             self.gl.stencil_func(WebGlRenderingContext::ALWAYS, 1, 0xFF);
-            self.gl.stencil_op(WebGlRenderingContext::KEEP, WebGlRenderingContext::KEEP, WebGlRenderingContext::REPLACE);
+            self.gl.stencil_op(
+                WebGlRenderingContext::KEEP,
+                WebGlRenderingContext::KEEP,
+                WebGlRenderingContext::REPLACE,
+            );
             self.gl.stencil_mask(0xFF); // Ensure stencil can be written
             self.gl.color_mask(false, false, false, false); // Don't write color, only stencil
-            
+
             // web_sys::console::log_1(&"[STENCIL-DEBUG] [STENCIL] Stencil setup: ALWAYS pass, REPLACE with 1, color mask OFF".into());
-            
+
             // Render each shadow quad as triangle strip
             let mut shadow_result: Result<(), JsValue> = Ok(());
             for quad in shadow_quads.iter() {
@@ -428,35 +505,47 @@ impl LightingSystem {
                     }
                 }
             }
-            
+
             // ALWAYS restore color writing, even if a shadow quad failed
             self.gl.color_mask(true, true, true, true);
-            
+
             shadow_result?;
         }
-        
+
         // Step 2: Render full light circle where stencil = 0 (not shadowed)
         self.gl.stencil_func(WebGlRenderingContext::EQUAL, 0, 0xFF);
-        self.gl.stencil_op(WebGlRenderingContext::KEEP, WebGlRenderingContext::KEEP, WebGlRenderingContext::KEEP);
+        self.gl.stencil_op(
+            WebGlRenderingContext::KEEP,
+            WebGlRenderingContext::KEEP,
+            WebGlRenderingContext::KEEP,
+        );
         self.gl.stencil_mask(0x00);
-        
+
         let circle = self.generate_circle(position, radius);
         let circle_vertices = self.polygon_to_vertices_from_light(&circle, position);
         let draw_result = self.upload_and_draw_vertices(&circle_vertices, program);
-        
+
         // ALWAYS reset stencil state for the next light
         self.gl.stencil_func(WebGlRenderingContext::ALWAYS, 0, 0xFF);
         self.gl.stencil_mask(0xFF);
-        
+
         draw_result?;
         Ok((None, false))
     }
 
     /// Helper to upload vertices and draw triangle fan
-    fn upload_and_draw_vertices(&self, vertices: &[f32], program: &WebGlProgram) -> Result<(), JsValue> {
-        let buffer = self.vertex_buffer.as_ref().ok_or("Vertex buffer not initialized")?;
-        self.gl.bind_buffer(WebGlRenderingContext::ARRAY_BUFFER, Some(buffer));
-        
+    fn upload_and_draw_vertices(
+        &self,
+        vertices: &[f32],
+        program: &WebGlProgram,
+    ) -> Result<(), JsValue> {
+        let buffer = self
+            .vertex_buffer
+            .as_ref()
+            .ok_or("Vertex buffer not initialized")?;
+        self.gl
+            .bind_buffer(WebGlRenderingContext::ARRAY_BUFFER, Some(buffer));
+
         unsafe {
             let vertices_array = js_sys::Float32Array::view(vertices);
             self.gl.buffer_data_with_array_buffer_view(
@@ -465,7 +554,7 @@ impl LightingSystem {
                 WebGlRenderingContext::DYNAMIC_DRAW,
             );
         }
-        
+
         let position_location = self.gl.get_attrib_location(program, "a_position") as u32;
         self.gl.enable_vertex_attrib_array(position_location);
         self.gl.vertex_attrib_pointer_with_i32(
@@ -476,18 +565,30 @@ impl LightingSystem {
             0,
             0,
         );
-        
-        self.gl.draw_arrays(WebGlRenderingContext::TRIANGLE_FAN, 0, (vertices.len() / 2) as i32);
+
+        self.gl.draw_arrays(
+            WebGlRenderingContext::TRIANGLE_FAN,
+            0,
+            (vertices.len() / 2) as i32,
+        );
         self.gl.disable_vertex_attrib_array(position_location);
-        
+
         Ok(())
     }
 
     /// Helper to upload vertices and draw triangle strip (for shadow quads)
-    fn upload_and_draw_triangle_strip(&self, vertices: &[f32], program: &WebGlProgram) -> Result<(), JsValue> {
-        let buffer = self.vertex_buffer.as_ref().ok_or("Vertex buffer not initialized")?;
-        self.gl.bind_buffer(WebGlRenderingContext::ARRAY_BUFFER, Some(buffer));
-        
+    fn upload_and_draw_triangle_strip(
+        &self,
+        vertices: &[f32],
+        program: &WebGlProgram,
+    ) -> Result<(), JsValue> {
+        let buffer = self
+            .vertex_buffer
+            .as_ref()
+            .ok_or("Vertex buffer not initialized")?;
+        self.gl
+            .bind_buffer(WebGlRenderingContext::ARRAY_BUFFER, Some(buffer));
+
         unsafe {
             let vertices_array = js_sys::Float32Array::view(vertices);
             self.gl.buffer_data_with_array_buffer_view(
@@ -496,7 +597,7 @@ impl LightingSystem {
                 WebGlRenderingContext::DYNAMIC_DRAW,
             );
         }
-        
+
         let position_location = self.gl.get_attrib_location(program, "a_position") as u32;
         self.gl.enable_vertex_attrib_array(position_location);
         self.gl.vertex_attrib_pointer_with_i32(
@@ -507,10 +608,14 @@ impl LightingSystem {
             0,
             0,
         );
-        
-        self.gl.draw_arrays(WebGlRenderingContext::TRIANGLE_STRIP, 0, (vertices.len() / 2) as i32);
+
+        self.gl.draw_arrays(
+            WebGlRenderingContext::TRIANGLE_STRIP,
+            0,
+            (vertices.len() / 2) as i32,
+        );
         self.gl.disable_vertex_attrib_array(position_location);
-        
+
         Ok(())
     }
 
@@ -537,23 +642,24 @@ impl LightingSystem {
         if let Some(location) = self.gl.get_uniform_location(program, "u_light_pos") {
             self.gl.uniform2f(Some(&location), position.x, position.y);
         }
-        
+
         if let Some(location) = self.gl.get_uniform_location(program, "u_light_radius") {
             self.gl.uniform1f(Some(&location), radius);
         }
-        
+
         if let Some(location) = self.gl.get_uniform_location(program, "u_light_color") {
-            self.gl.uniform3f(Some(&location), color.r, color.g, color.b);
+            self.gl
+                .uniform3f(Some(&location), color.r, color.g, color.b);
         }
-        
+
         if let Some(location) = self.gl.get_uniform_location(program, "u_light_intensity") {
             self.gl.uniform1f(Some(&location), intensity);
         }
-        
+
         if let Some(location) = self.gl.get_uniform_location(program, "u_light_falloff") {
             self.gl.uniform1f(Some(&location), falloff);
         }
-        
+
         Ok(())
     }
 
@@ -561,24 +667,24 @@ impl LightingSystem {
     /// Triangle fan: light position as center + polygon vertices forming the lit area
     fn polygon_to_vertices_from_light(&self, polygon: &[Point], light_position: Vec2) -> Vec<f32> {
         let mut vertices = Vec::with_capacity((polygon.len() + 2) * 2);
-        
+
         // Center vertex MUST be the light position, not the polygon centroid!
         // This is critical for correct shadow rendering
         vertices.push(light_position.x);
         vertices.push(light_position.y);
-        
+
         // Polygon vertices form the perimeter of the lit area
         for point in polygon {
             vertices.push(point.x);
             vertices.push(point.y);
         }
-        
+
         // Close the fan
         if !polygon.is_empty() {
             vertices.push(polygon[0].x);
             vertices.push(polygon[0].y);
         }
-        
+
         vertices
     }
 
@@ -587,7 +693,7 @@ impl LightingSystem {
         const SEGMENTS: usize = 64;
         let mut points = Vec::with_capacity(SEGMENTS);
         use std::f32::consts::PI;
-        
+
         for i in 0..SEGMENTS {
             let angle = (i as f32 / SEGMENTS as f32) * 2.0 * PI;
             points.push(Point::new(
@@ -595,7 +701,7 @@ impl LightingSystem {
                 center.y + radius * angle.sin(),
             ));
         }
-        
+
         points
     }
 
@@ -606,20 +712,20 @@ impl LightingSystem {
     fn compute_shadow_quads(&self, light_pos: Vec2, radius: f32) -> Vec<Vec<Point>> {
         let calc = self.visibility_calculator.borrow();
         let mut shadow_quads = Vec::new();
-        
+
         let segment_count = calc.get_segments().len();
-        // web_sys::console::log_1(&format!("[LIGHTING-DEBUG] [DARK] Computing shadows for light at ({:.1}, {:.1}) with radius {:.1}, {} segments available", 
+        // web_sys::console::log_1(&format!("[LIGHTING-DEBUG] [DARK] Computing shadows for light at ({:.1}, {:.1}) with radius {:.1}, {} segments available",
         //     light_pos.x, light_pos.y, radius, segment_count).into());
-        
+
         if segment_count == 0 {
             // web_sys::console::warn_1(&"[LIGHTING-DEBUG] [WARN] WARNING: No segments for shadow casting!".into());
             return shadow_quads;
         }
-        
+
         // Shadow distance culling: extend radius slightly to ensure shadows at the edge are complete
         let shadow_cull_radius = radius * 1.5;
         let shadow_cull_radius_squared = shadow_cull_radius * shadow_cull_radius;
-        
+
         for segment in calc.get_segments() {
             // Distance-based culling: skip segments too far from light
             // Check distance to segment midpoint for efficient culling
@@ -628,128 +734,134 @@ impl LightingSystem {
             let dx = mid_x - light_pos.x;
             let dy = mid_y - light_pos.y;
             let dist_squared = dx * dx + dy * dy;
-            
+
             if dist_squared > shadow_cull_radius_squared {
                 continue; // Segment is beyond light influence, skip shadow computation
             }
-            
+
             // Segment direction vector
             let seg_dx = segment.p2.x - segment.p1.x;
             let seg_dy = segment.p2.y - segment.p1.y;
-            
+
             // Segment normal (perpendicular vector, rotate 90° counter-clockwise)
             let normal_x = -seg_dy;
             let normal_y = seg_dx;
-            
+
             // Vector from segment start to light
             let to_light_x = light_pos.x - segment.p1.x;
             let to_light_y = light_pos.y - segment.p1.y;
-            
+
             // Dot product: negative = back-facing (segment faces away from light, should cast shadow)
             // This is geometrically correct: tests if the segment's outward normal points away from light
             let faces_light = normal_x * to_light_x + normal_y * to_light_y;
-            
-            if faces_light < 0.0 {  // Back-facing segments cast shadows
+
+            if faces_light < 0.0 {
+                // Back-facing segments cast shadows
                 // Project segment endpoints away from light to create shadow quad
                 // Use a very large shadow length to ensure shadows extend beyond visible area
                 // This prevents light leaking when light source is very close to obstacle edges
                 let shadow_length = 10000.0; // Large enough to cover entire screen
-                
+
                 // Direction from light to each endpoint
                 let dir1_x = segment.p1.x - light_pos.x;
                 let dir1_y = segment.p1.y - light_pos.y;
                 let len1 = (dir1_x * dir1_x + dir1_y * dir1_y).sqrt();
-                
+
                 let dir2_x = segment.p2.x - light_pos.x;
                 let dir2_y = segment.p2.y - light_pos.y;
                 let len2 = (dir2_x * dir2_x + dir2_y * dir2_y).sqrt();
-                
+
                 if len1 > 0.01 && len2 > 0.01 {
                     // Normalize and extend
                     let norm1_x = dir1_x / len1;
                     let norm1_y = dir1_y / len1;
                     let norm2_x = dir2_x / len2;
                     let norm2_y = dir2_y / len2;
-                    
+
                     // Shadow quad vertices (CORRECT order for triangle strip)
                     // Triangle strip order: v0, v1, v2, v3 creates triangles (v0,v1,v2) and (v1,v2,v3)
                     // We want: (p1, proj_p1, p2) and (proj_p1, p2, proj_p2)
                     let projected_p1 = Point::new(
-                        segment.p1.x + norm1_x * shadow_length, 
-                        segment.p1.y + norm1_y * shadow_length
+                        segment.p1.x + norm1_x * shadow_length,
+                        segment.p1.y + norm1_y * shadow_length,
                     );
                     let projected_p2 = Point::new(
-                        segment.p2.x + norm2_x * shadow_length, 
-                        segment.p2.y + norm2_y * shadow_length
+                        segment.p2.x + norm2_x * shadow_length,
+                        segment.p2.y + norm2_y * shadow_length,
                     );
-                    
+
                     let quad = vec![
-                        segment.p1,      // v0: segment start
-                        projected_p1,    // v1: projected start (forms diagonal)
-                        segment.p2,      // v2: segment end
-                        projected_p2,    // v3: projected end
+                        segment.p1,   // v0: segment start
+                        projected_p1, // v1: projected start (forms diagonal)
+                        segment.p2,   // v2: segment end
+                        projected_p2, // v3: projected end
                     ];
-                    
+
                     shadow_quads.push(quad);
                 }
             }
         }
-    
-    shadow_quads
-}
+
+        shadow_quads
+    }
 
     /// Check if a light position is inside an opaque obstacle
     /// Uses ray-casting algorithm for point-in-polygon test
     fn is_light_occluded(&self, light_pos: Vec2) -> bool {
         let calc = self.visibility_calculator.borrow();
         let segments = calc.get_segments();
-        
+
         if segments.is_empty() {
             return false;
         }
-        
+
         // Build polygons from connected segments (assuming obstacles form closed rectangles)
         // For a simple rectangle, we'll check if the point is inside by counting ray intersections
-        
+
         // Ray-casting algorithm: cast a ray from the point to infinity
         // Count how many times it crosses polygon edges
         // Odd = inside, Even = outside
-        
+
         let mut intersections = 0;
-        
+
         for segment in segments {
             // Check if ray intersects this segment
             let x1 = segment.p1.x;
             let y1 = segment.p1.y;
             let x2 = segment.p2.x;
             let y2 = segment.p2.y;
-            
+
             // Check if segment crosses the horizontal ray
             if (y1 > light_pos.y) != (y2 > light_pos.y) {
                 // Calculate x coordinate of intersection
                 let x_intersect = x1 + (light_pos.y - y1) * (x2 - x1) / (y2 - y1);
-                
+
                 // Count intersection if it's to the right of the point
                 if x_intersect > light_pos.x {
                     intersections += 1;
                 }
             }
         }
-        
+
         // Odd number of intersections = point is inside
         let is_occluded = intersections % 2 == 1;
-        
+
         if is_occluded {
-            log_debug!("[SKIP] Light occluded at ({:.1}, {:.1}): {} ray intersections", 
-                light_pos.x, light_pos.y, intersections);
+            log_debug!(
+                "[SKIP] Light occluded at ({:.1}, {:.1}): {} ray intersections",
+                light_pos.x,
+                light_pos.y,
+                intersections
+            );
         }
-        
+
         is_occluded
     }
 
     /// Get light at position (for mouse interaction)
     pub fn get_light_at_position(&self, world_pos: Vec2, tolerance: f32) -> Option<&String> {
-        self.lights.iter()
+        self.lights
+            .iter()
             .find(|(_, light)| {
                 let dx = world_pos.x - light.position.x;
                 let dy = world_pos.y - light.position.y;
@@ -808,9 +920,9 @@ impl LightingSystem {
     pub fn get_ambient_light(&self) -> f32 {
         self.ambient_light
     }
-    
+
     // ===== TABLE-BASED OPTIMIZATION METHODS =====
-    
+
     /// Count lights per table
     pub fn count_lights_by_table(&self) -> std::collections::HashMap<String, usize> {
         let mut counts = std::collections::HashMap::new();
@@ -819,19 +931,22 @@ impl LightingSystem {
         }
         counts
     }
-    
+
     /// Get light count for specific table only
     pub fn count_lights_for_table(&self, table_id: &str) -> usize {
-        self.lights.values().filter(|light| light.table_id == table_id).count()
+        self.lights
+            .values()
+            .filter(|light| light.table_id == table_id)
+            .count()
     }
-    
+
     /// Remove all lights not belonging to the specified table (optimization)
     pub fn remove_lights_not_in_table(&mut self, table_id: &str) -> usize {
         let before_count = self.lights.len();
         self.lights.retain(|_, light| light.table_id == table_id);
         before_count - self.lights.len()
     }
-    
+
     /// Clear all lights from a specific table
     pub fn clear_lights_for_table(&mut self, table_id: &str) -> usize {
         let before_count = self.lights.len();

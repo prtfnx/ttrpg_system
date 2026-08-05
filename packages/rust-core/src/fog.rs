@@ -1,12 +1,12 @@
-#[cfg(target_arch = "wasm32")]
-use wasm_bindgen::prelude::*;
-#[cfg(target_arch = "wasm32")]
-use web_sys::{WebGl2RenderingContext as WebGlRenderingContext, WebGlProgram, WebGlShader};
+use crate::math::Vec2;
 #[cfg(target_arch = "wasm32")]
 use indexmap::IndexMap;
 #[cfg(target_arch = "wasm32")]
 use std::collections::HashMap;
-use crate::math::Vec2;
+#[cfg(target_arch = "wasm32")]
+use wasm_bindgen::prelude::*;
+#[cfg(target_arch = "wasm32")]
+use web_sys::{WebGl2RenderingContext as WebGlRenderingContext, WebGlProgram, WebGlShader};
 
 #[derive(Clone, Debug)]
 #[cfg_attr(not(target_arch = "wasm32"), allow(dead_code))]
@@ -27,7 +27,14 @@ pub enum FogMode {
 
 #[cfg_attr(not(target_arch = "wasm32"), allow(dead_code))]
 impl FogRectangle {
-    pub fn new(id: String, start_x: f32, start_y: f32, end_x: f32, end_y: f32, mode: FogMode) -> Self {
+    pub fn new(
+        id: String,
+        start_x: f32,
+        start_y: f32,
+        end_x: f32,
+        end_y: f32,
+        mode: FogMode,
+    ) -> Self {
         Self {
             id,
             table_id: "default".to_string(), // Default to "default" (matches server table name)
@@ -42,7 +49,7 @@ impl FogRectangle {
         let min_y = self.start.y.min(self.end.y);
         let max_x = self.start.x.max(self.end.x);
         let max_y = self.start.y.max(self.end.y);
-        
+
         Self {
             id: self.id.clone(),
             start: Vec2::new(min_x, min_y),
@@ -54,8 +61,10 @@ impl FogRectangle {
 
     pub fn contains_point(&self, point: Vec2) -> bool {
         let normalized = self.normalized();
-        point.x >= normalized.start.x && point.x <= normalized.end.x &&
-        point.y >= normalized.start.y && point.y <= normalized.end.y
+        point.x >= normalized.start.x
+            && point.x <= normalized.end.x
+            && point.y >= normalized.start.y
+            && point.y <= normalized.end.y
     }
 }
 
@@ -67,14 +76,14 @@ pub struct FogOfWarSystem {
     fog_rectangles: IndexMap<String, FogRectangle>,
     is_gm: bool,
     table_bounds: Option<(f32, f32, f32, f32)>, // (x, y, width, height)
-    
+
     // Render-to-texture system
     fog_framebuffer: Option<web_sys::WebGlFramebuffer>,
     fog_texture: Option<web_sys::WebGlTexture>,
     texture_width: i32,
     texture_height: i32,
     needs_full_rebuild: bool, // Flag to rebuild entire fog texture
-    
+
     // Canvas dimensions for viewport restoration
     canvas_width: f32,
     canvas_height: f32,
@@ -114,20 +123,23 @@ impl FogOfWarSystem {
             vision_texture: None,
             vision_stencil_rb: None,
         };
-        
+
         system.init_shaders()?;
         system.init_fog_texture()?;
         system.init_vision_texture()?;
         Ok(system)
     }
-    
+
     pub fn set_table_bounds(&mut self, x: f32, y: f32, width: f32, height: f32) {
         self.table_bounds = Some((x, y, width, height));
         self.needs_full_rebuild = true; // Rebuild fog texture with new bounds
-        web_sys::console::log_1(&format!(
-            "[FOG-INIT] Table bounds set: origin=({}, {}), size={}x{}", 
-            x, y, width, height
-        ).into());
+        web_sys::console::log_1(
+            &format!(
+                "[FOG-INIT] Table bounds set: origin=({}, {}), size={}x{}",
+                x, y, width, height
+            )
+            .into(),
+        );
     }
 
     fn init_shaders(&mut self) -> Result<(), JsValue> {
@@ -163,7 +175,7 @@ impl FogOfWarSystem {
         "#;
 
         self.fog_shader = Some(self.create_program(fog_vertex_source, fog_fragment_source)?);
-        
+
         // Texture rendering shader for displaying cached fog texture
         let texture_vertex_source = r#"#version 300 es
             precision highp float;
@@ -238,22 +250,28 @@ impl FogOfWarSystem {
             }
         "#;
 
-        self.texture_shader = Some(self.create_program(texture_vertex_source, texture_fragment_source)?);
-        
+        self.texture_shader =
+            Some(self.create_program(texture_vertex_source, texture_fragment_source)?);
+
         Ok(())
     }
 
     fn init_fog_texture(&mut self) -> Result<(), JsValue> {
         // Create framebuffer for render-to-texture
-        let framebuffer = self.gl.create_framebuffer()
+        let framebuffer = self
+            .gl
+            .create_framebuffer()
             .ok_or("Failed to create fog framebuffer")?;
-        
+
         // Create texture to store fog state
-        let texture = self.gl.create_texture()
+        let texture = self
+            .gl
+            .create_texture()
             .ok_or("Failed to create fog texture")?;
-        
-        self.gl.bind_texture(WebGlRenderingContext::TEXTURE_2D, Some(&texture));
-        
+
+        self.gl
+            .bind_texture(WebGlRenderingContext::TEXTURE_2D, Some(&texture));
+
         // Configure texture parameters
         self.gl.tex_parameteri(
             WebGlRenderingContext::TEXTURE_2D,
@@ -275,22 +293,24 @@ impl FogOfWarSystem {
             WebGlRenderingContext::TEXTURE_WRAP_T,
             WebGlRenderingContext::CLAMP_TO_EDGE as i32,
         );
-        
+
         // Allocate texture storage (single channel for fog mask)
-        self.gl.tex_image_2d_with_i32_and_i32_and_i32_and_format_and_type_and_opt_u8_array(
-            WebGlRenderingContext::TEXTURE_2D,
-            0, // mipmap level
-            WebGlRenderingContext::R8 as i32, // internal format: single 8-bit red channel
-            self.texture_width,
-            self.texture_height,
-            0, // border (must be 0)
-            WebGlRenderingContext::RED, // format
-            WebGlRenderingContext::UNSIGNED_BYTE, // type
-            None, // data (null = allocate storage only)
-        )?;
-        
+        self.gl
+            .tex_image_2d_with_i32_and_i32_and_i32_and_format_and_type_and_opt_u8_array(
+                WebGlRenderingContext::TEXTURE_2D,
+                0,                                // mipmap level
+                WebGlRenderingContext::R8 as i32, // internal format: single 8-bit red channel
+                self.texture_width,
+                self.texture_height,
+                0,                                    // border (must be 0)
+                WebGlRenderingContext::RED,           // format
+                WebGlRenderingContext::UNSIGNED_BYTE, // type
+                None,                                 // data (null = allocate storage only)
+            )?;
+
         // Attach texture to framebuffer
-        self.gl.bind_framebuffer(WebGlRenderingContext::FRAMEBUFFER, Some(&framebuffer));
+        self.gl
+            .bind_framebuffer(WebGlRenderingContext::FRAMEBUFFER, Some(&framebuffer));
         self.gl.framebuffer_texture_2d(
             WebGlRenderingContext::FRAMEBUFFER,
             WebGlRenderingContext::COLOR_ATTACHMENT0,
@@ -298,68 +318,114 @@ impl FogOfWarSystem {
             Some(&texture),
             0, // mipmap level
         );
-        
+
         // Verify framebuffer is complete
-        let status = self.gl.check_framebuffer_status(WebGlRenderingContext::FRAMEBUFFER);
+        let status = self
+            .gl
+            .check_framebuffer_status(WebGlRenderingContext::FRAMEBUFFER);
         if status != WebGlRenderingContext::FRAMEBUFFER_COMPLETE {
-            return Err(JsValue::from_str(&format!("Framebuffer incomplete: {}", status)));
+            return Err(JsValue::from_str(&format!(
+                "Framebuffer incomplete: {}",
+                status
+            )));
         }
-        
+
         // Unbind framebuffer
-        self.gl.bind_framebuffer(WebGlRenderingContext::FRAMEBUFFER, None);
-        
+        self.gl
+            .bind_framebuffer(WebGlRenderingContext::FRAMEBUFFER, None);
+
         self.fog_framebuffer = Some(framebuffer);
         self.fog_texture = Some(texture);
-        
-        web_sys::console::log_1(&format!(
-            "[FOG-TEXTURE] Initialized {}x{} fog texture with framebuffer",
-            self.texture_width, self.texture_height
-        ).into());
-        
+
+        web_sys::console::log_1(
+            &format!(
+                "[FOG-TEXTURE] Initialized {}x{} fog texture with framebuffer",
+                self.texture_width, self.texture_height
+            )
+            .into(),
+        );
+
         // Clear texture to fully revealed state (0.0 = no fog)
-        self.gl.bind_framebuffer(WebGlRenderingContext::FRAMEBUFFER, Some(self.fog_framebuffer.as_ref().unwrap()));
-        self.gl.viewport(0, 0, self.texture_width, self.texture_height);
+        self.gl.bind_framebuffer(
+            WebGlRenderingContext::FRAMEBUFFER,
+            Some(self.fog_framebuffer.as_ref().unwrap()),
+        );
+        self.gl
+            .viewport(0, 0, self.texture_width, self.texture_height);
         self.gl.clear_color(0.0, 0.0, 0.0, 1.0); // Clear to black (0 = revealed)
         self.gl.clear(WebGlRenderingContext::COLOR_BUFFER_BIT);
-        self.gl.bind_framebuffer(WebGlRenderingContext::FRAMEBUFFER, None);
-        
+        self.gl
+            .bind_framebuffer(WebGlRenderingContext::FRAMEBUFFER, None);
+
         web_sys::console::log_1(&"[FOG-TEXTURE] Cleared fog texture to revealed state".into());
-        
+
         Ok(())
     }
 
     fn init_vision_texture(&mut self) -> Result<(), JsValue> {
-        let framebuffer = self.gl.create_framebuffer()
+        let framebuffer = self
+            .gl
+            .create_framebuffer()
             .ok_or("Failed to create vision framebuffer")?;
-        let texture = self.gl.create_texture()
+        let texture = self
+            .gl
+            .create_texture()
             .ok_or("Failed to create vision texture")?;
-        
-        self.gl.bind_texture(WebGlRenderingContext::TEXTURE_2D, Some(&texture));
-        self.gl.tex_parameteri(WebGlRenderingContext::TEXTURE_2D, WebGlRenderingContext::TEXTURE_MIN_FILTER, WebGlRenderingContext::NEAREST as i32);
-        self.gl.tex_parameteri(WebGlRenderingContext::TEXTURE_2D, WebGlRenderingContext::TEXTURE_MAG_FILTER, WebGlRenderingContext::NEAREST as i32);
-        self.gl.tex_parameteri(WebGlRenderingContext::TEXTURE_2D, WebGlRenderingContext::TEXTURE_WRAP_S, WebGlRenderingContext::CLAMP_TO_EDGE as i32);
-        self.gl.tex_parameteri(WebGlRenderingContext::TEXTURE_2D, WebGlRenderingContext::TEXTURE_WRAP_T, WebGlRenderingContext::CLAMP_TO_EDGE as i32);
-        
-        self.gl.tex_image_2d_with_i32_and_i32_and_i32_and_format_and_type_and_opt_u8_array(
-            WebGlRenderingContext::TEXTURE_2D, 0,
-            WebGlRenderingContext::R8 as i32,
-            self.texture_width, self.texture_height, 0,
-            WebGlRenderingContext::RED,
-            WebGlRenderingContext::UNSIGNED_BYTE,
-            None,
-        )?;
-        
-        self.gl.bind_framebuffer(WebGlRenderingContext::FRAMEBUFFER, Some(&framebuffer));
+
+        self.gl
+            .bind_texture(WebGlRenderingContext::TEXTURE_2D, Some(&texture));
+        self.gl.tex_parameteri(
+            WebGlRenderingContext::TEXTURE_2D,
+            WebGlRenderingContext::TEXTURE_MIN_FILTER,
+            WebGlRenderingContext::NEAREST as i32,
+        );
+        self.gl.tex_parameteri(
+            WebGlRenderingContext::TEXTURE_2D,
+            WebGlRenderingContext::TEXTURE_MAG_FILTER,
+            WebGlRenderingContext::NEAREST as i32,
+        );
+        self.gl.tex_parameteri(
+            WebGlRenderingContext::TEXTURE_2D,
+            WebGlRenderingContext::TEXTURE_WRAP_S,
+            WebGlRenderingContext::CLAMP_TO_EDGE as i32,
+        );
+        self.gl.tex_parameteri(
+            WebGlRenderingContext::TEXTURE_2D,
+            WebGlRenderingContext::TEXTURE_WRAP_T,
+            WebGlRenderingContext::CLAMP_TO_EDGE as i32,
+        );
+
+        self.gl
+            .tex_image_2d_with_i32_and_i32_and_i32_and_format_and_type_and_opt_u8_array(
+                WebGlRenderingContext::TEXTURE_2D,
+                0,
+                WebGlRenderingContext::R8 as i32,
+                self.texture_width,
+                self.texture_height,
+                0,
+                WebGlRenderingContext::RED,
+                WebGlRenderingContext::UNSIGNED_BYTE,
+                None,
+            )?;
+
+        self.gl
+            .bind_framebuffer(WebGlRenderingContext::FRAMEBUFFER, Some(&framebuffer));
         self.gl.framebuffer_texture_2d(
-            WebGlRenderingContext::FRAMEBUFFER, WebGlRenderingContext::COLOR_ATTACHMENT0,
-            WebGlRenderingContext::TEXTURE_2D, Some(&texture), 0,
+            WebGlRenderingContext::FRAMEBUFFER,
+            WebGlRenderingContext::COLOR_ATTACHMENT0,
+            WebGlRenderingContext::TEXTURE_2D,
+            Some(&texture),
+            0,
         );
 
         // Attach depth-stencil renderbuffer for stencil-gated light rendering
         // DEPTH24_STENCIL8 = 0x88F0, DEPTH_STENCIL_ATTACHMENT = 0x821A
-        let stencil_rb = self.gl.create_renderbuffer()
+        let stencil_rb = self
+            .gl
+            .create_renderbuffer()
             .ok_or("Failed to create vision stencil renderbuffer")?;
-        self.gl.bind_renderbuffer(WebGlRenderingContext::RENDERBUFFER, Some(&stencil_rb));
+        self.gl
+            .bind_renderbuffer(WebGlRenderingContext::RENDERBUFFER, Some(&stencil_rb));
         self.gl.renderbuffer_storage(
             WebGlRenderingContext::RENDERBUFFER,
             0x88F0_u32, // DEPTH24_STENCIL8
@@ -372,54 +438,90 @@ impl FogOfWarSystem {
             WebGlRenderingContext::RENDERBUFFER,
             Some(&stencil_rb),
         );
-        
-        let status = self.gl.check_framebuffer_status(WebGlRenderingContext::FRAMEBUFFER);
+
+        let status = self
+            .gl
+            .check_framebuffer_status(WebGlRenderingContext::FRAMEBUFFER);
         if status != WebGlRenderingContext::FRAMEBUFFER_COMPLETE {
-            return Err(JsValue::from_str(&format!("Vision framebuffer incomplete: {}", status)));
+            return Err(JsValue::from_str(&format!(
+                "Vision framebuffer incomplete: {}",
+                status
+            )));
         }
-        
+
         // Clear to 1.0 (all hidden) + stencil to 0
-        self.gl.viewport(0, 0, self.texture_width, self.texture_height);
+        self.gl
+            .viewport(0, 0, self.texture_width, self.texture_height);
         self.gl.clear_color(1.0, 0.0, 0.0, 1.0);
         self.gl.clear_stencil(0);
-        self.gl.clear(WebGlRenderingContext::COLOR_BUFFER_BIT | WebGlRenderingContext::STENCIL_BUFFER_BIT);
-        self.gl.bind_framebuffer(WebGlRenderingContext::FRAMEBUFFER, None);
-        
+        self.gl.clear(
+            WebGlRenderingContext::COLOR_BUFFER_BIT | WebGlRenderingContext::STENCIL_BUFFER_BIT,
+        );
+        self.gl
+            .bind_framebuffer(WebGlRenderingContext::FRAMEBUFFER, None);
+
         self.vision_framebuffer = Some(framebuffer);
         self.vision_texture = Some(texture);
         self.vision_stencil_rb = Some(stencil_rb);
-        
-        web_sys::console::log_1(&"[VISION-TEXTURE] Initialized vision mask texture with stencil".into());
+
+        web_sys::console::log_1(
+            &"[VISION-TEXTURE] Initialized vision mask texture with stencil".into(),
+        );
         Ok(())
     }
 
-    fn create_program(&self, vertex_source: &str, fragment_source: &str) -> Result<WebGlProgram, JsValue> {
-        let vertex_shader = self.compile_shader(WebGlRenderingContext::VERTEX_SHADER, vertex_source)?;
-        let fragment_shader = self.compile_shader(WebGlRenderingContext::FRAGMENT_SHADER, fragment_source)?;
-        
+    fn create_program(
+        &self,
+        vertex_source: &str,
+        fragment_source: &str,
+    ) -> Result<WebGlProgram, JsValue> {
+        let vertex_shader =
+            self.compile_shader(WebGlRenderingContext::VERTEX_SHADER, vertex_source)?;
+        let fragment_shader =
+            self.compile_shader(WebGlRenderingContext::FRAGMENT_SHADER, fragment_source)?;
+
         let program = self.gl.create_program().ok_or("Failed to create program")?;
         self.gl.attach_shader(&program, &vertex_shader);
         self.gl.attach_shader(&program, &fragment_shader);
         self.gl.link_program(&program);
-        
-        if !self.gl.get_program_parameter(&program, WebGlRenderingContext::LINK_STATUS).as_bool().unwrap_or(false) {
+
+        if !self
+            .gl
+            .get_program_parameter(&program, WebGlRenderingContext::LINK_STATUS)
+            .as_bool()
+            .unwrap_or(false)
+        {
             let info = self.gl.get_program_info_log(&program).unwrap_or_default();
-            return Err(JsValue::from_str(&format!("Failed to link program: {}", info)));
+            return Err(JsValue::from_str(&format!(
+                "Failed to link program: {}",
+                info
+            )));
         }
-        
+
         Ok(program)
     }
 
     fn compile_shader(&self, shader_type: u32, source: &str) -> Result<WebGlShader, JsValue> {
-        let shader = self.gl.create_shader(shader_type).ok_or("Failed to create shader")?;
+        let shader = self
+            .gl
+            .create_shader(shader_type)
+            .ok_or("Failed to create shader")?;
         self.gl.shader_source(&shader, source);
         self.gl.compile_shader(&shader);
-        
-        if !self.gl.get_shader_parameter(&shader, WebGlRenderingContext::COMPILE_STATUS).as_bool().unwrap_or(false) {
+
+        if !self
+            .gl
+            .get_shader_parameter(&shader, WebGlRenderingContext::COMPILE_STATUS)
+            .as_bool()
+            .unwrap_or(false)
+        {
             let info = self.gl.get_shader_info_log(&shader).unwrap_or_default();
-            return Err(JsValue::from_str(&format!("Failed to compile shader: {}", info)));
+            return Err(JsValue::from_str(&format!(
+                "Failed to compile shader: {}",
+                info
+            )));
         }
-        
+
         Ok(shader)
     }
 
@@ -458,16 +560,26 @@ impl FogOfWarSystem {
     /// draw within vision/darkvision areas, preventing lights from revealing
     /// areas outside the character's line of sight.
     fn rebuild_vision_texture(&mut self) -> Result<(), JsValue> {
-        let framebuffer = self.vision_framebuffer.as_ref().ok_or("Vision framebuffer not initialized")?;
-        let program = self.fog_shader.as_ref().ok_or("Fog shader not initialized")?;
+        let framebuffer = self
+            .vision_framebuffer
+            .as_ref()
+            .ok_or("Vision framebuffer not initialized")?;
+        let program = self
+            .fog_shader
+            .as_ref()
+            .ok_or("Fog shader not initialized")?;
 
-        self.gl.bind_framebuffer(WebGlRenderingContext::FRAMEBUFFER, Some(framebuffer));
-        self.gl.viewport(0, 0, self.texture_width, self.texture_height);
+        self.gl
+            .bind_framebuffer(WebGlRenderingContext::FRAMEBUFFER, Some(framebuffer));
+        self.gl
+            .viewport(0, 0, self.texture_width, self.texture_height);
 
         // Clear color to 1.0 (hidden) and stencil to 0
         self.gl.clear_color(1.0, 0.0, 0.0, 1.0);
         self.gl.clear_stencil(0);
-        self.gl.clear(WebGlRenderingContext::COLOR_BUFFER_BIT | WebGlRenderingContext::STENCIL_BUFFER_BIT);
+        self.gl.clear(
+            WebGlRenderingContext::COLOR_BUFFER_BIT | WebGlRenderingContext::STENCIL_BUFFER_BIT,
+        );
 
         self.gl.use_program(Some(program));
         self.gl.disable(WebGlRenderingContext::BLEND);
@@ -476,7 +588,8 @@ impl FogOfWarSystem {
         let (tx, ty, tw, th) = self.table_bounds.unwrap_or((0.0, 0.0, 2000.0, 2000.0));
         let ortho = self.create_orthographic_matrix(tx, ty, tw, th);
         if let Some(loc) = self.gl.get_uniform_location(program, "u_view_matrix") {
-            self.gl.uniform_matrix3fv_with_f32_array(Some(&loc), false, &ortho);
+            self.gl
+                .uniform_matrix3fv_with_f32_array(Some(&loc), false, &ortho);
         }
 
         let ids: Vec<String> = self.vision_polygons.keys().cloned().collect();
@@ -496,16 +609,21 @@ impl FogOfWarSystem {
         //   explored_   → 0.65 (dim explored area)
         //   vision_     → 0.75 (within vision but unlit — dark without light/darkvision)
         //   darkvision_ → 0.5  (within vision + darkvision — grey/desaturated)
-        let vision_passes: &[(f32, &str)] = &[
-            (0.65, "explored_"),
-            (0.75, "vision_"),
-            (0.5,  "darkvision_"),
-        ];
+        let vision_passes: &[(f32, &str)] =
+            &[(0.65, "explored_"), (0.75, "vision_"), (0.5, "darkvision_")];
         for &(pass_value, prefix) in vision_passes {
             for id in &ids {
-                if !id.starts_with(prefix) { continue; }
-                let pts = self.vision_polygons.get(id.as_str()).cloned().unwrap_or_default();
-                if pts.len() < 6 { continue; }
+                if !id.starts_with(prefix) {
+                    continue;
+                }
+                let pts = self
+                    .vision_polygons
+                    .get(id.as_str())
+                    .cloned()
+                    .unwrap_or_default();
+                if pts.len() < 6 {
+                    continue;
+                }
                 self.render_polygon_to_fbo(program, &pts, pass_value)?;
             }
         }
@@ -522,17 +640,27 @@ impl FogOfWarSystem {
         );
 
         for id in &ids {
-            if !id.starts_with("fog_light_") { continue; }
-            let pts = self.vision_polygons.get(id.as_str()).cloned().unwrap_or_default();
-            if pts.len() < 6 { continue; }
+            if !id.starts_with("fog_light_") {
+                continue;
+            }
+            let pts = self
+                .vision_polygons
+                .get(id.as_str())
+                .cloned()
+                .unwrap_or_default();
+            if pts.len() < 6 {
+                continue;
+            }
             self.render_polygon_to_fbo(program, &pts, 0.0)?;
         }
 
         self.gl.disable(WebGlRenderingContext::STENCIL_TEST);
         self.gl.stencil_mask(0xFF); // restore default
 
-        self.gl.bind_framebuffer(WebGlRenderingContext::FRAMEBUFFER, None);
-        self.gl.viewport(0, 0, self.canvas_width as i32, self.canvas_height as i32);
+        self.gl
+            .bind_framebuffer(WebGlRenderingContext::FRAMEBUFFER, None);
+        self.gl
+            .viewport(0, 0, self.canvas_width as i32, self.canvas_height as i32);
 
         Ok(())
     }
@@ -540,9 +668,16 @@ impl FogOfWarSystem {
     /// Render a closed polygon as a TRIANGLE_FAN to the currently bound FBO.
     /// points layout: [src_x, src_y, p0_x, p0_y, ..., pN_x, pN_y]
     /// The source position is guaranteed to be interior for star-shaped visibility polygons.
-    fn render_polygon_to_fbo(&self, program: &WebGlProgram, points: &[f32], value: f32) -> Result<(), JsValue> {
+    fn render_polygon_to_fbo(
+        &self,
+        program: &WebGlProgram,
+        points: &[f32],
+        value: f32,
+    ) -> Result<(), JsValue> {
         // Need source + at least 2 boundary points
-        if points.len() < 6 { return Ok(()); }
+        if points.len() < 6 {
+            return Ok(());
+        }
 
         let src_x = points[0];
         let src_y = points[1];
@@ -560,20 +695,37 @@ impl FogOfWarSystem {
             self.gl.uniform4f(Some(&loc), value, 0.0, 0.0, 1.0);
         }
 
-        let buffer = self.gl.create_buffer().ok_or("Failed to create polygon buffer")?;
-        self.gl.bind_buffer(WebGlRenderingContext::ARRAY_BUFFER, Some(&buffer));
+        let buffer = self
+            .gl
+            .create_buffer()
+            .ok_or("Failed to create polygon buffer")?;
+        self.gl
+            .bind_buffer(WebGlRenderingContext::ARRAY_BUFFER, Some(&buffer));
 
         unsafe {
             let arr = js_sys::Float32Array::view(&fan);
             self.gl.buffer_data_with_array_buffer_view(
-                WebGlRenderingContext::ARRAY_BUFFER, &arr, WebGlRenderingContext::STREAM_DRAW,
+                WebGlRenderingContext::ARRAY_BUFFER,
+                &arr,
+                WebGlRenderingContext::STREAM_DRAW,
             );
         }
 
         let pos_loc = self.gl.get_attrib_location(program, "a_position") as u32;
         self.gl.enable_vertex_attrib_array(pos_loc);
-        self.gl.vertex_attrib_pointer_with_i32(pos_loc, 2, WebGlRenderingContext::FLOAT, false, 0, 0);
-        self.gl.draw_arrays(WebGlRenderingContext::TRIANGLE_FAN, 0, (fan.len() / 2) as i32);
+        self.gl.vertex_attrib_pointer_with_i32(
+            pos_loc,
+            2,
+            WebGlRenderingContext::FLOAT,
+            false,
+            0,
+            0,
+        );
+        self.gl.draw_arrays(
+            WebGlRenderingContext::TRIANGLE_FAN,
+            0,
+            (fan.len() / 2) as i32,
+        );
         self.gl.disable_vertex_attrib_array(pos_loc);
 
         Ok(())
@@ -583,49 +735,81 @@ impl FogOfWarSystem {
         self.is_gm = is_gm;
     }
 
-    pub fn add_fog_rectangle(&mut self, id: String, start_x: f32, start_y: f32, end_x: f32, end_y: f32, mode: &str, table_id: String) {
+    pub fn add_fog_rectangle(
+        &mut self,
+        id: String,
+        start_x: f32,
+        start_y: f32,
+        end_x: f32,
+        end_y: f32,
+        mode: &str,
+        table_id: String,
+    ) {
         let fog_mode = match mode {
             "reveal" => FogMode::Reveal,
             _ => FogMode::Hide,
         };
-        
+
         // Clamp coordinates to table bounds if table bounds are set
-        let (clamped_start_x, clamped_start_y, clamped_end_x, clamped_end_y) = if let Some((tx, ty, tw, th)) = self.table_bounds {
+        let (clamped_start_x, clamped_start_y, clamped_end_x, clamped_end_y) = if let Some((
+            tx,
+            ty,
+            tw,
+            th,
+        )) =
+            self.table_bounds
+        {
             let clamped_sx = start_x.clamp(tx, tx + tw);
             let clamped_sy = start_y.clamp(ty, ty + th);
             let clamped_ex = end_x.clamp(tx, tx + tw);
             let clamped_ey = end_y.clamp(ty, ty + th);
-            
+
             // Only log clamping in debug builds to avoid spamming console every time users draw
             #[cfg(debug_assertions)]
-            if start_x != clamped_sx || start_y != clamped_sy || end_x != clamped_ex || end_y != clamped_ey {
+            if start_x != clamped_sx
+                || start_y != clamped_sy
+                || end_x != clamped_ex
+                || end_y != clamped_ey
+            {
                 web_sys::console::debug_1(&format!(
                     "[FOG-DEBUG] Coordinates clamped to table: ({}, {}) → ({}, {}) became ({}, {}) → ({}, {})",
                     start_x, start_y, end_x, end_y, clamped_sx, clamped_sy, clamped_ex, clamped_ey
                 ).into());
             }
-            
+
             (clamped_sx, clamped_sy, clamped_ex, clamped_ey)
         } else {
             (start_x, start_y, end_x, end_y)
         };
-        
-        // Concise informational log for fog additions (safe to keep in production)
-        web_sys::console::log_1(&format!(
-            "[FOG] Add: {} ({:.2}, {:.2})→({:.2}, {:.2}) mode={} table={}",
-            id, clamped_start_x, clamped_start_y, clamped_end_x, clamped_end_y, mode, table_id
-        ).into());
 
-        let mut rectangle = FogRectangle::new(id.clone(), clamped_start_x, clamped_start_y, clamped_end_x, clamped_end_y, fog_mode);
+        // Concise informational log for fog additions (safe to keep in production)
+        web_sys::console::log_1(
+            &format!(
+                "[FOG] Add: {} ({:.2}, {:.2})→({:.2}, {:.2}) mode={} table={}",
+                id, clamped_start_x, clamped_start_y, clamped_end_x, clamped_end_y, mode, table_id
+            )
+            .into(),
+        );
+
+        let mut rectangle = FogRectangle::new(
+            id.clone(),
+            clamped_start_x,
+            clamped_start_y,
+            clamped_end_x,
+            clamped_end_y,
+            fog_mode,
+        );
         rectangle.table_id = table_id; // Set the table_id
         self.fog_rectangles.insert(id.clone(), rectangle.clone());
-        
+
         // If we need a full rebuild (e.g., first rectangle or table bounds changed),
         // mark it for rebuild on next render. Otherwise, update incrementally.
         if !self.needs_full_rebuild {
             // Incrementally update fog texture with this single rectangle
             if let Err(e) = self.update_fog_texture_incremental(&rectangle) {
-                web_sys::console::error_1(&format!("[FOG-ERROR] Failed to update fog texture: {:?}", e).into());
+                web_sys::console::error_1(
+                    &format!("[FOG-ERROR] Failed to update fog texture: {:?}", e).into(),
+                );
             }
         }
     }
@@ -645,17 +829,19 @@ impl FogOfWarSystem {
         self.clear_fog();
         self.add_fog_rectangle(
             "full_table_fog".to_string(),
-            0.0, 0.0,
-            table_width, table_height,
+            0.0,
+            0.0,
+            table_width,
+            table_height,
             "hide",
-            table_id
+            table_id,
         );
     }
 
     pub fn is_point_in_fog(&self, x: f32, y: f32) -> bool {
         let point = Vec2::new(x, y);
         let mut in_hide_area = false;
-        
+
         // Check if point is in any hide rectangle
         for rectangle in self.fog_rectangles.values() {
             if rectangle.mode == FogMode::Hide && rectangle.contains_point(point) {
@@ -663,127 +849,149 @@ impl FogOfWarSystem {
                 break;
             }
         }
-        
+
         if !in_hide_area {
             return false;
         }
-        
+
         // Check if point is revealed by any reveal rectangle
         for rectangle in self.fog_rectangles.values() {
             if rectangle.mode == FogMode::Reveal && rectangle.contains_point(point) {
                 return false; // Point is revealed
             }
         }
-        
+
         true // Point is in fog
     }
-    
+
     /// Incrementally update fog texture by rendering a single new rectangle
     fn update_fog_texture_incremental(&mut self, rectangle: &FogRectangle) -> Result<(), JsValue> {
-        let framebuffer = self.fog_framebuffer.as_ref().ok_or("Fog framebuffer not initialized")?;
-        let program = self.fog_shader.as_ref().ok_or("Fog shader not initialized")?;
-        
+        let framebuffer = self
+            .fog_framebuffer
+            .as_ref()
+            .ok_or("Fog framebuffer not initialized")?;
+        let program = self
+            .fog_shader
+            .as_ref()
+            .ok_or("Fog shader not initialized")?;
+
         // Bind framebuffer to render to texture
-        self.gl.bind_framebuffer(WebGlRenderingContext::FRAMEBUFFER, Some(framebuffer));
-        
+        self.gl
+            .bind_framebuffer(WebGlRenderingContext::FRAMEBUFFER, Some(framebuffer));
+
         // Set viewport to texture size
-        self.gl.viewport(0, 0, self.texture_width, self.texture_height);
-        
+        self.gl
+            .viewport(0, 0, self.texture_width, self.texture_height);
+
         self.gl.use_program(Some(program));
-        
+
         // Set up orthographic projection for texture space (0,0 → table bounds)
         let (tx, ty, tw, th) = self.table_bounds.unwrap_or((0.0, 0.0, 2000.0, 2000.0));
         let ortho_matrix = self.create_orthographic_matrix(tx, ty, tw, th);
-        
+
         let view_matrix_location = self.gl.get_uniform_location(program, "u_view_matrix");
         if let Some(location) = view_matrix_location {
-            self.gl.uniform_matrix3fv_with_f32_array(Some(&location), false, &ortho_matrix);
+            self.gl
+                .uniform_matrix3fv_with_f32_array(Some(&location), false, &ortho_matrix);
         }
-        
+
         // Render rectangle directly to texture color buffer
         // Color value: 1.0 = fogged, 0.0 = revealed
         let fog_value = match rectangle.mode {
             FogMode::Hide => 1.0,
             FogMode::Reveal => 0.0,
         };
-        
+
         let fog_color_location = self.gl.get_uniform_location(program, "u_fog_color");
         if let Some(location) = fog_color_location {
             self.gl.uniform4f(Some(&location), fog_value, 0.0, 0.0, 1.0);
         }
-        
+
         // Disable blending - overwrite pixels directly
         self.gl.disable(WebGlRenderingContext::BLEND);
-        
+
         // Ensure depth/stencil tests are disabled
         self.gl.disable(WebGlRenderingContext::DEPTH_TEST);
         self.gl.disable(WebGlRenderingContext::STENCIL_TEST);
-        
+
         self.render_single_rectangle(program, rectangle)?;
-        
+
         // Unbind framebuffer
-        self.gl.bind_framebuffer(WebGlRenderingContext::FRAMEBUFFER, None);
-        
+        self.gl
+            .bind_framebuffer(WebGlRenderingContext::FRAMEBUFFER, None);
+
         // CRITICAL: Restore viewport to canvas size (otherwise camera gets misplaced)
-        self.gl.viewport(0, 0, self.canvas_width as i32, self.canvas_height as i32);
-        
+        self.gl
+            .viewport(0, 0, self.canvas_width as i32, self.canvas_height as i32);
+
         Ok(())
     }
-    
+
     /// Rebuild entire fog texture from all rectangles (used after removal or clear)
     fn rebuild_fog_texture(&mut self) -> Result<(), JsValue> {
-        let framebuffer = self.fog_framebuffer.as_ref().ok_or("Fog framebuffer not initialized")?;
-        let program = self.fog_shader.as_ref().ok_or("Fog shader not initialized")?;
-        
+        let framebuffer = self
+            .fog_framebuffer
+            .as_ref()
+            .ok_or("Fog framebuffer not initialized")?;
+        let program = self
+            .fog_shader
+            .as_ref()
+            .ok_or("Fog shader not initialized")?;
+
         // Bind framebuffer
-        self.gl.bind_framebuffer(WebGlRenderingContext::FRAMEBUFFER, Some(framebuffer));
-        self.gl.viewport(0, 0, self.texture_width, self.texture_height);
-        
+        self.gl
+            .bind_framebuffer(WebGlRenderingContext::FRAMEBUFFER, Some(framebuffer));
+        self.gl
+            .viewport(0, 0, self.texture_width, self.texture_height);
+
         // Clear texture to 0.0 (fully revealed)
         self.gl.clear_color(0.0, 0.0, 0.0, 1.0);
         self.gl.clear(WebGlRenderingContext::COLOR_BUFFER_BIT);
-        
+
         self.gl.use_program(Some(program));
-        
+
         // Set up orthographic projection
         let (tx, ty, tw, th) = self.table_bounds.unwrap_or((0.0, 0.0, 2000.0, 2000.0));
         let ortho_matrix = self.create_orthographic_matrix(tx, ty, tw, th);
-        
+
         let view_matrix_location = self.gl.get_uniform_location(program, "u_view_matrix");
         if let Some(location) = view_matrix_location {
-            self.gl.uniform_matrix3fv_with_f32_array(Some(&location), false, &ortho_matrix);
+            self.gl
+                .uniform_matrix3fv_with_f32_array(Some(&location), false, &ortho_matrix);
         }
-        
+
         self.gl.disable(WebGlRenderingContext::BLEND);
-        
+
         // Ensure depth/stencil tests are disabled
         self.gl.disable(WebGlRenderingContext::DEPTH_TEST);
         self.gl.disable(WebGlRenderingContext::STENCIL_TEST);
-        
+
         // Render all rectangles in chronological order
         for rectangle in self.fog_rectangles.values() {
             let fog_value = match rectangle.mode {
                 FogMode::Hide => 1.0,
                 FogMode::Reveal => 0.0,
             };
-            
+
             let fog_color_location = self.gl.get_uniform_location(program, "u_fog_color");
             if let Some(location) = fog_color_location {
                 self.gl.uniform4f(Some(&location), fog_value, 0.0, 0.0, 1.0);
             }
-            
+
             self.render_single_rectangle(program, rectangle)?;
         }
-        
+
         // Unbind framebuffer
-        self.gl.bind_framebuffer(WebGlRenderingContext::FRAMEBUFFER, None);
-        
+        self.gl
+            .bind_framebuffer(WebGlRenderingContext::FRAMEBUFFER, None);
+
         // CRITICAL: Restore viewport to canvas size
-        self.gl.viewport(0, 0, self.canvas_width as i32, self.canvas_height as i32);
-        
+        self.gl
+            .viewport(0, 0, self.canvas_width as i32, self.canvas_height as i32);
+
         Ok(())
     }
-    
+
     /// Create orthographic projection matrix for texture space
     fn create_orthographic_matrix(&self, x: f32, y: f32, width: f32, height: f32) -> [f32; 9] {
         // Map world coordinates (x, y, width, height) to NDC (-1 to 1)
@@ -791,26 +999,28 @@ impl FogOfWarSystem {
         let sy = 2.0 / height;
         let tx = -1.0 - (x * sx);
         let ty = -1.0 - (y * sy);
-        
-        [
-            sx,  0.0, 0.0,
-            0.0, sy,  0.0,
-            tx,  ty,  1.0,
-        ]
+
+        [sx, 0.0, 0.0, 0.0, sy, 0.0, tx, ty, 1.0]
     }
-    
-    pub fn render_fog_filtered(&mut self, view_matrix: &[f32; 9], canvas_width: f32, canvas_height: f32, _table_id: Option<&str>) -> Result<(), JsValue> {
+
+    pub fn render_fog_filtered(
+        &mut self,
+        view_matrix: &[f32; 9],
+        canvas_width: f32,
+        canvas_height: f32,
+        _table_id: Option<&str>,
+    ) -> Result<(), JsValue> {
         // Update canvas dimensions for viewport restoration
         self.canvas_width = canvas_width;
         self.canvas_height = canvas_height;
-        
+
         let has_fog = !self.fog_rectangles.is_empty();
         let has_vision = self.dynamic_lighting_enabled && !self.is_gm;
 
         if !has_fog && !has_vision {
             return Ok(());
         }
-        
+
         // Rebuild fog texture if needed
         if has_fog && self.needs_full_rebuild {
             self.rebuild_fog_texture()?;
@@ -822,67 +1032,93 @@ impl FogOfWarSystem {
             self.rebuild_vision_texture()?;
             self.needs_vision_rebuild = false;
         }
-        
-        let fog_texture = self.fog_texture.as_ref().ok_or("Fog texture not initialized")?;
-        let vision_texture = self.vision_texture.as_ref().ok_or("Vision texture not initialized")?;
-        let program = self.texture_shader.as_ref().ok_or("Texture shader not initialized")?;
-        
+
+        let fog_texture = self
+            .fog_texture
+            .as_ref()
+            .ok_or("Fog texture not initialized")?;
+        let vision_texture = self
+            .vision_texture
+            .as_ref()
+            .ok_or("Vision texture not initialized")?;
+        let program = self
+            .texture_shader
+            .as_ref()
+            .ok_or("Texture shader not initialized")?;
+
         self.gl.use_program(Some(program));
-        
+
         // Bind fog texture to unit 0
         self.gl.active_texture(WebGlRenderingContext::TEXTURE0);
-        self.gl.bind_texture(WebGlRenderingContext::TEXTURE_2D, Some(fog_texture));
+        self.gl
+            .bind_texture(WebGlRenderingContext::TEXTURE_2D, Some(fog_texture));
         if let Some(loc) = self.gl.get_uniform_location(program, "u_fog_texture") {
             self.gl.uniform1i(Some(&loc), 0);
         }
 
         // Bind vision texture to unit 1
         self.gl.active_texture(WebGlRenderingContext::TEXTURE1);
-        self.gl.bind_texture(WebGlRenderingContext::TEXTURE_2D, Some(vision_texture));
+        self.gl
+            .bind_texture(WebGlRenderingContext::TEXTURE_2D, Some(vision_texture));
         if let Some(loc) = self.gl.get_uniform_location(program, "u_vision_texture") {
             self.gl.uniform1i(Some(&loc), 1);
         }
 
         if let Some(loc) = self.gl.get_uniform_location(program, "u_view_matrix") {
-            self.gl.uniform_matrix3fv_with_f32_array(Some(&loc), false, view_matrix);
+            self.gl
+                .uniform_matrix3fv_with_f32_array(Some(&loc), false, view_matrix);
         }
         if let Some(loc) = self.gl.get_uniform_location(program, "u_canvas_size") {
             self.gl.uniform2f(Some(&loc), canvas_width, canvas_height);
         }
         if let Some(loc) = self.gl.get_uniform_location(program, "u_is_gm") {
-            self.gl.uniform1i(Some(&loc), if self.is_gm { 1 } else { 0 });
+            self.gl
+                .uniform1i(Some(&loc), if self.is_gm { 1 } else { 0 });
         }
         if let Some(loc) = self.gl.get_uniform_location(program, "u_dynamic_lighting") {
-            self.gl.uniform1i(Some(&loc), if has_vision { 1 } else { 0 });
+            self.gl
+                .uniform1i(Some(&loc), if has_vision { 1 } else { 0 });
         }
         if let Some(loc) = self.gl.get_uniform_location(program, "u_ambient_light") {
             self.gl.uniform1f(Some(&loc), self.ambient_light);
         }
 
         self.gl.enable(WebGlRenderingContext::BLEND);
-        self.gl.blend_func(WebGlRenderingContext::SRC_ALPHA, WebGlRenderingContext::ONE_MINUS_SRC_ALPHA);
-        
+        self.gl.blend_func(
+            WebGlRenderingContext::SRC_ALPHA,
+            WebGlRenderingContext::ONE_MINUS_SRC_ALPHA,
+        );
+
         // Render textured quad covering table bounds
         self.render_textured_quad(program)?;
-        
+
         Ok(())
     }
 
-    fn render_single_rectangle(&self, program: &WebGlProgram, rectangle: &FogRectangle) -> Result<(), JsValue> {
+    fn render_single_rectangle(
+        &self,
+        program: &WebGlProgram,
+        rectangle: &FogRectangle,
+    ) -> Result<(), JsValue> {
         let normalized = rectangle.normalized();
-        
+
         // Create rectangle vertices
         let vertices: [f32; 8] = [
-            normalized.start.x, normalized.start.y,
-            normalized.end.x, normalized.start.y,
-            normalized.end.x, normalized.end.y,
-            normalized.start.x, normalized.end.y,
+            normalized.start.x,
+            normalized.start.y,
+            normalized.end.x,
+            normalized.start.y,
+            normalized.end.x,
+            normalized.end.y,
+            normalized.start.x,
+            normalized.end.y,
         ];
-        
+
         // Create and bind vertex buffer
         let buffer = self.gl.create_buffer().ok_or("Failed to create buffer")?;
-        self.gl.bind_buffer(WebGlRenderingContext::ARRAY_BUFFER, Some(&buffer));
-        
+        self.gl
+            .bind_buffer(WebGlRenderingContext::ARRAY_BUFFER, Some(&buffer));
+
         unsafe {
             let vertices_array = js_sys::Float32Array::view(&vertices);
             self.gl.buffer_data_with_array_buffer_view(
@@ -891,24 +1127,32 @@ impl FogOfWarSystem {
                 WebGlRenderingContext::STATIC_DRAW,
             );
         }
-        
+
         // Set up vertex attributes
         let position_location = self.gl.get_attrib_location(program, "a_position") as u32;
         self.gl.enable_vertex_attrib_array(position_location);
-        self.gl.vertex_attrib_pointer_with_i32(position_location, 2, WebGlRenderingContext::FLOAT, false, 0, 0);
-        
+        self.gl.vertex_attrib_pointer_with_i32(
+            position_location,
+            2,
+            WebGlRenderingContext::FLOAT,
+            false,
+            0,
+            0,
+        );
+
         // Draw rectangle
-        self.gl.draw_arrays(WebGlRenderingContext::TRIANGLE_FAN, 0, 4);
-        
+        self.gl
+            .draw_arrays(WebGlRenderingContext::TRIANGLE_FAN, 0, 4);
+
         self.gl.disable_vertex_attrib_array(position_location);
-        
+
         Ok(())
     }
 
     fn render_textured_quad(&self, program: &WebGlProgram) -> Result<(), JsValue> {
         // Render textured quad covering table bounds
         let (x, y, width, height) = self.table_bounds.unwrap_or((0.0, 0.0, 2000.0, 2000.0));
-        
+
         // Vertices: position (x, y) + texcoord (u, v)
         #[rustfmt::skip]
         let vertices: [f32; 16] = [
@@ -918,10 +1162,11 @@ impl FogOfWarSystem {
             x + width, y + height, 1.0, 1.0, // top-right
             x,         y + height, 0.0, 1.0, // top-left
         ];
-        
+
         let buffer = self.gl.create_buffer().ok_or("Failed to create buffer")?;
-        self.gl.bind_buffer(WebGlRenderingContext::ARRAY_BUFFER, Some(&buffer));
-        
+        self.gl
+            .bind_buffer(WebGlRenderingContext::ARRAY_BUFFER, Some(&buffer));
+
         unsafe {
             let vertices_array = js_sys::Float32Array::view(&vertices);
             self.gl.buffer_data_with_array_buffer_view(
@@ -930,20 +1175,20 @@ impl FogOfWarSystem {
                 WebGlRenderingContext::STATIC_DRAW,
             );
         }
-        
+
         // Set up vertex attributes (interleaved: position + texcoord)
         let position_location = self.gl.get_attrib_location(program, "a_position");
         let texcoord_location = self.gl.get_attrib_location(program, "a_texcoord");
-        
+
         if position_location < 0 || texcoord_location < 0 {
             return Err(JsValue::from_str("Shader attribute locations not found"));
         }
-        
+
         let position_location = position_location as u32;
         let texcoord_location = texcoord_location as u32;
-        
+
         let stride = 4 * 4; // 4 floats * 4 bytes per float
-        
+
         self.gl.enable_vertex_attrib_array(position_location);
         self.gl.vertex_attrib_pointer_with_i32(
             position_location,
@@ -953,7 +1198,7 @@ impl FogOfWarSystem {
             stride,
             0, // offset
         );
-        
+
         self.gl.enable_vertex_attrib_array(texcoord_location);
         self.gl.vertex_attrib_pointer_with_i32(
             texcoord_location,
@@ -963,20 +1208,22 @@ impl FogOfWarSystem {
             stride,
             8, // offset (2 floats * 4 bytes)
         );
-        
+
         // Draw quad
-        self.gl.draw_arrays(WebGlRenderingContext::TRIANGLE_FAN, 0, 4);
-        
+        self.gl
+            .draw_arrays(WebGlRenderingContext::TRIANGLE_FAN, 0, 4);
+
         self.gl.disable_vertex_attrib_array(position_location);
         self.gl.disable_vertex_attrib_array(texcoord_location);
-        
+
         Ok(())
     }
 
     /// Clear all fog from a specific table
     pub fn clear_fog_for_table(&mut self, table_id: &str) -> usize {
         let before_count = self.fog_rectangles.len();
-        self.fog_rectangles.retain(|_, fog| fog.table_id != table_id);
+        self.fog_rectangles
+            .retain(|_, fog| fog.table_id != table_id);
         before_count - self.fog_rectangles.len()
     }
 }

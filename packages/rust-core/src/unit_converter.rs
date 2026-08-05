@@ -95,9 +95,15 @@ impl UnitConverter {
         }
     }
 
-    pub fn grid_cell_px(&self) -> f32 { self.grid_cell_px }
-    pub fn cell_distance(&self) -> f32 { self.cell_distance }
-    pub fn unit(&self) -> DistanceUnit { self.unit }
+    pub fn grid_cell_px(&self) -> f32 {
+        self.grid_cell_px
+    }
+    pub fn cell_distance(&self) -> f32 {
+        self.cell_distance
+    }
+    pub fn unit(&self) -> DistanceUnit {
+        self.unit
+    }
 }
 
 impl Default for UnitConverter {
@@ -122,7 +128,11 @@ mod tests {
     fn dnd_default_pixels_per_unit() {
         // 50px / 5ft = 10 px/ft
         let c = UnitConverter::dnd_default();
-        assert!(approx(c.pixels_per_unit(), 10.0), "got {}", c.pixels_per_unit());
+        assert!(
+            approx(c.pixels_per_unit(), 10.0),
+            "got {}",
+            c.pixels_per_unit()
+        );
     }
 
     #[test]
@@ -139,7 +149,13 @@ mod tests {
         let original = 30.0_f32;
         let pix = c.to_pixels(original);
         let back = c.to_units(pix);
-        assert!(approx(back, original), "roundtrip failed: {} → {} → {}", original, pix, back);
+        assert!(
+            approx(back, original),
+            "roundtrip failed: {} → {} → {}",
+            original,
+            pix,
+            back
+        );
     }
 
     #[test]
@@ -211,14 +227,23 @@ mod tests {
     fn distance_unit_from_str_feet_variants() {
         assert!(matches!(DistanceUnit::from_str("ft"), DistanceUnit::Feet));
         assert!(matches!(DistanceUnit::from_str("feet"), DistanceUnit::Feet));
-        assert!(matches!(DistanceUnit::from_str("anything"), DistanceUnit::Feet));
+        assert!(matches!(
+            DistanceUnit::from_str("anything"),
+            DistanceUnit::Feet
+        ));
     }
 
     #[test]
     fn distance_unit_from_str_meters_variants() {
         assert!(matches!(DistanceUnit::from_str("m"), DistanceUnit::Meters));
-        assert!(matches!(DistanceUnit::from_str("meters"), DistanceUnit::Meters));
-        assert!(matches!(DistanceUnit::from_str("metres"), DistanceUnit::Meters));
+        assert!(matches!(
+            DistanceUnit::from_str("meters"),
+            DistanceUnit::Meters
+        ));
+        assert!(matches!(
+            DistanceUnit::from_str("metres"),
+            DistanceUnit::Meters
+        ));
     }
 
     // ── Clamping safety ──────────────────────────────────────────────────────
@@ -229,4 +254,3 @@ mod tests {
         assert!(c.grid_cell_px() >= 1.0);
     }
 }
-

@@ -1,19 +1,33 @@
-use criterion::{black_box, criterion_group, criterion_main, Criterion, BenchmarkId};
-use ttrpg_rust_core::types::{Sprite, Layer};
-use ttrpg_rust_core::math::Vec2;
+use criterion::{black_box, criterion_group, criterion_main, BenchmarkId, Criterion};
 use std::collections::HashMap;
+use ttrpg_rust_core::math::Vec2;
+use ttrpg_rust_core::types::{Layer, Sprite};
 
 // ── Helpers ──
 
 fn make_sprite(id: usize, x: f64, y: f64, table_id: &str) -> Sprite {
     Sprite::new(
-        format!("sprite_{id}"), x, y, 64.0, 64.0, "tokens".to_string(), table_id.to_string(),
+        format!("sprite_{id}"),
+        x,
+        y,
+        64.0,
+        64.0,
+        "tokens".to_string(),
+        table_id.to_string(),
     )
 }
 
 fn make_layers(n_sprites: usize) -> HashMap<String, Layer> {
     let mut layers = HashMap::new();
-    let layer_names = ["map", "tokens", "obstacles", "effects", "dm", "light", "fog"];
+    let layer_names = [
+        "map",
+        "tokens",
+        "obstacles",
+        "effects",
+        "dm",
+        "light",
+        "fog",
+    ];
     for (i, name) in layer_names.iter().enumerate() {
         let mut layer = Layer::new(i as i32);
         if *name == "tokens" {
@@ -50,7 +64,12 @@ fn grid_vertex_gen(grid_size: f32, viewport_w: f32, viewport_h: f32) -> Vec<f32>
     vertices
 }
 
-fn grid_vertex_gen_preallocated(grid_size: f32, viewport_w: f32, viewport_h: f32, buf: &mut Vec<f32>) {
+fn grid_vertex_gen_preallocated(
+    grid_size: f32,
+    viewport_w: f32,
+    viewport_h: f32,
+    buf: &mut Vec<f32>,
+) {
     buf.clear();
     let cols = ((viewport_w / grid_size).ceil() as usize + 1) * 4;
     let rows = ((viewport_h / grid_size).ceil() as usize + 1) * 4;
@@ -71,13 +90,26 @@ fn grid_vertex_gen_preallocated(grid_size: f32, viewport_w: f32, viewport_h: f32
 fn bench_grid_vertex_gen(c: &mut Criterion) {
     let mut group = c.benchmark_group("grid_vertex_gen");
     for (label, w, h) in [("1080p", 1920.0, 1080.0), ("4K", 3840.0, 2160.0)] {
-        group.bench_with_input(BenchmarkId::new("alloc_each_frame", label), &(w, h), |b, &(w, h)| {
-            b.iter(|| grid_vertex_gen(black_box(50.0), black_box(w), black_box(h)))
-        });
-        group.bench_with_input(BenchmarkId::new("preallocated", label), &(w, h), |b, &(w, h)| {
-            let mut buf = Vec::with_capacity(4000);
-            b.iter(|| grid_vertex_gen_preallocated(black_box(50.0), black_box(w), black_box(h), &mut buf))
-        });
+        group.bench_with_input(
+            BenchmarkId::new("alloc_each_frame", label),
+            &(w, h),
+            |b, &(w, h)| b.iter(|| grid_vertex_gen(black_box(50.0), black_box(w), black_box(h))),
+        );
+        group.bench_with_input(
+            BenchmarkId::new("preallocated", label),
+            &(w, h),
+            |b, &(w, h)| {
+                let mut buf = Vec::with_capacity(4000);
+                b.iter(|| {
+                    grid_vertex_gen_preallocated(
+                        black_box(50.0),
+                        black_box(w),
+                        black_box(h),
+                        &mut buf,
+                    )
+                })
+            },
+        );
     }
     group.finish();
 }
@@ -93,9 +125,13 @@ fn find_sprite_at(
     sorted.sort_by_key(|(_, l)| std::cmp::Reverse(l.z_order()));
 
     for (_name, layer) in &sorted {
-        if !layer.selectable || !layer.settings.visible { continue; }
+        if !layer.selectable || !layer.settings.visible {
+            continue;
+        }
         for sprite in layer.sprites.iter().rev() {
-            if sprite.table_id != active_table_id { continue; }
+            if sprite.table_id != active_table_id {
+                continue;
+            }
             if sprite.contains_world_point(world_pos) {
                 return Some(sprite.id.clone());
             }
@@ -119,12 +155,18 @@ fn bench_sprite_lookup(c: &mut Criterion) {
 // ── BOTTLENECK 3: String table_id comparison in render loop ──
 
 fn filter_sprites_string(sprites: &[Sprite], active_table_id: &str) -> usize {
-    sprites.iter().filter(|s| s.table_id == active_table_id).count()
+    sprites
+        .iter()
+        .filter(|s| s.table_id == active_table_id)
+        .count()
 }
 
 fn filter_sprites_prefix(sprites: &[Sprite], prefix: u8) -> usize {
     // Simulate integer ID comparison (first byte check as proxy)
-    sprites.iter().filter(|s| s.table_id.as_bytes().first() == Some(&prefix)).count()
+    sprites
+        .iter()
+        .filter(|s| s.table_id.as_bytes().first() == Some(&prefix))
+        .count()
 }
 
 fn bench_table_id_filter(c: &mut Criterion) {
@@ -136,9 +178,11 @@ fn bench_table_id_filter(c: &mut Criterion) {
         group.bench_with_input(BenchmarkId::new("string_eq", n), &sprites, |b, sprites| {
             b.iter(|| filter_sprites_string(sprites, black_box("table_1")))
         });
-        group.bench_with_input(BenchmarkId::new("byte_prefix", n), &sprites, |b, sprites| {
-            b.iter(|| filter_sprites_prefix(sprites, black_box(b't')))
-        });
+        group.bench_with_input(
+            BenchmarkId::new("byte_prefix", n),
+            &sprites,
+            |b, sprites| b.iter(|| filter_sprites_prefix(sprites, black_box(b't'))),
+        );
     }
     group.finish();
 }

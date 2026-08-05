@@ -1,8 +1,8 @@
-use std::collections::{HashMap, BinaryHeap, HashSet};
-use std::cmp::Ordering;
-use wasm_bindgen::prelude::*;
-use serde::{Serialize, Deserialize};
 use crate::math::Vec2;
+use serde::{Deserialize, Serialize};
+use std::cmp::Ordering;
+use std::collections::{BinaryHeap, HashMap, HashSet};
+use wasm_bindgen::prelude::*;
 
 // ── Spatial hash index ────────────────────────────────────────────────
 
@@ -16,11 +16,18 @@ struct SpatialHash {
 
 impl SpatialHash {
     fn new(cell_size: f32) -> Self {
-        Self { cell_size, walls: HashMap::new(), obstacles: HashMap::new() }
+        Self {
+            cell_size,
+            walls: HashMap::new(),
+            obstacles: HashMap::new(),
+        }
     }
 
     fn bucket(&self, x: f32, y: f32) -> (i32, i32) {
-        ((x / self.cell_size).floor() as i32, (y / self.cell_size).floor() as i32)
+        (
+            (x / self.cell_size).floor() as i32,
+            (y / self.cell_size).floor() as i32,
+        )
     }
 
     /// Rasterize wall segment into all overlapping grid cells (DDA walk).
@@ -31,7 +38,12 @@ impl SpatialHash {
     }
 
     fn insert_obstacle(&mut self, idx: usize, obs: &CollisionObstacle) {
-        let (x, y, w, h) = (obs.x, obs.y, obs.width.max(obs.radius * 2.0), obs.height.max(obs.radius * 2.0));
+        let (x, y, w, h) = (
+            obs.x,
+            obs.y,
+            obs.width.max(obs.radius * 2.0),
+            obs.height.max(obs.radius * 2.0),
+        );
         let (min_cx, min_cy) = self.bucket(x - w * 0.5, y - h * 0.5);
         let (max_cx, max_cy) = self.bucket(x + w * 0.5, y + h * 0.5);
         for cx in min_cx..=max_cx {
@@ -47,7 +59,9 @@ impl SpatialHash {
         for cell in cells_along_segment(x1, y1, x2, y2, self.cell_size) {
             if let Some(ids) = self.walls.get(&cell) {
                 for &id in ids {
-                    if seen.insert(id) { result.push(id); }
+                    if seen.insert(id) {
+                        result.push(id);
+                    }
                 }
             }
         }
@@ -60,7 +74,9 @@ impl SpatialHash {
         for cell in cells_along_segment(x1, y1, x2, y2, self.cell_size) {
             if let Some(ids) = self.obstacles.get(&cell) {
                 for &id in ids {
-                    if seen.insert(id) { result.push(id); }
+                    if seen.insert(id) {
+                        result.push(id);
+                    }
                 }
             }
         }
@@ -80,19 +96,45 @@ fn cells_along_segment(x1: f32, y1: f32, x2: f32, y2: f32, cell_size: f32) -> Ve
     let step_y: i32 = if dy >= 0.0 { 1 } else { -1 };
 
     // t-deltas: how far along the ray to cross a cell boundary
-    let t_delta_x = if dx.abs() < 1e-6 { f32::MAX } else { cell_size / dx.abs() };
-    let t_delta_y = if dy.abs() < 1e-6 { f32::MAX } else { cell_size / dy.abs() };
+    let t_delta_x = if dx.abs() < 1e-6 {
+        f32::MAX
+    } else {
+        cell_size / dx.abs()
+    };
+    let t_delta_y = if dy.abs() < 1e-6 {
+        f32::MAX
+    } else {
+        cell_size / dy.abs()
+    };
 
     // Initial t to first crossing
-    let next_bx = if step_x > 0 { (cx + 1) as f32 * cell_size } else { cx as f32 * cell_size };
-    let next_by = if step_y > 0 { (cy + 1) as f32 * cell_size } else { cy as f32 * cell_size };
-    let mut t_max_x = if dx.abs() < 1e-6 { f32::MAX } else { (next_bx - x1) / dx };
-    let mut t_max_y = if dy.abs() < 1e-6 { f32::MAX } else { (next_by - y1) / dy };
+    let next_bx = if step_x > 0 {
+        (cx + 1) as f32 * cell_size
+    } else {
+        cx as f32 * cell_size
+    };
+    let next_by = if step_y > 0 {
+        (cy + 1) as f32 * cell_size
+    } else {
+        cy as f32 * cell_size
+    };
+    let mut t_max_x = if dx.abs() < 1e-6 {
+        f32::MAX
+    } else {
+        (next_bx - x1) / dx
+    };
+    let mut t_max_y = if dy.abs() < 1e-6 {
+        f32::MAX
+    } else {
+        (next_by - y1) / dy
+    };
 
     let mut cells = vec![(cx, cy)];
     let max_steps = (end_cx - cx).unsigned_abs() + (end_cy - cy).unsigned_abs() + 2;
     for _ in 0..max_steps {
-        if cx == end_cx && cy == end_cy { break; }
+        if cx == end_cx && cy == end_cy {
+            break;
+        }
         if t_max_x < t_max_y {
             cx += step_x;
             t_max_x += t_delta_x;
@@ -238,23 +280,31 @@ impl CollisionSystem {
         if let Some(hash) = &self.spatial_hash {
             for &idx in &hash.query_walls(x1, y1, x2, y2) {
                 let s = &self.segments[idx];
-                if s.is_door && s.door_open { continue; }
+                if s.is_door && s.door_open {
+                    continue;
+                }
                 if seg_intersect(a, b, Vec2::new(s.x1, s.y1), Vec2::new(s.x2, s.y2)).is_some() {
                     return true;
                 }
             }
             for &idx in &hash.query_obstacles(x1, y1, x2, y2) {
-                if self.line_hits_obstacle(a, b, &self.obstacles[idx]) { return true; }
+                if self.line_hits_obstacle(a, b, &self.obstacles[idx]) {
+                    return true;
+                }
             }
         } else {
             for s in &self.segments {
-                if s.is_door && s.door_open { continue; }
+                if s.is_door && s.door_open {
+                    continue;
+                }
                 if seg_intersect(a, b, Vec2::new(s.x1, s.y1), Vec2::new(s.x2, s.y2)).is_some() {
                     return true;
                 }
             }
             for obs in &self.obstacles {
-                if self.line_hits_obstacle(a, b, obs) { return true; }
+                if self.line_hits_obstacle(a, b, obs) {
+                    return true;
+                }
             }
         }
         false
@@ -268,8 +318,10 @@ impl CollisionSystem {
         }
         let g = self.grid_size;
         let start = Cell((sx / g).floor() as i32, (sy / g).floor() as i32);
-        let goal  = Cell((ex / g).floor() as i32, (ey / g).floor() as i32);
-        if start == goal { return vec![sx, sy, ex, ey]; }
+        let goal = Cell((ex / g).floor() as i32, (ey / g).floor() as i32);
+        if start == goal {
+            return vec![sx, sy, ex, ey];
+        }
 
         let h = |c: Cell| -> i32 {
             let dx = (c.0 - goal.0).abs();
@@ -282,49 +334,81 @@ impl CollisionSystem {
         let mut came_from: HashMap<Cell, Cell> = HashMap::new();
 
         g_score.insert(start, 0);
-        open.push(AStarNode { f: h(start), cell: start, g: 0 });
+        open.push(AStarNode {
+            f: h(start),
+            cell: start,
+            g: 0,
+        });
 
         while let Some(AStarNode { cell, g: gv, .. }) = open.pop() {
             if cell == goal {
                 return Self::reconstruct_path(came_from, goal, self.grid_size);
             }
-            if gv > *g_score.get(&cell).unwrap_or(&i32::MAX) { continue; }
+            if gv > *g_score.get(&cell).unwrap_or(&i32::MAX) {
+                continue;
+            }
 
             for (nb, cost) in Self::neighbors(cell) {
                 let ng = gv + cost;
-                if ng >= *g_score.get(&nb).unwrap_or(&i32::MAX) { continue; }
+                if ng >= *g_score.get(&nb).unwrap_or(&i32::MAX) {
+                    continue;
+                }
                 let wp = nb.to_world(self.grid_size);
                 let cp = cell.to_world(self.grid_size);
-                if self.line_blocked(cp.x, cp.y, wp.x, wp.y) { continue; }
+                if self.line_blocked(cp.x, cp.y, wp.x, wp.y) {
+                    continue;
+                }
                 g_score.insert(nb, ng);
                 came_from.insert(nb, cell);
-                open.push(AStarNode { f: ng + h(nb), cell: nb, g: ng });
+                open.push(AStarNode {
+                    f: ng + h(nb),
+                    cell: nb,
+                    g: ng,
+                });
             }
         }
         Vec::new()
     }
 
     /// BFS reachable cells for movement range overlay
-    pub fn movement_range(&self, sx: f32, sy: f32, speed_ft: f32, ft_per_unit: f32, diagonal_5_10_5: bool) -> JsValue {
+    pub fn movement_range(
+        &self,
+        sx: f32,
+        sy: f32,
+        speed_ft: f32,
+        ft_per_unit: f32,
+        diagonal_5_10_5: bool,
+    ) -> JsValue {
         let cell_ft = self.grid_size * ft_per_unit;
         let normal_budget = (speed_ft / cell_ft * 10.0) as i32;
-        let dash_budget   = normal_budget * 2;
+        let dash_budget = normal_budget * 2;
 
-        let start = Cell((sx / self.grid_size).floor() as i32, (sy / self.grid_size).floor() as i32);
+        let start = Cell(
+            (sx / self.grid_size).floor() as i32,
+            (sy / self.grid_size).floor() as i32,
+        );
         let mut cost_map: HashMap<Cell, i32> = HashMap::new();
         let mut queue = std::collections::VecDeque::new();
         cost_map.insert(start, 0);
         queue.push_back((start, 0));
 
         while let Some((cell, cost)) = queue.pop_front() {
-            if cost >= dash_budget { continue; }
+            if cost >= dash_budget {
+                continue;
+            }
             for (nb, step_cost) in Self::neighbors_with_diagonal_rule(cell, diagonal_5_10_5) {
                 let nc = cost + step_cost;
-                if nc > dash_budget { continue; }
-                if nc >= *cost_map.get(&nb).unwrap_or(&i32::MAX) { continue; }
+                if nc > dash_budget {
+                    continue;
+                }
+                if nc >= *cost_map.get(&nb).unwrap_or(&i32::MAX) {
+                    continue;
+                }
                 let wp = nb.to_world(self.grid_size);
                 let cp = cell.to_world(self.grid_size);
-                if self.line_blocked(cp.x, cp.y, wp.x, wp.y) { continue; }
+                if self.line_blocked(cp.x, cp.y, wp.x, wp.y) {
+                    continue;
+                }
                 cost_map.insert(nb, nc);
                 queue.push_back((nb, nc));
             }
@@ -335,7 +419,9 @@ impl CollisionSystem {
         let mut blocked_set: HashSet<Cell> = HashSet::new();
 
         for (&cell, &cost) in &cost_map {
-            if cell == start { continue; }
+            if cell == start {
+                continue;
+            }
             let p = cell.to_world(self.grid_size);
             if cost <= normal_budget {
                 normal.push([p.x, p.y]);
@@ -344,17 +430,22 @@ impl CollisionSystem {
             }
             // check neighbors for blocked-adjacent
             for (nb, _) in Self::neighbors(cell) {
-                if !cost_map.contains_key(&nb) { blocked_set.insert(nb); }
+                if !cost_map.contains_key(&nb) {
+                    blocked_set.insert(nb);
+                }
             }
         }
 
         let result = MovementRange {
             normal,
             dash: dash_cells,
-            blocked: blocked_set.iter().map(|c| {
-                let p = c.to_world(self.grid_size);
-                [p.x, p.y]
-            }).collect(),
+            blocked: blocked_set
+                .iter()
+                .map(|c| {
+                    let p = c.to_world(self.grid_size);
+                    [p.x, p.y]
+                })
+                .collect(),
         };
 
         serde_wasm_bindgen::to_value(&result).unwrap_or(JsValue::NULL)
@@ -380,9 +471,7 @@ impl CollisionSystem {
         match obs.obstacle_type.as_str() {
             "circle" => line_vs_circle(a, b, Vec2::new(obs.x, obs.y), obs.radius),
             "polygon" if !obs.vertices.is_empty() => {
-                let verts: Vec<Vec2> = obs.vertices.iter()
-                    .map(|v| Vec2::new(v[0], v[1]))
-                    .collect();
+                let verts: Vec<Vec2> = obs.vertices.iter().map(|v| Vec2::new(v[0], v[1])).collect();
                 line_vs_polygon(a, b, &verts)
             }
             _ => {
@@ -403,14 +492,14 @@ impl CollisionSystem {
     fn neighbors(cell: Cell) -> [(Cell, i32); 8] {
         let Cell(cx, cy) = cell;
         [
-            (Cell(cx+1, cy),   10),
-            (Cell(cx-1, cy),   10),
-            (Cell(cx,   cy+1), 10),
-            (Cell(cx,   cy-1), 10),
-            (Cell(cx+1, cy+1), 14),
-            (Cell(cx+1, cy-1), 14),
-            (Cell(cx-1, cy+1), 14),
-            (Cell(cx-1, cy-1), 14),
+            (Cell(cx + 1, cy), 10),
+            (Cell(cx - 1, cy), 10),
+            (Cell(cx, cy + 1), 10),
+            (Cell(cx, cy - 1), 10),
+            (Cell(cx + 1, cy + 1), 14),
+            (Cell(cx + 1, cy - 1), 14),
+            (Cell(cx - 1, cy + 1), 14),
+            (Cell(cx - 1, cy - 1), 14),
         ]
     }
 
@@ -418,14 +507,14 @@ impl CollisionSystem {
         let Cell(cx, cy) = cell;
         let diag_cost = if five_ten_five { 15 } else { 10 }; // 5-10-5 averages to 7.5 per step, use 10 for even diag
         vec![
-            (Cell(cx+1, cy),   10),
-            (Cell(cx-1, cy),   10),
-            (Cell(cx,   cy+1), 10),
-            (Cell(cx,   cy-1), 10),
-            (Cell(cx+1, cy+1), diag_cost),
-            (Cell(cx+1, cy-1), diag_cost),
-            (Cell(cx-1, cy+1), diag_cost),
-            (Cell(cx-1, cy-1), diag_cost),
+            (Cell(cx + 1, cy), 10),
+            (Cell(cx - 1, cy), 10),
+            (Cell(cx, cy + 1), 10),
+            (Cell(cx, cy - 1), 10),
+            (Cell(cx + 1, cy + 1), diag_cost),
+            (Cell(cx + 1, cy - 1), diag_cost),
+            (Cell(cx - 1, cy + 1), diag_cost),
+            (Cell(cx - 1, cy - 1), diag_cost),
         ]
     }
 
@@ -453,7 +542,9 @@ pub(crate) fn seg_intersect(a1: Vec2, a2: Vec2, b1: Vec2, b2: Vec2) -> Option<Ve
     let r = a2 - a1;
     let s = b2 - b1;
     let rxs = r.x * s.y - r.y * s.x;
-    if rxs.abs() < 1e-6 { return None; }
+    if rxs.abs() < 1e-6 {
+        return None;
+    }
     let t = ((b1 - a1).x * s.y - (b1 - a1).y * s.x) / rxs;
     let u = ((b1 - a1).x * r.y - (b1 - a1).y * r.x) / rxs;
     if (0.0..=1.0).contains(&t) && (0.0..=1.0).contains(&u) {
@@ -470,7 +561,9 @@ fn line_vs_circle(a: Vec2, b: Vec2, center: Vec2, radius: f32) -> bool {
     let bv = 2.0 * (f.x * d.x + f.y * d.y);
     let c = f.x * f.x + f.y * f.y - radius * radius;
     let disc = bv * bv - 4.0 * aa * c;
-    if disc < 0.0 { return false; }
+    if disc < 0.0 {
+        return false;
+    }
     let sqrt_disc = disc.sqrt();
     let t1 = (-bv - sqrt_disc) / (2.0 * aa);
     let t2 = (-bv + sqrt_disc) / (2.0 * aa);
@@ -481,7 +574,9 @@ fn line_vs_polygon(a: Vec2, b: Vec2, verts: &[Vec2]) -> bool {
     let n = verts.len();
     for i in 0..n {
         let j = (i + 1) % n;
-        if seg_intersect(a, b, verts[i], verts[j]).is_some() { return true; }
+        if seg_intersect(a, b, verts[i], verts[j]).is_some() {
+            return true;
+        }
     }
     false
 }
@@ -635,8 +730,12 @@ mod tests {
     fn rebuild_index_from_scratch() {
         let mut sys = make_system();
         sys.segments.push(CollisionSegment {
-            x1: 0.0, y1: 0.0, x2: 100.0, y2: 0.0,
-            is_door: false, door_open: false,
+            x1: 0.0,
+            y1: 0.0,
+            x2: 100.0,
+            y2: 0.0,
+            is_door: false,
+            door_open: false,
         });
         sys.rebuild_index();
         assert!(sys.spatial_hash.is_some());

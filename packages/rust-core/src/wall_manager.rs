@@ -1,5 +1,5 @@
+use crate::types::{DoorState, Wall, WallDirection, WallType};
 use std::collections::HashMap;
-use crate::types::{Wall, WallType, WallDirection, DoorState};
 
 /// Manages wall segments for a single virtual table.
 ///
@@ -14,7 +14,9 @@ pub struct WallManager {
 #[cfg_attr(not(target_arch = "wasm32"), allow(dead_code))]
 impl WallManager {
     pub fn new() -> Self {
-        Self { walls: HashMap::new() }
+        Self {
+            walls: HashMap::new(),
+        }
     }
 
     // ------------------------------------------------------------------
@@ -32,37 +34,57 @@ impl WallManager {
     pub fn update_from_json(&mut self, wall_id: &str, json: &str) -> bool {
         if let Some(wall) = self.walls.get_mut(wall_id) {
             if let Ok(updates) = serde_json::from_str::<serde_json::Value>(json) {
-                if let Some(v) = updates.get("x1").and_then(|v| v.as_f64()) { wall.x1 = v as f32; }
-                if let Some(v) = updates.get("y1").and_then(|v| v.as_f64()) { wall.y1 = v as f32; }
-                if let Some(v) = updates.get("x2").and_then(|v| v.as_f64()) { wall.x2 = v as f32; }
-                if let Some(v) = updates.get("y2").and_then(|v| v.as_f64()) { wall.y2 = v as f32; }
-                if let Some(v) = updates.get("blocks_movement").and_then(|v| v.as_bool()) { wall.blocks_movement = v; }
-                if let Some(v) = updates.get("blocks_light").and_then(|v| v.as_bool())    { wall.blocks_light    = v; }
-                if let Some(v) = updates.get("blocks_sight").and_then(|v| v.as_bool())    { wall.blocks_sight    = v; }
-                if let Some(v) = updates.get("blocks_sound").and_then(|v| v.as_bool())    { wall.blocks_sound    = v; }
-                if let Some(v) = updates.get("is_door").and_then(|v| v.as_bool())         { wall.is_door    = v; }
-                if let Some(v) = updates.get("is_secret").and_then(|v| v.as_bool())       { wall.is_secret  = v; }
+                if let Some(v) = updates.get("x1").and_then(|v| v.as_f64()) {
+                    wall.x1 = v as f32;
+                }
+                if let Some(v) = updates.get("y1").and_then(|v| v.as_f64()) {
+                    wall.y1 = v as f32;
+                }
+                if let Some(v) = updates.get("x2").and_then(|v| v.as_f64()) {
+                    wall.x2 = v as f32;
+                }
+                if let Some(v) = updates.get("y2").and_then(|v| v.as_f64()) {
+                    wall.y2 = v as f32;
+                }
+                if let Some(v) = updates.get("blocks_movement").and_then(|v| v.as_bool()) {
+                    wall.blocks_movement = v;
+                }
+                if let Some(v) = updates.get("blocks_light").and_then(|v| v.as_bool()) {
+                    wall.blocks_light = v;
+                }
+                if let Some(v) = updates.get("blocks_sight").and_then(|v| v.as_bool()) {
+                    wall.blocks_sight = v;
+                }
+                if let Some(v) = updates.get("blocks_sound").and_then(|v| v.as_bool()) {
+                    wall.blocks_sound = v;
+                }
+                if let Some(v) = updates.get("is_door").and_then(|v| v.as_bool()) {
+                    wall.is_door = v;
+                }
+                if let Some(v) = updates.get("is_secret").and_then(|v| v.as_bool()) {
+                    wall.is_secret = v;
+                }
                 if let Some(s) = updates.get("door_state").and_then(|v| v.as_str()) {
                     wall.door_state = match s {
-                        "open"   => DoorState::Open,
+                        "open" => DoorState::Open,
                         "locked" => DoorState::Locked,
-                        _        => DoorState::Closed,
+                        _ => DoorState::Closed,
                     };
                 }
                 if let Some(s) = updates.get("wall_type").and_then(|v| v.as_str()) {
                     wall.wall_type = match s {
-                        "terrain"   => WallType::Terrain,
+                        "terrain" => WallType::Terrain,
                         "invisible" => WallType::Invisible,
-                        "ethereal"  => WallType::Ethereal,
-                        "window"    => WallType::Window,
-                        _           => WallType::Normal,
+                        "ethereal" => WallType::Ethereal,
+                        "window" => WallType::Window,
+                        _ => WallType::Normal,
                     };
                 }
                 if let Some(s) = updates.get("direction").and_then(|v| v.as_str()) {
                     wall.direction = match s {
-                        "left"  => WallDirection::Left,
+                        "left" => WallDirection::Left,
                         "right" => WallDirection::Right,
-                        _       => WallDirection::Both,
+                        _ => WallDirection::Both,
                     };
                 }
                 return true;
@@ -180,8 +202,13 @@ impl WallManager {
     /// `endpoint` 0 = p1, 1 = p2.
     pub fn move_endpoint(&mut self, wall_id: &str, endpoint: u8, x: f32, y: f32) -> bool {
         if let Some(wall) = self.walls.get_mut(wall_id) {
-            if endpoint == 0 { wall.x1 = x; wall.y1 = y; }
-            else              { wall.x2 = x; wall.y2 = y; }
+            if endpoint == 0 {
+                wall.x1 = x;
+                wall.y1 = y;
+            } else {
+                wall.x2 = x;
+                wall.y2 = y;
+            }
             true
         } else {
             false
@@ -222,17 +249,17 @@ impl WallManager {
 fn wall_color(wall: &Wall) -> (f32, f32, f32, f32) {
     if wall.is_door {
         return match wall.door_state {
-            DoorState::Open   => (0.2, 0.8, 0.2, 1.0), // green  = open
+            DoorState::Open => (0.2, 0.8, 0.2, 1.0),   // green  = open
             DoorState::Locked => (0.8, 0.2, 0.2, 1.0), // red    = locked
             DoorState::Closed => (0.8, 0.6, 0.0, 1.0), // orange = closed door
         };
     }
     match wall.wall_type {
-        WallType::Normal    => (0.2, 0.2, 0.8, 1.0), // blue
-        WallType::Terrain   => (0.5, 0.4, 0.2, 1.0), // brown
+        WallType::Normal => (0.2, 0.2, 0.8, 1.0),    // blue
+        WallType::Terrain => (0.5, 0.4, 0.2, 1.0),   // brown
         WallType::Invisible => (0.7, 0.7, 0.7, 0.6), // grey
-        WallType::Ethereal  => (0.6, 0.2, 0.8, 0.8), // purple
-        WallType::Window    => (0.2, 0.8, 0.8, 0.8), // cyan
+        WallType::Ethereal => (0.6, 0.2, 0.8, 0.8),  // purple
+        WallType::Window => (0.2, 0.8, 0.8, 0.8),    // cyan
     }
 }
 
@@ -246,8 +273,11 @@ impl WallManager {
     /// Parse a JSON wall object and add it to the manager.
     pub fn add_wall_from_json(&mut self, json: &str) -> bool {
         match serde_json::from_str::<Wall>(json) {
-            Ok(wall) => { self.add_wall(wall); true }
-            Err(_)   => false,
+            Ok(wall) => {
+                self.add_wall(wall);
+                true
+            }
+            Err(_) => false,
         }
     }
 }
@@ -260,7 +290,10 @@ mod tests {
         Wall {
             wall_id: id.to_string(),
             table_id: "t1".to_string(),
-            x1, y1, x2, y2,
+            x1,
+            y1,
+            x2,
+            y2,
             wall_type: WallType::Normal,
             blocks_movement: true,
             blocks_light: true,
@@ -277,7 +310,10 @@ mod tests {
         Wall {
             wall_id: id.to_string(),
             table_id: "t1".to_string(),
-            x1: 0.0, y1: 0.0, x2: 100.0, y2: 0.0,
+            x1: 0.0,
+            y1: 0.0,
+            x2: 100.0,
+            y2: 0.0,
             wall_type: WallType::Normal,
             blocks_movement: true,
             blocks_light: true,

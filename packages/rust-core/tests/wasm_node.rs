@@ -24,7 +24,9 @@ fn version_looks_like_semver() {
     let parts: Vec<&str> = v.split('.').collect();
     assert!(parts.len() >= 3, "expected MAJOR.MINOR.PATCH, got: {v}");
     assert!(
-        parts.iter().all(|p| p.chars().next().map_or(false, |c| c.is_ascii_digit())),
+        parts
+            .iter()
+            .all(|p| p.chars().next().map_or(false, |c| c.is_ascii_digit())),
         "each version part must start with a digit, got: {v}"
     );
 }
@@ -53,7 +55,10 @@ fn compute_visibility_with_single_wall() {
 #[wasm_bindgen_test]
 fn create_default_brush_presets_returns_non_empty() {
     let presets = core::create_default_brush_presets();
-    assert!(!presets.is_empty(), "should have at least one default brush preset");
+    assert!(
+        !presets.is_empty(),
+        "should have at least one default brush preset"
+    );
 }
 
 // ── Unit converter ────────────────────────────────────────────────────────
@@ -85,7 +90,10 @@ fn paint_system_stroke_lifecycle_records_completed_stroke() {
     assert!(paint.add_stroke_point(20.0, 20.0, 1.0));
     assert!(paint.end_stroke());
 
-    assert_eq!(js_sys::Array::from(&paint.get_all_strokes_json()).length(), 1);
+    assert_eq!(
+        js_sys::Array::from(&paint.get_all_strokes_json()).length(),
+        1
+    );
     assert!(paint.can_undo());
     assert!(!paint.can_redo());
 }
@@ -100,12 +108,18 @@ fn paint_system_undo_and_redo_stroke() {
     paint.end_stroke();
 
     assert!(paint.undo_last_stroke());
-    assert_eq!(js_sys::Array::from(&paint.get_all_strokes_json()).length(), 0);
+    assert_eq!(
+        js_sys::Array::from(&paint.get_all_strokes_json()).length(),
+        0
+    );
     assert!(!paint.can_undo());
     assert!(paint.can_redo());
 
     assert!(paint.redo_last_stroke());
-    assert_eq!(js_sys::Array::from(&paint.get_all_strokes_json()).length(), 1);
+    assert_eq!(
+        js_sys::Array::from(&paint.get_all_strokes_json()).length(),
+        1
+    );
     assert!(paint.can_undo());
     assert!(!paint.can_redo());
 }
@@ -117,7 +131,10 @@ fn actions_client_new_has_empty_history() {
     let client = core::ActionsClient::new();
     let history = client.get_action_history();
 
-    assert!(js_sys::Array::is_array(&history), "history should be an array");
+    assert!(
+        js_sys::Array::is_array(&history),
+        "history should be an array"
+    );
     assert_eq!(js_sys::Array::from(&history).length(), 0);
     assert!(!client.can_undo(), "new client should not be undoable");
     assert!(!client.can_redo(), "new client should not be redoable");
@@ -131,7 +148,9 @@ fn actions_client_create_table_records_undoable_action() {
     let history = client.get_action_history();
 
     assert_eq!(
-        js_sys::Reflect::get(&result, &"success".into()).unwrap().as_bool(),
+        js_sys::Reflect::get(&result, &"success".into())
+            .unwrap()
+            .as_bool(),
         Some(true)
     );
     assert_eq!(js_sys::Array::from(&tables).length(), 1);
@@ -147,16 +166,23 @@ fn actions_client_undo_and_redo_table_create() {
 
     let undo = client.undo();
     assert_eq!(
-        js_sys::Reflect::get(&undo, &"success".into()).unwrap().as_bool(),
+        js_sys::Reflect::get(&undo, &"success".into())
+            .unwrap()
+            .as_bool(),
         Some(true)
     );
     assert_eq!(js_sys::Array::from(&client.get_all_tables()).length(), 0);
     assert!(!client.can_undo(), "undo stack should be empty after undo");
-    assert!(client.can_redo(), "redo stack should contain the undone action");
+    assert!(
+        client.can_redo(),
+        "redo stack should contain the undone action"
+    );
 
     let redo = client.redo();
     assert_eq!(
-        js_sys::Reflect::get(&redo, &"success".into()).unwrap().as_bool(),
+        js_sys::Reflect::get(&redo, &"success".into())
+            .unwrap()
+            .as_bool(),
         Some(true)
     );
     assert_eq!(js_sys::Array::from(&client.get_all_tables()).length(), 1);
@@ -198,7 +224,10 @@ fn table_sync_ingests_normalized_table_data() {
 #[wasm_bindgen_test]
 fn unit_converter_dnd_default_pixels_per_unit_positive() {
     let uc = core::unit_converter::UnitConverter::dnd_default();
-    assert!(uc.pixels_per_unit() > 0.0, "pixels_per_unit must be positive");
+    assert!(
+        uc.pixels_per_unit() > 0.0,
+        "pixels_per_unit must be positive"
+    );
 }
 
 #[wasm_bindgen_test]
@@ -217,7 +246,10 @@ fn unit_converter_to_pixels_then_units_roundtrip() {
 fn unit_converter_format_distance_non_empty() {
     let uc = core::unit_converter::UnitConverter::dnd_default();
     let s = uc.format_distance(70.0);
-    assert!(!s.is_empty(), "format_distance must return a non-empty string");
+    assert!(
+        !s.is_empty(),
+        "format_distance must return a non-empty string"
+    );
 }
 
 #[wasm_bindgen_test]
@@ -247,9 +279,19 @@ fn table_manager_screen_to_table_roundtrip() {
     tm.set_table_screen_area("t1", 0.0, 0.0, 800.0, 600.0);
 
     let table_coords = tm.screen_to_table("t1", 400.0, 300.0).unwrap();
-    let back = tm.table_to_screen("t1", table_coords[0], table_coords[1]).unwrap();
-    assert!((back[0] - 400.0).abs() < 1.0, "x roundtrip: expected ~400, got {}", back[0]);
-    assert!((back[1] - 300.0).abs() < 1.0, "y roundtrip: expected ~300, got {}", back[1]);
+    let back = tm
+        .table_to_screen("t1", table_coords[0], table_coords[1])
+        .unwrap();
+    assert!(
+        (back[0] - 400.0).abs() < 1.0,
+        "x roundtrip: expected ~400, got {}",
+        back[0]
+    );
+    assert!(
+        (back[1] - 300.0).abs() < 1.0,
+        "y roundtrip: expected ~300, got {}",
+        back[1]
+    );
 }
 
 #[wasm_bindgen_test]
@@ -305,13 +347,19 @@ fn table_manager_get_all_tables_json() {
 fn collision_line_blocked_by_wall() {
     let mut cs = core::CollisionSystem::new(64.0);
     cs.set_walls(r#"[{"x1":100,"y1":0,"x2":100,"y2":200,"is_door":false,"door_open":false}]"#);
-    assert!(cs.line_blocked(50.0, 100.0, 150.0, 100.0), "line through wall should be blocked");
+    assert!(
+        cs.line_blocked(50.0, 100.0, 150.0, 100.0),
+        "line through wall should be blocked"
+    );
 }
 
 #[wasm_bindgen_test]
 fn collision_line_not_blocked_without_walls() {
     let cs = core::CollisionSystem::new(64.0);
-    assert!(!cs.line_blocked(0.0, 0.0, 200.0, 200.0), "no walls means no blocking");
+    assert!(
+        !cs.line_blocked(0.0, 0.0, 200.0, 200.0),
+        "no walls means no blocking"
+    );
 }
 
 #[wasm_bindgen_test]
@@ -333,7 +381,10 @@ fn collision_find_path_open_field() {
 fn collision_open_door_not_blocked() {
     let mut cs = core::CollisionSystem::new(64.0);
     cs.set_walls(r#"[{"x1":100,"y1":0,"x2":100,"y2":200,"is_door":true,"door_open":true}]"#);
-    assert!(!cs.line_blocked(50.0, 100.0, 150.0, 100.0), "open door should not block");
+    assert!(
+        !cs.line_blocked(50.0, 100.0, 150.0, 100.0),
+        "open door should not block"
+    );
 }
 
 // ── PlanningManager ──────────────────────────────────────────────────────
@@ -348,7 +399,10 @@ fn planning_measure_ft_straight_line() {
 #[wasm_bindgen_test]
 fn planning_has_los_open_field() {
     let pm = core::PlanningManager::new(64.0, 5.0 / 64.0);
-    assert!(pm.has_los(0.0, 0.0, 500.0, 500.0), "open field should have LOS");
+    assert!(
+        pm.has_los(0.0, 0.0, 500.0, 500.0),
+        "open field should have LOS"
+    );
 }
 
 #[wasm_bindgen_test]
@@ -358,7 +412,10 @@ fn planning_ghost_movement() {
     assert!(dist > 0.0, "ghost movement distance should be positive");
 
     let ghost = pm.get_ghost("sprite1");
-    assert!(!ghost.is_undefined() && !ghost.is_null(), "ghost should exist");
+    assert!(
+        !ghost.is_undefined() && !ghost.is_null(),
+        "ghost should exist"
+    );
 }
 
 #[wasm_bindgen_test]
@@ -368,7 +425,10 @@ fn planning_aoe_sphere_and_tokens() {
     pm.set_aoe_sphere(100.0, 100.0, 80.0);
 
     let aoe = pm.get_aoe();
-    assert!(!aoe.is_undefined() && !aoe.is_null(), "AoE should exist after set");
+    assert!(
+        !aoe.is_undefined() && !aoe.is_null(),
+        "AoE should exist after set"
+    );
 
     // Token at (100,100) inside, token at (500,500) outside
     let positions = Float32Array::from([100.0_f32, 100.0, 500.0, 500.0].as_slice());
@@ -384,8 +444,10 @@ fn planning_clear_all_resets_state() {
     pm.clear_all();
 
     let ghost = pm.get_ghost("s1");
-    assert!(ghost.is_undefined() || ghost.is_null(), "ghost should be cleared");
+    assert!(
+        ghost.is_undefined() || ghost.is_null(),
+        "ghost should be cleared"
+    );
     let aoe = pm.get_aoe();
     assert!(aoe.is_undefined() || aoe.is_null(), "AoE should be cleared");
 }
-

@@ -1,8 +1,8 @@
-use crate::math::Vec2;
-use crate::types::Layer;
 use crate::input::{InputHandler, InputMode, ToolMode};
-use crate::sprite_manager::SpriteManager;
 use crate::lighting::LightingSystem;
+use crate::math::Vec2;
+use crate::sprite_manager::SpriteManager;
+use crate::types::Layer;
 use crate::wall_manager::WallManager;
 use std::collections::HashMap;
 
@@ -23,7 +23,7 @@ impl EventSystem {
             input.update_fog_draw(world_pos);
             return MouseEventResult::Handled;
         }
-        
+
         match input.input_mode {
             InputMode::SpriteMove => {
                 let sprite_id = match input.selected_sprite_id.clone() {
@@ -32,7 +32,9 @@ impl EventSystem {
                 };
                 let new_pos = world_pos - input.drag_offset;
                 // Collect other selected IDs before mutably borrowing layers
-                let others: Vec<String> = input.selected_sprite_ids.iter()
+                let others: Vec<String> = input
+                    .selected_sprite_ids
+                    .iter()
                     .filter(|id| *id != &sprite_id)
                     .cloned()
                     .collect();
@@ -43,12 +45,20 @@ impl EventSystem {
                     let d = new_pos - old_pos;
                     if sprite.obstacle_type.as_deref() == Some("polygon") {
                         if let Some(verts) = &mut sprite.polygon_vertices {
-                            for v in verts.iter_mut() { v[0] += d.x; v[1] += d.y; }
+                            for v in verts.iter_mut() {
+                                v[0] += d.x;
+                                v[1] += d.y;
+                            }
                         }
                     }
                     sprite.world_x = new_pos.x as f64;
                     sprite.world_y = new_pos.y as f64;
-                    Self::dispatch_drag_preview(runtime_event_handler, &sprite_id, sprite.world_x, sprite.world_y);
+                    Self::dispatch_drag_preview(
+                        runtime_event_handler,
+                        &sprite_id,
+                        sprite.world_x,
+                        sprite.world_y,
+                    );
                     d
                 } else {
                     Vec2::new(0.0, 0.0)
@@ -59,7 +69,12 @@ impl EventSystem {
                     if let Some((sprite, _)) = Self::find_sprite_mut(other_id, layers) {
                         sprite.world_x += delta.x as f64;
                         sprite.world_y += delta.y as f64;
-                        Self::dispatch_drag_preview(runtime_event_handler, other_id, sprite.world_x, sprite.world_y);
+                        Self::dispatch_drag_preview(
+                            runtime_event_handler,
+                            other_id,
+                            sprite.world_x,
+                            sprite.world_y,
+                        );
                     }
                 }
                 MouseEventResult::Handled
@@ -68,7 +83,12 @@ impl EventSystem {
                 if let Some(sprite_id) = &input.selected_sprite_id {
                     if let Some((sprite, _)) = Self::find_sprite_mut(sprite_id, layers) {
                         SpriteManager::resize_sprite_with_handle(sprite, handle, world_pos);
-                        Self::dispatch_resize_preview(runtime_event_handler, sprite_id, sprite.width * sprite.scale_x, sprite.height * sprite.scale_y);
+                        Self::dispatch_resize_preview(
+                            runtime_event_handler,
+                            sprite_id,
+                            sprite.width * sprite.scale_x,
+                            sprite.height * sprite.scale_y,
+                        );
                     }
                 }
                 MouseEventResult::Handled
@@ -76,8 +96,17 @@ impl EventSystem {
             InputMode::SpriteRotate => {
                 if let Some(sprite_id) = &input.selected_sprite_id {
                     if let Some((sprite, _)) = Self::find_sprite_mut(sprite_id, layers) {
-                        SpriteManager::update_rotation(sprite, world_pos, input.rotation_start_angle, input.sprite_initial_rotation);
-                        Self::dispatch_rotate_preview(runtime_event_handler, sprite_id, sprite.rotation.to_degrees());
+                        SpriteManager::update_rotation(
+                            sprite,
+                            world_pos,
+                            input.rotation_start_angle,
+                            input.sprite_initial_rotation,
+                        );
+                        Self::dispatch_rotate_preview(
+                            runtime_event_handler,
+                            sprite_id,
+                            sprite.rotation.to_degrees(),
+                        );
                     }
                 }
                 MouseEventResult::Handled
@@ -105,7 +134,12 @@ impl EventSystem {
             }
             InputMode::WallEndpointDrag => {
                 if let Some(ref wall_id) = input.dragged_wall_id {
-                    wall_manager.move_endpoint(wall_id, input.dragged_endpoint, world_pos.x, world_pos.y);
+                    wall_manager.move_endpoint(
+                        wall_id,
+                        input.dragged_endpoint,
+                        world_pos.x,
+                        world_pos.y,
+                    );
                 }
                 input.wall_drag_last = world_pos;
                 MouseEventResult::Handled
@@ -118,8 +152,10 @@ impl EventSystem {
                 input.update_measurement(world_pos);
                 MouseEventResult::Handled
             }
-            InputMode::CreateRectangle | InputMode::CreateCircle | 
-            InputMode::CreateLine | InputMode::CreateText => {
+            InputMode::CreateRectangle
+            | InputMode::CreateCircle
+            | InputMode::CreateLine
+            | InputMode::CreateText => {
                 input.update_shape_creation(world_pos);
                 MouseEventResult::Handled
             }
@@ -142,8 +178,12 @@ impl EventSystem {
                 {
                     // Check all visible layers for a hovered sprite
                     let hovered = layers.values().any(|layer| {
-                        layer.visible() && layer.selectable
-                            && layer.sprites.iter().any(|s| s.contains_world_point(world_pos))
+                        layer.visible()
+                            && layer.selectable
+                            && layer
+                                .sprites
+                                .iter()
+                                .any(|s| s.contains_world_point(world_pos))
                     });
                     let cursor = if hovered { "pointer" } else { "default" };
                     Self::dispatch_cursor_hint(runtime_event_handler, cursor);

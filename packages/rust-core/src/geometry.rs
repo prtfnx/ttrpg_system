@@ -1,14 +1,17 @@
-#[cfg(target_arch = "wasm32")]
-use wasm_bindgen::prelude::*;
+use crate::math::Vec2;
 #[cfg(target_arch = "wasm32")]
 use js_sys::Array;
 #[cfg(target_arch = "wasm32")]
 use serde::Serialize;
-use crate::math::Vec2;
+#[cfg(target_arch = "wasm32")]
+use wasm_bindgen::prelude::*;
 
 #[cfg(target_arch = "wasm32")]
 #[derive(Serialize)]
-struct Point { x: f32, y: f32 }
+struct Point {
+    x: f32,
+    y: f32,
+}
 
 // Simple segment intersection helper (used by compute_visibility_raw)
 #[cfg_attr(not(target_arch = "wasm32"), allow(dead_code))]
@@ -16,7 +19,9 @@ fn seg_intersect(a1: Vec2, a2: Vec2, b1: Vec2, b2: Vec2) -> Option<Vec2> {
     let r = a2 - a1;
     let s = b2 - b1;
     let rxs = r.x * s.y - r.y * s.x;
-    if rxs.abs() < 1e-6 { return None; }
+    if rxs.abs() < 1e-6 {
+        return None;
+    }
     let t = ((b1 - a1).x * s.y - (b1 - a1).y * s.x) / rxs;
     let u = ((b1 - a1).x * r.y - (b1 - a1).y * r.x) / rxs;
     if (0.0..=1.0).contains(&t) && (0.0..=1.0).contains(&u) {
@@ -28,7 +33,12 @@ fn seg_intersect(a1: Vec2, a2: Vec2, b1: Vec2, b2: Vec2) -> Option<Vec2> {
 // Obstacles expected as flat array: [x1,y1,x2,y2, x1,y1,x2,y2, ...]
 // Only used from WASM modules (returns JsValue → Array of {x,y} points).
 #[cfg(target_arch = "wasm32")]
-pub(crate) fn compute_visibility_impl(player_x: f32, player_y: f32, data: &[f32], max_dist: f32) -> JsValue {
+pub(crate) fn compute_visibility_impl(
+    player_x: f32,
+    player_y: f32,
+    data: &[f32],
+    max_dist: f32,
+) -> JsValue {
     let points = compute_visibility_raw(player_x, player_y, data, max_dist);
 
     let arr = Array::new();
@@ -43,11 +53,19 @@ pub(crate) fn compute_visibility_impl(player_x: f32, player_y: f32, data: &[f32]
 /// Pure visibility polygon computation. Returns sorted (angle, point) pairs.
 /// Testable on all targets — no JS dependencies.
 #[cfg_attr(not(target_arch = "wasm32"), allow(dead_code))]
-pub(crate) fn compute_visibility_raw(player_x: f32, player_y: f32, data: &[f32], max_dist: f32) -> Vec<(f32, Vec2)> {
+pub(crate) fn compute_visibility_raw(
+    player_x: f32,
+    player_y: f32,
+    data: &[f32],
+    max_dist: f32,
+) -> Vec<(f32, Vec2)> {
     let mut endpoints: Vec<Vec2> = Vec::new();
     let mut i = 0usize;
     while i + 3 < data.len() {
-        let x1 = data[i]; let y1 = data[i+1]; let x2 = data[i+2]; let y2 = data[i+3];
+        let x1 = data[i];
+        let y1 = data[i + 1];
+        let x2 = data[i + 2];
+        let y2 = data[i + 3];
         endpoints.push(Vec2::new(x1, y1));
         endpoints.push(Vec2::new(x2, y2));
         i += 4;
@@ -59,7 +77,9 @@ pub(crate) fn compute_visibility_raw(player_x: f32, player_y: f32, data: &[f32],
         let dx = p.x - player_x;
         let dy = p.y - player_y;
         let mut ang = dy.atan2(dx);
-        if ang < 0.0 { ang += std::f32::consts::PI * 2.0; }
+        if ang < 0.0 {
+            ang += std::f32::consts::PI * 2.0;
+        }
         angles.push(ang - 0.0001);
         angles.push(ang);
         angles.push(ang + 0.0001);
@@ -75,14 +95,17 @@ pub(crate) fn compute_visibility_raw(player_x: f32, player_y: f32, data: &[f32],
     let mut segments: Vec<(Vec2, Vec2)> = Vec::new();
     let mut i = 0usize;
     while i + 3 < data.len() {
-        segments.push((Vec2::new(data[i], data[i+1]), Vec2::new(data[i+2], data[i+3])));
+        segments.push((
+            Vec2::new(data[i], data[i + 1]),
+            Vec2::new(data[i + 2], data[i + 3]),
+        ));
         i += 4;
     }
 
     // Build a simple uniform grid spatial index mapping cell -> segment indices
     use std::collections::HashMap;
     let cell_size: f32 = 128.0;
-    let mut grid: HashMap<(i32,i32), Vec<usize>> = HashMap::new();
+    let mut grid: HashMap<(i32, i32), Vec<usize>> = HashMap::new();
     for (idx, (s1, s2)) in segments.iter().enumerate() {
         let min_x = s1.x.min(s2.x);
         let max_x = s1.x.max(s2.x);
@@ -94,7 +117,7 @@ pub(crate) fn compute_visibility_raw(player_x: f32, player_y: f32, data: &[f32],
         let cy1 = (max_y / cell_size).floor() as i32;
         for cx in cx0..=cx1 {
             for cy in cy0..=cy1 {
-                grid.entry((cx,cy)).or_default().push(idx);
+                grid.entry((cx, cy)).or_default().push(idx);
             }
         }
     }
@@ -121,8 +144,10 @@ pub(crate) fn compute_visibility_raw(player_x: f32, player_y: f32, data: &[f32],
         let mut candidates: HashSet<usize> = HashSet::new();
         for cx in cx0..=cx1 {
             for cy in cy0..=cy1 {
-                if let Some(vec) = grid.get(&(cx,cy)) {
-                    for &idx in vec.iter() { candidates.insert(idx); }
+                if let Some(vec) = grid.get(&(cx, cy)) {
+                    for &idx in vec.iter() {
+                        candidates.insert(idx);
+                    }
                 }
             }
         }
@@ -130,7 +155,9 @@ pub(crate) fn compute_visibility_raw(player_x: f32, player_y: f32, data: &[f32],
         if candidates.is_empty() {
             let final_pt = ray_end;
             let mut ang_norm = ang;
-            if ang_norm < 0.0 { ang_norm += std::f32::consts::PI * 2.0; }
+            if ang_norm < 0.0 {
+                ang_norm += std::f32::consts::PI * 2.0;
+            }
             points.push((ang_norm, final_pt));
             continue;
         }
@@ -138,8 +165,9 @@ pub(crate) fn compute_visibility_raw(player_x: f32, player_y: f32, data: &[f32],
         for &idx in candidates.iter() {
             let (s1, s2) = segments[idx];
             if let Some(pt) = seg_intersect(player, ray_end, s1, s2) {
-                let dx = pt.x - player.x; let dy = pt.y - player.y;
-                let d = (dx*dx + dy*dy).sqrt();
+                let dx = pt.x - player.x;
+                let dy = pt.y - player.y;
+                let d = (dx * dx + dy * dy).sqrt();
                 if d < closest_dist {
                     closest_dist = d;
                     closest = Some(pt);
@@ -149,18 +177,25 @@ pub(crate) fn compute_visibility_raw(player_x: f32, player_y: f32, data: &[f32],
 
         let final_pt = closest.unwrap_or(ray_end);
         let mut ang_norm = ang;
-        if ang_norm < 0.0 { ang_norm += std::f32::consts::PI * 2.0; }
+        if ang_norm < 0.0 {
+            ang_norm += std::f32::consts::PI * 2.0;
+        }
         points.push((ang_norm, final_pt));
     }
 
     // sort by angle
-    points.sort_by(|a,b| a.0.partial_cmp(&b.0).unwrap_or(std::cmp::Ordering::Equal));
+    points.sort_by(|a, b| a.0.partial_cmp(&b.0).unwrap_or(std::cmp::Ordering::Equal));
     points
 }
 
 #[cfg(target_arch = "wasm32")]
 #[wasm_bindgen]
-pub fn compute_visibility_polygon(player_x: f32, player_y: f32, obstacles: &js_sys::Float32Array, max_dist: f32) -> JsValue {
+pub fn compute_visibility_polygon(
+    player_x: f32,
+    player_y: f32,
+    obstacles: &js_sys::Float32Array,
+    max_dist: f32,
+) -> JsValue {
     compute_visibility_impl(player_x, player_y, &obstacles.to_vec(), max_dist)
 }
 
@@ -198,11 +233,21 @@ mod tests {
         let wall = [0.0_f32, 100.0, 200.0, 100.0]; // x1,y1,x2,y2
         let pts = compute_visibility_raw(100.0, 0.0, &wall, MAX);
         // Find the upward ray (closest to angle=π/2 ≈ 1.5708)
-        let upward = pts.iter()
-            .min_by(|a, b| (a.0 - PI / 2.0).abs().partial_cmp(&(b.0 - PI / 2.0).abs()).unwrap())
+        let upward = pts
+            .iter()
+            .min_by(|a, b| {
+                (a.0 - PI / 2.0)
+                    .abs()
+                    .partial_cmp(&(b.0 - PI / 2.0).abs())
+                    .unwrap()
+            })
             .unwrap();
         // Should hit the wall around y=100, not extend to 500
-        assert!(upward.1.y < 150.0, "ray should have been blocked near y=100, got y={}", upward.1.y);
+        assert!(
+            upward.1.y < 150.0,
+            "ray should have been blocked near y=100, got y={}",
+            upward.1.y
+        );
     }
 
     #[test]
@@ -211,12 +256,22 @@ mod tests {
         let wall = [0.0_f32, 100.0, 200.0, 100.0];
         let pts = compute_visibility_raw(100.0, 0.0, &wall, MAX);
         // Downward ray is at angle 3π/2 ≈ 4.712
-        let downward = pts.iter()
-            .min_by(|a, b| (a.0 - 3.0 * PI / 2.0).abs().partial_cmp(&(b.0 - 3.0 * PI / 2.0).abs()).unwrap())
+        let downward = pts
+            .iter()
+            .min_by(|a, b| {
+                (a.0 - 3.0 * PI / 2.0)
+                    .abs()
+                    .partial_cmp(&(b.0 - 3.0 * PI / 2.0).abs())
+                    .unwrap()
+            })
             .unwrap();
         // Must not be blocked; should reach near MAX
         let d = ((downward.1.x - 100.0).powi(2) + downward.1.y.powi(2)).sqrt();
-        assert!(d > MAX * 0.9, "downward ray should not be blocked, dist={}", d);
+        assert!(
+            d > MAX * 0.9,
+            "downward ray should not be blocked, dist={}",
+            d
+        );
     }
 
     #[test]

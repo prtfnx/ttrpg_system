@@ -1,11 +1,11 @@
-mod table_ops;
 mod sprite_ops;
+mod table_ops;
 
-use wasm_bindgen::prelude::*;
+use crate::types::{Position, Size};
+use js_sys::Function;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
-use js_sys::Function;
-use crate::types::{Position, Size};
+use wasm_bindgen::prelude::*;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ActionResult {
@@ -51,13 +51,13 @@ pub struct ActionsClient {
     pub(crate) tables: HashMap<String, TableInfo>,
     pub(crate) sprites: HashMap<String, SpriteInfo>,
     pub(crate) layer_visibility: HashMap<String, bool>,
-    
+
     // History management
     pub(crate) action_history: Vec<ActionHistoryEntry>,
     pub(crate) undo_stack: Vec<ActionHistoryEntry>,
     pub(crate) redo_stack: Vec<ActionHistoryEntry>,
     pub(crate) max_history: usize,
-    
+
     // Event handlers
     pub(crate) on_action_callback: Option<Function>,
     pub(crate) on_state_change_callback: Option<Function>,
@@ -69,7 +69,7 @@ impl ActionsClient {
     #[wasm_bindgen(constructor)]
     pub fn new() -> ActionsClient {
         let mut layer_visibility = HashMap::new();
-        
+
         layer_visibility.insert("map".to_string(), true);
         layer_visibility.insert("tokens".to_string(), true);
         layer_visibility.insert("dungeon_master".to_string(), true);
@@ -77,7 +77,7 @@ impl ActionsClient {
         layer_visibility.insert("height".to_string(), true);
         layer_visibility.insert("obstacles".to_string(), true);
         layer_visibility.insert("fog_of_war".to_string(), true);
-        
+
         ActionsClient {
             tables: HashMap::new(),
             sprites: HashMap::new(),
@@ -113,15 +113,19 @@ impl ActionsClient {
     pub fn undo(&mut self) -> JsValue {
         if let Some(action) = self.undo_stack.pop() {
             self.redo_stack.push(action.clone());
-            
+
             let success = self.execute_undo(&action);
-            
+
             let result = ActionResult {
                 success,
-                message: if success { "Undo successful".to_string() } else { "Undo failed".to_string() },
+                message: if success {
+                    "Undo successful".to_string()
+                } else {
+                    "Undo failed".to_string()
+                },
                 data: None,
             };
-            
+
             self.notify_state_change("action_undone", &action.action_type);
             serde_wasm_bindgen::to_value(&result).unwrap_or(JsValue::NULL)
         } else {
@@ -139,15 +143,19 @@ impl ActionsClient {
     pub fn redo(&mut self) -> JsValue {
         if let Some(action) = self.redo_stack.pop() {
             self.undo_stack.push(action.clone());
-            
+
             let success = self.execute_redo(&action);
-            
+
             let result = ActionResult {
                 success,
-                message: if success { "Redo successful".to_string() } else { "Redo failed".to_string() },
+                message: if success {
+                    "Redo successful".to_string()
+                } else {
+                    "Redo failed".to_string()
+                },
                 data: None,
             };
-            
+
             self.notify_state_change("action_redone", &action.action_type);
             serde_wasm_bindgen::to_value(&result).unwrap_or(JsValue::NULL)
         } else {
@@ -188,7 +196,9 @@ impl ActionsClient {
 
     #[wasm_bindgen]
     pub fn get_sprites_by_layer(&self, layer: &str) -> JsValue {
-        let sprites: Vec<&SpriteInfo> = self.sprites.values()
+        let sprites: Vec<&SpriteInfo> = self
+            .sprites
+            .values()
             .filter(|sprite| sprite.layer == layer)
             .collect();
         serde_wasm_bindgen::to_value(&sprites).unwrap_or(JsValue::NULL)
@@ -213,16 +223,20 @@ impl ActionsClient {
 // Private helper methods
 impl ActionsClient {
     pub(crate) fn generate_id(&self) -> String {
-        format!("{}{}", js_sys::Date::now() as u64, (js_sys::Math::random() * 1000.0) as u32)
+        format!(
+            "{}{}",
+            js_sys::Date::now() as u64,
+            (js_sys::Math::random() * 1000.0) as u32
+        )
     }
 
     pub(crate) fn add_to_history(&mut self, action: ActionHistoryEntry) {
         self.action_history.push(action.clone());
-        
+
         if self.action_history.len() > self.max_history {
             self.action_history.remove(0);
         }
-        
+
         if action.reversible {
             self.undo_stack.push(action);
             self.redo_stack.clear();
@@ -278,34 +292,45 @@ impl ActionsClient {
             );
         }
     }
-
 }
 
 #[cfg(test)]
 mod tests {
-    use super::{ActionResult, TableInfo, SpriteInfo};
+    use super::{ActionResult, SpriteInfo, TableInfo};
     use crate::types::{Position, Size};
 
     #[test]
     fn action_result_success() {
-        let r = ActionResult { success: true, message: "ok".into(), data: None };
+        let r = ActionResult {
+            success: true,
+            message: "ok".into(),
+            data: None,
+        };
         assert!(r.success);
         assert_eq!(r.message, "ok");
     }
 
     #[test]
     fn action_result_failure() {
-        let r = ActionResult { success: false, message: "err".into(), data: None };
+        let r = ActionResult {
+            success: false,
+            message: "err".into(),
+            data: None,
+        };
         assert!(!r.success);
     }
 
     #[test]
     fn table_info_serde_roundtrip() {
         let t = TableInfo {
-            table_id: "t1".into(), name: "Dungeon".into(),
-            width: 100.0, height: 200.0,
-            scale_x: 1.0, scale_y: 1.0,
-            offset_x: 0.0, offset_y: 0.0,
+            table_id: "t1".into(),
+            name: "Dungeon".into(),
+            width: 100.0,
+            height: 200.0,
+            scale_x: 1.0,
+            scale_y: 1.0,
+            offset_x: 0.0,
+            offset_y: 0.0,
         };
         let json = serde_json::to_string(&t).unwrap();
         let t2: TableInfo = serde_json::from_str(&json).unwrap();
@@ -316,10 +341,16 @@ mod tests {
     #[test]
     fn sprite_info_serde_roundtrip() {
         let s = SpriteInfo {
-            sprite_id: "s1".into(), layer: "tokens".into(),
+            sprite_id: "s1".into(),
+            layer: "tokens".into(),
             position: Position { x: 10.0, y: 20.0 },
-            size: Size { width: 50.0, height: 50.0 },
-            rotation: 0.0, texture_name: "goblin.png".into(), visible: true,
+            size: Size {
+                width: 50.0,
+                height: 50.0,
+            },
+            rotation: 0.0,
+            texture_name: "goblin.png".into(),
+            visible: true,
         };
         let json = serde_json::to_string(&s).unwrap();
         let s2: SpriteInfo = serde_json::from_str(&json).unwrap();

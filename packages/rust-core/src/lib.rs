@@ -8,14 +8,13 @@ use wasm_bindgen::prelude::*;
 /// Log level macros using conditional compilation
 /// Only compiled when respective features are enabled
 
-
 /// Debug level logging macro - detailed debugging information
-/// 
+///
 /// Only compiled when `log-debug` feature is enabled.
 /// Use for debugging information that helps track program flow and state.
-/// 
+///
 /// # Examples
-/// 
+///
 /// ```rust
 /// // Only logs when compiled with --features log-debug  
 /// log_debug!("Light at ({:.1}, {:.1}) processing shadows", x, y);
@@ -38,12 +37,12 @@ macro_rules! log_debug {
 }
 
 /// Info level logging macro - general information
-/// 
+///
 /// Only compiled when `log-info` feature is enabled.
 /// Use for important events and general application flow information.
-/// 
+///
 /// # Examples
-/// 
+///
 /// ```rust
 /// // Only logs when compiled with --features log-info
 /// log_info!("WebGL renderer initialized successfully");
@@ -66,12 +65,12 @@ macro_rules! log_info {
 }
 
 /// Warning level logging macro - potential issues
-/// 
+///
 /// Enabled by default in debug builds (`debug_assertions`) or with `log-warn` feature.
 /// Use for non-critical issues that should be noticed but don't prevent operation.
-/// 
+///
 /// # Examples
-/// 
+///
 /// ```rust,ignore
 /// // Logs in debug builds or with --features log-warn
 /// log_warn!("Deprecated API usage detected in {}", function_name);
@@ -92,12 +91,12 @@ macro_rules! log_warn {
 }
 
 /// Error level logging macro - always enabled
-/// 
+///
 /// Critical errors that should always be logged regardless of build configuration.
 /// Uses `console.error()` for proper browser dev tools styling and stack traces.
-/// 
+///
 /// # Examples
-/// 
+///
 /// ```rust,ignore
 /// // Always logs in all builds
 /// log_error!("Failed to initialize WebGL context: {}", error);
@@ -119,30 +118,29 @@ macro_rules! log_error {
     };
 }
 
-
 #[cfg(feature = "wee_alloc")]
 #[global_allocator]
 static ALLOC: wee_alloc::WeeAlloc = wee_alloc::WeeAlloc::INIT;
 
-pub mod math;
-pub mod types;
-mod input;
-mod lighting;
 mod fog;
 #[cfg(target_arch = "wasm32")]
 pub mod geometry;
 #[cfg(not(target_arch = "wasm32"))]
 mod geometry;
-mod wall_manager;
+mod input;
+mod lighting;
+pub mod math;
 mod table_manager;
+pub mod types;
 pub mod unit_converter;
+mod wall_manager;
 
 // Systems subsystem
 mod systems;
 pub use systems::collision;
-pub use systems::planning;
 #[cfg(target_arch = "wasm32")]
 pub(crate) use systems::paint;
+pub use systems::planning;
 
 // Rendering subsystem
 mod rendering;
@@ -151,75 +149,75 @@ mod rendering;
 #[cfg(target_arch = "wasm32")]
 pub(crate) use rendering::camera;
 #[cfg(target_arch = "wasm32")]
+pub(crate) use rendering::grid_system;
+#[cfg(target_arch = "wasm32")]
+pub(crate) use rendering::layer_manager;
+#[cfg(target_arch = "wasm32")]
 pub(crate) use rendering::sprite_manager;
 #[cfg(target_arch = "wasm32")]
 pub(crate) use rendering::sprite_renderer;
 #[cfg(target_arch = "wasm32")]
-pub(crate) use rendering::webgl_renderer;
-#[cfg(target_arch = "wasm32")]
 pub(crate) use rendering::text_renderer;
 #[cfg(target_arch = "wasm32")]
-pub(crate) use rendering::layer_manager;
-#[cfg(target_arch = "wasm32")]
-pub(crate) use rendering::grid_system;
-#[cfg(target_arch = "wasm32")]
 pub(crate) use rendering::texture_manager;
+#[cfg(target_arch = "wasm32")]
+pub(crate) use rendering::webgl_renderer;
 
 // WASM/WebGL-only modules
-#[cfg(target_arch = "wasm32")]
-mod render;
 #[cfg(target_arch = "wasm32")]
 mod event_system;
 #[cfg(target_arch = "wasm32")]
 mod net;
+#[cfg(target_arch = "wasm32")]
+mod render;
 #[cfg(target_arch = "wasm32")]
 pub(crate) use net::table_sync;
 #[cfg(target_arch = "wasm32")]
 mod actions;
 
 #[cfg(target_arch = "wasm32")]
-pub use render::RenderEngine;
-pub use types::*;
+pub use actions::ActionsClient;
+pub use collision::CollisionSystem;
 #[cfg(target_arch = "wasm32")]
 pub use lighting::LightingSystem;
 pub use lighting::{Light, LightType};
 #[cfg(target_arch = "wasm32")]
-pub use actions::ActionsClient;
-#[cfg(target_arch = "wasm32")]
-pub use systems::paint::{PaintSystem, create_default_brush_presets};
-#[cfg(target_arch = "wasm32")]
-pub use net::asset_manager::{AssetManager, AssetInfo, CacheStats};
-pub use table_manager::TableManager;
+pub use net::asset_manager::{AssetInfo, AssetManager, CacheStats};
 #[cfg(target_arch = "wasm32")]
 pub use net::table_sync::TableSync;
-pub use collision::CollisionSystem;
 pub use planning::PlanningManager;
+#[cfg(target_arch = "wasm32")]
+pub use render::RenderEngine;
+#[cfg(target_arch = "wasm32")]
+pub use systems::paint::{create_default_brush_presets, PaintSystem};
+pub use table_manager::TableManager;
+pub use types::*;
 
 #[cfg(target_arch = "wasm32")]
 use web_sys::HtmlCanvasElement;
 
 /// Initialize the WebGL game renderer
-/// 
+///
 /// Creates a new `RenderEngine` instance bound to the provided HTML canvas element.
 /// This is the main entry point for initializing the WASM-based rendering system.
-/// 
+///
 /// # Arguments
-/// 
+///
 /// * `canvas` - HTML canvas element where the game will be rendered
-/// 
+///
 /// # Returns
-/// 
+///
 /// * `Ok(RenderEngine)` - Successfully initialized render engine
 /// * `Err(JsValue)` - WebGL initialization error
-/// 
+///
 /// # Examples
-/// 
+///
 /// ```javascript
 /// // JavaScript usage
 /// import init, { init_game_renderer } from './pkg/ttrpg_rust_core.js';
-/// 
+///
 /// await init(); // Initialize WASM module
-/// 
+///
 /// const canvas = document.getElementById('game-canvas');
 /// try {
 ///     const renderer = init_game_renderer(canvas);
@@ -228,9 +226,9 @@ use web_sys::HtmlCanvasElement;
 ///     console.error('Failed to initialize renderer:', error);
 /// }
 /// ```
-/// 
+///
 /// # WebGL Requirements
-/// 
+///
 /// - WebGL2 support required
 /// - Stencil buffer recommended for shadow rendering
 /// - Minimum canvas size: 300x200 pixels
@@ -242,21 +240,21 @@ pub fn init_game_renderer(canvas: HtmlCanvasElement) -> Result<RenderEngine, JsV
 }
 
 /// WASM module initialization and panic hook setup
-/// 
+///
 /// This function is automatically called when the WASM module loads.
 /// Sets up panic handlers to provide readable error messages in the browser console.
-/// 
+///
 /// # Panic Handling
-/// 
+///
 /// Uses `console_error_panic_hook` to convert Rust panics into JavaScript errors
 /// with full stack traces visible in browser developer tools.
-/// 
+///
 /// # Examples
-/// 
+///
 /// ```javascript
 /// // Automatic initialization on module load
 /// import init from './pkg/ttrpg_rust_core.js';
-/// 
+///
 /// // This calls main() automatically
 /// await init();
 /// // TTRPG Rust Core initialized
@@ -269,19 +267,19 @@ fn main() {
 }
 
 /// Get the current crate version
-/// 
+///
 /// Returns the version string defined in Cargo.toml at compile time.
 /// Useful for debugging and version compatibility checks.
-/// 
+///
 /// # Returns
-/// 
+///
 /// Version string in semver format (e.g., "0.1.0")
-/// 
+///
 /// # Examples
-/// 
+///
 /// ```javascript
 /// import { version } from './pkg/ttrpg_rust_core.js';
-/// 
+///
 /// console.log('WASM Core Version:', version());
 /// // Output: WASM Core Version: 0.1.0
 /// ```

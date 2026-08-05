@@ -1,9 +1,9 @@
-use crate::webgl_renderer::WebGLRenderer;
 use crate::texture_manager::TextureManager;
+use crate::webgl_renderer::WebGLRenderer;
 use wasm_bindgen::prelude::*;
 
 /// Production bitmap font renderer using pre-generated font atlas texture
-/// 
+///
 /// Font Atlas: 512x512 RGBA PNG with 96 ASCII characters (32-127)
 /// Layout: 16x16 grid, each cell is 32x32 pixels
 /// Rendering: UV-mapped textured quads for each character
@@ -12,7 +12,7 @@ pub struct TextRenderer {
     atlas_width: f32,
     atlas_height: f32,
     char_size: f32,
-    char_advance: f32,  // Default advance for most characters
+    char_advance: f32, // Default advance for most characters
     chars_per_row: usize,
     start_char: u32,
 }
@@ -24,31 +24,34 @@ impl TextRenderer {
             atlas_width: 512.0,
             atlas_height: 512.0,
             char_size: 32.0,
-            char_advance: 18.0,  // Default spacing (about 56% of cell size)
+            char_advance: 18.0, // Default spacing (about 56% of cell size)
             chars_per_row: 16,
             start_char: 32, // ASCII space character
         }
     }
-    
+
     /// Get character advance width (some characters are narrower)
     fn get_char_advance(&self, ch: char) -> f32 {
         match ch {
-            '.' | ',' | ':' | ';' | '!' | '\'' | '`' => 8.0,  // Punctuation: narrower
-            'i' | 'l' | 'I' | '|' => 10.0,                     // Thin letters
-            ' ' => 12.0,                                        // Space
-            _ => self.char_advance,                             // Default: 18.0
+            '.' | ',' | ':' | ';' | '!' | '\'' | '`' => 8.0, // Punctuation: narrower
+            'i' | 'l' | 'I' | '|' => 10.0,                   // Thin letters
+            ' ' => 12.0,                                     // Space
+            _ => self.char_advance,                          // Default: 18.0
         }
     }
-    
+
     /// Initialize the font atlas texture
     /// The atlas should be loaded by texture_manager before calling draw_text
-    pub fn init_font_atlas(&mut self, _texture_manager: &mut TextureManager) -> Result<(), JsValue> {
+    pub fn init_font_atlas(
+        &mut self,
+        _texture_manager: &mut TextureManager,
+    ) -> Result<(), JsValue> {
         web_sys::console::log_1(&"[TEXT RENDERER] Font atlas initialized - ready to render".into());
         Ok(())
     }
-    
+
     /// Draw text at world position using bitmap font atlas
-    /// 
+    ///
     /// # Arguments
     /// * `text` - The text to render (ASCII 32-127)
     /// * `x` - X position in world coordinates (left edge of text)
@@ -71,14 +74,15 @@ impl TextRenderer {
         if text.is_empty() {
             return Ok(());
         }
-        
+
         // Check if font atlas is loaded
         if !texture_manager.has_texture(&self.font_atlas_id) {
             return Ok(());
         }
-        
+
         // Calculate text dimensions (advances are in atlas pixels so scale by `size`)
-        let text_width: f32 = text.chars()
+        let text_width: f32 = text
+            .chars()
             .map(|ch| self.get_char_advance(ch) * size)
             .sum();
 
@@ -97,27 +101,27 @@ impl TextRenderer {
                 renderer,
             )?;
         }
-        
+
         // Bind font atlas texture
         texture_manager.bind_texture(&self.font_atlas_id);
-        
+
         // Center text horizontally around the given x position
         let mut cursor_x = x - text_width / 2.0;
-        
+
         // Center text vertically - offset by half char height so text is centered at y
         let char_height = self.char_size * size;
         let text_y = y - char_height / 2.0;
-        
+
         // Render each character with proper UV mapping
         for ch in text.chars() {
             self.draw_char(ch, cursor_x, text_y, size, color, renderer, texture_manager)?;
-            let advance = self.get_char_advance(ch) * size;  // Variable width
+            let advance = self.get_char_advance(ch) * size; // Variable width
             cursor_x += advance;
         }
-        
+
         Ok(())
     }
-    
+
     /// Draw a single character using UV coordinates from font atlas
     fn draw_char(
         &self,
@@ -131,54 +135,62 @@ impl TextRenderer {
     ) -> Result<(), JsValue> {
         // Get character code
         let char_code = ch as u32;
-        
+
         // Only render printable ASCII (32-127)
         if char_code < self.start_char || char_code >= 127 {
             return Ok(()); // Skip non-printable characters
         }
-        
+
         // Calculate atlas index (offset from start character)
         let atlas_index = (char_code - self.start_char) as usize;
-        
+
         // Calculate grid position in atlas
         let grid_x = (atlas_index % self.chars_per_row) as f32;
         let grid_y = (atlas_index / self.chars_per_row) as f32;
-        
+
         // Calculate UV coordinates using actual atlas dimensions for precision
         let uv_cell_width = self.char_size / self.atlas_width;
         let uv_cell_height = self.char_size / self.atlas_height;
-        
+
         let uv_x = grid_x * uv_cell_width;
         let uv_y = grid_y * uv_cell_height;
-        
+
         // UV coordinates for the character quad
         let tex_coords = [
-            uv_x, uv_y,                                    // Top-left
-            uv_x + uv_cell_width, uv_y,                   // Top-right
-            uv_x, uv_y + uv_cell_height,                  // Bottom-left
-            uv_x + uv_cell_width, uv_y + uv_cell_height,  // Bottom-right
+            uv_x,
+            uv_y, // Top-left
+            uv_x + uv_cell_width,
+            uv_y, // Top-right
+            uv_x,
+            uv_y + uv_cell_height, // Bottom-left
+            uv_x + uv_cell_width,
+            uv_y + uv_cell_height, // Bottom-right
         ];
-        
+
         // World space vertices for the character quad
         let char_w = self.char_size * size;
         let char_h = self.char_size * size;
-        
+
         let vertices = vec![
-            x, y,                // Top-left
-            x + char_w, y,       // Top-right
-            x, y + char_h,       // Bottom-left
-            x + char_w, y + char_h, // Bottom-right
+            x,
+            y, // Top-left
+            x + char_w,
+            y, // Top-right
+            x,
+            y + char_h, // Bottom-left
+            x + char_w,
+            y + char_h, // Bottom-right
         ];
-        
+
         // Bind font atlas texture
         texture_manager.bind_texture(&self.font_atlas_id);
-        
+
         // Render character with texture
         renderer.draw_quad(&vertices, &tex_coords, color, true)?; // use_texture = true!
-        
+
         Ok(())
     }
-    
+
     /// Draw a background box behind text for readability
     fn draw_text_background(
         &self,
@@ -189,34 +201,51 @@ impl TextRenderer {
         renderer: &WebGLRenderer,
     ) -> Result<(), JsValue> {
         let vertices = vec![
-            x, y,                    // Top-left
-            x + width, y,            // Top-right
-            x, y + height,           // Bottom-left
-            x + width, y + height,   // Bottom-right
+            x,
+            y, // Top-left
+            x + width,
+            y, // Top-right
+            x,
+            y + height, // Bottom-left
+            x + width,
+            y + height, // Bottom-right
         ];
         let tex_coords = [0.0, 0.0, 1.0, 0.0, 0.0, 1.0, 1.0, 1.0];
-        
+
         // Semi-transparent black background
         let bg_color = [0.0, 0.0, 0.0, 0.85];
         renderer.draw_quad(&vertices, &tex_coords, bg_color, false)?;
-        
+
         // Cyan border for consistency with measurement line
         let border = vec![
-            x, y, x + width, y,
-            x + width, y, x + width, y + height,
-            x + width, y + height, x, y + height,
-            x, y + height, x, y,
+            x,
+            y,
+            x + width,
+            y,
+            x + width,
+            y,
+            x + width,
+            y + height,
+            x + width,
+            y + height,
+            x,
+            y + height,
+            x,
+            y + height,
+            x,
+            y,
         ];
         renderer.draw_lines(&border, [0.0, 0.9, 0.9, 1.0])?;
-        
+
         Ok(())
     }
-    
+
     /// Calculate the width of rendered text in world units
     pub fn measure_text(&self, text: &str, size: f32) -> f32 {
         text.chars()
             .map(|ch| self.get_char_advance(ch))
-            .sum::<f32>() * size
+            .sum::<f32>()
+            * size
     }
 }
 

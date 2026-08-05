@@ -8,8 +8,8 @@ use crate::types::Sprite;
 pub enum ToolMode {
     #[default]
     Select, // LMB drag on empty = rubber-band area select
-    Move,   // LMB drag on empty = camera pan
-    Align,  // Click sprite = snap it to grid immediately
+    Move,  // LMB drag on empty = camera pan
+    Align, // Click sprite = snap it to grid immediately
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -21,19 +21,19 @@ pub enum InputMode {
     SpriteResize(ResizeHandle),
     SpriteRotate,
     AreaSelect,
-    LightDrag,      // New: Dragging light source
-    FogDraw,        // New: Drawing fog rectangles
-    FogErase,       // New: Erasing fog rectangles
-    Measurement,    // New: Measurement tool
-    CreateRectangle, // New: Create rectangle sprite
-    CreateCircle,   // New: Create circle sprite
-    CreateLine,     // New: Create line sprite
-    CreateText,     // New: Create text sprite
-    Paint,          // New: Paint/brush tool
-    DrawWall,       // New: Draw wall segment (two-click placement)
-    CreatePolygon,  // New: Create polygon obstacle (multi-click, close-on-first-vertex)
-    WallDrag,           // Dragging an existing wall to a new position
-    WallEndpointDrag,  // Dragging a single wall endpoint
+    LightDrag,        // New: Dragging light source
+    FogDraw,          // New: Drawing fog rectangles
+    FogErase,         // New: Erasing fog rectangles
+    Measurement,      // New: Measurement tool
+    CreateRectangle,  // New: Create rectangle sprite
+    CreateCircle,     // New: Create circle sprite
+    CreateLine,       // New: Create line sprite
+    CreateText,       // New: Create text sprite
+    Paint,            // New: Paint/brush tool
+    DrawWall,         // New: Draw wall segment (two-click placement)
+    CreatePolygon,    // New: Create polygon obstacle (multi-click, close-on-first-vertex)
+    WallDrag,         // Dragging an existing wall to a new position
+    WallEndpointDrag, // Dragging a single wall endpoint
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -54,37 +54,37 @@ pub enum ResizeHandle {
 #[cfg_attr(not(target_arch = "wasm32"), allow(dead_code))]
 pub struct InputHandler {
     pub input_mode: InputMode,
-    pub tool_mode: ToolMode,        // Current toolbar tool
-    pub alt_pressed: bool,          // Alt key held — disables grid snap
+    pub tool_mode: ToolMode, // Current toolbar tool
+    pub alt_pressed: bool,   // Alt key held — disables grid snap
     pub last_mouse_screen: Vec2,
     pub selected_sprite_id: Option<String>,
-    pub selected_sprite_ids: Vec<String>,  // New: Multiple selection support
+    pub selected_sprite_ids: Vec<String>, // New: Multiple selection support
     pub selected_wall_id: Option<String>,
     pub selected_wall_ids: Vec<String>,
     pub drag_offset: Vec2,
     pub rotation_start_angle: f64,
     pub sprite_initial_rotation: f64,
-    pub area_select_start: Option<Vec2>,   // New: Area selection start position
+    pub area_select_start: Option<Vec2>, // New: Area selection start position
     pub area_select_current: Option<Vec2>, // New: Area selection current position
-    
+
     // Lighting interaction state
     pub selected_light_id: Option<String>,
     pub light_drag_offset: Vec2,
-    
+
     // Fog interaction state
     pub fog_draw_start: Option<Vec2>,
     pub fog_draw_current: Option<Vec2>,
     pub fog_mode: FogDrawMode,
-    
+
     // Measurement tool state
     pub measurement_start: Option<Vec2>,
     pub measurement_current: Option<Vec2>,
     pub completed_measurement: Option<(Vec2, Vec2)>, // Persists after mouse up
-    
+
     // Shape creation state
     pub shape_creation_start: Option<Vec2>,
     pub shape_creation_current: Option<Vec2>,
-    
+
     // Double-click detection
     pub last_click_time: f64,
     pub last_click_sprite: Option<String>,
@@ -155,13 +155,13 @@ impl InputHandler {
     pub fn new() -> Self {
         Self::default()
     }
-    
+
     // ===== SPRITE SELECTION METHODS =====
-    
+
     pub fn get_selected_sprites(&self) -> &Vec<String> {
         &self.selected_sprite_ids
     }
-    
+
     pub fn add_to_selection(&mut self, sprite_id: String) {
         self.clear_wall_selection();
         if !self.selected_sprite_ids.contains(&sprite_id) {
@@ -169,31 +169,31 @@ impl InputHandler {
         }
         self.selected_sprite_id = Some(sprite_id); // Keep primary selection for single operations
     }
-    
+
     pub fn remove_from_selection(&mut self, sprite_id: &str) {
         self.selected_sprite_ids.retain(|id| id != sprite_id);
         if self.selected_sprite_id.as_ref() == Some(&sprite_id.to_string()) {
             self.selected_sprite_id = self.selected_sprite_ids.first().cloned();
         }
     }
-    
+
     pub fn clear_selection(&mut self) {
         self.selected_sprite_ids.clear();
         self.selected_sprite_id = None;
         self.clear_wall_selection();
     }
-    
+
     pub fn set_single_selection(&mut self, sprite_id: String) {
         self.clear_wall_selection();
         self.selected_sprite_ids.clear();
         self.selected_sprite_ids.push(sprite_id.clone());
         self.selected_sprite_id = Some(sprite_id);
     }
-    
+
     pub fn has_multiple_selected(&self) -> bool {
         self.selected_sprite_ids.len() > 1
     }
-    
+
     pub fn is_sprite_selected(&self, sprite_id: &str) -> bool {
         self.selected_sprite_ids.contains(&sprite_id.to_string())
     }
@@ -221,14 +221,14 @@ impl InputHandler {
         self.selected_wall_ids.push(wall_id.clone());
         self.selected_wall_id = Some(wall_id);
     }
-    
+
     // Area selection methods
     pub fn start_area_selection(&mut self, world_pos: Vec2) {
         self.area_select_start = Some(world_pos);
         self.area_select_current = Some(world_pos);
         self.input_mode = InputMode::AreaSelect;
     }
-    
+
     pub fn get_area_selection_rect(&self) -> Option<(Vec2, Vec2)> {
         if let (Some(start), Some(current)) = (self.area_select_start, self.area_select_current) {
             let min_x = start.x.min(current.x);
@@ -240,7 +240,7 @@ impl InputHandler {
             None
         }
     }
-    
+
     pub fn finish_area_selection(&mut self) {
         self.area_select_start = None;
         self.area_select_current = None;
@@ -299,7 +299,9 @@ impl InputHandler {
     pub fn end_fog_draw(&mut self) -> Option<(Vec2, Vec2, FogDrawMode)> {
         if matches!(self.input_mode, InputMode::FogDraw | InputMode::FogErase) {
             self.input_mode = InputMode::None;
-            if let (Some(start), Some(end)) = (self.fog_draw_start.take(), self.fog_draw_current.take()) {
+            if let (Some(start), Some(end)) =
+                (self.fog_draw_start.take(), self.fog_draw_current.take())
+            {
                 let mode = self.fog_mode;
                 Some((start, end, mode))
             } else {
@@ -313,7 +315,7 @@ impl InputHandler {
     // ============================================================================
     // MEASUREMENT TOOL METHODS
     // ============================================================================
-    
+
     pub fn start_measurement(&mut self, pos: Vec2) {
         self.measurement_start = Some(pos);
         self.measurement_current = Some(pos);
@@ -346,7 +348,7 @@ impl InputHandler {
             self.completed_measurement
         }
     }
-    
+
     pub fn clear_completed_measurement(&mut self) {
         self.completed_measurement = None;
     }
@@ -354,7 +356,7 @@ impl InputHandler {
     // ============================================================================
     // SHAPE CREATION METHODS
     // ============================================================================
-    
+
     pub fn start_shape_creation(&mut self, pos: Vec2) {
         self.shape_creation_start = Some(pos);
         self.shape_creation_current = Some(pos);
@@ -377,18 +379,20 @@ impl InputHandler {
     }
 
     pub fn get_shape_creation_rect(&self) -> Option<(Vec2, Vec2)> {
-        if let (Some(start), Some(current)) = (self.shape_creation_start, self.shape_creation_current) {
+        if let (Some(start), Some(current)) =
+            (self.shape_creation_start, self.shape_creation_current)
+        {
             Some((start, current))
         } else {
             None
         }
     }
-    
+
     /// Check if a sprite click is a double-click (within 300ms of previous click on same sprite)
     /// Returns true if double-click detected
     pub fn check_double_click(&mut self, sprite_id: &str, current_time: f64) -> bool {
         const DOUBLE_CLICK_THRESHOLD_MS: f64 = 300.0;
-        
+
         let is_double_click = if let Some(last_sprite) = &self.last_click_sprite {
             if last_sprite == sprite_id {
                 let time_diff = current_time - self.last_click_time;
@@ -399,12 +403,12 @@ impl InputHandler {
         } else {
             false
         };
-        
+
         self.last_click_time = current_time;
         self.last_click_sprite = Some(sprite_id.to_string());
         is_double_click
     }
-    
+
     // ============================================================================
     // WALL DRAWING METHODS (two-click placement)
     // ============================================================================
@@ -478,7 +482,9 @@ impl InputHandler {
 
     /// Consume vertices and return them (resets state).
     pub fn close_polygon(&mut self) -> Option<Vec<Vec2>> {
-        if self.polygon_vertices.len() < 3 { return None; }
+        if self.polygon_vertices.len() < 3 {
+            return None;
+        }
         let verts = std::mem::take(&mut self.polygon_vertices);
         self.polygon_cursor = None;
         Some(verts)
@@ -496,9 +502,13 @@ impl InputHandler {
     }
 
     // ===== ENHANCED INPUT METHODS FOR WASM =====
-    
+
     /// Handle mouse down with modifier keys for multi-selection
-    pub fn handle_mouse_down_with_modifiers(&mut self, _world_pos: crate::math::Vec2, ctrl_key: bool) -> InputResult {
+    pub fn handle_mouse_down_with_modifiers(
+        &mut self,
+        _world_pos: crate::math::Vec2,
+        ctrl_key: bool,
+    ) -> InputResult {
         // parameter currently unused; retaining signature for future features
         if ctrl_key {
             InputResult::MultiSelectToggle
@@ -522,30 +532,36 @@ pub struct HandleDetector;
 impl HandleDetector {
     pub fn point_in_handle(point: Vec2, handle_x: f32, handle_y: f32, handle_size: f32) -> bool {
         let half = handle_size * 0.5;
-        point.x >= handle_x - half && point.x <= handle_x + half &&
-            point.y >= handle_y - half && point.y <= handle_y + half
+        point.x >= handle_x - half
+            && point.x <= handle_x + half
+            && point.y >= handle_y - half
+            && point.y <= handle_y + half
     }
-    
+
     pub fn get_resize_handle_for_non_rotated_sprite(
-        sprite: &Sprite, 
-        world_pos: Vec2, 
-        zoom: f64
+        sprite: &Sprite,
+        world_pos: Vec2,
+        zoom: f64,
     ) -> Option<ResizeHandle> {
         let sprite_pos = Vec2::new(sprite.world_x as f32, sprite.world_y as f32);
         let sprite_size = Vec2::new(
             (sprite.width * sprite.scale_x) as f32,
-            (sprite.height * sprite.scale_y) as f32
+            (sprite.height * sprite.scale_y) as f32,
         );
         let border_threshold = 8.0 / zoom as f32; // Precise click detection
-        
-        let on_left = (world_pos.x >= sprite_pos.x - border_threshold) && (world_pos.x <= sprite_pos.x + border_threshold);
-        let on_right = (world_pos.x >= sprite_pos.x + sprite_size.x - border_threshold) && (world_pos.x <= sprite_pos.x + sprite_size.x + border_threshold);
-        let on_top = (world_pos.y >= sprite_pos.y - border_threshold) && (world_pos.y <= sprite_pos.y + border_threshold);
-        let on_bottom = (world_pos.y >= sprite_pos.y + sprite_size.y - border_threshold) && (world_pos.y <= sprite_pos.y + sprite_size.y + border_threshold);
-        
+
+        let on_left = (world_pos.x >= sprite_pos.x - border_threshold)
+            && (world_pos.x <= sprite_pos.x + border_threshold);
+        let on_right = (world_pos.x >= sprite_pos.x + sprite_size.x - border_threshold)
+            && (world_pos.x <= sprite_pos.x + sprite_size.x + border_threshold);
+        let on_top = (world_pos.y >= sprite_pos.y - border_threshold)
+            && (world_pos.y <= sprite_pos.y + border_threshold);
+        let on_bottom = (world_pos.y >= sprite_pos.y + sprite_size.y - border_threshold)
+            && (world_pos.y <= sprite_pos.y + sprite_size.y + border_threshold);
+
         let in_x_range = world_pos.x >= sprite_pos.x && world_pos.x <= sprite_pos.x + sprite_size.x;
         let in_y_range = world_pos.y >= sprite_pos.y && world_pos.y <= sprite_pos.y + sprite_size.y;
-        
+
         // Check corners first
         if on_left && on_top {
             Some(ResizeHandle::TopLeft)
@@ -571,28 +587,32 @@ impl HandleDetector {
             None
         }
     }
-    
+
     pub fn get_resize_handle_for_cursor_detection(
-        sprite: &Sprite, 
-        world_pos: Vec2, 
-        zoom: f64
+        sprite: &Sprite,
+        world_pos: Vec2,
+        zoom: f64,
     ) -> Option<ResizeHandle> {
         let sprite_pos = Vec2::new(sprite.world_x as f32, sprite.world_y as f32);
         let sprite_size = Vec2::new(
             (sprite.width * sprite.scale_x) as f32,
-            (sprite.height * sprite.scale_y) as f32
+            (sprite.height * sprite.scale_y) as f32,
         );
         // Very precise cursor detection - only on the border line
         let border_threshold = 4.0 / zoom as f32; // Much smaller for precise cursor feedback
-        
-        let on_left = (world_pos.x >= sprite_pos.x - border_threshold) && (world_pos.x <= sprite_pos.x + border_threshold);
-        let on_right = (world_pos.x >= sprite_pos.x + sprite_size.x - border_threshold) && (world_pos.x <= sprite_pos.x + sprite_size.x + border_threshold);
-        let on_top = (world_pos.y >= sprite_pos.y - border_threshold) && (world_pos.y <= sprite_pos.y + border_threshold);
-        let on_bottom = (world_pos.y >= sprite_pos.y + sprite_size.y - border_threshold) && (world_pos.y <= sprite_pos.y + sprite_size.y + border_threshold);
-        
+
+        let on_left = (world_pos.x >= sprite_pos.x - border_threshold)
+            && (world_pos.x <= sprite_pos.x + border_threshold);
+        let on_right = (world_pos.x >= sprite_pos.x + sprite_size.x - border_threshold)
+            && (world_pos.x <= sprite_pos.x + sprite_size.x + border_threshold);
+        let on_top = (world_pos.y >= sprite_pos.y - border_threshold)
+            && (world_pos.y <= sprite_pos.y + border_threshold);
+        let on_bottom = (world_pos.y >= sprite_pos.y + sprite_size.y - border_threshold)
+            && (world_pos.y <= sprite_pos.y + sprite_size.y + border_threshold);
+
         let in_x_range = world_pos.x >= sprite_pos.x && world_pos.x <= sprite_pos.x + sprite_size.x;
         let in_y_range = world_pos.y >= sprite_pos.y && world_pos.y <= sprite_pos.y + sprite_size.y;
-        
+
         // Check corners first
         if on_left && on_top {
             Some(ResizeHandle::TopLeft)
@@ -618,7 +638,7 @@ impl HandleDetector {
             None
         }
     }
-    
+
     pub fn get_cursor_for_handle(handle: ResizeHandle) -> &'static str {
         match handle {
             ResizeHandle::TopLeft | ResizeHandle::BottomRight => "nw-resize",
@@ -764,7 +784,11 @@ mod tests {
     #[test]
     fn light_drag_lifecycle() {
         let mut h = InputHandler::new();
-        h.start_light_drag("light1".into(), Vec2::new(100.0, 100.0), Vec2::new(110.0, 120.0));
+        h.start_light_drag(
+            "light1".into(),
+            Vec2::new(100.0, 100.0),
+            Vec2::new(110.0, 120.0),
+        );
         assert_eq!(h.input_mode, InputMode::LightDrag);
 
         let new_pos = h.update_light_drag(Vec2::new(200.0, 200.0)).unwrap();
@@ -994,57 +1018,118 @@ mod tests {
 
     #[test]
     fn point_in_handle_center() {
-        assert!(HandleDetector::point_in_handle(Vec2::new(50.0, 50.0), 50.0, 50.0, 10.0));
+        assert!(HandleDetector::point_in_handle(
+            Vec2::new(50.0, 50.0),
+            50.0,
+            50.0,
+            10.0
+        ));
     }
 
     #[test]
     fn point_outside_handle() {
-        assert!(!HandleDetector::point_in_handle(Vec2::new(100.0, 100.0), 50.0, 50.0, 10.0));
+        assert!(!HandleDetector::point_in_handle(
+            Vec2::new(100.0, 100.0),
+            50.0,
+            50.0,
+            10.0
+        ));
     }
 
     #[test]
     fn resize_handle_top_left_corner() {
-        let sprite = Sprite::new("s1".into(), 100.0, 100.0, 200.0, 200.0, "tokens".into(), "table-1".into());
+        let sprite = Sprite::new(
+            "s1".into(),
+            100.0,
+            100.0,
+            200.0,
+            200.0,
+            "tokens".into(),
+            "table-1".into(),
+        );
         let handle = HandleDetector::get_resize_handle_for_non_rotated_sprite(
-            &sprite, Vec2::new(100.0, 100.0), 1.0
+            &sprite,
+            Vec2::new(100.0, 100.0),
+            1.0,
         );
         assert_eq!(handle, Some(ResizeHandle::TopLeft));
     }
 
     #[test]
     fn resize_handle_bottom_right_corner() {
-        let sprite = Sprite::new("s1".into(), 100.0, 100.0, 200.0, 200.0, "tokens".into(), "table-1".into());
+        let sprite = Sprite::new(
+            "s1".into(),
+            100.0,
+            100.0,
+            200.0,
+            200.0,
+            "tokens".into(),
+            "table-1".into(),
+        );
         let handle = HandleDetector::get_resize_handle_for_non_rotated_sprite(
-            &sprite, Vec2::new(300.0, 300.0), 1.0
+            &sprite,
+            Vec2::new(300.0, 300.0),
+            1.0,
         );
         assert_eq!(handle, Some(ResizeHandle::BottomRight));
     }
 
     #[test]
     fn resize_handle_none_for_center() {
-        let sprite = Sprite::new("s1".into(), 100.0, 100.0, 200.0, 200.0, "tokens".into(), "table-1".into());
+        let sprite = Sprite::new(
+            "s1".into(),
+            100.0,
+            100.0,
+            200.0,
+            200.0,
+            "tokens".into(),
+            "table-1".into(),
+        );
         let handle = HandleDetector::get_resize_handle_for_non_rotated_sprite(
-            &sprite, Vec2::new(200.0, 200.0), 1.0
+            &sprite,
+            Vec2::new(200.0, 200.0),
+            1.0,
         );
         assert!(handle.is_none());
     }
 
     #[test]
     fn cursor_for_handles() {
-        assert_eq!(HandleDetector::get_cursor_for_handle(ResizeHandle::TopLeft), "nw-resize");
-        assert_eq!(HandleDetector::get_cursor_for_handle(ResizeHandle::TopCenter), "ns-resize");
-        assert_eq!(HandleDetector::get_cursor_for_handle(ResizeHandle::RightCenter), "ew-resize");
+        assert_eq!(
+            HandleDetector::get_cursor_for_handle(ResizeHandle::TopLeft),
+            "nw-resize"
+        );
+        assert_eq!(
+            HandleDetector::get_cursor_for_handle(ResizeHandle::TopCenter),
+            "ns-resize"
+        );
+        assert_eq!(
+            HandleDetector::get_cursor_for_handle(ResizeHandle::RightCenter),
+            "ew-resize"
+        );
     }
 
     #[test]
     fn cursor_detection_more_precise_than_resize() {
-        let sprite = Sprite::new("s1".into(), 100.0, 100.0, 200.0, 200.0, "tokens".into(), "table-1".into());
+        let sprite = Sprite::new(
+            "s1".into(),
+            100.0,
+            100.0,
+            200.0,
+            200.0,
+            "tokens".into(),
+            "table-1".into(),
+        );
         // At 6px from edge: resize (threshold 8) detects, cursor (threshold 4) does not
         let handle_resize = HandleDetector::get_resize_handle_for_non_rotated_sprite(
-            &sprite, Vec2::new(106.0, 200.0), 1.0
+            &sprite,
+            Vec2::new(106.0, 200.0),
+            1.0,
         );
         let handle_cursor = HandleDetector::get_resize_handle_for_cursor_detection(
-            &sprite, Vec2::new(106.0, 200.0), 1.0
+            &sprite,
+            Vec2::new(106.0, 200.0),
+            1.0,
         );
         assert!(handle_resize.is_some());
         assert!(handle_cursor.is_none());

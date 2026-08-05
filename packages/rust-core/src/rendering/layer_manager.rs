@@ -1,10 +1,18 @@
+use crate::math::Vec2;
+use crate::types::{BlendMode, Layer, LayerSettings, Sprite};
+use gloo_utils::format::JsValueSerdeExt;
 use std::collections::HashMap;
 use wasm_bindgen::prelude::*;
-use gloo_utils::format::JsValueSerdeExt;
-use crate::types::{Sprite, Layer, LayerSettings, BlendMode};
-use crate::math::Vec2;
 
-pub const LAYER_NAMES: &[&str] = &["map", "tokens", "dungeon_master", "light", "height", "obstacles", "fog_of_war"];
+pub const LAYER_NAMES: &[&str] = &[
+    "map",
+    "tokens",
+    "dungeon_master",
+    "light",
+    "height",
+    "obstacles",
+    "fog_of_war",
+];
 
 pub struct LayerManager {
     layers: HashMap<String, Layer>,
@@ -15,13 +23,13 @@ impl LayerManager {
         let mut layers = HashMap::new();
         // Per-layer tint colors shown when the layer is NOT active (RGBA)
         let tint_colors: &[(&str, [f32; 4])] = &[
-            ("map",            [0.3, 0.5, 0.8, 0.5]),
-            ("tokens",         [0.3, 0.8, 0.3, 0.5]),
+            ("map", [0.3, 0.5, 0.8, 0.5]),
+            ("tokens", [0.3, 0.8, 0.3, 0.5]),
             ("dungeon_master", [0.6, 0.3, 0.8, 0.5]),
-            ("light",          [0.8, 0.8, 0.3, 0.5]),
-            ("height",         [0.6, 0.4, 0.2, 0.5]),
-            ("obstacles",      [0.8, 0.2, 0.2, 0.5]),
-            ("fog_of_war",     [0.5, 0.5, 0.5, 0.5]),
+            ("light", [0.8, 0.8, 0.3, 0.5]),
+            ("height", [0.6, 0.4, 0.2, 0.5]),
+            ("obstacles", [0.8, 0.2, 0.2, 0.5]),
+            ("fog_of_war", [0.5, 0.5, 0.5, 0.5]),
         ];
 
         for (i, &name) in LAYER_NAMES.iter().enumerate() {
@@ -45,23 +53,23 @@ impl LayerManager {
 
         Self { layers }
     }
-    
+
     pub fn get_layers(&self) -> &HashMap<String, Layer> {
         &self.layers
     }
-    
+
     pub fn get_layers_mut(&mut self) -> &mut HashMap<String, Layer> {
         &mut self.layers
     }
-    
+
     pub fn get_layer(&self, layer_name: &str) -> Option<&Layer> {
         self.layers.get(layer_name)
     }
-    
+
     pub fn get_layer_mut(&mut self, layer_name: &str) -> Option<&mut Layer> {
         self.layers.get_mut(layer_name)
     }
-    
+
     // Layer settings management methods
     pub fn set_layer_opacity(&mut self, layer_name: &str, opacity: f32) -> bool {
         if let Some(layer) = self.layers.get_mut(layer_name) {
@@ -71,7 +79,7 @@ impl LayerManager {
             false
         }
     }
-    
+
     pub fn set_layer_visibility(&mut self, layer_name: &str, visible: bool) -> bool {
         if let Some(layer) = self.layers.get_mut(layer_name) {
             layer.set_visibility(visible);
@@ -80,7 +88,7 @@ impl LayerManager {
             false
         }
     }
-    
+
     pub fn set_layer_blend_mode(&mut self, layer_name: &str, blend_mode: BlendMode) -> bool {
         if let Some(layer) = self.layers.get_mut(layer_name) {
             layer.set_blend_mode(blend_mode);
@@ -89,7 +97,7 @@ impl LayerManager {
             false
         }
     }
-    
+
     pub fn set_layer_color(&mut self, layer_name: &str, r: f32, g: f32, b: f32) -> bool {
         if let Some(layer) = self.layers.get_mut(layer_name) {
             layer.set_color(r, g, b);
@@ -98,26 +106,31 @@ impl LayerManager {
             false
         }
     }
-    
-    pub fn add_sprite_to_layer(&mut self, layer_name: &str, sprite_data: &JsValue) -> Result<String, JsValue> {
-        let mut sprite: Sprite = sprite_data.into_serde()
+
+    pub fn add_sprite_to_layer(
+        &mut self,
+        layer_name: &str,
+        sprite_data: &JsValue,
+    ) -> Result<String, JsValue> {
+        let mut sprite: Sprite = sprite_data
+            .into_serde()
             .map_err(|e| JsValue::from_str(&format!("Failed to parse sprite: {}", e)))?;
-        
+
         if sprite.id.is_empty() {
             sprite.id = format!("sprite_{}", js_sys::Math::random());
         }
-        
+
         let sprite_id = sprite.id.clone();
-        
+
         if let Some(layer) = self.layers.get_mut(layer_name) {
             layer.sprites.push(sprite);
         } else {
             return Err(JsValue::from_str("Layer not found"));
         }
-        
+
         Ok(sprite_id)
     }
-    
+
     pub fn remove_sprite(&mut self, sprite_id: &str) -> bool {
         for layer in self.layers.values_mut() {
             if let Some(index) = layer.sprites.iter().position(|s| s.id == sprite_id) {
@@ -138,7 +151,9 @@ impl LayerManager {
                 break;
             }
         }
-        let Some(sprite) = found else { return false; };
+        let Some(sprite) = found else {
+            return false;
+        };
         if let Some(layer) = self.layers.get_mut(new_layer) {
             layer.sprites.push(sprite);
             true
@@ -155,7 +170,7 @@ impl LayerManager {
         }
         None
     }
-    
+
     pub fn rotate_sprite(&mut self, sprite_id: &str, rotation_degrees: f64) -> bool {
         for layer in self.layers.values_mut() {
             if let Some(sprite) = layer.sprites.iter_mut().find(|s| s.id == sprite_id) {
@@ -165,7 +180,7 @@ impl LayerManager {
         }
         false
     }
-    
+
     pub fn resize_sprite(&mut self, sprite_id: &str, new_width: f64, new_height: f64) -> bool {
         for layer in self.layers.values_mut() {
             if let Some(sprite) = layer.sprites.iter_mut().find(|s| s.id == sprite_id) {
@@ -176,14 +191,12 @@ impl LayerManager {
         }
         false
     }
-    
 
-    
     pub fn find_sprite_for_right_click(&self, world_pos: Vec2) -> Option<String> {
         // Search for sprite at position (reverse z-order for top-most)
         let mut sorted_layers: Vec<_> = self.layers.iter().collect();
         sorted_layers.sort_by_key(|(_, layer)| std::cmp::Reverse(layer.z_order()));
-        
+
         for (_, layer) in sorted_layers {
             if layer.visible() {
                 for sprite in layer.sprites.iter().rev() {
@@ -193,10 +206,10 @@ impl LayerManager {
                 }
             }
         }
-        
+
         None
     }
-    
+
     pub fn copy_sprite(&self, sprite_id: &str) -> Option<String> {
         if let Some((sprite, _)) = self.find_sprite(sprite_id) {
             // Convert sprite to JSON for copying
@@ -207,23 +220,29 @@ impl LayerManager {
         None
     }
 
-    pub fn paste_sprite(&mut self, layer_name: &str, sprite_json: &str, offset_x: f64, offset_y: f64) -> Result<String, JsValue> {
+    pub fn paste_sprite(
+        &mut self,
+        layer_name: &str,
+        sprite_json: &str,
+        offset_x: f64,
+        offset_y: f64,
+    ) -> Result<String, JsValue> {
         let mut sprite: Sprite = serde_json::from_str(sprite_json)
             .map_err(|e| JsValue::from_str(&format!("Failed to parse sprite JSON: {}", e)))?;
-        
+
         // Generate new ID and apply offset
         sprite.id = format!("sprite_{}", js_sys::Math::random());
         sprite.world_x += offset_x;
         sprite.world_y += offset_y;
-        
+
         let sprite_id = sprite.id.clone();
-        
+
         if let Some(layer) = self.layers.get_mut(layer_name) {
             layer.sprites.push(sprite);
         } else {
             return Err(JsValue::from_str("Layer not found"));
         }
-        
+
         Ok(sprite_id)
     }
 
@@ -326,20 +345,32 @@ mod tests {
     #[test]
     fn count_sprites_for_table() {
         let mut lm = LayerManager::new();
-        lm.layers.get_mut("tokens").unwrap().sprites.push(make_sprite("a", 0.0, 0.0, "tokens"));
+        lm.layers
+            .get_mut("tokens")
+            .unwrap()
+            .sprites
+            .push(make_sprite("a", 0.0, 0.0, "tokens"));
         lm.layers.get_mut("map").unwrap().sprites.push({
             let mut s = make_sprite("b", 10.0, 10.0, "map");
             s.table_id = "other".into();
             s
         });
-        let count: usize = lm.layers.values().map(|l| l.sprites.iter().filter(|s| s.table_id == "table1").count()).sum();
+        let count: usize = lm
+            .layers
+            .values()
+            .map(|l| l.sprites.iter().filter(|s| s.table_id == "table1").count())
+            .sum();
         assert_eq!(count, 1);
     }
 
     #[test]
     fn update_sprite_position_moves_sprite() {
         let mut lm = LayerManager::new();
-        lm.layers.get_mut("tokens").unwrap().sprites.push(make_sprite("p1", 0.0, 0.0, "tokens"));
+        lm.layers
+            .get_mut("tokens")
+            .unwrap()
+            .sprites
+            .push(make_sprite("p1", 0.0, 0.0, "tokens"));
         assert!(lm.update_sprite_position("p1", Vec2::new(100.0, 200.0)));
         let (s, _) = lm.find_sprite("p1").unwrap();
         assert_eq!((s.world_x, s.world_y), (100.0, 200.0));

@@ -31,15 +31,15 @@ impl GridSystem {
             dot_buf: Vec::with_capacity(512),
         }
     }
-    
+
     pub fn set_enabled(&mut self, enabled: bool) {
         self.enabled = enabled;
     }
-    
+
     pub fn set_snapping(&mut self, enabled: bool) {
         self.snapping = enabled;
     }
-    
+
     pub fn set_size(&mut self, size: f32) {
         self.size = size.clamp(10.0, 200.0);
     }
@@ -48,7 +48,7 @@ impl GridSystem {
     pub fn sync_from_table(&mut self, grid_cell_px: f32) {
         self.size = grid_cell_px.clamp(10.0, 500.0);
     }
-    
+
     pub fn get_size(&self) -> f32 {
         self.size
     }
@@ -56,34 +56,40 @@ impl GridSystem {
 
 #[cfg(target_arch = "wasm32")]
 impl GridSystem {
-    pub fn draw_grid(&mut self, renderer: &WebGLRenderer, world_bounds: Rect) -> Result<(), JsValue> {
+    pub fn draw_grid(
+        &mut self,
+        renderer: &WebGLRenderer,
+        world_bounds: Rect,
+    ) -> Result<(), JsValue> {
         if !self.enabled {
             return Ok(());
         }
-        
+
         let start_x = (world_bounds.min.x / self.size).floor() * self.size;
         let end_x = (world_bounds.max.x / self.size).ceil() * self.size;
         let start_y = (world_bounds.min.y / self.size).floor() * self.size;
         let end_y = (world_bounds.max.y / self.size).ceil() * self.size;
-        
+
         self.line_buf.clear();
-        
+
         // Vertical lines
         let mut x = start_x;
         while x <= end_x {
-            self.line_buf.extend_from_slice(&[x, world_bounds.min.y, x, world_bounds.max.y]);
+            self.line_buf
+                .extend_from_slice(&[x, world_bounds.min.y, x, world_bounds.max.y]);
             x += self.size;
         }
-        
+
         // Horizontal lines
         let mut y = start_y;
         while y <= end_y {
-            self.line_buf.extend_from_slice(&[world_bounds.min.x, y, world_bounds.max.x, y]);
+            self.line_buf
+                .extend_from_slice(&[world_bounds.min.x, y, world_bounds.max.x, y]);
             y += self.size;
         }
-        
+
         renderer.draw_lines(&self.line_buf, [0.2, 0.2, 0.2, 1.0])?;
-        
+
         // Draw grid center dots if grid snapping is enabled (for visual reference)
         if self.snapping && self.size >= 30.0 {
             self.dot_buf.clear();
@@ -93,10 +99,14 @@ impl GridSystem {
                 while x <= end_x - self.size * 0.5 {
                     let dot_size = 2.0;
                     self.dot_buf.extend_from_slice(&[
-                        x - dot_size, y,
-                        x + dot_size, y,
-                        x, y - dot_size,
-                        x, y + dot_size,
+                        x - dot_size,
+                        y,
+                        x + dot_size,
+                        y,
+                        x,
+                        y - dot_size,
+                        x,
+                        y + dot_size,
                     ]);
                     x += self.size;
                 }
@@ -106,7 +116,7 @@ impl GridSystem {
                 renderer.draw_lines(&self.dot_buf, [0.4, 0.4, 0.4, 0.8])?;
             }
         }
-        
+
         Ok(())
     }
 }

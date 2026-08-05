@@ -1,14 +1,14 @@
-use wasm_bindgen::prelude::*;
 use std::collections::HashMap;
+use wasm_bindgen::prelude::*;
 
-use super::{ActionsClient, ActionResult, TableInfo, ActionHistoryEntry};
+use super::{ActionHistoryEntry, ActionResult, ActionsClient, TableInfo};
 
 #[wasm_bindgen]
 impl ActionsClient {
     #[wasm_bindgen]
     pub fn create_table(&mut self, name: &str, width: f64, height: f64) -> JsValue {
         let table_id = self.generate_id();
-        
+
         let table_info = TableInfo {
             table_id: table_id.clone(),
             name: name.to_string(),
@@ -86,7 +86,10 @@ impl ActionsClient {
         };
 
         if let Some(table_info) = self.tables.get_mut(table_id) {
-            if let Ok(update_map) = serde_wasm_bindgen::from_value::<HashMap<String, serde_json::Value>>(updates.clone()) {
+            if let Ok(update_map) = serde_wasm_bindgen::from_value::<
+                HashMap<String, serde_json::Value>,
+            >(updates.clone())
+            {
                 for (key, value) in update_map {
                     match key.as_str() {
                         "name" => {

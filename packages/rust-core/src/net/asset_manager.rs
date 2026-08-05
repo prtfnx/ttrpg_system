@@ -1,10 +1,10 @@
-use wasm_bindgen::prelude::*;
-use wasm_bindgen_futures::JsFuture;
+use js_sys::{ArrayBuffer, Date, Uint8Array};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
-use web_sys::{console, window, Request, RequestInit, RequestMode, Response};
-use js_sys::{Uint8Array, ArrayBuffer, Date};
+use wasm_bindgen::prelude::*;
 use wasm_bindgen::JsCast;
+use wasm_bindgen_futures::JsFuture;
+use web_sys::{console, window, Request, RequestInit, RequestMode, Response};
 use xxhash_rust::xxh64::xxh64;
 
 fn calculate_hash(data: &[u8]) -> u64 {
@@ -59,19 +59,19 @@ impl AssetManager {
     #[wasm_bindgen(constructor)]
     pub fn new() -> Self {
         console::log_1(&"Starting AssetManager constructor...".into());
-        
+
         let cache = HashMap::new();
         console::log_1(&"Created cache HashMap".into());
-        
+
         let hash_lookup = HashMap::new();
         console::log_1(&"Created hash_lookup HashMap".into());
-        
+
         let download_queue = Vec::new();
         console::log_1(&"Created download_queue Vec".into());
-        
+
         let current_time = Date::now();
         console::log_1(&format!("Current time: {}", current_time).into());
-        
+
         let stats = CacheStats {
             total_assets: 0,
             total_size: 0,
@@ -85,7 +85,7 @@ impl AssetManager {
             hash_failures: 0,
         };
         console::log_1(&"Created stats".into());
-        
+
         let manager = Self {
             cache,
             hash_lookup,
@@ -94,7 +94,7 @@ impl AssetManager {
             max_cache_size: 100 * 1024 * 1024, // 100MB default
             max_age_ms: 24.0 * 60.0 * 60.0 * 1000.0, // 24 hours
         };
-        
+
         console::log_1(&"AssetManager constructor completed successfully".into());
         manager
     }
@@ -107,15 +107,19 @@ impl AssetManager {
     }
 
     #[wasm_bindgen]
-    pub async fn download_asset(&mut self, url: String, expected_hash: Option<String>) -> Result<String, JsValue> {
+    pub async fn download_asset(
+        &mut self,
+        url: String,
+        expected_hash: Option<String>,
+    ) -> Result<String, JsValue> {
         console::log_1(&format!("Downloading asset: {}", url).into());
-        
+
         // Add to download queue if not already queued
         if !self.download_queue.contains(&url) {
             self.download_queue.push(url.clone());
             self.stats.download_queue_size = self.download_queue.len() as u32;
         }
-        
+
         // Check if already cached by hash
         if let Some(ref hash) = expected_hash {
             if let Some(asset_id) = self.hash_lookup.get(hash) {
@@ -130,46 +134,50 @@ impl AssetManager {
                 }
             }
         }
-        
+
         // Download the asset
         let request_init = RequestInit::new();
         request_init.set_method("GET");
         request_init.set_mode(RequestMode::Cors);
-        
+
         let request = Request::new_with_str_and_init(&url, &request_init)?;
         let window = window().ok_or("No window found")?;
         let resp_value = JsFuture::from(window.fetch_with_request(&request)).await?;
         let resp: Response = resp_value.dyn_into()?;
-        
+
         if !resp.ok() {
             self.stats.failed_downloads += 1;
-            return Err(JsValue::from_str(&format!("Failed to download asset: HTTP {}", resp.status())));
+            return Err(JsValue::from_str(&format!(
+                "Failed to download asset: HTTP {}",
+                resp.status()
+            )));
         }
-        
+
         // Get response data
         let array_buffer = JsFuture::from(resp.array_buffer()?).await?;
         let array_buffer: ArrayBuffer = array_buffer.dyn_into()?;
         let uint8_array = Uint8Array::new(&array_buffer);
         let data = uint8_array.to_vec();
-        
+
         // Calculate hash and verify if expected
         let calculated_hash = calculate_hash(&data);
         let hash_string = format!("{:016x}", calculated_hash);
-        
+
         self.stats.hash_verifications += 1;
-        
+
         if let Some(ref expected) = expected_hash {
             if expected != &hash_string {
                 self.stats.hash_failures += 1;
                 return Err(JsValue::from_str(&format!(
-                    "Hash verification failed. Expected: {}, Got: {}", expected, hash_string
+                    "Hash verification failed. Expected: {}, Got: {}",
+                    expected, hash_string
                 )));
             }
         }
-        
+
         // Extract filename from URL
         let filename = url.split('/').next_back().unwrap_or("unknown").to_string();
-        
+
         // Determine MIME type from file extension
         let mime_type = match filename.split('.').next_back().unwrap_or("") {
             "png" => "image/png",
@@ -180,12 +188,13 @@ impl AssetManager {
             "json" => "application/json",
             "txt" => "text/plain",
             _ => "application/octet-stream",
-        }.to_string();
-        
+        }
+        .to_string();
+
         // Create asset info
         let asset_id = format!("asset_{}", hash_string);
         let now = Date::now();
-        
+
         let asset_info = AssetInfo {
             id: asset_id.clone(),
             name: filename,
@@ -197,26 +206,26 @@ impl AssetManager {
             last_accessed: now,
             download_progress: 100.0,
         };
-        
+
         let cache_entry = AssetCacheEntry {
             info: asset_info,
             data,
         };
-        
+
         // Update cache and stats
         self.cache.insert(asset_id.clone(), cache_entry.clone());
         self.hash_lookup.insert(hash_string, asset_id.clone());
         self.stats.total_assets += 1;
         self.stats.total_size += cache_entry.info.size;
         self.stats.total_downloads += 1;
-        
+
         // Cleanup if cache is too large
         self.cleanup_cache().await;
-        
+
         // Remove from download queue when completed
         self.download_queue.retain(|queued_url| queued_url != &url);
         self.stats.download_queue_size = self.download_queue.len() as u32;
-        
+
         console::log_1(&format!("Asset downloaded and cached: {}", asset_id).into());
         Ok(asset_id)
     }
@@ -235,7 +244,8 @@ impl AssetManager {
 
     #[wasm_bindgen]
     pub fn get_asset_info(&self, asset_id: String) -> Option<String> {
-        self.cache.get(&asset_id)
+        self.cache
+            .get(&asset_id)
             .and_then(|entry| serde_json::to_string(&entry.info).ok())
     }
 
@@ -278,7 +288,7 @@ impl AssetManager {
     pub async fn cleanup_cache(&mut self) {
         let now = Date::now();
         let max_age = self.max_age_ms;
-        
+
         // Remove expired assets
         let mut to_remove = Vec::new();
         for (asset_id, entry) in &self.cache {
@@ -286,33 +296,38 @@ impl AssetManager {
                 to_remove.push(asset_id.clone());
             }
         }
-        
+
         for asset_id in to_remove {
             self.remove_asset(asset_id);
         }
-        
+
         // If still over size limit, remove least recently used
         while self.stats.total_size > self.max_cache_size && !self.cache.is_empty() {
             let mut oldest_id = String::new();
             let mut oldest_time = f64::INFINITY;
-            
+
             for (asset_id, entry) in &self.cache {
                 if entry.info.last_accessed < oldest_time {
                     oldest_time = entry.info.last_accessed;
                     oldest_id = asset_id.clone();
                 }
             }
-            
+
             if !oldest_id.is_empty() {
                 self.remove_asset(oldest_id);
             } else {
                 break;
             }
         }
-        
+
         self.stats.last_cleanup = now;
-        console::log_1(&format!("Cache cleanup completed. Assets: {}, Size: {} bytes", 
-            self.stats.total_assets, self.stats.total_size).into());
+        console::log_1(
+            &format!(
+                "Cache cleanup completed. Assets: {}, Size: {} bytes",
+                self.stats.total_assets, self.stats.total_size
+            )
+            .into(),
+        );
     }
 
     #[wasm_bindgen]
@@ -342,7 +357,7 @@ impl AssetManager {
         self.hash_lookup.clear();
         self.stats.total_assets = 0;
         self.stats.total_size = 0;
-        
+
         console::log_1(&"Asset cache cleared".into());
     }
 

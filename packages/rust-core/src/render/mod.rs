@@ -7,26 +7,28 @@ mod sync;
 use wasm_bindgen::prelude::*;
 use web_sys::{HtmlCanvasElement, WebGl2RenderingContext as WebGlRenderingContext};
 
-use crate::math::*;
-use crate::camera::Camera;
-use crate::input::InputHandler;
-use crate::webgl_renderer::WebGLRenderer;
-use crate::text_renderer::TextRenderer;
-use crate::lighting::LightingSystem;
-use crate::fog::FogOfWarSystem;
-use crate::event_system::EventSystem;
-use crate::layer_manager::LayerManager;
-use crate::grid_system::GridSystem;
-use crate::texture_manager::TextureManager;
 use crate::actions::ActionsClient;
+use crate::camera::Camera;
+use crate::event_system::EventSystem;
+use crate::fog::FogOfWarSystem;
+use crate::grid_system::GridSystem;
+use crate::input::InputHandler;
+use crate::layer_manager::LayerManager;
+use crate::lighting::LightingSystem;
+use crate::math::*;
 use crate::paint::PaintSystem;
-use crate::table_sync::TableSync;
 use crate::table_manager::TableManager;
+use crate::table_sync::TableSync;
+use crate::text_renderer::TextRenderer;
+use crate::texture_manager::TextureManager;
 use crate::wall_manager::WallManager;
+use crate::webgl_renderer::WebGLRenderer;
 
 fn parse_hex_color(hex: &str) -> Option<crate::types::Color> {
     let s = hex.trim_start_matches('#');
-    if s.len() != 6 { return None; }
+    if s.len() != 6 {
+        return None;
+    }
     let r = u8::from_str_radix(&s[0..2], 16).ok()? as f32 / 255.0;
     let g = u8::from_str_radix(&s[2..4], 16).ok()? as f32 / 255.0;
     let b = u8::from_str_radix(&s[4..6], 16).ok()? as f32 / 255.0;
@@ -39,38 +41,38 @@ pub struct RenderEngine {
     pub(crate) layer_manager: LayerManager,
     pub(crate) grid_system: GridSystem,
     pub(crate) texture_manager: TextureManager,
-    
+
     // Camera and transforms
     pub(crate) camera: Camera,
     pub(crate) view_matrix: Mat3,
     pub(crate) canvas_size: Vec2,
-    
+
     // Input handling
     pub(crate) input: InputHandler,
     pub(crate) event_system: EventSystem,
-    
+
     // Core rendering
     pub(crate) renderer: WebGLRenderer,
     pub(crate) text_renderer: TextRenderer,
-    
+
     // Lighting system
     pub(crate) lighting: LightingSystem,
-    
+
     // Fog of war system
     pub(crate) fog: FogOfWarSystem,
-    
+
     // Actions system
     pub(crate) actions: ActionsClient,
-    
+
     // Paint system
     pub(crate) paint: PaintSystem,
-    
+
     // Table synchronization
     pub(crate) table_sync: TableSync,
-    
+
     // Table management
     pub(crate) table_manager: TableManager,
-    
+
     // Wall segments
     pub(crate) wall_manager: WallManager,
 
@@ -107,49 +109,58 @@ impl RenderEngine {
             [255, 255, 255, (alpha * 255.0) as u8]
         }
     }
-    
+
     pub(crate) fn get_shape_settings(&self) -> (String, f32, bool) {
-        (self.shape_color.clone(), self.shape_opacity, self.shape_filled)
+        (
+            self.shape_color.clone(),
+            self.shape_opacity,
+            self.shape_filled,
+        )
     }
-    
+
     #[wasm_bindgen(constructor)]
     pub fn new(canvas: HtmlCanvasElement) -> Result<RenderEngine, JsValue> {
         let context_options = js_sys::Object::new();
         js_sys::Reflect::set(&context_options, &"stencil".into(), &true.into())?;
         js_sys::Reflect::set(&context_options, &"alpha".into(), &false.into())?;
         js_sys::Reflect::set(&context_options, &"antialias".into(), &true.into())?;
-        
+
         let gl = canvas
             .get_context_with_context_options("webgl2", &context_options)?
             .unwrap()
             .dyn_into::<WebGlRenderingContext>()?;
-        
+
         let stencil_bits = gl.get_parameter(WebGlRenderingContext::STENCIL_BITS)?;
-        web_sys::console::log_1(&format!("[RUST] WebGL context created with {} stencil buffer bits", 
-            stencil_bits.as_f64().unwrap_or(0.0)).into());
-        
+        web_sys::console::log_1(
+            &format!(
+                "[RUST] WebGL context created with {} stencil buffer bits",
+                stencil_bits.as_f64().unwrap_or(0.0)
+            )
+            .into(),
+        );
+
         let renderer = WebGLRenderer::new(gl.clone())?;
         let mut text_renderer = TextRenderer::new();
         let lighting = LightingSystem::new(gl.clone())?;
         let fog = FogOfWarSystem::new(gl.clone())?;
         let mut texture_manager = TextureManager::new(gl);
-        
+
         web_sys::console::log_1(&"[RENDER] Loading font atlas texture...".into());
         texture_manager.load_texture_from_url("font_atlas", "/static/ui/assets/font_atlas.png")?;
-        
+
         text_renderer.init_font_atlas(&mut texture_manager)?;
-        
+
         let layer_manager = LayerManager::new();
         let grid_system = GridSystem::new();
         let actions = ActionsClient::new();
         let paint = PaintSystem::new();
         let table_sync = TableSync::new();
         let table_manager = TableManager::new();
-        let wall_manager = WallManager::new();        
+        let wall_manager = WallManager::new();
         let canvas_size = Vec2::new(canvas.width() as f32, canvas.height() as f32);
         let camera = Camera::default();
         let view_matrix = camera.view_matrix(canvas_size);
-        
+
         let engine = Self {
             layer_manager,
             grid_system,
@@ -186,9 +197,10 @@ impl RenderEngine {
     pub(crate) fn update_view_matrix(&mut self) {
         self.view_matrix = self.camera.view_matrix(self.canvas_size);
         let matrix_array = self.view_matrix.to_array();
-        self.renderer.set_view_matrix(&matrix_array, self.canvas_size);
+        self.renderer
+            .set_view_matrix(&matrix_array, self.canvas_size);
     }
-    
+
     pub(crate) fn get_world_view_bounds(&self) -> Rect {
         let min = self.camera.screen_to_world(Vec2::new(0.0, 0.0));
         let max = self.camera.screen_to_world(self.canvas_size);
@@ -222,7 +234,11 @@ impl RenderEngine {
         self.shape_filled = filled;
     }
 
-    fn get_effective_layer_opacity(layer_settings: &crate::types::LayerSettings, layer_name: &str, active_layer: &str) -> f32 {
+    fn get_effective_layer_opacity(
+        layer_settings: &crate::types::LayerSettings,
+        layer_name: &str,
+        active_layer: &str,
+    ) -> f32 {
         if layer_name == active_layer {
             return layer_settings.opacity;
         }
@@ -271,13 +287,15 @@ impl RenderEngine {
                 let cos_a = angle.cos();
                 let sin_a = angle.sin();
 
-                let raw = [(-half_w, -half_h), (half_w, -half_h), (half_w, half_h), (-half_w, half_h)];
+                let raw = [
+                    (-half_w, -half_h),
+                    (half_w, -half_h),
+                    (half_w, half_h),
+                    (-half_w, half_h),
+                ];
                 let corners: [Vec2; 4] = std::array::from_fn(|i| {
                     let (dx, dy) = raw[i];
-                    Vec2::new(
-                        cx + dx * cos_a - dy * sin_a,
-                        cy + dx * sin_a + dy * cos_a,
-                    )
+                    Vec2::new(cx + dx * cos_a - dy * sin_a, cy + dx * sin_a + dy * cos_a)
                 });
 
                 for i in 0..4 {
@@ -294,7 +312,8 @@ impl RenderEngine {
     }
 
     fn find_sprite(&self, sprite_id: &str) -> Option<&crate::types::Sprite> {
-        self.layer_manager.find_sprite(sprite_id).map(|(sprite, _)| sprite)
+        self.layer_manager
+            .find_sprite(sprite_id)
+            .map(|(sprite, _)| sprite)
     }
-
 }

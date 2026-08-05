@@ -293,9 +293,18 @@ class ConnectionManager:
                                 "outcome": "error",
                             },
                         )
-                        # Fall through to regular message handling
+                        await self.send_personal_message({
+                            "type": MessageType.ERROR.value,
+                            "data": {"error": "Error processing message"},
+                        }, websocket)
+                        return
                 else:
                     logger.error(f"No protocol service found for session: {session_code}")
+                    await self.send_personal_message({
+                        "type": MessageType.ERROR.value,
+                        "data": {"error": "Error processing message"},
+                    }, websocket)
+                    return
             else:
                 logger.debug(f"Processing as regular message: {message_data.get('type')}")
 

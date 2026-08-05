@@ -4,7 +4,7 @@ Audience: contributors changing the Python server or shared domain package.
 
 Status: usable.
 
-Last source audit: 2026-08-03
+Last source audit: 2026-08-04
 
 The server is a FastAPI app with WebSocket sessions and a Python tabletop
 domain package behind it.
@@ -49,6 +49,11 @@ session.
 - Loads tables from the database when available.
 - Saves session state through database helpers.
 - Coordinates server-side asset permissions.
+
+Recognized protocol messages have one dispatch path. If a protocol handler
+raises, `ConnectionManager` logs the exception, returns one generic `error`
+message, and stops dispatch. It does not retry the message through the legacy
+message switch.
 
 `TableManager` starts empty. It contains only tables created for or loaded
 from the current session. Missing table IDs return no table; the domain layer

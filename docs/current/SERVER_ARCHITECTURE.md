@@ -18,6 +18,11 @@ domain package behind it.
 - `apps/server/database/` contains SQLAlchemy models, CRUD, migrations, and
   session persistence helpers.
 
+Database timestamp columns use a naive UTC representation for compatibility
+across SQLite tests and PostgreSQL. Produce those values with
+`apps/server/utils/time.py::utc_now`; do not call the deprecated
+`datetime.utcnow()` API or insert local time.
+
 ## Session runtime
 
 Game WebSockets flow through this path:

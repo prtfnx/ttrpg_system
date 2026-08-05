@@ -20,6 +20,7 @@ from sqlalchemy import (
     UniqueConstraint,
 )
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
+from utils.time import utc_now
 
 NAMING_CONVENTION = {
     "ix": "ix_%(column_0_label)s",
@@ -45,7 +46,7 @@ class User(Base):
     disabled: Mapped[bool] = mapped_column(Boolean, default=False)
     is_verified: Mapped[bool] = mapped_column(Boolean, default=False, index=True)
     google_id: Mapped[Optional[str]] = mapped_column(String(255), unique=True, nullable=True, index=True)
-    created_at: Mapped[Optional[datetime]] = mapped_column(DateTime, default=datetime.utcnow)
+    created_at: Mapped[Optional[datetime]] = mapped_column(DateTime, default=utc_now)
     password_set_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)  # NULL = OAuth-only user who never set a password
     session_version: Mapped[int] = mapped_column(Integer, default=0, nullable=False)  # Bump to invalidate all JWTs
 
@@ -61,7 +62,7 @@ class GameSession(Base):
     owner_id: Mapped[int] = mapped_column(Integer, ForeignKey("users.id"), nullable=False)
     is_active: Mapped[bool] = mapped_column(Boolean, default=True)
     is_demo: Mapped[bool] = mapped_column(Boolean, default=False, index=True)
-    created_at: Mapped[Optional[datetime]] = mapped_column(DateTime, default=datetime.utcnow)
+    created_at: Mapped[Optional[datetime]] = mapped_column(DateTime, default=utc_now)
     game_data: Mapped[Optional[str]] = mapped_column(Text)  # JSON data for game state
     ban_list: Mapped[Optional[str]] = mapped_column(Text, default='[]')  # JSON array of ban records (player_id, reason, etc.)
     session_rules_json: Mapped[Optional[str]] = mapped_column(Text, default='{}')  # JSON blob of SessionRules
@@ -86,7 +87,7 @@ class GamePlayer(Base):
     user_id: Mapped[int] = mapped_column(Integer, ForeignKey("users.id"), nullable=False)
     character_name: Mapped[Optional[str]] = mapped_column(String(100))
     role: Mapped[Optional[str]] = mapped_column(String(20), default="player")  # owner, co_dm, trusted_player, player, spectator
-    joined_at: Mapped[Optional[datetime]] = mapped_column(DateTime, default=datetime.utcnow)
+    joined_at: Mapped[Optional[datetime]] = mapped_column(DateTime, default=utc_now)
     is_connected: Mapped[bool] = mapped_column(Boolean, default=False)
     active_table_id: Mapped[Optional[str]] = mapped_column(String(36), nullable=True)  # UUID of user's active table
 
@@ -131,8 +132,8 @@ class VirtualTable(Base):
     difficult_terrain_json: Mapped[Optional[str]] = mapped_column(Text, default="[]")
     cover_zones_json: Mapped[Optional[str]] = mapped_column(Text, default="[]")
 
-    created_at: Mapped[Optional[datetime]] = mapped_column(DateTime, default=datetime.utcnow)
-    updated_at: Mapped[Optional[datetime]] = mapped_column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    created_at: Mapped[Optional[datetime]] = mapped_column(DateTime, default=utc_now)
+    updated_at: Mapped[Optional[datetime]] = mapped_column(DateTime, default=utc_now, onupdate=utc_now)
 
     # Relationships
     session = relationship("GameSession", back_populates="tables")
@@ -190,8 +191,8 @@ class Entity(Base):
     vision_radius_units: Mapped[Optional[float]] = mapped_column(Float, nullable=True)       # game units (ft/m)
     darkvision_radius_units: Mapped[Optional[float]] = mapped_column(Float, nullable=True)   # game units (ft/m)
 
-    created_at: Mapped[Optional[datetime]] = mapped_column(DateTime, default=datetime.utcnow)
-    updated_at: Mapped[Optional[datetime]] = mapped_column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    created_at: Mapped[Optional[datetime]] = mapped_column(DateTime, default=utc_now)
+    updated_at: Mapped[Optional[datetime]] = mapped_column(DateTime, default=utc_now, onupdate=utc_now)
 
     # Relationships
     table = relationship("VirtualTable", back_populates="entities")
@@ -212,9 +213,9 @@ class Asset(Base):
     uploaded_by: Mapped[int] = mapped_column(Integer, ForeignKey("users.id"), nullable=False)
 
     # Timestamps
-    created_at: Mapped[Optional[datetime]] = mapped_column(DateTime, default=datetime.utcnow)
-    updated_at: Mapped[Optional[datetime]] = mapped_column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
-    last_accessed: Mapped[Optional[datetime]] = mapped_column(DateTime, default=datetime.utcnow)
+    created_at: Mapped[Optional[datetime]] = mapped_column(DateTime, default=utc_now)
+    updated_at: Mapped[Optional[datetime]] = mapped_column(DateTime, default=utc_now, onupdate=utc_now)
+    last_accessed: Mapped[Optional[datetime]] = mapped_column(DateTime, default=utc_now)
 
     # R2 specific metadata
     r2_key: Mapped[str] = mapped_column(String(500), nullable=False)  # R2 object key
@@ -241,8 +242,8 @@ class SessionAsset(Base):
     asset_id: Mapped[int] = mapped_column(Integer, ForeignKey("assets.id"), nullable=False, index=True)
     display_name: Mapped[str] = mapped_column(String(255), nullable=False)
     added_by: Mapped[int] = mapped_column(Integer, ForeignKey("users.id"), nullable=False)
-    created_at: Mapped[Optional[datetime]] = mapped_column(DateTime, default=datetime.utcnow)
-    last_accessed: Mapped[Optional[datetime]] = mapped_column(DateTime, default=datetime.utcnow)
+    created_at: Mapped[Optional[datetime]] = mapped_column(DateTime, default=utc_now)
+    last_accessed: Mapped[Optional[datetime]] = mapped_column(DateTime, default=utc_now)
 
     session = relationship("GameSession", back_populates="assets")
     asset = relationship("Asset", back_populates="session_links")
@@ -265,7 +266,7 @@ class AssetUploadIntent(Base):
     xxhash: Mapped[Optional[str]] = mapped_column(String(32), nullable=True, index=True)
     status: Mapped[str] = mapped_column(String(20), nullable=False, default="awaiting_upload", index=True)
     error_message: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
-    created_at: Mapped[Optional[datetime]] = mapped_column(DateTime, default=datetime.utcnow)
+    created_at: Mapped[Optional[datetime]] = mapped_column(DateTime, default=utc_now)
     expires_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True, index=True)
     confirmed_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
 
@@ -283,8 +284,8 @@ class SessionCharacter(Base):
     owner_user_id: Mapped[int] = mapped_column(Integer, ForeignKey("users.id"), nullable=False)
 
     # Timestamps
-    created_at: Mapped[Optional[datetime]] = mapped_column(DateTime, default=datetime.utcnow)
-    updated_at: Mapped[Optional[datetime]] = mapped_column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    created_at: Mapped[Optional[datetime]] = mapped_column(DateTime, default=utc_now)
+    updated_at: Mapped[Optional[datetime]] = mapped_column(DateTime, default=utc_now, onupdate=utc_now)
     # Versioning for optimistic concurrency
     version: Mapped[int] = mapped_column(Integer, default=1)
     last_modified_by: Mapped[Optional[int]] = mapped_column(Integer, ForeignKey("users.id"), nullable=True)
@@ -341,7 +342,7 @@ class CharacterPermission(Base):
     can_edit: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
     can_control: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
     granted_by: Mapped[int] = mapped_column(Integer, ForeignKey("users.id"), nullable=False)
-    created_at: Mapped[Optional[datetime]] = mapped_column(DateTime, default=datetime.utcnow)
+    created_at: Mapped[Optional[datetime]] = mapped_column(DateTime, default=utc_now)
 
     character = relationship("SessionCharacter", back_populates="permissions")
     user = relationship("User", foreign_keys=[user_id])
@@ -376,11 +377,11 @@ class CharacterDraft(Base):
         ForeignKey("session_characters.character_id", ondelete="SET NULL"),
         nullable=True,
     )
-    created_at: Mapped[Optional[datetime]] = mapped_column(DateTime, default=datetime.utcnow)
+    created_at: Mapped[Optional[datetime]] = mapped_column(DateTime, default=utc_now)
     updated_at: Mapped[Optional[datetime]] = mapped_column(
         DateTime,
-        default=datetime.utcnow,
-        onupdate=datetime.utcnow,
+        default=utc_now,
+        onupdate=utc_now,
         index=True,
     )
     last_modified_by: Mapped[Optional[int]] = mapped_column(
@@ -402,7 +403,7 @@ class SessionInvitation(Base):
     session_id: Mapped[int] = mapped_column(Integer, ForeignKey("game_sessions.id"), nullable=False)
     pre_assigned_role: Mapped[str] = mapped_column(String(20), nullable=False, default="player")
     created_by: Mapped[int] = mapped_column(Integer, ForeignKey("users.id"), nullable=False)
-    created_at: Mapped[Optional[datetime]] = mapped_column(DateTime, default=datetime.utcnow)
+    created_at: Mapped[Optional[datetime]] = mapped_column(DateTime, default=utc_now)
     expires_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
     max_uses: Mapped[int] = mapped_column(Integer, default=1)
     uses_count: Mapped[int] = mapped_column(Integer, default=0)
@@ -435,7 +436,7 @@ class EmailVerificationToken(Base):
     id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
     token: Mapped[str] = mapped_column(String(64), unique=True, index=True, nullable=False)
     user_id: Mapped[int] = mapped_column(Integer, ForeignKey("users.id"), nullable=False)
-    created_at: Mapped[Optional[datetime]] = mapped_column(DateTime, default=datetime.utcnow)
+    created_at: Mapped[Optional[datetime]] = mapped_column(DateTime, default=utc_now)
     expires_at: Mapped[datetime] = mapped_column(DateTime, nullable=False)
     used_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
 
@@ -459,7 +460,7 @@ class PasswordResetToken(Base):
     token_hash: Mapped[str] = mapped_column(String(64), unique=True, nullable=False, index=True)  # SHA-256 hex
     expires_at: Mapped[datetime] = mapped_column(DateTime, nullable=False)
     used: Mapped[bool] = mapped_column(Boolean, default=False)
-    created_at: Mapped[Optional[datetime]] = mapped_column(DateTime, default=datetime.utcnow)
+    created_at: Mapped[Optional[datetime]] = mapped_column(DateTime, default=utc_now)
 
     user = relationship("User")
 
@@ -474,7 +475,7 @@ class PendingEmailChange(Base):
     token_hash: Mapped[str] = mapped_column(String(64), unique=True, nullable=False, index=True)  # SHA-256 hex
     expires_at: Mapped[datetime] = mapped_column(DateTime, nullable=False)
     used: Mapped[bool] = mapped_column(Boolean, default=False)
-    created_at: Mapped[Optional[datetime]] = mapped_column(DateTime, default=datetime.utcnow)
+    created_at: Mapped[Optional[datetime]] = mapped_column(DateTime, default=utc_now)
 
     user = relationship("User")
 
@@ -496,7 +497,7 @@ class CombatEncounter(Base):
     action_log_json: Mapped[Optional[str]] = mapped_column(Text, default="[]")            # list[CombatAction]
     started_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
     ended_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
-    created_at: Mapped[Optional[datetime]] = mapped_column(DateTime, default=datetime.utcnow)
+    created_at: Mapped[Optional[datetime]] = mapped_column(DateTime, default=utc_now)
 
     session = relationship("GameSession")
 
@@ -534,7 +535,7 @@ class CombatActionJournal(Base):
         ForeignKey("users.id"),
         nullable=True,
     )
-    created_at: Mapped[Optional[datetime]] = mapped_column(DateTime, default=datetime.utcnow)
+    created_at: Mapped[Optional[datetime]] = mapped_column(DateTime, default=utc_now)
 
 
 class ChoiceEncounter(Base):
@@ -554,11 +555,11 @@ class ChoiceEncounter(Base):
     choices_json: Mapped[str] = mapped_column(Text, nullable=False, default="[]")
     dm_notes: Mapped[str] = mapped_column(Text, nullable=False, default="")
     created_by: Mapped[Optional[int]] = mapped_column(Integer, ForeignKey("users.id"), nullable=True)
-    created_at: Mapped[Optional[datetime]] = mapped_column(DateTime, default=datetime.utcnow)
+    created_at: Mapped[Optional[datetime]] = mapped_column(DateTime, default=utc_now)
     updated_at: Mapped[Optional[datetime]] = mapped_column(
         DateTime,
-        default=datetime.utcnow,
-        onupdate=datetime.utcnow,
+        default=utc_now,
+        onupdate=utc_now,
     )
     ended_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
     version: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
@@ -586,7 +587,7 @@ class ChoiceEncounterEvent(Base):
     event_type: Mapped[str] = mapped_column(String(50), nullable=False)
     actor_id: Mapped[Optional[str]] = mapped_column(String(128), nullable=True)
     payload_json: Mapped[str] = mapped_column(Text, nullable=False)
-    created_at: Mapped[Optional[datetime]] = mapped_column(DateTime, default=datetime.utcnow, index=True)
+    created_at: Mapped[Optional[datetime]] = mapped_column(DateTime, default=utc_now, index=True)
 
 
 class Wall(Base):
@@ -614,8 +615,8 @@ class Wall(Base):
     direction: Mapped[str] = mapped_column(String(10), nullable=False, default='both')   # both|left|right
     created_by: Mapped[Optional[int]] = mapped_column(Integer, ForeignKey("users.id"), nullable=True)
 
-    created_at: Mapped[Optional[datetime]] = mapped_column(DateTime, default=datetime.utcnow)
-    updated_at: Mapped[Optional[datetime]] = mapped_column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    created_at: Mapped[Optional[datetime]] = mapped_column(DateTime, default=utc_now)
+    updated_at: Mapped[Optional[datetime]] = mapped_column(DateTime, default=utc_now, onupdate=utc_now)
 
     table = relationship("VirtualTable", back_populates="walls", foreign_keys=[table_id], primaryjoin="Wall.table_id==VirtualTable.table_id")
     creator = relationship("User", foreign_keys=[created_by])
@@ -671,7 +672,7 @@ class AuditLog(Base):
         )
     )
     schema_version: Mapped[int] = mapped_column(Integer, nullable=False, default=1)
-    timestamp: Mapped[Optional[datetime]] = mapped_column(DateTime, default=datetime.utcnow, index=True)
+    timestamp: Mapped[Optional[datetime]] = mapped_column(DateTime, default=utc_now, index=True)
 
     # Relationship
     user = relationship("User")
@@ -688,7 +689,7 @@ class CharacterLog(Base):
     # E.g. 'hp_change', 'spell_cast', 'slot_recovered', 'long_rest', 'skill_roll', 'item_change'
     action_type: Mapped[str] = mapped_column(String(50), nullable=False)
     description: Mapped[str] = mapped_column(String(500), nullable=False)
-    created_at: Mapped[Optional[datetime]] = mapped_column(DateTime, default=datetime.utcnow, index=True)
+    created_at: Mapped[Optional[datetime]] = mapped_column(DateTime, default=utc_now, index=True)
 
 
 class ChatMessage(Base):
@@ -725,7 +726,7 @@ class ChatMessage(Base):
         Integer, ForeignKey("users.id"), nullable=True
     )
     moderation_reason: Mapped[Optional[str]] = mapped_column(String(500), nullable=True)
-    created_at: Mapped[Optional[datetime]] = mapped_column(DateTime, default=datetime.utcnow, index=True)
+    created_at: Mapped[Optional[datetime]] = mapped_column(DateTime, default=utc_now, index=True)
 
     session = relationship("GameSession", back_populates="chat_messages")
     user = relationship("User", foreign_keys=[user_id])
@@ -779,7 +780,7 @@ class PaintStroke(Base):
     table_id: Mapped[str] = mapped_column(String(36), ForeignKey("virtual_tables.table_id"), nullable=False, index=True)
     created_by: Mapped[Optional[int]] = mapped_column(Integer, ForeignKey("users.id"), nullable=True)
     stroke_data: Mapped[str] = mapped_column(Text, nullable=False)  # JSON blob from WASM
-    created_at: Mapped[Optional[datetime]] = mapped_column(DateTime, default=datetime.utcnow)
+    created_at: Mapped[Optional[datetime]] = mapped_column(DateTime, default=utc_now)
 
     table = relationship("VirtualTable", back_populates="paint_strokes", foreign_keys=[table_id])
     creator = relationship("User", foreign_keys=[created_by])
@@ -819,10 +820,10 @@ class SharedMeasurement(Base):
     kind: Mapped[str] = mapped_column(String(20), nullable=False)
     measurement_data: Mapped[str] = mapped_column(Text, nullable=False)
     created_at: Mapped[Optional[datetime]] = mapped_column(
-        DateTime, default=datetime.utcnow
+        DateTime, default=utc_now
     )
     updated_at: Mapped[Optional[datetime]] = mapped_column(
-        DateTime, default=datetime.utcnow, onupdate=datetime.utcnow
+        DateTime, default=utc_now, onupdate=utc_now
     )
 
     table = relationship("VirtualTable", back_populates="shared_measurements")
@@ -864,10 +865,10 @@ class PaintTemplate(Base):
     strokes_json: Mapped[str] = mapped_column(Text, nullable=False)
     thumbnail: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     created_at: Mapped[Optional[datetime]] = mapped_column(
-        DateTime, default=datetime.utcnow
+        DateTime, default=utc_now
     )
     updated_at: Mapped[Optional[datetime]] = mapped_column(
-        DateTime, default=datetime.utcnow, onupdate=datetime.utcnow
+        DateTime, default=utc_now, onupdate=utc_now
     )
 
     session = relationship("GameSession", back_populates="paint_templates")

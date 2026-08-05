@@ -4,6 +4,7 @@
  */
 
 import { useAuth, useProtocol } from '@app/providers';
+import { MessageType } from '@lib/websocket';
 import { useEffect, useState } from 'react';
 import { toast } from 'react-toastify';
 import type { SessionPlayer, SessionRole } from '../types/roles';
@@ -38,10 +39,10 @@ export const useSessionManagement = (sessionCode: string) => {
       }
     };
 
-    protocol.registerHandler('CUSTOM', handlePlayerEvent);
+    protocol.registerHandler(MessageType.CUSTOM, handlePlayerEvent);
 
     return () => {
-      protocol.unregisterHandler('CUSTOM');
+      protocol.unregisterHandler(MessageType.CUSTOM);
     };
   }, [protocol, refetch]);
 

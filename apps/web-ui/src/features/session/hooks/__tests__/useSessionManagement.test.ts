@@ -1,5 +1,6 @@
 import { useProtocol } from '@app/providers';
 import { useSessionManagement } from '@features/session';
+import { MessageType } from '@lib/websocket';
 import { act, renderHook } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
@@ -178,9 +179,9 @@ describe('useSessionManagement', () => {
       } as unknown as ReturnType<typeof useProtocol>);
 
       const { unmount } = renderHook(() => useSessionManagement(sessionCode));
-      expect(mockRegister).toHaveBeenCalledWith('CUSTOM', expect.any(Function));
+      expect(mockRegister).toHaveBeenCalledWith(MessageType.CUSTOM, expect.any(Function));
       unmount();
-      expect(mockUnregister).toHaveBeenCalledWith('CUSTOM');
+      expect(mockUnregister).toHaveBeenCalledWith(MessageType.CUSTOM);
     });
   });
 });

@@ -36,6 +36,11 @@ Run `python packages/core-table/scripts/generate_protocol_types.py` after
 changing the schema. Run the same command with `--check` in verification to
 detect stale Python or TypeScript bindings.
 
+The browser compiles the generated schema with Ajv when the protocol module
+loads. `parseMessage()` rejects unknown message types, non-object `data`,
+invalid envelope metadata, and unexpected top-level fields before dispatch.
+Validation does not coerce wire values.
+
 ## Message flow
 
 Client sends command:

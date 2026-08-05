@@ -933,8 +933,8 @@ describe('WebClientProtocol', () => {
     it('custom handler is invoked for registered type', async () => {
       const p = makeProtocol();
       const handler = vi.fn().mockResolvedValue(undefined);
-      p.registerHandler('custom_type', handler);
-      const raw = JSON.stringify({ type: 'custom_type', data: { x: 1 }, version: '0.1', priority: 5 });
+      p.registerHandler(MessageType.CUSTOM, handler);
+      const raw = JSON.stringify({ type: MessageType.CUSTOM, data: { x: 1 }, version: '0.1', priority: 5 });
       await (p as unknown as Record<string, (...a: unknown[]) => Promise<void>>)['handleIncomingMessage'](raw);
       expect(handler).toHaveBeenCalledOnce();
     });
@@ -942,9 +942,9 @@ describe('WebClientProtocol', () => {
     it('unregistered handler is not invoked', async () => {
       const p = makeProtocol();
       const handler = vi.fn().mockResolvedValue(undefined);
-      p.registerHandler('to_remove', handler);
-      p.unregisterHandler('to_remove');
-      const raw = JSON.stringify({ type: 'to_remove', data: {}, version: '0.1', priority: 5 });
+      p.registerHandler(MessageType.CUSTOM, handler);
+      p.unregisterHandler(MessageType.CUSTOM);
+      const raw = JSON.stringify({ type: MessageType.CUSTOM, data: {}, version: '0.1', priority: 5 });
       await (p as unknown as Record<string, (...a: unknown[]) => Promise<void>>)['handleIncomingMessage'](raw);
       expect(handler).not.toHaveBeenCalled();
     });
@@ -953,12 +953,12 @@ describe('WebClientProtocol', () => {
       const p = makeProtocol();
       const first = vi.fn().mockResolvedValue(undefined);
       const second = vi.fn().mockResolvedValue(undefined);
-      p.registerHandler('shared_type', first);
-      p.registerHandler('shared_type', second);
-      const raw = JSON.stringify({ type: 'shared_type', data: {}, version: '0.1', priority: 5 });
+      p.registerHandler(MessageType.CUSTOM, first);
+      p.registerHandler(MessageType.CUSTOM, second);
+      const raw = JSON.stringify({ type: MessageType.CUSTOM, data: {}, version: '0.1', priority: 5 });
 
       await (p as unknown as Record<string, (...a: unknown[]) => Promise<void>>)['handleIncomingMessage'](raw);
-      p.unregisterHandler('shared_type', first);
+      p.unregisterHandler(MessageType.CUSTOM, first);
       await (p as unknown as Record<string, (...a: unknown[]) => Promise<void>>)['handleIncomingMessage'](raw);
 
       expect(first).toHaveBeenCalledTimes(1);

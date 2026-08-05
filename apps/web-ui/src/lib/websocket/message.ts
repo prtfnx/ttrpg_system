@@ -3,6 +3,10 @@
  * Ensures compatibility with server-side message handling
  */
 
+import Ajv2020 from 'ajv/dist/2020';
+
+import messageSchema from './message.schema.generated.json';
+
 // BEGIN GENERATED MESSAGE TYPES - run packages/core-table/scripts/generate_protocol_types.py
 export const MessageType = {
   PING: "ping",
@@ -394,6 +398,23 @@ export interface Message {
   causation_id?: string;
 }
 
+interface WireMessage {
+  type: MessageType;
+  data?: Record<string, unknown>;
+  client_id?: string | null;
+  timestamp?: number | null;
+  version?: string;
+  priority?: number;
+  sequence_id?: number | null;
+  message_id?: string | null;
+  correlation_id?: string | null;
+  causation_id?: string | null;
+}
+
+const messageValidator = new Ajv2020({ allErrors: true });
+messageValidator.addKeyword('x-enum-varnames');
+const validateWireMessage = messageValidator.compile<WireMessage>(messageSchema);
+
 export type MessageHandler = (message: Message) => Promise<void> | void;
 
 function createMessageId(): string {
@@ -425,21 +446,24 @@ export function createMessage(
  * Parse incoming JSON message to Message interface
  */
 export function parseMessage(jsonStr: string): Message {
-  const data = JSON.parse(jsonStr);
-  // Validate message structure
-  if (!data || typeof data.type !== 'string') {
-    throw new Error('Invalid message: missing or invalid "type" field');
+  const data: unknown = JSON.parse(jsonStr);
+  if (!validateWireMessage(data)) {
+    const details = messageValidator.errorsText(validateWireMessage.errors, {
+      separator: '; ',
+    });
+    throw new Error(`Invalid message: ${details}`);
   }
+
   return {
-    type: data.type as MessageType,
-    data: data.data || {},
-    client_id: data.client_id,
-    timestamp: data.timestamp,
-    version: data.version || "0.1",
-    priority: data.priority || 5,
-    sequence_id: data.sequence_id,
-    message_id: data.message_id || createMessageId(),
-    correlation_id: data.correlation_id,
-    causation_id: data.causation_id,
+    type: data.type,
+    data: data.data ?? {},
+    client_id: data.client_id ?? undefined,
+    timestamp: data.timestamp ?? undefined,
+    version: data.version ?? "0.1",
+    priority: data.priority ?? 5,
+    sequence_id: data.sequence_id ?? undefined,
+    message_id: data.message_id ?? createMessageId(),
+    correlation_id: data.correlation_id ?? undefined,
+    causation_id: data.causation_id ?? undefined,
   };
 }

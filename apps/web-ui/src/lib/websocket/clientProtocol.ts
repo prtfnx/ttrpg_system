@@ -22,7 +22,7 @@ import { validateTableId } from './tableProtocolAdapter';
 
 
 export class WebClientProtocol {
-  private handlers = new Map<string, Set<MessageHandler>>();
+  private handlers = new Map<MessageType, Set<MessageHandler>>();
   private websocket: WebSocket | null = null;
   private connecting: boolean = false;
   private messageQueue: Message[] = [];
@@ -496,7 +496,7 @@ export class WebClientProtocol {
     });
   }
 
-  registerHandler(type: string, handler: MessageHandler): void {
+  registerHandler(type: MessageType, handler: MessageHandler): void {
     const handlers = this.handlers.get(type) ?? new Set<MessageHandler>();
     handlers.add(handler);
     this.handlers.set(type, handlers);
@@ -504,7 +504,7 @@ export class WebClientProtocol {
 
   // Supplying a handler removes only that subscriber. Omitting it preserves
   // the legacy "remove all" behavior for protocol-owned teardown.
-  unregisterHandler(type: string, handler?: MessageHandler): void {
+  unregisterHandler(type: MessageType, handler?: MessageHandler): void {
     if (!handler) {
       this.handlers.delete(type);
       return;

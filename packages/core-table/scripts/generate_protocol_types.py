@@ -14,6 +14,7 @@ PYTHON_TARGET = PACKAGE_ROOT / "core_table" / "protocol.py"
 TYPESCRIPT_TARGET = (
     REPOSITORY_ROOT / "apps" / "web-ui" / "src" / "lib" / "websocket" / "message.ts"
 )
+TYPESCRIPT_SCHEMA_TARGET = TYPESCRIPT_TARGET.with_name("message.schema.generated.json")
 
 PYTHON_BEGIN = (
     "# BEGIN GENERATED MESSAGE TYPES - "
@@ -105,9 +106,14 @@ def main() -> int:
             TYPESCRIPT_END,
             _typescript_block(entries),
         ),
+        TYPESCRIPT_SCHEMA_TARGET: SCHEMA_PATH.read_bytes(),
     }
 
-    stale = [path for path, generated in targets.items() if path.read_bytes() != generated]
+    stale = [
+        path
+        for path, generated in targets.items()
+        if not path.exists() or path.read_bytes() != generated
+    ]
     if args.check:
         if stale:
             for path in stale:

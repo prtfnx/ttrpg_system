@@ -28,13 +28,39 @@ describe('Protocol Message Utilities', () => {
     expect(() => parseMessage(badJson)).toThrow();
   });
 
-  it('should ignore extra fields in message', () => {
+  it('should throw on unknown message types', () => {
+    expect(() => parseMessage(JSON.stringify({ type: 'not_registered' })))
+      .toThrow(/Invalid message/);
+  });
+
+  it.each([
+    null,
+    [],
+    'payload',
+    1,
+  ])('should throw when data is not an object: %j', (data) => {
+    expect(() => parseMessage(JSON.stringify({ type: MessageType.PING, data })))
+      .toThrow(/Invalid message/);
+  });
+
+  it('should reject extra envelope fields', () => {
     const msg = { type: MessageType.PING, data: {}, extra: 123 };
-    const json = JSON.stringify(msg);
-    const parsed = parseMessage(json);
-    expect(parsed.type).toBe(MessageType.PING);
-    expect(parsed.data).toEqual({});
-    // Extra fields are ignored by the parser (not present in result)
-    expect((parsed as unknown as Record<string, unknown>).extra).toBeUndefined();
+    expect(() => parseMessage(JSON.stringify(msg))).toThrow(/Invalid message/);
+  });
+
+  it('should reject invalid envelope metadata', () => {
+    expect(() => parseMessage(JSON.stringify({
+      type: MessageType.PING,
+      priority: 'high',
+    }))).toThrow(/Invalid message/);
+  });
+
+  it('should preserve zero priority instead of replacing it with the default', () => {
+    const parsed = parseMessage(JSON.stringify({
+      type: MessageType.PING,
+      priority: 0,
+    }));
+
+    expect(parsed.priority).toBe(0);
   });
 });

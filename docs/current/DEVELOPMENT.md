@@ -59,6 +59,9 @@ pnpm.cmd exec vitest run src/features/combat/hooks/__tests__/useCombatCommands.t
 
 Run from `apps/server`:
 
+Pytest discovery, markers, import paths, and coverage defaults have one source
+of truth in `apps/server/pyproject.toml`.
+
 ```powershell
 pytest tests/ -q
 ruff check .

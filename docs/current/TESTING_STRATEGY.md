@@ -13,6 +13,9 @@ layer through an unrelated higher layer when a direct boundary test is clearer.
 
 Use pytest in `apps/server`.
 
+The authoritative pytest and coverage configuration is
+`apps/server/pyproject.toml`; do not add a second pytest configuration file.
+
 - Unit tests: services, protocol handlers, auth helpers, and rules adapters.
 - Integration tests: HTTP routes, database behavior, and route/service wiring.
 - E2E tests: real WebSocket connection and session flow.

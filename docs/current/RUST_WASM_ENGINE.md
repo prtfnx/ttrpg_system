@@ -95,7 +95,8 @@ Use:
 
 ```powershell
 cargo fmt --all -- --check
-cargo test
+cargo clippy --all-targets --all-features -- -D warnings
+cargo test --all-features
 cargo check --target wasm32-unknown-unknown --features wasm-start
 wasm-pack test --node
 wasm-pack test --headless --chrome

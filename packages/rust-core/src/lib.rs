@@ -1,3 +1,9 @@
+//! Compute-heavy browser engine for rendering, geometry, visibility, collision,
+//! and local interaction previews.
+//!
+//! Application orchestration and network transport remain in TypeScript. This
+//! crate exposes only the WebAssembly boundary needed by the browser runtime.
+
 use wasm_bindgen::prelude::*;
 
 // ===== RUST WASM LOGGING BEST PRACTICES =====
@@ -5,8 +11,8 @@ use wasm_bindgen::prelude::*;
 // Usage: cargo build --features="log-debug" for debug logs
 //        cargo build --release (no features) for production
 
-/// Log level macros using conditional compilation
-/// Only compiled when respective features are enabled
+// Log level macros use conditional compilation and are only compiled when their
+// respective features are enabled.
 
 /// Debug level logging macro - detailed debugging information
 ///
@@ -15,7 +21,7 @@ use wasm_bindgen::prelude::*;
 ///
 /// # Examples
 ///
-/// ```rust
+/// ```rust,ignore
 /// // Only logs when compiled with --features log-debug  
 /// log_debug!("Light at ({:.1}, {:.1}) processing shadows", x, y);
 /// log_debug!("WebGL state: {} active textures", texture_count);
@@ -43,7 +49,7 @@ macro_rules! log_debug {
 ///
 /// # Examples
 ///
-/// ```rust
+/// ```rust,ignore
 /// // Only logs when compiled with --features log-info
 /// log_info!("WebGL renderer initialized successfully");
 /// log_info!("Loading texture: {}", filename);

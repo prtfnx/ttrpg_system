@@ -96,8 +96,8 @@ describe('TablePanel', () => {
     it('shows all tables in a list', () => {
       renderWithProviders(<TablePanel />);
       
-      expect(screen.getByRole('option', { name: /main dungeon/i })).toBeInTheDocument();
-      expect(screen.getByRole('option', { name: /town square/i })).toBeInTheDocument();
+      expect(screen.getByRole('list', { name: /available tables/i })).toBeInTheDocument();
+      expect(screen.getAllByRole('listitem')).toHaveLength(2);
     });
 
     it('shows table dimensions', () => {
@@ -110,11 +110,11 @@ describe('TablePanel', () => {
     it('indicates which table is currently active', () => {
       renderWithProviders(<TablePanel />);
       
-      const activeTable = screen.getByRole('option', { name: /main dungeon/i });
-      expect(activeTable).toHaveAttribute('aria-selected', 'true');
+      const activeTable = screen.getByRole('button', { name: 'Main Dungeon' });
+      expect(activeTable).toHaveAttribute('aria-pressed', 'true');
       
-      const inactiveTable = screen.getByRole('option', { name: /town square/i });
-      expect(inactiveTable).toHaveAttribute('aria-selected', 'false');
+      const inactiveTable = screen.getByRole('button', { name: 'Town Square' });
+      expect(inactiveTable).toHaveAttribute('aria-pressed', 'false');
     });
 
     it('shows empty state when no tables exist', () => {
@@ -173,15 +173,10 @@ describe('TablePanel', () => {
     it('allows user to select a different table', async () => {
       renderWithProviders(<TablePanel />);
       
-      // User can see both tables are available to click
-      const townSquare = screen.getByText('Town Square');
-      expect(townSquare).toBeInTheDocument();
-      
-      // Click on the table name text
+      const townSquare = screen.getByRole('button', { name: 'Town Square' });
       await user.click(townSquare);
-      
-      // User has interacted with the table selection
-      expect(townSquare).toBeInTheDocument();
+
+      expect(mockTableData.setActiveTable).toHaveBeenCalledWith('table_2');
     });
   });
 

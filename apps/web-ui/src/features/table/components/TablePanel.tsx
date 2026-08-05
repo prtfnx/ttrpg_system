@@ -85,6 +85,7 @@ const TablePanel: React.FC = () => {
       <div className={styles.tablePanelHeader}>
         <h3>Tables</h3>
         <button 
+          type="button"
           className={styles.createTableBtn}
           onClick={() => setShowCreateForm(!showCreateForm)}
         >
@@ -123,33 +124,40 @@ const TablePanel: React.FC = () => {
             </label>
           </div>
           <div className={styles.formButtons}>
-            <button onClick={handleCreateTable}>Create</button>
-            <button onClick={() => setShowCreateForm(false)}>Cancel</button>
+            <button type="button" onClick={handleCreateTable}>Create</button>
+            <button type="button" onClick={() => setShowCreateForm(false)}>Cancel</button>
           </div>
         </div>
       )}
 
-      <div className={styles.tablesList} role="listbox" aria-label="Available tables">
+      <div className={styles.tablesList} role="list" aria-label="Available tables">
         {tables.map((table: TableInfo) => (
           <div 
             key={table.table_id}
-            role="option"
-            aria-selected={table.table_id === activeTableId}
-            aria-label={table.table_name}
+            role="listitem"
             className={clsx(styles.tableItem, table.table_id === activeTableId && styles.active)}
           >
-            <div className={styles.tablePreviewWrapper} onClick={() => handleTableSelect(table.table_id)}>
+            <button
+              type="button"
+              className={styles.tablePreviewButton}
+              aria-label={`Select ${table.table_name} from preview`}
+              aria-pressed={table.table_id === activeTableId}
+              onClick={() => handleTableSelect(table.table_id)}
+            >
               <TablePreview table={table} width={160} height={90} />
-            </div>
+            </button>
 
             <div className={styles.tableHeader}>
-              <span 
+              <button
+                type="button"
                 className={styles.tableName}
+                aria-pressed={table.table_id === activeTableId}
                 onClick={() => handleTableSelect(table.table_id)}
               >
                 {table.table_name}
-              </span>
+              </button>
               <button 
+                type="button"
                 className={styles.removeTableBtn}
                 onClick={() => removeTable(table.table_id)}
                 title="Remove table"

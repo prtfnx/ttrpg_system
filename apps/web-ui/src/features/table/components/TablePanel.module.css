@@ -110,14 +110,23 @@
   overflow: hidden;
 }
 
-.tablePreviewWrapper {
+.tablePreviewButton {
+  display: block;
   width: 100%;
   height: 90px;
+  padding: 0;
   margin-bottom: var(--spacing-xs);
+  background: var(--bg-tertiary);
+  border: 0;
   border-radius: var(--radius-xs);
   overflow: hidden;
   cursor: pointer;
-  background: var(--bg-tertiary);
+}
+
+.tablePreviewButton:focus-visible,
+.tableName:focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring);
 }
 
 .tableHeader {
@@ -133,10 +142,15 @@
 }
 
 .tableName {
+  padding: 0;
+  background: transparent;
+  border: 0;
+  font: inherit;
   font-weight: var(--font-medium);
   cursor: pointer;
   color: var(--text-primary);
   flex: 1;
+  text-align: left;
 }
 
 .tableName:hover {

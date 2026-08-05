@@ -67,7 +67,6 @@ async def websocket_game_endpoint(
     connection_id = uuid.uuid4().hex
     connected = False
     connection_started = time.perf_counter()
-    db: Session | None = SessionLocal()
     with log_context(
         connection_id=connection_id,
         session_ref=_session_reference(session_code),
@@ -86,58 +85,60 @@ async def websocket_game_endpoint(
                 await websocket.close(code=status.WS_1008_POLICY_VIOLATION)
                 return
 
-            token = websocket.cookies.get("token")
-            user = get_user_from_token(token, db) if token else None
-            if not user:
-                record_ws_connection("rejected", "authentication")
-                logger.warning(
-                    "WebSocket authentication failed",
-                    extra={
-                        "event_name": "websocket.connection.rejected",
-                        "reason": "authentication",
-                        "outcome": "rejected",
-                    },
-                )
-                await websocket.close(code=status.WS_1008_POLICY_VIOLATION)
-                return
+            db = SessionLocal()
+            try:
+                token = websocket.cookies.get("token")
+                user = get_user_from_token(token, db) if token else None
+                if not user:
+                    record_ws_connection("rejected", "authentication")
+                    logger.warning(
+                        "WebSocket authentication failed",
+                        extra={
+                            "event_name": "websocket.connection.rejected",
+                            "reason": "authentication",
+                            "outcome": "rejected",
+                        },
+                    )
+                    await websocket.close(code=status.WS_1008_POLICY_VIOLATION)
+                    return
 
-            db_game_session = crud.get_game_session_by_code(db, session_code)
-            if not db_game_session:
-                record_ws_connection("rejected", "session_not_found")
-                logger.info(
-                    "WebSocket session does not exist",
-                    extra={
-                        "event_name": "websocket.connection.rejected",
-                        "reason": "session_not_found",
-                        "outcome": "rejected",
-                    },
-                )
-                await websocket.close(code=status.WS_1008_POLICY_VIOLATION)
-                return
+                db_game_session = crud.get_game_session_by_code(db, session_code)
+                if not db_game_session:
+                    record_ws_connection("rejected", "session_not_found")
+                    logger.info(
+                        "WebSocket session does not exist",
+                        extra={
+                            "event_name": "websocket.connection.rejected",
+                            "reason": "session_not_found",
+                            "outcome": "rejected",
+                        },
+                    )
+                    await websocket.close(code=status.WS_1008_POLICY_VIOLATION)
+                    return
 
-            db_player = db.query(models.GamePlayer).filter(
-                models.GamePlayer.session_id == db_game_session.id,
-                models.GamePlayer.user_id == user.id,
-            ).first()
-            if not db_player:
-                record_ws_connection("rejected", "not_member")
-                logger.warning(
-                    "WebSocket membership check failed",
-                    extra={
-                        "event_name": "websocket.connection.rejected",
-                        "reason": "not_member",
-                        "user_id": user.id,
-                        "outcome": "rejected",
-                    },
-                )
-                await websocket.close(code=status.WS_1008_POLICY_VIOLATION)
-                return
+                db_player = db.query(models.GamePlayer).filter(
+                    models.GamePlayer.session_id == db_game_session.id,
+                    models.GamePlayer.user_id == user.id,
+                ).first()
+                if not db_player:
+                    record_ws_connection("rejected", "not_member")
+                    logger.warning(
+                        "WebSocket membership check failed",
+                        extra={
+                            "event_name": "websocket.connection.rejected",
+                            "reason": "not_member",
+                            "user_id": user.id,
+                            "outcome": "rejected",
+                        },
+                    )
+                    await websocket.close(code=status.WS_1008_POLICY_VIOLATION)
+                    return
 
-            user_id = user.id
-            username = user.username
-            role = db_player.role or "player"
-            db.close()
-            db = None
+                user_id = user.id
+                username = user.username
+                role = db_player.role or "player"
+            finally:
+                db.close()
 
             client_id = await connection_manager.connect(
                 websocket,
@@ -264,5 +265,3 @@ async def websocket_game_endpoint(
                 WS_ACTIVE.dec()
                 WS_DURATION.observe(time.perf_counter() - connection_started)
                 await connection_manager.disconnect(websocket)
-            if db is not None:
-                db.close()

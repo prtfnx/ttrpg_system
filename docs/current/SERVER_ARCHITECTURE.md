@@ -34,6 +34,10 @@ game_ws.py -> ConnectionManager -> GameSessionProtocolService -> ServerProtocol
 - Loads or creates persistent session state.
 - Disconnects clients and cleans session state.
 
+The WebSocket endpoint opens its handshake database session only after origin
+validation. Authentication and membership checks share that short-lived
+session, and a `finally` block closes it before the long-lived socket loop.
+
 The connection manager does not retain one SQLAlchemy `Session` for the
 lifetime of a game. It gives each protocol service a task-scoped session
 registry. The handshake, client initialization, each inbound protocol message,

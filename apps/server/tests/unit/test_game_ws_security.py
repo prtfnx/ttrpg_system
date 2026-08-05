@@ -1,5 +1,7 @@
 from types import SimpleNamespace
+from unittest.mock import AsyncMock, MagicMock
 
+import pytest
 from api import game_ws
 from routers.users import create_access_token
 
@@ -38,7 +40,10 @@ def test_websocket_auth_accepts_current_active_user(test_db, test_user):
         },
     )
 
-    assert game_ws.get_user_from_token(token, test_db).id == test_user.id
+    user = game_ws.get_user_from_token(token, test_db)
+
+    assert user is not None
+    assert user.id == test_user.id
 
 
 def test_websocket_auth_rejects_revoked_token(test_db, test_user):
@@ -65,3 +70,37 @@ def test_websocket_auth_rejects_disabled_user(test_db, test_user):
     )
 
     assert game_ws.get_user_from_token(token, test_db) is None
+
+
+@pytest.mark.asyncio
+async def test_websocket_auth_rejection_closes_handshake_session(monkeypatch):
+    websocket = MagicMock()
+    websocket.headers = {"origin": "https://game.example.com"}
+    websocket.cookies = {"token": "invalid"}
+    websocket.close = AsyncMock()
+    db = MagicMock()
+    session_factory = MagicMock(return_value=db)
+    monkeypatch.setattr(game_ws, "SessionLocal", session_factory)
+    monkeypatch.setattr(game_ws, "_origin_is_allowed", lambda _origin: True)
+    monkeypatch.setattr(game_ws, "get_user_from_token", lambda _token, _db: None)
+
+    await game_ws.websocket_game_endpoint(websocket, "TST", MagicMock())
+
+    session_factory.assert_called_once_with()
+    db.close.assert_called_once_with()
+    websocket.close.assert_awaited_once()
+
+
+@pytest.mark.asyncio
+async def test_websocket_origin_rejection_does_not_open_database_session(monkeypatch):
+    websocket = MagicMock()
+    websocket.headers = {"origin": "https://attacker.example"}
+    websocket.close = AsyncMock()
+    session_factory = MagicMock()
+    monkeypatch.setattr(game_ws, "SessionLocal", session_factory)
+    monkeypatch.setattr(game_ws, "_origin_is_allowed", lambda _origin: False)
+
+    await game_ws.websocket_game_endpoint(websocket, "TST", MagicMock())
+
+    session_factory.assert_not_called()
+    websocket.close.assert_awaited_once()

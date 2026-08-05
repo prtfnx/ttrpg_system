@@ -433,5 +433,97 @@
       ]
     }
   },
+  "$defs": {
+    "tableSettingsChangedData": {
+      "type": "object",
+      "required": [
+        "table_id",
+        "dynamic_lighting_enabled",
+        "fog_exploration_mode",
+        "ambient_light_level",
+        "grid_cell_px",
+        "cell_distance",
+        "distance_unit",
+        "grid_enabled",
+        "snap_to_grid",
+        "grid_color_hex",
+        "background_color_hex"
+      ],
+      "properties": {
+        "table_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "dynamic_lighting_enabled": {
+          "type": "boolean"
+        },
+        "fog_exploration_mode": {
+          "enum": [
+            "current_only",
+            "persist_dimmed"
+          ]
+        },
+        "ambient_light_level": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+        },
+        "grid_cell_px": {
+          "type": "number",
+          "minimum": 10,
+          "maximum": 500
+        },
+        "cell_distance": {
+          "type": "number",
+          "exclusiveMinimum": 0
+        },
+        "distance_unit": {
+          "enum": [
+            "ft",
+            "m"
+          ]
+        },
+        "grid_enabled": {
+          "type": "boolean"
+        },
+        "snap_to_grid": {
+          "type": "boolean"
+        },
+        "grid_color_hex": {
+          "type": "string",
+          "pattern": "^#([0-9a-fA-F]{6}|[0-9a-fA-F]{8})$"
+        },
+        "background_color_hex": {
+          "type": "string",
+          "pattern": "^#([0-9a-fA-F]{6}|[0-9a-fA-F]{8})$"
+        }
+      },
+      "additionalProperties": false
+    }
+  },
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "type": {
+            "const": "table_settings_changed"
+          }
+        },
+        "required": [
+          "type"
+        ]
+      },
+      "then": {
+        "required": [
+          "data"
+        ],
+        "properties": {
+          "data": {
+            "$ref": "#/$defs/tableSettingsChangedData"
+          }
+        }
+      }
+    }
+  ],
   "additionalProperties": false
 }

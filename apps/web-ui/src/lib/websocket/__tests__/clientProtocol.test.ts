@@ -885,9 +885,17 @@ describe('WebClientProtocol', () => {
     it('TABLE_SETTINGS_CHANGED updates store', async () => {
       const p = makeProtocol();
       await dispatch(p, 'table_settings_changed', {
+        table_id: 'table-1',
         dynamic_lighting_enabled: true,
-        fog_exploration_mode: 'all',
+        fog_exploration_mode: 'persist_dimmed',
         ambient_light_level: 0.5,
+        grid_cell_px: 50,
+        cell_distance: 5,
+        distance_unit: 'ft',
+        grid_enabled: true,
+        snap_to_grid: true,
+        grid_color_hex: '#ffffff',
+        background_color_hex: '#2a3441',
       });
       expect(mockApplyTableLightingSettings).toHaveBeenCalledWith(
         expect.objectContaining({ dynamic_lighting_enabled: true })
@@ -897,10 +905,13 @@ describe('WebClientProtocol', () => {
     it('TABLE_SETTINGS_CHANGED applies supported WASM render settings', async () => {
       const p = makeProtocol();
       await dispatch(p, 'table_settings_changed', {
+        table_id: 'table-1',
         dynamic_lighting_enabled: true,
-        fog_exploration_mode: 'all',
+        fog_exploration_mode: 'current_only',
         ambient_light_level: 0.5,
         grid_cell_px: 72,
+        cell_distance: 5,
+        distance_unit: 'ft',
         grid_enabled: false,
         snap_to_grid: true,
         grid_color_hex: '#123456',

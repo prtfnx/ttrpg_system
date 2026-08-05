@@ -107,6 +107,10 @@ messages for sprite changes.
 rejects strings, numbers, and `null` for these fields instead of coercing
 them.
 
+The shared protocol schema defines the complete `table_settings_changed`
+payload. The browser validates table IDs, lighting and grid value types,
+ranges, units, and colors before dispatching a settings broadcast.
+
 ## State and persistence
 
 Server-owned:

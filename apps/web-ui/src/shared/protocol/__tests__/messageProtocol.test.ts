@@ -63,4 +63,29 @@ describe('Protocol Message Utilities', () => {
 
     expect(parsed.priority).toBe(0);
   });
+
+  it('should validate table settings payloads', () => {
+    const validData = {
+      table_id: 'table-1',
+      dynamic_lighting_enabled: false,
+      fog_exploration_mode: 'current_only',
+      ambient_light_level: 0.25,
+      grid_cell_px: 50,
+      cell_distance: 5,
+      distance_unit: 'ft',
+      grid_enabled: true,
+      snap_to_grid: false,
+      grid_color_hex: '#ffffff',
+      background_color_hex: '#2a3441',
+    };
+
+    expect(parseMessage(JSON.stringify({
+      type: MessageType.TABLE_SETTINGS_CHANGED,
+      data: validData,
+    })).data).toEqual(validData);
+    expect(() => parseMessage(JSON.stringify({
+      type: MessageType.TABLE_SETTINGS_CHANGED,
+      data: { ...validData, grid_enabled: 'false' },
+    }))).toThrow(/Invalid message/);
+  });
 });

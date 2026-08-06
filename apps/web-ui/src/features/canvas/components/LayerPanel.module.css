@@ -76,7 +76,6 @@
   border: var(--border-width) solid var(--border-secondary);
   border-radius: var(--radius-sm);
   padding: var(--space-1) var(--space-1-5) var(--space-1) var(--space-2);
-  cursor: pointer;
   transition: background var(--transition-fast), border-color var(--transition-fast);
   overflow: hidden;
 }
@@ -116,6 +115,18 @@
   gap: var(--space-1-5);
   flex: 1;
   min-width: 0;
+  padding: 0;
+  background: transparent;
+  border: 0;
+  color: inherit;
+  cursor: pointer;
+  font: inherit;
+  text-align: left;
+}
+
+.layerInfo:focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring);
 }
 
 .layerIcon {

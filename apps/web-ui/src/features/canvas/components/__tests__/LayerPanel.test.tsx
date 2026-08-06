@@ -489,7 +489,7 @@ describe('LayerPanel - Game Master Layer Management', () => {
     it('supports keyboard navigation', async () => {
       render(<LayerPanel initialLayers={TEST_LAYERS} />);
 
-      await user.tab();
+      screen.getByRole('button', { name: /toggle map layer/i }).focus();
       await user.keyboard('{Enter}');
       
       expect(mockGameStore.setLayerVisibility).toHaveBeenCalled();
@@ -505,9 +505,12 @@ describe('LayerPanel - Game Master Layer Management', () => {
     it('allows layer selection', async () => {
       render(<LayerPanel initialLayers={TEST_LAYERS} />);
 
-      await user.click(screen.getByText('Map'));
+      const mapLayer = screen.getByRole('button', { name: /select map layer/i });
+      mapLayer.focus();
+      await user.keyboard('{Enter}');
 
       expect(mockGameStore.setActiveLayer).toHaveBeenCalledWith('map');
+      expect(mapLayer).toHaveAttribute('aria-pressed', 'false');
     });
   });
 

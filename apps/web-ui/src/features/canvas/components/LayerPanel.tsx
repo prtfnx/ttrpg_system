@@ -267,7 +267,7 @@ export function LayerPanel({ className, style, id, initialLayers, ...otherProps 
         <span className={styles.activeLayerName}>{activeLayer}</span>
       </div>
 
-      <div className={styles.layerList}>
+      <div className={styles.layerList} role="list" aria-label="Canvas layers">
         {layers.map((layer) => {
           const isActive = activeLayer === layer.id;
           const isVisible = layerVisibility[layer.id] ?? true;
@@ -277,22 +277,29 @@ export function LayerPanel({ className, style, id, initialLayers, ...otherProps 
           return (
             <div
               key={layer.id}
+              role="listitem"
               className={clsx(styles.layerItem, isActive && styles.active, !isVisible && styles.hiddenLayer)}
-              onClick={() => handleLayerClick(layer.id)}
               data-visible={isVisible}
               data-testid={`layer-item-${layer.id}`}
             >
               <div className={styles.layerMain}>
-                <div className={styles.layerInfo}>
+                <button
+                  type="button"
+                  className={styles.layerInfo}
+                  aria-label={`Select ${layer.name} layer`}
+                  aria-pressed={isActive}
+                  onClick={() => handleLayerClick(layer.id)}
+                >
                   <span className={styles.layerIcon}><layer.icon size={16} aria-hidden /></span>
                   <div className={styles.layerDetails}>
                     <span className={styles.layerName}>{layer.name}</span>
                     <span className={styles.spriteCount}>{layer.spriteCount} sprites</span>
                   </div>
-                </div>
+                </button>
                 
                 <div className={styles.layerControls}>
                   <button
+                    type="button"
                     className={clsx(styles.visibilityBtn, !isVisible && styles.hidden)}
                     onClick={(e) => {
                       handleVisibilityToggle(layer.id, e);
@@ -337,7 +344,7 @@ export function LayerPanel({ className, style, id, initialLayers, ...otherProps 
 
       <div className={styles.layerPanelFooter}>
         <div className={styles.layerTips}>
-          <small><Layers size={12} aria-hidden /> Click layer to activate • Use icons to toggle visibility</small>
+          <small><Layers size={12} aria-hidden /> Select a layer to activate it • Use icons to toggle visibility</small>
         </div>
       </div>
 

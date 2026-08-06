@@ -1,5 +1,5 @@
 import secrets
-from datetime import datetime, timedelta
+from datetime import timedelta
 from unittest.mock import Mock
 
 import main
@@ -10,6 +10,7 @@ from fastapi.testclient import TestClient
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.pool import StaticPool
+from utils.time import utc_now
 
 app = main.app
 
@@ -122,7 +123,7 @@ def invitation_factory(test_db, test_user, test_game_session):
             "max_uses": 1,
             "uses_count": 0,
             "is_active": True,
-            "expires_at": datetime.utcnow() + timedelta(hours=24),
+            "expires_at": utc_now() + timedelta(hours=24),
         }
         defaults.update(kwargs)
         invitation = models.SessionInvitation(**defaults)

@@ -1,7 +1,8 @@
-from datetime import datetime, timedelta
+from datetime import timedelta
 
 import pytest
 from database import crud, schemas
+from utils.time import utc_now
 
 
 @pytest.mark.unit
@@ -140,13 +141,13 @@ class TestChatCRUD:
             text="Current",
             message_json={"id": "current", "text": "Current"},
         ))
-        expired.created_at = datetime.utcnow() - timedelta(days=366)
-        current.created_at = datetime.utcnow()
+        expired.created_at = utc_now() - timedelta(days=366)
+        current.created_at = utc_now()
         test_db.commit()
 
         deleted = crud.delete_expired_chat_messages(
             test_db,
-            datetime.utcnow() - timedelta(days=365),
+            utc_now() - timedelta(days=365),
         )
 
         assert deleted == 1

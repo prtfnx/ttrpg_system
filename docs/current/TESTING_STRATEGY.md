@@ -4,7 +4,7 @@ Audience: contributors choosing and running verification for a change.
 
 Status: current.
 
-Last source audit: 2026-08-04
+Last source audit: 2026-08-05
 
 Tests should sit at the boundary where behavior is owned. Avoid testing a lower
 layer through an unrelated higher layer when a direct boundary test is clearer.
@@ -15,6 +15,8 @@ Use pytest in `apps/server`.
 
 The authoritative pytest and coverage configuration is
 `apps/server/pyproject.toml`; do not add a second pytest configuration file.
+Fixtures and assertions that need the database's naive UTC representation use
+`apps/server/utils/time.py::utc_now`, matching production timestamp semantics.
 
 - Unit tests: services, protocol handlers, auth helpers, and rules adapters.
 - Integration tests: HTTP routes, database behavior, and route/service wiring.

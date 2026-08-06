@@ -1,7 +1,8 @@
-from datetime import datetime, timedelta
+from datetime import timedelta
 
 import pytest
 from database import models
+from utils.time import utc_now
 
 
 @pytest.mark.unit
@@ -16,7 +17,7 @@ class TestInvitationFlow:
             pre_assigned_role="player",
             max_uses=5,
             uses_count=0,
-            expires_at=datetime.utcnow() + timedelta(days=7),
+            expires_at=utc_now() + timedelta(days=7),
             is_active=True
         )
         test_db.add(invite)
@@ -69,7 +70,7 @@ class TestInvitationFlow:
             pre_assigned_role="player",
             max_uses=5,
             uses_count=0,
-            expires_at=datetime.utcnow() + timedelta(days=7),
+            expires_at=utc_now() + timedelta(days=7),
             is_active=True
         )
         test_db.add(invite)
@@ -103,7 +104,7 @@ class TestInvitationFlow:
             pre_assigned_role="co-dm",
             max_uses=3,
             uses_count=1,
-            expires_at=datetime.utcnow() + timedelta(days=7),
+            expires_at=utc_now() + timedelta(days=7),
             is_active=True
         )
         test_db.add(invite)
@@ -125,7 +126,7 @@ class TestInvitationFlow:
             pre_assigned_role="player",
             max_uses=5,
             uses_count=0,
-            expires_at=datetime.utcnow() - timedelta(hours=1),
+            expires_at=utc_now() - timedelta(hours=1),
             is_active=True
         )
         test_db.add(invite)
@@ -145,7 +146,7 @@ class TestInvitationFlow:
             pre_assigned_role="player",
             max_uses=1,
             uses_count=0,
-            expires_at=datetime.utcnow() + timedelta(days=7),
+            expires_at=utc_now() + timedelta(days=7),
             is_active=True
         )
         test_db.add(invite)

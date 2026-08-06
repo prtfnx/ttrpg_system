@@ -1,9 +1,10 @@
-from datetime import datetime, timedelta
+from datetime import timedelta
 
 import main
 import pytest
 from database import crud, models
 from routers.users import get_current_user
+from utils.time import utc_now
 
 
 @pytest.mark.integration
@@ -83,7 +84,7 @@ class TestInvitationValidation:
         assert response.status_code == 404
 
     def test_get_invitation_expired(self, client, invitation_factory):
-        expired = invitation_factory(expires_at=datetime.utcnow() - timedelta(hours=1))
+        expired = invitation_factory(expires_at=utc_now() - timedelta(hours=1))
         response = client.get(f"/api/invitations/{expired.invite_code}")
         assert response.status_code == 410
 
@@ -123,7 +124,7 @@ class TestInvitationAcceptance:
         assert response.status_code == 400
 
     def test_accept_invitation_expired(self, client, invitation_factory, player_user):
-        expired = invitation_factory(expires_at=datetime.utcnow() - timedelta(hours=1))
+        expired = invitation_factory(expires_at=utc_now() - timedelta(hours=1))
 
         async def override_current():
             return player_user

@@ -1,8 +1,9 @@
-from datetime import datetime, timedelta
+from datetime import timedelta
 
 import pytest
 from database import models
 from routers.users import create_access_token
+from utils.time import utc_now
 
 
 @pytest.mark.unit
@@ -116,7 +117,7 @@ class TestSessionSettings:
             pre_assigned_role="player",
             max_uses=5,
             uses_count=2,
-            expires_at=datetime.utcnow() + timedelta(days=7),
+            expires_at=utc_now() + timedelta(days=7),
             is_active=True
         )
         test_db.add(invite)

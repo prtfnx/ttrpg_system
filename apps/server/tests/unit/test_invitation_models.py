@@ -8,6 +8,7 @@ from sqlalchemy.exc import IntegrityError
 from utils.audit import extract_client_info, format_audit_details
 from utils.roles import can_modify_role, has_session_admin_permission
 from utils.security import sanitize_session_code, sanitize_user_input, validate_invite_code_format
+from utils.time import utc_now
 
 
 @pytest.mark.unit
@@ -25,7 +26,7 @@ class TestSessionInvitationModel:
             max_uses=5,
             uses_count=2,
             is_active=True,
-            expires_at=datetime.utcnow() + timedelta(hours=1)
+            expires_at=utc_now() + timedelta(hours=1)
         )
 
         assert invitation.is_valid() is True
@@ -41,7 +42,7 @@ class TestSessionInvitationModel:
             max_uses=5,
             uses_count=2,
             is_active=False,  # Inactive
-            expires_at=datetime.utcnow() + timedelta(hours=1)
+            expires_at=utc_now() + timedelta(hours=1)
         )
 
         assert invitation.is_valid() is False
@@ -57,7 +58,7 @@ class TestSessionInvitationModel:
             max_uses=5,
             uses_count=2,
             is_active=True,
-            expires_at=datetime.utcnow() - timedelta(hours=1)  # Expired
+            expires_at=utc_now() - timedelta(hours=1)  # Expired
         )
 
         assert invitation.is_valid() is False
@@ -73,7 +74,7 @@ class TestSessionInvitationModel:
             max_uses=3,
             uses_count=3,  # Reached max uses
             is_active=True,
-            expires_at=datetime.utcnow() + timedelta(hours=1)
+            expires_at=utc_now() + timedelta(hours=1)
         )
 
         assert invitation.is_valid() is False
@@ -89,7 +90,7 @@ class TestSessionInvitationModel:
             max_uses=10,
             uses_count=7,  # Still has 3 uses left
             is_active=True,
-            expires_at=datetime.utcnow() + timedelta(hours=1)
+            expires_at=utc_now() + timedelta(hours=1)
         )
 
         assert invitation.is_valid() is True
@@ -186,7 +187,7 @@ class TestAuditLogModel:
         assert isinstance(audit_log.timestamp, datetime)
 
         # Should be recent (within last minute)
-        time_diff = datetime.utcnow() - audit_log.timestamp
+        time_diff = utc_now() - audit_log.timestamp
         assert time_diff.total_seconds() < 60
 
     def test_audit_log_optional_fields(self, test_db):

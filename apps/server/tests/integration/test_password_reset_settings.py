@@ -4,11 +4,12 @@ Tests real HTTP behaviour via the TestClient — no implementation detail mockin
 """
 import hashlib
 import secrets
-from datetime import datetime, timedelta
+from datetime import timedelta
 from unittest.mock import patch
 
 import pytest
 from database import crud, models, schemas
+from utils.time import utc_now
 
 # ─── Helpers ─────────────────────────────────────────────────────────────────
 
@@ -18,7 +19,7 @@ def _make_reset_token(db, user):
     db.add(models.PasswordResetToken(
         user_id=user.id,
         token_hash=hashlib.sha256(raw.encode()).hexdigest(),
-        expires_at=datetime.utcnow() + timedelta(minutes=15),
+        expires_at=utc_now() + timedelta(minutes=15),
     ))
     db.commit()
     return raw
@@ -31,7 +32,7 @@ def _make_email_change_token(db, user, new_email):
         user_id=user.id,
         new_email=new_email,
         token_hash=hashlib.sha256(raw.encode()).hexdigest(),
-        expires_at=datetime.utcnow() + timedelta(hours=24),
+        expires_at=utc_now() + timedelta(hours=24),
     ))
     db.commit()
     return raw
@@ -40,7 +41,7 @@ def _make_email_change_token(db, user, new_email):
 def _set_password(db, user, password):
     """Set an explicit password on user (simulates password-based account)."""
     user.hashed_password = crud.get_password_hash(password)
-    user.password_set_at = datetime.utcnow()
+    user.password_set_at = utc_now()
     db.commit()
 
 
@@ -170,7 +171,7 @@ class TestResetPassword:
         test_db.add(models.PasswordResetToken(
             user_id=test_user.id,
             token_hash=hashlib.sha256(raw.encode()).hexdigest(),
-            expires_at=datetime.utcnow() - timedelta(minutes=1),  # already expired
+            expires_at=utc_now() - timedelta(minutes=1),  # already expired
         ))
         test_db.commit()
         response = client.post("/users/reset-password", data={

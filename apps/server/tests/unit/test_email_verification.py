@@ -1,7 +1,8 @@
-from datetime import datetime, timedelta
+from datetime import timedelta
 
 import pytest
 from database import models
+from utils.time import utc_now
 
 
 @pytest.mark.unit
@@ -28,7 +29,7 @@ class TestEmailVerification:
             models.EmailVerificationToken.user_id == user.id
         ).first()
         assert token is not None
-        assert token.expires_at > datetime.utcnow()
+        assert token.expires_at > utc_now()
 
     def test_verify_email_with_valid_token(self, client, test_db, test_user):
         """Valid token marks user as verified"""
@@ -38,7 +39,7 @@ class TestEmailVerification:
         email_token = models.EmailVerificationToken(
             token=verification_token,
             user_id=test_user.id,
-            expires_at=datetime.utcnow() + timedelta(hours=24)
+            expires_at=utc_now() + timedelta(hours=24)
         )
         test_db.add(email_token)
         test_db.commit()
@@ -63,7 +64,7 @@ class TestEmailVerification:
         email_token = models.EmailVerificationToken(
             token=verification_token,
             user_id=test_user.id,
-            expires_at=datetime.utcnow() - timedelta(hours=1)
+            expires_at=utc_now() - timedelta(hours=1)
         )
         test_db.add(email_token)
         test_db.commit()

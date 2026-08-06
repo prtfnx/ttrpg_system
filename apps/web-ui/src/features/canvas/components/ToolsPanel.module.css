@@ -532,7 +532,8 @@
 }
 
 .tableSwitcherItem {
-  display: block;
+  display: flex;
+  align-items: center;
   width: 100%;
   padding: var(--space-xs) var(--space-sm);
   text-align: left;
@@ -541,6 +542,11 @@
   border: none;
   cursor: pointer;
   font-size: var(--text-xs);
+}
+
+.tableSwitcherMarker {
+  display: inline-block;
+  flex: 0 0 var(--size-4);
 }
 
 .tableSwitcherItem:hover {

@@ -291,7 +291,7 @@ export function ToolsPanel({ userInfo }: ToolsPanelProps) {
                       onClick={() => { switchToTable(t.table_id); setTableSwitcherOpen(false); }}
                       className={`${styles.tableSwitcherItem} ${t.table_id === activeTableId ? styles.tableSwitcherItemActive : ''}`}
                     >
-                      {t.table_id === activeTableId ? <Check size={11} aria-hidden style={{ marginRight: 4, flexShrink: 0 }} /> : <span style={{ display: 'inline-block', width: 15 }} />}{t.table_name}
+                      {t.table_id === activeTableId ? <Check size={11} aria-hidden className={styles.tableSwitcherMarker} /> : <span className={styles.tableSwitcherMarker} aria-hidden="true" />}{t.table_name}
                     </button>
                   ))}
                 </div>

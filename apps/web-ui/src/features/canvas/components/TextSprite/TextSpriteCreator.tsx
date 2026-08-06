@@ -498,12 +498,6 @@ export function TextSpriteCreator({
                 <canvas
                   ref={canvasRef}
                   className={styles.textPreview}
-                  style={{
-                    border: 'var(--border-width) solid var(--border-primary)',
-                    borderRadius: '4px',
-                    maxWidth: '100%',
-                    maxHeight: '300px'
-                  }}
                 />
               </div>
               <div className={styles.previewInfo}>
@@ -524,7 +518,7 @@ export function TextSpriteCreator({
                 {isDeleting ? 'Deleting...' : 'Delete Sprite'}
               </button>
             )}
-            <div style={{ flex: 1 }} />
+            <div className={styles.actionSpacer} aria-hidden="true" />
             <button
               type="button"
               onClick={onClose}

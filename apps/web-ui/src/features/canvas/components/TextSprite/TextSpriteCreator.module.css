@@ -212,6 +212,10 @@
 
 .textPreview {
   composes: preview-text from './TextSpriteBase.module.css';
+  max-width: 100%;
+  max-height: var(--size-75);
+  border: var(--border-width) solid var(--border-primary);
+  border-radius: var(--radius-sm);
 }
 
 .previewInfo {
@@ -227,6 +231,10 @@
   justify-content: flex-end;
   padding-top: var(--space-lg);
   border-top: var(--border-width-sm) solid var(--border-primary);
+}
+
+.actionSpacer {
+  flex: 1;
 }
 
 .btnCancel {

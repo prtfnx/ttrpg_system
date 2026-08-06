@@ -16,7 +16,6 @@ export function CoverOverlay({ canvasWidth, canvasHeight }: Props) {
       className={styles.overlay}
       width={canvasWidth}
       height={canvasHeight}
-      style={{ position: 'absolute', top: 0, left: 0, pointerEvents: 'none' }}
     >
       {zones.map((zone: CoverZone) => {
         const cls = styles[zone.cover_tier.replace('_', '')] ?? styles.half;

@@ -45,21 +45,6 @@ const BackgroundManagementPanel: React.FC<BackgroundManagementPanelProps> = ({
   const [weatherEffects, setWeatherEffects] = useState<WeatherEffect[]>([]);
   const [isAddingWeatherEffect, setIsAddingWeatherEffect] = useState(false);
 
-  // Initialize background system
-  useEffect(() => {
-    if (renderEngine && !performanceOptimizedBackgroundSystem['renderEngine']) {
-      performanceOptimizedBackgroundSystem.initialize(renderEngine)
-        .then(() => {
-          setActiveConfiguration('default');
-          loadConfigurations();
-        })
-        .catch(err => {
-          setError('Failed to initialize background system: ' + err.message);
-        });
-    }
-  // eslint-disable-next-line react-hooks/exhaustive-deps -- intentional: load once on mount
-  }, [renderEngine]);
-
   // Performance metrics polling
   useEffect(() => {
     const interval = setInterval(() => {
@@ -69,14 +54,6 @@ const BackgroundManagementPanel: React.FC<BackgroundManagementPanelProps> = ({
 
     return () => clearInterval(interval);
   }, []);
-
-  // Load configuration when active config changes
-  useEffect(() => {
-    if (activeConfiguration) {
-      loadActiveConfiguration(activeConfiguration);
-    }
-  // eslint-disable-next-line react-hooks/exhaustive-deps -- intentional: load once on mount
-  }, [activeConfiguration]);
 
   const loadConfigurations = useCallback(async () => {
     try {
@@ -267,6 +244,25 @@ const BackgroundManagementPanel: React.FC<BackgroundManagementPanelProps> = ({
     }
   }, []);
 
+  // Initialize the renderer when needed, but always populate this panel's local configuration list.
+  useEffect(() => {
+    if (!renderEngine) return;
+
+    const initializeBackgrounds = async () => {
+      try {
+        if (!performanceOptimizedBackgroundSystem['renderEngine']) {
+          await performanceOptimizedBackgroundSystem.initialize(renderEngine);
+        }
+        setActiveConfiguration('default');
+        await loadConfigurations();
+      } catch (err) {
+        setError('Failed to initialize background system: ' + (err as Error).message);
+      }
+    };
+
+    void initializeBackgrounds();
+  }, [loadConfigurations, renderEngine]);
+
   const loadActiveConfiguration = useCallback(async (configId: string) => {
     setIsLoading(true);
     try {
@@ -287,6 +283,12 @@ const BackgroundManagementPanel: React.FC<BackgroundManagementPanelProps> = ({
       setIsLoading(false);
     }
   }, [configurations]);
+
+  useEffect(() => {
+    if (activeConfiguration && configurations.length > 0) {
+      void loadActiveConfiguration(activeConfiguration);
+    }
+  }, [activeConfiguration, configurations.length, loadActiveConfiguration]);
 
   const handleLayerUpdate = useCallback((layerId: string, updates: Partial<BackgroundLayer>) => {
     if (!currentConfig) return;

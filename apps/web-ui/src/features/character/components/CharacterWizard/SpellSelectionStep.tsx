@@ -239,7 +239,7 @@ export const SpellSelectionStep: React.FC<SpellSelectionStepProps> = ({
         <h2>Select Spells</h2>
         <div className={styles['error-message']}>
           <p>{error}</p>
-          <button onClick={fetchSpells}>Retry</button>
+          <button type="button" onClick={fetchSpells}>Retry</button>
         </div>
       </div>
     );
@@ -292,6 +292,7 @@ export const SpellSelectionStep: React.FC<SpellSelectionStepProps> = ({
               <div className={styles['filter-row']}>
                 <input
                   type="text"
+                  aria-label="Search spells"
                   placeholder="Search spells..."
                   value={filters.search}
                   onChange={(e) => handleFilterChange('search', e.target.value)}
@@ -299,6 +300,7 @@ export const SpellSelectionStep: React.FC<SpellSelectionStepProps> = ({
                 />
                 
                 <select
+                  aria-label="Filter by school"
                   value=""
                   onChange={(e) => {
                     if (e.target.value) {
@@ -319,7 +321,7 @@ export const SpellSelectionStep: React.FC<SpellSelectionStepProps> = ({
                   ))}
                 </select>
 
-                <button onClick={clearFilters} className={styles['clear-filters']}>
+                <button type="button" onClick={clearFilters} className={styles['clear-filters']}>
                   Clear Filters
                 </button>
               </div>
@@ -329,8 +331,10 @@ export const SpellSelectionStep: React.FC<SpellSelectionStepProps> = ({
                 <span className={styles['filter-label']}>Level:</span>
                 {[0, 1, 2, 3, 4, 5, 6, 7, 8, 9].map(level => (
                   <button
+                    type="button"
                     key={level}
                     className={[styles['level-filter'], filters.level.includes(level) ? styles.active : ''].join(' ')}
+                    aria-pressed={filters.level.includes(level)}
                     onClick={() => {
                       const newLevels = filters.level.includes(level)
                         ? filters.level.filter(l => l !== level)
@@ -350,6 +354,8 @@ export const SpellSelectionStep: React.FC<SpellSelectionStepProps> = ({
                     <span key={school} className={styles['filter-tag']}>
                       {school}
                       <button
+                        type="button"
+                        aria-label={`Remove ${school} filter`}
                         onClick={() => handleFilterChange('school', filters.school.filter(s => s !== school))}
                       >
                         ×
@@ -360,6 +366,8 @@ export const SpellSelectionStep: React.FC<SpellSelectionStepProps> = ({
                     <span key={level} className={styles['filter-tag']}>
                       {level === 0 ? 'Cantrips' : `Level ${level}`}
                       <button
+                        type="button"
+                        aria-label={`Remove level ${level} filter`}
                         onClick={() => handleFilterChange('level', filters.level.filter(l => l !== level))}
                       >
                         ×
@@ -391,6 +399,7 @@ export const SpellSelectionStep: React.FC<SpellSelectionStepProps> = ({
                             ? currentSpells.cantrips.length < (spellSlots.cantrips || 0)
                             : (maxSpellsKnown === Infinity || currentSpells.knownSpells.length < maxSpellsKnown);
                           const isExpanded = expandedSpell === spell.name;
+                          const detailsId = `spell-details-${spell.name.toLowerCase().replace(/[^a-z0-9]+/g, '-')}`;
 
                           return (
                             <div
@@ -403,8 +412,12 @@ export const SpellSelectionStep: React.FC<SpellSelectionStepProps> = ({
                               ].filter(Boolean).join(' ')}
                             >
                               {/* Compact Header - Always Visible */}
-                              <div
+                              <button
+                                type="button"
                                 className={styles['spell-card-header']}
+                                aria-label={`${isExpanded ? 'Hide' : 'Show'} ${spell.name} details`}
+                                aria-expanded={isExpanded}
+                                aria-controls={detailsId}
                                 onClick={() => setExpandedSpell(isExpanded ? null : spell.name)}
                               >
                                 <div className={styles['spell-name-row']}>
@@ -421,11 +434,11 @@ export const SpellSelectionStep: React.FC<SpellSelectionStepProps> = ({
                                   <span>{spell.range}</span>
                                   <span className={styles['expand-icon']}>{isExpanded ? '▼' : '▶'}</span>
                                 </div>
-                              </div>
+                              </button>
 
                               {/* Expanded Details */}
                               {isExpanded && (
-                                <div className={styles['spell-card-details']}>
+                                <div id={detailsId} className={styles['spell-card-details']}>
                                   <div className={styles['casting-info']}>
                                     <div><strong>Components:</strong> {
                                       [
@@ -447,13 +460,14 @@ export const SpellSelectionStep: React.FC<SpellSelectionStepProps> = ({
                                   )}
 
                                   <button
+                                    type="button"
                                     className={!canSelect && !isSelected
                                       ? styles['add-spell-button-disabled']
                                       : isSelected
                                         ? styles['add-spell-button-remove']
                                         : styles['add-spell-button-add']}
-                                    onClick={(e) => {
-                                      e.stopPropagation();
+                                    aria-label={isSelected ? `Remove ${spell.name} from spellbook` : `Add ${spell.name} to spellbook`}
+                                    onClick={() => {
                                       if (canSelect || isSelected) handleSpellToggle(spell);
                                     }}
                                     disabled={!canSelect && !isSelected}
@@ -515,7 +529,9 @@ export const SpellSelectionStep: React.FC<SpellSelectionStepProps> = ({
                         <li key={spellName} className={styles['selected-spell-item']}>
                           <span className={styles['spell-name']}>{spellName}</span>
                           <button
+                            type="button"
                             className={styles['remove-spell-btn']}
+                            aria-label={`Remove ${spellName} from spellbook`}
                             onClick={() => spell && handleSpellToggle(spell)}
                             title="Remove spell"
                           >
@@ -542,7 +558,9 @@ export const SpellSelectionStep: React.FC<SpellSelectionStepProps> = ({
                           <span className={styles['spell-name']}>{spellName}</span>
                           {spell && <span className={styles['selected-spell-level']}>Lvl {spell.level}</span>}
                           <button
+                            type="button"
                             className={styles['remove-spell-btn']}
+                            aria-label={`Remove ${spellName} from spellbook`}
                             onClick={() => spell && handleSpellToggle(spell)}
                             title="Remove spell"
                           >

@@ -207,7 +207,6 @@
   border-radius: var(--radius-md);
   overflow: hidden;
   transition: all var(--transition-normal) ease;
-  cursor: pointer;
 }
 
 .spell-card-compact:hover {
@@ -222,7 +221,6 @@
 
 .spell-card-compact.disabled {
   opacity: 0.5;
-  cursor: not-allowed;
 }
 
 .spell-card-compact.disabled:hover {
@@ -237,7 +235,20 @@
 
 /* Spell Card Header (Always Visible) */
 .spell-card-header {
+  display: block;
+  width: 100%;
   padding: var(--space-md);
+  background: transparent;
+  border: 0;
+  color: inherit;
+  cursor: pointer;
+  font: inherit;
+  text-align: left;
+}
+
+.spell-card-header:focus-visible {
+  outline: none;
+  box-shadow: inset var(--focus-ring);
 }
 
 .spell-name-row {

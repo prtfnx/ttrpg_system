@@ -147,7 +147,7 @@ describe('SpellSelectionStep', () => {
       const user = userEvent.setup();
       renderStep();
       await waitFor(() => screen.getByText('Fire Bolt'));
-      const schoolSelect = screen.getByRole('combobox', { name: '' });
+      const schoolSelect = screen.getByRole('combobox', { name: /filter by school/i });
       await user.selectOptions(schoolSelect, 'Divination');
       await waitFor(() => {
         expect(screen.queryByText('Fire Bolt')).toBeNull();
@@ -169,14 +169,14 @@ describe('SpellSelectionStep', () => {
   });
 
   describe('expand spell details', () => {
-    it('clicking spell name expands description', async () => {
+    it('expands spell details from the keyboard', async () => {
       const user = userEvent.setup();
       renderStep();
-      await waitFor(() => screen.getByText('Magic Missile'));
-      // The spell name button/row triggers expand
-      const spellEl = screen.getByText('Magic Missile');
-      await user.click(spellEl);
-      // After expanding, description text should be visible
+      const detailsButton = await screen.findByRole('button', { name: /show magic missile details/i });
+      detailsButton.focus();
+      await user.keyboard('{Enter}');
+
+      expect(detailsButton).toHaveAttribute('aria-expanded', 'true');
       await waitFor(() => expect(screen.getByText(/force darts/i)).toBeTruthy());
     });
   });

@@ -345,10 +345,15 @@ const BackgroundManagementPanel: React.FC<BackgroundManagementPanelProps> = ({
   return (
     <ErrorBoundary>
       <div className={styles.backgroundManagementOverlay}>
-        <div className={styles.backgroundManagementPanel}>
+        <div
+          className={styles.backgroundManagementPanel}
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="background-management-title"
+        >
           <div className={styles.panelHeader}>
-            <h2>Background Management</h2>
-            <button className={styles.closeBtn} onClick={onClose} aria-label="Close panel">
+            <h2 id="background-management-title">Background Management</h2>
+            <button type="button" className={styles.closeBtn} onClick={onClose} aria-label="Close panel">
               <X size={16} aria-hidden />
             </button>
           </div>
@@ -357,7 +362,7 @@ const BackgroundManagementPanel: React.FC<BackgroundManagementPanelProps> = ({
             <div className={styles.errorMessage} role="alert">
               <span className={styles.errorIcon}><AlertTriangle size={16} aria-hidden /></span>
               {error}
-              <button className={styles.errorDismiss} onClick={() => setError(null)} aria-label="Dismiss error"><X size={14} aria-hidden /></button>
+              <button type="button" className={styles.errorDismiss} onClick={() => setError(null)} aria-label="Dismiss error"><X size={14} aria-hidden /></button>
             </div>
           )}
 
@@ -368,8 +373,10 @@ const BackgroundManagementPanel: React.FC<BackgroundManagementPanelProps> = ({
               <div className={styles.configSelector}>
                 {configurations.map(config => (
                   <button
+                    type="button"
                     key={config.id}
                     className={clsx(styles.configOption, activeConfiguration === config.id && styles.active)}
+                    aria-pressed={activeConfiguration === config.id}
                     onClick={() => setActiveConfiguration(config.id)}
                     disabled={isLoading}
                   >
@@ -459,36 +466,46 @@ const BackgroundManagementPanel: React.FC<BackgroundManagementPanelProps> = ({
             {currentConfig && (
               <div className={styles.section}>
                 <h3>Background Layers</h3>
-                <div className={styles.layersList}>
-                  {currentConfig.layers
+                <div className={styles.layersList} role="list" aria-label="Background layers">
+                  {[...currentConfig.layers]
                     .sort((a, b) => a.zIndex - b.zIndex)
                     .map(layer => (
-                    <div key={layer.id} className={clsx(styles.layerItem, selectedLayerId === layer.id && styles.selected)}>
-                      <div className={styles.layerHeader} onClick={() => setSelectedLayerId(layer.id)}>
-                        <div className={styles.layerInfo}>
+                    <div key={layer.id} role="listitem" className={clsx(styles.layerItem, selectedLayerId === layer.id && styles.selected)}>
+                      <div className={styles.layerHeader}>
+                        <button
+                          type="button"
+                          className={styles.layerInfo}
+                          aria-label={`Select ${layer.name} layer`}
+                          aria-pressed={selectedLayerId === layer.id}
+                          aria-expanded={selectedLayerId === layer.id}
+                          aria-controls={`background-layer-details-${layer.id}`}
+                          onClick={() => setSelectedLayerId(layer.id)}
+                        >
                           <span className={styles.layerName}>{layer.name}</span>
                           <span className={styles.layerDetails}>
                             Z: {layer.zIndex} | Opacity: {(layer.opacity * 100).toFixed(0)}%
                           </span>
-                        </div>
+                        </button>
                         <div className={styles.layerControls}>
                           <button
+                            type="button"
                             className={styles.visibilityToggle}
                             onClick={(e) => {
                               e.stopPropagation();
                               handleLayerUpdate(layer.id, { visible: !layer.visible });
                             }}
-                            aria-label={layer.visible ? 'Hide layer' : 'Show layer'}
+                            aria-label={`${layer.visible ? 'Hide' : 'Show'} ${layer.name} layer`}
                           >
                             {layer.visible ? <Eye size={14} aria-hidden /> : <EyeOff size={14} aria-hidden />}
                           </button>
                           <button
+                            type="button"
                             className={styles.editBtn}
                             onClick={(e) => {
                               e.stopPropagation();
                               setSelectedLayerId(layer.id);
                             }}
-                            aria-label="Edit layer"
+                            aria-label={`Edit ${layer.name} layer`}
                           >
                             <Pencil size={14} aria-hidden />
                           </button>
@@ -496,10 +513,11 @@ const BackgroundManagementPanel: React.FC<BackgroundManagementPanelProps> = ({
                       </div>
                       
                       {selectedLayerId === layer.id && (
-                        <div className={styles.layerDetailsPanel}>
+                        <div id={`background-layer-details-${layer.id}`} className={styles.layerDetailsPanel}>
                           <div className={styles.layerProperty}>
-                            <label className={styles.layerPropertyLabel}>Opacity:</label>
+                            <label htmlFor={`background-opacity-${layer.id}`} className={styles.layerPropertyLabel}>Opacity:</label>
                             <input
+                              id={`background-opacity-${layer.id}`}
                               type="range"
                               className={styles.layerPropertySlider}
                               min="0"
@@ -511,8 +529,9 @@ const BackgroundManagementPanel: React.FC<BackgroundManagementPanelProps> = ({
                             <span className={styles.layerPropertyValue}>{(layer.opacity * 100).toFixed(0)}%</span>
                           </div>
                           <div className={styles.layerProperty}>
-                            <label className={styles.layerPropertyLabel}>Parallax Factor:</label>
+                            <label htmlFor={`background-parallax-${layer.id}`} className={styles.layerPropertyLabel}>Parallax Factor:</label>
                             <input
+                              id={`background-parallax-${layer.id}`}
                               type="range"
                               className={styles.layerPropertySlider}
                               min="0"
@@ -524,8 +543,9 @@ const BackgroundManagementPanel: React.FC<BackgroundManagementPanelProps> = ({
                             <span className={styles.layerPropertyValue}>{layer.parallaxFactor.toFixed(1)}</span>
                           </div>
                           <div className={styles.layerProperty}>
-                            <label className={styles.layerPropertyLabel}>Blend Mode:</label>
+                            <label htmlFor={`background-blend-${layer.id}`} className={styles.layerPropertyLabel}>Blend Mode:</label>
                             <select
+                              id={`background-blend-${layer.id}`}
                               className={styles.layerPropertySelect}
                               value={layer.blendMode}
                               onChange={(e) => handleLayerUpdate(layer.id, { blendMode: e.target.value as BackgroundLayer['blendMode'] })}
@@ -539,8 +559,9 @@ const BackgroundManagementPanel: React.FC<BackgroundManagementPanelProps> = ({
                           </div>
                           {layer.animated && (
                             <div className={styles.layerProperty}>
-                              <label className={styles.layerPropertyLabel}>Animation Speed:</label>
+                              <label htmlFor={`background-animation-${layer.id}`} className={styles.layerPropertyLabel}>Animation Speed:</label>
                               <input
+                                id={`background-animation-${layer.id}`}
                                 type="range"
                                 className={styles.layerPropertySlider}
                                 min="0"
@@ -573,6 +594,7 @@ const BackgroundManagementPanel: React.FC<BackgroundManagementPanelProps> = ({
                     <div className={styles.effectControls}>
                       <input
                         type="range"
+                        aria-label={`${effect.type} intensity`}
                         className={styles.effectControlSlider}
                         min="0"
                         max="1"
@@ -584,9 +606,10 @@ const BackgroundManagementPanel: React.FC<BackgroundManagementPanelProps> = ({
                         }}
                       />
                       <button
+                        type="button"
                         className={styles.removeEffect}
                         onClick={() => handleRemoveWeatherEffect(effect.id)}
-                        aria-label="Remove weather effect"
+                        aria-label={`Remove ${effect.type} weather effect`}
                       >
                         <Trash2 size={14} aria-hidden />
                       </button>
@@ -595,6 +618,7 @@ const BackgroundManagementPanel: React.FC<BackgroundManagementPanelProps> = ({
                 ))}
                 
                 <button
+                  type="button"
                   className={styles.addWeatherBtn}
                   onClick={() => setIsAddingWeatherEffect(true)}
                   disabled={isAddingWeatherEffect}
@@ -604,7 +628,7 @@ const BackgroundManagementPanel: React.FC<BackgroundManagementPanelProps> = ({
                 
                 {isAddingWeatherEffect && (
                   <div className={styles.addWeatherForm}>
-                    <select className={styles.addWeatherFormSelect} onChange={(e) => {
+                    <select aria-label="Weather effect type" className={styles.addWeatherFormSelect} onChange={(e) => {
                       if (e.target.value) {
                         const newEffect: WeatherEffect = {
                           id: `${e.target.value}_${Date.now()}`,
@@ -628,7 +652,7 @@ const BackgroundManagementPanel: React.FC<BackgroundManagementPanelProps> = ({
                       <option value="wind">Wind</option>
                       <option value="particles">Particles</option>
                     </select>
-                    <button className={styles.addWeatherFormButton} onClick={() => setIsAddingWeatherEffect(false)}>Cancel</button>
+                    <button type="button" className={styles.addWeatherFormButton} onClick={() => setIsAddingWeatherEffect(false)}>Cancel</button>
                   </div>
                 )}
               </div>

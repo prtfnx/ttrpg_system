@@ -241,7 +241,6 @@
   justify-content: space-between;
   align-items: center;
   padding: var(--space-md);
-  cursor: pointer;
   transition: background-color var(--duration-base);
 }
 
@@ -250,7 +249,20 @@
 }
 
 .layerInfo {
+  display: block;
   flex: 1;
+  padding: 0;
+  background: transparent;
+  border: 0;
+  color: inherit;
+  cursor: pointer;
+  font: inherit;
+  text-align: left;
+}
+
+.layerInfo:focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring);
 }
 
 .layerName {

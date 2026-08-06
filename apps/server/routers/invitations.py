@@ -3,7 +3,7 @@ Secure session invitation management endpoints
 """
 import secrets
 import string
-from datetime import datetime, timedelta
+from datetime import timedelta
 from typing import Annotated, List
 
 from database import crud, models, schemas
@@ -14,6 +14,7 @@ from sqlalchemy.orm import Session
 from utils.audit import audit_event
 from utils.logger import setup_logger
 from utils.roles import SessionRole, is_dm, is_valid_role
+from utils.time import utc_now
 
 from .users import get_current_active_user
 
@@ -54,7 +55,7 @@ async def create_invitation(
         raise HTTPException(status_code=403, detail="Co-DM cannot invite as co_dm")
 
     invite_code = generate_invite_code()
-    expires_at = datetime.utcnow() + timedelta(hours=invite_data.expires_hours)
+    expires_at = utc_now() + timedelta(hours=invite_data.expires_hours)
 
     invitation = models.SessionInvitation(
         invite_code=invite_code,
@@ -219,7 +220,7 @@ async def accept_invitation(
         session_id=session.id,
         user_id=current_user.id,
         role=assigned_role,
-        joined_at=datetime.utcnow()
+        joined_at=utc_now()
     )
     db.add(new_player)
 

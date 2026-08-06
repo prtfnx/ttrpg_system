@@ -4,7 +4,7 @@ Audience: contributors changing the Python server or shared domain package.
 
 Status: usable.
 
-Last source audit: 2026-08-04
+Last source audit: 2026-08-05
 
 The server is a FastAPI app with WebSocket sessions and a Python tabletop
 domain package behind it.

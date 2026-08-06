@@ -7,7 +7,6 @@ storage, ban handling, and client management for a multiplayer session.
 import asyncio
 import json
 import time
-from datetime import datetime
 from typing import Dict, List, Optional
 
 from config import Settings
@@ -19,6 +18,7 @@ from fastapi import WebSocket
 from utils.logger import log_context, setup_logger
 from utils.roles import get_permissions, get_visible_layers
 from utils.roles import is_dm as _is_dm
+from utils.time import utc_now
 
 from .asset_manager import get_server_asset_manager
 from .server_protocol import ServerProtocol
@@ -466,7 +466,7 @@ class GameSessionProtocolService:
             kick_notification = Message(MessageType.PLAYER_LEFT, {
                 'username': kicked_username,
                 'reason': f'Kicked by {kicker_username}: {reason}',
-                'timestamp': datetime.now().isoformat(),
+                'timestamp': utc_now().isoformat(),
                 'kicked': True
             })
             await self.broadcast_to_session(kick_notification, exclude_client=target_client_id)
@@ -504,7 +504,7 @@ class GameSessionProtocolService:
                             "reason": reason,
                             "duration": duration,
                             "banned_by": banner_username,
-                            "timestamp": datetime.utcnow().isoformat()
+                            "timestamp": utc_now().isoformat()
                         })
                     finally:
                         self._release_db_session()
@@ -514,7 +514,7 @@ class GameSessionProtocolService:
                 ban_notification = Message(MessageType.PLAYER_LEFT, {
                     'username': target_username,
                     'reason': f'Banned by {banner_username} for {duration}: {reason}',
-                    'timestamp': datetime.now().isoformat(),
+                    'timestamp': utc_now().isoformat(),
                     'banned': True,
                     'duration': duration
                 })

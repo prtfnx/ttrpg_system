@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import json
 import uuid
-from datetime import datetime
 from typing import Any
 
 from database.database import SessionLocal
@@ -15,6 +14,7 @@ from service.character_draft_schema import (
 )
 from service.character_schema import validate_character_document
 from utils.logger import setup_logger
+from utils.time import utc_now
 
 logger = setup_logger(__name__)
 
@@ -166,7 +166,7 @@ class CharacterDraftManager:
             validated = validate_character_draft(draft_data)
             serialized = json.dumps(validated, separators=(",", ":"))
             with SessionLocal() as db:
-                now = datetime.utcnow()
+                now = utc_now()
                 affected = db.query(CharacterDraft).filter(
                     CharacterDraft.session_id == session_id,
                     CharacterDraft.draft_id == draft_id,
@@ -264,7 +264,7 @@ class CharacterDraftManager:
                     CharacterDraft.status: "converted",
                     CharacterDraft.converted_character_id: draft_id,
                     CharacterDraft.version: int(expected_version) + 1,
-                    CharacterDraft.updated_at: datetime.utcnow(),
+                    CharacterDraft.updated_at: utc_now(),
                     CharacterDraft.last_modified_by: user_id,
                 }, synchronize_session=False)
                 if affected != 1:
@@ -298,7 +298,7 @@ class CharacterDraftManager:
                 ).update({
                     CharacterDraft.status: "abandoned",
                     CharacterDraft.version: int(expected_version) + 1,
-                    CharacterDraft.updated_at: datetime.utcnow(),
+                    CharacterDraft.updated_at: utc_now(),
                     CharacterDraft.last_modified_by: user_id,
                 }, synchronize_session=False)
                 if affected != 1:

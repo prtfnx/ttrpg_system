@@ -25,6 +25,7 @@ from service.character_rules import multiclass_prerequisites
 from service.character_schema import validate_character_document
 from sqlalchemy import and_, or_
 from utils.logger import setup_logger
+from utils.time import utc_now
 
 logger = setup_logger(__name__)
 MAX_CHARACTER_BYTES = 512 * 1024
@@ -350,7 +351,7 @@ class ServerCharacterManager:
                     SessionCharacter.archived_at.is_(None),
                 ).update({
                     SessionCharacter.character_data: merged_json,
-                    SessionCharacter.updated_at: datetime.utcnow(),
+                    SessionCharacter.updated_at: utc_now(),
                     SessionCharacter.version: new_version,
                     SessionCharacter.last_modified_by: user_id
                 }, synchronize_session=False)
@@ -542,7 +543,7 @@ class ServerCharacterManager:
                     CharacterPermission.character_id == character_id,
                 ).delete(synchronize_session=False)
 
-                archived_at = datetime.utcnow()
+                archived_at = utc_now()
                 character.archived_at = archived_at
                 character.archived_by = user_id
                 character.last_modified_by = user_id
@@ -653,7 +654,7 @@ class ServerCharacterManager:
                         document = updated_inner
                     document = validate_character_document(document)
                     character.character_data = _serialize_character(document)
-                    character.updated_at = datetime.utcnow()
+                    character.updated_at = utc_now()
                     character.last_modified_by = user_id
                     character.version = int(character.version or 1) + 1
 

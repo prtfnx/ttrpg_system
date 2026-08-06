@@ -7,7 +7,7 @@ import os
 import time
 import warnings
 from dataclasses import dataclass
-from datetime import datetime, timedelta
+from datetime import timedelta
 from io import BytesIO
 from typing import Dict, List, Optional, Tuple
 
@@ -18,6 +18,7 @@ from database.models import Asset, AssetUploadIntent, GamePlayer, GameSession, S
 from PIL import Image, UnidentifiedImageError
 from storage.r2_manager import R2AssetManager
 from utils.observability import track_asset_operation
+from utils.time import utc_now
 
 logger = logging.getLogger(__name__)
 
@@ -229,7 +230,7 @@ class ServerAssetManager:
             SessionAsset.asset_id == asset.id
         ).first()
         if linked:
-            linked.last_accessed = datetime.utcnow()
+            linked.last_accessed = utc_now()
             return True
         return False
 
@@ -242,15 +243,15 @@ class ServerAssetManager:
             SessionAsset.asset_id == asset.id
         ).first()
         if link:
-            link.last_accessed = datetime.utcnow()
+            link.last_accessed = utc_now()
             return
         db.add(SessionAsset(
             session_id=session.id,
             asset_id=asset.id,
             display_name=display_name,
             added_by=user_id,
-            created_at=datetime.utcnow(),
-            last_accessed=datetime.utcnow()
+            created_at=utc_now(),
+            last_accessed=utc_now()
         ))
 
     def _link_existing_asset_to_session(self, asset_id: str, session_code: str,
@@ -299,8 +300,8 @@ class ServerAssetManager:
                 file_size=metadata.get("file_size"),
                 xxhash=metadata.get("xxhash"),
                 status="awaiting_upload",
-                created_at=datetime.utcnow(),
-                expires_at=datetime.utcnow() + timedelta(seconds=expires_in),
+                created_at=utc_now(),
+                expires_at=utc_now() + timedelta(seconds=expires_in),
             ))
             db.commit()
         except Exception:
@@ -453,7 +454,7 @@ class ServerAssetManager:
                     logger.error(f"Asset {asset_id} has no durable pending upload intent")
                     return False
 
-                if intent.expires_at and intent.expires_at < datetime.utcnow():
+                if intent.expires_at and intent.expires_at < utc_now():
                     intent.status = "expired"
                     intent.error_message = "Upload confirmation arrived after presigned URL expiry"
                     db.commit()
@@ -463,7 +464,7 @@ class ServerAssetManager:
                 if not upload_success:
                     intent.status = "failed"
                     intent.error_message = error_message
-                    intent.confirmed_at = datetime.utcnow()
+                    intent.confirmed_at = utc_now()
                     db.commit()
                     logger.warning(
                         "Asset upload reported failed",
@@ -480,7 +481,7 @@ class ServerAssetManager:
                     else:
                         intent.status = "inspection_failed"
                     intent.error_message = verification_error
-                    intent.confirmed_at = datetime.utcnow()
+                    intent.confirmed_at = utc_now()
                     db.commit()
                     if reject_object:
                         self._delete_rejected_upload(intent.r2_key)
@@ -495,7 +496,7 @@ class ServerAssetManager:
                     if not self.r2_manager.promote_file(intent.r2_key, final_r2_key):
                         intent.status = "promotion_failed"
                         intent.error_message = "Verified upload could not be promoted to durable storage"
-                        intent.confirmed_at = datetime.utcnow()
+                        intent.confirmed_at = utc_now()
                         db.commit()
                         return False
                     intent.r2_key = final_r2_key
@@ -510,18 +511,18 @@ class ServerAssetManager:
                     "content_type": intent.content_type,
                     "xxhash": intent.xxhash,
                     "status": "uploaded",
-                    "uploaded_at": datetime.utcnow().isoformat()
+                    "uploaded_at": utc_now().isoformat()
                 }
 
                 if not self._save_asset_to_db(confirmed_metadata):
                     intent.status = "metadata_failed"
                     intent.error_message = "Failed to save asset metadata"
-                    intent.confirmed_at = datetime.utcnow()
+                    intent.confirmed_at = utc_now()
                     db.commit()
                     return False
 
                 intent.status = "uploaded"
-                intent.confirmed_at = datetime.utcnow()
+                intent.confirmed_at = utc_now()
                 db.commit()
                 logger.info(f"Asset {asset_id} confirmed and saved to database")
                 return True
@@ -734,8 +735,8 @@ class ServerAssetManager:
                 "file_size": request.file_size,
                 "content_type": request.content_type,
                 "xxhash": file_xxhash,
-                "created_at": datetime.now().isoformat(),
-                "presigned_url_generated_at": datetime.now().isoformat(),
+                "created_at": utc_now().isoformat(),
+                "presigned_url_generated_at": utc_now().isoformat(),
                 "status": "awaiting_upload"
             }
 
@@ -802,8 +803,8 @@ class ServerAssetManager:
                     uploaded_by=asset_data["uploaded_by"],
                     r2_key=asset_data["r2_key"],
                     r2_bucket=Settings().r2_bucket_name or "default",
-                    created_at=datetime.utcnow(),
-                    last_accessed=datetime.utcnow()
+                    created_at=utc_now(),
+                    last_accessed=utc_now()
                 )
 
                 db.add(new_asset)
@@ -854,7 +855,7 @@ class ServerAssetManager:
                 if asset:
                     # Update last accessed time
                     db.query(Asset).filter(Asset.id == asset.id).update(
-                        {Asset.last_accessed: datetime.utcnow()}
+                        {Asset.last_accessed: utc_now()}
                     )
                     db.commit()
 
@@ -901,7 +902,7 @@ class ServerAssetManager:
 
                     # Update last accessed time
                     db.query(Asset).filter(Asset.r2_asset_id == asset_id).update(
-                        {Asset.last_accessed: datetime.utcnow()}
+                        {Asset.last_accessed: utc_now()}
                     )
                     db.commit()
 

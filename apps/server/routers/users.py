@@ -29,6 +29,7 @@ from utils.audit import audit_event
 from utils.logger import setup_logger
 from utils.observability import record_auth
 from utils.rate_limiter import get_client_ip, login_limiter, password_reset_limiter, registration_limiter
+from utils.time import utc_now
 
 logger = setup_logger(__name__)
 
@@ -356,7 +357,7 @@ async def login(
                                 session_id=session.id,
                                 user_id=user.id,
                                 role=invitation.pre_assigned_role,
-                                joined_at=datetime.utcnow()
+                                joined_at=utc_now()
                             )
                             db.add(new_player)
 
@@ -420,7 +421,7 @@ async def verify_email(
         }, status_code=400)
 
     # Mark token as used
-    email_token.used_at = datetime.utcnow()
+    email_token.used_at = utc_now()
 
     # Update user verification status
     user = db.query(models.User).filter(models.User.id == email_token.user_id).first()
@@ -524,7 +525,7 @@ def register_user_view(
 
         # Registration successful - create verification token
         verification_token = secrets.token_urlsafe(32)
-        expires_at = datetime.utcnow() + timedelta(hours=24)
+        expires_at = utc_now() + timedelta(hours=24)
 
         email_token = models.EmailVerificationToken(
             token=verification_token,
@@ -563,7 +564,7 @@ def register_user_view(
                             session_id=session.id,
                             user_id=user.id,
                             role=invitation.pre_assigned_role,
-                            joined_at=datetime.utcnow()
+                            joined_at=utc_now()
                         )
                         db.add(new_player)
 
@@ -650,7 +651,7 @@ async def forgot_password_submit(
         db.add(models.PasswordResetToken(
             user_id=user.id,
             token_hash=hashlib.sha256(raw.encode()).hexdigest(),
-            expires_at=datetime.utcnow() + timedelta(minutes=15),
+            expires_at=utc_now() + timedelta(minutes=15),
         ))
         db.commit()
 
@@ -673,7 +674,7 @@ def reset_password_page(request: Request, token: str = "", db: Session = Depends
     record = db.query(models.PasswordResetToken).filter(
         models.PasswordResetToken.token_hash == hashlib.sha256(token.encode()).hexdigest(),
         ~models.PasswordResetToken.used,
-        models.PasswordResetToken.expires_at > datetime.utcnow(),
+        models.PasswordResetToken.expires_at > utc_now(),
     ).first()
 
     if not record:
@@ -706,7 +707,7 @@ async def reset_password_submit(
     record = db.query(models.PasswordResetToken).filter(
         models.PasswordResetToken.token_hash == hashlib.sha256(token.encode()).hexdigest(),
         ~models.PasswordResetToken.used,
-        models.PasswordResetToken.expires_at > datetime.utcnow(),
+        models.PasswordResetToken.expires_at > utc_now(),
     ).first()
 
     if not record:
@@ -716,7 +717,7 @@ async def reset_password_submit(
 
     record.used = True
     record.user.hashed_password = crud.get_password_hash(new_password)
-    record.user.password_set_at = datetime.utcnow()
+    record.user.password_set_at = utc_now()
     record.user.session_version = (record.user.session_version or 0) + 1
 
     db.add(audit_event(
@@ -795,7 +796,7 @@ async def settings_password(
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
     user.hashed_password = crud.get_password_hash(new_password)
-    user.password_set_at = datetime.utcnow()
+    user.password_set_at = utc_now()
     user.session_version = (user.session_version or 0) + 1
 
     db.add(audit_event(
@@ -850,7 +851,7 @@ async def settings_email(
         user_id=current_user.id,
         new_email=new_email,
         token_hash=hashlib.sha256(raw.encode()).hexdigest(),
-        expires_at=datetime.utcnow() + timedelta(hours=24),
+        expires_at=utc_now() + timedelta(hours=24),
     ))
     db.commit()
 
@@ -870,7 +871,7 @@ def verify_email_change(request: Request, token: str = "", db: Session = Depends
     record = db.query(models.PendingEmailChange).filter(
         models.PendingEmailChange.token_hash == hashlib.sha256(token.encode()).hexdigest(),
         ~models.PendingEmailChange.used,
-        models.PendingEmailChange.expires_at > datetime.utcnow(),
+        models.PendingEmailChange.expires_at > utc_now(),
     ).first()
 
     if not record:

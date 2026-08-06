@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import json
-from datetime import datetime
 from typing import Any, Callable
 
 from database.database import SessionLocal
@@ -11,6 +10,7 @@ from database.models import (
     GameSession,
 )
 from sqlalchemy.exc import SQLAlchemyError
+from utils.time import utc_now
 
 
 class ChoiceEncounterPersistenceError(RuntimeError):
@@ -87,7 +87,7 @@ class ChoiceEncounterPersistenceService:
                 stored.dm_notes = encounter.get("dm_notes") or ""
                 stored.created_by = stored.created_by or created_by
                 stored.version = version
-                stored.ended_at = datetime.utcnow() if stored.phase == "completed" else None
+                stored.ended_at = utc_now() if stored.phase == "completed" else None
 
                 db.add(ChoiceEncounterEvent(
                     encounter_id=encounter_id,

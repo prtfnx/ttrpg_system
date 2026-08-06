@@ -425,7 +425,7 @@ class SessionInvitation(Base):
             return False
         # Check expiration
         expires_at = getattr(self, 'expires_at', None)
-        if expires_at and datetime.utcnow() > expires_at:
+        if expires_at and utc_now() > expires_at:
             return False
         return True
 
@@ -447,7 +447,7 @@ class EmailVerificationToken(Base):
         """Check if token is still valid"""
         if self.used_at is not None:
             return False
-        if datetime.utcnow() > self.expires_at:
+        if utc_now() > self.expires_at:
             return False
         return True
 

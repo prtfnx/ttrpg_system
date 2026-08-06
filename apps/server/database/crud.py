@@ -13,6 +13,7 @@ import bcrypt
 from sqlalchemy import func, or_
 from sqlalchemy.orm import Session
 from utils.logger import setup_logger
+from utils.time import utc_now
 
 from . import models, schemas
 
@@ -97,7 +98,7 @@ def check_registration_flood_protection(db: Session, time_window_minutes: int = 
     Returns:
         Tuple of (is_allowed, error_message)
     """
-    cutoff_time = datetime.utcnow() - timedelta(minutes=time_window_minutes)
+    cutoff_time = utc_now() - timedelta(minutes=time_window_minutes)
 
     recent_registrations = db.query(func.count(models.User.id)).filter(
         models.User.created_at >= cutoff_time
@@ -514,7 +515,7 @@ def update_virtual_table(db: Session, table_id: str, table_update: schemas.Virtu
         else:
             setattr(db_table, field, value)
 
-    db_table.updated_at = datetime.utcnow()
+    db_table.updated_at = utc_now()
     db.commit()
     db.refresh(db_table)
     return db_table
@@ -594,7 +595,7 @@ def update_entity(db: Session, sprite_id: str, entity_update: schemas.EntityUpda
         attr = 'entity_metadata' if field == 'metadata' else field
         setattr(db_entity, attr, value)
 
-    db_entity.updated_at = datetime.utcnow()
+    db_entity.updated_at = utc_now()
     db.commit()
     db.refresh(db_entity)
     return db_entity
@@ -991,7 +992,7 @@ def update_wall(db: Session, wall_id: str, updates: dict) -> models.Wall | None:
     for key, value in updates.items():
         if key in _allowed:
             setattr(db_wall, key, value)
-    db_wall.updated_at = datetime.utcnow()
+    db_wall.updated_at = utc_now()
     db.commit()
     db.refresh(db_wall)
     return db_wall
@@ -1112,7 +1113,7 @@ def upsert_shared_measurement(
             raise PermissionError("Only the creator can update a measurement")
         measurement.kind = kind
         measurement.measurement_data = measurement_data
-        measurement.updated_at = datetime.utcnow()
+        measurement.updated_at = utc_now()
     db.commit()
     db.refresh(measurement)
     return measurement
@@ -1322,11 +1323,10 @@ def load_active_combat_encounter(db: Session, session_code: str) -> dict | None:
 
 
 def mark_combat_encounter_ended(db: Session, combat_id: str) -> None:
-    from datetime import datetime
     enc = db.query(models.CombatEncounter).filter(
         models.CombatEncounter.encounter_id == combat_id
     ).first()
     if enc:
         enc.phase = 'ended'
-        enc.ended_at = datetime.utcnow()
+        enc.ended_at = utc_now()
         db.commit()

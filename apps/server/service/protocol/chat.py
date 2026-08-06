@@ -1,6 +1,5 @@
 import re
 import uuid
-from datetime import datetime
 
 from core_table.protocol import Message, MessageType
 from database import crud, models, schemas
@@ -8,6 +7,7 @@ from database.database import SessionLocal
 from utils.audit import audit_event
 from utils.logger import setup_logger
 from utils.roles import is_dm
+from utils.time import utc_now
 
 from ._protocol_base import _ProtocolBase
 
@@ -246,7 +246,7 @@ class _ChatMixin(_ProtocolBase):
             if moderator and not owns_message and not str(reason or '').strip():
                 return Message(MessageType.ERROR, {'error': 'A reason is required to moderate another user'})
 
-            now = datetime.utcnow()
+            now = utc_now()
             if action == 'delete':
                 chat_message.deleted_at = chat_message.deleted_at or now
                 chat_message.deleted_by_user_id = actor_user_id

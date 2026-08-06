@@ -9,7 +9,7 @@ import secrets
 import time
 import uuid
 from contextlib import asynccontextmanager
-from datetime import datetime, timedelta
+from datetime import timedelta
 from pathlib import Path
 
 import uvicorn
@@ -36,6 +36,7 @@ from utils.http_security import add_security_headers, trusted_origins, unsafe_re
 from utils.logger import bind_log_context, configure_logging, reset_log_context, setup_logger
 from utils.observability import configure_tracing, observe_http, record_job, refresh_durable_metrics
 from utils.rate_limiter import login_limiter, registration_limiter
+from utils.time import utc_now
 
 settings = Settings()
 configure_logging(level=settings.LOG_LEVEL, log_format=settings.LOG_FORMAT)
@@ -146,7 +147,7 @@ async def audit_retention_task():
             db = SessionLocal()
             try:
                 deleted = db.query(models.AuditLog).filter(
-                    models.AuditLog.timestamp < datetime.utcnow() - timedelta(
+                    models.AuditLog.timestamp < utc_now() - timedelta(
                         days=settings.AUDIT_RETENTION_DAYS
                     )
                 ).delete(synchronize_session=False)
@@ -182,7 +183,7 @@ async def chat_retention_task():
             try:
                 deleted = crud.delete_expired_chat_messages(
                     db,
-                    datetime.utcnow() - timedelta(days=settings.CHAT_RETENTION_DAYS),
+                    utc_now() - timedelta(days=settings.CHAT_RETENTION_DAYS),
                 )
                 record_job("chat_retention", "success", time.perf_counter() - started)
                 logger.info(

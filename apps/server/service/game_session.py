@@ -15,6 +15,7 @@ from database.session_utils import (
 )
 from fastapi import WebSocket
 from utils.logger import setup_logger
+from utils.time import utc_now
 
 from .asset_manager import get_server_asset_manager
 from .game_session_protocol import GameSessionProtocolService
@@ -107,7 +108,7 @@ class ConnectionManager:
                 "user_id": user_id,
                 "client_id": client_id,
                 "role": role,
-                "timestamp": datetime.now().isoformat()
+                "timestamp": utc_now().isoformat()
             }
         )
         # Notify other players
@@ -171,7 +172,7 @@ class ConnectionManager:
             MessageType.PLAYER_LEFT,
             {
                     "username": username,
-                    "timestamp": datetime.now().isoformat()
+                    "timestamp": utc_now().isoformat()
             }
         ))
 
@@ -315,7 +316,7 @@ class ConnectionManager:
                 "type": message_type,
                 "data": data,
                 "sender": username,
-                "timestamp": datetime.now().isoformat()
+                "timestamp": utc_now().isoformat()
             }
 
             if message_type == "chat_message":
@@ -331,7 +332,7 @@ class ConnectionManager:
                 # Respond to ping
                 await self.send_personal_message({
                     "type": "pong",
-                    "data": {"timestamp": datetime.now().isoformat()}
+                    "data": {"timestamp": utc_now().isoformat()}
                 }, websocket)
 
             else:

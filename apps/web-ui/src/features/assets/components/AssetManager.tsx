@@ -349,13 +349,14 @@ export const AssetManager: React.FC<AssetManagerProps> = ({ isVisible, onClose, 
             <div className={styles.uploadControls}>
               <input
                 type="file"
+                hidden
                 ref={fileInputRef}
                 onChange={handleFileSelect}
                 multiple
                 accept="image/*,audio/*,video/*,.pdf,.txt"
-                style={{ display: 'none' }}
               />
               <button
+                type="button"
                 onClick={() => fileInputRef.current?.click()}
                 className={styles.selectFilesButton}
               >

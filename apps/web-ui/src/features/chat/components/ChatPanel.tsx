@@ -101,7 +101,7 @@ export function ChatPanel() {
         })}
         {errorMessage && (
           <div className={styles.errorMsg}>
-            <span style={{ fontWeight: 600 }}>Error:</span> <span>{errorMessage}</span>
+            <strong>Error:</strong> <span>{errorMessage}</span>
           </div>
         )}
         <div ref={messagesEndRef} />
@@ -109,13 +109,14 @@ export function ChatPanel() {
       <div className={styles.inputRow}>
         <input
           type="text"
+          aria-label="Chat message"
           value={input}
           onChange={e => setInput(e.target.value)}
           onKeyDown={e => { if (e.key === 'Enter') handleSend(); }}
           placeholder="Type a message..."
           className={styles.input}
         />
-        <button className={styles.sendBtn} onClick={handleSend}>
+        <button type="button" className={styles.sendBtn} onClick={handleSend}>
           Send
         </button>
       </div>

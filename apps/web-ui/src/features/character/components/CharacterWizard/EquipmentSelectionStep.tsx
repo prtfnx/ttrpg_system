@@ -416,6 +416,7 @@ export const EquipmentSelectionStep: React.FC<EquipmentSelectionStepProps> = ({
               <div className={styles['starting-equipment-header']}>
                 <span>Starting Equipment — Free Grant</span>
                 <button
+                  type="button"
                   className={styles['take-standard-button']}
                   onClick={() => {
                     const allItems = [
@@ -453,6 +454,7 @@ export const EquipmentSelectionStep: React.FC<EquipmentSelectionStepProps> = ({
         <div className={styles['equipment-filters']}>
           <input
             type="text"
+            aria-label="Search equipment"
             placeholder="Search equipment..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
@@ -462,8 +464,10 @@ export const EquipmentSelectionStep: React.FC<EquipmentSelectionStepProps> = ({
           <div className={styles['category-filters']}>
             {equipmentCategories.map(category => (
               <button
+                type="button"
                 key={category}
                 className={`${styles['category-button']} ${selectedCategory === category ? styles['active'] : ''}`}
+                aria-pressed={selectedCategory === category}
                 onClick={() => setSelectedCategory(category)}
               >
                 {category.replace('-', ' ').replace(/\b\w/g, l => l.toUpperCase())}
@@ -477,27 +481,37 @@ export const EquipmentSelectionStep: React.FC<EquipmentSelectionStepProps> = ({
           <div className={styles['available-equipment']}>
             <h3>Available Equipment ({filteredEquipment.length})</h3>
             <div className={styles.equipmentGrid}>
-              {filteredEquipment.map((equipment) => {
+              {filteredEquipment.map((equipment, index) => {
                 const isExpanded = expandedCards.has(equipment.name);
                 const canAfford = currentGold >= costToGold(equipment.cost);
+                const detailsId = `equipment-details-${index}`;
                 return (
                   <div
                     key={equipment.name}
                     className={`${styles['equipment-card']} ${isExpanded ? styles['equipment-card-expanded'] : ''}`}
-                    onClick={() => setExpandedCards(prev => {
-                      const next = new Set(prev);
-                      if (next.has(equipment.name)) next.delete(equipment.name);
-                      else next.add(equipment.name);
-                      return next;
-                    })}
                   >
                     <div className={styles['equipment-compact-row']}>
-                      <span className={styles['equipment-name']}>{equipment.name}</span>
-                      <span className={styles['equipment-cost']}>{formatCost(equipment.cost)}</span>
-                      {equipment.weight != null && <span className={styles['equipment-weight']}>{equipment.weight}lb</span>}
                       <button
+                        type="button"
+                        className={styles.equipmentDetailsButton}
+                        aria-expanded={isExpanded}
+                        aria-controls={detailsId}
+                        onClick={() => setExpandedCards(prev => {
+                          const next = new Set(prev);
+                          if (next.has(equipment.name)) next.delete(equipment.name);
+                          else next.add(equipment.name);
+                          return next;
+                        })}
+                      >
+                        <span className={styles['equipment-name']}>{equipment.name}</span>
+                        <span className={styles['equipment-cost']}>{formatCost(equipment.cost)}</span>
+                        {equipment.weight != null && <span className={styles['equipment-weight']}>{equipment.weight}lb</span>}
+                      </button>
+                      <button
+                        type="button"
                         className={styles['add-equipment-button']}
-                        onClick={e => { e.stopPropagation(); addItem(equipment); }}
+                        aria-label={`Add ${equipment.name} to inventory`}
+                        onClick={() => addItem(equipment)}
                         disabled={!canAfford}
                         title={canAfford ? 'Add to inventory' : 'Not enough gold'}
                       >
@@ -505,7 +519,7 @@ export const EquipmentSelectionStep: React.FC<EquipmentSelectionStepProps> = ({
                       </button>
                     </div>
                     {isExpanded && (
-                      <div className={styles['equipment-expanded-details']}>
+                      <div id={detailsId} className={styles['equipment-expanded-details']}>
                         {equipment.description && <p className={styles['equipment-description']}>{equipment.description}</p>}
                         {equipment.category && <span className={styles['equipment-category']}>{equipment.category}</span>}
                         <span className={styles['equipment-stats']}>{equipment.weight || 0} lbs</span>
@@ -536,7 +550,9 @@ export const EquipmentSelectionStep: React.FC<EquipmentSelectionStepProps> = ({
                       <span className={styles['item-weight']}>{((item?.equipment?.weight ?? 0) * (item?.quantity ?? 1)).toFixed(1)} lbs</span>
                     </div>
                     <button
+                      type="button"
                       className={styles['remove-button']}
+                      aria-label={`Remove one ${item?.equipment?.name || 'item'}`}
                       onClick={() => removeItem(index)}
                       title="Remove one"
                     >

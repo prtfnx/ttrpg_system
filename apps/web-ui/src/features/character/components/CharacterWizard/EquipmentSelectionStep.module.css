@@ -274,7 +274,6 @@
   background: var(--bg-secondary);
   padding: var(--space-xs) var(--space-sm);
   transition: border-color var(--transition-normal) ease;
-  cursor: pointer;
 }
 
 .equipment-card:hover {
@@ -582,4 +581,24 @@
 .selected-items::-webkit-scrollbar-thumb:hover,
 .available-equipment::-webkit-scrollbar-thumb:hover {
   background: var(--gray-500);
+}
+
+.equipmentDetailsButton {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  flex: 1;
+  min-width: 0;
+  padding: 0;
+  background: transparent;
+  border: 0;
+  color: inherit;
+  cursor: pointer;
+  font: inherit;
+  text-align: left;
+}
+
+.equipmentDetailsButton:focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring);
 }

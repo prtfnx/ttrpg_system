@@ -136,9 +136,7 @@ describe('EquipmentSelectionStep', () => {
       const user = userEvent.setup();
       renderStep();
       await waitFor(() => screen.getByText('Longsword'));
-      // Find the + buttons (add-equipment-button), first one is for Longsword (first in list)
-      const addBtns = screen.getAllByRole('button', { name: '+' });
-      await user.click(addBtns[0]);
+      await user.click(screen.getByRole('button', { name: /add longsword to inventory/i }));
       // Fighter starts with 125gp; after longsword (15gp) should show 110
       await waitFor(() => expect(screen.getByText(/110/)).toBeTruthy());
     });
@@ -148,6 +146,20 @@ describe('EquipmentSelectionStep', () => {
       await waitFor(() => screen.getByText('Longsword'));
       // Fighter starting gold 125gp — check it appears somewhere in document
       expect(document.body.textContent).toMatch(/125/);
+    });
+  });
+
+  describe('equipment details', () => {
+    it('expands an equipment card from the keyboard', async () => {
+      const user = userEvent.setup();
+      renderStep();
+
+      const detailsButton = await screen.findByRole('button', { name: /longsword.*15 gp.*3lb/i });
+      detailsButton.focus();
+      await user.keyboard('{Enter}');
+
+      expect(detailsButton).toHaveAttribute('aria-expanded', 'true');
+      expect(screen.getByText('1d8 slashing damage.')).toBeInTheDocument();
     });
   });
 

@@ -204,13 +204,18 @@ describe('useAdvancedMeasurement', () => {
     it('exports data and triggers download', async () => {
       vi.spyOn(advancedMeasurementSystem, 'exportData').mockReturnValue('{"test":1}');
       const appendSpy = vi.spyOn(document.body, 'appendChild');
+      const anchorClickSpy = vi
+        .spyOn(HTMLAnchorElement.prototype, 'click')
+        .mockImplementation(() => undefined);
       const { ref } = makeRef();
       const { result } = renderHook(() => useAdvancedMeasurement({ isOpen: false, canvasRef: ref }));
       await act(async () => {
         result.current.handleExportData();
       });
       expect(appendSpy).toHaveBeenCalled();
-      expect(URL.createObjectURL).toHaveBeenCalled();
+      expect(anchorClickSpy).toHaveBeenCalledOnce();
+      expect(URL.createObjectURL).toHaveBeenCalledWith(expect.any(Blob));
+      expect(URL.revokeObjectURL).toHaveBeenCalledWith('blob:mock');
     });
 
     it('sets error when export fails', async () => {

@@ -101,6 +101,9 @@ Use Vitest in `apps/web-ui`.
   cannot model.
 - Runtime tests: `WasmRuntimePort`, callback routing, attach/detach, and error
   snapshots.
+- Download tests in jsdom: stub the anchor `click()` browser boundary, assert
+  that it was invoked, and verify object URL cleanup. Use a browser project for
+  real navigation and download behavior.
 
 Run:
 

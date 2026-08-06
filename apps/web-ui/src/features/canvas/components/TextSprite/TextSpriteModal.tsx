@@ -53,7 +53,7 @@ export function TextSpriteModal({ isOpen, position, onConfirm, onCancel }: TextS
       >
         <div className={styles.modalHeader}>
           <h3 id="text-sprite-modal-title" className={styles.modalTitle}>Create Text Sprite</h3>
-          <button className={styles.closeBtn} onClick={onCancel} title="Close (Esc)">×</button>
+          <button type="button" className={styles.closeBtn} onClick={onCancel} title="Close (Esc)">×</button>
         </div>
 
         <div className={styles.modalBody}>
@@ -109,13 +109,7 @@ export function TextSpriteModal({ isOpen, position, onConfirm, onCancel }: TextS
               className={styles.textPreview}
               style={{
                 fontSize: `${fontSize}px`,
-                color: color,
-                backgroundColor: 'var(--bg-tertiary)',
-                padding: '16px',
-                borderRadius: '4px',
-                textAlign: 'center',
-                fontFamily: 'Consolas, monospace',
-                wordBreak: 'break-word'
+                color
               }}
             >
               {text || 'Sample Text'}
@@ -132,10 +126,11 @@ export function TextSpriteModal({ isOpen, position, onConfirm, onCancel }: TextS
         </div>
 
         <div className={styles.modalFooter}>
-          <button className={clsx(styles.btn, styles.btnCancel)} onClick={onCancel}>
+          <button type="button" className={clsx(styles.btn, styles.btnCancel)} onClick={onCancel}>
             Cancel
           </button>
           <button
+            type="button"
             className={clsx(styles.btn, styles.btnConfirm, !text.trim() && styles.btnConfirmDisabled)}
             onClick={handleConfirm}
             disabled={!text.trim()}

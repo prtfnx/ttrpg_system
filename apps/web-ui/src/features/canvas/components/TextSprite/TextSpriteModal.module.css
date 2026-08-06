@@ -40,7 +40,7 @@
   padding: var(--space-md);
   color: var(--text-primary);
   font-size: var(--text-sm);
-  font-family: 'Consolas', 'Monaco', monospace;
+  font-family: var(--font-mono);
   resize: vertical;
   box-sizing: border-box;
 }
@@ -138,11 +138,17 @@
 }
 
 .textSpriteModal .textPreview {
-  min-height: var(--size-20);
   display: flex;
   align-items: center;
   justify-content: center;
+  min-height: var(--size-20);
+  padding: var(--space-lg);
+  background: var(--bg-tertiary);
   border: var(--border-width-md) dashed var(--gray-700);
+  border-radius: var(--radius-sm);
+  font-family: var(--font-mono);
+  text-align: center;
+  word-break: break-word;
 }
 
 .infoBox {

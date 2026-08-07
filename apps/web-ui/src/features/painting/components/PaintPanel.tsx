@@ -465,13 +465,11 @@ export const PaintPanel: React.FC<PaintPanelProps> = ({
           <div className={styles.brushTypeSection}>
             <label>Brush Type:</label>
             <div 
-              className={clsx(styles.brushTypeControls, isCompact && styles.compact)}
-              style={{ 
-                display: 'flex', 
-                gap: isCompact ? '4px' : '8px', 
-                marginBottom: '12px',
-                flexWrap: isNarrow ? 'wrap' : 'nowrap'
-              }}
+              className={clsx(
+                styles.brushTypeControls,
+                isCompact && styles.compact,
+                isNarrow && styles.narrow,
+              )}
             >
               <button 
                 className={clsx(styles.panelButton, brushType === 'brush' && styles.primary)}

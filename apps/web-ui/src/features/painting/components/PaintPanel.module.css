@@ -398,6 +398,9 @@
 
 .brushTypeControls.compact {
   gap: var(--space-xs);
+}
+
+.brushTypeControls.narrow {
   flex-wrap: wrap;
 }
 

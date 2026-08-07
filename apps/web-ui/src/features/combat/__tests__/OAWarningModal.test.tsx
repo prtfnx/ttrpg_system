@@ -13,6 +13,13 @@ const triggers = [
 ];
 
 describe('OAWarningModal', () => {
+  it('exposes a named alert dialog and focuses the safe action', () => {
+    render(<OAWarningModal triggers={triggers} onConfirm={vi.fn()} onCancel={vi.fn()} />);
+
+    expect(screen.getByRole('alertdialog', { name: 'Opportunity Attack!' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Stay put' })).toHaveFocus();
+  });
+
   it('renders trigger list', () => {
     render(<OAWarningModal triggers={triggers} onConfirm={vi.fn()} onCancel={vi.fn()} />);
     expect(screen.getByText('Goblin')).toBeInTheDocument();
@@ -30,6 +37,15 @@ describe('OAWarningModal', () => {
     const onCancel = vi.fn();
     render(<OAWarningModal triggers={triggers} onConfirm={vi.fn()} onCancel={onCancel} />);
     await userEvent.click(screen.getByText(/stay put/i));
+    expect(onCancel).toHaveBeenCalledOnce();
+  });
+
+  it('calls onCancel when Escape is pressed', async () => {
+    const onCancel = vi.fn();
+    render(<OAWarningModal triggers={triggers} onConfirm={vi.fn()} onCancel={onCancel} />);
+
+    await userEvent.keyboard('{Escape}');
+
     expect(onCancel).toHaveBeenCalledOnce();
   });
 

@@ -434,6 +434,106 @@
     }
   },
   "$defs": {
+    "welcomeData": {
+      "type": "object",
+      "required": [
+        "message",
+        "client_id",
+        "user_id",
+        "username",
+        "session_code",
+        "connection_id",
+        "tables",
+        "role",
+        "permissions",
+        "visible_layers",
+        "game_mode",
+        "session_rules",
+        "choice_encounter"
+      ],
+      "properties": {
+        "message": {
+          "type": "string",
+          "minLength": 1
+        },
+        "client_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "user_id": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "username": {
+          "type": "string",
+          "minLength": 1
+        },
+        "session_code": {
+          "type": "string",
+          "minLength": 1
+        },
+        "connection_id": {
+          "oneOf": [
+            {
+              "type": "string",
+              "minLength": 1
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "tables": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "role": {
+          "enum": [
+            "owner",
+            "co_dm",
+            "trusted_player",
+            "player",
+            "spectator"
+          ]
+        },
+        "permissions": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "visible_layers": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "game_mode": {
+          "enum": [
+            "free_roam",
+            "explore",
+            "fight",
+            "custom"
+          ]
+        },
+        "session_rules": {
+          "type": "object"
+        },
+        "choice_encounter": {
+          "oneOf": [
+            {
+              "type": "object"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "additionalProperties": false
+    },
     "actionResultData": {
       "type": "object",
       "required": [
@@ -597,6 +697,28 @@
     }
   },
   "allOf": [
+    {
+      "if": {
+        "properties": {
+          "type": {
+            "const": "welcome"
+          }
+        },
+        "required": [
+          "type"
+        ]
+      },
+      "then": {
+        "required": [
+          "data"
+        ],
+        "properties": {
+          "data": {
+            "$ref": "#/$defs/welcomeData"
+          }
+        }
+      }
+    },
     {
       "if": {
         "properties": {

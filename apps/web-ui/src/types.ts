@@ -305,7 +305,19 @@ interface TableWSData {
 }
 
 interface WelcomeData {
-  session_id: string;
+  message: string;
+  client_id: string;
+  user_id: number;
+  username: string;
+  session_code: string;
+  connection_id: string | null;
+  tables: string[];
+  role: 'owner' | 'co_dm' | 'trusted_player' | 'player' | 'spectator';
+  permissions: string[];
+  visible_layers: string[];
+  game_mode: 'free_roam' | 'explore' | 'fight' | 'custom';
+  session_rules: Record<string, unknown>;
+  choice_encounter: Record<string, unknown> | null;
 }
 
 // Discriminated union of all possible WebSocket messages

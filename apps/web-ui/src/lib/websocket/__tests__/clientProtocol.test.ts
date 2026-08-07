@@ -740,8 +740,18 @@ describe('WebClientProtocol', () => {
       useEncounterStore.setState({ encounter: null });
 
       await dispatch(p, 'welcome', {
+        message: 'Welcome to game session TEST123',
+        client_id: 'client-1',
         user_id: 1,
+        username: 'Ada',
+        session_code: 'TEST123',
+        connection_id: null,
+        tables: ['table-1'],
         role: 'player',
+        permissions: ['compendium:read'],
+        visible_layers: ['map', 'tokens'],
+        game_mode: 'free_roam',
+        session_rules: { session_id: 'TEST123' },
         choice_encounter: {
           encounter_id: 'enc-restored',
           title: 'Restored prompt',

@@ -64,6 +64,37 @@ describe('Protocol Message Utilities', () => {
     expect(parsed.priority).toBe(0);
   });
 
+  it('should validate the session welcome payload', () => {
+    const validData = {
+      message: 'Welcome to game session ABC123',
+      client_id: 'client-1',
+      user_id: 7,
+      username: 'Ada',
+      session_code: 'ABC123',
+      connection_id: null,
+      tables: ['table-1'],
+      role: 'player',
+      permissions: ['compendium:read'],
+      visible_layers: ['map', 'tokens'],
+      game_mode: 'free_roam',
+      session_rules: { session_id: 'ABC123' },
+      choice_encounter: null,
+    };
+
+    expect(parseMessage(JSON.stringify({
+      type: MessageType.WELCOME,
+      data: validData,
+    })).data).toEqual(validData);
+    expect(() => parseMessage(JSON.stringify({
+      type: MessageType.WELCOME,
+      data: { ...validData, role: 'administrator' },
+    }))).toThrow(/Invalid message/);
+    expect(() => parseMessage(JSON.stringify({
+      type: MessageType.WELCOME,
+      data: { ...validData, game_mode: 'combat' },
+    }))).toThrow(/Invalid message/);
+  });
+
   it('should validate table settings payloads', () => {
     const validData = {
       table_id: 'table-1',

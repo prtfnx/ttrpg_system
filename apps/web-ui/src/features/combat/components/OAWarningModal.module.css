@@ -66,6 +66,6 @@
 
 .btnDanger:focus-visible,
 .btnSecondary:focus-visible {
-  outline: var(--focus-ring-width) solid var(--focus-ring-color);
-  outline-offset: var(--focus-ring-offset);
+  outline: none;
+  box-shadow: var(--focus-ring);
 }

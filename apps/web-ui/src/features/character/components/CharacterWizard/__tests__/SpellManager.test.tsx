@@ -46,4 +46,17 @@ describe('SpellManager', () => {
     expect(screen.getByPlaceholderText('Search spells...')).toBeInTheDocument();
     expect(screen.getByText('Magic Missile')).toBeInTheDocument();
   });
+
+  it('opens an accessible spell dialog and closes it with Escape', () => {
+    render(<SpellManager character={character} />);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Library' }));
+    fireEvent.click(screen.getByRole('button', { name: /view magic missile details/i }));
+
+    expect(screen.getByRole('dialog', { name: 'Magic Missile' })).toBeInTheDocument();
+
+    fireEvent.keyDown(window, { key: 'Escape' });
+
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+  });
 });

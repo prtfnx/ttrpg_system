@@ -43,6 +43,17 @@ export const SpellManager: React.FC<SpellManagerProps> = ({
   const [filterLevel, setFilterLevel] = useState<number | null>(null);
   const [filterSchool, setFilterSchool] = useState<string>('');
 
+  useEffect(() => {
+    if (!selectedSpell) return;
+
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') setSelectedSpell(null);
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [selectedSpell]);
+
   // Initialize spell slots based on character class and level
   useEffect(() => {
     if (character.class && (character.class === 'Wizard' || character.class === 'Sorcerer' || 
@@ -487,7 +498,9 @@ export const SpellManager: React.FC<SpellManagerProps> = ({
             )}
             <div className={styles.spellDescription}>{spell.description}</div>
             <button 
+              type="button"
               className={styles.viewSpellBtn}
+              aria-label={`View ${spell.name} details`}
               onClick={() => setSelectedSpell(spell)}
             >
               View Details
@@ -509,7 +522,7 @@ export const SpellManager: React.FC<SpellManagerProps> = ({
           </div>
         </div>
         {onClose && (
-          <button className={styles.closeManager} onClick={onClose}>
+          <button type="button" className={styles.closeManager} onClick={onClose} aria-label="Close spell manager">
             <span>×</span>
           </button>
         )}
@@ -518,24 +531,28 @@ export const SpellManager: React.FC<SpellManagerProps> = ({
       {/* Tabs */}
       <div className={styles.managerTabs}>
         <button 
+          type="button"
           className={clsx(styles.spellTabButton, activeTab === 'slots' && styles.spellTabButtonActive)}
           onClick={() => setActiveTab('slots')}
         >
           Spell Slots
         </button>
         <button 
+          type="button"
           className={clsx(styles.spellTabButton, activeTab === 'prepare' && styles.spellTabButtonActive)}
           onClick={() => setActiveTab('prepare')}
         >
           Prepare
         </button>
         <button 
+          type="button"
           className={clsx(styles.spellTabButton, activeTab === 'cast' && styles.spellTabButtonActive)}
           onClick={() => setActiveTab('cast')}
         >
           Cast
         </button>
         <button 
+          type="button"
           className={clsx(styles.spellTabButton, activeTab === 'library' && styles.spellTabButtonActive)}
           onClick={() => setActiveTab('library')}
         >
@@ -554,10 +571,16 @@ export const SpellManager: React.FC<SpellManagerProps> = ({
       {/* Spell Detail Modal */}
       {selectedSpell && (
         <div className={styles.spellModalOverlay} onClick={() => setSelectedSpell(null)}>
-          <div className={styles.spellModal} onClick={(e) => e.stopPropagation()}>
+          <div
+            className={styles.spellModal}
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="spell-details-title"
+            onClick={(e) => e.stopPropagation()}
+          >
             <div className={styles.modalHeader}>
-              <h3>{selectedSpell.name}</h3>
-              <button className={styles.closeModal} onClick={() => setSelectedSpell(null)}>×</button>
+              <h3 id="spell-details-title">{selectedSpell.name}</h3>
+              <button type="button" className={styles.closeModal} onClick={() => setSelectedSpell(null)} aria-label="Close spell details">×</button>
             </div>
             <div className={styles.modalContent}>
               <div className={styles.spellLevelSchool}>

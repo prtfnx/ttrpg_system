@@ -18,9 +18,10 @@ export default defineConfig({
         '**/*.module.css',
       ],
       thresholds: {
-        lines: 30,
-        functions: 30,
-        branches: 25,
+        statements: 60,
+        branches: 50,
+        functions: 57,
+        lines: 61,
       },
     },
     // Workspace projects: jsdom (unit/component) + browser (real WASM integration)

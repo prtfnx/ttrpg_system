@@ -108,6 +108,12 @@ Use Vitest in `apps/web-ui`.
   `afterEach` so cleanup still runs after a failed assertion and cannot affect a
   later test.
 
+The jsdom coverage run enforces global statement, branch, function, and line
+thresholds in `apps/web-ui/vitest.config.ts`. These thresholds are the
+whole-number floor of the latest verified full-suite baseline and must not be
+lowered to accommodate a change. Raise the relevant floors when sustained test
+improvements move the baseline upward.
+
 Run:
 
 ```powershell

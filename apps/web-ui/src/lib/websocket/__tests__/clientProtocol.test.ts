@@ -759,7 +759,7 @@ describe('WebClientProtocol', () => {
       const handler = vi.fn();
       window.addEventListener('sprite-action-confirmed', handler);
 
-      await dispatch(p, 'action_result', { sequence_id: 42, applied: [] });
+      await dispatch(p, 'action_result', { accepted: true, sequence_id: 42, applied: [] });
 
       window.removeEventListener('sprite-action-confirmed', handler);
       expect(handler).toHaveBeenCalledOnce();
@@ -795,6 +795,7 @@ describe('WebClientProtocol', () => {
       });
 
       await dispatch(p, 'action_result', {
+        accepted: true,
         sequence_id: 44,
         applied: [{ action_type: 'end_combat', actor_id: '__dm__' }],
         combat: { combat_id: 'combat-1', phase: 'ended' },
@@ -815,6 +816,7 @@ describe('WebClientProtocol', () => {
       useCoverStore.setState({ zones: [] });
 
       await dispatch(p, 'action_result', {
+        accepted: true,
         sequence_id: 45,
         applied: [{
           action_type: 'add_cover_zone',
@@ -824,6 +826,7 @@ describe('WebClientProtocol', () => {
       });
       expect(useCoverStore.getState().zones).toEqual([zone]);
       await dispatch(p, 'action_result', {
+        accepted: true,
         sequence_id: 46,
         applied: [{
           action_type: 'remove_cover_zone',

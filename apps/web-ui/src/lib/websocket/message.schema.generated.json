@@ -434,6 +434,101 @@
     }
   },
   "$defs": {
+    "actionResultData": {
+      "type": "object",
+      "required": [
+        "accepted",
+        "sequence_id",
+        "applied"
+      ],
+      "properties": {
+        "accepted": {
+          "const": true
+        },
+        "sequence_id": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "applied": {
+          "type": "array",
+          "items": {
+            "type": "object"
+          }
+        },
+        "combat": {
+          "type": "object"
+        },
+        "reason": {
+          "type": "string"
+        },
+        "details": {
+          "type": "object"
+        },
+        "state_version": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "duplicate": {
+          "type": "boolean"
+        }
+      },
+      "additionalProperties": false
+    },
+    "actionRejectedData": {
+      "type": "object",
+      "required": [
+        "reason"
+      ],
+      "properties": {
+        "accepted": {
+          "const": false
+        },
+        "sequence_id": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "applied": {
+          "type": "array",
+          "items": {
+            "type": "object"
+          }
+        },
+        "failed_index": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "reason": {
+          "type": "string",
+          "minLength": 1
+        },
+        "details": {
+          "type": "object"
+        },
+        "state_version": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "duplicate": {
+          "type": "boolean"
+        },
+        "sprite_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "action_id": {
+          "oneOf": [
+            {
+              "type": "string",
+              "minLength": 1
+            },
+            {
+              "type": "integer"
+            }
+          ]
+        }
+      },
+      "additionalProperties": false
+    },
     "tableSettingsChangedData": {
       "type": "object",
       "required": [
@@ -502,6 +597,50 @@
     }
   },
   "allOf": [
+    {
+      "if": {
+        "properties": {
+          "type": {
+            "const": "action_result"
+          }
+        },
+        "required": [
+          "type"
+        ]
+      },
+      "then": {
+        "required": [
+          "data"
+        ],
+        "properties": {
+          "data": {
+            "$ref": "#/$defs/actionResultData"
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "type": {
+            "const": "action_rejected"
+          }
+        },
+        "required": [
+          "type"
+        ]
+      },
+      "then": {
+        "required": [
+          "data"
+        ],
+        "properties": {
+          "data": {
+            "$ref": "#/$defs/actionRejectedData"
+          }
+        }
+      }
+    },
     {
       "if": {
         "properties": {

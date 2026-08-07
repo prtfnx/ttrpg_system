@@ -4,7 +4,7 @@ Audience: contributors changing browser/server WebSocket messages.
 
 Status: current but partial.
 
-Last source audit: 2026-08-04
+Last source audit: 2026-08-06
 
 The protocol boundary connects browser clients to a game session on the server.
 It is message-based and should stay explicit.
@@ -40,6 +40,12 @@ The browser compiles the generated schema with Ajv when the protocol module
 loads. `parseMessage()` rejects unknown message types, non-object `data`,
 invalid envelope metadata, and unexpected top-level fields before dispatch.
 Validation does not coerce wire values.
+
+Payload validation is incremental. The canonical schema currently enforces the
+complete table-settings update delivered to browsers and the accepted/rejected
+action response shapes. Add a conditional payload schema whenever a message
+family is changed; generic object payloads are transitional, not the target
+contract.
 
 ## Message flow
 

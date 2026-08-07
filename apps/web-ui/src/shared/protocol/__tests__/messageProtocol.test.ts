@@ -88,4 +88,48 @@ describe('Protocol Message Utilities', () => {
       data: { ...validData, grid_enabled: 'false' },
     }))).toThrow(/Invalid message/);
   });
+
+  it('should validate accepted action result payloads', () => {
+    const validData = {
+      accepted: true,
+      sequence_id: 42,
+      applied: [{ action_type: 'move', actor_id: 'sprite-1' }],
+      combat: { combat_id: 'combat-1' },
+      state_version: 3,
+    };
+
+    expect(parseMessage(JSON.stringify({
+      type: MessageType.ACTION_RESULT,
+      data: validData,
+    })).data).toEqual(validData);
+    expect(() => parseMessage(JSON.stringify({
+      type: MessageType.ACTION_RESULT,
+      data: { ...validData, applied: {} },
+    }))).toThrow(/Invalid message/);
+  });
+
+  it('should validate rejected combat and sprite action payloads', () => {
+    expect(parseMessage(JSON.stringify({
+      type: MessageType.ACTION_REJECTED,
+      data: {
+        accepted: false,
+        sequence_id: 43,
+        applied: [],
+        failed_index: 0,
+        reason: 'Not your turn',
+      },
+    })).data).toMatchObject({ reason: 'Not your turn' });
+    expect(parseMessage(JSON.stringify({
+      type: MessageType.ACTION_REJECTED,
+      data: {
+        reason: 'Movement blocked',
+        sprite_id: 'sprite-1',
+        action_id: 'action-1',
+      },
+    })).data).toMatchObject({ sprite_id: 'sprite-1' });
+    expect(() => parseMessage(JSON.stringify({
+      type: MessageType.ACTION_REJECTED,
+      data: { sequence_id: 43 },
+    }))).toThrow(/Invalid message/);
+  });
 });

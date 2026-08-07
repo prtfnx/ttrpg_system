@@ -13,6 +13,7 @@ export const PerformanceSettingsPanel: React.FC<PerformanceSettingsPanelProps> =
   isVisible,
   onClose
 }) => {
+  const titleId = React.useId();
   const [settings, setSettings] = useState<PerformanceSettings | null>(null);
   const [tempSettings, setTempSettings] = useState<PerformanceSettings | null>(null);
 
@@ -23,6 +24,17 @@ export const PerformanceSettingsPanel: React.FC<PerformanceSettingsPanelProps> =
       setTempSettings({ ...currentSettings });
     }
   }, [isVisible]);
+
+  useEffect(() => {
+    if (!isVisible) return;
+
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') onClose();
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [isVisible, onClose]);
 
   if (!isVisible || !settings || !tempSettings) return null;
 
@@ -108,10 +120,15 @@ export const PerformanceSettingsPanel: React.FC<PerformanceSettingsPanelProps> =
 
   return (
     <div className={styles.performanceSettingsOverlay}>
-      <div className={styles.performanceSettingsPanel}>
+      <div
+        className={styles.performanceSettingsPanel}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby={titleId}
+      >
         <div className={styles.settingsHeader}>
-          <h2>Performance Settings</h2>
-          <button onClick={onClose} className={styles.closeButton}>×</button>
+          <h2 id={titleId}>Performance Settings</h2>
+          <button type="button" onClick={onClose} className={styles.closeButton} aria-label="Close performance settings" autoFocus>×</button>
         </div>
 
         <div className={styles.settingsContent}>
@@ -258,12 +275,14 @@ export const PerformanceSettingsPanel: React.FC<PerformanceSettingsPanelProps> =
 
         <div className={styles.settingsActions}>
           <button 
+            type="button"
             onClick={handleAutoOptimize}
             className={clsx(styles.actionButton, styles.autoOptimize)}
           >
             Auto Optimize
           </button>
           <button 
+            type="button"
             onClick={handleReset}
             disabled={!hasChanges}
             className={clsx(styles.actionButton, styles.reset)}
@@ -271,6 +290,7 @@ export const PerformanceSettingsPanel: React.FC<PerformanceSettingsPanelProps> =
             Reset
           </button>
           <button 
+            type="button"
             onClick={handleApply}
             disabled={!hasChanges}
             className={clsx(styles.actionButton, styles.apply)}

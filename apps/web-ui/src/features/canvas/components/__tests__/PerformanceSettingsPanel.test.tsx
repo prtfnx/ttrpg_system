@@ -56,14 +56,24 @@ describe('PerformanceSettingsPanel', () => {
 
   it('renders settings panel when visible', () => {
     render(<PerformanceSettingsPanel isVisible={true} onClose={vi.fn()} />);
-    expect(screen.getByText('Performance Settings')).toBeInTheDocument();
+    expect(screen.getByRole('dialog', { name: 'Performance Settings' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Close performance settings' })).toHaveFocus();
   });
 
   it('calls onClose when close button clicked', () => {
     const onClose = vi.fn();
     render(<PerformanceSettingsPanel isVisible={true} onClose={onClose} />);
-    fireEvent.click(screen.getByText('×'));
+    fireEvent.click(screen.getByRole('button', { name: 'Close performance settings' }));
     expect(onClose).toHaveBeenCalled();
+  });
+
+  it('calls onClose when Escape is pressed', () => {
+    const onClose = vi.fn();
+    render(<PerformanceSettingsPanel isVisible={true} onClose={onClose} />);
+
+    fireEvent.keyDown(window, { key: 'Escape' });
+
+    expect(onClose).toHaveBeenCalledOnce();
   });
 
   it('shows max sprites value', () => {

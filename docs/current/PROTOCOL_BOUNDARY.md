@@ -4,7 +4,7 @@ Audience: contributors changing browser/server WebSocket messages.
 
 Status: current but partial.
 
-Last source audit: 2026-08-06
+Last source audit: 2026-08-07
 
 The protocol boundary connects browser clients to a game session on the server.
 It is message-based and should stay explicit.
@@ -42,10 +42,10 @@ invalid envelope metadata, and unexpected top-level fields before dispatch.
 Validation does not coerce wire values.
 
 Payload validation is incremental. The canonical schema currently enforces the
-session welcome, the complete table-settings update delivered to browsers, and
-the accepted/rejected action response shapes. Add a conditional payload schema
-whenever a message family is changed; generic object payloads are transitional,
-not the target contract.
+session welcome, player join/leave/role-change lifecycle messages, the complete
+table-settings update delivered to browsers, and the accepted/rejected action
+response shapes. Add a conditional payload schema whenever a message family is
+changed; generic object payloads are transitional, not the target contract.
 
 ## Message flow
 

@@ -632,7 +632,13 @@ describe('WebClientProtocol', () => {
       const p = makeProtocol();
       const handler = vi.fn();
       window.addEventListener('player-joined', handler);
-      await dispatch(p, 'player_joined', { user_id: 5 });
+      await dispatch(p, 'player_joined', {
+        username: 'Ada',
+        user_id: 5,
+        client_id: 'client-5',
+        role: 'player',
+        timestamp: '2026-08-07T12:00:00+00:00',
+      });
       window.removeEventListener('player-joined', handler);
       expect(handler).toHaveBeenCalledOnce();
       expect((handler.mock.calls[0][0] as CustomEvent).detail).toMatchObject({ user_id: 5 });
@@ -642,7 +648,10 @@ describe('WebClientProtocol', () => {
       const p = makeProtocol();
       const handler = vi.fn();
       window.addEventListener('player-left', handler);
-      await dispatch(p, 'player_left', { user_id: 3 });
+      await dispatch(p, 'player_left', {
+        username: 'Ada',
+        timestamp: '2026-08-07T12:05:00+00:00',
+      });
       window.removeEventListener('player-left', handler);
       expect(handler).toHaveBeenCalledOnce();
     });
@@ -940,13 +949,23 @@ describe('WebClientProtocol', () => {
 
     it('PLAYER_ROLE_CHANGED updates store when matches current user', async () => {
       const p = makeProtocol('S', 7);
-      await dispatch(p, 'player_role_changed', { user_id: 7, new_role: 'player', permissions: [] });
+      await dispatch(p, 'player_role_changed', {
+        user_id: 7,
+        new_role: 'player',
+        permissions: [],
+        visible_layers: ['map'],
+      });
       expect(mockSetSessionRole).toHaveBeenCalledWith('player', [], expect.anything());
     });
 
     it('PLAYER_ROLE_CHANGED does not update store for other users', async () => {
       const p = makeProtocol('S', 7);
-      await dispatch(p, 'player_role_changed', { user_id: 99, new_role: 'spectator', permissions: [] });
+      await dispatch(p, 'player_role_changed', {
+        user_id: 99,
+        new_role: 'spectator',
+        permissions: [],
+        visible_layers: ['map'],
+      });
       expect(mockSetSessionRole).not.toHaveBeenCalled();
     });
   });
@@ -1068,7 +1087,20 @@ describe('WebClientProtocol', () => {
 
       const handler = vi.fn();
       window.addEventListener('player-joined', handler);
-      ws.onmessage!({ data: JSON.stringify({ type: 'player_joined', data: { user_id: 1 }, version: '0.1', priority: 5 }) } as MessageEvent);
+      ws.onmessage!({
+        data: JSON.stringify({
+          type: 'player_joined',
+          data: {
+            username: 'Ada',
+            user_id: 1,
+            client_id: 'client-1',
+            role: 'player',
+            timestamp: '2026-08-07T12:00:00+00:00',
+          },
+          version: '0.1',
+          priority: 5,
+        }),
+      } as MessageEvent);
       window.removeEventListener('player-joined', handler);
       // Give async handler a tick
       await new Promise(r => setTimeout(r, 0));

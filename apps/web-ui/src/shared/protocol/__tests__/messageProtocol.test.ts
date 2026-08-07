@@ -95,6 +95,63 @@ describe('Protocol Message Utilities', () => {
     }))).toThrow(/Invalid message/);
   });
 
+  it('should validate player lifecycle payloads', () => {
+    const joinedData = {
+      username: 'Ada',
+      user_id: 7,
+      client_id: 'client-1',
+      role: 'player',
+      timestamp: '2026-08-07T12:00:00+00:00',
+    };
+    const leftData = {
+      username: 'Ada',
+      timestamp: '2026-08-07T12:05:00+00:00',
+    };
+
+    expect(parseMessage(JSON.stringify({
+      type: MessageType.PLAYER_JOINED,
+      data: joinedData,
+    })).data).toEqual(joinedData);
+    expect(() => parseMessage(JSON.stringify({
+      type: MessageType.PLAYER_JOINED,
+      data: { user_id: joinedData.user_id },
+    }))).toThrow(/Invalid message/);
+    expect(parseMessage(JSON.stringify({
+      type: MessageType.PLAYER_LEFT,
+      data: { ...leftData, reason: 'Kicked by GM: idle', kicked: true },
+    })).data).toMatchObject({ kicked: true });
+    expect(parseMessage(JSON.stringify({
+      type: MessageType.PLAYER_LEFT,
+      data: { ...leftData, reason: 'Banned by GM for permanent: abuse', banned: true, duration: 'permanent' },
+    })).data).toMatchObject({ banned: true });
+    expect(() => parseMessage(JSON.stringify({
+      type: MessageType.PLAYER_LEFT,
+      data: { ...leftData, duration: 'permanent' },
+    }))).toThrow(/Invalid message/);
+  });
+
+  it('should validate player role change payloads', () => {
+    const validData = {
+      user_id: 7,
+      new_role: 'trusted_player',
+      permissions: ['compendium:read'],
+      visible_layers: ['map', 'tokens'],
+    };
+
+    expect(parseMessage(JSON.stringify({
+      type: MessageType.PLAYER_ROLE_CHANGED,
+      data: validData,
+    })).data).toEqual(validData);
+    expect(() => parseMessage(JSON.stringify({
+      type: MessageType.PLAYER_ROLE_CHANGED,
+      data: { ...validData, new_role: 'administrator' },
+    }))).toThrow(/Invalid message/);
+    expect(() => parseMessage(JSON.stringify({
+      type: MessageType.PLAYER_ROLE_CHANGED,
+      data: { ...validData, permissions: 'all' },
+    }))).toThrow(/Invalid message/);
+  });
+
   it('should validate table settings payloads', () => {
     const validData = {
       table_id: 'table-1',

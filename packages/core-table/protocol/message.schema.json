@@ -534,6 +534,125 @@
       },
       "additionalProperties": false
     },
+    "playerJoinedData": {
+      "type": "object",
+      "required": [
+        "username",
+        "user_id",
+        "client_id",
+        "role",
+        "timestamp"
+      ],
+      "properties": {
+        "username": {
+          "type": "string",
+          "minLength": 1
+        },
+        "user_id": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "client_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "role": {
+          "enum": [
+            "owner",
+            "co_dm",
+            "trusted_player",
+            "player",
+            "spectator"
+          ]
+        },
+        "timestamp": {
+          "type": "string",
+          "minLength": 1
+        }
+      },
+      "additionalProperties": false
+    },
+    "playerLeftData": {
+      "type": "object",
+      "required": [
+        "username",
+        "timestamp"
+      ],
+      "properties": {
+        "username": {
+          "type": "string",
+          "minLength": 1
+        },
+        "timestamp": {
+          "type": "string",
+          "minLength": 1
+        },
+        "reason": {
+          "type": "string",
+          "minLength": 1
+        },
+        "kicked": {
+          "const": true
+        },
+        "banned": {
+          "const": true
+        },
+        "duration": {
+          "type": "string",
+          "minLength": 1
+        }
+      },
+      "dependentRequired": {
+        "kicked": [
+          "reason"
+        ],
+        "banned": [
+          "reason",
+          "duration"
+        ],
+        "duration": [
+          "banned"
+        ]
+      },
+      "additionalProperties": false
+    },
+    "playerRoleChangedData": {
+      "type": "object",
+      "required": [
+        "user_id",
+        "new_role",
+        "permissions",
+        "visible_layers"
+      ],
+      "properties": {
+        "user_id": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "new_role": {
+          "enum": [
+            "owner",
+            "co_dm",
+            "trusted_player",
+            "player",
+            "spectator"
+          ]
+        },
+        "permissions": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "visible_layers": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      },
+      "additionalProperties": false
+    },
     "actionResultData": {
       "type": "object",
       "required": [
@@ -715,6 +834,72 @@
         "properties": {
           "data": {
             "$ref": "#/$defs/welcomeData"
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "type": {
+            "const": "player_joined"
+          }
+        },
+        "required": [
+          "type"
+        ]
+      },
+      "then": {
+        "required": [
+          "data"
+        ],
+        "properties": {
+          "data": {
+            "$ref": "#/$defs/playerJoinedData"
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "type": {
+            "const": "player_left"
+          }
+        },
+        "required": [
+          "type"
+        ]
+      },
+      "then": {
+        "required": [
+          "data"
+        ],
+        "properties": {
+          "data": {
+            "$ref": "#/$defs/playerLeftData"
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "type": {
+            "const": "player_role_changed"
+          }
+        },
+        "required": [
+          "type"
+        ]
+      },
+      "then": {
+        "required": [
+          "data"
+        ],
+        "properties": {
+          "data": {
+            "$ref": "#/$defs/playerRoleChangedData"
           }
         }
       }

@@ -23,6 +23,7 @@ interface FileUploadInfo {
 }
 
 export const AssetManager: React.FC<AssetManagerProps> = ({ isVisible, onClose, sessionCode, userInfo }) => {
+  const titleId = React.useId();
   const [activeTab, setActiveTab] = useState<'cache' | 'upload' | 'settings'>('cache');
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedAssets, setSelectedAssets] = useState<Set<string>>(new Set());
@@ -66,6 +67,17 @@ export const AssetManager: React.FC<AssetManagerProps> = ({ isVisible, onClose, 
       protocol.sendMessage(createMessage(MessageType.PLAYER_ACTION, { action: "asset_list" }, 1));
     }
   }, [protocol]);
+
+  useEffect(() => {
+    if (!isVisible) return;
+
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') onClose();
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [isVisible, onClose]);
 
   const handleFileSelect = useCallback((event: React.ChangeEvent<HTMLInputElement>) => {
     const files = event.target.files;
@@ -214,27 +226,38 @@ export const AssetManager: React.FC<AssetManagerProps> = ({ isVisible, onClose, 
 
   return (
     <div className={styles.assetManagerOverlay}>
-      <div className={styles.assetManager}>
+      <div
+        className={styles.assetManager}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby={titleId}
+      >
         <div className={styles.assetManagerHeader}>
-          <h2>Asset Manager</h2>
-          <button className={styles.closeButton} onClick={onClose}>×</button>
+          <h2 id={titleId}>Asset Manager</h2>
+          <button type="button" className={styles.closeButton} onClick={onClose} aria-label="Close asset manager" autoFocus>×</button>
         </div>
 
         <div className={styles.assetManagerTabs}>
           <button
+            type="button"
             className={clsx(styles.tab, activeTab === 'cache' && styles.active)}
+            aria-pressed={activeTab === 'cache'}
             onClick={() => setActiveTab('cache')}
           >
             Cache ({stats?.total_assets || 0})
           </button>
           <button
+            type="button"
             className={clsx(styles.tab, activeTab === 'upload' && styles.active)}
+            aria-pressed={activeTab === 'upload'}
             onClick={() => setActiveTab('upload')}
           >
             Upload ({uploadFiles.size})
           </button>
           <button
+            type="button"
             className={clsx(styles.tab, activeTab === 'settings' && styles.active)}
+            aria-pressed={activeTab === 'settings'}
             onClick={() => setActiveTab('settings')}
           >
             Settings
@@ -287,20 +310,21 @@ export const AssetManager: React.FC<AssetManagerProps> = ({ isVisible, onClose, 
                 onChange={(e) => setSearchTerm(e.target.value)}
                 className={styles.searchInput}
               />
-              <button onClick={handleSelectAll} className={styles.controlButton}>
+              <button type="button" onClick={handleSelectAll} className={styles.controlButton}>
                 {selectedAssets.size === filteredAssets.length ? 'Deselect All' : 'Select All'}
               </button>
               <button 
+                type="button"
                 onClick={handleRemoveSelected} 
                 className={clsx(styles.controlButton, styles.danger)}
                 disabled={selectedAssets.size === 0}
               >
                 Remove Selected ({selectedAssets.size})
               </button>
-              <button onClick={performCleanup} className={styles.controlButton}>
+              <button type="button" onClick={performCleanup} className={styles.controlButton}>
                 Cleanup Cache
               </button>
-              <button onClick={clearCache} className={clsx(styles.controlButton, styles.danger)}>
+              <button type="button" onClick={clearCache} className={clsx(styles.controlButton, styles.danger)}>
                 Clear All
               </button>
             </div>
@@ -327,6 +351,7 @@ export const AssetManager: React.FC<AssetManagerProps> = ({ isVisible, onClose, 
                       </div>
                     </div>
                     <button
+                      type="button"
                       onClick={() => handleRemoveAsset(assetId)}
                       className={styles.removeAssetButton}
                     >
@@ -389,6 +414,7 @@ export const AssetManager: React.FC<AssetManagerProps> = ({ isVisible, onClose, 
                   <div className={styles.uploadActions}>
                     {fileInfo.status === 'pending' && (
                       <button
+                        type="button"
                         onClick={() => handleUploadBatch([fileId])}
                         className={styles.uploadButton}
                       >
@@ -397,6 +423,7 @@ export const AssetManager: React.FC<AssetManagerProps> = ({ isVisible, onClose, 
                     )}
                     {fileInfo.status === 'uploading' && (
                       <button
+                        type="button"
                         onClick={() => cancelUpload(fileId)}
                         className={styles.cancelButton}
                       >
@@ -404,6 +431,7 @@ export const AssetManager: React.FC<AssetManagerProps> = ({ isVisible, onClose, 
                       </button>
                     )}
                     <button
+                      type="button"
                       onClick={() => handleRemoveUploadFile(fileId)}
                       className={styles.removeButton}
                     >

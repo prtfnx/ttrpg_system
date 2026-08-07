@@ -167,6 +167,7 @@
 .searchInput:focus {
   outline: none;
   border-color: var(--color-success);
+  box-shadow: var(--focus-ring);
 }
 
 .controlButton {
@@ -391,6 +392,18 @@
 
 .removeButton:hover {
   background: var(--button-danger-hover);
+}
+
+.closeButton:focus-visible,
+.tab:focus-visible,
+.controlButton:focus-visible,
+.removeAssetButton:focus-visible,
+.selectFilesButton:focus-visible,
+.uploadButton:focus-visible,
+.cancelButton:focus-visible,
+.removeButton:focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring);
 }
 
 .noUploads {

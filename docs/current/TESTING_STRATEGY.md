@@ -4,7 +4,7 @@ Audience: contributors choosing and running verification for a change.
 
 Status: current.
 
-Last source audit: 2026-08-05
+Last source audit: 2026-08-06
 
 Tests should sit at the boundary where behavior is owned. Avoid testing a lower
 layer through an unrelated higher layer when a direct boundary test is clearer.
@@ -104,6 +104,9 @@ Use Vitest in `apps/web-ui`.
 - Download tests in jsdom: stub the anchor `click()` browser boundary, assert
   that it was invoked, and verify object URL cleanup. Use a browser project for
   real navigation and download behavior.
+- Lifecycle tests: disconnect resource-owning clients and clear their timers in
+  `afterEach` so cleanup still runs after a failed assertion and cannot affect a
+  later test.
 
 Run:
 

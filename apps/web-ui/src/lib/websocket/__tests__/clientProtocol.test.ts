@@ -980,6 +980,21 @@ describe('WebClientProtocol', () => {
   // ── connect() lifecycle ──────────────────────────────────────────────────
 
   describe('connect()', () => {
+    const activeProtocols = new Set<WebClientProtocol>();
+
+    function makeConnectProtocol() {
+      const protocol = makeProtocol();
+      activeProtocols.add(protocol);
+      return protocol;
+    }
+
+    afterEach(() => {
+      for (const protocol of activeProtocols) {
+        protocol.disconnect();
+      }
+      activeProtocols.clear();
+    });
+
     function makeMockWs() {
       return {
         readyState: WebSocket.CONNECTING as number,
@@ -995,47 +1010,45 @@ describe('WebClientProtocol', () => {
     it('resolves when onopen fires and sets connectionAlive', async () => {
       const ws = makeMockWs();
       vi.stubGlobal('WebSocket', vi.fn(function() { return ws; }));
-      const p = makeProtocol();
+      const p = makeConnectProtocol();
       const promise = p.connect();
       ws.onopen!();
       await promise;
       expect((p as unknown as Record<string, unknown>)['connectionAlive']).toBe(true);
-      vi.unstubAllGlobals();
     });
 
     it('rejects when onerror fires', async () => {
       const ws = makeMockWs();
       vi.stubGlobal('WebSocket', vi.fn(function() { return ws; }));
-      const p = makeProtocol();
+      const p = makeConnectProtocol();
       const promise = p.connect();
       ws.onerror!(new Event('error'));
       await expect(promise).rejects.toThrow();
-      vi.unstubAllGlobals();
     });
 
     it('rejects with "Kicked from session" on close code 1008', async () => {
       const ws = makeMockWs();
       vi.stubGlobal('WebSocket', vi.fn(function() { return ws; }));
-      const p = makeProtocol();
+      const p = makeConnectProtocol();
       const promise = p.connect();
       ws.onclose!({ code: 1008, reason: 'Kicked from session', wasClean: false });
       await expect(promise).rejects.toThrow('Kicked from session');
-      vi.unstubAllGlobals();
     });
 
     it('rejects when already connecting', async () => {
       const ws = makeMockWs();
       vi.stubGlobal('WebSocket', vi.fn(function() { return ws; }));
-      const p = makeProtocol();
-      p.connect(); // first call — keeps connecting
+      const p = makeConnectProtocol();
+      const firstConnection = p.connect();
       await expect(p.connect()).rejects.toThrow('Already connecting');
-      vi.unstubAllGlobals();
+      p.disconnect();
+      await expect(firstConnection).rejects.toThrow('cancelled');
     });
 
     it('routes incoming messages to handlers via onmessage', async () => {
       const ws = makeMockWs();
       vi.stubGlobal('WebSocket', vi.fn(function() { return ws; }));
-      const p = makeProtocol();
+      const p = makeConnectProtocol();
       const connectPromise = p.connect();
       ws.onopen!();
       await connectPromise;
@@ -1047,7 +1060,6 @@ describe('WebClientProtocol', () => {
       // Give async handler a tick
       await new Promise(r => setTimeout(r, 0));
       expect(handler).toHaveBeenCalled();
-      vi.unstubAllGlobals();
     });
   });
 
@@ -1845,6 +1857,23 @@ describe('WebClientProtocol', () => {
   });
 
   describe('automatic reconnect', () => {
+    const activeProtocols = new Set<WebClientProtocol>();
+
+    function makeReconnectProtocol() {
+      const protocol = makeProtocol();
+      activeProtocols.add(protocol);
+      return protocol;
+    }
+
+    afterEach(async () => {
+      for (const protocol of activeProtocols) {
+        protocol.disconnect();
+      }
+      activeProtocols.clear();
+      await Promise.resolve();
+      vi.clearAllTimers();
+    });
+
     function makeLifecycleWs() {
       return {
         readyState: WebSocket.CONNECTING as number,
@@ -1887,7 +1916,7 @@ describe('WebClientProtocol', () => {
       vi.useFakeTimers();
       vi.spyOn(Math, 'random').mockReturnValue(0.5);
       const { sockets, constructor } = installWebSocketFactory();
-      const protocol = makeProtocol();
+      const protocol = makeReconnectProtocol();
       await openInitialConnection(protocol, sockets);
 
       sockets[0].onclose!({ code: 1006, reason: '', wasClean: false });
@@ -1904,7 +1933,7 @@ describe('WebClientProtocol', () => {
       vi.useFakeTimers();
       vi.spyOn(Math, 'random').mockReturnValue(0);
       const { sockets, constructor } = installWebSocketFactory();
-      const protocol = makeProtocol();
+      const protocol = makeReconnectProtocol();
       await openInitialConnection(protocol, sockets);
 
       sockets[0].onclose!({ code: 1006, reason: '', wasClean: false });
@@ -1923,7 +1952,7 @@ describe('WebClientProtocol', () => {
       vi.useFakeTimers();
       vi.spyOn(Math, 'random').mockReturnValue(0);
       const { sockets } = installWebSocketFactory();
-      const protocol = makeProtocol();
+      const protocol = makeReconnectProtocol();
       const listener = vi.fn();
       protocol.onConnectionStateChange(listener);
       await openInitialConnection(protocol, sockets);
@@ -1941,7 +1970,7 @@ describe('WebClientProtocol', () => {
     it('does not retry terminal policy closures', async () => {
       vi.useFakeTimers();
       const { sockets, constructor } = installWebSocketFactory();
-      const protocol = makeProtocol();
+      const protocol = makeReconnectProtocol();
       const connection = protocol.connect();
 
       sockets[0].onclose!({
@@ -1958,7 +1987,7 @@ describe('WebClientProtocol', () => {
     it('stops after the configured retry budget is exhausted', async () => {
       vi.useFakeTimers();
       const { sockets, constructor } = installWebSocketFactory();
-      const protocol = makeProtocol();
+      const protocol = makeReconnectProtocol();
       await openInitialConnection(protocol, sockets);
       (protocol as unknown as Record<string, unknown>)['reconnectAttempts'] = 10;
 
@@ -1973,7 +2002,7 @@ describe('WebClientProtocol', () => {
       vi.useFakeTimers();
       vi.spyOn(Math, 'random').mockReturnValue(0);
       const { sockets, constructor } = installWebSocketFactory();
-      const protocol = makeProtocol();
+      const protocol = makeReconnectProtocol();
       await openInitialConnection(protocol, sockets);
 
       await vi.advanceTimersByTimeAsync(35_000);

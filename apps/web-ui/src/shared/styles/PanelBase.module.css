@@ -104,6 +104,11 @@
   color: var(--text-primary);
 }
 
+.close-button:focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring);
+}
+
 /* ===== Panel Content ===== */
 .panel-content {
   padding: var(--space-xl);
@@ -357,6 +362,11 @@
 .panel-button:disabled {
   opacity: 0.5;
   cursor: not-allowed;
+}
+
+.panel-button:focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring);
 }
 
 /* Button variants */

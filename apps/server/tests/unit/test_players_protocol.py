@@ -223,13 +223,25 @@ class TestPlayerReadyState:
     async def test_ready_sets_client_flag(self):
         proto = _ProtoStub()
         await proto.handle_player_ready(Message(MessageType.PLAYER_READY, {}), "c1")
-        assert proto.clients["c1"]["ready"] is True
+        assert proto.session_manager.client_info["c1"]["ready"] is True
+        assert isinstance(proto.session_manager.client_info["c1"]["last_action"], float)
 
     async def test_unready_clears_client_flag(self):
         proto = _ProtoStub()
-        proto.clients["c1"] = {"ready": True}
+        proto.session_manager.client_info["c1"]["ready"] = True
         await proto.handle_player_unready(Message(MessageType.PLAYER_UNREADY, {}), "c1")
-        assert proto.clients["c1"]["ready"] is False
+        assert proto.session_manager.client_info["c1"]["ready"] is False
+
+    async def test_unknown_client_does_not_create_phantom_readiness_state(self):
+        proto = _ProtoStub()
+
+        resp = await proto.handle_player_ready(
+            Message(MessageType.PLAYER_READY, {}),
+            "unknown",
+        )
+
+        assert resp.type == MessageType.ERROR
+        assert "unknown" not in proto.session_manager.client_info
 
 
 # ---------------------------------------------------------------------------
@@ -247,16 +259,29 @@ class TestPlayerStatus:
 
     async def test_known_client_returns_status(self):
         proto = _ProtoStub()
-        proto.clients["c1"] = {"ready": True}
+        proto.session_manager.client_info["c1"]["ready"] = True
         # No data → defaults to own client_id
         resp = await proto.handle_player_status(Message(MessageType.PLAYER_STATUS, {}), "c1")
         assert resp.type == MessageType.PLAYER_STATUS
+        assert resp.data["status"] == {"ready": True}
 
-    async def test_status_data_contains_client_id(self):
+    async def test_connected_client_defaults_to_not_ready(self):
         proto = _ProtoStub()
-        proto.clients["c1"] = {"ready": False}
         resp = await proto.handle_player_status(Message(MessageType.PLAYER_STATUS, {}), "c1")
         assert resp.data["client_id"] == "c1"
+        assert resp.data["status"] == {"ready": False}
+
+    async def test_status_returns_last_action_without_connection_metadata(self):
+        proto = _ProtoStub()
+        proto.session_manager.client_info["c1"].update({
+            "connection_id": "private-connection-id",
+            "last_action": 42.5,
+            "ready": True,
+        })
+
+        resp = await proto.handle_player_status(Message(MessageType.PLAYER_STATUS, {}), "c1")
+
+        assert resp.data["status"] == {"ready": True, "last_action": 42.5}
 
 
 # ---------------------------------------------------------------------------

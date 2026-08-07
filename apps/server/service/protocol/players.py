@@ -206,18 +206,19 @@ class _PlayersMixin(_ProtocolBase):
     async def handle_player_ready(self, msg: Message, client_id: str) -> Message:
         """Handle player ready status"""
         try:
-            # Update player ready status
-            if client_id not in self.clients:
-                self.clients[client_id] = {}
+            client_info = self._get_client_info(client_id)
+            if not client_info:
+                return Message(MessageType.ERROR, {'error': 'Client not found'})
 
-            self.clients[client_id]['ready'] = True
-            self.clients[client_id]['last_action'] = time.time()
+            updated_at = time.time()
+            client_info['ready'] = True
+            client_info['last_action'] = updated_at
 
             # Broadcast to other clients
             await self.broadcast_to_session(Message(MessageType.PLAYER_STATUS, {
                 'client_id': client_id,
                 'status': 'ready',
-                'timestamp': time.time()
+                'timestamp': updated_at
             }), client_id)
 
             return Message(MessageType.SUCCESS, {'message': 'Player marked as ready'})
@@ -229,18 +230,19 @@ class _PlayersMixin(_ProtocolBase):
     async def handle_player_unready(self, msg: Message, client_id: str) -> Message:
         """Handle player unready status"""
         try:
-            # Update player ready status
-            if client_id not in self.clients:
-                self.clients[client_id] = {}
+            client_info = self._get_client_info(client_id)
+            if not client_info:
+                return Message(MessageType.ERROR, {'error': 'Client not found'})
 
-            self.clients[client_id]['ready'] = False
-            self.clients[client_id]['last_action'] = time.time()
+            updated_at = time.time()
+            client_info['ready'] = False
+            client_info['last_action'] = updated_at
 
             # Broadcast to other clients
             await self.broadcast_to_session(Message(MessageType.PLAYER_STATUS, {
                 'client_id': client_id,
                 'status': 'unready',
-                'timestamp': time.time()
+                'timestamp': updated_at
             }), client_id)
 
             return Message(MessageType.SUCCESS, {'message': 'Player marked as unready'})
@@ -257,14 +259,20 @@ class _PlayersMixin(_ProtocolBase):
             else:
                 target_client = msg.data.get('client_id', client_id)
 
-            if target_client in self.clients:
-                status = self.clients[target_client]
-                return Message(MessageType.PLAYER_STATUS, {
-                    'client_id': target_client,
-                    'status': status
-                })
-            else:
+            client_info = self._get_client_info(target_client)
+            if not client_info:
                 return Message(MessageType.ERROR, {'error': 'Client not found'})
+
+            status: dict[str, bool | int | float] = {
+                'ready': bool(client_info.get('ready', False))
+            }
+            last_action = client_info.get('last_action')
+            if isinstance(last_action, (int, float)):
+                status['last_action'] = last_action
+            return Message(MessageType.PLAYER_STATUS, {
+                'client_id': target_client,
+                'status': status
+            })
 
         except Exception:
             logger.exception("Player status request failed")

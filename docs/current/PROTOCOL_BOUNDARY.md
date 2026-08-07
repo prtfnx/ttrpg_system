@@ -25,6 +25,9 @@ It is message-based and should stay explicit.
 - `ConnectionManager` groups sockets by session and attaches user metadata.
 - `GameSessionProtocolService` owns per-session protocol state and client
   registration.
+- `GameSessionProtocolService.client_info` is the authoritative in-memory store
+  for connected-client identity, role, ping, and readiness metadata. Protocol
+  handlers must not maintain a second per-client status dictionary.
 - `apps/server/service/protocol/base.py` registers server message handlers.
 - Domain handlers live in `apps/server/service/protocol/`.
 - `packages/core-table/protocol/message.schema.json` is the canonical message

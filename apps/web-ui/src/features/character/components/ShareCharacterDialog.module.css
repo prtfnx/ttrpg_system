@@ -143,6 +143,12 @@
   color: var(--color-primary-hover);
 }
 
+.closeBtn:focus-visible,
+.linkBtn:focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring);
+}
+
 .userList {
   border: var(--border-width-sm) solid var(--border-primary);
   border-radius: var(--radius-sm);

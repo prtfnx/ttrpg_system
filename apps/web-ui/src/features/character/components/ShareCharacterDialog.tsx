@@ -1,5 +1,5 @@
 import clsx from 'clsx';
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import styles from './ShareCharacterDialog.module.css';
 
 interface ShareCharacterDialogProps {
@@ -48,12 +48,27 @@ export const ShareCharacterDialog: React.FC<ShareCharacterDialogProps> = ({
     onClose();
   };
 
+  useEffect(() => {
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') onClose();
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [onClose]);
+
   return (
     <div className={styles.shareDialogOverlay} onClick={onClose}>
-      <div className={styles.shareDialog} onClick={e => e.stopPropagation()}>
+      <div
+        className={styles.shareDialog}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="share-character-title"
+        onClick={e => e.stopPropagation()}
+      >
         <div className={styles.shareDialogHeader}>
-          <h3>Share Character</h3>
-          <button className={styles.closeBtn} onClick={onClose} title="Close">
+          <h3 id="share-character-title">Share Character</h3>
+          <button type="button" className={styles.closeBtn} onClick={onClose} title="Close" aria-label="Close share character dialog">
             ×
           </button>
         </div>
@@ -74,10 +89,10 @@ export const ShareCharacterDialog: React.FC<ShareCharacterDialogProps> = ({
             <div className={styles.sectionHeader}>
               <h4>Grant Control To:</h4>
               <div className={styles.bulkActions}>
-                <button className={styles.linkBtn} onClick={handleSelectAll}>
+                <button type="button" className={styles.linkBtn} onClick={handleSelectAll}>
                   Select All
                 </button>
-                <button className={styles.linkBtn} onClick={handleDeselectAll}>
+                <button type="button" className={styles.linkBtn} onClick={handleDeselectAll}>
                   Deselect All
                 </button>
               </div>
@@ -115,10 +130,10 @@ export const ShareCharacterDialog: React.FC<ShareCharacterDialogProps> = ({
         </div>
 
         <div className={styles.shareDialogFooter}>
-          <button className={styles.btnSecondary} onClick={onClose}>
+          <button type="button" className={styles.btnSecondary} onClick={onClose}>
             Cancel
           </button>
-          <button className={styles.btnPrimary} onClick={handleSave}>
+          <button type="button" className={styles.btnPrimary} onClick={handleSave}>
             Save Changes
           </button>
         </div>

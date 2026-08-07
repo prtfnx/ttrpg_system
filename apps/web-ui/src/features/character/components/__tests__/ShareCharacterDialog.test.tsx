@@ -22,6 +22,7 @@ const baseProps = {
 describe('ShareCharacterDialog', () => {
   it('renders character name and owner', () => {
     render(<ShareCharacterDialog {...baseProps} />);
+    expect(screen.getByRole('dialog', { name: /share character/i })).toBeInTheDocument();
     expect(screen.getByText('Gandalf')).toBeInTheDocument();
     expect(screen.getByText('User 1')).toBeInTheDocument();
   });
@@ -95,5 +96,14 @@ describe('ShareCharacterDialog', () => {
     render(<ShareCharacterDialog {...baseProps} onClose={onClose} />);
     fireEvent.click(screen.getByTitle('Close'));
     expect(onClose).toHaveBeenCalled();
+  });
+
+  it('closes when Escape is pressed', () => {
+    const onClose = vi.fn();
+    render(<ShareCharacterDialog {...baseProps} onClose={onClose} />);
+
+    fireEvent.keyDown(window, { key: 'Escape' });
+
+    expect(onClose).toHaveBeenCalledOnce();
   });
 });

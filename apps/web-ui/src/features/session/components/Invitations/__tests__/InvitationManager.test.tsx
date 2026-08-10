@@ -113,6 +113,14 @@ describe('InvitationManager - Game Master Invitation Workflows', () => {
       expect(onClose).toHaveBeenCalledTimes(1);
     });
 
+    it('can be closed with Escape', async () => {
+      render(<InvitationManager sessionCode={sessionCode} onClose={onClose} />);
+
+      await user.keyboard('{Escape}');
+
+      expect(onClose).toHaveBeenCalledTimes(1);
+    });
+
     it('can be closed by clicking overlay (when not standalone)', async () => {
       render(<InvitationManager sessionCode={sessionCode} onClose={onClose} />);
 
@@ -463,9 +471,9 @@ describe('InvitationManager - Game Master Invitation Workflows', () => {
       render(<InvitationManager sessionCode={sessionCode} onClose={onClose} />);
 
       // Should have proper modal attributes
-      const modal = screen.getByRole('dialog');
+      const modal = screen.getByRole('dialog', { name: 'Manage Invitations' });
       expect(modal).toBeInTheDocument();
-      expect(modal).toHaveAttribute('aria-label', 'Manage Invitations');
+      expect(modal).toHaveAttribute('aria-labelledby');
     });
   });
 });

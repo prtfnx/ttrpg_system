@@ -1,5 +1,6 @@
 import { useInvitations } from '@features/session/hooks/useInvitations';
 import type { SessionRole } from '@features/session/types/roles';
+import { Modal } from '@shared/components';
 import { logger } from '@shared/utils/logger';
 import React, { useState } from 'react';
 import { toast } from 'react-toastify';
@@ -60,13 +61,7 @@ export const InvitationManager: React.FC<InvitationManagerProps> = ({ sessionCod
   };
 
   return (
-    <div className={styles.overlay} onClick={standalone ? undefined : onClose}>
-      <div className={styles.modal} onClick={(e) => e.stopPropagation()} role="dialog" aria-modal="true" aria-label="Manage Invitations">
-        <div className={styles.header}>
-          <h2>Manage Invitations</h2>
-          <button className={styles.closeBtn} onClick={onClose} aria-label="Close">x</button>
-        </div>
-
+    <Modal isOpen onClose={onClose} title="Manage Invitations" closeOnOverlayClick={!standalone}>
         {!loading && (
           <div className={styles.createSection}>
           <h3>Create New Invitation</h3>
@@ -161,7 +156,6 @@ export const InvitationManager: React.FC<InvitationManagerProps> = ({ sessionCod
             </div>
           )}
         </div>
-      </div>
-    </div>
+    </Modal>
   );
 };

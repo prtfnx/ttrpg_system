@@ -1,64 +1,5 @@
-/**
- * Invitation Manager Modal Styles
- * Follows project CSS composition pattern
- */
-
-.overlay {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background: var(--overlay-dark-subtle);
-  z-index: 1000;
-}
-
-.modal {
-  display: flex;
-  flex-direction: column;
-  background: var(--bg-primary);
-  border-radius: var(--radius-lg);
-  width: 90%;
-  max-width: 600px;
-  max-height: 90vh;
-  overflow: hidden;
-  box-shadow: var(--shadow-xl);
-}
-
-.header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: var(--space-xl);
-  border-bottom: var(--border-width) solid var(--border-primary);
-  background: var(--bg-secondary);
-}
-
-.header h2 {
-  margin: 0;
-  font-size: var(--text-xl);
-  font-weight: var(--font-semibold);
-}
-
-.closeBtn {
-  padding: var(--space-sm) var(--space-md);
-  background: transparent;
-  border: none;
-  color: var(--text-primary);
-  cursor: pointer;
-  font-size: var(--text-lg);
-  border-radius: var(--radius-sm);
-}
-
-.closeBtn:hover {
-  background: var(--bg-tertiary);
-}
-
 .createSection {
-  padding: var(--space-xl);
+  padding: 0 0 var(--space-xl);
   border-bottom: var(--border-width) solid var(--border-primary);
 }
 
@@ -124,7 +65,7 @@
 }
 
 .listSection {
-  padding: var(--space-xl);
+  padding: var(--space-xl) 0 0;
   overflow-y: auto;
   flex: 1;
 }

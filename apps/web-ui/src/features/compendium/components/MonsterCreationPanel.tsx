@@ -5,9 +5,9 @@
  */
 
 import '@shared/styles/MonsterCreationPanel.css';
+import { Modal } from '@shared/components';
 import { logger } from '@shared/utils/logger';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
-import { createPortal } from 'react-dom';
 import {
     monsterCreationSystem,
     type MonsterInstance,
@@ -667,14 +667,9 @@ export const MonsterCreationPanel: React.FC<MonsterCreationPanelProps> = ({
 
   if (!isOpen) return null;
 
-  return createPortal(
-    <div className="monster-panel-overlay" onClick={onClose}>
-      <div className="monster-panel" onClick={(e) => e.stopPropagation()}>
-        <div className="monster-panel-header">
-          <h3>Monster Creation & Management</h3>
-          <button onClick={onClose} className="monster-panel-close">×</button>
-        </div>
-
+  return (
+    <Modal isOpen onClose={onClose} title="Monster Creation & Management" size="fullscreen">
+      <div className="monster-panel">
         <div className="monster-panel-tabs">
           {[
             { id: 'browse', label: 'Browse Monsters', icon: 'book', count: searchResults.length },
@@ -715,8 +710,7 @@ export const MonsterCreationPanel: React.FC<MonsterCreationPanelProps> = ({
           {selectedTemplate && renderSelectedMonsterDetails()}
         </div>
       </div>
-    </div>,
-    document.body
+    </Modal>
   );
 };
 

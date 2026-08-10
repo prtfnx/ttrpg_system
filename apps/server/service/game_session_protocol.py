@@ -433,7 +433,13 @@ class GameSessionProtocolService:
         finally:
             self._release_db_session()
 
-    async def kick_player(self, target_player_id: str, target_username: str, reason: str, kicked_by_client_id: str) -> bool:
+    async def kick_player(
+        self,
+        target_player_id: str | int | None,
+        target_username: str | None,
+        reason: str,
+        kicked_by_client_id: str,
+    ) -> bool:
         """Kick a player from the session"""
         try:
             target_client_id = None
@@ -487,7 +493,14 @@ class GameSessionProtocolService:
             logger.error(f"Error kicking player: {e}")
             return False
 
-    async def ban_player(self, target_player_id: str, target_username: str, reason: str, duration: str, banned_by_client_id: str) -> bool:
+    async def ban_player(
+        self,
+        target_player_id: str | int | None,
+        target_username: str | None,
+        reason: str,
+        duration: str,
+        banned_by_client_id: str,
+    ) -> bool:
         """Ban a player from the session"""
         try:
             # First kick the player

@@ -54,7 +54,6 @@ class _PlayersMixin(_ProtocolBase):
             target_player_id = msg.data.get('player_id')
             target_username = msg.data.get('username')
             reason = msg.data.get('reason', 'No reason provided')
-            session_code = msg.data.get('session_code')
 
             if not target_player_id and not target_username:
                 return Message(MessageType.ERROR, {'error': 'Player ID or username is required'})
@@ -67,7 +66,7 @@ class _PlayersMixin(_ProtocolBase):
             # Perform kick through session manager
             if hasattr(self, 'session_manager') and self.session_manager:
                 success = await self.session_manager.kick_player(
-                    session_code, target_player_id, target_username, reason, client_id
+                    target_player_id, target_username, reason, client_id
                 )
 
                 if success:
@@ -97,7 +96,6 @@ class _PlayersMixin(_ProtocolBase):
             target_player_id = msg.data.get('player_id')
             target_username = msg.data.get('username')
             reason = msg.data.get('reason', 'No reason provided')
-            session_code = msg.data.get('session_code')
             duration = msg.data.get('duration', 'permanent')  # Duration in minutes or 'permanent'
 
             if not target_player_id and not target_username:
@@ -111,7 +109,7 @@ class _PlayersMixin(_ProtocolBase):
             # Perform ban through session manager
             if hasattr(self, 'session_manager') and self.session_manager:
                 success = await self.session_manager.ban_player(
-                    session_code, target_player_id, target_username, reason, duration, client_id
+                    target_player_id, target_username, reason, duration, client_id
                 )
 
                 if success:
@@ -139,11 +137,11 @@ class _PlayersMixin(_ProtocolBase):
         )
 
         try:
-            session_code = msg.data.get('session_code') if msg.data else None
+            session_code = self._get_session_code(msg)
 
             # Get connection status from session manager
             if hasattr(self, 'session_manager') and self.session_manager:
-                status = self.session_manager.get_connection_status(session_code, client_id)
+                status = self.session_manager.get_connection_status(client_id)
                 return Message(MessageType.CONNECTION_STATUS_RESPONSE, {
                     'connected': True,
                     'session_code': session_code,

@@ -4,10 +4,11 @@ Tests for _PlayersMixin protocol handlers.
 Focus: user-visible behaviour — correct response types, permission gates,
 and validation errors. Implementation details are intentionally not asserted.
 """
-from unittest.mock import AsyncMock, MagicMock
+from unittest.mock import create_autospec
 
 import pytest
 from core_table.protocol import Message, MessageType
+from service.game_session_protocol import GameSessionProtocolService
 from service.protocol.players import _PlayersMixin
 
 # ---------------------------------------------------------------------------
@@ -17,7 +18,10 @@ from service.protocol.players import _PlayersMixin
 class _ProtoStub(_PlayersMixin):
     def __init__(self, role="owner", user_id=1, client_id="c1"):
         self._user_id = user_id
-        self.session_manager = MagicMock()
+        self.session_manager = create_autospec(
+            GameSessionProtocolService,
+            instance=True,
+        )
         self.session_manager.client_info = {client_id: {"role": role, "username": "tester"}}
         self.clients = {}
         self._rules_cache = {}
@@ -119,7 +123,7 @@ class TestPlayerKickRequest:
 
     async def test_owner_kick_returns_kick_response(self):
         proto = _ProtoStub(role="owner")
-        proto.session_manager.kick_player = AsyncMock(return_value=True)
+        proto.session_manager.kick_player.return_value = True
         msg = Message(MessageType.PLAYER_KICK_REQUEST, {
             "player_id": 2, "username": "Bob", "session_code": "TST"
         })
@@ -127,10 +131,16 @@ class TestPlayerKickRequest:
         assert resp.type == MessageType.PLAYER_KICK_RESPONSE
         assert resp.data["success"] is True
         assert resp.data["kicked_player"] == "Bob"
+        proto.session_manager.kick_player.assert_awaited_once_with(
+            2,
+            "Bob",
+            "No reason provided",
+            "c1",
+        )
 
     async def test_kick_failure_returns_error(self):
         proto = _ProtoStub(role="owner")
-        proto.session_manager.kick_player = AsyncMock(return_value=False)
+        proto.session_manager.kick_player.return_value = False
         msg = Message(MessageType.PLAYER_KICK_REQUEST, {"player_id": 2, "session_code": "TST"})
         resp = await proto.handle_player_kick_request(msg, "c1")
         assert resp.type == MessageType.ERROR
@@ -164,7 +174,7 @@ class TestPlayerBanRequest:
 
     async def test_owner_ban_returns_ban_response(self):
         proto = _ProtoStub(role="owner")
-        proto.session_manager.ban_player = AsyncMock(return_value=True)
+        proto.session_manager.ban_player.return_value = True
         msg = Message(MessageType.PLAYER_BAN_REQUEST, {
             "player_id": 2, "username": "BadPlayer", "session_code": "TST"
         })
@@ -172,6 +182,13 @@ class TestPlayerBanRequest:
         assert resp.type == MessageType.PLAYER_BAN_RESPONSE
         assert resp.data["success"] is True
         assert resp.data["banned_player"] == "BadPlayer"
+        proto.session_manager.ban_player.assert_awaited_once_with(
+            2,
+            "BadPlayer",
+            "No reason provided",
+            "permanent",
+            "c1",
+        )
 
 
 # ---------------------------------------------------------------------------
@@ -188,6 +205,8 @@ class TestConnectionStatusRequest:
         resp = await proto.handle_connection_status_request(msg, "c1")
         assert resp.type == MessageType.CONNECTION_STATUS_RESPONSE
         assert resp.data["connected"] is True
+        assert resp.data["session_code"] == "TST"
+        proto.session_manager.get_connection_status.assert_called_once_with("c1")
 
     async def test_no_session_manager_returns_disconnected(self):
         proto = _ProtoStub()

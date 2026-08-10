@@ -98,6 +98,8 @@ attack preview, cover-zone sync, and DM-only AI suggestions.
 - Keep message names stable and lowercase.
 - Keep payloads plain JSON values.
 - Validate ids before sending table-specific messages.
+- Resolve session-scoped player operations from authenticated connection state;
+  never trust a client-supplied session code as the authorization boundary.
 - Do not hide protocol sends behind browser globals.
 - Prefer typed helper methods over raw `sendMessage` calls in UI code.
 - Use batching only for non-critical, repeat-heavy messages.

@@ -231,7 +231,8 @@ export class WebClientProtocol {
     this.registerHandler(MessageType.PLAYER_LIST_RESPONSE, this.handlePlayerListResponse.bind(this));
     this.registerHandler(MessageType.PLAYER_ACTION_RESPONSE, this.handlePlayerActionResponse.bind(this));
     this.registerHandler(MessageType.PLAYER_ACTION_UPDATE, this.handlePlayerActionUpdate.bind(this));
-    this.registerHandler(MessageType.PLAYER_STATUS, this.handlePlayerStatus.bind(this));
+    this.registerHandler(MessageType.PLAYER_STATUS_RESPONSE, this.handlePlayerStatus.bind(this));
+    this.registerHandler(MessageType.PLAYER_STATUS_CHANGED, this.handlePlayerStatus.bind(this));
     this.registerHandler(MessageType.PLAYER_KICK_RESPONSE, this.handlePlayerKickResponse.bind(this));
     this.registerHandler(MessageType.PLAYER_BAN_RESPONSE, this.handlePlayerBanResponse.bind(this));
     this.registerHandler(MessageType.PLAYER_ROLE_CHANGED, this.handlePlayerRoleChanged.bind(this));
@@ -2231,7 +2232,10 @@ export class WebClientProtocol {
 
   // Public API methods for new message types
   requestPlayerStatus(clientId?: string): void {
-    this.sendMessage(createMessage(MessageType.PLAYER_STATUS, { client_id: clientId }));
+    this.sendMessage(createMessage(
+      MessageType.PLAYER_STATUS_REQUEST,
+      clientId ? { client_id: clientId } : {},
+    ));
   }
 
   sendPlayerAction(actionType: string, actionData: Record<string, unknown>): void {

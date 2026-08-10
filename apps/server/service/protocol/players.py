@@ -214,10 +214,12 @@ class _PlayersMixin(_ProtocolBase):
             client_info['last_action'] = updated_at
 
             # Broadcast to other clients
-            await self.broadcast_to_session(Message(MessageType.PLAYER_STATUS, {
+            await self.broadcast_to_session(Message(MessageType.PLAYER_STATUS_CHANGED, {
                 'client_id': client_id,
-                'status': 'ready',
-                'timestamp': updated_at
+                'status': {
+                    'ready': True,
+                    'last_action': updated_at,
+                },
             }), client_id)
 
             return Message(MessageType.SUCCESS, {'message': 'Player marked as ready'})
@@ -238,10 +240,12 @@ class _PlayersMixin(_ProtocolBase):
             client_info['last_action'] = updated_at
 
             # Broadcast to other clients
-            await self.broadcast_to_session(Message(MessageType.PLAYER_STATUS, {
+            await self.broadcast_to_session(Message(MessageType.PLAYER_STATUS_CHANGED, {
                 'client_id': client_id,
-                'status': 'unready',
-                'timestamp': updated_at
+                'status': {
+                    'ready': False,
+                    'last_action': updated_at,
+                },
             }), client_id)
 
             return Message(MessageType.SUCCESS, {'message': 'Player marked as unready'})
@@ -250,7 +254,7 @@ class _PlayersMixin(_ProtocolBase):
             logger.exception("Player unready request failed")
             return Message(MessageType.ERROR, {'error': 'Internal server error'})
 
-    async def handle_player_status(self, msg: Message, client_id: str) -> Message:
+    async def handle_player_status_request(self, msg: Message, client_id: str) -> Message:
         """Handle player status request"""
         try:
             if not msg.data:
@@ -268,7 +272,7 @@ class _PlayersMixin(_ProtocolBase):
             last_action = client_info.get('last_action')
             if isinstance(last_action, (int, float)):
                 status['last_action'] = last_action
-            return Message(MessageType.PLAYER_STATUS, {
+            return Message(MessageType.PLAYER_STATUS_RESPONSE, {
                 'client_id': target_client,
                 'status': status
             })

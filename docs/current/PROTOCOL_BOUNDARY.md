@@ -4,7 +4,7 @@ Audience: contributors changing browser/server WebSocket messages.
 
 Status: current but partial.
 
-Last source audit: 2026-08-07
+Last source audit: 2026-08-10
 
 The protocol boundary connects browser clients to a game session on the server.
 It is message-based and should stay explicit.
@@ -46,10 +46,15 @@ Validation does not coerce wire values.
 
 Payload validation is incremental. The canonical schema currently enforces the
 session welcome, player join/leave/role-change lifecycle messages, player roster
-responses, the complete table-settings update delivered to browsers, and the
-accepted/rejected action response shapes. Add a conditional payload schema
-whenever a message family is changed; generic object payloads are transitional,
-not the target contract.
+and direction-specific player-status messages, the complete table-settings
+update delivered to browsers, and the accepted/rejected action response shapes.
+Add a conditional payload schema whenever a message family is changed; generic
+object payloads are transitional, not the target contract.
+
+Request, response, and broadcast semantics use separate message types even when
+their payloads share a definition. For example, player readiness uses
+`player_status_request`, `player_status_response`, and `player_status_changed`;
+do not overload one type with direction-dependent payload shapes.
 
 ## Message flow
 

@@ -1197,14 +1197,20 @@ describe('WebClientProtocol', () => {
       expect(fn).toHaveBeenCalledOnce();
     });
 
-    it('PLAYER_STATUS dispatches player-status-changed', async () => {
+    it.each(['player_status_response', 'player_status_changed'])(
+      '%s dispatches player-status-changed',
+      async (messageType) => {
       const p = makeProtocol();
       const fn = vi.fn();
       window.addEventListener('player-status-changed', fn);
-      await dispatch(p, 'player_status', { status: 'online' });
+      await dispatch(p, messageType, {
+        client_id: 'client-1',
+        status: { ready: true, last_action: 42 },
+      });
       window.removeEventListener('player-status-changed', fn);
       expect(fn).toHaveBeenCalledOnce();
-    });
+      },
+    );
 
     it('PLAYER_KICK_RESPONSE dispatches player-kick-response', async () => {
       const p = makeProtocol();
@@ -1693,6 +1699,17 @@ describe('WebClientProtocol', () => {
       const batch = JSON.parse((ws.send as ReturnType<typeof vi.fn>).mock.calls[0][0]);
       const inner = batch.data.messages[0];
       expect(inner.type).toBe('player_ready');
+    });
+
+    it('requestPlayerStatus sends a direction-specific request', () => {
+      const p = makeProtocol();
+      const ws = makeOpenWs(p);
+      p.requestPlayerStatus('client-2');
+      p.sendBatch();
+      const batch = JSON.parse((ws.send as ReturnType<typeof vi.fn>).mock.calls[0][0]);
+      const inner = batch.data.messages[0];
+      expect(inner.type).toBe('player_status_request');
+      expect(inner.data).toEqual({ client_id: 'client-2' });
     });
 
     it('setPlayerUnready queues player_unready', () => {

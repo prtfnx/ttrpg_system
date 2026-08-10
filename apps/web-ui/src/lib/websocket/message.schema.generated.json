@@ -46,7 +46,9 @@
         "player_joined",
         "player_ready",
         "player_unready",
-        "player_status",
+        "player_status_request",
+        "player_status_response",
+        "player_status_changed",
         "player_list_request",
         "player_list_response",
         "player_kick_request",
@@ -232,7 +234,9 @@
         "PLAYER_JOINED",
         "PLAYER_READY",
         "PLAYER_UNREADY",
-        "PLAYER_STATUS",
+        "PLAYER_STATUS_REQUEST",
+        "PLAYER_STATUS_RESPONSE",
+        "PLAYER_STATUS_CHANGED",
         "PLAYER_LIST_REQUEST",
         "PLAYER_LIST_RESPONSE",
         "PLAYER_KICK_REQUEST",
@@ -653,6 +657,46 @@
       },
       "additionalProperties": false
     },
+    "playerStatusRequestData": {
+      "type": "object",
+      "properties": {
+        "client_id": {
+          "type": "string",
+          "minLength": 1
+        }
+      },
+      "additionalProperties": false
+    },
+    "playerStatusData": {
+      "type": "object",
+      "required": [
+        "client_id",
+        "status"
+      ],
+      "properties": {
+        "client_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "status": {
+          "type": "object",
+          "required": [
+            "ready"
+          ],
+          "properties": {
+            "ready": {
+              "type": "boolean"
+            },
+            "last_action": {
+              "type": "number",
+              "minimum": 0
+            }
+          },
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
+    },
     "playerListResponseData": {
       "type": "object",
       "required": [
@@ -973,6 +1017,53 @@
         "properties": {
           "data": {
             "$ref": "#/$defs/playerRoleChangedData"
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "type": {
+            "const": "player_status_request"
+          }
+        },
+        "required": [
+          "type"
+        ]
+      },
+      "then": {
+        "required": [
+          "data"
+        ],
+        "properties": {
+          "data": {
+            "$ref": "#/$defs/playerStatusRequestData"
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "type": {
+            "enum": [
+              "player_status_response",
+              "player_status_changed"
+            ]
+          }
+        },
+        "required": [
+          "type"
+        ]
+      },
+      "then": {
+        "required": [
+          "data"
+        ],
+        "properties": {
+          "data": {
+            "$ref": "#/$defs/playerStatusData"
           }
         }
       }

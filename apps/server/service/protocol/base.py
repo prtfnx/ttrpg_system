@@ -121,7 +121,10 @@ class ServerProtocol(
         self.register_handler(MessageType.PLAYER_ACTION, self.handle_player_action)
         self.register_handler(MessageType.PLAYER_READY, self.handle_player_ready)
         self.register_handler(MessageType.PLAYER_UNREADY, self.handle_player_unready)
-        self.register_handler(MessageType.PLAYER_STATUS, self.handle_player_status)
+        self.register_handler(
+            MessageType.PLAYER_STATUS_REQUEST,
+            self.handle_player_status_request,
+        )
         self.register_handler(MessageType.PLAYER_LIST_REQUEST, self.handle_player_list_request)
         self.register_handler(MessageType.PLAYER_KICK_REQUEST, self.handle_player_kick_request)
         self.register_handler(MessageType.PLAYER_BAN_REQUEST, self.handle_player_ban_request)

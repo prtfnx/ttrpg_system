@@ -4,7 +4,7 @@ Tests for _PlayersMixin protocol handlers.
 Focus: user-visible behaviour — correct response types, permission gates,
 and validation errors. Implementation details are intentionally not asserted.
 """
-from unittest.mock import create_autospec
+from unittest.mock import AsyncMock, create_autospec
 
 import pytest
 from core_table.protocol import Message, MessageType
@@ -267,6 +267,33 @@ class TestPlayerReadyState:
         await proto.handle_player_unready(Message(MessageType.PLAYER_UNREADY, {}), "c1")
         assert proto.session_manager.client_info["c1"]["ready"] is False
 
+    @pytest.mark.parametrize(
+        ("handler_name", "message_type", "expected_ready"),
+        [
+            ("handle_player_ready", MessageType.PLAYER_READY, True),
+            ("handle_player_unready", MessageType.PLAYER_UNREADY, False),
+        ],
+    )
+    async def test_broadcasts_normalized_status_change(
+        self,
+        handler_name,
+        message_type,
+        expected_ready,
+    ):
+        proto = _ProtoStub()
+        proto.broadcast_to_session = AsyncMock()
+
+        await getattr(proto, handler_name)(Message(message_type, {}), "c1")
+
+        broadcast_call = proto.broadcast_to_session.await_args
+        assert broadcast_call is not None
+        broadcast, excluded_client_id = broadcast_call.args
+        assert broadcast.type == MessageType.PLAYER_STATUS_CHANGED
+        assert broadcast.data["client_id"] == "c1"
+        assert broadcast.data["status"]["ready"] is expected_ready
+        assert isinstance(broadcast.data["status"]["last_action"], float)
+        assert excluded_client_id == "c1"
+
     async def test_unknown_client_does_not_create_phantom_readiness_state(self):
         proto = _ProtoStub()
 
@@ -280,29 +307,35 @@ class TestPlayerReadyState:
 
 
 # ---------------------------------------------------------------------------
-# handle_player_status
+# handle_player_status_request
 # ---------------------------------------------------------------------------
 
 @pytest.mark.unit
 @pytest.mark.asyncio
-class TestPlayerStatus:
+class TestPlayerStatusRequest:
     async def test_unknown_client_returns_error(self):
         proto = _ProtoStub()
-        msg = Message(MessageType.PLAYER_STATUS, {"client_id": "unknown"})
-        resp = await proto.handle_player_status(msg, "c1")
+        msg = Message(MessageType.PLAYER_STATUS_REQUEST, {"client_id": "unknown"})
+        resp = await proto.handle_player_status_request(msg, "c1")
         assert resp.type == MessageType.ERROR
 
     async def test_known_client_returns_status(self):
         proto = _ProtoStub()
         proto.session_manager.client_info["c1"]["ready"] = True
         # No data → defaults to own client_id
-        resp = await proto.handle_player_status(Message(MessageType.PLAYER_STATUS, {}), "c1")
-        assert resp.type == MessageType.PLAYER_STATUS
+        resp = await proto.handle_player_status_request(
+            Message(MessageType.PLAYER_STATUS_REQUEST, {}),
+            "c1",
+        )
+        assert resp.type == MessageType.PLAYER_STATUS_RESPONSE
         assert resp.data["status"] == {"ready": True}
 
     async def test_connected_client_defaults_to_not_ready(self):
         proto = _ProtoStub()
-        resp = await proto.handle_player_status(Message(MessageType.PLAYER_STATUS, {}), "c1")
+        resp = await proto.handle_player_status_request(
+            Message(MessageType.PLAYER_STATUS_REQUEST, {}),
+            "c1",
+        )
         assert resp.data["client_id"] == "c1"
         assert resp.data["status"] == {"ready": False}
 
@@ -314,7 +347,10 @@ class TestPlayerStatus:
             "ready": True,
         })
 
-        resp = await proto.handle_player_status(Message(MessageType.PLAYER_STATUS, {}), "c1")
+        resp = await proto.handle_player_status_request(
+            Message(MessageType.PLAYER_STATUS_REQUEST, {}),
+            "c1",
+        )
 
         assert resp.data["status"] == {"ready": True, "last_action": 42.5}
 

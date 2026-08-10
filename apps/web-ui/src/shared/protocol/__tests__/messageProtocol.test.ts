@@ -184,6 +184,35 @@ describe('Protocol Message Utilities', () => {
     }))).toThrow(/Invalid message/);
   });
 
+  it('should keep player status request, response, and event contracts distinct', () => {
+    expect(parseMessage(JSON.stringify({
+      type: MessageType.PLAYER_STATUS_REQUEST,
+      data: { client_id: 'client-1' },
+    })).data).toEqual({ client_id: 'client-1' });
+    expect(parseMessage(JSON.stringify({
+      type: MessageType.PLAYER_STATUS_RESPONSE,
+      data: {
+        client_id: 'client-1',
+        status: { ready: true, last_action: 42 },
+      },
+    })).data).toMatchObject({ status: { ready: true } });
+    expect(parseMessage(JSON.stringify({
+      type: MessageType.PLAYER_STATUS_CHANGED,
+      data: {
+        client_id: 'client-1',
+        status: { ready: false, last_action: 43 },
+      },
+    })).data).toMatchObject({ status: { ready: false } });
+    expect(() => parseMessage(JSON.stringify({
+      type: MessageType.PLAYER_STATUS_REQUEST,
+      data: { status: { ready: true } },
+    }))).toThrow(/Invalid message/);
+    expect(() => parseMessage(JSON.stringify({
+      type: MessageType.PLAYER_STATUS_RESPONSE,
+      data: { client_id: 'client-1', status: 'ready' },
+    }))).toThrow(/Invalid message/);
+  });
+
   it('should validate table settings payloads', () => {
     const validData = {
       table_id: 'table-1',

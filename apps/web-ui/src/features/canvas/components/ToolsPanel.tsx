@@ -677,15 +677,6 @@ export function ToolsPanel({ userInfo }: ToolsPanelProps) {
         />
       )}
 
-      {/* Test Elements for compatibility */}
-      <div data-testid="tools-test-elements" className={styles.srTestContainer}>
-        <div data-testid="map-canvas" style={{ width: '400px', height: '400px', position: 'relative' }} />
-        <div data-testid="drawn-shape-wall-1" data-type="wall" data-blocks-los="true" />
-        <div data-testid="spell-template-fireball" data-radius="20" style={{ width: '200px', height: '200px' }} />
-        <div data-testid="template-affected-creatures">2 creatures</div>
-        <button>Apply Fireball Effects</button>
-        <div>Dexterity saving throws required</div>
-      </div>
     </div>
   );
 }

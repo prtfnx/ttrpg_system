@@ -616,11 +616,3 @@
   flex: 1;
 }
 
-/* ===== Test helper (off-screen container) ===== */
-.srTestContainer {
-  position: absolute;
-  left: -9999px;
-  top: -9999px;
-}
-
-

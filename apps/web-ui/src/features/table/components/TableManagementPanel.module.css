@@ -515,43 +515,11 @@
   color: var(--button-danger-text);
 }
 
-.deleteConfirmationModal {
-  composes: panel-overlay from '@shared/styles/PanelBase.module.css';
-  animation: fadeIn 0.15s ease-out;
-}
-
-.modalContent {
-  background: var(--bg-secondary);
-  border: var(--border-width) solid var(--border-secondary);
-  border-radius: var(--radius-lg);
-  padding: var(--space-2xl);
-  max-width: 440px;
-  width: 90%;
+.confirmationBody {
   text-align: center;
-  box-shadow: var(--shadow-xl);
-  animation: slideUp 0.2s ease-out;
-  position: relative;
 }
 
-@keyframes slideUp {
-  from {
-    transform: translateY(var(--space-5));
-    opacity: 0;
-  }
-  to {
-    transform: translateY(0);
-    opacity: 1;
-  }
-}
-
-.modalContent h4 {
-  margin: 0 0 var(--space-lg) 0;
-  color: var(--text-primary);
-  font-size: var(--text-xl);
-  font-weight: var(--font-semibold);
-}
-
-.modalContent p {
+.confirmationBody p {
   margin: var(--space-sm) 0;
   color: var(--text-secondary);
   font-size: var(--text-base);
@@ -618,31 +586,6 @@
   .searchBox {
     flex: 1 1 100%;
   }
-}
-
-/* Settings Modal */
-.settingsModal {
-  composes: panel-overlay from '@shared/styles/PanelBase.module.css';
-  backdrop-filter: blur(var(--space-1));
-}
-
-.settingsModalContent {
-  max-width: 520px;
-  width: 90%;
-  max-height: 80vh;
-  overflow-y: auto;
-  background: var(--bg-secondary);
-  color: var(--text-primary);
-  border: var(--border-width) solid var(--border-secondary);
-  border-radius: var(--radius-lg);
-  padding: var(--space-xl);
-}
-
-.settingsModalContent h4 {
-  margin: 0 0 var(--space-lg) 0;
-  color: var(--text-primary);
-  font-size: var(--text-lg);
-  font-weight: var(--font-semibold);
 }
 
 .settingsSection {

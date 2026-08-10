@@ -1,5 +1,6 @@
 import clsx from 'clsx';
 import { Layers, Plus, RefreshCw, Settings2, Upload } from 'lucide-react';
+import { Modal } from '@shared/components';
 import type { FC } from 'react';
 import styles from './TableManagementPanel.module.css';
 import { BulkActionsBar } from './TableManagementPanel/BulkActionsBar';
@@ -248,32 +249,32 @@ export const TableManagementPanel: FC = () => {
       </div>
 
       {deleteConfirmId && (
-        <div 
-          className={styles.deleteConfirmationModal}
-          onClick={() => setDeleteConfirmId(null)}
+        <Modal
+          isOpen
+          onClose={() => setDeleteConfirmId(null)}
+          title="Delete table"
+          size="small"
         >
-          <div 
-            className={styles.modalContent}
-            onClick={(e) => e.stopPropagation()}
-          >
-            <h4>Confirm Delete</h4>
+          <div className={styles.confirmationBody}>
             <p>Are you sure you want to delete this table?</p>
             <p className={styles.tableName}>
               {tables.find(t => t.table_id === deleteConfirmId)?.table_name}
             </p>
             <div className={styles.modalActions}>
-              <button onClick={confirmDeleteTable} className={styles.confirmDeleteButton}>
+              <button type="button" onClick={confirmDeleteTable} className={styles.confirmDeleteButton}>
                 Delete
               </button>
-              <button 
+              <button
+                type="button"
                 onClick={() => setDeleteConfirmId(null)} 
                 className={styles.cancelButton}
+                autoFocus
               >
                 Cancel
               </button>
             </div>
           </div>
-        </div>
+        </Modal>
       )}
 
       {settingsTableId && (

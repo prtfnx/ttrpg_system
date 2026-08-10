@@ -2,6 +2,7 @@ import { useGameStore } from '@/store';
 import type { DistanceUnit } from '@/utils/unitConverter';
 import { isDM } from '@features/session/types/roles';
 import { ProtocolService } from '@lib/api';
+import { Modal } from '@shared/components';
 import type { FC } from 'react';
 import styles from '../TableManagementPanel.module.css';
 
@@ -56,9 +57,8 @@ export const SettingsModal: FC<SettingsModalProps> = ({
   const heightUnits = tableHeightPx / pixelsPerUnit;
 
   return (
-    <div className={styles.settingsModal}>
-      <div className={styles.settingsModalContent}>
-        <h4>Table Settings</h4>
+    <Modal isOpen onClose={onCancel} title="Table settings">
+      <div>
 
         <div className={styles.settingsSection}>
           <label>
@@ -168,14 +168,14 @@ export const SettingsModal: FC<SettingsModalProps> = ({
         )}
 
         <div className={styles.modalActions}>
-          <button onClick={onSave} className={styles.confirmButton}>
+          <button type="button" onClick={onSave} className={styles.confirmButton}>
             Save Changes
           </button>
-          <button onClick={onCancel} className={styles.cancelButton}>
+          <button type="button" onClick={onCancel} className={styles.cancelButton} autoFocus>
             Cancel
           </button>
         </div>
       </div>
-    </div>
+    </Modal>
   );
 };

@@ -16,10 +16,11 @@ interface Props {
   children: ReactNode;
   closeOnEscape?: boolean;
   closeOnOverlayClick?: boolean;
+  showCloseButton?: boolean;
   size?: 'small' | 'medium' | 'large' | 'fullscreen';
 }
 
-export function Modal({ isOpen, onClose, title, children, closeOnEscape = true, closeOnOverlayClick = true, size = 'medium' }: Props) {
+export function Modal({ isOpen, onClose, title, children, closeOnEscape = true, closeOnOverlayClick = true, showCloseButton = true, size = 'medium' }: Props) {
   const titleId = useId();
   const [isAnimating, setIsAnimating] = useState(false);
   const modalRef = useRef<HTMLDivElement>(null);
@@ -123,7 +124,9 @@ export function Modal({ isOpen, onClose, title, children, closeOnEscape = true, 
       >
         <div className={styles.modalHeader}>
           <h2 id={titleId} className={styles.modalTitle}>{title}</h2>
-          <button type="button" className={styles.modalCloseButton} onClick={onClose} aria-label="Close modal">×</button>
+          {showCloseButton && (
+            <button type="button" className={styles.modalCloseButton} onClick={onClose} aria-label="Close modal">×</button>
+          )}
         </div>
         <div className={styles.modalBody}>{children}</div>
       </div>

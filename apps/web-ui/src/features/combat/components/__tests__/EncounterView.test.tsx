@@ -49,6 +49,7 @@ describe('EncounterView', () => {
       },
     });
     render(<EncounterView />);
+    expect(screen.getByRole('dialog', { name: 'Dragon Attack' })).toBeInTheDocument();
     expect(screen.getByText('Dragon Attack')).toBeInTheDocument();
     expect(screen.getByText('You survived!')).toBeInTheDocument();
     expect(screen.getByText('Close')).toBeInTheDocument();
@@ -84,7 +85,8 @@ describe('EncounterView', () => {
       },
     });
     render(<EncounterView />);
-    expect(screen.getByText('Roll Required')).toBeInTheDocument();
+    expect(screen.getByRole('dialog', { name: 'Roll required' })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Close modal' })).not.toBeInTheDocument();
     expect(screen.getByText('Perception check - DC 15')).toBeInTheDocument();
     expect(screen.getByText('Roll Perception')).toBeInTheDocument();
   });

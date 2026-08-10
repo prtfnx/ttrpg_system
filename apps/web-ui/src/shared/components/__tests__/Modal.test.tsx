@@ -59,4 +59,24 @@ describe('Modal', () => {
 
     expect(onClose).toHaveBeenCalledOnce();
   });
+
+  it('supports intentionally non-dismissible dialogs', () => {
+    const onClose = vi.fn();
+    render(
+      <Modal
+        isOpen
+        onClose={onClose}
+        title="Roll required"
+        closeOnEscape={false}
+        closeOnOverlayClick={false}
+        showCloseButton={false}
+      >
+        <button type="button">Roll</button>
+      </Modal>,
+    );
+
+    expect(screen.queryByRole('button', { name: 'Close modal' })).not.toBeInTheDocument();
+    fireEvent.keyDown(document, { key: 'Escape' });
+    expect(onClose).not.toHaveBeenCalled();
+  });
 });

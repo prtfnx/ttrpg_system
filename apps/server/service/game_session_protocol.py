@@ -553,6 +553,8 @@ class GameSessionProtocolService:
                 'client_id': client_id,
                 'username': info.get('username', 'unknown'),
                 'user_id': info.get('user_id', 0),
+                'role': info.get('role', 'player'),
+                'ready': bool(info.get('ready', False)),
                 'connected_at': info.get('connected_at', 0),
                 'last_ping': info.get('last_ping', 0)
             })

@@ -45,10 +45,11 @@ invalid envelope metadata, and unexpected top-level fields before dispatch.
 Validation does not coerce wire values.
 
 Payload validation is incremental. The canonical schema currently enforces the
-session welcome, player join/leave/role-change lifecycle messages, the complete
-table-settings update delivered to browsers, and the accepted/rejected action
-response shapes. Add a conditional payload schema whenever a message family is
-changed; generic object payloads are transitional, not the target contract.
+session welcome, player join/leave/role-change lifecycle messages, player roster
+responses, the complete table-settings update delivered to browsers, and the
+accepted/rejected action response shapes. Add a conditional payload schema
+whenever a message family is changed; generic object payloads are transitional,
+not the target contract.
 
 ## Message flow
 

@@ -152,6 +152,38 @@ describe('Protocol Message Utilities', () => {
     }))).toThrow(/Invalid message/);
   });
 
+  it('should validate player roster response payloads', () => {
+    const validData = {
+      players: [{
+        client_id: 'client-1',
+        username: 'Ada',
+        user_id: 7,
+        role: 'player',
+        ready: true,
+        connected_at: 1,
+        last_ping: 2,
+      }],
+      count: 1,
+      session_code: 'ABC123',
+    };
+
+    expect(parseMessage(JSON.stringify({
+      type: MessageType.PLAYER_LIST_RESPONSE,
+      data: validData,
+    })).data).toEqual(validData);
+    expect(() => parseMessage(JSON.stringify({
+      type: MessageType.PLAYER_LIST_RESPONSE,
+      data: {
+        ...validData,
+        players: [{ ...validData.players[0], role: 'administrator' }],
+      },
+    }))).toThrow(/Invalid message/);
+    expect(() => parseMessage(JSON.stringify({
+      type: MessageType.PLAYER_LIST_RESPONSE,
+      data: { ...validData, session_code: null },
+    }))).toThrow(/Invalid message/);
+  });
+
   it('should validate table settings payloads', () => {
     const validData = {
       table_id: 'table-1',

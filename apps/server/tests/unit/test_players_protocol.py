@@ -48,8 +48,24 @@ class TestPlayerListRequest:
     async def test_returns_players_from_session_manager(self):
         proto = _ProtoStub()
         proto.session_manager.get_session_players.return_value = [
-            {"user_id": 1, "username": "Alice"},
-            {"user_id": 2, "username": "Bob"},
+            {
+                "client_id": "c1",
+                "user_id": 1,
+                "username": "Alice",
+                "role": "owner",
+                "ready": True,
+                "connected_at": 1.0,
+                "last_ping": 2.0,
+            },
+            {
+                "client_id": "c2",
+                "user_id": 2,
+                "username": "Bob",
+                "role": "player",
+                "ready": False,
+                "connected_at": 3.0,
+                "last_ping": 4.0,
+            },
         ]
         msg = Message(MessageType.PLAYER_LIST_REQUEST, {"session_code": "TST"})
         resp = await proto.handle_player_list_request(msg, "c1")
@@ -66,12 +82,12 @@ class TestPlayerListRequest:
         assert resp.data["players"] == []
         assert resp.data["count"] == 0
 
-    async def test_session_code_echoed_in_response(self):
+    async def test_response_uses_authoritative_session_code(self):
         proto = _ProtoStub()
         proto.session_manager.get_session_players.return_value = []
         msg = Message(MessageType.PLAYER_LIST_REQUEST, {"session_code": "ABC"})
         resp = await proto.handle_player_list_request(msg, "c1")
-        assert resp.data["session_code"] == "ABC"
+        assert resp.data["session_code"] == "TST"
 
 
 # ---------------------------------------------------------------------------

@@ -404,13 +404,29 @@ class TestConnectionStatus:
     def test_get_session_players_returns_all_clients(self):
         svc = _make_service()
         svc.clients["c1"] = _ws()
-        svc.client_info["c1"] = {"username": "Alice", "user_id": 1, "connected_at": 0, "last_ping": 0}
+        svc.client_info["c1"] = {
+            "username": "Alice",
+            "user_id": 1,
+            "role": "owner",
+            "ready": True,
+            "connected_at": 0,
+            "last_ping": 0,
+        }
         svc.clients["c2"] = _ws()
-        svc.client_info["c2"] = {"username": "Bob", "user_id": 2, "connected_at": 0, "last_ping": 0}
+        svc.client_info["c2"] = {
+            "username": "Bob",
+            "user_id": 2,
+            "role": "player",
+            "connected_at": 0,
+            "last_ping": 0,
+        }
         players = svc.get_session_players()
         assert len(players) == 2
-        usernames = {p["username"] for p in players}
-        assert usernames == {"Alice", "Bob"}
+        by_username = {p["username"]: p for p in players}
+        assert by_username["Alice"]["role"] == "owner"
+        assert by_username["Alice"]["ready"] is True
+        assert by_username["Bob"]["role"] == "player"
+        assert by_username["Bob"]["ready"] is False
 
 
 # ---------------------------------------------------------------------------

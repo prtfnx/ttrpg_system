@@ -653,6 +653,79 @@
       },
       "additionalProperties": false
     },
+    "playerListResponseData": {
+      "type": "object",
+      "required": [
+        "players",
+        "count",
+        "session_code"
+      ],
+      "properties": {
+        "players": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": [
+              "client_id",
+              "username",
+              "user_id",
+              "role",
+              "ready",
+              "connected_at",
+              "last_ping"
+            ],
+            "properties": {
+              "client_id": {
+                "type": "string",
+                "minLength": 1
+              },
+              "username": {
+                "type": "string",
+                "minLength": 1
+              },
+              "user_id": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "role": {
+                "enum": [
+                  "owner",
+                  "co_dm",
+                  "trusted_player",
+                  "player",
+                  "spectator"
+                ]
+              },
+              "ready": {
+                "type": "boolean"
+              },
+              "connected_at": {
+                "type": "number",
+                "minimum": 0
+              },
+              "last_ping": {
+                "type": "number",
+                "minimum": 0
+              }
+            },
+            "additionalProperties": false
+          }
+        },
+        "count": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "session_code": {
+          "type": "string",
+          "minLength": 1
+        },
+        "error": {
+          "type": "string",
+          "minLength": 1
+        }
+      },
+      "additionalProperties": false
+    },
     "actionResultData": {
       "type": "object",
       "required": [
@@ -900,6 +973,28 @@
         "properties": {
           "data": {
             "$ref": "#/$defs/playerRoleChangedData"
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "type": {
+            "const": "player_list_response"
+          }
+        },
+        "required": [
+          "type"
+        ]
+      },
+      "then": {
+        "required": [
+          "data"
+        ],
+        "properties": {
+          "data": {
+            "$ref": "#/$defs/playerListResponseData"
           }
         }
       }

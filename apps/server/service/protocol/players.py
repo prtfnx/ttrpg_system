@@ -17,8 +17,9 @@ class _PlayersMixin(_ProtocolBase):
         logger.debug("Player list requested", extra={"event_name": "player.list.requested"})
 
         try:
-            # Get session_code from message data
-            session_code = msg.data.get('session_code') if msg.data else None
+            # Resolve the session from the authenticated connection, not from
+            # caller-controlled payload data.
+            session_code = self._get_session_code(msg)
 
             # Get player list from session manager (this will be set by GameSessionProtocolService)
             if hasattr(self, 'session_manager') and self.session_manager:

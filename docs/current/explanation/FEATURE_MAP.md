@@ -56,7 +56,7 @@ ownership rules.
 | Lighting | `apps/web-ui/src/features/lighting/` | lighting panel and vision service |
 | Measurement | `apps/web-ui/src/features/measurement/` | measurement tools and advanced panel |
 | Painting | `apps/web-ui/src/features/painting/` | paint panel and paint service |
-| Network | `apps/web-ui/src/features/network/` | player and network panels |
+| Network | `apps/web-ui/src/features/network/` | connected-player roster and DM kick/ban controls |
 
 ## Protocol feature split
 

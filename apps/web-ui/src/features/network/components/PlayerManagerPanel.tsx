@@ -2,15 +2,18 @@
 import type { UserInfo } from '@features/auth';
 import { useAuthenticatedWebSocket } from '@features/auth';
 import { isDM, type SessionRole } from '@features/session/types/roles';
-import { createMessage, MessageType } from '@lib/websocket';
-import React, { useEffect, useState } from "react";
+import { onProtocolEvent } from '@lib/websocket/protocolEvents';
+import React, { useEffect, useState } from 'react';
 import styles from './PlayerManagerPanel.module.css';
 
-interface Player {
-  id: string;
-  name: string;
-  status: "connected" | "disconnected" | "kicked" | "banned";
-  role: "dm" | "player";
+interface ConnectedPlayer {
+  client_id: string;
+  user_id: number;
+  username: string;
+  role: SessionRole;
+  ready: boolean;
+  connected_at: number;
+  last_ping: number;
 }
 
 interface PlayerManagerPanelProps {
@@ -21,48 +24,49 @@ interface PlayerManagerPanelProps {
 
 export const PlayerManagerPanel: React.FC<PlayerManagerPanelProps> = ({ sessionCode, userInfo, sessionRole }) => {
   const { protocol } = useAuthenticatedWebSocket({ sessionCode, userInfo });
-  const [players, setPlayers] = useState<Player[]>([]);
+  const [players, setPlayers] = useState<ConnectedPlayer[]>([]);
   const [error, setError] = useState<string | null>(null);
+  const canManagePlayers = isDM(sessionRole);
 
   useEffect(() => {
-    if (!protocol) return;
-    protocol.sendMessage(createMessage(MessageType.PLAYER_LIST_REQUEST, {}, 1));
-    const listHandler = (event: Event) => {
-      const { detail } = event as CustomEvent;
-      if (detail && detail.players) setPlayers(detail.players);
-    };
-    const statusHandler = (event: Event) => {
-      const { detail } = event as CustomEvent;
-      if (detail && detail.players) setPlayers(detail.players);
-    };
-    const errorHandler = (event: Event) => {
-      const { detail } = event as CustomEvent;
-      if (detail && detail.error) setError(detail.error);
-    };
-    window.addEventListener("player-list-updated", listHandler);
-    window.addEventListener("player-status-updated", statusHandler);
-    window.addEventListener("player-kicked", statusHandler);
-    window.addEventListener("player-banned", statusHandler);
-    window.addEventListener("player-action-error", errorHandler);
+    if (!protocol || !canManagePlayers) return;
+
+    const refreshPlayers = () => protocol.requestPlayerList();
+    const removeListListener = onProtocolEvent('player-list-updated', (detail) => {
+      if (Array.isArray(detail?.players)) {
+        setPlayers(detail.players as unknown as ConnectedPlayer[]);
+        setError(null);
+      }
+    });
+    const removeJoinListener = onProtocolEvent('player-joined', refreshPlayers);
+    const removeLeftListener = onProtocolEvent('player-left', refreshPlayers);
+    const removeRoleListener = onProtocolEvent('player-role-changed', refreshPlayers);
+    const removeStatusListener = onProtocolEvent('player-status-changed', refreshPlayers);
+    const removeErrorListener = onProtocolEvent('protocol-error', (detail) => {
+      if (typeof detail?.error === 'string') setError(detail.error);
+    });
+
+    refreshPlayers();
     return () => {
-      window.removeEventListener("player-list-updated", listHandler);
-      window.removeEventListener("player-status-updated", statusHandler);
-      window.removeEventListener("player-kicked", statusHandler);
-      window.removeEventListener("player-banned", statusHandler);
-      window.removeEventListener("player-action-error", errorHandler);
+      removeListListener();
+      removeJoinListener();
+      removeLeftListener();
+      removeRoleListener();
+      removeStatusListener();
+      removeErrorListener();
     };
-  }, [protocol]);
+  }, [canManagePlayers, protocol]);
 
-  const kick = (id: string) => {
+  const kick = (player: ConnectedPlayer) => {
     setError(null);
-    protocol?.sendMessage(createMessage(MessageType.PLAYER_KICK_REQUEST, { id }, 1));
+    protocol?.kickPlayer(String(player.user_id));
   };
-  const ban = (id: string) => {
+  const ban = (player: ConnectedPlayer) => {
     setError(null);
-    protocol?.sendMessage(createMessage(MessageType.PLAYER_BAN_REQUEST, { id }, 1));
+    protocol?.banPlayer(String(player.user_id));
   };
 
-  if (!isDM(sessionRole)) {
+  if (!canManagePlayers) {
     return (
       <div className={styles.panel}>
         <h3>Player Management</h3>
@@ -74,21 +78,35 @@ export const PlayerManagerPanel: React.FC<PlayerManagerPanelProps> = ({ sessionC
   return (
     <div className={styles.panel}>
       <h3>Player Management</h3>
-      {error && <div className={styles.error}>{error}</div>}
+      {error && <div className={styles.error} role="alert">{error}</div>}
       <div className={styles.playerList}>
         {players.length === 0 ? (
           <p className={styles.info}>No players connected</p>
         ) : (
           <ul className={styles.list}>
             {players.map((p) => (
-              <li key={p.id} className={styles.playerItem}>
+              <li key={p.client_id} className={styles.playerItem}>
                 <span className={styles.playerInfo}>
-                  {p.name} ({p.status})
+                  {p.username} ({p.ready ? 'ready' : 'connected'})
                 </span>
-                {p.role !== "dm" && (
+                {p.user_id !== userInfo.id && !isDM(p.role) && (
                   <div className={styles.actions}>
-                    <button className={styles.kickButton} onClick={() => kick(p.id)}>Kick</button>
-                    <button className={styles.banButton} onClick={() => ban(p.id)}>Ban</button>
+                    <button
+                      type="button"
+                      className={styles.kickButton}
+                      aria-label={`Kick ${p.username}`}
+                      onClick={() => kick(p)}
+                    >
+                      Kick
+                    </button>
+                    <button
+                      type="button"
+                      className={styles.banButton}
+                      aria-label={`Ban ${p.username}`}
+                      onClick={() => ban(p)}
+                    >
+                      Ban
+                    </button>
                   </div>
                 )}
               </li>

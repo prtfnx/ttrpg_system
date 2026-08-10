@@ -1,4 +1,5 @@
 import { useRenderEngine } from '@features/canvas';
+import { Modal } from '@shared/components';
 import { logger } from '@shared/utils/logger';
 import clsx from 'clsx';
 import React, { useEffect, useRef, useState } from 'react';
@@ -272,6 +273,11 @@ export const PaintPanel: React.FC<PaintPanelProps> = ({
     setTemplates(paintTemplateService.getAllTemplateMetadata());
     setNewTemplateName('');
     setShowTemplateDialog(false);
+  };
+
+  const closeTemplateDialog = () => {
+    setShowTemplateDialog(false);
+    setNewTemplateName('');
   };
 
   const handleLoadTemplate = async (templateId: string) => {
@@ -657,40 +663,32 @@ export const PaintPanel: React.FC<PaintPanelProps> = ({
 
         {/* Template Save Dialog */}
         {showTemplateDialog && (
-          <div className={styles.modalOverlay}>
-            <div className={styles.modalDialog}>
-              <h4>Save Paint Template</h4>
-              <div className={styles.formGroup}>
-                <label htmlFor="template-name">Template Name:</label>
-                <input
-                  id="template-name"
-                  type="text"
-                  value={newTemplateName}
-                  onChange={(e) => setNewTemplateName(e.target.value)}
-                  placeholder="Enter template name..."
-                  autoFocus
-                />
-              </div>
-              <div className={styles.modalActions}>
-                <button
-                  onClick={handleSaveTemplate}
-                  disabled={!newTemplateName.trim()}
-                  className={styles.btnPrimary}
-                >
-                  Save
-                </button>
-                <button
-                  onClick={() => {
-                    setShowTemplateDialog(false);
-                    setNewTemplateName('');
-                  }}
-                  className={styles.btnSecondary}
-                >
-                  Cancel
-                </button>
-              </div>
+          <Modal isOpen onClose={closeTemplateDialog} title="Save paint template" size="small">
+            <div className={styles.formGroup}>
+              <label htmlFor="template-name">Template Name:</label>
+              <input
+                id="template-name"
+                type="text"
+                value={newTemplateName}
+                onChange={(e) => setNewTemplateName(e.target.value)}
+                placeholder="Enter template name..."
+                autoFocus
+              />
             </div>
-          </div>
+            <div className={styles.modalActions}>
+              <button
+                type="button"
+                onClick={handleSaveTemplate}
+                disabled={!newTemplateName.trim()}
+                className={styles.btnPrimary}
+              >
+                Save
+              </button>
+              <button type="button" onClick={closeTemplateDialog} className={styles.btnSecondary}>
+                Cancel
+              </button>
+            </div>
+          </Modal>
         )}
 
         {/* Canvas Actions */}

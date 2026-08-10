@@ -730,25 +730,6 @@
   min-width: auto;
 }
 
-/* Modal Styles */
-.modalOverlay {
-  composes: panel-overlay from '@shared/styles/PanelBase.module.css';
-}
-
-.modalDialog {
-  background: var(--bg-secondary);
-  border: var(--border-width) solid var(--border-primary);
-  border-radius: var(--radius-lg);
-  padding: var(--spacing-xl);
-  min-width: 300px;
-  max-width: 90vw;
-}
-
-.modalDialog h4 {
-  margin: 0 0 var(--spacing-lg) 0;
-  color: var(--text-primary);
-}
-
 .formGroup {
   margin-bottom: var(--space-lg);
 }

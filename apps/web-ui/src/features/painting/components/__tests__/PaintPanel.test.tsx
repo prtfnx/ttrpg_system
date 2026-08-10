@@ -196,7 +196,7 @@ describe('PaintPanel — template dialog', () => {
     ]);
     render(<PaintPanel />);
     fireEvent.click(screen.getByTitle('Save current strokes as template'));
-    expect(screen.getByText('Save Paint Template')).toBeInTheDocument();
+    expect(screen.getByRole('dialog', { name: 'Save paint template' })).toBeInTheDocument();
   });
 
   it('dismisses template dialog on Cancel', () => {
@@ -207,6 +207,19 @@ describe('PaintPanel — template dialog', () => {
     render(<PaintPanel />);
     fireEvent.click(screen.getByTitle('Save current strokes as template'));
     fireEvent.click(screen.getByText('Cancel'));
-    expect(screen.queryByText('Save Paint Template')).not.toBeInTheDocument();
+    expect(screen.queryByRole('dialog', { name: 'Save paint template' })).not.toBeInTheDocument();
+  });
+
+  it('dismisses template dialog with Escape', () => {
+    vi.mocked(usePaintSystem).mockReturnValue([
+      { ...defaultPaintState, isActive: true, strokeCount: 2 },
+      mockPaintControls,
+    ]);
+    render(<PaintPanel />);
+    fireEvent.click(screen.getByTitle('Save current strokes as template'));
+
+    fireEvent.keyDown(document, { key: 'Escape' });
+
+    expect(screen.queryByRole('dialog', { name: 'Save paint template' })).not.toBeInTheDocument();
   });
 });

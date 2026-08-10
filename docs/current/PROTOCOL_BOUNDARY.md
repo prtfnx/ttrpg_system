@@ -100,6 +100,9 @@ attack preview, cover-zone sync, and DM-only AI suggestions.
 - Validate ids before sending table-specific messages.
 - Resolve session-scoped player operations from authenticated connection state;
   never trust a client-supplied session code as the authorization boundary.
+- Enforce the session role hierarchy for kick and ban on the server: owners may
+  manage lower roles, co-DMs may manage non-DM roles, and self-targeting is
+  denied.
 - Do not hide protocol sends behind browser globals.
 - Prefer typed helper methods over raw `sendMessage` calls in UI code.
 - Use batching only for non-critical, repeat-heavy messages.

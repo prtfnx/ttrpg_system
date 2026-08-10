@@ -16,7 +16,7 @@ from database import models as db_models
 from database.crud import append_ban_to_session
 from fastapi import WebSocket
 from utils.logger import log_context, setup_logger
-from utils.roles import get_permissions, get_visible_layers
+from utils.roles import can_modify_role, get_permissions, get_visible_layers
 from utils.roles import is_dm as _is_dm
 from utils.time import utc_now
 
@@ -457,8 +457,32 @@ class GameSessionProtocolService:
                 logger.warning(f"Player not found for kick: {target_username}/{target_player_id}")
                 return False
 
-            kicked_username = self.client_info[target_client_id].get('username', 'unknown')
-            kicker_username = self.client_info.get(kicked_by_client_id, {}).get('username', 'unknown')
+            target_info = self.client_info[target_client_id]
+            actor_info = self.client_info.get(kicked_by_client_id)
+            if not actor_info:
+                logger.warning(
+                    "Player moderation denied: requesting client not found",
+                    extra={"event_name": "player.moderation.denied", "reason": "actor_not_found"},
+                )
+                return False
+            if target_client_id == kicked_by_client_id:
+                logger.warning(
+                    "Player moderation denied: self-targeting is not allowed",
+                    extra={"event_name": "player.moderation.denied", "reason": "self_target"},
+                )
+                return False
+            if not can_modify_role(
+                actor_info.get('role', 'player'),
+                target_info.get('role', 'player'),
+            ):
+                logger.warning(
+                    "Player moderation denied by role hierarchy",
+                    extra={"event_name": "player.moderation.denied", "reason": "role_hierarchy"},
+                )
+                return False
+
+            kicked_username = target_info.get('username', 'unknown')
+            kicker_username = actor_info.get('username', 'unknown')
 
             # Notify the kicked player
             kick_message = Message(MessageType.ERROR, {

@@ -335,11 +335,22 @@ def test_table_save_releases_task_scoped_database_session(monkeypatch):
 
 @pytest.mark.asyncio
 class TestKickBanPlayer:
-    async def _setup_with_player(self):
+    async def _setup_with_player(self, target_role="player", actor_role="owner"):
         svc = _make_service()
         ws = _ws()
-        await svc.add_client(ws, "c1", {"user_id": 5, "username": "Troll", "role": "player"})
+        await svc.add_client(ws, "c1", {
+            "user_id": 5,
+            "username": "Troll",
+            "role": target_role,
+        })
+        dm_ws = _ws()
+        await svc.add_client(dm_ws, "dm1", {
+            "user_id": 1,
+            "username": "DM",
+            "role": actor_role,
+        })
         ws.send_text.reset_mock()
+        dm_ws.send_text.reset_mock()
         return svc, ws
 
     async def test_kick_player_found_returns_true(self):
@@ -354,21 +365,56 @@ class TestKickBanPlayer:
         result = await svc.kick_player("99", "Ghost", "reason", "dm1")
         assert result is False
 
+    async def test_kick_player_rejects_self_targeting(self):
+        svc, _ = await self._setup_with_player()
+
+        result = await svc.kick_player("1", "DM", "reason", "dm1")
+
+        assert result is False
+        assert "dm1" in svc.clients
+
+    async def test_co_dm_cannot_kick_owner(self):
+        svc, _ = await self._setup_with_player(target_role="owner", actor_role="co_dm")
+
+        result = await svc.kick_player("5", "Troll", "reason", "dm1")
+
+        assert result is False
+        assert "c1" in svc.clients
+
+    async def test_co_dm_cannot_kick_another_co_dm(self):
+        svc, _ = await self._setup_with_player(target_role="co_dm", actor_role="co_dm")
+
+        result = await svc.kick_player("5", "Troll", "reason", "dm1")
+
+        assert result is False
+        assert "c1" in svc.clients
+
+    async def test_owner_can_kick_co_dm(self):
+        svc, _ = await self._setup_with_player(target_role="co_dm")
+
+        result = await svc.kick_player("5", "Troll", "reason", "dm1")
+
+        assert result is True
+        assert "c1" not in svc.clients
+
     async def test_ban_player_calls_kick_and_broadcasts(self):
         svc, ws = await self._setup_with_player()
-        dm_ws = _ws()
-        await svc.add_client(dm_ws, "dm1", {"user_id": 1, "username": "DM", "role": "owner"})
-        dm_ws.send_text.reset_mock()
 
         result = await svc.ban_player("5", "Troll", "cheating", "permanent", "dm1")
         assert result is True
         # ban notification broadcast
-        dm_ws.send_text.assert_awaited()
+        svc.clients["dm1"].send_text.assert_awaited()
+
+    async def test_ban_uses_same_role_hierarchy_as_kick(self):
+        svc, _ = await self._setup_with_player(target_role="owner", actor_role="co_dm")
+
+        result = await svc.ban_player("5", "Troll", "cheating", "permanent", "dm1")
+
+        assert result is False
+        assert "c1" in svc.clients
 
     async def test_ban_persists_to_db_when_available(self):
         svc, ws = await self._setup_with_player()
-        dm_ws = _ws()
-        await svc.add_client(dm_ws, "dm1", {"user_id": 1, "username": "DM", "role": "owner"})
         # Set DB after clients are connected to avoid ban-list check on add_client
         svc.db_session = MagicMock()
         svc.game_session_db_id = 7

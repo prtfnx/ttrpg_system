@@ -2,6 +2,7 @@ import { useGameStore } from '@/store';
 import { authService } from '@features/auth';
 import { isDM } from '@features/session/types/roles';
 import { useProtocol } from '@lib/api';
+import { Modal } from '@shared/components';
 import { logger } from '@shared/utils/logger';
 import clsx from 'clsx';
 import { Check } from 'lucide-react';
@@ -237,17 +238,9 @@ export const TokenConfigModal: React.FC<TokenConfigModalProps> = ({ spriteId, on
   // Show all characters - don't filter by session since we might not have session info
   const sessionCharacters = characters;
 
-  const body = (
-    <div className={inline ? styles.inlineModal : styles.tokenConfigModal}
-         onClick={inline ? undefined : (e) => e.stopPropagation()}>
-      {!inline && (
-        <div className={styles.modalHeader}>
-          <h2>Token Configuration</h2>
-          <button className={styles.closeButton} onClick={onClose}>×</button>
-        </div>
-      )}
-      
-      <div className={styles.modalContent}>
+  const content = (
+    <>
+      <div className={inline ? styles.modalContent : undefined}>
           {/* Ownership - DM/CO-DM only */}
           {canManageOwnership && (
             <div className={styles.ownershipSection}>
@@ -490,15 +483,16 @@ export const TokenConfigModal: React.FC<TokenConfigModalProps> = ({ spriteId, on
         </div>
         
         <div className={styles.modalFooter}>
-          <button className={styles.doneButton} onClick={onClose}>Done</button>
+          <button type="button" className={styles.doneButton} onClick={onClose}>Done</button>
         </div>
-    </div>
+    </>
   );
 
-  if (inline) return body;
+  if (inline) return <div className={styles.inlineModal}>{content}</div>;
+
   return (
-    <div className={styles.tokenConfigModalOverlay} onClick={onClose}>
-      {body}
-    </div>
+    <Modal isOpen onClose={onClose} title="Token configuration">
+      {content}
+    </Modal>
   );
 };

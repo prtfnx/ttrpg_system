@@ -1,16 +1,3 @@
-.tokenConfigModalOverlay {
-  position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background-color: var(--bg-overlay);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  z-index: 10000;
-}
-
 /* Fills a FloatingWindow body - no overlay, no fixed dimensions */
 .inlineModal {
   width: 100%;
@@ -20,54 +7,6 @@
   color: var(--text-primary);
   display: flex;
   flex-direction: column;
-}
-
-.tokenConfigModal {
-  background: linear-gradient(135deg, var(--bg-tertiary) 0%, var(--bg-secondary) 100%);
-  border-radius: var(--radius-lg);
-  box-shadow: var(--shadow-xl);
-  border: var(--border-width) solid var(--border-primary);
-  width: 90%;
-  max-width: 480px;
-  max-height: 85vh;
-  overflow-y: auto;
-  color: var(--text-primary);
-}
-
-.modalHeader {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: var(--space-sm) var(--space-md);
-  border-bottom: var(--border-width) solid var(--border-primary);
-}
-
-.modalHeader h2 {
-  margin: 0;
-  font-size: var(--text-base);
-  font-weight: var(--font-semibold);
-  color: var(--text-primary);
-}
-
-.closeButton {
-  background: none;
-  border: none;
-  font-size: var(--text-xl);
-  color: var(--text-muted);
-  cursor: pointer;
-  padding: 0;
-  width: var(--space-2xl);
-  height: var(--space-2xl);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  border-radius: var(--radius-sm);
-  transition: var(--transition-fast);
-}
-
-.closeButton:hover {
-  background: var(--hover-overlay);
-  color: var(--text-primary);
 }
 
 .modalContent {
@@ -334,25 +273,6 @@
 
 .doneButton:active {
   transform: translateY(0);
-}
-
-/* Custom scrollbar */
-.tokenConfigModal::-webkit-scrollbar {
-  width: var(--space-sm);
-}
-
-.tokenConfigModal::-webkit-scrollbar-track {
-  background: var(--bg-primary);
-  border-radius: var(--radius-sm);
-}
-
-.tokenConfigModal::-webkit-scrollbar-thumb {
-  background: var(--border-primary);
-  border-radius: var(--radius-sm);
-}
-
-.tokenConfigModal::-webkit-scrollbar-thumb:hover {
-  background: var(--text-muted);
 }
 
 /* Ownership section - DM only */

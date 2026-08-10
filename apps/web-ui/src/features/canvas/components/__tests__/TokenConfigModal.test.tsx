@@ -111,7 +111,7 @@ describe('TokenConfigModal - Component UI Tests', () => {
 
       render(<TokenConfigModal spriteId="sprite-1" onClose={onCloseMock} />);
 
-      expect(screen.getByText(/Token Configuration/i)).toBeInTheDocument();
+      expect(screen.getByRole('dialog', { name: 'Token configuration' })).toBeInTheDocument();
       expect(screen.getByDisplayValue('25')).toBeInTheDocument(); // HP
       expect(screen.getByDisplayValue('50')).toBeInTheDocument(); // MaxHP
       expect(screen.getByDisplayValue('15')).toBeInTheDocument(); // AC
@@ -509,8 +509,18 @@ describe('TokenConfigModal - Component UI Tests', () => {
 
       render(<TokenConfigModal spriteId="sprite-1" onClose={onCloseMock} />);
 
-      const closeButton = screen.getByText('×');
+      const closeButton = screen.getByRole('button', { name: 'Close modal' });
       await user.click(closeButton);
+
+      expect(onCloseMock).toHaveBeenCalledTimes(1);
+    });
+
+    it('should call onClose when Escape is pressed', async () => {
+      const user = userEvent.setup();
+      useGameStore.setState({ sprites: [createTestSprite()] });
+      render(<TokenConfigModal spriteId="sprite-1" onClose={onCloseMock} />);
+
+      await user.keyboard('{Escape}');
 
       expect(onCloseMock).toHaveBeenCalledTimes(1);
     });

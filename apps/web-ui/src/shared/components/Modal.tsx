@@ -12,7 +12,7 @@ import styles from './Modal.module.css';
 interface Props {
   isOpen: boolean;
   onClose: () => void;
-  title?: string;
+  title: string;
   children: ReactNode;
   closeOnEscape?: boolean;
   closeOnOverlayClick?: boolean;
@@ -25,6 +25,12 @@ export function Modal({ isOpen, onClose, title, children, closeOnEscape = true, 
   const modalRef = useRef<HTMLDivElement>(null);
   const previousActiveElement = useRef<Element | null>(null);
   const hasOpenedRef = useRef(false);
+  const wasOpenRef = useRef(false);
+
+  if (isOpen && !wasOpenRef.current) {
+    previousActiveElement.current = document.activeElement;
+  }
+  wasOpenRef.current = isOpen;
 
   const restoreFocus = useCallback(() => {
     if (previousActiveElement.current instanceof HTMLElement) {
@@ -36,11 +42,12 @@ export function Modal({ isOpen, onClose, title, children, closeOnEscape = true, 
     if (isOpen) {
       hasOpenedRef.current = true;
       setIsAnimating(true);
-      previousActiveElement.current = document.activeElement;
       document.body.style.overflow = 'hidden';
+      if (!modalRef.current?.contains(document.activeElement)) {
+        modalRef.current?.focus();
+      }
       const timer = setTimeout(() => {
         setIsAnimating(false);
-        modalRef.current?.focus();
       }, 150);
       return () => clearTimeout(timer);
     } else if (hasOpenedRef.current) {
@@ -53,15 +60,45 @@ export function Modal({ isOpen, onClose, title, children, closeOnEscape = true, 
   }, [isOpen, restoreFocus]);
 
   useEffect(() => {
-    if (!closeOnEscape) return;
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') { e.preventDefault(); onClose(); }
+      if (e.key === 'Escape' && closeOnEscape) {
+        e.preventDefault();
+        onClose();
+        return;
+      }
+
+      if (e.key !== 'Tab') return;
+
+      const focusable = Array.from(modalRef.current?.querySelectorAll<HTMLElement>(
+        'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])',
+      ) ?? []).filter((element) => element.getAttribute('aria-hidden') !== 'true');
+
+      if (focusable.length === 0) {
+        e.preventDefault();
+        modalRef.current?.focus();
+        return;
+      }
+
+      const first = focusable[0];
+      const last = focusable[focusable.length - 1];
+      const activeElement = document.activeElement;
+
+      if (e.shiftKey && (activeElement === first || !modalRef.current?.contains(activeElement))) {
+        e.preventDefault();
+        last.focus();
+      } else if (!e.shiftKey && (activeElement === last || !modalRef.current?.contains(activeElement))) {
+        e.preventDefault();
+        first.focus();
+      }
     };
     if (isOpen) document.addEventListener('keydown', handleKeyDown);
     return () => document.removeEventListener('keydown', handleKeyDown);
   }, [isOpen, closeOnEscape, onClose]);
 
-  useEffect(() => () => { document.body.style.overflow = ''; }, []);
+  useEffect(() => () => {
+    document.body.style.overflow = '';
+    restoreFocus();
+  }, [restoreFocus]);
 
   if (!isOpen && !isAnimating) return null;
 
@@ -81,15 +118,13 @@ export function Modal({ isOpen, onClose, title, children, closeOnEscape = true, 
         className={clsx(styles.modalContent, styles[size])}
         role="dialog"
         aria-modal="true"
-        aria-labelledby={title ? titleId : undefined}
+        aria-labelledby={titleId}
         tabIndex={-1}
       >
-        {title && (
-          <div className={styles.modalHeader}>
-            <h2 id={titleId} className={styles.modalTitle}>{title}</h2>
-            <button type="button" className={styles.modalCloseButton} onClick={onClose} aria-label="Close modal">×</button>
-          </div>
-        )}
+        <div className={styles.modalHeader}>
+          <h2 id={titleId} className={styles.modalTitle}>{title}</h2>
+          <button type="button" className={styles.modalCloseButton} onClick={onClose} aria-label="Close modal">×</button>
+        </div>
         <div className={styles.modalBody}>{children}</div>
       </div>
     </div>,

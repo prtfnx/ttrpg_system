@@ -2,7 +2,7 @@
   position: absolute;
   left: 50%;
   bottom: var(--space-md);
-  z-index: 90;
+  z-index: var(--z-fixed);
   width: min(900px, calc(100% - 32px));
   max-height: min(70vh, 680px);
   transform: translateX(-50%);

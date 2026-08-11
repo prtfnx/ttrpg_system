@@ -245,7 +245,7 @@
   top: calc(100% + var(--space-2xs));
   left: 0;
   right: 0;
-  z-index: 50;
+  z-index: var(--z-dropdown);
   background: var(--bg-elevated);
   border: var(--border-width) solid var(--border-primary);
   border-radius: var(--radius-sm);

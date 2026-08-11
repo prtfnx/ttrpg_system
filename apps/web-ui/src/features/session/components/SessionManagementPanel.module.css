@@ -9,7 +9,7 @@
   right: var(--space-xl);
   display: flex;
   gap: var(--space-sm);
-  z-index: 100;
+  z-index: var(--z-fixed);
 }
 
 .toggle {
@@ -61,7 +61,7 @@
   border: var(--border-width) solid var(--border-primary);
   border-radius: var(--radius-lg);
   box-shadow: var(--shadow-xl);
-  z-index: 100;
+  z-index: var(--z-fixed);
   overflow: hidden;
 }
 

@@ -83,7 +83,7 @@
   position: absolute;
   top: 100%;
   right: 0;
-  z-index: 10;
+  z-index: var(--z-dropdown);
   composes: wizard-card from './CharacterWizardBase.module.css';
   box-shadow: var(--shadow-lg);
   margin-top: var(--space-xs);

@@ -12,7 +12,7 @@
   background: transparent;
   border-top-left-radius: var(--radius-md);
   border-top-right-radius: var(--radius-md);
-  z-index: 200;
+  z-index: var(--z-fixed);
   pointer-events: all;
   transition: background 0.2s;
 }
@@ -179,7 +179,7 @@
   font-size: var(--text-sm);
   cursor: pointer;
   padding: var(--space-xs) var(--space-sm);
-  z-index: 200;
+  z-index: var(--z-fixed);
   pointer-events: all;
 }
 

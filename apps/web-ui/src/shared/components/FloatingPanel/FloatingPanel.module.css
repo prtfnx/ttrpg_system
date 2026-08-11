@@ -3,7 +3,7 @@
   border: var(--border-width) solid var(--panel-border);
   border-radius: var(--radius-md);
   box-shadow: var(--shadow-lg);
-  z-index: 200;
+  z-index: var(--z-fixed);
   overflow: hidden;
   display: flex;
   flex-direction: column;

@@ -41,7 +41,7 @@
   box-shadow: var(--shadow-overlay);
   min-width: 180px;
   max-width: 240px;
-  z-index: 10000;
+  z-index: var(--z-popover);
   overflow: hidden;
 }
 

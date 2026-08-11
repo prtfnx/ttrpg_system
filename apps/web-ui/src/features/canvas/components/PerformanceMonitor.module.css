@@ -1,7 +1,7 @@
 /* Performance Monitor Styles */
 .performanceMonitor {
   position: fixed;
-  z-index: 1000;
+  z-index: var(--z-fixed);
   font-family: var(--font-sans);
   font-size: var(--text-xs);
   color: var(--white);

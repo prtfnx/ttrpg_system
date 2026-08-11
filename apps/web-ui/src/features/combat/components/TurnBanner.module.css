@@ -10,7 +10,7 @@
   gap: var(--space-3);
   font-weight: bold;
   font-size: var(--text-sm);
-  z-index: 100;
+  z-index: var(--z-fixed);
   box-shadow: var(--shadow-lg);
 }
 

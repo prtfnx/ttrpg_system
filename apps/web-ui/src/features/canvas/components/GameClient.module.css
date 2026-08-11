@@ -55,7 +55,7 @@
   position: absolute;
   top: var(--space-sm);
   right: var(--space-sm);
-  z-index: 20;
+  z-index: var(--z-sticky);
   display: flex;
   gap: var(--space-sm);
 }
@@ -112,7 +112,7 @@
   background: var(--bg-tertiary);
   border-bottom: var(--border-width) solid var(--border-secondary);
   font-size: var(--text-2xs);
-  z-index: 1;
+  z-index: var(--z-content);
   flex-shrink: 0;
   margin: calc(var(--space-lg) * -1) calc(var(--space-lg) * -1) var(--space-lg) calc(var(--space-lg) * -1);
   border-radius: 0;
@@ -182,7 +182,7 @@
   cursor: col-resize;
   position: relative;
   transition: background-color 0.2s ease;
-  z-index: 20;
+  z-index: var(--z-sticky);
 }
 
 .panelResizer:hover {

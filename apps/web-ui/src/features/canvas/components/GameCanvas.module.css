@@ -29,15 +29,15 @@
 }
 
 .previewCanvas {
-  z-index: 100;
+  z-index: var(--z-content);
 }
 
 .visionCanvas {
-  z-index: 101;
+  z-index: var(--z-content);
 }
 
 .wallCanvas {
-  z-index: 102;
+  z-index: var(--z-content);
 }
 
 .canvasOverlay {
@@ -84,7 +84,7 @@
   border: var(--border-width) solid var(--border-primary);
   border-radius: var(--radius-sm);
   box-shadow: var(--shadow-lg);
-  z-index: 1000;
+  z-index: var(--z-dropdown);
   min-width: 120px;
   font-size: var(--text-sm);
   color: var(--text-primary);
@@ -146,7 +146,7 @@
   border-radius: var(--radius-sm);
   box-shadow: var(--shadow-lg);
   min-width: 140px;
-  z-index: 1001;
+  z-index: var(--z-popover);
 }
 
 .statusDisconnected {
@@ -188,7 +188,7 @@
   font-family: var(--font-mono);
   font-size: var(--text-sm);
   pointer-events: none;
-  z-index: 1000;
+  z-index: var(--z-fixed);
 }
 
 .fpsHealthy {
@@ -213,7 +213,7 @@
   position: absolute;
   right: var(--space-xl);
   bottom: var(--space-xl);
-  z-index: 1000;
+  z-index: var(--z-fixed);
   display: flex;
   flex-direction: column;
   gap: var(--space-sm);

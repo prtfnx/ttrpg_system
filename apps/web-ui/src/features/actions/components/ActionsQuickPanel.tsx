@@ -36,9 +36,9 @@ export const ActionsQuickPanel: React.FC<ActionsQuickPanelProps> = ({ actionsEng
   }, [commands, selectedTable]);
 
   return (
-    <div className={clsx('game-panel', styles.quickPanel)}>
-      <div className="panel-header-compact">
-        <h3 className="panel-title">Quick Actions</h3>
+    <div className={styles.quickPanel}>
+      <div className={styles.header}>
+        <h3 className={styles.title}>Quick Actions</h3>
       </div>
 
       <div className={styles.content}>

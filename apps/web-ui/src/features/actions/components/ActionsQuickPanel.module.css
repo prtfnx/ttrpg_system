@@ -4,6 +4,16 @@
   gap: var(--space-lg);
 }
 
+.header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.title {
+  margin: 0;
+}
+
 .content {
   display: flex;
   flex-direction: column;

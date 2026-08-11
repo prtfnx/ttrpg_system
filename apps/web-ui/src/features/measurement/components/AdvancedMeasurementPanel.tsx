@@ -4,7 +4,7 @@
  * and geometric shape creation with D&D 5e integration
  */
 
-import { ErrorBoundary } from '@shared/components';
+import { ErrorBoundary, Modal } from '@shared/components';
 import type { FC } from 'react';
 import type { MeasurementLine } from '../services/advancedMeasurement.service';
 import styles from './AdvancedMeasurementPanel.module.css';
@@ -59,15 +59,8 @@ const AdvancedMeasurementPanel: FC<AdvancedMeasurementPanelProps> = ({
 
   return (
     <ErrorBoundary>
-      <div className={styles.measurementPanelOverlay}>
+      <Modal isOpen onClose={onClose} title="Advanced Measurement & Grid System" size="fullscreen">
         <div className={styles.measurementPanel}>
-          <div className={styles.panelHeader}>
-            <h2>Advanced Measurement & Grid System</h2>
-            <button className={styles.closeBtn} onClick={onClose} aria-label="Close panel">
-              x
-            </button>
-          </div>
-
           {error && (
             <div className={styles.errorMessage} role="alert">
               <span className={styles.errorIcon}>!</span>
@@ -137,7 +130,7 @@ const AdvancedMeasurementPanel: FC<AdvancedMeasurementPanelProps> = ({
             </div>
           </div>
         </div>
-      </div>
+      </Modal>
     </ErrorBoundary>
   );
 };

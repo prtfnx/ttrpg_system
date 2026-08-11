@@ -752,6 +752,147 @@
       },
       "additionalProperties": false
     },
+    "playerModerationRequestData": {
+      "type": "object",
+      "properties": {
+        "player_id": {
+          "oneOf": [
+            {
+              "type": "string",
+              "minLength": 1
+            },
+            {
+              "type": "integer",
+              "minimum": 0
+            }
+          ]
+        },
+        "username": {
+          "type": "string",
+          "minLength": 1
+        },
+        "reason": {
+          "type": "string",
+          "maxLength": 500
+        },
+        "duration": {
+          "oneOf": [
+            {
+              "const": "permanent"
+            },
+            {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 525600
+            }
+          ]
+        }
+      },
+      "anyOf": [
+        {
+          "type": "object",
+          "required": [
+            "player_id"
+          ]
+        },
+        {
+          "type": "object",
+          "required": [
+            "username"
+          ]
+        }
+      ],
+      "additionalProperties": false
+    },
+    "playerModerationResponseData": {
+      "type": "object",
+      "required": [
+        "success",
+        "reason"
+      ],
+      "properties": {
+        "success": {
+          "const": true
+        },
+        "kicked_player": {
+          "oneOf": [
+            {
+              "type": "string",
+              "minLength": 1
+            },
+            {
+              "type": "integer",
+              "minimum": 0
+            }
+          ]
+        },
+        "banned_player": {
+          "oneOf": [
+            {
+              "type": "string",
+              "minLength": 1
+            },
+            {
+              "type": "integer",
+              "minimum": 0
+            }
+          ]
+        },
+        "reason": {
+          "type": "string"
+        },
+        "duration": {
+          "oneOf": [
+            {
+              "const": "permanent"
+            },
+            {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 525600
+            }
+          ]
+        },
+        "kicked_by": {
+          "type": "string",
+          "minLength": 1
+        },
+        "banned_by": {
+          "type": "string",
+          "minLength": 1
+        }
+      },
+      "oneOf": [
+        {
+          "type": "object",
+          "required": [
+            "kicked_player",
+            "kicked_by"
+          ],
+          "not": {
+            "type": "object",
+            "required": [
+              "banned_player"
+            ]
+          }
+        },
+        {
+          "type": "object",
+          "required": [
+            "banned_player",
+            "banned_by",
+            "duration"
+          ],
+          "not": {
+            "type": "object",
+            "required": [
+              "kicked_player"
+            ]
+          }
+        }
+      ],
+      "additionalProperties": false
+    },
     "playerListResponseData": {
       "type": "object",
       "required": [
@@ -1213,6 +1354,80 @@
         "properties": {
           "data": {
             "$ref": "#/$defs/playerRoleChangedData"
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "type": {
+            "enum": [
+              "player_ready",
+              "player_unready",
+              "player_list_request",
+              "connection_status_request"
+            ]
+          }
+        },
+        "required": [
+          "type"
+        ]
+      },
+      "then": {
+        "properties": {
+          "data": {
+            "$ref": "#/$defs/emptyData"
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "type": {
+            "enum": [
+              "player_kick_request",
+              "player_ban_request"
+            ]
+          }
+        },
+        "required": [
+          "type"
+        ]
+      },
+      "then": {
+        "required": [
+          "data"
+        ],
+        "properties": {
+          "data": {
+            "$ref": "#/$defs/playerModerationRequestData"
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "type": {
+            "enum": [
+              "player_kick_response",
+              "player_ban_response"
+            ]
+          }
+        },
+        "required": [
+          "type"
+        ]
+      },
+      "then": {
+        "required": [
+          "data"
+        ],
+        "properties": {
+          "data": {
+            "$ref": "#/$defs/playerModerationResponseData"
           }
         }
       }

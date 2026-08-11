@@ -71,7 +71,7 @@ class TestPlayerListRequest:
                 "last_ping": 4.0,
             },
         ]
-        msg = Message(MessageType.PLAYER_LIST_REQUEST, {"session_code": "TST"})
+        msg = Message(MessageType.PLAYER_LIST_REQUEST, {})
         resp = await proto.handle_player_list_request(msg, "c1")
         assert resp.type == MessageType.PLAYER_LIST_RESPONSE
         assert resp.data["count"] == 2
@@ -89,7 +89,7 @@ class TestPlayerListRequest:
     async def test_response_uses_authoritative_session_code(self):
         proto = _ProtoStub()
         proto.session_manager.get_session_players.return_value = []
-        msg = Message(MessageType.PLAYER_LIST_REQUEST, {"session_code": "ABC"})
+        msg = Message(MessageType.PLAYER_LIST_REQUEST, {})
         resp = await proto.handle_player_list_request(msg, "c1")
         assert resp.data["session_code"] == "TST"
 
@@ -116,7 +116,7 @@ class TestPlayerKickRequest:
 
     async def test_player_role_cannot_kick(self):
         proto = _ProtoStub(role="player")
-        msg = Message(MessageType.PLAYER_KICK_REQUEST, {"player_id": 2, "session_code": "TST"})
+        msg = Message(MessageType.PLAYER_KICK_REQUEST, {"player_id": 2})
         resp = await proto.handle_player_kick_request(msg, "c1")
         assert resp.type == MessageType.ERROR
         assert "permission" in resp.data["error"].lower()
@@ -125,7 +125,7 @@ class TestPlayerKickRequest:
         proto = _ProtoStub(role="owner")
         proto.session_manager.kick_player.return_value = True
         msg = Message(MessageType.PLAYER_KICK_REQUEST, {
-            "player_id": 2, "username": "Bob", "session_code": "TST"
+            "player_id": 2, "username": "Bob"
         })
         resp = await proto.handle_player_kick_request(msg, "c1")
         assert resp.type == MessageType.PLAYER_KICK_RESPONSE
@@ -141,7 +141,7 @@ class TestPlayerKickRequest:
     async def test_kick_failure_returns_error(self):
         proto = _ProtoStub(role="owner")
         proto.session_manager.kick_player.return_value = False
-        msg = Message(MessageType.PLAYER_KICK_REQUEST, {"player_id": 2, "session_code": "TST"})
+        msg = Message(MessageType.PLAYER_KICK_REQUEST, {"player_id": 2})
         resp = await proto.handle_player_kick_request(msg, "c1")
         assert resp.type == MessageType.ERROR
 
@@ -176,7 +176,7 @@ class TestPlayerBanRequest:
         proto = _ProtoStub(role="owner")
         proto.session_manager.ban_player.return_value = True
         msg = Message(MessageType.PLAYER_BAN_REQUEST, {
-            "player_id": 2, "username": "BadPlayer", "session_code": "TST"
+            "player_id": 2, "username": "BadPlayer"
         })
         resp = await proto.handle_player_ban_request(msg, "c1")
         assert resp.type == MessageType.PLAYER_BAN_RESPONSE
@@ -201,7 +201,7 @@ class TestConnectionStatusRequest:
     async def test_with_session_manager_returns_connected(self):
         proto = _ProtoStub()
         proto.session_manager.get_connection_status.return_value = {"latency": 10}
-        msg = Message(MessageType.CONNECTION_STATUS_REQUEST, {"session_code": "TST"})
+        msg = Message(MessageType.CONNECTION_STATUS_REQUEST, {})
         resp = await proto.handle_connection_status_request(msg, "c1")
         assert resp.type == MessageType.CONNECTION_STATUS_RESPONSE
         assert resp.data["connected"] is True

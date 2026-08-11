@@ -236,6 +236,35 @@ describe('Protocol Message Utilities', () => {
     }))).toThrow(/Invalid message/);
   });
 
+  it('should validate player readiness and moderation payloads', () => {
+    expect(parseMessage(JSON.stringify({
+      type: MessageType.PLAYER_READY,
+      data: {},
+    })).data).toEqual({});
+    expect(parseMessage(JSON.stringify({
+      type: MessageType.PLAYER_KICK_REQUEST,
+      data: { player_id: 'client-2', reason: 'inactive' },
+    })).data).toMatchObject({ player_id: 'client-2' });
+    expect(parseMessage(JSON.stringify({
+      type: MessageType.PLAYER_BAN_RESPONSE,
+      data: {
+        success: true,
+        banned_player: 'client-2',
+        reason: 'abuse',
+        duration: 'permanent',
+        banned_by: 'GM',
+      },
+    })).data).toMatchObject({ success: true });
+    expect(() => parseMessage(JSON.stringify({
+      type: MessageType.PLAYER_LIST_REQUEST,
+      data: { session_code: 'caller-controlled' },
+    }))).toThrow(/Invalid message/);
+    expect(() => parseMessage(JSON.stringify({
+      type: MessageType.PLAYER_BAN_REQUEST,
+      data: { reason: 'missing target' },
+    }))).toThrow(/Invalid message/);
+  });
+
   it('should validate table settings payloads', () => {
     const validData = {
       table_id: 'table-1',

@@ -31,7 +31,7 @@
   text-align: center;
   font-weight: var(--font-bold);
   color: var(--text-on-accent);
-  animation: pulse 1s infinite;
+  animation: pulse var(--duration-spin) infinite;
 }
 
 /* Mode buttons */
@@ -417,7 +417,7 @@
   border: var(--space-xs) solid var(--gray-700);
   border-top: var(--space-xs) solid var(--accent-primary);
   border-radius: 50%;
-  animation: spin 1s linear infinite;
+  animation: spin var(--duration-spin) linear infinite;
   margin: 0 auto var(--space-md);
 }
 
@@ -454,7 +454,7 @@
   display: flex;
   justify-content: space-between;
   align-items: center;
-  animation: glow 2s ease-in-out infinite;
+  animation: glow var(--duration-pulse) ease-in-out infinite;
   box-shadow: 0 var(--space-xs) var(--space-md) var(--accent-glow);
 }
 
@@ -472,7 +472,7 @@
 
 .placement-icon {
   font-size: var(--text-2xl);
-  animation: bounce 1s ease-in-out infinite;
+  animation: bounce var(--duration-spin) ease-in-out infinite;
 }
 
 @keyframes bounce {

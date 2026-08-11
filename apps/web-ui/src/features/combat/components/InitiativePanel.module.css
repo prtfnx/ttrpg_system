@@ -42,7 +42,7 @@
   border-radius: var(--radius-sm);
   font-size: var(--text-xs);
   color: var(--text-primary);
-  transition: background 0.1s;
+  transition: background var(--duration-fast);
 }
 
 .active {
@@ -91,7 +91,7 @@
   top: 0;
   height: 100%;
   border-radius: var(--radius-sm);
-  transition: width 0.2s;
+  transition: width var(--duration-base);
 }
 
 .tempHpFill {

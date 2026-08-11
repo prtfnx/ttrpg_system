@@ -106,7 +106,7 @@
 .statusDot.active {
   background: var(--green-500);
   box-shadow: 0 0 var(--space-sm) var(--color-success-glow);
-  animation: pulse 2s infinite;
+  animation: pulse var(--duration-pulse) infinite;
 }
 
 .measurementStatus, .shapeStatus {

@@ -64,7 +64,7 @@
 
 .iconBtn.spinning svg,
 .syncSpin svg {
-  animation: spin 1s linear infinite;
+  animation: spin var(--duration-spin) linear infinite;
 }
 
 .iconBtn:disabled {
@@ -476,7 +476,7 @@
 }
 
 .syncBadgeSyncing {
-  animation: pulse 1.5s ease-in-out infinite;
+  animation: pulse calc(var(--duration-pulse) * 0.75) ease-in-out infinite;
 }
 
 .syncBadgeError {

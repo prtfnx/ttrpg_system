@@ -95,7 +95,7 @@
   font-size: var(--text-sm);
   font-weight: var(--font-medium);
   cursor: pointer;
-  transition: opacity 0.2s;
+  transition: opacity var(--duration-base);
 }
 
 .submit-btn:disabled {

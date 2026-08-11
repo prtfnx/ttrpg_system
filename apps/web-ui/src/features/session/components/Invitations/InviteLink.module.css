@@ -103,7 +103,7 @@
   cursor: pointer;
   font-size: var(--text-xs);
   font-weight: var(--font-medium);
-  transition: background 0.2s;
+  transition: background var(--duration-base);
 }
 
 .revokeBtn:hover:not(:disabled) {

@@ -25,7 +25,7 @@
 .loading-spinner {
   font-size: var(--text-lg);
   color: var(--text-secondary);
-  animation: pulse 1.5s infinite;
+  animation: pulse calc(var(--duration-pulse) * 0.75) infinite;
 }
 
 @keyframes pulse {

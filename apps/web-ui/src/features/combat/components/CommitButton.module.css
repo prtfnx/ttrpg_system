@@ -18,7 +18,7 @@
   border-radius: var(--radius-md);
   font-weight: var(--font-semibold);
   cursor: pointer;
-  transition: filter 0.15s;
+  transition: filter var(--duration-fast);
 }
 
 .btn:hover:not(:disabled) {

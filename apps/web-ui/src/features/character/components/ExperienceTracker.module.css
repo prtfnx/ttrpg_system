@@ -39,7 +39,7 @@
 
 .progressFill {
   height: 100%;
-  transition: width 0.3s ease;
+  transition: width var(--duration-slow) ease;
   border-radius: var(--radius-full);
 }
 

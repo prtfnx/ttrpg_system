@@ -133,7 +133,7 @@
   border: var(--border-width) solid var(--border-primary);
   border-radius: var(--radius-sm);
   cursor: grab;
-  transition: background 0.1s, border-color 0.1s;
+  transition: background var(--duration-fast), border-color var(--duration-fast);
   background: var(--bg-secondary);
 }
 

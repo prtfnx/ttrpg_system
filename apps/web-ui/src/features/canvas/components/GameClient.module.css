@@ -144,7 +144,7 @@
 
 .connectionStatus.connecting .statusIndicator {
   background: var(--status-warning-text);
-  animation: pulse 1.5s ease-in-out infinite;
+  animation: pulse calc(var(--duration-pulse) * 0.75) ease-in-out infinite;
 }
 
 .connectionStatus.disconnected .statusIndicator,
@@ -181,7 +181,7 @@
   background: var(--bg-elevated);
   cursor: col-resize;
   position: relative;
-  transition: background-color 0.2s ease;
+  transition: background-color var(--duration-base) ease;
   z-index: var(--z-sticky);
 }
 

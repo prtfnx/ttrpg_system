@@ -142,7 +142,7 @@
   align-items: center;
   gap: var(--space-0-5);
   cursor: default;
-  transition: border-color 0.15s;
+  transition: border-color var(--duration-fast);
 }
 
 .abilityBlock:hover { border-color: var(--color-primary); }
@@ -192,7 +192,7 @@
   align-items: center;
   justify-content: center;
   flex-shrink: 0;
-  transition: background 0.1s, color 0.1s;
+  transition: background var(--duration-fast), color var(--duration-fast);
 }
 
 .abilityArrow:hover {
@@ -248,7 +248,7 @@
   display: inline-block;
   flex-shrink: 0;
   cursor: pointer;
-  transition: background 0.15s, border-color 0.15s;
+  transition: background var(--duration-fast), border-color var(--duration-fast);
 }
 
 .saveProficient {
@@ -448,7 +448,7 @@
 .hpBarFill {
   height: 100%;
   border-radius: var(--radius-full);
-  transition: width 0.4s ease, background 0.4s ease;
+  transition: width var(--duration-slow) ease, background var(--duration-slow) ease;
 }
 
 .hpNums {
@@ -528,7 +528,7 @@
   font-size: var(--text-xs);
   font-weight: var(--font-semibold);
   cursor: pointer;
-  transition: background 0.15s;
+  transition: background var(--duration-fast);
 }
 
 .damageBtn:hover { background: var(--color-danger-hover); }
@@ -543,7 +543,7 @@
   font-size: var(--text-xs);
   font-weight: var(--font-semibold);
   cursor: pointer;
-  transition: background 0.15s;
+  transition: background var(--duration-fast);
 }
 
 .healBtn:hover { background: var(--color-success-hover); }
@@ -662,7 +662,7 @@
   display: inline-block;
   flex-shrink: 0;
   cursor: pointer;
-  transition: background 0.15s, border-color 0.15s;
+  transition: background var(--duration-fast), border-color var(--duration-fast);
 }
 
 .proficient {

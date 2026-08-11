@@ -55,7 +55,7 @@
   align-items: center;
   justify-content: center;
   padding: 0;
-  transition: background 0.1s, color 0.1s;
+  transition: background var(--duration-fast), color var(--duration-fast);
 }
 
 .titleBtn:hover {

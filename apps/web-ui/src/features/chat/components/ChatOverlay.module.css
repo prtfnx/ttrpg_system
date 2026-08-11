@@ -14,7 +14,7 @@
   border-top-right-radius: var(--radius-md);
   z-index: var(--z-fixed);
   pointer-events: all;
-  transition: background 0.2s;
+  transition: background var(--duration-base);
 }
 
 .overlay:hover,

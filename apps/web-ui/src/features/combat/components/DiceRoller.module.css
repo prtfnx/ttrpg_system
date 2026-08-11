@@ -71,7 +71,7 @@
 
 /* Rolling animation */
 .dice-button.rolling {
-  animation: diceRoll 0.5s ease-in-out;
+  animation: diceRoll calc(var(--duration-base) * 2) ease-in-out;
 }
 
 @keyframes diceRoll {
@@ -89,7 +89,7 @@
 }
 
 .dice-button.rolling .dice-icon {
-  animation: bounce 0.5s ease-in-out;
+  animation: bounce calc(var(--duration-base) * 2) ease-in-out;
 }
 
 @keyframes bounce {
@@ -131,7 +131,7 @@
 .diceResult.critical {
   background: linear-gradient(135deg, var(--yellow-400) 0%, var(--yellow-200) 100%);
   color: var(--text-primary);
-  animation: criticalGlow 1s ease-in-out;
+  animation: criticalGlow var(--duration-spin) ease-in-out;
 }
 
 .diceResult.high {
@@ -164,7 +164,7 @@
   z-index: var(--z-content);
   min-width: var(--size-50);
   margin-top: var(--space-xs);
-  animation: slideDown 0.3s ease-out;
+  animation: slideDown var(--duration-slow) ease-out;
 }
 
 @keyframes slideDown {
@@ -370,5 +370,5 @@
   position: absolute;
   top: calc(var(--space-sm) * -1);
   right: calc(var(--space-sm) * -1);
-  animation: criticalStars 1.5s ease-out;
+  animation: criticalStars calc(var(--duration-pulse) * 0.75) ease-out;
 }

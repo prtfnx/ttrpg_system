@@ -33,7 +33,7 @@
   font-size: var(--text-xs);
   cursor: pointer;
   text-align: left;
-  transition: background 0.15s;
+  transition: background var(--duration-fast);
 }
 
 .choiceBtn:hover {

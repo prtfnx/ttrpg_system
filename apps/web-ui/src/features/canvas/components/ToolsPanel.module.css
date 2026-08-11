@@ -261,7 +261,7 @@
   color: var(--text-muted);
   cursor: pointer;
   font-size: var(--text-4xs);
-  transition: background 0.1s, border-color 0.1s, color 0.1s;
+  transition: background var(--duration-fast), border-color var(--duration-fast), color var(--duration-fast);
 }
 
 .layerBtn:hover {
@@ -396,7 +396,7 @@
   border: var(--border-width) solid var(--border-primary);
   border-radius: var(--radius-sm);
   cursor: pointer;
-  transition: transform 0.2s ease;
+  transition: transform var(--duration-base) ease;
 }
 
 .colorPresets button:hover {

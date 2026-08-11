@@ -282,7 +282,7 @@
   border: var(--space-xs) solid var(--border-primary);
   border-top: var(--space-xs) solid var(--accent-primary);
   border-radius: 50%;
-  animation: spin 1s linear infinite;
+  animation: spin var(--duration-spin) linear infinite;
 }
 
 @keyframes spin {

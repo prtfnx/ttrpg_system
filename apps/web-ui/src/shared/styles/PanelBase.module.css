@@ -16,7 +16,7 @@
   justify-content: center;
   z-index: var(--z-modal-backdrop);
   backdrop-filter: blur(var(--space-1));
-  animation: fadeIn 0.2s ease-out;
+  animation: fadeIn var(--duration-base) ease-out;
 }
 
 @keyframes fadeIn {
@@ -36,7 +36,7 @@
   box-shadow: var(--shadow-xl);
   color: var(--text-primary);
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', sans-serif;
-  animation: slideIn 0.3s ease-out;
+  animation: slideIn var(--duration-slow) ease-out;
 }
 
 @keyframes slideIn {
@@ -538,7 +538,7 @@
   from { transform: rotate(0deg); }
   to   { transform: rotate(360deg); }
 }
-.spinning { animation: spin 1s linear infinite; }
+.spinning { animation: spin var(--duration-spin) linear infinite; }
 
 /* ===== Accessibility ===== */
 @media (prefers-reduced-motion: reduce) {

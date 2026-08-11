@@ -55,7 +55,7 @@
   outline: none;
   background: var(--bg-primary);
   color: var(--text-primary);
-  transition: border-color 0.2s;
+  transition: border-color var(--duration-base);
   font-family: inherit;
 }
 

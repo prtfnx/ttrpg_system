@@ -808,20 +808,8 @@ export const GameCanvas: React.FC = () => {
   return (
     <DragDropImageHandler>
       <div className={styles.gameCanvasContainer}>
-        {/* Layer elements for testing */}
-        <div className={styles.testOnly} data-testid="layer-background" data-visible="true" />
-        <div className={styles.testOnly} data-testid="layer-tokens" data-visible="true" />
-        <div className={styles.testOnly} data-testid="layer-fog-of-war" data-visible="true" />
-
         {/* Floating layer picker — DM only, always visible on canvas */}
         <FloatingLayerPicker />
-
-        {/* Draggable tokens for testing */}
-        <div
-          className={styles.testDraggableToken}
-          data-testid="draggable-token-wizard"
-          draggable
-        />
 
         <CanvasRenderer
           ref={canvasRef}
@@ -1020,8 +1008,6 @@ export const GameCanvas: React.FC = () => {
                 </div>
               </>
             )}
-            <div className={styles.testOnly} data-testid="viewport-culling-enabled">true</div>
-            <div className={styles.testOnly} data-testid="render-count">{Math.floor(Date.now() / 1000) % 1000}</div>
           </div>
         )}
 

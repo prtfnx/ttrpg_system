@@ -469,15 +469,14 @@ describe('Web Client TypeScript & WASM Systems Integration Tests', () => {
       expect(screen.getAllByText(/world/i)).toHaveLength(2); // One in FPS overlay, one in debug overlay
     });
 
-    it('should support sprite manipulation through TypeScript interface', async () => {
+    it('should expose the interactive canvas for sprite manipulation', () => {
       render(<GameCanvas />);
       
       // User expects sprite manipulation interface to be available
       const canvas = screen.getByTestId('game-canvas');
       expect(canvas).toBeInTheDocument();
       
-      // User expects draggable token for testing
-      expect(screen.getByTestId('draggable-token-wizard')).toBeInTheDocument();
+      expect(canvas).toHaveAttribute('tabindex', '0');
     });
   });
 

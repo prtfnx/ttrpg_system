@@ -503,39 +503,6 @@
   margin-top: var(--space-sm);
 }
 
-/* Modal */
-.spellModalOverlay {
-  composes: wizard-overlay from './CharacterWizardBase.module.css';
-  padding: var(--space-lg);
-}
-
-.spellModal {
-  composes: wizard-modal from './CharacterWizardBase.module.css';
-  max-width: var(--size-150);
-  max-height: 80vh;
-  overflow-y: auto;
-}
-
-.modalHeader {
-  composes: wizard-header-primary from './CharacterWizardBase.module.css';
-  background: linear-gradient(135deg, var(--purple-700) 0%, var(--purple-600) 100%);
-  padding: var(--space-lg) var(--space-xl);
-  border-radius: var(--radius-md) var(--radius-md) 0 0;
-}
-
-.modalHeader h3 {
-  margin: 0;
-  font-size: var(--text-xl);
-}
-
-.closeModal {
-  composes: wizard-close-button from './CharacterWizardBase.module.css';
-}
-
-.modalContent {
-  composes: wizard-content from './CharacterWizardBase.module.css';
-}
-
 .spellLevelSchool {
   color: var(--purple-700);
   font-weight: var(--font-semibold);
@@ -556,8 +523,8 @@
   font-size: var(--text-sm);
 }
 
-.modalContent .spellDamage,
-.modalContent .spellSave {
+.spellDamage,
+.spellSave {
   padding: var(--space-sm);
   background: var(--spell-bg-necromancy);
   border-radius: var(--radius-md);
@@ -610,11 +577,6 @@
     flex-direction: column;
     gap: var(--space-md);
     align-items: stretch;
-  }
-  
-  .spellModal {
-    margin: var(--space-lg);
-    max-height: calc(100vh - var(--space-2xl));
   }
   
   .spellStatsDetailed {

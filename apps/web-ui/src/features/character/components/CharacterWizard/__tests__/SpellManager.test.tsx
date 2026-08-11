@@ -55,7 +55,7 @@ describe('SpellManager', () => {
 
     expect(screen.getByRole('dialog', { name: 'Magic Missile' })).toBeInTheDocument();
 
-    fireEvent.keyDown(window, { key: 'Escape' });
+    fireEvent.keyDown(document, { key: 'Escape' });
 
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
   });

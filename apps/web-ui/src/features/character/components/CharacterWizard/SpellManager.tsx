@@ -1,5 +1,6 @@
 import clsx from 'clsx';
 import React, { useEffect, useState } from 'react';
+import { Modal } from '@shared/components';
 import styles from './SpellManager.module.css';
 import type { WizardFormData } from './WizardFormData';
 
@@ -42,17 +43,6 @@ export const SpellManager: React.FC<SpellManagerProps> = ({
   const [searchTerm, setSearchTerm] = useState<string>('');
   const [filterLevel, setFilterLevel] = useState<number | null>(null);
   const [filterSchool, setFilterSchool] = useState<string>('');
-
-  useEffect(() => {
-    if (!selectedSpell) return;
-
-    const handleKeyDown = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') setSelectedSpell(null);
-    };
-
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [selectedSpell]);
 
   // Initialize spell slots based on character class and level
   useEffect(() => {
@@ -570,38 +560,24 @@ export const SpellManager: React.FC<SpellManagerProps> = ({
 
       {/* Spell Detail Modal */}
       {selectedSpell && (
-        <div className={styles.spellModalOverlay} onClick={() => setSelectedSpell(null)}>
-          <div
-            className={styles.spellModal}
-            role="dialog"
-            aria-modal="true"
-            aria-labelledby="spell-details-title"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className={styles.modalHeader}>
-              <h3 id="spell-details-title">{selectedSpell.name}</h3>
-              <button type="button" className={styles.closeModal} onClick={() => setSelectedSpell(null)} aria-label="Close spell details">×</button>
-            </div>
-            <div className={styles.modalContent}>
-              <div className={styles.spellLevelSchool}>
-                {selectedSpell.level === 0 ? 'Cantrip' : `Level ${selectedSpell.level}`} {selectedSpell.school}
-              </div>
-              <div className={styles.spellStatsDetailed}>
-                <div><strong>Casting Time:</strong> {selectedSpell.castingTime}</div>
-                <div><strong>Range:</strong> {selectedSpell.range}</div>
-                <div><strong>Components:</strong> {selectedSpell.components}</div>
-                <div><strong>Duration:</strong> {selectedSpell.duration}</div>
-              </div>
-              {selectedSpell.damage && (
-                <div className={styles.spellDamage}><strong>Damage:</strong> {selectedSpell.damage}</div>
-              )}
-              {selectedSpell.savingThrow && (
-                <div className={styles.spellSave}><strong>Saving Throw:</strong> {selectedSpell.savingThrow}</div>
-              )}
-              <div className={styles.spellDescriptionDetailed}>{selectedSpell.description}</div>
-            </div>
+        <Modal isOpen onClose={() => setSelectedSpell(null)} title={selectedSpell.name}>
+          <div className={styles.spellLevelSchool}>
+            {selectedSpell.level === 0 ? 'Cantrip' : `Level ${selectedSpell.level}`} {selectedSpell.school}
           </div>
-        </div>
+          <div className={styles.spellStatsDetailed}>
+            <div><strong>Casting Time:</strong> {selectedSpell.castingTime}</div>
+            <div><strong>Range:</strong> {selectedSpell.range}</div>
+            <div><strong>Components:</strong> {selectedSpell.components}</div>
+            <div><strong>Duration:</strong> {selectedSpell.duration}</div>
+          </div>
+          {selectedSpell.damage && (
+            <div className={styles.spellDamage}><strong>Damage:</strong> {selectedSpell.damage}</div>
+          )}
+          {selectedSpell.savingThrow && (
+            <div className={styles.spellSave}><strong>Saving Throw:</strong> {selectedSpell.savingThrow}</div>
+          )}
+          <div className={styles.spellDescriptionDetailed}>{selectedSpell.description}</div>
+        </Modal>
       )}
     </div>
   );

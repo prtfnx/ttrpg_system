@@ -1,5 +1,6 @@
 import type { PerformanceSettings } from '@features/canvas';
 import { PerformanceLevel, performanceService } from '@features/canvas';
+import { Modal } from '@shared/components';
 import clsx from 'clsx';
 import React, { useEffect, useState } from 'react';
 import styles from './PerformanceSettingsPanel.module.css';
@@ -13,7 +14,6 @@ export const PerformanceSettingsPanel: React.FC<PerformanceSettingsPanelProps> =
   isVisible,
   onClose
 }) => {
-  const titleId = React.useId();
   const [settings, setSettings] = useState<PerformanceSettings | null>(null);
   const [tempSettings, setTempSettings] = useState<PerformanceSettings | null>(null);
 
@@ -24,17 +24,6 @@ export const PerformanceSettingsPanel: React.FC<PerformanceSettingsPanelProps> =
       setTempSettings({ ...currentSettings });
     }
   }, [isVisible]);
-
-  useEffect(() => {
-    if (!isVisible) return;
-
-    const handleKeyDown = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') onClose();
-    };
-
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [isVisible, onClose]);
 
   if (!isVisible || !settings || !tempSettings) return null;
 
@@ -119,19 +108,8 @@ export const PerformanceSettingsPanel: React.FC<PerformanceSettingsPanelProps> =
   const hasChanges = JSON.stringify(settings) !== JSON.stringify(tempSettings);
 
   return (
-    <div className={styles.performanceSettingsOverlay}>
-      <div
-        className={styles.performanceSettingsPanel}
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby={titleId}
-      >
-        <div className={styles.settingsHeader}>
-          <h2 id={titleId}>Performance Settings</h2>
-          <button type="button" onClick={onClose} className={styles.closeButton} aria-label="Close performance settings" autoFocus>×</button>
-        </div>
-
-        <div className={styles.settingsContent}>
+    <Modal isOpen onClose={onClose} title="Performance Settings" size="large">
+        <div>
           {/* Performance Level */}
           <div className={styles.settingGroup}>
             <label className={styles.settingLabel}>Performance Level</label>
@@ -298,8 +276,7 @@ export const PerformanceSettingsPanel: React.FC<PerformanceSettingsPanelProps> =
             Apply Changes
           </button>
         </div>
-      </div>
-    </div>
+    </Modal>
   );
 };
 

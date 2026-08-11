@@ -10,23 +10,6 @@
   composes: info-box success from '@shared/styles/PanelBase.module.css';
 }
 
-/* Legacy class names for backward compatibility */
-.performanceSettingsOverlay {
-  composes: panel-overlay from '@shared/styles/PanelBase.module.css';
-}
-
-.performanceSettingsPanel {
-  composes: panel-container from '@shared/styles/PanelBase.module.css';
-}
-
-.settingsHeader {
-  composes: panel-header from '@shared/styles/PanelBase.module.css';
-}
-
-.settingsContent {
-  composes: panel-content from '@shared/styles/PanelBase.module.css';
-}
-
 .settingsSection {
   composes: settings-section from '@shared/styles/PanelBase.module.css';
 }
@@ -65,10 +48,6 @@
 
 .actionButton {
   composes: panel-button from '@shared/styles/PanelBase.module.css';
-}
-
-.closeButton {
-  composes: close-button from '@shared/styles/PanelBase.module.css';
 }
 
 .perfInfoGrid {
@@ -122,19 +101,6 @@
 
 /* Responsive */
 @media (max-width: 768px) {
-  .performanceSettingsPanel {
-    width: 95%;
-    max-height: 95vh;
-  }
-
-  .settingsHeader {
-    padding: var(--space-md) var(--space-lg);
-  }
-
-  .settingsContent {
-    padding: var(--space-lg);
-  }
-
   .settingsActions {
     flex-direction: column;
     padding: var(--space-md) var(--space-lg);
@@ -150,18 +116,3 @@
   }
 }
 
-/* Animation */
-.performanceSettingsPanel {
-  animation: slideIn 0.3s ease-out;
-}
-
-@keyframes slideIn {
-  from {
-    opacity: 0;
-    transform: scale(0.9) translateY(-20px);
-  }
-  to {
-    opacity: 1;
-    transform: scale(1) translateY(0);
-  }
-}

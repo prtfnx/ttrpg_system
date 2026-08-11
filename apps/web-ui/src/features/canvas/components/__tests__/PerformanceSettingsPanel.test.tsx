@@ -56,14 +56,13 @@ describe('PerformanceSettingsPanel', () => {
 
   it('renders settings panel when visible', () => {
     render(<PerformanceSettingsPanel isVisible={true} onClose={vi.fn()} />);
-    expect(screen.getByRole('dialog', { name: 'Performance Settings' })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Close performance settings' })).toHaveFocus();
+    expect(screen.getByRole('dialog', { name: 'Performance Settings' })).toHaveFocus();
   });
 
   it('calls onClose when close button clicked', () => {
     const onClose = vi.fn();
     render(<PerformanceSettingsPanel isVisible={true} onClose={onClose} />);
-    fireEvent.click(screen.getByRole('button', { name: 'Close performance settings' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Close modal' }));
     expect(onClose).toHaveBeenCalled();
   });
 
@@ -71,7 +70,7 @@ describe('PerformanceSettingsPanel', () => {
     const onClose = vi.fn();
     render(<PerformanceSettingsPanel isVisible={true} onClose={onClose} />);
 
-    fireEvent.keyDown(window, { key: 'Escape' });
+    fireEvent.keyDown(document, { key: 'Escape' });
 
     expect(onClose).toHaveBeenCalledOnce();
   });

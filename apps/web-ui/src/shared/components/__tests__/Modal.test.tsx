@@ -79,4 +79,21 @@ describe('Modal', () => {
     fireEvent.keyDown(document, { key: 'Escape' });
     expect(onClose).not.toHaveBeenCalled();
   });
+
+  it('supports alert dialogs with a description', () => {
+    render(
+      <Modal
+        isOpen
+        onClose={vi.fn()}
+        title="Unsaved changes"
+        role="alertdialog"
+        ariaDescribedBy="unsaved-description"
+      >
+        <p id="unsaved-description">Your changes will be lost.</p>
+      </Modal>,
+    );
+
+    expect(screen.getByRole('alertdialog', { name: 'Unsaved changes' }))
+      .toHaveAccessibleDescription('Your changes will be lost.');
+  });
 });

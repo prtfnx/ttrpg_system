@@ -1,46 +1,19 @@
-.overlay {
-  position: fixed;
-  inset: 0;
-  background: var(--modal-overlay);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  z-index: 500;
-}
-
-.modal {
-  background: var(--panel-bg);
-  border: var(--border-width) solid var(--border-primary);
-  border-radius: var(--radius-md);
-  box-shadow: var(--shadow-lg);
-  padding: var(--spacing-lg);
-  min-width: 280px;
-  max-width: 400px;
-}
-
-.title {
-  font-size: var(--font-size-md);
-  font-weight: var(--font-bold);
-  color: var(--status-warning-text);
-  margin: 0 0 var(--spacing-sm);
-}
-
 .body {
-  font-size: var(--font-size-sm);
+  font-size: var(--text-sm);
   color: var(--text-secondary);
-  margin: 0 0 var(--spacing-sm);
+  margin: 0 0 var(--space-sm);
 }
 
 .list {
-  font-size: var(--font-size-sm);
+  font-size: var(--text-sm);
   color: var(--text-primary);
-  margin: 0 0 var(--spacing-md);
-  padding-left: var(--spacing-md);
+  margin: 0 0 var(--space-md);
+  padding-left: var(--space-md);
 }
 
 .actions {
   display: flex;
-  gap: var(--spacing-sm);
+  gap: var(--space-sm);
   justify-content: flex-end;
 }
 
@@ -49,19 +22,27 @@
   color: var(--button-primary-text);
   border: none;
   border-radius: var(--radius-sm);
-  padding: var(--spacing-xs) var(--spacing-sm);
+  padding: var(--space-xs) var(--space-sm);
   cursor: pointer;
-  font-size: var(--font-size-sm);
+  font-size: var(--text-sm);
 }
 
 .btnSecondary {
-  background: var(--overlay-dark-medium);
+  background: var(--button-secondary-bg);
   color: var(--text-primary);
-  border: var(--border-width) solid var(--border-primary);
+  border: var(--border-width-sm) solid var(--border-primary);
   border-radius: var(--radius-sm);
-  padding: var(--spacing-xs) var(--spacing-sm);
+  padding: var(--space-xs) var(--space-sm);
   cursor: pointer;
-  font-size: var(--font-size-sm);
+  font-size: var(--text-sm);
+}
+
+.btnDanger:hover {
+  background: var(--button-danger-hover);
+}
+
+.btnSecondary:hover {
+  background: var(--button-secondary-hover);
 }
 
 .btnDanger:focus-visible,

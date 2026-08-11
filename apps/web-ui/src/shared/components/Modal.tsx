@@ -18,9 +18,11 @@ interface Props {
   closeOnOverlayClick?: boolean;
   showCloseButton?: boolean;
   size?: 'small' | 'medium' | 'large' | 'extra-large' | 'fullscreen';
+  role?: 'dialog' | 'alertdialog';
+  ariaDescribedBy?: string;
 }
 
-export function Modal({ isOpen, onClose, title, children, closeOnEscape = true, closeOnOverlayClick = true, showCloseButton = true, size = 'medium' }: Props) {
+export function Modal({ isOpen, onClose, title, children, closeOnEscape = true, closeOnOverlayClick = true, showCloseButton = true, size = 'medium', role = 'dialog', ariaDescribedBy }: Props) {
   const titleId = useId();
   const [isAnimating, setIsAnimating] = useState(false);
   const modalRef = useRef<HTMLDivElement>(null);
@@ -117,9 +119,10 @@ export function Modal({ isOpen, onClose, title, children, closeOnEscape = true, 
       <div
         ref={modalRef}
         className={clsx(styles.modalContent, styles[size])}
-        role="dialog"
+        role={role}
         aria-modal="true"
         aria-labelledby={titleId}
+        aria-describedby={ariaDescribedBy}
         tabIndex={-1}
       >
         <div className={styles.modalHeader}>

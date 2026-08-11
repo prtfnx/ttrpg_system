@@ -1,83 +1,5 @@
-/* Share Character Dialog Styles */
-
-.shareDialogOverlay {
-  position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background: var(--overlay-dark);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  z-index: var(--z-modal-backdrop);
-  animation: fadeIn var(--transition-fast);
-}
-
-.shareDialog {
-  background: var(--panel-bg);
-  border: var(--border-width-sm) solid var(--border-primary);
-  border-radius: var(--radius-md);
-  width: var(--size-125);
-  max-width: 90vw;
-  max-height: var(--modal-max-height);
-  display: flex;
-  flex-direction: column;
-  box-shadow: var(--shadow-xl);
-  animation: slideUp var(--transition-normal);
-}
-
-@keyframes slideUp {
-  from {
-    opacity: 0;
-    transform: translateY(var(--space-lg));
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
-}
-
-.shareDialogHeader {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: var(--space-lg) var(--space-xl);
-  border-bottom: var(--border-width-sm) solid var(--border-primary);
-}
-
-.shareDialogHeader h3 {
-  margin: 0;
-  font-size: var(--text-lg);
-  color: var(--text-primary);
-}
-
-.closeBtn {
-  background: none;
-  border: none;
-  color: var(--text-muted);
-  font-size: var(--text-3xl);
-  line-height: 1;
-  cursor: pointer;
-  padding: 0;
-  width: var(--size-8);
-  height: var(--size-8);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  border-radius: var(--radius-sm);
-  transition: all var(--transition-fast);
-}
-
-.closeBtn:hover {
-  background: var(--hover-overlay);
-  color: var(--text-primary);
-}
-
 .shareDialogContent {
-  flex: 1;
-  padding: var(--space-lg);
-  overflow-y: auto;
+  min-width: 0;
 }
 
 .characterInfo {
@@ -143,7 +65,6 @@
   color: var(--color-primary-hover);
 }
 
-.closeBtn:focus-visible,
 .linkBtn:focus-visible {
   outline: none;
   box-shadow: var(--focus-ring);
@@ -225,7 +146,7 @@
   display: flex;
   justify-content: flex-end;
   gap: var(--space-md);
-  padding: var(--space-lg) var(--space-xl);
+  padding-top: var(--space-lg);
   border-top: var(--border-width-sm) solid var(--border-primary);
 }
 
@@ -259,23 +180,19 @@
 }
 
 /* Scrollbar Styling */
-.userList::-webkit-scrollbar,
-.shareDialogContent::-webkit-scrollbar {
+.userList::-webkit-scrollbar {
   width: var(--space-1-5);
 }
 
-.userList::-webkit-scrollbar-track,
-.shareDialogContent::-webkit-scrollbar-track {
+.userList::-webkit-scrollbar-track {
   background: var(--bg-primary);
 }
 
-.userList::-webkit-scrollbar-thumb,
-.shareDialogContent::-webkit-scrollbar-thumb {
+.userList::-webkit-scrollbar-thumb {
   background: var(--border-secondary);
   border-radius: var(--radius-xs);
 }
 
-.userList::-webkit-scrollbar-thumb:hover,
-.shareDialogContent::-webkit-scrollbar-thumb:hover {
+.userList::-webkit-scrollbar-thumb:hover {
   background: var(--border-hover);
 }

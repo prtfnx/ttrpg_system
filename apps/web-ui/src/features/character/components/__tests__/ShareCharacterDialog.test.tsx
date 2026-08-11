@@ -94,7 +94,8 @@ describe('ShareCharacterDialog', () => {
   it('clicking overlay calls onClose', () => {
     const onClose = vi.fn();
     render(<ShareCharacterDialog {...baseProps} onClose={onClose} />);
-    fireEvent.click(screen.getByTitle('Close'));
+    const dialog = screen.getByRole('dialog', { name: /share character/i });
+    fireEvent.click(dialog.parentElement as HTMLElement);
     expect(onClose).toHaveBeenCalled();
   });
 
@@ -102,7 +103,7 @@ describe('ShareCharacterDialog', () => {
     const onClose = vi.fn();
     render(<ShareCharacterDialog {...baseProps} onClose={onClose} />);
 
-    fireEvent.keyDown(window, { key: 'Escape' });
+    fireEvent.keyDown(document, { key: 'Escape' });
 
     expect(onClose).toHaveBeenCalledOnce();
   });

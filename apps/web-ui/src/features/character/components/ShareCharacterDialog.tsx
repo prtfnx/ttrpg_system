@@ -1,5 +1,6 @@
 import clsx from 'clsx';
-import React, { useEffect, useState } from 'react';
+import React, { useState } from 'react';
+import { Modal } from '@shared/components';
 import styles from './ShareCharacterDialog.module.css';
 
 interface ShareCharacterDialogProps {
@@ -48,32 +49,9 @@ export const ShareCharacterDialog: React.FC<ShareCharacterDialogProps> = ({
     onClose();
   };
 
-  useEffect(() => {
-    const handleKeyDown = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') onClose();
-    };
-
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [onClose]);
-
   return (
-    <div className={styles.shareDialogOverlay} onClick={onClose}>
-      <div
-        className={styles.shareDialog}
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby="share-character-title"
-        onClick={e => e.stopPropagation()}
-      >
-        <div className={styles.shareDialogHeader}>
-          <h3 id="share-character-title">Share Character</h3>
-          <button type="button" className={styles.closeBtn} onClick={onClose} title="Close" aria-label="Close share character dialog">
-            ×
-          </button>
-        </div>
-
-        <div className={styles.shareDialogContent}>
+    <Modal isOpen onClose={onClose} title="Share Character">
+      <div className={styles.shareDialogContent}>
           <div className={styles.characterInfo}>
             <div className={styles.infoRow}>
               <span className={styles.label}>Character:</span>
@@ -127,17 +105,16 @@ export const ShareCharacterDialog: React.FC<ShareCharacterDialogProps> = ({
             <strong>Note:</strong> Users with control can edit stats, add conditions,
             and manage tokens for this character.
           </div>
-        </div>
-
-        <div className={styles.shareDialogFooter}>
-          <button type="button" className={styles.btnSecondary} onClick={onClose}>
-            Cancel
-          </button>
-          <button type="button" className={styles.btnPrimary} onClick={handleSave}>
-            Save Changes
-          </button>
-        </div>
       </div>
-    </div>
+
+      <div className={styles.shareDialogFooter}>
+        <button type="button" className={styles.btnSecondary} onClick={onClose}>
+          Cancel
+        </button>
+        <button type="button" className={styles.btnPrimary} onClick={handleSave}>
+          Save Changes
+        </button>
+      </div>
+    </Modal>
   );
 };

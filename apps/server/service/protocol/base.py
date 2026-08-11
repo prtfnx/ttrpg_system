@@ -91,7 +91,6 @@ class ServerProtocol(
     def init_handlers(self):
         """Register all built-in protocol handlers."""
         self.register_handler(MessageType.PING, self.handle_ping)
-        self.register_handler(MessageType.PONG, self.handle_pong)
         self.register_handler(MessageType.TEST, self.handle_test)
         self.register_handler(MessageType.BATCH_REQUEST, self.handle_batch_request)
         self.register_handler(MessageType.ERROR, self.handle_error)
@@ -249,10 +248,6 @@ class ServerProtocol(
     async def handle_ping(self, msg: Message, client_id: str) -> Message:
         logger.info(f"PING received from client {client_id}")
         return Message(MessageType.PONG, {'timestamp': time.time(), 'client_id': client_id})
-
-    async def handle_pong(self, msg: Message, client_id: str) -> Message:
-        logger.debug(f"Received pong from {client_id}")
-        return Message(MessageType.SUCCESS, {'pong_acknowledged': True})
 
     async def handle_success(self, msg: Message, client_id: str) -> Message:
         logger.debug("Client success received", extra={"event_name": "protocol.success.received"})

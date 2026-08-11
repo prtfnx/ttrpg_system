@@ -711,7 +711,7 @@ describe('WebClientProtocol', () => {
 
     it('PONG marks connection alive', async () => {
       const p = makeProtocol();
-      await dispatch(p, 'pong', {});
+      await dispatch(p, 'pong', { timestamp: 42, client_id: 'client-1' });
       expect((p as unknown as Record<string, unknown>)['connectionAlive']).toBe(true);
     });
 
@@ -719,7 +719,7 @@ describe('WebClientProtocol', () => {
       const p = makeProtocol();
       const handler = vi.fn();
       window.addEventListener('protocol-error', handler);
-      await dispatch(p, 'error', { message: 'bad' });
+      await dispatch(p, 'error', { error: 'bad' });
       window.removeEventListener('protocol-error', handler);
       expect(handler).toHaveBeenCalledOnce();
     });
@@ -1560,7 +1560,7 @@ describe('WebClientProtocol', () => {
       const p = makeProtocol();
       const fn = vi.fn();
       window.addEventListener('sprite-action-rejected', fn);
-      await dispatch(p, 'error', { action_id: 'act-x', message: 'rejected' });
+      await dispatch(p, 'error', { action_id: 'act-x', error: 'rejected' });
       window.removeEventListener('sprite-action-rejected', fn);
       expect(fn).toHaveBeenCalledOnce();
     });

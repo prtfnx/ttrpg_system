@@ -440,6 +440,59 @@
     }
   },
   "$defs": {
+    "emptyData": {
+      "type": "object",
+      "maxProperties": 0
+    },
+    "pongData": {
+      "type": "object",
+      "required": [
+        "timestamp",
+        "client_id"
+      ],
+      "properties": {
+        "timestamp": {
+          "type": "number",
+          "minimum": 0
+        },
+        "client_id": {
+          "type": "string",
+          "minLength": 1
+        }
+      },
+      "additionalProperties": false
+    },
+    "errorData": {
+      "type": "object",
+      "required": [
+        "error"
+      ],
+      "properties": {
+        "error": {
+          "type": "string",
+          "minLength": 1
+        },
+        "session_code": {
+          "type": "string",
+          "minLength": 1
+        },
+        "reason": {
+          "type": "string"
+        },
+        "kicked_by": {
+          "type": "string",
+          "minLength": 1
+        },
+        "action_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "original_message": {
+          "type": "object"
+        }
+      },
+      "additionalProperties": false
+    },
     "welcomeData": {
       "type": "object",
       "required": [
@@ -874,6 +927,7 @@
         },
         {
           "not": {
+            "type": "object",
             "properties": {
               "type": {
                 "enum": [
@@ -1012,6 +1066,69 @@
     }
   },
   "allOf": [
+    {
+      "if": {
+        "properties": {
+          "type": {
+            "const": "ping"
+          }
+        },
+        "required": [
+          "type"
+        ]
+      },
+      "then": {
+        "properties": {
+          "data": {
+            "$ref": "#/$defs/emptyData"
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "type": {
+            "const": "pong"
+          }
+        },
+        "required": [
+          "type"
+        ]
+      },
+      "then": {
+        "required": [
+          "data"
+        ],
+        "properties": {
+          "data": {
+            "$ref": "#/$defs/pongData"
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "type": {
+            "const": "error"
+          }
+        },
+        "required": [
+          "type"
+        ]
+      },
+      "then": {
+        "required": [
+          "data"
+        ],
+        "properties": {
+          "data": {
+            "$ref": "#/$defs/errorData"
+          }
+        }
+      }
+    },
     {
       "if": {
         "properties": {

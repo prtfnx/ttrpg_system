@@ -215,7 +215,6 @@ export class WebClientProtocol {
   private registerBuiltInHandlers(): void {
     // Core message handlers
     this.registerHandler(MessageType.WELCOME, this.handleWelcome.bind(this));
-    this.registerHandler(MessageType.PING, this.handlePing.bind(this));
     this.registerHandler(MessageType.PONG, this.handlePong.bind(this));
     this.registerHandler(MessageType.ERROR, this.handleError.bind(this));
     this.registerHandler(MessageType.SUCCESS, this.handleSuccess.bind(this));
@@ -835,11 +834,6 @@ export class WebClientProtocol {
     if (this.userId) this.requestActiveTable();
     // Signal to all listeners that protocol is connected and ready
     emitProtocolEvent('protocol-connected');
-  }
-
-  private async handlePing(message: Message): Promise<void> {
-    // Respond to ping with pong
-    this.sendMessage(createMessage(MessageType.PONG, message.data));
   }
 
   private async handlePong(_message: Message): Promise<void> {

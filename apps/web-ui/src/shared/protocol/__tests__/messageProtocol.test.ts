@@ -64,6 +64,29 @@ describe('Protocol Message Utilities', () => {
     expect(parsed.priority).toBe(0);
   });
 
+  it('should validate heartbeat and error payloads', () => {
+    expect(parseMessage(JSON.stringify({
+      type: MessageType.PING,
+      data: {},
+    })).data).toEqual({});
+    expect(parseMessage(JSON.stringify({
+      type: MessageType.PONG,
+      data: { timestamp: 42, client_id: 'client-1' },
+    })).data).toMatchObject({ client_id: 'client-1' });
+    expect(parseMessage(JSON.stringify({
+      type: MessageType.ERROR,
+      data: { error: 'Not permitted', action_id: 'action-1' },
+    })).data).toMatchObject({ error: 'Not permitted' });
+    expect(() => parseMessage(JSON.stringify({
+      type: MessageType.PONG,
+      data: {},
+    }))).toThrow(/Invalid message/);
+    expect(() => parseMessage(JSON.stringify({
+      type: MessageType.ERROR,
+      data: { message: 'wrong field' },
+    }))).toThrow(/Invalid message/);
+  });
+
   it('should validate the session welcome payload', () => {
     const validData = {
       message: 'Welcome to game session ABC123',

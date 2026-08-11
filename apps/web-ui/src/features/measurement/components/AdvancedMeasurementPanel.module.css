@@ -654,7 +654,7 @@
   justify-content: center;
   gap: var(--space-md);
   color: var(--white);
-  border-radius: var(--space-lg);
+  border-radius: var(--radius-lg);
 }
 
 .loading-overlay p {

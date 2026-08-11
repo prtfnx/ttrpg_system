@@ -1,6 +1,7 @@
 import { useAuthenticatedWebSocket } from '@features/auth';
 import type { UserInfo } from '@features/auth';
 import { MessageType, createMessage } from '@lib/websocket';
+import { Modal } from '@shared/components';
 import { logger } from '@shared/utils/logger';
 import clsx from 'clsx';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
@@ -23,7 +24,6 @@ interface FileUploadInfo {
 }
 
 export const AssetManager: React.FC<AssetManagerProps> = ({ isVisible, onClose, sessionCode, userInfo }) => {
-  const titleId = React.useId();
   const [activeTab, setActiveTab] = useState<'cache' | 'upload' | 'settings'>('cache');
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedAssets, setSelectedAssets] = useState<Set<string>>(new Set());
@@ -67,17 +67,6 @@ export const AssetManager: React.FC<AssetManagerProps> = ({ isVisible, onClose, 
       protocol.sendMessage(createMessage(MessageType.PLAYER_ACTION, { action: "asset_list" }, 1));
     }
   }, [protocol]);
-
-  useEffect(() => {
-    if (!isVisible) return;
-
-    const handleKeyDown = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') onClose();
-    };
-
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [isVisible, onClose]);
 
   const handleFileSelect = useCallback((event: React.ChangeEvent<HTMLInputElement>) => {
     const files = event.target.files;
@@ -225,18 +214,8 @@ export const AssetManager: React.FC<AssetManagerProps> = ({ isVisible, onClose, 
   if (!isVisible) return null;
 
   return (
-    <div className={styles.assetManagerOverlay}>
-      <div
-        className={styles.assetManager}
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby={titleId}
-      >
-        <div className={styles.assetManagerHeader}>
-          <h2 id={titleId}>Asset Manager</h2>
-          <button type="button" className={styles.closeButton} onClick={onClose} aria-label="Close asset manager" autoFocus>×</button>
-        </div>
-
+    <Modal isOpen onClose={onClose} title="Asset Manager" size="extra-large">
+      <div className={styles.assetManager}>
         <div className={styles.assetManagerTabs}>
           <button
             type="button"
@@ -501,7 +480,7 @@ export const AssetManager: React.FC<AssetManagerProps> = ({ isVisible, onClose, 
           </div>
         )}
       </div>
-    </div>
+    </Modal>
   );
 }
 

@@ -42,18 +42,17 @@ const renderAssetManager = (onClose = vi.fn()) => {
 };
 
 describe('AssetManager', () => {
-  it('exposes a named dialog and focuses its close button', () => {
+  it('exposes and focuses a named dialog', () => {
     renderAssetManager();
 
-    expect(screen.getByRole('dialog', { name: 'Asset Manager' })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Close asset manager' })).toHaveFocus();
+    expect(screen.getByRole('dialog', { name: 'Asset Manager' })).toHaveFocus();
   });
 
   it('closes when Escape is pressed', () => {
     const onClose = vi.fn();
     renderAssetManager(onClose);
 
-    fireEvent.keyDown(window, { key: 'Escape' });
+    fireEvent.keyDown(document, { key: 'Escape' });
 
     expect(onClose).toHaveBeenCalledOnce();
   });

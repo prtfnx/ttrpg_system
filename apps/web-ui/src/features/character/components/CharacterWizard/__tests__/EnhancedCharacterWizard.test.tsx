@@ -1,5 +1,5 @@
 import '@testing-library/jest-dom';
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { EnhancedCharacterWizard } from '../EnhancedCharacterWizard';
@@ -117,6 +117,53 @@ describe('EnhancedCharacterWizard', () => {
 
       expect(screen.getByRole('dialog')).toBeInTheDocument();
       expect(screen.getByText(/Character Creation Wizard/i)).toBeInTheDocument();
+    });
+
+    it('contains keyboard focus and restores it when closed', () => {
+      const { rerender } = render(
+        <>
+          <button type="button">Open wizard</button>
+          <EnhancedCharacterWizard
+            isOpen={false}
+            onFinish={mockOnFinish}
+            onCancel={mockOnCancel}
+          />
+        </>
+      );
+      const trigger = screen.getByRole('button', { name: 'Open wizard' });
+      trigger.focus();
+
+      rerender(
+        <>
+          <button type="button">Open wizard</button>
+          <EnhancedCharacterWizard
+            isOpen
+            onFinish={mockOnFinish}
+            onCancel={mockOnCancel}
+          />
+        </>
+      );
+
+      const dialog = screen.getByRole('dialog', { name: /character creation wizard/i });
+      expect(dialog).toHaveFocus();
+
+      const enabledButtons = within(dialog).getAllByRole('button')
+        .filter((button) => !button.hasAttribute('disabled'));
+      enabledButtons[0].focus();
+      fireEvent.keyDown(document, { key: 'Tab', shiftKey: true });
+      expect(enabledButtons.at(-1)).toHaveFocus();
+
+      rerender(
+        <>
+          <button type="button">Open wizard</button>
+          <EnhancedCharacterWizard
+            isOpen={false}
+            onFinish={mockOnFinish}
+            onCancel={mockOnCancel}
+          />
+        </>
+      );
+      expect(screen.getByRole('button', { name: 'Open wizard' })).toHaveFocus();
     });
 
     it('calls onCancel when close button is clicked', async () => {

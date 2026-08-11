@@ -135,6 +135,7 @@ export const EnhancedCharacterWizard: React.FC<EnhancedCharacterWizardProps> = (
   const initializedRef = useRef(false);
   const previousVersionRef = useRef(draftVersion);
   const previousStepRef = useRef(initialStep);
+  const dialogRef = useRef<HTMLDivElement>(null);
 
   // Form setup with enhanced validation
   const form = useForm<WizardFormData>({
@@ -398,10 +399,56 @@ export const EnhancedCharacterWizard: React.FC<EnhancedCharacterWizardProps> = (
     onCancel();
   }, [currentStepIndex, draftId, draftVersion, getValues, hasUnsavedChanges, onCancel, onSave, readOnly]);
 
+  useEffect(() => {
+    if (!isOpen) return;
+
+    const previousActiveElement = document.activeElement;
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+
+    if (!dialogRef.current?.contains(document.activeElement)) {
+      dialogRef.current?.focus();
+    }
+
+    return () => {
+      document.body.style.overflow = previousOverflow;
+      if (previousActiveElement instanceof HTMLElement) previousActiveElement.focus();
+    };
+  }, [isOpen]);
+
   // Keyboard navigation
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
       if (!isOpen) return;
+
+      const activeElement = document.activeElement;
+      const activeDialog = activeElement instanceof Element
+        ? activeElement.closest('[aria-modal="true"]')
+        : null;
+      if (activeDialog && activeDialog !== dialogRef.current) return;
+
+      if (event.key === 'Tab') {
+        const focusable = Array.from(dialogRef.current?.querySelectorAll<HTMLElement>(
+          'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])',
+        ) ?? []).filter((element) => element.getAttribute('aria-hidden') !== 'true');
+
+        if (focusable.length === 0) {
+          event.preventDefault();
+          dialogRef.current?.focus();
+          return;
+        }
+
+        const first = focusable[0];
+        const last = focusable[focusable.length - 1];
+        if (event.shiftKey && (activeElement === first || !dialogRef.current?.contains(activeElement))) {
+          event.preventDefault();
+          last.focus();
+        } else if (!event.shiftKey && (activeElement === last || !dialogRef.current?.contains(activeElement))) {
+          event.preventDefault();
+          first.focus();
+        }
+        return;
+      }
       
       switch (event.key) {
         case 'Escape':
@@ -462,11 +509,13 @@ export const EnhancedCharacterWizard: React.FC<EnhancedCharacterWizardProps> = (
 
   const modalContent = (
     <div
+      ref={dialogRef}
       className={clsx(styles['enhanced-wizard-overlay'], className)}
       role="dialog"
       aria-modal="true"
       aria-labelledby="wizard-title"
       aria-describedby="wizard-description"
+      tabIndex={-1}
     >
       <div className={styles['enhanced-wizard-modal']}>
         {isInitializing ? (

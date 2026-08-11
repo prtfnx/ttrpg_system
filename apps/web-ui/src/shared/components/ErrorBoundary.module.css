@@ -192,7 +192,7 @@
 .lightingPanelError li,
 .commonSolutions li {
   margin: var(--space-1) 0;
-  line-height: var(--line-tight);
+  line-height: var(--leading-tight);
 }
 
 .commonSolutions {

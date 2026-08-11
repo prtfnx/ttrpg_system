@@ -6,42 +6,42 @@
 
 .panelHeaderCompact {
   composes: panel-header from '@shared/styles/PanelBase.module.css';
-  padding: var(--spacing-sm) var(--spacing-md);
+  padding: var(--space-sm) var(--space-md);
 }
 
 .panelTitle {
   margin: 0;
-  font-size: var(--font-size-base);
+  font-size: var(--text-base);
   font-weight: var(--font-semibold);
   color: var(--text-primary);
 }
 
 .errorMessage {
-  padding: var(--spacing-sm) var(--spacing-md);
+  padding: var(--space-sm) var(--space-md);
   background: var(--status-error-bg);
   border: var(--border-width) solid var(--color-danger);
   border-radius: var(--radius-sm);
   color: var(--color-danger);
-  font-size: var(--font-size-sm);
-  margin-bottom: var(--spacing-sm);
+  font-size: var(--text-sm);
+  margin-bottom: var(--space-sm);
 }
 
 .actionForm {
-  padding: var(--spacing-md);
+  padding: var(--space-md);
   display: flex;
   flex-direction: column;
-  gap: var(--spacing-sm);
+  gap: var(--space-sm);
   border-bottom: var(--border-width) solid var(--border-primary);
 }
 
 .actionInput {
   width: 100%;
-  padding: var(--spacing-sm) var(--spacing-md);
+  padding: var(--space-sm) var(--space-md);
   background: var(--bg-tertiary);
   border: var(--border-width) solid var(--border-secondary);
   border-radius: var(--radius-sm);
   color: var(--text-primary);
-  font-size: var(--font-size-sm);
+  font-size: var(--text-sm);
   transition: var(--transition-fast);
 }
 
@@ -61,16 +61,16 @@
 }
 
 .actionsList {
-  padding: var(--spacing-sm);
+  padding: var(--space-sm);
   max-height: 300px;
   overflow-y: auto;
   display: flex;
   flex-direction: column;
-  gap: var(--spacing-xs);
+  gap: var(--space-xs);
 }
 
 .actionItem {
-  padding: var(--spacing-sm) var(--spacing-md);
+  padding: var(--space-sm) var(--space-md);
   background: var(--bg-tertiary);
   border: var(--border-width) solid var(--border-secondary);
   border-radius: var(--radius-sm);
@@ -86,19 +86,19 @@
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: var(--spacing-xs);
+  margin-bottom: var(--space-xs);
 }
 
 .actionType {
   font-weight: var(--font-semibold);
   color: var(--text-primary);
-  font-size: var(--font-size-sm);
+  font-size: var(--text-sm);
   text-transform: capitalize;
 }
 
 .actionStatus {
-  font-size: var(--font-size-xs);
-  padding: var(--space-xs) var(--spacing-sm);
+  font-size: var(--text-xs);
+  padding: var(--space-xs) var(--space-sm);
   border-radius: var(--radius-xs);
   font-weight: var(--font-medium);
   text-transform: uppercase;
@@ -120,7 +120,7 @@
 }
 
 .actionDetails {
-  font-size: var(--font-size-xs);
+  font-size: var(--text-xs);
   color: var(--text-secondary);
 }
 

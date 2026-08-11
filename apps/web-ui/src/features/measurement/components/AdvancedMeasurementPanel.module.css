@@ -64,8 +64,8 @@
 
 .tool-btn {
   composes: panel-button secondary from '@shared/styles/PanelBase.module.css';
-  padding: var(--spacing-sm) var(--spacing-lg);
-  font-size: var(--font-size-sm);
+  padding: var(--space-sm) var(--space-lg);
+  font-size: var(--text-sm);
   min-width: var(--space-6xl);
 }
 
@@ -80,11 +80,11 @@
   background: var(--status-success-bg);
   border: var(--border-width) solid var(--status-success-border);
   border-radius: var(--radius-lg);
-  padding: var(--spacing-md) var(--spacing-lg);
-  margin-bottom: var(--spacing-lg);
+  padding: var(--space-md) var(--space-lg);
+  margin-bottom: var(--space-lg);
   display: flex;
   align-items: center;
-  gap: var(--spacing-md);
+  gap: var(--space-md);
   box-shadow: var(--shadow-md);
 }
 
@@ -136,8 +136,8 @@
 
 .tab-btn {
   composes: panel-button secondary from '@shared/styles/PanelBase.module.css';
-  padding: var(--spacing-sm) var(--spacing-lg);
-  font-size: var(--font-size-sm);
+  padding: var(--space-sm) var(--space-lg);
+  font-size: var(--text-sm);
   flex: 1;
   text-align: center;
 }
@@ -205,21 +205,21 @@
 
 .clearBtn {
   composes: panel-button danger from '@shared/styles/PanelBase.module.css';
-  padding: var(--spacing-sm) var(--spacing-md);
-  font-size: var(--font-size-sm);
+  padding: var(--space-sm) var(--space-md);
+  font-size: var(--text-sm);
 }
 
 .create-btn {
   composes: panel-button success from '@shared/styles/PanelBase.module.css';
-  padding: var(--spacing-sm) var(--spacing-md);
-  font-size: var(--font-size-sm);
+  padding: var(--space-sm) var(--space-md);
+  font-size: var(--text-sm);
 }
 
 .export-btn,
 .import-btn {
   composes: panel-button info from '@shared/styles/PanelBase.module.css';
-  padding: var(--spacing-sm) var(--spacing-md);
-  font-size: var(--font-size-sm);
+  padding: var(--space-sm) var(--space-md);
+  font-size: var(--text-sm);
 }
 
 /* Tool Options */
@@ -266,12 +266,12 @@
 
 .shapeType-btn {
   composes: panel-button secondary from '@shared/styles/PanelBase.module.css';
-  padding: var(--spacing-md);
-  font-size: var(--font-size-xs);
+  padding: var(--space-md);
+  font-size: var(--text-xs);
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: var(--spacing-sm);
+  gap: var(--space-sm);
 }
 
 .shapeType-btn.active {

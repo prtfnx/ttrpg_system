@@ -3,7 +3,7 @@
 @import './shared/styles/theme.css';
 
 :root {
-  font-family: var(--font-family);
+  font-family: var(--font-sans);
   line-height: 1.5;
   font-weight: var(--font-normal);
   color: var(--text-primary);

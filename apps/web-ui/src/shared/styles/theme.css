@@ -647,17 +647,17 @@
   background-color: var(--bg-secondary);
   border: 1px solid var(--border-primary);
   border-radius: var(--radius-lg);
-  padding: var(--spacing-lg);
+  padding: var(--space-lg);
   color: var(--text-primary);
 }
 
 .panel-header {
-  margin: 0 0 var(--spacing-lg) 0;
+  margin: 0 0 var(--space-lg) 0;
   color: var(--text-primary);
-  font-size: var(--font-size-xl);
+  font-size: var(--text-xl);
   font-weight: 600;
   border-bottom: 1px solid var(--border-primary);
-  padding-bottom: var(--spacing-sm);
+  padding-bottom: var(--space-sm);
 }
 
 /* Standardized Button Styles - Use these CSS variables in all components */
@@ -665,17 +665,17 @@
   background-color: var(--button-primary-bg);
   border: 1px solid var(--border-button);
   border-radius: var(--radius-md);
-  padding: var(--spacing-sm) var(--spacing-lg);
+  padding: var(--space-sm) var(--space-lg);
   color: var(--button-primary-text);
-  font-family: var(--font-family);
-  font-size: var(--font-size-sm);
+  font-family: var(--font-sans);
+  font-size: var(--text-sm);
   font-weight: 500;
   cursor: pointer;
   transition: all var(--transition-fast);
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  gap: var(--spacing-xs);
+  gap: var(--space-xs);
 }
 
 .button:hover:not(:disabled) {
@@ -778,23 +778,23 @@
 
 /* Button Sizes */
 .button-small {
-  padding: calc(var(--spacing-xs) * 0.75) var(--spacing-sm);
-  font-size: var(--font-size-xs);
+  padding: calc(var(--space-xs) * 0.75) var(--space-sm);
+  font-size: var(--text-xs);
 }
 
 .button-large {
-  padding: var(--spacing-md) var(--spacing-xl);
-  font-size: var(--font-size-lg);
+  padding: var(--space-md) var(--space-xl);
+  font-size: var(--text-lg);
 }
 
 .input {
   background-color: var(--bg-primary);
   border: 1px solid var(--border-primary);
   border-radius: var(--radius-md);
-  padding: var(--spacing-sm);
+  padding: var(--space-sm);
   color: var(--text-primary);
-  font-family: var(--font-family);
-  font-size: var(--font-size-sm);
+  font-family: var(--font-sans);
+  font-size: var(--text-sm);
   transition: border-color var(--transition-fast);
 }
 
@@ -812,10 +812,10 @@
   background-color: var(--bg-primary);
   border: 1px solid var(--border-primary);
   border-radius: var(--radius-md);
-  padding: var(--spacing-sm);
+  padding: var(--space-sm);
   color: var(--text-primary);
-  font-family: var(--font-family);
-  font-size: var(--font-size-sm);
+  font-family: var(--font-sans);
+  font-size: var(--text-sm);
   cursor: pointer;
 }
 
@@ -851,14 +851,14 @@
 .form-container {
   display: flex;
   flex-direction: column;
-  gap: var(--spacing-md);
+  gap: var(--space-md);
 }
 
 .checkbox-label {
   display: flex;
   align-items: center;
-  gap: var(--spacing-sm);
-  font-size: var(--font-size-sm);
+  gap: var(--space-sm);
+  font-size: var(--text-sm);
   color: var(--text-secondary);
   cursor: pointer;
 }
@@ -870,23 +870,23 @@
 .form-group {
   display: flex;
   flex-direction: column;
-  gap: var(--spacing-xs);
+  gap: var(--space-xs);
 }
 
 .form-label {
-  font-size: var(--font-size-sm);
+  font-size: var(--text-sm);
   font-weight: 600;
   color: var(--text-secondary);
 }
 
 .form-select {
-  padding: var(--spacing-xs) var(--spacing-sm);
+  padding: var(--space-xs) var(--space-sm);
   border-radius: var(--radius-sm);
   border: 1px solid var(--border-primary);
   background-color: var(--bg-secondary);
   color: var(--text-primary);
   font-weight: 600;
-  font-size: var(--font-size-sm);
+  font-size: var(--text-sm);
 }
 
 .form-select option {
@@ -902,54 +902,54 @@
 .range-labels {
   display: flex;
   justify-content: space-between;
-  font-size: var(--font-size-xs);
+  font-size: var(--text-xs);
   color: var(--text-muted);
-  margin-top: var(--spacing-xs);
+  margin-top: var(--space-xs);
 }
 
 /* Dice roller specific styles */
 .dice-controls {
   display: flex;
   align-items: center;
-  gap: var(--spacing-sm);
-  margin-bottom: var(--spacing-sm);
+  gap: var(--space-sm);
+  margin-bottom: var(--space-sm);
 }
 
 .dice-count {
   color: var(--text-muted);
-  font-size: var(--font-size-sm);
+  font-size: var(--text-sm);
 }
 
 .dice-results {
-  margin-top: var(--spacing-xs);
+  margin-top: var(--space-xs);
   min-height: 24px;
-  font-size: var(--font-size-sm);
+  font-size: var(--text-sm);
   color: var(--text-primary);
   font-weight: 500;
 }
 
 .dice-total {
   color: var(--text-muted);
-  margin-left: var(--spacing-sm);
+  margin-left: var(--space-sm);
 }
 
 .chat-sent-message {
   color: var(--accent-success);
   font-weight: 600;
-  font-size: var(--font-size-sm);
-  margin-top: var(--spacing-xs);
+  font-size: var(--text-sm);
+  margin-top: var(--space-xs);
 }
 
 /* Controls list styling */
 .controls-list {
-  font-size: var(--font-size-xs);
+  font-size: var(--text-xs);
   color: var(--text-muted);
   margin: 0;
-  padding-left: var(--spacing-lg);
+  padding-left: var(--space-lg);
 }
 
 .controls-list li {
-  margin-bottom: var(--spacing-xs);
+  margin-bottom: var(--space-xs);
 }
 
 /* Compact panel header */
@@ -957,7 +957,7 @@
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: var(--spacing-sm);
+  margin-bottom: var(--space-sm);
 }
 
 .panel-header-compact .panel-title {

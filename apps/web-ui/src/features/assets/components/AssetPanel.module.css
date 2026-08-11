@@ -5,27 +5,27 @@
 }
 
 .assetPanel h3 {
-  margin: 0 0 var(--spacing-lg) 0;
+  margin: 0 0 var(--space-lg) 0;
   color: var(--text-primary);
   border-bottom: var(--border-width-thick) solid var(--color-primary);
-  padding-bottom: var(--spacing-sm);
+  padding-bottom: var(--space-sm);
 }
 
 .assetPanel h4 {
-  margin: calc(var(--spacing-lg) * 1.5) 0 var(--spacing-sm) 0;
+  margin: calc(var(--space-lg) * 1.5) 0 var(--space-sm) 0;
   color: var(--text-secondary);
-  font-size: var(--font-size-lg);
+  font-size: var(--text-lg);
 }
 
 .assetPanel h5 {
-  margin: var(--spacing-lg) 0 var(--spacing-sm) 0;
+  margin: var(--space-lg) 0 var(--space-sm) 0;
   color: var(--text-muted);
-  font-size: var(--font-size-md);
+  font-size: var(--text-md);
 }
 
 .assetPanel.loading {
   text-align: center;
-  padding: var(--spacing-2xl);
+  padding: var(--space-2xl);
   color: var(--text-muted);
 }
 
@@ -160,17 +160,17 @@
 /* Stats Section */
 .statsSection {
   composes: settings-section from '@shared/styles/PanelBase.module.css';
-  margin-bottom: var(--spacing-lg);
+  margin-bottom: var(--space-lg);
 }
 
 .statsGrid {
   composes: info-grid from '@shared/styles/PanelBase.module.css';
-  margin-bottom: var(--spacing-lg);
+  margin-bottom: var(--space-lg);
 }
 
 .statsGrid > div {
   background: var(--bg-tertiary);
-  padding: var(--spacing-sm);
+  padding: var(--space-sm);
   border-radius: var(--radius-sm);
   text-align: center;
   font-weight: var(--font-medium);
@@ -179,25 +179,25 @@
 /* Settings Section */
 .settingsSection {
   composes: settings-section from '@shared/styles/PanelBase.module.css';
-  margin-bottom: var(--spacing-lg);
+  margin-bottom: var(--space-lg);
 }
 
 .settingsGrid label {
   display: flex;
   flex-direction: column;
-  gap: var(--spacing-xs);
+  gap: var(--space-xs);
   font-weight: var(--font-medium);
   color: var(--text-secondary);
-  font-size: var(--font-size-sm);
+  font-size: var(--text-sm);
 }
 
 .settingsGrid input {
-  padding: var(--spacing-sm) var(--spacing-md);
+  padding: var(--space-sm) var(--space-md);
   background: var(--bg-tertiary);
   border: var(--border-width) solid var(--border-secondary);
   border-radius: var(--radius-sm);
   color: var(--text-primary);
-  font-size: var(--font-size-sm);
+  font-size: var(--text-sm);
 }
 
 .settingsGrid input:focus {
@@ -209,12 +209,12 @@
 /* Upload Section */
 .uploadSection {
   composes: settings-section from '@shared/styles/PanelBase.module.css';
-  margin-bottom: var(--spacing-lg);
+  margin-bottom: var(--space-lg);
 }
 
 .uploadMethod {
-  margin-bottom: calc(var(--spacing-lg) * 1.5);
-  padding: var(--spacing-lg);
+  margin-bottom: calc(var(--space-lg) * 1.5);
+  padding: var(--space-lg);
   background: var(--bg-tertiary);
   border-radius: var(--radius-sm);
 }
@@ -222,12 +222,12 @@
 .uploadForm input[type="text"],
 .uploadForm input[type="url"],
 .uploadForm input[type="file"] {
-  padding: var(--spacing-sm) var(--spacing-md);
+  padding: var(--space-sm) var(--space-md);
   background: var(--bg-tertiary);
   border: var(--border-width) solid var(--border-secondary);
   border-radius: var(--radius-sm);
   color: var(--text-primary);
-  font-size: var(--font-size-sm);
+  font-size: var(--text-sm);
 }
 
 .uploadForm input:focus {
@@ -239,7 +239,7 @@
 /* Asset List Section */
 .assetList-section {
   composes: settings-section from '@shared/styles/PanelBase.module.css';
-  margin-bottom: var(--spacing-lg);
+  margin-bottom: var(--space-lg);
 }
 
 .assetList {
@@ -297,12 +297,12 @@
 
 .assetSize {
   color: var(--text-muted);
-  font-size: var(--font-size-sm);
-  margin-right: var(--spacing-lg);
+  font-size: var(--text-sm);
+  margin-right: var(--space-lg);
 }
 
 .noAssets {
-  padding: var(--spacing-2xl);
+  padding: var(--space-2xl);
   text-align: center;
   color: var(--text-muted);
   font-style: italic;
@@ -356,11 +356,11 @@
 /* Asset Details Section */
 .assetDetails-section {
   composes: settings-section from '@shared/styles/PanelBase.module.css';
-  margin-bottom: var(--spacing-lg);
+  margin-bottom: var(--space-lg);
 }
 
 .assetDetails > div {
-  padding: var(--spacing-sm);
+  padding: var(--space-sm);
   background: var(--bg-tertiary);
   border-radius: var(--radius-sm);
   word-break: break-all;
@@ -368,7 +368,7 @@
 
 .assetDetails strong {
   color: var(--text-secondary);
-  margin-right: var(--spacing-sm);
+  margin-right: var(--space-sm);
 }
 
 .assetDetails a {
@@ -391,7 +391,7 @@
 
 .smallButton {
   padding: var(--space-xs) var(--space-sm);
-  font-size: var(--font-size-xs);
+  font-size: var(--text-xs);
 }
 
 /* Responsive Design */

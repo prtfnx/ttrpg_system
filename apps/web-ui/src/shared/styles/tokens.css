@@ -338,6 +338,7 @@
   
   --header-height: clamp(48px, 8vh, 72px);
   --sidebar-width: clamp(200px, 20vw, 320px);
+  --panel-width: var(--sidebar-width);
   
   /* ===== GRID/TABLE SIZING ===== */
   /* For game board and tactical elements */

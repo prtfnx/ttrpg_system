@@ -1,25 +1,25 @@
 .prompt {
   position: fixed;
-  bottom: var(--spacing-lg);
-  right: var(--spacing-lg);
+  bottom: var(--space-lg);
+  right: var(--space-lg);
   background: var(--panel-bg);
   border: var(--border-width) solid var(--border-primary);
   border-radius: var(--radius-md);
   box-shadow: var(--shadow-lg);
-  padding: var(--spacing-md);
+  padding: var(--space-md);
   max-width: 320px;
   z-index: var(--z-popover);
 }
 
 .text {
-  font-size: var(--font-size-sm);
+  font-size: var(--text-sm);
   color: var(--text-primary);
-  margin: 0 0 var(--spacing-sm);
+  margin: 0 0 var(--space-sm);
 }
 
 .actions {
   display: flex;
-  gap: var(--spacing-sm);
+  gap: var(--space-sm);
   justify-content: flex-end;
 }
 
@@ -28,9 +28,9 @@
   color: var(--button-primary-text);
   border: none;
   border-radius: var(--radius-sm);
-  padding: var(--spacing-xs) var(--spacing-sm);
+  padding: var(--space-xs) var(--space-sm);
   cursor: pointer;
-  font-size: var(--font-size-sm);
+  font-size: var(--text-sm);
 }
 
 .btnSecondary {
@@ -38,7 +38,7 @@
   color: var(--text-muted);
   border: var(--border-width) solid var(--border-primary);
   border-radius: var(--radius-sm);
-  padding: var(--spacing-xs) var(--spacing-sm);
+  padding: var(--space-xs) var(--space-sm);
   cursor: pointer;
-  font-size: var(--font-size-sm);
+  font-size: var(--text-sm);
 }

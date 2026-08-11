@@ -209,7 +209,7 @@
   padding: 0;
   max-height: 0;
   overflow: hidden;
-  transition: all var(--transition-base) ease;
+  transition: all var(--duration-base) ease;
 }
 
 .monster-filters-panel.visible {
@@ -359,7 +359,7 @@
   font-weight: var(--font-semibold);
   margin: 0;
   flex: 1;
-  line-height: var(--line-tight);
+  line-height: var(--leading-tight);
 }
 
 .monster-cr {
@@ -567,7 +567,7 @@
 
 .monster-health-fill {
   height: 100%;
-  transition: width var(--transition-base) ease, background-color var(--transition-base) ease;
+  transition: width var(--duration-base) ease, background-color var(--duration-base) ease;
 }
 
 .monster-health-text {

@@ -196,12 +196,12 @@
 .paintModeIndicator {
   display: flex;
   align-items: center;
-  gap: var(--spacing-md);
-  padding: var(--spacing-md) var(--spacing-lg);
+  gap: var(--space-md);
+  padding: var(--space-md) var(--space-lg);
   background: var(--bg-tertiary);
   border-radius: var(--radius-md);
   border-left: var(--border-width-thick) solid var(--border-secondary);
-  margin-bottom: var(--spacing-md);
+  margin-bottom: var(--space-md);
   transition: all var(--transition-normal);
 }
 
@@ -229,7 +229,7 @@
 }
 
 .paintModeIndicator .modeName {
-  font-size: var(--font-size-sm);
+  font-size: var(--text-sm);
   font-weight: var(--font-bold);
   color: var(--text-primary);
   text-transform: uppercase;
@@ -237,7 +237,7 @@
 }
 
 .paintModeIndicator .modeSettings {
-  font-size: var(--font-size-xs);
+  font-size: var(--text-xs);
   color: var(--text-muted);
   line-height: 1.2;
 }
@@ -245,7 +245,7 @@
 .paintModeIndicator .drawingIndicator {
   display: flex;
   align-items: center;
-  gap: var(--spacing-sm);
+  gap: var(--space-sm);
   font-size: var(--text-2xs);
   color: var(--orange-500);
   font-weight: var(--font-semibold);
@@ -378,11 +378,11 @@
 }
 
 .brushSettingsSection h4 {
-  margin: 0 0 var(--spacing-md) 0;
-  font-size: var(--font-size-sm);
+  margin: 0 0 var(--space-md) 0;
+  font-size: var(--text-sm);
   color: var(--text-secondary);
   border-bottom: var(--border-width) solid var(--border-primary);
-  padding-bottom: var(--spacing-xs);
+  padding-bottom: var(--space-xs);
 }
 
 .brushTypeSection,
@@ -421,8 +421,8 @@
 
 .colorPickerSection label {
   display: block;
-  margin-bottom: var(--spacing-sm);
-  font-size: var(--font-size-sm);
+  margin-bottom: var(--space-sm);
+  font-size: var(--text-sm);
   color: var(--text-muted);
 }
 
@@ -473,8 +473,8 @@
 
 .brushWidthSection label {
   display: block;
-  margin-bottom: var(--spacing-sm);
-  font-size: var(--font-size-sm);
+  margin-bottom: var(--space-sm);
+  font-size: var(--text-sm);
   color: var(--text-muted);
   font-weight: var(--font-medium);
 }
@@ -515,8 +515,8 @@
 
 .blendModeSection label {
   display: block;
-  margin-bottom: var(--spacing-sm);
-  font-size: var(--font-size-sm);
+  margin-bottom: var(--space-sm);
+  font-size: var(--text-sm);
   color: var(--text-muted);
   font-weight: var(--font-medium);
 }
@@ -537,11 +537,11 @@
 }
 
 .brushPresetsSection h4 {
-  margin: 0 0 var(--spacing-md) 0;
-  font-size: var(--font-size-sm);
+  margin: 0 0 var(--space-md) 0;
+  font-size: var(--text-sm);
   color: var(--text-secondary);
   border-bottom: var(--border-width) solid var(--border-primary);
-  padding-bottom: var(--spacing-xs);
+  padding-bottom: var(--space-xs);
 }
 
 .presetButtons {
@@ -553,7 +553,7 @@
 .presetButton {
   composes: panel-button secondary from '@shared/styles/PanelBase.module.css';
   padding: var(--space-sm);
-  font-size: var(--font-size-xs);
+  font-size: var(--text-xs);
 }
 
 .presetButton:hover:not(:disabled) {
@@ -572,11 +572,11 @@
 }
 
 .canvasActionsSection h4 {
-  margin: 0 0 var(--spacing-md) 0;
-  font-size: var(--font-size-sm);
+  margin: 0 0 var(--space-md) 0;
+  font-size: var(--text-sm);
   color: var(--text-secondary);
   border-bottom: var(--border-width) solid var(--border-primary);
-  padding-bottom: var(--spacing-xs);
+  padding-bottom: var(--space-xs);
 }
 
 .actionButtons {
@@ -590,11 +590,11 @@
 }
 
 .paintStatsSection h4 {
-  margin: 0 0 var(--spacing-md) 0;
-  font-size: var(--font-size-sm);
+  margin: 0 0 var(--space-md) 0;
+  font-size: var(--text-sm);
   color: var(--text-secondary);
   border-bottom: var(--border-width) solid var(--border-primary);
-  padding-bottom: var(--spacing-xs);
+  padding-bottom: var(--space-xs);
 }
 
 .statsGrid {
@@ -606,7 +606,7 @@
 .stat {
   display: flex;
   flex-direction: column;
-  padding: var(--spacing-sm);
+  padding: var(--space-sm);
   background: var(--bg-tertiary);
   border-radius: var(--radius-sm);
   border: var(--border-width) solid var(--border-primary);
@@ -620,24 +620,24 @@
 }
 
 .statValue {
-  font-size: var(--font-size-sm);
+  font-size: var(--text-sm);
   font-weight: var(--font-semibold);
   color: var(--text-primary);
 }
 
 /* Instructions Section */
 .instructionsSection h4 {
-  margin: 0 0 var(--spacing-md) 0;
-  font-size: var(--font-size-sm);
+  margin: 0 0 var(--space-md) 0;
+  font-size: var(--text-sm);
   color: var(--text-secondary);
   border-bottom: var(--border-width) solid var(--border-primary);
-  padding-bottom: var(--spacing-xs);
+  padding-bottom: var(--space-xs);
 }
 
 .instructionsList {
   margin: 0;
-  padding-left: var(--spacing-lg);
-  font-size: var(--font-size-xs);
+  padding-left: var(--space-lg);
+  font-size: var(--text-xs);
   color: var(--text-muted);
   line-height: 1.4;
 }
@@ -694,8 +694,8 @@
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: var(--spacing-sm) var(--spacing-md);
-  margin-bottom: var(--spacing-sm);
+  padding: var(--space-sm) var(--space-md);
+  margin-bottom: var(--space-sm);
   background: var(--bg-tertiary);
   border-radius: var(--radius-md);
   border: var(--border-width) solid var(--border-primary);
@@ -714,7 +714,7 @@
 }
 
 .templateMeta {
-  font-size: var(--font-size-xs);
+  font-size: var(--text-xs);
   color: var(--text-muted);
 }
 
@@ -725,8 +725,8 @@
 
 .btnSecondary.small,
 .btnDanger.small {
-  padding: var(--spacing-xs) var(--spacing-sm);
-  font-size: var(--font-size-xs);
+  padding: var(--space-xs) var(--space-sm);
+  font-size: var(--text-xs);
   min-width: auto;
 }
 
@@ -736,20 +736,20 @@
 
 .formGroup label {
   display: block;
-  margin-bottom: var(--spacing-xs);
+  margin-bottom: var(--space-xs);
   color: var(--text-secondary);
-  font-size: var(--font-size-sm);
+  font-size: var(--text-sm);
   font-weight: var(--font-medium);
 }
 
 .formGroup input[type="text"] {
   width: 100%;
-  padding: var(--spacing-sm) var(--spacing-md);
+  padding: var(--space-sm) var(--space-md);
   background: var(--bg-tertiary);
   border: var(--border-width) solid var(--border-secondary);
   border-radius: var(--radius-sm);
   color: var(--text-primary);
-  font-size: var(--font-size-sm);
+  font-size: var(--text-sm);
 }
 
 .formGroup input[type="text"]:focus {
@@ -771,8 +771,8 @@
 
 .paintTargetModeSection h4 {
   color: var(--text-secondary);
-  margin-bottom: var(--spacing-sm);
-  font-size: var(--font-size-sm);
+  margin-bottom: var(--space-sm);
+  font-size: var(--text-sm);
   font-weight: var(--font-semibold);
 }
 
@@ -784,19 +784,19 @@
 
 .paintModeSelector .modeButton {
   flex: 1;
-  padding: var(--spacing-sm) var(--spacing-md);
+  padding: var(--space-sm) var(--space-md);
   border: var(--border-width) solid var(--border-secondary);
   background: var(--bg-tertiary);
   color: var(--text-primary);
   border-radius: var(--radius-sm);
   cursor: pointer;
-  font-size: var(--font-size-xs);
+  font-size: var(--text-xs);
   font-weight: var(--font-medium);
   transition: all var(--transition-fast);
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: var(--spacing-xs);
+  gap: var(--space-xs);
 }
 
 .paintModeSelector .modeButton:hover:not(:disabled) {

@@ -147,6 +147,29 @@ class TestHandleProtocolMessage:
         payload = json.loads(ws.send_text.call_args[0][0])
         assert payload["type"] == MessageType.ERROR.value
 
+    async def test_schema_invalid_payload_is_rejected_before_dispatch(self):
+        svc = _make_service()
+        ws = _ws()
+        await svc.add_client(
+            ws,
+            "c1",
+            {"user_id": 1, "username": "Alice", "role": "player"},
+        )
+        ws.send_text.reset_mock()
+        svc.server_protocol.handle_client = AsyncMock()
+
+        await svc.handle_protocol_message(
+            ws,
+            json.dumps({
+                "type": MessageType.PLAYER_STATUS_REQUEST.value,
+                "data": {"status": "ready"},
+            }),
+        )
+
+        svc.server_protocol.handle_client.assert_not_awaited()
+        payload = json.loads(ws.send_text.call_args[0][0])
+        assert payload["type"] == MessageType.ERROR.value
+
     async def test_unregistered_client_sends_error(self):
         svc = _make_service()
         ws = _ws()

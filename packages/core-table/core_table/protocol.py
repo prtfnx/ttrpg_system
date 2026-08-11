@@ -3,7 +3,21 @@ import json
 import time
 import uuid
 from dataclasses import dataclass, field
+from functools import lru_cache
+from importlib.resources import files
 from typing import Any, Dict, List, Optional
+
+from jsonschema import Draft202012Validator
+from jsonschema.exceptions import ValidationError
+
+
+@lru_cache(maxsize=1)
+def _message_validator() -> Draft202012Validator:
+    """Load and compile the packaged canonical message schema once."""
+    schema_resource = files("core_table").joinpath("message.schema.generated.json")
+    schema = json.loads(schema_resource.read_text(encoding="utf-8"))
+    Draft202012Validator.check_schema(schema)
+    return Draft202012Validator(schema)
 
 
 # BEGIN GENERATED MESSAGE TYPES - run packages/core-table/scripts/generate_protocol_types.py
@@ -255,12 +269,19 @@ class Message:
     @classmethod
     def from_json(cls, json_str: str) -> 'Message':
         data = json.loads(json_str)
+        try:
+            _message_validator().validate(data)
+        except ValidationError as exc:
+            location = ".".join(str(part) for part in exc.absolute_path) or "message"
+            raise ValueError(
+                f"Invalid protocol message at {location}: {exc.message}"
+            ) from exc
         return cls(
             type=MessageType(data['type']),
             data=data.get('data', {}),
             client_id=data.get('client_id'),
             timestamp=data.get('timestamp'),
-            version=data.get('version', '1.0'),
+            version=data.get('version', '0.1'),
             priority=data.get('priority', 5),
             sequence_id=data.get('sequence_id'),
             message_id=data.get('message_id') or uuid.uuid4().hex,

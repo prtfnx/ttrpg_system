@@ -11,6 +11,7 @@ PACKAGE_ROOT = Path(__file__).resolve().parents[1]
 REPOSITORY_ROOT = PACKAGE_ROOT.parents[1]
 SCHEMA_PATH = PACKAGE_ROOT / "protocol" / "message.schema.json"
 PYTHON_TARGET = PACKAGE_ROOT / "core_table" / "protocol.py"
+PYTHON_SCHEMA_TARGET = PYTHON_TARGET.with_name("message.schema.generated.json")
 TYPESCRIPT_TARGET = (
     REPOSITORY_ROOT / "apps" / "web-ui" / "src" / "lib" / "websocket" / "message.ts"
 )
@@ -107,6 +108,7 @@ def main() -> int:
             _typescript_block(entries),
         ),
         TYPESCRIPT_SCHEMA_TARGET: SCHEMA_PATH.read_bytes(),
+        PYTHON_SCHEMA_TARGET: SCHEMA_PATH.read_bytes(),
     }
 
     stale = [

@@ -33,16 +33,19 @@ It is message-based and should stay explicit.
 - `packages/core-table/protocol/message.schema.json` is the canonical message
   envelope and message-type registry.
 - `packages/core-table/core_table/protocol.py` contains the generated Python
-  message-type enum and the shared message objects.
+  message-type enum and the shared message objects. `Message.from_json()`
+  validates incoming server messages with the packaged canonical schema before
+  constructing a message or dispatching a handler.
 
 Run `python packages/core-table/scripts/generate_protocol_types.py` after
 changing the schema. Run the same command with `--check` in verification to
-detect stale Python or TypeScript bindings.
+detect stale Python, TypeScript, or packaged schema bindings.
 
 The browser compiles the generated schema with Ajv when the protocol module
-loads. `parseMessage()` rejects unknown message types, non-object `data`,
-invalid envelope metadata, and unexpected top-level fields before dispatch.
-Validation does not coerce wire values.
+loads. Python caches a `Draft202012Validator` over the same schema when the
+server parses its first message. Both boundaries reject unknown message types,
+non-object `data`, invalid envelope metadata, and unexpected top-level fields
+before dispatch. Validation does not coerce wire values.
 
 Payload validation is incremental. The canonical schema currently enforces the
 session welcome, player join/leave/role-change lifecycle messages, player roster

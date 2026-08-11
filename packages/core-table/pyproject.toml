@@ -7,6 +7,10 @@ name = "ttrpg-core-table"
 version = "0.1.0"
 requires-python = ">=3.10"
 description = "Shared protocol, entities, and table logic for TTRPG system"
+dependencies = [
+    "jsonschema>=4.23,<5",
+]
 
 [tool.hatch.build.targets.wheel]
 packages = ["core_table"]
+artifacts = ["core_table/message.schema.generated.json"]

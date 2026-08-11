@@ -253,7 +253,10 @@ const windowManager = useWindowManager();
     <DebugErrorBoundary>
       <div className={styles.gameLayout}>
         {leftVisible && (
-          <div className={styles.leftPanel} style={{ width: leftWidth }}>
+          <div
+            className={styles.leftPanel}
+            style={{ '--panel-width': `${leftWidth}px` } as React.CSSProperties}
+          >
             <div className={clsx(styles.connectionStatus, styles[connectionState])}>
               <span className={styles.statusIndicator}></span>
               <span>
@@ -302,7 +305,10 @@ const windowManager = useWindowManager();
         )}
         
         {rightVisible && (
-          <div className={styles.rightPanel} style={{ width: rightWidth }}>
+          <div
+            className={styles.rightPanel}
+            style={{ '--panel-width': `${rightWidth}px` } as React.CSSProperties}
+          >
             <RightPanel sessionCode={sessionCode} userInfo={userInfo} userRole={userRole} />
           </div>
         )}

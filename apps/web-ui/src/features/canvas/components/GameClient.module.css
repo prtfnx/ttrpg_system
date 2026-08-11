@@ -26,6 +26,7 @@
   min-width: 200px;
   max-width: 600px;
   position: relative;
+  width: var(--panel-width);
 }
 
 .rightPanel {
@@ -36,6 +37,7 @@
   min-width: 250px;
   max-width: 600px;
   position: relative;
+  width: var(--panel-width);
 }
 
 .canvasContainer {
@@ -220,6 +222,12 @@
   .leftPanel,
   .rightPanel {
     flex: 0 0 auto;
+    width: 100%;
+    min-width: 0;
     max-height: 200px;
+  }
+
+  .panelResizer {
+    display: none;
   }
 }

@@ -1,27 +1,28 @@
 .rightPanelContainer {
-  height: 100vh;
+  height: 100%;
+  min-height: 0;
   width: 100%;
-  min-width: 400px;
+  min-width: 0;
   display: flex;
   flex-direction: column;
   background: var(--bg-secondary);
-  border-left: var(--border-width) solid var(--border-primary);
+  border-left: var(--border-width-sm) solid var(--border-primary);
 }
 
 .tabsContainer {
   display: flex;
   flex-wrap: wrap;
-  gap: var(--spacing-xs);
-  padding: var(--spacing-sm);
-  border-bottom: var(--border-width) solid var(--border-primary);
+  gap: var(--space-xs);
+  padding: var(--space-sm);
+  border-bottom: var(--border-width-sm) solid var(--border-primary);
   flex-shrink: 0;
 }
 
 .tabButton {
   composes: panel-button secondary from '@shared/styles/PanelBase.module.css';
   flex: 0 1 auto;
-  padding: var(--spacing-sm) var(--spacing-md);
-  font-size: var(--font-size-xs);
+  padding: var(--space-sm) var(--space-md);
+  font-size: var(--text-xs);
   white-space: nowrap;
 }
 
@@ -42,7 +43,7 @@
   overflow: hidden;
   background: transparent;
   border: none;
-  animation: slideInTab 0.3s ease-out;
+  animation: slideInTab var(--transition-normal);
   display: flex;
   flex-direction: column;
 }
@@ -50,10 +51,21 @@
 @keyframes slideInTab {
   from {
     opacity: 0;
-    transform: scale(0.95) translateY(-10px);
+    transform: scale(0.95) translateY(calc(var(--space-sm) * -1));
   }
   to {
     opacity: 1;
     transform: scale(1) translateY(0);
+  }
+}
+
+@media (max-width: 900px) {
+  .tabsContainer {
+    flex-wrap: nowrap;
+    overflow-x: auto;
+  }
+
+  .tabButton {
+    flex: 0 0 auto;
   }
 }

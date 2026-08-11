@@ -61,6 +61,11 @@
   max-width: 800px;
 }
 
+.extra-large {
+  width: 95%;
+  max-width: 1000px;
+}
+
 .fullscreen {
   width: 95%;
   height: 95%;

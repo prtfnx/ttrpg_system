@@ -25,10 +25,27 @@ describe('BackgroundManagementPanel', () => {
       />
     );
 
+    expect(screen.getByRole('dialog', { name: 'Background Management' })).toBeInTheDocument();
     expect(await screen.findByText('Stone Base')).toBeInTheDocument();
     expect(performanceOptimizedBackgroundSystem.loadBackgroundConfiguration).toHaveBeenCalledWith(
       expect.objectContaining({ id: 'default' })
     );
+  });
+
+  it('closes with Escape', async () => {
+    const user = userEvent.setup();
+    const onClose = vi.fn();
+    render(
+      <BackgroundManagementPanel
+        isOpen
+        onClose={onClose}
+        renderEngine={{} as RenderEngine}
+      />
+    );
+
+    await user.keyboard('{Escape}');
+
+    expect(onClose).toHaveBeenCalledOnce();
   });
 
   it('selects a background layer from the keyboard', async () => {

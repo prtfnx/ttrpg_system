@@ -4,57 +4,9 @@
  * Component-specific styles for background/weather management
  */
 
-/* Use shared modal overlay */
-.backgroundManagementOverlay {
-  composes: panel-overlay from '@shared/styles/PanelBase.module.css';
-  z-index: 10000;
-}
-
-/* Panel container with custom width */
-.backgroundManagementPanel {
-  composes: panel-container extra-wide from '@shared/styles/PanelBase.module.css';
-  max-width: 90vw;
-  max-height: 90vh;
-  width: 1000px;
-}
-
-/* Header with gradient accent */
-.panelHeader {
-  composes: panel-header from '@shared/styles/PanelBase.module.css';
-  padding: var(--space-lg) var(--space-2xl);
-  background: linear-gradient(135deg, var(--accent-primary), var(--accent-hover));
-  color: var(--text-on-accent);
-}
-
-.panelHeader h2 {
-  margin: 0;
-  font-size: var(--text-2xl);
-  font-weight: var(--font-semibold);
-  text-shadow: var(--shadow-sm);
-}
-
-.closeBtn {
-  composes: close-button from '@shared/styles/PanelBase.module.css';
-  color: var(--text-on-accent);
-  width: 40px;
-  height: 40px;
-}
-
-.closeBtn:hover {
-  background: var(--white-overlay-20);
-  transform: rotate(90deg);
-}
-
-.closeBtn:focus {
-  outline: var(--border-width-thick) solid var(--accent-glow);
-  outline-offset: var(--border-width-thick);
-}
-
 /* Content area */
 .panelContent {
-  composes: panel-content from '@shared/styles/PanelBase.module.css';
-  max-height: calc(90vh - 120px);
-  padding: var(--space-lg) var(--space-2xl);
+  position: relative;
 }
 
 /* Error message */
@@ -452,19 +404,6 @@
 
 /* Responsive Design */
 @media (max-width: 768px) {
-  .backgroundManagementPanel {
-    width: 95vw;
-    max-height: 95vh;
-  }
-  
-  .panelHeader {
-    padding: var(--space-lg);
-  }
-  
-  .panelContent {
-    padding: var(--space-lg);
-  }
-  
   .configSelector {
     grid-template-columns: 1fr;
   }

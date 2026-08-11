@@ -17,7 +17,7 @@ interface Props {
   closeOnEscape?: boolean;
   closeOnOverlayClick?: boolean;
   showCloseButton?: boolean;
-  size?: 'small' | 'medium' | 'large' | 'fullscreen';
+  size?: 'small' | 'medium' | 'large' | 'extra-large' | 'fullscreen';
 }
 
 export function Modal({ isOpen, onClose, title, children, closeOnEscape = true, closeOnOverlayClick = true, showCloseButton = true, size = 'medium' }: Props) {

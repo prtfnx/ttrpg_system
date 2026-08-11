@@ -4,7 +4,7 @@
  * with real-time performance monitoring and configuration options
  */
 
-import { ErrorBoundary, LoadingSpinner } from '@shared/components';
+import { ErrorBoundary, LoadingSpinner, Modal } from '@shared/components';
 import clsx from 'clsx';
 import { AlertTriangle, Eye, EyeOff, Pencil, Trash2, X } from 'lucide-react';
 import React, { useCallback, useEffect, useState } from 'react';
@@ -344,20 +344,7 @@ const BackgroundManagementPanel: React.FC<BackgroundManagementPanelProps> = ({
 
   return (
     <ErrorBoundary>
-      <div className={styles.backgroundManagementOverlay}>
-        <div
-          className={styles.backgroundManagementPanel}
-          role="dialog"
-          aria-modal="true"
-          aria-labelledby="background-management-title"
-        >
-          <div className={styles.panelHeader}>
-            <h2 id="background-management-title">Background Management</h2>
-            <button type="button" className={styles.closeBtn} onClick={onClose} aria-label="Close panel">
-              <X size={16} aria-hidden />
-            </button>
-          </div>
-
+      <Modal isOpen onClose={onClose} title="Background Management" size="extra-large">
           {error && (
             <div className={styles.errorMessage} role="alert">
               <span className={styles.errorIcon}><AlertTriangle size={16} aria-hidden /></span>
@@ -665,8 +652,7 @@ const BackgroundManagementPanel: React.FC<BackgroundManagementPanelProps> = ({
               </div>
             )}
           </div>
-        </div>
-      </div>
+      </Modal>
     </ErrorBoundary>
   );
 };

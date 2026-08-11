@@ -21,7 +21,7 @@ describe('TextSpriteModal', () => {
 
   it('renders modal when open with position', () => {
     render(<TextSpriteModal isOpen={true} position={position} onConfirm={vi.fn()} onCancel={vi.fn()} />);
-    expect(screen.getAllByText('Create Text Sprite').length).toBeGreaterThan(0);
+    expect(screen.getByRole('dialog', { name: 'Create Text Sprite' })).toBeInTheDocument();
   });
 
   it('shows default text "Sample Text"', () => {
@@ -33,7 +33,7 @@ describe('TextSpriteModal', () => {
   it('calls onCancel when close button clicked', () => {
     const onCancel = vi.fn();
     render(<TextSpriteModal isOpen={true} position={position} onConfirm={vi.fn()} onCancel={onCancel} />);
-    fireEvent.click(screen.getByTitle('Close (Esc)'));
+    fireEvent.click(screen.getByRole('button', { name: 'Close modal' }));
     expect(onCancel).toHaveBeenCalled();
   });
 
@@ -59,24 +59,25 @@ describe('TextSpriteModal', () => {
 
   it('calls onCancel when overlay is clicked', () => {
     const onCancel = vi.fn();
-    const { container } = render(
+    render(
       <TextSpriteModal isOpen={true} position={position} onConfirm={vi.fn()} onCancel={onCancel} />
     );
-    fireEvent.click(container.firstElementChild!);
+    const dialog = screen.getByRole('dialog', { name: 'Create Text Sprite' });
+    fireEvent.click(dialog.parentElement as HTMLElement);
     expect(onCancel).toHaveBeenCalled();
   });
 
   it('calls onCancel when Escape key pressed', () => {
     const onCancel = vi.fn();
     render(<TextSpriteModal isOpen={true} position={position} onConfirm={vi.fn()} onCancel={onCancel} />);
-    fireEvent.keyDown(screen.getByRole('dialog'), { key: 'Escape' });
+    fireEvent.keyDown(document, { key: 'Escape' });
     expect(onCancel).toHaveBeenCalled();
   });
 
   it('calls onConfirm on Enter key', () => {
     const onConfirm = vi.fn();
     render(<TextSpriteModal isOpen={true} position={position} onConfirm={onConfirm} onCancel={vi.fn()} />);
-    fireEvent.keyDown(screen.getByRole('dialog'), { key: 'Enter', shiftKey: false });
+    fireEvent.keyDown(screen.getByPlaceholderText('Enter your text...'), { key: 'Enter', shiftKey: false });
     expect(onConfirm).toHaveBeenCalled();
   });
 

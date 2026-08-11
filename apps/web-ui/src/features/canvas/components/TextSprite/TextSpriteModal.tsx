@@ -1,5 +1,6 @@
 import clsx from 'clsx';
 import { useState } from 'react';
+import { Modal } from '@shared/components';
 import styles from './TextSpriteModal.module.css';
 
 interface TextSpriteModalProps {
@@ -36,27 +37,12 @@ export function TextSpriteModal({ isOpen, position, onConfirm, onCancel }: TextS
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
       handleConfirm();
-    } else if (e.key === 'Escape') {
-      onCancel();
     }
   };
 
   return (
-    <div className={styles.textSpriteModalOverlay} onClick={onCancel}>
-      <div
-        className={styles.textSpriteModal}
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby="text-sprite-modal-title"
-        onClick={(e) => e.stopPropagation()}
-        onKeyDown={handleKeyDown}
-      >
-        <div className={styles.modalHeader}>
-          <h3 id="text-sprite-modal-title" className={styles.modalTitle}>Create Text Sprite</h3>
-          <button type="button" className={styles.closeBtn} onClick={onCancel} title="Close (Esc)">×</button>
-        </div>
-
-        <div className={styles.modalBody}>
+    <Modal isOpen onClose={onCancel} title="Create Text Sprite">
+      <div className={styles.textSpriteContent} onKeyDown={handleKeyDown}>
           <div className={styles.formGroup}>
             <label className={styles.controlLabel} htmlFor="text-content">Text Content:</label>
             <textarea
@@ -123,22 +109,21 @@ export function TextSpriteModal({ isOpen, position, onConfirm, onCancel }: TextS
             • ASCII characters only (32-127)
             • Rendered directly in WebGL (no Canvas2D)
           </div>
-        </div>
-
-        <div className={styles.modalFooter}>
-          <button type="button" className={clsx(styles.btn, styles.btnCancel)} onClick={onCancel}>
-            Cancel
-          </button>
-          <button
-            type="button"
-            className={clsx(styles.btn, styles.btnConfirm, !text.trim() && styles.btnConfirmDisabled)}
-            onClick={handleConfirm}
-            disabled={!text.trim()}
-          >
-            Create Text Sprite
-          </button>
-        </div>
       </div>
-    </div>
+
+      <div className={styles.modalFooter}>
+        <button type="button" className={clsx(styles.btn, styles.btnCancel)} onClick={onCancel}>
+          Cancel
+        </button>
+        <button
+          type="button"
+          className={clsx(styles.btn, styles.btnConfirm, !text.trim() && styles.btnConfirmDisabled)}
+          onClick={handleConfirm}
+          disabled={!text.trim()}
+        >
+          Create Text Sprite
+        </button>
+      </div>
+    </Modal>
   );
 }

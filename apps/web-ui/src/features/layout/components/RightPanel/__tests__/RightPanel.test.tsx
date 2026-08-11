@@ -104,6 +104,11 @@ describe('RightPanel', () => {
 
       const tabPanel = screen.getByRole('tabpanel');
       expect(tabPanel).toBeInTheDocument();
+      expect(tabPanel).toHaveAttribute('id', 'right-panel-content');
+
+      const selectedTab = screen.getByRole('tab', { name: /^entities$/i });
+      expect(selectedTab).toHaveAttribute('aria-controls', 'right-panel-content');
+      expect(tabPanel).toHaveAttribute('aria-labelledby', selectedTab.id);
     });
 
     it('shows all production tabs with proper accessibility', () => {
@@ -326,20 +331,22 @@ describe('RightPanel', () => {
   });
 
   describe('Keyboard Navigation', () => {
-    it('supports keyboard navigation between tabs', async () => {
+    it('supports arrow-key navigation between tabs', async () => {
       renderWithProviders(<RightPanel sessionCode={mockSessionCode} userInfo={mockUserInfo} />);
 
       const entitiesTab = screen.getByRole('tab', { name: /^entities$/i });
-      screen.getByRole('tab', { name: /^chat$/i });
+      const chatTab = screen.getByRole('tab', { name: /^chat$/i });
 
       // Focus on a visible tab
       entitiesTab.focus();
       expect(entitiesTab).toHaveFocus();
 
-      // Use keyboard to navigate (actual navigation depends on keyboard handler implementation)
-      // For now, just test that tabs are focusable
-      await user.tab();
-      expect(document.activeElement).toBeTruthy();
+      await user.keyboard('{ArrowRight}');
+
+      expect(chatTab).toHaveFocus();
+      expect(chatTab).toHaveAttribute('aria-selected', 'true');
+      expect(entitiesTab).toHaveAttribute('tabindex', '-1');
+      expect(chatTab).toHaveAttribute('tabindex', '0');
     });
 
     it('allows activation of tabs with Enter key', async () => {

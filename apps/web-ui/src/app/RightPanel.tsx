@@ -73,15 +73,50 @@ export function RightPanel(props: { sessionCode?: string; userInfo?: import('@fe
   // eslint-disable-next-line react-hooks/exhaustive-deps -- intentional: activeTab/isVisible not tracked to avoid re-runs
   }, [sessionRole]);
 
+  const handleTabKeyDown = (event: React.KeyboardEvent<HTMLButtonElement>) => {
+    const tabs = Array.from(
+      event.currentTarget.parentElement?.querySelectorAll<HTMLButtonElement>('[role="tab"]') ?? [],
+    );
+    const currentIndex = tabs.indexOf(event.currentTarget);
+    let nextIndex: number | undefined;
+
+    switch (event.key) {
+      case 'ArrowRight':
+      case 'ArrowDown':
+        nextIndex = (currentIndex + 1) % tabs.length;
+        break;
+      case 'ArrowLeft':
+      case 'ArrowUp':
+        nextIndex = (currentIndex - 1 + tabs.length) % tabs.length;
+        break;
+      case 'Home':
+        nextIndex = 0;
+        break;
+      case 'End':
+        nextIndex = tabs.length - 1;
+        break;
+      default:
+        return;
+    }
+
+    event.preventDefault();
+    tabs[nextIndex]?.focus();
+    tabs[nextIndex]?.click();
+  };
+
   const tab = (id: TabId, label: string) => {
     if (!isVisible(id)) return null;
     return (
       <button
         key={id}
+        id={`right-panel-tab-${id}`}
         role="tab"
+        aria-controls="right-panel-content"
         aria-selected={activeTab === id}
+        tabIndex={activeTab === id ? 0 : -1}
         className={clsx(styles.tabButton, activeTab === id && 'active')}
         onClick={() => setActiveTab(id)}
+        onKeyDown={handleTabKeyDown}
       >
         {label}
       </button>
@@ -109,7 +144,13 @@ export function RightPanel(props: { sessionCode?: string; userInfo?: import('@fe
         {isDevelopment && tab('queue', 'Queue')}
         {isDevelopment && tab('assets', 'Assets')}
       </div>
-      <div className={styles.tabContent} role="tabpanel" aria-label={`${activeTab} panel`}>
+      <div
+        id="right-panel-content"
+        className={styles.tabContent}
+        role="tabpanel"
+        aria-label={`${activeTab} panel`}
+        aria-labelledby={`right-panel-tab-${activeTab}`}
+      >
         {activeTab === 'tables' && <TableManagementPanel />}
         {activeTab === 'quick-actions' && <ActionsQuickPanel actionsEngine={actionsEngine} />}
         {isDevelopment && activeTab === 'table-tools' && <TablePanel />}

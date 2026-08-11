@@ -172,7 +172,7 @@
   font-size: var(--text-sm);
   font-weight: var(--font-medium);
   cursor: pointer;
-  transition: all var(--transition-fast);
+  transition: var(--transition-interactive-fast);
 }
 
 .button-primary {
@@ -281,7 +281,7 @@
   justify-content: center;
   cursor: pointer;
   font-size: var(--text-sm);
-  transition: all var(--transition-fast);
+  transition: var(--transition-interactive-fast);
 }
 
 .toolbar-button:hover:not(:disabled) {
@@ -365,7 +365,7 @@
   align-items: center;
   justify-content: center;
   border-radius: var(--radius-sm);
-  transition: all var(--transition-fast);
+  transition: var(--transition-interactive-fast);
 }
 
 .modal-close:hover {

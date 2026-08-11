@@ -66,7 +66,7 @@
   border-radius: var(--radius-lg);
   padding: var(--space-md);
   cursor: pointer;
-  transition: all var(--duration-slow);
+  transition: var(--transition-interactive-slow);
   text-align: left;
 }
 
@@ -244,7 +244,7 @@
   cursor: pointer;
   padding: var(--space-sm);
   border-radius: var(--radius-sm);
-  transition: all var(--duration-base);
+  transition: var(--transition-interactive-normal);
   color: var(--text-secondary);
 }
 
@@ -343,7 +343,7 @@
   cursor: pointer;
   padding: var(--space-sm);
   border-radius: var(--radius-sm);
-  transition: all var(--duration-base);
+  transition: var(--transition-interactive-normal);
   color: var(--status-error);
 }
 

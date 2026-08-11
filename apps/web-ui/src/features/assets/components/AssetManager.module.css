@@ -20,7 +20,7 @@
   padding: var(--space-md) var(--space-xl);
   cursor: pointer;
   border-bottom: var(--border-width-thick) solid transparent;
-  transition: all var(--duration-base) ease;
+  transition: var(--transition-interactive-normal);
   font-size: var(--text-sm);
   font-weight: var(--font-medium);
 }
@@ -128,7 +128,7 @@
   color: var(--text-primary);
   cursor: pointer;
   font-size: var(--text-sm);
-  transition: all var(--duration-base) ease;
+  transition: var(--transition-interactive-normal);
 }
 
 .controlButton:hover {
@@ -200,7 +200,7 @@
   color: var(--text-primary);
   cursor: pointer;
   font-size: var(--text-sm);
-  transition: all var(--duration-base) ease;
+  transition: var(--transition-interactive-normal);
 }
 
 .removeAssetButton:hover {
@@ -239,7 +239,7 @@
   cursor: pointer;
   font-size: var(--text-sm);
   font-weight: var(--font-medium);
-  transition: all var(--duration-base) ease;
+  transition: var(--transition-interactive-normal);
 }
 
 .selectFilesButton:hover {
@@ -307,7 +307,7 @@
   color: var(--text-primary);
   cursor: pointer;
   font-size: var(--text-sm);
-  transition: all var(--duration-base) ease;
+  transition: var(--transition-interactive-normal);
 }
 
 .uploadButton:hover {
@@ -322,7 +322,7 @@
   color: var(--text-primary);
   cursor: pointer;
   font-size: var(--text-sm);
-  transition: all var(--duration-base) ease;
+  transition: var(--transition-interactive-normal);
 }
 
 .cancelButton:hover {
@@ -337,7 +337,7 @@
   color: var(--text-primary);
   cursor: pointer;
   font-size: var(--text-sm);
-  transition: all var(--duration-base) ease;
+  transition: var(--transition-interactive-normal);
 }
 
 .removeButton:hover {

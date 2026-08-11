@@ -171,7 +171,7 @@
   cursor: pointer;
   padding: var(--space-xs);
   border-radius: var(--radius-sm);
-  transition: all var(--transition-fast);
+  transition: var(--transition-interactive-fast);
   color: var(--button-ghost-text);
   min-width: var(--space-2xl);
   height: var(--space-2xl);

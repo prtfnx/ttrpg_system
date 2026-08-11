@@ -57,7 +57,7 @@
   font-size: var(--text-xs);
   font-weight: var(--font-medium);
   text-shadow: var(--shadow-text);
-  transition: all var(--duration-slow) ease;
+  transition: var(--transition-interactive-slow);
 }
 
 .statusConnected {
@@ -161,7 +161,7 @@
   font-size: var(--text-2xs);
   font-weight: var(--font-medium);
   text-shadow: var(--shadow-text);
-  transition: all var(--duration-slow) ease;
+  transition: var(--transition-interactive-slow);
 }
 
 .wsConnected {

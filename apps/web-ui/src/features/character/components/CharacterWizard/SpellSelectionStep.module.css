@@ -137,7 +137,7 @@
   cursor: pointer;
   font-size: var(--text-xs);
   font-weight: var(--font-medium);
-  transition: all var(--duration-fast) ease;
+  transition: var(--transition-interactive-fast);
 }
 
 .level-filter:hover {
@@ -206,7 +206,7 @@
   border: var(--border-width) solid var(--border-secondary);
   border-radius: var(--radius-md);
   overflow: hidden;
-  transition: all var(--transition-normal) ease;
+  transition: var(--transition-interactive-normal);
 }
 
 .spell-card-compact:hover {

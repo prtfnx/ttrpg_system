@@ -57,7 +57,7 @@
   background: var(--blue-500);
   border-radius: var(--radius-full);
   cursor: pointer;
-  transition: all var(--transition-fast);
+  transition: var(--transition-interactive-fast);
 }
 
 .textSpriteContent input[type="range"]::-webkit-slider-thumb:hover {
@@ -72,7 +72,7 @@
   border: none;
   border-radius: var(--radius-full);
   cursor: pointer;
-  transition: all var(--transition-fast);
+  transition: var(--transition-interactive-fast);
 }
 
 .textSpriteContent input[type="range"]::-moz-range-thumb:hover {

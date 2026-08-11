@@ -93,7 +93,7 @@
   display: flex;
   flex-direction: column;
   gap: var(--space-md);
-  transition: all var(--transition-fast);
+  transition: var(--transition-interactive-fast);
 }
 
 .spellSlotLevel:hover {
@@ -130,7 +130,7 @@
   border-radius: var(--radius-full);
   border: var(--border-width-thick) solid var(--purple-950);
   cursor: pointer;
-  transition: all var(--transition-fast);
+  transition: var(--transition-interactive-fast);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -227,7 +227,7 @@
   align-items: center;
   padding: var(--space-sm) var(--space-md);
   border-radius: var(--radius-md);
-  transition: all var(--transition-normal) ease;
+  transition: var(--transition-interactive-normal);
 }
 
 .preparedSpell.cantrip {
@@ -267,7 +267,7 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  transition: all var(--transition-normal) ease;
+  transition: var(--transition-interactive-normal);
 }
 
 .removeSpell:hover {
@@ -339,7 +339,7 @@
 
 .castableSpellCard {
   composes: wizard-card-elevated from './CharacterWizardBase.module.css';
-  transition: all var(--transition-normal) ease;
+  transition: var(--transition-interactive-normal);
 }
 
 .castableSpellCard:hover {
@@ -447,7 +447,7 @@
 
 .librarySpellCard {
   composes: wizard-card-elevated from './CharacterWizardBase.module.css';
-  transition: all var(--transition-normal) ease;
+  transition: var(--transition-interactive-normal);
 }
 
 .librarySpellCard:hover {

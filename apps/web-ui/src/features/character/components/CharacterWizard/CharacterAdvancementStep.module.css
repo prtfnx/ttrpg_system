@@ -134,7 +134,7 @@
   font-size: var(--text-sm);
   font-weight: var(--font-semibold);
   cursor: pointer;
-  transition: all var(--transition-normal) ease;
+  transition: var(--transition-interactive-normal);
 }
 
 .quick-xp-btn-small {
@@ -237,7 +237,7 @@
   font-size: var(--text-lg);
   font-weight: var(--font-semibold);
   cursor: pointer;
-  transition: all var(--transition-normal) ease;
+  transition: var(--transition-interactive-normal);
   border: none;
   text-transform: uppercase;
   letter-spacing: var(--tracking-wide);

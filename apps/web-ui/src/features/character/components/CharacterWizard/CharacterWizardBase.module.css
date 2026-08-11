@@ -232,7 +232,7 @@
   cursor: pointer;
   padding: var(--space-xs);
   opacity: 0.8;
-  transition: all var(--transition-fast);
+  transition: var(--transition-interactive-fast);
   border-radius: var(--radius-sm);
   flex-shrink: 0;
 }
@@ -296,7 +296,7 @@
   font-size: var(--text-base);
   font-weight: var(--font-semibold);
   cursor: pointer;
-  transition: all var(--transition-fast);
+  transition: var(--transition-interactive-fast);
   color: var(--text-secondary);
   border-bottom: var(--border-width-thick) solid transparent;
   white-space: nowrap;
@@ -492,7 +492,7 @@
   font-size: var(--text-base);
   background: var(--input-bg);
   color: var(--text-primary);
-  transition: all var(--transition-fast);
+  transition: var(--transition-interactive-fast);
 }
 
 .wizard-input:hover {
@@ -525,7 +525,7 @@
   resize: vertical;
   min-height: var(--wizard-field-min-height);
   font-family: inherit;
-  transition: all var(--transition-fast);
+  transition: var(--transition-interactive-fast);
 }
 
 .wizard-textarea:hover {
@@ -550,7 +550,7 @@
   background: var(--input-bg);
   color: var(--text-primary);
   cursor: pointer;
-  transition: all var(--transition-fast);
+  transition: var(--transition-interactive-fast);
 }
 
 .wizard-select:hover {
@@ -576,7 +576,7 @@
   font-size: var(--text-base);
   font-weight: var(--font-semibold);
   cursor: pointer;
-  transition: all var(--transition-fast);
+  transition: var(--transition-interactive-fast);
 }
 
 .wizard-button-primary:hover {
@@ -609,7 +609,7 @@
   font-size: var(--text-base);
   font-weight: var(--font-semibold);
   cursor: pointer;
-  transition: all var(--transition-fast);
+  transition: var(--transition-interactive-fast);
 }
 
 .wizard-button-secondary:hover {
@@ -639,7 +639,7 @@
   font-size: var(--text-base);
   font-weight: var(--font-semibold);
   cursor: pointer;
-  transition: all var(--transition-fast);
+  transition: var(--transition-interactive-fast);
 }
 
 .wizard-button-success:hover {
@@ -665,7 +665,7 @@
   font-size: var(--text-base);
   font-weight: var(--font-semibold);
   cursor: pointer;
-  transition: all var(--transition-fast);
+  transition: var(--transition-interactive-fast);
 }
 
 .wizard-button-danger:hover {

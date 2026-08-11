@@ -227,7 +227,7 @@
   background: var(--bg-primary);
   color: var(--text-secondary);
   cursor: pointer;
-  transition: all var(--transition-normal) ease;
+  transition: var(--transition-interactive-normal);
   white-space: nowrap;
 }
 
@@ -483,7 +483,7 @@
   border: var(--border-width-thick) solid;
   border-radius: var(--radius-md);
   cursor: pointer;
-  transition: all var(--transition-normal) ease;
+  transition: var(--transition-interactive-normal);
   min-width: var(--size-30);
 }
 

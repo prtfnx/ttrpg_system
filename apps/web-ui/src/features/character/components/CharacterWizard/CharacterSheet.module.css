@@ -101,7 +101,7 @@
 .ability-card {
   composes: wizard-card from './CharacterWizardBase.module.css';
   text-align: center;
-  transition: all var(--transition-normal) ease;
+  transition: var(--transition-interactive-normal);
 }
 
 .ability-card:hover {
@@ -147,7 +147,7 @@
   background: var(--bg-secondary);
   border: var(--border-width) solid var(--border-secondary);
   border-radius: var(--radius-md);
-  transition: all var(--transition-normal) ease;
+  transition: var(--transition-interactive-normal);
 }
 
 .skill-item:hover,
@@ -200,7 +200,7 @@
 .combat-stat {
   composes: wizard-card from './CharacterWizardBase.module.css';
   text-align: center;
-  transition: all var(--transition-normal) ease;
+  transition: var(--transition-interactive-normal);
 }
 
 .combat-stat:hover {
@@ -235,7 +235,7 @@
   background: var(--bg-secondary);
   border: var(--border-width-thick) solid var(--border-secondary);
   border-radius: var(--radius-md);
-  transition: all var(--transition-normal) ease;
+  transition: var(--transition-interactive-normal);
 }
 
 .attack-item:hover {
@@ -290,7 +290,7 @@
 .spell-item {
   composes: wizard-card from './CharacterWizardBase.module.css';
   padding: var(--space-sm) var(--space-md);
-  transition: all var(--transition-normal) ease;
+  transition: var(--transition-interactive-normal);
 }
 
 .spell-item:hover {
@@ -340,7 +340,7 @@
   background: var(--bg-secondary);
   border: var(--border-width) solid var(--border-secondary);
   border-radius: var(--radius-md);
-  transition: all var(--transition-normal) ease;
+  transition: var(--transition-interactive-normal);
 }
 
 .equipment-item:hover {

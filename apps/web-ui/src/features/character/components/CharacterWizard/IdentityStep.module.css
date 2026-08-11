@@ -161,7 +161,7 @@
   font-size: var(--text-xs);
   cursor: pointer;
   font-family: inherit;
-  transition: all var(--duration-base) ease;
+  transition: var(--transition-interactive-normal);
 }
 
 .removeBtn:hover {

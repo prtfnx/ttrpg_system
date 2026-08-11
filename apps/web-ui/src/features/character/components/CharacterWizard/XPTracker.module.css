@@ -71,7 +71,7 @@
   font-size: var(--text-xl);
   font-weight: var(--font-semibold);
   cursor: pointer;
-  transition: all var(--transition-fast);
+  transition: var(--transition-interactive-fast);
 }
 
 .quickAddToggle:hover {
@@ -110,7 +110,7 @@
   font-size: var(--text-sm);
   font-weight: var(--font-semibold);
   cursor: pointer;
-  transition: all var(--transition-normal) ease;
+  transition: var(--transition-interactive-normal);
 }
 
 .quickAddBtn.small {
@@ -303,7 +303,7 @@
   background: var(--bg-secondary);
   border: var(--border-width-md) solid var(--border-secondary);
   border-radius: var(--radius-md);
-  transition: all var(--transition-normal) ease;
+  transition: var(--transition-interactive-normal);
 }
 
 .milestone.reached {

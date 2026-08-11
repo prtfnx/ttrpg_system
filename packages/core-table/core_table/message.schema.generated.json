@@ -170,7 +170,8 @@
         "xp_award_response",
         "multiclass_request",
         "multiclass_response",
-        "batch",
+        "batch_request",
+        "batch_response",
         "table_settings_update",
         "table_settings_changed",
         "wall_create",
@@ -358,7 +359,8 @@
         "XP_AWARD_RESPONSE",
         "MULTICLASS_REQUEST",
         "MULTICLASS_RESPONSE",
-        "BATCH",
+        "BATCH_REQUEST",
+        "BATCH_RESPONSE",
         "TABLE_SETTINGS_UPDATE",
         "TABLE_SETTINGS_CHANGED",
         "WALL_CREATE",
@@ -865,6 +867,83 @@
       },
       "additionalProperties": false
     },
+    "batchEntry": {
+      "allOf": [
+        {
+          "$ref": "#"
+        },
+        {
+          "not": {
+            "properties": {
+              "type": {
+                "enum": [
+                  "batch_request",
+                  "batch_response"
+                ]
+              }
+            },
+            "required": [
+              "type"
+            ]
+          }
+        }
+      ]
+    },
+    "batchRequestData": {
+      "type": "object",
+      "required": [
+        "messages"
+      ],
+      "properties": {
+        "messages": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 50,
+          "items": {
+            "$ref": "#/$defs/batchEntry"
+          }
+        },
+        "seq": {
+          "type": "integer",
+          "minimum": 0
+        }
+      },
+      "additionalProperties": false
+    },
+    "batchResponseData": {
+      "type": "object",
+      "required": [
+        "messages",
+        "seq",
+        "processed_count",
+        "response_count"
+      ],
+      "properties": {
+        "messages": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 50,
+          "items": {
+            "$ref": "#/$defs/batchEntry"
+          }
+        },
+        "seq": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "processed_count": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 50
+        },
+        "response_count": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 50
+        }
+      },
+      "additionalProperties": false
+    },
     "tableSettingsChangedData": {
       "type": "object",
       "required": [
@@ -1130,6 +1209,50 @@
         "properties": {
           "data": {
             "$ref": "#/$defs/actionRejectedData"
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "type": {
+            "const": "batch_request"
+          }
+        },
+        "required": [
+          "type"
+        ]
+      },
+      "then": {
+        "required": [
+          "data"
+        ],
+        "properties": {
+          "data": {
+            "$ref": "#/$defs/batchRequestData"
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "type": {
+            "const": "batch_response"
+          }
+        },
+        "required": [
+          "type"
+        ]
+      },
+      "then": {
+        "required": [
+          "data"
+        ],
+        "properties": {
+          "data": {
+            "$ref": "#/$defs/batchResponseData"
           }
         }
       }

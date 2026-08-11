@@ -26,7 +26,7 @@ import uuid
 import xxhash
 from typing import Dict, Set, Optional, Tuple, Any, Callable, TYPE_CHECKING
 
-from core_table.protocol import Message, MessageType, BatchMessage
+from core_table.protocol import Message, MessageType
 from core_table.actions_core import ActionsCore
 from utils.logger import setup_logger
 from utils.roles import is_dm, is_elevated, can_interact, get_visible_layers, get_sprite_limit

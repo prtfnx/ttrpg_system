@@ -300,7 +300,7 @@ describe('WebClientProtocol', () => {
       p.sendBatch();
       expect(ws.send).toHaveBeenCalledOnce();
       const sent = JSON.parse((ws.send as Mock).mock.calls[0][0]);
-      expect(sent.type).toBe('batch');
+      expect(sent.type).toBe('batch_request');
       expect(sent.data.messages).toHaveLength(1);
       expect((p as unknown as Record<string, unknown>)['batchQueue']).toHaveLength(0);
     });
@@ -392,7 +392,7 @@ describe('WebClientProtocol', () => {
       // flush the batch
       p.sendBatch();
       const msg = JSON.parse((ws.send as Mock).mock.calls[0][0]);
-      expect(msg.type).toBe('batch');
+      expect(msg.type).toBe('batch_request');
       const inner = msg.data.messages[0];
       expect(inner.type).toBe('wall_create');
       expect(inner.data.table_id).toBe('table-abc');
@@ -558,7 +558,7 @@ describe('WebClientProtocol', () => {
       p.sendBatch();
 
       const msg = JSON.parse((ws.send as Mock).mock.calls[0][0]);
-      expect(msg.type).toBe('batch');
+      expect(msg.type).toBe('batch_request');
       const inner = msg.data.messages[0];
       expect(inner.type).toBe('combat_command');
       expect(inner.data.commands).toEqual([
@@ -592,7 +592,7 @@ describe('WebClientProtocol', () => {
       p.sendBatch();
 
       const msg = JSON.parse((ws.send as Mock).mock.calls[0][0]);
-      expect(msg.type).toBe('batch');
+      expect(msg.type).toBe('batch_request');
       expect(msg.data.messages).toEqual([
         expect.objectContaining({
           type: 'combat_command',
@@ -881,12 +881,28 @@ describe('WebClientProtocol', () => {
       expect(handler).toHaveBeenCalledOnce();
     });
 
-    it('BATCH dispatches inner messages to handlers', async () => {
+    it('BATCH_RESPONSE dispatches validated inner messages to handlers', async () => {
       const p = makeProtocol();
       const handler = vi.fn();
       window.addEventListener('player-joined', handler);
-      const innerMsg = { type: 'player_joined', data: { user_id: 9 }, version: '0.1', priority: 5 };
-      await dispatch(p, 'batch', { messages: [innerMsg] });
+      const innerMsg = {
+        type: 'player_joined',
+        data: {
+          username: 'Ada',
+          user_id: 9,
+          client_id: 'client-9',
+          role: 'player',
+          timestamp: '2026-08-10T12:00:00Z',
+        },
+        version: '0.1',
+        priority: 5,
+      };
+      await dispatch(p, 'batch_response', {
+        messages: [innerMsg],
+        seq: 1,
+        processed_count: 1,
+        response_count: 1,
+      });
       window.removeEventListener('player-joined', handler);
       expect(handler).toHaveBeenCalledOnce();
     });
@@ -1122,7 +1138,7 @@ describe('WebClientProtocol', () => {
       expect(ws.send).toHaveBeenCalled();
       const sent = JSON.parse((ws.send as ReturnType<typeof vi.fn>).mock.calls[0][0]);
       // sendBatch wraps in a batch message
-      expect(['ping', 'batch']).toContain(sent.type);
+      expect(['ping', 'batch_request']).toContain(sent.type);
       p.stopPing();
     });
 

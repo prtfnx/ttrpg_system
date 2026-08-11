@@ -5,7 +5,7 @@ import uuid
 from dataclasses import dataclass, field
 from functools import lru_cache
 from importlib.resources import files
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, Optional
 
 from jsonschema import Draft202012Validator
 from jsonschema.exceptions import ValidationError
@@ -181,7 +181,8 @@ class MessageType(enum.Enum):
     XP_AWARD_RESPONSE = "xp_award_response"
     MULTICLASS_REQUEST = "multiclass_request"
     MULTICLASS_RESPONSE = "multiclass_response"
-    BATCH = "batch"
+    BATCH_REQUEST = "batch_request"
+    BATCH_RESPONSE = "batch_response"
     TABLE_SETTINGS_UPDATE = "table_settings_update"
     TABLE_SETTINGS_CHANGED = "table_settings_changed"
     WALL_CREATE = "wall_create"
@@ -211,31 +212,6 @@ class MessageType(enum.Enum):
 # END GENERATED MESSAGE TYPES
 
 @dataclass
-class BatchMessage:
-    """Container for batch message processing"""
-    messages: List['Message']
-    sequence_id: int
-    timestamp: float = field(default_factory=time.time)
-
-    def to_json(self) -> str:
-        return json.dumps({
-            'type': 'batch',
-            'messages': [json.loads(msg.to_json()) for msg in self.messages],
-            'seq': self.sequence_id,
-            'timestamp': self.timestamp
-        })
-
-    @classmethod
-    def from_json(cls, json_str: str) -> 'BatchMessage':
-        data = json.loads(json_str)
-        messages = [Message.from_json(json.dumps(msg_data)) for msg_data in data.get('messages', [])]
-        return cls(
-            messages=messages,
-            sequence_id=data.get('seq', 0),
-            timestamp=data.get('timestamp', time.time())
-        )
-
-@dataclass
 class Message:
     type: MessageType
     data: Dict[str, Any] = field(default_factory=dict)
@@ -252,8 +228,9 @@ class Message:
         if self.timestamp is None:
             self.timestamp = time.time()
 
-    def to_json(self) -> str:
-        return json.dumps({
+    def to_dict(self) -> Dict[str, Any]:
+        """Return the complete JSON-compatible wire representation."""
+        return {
             'type': self.type.value,
             'data': self.data or {},
             'client_id': self.client_id,
@@ -264,11 +241,20 @@ class Message:
             'message_id': self.message_id,
             'correlation_id': self.correlation_id,
             'causation_id': self.causation_id,
-        })
+        }
+
+    def to_json(self) -> str:
+        return json.dumps(self.to_dict())
 
     @classmethod
     def from_json(cls, json_str: str) -> 'Message':
-        data = json.loads(json_str)
+        return cls.from_dict(json.loads(json_str))
+
+    @classmethod
+    def from_dict(cls, data: object) -> 'Message':
+        """Validate and construct a message from a decoded JSON object."""
+        if not isinstance(data, dict):
+            raise ValueError("Invalid protocol message at message: expected an object")
         try:
             _message_validator().validate(data)
         except ValidationError as exc:

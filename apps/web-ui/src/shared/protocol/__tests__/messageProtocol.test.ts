@@ -281,4 +281,39 @@ describe('Protocol Message Utilities', () => {
       data: { sequence_id: 43 },
     }))).toThrow(/Invalid message/);
   });
+
+  it('should validate direction-specific batches and every nested message', () => {
+    const ping = createMessage(MessageType.PING);
+    expect(parseMessage(JSON.stringify({
+      type: MessageType.BATCH_REQUEST,
+      data: { messages: [ping], seq: 3 },
+    })).data).toMatchObject({ seq: 3 });
+    expect(parseMessage(JSON.stringify({
+      type: MessageType.BATCH_RESPONSE,
+      data: {
+        messages: [createMessage(MessageType.SUCCESS, { acknowledged: true })],
+        seq: 3,
+        processed_count: 1,
+        response_count: 1,
+      },
+    })).data).toMatchObject({ response_count: 1 });
+    expect(() => parseMessage(JSON.stringify({
+      type: MessageType.BATCH_REQUEST,
+      data: {
+        messages: [{
+          type: MessageType.PLAYER_STATUS_REQUEST,
+          data: { status: 'ready' },
+        }],
+      },
+    }))).toThrow(/Invalid message/);
+    expect(() => parseMessage(JSON.stringify({
+      type: MessageType.BATCH_REQUEST,
+      data: {
+        messages: [{
+          type: MessageType.BATCH_REQUEST,
+          data: { messages: [ping] },
+        }],
+      },
+    }))).toThrow(/Invalid message/);
+  });
 });

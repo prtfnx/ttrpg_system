@@ -93,7 +93,7 @@ class ServerProtocol(
         self.register_handler(MessageType.PING, self.handle_ping)
         self.register_handler(MessageType.PONG, self.handle_pong)
         self.register_handler(MessageType.TEST, self.handle_test)
-        self.register_handler(MessageType.BATCH, self.handle_batch)
+        self.register_handler(MessageType.BATCH_REQUEST, self.handle_batch_request)
         self.register_handler(MessageType.ERROR, self.handle_error)
         self.register_handler(MessageType.SUCCESS, self.handle_success)
 
@@ -269,7 +269,7 @@ class ServerProtocol(
             'echo_data': msg.data,
         })
 
-    async def handle_batch(self, msg: Message, client_id: str) -> Message:
+    async def handle_batch_request(self, msg: Message, client_id: str) -> Message:
         """Process a batch of messages and return aggregated responses."""
         if not msg.data:
             return Message(MessageType.ERROR, {'error': 'No data provided in batch message'})
@@ -279,15 +279,7 @@ class ServerProtocol(
         responses = []
         for msg_data in messages_data:
             try:
-                individual_msg = Message(
-                    type=MessageType(msg_data.get('type')),
-                    data=msg_data.get('data', {}),
-                    client_id=msg_data.get('client_id'),
-                    timestamp=msg_data.get('timestamp'),
-                    version=msg_data.get('version', '0.1'),
-                    priority=msg_data.get('priority', 5),
-                    sequence_id=msg_data.get('sequence_id'),
-                )
+                individual_msg = Message.from_dict(msg_data)
                 handler = self.handlers.get(individual_msg.type)
                 if handler:
                     response = await handler(individual_msg, client_id)
@@ -302,16 +294,8 @@ class ServerProtocol(
                     'original_message': msg_data,
                 }))
         if responses:
-            return Message(MessageType.BATCH, {
-                'messages': [
-                    {
-                        'type': r.type.value, 'data': r.data or {},
-                        'client_id': r.client_id, 'timestamp': r.timestamp,
-                        'version': r.version, 'priority': r.priority,
-                        'sequence_id': r.sequence_id,
-                    }
-                    for r in responses
-                ],
+            return Message(MessageType.BATCH_RESPONSE, {
+                'messages': [response.to_dict() for response in responses],
                 'seq': sequence_id,
                 'processed_count': len(messages_data),
                 'response_count': len(responses),

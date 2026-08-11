@@ -92,7 +92,7 @@ export class WebClientProtocol {
     }
 
     // Create batch message with proper structure
-    const batchMessage = createMessage(MessageType.BATCH, {
+    const batchMessage = createMessage(MessageType.BATCH_REQUEST, {
       messages: [...this.batchQueue]  // Copy the array to avoid mutation issues
     }, 1);
     
@@ -220,7 +220,7 @@ export class WebClientProtocol {
     this.registerHandler(MessageType.ERROR, this.handleError.bind(this));
     this.registerHandler(MessageType.SUCCESS, this.handleSuccess.bind(this));
     this.registerHandler(MessageType.TEST, this.handleTest.bind(this));
-    this.registerHandler(MessageType.BATCH, this.handleBatch.bind(this));
+    this.registerHandler(MessageType.BATCH_RESPONSE, this.handleBatch.bind(this));
 
     // Authentication handlers
     this.registerHandler(MessageType.AUTH_STATUS, this.handleAuthStatus.bind(this));

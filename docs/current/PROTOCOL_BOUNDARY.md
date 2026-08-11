@@ -59,6 +59,12 @@ their payloads share a definition. For example, player readiness uses
 `player_status_request`, `player_status_response`, and `player_status_changed`;
 do not overload one type with direction-dependent payload shapes.
 
+Batching follows the same rule: browsers send `batch_request` and servers emit
+`batch_response`. Every nested entry is validated as a complete canonical
+message, nested batches are rejected, and a batch contains at most 50 entries.
+Code that already has a decoded object must use `Message.from_dict()` so nested
+messages cannot bypass the server boundary validator.
+
 ## Message flow
 
 Client sends command:

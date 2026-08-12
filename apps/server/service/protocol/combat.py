@@ -343,7 +343,7 @@ class _CombatMixin(_ProtocolBase):
         tier = getattr(rules, "server_validation_tier", "lightweight")
         from_pos = (float(old_position.get("x", 0)), float(old_position.get("y", 0)))
         to_pos = (float(new_position.get("x", 0)), float(new_position.get("y", 0)))
-        if tier in {"trust_client", "lightweight"}:
+        if tier != "full":
             result = validator.validate_lightweight(
                 sprite_id,
                 from_pos,
@@ -364,14 +364,16 @@ class _CombatMixin(_ProtocolBase):
         if not result.valid:
             return {"success": False, "message": result.reason}
 
+        validated_from = result.valid_path[0] if result.valid_path else from_pos
+        validated_to = result.valid_path[-1] if result.valid_path else to_pos
         triggers = []
         if mode_str == "fight":
             triggers = validator.check_opportunity_attacks(
                 sprite_id,
-                from_pos,
+                validated_from,
                 table,
                 CombatEngine.get_state(session_code),
-                to_pos=to_pos,
+                to_pos=validated_to,
             )
         return {
             "success": True,

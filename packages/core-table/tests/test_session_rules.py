@@ -28,6 +28,15 @@ def test_from_dict_ignores_unknown_keys():
     assert not hasattr(rules, "unknown_field")
 
 
+def test_from_dict_upgrades_legacy_trust_client_validation():
+    data = SessionRules.defaults("x").to_dict()
+    data["server_validation_tier"] = "trust_client"
+
+    rules = SessionRules.from_dict(data)
+
+    assert rules.server_validation_tier == "lightweight"
+
+
 def test_validate_speed():
     rules = SessionRules.defaults("x")
     rules.default_movement_speed = 0
@@ -40,6 +49,13 @@ def test_validate_invalid_diagonal():
     rules.diagonal_movement_rule = "bad_value"
     errors = rules.validate()
     assert any("diagonal_movement_rule" in e for e in errors)
+
+
+def test_validate_rejects_trust_client_tier():
+    rules = SessionRules.defaults("x")
+    rules.server_validation_tier = "trust_client"
+
+    assert any("server_validation_tier" in error for error in rules.validate())
 
 
 def test_validate_ok():

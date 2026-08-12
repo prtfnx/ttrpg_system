@@ -35,7 +35,7 @@ export interface SessionRules {
   ai_auto_act: boolean;
   default_ai_behavior: string;
   movement_mode: 'cell' | 'free';
-  server_validation_tier: 'trust_client' | 'lightweight' | 'full';
+  server_validation_tier: 'lightweight' | 'full';
   enforce_cover: boolean;
   enforce_difficult_terrain: boolean;
   opportunity_attacks_enabled: boolean;

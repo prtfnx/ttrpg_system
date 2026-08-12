@@ -109,7 +109,6 @@ export function SessionRulesTab() {
           label="Server validation"
           field="server_validation_tier"
           options={[
-            { value: 'trust_client', label: 'Trust client (fastest, no collision)' },
             { value: 'lightweight', label: 'Lightweight (segment check, no A*)' },
             { value: 'full', label: 'Full (server A* pathfinding)' },
           ]}

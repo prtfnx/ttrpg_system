@@ -19,6 +19,7 @@ def make_table(width=1000, height=1000, grid_cell_px=50.0, walls=None, entities=
     t.grid_cell_px = grid_cell_px
     t.walls = walls or {}
     t.entities = entities or {}
+    t.find_entity_by_sprite_id.return_value = None
     return t
 
 
@@ -127,6 +128,89 @@ def test_speed_check_passes():
     assert r.valid
 
 
+def test_movement_cost_uses_authoritative_token_start():
+    rules = make_rules(
+        walls_block_movement=False,
+        obstacles_block_movement=False,
+        enforce_movement_speed=True,
+    )
+    table = make_table()
+    table.find_entity_by_sprite_id.return_value = FakeEntity(
+        'e1',
+        25,
+        25,
+        layer='tokens',
+    )
+
+    result = MovementValidator(rules).validate(
+        'e1',
+        (75, 25),
+        (125, 25),
+        table,
+        combatant=Combatant(entity_id='e1', movement_remaining=30),
+    )
+
+    assert result.valid
+    assert result.valid_path[0] == (25.0, 25.0)
+    assert result.movement_cost == 10
+
+
+def test_valid_client_path_is_costed_segment_by_segment():
+    rules = make_rules(
+        walls_block_movement=False,
+        obstacles_block_movement=False,
+        enforce_movement_speed=True,
+    )
+    table = make_table()
+
+    result = MovementValidator(rules).validate(
+        'e1',
+        (25, 25),
+        (75, 75),
+        table,
+        combatant=Combatant(entity_id='e1', movement_remaining=30),
+        client_path=[(25, 25), (25, 75), (75, 75)],
+    )
+
+    assert result.valid
+    assert result.movement_cost == 10
+
+
+def test_client_path_must_cover_authoritative_route():
+    rules = make_rules(walls_block_movement=False, obstacles_block_movement=False)
+    table = make_table()
+    validator = MovementValidator(rules)
+
+    one_point = validator.validate(
+        'e1',
+        (25, 25),
+        (75, 25),
+        table,
+        client_path=[(25, 25)],
+    )
+    wrong_start = validator.validate(
+        'e1',
+        (25, 25),
+        (75, 25),
+        table,
+        client_path=[(75, 25), (75, 25)],
+    )
+    outside = validator.validate(
+        'e1',
+        (25, 25),
+        (75, 25),
+        table,
+        client_path=[(25, 25), (1_025, 25), (75, 25)],
+    )
+
+    assert not one_point.valid
+    assert 'at least two' in one_point.reason
+    assert not wrong_start.valid
+    assert 'token position' in wrong_start.reason
+    assert not outside.valid
+    assert 'bounds' in outside.reason
+
+
 def test_no_combatant_skips_speed_check():
     rules = make_rules(enforce_movement_speed=True)
     table = make_table(grid_cell_px=50)
@@ -212,3 +296,19 @@ def test_validate_lightweight_rejects_pixel_position_outside_table():
 
     assert not result.valid
     assert 'bounds' in result.reason
+
+
+def test_validate_lightweight_rejects_incomplete_client_path():
+    rules = make_rules(walls_block_movement=False, obstacles_block_movement=False)
+    table = make_table()
+
+    result = MovementValidator(rules).validate_lightweight(
+        'e1',
+        (25, 25),
+        (75, 25),
+        table,
+        client_path=[(25, 25)],
+    )
+
+    assert not result.valid
+    assert 'at least two' in result.reason

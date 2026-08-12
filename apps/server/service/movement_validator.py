@@ -11,6 +11,9 @@ if TYPE_CHECKING:
     from core_table.combat import CombatState
 
 
+MAX_CLIENT_PATH_POINTS = 1000
+
+
 @dataclass
 class Combatant:
     entity_id: str
@@ -41,6 +44,7 @@ class MovementValidator:
         combatant: Optional[Combatant] = None,
         client_path: Optional[list] = None,
     ) -> MovementResult:
+        from_pos = self._authoritative_start(entity_id, from_pos, table)
         # Table dimensions and entity positions share pixel-space coordinates.
         if getattr(self.rules, 'movement_mode', 'cell') == 'cell':
             to_pos = self._snap_to_cell(to_pos, table.grid_cell_px)
@@ -66,7 +70,16 @@ class MovementValidator:
         sh = SpatialHashGrid.build(walls, obstacles, table.grid_cell_px) if walls or obstacles else None
 
         # Build or accept path
-        path = client_path
+        path = None
+        if client_path:
+            path, path_error = self._validate_client_path(
+                client_path,
+                from_pos,
+                to_pos,
+                table,
+            )
+            if path_error:
+                return MovementResult(valid=False, reason=path_error)
         if not path:
             if walls or obstacles:
                 # Fast path: if direct line of sight is clear, skip expensive A*
@@ -203,6 +216,59 @@ class MovementValidator:
             math.floor((table.height - grid / 2) / grid),
         )
 
+    @staticmethod
+    def _authoritative_start(entity_id: str, declared_start: tuple, table) -> tuple:
+        """Prefer the stored token position over a client-declared start."""
+        find_entity = getattr(table, 'find_entity_by_sprite_id', None)
+        entity = find_entity(str(entity_id)) if callable(find_entity) else None
+        position = getattr(entity, 'position', None)
+        if isinstance(position, (list, tuple)) and len(position) >= 2:
+            return (float(position[0]), float(position[1]))
+        return declared_start
+
+    def _validate_client_path(
+        self,
+        client_path: list,
+        from_pos: tuple,
+        to_pos: tuple,
+        table,
+    ) -> tuple[Optional[list[tuple[float, float]]], str]:
+        """Validate an untrusted client route before collision and cost checks."""
+        if len(client_path) < 2:
+            return None, "Movement path must contain at least two points"
+        if len(client_path) > MAX_CLIENT_PATH_POINTS:
+            return None, "Movement path has too many points"
+
+        path: list[tuple[float, float]] = []
+        for point in client_path:
+            if not isinstance(point, (list, tuple)) or len(point) != 2:
+                return None, "Movement path points must be coordinate pairs"
+            if isinstance(point[0], bool) or isinstance(point[1], bool):
+                return None, "Movement path coordinates must be finite numbers"
+            try:
+                normalized = (float(point[0]), float(point[1]))
+            except (TypeError, ValueError):
+                return None, "Movement path coordinates must be finite numbers"
+            if not all(math.isfinite(value) for value in normalized):
+                return None, "Movement path coordinates must be finite numbers"
+            if not self._is_within_table(normalized, table):
+                return None, "Movement path leaves table bounds"
+            path.append(normalized)
+
+        if not self._positions_match(path[0], from_pos):
+            return None, "Movement path does not start at the token position"
+        if not self._positions_match(path[-1], to_pos):
+            return None, "Movement path does not end at the destination"
+        return path, ""
+
+    @staticmethod
+    def _positions_match(left: tuple, right: tuple) -> bool:
+        return math.isclose(left[0], right[0], abs_tol=1e-6) and math.isclose(
+            left[1],
+            right[1],
+            abs_tol=1e-6,
+        )
+
     def _get_walls_and_obstacles(self, entity_id: str, table) -> tuple[list, list]:
         walls = []
         if self.rules.walls_block_movement:
@@ -235,6 +301,7 @@ class MovementValidator:
         2. Each path segment vs walls/obstacles (direct intersection only)
         3. Optionally enforces movement speed if combatant provided
         """
+        from_pos = self._authoritative_start(entity_id, from_pos, table)
         grid = table.grid_cell_px
         if getattr(self.rules, 'movement_mode', 'cell') == 'cell':
             to_pos = self._snap_to_cell(to_pos, grid)
@@ -244,7 +311,17 @@ class MovementValidator:
 
         walls, obstacles = self._get_walls_and_obstacles(entity_id, table)
         sh = SpatialHashGrid.build(walls, obstacles, grid) if walls or obstacles else None
-        path = client_path or [from_pos, to_pos]
+        path = None
+        if client_path:
+            path, path_error = self._validate_client_path(
+                client_path,
+                from_pos,
+                to_pos,
+                table,
+            )
+            if path_error:
+                return MovementResult(valid=False, reason=path_error)
+        path = path or [from_pos, to_pos]
 
         for seg_start, seg_end in zip(path, path[1:]):
             if walls and PathfindingSystem.is_path_blocked_by_walls(seg_start, seg_end, walls, sh):

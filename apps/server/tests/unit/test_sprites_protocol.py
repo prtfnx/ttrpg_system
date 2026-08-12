@@ -7,10 +7,12 @@ Focus: user-visible behaviour — correct response types, permission gates,
 validation errors, and broadcast calls. Implementation details (DB rows,
 WASM state) are intentionally not asserted.
 """
-from unittest.mock import AsyncMock, MagicMock
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 from core_table.protocol import Message, MessageType
+from core_table.session_rules import SessionRules
+from core_table.table import VirtualTable
 from service.combat_engine import CombatEngine
 from service.protocol.sprites import _SpritesMixin
 
@@ -500,6 +502,22 @@ class TestMoveSpriteResult:
         proto.table_manager.tables = {}
         return proto
 
+    def _validated_proto(self):
+        proto = _ProtoStub(role="owner")
+        table = VirtualTable("Movement", 500, 500)
+        table.add_entity({
+            "name": "Token",
+            "x": 25,
+            "y": 25,
+            "layer": "tokens",
+            "sprite_id": "sp-1",
+        })
+        proto.table_manager.tables_id = {"t1": table}
+        proto.table_manager.tables = {}
+        proto._rules_cache["TST"] = (SessionRules.defaults("TST"), "free_roam")
+        proto.actions.move_sprite = AsyncMock(return_value=_ok_result())
+        return proto
+
     async def test_successful_move_broadcasts_and_returns_sprite_response(self):
         proto = self._proto()
         proto.actions.move_sprite = AsyncMock(return_value=_ok_result())
@@ -542,6 +560,45 @@ class TestMoveSpriteResult:
         resp = await proto.handle_move_sprite(msg, "c1")
 
         assert resp.data.get("action_id") == "act-99"
+
+    async def test_incomplete_client_path_is_rejected_before_move(self):
+        proto = self._validated_proto()
+
+        response = await proto.handle_move_sprite(
+            Message(MessageType.SPRITE_MOVE, {
+                "sprite_id": "sp-1",
+                "table_id": "t1",
+                "from": {"x": 25, "y": 25},
+                "to": {"x": 75, "y": 25},
+                "path": [[25, 25]],
+            }),
+            "c1",
+        )
+
+        assert response.type == MessageType.ACTION_REJECTED
+        assert "at least two" in response.data["reason"]
+        proto.actions.move_sprite.assert_not_awaited()
+
+    async def test_validation_exception_fails_closed(self):
+        proto = self._validated_proto()
+
+        with patch(
+            "service.movement_validator.MovementValidator.validate_lightweight",
+            side_effect=RuntimeError("validator failed"),
+        ):
+            response = await proto.handle_move_sprite(
+                Message(MessageType.SPRITE_MOVE, {
+                    "sprite_id": "sp-1",
+                    "table_id": "t1",
+                    "from": {"x": 25, "y": 25},
+                    "to": {"x": 75, "y": 25},
+                }),
+                "c1",
+            )
+
+        assert response.type == MessageType.ACTION_REJECTED
+        assert response.data["reason"] == "Movement validation failed"
+        proto.actions.move_sprite.assert_not_awaited()
 
     async def test_player_blocked_when_not_owner(self):
         proto = self._proto(role="player")

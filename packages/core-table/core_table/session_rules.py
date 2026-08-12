@@ -63,7 +63,6 @@ class SessionRules:
     # "free" = pixel-precise (free_roam default)
     movement_mode: str = "cell"
     # Server collision validation tier:
-    # "trust_client" = ownership + bounds only (fastest, no collision)
     # "lightweight"  = segment checks only, no A* (default - good for Render free tier)
     # "full"         = server runs own A* pathfinding (most accurate, most CPU)
     server_validation_tier: str = "lightweight"
@@ -92,8 +91,8 @@ class SessionRules:
             errors.append(f"show_npc_hp_to_players must be one of {valid_hp_display}")
         if self.movement_mode not in {"cell", "free"}:
             errors.append("movement_mode must be 'cell' or 'free'")
-        if self.server_validation_tier not in {"trust_client", "lightweight", "full"}:
-            errors.append("server_validation_tier must be 'trust_client', 'lightweight', or 'full'")
+        if self.server_validation_tier not in {"lightweight", "full"}:
+            errors.append("server_validation_tier must be 'lightweight' or 'full'")
         return errors
 
     def to_dict(self) -> dict:
@@ -104,6 +103,8 @@ class SessionRules:
     def from_dict(cls, data: dict) -> "SessionRules":
         known = {f.name for f in cls.__dataclass_fields__.values()}  # type: ignore[attr-defined]
         filtered = {k: v for k, v in data.items() if k in known}
+        if filtered.get("server_validation_tier") == "trust_client":
+            filtered["server_validation_tier"] = "lightweight"
         return cls(**filtered)
 
     @classmethod

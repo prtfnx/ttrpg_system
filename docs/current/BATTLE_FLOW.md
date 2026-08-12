@@ -139,6 +139,12 @@ Table dimensions, entity positions, wall geometry, and movement endpoints are
 all pixel-space values. Cell-mode movement snaps endpoints to grid-cell centers;
 pathfinding divides pixel dimensions by `grid_cell_px` when deriving its
 inclusive cell bounds. It must not scale table dimensions by the grid size.
+The stored token position is the authoritative route start. A client may
+propose at most 1,000 pixel-coordinate waypoints, but the server requires a
+finite, in-bounds coordinate pair at every point and exact route endpoints
+before checking every segment and computing cost. There is no collision-bypass
+or `trust_client` validation tier; persisted legacy values load as
+`lightweight`.
 
 Raw `SPRITE_MOVE` is kept for non-combat table movement. It is blocked for
 encounter actors unless the DM is doing an explicit table-edit override.

@@ -256,9 +256,7 @@ class _SpritesMixin(_ProtocolBase):
                 combatant = None
                 tier = getattr(rules, 'server_validation_tier', 'lightweight')
 
-                if tier == 'trust_client':
-                    mv_result = None  # skip collision, bounds already checked above
-                elif tier == 'lightweight':
+                if tier != 'full':
                     mv_result = validator.validate_lightweight(
                         entity_id=sprite_id,
                         from_pos=to_tuple(from_pos),
@@ -283,8 +281,12 @@ class _SpritesMixin(_ProtocolBase):
                         reject['action_id'] = action_id
                     return Message(MessageType.ACTION_REJECTED, reject)
 
-            except Exception as e:
-                logger.warning(f"Movement validation error (non-fatal): {e}")
+            except Exception:
+                logger.exception("Movement validation failed")
+                reject = {'reason': 'Movement validation failed', 'sprite_id': sprite_id}
+                if action_id:
+                    reject['action_id'] = action_id
+                return Message(MessageType.ACTION_REJECTED, reject)
 
         # Get session_id for database persistence
         session_id = self._get_session_id(msg)

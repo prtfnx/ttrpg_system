@@ -7,8 +7,8 @@ from service.movement_validator import MovementValidator
 class _MockTable:
     def __init__(self, grid=50, difficult_cells=None):
         self.grid_cell_px = grid
-        self.width = 20
-        self.height = 20
+        self.width = 1000
+        self.height = 1000
         self.walls = {}
         self.entities = {}
         self.sprite_to_entity = {}

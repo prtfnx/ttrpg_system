@@ -33,6 +33,11 @@ describe('Protocol Message Utilities', () => {
       .toThrow(/Invalid message/);
   });
 
+  it('should reject the removed test message', () => {
+    expect(() => parseMessage(JSON.stringify({ type: 'test', data: {} })))
+      .toThrow(/Invalid message/);
+  });
+
   it.each([
     null,
     [],

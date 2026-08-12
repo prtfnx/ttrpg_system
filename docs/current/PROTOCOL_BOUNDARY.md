@@ -82,6 +82,11 @@ The WebSocket is authenticated while its connection is established and uses
 server-side connection metadata afterward. Unsupported WebSocket auth stubs are
 not part of the message registry and must not simulate logout or token checks.
 
+Core messages are directional. Browsers send `ping` and `batch_request`; the
+server emits `pong`, `batch_response`, `success`, and `error`. Response-only
+`success` and `error` messages are not registered as server commands. The old
+`test` echo message had no production consumer and is not part of the protocol.
+
 Request, response, and broadcast semantics use separate message types even when
 their payloads share a definition. For example, player readiness uses
 `player_status_request`, `player_status_response`, and `player_status_changed`;
@@ -154,7 +159,7 @@ attack preview, cover-zone sync, and DM-only AI suggestions.
 
 ## Current message families
 
-- Core: ping, pong, welcome, error, success, batch.
+- Core: ping, pong, welcome, error, success, batch request/response.
 - Tables: table CRUD, active table, settings, list.
 - Sprites: create, update, remove, move, scale, rotate, previews.
 - Assets: upload, download, list, delete, hash.

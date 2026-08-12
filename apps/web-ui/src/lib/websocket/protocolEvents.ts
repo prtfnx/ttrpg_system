@@ -53,7 +53,6 @@ export type ProtocolEventMap = {
   'protocol-error': ProtocolRecord;
   'protocol-send-message': { type: string; data: unknown };
   'protocol-success': ProtocolRecord;
-  'protocol-test-received': ProtocolRecord;
   'show-toast': { message: string; type: 'info' | 'success' | 'warning' | 'error' };
   'sprite-action-confirmed': { actionId: unknown };
   'sprite-action-rejected': { actionId: unknown; reason: string };

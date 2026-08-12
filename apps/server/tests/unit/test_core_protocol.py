@@ -15,6 +15,8 @@ def test_server_registers_only_client_to_server_core_messages():
     assert MessageType.PONG not in protocol.handlers
     assert MessageType.BATCH_REQUEST in protocol.handlers
     assert MessageType.BATCH_RESPONSE not in protocol.handlers
+    assert MessageType.SUCCESS not in protocol.handlers
+    assert MessageType.ERROR not in protocol.handlers
 
 
 @pytest.mark.asyncio

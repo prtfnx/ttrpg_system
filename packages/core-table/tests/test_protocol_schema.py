@@ -33,6 +33,7 @@ def test_message_from_json_validates_the_envelope():
     [
         "[]",
         '{"type":"unknown","data":{}}',
+        '{"type":"test","data":{}}',
         '{"type":"ping","data":[]}',
         '{"type":"ping","data":{},"unexpected":true}',
     ],

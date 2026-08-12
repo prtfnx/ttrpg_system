@@ -88,10 +88,7 @@ class ServerProtocol(
     def init_handlers(self):
         """Register all built-in protocol handlers."""
         self.register_handler(MessageType.PING, self.handle_ping)
-        self.register_handler(MessageType.TEST, self.handle_test)
         self.register_handler(MessageType.BATCH_REQUEST, self.handle_batch_request)
-        self.register_handler(MessageType.ERROR, self.handle_error)
-        self.register_handler(MessageType.SUCCESS, self.handle_success)
 
         # Tables
         self.register_handler(MessageType.NEW_TABLE_REQUEST, self.handle_new_table_request)
@@ -237,21 +234,6 @@ class ServerProtocol(
     async def handle_ping(self, msg: Message, client_id: str) -> Message:
         logger.info(f"PING received from client {client_id}")
         return Message(MessageType.PONG, {'timestamp': time.time(), 'client_id': client_id})
-
-    async def handle_success(self, msg: Message, client_id: str) -> Message:
-        logger.debug("Client success received", extra={"event_name": "protocol.success.received"})
-        return Message(MessageType.SUCCESS, {'acknowledged': True})
-
-    async def handle_error(self, msg: Message, client_id: str) -> Message:
-        logger.warning("Client error received", extra={"event_name": "protocol.error.received"})
-        return Message(MessageType.SUCCESS, {'error_acknowledged': True})
-
-    async def handle_test(self, msg: Message, client_id: str) -> Message:
-        return Message(MessageType.SUCCESS, {
-            'message': 'Test message received',
-            'server_time': time.time(),
-            'echo_data': msg.data,
-        })
 
     async def handle_batch_request(self, msg: Message, client_id: str) -> Message:
         """Process a batch of messages and return aggregated responses."""

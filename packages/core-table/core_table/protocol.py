@@ -25,7 +25,6 @@ class MessageType(enum.Enum):
     PING = "ping"
     PONG = "pong"
     ERROR = "error"
-    TEST = "test"
     SUCCESS = "success"
     WELCOME = "welcome"
     NEW_TABLE_REQUEST = "new_table_request"

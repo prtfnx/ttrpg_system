@@ -218,7 +218,6 @@ export class WebClientProtocol {
     this.registerHandler(MessageType.PONG, this.handlePong.bind(this));
     this.registerHandler(MessageType.ERROR, this.handleError.bind(this));
     this.registerHandler(MessageType.SUCCESS, this.handleSuccess.bind(this));
-    this.registerHandler(MessageType.TEST, this.handleTest.bind(this));
     this.registerHandler(MessageType.BATCH_RESPONSE, this.handleBatch.bind(this));
 
     // Player management
@@ -2091,11 +2090,6 @@ export class WebClientProtocol {
   // MISSING MESSAGE HANDLERS IMPLEMENTATION
   // =========================================================================
 
-  private async handleTest(message: Message): Promise<void> {
-    logger.debug('Protocol: Test message received:', message.data);
-    emitProtocolEvent('protocol-test-received', message.data);
-  }
-
   private async handlePlayerStatus(message: Message): Promise<void> {
     logger.debug('Protocol: Player status:', message.data);
     emitProtocolEvent('player-status-changed', message.data);
@@ -2284,10 +2278,6 @@ export class WebClientProtocol {
       x_moved: xMoved,
       y_moved: yMoved
     }));
-  }
-
-  sendTestMessage(data: Record<string, unknown>): void {
-    this.sendMessage(createMessage(MessageType.TEST, data));
   }
 
   // Cover zones.

@@ -1,5 +1,6 @@
 import js from '@eslint/js'
 import globals from 'globals'
+import jsxA11y from 'eslint-plugin-jsx-a11y'
 import reactHooks from 'eslint-plugin-react-hooks'
 import reactRefresh from 'eslint-plugin-react-refresh'
 import tseslint from 'typescript-eslint'
@@ -12,6 +13,7 @@ export default tseslint.config([
     extends: [
       js.configs.recommended,
       tseslint.configs.recommended,
+      jsxA11y.flatConfigs.recommended,
       reactHooks.configs['recommended-latest'],
       reactRefresh.configs.vite,
     ],
@@ -34,6 +36,12 @@ export default tseslint.config([
       '@typescript-eslint/no-unsafe-function-type': 'error',
       '@typescript-eslint/no-empty-object-type': 'error',
       'react-hooks/rules-of-hooks': 'error',
+      // Dialogs deliberately move focus to the safest or primary control.
+      'jsx-a11y/no-autofocus': 'off',
+      'jsx-a11y/label-has-associated-control': ['error', {
+        required: { some: ['nesting', 'id'] },
+        depth: 5,
+      }],
       'no-useless-escape': 'error',
       '@typescript-eslint/no-this-alias': 'error',
       '@typescript-eslint/no-unused-expressions': 'error',

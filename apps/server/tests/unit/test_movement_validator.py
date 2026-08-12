@@ -1,5 +1,6 @@
-from unittest.mock import MagicMock
+from unittest.mock import MagicMock, patch
 
+from core_table.pathfinding import PathfindingSystem
 from core_table.session_rules import SessionRules
 from service.movement_validator import Combatant, MovementValidator
 
@@ -11,7 +12,7 @@ def make_rules(**kwargs):
     return r
 
 
-def make_table(width=20, height=20, grid_cell_px=50.0, walls=None, entities=None):
+def make_table(width=1000, height=1000, grid_cell_px=50.0, walls=None, entities=None):
     t = MagicMock()
     t.width = width
     t.height = height
@@ -49,18 +50,27 @@ def test_move_open_space_succeeds():
 
 def test_move_outside_bounds_fails():
     rules = make_rules(walls_block_movement=False, obstacles_block_movement=False)
-    table = make_table(width=10, height=10, grid_cell_px=50)
+    table = make_table(width=500, height=500, grid_cell_px=50)
     v = MovementValidator(rules)
     r = v.validate('e1', (25, 25), (600, 25), table)
     assert not r.valid
     assert 'bounds' in r.reason
 
 
+def test_move_inside_pixel_bounds_succeeds():
+    rules = make_rules(walls_block_movement=False, obstacles_block_movement=False)
+    table = make_table(width=500, height=500, grid_cell_px=50)
+
+    result = MovementValidator(rules).validate('e1', (25, 25), (475, 475), table)
+
+    assert result.valid
+
+
 def test_move_through_wall_fails():
-    # Wall spanning full table height (20 cells * 50px = 1000px) — truly impassable
+    # A wall spanning the full 1000px table height is truly impassable.
     rules = make_rules(walls_block_movement=True, obstacles_block_movement=False)
-    wall = FakeWall(100, 0, 100, 1000)  # spans full 20x50 table height
-    table = make_table(width=20, height=20, grid_cell_px=50, walls={'w1': wall})
+    wall = FakeWall(100, 0, 100, 1000)
+    table = make_table(width=1000, height=1000, grid_cell_px=50, walls={'w1': wall})
     v = MovementValidator(rules)
     # Strict budget: can't go around the full-height wall in 30ft
     r = v.validate('e1', (25, 500), (200, 500), table,
@@ -82,7 +92,7 @@ def test_move_through_obstacle_fails():
     rules = make_rules(walls_block_movement=False, obstacles_block_movement=True)
     # 600px wide obstacle spans x=0 to x=600 at y=200 (only 1 cell tall, 50px)
     obstacle = FakeEntity('obs1', 0, 200, w=600, h=50)
-    table = make_table(width=20, height=20, grid_cell_px=50, entities={1: obstacle})
+    table = make_table(width=1000, height=1000, grid_cell_px=50, entities={1: obstacle})
     v = MovementValidator(rules)
     # Must cross y=200 to get from y=175 to y=275, obstacle blocks entire width
     r = v.validate('e1', (25, 175), (25, 275), table,
@@ -124,7 +134,7 @@ def test_no_combatant_skips_speed_check():
     v.validate('e1', (25, 25), (5000, 25), table, combatant=None)
     # bounds will stop it, but speed should not
     # resize table to be huge to isolate speed check
-    big_table = make_table(width=1000, height=1000)
+    big_table = make_table(width=10_000, height=10_000)
     r2 = v.validate('e1', (25, 25), (5000, 25), big_table, combatant=None)
     assert r2.valid  # speed not checked without combatant
 
@@ -146,13 +156,26 @@ def test_direct_los_blocked_triggers_astar():
     rules = make_rules(walls_block_movement=True, obstacles_block_movement=False)
     # Short wall at x=100, spanning y=0..500 — blocks direct horizontal move
     wall = FakeWall(100, 0, 100, 500)
-    table = make_table(width=20, height=20, grid_cell_px=50)
+    table = make_table(width=1000, height=1000, grid_cell_px=50)
     table.walls = {'w1': wall}
     v = MovementValidator(rules)
     r = v.validate('e1', (25, 250), (200, 250), table)
     # A* should find a route around the wall (path length > 2 points)
     if r.valid:
         assert len(r.valid_path) > 2  # A* produced a multi-step path
+
+
+def test_astar_receives_cell_bounds_derived_from_pixel_dimensions():
+    rules = make_rules(walls_block_movement=True, obstacles_block_movement=False)
+    wall = FakeWall(100, 0, 100, 500)
+    table = make_table(width=1000, height=750, grid_cell_px=50, walls={'w1': wall})
+    validator = MovementValidator(rules)
+
+    with patch.object(PathfindingSystem, 'find_path_astar', return_value=None) as find_path:
+        result = validator.validate('e1', (25, 250), (200, 250), table)
+
+    assert not result.valid
+    assert find_path.call_args.kwargs['grid_bounds'] == (19, 14)
 
 
 def test_validate_lightweight_clear_path():
@@ -174,3 +197,18 @@ def test_validate_lightweight_blocked_path():
     r = v.validate_lightweight('e1', (25, 500), (200, 500), table)
     assert not r.valid
     assert 'wall' in r.reason.lower()
+
+
+def test_validate_lightweight_rejects_pixel_position_outside_table():
+    rules = make_rules(walls_block_movement=False, obstacles_block_movement=False)
+    table = make_table(width=500, height=500, grid_cell_px=50)
+
+    result = MovementValidator(rules).validate_lightweight(
+        'e1',
+        (25, 25),
+        (525, 25),
+        table,
+    )
+
+    assert not result.valid
+    assert 'bounds' in result.reason

@@ -389,8 +389,8 @@ class TestCombatCommand:
         proto.actions = MagicMock()
         proto.actions.move_sprite = AsyncMock(return_value=MagicMock(success=True, message="ok"))
         table = MagicMock()
-        table.width = 10
-        table.height = 10
+        table.width = 640
+        table.height = 640
         table.grid_cell_px = 64
         table.walls = {}
         table.entities = {}

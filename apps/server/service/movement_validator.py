@@ -41,15 +41,11 @@ class MovementValidator:
         combatant: Optional[Combatant] = None,
         client_path: Optional[list] = None,
     ) -> MovementResult:
-        # Table bounds: table uses grid cells, positions are pixel coords
+        # Table dimensions and entity positions share pixel-space coordinates.
         if getattr(self.rules, 'movement_mode', 'cell') == 'cell':
             to_pos = self._snap_to_cell(to_pos, table.grid_cell_px)
-        if table.width > 0 and table.height > 0:
-            max_x = table.width * table.grid_cell_px
-            max_y = table.height * table.grid_cell_px
-            tx, ty = to_pos
-            if not (0 <= tx <= max_x and 0 <= ty <= max_y):
-                return MovementResult(valid=False, reason="Outside table bounds")
+        if not self._is_within_table(to_pos, table):
+            return MovementResult(valid=False, reason="Outside table bounds")
 
         walls = []
         if self.rules.walls_block_movement:
@@ -87,7 +83,7 @@ class MovementValidator:
                         from_pos, to_pos, walls, obstacles,
                         grid_size=table.grid_cell_px,
                         exclude_entity_id=entity_id,
-                        grid_bounds=(table.width - 1, table.height - 1) if table.width > 0 else None,
+                        grid_bounds=self._astar_grid_bounds(table, table.grid_cell_px),
                         spatial_hash=sh,
                     )
                     if path is None:
@@ -189,6 +185,24 @@ class MovementValidator:
             math.floor(pos[1] / grid) * grid + grid / 2,
         )
 
+    @staticmethod
+    def _is_within_table(pos: tuple, table) -> bool:
+        """Return whether a pixel-space position is inside table dimensions."""
+        return (
+            table.width > 0
+            and table.height > 0
+            and 0 <= pos[0] < table.width
+            and 0 <= pos[1] < table.height
+        )
+
+    @staticmethod
+    def _astar_grid_bounds(table, grid: float) -> tuple[int, int]:
+        """Convert pixel dimensions to inclusive cell-center bounds for A*."""
+        return (
+            math.floor((table.width - grid / 2) / grid),
+            math.floor((table.height - grid / 2) / grid),
+        )
+
     def _get_walls_and_obstacles(self, entity_id: str, table) -> tuple[list, list]:
         walls = []
         if self.rules.walls_block_movement:
@@ -225,10 +239,8 @@ class MovementValidator:
         if getattr(self.rules, 'movement_mode', 'cell') == 'cell':
             to_pos = self._snap_to_cell(to_pos, grid)
 
-        if table.width > 0 and table.height > 0:
-            max_x, max_y = table.width * grid, table.height * grid
-            if not (0 <= to_pos[0] <= max_x and 0 <= to_pos[1] <= max_y):
-                return MovementResult(valid=False, reason="Outside table bounds")
+        if not self._is_within_table(to_pos, table):
+            return MovementResult(valid=False, reason="Outside table bounds")
 
         walls, obstacles = self._get_walls_and_obstacles(entity_id, table)
         sh = SpatialHashGrid.build(walls, obstacles, grid) if walls or obstacles else None

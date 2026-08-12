@@ -135,6 +135,10 @@ canvas drag or planned move -> combat_command move -> CombatCommandService
 The server requires source and destination coordinates. Client movement cost is
 diagnostic only. The server computes or validates the final movement cost using
 the active combatant, session rules, difficult terrain, and movement validator.
+Table dimensions, entity positions, wall geometry, and movement endpoints are
+all pixel-space values. Cell-mode movement snaps endpoints to grid-cell centers;
+pathfinding divides pixel dimensions by `grid_cell_px` when deriving its
+inclusive cell bounds. It must not scale table dimensions by the grid size.
 
 Raw `SPRITE_MOVE` is kept for non-combat table movement. It is blocked for
 encounter actors unless the DM is doing an explicit table-edit override.
@@ -260,4 +264,3 @@ combat mutations:
 - `ATTACK_PREVIEW`;
 - `AI_ACTION`;
 - encounter view/progress messages that do not directly mutate combat state.
-

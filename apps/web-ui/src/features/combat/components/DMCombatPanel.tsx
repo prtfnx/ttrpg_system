@@ -322,9 +322,10 @@ export function DMCombatPanel() {
       </div>
 
       <div className={styles.section}>
-        <label className={styles.label}>Set HP</label>
+        <label className={styles.label} htmlFor="combat-set-hp">Set HP</label>
         <div className={styles.row}>
           <input
+            id="combat-set-hp"
             className={styles.input}
             type="number"
             placeholder="HP"
@@ -336,9 +337,10 @@ export function DMCombatPanel() {
       </div>
 
       <div className={styles.section}>
-        <label className={styles.label}>Temp HP</label>
+        <label className={styles.label} htmlFor="combat-temp-hp">Temp HP</label>
         <div className={styles.row}>
           <input
+            id="combat-temp-hp"
             className={styles.input}
             type="number"
             min="0"
@@ -351,9 +353,10 @@ export function DMCombatPanel() {
       </div>
 
       <div className={styles.section}>
-        <label className={styles.label}>Apply Damage</label>
+        <label className={styles.label} htmlFor="combat-damage">Apply Damage</label>
         <div className={styles.row}>
           <input
+            id="combat-damage"
             className={styles.input}
             type="number"
             placeholder="Amount"
@@ -370,9 +373,10 @@ export function DMCombatPanel() {
       />
 
       <div className={styles.section}>
-        <label className={styles.label}>Add Condition</label>
+        <label className={styles.label} htmlFor="combat-condition">Add Condition</label>
         <div className={styles.row}>
           <select
+            id="combat-condition"
             className={styles.select}
             value={conditionType}
             onChange={(e) => setConditionType(e.target.value)}
@@ -382,6 +386,7 @@ export function DMCombatPanel() {
             ))}
           </select>
           <input
+            aria-label="Condition duration in rounds"
             className={styles.input}
             type="number"
             min="1"
@@ -403,17 +408,17 @@ export function DMCombatPanel() {
       </div>
 
       <div className={styles.section}>
-        <label className={styles.label}>Resistances (comma-separated damage types)</label>
-        <input className={styles.input} placeholder="fire, cold..." value={resistField} onChange={(e) => setResistField(e.target.value)} />
-        <label className={styles.label}>Vulnerabilities</label>
-        <input className={styles.input} placeholder="thunder..." value={vulnField} onChange={(e) => setVulnField(e.target.value)} />
-        <label className={styles.label}>Immunities</label>
-        <input className={styles.input} placeholder="poison..." value={immuneField} onChange={(e) => setImmuneField(e.target.value)} />
+        <label className={styles.label} htmlFor="combat-resistances">Resistances (comma-separated damage types)</label>
+        <input id="combat-resistances" className={styles.input} placeholder="fire, cold..." value={resistField} onChange={(e) => setResistField(e.target.value)} />
+        <label className={styles.label} htmlFor="combat-vulnerabilities">Vulnerabilities</label>
+        <input id="combat-vulnerabilities" className={styles.input} placeholder="thunder..." value={vulnField} onChange={(e) => setVulnField(e.target.value)} />
+        <label className={styles.label} htmlFor="combat-immunities">Immunities</label>
+        <input id="combat-immunities" className={styles.input} placeholder="poison..." value={immuneField} onChange={(e) => setImmuneField(e.target.value)} />
         <button className={styles.btn} onClick={setResistances}>Set</button>
       </div>
 
       <div className={styles.section}>
-        <label className={styles.label}>Surprise Round - mark surprised</label>
+        <h4 className={styles.label}>Surprise Round - mark surprised</h4>
         <div className={styles.checkList}>
           {combat.combatants.map((c) => (
             <label key={c.combatant_id} className={styles.checkItem}>

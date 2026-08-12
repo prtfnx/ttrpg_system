@@ -252,7 +252,8 @@
   margin-bottom: var(--space-md);
 }
 
-.property-group label {
+.property-group label,
+.property-group > span {
   display: block;
   margin-bottom: var(--space-sm);
   font-weight: var(--font-bold);

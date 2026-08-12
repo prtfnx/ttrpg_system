@@ -509,24 +509,24 @@ export function ToolsPanel({ userInfo }: ToolsPanelProps) {
               {dynamicLightingEnabled && (
                 <>
                   <div className={styles.controlRow}>
-                    <label>Ambient Light: {Math.round((ambientLight ?? 1.0) * 100)}%</label>
-                    <input type="range" min={0} max={100}
+                    <label htmlFor="ambient-light-level">Ambient Light: {Math.round((ambientLight ?? 1.0) * 100)}%</label>
+                    <input id="ambient-light-level" type="range" min={0} max={100}
                       value={Math.round((ambientLight ?? 1.0) * 100)}
                       onChange={e => setAmbientLight(Number(e.target.value) / 100)}
                       onMouseUp={e => ProtocolService.hasProtocol() && ProtocolService.getProtocol().sendTableSettingsUpdate(activeTableId, { ambient_light_level: Number((e.target as HTMLInputElement).value) / 100 })}
                     />
                   </div>
                   <div className={styles.controlRow}>
-                    <label>Fog Mode:</label>
-                    <select value={fogExplorationMode} onChange={e => ProtocolService.getProtocol().sendTableSettingsUpdate(activeTableId, { fog_exploration_mode: e.target.value })}>
+                    <label htmlFor="fog-exploration-mode">Fog Mode:</label>
+                    <select id="fog-exploration-mode" value={fogExplorationMode} onChange={e => ProtocolService.getProtocol().sendTableSettingsUpdate(activeTableId, { fog_exploration_mode: e.target.value })}>
                       <option value="current_only">Current Only</option>
                       <option value="persist_dimmed">Persist Dimmed</option>
                     </select>
                   </div>
                   {playerIds.length > 0 && (
                     <div className={styles.controlRow}>
-                      <label>Preview as:</label>
-                      <select value={dmPreviewUserId ?? ''} onChange={e => {
+                      <label htmlFor="dm-preview-user">Preview as:</label>
+                      <select id="dm-preview-user" value={dmPreviewUserId ?? ''} onChange={e => {
                         const val = e.target.value;
                         if (!val) { setDmPreviewMode(null); stopDmPreview(); }
                         else { const uid = Number(val); setDmPreviewMode(uid); startDmPreview(uid); }

@@ -74,7 +74,7 @@ export function RaceStep({ onNext }: { onNext: () => void }) {
     <form onSubmit={handleSubmit(handleRaceNext)} className={styles.step}>
       <div className={styles.title}>Choose your character's race</div>
 
-      <label className={styles['select-label']}>
+      <label className={styles['select-label']} htmlFor="character-race">
         Race:
         <Controller
           name="race"
@@ -82,6 +82,7 @@ export function RaceStep({ onNext }: { onNext: () => void }) {
           defaultValue=""
           render={({ field }) => (
             <select
+              id="character-race"
               value={field.value}
               onChange={(e) => {
                 field.onChange(e);
@@ -100,7 +101,7 @@ export function RaceStep({ onNext }: { onNext: () => void }) {
       {formState.errors.race && <span className={styles['field-error']}>{formState.errors.race.message}</span>}
 
       {hasSubraces && (
-        <label className={styles['select-label']}>
+        <label className={styles['select-label']} htmlFor="character-subrace">
           Subrace:
           <Controller
             name="subrace"
@@ -108,6 +109,7 @@ export function RaceStep({ onNext }: { onNext: () => void }) {
             defaultValue=""
             render={({ field }) => (
               <select
+                id="character-subrace"
                 value={field.value || ''}
                 onChange={(e) => {
                   field.onChange(e);

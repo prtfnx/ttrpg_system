@@ -469,7 +469,7 @@ export const PaintPanel: React.FC<PaintPanelProps> = ({
           
           {/* Brush Type Selection */}
           <div className={styles.brushTypeSection}>
-            <label>Brush Type:</label>
+            <span className={styles.sectionLabel}>Brush Type:</span>
             <div 
               className={clsx(
                 styles.brushTypeControls,
@@ -575,8 +575,9 @@ export const PaintPanel: React.FC<PaintPanelProps> = ({
 
           {/* Blend Mode */}
           <div className={styles.blendModeSection}>
-            <label>Blend Mode:</label>
+            <label htmlFor="paint-blend-mode">Blend Mode:</label>
             <select 
+              id="paint-blend-mode"
               value={paintState.blendMode} 
               onChange={handleBlendModeChange}
               disabled={!paintState.isActive}
@@ -629,7 +630,7 @@ export const PaintPanel: React.FC<PaintPanelProps> = ({
           {/* Template List */}
           {templates.length > 0 && (
             <div className={styles.templateList}>
-              <label>Saved Templates:</label>
+              <span className={styles.sectionLabel}>Saved Templates:</span>
               {templates.map((template) => (
                 <div key={template.id} className={styles.templateItem}>
                   <div className={styles.templateInfo}>

@@ -317,8 +317,8 @@ export function TextSpriteCreator({
                 </div>
 
                 <div className={styles.controlGroup}>
-                  <label>Alignment:</label>
-                  <div className={styles.alignmentButtons}>
+                  <span id="text-alignment-label">Alignment:</span>
+                  <div className={styles.alignmentButtons} role="group" aria-labelledby="text-alignment-label">
                     {TEXT_ALIGNMENTS.map(align => (
                       <button
                         key={align.value}

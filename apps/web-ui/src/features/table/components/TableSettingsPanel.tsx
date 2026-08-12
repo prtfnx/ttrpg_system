@@ -33,10 +33,11 @@ export const TableSettingsPanel: React.FC = () => {
       <h4 className={styles.title}>Grid &amp; Coordinate System</h4>
 
       <div className={styles.field}>
-        <label className={styles.label}>
+        <label className={styles.label} htmlFor="table-grid-cell-size">
           Cell size <span className={styles.labelValue}>{gridCellPx}px</span>
         </label>
         <input
+          id="table-grid-cell-size"
           type="range"
           className={styles.slider}
           min="10" max="200" step="5"
@@ -46,9 +47,10 @@ export const TableSettingsPanel: React.FC = () => {
       </div>
 
       <div className={styles.field}>
-        <label className={styles.label}>Distance / cell</label>
+        <label className={styles.label} htmlFor="table-distance-per-cell">Distance / cell</label>
         <div className={styles.row}>
           <input
+            id="table-distance-per-cell"
             type="number"
             className={styles.numberInput}
             min="0.5" step="0.5"

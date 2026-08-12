@@ -390,6 +390,14 @@
   margin-bottom: var(--space-lg);
 }
 
+.sectionLabel {
+  display: block;
+  margin-bottom: var(--space-sm);
+  font-size: var(--text-sm);
+  color: var(--text-muted);
+  font-weight: var(--font-medium);
+}
+
 .brushTypeControls {
   display: flex;
   gap: var(--space-sm);

@@ -112,8 +112,9 @@ export const PerformanceSettingsPanel: React.FC<PerformanceSettingsPanelProps> =
         <div>
           {/* Performance Level */}
           <div className={styles.settingGroup}>
-            <label className={styles.settingLabel}>Performance Level</label>
+            <label className={styles.settingLabel} htmlFor="performance-level">Performance Level</label>
             <select
+              id="performance-level"
               value={tempSettings.level}
               onChange={(e) => {
                 const level = e.target.value as PerformanceLevel;
@@ -130,10 +131,11 @@ export const PerformanceSettingsPanel: React.FC<PerformanceSettingsPanelProps> =
 
           {/* Sprite Settings */}
           <div className={styles.settingGroup}>
-            <label className={styles.settingLabel}>
+            <label className={styles.settingLabel} htmlFor="max-sprites">
               Max Sprites: {tempSettings.maxSprites.toLocaleString()}
             </label>
             <input
+              id="max-sprites"
               type="range"
               min="50"
               max="2000"
@@ -146,10 +148,11 @@ export const PerformanceSettingsPanel: React.FC<PerformanceSettingsPanelProps> =
 
           {/* Texture Quality */}
           <div className={styles.settingGroup}>
-            <label className={styles.settingLabel}>
+            <label className={styles.settingLabel} htmlFor="texture-quality">
               Texture Quality: {Math.round(tempSettings.textureQuality * 100)}%
             </label>
             <input
+              id="texture-quality"
               type="range"
               min="0.25"
               max="1"
@@ -162,8 +165,9 @@ export const PerformanceSettingsPanel: React.FC<PerformanceSettingsPanelProps> =
 
           {/* Shadow Quality */}
           <div className={styles.settingGroup}>
-            <label className={styles.settingLabel}>Shadow Quality</label>
+            <label className={styles.settingLabel} htmlFor="shadow-quality">Shadow Quality</label>
             <select
+              id="shadow-quality"
               value={tempSettings.shadowQuality}
               onChange={(e) => handleSettingChange('shadowQuality', parseInt(e.target.value))}
               className={styles.settingSelect}
@@ -177,10 +181,11 @@ export const PerformanceSettingsPanel: React.FC<PerformanceSettingsPanelProps> =
 
           {/* Render Distance */}
           <div className={styles.settingGroup}>
-            <label className={styles.settingLabel}>
+            <label className={styles.settingLabel} htmlFor="render-distance">
               Max Render Distance: {tempSettings.maxRenderDistance.toLocaleString()}px
             </label>
             <input
+              id="render-distance"
               type="range"
               min="200"
               max="5000"

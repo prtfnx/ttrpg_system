@@ -230,7 +230,8 @@
   margin-bottom: var(--space-lg);
 }
 
-.monster-filter-group label {
+.monster-filter-group > label,
+.monster-filter-group > span {
   display: block;
   color: var(--text-primary, var(--white));
   font-weight: var(--font-medium);

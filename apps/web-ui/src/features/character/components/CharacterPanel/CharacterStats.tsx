@@ -46,8 +46,9 @@ export const CharacterStats: React.FC<CharacterStatsProps> = ({
         <div className={clsx(styles.detailsSection, styles.editMode)}>
           <h4>Edit Stats</h4>
           <div className={styles.statRow}>
-            <label>HP:</label>
+            <label htmlFor={`character-hp-${character.id}`}>HP:</label>
             <input
+              id={`character-hp-${character.id}`}
               type="number"
               value={editFormData.hp || 0}
               onChange={e => onFormChange({ ...editFormData, hp: parseInt(e.target.value) || 0 })}
@@ -55,8 +56,9 @@ export const CharacterStats: React.FC<CharacterStatsProps> = ({
             />
           </div>
           <div className={styles.statRow}>
-            <label>Max HP:</label>
+            <label htmlFor={`character-max-hp-${character.id}`}>Max HP:</label>
             <input
+              id={`character-max-hp-${character.id}`}
               type="number"
               value={editFormData.maxHp || 10}
               onChange={e => onFormChange({ ...editFormData, maxHp: parseInt(e.target.value) || 10 })}
@@ -64,8 +66,9 @@ export const CharacterStats: React.FC<CharacterStatsProps> = ({
             />
           </div>
           <div className={styles.statRow}>
-            <label>AC:</label>
+            <label htmlFor={`character-ac-${character.id}`}>AC:</label>
             <input
+              id={`character-ac-${character.id}`}
               type="number"
               value={editFormData.ac || 10}
               onChange={e => onFormChange({ ...editFormData, ac: parseInt(e.target.value) || 10 })}
@@ -73,8 +76,9 @@ export const CharacterStats: React.FC<CharacterStatsProps> = ({
             />
           </div>
           <div className={styles.statRow}>
-            <label>Speed:</label>
+            <label htmlFor={`character-speed-${character.id}`}>Speed:</label>
             <input
+              id={`character-speed-${character.id}`}
               type="number"
               value={editFormData.speed || 30}
               onChange={e => onFormChange({ ...editFormData, speed: parseInt(e.target.value) || 30 })}

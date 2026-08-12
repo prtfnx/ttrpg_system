@@ -389,17 +389,18 @@ export const LightingPanel: React.FC = () => {
           <h4>Properties: {selectedLight.id}</h4>
 
           <div className={styles['property-group']}>
-            <label>Position</label>
-            <div className={styles['position-controls']}>
-              <input className={styles.positionInput} type="number" placeholder="X" value={selectedLight.x} onChange={(e) => updateLightProperty(selectedLight.id, 'x', parseFloat(e.target.value) || 0)} />
-              <input className={styles.positionInput} type="number" placeholder="Y" value={selectedLight.y} onChange={(e) => updateLightProperty(selectedLight.id, 'y', parseFloat(e.target.value) || 0)} />
+            <span>Position</span>
+            <div className={styles['position-controls']} role="group" aria-label="Light position">
+              <input aria-label="X position" className={styles.positionInput} type="number" placeholder="X" value={selectedLight.x} onChange={(e) => updateLightProperty(selectedLight.id, 'x', parseFloat(e.target.value) || 0)} />
+              <input aria-label="Y position" className={styles.positionInput} type="number" placeholder="Y" value={selectedLight.y} onChange={(e) => updateLightProperty(selectedLight.id, 'y', parseFloat(e.target.value) || 0)} />
             </div>
           </div>
 
           <div className={styles['property-group']}>
-            <label>Color</label>
+            <label htmlFor="selected-light-color">Color</label>
             <div className={styles['color-controls']}>
               <input
+                id="selected-light-color"
                 type="color"
                 value={`#${Math.round(selectedLight.color.r * 255).toString(16).padStart(2, '0')}${Math.round(selectedLight.color.g * 255).toString(16).padStart(2, '0')}${Math.round(selectedLight.color.b * 255).toString(16).padStart(2, '0')}`}
                 onChange={(e) => {

@@ -136,8 +136,9 @@ export const SettingsModal: FC<SettingsModalProps> = ({
             </label>
 
             <div className={styles.coordRow}>
-              <label>Distance / cell</label>
+              <label htmlFor="settings-distance-per-cell">Distance / cell</label>
               <input
+                id="settings-distance-per-cell"
                 type="number"
                 className={styles.coordDistInput}
                 min="0.5" step="0.5"

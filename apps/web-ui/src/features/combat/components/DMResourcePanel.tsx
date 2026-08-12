@@ -65,7 +65,7 @@ export function DMResourcePanel({
 
   return (
     <div className={styles.section} aria-label="Resource overrides">
-      <label className={styles.label}>Resource Overrides</label>
+      <h4 className={styles.label}>Resource Overrides</h4>
       <div className={styles.row}>
         <button
           className={styles.btn}

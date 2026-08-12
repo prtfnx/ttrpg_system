@@ -374,8 +374,9 @@ export const MonsterCreationPanel: React.FC<MonsterCreationPanelProps> = ({
   const renderFiltersPanel = () => (
     <div className={scopedClassName(`monster-filters-panel ${showFilters ? 'visible' : ''}`)}>
       <div className={scopedClassName('monster-filter-group')}>
-        <label>Monster Type:</label>
+        <label htmlFor="monster-type-filter">Monster Type:</label>
         <select
+          id="monster-type-filter"
           value={filters.type || ''}
           onChange={(e) => handleFilterChange('type', e.target.value || undefined)}
         >
@@ -387,8 +388,8 @@ export const MonsterCreationPanel: React.FC<MonsterCreationPanelProps> = ({
       </div>
       
       <div className={scopedClassName('monster-filter-group')}>
-        <label>Size:</label>
-        <div className={scopedClassName('monster-filter-checkboxes')}>
+        <span id="monster-size-filter-label">Size:</span>
+        <div className={scopedClassName('monster-filter-checkboxes')} role="group" aria-labelledby="monster-size-filter-label">
           {MONSTER_SIZES.map(size => (
             <label key={size} className={scopedClassName('monster-checkbox')}>
               <input
@@ -409,8 +410,8 @@ export const MonsterCreationPanel: React.FC<MonsterCreationPanelProps> = ({
       </div>
       
       <div className={scopedClassName('monster-filter-group')}>
-        <label>Challenge Rating:</label>
-        <div className={scopedClassName('monster-filter-range')}>
+        <span id="monster-cr-filter-label">Challenge Rating:</span>
+        <div className={scopedClassName('monster-filter-range')} role="group" aria-labelledby="monster-cr-filter-label">
           <input
             type="number"
             placeholder="Min CR"

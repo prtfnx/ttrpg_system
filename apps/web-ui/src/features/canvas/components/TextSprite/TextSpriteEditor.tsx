@@ -149,8 +149,9 @@ export function TextSpriteEditor({ position, onComplete, onCancel }: TextSpriteE
         <div className={styles.toolbarContainer}>
           {/* Font size */}
           <div className={styles.toolbarGroup}>
-            <label>Size</label>
-            <select 
+            <label htmlFor="text-sprite-font-size">Size</label>
+            <select
+              id="text-sprite-font-size"
               value={fontSize} 
               onChange={(e) => setFontSize(Number(e.target.value))}
               className={styles.toolbarSelect}
@@ -167,8 +168,9 @@ export function TextSpriteEditor({ position, onComplete, onCancel }: TextSpriteE
 
           {/* Color picker */}
           <div className={styles.toolbarGroup}>
-            <label>Color</label>
+            <label htmlFor="text-sprite-color">Color</label>
             <input
+              id="text-sprite-color"
               type="color"
               value={color}
               onChange={(e) => setColor(e.target.value)}

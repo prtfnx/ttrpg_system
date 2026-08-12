@@ -53,8 +53,9 @@ export function EncounterBuilder() {
   return (
     <div className={styles.builder}>
       <div className={styles.fieldGroup}>
-        <label className={styles.label}>Title</label>
+        <label className={styles.label} htmlFor="encounter-title">Title</label>
         <input
+          id="encounter-title"
           className={styles.input}
           value={title}
           onChange={(e) => setTitle(e.target.value)}
@@ -62,8 +63,9 @@ export function EncounterBuilder() {
         />
       </div>
       <div className={styles.fieldGroup}>
-        <label className={styles.label}>Description</label>
+        <label className={styles.label} htmlFor="encounter-description">Description</label>
         <textarea
+          id="encounter-description"
           className={styles.textarea}
           value={description}
           onChange={(e) => setDescription(e.target.value)}

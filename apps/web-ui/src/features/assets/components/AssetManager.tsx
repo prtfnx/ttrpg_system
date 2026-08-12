@@ -433,19 +433,19 @@ export const AssetManager: React.FC<AssetManagerProps> = ({ isVisible, onClose, 
             <div className={styles.settingGroup}>
               <h3>Cache Configuration</h3>
               <div className={styles.settingItem}>
-                <label>Maximum Cache Size: 100 MB</label>
+                <div className={styles.settingLabel}>Maximum Cache Size: 100 MB</div>
                 <div className={styles.settingDescription}>
                   Maximum amount of storage used for cached assets
                 </div>
               </div>
               <div className={styles.settingItem}>
-                <label>Maximum Age: 24 hours</label>
+                <div className={styles.settingLabel}>Maximum Age: 24 hours</div>
                 <div className={styles.settingDescription}>
                   Assets older than this will be removed during cleanup
                 </div>
               </div>
               <div className={styles.settingItem}>
-                <label>Auto Cleanup: Enabled</label>
+                <div className={styles.settingLabel}>Auto Cleanup: Enabled</div>
                 <div className={styles.settingDescription}>
                   Automatically remove old assets every 30 minutes
                 </div>
@@ -455,7 +455,7 @@ export const AssetManager: React.FC<AssetManagerProps> = ({ isVisible, onClose, 
             <div className={styles.settingGroup}>
               <h3>Upload Configuration</h3>
               <div className={styles.settingItem}>
-                <label>Max Concurrent Uploads: 3</label>
+                <div className={styles.settingLabel}>Max Concurrent Uploads: 3</div>
                 <div className={styles.settingDescription}>
                   Maximum number of files that can be uploaded simultaneously
                 </div>
@@ -465,7 +465,7 @@ export const AssetManager: React.FC<AssetManagerProps> = ({ isVisible, onClose, 
             <div className={styles.settingGroup}>
               <h3>Storage Information</h3>
               <div className={styles.settingItem}>
-                <label>IndexedDB Support: Available</label>
+                <div className={styles.settingLabel}>IndexedDB Support: Available</div>
                 <div className={styles.settingDescription}>
                   Browser supports persistent local storage for assets
                 </div>

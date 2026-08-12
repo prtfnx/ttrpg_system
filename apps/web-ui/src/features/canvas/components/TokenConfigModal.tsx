@@ -244,7 +244,7 @@ export const TokenConfigModal: React.FC<TokenConfigModalProps> = ({ spriteId, on
           {/* Ownership - DM/CO-DM only */}
           {canManageOwnership && (
             <div className={styles.ownershipSection}>
-              <label>Token Ownership:</label>
+              <label htmlFor="token-owner-select">Token Ownership:</label>
               <div className={styles.ownershipTags}>
                 {controlledBy.length === 0 && (
                   <p className={styles.noOwnersNote}>DM-only (no player controllers)</p>
@@ -268,6 +268,7 @@ export const TokenConfigModal: React.FC<TokenConfigModalProps> = ({ spriteId, on
               </div>
               <div className={styles.ownerInputRow}>
                 <select
+                  id="token-owner-select"
                   className={styles.ownerInput}
                   value={newOwnerId}
                   onChange={e => setNewOwnerId(e.target.value)}
@@ -306,7 +307,7 @@ export const TokenConfigModal: React.FC<TokenConfigModalProps> = ({ spriteId, on
           {/* Token Stats - Always visible */}
           <div className={styles.configSection}>
             <div className={styles.statRow}>
-              <label>HP:</label>
+              <label htmlFor="token-current-hp">HP:</label>
               <div className={styles.hpInputGroup}>
                 <button
                   type="button"
@@ -316,6 +317,7 @@ export const TokenConfigModal: React.FC<TokenConfigModalProps> = ({ spriteId, on
                   −
                 </button>
                 <input
+                  id="token-current-hp"
                   type="number"
                   value={localHp}
                   onChange={(e) => handleHpChange(Math.max(0, parseInt(e.target.value) || 0))}
@@ -351,8 +353,9 @@ export const TokenConfigModal: React.FC<TokenConfigModalProps> = ({ spriteId, on
 
           <div className={styles.configSection}>
             <div className={styles.statRow}>
-              <label>Max HP:</label>
+              <label htmlFor="token-max-hp">Max HP:</label>
               <input
+                id="token-max-hp"
                 type="number"
                 value={localMaxHp}
                 onChange={(e) => handleMaxHpChange(Math.max(1, parseInt(e.target.value) || 1))}
@@ -364,8 +367,9 @@ export const TokenConfigModal: React.FC<TokenConfigModalProps> = ({ spriteId, on
 
           <div className={styles.configSection}>
             <div className={styles.statRow}>
-              <label>Armor Class (AC):</label>
+              <label htmlFor="token-armor-class">Armor Class (AC):</label>
               <input
+                id="token-armor-class"
                 type="number"
                 value={localAc}
                 onChange={(e) => handleAcChange(Math.max(0, parseInt(e.target.value) || 10))}
@@ -377,9 +381,10 @@ export const TokenConfigModal: React.FC<TokenConfigModalProps> = ({ spriteId, on
 
           <div className={styles.configSection}>
             <div className={styles.statRow}>
-              <label>Aura Radius:</label>
+              <label htmlFor="token-aura-radius">Aura Radius:</label>
               <div className={styles.inlineField}>
                 <input
+                  id="token-aura-radius"
                   type="number"
                   value={localAuraRadius}
                   onChange={(e) => handleAuraRadiusChange(Math.max(0, parseFloat(e.target.value) || 0))}
@@ -404,9 +409,10 @@ export const TokenConfigModal: React.FC<TokenConfigModalProps> = ({ spriteId, on
             <div className={styles.configSection}>
               <h4 className={styles.sectionTitle}>Vision</h4>
               <div className={styles.statRow}>
-                <label>Vision Radius:</label>
+                <label htmlFor="token-vision-radius">Vision Radius:</label>
                 <div className={styles.inlineField}>
                   <input
+                    id="token-vision-radius"
                     type="number"
                     value={localVisionRadius}
                     placeholder="default"
@@ -440,6 +446,7 @@ export const TokenConfigModal: React.FC<TokenConfigModalProps> = ({ spriteId, on
                 </label>
                 {localHasDarkvision && (
                   <input
+                    aria-label="Darkvision radius"
                     type="number"
                     value={localDarkvisionRadius}
                     placeholder="radius"

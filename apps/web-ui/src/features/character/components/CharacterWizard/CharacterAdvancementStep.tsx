@@ -191,21 +191,21 @@ export const CharacterAdvancementStep: React.FC<CharacterAdvancementStepProps> =
           <h3>Current Status</h3>
           <div className={styles['status-grid']}>
             <div className={styles['status-item']}>
-              <label>Current Level</label>
+              <span>Current Level</span>
               <div className={clsx(styles['status-value'], styles.level)}>{currentLevel}</div>
             </div>
             <div className={styles['status-item']}>
-              <label>Experience Points</label>
+              <span>Experience Points</span>
               <div className={clsx(styles['status-value'], styles.xp)}>{currentXP.toLocaleString()} XP</div>
             </div>
             <div className={styles['status-item']}>
-              <label>Next Level</label>
+              <span>Next Level</span>
               <div className={clsx(styles['status-value'], styles['next-level'])}>
                 {currentLevel < 20 ? `Level ${nextLevel}` : 'Max Level'}
               </div>
             </div>
             <div className={styles['status-item']}>
-              <label>XP Needed</label>
+              <span>XP Needed</span>
               <div className={clsx(styles['status-value'], styles['xp-needed'])}>
                 {currentLevel < 20 ? `${xpNeeded.toLocaleString()} XP` : 'N/A'}
               </div>

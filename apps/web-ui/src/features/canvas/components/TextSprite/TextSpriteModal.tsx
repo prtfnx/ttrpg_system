@@ -90,7 +90,7 @@ export function TextSpriteModal({ isOpen, position, onConfirm, onCancel }: TextS
           </div>
 
           <div className={styles.previewSection}>
-            <label className={styles.previewLabel}>Preview:</label>
+            <div className={styles.previewLabel}>Preview:</div>
             <div
               className={styles.textPreview}
               style={{

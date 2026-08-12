@@ -5,7 +5,7 @@ Audience: contributors changing browser/server protocol behavior.
 Status: partial. This page catalogs the currently registered server handlers
 and the main browser message families. It does not document every payload field.
 
-Last source audit: 2026-07-29
+Last source audit: 2026-08-11
 
 ## Source of truth
 
@@ -58,7 +58,7 @@ These messages are registered in `ServerProtocol.init_handlers`.
 | --- | --- | --- |
 | Core | `ping`, `pong`, `test`, `batch`, `error`, `success` | `protocol/base.py` |
 | Auth stubs | `auth_register`, `auth_login`, `auth_logout`, `auth_token`, `auth_status` | `protocol/auth.py` |
-| Tables | `new_table_request`, `table_request`, `table_update`, `table_scale`, `table_move`, `table_delete`, `table_list_request`, `table_active_request`, `table_active_set`, `table_active_set_all`, `table_settings_update` | `protocol/tables.py` |
+| Tables | `new_table_request`, `table_request`, `table_update_request`, `table_scale`, `table_move`, `table_delete`, `table_list_request`, `table_active_request`, `table_active_set`, `table_active_set_all`, `table_settings_update` | `protocol/tables.py` |
 | Players | `player_action`, `player_ready`, `player_unready`, `player_status`, `player_list_request`, `player_kick_request`, `player_ban_request`, `connection_status_request` | `protocol/players.py` |
 | Sprites | `sprite_request`, `sprite_create`, `sprite_remove`, `sprite_move`, `sprite_scale`, `sprite_rotate`, `sprite_update`, `sprite_drag_preview`, `sprite_resize_preview`, `sprite_rotate_preview` | `protocol/sprites.py` |
 | Files and assets | `file_request`, `file_data`, `asset_upload_request`, `asset_download_request`, `asset_list_request`, `asset_upload_confirm`, `asset_delete_request`, `asset_hash_check` | `protocol/assets.py` and `protocol/players.py` |

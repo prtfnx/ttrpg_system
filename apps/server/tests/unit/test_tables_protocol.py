@@ -371,7 +371,7 @@ class TestTableUpdate:
     async def test_missing_table_id_is_rejected(self):
         proto = _ProtoStub()
         resp = await proto.handle_table_update(
-            Message(MessageType.TABLE_UPDATE, {
+            Message(MessageType.TABLE_UPDATE_REQUEST, {
                 "category": "table",
                 "type": "table_update",
                 "data": {},
@@ -386,7 +386,7 @@ class TestTableUpdate:
         proto.actions.update_sprite = AsyncMock()
 
         resp = await proto.handle_table_update(
-            Message(MessageType.TABLE_UPDATE, {
+            Message(MessageType.TABLE_UPDATE_REQUEST, {
                 "category": "sprite",
                 "type": "sprite_move",
                 "data": {

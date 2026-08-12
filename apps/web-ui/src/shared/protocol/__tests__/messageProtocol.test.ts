@@ -290,6 +290,93 @@ describe('Protocol Message Utilities', () => {
     }))).toThrow(/Invalid message/);
   });
 
+  it('should validate table command payloads', () => {
+    const validMessages = [
+      {
+        type: MessageType.NEW_TABLE_REQUEST,
+        data: { table_name: 'Arena', width: 2000, height: 1200 },
+      },
+      { type: MessageType.TABLE_REQUEST, data: { table_id: 'table-1' } },
+      { type: MessageType.TABLE_LIST_REQUEST, data: {} },
+      { type: MessageType.TABLE_ACTIVE_REQUEST, data: {} },
+      { type: MessageType.TABLE_ACTIVE_SET, data: { table_id: 'table-1' } },
+      {
+        type: MessageType.TABLE_UPDATE_REQUEST,
+        data: {
+          category: 'table',
+          type: 'table_update',
+          data: { table_id: 'table-1', grid_enabled: false },
+        },
+      },
+      {
+        type: MessageType.TABLE_UPDATE_REQUEST,
+        data: {
+          category: 'table',
+          type: 'fog_update',
+          data: {
+            table_id: 'table-1',
+            hide_rectangles: [[[0, 0], [10, 10]]],
+            reveal_rectangles: [],
+          },
+        },
+      },
+      { type: MessageType.TABLE_SCALE, data: { table_id: 'table-1', scale: 1.5 } },
+      {
+        type: MessageType.TABLE_MOVE,
+        data: { table_id: 'table-1', x_moved: -5, y_moved: 10 },
+      },
+      {
+        type: MessageType.TABLE_SETTINGS_UPDATE,
+        data: { table_id: 'table-1', snap_to_grid: false },
+      },
+    ];
+
+    for (const message of validMessages) {
+      expect(parseMessage(JSON.stringify(message)).type).toBe(message.type);
+    }
+
+    const invalidMessages = [
+      {
+        type: MessageType.NEW_TABLE_REQUEST,
+        data: { table_name: 'Arena', width: 10001, height: 1200 },
+      },
+      { type: MessageType.TABLE_REQUEST, data: { table_id: '' } },
+      { type: MessageType.TABLE_LIST_REQUEST, data: { session_code: 'spoofed' } },
+      { type: MessageType.TABLE_ACTIVE_REQUEST, data: { user_id: 999 } },
+      {
+        type: MessageType.TABLE_ACTIVE_SET,
+        data: { table_id: 'table-1', user_id: 999 },
+      },
+      {
+        type: MessageType.TABLE_UPDATE_REQUEST,
+        data: {
+          category: 'sprite',
+          type: 'table_update',
+          data: { table_id: 'table-1', grid_enabled: false },
+        },
+      },
+      {
+        type: MessageType.TABLE_UPDATE_REQUEST,
+        data: {
+          category: 'table',
+          type: 'fog_update',
+          data: {
+            table_id: 'table-1',
+            hide_rectangles: [[[0, 0], [10]]],
+            reveal_rectangles: [],
+          },
+        },
+      },
+      { type: MessageType.TABLE_SCALE, data: { table_id: 'table-1', scale: 0 } },
+      { type: MessageType.TABLE_MOVE, data: { table_id: 'table-1', x_moved: 0 } },
+      { type: MessageType.TABLE_SETTINGS_UPDATE, data: { table_id: 'table-1' } },
+    ];
+
+    for (const message of invalidMessages) {
+      expect(() => parseMessage(JSON.stringify(message))).toThrow(/Invalid message/);
+    }
+  });
+
   it('should validate accepted action result payloads', () => {
     const validData = {
       accepted: true,

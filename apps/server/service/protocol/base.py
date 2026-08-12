@@ -106,7 +106,7 @@ class ServerProtocol(
         # Tables
         self.register_handler(MessageType.NEW_TABLE_REQUEST, self.handle_new_table_request)
         self.register_handler(MessageType.TABLE_REQUEST, self.handle_table_request)
-        self.register_handler(MessageType.TABLE_UPDATE, self.handle_table_update)
+        self.register_handler(MessageType.TABLE_UPDATE_REQUEST, self.handle_table_update)
         self.register_handler(MessageType.TABLE_SCALE, self.handle_table_scale)
         self.register_handler(MessageType.TABLE_MOVE, self.handle_table_move)
         self.register_handler(MessageType.TABLE_DELETE, self.handle_delete_table)

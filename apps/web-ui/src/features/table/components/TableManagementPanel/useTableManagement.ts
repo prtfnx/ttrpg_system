@@ -238,7 +238,7 @@ export const useTableManagement = () => {
     if (!settingsTableId) return;
     
     emitProtocolEvent('protocol-send-message', {
-      type: 'table_update',
+      type: 'table_update_request',
       data: {
         category: 'table',
         type: 'table_update',

@@ -38,6 +38,7 @@ class MessageType(enum.Enum):
     TABLE_REQUEST = "table_request"
     TABLE_RESPONSE = "table_response"
     TABLE_DATA = "table_data"
+    TABLE_UPDATE_REQUEST = "table_update_request"
     TABLE_UPDATE = "table_update"
     TABLE_SCALE = "table_scale"
     TABLE_MOVE = "table_move"

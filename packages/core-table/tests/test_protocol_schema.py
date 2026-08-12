@@ -48,3 +48,98 @@ def test_message_from_json_enforces_type_specific_payloads():
             '{"type":"player_status_response",'
             '"data":{"client_id":"client-1","status":"ready"}}'
         )
+
+
+@pytest.mark.parametrize(
+    "message",
+    [
+        {
+            "type": "new_table_request",
+            "data": {"table_name": "Arena", "width": 2000, "height": 1200},
+        },
+        {"type": "table_request", "data": {"table_id": "table-1"}},
+        {"type": "table_list_request", "data": {}},
+        {"type": "table_active_request", "data": {}},
+        {"type": "table_active_set", "data": {"table_id": "table-1"}},
+        {
+            "type": "table_update_request",
+            "data": {
+                "category": "table",
+                "type": "table_update",
+                "data": {"table_id": "table-1", "grid_enabled": False},
+            },
+        },
+        {
+            "type": "table_update_request",
+            "data": {
+                "category": "table",
+                "type": "fog_update",
+                "data": {
+                    "table_id": "table-1",
+                    "hide_rectangles": [[[0, 0], [10, 10]]],
+                    "reveal_rectangles": [],
+                },
+            },
+        },
+        {"type": "table_scale", "data": {"table_id": "table-1", "scale": 1.5}},
+        {
+            "type": "table_move",
+            "data": {"table_id": "table-1", "x_moved": -5, "y_moved": 10},
+        },
+        {
+            "type": "table_settings_update",
+            "data": {"table_id": "table-1", "snap_to_grid": False},
+        },
+    ],
+)
+def test_message_from_json_accepts_table_command_payloads(message):
+    parsed = Message.from_json(json.dumps(message))
+
+    assert parsed.type.value == message["type"]
+
+
+@pytest.mark.parametrize(
+    "message",
+    [
+        {
+            "type": "new_table_request",
+            "data": {"table_name": "Arena", "width": 10001, "height": 1200},
+        },
+        {"type": "table_request", "data": {"table_id": ""}},
+        {"type": "table_list_request", "data": {"session_code": "spoofed"}},
+        {"type": "table_active_request", "data": {"user_id": 999}},
+        {
+            "type": "table_active_set",
+            "data": {"table_id": "table-1", "user_id": 999},
+        },
+        {
+            "type": "table_update_request",
+            "data": {
+                "category": "sprite",
+                "type": "table_update",
+                "data": {"table_id": "table-1", "grid_enabled": False},
+            },
+        },
+        {
+            "type": "table_update_request",
+            "data": {
+                "category": "table",
+                "type": "fog_update",
+                "data": {
+                    "table_id": "table-1",
+                    "hide_rectangles": [[[0, 0], [10]]],
+                    "reveal_rectangles": [],
+                },
+            },
+        },
+        {"type": "table_scale", "data": {"table_id": "table-1", "scale": 0}},
+        {
+            "type": "table_move",
+            "data": {"table_id": "table-1", "x_moved": 0},
+        },
+        {"type": "table_settings_update", "data": {"table_id": "table-1"}},
+    ],
+)
+def test_message_from_json_rejects_invalid_table_command_payloads(message):
+    with pytest.raises(ValueError, match="Invalid protocol message"):
+        Message.from_json(json.dumps(message))

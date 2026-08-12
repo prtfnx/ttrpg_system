@@ -370,7 +370,7 @@ describe('WebClientProtocol', () => {
   });
 
   describe('setActiveTable', () => {
-    it('sends table_active_set with user and table', () => {
+    it('sends table_active_set with only the selected table', () => {
       const p = makeProtocol('S', 5);
       const ws = makeOpenWs(p);
       p.setActiveTable('tbl-2');
@@ -379,7 +379,20 @@ describe('WebClientProtocol', () => {
       const batch = JSON.parse((ws.send as Mock).mock.calls[0][0]);
       const inner = batch.data.messages[0];
       expect(inner.type).toBe('table_active_set');
-      expect(inner.data).toMatchObject({ user_id: 5, table_id: 'tbl-2' });
+      expect(inner.data).toEqual({ table_id: 'tbl-2' });
+    });
+  });
+
+  describe('requestActiveTable', () => {
+    it('does not send caller-controlled identity data', () => {
+      const p = makeProtocol('S', 5);
+      const ws = makeOpenWs(p);
+      p.requestActiveTable();
+      p.sendBatch();
+      const batch = JSON.parse((ws.send as Mock).mock.calls[0][0]);
+      const inner = batch.data.messages[0];
+      expect(inner.type).toBe('table_active_request');
+      expect(inner.data).toEqual({});
     });
   });
 

@@ -240,7 +240,7 @@ class GameSessionProtocolService:
                     self.client_info[client_id]["last_ping"] = time.time()
                 if message.type in self.server_protocol.handlers:
                     await self.server_protocol.handle_client(message, client_id)
-                    if message.type in [MessageType.SPRITE_UPDATE, MessageType.TABLE_UPDATE]:
+                    if message.type in [MessageType.SPRITE_UPDATE, MessageType.TABLE_UPDATE_REQUEST]:
                         self.auto_save()
                 else:
                     logger.warning(

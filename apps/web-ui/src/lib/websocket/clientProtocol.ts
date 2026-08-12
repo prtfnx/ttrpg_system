@@ -129,7 +129,7 @@ export class WebClientProtocol {
   sendMessage(message: Message): void {
     // Critical messages (table, actions, player, assets) sent immediately
     const critical = [
-      'table_data', 'table_update', 'table_list_request', 'table_request', 'new_table_request', 'table_delete',
+      'table_data', 'table_update_request', 'table_list_request', 'table_request', 'new_table_request', 'table_delete',
       'sprite_create', 'sprite_remove', 'player_kick_request', 'player_ban_request', 'player_list_request',
       'character_save', 'character_load', 'character_roll', 'xp_award', 'multiclass_request',
       'character_draft_create_request', 'character_draft_update_request',
@@ -1581,18 +1581,13 @@ export class WebClientProtocol {
   // Active table persistence methods
   requestActiveTable(): void {
     logger.debug('[Protocol] Requesting active table for current user');
-    this.sendMessage(createMessage(MessageType.TABLE_ACTIVE_REQUEST, {
-      user_id: this.userId
-    }));
+    this.sendMessage(createMessage(MessageType.TABLE_ACTIVE_REQUEST));
   }
 
   setActiveTable(tableId: string): void {
     logger.debug('[Protocol] setActiveTable called with:', tableId);
     logger.debug('[Protocol] userId:', this.userId, 'websocket state:', this.websocket?.readyState);
-    this.sendMessage(createMessage(MessageType.TABLE_ACTIVE_SET, {
-      user_id: this.userId,
-      table_id: tableId
-    }));
+    this.sendMessage(createMessage(MessageType.TABLE_ACTIVE_SET, { table_id: tableId }));
     logger.debug('[Protocol] TABLE_ACTIVE_SET message sent');
   }
 
@@ -1806,7 +1801,7 @@ export class WebClientProtocol {
 
   // Fog of War methods
   updateFog(tableId: string, hideRectangles: Array<[[number, number], [number, number]]>, revealRectangles: Array<[[number, number], [number, number]]>): void {
-    this.sendMessage(createMessage(MessageType.TABLE_UPDATE, {
+    this.sendMessage(createMessage(MessageType.TABLE_UPDATE_REQUEST, {
       category: 'table',
       type: 'fog_update',
       data: {

@@ -4,7 +4,7 @@ Audience: contributors changing browser/server WebSocket messages.
 
 Status: current but partial.
 
-Last source audit: 2026-08-10
+Last source audit: 2026-08-11
 
 The protocol boundary connects browser clients to a game session on the server.
 It is message-based and should stay explicit.
@@ -50,10 +50,23 @@ before dispatch. Validation does not coerce wire values.
 Payload validation is incremental. The canonical schema currently enforces the
 heartbeat and error messages, session welcome, player join/leave/role-change
 lifecycle messages, player roster, readiness, moderation, and direction-specific
-player-status messages, the complete table-settings update delivered to
-browsers, and the accepted/rejected action response shapes.
+player-status messages, table commands and settings, and the accepted/rejected
+action response shapes.
 Add a conditional payload schema whenever a message family is changed; generic
 object payloads are transitional, not the target contract.
+
+Table list and active-table queries carry empty data. The server resolves the
+requesting user and session from authenticated connection state, so the browser
+must not send `user_id` or `session_code` in those commands. Table mutations use
+non-empty table identifiers and allow-listed fields. Creation dimensions are
+positive integers capped at 10,000, table names follow the database's 100-character
+limit, scale is greater than zero and at most 100, and settings use their runtime
+ranges and color formats. Fog updates contain coordinate-pair rectangles and are
+capped at 10,000 rectangles per hide or reveal list.
+
+Table mutations use `table_update_request` from browser to server. The server
+continues to emit `table_update` broadcasts. These are separate message types
+because their payloads and consumers are direction-specific.
 
 Request, response, and broadcast semantics use separate message types even when
 their payloads share a definition. For example, player readiness uses

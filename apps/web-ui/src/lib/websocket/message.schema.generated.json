@@ -27,6 +27,7 @@
         "table_request",
         "table_response",
         "table_data",
+        "table_update_request",
         "table_update",
         "table_scale",
         "table_move",
@@ -216,6 +217,7 @@
         "TABLE_REQUEST",
         "TABLE_RESPONSE",
         "TABLE_DATA",
+        "TABLE_UPDATE_REQUEST",
         "TABLE_UPDATE",
         "TABLE_SCALE",
         "TABLE_MOVE",
@@ -1139,6 +1141,266 @@
       },
       "additionalProperties": false
     },
+    "tableIdentifierData": {
+      "type": "object",
+      "required": [
+        "table_id"
+      ],
+      "properties": {
+        "table_id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128
+        }
+      },
+      "additionalProperties": false
+    },
+    "newTableRequestData": {
+      "type": "object",
+      "required": [
+        "table_name",
+        "width",
+        "height"
+      ],
+      "properties": {
+        "table_name": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 100
+        },
+        "width": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 10000
+        },
+        "height": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 10000
+        },
+        "local_table_id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128
+        }
+      },
+      "additionalProperties": false
+    },
+    "tableUpdateData": {
+      "oneOf": [
+        {
+          "type": "object",
+          "required": [
+            "category",
+            "type",
+            "data"
+          ],
+          "properties": {
+            "category": {
+              "const": "table"
+            },
+            "type": {
+              "const": "table_update"
+            },
+            "data": {
+              "type": "object",
+              "required": [
+                "table_id"
+              ],
+              "minProperties": 2,
+              "properties": {
+                "table_id": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 128
+                },
+                "table_name": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 100
+                },
+                "width": {
+                  "type": "integer",
+                  "minimum": 1,
+                  "maximum": 10000
+                },
+                "height": {
+                  "type": "integer",
+                  "minimum": 1,
+                  "maximum": 10000
+                },
+                "grid_size": {
+                  "type": "number",
+                  "minimum": 10,
+                  "maximum": 200
+                },
+                "grid_enabled": {
+                  "type": "boolean"
+                }
+              },
+              "additionalProperties": false
+            }
+          },
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "required": [
+            "category",
+            "type",
+            "data"
+          ],
+          "properties": {
+            "category": {
+              "const": "table"
+            },
+            "type": {
+              "const": "fog_update"
+            },
+            "data": {
+              "type": "object",
+              "required": [
+                "table_id",
+                "hide_rectangles",
+                "reveal_rectangles"
+              ],
+              "properties": {
+                "table_id": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 128
+                },
+                "hide_rectangles": {
+                  "$ref": "#/$defs/fogRectangles"
+                },
+                "reveal_rectangles": {
+                  "$ref": "#/$defs/fogRectangles"
+                }
+              },
+              "additionalProperties": false
+            }
+          },
+          "additionalProperties": false
+        }
+      ]
+    },
+    "fogRectangles": {
+      "type": "array",
+      "maxItems": 10000,
+      "items": {
+        "type": "array",
+        "minItems": 2,
+        "maxItems": 2,
+        "items": {
+          "type": "array",
+          "minItems": 2,
+          "maxItems": 2,
+          "items": {
+            "type": "number"
+          }
+        }
+      }
+    },
+    "tableScaleData": {
+      "type": "object",
+      "required": [
+        "table_id",
+        "scale"
+      ],
+      "properties": {
+        "table_id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128
+        },
+        "scale": {
+          "type": "number",
+          "exclusiveMinimum": 0,
+          "maximum": 100
+        }
+      },
+      "additionalProperties": false
+    },
+    "tableMoveData": {
+      "type": "object",
+      "required": [
+        "table_id",
+        "x_moved",
+        "y_moved"
+      ],
+      "properties": {
+        "table_id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128
+        },
+        "x_moved": {
+          "type": "number"
+        },
+        "y_moved": {
+          "type": "number"
+        }
+      },
+      "additionalProperties": false
+    },
+    "tableSettingsUpdateData": {
+      "type": "object",
+      "required": [
+        "table_id"
+      ],
+      "minProperties": 2,
+      "properties": {
+        "table_id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128
+        },
+        "dynamic_lighting_enabled": {
+          "type": "boolean"
+        },
+        "fog_exploration_mode": {
+          "enum": [
+            "current_only",
+            "persist_dimmed"
+          ]
+        },
+        "ambient_light_level": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+        },
+        "grid_cell_px": {
+          "type": "number",
+          "minimum": 10,
+          "maximum": 500
+        },
+        "cell_distance": {
+          "type": "number",
+          "exclusiveMinimum": 0
+        },
+        "distance_unit": {
+          "enum": [
+            "ft",
+            "m"
+          ]
+        },
+        "grid_enabled": {
+          "type": "boolean"
+        },
+        "snap_to_grid": {
+          "type": "boolean"
+        },
+        "grid_color_hex": {
+          "type": "string",
+          "pattern": "^#([0-9a-fA-F]{6}|[0-9a-fA-F]{8})$"
+        },
+        "background_color_hex": {
+          "type": "string",
+          "pattern": "^#([0-9a-fA-F]{6}|[0-9a-fA-F]{8})$"
+        }
+      },
+      "additionalProperties": false
+    },
     "tableSettingsChangedData": {
       "type": "object",
       "required": [
@@ -1585,6 +1847,165 @@
         "properties": {
           "data": {
             "$ref": "#/$defs/batchResponseData"
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "type": {
+            "enum": [
+              "table_list_request",
+              "table_active_request"
+            ]
+          }
+        },
+        "required": [
+          "type"
+        ]
+      },
+      "then": {
+        "properties": {
+          "data": {
+            "$ref": "#/$defs/emptyData"
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "type": {
+            "enum": [
+              "table_request",
+              "table_delete",
+              "table_active_set",
+              "table_active_set_all"
+            ]
+          }
+        },
+        "required": [
+          "type"
+        ]
+      },
+      "then": {
+        "required": [
+          "data"
+        ],
+        "properties": {
+          "data": {
+            "$ref": "#/$defs/tableIdentifierData"
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "type": {
+            "const": "new_table_request"
+          }
+        },
+        "required": [
+          "type"
+        ]
+      },
+      "then": {
+        "required": [
+          "data"
+        ],
+        "properties": {
+          "data": {
+            "$ref": "#/$defs/newTableRequestData"
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "type": {
+            "const": "table_update_request"
+          }
+        },
+        "required": [
+          "type"
+        ]
+      },
+      "then": {
+        "required": [
+          "data"
+        ],
+        "properties": {
+          "data": {
+            "$ref": "#/$defs/tableUpdateData"
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "type": {
+            "const": "table_scale"
+          }
+        },
+        "required": [
+          "type"
+        ]
+      },
+      "then": {
+        "required": [
+          "data"
+        ],
+        "properties": {
+          "data": {
+            "$ref": "#/$defs/tableScaleData"
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "type": {
+            "const": "table_move"
+          }
+        },
+        "required": [
+          "type"
+        ]
+      },
+      "then": {
+        "required": [
+          "data"
+        ],
+        "properties": {
+          "data": {
+            "$ref": "#/$defs/tableMoveData"
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "type": {
+            "const": "table_settings_update"
+          }
+        },
+        "required": [
+          "type"
+        ]
+      },
+      "then": {
+        "required": [
+          "data"
+        ],
+        "properties": {
+          "data": {
+            "$ref": "#/$defs/tableSettingsUpdateData"
           }
         }
       }

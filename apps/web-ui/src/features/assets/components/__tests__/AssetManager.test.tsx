@@ -2,10 +2,6 @@ import '@testing-library/jest-dom';
 import { fireEvent, render, screen } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 
-vi.mock('@features/auth', () => ({
-  useAuthenticatedWebSocket: () => ({ protocol: null }),
-}));
-
 vi.mock('../../hooks/useAssetManager', () => ({
   useAssetManager: () => ({
     stats: {
@@ -35,8 +31,6 @@ const renderAssetManager = (onClose = vi.fn()) => {
     <AssetManager
       isVisible
       onClose={onClose}
-      sessionCode="TEST"
-      userInfo={null}
     />,
   );
 };

@@ -10,7 +10,6 @@ import { MapPanel, TableManagementPanel, TablePanel } from '@features/table';
 import { useActionsEngine, useRenderEngine } from '@lib/wasm/runtime';
 import clsx from 'clsx';
 import { useEffect, useState } from 'react';
-import { ActionQueuePanel } from '../features/actions/components/ActionQueuePanel';
 import { ActionsPanel } from '../features/actions/components/ActionsPanel';
 import { ActionsQuickPanel } from '../features/actions/components/ActionsQuickPanel';
 import { EntitiesPanel } from '../features/canvas/components/EntitiesPanel';
@@ -22,7 +21,7 @@ import styles from './RightPanel.module.css';
 const isDevelopment = import.meta.env.DEV;
 
 type TabId = 'tables' | 'table-tools' | 'characters' | 'entities' | 'chat' | 'lighting' | 'fog' |
-             'players' | 'actions' | 'quick-actions' | 'queue' | 'compendium' | 'assets' |
+             'players' | 'actions' | 'quick-actions' | 'compendium' | 'assets' |
              'performance' | 'backgrounds' | 'customize' | 'map';
 
 const TAB_VISIBLE: Record<TabId, (role: SessionRole) => boolean> = {
@@ -47,7 +46,6 @@ const TAB_VISIBLE: Record<TabId, (role: SessionRole) => boolean> = {
   // Dev-only (always gated by isDevelopment at render time)
   'table-tools':   isDM,
   'actions':       isDM,
-  'queue':         isDM,
   'assets':        isDM,
 };
 
@@ -141,7 +139,6 @@ export function RightPanel(props: { sessionCode?: string; userInfo?: import('@fe
         {tab('map', 'Map')}
         {isDevelopment && tab('table-tools', 'Table Tools')}
         {isDevelopment && tab('actions', 'Actions')}
-        {isDevelopment && tab('queue', 'Queue')}
         {isDevelopment && tab('assets', 'Assets')}
       </div>
       <div
@@ -163,7 +160,6 @@ export function RightPanel(props: { sessionCode?: string; userInfo?: import('@fe
           />
         )}
         {isDevelopment && activeTab === 'actions' && <ActionsPanel actionsEngine={actionsEngine} />}
-        {isDevelopment && activeTab === 'queue' && <ActionQueuePanel sessionCode={props.sessionCode!} userInfo={props.userInfo!} />}
         {activeTab === 'entities' && <EntitiesPanel />}
         {activeTab === 'chat' && <ChatPanel />}
         {activeTab === 'lighting' && <LightingPanel />}

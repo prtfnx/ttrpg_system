@@ -1,10 +1,7 @@
-import { useAuthenticatedWebSocket } from '@features/auth';
-import type { UserInfo } from '@features/auth';
-import { MessageType, createMessage } from '@lib/websocket';
 import { Modal } from '@shared/components';
 import { logger } from '@shared/utils/logger';
 import clsx from 'clsx';
-import React, { useCallback, useEffect, useRef, useState } from 'react';
+import React, { useCallback, useRef, useState } from 'react';
 import { useAssetManager } from '../hooks/useAssetManager';
 import styles from './AssetManager.module.css';
 
@@ -12,8 +9,6 @@ import styles from './AssetManager.module.css';
 interface AssetManagerProps {
   isVisible: boolean;
   onClose: () => void;
-  sessionCode: string;
-  userInfo: UserInfo | null;
 }
 
 interface FileUploadInfo {
@@ -23,15 +18,12 @@ interface FileUploadInfo {
   status: 'pending' | 'uploading' | 'completed' | 'failed';
 }
 
-export const AssetManager: React.FC<AssetManagerProps> = ({ isVisible, onClose, sessionCode, userInfo }) => {
+export const AssetManager: React.FC<AssetManagerProps> = ({ isVisible, onClose }) => {
   const [activeTab, setActiveTab] = useState<'cache' | 'upload' | 'settings'>('cache');
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedAssets, setSelectedAssets] = useState<Set<string>>(new Set());
   const [uploadFiles, setUploadFiles] = useState<Map<string, FileUploadInfo>>(new Map());
   const fileInputRef = useRef<HTMLInputElement>(null);
-
-  // WebSocket protocol for asset sync
-  const { protocol } = useAuthenticatedWebSocket({ sessionCode, userInfo: userInfo! });
 
   const {
     stats,
@@ -61,13 +53,6 @@ export const AssetManager: React.FC<AssetManagerProps> = ({ isVisible, onClose, 
     getAssetInfo(id)?.name.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
-  // Event-driven asset sync
-  useEffect(() => {
-    if (protocol) {
-      protocol.sendMessage(createMessage(MessageType.PLAYER_ACTION, { action: "asset_list" }, 1));
-    }
-  }, [protocol]);
-
   const handleFileSelect = useCallback((event: React.ChangeEvent<HTMLInputElement>) => {
     const files = event.target.files;
     if (!files) return;
@@ -95,17 +80,12 @@ export const AssetManager: React.FC<AssetManagerProps> = ({ isVisible, onClose, 
       }
 
       newUploadFiles.set(fileId, fileInfo);
-      // Send upload request via protocol
-      if (protocol) {
-        protocol.sendMessage(createMessage(MessageType.PLAYER_ACTION, { action: "asset_upload", fileId, fileName: file.name }, 1));
-      }
     });
 
     setUploadFiles(newUploadFiles);
     if (fileInputRef.current) {
       fileInputRef.current.value = '';
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps -- intentional: protocol dep would cause re-subscribe loop
   }, [uploadFiles]);
 
   // Message batching and delta updates for asset uploads

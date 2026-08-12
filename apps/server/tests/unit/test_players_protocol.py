@@ -218,27 +218,6 @@ class TestConnectionStatusRequest:
 
 
 # ---------------------------------------------------------------------------
-# handle_player_action
-# ---------------------------------------------------------------------------
-
-@pytest.mark.unit
-@pytest.mark.asyncio
-class TestPlayerAction:
-    async def test_no_data_returns_error(self):
-        proto = _ProtoStub()
-        msg = Message(MessageType.PLAYER_ACTION, {})
-        resp = await proto.handle_player_action(msg, "c1")
-        assert resp.type == MessageType.ERROR
-
-    async def test_returns_action_response_with_type(self):
-        proto = _ProtoStub()
-        msg = Message(MessageType.PLAYER_ACTION, {"action_type": "move", "action_data": {}})
-        resp = await proto.handle_player_action(msg, "c1")
-        assert resp.type == MessageType.PLAYER_ACTION_RESPONSE
-        assert resp.data["action_type"] == "move"
-
-
-# ---------------------------------------------------------------------------
 # handle_player_ready / handle_player_unready
 # ---------------------------------------------------------------------------
 

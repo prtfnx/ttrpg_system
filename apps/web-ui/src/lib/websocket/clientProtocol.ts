@@ -228,8 +228,6 @@ export class WebClientProtocol {
     this.registerHandler(MessageType.PLAYER_JOINED, this.handlePlayerJoined.bind(this));
     this.registerHandler(MessageType.PLAYER_LEFT, this.handlePlayerLeft.bind(this));
     this.registerHandler(MessageType.PLAYER_LIST_RESPONSE, this.handlePlayerListResponse.bind(this));
-    this.registerHandler(MessageType.PLAYER_ACTION_RESPONSE, this.handlePlayerActionResponse.bind(this));
-    this.registerHandler(MessageType.PLAYER_ACTION_UPDATE, this.handlePlayerActionUpdate.bind(this));
     this.registerHandler(MessageType.PLAYER_STATUS_RESPONSE, this.handlePlayerStatus.bind(this));
     this.registerHandler(MessageType.PLAYER_STATUS_CHANGED, this.handlePlayerStatus.bind(this));
     this.registerHandler(MessageType.PLAYER_KICK_RESPONSE, this.handlePlayerKickResponse.bind(this));
@@ -2107,17 +2105,6 @@ export class WebClientProtocol {
     emitProtocolEvent('auth-status-changed', message.data);
   }
 
-  // Player action handlers
-  private async handlePlayerActionResponse(message: Message): Promise<void> {
-    logger.debug('Protocol: Player action response:', message.data);
-    emitProtocolEvent('player-action-response', message.data);
-  }
-
-  private async handlePlayerActionUpdate(message: Message): Promise<void> {
-    logger.debug('Protocol: Player action update:', message.data);
-    emitProtocolEvent('player-action-update', message.data);
-  }
-
   private async handlePlayerStatus(message: Message): Promise<void> {
     logger.debug('Protocol: Player status:', message.data);
     emitProtocolEvent('player-status-changed', message.data);
@@ -2225,13 +2212,6 @@ export class WebClientProtocol {
       MessageType.PLAYER_STATUS_REQUEST,
       clientId ? { client_id: clientId } : {},
     ));
-  }
-
-  sendPlayerAction(actionType: string, actionData: Record<string, unknown>): void {
-    this.sendMessage(createMessage(MessageType.PLAYER_ACTION, {
-      action_type: actionType,
-      action_data: actionData
-    }));
   }
 
   setPlayerReady(): void {

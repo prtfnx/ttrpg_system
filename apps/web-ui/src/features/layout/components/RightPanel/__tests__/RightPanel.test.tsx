@@ -35,10 +35,6 @@ vi.mock('@features/actions/components/ActionsPanel', () => ({
   ActionsPanel: () => <div data-testid="actions-panel">Actions Panel</div>,
 }));
 
-vi.mock('@features/actions/components/ActionQueuePanel', () => ({
-  ActionQueuePanel: () => <div data-testid="action-queue-panel">Action Queue Panel</div>,
-}));
-
 vi.mock('@features/network/components/PlayerManagerPanel', () => ({
   PlayerManagerPanel: () => <div data-testid="player-manager-panel">Player Manager</div>,
 }));
@@ -281,7 +277,6 @@ describe('RightPanel', () => {
       const devTabs = [
         { name: 'Table Tools', pattern: /^table tools$/i },
         { name: 'Actions', pattern: /^actions$/i },  // Exact match to avoid 'Quick Actions'
-        { name: 'Queue', pattern: /^queue$/i },
         { name: 'Assets', pattern: /^assets$/i }
       ];
       

@@ -43,8 +43,6 @@ export type ProtocolEventMap = {
   'measurement-deleted': ProtocolRecord;
   'measurements-cleared': ProtocolRecord;
   'measurements-synced': ProtocolRecord;
-  'player-action-response': ProtocolRecord;
-  'player-action-update': ProtocolRecord;
   'player-ban-response': ProtocolRecord;
   'player-joined': ProtocolRecord;
   'player-kick-response': ProtocolRecord;

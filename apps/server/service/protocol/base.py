@@ -117,7 +117,6 @@ class ServerProtocol(
         self.register_handler(MessageType.TABLE_SETTINGS_UPDATE, self.handle_table_settings_update)
 
         # Players
-        self.register_handler(MessageType.PLAYER_ACTION, self.handle_player_action)
         self.register_handler(MessageType.PLAYER_READY, self.handle_player_ready)
         self.register_handler(MessageType.PLAYER_UNREADY, self.handle_player_unready)
         self.register_handler(

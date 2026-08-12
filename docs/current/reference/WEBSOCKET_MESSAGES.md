@@ -59,7 +59,7 @@ These messages are registered in `ServerProtocol.init_handlers`.
 | Core | `ping`, `pong`, `test`, `batch`, `error`, `success` | `protocol/base.py` |
 | Auth stubs | `auth_register`, `auth_login`, `auth_logout`, `auth_token`, `auth_status` | `protocol/auth.py` |
 | Tables | `new_table_request`, `table_request`, `table_update_request`, `table_scale`, `table_move`, `table_delete`, `table_list_request`, `table_active_request`, `table_active_set`, `table_active_set_all`, `table_settings_update` | `protocol/tables.py` |
-| Players | `player_action`, `player_ready`, `player_unready`, `player_status`, `player_list_request`, `player_kick_request`, `player_ban_request`, `connection_status_request` | `protocol/players.py` |
+| Players | `player_ready`, `player_unready`, `player_status_request`, `player_list_request`, `player_kick_request`, `player_ban_request`, `connection_status_request` | `protocol/players.py` |
 | Sprites | `sprite_request`, `sprite_create`, `sprite_remove`, `sprite_move`, `sprite_scale`, `sprite_rotate`, `sprite_update`, `sprite_drag_preview`, `sprite_resize_preview`, `sprite_rotate_preview` | `protocol/sprites.py` |
 | Files and assets | `file_request`, `file_data`, `asset_upload_request`, `asset_download_request`, `asset_list_request`, `asset_upload_confirm`, `asset_delete_request`, `asset_hash_check` | `protocol/assets.py` and `protocol/players.py` |
 | Compendium sprites | `compendium_sprite_add`, `compendium_sprite_update`, `compendium_sprite_remove` | `protocol/sprites.py` |
@@ -83,8 +83,8 @@ Common families include:
 - Tables: `new_table_response`, `table_response`, `table_data`,
   `table_update`, `table_list_response`, `table_active_response`,
   `table_active_set_all_response`, `table_settings_changed`.
-- Players: `player_joined`, `player_left`, `player_action_response`,
-  `player_action_update`, `player_status`, `player_list_response`,
+- Players: `player_joined`, `player_left`, player-status responses and broadcasts,
+  `player_list_response`,
   `player_kick_response`, `player_ban_response`, `player_role_changed`,
   `connection_status_response`.
 - Sprites: `sprite_response`, `sprite_data`, `sprite_update`,

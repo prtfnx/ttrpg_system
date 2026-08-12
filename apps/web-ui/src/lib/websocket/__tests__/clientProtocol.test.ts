@@ -1208,24 +1208,6 @@ describe('WebClientProtocol', () => {
       expect(fn).toHaveBeenCalledOnce();
     });
 
-    it('PLAYER_ACTION_RESPONSE dispatches player-action-response', async () => {
-      const p = makeProtocol();
-      const fn = vi.fn();
-      window.addEventListener('player-action-response', fn);
-      await dispatch(p, 'player_action_response', { ok: true });
-      window.removeEventListener('player-action-response', fn);
-      expect(fn).toHaveBeenCalledOnce();
-    });
-
-    it('PLAYER_ACTION_UPDATE dispatches player-action-update', async () => {
-      const p = makeProtocol();
-      const fn = vi.fn();
-      window.addEventListener('player-action-update', fn);
-      await dispatch(p, 'player_action_update', {});
-      window.removeEventListener('player-action-update', fn);
-      expect(fn).toHaveBeenCalledOnce();
-    });
-
     it.each(['player_status_response', 'player_status_changed'])(
       '%s dispatches player-status-changed',
       async (messageType) => {

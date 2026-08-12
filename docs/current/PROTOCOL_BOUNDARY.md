@@ -72,6 +72,11 @@ At the server boundary, `table_name` maps to the domain's `display_name` and
 is not broadcast; successful commands are broadcast and the central dispatcher
 sends the single response to the requester.
 
+There is no generic `player_action` escape hatch. It had no production consumer,
+did not authorize individual action kinds, and duplicated asset and combat
+protocols. Asset work uses the dedicated asset messages, while combat mutations
+use `combat_command`. Development UI must use the same domain-specific paths.
+
 Request, response, and broadcast semantics use separate message types even when
 their payloads share a definition. For example, player readiness uses
 `player_status_request`, `player_status_response`, and `player_status_changed`;

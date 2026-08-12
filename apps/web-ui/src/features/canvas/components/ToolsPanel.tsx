@@ -67,7 +67,7 @@ interface ToolsPanelProps {
 type TabId = 'tools' | 'lighting' | 'layers' | 'dev';
 const assetManagerEnabled = import.meta.env.DEV && import.meta.env.VITE_ENABLE_ASSET_MANAGER === 'true';
 
-export function ToolsPanel({ userInfo }: ToolsPanelProps) {
+export function ToolsPanel({ userInfo: _userInfo }: ToolsPanelProps) {
   useLayerHotkeys();
   const wasmRuntime = useWasmRuntime();
   const renderEngine = useRenderEngine();
@@ -87,7 +87,6 @@ export function ToolsPanel({ userInfo }: ToolsPanelProps) {
   const [shapeFilled, setShapeFilled] = useState(false);
   
   const { 
-    sessionId, 
     activeLayer, 
     activeTool, 
     measurementActive, 
@@ -634,7 +633,7 @@ export function ToolsPanel({ userInfo }: ToolsPanelProps) {
       <MeasurementTool isActive={measurementActive} />
       <AlignmentHelper isActive={alignmentActive} />
       {assetManagerEnabled && (
-        <AssetManager isVisible={assetManagerVisible} onClose={() => setAssetManagerVisible(false)} sessionCode={sessionId || ""} userInfo={userInfo} />
+        <AssetManager isVisible={assetManagerVisible} onClose={() => setAssetManagerVisible(false)} />
       )}
 
       {/* Opportunity Attack modals */}

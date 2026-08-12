@@ -64,10 +64,6 @@ vi.mock('@features/actions/components/ActionsQuickPanel', () => ({
 vi.mock('@features/actions/components/ActionsPanel', () => ({
   ActionsPanel: () => null,
 }));
-vi.mock('@features/actions/components/ActionQueuePanel', () => ({
-  ActionQueuePanel: () => null,
-}));
-
 function setRole(role: SessionRole) {
   useGameStore.setState({ sessionRole: role });
 }

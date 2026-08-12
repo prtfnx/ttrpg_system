@@ -176,32 +176,6 @@ class _PlayersMixin(_ProtocolBase):
     def _has_ban_permission(self, client_info: dict) -> bool:
         return is_dm(client_info.get('role', 'player'))
 
-    async def handle_player_action(self, msg: Message, client_id: str) -> Message:
-        """Handle generic player action"""
-        try:
-            if not msg.data:
-                return Message(MessageType.ERROR, {'error': 'No data provided'})
-
-            action_type = msg.data.get('action_type')
-            action_data = msg.data.get('action_data', {})
-
-            # Broadcast player action to other clients
-            await self.broadcast_to_session(Message(MessageType.PLAYER_ACTION_UPDATE, {
-                'client_id': client_id,
-                'action_type': action_type,
-                'action_data': action_data,
-                'timestamp': time.time()
-            }), client_id)
-
-            return Message(MessageType.PLAYER_ACTION_RESPONSE, {
-                'success': True,
-                'action_type': action_type
-            })
-
-        except Exception:
-            logger.exception("Player action request failed")
-            return Message(MessageType.ERROR, {'error': 'Internal server error'})
-
     async def handle_player_ready(self, msg: Message, client_id: str) -> Message:
         """Handle player ready status"""
         try:

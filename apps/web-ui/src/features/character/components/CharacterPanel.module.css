@@ -284,6 +284,13 @@
   width: 100%;
   display: flex;
   align-items: center;
+}
+
+.cardToggle {
+  min-width: 0;
+  flex: 1;
+  display: flex;
+  align-items: center;
   justify-content: space-between;
   padding: var(--space-lg);
   cursor: pointer;
@@ -293,7 +300,7 @@
   transition: var(--transition-interactive-fast);
 }
 
-.cardHeader:hover {
+.cardToggle:hover {
   background: var(--hover-overlay);
 }
 
@@ -341,6 +348,8 @@
 }
 
 .retryBtn {
+  flex-shrink: 0;
+  margin-right: var(--space-lg);
   padding: var(--space-0-5) var(--space-xs);
   font-size: var(--text-2xs);
   background: var(--button-danger-bg);

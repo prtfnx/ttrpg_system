@@ -240,8 +240,9 @@ function CharacterPanel() {
                 )}
               </div>
                 
-                <button 
-                  className={styles.cardHeader} 
+                <div className={styles.cardHeader}>
+                <button
+                  className={styles.cardToggle}
                   onClick={() => bulkSelectMode ? handleToggleCharacterSelection(char.id) : handleCharacterClick(char.id)}
                   aria-label={`${isExpanded ? 'Collapse' : 'Expand'} ${char.name}`}
                   aria-expanded={isExpanded}
@@ -253,15 +254,6 @@ function CharacterPanel() {
                       <div className={styles.charName}>
                         {char.name}
                         <SyncStatusIcon status={char.syncStatus} />
-                        {char.syncStatus === 'error' && (
-                          <button
-                            className={styles.retryBtn}
-                            onClick={(e) => { e.stopPropagation(); handleRetrySave(char.id); }}
-                            title="Retry"
-                          >
-                            <RefreshCw size={10} aria-hidden />
-                          </button>
-                        )}
                       </div>
                       <div className={styles.cardMeta}>
                         {char.data?.class && <span className={styles.classBadge}>{char.data.class}</span>}
@@ -313,6 +305,17 @@ function CharacterPanel() {
                     </span>
                   </div>
                 </button>
+                {char.syncStatus === 'error' && (
+                  <button
+                    type="button"
+                    className={styles.retryBtn}
+                    onClick={() => handleRetrySave(char.id)}
+                    aria-label={`Retry saving ${char.name}`}
+                  >
+                    <RefreshCw size={10} aria-hidden />
+                  </button>
+                )}
+                </div>
 
               {isExpanded && (
                 <div className={styles.characterDetails}>

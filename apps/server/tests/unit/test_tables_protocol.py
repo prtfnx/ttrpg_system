@@ -403,6 +403,56 @@ class TestTableUpdate:
         assert "no longer supported" in resp.data["error"]
         proto.actions.update_sprite.assert_not_awaited()
 
+    async def test_maps_protocol_fields_and_broadcasts_after_success(self):
+        proto = _ProtoStub()
+        proto.actions.update_table_from_data = AsyncMock(return_value=_ok_result())
+        proto.broadcast_to_session = AsyncMock()
+        proto.send_to_client = AsyncMock()
+        msg = Message(MessageType.TABLE_UPDATE_REQUEST, {
+            "category": "table",
+            "type": "table_update",
+            "data": {
+                "table_id": "t1",
+                "table_name": "Updated map",
+                "width": 2400,
+                "grid_size": 75,
+                "grid_enabled": False,
+            },
+        })
+
+        resp = await proto.handle_table_update(msg, "c1")
+
+        assert resp.type == MessageType.SUCCESS
+        proto.actions.update_table_from_data.assert_awaited_once_with({
+            "table_id": "t1",
+            "display_name": "Updated map",
+            "width": 2400,
+            "grid_cell_px": 75,
+            "grid_enabled": False,
+        })
+        proto.broadcast_to_session.assert_awaited_once_with(message=msg, client_id="c1")
+        proto.send_to_client.assert_not_awaited()
+
+    async def test_action_failure_is_returned_without_broadcast(self):
+        proto = _ProtoStub()
+        proto.actions.update_table_from_data = AsyncMock(
+            return_value=_fail_result("table not found")
+        )
+        proto.broadcast_to_session = AsyncMock()
+        proto.send_to_client = AsyncMock()
+        msg = Message(MessageType.TABLE_UPDATE_REQUEST, {
+            "category": "table",
+            "type": "table_update",
+            "data": {"table_id": "missing", "grid_enabled": False},
+        })
+
+        resp = await proto.handle_table_update(msg, "c1")
+
+        assert resp.type == MessageType.ERROR
+        assert resp.data["error"] == "table not found"
+        proto.broadcast_to_session.assert_not_awaited()
+        proto.send_to_client.assert_not_awaited()
+
 
 # ---------------------------------------------------------------------------
 # handle_table_scale

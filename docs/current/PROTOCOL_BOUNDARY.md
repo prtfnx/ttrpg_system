@@ -67,6 +67,10 @@ capped at 10,000 rectangles per hide or reveal list.
 Table mutations use `table_update_request` from browser to server. The server
 continues to emit `table_update` broadcasts. These are separate message types
 because their payloads and consumers are direction-specific.
+At the server boundary, `table_name` maps to the domain's `display_name` and
+`grid_size` maps to `grid_cell_px`. A failed domain update returns one error and
+is not broadcast; successful commands are broadcast and the central dispatcher
+sends the single response to the requester.
 
 Request, response, and broadcast semantics use separate message types even when
 their payloads share a definition. For example, player readiness uses

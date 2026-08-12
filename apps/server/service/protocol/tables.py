@@ -390,12 +390,24 @@ class _TablesMixin(_ProtocolBase):
                     if not is_dm(role):
                         return Message(MessageType.ERROR, {'error': 'Only DMs can modify table settings'})
                     match update_type:
-                        case  'table_move' | 'table_update':
-                            await self.actions.update_table_from_data(update_data)
-                            response = Message(MessageType.SUCCESS, {
-                                'table_id': table_id,
-                                'message': f'Table {update_type} successfully'
-                            })
+                        case 'table_update':
+                            domain_update = update_data.copy()
+                            domain_update['table_id'] = table_id
+                            if 'table_name' in domain_update:
+                                domain_update['display_name'] = domain_update.pop('table_name')
+                            if 'grid_size' in domain_update:
+                                domain_update['grid_cell_px'] = domain_update.pop('grid_size')
+
+                            result = await self.actions.update_table_from_data(domain_update)
+                            if result.success:
+                                response = Message(MessageType.SUCCESS, {
+                                    'table_id': table_id,
+                                    'message': 'Table updated successfully'
+                                })
+                            else:
+                                response_error = Message(MessageType.ERROR, {
+                                    'error': result.message or 'Failed to update table'
+                                })
                         case 'fog_update':
                             session_id = self._get_session_id(msg)
                             hide_rectangles = update_data.get('hide_rectangles', [])
@@ -419,10 +431,8 @@ class _TablesMixin(_ProtocolBase):
                             })
 
                 if response_error:
-                    await self.send_to_client(response_error, client_id)
                     return response_error
                 elif response:
-                    await self.send_to_client(response, client_id)
                     await self.broadcast_to_session(message=msg, client_id=client_id)
                     return response
                 else:
@@ -430,7 +440,6 @@ class _TablesMixin(_ProtocolBase):
 
         except Exception:
             logger.exception("Table update request failed")
-            await self._broadcast_error(client_id, "Update failed")
             return Message(MessageType.ERROR, {'error': "Update failed"})
 
     async def handle_table_scale(self, msg: Message, client_id: str) -> Message:

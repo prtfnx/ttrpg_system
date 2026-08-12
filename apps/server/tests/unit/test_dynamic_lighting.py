@@ -292,8 +292,7 @@ class TestEntityVisionPersistence:
             vision_radius=600, has_darkvision=True, darkvision_radius=300,
         )
         entity.sprite_id = _make_sprite_id()
-        table.entities[1] = entity
-        table.sprite_to_entity[entity.sprite_id] = 1
+        table.restore_entity(entity)
 
         crud.save_table_to_db(test_db, table, session.id)
 
@@ -307,6 +306,7 @@ class TestEntityVisionPersistence:
         # Entity is keyed by integer entity_id in the loaded table
         loaded_entity = loaded_table.entities.get(1)
         assert loaded_entity is not None
+        assert loaded_table.get_entity_at_position((5, 5), "tokens") is loaded_entity
         assert loaded_entity.vision_radius == pytest.approx(600)
         assert loaded_entity.has_darkvision is True
         assert loaded_entity.darkvision_radius == pytest.approx(300)

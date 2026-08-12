@@ -890,20 +890,13 @@ class ActionsCore(AsyncActionsProtocol):
             if not table.is_valid_position((grid_x, grid_y)):
                 return ActionResult(True, "Position out of bounds", {'sprite_id': None})
 
-            # Check each layer or specific layer
-            layers_to_check = [layer] if layer else table.layers
-
-            for check_layer in layers_to_check:
-                if check_layer in table.grid:
-                    entity_id = table.grid[check_layer][grid_y][grid_x]
-                    if entity_id is not None:
-                        entity = table.entities.get(entity_id)
-                        if entity:
-                            return ActionResult(True, f"Found sprite {entity.sprite_id} at position", {
-                                'sprite_id': entity.sprite_id,
-                                'position': Position(entity.position[0], entity.position[1]),
-                                'layer': entity.layer
-                            })
+            entity = table.get_entity_at_position((grid_x, grid_y), layer)
+            if entity is not None:
+                return ActionResult(True, f"Found sprite {entity.sprite_id} at position", {
+                    'sprite_id': entity.sprite_id,
+                    'position': Position(entity.position[0], entity.position[1]),
+                    'layer': entity.layer
+                })
 
             return ActionResult(True, "No sprite found at position", {'sprite_id': None})
         except Exception as e:
@@ -917,33 +910,21 @@ class ActionsCore(AsyncActionsProtocol):
             if not table:
                 return ActionResult(False, f"Table {table_id} not found")
 
-            sprites_in_area = {}
-
             # Convert positions to grid coordinates
             start_x, start_y = int(top_left.x), int(top_left.y)
             end_x, end_y = int(bottom_right.x), int(bottom_right.y)
-
-            # Ensure coordinates are within bounds
-            start_x = max(0, min(start_x, table.width - 1))
-            start_y = max(0, min(start_y, table.height - 1))
-            end_x = max(0, min(end_x, table.width - 1))
-            end_y = max(0, min(end_y, table.height - 1))
-
-            # Check each position in the area
-            for y in range(start_y, end_y + 1):
-                for x in range(start_x, end_x + 1):
-                    layers_to_check = [layer] if layer else table.layers
-
-                    for check_layer in layers_to_check:
-                        if check_layer in table.grid:
-                            entity_id = table.grid[check_layer][y][x]
-                            if entity_id is not None:
-                                entity = table.entities.get(entity_id)
-                                if entity and entity.sprite_id not in sprites_in_area:
-                                    sprites_in_area[entity.sprite_id] = {
-                                        'position': Position(entity.position[0], entity.position[1]),
-                                        'layer': entity.layer
-                                    }
+            entities = table.get_entities_in_area(
+                (start_x, start_y),
+                (end_x, end_y),
+                layer,
+            )
+            sprites_in_area = {
+                entity.sprite_id: {
+                    'position': Position(entity.position[0], entity.position[1]),
+                    'layer': entity.layer,
+                }
+                for entity in entities
+            }
 
             return ActionResult(True, f"Found {len(sprites_in_area)} sprites in area", {
                 'sprites': sprites_in_area

@@ -51,6 +51,12 @@ class TestVirtualTableInit:
         t = VirtualTable(name='T', width=5, height=5, grid_cell_px=50.0, cell_distance=5.0)
         assert t.pixels_per_unit == 10.0
 
+    def test_large_empty_table_uses_sparse_position_index(self):
+        t = VirtualTable(name='Large', width=10_000, height=10_000)
+
+        assert set(t.entity_index) == set(t.layers)
+        assert all(not layer_index for layer_index in t.entity_index.values())
+
 
 class TestAddEntity:
     def test_returns_entity(self):
@@ -114,7 +120,8 @@ class TestMoveEntity:
         t = make_table()
         e = add_entity(t, x=0, y=0)
         t.move_entity(entity_id(e), (1, 1))
-        assert t.grid['tokens'][0][0] is None
+        assert t.get_entity_at_position((0, 0), 'tokens') is None
+        assert t.get_entity_at_position((1, 1), 'tokens') is e
 
     def test_move_occupied_raises_and_rolls_back(self):
         t = make_table()
@@ -148,12 +155,50 @@ class TestRemoveEntity:
         t = make_table()
         e = add_entity(t, x=2, y=3)
         t.remove_entity(entity_id(e))
-        assert t.grid['tokens'][3][2] is None
+        assert t.get_entity_at_position((2, 3), 'tokens') is None
+
+    def test_removing_overlapped_entity_keeps_current_position_index(self):
+        t = make_table()
+        first = add_entity(t, x=2, y=3)
+        second = add_entity(t, x=2, y=3)
+
+        t.remove_entity(entity_id(first))
+
+        assert t.get_entity_at_position((2, 3), 'tokens') is second
+
+    def test_removing_current_overlapped_entity_reveals_previous_entity(self):
+        t = make_table()
+        first = add_entity(t, x=2, y=3)
+        second = add_entity(t, x=2, y=3)
+
+        t.remove_entity(entity_id(second))
+
+        assert t.get_entity_at_position((2, 3), 'tokens') is first
 
     def test_remove_missing_raises(self):
         t = make_table()
         with pytest.raises(ValueError):
             t.remove_entity(999)
+
+
+class TestPositionQueries:
+    def test_get_entity_at_position_checks_requested_layer(self):
+        t = make_table()
+        token = add_entity(t, x=4, y=5, layer='tokens')
+        add_entity(t, x=4, y=5, layer='map')
+
+        assert t.get_entity_at_position((4, 5), 'tokens') is token
+        assert t.get_entity_at_position((4, 5), 'light') is None
+
+    def test_get_entities_in_area_filters_sparse_index(self):
+        t = make_table()
+        inside = add_entity(t, x=4, y=5)
+        outside = add_entity(t, x=15, y=15)
+        map_entity = add_entity(t, x=6, y=6, layer='map')
+
+        assert t.get_entities_in_area((3, 3), (7, 7)) == [map_entity, inside]
+        assert t.get_entities_in_area((3, 3), (7, 7), 'tokens') == [inside]
+        assert outside not in t.get_entities_in_area((3, 3), (7, 7))
 
 
 class TestWalls:

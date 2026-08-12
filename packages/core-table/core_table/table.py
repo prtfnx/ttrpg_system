@@ -233,10 +233,11 @@ class VirtualTable:
         # Cover zones (shape-based, DM-placed)
         self.cover_zones: List[CoverZone] = []
 
-        # Initialize grid
-        self.grid = {}
-        for layer in self.layers:
-            self.grid[layer] = [[None for _ in range(width)] for _ in range(height)]
+        # Tables use pixel coordinates and are mostly empty. Index only occupied
+        # positions instead of allocating width * height cells for every layer.
+        self.entity_index: Dict[str, Dict[Tuple[int, int], List[int]]] = {
+            layer: {} for layer in self.layers
+        }
 
     @property
     def pixels_per_unit(self) -> float:
@@ -244,6 +245,93 @@ class VirtualTable:
         if self.cell_distance <= 0:
             return 10.0
         return self.grid_cell_px / self.cell_distance
+
+    def _index_entity(self, entity: 'Entity') -> bool:
+        """Add an entity to the sparse position index when its position is valid."""
+        if entity.entity_id is None:
+            raise ValueError("Entity ID is required")
+        if entity.layer not in self.entity_index:
+            raise ValueError("Invalid layer")
+        if not self.is_valid_position(entity.position):
+            return False
+
+        occupants = self.entity_index[entity.layer].setdefault(entity.position, [])
+        if entity.entity_id not in occupants:
+            occupants.append(entity.entity_id)
+        return True
+
+    def _unindex_entity(self, entity: 'Entity') -> None:
+        """Remove an entity's position without clearing a newer occupant."""
+        layer_index = self.entity_index.get(entity.layer)
+        if not layer_index:
+            return
+        occupants = layer_index.get(entity.position)
+        if occupants and entity.entity_id in occupants:
+            occupants.remove(entity.entity_id)
+            if not occupants:
+                layer_index.pop(entity.position, None)
+
+    def restore_entity(self, entity: 'Entity') -> bool:
+        """Restore a pre-existing entity and all of its in-memory indexes."""
+        if entity.entity_id is None:
+            raise ValueError("Entity ID is required")
+        if entity.layer not in self.entity_index:
+            raise ValueError("Invalid layer")
+
+        existing = self.entities.get(entity.entity_id)
+        if existing is not None:
+            self._unindex_entity(existing)
+            self.sprite_to_entity.pop(existing.sprite_id, None)
+        self.entities[entity.entity_id] = entity
+        self.sprite_to_entity[entity.sprite_id] = entity.entity_id
+        self.next_entity_id = max(self.next_entity_id, entity.entity_id + 1)
+        return self._index_entity(entity)
+
+    def get_entity_at_position(
+        self,
+        position: Tuple[int, int],
+        layer: Optional[str] = None,
+    ) -> Optional['Entity']:
+        """Return the indexed entity at a position, optionally within one layer."""
+        if not self.is_valid_position(position):
+            return None
+
+        layers_to_check = [layer] if layer else self.layers
+        for layer_name in layers_to_check:
+            occupants = self.entity_index.get(layer_name, {}).get(position, [])
+            for entity_id in reversed(occupants):
+                entity = self.entities.get(entity_id)
+                if entity is not None:
+                    return entity
+        return None
+
+    def get_entities_in_area(
+        self,
+        top_left: Tuple[int, int],
+        bottom_right: Tuple[int, int],
+        layer: Optional[str] = None,
+    ) -> List['Entity']:
+        """Return indexed entities inside a bounded rectangular area."""
+        x1, y1 = top_left
+        x2, y2 = bottom_right
+        x1 = max(0, min(x1, self.width - 1))
+        y1 = max(0, min(y1, self.height - 1))
+        x2 = max(0, min(x2, self.width - 1))
+        y2 = max(0, min(y2, self.height - 1))
+        if x1 > x2 or y1 > y2:
+            return []
+
+        entities: List[Entity] = []
+        layers_to_check = [layer] if layer else self.layers
+        for layer_name in layers_to_check:
+            for (x, y), entity_ids in self.entity_index.get(layer_name, {}).items():
+                if x1 <= x <= x2 and y1 <= y <= y2:
+                    entities.extend(
+                        entity
+                        for entity_id in entity_ids
+                        if (entity := self.entities.get(entity_id)) is not None
+                    )
+        return entities
 
     def add_entity(self, entity_data: Dict[str, Any]) -> 'Entity':
         """Add entity and return it"""
@@ -278,8 +366,6 @@ class VirtualTable:
             logger.warning(f"Entity position clamped from {original_position} to {position}")
         if layer not in self.layers:
             raise ValueError("Invalid layer")
-        #if self.grid[layer][position[1]][position[0]] is not None:
-        #    raise ValueError("Position already occupied")
         logger.debug(f"Adding entity {name} at {position} on layer {layer} with texture {path_to_texture}")
 
         # Extract character binding and token stats
@@ -324,12 +410,9 @@ class VirtualTable:
         if 'rotation' in entity_data:
             entity.rotation = entity_data['rotation']
 
-        self.entities[self.next_entity_id] = entity
-        self.sprite_to_entity[entity.sprite_id] = self.next_entity_id
-        self.grid[layer][position[1]][position[0]] = self.next_entity_id
+        self.restore_entity(entity)
 
-        logger.info(f"Added entity {name} (ID: {self.next_entity_id}, Sprite: {entity.sprite_id}) at {position}")
-        self.next_entity_id += 1
+        logger.info(f"Added entity {name} (ID: {entity.entity_id}, Sprite: {entity.sprite_id}) at {position}")
         return entity
 
     def find_entity_by_sprite_id(self, sprite_id: str) -> Optional[Entity]:
@@ -350,28 +433,19 @@ class VirtualTable:
             raise ValueError("Invalid position")
         logger.debug(f"Moving entity {entity_id} to {new_position} on layer {new_layer}")
         entity = self.entities[entity_id]
-        old_x, old_y = entity.position
         old_layer = entity.layer
 
-        # Clear old position
-        self.grid[old_layer][old_y][old_x] = None
-
-        # Update entity
-        entity.position = new_position
-        if new_layer and new_layer in self.layers:
-            entity.layer = new_layer
-
-        # Check if new position is free
-        logger.info(f"Moving entity {entity_id} (sprite: {entity.sprite_id}) from {entity.position} to {new_position} on layer {entity.layer}")
-        if self.grid[entity.layer][new_position[1]][new_position[0]] is not None:
-            # Rollback
-            self.grid[old_layer][old_y][old_x] = entity_id
-            entity.position = (old_x, old_y)
-            entity.layer = old_layer
+        target_layer = new_layer if new_layer in self.layers else old_layer
+        if entity.position == new_position and target_layer == old_layer:
+            return
+        occupant_ids = self.entity_index[target_layer].get(new_position, [])
+        if any(occupant_id != entity_id for occupant_id in occupant_ids):
             raise ValueError("Target position occupied")
 
-        # Place in new position
-        self.grid[entity.layer][new_position[1]][new_position[0]] = entity_id
+        self._unindex_entity(entity)
+        entity.position = new_position
+        entity.layer = target_layer
+        self._index_entity(entity)
         logger.info(f"Moved entity {entity_id} (sprite: {entity.sprite_id}) to {new_position} on layer {entity.layer}")
 
     def remove_entity(self, entity_id: int):
@@ -380,11 +454,7 @@ class VirtualTable:
             raise ValueError("Entity not found")
 
         entity = self.entities[entity_id]
-        x, y = entity.position
-        layer = entity.layer
-
-        # Clear from grid
-        self.grid[layer][y][x] = None
+        self._unindex_entity(entity)
 
         # Remove from sprite mapping
         if entity.sprite_id in self.sprite_to_entity:
@@ -461,10 +531,8 @@ class VirtualTable:
         self.entities.clear()
         self.sprite_to_entity.clear()
 
-        # Reinitialize grid
-        self.grid = {}
-        for layer in self.layers:
-            self.grid[layer] = [[None for _ in range(self.width)] for _ in range(self.height)]
+        # Reinitialize the sparse position index.
+        self.entity_index = {layer: {} for layer in self.layers}
 
         # Load entities from layers
         layers_data = data.get('layers', {})
@@ -494,15 +562,7 @@ class VirtualTable:
                     entity.scale_y = entity_data.get('scale_y', 1.0)
                     entity.sprite_id = entity_data.get('sprite_id', str(uuid.uuid4()))
 
-                    # Add to collections
-                    self.entities[entity_id] = entity
-                    self.sprite_to_entity[entity.sprite_id] = entity_id
-
-                    # Place on grid
-                    x, y = entity.position
-                    if self.is_valid_position((x, y)):
-                        self.grid[layer][y][x] = entity_id
-                    else:
+                    if not self.restore_entity(entity):
                         logger.warning(f"Entity {entity_id} has invalid position: {entity.position}")
 
                 except (ValueError, KeyError) as e:
@@ -589,63 +649,13 @@ class VirtualTable:
         return [w.to_dict() for w in self.walls.values()]
 
 
-def get_entity_at_position(self, position: Tuple[int, int], layer: Optional[str] = None) -> Optional[Entity]:
-    """Get entity at specific position"""
-    x, y = position
-    if not self.is_valid_position(position):
-        return None
-
-    if layer:
-        entity_id = self.grid[layer][y][x]
-        if entity_id:
-            return self.entities.get(entity_id)
-    else:
-        # Check all layers
-        for layer_name in self.layers:
-            entity_id = self.grid[layer_name][y][x]
-            if entity_id:
-                return self.entities.get(entity_id)
-
-    return None
-
-def get_entities_in_area(self, top_left: Tuple[int, int], bottom_right: Tuple[int, int],
-                        layer: Optional[str] = None) -> List[Entity]:
-    """Get all entities in a rectangular area"""
-    entities = []
-    x1, y1 = top_left
-    x2, y2 = bottom_right
-
-    # Ensure bounds are within table
-    x1 = max(0, min(x1, self.width - 1))
-    y1 = max(0, min(y1, self.height - 1))
-    x2 = max(0, min(x2, self.width - 1))
-    y2 = max(0, min(y2, self.height - 1))
-
-    layers_to_check = [layer] if layer else self.layers
-
-    for layer_name in layers_to_check:
-        for y in range(y1, y2 + 1):
-            for x in range(x1, x2 + 1):
-                entity_id = self.grid[layer_name][y][x]
-                if entity_id:
-                    entity = self.entities.get(entity_id)
-                    if entity and entity not in entities:
-                        entities.append(entity)
-
-    return entities
-
-
-
-
 def create_table_from_json(json_data: str) -> VirtualTable:
     data = json.loads(json_data)
     table = VirtualTable(data['name'], data['width'], data['height'])
     for e_data in data['entities']:
         entity = Entity.from_dict(e_data)
         if entity.entity_id is not None:
-            table.entities[entity.entity_id] = entity
-            table.grid[entity.layer][entity.position[1]][entity.position[0]] = entity.entity_id
-            table.next_entity_id = max(table.next_entity_id, entity.entity_id + 1)
+            table.restore_entity(entity)
     logger.info("Created table from JSON data")
     return table
 

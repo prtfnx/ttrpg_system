@@ -5,7 +5,7 @@ canvas bootstrap, or table settings.
 
 Status: current but partial.
 
-Last source audit: 2026-08-04
+Last source audit: 2026-08-11
 
 ## Source owners
 
@@ -116,6 +116,9 @@ ranges, units, and colors before dispatching a settings broadcast.
 Server-owned:
 
 - table rows and dimensions;
+- a sparse per-layer entity-position index. Table width and height are pixel
+  dimensions, so empty positions are implicit and memory grows with placed
+  entities instead of `width * height * layer_count`;
 - per-table dynamic lighting, fog exploration mode, ambient light, grid units,
   grid toggles, and colors;
 - persisted walls, paint strokes, and layer settings for join-time sync;
@@ -142,6 +145,7 @@ WASM-owned:
 - `apps/web-ui/src/features/table/**/__tests__/`
 - `apps/web-ui/src/features/canvas/components/**/__tests__/`
 - `apps/web-ui/src/features/canvas/hooks/**/__tests__/`
+- `packages/core-table/tests/test_virtual_table.py`
 - `packages/rust-core/tests/wasm_browser.rs`
 - `packages/rust-core/tests/wasm_node.rs`
 

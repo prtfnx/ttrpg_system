@@ -918,20 +918,8 @@ def load_table_from_db(db: Session, table_id: str):
             entity.scale_y = db_entity.scale_y
             entity.rotation = db_entity.rotation
 
-            # Add to virtual table
             if entity.entity_id is not None:
-                virtual_table.entities[entity.entity_id] = entity
-                virtual_table.sprite_to_entity[entity.sprite_id] = entity.entity_id
-
-            # Update grid (skip if position is out of bounds or layer doesn't exist)
-            if (entity.layer in virtual_table.grid and
-                0 <= entity.position[1] < len(virtual_table.grid[entity.layer]) and
-                0 <= entity.position[0] < len(virtual_table.grid[entity.layer][0])):
-                virtual_table.grid[entity.layer][entity.position[1]][entity.position[0]] = entity.entity_id
-
-            # Update next entity ID
-            if entity.entity_id is not None and entity.entity_id >= virtual_table.next_entity_id:
-                virtual_table.next_entity_id = entity.entity_id + 1
+                virtual_table.restore_entity(entity)
 
         # Load wall segments into the in-memory wall registry used by lighting,
         # movement validation, and door operations.

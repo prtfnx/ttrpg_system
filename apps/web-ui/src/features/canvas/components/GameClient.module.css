@@ -178,6 +178,8 @@
 
 .panelResizer {
   width: var(--space-sm);
+  padding: 0;
+  border: 0;
   background: var(--bg-elevated);
   cursor: col-resize;
   position: relative;

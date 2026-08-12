@@ -42,7 +42,8 @@ export function TextSpriteModal({ isOpen, position, onConfirm, onCancel }: TextS
 
   return (
     <Modal isOpen onClose={onCancel} title="Create Text Sprite">
-      <div className={styles.textSpriteContent} onKeyDown={handleKeyDown}>
+      <form onSubmit={(e) => { e.preventDefault(); handleConfirm(); }}>
+        <div className={styles.textSpriteContent}>
           <div className={styles.formGroup}>
             <label className={styles.controlLabel} htmlFor="text-content">Text Content:</label>
             <textarea
@@ -53,6 +54,7 @@ export function TextSpriteModal({ isOpen, position, onConfirm, onCancel }: TextS
               autoFocus
               rows={3}
               maxLength={200}
+              onKeyDown={handleKeyDown}
             />
             <div className={styles.charCount}>{text.length}/200</div>
           </div>
@@ -109,21 +111,21 @@ export function TextSpriteModal({ isOpen, position, onConfirm, onCancel }: TextS
             • ASCII characters only (32-127)
             • Rendered directly in WebGL (no Canvas2D)
           </div>
-      </div>
+        </div>
 
-      <div className={styles.modalFooter}>
-        <button type="button" className={clsx(styles.btn, styles.btnCancel)} onClick={onCancel}>
-          Cancel
-        </button>
-        <button
-          type="button"
-          className={clsx(styles.btn, styles.btnConfirm, !text.trim() && styles.btnConfirmDisabled)}
-          onClick={handleConfirm}
-          disabled={!text.trim()}
-        >
-          Create Text Sprite
-        </button>
-      </div>
+        <div className={styles.modalFooter}>
+          <button type="button" className={clsx(styles.btn, styles.btnCancel)} onClick={onCancel}>
+            Cancel
+          </button>
+          <button
+            type="submit"
+            className={clsx(styles.btn, styles.btnConfirm, !text.trim() && styles.btnConfirmDisabled)}
+            disabled={!text.trim()}
+          >
+            Create Text Sprite
+          </button>
+        </div>
+      </form>
     </Modal>
   );
 }

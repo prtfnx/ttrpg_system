@@ -137,7 +137,7 @@ describe('SessionSelector - User Behavior Tests', () => {
   });
 
   describe('Session Selection', () => {
-    it('selects session when clicking on session card', async () => {
+    it('keeps the session summary non-interactive', async () => {
       render(<SessionSelector onSessionSelected={mockOnSessionSelected} />);
 
       await waitFor(() => {
@@ -150,9 +150,8 @@ describe('SessionSelector - User Behavior Tests', () => {
       const dmSession = screen.getByRole('listitem', { 
         name: /session: dragon heist campaign, role: dm/i 
       });
-      await user.click(dmSession);
-
-      expect(mockOnSessionSelected).toHaveBeenCalledWith('DMG001', 'owner');
+      expect(dmSession).not.toHaveAttribute('tabindex');
+      expect(mockOnSessionSelected).not.toHaveBeenCalled();
     });
 
     it('selects session when clicking join button', async () => {
@@ -177,18 +176,18 @@ describe('SessionSelector - User Behavior Tests', () => {
       render(<SessionSelector onSessionSelected={mockOnSessionSelected} />);
 
       await waitFor(() => {
-        const session = screen.getByRole('listitem', { 
-          name: /session: dragon heist campaign, role: dm/i 
+        const joinButton = screen.getByRole('button', {
+          name: /join dragon heist campaign as dm/i
         });
-        expect(session).toBeInTheDocument();
+        expect(joinButton).toBeInTheDocument();
       });
 
-      const session = screen.getByRole('listitem', { 
-        name: /session: dragon heist campaign, role: dm/i 
+      const joinButton = screen.getByRole('button', {
+        name: /join dragon heist campaign as dm/i
       });
       
       // Focus and press Enter
-      session.focus();
+      joinButton.focus();
       await user.keyboard('{Enter}');
 
       expect(mockOnSessionSelected).toHaveBeenCalledWith('DMG001', 'owner');

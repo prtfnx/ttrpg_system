@@ -243,10 +243,18 @@ export const MonsterCreationPanel: React.FC<MonsterCreationPanelProps> = ({
     <div
       key={template.id}
       className={scopedClassName(`monster-card ${selectedTemplate?.id === template.id ? 'selected' : ''}`)}
-      onClick={() => setSelectedTemplate(template)}
     >
       <div className={scopedClassName('monster-card-header')}>
-        <h4 className={scopedClassName('monster-name')}>{template.name}</h4>
+        <h4 className={scopedClassName('monster-name')}>
+          <button
+            type="button"
+            className={scopedClassName('monster-card-select')}
+            aria-pressed={selectedTemplate?.id === template.id}
+            onClick={() => setSelectedTemplate(template)}
+          >
+            {template.name}
+          </button>
+        </h4>
         <span className={scopedClassName('monster-cr')}>CR {template.challengeRating}</span>
       </div>
       
@@ -279,8 +287,7 @@ export const MonsterCreationPanel: React.FC<MonsterCreationPanelProps> = ({
       
       <div className={scopedClassName('monster-card-actions')}>
         <button
-          onClick={(e) => {
-            e.stopPropagation();
+          onClick={() => {
             createInstance(template);
           }}
           className={scopedClassName('monster-btn monster-btn-primary monster-btn-small')}
@@ -301,14 +308,21 @@ export const MonsterCreationPanel: React.FC<MonsterCreationPanelProps> = ({
     <div
       key={instance.id}
       className={scopedClassName(`monster-instance-card ${selectedInstance?.id === instance.id ? 'selected' : ''} ${instance.isDefeated ? 'defeated' : ''}`)}
-      onClick={() => setSelectedInstance(instance)}
     >
       <div className={scopedClassName('monster-instance-header')}>
-        <h4 className={scopedClassName('monster-instance-name')}>{instance.name}</h4>
+        <h4 className={scopedClassName('monster-instance-name')}>
+          <button
+            type="button"
+            className={scopedClassName('monster-card-select')}
+            aria-pressed={selectedInstance?.id === instance.id}
+            onClick={() => setSelectedInstance(instance)}
+          >
+            {instance.name}
+          </button>
+        </h4>
         <div className={scopedClassName('monster-instance-actions')}>
           <button
-            onClick={(e) => {
-              e.stopPropagation();
+            onClick={() => {
               handlePlaceOnTable(instance);
             }}
             className={scopedClassName('monster-btn monster-btn-primary monster-btn-small')}
@@ -317,8 +331,7 @@ export const MonsterCreationPanel: React.FC<MonsterCreationPanelProps> = ({
             pin
           </button>
           <button
-            onClick={(e) => {
-              e.stopPropagation();
+            onClick={() => {
               monsterCreationSystem.deleteInstance(instance.id);
             }}
             className={scopedClassName('monster-btn monster-btn-danger monster-btn-small')}

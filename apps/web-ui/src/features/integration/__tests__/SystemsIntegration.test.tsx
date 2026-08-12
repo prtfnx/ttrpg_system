@@ -354,22 +354,24 @@ describe('Web Client TypeScript & WASM Systems Integration Tests', () => {
         return (
           <div data-testid="asset-wasm-integration">
             <div className="asset-list">
-              <div 
+              <button
+                type="button"
                 className="asset-item clickable"
                 onClick={() => handleAssetClick('dragon.png')}
                 style={{ cursor: 'pointer', padding: '8px', border: '1px solid #ccc', margin: '4px' }}
               >
-                <div className="asset-name">dragon.png</div>
-                <div className="asset-details">1.00 MB • image/png</div>
-              </div>
-              <div 
+                <span className="asset-name">dragon.png</span>
+                <span className="asset-details">1.00 MB • image/png</span>
+              </button>
+              <button
+                type="button"
                 className="asset-item clickable"
                 onClick={() => handleAssetClick('music.mp3')}
                 style={{ cursor: 'pointer', padding: '8px', border: '1px solid #ccc', margin: '4px' }}
               >
-                <div className="asset-name">music.mp3</div>
-                <div className="asset-details">2.5 MB • audio/mp3</div>
-              </div>
+                <span className="asset-name">music.mp3</span>
+                <span className="asset-details">2.5 MB • audio/mp3</span>
+              </button>
             </div>
             <div data-testid="loaded-textures">
               Loaded textures: {loadedTextures.join(', ')}

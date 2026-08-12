@@ -102,7 +102,7 @@ export function FloatingWindow({
   const content = (
     <div
       style={{ position: 'absolute', top: 0, left: 0, zIndex }}
-      onMouseDown={onFocus}
+      onPointerDown={onFocus}
     >
       <Rnd
         ref={rndRef}

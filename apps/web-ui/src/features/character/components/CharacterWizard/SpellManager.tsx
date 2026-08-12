@@ -243,9 +243,14 @@ export const SpellManager: React.FC<SpellManagerProps> = ({
               
               <div className={styles.slotCircles}>
                 {Array.from({ length: slots.total }, (_, i) => (
-                  <div
+                  <button
+                    type="button"
                     key={i}
                     className={clsx(styles.slotCircle, i < slots.used ? styles.used : styles.available)}
+                    aria-label={i < slots.used
+                      ? `Restore level ${levelNum} spell slot ${i + 1}`
+                      : `Use level ${levelNum} spell slot ${i + 1}`}
+                    disabled={i > slots.used}
                     onClick={() => {
                       if (i < slots.used) {
                         restoreSpellSlot(levelNum);

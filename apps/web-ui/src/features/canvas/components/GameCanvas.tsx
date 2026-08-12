@@ -843,12 +843,17 @@ export const GameCanvas: React.FC = () => {
           <div
             className={styles.contextMenu}
             style={{ left: contextMenu.x, top: contextMenu.y }}
+            role="menu"
+            aria-label="Sprite actions"
+            tabIndex={-1}
             onClick={(e) => e.stopPropagation()}
+            onKeyDown={(e) => e.stopPropagation()}
           >
             {contextMenu.spriteId ? (
               <>
                 <button
                   type="button"
+                  role="menuitem"
                   className={styles.contextMenuItem}
                   onClick={() => handleContextMenuAction('copy')}
                 >
@@ -857,6 +862,7 @@ export const GameCanvas: React.FC = () => {
                 {contextMenu.copiedSprite && (
                   <button
                     type="button"
+                    role="menuitem"
                     className={styles.contextMenuItem}
                     onClick={() => handleContextMenuAction('paste')}
                   >
@@ -865,13 +871,10 @@ export const GameCanvas: React.FC = () => {
                 )}
 
                 {/* Move to Layer submenu */}
-                <div className={styles.contextMenuItemWithSubmenu}
-                  onMouseOver={() => {
-                    setContextMenu((prev) => ({ ...prev, showLayerSubmenu: true }));
-                  }}
-                >
+                <div className={styles.contextMenuItemWithSubmenu}>
                   <button
                     type="button"
+                    role="menuitem"
                     className={styles.contextMenuItem}
                     aria-haspopup="menu"
                     aria-expanded={contextMenu.showLayerSubmenu}
@@ -890,7 +893,6 @@ export const GameCanvas: React.FC = () => {
                       className={styles.contextMenuSub}
                       role="menu"
                       aria-label="Move sprite to layer"
-                      onClick={(e) => e.stopPropagation()}
                     >
                       {AVAILABLE_LAYERS.map((layer) => (
                         <button
@@ -910,6 +912,7 @@ export const GameCanvas: React.FC = () => {
 
                 <button
                   type="button"
+                  role="menuitem"
                   className={styles.contextMenuItem}
                   onClick={() => handleContextMenuAction('resize')}
                 >
@@ -917,6 +920,7 @@ export const GameCanvas: React.FC = () => {
                 </button>
                 <button
                   type="button"
+                  role="menuitem"
                   className={styles.contextMenuItem}
                   onClick={() => handleContextMenuAction('rotate')}
                 >
@@ -924,6 +928,7 @@ export const GameCanvas: React.FC = () => {
                 </button>
                 <button
                   type="button"
+                  role="menuitem"
                   className={styles.contextMenuItemDanger}
                   onClick={() => handleContextMenuAction('delete')}
                 >
@@ -934,6 +939,7 @@ export const GameCanvas: React.FC = () => {
                   inCombat(contextMenu.spriteId) ? (
                     <button
                       type="button"
+                      role="menuitem"
                       className={styles.contextMenuItem}
                       onClick={() => { removeFromCombat(contextMenu.spriteId!); setContextMenu((p) => ({ ...p, visible: false })); }}
                     >
@@ -942,6 +948,7 @@ export const GameCanvas: React.FC = () => {
                   ) : (
                     <button
                       type="button"
+                      role="menuitem"
                       className={styles.contextMenuItem}
                       onClick={() => { addToCombat(contextMenu.spriteId!); setContextMenu((p) => ({ ...p, visible: false })); }}
                     >
@@ -955,6 +962,7 @@ export const GameCanvas: React.FC = () => {
               contextMenu.copiedSprite && (
                 <button
                   type="button"
+                  role="menuitem"
                   className={styles.contextMenuItem}
                   onClick={() => handleContextMenuAction('paste')}
                 >

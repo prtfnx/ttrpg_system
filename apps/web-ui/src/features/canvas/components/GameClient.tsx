@@ -203,6 +203,25 @@ const windowManager = useWindowManager();
     document.body.style.userSelect = 'none';
   };
 
+  const resizePanelWithKeyboard = (side: 'left' | 'right', e: React.KeyboardEvent) => {
+    const currentWidth = side === 'left' ? leftWidth : rightWidth;
+    const minWidth = side === 'left' ? 200 : 250;
+    let nextWidth = currentWidth;
+
+    if (e.key === 'Home') nextWidth = minWidth;
+    if (e.key === 'End') nextWidth = 600;
+    if (e.key === 'ArrowLeft') nextWidth += side === 'left' ? -10 : 10;
+    if (e.key === 'ArrowRight') nextWidth += side === 'left' ? 10 : -10;
+    if (nextWidth === currentWidth) return;
+
+    e.preventDefault();
+    nextWidth = Math.max(minWidth, Math.min(600, nextWidth));
+    const setWidth = side === 'left' ? setLeftWidth : setRightWidth;
+    setWidth(nextWidth);
+    localStorage.setItem(`panel_${side}_width`, nextWidth.toString());
+    window.dispatchEvent(new Event('resize'));
+  };
+
   React.useEffect(() => {
     const onDrag = (e: MouseEvent) => {
       if (!dragRef.current) return;
@@ -271,9 +290,12 @@ const windowManager = useWindowManager();
         )}
         
         {leftVisible && (
-          <div 
+          <button
+            type="button"
             className={clsx(styles.panelResizer, styles.leftResizer)} 
+            aria-label={`Resize left panel, current width ${leftWidth} pixels`}
             onMouseDown={e => onDragStart('left', e)}
+            onKeyDown={e => resizePanelWithKeyboard('left', e)}
           />
         )}
         
@@ -298,9 +320,12 @@ const windowManager = useWindowManager();
         </div>
         
         {rightVisible && (
-          <div 
+          <button
+            type="button"
             className={clsx(styles.panelResizer, styles.rightResizer)} 
+            aria-label={`Resize right panel, current width ${rightWidth} pixels`}
             onMouseDown={e => onDragStart('right', e)}
+            onKeyDown={e => resizePanelWithKeyboard('right', e)}
           />
         )}
         

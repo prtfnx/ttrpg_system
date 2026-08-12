@@ -260,9 +260,17 @@ export const CompendiumPanel: React.FC<CompendiumPanelProps> = ({ category, clas
           <div
             key={`${entry.type}-${entry.id}`}
             className={styles.entry}
+            role="button"
+            tabIndex={0}
             draggable
             onDragStart={e => onDragStart(e, entry)}
             onClick={() => onEntryClick(entry)}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' || e.key === ' ') {
+                e.preventDefault();
+                onEntryClick(entry);
+              }
+            }}
           >
             <div className={styles.entryTop}>
               <span className={`${styles.badge} ${styles[entry.type]}`}>{entry.type[0].toUpperCase()}</span>

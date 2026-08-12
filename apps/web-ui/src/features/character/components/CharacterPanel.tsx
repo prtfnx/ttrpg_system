@@ -218,7 +218,6 @@ function CharacterPanel() {
             <article
               key={char.id}
               role="listitem"
-              aria-expanded={isExpanded}
               aria-label={`Character: ${char.name}`}
               className={clsx(styles.characterCard, {
                 [styles.selected]: isSelected,

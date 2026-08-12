@@ -140,7 +140,7 @@ describe('CharacterPanel', () => {
       
       const characterCard = screen.getByRole('listitem', { name: /character: test hero/i });
       expect(characterCard).toBeInTheDocument();
-      expect(characterCard).toHaveAttribute('aria-expanded', 'false');
+      expect(screen.getByRole('button', { name: /expand test hero/i })).toHaveAttribute('aria-expanded', 'false');
     });
   });
 
@@ -155,23 +155,18 @@ describe('CharacterPanel', () => {
       useGameStore.getState().addCharacter(testCharacter);
       render(<CharacterPanel />);
       
-      const characterCard = screen.getByRole('listitem', { name: /character: expandable hero/i });
-      expect(characterCard).toHaveAttribute('aria-expanded', 'false');
-      
       // Click the expand button to expand
       const expandButton = screen.getByRole('button', { name: /expand expandable hero/i });
+      expect(expandButton).toHaveAttribute('aria-expanded', 'false');
       await user.click(expandButton);
-      
-      await waitFor(() => {
-        expect(characterCard).toHaveAttribute('aria-expanded', 'true');
-      });
       
       // Click the collapse button to collapse
       const collapseButton = screen.getByRole('button', { name: /collapse expandable hero/i });
+      expect(collapseButton).toHaveAttribute('aria-expanded', 'true');
       await user.click(collapseButton);
       
       await waitFor(() => {
-        expect(characterCard).toHaveAttribute('aria-expanded', 'false');
+        expect(screen.getByRole('button', { name: /expand expandable hero/i })).toHaveAttribute('aria-expanded', 'false');
       });
     });
 
@@ -218,9 +213,8 @@ describe('CharacterPanel', () => {
       const expandButton = screen.getByRole('button', { name: /expand my character/i });
       await user.click(expandButton);
       
-      const characterCard = screen.getByRole('listitem', { name: /character: my character/i });
       await waitFor(() => {
-        expect(characterCard).toHaveAttribute('aria-expanded', 'true');
+        expect(screen.getByRole('button', { name: /collapse my character/i })).toHaveAttribute('aria-expanded', 'true');
         const deleteButton = screen.getByRole('button', { name: /delete/i });
         expect(deleteButton).toBeInTheDocument();
         expect(deleteButton).toBeEnabled();
@@ -258,10 +252,9 @@ describe('CharacterPanel', () => {
       const expandButton = screen.getByRole('button', { name: /expand controlled character/i });
       await user.click(expandButton);
       
-      const characterCard = screen.getByRole('listitem', { name: /character: controlled character/i });
       // User should see the character and have some controls
       await waitFor(() => {
-        expect(characterCard).toHaveAttribute('aria-expanded', 'true');
+        expect(screen.getByRole('button', { name: /collapse controlled character/i })).toHaveAttribute('aria-expanded', 'true');
         // Controlled characters should show but not allow deletion
       });
     });

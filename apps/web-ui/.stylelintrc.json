@@ -16,6 +16,10 @@
       "box-shadow": ["/.*var\\(--/", "none", "inherit"],
       "text-shadow": ["/.*var\\(--/", "none", "inherit"]
     },
+    "declaration-property-value-disallowed-list": {
+      "transition": ["/\\ball\\b/"],
+      "z-index": ["/^-?\\d+$/"]
+    },
     "property-no-unknown": [true, {
       "ignoreProperties": ["composes"]
     }],

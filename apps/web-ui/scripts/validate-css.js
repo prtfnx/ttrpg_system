@@ -63,6 +63,7 @@ const FUNCTIONAL_PX_PATTERNS = [
   /backdrop-filter:[^;]*blur\(\d+px\)/, // Backdrop blur filters
   /\b(?:top|right|bottom|left):\s*-\d{4,}px/, // Off-screen accessibility positioning
 ];
+const ALLOWED_GLOBAL_STYLES = new Set([...ALLOWED_FILES, 'index.css']);
 
 // Properties that should use design tokens
 const ACTIONABLE_PX_PROPERTIES = [
@@ -103,7 +104,13 @@ const violations = {
   pxSpacing: [],
   remSpacing: [],
   numericFontWeight: [],
-  undefinedCustomProperties: []
+  undefinedCustomProperties: [],
+  deprecatedTokens: [],
+  transitionAll: [],
+  numericZIndex: [],
+  semanticTokenMisuse: [],
+  motionLiterals: [],
+  globalComponentStyles: []
 };
 
 const definedCustomProperties = new Set();
@@ -153,6 +160,15 @@ function hasActionableProperty(line) {
  * Scan a single CSS file for violations
  */
 function scanFile(filePath) {
+  const fileName = path.basename(filePath);
+  if (!fileName.endsWith('.module.css') && !ALLOWED_GLOBAL_STYLES.has(fileName)) {
+    violations.globalComponentStyles.push({
+      file: path.relative(process.cwd(), filePath),
+      line: 1,
+      code: 'Component styles must use a colocated *.module.css file.'
+    });
+  }
+
   if (isExcludedFile(filePath)) {
     return;
   }
@@ -165,6 +181,44 @@ function scanFile(filePath) {
     // Skip comments
     if (isComment(line)) {
       return;
+    }
+
+    const architectureChecks = [
+      {
+        pattern: /--(?:spacing-|font-size-|font-family\b|line-tight\b|transition-base\b)/,
+        target: violations.deprecatedTokens,
+      },
+      {
+        pattern: /transition\s*:\s*all\b/,
+        target: violations.transitionAll,
+      },
+      {
+        pattern: /z-index\s*:\s*-?\d+\b/,
+        target: violations.numericZIndex,
+      },
+      {
+        pattern: /(?:font-size|border-radius)\s*:\s*var\(--(?:space|spacing)-/,
+        target: violations.semanticTokenMisuse,
+      },
+      {
+        pattern: /(?:padding|margin|gap)\s*:[^;]*var\(--(?:text|font-size)-/,
+        target: violations.semanticTokenMisuse,
+      },
+      {
+        pattern: /(?:transition|animation)(?:-duration)?\s*:[^;]*(?<![\d.])(?:\d+(?:\.\d+)?(?:ms|s))\b/,
+        target: violations.motionLiterals,
+        allow: /0\.01ms/,
+      },
+    ];
+
+    for (const check of architectureChecks) {
+      if (check.pattern.test(line) && !check.allow?.test(line)) {
+        check.target.push({
+          file: path.relative(process.cwd(), filePath),
+          line: index + 1,
+          code: line.trim(),
+        });
+      }
     }
 
     // Check for hex colors (not in comments)
@@ -282,7 +336,13 @@ function printReport(verbose = false) {
     violations.pxSpacing.length +
     violations.remSpacing.length +
     violations.numericFontWeight.length +
-    violations.undefinedCustomProperties.length;
+    violations.undefinedCustomProperties.length +
+    violations.deprecatedTokens.length +
+    violations.transitionAll.length +
+    violations.numericZIndex.length +
+    violations.semanticTokenMisuse.length +
+    violations.motionLiterals.length +
+    violations.globalComponentStyles.length;
   
   console.log('\n📊 CSS Validation Report');
   console.log('========================\n');
@@ -408,6 +468,26 @@ function printReport(verbose = false) {
       });
     }
   }
+
+  const architectureReports = [
+    ['Deprecated theme tokens', violations.deprecatedTokens, 'Use canonical --space-*, --text-*, and motion tokens.'],
+    ['Broad transitions', violations.transitionAll, 'List intended properties or use a shared interactive transition token.'],
+    ['Numeric z-index values', violations.numericZIndex, 'Use the shared semantic z-index scale.'],
+    ['Semantic token misuse', violations.semanticTokenMisuse, 'Match typography, radius, and spacing properties to their token families.'],
+    ['Literal motion durations', violations.motionLiterals, 'Use shared duration or transition tokens.'],
+    ['Global component stylesheets', violations.globalComponentStyles, 'Use colocated CSS Modules for component styles.'],
+  ];
+
+  for (const [label, items, guidance] of architectureReports) {
+    if (items.length === 0) continue;
+    console.log(`\nCSS architecture - ${label}: ${items.length}`);
+    console.log('-'.repeat(60));
+    console.log(`${guidance}\n`);
+    for (const violation of items) {
+      console.log(`  ${violation.file}:${violation.line}`);
+      if (verbose) console.log(`    ${violation.code}`);
+    }
+  }
   
   // Summary
   if (totalViolations === 0) {
@@ -442,7 +522,13 @@ function main() {
     violations.pxSpacing.length +
     violations.remSpacing.length +
     violations.numericFontWeight.length +
-    violations.undefinedCustomProperties.length;
+    violations.undefinedCustomProperties.length +
+    violations.deprecatedTokens.length +
+    violations.transitionAll.length +
+    violations.numericZIndex.length +
+    violations.semanticTokenMisuse.length +
+    violations.motionLiterals.length +
+    violations.globalComponentStyles.length;
   
   process.exit(totalViolations > 0 ? 1 : 0);
 }

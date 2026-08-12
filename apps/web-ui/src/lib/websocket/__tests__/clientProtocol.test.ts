@@ -1232,7 +1232,12 @@ describe('WebClientProtocol', () => {
       const p = makeProtocol();
       const fn = vi.fn();
       window.addEventListener('player-kick-response', fn);
-      await dispatch(p, 'player_kick_response', { success: true });
+      await dispatch(p, 'player_kick_response', {
+        success: true,
+        kicked_player: 'client-2',
+        reason: 'inactive',
+        kicked_by: 'GM',
+      });
       window.removeEventListener('player-kick-response', fn);
       expect(fn).toHaveBeenCalledOnce();
     });
@@ -1241,7 +1246,13 @@ describe('WebClientProtocol', () => {
       const p = makeProtocol();
       const fn = vi.fn();
       window.addEventListener('player-ban-response', fn);
-      await dispatch(p, 'player_ban_response', { success: true });
+      await dispatch(p, 'player_ban_response', {
+        success: true,
+        banned_player: 'client-2',
+        reason: 'abuse',
+        duration: 'permanent',
+        banned_by: 'GM',
+      });
       window.removeEventListener('player-ban-response', fn);
       expect(fn).toHaveBeenCalledOnce();
     });

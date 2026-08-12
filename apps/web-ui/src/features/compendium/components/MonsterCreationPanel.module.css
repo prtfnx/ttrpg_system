@@ -79,6 +79,15 @@
   overflow: hidden;
 }
 
+.monster-placeholder-tab {
+  display: grid;
+  flex: 1;
+  place-items: center;
+  padding: var(--space-xl);
+  color: var(--text-muted);
+  text-align: center;
+}
+
 /* === Browse Tab Styles === */
 .monster-browse-tab {
   display: flex;
@@ -469,6 +478,11 @@
   display: flex;
   justify-content: space-between;
   align-items: center;
+}
+
+.monster-instances-actions {
+  display: flex;
+  gap: var(--space-sm);
 }
 
 .monster-instances-header h4 {

@@ -4,7 +4,7 @@
  * with search, filtering, instance management, and table placement
  */
 
-import '@shared/styles/MonsterCreationPanel.css';
+import styles from './MonsterCreationPanel.module.css';
 import { Modal } from '@shared/components';
 import { logger } from '@shared/utils/logger';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
@@ -15,6 +15,13 @@ import {
     type MonsterStats,
     type MonsterTemplate
 } from '../services/monsterCreation.service';
+
+const scopedClassName = (classNames: string) => classNames
+  .split(/\s+/)
+  .filter(Boolean)
+  .map((className) => styles[className])
+  .filter(Boolean)
+  .join(' ');
 
 interface MonsterCreationPanelProps {
   isOpen: boolean;
@@ -219,12 +226,12 @@ export const MonsterCreationPanel: React.FC<MonsterCreationPanelProps> = ({
   // === Render Helpers ===
 
   const renderStatBlock = (stats: MonsterStats) => (
-    <div className="monster-stat-block">
+    <div className={scopedClassName('monster-stat-block')}>
       {Object.entries(stats).map(([stat, value]) => (
-        <div key={stat} className="monster-stat">
-          <span className="monster-stat-name">{stat.substring(0, 3).toUpperCase()}</span>
-          <span className="monster-stat-value">{value}</span>
-          <span className="monster-stat-modifier">
+        <div key={stat} className={scopedClassName('monster-stat')}>
+          <span className={scopedClassName('monster-stat-name')}>{stat.substring(0, 3).toUpperCase()}</span>
+          <span className={scopedClassName('monster-stat-value')}>{value}</span>
+          <span className={scopedClassName('monster-stat-modifier')}>
             {value >= 10 ? `+${Math.floor((value - 10) / 2)}` : `${Math.floor((value - 10) / 2)}`}
           </span>
         </div>
@@ -235,56 +242,56 @@ export const MonsterCreationPanel: React.FC<MonsterCreationPanelProps> = ({
   const renderMonsterCard = (template: MonsterTemplate) => (
     <div
       key={template.id}
-      className={`monster-card ${selectedTemplate?.id === template.id ? 'selected' : ''}`}
+      className={scopedClassName(`monster-card ${selectedTemplate?.id === template.id ? 'selected' : ''}`)}
       onClick={() => setSelectedTemplate(template)}
     >
-      <div className="monster-card-header">
-        <h4 className="monster-name">{template.name}</h4>
-        <span className="monster-cr">CR {template.challengeRating}</span>
+      <div className={scopedClassName('monster-card-header')}>
+        <h4 className={scopedClassName('monster-name')}>{template.name}</h4>
+        <span className={scopedClassName('monster-cr')}>CR {template.challengeRating}</span>
       </div>
       
-      <div className="monster-basic-info">
-        <span className="monster-type">{template.size} {template.type}</span>
-        {template.subtype && <span className="monster-subtype">({template.subtype})</span>}
+      <div className={scopedClassName('monster-basic-info')}>
+        <span className={scopedClassName('monster-type')}>{template.size} {template.type}</span>
+        {template.subtype && <span className={scopedClassName('monster-subtype')}>({template.subtype})</span>}
       </div>
       
-      <div className="monster-vital-stats">
-        <div className="monster-vital-stat">
-          <span className="label">AC</span>
-          <span className="value">{template.armorClass}</span>
+      <div className={scopedClassName('monster-vital-stats')}>
+        <div className={scopedClassName('monster-vital-stat')}>
+          <span className={scopedClassName('label')}>AC</span>
+          <span className={scopedClassName('value')}>{template.armorClass}</span>
         </div>
-        <div className="monster-vital-stat">
-          <span className="label">HP</span>
-          <span className="value">{template.hitPoints.average}</span>
+        <div className={scopedClassName('monster-vital-stat')}>
+          <span className={scopedClassName('label')}>HP</span>
+          <span className={scopedClassName('value')}>{template.hitPoints.average}</span>
         </div>
-        <div className="monster-vital-stat">
-          <span className="label">Speed</span>
-          <span className="value">{template.speed.walk} ft.</span>
+        <div className={scopedClassName('monster-vital-stat')}>
+          <span className={scopedClassName('label')}>Speed</span>
+          <span className={scopedClassName('value')}>{template.speed.walk} ft.</span>
         </div>
       </div>
       
-      <div className="monster-tags">
+      <div className={scopedClassName('monster-tags')}>
         {template.tags.slice(0, 3).map(tag => (
-          <span key={tag} className="monster-tag">{tag}</span>
+          <span key={tag} className={scopedClassName('monster-tag')}>{tag}</span>
         ))}
-        {template.tags.length > 3 && <span className="monster-tag-more">+{template.tags.length - 3}</span>}
+        {template.tags.length > 3 && <span className={scopedClassName('monster-tag-more')}>+{template.tags.length - 3}</span>}
       </div>
       
-      <div className="monster-card-actions">
+      <div className={scopedClassName('monster-card-actions')}>
         <button
           onClick={(e) => {
             e.stopPropagation();
             createInstance(template);
           }}
-          className="monster-btn monster-btn-primary monster-btn-small"
+          className={scopedClassName('monster-btn monster-btn-primary monster-btn-small')}
         >
           Create Instance
         </button>
         {template.spells && (
-          <span className="monster-feature-icon" title="Spellcaster">*</span>
+          <span className={scopedClassName('monster-feature-icon')} title="Spellcaster">*</span>
         )}
         {template.legendary && (
-          <span className="monster-feature-icon" title="Legendary">+</span>
+          <span className={scopedClassName('monster-feature-icon')} title="Legendary">+</span>
         )}
       </div>
     </div>
@@ -293,18 +300,18 @@ export const MonsterCreationPanel: React.FC<MonsterCreationPanelProps> = ({
   const renderInstanceCard = (instance: MonsterInstance) => (
     <div
       key={instance.id}
-      className={`monster-instance-card ${selectedInstance?.id === instance.id ? 'selected' : ''} ${instance.isDefeated ? 'defeated' : ''}`}
+      className={scopedClassName(`monster-instance-card ${selectedInstance?.id === instance.id ? 'selected' : ''} ${instance.isDefeated ? 'defeated' : ''}`)}
       onClick={() => setSelectedInstance(instance)}
     >
-      <div className="monster-instance-header">
-        <h4 className="monster-instance-name">{instance.name}</h4>
-        <div className="monster-instance-actions">
+      <div className={scopedClassName('monster-instance-header')}>
+        <h4 className={scopedClassName('monster-instance-name')}>{instance.name}</h4>
+        <div className={scopedClassName('monster-instance-actions')}>
           <button
             onClick={(e) => {
               e.stopPropagation();
               handlePlaceOnTable(instance);
             }}
-            className="monster-btn monster-btn-primary monster-btn-small"
+            className={scopedClassName('monster-btn monster-btn-primary monster-btn-small')}
             title="Place on Table"
           >
             pin
@@ -314,7 +321,7 @@ export const MonsterCreationPanel: React.FC<MonsterCreationPanelProps> = ({
               e.stopPropagation();
               monsterCreationSystem.deleteInstance(instance.id);
             }}
-            className="monster-btn monster-btn-danger monster-btn-small"
+            className={scopedClassName('monster-btn monster-btn-danger monster-btn-small')}
             title="Delete"
           >
             del
@@ -322,15 +329,15 @@ export const MonsterCreationPanel: React.FC<MonsterCreationPanelProps> = ({
         </div>
       </div>
       
-      <div className="monster-instance-info">
-        <span className="monster-instance-template">{instance.template.name}</span>
-        <span className="monster-instance-cr">CR {instance.template.challengeRating}</span>
+      <div className={scopedClassName('monster-instance-info')}>
+        <span className={scopedClassName('monster-instance-template')}>{instance.template.name}</span>
+        <span className={scopedClassName('monster-instance-cr')}>CR {instance.template.challengeRating}</span>
       </div>
       
-      <div className="monster-instance-health">
-        <div className="monster-health-bar">
+      <div className={scopedClassName('monster-instance-health')}>
+        <div className={scopedClassName('monster-health-bar')}>
           <div 
-            className="monster-health-fill"
+            className={scopedClassName('monster-health-fill')}
             style={{ 
               width: `${(instance.currentHitPoints / instance.maxHitPoints) * 100}%`,
               backgroundColor: instance.currentHitPoints > instance.maxHitPoints * 0.5
@@ -341,12 +348,12 @@ export const MonsterCreationPanel: React.FC<MonsterCreationPanelProps> = ({
             }}
           />
         </div>
-        <div className="monster-health-text">
+        <div className={scopedClassName('monster-health-text')}>
           <input
             type="number"
             value={instance.currentHitPoints}
             onChange={(e) => updateInstanceHP(instance.id, parseInt(e.target.value) || 0)}
-            className="monster-hp-input"
+            className={scopedClassName('monster-hp-input')}
             min="0"
             max={instance.maxHitPoints + instance.temporaryHitPoints}
           />
@@ -355,9 +362,9 @@ export const MonsterCreationPanel: React.FC<MonsterCreationPanelProps> = ({
       </div>
       
       {instance.conditions.length > 0 && (
-        <div className="monster-conditions">
+        <div className={scopedClassName('monster-conditions')}>
           {instance.conditions.map(condition => (
-            <span key={condition} className="monster-condition">{condition}</span>
+            <span key={condition} className={scopedClassName('monster-condition')}>{condition}</span>
           ))}
         </div>
       )}
@@ -365,8 +372,8 @@ export const MonsterCreationPanel: React.FC<MonsterCreationPanelProps> = ({
   );
 
   const renderFiltersPanel = () => (
-    <div className={`monster-filters-panel ${showFilters ? 'visible' : ''}`}>
-      <div className="monster-filter-group">
+    <div className={scopedClassName(`monster-filters-panel ${showFilters ? 'visible' : ''}`)}>
+      <div className={scopedClassName('monster-filter-group')}>
         <label>Monster Type:</label>
         <select
           value={filters.type || ''}
@@ -379,11 +386,11 @@ export const MonsterCreationPanel: React.FC<MonsterCreationPanelProps> = ({
         </select>
       </div>
       
-      <div className="monster-filter-group">
+      <div className={scopedClassName('monster-filter-group')}>
         <label>Size:</label>
-        <div className="monster-filter-checkboxes">
+        <div className={scopedClassName('monster-filter-checkboxes')}>
           {MONSTER_SIZES.map(size => (
-            <label key={size} className="monster-checkbox">
+            <label key={size} className={scopedClassName('monster-checkbox')}>
               <input
                 type="checkbox"
                 checked={filters.size?.includes(size) || false}
@@ -401,9 +408,9 @@ export const MonsterCreationPanel: React.FC<MonsterCreationPanelProps> = ({
         </div>
       </div>
       
-      <div className="monster-filter-group">
+      <div className={scopedClassName('monster-filter-group')}>
         <label>Challenge Rating:</label>
-        <div className="monster-filter-range">
+        <div className={scopedClassName('monster-filter-range')}>
           <input
             type="number"
             placeholder="Min CR"
@@ -438,8 +445,8 @@ export const MonsterCreationPanel: React.FC<MonsterCreationPanelProps> = ({
         </div>
       </div>
       
-      <div className="monster-filter-group">
-        <label className="monster-checkbox">
+      <div className={scopedClassName('monster-filter-group')}>
+        <label className={scopedClassName('monster-checkbox')}>
           <input
             type="checkbox"
             checked={filters.hasSpells || false}
@@ -449,8 +456,8 @@ export const MonsterCreationPanel: React.FC<MonsterCreationPanelProps> = ({
         </label>
       </div>
       
-      <div className="monster-filter-group">
-        <label className="monster-checkbox">
+      <div className={scopedClassName('monster-filter-group')}>
+        <label className={scopedClassName('monster-checkbox')}>
           <input
             type="checkbox"
             checked={filters.hasLegendaryActions || false}
@@ -460,10 +467,10 @@ export const MonsterCreationPanel: React.FC<MonsterCreationPanelProps> = ({
         </label>
       </div>
       
-      <div className="monster-filter-actions">
+      <div className={scopedClassName('monster-filter-actions')}>
         <button
           onClick={clearFilters}
-          className="monster-btn monster-btn-secondary"
+          className={scopedClassName('monster-btn monster-btn-secondary')}
         >
           Clear Filters
         </button>
@@ -472,26 +479,26 @@ export const MonsterCreationPanel: React.FC<MonsterCreationPanelProps> = ({
   );
 
   const renderBrowseTab = () => (
-    <div className="monster-browse-tab">
-      <div className="monster-search-header">
-        <div className="monster-search-bar">
+    <div className={scopedClassName('monster-browse-tab')}>
+      <div className={scopedClassName('monster-search-header')}>
+        <div className={scopedClassName('monster-search-bar')}>
           <input
             type="text"
             placeholder="Search monsters..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="monster-search-input"
+            className={scopedClassName('monster-search-input')}
           />
           <button
             onClick={() => setShowFilters(!showFilters)}
-            className={`monster-btn monster-btn-secondary ${showFilters ? 'active' : ''}`}
+            className={scopedClassName(`monster-btn monster-btn-secondary ${showFilters ? 'active' : ''}`)}
           >
             Filters
           </button>
         </div>
         
-        <div className="monster-search-controls">
-          <div className="monster-sort-controls">
+        <div className={scopedClassName('monster-search-controls')}>
+          <div className={scopedClassName('monster-sort-controls')}>
             <select
               value={sortBy}
               onChange={(e) => setSortBy(e.target.value as SortOption)}
@@ -503,23 +510,23 @@ export const MonsterCreationPanel: React.FC<MonsterCreationPanelProps> = ({
             </select>
             <button
               onClick={() => setSortAsc(!sortAsc)}
-              className="monster-btn monster-btn-secondary monster-btn-small"
+              className={scopedClassName('monster-btn monster-btn-secondary monster-btn-small')}
               title={sortAsc ? 'Sort Descending' : 'Sort Ascending'}
             >
               {sortAsc ? '↑' : '↓'}
             </button>
           </div>
           
-          <div className="monster-view-controls">
+          <div className={scopedClassName('monster-view-controls')}>
             <button
               onClick={() => setPreviewMode('card')}
-              className={`monster-btn monster-btn-small ${previewMode === 'card' ? 'active' : ''}`}
+              className={scopedClassName(`monster-btn monster-btn-small ${previewMode === 'card' ? 'active' : ''}`)}
             >
               copy
             </button>
             <button
               onClick={() => setPreviewMode('list')}
-              className={`monster-btn monster-btn-small ${previewMode === 'list' ? 'active' : ''}`}
+              className={scopedClassName(`monster-btn monster-btn-small ${previewMode === 'list' ? 'active' : ''}`)}
             >
               view
             </button>
@@ -529,8 +536,8 @@ export const MonsterCreationPanel: React.FC<MonsterCreationPanelProps> = ({
       
       {renderFiltersPanel()}
       
-      <div className="monster-search-results">
-        <div className="monster-results-info">
+      <div className={scopedClassName('monster-search-results')}>
+        <div className={scopedClassName('monster-results-info')}>
           <span>Found {searchResults.length} monsters</span>
           {searchResults.length > itemsPerPage && (
             <span>Showing {startIndex + 1}-{Math.min(endIndex, searchResults.length)}</span>
@@ -538,31 +545,31 @@ export const MonsterCreationPanel: React.FC<MonsterCreationPanelProps> = ({
         </div>
         
         {loading ? (
-          <div className="monster-loading">Loading monsters...</div>
+          <div className={scopedClassName('monster-loading')}>Loading monsters...</div>
         ) : (
-          <div className={`monster-results-grid ${previewMode === 'list' ? 'list-view' : 'card-view'}`}>
+          <div className={scopedClassName(`monster-results-grid ${previewMode === 'list' ? 'list-view' : 'card-view'}`)}>
             {currentResults.map(renderMonsterCard)}
           </div>
         )}
         
         {totalPages > 1 && (
-          <div className="monster-pagination">
+          <div className={scopedClassName('monster-pagination')}>
             <button
               onClick={() => setCurrentPage(Math.max(1, currentPage - 1))}
               disabled={currentPage === 1}
-              className="monster-btn monster-btn-secondary"
+              className={scopedClassName('monster-btn monster-btn-secondary')}
             >
               Previous
             </button>
             
-            <span className="monster-page-info">
+            <span className={scopedClassName('monster-page-info')}>
               Page {currentPage} of {totalPages}
             </span>
             
             <button
               onClick={() => setCurrentPage(Math.min(totalPages, currentPage + 1))}
               disabled={currentPage === totalPages}
-              className="monster-btn monster-btn-secondary"
+              className={scopedClassName('monster-btn monster-btn-secondary')}
             >
               Next
             </button>
@@ -573,13 +580,13 @@ export const MonsterCreationPanel: React.FC<MonsterCreationPanelProps> = ({
   );
 
   const renderInstancesTab = () => (
-    <div className="monster-instances-tab">
-      <div className="monster-instances-header">
+    <div className={scopedClassName('monster-instances-tab')}>
+      <div className={scopedClassName('monster-instances-header')}>
         <h4>Monster Instances ({instances.length})</h4>
-        <div className="monster-instances-actions">
+        <div className={scopedClassName('monster-instances-actions')}>
           <button
             disabled
-            className="monster-btn monster-btn-primary"
+            className={scopedClassName('monster-btn monster-btn-primary')}
           >
             Create Custom Instance
           </button>
@@ -587,12 +594,12 @@ export const MonsterCreationPanel: React.FC<MonsterCreationPanelProps> = ({
       </div>
       
       {instances.length === 0 ? (
-        <div className="monster-empty-state">
+        <div className={scopedClassName('monster-empty-state')}>
           <p>No monster instances created yet.</p>
           <p>Create instances from the Browse tab or create custom ones here.</p>
         </div>
       ) : (
-        <div className="monster-instances-grid">
+        <div className={scopedClassName('monster-instances-grid')}>
           {instances.map(renderInstanceCard)}
         </div>
       )}
@@ -603,19 +610,19 @@ export const MonsterCreationPanel: React.FC<MonsterCreationPanelProps> = ({
     if (!selectedTemplate) return null;
     
     return (
-      <div className="monster-details-panel">
-        <div className="monster-details-header">
+      <div className={scopedClassName('monster-details-panel')}>
+        <div className={scopedClassName('monster-details-header')}>
           <h3>{selectedTemplate.name}</h3>
           <button
             onClick={() => setSelectedTemplate(null)}
-            className="monster-btn monster-btn-secondary monster-btn-small"
+            className={scopedClassName('monster-btn monster-btn-secondary monster-btn-small')}
           >
             x
           </button>
         </div>
         
-        <div className="monster-details-content">
-          <div className="monster-details-basic">
+        <div className={scopedClassName('monster-details-content')}>
+          <div className={scopedClassName('monster-details-basic')}>
             <p><strong>Type:</strong> {selectedTemplate.size} {selectedTemplate.type}
               {selectedTemplate.subtype && ` (${selectedTemplate.subtype})`}, {selectedTemplate.alignment}
             </p>
@@ -630,21 +637,21 @@ export const MonsterCreationPanel: React.FC<MonsterCreationPanelProps> = ({
           {renderStatBlock(selectedTemplate.stats)}
           
           {selectedTemplate.abilities.length > 0 && (
-            <div className="monster-abilities">
+            <div className={scopedClassName('monster-abilities')}>
               <h4>Abilities</h4>
               {selectedTemplate.abilities.map(ability => (
-                <div key={ability.id} className="monster-ability">
-                  <h5>{ability.name} <span className="ability-type">({ability.type.replace('_', ' ')})</span></h5>
+                <div key={ability.id} className={scopedClassName('monster-ability')}>
+                  <h5>{ability.name} <span className={scopedClassName('ability-type')}>({ability.type.replace('_', ' ')})</span></h5>
                   <p>{ability.description}</p>
                 </div>
               ))}
             </div>
           )}
           
-          <div className="monster-details-actions">
+          <div className={scopedClassName('monster-details-actions')}>
             <button
               onClick={() => createInstance(selectedTemplate)}
-              className="monster-btn monster-btn-primary"
+              className={scopedClassName('monster-btn monster-btn-primary')}
             >
               Create Instance
             </button>
@@ -655,7 +662,7 @@ export const MonsterCreationPanel: React.FC<MonsterCreationPanelProps> = ({
                   handlePlaceOnTable(instance);
                 }
               }}
-              className="monster-btn monster-btn-secondary"
+              className={scopedClassName('monster-btn monster-btn-secondary')}
             >
               Create & Place on Table
             </button>
@@ -669,8 +676,8 @@ export const MonsterCreationPanel: React.FC<MonsterCreationPanelProps> = ({
 
   return (
     <Modal isOpen onClose={onClose} title="Monster Creation & Management" size="fullscreen">
-      <div className="monster-panel">
-        <div className="monster-panel-tabs">
+      <div className={scopedClassName('monster-panel')}>
+        <div className={scopedClassName('monster-panel-tabs')}>
           {[
             { id: 'browse', label: 'Browse Monsters', icon: 'book', count: searchResults.length },
             { id: 'instances', label: 'Instances', icon: 'sword', count: instances.length },
@@ -679,29 +686,29 @@ export const MonsterCreationPanel: React.FC<MonsterCreationPanelProps> = ({
           ].map(tab => (
             <button
               key={tab.id}
-              className={`monster-tab ${activeTab === tab.id ? 'active' : ''}`}
+              className={scopedClassName(`monster-tab ${activeTab === tab.id ? 'active' : ''}`)}
               onClick={() => setActiveTab(tab.id as ActiveTab)}
             >
-              <span className="monster-tab-icon">{tab.icon}</span>
-              <span className="monster-tab-label">{tab.label}</span>
+              <span className={scopedClassName('monster-tab-icon')}>{tab.icon}</span>
+              <span className={scopedClassName('monster-tab-label')}>{tab.label}</span>
               {tab.count !== undefined && tab.count > 0 && (
-                <span className="monster-tab-count">{tab.count}</span>
+                <span className={scopedClassName('monster-tab-count')}>{tab.count}</span>
               )}
             </button>
           ))}
         </div>
 
-        <div className="monster-panel-content">
-          <div className="monster-main-content">
+        <div className={scopedClassName('monster-panel-content')}>
+          <div className={scopedClassName('monster-main-content')}>
             {activeTab === 'browse' && renderBrowseTab()}
             {activeTab === 'instances' && renderInstancesTab()}
             {activeTab === 'create' && (
-              <div className="monster-create-tab">
+              <div className={scopedClassName('monster-placeholder-tab')}>
                 <p>Custom monster creation coming soon!</p>
               </div>
             )}
             {activeTab === 'encounters' && (
-              <div className="monster-encounters-tab">
+              <div className={scopedClassName('monster-placeholder-tab')}>
                 <p>Encounter builder coming soon!</p>
               </div>
             )}

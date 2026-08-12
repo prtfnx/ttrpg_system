@@ -7,7 +7,6 @@ from core_table.protocol import Message, MessageType
 from utils.logger import setup_logger
 
 from .assets import _AssetsMixin
-from .auth import _AuthMixin
 from .characters import _CharactersMixin
 from .chat import _ChatMixin
 from .combat import _CombatMixin
@@ -31,7 +30,6 @@ class ServerProtocol(
     _AssetsMixin,
     _PlayersMixin,
     _CharactersMixin,
-    _AuthMixin,
     _WallsMixin,
     _PaintMixin,
     _PaintTemplatesMixin,
@@ -51,7 +49,6 @@ class ServerProtocol(
       assets.py      — asset upload/download/hash/R2 sync
       players.py     — player list/kick/ban/status
       characters.py  — character save/load/update/XP/multiclass
-      auth.py        — WS auth stubs (redirect to HTTP)
       walls.py       — wall/door CRUD + batch
       session.py     — layer settings, game mode, session rules
       combat.py      — initiative, turns, conditions, DM tools, cover
@@ -95,13 +92,6 @@ class ServerProtocol(
         self.register_handler(MessageType.BATCH_REQUEST, self.handle_batch_request)
         self.register_handler(MessageType.ERROR, self.handle_error)
         self.register_handler(MessageType.SUCCESS, self.handle_success)
-
-        # Authentication
-        self.register_handler(MessageType.AUTH_REGISTER, self.handle_auth_register)
-        self.register_handler(MessageType.AUTH_LOGIN, self.handle_auth_login)
-        self.register_handler(MessageType.AUTH_LOGOUT, self.handle_auth_logout)
-        self.register_handler(MessageType.AUTH_TOKEN, self.handle_auth_token)
-        self.register_handler(MessageType.AUTH_STATUS, self.handle_auth_status)
 
         # Tables
         self.register_handler(MessageType.NEW_TABLE_REQUEST, self.handle_new_table_request)

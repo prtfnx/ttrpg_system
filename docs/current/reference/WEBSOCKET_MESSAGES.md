@@ -57,7 +57,6 @@ These messages are registered in `ServerProtocol.init_handlers`.
 | Domain | Client sends | Main server module |
 | --- | --- | --- |
 | Core | `ping`, `pong`, `test`, `batch`, `error`, `success` | `protocol/base.py` |
-| Auth stubs | `auth_register`, `auth_login`, `auth_logout`, `auth_token`, `auth_status` | `protocol/auth.py` |
 | Tables | `new_table_request`, `table_request`, `table_update_request`, `table_scale`, `table_move`, `table_delete`, `table_list_request`, `table_active_request`, `table_active_set`, `table_active_set_all`, `table_settings_update` | `protocol/tables.py` |
 | Players | `player_ready`, `player_unready`, `player_status_request`, `player_list_request`, `player_kick_request`, `player_ban_request`, `connection_status_request` | `protocol/players.py` |
 | Sprites | `sprite_request`, `sprite_create`, `sprite_remove`, `sprite_move`, `sprite_scale`, `sprite_rotate`, `sprite_update`, `sprite_drag_preview`, `sprite_resize_preview`, `sprite_rotate_preview` | `protocol/sprites.py` |

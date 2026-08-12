@@ -1199,15 +1199,6 @@ describe('WebClientProtocol', () => {
       await (p as unknown as Record<string, (...a: unknown[]) => Promise<void>>)['handleIncomingMessage'](raw);
     }
 
-    it('AUTH_STATUS dispatches auth-status-changed', async () => {
-      const p = makeProtocol();
-      const fn = vi.fn();
-      window.addEventListener('auth-status-changed', fn);
-      await dispatch(p, 'auth_status', { authenticated: true });
-      window.removeEventListener('auth-status-changed', fn);
-      expect(fn).toHaveBeenCalledOnce();
-    });
-
     it.each(['player_status_response', 'player_status_changed'])(
       '%s dispatches player-status-changed',
       async (messageType) => {

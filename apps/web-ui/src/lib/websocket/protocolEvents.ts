@@ -9,7 +9,6 @@ export type ProtocolEventMap = {
   'asset-hash-check': ProtocolRecord;
   'asset-list-updated': ProtocolRecord;
   'asset-uploaded': ProtocolRecord;
-  'auth-status-changed': ProtocolRecord;
   'character-delete-response': ProtocolRecord;
   'character-draft-abandoned': ProtocolRecord;
   'character-draft-created': { success: boolean; draft?: CharacterDraft; error?: string };

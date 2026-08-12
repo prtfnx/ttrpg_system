@@ -221,9 +221,6 @@ export class WebClientProtocol {
     this.registerHandler(MessageType.TEST, this.handleTest.bind(this));
     this.registerHandler(MessageType.BATCH_RESPONSE, this.handleBatch.bind(this));
 
-    // Authentication handlers
-    this.registerHandler(MessageType.AUTH_STATUS, this.handleAuthStatus.bind(this));
-    
     // Player management
     this.registerHandler(MessageType.PLAYER_JOINED, this.handlePlayerJoined.bind(this));
     this.registerHandler(MessageType.PLAYER_LEFT, this.handlePlayerLeft.bind(this));
@@ -2097,12 +2094,6 @@ export class WebClientProtocol {
   private async handleTest(message: Message): Promise<void> {
     logger.debug('Protocol: Test message received:', message.data);
     emitProtocolEvent('protocol-test-received', message.data);
-  }
-
-  // Authentication handlers
-  private async handleAuthStatus(message: Message): Promise<void> {
-    logger.debug('Protocol: Auth status received:', message.data);
-    emitProtocolEvent('auth-status-changed', message.data);
   }
 
   private async handlePlayerStatus(message: Message): Promise<void> {

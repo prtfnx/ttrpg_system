@@ -77,6 +77,11 @@ did not authorize individual action kinds, and duplicated asset and combat
 protocols. Asset work uses the dedicated asset messages, while combat mutations
 use `combat_command`. Development UI must use the same domain-specific paths.
 
+Authentication, token verification, and logout remain HTTP/session operations.
+The WebSocket is authenticated while its connection is established and uses
+server-side connection metadata afterward. Unsupported WebSocket auth stubs are
+not part of the message registry and must not simulate logout or token checks.
+
 Request, response, and broadcast semantics use separate message types even when
 their payloads share a definition. For example, player readiness uses
 `player_status_request`, `player_status_response`, and `player_status_changed`;
@@ -150,7 +155,6 @@ attack preview, cover-zone sync, and DM-only AI suggestions.
 ## Current message families
 
 - Core: ping, pong, welcome, error, success, batch.
-- Auth: token and status messages.
 - Tables: table CRUD, active table, settings, list.
 - Sprites: create, update, remove, move, scale, rotate, previews.
 - Assets: upload, download, list, delete, hash.

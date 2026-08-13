@@ -6,8 +6,11 @@
  * 
  * Enforces CSS architecture best practices:
  * - No hardcoded hex colors (except in tokens.css and comments)
+ * - No hardcoded RGB colors outside the token/theme layer
  * - No hardcoded px/rem spacing for actionable properties (excludes functional values)
  * - No numeric font-weight values (except in tokens.css)
+ * - No literal component font stacks
+ * - No references to undefined custom properties, including references with fallbacks
  * 
  * EXCLUDES (functional CSS that should use px):
  * - Grid minmax() values: minmax(200px, 1fr)
@@ -44,6 +47,7 @@ const SRC_DIR = path.join(__dirname, '../src');
 
 // Regex patterns for violations
 const HEX_COLOR_REGEX = /#[0-9a-fA-F]{3,8}\b/g;
+const RGB_COLOR_REGEX = /\brgba?\s*\(/g;
 
 // Functional CSS patterns to EXCLUDE from violations
 const FUNCTIONAL_PX_PATTERNS = [
@@ -101,9 +105,11 @@ const NUMERIC_FONT_WEIGHT_REGEX = /font-weight:\s*([1-9]00)\b/g;
 // Results tracking
 const violations = {
   hexColors: [],
+  rgbColors: [],
   pxSpacing: [],
   remSpacing: [],
   numericFontWeight: [],
+  literalFontFamilies: [],
   undefinedCustomProperties: [],
   deprecatedTokens: [],
   transitionAll: [],
@@ -231,6 +237,16 @@ function scanFile(filePath) {
         values: hexMatches
       });
     }
+
+    const rgbMatches = line.match(RGB_COLOR_REGEX);
+    if (rgbMatches) {
+      violations.rgbColors.push({
+        file: path.relative(process.cwd(), filePath),
+        line: index + 1,
+        code: line.trim(),
+        values: rgbMatches,
+      });
+    }
     
     // Check for actionable px spacing values
     if (line.includes('px') && !isFunctionalPxUsage(line)) {
@@ -274,7 +290,16 @@ function scanFile(filePath) {
       });
     }
 
-    const customPropertyReferences = line.matchAll(/var\(\s*(--[a-zA-Z0-9_-]+)\s*\)/g);
+    const fontFamily = line.match(/font-family\s*:\s*([^;]+)/)?.[1].trim();
+    if (fontFamily && fontFamily !== 'inherit' && !fontFamily.includes('var(')) {
+      violations.literalFontFamilies.push({
+        file: path.relative(process.cwd(), filePath),
+        line: index + 1,
+        code: line.trim(),
+      });
+    }
+
+    const customPropertyReferences = line.matchAll(/var\(\s*(--[a-zA-Z0-9_-]+)\b/g);
     for (const match of customPropertyReferences) {
       const token = match[1];
       if (!definedCustomProperties.has(token)) {
@@ -333,9 +358,11 @@ function scanDirectory(dir) {
 function printReport(verbose = false) {
   const totalViolations = 
     violations.hexColors.length +
+    violations.rgbColors.length +
     violations.pxSpacing.length +
     violations.remSpacing.length +
     violations.numericFontWeight.length +
+    violations.literalFontFamilies.length +
     violations.undefinedCustomProperties.length +
     violations.deprecatedTokens.length +
     violations.transitionAll.length +
@@ -372,6 +399,16 @@ function printReport(verbose = false) {
       Object.entries(byFile).forEach(([file, count]) => {
         console.log(`  ${file}: ${count} violations`);
       });
+    }
+  }
+
+  if (violations.rgbColors.length > 0) {
+    console.log(`\nHardcoded RGB Colors: ${violations.rgbColors.length}`);
+    console.log('-'.repeat(60));
+    console.log('Define raw RGB/RGBA values in theme.css and consume semantic tokens here.\n');
+    for (const violation of violations.rgbColors) {
+      console.log(`  ${violation.file}:${violation.line}`);
+      if (verbose) console.log(`    ${violation.code}`);
     }
   }
   
@@ -446,10 +483,20 @@ function printReport(verbose = false) {
     }
   }
 
+  if (violations.literalFontFamilies.length > 0) {
+    console.log(`\nLiteral Font Families: ${violations.literalFontFamilies.length}`);
+    console.log('-'.repeat(60));
+    console.log('Use --font-sans, --font-mono, or intentional inheritance.\n');
+    for (const violation of violations.literalFontFamilies) {
+      console.log(`  ${violation.file}:${violation.line}`);
+      if (verbose) console.log(`    ${violation.code}`);
+    }
+  }
+
   if (violations.undefinedCustomProperties.length > 0) {
     console.log(`\n❌ Undefined Custom Properties: ${violations.undefinedCustomProperties.length}`);
     console.log('─'.repeat(60));
-    console.log('Define each token globally or provide an explicit fallback.\n');
+    console.log('Define each token in the shared token/theme layer before use.\n');
 
     if (verbose) {
       violations.undefinedCustomProperties.forEach(v => {
@@ -519,9 +566,11 @@ function main() {
   
   const totalViolations = 
     violations.hexColors.length +
+    violations.rgbColors.length +
     violations.pxSpacing.length +
     violations.remSpacing.length +
     violations.numericFontWeight.length +
+    violations.literalFontFamilies.length +
     violations.undefinedCustomProperties.length +
     violations.deprecatedTokens.length +
     violations.transitionAll.length +

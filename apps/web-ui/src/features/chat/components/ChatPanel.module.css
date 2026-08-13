@@ -44,7 +44,7 @@
 
 .username {
   font-weight: var(--font-semibold);
-  color: var(--color-accent);
+  color: var(--text-accent);
 }
 
 .timestamp {

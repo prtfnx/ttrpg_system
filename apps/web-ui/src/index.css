@@ -16,11 +16,11 @@
 
 a {
   font-weight: var(--font-medium);
-  color: var(--accent-primary);
+  color: var(--text-accent);
   text-decoration: inherit;
 }
 a:hover {
-  color: var(--accent-secondary);
+  color: var(--text-accent-hover);
 }
 
 body {
@@ -88,6 +88,6 @@ button {
     background-color: var(--bg-primary);
   }
   a:hover {
-    color: var(--accent-secondary);
+    color: var(--text-accent-hover);
   }
 }

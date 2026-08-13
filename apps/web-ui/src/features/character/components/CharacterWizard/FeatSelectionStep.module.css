@@ -194,7 +194,7 @@
 
 .recommendationTitle {
   composes: sectionTitle;
-  color: var(--color-accent);
+  color: var(--text-accent);
 }
 
 .featsGrid {

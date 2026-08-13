@@ -46,16 +46,18 @@
   
   /* Text - Hierarchy for readability */
   --text-primary: var(--gray-50);
-  --text-secondary: var(--gray-300);
-  --text-muted: var(--gray-500);
+  --text-secondary: var(--gray-200);
+  --text-muted: var(--gray-300);
   --text-disabled: var(--gray-700);
   --text-tertiary: var(--text-muted);
-  --text-accent: var(--color-primary-light);
+  --text-accent: color-mix(in srgb, var(--color-primary-light) 40%, var(--text-primary));
+  --text-accent-hover: color-mix(in srgb, var(--color-primary-lighter) 25%, var(--text-primary));
   --text-inverse: var(--gray-900);
   --text-inverse-primary: var(--gray-50);  /* Text on dark backgrounds */
   --text-inverse-secondary: var(--gray-700);
   --text-on-accent: var(--white);
   --text-on-error: var(--white);
+  --text-on-warning: var(--gray-950);
   --text-on-overlay: var(--white);
   
   /* Borders - Visual separation */
@@ -72,8 +74,8 @@
   
   /* Brand/Accent Colors - Key UI elements */
   --color-primary: var(--blue-600);
-  --color-primary-hover: var(--blue-500);
-  --color-primary-active: var(--blue-700);
+  --color-primary-hover: var(--blue-700);
+  --color-primary-active: var(--blue-800);
   --color-primary-light: var(--blue-400);
   --color-primary-lighter: var(--blue-300);
   --color-primary-glow: rgba(59, 130, 246, 0.3);
@@ -81,14 +83,14 @@
   --accent-overlay-percent: 10%;
   --color-primary-overlay: color-mix(in srgb, var(--color-primary) var(--accent-overlay-percent), transparent);
   
-  --color-success: var(--green-600);
-  --color-success-hover: var(--green-500);
-  --color-success-active: var(--green-700);
+  --color-success: var(--green-700);
+  --color-success-hover: var(--green-800);
+  --color-success-active: var(--green-900);
   --color-success-glow: rgba(5, 150, 105, 0.3);
   
   --color-danger: var(--red-600);
-  --color-danger-hover: var(--red-500);
-  --color-danger-active: var(--red-700);
+  --color-danger-hover: var(--red-700);
+  --color-danger-active: var(--red-800);
   --color-danger-glow: rgba(220, 38, 38, 0.3);
   --color-danger-overlay: rgba(220, 53, 69, 0.1);
   
@@ -97,9 +99,9 @@
   --color-warning-active: var(--orange-600);
   --color-warning-overlay: rgba(255, 193, 7, 0.2);
   
-  --color-info: var(--blue-500);
-  --color-info-hover: var(--blue-400);
-  --color-info-active: var(--blue-600);
+  --color-info: var(--blue-600);
+  --color-info-hover: var(--blue-700);
+  --color-info-active: var(--blue-800);
   --color-info-overlay: rgba(66, 135, 245, 0.05);
   
   --color-accent: var(--indigo-500);
@@ -162,7 +164,7 @@
   --button-warning-bg: var(--color-warning);
   --button-warning-hover: var(--color-warning-hover);
   --button-warning-active: var(--color-warning-active);
-  --button-warning-text: var(--text-inverse);
+  --button-warning-text: var(--text-on-warning);
   --button-warning-border: var(--color-warning);
   
   /* Button - Info */
@@ -466,11 +468,13 @@
   /* Text - Inverted for light mode */
   --text-primary: var(--gray-900);
   --text-secondary: var(--gray-700);
-  --text-muted: var(--gray-500);
+  --text-muted: var(--gray-600);
   --text-disabled: var(--gray-400);
   --text-inverse: var(--gray-50);
   --text-inverse-primary: var(--gray-50);
   --text-inverse-secondary: var(--gray-700);
+  --text-accent: var(--color-primary-hover);
+  --text-accent-hover: var(--color-primary-active);
   
   /* Borders - Lighter for light mode */
   --border-primary: var(--gray-300);
@@ -513,6 +517,8 @@
   --text-secondary: var(--gray-100);
   --text-muted: var(--gray-300);
   --text-disabled: var(--gray-500);
+  --text-accent: var(--yellow-300);
+  --text-accent-hover: var(--yellow-200);
   --border-primary: var(--white);
   --border-secondary: var(--gray-300);
   --border-hover: var(--yellow-300);
@@ -558,8 +564,8 @@
 /* Accent schemes intentionally follow theme overrides. */
 [data-color-scheme="blue"] {
   --color-primary: var(--blue-600);
-  --color-primary-hover: var(--blue-500);
-  --color-primary-active: var(--blue-700);
+  --color-primary-hover: var(--blue-700);
+  --color-primary-active: var(--blue-800);
   --color-primary-light: var(--blue-400);
   --color-primary-lighter: var(--blue-300);
   --color-accent: var(--blue-500);
@@ -570,8 +576,8 @@
 
 [data-color-scheme="purple"] {
   --color-primary: var(--purple-600);
-  --color-primary-hover: var(--purple-500);
-  --color-primary-active: var(--purple-700);
+  --color-primary-hover: var(--purple-700);
+  --color-primary-active: var(--purple-800);
   --color-primary-light: var(--purple-400);
   --color-primary-lighter: var(--purple-300);
   --color-accent: var(--purple-500);
@@ -581,9 +587,9 @@
 }
 
 [data-color-scheme="green"] {
-  --color-primary: var(--green-600);
-  --color-primary-hover: var(--green-500);
-  --color-primary-active: var(--green-700);
+  --color-primary: var(--green-700);
+  --color-primary-hover: var(--green-800);
+  --color-primary-active: var(--green-900);
   --color-primary-light: var(--green-400);
   --color-primary-lighter: var(--green-300);
   --color-accent: var(--green-500);
@@ -594,8 +600,8 @@
 
 [data-color-scheme="red"] {
   --color-primary: var(--red-600);
-  --color-primary-hover: var(--red-500);
-  --color-primary-active: var(--red-700);
+  --color-primary-hover: var(--red-700);
+  --color-primary-active: var(--red-800);
   --color-primary-light: var(--red-400);
   --color-primary-lighter: var(--red-300);
   --color-accent: var(--red-500);
@@ -605,9 +611,9 @@
 }
 
 [data-color-scheme="orange"] {
-  --color-primary: var(--orange-600);
-  --color-primary-hover: var(--orange-500);
-  --color-primary-active: var(--orange-700);
+  --color-primary: var(--orange-700);
+  --color-primary-hover: var(--orange-800);
+  --color-primary-active: var(--orange-900);
   --color-primary-light: var(--orange-400);
   --color-primary-lighter: var(--orange-300);
   --color-accent: var(--orange-500);

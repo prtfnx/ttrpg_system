@@ -325,7 +325,7 @@
 
 .wizard-btn-tertiary {
   background: transparent;
-  color: var(--color-primary);
+  color: var(--text-accent);
   border-color: transparent;
 }
 

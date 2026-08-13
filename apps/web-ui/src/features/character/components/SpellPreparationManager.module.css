@@ -96,7 +96,7 @@
 .ritualBadge {
   margin-left: var(--space-sm);
   font-size: var(--text-xs);
-  color: var(--color-accent);
+  color: var(--text-accent);
   font-weight: var(--font-normal);
 }
 
@@ -223,7 +223,7 @@
   border: var(--border-width) solid var(--color-accent);
   border-radius: var(--radius-xs);
   font-size: var(--text-xs);
-  color: var(--color-accent);
+  color: var(--text-accent);
   cursor: pointer;
 }
 
@@ -253,7 +253,7 @@
 }
 
 .detailRitualNote {
-  color: var(--color-accent);
+  color: var(--text-accent);
 }
 
 .detailDesc {

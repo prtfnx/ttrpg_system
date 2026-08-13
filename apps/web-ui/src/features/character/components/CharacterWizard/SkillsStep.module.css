@@ -52,7 +52,7 @@
 
 .backgroundBadge {
   font-size: var(--text-xs);
-  color: var(--color-accent);
+  color: var(--text-accent);
 }
 
 .raceBadge {

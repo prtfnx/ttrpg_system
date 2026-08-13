@@ -41,7 +41,7 @@
 }
 
 .rollHint {
-  color: var(--color-accent-hover);
+  color: var(--text-accent-hover);
   font-size: var(--text-2xs);
   font-style: italic;
 }

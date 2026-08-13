@@ -16,8 +16,8 @@
     "test:wasm": "vitest run --project browser",
     "test:all": "vitest run",
     "test:coverage": "vitest run --project jsdom --coverage",
-    "validate:css": "node scripts/validate-css.js",
-    "validate:css:verbose": "node scripts/validate-css.js --verbose",
+    "validate:css": "node scripts/validate-css.js && node scripts/validate-theme-contrast.js",
+    "validate:css:verbose": "node scripts/validate-css.js --verbose && node scripts/validate-theme-contrast.js",
     "bench": "vitest bench --project jsdom --reporter=verbose",
     "prepare": "node -e \"const {execSync}=require('child_process'),p=require('path');try{execSync('git config core.hooksPath apps/web-ui/.husky',{cwd:p.join(__dirname,'../..'),stdio:'inherit'})}catch(e){}\""
   },

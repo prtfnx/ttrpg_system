@@ -27,7 +27,7 @@
 }
 
 .round {
-  color: var(--color-accent);
+  color: var(--text-accent);
   font-weight: bold;
   min-width: 22px;
 }
@@ -38,7 +38,7 @@
 }
 
 .action {
-  color: var(--color-accent-hover);
+  color: var(--text-accent-hover);
   text-transform: capitalize;
 }
 

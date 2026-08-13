@@ -72,7 +72,7 @@
 }
 
 .option.active .optionLabel {
-  color: var(--color-primary);
+  color: var(--text-accent);
   font-weight: var(--font-semibold);
 }
 

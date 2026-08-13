@@ -73,7 +73,7 @@
 }
 
 .trait-name {
-  color: var(--color-primary);
+  color: var(--text-accent);
 }
 
 .trait-desc {

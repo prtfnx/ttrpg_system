@@ -56,7 +56,7 @@
 
 .activeLayerName {
   font-size: var(--text-sm);
-  color: var(--accent-primary);
+  color: var(--text-accent);
   font-weight: var(--font-semibold);
 }
 

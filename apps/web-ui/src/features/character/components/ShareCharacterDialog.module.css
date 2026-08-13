@@ -41,7 +41,7 @@
 .sectionHeader h4 {
   margin: 0;
   font-size: var(--text-sm);
-  color: var(--color-primary);
+  color: var(--text-accent);
   text-transform: uppercase;
   letter-spacing: var(--space-0-5);
 }
@@ -54,7 +54,7 @@
 .linkBtn {
   background: none;
   border: none;
-  color: var(--color-primary);
+  color: var(--text-accent);
   font-size: var(--text-xs);
   cursor: pointer;
   text-decoration: underline;
@@ -62,7 +62,7 @@
 }
 
 .linkBtn:hover {
-  color: var(--color-primary-hover);
+  color: var(--text-accent-hover);
 }
 
 .linkBtn:focus-visible {

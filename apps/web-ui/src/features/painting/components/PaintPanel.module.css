@@ -43,7 +43,7 @@
 
 .paintPanel.compact {
   /* Ultra-compact layout for very small panels < 250px */
-  min-height: var(--min-panel-height, 300px);
+  min-height: var(--size-75);
 }
 
 .paintPanel.compact .paintPanelContent {

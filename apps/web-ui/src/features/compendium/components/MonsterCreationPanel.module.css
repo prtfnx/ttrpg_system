@@ -15,8 +15,8 @@
 /* === Tab System === */
 .monster-panel-tabs {
   display: flex;
-  background: var(--tab-bg, var(--gray-750));
-  border-bottom: var(--border-width-sm) solid var(--border-color, var(--gray-700));
+  background: var(--bg-tertiary);
+  border-bottom: var(--border-width-sm) solid var(--border-primary);
   overflow-x: auto;
 }
 
@@ -24,7 +24,7 @@
   background: none;
   border: none;
   padding: var(--space-md) var(--space-xl);
-  color: var(--text-secondary, var(--gray-400));
+  color: var(--text-secondary);
   cursor: pointer;
   transition: var(--transition-interactive-fast);
   display: flex;
@@ -37,13 +37,13 @@
 
 .monster-tab:hover {
   background: var(--bg-hover);
-  color: var(--text-primary, var(--white));
+  color: var(--text-primary);
 }
 
 .monster-tab.active {
-  color: var(--accent-color, var(--blue-500));
-  border-bottom-color: var(--accent-color, var(--blue-500));
-  background: var(--blue-500-alpha-10);
+  color: var(--text-accent);
+  border-bottom-color: var(--border-focus);
+  background: var(--color-primary-overlay);
 }
 
 .monster-tab-icon {
@@ -55,8 +55,8 @@
 }
 
 .monster-tab-count {
-  background: var(--accent-color, var(--blue-500));
-  color: var(--white);
+  background: var(--button-primary-bg);
+  color: var(--button-primary-text);
   padding: var(--space-1) var(--space-sm);
   border-radius: var(--radius-full);
   font-size: var(--text-xs);
@@ -98,8 +98,8 @@
 
 .monster-search-header {
   padding: var(--space-lg);
-  border-bottom: var(--border-width-sm) solid var(--border-color, var(--gray-700));
-  background: var(--content-bg, var(--gray-800));
+  border-bottom: var(--border-width-sm) solid var(--border-primary);
+  background: var(--bg-secondary);
 }
 
 .monster-search-bar {
@@ -111,18 +111,18 @@
 .monster-search-input {
   flex: 1;
   padding: var(--space-sm) var(--space-lg);
-  border: var(--border-width-sm) solid var(--border-color, var(--gray-700));
+  border: var(--border-width-sm) solid var(--input-border);
   border-radius: var(--radius-md);
-  background: var(--input-bg, var(--gray-750));
-  color: var(--text-primary, var(--white));
+  background: var(--input-bg);
+  color: var(--input-text);
   font-size: var(--text-sm);
   transition: border-color var(--transition-fast) ease;
 }
 
 .monster-search-input:focus {
   outline: none;
-  border-color: var(--accent-color, var(--blue-500));
-  box-shadow: var(--ring-blue);
+  border-color: var(--input-border-focus);
+  box-shadow: var(--focus-ring);
 }
 
 .monster-search-controls {
@@ -140,10 +140,10 @@
 
 .monster-sort-controls select {
   padding: var(--space-sm) var(--space-md);
-  border: var(--border-width-sm) solid var(--border-color, var(--gray-700));
+  border: var(--border-width-sm) solid var(--input-border);
   border-radius: var(--radius-sm);
-  background: var(--input-bg, var(--gray-750));
-  color: var(--text-primary, var(--white));
+  background: var(--input-bg);
+  color: var(--input-text);
   font-size: var(--text-sm);
 }
 
@@ -168,42 +168,42 @@
 }
 
 .monster-btn-primary {
-  background: var(--accent-color, var(--blue-500));
-  color: var(--white);
+  background: var(--button-primary-bg);
+  color: var(--button-primary-text);
   padding: var(--space-sm) var(--space-lg);
 }
 
 .monster-btn-primary:hover {
-  background: var(--accent-hover, var(--blue-600));
+  background: var(--button-primary-hover);
   transform: translateY(calc(-1 * var(--space-1)));
 }
 
 .monster-btn-secondary {
-  background: var(--secondary-bg, var(--gray-700));
-  color: var(--text-primary, var(--white));
+  background: var(--button-secondary-bg);
+  color: var(--button-secondary-text);
   padding: var(--space-sm) var(--space-lg);
-  border: var(--border-width-sm) solid var(--border-color, var(--gray-600));
+  border: var(--border-width-sm) solid var(--button-secondary-border);
 }
 
 .monster-btn-secondary:hover {
-  background: var(--secondary-hover, var(--gray-600));
-  border-color: var(--border-hover, var(--gray-500));
+  background: var(--button-secondary-hover);
+  border-color: var(--border-hover);
 }
 
 .monster-btn-secondary.active {
-  background: var(--accent-color, var(--blue-500));
-  color: var(--white);
-  border-color: var(--accent-color, var(--blue-500));
+  background: var(--button-primary-bg);
+  color: var(--button-primary-text);
+  border-color: var(--button-primary-border);
 }
 
 .monster-btn-danger {
-  background: var(--danger-color, var(--red-600));
-  color: var(--white);
+  background: var(--button-danger-bg);
+  color: var(--button-danger-text);
   padding: var(--space-sm) var(--space-lg);
 }
 
 .monster-btn-danger:hover {
-  background: var(--danger-hover, var(--red-700));
+  background: var(--button-danger-hover);
 }
 
 .monster-btn-small {
@@ -213,8 +213,8 @@
 
 /* === Filters Panel === */
 .monster-filters-panel {
-  background: var(--filter-bg, var(--gray-750));
-  border-bottom: var(--border-width-sm) solid var(--border-color, var(--gray-700));
+  background: var(--bg-tertiary);
+  border-bottom: var(--border-width-sm) solid var(--border-primary);
   padding: 0;
   max-height: 0;
   overflow: hidden;
@@ -233,7 +233,7 @@
 .monster-filter-group > label,
 .monster-filter-group > span {
   display: block;
-  color: var(--text-primary, var(--white));
+  color: var(--text-primary);
   font-weight: var(--font-medium);
   margin-bottom: var(--space-sm);
   font-size: var(--text-sm);
@@ -243,10 +243,10 @@
 .monster-filter-group input[type="number"] {
   width: 100%;
   padding: var(--space-sm) var(--space-md);
-  border: var(--border-width-sm) solid var(--border-color, var(--gray-700));
+  border: var(--border-width-sm) solid var(--input-border);
   border-radius: var(--radius-sm);
-  background: var(--input-bg, var(--gray-800));
-  color: var(--text-primary, var(--white));
+  background: var(--input-bg);
+  color: var(--input-text);
   font-size: var(--text-sm);
 }
 
@@ -280,7 +280,7 @@
 }
 
 .monster-filter-range span {
-  color: var(--text-secondary, var(--gray-400));
+  color: var(--text-secondary);
   font-size: var(--text-sm);
 }
 
@@ -299,12 +299,12 @@
 
 .monster-results-info {
   padding: var(--space-md) var(--space-lg);
-  background: var(--info-bg, var(--gray-750));
-  color: var(--text-secondary, var(--gray-400));
+  background: var(--status-info-bg);
+  color: var(--text-secondary);
   font-size: var(--text-sm);
   display: flex;
   justify-content: space-between;
-  border-bottom: var(--border-width-sm) solid var(--border-color, var(--gray-700));
+  border-bottom: var(--border-width-sm) solid var(--border-primary);
 }
 
 .monster-loading {
@@ -312,7 +312,7 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  color: var(--text-secondary, var(--gray-400));
+  color: var(--text-secondary);
   font-size: var(--text-base);
 }
 
@@ -336,8 +336,8 @@
 
 /* === Monster Cards === */
 .monster-card {
-  background: var(--card-bg, var(--gray-750));
-  border: var(--border-width-sm) solid var(--border-color, var(--gray-700));
+  background: var(--bg-secondary);
+  border: var(--border-width-sm) solid var(--border-primary);
   border-radius: var(--radius-lg);
   padding: var(--space-lg);
   transition: var(--transition-interactive-fast);
@@ -359,15 +359,15 @@
 }
 
 .monster-card:hover {
-  border-color: var(--accent-color, var(--blue-500));
-  background: var(--card-hover-bg, var(--gray-700));
+  border-color: var(--border-focus);
+  background: var(--bg-elevated-hover);
   transform: translateY(calc(-2 * var(--space-1)));
   box-shadow: var(--shadow-lg);
 }
 
 .monster-card.selected {
-  border-color: var(--accent-color, var(--blue-500));
-  background: var(--blue-500-alpha-10);
+  border-color: var(--border-focus);
+  background: var(--color-primary-overlay);
 }
 
 .monster-card-header {
@@ -378,7 +378,7 @@
 }
 
 .monster-name {
-  color: var(--text-primary, var(--white));
+  color: var(--text-primary);
   font-size: var(--text-lg);
   font-weight: var(--font-semibold);
   margin: 0;
@@ -387,8 +387,8 @@
 }
 
 .monster-cr {
-  background: var(--accent-color, var(--blue-500));
-  color: var(--white);
+  background: var(--button-primary-bg);
+  color: var(--button-primary-text);
   padding: var(--space-1) var(--space-sm);
   border-radius: var(--radius-full);
   font-size: var(--text-xs);
@@ -397,7 +397,7 @@
 }
 
 .monster-basic-info {
-  color: var(--text-secondary, var(--gray-400));
+  color: var(--text-secondary);
   font-size: var(--text-sm);
   margin-bottom: var(--space-md);
   display: flex;
@@ -428,7 +428,7 @@
 }
 
 .monster-vital-stat .label {
-  color: var(--text-secondary, var(--gray-400));
+  color: var(--text-secondary);
   font-size: var(--text-xs);
   font-weight: var(--font-medium);
   text-transform: uppercase;
@@ -436,7 +436,7 @@
 }
 
 .monster-vital-stat .value {
-  color: var(--text-primary, var(--white));
+  color: var(--text-primary);
   font-size: var(--text-base);
   font-weight: var(--font-semibold);
 }
@@ -449,17 +449,17 @@
 }
 
 .monster-tag {
-  background: var(--white-alpha-10);
-  color: var(--text-secondary, var(--gray-400));
+  background: var(--bg-tertiary);
+  color: var(--text-secondary);
   padding: var(--space-1) var(--space-sm);
   border-radius: var(--radius-sm);
   font-size: var(--text-2xs);
-  border: var(--border-width-sm) solid var(--white-alpha-20);
+  border: var(--border-width-sm) solid var(--border-secondary);
 }
 
 .monster-tag-more {
-  background: var(--blue-500-alpha-20);
-  color: var(--accent-color, var(--blue-500));
+  background: var(--color-primary-overlay);
+  color: var(--text-accent);
   padding: var(--space-1) var(--space-sm);
   border-radius: var(--radius-sm);
   font-size: var(--text-2xs);
@@ -489,7 +489,7 @@
 
 .monster-instances-header {
   padding: var(--space-lg);
-  border-bottom: var(--border-width-sm) solid var(--border-color, var(--gray-700));
+  border-bottom: var(--border-width-sm) solid var(--border-primary);
   display: flex;
   justify-content: space-between;
   align-items: center;
@@ -501,7 +501,7 @@
 }
 
 .monster-instances-header h4 {
-  color: var(--text-primary, var(--white));
+  color: var(--text-primary);
   margin: 0;
   font-size: var(--text-lg);
 }
@@ -516,27 +516,27 @@
 }
 
 .monster-instance-card {
-  background: var(--card-bg, var(--gray-750));
-  border: var(--border-width-sm) solid var(--border-color, var(--gray-700));
+  background: var(--bg-secondary);
+  border: var(--border-width-sm) solid var(--border-primary);
   border-radius: var(--radius-lg);
   padding: var(--space-lg);
   transition: var(--transition-interactive-fast);
 }
 
 .monster-instance-card:hover {
-  border-color: var(--accent-color, var(--blue-500));
-  background: var(--card-hover-bg, var(--gray-700));
+  border-color: var(--border-focus);
+  background: var(--bg-elevated-hover);
 }
 
 .monster-instance-card.selected {
-  border-color: var(--accent-color, var(--blue-500));
-  background: var(--blue-500-alpha-10);
+  border-color: var(--border-focus);
+  background: var(--color-primary-overlay);
 }
 
 .monster-instance-card.defeated {
   opacity: 0.6;
-  background: var(--defeated-bg, var(--red-950));
-  border-color: var(--danger-color, var(--red-600));
+  background: var(--status-error-bg);
+  border-color: var(--color-danger);
 }
 
 .monster-instance-header {
@@ -547,7 +547,7 @@
 }
 
 .monster-instance-name {
-  color: var(--text-primary, var(--white));
+  color: var(--text-primary);
   font-size: var(--text-base);
   font-weight: var(--font-semibold);
   margin: 0;
@@ -567,14 +567,14 @@
 }
 
 .monster-instance-template {
-  color: var(--text-secondary, var(--gray-400));
+  color: var(--text-secondary);
   font-size: var(--text-sm);
   font-style: italic;
 }
 
 .monster-instance-cr {
-  background: var(--accent-color, var(--blue-500));
-  color: var(--white);
+  background: var(--button-primary-bg);
+  color: var(--button-primary-text);
   padding: var(--space-1) var(--space-sm);
   border-radius: var(--radius-lg);
   font-size: var(--text-2xs);
@@ -587,7 +587,7 @@
 
 .monster-health-bar {
   height: var(--space-sm);
-  background: var(--white-alpha-10);
+  background: var(--bg-tertiary);
   border-radius: var(--radius-sm);
   overflow: hidden;
   margin-bottom: var(--space-sm);
@@ -608,10 +608,10 @@
 .monster-hp-input {
   width: var(--size-15);
   padding: var(--space-1) var(--space-sm);
-  border: var(--border-width-sm) solid var(--border-color, var(--gray-700));
+  border: var(--border-width-sm) solid var(--input-border);
   border-radius: var(--radius-sm);
-  background: var(--input-bg, var(--gray-800));
-  color: var(--text-primary, var(--white));
+  background: var(--input-bg);
+  color: var(--input-text);
   font-size: var(--text-sm);
   text-align: center;
 }
@@ -623,8 +623,8 @@
 }
 
 .monster-condition {
-  background: var(--warning-color, var(--yellow-500));
-  color: var(--black);
+  background: var(--button-warning-bg);
+  color: var(--button-warning-text);
   padding: var(--space-1) var(--space-sm);
   border-radius: var(--radius-lg);
   font-size: var(--text-2xs);
@@ -634,8 +634,8 @@
 /* === Monster Details Panel === */
 .monster-details-panel {
   width: var(--size-100);
-  border-left: var(--border-width-sm) solid var(--border-color, var(--gray-700));
-  background: var(--details-bg, var(--gray-800));
+  border-left: var(--border-width-sm) solid var(--border-primary);
+  background: var(--bg-secondary);
   display: flex;
   flex-direction: column;
   overflow: hidden;
@@ -643,14 +643,14 @@
 
 .monster-details-header {
   padding: var(--space-lg);
-  border-bottom: var(--border-width-sm) solid var(--border-color, var(--gray-700));
+  border-bottom: var(--border-width-sm) solid var(--border-primary);
   display: flex;
   justify-content: space-between;
   align-items: center;
 }
 
 .monster-details-header h3 {
-  color: var(--text-primary, var(--white));
+  color: var(--text-primary);
   margin: 0;
   font-size: var(--text-xl);
   font-weight: var(--font-semibold);
@@ -667,14 +667,14 @@
 }
 
 .monster-details-basic p {
-  color: var(--text-secondary, var(--gray-400));
+  color: var(--text-secondary);
   font-size: var(--text-sm);
   line-height: var(--line-relaxed);
   margin-bottom: var(--space-sm);
 }
 
 .monster-details-basic strong {
-  color: var(--text-primary, var(--white));
+  color: var(--text-primary);
   font-weight: var(--font-semibold);
 }
 
@@ -684,7 +684,7 @@
   gap: var(--space-md);
   margin-bottom: var(--space-xl);
   padding: var(--space-lg);
-  background: var(--white-alpha-5);
+  background: var(--bg-tertiary);
   border-radius: var(--radius-lg);
 }
 
@@ -694,7 +694,7 @@
 
 .monster-stat-name {
   display: block;
-  color: var(--text-secondary, var(--gray-400));
+  color: var(--text-secondary);
   font-size: var(--text-xs);
   font-weight: var(--font-semibold);
   letter-spacing: var(--tracking-wide);
@@ -703,7 +703,7 @@
 
 .monster-stat-value {
   display: block;
-  color: var(--text-primary, var(--white));
+  color: var(--text-primary);
   font-size: var(--text-lg);
   font-weight: var(--font-semibold);
   margin-bottom: var(--space-1);
@@ -711,7 +711,7 @@
 
 .monster-stat-modifier {
   display: block;
-  color: var(--accent-color, var(--blue-500));
+  color: var(--text-accent);
   font-size: var(--text-sm);
   font-weight: var(--font-medium);
 }
@@ -721,24 +721,24 @@
 }
 
 .monster-abilities h4 {
-  color: var(--text-primary, var(--white));
+  color: var(--text-primary);
   font-size: var(--text-base);
   font-weight: var(--font-semibold);
   margin-bottom: var(--space-md);
-  border-bottom: var(--border-width-sm) solid var(--border-color, var(--gray-700));
+  border-bottom: var(--border-width-sm) solid var(--border-primary);
   padding-bottom: var(--space-sm);
 }
 
 .monster-ability {
   margin-bottom: var(--space-lg);
   padding: var(--space-md);
-  background: var(--white-alpha-3);
+  background: var(--bg-tertiary);
   border-radius: var(--radius-md);
-  border-left: var(--border-width-lg) solid var(--accent-color, var(--blue-500));
+  border-left: var(--border-width-lg) solid var(--border-focus);
 }
 
 .monster-ability h5 {
-  color: var(--text-primary, var(--white));
+  color: var(--text-primary);
   font-size: var(--text-sm);
   font-weight: var(--font-semibold);
   margin: 0 0 var(--space-sm) 0;
@@ -748,8 +748,8 @@
 }
 
 .ability-type {
-  background: var(--blue-500-alpha-20);
-  color: var(--accent-color, var(--blue-500));
+  background: var(--color-primary-overlay);
+  color: var(--text-accent);
   padding: var(--space-1) var(--space-sm);
   border-radius: var(--radius-sm);
   font-size: var(--text-2xs);
@@ -758,7 +758,7 @@
 }
 
 .monster-ability p {
-  color: var(--text-secondary, var(--gray-400));
+  color: var(--text-secondary);
   font-size: var(--text-sm);
   line-height: var(--line-relaxed);
   margin: 0;
@@ -766,7 +766,7 @@
 
 .monster-details-actions {
   padding: var(--space-lg);
-  border-top: var(--border-width-sm) solid var(--border-color, var(--gray-700));
+  border-top: var(--border-width-sm) solid var(--border-primary);
   display: flex;
   gap: var(--space-md);
 }
@@ -782,12 +782,12 @@
   justify-content: center;
   align-items: center;
   gap: var(--space-lg);
-  border-top: var(--border-width-sm) solid var(--border-color, var(--gray-700));
-  background: var(--pagination-bg, var(--gray-750));
+  border-top: var(--border-width-sm) solid var(--border-primary);
+  background: var(--bg-tertiary);
 }
 
 .monster-page-info {
-  color: var(--text-secondary, var(--gray-400));
+  color: var(--text-secondary);
   font-size: var(--text-sm);
 }
 
@@ -798,7 +798,7 @@
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  color: var(--text-secondary, var(--gray-400));
+  color: var(--text-secondary);
   text-align: center;
   padding: var(--space-4xl);
 }
@@ -811,7 +811,7 @@
 .monster-empty-state p:first-child {
   font-size: var(--text-lg);
   font-weight: var(--font-semibold);
-  color: var(--text-primary, var(--white));
+  color: var(--text-primary);
 }
 
 /* === Responsive Design === */
@@ -875,13 +875,13 @@
 .monster-search-input:focus,
 .monster-tab:focus,
 .monster-hp-input:focus {
-  outline: var(--border-width-md) solid var(--accent-color, var(--blue-500));
+  outline: var(--border-width-md) solid var(--border-focus);
   outline-offset: var(--space-1);
 }
 
 .monster-card:focus,
 .monster-instance-card:focus {
-  outline: var(--border-width-md) solid var(--accent-color, var(--blue-500));
+  outline: var(--border-width-md) solid var(--border-focus);
   outline-offset: var(--space-1);
 }
 

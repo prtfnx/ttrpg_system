@@ -45,7 +45,7 @@
 }
 
 .moveAvail {
-  background: var(--status-warning-text, var(--color-accent));
+  background: var(--status-warning-text);
 }
 
 .moveUsed {

@@ -23,7 +23,7 @@
 }
 
 .trigger:hover:not(:disabled) {
-  background: var(--bg-quaternary, var(--gray-200));
+  background: var(--bg-elevated-hover);
   border-color: var(--border-secondary);
 }
 
@@ -68,7 +68,7 @@
 }
 
 .option.active {
-  background: var(--color-primary-bg, rgb(59 130 246 / 10%));
+  background: var(--color-primary-overlay);
 }
 
 .option.active .optionLabel {

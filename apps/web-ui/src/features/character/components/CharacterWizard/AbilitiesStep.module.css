@@ -163,8 +163,8 @@
 }
 
 .decBtnActive {
-  background: var(--button-danger-bg, var(--color-danger));
-  border-color: var(--button-danger-border, var(--color-danger));
+  background: var(--button-danger-bg);
+  border-color: var(--button-danger-border);
   color: var(--text-inverse-primary);
 }
 
@@ -195,8 +195,8 @@
 }
 
 .incBtnActive {
-  background: var(--button-success-bg, var(--color-success));
-  border-color: var(--button-success-border, var(--color-success));
+  background: var(--button-success-bg);
+  border-color: var(--button-success-border);
   color: var(--text-inverse-primary);
 }
 

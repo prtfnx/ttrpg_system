@@ -130,7 +130,7 @@
 }
 
 .take-standard-button:hover {
-  background: var(--bg-accent-hover, var(--blue-600));
+  background: var(--bg-accent-hover);
   color: var(--text-inverse-primary);
 }
 

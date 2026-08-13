@@ -228,7 +228,7 @@
 .layerDetails {
   font-size: var(--text-xs);
   color: var(--text-tertiary);
-  font-family: var(--font-mono, 'Fira Code', 'Monaco', 'Consolas', monospace);
+  font-family: var(--font-mono);
 }
 
 .layerControls {
@@ -285,7 +285,7 @@
 .layerPropertyValue {
   font-size: var(--text-xs);
   color: var(--text-tertiary);
-  font-family: var(--font-mono, 'Fira Code', 'Monaco', 'Consolas', monospace);
+  font-family: var(--font-mono);
   text-align: center;
 }
 
@@ -322,7 +322,7 @@
 .effectIntensity {
   font-size: var(--text-xs);
   color: var(--text-tertiary);
-  font-family: var(--font-mono, 'Fira Code', 'Monaco', 'Consolas', monospace);
+  font-family: var(--font-mono);
 }
 
 .effectControls {

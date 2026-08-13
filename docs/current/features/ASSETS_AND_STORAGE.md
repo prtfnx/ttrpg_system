@@ -5,7 +5,7 @@ Audience: contributors changing asset upload, authorization, R2, or recovery.
 Status: current. Image upload and storage integrity are implemented. Independent
 production backup remains an operations blocker.
 
-Last source audit: 2026-07-21
+Last source audit: 2026-08-12
 
 ## Ownership
 
@@ -44,6 +44,11 @@ cannot disguise another payload.
 Upload intents are durable; a process restart does not turn an unconfirmed
 object into a usable asset. The removed local metadata fallback and legacy
 `assets.session_id` column are not active paths.
+
+The retired `file_request` and `file_data` WebSocket messages are not upload
+paths. They had no production caller, and the former chunk handler acknowledged
+bytes without storing or validating them. Keep asset bytes on the bounded,
+authorized, content-verified presigned upload flow above.
 
 ## Permissions
 

@@ -1366,15 +1366,6 @@ describe('WebClientProtocol', () => {
       expect(fn).toHaveBeenCalledOnce();
     });
 
-    it('FILE_DATA dispatches file-data-received', async () => {
-      const p = makeProtocol();
-      const fn = vi.fn();
-      window.addEventListener('file-data-received', fn);
-      await dispatch(p, 'file_data', { file_id: 'f1' });
-      window.removeEventListener('file-data-received', fn);
-      expect(fn).toHaveBeenCalledOnce();
-    });
-
     it('ASSET_UPLOAD_RESPONSE dispatches asset-uploaded', async () => {
       const p = makeProtocol();
       const fn = vi.fn();

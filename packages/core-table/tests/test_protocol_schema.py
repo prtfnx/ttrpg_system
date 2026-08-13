@@ -36,6 +36,8 @@ def test_message_from_json_validates_the_envelope():
         '{"type":"test","data":{}}',
         '{"type":"connection_status_request","data":{}}',
         '{"type":"connection_status_response","data":{}}',
+        '{"type":"file_request","data":{}}',
+        '{"type":"file_data","data":{"file_id":"file-1"}}',
         '{"type":"ping","data":[]}',
         '{"type":"ping","data":{},"unexpected":true}',
     ],

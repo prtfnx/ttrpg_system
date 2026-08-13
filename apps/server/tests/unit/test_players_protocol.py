@@ -306,38 +306,3 @@ class TestPlayerStatusRequest:
         )
 
         assert resp.data["status"] == {"ready": True, "last_action": 42.5}
-
-
-# ---------------------------------------------------------------------------
-# handle_file_data
-# ---------------------------------------------------------------------------
-
-@pytest.mark.unit
-@pytest.mark.asyncio
-class TestFileData:
-    async def test_no_data_returns_error(self):
-        proto = _ProtoStub()
-        msg = Message(MessageType.FILE_DATA, {})
-        resp = await proto.handle_file_data(msg, "c1")
-        assert resp.type == MessageType.ERROR
-
-    async def test_missing_file_id_returns_error(self):
-        proto = _ProtoStub()
-        msg = Message(MessageType.FILE_DATA, {"chunk_data": "abc=="})
-        resp = await proto.handle_file_data(msg, "c1")
-        assert resp.type == MessageType.ERROR
-
-    async def test_missing_chunk_data_returns_error(self):
-        proto = _ProtoStub()
-        msg = Message(MessageType.FILE_DATA, {"file_id": "f1"})
-        resp = await proto.handle_file_data(msg, "c1")
-        assert resp.type == MessageType.ERROR
-
-    async def test_valid_chunk_acknowledged(self):
-        proto = _ProtoStub()
-        msg = Message(MessageType.FILE_DATA, {
-            "file_id": "f1", "chunk_data": "abc==", "chunk_index": 0, "total_chunks": 3
-        })
-        resp = await proto.handle_file_data(msg, "c1")
-        assert resp.type == MessageType.SUCCESS
-        assert resp.data["file_id"] == "f1"

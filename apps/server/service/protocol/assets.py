@@ -15,10 +15,6 @@ logger = setup_logger(__name__)
 class _AssetsMixin(_ProtocolBase):
     """Handler methods for assets domain."""
 
-    async def handle_file_request(self, msg: Message, client_id: str) -> Message:
-        logger.info(f"handle_file_request called by {client_id} — direct file transfer not supported, use asset upload API")
-        return Message(MessageType.ERROR, {'error': 'Direct file transfer not supported. Use the asset upload endpoint.'})
-
     async def handle_asset_upload_request(self, msg: Message, client_id: str) -> Message:
         """Handle asset upload request - generate presigned PUT URL with xxHash support"""
         try:

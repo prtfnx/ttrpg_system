@@ -390,6 +390,14 @@ describe('Protocol Message Utilities', () => {
     }
   );
 
+  it.each(['file_request', 'file_data'])(
+    'should reject removed direct file-transfer message %s',
+    (type) => {
+      expect(() => parseMessage(JSON.stringify({ type, data: {} })))
+        .toThrow(/Invalid message/);
+    }
+  );
+
   it('should validate wall and door command payloads', () => {
     const validMessages = [
       {

@@ -127,8 +127,6 @@ class ServerProtocol(
         self.register_handler(MessageType.SPRITE_ROTATE_PREVIEW, self.handle_sprite_rotate_preview)
 
         # Files & Assets
-        self.register_handler(MessageType.FILE_REQUEST, self.handle_file_request)
-        self.register_handler(MessageType.FILE_DATA, self.handle_file_data)
         self.register_handler(MessageType.ASSET_UPLOAD_REQUEST, self.handle_asset_upload_request)
         self.register_handler(MessageType.ASSET_DOWNLOAD_REQUEST, self.handle_asset_download_request)
         self.register_handler(MessageType.ASSET_LIST_REQUEST, self.handle_asset_list_request)

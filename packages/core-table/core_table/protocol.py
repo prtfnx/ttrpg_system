@@ -70,8 +70,6 @@ class MessageType(enum.Enum):
     SPRITE_DRAG_PREVIEW = "sprite_drag_preview"
     SPRITE_RESIZE_PREVIEW = "sprite_resize_preview"
     SPRITE_ROTATE_PREVIEW = "sprite_rotate_preview"
-    FILE_REQUEST = "file_request"
-    FILE_DATA = "file_data"
     ASSET_UPLOAD_REQUEST = "asset_upload_request"
     ASSET_UPLOAD_RESPONSE = "asset_upload_response"
     ASSET_DOWNLOAD_REQUEST = "asset_download_request"

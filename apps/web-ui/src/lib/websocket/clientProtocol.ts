@@ -257,9 +257,6 @@ export class WebClientProtocol {
     this.registerHandler(MessageType.SPRITE_RESIZE_PREVIEW, this.handleSpriteResizePreview.bind(this));
     this.registerHandler(MessageType.SPRITE_ROTATE_PREVIEW, this.handleSpriteRotatePreview.bind(this));
 
-    // File transfer
-    this.registerHandler(MessageType.FILE_DATA, this.handleFileData.bind(this));
-    
     // Asset management
     this.registerHandler(MessageType.ASSET_DOWNLOAD_RESPONSE, this.handleAssetDownloadResponse.bind(this));
     this.registerHandler(MessageType.ASSET_LIST_RESPONSE, this.handleAssetListResponse.bind(this));
@@ -2141,12 +2138,6 @@ export class WebClientProtocol {
     emitProtocolEvent('sprite-data-received', message.data);
   }
 
-  // File transfer handlers
-  private async handleFileData(message: Message): Promise<void> {
-    logger.debug('Protocol: File data received:', message.data);
-    emitProtocolEvent('file-data-received', message.data);
-  }
-
   // Asset management handlers
   private async handleAssetDeleteResponse(message: Message): Promise<void> {
     logger.debug('Protocol: Asset delete response:', message.data);
@@ -2213,15 +2204,6 @@ export class WebClientProtocol {
     this.sendMessage(createMessage(MessageType.SPRITE_REQUEST, {
       sprite_id: spriteId,
       table_id: tableId
-    }));
-  }
-
-  sendFileData(fileId: string, chunkData: string, chunkIndex: number, totalChunks: number): void {
-    this.sendMessage(createMessage(MessageType.FILE_DATA, {
-      file_id: fileId,
-      chunk_data: chunkData,
-      chunk_index: chunkIndex,
-      total_chunks: totalChunks
     }));
   }
 

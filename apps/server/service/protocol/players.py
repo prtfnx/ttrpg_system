@@ -223,28 +223,3 @@ class _PlayersMixin(_ProtocolBase):
         except Exception:
             logger.exception("Player status request failed")
             return Message(MessageType.ERROR, {'error': 'Internal server error'})
-
-    async def handle_file_data(self, msg: Message, client_id: str) -> Message:
-        """Handle file data transfer"""
-        try:
-            if not msg.data:
-                return Message(MessageType.ERROR, {'error': 'No data provided'})
-
-            file_id = msg.data.get('file_id')
-            chunk_data = msg.data.get('chunk_data')
-            chunk_index = msg.data.get('chunk_index', 0)
-            total_chunks = msg.data.get('total_chunks', 1)
-
-            if not file_id or not chunk_data:
-                return Message(MessageType.ERROR, {'error': 'file_id and chunk_data are required'})
-
-            # Chunked upload storage is not implemented — acknowledge receipt only
-            logger.info(f"Received file chunk {chunk_index + 1}/{total_chunks} for file {file_id} (not stored)")
-            return Message(MessageType.SUCCESS, {
-                'message': f'File chunk {chunk_index + 1}/{total_chunks} received',
-                'file_id': file_id
-            })
-
-        except Exception:
-            logger.exception("Unsupported file-data request failed")
-            return Message(MessageType.ERROR, {'error': 'Internal server error'})

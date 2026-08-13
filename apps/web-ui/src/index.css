@@ -3,6 +3,7 @@
 @import './shared/styles/theme.css';
 
 :root {
+  color-scheme: dark;
   font-family: var(--font-sans);
   line-height: 1.5;
   font-weight: var(--font-normal);
@@ -12,6 +13,10 @@
   text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+}
+
+[data-theme='light'] {
+  color-scheme: light;
 }
 
 a {
@@ -73,7 +78,7 @@ button {
 }
 
 :where(button, a, input, select, textarea, [role='button'], [tabindex]):focus-visible {
-  outline: var(--border-width-md) solid var(--accent-primary) !important;
+  outline: var(--border-width-md) solid var(--focus-outline-color);
   outline-offset: var(--border-width-md);
 }
 
@@ -89,5 +94,12 @@ button {
   }
   a:hover {
     color: var(--text-accent-hover);
+  }
+}
+
+@media (forced-colors: active) {
+  :where(button, a, input, select, textarea, [role='button'], [tabindex]):focus-visible {
+    outline: var(--border-width-md) solid Highlight !important;
+    box-shadow: none !important;
   }
 }

@@ -124,6 +124,7 @@
   --focus-ring-primary: var(--focus-ring);
   --focus-ring-accent: 0 0 0 3px rgba(99, 102, 241, 0.5);
   --focus-ring-accent-thin: 0 0 0 2px rgba(99, 102, 241, 0.4);
+  --focus-outline-color: var(--border-focus);
   --ring-blue: var(--focus-ring);
   --overlay-dark: var(--modal-overlay);
   
@@ -525,6 +526,7 @@
   --hover-overlay: rgba(255, 255, 255, 0.15);
   --active-overlay: rgba(255, 255, 255, 0.25);
   --focus-ring: 0 0 0 3px var(--yellow-300);
+  --focus-outline-color: var(--yellow-300);
 }
 
 [data-theme="cyberpunk"] {

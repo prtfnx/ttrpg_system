@@ -382,6 +382,65 @@ describe('Protocol Message Utilities', () => {
     }
   });
 
+  it('should validate wall and door command payloads', () => {
+    const validMessages = [
+      {
+        type: MessageType.WALL_CREATE,
+        data: {
+          table_id: 'table-1',
+          wall_data: {
+            x1: 0, y1: 10, x2: 100, y2: 10,
+            wall_type: 'window', blocks_light: false,
+          },
+        },
+      },
+      {
+        type: MessageType.WALL_UPDATE,
+        data: {
+          table_id: 'table-1', wall_id: 'wall-1',
+          updates: { is_door: true, door_state: 'locked' },
+        },
+      },
+      { type: MessageType.WALL_REMOVE, data: { table_id: 'table-1', wall_id: 'wall-1' } },
+      { type: MessageType.DOOR_TOGGLE, data: { table_id: 'table-1', wall_id: 'wall-1' } },
+    ];
+
+    for (const message of validMessages) {
+      expect(parseMessage(JSON.stringify(message)).type).toBe(message.type);
+    }
+
+    const invalidMessages = [
+      {
+        type: MessageType.WALL_CREATE,
+        data: { table_id: 'table-1', wall_data: { x1: 0, y1: 10, x2: 100 } },
+      },
+      {
+        type: MessageType.WALL_CREATE,
+        data: {
+          table_id: 'table-1',
+          wall_data: {
+            wall_id: 'caller-controlled', x1: 0, y1: 10, x2: 100, y2: 10,
+          },
+        },
+      },
+      {
+        type: MessageType.WALL_UPDATE,
+        data: { table_id: 'table-1', wall_id: 'wall-1', updates: {} },
+      },
+      {
+        type: MessageType.WALL_UPDATE,
+        data: { table_id: 'table-1', wall_id: 'wall-1', updates: { door_state: 'ajar' } },
+      },
+      { type: MessageType.WALL_REMOVE, data: { table_id: 'table-1', wall_id: '' } },
+      { type: MessageType.DOOR_TOGGLE, data: { table_id: 'table-1' } },
+      { type: 'wall_batch_create', data: { table_id: 'table-1', walls: [] } },
+    ];
+
+    for (const message of invalidMessages) {
+      expect(() => parseMessage(JSON.stringify(message))).toThrow(/Invalid message/);
+    }
+  });
+
   it('should validate accepted action result payloads', () => {
     const validData = {
       accepted: true,

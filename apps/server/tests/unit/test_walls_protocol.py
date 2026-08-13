@@ -78,11 +78,44 @@ class TestWallCreate:
     async def test_success_returns_wall_data(self):
         proto = _ProtoStub(role="owner")
         proto.actions.create_wall = AsyncMock(return_value={"wall_id": "w1"})
+        wall_data = {"x1": 0, "y1": 0, "x2": 10, "y2": 10}
         resp = await proto.handle_wall_create(
-            Message(MessageType.WALL_CREATE, {"table_id": "t1", "wall_data": {"x": 0, "y": 0}}), "c1"
+            Message(MessageType.WALL_CREATE, {"table_id": "t1", "wall_data": wall_data}), "c1"
         )
         assert resp.type == MessageType.WALL_DATA
         assert resp.data["operation"] == "create"
+        assert wall_data == {"x1": 0, "y1": 0, "x2": 10, "y2": 10}
+        create_call = proto.actions.create_wall.await_args
+        assert create_call is not None
+        assert create_call.kwargs["wall_data"] == {
+            **wall_data,
+            "table_id": "t1",
+            "created_by": 1,
+        }
+
+    async def test_create_ignores_caller_owned_identity_fields(self):
+        proto = _ProtoStub(role="owner", user_id=7)
+        proto.actions.create_wall = AsyncMock(return_value={"wall_id": "server-wall"})
+        wall_data = {
+            "wall_id": "caller-wall",
+            "table_id": "other-table",
+            "created_by": 99,
+            "x1": 0,
+            "y1": 0,
+            "x2": 10,
+            "y2": 10,
+        }
+
+        await proto.handle_wall_create(
+            Message(MessageType.WALL_CREATE, {"table_id": "t1", "wall_data": wall_data}), "c1"
+        )
+
+        create_call = proto.actions.create_wall.await_args
+        assert create_call is not None
+        sent_wall = create_call.kwargs["wall_data"]
+        assert sent_wall["table_id"] == "t1"
+        assert sent_wall["created_by"] == 7
+        assert "wall_id" not in sent_wall
 
     async def test_action_exception_returns_error(self):
         proto = _ProtoStub(role="owner")
@@ -114,11 +147,26 @@ class TestWallUpdate:
         )
         assert resp.type == MessageType.ERROR
 
+    async def test_empty_updates_returns_error(self):
+        proto = _ProtoStub(role="owner")
+        resp = await proto.handle_wall_update(
+            Message(
+                MessageType.WALL_UPDATE,
+                {"table_id": "t1", "wall_id": "w1", "updates": {}},
+            ),
+            "c1",
+        )
+        assert resp.type == MessageType.ERROR
+
     async def test_success_returns_wall_data(self):
         proto = _ProtoStub(role="owner")
-        proto.actions.update_wall = AsyncMock(return_value={"wall_id": "w1", "blocking": False})
+        proto.actions.update_wall = AsyncMock(return_value={"wall_id": "w1", "blocks_movement": False})
         resp = await proto.handle_wall_update(
-            Message(MessageType.WALL_UPDATE, {"table_id": "t1", "wall_id": "w1", "updates": {"blocking": False}}), "c1"
+            Message(
+                MessageType.WALL_UPDATE,
+                {"table_id": "t1", "wall_id": "w1", "updates": {"blocks_movement": False}},
+            ),
+            "c1",
         )
         assert resp.type == MessageType.WALL_DATA
         assert resp.data["operation"] == "update"
@@ -150,55 +198,6 @@ class TestWallRemove:
 
 
 # ---------------------------------------------------------------------------
-# handle_wall_batch_create
-# ---------------------------------------------------------------------------
-
-@pytest.mark.unit
-@pytest.mark.asyncio
-class TestWallBatchCreate:
-    async def test_player_cannot_batch_create(self):
-        proto = _ProtoStub(role="player")
-        resp = await proto.handle_wall_batch_create(
-            Message(MessageType.WALL_BATCH_CREATE, {"table_id": "t1", "walls": []}), "c1"
-        )
-        assert resp.type == MessageType.ERROR
-
-    async def test_missing_table_id_returns_error(self):
-        proto = _ProtoStub(role="owner")
-        resp = await proto.handle_wall_batch_create(
-            Message(MessageType.WALL_BATCH_CREATE, {"walls": [{"x": 0}]}), "c1"
-        )
-        assert resp.type == MessageType.ERROR
-
-    async def test_success_returns_batch_result(self):
-        proto = _ProtoStub(role="owner")
-        proto.actions.create_wall = AsyncMock(side_effect=[{"wall_id": "w1"}, {"wall_id": "w2"}])
-        resp = await proto.handle_wall_batch_create(
-            Message(MessageType.WALL_BATCH_CREATE, {
-                "table_id": "t1",
-                "walls": [{"x": 0, "y": 0}, {"x": 1, "y": 1}]
-            }), "c1"
-        )
-        assert resp.type == MessageType.WALL_DATA
-        assert resp.data["operation"] == "batch_create"
-        assert len(resp.data["walls"]) == 2
-
-    async def test_failed_walls_skipped_rest_created(self):
-        proto = _ProtoStub(role="owner")
-        proto.actions.create_wall = AsyncMock(
-            side_effect=[ValueError("bad"), {"wall_id": "w2"}]
-        )
-        resp = await proto.handle_wall_batch_create(
-            Message(MessageType.WALL_BATCH_CREATE, {
-                "table_id": "t1",
-                "walls": [{"x": 0}, {"x": 1}]
-            }), "c1"
-        )
-        assert resp.type == MessageType.WALL_DATA
-        assert len(resp.data["walls"]) == 1  # only 1 succeeded
-
-
-# ---------------------------------------------------------------------------
 # handle_door_toggle
 # ---------------------------------------------------------------------------
 
@@ -214,13 +213,13 @@ class TestDoorToggle:
     async def test_spectator_cannot_toggle(self):
         proto = _ProtoStub(role="spectator")
         resp = await proto.handle_door_toggle(
-            Message(MessageType.WALL_UPDATE, {"table_id": "t1", "wall_id": "w1"}), "c1"
+            Message(MessageType.DOOR_TOGGLE, {"table_id": "t1", "wall_id": "w1"}), "c1"
         )
         assert resp.type == MessageType.ERROR
 
     async def test_no_data_returns_error(self):
         proto = _ProtoStub(role="player")
-        resp = await proto.handle_door_toggle(Message(MessageType.WALL_UPDATE, {}), "c1")
+        resp = await proto.handle_door_toggle(Message(MessageType.DOOR_TOGGLE, {}), "c1")
         assert resp.type == MessageType.ERROR
 
     async def test_table_not_found_returns_error(self):
@@ -228,7 +227,7 @@ class TestDoorToggle:
         proto.table_manager.tables_id.get.return_value = None
         proto.table_manager.tables.get.return_value = None
         resp = await proto.handle_door_toggle(
-            Message(MessageType.WALL_UPDATE, {"table_id": "t1", "wall_id": "w1"}), "c1"
+            Message(MessageType.DOOR_TOGGLE, {"table_id": "t1", "wall_id": "w1"}), "c1"
         )
         assert resp.type == MessageType.ERROR
 
@@ -238,7 +237,7 @@ class TestDoorToggle:
         table.get_wall.return_value = self._door_wall(is_door=False)
         proto.table_manager.tables_id.get.return_value = table
         resp = await proto.handle_door_toggle(
-            Message(MessageType.WALL_UPDATE, {"table_id": "t1", "wall_id": "w1"}), "c1"
+            Message(MessageType.DOOR_TOGGLE, {"table_id": "t1", "wall_id": "w1"}), "c1"
         )
         assert resp.type == MessageType.ERROR
 
@@ -248,7 +247,7 @@ class TestDoorToggle:
         table.get_wall.return_value = self._door_wall(is_door=True, door_state="locked")
         proto.table_manager.tables_id.get.return_value = table
         resp = await proto.handle_door_toggle(
-            Message(MessageType.WALL_UPDATE, {"table_id": "t1", "wall_id": "w1"}), "c1"
+            Message(MessageType.DOOR_TOGGLE, {"table_id": "t1", "wall_id": "w1"}), "c1"
         )
         assert resp.type == MessageType.ERROR
         assert "locked" in resp.data["error"].lower()
@@ -260,7 +259,7 @@ class TestDoorToggle:
         proto.table_manager.tables_id.get.return_value = table
         proto.actions.update_wall = AsyncMock(return_value={"wall_id": "w1", "door_state": "open"})
         resp = await proto.handle_door_toggle(
-            Message(MessageType.WALL_UPDATE, {"table_id": "t1", "wall_id": "w1"}), "c1"
+            Message(MessageType.DOOR_TOGGLE, {"table_id": "t1", "wall_id": "w1"}), "c1"
         )
         assert resp.type == MessageType.WALL_DATA
 
@@ -271,6 +270,6 @@ class TestDoorToggle:
         proto.table_manager.tables_id.get.return_value = table
         proto.actions.update_wall = AsyncMock(return_value={"wall_id": "w1", "door_state": "open"})
         resp = await proto.handle_door_toggle(
-            Message(MessageType.WALL_UPDATE, {"table_id": "t1", "wall_id": "w1"}), "c1"
+            Message(MessageType.DOOR_TOGGLE, {"table_id": "t1", "wall_id": "w1"}), "c1"
         )
         assert resp.type == MessageType.WALL_DATA

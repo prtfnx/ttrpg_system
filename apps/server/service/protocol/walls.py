@@ -23,12 +23,17 @@ class _WallsMixin(_ProtocolBase):
             return Message(MessageType.ERROR, {'error': 'table_id and wall_data are required'})
 
         user_id = self._get_user_id(msg, client_id)
-        wall_data['table_id'] = table_id
-        wall_data['created_by'] = user_id
+        authoritative_wall_data = wall_data.copy()
+        for server_owned_field in ('wall_id', 'table_id', 'created_by'):
+            authoritative_wall_data.pop(server_owned_field, None)
+        authoritative_wall_data.update(table_id=table_id, created_by=user_id)
 
         try:
-            wall_dict = await self.actions.create_wall(table_id=table_id, wall_data=wall_data,
-                                                       session_id=self._get_session_id(msg))
+            wall_dict = await self.actions.create_wall(
+                table_id=table_id,
+                wall_data=authoritative_wall_data,
+                session_id=self._get_session_id(msg),
+            )
         except Exception:
             logger.exception("Wall creation failed")
             return Message(MessageType.ERROR, {"error": "Wall creation failed"})
@@ -51,6 +56,8 @@ class _WallsMixin(_ProtocolBase):
         updates  = msg.data.get('updates', {})
         if not table_id or not wall_id:
             return Message(MessageType.ERROR, {'error': 'table_id and wall_id are required'})
+        if not isinstance(updates, dict) or not updates:
+            return Message(MessageType.ERROR, {'error': 'At least one wall update is required'})
 
         try:
             wall_dict = await self.actions.update_wall(table_id=table_id, wall_id=wall_id, updates=updates,
@@ -89,36 +96,6 @@ class _WallsMixin(_ProtocolBase):
             client_id,
         )
         return Message(MessageType.WALL_DATA, {'operation': 'remove', 'wall_id': wall_id, 'table_id': table_id})
-
-    async def handle_wall_batch_create(self, msg: Message, client_id: str) -> Message:
-        """DM imports many walls at once (e.g. after map import)."""
-        if not is_dm(self._get_client_role(client_id)):
-            return Message(MessageType.ERROR, {'error': 'Only DMs can batch-create walls'})
-        if not msg.data:
-            return Message(MessageType.ERROR, {'error': 'No data provided'})
-
-        table_id   = msg.data.get('table_id')
-        walls_data = msg.data.get('walls', [])
-        if not table_id or not isinstance(walls_data, list):
-            return Message(MessageType.ERROR, {'error': 'table_id and walls list are required'})
-
-        user_id    = self._get_user_id(msg, client_id)
-        session_id = self._get_session_id(msg)
-        created    = []
-        for wd in walls_data:
-            try:
-                wd['table_id']    = table_id
-                wd['created_by']  = user_id
-                wall_dict = await self.actions.create_wall(table_id=table_id, wall_data=wd, session_id=session_id)
-                created.append(wall_dict)
-            except Exception:
-                logger.exception("Wall skipped during batch creation")
-
-        await self.broadcast_to_session(
-            Message(MessageType.WALL_DATA, {'operation': 'batch_create', 'walls': created, 'table_id': table_id}),
-            client_id,
-        )
-        return Message(MessageType.WALL_DATA, {'operation': 'batch_create', 'walls': created, 'table_id': table_id})
 
     async def handle_door_toggle(self, msg: Message, client_id: str) -> Message:
         """Toggle a door between open/closed.  Players can interact; locked doors require DM."""

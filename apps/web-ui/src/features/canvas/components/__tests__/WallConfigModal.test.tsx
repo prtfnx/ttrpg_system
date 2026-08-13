@@ -94,16 +94,17 @@ describe('WallConfigModal', () => {
     expect(screen.getByText(/Door state/)).toBeInTheDocument();
   });
 
-  it('Place Wall calls addWall and protocol.createWall', () => {
+  it('Place Wall sends only mutable wall fields and waits for server identity', () => {
     render(<WallConfigModal />);
     dispatchWallDrawn(10, 20, 30, 40);
     fireEvent.click(screen.getByText('Place Wall'));
-    expect(mockAddWall).toHaveBeenCalledWith(
+    expect(mockAddWall).not.toHaveBeenCalled();
+    expect(mockProtocol.createWall).toHaveBeenCalledWith(
       expect.objectContaining({ x1: 10, y1: 20, x2: 30, y2: 40 })
     );
-    const wall = mockAddWall.mock.calls[0][0] as { wall_id: string };
-    expect(wall.wall_id).toMatch(/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i);
-    expect(mockProtocol.createWall).toHaveBeenCalled();
+    expect(mockProtocol.createWall).not.toHaveBeenCalledWith(
+      expect.objectContaining({ wall_id: expect.anything(), table_id: expect.anything() })
+    );
   });
 
   it('Place Wall does nothing when no tableId', () => {

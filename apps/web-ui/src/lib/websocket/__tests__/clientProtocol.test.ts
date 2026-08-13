@@ -52,7 +52,6 @@ const mockSetGridSnapping = vi.fn();
 const mockSetGridColorHex = vi.fn();
 const mockSetBackgroundColorHex = vi.fn();
 const mockAddWall = vi.fn();
-const mockAddWalls = vi.fn();
 const mockUpdateWall = vi.fn();
 const mockRemoveWall = vi.fn();
 const mockSetActiveTableId = vi.fn();
@@ -104,7 +103,6 @@ function makeStoreState(overrides: Record<string, unknown> = {}) {
     setGridColorHex: mockSetGridColorHex,
     setBackgroundColorHex: mockSetBackgroundColorHex,
     addWall: mockAddWall,
-    addWalls: mockAddWalls,
     updateWall: mockUpdateWall,
     removeWall: mockRemoveWall,
     setActiveTableId: mockSetActiveTableId,
@@ -409,13 +407,24 @@ describe('WebClientProtocol', () => {
       const inner = msg.data.messages[0];
       expect(inner.type).toBe('wall_create');
       expect(inner.data.table_id).toBe('table-abc');
+      expect(inner.data.wall_data).toEqual({ x1: 0, y1: 0, x2: 10, y2: 10 });
     });
 
     it('does nothing when no activeTableId', () => {
       Object.assign(mocks.storeState, makeStoreState({ activeTableId: null }));
       const p = makeProtocol();
       const ws = makeOpenWs(p);
-      p.createWall({ x1: 0, y1: 0 });
+      p.createWall({ x1: 0, y1: 0, x2: 10, y2: 10 });
+      p.sendBatch();
+      expect(ws.send).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('updateWall', () => {
+    it('does not send an empty wall update', () => {
+      const p = makeProtocol();
+      const ws = makeOpenWs(p);
+      p.updateWall('wall-99', {});
       p.sendBatch();
       expect(ws.send).not.toHaveBeenCalled();
     });
@@ -698,28 +707,34 @@ describe('WebClientProtocol', () => {
 
     it('WALL_DATA operation=create calls store.addWall', async () => {
       const p = makeProtocol();
-      const wall = { wall_id: 'w1', x1: 0, y1: 0, x2: 5, y2: 5 };
-      await dispatch(p, 'wall_data', { operation: 'create', wall });
+      const wall = {
+        wall_id: 'w1', table_id: 'table-abc', x1: 0, y1: 0, x2: 5, y2: 5,
+        wall_type: 'normal', blocks_movement: true, blocks_light: true,
+        blocks_sight: true, blocks_sound: true, is_door: false,
+        door_state: 'closed', is_secret: false, direction: 'both', created_by: 1,
+      };
+      await dispatch(p, 'wall_data', { operation: 'create', wall, table_id: 'table-abc' });
       expect(mockAddWall).toHaveBeenCalledWith(wall);
     });
 
     it('WALL_DATA operation=remove calls store.removeWall', async () => {
       const p = makeProtocol();
-      await dispatch(p, 'wall_data', { operation: 'remove', wall_id: 'w2' });
+      await dispatch(p, 'wall_data', {
+        operation: 'remove', wall_id: 'w2', table_id: 'table-abc',
+      });
       expect(mockRemoveWall).toHaveBeenCalledWith('w2');
     });
 
     it('WALL_DATA operation=update calls store.updateWall', async () => {
       const p = makeProtocol();
-      await dispatch(p, 'wall_data', { operation: 'update', wall: { wall_id: 'w3', x1: 1 } });
-      expect(mockUpdateWall).toHaveBeenCalledWith('w3', { wall_id: 'w3', x1: 1 });
-    });
-
-    it('WALL_DATA operation=batch_create calls store.addWalls', async () => {
-      const p = makeProtocol();
-      const walls = [{ wall_id: 'w4' }, { wall_id: 'w5' }];
-      await dispatch(p, 'wall_data', { operation: 'batch_create', walls });
-      expect(mockAddWalls).toHaveBeenCalledWith(walls);
+      const wall = {
+        wall_id: 'w3', table_id: 'table-abc', x1: 1, y1: 0, x2: 5, y2: 5,
+        wall_type: 'normal', blocks_movement: true, blocks_light: true,
+        blocks_sight: true, blocks_sound: true, is_door: false,
+        door_state: 'closed', is_secret: false, direction: 'both', created_by: 1,
+      };
+      await dispatch(p, 'wall_data', { operation: 'update', wall, table_id: 'table-abc' });
+      expect(mockUpdateWall).toHaveBeenCalledWith('w3', wall);
     });
 
     it('PONG marks connection alive', async () => {

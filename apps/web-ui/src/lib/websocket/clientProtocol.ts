@@ -20,6 +20,10 @@ import { MessageType, createMessage, parseMessage } from './message';
 import { emitProtocolEvent, onProtocolEvent } from './protocolEvents';
 import { validateTableId } from './tableProtocolAdapter';
 
+type WallCreateInput = Pick<WallData, 'x1' | 'y1' | 'x2' | 'y2'>
+  & Partial<Omit<WallData, 'wall_id' | 'table_id' | 'x1' | 'y1' | 'x2' | 'y2'>>;
+type WallUpdateInput = Partial<WallCreateInput>;
+
 
 export class WebClientProtocol {
   private handlers = new Map<MessageType, Set<MessageHandler>>();
@@ -1459,15 +1463,11 @@ export class WebClientProtocol {
   }
 
   private async handleWallData(message: Message): Promise<void> {
-    const data = message.data as { operation: string; wall?: Partial<WallData>; walls?: WallData[]; wall_id?: string };
+    const data = message.data as { operation: string; wall?: Partial<WallData>; wall_id?: string };
     const store = useGameStore.getState();
     switch (data.operation) {
       case 'create':
         if (data.wall) store.addWall(data.wall as WallData);
-        break;
-      case 'batch_create':
-      case 'join_sync':
-        if (data.walls?.length) store.addWalls(data.walls);
         break;
       case 'update':
         if (data.wall?.wall_id) store.updateWall(data.wall.wall_id, data.wall);
@@ -1674,16 +1674,16 @@ export class WebClientProtocol {
   }
 
   // Wall management methods
-  createWall(wall: Record<string, unknown>): void {
+  createWall(wall: WallCreateInput): void {
     const tableId = useGameStore.getState().activeTableId;
     if (!tableId) return;
     validateTableId(tableId);
     this.sendMessage(createMessage(MessageType.WALL_CREATE, { table_id: tableId, wall_data: wall }, 2));
   }
 
-  updateWall(wallId: string, updates: Record<string, unknown>): void {
+  updateWall(wallId: string, updates: WallUpdateInput): void {
     const tableId = useGameStore.getState().activeTableId;
-    if (!tableId) return;
+    if (!tableId || Object.keys(updates).length === 0) return;
     validateTableId(tableId);
     this.sendMessage(createMessage(MessageType.WALL_UPDATE, { table_id: tableId, wall_id: wallId, updates }, 2));
   }

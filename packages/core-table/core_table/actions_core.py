@@ -2,6 +2,7 @@
 import asyncio
 import copy
 import logging
+import math
 import typing
 from typing import Any, Dict, List, Optional, Tuple, Union
 
@@ -1404,6 +1405,23 @@ class ActionsCore(AsyncActionsProtocol):
     # WALL SEGMENT ACTIONS
     # =========================================================================
 
+    @staticmethod
+    def _validate_wall_coordinates(table: VirtualTable, values: dict) -> None:
+        """Reject non-finite wall endpoints outside the authoritative table."""
+        for field in ('x1', 'y1', 'x2', 'y2'):
+            if field not in values:
+                continue
+            value = values[field]
+            if isinstance(value, bool) or not isinstance(value, (int, float)):
+                raise ValueError(f"Wall coordinate {field} must be a number")
+            if not math.isfinite(value):
+                raise ValueError(f"Wall coordinate {field} must be finite")
+            limit = table.width if field.startswith('x') else table.height
+            if value < 0 or value > limit:
+                raise ValueError(
+                    f"Wall coordinate {field} must be between 0 and {limit}"
+                )
+
     async def create_wall(self, table_id: str, wall_data: dict, session_id: Optional[int] = None) -> dict:
         """Create a wall segment, persist to DB, and return its dict representation."""
         from core_table.entities import Wall
@@ -1411,6 +1429,7 @@ class ActionsCore(AsyncActionsProtocol):
         table = await self._get_table(table_id)
         if table is None:
             raise ValueError(f"Table {table_id!r} not found")
+        self._validate_wall_coordinates(table, wall_data)
 
         wall = Wall.from_dict({**wall_data, 'table_id': str(table.table_id)})
 
@@ -1434,6 +1453,9 @@ class ActionsCore(AsyncActionsProtocol):
         table = await self._get_table(table_id)
         if table is None:
             raise ValueError(f"Table {table_id!r} not found")
+        if table.get_wall(wall_id) is None:
+            raise KeyError(f"Wall {wall_id!r} not found in table {table_id!r}")
+        self._validate_wall_coordinates(table, updates)
 
         if session_id and hasattr(self.table_manager, 'db_session') and self.table_manager.db_session:
             try:
@@ -1457,6 +1479,8 @@ class ActionsCore(AsyncActionsProtocol):
         table = await self._get_table(table_id)
         if table is None:
             raise ValueError(f"Table {table_id!r} not found")
+        if table.get_wall(wall_id) is None:
+            raise KeyError(f"Wall {wall_id!r} not found in table {table_id!r}")
 
         if session_id and hasattr(self.table_manager, 'db_session') and self.table_manager.db_session:
             try:

@@ -49,7 +49,7 @@ class ServerProtocol(
       assets.py      — asset upload/download/hash/R2 sync
       players.py     — player list/kick/ban/status
       characters.py  — character save/load/update/XP/multiclass
-      walls.py       — wall/door CRUD + batch
+      walls.py       — wall/door CRUD
       session.py     — layer settings, game mode, session rules
       combat.py      — initiative, turns, conditions, DM tools, cover
       encounter.py   — encounter start/end/choice/roll
@@ -168,7 +168,6 @@ class ServerProtocol(
         self.register_handler(MessageType.WALL_CREATE,       self.handle_wall_create)
         self.register_handler(MessageType.WALL_UPDATE,       self.handle_wall_update)
         self.register_handler(MessageType.WALL_REMOVE,       self.handle_wall_remove)
-        self.register_handler(MessageType.WALL_BATCH_CREATE, self.handle_wall_batch_create)
         self.register_handler(MessageType.DOOR_TOGGLE,       self.handle_door_toggle)
 
         # Paint strokes

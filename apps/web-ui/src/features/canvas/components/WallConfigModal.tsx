@@ -24,7 +24,6 @@ export const WallConfigModal: React.FC = () => {
   const titleId = useId();
   const { protocol } = useProtocol();
   const tableId = useGameStore(s => s.activeTableId);
-  const addWall = useGameStore(s => s.addWall);
 
   const [draft, setDraft] = useState<WallDraft | null>(null);
 
@@ -58,15 +57,7 @@ export const WallConfigModal: React.FC = () => {
   const submit = () => {
     if (!draft || !tableId || !protocol) return;
 
-    const wall: WallData = {
-      wall_id: crypto.randomUUID(),
-      table_id: tableId,
-      ...draft,
-    };
-
-    // Optimistic local update — addWall also forwards to rustRenderManager
-    addWall(wall);
-    protocol.createWall(wall as unknown as Record<string, unknown>);
+    protocol.createWall(draft);
     close();
   };
 

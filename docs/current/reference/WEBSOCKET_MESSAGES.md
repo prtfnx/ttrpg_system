@@ -5,7 +5,7 @@ Audience: contributors changing browser/server protocol behavior.
 Status: partial. This page catalogs the currently registered server handlers
 and the main browser message families. It does not document every payload field.
 
-Last source audit: 2026-08-11
+Last source audit: 2026-08-12
 
 ## Source of truth
 
@@ -63,7 +63,7 @@ These messages are registered in `ServerProtocol.init_handlers`.
 | Files and assets | `file_request`, `file_data`, `asset_upload_request`, `asset_download_request`, `asset_list_request`, `asset_upload_confirm`, `asset_delete_request`, `asset_hash_check` | `protocol/assets.py` and `protocol/players.py` |
 | Compendium sprites | `compendium_sprite_add`, `compendium_sprite_update`, `compendium_sprite_remove` | `protocol/sprites.py` |
 | Characters | `character_save_request`, `character_load_request`, `character_list_request`, `character_delete_request`, `character_update`, `character_log_request`, `character_roll`, `xp_award`, `multiclass_request` | `protocol/characters.py` |
-| Walls and doors | `wall_create`, `wall_update`, `wall_remove`, `wall_batch_create`, `door_toggle` | `protocol/walls.py` |
+| Walls and doors | `wall_create`, `wall_update`, `wall_remove`, `door_toggle` | `protocol/walls.py` |
 | Paint | `paint_stroke_create`, `paint_stroke_delete`, `paint_stroke_clear` | `protocol/paint.py` |
 | Session | `layer_settings_update`, `game_mode_change`, `session_rules_update`, `session_rules_request` | `protocol/session.py` |
 | Combat | `combat_state_request`, `cover_zones_sync`, `attack_preview`, `ai_action`, `combat_command` | `protocol/combat.py` |

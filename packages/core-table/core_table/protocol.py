@@ -179,7 +179,6 @@ class MessageType(enum.Enum):
     WALL_CREATE = "wall_create"
     WALL_UPDATE = "wall_update"
     WALL_REMOVE = "wall_remove"
-    WALL_BATCH_CREATE = "wall_batch_create"
     WALL_DATA = "wall_data"
     DOOR_TOGGLE = "door_toggle"
     PAINT_STROKE_CREATE = "paint_stroke_create"

@@ -5,12 +5,12 @@ vision, or layer visibility.
 
 Status: current but partial.
 
-Last source audit: 2026-07-09
+Last source audit: 2026-08-12
 
 ## Source owners
 
-- `apps/server/service/protocol/walls.py`: wall create, update, remove, batch
-  create, and door toggle handlers.
+- `apps/server/service/protocol/walls.py`: wall create, update, remove, and
+  door toggle handlers.
 - `apps/server/service/protocol/tables.py`: table settings, table load, fog
   rectangle updates, and join-time wall/layer/fog sync.
 - `apps/server/service/protocol/session.py`: layer settings updates.
@@ -41,7 +41,6 @@ Wall and door messages:
 - `wall_create`
 - `wall_update`
 - `wall_remove`
-- `wall_batch_create`
 - `wall_data`
 - `door_toggle`
 
@@ -55,8 +54,16 @@ Table, fog, and layer messages:
 
 ## Authority rules
 
-Wall create, update, remove, and batch create are DM-only. The server writes
-the wall through table actions, then broadcasts `wall_data`.
+Wall create, update, and remove are DM-only. The server writes the wall through
+table actions, then broadcasts `wall_data`. Wall identifiers, table ownership,
+and creator identity are server-owned: creation accepts only endpoints and
+allowlisted wall properties, while updates accept a non-empty allowlist of
+mutable properties. The canonical JSON Schema rejects unknown properties,
+invalid enum values, non-boolean flags, and coordinates outside the protocol's
+maximum canvas before dispatch. Table actions also validate endpoints against
+the selected table's actual dimensions before persistence. The unused
+partial-success `wall_batch_create` command was removed;
+a future import API must define atomicity and bounded batch behavior explicitly.
 
 Door toggle uses the wall handler, not a client-only shortcut:
 
@@ -114,6 +121,9 @@ it:
 ## Tests to run
 
 - `apps/server/tests/unit/test_walls_protocol.py`
+- `packages/core-table/tests/test_protocol_schema.py`
+- `apps/web-ui/src/shared/protocol/__tests__/messageProtocol.test.ts`
+- `apps/web-ui/src/lib/websocket/__tests__/clientProtocol.test.ts`
 - `apps/server/tests/unit/test_dynamic_lighting.py`
 - `apps/server/tests/unit/test_tables_protocol.py`
 - `apps/web-ui/src/features/fog/components/__tests__/FogPanel.test.tsx`

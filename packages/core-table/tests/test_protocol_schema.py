@@ -144,3 +144,92 @@ def test_message_from_json_accepts_table_command_payloads(message):
 def test_message_from_json_rejects_invalid_table_command_payloads(message):
     with pytest.raises(ValueError, match="Invalid protocol message"):
         Message.from_json(json.dumps(message))
+
+
+@pytest.mark.parametrize(
+    "message",
+    [
+        {
+            "type": "wall_create",
+            "data": {
+                "table_id": "table-1",
+                "wall_data": {
+                    "x1": 0,
+                    "y1": 10,
+                    "x2": 100,
+                    "y2": 10,
+                    "wall_type": "window",
+                    "blocks_movement": True,
+                    "blocks_light": False,
+                },
+            },
+        },
+        {
+            "type": "wall_update",
+            "data": {
+                "table_id": "table-1",
+                "wall_id": "wall-1",
+                "updates": {"door_state": "locked", "is_door": True},
+            },
+        },
+        {"type": "wall_remove", "data": {"table_id": "table-1", "wall_id": "wall-1"}},
+        {"type": "door_toggle", "data": {"table_id": "table-1", "wall_id": "wall-1"}},
+    ],
+)
+def test_message_from_json_accepts_wall_command_payloads(message):
+    parsed = Message.from_json(json.dumps(message))
+
+    assert parsed.type.value == message["type"]
+
+
+@pytest.mark.parametrize(
+    "message",
+    [
+        {
+            "type": "wall_create",
+            "data": {
+                "table_id": "table-1",
+                "wall_data": {"x1": 0, "y1": 10, "x2": 100},
+            },
+        },
+        {
+            "type": "wall_create",
+            "data": {
+                "table_id": "table-1",
+                "wall_data": {
+                    "wall_id": "caller-controlled",
+                    "x1": 0,
+                    "y1": 10,
+                    "x2": 100,
+                    "y2": 10,
+                },
+            },
+        },
+        {
+            "type": "wall_update",
+            "data": {"table_id": "table-1", "wall_id": "wall-1", "updates": {}},
+        },
+        {
+            "type": "wall_update",
+            "data": {
+                "table_id": "table-1",
+                "wall_id": "wall-1",
+                "updates": {"door_state": "ajar"},
+            },
+        },
+        {
+            "type": "wall_update",
+            "data": {
+                "table_id": "table-1",
+                "wall_id": "wall-1",
+                "updates": {"created_by": 99},
+            },
+        },
+        {"type": "wall_remove", "data": {"table_id": "table-1", "wall_id": ""}},
+        {"type": "door_toggle", "data": {"table_id": "table-1"}},
+        {"type": "wall_batch_create", "data": {"table_id": "table-1", "walls": []}},
+    ],
+)
+def test_message_from_json_rejects_invalid_wall_command_payloads(message):
+    with pytest.raises(ValueError, match="Invalid protocol message"):
+        Message.from_json(json.dumps(message))

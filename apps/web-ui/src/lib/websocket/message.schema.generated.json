@@ -168,7 +168,6 @@
         "wall_create",
         "wall_update",
         "wall_remove",
-        "wall_batch_create",
         "wall_data",
         "door_toggle",
         "paint_stroke_create",
@@ -348,7 +347,6 @@
         "WALL_CREATE",
         "WALL_UPDATE",
         "WALL_REMOVE",
-        "WALL_BATCH_CREATE",
         "WALL_DATA",
         "DOOR_TOGGLE",
         "PAINT_STROKE_CREATE",
@@ -1446,6 +1444,257 @@
         }
       },
       "additionalProperties": false
+    },
+    "wallIdentifierData": {
+      "type": "object",
+      "required": [
+        "table_id",
+        "wall_id"
+      ],
+      "properties": {
+        "table_id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128
+        },
+        "wall_id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128
+        }
+      },
+      "additionalProperties": false
+    },
+    "wallMutableFields": {
+      "type": "object",
+      "properties": {
+        "x1": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 10000
+        },
+        "y1": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 10000
+        },
+        "x2": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 10000
+        },
+        "y2": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 10000
+        },
+        "wall_type": {
+          "enum": [
+            "normal",
+            "terrain",
+            "invisible",
+            "ethereal",
+            "window"
+          ]
+        },
+        "blocks_movement": {
+          "type": "boolean"
+        },
+        "blocks_light": {
+          "type": "boolean"
+        },
+        "blocks_sight": {
+          "type": "boolean"
+        },
+        "blocks_sound": {
+          "type": "boolean"
+        },
+        "is_door": {
+          "type": "boolean"
+        },
+        "door_state": {
+          "enum": [
+            "closed",
+            "open",
+            "locked"
+          ]
+        },
+        "is_secret": {
+          "type": "boolean"
+        },
+        "direction": {
+          "enum": [
+            "both",
+            "left",
+            "right"
+          ]
+        }
+      }
+    },
+    "wallCreatePayload": {
+      "type": "object",
+      "allOf": [
+        {
+          "$ref": "#/$defs/wallMutableFields"
+        }
+      ],
+      "required": [
+        "x1",
+        "y1",
+        "x2",
+        "y2"
+      ],
+      "unevaluatedProperties": false
+    },
+    "wallUpdatePayload": {
+      "type": "object",
+      "allOf": [
+        {
+          "$ref": "#/$defs/wallMutableFields"
+        }
+      ],
+      "minProperties": 1,
+      "unevaluatedProperties": false
+    },
+    "wallCreateData": {
+      "type": "object",
+      "required": [
+        "table_id",
+        "wall_data"
+      ],
+      "properties": {
+        "table_id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128
+        },
+        "wall_data": {
+          "$ref": "#/$defs/wallCreatePayload"
+        }
+      },
+      "additionalProperties": false
+    },
+    "wallUpdateData": {
+      "type": "object",
+      "required": [
+        "table_id",
+        "wall_id",
+        "updates"
+      ],
+      "properties": {
+        "table_id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128
+        },
+        "wall_id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128
+        },
+        "updates": {
+          "$ref": "#/$defs/wallUpdatePayload"
+        }
+      },
+      "additionalProperties": false
+    },
+    "wallRecord": {
+      "type": "object",
+      "allOf": [
+        {
+          "$ref": "#/$defs/wallMutableFields"
+        }
+      ],
+      "required": [
+        "wall_id",
+        "table_id",
+        "x1",
+        "y1",
+        "x2",
+        "y2",
+        "wall_type",
+        "blocks_movement",
+        "blocks_light",
+        "blocks_sight",
+        "blocks_sound",
+        "is_door",
+        "door_state",
+        "is_secret",
+        "direction",
+        "created_by"
+      ],
+      "properties": {
+        "wall_id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128
+        },
+        "table_id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128
+        },
+        "created_by": {
+          "type": [
+            "integer",
+            "null"
+          ]
+        }
+      },
+      "unevaluatedProperties": false
+    },
+    "wallData": {
+      "oneOf": [
+        {
+          "type": "object",
+          "required": [
+            "operation",
+            "wall",
+            "table_id"
+          ],
+          "properties": {
+            "operation": {
+              "enum": [
+                "create",
+                "update"
+              ]
+            },
+            "wall": {
+              "$ref": "#/$defs/wallRecord"
+            },
+            "table_id": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 128
+            }
+          },
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "required": [
+            "operation",
+            "wall_id",
+            "table_id"
+          ],
+          "properties": {
+            "operation": {
+              "const": "remove"
+            },
+            "wall_id": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 128
+            },
+            "table_id": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 128
+            }
+          },
+          "additionalProperties": false
+        }
+      ]
     }
   },
   "allOf": [
@@ -2008,6 +2257,97 @@
         "properties": {
           "data": {
             "$ref": "#/$defs/tableSettingsChangedData"
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "type": {
+            "const": "wall_create"
+          }
+        },
+        "required": [
+          "type"
+        ]
+      },
+      "then": {
+        "required": [
+          "data"
+        ],
+        "properties": {
+          "data": {
+            "$ref": "#/$defs/wallCreateData"
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "type": {
+            "const": "wall_update"
+          }
+        },
+        "required": [
+          "type"
+        ]
+      },
+      "then": {
+        "required": [
+          "data"
+        ],
+        "properties": {
+          "data": {
+            "$ref": "#/$defs/wallUpdateData"
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "type": {
+            "enum": [
+              "wall_remove",
+              "door_toggle"
+            ]
+          }
+        },
+        "required": [
+          "type"
+        ]
+      },
+      "then": {
+        "required": [
+          "data"
+        ],
+        "properties": {
+          "data": {
+            "$ref": "#/$defs/wallIdentifierData"
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "type": {
+            "const": "wall_data"
+          }
+        },
+        "required": [
+          "type"
+        ]
+      },
+      "then": {
+        "required": [
+          "data"
+        ],
+        "properties": {
+          "data": {
+            "$ref": "#/$defs/wallData"
           }
         }
       }

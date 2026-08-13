@@ -121,20 +121,20 @@
 }
 
 .roleBadge.dm {
-  background-color: var(--color-warning);
-  color: var(--gray-950);
+  background-color: var(--button-warning-bg);
+  color: var(--button-warning-text);
 }
 
 .roleBadge.player {
-  background-color: var(--color-success);
-  color: var(--gray-950);
+  background-color: var(--button-success-bg);
+  color: var(--button-success-text);
 }
 
 .joinBtn,
 .retryBtn,
 .logoutBtn {
-  background-color: var(--color-primary-light);
-  color: var(--gray-950);
+  background-color: var(--button-primary-bg);
+  color: var(--button-primary-text);
   border: none;
   padding: var(--space-sm) var(--space-lg);
   border-radius: var(--radius-sm);
@@ -146,16 +146,16 @@
 .joinBtn:hover,
 .retryBtn:hover,
 .logoutBtn:hover {
-  background-color: var(--color-primary);
+  background-color: var(--button-primary-hover);
 }
 
 .logoutBtn {
-  background-color: var(--color-danger);
-  color: var(--text-primary);
+  background-color: var(--button-danger-bg);
+  color: var(--button-danger-text);
 }
 
 .logoutBtn:hover {
-  background-color: var(--red-600);
+  background-color: var(--button-danger-hover);
 }
 
 .logoutBtn.small {
@@ -176,7 +176,7 @@
 }
 
 .errorMessage {
-  color: var(--red-400);
+  color: var(--status-error-text);
   font-weight: var(--font-medium);
 }
 
@@ -212,7 +212,7 @@
 }
 
 .connectionStatus.disconnected .statusIndicator {
-  background-color: var(--gray-500);
+  background-color: var(--text-muted);
 }
 
 .connectionStatus.error .statusIndicator {

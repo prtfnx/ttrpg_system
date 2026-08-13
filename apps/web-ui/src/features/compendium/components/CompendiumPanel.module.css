@@ -60,7 +60,7 @@
 
 .searchInput:focus {
   outline: none;
-  border-color: var(--blue-500);
+  border-color: var(--input-border-focus);
 }
 
 .filterRow {
@@ -82,7 +82,7 @@
 
 .select:focus {
   outline: none;
-  border-color: var(--blue-500);
+  border-color: var(--input-border-focus);
 }
 
 .crInput {
@@ -97,7 +97,7 @@
 
 .crInput:focus {
   outline: none;
-  border-color: var(--blue-500);
+  border-color: var(--input-border-focus);
 }
 
 .crLabel {
@@ -139,12 +139,12 @@
 
 .entry:hover {
   background: var(--bg-elevated);
-  border-color: var(--blue-700);
+  border-color: var(--border-focus);
 }
 
 .entry.selected {
   background: var(--bg-elevated);
-  border-color: var(--blue-500);
+  border-color: var(--border-focus);
 }
 
 .entryTop {
@@ -162,9 +162,9 @@
   flex-shrink: 0;
 }
 
-.badge.monster  { background: var(--red-900);   color: var(--red-300);   }
-.badge.spell    { background: var(--blue-900);  color: var(--blue-300);  }
-.badge.equipment { background: var(--green-900); color: var(--green-300); }
+.badge.monster  { background: var(--status-error-bg); color: var(--status-error-text); }
+.badge.spell    { background: var(--status-info-bg); color: var(--status-info-text); }
+.badge.equipment { background: var(--status-success-bg); color: var(--status-success-text); }
 
 .entryName {
   font-size: var(--text-xs);
@@ -217,7 +217,7 @@
 }
 
 .paginationBtn:not(:disabled):hover {
-  border-color: var(--blue-500);
+  border-color: var(--border-focus);
 }
 
 .status {

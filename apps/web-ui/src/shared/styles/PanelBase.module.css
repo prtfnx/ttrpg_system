@@ -115,7 +115,7 @@
   max-height: 60dvh;
   overflow-y: auto;
   scrollbar-width: thin;
-  scrollbar-color: var(--gray-600) var(--bg-primary);
+  scrollbar-color: var(--border-secondary) var(--bg-primary);
 }
 
 /* Scrollbar styling */
@@ -129,12 +129,12 @@
 }
 
 .panel-content::-webkit-scrollbar-thumb {
-  background: var(--gray-600);
+  background: var(--border-secondary);
   border-radius: var(--radius-sm);
 }
 
 .panel-content::-webkit-scrollbar-thumb:hover {
-  background: var(--gray-500);
+  background: var(--border-hover);
 }
 
 /* ===== Section Groups ===== */
@@ -261,7 +261,7 @@
 .control-slider {
   width: 100%;
   height: calc(var(--space-xs) * 1.5);
-  background: var(--gray-700);
+  background: var(--bg-elevated-hover);
   border-radius: var(--radius-sm);
   outline: none;
   cursor: pointer;
@@ -321,7 +321,7 @@
   position: relative;
   width: calc(var(--space-2xl) * 1.375);
   height: var(--space-xl);
-  background: var(--gray-700);
+  background: var(--bg-elevated-hover);
   border-radius: var(--radius-md);
   margin-right: var(--space-md);
   transition: var(--transition-interactive-slow);
@@ -334,7 +334,7 @@
   left: var(--space-xs);
   width: var(--space-lg);
   height: var(--space-lg);
-  background: var(--white);
+  background: var(--text-on-accent);
   border-radius: 50%;
   transition: var(--transition-interactive-slow);
 }

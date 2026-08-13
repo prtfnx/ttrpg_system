@@ -382,6 +382,14 @@ describe('Protocol Message Utilities', () => {
     }
   });
 
+  it.each(['connection_status_request', 'connection_status_response'])(
+    'should reject removed connection status message %s',
+    (type) => {
+      expect(() => parseMessage(JSON.stringify({ type, data: {} })))
+        .toThrow(/Invalid message/);
+    }
+  );
+
   it('should validate wall and door command payloads', () => {
     const validMessages = [
       {

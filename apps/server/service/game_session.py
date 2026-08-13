@@ -406,13 +406,6 @@ class ConnectionManager:
             return await protocol_service.ban_player(target_player_id, target_username, reason, duration, banned_by_client_id)
         return False
 
-    def get_connection_status(self, session_code: str, client_id: str) -> dict:
-        """Get connection status for a client in a session"""
-        if session_code in self.sessions_protocols:
-            protocol_service = self.sessions_protocols[session_code]
-            return protocol_service.get_connection_status(client_id)
-        return {'connected': False, 'error': 'Session not found'}
-
 # Dependency function to get connection manager
 _connection_manager = None
 

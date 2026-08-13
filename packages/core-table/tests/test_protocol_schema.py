@@ -34,6 +34,8 @@ def test_message_from_json_validates_the_envelope():
         "[]",
         '{"type":"unknown","data":{}}',
         '{"type":"test","data":{}}',
+        '{"type":"connection_status_request","data":{}}',
+        '{"type":"connection_status_response","data":{}}',
         '{"type":"ping","data":[]}',
         '{"type":"ping","data":{},"unexpected":true}',
     ],

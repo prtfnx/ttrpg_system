@@ -1258,15 +1258,6 @@ describe('WebClientProtocol', () => {
       expect(fn).toHaveBeenCalledOnce();
     });
 
-    it('CONNECTION_STATUS_RESPONSE dispatches connection-status-response', async () => {
-      const p = makeProtocol();
-      const fn = vi.fn();
-      window.addEventListener('connection-status-response', fn);
-      await dispatch(p, 'connection_status_response', {});
-      window.removeEventListener('connection-status-response', fn);
-      expect(fn).toHaveBeenCalledOnce();
-    });
-
     it('TABLE_DATA dispatches table-data-received', async () => {
       const p = makeProtocol();
       const fn = vi.fn();

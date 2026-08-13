@@ -129,37 +129,6 @@ class _PlayersMixin(_ProtocolBase):
             logger.exception("Player ban request failed")
             return Message(MessageType.ERROR, {'error': 'Failed to ban player'})
 
-    async def handle_connection_status_request(self, msg: Message, client_id: str) -> Message:
-        """Handle connection status request"""
-        logger.debug(
-            "Connection status requested",
-            extra={"event_name": "connection.status.requested"},
-        )
-
-        try:
-            session_code = self._get_session_code(msg)
-
-            # Get connection status from session manager
-            if hasattr(self, 'session_manager') and self.session_manager:
-                status = self.session_manager.get_connection_status(client_id)
-                return Message(MessageType.CONNECTION_STATUS_RESPONSE, {
-                    'connected': True,
-                    'session_code': session_code,
-                    'client_id': client_id,
-                    'status': status
-                })
-            else:
-                return Message(MessageType.CONNECTION_STATUS_RESPONSE, {
-                    'connected': False,
-                    'session_code': session_code,
-                    'client_id': client_id,
-                    'error': 'Session manager not available'
-                })
-
-        except Exception:
-            logger.exception("Connection status request failed")
-            return Message(MessageType.ERROR, {'error': 'Failed to get connection status'})
-
     def _get_client_info(self, client_id: str) -> dict:
         """Get client info dict from session manager."""
         if self.session_manager and hasattr(self.session_manager, 'client_info'):

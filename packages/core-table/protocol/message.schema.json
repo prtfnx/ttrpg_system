@@ -47,8 +47,6 @@
         "player_kick_response",
         "player_ban_response",
         "player_role_changed",
-        "connection_status_request",
-        "connection_status_response",
         "sprite_request",
         "sprite_response",
         "sprite_data",
@@ -226,8 +224,6 @@
         "PLAYER_KICK_RESPONSE",
         "PLAYER_BAN_RESPONSE",
         "PLAYER_ROLE_CHANGED",
-        "CONNECTION_STATUS_REQUEST",
-        "CONNECTION_STATUS_RESPONSE",
         "SPRITE_REQUEST",
         "SPRITE_RESPONSE",
         "SPRITE_DATA",
@@ -1856,8 +1852,7 @@
             "enum": [
               "player_ready",
               "player_unready",
-              "player_list_request",
-              "connection_status_request"
+              "player_list_request"
             ]
           }
         },

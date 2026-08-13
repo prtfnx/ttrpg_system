@@ -565,23 +565,6 @@ class GameSessionProtocolService:
             logger.error(f"Error banning player: {e}")
             return False
 
-    def get_connection_status(self, client_id: str) -> dict:
-        """Get connection status for a client"""
-        if client_id in self.client_info:
-            info = self.client_info[client_id]
-            return {
-                'connected': True,
-                'username': info.get('username', 'unknown'),
-                'connected_at': info.get('connected_at', 0),
-                'last_ping': info.get('last_ping', 0),
-                'session_code': self.session_code
-            }
-        else:
-            return {
-                'connected': False,
-                'session_code': self.session_code
-            }
-
     def get_session_players(self) -> List[dict]:
         """Get list of connected players in this session"""
         players = []

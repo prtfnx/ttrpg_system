@@ -233,7 +233,6 @@ export class WebClientProtocol {
     this.registerHandler(MessageType.PLAYER_KICK_RESPONSE, this.handlePlayerKickResponse.bind(this));
     this.registerHandler(MessageType.PLAYER_BAN_RESPONSE, this.handlePlayerBanResponse.bind(this));
     this.registerHandler(MessageType.PLAYER_ROLE_CHANGED, this.handlePlayerRoleChanged.bind(this));
-    this.registerHandler(MessageType.CONNECTION_STATUS_RESPONSE, this.handleConnectionStatusResponse.bind(this));
 
     // Table management
     this.registerHandler(MessageType.TABLE_DATA, this.handleTableData.bind(this));
@@ -2127,11 +2126,6 @@ export class WebClientProtocol {
     }
   }
 
-  private async handleConnectionStatusResponse(message: Message): Promise<void> {
-    logger.debug('Protocol: Connection status response:', message.data);
-    emitProtocolEvent('connection-status-response', message.data);
-  }
-
   // Sprite data handlers
   private async handleSpriteResponse(message: Message): Promise<void> {
     // Confirm pending action - server echoes action_id back to the originating client
@@ -2213,10 +2207,6 @@ export class WebClientProtocol {
 
   banPlayer(playerId: string): void {
     this.sendMessage(createMessage(MessageType.PLAYER_BAN_REQUEST, { player_id: playerId }));
-  }
-
-  requestConnectionStatus(): void {
-    this.sendMessage(createMessage(MessageType.CONNECTION_STATUS_REQUEST));
   }
 
   requestSpriteData(spriteId: string, tableId: string): void {

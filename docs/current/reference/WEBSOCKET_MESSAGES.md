@@ -58,7 +58,7 @@ These messages are registered in `ServerProtocol.init_handlers`.
 | --- | --- | --- |
 | Core | `ping`, `batch_request` | `protocol/base.py` |
 | Tables | `new_table_request`, `table_request`, `table_update_request`, `table_scale`, `table_move`, `table_delete`, `table_list_request`, `table_active_request`, `table_active_set`, `table_active_set_all`, `table_settings_update` | `protocol/tables.py` |
-| Players | `player_ready`, `player_unready`, `player_status_request`, `player_list_request`, `player_kick_request`, `player_ban_request`, `connection_status_request` | `protocol/players.py` |
+| Players | `player_ready`, `player_unready`, `player_status_request`, `player_list_request`, `player_kick_request`, `player_ban_request` | `protocol/players.py` |
 | Sprites | `sprite_request`, `sprite_create`, `sprite_remove`, `sprite_move`, `sprite_scale`, `sprite_rotate`, `sprite_update`, `sprite_drag_preview`, `sprite_resize_preview`, `sprite_rotate_preview` | `protocol/sprites.py` |
 | Files and assets | `file_request`, `file_data`, `asset_upload_request`, `asset_download_request`, `asset_list_request`, `asset_upload_confirm`, `asset_delete_request`, `asset_hash_check` | `protocol/assets.py` and `protocol/players.py` |
 | Compendium sprites | `compendium_sprite_add`, `compendium_sprite_update`, `compendium_sprite_remove` | `protocol/sprites.py` |
@@ -73,6 +73,11 @@ These messages are registered in `ServerProtocol.init_handlers`.
 If a message is only present in an enum but not registered here, it is not a
 normal server inbound handler unless another path handles it explicitly.
 
+The unused `connection_status_request` and `connection_status_response`
+messages were retired on 2026-08-12. Liveness is already owned by WebSocket
+state, heartbeat handling, and reconnect state; do not reintroduce a second
+status-query API without a production consumer and a distinct requirement.
+
 ## Main server response and broadcast families
 
 The server sends responses and broadcasts with the same `Message` envelope.
@@ -84,8 +89,7 @@ Common families include:
   `table_active_set_all_response`, `table_settings_changed`.
 - Players: `player_joined`, `player_left`, player-status responses and broadcasts,
   `player_list_response`,
-  `player_kick_response`, `player_ban_response`, `player_role_changed`,
-  `connection_status_response`.
+  `player_kick_response`, `player_ban_response`, and `player_role_changed`.
 - Sprites: `sprite_response`, `sprite_data`, `sprite_update`,
   `sprite_remove`, `sprite_move`, `sprite_scale`, `sprite_rotate`, preview
   messages.

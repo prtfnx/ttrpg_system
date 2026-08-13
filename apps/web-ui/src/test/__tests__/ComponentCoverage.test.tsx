@@ -142,15 +142,6 @@ vi.mock('../../services/assetService', () => ({
   },
 }));
 
-vi.mock('../../services/networkService', () => ({
-  networkService: {
-    connect: vi.fn(),
-    disconnect: vi.fn(),
-    getConnectionStatus: vi.fn().mockReturnValue('connected'),
-    sendMessage: vi.fn(),
-  },
-}));
-
 // Test AssetPanel Component
 describe('AssetPanel Component', () => {
   beforeEach(() => {

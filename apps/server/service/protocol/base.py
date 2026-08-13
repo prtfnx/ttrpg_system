@@ -113,7 +113,6 @@ class ServerProtocol(
         self.register_handler(MessageType.PLAYER_LIST_REQUEST, self.handle_player_list_request)
         self.register_handler(MessageType.PLAYER_KICK_REQUEST, self.handle_player_kick_request)
         self.register_handler(MessageType.PLAYER_BAN_REQUEST, self.handle_player_ban_request)
-        self.register_handler(MessageType.CONNECTION_STATUS_REQUEST, self.handle_connection_status_request)
 
         # Sprites
         self.register_handler(MessageType.SPRITE_REQUEST, self.handle_sprite_request)

@@ -29,7 +29,6 @@ export type ProtocolEventMap = {
   'compendium-sprite-added': ProtocolRecord;
   'compendium-sprite-removed': ProtocolRecord;
   'compendium-sprite-updated': ProtocolRecord;
-  'connection-status-response': ProtocolRecord;
   'file-data-received': ProtocolRecord;
   'new-table-response': ProtocolRecord;
   'paint-stroke-created': ProtocolRecord;

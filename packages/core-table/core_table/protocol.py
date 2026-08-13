@@ -58,8 +58,6 @@ class MessageType(enum.Enum):
     PLAYER_KICK_RESPONSE = "player_kick_response"
     PLAYER_BAN_RESPONSE = "player_ban_response"
     PLAYER_ROLE_CHANGED = "player_role_changed"
-    CONNECTION_STATUS_REQUEST = "connection_status_request"
-    CONNECTION_STATUS_RESPONSE = "connection_status_response"
     SPRITE_REQUEST = "sprite_request"
     SPRITE_RESPONSE = "sprite_response"
     SPRITE_DATA = "sprite_data"

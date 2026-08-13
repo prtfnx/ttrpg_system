@@ -452,24 +452,10 @@ class TestKickBanPlayer:
 
 
 # ---------------------------------------------------------------------------
-# get_connection_status / get_session_players
+# get_session_players
 # ---------------------------------------------------------------------------
 
-class TestConnectionStatus:
-    def test_connected_client_returns_status(self):
-        svc = _make_service()
-        svc.clients["c1"] = _ws()
-        svc.client_info["c1"] = {"username": "Alice", "connected_at": 100.0, "last_ping": 200.0}
-        status = svc.get_connection_status("c1")
-        assert status["connected"] is True
-        assert status["username"] == "Alice"
-
-    def test_unknown_client_returns_not_connected(self):
-        svc = _make_service()
-        status = svc.get_connection_status("nobody")
-        assert status["connected"] is False
-        assert status["session_code"] == "TST"
-
+class TestSessionPlayers:
     def test_get_session_players_returns_all_clients(self):
         svc = _make_service()
         svc.clients["c1"] = _ws()

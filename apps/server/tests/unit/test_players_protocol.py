@@ -192,32 +192,6 @@ class TestPlayerBanRequest:
 
 
 # ---------------------------------------------------------------------------
-# handle_connection_status_request
-# ---------------------------------------------------------------------------
-
-@pytest.mark.unit
-@pytest.mark.asyncio
-class TestConnectionStatusRequest:
-    async def test_with_session_manager_returns_connected(self):
-        proto = _ProtoStub()
-        proto.session_manager.get_connection_status.return_value = {"latency": 10}
-        msg = Message(MessageType.CONNECTION_STATUS_REQUEST, {})
-        resp = await proto.handle_connection_status_request(msg, "c1")
-        assert resp.type == MessageType.CONNECTION_STATUS_RESPONSE
-        assert resp.data["connected"] is True
-        assert resp.data["session_code"] == "TST"
-        proto.session_manager.get_connection_status.assert_called_once_with("c1")
-
-    async def test_no_session_manager_returns_disconnected(self):
-        proto = _ProtoStub()
-        proto.session_manager = None
-        msg = Message(MessageType.CONNECTION_STATUS_REQUEST, {})
-        resp = await proto.handle_connection_status_request(msg, "c1")
-        assert resp.type == MessageType.CONNECTION_STATUS_RESPONSE
-        assert resp.data["connected"] is False
-
-
-# ---------------------------------------------------------------------------
 # handle_player_ready / handle_player_unready
 # ---------------------------------------------------------------------------
 

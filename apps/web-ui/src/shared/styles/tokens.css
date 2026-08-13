@@ -325,18 +325,18 @@
   
   /* ===== COMPONENT SIZING ===== */
   /* Specific UI elements that need to scale */
-  --button-height: clamp(32px, 4vh, 44px);
+  --button-height: clamp(32px, 4dvh, 44px);
   --button-padding-x: clamp(12px, 2vw, 24px);
-  --button-padding-y: clamp(6px, 1vh, 12px);
+  --button-padding-y: clamp(6px, 1dvh, 12px);
   
-  --input-height: clamp(32px, 4vh, 40px);
+  --input-height: clamp(32px, 4dvh, 40px);
   --input-padding: clamp(8px, 1.5vw, 16px);
   
   --card-padding: clamp(12px, 2vw, 24px);
   --card-border-radius: clamp(6px, 1vw, 12px);
   --card-gap: clamp(12px, 2vw, 20px);
   
-  --header-height: clamp(48px, 8vh, 72px);
+  --header-height: clamp(48px, 8dvh, 72px);
   --sidebar-width: clamp(200px, 20vw, 320px);
   --panel-width: var(--sidebar-width);
   
@@ -351,11 +351,11 @@
   --modal-width-lg: clamp(600px, 95vw, 1200px);
   --modal-width-xl: clamp(800px, 95vw, 1600px);
   --modal-width-2xl: min(112.5rem, 98vw);
-  --modal-max-height: 90vh;
+  --modal-max-height: 90dvh;
   
   /* ===== CANVAS/VIEWPORT ===== */
-  --canvas-min-height: max(400px, 50vh);
-  --canvas-max-height: 100vh;
+  --canvas-min-height: max(400px, 50dvh);
+  --canvas-max-height: 100dvh;
   
   /* ===== ICON SIZES ===== */
   --icon-xs: clamp(12px, 1.5vmin, 16px);
@@ -436,8 +436,8 @@
     --space-xl: clamp(1rem, 3vw, 1.5rem);
     
     /* Larger touch targets for mobile */
-    --button-height: clamp(40px, 6vh, 48px);
-    --input-height: clamp(40px, 6vh, 48px);
+    --button-height: clamp(40px, 6dvh, 48px);
+    --input-height: clamp(40px, 6dvh, 48px);
     
     /* Narrower sidebar on mobile */
     --sidebar-width: clamp(240px, 70vw, 280px);

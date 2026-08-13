@@ -1,5 +1,5 @@
 .assetManager {
-  height: min(70vh, 800px);
+  height: min(70dvh, 800px);
   min-height: 0;
   display: flex;
   flex-direction: column;
@@ -427,7 +427,7 @@
 @media (max-width: 768px) {
   .assetManager {
     width: 95vw;
-    height: 95vh;
+    height: 95dvh;
   }
 
   .cacheStats {

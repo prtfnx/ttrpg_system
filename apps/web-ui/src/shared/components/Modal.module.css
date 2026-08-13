@@ -29,7 +29,7 @@
   border: var(--border-width) solid var(--panel-border);
   border-radius: var(--radius-md);
   box-shadow: var(--shadow-2xl);
-  max-height: 90vh;
+  max-height: 90dvh;
   overflow: hidden;
   display: flex;
   flex-direction: column;
@@ -127,7 +127,7 @@
   .modalContent {
     margin: var(--space-md);
     width: calc(100% - var(--space-2xl));
-    max-height: calc(100vh - var(--space-2xl));
+    max-height: calc(100dvh - var(--space-2xl));
   }
   
   .modalHeader {
@@ -141,6 +141,6 @@
   .fullscreen {
     margin: var(--space-sm);
     width: calc(100% - var(--space-md));
-    height: calc(100vh - var(--space-md));
+    height: calc(100dvh - var(--space-md));
   }
 }

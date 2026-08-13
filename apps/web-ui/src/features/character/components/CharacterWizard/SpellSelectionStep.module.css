@@ -371,7 +371,7 @@
   position: sticky;
   top: var(--space-lg);
   border: var(--border-width-thick) solid var(--green-600);
-  max-height: calc(100vh - var(--space-5xl));
+  max-height: calc(100dvh - var(--space-5xl));
   display: flex;
   flex-direction: column;
   overflow: hidden;

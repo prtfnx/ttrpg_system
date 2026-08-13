@@ -7,7 +7,7 @@
 .paintPanel {
   composes: panel-container extra-wide from '@shared/styles/PanelBase.module.css';
   min-height: var(--space-5xl);
-  max-height: 90vh;
+  max-height: 90dvh;
   transition: width var(--transition-normal);
 }
 

@@ -378,7 +378,7 @@
   position: sticky;
   top: var(--space-md);
   align-self: start;
-  max-height: calc(100vh - 4rem);
+  max-height: calc(100dvh - 4rem);
   overflow: hidden;
   display: flex;
   flex-direction: column;

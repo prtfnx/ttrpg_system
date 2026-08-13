@@ -31,7 +31,7 @@
   border-radius: var(--radius-md);
   width: 90%;
   max-width: 600px;
-  max-height: 90vh;
+  max-height: 90dvh;
   overflow: hidden;
   box-shadow: var(--shadow-xl);
   color: var(--text-primary);
@@ -112,7 +112,7 @@
 /* ===== Panel Content ===== */
 .panel-content {
   padding: var(--space-xl);
-  max-height: 60vh;
+  max-height: 60dvh;
   overflow-y: auto;
   scrollbar-width: thin;
   scrollbar-color: var(--gray-600) var(--bg-primary);
@@ -500,7 +500,7 @@
 @media (max-width: 768px) {
   .panel-container {
     width: 95%;
-    max-height: 95vh;
+    max-height: 95dvh;
   }
 
   .panel-header {

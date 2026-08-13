@@ -3,7 +3,7 @@
   max-width: var(--size-350);
   margin: 0 auto;
   padding: var(--space-md);
-  font-family: var(--font-primary);
+  font-family: var(--font-sans);
 }
 
 .equipment-selection-step h2 {

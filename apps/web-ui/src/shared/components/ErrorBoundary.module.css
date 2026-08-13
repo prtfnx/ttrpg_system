@@ -6,7 +6,7 @@
   padding: var(--space-lg);
   margin: var(--space-lg);
   color: var(--gray-200);
-  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+  font-family: var(--font-sans);
   text-align: center;
   min-height: var(--size-50);
   display: flex;
@@ -59,7 +59,7 @@
   padding: var(--space-sm);
   border-radius: var(--radius-sm);
   overflow-x: auto;
-  font-family: 'Consolas', 'Monaco', monospace;
+  font-family: var(--font-mono);
   font-size: var(--text-xs);
   color: var(--red-400);
   margin: var(--space-sm) 0;
@@ -140,7 +140,7 @@
   padding: var(--space-lg);
   margin: var(--space-lg);
   color: var(--gray-200);
-  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+  font-family: var(--font-sans);
   text-align: center;
   min-height: var(--size-50);
   display: flex;
@@ -229,7 +229,7 @@
   padding: var(--space-lg);
   margin: var(--space-lg);
   color: var(--gray-200);
-  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+  font-family: var(--font-sans);
 }
 
 .errorContent {

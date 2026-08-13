@@ -470,7 +470,7 @@
 .setting span {
   font-size: var(--text-xs);
   color: var(--text-muted);
-  font-family: 'Fira Code', 'Monaco', 'Consolas', monospace;
+  font-family: var(--font-mono);
   min-width: var(--space-4xl);
   text-align: right;
 }
@@ -540,7 +540,7 @@
 .template-details {
   font-size: var(--text-xs);
   color: var(--text-muted);
-  font-family: 'Fira Code', 'Monaco', 'Consolas', monospace;
+  font-family: var(--font-mono);
   margin-bottom: var(--space-xs);
 }
 

@@ -100,7 +100,7 @@
 }
 
 .color-value {
-  font-family: 'Consolas', 'Monaco', monospace;
+  font-family: var(--font-mono);
   font-size: var(--text-sm);
   color: var(--text-secondary);
   font-weight: var(--font-semibold);

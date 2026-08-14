@@ -18,6 +18,9 @@ const TEXT_PAIRS = [
   ['--text-primary', '--bg-secondary'],
   ['--text-secondary', '--bg-secondary'],
   ['--text-muted', '--bg-secondary'],
+  ['--text-primary', '--bg-tertiary'],
+  ['--text-secondary', '--bg-tertiary'],
+  ['--text-muted', '--bg-tertiary'],
   ['--text-primary', '--bg-elevated'],
   ['--text-secondary', '--bg-elevated'],
   ['--text-muted', '--bg-elevated'],
@@ -44,6 +47,14 @@ const BUTTON_PAIRS = [
   ['--button-warning-text', '--button-warning-bg'],
   ['--button-warning-text', '--button-warning-hover'],
   ['--button-warning-text', '--button-warning-active'],
+  ['--button-secondary-text', '--button-secondary-bg'],
+  ['--button-secondary-text', '--button-secondary-hover'],
+  ['--button-secondary-text', '--button-secondary-active'],
+];
+const COMPONENT_PAIRS = [
+  ['--input-text', '--input-bg'],
+  ['--input-placeholder', '--input-bg'],
+  ['--panel-header-text', '--panel-header-bg'],
 ];
 
 function extractDeclarations(css, selector) {
@@ -129,7 +140,11 @@ for (const theme of THEMES) {
       extractDeclarations(themeCss, `[data-color-scheme="${colorScheme}"]`),
     );
 
-    for (const [foregroundToken, backgroundToken] of [...TEXT_PAIRS, ...BUTTON_PAIRS]) {
+    for (const [foregroundToken, backgroundToken] of [
+      ...TEXT_PAIRS,
+      ...BUTTON_PAIRS,
+      ...COMPONENT_PAIRS,
+    ]) {
       const foreground = parseColor(resolveValue(foregroundToken, declarations) ?? '');
       const background = parseColor(resolveValue(backgroundToken, declarations) ?? '');
       if (!foreground || !background) {

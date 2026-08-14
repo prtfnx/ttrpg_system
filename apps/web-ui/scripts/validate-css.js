@@ -10,6 +10,9 @@
  * - No hardcoded px/rem spacing for actionable properties (excludes functional values)
  * - No numeric font-weight values (except in tokens.css)
  * - No literal component font stacks
+ * - No raw palette tokens outside the token/theme layer
+ * - No literal typography values
+ * - No inaccessible focus-outline resets
  * - No references to undefined custom properties, including references with fallbacks
  * 
  * EXCLUDES (functional CSS that should use px):
@@ -116,7 +119,10 @@ const violations = {
   numericZIndex: [],
   semanticTokenMisuse: [],
   motionLiterals: [],
-  globalComponentStyles: []
+  globalComponentStyles: [],
+  palettePrimitiveReferences: [],
+  typographyLiterals: [],
+  inaccessibleOutlineResets: []
 };
 
 const definedCustomProperties = new Set();
@@ -191,7 +197,7 @@ function scanFile(filePath) {
 
     const architectureChecks = [
       {
-        pattern: /--(?:spacing-|font-size-|font-family\b|line-tight\b|transition-base\b)/,
+        pattern: /--(?:spacing-|font-size-|font-family\b|line-(?:tight|none|snug|normal|relaxed)\b|line-height-(?:tight|normal|relaxed)\b|transition-base\b|accent-(?:primary|hover)\b|font-primary\b|overlay-bg\b)/,
         target: violations.deprecatedTokens,
       },
       {
@@ -203,7 +209,7 @@ function scanFile(filePath) {
         target: violations.numericZIndex,
       },
       {
-        pattern: /(?:font-size|border-radius)\s*:\s*var\(--(?:space|spacing)-/,
+        pattern: /(?:font-size|border-radius|border(?:-(?:top|right|bottom|left))?)\s*:[^;]*var\(--(?:space|spacing)-/,
         target: violations.semanticTokenMisuse,
       },
       {
@@ -214,6 +220,14 @@ function scanFile(filePath) {
         pattern: /(?:transition|animation)(?:-duration)?\s*:[^;]*(?<![\d.])(?:\d+(?:\.\d+)?(?:ms|s))\b/,
         target: violations.motionLiterals,
         allow: /0\.01ms/,
+      },
+      {
+        pattern: /var\(--(?:gray|red|orange|yellow|green|blue|purple|pink|cyan|lime|teal|indigo|violet|amber)-\d+\b/,
+        target: violations.palettePrimitiveReferences,
+      },
+      {
+        pattern: /(?:font-size|line-height)\s*:\s*-?(?:\d*\.)?\d+(?:px|rem|em|%)?\s*;/,
+        target: violations.typographyLiterals,
       },
     ];
 
@@ -312,6 +326,27 @@ function scanFile(filePath) {
       }
     }
   });
+
+  for (const block of content.matchAll(/([^{}]+)\{([^{}]*)\}/g)) {
+    const selector = block[1].replace(/\s+/g, ' ').trim();
+    const declarations = block[2];
+    if (!/outline\s*:\s*(?:none|0)\s*;/.test(declarations)) continue;
+
+    const isFocusRule = /:focus(?:-visible)?\b/.test(selector);
+    const hasReplacementRing = /box-shadow\s*:/.test(declarations);
+    if (!isFocusRule || !hasReplacementRing) {
+      const line = content.slice(0, block.index).split('\n').length;
+      violations.inaccessibleOutlineResets.push({
+        file: path.relative(process.cwd(), filePath),
+        line,
+        code: `${selector} { outline: none; }`,
+      });
+    }
+  }
+}
+
+function countViolations() {
+  return Object.values(violations).reduce((total, items) => total + items.length, 0);
 }
 
 /**
@@ -356,20 +391,7 @@ function scanDirectory(dir) {
  * Print validation report
  */
 function printReport(verbose = false) {
-  const totalViolations = 
-    violations.hexColors.length +
-    violations.rgbColors.length +
-    violations.pxSpacing.length +
-    violations.remSpacing.length +
-    violations.numericFontWeight.length +
-    violations.literalFontFamilies.length +
-    violations.undefinedCustomProperties.length +
-    violations.deprecatedTokens.length +
-    violations.transitionAll.length +
-    violations.numericZIndex.length +
-    violations.semanticTokenMisuse.length +
-    violations.motionLiterals.length +
-    violations.globalComponentStyles.length;
+  const totalViolations = countViolations();
   
   console.log('\n📊 CSS Validation Report');
   console.log('========================\n');
@@ -523,6 +545,9 @@ function printReport(verbose = false) {
     ['Semantic token misuse', violations.semanticTokenMisuse, 'Match typography, radius, and spacing properties to their token families.'],
     ['Literal motion durations', violations.motionLiterals, 'Use shared duration or transition tokens.'],
     ['Global component stylesheets', violations.globalComponentStyles, 'Use colocated CSS Modules for component styles.'],
+    ['Raw palette token references', violations.palettePrimitiveReferences, 'Use semantic theme or component tokens instead of palette primitives.'],
+    ['Literal typography values', violations.typographyLiterals, 'Use the shared --text-* and --leading-* scales.'],
+    ['Inaccessible outline resets', violations.inaccessibleOutlineResets, 'Keep the native outline or provide a shared focus ring in the same focus rule.'],
   ];
 
   for (const [label, items, guidance] of architectureReports) {
@@ -564,20 +589,7 @@ function main() {
   scanDirectory(SRC_DIR);
   printReport(verbose);
   
-  const totalViolations = 
-    violations.hexColors.length +
-    violations.rgbColors.length +
-    violations.pxSpacing.length +
-    violations.remSpacing.length +
-    violations.numericFontWeight.length +
-    violations.literalFontFamilies.length +
-    violations.undefinedCustomProperties.length +
-    violations.deprecatedTokens.length +
-    violations.transitionAll.length +
-    violations.numericZIndex.length +
-    violations.semanticTokenMisuse.length +
-    violations.motionLiterals.length +
-    violations.globalComponentStyles.length;
+  const totalViolations = countViolations();
   
   process.exit(totalViolations > 0 ? 1 : 0);
 }

@@ -1,7 +1,10 @@
 import react from '@vitejs/plugin-react';
+import { fileURLToPath } from 'node:url';
 import path from 'path';
 import { defineConfig } from 'vite';
 import wasmPack from 'vite-plugin-wasm';
+
+const appRoot = path.dirname(fileURLToPath(import.meta.url));
 
 // https://vite.dev/config/
 export default defineConfig(({ mode }) => {
@@ -12,12 +15,12 @@ export default defineConfig(({ mode }) => {
     plugins: [react(), wasmPack()],
     resolve: {
       alias: {
-        '@': path.resolve(__dirname, './src'),
-        '@features': path.resolve(__dirname, './src/features'),
-        '@shared': path.resolve(__dirname, './src/shared'),
-        '@lib': path.resolve(__dirname, './src/lib'),
-        '@config': path.resolve(__dirname, './src/config'),
-        '@app': path.resolve(__dirname, './src/app'),
+        '@': path.resolve(appRoot, './src'),
+        '@features': path.resolve(appRoot, './src/features'),
+        '@shared': path.resolve(appRoot, './src/shared'),
+        '@lib': path.resolve(appRoot, './src/lib'),
+        '@config': path.resolve(appRoot, './src/config'),
+        '@app': path.resolve(appRoot, './src/app'),
       },
     },
     server: {
@@ -60,4 +63,4 @@ export default defineConfig(({ mode }) => {
       }
     }
   };
-})
+});

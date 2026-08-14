@@ -152,7 +152,9 @@ class _AssetsMixin(_ProtocolBase):
                 return Message(MessageType.ERROR, {'error': 'Authentication and session context required'})
             user_id, _username, session_code = context
 
-            assets = get_server_asset_manager().get_session_assets(session_code, user_id)
+            assets = await get_server_asset_manager().request_session_assets(
+                session_code, user_id
+            )
             return Message(MessageType.ASSET_LIST_RESPONSE, {
                 'success': True,
                 'assets': assets,
@@ -223,7 +225,7 @@ class _AssetsMixin(_ProtocolBase):
     async def add_asset_hashes_to_table(self, table_data: dict, session_code: str, user_id: int) -> dict:
         """Add identifiers for assets visible through this session."""
         try:
-            by_id, by_name = self._session_asset_indexes(session_code, user_id)
+            by_id, by_name = await self._session_asset_indexes(session_code, user_id)
             for layer_entities in table_data.get('layers', {}).values():
                 if not isinstance(layer_entities, dict):
                     continue
@@ -240,8 +242,12 @@ class _AssetsMixin(_ProtocolBase):
             logger.exception("Table asset enrichment failed")
             return table_data
 
-    def _session_asset_indexes(self, session_code: str, user_id: int) -> tuple[dict, dict]:
-        records = get_server_asset_manager().get_session_assets(session_code, user_id)
+    async def _session_asset_indexes(
+        self, session_code: str, user_id: int
+    ) -> tuple[dict, dict]:
+        records = await get_server_asset_manager().request_session_assets(
+            session_code, user_id
+        )
         by_id = {record['asset_id']: record for record in records}
         by_name: dict[str, Optional[dict]] = {}
         for record in records:
@@ -266,7 +272,7 @@ class _AssetsMixin(_ProtocolBase):
         session_code: str,
         user_id: int,
     ) -> Optional[str]:
-        by_id, _ = self._session_asset_indexes(session_code, user_id)
+        by_id, _ = await self._session_asset_indexes(session_code, user_id)
         asset = by_id.get(asset_id)
         value = asset.get('xxhash') if asset else None
         return value if isinstance(value, str) and value else None
@@ -398,7 +404,7 @@ class _AssetsMixin(_ProtocolBase):
         """Attach download URLs for assets visible through this session."""
         try:
             asset_manager = get_server_asset_manager()
-            by_id, by_name = self._session_asset_indexes(session_code, user_id)
+            by_id, by_name = await self._session_asset_indexes(session_code, user_id)
             urls: dict[str, str] = {}
             for layer_entities in table_data.get('layers', {}).values():
                 if not isinstance(layer_entities, dict):

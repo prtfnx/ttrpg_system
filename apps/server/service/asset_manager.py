@@ -2,13 +2,16 @@
 Server-side R2 Asset Management Service for TTRPG System
 Handles presigned URLs, asset validation, and client permissions
 """
+import asyncio
+import functools
 import logging
 import os
 import warnings
+from collections.abc import Awaitable, Callable
 from dataclasses import dataclass
 from datetime import timedelta
 from io import BytesIO
-from typing import Dict, List, Optional, Tuple
+from typing import Dict, List, Optional, ParamSpec, Tuple, TypeVar
 
 import xxhash
 from config import Settings
@@ -22,6 +25,18 @@ from utils.rate_limiter import RateLimiter
 from utils.time import utc_now
 
 logger = logging.getLogger(__name__)
+
+P = ParamSpec("P")
+R = TypeVar("R")
+
+
+def _offload_blocking_io(func: Callable[P, R]) -> Callable[P, Awaitable[R]]:
+    """Expose a synchronous database/storage operation as an async boundary."""
+    @functools.wraps(func)
+    async def wrapped(*args: P.args, **kwargs: P.kwargs) -> R:
+        return await asyncio.to_thread(func, *args, **kwargs)
+
+    return wrapped
 
 @dataclass
 class AssetPermission:
@@ -356,7 +371,8 @@ class ServerAssetManager:
             db.close()
 
     @track_asset_operation("download_url")
-    async def request_download_url(self, request: AssetRequest) -> PresignedUrlResponse:
+    @_offload_blocking_io
+    def request_download_url(self, request: AssetRequest) -> PresignedUrlResponse:
         """Generate presigned URL for file download"""
         try:
             if not self.r2_manager.is_r2_configured():
@@ -429,7 +445,8 @@ class ServerAssetManager:
             )
 
     @track_asset_operation("download_url_by_filename")
-    async def request_download_url_by_filename(self, filename: str, session_code: str, user_id: int) -> PresignedUrlResponse:
+    @_offload_blocking_io
+    def request_download_url_by_filename(self, filename: str, session_code: str, user_id: int) -> PresignedUrlResponse:
         """Get download URL for an asset by filename (for existing assets)"""
         try:
             # Check permissions
@@ -483,8 +500,9 @@ class ServerAssetManager:
             )
 
     @track_asset_operation("confirm_upload")
-    async def confirm_upload(self, asset_id: str, user_id: int, upload_success: bool = True,
-                           error_message: Optional[str] = None) -> bool:
+    @_offload_blocking_io
+    def confirm_upload(self, asset_id: str, user_id: int, upload_success: bool = True,
+                       error_message: Optional[str] = None) -> bool:
         """Confirm that an upload was completed successfully or failed - CREATES DB ENTRY"""
         try:
             db = SessionLocal()
@@ -633,6 +651,11 @@ class ServerAssetManager:
             return []
         return []
 
+    @_offload_blocking_io
+    def request_session_assets(self, session_code: str, user_id: int) -> List[dict]:
+        """Return session assets without blocking an async protocol handler."""
+        return self.get_session_assets(session_code, user_id)
+
     def cleanup_session(self, session_code: str):
         """Clean up session-specific data"""
         # Remove session permissions
@@ -671,7 +694,8 @@ class ServerAssetManager:
         }
 
     @track_asset_operation("upload_url")
-    async def request_upload_url_with_hash(self, request: AssetRequest, file_xxhash: str) -> PresignedUrlResponse:
+    @_offload_blocking_io
+    def request_upload_url_with_hash(self, request: AssetRequest, file_xxhash: str) -> PresignedUrlResponse:
         """Generate presigned URL for file upload with pre-calculated hash"""
         try:
             # Validate that asset_id matches file_xxhash
@@ -1003,7 +1027,7 @@ class ServerAssetManager:
             logger.exception("Asset hash lookup failed")
             return None
 
-    async def _verify_asset_in_r2(self, r2_key: str) -> bool:
+    def _verify_asset_in_r2(self, r2_key: str) -> bool:
         """Verify if asset exists in R2 storage"""
         try:
             # Use R2Manager to check if object exists

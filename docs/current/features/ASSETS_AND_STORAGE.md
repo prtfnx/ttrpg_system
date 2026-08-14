@@ -51,6 +51,12 @@ Duplicate content that only adds a session link does not consume new-object
 quota. See [Environment variables](../reference/ENVIRONMENT_VARIABLES.md) for
 the defaults and tuning controls.
 
+The R2 client and current SQLAlchemy driver are synchronous. Public asset
+manager methods therefore run their complete database/storage transaction in a
+worker thread and expose one awaited boundary to protocol handlers. Keep each
+SQLAlchemy session wholly inside that worker; never pass a live ORM session
+back to the event loop.
+
 Upload intents are durable; a process restart does not turn an unconfirmed
 object into a usable asset. The removed local metadata fallback and legacy
 `assets.session_id` column are not active paths.

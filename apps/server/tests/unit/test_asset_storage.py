@@ -1,6 +1,8 @@
 # pyright: reportAttributeAccessIssue=false
 
+import asyncio
 import base64
+import time
 from types import SimpleNamespace
 
 import xxhash
@@ -307,6 +309,35 @@ async def test_asset_upload_fails_closed_without_connection_identity(monkeypatch
 
     assert response.type == MessageType.ERROR
     assert response.data["error"] == "Authentication and session context required"
+
+
+async def test_asset_storage_io_does_not_block_event_loop(monkeypatch, test_db):
+    manager = _manager(monkeypatch, test_db)
+
+    def slow_membership_check(*_args):
+        time.sleep(0.05)
+        return False
+
+    monkeypatch.setattr(manager, "_user_can_upload_to_session", slow_membership_check)
+    marker = asyncio.Event()
+    asyncio.get_running_loop().call_later(0.01, marker.set)
+
+    result = await manager.request_upload_url_with_hash(
+        AssetRequest(
+            user_id=1,
+            username="user",
+            session_code="AUTH",
+            asset_id=VALID_XXHASH[:16],
+            filename="map.png",
+            file_size=len(VALID_PNG),
+            content_type="image/png",
+            file_xxhash=VALID_XXHASH,
+        ),
+        VALID_XXHASH,
+    )
+
+    assert result.success is False
+    assert marker.is_set(), "synchronous asset storage work blocked the event loop"
 
 
 def test_upload_rate_limit_is_per_authenticated_user(monkeypatch, test_db):

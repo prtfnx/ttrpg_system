@@ -665,7 +665,7 @@
   color: var(--color-warning);
   cursor: pointer;
   font-size: var(--text-lg);
-  line-height: 1;
+  line-height: var(--leading-none);
   padding: 0;
   width: var(--space-lg);
   height: var(--space-lg);
@@ -707,7 +707,7 @@
   height: var(--space-2xl);
   padding: 0;
   font-size: var(--text-lg);
-  line-height: 1;
+  line-height: var(--leading-none);
   background: var(--color-warning);
   color: var(--bg-primary);
 }

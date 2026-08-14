@@ -154,7 +154,7 @@
 .spriteCount {
   font-size: var(--text-3xs);
   color: var(--text-muted);
-  line-height: 1;
+  line-height: var(--leading-none);
 }
 
 /* Layer Controls - Right side */
@@ -262,7 +262,7 @@
   color: var(--text-muted);
   font-size: var(--text-xs);
   text-align: center;
-  line-height: 1.3;
+  line-height: var(--leading-tight);
 }
 
 /* Loading State */

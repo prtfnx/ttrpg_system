@@ -86,7 +86,7 @@
 .optionDesc {
   font-size: var(--text-xs);
   color: var(--text-secondary);
-  line-height: 1.3;
+  line-height: var(--leading-tight);
 }
 
 .roleLabel {

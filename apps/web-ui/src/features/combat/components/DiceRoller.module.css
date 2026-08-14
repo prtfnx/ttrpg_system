@@ -85,7 +85,7 @@
 /* Dice icon */
 .dice-icon {
   font-size: var(--text-2xl);
-  line-height: 1;
+  line-height: var(--leading-none);
 }
 
 .dice-button.rolling .dice-icon {

@@ -98,7 +98,7 @@
 .configDescription {
   font-size: var(--text-sm);
   color: var(--text-inverse-secondary);
-  line-height: 1.4;
+  line-height: var(--leading-snug);
 }
 
 /* Performance Metrics */

@@ -71,7 +71,7 @@
 
 .icon {
   font-size: var(--text-base);
-  line-height: 1.4;
+  line-height: var(--leading-snug);
   flex-shrink: 0;
 }
 

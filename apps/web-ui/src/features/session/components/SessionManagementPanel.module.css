@@ -89,7 +89,7 @@
   color: var(--status-error-text);
   font-size: var(--text-lg);
   font-weight: bold;
-  line-height: 1;
+  line-height: var(--leading-none);
   min-width: 32px;
   cursor: pointer;
   transition: var(--transition-fast);

@@ -5,7 +5,7 @@
 :root {
   color-scheme: dark;
   font-family: var(--font-sans);
-  line-height: 1.5;
+  line-height: var(--leading-normal);
   font-weight: var(--font-normal);
   color: var(--text-primary);
   background-color: var(--bg-primary);
@@ -43,8 +43,8 @@ body {
 }
 
 h1 {
-  font-size: 3.2em;
-  line-height: 1.1;
+  font-size: var(--text-5xl);
+  line-height: var(--leading-none);
 }
 
 /* Global button defaults - components should override with specific styles */

@@ -52,12 +52,12 @@
 }
 
 .progressNote {
-  font-size: 0.85em;
+  font-size: var(--text-sm);
   color: var(--text-muted);
 }
 
 .maxLevelNote {
-  font-size: 0.85em;
+  font-size: var(--text-sm);
   color: var(--color-danger);
   font-weight: var(--font-medium);
 }

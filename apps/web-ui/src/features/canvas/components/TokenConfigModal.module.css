@@ -319,7 +319,7 @@
   cursor: pointer;
   padding: 0;
   font-size: var(--text-sm);
-  line-height: 1;
+  line-height: var(--leading-none);
   display: flex;
   align-items: center;
 }

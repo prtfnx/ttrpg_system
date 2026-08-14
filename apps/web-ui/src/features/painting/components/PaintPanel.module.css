@@ -239,7 +239,7 @@
 .paintModeIndicator .modeSettings {
   font-size: var(--text-xs);
   color: var(--text-muted);
-  line-height: 1.2;
+  line-height: var(--leading-tight);
 }
 
 .paintModeIndicator .drawingIndicator {
@@ -653,7 +653,7 @@
   padding-left: var(--space-lg);
   font-size: var(--text-xs);
   color: var(--text-muted);
-  line-height: 1.4;
+  line-height: var(--leading-snug);
 }
 
 .instructionsList li {

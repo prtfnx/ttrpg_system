@@ -347,7 +347,7 @@
   composes: wizard-button-primary from './CharacterWizardBase.module.css';
   padding: var(--space-0-5) var(--space-sm);
   font-size: var(--text-lg);
-  line-height: 1;
+  line-height: var(--leading-none);
   flex-shrink: 0;
   background: var(--button-primary-bg);
   color: var(--button-primary-text);

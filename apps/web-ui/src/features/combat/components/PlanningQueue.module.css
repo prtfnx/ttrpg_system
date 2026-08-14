@@ -19,7 +19,7 @@
 }
 
 .clearBtn {
-  font-size: 0.75em;
+  font-size: var(--text-xs);
   padding: var(--space-0-5) var(--space-2);
   background: transparent;
   color: var(--status-error-text);
@@ -52,11 +52,11 @@
   background: var(--bg-secondary);
   border-radius: var(--radius-sm);
   color: var(--text-primary);
-  font-size: 0.9em;
+  font-size: var(--text-sm);
 }
 
 .icon {
-  font-size: 1em;
+  font-size: var(--text-base);
   flex-shrink: 0;
 }
 
@@ -68,7 +68,7 @@
 }
 
 .ftCost {
-  font-size: 0.8em;
+  font-size: var(--text-xs);
   color: var(--text-muted);
   flex-shrink: 0;
 }
@@ -79,7 +79,7 @@
   color: var(--text-muted);
   cursor: pointer;
   padding: 0 var(--space-0-5);
-  font-size: 0.85em;
+  font-size: var(--text-sm);
   flex-shrink: 0;
 }
 
@@ -98,7 +98,7 @@
 .badge {
   padding: var(--space-0-5) var(--space-2);
   border-radius: var(--radius-sm);
-  font-size: 0.75em;
+  font-size: var(--text-xs);
   background: var(--bg-secondary);
   color: var(--text-muted);
   border: var(--border-width) solid var(--border-primary);
@@ -114,7 +114,7 @@
 
 .moveBadge {
   margin-left: auto;
-  font-size: 0.8em;
+  font-size: var(--text-xs);
   color: var(--text-muted);
 }
 

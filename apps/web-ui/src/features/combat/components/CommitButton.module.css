@@ -5,7 +5,7 @@
 }
 
 .error {
-  font-size: 0.8em;
+  font-size: var(--text-xs);
   color: var(--status-error-text);
   margin: 0;
 }

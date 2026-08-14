@@ -39,7 +39,7 @@
   color: var(--text-muted);
   cursor: pointer;
   font-size: var(--text-sm);
-  line-height: 1;
+  line-height: var(--leading-none);
   padding: 0 var(--space-xs);
 }
 

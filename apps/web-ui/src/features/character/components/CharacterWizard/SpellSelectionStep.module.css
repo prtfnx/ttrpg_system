@@ -170,7 +170,7 @@
   color: var(--text-inverse-primary);
   cursor: pointer;
   font-size: var(--text-base);
-  line-height: 1;
+  line-height: var(--leading-none);
   padding: 0;
   margin-left: var(--space-xs);
 }
@@ -473,7 +473,7 @@
   justify-content: center;
   cursor: pointer;
   font-size: var(--text-base);
-  line-height: 1;
+  line-height: var(--leading-none);
   padding: 0;
   transition: var(--transition-fast);
 }
@@ -490,7 +490,7 @@
   justify-content: center;
   cursor: pointer;
   font-size: var(--text-base);
-  line-height: 1;
+  line-height: var(--leading-none);
   padding: 0;
   transition: var(--transition-fast);
   flex-shrink: 0;

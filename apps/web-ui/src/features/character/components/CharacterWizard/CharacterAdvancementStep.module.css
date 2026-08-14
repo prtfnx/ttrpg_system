@@ -21,7 +21,7 @@
 .advancement-header p {
   color: var(--text-secondary);
   font-size: var(--text-lg);
-  line-height: var(--line-normal);
+  line-height: var(--leading-normal);
 }
 
 .advancement-content {

@@ -86,7 +86,7 @@
 .desc {
   font-size: var(--text-sm);
   color: var(--text-primary);
-  line-height: var(--line-height-tight);
+  line-height: var(--leading-tight);
 }
 
 .time {

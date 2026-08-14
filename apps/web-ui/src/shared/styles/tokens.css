@@ -303,15 +303,6 @@
   --leading-relaxed: 1.625;
   --leading-loose: 2;
 
-  /* Compatibility names used by feature modules. */
-  --line-none: var(--leading-none);
-  --line-snug: var(--leading-snug);
-  --line-normal: var(--leading-normal);
-  --line-relaxed: var(--leading-relaxed);
-  --line-height-tight: var(--leading-tight);
-  --line-height-normal: var(--leading-normal);
-  --line-height-relaxed: var(--leading-relaxed);
-  
   /* ===== LETTER SPACING ===== */
   /* Character spacing for headings and labels */
   --letter-spacing-tighter: -0.05em;

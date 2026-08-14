@@ -71,13 +71,13 @@
 }
 
 .configOption:hover {
-  border-color: var(--accent-primary);
+  border-color: var(--color-accent);
   transform: translateY(calc(var(--space-xs) * -0.5));
   box-shadow: var(--shadow-xl);
 }
 
 .configOption.active {
-  border-color: var(--accent-primary);
+  border-color: var(--color-accent);
   background: linear-gradient(135deg, var(--accent-bg), var(--accent-bg-subtle));
   box-shadow: 0 0 var(--space-5) var(--accent-glow);
 }
@@ -164,7 +164,7 @@
 .settingCheckbox {
   width: var(--space-lg);
   height: var(--space-lg);
-  accent-color: var(--accent-primary);
+  accent-color: var(--color-accent);
   cursor: pointer;
 }
 

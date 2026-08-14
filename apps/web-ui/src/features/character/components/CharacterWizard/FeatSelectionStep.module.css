@@ -342,7 +342,7 @@
 
 .featDescription {
   color: var(--text-primary);
-  line-height: var(--line-height-relaxed);
+  line-height: var(--leading-relaxed);
   margin-bottom: var(--space-md);
 }
 
@@ -381,7 +381,7 @@
 
 .featBenefits li {
   margin-bottom: var(--space-xs);
-  line-height: var(--line-height-normal);
+  line-height: var(--leading-normal);
 }
 
 .benefitChoices {
@@ -454,7 +454,7 @@
 .comparisonColumn li {
   margin-bottom: var(--space-xs);
   font-size: var(--text-sm);
-  line-height: var(--line-height-normal);
+  line-height: var(--leading-normal);
 }
 
 /* Navigation */

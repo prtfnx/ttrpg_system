@@ -426,7 +426,7 @@
 
 .bio-content {
   composes: wizard-card-section from './CharacterWizardBase.module.css';
-  line-height: var(--line-height-relaxed);
+  line-height: var(--leading-relaxed);
   min-height: var(--size-25);
 }
 

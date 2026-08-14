@@ -27,7 +27,7 @@
   margin: 0 0 var(--space-md) 0;
   color: var(--text-secondary);
   font-size: var(--text-sm);
-  line-height: var(--line-snug);
+  line-height: var(--leading-snug);
 }
 
 .errorIcon {
@@ -177,7 +177,7 @@
   margin: var(--space-1) 0;
   color: var(--text-secondary);
   font-size: var(--text-sm);
-  line-height: var(--line-snug);
+  line-height: var(--leading-snug);
 }
 
 .paintPanelError ul,

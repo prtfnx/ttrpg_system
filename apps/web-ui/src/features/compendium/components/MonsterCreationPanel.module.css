@@ -669,7 +669,7 @@
 .monster-details-basic p {
   color: var(--text-secondary);
   font-size: var(--text-sm);
-  line-height: var(--line-relaxed);
+  line-height: var(--leading-relaxed);
   margin-bottom: var(--space-sm);
 }
 
@@ -760,7 +760,7 @@
 .monster-ability p {
   color: var(--text-secondary);
   font-size: var(--text-sm);
-  line-height: var(--line-relaxed);
+  line-height: var(--leading-relaxed);
   margin: 0;
 }
 
@@ -805,7 +805,7 @@
 
 .monster-empty-state p {
   margin: 0 0 var(--space-sm) 0;
-  line-height: var(--line-normal);
+  line-height: var(--leading-normal);
 }
 
 .monster-empty-state p:first-child {

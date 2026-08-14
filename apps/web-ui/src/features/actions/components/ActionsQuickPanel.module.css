@@ -60,7 +60,7 @@
 .input:focus,
 .select:focus {
   outline: none;
-  border-color: var(--accent-primary);
+  border-color: var(--color-accent);
   box-shadow: var(--focus-ring-accent-thin);
 }
 
@@ -101,7 +101,7 @@
 }
 
 .secondary {
-  background: var(--accent-primary);
+  background: var(--color-accent);
 }
 
 .history {

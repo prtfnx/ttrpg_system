@@ -68,7 +68,7 @@
 .tabDescription {
   color: var(--text-secondary);
   margin-bottom: var(--space-xl);
-  line-height: var(--line-normal);
+  line-height: var(--leading-normal);
 }
 
 .exportFormatSelection {

@@ -190,7 +190,7 @@
   margin: 0;
   color: var(--text-secondary);
   font-size: var(--text-base);
-  line-height: var(--line-normal);
+  line-height: var(--leading-normal);
 }
 
 .step-error-message {
@@ -245,7 +245,7 @@
 .step-error p {
   margin-bottom: var(--space-xl);
   color: var(--text-secondary);
-  line-height: var(--line-relaxed);
+  line-height: var(--leading-relaxed);
 }
 
 .step-error-button {
@@ -502,7 +502,7 @@
 
 .template-type-icon {
   font-size: var(--text-4xl);
-  line-height: var(--line-none);
+  line-height: var(--leading-none);
 }
 
 .template-type-info {
@@ -577,7 +577,7 @@
 .template-description {
   font-size: var(--text-sm);
   color: var(--text-secondary);
-  line-height: var(--line-snug);
+  line-height: var(--leading-snug);
 }
 
 .template-scratch-info {
@@ -593,7 +593,7 @@
 
 .info-box p {
   margin: 0 0 var(--space-md) 0;
-  line-height: var(--line-relaxed);
+  line-height: var(--leading-relaxed);
   color: var(--text-secondary);
 }
 

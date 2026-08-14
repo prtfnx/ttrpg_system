@@ -111,7 +111,6 @@
   --accent-bg-subtle: rgba(99, 102, 241, 0.1);
   --accent-glow: rgba(99, 102, 241, 0.3);
   --accent-glow-intense: rgba(99, 102, 241, 0.5);
-  --accent-hover: var(--color-accent-hover);
   --color-on-danger: var(--text-primary);
   --color-danger-dark: var(--color-danger-active);
   
@@ -129,7 +128,6 @@
   --overlay-dark: var(--modal-overlay);
   
   /* Legacy aliases (deprecated - use semantic tokens above) */
-  --accent-primary: var(--color-accent);
   --accent-secondary: var(--color-accent-hover);
   --accent-success: var(--color-success);
   --accent-warning: var(--color-warning);
@@ -194,7 +192,6 @@
   --button-disabled-text: var(--text-disabled);
   --button-disabled-border: var(--border-primary);
   --button-disabled-opacity: 0.6;
-  --font-primary: var(--font-sans);
   --bg-disabled: var(--bg-tertiary);
   --border-disabled: var(--border-primary);
   
@@ -283,7 +280,6 @@
   --overlay-dark-light: rgba(0, 0, 0, 0.7);
   --overlay-dark-medium: rgba(0, 0, 0, 0.8);
   --overlay-dark-heavy: rgba(0, 0, 0, 0.9);
-  --overlay-bg: var(--modal-overlay);
   --overlay-dark-20: rgba(0, 0, 0, 0.2);
   --overlay-dark-30: rgba(0, 0, 0, 0.3);
   --overlay-dark-80: rgba(0, 0, 0, 0.8);

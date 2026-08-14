@@ -186,7 +186,7 @@
 .spellDesc {
   font-size: var(--text-sm);
   color: var(--text-secondary);
-  line-height: var(--line-height-relaxed);
+  line-height: var(--leading-relaxed);
   margin: 0 0 var(--space-xs) 0;
 }
 

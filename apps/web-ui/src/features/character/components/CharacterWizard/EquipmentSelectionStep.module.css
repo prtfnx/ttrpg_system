@@ -327,7 +327,7 @@
 .equipment-description {
   font-size: var(--text-sm);
   color: var(--text-secondary);
-  line-height: var(--line-normal);
+  line-height: var(--leading-normal);
   margin: 0;
 }
 

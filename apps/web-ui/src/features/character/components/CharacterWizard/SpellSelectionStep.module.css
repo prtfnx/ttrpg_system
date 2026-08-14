@@ -329,14 +329,14 @@
 
 .spell-description {
   font-size: var(--text-sm);
-  line-height: var(--line-height-relaxed);
+  line-height: var(--leading-relaxed);
   color: var(--text-secondary);
   margin: var(--space-xs) 0;
 }
 
 .at-higher-levels {
   font-size: var(--text-xs);
-  line-height: var(--line-height-relaxed);
+  line-height: var(--leading-relaxed);
   color: var(--text-secondary);
   margin: var(--space-xs) 0 var(--space-md) 0;
   padding: var(--space-xs);

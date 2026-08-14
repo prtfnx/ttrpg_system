@@ -113,7 +113,7 @@
 .dragDropZone.dragOver,
 .uploadDropzone.dragOver {
   background: var(--hover-overlay);
-  border-color: var(--accent-primary);
+  border-color: var(--color-accent);
 }
 
 .uploadMonitoring {
@@ -264,7 +264,7 @@
 
 .assetItem.selected {
   background-color: var(--bg-active);
-  border-left: var(--space-xs) solid var(--color-primary);
+  border-left: var(--border-width-lg) solid var(--color-primary);
 }
 
 .assetSelectionButton {

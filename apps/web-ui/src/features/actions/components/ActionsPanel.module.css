@@ -86,7 +86,7 @@
 }
 
 .tabButton.active {
-  background: var(--accent-primary);
+  background: var(--color-accent);
   color: var(--text-on-accent);
   border-bottom-color: var(--accent-glow);
 }
@@ -130,7 +130,7 @@
 .formInput:focus,
 .formSelect:focus {
   outline: none;
-  border-color: var(--accent-primary);
+  border-color: var(--color-accent);
   box-shadow: var(--focus-ring-accent);
 }
 
@@ -191,7 +191,7 @@
 
 .listItem.selected {
   background: var(--accent-bg-subtle);
-  border-color: var(--accent-primary);
+  border-color: var(--color-accent);
   box-shadow: var(--focus-ring-accent-thin);
 }
 

@@ -66,7 +66,7 @@
 }
 
 .themeCard.active {
-  border-color: var(--accent-primary);
+  border-color: var(--color-accent);
   background: var(--bg-active);
   color: var(--text-primary);
   font-weight: var(--font-semibold);
@@ -189,8 +189,8 @@
 }
 
 .stylePreviewButton.active {
-  background: var(--accent-primary);
-  border-color: var(--accent-primary);
+  background: var(--color-accent);
+  border-color: var(--color-accent);
   color: var(--text-inverse-primary);
   font-weight: var(--font-semibold);
 }
@@ -233,7 +233,7 @@
   appearance: none;
   width: var(--space-lg);
   height: var(--space-lg);
-  background: var(--accent-primary);
+  background: var(--color-accent);
   border-radius: var(--radius-full);
   cursor: pointer;
   transition: var(--transition-interactive-fast);
@@ -247,7 +247,7 @@
 .slider::-moz-range-thumb {
   width: var(--space-lg);
   height: var(--space-lg);
-  background: var(--accent-primary);
+  background: var(--color-accent);
   border-radius: var(--radius-full);
   border: none;
   cursor: pointer;

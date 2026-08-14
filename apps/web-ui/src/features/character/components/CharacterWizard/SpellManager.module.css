@@ -54,10 +54,10 @@
 }
 
 .spellSlotsHeader h3 {
-  color: var(--purple-950);
+  color: var(--text-accent);
   margin: 0;
   font-size: var(--text-2xl);
-  border-bottom: var(--border-width-thick) solid var(--purple-950);
+  border-bottom: var(--border-width-thick) solid var(--border-focus);
   padding-bottom: var(--space-xs);
   font-weight: var(--font-bold);
 }
@@ -71,13 +71,13 @@
 }
 
 .restBtnShort {
-  background: var(--blue-600);
-  color: var(--text-inverse-primary);
-  border: none;
+  background: var(--button-info-bg);
+  color: var(--button-info-text);
+  border: var(--border-width) solid var(--button-info-border);
 }
 
 .restBtnShort:hover {
-  background: var(--blue-500);
+  background: var(--button-info-hover);
 }
 
 .restBtnLong {
@@ -97,7 +97,7 @@
 }
 
 .spellSlotLevel:hover {
-  border-color: var(--purple-950);
+  border-color: var(--border-focus);
   box-shadow: var(--shadow-md);
 }
 
@@ -108,14 +108,15 @@
 
 .slotHeader h4 {
   margin: 0;
-  color: var(--purple-950);
+  color: var(--text-accent);
   font-size: var(--text-lg);
   font-weight: var(--font-semibold);
 }
 
 .slotCounter {
   composes: wizard-badge-primary from './CharacterWizardBase.module.css';
-  background: var(--purple-950);
+  background: var(--button-primary-bg);
+  color: var(--button-primary-text);
 }
 
 .slotCircles {
@@ -128,19 +129,19 @@
   width: calc(var(--space-md) * 2);
   height: calc(var(--space-md) * 2);
   border-radius: var(--radius-full);
-  border: var(--border-width-thick) solid var(--purple-950);
+  border: var(--border-width-thick) solid var(--button-primary-border);
   cursor: pointer;
   transition: var(--transition-interactive-fast);
   display: flex;
   align-items: center;
   justify-content: center;
   font-weight: var(--font-bold);
-  color: var(--text-inverse-primary);
+  color: var(--button-primary-text);
   padding: 0;
 }
 
 .slotCircle.available {
-  background: var(--purple-950);
+  background: var(--button-primary-bg);
 }
 
 .slotCircle.used {
@@ -183,7 +184,8 @@
 
 .useSlotBtn:disabled,
 .restoreSlotBtn:disabled {
-  background: var(--gray-600);
+  background: var(--button-disabled-bg);
+  color: var(--button-disabled-text);
   cursor: not-allowed;
   opacity: 0.6;
 }
@@ -204,10 +206,10 @@
 }
 
 .prepareTab h3 {
-  color: var(--purple-700);
+  color: var(--text-accent);
   margin: 0 0 var(--space-xl) 0;
   font-size: var(--text-2xl);
-  border-bottom: var(--border-width-thick) solid var(--purple-700);
+  border-bottom: var(--border-width-thick) solid var(--border-focus);
   padding-bottom: var(--space-xs);
 }
 
@@ -219,7 +221,7 @@
 .cantripsSection h4,
 .knownSpellsSection h4,
 .preparedSpellsSection h4 {
-  color: var(--purple-700);
+  color: var(--text-accent);
   margin: 0 0 var(--space-md) 0;
   font-size: var(--text-lg);
 }
@@ -240,17 +242,17 @@
 
 .preparedSpell.cantrip {
   background: var(--spell-bg-evocation);
-  border: var(--border-width-thick) solid var(--green-600);
+  border: var(--border-width-thick) solid var(--spell-evocation);
 }
 
 .preparedSpell.known {
   background: var(--spell-bg-abjuration);
-  border: var(--border-width-thick) solid var(--blue-600);
+  border: var(--border-width-thick) solid var(--spell-abjuration);
 }
 
 .preparedSpell.prepared {
   background: var(--spell-bg-enchantment);
-  border: var(--border-width-thick) solid var(--purple-600);
+  border: var(--border-width-thick) solid var(--spell-enchantment);
 }
 
 .preparedSpell:hover {
@@ -308,7 +310,7 @@
 }
 
 .castingControls h3 {
-  color: var(--purple-700);
+  color: var(--text-accent);
   margin: 0;
   font-size: var(--text-2xl);
 }
@@ -330,11 +332,11 @@
 }
 
 .castingLevelSelect:focus {
-  border-color: var(--purple-700);
+  border-color: var(--input-border-focus);
 }
 
 .castableSpells h4 {
-  color: var(--purple-700);
+  color: var(--text-accent);
   margin: 0 0 var(--space-lg) 0;
   font-size: var(--text-xl);
 }
@@ -351,7 +353,7 @@
 }
 
 .castableSpellCard:hover {
-  border-color: var(--purple-700);
+  border-color: var(--border-focus);
   transform: translateY(calc(var(--space-xs) * -0.5));
   box-shadow: var(--shadow-lg);
 }
@@ -372,7 +374,8 @@
 
 .spellLevel {
   composes: wizard-badge-primary from './CharacterWizardBase.module.css';
-  background: var(--purple-700);
+  background: var(--button-primary-bg);
+  color: var(--button-primary-text);
 }
 
 .spellSchool {
@@ -391,7 +394,7 @@
 
 .castSpellBtn {
   composes: wizard-button-primary from './CharacterWizardBase.module.css';
-  background: linear-gradient(135deg, var(--purple-700) 0%, var(--purple-600) 100%);
+  background: var(--button-primary-bg);
 }
 
 .castSpellBtn:hover:not(:disabled) {
@@ -400,7 +403,8 @@
 }
 
 .castSpellBtn:disabled {
-  background: var(--gray-600);
+  background: var(--button-disabled-bg);
+  color: var(--button-disabled-text);
   cursor: not-allowed;
   opacity: 0.6;
   transform: none;
@@ -421,7 +425,7 @@
 }
 
 .libraryHeader h3 {
-  color: var(--purple-700);
+  color: var(--text-accent);
   margin: 0;
   font-size: var(--text-2xl);
 }
@@ -445,7 +449,7 @@
 
 .searchInput:focus,
 .filterSelect:focus {
-  border-color: var(--purple-700);
+  border-color: var(--input-border-focus);
 }
 
 .spellLibraryGrid {
@@ -459,7 +463,7 @@
 }
 
 .librarySpellCard:hover {
-  border-color: var(--purple-700);
+  border-color: var(--border-focus);
   transform: translateY(calc(var(--space-xs) * -0.5));
   box-shadow: var(--shadow-lg);
 }
@@ -512,7 +516,7 @@
 }
 
 .spellLevelSchool {
-  color: var(--purple-700);
+  color: var(--text-accent);
   font-weight: var(--font-semibold);
   margin-bottom: var(--space-md);
   font-size: var(--text-base);
@@ -604,7 +608,7 @@
   }
   
   .spellManager .spellTabButton.spellTabButtonActive {
-    border-bottom: var(--border-width) solid var(--purple-900);
+    border-bottom: var(--border-width) solid var(--border-focus);
     border-right: none;
   }
   

@@ -307,7 +307,7 @@
 }
 
 .applyImportPrimary:hover {
-  background: var(--green-700);
+  background: var(--button-success-hover);
 }
 
 .cancelImportSecondary {

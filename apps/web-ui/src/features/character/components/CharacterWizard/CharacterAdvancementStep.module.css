@@ -74,11 +74,11 @@
 }
 
 .status-value-level {
-  color: var(--green-600);
+  color: var(--status-success-text);
 }
 
 .status-value-xp {
-  color: var(--blue-600);
+  color: var(--status-info-text);
 }
 
 .status-value-next-level {
@@ -112,8 +112,8 @@
 }
 
 .xp-input:focus {
-  border-color: var(--color-danger);
-  box-shadow: 0 0 0 var(--border-width-thick) var(--red-100);
+  border-color: var(--input-border-focus);
+  box-shadow: var(--focus-ring);
 }
 
 .xp-quick-actions h4 {
@@ -138,23 +138,23 @@
 }
 
 .quick-xp-btn-small {
-  border-color: var(--green-600);
-  color: var(--green-600);
+  border-color: var(--button-success-border);
+  color: var(--status-success-text);
 }
 
 .quick-xp-btn-small:hover {
-  background: var(--green-600);
-  color: var(--text-inverse-primary);
+  background: var(--button-success-bg);
+  color: var(--button-success-text);
 }
 
 .quick-xp-btn-medium {
-  border-color: var(--blue-600);
-  color: var(--blue-600);
+  border-color: var(--button-info-border);
+  color: var(--status-info-text);
 }
 
 .quick-xp-btn-medium:hover {
-  background: var(--blue-600);
-  color: var(--text-inverse-primary);
+  background: var(--button-info-bg);
+  color: var(--button-info-text);
 }
 
 .quick-xp-btn-large {
@@ -163,8 +163,8 @@
 }
 
 .quick-xp-btn-large:hover {
-  background: var(--color-danger);
-  color: var(--text-inverse-primary);
+  background: var(--button-danger-bg);
+  color: var(--button-danger-text);
 }
 
 /* XP Progress Bar Styles */
@@ -195,7 +195,7 @@
 
 .progress-fill {
   height: 100%;
-  background: linear-gradient(90deg, var(--green-600) 0%, var(--green-500) 100%);
+  background: var(--color-success);
   transition: width var(--duration-slow) ease;
   border-radius: var(--radius-full);
 }
@@ -221,7 +221,7 @@
 }
 
 .level-up-notice h4 {
-  color: var(--green-600);
+  color: var(--status-success-text);
   font-size: var(--text-xl);
   margin-bottom: var(--space-xs);
 }
@@ -244,8 +244,8 @@
 }
 
 .level-up-btn-primary {
-  background: linear-gradient(135deg, var(--green-600) 0%, var(--green-500) 100%);
-  color: var(--text-inverse-primary);
+  background: var(--button-success-bg);
+  color: var(--button-success-text);
   box-shadow: var(--shadow-lg);
 }
 
@@ -261,7 +261,7 @@
 }
 
 .level-up-btn-secondary:hover {
-  background: var(--gray-700);
+  background: var(--button-secondary-hover);
 }
 
 .level-up-waiting {

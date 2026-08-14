@@ -160,10 +160,16 @@
  */
 .wizard-header-neutral {
   background: var(--bg-secondary);
-  color: var(--text-inverse-primary);
+  color: var(--text-primary);
   padding: var(--space-xl) var(--space-lg) var(--space-lg) var(--space-lg);
   position: relative;
   border-bottom: var(--border-width-thick) solid var(--color-primary);
+}
+
+.wizard-header-neutral .wizard-title,
+.wizard-header-neutral .wizard-subtitle,
+.wizard-header-neutral .wizard-close-button {
+  color: var(--text-primary);
 }
 
 /**

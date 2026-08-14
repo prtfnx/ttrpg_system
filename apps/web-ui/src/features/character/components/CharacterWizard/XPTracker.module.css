@@ -19,14 +19,15 @@
 
 .xpHeader h3 {
   margin: 0;
-  color: var(--red-900);
+  color: var(--text-accent);
   font-size: var(--text-xl);
   font-weight: var(--font-semibold);
 }
 
 .levelUpBadge {
   composes: wizard-badge-success from './CharacterWizardBase.module.css';
-  background: linear-gradient(135deg, var(--green-700) 0%, var(--green-600) 100%);
+  background: var(--button-success-bg);
+  color: var(--button-success-text);
   text-transform: uppercase;
   letter-spacing: var(--tracking-wide);
   animation: pulse var(--duration-pulse) infinite;
@@ -114,33 +115,33 @@
 }
 
 .quickAddBtn.small {
-  border-color: var(--green-600);
-  color: var(--green-600);
+  border-color: var(--button-success-border);
+  color: var(--status-success-text);
 }
 
 .quickAddBtn.small:hover {
-  background: var(--green-600);
-  color: var(--text-inverse-primary);
+  background: var(--button-success-bg);
+  color: var(--button-success-text);
 }
 
 .quickAddBtn.medium {
-  border-color: var(--blue-600);
-  color: var(--blue-600);
+  border-color: var(--button-info-border);
+  color: var(--status-info-text);
 }
 
 .quickAddBtn.medium:hover {
-  background: var(--blue-600);
-  color: var(--text-inverse-primary);
+  background: var(--button-info-bg);
+  color: var(--button-info-text);
 }
 
 .quickAddBtn.large {
-  border-color: var(--red-600);
-  color: var(--red-600);
+  border-color: var(--button-danger-border);
+  color: var(--status-error-text);
 }
 
 .quickAddBtn.large:hover {
-  background: var(--red-600);
-  color: var(--text-inverse-primary);
+  background: var(--button-danger-bg);
+  color: var(--button-danger-text);
 }
 
 /* Level Info Styles */
@@ -163,8 +164,8 @@
 .levelNumber {
   width: var(--size-20);
   height: var(--size-20);
-  background: linear-gradient(135deg, var(--red-900) 0%, var(--red-800) 100%);
-  color: var(--text-inverse-primary);
+  background: var(--button-primary-bg);
+  color: var(--button-primary-text);
   border-radius: var(--radius-full);
   display: flex;
   align-items: center;
@@ -175,7 +176,8 @@
 }
 
 .nextLevel .levelNumber {
-  background: linear-gradient(135deg, var(--gray-600) 0%, var(--gray-700) 100%);
+  background: var(--button-secondary-bg);
+  color: var(--button-secondary-text);
   box-shadow: var(--shadow-lg);
 }
 
@@ -189,7 +191,7 @@
 
 .levelArrow {
   font-size: var(--text-2xl);
-  color: var(--red-900);
+  color: var(--text-accent);
   font-weight: var(--font-bold);
 }
 
@@ -215,14 +217,14 @@
 
 .progressFill {
   height: 100%;
-  background: linear-gradient(90deg, var(--blue-600) 0%, var(--blue-700) 100%);
+  background: var(--color-primary);
   transition: width var(--transition-slow) ease;
   border-radius: var(--radius-md);
   position: relative;
 }
 
 .progressFill.ready {
-  background: linear-gradient(90deg, var(--green-600) 0%, var(--green-500) 100%);
+  background: var(--color-success);
   animation: ready-glow var(--duration-pulse) infinite alternate;
 }
 
@@ -242,7 +244,7 @@
 }
 
 .xpReady {
-  color: var(--green-600);
+  color: var(--status-success-text);
   font-weight: var(--font-semibold);
   font-size: var(--text-base);
 }
@@ -253,9 +255,9 @@
   align-items: center;
   gap: var(--space-md);
   padding: var(--space-lg);
-  background: linear-gradient(135deg, var(--yellow-500) 0%, var(--yellow-400) 100%);
+  background: var(--status-warning-bg);
   border-radius: var(--radius-md);
-  border: var(--border-width-md) solid var(--yellow-600);
+  border: var(--border-width-md) solid var(--status-warning-border);
   margin-bottom: var(--space-xl);
 }
 
@@ -284,7 +286,7 @@
 
 .milestoneHeader {
   font-weight: var(--font-semibold);
-  color: var(--red-900);
+  color: var(--text-accent);
   margin-bottom: var(--space-md);
   text-align: center;
   font-size: var(--text-base);
@@ -308,12 +310,12 @@
 
 .milestone.reached {
   background: var(--status-success-bg);
-  border-color: var(--green-600);
+  border-color: var(--status-success-border);
 }
 
 .milestone.current {
   background: var(--status-warning-bg);
-  border-color: var(--yellow-600);
+  border-color: var(--status-warning-border);
   transform: scale(1.05);
 }
 
@@ -349,12 +351,13 @@
 .currentXp {
   font-size: var(--text-lg);
   font-weight: var(--font-bold);
-  color: var(--blue-600);
+  color: var(--text-accent);
 }
 
 .levelDisplay {
   composes: wizard-badge-primary from './CharacterWizardBase.module.css';
-  background: var(--red-900);
+  background: var(--button-primary-bg);
+  color: var(--button-primary-text);
   padding: var(--space-xs) var(--space-sm);
   border-radius: var(--radius-md);
 }
@@ -375,8 +378,8 @@
 }
 
 .levelUpIndicator {
-  background: linear-gradient(135deg, var(--green-600) 0%, var(--green-500) 100%);
-  color: var(--text-inverse-primary);
+  background: var(--button-success-bg);
+  color: var(--button-success-text);
   text-align: center;
   padding: var(--space-xs);
   border-radius: var(--radius-sm);

@@ -79,11 +79,11 @@
 .summary-item .value {
   font-weight: var(--font-bold);
   font-size: var(--text-lg);
-  color: var(--green-600);
+  color: var(--status-success-text);
 }
 
 .summary-item .value.encumbered {
-  color: var(--yellow-600);
+  color: var(--status-warning-text);
 }
 
 .summary-item .value.heavily-encumbered {
@@ -208,7 +208,7 @@
 }
 
 .search-input:focus {
-  border-color: var(--blue-600);
+  border-color: var(--input-border-focus);
   box-shadow: var(--focus-ring);
 }
 
@@ -233,13 +233,13 @@
 
 .category-button:hover {
   background: var(--bg-tertiary);
-  border-color: var(--blue-600);
+  border-color: var(--border-focus);
 }
 
 .category-button.active {
-  background: var(--blue-600);
-  color: var(--text-inverse-primary);
-  border-color: var(--blue-600);
+  background: var(--button-primary-bg);
+  color: var(--button-primary-text);
+  border-color: var(--button-primary-border);
 }
 
 /* Available Equipment */
@@ -277,11 +277,11 @@
 }
 
 .equipment-card:hover {
-  border-color: var(--blue-600);
+  border-color: var(--border-focus);
 }
 
 .equipment-card-expanded {
-  border-color: var(--blue-700);
+  border-color: var(--border-focus);
 }
 
 .equipment-compact-row {
@@ -301,7 +301,8 @@
 
 .equipment-cost {
   composes: wizard-badge-success from './CharacterWizardBase.module.css';
-  background: var(--green-600);
+  background: var(--status-success-bg);
+  color: var(--status-success-text);
   font-size: var(--text-xs);
   white-space: nowrap;
   flex-shrink: 0;
@@ -337,7 +338,7 @@
 
 .equipment-category {
   composes: wizard-badge-secondary from './CharacterWizardBase.module.css';
-  background: var(--gray-600);
+  background: var(--bg-tertiary);
   font-size: var(--text-xs);
   text-transform: capitalize;
 }
@@ -348,15 +349,17 @@
   font-size: var(--text-lg);
   line-height: 1;
   flex-shrink: 0;
-  background: var(--blue-600);
+  background: var(--button-primary-bg);
+  color: var(--button-primary-text);
 }
 
 .add-equipment-button:hover:not(:disabled) {
-  background: var(--blue-700);
+  background: var(--button-primary-hover);
 }
 
 .add-equipment-button:disabled {
-  background: var(--gray-600);
+  background: var(--button-disabled-bg);
+  color: var(--button-disabled-text);
   cursor: not-allowed;
   opacity: 0.6;
 }
@@ -374,7 +377,7 @@
   composes: wizard-card from './CharacterWizardBase.module.css';
   background: var(--bg-primary);
   padding: var(--space-lg);
-  border: var(--border-width-thick) solid var(--green-600);
+  border: var(--border-width-thick) solid var(--status-success-border);
   position: sticky;
   top: var(--space-md);
   align-self: start;
@@ -387,8 +390,8 @@
 .selected-equipment h3 {
   margin: 0 0 var(--space-md) 0;
   font-size: var(--text-xl);
-  color: var(--green-600);
-  border-bottom: var(--border-width-thick) solid var(--green-600);
+  color: var(--status-success-text);
+  border-bottom: var(--border-width-thick) solid var(--status-success-border);
   padding-bottom: var(--space-xs);
   flex-shrink: 0;
 }
@@ -428,7 +431,7 @@
 
 .item-weight {
   font-size: var(--text-sm);
-  color: var(--green-600);
+  color: var(--status-success-text);
   font-weight: var(--font-medium);
 }
 
@@ -492,8 +495,8 @@
 }
 
 .back-button:hover {
-  background: var(--gray-600);
-  color: var(--text-inverse-primary);
+  background: var(--button-secondary-hover);
+  color: var(--button-secondary-text);
 }
 
 .next-button {
@@ -501,13 +504,14 @@
 }
 
 .next-button:hover:not(:disabled) {
-  background: var(--green-700);
-  border-color: var(--green-800);
+  background: var(--button-success-hover);
+  border-color: var(--button-success-border);
 }
 
 .next-button:disabled {
-  background: var(--gray-600);
-  border-color: var(--gray-600);
+  background: var(--button-disabled-bg);
+  border-color: var(--border-disabled);
+  color: var(--button-disabled-text);
   cursor: not-allowed;
   opacity: 0.6;
 }
@@ -566,21 +570,21 @@
 .equipmentGrid::-webkit-scrollbar-track,
 .selected-items::-webkit-scrollbar-track,
 .available-equipment::-webkit-scrollbar-track {
-  background: var(--gray-200);
+  background: var(--bg-secondary);
   border-radius: var(--radius-sm);
 }
 
 .equipmentGrid::-webkit-scrollbar-thumb,
 .selected-items::-webkit-scrollbar-thumb,
 .available-equipment::-webkit-scrollbar-thumb {
-  background: var(--gray-400);
+  background: var(--border-secondary);
   border-radius: var(--radius-sm);
 }
 
 .equipmentGrid::-webkit-scrollbar-thumb:hover,
 .selected-items::-webkit-scrollbar-thumb:hover,
 .available-equipment::-webkit-scrollbar-thumb:hover {
-  background: var(--gray-500);
+  background: var(--border-hover);
 }
 
 .equipmentDetailsButton {

@@ -30,14 +30,14 @@
   font-size: var(--text-3xl);
   font-weight: var(--font-bold);
   letter-spacing: var(--tracking-tight);
-  color: var(--text-inverse-primary);
+  color: var(--text-primary);
 }
 
 .wizard-title-section p {
   margin: var(--space-sm) 0 0 0;
   opacity: 0.9;
   font-size: var(--text-base);
-  color: var(--text-inverse-primary);
+  color: var(--text-secondary);
   font-weight: var(--font-normal);
 }
 
@@ -89,7 +89,7 @@
   font-size: var(--text-sm);
   opacity: 0.95;
   font-weight: var(--font-medium);
-  color: var(--text-inverse-primary);
+  color: var(--text-secondary);
 }
 
 /* Step Navigation */
@@ -102,7 +102,7 @@
 .step-button {
   composes: wizard-button-secondary from './CharacterWizardBase.module.css';
   background: var(--wizard-bg-overlay);
-  color: var(--text-inverse-primary);
+  color: var(--text-secondary);
   border: var(--border-width-thick) solid var(--border-overlay-light);
   border-radius: var(--radius-md);
   padding: var(--space-sm) var(--space-md);
@@ -127,7 +127,7 @@
 .step-button.active {
   background: var(--overlay-heavy);
   color: var(--text-primary);
-  border-color: var(--text-inverse-primary);
+  border-color: var(--border-focus);
   box-shadow: var(--shadow-md);
 }
 
@@ -150,7 +150,7 @@
 
 .step-button.active .step-number {
   opacity: 1;
-  color: var(--text-inverse-primary);
+  color: var(--text-primary);
 }
 
 .step-button.completed .step-number {

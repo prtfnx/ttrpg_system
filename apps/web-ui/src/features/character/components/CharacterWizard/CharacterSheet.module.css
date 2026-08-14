@@ -85,10 +85,10 @@
 .combat-stats h3,
 .skills-section h3,
 .saves-section h3 {
-  color: var(--red-900);
+  color: var(--text-accent);
   margin-bottom: var(--space-md);
   font-size: var(--text-xl);
-  border-bottom: var(--border-width-thick) solid var(--red-900);
+  border-bottom: var(--border-width-thick) solid var(--border-focus);
   padding-bottom: var(--space-xs);
 }
 
@@ -105,7 +105,7 @@
 }
 
 .ability-card:hover {
-  border-color: var(--red-900);
+  border-color: var(--border-focus);
   transform: translateY(calc(var(--space-xs) * -0.5));
   box-shadow: var(--shadow-md);
 }
@@ -129,8 +129,8 @@
 .ability-modifier {
   composes: wizard-badge from './CharacterWizardBase.module.css';
   font-weight: var(--font-semibold);
-  color: var(--red-900);
-  background: var(--red-50);
+  color: var(--text-accent);
+  background: var(--color-primary-overlay);
 }
 
 .skills-grid,
@@ -158,8 +158,8 @@
 
 .skill-item.proficient,
 .save-item.proficient {
-  border-color: var(--green-600);
-  background: var(--green-50);
+  border-color: var(--status-success-border);
+  background: var(--status-success-bg);
 }
 
 .skill-name,
@@ -172,7 +172,7 @@
 .save-bonus {
   composes: wizard-badge-primary from './CharacterWizardBase.module.css';
   font-weight: var(--font-bold);
-  background: var(--red-50);
+  background: var(--color-primary-overlay);
   min-width: var(--size-10);
   text-align: center;
 }
@@ -185,10 +185,10 @@
 
 .combat-stats-section h3,
 .attacks-section h3 {
-  color: var(--red-900);
+  color: var(--text-accent);
   margin-bottom: var(--space-md);
   font-size: var(--text-xl);
-  border-bottom: var(--border-width-thick) solid var(--red-900);
+  border-bottom: var(--border-width-thick) solid var(--border-focus);
   padding-bottom: var(--space-xs);
 }
 
@@ -204,7 +204,7 @@
 }
 
 .combat-stat:hover {
-  border-color: var(--red-900);
+  border-color: var(--border-focus);
   background: var(--bg-primary);
 }
 
@@ -220,7 +220,7 @@
 .stat-value {
   font-size: var(--text-xl);
   font-weight: var(--font-bold);
-  color: var(--red-900);
+  color: var(--text-accent);
 }
 
 .attacks-list {
@@ -239,7 +239,7 @@
 }
 
 .attack-item:hover {
-  border-color: var(--red-900);
+  border-color: var(--border-focus);
   background: var(--bg-primary);
 }
 
@@ -253,7 +253,7 @@
 .attack-damage {
   composes: wizard-badge-primary from './CharacterWizardBase.module.css';
   font-weight: var(--font-semibold);
-  background: var(--red-50);
+  background: var(--color-primary-overlay);
 }
 
 /* Spells Tab */
@@ -264,10 +264,10 @@
 
 .spellcasting-section h3,
 .spells-known-section h3 {
-  color: var(--red-900);
+  color: var(--text-accent);
   margin-bottom: var(--space-md);
   font-size: var(--text-xl);
-  border-bottom: var(--border-width-thick) solid var(--red-900);
+  border-bottom: var(--border-width-thick) solid var(--border-focus);
   padding-bottom: var(--space-xs);
 }
 
@@ -295,7 +295,7 @@
 
 .spell-item:hover {
   background: var(--bg-tertiary);
-  border-color: var(--red-900);
+  border-color: var(--border-focus);
 }
 
 .spell-name {
@@ -320,10 +320,10 @@
 
 .equipment-section h3,
 .currency-section h3 {
-  color: var(--red-900);
+  color: var(--text-accent);
   margin-bottom: var(--space-md);
   font-size: var(--text-xl);
-  border-bottom: var(--border-width-thick) solid var(--red-900);
+  border-bottom: var(--border-width-thick) solid var(--border-focus);
   padding-bottom: var(--space-xs);
 }
 
@@ -345,7 +345,7 @@
 
 .equipment-item:hover {
   background: var(--bg-tertiary);
-  border-color: var(--red-900);
+  border-color: var(--border-focus);
 }
 
 .item-name {
@@ -384,7 +384,7 @@
 .currency-amount {
   font-size: var(--text-lg);
   font-weight: var(--font-bold);
-  color: var(--red-900);
+  color: var(--text-accent);
 }
 
 .no-equipment {
@@ -404,10 +404,10 @@
 
 .character-background h3,
 .character-bio h3 {
-  color: var(--red-900);
+  color: var(--text-accent);
   margin-bottom: var(--space-md);
   font-size: var(--text-xl);
-  border-bottom: var(--border-width-thick) solid var(--red-900);
+  border-bottom: var(--border-width-thick) solid var(--border-focus);
   padding-bottom: var(--space-xs);
 }
 
@@ -420,7 +420,7 @@
 }
 
 .background-item strong {
-  color: var(--red-900);
+  color: var(--text-accent);
   margin-right: var(--space-xs);
 }
 
@@ -498,7 +498,7 @@
   }
   
   .character-sheet .tab-button.active {
-    border-bottom: var(--border-width) solid var(--red-800);
+    border-bottom: var(--border-width) solid var(--border-focus);
     border-right: none;
   }
   

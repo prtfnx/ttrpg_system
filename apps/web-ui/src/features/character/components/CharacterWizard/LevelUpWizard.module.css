@@ -34,7 +34,7 @@
 /* ===== COMPONENT-SPECIFIC STYLES ===== */
 
 .level-up-step h3 {
-  color: var(--red-900);
+  color: var(--text-accent);
   font-size: var(--text-lg);
   margin-bottom: var(--space-lg);
   text-align: center;
@@ -53,12 +53,12 @@
 
 .class-option.primary {
   background: var(--bg-elevated);
-  border-color: var(--red-900);
+  border-color: var(--border-focus);
 }
 
 .class-option.multiclass {
-  background: var(--yellow-50);
-  border-color: var(--yellow-500);
+  background: var(--status-warning-bg);
+  border-color: var(--status-warning-border);
 }
 
 .class-option.disabled {
@@ -112,7 +112,7 @@
 }
 
 .hp-method:has(input:checked) {
-  border-color: var(--red-900);
+  border-color: var(--border-focus);
   background: var(--panel-bg);
 }
 
@@ -136,7 +136,7 @@
 
 .method-info span {
   font-size: var(--text-sm);
-  color: var(--gray-600);
+  color: var(--text-secondary);
 }
 
 .hp-roll-section {
@@ -190,7 +190,7 @@
 }
 
 .option-type:has(input:checked) {
-  border-color: var(--red-900);
+  border-color: var(--border-focus);
   background: var(--panel-bg);
 }
 
@@ -222,7 +222,7 @@
 }
 
 .asi-selection h4 {
-  color: var(--red-900);
+  color: var(--text-accent);
   margin-bottom: var(--space-md);
   font-weight: var(--font-semibold);
 }
@@ -276,7 +276,7 @@
 
 .ability-control button:hover:not(:disabled) {
   background: var(--bg-elevated);
-  border-color: var(--red-900);
+  border-color: var(--border-focus);
 }
 
 .ability-control button:disabled {
@@ -305,7 +305,7 @@
 }
 
 .feat-selection h4 {
-  color: var(--red-900);
+  color: var(--text-accent);
   margin-bottom: var(--space-md);
   font-weight: var(--font-semibold);
 }
@@ -325,7 +325,7 @@
 }
 
 .feature-choice h4 {
-  color: var(--red-900);
+  color: var(--text-accent);
   margin-bottom: var(--space-xs);
   font-weight: var(--font-semibold);
 }
@@ -365,7 +365,7 @@
 
 .cantrip-selection h4,
 .spell-selection h4 {
-  color: var(--red-900);
+  color: var(--text-accent);
   margin-bottom: var(--space-md);
   font-weight: var(--font-semibold);
 }
@@ -389,7 +389,7 @@
 }
 
 .spell-grid label:hover {
-  border-color: var(--red-900);
+  border-color: var(--border-focus);
   background: var(--bg-elevated);
 }
 
@@ -407,7 +407,7 @@
 }
 
 .summary-section h4 {
-  color: var(--red-900);
+  color: var(--text-accent);
   margin-bottom: var(--space-sm);
   font-size: var(--text-base);
   font-weight: var(--font-semibold);
@@ -443,13 +443,13 @@
 }
 
 .nav-button.secondary {
-  background: var(--gray-600);
-  color: var(--text-inverse-primary);
-  border: none;
+  background: var(--button-secondary-bg);
+  color: var(--button-secondary-text);
+  border: var(--border-width) solid var(--button-secondary-border);
 }
 
 .nav-button.secondary:hover:not(:disabled) {
-  background: var(--gray-500);
+  background: var(--button-secondary-hover);
 }
 
 .nav-button.primary {

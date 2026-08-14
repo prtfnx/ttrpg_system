@@ -370,7 +370,7 @@
   composes: wizard-card from './CharacterWizardBase.module.css';
   position: sticky;
   top: var(--space-lg);
-  border: var(--border-width-thick) solid var(--green-600);
+  border: var(--border-width-thick) solid var(--status-success-border);
   max-height: calc(100dvh - var(--space-5xl));
   display: flex;
   flex-direction: column;
@@ -408,7 +408,7 @@
 
 .stat-value-complete {
   composes: stat-value;
-  color: var(--green-600);
+  color: var(--status-success-text);
 }
 
 /* Selected Spell Section */

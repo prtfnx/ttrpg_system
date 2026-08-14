@@ -223,6 +223,7 @@
 .abilityScore:focus {
   outline: none;
   border-color: var(--color-primary);
+  box-shadow: var(--focus-ring);
 }
 
 .abilitySaveRow {
@@ -401,6 +402,7 @@
 .combatInput:focus {
   outline: none;
   border-bottom-color: var(--color-primary);
+  box-shadow: var(--focus-ring);
 }
 
 .combatValue {
@@ -470,7 +472,7 @@
   padding: 0;
 }
 
-.hpCurrent:focus { outline: none; border-bottom-color: var(--color-danger); }
+.hpCurrent:focus { outline: none; border-bottom-color: var(--color-danger); box-shadow: var(--focus-ring); }
 
 .hpSlash { color: var(--text-muted); font-size: var(--text-xl); }
 
@@ -486,7 +488,7 @@
   padding: 0;
 }
 
-.hpMax:focus { outline: none; border-bottom-color: var(--color-primary); }
+.hpMax:focus { outline: none; border-bottom-color: var(--color-primary); box-shadow: var(--focus-ring); }
 
 .tempHpBadge {
   font-size: var(--text-xs);
@@ -517,7 +519,7 @@
   padding: var(--space-xs);
 }
 
-.hpAmountInput:focus { outline: none; border-color: var(--color-primary); }
+.hpAmountInput:focus { outline: none; border-color: var(--color-primary); box-shadow: var(--focus-ring); }
 
 .damageBtn {
   background: var(--color-danger);
@@ -888,7 +890,7 @@
   box-sizing: border-box;
 }
 
-.bioTextarea:focus { outline: none; border-color: var(--color-primary); }
+.bioTextarea:focus { outline: none; border-color: var(--color-primary); box-shadow: var(--focus-ring); }
 
 .linkedTokensSection h4 { margin: 0 0 var(--space-sm) 0; font-size: var(--text-sm); color: var(--text-secondary); }
 

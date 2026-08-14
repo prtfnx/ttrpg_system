@@ -232,12 +232,12 @@
   border-radius: var(--radius-sm);
   color: var(--text-primary);
   font-size: var(--text-sm);
-  outline: none;
   box-sizing: border-box;
 }
 
 .searchInput:focus {
   border-color: var(--color-primary);
+  box-shadow: var(--focus-ring);
 }
 
 .dropdown {
@@ -316,9 +316,9 @@
   font-size: var(--text-sm);
   font-weight: var(--font-medium);
   text-align: center;
-  outline: none;
 }
 
 .currencyInput:focus {
   border-color: var(--color-primary);
+  box-shadow: var(--focus-ring);
 }

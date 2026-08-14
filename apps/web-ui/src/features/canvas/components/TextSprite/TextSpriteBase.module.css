@@ -114,8 +114,12 @@
   height: var(--space-sm);
   background: var(--bg-tertiary);
   border-radius: var(--radius-sm);
-  outline: none;
   width: 100%;
+}
+
+.range-input:focus-visible {
+  outline: var(--border-width-md) solid var(--focus-outline-color);
+  outline-offset: var(--border-width-md);
 }
 
 .range-input::-webkit-slider-thumb {
@@ -255,7 +259,6 @@
   color: var(--text-primary);
   padding: var(--space-1) var(--space-sm);
   font-size: var(--text-sm);
-  outline: none;
   cursor: pointer;
   min-width: var(--size-15);
 }
@@ -265,6 +268,7 @@
 }
 
 .toolbar-select:focus {
+  outline: none;
   border-color: var(--input-border-focus);
   box-shadow: var(--focus-ring);
 }

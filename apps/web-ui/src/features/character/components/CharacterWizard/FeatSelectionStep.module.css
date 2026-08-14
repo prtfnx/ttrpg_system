@@ -182,6 +182,7 @@
 .featSearch:focus {
   outline: none;
   border-color: var(--input-border-focus);
+  box-shadow: var(--focus-ring);
 }
 
 .featFilter {

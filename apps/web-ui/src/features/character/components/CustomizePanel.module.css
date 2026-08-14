@@ -220,9 +220,13 @@
   height: var(--space-sm);
   background: var(--bg-tertiary);
   border-radius: var(--radius-full);
-  outline: none;
   cursor: pointer;
   appearance: none;
+}
+
+.slider:focus-visible {
+  outline: var(--border-width-md) solid var(--focus-outline-color);
+  outline-offset: var(--border-width-md);
 }
 
 .slider::-webkit-slider-thumb {

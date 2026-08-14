@@ -61,6 +61,7 @@
 .searchInput:focus {
   outline: none;
   border-color: var(--input-border-focus);
+  box-shadow: var(--focus-ring);
 }
 
 .filterRow {
@@ -83,6 +84,7 @@
 .select:focus {
   outline: none;
   border-color: var(--input-border-focus);
+  box-shadow: var(--focus-ring);
 }
 
 .crInput {
@@ -98,6 +100,7 @@
 .crInput:focus {
   outline: none;
   border-color: var(--input-border-focus);
+  box-shadow: var(--focus-ring);
 }
 
 .crLabel {

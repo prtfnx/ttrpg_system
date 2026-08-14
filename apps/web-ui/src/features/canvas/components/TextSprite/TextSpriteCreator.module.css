@@ -63,12 +63,12 @@
   color: var(--text-primary);
   padding: var(--space-2) var(--space-3);
   font-size: var(--text-sm);
-  outline: none;
   transition: border-color var(--transition-fast);
 }
 
 .controlGroup input:focus,
 .controlGroup select:focus {
+  outline: none;
   border-color: var(--input-border-focus);
   box-shadow: var(--focus-ring);
 }
@@ -82,13 +82,13 @@
   color: var(--text-primary);
   padding: var(--space-2) var(--space-3);
   font-size: var(--text-sm);
-  outline: none;
   resize: vertical;
   font-family: inherit;
   transition: border-color var(--transition-fast);
 }
 
 .controlGroup textarea:focus {
+  outline: none;
   border-color: var(--input-border-focus);
   box-shadow: var(--focus-ring);
 }
@@ -108,9 +108,13 @@
   -webkit-appearance: none;
   appearance: none;
   background: var(--bg-tertiary);
-  outline: none;
   border-radius: var(--radius-full);
   height: var(--size-1);
+}
+
+.textSpriteCreator input[type="range"]:focus-visible {
+  outline: var(--border-width-md) solid var(--focus-outline-color);
+  outline-offset: var(--border-width-md);
 }
 
 .textSpriteCreator input[type="range"]::-webkit-slider-thumb {

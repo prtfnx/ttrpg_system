@@ -346,6 +346,7 @@
 .ownerInput:focus {
   outline: none;
   border-color: var(--color-accent);
+  box-shadow: var(--focus-ring);
 }
 
 .ownerAddBtn {

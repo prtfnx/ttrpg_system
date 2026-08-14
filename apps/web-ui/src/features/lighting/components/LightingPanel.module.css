@@ -314,10 +314,14 @@
   height: var(--space-sm);
   border-radius: var(--radius-xs);
   background: linear-gradient(to right, var(--gray-900), var(--gray-500));
-  outline: none;
   appearance: none;
   -webkit-appearance: none;
   cursor: pointer;
+}
+
+.ambient-slider input[type="range"]:focus-visible {
+  outline: var(--border-width-md) solid var(--focus-outline-color);
+  outline-offset: var(--border-width-md);
 }
 
 .ambient-slider input[type="range"]::-webkit-slider-thumb {

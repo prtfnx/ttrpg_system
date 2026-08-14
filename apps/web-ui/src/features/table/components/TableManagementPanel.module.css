@@ -442,7 +442,7 @@
 }
 
 .tableCard.active .tableCardName {
-  color: var(--cyan-400);
+  color: var(--status-info-text);
 }
 
 .tableCardMeta {

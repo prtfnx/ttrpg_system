@@ -300,11 +300,11 @@
   align-items: center;
   padding: var(--space-xs) var(--space-sm);
   background: var(--active-bg-gradient-start);
-  border: var(--border-width) solid var(--blue-500);
+  border: var(--border-width) solid var(--status-info-border);
   border-radius: var(--radius-sm);
   margin-bottom: var(--space-sm);
   font-size: var(--text-xs);
-  color: var(--blue-300);
+  color: var(--status-info-text);
 }
 
 .tableIndicatorIcon {

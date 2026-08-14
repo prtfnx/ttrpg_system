@@ -61,19 +61,19 @@
 }
 
 .statusConnected {
-  background-color: var(--green-400);
+  background-color: var(--button-success-bg);
   color: var(--button-success-text);
   opacity: 0.7;
 }
 
 .statusConnecting {
-  background-color: var(--yellow-400);
+  background-color: var(--button-warning-bg);
   color: var(--button-warning-text);
   opacity: 1;
 }
 
 .statusError {
-  background-color: var(--red-500);
+  background-color: var(--button-danger-bg);
   color: var(--button-danger-text);
   opacity: 1;
 }
@@ -165,13 +165,13 @@
 }
 
 .wsConnected {
-  background-color: var(--green-600);
+  background-color: var(--button-success-bg);
   color: var(--button-success-text);
   opacity: 0.8;
 }
 
 .wsDisconnected {
-  background-color: var(--orange-500);
+  background-color: var(--button-warning-bg);
   color: var(--button-warning-text);
   opacity: 1;
 }
@@ -196,7 +196,7 @@
 }
 
 .fpsWarning {
-  color: var(--yellow-400);
+  color: var(--status-warning-text);
 }
 
 .fpsCritical {

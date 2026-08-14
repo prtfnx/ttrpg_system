@@ -103,7 +103,7 @@
 }
 
 .measurementItem.primary .value {
-  color: var(--green-400);
+  color: var(--status-success-text);
   font-size: var(--text-xl);
 }
 

@@ -92,7 +92,7 @@
 
 .usageFill {
   height: 100%;
-  background: linear-gradient(90deg, var(--green-600), var(--green-400));
+  background: var(--color-success);
   transition: width var(--duration-slow) ease;
 }
 

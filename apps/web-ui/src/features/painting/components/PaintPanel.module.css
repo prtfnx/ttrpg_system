@@ -247,12 +247,12 @@
   align-items: center;
   gap: var(--space-sm);
   font-size: var(--text-2xs);
-  color: var(--orange-500);
+  color: var(--status-warning-text);
   font-weight: var(--font-semibold);
 }
 
 .paintModeIndicator .pulseDot {
-  color: var(--orange-500);
+  color: var(--status-warning-text);
   animation: pulse calc(var(--duration-pulse) * 0.75) infinite;
 }
 
@@ -285,7 +285,7 @@
 }
 
 .paintModeIndicator.erase .modeIcon {
-  color: var(--orange-500);
+  color: var(--status-warning-text);
 }
 
 .paintModeIndicator.template .modeIcon {
@@ -354,8 +354,8 @@
 
 .drawingIndicator {
   padding: var(--space-2xs) var(--space-sm);
-  background: var(--orange-500);
-  color: var(--bg-primary);
+  background: var(--button-warning-bg);
+  color: var(--button-warning-text);
   border-radius: var(--radius-full);
   font-size: var(--text-2xs);
   font-weight: var(--font-semibold);

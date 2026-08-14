@@ -313,7 +313,7 @@
   width: 100%;
   height: var(--space-sm);
   border-radius: var(--radius-xs);
-  background: linear-gradient(to right, var(--gray-900), var(--gray-500));
+  background: linear-gradient(to right, var(--bg-primary), var(--text-muted));
   appearance: none;
   -webkit-appearance: none;
   cursor: pointer;
@@ -419,7 +419,7 @@
 .loadingSpinner {
   width: var(--space-3xl);
   height: var(--space-3xl);
-  border: var(--border-width-lg) solid var(--gray-700);
+  border: var(--border-width-lg) solid var(--border-primary);
   border-top: var(--border-width-lg) solid var(--color-accent);
   border-radius: 50%;
   animation: spin var(--duration-spin) linear infinite;

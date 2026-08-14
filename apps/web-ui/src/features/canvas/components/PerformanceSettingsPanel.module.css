@@ -67,9 +67,9 @@
 }
 
 .actionButton.autoOptimize {
-  background: linear-gradient(135deg, var(--purple-600), var(--purple-400));
-  color: var(--white);
-  border-color: var(--purple-200);
+  background: var(--button-primary-bg);
+  color: var(--button-primary-text);
+  border-color: var(--button-primary-border);
 }
 
 .actionButton.autoOptimize:hover:not(:disabled) {
@@ -78,20 +78,20 @@
 }
 
 .actionButton.reset {
-  background: var(--red-50);
-  color: var(--red-600);
-  border-color: var(--red-200);
+  background: var(--button-danger-bg);
+  color: var(--button-danger-text);
+  border-color: var(--button-danger-border);
 }
 
 .actionButton.reset:hover:not(:disabled) {
-  background: var(--red-100);
-  border-color: var(--red-300);
+  background: var(--button-danger-hover);
+  border-color: var(--button-danger-border);
 }
 
 .actionButton.apply {
-  background: linear-gradient(135deg, var(--green-400), var(--green-600));
-  color: var(--white);
-  border-color: var(--green-200);
+  background: var(--button-success-bg);
+  color: var(--button-success-text);
+  border-color: var(--button-success-border);
 }
 
 .actionButton.apply:hover:not(:disabled) {

@@ -84,9 +84,9 @@
 .closeBtn {
   padding: var(--space-xs) var(--space-sm);
   background: var(--status-error-bg);
-  border: var(--border-width-md) solid var(--red-500);
+  border: var(--border-width-md) solid var(--status-error-border);
   border-radius: var(--radius-sm);
-  color: var(--red-500);
+  color: var(--status-error-text);
   font-size: var(--text-lg);
   font-weight: bold;
   line-height: 1;

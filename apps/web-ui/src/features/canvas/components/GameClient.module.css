@@ -68,7 +68,7 @@
   height: 52px;
   padding: 0;
   background: var(--border-primary);
-  color: var(--gray-50);
+  color: var(--text-on-overlay);
   border: none;
   cursor: pointer;
   transition: width var(--transition-fast), background var(--transition-fast);

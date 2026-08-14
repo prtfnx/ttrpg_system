@@ -4,7 +4,7 @@ Audience: contributors and operators configuring the FastAPI server.
 
 Status: usable.
 
-Last source audit: 2026-07-22
+Last source audit: 2026-08-13
 
 Server settings are defined in `apps/server/config.py`; ignored `.env` files
 are loaded by Pydantic settings.
@@ -36,6 +36,22 @@ PostgreSQL and Alembic.
 | `SESSION_SECRET` | development placeholder | Must be at least 32 characters in production. |
 | `METRICS_TOKEN` | empty | Required when production metrics are enabled. |
 | `WS_SEND_TIMEOUT_SECONDS` | `5.0` | Per-message protocol send deadline. Valid range is 0.1-60 seconds; tune only with production load evidence. |
+
+## Asset resource limits
+
+| Variable | Default | Notes |
+| --- | --- | --- |
+| `ASSET_MAX_FILE_BYTES` | `52428800` | Maximum declared and verified image size (50 MiB). |
+| `ASSET_UPLOADS_PER_MINUTE` | `10` | Per-user burst limit for upload URL requests in one server process. |
+| `ASSET_UPLOADS_PER_HOUR` | `50` | Per-user sustained upload URL limit in one server process. |
+| `ASSET_MAX_PENDING_UPLOADS_PER_USER` | `10` | Durable cap on unconfirmed, unexpired upload intents across sessions. |
+| `ASSET_MAX_ASSETS_PER_USER` | `500` | Durable cap on confirmed stored objects attributed to one user. |
+| `ASSET_MAX_STORAGE_BYTES_PER_USER` | `1073741824` | Durable confirmed-plus-pending storage quota per user (1 GiB). |
+
+The minute/hour throttles protect each active worker. The database-backed
+pending, count, and byte quotas remain effective across process restarts and
+multiple workers. Tune these values from observed workload and storage budget;
+do not remove both layers.
 
 ## Compendium
 

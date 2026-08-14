@@ -5,7 +5,7 @@ flows.
 
 Status: usable.
 
-Last source audit: 2026-07-08
+Last source audit: 2026-08-13
 
 ## Current shape
 
@@ -18,9 +18,9 @@ Asset storage is split across three boundaries:
   `apps/server/service/protocol/assets.py` and
   `apps/server/service/asset_manager.py`.
 
-The server uses Cloudflare R2 presigned URLs when R2 is configured. Upload
-metadata is kept in memory as pending until the browser confirms the upload.
-Only confirmed uploads are saved to the `assets` database table.
+The server uses Cloudflare R2 presigned URLs when R2 is configured. Pending
+upload intents are durable database rows until the browser confirms or the
+intent expires. Only confirmed uploads are saved to the `assets` table.
 
 ## Before you start
 
@@ -45,6 +45,10 @@ Read:
 5. Keep `asset_id` content-addressed when the browser provides xxHash data.
 6. Store durable metadata in the `Asset` model only after successful upload
    confirmation.
+7. Resolve user and session identity from authenticated WebSocket connection
+   state, never from the asset message payload.
+8. Reserve the per-user pending/count/byte quota atomically before returning a
+   presigned URL, and retain both burst and sustained rate limits.
 7. Delete the R2 object before removing its metadata. The current handler keeps
    database rows when storage deletion fails so the operation can be retried.
 
@@ -71,12 +75,6 @@ Current role defaults:
    `protocol-success` for cross-boundary notifications.
 5. If WASM needs a new asset operation, update `WasmRuntimePort`,
    `WasmRuntime`, generated bindings, and runtime tests together.
-
-## Known incomplete area
-
-`handle_asset_list_request` currently returns an empty list with a message that
-asset listing is not fully implemented. Do not document or build UI as if
-server-side asset listing is complete until that handler is implemented.
 
 ## Tests
 

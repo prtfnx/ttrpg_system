@@ -43,6 +43,14 @@ cannot disguise another payload.
 7. List, lookup, download, table enrichment, and deletion resolve through an
    authorized session link. Ambiguous filenames fail closed.
 
+Upload abuse controls are keyed by the authenticated user, not by caller-sent
+fields. A minute burst limit and hourly sustained limit protect each worker.
+Database-backed caps cover unconfirmed intents, confirmed object count, and
+confirmed-plus-pending bytes, so restarts cannot reset storage consumption.
+Duplicate content that only adds a session link does not consume new-object
+quota. See [Environment variables](../reference/ENVIRONMENT_VARIABLES.md) for
+the defaults and tuning controls.
+
 Upload intents are durable; a process restart does not turn an unconfirmed
 object into a usable asset. The removed local metadata fallback and legacy
 `assets.session_id` column are not active paths.

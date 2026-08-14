@@ -6,7 +6,7 @@ public routes.
 Status: current. This page documents current controls and the remaining
 single-instance limitations visible in the codebase.
 
-Last source audit: 2026-07-29
+Last source audit: 2026-08-13
 
 ## Main security boundaries
 
@@ -141,11 +141,18 @@ Current in-memory limits:
 - login: 10 attempts per 5 minutes per IP;
 - registration: 5 attempts per 10 minutes per IP;
 - password reset: 3 attempts per 5 minutes per IP;
-- demo access: 3 demos per IP per hour.
+- demo access: 3 demos per IP per hour;
+- asset upload URLs: 10 per minute and 50 per hour per authenticated user.
 
 The limiter reads `X-Forwarded-For` and `X-Real-IP` before falling back to the
 request client host. Because it is in memory, limits reset when the process
 restarts and are not shared across workers.
+
+Asset storage also has database-backed per-user limits for pending upload
+intents, confirmed object count, and confirmed-plus-pending bytes. The server
+locks the user's database row while checking and reserving an upload intent, so
+concurrent PostgreSQL workers cannot race the durable quota. Keep this durable
+layer even if the process-local throttle is later moved to a shared limiter.
 
 ## Input and audit helpers
 

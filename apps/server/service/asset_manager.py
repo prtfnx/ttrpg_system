@@ -4,7 +4,6 @@ Handles presigned URLs, asset validation, and client permissions
 """
 import logging
 import os
-import time
 import warnings
 from dataclasses import dataclass
 from datetime import timedelta
@@ -14,10 +13,12 @@ from typing import Dict, List, Optional, Tuple
 import xxhash
 from config import Settings
 from database.database import SessionLocal
-from database.models import Asset, AssetUploadIntent, GamePlayer, GameSession, SessionAsset
+from database.models import Asset, AssetUploadIntent, GamePlayer, GameSession, SessionAsset, User
 from PIL import Image, UnidentifiedImageError
+from sqlalchemy import func, or_
 from storage.r2_manager import R2AssetManager
 from utils.observability import track_asset_operation
+from utils.rate_limiter import RateLimiter
 from utils.time import utc_now
 
 logger = logging.getLogger(__name__)
@@ -59,13 +60,16 @@ class ServerAssetManager:
     def __init__(self):
         self.r2_manager = R2AssetManager()
         self.session_permissions: Dict[str, Dict[int, AssetPermission]] = {}  # session_code -> user_id -> permissions
+        self.settings = Settings()
 
-        # Rate limiting
-        self.upload_limits: Dict[int, List[float]] = {}  # user_id -> [timestamp, ...]
-        self.download_limits: Dict[int, List[float]] = {}  # user_id -> [timestamp, ...]
+        # Per-process throttles protect the active worker. Durable intent and
+        # storage quotas below remain effective across restarts and workers.
+        self._upload_minute_limiter = RateLimiter("asset_upload_minute")
+        self._upload_hour_limiter = RateLimiter("asset_upload_hour")
+        self._download_hour_limiter = RateLimiter("asset_download_hour")
 
         # Asset validation settings
-        self.max_file_size = 50 * 1024 * 1024  # 50MB default
+        self.max_file_size = self.settings.ASSET_MAX_FILE_BYTES
         self.allowed_image_types = {
             '.png': ('image/png', 'PNG'),
             '.jpg': ('image/jpeg', 'JPEG'),
@@ -130,35 +134,57 @@ class ServerAssetManager:
         # Default read-only for established sessions
         return AssetPermission()
 
-    def _check_rate_limit(self, user_id: int, operation: str, limit_per_hour: int = 100) -> bool:
-        """Check if user has exceeded rate limits"""
-        current_time = time.time()
-        hour_ago = current_time - 3600
+    def _check_upload_rate_limit(self, user_id: int) -> bool:
+        """Apply per-user burst and sustained upload throttles."""
+        identifier = f"user:{user_id}"
+        if not self._upload_minute_limiter.is_allowed(
+            identifier,
+            max_requests=self.settings.ASSET_UPLOADS_PER_MINUTE,
+            window_minutes=1,
+        ):
+            return False
+        return self._upload_hour_limiter.is_allowed(
+            identifier,
+            max_requests=self.settings.ASSET_UPLOADS_PER_HOUR,
+            window_minutes=60,
+        )
 
-        if operation == "upload":
-            user_uploads = self.upload_limits.get(user_id, [])
-            # Remove old timestamps
-            user_uploads = [t for t in user_uploads if t > hour_ago]
-            self.upload_limits[user_id] = user_uploads
+    def _check_download_rate_limit(self, user_id: int) -> bool:
+        """Apply the existing lenient per-user download throttle safely."""
+        return self._download_hour_limiter.is_allowed(
+            f"user:{user_id}", max_requests=5_000, window_minutes=60
+        )
 
-            if len(user_uploads) >= limit_per_hour:
-                return False
+    def _check_upload_quota(
+        self, db, user_id: int, file_size: int
+    ) -> Tuple[bool, Optional[str]]:
+        """Enforce durable per-user pending, count, and storage quotas."""
+        now = utc_now()
+        pending_query = db.query(AssetUploadIntent).filter(
+            AssetUploadIntent.uploaded_by == user_id,
+            AssetUploadIntent.status == "awaiting_upload",
+            or_(
+                AssetUploadIntent.expires_at.is_(None),
+                AssetUploadIntent.expires_at > now,
+            ),
+        )
+        pending_count = pending_query.count()
+        if pending_count >= self.settings.ASSET_MAX_PENDING_UPLOADS_PER_USER:
+            return False, "Too many pending uploads. Confirm or wait for existing uploads to expire."
 
-            user_uploads.append(current_time)
-            return True
+        asset_count, stored_bytes = db.query(
+            func.count(Asset.id), func.coalesce(func.sum(Asset.file_size), 0)
+        ).filter(Asset.uploaded_by == user_id).one()
+        if asset_count >= self.settings.ASSET_MAX_ASSETS_PER_USER:
+            return False, "Asset count quota exceeded. Delete unused assets before uploading."
 
-        elif operation == "download":
-            user_downloads = self.download_limits.get(user_id, [])
-            user_downloads = [t for t in user_downloads if t > hour_ago]
-            self.download_limits[user_id] = user_downloads
-
-            if len(user_downloads) >= limit_per_hour * 10:  # More lenient for downloads
-                return False
-
-            user_downloads.append(current_time)
-            return True
-
-        return True
+        pending_bytes = pending_query.with_entities(
+            func.coalesce(func.sum(AssetUploadIntent.file_size), 0)
+        ).scalar()
+        projected_bytes = int(stored_bytes or 0) + int(pending_bytes or 0) + file_size
+        if projected_bytes > self.settings.ASSET_MAX_STORAGE_BYTES_PER_USER:
+            return False, "Asset storage quota exceeded. Delete unused assets before uploading."
+        return True, None
 
     def _validate_file_request(self, request: AssetRequest) -> Tuple[bool, Optional[str]]:
         """Validate file upload request"""
@@ -276,9 +302,16 @@ class ServerAssetManager:
         stem, ext = os.path.splitext(filename)
         return f"{stem}-{asset_id[:8]}{ext}"
 
-    def _record_upload_intent(self, metadata: dict, expires_in: int) -> None:
+    def _record_upload_intent(
+        self, metadata: dict, expires_in: int
+    ) -> Tuple[bool, Optional[str]]:
+        """Atomically reserve one user's durable upload quota."""
         db = SessionLocal()
         try:
+            # Serialize quota checks for this user across PostgreSQL workers.
+            user = db.query(User).filter(User.id == metadata["uploaded_by"]).with_for_update().one_or_none()
+            if user is None:
+                return False, "Upload permission denied"
             session = self._get_session(db, metadata["session_code"])
             stale = db.query(AssetUploadIntent).filter(
                 AssetUploadIntent.asset_id == metadata["asset_id"],
@@ -288,6 +321,17 @@ class ServerAssetManager:
             ).all()
             for intent in stale:
                 intent.status = "superseded"
+            db.flush()
+
+            file_size = metadata.get("file_size")
+            if not isinstance(file_size, int) or file_size <= 0:
+                return False, "File size must be a positive number"
+            within_quota, quota_error = self._check_upload_quota(
+                db, metadata["uploaded_by"], file_size
+            )
+            if not within_quota:
+                db.rollback()
+                return False, quota_error
 
             db.add(AssetUploadIntent(
                 asset_id=metadata["asset_id"],
@@ -304,6 +348,7 @@ class ServerAssetManager:
                 expires_at=utc_now() + timedelta(seconds=expires_in),
             ))
             db.commit()
+            return True, None
         except Exception:
             db.rollback()
             raise
@@ -329,7 +374,7 @@ class ServerAssetManager:
                 )
 
             # Check rate limits
-            if not self._check_rate_limit(request.user_id, "download", 500):  # 500 downloads per hour
+            if not self._check_download_rate_limit(request.user_id):
                 return PresignedUrlResponse(
                     success=False,
                     error="Download rate limit exceeded"
@@ -664,7 +709,7 @@ class ServerAssetManager:
                 )
 
             # Check rate limits
-            if not self._check_rate_limit(request.user_id, "upload", 50):
+            if not self._check_upload_rate_limit(request.user_id):
                 return PresignedUrlResponse(
                     success=False,
                     error="Upload rate limit exceeded. Please try again later."
@@ -740,7 +785,11 @@ class ServerAssetManager:
                 "status": "awaiting_upload"
             }
 
-            self._record_upload_intent(pending_metadata, expiry_seconds)
+            reserved, quota_error = self._record_upload_intent(
+                pending_metadata, expiry_seconds
+            )
+            if not reserved:
+                return PresignedUrlResponse(success=False, error=quota_error)
 
             logger.info(
                 "Asset upload URL generated",

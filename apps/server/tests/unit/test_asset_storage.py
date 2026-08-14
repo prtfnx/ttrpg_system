@@ -309,6 +309,68 @@ async def test_asset_upload_fails_closed_without_connection_identity(monkeypatch
     assert response.data["error"] == "Authentication and session context required"
 
 
+def test_upload_rate_limit_is_per_authenticated_user(monkeypatch, test_db):
+    manager = _manager(monkeypatch, test_db)
+    manager.settings.ASSET_UPLOADS_PER_MINUTE = 2
+    manager.settings.ASSET_UPLOADS_PER_HOUR = 3
+
+    assert manager._check_upload_rate_limit(10)
+    assert manager._check_upload_rate_limit(10)
+    assert not manager._check_upload_rate_limit(10)
+    assert manager._check_upload_rate_limit(11)
+
+
+async def test_upload_rejects_excess_pending_intents(
+    monkeypatch, test_db, test_user, test_game_session
+):
+    manager = _manager(monkeypatch, test_db)
+    manager.settings.ASSET_MAX_PENDING_UPLOADS_PER_USER = 1
+    first = await _request_upload(manager, test_user, test_game_session)
+
+    second = await _request_upload(
+        manager, test_user, test_game_session, xxhash="0" * 16
+    )
+
+    assert first.success is True
+    assert second.success is False
+    assert second.error is not None
+    assert "pending uploads" in second.error
+
+
+async def test_upload_counts_pending_bytes_toward_user_storage_quota(
+    monkeypatch, test_db, test_user, test_game_session
+):
+    manager = _manager(monkeypatch, test_db)
+    manager.settings.ASSET_MAX_STORAGE_BYTES_PER_USER = len(VALID_PNG)
+    first = await _request_upload(manager, test_user, test_game_session)
+
+    second = await _request_upload(
+        manager, test_user, test_game_session, xxhash="1" * 16
+    )
+
+    assert first.success is True
+    assert second.success is False
+    assert second.error is not None
+    assert "storage quota" in second.error
+
+
+async def test_upload_rejects_new_object_after_user_asset_count_quota(
+    monkeypatch, test_db, test_user, test_game_session
+):
+    manager = _manager(monkeypatch, test_db)
+    first = await _request_upload(manager, test_user, test_game_session)
+    assert await manager.confirm_upload(first.asset_id, test_user.id, upload_success=True)
+    manager.settings.ASSET_MAX_ASSETS_PER_USER = 1
+
+    second = await _request_upload(
+        manager, test_user, test_game_session, xxhash="2" * 16
+    )
+
+    assert second.success is False
+    assert second.error is not None
+    assert "count quota" in second.error
+
+
 async def test_upload_requires_durable_session_membership(
     monkeypatch, test_db, test_user, test_game_session
 ):

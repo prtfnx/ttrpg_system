@@ -116,3 +116,23 @@ def test_observability_settings_are_normalized_and_bounded():
 
     with pytest.raises(ValueError, match="CHAT_RETENTION_DAYS"):
         Settings(CHAT_RETENTION_DAYS=7)
+
+
+def test_asset_resource_limits_are_bounded_and_consistent():
+    with pytest.raises(ValueError, match="ASSET_MAX_FILE_BYTES"):
+        Settings(ASSET_MAX_FILE_BYTES=100)
+
+    with pytest.raises(ValueError, match="ASSET_UPLOADS_PER_MINUTE"):
+        Settings(ASSET_UPLOADS_PER_MINUTE=0)
+
+    with pytest.raises(ValueError, match="ASSET_UPLOADS_PER_HOUR"):
+        Settings(ASSET_UPLOADS_PER_MINUTE=20, ASSET_UPLOADS_PER_HOUR=10)
+
+    with pytest.raises(ValueError, match="ASSET_MAX_PENDING_UPLOADS_PER_USER"):
+        Settings(ASSET_MAX_PENDING_UPLOADS_PER_USER=0)
+
+    with pytest.raises(ValueError, match="ASSET_MAX_ASSETS_PER_USER"):
+        Settings(ASSET_MAX_ASSETS_PER_USER=0)
+
+    with pytest.raises(ValueError, match="ASSET_MAX_STORAGE_BYTES_PER_USER"):
+        Settings(ASSET_MAX_STORAGE_BYTES_PER_USER=1024)

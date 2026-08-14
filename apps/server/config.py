@@ -100,6 +100,12 @@ class Settings(BaseSettings):
     r2_bucket_name: str = ""
     r2_endpoint: str = ""        # Full endpoint URL (optional, derived from account_id if absent)
     r2_public_url: str = ""      # Public bucket URL for direct access
+    ASSET_MAX_FILE_BYTES: int = 50 * 1024 * 1024
+    ASSET_UPLOADS_PER_MINUTE: int = 10
+    ASSET_UPLOADS_PER_HOUR: int = 50
+    ASSET_MAX_PENDING_UPLOADS_PER_USER: int = 10
+    ASSET_MAX_ASSETS_PER_USER: int = 500
+    ASSET_MAX_STORAGE_BYTES_PER_USER: int = 1024 * 1024 * 1024
 
     model_config = SettingsConfigDict(env_file=".env", extra="ignore")
 
@@ -133,6 +139,22 @@ class Settings(BaseSettings):
             raise ValueError("DB_POOL_TIMEOUT_SECONDS must be between 1 and 120.")
         if not 1 <= self.DB_CONNECT_TIMEOUT_SECONDS <= 120:
             raise ValueError("DB_CONNECT_TIMEOUT_SECONDS must be between 1 and 120.")
+        if not 1024 <= self.ASSET_MAX_FILE_BYTES <= 500 * 1024 * 1024:
+            raise ValueError("ASSET_MAX_FILE_BYTES must be between 1024 and 524288000.")
+        if not 1 <= self.ASSET_UPLOADS_PER_MINUTE <= 1000:
+            raise ValueError("ASSET_UPLOADS_PER_MINUTE must be between 1 and 1000.")
+        if not self.ASSET_UPLOADS_PER_MINUTE <= self.ASSET_UPLOADS_PER_HOUR <= 10_000:
+            raise ValueError(
+                "ASSET_UPLOADS_PER_HOUR must be at least ASSET_UPLOADS_PER_MINUTE and at most 10000."
+            )
+        if not 1 <= self.ASSET_MAX_PENDING_UPLOADS_PER_USER <= 1000:
+            raise ValueError("ASSET_MAX_PENDING_UPLOADS_PER_USER must be between 1 and 1000.")
+        if not 1 <= self.ASSET_MAX_ASSETS_PER_USER <= 100_000:
+            raise ValueError("ASSET_MAX_ASSETS_PER_USER must be between 1 and 100000.")
+        if not self.ASSET_MAX_FILE_BYTES <= self.ASSET_MAX_STORAGE_BYTES_PER_USER <= 10 * 1024**4:
+            raise ValueError(
+                "ASSET_MAX_STORAGE_BYTES_PER_USER must be at least ASSET_MAX_FILE_BYTES and at most 10 TiB."
+            )
         if _is_production(self.ENVIRONMENT):
             if not self.SECRET_KEY or len(self.SECRET_KEY) < 32 or self.SECRET_KEY == DEFAULT_SECRET_KEY:
                 raise ValueError(

@@ -308,9 +308,13 @@ class _CharactersMixin(_ProtocolBase):
             })
 
         character_data = msg.data.get('character_data')
-        session_code = msg.data.get('session_code', 'unknown')
-        user_id = self._get_user_id(msg, client_id) or 0
+        session_code = self._get_session_code()
+        user_id = self._get_user_id(msg, client_id)
 
+        if user_id is None or not session_code:
+            return Message(MessageType.CHARACTER_SAVE_RESPONSE, {
+                'success': False, 'error': 'Authentication and session context required'
+            })
         if not character_data:
             return Message(MessageType.CHARACTER_SAVE_RESPONSE, {
                 'success': False,
@@ -368,9 +372,13 @@ class _CharactersMixin(_ProtocolBase):
             })
 
         character_id = msg.data.get('character_id')
-        session_code = msg.data.get('session_code', 'unknown')
-        user_id = self._get_user_id(msg, client_id) or 0
+        session_code = self._get_session_code()
+        user_id = self._get_user_id(msg, client_id)
 
+        if user_id is None or not session_code:
+            return Message(MessageType.CHARACTER_LOAD_RESPONSE, {
+                'success': False, 'error': 'Authentication and session context required'
+            })
         if not character_id:
             return Message(MessageType.CHARACTER_LOAD_RESPONSE, {
                 'success': False,
@@ -414,8 +422,13 @@ class _CharactersMixin(_ProtocolBase):
                 'error': 'No session data provided'
             })
 
-        session_code = msg.data.get('session_code', 'unknown')
-        user_id = self._get_user_id(msg, client_id) or 0
+        session_code = self._get_session_code()
+        user_id = self._get_user_id(msg, client_id)
+
+        if user_id is None or not session_code:
+            return Message(MessageType.CHARACTER_LIST_RESPONSE, {
+                'success': False, 'error': 'Authentication and session context required'
+            })
 
         # Get session_id from session_code
         session_id = self._get_session_id(msg)
@@ -454,9 +467,13 @@ class _CharactersMixin(_ProtocolBase):
             })
 
         character_id = msg.data.get('character_id')
-        session_code = msg.data.get('session_code', 'unknown')
-        user_id = self._get_user_id(msg, client_id) or 0
+        session_code = self._get_session_code()
+        user_id = self._get_user_id(msg, client_id)
 
+        if user_id is None or not session_code:
+            return Message(MessageType.CHARACTER_DELETE_RESPONSE, {
+                'success': False, 'error': 'Authentication and session context required'
+            })
         if not character_id:
             return Message(MessageType.CHARACTER_DELETE_RESPONSE, {
                 'success': False,

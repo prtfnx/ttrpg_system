@@ -426,7 +426,9 @@ def _make_proto():
     from service.server_protocol import ServerProtocol
 
     tm = TableManager()
-    proto = ServerProtocol(tm, session_manager=MagicMock())
+    session_manager = MagicMock()
+    session_manager.session_code = "AUTH"
+    proto = ServerProtocol(tm, session_manager=session_manager)
     proto.send_to_client = AsyncMock()
     proto.broadcast_to_session = AsyncMock()
     proto._get_session_id = MagicMock(return_value=1)
@@ -481,7 +483,8 @@ class TestCharacterLoadRequest:
         resp = await proto.handle_character_load_request(msg, "client1")
 
         assert resp.data["success"] is False
-        assert "GONE" in resp.data["error"]
+        assert "AUTH" in resp.data["error"]
+        assert "GONE" not in resp.data["error"]
 
     async def test_action_failure_returns_error(self):
         from core_table.protocol import Message, MessageType
@@ -553,7 +556,8 @@ class TestCharacterListRequest:
         resp = await proto.handle_character_list_request(msg, "client1")
 
         assert resp.data["success"] is False
-        assert "OLD" in resp.data["error"]
+        assert "AUTH" in resp.data["error"]
+        assert "OLD" not in resp.data["error"]
 
 
 # ---------------------------------------------------------------------------

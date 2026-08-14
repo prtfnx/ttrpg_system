@@ -3,8 +3,6 @@ import time
 from typing import Optional
 
 from core_table.protocol import Message, MessageType
-from database.database import SessionLocal
-from database.models import GameSession
 from utils.logger import setup_logger
 
 from ._protocol_base import _ProtocolBase
@@ -44,59 +42,30 @@ class _HelpersMixin(_ProtocolBase):
             await self.send_to_client(error_msg, self.clients[client_id])
 
     def _get_session_code(self, msg: Optional[Message] = None) -> str:
-        """Get session_code string from session manager or message data.
-        Returns empty string if no session code is available."""
+        """Return the session bound to the authenticated WebSocket connection.
+
+        ``msg`` remains in the signature for compatibility with existing
+        handlers, but message payloads are never an identity source.
+        """
         try:
-            # Primary method: Get from session manager (most reliable)
             if self.session_manager and hasattr(self.session_manager, 'session_code'):
                 code = self.session_manager.session_code
                 if code:
                     return code
-
-            # Secondary method: Extract from message data
-            if msg and msg.data:
-                code = msg.data.get('session_code')
-                if code:
-                    return code
-
-            logger.error("No valid session_code available")
+            logger.error("Authenticated connection has no session_code")
             return ""
         except Exception as e:
             logger.error(f"Error getting session_code: {e}")
             return ""
 
     def _get_session_id(self, msg: Message) -> Optional[int]:
-        """Get session_id for database persistence from message data or session manager"""
+        """Return the database session ID bound to the WebSocket connection."""
         try:
-            # Primary method: Get from session manager (most reliable)
-            logger.debug(f"DEBUG _get_session_id: session_manager={self.session_manager}")
-            if self.session_manager:
-                logger.debug(f"DEBUG _get_session_id: has game_session_db_id attr={hasattr(self.session_manager, 'game_session_db_id')}")
-                if hasattr(self.session_manager, 'game_session_db_id'):
-                    logger.debug(f"DEBUG _get_session_id: game_session_db_id={self.session_manager.game_session_db_id}")
-                    if self.session_manager.game_session_db_id:
-                        logger.info(f"Using session_id from session_manager: {self.session_manager.game_session_db_id}")
-                        return self.session_manager.game_session_db_id
-
-            # Secondary method: Extract from message data
-            if msg.data:
-                session_code = msg.data.get('session_code')
-                if session_code:
-                    # Convert session_code to session_id by looking it up in database
-                    db_session = SessionLocal()
-                    try:
-                        game_session = db_session.query(GameSession).filter_by(session_code=session_code).first()
-                        if game_session:
-                            session_id = getattr(game_session, 'id')  # Safely get the id attribute
-                            return session_id if session_id is not None else None
-                        else:
-                            logger.error(f"No game session found for session_code: {session_code}")
-                            return None
-                    finally:
-                        db_session.close()
-
-            # No valid session_id found - this is an error condition
-            logger.error("No valid session_id available for persistence - request missing session context")
+            if self.session_manager and hasattr(self.session_manager, 'game_session_db_id'):
+                session_id = self.session_manager.game_session_db_id
+                if session_id is not None:
+                    return int(session_id)
+            logger.error("Authenticated connection has no database session ID")
             return None
         except Exception as e:
             logger.error(f"Error getting session_id: {e}")
@@ -110,14 +79,8 @@ class _HelpersMixin(_ProtocolBase):
         a malicious client cannot impersonate another user by sending a
         fake user_id in the message payload.
         """
-        # Prefer authoritative connection metadata
         if client_id is not None:
             uid = self._get_client_info(client_id).get('user_id')
-            if uid is not None:
-                return int(uid)
-        # Fallback for call-sites that still pass msg only (legacy)
-        if msg.data:
-            uid = msg.data.get('user_id')
             if uid is not None:
                 return int(uid)
         return None

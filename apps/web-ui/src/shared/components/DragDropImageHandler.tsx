@@ -362,8 +362,7 @@ export const DragDropImageHandler: React.FC<DragDropImageHandlerProps> = ({
         file_size: file.size,
         content_type: file.type,
         xxhash: assetId,
-        asset_id: assetId,
-        session_code: sessionId || ''
+        asset_id: assetId
       }, 2));
       
       // Notify WasmIntegration service that this asset upload is starting

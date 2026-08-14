@@ -15,6 +15,22 @@ logger = setup_logger(__name__)
 class _AssetsMixin(_ProtocolBase):
     """Handler methods for assets domain."""
 
+    def _asset_request_context(
+        self, msg: Message, client_id: str
+    ) -> Optional[tuple[int, str, str]]:
+        """Resolve asset identity exclusively from authenticated connection state."""
+        user_id = self._get_user_id(msg, client_id)
+        session_code = self._get_session_code()
+        username = self._get_client_info(client_id).get('username')
+        if (
+            user_id is None
+            or not session_code
+            or not isinstance(username, str)
+            or not username
+        ):
+            return None
+        return user_id, username, session_code
+
     async def handle_asset_upload_request(self, msg: Message, client_id: str) -> Message:
         """Handle asset upload request - generate presigned PUT URL with xxHash support"""
         try:
@@ -28,9 +44,10 @@ class _AssetsMixin(_ProtocolBase):
             filename = msg.data.get('filename')
             file_size = msg.data.get('file_size')
             content_type = msg.data.get('content_type')
-            session_code = msg.data.get('session_code', 'default')
-            user_id = self._get_user_id(msg, client_id) or 0
-            username = msg.data.get('username', 'unknown')
+            context = self._asset_request_context(msg, client_id)
+            if context is None:
+                return Message(MessageType.ERROR, {'error': 'Authentication and session context required'})
+            user_id, username, session_code = context
             asset_id = msg.data.get('asset_id')  # Client-generated based on xxHash
             file_xxhash = msg.data.get('xxhash')  # xxHash from client
 
@@ -85,9 +102,10 @@ class _AssetsMixin(_ProtocolBase):
 
             # Extract request data
             asset_id = msg.data.get('asset_id')
-            session_code = msg.data.get('session_code', 'default')
-            user_id = self._get_user_id(msg, client_id) or 0
-            username = msg.data.get('username', 'unknown')
+            context = self._asset_request_context(msg, client_id)
+            if context is None:
+                return Message(MessageType.ERROR, {'error': 'Authentication and session context required'})
+            user_id, username, session_code = context
 
             if not asset_id:
                 return Message(MessageType.ERROR, {'error': 'Asset ID is required'})
@@ -129,13 +147,10 @@ class _AssetsMixin(_ProtocolBase):
         """Handle asset list request - return session-visible asset metadata."""
         logger.debug("Asset list requested", extra={"event_name": "asset.list.requested"})
         try:
-            session_code = (msg.data or {}).get('session_code') or self._get_session_code(msg)
-            if not session_code:
-                return Message(MessageType.ERROR, {'error': 'Session code is required'})
-
-            user_id = self._get_user_id(msg, client_id)
-            if user_id is None:
-                return Message(MessageType.ERROR, {'error': 'Authentication required'})
+            context = self._asset_request_context(msg, client_id)
+            if context is None:
+                return Message(MessageType.ERROR, {'error': 'Authentication and session context required'})
+            user_id, _username, session_code = context
 
             assets = get_server_asset_manager().get_session_assets(session_code, user_id)
             return Message(MessageType.ASSET_LIST_RESPONSE, {
@@ -157,8 +172,10 @@ class _AssetsMixin(_ProtocolBase):
             asset_id = msg.data.get('asset_id')
             upload_success = msg.data.get('success', True)
             error_message = msg.data.get('error')
-            user_id = self._get_user_id(msg, client_id) or 0
-            msg.data.get('username', 'unknown')
+            context = self._asset_request_context(msg, client_id)
+            if context is None:
+                return Message(MessageType.ERROR, {'error': 'Authentication and session context required'})
+            user_id, _username, _session_code = context
 
             if not asset_id:
                 return Message(MessageType.ERROR, {'error': 'Asset ID is required'})
@@ -263,10 +280,10 @@ class _AssetsMixin(_ProtocolBase):
             if not asset_id:
                 return Message(MessageType.ERROR, {'error': 'asset_id is required'})
 
-            user_id = self._get_user_id(msg, client_id)
-            session_code = msg.data.get('session_code') or self._get_session_code(msg)
-            if not session_code:
-                return Message(MessageType.ERROR, {'error': 'Session code is required'})
+            context = self._asset_request_context(msg, client_id)
+            if context is None:
+                return Message(MessageType.ERROR, {'error': 'Authentication and session context required'})
+            user_id, _username, session_code = context
             should_delete_object = False
 
             db = SessionLocal()
@@ -425,10 +442,10 @@ class _AssetsMixin(_ProtocolBase):
                 return Message(MessageType.ERROR, {'error': 'asset_id and hash are required'})
 
             # Get server hash for asset
-            session_code = (msg.data or {}).get('session_code') or self._get_session_code(msg)
-            user_id = self._get_user_id(msg, client_id)
-            if not session_code or user_id is None:
-                return Message(MessageType.ERROR, {'error': 'Session and authentication are required'})
+            context = self._asset_request_context(msg, client_id)
+            if context is None:
+                return Message(MessageType.ERROR, {'error': 'Authentication and session context required'})
+            user_id, _username, session_code = context
             server_hash = await self._get_asset_xxhash(asset_id, session_code, user_id)
 
             if server_hash:

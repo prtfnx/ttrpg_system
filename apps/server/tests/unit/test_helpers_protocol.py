@@ -3,7 +3,7 @@ Tests for _HelpersMixin helpers in service/protocol/helpers.py.
 Focus: _get_session_code, _get_session_id, _get_user_id, _can_control_sprite.
 """
 import json
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock
 
 from core_table.protocol import Message, MessageType
 from service.protocol.helpers import _HelpersMixin
@@ -54,22 +54,22 @@ class TestGetSessionCode:
         s.session_manager.session_code = "GAME1"
         assert s._get_session_code() == "GAME1"
 
-    def test_falls_back_to_message_data(self):
+    def test_ignores_message_session_code(self):
         s = _Stub()
         s.session_manager.session_code = None
         msg = Message(MessageType.SUCCESS, {"session_code": "MSG_CODE"})
-        assert s._get_session_code(msg) == "MSG_CODE"
+        assert s._get_session_code(msg) == ""
 
     def test_returns_empty_string_when_nothing_available(self):
         s = _Stub()
         s.session_manager.session_code = None
         assert s._get_session_code() == ""
 
-    def test_no_session_manager_falls_back_to_message(self):
+    def test_no_session_manager_ignores_message(self):
         s = _Stub()
         s.session_manager = None
         msg = Message(MessageType.SUCCESS, {"session_code": "FALLBACK"})
-        assert s._get_session_code(msg) == "FALLBACK"
+        assert s._get_session_code(msg) == ""
 
 
 # ---------------------------------------------------------------------------
@@ -83,32 +83,17 @@ class TestGetSessionId:
         msg = Message(MessageType.SUCCESS, {})
         assert s._get_session_id(msg) == 42
 
-    def test_falls_back_to_message_session_code(self):
+    def test_ignores_message_session_code(self):
         s = _Stub()
         s.session_manager.game_session_db_id = None
-        game_session_mock = MagicMock()
-        game_session_mock.id = 7
-        with patch("service.protocol.helpers.SessionLocal") as mock_sl:
-            db = MagicMock()
-            db.__enter__ = lambda self: db
-            db.__exit__ = MagicMock(return_value=False)
-            db.query.return_value.filter_by.return_value.first.return_value = game_session_mock
-            mock_sl.return_value = db
-            msg = Message(MessageType.SUCCESS, {"session_code": "X"})
-            result = s._get_session_id(msg)
-            assert result == 7
+        msg = Message(MessageType.SUCCESS, {"session_code": "X"})
+        assert s._get_session_id(msg) is None
 
-    def test_returns_none_when_session_code_not_found(self):
+    def test_no_session_manager_ignores_message(self):
         s = _Stub()
-        s.session_manager.game_session_db_id = None
-        with patch("service.protocol.helpers.SessionLocal") as mock_sl:
-            db = MagicMock()
-            db.__enter__ = lambda self: db
-            db.__exit__ = MagicMock(return_value=False)
-            db.query.return_value.filter_by.return_value.first.return_value = None
-            mock_sl.return_value = db
-            msg = Message(MessageType.SUCCESS, {"session_code": "GONE"})
-            assert s._get_session_id(msg) is None
+        s.session_manager = None
+        msg = Message(MessageType.SUCCESS, {"session_code": "GONE"})
+        assert s._get_session_id(msg) is None
 
     def test_returns_none_when_no_data(self):
         s = _Stub()
@@ -128,10 +113,10 @@ class TestGetUserId:
         msg = Message(MessageType.SUCCESS, {})
         assert s._get_user_id(msg, "c1") == 99
 
-    def test_falls_back_to_message_data(self):
+    def test_ignores_message_user_id_without_client(self):
         s = _Stub()
         msg = Message(MessageType.SUCCESS, {"user_id": 5})
-        assert s._get_user_id(msg) == 5
+        assert s._get_user_id(msg) is None
 
     def test_returns_none_when_no_info(self):
         s = _Stub()
@@ -143,6 +128,11 @@ class TestGetUserId:
         s.clients["c1"] = {"user_id": 10}
         msg = Message(MessageType.SUCCESS, {"user_id": 999})
         assert s._get_user_id(msg, "c1") == 10
+
+    def test_unknown_client_cannot_use_message_user_id(self):
+        s = _Stub()
+        msg = Message(MessageType.SUCCESS, {"user_id": 999})
+        assert s._get_user_id(msg, "missing") is None
 
 
 # ---------------------------------------------------------------------------

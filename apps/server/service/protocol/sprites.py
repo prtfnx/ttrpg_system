@@ -644,8 +644,7 @@ class _SpritesMixin(_ProtocolBase):
             'table_id': str,
             'sprite_data': { x, y, layer, name, client_temp_id, ... },
             'monster_data': { name, type, challenge_rating, raw: {...} },  # optional
-            'session_code': str (optional),
-            'user_id': int (optional)
+            session and user identity are taken from the authenticated connection
         }
         """
         logger.debug(
@@ -660,7 +659,6 @@ class _SpritesMixin(_ProtocolBase):
             return Message(MessageType.ERROR, {'error': 'table_id is required'})
         sprite_data = msg.data.get('sprite_data')
         monster_data = msg.data.get('monster_data')
-        msg.data.get('session_code', msg.data.get('session', 'default'))
         user_id = self._get_user_id(msg, client_id) or 0
 
         role = self._get_client_role(client_id)

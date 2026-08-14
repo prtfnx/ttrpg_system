@@ -95,7 +95,11 @@ class _TablesMixin(_ProtocolBase):
                     pass
             elif isinstance(table_obj, dict):
                 table_data = table_obj
-            await self.ensure_assets_in_r2(table_data, msg.data.get('session_code', 'default'), self._get_user_id(msg, client_id) or 0)
+            session_code = self._get_session_code()
+            user_id = self._get_user_id(msg, client_id)
+            if not session_code or user_id is None:
+                return Message(MessageType.ERROR, {'error': 'Authentication and session context required'})
+            await self.ensure_assets_in_r2(table_data, session_code, user_id)
             logger.debug(
                 "Table creation processed",
                 extra={"event_name": "table.create.processed", "layer_count": len(table_data.get('layers', {}))},
@@ -130,7 +134,10 @@ class _TablesMixin(_ProtocolBase):
             return Message(MessageType.ERROR, {'error': 'No data provided in table request'})
         table_name = msg.data.get('table_name', 'default')
         table_id = msg.data.get('table_id', table_name)
-        user_id = self._get_user_id(msg, client_id) or 0
+        user_id = self._get_user_id(msg, client_id)
+        session_code = self._get_session_code()
+        if user_id is None or not session_code:
+            return Message(MessageType.ERROR, {'error': 'Authentication and session context required'})
         result = await self.actions.get_table(table_id)
 
         if not result.success or not result.data or result.data.get('table') is None:
@@ -148,7 +155,9 @@ class _TablesMixin(_ProtocolBase):
                     pass
             elif isinstance(table_obj, dict):
                 table_data = table_obj
-            table_data_with_hashes = await self.add_asset_hashes_to_table(table_data, session_code=msg.data.get('session_code', 'default'), user_id=user_id)
+            table_data_with_hashes = await self.add_asset_hashes_to_table(
+                table_data, session_code=session_code, user_id=user_id
+            )
 
             role = self._get_client_role(client_id)
             if not is_dm(role):

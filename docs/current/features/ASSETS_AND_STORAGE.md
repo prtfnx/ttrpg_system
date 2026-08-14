@@ -5,7 +5,7 @@ Audience: contributors changing asset upload, authorization, R2, or recovery.
 Status: current. Image upload and storage integrity are implemented. Independent
 production backup remains an operations blocker.
 
-Last source audit: 2026-08-12
+Last source audit: 2026-08-13
 
 ## Ownership
 
@@ -29,8 +29,10 @@ cannot disguise another payload.
 
 1. An authenticated session member requests an upload for a bounded image and
    hash-derived asset id.
-2. The server validates role, rate, type, size, hash, and session context, then
-   persists an upload intent.
+2. The server takes user ID, username, role, and session only from the
+   authenticated WebSocket connection, then validates type, size, hash, and
+   durable session membership before persisting an upload intent. Caller-sent
+   identity or session fields are ignored.
 3. The browser uploads to a signed
    `pending/{session}/{asset}.{ext}` R2 key.
 4. Confirmation reloads the object, verifies metadata and bytes, recomputes the

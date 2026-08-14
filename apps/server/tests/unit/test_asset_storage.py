@@ -1,6 +1,7 @@
 # pyright: reportAttributeAccessIssue=false
 
 import base64
+from types import SimpleNamespace
 
 import xxhash
 from core_table.protocol import Message, MessageType
@@ -76,15 +77,19 @@ class FakeR2Manager:
 
 
 class AssetProtocolStub(_AssetsMixin):
-    def __init__(self, user_id, session_code):
+    def __init__(self, user_id, session_code, username="asset-user"):
         self.user_id = user_id
         self.session_code = session_code
+        self.username = username
 
     def _get_user_id(self, msg, client_id=None):
         return self.user_id
 
     def _get_session_code(self, msg=None):
         return self.session_code
+
+    def _get_client_info(self, client_id):
+        return {"user_id": self.user_id, "username": self.username}
 
 
 def _manager(monkeypatch, test_db, object_exists=True, **r2_kwargs):
@@ -243,6 +248,65 @@ async def test_upload_rejects_svg_before_presigning(
     assert response.success is False
     assert response.error is not None
     assert "Only raster images" in response.error
+
+
+async def test_asset_upload_uses_authenticated_connection_context(monkeypatch):
+    captured = {}
+
+    class CapturingManager:
+        async def request_upload_url_with_hash(self, request, file_xxhash):
+            captured["request"] = request
+            captured["xxhash"] = file_xxhash
+            return SimpleNamespace(
+                success=False,
+                error="captured",
+                asset_id=request.asset_id,
+                instructions=None,
+            )
+
+    monkeypatch.setattr(
+        asset_protocol_module, "get_server_asset_manager", lambda: CapturingManager()
+    )
+    protocol = AssetProtocolStub(42, "AUTH-SESSION", "authenticated-user")
+
+    await protocol.handle_asset_upload_request(
+        Message(MessageType.ASSET_UPLOAD_REQUEST, {
+            "filename": "map.png",
+            "file_size": len(VALID_PNG),
+            "content_type": "image/png",
+            "asset_id": VALID_XXHASH[:16],
+            "xxhash": VALID_XXHASH,
+            "session_code": "SPOOFED-SESSION",
+            "user_id": 999,
+            "username": "spoofed-user",
+        }),
+        "client-1",
+    )
+
+    request = captured["request"]
+    assert request.session_code == "AUTH-SESSION"
+    assert request.user_id == 42
+    assert request.username == "authenticated-user"
+
+
+async def test_asset_upload_fails_closed_without_connection_identity(monkeypatch):
+    manager = SimpleNamespace(request_upload_url_with_hash=lambda *_args: None)
+    monkeypatch.setattr(
+        asset_protocol_module, "get_server_asset_manager", lambda: manager
+    )
+    protocol = AssetProtocolStub(None, "AUTH-SESSION")
+
+    response = await protocol.handle_asset_upload_request(
+        Message(MessageType.ASSET_UPLOAD_REQUEST, {
+            "filename": "map.png",
+            "xxhash": VALID_XXHASH,
+            "user_id": 999,
+        }),
+        "client-1",
+    )
+
+    assert response.type == MessageType.ERROR
+    assert response.data["error"] == "Authentication and session context required"
 
 
 async def test_upload_requires_durable_session_membership(

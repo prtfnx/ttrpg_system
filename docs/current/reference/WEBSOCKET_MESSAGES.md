@@ -5,7 +5,7 @@ Audience: contributors changing browser/server protocol behavior.
 Status: partial. This page catalogs the currently registered server handlers
 and the main browser message families. It does not document every payload field.
 
-Last source audit: 2026-08-12
+Last source audit: 2026-08-13
 
 ## Source of truth
 
@@ -49,6 +49,16 @@ The Python `Message` dataclass uses the same core fields. Correlation and trace
 fields connect an accepted command to its response without trusting them for
 identity or authorization. Normal priority is `5`; lower numbers are more
 urgent in the existing comments.
+
+## Authenticated connection context
+
+The WebSocket handshake and session join establish the authoritative
+`user_id`, `username`, role, session code, and database session ID. Inbound
+message payloads are untrusted and must not override any of those values.
+Handlers resolve identity through the registered `client_id` and resolve the
+session through `GameSessionProtocolService`; if either context is absent, the
+operation fails closed. Payload usernames remain valid only when they identify
+a command target, such as the player selected for a kick or ban.
 
 ## Registered server inbound messages
 

@@ -61,7 +61,7 @@
 }
 
 .configOption {
-  background: linear-gradient(135deg, var(--gray-700) 0%, var(--gray-800) 100%);
+  background: linear-gradient(135deg, var(--bg-elevated) 0%, var(--bg-secondary) 100%);
   border: var(--border-width-thick) solid var(--border-primary);
   border-radius: var(--radius-lg);
   padding: var(--space-md);
@@ -110,7 +110,7 @@
 
 .metric {
   composes: info-stat from '@shared/styles/PanelBase.module.css';
-  background: linear-gradient(135deg, var(--gray-700) 0%, var(--gray-800) 100%);
+  background: linear-gradient(135deg, var(--bg-elevated) 0%, var(--bg-secondary) 100%);
   display: flex;
   justify-content: space-between;
   align-items: center;
@@ -297,7 +297,7 @@
 }
 
 .weatherEffect {
-  background: linear-gradient(135deg, var(--gray-700) 0%, var(--gray-800) 100%);
+  background: linear-gradient(135deg, var(--bg-elevated) 0%, var(--bg-secondary) 100%);
   border: var(--border-width) solid var(--border-primary);
   border-radius: var(--radius-lg);
   padding: var(--space-md);

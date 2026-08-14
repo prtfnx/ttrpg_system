@@ -150,8 +150,8 @@
 }
 
 .statusDisconnected {
-  background-color: var(--gray-500);
-  color: var(--text-on-accent);
+  background-color: var(--button-secondary-bg);
+  color: var(--button-secondary-text);
   opacity: 1;
 }
 

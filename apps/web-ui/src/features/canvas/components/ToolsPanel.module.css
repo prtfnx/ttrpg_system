@@ -459,12 +459,12 @@
 }
 
 .gamePanel::-webkit-scrollbar-thumb {
-  background: var(--gray-600);
+  background: var(--border-secondary);
   border-radius: var(--radius-sm);
 }
 
 .gamePanel::-webkit-scrollbar-thumb:hover {
-  background: var(--gray-500);
+  background: var(--border-hover);
 }
 
 /* ===== Player Layer Controls ===== */

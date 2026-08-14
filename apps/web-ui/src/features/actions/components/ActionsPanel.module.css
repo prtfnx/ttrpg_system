@@ -63,7 +63,7 @@
 /* Tab navigation */
 .panelTabs {
   display: flex;
-  background: var(--gray-800);
+  background: var(--bg-tertiary);
   border-bottom: var(--border-width) solid var(--border-primary);
   flex-shrink: 0;
 }
@@ -81,7 +81,7 @@
 }
 
 .tabButton:hover {
-  background: var(--gray-700);
+  background: var(--bg-elevated-hover);
   color: var(--text-primary);
 }
 
@@ -119,10 +119,10 @@
 .formSelect {
   flex: 1;
   padding: var(--space-sm) var(--space-sm);
-  background: var(--gray-900);
-  border: var(--border-width) solid var(--border-primary);
+  background: var(--input-bg);
+  border: var(--border-width) solid var(--input-border);
   border-radius: var(--radius-sm);
-  color: var(--text-secondary);
+  color: var(--input-text);
   font-size: var(--text-xs);
   transition: var(--transition-fast);
 }
@@ -185,7 +185,7 @@
 }
 
 .listItem:hover {
-  background: var(--gray-700);
+  background: var(--bg-elevated-hover);
   border-color: var(--border-hover);
 }
 
@@ -297,7 +297,7 @@
 }
 
 .historyItem:hover {
-  background: var(--gray-700);
+  background: var(--bg-elevated-hover);
 }
 
 .historyType {
@@ -326,7 +326,7 @@
 .logsContainer {
   max-height: 80px;
   overflow-y: auto;
-  background: var(--gray-900);
+  background: var(--bg-primary);
   border: var(--border-width) solid var(--border-primary);
   border-radius: var(--radius-sm);
   padding: var(--space-sm);
@@ -337,11 +337,11 @@
 }
 
 .logsContainer::-webkit-scrollbar-track {
-  background: var(--gray-800);
+  background: var(--bg-secondary);
 }
 
 .logsContainer::-webkit-scrollbar-thumb {
-  background: var(--gray-600);
+  background: var(--border-secondary);
   border-radius: var(--radius-xs);
 }
 
@@ -349,7 +349,7 @@
   font-size: var(--text-2xs);
   color: var(--text-secondary);
   padding: var(--space-2xs) 0;
-  border-bottom: var(--border-width) solid var(--gray-800);
+  border-bottom: var(--border-width) solid var(--border-primary);
 }
 
 .logEntry:last-child {

@@ -90,7 +90,7 @@
 .addLightInput {
   flex: 1;
   padding: var(--space-sm);
-  background: var(--gray-900);
+  background: var(--input-bg);
   border: var(--border-width) solid var(--border-primary);
   border-radius: var(--radius-md);
   color: var(--text-primary);
@@ -143,12 +143,12 @@
   border: var(--border-width) solid var(--border-primary);
   border-radius: var(--radius-md);
   margin-bottom: var(--space-sm);
-  background: var(--gray-800);
+  background: var(--bg-secondary);
   transition: var(--transition-interactive-normal);
 }
 
 .light-item:hover {
-  background: var(--gray-700);
+  background: var(--bg-elevated-hover);
   border-color: var(--border-hover);
 }
 
@@ -268,7 +268,7 @@
 .positionInput {
   flex: 1;
   padding: var(--space-xs);
-  background: var(--gray-900);
+  background: var(--input-bg);
   border: var(--border-width) solid var(--border-primary);
   border-radius: var(--radius-sm);
   color: var(--text-primary);
@@ -292,7 +292,7 @@
   height: var(--space-3xl);
   border: var(--border-width) solid var(--border-primary);
   border-radius: var(--radius-md);
-  background: var(--gray-800);
+  background: var(--input-bg);
   cursor: pointer;
 }
 
@@ -524,7 +524,7 @@
   transform: translateY(-2px);
   box-shadow: var(--shadow-lg);
   border-color: currentColor;
-  background: var(--gray-700);
+  background: var(--bg-elevated-hover);
 }
 
 .preset-button.active {

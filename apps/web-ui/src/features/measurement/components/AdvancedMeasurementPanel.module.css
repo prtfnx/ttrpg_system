@@ -93,24 +93,24 @@
   align-items: center;
   gap: var(--space-sm);
   font-weight: var(--font-semibold);
-  color: var(--green-100);
+  color: var(--status-success-text);
 }
 
 .statusDot {
   width: var(--space-sm);
   height: var(--space-sm);
   border-radius: 50%;
-  background: var(--gray-500);
+  background: var(--text-muted);
 }
 
 .statusDot.active {
-  background: var(--green-500);
+  background: var(--color-success);
   box-shadow: 0 0 var(--space-sm) var(--color-success-glow);
   animation: pulse var(--duration-pulse) infinite;
 }
 
 .measurementStatus, .shapeStatus {
-  color: var(--green-200);
+  color: var(--status-success-text);
   font-size: var(--text-sm);
   display: flex;
   align-items: center;
@@ -128,7 +128,7 @@
   display: flex;
   gap: 0;
   margin-bottom: var(--space-lg);
-  background: var(--overlay-dark-30);
+  background: var(--bg-tertiary);
   border-radius: var(--radius-lg);
   padding: var(--space-xs);
   border: var(--border-width) solid var(--border-primary);
@@ -156,7 +156,7 @@
 .searchInput {
   width: 100%;
   background: var(--bg-elevated);
-  border: var(--border-width-thick) solid var(--gray-700);
+  border: var(--border-width-thick) solid var(--input-border);
   border-radius: var(--radius-lg);
   padding: var(--space-sm) var(--space-md);
   color: var(--text-secondary);
@@ -177,7 +177,7 @@
 
 /* Tab Content */
 .measurementPanel .tabContent {
-  background: var(--overlay-dark-20);
+  background: var(--bg-secondary);
   border-radius: var(--radius-lg);
   border: var(--border-width) solid var(--border-primary);
   min-height: 400px;
@@ -254,7 +254,7 @@
 .optionsGrid input[type="checkbox"] {
   width: var(--space-lg);
   height: var(--space-lg);
-  accent-color: var(--orange-500);
+  accent-color: var(--color-primary);
 }
 
 /* Shape Type Selector */
@@ -292,8 +292,8 @@
 }
 
 .measurementItem, .shapeItem {
-  background: linear-gradient(135deg, var(--gray-700) 0%, var(--gray-800) 100%);
-  border: var(--border-width) solid var(--gray-600);
+  background: linear-gradient(135deg, var(--bg-elevated) 0%, var(--bg-secondary) 100%);
+  border: var(--border-width) solid var(--border-primary);
   border-radius: var(--radius-md);
   padding: var(--space-md);
   margin-bottom: var(--space-sm);
@@ -332,7 +332,7 @@
 }
 
 .measurement-label, .shape-label {
-  color: var(--color-warning);
+  color: var(--status-warning-text);
   font-weight: var(--font-semibold);
 }
 
@@ -346,7 +346,7 @@
   width: var(--space-xl);
   height: var(--space-xl);
   border-radius: 50%;
-  border: var(--border-width-thick) solid var(--gray-500);
+  border: var(--border-width-thick) solid var(--border-secondary);
   box-shadow: var(--shadow-sm);
 }
 
@@ -360,7 +360,7 @@
 .deleteBtn {
   background: none;
   border: none;
-  color: var(--red-400);
+  color: var(--status-error-text);
   cursor: pointer;
   padding: var(--space-sm);
   border-radius: var(--radius-sm);
@@ -383,13 +383,13 @@
   margin: 0 0 var(--space-md) 0;
   font-size: var(--text-base);
   font-weight: var(--font-semibold);
-  color: var(--color-warning);
+  color: var(--status-warning-text);
 }
 
 .grid-selector select {
   width: 100%;
-  background: linear-gradient(135deg, var(--gray-700) 0%, var(--gray-800) 100%);
-  border: var(--border-width-thick) solid var(--gray-600);
+  background: var(--input-bg);
+  border: var(--border-width-thick) solid var(--input-border);
   border-radius: var(--radius-md);
   padding: var(--space-sm);
   color: var(--text-primary);
@@ -410,7 +410,7 @@
   margin: 0 0 var(--space-md) 0;
   font-size: var(--text-base);
   font-weight: var(--font-semibold);
-  color: var(--color-warning);
+  color: var(--status-warning-text);
 }
 
 .settingsGrid {
@@ -440,8 +440,8 @@
 .setting input[type="range"],
 .setting input[type="color"],
 .setting select {
-  background: var(--gray-800);
-  border: var(--border-width) solid var(--gray-600);
+  background: var(--input-bg);
+  border: var(--border-width) solid var(--input-border);
   border-radius: var(--radius-sm);
   padding: var(--space-sm);
   color: var(--text-primary);
@@ -464,7 +464,7 @@
 .setting input[type="checkbox"] {
   width: var(--space-lg);
   height: var(--space-lg);
-  accent-color: var(--orange-500);
+  accent-color: var(--color-primary);
 }
 
 .setting span {
@@ -492,8 +492,8 @@
 }
 
 .template-item {
-  background: linear-gradient(135deg, var(--gray-700) 0%, var(--gray-800) 100%);
-  border: var(--border-width-thick) solid var(--gray-600);
+  background: linear-gradient(135deg, var(--bg-elevated) 0%, var(--bg-secondary) 100%);
+  border: var(--border-width-thick) solid var(--border-primary);
   border-radius: var(--radius-lg);
   padding: var(--space-md);
   cursor: pointer;
@@ -510,8 +510,8 @@
 }
 
 .template-item.selected {
-  border-color: var(--orange-500);
-  background: linear-gradient(135deg, var(--orange-950) 0%, var(--orange-900) 100%);
+  border-color: var(--status-warning-border);
+  background: var(--status-warning-bg);
   box-shadow: var(--shadow-glow-warning-lg);
 }
 
@@ -522,7 +522,7 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  background: var(--white-alpha-10);
+  background: var(--bg-tertiary);
   border-radius: var(--radius-md);
 }
 
@@ -555,7 +555,7 @@
   background: var(--color-primary-overlay);
   border: var(--border-width) solid var(--color-primary);
   border-radius: var(--radius-md);
-  color: var(--blue-200);
+  color: var(--text-accent);
   font-size: var(--text-sm);
   text-align: center;
   margin: var(--space-md) var(--space-lg);
@@ -578,15 +578,15 @@
   margin: 0 0 var(--space-md) 0;
   font-size: var(--text-lg);
   font-weight: var(--font-semibold);
-  color: var(--color-warning);
+  color: var(--status-warning-text);
   padding-bottom: var(--space-sm);
   border-bottom: var(--border-width) solid var(--border-secondary);
 }
 
 .toggle-btn {
-  background: linear-gradient(135deg, var(--indigo-500) 0%, var(--indigo-600) 100%);
-  border: none;
-  color: var(--text-on-accent);
+  background: var(--button-primary-bg);
+  border: var(--border-width) solid var(--button-primary-border);
+  color: var(--button-primary-text);
   padding: var(--space-sm) var(--space-md);
   border-radius: var(--radius-md);
   font-size: var(--text-sm);
@@ -596,6 +596,7 @@
 }
 
 .toggle-btn:hover {
+  background: var(--button-primary-hover);
   transform: translateY(calc(-1 * var(--space-2xs)));
   box-shadow: var(--shadow-glow-indigo-sm);
 }
@@ -813,7 +814,7 @@
 .measurementsList::-webkit-scrollbar-track,
 .shapesList::-webkit-scrollbar-track,
 .templates-grid::-webkit-scrollbar-track {
-  background: var(--gray-800);
+  background: var(--bg-secondary);
   border-radius: var(--radius-xs);
 }
 
@@ -821,7 +822,7 @@
 .measurementsList::-webkit-scrollbar-thumb,
 .shapesList::-webkit-scrollbar-thumb,
 .templates-grid::-webkit-scrollbar-thumb {
-  background: linear-gradient(135deg, var(--gray-600) 0%, var(--gray-700) 100%);
+  background: var(--border-secondary);
   border-radius: var(--radius-xs);
 }
 
@@ -829,5 +830,5 @@
 .measurementsList::-webkit-scrollbar-thumb:hover,
 .shapesList::-webkit-scrollbar-thumb:hover,
 .templates-grid::-webkit-scrollbar-thumb:hover {
-  background: linear-gradient(135deg, var(--gray-500) 0%, var(--gray-600) 100%);
+  background: var(--border-hover);
 }

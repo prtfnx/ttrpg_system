@@ -67,8 +67,8 @@
 .select-input:focus,
 .textarea-input:focus {
   outline: none;
-  border-color: var(--blue-500);
-  box-shadow: var(--ring-blue);
+  border-color: var(--input-border-focus);
+  box-shadow: var(--focus-ring);
 }
 
 .textarea-input {
@@ -90,7 +90,7 @@
 }
 
 .color-input:hover {
-  border-color: var(--blue-500);
+  border-color: var(--border-focus);
 }
 
 .color-picker-container {
@@ -123,21 +123,21 @@
   appearance: none;
   width: var(--size-4-5);
   height: var(--size-4-5);
-  background: var(--blue-500);
+  background: var(--color-primary);
   border-radius: var(--radius-full);
   cursor: pointer;
   transition: background var(--transition-fast), transform var(--transition-fast);
 }
 
 .range-input::-webkit-slider-thumb:hover {
-  background: var(--blue-600);
+  background: var(--color-primary-hover);
   transform: scale(1.1);
 }
 
 .range-input::-moz-range-thumb {
   width: var(--size-4-5);
   height: var(--size-4-5);
-  background: var(--blue-500);
+  background: var(--color-primary);
   border: none;
   border-radius: var(--radius-full);
   cursor: pointer;
@@ -145,7 +145,7 @@
 }
 
 .range-input::-moz-range-thumb:hover {
-  background: var(--blue-600);
+  background: var(--color-primary-hover);
   transform: scale(1.1);
 }
 
@@ -157,7 +157,7 @@
 
 .slider-value {
   font-weight: var(--font-semibold);
-  color: var(--blue-500);
+  color: var(--text-accent);
   min-width: var(--size-12-5);
   text-align: right;
   font-size: var(--text-sm);
@@ -177,45 +177,45 @@
 
 .button-primary {
   composes: button-base;
-  background: var(--blue-500);
-  color: var(--white);
+  background: var(--button-primary-bg);
+  color: var(--button-primary-text);
 }
 
 .button-primary:hover:not(:disabled) {
-  background: var(--blue-600);
+  background: var(--button-primary-hover);
   transform: translateY(calc(-1 * var(--space-1)));
   box-shadow: var(--shadow-lg);
 }
 
 .button-success {
   composes: button-base;
-  background: var(--green-600);
-  color: var(--white);
+  background: var(--button-success-bg);
+  color: var(--button-success-text);
 }
 
 .button-success:hover:not(:disabled) {
-  background: var(--green-700);
+  background: var(--button-success-hover);
 }
 
 .button-danger {
   composes: button-base;
-  background: var(--red-600);
-  color: var(--white);
+  background: var(--button-danger-bg);
+  color: var(--button-danger-text);
 }
 
 .button-danger:hover {
-  background: var(--red-700);
+  background: var(--button-danger-hover);
 }
 
 .button-secondary {
   composes: button-base;
-  background: var(--gray-700);
-  color: var(--text-primary);
-  border: var(--border-width-sm) solid var(--border-primary);
+  background: var(--button-secondary-bg);
+  color: var(--button-secondary-text);
+  border: var(--border-width-sm) solid var(--button-secondary-border);
 }
 
 .button-secondary:hover {
-  background: var(--gray-600);
+  background: var(--button-secondary-hover);
 }
 
 .button-disabled {
@@ -226,8 +226,8 @@
 /* === Toolbar Patterns === */
 
 .toolbar-container {
-  background: var(--gray-900);
-  border: var(--border-width-sm) solid var(--gray-750);
+  background: var(--bg-primary);
+  border: var(--border-width-sm) solid var(--border-primary);
   border-radius: var(--radius-lg);
   padding: var(--space-sm);
   display: flex;
@@ -244,13 +244,13 @@
 
 .toolbar-label {
   font-size: var(--text-xs);
-  color: var(--gray-400);
+  color: var(--text-secondary);
   font-weight: var(--font-medium);
 }
 
 .toolbar-select {
-  background: var(--gray-800);
-  border: var(--border-width-sm) solid var(--gray-700);
+  background: var(--input-bg);
+  border: var(--border-width-sm) solid var(--input-border);
   border-radius: var(--radius-sm);
   color: var(--text-primary);
   padding: var(--space-1) var(--space-sm);
@@ -261,17 +261,17 @@
 }
 
 .toolbar-select:hover {
-  border-color: var(--blue-500);
+  border-color: var(--input-border-hover);
 }
 
 .toolbar-select:focus {
-  border-color: var(--blue-500);
-  box-shadow: var(--ring-blue);
+  border-color: var(--input-border-focus);
+  box-shadow: var(--focus-ring);
 }
 
 .toolbar-button {
-  background: var(--gray-800);
-  border: var(--border-width-sm) solid var(--gray-700);
+  background: var(--button-secondary-bg);
+  border: var(--border-width-sm) solid var(--button-secondary-border);
   border-radius: var(--radius-sm);
   color: var(--text-primary);
   width: var(--size-8);
@@ -285,8 +285,8 @@
 }
 
 .toolbar-button:hover:not(:disabled) {
-  background: var(--gray-700);
-  border-color: var(--blue-500);
+  background: var(--button-secondary-hover);
+  border-color: var(--border-hover);
 }
 
 .toolbar-button:disabled {
@@ -295,15 +295,15 @@
 }
 
 .toolbar-button-active {
-  background: var(--blue-500);
-  border-color: var(--blue-500);
-  color: var(--white);
+  background: var(--button-primary-bg);
+  border-color: var(--button-primary-border);
+  color: var(--button-primary-text);
 }
 
 .toolbar-divider {
   width: var(--border-width-sm);
   height: var(--size-6);
-  background: var(--gray-700);
+  background: var(--border-primary);
   margin: 0 var(--space-1);
 }
 
@@ -324,7 +324,7 @@
 }
 
 .modal-container {
-  background: var(--gray-900);
+  background: var(--panel-bg);
   border-radius: var(--radius-lg);
   box-shadow: var(--shadow-2xl);
   width: clamp(var(--size-80), 90vw, var(--size-125));
@@ -337,11 +337,11 @@
 
 .modal-header {
   padding: var(--space-xl) var(--space-2xl);
-  border-bottom: var(--border-width-sm) solid var(--gray-750);
+  border-bottom: var(--border-width-sm) solid var(--panel-border);
   display: flex;
   justify-content: space-between;
   align-items: center;
-  background: var(--gray-850);
+  background: var(--panel-header-bg);
   border-radius: var(--radius-lg) var(--radius-lg) 0 0;
 }
 
@@ -349,13 +349,13 @@
   margin: 0;
   font-size: var(--text-lg);
   font-weight: var(--font-semibold);
-  color: var(--white);
+  color: var(--panel-header-text);
 }
 
 .modal-close {
   background: none;
   border: none;
-  color: var(--gray-500);
+  color: var(--text-muted);
   font-size: var(--text-3xl);
   cursor: pointer;
   padding: 0;
@@ -369,8 +369,8 @@
 }
 
 .modal-close:hover {
-  background: var(--gray-750);
-  color: var(--white);
+  background: var(--bg-elevated-hover);
+  color: var(--text-primary);
 }
 
 .modal-body {
@@ -381,11 +381,11 @@
 
 .modal-footer {
   padding: var(--space-lg) var(--space-2xl);
-  border-top: var(--border-width-sm) solid var(--gray-750);
+  border-top: var(--border-width-sm) solid var(--panel-border);
   display: flex;
   justify-content: flex-end;
   gap: var(--space-md);
-  background: var(--gray-850);
+  background: var(--panel-header-bg);
   border-radius: 0 0 var(--radius-lg) var(--radius-lg);
 }
 
@@ -410,18 +410,18 @@
 /* === Info Box === */
 
 .info-box {
-  background: var(--gray-800);
-  border-left: var(--border-width-lg) solid var(--blue-500);
+  background: var(--status-info-bg);
+  border-left: var(--border-width-lg) solid var(--status-info-border);
   padding: var(--space-md) var(--space-lg);
   border-radius: var(--radius-sm);
   font-size: var(--text-sm);
   line-height: var(--line-relaxed);
-  color: var(--gray-400);
+  color: var(--status-info-text);
   margin-top: var(--space-xl);
 }
 
 .info-box-highlight {
-  color: var(--blue-500);
+  color: var(--status-info-text);
 }
 
 /* === Responsive Utilities === */

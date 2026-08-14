@@ -57,8 +57,8 @@
 .controlGroup input,
 .controlGroup select {
   width: 100%;
-  background: var(--gray-800);
-  border: var(--border-width-sm) solid var(--gray-700);
+  background: var(--input-bg);
+  border: var(--border-width-sm) solid var(--input-border);
   border-radius: var(--radius-sm);
   color: var(--text-primary);
   padding: var(--space-2) var(--space-3);
@@ -69,14 +69,15 @@
 
 .controlGroup input:focus,
 .controlGroup select:focus {
-  border-color: var(--blue-500);
+  border-color: var(--input-border-focus);
+  box-shadow: var(--focus-ring);
 }
 
 .controlGroup textarea {
   width: 100%;
   min-height: var(--size-24);
-  background: var(--gray-800);
-  border: var(--border-width-sm) solid var(--gray-700);
+  background: var(--input-bg);
+  border: var(--border-width-sm) solid var(--input-border);
   border-radius: var(--radius-sm);
   color: var(--text-primary);
   padding: var(--space-2) var(--space-3);
@@ -88,7 +89,8 @@
 }
 
 .controlGroup textarea:focus {
-  border-color: var(--blue-500);
+  border-color: var(--input-border-focus);
+  box-shadow: var(--focus-ring);
 }
 
 .textInput {
@@ -105,7 +107,7 @@
   width: 100%;
   -webkit-appearance: none;
   appearance: none;
-  background: var(--gray-700);
+  background: var(--bg-tertiary);
   outline: none;
   border-radius: var(--radius-full);
   height: var(--size-1);
@@ -116,20 +118,20 @@
   appearance: none;
   width: var(--size-4-5);
   height: var(--size-4-5);
-  background: var(--blue-500);
+  background: var(--color-primary);
   border-radius: var(--radius-full);
   cursor: pointer;
   transition: background var(--transition-fast);
 }
 
 .textSpriteCreator input[type="range"]::-webkit-slider-thumb:hover {
-  background: var(--blue-600);
+  background: var(--color-primary-hover);
 }
 
 .textSpriteCreator input[type="range"]::-moz-range-thumb {
   width: var(--size-4-5);
   height: var(--size-4-5);
-  background: var(--blue-500);
+  background: var(--color-primary);
   border: none;
   border-radius: var(--radius-full);
   cursor: pointer;
@@ -137,7 +139,7 @@
 }
 
 .textSpriteCreator input[type="range"]::-moz-range-thumb:hover {
-  background: var(--blue-600);
+  background: var(--color-primary-hover);
 }
 
 /* Alignment buttons */
@@ -166,9 +168,9 @@
 }
 
 .alignBtn.active {
-  background: var(--blue-500);
-  border-color: var(--blue-500);
-  color: var(--white);
+  background: var(--button-primary-bg);
+  border-color: var(--button-primary-border);
+  color: var(--button-primary-text);
 }
 
 /* Shadow controls */
@@ -248,7 +250,8 @@
 
 /* Cannot compose on pseudo-selectors */
 .btnCreate:disabled {
-  background: var(--gray-700);
+  background: var(--button-disabled-bg);
+  color: var(--button-disabled-text);
   cursor: not-allowed;
   opacity: 0.5;
 }

@@ -26,7 +26,7 @@
 }
 
 .dice-button:hover:not(:disabled) {
-  border-color: var(--red-900);
+  border-color: var(--button-primary-border);
   transform: translateY(calc(var(--space-xs) * -0.25));
 }
 
@@ -36,35 +36,35 @@
 
 /* Variant styles */
 .diceRoller.primary .dice-button {
-  border-color: var(--red-900);
-  background: linear-gradient(135deg, var(--red-900) 0%, var(--red-800) 100%);
-  color: var(--text-inverse-primary);
+  border-color: var(--button-primary-border);
+  background: var(--button-primary-bg);
+  color: var(--button-primary-text);
 }
 
 .diceRoller.primary .dice-button:hover:not(:disabled) {
-  background: linear-gradient(135deg, var(--red-800) 0%, var(--red-700) 100%);
+  background: var(--button-primary-hover);
 }
 
 .diceRoller.attack .dice-button {
-  border-color: var(--color-danger);
-  background: linear-gradient(135deg, var(--color-danger) 0%, var(--color-danger-active) 100%);
-  color: var(--text-inverse-primary);
+  border-color: var(--button-danger-border);
+  background: var(--button-danger-bg);
+  color: var(--button-danger-text);
 }
 
 .diceRoller.damage .dice-button {
-  border-color: var(--orange-600);
-  background: linear-gradient(135deg, var(--orange-600) 0%, var(--orange-700) 100%);
-  color: var(--text-inverse-primary);
+  border-color: var(--button-warning-border);
+  background: var(--button-warning-bg);
+  color: var(--button-warning-text);
 }
 
 .diceRoller.save .dice-button {
-  border-color: var(--purple-700);
-  background: linear-gradient(135deg, var(--purple-700) 0%, var(--purple-800) 100%);
-  color: var(--text-inverse-primary);
+  border-color: var(--button-info-border);
+  background: var(--button-info-bg);
+  color: var(--button-info-text);
 }
 
 .diceRoller.secondary .dice-button {
-  border-color: var(--gray-600);
+  border-color: var(--button-secondary-border);
   background: var(--bg-elevated);
   color: var(--text-secondary);
 }
@@ -129,19 +129,19 @@
 }
 
 .diceResult.critical {
-  background: linear-gradient(135deg, var(--yellow-400) 0%, var(--yellow-200) 100%);
-  color: var(--text-primary);
+  background: var(--button-warning-bg);
+  color: var(--button-warning-text);
   animation: criticalGlow var(--duration-spin) ease-in-out;
 }
 
 .diceResult.high {
-  background: linear-gradient(135deg, var(--green-600) 0%, var(--green-500) 100%);
-  color: var(--text-inverse-primary);
+  background: var(--button-success-bg);
+  color: var(--button-success-text);
 }
 
 .diceResult.low {
-  background: linear-gradient(135deg, var(--gray-600) 0%, var(--gray-700) 100%);
-  color: var(--text-inverse-primary);
+  background: var(--button-secondary-bg);
+  color: var(--button-secondary-text);
 }
 
 @keyframes criticalGlow {
@@ -179,8 +179,8 @@
 }
 
 .roll-details.critical {
-  border-color: var(--yellow-400);
-  background: linear-gradient(135deg, var(--yellow-50) 0%, var(--yellow-100) 100%);
+  border-color: var(--status-warning-border);
+  background: var(--status-warning-bg);
 }
 
 .roll-breakdown {
@@ -195,13 +195,13 @@
 }
 
 .equals {
-  color: var(--red-900);
+  color: var(--status-warning-text);
   font-weight: var(--font-bold);
 }
 
 .total {
   font-size: var(--text-lg);
-  color: var(--red-900);
+  color: var(--status-warning-text);
   font-weight: var(--font-bold);
 }
 
@@ -213,13 +213,13 @@
 }
 
 .critical-indicator {
-  background: var(--yellow-400);
-  color: var(--text-primary);
+  background: var(--button-warning-bg);
+  color: var(--button-warning-text);
 }
 
 .fumble-indicator {
-  background: var(--red-600);
-  color: var(--text-inverse-primary);
+  background: var(--button-danger-bg);
+  color: var(--button-danger-text);
 }
 
 /* Roll history */
@@ -243,7 +243,7 @@
 .clear-history {
   background: none;
   border: none;
-  color: var(--red-600);
+  color: var(--status-error-text);
   cursor: pointer;
   font-size: var(--text-xs);
   padding: var(--space-2xs) var(--space-xs);
@@ -252,7 +252,7 @@
 }
 
 .clear-history:hover {
-  background: var(--gray-100);
+  background: var(--status-error-bg);
 }
 
 .history-list {
@@ -276,17 +276,17 @@
 }
 
 .history-item.critical {
-  border-left-color: var(--yellow-400);
-  background: var(--yellow-50);
+  border-left-color: var(--status-warning-border);
+  background: var(--status-warning-bg);
 }
 
 .history-item.high {
-  border-left-color: var(--green-600);
-  background: var(--green-50);
+  border-left-color: var(--status-success-border);
+  background: var(--status-success-bg);
 }
 
 .history-item.low {
-  border-left-color: var(--gray-600);
+  border-left-color: var(--border-secondary);
   background: var(--bg-secondary);
 }
 
@@ -304,7 +304,7 @@
 }
 
 .history-time {
-  color: var(--gray-500);
+  color: var(--text-muted);
   font-size: var(--text-2xs);
 }
 
@@ -314,7 +314,7 @@
   cursor: pointer;
   padding: var(--space-2xs) var(--space-2xs);
   border-radius: var(--radius-sm);
-  color: var(--red-900);
+  color: var(--text-accent);
   text-decoration: underline;
   text-decoration-style: dotted;
   font-weight: var(--font-semibold);

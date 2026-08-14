@@ -74,7 +74,7 @@
 }
 
 .fpsGood {
-  color: var(--yellow-400);
+  color: var(--performance-good);
 }
 
 .fpsWarning {
@@ -240,7 +240,7 @@
 }
 
 .metricRow .fpsGood {
-  color: var(--yellow-400);
+  color: var(--performance-good);
 }
 
 .metricRow .fpsWarning {

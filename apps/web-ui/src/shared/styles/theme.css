@@ -236,6 +236,9 @@
   --status-danger-bg: rgba(220, 38, 38, 0.1);
   --status-danger-text: var(--red-400);
   --status-danger-border: var(--red-600);
+
+  /* Performance thresholds retain distinct severity hues across themes. */
+  --performance-good: var(--yellow-400);
   
   /* Progress Bars */
   --progress-bg: rgba(255, 255, 255, 0.3);

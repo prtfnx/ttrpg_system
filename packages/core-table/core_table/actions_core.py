@@ -1048,7 +1048,9 @@ class ActionsCore(AsyncActionsProtocol):
             from managers.character_manager import get_server_character_manager
 
             char_manager = get_server_character_manager()
-            result = char_manager.save_character(session_id, character_data, user_id)
+            result = await asyncio.to_thread(
+                char_manager.save_character, session_id, character_data, user_id
+            )
 
             if result['success']:
                 logger.info(f"Character saved successfully: {result.get('character_id')}")
@@ -1081,8 +1083,12 @@ class ActionsCore(AsyncActionsProtocol):
             from managers.character_manager import get_server_character_manager
 
             char_manager = get_server_character_manager()
-            result = char_manager.load_character(
-                session_id, character_id, user_id, bypass_owner_check
+            result = await asyncio.to_thread(
+                char_manager.load_character,
+                session_id,
+                character_id,
+                user_id,
+                bypass_owner_check,
             )
 
             if result['success']:
@@ -1114,7 +1120,12 @@ class ActionsCore(AsyncActionsProtocol):
             from managers.character_manager import get_server_character_manager
 
             char_manager = get_server_character_manager()
-            result = char_manager.list_characters(session_id, user_id, bypass_owner_check)
+            result = await asyncio.to_thread(
+                char_manager.list_characters,
+                session_id,
+                user_id,
+                bypass_owner_check,
+            )
 
             if result['success']:
                 characters = result.get('characters', [])
@@ -1145,8 +1156,12 @@ class ActionsCore(AsyncActionsProtocol):
             from managers.character_manager import get_server_character_manager
 
             char_manager = get_server_character_manager()
-            result = char_manager.delete_character(
-                session_id, character_id, user_id, bypass_owner_check
+            result = await asyncio.to_thread(
+                char_manager.delete_character,
+                session_id,
+                character_id,
+                user_id,
+                bypass_owner_check,
             )
 
             if result['success']:
@@ -1176,7 +1191,15 @@ class ActionsCore(AsyncActionsProtocol):
             from managers.character_manager import get_server_character_manager
 
             char_manager = get_server_character_manager()
-            result = char_manager.update_character(session_id, character_id, updates, user_id, expected_version, bypass_owner_check=bypass_owner_check)
+            result = await asyncio.to_thread(
+                char_manager.update_character,
+                session_id,
+                character_id,
+                updates,
+                user_id,
+                expected_version,
+                bypass_owner_check=bypass_owner_check,
+            )
 
             if result.get('success'):
                 logger.info(f"Character {character_id} updated to version {result.get('version')}")
@@ -1219,8 +1242,13 @@ class ActionsCore(AsyncActionsProtocol):
         try:
             from managers.character_manager import get_server_character_manager
             char_manager = get_server_character_manager()
-            result = char_manager.get_character_logs(
-                character_id, session_id, user_id, limit, bypass_owner_check
+            result = await asyncio.to_thread(
+                char_manager.get_character_logs,
+                character_id,
+                session_id,
+                user_id,
+                limit,
+                bypass_owner_check,
             )
             if result['success']:
                 return ActionResult(True, 'Log retrieved', {'logs': result['logs']})
@@ -1239,8 +1267,12 @@ class ActionsCore(AsyncActionsProtocol):
             from managers.character_manager import get_server_character_manager
 
             char_manager = get_server_character_manager()
-            char_result = char_manager.load_character(
-                session_id, character_id, user_id, bypass_owner_check
+            char_result = await asyncio.to_thread(
+                char_manager.load_character,
+                session_id,
+                character_id,
+                user_id,
+                bypass_owner_check,
             )
             if not char_result.get('success'):
                 return ActionResult(False, 'Character not found or access denied')
@@ -1380,7 +1412,8 @@ class ActionsCore(AsyncActionsProtocol):
                     new_saves = {'successes': current.get('successes', 0), 'failures': min(3, current.get('failures', 0) + 1)}
                 result_data['death_saves'] = new_saves
 
-            persistence = char_manager.persist_character_roll(
+            persistence = await asyncio.to_thread(
+                char_manager.persist_character_roll,
                 character_id,
                 session_id,
                 user_id,

@@ -6,7 +6,9 @@ Tests for character-related protocol handlers and dice-rolling logic.
 Focus: user-visible behaviour — correct message types broadcast,
 death save state persistence, roll result contents.
 """
+import asyncio
 import importlib
+import time
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
@@ -90,6 +92,30 @@ def _save_char(
     }, user_id)
     assert r["success"], r
     return r
+
+
+async def test_character_persistence_does_not_block_event_loop(monkeypatch):
+    from core_table.actions_core import ActionsCore
+    from core_table.server import TableManager
+
+    manager = MagicMock()
+
+    def slow_save(*_args, **_kwargs):
+        time.sleep(0.05)
+        return {"success": True, "character_id": "char-1", "version": 1}
+
+    manager.save_character.side_effect = slow_save
+    monkeypatch.setattr(
+        "managers.character_manager.get_server_character_manager",
+        lambda: manager,
+    )
+    marker = asyncio.Event()
+    asyncio.get_running_loop().call_later(0.01, marker.set)
+
+    result = await ActionsCore(TableManager()).save_character(1, {"name": "Hero"}, 2)
+
+    assert result.success is True
+    assert marker.is_set(), "synchronous character persistence blocked the event loop"
 
 
 # ---------------------------------------------------------------------------

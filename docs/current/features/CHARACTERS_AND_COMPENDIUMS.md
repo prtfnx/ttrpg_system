@@ -6,7 +6,7 @@ compendium data, or character-token links.
 Status: usable. Character storage and authority and the bundled starter
 compendium are implemented.
 
-Last source audit: 2026-07-22
+Last source audit: 2026-08-13
 
 ## Ownership
 
@@ -34,6 +34,12 @@ Updates use recursive JSON Merge Patch semantics and an atomic version
 compare-and-swap. A conflict returns the canonical document and current version.
 Accepted HP, max-HP, and AC changes synchronize every linked token in the
 session and use normal authorized sprite broadcasts.
+
+The character manager intentionally keeps short-lived synchronous SQLAlchemy
+transactions, but async protocol actions run those I/O-bound calls through a
+worker thread. Do not call character-manager persistence directly on the
+WebSocket event loop; keep computation outside the worker and await the single
+database operation boundary.
 
 `character_save_request` creates a character only. It cannot overwrite an
 existing id without a version. XP, level, class, class-list, pending-level, and

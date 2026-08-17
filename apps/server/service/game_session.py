@@ -4,7 +4,7 @@ WebSocket-based game session manager with integrated table protocol
 import json
 import uuid
 from datetime import datetime, timezone
-from typing import Dict, List, Optional, Union
+from typing import Dict, List, Optional, Set, Union
 
 from core_table.protocol import Message, MessageType
 
@@ -29,6 +29,7 @@ class ConnectionManager:
         # session_code -> list of websockets
         self.active_connections: Dict[str, List[WebSocket]] = {}        # websocket -> user_info (includes role)
         self.connection_info: Dict[WebSocket, dict] = {}
+        self.user_connections: Dict[int, Set[WebSocket]] = {}
         self.sessions_protocols: Dict[str, GameSessionProtocolService] = {}
         self.game_session_db_ids: Dict[str, int] = {}  # session_code -> game_session_db_id
 
@@ -78,6 +79,7 @@ class ConnectionManager:
             "connection_id": connection_id or uuid.uuid4().hex,
             "connected_at": datetime.now(timezone.utc),
         }
+        self.user_connections.setdefault(user_id, set()).add(websocket)
 
         # Setup R2 asset permissions using the role resolved by the caller
         user_role = role
@@ -101,6 +103,11 @@ class ConnectionManager:
             await websocket.close(code=4003)
             self.active_connections[session_code].remove(websocket)
             del self.connection_info[websocket]
+            user_connections = self.user_connections.get(user_id)
+            if user_connections:
+                user_connections.discard(websocket)
+                if not user_connections:
+                    del self.user_connections[user_id]
             raise
         message = Message(
             MessageType.PLAYER_JOINED, {
@@ -120,9 +127,16 @@ class ConnectionManager:
         if websocket not in self.connection_info:
             return
 
-        info = self.connection_info[websocket]
+        info = self.connection_info.pop(websocket)
         session_code = info["session_code"]
         username = info["username"]
+        user_id = info["user_id"]
+
+        user_connections = self.user_connections.get(user_id)
+        if user_connections:
+            user_connections.discard(websocket)
+            if not user_connections:
+                del self.user_connections[user_id]
 
         # Remove from protocol service first
         protocol_service = self.sessions_protocols.get(session_code)
@@ -174,8 +188,6 @@ class ConnectionManager:
 
                     if session_code in self.game_session_db_ids:
                         del self.game_session_db_ids[session_code]
-
-        self.connection_info.pop(websocket, None)
 
         logger.info(
             "WebSocket client removed",
@@ -233,9 +245,41 @@ class ConnectionManager:
         """Close every live socket for a user and immediately clear its authority."""
         targets = [
             websocket
-            for websocket, info in self.connection_info.items()
-            if info.get("session_code") == session_code and info.get("user_id") == user_id
+            for websocket in self.user_connections.get(user_id, set())
+            if self.connection_info.get(websocket, {}).get("session_code") == session_code
         ]
+
+        return await self._disconnect_connections(
+            targets,
+            user_id=user_id,
+            reason=reason,
+            close_code=close_code,
+        )
+
+    async def disconnect_account(
+        self,
+        user_id: int,
+        *,
+        reason: str,
+        close_code: int = status.WS_1008_POLICY_VIOLATION,
+    ) -> int:
+        """Close every live socket after account-level session revocation."""
+        return await self._disconnect_connections(
+            list(self.user_connections.get(user_id, set())),
+            user_id=user_id,
+            reason=reason,
+            close_code=close_code,
+        )
+
+    async def _disconnect_connections(
+        self,
+        targets: List[WebSocket],
+        *,
+        user_id: int,
+        reason: str,
+        close_code: int,
+    ) -> int:
+        """Revoke indexed sockets without allowing one failed close to stop the rest."""
 
         for websocket in targets:
             try:

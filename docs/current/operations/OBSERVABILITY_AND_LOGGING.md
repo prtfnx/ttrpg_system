@@ -4,7 +4,7 @@ Status: usable. Structured logs, request correlation, protected Prometheus
 metrics, audit retention, and optional OTLP traces are implemented. External
 dashboards and alert delivery remain operator work.
 
-Last source audit: 2026-08-04
+Last source audit: 2026-08-17
 
 ## Logging
 
@@ -13,6 +13,12 @@ to JSON; local development can use text. Log values are bounded and redact
 credential-like keys, bearer tokens, JWTs, and signed query parameters.
 Both formats emit UTC timestamps. Each text formatter uses a typed UTC
 converter instead of replacing `logging.Formatter` state globally.
+
+Live account or membership revocation emits
+`websocket.access.revoked` with the authenticated user ID and bounded
+connection count. Notice, protocol-cleanup, and close failures have separate
+bounded event names. These events do not include JWTs, cookies, or session
+codes.
 
 Every HTTP request receives an `X-Request-ID`. A valid inbound request ID is
 preserved; otherwise the server creates one. Request and trace context flows

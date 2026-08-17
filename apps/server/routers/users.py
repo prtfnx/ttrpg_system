@@ -24,6 +24,7 @@ from service.authentication import (
     resolve_active_user_from_token,
 )
 from service.email import send_email_change_notify, send_email_change_verify, send_password_changed, send_password_reset
+from service.game_session import get_connection_manager
 from sqlalchemy.orm import Session
 from utils.audit import audit_event
 from utils.logger import setup_logger
@@ -730,6 +731,11 @@ async def reset_password_submit(
     ))
     db.commit()
 
+    await get_connection_manager().disconnect_account(
+        record.user.id,
+        reason="Account session revoked",
+    )
+
     if record.user.email:
         send_password_changed(record.user.email)
 
@@ -803,6 +809,11 @@ async def settings_password(
         "password_change", user_id=user.id, target_type="user", target_id=user.id, request=request
     ))
     db.commit()
+
+    await get_connection_manager().disconnect_account(
+        user.id,
+        reason="Account session revoked",
+    )
 
     if user.email:
         send_password_changed(user.email)
@@ -928,6 +939,11 @@ async def settings_delete(
         "account_delete", user_id=user.id, target_type="user", target_id=user.id, request=request
     ))
     db.commit()
+
+    await get_connection_manager().disconnect_account(
+        user.id,
+        reason="Account disabled",
+    )
 
     response = RedirectResponse("/users/login?msg=account_deleted", status_code=302)
     response.delete_cookie(key="token", path="/", samesite="lax")

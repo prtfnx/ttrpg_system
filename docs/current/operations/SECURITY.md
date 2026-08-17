@@ -68,7 +68,10 @@ JWT payloads include:
 - `exp`: expiration time.
 
 Password reset, password change, and account delete increment
-`session_version`, invalidating older tokens.
+`session_version`, invalidating older tokens. Immediately after those database
+transactions commit, the server closes all active sockets indexed to that user.
+Account disablement uses the same path. Password change still returns a new
+cookie for subsequent HTTP requests and fresh WebSocket handshakes.
 
 `apps/server/service/authentication.py` owns token-to-active-user validation
 for HTTP and WebSocket entry points. Both paths reject expired or malformed
@@ -140,6 +143,12 @@ removal closes all of that user's sockets in the affected session with policy
 code `1008`; reconnect then repeats durable authentication and membership
 checks. This prevents a demoted or removed member from retaining permissions
 through an older connection.
+
+Account-level revocation is process-local because active WebSockets are
+process-local. Before enabling multiple application workers or instances, add
+a shared revocation notification so every process closes the user's indexed
+sockets. The handshake's durable session-version check remains the final guard
+against reconnecting with an older token.
 
 ## Rate limiting
 

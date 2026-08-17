@@ -61,12 +61,19 @@ rejects the token if its `sv` claim no longer matches
 
 Password reset, password change, and account deletion bump `session_version` to
 invalidate old JWTs. Password change re-issues a token so the current browser
-can stay logged in.
+can stay logged in. After the version or disabled flag commits, the connection
+manager closes every active WebSocket for that account across all sessions.
+The newly issued password-change cookie remains valid for later HTTP requests
+and new WebSocket handshakes; no old socket is preserved.
 
 The game WebSocket validates the HTTP-only cookie before accepting the
 connection. A missing, expired, malformed, revoked, or disabled-account token
 closes the handshake with WebSocket policy-violation code `1008`. It never
 records token material in logs.
+
+Active sockets are indexed by authenticated `user_id`. Account revocation
+sends a terminal error and closes each indexed socket with code `1008` after
+removing its authorization context. A different user's sockets are unaffected.
 
 ## Browser auth
 

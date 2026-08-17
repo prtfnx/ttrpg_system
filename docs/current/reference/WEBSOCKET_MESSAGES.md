@@ -66,6 +66,11 @@ membership removal sends a terminal error, removes every matching socket from
 both server registries, and closes them with policy code `1008` and reason
 `Kicked from session`. Repeating that cleanup has no effect.
 
+Password reset or change closes all of the account's sockets with reason
+`Account session revoked`. Account disablement uses reason `Account disabled`.
+Both are terminal policy closes (`1008`), and the server removes authorization
+context before awaiting the close notification.
+
 ## Registered server inbound messages
 
 These messages are registered in `ServerProtocol.init_handlers`.

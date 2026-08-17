@@ -35,6 +35,7 @@ async def test_connect_retains_registry_and_releases_initialization_session(monk
     )
     registry.remove.assert_called_once_with()
     assert manager.sessions_protocols["ROOM"] is protocol_service
+    assert manager.user_connections[5] == {websocket}
     websocket.accept.assert_awaited_once_with()
 
 
@@ -136,6 +137,7 @@ async def test_disconnect_user_revokes_all_tabs_and_is_idempotent(monkeypatch):
         second: {"session_code": "ROOM", "user_id": 7, "username": "member"},
         unrelated: {"session_code": "ROOM", "user_id": 8, "username": "other"},
     }
+    manager.user_connections = {7: {first, second}, 8: {unrelated}}
     manager.broadcast_to_session = AsyncMock()
 
     disconnected = await manager.disconnect_user(
@@ -150,6 +152,8 @@ async def test_disconnect_user_revokes_all_tabs_and_is_idempotent(monkeypatch):
     assert first not in manager.connection_info
     assert second not in manager.connection_info
     assert manager.connection_info[unrelated]["user_id"] == 8
+    assert 7 not in manager.user_connections
+    assert manager.user_connections[8] == {unrelated}
     assert manager.active_connections["ROOM"] == [unrelated]
     assert protocol_service.remove_client.await_count == 2
     first.send_json.assert_awaited_once_with({
@@ -174,6 +178,7 @@ async def test_disconnect_user_persists_and_cleans_last_session_once(monkeypatch
         first: {"session_code": "ROOM", "user_id": 7, "username": "member"},
         second: {"session_code": "ROOM", "user_id": 7, "username": "member"},
     }
+    manager.user_connections = {7: {first, second}}
     asset_manager = MagicMock()
     monkeypatch.setattr(game_session, "get_server_asset_manager", lambda: asset_manager)
 
@@ -182,3 +187,36 @@ async def test_disconnect_user_persists_and_cleans_last_session_once(monkeypatch
     protocol_service.save_to_database.assert_called_once_with()
     protocol_service.cleanup.assert_called_once_with()
     asset_manager.cleanup_session.assert_called_once_with("ROOM")
+
+
+@pytest.mark.asyncio
+async def test_disconnect_account_revokes_every_session_but_not_other_users():
+    manager = ConnectionManager()
+    first = AsyncMock()
+    second = AsyncMock()
+    unrelated = AsyncMock()
+    manager.connection_info = {
+        first: {"session_code": "ONE", "user_id": 7, "username": "member"},
+        second: {"session_code": "TWO", "user_id": 7, "username": "member"},
+        unrelated: {"session_code": "ONE", "user_id": 8, "username": "other"},
+    }
+    manager.user_connections = {7: {first, second}, 8: {unrelated}}
+    manager.active_connections = {
+        "ONE": [first, unrelated],
+        "TWO": [second],
+    }
+    first_protocol = MagicMock()
+    first_protocol.remove_client = AsyncMock()
+    second_protocol = MagicMock()
+    second_protocol.remove_client = AsyncMock()
+    manager.sessions_protocols = {"ONE": first_protocol, "TWO": second_protocol}
+    manager.broadcast_to_session = AsyncMock()
+
+    assert await manager.disconnect_account(7, reason="Account session revoked") == 2
+
+    assert 7 not in manager.user_connections
+    assert manager.user_connections[8] == {unrelated}
+    assert list(manager.connection_info) == [unrelated]
+    first.close.assert_awaited_once_with(code=1008, reason="Account session revoked")
+    second.close.assert_awaited_once_with(code=1008, reason="Account session revoked")
+    unrelated.close.assert_not_awaited()

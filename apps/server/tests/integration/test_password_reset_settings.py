@@ -5,7 +5,7 @@ Tests real HTTP behaviour via the TestClient — no implementation detail mockin
 import hashlib
 import secrets
 from datetime import timedelta
-from unittest.mock import patch
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 from database import crud, models, schemas
@@ -131,6 +131,23 @@ class TestResetPassword:
             })
         test_db.refresh(test_user)
         assert (test_user.session_version or 0) == old_sv + 1
+
+    def test_reset_revokes_active_sockets(self, client, test_user, test_db):
+        raw = _make_reset_token(test_db, test_user)
+        connection_manager = MagicMock()
+        connection_manager.disconnect_account = AsyncMock()
+        with patch("routers.users.get_connection_manager", return_value=connection_manager), \
+             patch("routers.users.send_password_changed"):
+            client.post("/users/reset-password", data={
+                "token": raw,
+                "new_password": "NewSecret1",
+                "confirm_password": "NewSecret1",
+            })
+
+        connection_manager.disconnect_account.assert_awaited_once_with(
+            test_user.id,
+            reason="Account session revoked",
+        )
 
     def test_token_is_single_use(self, client, test_user, test_db):
         raw = _make_reset_token(test_db, test_user)
@@ -275,6 +292,22 @@ class TestSettings:
             }, follow_redirects=False)
         assert "token" in response.cookies
 
+    def test_password_change_revokes_active_sockets(self, auth_client, test_user):
+        connection_manager = MagicMock()
+        connection_manager.disconnect_account = AsyncMock()
+        with patch("routers.users.get_connection_manager", return_value=connection_manager), \
+             patch("routers.users.send_password_changed"):
+            auth_client.post("/users/settings/password", data={
+                "current_password": "",
+                "new_password": "NewSecret1",
+                "confirm_password": "NewSecret1",
+            })
+
+        connection_manager.disconnect_account.assert_awaited_once_with(
+            test_user.id,
+            reason="Account session revoked",
+        )
+
     def test_delete_wrong_username_rejected(self, auth_client, test_user):
         response = auth_client.post("/users/settings/delete", data={
             "username_confirm": "notmyusername",
@@ -303,6 +336,22 @@ class TestSettings:
         assert "account_deleted" in response.headers["location"]
         test_db.refresh(test_user)
         assert test_user.disabled is True
+
+    def test_delete_revokes_active_sockets(self, auth_client, test_db, test_user):
+        test_user.password_set_at = None
+        test_db.commit()
+        connection_manager = MagicMock()
+        connection_manager.disconnect_account = AsyncMock()
+        with patch("routers.users.get_connection_manager", return_value=connection_manager):
+            auth_client.post("/users/settings/delete", data={
+                "username_confirm": test_user.username,
+                "password": "",
+            })
+
+        connection_manager.disconnect_account.assert_awaited_once_with(
+            test_user.id,
+            reason="Account disabled",
+        )
 
 
 # ─── Email Change ─────────────────────────────────────────────────────────────

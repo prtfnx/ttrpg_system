@@ -107,8 +107,9 @@ Protocol behavior is split by domain under `apps/server/service/protocol/`.
 - `tables.py`: table CRUD, active table, settings.
 - `sprites.py`: sprite CRUD and live previews.
 - `walls.py`: wall and door operations.
-- `paint.py`: paint stroke sync; blocking persistence uses worker-owned ORM
-  sessions while validation and WebSocket delivery remain on the event loop.
+- `paint.py` and `paint_templates.py`: paint sync; blocking persistence uses
+  worker-owned ORM sessions while validation and WebSocket delivery remain on
+  the event loop.
 - `assets.py`: asset upload, download, hash, list, delete.
 - `players.py`: player status, list, kick, ban.
 - `characters.py`: character save, load, update, rolls, logs.

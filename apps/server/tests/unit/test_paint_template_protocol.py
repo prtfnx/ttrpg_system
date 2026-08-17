@@ -1,11 +1,14 @@
 # pyright: reportAttributeAccessIssue=false, reportIncompatibleMethodOverride=false
 
+import threading
 from types import SimpleNamespace
 from unittest.mock import AsyncMock
 
 import pytest
 from core_table.protocol import Message, MessageType
+from service.protocol import paint_templates as template_module
 from service.protocol.paint_templates import _PaintTemplatesMixin
+from sqlalchemy.orm import sessionmaker
 
 
 class PaintTemplateHarness(_PaintTemplatesMixin):
@@ -28,12 +31,12 @@ class PaintTemplateHarness(_PaintTemplatesMixin):
 
 @pytest.fixture()
 def template_db(monkeypatch, test_db, test_game_session, test_user, player_user):
-    def session_factory():
-        return test_db
-
-    import service.protocol.paint_templates as module
-
-    monkeypatch.setattr(module, "SessionLocal", session_factory)
+    session_factory = sessionmaker(
+        autocommit=False,
+        autoflush=False,
+        bind=test_db.get_bind(),
+    )
+    monkeypatch.setattr(template_module, "SessionLocal", session_factory)
     return test_game_session.id, test_user.id, player_user.id
 
 
@@ -101,3 +104,49 @@ async def test_template_validation_rejects_invalid_payload(template_db):
 
     assert result.type == MessageType.ERROR
     assert "valid paint strokes" in result.data["error"]
+
+
+@pytest.mark.asyncio
+async def test_template_database_operations_run_off_event_loop(
+    template_db,
+    monkeypatch,
+):
+    session_id, owner_id, _ = template_db
+    harness = PaintTemplateHarness(session_id, owner_id, "player")
+    event_loop_thread = threading.get_ident()
+    worker_threads = {}
+
+    def recording_wrapper(name, operation):
+        def wrapped(**kwargs):
+            worker_threads[name] = threading.get_ident()
+            return operation(**kwargs)
+
+        return wrapped
+
+    for name in (
+        "_upsert_paint_template",
+        "_load_paint_templates",
+        "_delete_paint_template",
+    ):
+        monkeypatch.setattr(
+            template_module,
+            name,
+            recording_wrapper(name, getattr(template_module, name)),
+        )
+
+    await harness.handle_paint_template_upsert(_upsert(), "owner")
+    await harness.handle_paint_template_sync(
+        Message(MessageType.PAINT_TEMPLATE_SYNC, {}),
+        "owner",
+    )
+    await harness.handle_paint_template_delete(
+        Message(MessageType.PAINT_TEMPLATE_DELETE, {"id": "template-1"}),
+        "owner",
+    )
+
+    assert set(worker_threads) == {
+        "_upsert_paint_template",
+        "_load_paint_templates",
+        "_delete_paint_template",
+    }
+    assert all(thread_id != event_loop_thread for thread_id in worker_threads.values())

@@ -1,8 +1,10 @@
+import asyncio
 import base64
 import binascii
 import json
 import math
 import re
+from dataclasses import dataclass
 from typing import Any, TypeGuard
 
 from core_table.protocol import Message, MessageType
@@ -23,6 +25,92 @@ _MAX_STROKES_PER_TEMPLATE = 500
 _MAX_POINTS_PER_STROKE = 20_000
 _MAX_TEMPLATE_BYTES = 1024 * 1024
 _MAX_THUMBNAIL_BYTES = 128 * 1024
+
+
+@dataclass(frozen=True)
+class _TemplateResult:
+    payload: dict[str, Any] | None = None
+    error: str | None = None
+
+
+def _upsert_paint_template(
+    *,
+    session_id: int,
+    user_id: int,
+    template_id: str,
+    name: str,
+    description: str | None,
+    strokes_json: str,
+    thumbnail: str | None,
+) -> _TemplateResult:
+    db = SessionLocal()
+    try:
+        existing = crud.get_paint_template(db, session_id, template_id)
+        if (
+            existing is None
+            and len(crud.get_paint_templates(db, session_id))
+            >= _MAX_TEMPLATES_PER_SESSION
+        ):
+            return _TemplateResult(error="Session paint template limit reached")
+        template = crud.upsert_paint_template(
+            db,
+            session_id=session_id,
+            template_id=template_id,
+            created_by=user_id,
+            name=name,
+            description=description,
+            strokes_json=strokes_json,
+            thumbnail=thumbnail,
+        )
+        return _TemplateResult(
+            payload={"operation": "upsert", "template": template.to_dict()}
+        )
+    except PermissionError as exc:
+        return _TemplateResult(error=str(exc))
+    except Exception:
+        logger.exception("Paint template persistence failed")
+        return _TemplateResult(error="Paint template could not be persisted")
+    finally:
+        db.close()
+
+
+def _delete_paint_template(
+    *,
+    session_id: int,
+    template_id: str,
+    created_by: int | None,
+) -> _TemplateResult:
+    db = SessionLocal()
+    try:
+        deleted = crud.delete_paint_template(
+            db,
+            session_id,
+            template_id,
+            created_by=created_by,
+        )
+        if not deleted:
+            return _TemplateResult(error="Paint template not found or not owned by you")
+        return _TemplateResult(payload={"operation": "delete", "id": template_id})
+    except Exception:
+        logger.exception("Paint template deletion failed")
+        return _TemplateResult(error="Paint template could not be deleted")
+    finally:
+        db.close()
+
+
+def _load_paint_templates(*, session_id: int) -> _TemplateResult:
+    db = SessionLocal()
+    try:
+        templates = [
+            template.to_dict()
+            for template in crud.get_paint_templates(db, session_id)
+        ]
+        return _TemplateResult(payload={"templates": templates})
+    except Exception:
+        logger.exception("Paint template sync failed")
+        return _TemplateResult(error="Paint templates could not be loaded")
+    finally:
+        db.close()
 
 
 def _finite_number(value: Any) -> TypeGuard[int | float]:
@@ -152,41 +240,23 @@ class _PaintTemplatesMixin(_ProtocolBase):
         except (TypeError, ValueError) as exc:
             return Message(MessageType.ERROR, {"error": str(exc)})
 
-        db = SessionLocal()
-        try:
-            existing = crud.get_paint_template(db, session_id, template_id)
-            if (
-                existing is None
-                and len(crud.get_paint_templates(db, session_id))
-                >= _MAX_TEMPLATES_PER_SESSION
-            ):
-                return Message(
-                    MessageType.ERROR,
-                    {"error": "Session paint template limit reached"},
-                )
-            template = crud.upsert_paint_template(
-                db,
-                session_id=session_id,
-                template_id=template_id,
-                created_by=user_id,
-                name=name,
-                description=description,
-                strokes_json=strokes_json,
-                thumbnail=thumbnail,
-            )
-            payload = {"operation": "upsert", "template": template.to_dict()}
-        except PermissionError as exc:
-            return Message(MessageType.ERROR, {"error": str(exc)})
-        except Exception:
-            logger.exception("Paint template persistence failed")
+        result = await asyncio.to_thread(
+            _upsert_paint_template,
+            session_id=session_id,
+            user_id=user_id,
+            template_id=template_id,
+            name=name,
+            description=description,
+            strokes_json=strokes_json,
+            thumbnail=thumbnail,
+        )
+        if result.error or result.payload is None:
             return Message(
                 MessageType.ERROR,
-                {"error": "Paint template could not be persisted"},
+                {"error": result.error or "Paint template could not be persisted"},
             )
-        finally:
-            db.close()
 
-        outbound = Message(MessageType.PAINT_TEMPLATE_UPSERT, payload)
+        outbound = Message(MessageType.PAINT_TEMPLATE_UPSERT, result.payload)
         await self.broadcast_to_session(outbound, client_id)
         return outbound
 
@@ -201,32 +271,19 @@ class _PaintTemplatesMixin(_ProtocolBase):
         if not isinstance(template_id, str) or not _IDENTIFIER.fullmatch(template_id):
             return Message(MessageType.ERROR, {"error": "Invalid paint template id"})
 
-        db = SessionLocal()
-        try:
-            deleted = crud.delete_paint_template(
-                db,
-                session_id,
-                template_id,
-                created_by=None if is_dm(self._get_client_role(client_id)) else user_id,
-            )
-        except Exception:
-            logger.exception("Paint template deletion failed")
+        result = await asyncio.to_thread(
+            _delete_paint_template,
+            session_id=session_id,
+            template_id=template_id,
+            created_by=None if is_dm(self._get_client_role(client_id)) else user_id,
+        )
+        if result.error or result.payload is None:
             return Message(
                 MessageType.ERROR,
-                {"error": "Paint template could not be deleted"},
-            )
-        finally:
-            db.close()
-        if not deleted:
-            return Message(
-                MessageType.ERROR,
-                {"error": "Paint template not found or not owned by you"},
+                {"error": result.error or "Paint template could not be deleted"},
             )
 
-        outbound = Message(
-            MessageType.PAINT_TEMPLATE_DELETE,
-            {"operation": "delete", "id": template_id},
-        )
+        outbound = Message(MessageType.PAINT_TEMPLATE_DELETE, result.payload)
         await self.broadcast_to_session(outbound, client_id)
         return outbound
 
@@ -237,18 +294,10 @@ class _PaintTemplatesMixin(_ProtocolBase):
         if isinstance(context, Message):
             return context
         session_id, _ = context
-        db = SessionLocal()
-        try:
-            templates = [
-                template.to_dict()
-                for template in crud.get_paint_templates(db, session_id)
-            ]
-        except Exception:
-            logger.exception("Paint template sync failed")
+        result = await asyncio.to_thread(_load_paint_templates, session_id=session_id)
+        if result.error or result.payload is None:
             return Message(
                 MessageType.ERROR,
-                {"error": "Paint templates could not be loaded"},
+                {"error": result.error or "Paint templates could not be loaded"},
             )
-        finally:
-            db.close()
-        return Message(MessageType.PAINT_TEMPLATE_SYNC, {"templates": templates})
+        return Message(MessageType.PAINT_TEMPLATE_SYNC, result.payload)

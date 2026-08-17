@@ -4,7 +4,7 @@ Audience: contributors choosing and running verification for a change.
 
 Status: current.
 
-Last source audit: 2026-08-06
+Last source audit: 2026-08-17
 
 Tests should sit at the boundary where behavior is owned. Avoid testing a lower
 layer through an unrelated higher layer when a direct boundary test is clearer.
@@ -22,6 +22,13 @@ Fixtures and assertions that need the database's naive UTC representation use
 - Integration tests: HTTP routes, database behavior, and route/service wiring.
 - E2E tests: real WebSocket connection and session flow.
 - Benchmarks/load tests: movement, WebSocket behavior, and known hot paths.
+
+`tests/unit/test_protocol_serialization.py` verifies same-session mutation
+ordering, batch ordering, rollback-safe state reads, safe concurrent ping
+dispatch, and cross-session concurrency. When adding a mutating message family,
+extend that boundary suite if its ordering or rollback behavior differs. Keep
+domain rollback assertions in the domain service tests and use the authenticated
+Locust scenario only as a post-correctness load check.
 
 Run:
 

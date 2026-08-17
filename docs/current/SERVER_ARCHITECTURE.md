@@ -4,7 +4,7 @@ Audience: contributors changing the Python server or shared domain package.
 
 Status: usable.
 
-Last source audit: 2026-08-05
+Last source audit: 2026-08-17
 
 The server is a FastAPI app with WebSocket sessions and a Python tabletop
 domain package behind it.
@@ -63,6 +63,20 @@ Recognized protocol messages have one dispatch path. If a protocol handler
 raises, `ConnectionManager` logs the exception, returns one generic `error`
 message, and stops dispatch. It does not retry the message through the legacy
 message switch.
+
+`ServerProtocol` classifies handlers that mutate authoritative state and runs
+them under one fair `asyncio.Lock` per session. Direct responses are sent after
+the lock is released. Handler-owned broadcasts remain inside the mutation
+operation, and bounded send timeouts prevent a peer from holding the lock
+forever. Reads of shared in-memory session state use the same lock to avoid
+observing state that may roll back. Ping, ephemeral previews, and independent
+durable-store queries do not acquire it. Whole batch requests acquire the lock
+once, so nested commands cannot bypass ordering. Sprite and table autosave runs
+before the mutation releases the lock.
+
+When the last socket leaves, `ConnectionManager` waits for all earlier queued
+mutations before the final save and protocol cleanup. Because each protocol
+service owns its lock, work in separate game sessions remains concurrent.
 
 `TableManager` starts empty. It contains only tables created for or loaded
 from the current session. Missing table IDs return no table; the domain layer
@@ -125,7 +139,8 @@ WebSocket, and deployment behavior in `apps/server`.
 - Add WebSocket connection behavior: use `apps/server/api/game_ws.py` or
   `ConnectionManager`.
 - Add protocol message behavior: add a handler in the matching
-  `apps/server/service/protocol/` mixin and register it in `base.py`.
+  `apps/server/service/protocol/` mixin, register it in `base.py`, and add its
+  message type to `MUTATING_MESSAGE_TYPES` when it changes authoritative state.
 - Add combat mutation behavior: add a `combat_command` command type and handler
   in `CombatCommandService`, then expose it through `useCombatCommands` on the
   client.

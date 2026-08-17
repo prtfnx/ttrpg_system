@@ -1,5 +1,7 @@
 # Battle flow
 
+Last source audit: 2026-08-17
+
 Battle flow is command-oriented now. React can help the user plan a turn, and
 Rust/WASM can draw previews, but the server is the only place that accepts
 combat mutations.
@@ -61,6 +63,13 @@ The browser sends one message type for combat mutations:
 `sequence_id` is used for idempotency. If the same accepted command is received
 again for the same requester, the server returns the stored result instead of
 applying it twice.
+
+The per-session protocol mutation lock serializes `combat_command` with table,
+sprite, wall, paint, session, and other authoritative writes. One session's
+commands run in waiter order; another session uses a different lock. The lock
+also covers validation, in-memory mutation, persistence, rollback, and
+handler-owned broadcasts, so a second command cannot observe half-applied or
+half-rolled-back combat state.
 
 Command batches are all-or-nothing. If command 2 fails, command 1 is rolled
 back and the client receives `ACTION_REJECTED` with `failed_index` and a

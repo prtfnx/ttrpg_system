@@ -1,3 +1,4 @@
+import asyncio
 import time
 from collections.abc import Awaitable, Callable
 from typing import Any, Dict
@@ -22,6 +23,85 @@ from .tables import _TablesMixin
 from .walls import _WallsMixin
 
 logger = setup_logger(__name__)
+
+
+MUTATING_MESSAGE_TYPES = frozenset({
+    MessageType.BATCH_REQUEST,
+    MessageType.NEW_TABLE_REQUEST,
+    MessageType.TABLE_UPDATE_REQUEST,
+    MessageType.TABLE_SCALE,
+    MessageType.TABLE_MOVE,
+    MessageType.TABLE_DELETE,
+    MessageType.TABLE_ACTIVE_SET,
+    MessageType.TABLE_ACTIVE_SET_ALL,
+    MessageType.TABLE_SETTINGS_UPDATE,
+    MessageType.PLAYER_READY,
+    MessageType.PLAYER_UNREADY,
+    MessageType.PLAYER_KICK_REQUEST,
+    MessageType.PLAYER_BAN_REQUEST,
+    MessageType.SPRITE_CREATE,
+    MessageType.SPRITE_REMOVE,
+    MessageType.SPRITE_MOVE,
+    MessageType.SPRITE_SCALE,
+    MessageType.SPRITE_ROTATE,
+    MessageType.SPRITE_UPDATE,
+    MessageType.ASSET_UPLOAD_REQUEST,
+    MessageType.ASSET_UPLOAD_CONFIRM,
+    MessageType.ASSET_DELETE_REQUEST,
+    MessageType.COMPENDIUM_SPRITE_ADD,
+    MessageType.COMPENDIUM_SPRITE_UPDATE,
+    MessageType.COMPENDIUM_SPRITE_REMOVE,
+    MessageType.CHARACTER_SAVE_REQUEST,
+    MessageType.CHARACTER_DELETE_REQUEST,
+    MessageType.CHARACTER_UPDATE,
+    MessageType.CHARACTER_ROLL,
+    MessageType.CHARACTER_DRAFT_CREATE_REQUEST,
+    MessageType.CHARACTER_DRAFT_UPDATE_REQUEST,
+    MessageType.CHARACTER_DRAFT_FINALIZE_REQUEST,
+    MessageType.CHARACTER_DRAFT_ABANDON_REQUEST,
+    MessageType.XP_AWARD,
+    MessageType.MULTICLASS_REQUEST,
+    MessageType.WALL_CREATE,
+    MessageType.WALL_UPDATE,
+    MessageType.WALL_REMOVE,
+    MessageType.DOOR_TOGGLE,
+    MessageType.PAINT_STROKE_CREATE,
+    MessageType.PAINT_STROKE_DELETE,
+    MessageType.PAINT_STROKE_CLEAR,
+    MessageType.PAINT_TEMPLATE_UPSERT,
+    MessageType.PAINT_TEMPLATE_DELETE,
+    MessageType.MEASUREMENT_UPSERT,
+    MessageType.MEASUREMENT_DELETE,
+    MessageType.MEASUREMENT_CLEAR,
+    MessageType.LAYER_SETTINGS_UPDATE,
+    MessageType.GAME_MODE_CHANGE,
+    MessageType.SESSION_RULES_UPDATE,
+    MessageType.COMBAT_COMMAND,
+    MessageType.ENCOUNTER_START,
+    MessageType.ENCOUNTER_END,
+    MessageType.ENCOUNTER_CHOICE,
+    MessageType.ENCOUNTER_ROLL,
+    MessageType.CHAT,
+    MessageType.CHAT_MODERATE,
+})
+
+SESSION_STATE_READ_MESSAGE_TYPES = frozenset({
+    MessageType.TABLE_REQUEST,
+    MessageType.TABLE_LIST_REQUEST,
+    MessageType.TABLE_ACTIVE_REQUEST,
+    MessageType.PLAYER_STATUS_REQUEST,
+    MessageType.PLAYER_LIST_REQUEST,
+    MessageType.SPRITE_REQUEST,
+    MessageType.PAINT_TEMPLATE_SYNC,
+    MessageType.MEASUREMENT_SYNC,
+    MessageType.SESSION_RULES_REQUEST,
+    MessageType.COMBAT_STATE_REQUEST,
+    MessageType.COVER_ZONES_SYNC,
+    MessageType.ATTACK_PREVIEW,
+    MessageType.AI_ACTION,
+})
+
+SERIALIZED_MESSAGE_TYPES = MUTATING_MESSAGE_TYPES | SESSION_STATE_READ_MESSAGE_TYPES
 
 
 class ServerProtocol(
@@ -67,6 +147,7 @@ class ServerProtocol(
         self.table_manager = table_manager
         self.session_manager = session_manager
         self._transport_send = transport_send
+        self._mutation_lock = asyncio.Lock()
         self.clients: Dict[str, Any] = {}
         self.handlers: Dict[MessageType, Callable] = {}
         self.init_handlers()
@@ -216,7 +297,11 @@ class ServerProtocol(
             },
         )
         if msg.type in self.handlers:
-            response = await self.handlers[msg.type](msg, client_id)
+            if msg.type in SERIALIZED_MESSAGE_TYPES:
+                async with self._mutation_lock:
+                    response = await self._invoke_handler(msg, client_id)
+            else:
+                response = await self._invoke_handler(msg, client_id)
             if response:
                 response.correlation_id = msg.correlation_id or msg.message_id
                 response.causation_id = msg.message_id
@@ -224,6 +309,20 @@ class ServerProtocol(
             return True
         logger.warning(f"No handler registered for message type: {msg.type}")
         return False
+
+    async def _invoke_handler(self, msg: Message, client_id: str):
+        """Run one handler and persist mutation-coupled table state in order."""
+        response = await self.handlers[msg.type](msg, client_id)
+        if msg.type in {MessageType.SPRITE_UPDATE, MessageType.TABLE_UPDATE_REQUEST}:
+            auto_save = getattr(getattr(self, "session_manager", None), "auto_save", None)
+            if callable(auto_save):
+                auto_save()
+        return response
+
+    async def wait_for_mutations(self) -> None:
+        """Wait until every earlier mutation for this session has completed."""
+        async with self._mutation_lock:
+            return
 
     # ── Misc handlers ─────────────────────────────────────────────────────────
 
@@ -244,7 +343,7 @@ class ServerProtocol(
                 individual_msg = Message.from_dict(msg_data)
                 handler = self.handlers.get(individual_msg.type)
                 if handler:
-                    response = await handler(individual_msg, client_id)
+                    response = await self._invoke_handler(individual_msg, client_id)
                     if response and hasattr(response, 'to_json'):
                         responses.append(response)
                 else:

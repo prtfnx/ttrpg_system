@@ -4,7 +4,7 @@ Audience: contributors changing browser/server WebSocket messages.
 
 Status: current but partial.
 
-Last source audit: 2026-08-11
+Last source audit: 2026-08-17
 
 The protocol boundary connects browser clients to a game session on the server.
 It is message-based and should stay explicit.
@@ -98,6 +98,15 @@ message, nested batches are rejected, and a batch contains at most 50 entries.
 Code that already has a decoded object must use `Message.from_dict()` so nested
 messages cannot bypass the server boundary validator.
 
+The server serializes authoritative mutations with one fair lock per live
+session. `MUTATING_MESSAGE_TYPES` in `service/protocol/base.py` is the explicit
+write classification boundary. Reads of shared table, player, sprite, session,
+and combat state use the same lock so they cannot observe a mutation that later
+rolls back. Transport-only ping, ephemeral drag previews, and independent
+durable-store queries remain concurrent. A batch holds the mutation lock for
+its entire dispatch, including every nested handler. Add new state-changing
+messages to that set and to the serialization tests.
+
 ## Message flow
 
 Client sends command:
@@ -133,7 +142,8 @@ React combat UI -> useCombatCommands -> combat_command
 3. Add a client send helper or handler in `WebClientProtocol`.
 4. Add a server handler in the matching `apps/server/service/protocol/` mixin.
 5. Register the server handler in `apps/server/service/protocol/base.py`.
-6. Add tests on both sides of the boundary.
+6. Classify it as mutating or read-only in the server dispatcher.
+7. Add tests on both sides of the boundary.
 
 For combat mutations, do not add a new direct mutation message by default. Add
 a command type to `combat_command` instead. Direct combat protocol messages are

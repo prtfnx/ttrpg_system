@@ -130,6 +130,7 @@ async def test_disconnect_user_revokes_all_tabs_and_is_idempotent(monkeypatch):
     unrelated = AsyncMock()
     protocol_service = MagicMock()
     protocol_service.remove_client = AsyncMock()
+    protocol_service.wait_for_mutations = AsyncMock()
     manager.sessions_protocols["ROOM"] = protocol_service
     manager.active_connections["ROOM"] = [first, second, unrelated]
     manager.connection_info = {
@@ -172,6 +173,7 @@ async def test_disconnect_user_persists_and_cleans_last_session_once(monkeypatch
     second = AsyncMock()
     protocol_service = MagicMock()
     protocol_service.remove_client = AsyncMock()
+    protocol_service.wait_for_mutations = AsyncMock()
     manager.sessions_protocols["ROOM"] = protocol_service
     manager.active_connections["ROOM"] = [first, second]
     manager.connection_info = {
@@ -185,6 +187,7 @@ async def test_disconnect_user_persists_and_cleans_last_session_once(monkeypatch
     assert await manager.disconnect_user("ROOM", 7, reason="Membership removed") == 2
 
     protocol_service.save_to_database.assert_called_once_with()
+    protocol_service.wait_for_mutations.assert_awaited_once_with()
     protocol_service.cleanup.assert_called_once_with()
     asset_manager.cleanup_session.assert_called_once_with("ROOM")
 
@@ -207,8 +210,10 @@ async def test_disconnect_account_revokes_every_session_but_not_other_users():
     }
     first_protocol = MagicMock()
     first_protocol.remove_client = AsyncMock()
+    first_protocol.wait_for_mutations = AsyncMock()
     second_protocol = MagicMock()
     second_protocol.remove_client = AsyncMock()
+    second_protocol.wait_for_mutations = AsyncMock()
     manager.sessions_protocols = {"ONE": first_protocol, "TWO": second_protocol}
     manager.broadcast_to_session = AsyncMock()
 

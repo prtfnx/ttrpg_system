@@ -158,6 +158,7 @@ class ConnectionManager:
                 # Clean up empty session
                 protocol_service = self.sessions_protocols.get(session_code)
                 if protocol_service:
+                    await protocol_service.wait_for_mutations()
                     # Save to database before cleanup
                     try:
                         protocol_service.save_to_database()

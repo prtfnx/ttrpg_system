@@ -227,6 +227,10 @@ class GameSessionProtocolService:
             updated_clients += 1
         return updated_clients
 
+    async def wait_for_mutations(self) -> None:
+        """Wait for serialized session mutations before final persistence."""
+        await self.server_protocol.wait_for_mutations()
+
     async def handle_protocol_message(self, websocket: WebSocket, message_str: str):
         """Handle incoming protocol message from a client"""
         try:
@@ -250,8 +254,6 @@ class GameSessionProtocolService:
                     self.client_info[client_id]["last_ping"] = time.time()
                 if message.type in self.server_protocol.handlers:
                     await self.server_protocol.handle_client(message, client_id)
-                    if message.type in [MessageType.SPRITE_UPDATE, MessageType.TABLE_UPDATE_REQUEST]:
-                        self.auto_save()
                 else:
                     logger.warning(
                         "Unsupported WebSocket protocol message",

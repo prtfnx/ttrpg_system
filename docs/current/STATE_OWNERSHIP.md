@@ -4,7 +4,7 @@ Audience: contributors deciding where new state or behavior belongs.
 
 Status: usable.
 
-Last source audit: 2026-08-03
+Last source audit: 2026-08-17
 
 The app has several state owners. Keep each kind of state in the place that can
 maintain it without reaching across domains.
@@ -22,6 +22,15 @@ Use server state for:
 - Cross-client authority and validation.
 - Accepted combat commands, combat snapshots, action journal entries, and
   combat `state_version`.
+
+Each live session has one fair mutation lock in `ServerProtocol`. Table,
+sprite, wall, paint, measurement, session-setting, character, combat,
+encounter, chat-write, player-status, moderation, and asset-write handlers use
+that lock. Accepted mutations for one session therefore run in arrival-waiter
+order. Reads of shared session state use the same boundary, while transport
+ping, ephemeral previews, independent durable-store reads, and different
+sessions can proceed concurrently. Final disconnect waits for earlier
+mutations before persisting and cleaning the session service.
 
 ## Python domain state
 

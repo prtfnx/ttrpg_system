@@ -34,6 +34,11 @@ measurement and clear a table; spectators cannot write. A table is limited to
 500 records and each serialized geometry payload to 64 KiB. Active drag
 previews remain local and ephemeral.
 
+Measurement upsert/delete/clear/sync persistence runs in worker threads. Each
+worker owns its synchronous ORM session; validated identifiers and geometry
+cross into the worker, while authorization and WebSocket delivery remain on
+the event-loop thread.
+
 ## Paint flow
 
 The WASM paint system owns active drawing and rendering. A completed stroke is
@@ -79,6 +84,6 @@ payloads. Limits are 100 templates per session, 500 strokes per template,
 Run the measurement and painting Vitest suites, browser protocol tests, server
 paint/table protocol tests, and Rust paint/WASM tests. Include a multi-client
 acceptance test for any change to stroke identity or undo authority. Server
-tests also assert that stroke and template database operations leave the
-event-loop thread and that an identical stroke-create retry does not broadcast
-twice.
+tests also assert that measurement, stroke, and template database operations
+leave the event-loop thread and that an identical stroke-create retry does not
+broadcast twice.

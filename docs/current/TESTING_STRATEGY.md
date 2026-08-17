@@ -34,9 +34,9 @@ Connection-lifecycle tests also assert that handshake lookup, durable session
 construction, autosave, and final persistence execute on a worker thread.
 Paint persistence regression tests cover the same thread boundary for stroke
 create/delete/clear and template upsert/delete/sync, plus stroke retry
-idempotency. For new async-to-sync boundaries, add an event-loop responsiveness
-regression and assert that the worker creates and closes its own SQLAlchemy
-session.
+idempotency. Measurement tests cover upsert/delete/clear/sync. For new
+async-to-sync boundaries, add an event-loop responsiveness regression and
+assert that the worker creates and closes its own SQLAlchemy session.
 
 Run:
 

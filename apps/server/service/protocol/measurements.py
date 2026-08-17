@@ -1,6 +1,8 @@
+import asyncio
 import json
 import math
 import re
+from dataclasses import dataclass
 from typing import Any
 
 from core_table.protocol import Message, MessageType
@@ -15,6 +17,138 @@ logger = setup_logger(__name__)
 _IDENTIFIER = re.compile(r"^[A-Za-z0-9._-]{1,64}$")
 _MAX_MEASUREMENTS_PER_TABLE = 500
 _MAX_MEASUREMENT_BYTES = 64 * 1024
+
+
+@dataclass(frozen=True)
+class _MeasurementResult:
+    payload: dict[str, Any] | None = None
+    error: str | None = None
+
+
+def _table_in_session(db, table_id: str, session_id: int) -> bool:
+    return db.query(models.VirtualTable.id).filter(
+        models.VirtualTable.table_id == table_id,
+        models.VirtualTable.session_id == session_id,
+    ).first() is not None
+
+
+def _upsert_measurement(
+    *,
+    session_id: int,
+    user_id: int,
+    table_id: str,
+    measurement_id: str,
+    kind: str,
+    measurement_data: str,
+) -> _MeasurementResult:
+    db = SessionLocal()
+    try:
+        if not _table_in_session(db, table_id, session_id):
+            return _MeasurementResult(error="Table not found in this session")
+        existing = crud.get_shared_measurement(db, table_id, measurement_id)
+        if (
+            existing is None
+            and len(crud.get_shared_measurements(db, table_id))
+            >= _MAX_MEASUREMENTS_PER_TABLE
+        ):
+            return _MeasurementResult(error="Table measurement limit reached")
+        measurement = crud.upsert_shared_measurement(
+            db,
+            table_id=table_id,
+            measurement_id=measurement_id,
+            created_by=user_id,
+            kind=kind,
+            measurement_data=measurement_data,
+        )
+        return _MeasurementResult(
+            payload={"operation": "upsert", **measurement.to_dict()}
+        )
+    except PermissionError as exc:
+        return _MeasurementResult(error=str(exc))
+    except Exception:
+        logger.exception("Shared measurement persistence failed")
+        return _MeasurementResult(error="Measurement could not be persisted")
+    finally:
+        db.close()
+
+
+def _delete_measurement(
+    *,
+    session_id: int,
+    table_id: str,
+    measurement_id: str,
+    created_by: int | None,
+) -> _MeasurementResult:
+    db = SessionLocal()
+    try:
+        if not _table_in_session(db, table_id, session_id):
+            return _MeasurementResult(error="Table not found in this session")
+        deleted = crud.delete_shared_measurement(
+            db,
+            table_id,
+            measurement_id,
+            created_by=created_by,
+        )
+        if not deleted:
+            return _MeasurementResult(error="Measurement not found or not owned by you")
+        return _MeasurementResult(payload={
+            "operation": "delete",
+            "table_id": table_id,
+            "measurement_id": measurement_id,
+        })
+    except Exception:
+        logger.exception("Shared measurement deletion failed")
+        return _MeasurementResult(error="Measurement could not be deleted")
+    finally:
+        db.close()
+
+
+def _clear_measurements(
+    *,
+    session_id: int,
+    table_id: str,
+    created_by: int | None,
+) -> _MeasurementResult:
+    db = SessionLocal()
+    try:
+        if not _table_in_session(db, table_id, session_id):
+            return _MeasurementResult(error="Table not found in this session")
+        count = crud.clear_shared_measurements(
+            db,
+            table_id,
+            created_by=created_by,
+        )
+        return _MeasurementResult(payload={
+            "operation": "clear",
+            "table_id": table_id,
+            "created_by": created_by,
+            "cleared": count,
+        })
+    except Exception:
+        logger.exception("Shared measurement clearing failed")
+        return _MeasurementResult(error="Measurements could not be cleared")
+    finally:
+        db.close()
+
+
+def _load_measurements(*, session_id: int, table_id: str) -> _MeasurementResult:
+    db = SessionLocal()
+    try:
+        if not _table_in_session(db, table_id, session_id):
+            return _MeasurementResult(error="Table not found in this session")
+        measurements = [
+            measurement.to_dict()
+            for measurement in crud.get_shared_measurements(db, table_id)
+        ]
+        return _MeasurementResult(payload={
+            "table_id": table_id,
+            "measurements": measurements,
+        })
+    except Exception:
+        logger.exception("Shared measurement sync failed")
+        return _MeasurementResult(error="Measurements could not be loaded")
+    finally:
+        db.close()
 
 
 def _valid_point(value: Any) -> bool:
@@ -75,13 +209,6 @@ class _MeasurementsMixin(_ProtocolBase):
             return Message(MessageType.ERROR, {"error": "Valid table_id is required"})
         return session_id, user_id, table_id
 
-    @staticmethod
-    def _table_in_session(db, table_id: str, session_id: int) -> bool:
-        return db.query(models.VirtualTable.id).filter(
-            models.VirtualTable.table_id == table_id,
-            models.VirtualTable.session_id == session_id,
-        ).first() is not None
-
     async def handle_measurement_upsert(
         self, msg: Message, client_id: str
     ) -> Message:
@@ -103,31 +230,22 @@ class _MeasurementsMixin(_ProtocolBase):
         except (TypeError, ValueError) as exc:
             return Message(MessageType.ERROR, {"error": str(exc)})
 
-        db = SessionLocal()
-        try:
-            if not self._table_in_session(db, table_id, session_id):
-                return Message(MessageType.ERROR, {"error": "Table not found in this session"})
-            existing = crud.get_shared_measurement(db, table_id, measurement_id)
-            if existing is None and len(crud.get_shared_measurements(db, table_id)) >= _MAX_MEASUREMENTS_PER_TABLE:
-                return Message(MessageType.ERROR, {"error": "Table measurement limit reached"})
-            measurement = crud.upsert_shared_measurement(
-                db,
-                table_id=table_id,
-                measurement_id=measurement_id,
-                created_by=user_id,
-                kind=kind,
-                measurement_data=measurement_data,
+        result = await asyncio.to_thread(
+            _upsert_measurement,
+            session_id=session_id,
+            user_id=user_id,
+            table_id=table_id,
+            measurement_id=measurement_id,
+            kind=kind,
+            measurement_data=measurement_data,
+        )
+        if result.error or result.payload is None:
+            return Message(
+                MessageType.ERROR,
+                {"error": result.error or "Measurement could not be persisted"},
             )
-            payload = {"operation": "upsert", **measurement.to_dict()}
-        except PermissionError as exc:
-            return Message(MessageType.ERROR, {"error": str(exc)})
-        except Exception:
-            logger.exception("Shared measurement persistence failed")
-            return Message(MessageType.ERROR, {"error": "Measurement could not be persisted"})
-        finally:
-            db.close()
 
-        outbound = Message(MessageType.MEASUREMENT_UPSERT, payload)
+        outbound = Message(MessageType.MEASUREMENT_UPSERT, result.payload)
         await self.broadcast_to_session(outbound, client_id)
         return outbound
 
@@ -143,29 +261,20 @@ class _MeasurementsMixin(_ProtocolBase):
             return Message(MessageType.ERROR, {"error": "Invalid measurement_id"})
         role = self._get_client_role(client_id)
 
-        db = SessionLocal()
-        try:
-            if not self._table_in_session(db, table_id, session_id):
-                return Message(MessageType.ERROR, {"error": "Table not found in this session"})
-            deleted = crud.delete_shared_measurement(
-                db,
-                table_id,
-                measurement_id,
-                created_by=None if is_dm(role) else user_id,
+        result = await asyncio.to_thread(
+            _delete_measurement,
+            session_id=session_id,
+            table_id=table_id,
+            measurement_id=measurement_id,
+            created_by=None if is_dm(role) else user_id,
+        )
+        if result.error or result.payload is None:
+            return Message(
+                MessageType.ERROR,
+                {"error": result.error or "Measurement could not be deleted"},
             )
-        except Exception:
-            logger.exception("Shared measurement deletion failed")
-            return Message(MessageType.ERROR, {"error": "Measurement could not be deleted"})
-        finally:
-            db.close()
-        if not deleted:
-            return Message(MessageType.ERROR, {"error": "Measurement not found or not owned by you"})
 
-        outbound = Message(MessageType.MEASUREMENT_DELETE, {
-            "operation": "delete",
-            "table_id": table_id,
-            "measurement_id": measurement_id,
-        })
+        outbound = Message(MessageType.MEASUREMENT_DELETE, result.payload)
         await self.broadcast_to_session(outbound, client_id)
         return outbound
 
@@ -181,27 +290,20 @@ class _MeasurementsMixin(_ProtocolBase):
         if clear_all and not is_dm(role):
             return Message(MessageType.ERROR, {"error": "Only a DM can clear all measurements"})
 
-        db = SessionLocal()
-        try:
-            if not self._table_in_session(db, table_id, session_id):
-                return Message(MessageType.ERROR, {"error": "Table not found in this session"})
-            count = crud.clear_shared_measurements(
-                db,
-                table_id,
-                created_by=None if clear_all else user_id,
+        created_by = None if clear_all else user_id
+        result = await asyncio.to_thread(
+            _clear_measurements,
+            session_id=session_id,
+            table_id=table_id,
+            created_by=created_by,
+        )
+        if result.error or result.payload is None:
+            return Message(
+                MessageType.ERROR,
+                {"error": result.error or "Measurements could not be cleared"},
             )
-        except Exception:
-            logger.exception("Shared measurement clearing failed")
-            return Message(MessageType.ERROR, {"error": "Measurements could not be cleared"})
-        finally:
-            db.close()
 
-        outbound = Message(MessageType.MEASUREMENT_CLEAR, {
-            "operation": "clear",
-            "table_id": table_id,
-            "created_by": None if clear_all else user_id,
-            "cleared": count,
-        })
+        outbound = Message(MessageType.MEASUREMENT_CLEAR, result.payload)
         await self.broadcast_to_session(outbound, client_id)
         return outbound
 
@@ -212,20 +314,14 @@ class _MeasurementsMixin(_ProtocolBase):
         if isinstance(context, Message):
             return context
         session_id, _, table_id = context
-        db = SessionLocal()
-        try:
-            if not self._table_in_session(db, table_id, session_id):
-                return Message(MessageType.ERROR, {"error": "Table not found in this session"})
-            measurements = [
-                measurement.to_dict()
-                for measurement in crud.get_shared_measurements(db, table_id)
-            ]
-        except Exception:
-            logger.exception("Shared measurement sync failed")
-            return Message(MessageType.ERROR, {"error": "Measurements could not be loaded"})
-        finally:
-            db.close()
-        return Message(MessageType.MEASUREMENT_SYNC, {
-            "table_id": table_id,
-            "measurements": measurements,
-        })
+        result = await asyncio.to_thread(
+            _load_measurements,
+            session_id=session_id,
+            table_id=table_id,
+        )
+        if result.error or result.payload is None:
+            return Message(
+                MessageType.ERROR,
+                {"error": result.error or "Measurements could not be loaded"},
+            )
+        return Message(MessageType.MEASUREMENT_SYNC, result.payload)

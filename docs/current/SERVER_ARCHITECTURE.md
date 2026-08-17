@@ -110,6 +110,8 @@ Protocol behavior is split by domain under `apps/server/service/protocol/`.
 - `paint.py` and `paint_templates.py`: paint sync; blocking persistence uses
   worker-owned ORM sessions while validation and WebSocket delivery remain on
   the event loop.
+- `measurements.py`: completed measurement sync with the same worker-owned ORM
+  session boundary.
 - `assets.py`: asset upload, download, hash, list, delete.
 - `players.py`: player status, list, kick, ban.
 - `characters.py`: character save, load, update, rolls, logs.

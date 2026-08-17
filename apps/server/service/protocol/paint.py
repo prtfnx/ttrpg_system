@@ -1,4 +1,6 @@
+import asyncio
 import json
+from dataclasses import dataclass
 
 from core_table.protocol import Message, MessageType
 from database import crud, models
@@ -9,6 +11,104 @@ from utils.roles import can_interact, is_dm
 from ._protocol_base import _ProtocolBase
 
 logger = setup_logger(__name__)
+
+
+@dataclass(frozen=True)
+class _PaintResult:
+    payload: dict | None = None
+    error: str | None = None
+    broadcast: bool = False
+
+
+def _table_in_session(db, table_id: str, session_id: int) -> bool:
+    return db.query(models.VirtualTable.id).filter(
+        models.VirtualTable.table_id == table_id,
+        models.VirtualTable.session_id == session_id,
+    ).first() is not None
+
+
+def _create_paint_stroke(
+    *,
+    table_id: str,
+    session_id: int,
+    stroke_id: str,
+    stroke_data: str,
+    user_id: int,
+) -> _PaintResult:
+    db = SessionLocal()
+    try:
+        if not _table_in_session(db, table_id, session_id):
+            return _PaintResult(error="Table not found in this session")
+        existing = crud.get_paint_stroke(db, table_id, stroke_id)
+        if existing is not None:
+            if existing.created_by == user_id and existing.stroke_data == stroke_data:
+                return _PaintResult(payload={
+                    "operation": "create",
+                    "stroke": existing.to_dict(),
+                    "table_id": table_id,
+                })
+            return _PaintResult(error="stroke_id already exists")
+        stroke = crud.create_paint_stroke(db, table_id, stroke_id, stroke_data, user_id)
+        return _PaintResult(
+            payload={
+                "operation": "create",
+                "stroke": stroke.to_dict(),
+                "table_id": table_id,
+            },
+            broadcast=True,
+        )
+    except Exception:
+        logger.exception("Paint stroke creation failed")
+        return _PaintResult(error="Paint stroke creation failed")
+    finally:
+        db.close()
+
+
+def _delete_paint_stroke(
+    *,
+    table_id: str,
+    session_id: int,
+    stroke_id: str,
+    created_by: int | None,
+) -> _PaintResult:
+    db = SessionLocal()
+    try:
+        if not _table_in_session(db, table_id, session_id):
+            return _PaintResult(error="Table not found in this session")
+        deleted = crud.delete_paint_stroke(
+            db,
+            table_id,
+            stroke_id,
+            created_by=created_by,
+        )
+        if not deleted:
+            return _PaintResult(error="Stroke not found")
+        return _PaintResult(
+            payload={"operation": "delete", "stroke_id": stroke_id, "table_id": table_id},
+            broadcast=True,
+        )
+    except Exception:
+        logger.exception("Paint stroke deletion failed")
+        return _PaintResult(error="Paint stroke deletion failed")
+    finally:
+        db.close()
+
+
+def _clear_paint_strokes(*, table_id: str, session_id: int) -> _PaintResult:
+    db = SessionLocal()
+    try:
+        if not _table_in_session(db, table_id, session_id):
+            return _PaintResult(error="Table not found in this session")
+        count = crud.clear_paint_strokes_for_table(db, table_id)
+        return _PaintResult(
+            payload={"operation": "clear", "table_id": table_id, "cleared": count},
+            broadcast=True,
+        )
+    except Exception:
+        logger.exception("Paint layer clearing failed")
+        return _PaintResult(error="Paint layer clearing failed")
+    finally:
+        db.close()
 
 
 class _PaintMixin(_ProtocolBase):
@@ -44,36 +144,22 @@ class _PaintMixin(_ProtocolBase):
         if user_id is None or session_id is None:
             return Message(MessageType.ERROR, {'error': 'Authenticated session context is required'})
 
-        db = SessionLocal()
-        try:
-            table = db.query(models.VirtualTable).filter(
-                models.VirtualTable.table_id == table_id,
-                models.VirtualTable.session_id == session_id,
-            ).first()
-            if table is None:
-                return Message(MessageType.ERROR, {'error': 'Table not found in this session'})
-
-            existing = crud.get_paint_stroke(db, table_id, stroke_id)
-            if existing is not None:
-                if existing.created_by == user_id and existing.stroke_data == stroke_data_str:
-                    return Message(MessageType.PAINT_STROKE_CREATE, {
-                        'operation': 'create',
-                        'stroke': existing.to_dict(),
-                        'table_id': table_id,
-                    })
-                return Message(MessageType.ERROR, {'error': 'stroke_id already exists'})
-
-            stroke = crud.create_paint_stroke(db, table_id, stroke_id, stroke_data_str, user_id)
-            stroke_dict = stroke.to_dict()
-        except Exception:
-            logger.exception("Paint stroke creation failed")
-            return Message(MessageType.ERROR, {"error": "Paint stroke creation failed"})
-        finally:
-            db.close()
-
-        payload = {'operation': 'create', 'stroke': stroke_dict, 'table_id': table_id}
-        await self.broadcast_to_session(Message(MessageType.PAINT_STROKE_CREATE, payload), client_id)
-        return Message(MessageType.PAINT_STROKE_CREATE, payload)
+        result = await asyncio.to_thread(
+            _create_paint_stroke,
+            table_id=table_id,
+            session_id=session_id,
+            stroke_id=stroke_id,
+            stroke_data=stroke_data_str,
+            user_id=user_id,
+        )
+        if result.error or result.payload is None:
+            return Message(MessageType.ERROR, {'error': result.error or 'Paint stroke creation failed'})
+        if result.broadcast:
+            await self.broadcast_to_session(
+                Message(MessageType.PAINT_STROKE_CREATE, result.payload),
+                client_id,
+            )
+        return Message(MessageType.PAINT_STROKE_CREATE, result.payload)
 
     async def handle_paint_stroke_delete(self, msg: Message, client_id: str) -> Message:
         """A creator removes their own stroke; a DM can remove any session stroke."""
@@ -93,32 +179,20 @@ class _PaintMixin(_ProtocolBase):
         if user_id is None or session_id is None:
             return Message(MessageType.ERROR, {'error': 'Authenticated session context is required'})
 
-        db = SessionLocal()
-        try:
-            table = db.query(models.VirtualTable).filter(
-                models.VirtualTable.table_id == table_id,
-                models.VirtualTable.session_id == session_id,
-            ).first()
-            if table is None:
-                return Message(MessageType.ERROR, {'error': 'Table not found in this session'})
-            deleted = crud.delete_paint_stroke(
-                db,
-                table_id,
-                stroke_id,
-                created_by=None if is_dm(role) else user_id,
-            )
-        except Exception:
-            logger.exception("Paint stroke deletion failed")
-            return Message(MessageType.ERROR, {"error": "Paint stroke deletion failed"})
-        finally:
-            db.close()
-
-        if not deleted:
-            return Message(MessageType.ERROR, {'error': 'Stroke not found'})
-
-        payload = {'operation': 'delete', 'stroke_id': stroke_id, 'table_id': table_id}
-        await self.broadcast_to_session(Message(MessageType.PAINT_STROKE_DELETE, payload), client_id)
-        return Message(MessageType.PAINT_STROKE_DELETE, payload)
+        result = await asyncio.to_thread(
+            _delete_paint_stroke,
+            table_id=table_id,
+            session_id=session_id,
+            stroke_id=stroke_id,
+            created_by=None if is_dm(role) else user_id,
+        )
+        if result.error or result.payload is None:
+            return Message(MessageType.ERROR, {'error': result.error or 'Paint stroke deletion failed'})
+        await self.broadcast_to_session(
+            Message(MessageType.PAINT_STROKE_DELETE, result.payload),
+            client_id,
+        )
+        return Message(MessageType.PAINT_STROKE_DELETE, result.payload)
 
     async def handle_paint_stroke_clear(self, msg: Message, client_id: str) -> Message:
         """DM wipes all strokes for a table."""
@@ -135,21 +209,15 @@ class _PaintMixin(_ProtocolBase):
         if session_id is None:
             return Message(MessageType.ERROR, {'error': 'Authenticated session context is required'})
 
-        db = SessionLocal()
-        try:
-            table = db.query(models.VirtualTable).filter(
-                models.VirtualTable.table_id == table_id,
-                models.VirtualTable.session_id == session_id,
-            ).first()
-            if table is None:
-                return Message(MessageType.ERROR, {'error': 'Table not found in this session'})
-            count = crud.clear_paint_strokes_for_table(db, table_id)
-        except Exception:
-            logger.exception("Paint layer clearing failed")
-            return Message(MessageType.ERROR, {"error": "Paint layer clearing failed"})
-        finally:
-            db.close()
-
-        payload = {'operation': 'clear', 'table_id': table_id, 'cleared': count}
-        await self.broadcast_to_session(Message(MessageType.PAINT_STROKE_CLEAR, payload), client_id)
-        return Message(MessageType.PAINT_STROKE_CLEAR, payload)
+        result = await asyncio.to_thread(
+            _clear_paint_strokes,
+            table_id=table_id,
+            session_id=session_id,
+        )
+        if result.error or result.payload is None:
+            return Message(MessageType.ERROR, {'error': result.error or 'Paint layer clearing failed'})
+        await self.broadcast_to_session(
+            Message(MessageType.PAINT_STROKE_CLEAR, result.payload),
+            client_id,
+        )
+        return Message(MessageType.PAINT_STROKE_CLEAR, result.payload)

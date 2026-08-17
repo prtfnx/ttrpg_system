@@ -1,11 +1,13 @@
 # pyright: reportAttributeAccessIssue=false, reportIncompatibleMethodOverride=false
 
+import threading
 from types import SimpleNamespace
 from unittest.mock import AsyncMock
 
 import pytest
 from core_table.protocol import Message, MessageType
 from database import models
+from service.protocol import paint as paint_module
 from service.protocol.paint import _PaintMixin
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
@@ -147,3 +149,65 @@ async def test_dm_cannot_delete_stroke_through_foreign_table_context(paint_db):
     verify = session_factory()
     assert verify.query(models.PaintStroke).filter_by(stroke_id="foreign").one()
     verify.close()
+
+
+@pytest.mark.asyncio
+async def test_identical_create_retry_does_not_rebroadcast(paint_db):
+    _, first_id, _, _, player_id, _ = paint_db
+    harness = PaintHarness(first_id, player_id, "player")
+    message = create_message("table-first")
+
+    await harness.handle_paint_stroke_create(message, "player")
+    await harness.handle_paint_stroke_create(message, "player")
+
+    harness.broadcast_to_session.assert_awaited_once()
+
+
+@pytest.mark.asyncio
+async def test_paint_database_operations_run_off_event_loop(paint_db, monkeypatch):
+    _, first_id, _, owner_id, player_id, _ = paint_db
+    harness = PaintHarness(first_id, player_id, "player")
+    event_loop_thread = threading.get_ident()
+    worker_threads = {}
+
+    def recording_wrapper(name, operation):
+        def wrapped(**kwargs):
+            worker_threads[name] = threading.get_ident()
+            return operation(**kwargs)
+        return wrapped
+
+    for name in ("_create_paint_stroke", "_delete_paint_stroke", "_clear_paint_strokes"):
+        monkeypatch.setattr(
+            paint_module,
+            name,
+            recording_wrapper(name, getattr(paint_module, name)),
+        )
+
+    await harness.handle_paint_stroke_create(
+        create_message("table-first", "delete-me"),
+        "player",
+    )
+    await harness.handle_paint_stroke_delete(
+        Message(MessageType.PAINT_STROKE_DELETE, {
+            "table_id": "table-first",
+            "stroke_id": "delete-me",
+        }),
+        "player",
+    )
+    await harness.handle_paint_stroke_create(
+        create_message("table-first", "clear-me"),
+        "player",
+    )
+    harness.user_id = owner_id
+    harness.role = "owner"
+    await harness.handle_paint_stroke_clear(
+        Message(MessageType.PAINT_STROKE_CLEAR, {"table_id": "table-first"}),
+        "owner",
+    )
+
+    assert set(worker_threads) == {
+        "_create_paint_stroke",
+        "_delete_paint_stroke",
+        "_clear_paint_strokes",
+    }
+    assert all(thread_id != event_loop_thread for thread_id in worker_threads.values())

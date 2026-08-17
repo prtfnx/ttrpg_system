@@ -6,7 +6,7 @@ table units.
 Status: current. Paint strokes, completed measurement geometry, and paint
 templates are server-authoritative multiplayer state.
 
-Last source audit: 2026-07-23
+Last source audit: 2026-08-17
 
 ## Ownership
 
@@ -48,6 +48,12 @@ clear first constrain the supplied table to the authenticated session; a DM
 cannot mutate a foreign session by knowing a table or stroke id. Accepted
 operations broadcast the same mutation so clients converge.
 
+Paint persistence is blocking SQLAlchemy work, so create, delete, and clear
+run in worker threads. Each worker creates and closes its own ORM session;
+only validated values cross the thread boundary, and WebSocket broadcasts stay
+on the event-loop thread. This keeps paint traffic from blocking unrelated
+connections and avoids sharing a synchronous ORM session between threads.
+
 ## Undo and redo
 
 Local undo removes the last WASM stroke and requests deletion with its accepted
@@ -71,4 +77,6 @@ payloads. Limits are 100 templates per session, 500 strokes per template,
 
 Run the measurement and painting Vitest suites, browser protocol tests, server
 paint/table protocol tests, and Rust paint/WASM tests. Include a multi-client
-acceptance test for any change to stroke identity or undo authority.
+acceptance test for any change to stroke identity or undo authority. Server
+tests also assert that paint database operations leave the event-loop thread
+and that an identical create retry does not broadcast twice.

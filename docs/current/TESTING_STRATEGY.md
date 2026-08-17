@@ -31,9 +31,11 @@ domain rollback assertions in the domain service tests and use the authenticated
 Locust scenario only as a post-correctness load check.
 
 Connection-lifecycle tests also assert that handshake lookup, durable session
-construction, autosave, and final persistence execute on a worker thread. For
-new async-to-sync boundaries, add an event-loop responsiveness regression and
-assert that the worker creates and closes its own SQLAlchemy session.
+construction, autosave, and final persistence execute on a worker thread.
+Paint persistence regression tests cover the same thread boundary for create,
+delete, and clear, plus retry idempotency. For new async-to-sync boundaries,
+add an event-loop responsiveness regression and assert that the worker creates
+and closes its own SQLAlchemy session.
 
 Run:
 

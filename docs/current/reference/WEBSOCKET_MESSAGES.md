@@ -5,7 +5,7 @@ Audience: contributors changing browser/server protocol behavior.
 Status: partial. This page catalogs the currently registered server handlers
 and the main browser message families. It does not document every payload field.
 
-Last source audit: 2026-08-13
+Last source audit: 2026-08-17
 
 ## Source of truth
 
@@ -59,6 +59,12 @@ Handlers resolve identity through the registered `client_id` and resolve the
 session through `GameSessionProtocolService`; if either context is absent, the
 operation fails closed. Payload usernames remain valid only when they identify
 a command target, such as the player selected for a kick or ban.
+
+Committed role changes update the authorization context for every socket owned
+by the affected user before `player_role_changed` is broadcast. Durable
+membership removal sends a terminal error, removes every matching socket from
+both server registries, and closes them with policy code `1008` and reason
+`Kicked from session`. Repeating that cleanup has no effect.
 
 ## Registered server inbound messages
 

@@ -386,16 +386,16 @@ async def change_player_role(
 
     new_role = role_data.role
     connection_manager = get_connection_manager()
-    if session_code in connection_manager.sessions_protocols:
-        await connection_manager.broadcast_to_session(
-            session_code,
-            Message(MessageType.PLAYER_ROLE_CHANGED, {
-                "user_id": user_id,
-                "new_role": new_role,
-                "permissions": get_permissions(new_role),
-                "visible_layers": get_visible_layers(new_role)
-            })
-        )
+    connection_manager.update_user_role(session_code, user_id, new_role)
+    await connection_manager.broadcast_to_session(
+        session_code,
+        Message(MessageType.PLAYER_ROLE_CHANGED, {
+            "user_id": user_id,
+            "new_role": new_role,
+            "permissions": get_permissions(new_role),
+            "visible_layers": get_visible_layers(new_role)
+        })
+    )
 
     return {"success": True, "message": f"Player role changed to {role_data.role}"}
 
@@ -449,6 +449,12 @@ async def kick_player(
     db.commit()
 
     logger.info(f"Player kicked: user {user_id} from session {session_code}")
+
+    await get_connection_manager().disconnect_user(
+        session_code,
+        user_id,
+        reason="Kicked from session",
+    )
 
     return {"success": True, "message": "Player kicked successfully"}
 

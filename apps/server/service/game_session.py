@@ -13,7 +13,7 @@ from database.database import create_task_scoped_session
 from database.session_utils import (
     load_game_session_protocol_from_db,
 )
-from fastapi import WebSocket
+from fastapi import WebSocket, status
 from utils.logger import setup_logger
 from utils.time import utc_now
 
@@ -127,8 +127,15 @@ class ConnectionManager:
         # Remove from protocol service first
         protocol_service = self.sessions_protocols.get(session_code)
         if protocol_service:
-            await protocol_service.remove_client(websocket)
-          # Remove from connections
+            try:
+                await protocol_service.remove_client(websocket)
+            except Exception:
+                logger.exception(
+                    "WebSocket protocol cleanup failed",
+                    extra={"event_name": "websocket.protocol.cleanup_failed"},
+                )
+
+        # Remove from connections.
         if session_code in self.active_connections:
             if websocket in self.active_connections[session_code]:
                 self.active_connections[session_code].remove(websocket)
@@ -144,18 +151,31 @@ class ConnectionManager:
                     except Exception as e:
                         logger.error(f"Error saving session {session_code} to database: {e}")
 
-                    protocol_service.cleanup()
-                    del self.sessions_protocols[session_code]
+                    try:
+                        protocol_service.cleanup()
+                    except Exception:
+                        logger.exception(
+                            "Game-session protocol cleanup failed",
+                            extra={"event_name": "game_session.cleanup.failed"},
+                        )
+                    finally:
+                        del self.sessions_protocols[session_code]
 
                     # Clean up R2 asset session data
                     asset_manager = get_server_asset_manager()
-                    asset_manager.cleanup_session(session_code)
-                    logger.info(f"Cleaned up R2 assets for session {session_code}")
+                    try:
+                        asset_manager.cleanup_session(session_code)
+                        logger.info(f"Cleaned up R2 assets for session {session_code}")
+                    except Exception:
+                        logger.exception(
+                            "Asset-session cleanup failed",
+                            extra={"event_name": "asset.session.cleanup_failed"},
+                        )
 
                     if session_code in self.game_session_db_ids:
                         del self.game_session_db_ids[session_code]
 
-        del self.connection_info[websocket]
+        self.connection_info.pop(websocket, None)
 
         logger.info(
             "WebSocket client removed",
@@ -175,6 +195,86 @@ class ConnectionManager:
                     "timestamp": utc_now().isoformat()
             }
         ))
+
+    def update_user_role(self, session_code: str, user_id: int, role: str) -> int:
+        """Refresh the role used by every live connection for one member."""
+        updated_connections = 0
+        username: str | None = None
+
+        for info in self.connection_info.values():
+            if info.get("session_code") != session_code or info.get("user_id") != user_id:
+                continue
+            info["role"] = role
+            username = info.get("username") or username
+            updated_connections += 1
+
+        protocol_service = self.sessions_protocols.get(session_code)
+        if protocol_service:
+            protocol_service.update_user_role(user_id, role)
+
+        if username is not None:
+            get_server_asset_manager().setup_session_permissions(
+                session_code,
+                user_id,
+                username,
+                role,
+            )
+
+        return updated_connections
+
+    async def disconnect_user(
+        self,
+        session_code: str,
+        user_id: int,
+        *,
+        reason: str,
+        close_code: int = status.WS_1008_POLICY_VIOLATION,
+    ) -> int:
+        """Close every live socket for a user and immediately clear its authority."""
+        targets = [
+            websocket
+            for websocket, info in self.connection_info.items()
+            if info.get("session_code") == session_code and info.get("user_id") == user_id
+        ]
+
+        for websocket in targets:
+            try:
+                await self.disconnect(websocket)
+            except Exception:
+                logger.exception(
+                    "WebSocket revocation cleanup failed",
+                    extra={"event_name": "websocket.revocation.cleanup_failed"},
+                )
+
+            try:
+                await websocket.send_json({
+                    "type": MessageType.ERROR.value,
+                    "data": {"error": reason, "retryable": False},
+                })
+            except Exception:
+                logger.debug(
+                    "WebSocket removal notice could not be delivered",
+                    extra={"event_name": "websocket.removal.notice_failed"},
+                )
+            finally:
+                try:
+                    await websocket.close(code=close_code, reason=reason)
+                except Exception:
+                    logger.debug(
+                        "Removed WebSocket was already closed",
+                        extra={"event_name": "websocket.removal.already_closed"},
+                    )
+
+        if targets:
+            logger.info(
+                "Active WebSocket access revoked",
+                extra={
+                    "event_name": "websocket.access.revoked",
+                    "user_id": user_id,
+                    "connection_count": len(targets),
+                },
+            )
+        return len(targets)
 
     async def close_all(self, reason: str = "Service restarting") -> int:
         """Drain all sockets so session state is flushed before process exit."""

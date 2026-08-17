@@ -3,6 +3,7 @@ from unittest.mock import AsyncMock, MagicMock
 import pytest
 from service import game_session
 from service.game_session import ConnectionManager
+from service.game_session_protocol import GameSessionProtocolService
 
 
 @pytest.mark.asyncio
@@ -62,3 +63,122 @@ async def test_shutdown_notifies_drains_and_closes_every_connection():
     assert manager.disconnect.await_count == 2
     first.close.assert_awaited_once_with(code=1012)
     second.close.assert_awaited_once_with(code=1012)
+
+
+def test_role_update_refreshes_every_live_authorization_cache(monkeypatch):
+    manager = ConnectionManager()
+    first = MagicMock()
+    second = MagicMock()
+    unrelated = MagicMock()
+    manager.connection_info = {
+        first: {
+            "session_code": "ROOM",
+            "user_id": 7,
+            "username": "member",
+            "role": "co_dm",
+        },
+        second: {
+            "session_code": "ROOM",
+            "user_id": 7,
+            "username": "member",
+            "role": "co_dm",
+        },
+        unrelated: {
+            "session_code": "ROOM",
+            "user_id": 8,
+            "username": "other",
+            "role": "spectator",
+        },
+    }
+    protocol_service = MagicMock()
+    manager.sessions_protocols["ROOM"] = protocol_service
+    asset_manager = MagicMock()
+    monkeypatch.setattr(game_session, "get_server_asset_manager", lambda: asset_manager)
+
+    updated = manager.update_user_role("ROOM", 7, "player")
+
+    assert updated == 2
+    assert manager.connection_info[first]["role"] == "player"
+    assert manager.connection_info[second]["role"] == "player"
+    assert manager.connection_info[unrelated]["role"] == "spectator"
+    protocol_service.update_user_role.assert_called_once_with(7, "player")
+    asset_manager.setup_session_permissions.assert_called_once_with(
+        "ROOM", 7, "member", "player"
+    )
+
+
+def test_protocol_role_update_refreshes_all_tabs_only():
+    protocol_service = GameSessionProtocolService.__new__(GameSessionProtocolService)
+    protocol_service.client_info = {
+        "first": {"user_id": 7, "role": "co_dm"},
+        "second": {"user_id": 7, "role": "co_dm"},
+        "other": {"user_id": 8, "role": "spectator"},
+    }
+
+    assert protocol_service.update_user_role(7, "player") == 2
+    assert protocol_service.client_info["first"]["role"] == "player"
+    assert protocol_service.client_info["second"]["role"] == "player"
+    assert protocol_service.client_info["other"]["role"] == "spectator"
+
+
+@pytest.mark.asyncio
+async def test_disconnect_user_revokes_all_tabs_and_is_idempotent(monkeypatch):
+    manager = ConnectionManager()
+    first = AsyncMock()
+    second = AsyncMock()
+    unrelated = AsyncMock()
+    protocol_service = MagicMock()
+    protocol_service.remove_client = AsyncMock()
+    manager.sessions_protocols["ROOM"] = protocol_service
+    manager.active_connections["ROOM"] = [first, second, unrelated]
+    manager.connection_info = {
+        first: {"session_code": "ROOM", "user_id": 7, "username": "member"},
+        second: {"session_code": "ROOM", "user_id": 7, "username": "member"},
+        unrelated: {"session_code": "ROOM", "user_id": 8, "username": "other"},
+    }
+    manager.broadcast_to_session = AsyncMock()
+
+    disconnected = await manager.disconnect_user(
+        "ROOM", 7, reason="Kicked from session"
+    )
+    repeated = await manager.disconnect_user(
+        "ROOM", 7, reason="Kicked from session"
+    )
+
+    assert disconnected == 2
+    assert repeated == 0
+    assert first not in manager.connection_info
+    assert second not in manager.connection_info
+    assert manager.connection_info[unrelated]["user_id"] == 8
+    assert manager.active_connections["ROOM"] == [unrelated]
+    assert protocol_service.remove_client.await_count == 2
+    first.send_json.assert_awaited_once_with({
+        "type": "error",
+        "data": {"error": "Kicked from session", "retryable": False},
+    })
+    first.close.assert_awaited_once_with(code=1008, reason="Kicked from session")
+    second.close.assert_awaited_once_with(code=1008, reason="Kicked from session")
+    unrelated.close.assert_not_awaited()
+
+
+@pytest.mark.asyncio
+async def test_disconnect_user_persists_and_cleans_last_session_once(monkeypatch):
+    manager = ConnectionManager()
+    first = AsyncMock()
+    second = AsyncMock()
+    protocol_service = MagicMock()
+    protocol_service.remove_client = AsyncMock()
+    manager.sessions_protocols["ROOM"] = protocol_service
+    manager.active_connections["ROOM"] = [first, second]
+    manager.connection_info = {
+        first: {"session_code": "ROOM", "user_id": 7, "username": "member"},
+        second: {"session_code": "ROOM", "user_id": 7, "username": "member"},
+    }
+    asset_manager = MagicMock()
+    monkeypatch.setattr(game_session, "get_server_asset_manager", lambda: asset_manager)
+
+    assert await manager.disconnect_user("ROOM", 7, reason="Membership removed") == 2
+
+    protocol_service.save_to_database.assert_called_once_with()
+    protocol_service.cleanup.assert_called_once_with()
+    asset_manager.cleanup_session.assert_called_once_with("ROOM")

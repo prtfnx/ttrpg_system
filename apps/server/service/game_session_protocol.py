@@ -217,6 +217,16 @@ class GameSessionProtocolService:
 
         logger.info(f"Client {client_id} ({username}) removed from session {self.session_code}")
 
+    def update_user_role(self, user_id: int, role: str) -> int:
+        """Refresh authorization context for every client owned by one user."""
+        updated_clients = 0
+        for info in self.client_info.values():
+            if info.get("user_id") != user_id:
+                continue
+            info["role"] = role
+            updated_clients += 1
+        return updated_clients
+
     async def handle_protocol_message(self, websocket: WebSocket, message_str: str):
         """Handle incoming protocol message from a client"""
         try:

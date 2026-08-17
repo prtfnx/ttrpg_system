@@ -6,7 +6,7 @@ public routes.
 Status: current. This page documents current controls and the remaining
 single-instance limitations visible in the codebase.
 
-Last source audit: 2026-08-13
+Last source audit: 2026-08-17
 
 ## Main security boundaries
 
@@ -133,6 +133,13 @@ Role helpers in `utils/roles.py` define:
 Many WebSocket protocol handlers check `is_dm`, `can_interact`, visible layers,
 or ownership before mutating state. Keep new server-side behavior aligned with
 these helpers.
+
+Role changes refresh every active server-side connection context after the
+database transaction commits and before the change is broadcast. Membership
+removal closes all of that user's sockets in the affected session with policy
+code `1008`; reconnect then repeats durable authentication and membership
+checks. This prevents a demoted or removed member from retaining permissions
+through an older connection.
 
 ## Rate limiting
 

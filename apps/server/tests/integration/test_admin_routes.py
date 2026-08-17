@@ -1,7 +1,10 @@
 
+from unittest.mock import AsyncMock, MagicMock
+
 import main
 import pytest
 from database import crud, models, schemas
+from routers import game
 from routers.users import get_current_user
 
 
@@ -57,7 +60,13 @@ class TestSessionPlayerManagement:
 @pytest.mark.integration
 class TestRoleManagement:
 
-    def test_change_player_role_success(self, auth_client, test_db, game_session_with_players, player_user):
+    def test_change_player_role_success(
+        self, auth_client, test_db, game_session_with_players, player_user, monkeypatch
+    ):
+        connection_manager = MagicMock()
+        connection_manager.broadcast_to_session = AsyncMock()
+        monkeypatch.setattr(game, "get_connection_manager", lambda: connection_manager)
+
         response = auth_client.post(
             f"/game/api/sessions/{game_session_with_players.session_code}/players/{player_user.id}/role",
             json={"role": "co_dm"}
@@ -72,6 +81,10 @@ class TestRoleManagement:
             session_id=game_session_with_players.id
         ).first()
         assert player.role == "co_dm"
+        connection_manager.update_user_role.assert_called_once_with(
+            game_session_with_players.session_code, player_user.id, "co_dm"
+        )
+        connection_manager.broadcast_to_session.assert_awaited_once()
 
     def test_change_role_unauthorized(self, client, game_session_with_players, player_user):
         response = client.post(
@@ -126,7 +139,13 @@ class TestRoleManagement:
 @pytest.mark.integration
 class TestPlayerRemoval:
 
-    def test_kick_player_success(self, auth_client, test_db, game_session_with_players, player_user):
+    def test_kick_player_success(
+        self, auth_client, test_db, game_session_with_players, player_user, monkeypatch
+    ):
+        connection_manager = MagicMock()
+        connection_manager.disconnect_user = AsyncMock()
+        monkeypatch.setattr(game, "get_connection_manager", lambda: connection_manager)
+
         response = auth_client.delete(
             f"/game/api/sessions/{game_session_with_players.session_code}/players/{player_user.id}"
         )
@@ -138,6 +157,11 @@ class TestPlayerRemoval:
             session_id=game_session_with_players.id
         ).first()
         assert kicked is None
+        connection_manager.disconnect_user.assert_awaited_once_with(
+            game_session_with_players.session_code,
+            player_user.id,
+            reason="Kicked from session",
+        )
 
     def test_kick_player_unauthorized(self, client, game_session_with_players, player_user):
         response = client.delete(

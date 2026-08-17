@@ -5,7 +5,7 @@ or session-level rules.
 
 Status: current.
 
-Last source audit: 2026-07-21
+Last source audit: 2026-08-17
 
 ## Source owners
 
@@ -55,7 +55,7 @@ Player management:
 - `POST /game/api/sessions/{session_code}/players/{user_id}/role` changes a
   role after `can_assign_role()` passes.
 - `DELETE /game/api/sessions/{session_code}/players/{user_id}` removes a
-  non-owner player.
+  non-owner player and closes all of that member's active session sockets.
 
 Invitation management:
 
@@ -71,6 +71,12 @@ Invitation management:
 The server owns session membership, roles, session rules, game mode, and invite
 validity. Browser code can hide controls, but server routes and WebSocket
 handlers must reject unauthorized changes.
+
+The connection manager mirrors committed membership roles into both live
+connection registries. It updates every tab before broadcasting a role change.
+After membership removal commits, it clears every matching live authorization
+context and closes those sockets with WebSocket policy code `1008`. Other users
+and other sessions are not affected.
 
 Session rules and game mode are WebSocket state:
 

@@ -3,7 +3,7 @@
 Status: current. Account authentication and per-session authorization are
 separate server-owned systems.
 
-Last source audit: 2026-07-29
+Last source audit: 2026-08-17
 
 ## Source owners
 
@@ -126,8 +126,14 @@ The server:
 4. Calls `can_assign_role()`.
 5. Writes the new role.
 6. Adds an audit log.
-7. Broadcasts `PLAYER_ROLE_CHANGED` with the new permissions and visible
+7. Refreshes every active tab's server-side authorization context.
+8. Broadcasts `PLAYER_ROLE_CHANGED` with the new permissions and visible
    layers.
+
+The database commit happens before the live authorization refresh. A demoted
+member therefore loses the old role on all active WebSocket connections before
+the role-change event is broadcast. Protocol handlers do not trust a role sent
+in an inbound message.
 
 Current assignment rules:
 
@@ -135,6 +141,11 @@ Current assignment rules:
 - No one can assign owner.
 - Only owner or co-DM can change roles.
 - Co-DM cannot assign co-DM.
+
+Removing a member commits the `GamePlayer` deletion first, then closes every
+active socket for that user in the session with policy code `1008`. Repeating
+the live revocation is safe. A reconnect fails because the durable membership
+row no longer exists.
 
 ## Invitations
 

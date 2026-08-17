@@ -5,7 +5,7 @@ Audience: contributors changing chat delivery, history, privacy, or chat UI.
 Status: current but partial. Code-level delivery boundaries are implemented.
 Retention, moderation, export, and DM-whisper policy remain product decisions.
 
-Last source audit: 2026-07-21
+Last source audit: 2026-08-17
 
 ## Ownership
 
@@ -32,6 +32,11 @@ Last source audit: 2026-07-21
 
 A malformed whisper never falls through to public delivery. Attachment metadata
 is rejected until it can reference an authorized asset.
+
+Chat write/idempotency checks run in one synchronous worker function that
+creates and closes its own SQLAlchemy session. History and moderation use the
+same worker-owned session pattern. Validation and WebSocket delivery stay on
+the event-loop thread, so database latency does not pause unrelated sockets.
 
 ## History and roll messages
 
@@ -77,3 +82,6 @@ Run `tests/unit/test_chat_protocol.py`,
 `tests/unit/test_game_ws_security.py`,
 `tests/unit/test_game_session_protocol.py`, the chat Vitest suites, and the
 browser protocol suite.
+
+The server test asserts that chat write, history, and moderation database work
+execute off the event-loop thread.

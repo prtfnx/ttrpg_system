@@ -1,5 +1,7 @@
+import asyncio
 import re
 import uuid
+from dataclasses import dataclass
 
 from core_table.protocol import Message, MessageType
 from database import crud, models, schemas
@@ -14,6 +16,175 @@ from ._protocol_base import _ProtocolBase
 logger = setup_logger(__name__)
 _CLIENT_OPERATION_ID = re.compile(r"^[A-Za-z0-9._-]{1,64}$")
 _CHANNELS = {"public", "whisper"}
+
+
+@dataclass(frozen=True)
+class _ChatWriteResult:
+    payload: dict | None = None
+    created: bool = False
+    error: str | None = None
+
+
+@dataclass(frozen=True)
+class _ChatModerationResult:
+    payload: dict | None = None
+    sender_user_id: int | None = None
+    recipient_user_id: int | None = None
+    channel: str | None = None
+    error: str | None = None
+
+
+def _persist_chat_message(
+    *,
+    session_id: int,
+    user_id: int,
+    username: str,
+    channel: str,
+    recipient_id: int | None,
+    table_id,
+    text: str,
+    client_operation_id: str,
+    server_message_id: str,
+    saved_message_payload: dict,
+    client_timestamp,
+) -> _ChatWriteResult:
+    """Persist one message with a worker-owned SQLAlchemy session."""
+    db = SessionLocal()
+    try:
+        if recipient_id is not None:
+            recipient = db.query(models.GamePlayer.id).filter(
+                models.GamePlayer.session_id == session_id,
+                models.GamePlayer.user_id == recipient_id,
+            ).first()
+            if recipient is None:
+                return _ChatWriteResult(error="Whisper recipient is not in this session")
+
+        existing = crud.get_chat_message_by_client_operation(
+            db,
+            session_id=session_id,
+            user_id=user_id,
+            client_operation_id=client_operation_id,
+        )
+        saved = existing or crud.create_chat_message(db, schemas.ChatMessageCreate(
+            message_id=server_message_id,
+            client_operation_id=client_operation_id,
+            session_id=session_id,
+            user_id=user_id,
+            username=username,
+            channel=channel,
+            recipient_user_id=recipient_id,
+            table_id=table_id,
+            text=text,
+            message_json=saved_message_payload,
+            attachments=None,
+            client_timestamp=float(client_timestamp) if client_timestamp is not None else None,
+        ))
+        return _ChatWriteResult(payload=saved.to_dict(), created=existing is None)
+    except Exception:
+        logger.exception("Chat persistence failed")
+        return _ChatWriteResult(error="Chat message could not be persisted")
+    finally:
+        db.close()
+
+
+def _load_chat_history(
+    *,
+    session_id: int,
+    count: int,
+    before_id: int | None,
+    after_id: int | None,
+    channel,
+    requested_user_id,
+    viewer_user_id: int | None,
+    viewer_is_moderator: bool,
+) -> tuple[list[dict], int | None] | None:
+    """Load and serialize visible history inside one worker thread."""
+    db = SessionLocal()
+    try:
+        messages = crud.get_session_chat_messages(
+            db,
+            session_id=session_id,
+            limit=count,
+            before_id=before_id,
+            after_id=after_id,
+            channel=channel,
+            user_id=requested_user_id,
+            visible_to_user_id=viewer_user_id,
+            viewer_is_moderator=viewer_is_moderator,
+        )
+        payload = [message.to_dict() for message in messages]
+        next_cursor = messages[0].id if len(messages) == count else None
+        return payload, next_cursor
+    except Exception:
+        logger.exception("Chat history request failed")
+        return None
+    finally:
+        db.close()
+
+
+def _moderate_chat_message(
+    *,
+    session_id: int,
+    session_code: str,
+    actor_user_id: int,
+    message_id: str,
+    action: str,
+    reason: str | None,
+    moderator: bool,
+) -> _ChatModerationResult:
+    """Apply one moderation transaction with a worker-owned ORM session."""
+    db = SessionLocal()
+    try:
+        chat_message = crud.get_session_chat_message(
+            db,
+            session_id=session_id,
+            message_id=message_id,
+        )
+        if chat_message is None:
+            return _ChatModerationResult(error="Chat message not found")
+        owns_message = chat_message.user_id == actor_user_id
+        if action == "delete" and not moderator:
+            return _ChatModerationResult(error="Only a DM or co-DM can delete messages")
+        if action == "redact" and not (moderator or owns_message):
+            return _ChatModerationResult(error="You can only redact your own messages")
+        if moderator and not owns_message and not str(reason or "").strip():
+            return _ChatModerationResult(error="A reason is required to moderate another user")
+
+        now = utc_now()
+        if action == "delete":
+            chat_message.deleted_at = chat_message.deleted_at or now
+            chat_message.deleted_by_user_id = actor_user_id
+        elif chat_message.deleted_at is None:
+            chat_message.redacted_at = chat_message.redacted_at or now
+            chat_message.redacted_by_user_id = actor_user_id
+        else:
+            return _ChatModerationResult(error="Deleted messages cannot be redacted")
+        chat_message.moderation_reason = str(reason).strip() if reason else None
+        db.add(audit_event(
+            f"chat.{action}",
+            session_code=session_code,
+            user_id=actor_user_id,
+            target_type="chat_message",
+            target_id=chat_message.message_id,
+            details={
+                "message_owner_user_id": chat_message.user_id,
+                "moderator": moderator,
+            },
+        ))
+        db.commit()
+        db.refresh(chat_message)
+        return _ChatModerationResult(
+            payload=chat_message.to_dict(),
+            sender_user_id=chat_message.user_id,
+            recipient_user_id=chat_message.recipient_user_id,
+            channel=chat_message.channel,
+        )
+    except Exception:
+        db.rollback()
+        logger.exception("Chat moderation failed")
+        return _ChatModerationResult(error="Chat message could not be moderated")
+    finally:
+        db.close()
 
 
 class _ChatMixin(_ProtocolBase):
@@ -98,47 +269,27 @@ class _ChatMixin(_ProtocolBase):
         if table_id:
             saved_message_payload['table_id'] = table_id
 
-        db = SessionLocal()
-        try:
-            if recipient_id is not None:
-                recipient = db.query(models.GamePlayer.id).filter(
-                    models.GamePlayer.session_id == session_id,
-                    models.GamePlayer.user_id == recipient_id,
-                ).first()
-                if recipient is None:
-                    return Message(MessageType.ERROR, {'error': 'Whisper recipient is not in this session'})
-
-            existing = crud.get_chat_message_by_client_operation(
-                db,
-                session_id=session_id,
-                user_id=int(user_id),
-                client_operation_id=client_operation_id,
-            )
-            if existing:
-                saved = existing
-            else:
-                saved = crud.create_chat_message(db, schemas.ChatMessageCreate(
-                    message_id=server_message_id,
-                    client_operation_id=client_operation_id,
-                    session_id=session_id,
-                    user_id=user_id,
-                    username=username,
-                    channel=channel,
-                    recipient_user_id=recipient_id,
-                    table_id=table_id,
-                    text=text.strip(),
-                    message_json=saved_message_payload,
-                    attachments=attachments if isinstance(attachments, list) else None,
-                    client_timestamp=float(client_timestamp) if client_timestamp is not None else None,
-                ))
-            persisted_message = saved.to_dict()
-        except Exception:
-            logger.exception("Chat persistence failed")
+        persistence = await asyncio.to_thread(
+            _persist_chat_message,
+            session_id=session_id,
+            user_id=int(user_id),
+            username=username,
+            channel=channel,
+            recipient_id=recipient_id,
+            table_id=table_id,
+            text=text.strip(),
+            client_operation_id=client_operation_id,
+            server_message_id=server_message_id,
+            saved_message_payload=saved_message_payload,
+            client_timestamp=client_timestamp,
+        )
+        if persistence.error:
+            return Message(MessageType.ERROR, {'error': persistence.error})
+        if persistence.payload is None:
             return Message(MessageType.ERROR, {'error': 'Chat message could not be persisted'})
-        finally:
-            db.close()
+        persisted_message = persistence.payload
 
-        if not existing:
+        if persistence.created:
             outbound = Message(MessageType.CHAT, {'message': persisted_message})
             if channel == 'whisper':
                 if recipient_id is None:
@@ -178,26 +329,20 @@ class _ChatMixin(_ProtocolBase):
         except (TypeError, ValueError):
             return Message(MessageType.ERROR, {'error': 'Invalid chat history cursor or count'})
 
-        db = SessionLocal()
-        try:
-            messages = crud.get_session_chat_messages(
-                db,
-                session_id=session_id,
-                limit=count,
-                before_id=before_id,
-                after_id=after_id,
-                channel=data.get('channel'),
-                user_id=data.get('user_id'),
-                visible_to_user_id=user_id,
-                viewer_is_moderator=is_dm(self._get_client_role(client_id)),
-            )
-            payload = [message.to_dict() for message in messages]
-            next_cursor = messages[0].id if len(messages) == count else None
-        except Exception:
-            logger.exception("Chat history request failed")
+        history = await asyncio.to_thread(
+            _load_chat_history,
+            session_id=session_id,
+            count=count,
+            before_id=before_id,
+            after_id=after_id,
+            channel=data.get('channel'),
+            requested_user_id=data.get('user_id'),
+            viewer_user_id=user_id,
+            viewer_is_moderator=is_dm(self._get_client_role(client_id)),
+        )
+        if history is None:
             return Message(MessageType.ERROR, {'error': 'Chat history could not be loaded'})
-        finally:
-            db.close()
+        payload, next_cursor = history
 
         return Message(MessageType.CHAT, {
             'messages': payload,
@@ -229,66 +374,34 @@ class _ChatMixin(_ProtocolBase):
             return Message(MessageType.ERROR, {'error': 'Moderation reason is invalid'})
 
         moderator = is_dm(self._get_client_role(client_id))
-        db = SessionLocal()
-        try:
-            chat_message = crud.get_session_chat_message(
-                db,
-                session_id=session_id,
-                message_id=message_id,
-            )
-            if chat_message is None:
-                return Message(MessageType.ERROR, {'error': 'Chat message not found'})
-            owns_message = chat_message.user_id == actor_user_id
-            if action == 'delete' and not moderator:
-                return Message(MessageType.ERROR, {'error': 'Only a DM or co-DM can delete messages'})
-            if action == 'redact' and not (moderator or owns_message):
-                return Message(MessageType.ERROR, {'error': 'You can only redact your own messages'})
-            if moderator and not owns_message and not str(reason or '').strip():
-                return Message(MessageType.ERROR, {'error': 'A reason is required to moderate another user'})
-
-            now = utc_now()
-            if action == 'delete':
-                chat_message.deleted_at = chat_message.deleted_at or now
-                chat_message.deleted_by_user_id = actor_user_id
-            elif chat_message.deleted_at is None:
-                chat_message.redacted_at = chat_message.redacted_at or now
-                chat_message.redacted_by_user_id = actor_user_id
-            else:
-                return Message(MessageType.ERROR, {'error': 'Deleted messages cannot be redacted'})
-            chat_message.moderation_reason = str(reason).strip() if reason else None
-            db.add(audit_event(
-                f"chat.{action}",
-                session_code=self._get_session_code(msg),
-                user_id=actor_user_id,
-                target_type="chat_message",
-                target_id=chat_message.message_id,
-                details={
-                    "message_owner_user_id": chat_message.user_id,
-                    "moderator": moderator,
-                },
-            ))
-            db.commit()
-            db.refresh(chat_message)
-            moderated_payload = chat_message.to_dict()
-            sender_user_id = chat_message.user_id
-            recipient_user_id = chat_message.recipient_user_id
-            channel = chat_message.channel
-        except Exception:
-            db.rollback()
-            logger.exception("Chat moderation failed")
+        moderation = await asyncio.to_thread(
+            _moderate_chat_message,
+            session_id=session_id,
+            session_code=self._get_session_code(msg),
+            actor_user_id=actor_user_id,
+            message_id=message_id,
+            action=action,
+            reason=reason,
+            moderator=moderator,
+        )
+        if moderation.error:
+            return Message(MessageType.ERROR, {'error': moderation.error})
+        if moderation.payload is None:
             return Message(MessageType.ERROR, {'error': 'Chat message could not be moderated'})
-        finally:
-            db.close()
 
         outbound = Message(MessageType.CHAT_MODERATION, {
             'action': action,
-            'message': moderated_payload,
+            'message': moderation.payload,
         })
-        if channel == 'whisper' and sender_user_id is not None and recipient_user_id is not None:
+        if (
+            moderation.channel == 'whisper'
+            and moderation.sender_user_id is not None
+            and moderation.recipient_user_id is not None
+        ):
             await self._send_whisper_to_visible_clients(
                 outbound,
-                sender_user_id=sender_user_id,
-                recipient_user_id=recipient_user_id,
+                sender_user_id=moderation.sender_user_id,
+                recipient_user_id=moderation.recipient_user_id,
                 exclude_client=client_id,
             )
         else:

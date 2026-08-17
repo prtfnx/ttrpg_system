@@ -57,6 +57,11 @@ disconnect save also run in worker threads. Each worker resolves a fresh
 session from the task/thread-scoped registry. Never construct an ORM `Session`
 on the event-loop thread and pass that instance to `asyncio.to_thread`.
 
+Chat write, history, and moderation handlers follow the same rule: validate
+the command on the event loop, execute the complete database transaction and
+serialization in a synchronous worker function, then deliver the plain result
+over WebSocket on the event loop.
+
 A per-session lifecycle lock covers first-client protocol construction and
 last-client cleanup. Concurrent first connections share one reconstructed
 protocol service. A reconnect cannot attach to a service while its final save

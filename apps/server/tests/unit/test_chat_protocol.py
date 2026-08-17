@@ -1,11 +1,13 @@
 # pyright: reportAttributeAccessIssue=false, reportIncompatibleMethodOverride=false
 
+import threading
 from types import SimpleNamespace
 from unittest.mock import AsyncMock
 
 import pytest
 from core_table.protocol import Message, MessageType
 from database import models
+from service.protocol import chat as chat_module
 from service.protocol.chat import _ChatMixin
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
@@ -233,3 +235,53 @@ async def test_attachment_metadata_is_rejected_until_asset_contract_exists(chat_
 
     assert result.type == MessageType.ERROR
     harness.broadcast_to_session.assert_not_awaited()
+
+
+@pytest.mark.asyncio
+async def test_chat_database_operations_run_off_event_loop(chat_db, monkeypatch):
+    _, session_id, alice_id, _, _ = chat_db
+    harness = ChatHarness(
+        session_id,
+        alice_id,
+        {"alice-client": {"user_id": alice_id, "username": "alice", "role": "player"}},
+    )
+    event_loop_thread = threading.get_ident()
+    worker_threads = {}
+
+    def recording_wrapper(name, operation):
+        def wrapped(**kwargs):
+            worker_threads[name] = threading.get_ident()
+            return operation(**kwargs)
+        return wrapped
+
+    monkeypatch.setattr(
+        chat_module,
+        "_persist_chat_message",
+        recording_wrapper("write", chat_module._persist_chat_message),
+    )
+    monkeypatch.setattr(
+        chat_module,
+        "_load_chat_history",
+        recording_wrapper("history", chat_module._load_chat_history),
+    )
+    monkeypatch.setattr(
+        chat_module,
+        "_moderate_chat_message",
+        recording_wrapper("moderation", chat_module._moderate_chat_message),
+    )
+
+    sent = await harness.handle_chat(_message(), "alice-client")
+    await harness.handle_chat_request(
+        Message(MessageType.CHAT_REQUEST, {"count": 30}),
+        "alice-client",
+    )
+    await harness.handle_chat_moderate(
+        Message(MessageType.CHAT_MODERATE, {
+            "message_id": sent.data["chat_message"]["id"],
+            "action": "redact",
+        }),
+        "alice-client",
+    )
+
+    assert set(worker_threads) == {"write", "history", "moderation"}
+    assert all(thread_id != event_loop_thread for thread_id in worker_threads.values())

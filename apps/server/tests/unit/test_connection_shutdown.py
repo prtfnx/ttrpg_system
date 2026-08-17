@@ -1,3 +1,5 @@
+import asyncio
+import threading
 from unittest.mock import AsyncMock, MagicMock
 
 import pytest
@@ -16,7 +18,12 @@ async def test_connect_retains_registry_and_releases_initialization_session(monk
     protocol_service.game_session_db_id = 17
     protocol_service.add_client = AsyncMock()
     asset_manager = MagicMock()
-    loader = MagicMock(return_value=(protocol_service, None))
+    loader_threads = []
+    loader = MagicMock(side_effect=lambda *_args, **_kwargs: (
+        loader_threads.append(threading.get_ident()) or protocol_service,
+        None,
+    ))
+    event_loop_thread = threading.get_ident()
     monkeypatch.setattr(game_session, "create_task_scoped_session", lambda: registry)
     monkeypatch.setattr(game_session, "load_game_session_protocol_from_db", loader)
     monkeypatch.setattr(game_session, "get_server_asset_manager", lambda: asset_manager)
@@ -36,7 +43,45 @@ async def test_connect_retains_registry_and_releases_initialization_session(monk
     registry.remove.assert_called_once_with()
     assert manager.sessions_protocols["ROOM"] is protocol_service
     assert manager.user_connections[5] == {websocket}
+    assert loader_threads and loader_threads[0] != event_loop_thread
     websocket.accept.assert_awaited_once_with()
+
+
+@pytest.mark.asyncio
+async def test_concurrent_first_connections_share_one_protocol_load(monkeypatch):
+    manager = ConnectionManager()
+    first = AsyncMock()
+    second = AsyncMock()
+    protocol_service = MagicMock()
+    protocol_service.game_session_db_id = 17
+    protocol_service.add_client = AsyncMock()
+    asset_manager = MagicMock()
+    load_started = threading.Event()
+    release_load = threading.Event()
+
+    def load_protocol(*_args, **_kwargs):
+        load_started.set()
+        assert release_load.wait(timeout=1)
+        return protocol_service, None
+
+    registry = MagicMock(return_value=MagicMock())
+    loader = MagicMock(side_effect=load_protocol)
+    monkeypatch.setattr(game_session, "create_task_scoped_session", lambda: registry)
+    monkeypatch.setattr(game_session, "load_game_session_protocol_from_db", loader)
+    monkeypatch.setattr(game_session, "get_server_asset_manager", lambda: asset_manager)
+
+    first_connect = asyncio.create_task(manager.connect(first, "ROOM", 5, "first"))
+    while not load_started.is_set():
+        await asyncio.sleep(0)
+    second_connect = asyncio.create_task(manager.connect(second, "ROOM", 6, "second"))
+    await asyncio.sleep(0)
+
+    assert loader.call_count == 1
+
+    release_load.set()
+    await asyncio.gather(first_connect, second_connect)
+    assert loader.call_count == 1
+    assert manager.active_connections["ROOM"] == [first, second]
 
 
 @pytest.mark.asyncio
@@ -174,6 +219,11 @@ async def test_disconnect_user_persists_and_cleans_last_session_once(monkeypatch
     protocol_service = MagicMock()
     protocol_service.remove_client = AsyncMock()
     protocol_service.wait_for_mutations = AsyncMock()
+    save_threads = []
+    protocol_service.save_to_database.side_effect = lambda: save_threads.append(
+        threading.get_ident()
+    ) or True
+    event_loop_thread = threading.get_ident()
     manager.sessions_protocols["ROOM"] = protocol_service
     manager.active_connections["ROOM"] = [first, second]
     manager.connection_info = {
@@ -187,6 +237,7 @@ async def test_disconnect_user_persists_and_cleans_last_session_once(monkeypatch
     assert await manager.disconnect_user("ROOM", 7, reason="Membership removed") == 2
 
     protocol_service.save_to_database.assert_called_once_with()
+    assert save_threads and save_threads[0] != event_loop_thread
     protocol_service.wait_for_mutations.assert_awaited_once_with()
     protocol_service.cleanup.assert_called_once_with()
     asset_manager.cleanup_session.assert_called_once_with("ROOM")

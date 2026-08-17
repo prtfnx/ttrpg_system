@@ -2,11 +2,13 @@
 
 from __future__ import annotations
 
+import asyncio
 import hashlib
 import json
 import time
 import uuid
 from collections import deque
+from dataclasses import dataclass
 
 from config import Settings
 from database import crud, models
@@ -26,6 +28,13 @@ from utils.observability import (
 logger = setup_logger(__name__)
 router = APIRouter()
 settings = Settings()
+
+
+@dataclass(frozen=True)
+class WebSocketSessionContext:
+    user_id: int
+    username: str
+    role: str
 
 
 def _session_reference(session_code: str) -> str:
@@ -57,6 +66,37 @@ def get_user_from_token(token: str, db: Session):
         return None
 
 
+def _load_websocket_session_context(
+    token: str,
+    session_code: str,
+) -> tuple[WebSocketSessionContext | None, str | None]:
+    """Resolve handshake authority with a worker-owned ORM session."""
+    db = SessionLocal()
+    try:
+        user = get_user_from_token(token, db)
+        if not user:
+            return None, "authentication"
+
+        db_game_session = crud.get_game_session_by_code(db, session_code)
+        if not db_game_session:
+            return None, "session_not_found"
+
+        db_player = db.query(models.GamePlayer).filter(
+            models.GamePlayer.session_id == db_game_session.id,
+            models.GamePlayer.user_id == user.id,
+        ).first()
+        if not db_player:
+            return None, "not_member"
+
+        return WebSocketSessionContext(
+            user_id=user.id,
+            username=user.username,
+            role=db_player.role or "player",
+        ), None
+    finally:
+        db.close()
+
+
 @router.websocket("/ws/game/{session_code}")
 async def websocket_game_endpoint(
     websocket: WebSocket,
@@ -85,11 +125,18 @@ async def websocket_game_endpoint(
                 await websocket.close(code=status.WS_1008_POLICY_VIOLATION)
                 return
 
-            db = SessionLocal()
-            try:
-                token = websocket.cookies.get("token")
-                user = get_user_from_token(token, db) if token else None
-                if not user:
+            token = websocket.cookies.get("token")
+            context = None
+            rejection_reason = "authentication"
+            if token:
+                context, rejection_reason = await asyncio.to_thread(
+                    _load_websocket_session_context,
+                    token,
+                    session_code,
+                )
+
+            if not context:
+                if rejection_reason == "authentication":
                     record_ws_connection("rejected", "authentication")
                     logger.warning(
                         "WebSocket authentication failed",
@@ -101,9 +148,7 @@ async def websocket_game_endpoint(
                     )
                     await websocket.close(code=status.WS_1008_POLICY_VIOLATION)
                     return
-
-                db_game_session = crud.get_game_session_by_code(db, session_code)
-                if not db_game_session:
+                if rejection_reason == "session_not_found":
                     record_ws_connection("rejected", "session_not_found")
                     logger.info(
                         "WebSocket session does not exist",
@@ -115,30 +160,24 @@ async def websocket_game_endpoint(
                     )
                     await websocket.close(code=status.WS_1008_POLICY_VIOLATION)
                     return
-
-                db_player = db.query(models.GamePlayer).filter(
-                    models.GamePlayer.session_id == db_game_session.id,
-                    models.GamePlayer.user_id == user.id,
-                ).first()
-                if not db_player:
+                if rejection_reason == "not_member":
                     record_ws_connection("rejected", "not_member")
                     logger.warning(
                         "WebSocket membership check failed",
                         extra={
                             "event_name": "websocket.connection.rejected",
                             "reason": "not_member",
-                            "user_id": user.id,
                             "outcome": "rejected",
                         },
                     )
                     await websocket.close(code=status.WS_1008_POLICY_VIOLATION)
                     return
 
-                user_id = user.id
-                username = user.username
-                role = db_player.role or "player"
-            finally:
-                db.close()
+                raise RuntimeError("Unknown WebSocket authorization result")
+
+            user_id = context.user_id
+            username = context.username
+            role = context.role
 
             client_id = await connection_manager.connect(
                 websocket,

@@ -283,9 +283,10 @@ class TestSessionUtils:
         svc.clients["c1"] = _ws()
         assert svc.has_clients() is True
 
-    def test_auto_save_skips_when_no_db(self):
+    @pytest.mark.asyncio
+    async def test_auto_save_skips_when_no_db(self):
         svc = _make_service()
-        svc.auto_save()  # should not raise
+        await svc.auto_save()  # should not raise
 
     def test_force_save_returns_false_without_db(self):
         svc = _make_service()
@@ -297,22 +298,24 @@ class TestSessionUtils:
 # ---------------------------------------------------------------------------
 
 class TestAutoSave:
-    def test_skips_when_last_save_was_recent(self):
+    @pytest.mark.asyncio
+    async def test_skips_when_last_save_was_recent(self):
         svc = _make_service()
         svc.db_session = MagicMock()
         svc.game_session_db_id = 1
         svc._last_save_time = 1e15  # far future → 0 seconds elapsed
         svc.table_manager.save_to_database = MagicMock(return_value=True)
-        svc.auto_save()  # should skip
+        await svc.auto_save()  # should skip
         svc.table_manager.save_to_database.assert_not_called()
 
-    def test_runs_when_enough_time_has_passed(self):
+    @pytest.mark.asyncio
+    async def test_runs_when_enough_time_has_passed(self):
         svc = _make_service()
         svc.db_session = MagicMock()
         svc.game_session_db_id = 1
         svc._last_save_time = 0  # very old
         svc.table_manager.save_to_database = MagicMock(return_value=True)
-        svc.auto_save()
+        await svc.auto_save()
         svc.table_manager.save_to_database.assert_called_once()
 
 

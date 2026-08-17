@@ -1,4 +1,5 @@
 import asyncio
+import inspect
 import time
 from collections.abc import Awaitable, Callable
 from typing import Any, Dict
@@ -316,7 +317,9 @@ class ServerProtocol(
         if msg.type in {MessageType.SPRITE_UPDATE, MessageType.TABLE_UPDATE_REQUEST}:
             auto_save = getattr(getattr(self, "session_manager", None), "auto_save", None)
             if callable(auto_save):
-                auto_save()
+                auto_save_result = auto_save()
+                if inspect.isawaitable(auto_save_result):
+                    await auto_save_result
         return response
 
     async def wait_for_mutations(self) -> None:

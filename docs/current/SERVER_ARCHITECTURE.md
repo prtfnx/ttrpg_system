@@ -41,7 +41,9 @@ game_ws.py -> ConnectionManager -> GameSessionProtocolService -> ServerProtocol
 
 The WebSocket endpoint opens its handshake database session only after origin
 validation. Authentication and membership checks share that short-lived
-session, and a `finally` block closes it before the long-lived socket loop.
+session, and a `finally` block closes it before the long-lived socket loop. The
+whole synchronous handshake lookup runs through `asyncio.to_thread`; the worker
+creates and closes its own SQLAlchemy session.
 
 The connection manager does not retain one SQLAlchemy `Session` for the
 lifetime of a game. It gives each protocol service a task-scoped session
@@ -49,6 +51,16 @@ registry. The handshake, client initialization, each inbound protocol message,
 and each persistence operation release their current task session when the
 logical operation ends. Delayed table saves also release their own task
 session.
+
+Durable protocol initialization, mutation-triggered autosave, and final
+disconnect save also run in worker threads. Each worker resolves a fresh
+session from the task/thread-scoped registry. Never construct an ORM `Session`
+on the event-loop thread and pass that instance to `asyncio.to_thread`.
+
+A per-session lifecycle lock covers first-client protocol construction and
+last-client cleanup. Concurrent first connections share one reconstructed
+protocol service. A reconnect cannot attach to a service while its final save
+and cleanup are running.
 
 `GameSessionProtocolService` owns session protocol state:
 
@@ -151,7 +163,7 @@ WebSocket, and deployment behavior in `apps/server`.
 
 - Server tests: `pytest tests/ -q` from `apps/server`.
 - WebSocket database-session tests:
-  `pytest tests/unit/test_database_session_scope.py tests/unit/test_game_session_protocol.py -q`
+  `pytest tests/unit/test_database_session_scope.py tests/unit/test_game_session_protocol.py tests/unit/test_game_ws_security.py tests/unit/test_connection_shutdown.py -q`
   from `apps/server`.
 - Server lint: `ruff check .` from `apps/server`.
 - Core table tests: `pytest -q` from `packages/core-table`.

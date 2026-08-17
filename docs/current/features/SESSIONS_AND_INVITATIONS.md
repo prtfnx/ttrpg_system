@@ -46,6 +46,11 @@ Session entry:
    permissions, visible layers, and user context. Later role changes update the
    same browser state.
 
+Handshake authority lookup and initial durable protocol reconstruction run as
+worker-owned synchronous database operations. Autosave and the final save on
+last disconnect use the same off-thread boundary. Final cleanup waits for
+serialized mutations, saves once, then clears in-memory protocol state.
+
 Player management:
 
 - `GET /game/api/sessions/{session_code}/players` returns players with roles

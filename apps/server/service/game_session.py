@@ -1,6 +1,7 @@
 """
 WebSocket-based game session manager with integrated table protocol
 """
+import asyncio
 import json
 import uuid
 from datetime import datetime, timezone
@@ -22,6 +23,19 @@ from .game_session_protocol import GameSessionProtocolService
 
 logger = setup_logger(__name__)
 
+
+def _load_protocol_service(session_code: str):
+    """Build a protocol service using a worker-owned SQLAlchemy session."""
+    db_session = create_task_scoped_session()
+    try:
+        return load_game_session_protocol_from_db(
+            db_session(),
+            session_code,
+            persistence_session=db_session,
+        )
+    finally:
+        db_session.remove()
+
 class ConnectionManager:
     """Manages WebSocket connections for game sessions with protocol support"""
 
@@ -32,6 +46,7 @@ class ConnectionManager:
         self.user_connections: Dict[int, Set[WebSocket]] = {}
         self.sessions_protocols: Dict[str, GameSessionProtocolService] = {}
         self.game_session_db_ids: Dict[str, int] = {}  # session_code -> game_session_db_id
+        self._session_lifecycle_locks: Dict[str, asyncio.Lock] = {}
 
     def _generate_client_id(self) -> str:
         """Generate unique client ID for protocol"""
@@ -41,17 +56,48 @@ class ConnectionManager:
                       user_id: int, username: str, role: str = "player",
                       connection_id: str | None = None) -> str:
         """Connect a user to a game session with protocol support"""
+        lifecycle_lock = self._session_lifecycle_locks.setdefault(
+            session_code,
+            asyncio.Lock(),
+        )
+        async with lifecycle_lock:
+            client_id = await self._connect_locked(
+                websocket,
+                session_code,
+                user_id,
+                username,
+                role,
+                connection_id,
+            )
+
+        message = Message(
+            MessageType.PLAYER_JOINED, {
+                "username": username,
+                "user_id": user_id,
+                "client_id": client_id,
+                "role": role,
+                "timestamp": utc_now().isoformat()
+            }
+        )
+        await self.broadcast_to_session(session_code, message, exclude_websocket=websocket)
+        return client_id
+
+    async def _connect_locked(
+        self,
+        websocket: WebSocket,
+        session_code: str,
+        user_id: int,
+        username: str,
+        role: str,
+        connection_id: str | None,
+    ) -> str:
+        """Initialize and register a socket while holding its session lifecycle lock."""
         client_id = self._generate_client_id()
         if session_code not in self.sessions_protocols:
-            db_session = create_task_scoped_session()
-            try:
-                protocol_service, error = load_game_session_protocol_from_db(
-                    db_session(),
-                    session_code,
-                    persistence_session=db_session,
-                )
-            finally:
-                db_session.remove()
+            protocol_service, error = await asyncio.to_thread(
+                _load_protocol_service,
+                session_code,
+            )
             if not protocol_service:
                 logger.error(
                     "Durable game session initialization failed",
@@ -109,17 +155,6 @@ class ConnectionManager:
                 if not user_connections:
                     del self.user_connections[user_id]
             raise
-        message = Message(
-            MessageType.PLAYER_JOINED, {
-                "username": username,
-                "user_id": user_id,
-                "client_id": client_id,
-                "role": role,
-                "timestamp": utc_now().isoformat()
-            }
-        )
-        # Notify other players
-        await self.broadcast_to_session(session_code, message,exclude_websocket=websocket)
         return client_id
 
     async def disconnect(self, websocket: WebSocket):
@@ -155,40 +190,13 @@ class ConnectionManager:
                 self.active_connections[session_code].remove(websocket)
             if not self.active_connections[session_code]:
                 del self.active_connections[session_code]
-                # Clean up empty session
-                protocol_service = self.sessions_protocols.get(session_code)
-                if protocol_service:
-                    await protocol_service.wait_for_mutations()
-                    # Save to database before cleanup
-                    try:
-                        protocol_service.save_to_database()
-                        logger.info(f"Session {session_code} data saved to database before cleanup")
-                    except Exception as e:
-                        logger.error(f"Error saving session {session_code} to database: {e}")
-
-                    try:
-                        protocol_service.cleanup()
-                    except Exception:
-                        logger.exception(
-                            "Game-session protocol cleanup failed",
-                            extra={"event_name": "game_session.cleanup.failed"},
-                        )
-                    finally:
-                        del self.sessions_protocols[session_code]
-
-                    # Clean up R2 asset session data
-                    asset_manager = get_server_asset_manager()
-                    try:
-                        asset_manager.cleanup_session(session_code)
-                        logger.info(f"Cleaned up R2 assets for session {session_code}")
-                    except Exception:
-                        logger.exception(
-                            "Asset-session cleanup failed",
-                            extra={"event_name": "asset.session.cleanup_failed"},
-                        )
-
-                    if session_code in self.game_session_db_ids:
-                        del self.game_session_db_ids[session_code]
+                lifecycle_lock = self._session_lifecycle_locks.setdefault(
+                    session_code,
+                    asyncio.Lock(),
+                )
+                async with lifecycle_lock:
+                    if session_code not in self.active_connections:
+                        await self._cleanup_empty_session(session_code)
 
         logger.info(
             "WebSocket client removed",
@@ -208,6 +216,41 @@ class ConnectionManager:
                     "timestamp": utc_now().isoformat()
             }
         ))
+
+    async def _cleanup_empty_session(self, session_code: str) -> None:
+        """Persist and clear a session while its lifecycle lock is held."""
+        protocol_service = self.sessions_protocols.get(session_code)
+        if not protocol_service:
+            return
+
+        await protocol_service.wait_for_mutations()
+        try:
+            await asyncio.to_thread(protocol_service.save_to_database)
+            logger.info(f"Session {session_code} data saved to database before cleanup")
+        except Exception as error:
+            logger.error(f"Error saving session {session_code} to database: {error}")
+
+        try:
+            protocol_service.cleanup()
+        except Exception:
+            logger.exception(
+                "Game-session protocol cleanup failed",
+                extra={"event_name": "game_session.cleanup.failed"},
+            )
+        finally:
+            self.sessions_protocols.pop(session_code, None)
+
+        asset_manager = get_server_asset_manager()
+        try:
+            asset_manager.cleanup_session(session_code)
+            logger.info(f"Cleaned up R2 assets for session {session_code}")
+        except Exception:
+            logger.exception(
+                "Asset-session cleanup failed",
+                extra={"event_name": "asset.session.cleanup_failed"},
+            )
+
+        self.game_session_db_ids.pop(session_code, None)
 
     def update_user_role(self, session_code: str, user_id: int, role: str) -> int:
         """Refresh the role used by every live connection for one member."""

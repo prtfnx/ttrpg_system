@@ -92,7 +92,7 @@ class GameSessionProtocolService:
         """Save current state to database - delegates to to_db()"""
         return self.to_db()
 
-    def auto_save(self):
+    async def auto_save(self):
         """Auto-save session data (call this periodically or on important events)"""
         try:
             # Check if enough time has passed since last save to avoid excessive database writes
@@ -106,7 +106,7 @@ class GameSessionProtocolService:
                 logger.debug(f"Session {self.session_code} - Skipping auto-save, only {time_since_last_save:.1f}s since last save")
                 return
 
-            success = self.save_to_database()
+            success = await asyncio.to_thread(self.save_to_database)
             if success:
                 self._last_save_time = current_time
                 logger.info(f"Session {self.session_code} - Auto-save successful")
@@ -398,18 +398,6 @@ class GameSessionProtocolService:
     def cleanup(self):
         """Cleanup resources when session is closed"""
         logger.info(f"Cleaning up GameSessionProtocolService for session {self.session_code}")
-          # Save to database before clearing data
-        if self.db_session and self.game_session_db_id:
-            try:
-                success = self.force_save()
-                if success:
-                    logger.info(f"Session {self.session_code} - Data saved to database before cleanup")
-                else:
-                    logger.warning(f"Session {self.session_code} - Failed to save data before cleanup")
-            except Exception as e:
-                logger.error(f"Session {self.session_code} - Error saving to database during cleanup: {e}")
-        else:
-            logger.warning(f"Session {self.session_code} - No database session available for saving during cleanup")
         self.clients.clear()
         self.client_info.clear()
         self.websocket_to_client.clear()

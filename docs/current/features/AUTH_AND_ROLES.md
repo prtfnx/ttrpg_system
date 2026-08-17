@@ -71,6 +71,11 @@ connection. A missing, expired, malformed, revoked, or disabled-account token
 closes the handshake with WebSocket policy-violation code `1008`. It never
 records token material in logs.
 
+Token, account, session, and membership lookup use a short-lived synchronous
+SQLAlchemy session created inside a worker thread. The event loop awaits that
+worker and remains available to established sockets; the worker closes its own
+session before the connection manager accepts the new socket.
+
 Active sockets are indexed by authenticated `user_id`. Account revocation
 sends a terminal error and closes each indexed socket with code `1008` after
 removing its authorization context. A different user's sockets are unaffected.

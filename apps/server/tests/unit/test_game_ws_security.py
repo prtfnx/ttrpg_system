@@ -1,3 +1,4 @@
+import threading
 from types import SimpleNamespace
 from unittest.mock import AsyncMock, MagicMock
 
@@ -79,7 +80,11 @@ async def test_websocket_auth_rejection_closes_handshake_session(monkeypatch):
     websocket.cookies = {"token": "invalid"}
     websocket.close = AsyncMock()
     db = MagicMock()
-    session_factory = MagicMock(return_value=db)
+    session_threads = []
+    session_factory = MagicMock(side_effect=lambda: (
+        session_threads.append(threading.get_ident()) or db
+    ))
+    event_loop_thread = threading.get_ident()
     monkeypatch.setattr(game_ws, "SessionLocal", session_factory)
     monkeypatch.setattr(game_ws, "_origin_is_allowed", lambda _origin: True)
     monkeypatch.setattr(game_ws, "get_user_from_token", lambda _token, _db: None)
@@ -87,6 +92,7 @@ async def test_websocket_auth_rejection_closes_handshake_session(monkeypatch):
     await game_ws.websocket_game_endpoint(websocket, "TST", MagicMock())
 
     session_factory.assert_called_once_with()
+    assert session_threads and session_threads[0] != event_loop_thread
     db.close.assert_called_once_with()
     websocket.close.assert_awaited_once()
 

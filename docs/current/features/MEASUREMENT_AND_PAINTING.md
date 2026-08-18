@@ -3,8 +3,9 @@
 Audience: contributors changing measurement tools, brush tools, paint sync, or
 table units.
 
-Status: current. Paint strokes, completed measurement geometry, and paint
-templates are server-authoritative multiplayer state.
+Status: current but partial. Paint strokes, completed measurement geometry,
+and paint templates are server-authoritative multiplayer state. Advanced
+measurement-template placement is not available in the UI.
 
 Last source audit: 2026-08-17
 
@@ -22,12 +23,17 @@ Last source audit: 2026-08-17
 
 ## Measurement flow
 
-The browser calculates distances, angles, shapes, snapping, and spell-template
-geometry. A completed line or shape is sent with a stable id; the server
-validates finite, bounded geometry, persists it for the active table, and
-broadcasts the canonical record. Clients request an authoritative snapshot
-after reconnect and table changes and reconcile dedicated server events
-without echoing them back.
+The browser calculates distances, angles, shapes, and snapping. A completed
+line or shape is sent with a stable id; the server validates finite, bounded
+geometry, persists it for the active table, and broadcasts the canonical
+record. Clients request an authoritative snapshot after reconnect and table
+changes and reconcile dedicated server events without echoing them back.
+
+Spell-area template definitions and geometry helpers remain internal building
+blocks, but template placement is not a selectable tool or tab. Do not expose
+it until preview, placement units, snapping, persistence/sync, role authority,
+undo, and reconnect behavior are implemented and tested together. This avoids
+presenting a control that can only end in a placeholder error.
 
 Creators can replace or delete their own geometry. DMs can delete any
 measurement and clear a table; spectators cannot write. A table is limited to
@@ -82,8 +88,9 @@ payloads. Limits are 100 templates per session, 500 strokes per template,
 ## Verification
 
 Run the measurement and painting Vitest suites, browser protocol tests, server
-paint/table protocol tests, and Rust paint/WASM tests. Include a multi-client
-acceptance test for any change to stroke identity or undo authority. Server
-tests also assert that measurement, stroke, and template database operations
-leave the event-loop thread and that an identical stroke-create retry does not
-broadcast twice.
+paint/table protocol tests, and Rust paint/WASM tests. The advanced-panel
+component tests assert that unfinished measurement-template controls stay
+hidden. Include a multi-client acceptance test for any change to stroke
+identity or undo authority. Server tests also assert that measurement, stroke,
+and paint-template database operations leave the event-loop thread and that an
+identical stroke-create retry does not broadcast twice.

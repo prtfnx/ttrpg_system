@@ -3,13 +3,13 @@ import { describe, expect, it, vi } from 'vitest';
 import { TabNavigation } from '../TabNavigation';
 
 describe('TabNavigation', () => {
-  it('renders all tabs', () => {
+  it('renders available tabs and hides unfinished templates', () => {
     render(<TabNavigation selectedTab="measure" onTabChange={vi.fn()} />);
     expect(screen.getByText('Measure')).toBeInTheDocument();
     expect(screen.getByText('Shapes')).toBeInTheDocument();
     expect(screen.getByText('Grids')).toBeInTheDocument();
-    expect(screen.getByText('Templates')).toBeInTheDocument();
     expect(screen.getByText('Settings')).toBeInTheDocument();
+    expect(screen.queryByText('Templates')).not.toBeInTheDocument();
   });
 
   it('active tab has active class', () => {

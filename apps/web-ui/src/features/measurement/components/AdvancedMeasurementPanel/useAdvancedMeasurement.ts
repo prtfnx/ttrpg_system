@@ -4,8 +4,7 @@ import {
   type GridConfiguration,
   type MeasurementLine,
   type MeasurementSettings,
-  type SharedMeasurementRecord,
-  type MeasurementTemplate
+  type SharedMeasurementRecord
 } from '@features/measurement/services/advancedMeasurement.service';
 import { isDM } from '@features/session/types/roles';
 import { ProtocolService } from '@lib/api';
@@ -36,13 +35,11 @@ export const useAdvancedMeasurement = ({
   const [measurements, setMeasurements] = useState<MeasurementLine[]>([]);
   const [shapes, setShapes] = useState<GeometricShape[]>([]);
   const [grids, setGrids] = useState<GridConfiguration[]>([]);
-  const [templates, setTemplates] = useState<MeasurementTemplate[]>([]);
   const [settings, setSettings] = useState<MeasurementSettings | null>(null);
   const [activeGrid, setActiveGrid] = useState<GridConfiguration | null>(null);
   const [selectedTab, setSelectedTab] = useState<TabType>('measure');
   
   const [selectedShapeType, setSelectedShapeType] = useState<ShapeType>('rectangle');
-  const [selectedTemplate, setSelectedTemplate] = useState<string | null>(null);
   const [isCreatingShape, setIsCreatingShape] = useState(false);
   const [shapePoints, setShapePoints] = useState<{ x: number; y: number }[]>([]);
   const [activeMeasurement, setActiveMeasurement] = useState<string | null>(null);
@@ -61,7 +58,6 @@ export const useAdvancedMeasurement = ({
       setMeasurements(advancedMeasurementSystem.getMeasurements());
       setShapes(advancedMeasurementSystem.getShapes());
       setGrids(advancedMeasurementSystem.getGrids());
-      setTemplates(advancedMeasurementSystem.getTemplates());
       setSettings(advancedMeasurementSystem.getSettings());
       setActiveGrid(advancedMeasurementSystem.getActiveGrid());
     } catch (err) {
@@ -212,12 +208,6 @@ export const useAdvancedMeasurement = ({
             }
             break;
 
-          case 'template':
-            if (selectedTemplate) {
-              setError('Template placement is not implemented yet.');
-            }
-            break;
-
           default:
             break;
         }
@@ -242,7 +232,7 @@ export const useAdvancedMeasurement = ({
       canvas.removeEventListener('click', handleCanvasClick);
       canvas.removeEventListener('mousemove', handleCanvasMouseMove);
     };
-  }, [canvasRef, isOpen, activeTool, activeMeasurement, isCreatingShape, shapePoints, selectedShapeType, selectedTemplate]);
+  }, [canvasRef, isOpen, activeTool, activeMeasurement, isCreatingShape, shapePoints, selectedShapeType]);
 
   const handleToolSelect = useCallback((tool: ActiveTool) => {
     setActiveTool(tool);
@@ -326,39 +316,12 @@ export const useAdvancedMeasurement = ({
         setMeasurements(advancedMeasurementSystem.getMeasurements());
         setShapes(advancedMeasurementSystem.getShapes());
         setGrids(advancedMeasurementSystem.getGrids());
-        setTemplates(advancedMeasurementSystem.getTemplates());
         setActiveGrid(advancedMeasurementSystem.getActiveGrid());
       } catch (err) {
         setError('Failed to import data: ' + (err as Error).message);
       }
     };
     reader.readAsText(file);
-  }, []);
-
-  const handleCreateCustomTemplate = useCallback(() => {
-    const name = prompt('Template name:');
-    if (!name) return;
-    
-    const size = parseFloat(prompt('Size (in current units):') || '10');
-    if (isNaN(size)) return;
-
-    try {
-      advancedMeasurementSystem.createTemplate({
-        name,
-        type: 'custom',
-        size,
-        color: '#ff6b35',
-        fillColor: '#ff6b3533',
-        opacity: 0.7,
-        rotatable: true,
-        snapToGrid: true,
-        showArea: true,
-        description: `Custom ${name} template`
-      });
-      setTemplates(advancedMeasurementSystem.getTemplates());
-    } catch (err) {
-      setError('Failed to create template: ' + (err as Error).message);
-    }
   }, []);
 
   const filteredMeasurements = measurements.filter(m => 
@@ -374,15 +337,12 @@ export const useAdvancedMeasurement = ({
     measurements,
     shapes,
     grids,
-    templates,
     settings,
     activeGrid,
     selectedTab,
     setSelectedTab,
     selectedShapeType,
     setSelectedShapeType,
-    selectedTemplate,
-    setSelectedTemplate,
     isCreatingShape,
     shapePoints,
     activeMeasurement,
@@ -402,7 +362,6 @@ export const useAdvancedMeasurement = ({
     handleExportData,
     handleImportData,
     handleFileImport,
-    handleCreateCustomTemplate,
     filteredMeasurements,
     filteredShapes
   };

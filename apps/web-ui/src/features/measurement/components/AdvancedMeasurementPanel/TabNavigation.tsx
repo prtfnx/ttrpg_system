@@ -2,7 +2,7 @@ import clsx from 'clsx';
 import type { FC } from 'react';
 import styles from '../AdvancedMeasurementPanel.module.css';
 
-type TabType = 'measure' | 'shapes' | 'grids' | 'templates' | 'settings';
+type TabType = 'measure' | 'shapes' | 'grids' | 'settings';
 
 interface TabNavigationProps {
   selectedTab: TabType;
@@ -11,7 +11,7 @@ interface TabNavigationProps {
 
 export const TabNavigation: FC<TabNavigationProps> = ({ selectedTab, onTabChange }) => (
   <div className={styles.tabNavigation}>
-    {(['measure', 'shapes', 'grids', 'templates', 'settings'] as TabType[]).map(tab => (
+    {(['measure', 'shapes', 'grids', 'settings'] as TabType[]).map(tab => (
       <button
         type="button"
         key={tab}

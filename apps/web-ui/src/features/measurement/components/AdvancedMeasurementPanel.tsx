@@ -116,12 +116,6 @@ const AdvancedMeasurementPanel: FC<AdvancedMeasurementPanelProps> = ({
                 </div>
               )}
 
-              {selectedTab === 'templates' && (
-                <div className={styles.emptyState}>
-                  <p>Templates tab - Feature under construction</p>
-                </div>
-              )}
-
               {selectedTab === 'settings' && (
                 <div className={styles.emptyState}>
                   <p>Settings tab - Feature under construction</p>

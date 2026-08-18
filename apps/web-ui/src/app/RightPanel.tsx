@@ -1,5 +1,5 @@
 import { useGameStore } from '@/store';
-import { AssetPanel, BackgroundManagementPanel } from '@features/assets';
+import { AssetPanel } from '@features/assets';
 import { CharacterPanel } from '@features/character';
 import { ChatPanel } from '@features/chat';
 import { CompendiumPanel } from '@features/compendium';
@@ -7,7 +7,7 @@ import { FogPanel } from '@features/fog';
 import { LightingPanel } from '@features/lighting';
 import { type SessionRole, canInteract, isDM, isElevated } from '@features/session/types/roles';
 import { MapPanel, TableManagementPanel, TablePanel } from '@features/table';
-import { useActionsEngine, useRenderEngine } from '@lib/wasm/runtime';
+import { useActionsEngine } from '@lib/wasm/runtime';
 import clsx from 'clsx';
 import { useEffect, useState } from 'react';
 import { ActionsPanel } from '../features/actions/components/ActionsPanel';
@@ -22,7 +22,7 @@ const isDevelopment = import.meta.env.DEV;
 
 type TabId = 'tables' | 'table-tools' | 'characters' | 'entities' | 'chat' | 'lighting' | 'fog' |
              'players' | 'actions' | 'quick-actions' | 'compendium' | 'assets' |
-             'performance' | 'backgrounds' | 'customize' | 'map';
+             'performance' | 'customize' | 'map';
 
 const TAB_VISIBLE: Record<TabId, (role: SessionRole) => boolean> = {
   // DM tabs
@@ -31,7 +31,6 @@ const TAB_VISIBLE: Record<TabId, (role: SessionRole) => boolean> = {
   'players':       isDM,
   'lighting':      isDM,
   'fog':           isDM,
-  'backgrounds':   isDM,
   'performance':   isDM,
   // Elevated tabs
   'compendium':    isElevated,
@@ -52,14 +51,13 @@ const TAB_VISIBLE: Record<TabId, (role: SessionRole) => boolean> = {
 const DEFAULT_TAB_ORDER: TabId[] = [
   'tables', 'compendium', 'quick-actions', 'characters', 'entities',
   'players', 'chat', 'lighting', 'fog',
-  'backgrounds', 'map', 'performance', 'customize',
+  'map', 'performance', 'customize',
 ];
 
 export function RightPanel(props: { sessionCode?: string; userInfo?: import('@features/auth').UserInfo; userRole?: SessionRole }) {
   const [activeTab, setActiveTab] = useState<TabId>('entities');
   const sessionRole = (useGameStore(s => s.sessionRole) ?? props.userRole ?? 'player') as SessionRole;
   const actionsEngine = useActionsEngine();
-  const renderEngine = useRenderEngine();
   const isVisible = (tab: TabId) => TAB_VISIBLE[tab]?.(sessionRole) ?? false;
 
   // If current tab becomes hidden, switch to first visible tab
@@ -133,7 +131,6 @@ export function RightPanel(props: { sessionCode?: string; userInfo?: import('@fe
         {tab('chat', 'Chat')}
         {tab('lighting', 'Lighting')}
         {tab('fog', 'Fog')}
-        {tab('backgrounds', 'Backgrounds')}
         {tab('performance', 'Performance')}
         {tab('customize', 'Customize')}
         {tab('map', 'Map')}
@@ -164,7 +161,6 @@ export function RightPanel(props: { sessionCode?: string; userInfo?: import('@fe
         {activeTab === 'chat' && <ChatPanel />}
         {activeTab === 'lighting' && <LightingPanel />}
         {activeTab === 'fog' && <FogPanel />}
-        {activeTab === 'backgrounds' && <BackgroundManagementPanel isOpen={true} onClose={() => setActiveTab('entities')} renderEngine={renderEngine} />}
         {activeTab === 'performance' && <PerformanceSettingsPanel isVisible={true} onClose={() => setActiveTab('entities')} />}
         {activeTab === 'customize' && <CustomizePanel />}
         {activeTab === 'compendium' && <CompendiumPanel />}

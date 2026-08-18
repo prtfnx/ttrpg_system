@@ -43,6 +43,14 @@ The canvas is the interactive render surface. React owns panels, selected
 tools, active table choice, and protocol calls. Rust/WASM owns the render
 engine and canvas-side geometry/rendering work through `WasmRuntime`.
 
+Map imagery uses the normal authorized asset and table/sprite rendering flow.
+There is no released multi-layer background-LOD, texture-streaming, or weather
+renderer contract. The former Backgrounds panel and its simulation-only
+service were removed because changing their controls did not change visible
+renderer state. Reintroducing those features requires explicit
+`WasmRuntimePort` operations, deterministic texture/effect cleanup, visible
+rendering tests, and persistence/synchronization behavior where applicable.
+
 An empty session has no table until a DM creates one or persisted tables load.
 The domain manager and renderer do not invent a default table. Every active
 table and sprite table ID comes from persisted or server-confirmed state.
@@ -163,6 +171,7 @@ WASM-owned:
 - `apps/web-ui/src/features/canvas/components/**/__tests__/`
 - `apps/web-ui/src/features/canvas/hooks/**/__tests__/`
 - `apps/web-ui/src/features/canvas/services/__tests__/InputManager.test.ts`
+- `apps/web-ui/src/features/layout/components/RightPanel/__tests__/RightPanel.test.tsx`
 - `packages/core-table/tests/test_virtual_table.py`
 - `packages/rust-core/tests/wasm_browser.rs`
 - `packages/rust-core/tests/wasm_node.rs`

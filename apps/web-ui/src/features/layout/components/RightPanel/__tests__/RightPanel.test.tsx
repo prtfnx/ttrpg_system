@@ -66,7 +66,6 @@ vi.mock('@features/fog', () => ({
 
 vi.mock('@features/assets', () => ({
   AssetPanel: () => <div data-testid="asset-panel">Asset Panel</div>,
-  BackgroundManagementPanel: () => <div data-testid="background-management-panel">Background Panel</div>,
 }));
 
 describe('RightPanel', () => {
@@ -114,7 +113,7 @@ describe('RightPanel', () => {
       const tabs = [
         'Compendium', 'Tables', 'Quick Actions', 'Characters',
         'Players', 'Entities', 'Chat',
-        'Lighting', 'Fog', 'Backgrounds', 'Performance', 'Customize'
+        'Lighting', 'Fog', 'Performance', 'Customize'
       ];
 
       tabs.forEach(tabName => {
@@ -246,16 +245,12 @@ describe('RightPanel', () => {
     it('shows utility panels when selected', async () => {
       renderWithProviders(<RightPanel sessionCode={mockSessionCode} userInfo={mockUserInfo} />);
 
-      // Test Backgrounds panel  
-      const backgroundsTab = screen.getByRole('tab', { name: /backgrounds/i });
-      await user.click(backgroundsTab);
-      let tabPanel = screen.getByRole('tabpanel');
-      expect(tabPanel).toHaveAttribute('aria-label', 'backgrounds panel');
+      expect(screen.queryByRole('tab', { name: /backgrounds/i })).not.toBeInTheDocument();
 
       // Test Performance panel
       const performanceTab = screen.getByRole('tab', { name: /performance/i });
       await user.click(performanceTab);
-      tabPanel = screen.getByRole('tabpanel');
+      let tabPanel = screen.getByRole('tabpanel');
       expect(tabPanel).toHaveAttribute('aria-label', 'performance panel');
 
       // Test Customize panel

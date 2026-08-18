@@ -17,7 +17,6 @@ const render = renderWithWasmRuntime;
 // Mock all panel components — we test routing, not panel internals
 vi.mock('@features/assets', () => ({
   AssetPanel: () => null,
-  BackgroundManagementPanel: () => <div>Backgrounds Panel</div>,
 }));
 vi.mock('@features/character', () => ({
   CharacterPanel: () => <div>Character Panel</div>,

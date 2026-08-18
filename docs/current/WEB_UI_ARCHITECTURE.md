@@ -106,6 +106,10 @@ and verification commands.
 - Shared utilities should not depend on a mounted React tree unless their name
   makes that dependency clear.
 - Tests should mock the boundary being used: protocol, runtime, store, or DOM.
+- Keep unfinished renderer workflows latent rather than exposing controls that
+  only update local configuration or logs. Background LOD/streaming and weather
+  effects are not released UI features until a tested runtime-port contract
+  applies and cleans up visible renderer state.
 
 Combat UI rules:
 

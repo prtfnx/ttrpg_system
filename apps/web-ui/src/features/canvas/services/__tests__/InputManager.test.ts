@@ -26,7 +26,7 @@ describe('InputManager', () => {
 
   describe('context', () => {
     it('starts with default context', () => {
-      const ctx = manager.getContext();
+      const ctx = manager.getContextSnapshot();
       expect(ctx.isCanvasFocused).toBe(false);
       expect(ctx.selectedSpriteIds).toEqual([]);
       expect(ctx.selectedWallIds).toEqual([]);
@@ -35,7 +35,7 @@ describe('InputManager', () => {
 
     it('updateContext merges partial update', () => {
       manager.updateContext({ isCanvasFocused: true, canUndo: true });
-      const ctx = manager.getContext();
+      const ctx = manager.getContextSnapshot();
       expect(ctx.isCanvasFocused).toBe(true);
       expect(ctx.canUndo).toBe(true);
       expect(ctx.canRedo).toBe(false); // unchanged
@@ -43,17 +43,30 @@ describe('InputManager', () => {
 
     it('notifies context listeners on update', () => {
       const cb = vi.fn();
-      manager.onContextChange(cb);
+      manager.subscribeContext(cb);
       manager.updateContext({ hasClipboard: true });
-      expect(cb).toHaveBeenCalledWith(expect.objectContaining({ hasClipboard: true }));
+      expect(cb).toHaveBeenCalledOnce();
     });
 
     it('unsubscribing context listener stops notifications', () => {
       const cb = vi.fn();
-      const unsubscribe = manager.onContextChange(cb);
+      const unsubscribe = manager.subscribeContext(cb);
       unsubscribe();
       manager.updateContext({ hasClipboard: true });
       expect(cb).not.toHaveBeenCalled();
+    });
+
+    it('keeps one immutable snapshot until the context changes', () => {
+      const selection = ['sprite-one'];
+      const initial = manager.getContextSnapshot();
+
+      manager.updateContext({ selectedSpriteIds: selection });
+      selection.push('sprite-two');
+
+      const updated = manager.getContextSnapshot();
+      expect(updated).not.toBe(initial);
+      expect(manager.getContextSnapshot()).toBe(updated);
+      expect(updated.selectedSpriteIds).toEqual(['sprite-one']);
     });
   });
 

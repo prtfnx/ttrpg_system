@@ -22,6 +22,10 @@ Last source audit: 2026-08-17
 - `apps/web-ui/src/features/table/`: table management panels, thumbnails,
   templates, and table hooks.
 - `apps/web-ui/src/features/canvas/components/GameCanvas.tsx`: canvas surface.
+- `apps/web-ui/src/features/canvas/services/InputManager.ts`: keyboard actions
+  and the read-only canvas-input context store.
+- `apps/web-ui/src/features/canvas/hooks/useKeyboardShortcuts.tsx`: reactive
+  shortcut availability display.
 - `apps/web-ui/src/features/canvas/components/GameClient.tsx`: game shell,
   WebSocket connection, runtime user context, and canvas/panel layout.
 - `apps/web-ui/src/lib/wasm/runtime/`: TypeScript boundary to the Rust renderer.
@@ -138,6 +142,9 @@ Browser-owned:
 - active UI panel state;
 - local optimistic table rows before server confirmation;
 - active tool and canvas interaction state;
+- immutable input-context snapshots for selection, clipboard, undo/redo, and
+  canvas focus; shortcut UI reads them through a subscribed external-store
+  boundary and unsubscribes on unmount;
 - transformed table list used by panels.
 
 WASM-owned:
@@ -155,6 +162,7 @@ WASM-owned:
 - `apps/web-ui/src/features/table/**/__tests__/`
 - `apps/web-ui/src/features/canvas/components/**/__tests__/`
 - `apps/web-ui/src/features/canvas/hooks/**/__tests__/`
+- `apps/web-ui/src/features/canvas/services/__tests__/InputManager.test.ts`
 - `packages/core-table/tests/test_virtual_table.py`
 - `packages/rust-core/tests/wasm_browser.rs`
 - `packages/rust-core/tests/wasm_node.rs`

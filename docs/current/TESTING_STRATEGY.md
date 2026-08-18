@@ -158,6 +158,9 @@ Use Vitest in `apps/web-ui`.
 - Lifecycle tests: disconnect resource-owning clients and clear their timers in
   `afterEach` so cleanup still runs after a failed assertion and cannot affect a
   later test.
+- Canvas input-store tests cover immutable snapshots and subscription cleanup.
+  Keyboard-shortcut hook tests must exercise selection, clipboard, undo/redo,
+  and focus transitions instead of reading `InputManager` private fields.
 
 The jsdom coverage run enforces global statement, branch, function, and line
 thresholds in `apps/web-ui/vitest.config.ts`. These thresholds are the

@@ -14,12 +14,12 @@ export interface KeyboardShortcut {
 }
 
 export interface InputContext {
-  selectedSpriteIds: string[];
-  selectedWallIds: string[];
-  hasClipboard: boolean;
-  canUndo: boolean;
-  canRedo: boolean;
-  isCanvasFocused: boolean;
+  readonly selectedSpriteIds: readonly string[];
+  readonly selectedWallIds: readonly string[];
+  readonly hasClipboard: boolean;
+  readonly canUndo: boolean;
+  readonly canRedo: boolean;
+  readonly isCanvasFocused: boolean;
 }
 
 type InputListener = (event: KeyboardEvent) => void;
@@ -35,7 +35,7 @@ export class InputManager {
     isCanvasFocused: false,
   };
   private listeners: Map<string, InputListener[]> = new Map();
-  private contextListeners: Set<(context: InputContext) => void> = new Set();
+  private contextListeners: Set<() => void> = new Set();
 
   constructor() {
     this.setupDefaultShortcuts();
@@ -199,12 +199,21 @@ export class InputManager {
 
   // Public API
   updateContext(updates: Partial<InputContext>) {
-    this.context = { ...this.context, ...updates };
+    this.context = {
+      ...this.context,
+      ...updates,
+      selectedSpriteIds: updates.selectedSpriteIds === undefined
+        ? this.context.selectedSpriteIds
+        : [...updates.selectedSpriteIds],
+      selectedWallIds: updates.selectedWallIds === undefined
+        ? this.context.selectedWallIds
+        : [...updates.selectedWallIds],
+    };
     this.notifyContextListeners();
   }
 
   private notifyContextListeners() {
-    this.contextListeners.forEach(listener => listener(this.context));
+    this.contextListeners.forEach(listener => listener());
   }
 
   onAction(action: string, callback: InputListener) {
@@ -224,7 +233,7 @@ export class InputManager {
     }
   }
 
-  onContextChange(callback: (context: InputContext) => void) {
+  subscribeContext(callback: () => void): () => void {
     this.contextListeners.add(callback);
     return () => this.contextListeners.delete(callback);
   }
@@ -233,8 +242,8 @@ export class InputManager {
     return Array.from(this.shortcuts.values());
   }
 
-  getContext(): InputContext {
-    return { ...this.context };
+  getContextSnapshot(): InputContext {
+    return this.context;
   }
 
   destroy() {

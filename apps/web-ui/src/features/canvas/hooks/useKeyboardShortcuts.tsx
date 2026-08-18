@@ -4,7 +4,7 @@
  */
 import { inputManager } from '@features/canvas/services';
 import clsx from 'clsx';
-import React, { useEffect, useId, useState } from 'react';
+import React, { useId, useSyncExternalStore } from 'react';
 
 import type { KeyboardShortcut } from '@features/canvas/services';
 import styles from './useKeyboardShortcuts.module.css';
@@ -14,46 +14,19 @@ export interface ShortcutsDisplayProps {
   className?: string;
 }
 
+const shortcuts = inputManager.getShortcuts();
+const subscribeToInputContext = (onStoreChange: () => void) => (
+  inputManager.subscribeContext(onStoreChange)
+);
+const getInputContextSnapshot = () => inputManager.getContextSnapshot();
+
 // eslint-disable-next-line react-refresh/only-export-components
 export const useKeyboardShortcuts = () => {
-  const [shortcuts, setShortcuts] = useState<KeyboardShortcut[]>([]);
-  const [context, setContext] = useState<{
-    selectedSprites: string[];
-    hasClipboard: boolean;
-    canUndo: boolean;
-    canRedo: boolean;
-    isCanvasFocused: boolean;
-  }>({
-    selectedSprites: [],
-    hasClipboard: false,
-    canUndo: false,
-    canRedo: false,
-    isCanvasFocused: false,
-  });
-
-  useEffect(() => {
-    // Get initial shortcuts
-    setShortcuts(inputManager.getShortcuts());
-
-    // Listen for context updates (this would need to be implemented in InputManager)
-    const updateContext = () => {
-      // This is a placeholder - in real implementation, InputManager would emit events
-      setContext({
-        selectedSprites: inputManager['context'].selectedSpriteIds || [],
-        hasClipboard: inputManager['context'].hasClipboard,
-        canUndo: inputManager['context'].canUndo,
-        canRedo: inputManager['context'].canRedo,
-        isCanvasFocused: inputManager['context'].isCanvasFocused,
-      });
-    };
-
-    // Update context initially
-    updateContext();
-
-    return () => {
-      // Cleanup if needed
-    };
-  }, []);
+  const context = useSyncExternalStore(
+    subscribeToInputContext,
+    getInputContextSnapshot,
+    getInputContextSnapshot,
+  );
 
   const getEnabledShortcuts = () => {
     return shortcuts.filter(shortcut => 
@@ -102,7 +75,7 @@ export const KeyboardShortcutsDisplay: React.FC<ShortcutsDisplayProps> = ({
         <h4>Available</h4>
         <ul className={styles.shortcutsList}>
           {getEnabledShortcuts().map(shortcut => (
-            <li key={shortcut.action} className={styles.shortcutItem}>
+            <li key={`${shortcut.action}:${formatShortcut(shortcut)}`} className={styles.shortcutItem}>
               <kbd>{formatShortcut(shortcut)}</kbd>
               <span>{shortcut.description}</span>
             </li>
@@ -114,7 +87,10 @@ export const KeyboardShortcutsDisplay: React.FC<ShortcutsDisplayProps> = ({
         <h4>Disabled</h4>
         <ul className={styles.shortcutsList}>
           {getDisabledShortcuts().map(shortcut => (
-            <li key={shortcut.action} className={clsx(styles.shortcutItem, styles.disabled)}>
+            <li
+              key={`${shortcut.action}:${formatShortcut(shortcut)}`}
+              className={clsx(styles.shortcutItem, styles.disabled)}
+            >
               <kbd>{formatShortcut(shortcut)}</kbd>
               <span>{shortcut.description}</span>
             </li>

@@ -1,5 +1,10 @@
+import asyncio
+
 from core_table.protocol import Message, MessageType
-from database.database import SessionLocal
+from service.character_protocol_persistence_service import (
+    persist_character_token_stats,
+    record_xp_award,
+)
 from service.character_rules import level_for_xp
 from utils.logger import setup_logger
 from utils.roles import is_dm
@@ -12,7 +17,7 @@ logger = setup_logger(__name__)
 class _CharactersMixin(_ProtocolBase):
     """Handler methods for characters domain."""
 
-    def _character_client_ids(
+    async def _character_client_ids(
         self,
         session_id: int,
         character_id: str,
@@ -24,21 +29,25 @@ class _CharactersMixin(_ProtocolBase):
         from managers.character_manager import get_server_character_manager
 
         manager = get_server_character_manager()
-        allowed = []
-        for target_client_id, info in client_info.items():
-            if target_client_id == exclude_client:
-                continue
-            user_id = info.get('user_id')
-            if user_id is None:
-                continue
-            if manager.can_view_character(
-                session_id,
-                character_id,
-                int(user_id),
-                bypass_owner_check=is_dm(info.get('role')),
-            ):
-                allowed.append(target_client_id)
-        return allowed
+        candidates = [
+            (target_client_id, int(info['user_id']), is_dm(info.get('role')))
+            for target_client_id, info in client_info.items()
+            if target_client_id != exclude_client and info.get('user_id') is not None
+        ]
+
+        def resolve_allowed() -> list[str]:
+            return [
+                target_client_id
+                for target_client_id, user_id, bypass in candidates
+                if manager.can_view_character(
+                    session_id,
+                    character_id,
+                    user_id,
+                    bypass_owner_check=bypass,
+                )
+            ]
+
+        return await asyncio.to_thread(resolve_allowed)
 
     async def _broadcast_character_event(
         self,
@@ -50,14 +59,14 @@ class _CharactersMixin(_ProtocolBase):
     ) -> None:
         targets = target_clients
         if targets is None:
-            targets = self._character_client_ids(session_id, character_id, exclude_client)
+            targets = await self._character_client_ids(session_id, character_id, exclude_client)
         if targets is None:
             await self.broadcast_to_session(message, exclude_client or '')
             return
         for target_client_id in targets:
             await self.send_to_client(message, target_client_id)
 
-    def _draft_client_ids(
+    async def _draft_client_ids(
         self,
         session_id: int,
         draft_id: str,
@@ -69,21 +78,25 @@ class _CharactersMixin(_ProtocolBase):
         from managers.character_draft_manager import get_character_draft_manager
 
         manager = get_character_draft_manager()
-        allowed = []
-        for target_client_id, info in client_info.items():
-            if target_client_id == exclude_client:
-                continue
-            user_id = info.get('user_id')
-            if user_id is None:
-                continue
-            if manager.can_view_draft(
-                session_id,
-                draft_id,
-                int(user_id),
-                bypass_owner_check=is_dm(info.get('role')),
-            ):
-                allowed.append(target_client_id)
-        return allowed
+        candidates = [
+            (target_client_id, int(info['user_id']), is_dm(info.get('role')))
+            for target_client_id, info in client_info.items()
+            if target_client_id != exclude_client and info.get('user_id') is not None
+        ]
+
+        def resolve_allowed() -> list[str]:
+            return [
+                target_client_id
+                for target_client_id, user_id, bypass in candidates
+                if manager.can_view_draft(
+                    session_id,
+                    draft_id,
+                    user_id,
+                    bypass_owner_check=bypass,
+                )
+            ]
+
+        return await asyncio.to_thread(resolve_allowed)
 
     async def _broadcast_draft_event(
         self,
@@ -92,7 +105,7 @@ class _CharactersMixin(_ProtocolBase):
         draft_id: str,
         exclude_client: str | None = None,
     ) -> None:
-        for target_client_id in self._draft_client_ids(
+        for target_client_id in await self._draft_client_ids(
             session_id, draft_id, exclude_client
         ):
             await self.send_to_client(message, target_client_id)
@@ -112,8 +125,13 @@ class _CharactersMixin(_ProtocolBase):
                 MessageType.CHARACTER_DRAFT_CREATE_RESPONSE,
                 'Authenticated session and draft_data are required',
             )
-        result = get_character_draft_manager().create_draft(
-            session_id, user_id, data['draft_data'], data.get('current_step', 0)
+        manager = get_character_draft_manager()
+        result = await asyncio.to_thread(
+            manager.create_draft,
+            session_id,
+            user_id,
+            data['draft_data'],
+            data.get('current_step', 0),
         )
         if not result.get('success'):
             return self._draft_error(
@@ -141,10 +159,12 @@ class _CharactersMixin(_ProtocolBase):
             return self._draft_error(
                 MessageType.CHARACTER_DRAFT_LIST_RESPONSE, 'Authenticated session is required'
             )
-        result = get_character_draft_manager().list_drafts(
+        manager = get_character_draft_manager()
+        result = await asyncio.to_thread(
+            manager.list_drafts,
             session_id,
             user_id,
-            bypass_owner_check=is_dm(self._get_client_role(client_id)),
+            is_dm(self._get_client_role(client_id)),
         )
         if not result.get('success'):
             return self._draft_error(MessageType.CHARACTER_DRAFT_LIST_RESPONSE, result['error'])
@@ -162,11 +182,13 @@ class _CharactersMixin(_ProtocolBase):
             return self._draft_error(
                 MessageType.CHARACTER_DRAFT_LOAD_RESPONSE, 'draft_id is required'
             )
-        result = get_character_draft_manager().load_draft(
+        manager = get_character_draft_manager()
+        result = await asyncio.to_thread(
+            manager.load_draft,
             session_id,
             str(draft_id),
             user_id,
-            bypass_owner_check=is_dm(self._get_client_role(client_id)),
+            is_dm(self._get_client_role(client_id)),
         )
         if not result.get('success'):
             return self._draft_error(MessageType.CHARACTER_DRAFT_LOAD_RESPONSE, result['error'])
@@ -189,7 +211,9 @@ class _CharactersMixin(_ProtocolBase):
                 MessageType.CHARACTER_DRAFT_UPDATE_RESPONSE,
                 'draft_id, draft_data, and expected_version are required',
             )
-        result = get_character_draft_manager().update_draft(
+        manager = get_character_draft_manager()
+        result = await asyncio.to_thread(
+            manager.update_draft,
             session_id,
             str(data['draft_id']),
             user_id,
@@ -231,7 +255,9 @@ class _CharactersMixin(_ProtocolBase):
                 MessageType.CHARACTER_DRAFT_FINALIZE_RESPONSE,
                 'draft_id, character_data, and expected_version are required',
             )
-        result = get_character_draft_manager().finalize_draft(
+        manager = get_character_draft_manager()
+        result = await asyncio.to_thread(
+            manager.finalize_draft,
             session_id,
             str(data['draft_id']),
             user_id,
@@ -281,8 +307,13 @@ class _CharactersMixin(_ProtocolBase):
                 MessageType.CHARACTER_DRAFT_ABANDON_RESPONSE,
                 'draft_id and expected_version are required',
             )
-        result = get_character_draft_manager().abandon_draft(
-            session_id, str(data['draft_id']), user_id, data['expected_version']
+        manager = get_character_draft_manager()
+        result = await asyncio.to_thread(
+            manager.abandon_draft,
+            session_id,
+            str(data['draft_id']),
+            user_id,
+            data['expected_version'],
         )
         if not result.get('success'):
             return self._draft_error(
@@ -488,7 +519,11 @@ class _CharactersMixin(_ProtocolBase):
                 'error': f'Session {session_code} not found'
             })
 
-        target_clients = self._character_client_ids(session_id, character_id, client_id)
+        target_clients = await self._character_client_ids(
+            session_id,
+            character_id,
+            client_id,
+        )
         result = await self.actions.delete_character(
             session_id,
             character_id,
@@ -672,8 +707,12 @@ class _CharactersMixin(_ProtocolBase):
         from managers.character_manager import get_server_character_manager
         char_mgr = get_server_character_manager()
 
-        load_result = char_mgr.load_character(
-            session_id, character_id, user_id=user_id, bypass_owner_check=True
+        load_result = await asyncio.to_thread(
+            char_mgr.load_character,
+            session_id,
+            character_id,
+            user_id,
+            True,
         )
         if not load_result.get('success'):
             return Message(MessageType.XP_AWARD_RESPONSE, {'success': False, 'error': load_result.get('error', 'Character not found')})
@@ -699,7 +738,8 @@ class _CharactersMixin(_ProtocolBase):
                 updates['level'] = new_level
                 updates['pending_level_up'] = True
 
-        save_result = char_mgr.update_character(
+        save_result = await asyncio.to_thread(
+            char_mgr.update_character,
             session_id,
             character_id,
             updates,
@@ -711,20 +751,18 @@ class _CharactersMixin(_ProtocolBase):
         if not save_result.get('success'):
             return Message(MessageType.XP_AWARD_RESPONSE, {'success': False, 'error': save_result.get('error', 'Save failed')})
 
-        # Log the award
-        from database.database import SessionLocal
-        from database.models import CharacterLog
         try:
-            with SessionLocal() as db:
-                db.add(CharacterLog(
-                    character_id=character_id, session_id=session_id,
-                    action_type='xp_award',
-                    description=f"+{amount} XP from {source}" + (f": {description}" if description else ""),
-                    user_id=user_id,
-                ))
-                db.commit()
-        except Exception as e:
-            logger.warning(f"Failed to log XP award: {e}")
+            await asyncio.to_thread(
+                record_xp_award,
+                character_id=str(character_id),
+                session_id=session_id,
+                user_id=user_id,
+                amount=amount,
+                source=source,
+                description=description,
+            )
+        except Exception:
+            logger.exception("Failed to log XP award")
 
         resp_data = {
             'success': True, 'character_id': character_id,
@@ -760,11 +798,12 @@ class _CharactersMixin(_ProtocolBase):
         char_mgr = get_server_character_manager()
 
         is_dm_client = is_dm(self._get_client_role(client_id))
-        load_result = char_mgr.load_character(
+        load_result = await asyncio.to_thread(
+            char_mgr.load_character,
             session_id,
             character_id,
-            user_id=user_id,
-            bypass_owner_check=is_dm_client,
+            user_id,
+            is_dm_client,
         )
         if not load_result.get('success'):
             return Message(MessageType.MULTICLASS_RESPONSE, {'success': False, 'error': load_result.get('error', 'Character not found')})
@@ -801,7 +840,8 @@ class _CharactersMixin(_ProtocolBase):
         else:
             updates = {**char_data, 'classes': classes, 'level': total_level}
 
-        save_result = char_mgr.update_character(
+        save_result = await asyncio.to_thread(
+            char_mgr.update_character,
             session_id,
             character_id,
             updates,
@@ -856,66 +896,36 @@ class _CharactersMixin(_ProtocolBase):
                 extra={"event_name": "character.stats_sync.started"},
             )
 
-            # Get all entities linked to this character
-            db = SessionLocal()
-            try:
-                from database.models import Entity as DBEntity
-                from database.models import VirtualTable as DBVirtualTable
+            token_updates = await asyncio.to_thread(
+                persist_character_token_stats,
+                session_id,
+                character_id,
+                updated_stats,
+            )
+            for token_update in token_updates:
+                table = self.table_manager.tables.get(token_update.table_id)
+                if table:
+                    entity_id = table.sprite_to_entity.get(token_update.sprite_id)
+                    in_memory_entity = table.entities.get(entity_id)
+                    if in_memory_entity:
+                        for field, value in updated_stats.items():
+                            setattr(in_memory_entity, field, value)
 
-                table_records = db.query(DBVirtualTable).filter(
-                    DBVirtualTable.session_id == session_id
-                ).all()
+                await self.broadcast_to_session(Message(MessageType.SPRITE_UPDATE, {
+                    'sprite_id': token_update.sprite_id,
+                    'table_id': token_update.table_id,
+                    'updates': updated_stats,
+                    'operation': 'update',
+                    'source': 'character_sync',
+                }), '')
 
-                if not table_records:
-                    logger.debug(f"No table found for session {session_id}")
-                    return
-
-                table_by_id = {table.id: table for table in table_records}
-                linked_entities = db.query(DBEntity).filter(
-                    DBEntity.table_id.in_(table_by_id),
-                    DBEntity.character_id == character_id
-                ).all()
-
-                if not linked_entities:
-                    logger.debug(f"No tokens linked to character {character_id}")
-                    return
-
-                # Update each linked entity
-                broadcasts = []
-                for entity in linked_entities:
-                    # Update database entity
-                    for field, value in updated_stats.items():
-                        setattr(entity, field, value)
-
-                    table_record = table_by_id.get(entity.table_id)
-                    table = self.table_manager.tables.get(
-                        str(table_record.table_id) if table_record else ""
-                    )
-                    if table:
-                        in_memory_entity = table.entities.get(entity.sprite_id)
-                        if in_memory_entity:
-                            for field, value in updated_stats.items():
-                                setattr(in_memory_entity, field, value)
-
-                    broadcasts.append((
-                        entity.sprite_id,
-                        table_record.table_id if table_record else None,
-                    ))
-
-                db.commit()
-                logger.info(f"Synced stats from character {character_id} to {len(linked_entities)} token(s)")
-
-                for sprite_id, table_id in broadcasts:
-                    await self.broadcast_to_session(Message(MessageType.SPRITE_UPDATE, {
-                        'sprite_id': sprite_id,
-                        'table_id': table_id,
-                        'updates': updated_stats,
-                        'operation': 'update',
-                        'source': 'character_sync',
-                    }), '')
-
-            finally:
-                db.close()
+            logger.info(
+                "Synchronized character stats to linked tokens",
+                extra={
+                    "event_name": "character.stats_sync.completed",
+                    "token_count": len(token_updates),
+                },
+            )
 
         except Exception:
             logger.exception("Character-to-token synchronization failed")

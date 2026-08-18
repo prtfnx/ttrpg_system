@@ -1,5 +1,7 @@
+import asyncio
 import importlib
-from unittest.mock import AsyncMock, MagicMock
+import time
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 from sqlalchemy import create_engine
@@ -187,3 +189,36 @@ async def test_protocol_broadcasts_draft_only_to_owner_clients_and_dm(context):
     assert response.data["success"] is True
     targets = {call.args[1] for call in protocol.send_to_client.await_args_list}
     assert targets == {"owner-other", "dm-client"}
+
+
+@pytest.mark.unit
+async def test_protocol_draft_persistence_does_not_block_event_loop():
+    from core_table.protocol import Message, MessageType
+    from core_table.server import TableManager
+    from service.server_protocol import ServerProtocol
+
+    manager = MagicMock()
+
+    def slow_list(*_args, **_kwargs):
+        time.sleep(0.05)
+        return {"success": True, "drafts": []}
+
+    manager.list_drafts.side_effect = slow_list
+    protocol = ServerProtocol(TableManager(), session_manager=MagicMock())
+    protocol._get_session_id = MagicMock(return_value=1)
+    protocol._get_user_id = MagicMock(return_value=2)
+    protocol._get_client_role = MagicMock(return_value="player")
+    marker = asyncio.Event()
+    asyncio.get_running_loop().call_later(0.01, marker.set)
+
+    with patch(
+        "managers.character_draft_manager.get_character_draft_manager",
+        return_value=manager,
+    ):
+        response = await protocol.handle_character_draft_list(
+            Message(MessageType.CHARACTER_DRAFT_LIST_REQUEST, {}),
+            "client-one",
+        )
+
+    assert response.data["success"] is True
+    assert marker.is_set(), "character draft persistence blocked the event loop"

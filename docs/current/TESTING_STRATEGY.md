@@ -47,6 +47,13 @@ table hydration, movement-policy/settings round trips, and character-link
 lookups. Sprite and table protocol tests inject deliberately slow persistence
 helpers and assert that an independent event-loop heartbeat still runs.
 
+Character persistence tests cover session-scoped linked-token writes and XP
+audit records. Character and draft protocol tests inject slow manager,
+permission, and token-persistence calls and assert that an independent
+event-loop heartbeat still runs. The token-sync regression also verifies that
+detached sprite IDs resolve through the in-memory sprite-to-entity index before
+the broadcast is emitted.
+
 Combat command tests assert worker-thread execution for duplicate lookup,
 journal persistence, restore, combatant construction, movement validation,
 and table saves. A deliberately blocked persistence fake verifies that an

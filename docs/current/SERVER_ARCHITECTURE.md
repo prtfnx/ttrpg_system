@@ -68,6 +68,13 @@ lookups and table wall/layer/paint hydration or settings writes execute in
 ORM session and returns detached scalar/dictionary data; shared in-memory table
 state is read or mutated only after control returns to the event loop.
 
+Character protocol fallbacks follow the same ownership rule. Character and
+draft manager calls, recipient permission queries, XP audit writes, and linked
+token stat persistence run in workers. Direct protocol persistence lives in
+`character_protocol_persistence_service`, creates a session inside the worker,
+and returns detached token/table identifiers. In-memory character-token state
+and WebSocket delivery remain on the event-loop thread.
+
 A per-session lifecycle lock covers first-client protocol construction and
 last-client cleanup. Concurrent first connections share one reconstructed
 protocol service. A reconnect cannot attach to a service while its final save
@@ -124,7 +131,8 @@ Protocol behavior is split by domain under `apps/server/service/protocol/`.
 - `assets.py` and `asset_deletion_service.py`: asset transport plus
   transactional unlink and retryable R2 deletion outbox processing.
 - `players.py`: player status, list, kick, ban.
-- `characters.py`: character save, load, update, rolls, logs.
+- `characters.py`: character save, load, update, drafts, advancement, rolls,
+  logs, and worker-offloaded linked-token persistence.
 - `combat.py`: combat, turns, conditions, cover, opportunity attacks.
 - `session.py`: layer settings, game mode, session rules.
 - `chat.py`: chat messages and history.

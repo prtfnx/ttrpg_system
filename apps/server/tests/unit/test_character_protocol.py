@@ -780,6 +780,35 @@ class TestXpAward:
         assert delivered == {"viewer-client", "dm-client"}
         proto.broadcast_to_session.assert_not_awaited()
 
+    async def test_character_visibility_lookup_does_not_block_event_loop(self):
+        from core_table.protocol import Message, MessageType
+
+        proto = _make_proto()
+        proto.session_manager.client_info = {
+            "viewer-client": {"user_id": 2, "role": "player"},
+        }
+        manager = MagicMock()
+
+        def slow_can_view(*_args, **_kwargs):
+            time.sleep(0.05)
+            return True
+
+        manager.can_view_character.side_effect = slow_can_view
+        marker = asyncio.Event()
+        asyncio.get_running_loop().call_later(0.01, marker.set)
+
+        with patch(
+            "managers.character_manager.get_server_character_manager",
+            return_value=manager,
+        ):
+            await proto._broadcast_character_event(
+                Message(MessageType.CHARACTER_UPDATE, {"character_id": "char-1"}),
+                1,
+                "char-1",
+            )
+
+        assert marker.is_set(), "character visibility lookup blocked the event loop"
+
     async def test_session_not_found_returns_error(self):
         from core_table.protocol import Message, MessageType
 
@@ -810,12 +839,8 @@ class TestXpAward:
             "character_data": {"data": {"experience": 150, "level": 1}},
         }
 
-        db_mock = MagicMock()
-        db_mock.__enter__ = MagicMock(return_value=db_mock)
-        db_mock.__exit__ = MagicMock(return_value=False)
-
         with patch("managers.character_manager.get_server_character_manager", return_value=char_mgr):
-            with patch("database.database.SessionLocal", return_value=db_mock):
+            with patch("service.protocol.characters.record_xp_award"):
                 resp = await proto.handle_xp_award(msg, "dm1")
 
         assert resp.data["success"] is True
@@ -838,17 +863,85 @@ class TestXpAward:
         char_mgr.load_character.return_value = self._char_data(xp=250, level=1)
         char_mgr.update_character.return_value = {"success": True, "version": 5}
 
-        db_mock = MagicMock()
-        db_mock.__enter__ = MagicMock(return_value=db_mock)
-        db_mock.__exit__ = MagicMock(return_value=False)
-
         with patch("managers.character_manager.get_server_character_manager", return_value=char_mgr):
-            with patch("database.database.SessionLocal", return_value=db_mock):
+            with patch("service.protocol.characters.record_xp_award"):
                 resp = await proto.handle_xp_award(msg, "dm1")
 
         assert resp.data["success"] is True
         assert resp.data["leveled_up"] is True
         assert resp.data["new_level"] == 2
+
+    async def test_xp_persistence_does_not_block_event_loop(self):
+        from core_table.protocol import Message, MessageType
+
+        proto = _make_proto()
+        proto._get_client_role = MagicMock(return_value="owner")
+        char_mgr = MagicMock()
+
+        def slow_load(*_args, **_kwargs):
+            time.sleep(0.05)
+            return self._char_data(xp=100, level=1)
+
+        char_mgr.load_character.side_effect = slow_load
+        char_mgr.update_character.return_value = {"success": True, "version": 5}
+        marker = asyncio.Event()
+        asyncio.get_running_loop().call_later(0.01, marker.set)
+
+        with patch(
+            "managers.character_manager.get_server_character_manager",
+            return_value=char_mgr,
+        ), patch("service.protocol.characters.record_xp_award"):
+            response = await proto.handle_xp_award(
+                Message(MessageType.XP_AWARD, {
+                    "character_id": "c1",
+                    "amount": 50,
+                    "source": "quest",
+                }),
+                "dm1",
+            )
+
+        assert response.data["success"] is True
+        assert marker.is_set(), "XP persistence blocked the event loop"
+
+
+@pytest.mark.unit
+async def test_character_token_sync_updates_memory_without_blocking(monkeypatch):
+    from core_table.protocol import MessageType
+    from service.character_protocol_persistence_service import TokenStatUpdate
+
+    proto = _make_proto()
+    in_memory_entity = MagicMock(hp=1, max_hp=2, ac=3)
+    table = MagicMock()
+    table.sprite_to_entity = {"sprite-one": 7}
+    table.entities = {7: in_memory_entity}
+    proto.table_manager.tables["table-one"] = table
+
+    def slow_persist(*_args, **_kwargs):
+        time.sleep(0.05)
+        return [TokenStatUpdate(sprite_id="sprite-one", table_id="table-one")]
+
+    monkeypatch.setattr(
+        "service.protocol.characters.persist_character_token_stats",
+        slow_persist,
+    )
+    marker = asyncio.Event()
+    asyncio.get_running_loop().call_later(0.01, marker.set)
+
+    await proto._sync_character_stats_to_tokens(
+        1,
+        "character-one",
+        {"data": {"stats": {"hp": 9, "maxHp": 12, "ac": 17}}},
+    )
+
+    assert marker.is_set(), "linked-token persistence blocked the event loop"
+    assert (in_memory_entity.hp, in_memory_entity.max_hp, in_memory_entity.ac) == (
+        9,
+        12,
+        17,
+    )
+    message = proto.broadcast_to_session.await_args.args[0]
+    assert message.type == MessageType.SPRITE_UPDATE
+    assert message.data["table_id"] == "table-one"
 
 
 # ---------------------------------------------------------------------------

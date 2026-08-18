@@ -6,7 +6,7 @@ compendium data, or character-token links.
 Status: usable. Character storage and authority and the bundled starter
 compendium are implemented.
 
-Last source audit: 2026-08-13
+Last source audit: 2026-08-17
 
 ## Ownership
 
@@ -15,6 +15,8 @@ Last source audit: 2026-08-13
   archive behavior.
 - `service/character_schema.py` owns the versioned character document.
 - `service/character_rules.py` is the versioned XP and multiclass rules source.
+- `service/character_protocol_persistence_service.py` owns short-lived XP-log
+  and linked-token stat transactions used directly by protocol handlers.
 - `managers/character_draft_manager.py` owns durable wizard drafts.
 - `routers/compendium.py` exposes read-only, bounded compendium REST routes.
 - `service/compendium_artifact.py` verifies production artifact manifests.
@@ -35,11 +37,14 @@ compare-and-swap. A conflict returns the canonical document and current version.
 Accepted HP, max-HP, and AC changes synchronize every linked token in the
 session and use normal authorized sprite broadcasts.
 
-The character manager intentionally keeps short-lived synchronous SQLAlchemy
-transactions, but async protocol actions run those I/O-bound calls through a
-worker thread. Do not call character-manager persistence directly on the
-WebSocket event loop; keep computation outside the worker and await the single
-database operation boundary.
+The character and draft managers intentionally keep short-lived synchronous
+SQLAlchemy transactions, but async protocol actions run those I/O-bound calls
+through a worker thread. Recipient permission checks, draft operations, XP
+load/update/logging, multiclass load/update, and linked-token stat writes use
+the same boundary. Each direct persistence helper creates and closes its own
+worker-owned session and returns detached data. Do not pass ORM sessions or
+rows across the boundary. Apply returned token updates to the in-memory table
+and send WebSocket messages only after control returns to the event loop.
 
 `character_save_request` creates a character only. It cannot overwrite an
 existing id without a version. XP, level, class, class-list, pending-level, and
@@ -149,6 +154,7 @@ public.
 Run:
 
 - `tests/unit/test_character_protocol.py`;
+- `tests/unit/test_character_protocol_persistence_service.py`;
 - `tests/unit/test_character_overhaul.py`;
 - `tests/unit/test_character_drafts.py`;
 - `tests/integration/test_compendium_routes.py`;

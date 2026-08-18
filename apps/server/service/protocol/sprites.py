@@ -1,7 +1,12 @@
+import asyncio
 import json
 
 from core_table.protocol import Message, MessageType
-from database.database import SessionLocal
+from service.canvas_persistence_service import (
+    count_controlled_sprites,
+    load_entity_character_id,
+    load_movement_policy,
+)
 from service.movement_validator import MovementValidator
 from utils.logger import setup_logger
 from utils.roles import can_interact, get_sprite_limit, is_dm
@@ -77,18 +82,11 @@ class _SpritesMixin(_ProtocolBase):
         # Enforce per-role sprite creation limit for non-DM players
         if not is_dm(role):
             limit = get_sprite_limit(role)
-            if user_id is not None and hasattr(self.table_manager, 'db_session') and self.table_manager.db_session:
-                from database.models import Entity
-                # Pre-filter with SQL LIKE, then exact-check with json.loads
-                # (substring match alone could miscount: user_id 1 matches [10])
-                uid = str(user_id)
-                candidates = self.table_manager.db_session.query(Entity.controlled_by).filter(
-                    Entity.controlled_by.isnot(None),
-                    Entity.controlled_by.contains(uid),
-                ).all()
-                owned_count = sum(
-                    1 for (cb_raw,) in candidates
-                    if user_id in json.loads(cb_raw or '[]')
+            if user_id is not None and session_id is not None:
+                owned_count = await asyncio.to_thread(
+                    count_controlled_sprites,
+                    int(session_id),
+                    int(user_id),
                 )
                 if owned_count >= limit:
                     return Message(MessageType.ERROR, {'error': f'Sprite limit of {limit} reached for your role'})
@@ -221,7 +219,6 @@ class _SpritesMixin(_ProtocolBase):
         if table is not None and not table_edit_override:
             try:
                 from core_table.session_rules import SessionRules
-                from database.crud import get_game_mode, get_session_rules_json
                 session_code = self._get_session_code()
                 rules = None
                 game_mode = 'free_roam'
@@ -230,16 +227,10 @@ class _SpritesMixin(_ProtocolBase):
                     if cached:
                         rules, game_mode = cached
                     else:
-                        db = SessionLocal()
-                        try:
-                            rules_json = get_session_rules_json(db, session_code)
-                            game_mode = get_game_mode(db, session_code)
-                            if rules_json and rules_json != '{}':
-                                rules_data = json.loads(rules_json)
-                                rules_data.setdefault('session_id', session_code)
-                                rules = SessionRules.from_dict(rules_data)
-                        finally:
-                            db.close()
+                        rules, game_mode = await asyncio.to_thread(
+                            load_movement_policy,
+                            session_code,
+                        )
                         if rules is not None:
                             self._rules_cache[session_code] = (rules, game_mode)
 
@@ -584,16 +575,10 @@ class _SpritesMixin(_ProtocolBase):
                 if not character_id:
                     # Look it up from the DB entity
                     try:
-                        from database.models import Entity as DBEntity
-                        db = SessionLocal()
-                        try:
-                            entity_row = db.query(DBEntity).filter(
-                                DBEntity.sprite_id == sprite_id
-                            ).first()
-                            if entity_row:
-                                character_id = entity_row.character_id
-                        finally:
-                            db.close()
+                        character_id = await asyncio.to_thread(
+                            load_entity_character_id,
+                            str(sprite_id),
+                        )
                     except Exception as _e:
                         logger.debug(f"Could not look up character_id for sprite {sprite_id}: {_e}")
 

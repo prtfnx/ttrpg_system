@@ -42,6 +42,11 @@ Session protocol tests cover worker-thread execution for rules, mode, layer,
 and active-table operations. They also verify that a foreign-session table and
 a failed layer-settings write cannot produce an accepted broadcast.
 
+Canvas persistence tests cover session-scoped exact sprite counts, detached
+table hydration, movement-policy/settings round trips, and character-link
+lookups. Sprite and table protocol tests inject deliberately slow persistence
+helpers and assert that an independent event-loop heartbeat still runs.
+
 Combat command tests assert worker-thread execution for duplicate lookup,
 journal persistence, restore, combatant construction, movement validation,
 and table saves. A deliberately blocked persistence fake verifies that an

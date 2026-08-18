@@ -5,7 +5,7 @@ character-token links, or vision fields on tokens.
 
 Status: current but partial.
 
-Last source audit: 2026-08-03
+Last source audit: 2026-08-17
 
 ## Source owners
 
@@ -13,6 +13,8 @@ Last source audit: 2026-08-03
   rotate, update, delete, preview, compendium sprite, and sprite request
   handlers.
 - `apps/server/database/models.py`: `Entity` persistence for sprites/tokens.
+- `apps/server/service/canvas_persistence_service.py`: thread-ready sprite
+  quota, movement-policy, and character-link fallbacks.
 - `apps/web-ui/src/store.ts`: browser sprite list, sprite update helpers,
   ownership checks, and active table context.
 - `apps/web-ui/src/features/canvas/components/EntitiesPanel.tsx`: entity list
@@ -69,7 +71,8 @@ Server handlers enforce the role rules:
 
 - Spectators cannot create, move, resize, rotate, or update sprites.
 - Non-DM users can create sprites only on non-DM layers and are limited by
-  `get_sprite_limit()`.
+  `get_sprite_limit()`. The durable count is scoped to the authenticated game
+  session and performs exact JSON controller matching after its SQL prefilter.
 - DMs can create sprites on DM layers; non-DMs cannot.
 - DM-created sprites get an empty `controlled_by` list.
 - Player-created sprites are controlled by the creating user.
@@ -95,6 +98,9 @@ state after the same control check, but do not write the database.
 
 `handle_sprite_update()` also syncs HP, max HP, and AC back to a linked
 character when a token stat changes and a character id can be resolved.
+Sprite-limit counts, uncached movement rules, and durable character-link
+fallbacks run in worker threads. Each helper creates and closes its own ORM
+session and returns only plain values to the async protocol handler.
 
 ## Browser and WASM flow
 
@@ -108,6 +114,7 @@ the render engine, not by importing generated bindings in feature code.
 ## Tests to run
 
 - `apps/server/tests/unit/test_sprites_protocol.py`
+- `apps/server/tests/unit/test_canvas_persistence_service.py`
 - `apps/server/tests/unit/test_movement_validator.py`
 - `apps/web-ui/src/lib/websocket/__tests__/clientProtocol.test.ts`
 - `apps/web-ui/src/features/entities/components/EntitiesPanel/__tests__/`

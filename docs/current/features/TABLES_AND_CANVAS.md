@@ -5,7 +5,7 @@ canvas bootstrap, or table settings.
 
 Status: current but partial.
 
-Last source audit: 2026-08-11
+Last source audit: 2026-08-17
 
 ## Source owners
 
@@ -13,6 +13,8 @@ Last source audit: 2026-08-11
   active-table, table update, scale, move, and table settings handlers.
 - `apps/server/service/protocol/session.py`: layer settings and active-table
   database helpers.
+- `apps/server/service/canvas_persistence_service.py`: worker-owned table
+  hydration and settings persistence.
 - `apps/server/database/models.py`: `VirtualTable`, `GamePlayer.active_table_id`,
   walls, paint strokes, layer settings, and table lighting columns.
 - `apps/web-ui/src/store.ts`: table list, active table, optimistic create,
@@ -127,6 +129,9 @@ Server-owned:
 Active-table reads and writes run outside the asyncio event-loop thread with a
 worker-owned ORM session. Layer settings are also persisted off-thread and are
 constrained to a table in the authenticated session before any broadcast.
+Join-time wall/layer/paint fallbacks are loaded together in one worker-owned
+session, and validated table lighting/grid settings are persisted through the
+same async-to-sync boundary. ORM rows do not cross back to the event loop.
 
 Browser-owned:
 
@@ -144,6 +149,7 @@ WASM-owned:
 ## Tests to run
 
 - `apps/server/tests/unit/test_tables_protocol.py`
+- `apps/server/tests/unit/test_canvas_persistence_service.py`
 - `apps/server/tests/unit/test_game_session_protocol.py`
 - `apps/web-ui/src/lib/websocket/__tests__/clientProtocol.test.ts`
 - `apps/web-ui/src/features/table/**/__tests__/`

@@ -4,6 +4,9 @@ Tests for the _TablesMixin protocol handlers.
 Focus: user-visible behaviour — permission gates, validation errors, and
 correct response message types. DB and WASM side-effects are mocked.
 """
+import asyncio
+import time
+from types import SimpleNamespace
 from unittest.mock import AsyncMock, MagicMock
 
 import pytest
@@ -217,6 +220,29 @@ class TestTableRequest:
         msg = Message(MessageType.TABLE_REQUEST, {"table_id": "t1"})
         resp = await proto.handle_table_request(msg, "c1")
         assert resp.type == MessageType.TABLE_RESPONSE
+
+    async def test_slow_hydration_does_not_block_event_loop(self, monkeypatch):
+        proto = _ProtoStub(role="owner")
+        table_mock = MagicMock()
+        table_mock.to_dict.return_value = {"table_id": "t1", "layers": {}}
+        table_mock.walls = {}
+        proto.actions.get_table = AsyncMock(return_value=_ok_result(table=table_mock))
+
+        def slow_hydration(_table_id):
+            time.sleep(0.05)
+            return SimpleNamespace(walls=[], layer_settings={}, paint_strokes=[])
+
+        monkeypatch.setattr("service.protocol.tables.load_table_hydration", slow_hydration)
+        marker = asyncio.Event()
+        asyncio.get_running_loop().call_later(0.01, marker.set)
+
+        response = await proto.handle_table_request(
+            Message(MessageType.TABLE_REQUEST, {"table_id": "t1"}),
+            "c1",
+        )
+
+        assert response.type == MessageType.TABLE_RESPONSE
+        assert marker.is_set(), "table hydration blocked the event loop"
 
     async def test_player_gets_layer_filtered_response(self):
         """Player role should have layers filtered to visible subset."""

@@ -62,6 +62,12 @@ the command on the event loop, execute the complete database transaction and
 serialization in a synchronous worker function, then deliver the plain result
 over WebSocket on the event loop.
 
+Canvas database fallbacks follow it as well. Sprite quota/rules/character-link
+lookups and table wall/layer/paint hydration or settings writes execute in
+`canvas_persistence_service` through `asyncio.to_thread`. Each helper owns its
+ORM session and returns detached scalar/dictionary data; shared in-memory table
+state is read or mutated only after control returns to the event loop.
+
 A per-session lifecycle lock covers first-client protocol construction and
 last-client cleanup. Concurrent first connections share one reconstructed
 protocol service. A reconnect cannot attach to a service while its final save

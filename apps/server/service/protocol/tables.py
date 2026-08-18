@@ -1,5 +1,8 @@
+import asyncio
+
 from core_table.async_actions_protocol import Position
 from core_table.protocol import Message, MessageType
+from service.canvas_persistence_service import load_table_hydration, persist_table_settings
 from utils.logger import setup_logger
 from utils.roles import get_visible_layers, is_dm
 
@@ -171,51 +174,17 @@ class _TablesMixin(_ProtocolBase):
             if table_obj2 and hasattr(table_obj2, 'walls'):
                 walls_list = [w.to_dict() for w in table_obj2.walls.values()]
 
-            # Fall back to DB if in-memory walls are empty (e.g. after server restart)
-            if not walls_list and table_id:
-                try:
-                    from database.database import SessionLocal
-                    from database.models import Wall as WallModel
-                    _db = SessionLocal()
-                    try:
-                        db_walls = _db.query(WallModel).filter(WallModel.table_id == str(table_id)).all()
-                        walls_list = [w.to_dict() for w in db_walls if hasattr(w, 'to_dict')]
-                    finally:
-                        _db.close()
-                except Exception as _e:
-                    logger.warning(f"Could not load walls from DB for table {table_id}: {_e}")
-
-            # Include persisted layer settings for join-time sync
             layer_settings_data = {}
-            if table_id:
-                try:
-                    import json as _json
-
-                    from database import crud as _crud
-                    from database.database import SessionLocal
-                    _db = SessionLocal()
-                    try:
-                        _db_table = _crud.get_virtual_table_by_id(_db, str(table_id))
-                        if _db_table and _db_table.layer_settings:
-                            layer_settings_data = _json.loads(_db_table.layer_settings)
-                    finally:
-                        _db.close()
-                except Exception as _e:
-                    logger.warning(f"Could not load layer_settings from DB: {_e}")
-
-            # Include paint strokes for join-time sync
             paint_strokes_list: list = []
             if table_id:
                 try:
-                    from database import crud as _crud2
-                    from database.database import SessionLocal
-                    _db2 = SessionLocal()
-                    try:
-                        paint_strokes_list = [s.to_dict() for s in _crud2.get_paint_strokes_for_table(_db2, str(table_id))]
-                    finally:
-                        _db2.close()
+                    hydration = await asyncio.to_thread(load_table_hydration, str(table_id))
+                    if not walls_list:
+                        walls_list = hydration.walls
+                    layer_settings_data = hydration.layer_settings
+                    paint_strokes_list = hydration.paint_strokes
                 except Exception as _e:
-                    logger.warning(f"Could not load paint strokes from DB for table {table_id}: {_e}")
+                    logger.warning(f"Could not hydrate table {table_id} from DB: {_e}")
 
             return Message(MessageType.TABLE_RESPONSE, {'name': table_name, 'client_id': client_id,
                                                             'table_data': table_data_with_hashes,
@@ -322,25 +291,22 @@ class _TablesMixin(_ProtocolBase):
         session_id = self._get_session_id(msg)
         if session_id:
             try:
-                from database import crud, schemas
-                from database.database import SessionLocal
-                db = SessionLocal()
-                try:
-                    update = schemas.VirtualTableUpdate(
-                        dynamic_lighting_enabled=table.dynamic_lighting_enabled,
-                        fog_exploration_mode=table.fog_exploration_mode,
-                        ambient_light_level=table.ambient_light_level,
-                        grid_cell_px=table.grid_cell_px,
-                        cell_distance=table.cell_distance,
-                        distance_unit=table.distance_unit,
-                        grid_enabled=table.grid_enabled,
-                        snap_to_grid=table.snap_to_grid,
-                        grid_color_hex=table.grid_color_hex,
-                        background_color_hex=table.background_color_hex,
-                    )
-                    crud.update_virtual_table(db, str(table.table_id), update)
-                finally:
-                    db.close()
+                await asyncio.to_thread(
+                    persist_table_settings,
+                    str(table.table_id),
+                    {
+                        'dynamic_lighting_enabled': table.dynamic_lighting_enabled,
+                        'fog_exploration_mode': table.fog_exploration_mode,
+                        'ambient_light_level': table.ambient_light_level,
+                        'grid_cell_px': table.grid_cell_px,
+                        'cell_distance': table.cell_distance,
+                        'distance_unit': table.distance_unit,
+                        'grid_enabled': table.grid_enabled,
+                        'snap_to_grid': table.snap_to_grid,
+                        'grid_color_hex': table.grid_color_hex,
+                        'background_color_hex': table.background_color_hex,
+                    },
+                )
             except Exception:
                 logger.exception("Table lighting persistence failed")
 

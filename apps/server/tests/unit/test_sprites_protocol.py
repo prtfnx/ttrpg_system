@@ -7,6 +7,8 @@ Focus: user-visible behaviour — correct response types, permission gates,
 validation errors, and broadcast calls. Implementation details (DB rows,
 WASM state) are intentionally not asserted.
 """
+import asyncio
+import time
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
@@ -200,6 +202,28 @@ class TestCreateSprite:
         })
         await proto.handle_create_sprite(msg, "c1")
         assert captured.get("character_id") == "char-42"
+
+    async def test_slow_player_limit_query_does_not_block_event_loop(self, monkeypatch):
+        proto = _ProtoStub(role="player")
+        proto.actions.create_sprite = AsyncMock(return_value=_ok_result(
+            sprite_data={"sprite_id": "sp-1", "x": 0, "y": 0, "layer": "tokens"}
+        ))
+
+        def slow_count(_session_id, _user_id):
+            time.sleep(0.05)
+            return 0
+
+        monkeypatch.setattr("service.protocol.sprites.count_controlled_sprites", slow_count)
+        marker = asyncio.Event()
+        asyncio.get_running_loop().call_later(0.01, marker.set)
+
+        response = await proto.handle_create_sprite(Message(MessageType.SPRITE_CREATE, {
+            "table_id": "t1",
+            "sprite_data": {"x": 0, "y": 0, "layer": "tokens"},
+        }), "c1")
+
+        assert response.type == MessageType.SPRITE_RESPONSE
+        assert marker.is_set(), "sprite quota lookup blocked the event loop"
 
 
 # ---------------------------------------------------------------------------

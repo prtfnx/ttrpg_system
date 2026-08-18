@@ -78,7 +78,7 @@ def get_or_create_demo_session(db: Session) -> models.GameSession:
 
 
 @router.get("/demo")
-async def start_demo(request: Request, db: Session = Depends(get_db)):
+def start_demo(request: Request, db: Session = Depends(get_db)):
     """
     Start a demo session for unauthenticated users.
 

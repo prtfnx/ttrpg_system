@@ -27,7 +27,7 @@ def generate_invite_code(length: int = 12) -> str:
     return ''.join(secrets.choice(alphabet) for _ in range(length))
 
 @router.post("/create", response_model=schemas.InvitationResponse, status_code=201)
-async def create_invitation(
+def create_invitation(
     invite_data: schemas.CreateInvitationRequest,
     request: Request,
     current_user: Annotated[schemas.User, Depends(get_current_active_user)],
@@ -88,7 +88,7 @@ async def create_invitation(
     return schemas.InvitationResponse.from_orm(invitation)
 
 @router.get("/session/{session_code}", response_model=List[schemas.InvitationResponse])
-async def list_session_invitations(
+def list_session_invitations(
     session_code: str,
     current_user: Annotated[schemas.User, Depends(get_current_active_user)],
     db: Session = Depends(get_db)
@@ -113,7 +113,7 @@ async def list_session_invitations(
     return [schemas.InvitationResponse.from_orm(inv) for inv in invitations]
 
 @router.delete("/{invitation_id}")
-async def revoke_invitation(
+def revoke_invitation(
     invitation_id: int,
     request: Request,
     current_user: Annotated[schemas.User, Depends(get_current_active_user)],
@@ -159,7 +159,7 @@ async def revoke_invitation(
     return {"success": True, "message": "Invitation revoked"}
 
 @router.get("/{invite_code}")
-async def get_invitation(invite_code: str, db: Session = Depends(get_db)):
+def get_invitation(invite_code: str, db: Session = Depends(get_db)):
     """Get invitation details"""
     invitation = db.query(models.SessionInvitation).filter(
         models.SessionInvitation.invite_code == invite_code
@@ -174,7 +174,7 @@ async def get_invitation(invite_code: str, db: Session = Depends(get_db)):
     return schemas.InvitationResponse.from_orm(invitation)
 
 @router.post("/{invite_code}/accept")
-async def accept_invitation(
+def accept_invitation(
     invite_code: str,
     request: Request,
     current_user: Annotated[schemas.User, Depends(get_current_active_user)],

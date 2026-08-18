@@ -4,7 +4,7 @@ Audience: contributors adding FastAPI routes, pages, or JSON endpoints.
 
 Status: usable.
 
-Last source audit: 2026-07-08
+Last source audit: 2026-08-17
 
 ## Route ownership
 
@@ -46,9 +46,17 @@ router = APIRouter(prefix="/api/example", tags=["example"])
 
 
 @router.get("/status")
-async def get_example_status(db: Session = Depends(get_db)):
+def get_example_status(db: Session = Depends(get_db)):
     return {"ok": True}
 ```
+
+Use a normal `def` path operation when it calls the synchronous SQLAlchemy,
+email, filesystem, or other blocking APIs used by this server. FastAPI runs
+normal path operations in its worker thread pool. Use `async def` only when the
+route awaits an async API; any synchronous work inside such a route must run
+through `utils.blocking.run_blocking`, with the SQLAlchemy session created and
+closed inside the worker function. Never pass a live ORM session from the
+event-loop thread into a worker.
 
 Then include it in `apps/server/main.py`:
 
@@ -87,5 +95,7 @@ database fixtures from `apps/server/tests/conftest.py`.
 - Prefix and tag match the owning domain.
 - API routes return JSON, not HTML redirects, unless that is intentional.
 - Authentication and ownership checks are server-side.
+- Blocking-library routes use `def`; mixed async routes isolate synchronous
+  work in a worker-owned transaction.
 - Integration tests cover success and at least one failure path.
 - Docs mention the route only if contributors need to know it exists.

@@ -23,6 +23,15 @@ across SQLite tests and PostgreSQL. Produce those values with
 `apps/server/utils/time.py::utc_now`; do not call the deprecated
 `datetime.utcnow()` API or insert local time.
 
+## HTTP execution model
+
+HTTP path operations that use the server's synchronous SQLAlchemy, email, or
+filesystem APIs are normal `def` functions. FastAPI dispatches those operations
+to its worker thread pool, keeping blocking calls off the application event
+loop. Routes that await an async provider or live WebSocket operation remain
+`async def`; their synchronous transaction must be a narrow worker function
+that owns and closes its SQLAlchemy session.
+
 ## Session runtime
 
 Game WebSockets flow through this path:

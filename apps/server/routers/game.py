@@ -45,7 +45,7 @@ def generate_unique_session_code(db: Session, length: int = 6, max_attempts: int
     raise RuntimeError(f"Could not generate unique session code after {max_attempts} attempts")
 
 @router.get("/")
-async def game_lobby(
+def game_lobby(
     request: Request,
     current_user: Annotated[schemas.User, Depends(get_current_active_user)],
     db: Session = Depends(get_db)
@@ -54,7 +54,7 @@ async def game_lobby(
     return RedirectResponse(url="/users/dashboard", status_code=302)
 
 @router.post("/create")
-async def create_game_session(
+def create_game_session(
     request: Request,
     current_user: Annotated[schemas.User, Depends(get_current_active_user)],
     game_name: str = Form(...),
@@ -71,7 +71,7 @@ async def create_game_session(
     )
 
 @router.post("/join")
-async def join_game_session(
+def join_game_session(
     request: Request,
     current_user: Annotated[schemas.User, Depends(get_current_active_user)],
     session_code: str = Form(...),
@@ -102,7 +102,7 @@ async def join_game_session(
     )
 
 @router.get("/session/{session_code}")
-async def game_session_page(
+def game_session_page(
     session_code: str,
     request: Request,
     current_user: Annotated[schemas.User, Depends(get_current_active_user)],
@@ -150,7 +150,7 @@ async def game_session_page(
     })
 
 @router.get("/session/{session_code}/settings")
-async def session_settings(
+def session_settings(
     session_code: str,
     request: Request,
     current_user: Annotated[schemas.User, Depends(get_current_active_user)],
@@ -181,7 +181,7 @@ async def session_settings(
     })
 
 @router.post("/session/{session_code}/settings")
-async def update_session_settings(
+def update_session_settings(
     session_code: str,
     request: Request,
     current_user: Annotated[schemas.User, Depends(get_current_active_user)],
@@ -215,7 +215,7 @@ async def update_session_settings(
     )
 
 @router.post("/session/{session_code}/delete")
-async def delete_session(
+def delete_session(
     session_code: str,
     current_user: Annotated[schemas.User, Depends(get_current_active_user)],
     db: Session = Depends(get_db)
@@ -240,7 +240,7 @@ async def delete_session(
     return RedirectResponse(url="/users/dashboard", status_code=302)
 
 @router.get("/session/{session_code}/admin")
-async def game_session_admin(
+def game_session_admin(
     session_code: str,
     request: Request,
     current_user: Annotated[schemas.User, Depends(get_current_active_user)],
@@ -272,7 +272,7 @@ async def game_session_admin(
     })
 
 @router.get("/api/sessions/{session_code}/players")
-async def get_session_players(
+def get_session_players(
     session_code: str,
     current_user: Annotated[schemas.User, Depends(get_current_active_user)],
     db: Session = Depends(get_db)
@@ -305,7 +305,7 @@ async def get_session_players(
     } for p in players_data]
 
 @router.get("/api/sessions/{session_code}/me")
-async def get_session_membership(
+def get_session_membership(
     session_code: str,
     current_user: Annotated[schemas.User, Depends(get_current_active_user)],
     db: Session = Depends(get_db)
@@ -463,7 +463,7 @@ def get_role_permissions(role: str) -> list:
     return get_permissions(role)
 
 @router.get("/api/sessions", response_model=List[game_models.GameSession])
-async def get_user_sessions(
+def get_user_sessions(
     current_user: Annotated[schemas.User, Depends(get_current_active_user)],
     db: Session = Depends(get_db)
 ):

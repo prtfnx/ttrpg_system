@@ -127,7 +127,7 @@ def _authenticate_password(
     )
     return auth_models.Token(access_token=access_token, token_type="bearer")
 
-async def get_current_user(request: Request, db: Session = Depends(get_db)):
+def get_current_user(request: Request, db: Session = Depends(get_db)):
     credentials_exception = HTTPException(
         status_code=status.HTTP_401_UNAUTHORIZED,
         detail="Could not validate credentials",
@@ -162,7 +162,7 @@ async def get_current_user(request: Request, db: Session = Depends(get_db)):
     record_auth("token", "success")
     return user
 
-async def get_current_user_optional(request: Request, db: Session = Depends(get_db)):
+def get_current_user_optional(request: Request, db: Session = Depends(get_db)):
     """
     Optional authentication - returns user if authenticated, None if not.
     Does not raise exceptions for missing/invalid tokens.
@@ -184,13 +184,13 @@ async def get_current_user_optional(request: Request, db: Session = Depends(get_
     except AccessTokenRejected:
         return None
 
-async def get_current_active_user(current_user: Annotated[schemas.User, Depends(get_current_user)]):
+def get_current_active_user(current_user: Annotated[schemas.User, Depends(get_current_user)]):
     if current_user.disabled:
         raise HTTPException(status_code=400, detail="Inactive user")
     return current_user
 
 @router.get("/me")
-async def users_me(
+def users_me(
     request: Request,
     current_user: Annotated[schemas.User, Depends(get_current_active_user)],
     db: Session = Depends(get_db)
@@ -232,7 +232,7 @@ async def users_me(
         })
 
 @router.post("/token")
-async def login_for_access_token(
+def login_for_access_token(
     form_data: Annotated[OAuth2PasswordRequestForm, Depends()],
     request: Request,
     db: Session = Depends(get_db)
@@ -253,7 +253,7 @@ async def login_for_access_token(
     return _authenticate_password(form_data, request, db)
 
 @router.get("/me/items/")
-async def read_own_items(
+def read_own_items(
     current_user: Annotated[schemas.User, Depends(get_current_active_user)],
 ):
     return [{"item_id": "Foo", "owner": current_user.username}]
@@ -288,7 +288,7 @@ def login_page(request: Request):
     })
 
 @router.post("/login")
-async def login(
+def login(
     request: Request,
     form_data: Annotated[OAuth2PasswordRequestForm, Depends()],
     invite_code: str = Form(None),
@@ -398,7 +398,7 @@ async def login(
         }, status_code=401)  # 401 Unauthorized
 
 @router.get("/verify")
-async def verify_email(
+def verify_email(
     request: Request,
     token: str,
     db: Session = Depends(get_db)
@@ -442,7 +442,7 @@ async def verify_email(
         }, status_code=404)
 
 @router.get("/dashboard")
-async def dashboard(
+def dashboard(
     request: Request,
     current_user: Annotated[schemas.User, Depends(get_current_active_user)],
     db: Session = Depends(get_db)
@@ -606,16 +606,16 @@ def register_user_view(
         }, status_code=500)
 
 @router.get("/edit")
-async def edit_profile_redirect(request: Request):
+def edit_profile_redirect(request: Request):
     return RedirectResponse("/users/settings", status_code=301)
 
 
 @router.post("/edit")
-async def edit_post_redirect(request: Request):
+def edit_post_redirect(request: Request):
     return RedirectResponse("/users/settings", status_code=301)
 
 @router.get("/auth-error")
-async def auth_error_page(request: Request):
+def auth_error_page(request: Request):
     return templates.TemplateResponse(request, "auth_error.html", {
         "error_message": "Authentication failed. Please try again."
     })
@@ -629,7 +629,7 @@ def forgot_password_page(request: Request):
 
 
 @router.post("/forgot-password")
-async def forgot_password_submit(
+def forgot_password_submit(
     request: Request,
     email: str = Form(...),
     db: Session = Depends(get_db),
@@ -745,7 +745,7 @@ async def reset_password_submit(
 # ─── User Settings ────────────────────────────────────────────────────────────
 
 @router.get("/settings")
-async def settings_page(
+def settings_page(
     request: Request,
     current_user: Annotated[schemas.User, Depends(get_current_active_user)],
 ):
@@ -760,7 +760,7 @@ async def settings_page(
 
 
 @router.post("/settings/profile")
-async def settings_profile(
+def settings_profile(
     request: Request,
     current_user: Annotated[schemas.User, Depends(get_current_active_user)],
     full_name: str = Form(""),
@@ -837,7 +837,7 @@ async def settings_password(
 
 
 @router.post("/settings/email")
-async def settings_email(
+def settings_email(
     request: Request,
     current_user: Annotated[schemas.User, Depends(get_current_active_user)],
     new_email: str = Form(...),

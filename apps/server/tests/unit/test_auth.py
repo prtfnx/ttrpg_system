@@ -28,8 +28,7 @@ class TestTokenGeneration:
         assert "exp" in payload
         assert payload["sub"] == "testuser"
 
-    @pytest.mark.asyncio
-    async def test_optional_auth_rejects_revoked_token(self, test_db, test_user):
+    def test_optional_auth_rejects_revoked_token(self, test_db, test_user):
         from routers.users import create_access_token, get_current_user_optional
 
         token = create_access_token(
@@ -42,10 +41,9 @@ class TestTokenGeneration:
         test_db.commit()
         request = SimpleNamespace(cookies={"token": token}, headers={})
 
-        assert await get_current_user_optional(request, test_db) is None
+        assert get_current_user_optional(request, test_db) is None
 
-    @pytest.mark.asyncio
-    async def test_optional_auth_rejects_disabled_user(self, test_db, test_user):
+    def test_optional_auth_rejects_disabled_user(self, test_db, test_user):
         from routers.users import create_access_token, get_current_user_optional
 
         test_user.disabled = True
@@ -58,7 +56,7 @@ class TestTokenGeneration:
         )
         request = SimpleNamespace(cookies={"token": token}, headers={})
 
-        assert await get_current_user_optional(request, test_db) is None
+        assert get_current_user_optional(request, test_db) is None
 
 @pytest.mark.unit
 class TestPasswordHashing:

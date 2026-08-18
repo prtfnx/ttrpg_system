@@ -170,6 +170,12 @@ locks the user's database row while checking and reserving an upload intent, so
 concurrent PostgreSQL workers cannot race the durable quota. Keep this durable
 layer even if the process-local throttle is later moved to a shared limiter.
 
+Asset unlink authorization is rechecked from authenticated user/session state
+inside the same transaction that removes the link. The asset row is locked so
+final-link decisions serialize across PostgreSQL workers. R2 deletion occurs
+only from a committed durable outbox job; a database rollback therefore cannot
+leave metadata pointing at an object the request already deleted.
+
 ## Input and audit helpers
 
 `utils/security.py` validates session codes, invite-code format, and some user

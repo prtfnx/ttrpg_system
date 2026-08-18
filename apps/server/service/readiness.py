@@ -10,6 +10,7 @@ logger = setup_logger(__name__)
 
 REQUIRED_TABLES = {
     "assets",
+    "asset_deletion_jobs",
     "asset_upload_intents",
     "alembic_version",
     "game_sessions",

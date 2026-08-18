@@ -26,6 +26,8 @@ from fastapi.templating import Jinja2Templates
 from prometheus_client import CONTENT_TYPE_LATEST, generate_latest
 from routers import audit, auth, compendium, demo, game, invitations, telemetry, users
 from routers.users import get_current_user_optional
+from service.asset_deletion_service import process_pending_asset_deletions
+from service.asset_manager import get_server_asset_manager
 from service.game_session import ConnectionManager
 from service.readiness import ReadinessChecker
 from sqlalchemy.orm import Session
@@ -93,6 +95,7 @@ async def lifespan(app: FastAPI):
     cleanup_task = asyncio.create_task(rate_limiter_cleanup_task())
     audit_retention_cleanup = asyncio.create_task(audit_retention_task())
     chat_retention_cleanup = asyncio.create_task(chat_retention_task())
+    asset_deletion_cleanup = asyncio.create_task(asset_deletion_cleanup_task())
 
     yield
 
@@ -101,6 +104,7 @@ async def lifespan(app: FastAPI):
     cleanup_task.cancel()
     audit_retention_cleanup.cancel()
     chat_retention_cleanup.cancel()
+    asset_deletion_cleanup.cancel()
     try:
         await cleanup_task
     except asyncio.CancelledError:
@@ -111,6 +115,10 @@ async def lifespan(app: FastAPI):
         pass
     try:
         await chat_retention_cleanup
+    except asyncio.CancelledError:
+        pass
+    try:
+        await asset_deletion_cleanup
     except asyncio.CancelledError:
         pass
     logger.info("Application stopped", extra={"event_name": "application.stopped"})
@@ -203,6 +211,37 @@ async def chat_retention_task():
                 "Chat retention cleanup failed",
                 extra={"event_name": "chat.retention.failed", "outcome": "error"},
             )
+
+
+async def asset_deletion_cleanup_task():
+    """Deliver durable R2 deletion jobs in bounded retryable batches."""
+    while True:
+        started = time.perf_counter()
+        try:
+            storage = get_server_asset_manager().r2_manager
+            completed = await asyncio.to_thread(
+                process_pending_asset_deletions,
+                storage,
+            )
+            record_job("asset_deletion", "success", time.perf_counter() - started)
+            if completed:
+                logger.info(
+                    "Asset deletion cleanup completed",
+                    extra={
+                        "event_name": "asset.deletion.cleanup.completed",
+                        "deleted_count": completed,
+                    },
+                )
+            await asyncio.sleep(60)
+        except asyncio.CancelledError:
+            break
+        except Exception:
+            record_job("asset_deletion", "error", time.perf_counter() - started)
+            logger.exception(
+                "Asset deletion cleanup failed",
+                extra={"event_name": "asset.deletion.cleanup.failed", "outcome": "error"},
+            )
+            await asyncio.sleep(60)
 
 # Create FastAPI app
 app = FastAPI(

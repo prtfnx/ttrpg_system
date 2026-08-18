@@ -115,7 +115,8 @@ Protocol behavior is split by domain under `apps/server/service/protocol/`.
 - `session.py`: session rules, game mode, layer settings, and player
   active-table persistence use worker-owned ORM sessions; accepted updates are
   broadcast only after the durable operation succeeds.
-- `assets.py`: asset upload, download, hash, list, delete.
+- `assets.py` and `asset_deletion_service.py`: asset transport plus
+  transactional unlink and retryable R2 deletion outbox processing.
 - `players.py`: player status, list, kick, ban.
 - `characters.py`: character save, load, update, rolls, logs.
 - `combat.py`: combat, turns, conditions, cover, opportunity attacks.

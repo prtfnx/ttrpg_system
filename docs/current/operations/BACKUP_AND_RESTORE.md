@@ -5,7 +5,7 @@ Audience: operators and maintainers protecting persisted game data.
 Status: development recovery only. Independent production backup is not yet
 implemented.
 
-Last source audit: 2026-07-20
+Last source audit: 2026-08-17
 
 ## Current development contract
 
@@ -32,6 +32,13 @@ Do not keep running the smoke command while cleanup is denied.
 
 The former SQLite file backup tool and SQLite-bound R2 snapshot workflow were
 removed. Their manifests cannot represent a PostgreSQL recovery point.
+
+`asset_deletion_jobs` is part of relational recovery state. Restore it with the
+matching `assets` and `session_assets` rows before restarting application
+workers. A restored pending/retry/processing row is safe to redeliver because
+R2 object deletion is idempotent; do not discard these rows merely because the
+corresponding object appears absent. A `failed` row requires operator review
+and an explicit retry after storage permission or availability is repaired.
 
 ## Development recovery
 

@@ -37,6 +37,7 @@ def _engine_at_head(*, omit_last_migration=False):
     with engine.begin() as connection:
         for table in (
             "assets",
+            "asset_deletion_jobs",
             "asset_upload_intents",
             "game_sessions",
             "session_assets",
@@ -82,6 +83,21 @@ def test_readiness_rejects_schema_behind_head(tmp_path):
 
     assert result["status"] == "not_ready"
     assert result["checks"]["database"]["code"] == "schema_revision_mismatch"
+
+
+def test_readiness_rejects_missing_asset_deletion_outbox(tmp_path):
+    engine = _engine_at_head()
+    with engine.begin() as connection:
+        connection.execute(text("DROP TABLE asset_deletion_jobs"))
+    checker = ReadinessChecker(
+        _settings(), engine, FakeR2Manager(), tmp_path / "index.html",
+        FakeCompendiumArtifact()
+    )
+
+    result = checker.run()
+
+    assert result["status"] == "not_ready"
+    assert result["checks"]["database"]["code"] == "required_schema_missing"
 
 
 def test_database_failure_is_bounded_and_does_not_log_connection_details(tmp_path, caplog):

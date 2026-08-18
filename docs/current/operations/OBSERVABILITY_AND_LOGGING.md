@@ -93,6 +93,13 @@ An R2 token needs object delete for smoke cleanup and bucket list for the
 inventory audit. Stop after `cleanup_required=true`; fix permissions and remove
 objects under `pending/operations/smoke-` before trying again.
 
+Normal asset removal emits distinct audit actions for `asset.unlink`,
+`asset.deletion.queued`, `asset.deletion.retry`,
+`asset.deletion.completed`, and terminal `asset.deletion.failed`. The bounded
+background worker records `asset_deletion` job duration/outcome metrics and
+`asset.deletion.cleanup.*` logs. Alert on failed job executions and durable
+`failed` outbox rows; object keys stay out of these events.
+
 ## Remaining operator work
 
 - configure an external Prometheus scraper and dashboards;

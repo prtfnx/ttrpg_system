@@ -5,16 +5,18 @@ Audience: contributors changing asset upload, authorization, R2, or recovery.
 Status: current. Image upload and storage integrity are implemented. Independent
 production backup remains an operations blocker.
 
-Last source audit: 2026-08-13
+Last source audit: 2026-08-17
 
 ## Ownership
 
 - `service/protocol/assets.py` owns the WebSocket asset contract.
 - `service/asset_manager.py` owns authorization, intents, validation, and
   metadata transactions.
-- `storage/r2.py` owns Cloudflare R2 operations.
-- `database/models.py` defines `Asset`, `SessionAsset`, and
-  `AssetUploadIntent`.
+- `service/asset_deletion_service.py` owns transactional unlinking and the
+  retryable deletion outbox.
+- `storage/r2_manager.py` owns Cloudflare R2 operations.
+- `database/models.py` defines `Asset`, `SessionAsset`, `AssetUploadIntent`,
+  and `AssetDeletionJob`.
 - `scripts/r2_storage_admin.py` owns CORS/lifecycle setup, smoke tests, and
   database-to-bucket audits.
 
@@ -57,6 +59,28 @@ worker thread and expose one awaited boundary to protocol handlers. Keep each
 SQLAlchemy session wholly inside that worker; never pass a live ORM session
 back to the event loop.
 
+## Delete flow
+
+Deletion is an eventual, recoverable two-stage operation:
+
+1. The authenticated user requests removal from the active session.
+2. One database transaction locks the asset, rechecks session membership and
+   owner/DM/uploader authority, removes that session link, and writes
+   `asset_deletion_jobs` when it was the final link.
+3. The WebSocket response reports the link removed and whether object deletion
+   was queued. It does not make success depend on an R2 call.
+4. A bounded background worker calls R2 outside the database transaction. On
+   success it transactionally removes the outbox row and asset metadata. On
+   failure it records exponential retry state; after ten attempts it records a
+   durable permanent-failure state for operator action.
+
+R2 deletion is retried idempotently. A crash after the object call but before
+the final database commit safely repeats the call. Asset rows remain while a
+job is pending, but zero session links make them unavailable for list/download.
+Duplicate linking locks the asset and rejects an object with a pending delete,
+preventing a new link from racing object removal. Assets with any remaining
+session link are never queued.
+
 Upload intents are durable; a process restart does not turn an unconfirmed
 object into a usable asset. The removed local metadata fallback and legacy
 `assets.session_id` column are not active paths.
@@ -70,8 +94,8 @@ authorized, content-verified presigned upload flow above.
 
 Membership is checked for every operation. Role policy governs uploads and
 moderation. Reads require a link to the active session. Delete checks session
-visibility and owner/DM authority. Object keys and presigned URLs are not
-written to normal logs.
+visibility and owner/DM/uploader authority. Object keys and presigned URLs are
+not written to normal logs.
 
 ## Operations
 
@@ -86,6 +110,6 @@ must not be used as production recovery evidence. Follow
 
 ## Verification
 
-Run asset-storage unit tests, R2 administration tests, browser asset tests, and
-the release smoke flow documented in
+Run asset-storage unit tests, Alembic/model-schema tests, R2 administration
+tests, browser asset tests, and the release smoke flow documented in
 [Release checklist](../operations/RELEASE_CHECKLIST.md).

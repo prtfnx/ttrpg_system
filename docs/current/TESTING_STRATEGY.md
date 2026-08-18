@@ -48,6 +48,12 @@ and table saves. A deliberately blocked persistence fake verifies that an
 independent event-loop heartbeat still advances, while existing rollback tests
 cover failed journal writes and token movement reversal.
 
+Asset deletion tests cover unlink commit failure before any R2 call, durable
+retry after storage failure, idempotent repeated cleanup, preservation when
+another session link remains, and event-loop responsiveness. Model and Alembic
+tests must include the deletion-outbox table. PostgreSQL contract coverage is
+the authority for row-lock behavior across workers.
+
 Run:
 
 ```powershell

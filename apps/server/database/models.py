@@ -250,6 +250,53 @@ class SessionAsset(Base):
     added_by_user = relationship("User", foreign_keys=[added_by])
 
 
+class AssetDeletionJob(Base):
+    """Durable outbox entry for deleting an unreferenced object from R2."""
+
+    __tablename__ = "asset_deletion_jobs"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
+    asset_id: Mapped[int] = mapped_column(
+        Integer,
+        ForeignKey("assets.id"),
+        nullable=False,
+        unique=True,
+        index=True,
+    )
+    r2_asset_id: Mapped[str] = mapped_column(String(100), nullable=False)
+    r2_key: Mapped[str] = mapped_column(String(500), nullable=False)
+    session_code: Mapped[Optional[str]] = mapped_column(String(20), nullable=True)
+    requested_by: Mapped[Optional[int]] = mapped_column(
+        Integer,
+        ForeignKey("users.id", ondelete="SET NULL"),
+        nullable=True,
+    )
+    status: Mapped[str] = mapped_column(
+        String(20),
+        nullable=False,
+        default="pending",
+        index=True,
+    )
+    attempts: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    last_error: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    next_attempt_at: Mapped[Optional[datetime]] = mapped_column(
+        DateTime,
+        nullable=True,
+        index=True,
+    )
+    created_at: Mapped[Optional[datetime]] = mapped_column(
+        DateTime,
+        nullable=True,
+        default=utc_now,
+    )
+    updated_at: Mapped[Optional[datetime]] = mapped_column(
+        DateTime,
+        nullable=True,
+        default=utc_now,
+        onupdate=utc_now,
+    )
+
+
 class AssetUploadIntent(Base):
     """Durable upload transaction created before a presigned R2 PUT is issued."""
     __tablename__ = "asset_upload_intents"

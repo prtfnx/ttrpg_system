@@ -2,13 +2,16 @@
 
 import asyncio
 import base64
+import threading
 import time
 from types import SimpleNamespace
 
 import xxhash
 from core_table.protocol import Message, MessageType
 from database import crud, models, schemas
+from service import asset_deletion_service as deletion_module
 from service import asset_manager as asset_manager_module
+from service.asset_deletion_service import process_asset_deletion_job
 from service.asset_manager import AssetRequest, ServerAssetManager
 from service.protocol import assets as asset_protocol_module
 from service.protocol.assets import _AssetsMixin
@@ -418,7 +421,7 @@ async def test_upload_requires_durable_session_membership(
     assert test_db.query(models.AssetUploadIntent).count() == 0
 
 
-async def test_delete_keeps_metadata_when_storage_delete_fails(
+async def test_delete_unlinks_and_retries_when_storage_delete_fails(
     monkeypatch, test_db, test_user, test_game_session
 ):
     manager = _manager(monkeypatch, test_db, delete_success=False)
@@ -426,7 +429,7 @@ async def test_delete_keeps_metadata_when_storage_delete_fails(
     assert await manager.confirm_upload(response.asset_id, test_user.id, upload_success=True)
 
     testing_session = sessionmaker(autocommit=False, autoflush=False, bind=test_db.get_bind())
-    monkeypatch.setattr(asset_protocol_module, "SessionLocal", testing_session)
+    monkeypatch.setattr(deletion_module, "SessionLocal", testing_session)
     monkeypatch.setattr(asset_protocol_module, "get_server_asset_manager", lambda: manager)
     protocol = AssetProtocolStub(test_user.id, test_game_session.session_code)
 
@@ -438,14 +441,144 @@ async def test_delete_keeps_metadata_when_storage_delete_fails(
         "client-1",
     )
 
+    assert result.type == MessageType.SUCCESS
+    assert result.data["deletion_queued"] is True
+    assert manager.r2_manager.deleted_keys == []
+    assert test_db.query(models.Asset).count() == 1
+    assert test_db.query(models.SessionAsset).count() == 0
+    job = test_db.query(models.AssetDeletionJob).one()
+
+    cleanup = process_asset_deletion_job(job.id, manager.r2_manager)
+
+    assert cleanup.completed is False
+    assert cleanup.retry_scheduled is True
+    test_db.expire_all()
+    job = test_db.query(models.AssetDeletionJob).one()
+    assert job.status == "retry"
+    assert job.attempts == 1
+    assert test_db.query(models.Asset).count() == 1
+    actions = {
+        audit.action for audit in test_db.query(models.AuditLog).all()
+    }
+    assert {
+        "asset.unlink",
+        "asset.deletion.queued",
+        "asset.deletion.retry",
+    } <= actions
+
+    manager.r2_manager.delete_success = True
+    job.next_attempt_at = deletion_module.utc_now()
+    test_db.commit()
+    completed = process_asset_deletion_job(job.id, manager.r2_manager)
+    repeated = process_asset_deletion_job(job.id, manager.r2_manager)
+
+    assert completed.completed is True
+    assert repeated.completed is True
+    test_db.expire_all()
+    assert test_db.query(models.AssetDeletionJob).count() == 0
+    assert test_db.query(models.Asset).count() == 0
+    assert len(manager.r2_manager.deleted_keys) == 2
+
+
+async def test_delete_commit_failure_never_calls_storage(
+    monkeypatch, test_db, test_user, test_game_session
+):
+    manager = _manager(monkeypatch, test_db)
+    response = await _request_upload(manager, test_user, test_game_session)
+    assert await manager.confirm_upload(response.asset_id, test_user.id, upload_success=True)
+    testing_session = sessionmaker(autocommit=False, autoflush=False, bind=test_db.get_bind())
+
+    def failing_session():
+        db = testing_session()
+
+        def fail_commit():
+            raise RuntimeError("commit failed")
+
+        db.commit = fail_commit
+        return db
+
+    monkeypatch.setattr(deletion_module, "SessionLocal", failing_session)
+    protocol = AssetProtocolStub(test_user.id, test_game_session.session_code)
+
+    result = await protocol.handle_asset_delete_request(
+        Message(MessageType.ASSET_DELETE_REQUEST, {"asset_id": response.asset_id}),
+        "client-1",
+    )
+
     assert result.type == MessageType.ERROR
-    assert result.data["error"] == "Failed to delete asset from storage"
+    assert manager.r2_manager.deleted_keys == []
+    test_db.expire_all()
     assert test_db.query(models.Asset).count() == 1
     assert test_db.query(models.SessionAsset).count() == 1
-    audit = test_db.query(models.AuditLog).filter_by(action="asset.delete").one()
-    assert audit.outcome == "failure"
-    assert audit.target_id == response.asset_id
-    assert "storage_delete_failed" in audit.details_json
+    assert test_db.query(models.AssetDeletionJob).count() == 0
+
+
+async def test_delete_preserves_object_with_another_session_link(
+    monkeypatch, test_db, test_user, test_game_session
+):
+    manager = _manager(monkeypatch, test_db)
+    response = await _request_upload(manager, test_user, test_game_session)
+    assert await manager.confirm_upload(response.asset_id, test_user.id, upload_success=True)
+    asset = test_db.query(models.Asset).one()
+    other_session = crud.create_game_session(
+        test_db,
+        schemas.GameSessionCreate(name="Other"),
+        test_user.id,
+        "OTHER2",
+    )
+    test_db.add(models.SessionAsset(
+        session_id=other_session.id,
+        asset_id=asset.id,
+        display_name="map.png",
+        added_by=test_user.id,
+    ))
+    test_db.commit()
+    testing_session = sessionmaker(autocommit=False, autoflush=False, bind=test_db.get_bind())
+    monkeypatch.setattr(deletion_module, "SessionLocal", testing_session)
+    protocol = AssetProtocolStub(test_user.id, test_game_session.session_code)
+
+    result = await protocol.handle_asset_delete_request(
+        Message(MessageType.ASSET_DELETE_REQUEST, {"asset_id": response.asset_id}),
+        "client-1",
+    )
+
+    assert result.type == MessageType.SUCCESS
+    assert result.data["deletion_queued"] is False
+    test_db.expire_all()
+    assert test_db.query(models.Asset).count() == 1
+    assert test_db.query(models.SessionAsset).count() == 1
+    assert test_db.query(models.AssetDeletionJob).count() == 0
+    assert manager.r2_manager.deleted_keys == []
+
+
+async def test_asset_unlink_does_not_block_event_loop(monkeypatch):
+    started = threading.Event()
+    release = threading.Event()
+
+    def slow_unlink(**_kwargs):
+        started.set()
+        release.wait(timeout=2)
+        return deletion_module.AssetUnlinkResult(True, deletion_job_id=1)
+
+    monkeypatch.setattr(asset_protocol_module, "queue_asset_unlink", slow_unlink)
+    protocol = AssetProtocolStub(1, "TEST01")
+    task = asyncio.create_task(protocol.handle_asset_delete_request(
+        Message(MessageType.ASSET_DELETE_REQUEST, {"asset_id": "asset-1"}),
+        "client-1",
+    ))
+    try:
+        for _ in range(100):
+            if started.is_set():
+                break
+            await asyncio.sleep(0.001)
+        assert started.is_set()
+        await asyncio.sleep(0)
+        assert not task.done()
+    finally:
+        release.set()
+
+    result = await task
+    assert result.type == MessageType.SUCCESS
 
 
 async def test_download_url_requires_session_asset_link(

@@ -16,7 +16,15 @@ from typing import Dict, List, Optional, ParamSpec, Tuple, TypeVar
 import xxhash
 from config import Settings
 from database.database import SessionLocal
-from database.models import Asset, AssetUploadIntent, GamePlayer, GameSession, SessionAsset, User
+from database.models import (
+    Asset,
+    AssetDeletionJob,
+    AssetUploadIntent,
+    GamePlayer,
+    GameSession,
+    SessionAsset,
+    User,
+)
 from PIL import Image, UnidentifiedImageError
 from sqlalchemy import func, or_
 from storage.r2_manager import R2AssetManager
@@ -279,6 +287,11 @@ class ServerAssetManager:
                                user_id: int, display_name: str) -> None:
         if session is None:
             return
+        pending_delete = db.query(AssetDeletionJob.id).filter(
+            AssetDeletionJob.asset_id == asset.id
+        ).first()
+        if pending_delete is not None:
+            raise RuntimeError("Asset deletion is pending")
         link = db.query(SessionAsset).filter(
             SessionAsset.session_id == session.id,
             SessionAsset.asset_id == asset.id
@@ -299,7 +312,12 @@ class ServerAssetManager:
                                         user_id: int, display_name: str) -> None:
         db = SessionLocal()
         try:
-            asset = db.query(Asset).filter(Asset.r2_asset_id == asset_id).first()
+            asset = (
+                db.query(Asset)
+                .filter(Asset.r2_asset_id == asset_id)
+                .with_for_update()
+                .first()
+            )
             session = self._get_session(db, session_code)
             if asset:
                 self._link_asset_to_session(db, asset, session, user_id, display_name)
@@ -847,7 +865,12 @@ class ServerAssetManager:
 
                 # Check if asset already exists by xxHash (duplicate detection)
                 if asset_data.get("xxhash"):
-                    existing_asset = db.query(Asset).filter(Asset.xxhash == asset_data["xxhash"]).first()
+                    existing_asset = (
+                        db.query(Asset)
+                        .filter(Asset.xxhash == asset_data["xxhash"])
+                        .with_for_update()
+                        .first()
+                    )
                     if existing_asset:
                         self._link_asset_to_session(
                             db,

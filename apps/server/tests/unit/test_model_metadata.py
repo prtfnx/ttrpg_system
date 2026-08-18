@@ -2,6 +2,7 @@ from database.models import NAMING_CONVENTION, Base
 from sqlalchemy import ForeignKeyConstraint, PrimaryKeyConstraint, UniqueConstraint
 
 EXPECTED_TABLES = {
+    "asset_deletion_jobs",
     "asset_upload_intents",
     "assets",
     "audit_logs",

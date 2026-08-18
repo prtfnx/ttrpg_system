@@ -14,3 +14,7 @@ dependencies = [
 [tool.hatch.build.targets.wheel]
 packages = ["core_table"]
 artifacts = ["core_table/message.schema.generated.json"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["."]

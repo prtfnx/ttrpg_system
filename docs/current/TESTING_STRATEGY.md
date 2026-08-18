@@ -127,6 +127,11 @@ Use pytest in `packages/core-table`.
 Test reusable tabletop rules here when the behavior does not need FastAPI,
 database state, or browser code.
 
+The package-local pytest configuration adds the flat-layout package root to
+the test import path, so the documented command works without an editable
+install or a shell-specific `PYTHONPATH` override. CI still installs the wheel
+in editable mode to exercise its packaging metadata as a separate contract.
+
 Run:
 
 ```powershell

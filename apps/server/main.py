@@ -419,7 +419,7 @@ async def root():
     return RedirectResponse(url="/users/login")
 
 @app.get("/invite/{invite_code}")
-async def invitation_page(invite_code: str, request: Request, db: Session = Depends(get_db)):
+def invitation_page(invite_code: str, request: Request, db: Session = Depends(get_db)):
     """Invitation acceptance page"""
 
     # Get invitation details
@@ -444,7 +444,7 @@ async def invitation_page(invite_code: str, request: Request, db: Session = Depe
     # Check if user is authenticated
     current_user = None
     try:
-        current_user = await get_current_user_optional(request, db)
+        current_user = get_current_user_optional(request, db)
     except Exception as exc:
         logger.debug("Optional authentication resolution failed in invitation_page", exc_info=exc)
 

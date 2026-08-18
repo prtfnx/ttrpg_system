@@ -11,6 +11,7 @@ from database.database import get_db
 from routers import demo, game, invitations, telemetry, users
 
 SYNC_DATABASE_HANDLERS = (
+    main.invitation_page,
     users.get_current_user,
     users.get_current_user_optional,
     users.get_current_active_user,

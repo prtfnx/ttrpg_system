@@ -128,6 +128,7 @@ macro_rules! log_error {
 #[global_allocator]
 static ALLOC: wee_alloc::WeeAlloc = wee_alloc::WeeAlloc::INIT;
 
+mod asset_hash;
 mod fog;
 #[cfg(target_arch = "wasm32")]
 pub mod geometry;
@@ -183,12 +184,11 @@ mod actions;
 
 #[cfg(target_arch = "wasm32")]
 pub use actions::ActionsClient;
+pub use asset_hash::calculate_asset_hash;
 pub use collision::CollisionSystem;
 #[cfg(target_arch = "wasm32")]
 pub use lighting::LightingSystem;
 pub use lighting::{Light, LightType};
-#[cfg(target_arch = "wasm32")]
-pub use net::asset_manager::{AssetInfo, AssetManager, CacheStats};
 #[cfg(target_arch = "wasm32")]
 pub use net::table_sync::TableSync;
 pub use planning::PlanningManager;

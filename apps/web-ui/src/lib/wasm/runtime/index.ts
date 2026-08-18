@@ -11,7 +11,6 @@ export {
 export type { AttachCanvasOptions, WasmRuntimePort } from './WasmRuntimePort';
 export type {
   ActionsClient,
-  AssetManager,
   BrushPreset,
   PlanningManager,
   RenderEngine,
@@ -20,4 +19,5 @@ export type {
   VisibilityPoint,
   WallMoveUpdate,
 } from './types';
+export type { AssetCacheStats, AssetInfo, CacheAssetOptions } from './BrowserAssetCache';
 export type { WasmRuntimeSnapshot } from './wasmStore';

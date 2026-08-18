@@ -4,7 +4,7 @@ Audience: contributors changing the browser engine or its TypeScript boundary.
 
 Status: usable.
 
-Last source audit: 2026-08-03
+Last source audit: 2026-08-17
 
 The Rust crate is the local engine behind the browser canvas. It should stay
 focused on compute-heavy rendering, geometry, visibility, collision, planning,
@@ -23,8 +23,10 @@ orchestration.
   systems.
 - `packages/rust-core/src/actions/` contains undoable table and sprite action
   helpers.
-- `packages/rust-core/src/net/` contains the asset hashing/cache helper and the
-  table-data ingestion adapter. It does not own a WebSocket connection.
+- `packages/rust-core/src/net/` contains the table-data ingestion adapter. It
+  does not own HTTP or WebSocket transport.
+- `packages/rust-core/src/asset_hash.rs` contains the CPU-bound xxHash64 helper
+  used to verify browser-fetched asset bytes.
 - `packages/rust-core/src/lighting/` contains lighting and visibility logic.
 
 ## Main exported objects
@@ -36,7 +38,7 @@ The app currently depends on these generated WASM exports through
 - `version`
 - `RenderEngine`
 - `ActionsClient`
-- `AssetManager`
+- `calculate_asset_hash`
 - `PlanningManager`
 - `TableManager`
 - `TableSync`
@@ -82,6 +84,13 @@ This keeps Rust from knowing about React, Zustand, or WebSocket objects.
 `WebClientProtocol` is the only WebSocket owner. Rust exports do not connect,
 authenticate, reconnect, or send protocol messages. `TableSync` accepts data
 that TypeScript already received and normalized; it does not request data.
+
+Rust also does not fetch asset URLs or retain downloaded byte vectors. The
+TypeScript `WasmRuntime` owns browser fetch and a Blob/object-URL LRU cache,
+passes a temporary typed-array view to `calculate_asset_hash`, and rejects a
+server hash mismatch before the asset becomes renderable. Rust remains the
+compute boundary; browser transport, cache eviction, and URL disposal remain
+TypeScript responsibilities.
 
 Combat-specific rule: Rust may preview an action, but it must not accept the
 action. Final combat legality, resource spending, movement cost, cover/terrain

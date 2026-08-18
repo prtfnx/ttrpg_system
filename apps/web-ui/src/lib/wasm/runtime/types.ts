@@ -23,28 +23,6 @@ export interface ActionsClient {
   update_table(tableId: string, updates: unknown): unknown;
 }
 
-export interface AssetManager {
-  calculate_asset_hash(data: Uint8Array): string;
-  cleanup_cache(): Promise<void>;
-  clear_cache(): Promise<void>;
-  clear_download_queue(): void;
-  download_asset(url: string, expectedHash?: string | null): Promise<string>;
-  get_asset_by_hash(xxhash: string): string | undefined;
-  get_asset_data(assetId: string): Uint8Array | undefined;
-  get_asset_info(assetId: string): string | undefined;
-  get_cache_stats(): string;
-  get_download_queue_size(): number;
-  get_queued_downloads(): string[];
-  has_asset(assetId: string): boolean;
-  has_asset_by_hash(xxhash: string): boolean;
-  initialize(): Promise<void>;
-  list_assets(): string;
-  remove_asset(assetId: string): boolean;
-  remove_from_queue(url: string): boolean;
-  set_max_age(ageMs: number): void;
-  set_max_cache_size(sizeBytes: bigint): void;
-}
-
 export interface PlanningManager {
   clear_all(): void;
   clear_aoe(): void;

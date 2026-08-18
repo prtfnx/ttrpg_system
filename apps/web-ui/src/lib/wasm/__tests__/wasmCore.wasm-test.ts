@@ -11,6 +11,7 @@
  */
 import { beforeAll, describe, expect, it } from 'vitest';
 import initWasm, {
+  calculate_asset_hash,
   compute_visibility_polygon,
   create_default_brush_presets,
   version,
@@ -38,5 +39,10 @@ describe('WASM module (real browser)', () => {
   it('compute_visibility_polygon() returns an array-like value', () => {
     const result = compute_visibility_polygon(0, 0, new Float32Array(0), 100);
     expect(result !== null && result !== undefined).toBe(true);
+  });
+
+  it('calculate_asset_hash() matches the server xxHash64 contract', () => {
+    expect(calculate_asset_hash(new TextEncoder().encode('hello')))
+      .toBe('26c7827d889f6da3');
   });
 });

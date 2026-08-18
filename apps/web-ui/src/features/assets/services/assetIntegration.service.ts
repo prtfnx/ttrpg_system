@@ -30,6 +30,8 @@ interface AssetDownloadResponse {
   asset_id?: string;
   download_url?: string;
   asset_data?: string;
+  xxhash?: string;
+  content_type?: string;
   error?: string;
 }
 
@@ -111,11 +113,14 @@ class AssetIntegrationService {
 
     try {
       if (data.download_url && data.asset_id) {
-        // Download the asset and cache it locally
-        await this.downloadAndCacheAsset(data.asset_id, data.download_url);
+        await this.downloadAndCacheAsset(data.asset_id, data.download_url, data.xxhash);
       } else if (data.asset_data && data.asset_id) {
-        // Asset data provided directly (base64 encoded)
-        await this.cacheAssetData(data.asset_id, data.asset_data);
+        await this.cacheAssetData(
+          data.asset_id,
+          data.asset_data,
+          data.xxhash,
+          data.content_type,
+        );
       }
     } catch (error) {
       logger.error('Failed to process asset download', error);
@@ -183,24 +188,19 @@ class AssetIntegrationService {
     }
   }
 
-  private async downloadAndCacheAsset(assetId: string, downloadUrl: string): Promise<void> {
+  private async downloadAndCacheAsset(
+    assetId: string,
+    downloadUrl: string,
+    expectedHash?: string,
+  ): Promise<void> {
     try {
-      logger.debug('Downloading asset', { assetId, downloadUrl });
-
-      const response = await fetch(downloadUrl);
-      if (!response.ok) {
-        throw new Error(`Failed to download asset: ${response.statusText}`);
-      }
-
-      const blob = await response.blob();
-      
-      // Create object URL for the asset
-      const objectUrl = URL.createObjectURL(blob);
-      
-      // Cache the asset in the asset manager
-      // Note: This would integrate with the existing useAssetManager hook
-      // For now, we'll store it in a simple cache and load it into WASM
-      await this.loadAssetIntoWasm(assetId, objectUrl);
+      logger.debug('Downloading authorized asset', { assetId });
+      const runtime = getCurrentWasmRuntime();
+      if (!runtime) throw new Error('WASM runtime is unavailable');
+      const cachedAssetId = await runtime.downloadAsset(downloadUrl, expectedHash);
+      const cachedAsset = runtime.getAssetInfo(cachedAssetId);
+      if (!cachedAsset) throw new Error('Downloaded asset was not retained');
+      await this.loadAssetIntoWasm(assetId, cachedAsset.url);
 
       logger.debug('Asset downloaded and cached', { assetId });
 
@@ -209,13 +209,23 @@ class AssetIntegrationService {
     }
   }
 
-  private async cacheAssetData(assetId: string, assetData: string): Promise<void> {
+  private async cacheAssetData(
+    assetId: string,
+    assetData: string,
+    expectedHash?: string,
+    contentType?: string,
+  ): Promise<void> {
     try {
-      // Asset data is likely base64 encoded
-      const blob = this.base64ToBlob(assetData);
-      const objectUrl = URL.createObjectURL(blob);
-      
-      await this.loadAssetIntoWasm(assetId, objectUrl);
+      const runtime = getCurrentWasmRuntime();
+      if (!runtime) throw new Error('WASM runtime is unavailable');
+      const cachedAssetId = runtime.cacheAssetBytes(this.base64ToBytes(assetData), {
+        name: assetId,
+        mimeType: contentType || 'application/octet-stream',
+        expectedHash,
+      });
+      const cachedAsset = runtime.getAssetInfo(cachedAssetId);
+      if (!cachedAsset) throw new Error('Decoded asset was not retained');
+      await this.loadAssetIntoWasm(assetId, cachedAsset.url);
       
       logger.debug('Asset data cached', { assetId });
 
@@ -256,7 +266,7 @@ class AssetIntegrationService {
     }
   }
 
-  private base64ToBlob(base64Data: string): Blob {
+  private base64ToBytes(base64Data: string): Uint8Array {
     // Remove data URL prefix if present
     const base64 = base64Data.replace(/^data:image\/[a-z]+;base64,/, '');
     
@@ -268,7 +278,7 @@ class AssetIntegrationService {
       bytes[i] = binaryString.charCodeAt(i);
     }
     
-    return new Blob([bytes]);
+    return bytes;
   }
 
   /**

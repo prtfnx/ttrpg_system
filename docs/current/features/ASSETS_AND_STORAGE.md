@@ -45,6 +45,19 @@ cannot disguise another payload.
 7. List, lookup, download, table enrichment, and deletion resolve through an
    authorized session link. Ambiguous filenames fail closed.
 
+For downloads, TypeScript receives the authorized presigned URL and expected
+xxHash, fetches with credentials omitted, and passes the bytes through
+`WasmRuntime` for Rust xxHash64 computation. A mismatch fails closed before a
+texture is loaded. Verified payloads become browser-managed Blobs with stable
+object URLs; the runtime cache revokes those URLs on LRU/age eviction, clear,
+or runtime disposal. Rust does not own URLs, HTTP requests, retries, download
+queues, or a byte cache.
+
+The browser cache defaults to 64 MiB and may be configured by the asset UI. Its
+size accounts for retained Blob payloads. Repeated metadata/hash-cache access
+does not clone full byte vectors across the WASM boundary; bytes cross that
+boundary only for the compute-heavy hash operation.
+
 Upload abuse controls are keyed by the authenticated user, not by caller-sent
 fields. A minute burst limit and hourly sustained limit protect each worker.
 Database-backed caps cover unconfirmed intents, confirmed object count, and
@@ -111,5 +124,6 @@ must not be used as production recovery evidence. Follow
 ## Verification
 
 Run asset-storage unit tests, Alembic/model-schema tests, R2 administration
-tests, browser asset tests, and the release smoke flow documented in
+tests, TypeScript Blob-cache and Rust hash tests, browser asset tests, and the
+release smoke flow documented in
 [Release checklist](../operations/RELEASE_CHECKLIST.md).

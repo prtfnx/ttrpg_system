@@ -132,6 +132,9 @@ Use Vitest in `apps/web-ui`.
   cannot model.
 - Runtime tests: `WasmRuntimePort`, callback routing, attach/detach, and error
   snapshots.
+- Asset-boundary tests: TypeScript covers fetch ownership, concurrent download
+  deduplication, hash mismatch, Blob eviction, and object-URL/abort cleanup;
+  Rust covers stable byte-to-xxHash vectors.
 - Download tests in jsdom: stub the anchor `click()` browser boundary, assert
   that it was invoked, and verify object URL cleanup. Use a browser project for
   real navigation and download behavior.

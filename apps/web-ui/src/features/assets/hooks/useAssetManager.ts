@@ -1,32 +1,9 @@
-import { useWasmRuntime } from '@lib/wasm/runtime';
-import type { AssetManager } from '@lib/wasm/runtime';
+import { useWasmRuntime, type AssetCacheStats, type AssetInfo } from '@lib/wasm/runtime';
 import { logger } from '@shared/utils/logger';
 import { useCallback, useEffect, useRef, useState } from 'react';
 
-export interface AssetInfo {
-  id: string;
-  name: string;
-  url: string;
-  xxhash: string;
-  size: number;
-  mime_type: string;
-  cached_at: number;
-  last_accessed: number;
-  download_progress: number;
-}
-
-export interface CacheStats {
-  total_assets: number;
-  total_size: number;
-  cache_hits: number;
-  cache_misses: number;
-  last_cleanup: number;
-  download_queue_size: number;
-  total_downloads: number;
-  failed_downloads: number;
-  hash_verifications: number;
-  hash_failures: number;
-}
+export type CacheStats = AssetCacheStats;
+export type { AssetInfo };
 
 export interface AssetManagerState {
   stats: CacheStats | null;
@@ -50,7 +27,8 @@ export interface UploadProgress {
 
 export const useAssetManager = (config?: AssetManagerConfig) => {
   const runtime = useWasmRuntime();
-  const assetManagerRef = useRef<AssetManager | null>(null);
+  const initializationRef = useRef<Promise<void> | null>(null);
+  const isMountedRef = useRef(true);
   const [state, setState] = useState<AssetManagerState>({
     stats: null,
     isInitialized: false,
@@ -58,402 +36,245 @@ export const useAssetManager = (config?: AssetManagerConfig) => {
     isLoading: false,
   });
   const [uploadProgress, setUploadProgress] = useState<UploadProgress>({});
-  // Track mounted state to avoid calling setState after unmount/teardown
-  const isMountedRef = useRef(true);
 
-  // Safe setters that check mounted state
-  const safeSetState = (updater: React.SetStateAction<AssetManagerState>) => {
+  const safeSetState = useCallback((updater: React.SetStateAction<AssetManagerState>) => {
     if (isMountedRef.current) setState(updater);
-  };
+  }, []);
 
-  const safeSetUploadProgress = (updater: React.SetStateAction<UploadProgress>) => {
+  const safeSetUploadProgress = useCallback((updater: React.SetStateAction<UploadProgress>) => {
     if (isMountedRef.current) setUploadProgress(updater);
-  };
+  }, []);
 
-  // Initialize the asset manager
+  const refreshStats = useCallback((): void => {
+    try {
+      safeSetState(previous => ({ ...previous, stats: runtime.getAssetCacheStats() }));
+    } catch {
+      // Initialization owns the visible error state; pre-init reads are harmless.
+    }
+  }, [runtime, safeSetState]);
+
   const initialize = useCallback(async () => {
-    // Prevent multiple simultaneous initializations
-    if (assetManagerRef.current || state.isLoading) {
-      return;
-    }
-    
-  safeSetState(prev => ({ ...prev, isLoading: true }));
-    
-    try {
-      logger.debug('Initializing WASM module for asset manager');
-      
-      await runtime.initialize();
-      logger.debug('Initializing enhanced asset manager');
-      const manager = runtime.getAssetManager();
-      if (!manager) throw new Error('AssetManager unavailable from WasmRuntime');
-      await manager.initialize();
-      
-      // Apply configuration if provided
-      if (config?.maxCacheSizeMB) {
-        manager.set_max_cache_size(BigInt(config.maxCacheSizeMB * 1024 * 1024));
-      }
-      if (config?.maxAgeHours) {
-        manager.set_max_age(config.maxAgeHours * 60 * 60 * 1000);
-      }
-      
-      assetManagerRef.current = manager;
-      
-      // Get initial stats
-      const stats = JSON.parse(manager.get_cache_stats()) as CacheStats;
-      
-      safeSetState({
-        stats,
-        isInitialized: true,
-        error: null,
-        isLoading: false,
-      });
-      
-      logger.debug('Enhanced asset manager initialized successfully', stats);
-      
-      // Auto cleanup if enabled
-      if (config?.autoCleanup) {
-        await manager.cleanup_cache();
-        const updatedStats = JSON.parse(manager.get_cache_stats()) as CacheStats;
-  safeSetState(prev => ({ ...prev, stats: updatedStats }));
-      }
-    } catch (error) {
-      logger.error('Failed to initialize enhanced asset manager', error);
-      safeSetState(prev => ({
-        ...prev,
-        isInitialized: false,
-        isLoading: false,
-        error: error instanceof Error ? error.message : 'Unknown error',
-      }));
-    }
-  // eslint-disable-next-line react-hooks/exhaustive-deps -- intentional: isLoading guarded to avoid loop
-  }, [config, runtime]);
+    if (initializationRef.current) return initializationRef.current;
 
-  // Download asset with hash verification
+    safeSetState(previous => ({ ...previous, isLoading: true }));
+    const pending = (async () => {
+      try {
+        await runtime.initialize();
+        runtime.configureAssetCache({
+          maxCacheBytes: config?.maxCacheSizeMB
+            ? config.maxCacheSizeMB * 1024 * 1024
+            : undefined,
+          maxAgeMs: config?.maxAgeHours
+            ? config.maxAgeHours * 60 * 60 * 1000
+            : undefined,
+        });
+        if (config?.autoCleanup) runtime.cleanupAssetCache();
+        safeSetState({
+          stats: runtime.getAssetCacheStats(),
+          isInitialized: true,
+          error: null,
+          isLoading: false,
+        });
+      } catch (error) {
+        logger.error('Failed to initialize browser asset cache', error);
+        safeSetState(previous => ({
+          ...previous,
+          isInitialized: false,
+          isLoading: false,
+          error: error instanceof Error ? error.message : 'Unknown error',
+        }));
+        throw error;
+      }
+    })();
+    initializationRef.current = pending;
+    try {
+      await pending;
+    } finally {
+      initializationRef.current = null;
+    }
+  }, [config?.autoCleanup, config?.maxAgeHours, config?.maxCacheSizeMB, runtime, safeSetState]);
+
   const downloadAsset = useCallback(async (
-    url: string, 
-    expectedHash?: string
+    url: string,
+    expectedHash?: string,
   ): Promise<string | null> => {
-    const manager = assetManagerRef.current;
-    if (!manager) {
-      logger.error('Enhanced asset manager not initialized');
-      return null;
-    }
-
     try {
-      logger.debug('Downloading asset', { url, expectedHash });
-      const assetId = await manager.download_asset(url, expectedHash || undefined);
-      
-  // Update stats
-  const stats = JSON.parse(manager.get_cache_stats()) as CacheStats;
-  safeSetState(prev => ({ ...prev, stats }));
-      
-      logger.debug('Asset downloaded successfully', { assetId });
+      const assetId = await runtime.downloadAsset(url, expectedHash);
+      refreshStats();
       return assetId;
     } catch (error) {
       logger.error('Failed to download asset', error);
-      safeSetState(prev => ({
-        ...prev,
+      safeSetState(previous => ({
+        ...previous,
         error: error instanceof Error ? error.message : 'Download failed',
       }));
+      refreshStats();
       return null;
     }
-  }, []);
+  }, [refreshStats, runtime, safeSetState]);
 
-  // Get asset data
-  const getAssetData = useCallback((assetId: string): Uint8Array | null => {
-    const manager = assetManagerRef.current;
-    if (!manager) return null;
-
-    try {
-      const data = manager.get_asset_data(assetId);
-      if (data) {
-  // Update stats after cache hit/miss
-  const stats = JSON.parse(manager.get_cache_stats()) as CacheStats;
-  safeSetState(prev => ({ ...prev, stats }));
-        return data;
-      }
-      return null;
-    } catch (error) {
-      logger.error('Failed to get asset data', error);
-      return null;
-    }
-  }, []);
-
-  // Get asset info
   const getAssetInfo = useCallback((assetId: string): AssetInfo | null => {
-    const manager = assetManagerRef.current;
-    if (!manager) return null;
-
     try {
-      const infoJson = manager.get_asset_info(assetId);
-      return infoJson ? JSON.parse(infoJson) as AssetInfo : null;
+      const info = runtime.getAssetInfo(assetId);
+      refreshStats();
+      return info;
     } catch (error) {
       logger.error('Failed to get asset info', error);
       return null;
     }
-  }, []);
+  }, [refreshStats, runtime]);
 
-  // Check if asset exists
   const hasAsset = useCallback((assetId: string): boolean => {
-    const manager = assetManagerRef.current;
-    return manager ? manager.has_asset(assetId) : false;
-  }, []);
-
-  // Check if asset exists by hash
-  const hasAssetByHash = useCallback((xxhash: string): boolean => {
-    const manager = assetManagerRef.current;
-    return manager ? manager.has_asset_by_hash(xxhash) : false;
-  }, []);
-
-  // Get asset by hash
-  const getAssetByHash = useCallback((xxhash: string): string | null => {
-    const manager = assetManagerRef.current;
-    if (!manager) return null;
-
     try {
-      const assetId = manager.get_asset_by_hash(xxhash);
-      if (assetId) {
-  // Update stats after cache hit/miss
-  const stats = JSON.parse(manager.get_cache_stats()) as CacheStats;
-  safeSetState(prev => ({ ...prev, stats }));
-        return assetId;
-      }
-      return null;
-    } catch (error) {
-      logger.error('Failed to get asset by hash', error);
+      return runtime.hasAsset(assetId);
+    } catch {
+      return false;
+    }
+  }, [runtime]);
+
+  const hasAssetByHash = useCallback((xxhash: string): boolean => {
+    try {
+      return runtime.hasAssetByHash(xxhash);
+    } catch {
+      return false;
+    }
+  }, [runtime]);
+
+  const getAssetByHash = useCallback((xxhash: string): string | null => {
+    try {
+      const assetId = runtime.getAssetByHash(xxhash);
+      refreshStats();
+      return assetId;
+    } catch {
       return null;
     }
-  }, []);
+  }, [refreshStats, runtime]);
 
-  // Remove asset
   const removeAsset = useCallback((assetId: string): boolean => {
-    const manager = assetManagerRef.current;
-    if (!manager) return false;
-
     try {
-      const removed = manager.remove_asset(assetId);
-      if (removed) {
-  // Update stats
-  const stats = JSON.parse(manager.get_cache_stats()) as CacheStats;
-  safeSetState(prev => ({ ...prev, stats }));
-      }
+      const removed = runtime.removeAsset(assetId);
+      refreshStats();
       return removed;
     } catch (error) {
       logger.error('Failed to remove asset', error);
       return false;
     }
-  }, []);
+  }, [refreshStats, runtime]);
 
-  // Cleanup cache
   const cleanupCache = useCallback(async (): Promise<void> => {
-    const manager = assetManagerRef.current;
-    if (!manager) return;
+    runtime.cleanupAssetCache();
+    refreshStats();
+  }, [refreshStats, runtime]);
 
-    try {
-      await manager.cleanup_cache();
-      
-  // Update stats
-  const stats = JSON.parse(manager.get_cache_stats()) as CacheStats;
-  safeSetState(prev => ({ ...prev, stats }));
-      
-      logger.debug('Cache cleanup completed');
-    } catch (error) {
-      logger.error('Failed to cleanup cache', error);
-    }
-  }, []);
-
-  // Clear entire cache
   const clearCache = useCallback(async (): Promise<void> => {
-    const manager = assetManagerRef.current;
-    if (!manager) return;
+    runtime.clearAssetCache();
+    refreshStats();
+  }, [refreshStats, runtime]);
 
-    try {
-      await manager.clear_cache();
-      
-      // Update stats
-      const stats = JSON.parse(manager.get_cache_stats()) as CacheStats;
-      setState(prev => ({ ...prev, stats }));
-      
-      logger.debug('Cache cleared successfully');
-    } catch (error) {
-      logger.error('Failed to clear cache', error);
-    }
-  }, []);
-
-  // List all assets
   const listAssets = useCallback((): AssetInfo[] => {
-    const manager = assetManagerRef.current;
-    if (!manager) return [];
-
     try {
-      const assetsJson = manager.list_assets();
-      return JSON.parse(assetsJson) as AssetInfo[];
-    } catch (error) {
-      logger.error('Failed to list assets', error);
+      return runtime.listAssets();
+    } catch {
       return [];
     }
-  }, []);
+  }, [runtime]);
 
-  // Set cache limits
   const setCacheSize = useCallback((sizeBytes: number): void => {
-    const manager = assetManagerRef.current;
-    if (manager) {
-      manager.set_max_cache_size(BigInt(sizeBytes));
-    }
-  }, []);
+    runtime.configureAssetCache({ maxCacheBytes: sizeBytes });
+    refreshStats();
+  }, [refreshStats, runtime]);
 
   const setMaxAge = useCallback((ageMs: number): void => {
-    const manager = assetManagerRef.current;
-    if (manager) {
-      manager.set_max_age(ageMs);
-    }
-  }, []);
+    runtime.configureAssetCache({ maxAgeMs: ageMs });
+    refreshStats();
+  }, [refreshStats, runtime]);
 
-  // Calculate hash for data
   const calculateHash = useCallback((data: Uint8Array): string => {
-    const manager = assetManagerRef.current;
-    if (!manager) return '';
-
     try {
-      return manager.calculate_asset_hash(data);
+      return runtime.calculateAssetHash(data);
     } catch (error) {
-      logger.error('Failed to calculate hash', error);
+      logger.error('Failed to calculate asset hash', error);
       return '';
     }
-  }, []);
+  }, [runtime]);
 
-  // Get stats
-  const refreshStats = useCallback((): void => {
-    const manager = assetManagerRef.current;
-    if (!manager) return;
-
-    try {
-      const stats = JSON.parse(manager.get_cache_stats()) as CacheStats;
-      setState(prev => ({ ...prev, stats }));
-    } catch (error) {
-      logger.error('Failed to refresh stats', error);
-    }
-  }, []);
-
-  // Auto-initialize on mount
   useEffect(() => {
-    // Mark mounted and ensure cleanup flips the flag. This prevents
-    // async callbacks from calling setState after the test environment
-    // has torn down (which can remove `window`).
     isMountedRef.current = true;
-
-    if (!state.isInitialized && !state.isLoading) {
-      initialize();
-    }
-
+    void initialize().catch(() => undefined);
     return () => {
       isMountedRef.current = false;
     };
-  // eslint-disable-next-line react-hooks/exhaustive-deps -- intentional: initialize dep omitted to prevent infinite loop
-  }, [state.isInitialized, state.isLoading]); // Removed initialize from dependencies to prevent infinite loops
+  }, [initialize]);
 
-  // Additional methods expected by AssetManager component
   const performCleanup = useCallback(async (): Promise<void> => {
     await cleanupCache();
   }, [cleanupCache]);
 
-  const getAssetList = useCallback((): string[] => {
-    const assets = listAssets();
-    return assets.map(asset => asset.id);
-  }, [listAssets]);
+  const getAssetList = useCallback((): string[] => (
+    listAssets().map(asset => asset.id)
+  ), [listAssets]);
 
   const formatFileSize = useCallback((bytes: number): string => {
     if (bytes === 0) return '0 B';
-    const k = 1024;
+    const unit = 1024;
     const sizes = ['B', 'KB', 'MB', 'GB'];
-    const i = Math.floor(Math.log(bytes) / Math.log(k));
-    return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + ' ' + sizes[i];
+    const index = Math.floor(Math.log(bytes) / Math.log(unit));
+    return `${parseFloat((bytes / unit ** index).toFixed(1))} ${sizes[index]}`;
   }, []);
 
   const getCacheUsagePercentage = useCallback((): number => {
     if (!state.stats || !config?.maxCacheSizeMB) return 0;
     const maxSize = config.maxCacheSizeMB * 1024 * 1024;
     return Math.round((state.stats.total_size / maxSize) * 100);
-  }, [state.stats, config?.maxCacheSizeMB]);
+  }, [config?.maxCacheSizeMB, state.stats]);
 
   const uploadAsset = useCallback(async (
     file: File,
-    onProgress?: (progress: number) => void
+    onProgress?: (progress: number) => void,
   ): Promise<string | null> => {
     const fileId = `${file.name}-${Date.now()}`;
-    
-    safeSetUploadProgress(prev => ({
-      ...prev,
-      [fileId]: { progress: 0, status: 'uploading' }
+    safeSetUploadProgress(previous => ({
+      ...previous,
+      [fileId]: { progress: 0, status: 'uploading' },
     }));
-
     try {
-      // Convert file to URL for download
-      const objectUrl = URL.createObjectURL(file);
-      
-      // Update progress callback
-      const progressHandler = (progress: number) => {
-        safeSetUploadProgress(prev => ({
-          ...prev,
-          [fileId]: { progress, status: 'uploading' }
-        }));
-        onProgress?.(progress);
-      };
-
-      // Simulate progress for now (in real implementation this would be handled by download_asset)
-      progressHandler(50);
-      
-      const assetId = await downloadAsset(objectUrl);
-      
-      if (assetId) {
-        safeSetUploadProgress(prev => ({
-          ...prev,
-          [fileId]: { progress: 100, status: 'completed' }
-        }));
-        
-        // Clean up object URL
-        URL.revokeObjectURL(objectUrl);
-        
-        // Remove from upload progress after a delay
-        setTimeout(() => {
-          safeSetUploadProgress(prev => {
-            const newProgress = { ...prev };
-            delete newProgress[fileId];
-            return newProgress;
-          });
-        }, 3000);
-        
-        return assetId;
-      } else {
-        throw new Error('Upload failed');
-      }
-    } catch (error) {
-      safeSetUploadProgress(prev => ({
-        ...prev,
-        [fileId]: { progress: 0, status: 'failed' }
+      onProgress?.(25);
+      const data = new Uint8Array(await file.arrayBuffer());
+      onProgress?.(75);
+      const assetId = runtime.cacheAssetBytes(data, {
+        name: file.name,
+        mimeType: file.type,
+      });
+      safeSetUploadProgress(previous => ({
+        ...previous,
+        [fileId]: { progress: 100, status: 'completed' },
       }));
-      logger.error('Failed to upload asset', error);
+      onProgress?.(100);
+      refreshStats();
+      return assetId;
+    } catch (error) {
+      safeSetUploadProgress(previous => ({
+        ...previous,
+        [fileId]: { progress: 0, status: 'failed' },
+      }));
+      logger.error('Failed to cache local asset', error);
       return null;
     }
-  }, [downloadAsset]);
+  }, [refreshStats, runtime, safeSetUploadProgress]);
 
   const cancelUpload = useCallback((fileId: string): void => {
-    safeSetUploadProgress(prev => {
-      const newProgress = { ...prev };
-      delete newProgress[fileId];
-      return newProgress;
+    safeSetUploadProgress(previous => {
+      const next = { ...previous };
+      delete next[fileId];
+      return next;
     });
-  }, []);
+  }, [safeSetUploadProgress]);
 
   return {
-    // State
     ...state,
     uploadProgress,
-    
-    // Methods
     initialize,
     downloadAsset,
-    getAssetData,
     getAssetInfo,
     hasAsset,
     hasAssetByHash,
@@ -466,17 +287,12 @@ export const useAssetManager = (config?: AssetManagerConfig) => {
     setMaxAge,
     calculateHash,
     refreshStats,
-    
-    // Enhanced methods for AssetManager component
     performCleanup,
     getAssetList,
     formatFileSize,
     getCacheUsagePercentage,
     uploadAsset,
     cancelUpload,
-    
-    // Direct access to manager (use carefully)
-    assetManager: assetManagerRef.current,
   };
 };
 

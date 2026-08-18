@@ -25,7 +25,7 @@ const mocks = vi.hoisted(() => {
     createDefaultBrushPresets: vi.fn(() => [{ id: 'round' }]),
     renderEngine,
     actionsFree: vi.fn(),
-    assetFree: vi.fn(),
+    calculateAssetHash: vi.fn(() => 'hash-test'),
     planningFree: vi.fn(),
     tableFree: vi.fn(),
     tableSyncFree: vi.fn(),
@@ -45,7 +45,7 @@ vi.mock('../../wasmCore', () => ({
 
 vi.mock('../../generated/ttrpg_rust_core', () => ({
   ActionsClient: vi.fn(function () { return { free: mocks.actionsFree }; }),
-  AssetManager: vi.fn(function () { return { free: mocks.assetFree }; }),
+  calculate_asset_hash: mocks.calculateAssetHash,
   PlanningManager: vi.fn(function () { return { free: mocks.planningFree }; }),
   TableManager: vi.fn(function () { return { free: mocks.tableFree }; }),
   TableSync: vi.fn(function () { return { free: mocks.tableSyncFree }; }),
@@ -121,6 +121,7 @@ describe('WasmRuntime', () => {
     expect(runtime.getTableSync()).not.toBeNull();
     expect('getNetworkClient' in runtime).toBe(false);
     expect(runtime.getDefaultBrushPresets()).toEqual([{ id: 'round' }]);
+    expect(runtime.calculateAssetHash(new Uint8Array([1, 2]))).toBe('hash-test');
   });
 
   it('attaches a canvas, wires side-effect services, and starts the render loop', async () => {

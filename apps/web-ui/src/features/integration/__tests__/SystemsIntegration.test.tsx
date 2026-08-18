@@ -27,16 +27,6 @@ import { ChatPanel } from '@features/chat';
 //Mock WASM module with realistic interface
 const mockLoadTexture = vi.fn().mockResolvedValue(true);
 const mockRenderEngine = createMockRenderEngine();
-const mockAssetManager = {
-  initialize: vi.fn().mockResolvedValue(undefined),
-  download_asset: vi.fn().mockResolvedValue('asset_123'),
-  has_asset: vi.fn().mockReturnValue(true),
-  get_asset_info: vi.fn().mockReturnValue('{"name":"dragon.png","size":1024}'),
-  get_asset_data: vi.fn().mockReturnValue(new Uint8Array([1, 2, 3, 4])),
-  set_max_cache_size: vi.fn(),
-    get_cache_stats: vi.fn().mockReturnValue(JSON.stringify({ size: 1024, count: 5, hit_rate: 0.85 })),
-  clear_cache: vi.fn(),
-};
 const mockActionsClient = {
   can_undo: vi.fn(() => true),
   can_redo: vi.fn(() => false),
@@ -47,7 +37,6 @@ function render(ui: React.ReactElement) {
     ui,
     createMockWasmRuntime({
       getRenderEngine: vi.fn(() => mockRenderEngine as never),
-      getAssetManager: vi.fn(() => mockAssetManager as never),
       getActionsEngine: vi.fn(() => mockActionsClient as never),
     }),
   );
@@ -69,22 +58,7 @@ const mockWasmModule = {
     can_undo: vi.fn().mockReturnValue(true),
     can_redo: vi.fn().mockReturnValue(false)
   })),
-  AssetManager: vi.fn().mockImplementation(() => ({
-    initialize: vi.fn().mockResolvedValue(undefined),
-    download_asset: vi.fn().mockResolvedValue('asset_123'),
-    has_asset: vi.fn().mockReturnValue(true),
-    get_asset_info: vi.fn().mockReturnValue('{"name":"dragon.png","size":1024}'),
-    get_asset_data: vi.fn().mockReturnValue(new Uint8Array([1, 2, 3, 4])),
-    // Add missing AssetManager functions
-    set_max_cache_size: vi.fn(),
-    get_cache_stats: vi.fn().mockReturnValue({ 
-      size: 1024, 
-      count: 5, 
-      hit_rate: 0.85 
-    }),
-    clear_cache: vi.fn(),
-    preload_assets: vi.fn().mockResolvedValue(undefined)
-  })),
+  calculate_asset_hash: vi.fn().mockReturnValue('hash-test'),
   TableSync: vi.fn().mockImplementation(() => ({
     sync_table: vi.fn(),
     get_table_state: vi.fn()
@@ -326,7 +300,7 @@ describe('Web Client TypeScript & WASM Systems Integration Tests', () => {
       await user.click(uploadButton);
       
       // User expects file input to be available
-      const fileInput = screen.getByTestId('file-input');
+      const fileInput = document.getElementById('file-input');
       expect(fileInput).toBeInTheDocument();
       
       // User expects progress indicator for large uploads

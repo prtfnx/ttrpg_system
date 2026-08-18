@@ -4,7 +4,7 @@ Audience: contributors changing React-to-Rust integration.
 
 Status: usable.
 
-Last source audit: 2026-08-03
+Last source audit: 2026-08-17
 
 React does not own Rust objects directly. It talks to `WasmRuntime`, and
 `WasmRuntime` owns the generated wasm-bindgen module.
@@ -86,6 +86,18 @@ Server update:
 WebClientProtocol -> store/runtime method -> Rust renderer
 ```
 
+Authorized asset download:
+
+```text
+WebClientProtocol -> TypeScript fetch -> BrowserAssetCache
+                  -> WasmRuntime.calculateAssetHash -> Rust xxHash64
+                  -> verified Blob URL -> Rust texture upload
+```
+
+The runtime owns the browser cache and revokes object URLs on eviction, clear,
+or disposal. Rust receives bytes only for hashing and does not retain or return
+downloaded payloads.
+
 Table and sprite synchronization must include a non-empty authoritative
 `table_id`. The TypeScript boundary rejects incomplete payloads and attaches
 the received table ID to every normalized layer, flat sprite, and background
@@ -111,6 +123,8 @@ cover, terrain, resources, and turns are accepted by the server through
 - Do not dispatch app-level browser events from Rust.
 - Do not add WebSocket ownership or protocol serialization to Rust. Browser
   transport belongs to `WebClientProtocol`.
+- Do not call `fetch`, retain presigned URLs, or manage browser download queues
+  in Rust. Pass bytes through a runtime method only for measured compute work.
 - Add new Rust-facing behavior through `WasmRuntimePort`.
 - Prefer Rust for measured compute-heavy engine work. Keep UI workflows,
   transport lifecycle, and application state in TypeScript.

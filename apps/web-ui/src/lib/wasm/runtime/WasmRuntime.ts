@@ -6,17 +6,24 @@ import { wasmBridgeService } from '../wasmBridge';
 import { emitWasmEvent, type WasmEventMap } from '../wasmEvents';
 import {
   ActionsClient,
-  AssetManager,
   PlanningManager,
   TableManager,
   TableSync,
   compute_visibility_polygon,
+  calculate_asset_hash,
   create_default_brush_presets,
   init_game_renderer,
   version,
   type RenderEngine,
 } from '../generated/ttrpg_rust_core';
 import type { AttachCanvasOptions, WasmRuntimePort } from './WasmRuntimePort';
+import {
+  createBrowserAssetCache,
+  type AssetCacheStats,
+  type AssetInfo,
+  type BrowserAssetCache,
+  type CacheAssetOptions,
+} from './BrowserAssetCache';
 import type { BrushPreset, VisibilityPoint } from './types';
 import { WasmSyncCoordinator } from './WasmSyncCoordinator';
 import { WasmRuntimeStore, type WasmRuntimeSnapshot } from './wasmStore';
@@ -76,7 +83,7 @@ export class WasmRuntime implements WasmRuntimePort {
   private initPromise: Promise<void> | null = null;
   private renderEngine: RenderEngine | null = null;
   private actionsEngine: ActionsClient | null = null;
-  private assetManager: AssetManager | null = null;
+  private assetCache: BrowserAssetCache | null = null;
   private planningManager: PlanningManager | null = null;
   private tableManager: TableManager | null = null;
   private tableSync: TableSync | null = null;
@@ -101,7 +108,7 @@ export class WasmRuntime implements WasmRuntimePort {
     this.initPromise = initializeWasmCore()
       .then(() => {
         this.actionsEngine ??= new ActionsClient();
-        this.assetManager ??= new AssetManager();
+        this.assetCache ??= createBrowserAssetCache(calculate_asset_hash);
         this.tableManager ??= new TableManager();
         this.tableSync ??= new TableSync();
         this.store.setSnapshot({
@@ -173,13 +180,13 @@ export class WasmRuntime implements WasmRuntimePort {
     wasmBridgeService.cleanup();
 
     try { this.actionsEngine?.free(); } catch {}
-    try { this.assetManager?.free(); } catch {}
+    this.assetCache?.dispose();
     try { this.planningManager?.free(); } catch {}
     try { this.tableManager?.free(); } catch {}
     try { this.tableSync?.free(); } catch {}
 
     this.actionsEngine = null;
-    this.assetManager = null;
+    this.assetCache = null;
     this.planningManager = null;
     this.tableManager = null;
     this.tableSync = null;
@@ -205,10 +212,6 @@ export class WasmRuntime implements WasmRuntimePort {
     return this.actionsEngine;
   }
 
-  getAssetManager(): AssetManager | null {
-    return this.assetManager;
-  }
-
   getPlanningManager(): PlanningManager | null {
     if (!this.planningManager && this.status.isModuleReady) {
       this.planningManager = new PlanningManager(64, 5 / 64);
@@ -231,6 +234,64 @@ export class WasmRuntime implements WasmRuntimePort {
 
   computeVisibilityPolygon(x: number, y: number, obstacles: Float32Array, radius: number): VisibilityPoint[] {
     return compute_visibility_polygon(x, y, obstacles, radius) as VisibilityPoint[];
+  }
+
+  configureAssetCache(options: { maxCacheBytes?: number; maxAgeMs?: number }): void {
+    this.requireAssetCache().configure(options);
+  }
+
+  downloadAsset(url: string, expectedHash?: string): Promise<string> {
+    return this.requireAssetCache().download(url, expectedHash);
+  }
+
+  cacheAssetBytes(data: Uint8Array, options: CacheAssetOptions): string {
+    return this.requireAssetCache().cacheBytes(data, options);
+  }
+
+  calculateAssetHash(data: Uint8Array): string {
+    if (!this.status.isModuleReady) return '';
+    return calculate_asset_hash(data);
+  }
+
+  getAssetInfo(assetId: string): AssetInfo | null {
+    return this.requireAssetCache().getInfo(assetId);
+  }
+
+  hasAsset(assetId: string): boolean {
+    return this.requireAssetCache().has(assetId);
+  }
+
+  hasAssetByHash(xxhash: string): boolean {
+    return this.requireAssetCache().hasHash(xxhash);
+  }
+
+  getAssetByHash(xxhash: string): string | null {
+    return this.requireAssetCache().getByHash(xxhash);
+  }
+
+  removeAsset(assetId: string): boolean {
+    return this.requireAssetCache().remove(assetId);
+  }
+
+  cleanupAssetCache(): void {
+    this.requireAssetCache().cleanup();
+  }
+
+  clearAssetCache(): void {
+    this.requireAssetCache().clear();
+  }
+
+  listAssets(): AssetInfo[] {
+    return this.requireAssetCache().list();
+  }
+
+  getAssetCacheStats(): AssetCacheStats {
+    return this.requireAssetCache().getStats();
+  }
+
+  private requireAssetCache(): BrowserAssetCache {
+    if (!this.assetCache) throw new Error('Asset cache is unavailable before WASM initialization');
+    return this.assetCache;
   }
 
   setUserContext(userId: number | null, role: SessionRole | string | null): void {

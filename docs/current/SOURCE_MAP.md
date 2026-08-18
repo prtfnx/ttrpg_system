@@ -4,7 +4,7 @@ Audience: contributors locating the owner of code, configuration, or tests.
 
 Status: current.
 
-Last source audit: 2026-07-29
+Last source audit: 2026-08-17
 
 This map lists the main source areas and their current responsibility.
 
@@ -92,8 +92,9 @@ This map lists the main source areas and their current responsibility.
 - `packages/rust-core/src/event_system/`: canvas event handling.
 - `packages/rust-core/src/systems/`: paint, planning, and collision systems.
 - `packages/rust-core/src/actions/`: undoable table and sprite actions.
-- `packages/rust-core/src/net/`: WASM-facing network, asset, and table sync
-  helpers.
+- `packages/rust-core/src/net/`: WASM-facing table-data ingestion only.
+- `packages/rust-core/src/asset_hash.rs`: compute-only xxHash64 helper; browser
+  asset transport and Blob caching live in TypeScript under `WasmRuntime`.
 - `packages/rust-core/src/lighting/`: lighting and visibility logic.
 - `packages/rust-core/Cargo.toml`: crate type, wasm features, dependencies, and
   test/benchmark configuration.

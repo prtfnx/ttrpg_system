@@ -192,67 +192,87 @@ describe('AssetIntegrationService', () => {
   });
 
   describe('handleAssetDownloaded (via event)', () => {
-    it('calls fetch when download_url + asset_id are provided', async () => {
+    it('routes authorized downloads through the runtime cache with hash verification', async () => {
       assetIntegrationService.initialize();
+      const downloadAsset = vi.fn().mockResolvedValue('cached-img1');
+      mockGetCurrentWasmRuntime.mockReturnValue({
+        downloadAsset,
+        getAssetInfo: vi.fn(() => ({ url: 'blob:mock' })),
+        getRenderEngine: vi.fn(() => null),
+      });
 
-      const mockBlob = new Blob(['img'], { type: 'image/png' });
-      const mockResponse = { ok: true, blob: vi.fn().mockResolvedValue(mockBlob) };
-      const fetchSpy = vi.spyOn(globalThis, 'fetch').mockResolvedValue(mockResponse as never);
-
-      // Mock URL.createObjectURL
-      const urlSpy = vi.spyOn(URL, 'createObjectURL').mockReturnValue('blob:mock');
-
-      dispatch('asset-downloaded', { success: true, asset_id: 'img1', download_url: 'https://cdn.example/img1.png' });
+      dispatch('asset-downloaded', {
+        success: true,
+        asset_id: 'img1',
+        download_url: 'https://cdn.example/img1.png',
+        xxhash: '0123456789abcdef',
+      });
 
       // Flush microtasks so the async handler reaches fetch()
       await Promise.resolve();
       await Promise.resolve();
 
-      expect(fetchSpy).toHaveBeenCalledWith('https://cdn.example/img1.png');
-      urlSpy.mockRestore();
-      fetchSpy.mockRestore();
+      expect(downloadAsset).toHaveBeenCalledWith(
+        'https://cdn.example/img1.png',
+        '0123456789abcdef',
+      );
     });
 
-    it('does not fetch when success=false', async () => {
+    it('does not download when success=false', async () => {
       assetIntegrationService.initialize();
-      const fetchSpy = vi.spyOn(globalThis, 'fetch').mockResolvedValue({ ok: true, blob: vi.fn() } as never);
+      const downloadAsset = vi.fn();
+      mockGetCurrentWasmRuntime.mockReturnValue({ downloadAsset });
 
       dispatch('asset-downloaded', { success: false, error: 'not found' });
       await Promise.resolve();
       await Promise.resolve();
 
-      expect(fetchSpy).not.toHaveBeenCalled();
-      fetchSpy.mockRestore();
+      expect(downloadAsset).not.toHaveBeenCalled();
     });
 
-    it('handles fetch failure gracefully', async () => {
+    it('handles runtime transport failure gracefully', async () => {
       assetIntegrationService.initialize();
-      const fetchSpy = vi.spyOn(globalThis, 'fetch').mockRejectedValue(new Error('network error'));
+      mockGetCurrentWasmRuntime.mockReturnValue({
+        downloadAsset: vi.fn().mockRejectedValue(new Error('network error')),
+      });
 
       expect(() => dispatch('asset-downloaded', { success: true, asset_id: 'x', download_url: 'https://bad.url' })).not.toThrow();
       await Promise.resolve();
       await Promise.resolve();
 
-      fetchSpy.mockRestore();
     });
 
-    it('handles asset_data path (base64) without fetch', async () => {
+    it('routes base64 data through the same verified runtime cache', async () => {
       assetIntegrationService.initialize();
-      const fetchSpy = vi.spyOn(globalThis, 'fetch').mockRejectedValue(new Error('should not be called'));
-      const urlSpy = vi.spyOn(URL, 'createObjectURL').mockReturnValue('blob:mock');
+      const cacheAssetBytes = vi.fn(() => 'cached-b64');
+      mockGetCurrentWasmRuntime.mockReturnValue({
+        cacheAssetBytes,
+        getAssetInfo: vi.fn(() => ({ url: 'blob:mock' })),
+        getRenderEngine: vi.fn(() => null),
+      });
 
-      dispatch('asset-downloaded', { success: true, asset_id: 'b64asset', asset_data: 'iVBORw0KGgo=' });
+      dispatch('asset-downloaded', {
+        success: true,
+        asset_id: 'b64asset',
+        asset_data: 'iVBORw0KGgo=',
+        xxhash: '0123456789abcdef',
+        content_type: 'image/png',
+      });
       await Promise.resolve();
       await Promise.resolve();
 
-      expect(fetchSpy).not.toHaveBeenCalled();
-      urlSpy.mockRestore();
-      fetchSpy.mockRestore();
+      expect(cacheAssetBytes).toHaveBeenCalledWith(expect.any(Uint8Array), {
+        name: 'b64asset',
+        mimeType: 'image/png',
+        expectedHash: '0123456789abcdef',
+      });
     });
 
     it('loads downloaded asset data into the attached render engine texture cache', async () => {
       const loadTexture = vi.fn();
       mockGetCurrentWasmRuntime.mockReturnValue({
+        cacheAssetBytes: vi.fn(() => 'cached-b64'),
+        getAssetInfo: vi.fn(() => ({ url: 'blob:mock' })),
         getRenderEngine: vi.fn(() => ({ load_texture: loadTexture })),
       });
       vi.stubGlobal('Image', class {
@@ -263,24 +283,23 @@ describe('AssetIntegrationService', () => {
         }
       });
       assetIntegrationService.initialize();
-      const fetchSpy = vi.spyOn(globalThis, 'fetch').mockRejectedValue(new Error('should not be called'));
-      const urlSpy = vi.spyOn(URL, 'createObjectURL').mockReturnValue('blob:mock');
-
       dispatch('asset-downloaded', { success: true, asset_id: 'b64asset', asset_data: 'iVBORw0KGgo=' });
       await new Promise(resolve => setTimeout(resolve, 0));
       await new Promise(resolve => setTimeout(resolve, 0));
 
-      expect(fetchSpy).not.toHaveBeenCalled();
       expect(loadTexture).toHaveBeenCalledWith('b64asset', expect.any(Image));
-      urlSpy.mockRestore();
-      fetchSpy.mockRestore();
     });
   });
 
   describe('base64ToBlob (private, via cacheAssetData path)', () => {
     it('handles base64 with data URL prefix gracefully', async () => {
       assetIntegrationService.initialize();
-      const urlSpy = vi.spyOn(URL, 'createObjectURL').mockReturnValue('blob:mock');
+      const cacheAssetBytes = vi.fn(() => 'cached-b64');
+      mockGetCurrentWasmRuntime.mockReturnValue({
+        cacheAssetBytes,
+        getAssetInfo: vi.fn(() => ({ url: 'blob:mock' })),
+        getRenderEngine: vi.fn(() => null),
+      });
 
       dispatch('asset-downloaded', {
         success: true,
@@ -290,7 +309,7 @@ describe('AssetIntegrationService', () => {
       await Promise.resolve();
       await Promise.resolve();
 
-      urlSpy.mockRestore();
+      expect(cacheAssetBytes).toHaveBeenCalledWith(expect.any(Uint8Array), expect.any(Object));
     });
   });
 });

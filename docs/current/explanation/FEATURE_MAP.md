@@ -5,7 +5,7 @@ Audience: contributors looking for the source owner of a visible app feature.
 Status: partial. This map names the main current locations. It is not a full
 API or protocol reference.
 
-Last source audit: 2026-07-08
+Last source audit: 2026-08-17
 
 ## How to read this
 
@@ -47,7 +47,7 @@ ownership rules.
 | Table | `apps/web-ui/src/features/table/` | table management and sync panels |
 | Canvas | `apps/web-ui/src/features/canvas/` | game canvas, tools, entities, token config, layer controls |
 | Actions | `apps/web-ui/src/features/actions/` | action panels and queue UI |
-| Assets | `apps/web-ui/src/features/assets/` | asset and background panels |
+| Assets | `apps/web-ui/src/features/assets/` and `apps/web-ui/src/lib/wasm/runtime/BrowserAssetCache.ts` | asset/background panels and browser-owned verified Blob cache |
 | Character | `apps/web-ui/src/features/character/` | character panel, sheet, wizard, customization |
 | Chat | `apps/web-ui/src/features/chat/` | chat panel and overlay |
 | Combat | `apps/web-ui/src/features/combat/` | combat dock, command hooks, planning, DM controls |
@@ -88,7 +88,8 @@ Rust engine behavior lives under `packages/rust-core/src/`:
 - `systems/`: paint, planning, and collision systems.
 - `actions/`: table and sprite action helpers.
 - `lighting/`: visibility and lighting logic.
-- `net/`: WASM-facing network, asset, and table sync helpers.
+- `net/`: table sync ingestion only; browser transport remains TypeScript-owned.
+- `asset_hash.rs`: compute-only xxHash64 verification for browser-fetched bytes.
 
 TypeScript must reach this code through
 `apps/web-ui/src/lib/wasm/runtime/`, not by importing generated bindings from

@@ -5,7 +5,7 @@ web styling.
 
 Status: current.
 
-Last source audit: 2026-08-03
+Last source audit: 2026-08-17
 
 The web UI is a Vite React app. React owns user workflows and browser state.
 Protocol code owns the WebSocket connection. `WasmRuntime` owns Rust/WASM.
@@ -27,6 +27,8 @@ Protocol code owns the WebSocket connection. `WasmRuntime` owns Rust/WASM.
 - `apps/web-ui/src/lib/api/ProtocolService.ts`: singleton access to the active
   protocol instance.
 - `apps/web-ui/src/lib/wasm/runtime/`: TypeScript boundary for Rust/WASM.
+- `apps/web-ui/src/lib/wasm/runtime/BrowserAssetCache.ts`: authorized asset
+  fetch, Blob/object-URL caching, LRU eviction, and deterministic URL cleanup.
 - `apps/web-ui/src/store.ts`: broad Zustand store for game state.
 
 Combat feature code lives under `apps/web-ui/src/features/combat/`.
@@ -68,6 +70,8 @@ Important combat pieces:
   connection state.
 - `WebClientProtocol` is for network messages and protocol handlers.
 - `WasmRuntime` is for Rust object lifecycle and renderer access.
+- `WasmRuntime` also owns the TypeScript asset cache because it coordinates
+  browser transport with Rust hashing; Rust never owns the fetch lifecycle.
 
 Development panels do not create independent WebSocket connections. Network
 diagnostics must read the active `ProtocolProvider` state so diagnostics cannot

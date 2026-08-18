@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import asyncio
 import time
 import uuid
 from copy import deepcopy
@@ -334,7 +335,11 @@ class CombatCommandService:
             return self._reject(envelope.sequence_id, 0, "No active combat")
 
         snapshot = deepcopy(state.to_dict()) if state else None
-        duplicate = self._find_duplicate(envelope, context, state.combat_id) if state else None
+        duplicate = (
+            await self._find_duplicate_async(envelope, context, state.combat_id)
+            if state
+            else None
+        )
         if duplicate:
             return duplicate
         applied: list[dict[str, Any]] = []
@@ -401,7 +406,7 @@ class CombatCommandService:
         if current is None and all(command.type in table_environment_types for command in envelope.commands):
             return accepted_result
         try:
-            return self._persist_result(
+            return await self._persist_result_async(
                 envelope,
                 context,
                 snapshot,
@@ -770,24 +775,24 @@ class CombatCommandService:
         move_undos: list[tuple[str, str, dict[str, float], dict[str, float]]],
     ) -> dict[str, Any]:
         if command.type == CombatCommandType.START_COMBAT:
-            return self._apply_start_combat(command, context)
+            return await self._apply_start_combat(command, context)
         if command.type == CombatCommandType.END_COMBAT:
             return self._apply_end_combat(context)
         if command.type == CombatCommandType.ADD_COMBATANT:
-            return self._apply_add_combatant(command, context, state)
+            return await self._apply_add_combatant(command, context, state)
         if command.type == CombatCommandType.SET_TERRAIN:
-            return self._apply_set_terrain(command, context)
+            return await self._apply_set_terrain(command, context)
         if command.type == CombatCommandType.ADD_COVER_ZONE:
-            return self._apply_add_cover_zone(command, context)
+            return await self._apply_add_cover_zone(command, context)
         if command.type == CombatCommandType.REMOVE_COVER_ZONE:
-            return self._apply_remove_cover_zone(command, context)
+            return await self._apply_remove_cover_zone(command, context)
         if command.type == CombatCommandType.MOVE:
             if actor_id is None:
                 return {"error": "Combatant not found"}
             return await self._apply_move(command, context, state, actor_id, move_undos)
         return self._apply_one(command, context, state, actor_id)
 
-    def _apply_start_combat(
+    async def _apply_start_combat(
         self,
         command: CombatCommand,
         context: CombatCommandContext,
@@ -801,11 +806,14 @@ class CombatCommandService:
         entity_ids = list(command.entity_ids)
         if not entity_ids:
             entity_ids = [str(item.get("entity_id")) for item in incoming_combatants if item.get("entity_id")]
-        combatants = (
-            context.build_combatants(command.table_id, entity_ids, incoming_combatants)
-            if context.build_combatants is not None
-            else incoming_combatants
-        )
+        combatants = incoming_combatants
+        if context.build_combatants is not None:
+            combatants = await asyncio.to_thread(
+                context.build_combatants,
+                command.table_id,
+                entity_ids,
+                incoming_combatants,
+            )
         settings = CombatSettings.from_dict(command.settings) if command.settings else None
         state = self._engine.start_combat(
             session_id=context.session_code,
@@ -827,7 +835,7 @@ class CombatCommandService:
             return {"error": "No active combat"}
         return {"combat": state.to_dict(), "ended": True}
 
-    def _apply_add_combatant(
+    async def _apply_add_combatant(
         self,
         command: CombatCommand,
         context: CombatCommandContext,
@@ -847,11 +855,14 @@ class CombatCommandService:
             "name": command.name,
         }
         incoming_combatants = command.combatants or [incoming]
-        resolved = (
-            context.build_combatants(table_id, [str(entity_id)], incoming_combatants)
-            if context.build_combatants is not None
-            else incoming_combatants
-        )
+        resolved = incoming_combatants
+        if context.build_combatants is not None:
+            resolved = await asyncio.to_thread(
+                context.build_combatants,
+                table_id,
+                [str(entity_id)],
+                incoming_combatants,
+            )
         payload = dict(resolved[0]) if resolved else incoming
         extra = {k: v for k, v in payload.items() if k != "entity_id"}
         combatant = self._engine.add_combatant(context.session_code, str(entity_id), **extra)
@@ -864,7 +875,7 @@ class CombatCommandService:
             "order": self._initiative_order(current),
         }
 
-    def _apply_set_terrain(
+    async def _apply_set_terrain(
         self,
         command: CombatCommand,
         context: CombatCommandContext,
@@ -889,7 +900,7 @@ class CombatCommandService:
         except (TypeError, ValueError):
             table.difficult_terrain_cells = previous_cells
             return {"error": "Invalid terrain cells"}
-        persist_error = self._save_table(context, command.table_id)
+        persist_error = await self._save_table_async(context, command.table_id)
         if persist_error:
             table.difficult_terrain_cells = previous_cells
             return {"error": persist_error}
@@ -899,7 +910,7 @@ class CombatCommandService:
             "difficult_terrain": [list(cell) for cell in table.difficult_terrain_cells],
         }
 
-    def _apply_add_cover_zone(
+    async def _apply_add_cover_zone(
         self,
         command: CombatCommand,
         context: CombatCommandContext,
@@ -918,13 +929,13 @@ class CombatCommandService:
         previous_zones = list(table.cover_zones)
         table.cover_zones = [item for item in table.cover_zones if item.zone_id != zone.zone_id]
         table.cover_zones.append(zone)
-        persist_error = self._save_table(context, command.table_id)
+        persist_error = await self._save_table_async(context, command.table_id)
         if persist_error:
             table.cover_zones = previous_zones
             return {"error": persist_error}
         return {"table_id": command.table_id, "zone": zone.to_dict()}
 
-    def _apply_remove_cover_zone(
+    async def _apply_remove_cover_zone(
         self,
         command: CombatCommand,
         context: CombatCommandContext,
@@ -939,7 +950,7 @@ class CombatCommandService:
         previous_zones = list(getattr(table, "cover_zones", []))
         if hasattr(table, "cover_zones"):
             table.cover_zones = [item for item in table.cover_zones if item.zone_id != command.zone_id]
-        persist_error = self._save_table(context, command.table_id)
+        persist_error = await self._save_table_async(context, command.table_id)
         if persist_error:
             table.cover_zones = previous_zones
             return {"error": persist_error}
@@ -950,6 +961,15 @@ class CombatCommandService:
         if context.save_table is None:
             return None
         return context.save_table(table_id)
+
+    @staticmethod
+    async def _save_table_async(
+        context: CombatCommandContext,
+        table_id: str,
+    ) -> str | None:
+        if context.save_table is None:
+            return None
+        return await asyncio.to_thread(context.save_table, table_id)
 
     async def _apply_move(
         self,
@@ -979,7 +999,8 @@ class CombatCommandService:
             "y": float(command.from_y),
         }
         to_pos = {"x": float(command.target_x), "y": float(command.target_y)}
-        validation = context.validate_move(
+        validation = await asyncio.to_thread(
+            context.validate_move,
             command.table_id,
             actor.entity_id,
             from_pos,
@@ -1172,6 +1193,19 @@ class CombatCommandService:
             return None
         return CombatCommandResult.from_dict(stored.result, duplicate=True)
 
+    async def _find_duplicate_async(
+        self,
+        envelope: CombatCommandEnvelope,
+        context: CombatCommandContext,
+        encounter_id: str,
+    ) -> CombatCommandResult | None:
+        return await asyncio.to_thread(
+            self._find_duplicate,
+            envelope,
+            context,
+            encounter_id,
+        )
+
     def _persist_result(
         self,
         envelope: CombatCommandEnvelope,
@@ -1189,6 +1223,45 @@ class CombatCommandService:
 
         command_types = [command.type.value for command in envelope.commands]
         persisted = self._persistence.persist_accepted(
+            session_code=context.session_code,
+            requester_key=self._persistence.requester_key(
+                context.user_id,
+                context.client_id,
+            ),
+            sequence_id=envelope.sequence_id,
+            actor_id=result.applied[0].get("actor_id") if result.applied else None,
+            command_type=command_types[0] if len(command_types) == 1 else "batch",
+            command_payload=envelope.model_dump(mode="json"),
+            result_payload=result.to_dict(),
+            state_before=snapshot or {},
+            state_after=state_after,
+            created_by=context.user_id,
+        )
+        if current is not None:
+            current.state_version = persisted.state_version
+        return CombatCommandResult.from_dict(
+            persisted.result,
+            duplicate=persisted.duplicate,
+        )
+
+    async def _persist_result_async(
+        self,
+        envelope: CombatCommandEnvelope,
+        context: CombatCommandContext,
+        snapshot: dict[str, Any] | None,
+        current: CombatState | None,
+        result: CombatCommandResult,
+    ) -> CombatCommandResult:
+        if self._persistence is None:
+            await asyncio.to_thread(self._persist, context.session_code)
+            return result
+        state_after = current.to_dict() if current is not None else result.combat
+        if state_after is None:
+            raise RuntimeError("Combat ended before persistence")
+
+        command_types = [command.type.value for command in envelope.commands]
+        persisted = await asyncio.to_thread(
+            self._persistence.persist_accepted,
             session_code=context.session_code,
             requester_key=self._persistence.requester_key(
                 context.user_id,

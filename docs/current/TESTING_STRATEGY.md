@@ -42,6 +42,12 @@ Session protocol tests cover worker-thread execution for rules, mode, layer,
 and active-table operations. They also verify that a foreign-session table and
 a failed layer-settings write cannot produce an accepted broadcast.
 
+Combat command tests assert worker-thread execution for duplicate lookup,
+journal persistence, restore, combatant construction, movement validation,
+and table saves. A deliberately blocked persistence fake verifies that an
+independent event-loop heartbeat still advances, while existing rollback tests
+cover failed journal writes and token movement reversal.
+
 Run:
 
 ```powershell

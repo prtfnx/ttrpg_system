@@ -3,6 +3,7 @@
 CombatEngine is patched for all tests — we verify permission gates,
 validation, and correct MessageType in responses.
 """
+import threading
 from types import SimpleNamespace
 from unittest.mock import AsyncMock, MagicMock, patch
 
@@ -240,6 +241,30 @@ class TestCombatStateRequest:
         proto = _ProtoStub(role="player")
         resp = await proto.handle_combat_state_request(Message(MessageType.COMBAT_STATE_REQUEST, {}), "c1")
         assert resp.type == MessageType.COMBAT_STATE
+
+    @patch("service.combat_engine.CombatEngine")
+    async def test_restore_runs_off_event_loop(self, mock_engine):
+        event_loop_thread = threading.get_ident()
+        worker_thread = None
+        state = _combat_state()
+        mock_engine.get_state.return_value = None
+
+        def restore(_session_code):
+            nonlocal worker_thread
+            worker_thread = threading.get_ident()
+            return state
+
+        mock_engine.restore.side_effect = restore
+        proto = _ProtoStub(role="player")
+
+        response = await proto.handle_combat_state_request(
+            Message(MessageType.COMBAT_STATE_REQUEST, {}),
+            "c1",
+        )
+
+        assert response.type == MessageType.COMBAT_STATE
+        assert worker_thread is not None
+        assert worker_thread != event_loop_thread
 
 
 @pytest.mark.unit

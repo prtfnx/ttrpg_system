@@ -1,3 +1,4 @@
+import asyncio
 import json
 import time
 from typing import Any
@@ -144,7 +145,9 @@ class _CombatMixin(_ProtocolBase):
         from service.combat_engine import CombatEngine
         session_code = self._get_session_code()
         # Try in-memory first, then restore from DB (handles reconnects after restart)
-        state = CombatEngine.get_state(session_code) or CombatEngine.restore(session_code)
+        state = CombatEngine.get_state(session_code)
+        if state is None:
+            state = await asyncio.to_thread(CombatEngine.restore, session_code)
         if not state:
             return Message(MessageType.COMBAT_STATE, {'combat': None})
         return Message(MessageType.COMBAT_STATE, {

@@ -1,5 +1,7 @@
 # pyright: reportOptionalMemberAccess=false
 
+import asyncio
+import threading
 from unittest.mock import AsyncMock, MagicMock, patch
 
 from service.attack_resolver import AttackResult
@@ -1477,3 +1479,183 @@ async def test_persistence_failure_rolls_back_combat_and_token_movement():
     assert result.reason == "Failed to persist combat command"
     assert CombatEngine.get_state("cmd").combatants[0].movement_remaining == 30
     assert move_sprite.await_count == 2
+
+
+async def test_async_duplicate_lookup_and_journal_write_run_off_event_loop():
+    state, actor, _target = _state()
+    event_loop_thread = threading.get_ident()
+    worker_threads = {}
+    persistence = MagicMock()
+    persistence.requester_key.return_value = "user:1"
+
+    def find_result(*_args):
+        worker_threads["find"] = threading.get_ident()
+        return None
+
+    def persist_accepted(**kwargs):
+        worker_threads["persist"] = threading.get_ident()
+        result = dict(kwargs["result_payload"])
+        result["state_version"] = 1
+        return PersistedCombatCommand(result=result, state_version=1)
+
+    persistence.find_result.side_effect = find_result
+    persistence.persist_accepted.side_effect = persist_accepted
+    service = CombatCommandService(persistence=persistence)
+    envelope = service.parse_envelope({
+        "sequence_id": 301,
+        "commands": [{"type": "dash", "actor_id": actor.combatant_id}],
+    })
+
+    result = await service.apply_async(envelope, _context(role="player"))
+
+    assert result.accepted is True
+    assert set(worker_threads) == {"find", "persist"}
+    assert all(thread_id != event_loop_thread for thread_id in worker_threads.values())
+    assert state.state_version == 1
+
+
+async def test_slow_combat_persistence_does_not_block_event_loop():
+    _state_value, actor, _target = _state()
+    started = threading.Event()
+    release = threading.Event()
+    persistence = MagicMock()
+    persistence.requester_key.return_value = "user:1"
+    persistence.find_result.return_value = None
+
+    def persist_accepted(**kwargs):
+        started.set()
+        release.wait(timeout=2)
+        return PersistedCombatCommand(
+            result=kwargs["result_payload"],
+            state_version=1,
+        )
+
+    persistence.persist_accepted.side_effect = persist_accepted
+    service = CombatCommandService(persistence=persistence)
+    envelope = service.parse_envelope({
+        "sequence_id": 305,
+        "commands": [{"type": "dash", "actor_id": actor.combatant_id}],
+    })
+    task = asyncio.create_task(
+        service.apply_async(envelope, _context(role="player"))
+    )
+    try:
+        for _ in range(100):
+            if started.is_set():
+                break
+            await asyncio.sleep(0.001)
+
+        assert started.is_set()
+        await asyncio.sleep(0)
+        assert not task.done()
+    finally:
+        release.set()
+
+    result = await task
+    assert result.accepted is True
+
+
+async def test_async_combat_callbacks_run_off_event_loop():
+    CombatEngine._active.pop("cmd", None)
+    event_loop_thread = threading.get_ident()
+    worker_threads = {}
+    table = MagicMock()
+    table.difficult_terrain_cells = set()
+
+    def save_table(_table_id):
+        worker_threads["save_table"] = threading.get_ident()
+        return None
+
+    terrain_service = CombatCommandService()
+    terrain_result = await terrain_service.apply_async(
+        terrain_service.parse_envelope({
+            "sequence_id": 302,
+            "commands": [{
+                "type": "set_terrain",
+                "actor_id": "__dm__",
+                "table_id": "t1",
+                "cells": [[1, 2]],
+            }],
+        }),
+        CombatCommandContext(
+            session_code="cmd",
+            client_id="c1",
+            role="owner",
+            user_id=1,
+            table_lookup=lambda _table_id: table,
+            save_table=save_table,
+        ),
+    )
+
+    CombatEngine._active.pop("cmd", None)
+
+    def build_combatants(_table_id, _entity_ids, combatants):
+        worker_threads["build_combatants"] = threading.get_ident()
+        return combatants
+
+    persistence = MagicMock()
+    persistence.requester_key.return_value = "user:1"
+    persistence.find_result.return_value = None
+    persistence.persist_accepted.side_effect = lambda **kwargs: PersistedCombatCommand(
+        result=kwargs["result_payload"],
+        state_version=1,
+    )
+    start_service = CombatCommandService(persistence=persistence)
+    start_result = await start_service.apply_async(
+        start_service.parse_envelope({
+            "sequence_id": 303,
+            "commands": [{
+                "type": "start_combat",
+                "actor_id": "__dm__",
+                "table_id": "t1",
+                "combatants": [{"entity_id": "sprite-1", "name": "Ada"}],
+            }],
+        }),
+        CombatCommandContext(
+            session_code="cmd",
+            client_id="c1",
+            role="owner",
+            user_id=1,
+            build_combatants=build_combatants,
+        ),
+    )
+
+    state = CombatEngine.get_state("cmd")
+    actor = state.combatants[0]
+
+    def validate_move(*_args):
+        worker_threads["validate_move"] = threading.get_ident()
+        return {"success": True, "movement_cost": 5}
+
+    move_result = await start_service.apply_async(
+        start_service.parse_envelope({
+            "sequence_id": 304,
+            "commands": [{
+                "type": "move",
+                "actor_id": actor.combatant_id,
+                "table_id": "t1",
+                "from_x": 0,
+                "from_y": 0,
+                "target_x": 10,
+                "target_y": 0,
+            }],
+        }),
+        CombatCommandContext(
+            session_code="cmd",
+            client_id="c1",
+            role="owner",
+            user_id=1,
+            move_sprite=AsyncMock(return_value={"success": True, "message": "ok"}),
+            validate_move=validate_move,
+        ),
+    )
+
+    assert terrain_result.accepted is True
+    assert start_result.accepted is True
+    assert move_result.accepted is True
+    assert set(worker_threads) == {
+        "save_table",
+        "build_combatants",
+        "validate_move",
+    }
+    assert all(thread_id != event_loop_thread for thread_id in worker_threads.values())

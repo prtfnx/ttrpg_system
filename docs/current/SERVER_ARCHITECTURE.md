@@ -141,6 +141,12 @@ Important supporting services:
   and spectator clients.
 - `CombatEngine`: owns the live in-memory combat state for a session.
 
+The async command path offloads duplicate lookup, accepted-command
+persistence, restore, character lookup, movement rule loading/validation, and
+table saves. The session mutation lock stays held until the worker returns;
+state-version updates, rollback, and role-filtered delivery occur on the event
+loop. Worker database operations create or resolve a worker-owned ORM session.
+
 `protocol/combat.py` should stay a boundary layer: parse the websocket message,
 build context, call the service, and send filtered responses.
 

@@ -224,6 +224,15 @@ The current encounter snapshot is updated after each accepted command. This
 allows mid-round restore and durable DM revert. Persistence failure rolls the
 in-memory combat state and token movement back before any success broadcast.
 
+Synchronous combat database work runs in worker threads while the per-session
+mutation lock remains held. This includes duplicate-command lookup, accepted
+journal/snapshot persistence, restart restore, linked-character lookup during
+combatant construction, session-rule loading during movement validation, and
+terrain/cover table saves. Plain snapshots and validated command values cross
+the boundary; state-version application, rollback, and broadcasts remain on
+the serialized event-loop task. A slow database therefore does not stall
+unrelated sessions or other event-loop work.
+
 ## Table environment
 
 Terrain and cover edits affect combat validation and visibility decisions, so
@@ -235,7 +244,7 @@ they use the command path too:
 
 These commands are DM-only. They can run without an active combat encounter
 because the table environment can be prepared before initiative starts. They
-persist table state and roll back in memory if persistence fails.
+persist table state off-thread and roll back in memory if persistence fails.
 
 ## Rust/WASM role
 

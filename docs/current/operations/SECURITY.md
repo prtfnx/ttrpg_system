@@ -110,8 +110,10 @@ OAuth callback URL is:
 {BASE_URL}/auth/callback
 ```
 
-The OAuth router uses Authlib and an in-memory cache for state/nonce data. That
-cache is single-process; use a shared store before running multiple workers.
+Authlib stores state, nonce, and PKCE data in the signed, HTTP-only Starlette
+session cookie. The callback's account transaction and success/failure audit
+writes run in worker-owned SQLAlchemy sessions; provider HTTP exchange remains
+on the async event loop.
 
 ## Roles and permissions
 
@@ -206,7 +208,6 @@ requires migrating server templates to nonces or external assets.
 
 - `CORS_ORIGINS` defaults to `*` for development; production validation rejects
   it and Render requires an explicit dashboard value.
-- OAuth state cache is in-memory and single-process.
 - Rate limiting is in-memory and single-process.
 - The CSP still permits existing inline script and style blocks.
 

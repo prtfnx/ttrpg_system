@@ -104,6 +104,9 @@ When configured, `/auth/google` starts the flow and `/auth/callback` creates or
 links a user, then sets the same `token` cookie as password login. Authlib keeps
 state, nonce, and PKCE data in the signed, HTTP-only Starlette session so the
 callback remains bound to the initiating browser and works across workers.
+The provider exchange remains asynchronous; account linking/creation and its
+audit record execute atomically in a worker-owned SQLAlchemy session so the
+callback does not block the application event loop.
 
 Production startup rejects placeholder signing secrets and wildcard CORS.
 

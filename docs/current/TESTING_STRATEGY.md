@@ -38,6 +38,9 @@ async-to-sync submissions.
 `tests/unit/test_http_route_threading.py` locks down the normal-`def` contract
 for blocking HTTP handlers and injects a slow database call to prove the ASGI
 event loop remains responsive.
+OAuth callback integration tests assert that provider exchange and database
+persistence execute on different threads, and cover atomic identity linking
+with both success and failure audit records.
 Paint persistence regression tests cover the same thread boundary for stroke
 create/delete/clear and template upsert/delete/sync, plus stroke retry
 idempotency. Measurement tests cover upsert/delete/clear/sync. For new

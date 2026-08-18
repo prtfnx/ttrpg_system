@@ -29,6 +29,7 @@ Setup requirements:
 
 import re
 import secrets
+from dataclasses import dataclass
 from datetime import timedelta
 
 from authlib.integrations.starlette_client import OAuth, OAuthError
@@ -37,8 +38,9 @@ from database import models
 from database.database import get_db
 from fastapi import APIRouter, Depends, HTTPException, Request
 from fastapi.responses import JSONResponse, RedirectResponse
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, sessionmaker
 from utils.audit import audit_event
+from utils.blocking import run_blocking
 from utils.logger import setup_logger
 from utils.observability import record_auth
 
@@ -79,19 +81,115 @@ else:
     logger.warning("Google OAuth is disabled", extra={"event_name": "oauth.disabled"})
 
 
-def _record_oauth_failure(db: Session, request: Request, reason: str) -> None:
-    record_auth("oauth", "failure", reason)
+@dataclass(frozen=True)
+class OAuthIdentity:
+    user_id: int
+    username: str
+    session_version: int
+
+
+def _worker_session_factory(db: Session) -> sessionmaker[Session]:
+    """Create fresh worker sessions against the request's configured database."""
+    return sessionmaker(
+        bind=db.get_bind(),
+        autoflush=False,
+        expire_on_commit=False,
+    )
+
+
+def _persist_oauth_audit(
+    session_factory: sessionmaker[Session],
+    audit_log: models.AuditLog,
+) -> None:
+    db = session_factory()
     try:
-        db.rollback()
-        db.add(audit_event(
-            "authentication.oauth",
-            outcome="failure",
-            request=request,
-            details={"reason": reason},
-        ))
+        db.add(audit_log)
         db.commit()
     except Exception:
         db.rollback()
+        raise
+    finally:
+        db.close()
+
+
+def _resolve_oauth_identity(
+    session_factory: sessionmaker[Session],
+    *,
+    google_id: str,
+    email: str,
+    name: str,
+    audit_log: models.AuditLog,
+) -> OAuthIdentity:
+    """Resolve/link an OAuth user in one worker-owned transaction."""
+    db = session_factory()
+    try:
+        user = db.query(models.User).filter(models.User.google_id == google_id).first()
+
+        if user:
+            logger.info("OAuth user resolved", extra={"event_name": "oauth.user.resolved"})
+        else:
+            user = db.query(models.User).filter(models.User.email == email).first()
+            if user:
+                logger.info("Linking OAuth identity", extra={"event_name": "oauth.user.linked"})
+                user.google_id = google_id
+                user.is_verified = True
+            else:
+                base_username = re.sub(r"[^a-zA-Z0-9_]", "", email.split("@", 1)[0])
+                if len(base_username) < 4:
+                    base_username = f"user_{base_username}"
+
+                username = base_username
+                counter = 1
+                while db.query(models.User).filter(models.User.username == username).first():
+                    username = f"{base_username}{counter}"
+                    counter += 1
+
+                logger.info("Creating OAuth user", extra={"event_name": "oauth.user.created"})
+                user = models.User(
+                    username=username,
+                    email=email,
+                    full_name=name,
+                    google_id=google_id,
+                    is_verified=True,
+                    hashed_password=secrets.token_urlsafe(32),
+                    disabled=False,
+                )
+                db.add(user)
+
+        db.flush()
+        audit_log.user_id = user.id
+        db.add(audit_log)
+        db.commit()
+        return OAuthIdentity(
+            user_id=user.id,
+            username=user.username,
+            session_version=user.session_version or 0,
+        )
+    except Exception:
+        db.rollback()
+        raise
+    finally:
+        db.close()
+
+
+async def _record_oauth_failure(
+    session_factory: sessionmaker[Session],
+    request: Request,
+    reason: str,
+) -> None:
+    record_auth("oauth", "failure", reason)
+    try:
+        await run_blocking(
+            _persist_oauth_audit,
+            session_factory,
+            audit_event(
+                "authentication.oauth",
+                outcome="failure",
+                request=request,
+                details={"reason": reason},
+            ),
+        )
+    except Exception:
         logger.exception(
             "OAuth failure audit persistence failed",
             extra={"event_name": "audit.oauth.failed", "outcome": "error"},
@@ -160,11 +258,12 @@ async def google_callback(request: Request, db: Session = Depends(get_db)):
         logger.error("OAuth callback received but OAuth not configured")
         return RedirectResponse(url="/users/login?error=oauth_not_configured")
 
+    session_factory = _worker_session_factory(db)
     try:
         # Check for error from Google before attempting token exchange
         error = request.query_params.get('error')
         if error:
-            _record_oauth_failure(db, request, "provider_error")
+            await _record_oauth_failure(session_factory, request, "provider_error")
             logger.warning("OAuth provider rejected authentication")
             return RedirectResponse(
                 url="/users/login?error=oauth_failed&reason=provider_error",
@@ -192,71 +291,25 @@ async def google_callback(request: Request, db: Session = Depends(get_db)):
 
         logger.info("OAuth identity received", extra={"event_name": "oauth.identity.received"})
 
-        # Find or create user
-        user = db.query(models.User).filter(
-            models.User.google_id == google_id
-        ).first()
+        identity = await run_blocking(
+            _resolve_oauth_identity,
+            session_factory,
+            google_id=str(google_id),
+            email=str(email).strip().lower(),
+            name=str(name),
+            audit_log=audit_event(
+                "authentication.oauth",
+                request=request,
+                details={"provider": "google"},
+            ),
+        )
 
-        if user:
-            logger.info("OAuth user resolved", extra={"event_name": "oauth.user.resolved"})
-        else:
-            # Check if user exists with this email
-            user = db.query(models.User).filter(
-                models.User.email == email
-            ).first()
-
-            if user:
-                # Link Google account to existing user
-                logger.info("Linking OAuth identity", extra={"event_name": "oauth.user.linked"})
-                user.google_id = google_id
-                user.is_verified = True
-            else:
-                # Create new user
-                # Generate unique username from email
-                base_username = email.split('@')[0]
-                # Sanitize: only alphanumeric and underscores
-                base_username = re.sub(r'[^a-zA-Z0-9_]', '', base_username)
-                # Ensure minimum length
-                if len(base_username) < 4:
-                    base_username = f"user_{base_username}"
-
-                username = base_username
-                counter = 1
-
-                # Ensure username is unique
-                while db.query(models.User).filter(models.User.username == username).first():
-                    username = f"{base_username}{counter}"
-                    counter += 1
-
-                logger.info("Creating OAuth user", extra={"event_name": "oauth.user.created"})
-
-                user = models.User(
-                    username=username,
-                    email=email,
-                    full_name=name,
-                    google_id=google_id,
-                    is_verified=True,  # OAuth users are pre-verified
-                    hashed_password=secrets.token_urlsafe(32),  # Random password for OAuth users
-                    disabled=False
-                )
-                db.add(user)
-
-            db.commit()
-            db.refresh(user)
-
-        request.state.user_id = user.id
+        request.state.user_id = identity.user_id
         record_auth("oauth", "success")
-        db.add(audit_event(
-            "authentication.oauth",
-            user_id=user.id,
-            request=request,
-            details={"provider": "google"},
-        ))
-        db.commit()
 
         # Create JWT access token
         access_token = create_access_token(
-            data={"sub": user.username, "sv": user.session_version or 0},
+            data={"sub": identity.username, "sv": identity.session_version},
             expires_delta=timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
         )
 
@@ -281,7 +334,7 @@ async def google_callback(request: Request, db: Session = Depends(get_db)):
         return response
 
     except OAuthError as exc:
-        _record_oauth_failure(db, request, "provider_error")
+        await _record_oauth_failure(session_factory, request, "provider_error")
         logger.error(
             "OAuth callback failed",
             extra={"event_name": "oauth.callback.failed", "error_type": type(exc).__name__},
@@ -291,7 +344,7 @@ async def google_callback(request: Request, db: Session = Depends(get_db)):
             status_code=302
         )
     except HTTPException as exc:
-        _record_oauth_failure(db, request, "invalid_credentials")
+        await _record_oauth_failure(session_factory, request, "invalid_credentials")
         logger.error(
             "OAuth callback was rejected",
             extra={"event_name": "oauth.callback.rejected", "error_type": type(exc).__name__},
@@ -301,7 +354,7 @@ async def google_callback(request: Request, db: Session = Depends(get_db)):
             status_code=302
         )
     except Exception as exc:
-        _record_oauth_failure(db, request, "unknown")
+        await _record_oauth_failure(session_factory, request, "unknown")
         logger.error(
             "Unexpected OAuth callback failure",
             extra={"event_name": "oauth.callback.failed", "error_type": type(exc).__name__},

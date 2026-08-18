@@ -124,6 +124,10 @@ Server-owned:
 - persisted walls, paint strokes, and layer settings for join-time sync;
 - each player's active table.
 
+Active-table reads and writes run outside the asyncio event-loop thread with a
+worker-owned ORM session. Layer settings are also persisted off-thread and are
+constrained to a table in the authenticated session before any broadcast.
+
 Browser-owned:
 
 - active UI panel state;

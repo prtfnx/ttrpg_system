@@ -38,6 +38,10 @@ idempotency. Measurement tests cover upsert/delete/clear/sync. For new
 async-to-sync boundaries, add an event-loop responsiveness regression and
 assert that the worker creates and closes its own SQLAlchemy session.
 
+Session protocol tests cover worker-thread execution for rules, mode, layer,
+and active-table operations. They also verify that a foreign-session table and
+a failed layer-settings write cannot produce an accepted broadcast.
+
 Run:
 
 ```powershell

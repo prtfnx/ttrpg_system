@@ -112,6 +112,9 @@ Protocol behavior is split by domain under `apps/server/service/protocol/`.
   the event loop.
 - `measurements.py`: completed measurement sync with the same worker-owned ORM
   session boundary.
+- `session.py`: session rules, game mode, layer settings, and player
+  active-table persistence use worker-owned ORM sessions; accepted updates are
+  broadcast only after the durable operation succeeds.
 - `assets.py`: asset upload, download, hash, list, delete.
 - `players.py`: player status, list, kick, ban.
 - `characters.py`: character save, load, update, rolls, logs.

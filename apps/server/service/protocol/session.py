@@ -1,7 +1,10 @@
-from typing import Optional
+import asyncio
+import json
+from typing import Any, Optional
 
 from core_table.game_mode import GameMode
 from core_table.protocol import Message, MessageType
+from database import crud, models, schemas
 from database.database import SessionLocal
 from database.models import GamePlayer, GameSession
 from utils.logger import setup_logger
@@ -10,6 +13,162 @@ from utils.roles import is_dm
 from ._protocol_base import _ProtocolBase
 
 logger = setup_logger(__name__)
+
+
+def _persist_layer_settings(
+    *,
+    table_id: str,
+    session_id: int,
+    layer: str,
+    settings: dict[str, Any],
+) -> str | None:
+    db = None
+    try:
+        db = SessionLocal()
+        table = db.query(models.VirtualTable).filter(
+            models.VirtualTable.table_id == table_id,
+            models.VirtualTable.session_id == session_id,
+        ).first()
+        if table is None:
+            return "Table not found in this session"
+        existing = json.loads(table.layer_settings or "{}")
+        if not isinstance(existing, dict):
+            return "Stored layer settings are invalid"
+        existing[layer] = settings
+        crud.update_virtual_table(
+            db,
+            table_id,
+            schemas.VirtualTableUpdate(layer_settings=existing),
+        )
+        return None
+    except Exception:
+        logger.exception("Layer settings persistence failed")
+        return "Layer settings could not be persisted"
+    finally:
+        if db is not None:
+            db.close()
+
+
+def _persist_game_mode(*, session_code: str, target_mode: str) -> str | None:
+    db = None
+    try:
+        db = SessionLocal()
+        if not crud.update_game_mode(db, session_code, target_mode):
+            return "Session not found"
+        return None
+    except Exception:
+        logger.exception("Game mode persistence failed")
+        return "Game mode could not be persisted"
+    finally:
+        if db is not None:
+            db.close()
+
+
+def _persist_session_rules(*, session_code: str, rules_json: str) -> str | None:
+    db = None
+    try:
+        db = SessionLocal()
+        if not crud.update_session_rules_json(db, session_code, rules_json):
+            return "Session not found"
+        return None
+    except Exception:
+        logger.exception("Session rules persistence failed")
+        return "Session rules update failed"
+    finally:
+        if db is not None:
+            db.close()
+
+
+def _load_session_rules(*, session_code: str) -> tuple[str, str]:
+    db = None
+    try:
+        db = SessionLocal()
+        return (
+            crud.get_session_rules_json(db, session_code),
+            crud.get_game_mode(db, session_code),
+        )
+    except Exception:
+        logger.exception("Session rules load failed")
+        return "{}", "free_roam"
+    finally:
+        if db is not None:
+            db.close()
+
+
+def _load_player_active_table(*, user_id: int, session_code: str) -> Optional[str]:
+    db = None
+    try:
+        db = SessionLocal()
+        player = db.query(GamePlayer).join(GameSession).filter(
+            GamePlayer.user_id == user_id,
+            GameSession.session_code == session_code,
+        ).first()
+        if player:
+            logger.debug(
+                "Found GamePlayer %s with active_table_id: %s",
+                player.id,
+                player.active_table_id,
+            )
+        else:
+            logger.debug(
+                "No GamePlayer found for user %s in session %s",
+                user_id,
+                session_code,
+            )
+        return player.active_table_id if player else None
+    except Exception:
+        logger.exception(
+            "Error getting player active table for user %s in session %s",
+            user_id,
+            session_code,
+        )
+        return None
+    finally:
+        if db is not None:
+            db.close()
+
+
+def _persist_player_active_table(
+    *,
+    user_id: int,
+    session_code: str,
+    table_id: Optional[str],
+) -> bool:
+    db = None
+    try:
+        db = SessionLocal()
+        player = db.query(GamePlayer).join(GameSession).filter(
+            GamePlayer.user_id == user_id,
+            GameSession.session_code == session_code,
+        ).first()
+        if player is None:
+            logger.warning(
+                "No GamePlayer found for user %s in session %s",
+                user_id,
+                session_code,
+            )
+            return False
+        old_table_id = player.active_table_id
+        player.active_table_id = table_id
+        db.commit()
+        logger.info(
+            "Updated active table for user %s in session %s: %s -> %s",
+            user_id,
+            session_code,
+            old_table_id,
+            table_id,
+        )
+        return True
+    except Exception:
+        logger.exception(
+            "Error setting player active table for user %s in session %s",
+            user_id,
+            session_code,
+        )
+        return False
+    finally:
+        if db is not None:
+            db.close()
 
 
 class _SessionMixin(_ProtocolBase):
@@ -26,27 +185,24 @@ class _SessionMixin(_ProtocolBase):
         table_id = msg.data.get('table_id')
         layer    = msg.data.get('layer')
         settings = msg.data.get('settings', {})
-        if not table_id or not layer:
+        if not isinstance(table_id, str) or not table_id or len(table_id) > 36:
             return Message(MessageType.ERROR, {'error': 'table_id and layer are required'})
-
+        if not isinstance(layer, str) or not layer or len(layer) > 64:
+            return Message(MessageType.ERROR, {'error': 'table_id and layer are required'})
+        if not isinstance(settings, dict):
+            return Message(MessageType.ERROR, {'error': 'settings must be an object'})
         session_id = self._get_session_id(msg)
-        if session_id:
-            try:
-                import json as _json
-
-                from database import crud, schemas
-                db = SessionLocal()
-                try:
-                    db_table = crud.get_virtual_table_by_id(db, table_id)
-                    if db_table:
-                        existing = _json.loads(db_table.layer_settings or '{}')
-                        existing[layer] = settings
-                        update = schemas.VirtualTableUpdate(layer_settings=existing)
-                        crud.update_virtual_table(db, table_id, update)
-                finally:
-                    db.close()
-            except Exception as e:
-                logger.error(f"handle_layer_settings_update DB error: {e}")
+        if session_id is None:
+            return Message(MessageType.ERROR, {'error': 'Authenticated session context is required'})
+        error = await asyncio.to_thread(
+            _persist_layer_settings,
+            table_id=table_id,
+            session_id=session_id,
+            layer=layer,
+            settings=settings,
+        )
+        if error:
+            return Message(MessageType.ERROR, {'error': error})
 
         broadcast_payload = {'table_id': table_id, 'layer': layer, 'settings': settings}
         await self.broadcast_to_session(
@@ -71,16 +227,15 @@ class _SessionMixin(_ProtocolBase):
             return Message(MessageType.ERROR, {'error': f'Invalid game mode: {target_mode}'})
 
         session_code = self._get_session_code()
-        if session_code:
-            try:
-                from database.crud import update_game_mode
-                db = SessionLocal()
-                try:
-                    update_game_mode(db, session_code, target_mode)
-                finally:
-                    db.close()
-            except Exception as e:
-                logger.error(f"Failed to persist game mode: {e}")
+        if not session_code:
+            return Message(MessageType.ERROR, {'error': 'Authenticated session context is required'})
+        error = await asyncio.to_thread(
+            _persist_game_mode,
+            session_code=session_code,
+            target_mode=target_mode,
+        )
+        if error:
+            return Message(MessageType.ERROR, {'error': error})
 
         response = Message(MessageType.GAME_MODE_STATE, {'game_mode': target_mode})
         await self.broadcast_to_session(response, client_id)
@@ -96,23 +251,22 @@ class _SessionMixin(_ProtocolBase):
             return Message(MessageType.ERROR, {'error': 'rules payload is required'})
 
         try:
-            import json
-
             from core_table.session_rules import SessionRules
             session_code = self._get_session_code() or "unknown"
-            rules_data['session_id'] = session_code
-            rules = SessionRules.from_dict(rules_data)
+            authoritative_rules = {**rules_data, 'session_id': session_code}
+            rules = SessionRules.from_dict(authoritative_rules)
             errors = rules.validate()
             if errors:
                 return Message(MessageType.ERROR, {'error': '; '.join(errors)})
 
             rules_json = json.dumps(rules.to_dict())
-            from database.crud import update_session_rules_json
-            db = SessionLocal()
-            try:
-                update_session_rules_json(db, session_code, rules_json)
-            finally:
-                db.close()
+            error = await asyncio.to_thread(
+                _persist_session_rules,
+                session_code=session_code,
+                rules_json=rules_json,
+            )
+            if error:
+                return Message(MessageType.ERROR, {'error': error})
 
             # Invalidate per-session rules cache
             self._rules_cache.pop(session_code, None)
@@ -127,24 +281,12 @@ class _SessionMixin(_ProtocolBase):
     async def handle_session_rules_request(self, msg: Message, client_id: str) -> Message:
         """Client requests current session rules.  Sends directly back."""
         session_code = self._get_session_code()
-        rules_json = '{}'
-        game_mode = 'free_roam'
+        rules_json, game_mode = ('{}', 'free_roam')
         if session_code:
-            try:
-                import json
-
-                from database.crud import get_game_mode, get_session_rules_json
-                db = SessionLocal()
-                try:
-                    rules_json = get_session_rules_json(db, session_code)
-                    game_mode = get_game_mode(db, session_code)
-                finally:
-                    db.close()
-            except Exception as e:
-                logger.error(f"Failed to load session rules: {e}")
-                game_mode = 'free_roam'
-
-        import json
+            rules_json, game_mode = await asyncio.to_thread(
+                _load_session_rules,
+                session_code=session_code,
+            )
         try:
             rules_dict = json.loads(rules_json)
         except Exception:
@@ -160,55 +302,28 @@ class _SessionMixin(_ProtocolBase):
 
     async def _get_player_active_table(self, user_id: int, session_code: str) -> Optional[str]:
         """Get player's active table ID from database"""
-        try:
-            logger.debug(f"Looking up active table for user {user_id} in session {session_code}")
-            db_session = SessionLocal()
-            try:
-                # Find the GamePlayer for this user in this session
-                player = db_session.query(GamePlayer).join(GameSession).filter(
-                    GamePlayer.user_id == user_id,
-                    GameSession.session_code == session_code
-                ).first()
-
-                if player:
-                    logger.debug(f"Found GamePlayer {player.id} with active_table_id: {player.active_table_id}")
-                else:
-                    logger.debug(f"No GamePlayer found for user {user_id} in session {session_code}")
-
-                return player.active_table_id if player else None
-
-            finally:
-                db_session.close()
-
-        except Exception as e:
-            logger.error(f"Error getting player active table for user {user_id} in session {session_code}: {e}")
-            return None
+        logger.debug(
+            "Looking up active table for user %s in session %s",
+            user_id,
+            session_code,
+        )
+        return await asyncio.to_thread(
+            _load_player_active_table,
+            user_id=user_id,
+            session_code=session_code,
+        )
 
     async def _set_player_active_table(self, user_id: int, session_code: str, table_id: Optional[str]) -> bool:
         """Set player's active table ID in database"""
-        try:
-            logger.debug(f"Setting active table for user {user_id} in session {session_code} to {table_id}")
-            db_session = SessionLocal()
-            try:
-                # Find the GamePlayer for this user in this session
-                player = db_session.query(GamePlayer).join(GameSession).filter(
-                    GamePlayer.user_id == user_id,
-                    GameSession.session_code == session_code
-                ).first()
-
-                if player:
-                    old_table_id = player.active_table_id
-                    player.active_table_id = table_id
-                    db_session.commit()
-                    logger.info(f"Updated active table for user {user_id} in session {session_code}: {old_table_id} -> {table_id}")
-                    return True
-                else:
-                    logger.warning(f"No GamePlayer found for user {user_id} in session {session_code}")
-                    return False
-
-            finally:
-                db_session.close()
-
-        except Exception as e:
-            logger.error(f"Error setting player active table for user {user_id} in session {session_code}: {e}")
-            return False
+        logger.debug(
+            "Setting active table for user %s in session %s to %s",
+            user_id,
+            session_code,
+            table_id,
+        )
+        return await asyncio.to_thread(
+            _persist_player_active_table,
+            user_id=user_id,
+            session_code=session_code,
+            table_id=table_id,
+        )

@@ -5,7 +5,7 @@ settings, or browser-only UI preferences.
 
 Status: current but split across several feature owners.
 
-Last source audit: 2026-07-29
+Last source audit: 2026-08-17
 
 ## Ownership
 
@@ -67,7 +67,12 @@ grid/background values to the WASM runtime when available.
 
 Layer settings are separate. `layer_settings_update` is handled by the session
 protocol, persists into `VirtualTable.layer_settings`, and is applied by the
-browser protocol to the runtime and store.
+browser protocol to the runtime and store. The server scopes the target table
+to the authenticated session and broadcasts only after persistence succeeds.
+
+Layer settings, game mode, session rules, rules reads, and player active-table
+state use worker-owned synchronous ORM sessions. Validation, authorization,
+cache invalidation, and WebSocket delivery remain on the event-loop thread.
 
 ## Browser-Only Preferences
 

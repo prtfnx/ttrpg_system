@@ -3,19 +3,25 @@
 Tests focus on user-visible behaviour: permission gates, validation,
 and correct response MessageType. DB calls are patched out.
 """
+import threading
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 from core_table.protocol import Message, MessageType
+from database import models
+from service.protocol import session as session_module
 from service.protocol.session import _SessionMixin
+from sqlalchemy.orm import sessionmaker
 
 # ---------------------------------------------------------------------------
 # Shared stub
 # ---------------------------------------------------------------------------
 
 class _ProtoStub(_SessionMixin):
-    def __init__(self, role="owner"):
+    def __init__(self, role="owner", *, session_id=1, session_code="TST"):
         self._role = role
+        self._session_id = session_id
+        self._session_code = session_code
         self.session_manager = MagicMock()
         self._rules_cache = {}
 
@@ -23,10 +29,10 @@ class _ProtoStub(_SessionMixin):
         return self._role
 
     def _get_session_code(self, msg=None):
-        return "TST"
+        return self._session_code
 
     def _get_session_id(self, msg):
-        return 1
+        return self._session_id
 
     def _get_user_id(self, msg, client_id=None):
         return 1
@@ -82,8 +88,9 @@ class TestLayerSettingsUpdate:
 
     @patch("service.protocol.session.SessionLocal")
     async def test_successful_update_returns_layer_settings_update(self, mock_db):
-        mock_db.return_value.__enter__ = MagicMock(return_value=MagicMock())
-        mock_db.return_value.__exit__ = MagicMock(return_value=False)
+        table = MagicMock()
+        table.layer_settings = "{}"
+        mock_db.return_value.query.return_value.filter.return_value.first.return_value = table
         proto = _ProtoStub(role="owner")
         msg = Message(MessageType.LAYER_SETTINGS_UPDATE, {
             "table_id": "t1", "layer": "ground", "settings": {"opacity": 0.5}
@@ -276,15 +283,14 @@ class TestPlayerActiveTable:
 class TestLayerSettingsDbUpdate:
     """When table is found in DB the layer settings are merged and saved."""
 
-    @patch("database.crud.update_virtual_table")
-    @patch("database.crud.get_virtual_table_by_id")
-    @patch("database.database.SessionLocal")
-    async def test_merges_settings_when_table_exists(self, mock_sl, mock_get, mock_update):
+    @patch("service.protocol.session.crud.update_virtual_table")
+    @patch("service.protocol.session.SessionLocal")
+    async def test_merges_settings_when_table_exists(self, mock_sl, mock_update):
         table_mock = MagicMock()
         table_mock.layer_settings = '{"ground": {"opacity": 0.8}}'
-        mock_get.return_value = table_mock
 
         db_mock = MagicMock()
+        db_mock.query.return_value.filter.return_value.first.return_value = table_mock
         mock_sl.return_value = db_mock
 
         proto = _ProtoStub(role="owner")
@@ -300,3 +306,121 @@ class TestLayerSettingsDbUpdate:
         mock_update.assert_called_once()
         updated_settings = mock_update.call_args[0][2].layer_settings
         assert "tokens" in updated_settings
+
+    async def test_foreign_session_table_is_rejected(
+        self,
+        monkeypatch,
+        test_db,
+        test_game_session,
+        test_user,
+    ):
+        foreign_session = models.GameSession(
+            name="Foreign",
+            session_code="FOREIGN",
+            owner_id=test_user.id,
+        )
+        test_db.add(foreign_session)
+        test_db.flush()
+        foreign_table = models.VirtualTable(
+            table_id="foreign-table",
+            name="Foreign",
+            width=100,
+            height=100,
+            session_id=foreign_session.id,
+        )
+        test_db.add(foreign_table)
+        test_db.commit()
+        worker_sessions = sessionmaker(
+            autocommit=False,
+            autoflush=False,
+            bind=test_db.get_bind(),
+        )
+        monkeypatch.setattr(session_module, "SessionLocal", worker_sessions)
+        proto = _ProtoStub(role="owner", session_id=test_game_session.id)
+        proto.broadcast_to_session = AsyncMock()
+
+        response = await proto.handle_layer_settings_update(
+            Message(MessageType.LAYER_SETTINGS_UPDATE, {
+                "table_id": foreign_table.table_id,
+                "layer": "tokens",
+                "settings": {"opacity": 0.3},
+            }),
+            "dm",
+        )
+
+        assert response.type == MessageType.ERROR
+        proto.broadcast_to_session.assert_not_awaited()
+        test_db.refresh(foreign_table)
+        assert foreign_table.layer_settings is None
+
+    async def test_persistence_failure_is_not_broadcast(self, monkeypatch):
+        monkeypatch.setattr(
+            session_module,
+            "_persist_layer_settings",
+            lambda **_kwargs: "database unavailable",
+        )
+        proto = _ProtoStub(role="owner")
+        proto.broadcast_to_session = AsyncMock()
+
+        response = await proto.handle_layer_settings_update(
+            Message(MessageType.LAYER_SETTINGS_UPDATE, {
+                "table_id": "table-1",
+                "layer": "tokens",
+                "settings": {"opacity": 0.3},
+            }),
+            "dm",
+        )
+
+        assert response.type == MessageType.ERROR
+        proto.broadcast_to_session.assert_not_awaited()
+
+
+@pytest.mark.unit
+async def test_session_database_operations_run_off_event_loop(monkeypatch):
+    proto = _ProtoStub(role="owner")
+    event_loop_thread = threading.get_ident()
+    worker_threads = {}
+
+    def recording(name, result):
+        def operation(**_kwargs):
+            worker_threads[name] = threading.get_ident()
+            return result
+
+        return operation
+
+    replacements = {
+        "_persist_layer_settings": None,
+        "_persist_game_mode": None,
+        "_persist_session_rules": None,
+        "_load_session_rules": ('{}', 'free_roam'),
+        "_load_player_active_table": "table-1",
+        "_persist_player_active_table": True,
+    }
+    for name, result in replacements.items():
+        monkeypatch.setattr(session_module, name, recording(name, result))
+
+    await proto.handle_layer_settings_update(
+        Message(MessageType.LAYER_SETTINGS_UPDATE, {
+            "table_id": "table-1",
+            "layer": "tokens",
+            "settings": {"opacity": 0.5},
+        }),
+        "client",
+    )
+    await proto.handle_game_mode_change(
+        Message(MessageType.GAME_MODE_CHANGE, {"game_mode": "fight"}),
+        "client",
+    )
+    await proto.handle_session_rules_update(
+        Message(MessageType.SESSION_RULES_UPDATE, {"rules": {"max_hp_roll": True}}),
+        "client",
+    )
+    await proto.handle_session_rules_request(
+        Message(MessageType.SESSION_RULES_REQUEST, {}),
+        "client",
+    )
+    await proto._get_player_active_table(1, "TST")
+    await proto._set_player_active_table(1, "TST", "table-1")
+
+    assert set(worker_threads) == set(replacements)
+    assert all(thread_id != event_loop_thread for thread_id in worker_threads.values())

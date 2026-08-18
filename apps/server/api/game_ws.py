@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import asyncio
 import hashlib
 import json
 import time
@@ -17,6 +16,7 @@ from fastapi import APIRouter, Depends, WebSocket, WebSocketDisconnect, status
 from service.authentication import AccessTokenRejected, resolve_active_user_from_token
 from service.game_session import ConnectionManager, get_connection_manager
 from sqlalchemy.orm import Session
+from utils.blocking import run_blocking
 from utils.logger import log_context, setup_logger
 from utils.observability import (
     WS_ACTIVE,
@@ -129,7 +129,7 @@ async def websocket_game_endpoint(
             context = None
             rejection_reason = "authentication"
             if token:
-                context, rejection_reason = await asyncio.to_thread(
+                context, rejection_reason = await run_blocking(
                     _load_websocket_session_context,
                     token,
                     session_code,

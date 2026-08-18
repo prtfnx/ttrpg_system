@@ -1,11 +1,10 @@
-import asyncio
-
 from core_table.protocol import Message, MessageType
 from service.character_protocol_persistence_service import (
     persist_character_token_stats,
     record_xp_award,
 )
 from service.character_rules import level_for_xp
+from utils.blocking import run_blocking
 from utils.logger import setup_logger
 from utils.roles import is_dm
 
@@ -47,7 +46,7 @@ class _CharactersMixin(_ProtocolBase):
                 )
             ]
 
-        return await asyncio.to_thread(resolve_allowed)
+        return await run_blocking(resolve_allowed)
 
     async def _broadcast_character_event(
         self,
@@ -96,7 +95,7 @@ class _CharactersMixin(_ProtocolBase):
                 )
             ]
 
-        return await asyncio.to_thread(resolve_allowed)
+        return await run_blocking(resolve_allowed)
 
     async def _broadcast_draft_event(
         self,
@@ -126,7 +125,7 @@ class _CharactersMixin(_ProtocolBase):
                 'Authenticated session and draft_data are required',
             )
         manager = get_character_draft_manager()
-        result = await asyncio.to_thread(
+        result = await run_blocking(
             manager.create_draft,
             session_id,
             user_id,
@@ -160,7 +159,7 @@ class _CharactersMixin(_ProtocolBase):
                 MessageType.CHARACTER_DRAFT_LIST_RESPONSE, 'Authenticated session is required'
             )
         manager = get_character_draft_manager()
-        result = await asyncio.to_thread(
+        result = await run_blocking(
             manager.list_drafts,
             session_id,
             user_id,
@@ -183,7 +182,7 @@ class _CharactersMixin(_ProtocolBase):
                 MessageType.CHARACTER_DRAFT_LOAD_RESPONSE, 'draft_id is required'
             )
         manager = get_character_draft_manager()
-        result = await asyncio.to_thread(
+        result = await run_blocking(
             manager.load_draft,
             session_id,
             str(draft_id),
@@ -212,7 +211,7 @@ class _CharactersMixin(_ProtocolBase):
                 'draft_id, draft_data, and expected_version are required',
             )
         manager = get_character_draft_manager()
-        result = await asyncio.to_thread(
+        result = await run_blocking(
             manager.update_draft,
             session_id,
             str(data['draft_id']),
@@ -256,7 +255,7 @@ class _CharactersMixin(_ProtocolBase):
                 'draft_id, character_data, and expected_version are required',
             )
         manager = get_character_draft_manager()
-        result = await asyncio.to_thread(
+        result = await run_blocking(
             manager.finalize_draft,
             session_id,
             str(data['draft_id']),
@@ -308,7 +307,7 @@ class _CharactersMixin(_ProtocolBase):
                 'draft_id and expected_version are required',
             )
         manager = get_character_draft_manager()
-        result = await asyncio.to_thread(
+        result = await run_blocking(
             manager.abandon_draft,
             session_id,
             str(data['draft_id']),
@@ -707,7 +706,7 @@ class _CharactersMixin(_ProtocolBase):
         from managers.character_manager import get_server_character_manager
         char_mgr = get_server_character_manager()
 
-        load_result = await asyncio.to_thread(
+        load_result = await run_blocking(
             char_mgr.load_character,
             session_id,
             character_id,
@@ -738,7 +737,7 @@ class _CharactersMixin(_ProtocolBase):
                 updates['level'] = new_level
                 updates['pending_level_up'] = True
 
-        save_result = await asyncio.to_thread(
+        save_result = await run_blocking(
             char_mgr.update_character,
             session_id,
             character_id,
@@ -752,7 +751,7 @@ class _CharactersMixin(_ProtocolBase):
             return Message(MessageType.XP_AWARD_RESPONSE, {'success': False, 'error': save_result.get('error', 'Save failed')})
 
         try:
-            await asyncio.to_thread(
+            await run_blocking(
                 record_xp_award,
                 character_id=str(character_id),
                 session_id=session_id,
@@ -798,7 +797,7 @@ class _CharactersMixin(_ProtocolBase):
         char_mgr = get_server_character_manager()
 
         is_dm_client = is_dm(self._get_client_role(client_id))
-        load_result = await asyncio.to_thread(
+        load_result = await run_blocking(
             char_mgr.load_character,
             session_id,
             character_id,
@@ -840,7 +839,7 @@ class _CharactersMixin(_ProtocolBase):
         else:
             updates = {**char_data, 'classes': classes, 'level': total_level}
 
-        save_result = await asyncio.to_thread(
+        save_result = await run_blocking(
             char_mgr.update_character,
             session_id,
             character_id,
@@ -896,7 +895,7 @@ class _CharactersMixin(_ProtocolBase):
                 extra={"event_name": "character.stats_sync.started"},
             )
 
-            token_updates = await asyncio.to_thread(
+            token_updates = await run_blocking(
                 persist_character_token_stats,
                 session_id,
                 character_id,

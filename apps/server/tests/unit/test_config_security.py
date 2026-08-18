@@ -136,3 +136,14 @@ def test_asset_resource_limits_are_bounded_and_consistent():
 
     with pytest.raises(ValueError, match="ASSET_MAX_STORAGE_BYTES_PER_USER"):
         Settings(ASSET_MAX_STORAGE_BYTES_PER_USER=1024)
+
+
+@pytest.mark.parametrize("value", [0, 129])
+def test_blocking_worker_concurrency_is_bounded(value: int):
+    with pytest.raises(ValueError, match="BLOCKING_WORKER_CONCURRENCY"):
+        Settings(BLOCKING_WORKER_CONCURRENCY=value)
+
+
+@pytest.mark.parametrize("value", [1, 128])
+def test_blocking_worker_concurrency_accepts_documented_boundaries(value: int):
+    assert Settings(BLOCKING_WORKER_CONCURRENCY=value).BLOCKING_WORKER_CONCURRENCY == value

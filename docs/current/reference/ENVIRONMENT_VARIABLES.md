@@ -4,7 +4,7 @@ Audience: contributors and operators configuring the FastAPI server.
 
 Status: usable.
 
-Last source audit: 2026-08-13
+Last source audit: 2026-08-17
 
 Server settings are defined in `apps/server/config.py`; ignored `.env` files
 are loaded by Pydantic settings.
@@ -19,6 +19,7 @@ are loaded by Pydantic settings.
 | `DB_MAX_OVERFLOW` | `5` | Temporary connections above the pool size. |
 | `DB_POOL_TIMEOUT_SECONDS` | `10` | Bounded pool checkout wait. |
 | `DB_CONNECT_TIMEOUT_SECONDS` | `10` | Bounded PostgreSQL connect wait. |
+| `BLOCKING_WORKER_CONCURRENCY` | `16` | Maximum synchronous database/storage/compute calls admitted to the asyncio worker executor per process; valid range 1-128. |
 | `TEST_POSTGRESQL_DATABASE_URL` | unset | Empty/disposable PostgreSQL target for integration tests; never point it at a durable application database. |
 
 SQLite is a development/unit-test convenience only. Hosted state must use

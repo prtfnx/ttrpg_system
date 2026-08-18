@@ -1,4 +1,3 @@
-import asyncio
 import base64
 import binascii
 import json
@@ -10,6 +9,7 @@ from typing import Any, TypeGuard
 from core_table.protocol import Message, MessageType
 from database import crud
 from database.database import SessionLocal
+from utils.blocking import run_blocking
 from utils.logger import setup_logger
 from utils.roles import can_interact, is_dm
 
@@ -240,7 +240,7 @@ class _PaintTemplatesMixin(_ProtocolBase):
         except (TypeError, ValueError) as exc:
             return Message(MessageType.ERROR, {"error": str(exc)})
 
-        result = await asyncio.to_thread(
+        result = await run_blocking(
             _upsert_paint_template,
             session_id=session_id,
             user_id=user_id,
@@ -271,7 +271,7 @@ class _PaintTemplatesMixin(_ProtocolBase):
         if not isinstance(template_id, str) or not _IDENTIFIER.fullmatch(template_id):
             return Message(MessageType.ERROR, {"error": "Invalid paint template id"})
 
-        result = await asyncio.to_thread(
+        result = await run_blocking(
             _delete_paint_template,
             session_id=session_id,
             template_id=template_id,
@@ -294,7 +294,7 @@ class _PaintTemplatesMixin(_ProtocolBase):
         if isinstance(context, Message):
             return context
         session_id, _ = context
-        result = await asyncio.to_thread(_load_paint_templates, session_id=session_id)
+        result = await run_blocking(_load_paint_templates, session_id=session_id)
         if result.error or result.payload is None:
             return Message(
                 MessageType.ERROR,

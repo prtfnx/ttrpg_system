@@ -32,6 +32,9 @@ Locust scenario only as a post-correctness load check.
 
 Connection-lifecycle tests also assert that handshake lookup, durable session
 construction, autosave, and final persistence execute on a worker thread.
+`tests/unit/test_blocking.py` verifies the shared admission limit and
+cancellation-safe capacity release for queued and already-running
+async-to-sync submissions.
 Paint persistence regression tests cover the same thread boundary for stroke
 create/delete/clear and template upsert/delete/sync, plus stroke retry
 idempotency. Measurement tests cover upsert/delete/clear/sync. For new

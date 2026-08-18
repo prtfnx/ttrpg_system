@@ -1,9 +1,9 @@
-import asyncio
 from typing import Optional
 
 from core_table.protocol import Message, MessageType
 from service.asset_deletion_service import queue_asset_unlink
 from service.asset_manager import AssetRequest, get_server_asset_manager
+from utils.blocking import run_blocking
 from utils.logger import setup_logger
 
 from ._protocol_base import _ProtocolBase
@@ -289,7 +289,7 @@ class _AssetsMixin(_ProtocolBase):
             if context is None:
                 return Message(MessageType.ERROR, {'error': 'Authentication and session context required'})
             user_id, _username, session_code = context
-            result = await asyncio.to_thread(
+            result = await run_blocking(
                 queue_asset_unlink,
                 session_code=session_code,
                 user_id=user_id,

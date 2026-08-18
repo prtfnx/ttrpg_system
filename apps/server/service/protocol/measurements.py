@@ -1,4 +1,3 @@
-import asyncio
 import json
 import math
 import re
@@ -8,6 +7,7 @@ from typing import Any
 from core_table.protocol import Message, MessageType
 from database import crud, models
 from database.database import SessionLocal
+from utils.blocking import run_blocking
 from utils.logger import setup_logger
 from utils.roles import can_interact, is_dm
 
@@ -230,7 +230,7 @@ class _MeasurementsMixin(_ProtocolBase):
         except (TypeError, ValueError) as exc:
             return Message(MessageType.ERROR, {"error": str(exc)})
 
-        result = await asyncio.to_thread(
+        result = await run_blocking(
             _upsert_measurement,
             session_id=session_id,
             user_id=user_id,
@@ -261,7 +261,7 @@ class _MeasurementsMixin(_ProtocolBase):
             return Message(MessageType.ERROR, {"error": "Invalid measurement_id"})
         role = self._get_client_role(client_id)
 
-        result = await asyncio.to_thread(
+        result = await run_blocking(
             _delete_measurement,
             session_id=session_id,
             table_id=table_id,
@@ -291,7 +291,7 @@ class _MeasurementsMixin(_ProtocolBase):
             return Message(MessageType.ERROR, {"error": "Only a DM can clear all measurements"})
 
         created_by = None if clear_all else user_id
-        result = await asyncio.to_thread(
+        result = await run_blocking(
             _clear_measurements,
             session_id=session_id,
             table_id=table_id,
@@ -314,7 +314,7 @@ class _MeasurementsMixin(_ProtocolBase):
         if isinstance(context, Message):
             return context
         session_id, _, table_id = context
-        result = await asyncio.to_thread(
+        result = await run_blocking(
             _load_measurements,
             session_id=session_id,
             table_id=table_id,

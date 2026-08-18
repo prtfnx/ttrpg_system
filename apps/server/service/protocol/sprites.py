@@ -1,4 +1,3 @@
-import asyncio
 import json
 
 from core_table.protocol import Message, MessageType
@@ -8,6 +7,7 @@ from service.canvas_persistence_service import (
     load_movement_policy,
 )
 from service.movement_validator import MovementValidator
+from utils.blocking import run_blocking
 from utils.logger import setup_logger
 from utils.roles import can_interact, get_sprite_limit, is_dm
 
@@ -83,7 +83,7 @@ class _SpritesMixin(_ProtocolBase):
         if not is_dm(role):
             limit = get_sprite_limit(role)
             if user_id is not None and session_id is not None:
-                owned_count = await asyncio.to_thread(
+                owned_count = await run_blocking(
                     count_controlled_sprites,
                     int(session_id),
                     int(user_id),
@@ -227,7 +227,7 @@ class _SpritesMixin(_ProtocolBase):
                     if cached:
                         rules, game_mode = cached
                     else:
-                        rules, game_mode = await asyncio.to_thread(
+                        rules, game_mode = await run_blocking(
                             load_movement_policy,
                             session_code,
                         )
@@ -575,7 +575,7 @@ class _SpritesMixin(_ProtocolBase):
                 if not character_id:
                     # Look it up from the DB entity
                     try:
-                        character_id = await asyncio.to_thread(
+                        character_id = await run_blocking(
                             load_entity_character_id,
                             str(sprite_id),
                         )

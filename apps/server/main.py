@@ -34,6 +34,7 @@ from sqlalchemy.orm import Session
 from starlette.middleware.sessions import SessionMiddleware
 from storage.r2_manager import R2AssetManager
 from utils.audit import persist_http_security_decision
+from utils.blocking import run_blocking
 from utils.http_security import add_security_headers, trusted_origins, unsafe_request_rejection
 from utils.logger import bind_log_context, configure_logging, reset_log_context, setup_logger
 from utils.observability import configure_tracing, observe_http, record_job, refresh_durable_metrics
@@ -219,7 +220,7 @@ async def asset_deletion_cleanup_task():
         started = time.perf_counter()
         try:
             storage = get_server_asset_manager().r2_manager
-            completed = await asyncio.to_thread(
+            completed = await run_blocking(
                 process_pending_asset_deletions,
                 storage,
             )

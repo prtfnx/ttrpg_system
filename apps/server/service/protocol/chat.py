@@ -1,4 +1,3 @@
-import asyncio
 import re
 import uuid
 from dataclasses import dataclass
@@ -7,6 +6,7 @@ from core_table.protocol import Message, MessageType
 from database import crud, models, schemas
 from database.database import SessionLocal
 from utils.audit import audit_event
+from utils.blocking import run_blocking
 from utils.logger import setup_logger
 from utils.roles import is_dm
 from utils.time import utc_now
@@ -269,7 +269,7 @@ class _ChatMixin(_ProtocolBase):
         if table_id:
             saved_message_payload['table_id'] = table_id
 
-        persistence = await asyncio.to_thread(
+        persistence = await run_blocking(
             _persist_chat_message,
             session_id=session_id,
             user_id=int(user_id),
@@ -329,7 +329,7 @@ class _ChatMixin(_ProtocolBase):
         except (TypeError, ValueError):
             return Message(MessageType.ERROR, {'error': 'Invalid chat history cursor or count'})
 
-        history = await asyncio.to_thread(
+        history = await run_blocking(
             _load_chat_history,
             session_id=session_id,
             count=count,
@@ -374,7 +374,7 @@ class _ChatMixin(_ProtocolBase):
             return Message(MessageType.ERROR, {'error': 'Moderation reason is invalid'})
 
         moderator = is_dm(self._get_client_role(client_id))
-        moderation = await asyncio.to_thread(
+        moderation = await run_blocking(
             _moderate_chat_message,
             session_id=session_id,
             session_code=self._get_session_code(msg),

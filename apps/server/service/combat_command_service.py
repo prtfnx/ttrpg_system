@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import asyncio
 import time
 import uuid
 from copy import deepcopy
@@ -12,6 +11,7 @@ from typing import Any, Awaitable, Callable, Optional
 from core_table.combat import CombatAction, CombatState
 from pydantic import BaseModel, ConfigDict, Field, ValidationError, field_validator
 from service.combat_persistence_service import CombatPersistenceService
+from utils.blocking import run_blocking
 from utils.roles import is_dm
 
 
@@ -808,7 +808,7 @@ class CombatCommandService:
             entity_ids = [str(item.get("entity_id")) for item in incoming_combatants if item.get("entity_id")]
         combatants = incoming_combatants
         if context.build_combatants is not None:
-            combatants = await asyncio.to_thread(
+            combatants = await run_blocking(
                 context.build_combatants,
                 command.table_id,
                 entity_ids,
@@ -857,7 +857,7 @@ class CombatCommandService:
         incoming_combatants = command.combatants or [incoming]
         resolved = incoming_combatants
         if context.build_combatants is not None:
-            resolved = await asyncio.to_thread(
+            resolved = await run_blocking(
                 context.build_combatants,
                 table_id,
                 [str(entity_id)],
@@ -969,7 +969,7 @@ class CombatCommandService:
     ) -> str | None:
         if context.save_table is None:
             return None
-        return await asyncio.to_thread(context.save_table, table_id)
+        return await run_blocking(context.save_table, table_id)
 
     async def _apply_move(
         self,
@@ -999,7 +999,7 @@ class CombatCommandService:
             "y": float(command.from_y),
         }
         to_pos = {"x": float(command.target_x), "y": float(command.target_y)}
-        validation = await asyncio.to_thread(
+        validation = await run_blocking(
             context.validate_move,
             command.table_id,
             actor.entity_id,
@@ -1199,7 +1199,7 @@ class CombatCommandService:
         context: CombatCommandContext,
         encounter_id: str,
     ) -> CombatCommandResult | None:
-        return await asyncio.to_thread(
+        return await run_blocking(
             self._find_duplicate,
             envelope,
             context,
@@ -1253,14 +1253,14 @@ class CombatCommandService:
         result: CombatCommandResult,
     ) -> CombatCommandResult:
         if self._persistence is None:
-            await asyncio.to_thread(self._persist, context.session_code)
+            await run_blocking(self._persist, context.session_code)
             return result
         state_after = current.to_dict() if current is not None else result.combat
         if state_after is None:
             raise RuntimeError("Combat ended before persistence")
 
         command_types = [command.type.value for command in envelope.commands]
-        persisted = await asyncio.to_thread(
+        persisted = await run_blocking(
             self._persistence.persist_accepted,
             session_code=context.session_code,
             requester_key=self._persistence.requester_key(

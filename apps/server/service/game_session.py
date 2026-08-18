@@ -15,6 +15,7 @@ from database.session_utils import (
     load_game_session_protocol_from_db,
 )
 from fastapi import WebSocket, status
+from utils.blocking import run_blocking
 from utils.logger import setup_logger
 from utils.time import utc_now
 
@@ -94,7 +95,7 @@ class ConnectionManager:
         """Initialize and register a socket while holding its session lifecycle lock."""
         client_id = self._generate_client_id()
         if session_code not in self.sessions_protocols:
-            protocol_service, error = await asyncio.to_thread(
+            protocol_service, error = await run_blocking(
                 _load_protocol_service,
                 session_code,
             )
@@ -225,7 +226,7 @@ class ConnectionManager:
 
         await protocol_service.wait_for_mutations()
         try:
-            await asyncio.to_thread(protocol_service.save_to_database)
+            await run_blocking(protocol_service.save_to_database)
             logger.info(f"Session {session_code} data saved to database before cleanup")
         except Exception as error:
             logger.error(f"Error saving session {session_code} to database: {error}")

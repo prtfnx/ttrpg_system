@@ -60,6 +60,7 @@ class Settings(BaseSettings):
     DB_MAX_OVERFLOW: int = 5
     DB_POOL_TIMEOUT_SECONDS: int = 10
     DB_CONNECT_TIMEOUT_SECONDS: int = 10
+    BLOCKING_WORKER_CONCURRENCY: int = 16
 
     # Observability
     LOG_LEVEL: str = "INFO"
@@ -139,6 +140,8 @@ class Settings(BaseSettings):
             raise ValueError("DB_POOL_TIMEOUT_SECONDS must be between 1 and 120.")
         if not 1 <= self.DB_CONNECT_TIMEOUT_SECONDS <= 120:
             raise ValueError("DB_CONNECT_TIMEOUT_SECONDS must be between 1 and 120.")
+        if not 1 <= self.BLOCKING_WORKER_CONCURRENCY <= 128:
+            raise ValueError("BLOCKING_WORKER_CONCURRENCY must be between 1 and 128.")
         if not 1024 <= self.ASSET_MAX_FILE_BYTES <= 500 * 1024 * 1024:
             raise ValueError("ASSET_MAX_FILE_BYTES must be between 1024 and 524288000.")
         if not 1 <= self.ASSET_UPLOADS_PER_MINUTE <= 1000:

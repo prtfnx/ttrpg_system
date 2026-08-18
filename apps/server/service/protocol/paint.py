@@ -1,10 +1,10 @@
-import asyncio
 import json
 from dataclasses import dataclass
 
 from core_table.protocol import Message, MessageType
 from database import crud, models
 from database.database import SessionLocal
+from utils.blocking import run_blocking
 from utils.logger import setup_logger
 from utils.roles import can_interact, is_dm
 
@@ -144,7 +144,7 @@ class _PaintMixin(_ProtocolBase):
         if user_id is None or session_id is None:
             return Message(MessageType.ERROR, {'error': 'Authenticated session context is required'})
 
-        result = await asyncio.to_thread(
+        result = await run_blocking(
             _create_paint_stroke,
             table_id=table_id,
             session_id=session_id,
@@ -179,7 +179,7 @@ class _PaintMixin(_ProtocolBase):
         if user_id is None or session_id is None:
             return Message(MessageType.ERROR, {'error': 'Authenticated session context is required'})
 
-        result = await asyncio.to_thread(
+        result = await run_blocking(
             _delete_paint_stroke,
             table_id=table_id,
             session_id=session_id,
@@ -209,7 +209,7 @@ class _PaintMixin(_ProtocolBase):
         if session_id is None:
             return Message(MessageType.ERROR, {'error': 'Authenticated session context is required'})
 
-        result = await asyncio.to_thread(
+        result = await run_blocking(
             _clear_paint_strokes,
             table_id=table_id,
             session_id=session_id,

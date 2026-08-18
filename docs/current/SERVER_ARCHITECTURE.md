@@ -57,6 +57,15 @@ disconnect save also run in worker threads. Each worker resolves a fresh
 session from the task/thread-scoped registry. Never construct an ORM `Session`
 on the event-loop thread and pass that instance to `asyncio.to_thread`.
 
+All async-to-sync submissions use `utils.blocking.run_blocking`. Its semaphore
+applies admission control on the server process's application event loop before
+work is submitted to Python's executor, so a slow database or object store
+cannot grow the executor queue without bound. Configure the limit with
+`BLOCKING_WORKER_CONCURRENCY`; cancellation while waiting releases capacity
+without submitting work. Cancelling an already-submitted coroutine keeps its
+capacity reserved until the underlying thread finishes because Python cannot
+stop a running thread.
+
 Chat write, history, and moderation handlers follow the same rule: validate
 the command on the event loop, execute the complete database transaction and
 serialization in a synchronous worker function, then deliver the plain result

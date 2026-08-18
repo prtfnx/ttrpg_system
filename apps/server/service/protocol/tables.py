@@ -1,8 +1,7 @@
-import asyncio
-
 from core_table.async_actions_protocol import Position
 from core_table.protocol import Message, MessageType
 from service.canvas_persistence_service import load_table_hydration, persist_table_settings
+from utils.blocking import run_blocking
 from utils.logger import setup_logger
 from utils.roles import get_visible_layers, is_dm
 
@@ -178,7 +177,7 @@ class _TablesMixin(_ProtocolBase):
             paint_strokes_list: list = []
             if table_id:
                 try:
-                    hydration = await asyncio.to_thread(load_table_hydration, str(table_id))
+                    hydration = await run_blocking(load_table_hydration, str(table_id))
                     if not walls_list:
                         walls_list = hydration.walls
                     layer_settings_data = hydration.layer_settings
@@ -291,7 +290,7 @@ class _TablesMixin(_ProtocolBase):
         session_id = self._get_session_id(msg)
         if session_id:
             try:
-                await asyncio.to_thread(
+                await run_blocking(
                     persist_table_settings,
                     str(table.table_id),
                     {

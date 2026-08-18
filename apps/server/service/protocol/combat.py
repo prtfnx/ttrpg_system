@@ -1,4 +1,3 @@
-import asyncio
 import json
 import time
 from typing import Any
@@ -12,6 +11,7 @@ from service.combat_command_service import CombatCommandContext, CombatCommandSe
 from service.combat_persistence_service import CombatPersistenceService
 from service.combat_state_presenter import CombatStatePresenter
 from service.combatant_factory import CombatantFactory, CombatantFactoryContext
+from utils.blocking import run_blocking
 from utils.logger import setup_logger
 from utils.roles import is_dm
 
@@ -147,7 +147,7 @@ class _CombatMixin(_ProtocolBase):
         # Try in-memory first, then restore from DB (handles reconnects after restart)
         state = CombatEngine.get_state(session_code)
         if state is None:
-            state = await asyncio.to_thread(CombatEngine.restore, session_code)
+            state = await run_blocking(CombatEngine.restore, session_code)
         if not state:
             return Message(MessageType.COMBAT_STATE, {'combat': None})
         return Message(MessageType.COMBAT_STATE, {

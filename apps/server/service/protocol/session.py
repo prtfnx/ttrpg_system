@@ -1,4 +1,3 @@
-import asyncio
 import json
 from typing import Any, Optional
 
@@ -7,6 +6,7 @@ from core_table.protocol import Message, MessageType
 from database import crud, models, schemas
 from database.database import SessionLocal
 from database.models import GamePlayer, GameSession
+from utils.blocking import run_blocking
 from utils.logger import setup_logger
 from utils.roles import is_dm
 
@@ -194,7 +194,7 @@ class _SessionMixin(_ProtocolBase):
         session_id = self._get_session_id(msg)
         if session_id is None:
             return Message(MessageType.ERROR, {'error': 'Authenticated session context is required'})
-        error = await asyncio.to_thread(
+        error = await run_blocking(
             _persist_layer_settings,
             table_id=table_id,
             session_id=session_id,
@@ -229,7 +229,7 @@ class _SessionMixin(_ProtocolBase):
         session_code = self._get_session_code()
         if not session_code:
             return Message(MessageType.ERROR, {'error': 'Authenticated session context is required'})
-        error = await asyncio.to_thread(
+        error = await run_blocking(
             _persist_game_mode,
             session_code=session_code,
             target_mode=target_mode,
@@ -260,7 +260,7 @@ class _SessionMixin(_ProtocolBase):
                 return Message(MessageType.ERROR, {'error': '; '.join(errors)})
 
             rules_json = json.dumps(rules.to_dict())
-            error = await asyncio.to_thread(
+            error = await run_blocking(
                 _persist_session_rules,
                 session_code=session_code,
                 rules_json=rules_json,
@@ -283,7 +283,7 @@ class _SessionMixin(_ProtocolBase):
         session_code = self._get_session_code()
         rules_json, game_mode = ('{}', 'free_roam')
         if session_code:
-            rules_json, game_mode = await asyncio.to_thread(
+            rules_json, game_mode = await run_blocking(
                 _load_session_rules,
                 session_code=session_code,
             )
@@ -307,7 +307,7 @@ class _SessionMixin(_ProtocolBase):
             user_id,
             session_code,
         )
-        return await asyncio.to_thread(
+        return await run_blocking(
             _load_player_active_table,
             user_id=user_id,
             session_code=session_code,
@@ -321,7 +321,7 @@ class _SessionMixin(_ProtocolBase):
             session_code,
             table_id,
         )
-        return await asyncio.to_thread(
+        return await run_blocking(
             _persist_player_active_table,
             user_id=user_id,
             session_code=session_code,

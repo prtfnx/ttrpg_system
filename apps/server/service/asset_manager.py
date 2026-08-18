@@ -2,7 +2,6 @@
 Server-side R2 Asset Management Service for TTRPG System
 Handles presigned URLs, asset validation, and client permissions
 """
-import asyncio
 import functools
 import logging
 import os
@@ -28,6 +27,7 @@ from database.models import (
 from PIL import Image, UnidentifiedImageError
 from sqlalchemy import func, or_
 from storage.r2_manager import R2AssetManager
+from utils.blocking import run_blocking
 from utils.observability import track_asset_operation
 from utils.rate_limiter import RateLimiter
 from utils.time import utc_now
@@ -42,7 +42,7 @@ def _offload_blocking_io(func: Callable[P, R]) -> Callable[P, Awaitable[R]]:
     """Expose a synchronous database/storage operation as an async boundary."""
     @functools.wraps(func)
     async def wrapped(*args: P.args, **kwargs: P.kwargs) -> R:
-        return await asyncio.to_thread(func, *args, **kwargs)
+        return await run_blocking(func, *args, **kwargs)
 
     return wrapped
 

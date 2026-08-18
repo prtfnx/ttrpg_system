@@ -32,6 +32,12 @@ loop. Routes that await an async provider or live WebSocket operation remain
 `async def`; their synchronous transaction must be a narrow worker function
 that owns and closes its SQLAlchemy session.
 
+Low-frequency account-revocation and session-administration routes instead
+remain normal `def` handlers for their complete SQLAlchemy transaction. After
+the commit succeeds, they use AnyIO's worker-to-event-loop bridge to close,
+update, or notify live sockets. This preserves commit-before-revocation
+ordering without running the transaction on the event loop.
+
 ## Session runtime
 
 Game WebSockets flow through this path:

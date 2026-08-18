@@ -5,11 +5,12 @@ import hashlib
 import os
 import secrets
 from datetime import datetime, timedelta, timezone
-from functools import lru_cache
+from functools import lru_cache, partial
 from typing import Annotated
 
 import config
 import jwt
+from anyio import from_thread
 from database import crud, models, schemas
 from database.database import get_db
 from fastapi import APIRouter, Depends, Form, HTTPException, Request, status
@@ -687,7 +688,7 @@ def reset_password_page(request: Request, token: str = "", db: Session = Depends
 
 
 @router.post("/reset-password")
-async def reset_password_submit(
+def reset_password_submit(
     request: Request,
     token: str = Form(...),
     new_password: str = Form(...),
@@ -731,10 +732,11 @@ async def reset_password_submit(
     ))
     db.commit()
 
-    await get_connection_manager().disconnect_account(
+    from_thread.run(partial(
+        get_connection_manager().disconnect_account,
         record.user.id,
         reason="Account session revoked",
-    )
+    ))
 
     if record.user.email:
         send_password_changed(record.user.email)
@@ -775,7 +777,7 @@ def settings_profile(
 
 
 @router.post("/settings/password")
-async def settings_password(
+def settings_password(
     request: Request,
     current_user: Annotated[schemas.User, Depends(get_current_active_user)],
     current_password: str = Form(""),
@@ -810,10 +812,11 @@ async def settings_password(
     ))
     db.commit()
 
-    await get_connection_manager().disconnect_account(
+    from_thread.run(partial(
+        get_connection_manager().disconnect_account,
         user.id,
         reason="Account session revoked",
-    )
+    ))
 
     if user.email:
         send_password_changed(user.email)
@@ -916,7 +919,7 @@ def verify_email_change(request: Request, token: str = "", db: Session = Depends
 
 
 @router.post("/settings/delete")
-async def settings_delete(
+def settings_delete(
     request: Request,
     current_user: Annotated[schemas.User, Depends(get_current_active_user)],
     username_confirm: str = Form(...),
@@ -940,10 +943,11 @@ async def settings_delete(
     ))
     db.commit()
 
-    await get_connection_manager().disconnect_account(
+    from_thread.run(partial(
+        get_connection_manager().disconnect_account,
         user.id,
         reason="Account disabled",
-    )
+    ))
 
     response = RedirectResponse("/users/login?msg=account_deleted", status_code=302)
     response.delete_cookie(key="token", path="/", samesite="lax")

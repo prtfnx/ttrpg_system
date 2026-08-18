@@ -4,8 +4,10 @@ Game session management router
 import os
 import secrets
 import string
+from functools import partial
 from typing import Annotated, List
 
+from anyio import from_thread
 from core_table.protocol import Message, MessageType
 from database import crud, models, schemas
 from database.database import get_db
@@ -334,7 +336,7 @@ def get_session_membership(
     }
 
 @router.post("/api/sessions/{session_code}/players/{user_id}/role")
-async def change_player_role(
+def change_player_role(
     session_code: str,
     user_id: int,
     role_data: schemas.RoleChangeRequest,
@@ -387,7 +389,8 @@ async def change_player_role(
     new_role = role_data.role
     connection_manager = get_connection_manager()
     connection_manager.update_user_role(session_code, user_id, new_role)
-    await connection_manager.broadcast_to_session(
+    from_thread.run(
+        connection_manager.broadcast_to_session,
         session_code,
         Message(MessageType.PLAYER_ROLE_CHANGED, {
             "user_id": user_id,
@@ -400,7 +403,7 @@ async def change_player_role(
     return {"success": True, "message": f"Player role changed to {role_data.role}"}
 
 @router.delete("/api/sessions/{session_code}/players/{user_id}")
-async def kick_player(
+def kick_player(
     session_code: str,
     user_id: int,
     request: Request,
@@ -450,11 +453,12 @@ async def kick_player(
 
     logger.info(f"Player kicked: user {user_id} from session {session_code}")
 
-    await get_connection_manager().disconnect_user(
+    from_thread.run(partial(
+        get_connection_manager().disconnect_user,
         session_code,
         user_id,
         reason="Kicked from session",
-    )
+    ))
 
     return {"success": True, "message": "Player kicked successfully"}
 

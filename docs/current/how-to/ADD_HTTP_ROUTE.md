@@ -58,6 +58,11 @@ through `utils.blocking.run_blocking`, with the SQLAlchemy session created and
 closed inside the worker function. Never pass a live ORM session from the
 event-loop thread into a worker.
 
+When a normal `def` route must perform a small live-socket action after its
+blocking transaction commits, use AnyIO's `from_thread.run` to execute that
+coroutine on the application event loop. Keep this bridge after the durable
+commit so a failed transaction cannot alter live authority.
+
 Then include it in `apps/server/main.py`:
 
 ```python

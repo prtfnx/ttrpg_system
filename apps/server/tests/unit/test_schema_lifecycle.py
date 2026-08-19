@@ -30,5 +30,5 @@ def test_schema_lifecycle_tracks_repository_head(tmp_path):
 
 
 def test_repository_baseline_matches_all_model_tables():
-    assert len(Base.metadata.tables) == 27
-    assert repository_heads() == ("0004_asset_deletion_outbox",)
+    assert len(Base.metadata.tables) == 29
+    assert repository_heads() == ("0005_asset_quota_primitives",)

@@ -250,6 +250,47 @@ class SessionAsset(Base):
     added_by_user = relationship("User", foreign_keys=[added_by])
 
 
+class AssetRateLimitBucket(Base):
+    """Durable token bucket shared by every server worker."""
+
+    __tablename__ = "asset_rate_limit_buckets"
+    __table_args__ = (
+        UniqueConstraint(
+            "user_id",
+            "operation",
+            "window_seconds",
+            name="uq_asset_rate_limit_bucket",
+        ),
+    )
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
+    user_id: Mapped[int] = mapped_column(
+        Integer,
+        ForeignKey("users.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    operation: Mapped[str] = mapped_column(String(20), nullable=False)
+    window_seconds: Mapped[int] = mapped_column(Integer, nullable=False)
+    tokens: Mapped[float] = mapped_column(Float, nullable=False)
+    updated_at: Mapped[datetime] = mapped_column(DateTime, nullable=False)
+    expires_at: Mapped[datetime] = mapped_column(DateTime, nullable=False, index=True)
+
+
+class AssetQuotaState(Base):
+    """Singleton row used to serialize plan-wide asset quota reservations."""
+
+    __tablename__ = "asset_quota_state"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime,
+        nullable=False,
+        default=utc_now,
+        onupdate=utc_now,
+    )
+
+
 class AssetDeletionJob(Base):
     """Durable outbox entry for deleting an unreferenced object from R2."""
 

@@ -58,6 +58,8 @@ This map lists the main source areas and their current responsibility.
   mappings plus theme/customization overrides.
 - `apps/web-ui/scripts/validate-css.js`: token-reference and hardcoded-value
   validation for component CSS.
+- `apps/web-ui/scripts/validate-theme-contrast.js`: 4.5:1 contrast validation
+  across every supported theme and accent-scheme combination.
 - `apps/web-ui/src/features/customization/uiPreferences.ts`: validated local
   preference persistence and document-level theme hooks.
 - `apps/web-ui/src/lib/websocket/`: browser WebSocket protocol adapter and

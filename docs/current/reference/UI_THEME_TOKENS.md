@@ -4,7 +4,7 @@ Audience: contributors adding or changing React component styles.
 
 Status: current.
 
-Last source audit: 2026-07-29
+Last source audit: 2026-08-19
 
 ## Token ownership
 
@@ -121,7 +121,9 @@ the runtime boundary.
 3. Add semantic and component mappings to `theme.css`.
 4. Use the semantic or component token from feature CSS.
 5. Check every theme/customization override that should change the token.
-6. Run both CSS checks.
+6. Check the foreground/background pair in every supported theme and accent
+   combination when the token renders text or control content.
+7. Run both CSS checks.
 
 Do not copy token definitions into a feature module. A local custom property is
 appropriate only when its meaning is local and it has a local default.
@@ -136,10 +138,19 @@ pnpm.cmd run validate:css
 ```
 
 Stylelint enforces the general CSS rules and token-shaped color/property
-values. `validate:css` scans component CSS for hardcoded colors, actionable
-pixel/rem geometry, numeric font weights, and undefined custom-property
-references. It permits functional values such as media-query breakpoints and
-grid constraints where a literal is part of the layout algorithm.
+values. `validate:css` first scans component CSS for hardcoded colors,
+actionable pixel/rem geometry, numeric font weights, and undefined
+custom-property references. It permits functional values such as media-query
+breakpoints and grid constraints where a literal is part of the layout
+algorithm.
+
+The same `validate:css` command then runs `validate-theme-contrast.js`. That
+validator resolves shared tokens for all 25 supported theme/accent
+combinations and requires a contrast ratio of at least 4.5:1 for its declared
+text, button, input, and panel-header foreground/background pairs. Add a new
+rendered text pair to that validator when introducing a shared component token;
+passing the token-reference scan alone does not prove that a color pairing is
+accessible.
 
 For line-by-line token violations:
 

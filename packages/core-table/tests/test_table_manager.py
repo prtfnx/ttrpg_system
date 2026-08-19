@@ -42,7 +42,7 @@ def test_save_persists_every_real_table():
 
     save_table = MagicMock()
     database_module = ModuleType("database")
-    database_module.crud = SimpleNamespace(save_table_to_db=save_table)
+    setattr(database_module, "crud", SimpleNamespace(save_table_to_db=save_table))
 
     with patch.dict(sys.modules, {"database": database_module}):
         assert manager.save_to_database(session_id=7) is True

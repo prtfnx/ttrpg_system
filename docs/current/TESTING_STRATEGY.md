@@ -4,7 +4,7 @@ Audience: contributors choosing and running verification for a change.
 
 Status: current.
 
-Last source audit: 2026-08-17
+Last source audit: 2026-08-19
 
 Tests should sit at the boundary where behavior is owned. Avoid testing a lower
 layer through an unrelated higher layer when a direct boundary test is clearer.
@@ -22,6 +22,20 @@ Fixtures and assertions that need the database's naive UTC representation use
 - Integration tests: HTTP routes, database behavior, and route/service wiring.
 - E2E tests: real WebSocket connection and session flow.
 - Benchmarks/load tests: movement, WebSocket behavior, and known hot paths.
+
+Run repository-wide Python static gates after installing both the locked server
+development requirements and editable core-table package:
+
+```powershell
+ruff check apps/server packages/core-table
+mypy apps/server --ignore-missing-imports --no-error-summary
+pnpm.cmd dlx pyright@1.1.411
+```
+
+Pyright is pinned because diagnostic behavior changes between releases. The
+gate covers both Python packages and requires zero errors and warnings; do not
+hide a project diagnostic to compensate for a dependency missing from the
+selected virtual environment.
 
 `tests/unit/test_protocol_serialization.py` verifies same-session mutation
 ordering, batch ordering, rollback-safe state reads, safe concurrent ping

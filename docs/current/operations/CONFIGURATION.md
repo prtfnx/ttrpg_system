@@ -90,6 +90,18 @@ Blueprint uses uppercase `R2_*` names.
 Asset upload/download flows return clear errors when R2 is not configured.
 Leave R2 disabled unless you are testing cloud asset storage.
 
+Asset request throttles and storage/link quotas use PostgreSQL as their shared
+store. Production fails closed when this store is unavailable. The default
+plan-wide storage ceiling is 9,000,000,000 bytes, leaving headroom below the R2
+Standard 10 GB-month free allowance. Keep the bucket on Standard storage for
+that allowance; Infrequent Access does not receive the R2 free tier.
+
+Presigned upload and download URLs default to five minutes. They are bearer
+credentials and can be replayed until expiry, so the application quota is a
+conservative release guard rather than a Cloudflare billing hard stop. Keep
+Cloudflare billing notifications enabled and review account-wide usage if the
+bucket is shared with another application.
+
 The operational R2 token also needs:
 
 - object put, head/get, and delete for asset and smoke flows;
@@ -97,6 +109,8 @@ The operational R2 token also needs:
 
 Use a token scoped to the dedicated application bucket. Missing delete
 permission leaves stale objects even when the relational row has been removed.
+Configure a lifecycle rule for `pending/` objects as recovery defense for
+clients that upload but never confirm.
 
 ## Compendium
 

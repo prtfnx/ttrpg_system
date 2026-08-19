@@ -4,7 +4,7 @@ Audience: contributors and operators configuring the FastAPI server.
 
 Status: usable.
 
-Last source audit: 2026-08-17
+Last source audit: 2026-08-19
 
 Server settings are defined in `apps/server/config.py`; ignored `.env` files
 are loaded by Pydantic settings.
@@ -43,16 +43,22 @@ PostgreSQL and Alembic.
 | Variable | Default | Notes |
 | --- | --- | --- |
 | `ASSET_MAX_FILE_BYTES` | `52428800` | Maximum declared and verified image size (50 MiB). |
-| `ASSET_UPLOADS_PER_MINUTE` | `10` | Per-user burst limit for upload URL requests in one server process. |
-| `ASSET_UPLOADS_PER_HOUR` | `50` | Per-user sustained upload URL limit in one server process. |
+| `ASSET_UPLOADS_PER_MINUTE` | `10` | Shared PostgreSQL-backed per-user upload burst bucket. |
+| `ASSET_UPLOADS_PER_HOUR` | `50` | Shared PostgreSQL-backed per-user sustained upload bucket. |
+| `ASSET_DOWNLOADS_PER_HOUR` | `2000` | Shared PostgreSQL-backed per-user download URL bucket. |
+| `ASSET_PRESIGNED_URL_TTL_SECONDS` | `300` | Upload/download bearer URL lifetime; valid range 30-3600 seconds. |
 | `ASSET_MAX_PENDING_UPLOADS_PER_USER` | `10` | Durable cap on unconfirmed, unexpired upload intents across sessions. |
 | `ASSET_MAX_ASSETS_PER_USER` | `500` | Durable cap on confirmed stored objects attributed to one user. |
 | `ASSET_MAX_STORAGE_BYTES_PER_USER` | `1073741824` | Durable confirmed-plus-pending storage quota per user (1 GiB). |
+| `ASSET_MAX_TOTAL_STORAGE_BYTES` | `9000000000` | Plan-wide confirmed-plus-pending reservation ceiling (9 decimal GB). |
+| `ASSET_MAX_LINKS_PER_SESSION` | `1000` | Hard ceiling for distinct asset links and pending link reservations in one session. |
+| `ASSET_MAX_LINKS_PER_ACTOR_PER_SESSION` | `250` | Per-actor share of the session link ceiling. |
 
-The minute/hour throttles protect each active worker. The database-backed
-pending, count, and byte quotas remain effective across process restarts and
-multiple workers. Tune these values from observed workload and storage budget;
-do not remove both layers.
+Asset throttles, pending/count/byte quotas, the plan-wide byte reservation, and
+link quotas remain effective across process restarts and multiple workers.
+Limiter-store failure denies asset URL issuance. The global byte ceiling must
+cover every application sharing the bucket; it cannot account for unrelated
+objects or replay of an already issued presigned URL.
 
 ## Compendium
 

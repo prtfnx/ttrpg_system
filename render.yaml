@@ -68,6 +68,28 @@ services:
         sync: false
       - key: R2_PUBLIC_URL
         sync: false
+      - key: ASSET_MAX_FILE_BYTES
+        value: 52428800
+      - key: ASSET_UPLOADS_PER_MINUTE
+        value: 10
+      - key: ASSET_UPLOADS_PER_HOUR
+        value: 50
+      - key: ASSET_DOWNLOADS_PER_HOUR
+        value: 2000
+      - key: ASSET_PRESIGNED_URL_TTL_SECONDS
+        value: 300
+      - key: ASSET_MAX_PENDING_UPLOADS_PER_USER
+        value: 10
+      - key: ASSET_MAX_ASSETS_PER_USER
+        value: 500
+      - key: ASSET_MAX_STORAGE_BYTES_PER_USER
+        value: 1073741824
+      - key: ASSET_MAX_TOTAL_STORAGE_BYTES
+        value: 9000000000
+      - key: ASSET_MAX_LINKS_PER_SESSION
+        value: 1000
+      - key: ASSET_MAX_LINKS_PER_ACTOR_PER_SESSION
+        value: 250
     healthCheckPath: /health/ready
     # Preview releases are manually reviewed; automatic deploys remain disabled.
     autoDeployTrigger: "off"

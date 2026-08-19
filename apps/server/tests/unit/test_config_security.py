@@ -137,6 +137,24 @@ def test_asset_resource_limits_are_bounded_and_consistent():
     with pytest.raises(ValueError, match="ASSET_MAX_STORAGE_BYTES_PER_USER"):
         Settings(ASSET_MAX_STORAGE_BYTES_PER_USER=1024)
 
+    with pytest.raises(ValueError, match="ASSET_DOWNLOADS_PER_HOUR"):
+        Settings(ASSET_DOWNLOADS_PER_HOUR=0)
+
+    with pytest.raises(ValueError, match="ASSET_PRESIGNED_URL_TTL_SECONDS"):
+        Settings(ASSET_PRESIGNED_URL_TTL_SECONDS=10)
+
+    with pytest.raises(ValueError, match="ASSET_MAX_TOTAL_STORAGE_BYTES"):
+        Settings(ASSET_MAX_TOTAL_STORAGE_BYTES=1024)
+
+    with pytest.raises(ValueError, match="ASSET_MAX_LINKS_PER_SESSION"):
+        Settings(ASSET_MAX_LINKS_PER_SESSION=0)
+
+    with pytest.raises(ValueError, match="ASSET_MAX_LINKS_PER_ACTOR_PER_SESSION"):
+        Settings(
+            ASSET_MAX_LINKS_PER_SESSION=10,
+            ASSET_MAX_LINKS_PER_ACTOR_PER_SESSION=11,
+        )
+
 
 @pytest.mark.parametrize("value", [0, 129])
 def test_blocking_worker_concurrency_is_bounded(value: int):

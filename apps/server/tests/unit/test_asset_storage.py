@@ -399,6 +399,80 @@ async def test_upload_counts_pending_bytes_toward_user_storage_quota(
     assert "storage quota" in second.error
 
 
+async def test_upload_counts_all_users_toward_global_storage_quota(
+    monkeypatch, test_db, test_user, test_game_session
+):
+    manager = _manager(monkeypatch, test_db)
+    manager.settings.ASSET_MAX_TOTAL_STORAGE_BYTES = len(VALID_PNG)
+    first = await _request_upload(manager, test_user, test_game_session)
+    other_user = crud.create_user(
+        test_db,
+        schemas.UserCreate(
+            username="global-quota-user",
+            email="global-quota@example.com",
+            password="Pass1234",
+        ),
+    )
+    other_session = crud.create_game_session(
+        test_db,
+        schemas.GameSessionCreate(name="Global Quota Session"),
+        other_user.id,
+        "GLOBAL1",
+    )
+
+    second = await _request_upload(
+        manager,
+        other_user,
+        other_session,
+        xxhash="3" * 16,
+    )
+
+    assert first.success is True
+    assert second.success is False
+    assert second.error is not None
+    assert "Global asset storage quota" in second.error
+
+
+async def test_pending_upload_reserves_session_link_quota(
+    monkeypatch, test_db, test_user, test_game_session
+):
+    manager = _manager(monkeypatch, test_db)
+    manager.settings.ASSET_MAX_LINKS_PER_SESSION = 1
+    manager.settings.ASSET_MAX_LINKS_PER_ACTOR_PER_SESSION = 1
+
+    first = await _request_upload(manager, test_user, test_game_session)
+    second = await _request_upload(
+        manager,
+        test_user,
+        test_game_session,
+        xxhash="4" * 16,
+    )
+
+    assert first.success is True
+    assert second.success is False
+    assert second.error == "Session asset link quota exceeded"
+
+
+async def test_pending_upload_reserves_actor_link_quota(
+    monkeypatch, test_db, test_user, test_game_session
+):
+    manager = _manager(monkeypatch, test_db)
+    manager.settings.ASSET_MAX_LINKS_PER_SESSION = 2
+    manager.settings.ASSET_MAX_LINKS_PER_ACTOR_PER_SESSION = 1
+
+    first = await _request_upload(manager, test_user, test_game_session)
+    second = await _request_upload(
+        manager,
+        test_user,
+        test_game_session,
+        xxhash="5" * 16,
+    )
+
+    assert first.success is True
+    assert second.success is False
+    assert second.error == "Actor session asset link quota exceeded"
+
+
 async def test_upload_rejects_new_object_after_user_asset_count_quota(
     monkeypatch, test_db, test_user, test_game_session
 ):
@@ -414,6 +488,89 @@ async def test_upload_rejects_new_object_after_user_asset_count_quota(
     assert second.success is False
     assert second.error is not None
     assert "count quota" in second.error
+
+
+async def test_duplicate_link_is_idempotent_when_session_quota_is_full(
+    monkeypatch, test_db, test_user, test_game_session
+):
+    manager = _manager(monkeypatch, test_db)
+    manager.settings.ASSET_MAX_LINKS_PER_SESSION = 1
+    manager.settings.ASSET_MAX_LINKS_PER_ACTOR_PER_SESSION = 1
+    asset = models.Asset(
+        asset_name="existing.png",
+        r2_asset_id="existing-id",
+        content_type="image/png",
+        file_size=len(VALID_PNG),
+        xxhash="existing-hash",
+        uploaded_by=test_user.id,
+        r2_key="assets/existing.png",
+        r2_bucket="assets",
+    )
+    test_db.add(asset)
+    test_db.commit()
+
+    first = manager._link_existing_asset_to_session(
+        asset.r2_asset_id,
+        test_game_session.session_code,
+        test_user.id,
+        "existing.png",
+    )
+    repeated = manager._link_existing_asset_to_session(
+        asset.r2_asset_id,
+        test_game_session.session_code,
+        test_user.id,
+        "renamed.png",
+    )
+
+    assert first == (True, None)
+    assert repeated == (True, None)
+    assert test_db.query(models.SessionAsset).count() == 1
+
+
+async def test_final_link_quota_failure_removes_new_r2_object(
+    monkeypatch, test_db, test_user, test_game_session
+):
+    manager = _manager(monkeypatch, test_db)
+    manager.settings.ASSET_MAX_LINKS_PER_SESSION = 1
+    manager.settings.ASSET_MAX_LINKS_PER_ACTOR_PER_SESSION = 1
+    response = await _request_upload(manager, test_user, test_game_session)
+    assert response.success is True
+
+    blocker = models.Asset(
+        asset_name="blocker.png",
+        r2_asset_id="blocker-id",
+        content_type="image/png",
+        file_size=1,
+        xxhash="blocker-hash",
+        uploaded_by=test_user.id,
+        r2_key="assets/blocker.png",
+        r2_bucket="assets",
+    )
+    test_db.add(blocker)
+    test_db.flush()
+    test_db.add(models.SessionAsset(
+        session_id=test_game_session.id,
+        asset_id=blocker.id,
+        display_name="blocker.png",
+        added_by=test_user.id,
+    ))
+    test_db.commit()
+
+    confirmed = await manager.confirm_upload(
+        response.asset_id,
+        test_user.id,
+        upload_success=True,
+    )
+
+    assert confirmed is False
+    test_db.expire_all()
+    intent = test_db.query(models.AssetUploadIntent).one()
+    assert intent.status == "link_quota_exceeded"
+    assert intent.error_message == "Session asset link quota exceeded"
+    assert test_db.query(models.Asset).count() == 1
+    assert manager.r2_manager.deleted_keys == [
+        f"assets/{VALID_XXHASH[:16]}.png"
+    ]
 
 
 async def test_upload_requires_durable_session_membership(

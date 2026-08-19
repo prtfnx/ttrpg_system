@@ -18,6 +18,7 @@ from database.database import SessionLocal
 from database.models import (
     Asset,
     AssetDeletionJob,
+    AssetQuotaState,
     AssetUploadIntent,
     GamePlayer,
     GameSession,
@@ -80,6 +81,17 @@ class PresignedUrlResponse:
     error: Optional[str] = None
     instructions: Optional[str] = None
     required_xxhash: Optional[str] = None  # xxHash that client must provide
+
+
+@dataclass(frozen=True)
+class AssetSaveResult:
+    success: bool
+    error: Optional[str] = None
+    created_asset: bool = False
+
+
+class AssetLinkQuotaExceeded(RuntimeError):
+    """Raised when a durable session link reservation is unavailable."""
 
 class ServerAssetManager:
     """Server-side asset management with R2 integration"""
@@ -179,7 +191,12 @@ class ServerAssetManager:
         return self._asset_rate_limiter.consume(
             user_id=user_id,
             operation="download",
-            limits=(TokenBucketLimit(capacity=5_000, window_seconds=3600),),
+            limits=(
+                TokenBucketLimit(
+                    capacity=self.settings.ASSET_DOWNLOADS_PER_HOUR,
+                    window_seconds=3600,
+                ),
+            ),
         )
 
     @staticmethod
@@ -221,6 +238,26 @@ class ServerAssetManager:
         projected_bytes = int(stored_bytes or 0) + int(pending_bytes or 0) + file_size
         if projected_bytes > self.settings.ASSET_MAX_STORAGE_BYTES_PER_USER:
             return False, "Asset storage quota exceeded. Delete unused assets before uploading."
+
+        total_stored_bytes = db.query(
+            func.coalesce(func.sum(Asset.file_size), 0)
+        ).scalar()
+        total_pending_bytes = db.query(
+            func.coalesce(func.sum(AssetUploadIntent.file_size), 0)
+        ).filter(
+            AssetUploadIntent.status == "awaiting_upload",
+            or_(
+                AssetUploadIntent.expires_at.is_(None),
+                AssetUploadIntent.expires_at > now,
+            ),
+        ).scalar()
+        projected_total = (
+            int(total_stored_bytes or 0)
+            + int(total_pending_bytes or 0)
+            + file_size
+        )
+        if projected_total > self.settings.ASSET_MAX_TOTAL_STORAGE_BYTES:
+            return False, "Global asset storage quota exceeded. Delete unused assets before uploading."
         return True, None
 
     def _validate_file_request(self, request: AssetRequest) -> Tuple[bool, Optional[str]]:
@@ -297,10 +334,65 @@ class ServerAssetManager:
             return True
         return False
 
+    def _lock_quota_state(self, db) -> AssetQuotaState:
+        state = (
+            db.query(AssetQuotaState)
+            .filter(AssetQuotaState.id == 1)
+            .with_for_update()
+            .one_or_none()
+        )
+        if state is None:
+            state = AssetQuotaState(id=1, updated_at=utc_now())
+            db.add(state)
+            db.flush()
+        state.updated_at = utc_now()
+        return state
+
+    def _check_session_link_quota(
+        self,
+        db,
+        session: GameSession,
+        user_id: int,
+        *,
+        include_pending: bool,
+    ) -> None:
+        total_links = db.query(SessionAsset).filter(
+            SessionAsset.session_id == session.id
+        ).count()
+        actor_links = db.query(SessionAsset).filter(
+            SessionAsset.session_id == session.id,
+            SessionAsset.added_by == user_id,
+        ).count()
+        if include_pending:
+            now = utc_now()
+            pending = db.query(AssetUploadIntent).filter(
+                AssetUploadIntent.session_id == session.id,
+                AssetUploadIntent.status == "awaiting_upload",
+                or_(
+                    AssetUploadIntent.expires_at.is_(None),
+                    AssetUploadIntent.expires_at > now,
+                ),
+            )
+            total_links += pending.count()
+            actor_links += pending.filter(
+                AssetUploadIntent.uploaded_by == user_id
+            ).count()
+
+        if total_links >= self.settings.ASSET_MAX_LINKS_PER_SESSION:
+            raise AssetLinkQuotaExceeded("Session asset link quota exceeded")
+        if actor_links >= self.settings.ASSET_MAX_LINKS_PER_ACTOR_PER_SESSION:
+            raise AssetLinkQuotaExceeded("Actor session asset link quota exceeded")
+
     def _link_asset_to_session(self, db, asset: Asset, session: Optional[GameSession],
                                user_id: int, display_name: str) -> None:
         if session is None:
             return
+        locked_session = (
+            db.query(GameSession)
+            .filter(GameSession.id == session.id)
+            .with_for_update()
+            .one()
+        )
         pending_delete = db.query(AssetDeletionJob.id).filter(
             AssetDeletionJob.asset_id == asset.id
         ).first()
@@ -313,6 +405,9 @@ class ServerAssetManager:
         if link:
             link.last_accessed = utc_now()
             return
+        self._check_session_link_quota(
+            db, locked_session, user_id, include_pending=False
+        )
         db.add(SessionAsset(
             session_id=session.id,
             asset_id=asset.id,
@@ -323,7 +418,7 @@ class ServerAssetManager:
         ))
 
     def _link_existing_asset_to_session(self, asset_id: str, session_code: str,
-                                        user_id: int, display_name: str) -> None:
+                                        user_id: int, display_name: str) -> Tuple[bool, Optional[str]]:
         db = SessionLocal()
         try:
             asset = (
@@ -333,12 +428,22 @@ class ServerAssetManager:
                 .first()
             )
             session = self._get_session(db, session_code)
-            if asset:
-                self._link_asset_to_session(db, asset, session, user_id, display_name)
-                db.commit()
+            if asset is None or session is None:
+                return False, "Asset or session not found"
+            self._link_asset_to_session(db, asset, session, user_id, display_name)
+            db.commit()
+            return True, None
+        except AssetLinkQuotaExceeded as exc:
+            db.rollback()
+            logger.warning(
+                "Duplicate asset link rejected by quota",
+                extra={"event_name": "asset.session_link.quota_rejected"},
+            )
+            return False, str(exc)
         except Exception:
             db.rollback()
             logger.exception("Duplicate asset session link failed")
+            return False, "Unable to link existing asset"
         finally:
             db.close()
 
@@ -355,11 +460,20 @@ class ServerAssetManager:
         """Atomically reserve one user's durable upload quota."""
         db = SessionLocal()
         try:
-            # Serialize quota checks for this user across PostgreSQL workers.
+            # Use one global lock before the per-user lock so reservations by
+            # different users cannot exceed the plan-wide storage ceiling.
+            self._lock_quota_state(db)
             user = db.query(User).filter(User.id == metadata["uploaded_by"]).with_for_update().one_or_none()
             if user is None:
                 return False, "Upload permission denied"
-            session = self._get_session(db, metadata["session_code"])
+            session = (
+                db.query(GameSession)
+                .filter(GameSession.session_code == metadata["session_code"])
+                .with_for_update()
+                .one_or_none()
+            )
+            if session is None:
+                return False, "Upload permission denied"
             stale = db.query(AssetUploadIntent).filter(
                 AssetUploadIntent.asset_id == metadata["asset_id"],
                 AssetUploadIntent.session_code == metadata["session_code"],
@@ -369,6 +483,17 @@ class ServerAssetManager:
             for intent in stale:
                 intent.status = "superseded"
             db.flush()
+
+            try:
+                self._check_session_link_quota(
+                    db,
+                    session,
+                    metadata["uploaded_by"],
+                    include_pending=True,
+                )
+            except AssetLinkQuotaExceeded as exc:
+                db.rollback()
+                return False, str(exc)
 
             file_size = metadata.get("file_size")
             if not isinstance(file_size, int) or file_size <= 0:
@@ -445,8 +570,8 @@ class ServerAssetManager:
                     error="Asset not found"
                 )
 
-            # Generate presigned URL (24 hours for session assets)
-            expiry_seconds = 86400
+            # Keep bearer-style URLs short lived to limit replay exposure.
+            expiry_seconds = self.settings.ASSET_PRESIGNED_URL_TTL_SECONDS
             presigned_url = self.r2_manager.generate_presigned_url(
                 asset_metadata["r2_key"],
                 method="GET",
@@ -507,8 +632,8 @@ class ServerAssetManager:
                     error="Asset not found",
                     instructions="You may need to upload this asset first"
                 )
-            # Generate presigned URL (24 hours for session assets)
-            expiry_seconds = 86400
+            # Keep bearer-style URLs short lived to limit replay exposure.
+            expiry_seconds = self.settings.ASSET_PRESIGNED_URL_TTL_SECONDS
             presigned_url = self.r2_manager.generate_presigned_url(
                 asset_metadata["r2_key"],
                 method="GET",
@@ -552,7 +677,9 @@ class ServerAssetManager:
                     AssetUploadIntent.asset_id == asset_id,
                     AssetUploadIntent.uploaded_by == user_id,
                     AssetUploadIntent.status == "awaiting_upload"
-                ).order_by(AssetUploadIntent.created_at.desc()).first()
+                ).order_by(
+                    AssetUploadIntent.created_at.desc()
+                ).with_for_update().first()
 
                 if not intent:
                     logger.error(f"Asset {asset_id} has no durable pending upload intent")
@@ -618,11 +745,18 @@ class ServerAssetManager:
                     "uploaded_at": utc_now().isoformat()
                 }
 
-                if not self._save_asset_to_db(confirmed_metadata):
-                    intent.status = "metadata_failed"
-                    intent.error_message = "Failed to save asset metadata"
+                save_result = self._save_asset_to_db(confirmed_metadata)
+                if not save_result.success:
+                    intent.status = (
+                        "link_quota_exceeded"
+                        if save_result.error and "link quota exceeded" in save_result.error
+                        else "metadata_failed"
+                    )
+                    intent.error_message = save_result.error or "Failed to save asset metadata"
                     intent.confirmed_at = utc_now()
                     db.commit()
+                    if save_result.created_asset:
+                        self._delete_rejected_upload(final_r2_key)
                     return False
 
                 intent.status = "uploaded"
@@ -805,12 +939,14 @@ class ServerAssetManager:
                     "Duplicate asset content detected",
                     extra={"event_name": "asset.duplicate.detected"},
                 )
-                self._link_existing_asset_to_session(
+                linked, link_error = self._link_existing_asset_to_session(
                     existing_asset["asset_id"],
                     request.session_code,
                     request.user_id,
                     request.filename
                 )
+                if not linked:
+                    return PresignedUrlResponse(success=False, error=link_error)
                 return PresignedUrlResponse(
                     success=True,
                     asset_id=existing_asset["asset_id"],
@@ -822,8 +958,8 @@ class ServerAssetManager:
             asset_id = request.asset_id
             r2_key = self._generate_pending_r2_key(asset_id, request.filename, request.session_code)
 
-            # Generate presigned URL with xxHash metadata (1 hour expiry)
-            expiry_seconds = 3600
+            # Generate a short-lived presigned URL with xxHash metadata.
+            expiry_seconds = self.settings.ASSET_PRESIGNED_URL_TTL_SECONDS
             presigned_url = self.r2_manager.generate_presigned_upload_url(
                 r2_key,
                 file_xxhash,
@@ -880,8 +1016,9 @@ class ServerAssetManager:
                 error="Internal server error"
             )
 
-    def _save_asset_to_db(self, asset_data: dict) -> bool:
+    def _save_asset_to_db(self, asset_data: dict) -> AssetSaveResult:
         """Save asset metadata to database including xxHash"""
+        created_asset = False
         try:
             db = SessionLocal()
             try:
@@ -910,7 +1047,7 @@ class ServerAssetManager:
                             "Existing asset linked to session",
                             extra={"event_name": "asset.session_link.created", "outcome": "success"},
                         )
-                        return True
+                        return AssetSaveResult(success=True)
 
                 stored_name = self._make_unique_asset_name(db, asset_data["filename"], asset_data["asset_id"])
 
@@ -931,20 +1068,35 @@ class ServerAssetManager:
 
                 db.add(new_asset)
                 db.flush()
+                created_asset = True
                 self._link_asset_to_session(db, new_asset, session, asset_data["uploaded_by"], asset_data["filename"])
                 db.commit()
                 logger.info(
                     "Asset metadata persisted",
                     extra={"event_name": "asset.metadata.persisted", "outcome": "success"},
                 )
-                return True
+                return AssetSaveResult(success=True, created_asset=True)
 
             finally:
                 db.close()
 
+        except AssetLinkQuotaExceeded as exc:
+            logger.warning(
+                "Asset metadata rejected by link quota",
+                extra={"event_name": "asset.session_link.quota_rejected"},
+            )
+            return AssetSaveResult(
+                success=False,
+                error=str(exc),
+                created_asset=created_asset,
+            )
         except Exception:
             logger.exception("Asset metadata persistence failed")
-            return False
+            return AssetSaveResult(
+                success=False,
+                error="Failed to save asset metadata",
+                created_asset=created_asset,
+            )
 
     def _get_asset_from_db(
         self,

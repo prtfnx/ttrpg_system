@@ -104,9 +104,14 @@ class Settings(BaseSettings):
     ASSET_MAX_FILE_BYTES: int = 50 * 1024 * 1024
     ASSET_UPLOADS_PER_MINUTE: int = 10
     ASSET_UPLOADS_PER_HOUR: int = 50
+    ASSET_DOWNLOADS_PER_HOUR: int = 2_000
+    ASSET_PRESIGNED_URL_TTL_SECONDS: int = 300
     ASSET_MAX_PENDING_UPLOADS_PER_USER: int = 10
     ASSET_MAX_ASSETS_PER_USER: int = 500
     ASSET_MAX_STORAGE_BYTES_PER_USER: int = 1024 * 1024 * 1024
+    ASSET_MAX_TOTAL_STORAGE_BYTES: int = 9_000_000_000
+    ASSET_MAX_LINKS_PER_SESSION: int = 1_000
+    ASSET_MAX_LINKS_PER_ACTOR_PER_SESSION: int = 250
 
     model_config = SettingsConfigDict(env_file=".env", extra="ignore")
 
@@ -150,6 +155,12 @@ class Settings(BaseSettings):
             raise ValueError(
                 "ASSET_UPLOADS_PER_HOUR must be at least ASSET_UPLOADS_PER_MINUTE and at most 10000."
             )
+        if not 1 <= self.ASSET_DOWNLOADS_PER_HOUR <= 100_000:
+            raise ValueError("ASSET_DOWNLOADS_PER_HOUR must be between 1 and 100000.")
+        if not 30 <= self.ASSET_PRESIGNED_URL_TTL_SECONDS <= 3600:
+            raise ValueError(
+                "ASSET_PRESIGNED_URL_TTL_SECONDS must be between 30 and 3600."
+            )
         if not 1 <= self.ASSET_MAX_PENDING_UPLOADS_PER_USER <= 1000:
             raise ValueError("ASSET_MAX_PENDING_UPLOADS_PER_USER must be between 1 and 1000.")
         if not 1 <= self.ASSET_MAX_ASSETS_PER_USER <= 100_000:
@@ -157,6 +168,26 @@ class Settings(BaseSettings):
         if not self.ASSET_MAX_FILE_BYTES <= self.ASSET_MAX_STORAGE_BYTES_PER_USER <= 10 * 1024**4:
             raise ValueError(
                 "ASSET_MAX_STORAGE_BYTES_PER_USER must be at least ASSET_MAX_FILE_BYTES and at most 10 TiB."
+            )
+        if not (
+            self.ASSET_MAX_STORAGE_BYTES_PER_USER
+            <= self.ASSET_MAX_TOTAL_STORAGE_BYTES
+            <= 10 * 1024**4
+        ):
+            raise ValueError(
+                "ASSET_MAX_TOTAL_STORAGE_BYTES must be at least the per-user storage "
+                "limit and at most 10 TiB."
+            )
+        if not 1 <= self.ASSET_MAX_LINKS_PER_SESSION <= 100_000:
+            raise ValueError("ASSET_MAX_LINKS_PER_SESSION must be between 1 and 100000.")
+        if not (
+            1
+            <= self.ASSET_MAX_LINKS_PER_ACTOR_PER_SESSION
+            <= self.ASSET_MAX_LINKS_PER_SESSION
+        ):
+            raise ValueError(
+                "ASSET_MAX_LINKS_PER_ACTOR_PER_SESSION must be between 1 and "
+                "ASSET_MAX_LINKS_PER_SESSION."
             )
         if _is_production(self.ENVIRONMENT):
             if not self.SECRET_KEY or len(self.SECRET_KEY) < 32 or self.SECRET_KEY == DEFAULT_SECRET_KEY:

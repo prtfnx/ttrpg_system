@@ -13,6 +13,7 @@ from service import asset_deletion_service as deletion_module
 from service import asset_manager as asset_manager_module
 from service.asset_deletion_service import process_asset_deletion_job
 from service.asset_manager import AssetRequest, ServerAssetManager
+from service.asset_rate_limiter import AssetRateLimitDecision
 from service.protocol import assets as asset_protocol_module
 from service.protocol.assets import _AssetsMixin
 from sqlalchemy.orm import sessionmaker
@@ -343,15 +344,25 @@ async def test_asset_storage_io_does_not_block_event_loop(monkeypatch, test_db):
     assert marker.is_set(), "synchronous asset storage work blocked the event loop"
 
 
-def test_upload_rate_limit_is_per_authenticated_user(monkeypatch, test_db):
+def test_upload_rate_limit_is_per_authenticated_user(
+    monkeypatch, test_db, test_user
+):
     manager = _manager(monkeypatch, test_db)
     manager.settings.ASSET_UPLOADS_PER_MINUTE = 2
     manager.settings.ASSET_UPLOADS_PER_HOUR = 3
+    other_user = crud.create_user(
+        test_db,
+        schemas.UserCreate(
+            username="rate-limit-other",
+            email="rate-limit-other@example.com",
+            password="Pass1234",
+        ),
+    )
 
-    assert manager._check_upload_rate_limit(10)
-    assert manager._check_upload_rate_limit(10)
-    assert not manager._check_upload_rate_limit(10)
-    assert manager._check_upload_rate_limit(11)
+    assert manager._check_upload_rate_limit(test_user.id) == AssetRateLimitDecision.ALLOWED
+    assert manager._check_upload_rate_limit(test_user.id) == AssetRateLimitDecision.ALLOWED
+    assert manager._check_upload_rate_limit(test_user.id) == AssetRateLimitDecision.LIMITED
+    assert manager._check_upload_rate_limit(other_user.id) == AssetRateLimitDecision.ALLOWED
 
 
 async def test_upload_rejects_excess_pending_intents(
@@ -702,6 +713,26 @@ async def test_filename_download_is_scoped_to_session_link(
     )
     assert ambiguous.success is False
     assert ambiguous.error == "Asset not found"
+
+
+async def test_filename_download_cannot_bypass_shared_limiter(
+    monkeypatch, test_db, test_user, test_game_session
+):
+    manager = _manager(monkeypatch, test_db)
+    monkeypatch.setattr(
+        manager._asset_rate_limiter,
+        "consume",
+        lambda **_kwargs: AssetRateLimitDecision.LIMITED,
+    )
+
+    response = await manager.request_download_url_by_filename(
+        "map.png",
+        test_game_session.session_code,
+        test_user.id,
+    )
+
+    assert response.success is False
+    assert response.error == "Download rate limit exceeded"
 
 
 async def test_table_asset_enrichment_uses_only_session_links(

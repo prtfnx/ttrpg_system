@@ -25,11 +25,15 @@ from database.models import (
     User,
 )
 from PIL import Image, UnidentifiedImageError
+from service.asset_rate_limiter import (
+    AssetRateLimitDecision,
+    DurableAssetRateLimiter,
+    TokenBucketLimit,
+)
 from sqlalchemy import func, or_
 from storage.r2_manager import R2AssetManager
 from utils.blocking import run_blocking
 from utils.observability import track_asset_operation
-from utils.rate_limiter import RateLimiter
 from utils.time import utc_now
 
 logger = logging.getLogger(__name__)
@@ -85,11 +89,7 @@ class ServerAssetManager:
         self.session_permissions: Dict[str, Dict[int, AssetPermission]] = {}  # session_code -> user_id -> permissions
         self.settings = Settings()
 
-        # Per-process throttles protect the active worker. Durable intent and
-        # storage quotas below remain effective across restarts and workers.
-        self._upload_minute_limiter = RateLimiter("asset_upload_minute")
-        self._upload_hour_limiter = RateLimiter("asset_upload_hour")
-        self._download_hour_limiter = RateLimiter("asset_download_hour")
+        self._asset_rate_limiter = DurableAssetRateLimiter(lambda: SessionLocal())
 
         # Asset validation settings
         self.max_file_size = self.settings.ASSET_MAX_FILE_BYTES
@@ -157,26 +157,40 @@ class ServerAssetManager:
         # Default read-only for established sessions
         return AssetPermission()
 
-    def _check_upload_rate_limit(self, user_id: int) -> bool:
-        """Apply per-user burst and sustained upload throttles."""
-        identifier = f"user:{user_id}"
-        if not self._upload_minute_limiter.is_allowed(
-            identifier,
-            max_requests=self.settings.ASSET_UPLOADS_PER_MINUTE,
-            window_minutes=1,
-        ):
-            return False
-        return self._upload_hour_limiter.is_allowed(
-            identifier,
-            max_requests=self.settings.ASSET_UPLOADS_PER_HOUR,
-            window_minutes=60,
+    def _check_upload_rate_limit(self, user_id: int) -> AssetRateLimitDecision:
+        """Apply shared per-user burst and sustained upload throttles."""
+        return self._asset_rate_limiter.consume(
+            user_id=user_id,
+            operation="upload",
+            limits=(
+                TokenBucketLimit(
+                    capacity=self.settings.ASSET_UPLOADS_PER_MINUTE,
+                    window_seconds=60,
+                ),
+                TokenBucketLimit(
+                    capacity=self.settings.ASSET_UPLOADS_PER_HOUR,
+                    window_seconds=3600,
+                ),
+            ),
         )
 
-    def _check_download_rate_limit(self, user_id: int) -> bool:
-        """Apply the existing lenient per-user download throttle safely."""
-        return self._download_hour_limiter.is_allowed(
-            f"user:{user_id}", max_requests=5_000, window_minutes=60
+    def _check_download_rate_limit(self, user_id: int) -> AssetRateLimitDecision:
+        """Apply the shared per-user download throttle."""
+        return self._asset_rate_limiter.consume(
+            user_id=user_id,
+            operation="download",
+            limits=(TokenBucketLimit(capacity=5_000, window_seconds=3600),),
         )
+
+    @staticmethod
+    def _rate_limit_error(
+        decision: AssetRateLimitDecision, operation: str
+    ) -> Optional[str]:
+        if decision == AssetRateLimitDecision.ALLOWED:
+            return None
+        if decision == AssetRateLimitDecision.UNAVAILABLE:
+            return "Asset rate limiter temporarily unavailable. Please try again later."
+        return f"{operation.capitalize()} rate limit exceeded"
 
     def _check_upload_quota(
         self, db, user_id: int, file_size: int
@@ -408,10 +422,13 @@ class ServerAssetManager:
                 )
 
             # Check rate limits
-            if not self._check_download_rate_limit(request.user_id):
+            limit_error = self._rate_limit_error(
+                self._check_download_rate_limit(request.user_id), "download"
+            )
+            if limit_error:
                 return PresignedUrlResponse(
                     success=False,
-                    error="Download rate limit exceeded"
+                    error=limit_error,
                 )
               # Get asset metadata from database first, then fallback to memory
             asset_metadata = None
@@ -474,6 +491,12 @@ class ServerAssetManager:
                     success=False,
                     error="Download permission denied"
                 )
+
+            limit_error = self._rate_limit_error(
+                self._check_download_rate_limit(user_id), "download"
+            )
+            if limit_error:
+                return PresignedUrlResponse(success=False, error=limit_error)
 
             # Resolve the session-visible display name, which may be shared by
             # assets in other sessions.
@@ -751,10 +774,13 @@ class ServerAssetManager:
                 )
 
             # Check rate limits
-            if not self._check_upload_rate_limit(request.user_id):
+            limit_error = self._rate_limit_error(
+                self._check_upload_rate_limit(request.user_id), "upload"
+            )
+            if limit_error:
                 return PresignedUrlResponse(
                     success=False,
-                    error="Upload rate limit exceeded. Please try again later."
+                    error=limit_error,
                 )
 
             # Validate file request

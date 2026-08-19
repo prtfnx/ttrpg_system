@@ -96,6 +96,22 @@ and cleanup when a final-link race rejects a newly promoted object. Run the
 optional PostgreSQL contract suite before scaling workers because SQLite does
 not implement `SELECT ... FOR UPDATE` row locking.
 
+The browser-only Rust/WASM suite uses pinned `wasm-pack 0.13.1`,
+`wasm-bindgen-test-runner 0.2.117`, and Chrome/ChromeDriver build
+`151.0.7922`. Run the Node WASM test once to provision the matching bindgen
+runner, then use the wrapper so `wasm-pack` cannot substitute a driver for a
+different Chrome build:
+
+```powershell
+cd packages/rust-core
+wasm-pack test --node --test wasm_node --locked
+pnpm.cmd run test:browser
+```
+
+On Windows the wrapper downloads the pinned ChromeDriver archive into ignored
+`target/` storage and verifies its SHA-256. CI pins Chrome for Testing and
+passes the action's matching driver to the same wrapper.
+
 Run:
 
 ```powershell

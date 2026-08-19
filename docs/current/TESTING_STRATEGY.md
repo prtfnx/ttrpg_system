@@ -75,6 +75,13 @@ another session link remains, and event-loop responsiveness. Model and Alembic
 tests must include the deletion-outbox table. PostgreSQL contract coverage is
 the authority for row-lock behavior across workers.
 
+Asset quota tests cover limiter state shared by independent workers, restart
+expiry, fail-closed store errors, per-user and plan-wide byte reservations,
+pending and final session/actor link decisions, idempotent duplicate linking,
+and cleanup when a final-link race rejects a newly promoted object. Run the
+optional PostgreSQL contract suite before scaling workers because SQLite does
+not implement `SELECT ... FOR UPDATE` row locking.
+
 Run:
 
 ```powershell

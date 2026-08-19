@@ -159,18 +159,28 @@ Current in-memory limits:
 - login: 10 attempts per 5 minutes per IP;
 - registration: 5 attempts per 10 minutes per IP;
 - password reset: 3 attempts per 5 minutes per IP;
-- demo access: 3 demos per IP per hour;
-- asset upload URLs: 10 per minute and 50 per hour per authenticated user.
+- demo access: 3 demos per IP per hour.
 
-The limiter reads `X-Forwarded-For` and `X-Real-IP` before falling back to the
-request client host. Because it is in memory, limits reset when the process
-restarts and are not shared across workers.
+Asset limits are shared through PostgreSQL token buckets:
 
-Asset storage also has database-backed per-user limits for pending upload
-intents, confirmed object count, and confirmed-plus-pending bytes. The server
-locks the user's database row while checking and reserving an upload intent, so
-concurrent PostgreSQL workers cannot race the durable quota. Keep this durable
-layer even if the process-local throttle is later moved to a shared limiter.
+- upload URLs: 10 per minute and 50 per hour per authenticated user;
+- download URLs: 2,000 per hour per authenticated user.
+
+IP-based limiters trust the first validated `X-Forwarded-For` address only when
+`TRUST_PROXY_HEADERS` is enabled; otherwise they use the direct client host.
+Those auth/demo limits reset with the process and are not shared across
+workers. Asset limits use authenticated user IDs and survive process restart.
+
+Asset storage also has database-backed limits for pending upload intents,
+confirmed object count, per-user bytes, plan-wide bytes, and session/actor link
+counts. The server takes the global, user, and session locks in a stable order
+while reserving an upload intent. Final linking locks the session again, and
+duplicate links are idempotent. Limiter-store failure fails closed and emits
+`asset.rate_limit.unavailable` without falling back to per-process state.
+
+Presigned R2 URLs are five-minute bearer credentials. Throttling URL issuance
+does not make a URL one-use, so provider billing alerts and a dedicated bucket
+remain part of the cost-control boundary.
 
 Asset unlink authorization is rechecked from authenticated user/session state
 inside the same transaction that removes the link. The asset row is locked so

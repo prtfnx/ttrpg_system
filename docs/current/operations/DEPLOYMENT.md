@@ -124,6 +124,8 @@ Configure in the Render dashboard:
 - `SECRET_KEY`, `SESSION_SECRET`, and `METRICS_TOKEN`;
 - explicit `CORS_ORIGINS` and the public `BASE_URL`;
 - the required `R2_*` values;
+- reviewed `ASSET_*` quotas, including a plan-wide storage ceiling that covers
+  every application object in the dedicated bucket;
 - optional OAuth, email, and telemetry values used by the deployment.
 
 For an initial development cutover, `DATABASE_MIGRATION_URL` may equal
@@ -182,6 +184,12 @@ After deploying:
 5. Redeploy the same commit, then cold-start after Render and Neon sleep.
 6. Confirm the previously written records and assets still exist.
 7. Confirm no database URL, object key, or credential appears in logs.
+
+For the free R2 release profile, use Standard storage, keep the application
+ceiling at or below 9,000,000,000 bytes, apply expiry cleanup to `pending/`, and
+configure Cloudflare billing notifications. Presigned URLs can be replayed
+until expiry, so application counters cannot serve as an account billing hard
+stop. Do not share the bucket with untracked workloads.
 
 Do not delete an old Render disk or Neon branch until the new service is
 verified and an operator has explicitly accepted any data loss.

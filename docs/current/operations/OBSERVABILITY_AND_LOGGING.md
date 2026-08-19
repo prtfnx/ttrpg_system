@@ -58,6 +58,13 @@ request carries the configured bearer token. Metrics use bounded labels for:
 - durable pending-upload count and oldest age;
 - browser error reports.
 
+Asset rate metrics use bounded `asset_upload_shared` and
+`asset_download_shared` limiter labels. Alert on denied spikes and on the
+`asset.rate_limit.unavailable` event: the asset flow deliberately fails closed
+when PostgreSQL cannot make a shared decision. Also alert before Cloudflare R2
+storage or Class A/B operations reach the account's included monthly usage;
+application metrics do not observe replay of an issued presigned URL.
+
 `OTEL_EXPORTER_OTLP_ENDPOINT` enables sampled FastAPI and SQLAlchemy traces.
 When it is empty, no exporter is configured. Keep exporter headers in Render
 secrets.

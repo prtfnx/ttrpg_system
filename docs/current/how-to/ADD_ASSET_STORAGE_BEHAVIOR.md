@@ -36,7 +36,8 @@ Read:
 
 1. Keep asset protocol handlers in `apps/server/service/protocol/assets.py`.
 2. Keep validation, permission, R2, pending-upload, and database logic in
-   `apps/server/service/asset_manager.py`.
+   `apps/server/service/asset_manager.py`, and shared throttling in
+   `apps/server/service/asset_rate_limiter.py`.
 3. Preserve the current upload sequence:
    `asset_upload_request` -> presigned PUT URL -> browser upload ->
    `asset_upload_confirm` -> database row.
@@ -47,10 +48,12 @@ Read:
    confirmation.
 7. Resolve user and session identity from authenticated WebSocket connection
    state, never from the asset message payload.
-8. Reserve the per-user pending/count/byte quota atomically before returning a
-   presigned URL, and retain both burst and sustained rate limits.
-7. Delete the R2 object before removing its metadata. The current handler keeps
-   database rows when storage deletion fails so the operation can be retried.
+8. Reserve the per-user and global byte quotas plus pending link capacity
+   atomically before returning a presigned URL. Retain shared burst, sustained,
+   and download token buckets.
+9. Transactionally unlink metadata and queue the final object in the durable
+   deletion outbox. Never delete R2 bytes before the unlink commits; storage
+   failures remain durable retry work.
 
 Current validation limits in `ServerAssetManager`:
 

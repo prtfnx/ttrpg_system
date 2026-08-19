@@ -5,18 +5,20 @@ Audience: contributors changing asset upload, authorization, R2, or recovery.
 Status: current. Image upload and storage integrity are implemented. Independent
 production backup remains an operations blocker.
 
-Last source audit: 2026-08-17
+Last source audit: 2026-08-19
 
 ## Ownership
 
 - `service/protocol/assets.py` owns the WebSocket asset contract.
 - `service/asset_manager.py` owns authorization, intents, validation, and
   metadata transactions.
+- `service/asset_rate_limiter.py` owns shared per-user upload/download token
+  buckets and fail-closed limiter-store behavior.
 - `service/asset_deletion_service.py` owns transactional unlinking and the
   retryable deletion outbox.
 - `storage/r2_manager.py` owns Cloudflare R2 operations.
-- `database/models.py` defines `Asset`, `SessionAsset`, `AssetUploadIntent`,
-  and `AssetDeletionJob`.
+- `database/models.py` defines asset/link/intent/outbox records, durable rate
+  buckets, and the singleton plan-wide quota lock.
 - `scripts/r2_storage_admin.py` owns CORS/lifecycle setup, smoke tests, and
   database-to-bucket audits.
 
@@ -35,14 +37,19 @@ cannot disguise another payload.
    authenticated WebSocket connection, then validates type, size, hash, and
    durable session membership before persisting an upload intent. Caller-sent
    identity or session fields are ignored.
-3. The browser uploads to a signed
+3. One PostgreSQL transaction reserves user and global bytes plus a pending
+   session/actor link slot. It serializes plan-wide reservations, the user
+   quota, and the session link decision before returning a URL.
+4. The browser uploads to a five-minute signed
    `pending/{session}/{asset}.{ext}` R2 key.
-4. Confirmation reloads the object, verifies metadata and bytes, recomputes the
+5. Confirmation locks the intent, reloads the object, verifies metadata and bytes, recomputes the
    hash, and decodes the image.
-5. Verified bytes move to `assets/{asset}.{ext}`.
-6. `assets` stores object metadata. `session_assets` stores session
+6. Verified bytes move to `assets/{asset}.{ext}`.
+7. The final session row lock rechecks link capacity. A race that fills the
+   quota removes a newly promoted object instead of leaving it untracked.
+8. `assets` stores object metadata. `session_assets` stores session
    visibility and display names.
-7. List, lookup, download, table enrichment, and deletion resolve through an
+9. List, lookup, download, table enrichment, and deletion resolve through an
    authorized session link. Ambiguous filenames fail closed.
 
 For downloads, TypeScript receives the authorized presigned URL and expected
@@ -59,12 +66,19 @@ does not clone full byte vectors across the WASM boundary; bytes cross that
 boundary only for the compute-heavy hash operation.
 
 Upload abuse controls are keyed by the authenticated user, not by caller-sent
-fields. A minute burst limit and hourly sustained limit protect each worker.
-Database-backed caps cover unconfirmed intents, confirmed object count, and
-confirmed-plus-pending bytes, so restarts cannot reset storage consumption.
-Duplicate content that only adds a session link does not consume new-object
-quota. See [Environment variables](../reference/ENVIRONMENT_VARIABLES.md) for
-the defaults and tuning controls.
+fields. PostgreSQL-backed token buckets enforce upload burst/hour and download
+hour limits across workers and restarts; store failure denies URL issuance.
+Database caps cover unconfirmed intents, confirmed object count, per-user
+bytes, and 9,000,000,000 plan-wide confirmed-plus-pending bytes. Each session
+allows 1,000 links, of which one actor may reserve at most 250. Duplicate links
+are idempotent and do not consume new-object or link quota twice.
+
+The plan-wide byte cap protects application-tracked objects in a dedicated R2
+Standard bucket. It cannot see unrelated bucket objects or prevent replay of a
+presigned bearer URL before its five-minute expiry. Keep Cloudflare billing
+notifications and the whole-bucket orphan audit enabled; application limits
+are not a provider-side billing hard stop. See
+[Environment variables](../reference/ENVIRONMENT_VARIABLES.md) for tuning.
 
 The R2 client and current SQLAlchemy driver are synchronous. Public asset
 manager methods therefore run their complete database/storage transaction in a

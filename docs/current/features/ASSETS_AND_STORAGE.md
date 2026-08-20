@@ -2,9 +2,9 @@
 
 Audience: contributors changing asset upload, authorization, R2, or recovery.
 
-Status: partial. Image upload and storage integrity are implemented. The web
-client still has duplicate download-response consumers, and independent
-production backup remains an operations blocker.
+Status: partial. Image upload, storage integrity, and the verified browser
+download path are implemented. Independent production backup remains an
+operations blocker.
 
 Last source audit: 2026-08-19
 
@@ -54,21 +54,21 @@ cannot disguise another payload.
 9. List, lookup, download, table enrichment, and deletion resolve through an
    authorized session link. Ambiguous filenames fail closed.
 
-The intended download owner is the browser cache path: TypeScript receives the
-authorized presigned URL and expected xxHash, fetches with credentials omitted,
-and passes the bytes through `WasmRuntime` for Rust xxHash64 computation. A
+`AssetSyncService` is the high-level download owner. It receives the authorized
+presigned URL and expected xxHash, asks the runtime-owned browser cache to fetch
+with credentials omitted, and passes the bytes through `WasmRuntime` for Rust
+xxHash64 computation. A
 mismatch fails closed before a texture is loaded. Verified payloads become
 browser-managed Blobs with stable object URLs; the runtime cache revokes those
 URLs on LRU/age eviction, clear, or runtime disposal. Rust does not own URLs,
 HTTP requests, retries, download queues, or a byte cache.
 
-Current gap: `AssetSyncService` and `AssetIntegrationService` both subscribe to
-`asset-downloaded`. The former loads the signed URL directly through `Image`;
-the latter performs the verified cache fetch and then loads the Blob URL. When
-both runtime services are active, one response can therefore create two R2 GET
-operations and the direct path bypasses hash verification. Consolidate this
-into the verified browser-cache path before treating download-operation counts
-as exact.
+`AssetIntegrationService` handles asset upload and list protocol adaptation; it
+does not subscribe to download responses or load renderer textures. A download
+response therefore creates at most one browser-cache fetch, and duplicate link
+requests and responses for the same texture are coalesced while in flight.
+Renderer texture state is cleared on canvas detach while verified Blob cache
+entries remain available for reuse by a reattached renderer.
 
 The browser cache defaults to 64 MiB and may be configured by the asset UI. Its
 size accounts for retained Blob payloads. Repeated metadata/hash-cache access

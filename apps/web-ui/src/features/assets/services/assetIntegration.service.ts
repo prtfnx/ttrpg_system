@@ -1,10 +1,9 @@
 /**
- * Asset Integration Service - bridges protocol asset messages with existing AssetManager
- * Handles asset upload/download requests and integrates with the WASM texture system
+ * Asset Integration Service - bridges asset list and upload protocol messages.
+ * Texture download orchestration belongs to AssetSyncService.
  */
 
 import type { WebClientProtocol } from '@lib/websocket';
-import { getCurrentWasmRuntime } from '@lib/wasm/runtime';
 import { createMessage, MessageType } from '@lib/websocket';
 import { emitProtocolEvent } from '@lib/websocket/protocolEvents';
 import { logger } from '@shared/utils/logger';
@@ -21,16 +20,6 @@ interface AssetUploadCompleted {
   asset_id: string;
   success: boolean;
   file_size?: number;
-  content_type?: string;
-  error?: string;
-}
-
-interface AssetDownloadResponse {
-  success: boolean;
-  asset_id?: string;
-  download_url?: string;
-  asset_data?: string;
-  xxhash?: string;
   content_type?: string;
   error?: string;
 }
@@ -72,13 +61,6 @@ class AssetIntegrationService {
   }
 
   private setupEventListeners(): void {
-    // Asset download events
-    const handleAssetDownloaded = (event: Event) => {
-      this.handleAssetDownloaded((event as CustomEvent).detail);
-    };
-    window.addEventListener('asset-downloaded', handleAssetDownloaded);
-    this.eventListeners.push(() => window.removeEventListener('asset-downloaded', handleAssetDownloaded));
-
     // Asset list updates
     const handleAssetListUpdated = (event: Event) => {
       this.handleAssetListUpdated((event as CustomEvent).detail);
@@ -101,30 +83,6 @@ class AssetIntegrationService {
     };
     window.addEventListener('asset-upload-completed', handleAssetUploadCompleted);
     this.eventListeners.push(() => window.removeEventListener('asset-upload-completed', handleAssetUploadCompleted));
-  }
-
-  private async handleAssetDownloaded(data: AssetDownloadResponse): Promise<void> {
-    logger.debug('Asset download response received', data);
-
-    if (!data.success) {
-      logger.error('Asset download failed', data.error);
-      return;
-    }
-
-    try {
-      if (data.download_url && data.asset_id) {
-        await this.downloadAndCacheAsset(data.asset_id, data.download_url, data.xxhash);
-      } else if (data.asset_data && data.asset_id) {
-        await this.cacheAssetData(
-          data.asset_id,
-          data.asset_data,
-          data.xxhash,
-          data.content_type,
-        );
-      }
-    } catch (error) {
-      logger.error('Failed to process asset download', error);
-    }
   }
 
   private handleAssetListUpdated(data: AssetListResponse): void {
@@ -186,110 +144,6 @@ class AssetIntegrationService {
     } else {
       logger.error('Protocol service not available for upload confirmation');
     }
-  }
-
-  private async downloadAndCacheAsset(
-    assetId: string,
-    downloadUrl: string,
-    expectedHash?: string,
-  ): Promise<void> {
-    try {
-      logger.debug('Downloading authorized asset', { assetId });
-      const runtime = getCurrentWasmRuntime();
-      if (!runtime) throw new Error('WASM runtime is unavailable');
-      const cachedAssetId = await runtime.downloadAsset(downloadUrl, expectedHash);
-      const cachedAsset = runtime.getAssetInfo(cachedAssetId);
-      if (!cachedAsset) throw new Error('Downloaded asset was not retained');
-      await this.loadAssetIntoWasm(assetId, cachedAsset.url);
-
-      logger.debug('Asset downloaded and cached', { assetId });
-
-    } catch (error) {
-      logger.error('Failed to download and cache asset', error);
-    }
-  }
-
-  private async cacheAssetData(
-    assetId: string,
-    assetData: string,
-    expectedHash?: string,
-    contentType?: string,
-  ): Promise<void> {
-    try {
-      const runtime = getCurrentWasmRuntime();
-      if (!runtime) throw new Error('WASM runtime is unavailable');
-      const cachedAssetId = runtime.cacheAssetBytes(this.base64ToBytes(assetData), {
-        name: assetId,
-        mimeType: contentType || 'application/octet-stream',
-        expectedHash,
-      });
-      const cachedAsset = runtime.getAssetInfo(cachedAssetId);
-      if (!cachedAsset) throw new Error('Decoded asset was not retained');
-      await this.loadAssetIntoWasm(assetId, cachedAsset.url);
-      
-      logger.debug('Asset data cached', { assetId });
-
-    } catch (error) {
-      logger.error('Failed to cache asset data', error);
-    }
-  }
-
-  private async loadAssetIntoWasm(assetId: string, objectUrl: string): Promise<void> {
-    try {
-      // Create an image element to load the texture
-      const img = new Image();
-      
-      return new Promise((resolve, reject) => {
-        img.onload = () => {
-          try {
-            const renderEngine = getCurrentWasmRuntime()?.getRenderEngine();
-            if (renderEngine) {
-              renderEngine.load_texture(assetId, img);
-              logger.debug('Texture loaded into WASM', { assetId });
-            }
-            resolve();
-          } catch (error) {
-            reject(error);
-          }
-        };
-
-        img.onerror = () => {
-          reject(new Error(`Failed to load image: ${assetId}`));
-        };
-
-        img.src = objectUrl;
-      });
-
-    } catch (error) {
-      logger.error('Failed to load asset into WASM', error);
-      throw error;
-    }
-  }
-
-  private base64ToBytes(base64Data: string): Uint8Array {
-    // Remove data URL prefix if present
-    const base64 = base64Data.replace(/^data:image\/[a-z]+;base64,/, '');
-    
-    // Convert base64 to binary
-    const binaryString = atob(base64);
-    const bytes = new Uint8Array(binaryString.length);
-    
-    for (let i = 0; i < binaryString.length; i++) {
-      bytes[i] = binaryString.charCodeAt(i);
-    }
-    
-    return bytes;
-  }
-
-  /**
-   * Request an asset download from the server
-   */
-  requestAssetDownload(assetId: string): void {
-    // This would be called by the AssetManager component
-    emitProtocolEvent('protocol-send-message', {
-      type: 'ASSET_DOWNLOAD_REQUEST',
-      data: { asset_id: assetId }
-    });
   }
 
   /**

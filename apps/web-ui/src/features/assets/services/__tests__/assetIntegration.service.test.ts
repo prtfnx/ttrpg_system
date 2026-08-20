@@ -1,12 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { assetIntegrationService } from '../assetIntegration.service';
 
-const mockGetCurrentWasmRuntime = vi.hoisted(() => vi.fn());
-
-vi.mock('@lib/wasm/runtime', () => ({
-  getCurrentWasmRuntime: mockGetCurrentWasmRuntime,
-}));
-
 type Svc = typeof assetIntegrationService & Record<string, unknown>;
 
 function resetSvc() {
@@ -22,7 +16,6 @@ function dispatch(type: string, detail: unknown) {
 beforeEach(() => {
   resetSvc();
   vi.clearAllMocks();
-  mockGetCurrentWasmRuntime.mockReturnValue(null);
 });
 
 afterEach(() => {
@@ -36,7 +29,6 @@ describe('AssetIntegrationService', () => {
       const spy = vi.spyOn(window, 'addEventListener');
       assetIntegrationService.initialize();
       const calls = spy.mock.calls.map(c => c[0]);
-      expect(calls).toContain('asset-downloaded');
       expect(calls).toContain('asset-list-updated');
       expect(calls).toContain('asset-upload-response');
       expect(calls).toContain('asset-uploaded');
@@ -48,7 +40,7 @@ describe('AssetIntegrationService', () => {
       assetIntegrationService.initialize();
       assetIntegrationService.dispose();
       expect((assetIntegrationService as Svc)['eventListeners']).toHaveLength(0);
-      expect(spy).toHaveBeenCalledTimes(5);
+      expect(spy).toHaveBeenCalledTimes(4);
     });
 
     it('dispose is safe when called without initialize', () => {
@@ -61,17 +53,6 @@ describe('AssetIntegrationService', () => {
       const proto = { sendMessage: vi.fn() };
       assetIntegrationService.setProtocol(proto as never);
       expect((assetIntegrationService as Svc)['protocol']).toBe(proto);
-    });
-  });
-
-  describe('requestAssetDownload', () => {
-    it('dispatches protocol-send-message with ASSET_DOWNLOAD_REQUEST', () => {
-      const received: CustomEvent[] = [];
-      window.addEventListener('protocol-send-message', e => received.push(e as CustomEvent));
-      assetIntegrationService.requestAssetDownload('asset-abc');
-      expect(received).toHaveLength(1);
-      expect(received[0].detail.type).toBe('ASSET_DOWNLOAD_REQUEST');
-      expect(received[0].detail.data.asset_id).toBe('asset-abc');
     });
   });
 
@@ -191,125 +172,4 @@ describe('AssetIntegrationService', () => {
     });
   });
 
-  describe('handleAssetDownloaded (via event)', () => {
-    it('routes authorized downloads through the runtime cache with hash verification', async () => {
-      assetIntegrationService.initialize();
-      const downloadAsset = vi.fn().mockResolvedValue('cached-img1');
-      mockGetCurrentWasmRuntime.mockReturnValue({
-        downloadAsset,
-        getAssetInfo: vi.fn(() => ({ url: 'blob:mock' })),
-        getRenderEngine: vi.fn(() => null),
-      });
-
-      dispatch('asset-downloaded', {
-        success: true,
-        asset_id: 'img1',
-        download_url: 'https://cdn.example/img1.png',
-        xxhash: '0123456789abcdef',
-      });
-
-      // Flush microtasks so the async handler reaches fetch()
-      await Promise.resolve();
-      await Promise.resolve();
-
-      expect(downloadAsset).toHaveBeenCalledWith(
-        'https://cdn.example/img1.png',
-        '0123456789abcdef',
-      );
-    });
-
-    it('does not download when success=false', async () => {
-      assetIntegrationService.initialize();
-      const downloadAsset = vi.fn();
-      mockGetCurrentWasmRuntime.mockReturnValue({ downloadAsset });
-
-      dispatch('asset-downloaded', { success: false, error: 'not found' });
-      await Promise.resolve();
-      await Promise.resolve();
-
-      expect(downloadAsset).not.toHaveBeenCalled();
-    });
-
-    it('handles runtime transport failure gracefully', async () => {
-      assetIntegrationService.initialize();
-      mockGetCurrentWasmRuntime.mockReturnValue({
-        downloadAsset: vi.fn().mockRejectedValue(new Error('network error')),
-      });
-
-      expect(() => dispatch('asset-downloaded', { success: true, asset_id: 'x', download_url: 'https://bad.url' })).not.toThrow();
-      await Promise.resolve();
-      await Promise.resolve();
-
-    });
-
-    it('routes base64 data through the same verified runtime cache', async () => {
-      assetIntegrationService.initialize();
-      const cacheAssetBytes = vi.fn(() => 'cached-b64');
-      mockGetCurrentWasmRuntime.mockReturnValue({
-        cacheAssetBytes,
-        getAssetInfo: vi.fn(() => ({ url: 'blob:mock' })),
-        getRenderEngine: vi.fn(() => null),
-      });
-
-      dispatch('asset-downloaded', {
-        success: true,
-        asset_id: 'b64asset',
-        asset_data: 'iVBORw0KGgo=',
-        xxhash: '0123456789abcdef',
-        content_type: 'image/png',
-      });
-      await Promise.resolve();
-      await Promise.resolve();
-
-      expect(cacheAssetBytes).toHaveBeenCalledWith(expect.any(Uint8Array), {
-        name: 'b64asset',
-        mimeType: 'image/png',
-        expectedHash: '0123456789abcdef',
-      });
-    });
-
-    it('loads downloaded asset data into the attached render engine texture cache', async () => {
-      const loadTexture = vi.fn();
-      mockGetCurrentWasmRuntime.mockReturnValue({
-        cacheAssetBytes: vi.fn(() => 'cached-b64'),
-        getAssetInfo: vi.fn(() => ({ url: 'blob:mock' })),
-        getRenderEngine: vi.fn(() => ({ load_texture: loadTexture })),
-      });
-      vi.stubGlobal('Image', class {
-        onload: (() => void) | null = null;
-        onerror: (() => void) | null = null;
-        set src(_: string) {
-          setTimeout(() => this.onload?.(), 0);
-        }
-      });
-      assetIntegrationService.initialize();
-      dispatch('asset-downloaded', { success: true, asset_id: 'b64asset', asset_data: 'iVBORw0KGgo=' });
-      await new Promise(resolve => setTimeout(resolve, 0));
-      await new Promise(resolve => setTimeout(resolve, 0));
-
-      expect(loadTexture).toHaveBeenCalledWith('b64asset', expect.any(Image));
-    });
-  });
-
-  describe('base64ToBlob (private, via cacheAssetData path)', () => {
-    it('handles base64 with data URL prefix gracefully', async () => {
-      assetIntegrationService.initialize();
-      const cacheAssetBytes = vi.fn(() => 'cached-b64');
-      mockGetCurrentWasmRuntime.mockReturnValue({
-        cacheAssetBytes,
-        getAssetInfo: vi.fn(() => ({ url: 'blob:mock' })),
-        getRenderEngine: vi.fn(() => null),
-      });
-
-      dispatch('asset-downloaded', {
-        success: true,
-        asset_id: 'b64prefixed',
-        asset_data: 'data:image/png;base64,iVBORw0KGgo='
-      });
-      await Promise.resolve();
-      await Promise.resolve();
-
-      expect(cacheAssetBytes).toHaveBeenCalledWith(expect.any(Uint8Array), expect.any(Object));
-    });
-  });
 });

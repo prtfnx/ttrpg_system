@@ -5,7 +5,7 @@ Audience: contributors changing persistence, migrations, or server state.
 Status: partial. This page describes the current model families and migration
 flow. It is not a complete column-by-column schema.
 
-Last source audit: 2026-07-20
+Last source audit: 2026-08-19
 
 ## Source of truth
 
@@ -80,6 +80,9 @@ the runtime application.
 | `assets` | `Asset` | uploaded asset metadata and R2 object references |
 | `session_assets` | `SessionAsset` | session visibility and display names for global R2 assets |
 | `asset_upload_intents` | `AssetUploadIntent` | durable staged-upload confirmation state |
+| `asset_deletion_jobs` | `AssetDeletionJob` | retryable R2 deletion outbox state |
+| `asset_rate_limit_buckets` | `AssetRateLimitBucket` | shared per-user upload/download token buckets |
+| `asset_quota_state` | `AssetQuotaState` | singleton lock row for plan-wide storage reservations |
 | `session_characters` | `SessionCharacter` | character JSON blobs scoped to a session |
 | `character_permissions` | `CharacterPermission` | explicit character sharing and control grants |
 | `character_drafts` | `CharacterDraft` | resumable, versioned character-creation drafts |
@@ -131,7 +134,11 @@ The `combat_actions` table has a uniqueness constraint on
 
 ## Asset persistence
 
-Asset metadata is stored in `assets`.
+Asset metadata is stored in `assets`. Upload reservations live in
+`asset_upload_intents`, shared short-window request budgets live in
+`asset_rate_limit_buckets`, and `asset_quota_state` serializes the plan-wide
+confirmed-plus-pending byte ceiling. `asset_deletion_jobs` keeps final-object
+deletion recoverable when R2 is unavailable.
 
 R2 object operations are handled by `R2AssetManager`; server-side upload,
 download, validation, and permission behavior is coordinated by
@@ -155,9 +162,11 @@ Alembic revisions live under:
 apps/server/database/alembic/versions/
 ```
 
-The current PostgreSQL baseline is `0001_postgresql_baseline`. Alembic records
-the deployed revision in `alembic_version`. The old numbered SQLite runner and
-ledger were retired; they are not an upgrade path for existing SQLite files.
+The PostgreSQL baseline is `0001_postgresql_baseline`; incremental revisions
+through the current `0005_asset_quota_primitives` head add later behavior.
+Alembic records the deployed revision in `alembic_version`. The old numbered
+SQLite runner and ledger were retired; they are not an upgrade path for
+existing SQLite files.
 
 ## Change checklist
 

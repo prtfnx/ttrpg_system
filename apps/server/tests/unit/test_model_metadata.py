@@ -3,6 +3,8 @@ from sqlalchemy import ForeignKeyConstraint, PrimaryKeyConstraint, UniqueConstra
 
 EXPECTED_TABLES = {
     "asset_deletion_jobs",
+    "asset_quota_state",
+    "asset_rate_limit_buckets",
     "asset_upload_intents",
     "assets",
     "audit_logs",

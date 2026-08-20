@@ -46,7 +46,9 @@ PostgreSQL and Alembic.
 | `ASSET_UPLOADS_PER_MINUTE` | `10` | Shared PostgreSQL-backed per-user upload burst bucket. |
 | `ASSET_UPLOADS_PER_HOUR` | `50` | Shared PostgreSQL-backed per-user sustained upload bucket. |
 | `ASSET_DOWNLOADS_PER_HOUR` | `2000` | Shared PostgreSQL-backed per-user download URL bucket. |
-| `ASSET_PRESIGNED_URL_TTL_SECONDS` | `300` | Upload/download bearer URL lifetime; valid range 30-3600 seconds. |
+| `ASSET_DOWNLOAD_URL_TTL_SECONDS` | `300` | Download bearer URL lifetime; valid range 30-3600 seconds. |
+| `ASSET_UPLOAD_URL_TTL_SECONDS` | `900` | Upload bearer URL lifetime; valid range 60-3600 seconds. |
+| `ASSET_UPLOAD_INTENT_TTL_SECONDS` | `1800` | Durable upload reservation and confirmation lifetime; must be at least the upload URL lifetime and at most 86400 seconds. |
 | `ASSET_MAX_PENDING_UPLOADS_PER_USER` | `10` | Durable cap on unconfirmed, unexpired upload intents across sessions. |
 | `ASSET_MAX_ASSETS_PER_USER` | `500` | Durable cap on confirmed stored objects attributed to one user. |
 | `ASSET_MAX_STORAGE_BYTES_PER_USER` | `1073741824` | Durable confirmed-plus-pending storage quota per user (1 GiB). |

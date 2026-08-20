@@ -178,9 +178,12 @@ while reserving an upload intent. Final linking locks the session again, and
 duplicate links are idempotent. Limiter-store failure fails closed and emits
 `asset.rate_limit.unavailable` without falling back to per-process state.
 
-Presigned R2 URLs are five-minute bearer credentials. Throttling URL issuance
-does not make a URL one-use, so provider billing alerts and a dedicated bucket
-remain part of the cost-control boundary.
+Presigned R2 GET URLs are five-minute bearer credentials; PUT URLs last 15
+minutes so the maximum supported image can cross a slow upstream connection.
+The separate durable upload intent allows 30 minutes for confirmation but does
+not extend the PUT credential. Throttling URL issuance does not make a URL
+one-use, so provider billing alerts and a dedicated bucket remain part of the
+cost-control boundary.
 
 Asset unlink authorization is rechecked from authenticated user/session state
 inside the same transaction that removes the link. The asset row is locked so

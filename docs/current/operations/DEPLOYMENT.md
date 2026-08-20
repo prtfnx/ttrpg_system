@@ -189,7 +189,9 @@ For the free R2 release profile, use Standard storage, keep the application
 ceiling at or below 9,000,000,000 bytes, apply expiry cleanup to `pending/`, and
 configure Cloudflare billing notifications. Presigned URLs can be replayed
 until expiry, so application counters cannot serve as an account billing hard
-stop. Do not share the bucket with untracked workloads.
+stop. Keep the release defaults at five minutes for download URLs, 15 minutes
+for upload URLs, and 30 minutes for upload confirmation. Do not share the bucket
+with untracked workloads.
 
 Do not delete an old Render disk or Neon branch until the new service is
 verified and an operator has explicitly accepted any data loss.

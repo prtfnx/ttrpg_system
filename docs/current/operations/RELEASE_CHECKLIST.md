@@ -122,8 +122,9 @@ Production requires:
 - a dedicated R2 Standard bucket, expiry cleanup for `pending/`, and Cloudflare
   billing notifications;
 - reviewed `ASSET_*` limits, including a plan-wide byte ceiling no higher than
-  `9000000000` for the free R2 release profile, five-minute presigned URLs, and
-  the session/actor link caps;
+  `9000000000` for the free R2 release profile, five-minute download URLs,
+  15-minute upload URLs, a 30-minute confirmation window, and the session/actor
+  link caps;
 - optional `COMPENDIUM_DIR` only when deploying a separately licensed complete
   catalog;
 - optional OAuth, email, and telemetry settings used by the release.

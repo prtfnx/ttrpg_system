@@ -2,7 +2,8 @@
 
 Audience: contributors changing asset upload, authorization, R2, or recovery.
 
-Status: current. Image upload and storage integrity are implemented. Independent
+Status: partial. Image upload and storage integrity are implemented. The web
+client still has duplicate download-response consumers, and independent
 production backup remains an operations blocker.
 
 Last source audit: 2026-08-19
@@ -40,10 +41,11 @@ cannot disguise another payload.
 3. One PostgreSQL transaction reserves user and global bytes plus a pending
    session/actor link slot. It serializes plan-wide reservations, the user
    quota, and the session link decision before returning a URL.
-4. The browser uploads to a five-minute signed
+4. The browser uploads through a 15-minute signed PUT URL to a
    `pending/{session}/{asset}.{ext}` R2 key.
-5. Confirmation locks the intent, reloads the object, verifies metadata and bytes, recomputes the
-   hash, and decodes the image.
+5. A separate 30-minute durable intent leaves confirmation grace after the PUT
+   credential expires. Confirmation locks the intent, reloads the object,
+   verifies metadata and bytes, recomputes the hash, and decodes the image.
 6. Verified bytes move to `assets/{asset}.{ext}`.
 7. The final session row lock rechecks link capacity. A race that fills the
    quota removes a newly promoted object instead of leaving it untracked.
@@ -52,13 +54,21 @@ cannot disguise another payload.
 9. List, lookup, download, table enrichment, and deletion resolve through an
    authorized session link. Ambiguous filenames fail closed.
 
-For downloads, TypeScript receives the authorized presigned URL and expected
-xxHash, fetches with credentials omitted, and passes the bytes through
-`WasmRuntime` for Rust xxHash64 computation. A mismatch fails closed before a
-texture is loaded. Verified payloads become browser-managed Blobs with stable
-object URLs; the runtime cache revokes those URLs on LRU/age eviction, clear,
-or runtime disposal. Rust does not own URLs, HTTP requests, retries, download
-queues, or a byte cache.
+The intended download owner is the browser cache path: TypeScript receives the
+authorized presigned URL and expected xxHash, fetches with credentials omitted,
+and passes the bytes through `WasmRuntime` for Rust xxHash64 computation. A
+mismatch fails closed before a texture is loaded. Verified payloads become
+browser-managed Blobs with stable object URLs; the runtime cache revokes those
+URLs on LRU/age eviction, clear, or runtime disposal. Rust does not own URLs,
+HTTP requests, retries, download queues, or a byte cache.
+
+Current gap: `AssetSyncService` and `AssetIntegrationService` both subscribe to
+`asset-downloaded`. The former loads the signed URL directly through `Image`;
+the latter performs the verified cache fetch and then loads the Blob URL. When
+both runtime services are active, one response can therefore create two R2 GET
+operations and the direct path bypasses hash verification. Consolidate this
+into the verified browser-cache path before treating download-operation counts
+as exact.
 
 The browser cache defaults to 64 MiB and may be configured by the asset UI. Its
 size accounts for retained Blob payloads. Repeated metadata/hash-cache access
@@ -75,7 +85,8 @@ are idempotent and do not consume new-object or link quota twice.
 
 The plan-wide byte cap protects application-tracked objects in a dedicated R2
 Standard bucket. It cannot see unrelated bucket objects or prevent replay of a
-presigned bearer URL before its five-minute expiry. Keep Cloudflare billing
+presigned bearer URL before expiry. Download URLs expire after five minutes;
+upload URLs expire after 15 minutes. Keep Cloudflare billing
 notifications and the whole-bucket orphan audit enabled; application limits
 are not a provider-side billing hard stop. See
 [Environment variables](../reference/ENVIRONMENT_VARIABLES.md) for tuning.

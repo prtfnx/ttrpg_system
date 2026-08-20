@@ -96,11 +96,13 @@ plan-wide storage ceiling is 9,000,000,000 bytes, leaving headroom below the R2
 Standard 10 GB-month free allowance. Keep the bucket on Standard storage for
 that allowance; Infrequent Access does not receive the R2 free tier.
 
-Presigned upload and download URLs default to five minutes. They are bearer
-credentials and can be replayed until expiry, so the application quota is a
-conservative release guard rather than a Cloudflare billing hard stop. Keep
-Cloudflare billing notifications enabled and review account-wide usage if the
-bucket is shared with another application.
+Presigned download URLs default to five minutes and upload URLs to 15 minutes.
+The durable upload intent defaults to 30 minutes so a completed PUT still has
+time for server verification and promotion. Signed URLs are bearer credentials
+and can be replayed until expiry, so the application quota is a conservative
+release guard rather than a Cloudflare billing hard stop. Keep Cloudflare
+billing notifications enabled and review account-wide usage if the bucket is
+shared with another application.
 
 The operational R2 token also needs:
 

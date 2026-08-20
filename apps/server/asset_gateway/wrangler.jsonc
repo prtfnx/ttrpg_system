@@ -1,0 +1,33 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "ttrpg-asset-gateway",
+  "main": "src/index.mjs",
+  "compatibility_date": "2026-08-20",
+  "r2_buckets": [
+    {
+      "binding": "ASSETS",
+      "bucket_name": "ttrpg-assets"
+    }
+  ],
+  "durable_objects": {
+    "bindings": [
+      {
+        "name": "ASSET_BUDGET",
+        "class_name": "AssetBudget"
+      }
+    ]
+  },
+  "migrations": [
+    {
+      "tag": "v1",
+      "new_sqlite_classes": ["AssetBudget"]
+    }
+  ],
+  "vars": {
+    "ALLOWED_ORIGINS": "https://example.com",
+    "ASSET_CLASS_A_MONTHLY_LIMIT": "800000",
+    "ASSET_CLASS_B_MONTHLY_LIMIT": "8000000",
+    "ASSET_R2_DAILY_LIMIT": "80000",
+    "ASSET_CACHE_TTL_SECONDS": "86400"
+  }
+}

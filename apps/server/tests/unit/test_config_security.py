@@ -119,6 +119,31 @@ def test_observability_settings_are_normalized_and_bounded():
 
 
 def test_asset_resource_limits_are_bounded_and_consistent():
+    with pytest.raises(ValueError, match="ASSET_LINK_MODE"):
+        Settings(ASSET_LINK_MODE="public")
+
+    with pytest.raises(ValueError, match="ASSET_WORKER_BASE_URL"):
+        Settings(
+            ASSET_LINK_MODE="worker",
+            ASSET_WORKER_BASE_URL="not-a-url",
+            ASSET_WORKER_HMAC_SECRET="x" * 32,
+        )
+
+    with pytest.raises(ValueError, match="ASSET_WORKER_HMAC_SECRET"):
+        Settings(
+            ASSET_LINK_MODE="worker",
+            ASSET_WORKER_BASE_URL="https://assets.example.com",
+            ASSET_WORKER_HMAC_SECRET="short",
+        )
+
+    with pytest.raises(ValueError, match="Worker request body limit"):
+        Settings(
+            ASSET_LINK_MODE="worker",
+            ASSET_WORKER_BASE_URL="https://assets.example.com",
+            ASSET_WORKER_HMAC_SECRET="x" * 32,
+            ASSET_MAX_FILE_BYTES=101 * 1024 * 1024,
+        )
+
     with pytest.raises(ValueError, match="ASSET_MAX_FILE_BYTES"):
         Settings(ASSET_MAX_FILE_BYTES=100)
 
@@ -160,6 +185,16 @@ def test_asset_resource_limits_are_bounded_and_consistent():
             ASSET_MAX_LINKS_PER_SESSION=10,
             ASSET_MAX_LINKS_PER_ACTOR_PER_SESSION=11,
         )
+
+
+def test_worker_asset_link_mode_accepts_secure_configuration():
+    settings = Settings(
+        ASSET_LINK_MODE="WORKER",
+        ASSET_WORKER_BASE_URL="https://assets.example.com",
+        ASSET_WORKER_HMAC_SECRET="x" * 32,
+    )
+
+    assert settings.ASSET_LINK_MODE == "worker"
 
 
 @pytest.mark.parametrize("value", [0, 129])

@@ -36,6 +36,7 @@ class FakeR2Manager:
         xxhash=VALID_XXHASH,
         delete_success=True,
         promote_success=True,
+        upload_link_success=True,
     ):
         self._object_exists = object_exists
         self.object_data = object_data
@@ -44,6 +45,7 @@ class FakeR2Manager:
         self.xxhash = xxhash
         self.delete_success = delete_success
         self.promote_success = promote_success
+        self.upload_link_success = upload_link_success
         self.deleted_keys = []
         self.promotions = []
         self.upload_expirations = []
@@ -54,6 +56,8 @@ class FakeR2Manager:
 
     def generate_presigned_upload_url(self, file_key, xxhash, content_type=None, expiration=3600):
         self.upload_expirations.append(expiration)
+        if not self.upload_link_success:
+            return None
         return f"https://r2.example/{file_key}?xxhash={xxhash}&content_type={content_type}"
 
     def generate_presigned_url(self, file_key, method="GET", expiration=3600):
@@ -192,6 +196,19 @@ async def test_upload_confirmation_fails_without_r2_object(
     assert test_db.query(models.Asset).count() == 0
     intent = test_db.query(models.AssetUploadIntent).one()
     assert intent.status == "missing_object"
+
+
+async def test_upload_link_failure_releases_reserved_intent(
+    monkeypatch, test_db, test_user, test_game_session
+):
+    manager = _manager(monkeypatch, test_db, upload_link_success=False)
+
+    response = await _request_upload(manager, test_user, test_game_session)
+
+    assert response.success is False
+    intent = test_db.query(models.AssetUploadIntent).one()
+    assert intent.status == "link_failed"
+    assert intent.error_message == "Asset upload link generation failed"
 
 
 async def test_upload_confirmation_rejects_object_metadata_mismatch(

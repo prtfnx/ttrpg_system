@@ -1,6 +1,6 @@
 """
 Server-side R2 Asset Management Service for TTRPG System
-Handles presigned URLs, asset validation, and client permissions
+Handles authorized asset links, asset validation, and client permissions
 """
 import functools
 import logging
@@ -26,6 +26,7 @@ from database.models import (
     User,
 )
 from PIL import Image, UnidentifiedImageError
+from service.asset_link_service import AssetLinkService
 from service.asset_rate_limiter import (
     AssetRateLimitDecision,
     DurableAssetRateLimiter,
@@ -100,6 +101,7 @@ class ServerAssetManager:
         self.r2_manager = R2AssetManager()
         self.session_permissions: Dict[str, Dict[int, AssetPermission]] = {}  # session_code -> user_id -> permissions
         self.settings = Settings()
+        self.asset_links = AssetLinkService(self.settings)
 
         self._asset_rate_limiter = DurableAssetRateLimiter(lambda: SessionLocal())
 
@@ -527,6 +529,39 @@ class ServerAssetManager:
         finally:
             db.close()
 
+    def _fail_upload_intent(
+        self,
+        asset_id: str,
+        user_id: int,
+        session_code: str,
+        error_message: str,
+    ) -> None:
+        """Release a durable reservation when no usable upload link was issued."""
+        db = SessionLocal()
+        try:
+            intent = (
+                db.query(AssetUploadIntent)
+                .filter(
+                    AssetUploadIntent.asset_id == asset_id,
+                    AssetUploadIntent.uploaded_by == user_id,
+                    AssetUploadIntent.session_code == session_code,
+                    AssetUploadIntent.status == "awaiting_upload",
+                )
+                .order_by(AssetUploadIntent.created_at.desc())
+                .with_for_update()
+                .first()
+            )
+            if intent is not None:
+                intent.status = "link_failed"
+                intent.error_message = error_message
+                intent.expires_at = utc_now()
+                db.commit()
+        except Exception:
+            db.rollback()
+            logger.exception("Failed to release upload intent after link generation failure")
+        finally:
+            db.close()
+
     @track_asset_operation("download_url")
     @_offload_blocking_io
     def request_download_url(self, request: AssetRequest) -> PresignedUrlResponse:
@@ -570,15 +605,18 @@ class ServerAssetManager:
                     error="Asset not found"
                 )
 
-            # Keep bearer-style URLs short lived to limit replay exposure.
+            # Keep bearer-style capabilities short lived to limit replay exposure.
             expiry_seconds = self.settings.ASSET_DOWNLOAD_URL_TTL_SECONDS
-            presigned_url = self.r2_manager.generate_presigned_url(
-                asset_metadata["r2_key"],
-                method="GET",
-                expiration=expiry_seconds
+            download_url = self.asset_links.generate_download_url(
+                self.r2_manager,
+                asset_id=asset_metadata["asset_id"],
+                r2_key=asset_metadata["r2_key"],
+                user_id=request.user_id,
+                session_code=request.session_code,
+                expiration=expiry_seconds,
             )
 
-            if not presigned_url:
+            if not download_url:
                 return PresignedUrlResponse(
                     success=False,
                     error="Failed to generate download URL"
@@ -591,7 +629,7 @@ class ServerAssetManager:
 
             return PresignedUrlResponse(
                 success=True,
-                url=presigned_url,
+                url=download_url,
                 asset_id=request.asset_id,
                 expires_in=expiry_seconds,
                 instructions="GET request to download the file"
@@ -632,15 +670,18 @@ class ServerAssetManager:
                     error="Asset not found",
                     instructions="You may need to upload this asset first"
                 )
-            # Keep bearer-style URLs short lived to limit replay exposure.
+            # Keep bearer-style capabilities short lived to limit replay exposure.
             expiry_seconds = self.settings.ASSET_DOWNLOAD_URL_TTL_SECONDS
-            presigned_url = self.r2_manager.generate_presigned_url(
-                asset_metadata["r2_key"],
-                method="GET",
-                expiration=expiry_seconds
+            download_url = self.asset_links.generate_download_url(
+                self.r2_manager,
+                asset_id=asset_metadata["asset_id"],
+                r2_key=asset_metadata["r2_key"],
+                user_id=user_id,
+                session_code=session_code,
+                expiration=expiry_seconds,
             )
 
-            if not presigned_url:
+            if not download_url:
                 return PresignedUrlResponse(
                     success=False,
                     error="Failed to generate download URL"
@@ -653,7 +694,7 @@ class ServerAssetManager:
 
             return PresignedUrlResponse(
                 success=True,
-                url=presigned_url,
+                url=download_url,
                 asset_id=asset_metadata["asset_id"],
                 expires_in=expiry_seconds
             )
@@ -852,7 +893,7 @@ class ServerAssetManager:
             failed_uploads = db.query(AssetUploadIntent).filter(
                 AssetUploadIntent.status.in_([
                     "failed", "missing_object", "verification_failed", "inspection_failed",
-                    "promotion_failed", "metadata_failed", "expired"
+                    "promotion_failed", "metadata_failed", "link_failed", "expired"
                 ])
             ).count()
         finally:
@@ -931,6 +972,11 @@ class ServerAssetManager:
                     success=False,
                     error="filename is required"
                 )
+            if request.file_size is None or request.content_type is None:
+                return PresignedUrlResponse(
+                    success=False,
+                    error="file_size and content_type are required"
+                )
 
             # Check for duplicate files by xxHash
             existing_asset = self._get_asset_by_xxhash_from_db(file_xxhash)
@@ -958,22 +1004,8 @@ class ServerAssetManager:
             asset_id = request.asset_id
             r2_key = self._generate_pending_r2_key(asset_id, request.filename, request.session_code)
 
-            # Generate a short-lived presigned URL with xxHash metadata.
+            # Reserve durable quota before creating any externally usable link.
             expiry_seconds = self.settings.ASSET_UPLOAD_URL_TTL_SECONDS
-            presigned_url = self.r2_manager.generate_presigned_upload_url(
-                r2_key,
-                file_xxhash,
-                content_type=request.content_type,
-                expiration=expiry_seconds
-            )
-
-            if not presigned_url:
-                return PresignedUrlResponse(
-                    success=False,
-                    error="Failed to generate upload URL"
-                )
-
-            # Store durable upload intent metadata.
             pending_metadata = {
                 "asset_id": asset_id,
                 "filename": request.filename,
@@ -996,6 +1028,30 @@ class ServerAssetManager:
             if not reserved:
                 return PresignedUrlResponse(success=False, error=quota_error)
 
+            upload_url = self.asset_links.generate_upload_url(
+                self.r2_manager,
+                asset_id=asset_id,
+                r2_key=r2_key,
+                user_id=request.user_id,
+                session_code=request.session_code,
+                file_size=request.file_size,
+                content_type=request.content_type,
+                xxhash=file_xxhash,
+                expiration=expiry_seconds,
+            )
+
+            if not upload_url:
+                self._fail_upload_intent(
+                    asset_id,
+                    request.user_id,
+                    request.session_code,
+                    "Asset upload link generation failed",
+                )
+                return PresignedUrlResponse(
+                    success=False,
+                    error="Failed to generate upload URL"
+                )
+
             logger.info(
                 "Asset upload URL generated",
                 extra={"event_name": "asset.upload_url.generated", "outcome": "success"},
@@ -1003,7 +1059,7 @@ class ServerAssetManager:
 
             return PresignedUrlResponse(
                 success=True,
-                url=presigned_url,
+                url=upload_url,
                 asset_id=asset_id,
                 expires_in=expiry_seconds,
                 required_xxhash=file_xxhash,

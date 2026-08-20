@@ -1,4 +1,5 @@
 import os
+from urllib.parse import urlparse
 
 from pydantic import model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
@@ -101,6 +102,9 @@ class Settings(BaseSettings):
     r2_bucket_name: str = ""
     r2_endpoint: str = ""        # Full endpoint URL (optional, derived from account_id if absent)
     r2_public_url: str = ""      # Public bucket URL for direct access
+    ASSET_LINK_MODE: str = "presigned"
+    ASSET_WORKER_BASE_URL: str = ""
+    ASSET_WORKER_HMAC_SECRET: str = ""
     ASSET_MAX_FILE_BYTES: int = 50 * 1024 * 1024
     ASSET_UPLOADS_PER_MINUTE: int = 10
     ASSET_UPLOADS_PER_HOUR: int = 50
@@ -121,6 +125,7 @@ class Settings(BaseSettings):
     def validate_production_security(self):
         self.LOG_LEVEL = self.LOG_LEVEL.upper()
         self.LOG_FORMAT = self.LOG_FORMAT.lower()
+        self.ASSET_LINK_MODE = self.ASSET_LINK_MODE.lower()
         if self.LOG_LEVEL not in {"DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"}:
             raise ValueError("LOG_LEVEL must be DEBUG, INFO, WARNING, ERROR, or CRITICAL.")
         if self.LOG_FORMAT not in {"json", "text"}:
@@ -151,6 +156,18 @@ class Settings(BaseSettings):
             raise ValueError("BLOCKING_WORKER_CONCURRENCY must be between 1 and 128.")
         if not 1024 <= self.ASSET_MAX_FILE_BYTES <= 500 * 1024 * 1024:
             raise ValueError("ASSET_MAX_FILE_BYTES must be between 1024 and 524288000.")
+        if self.ASSET_LINK_MODE not in {"presigned", "worker"}:
+            raise ValueError("ASSET_LINK_MODE must be presigned or worker.")
+        if self.ASSET_LINK_MODE == "worker":
+            worker_url = urlparse(self.ASSET_WORKER_BASE_URL)
+            if worker_url.scheme not in {"http", "https"} or not worker_url.netloc:
+                raise ValueError("ASSET_WORKER_BASE_URL must be an absolute HTTP(S) URL in worker mode.")
+            if self.is_production and worker_url.scheme != "https":
+                raise ValueError("ASSET_WORKER_BASE_URL must use HTTPS in production.")
+            if len(self.ASSET_WORKER_HMAC_SECRET) < 32:
+                raise ValueError("ASSET_WORKER_HMAC_SECRET must be at least 32 characters in worker mode.")
+            if self.ASSET_MAX_FILE_BYTES > 100 * 1024 * 1024:
+                raise ValueError("ASSET_MAX_FILE_BYTES cannot exceed the Worker request body limit.")
         if not 1 <= self.ASSET_UPLOADS_PER_MINUTE <= 1000:
             raise ValueError("ASSET_UPLOADS_PER_MINUTE must be between 1 and 1000.")
         if not self.ASSET_UPLOADS_PER_MINUTE <= self.ASSET_UPLOADS_PER_HOUR <= 10_000:

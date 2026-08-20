@@ -90,7 +90,9 @@ export class WasmRuntime implements WasmRuntimePort {
   private animationFrameId: number | null = null;
   private onFrame: (() => void) | null = null;
   private protocol: RuntimeProtocol | null = null;
-  private readonly syncCoordinator = new WasmSyncCoordinator();
+  private readonly syncCoordinator = new WasmSyncCoordinator((url, expectedHash) =>
+    this.resolveDownloadedAsset(url, expectedHash)
+  );
   private readonly runtimeOperationHandler = (operation: WasmRuntimeOperation) => {
     this.handleRuntimeOperation(operation);
   };
@@ -242,6 +244,13 @@ export class WasmRuntime implements WasmRuntimePort {
 
   downloadAsset(url: string, expectedHash?: string): Promise<string> {
     return this.requireAssetCache().download(url, expectedHash);
+  }
+
+  private async resolveDownloadedAsset(url: string, expectedHash?: string): Promise<string> {
+    const cachedAssetId = await this.downloadAsset(url, expectedHash);
+    const cachedAsset = this.getAssetInfo(cachedAssetId);
+    if (!cachedAsset) throw new Error('Downloaded asset was not retained');
+    return cachedAsset.url;
   }
 
   cacheAssetBytes(data: Uint8Array, options: CacheAssetOptions): string {

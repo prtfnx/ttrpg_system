@@ -16,15 +16,16 @@ beforeEach(() => vi.clearAllMocks());
 
 describe('WasmSyncCoordinator', () => {
   const fakeEngine = { resize: vi.fn() } as never;
+  const resolveDownloadedAsset = vi.fn(async () => 'blob:cached-asset');
 
   it('starts without a render engine', () => {
-    const coordinator = new WasmSyncCoordinator();
+    const coordinator = new WasmSyncCoordinator(resolveDownloadedAsset);
 
     expect(coordinator.getRenderEngine()).toBeNull();
   });
 
   it('sets the render engine and initializes sub-services', () => {
-    const coordinator = new WasmSyncCoordinator();
+    const coordinator = new WasmSyncCoordinator(resolveDownloadedAsset);
 
     coordinator.initialize(fakeEngine);
 
@@ -36,7 +37,7 @@ describe('WasmSyncCoordinator', () => {
   });
 
   it('disposes sub-services and clears the render engine', () => {
-    const coordinator = new WasmSyncCoordinator();
+    const coordinator = new WasmSyncCoordinator(resolveDownloadedAsset);
 
     coordinator.initialize(fakeEngine);
     coordinator.dispose();

@@ -37,7 +37,7 @@ describe('TypeScript Service Layer Tests', () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
-    wasmSyncCoordinator = new WasmSyncCoordinator();
+    wasmSyncCoordinator = new WasmSyncCoordinator(async () => 'blob:cached-asset');
     // Re-establish default return values that vi.clearAllMocks() removes
     mockRenderEngine.get_sprite_info = vi.fn().mockReturnValue({ id: 'sprite_123', x: 100, y: 150 });
   });

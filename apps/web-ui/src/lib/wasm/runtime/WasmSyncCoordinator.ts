@@ -4,7 +4,7 @@
  * together around the RenderEngine owned by a WasmRuntime instance.
  */
 
-import { AssetSyncService } from '../assetSync.service';
+import { AssetSyncService, type AssetDownloadResolver } from '../assetSync.service';
 import { RemoteSyncService } from '../remoteSync.service';
 import { SpriteSyncService } from '../spriteSync.service';
 import { TableSyncService } from '../tableSync.service';
@@ -19,8 +19,8 @@ export class WasmSyncCoordinator {
   private readonly tableSync: TableSyncService;
   private readonly remoteSync: RemoteSyncService;
 
-  constructor() {
-    this.assetSync = new AssetSyncService(() => this.renderEngine);
+  constructor(resolveDownloadedAsset: AssetDownloadResolver) {
+    this.assetSync = new AssetSyncService(() => this.renderEngine, resolveDownloadedAsset);
     this.spriteSync = new SpriteSyncService(() => this.renderEngine, this.assetSync);
     this.tableSync = new TableSyncService(() => this.renderEngine, this.spriteSync);
     this.remoteSync = new RemoteSyncService(this.spriteSync);

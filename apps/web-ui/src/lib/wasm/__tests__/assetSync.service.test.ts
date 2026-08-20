@@ -5,8 +5,11 @@ const mockEngine = {
   load_texture: vi.fn(),
 };
 
-function makeService(engine = mockEngine as unknown) {
-  return new AssetSyncService(() => engine as never);
+function makeService(
+  engine = mockEngine as unknown,
+  resolveDownloadedAsset = vi.fn(async () => 'blob:cached-asset'),
+) {
+  return new AssetSyncService(() => engine as never, resolveDownloadedAsset);
 }
 
 function dispatch(type: string, detail: unknown) {
@@ -49,6 +52,18 @@ describe('AssetSyncService', () => {
       svc.requestAssetDownloadLink('a1', 's1');
       expect(events).toContain('a1');
       window.removeEventListener('request-asset-download', () => {});
+    });
+
+    it('suppresses duplicate link requests while the first request is outstanding', () => {
+      const svc = makeService();
+      const listener = vi.fn();
+      window.addEventListener('request-asset-download', listener);
+
+      svc.requestAssetDownloadLink('a1', 's1');
+      svc.requestAssetDownloadLink('a1', 's2');
+
+      expect(listener).toHaveBeenCalledTimes(1);
+      window.removeEventListener('request-asset-download', listener);
     });
   });
 
@@ -113,13 +128,42 @@ describe('AssetSyncService', () => {
   });
 
   describe('handleAssetDownloaded - success path', () => {
-    it('calls loadTextureFromUrl for new asset', async () => {
-      const svc = makeService();
+    it('verifies and caches a download before loading its Blob URL', async () => {
+      const resolveDownloadedAsset = vi.fn(async () => 'blob:verified-a2');
+      const svc = makeService(mockEngine, resolveDownloadedAsset);
       const loadSpy = vi.spyOn(svc, 'loadTextureFromUrl').mockResolvedValue(undefined);
       svc.init();
-      dispatch('asset-downloaded', { success: true, asset_id: 'a2', download_url: 'http://x/a2.png' });
+      dispatch('asset-downloaded', {
+        success: true,
+        asset_id: 'a2',
+        download_url: 'http://x/a2.png',
+        xxhash: '0123456789abcdef',
+      });
       await new Promise(r => setTimeout(r, 0));
-      expect(loadSpy).toHaveBeenCalledWith('a2', 'http://x/a2.png');
+      expect(resolveDownloadedAsset).toHaveBeenCalledWith(
+        'http://x/a2.png',
+        '0123456789abcdef',
+      );
+      expect(loadSpy).toHaveBeenCalledWith('a2', 'blob:verified-a2', expect.any(Function));
+      svc.dispose();
+    });
+
+    it('coalesces duplicate download responses for the same asset', async () => {
+      let finishDownload!: (url: string) => void;
+      const resolveDownloadedAsset = vi.fn(() => new Promise<string>(resolve => {
+        finishDownload = resolve;
+      }));
+      const svc = makeService(mockEngine, resolveDownloadedAsset);
+      vi.spyOn(svc, 'loadTextureFromUrl').mockResolvedValue(undefined);
+      svc.init();
+
+      const response = { success: true, asset_id: 'a2', download_url: 'http://x/a2.png' };
+      dispatch('asset-downloaded', response);
+      dispatch('asset-downloaded', response);
+
+      expect(resolveDownloadedAsset).toHaveBeenCalledTimes(1);
+      finishDownload('blob:verified-a2');
+      await new Promise(r => setTimeout(r, 0));
       svc.dispose();
     });
 
@@ -132,6 +176,19 @@ describe('AssetSyncService', () => {
       await new Promise(r => setTimeout(r, 0));
       expect(loadSpy).not.toHaveBeenCalled();
       svc.dispose();
+    });
+
+    it('clears engine-scoped loaded state on dispose', () => {
+      const svc = makeService();
+      const listener = vi.fn();
+      window.addEventListener('request-asset-download', listener);
+      (svc as unknown as Record<string, Set<string>>).loadedTextureIds.add('a3');
+
+      svc.dispose();
+      svc.requestAssetDownloadLink('a3', 's1');
+
+      expect(listener).toHaveBeenCalledOnce();
+      window.removeEventListener('request-asset-download', listener);
     });
   });
 
@@ -204,7 +261,7 @@ describe('AssetSyncService', () => {
       svc.init();
       dispatch('local-texture-ready', { asset_id: 'a4', url: 'blob:http://x/a4' });
       await new Promise(r => setTimeout(r, 0));
-      expect(loadSpy).toHaveBeenCalledWith('a4', 'blob:http://x/a4');
+      expect(loadSpy).toHaveBeenCalledWith('a4', 'blob:http://x/a4', expect.any(Function));
       svc.dispose();
     });
   });

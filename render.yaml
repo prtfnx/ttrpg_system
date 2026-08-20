@@ -82,6 +82,14 @@ services:
         value: 900
       - key: ASSET_UPLOAD_INTENT_TTL_SECONDS
         value: 1800
+      # Keep presigned as the rollback-safe default. Worker mode also requires
+      # the separately deployed gateway URL and its shared HMAC secret.
+      - key: ASSET_LINK_MODE
+        value: presigned
+      - key: ASSET_WORKER_BASE_URL
+        sync: false
+      - key: ASSET_WORKER_HMAC_SECRET
+        sync: false
       - key: ASSET_MAX_PENDING_UPLOADS_PER_USER
         value: 10
       - key: ASSET_MAX_ASSETS_PER_USER

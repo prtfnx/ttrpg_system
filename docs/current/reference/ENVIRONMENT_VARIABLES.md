@@ -49,6 +49,9 @@ PostgreSQL and Alembic.
 | `ASSET_DOWNLOAD_URL_TTL_SECONDS` | `300` | Download bearer URL lifetime; valid range 30-3600 seconds. |
 | `ASSET_UPLOAD_URL_TTL_SECONDS` | `900` | Upload bearer URL lifetime; valid range 60-3600 seconds. |
 | `ASSET_UPLOAD_INTENT_TTL_SECONDS` | `1800` | Durable upload reservation and confirmation lifetime; must be at least the upload URL lifetime and at most 86400 seconds. |
+| `ASSET_LINK_MODE` | `presigned` | Browser transfer backend: direct R2 `presigned` URLs or the metered `worker` gateway. |
+| `ASSET_WORKER_BASE_URL` | empty | Absolute Worker custom-domain URL; required in `worker` mode and HTTPS-only in production. |
+| `ASSET_WORKER_HMAC_SECRET` | empty | Shared capability-signing secret; required in `worker` mode, at least 32 characters, and identical to the Worker secret. Never log it. |
 | `ASSET_MAX_PENDING_UPLOADS_PER_USER` | `10` | Durable cap on unconfirmed, unexpired upload intents across sessions. |
 | `ASSET_MAX_ASSETS_PER_USER` | `500` | Durable cap on confirmed stored objects attributed to one user. |
 | `ASSET_MAX_STORAGE_BYTES_PER_USER` | `1073741824` | Durable confirmed-plus-pending storage quota per user (1 GiB). |
@@ -60,7 +63,9 @@ Asset throttles, pending/count/byte quotas, the plan-wide byte reservation, and
 link quotas remain effective across process restarts and multiple workers.
 Limiter-store failure denies asset URL issuance. The global byte ceiling must
 cover every application sharing the bucket; it cannot account for unrelated
-objects or replay of an already issued presigned URL.
+objects. Presigned URLs remain replayable until expiry. Worker capabilities
+add one-use uploads and operation budgets but cannot count trusted backend R2
+operations, so provider usage alerts and capacity headroom remain required.
 
 ## Compendium
 

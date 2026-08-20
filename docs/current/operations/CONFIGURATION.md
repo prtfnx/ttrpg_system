@@ -98,11 +98,32 @@ that allowance; Infrequent Access does not receive the R2 free tier.
 
 Presigned download URLs default to five minutes and upload URLs to 15 minutes.
 The durable upload intent defaults to 30 minutes so a completed PUT still has
-time for server verification and promotion. Signed URLs are bearer credentials
-and can be replayed until expiry, so the application quota is a conservative
-release guard rather than a Cloudflare billing hard stop. Keep Cloudflare
-billing notifications enabled and review account-wide usage if the bucket is
-shared with another application.
+time for server verification and promotion.
+
+`ASSET_LINK_MODE` selects the browser transfer path:
+
+- `presigned` is the default and rollback path. The API returns direct R2
+  bearer URLs. It requires bucket CORS and permits reuse until expiry.
+- `worker` returns short-lived HMAC capabilities for the gateway in
+  `apps/server/asset_gateway`. Set `ASSET_WORKER_BASE_URL` to its custom-domain
+  origin and set `ASSET_WORKER_HMAC_SECRET` to the same secret installed on the
+  Worker. The gateway enforces exact object, operation, size, type, hash,
+  expiry, one-use upload nonce, daily R2-operation allowance, and monthly
+  Class A/Class B allowances before touching its private R2 binding.
+
+The application protocol is unchanged between modes. The operational R2 token
+is still required in Worker mode because confirmation, hash verification,
+promotion, deletion, smoke tests, and audits remain trusted server operations.
+Those server-side operations are outside the Worker's Durable Object counters;
+configure conservative headroom instead of treating the gateway as an account
+billing hard stop. Keep Cloudflare billing notifications enabled and do not
+share the bucket with unrelated workloads.
+
+To switch safely, deploy and test the Worker first, install its secret, custom
+route, exact browser origin, bucket binding, and fail-closed route behavior,
+then configure the same secret/base URL on the API and change
+`ASSET_LINK_MODE=worker`. Roll back only the mode to `presigned`; retain valid
+R2 CORS configuration so that path remains usable.
 
 The operational R2 token also needs:
 

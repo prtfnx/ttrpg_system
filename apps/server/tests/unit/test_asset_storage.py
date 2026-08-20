@@ -6,6 +6,7 @@ import threading
 import time
 from types import SimpleNamespace
 
+import pytest
 import xxhash
 from core_table.protocol import Message, MessageType
 from database import crud, models, schemas
@@ -45,14 +46,18 @@ class FakeR2Manager:
         self.promote_success = promote_success
         self.deleted_keys = []
         self.promotions = []
+        self.upload_expirations = []
+        self.download_expirations = []
 
     def is_r2_configured(self):
         return True
 
     def generate_presigned_upload_url(self, file_key, xxhash, content_type=None, expiration=3600):
+        self.upload_expirations.append(expiration)
         return f"https://r2.example/{file_key}?xxhash={xxhash}&content_type={content_type}"
 
     def generate_presigned_url(self, file_key, method="GET", expiration=3600):
+        self.download_expirations.append(expiration)
         return f"https://r2.example/{method.lower()}/{file_key}"
 
     def object_exists(self, file_key):
@@ -133,8 +138,14 @@ async def test_upload_confirmation_creates_asset_and_session_link(
 
     assert response.success is True
     assert response.url
+    assert response.expires_in == 900
+    assert manager.r2_manager.upload_expirations == [900]
     intent = test_db.query(models.AssetUploadIntent).one()
     assert intent.status == "awaiting_upload"
+    assert (intent.expires_at - intent.created_at).total_seconds() == pytest.approx(
+        1_800,
+        abs=1,
+    )
 
     confirmed = await manager.confirm_upload(response.asset_id, test_user.id, upload_success=True)
 
@@ -157,6 +168,16 @@ async def test_upload_confirmation_creates_asset_and_session_link(
     assets = manager.get_session_assets(test_game_session.session_code, test_user.id)
     assert assets[0]["asset_id"] == response.asset_id
     assert assets[0]["filename"] == "map.png"
+
+    download = await manager.request_download_url(AssetRequest(
+        user_id=test_user.id,
+        username=test_user.username,
+        session_code=test_game_session.session_code,
+        asset_id=response.asset_id,
+    ))
+    assert download.success is True
+    assert download.expires_in == 300
+    assert manager.r2_manager.download_expirations == [300]
 
 
 async def test_upload_confirmation_fails_without_r2_object(

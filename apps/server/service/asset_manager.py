@@ -455,7 +455,7 @@ class ServerAssetManager:
         return f"{stem}-{asset_id[:8]}{ext}"
 
     def _record_upload_intent(
-        self, metadata: dict, expires_in: int
+        self, metadata: dict, intent_ttl_seconds: int
     ) -> Tuple[bool, Optional[str]]:
         """Atomically reserve one user's durable upload quota."""
         db = SessionLocal()
@@ -517,7 +517,7 @@ class ServerAssetManager:
                 xxhash=metadata.get("xxhash"),
                 status="awaiting_upload",
                 created_at=utc_now(),
-                expires_at=utc_now() + timedelta(seconds=expires_in),
+                expires_at=utc_now() + timedelta(seconds=intent_ttl_seconds),
             ))
             db.commit()
             return True, None
@@ -571,7 +571,7 @@ class ServerAssetManager:
                 )
 
             # Keep bearer-style URLs short lived to limit replay exposure.
-            expiry_seconds = self.settings.ASSET_PRESIGNED_URL_TTL_SECONDS
+            expiry_seconds = self.settings.ASSET_DOWNLOAD_URL_TTL_SECONDS
             presigned_url = self.r2_manager.generate_presigned_url(
                 asset_metadata["r2_key"],
                 method="GET",
@@ -633,7 +633,7 @@ class ServerAssetManager:
                     instructions="You may need to upload this asset first"
                 )
             # Keep bearer-style URLs short lived to limit replay exposure.
-            expiry_seconds = self.settings.ASSET_PRESIGNED_URL_TTL_SECONDS
+            expiry_seconds = self.settings.ASSET_DOWNLOAD_URL_TTL_SECONDS
             presigned_url = self.r2_manager.generate_presigned_url(
                 asset_metadata["r2_key"],
                 method="GET",
@@ -959,7 +959,7 @@ class ServerAssetManager:
             r2_key = self._generate_pending_r2_key(asset_id, request.filename, request.session_code)
 
             # Generate a short-lived presigned URL with xxHash metadata.
-            expiry_seconds = self.settings.ASSET_PRESIGNED_URL_TTL_SECONDS
+            expiry_seconds = self.settings.ASSET_UPLOAD_URL_TTL_SECONDS
             presigned_url = self.r2_manager.generate_presigned_upload_url(
                 r2_key,
                 file_xxhash,
@@ -990,7 +990,8 @@ class ServerAssetManager:
             }
 
             reserved, quota_error = self._record_upload_intent(
-                pending_metadata, expiry_seconds
+                pending_metadata,
+                self.settings.ASSET_UPLOAD_INTENT_TTL_SECONDS,
             )
             if not reserved:
                 return PresignedUrlResponse(success=False, error=quota_error)

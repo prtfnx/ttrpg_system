@@ -140,8 +140,14 @@ def test_asset_resource_limits_are_bounded_and_consistent():
     with pytest.raises(ValueError, match="ASSET_DOWNLOADS_PER_HOUR"):
         Settings(ASSET_DOWNLOADS_PER_HOUR=0)
 
-    with pytest.raises(ValueError, match="ASSET_PRESIGNED_URL_TTL_SECONDS"):
-        Settings(ASSET_PRESIGNED_URL_TTL_SECONDS=10)
+    with pytest.raises(ValueError, match="ASSET_DOWNLOAD_URL_TTL_SECONDS"):
+        Settings(ASSET_DOWNLOAD_URL_TTL_SECONDS=10)
+
+    with pytest.raises(ValueError, match="ASSET_UPLOAD_URL_TTL_SECONDS"):
+        Settings(ASSET_UPLOAD_URL_TTL_SECONDS=10)
+
+    with pytest.raises(ValueError, match="ASSET_UPLOAD_INTENT_TTL_SECONDS"):
+        Settings(ASSET_UPLOAD_URL_TTL_SECONDS=900, ASSET_UPLOAD_INTENT_TTL_SECONDS=899)
 
     with pytest.raises(ValueError, match="ASSET_MAX_TOTAL_STORAGE_BYTES"):
         Settings(ASSET_MAX_TOTAL_STORAGE_BYTES=1024)

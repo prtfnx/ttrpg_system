@@ -105,7 +105,9 @@ class Settings(BaseSettings):
     ASSET_UPLOADS_PER_MINUTE: int = 10
     ASSET_UPLOADS_PER_HOUR: int = 50
     ASSET_DOWNLOADS_PER_HOUR: int = 2_000
-    ASSET_PRESIGNED_URL_TTL_SECONDS: int = 300
+    ASSET_DOWNLOAD_URL_TTL_SECONDS: int = 300
+    ASSET_UPLOAD_URL_TTL_SECONDS: int = 900
+    ASSET_UPLOAD_INTENT_TTL_SECONDS: int = 1_800
     ASSET_MAX_PENDING_UPLOADS_PER_USER: int = 10
     ASSET_MAX_ASSETS_PER_USER: int = 500
     ASSET_MAX_STORAGE_BYTES_PER_USER: int = 1024 * 1024 * 1024
@@ -157,9 +159,22 @@ class Settings(BaseSettings):
             )
         if not 1 <= self.ASSET_DOWNLOADS_PER_HOUR <= 100_000:
             raise ValueError("ASSET_DOWNLOADS_PER_HOUR must be between 1 and 100000.")
-        if not 30 <= self.ASSET_PRESIGNED_URL_TTL_SECONDS <= 3600:
+        if not 30 <= self.ASSET_DOWNLOAD_URL_TTL_SECONDS <= 3600:
             raise ValueError(
-                "ASSET_PRESIGNED_URL_TTL_SECONDS must be between 30 and 3600."
+                "ASSET_DOWNLOAD_URL_TTL_SECONDS must be between 30 and 3600."
+            )
+        if not 60 <= self.ASSET_UPLOAD_URL_TTL_SECONDS <= 3600:
+            raise ValueError(
+                "ASSET_UPLOAD_URL_TTL_SECONDS must be between 60 and 3600."
+            )
+        if not (
+            self.ASSET_UPLOAD_URL_TTL_SECONDS
+            <= self.ASSET_UPLOAD_INTENT_TTL_SECONDS
+            <= 86_400
+        ):
+            raise ValueError(
+                "ASSET_UPLOAD_INTENT_TTL_SECONDS must be at least the upload URL "
+                "lifetime and at most 86400."
             )
         if not 1 <= self.ASSET_MAX_PENDING_UPLOADS_PER_USER <= 1000:
             raise ValueError("ASSET_MAX_PENDING_UPLOADS_PER_USER must be between 1 and 1000.")

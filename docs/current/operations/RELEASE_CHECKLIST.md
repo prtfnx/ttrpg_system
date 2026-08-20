@@ -3,7 +3,7 @@
 Status: current and practical. The checked-in Render target is a Free preview;
 use the production upgrade gate below before public-production approval.
 
-Last source audit: 2026-07-29
+Last source audit: 2026-08-19
 
 ## Scope
 
@@ -40,6 +40,8 @@ Server:
 cd apps/server
 python -m pytest
 python -m ruff check .
+cd ../..
+pnpm.cmd dlx pyright@1.1.411
 ```
 
 PostgreSQL, against an empty disposable target:
@@ -61,6 +63,8 @@ cd apps/web-ui
 pnpm exec tsc -b
 pnpm exec vitest run --project jsdom
 pnpm exec vite build
+pnpm.cmd run lint:css
+pnpm.cmd run validate:css
 ```
 
 Rust/WASM:
@@ -68,6 +72,8 @@ Rust/WASM:
 ```powershell
 cd packages/rust-core
 cargo test --locked
+wasm-pack test --node --test wasm_node --locked
+pnpm.cmd run test:browser
 wasm-pack build `
   --target web `
   --release `
@@ -113,20 +119,29 @@ Production requires:
 - Neon `DATABASE_URL` for the runtime role;
 - Neon `DATABASE_MIGRATION_URL` for the owner/migration role;
 - complete R2 settings with put, get/head, delete, and list permissions;
+- a dedicated R2 Standard bucket, expiry cleanup for `pending/`, and Cloudflare
+  billing notifications;
+- reviewed `ASSET_*` limits, including a plan-wide byte ceiling no higher than
+  `9000000000` for the free R2 release profile, five-minute presigned URLs, and
+  the session/actor link caps;
 - optional `COMPENDIUM_DIR` only when deploying a separately licensed complete
   catalog;
 - optional OAuth, email, and telemetry settings used by the release.
 
 Confirm database URLs use SSL and are absent from Git, logs, tickets, and
-command output.
+command output. The application byte ceiling covers confirmed and pending
+objects represented in PostgreSQL. It is not a provider-side billing hard stop:
+presigned bearer URLs can be replayed until expiry, and unrelated objects are
+invisible to the application counter. Keep the bucket dedicated and review the
+whole-bucket orphan audit before release.
 
 ## Database preflight
 
 1. Read [Database migrations](DATABASE_MIGRATIONS.md).
 2. Upgrade and test a disposable PostgreSQL database or Neon branch.
 3. Run `alembic current --check-heads` and `alembic check`.
-4. Confirm the application tables at the current Alembic head plus
-   `alembic_version`.
+4. Confirm the application tables at the current Alembic head, including the
+   `0005_asset_quota_primitives` limiter/quota state, plus `alembic_version`.
 5. Confirm constraints, concurrent idempotency, readiness mismatch, and stale
    connection recovery tests pass.
 6. Prefer a forward fix; use Neon branch recovery only within the documented

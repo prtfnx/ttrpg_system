@@ -238,8 +238,11 @@ cargo clippy --all-targets --all-features -- -D warnings
 cargo test --all-features
 cargo check --target wasm32-unknown-unknown --features wasm-start
 wasm-pack test --node
-wasm-pack test --headless --chrome
+pnpm.cmd run test:browser
 ```
+
+The browser command intentionally uses the pinned wrapper described above;
+do not replace it with an unpinned `wasm-pack test --headless --chrome` gate.
 
 ## What to test for a change
 

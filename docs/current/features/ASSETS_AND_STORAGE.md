@@ -6,13 +6,15 @@ Status: partial. Image upload, storage integrity, and the verified browser
 download path are implemented. Independent production backup remains an
 operations blocker.
 
-Last source audit: 2026-08-19
+Last source audit: 2026-08-20
 
 ## Ownership
 
 - `service/protocol/assets.py` owns the WebSocket asset contract.
 - `service/asset_manager.py` owns authorization, intents, validation, and
   metadata transactions.
+- `service/asset_link_service.py` selects and signs the configured browser
+  transfer backend without changing the WebSocket protocol.
 - `service/asset_rate_limiter.py` owns shared per-user upload/download token
   buckets and fail-closed limiter-store behavior.
 - `service/asset_deletion_service.py` owns transactional unlinking and the
@@ -22,6 +24,8 @@ Last source audit: 2026-08-19
   buckets, and the singleton plan-wide quota lock.
 - `scripts/r2_storage_admin.py` owns CORS/lifecycle setup, smoke tests, and
   database-to-bucket audits.
+- `asset_gateway/` owns authenticated browser ingress, download caching,
+  one-use upload capabilities, and Worker-side operation budgets.
 
 ## Supported content
 
@@ -41,8 +45,10 @@ cannot disguise another payload.
 3. One PostgreSQL transaction reserves user and global bytes plus a pending
    session/actor link slot. It serializes plan-wide reservations, the user
    quota, and the session link decision before returning a URL.
-4. The browser uploads through a 15-minute signed PUT URL to a
-   `pending/{session}/{asset}.{ext}` R2 key.
+4. The selected backend returns a 15-minute upload URL for a
+   `pending/{session}/{asset}.{ext}` R2 key. Presigned mode addresses R2
+   directly. Worker mode binds the signed capability to the exact key, size,
+   content type, hash, session, user, expiry, and a one-use nonce.
 5. A separate 30-minute durable intent leaves confirmation grace after the PUT
    credential expires. Confirmation locks the intent, reloads the object,
    verifies metadata and bytes, recomputes the hash, and decodes the image.
@@ -55,10 +61,10 @@ cannot disguise another payload.
    authorized session link. Ambiguous filenames fail closed.
 
 `AssetSyncService` is the high-level download owner. It receives the authorized
-presigned URL and expected xxHash, asks the runtime-owned browser cache to fetch
-with credentials omitted, and passes the bytes through `WasmRuntime` for Rust
-xxHash64 computation. A
-mismatch fails closed before a texture is loaded. Verified payloads become
+URL and expected xxHash, asks the runtime-owned browser cache to fetch with
+credentials omitted, and passes the bytes through `WasmRuntime` for Rust
+xxHash64 computation. A mismatch fails closed before a texture is loaded.
+Verified payloads become
 browser-managed Blobs with stable object URLs; the runtime cache revokes those
 URLs on LRU/age eviction, clear, or runtime disposal. Rust does not own URLs,
 HTTP requests, retries, download queues, or a byte cache.
@@ -84,11 +90,15 @@ allows 1,000 links, of which one actor may reserve at most 250. Duplicate links
 are idempotent and do not consume new-object or link quota twice.
 
 The plan-wide byte cap protects application-tracked objects in a dedicated R2
-Standard bucket. It cannot see unrelated bucket objects or prevent replay of a
-presigned bearer URL before expiry. Download URLs expire after five minutes;
-upload URLs expire after 15 minutes. Keep Cloudflare billing
-notifications and the whole-bucket orphan audit enabled; application limits
-are not a provider-side billing hard stop. See
+Standard bucket. It cannot see unrelated bucket objects. Download URLs expire
+after five minutes; upload URLs expire after 15 minutes. Presigned mode permits
+bearer-URL replay until expiry. Worker mode consumes each upload capability
+once, rejects range downloads, serves authorized immutable cache hits without
+an R2 read, and reserves conservative daily/monthly operation budgets before a
+browser transfer reaches R2. The gateway cannot count trusted API-side R2
+verification, promotion, deletion, smoke, or audit calls, so neither mode is a
+provider-side billing hard stop. Keep Cloudflare billing notifications and the
+whole-bucket orphan audit enabled. See
 [Environment variables](../reference/ENVIRONMENT_VARIABLES.md) for tuning.
 
 The R2 client and current SQLAlchemy driver are synchronous. Public asset
@@ -126,14 +136,14 @@ object into a usable asset. The removed local metadata fallback and legacy
 The retired `file_request` and `file_data` WebSocket messages are not upload
 paths. They had no production caller, and the former chunk handler acknowledged
 bytes without storing or validating them. Keep asset bytes on the bounded,
-authorized, content-verified presigned upload flow above.
+authorized, content-verified upload flow above.
 
 ## Permissions
 
 Membership is checked for every operation. Role policy governs uploads and
 moderation. Reads require a link to the active session. Delete checks session
-visibility and owner/DM/uploader authority. Object keys and presigned URLs are
-not written to normal logs.
+visibility and owner/DM/uploader authority. Object keys and signed URLs are not
+written to normal logs.
 
 ## Operations
 

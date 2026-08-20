@@ -121,6 +121,9 @@ Production requires:
 - complete R2 settings with put, get/head, delete, and list permissions;
 - a dedicated R2 Standard bucket, expiry cleanup for `pending/`, and Cloudflare
   billing notifications;
+- an explicit `ASSET_LINK_MODE`; for `worker`, the deployed custom-domain URL,
+  a matching 32+ character HMAC secret, exact origin allowlist, private R2 and
+  Durable Object bindings, conservative budgets, and fail-closed routing;
 - reviewed `ASSET_*` limits, including a plan-wide byte ceiling no higher than
   `9000000000` for the free R2 release profile, five-minute download URLs,
   15-minute upload URLs, a 30-minute confirmation window, and the session/actor
@@ -131,10 +134,12 @@ Production requires:
 
 Confirm database URLs use SSL and are absent from Git, logs, tickets, and
 command output. The application byte ceiling covers confirmed and pending
-objects represented in PostgreSQL. It is not a provider-side billing hard stop:
-presigned bearer URLs can be replayed until expiry, and unrelated objects are
-invisible to the application counter. Keep the bucket dedicated and review the
-whole-bucket orphan audit before release.
+objects represented in PostgreSQL. It is not a provider-side billing hard stop.
+Presigned bearer URLs can be replayed until expiry. Worker mode prevents upload
+replay and budgets browser-originated R2 operations, but trusted API-side calls
+bypass that counter. Unrelated objects are invisible to both application
+counters. Keep the bucket dedicated and review the whole-bucket orphan audit
+before release.
 
 ## Database preflight
 
@@ -189,7 +194,10 @@ selected plan and acceptance evidence in the release record.
 4. Confirm Vite and WASM requests do not return 404.
 5. Connect to the WebSocket and persist one table mutation.
 6. Exercise chat and one idempotent combat action.
-7. Upload, read, and delete one small R2-backed asset.
+7. Upload, read, and delete one small R2-backed asset. In Worker mode, also
+   confirm that a repeated PUT returns `409`, an expired capability returns
+   `403`, an authorized second GET is served from cache, and a forced budget
+   exhaustion fails before R2 access.
 8. Redeploy the same commit and confirm database state remains.
 9. Allow Render and Neon to sleep, then confirm a cold-start reconnect and
    persisted state.

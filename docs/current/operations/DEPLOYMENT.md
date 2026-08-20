@@ -124,6 +124,8 @@ Configure in the Render dashboard:
 - `SECRET_KEY`, `SESSION_SECRET`, and `METRICS_TOKEN`;
 - explicit `CORS_ORIGINS` and the public `BASE_URL`;
 - the required `R2_*` values;
+- `ASSET_LINK_MODE`, plus `ASSET_WORKER_BASE_URL` and the shared
+  `ASSET_WORKER_HMAC_SECRET` when Worker mode is selected;
 - reviewed `ASSET_*` quotas, including a plan-wide storage ceiling that covers
   every application object in the dedicated bucket;
 - optional OAuth, email, and telemetry values used by the deployment.
@@ -187,11 +189,36 @@ After deploying:
 
 For the free R2 release profile, use Standard storage, keep the application
 ceiling at or below 9,000,000,000 bytes, apply expiry cleanup to `pending/`, and
-configure Cloudflare billing notifications. Presigned URLs can be replayed
-until expiry, so application counters cannot serve as an account billing hard
-stop. Keep the release defaults at five minutes for download URLs, 15 minutes
-for upload URLs, and 30 minutes for upload confirmation. Do not share the bucket
-with untracked workloads.
+configure Cloudflare billing notifications. Keep the release defaults at five
+minutes for download URLs, 15 minutes for upload URLs, and 30 minutes for
+upload confirmation. Do not share the bucket with untracked workloads.
+
+### Optional Worker asset gateway
+
+Worker mode can be deployed independently without changing the browser or
+WebSocket contract:
+
+1. In `apps/server/asset_gateway/wrangler.jsonc`, set the dedicated R2 bucket,
+   exact browser origin allowlist, and conservative daily/monthly limits.
+2. From that directory, run `pnpm test`, `pnpm run check`, and
+   `pnpm dlx wrangler@latest deploy --dry-run`.
+3. Install a random 32+ character secret with
+   `pnpm dlx wrangler@latest secret put ASSET_WORKER_HMAC_SECRET`.
+4. Attach a custom domain or route. Cache API persistence is not available on
+   `workers.dev`; configure route failure behavior as fail closed.
+5. Deploy the Worker, then exercise an expired capability, upload replay,
+   authorized cache miss/hit, and budget rejection before routing production
+   clients through it.
+6. Configure that HTTPS origin and the same secret on FastAPI, then set
+   `ASSET_LINK_MODE=worker` and redeploy the API.
+
+The gateway reserves budget before browser-originated R2 calls: uploads count
+as Class A, authorized download cache misses as Class B, and both consume its
+daily allowance. Cache hits consume Worker capacity but avoid R2 reads. Keep
+headroom for API-side confirmation, promotion, deletion, smoke, and audit calls
+because they use the operational R2 token and bypass this counter. Switching
+the API back to `ASSET_LINK_MODE=presigned` is the rollback; keep direct R2
+CORS valid if that fallback must remain immediately available.
 
 Do not delete an old Render disk or Neon branch until the new service is
 verified and an operator has explicitly accepted any data loss.

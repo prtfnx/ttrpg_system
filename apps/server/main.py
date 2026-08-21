@@ -28,6 +28,7 @@ from routers import audit, auth, compendium, demo, game, invitations, telemetry,
 from routers.users import get_current_user_optional
 from service.asset_deletion_service import process_pending_asset_deletions
 from service.asset_manager import get_server_asset_manager
+from service.asset_upload_cleanup_service import process_pending_upload_cleanups
 from service.game_session import ConnectionManager
 from service.readiness import ReadinessChecker
 from sqlalchemy.orm import Session
@@ -97,6 +98,7 @@ async def lifespan(app: FastAPI):
     audit_retention_cleanup = asyncio.create_task(audit_retention_task())
     chat_retention_cleanup = asyncio.create_task(chat_retention_task())
     asset_deletion_cleanup = asyncio.create_task(asset_deletion_cleanup_task())
+    upload_intent_cleanup = asyncio.create_task(upload_intent_cleanup_task())
 
     yield
 
@@ -106,6 +108,7 @@ async def lifespan(app: FastAPI):
     audit_retention_cleanup.cancel()
     chat_retention_cleanup.cancel()
     asset_deletion_cleanup.cancel()
+    upload_intent_cleanup.cancel()
     try:
         await cleanup_task
     except asyncio.CancelledError:
@@ -120,6 +123,10 @@ async def lifespan(app: FastAPI):
         pass
     try:
         await asset_deletion_cleanup
+    except asyncio.CancelledError:
+        pass
+    try:
+        await upload_intent_cleanup
     except asyncio.CancelledError:
         pass
     logger.info("Application stopped", extra={"event_name": "application.stopped"})
@@ -241,6 +248,37 @@ async def asset_deletion_cleanup_task():
             logger.exception(
                 "Asset deletion cleanup failed",
                 extra={"event_name": "asset.deletion.cleanup.failed", "outcome": "error"},
+            )
+            await asyncio.sleep(60)
+
+
+async def upload_intent_cleanup_task():
+    """Delete abandoned R2 uploads before releasing their byte reservations."""
+    while True:
+        started = time.perf_counter()
+        try:
+            storage = get_server_asset_manager().r2_manager
+            completed = await run_blocking(
+                process_pending_upload_cleanups,
+                storage,
+            )
+            record_job("upload_intent_cleanup", "success", time.perf_counter() - started)
+            if completed:
+                logger.info(
+                    "Upload intent cleanup completed",
+                    extra={
+                        "event_name": "asset.upload.cleanup.completed",
+                        "deleted_count": completed,
+                    },
+                )
+            await asyncio.sleep(60)
+        except asyncio.CancelledError:
+            break
+        except Exception:
+            record_job("upload_intent_cleanup", "error", time.perf_counter() - started)
+            logger.exception(
+                "Upload intent cleanup failed",
+                extra={"event_name": "asset.upload.cleanup.failed", "outcome": "error"},
             )
             await asyncio.sleep(60)
 

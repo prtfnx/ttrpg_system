@@ -4,6 +4,7 @@ import asyncio
 import base64
 import threading
 import time
+from datetime import timedelta
 from types import SimpleNamespace
 
 import pytest
@@ -12,9 +13,11 @@ from core_table.protocol import Message, MessageType
 from database import crud, models, schemas
 from service import asset_deletion_service as deletion_module
 from service import asset_manager as asset_manager_module
+from service import asset_upload_cleanup_service as upload_cleanup_module
 from service.asset_deletion_service import process_asset_deletion_job
 from service.asset_manager import AssetRequest, ServerAssetManager
 from service.asset_rate_limiter import AssetRateLimitDecision
+from service.asset_upload_cleanup_service import process_pending_upload_cleanups
 from service.protocol import assets as asset_protocol_module
 from service.protocol.assets import _AssetsMixin
 from sqlalchemy.orm import sessionmaker
@@ -110,6 +113,7 @@ class AssetProtocolStub(_AssetsMixin):
 def _manager(monkeypatch, test_db, object_exists=True, **r2_kwargs):
     testing_session = sessionmaker(autocommit=False, autoflush=False, bind=test_db.get_bind())
     monkeypatch.setattr(asset_manager_module, "SessionLocal", testing_session)
+    monkeypatch.setattr(upload_cleanup_module, "SessionLocal", testing_session)
     manager = ServerAssetManager()
     manager.r2_manager = FakeR2Manager(object_exists=object_exists, **r2_kwargs)
     return manager
@@ -241,9 +245,9 @@ async def test_upload_confirmation_rejects_object_metadata_mismatch(
     assert confirmed is False
     assert test_db.query(models.Asset).count() == 0
     intent = test_db.query(models.AssetUploadIntent).one()
-    assert intent.status == "verification_failed"
+    assert intent.status == "cleanup_pending"
     assert "content type" in intent.error_message
-    assert manager.r2_manager.deleted_keys == [intent.r2_key]
+    assert manager.r2_manager.deleted_keys == []
 
 
 async def test_upload_confirmation_rejects_spoofed_image_bytes(
@@ -269,9 +273,9 @@ async def test_upload_confirmation_rejects_spoofed_image_bytes(
 
     assert confirmed is False
     intent = test_db.query(models.AssetUploadIntent).one()
-    assert intent.status == "verification_failed"
+    assert intent.status == "cleanup_pending"
     assert "image bytes failed validation" in intent.error_message
-    assert manager.r2_manager.deleted_keys == [intent.r2_key]
+    assert manager.r2_manager.deleted_keys == []
     assert intent.r2_key.startswith("pending/")
 
 
@@ -286,7 +290,7 @@ async def test_upload_confirmation_keeps_pending_state_when_promotion_fails(
     assert confirmed is False
     assert test_db.query(models.Asset).count() == 0
     intent = test_db.query(models.AssetUploadIntent).one()
-    assert intent.status == "promotion_failed"
+    assert intent.status == "cleanup_pending"
     assert intent.r2_key.startswith("pending/")
 
 
@@ -456,6 +460,47 @@ async def test_upload_counts_pending_bytes_toward_user_storage_quota(
     assert "storage quota" in second.error
 
 
+async def test_expired_upload_bytes_remain_reserved_until_r2_cleanup_succeeds(
+    monkeypatch, test_db, test_user, test_game_session
+):
+    manager = _manager(monkeypatch, test_db, delete_success=False)
+    manager.settings.ASSET_MAX_STORAGE_BYTES_PER_USER = len(VALID_PNG)
+    first = await _request_upload(manager, test_user, test_game_session)
+    intent = test_db.query(models.AssetUploadIntent).one()
+    intent.expires_at = upload_cleanup_module.utc_now() - timedelta(hours=2)
+    test_db.commit()
+
+    before_cleanup = await _request_upload(
+        manager, test_user, test_game_session, xxhash="1" * 16
+    )
+    assert first.success is True
+    assert before_cleanup.success is False
+    assert "storage quota" in (before_cleanup.error or "")
+
+    assert process_pending_upload_cleanups(manager.r2_manager) == 0
+    test_db.expire_all()
+    intent = test_db.query(models.AssetUploadIntent).one()
+    assert intent.status == "cleanup_retry"
+
+    during_retry = await _request_upload(
+        manager, test_user, test_game_session, xxhash="1" * 16
+    )
+    assert during_retry.success is False
+    assert "storage quota" in (during_retry.error or "")
+
+    manager.r2_manager.delete_success = True
+    intent.cleanup_next_attempt_at = upload_cleanup_module.utc_now()
+    test_db.commit()
+    assert process_pending_upload_cleanups(manager.r2_manager) == 1
+    test_db.expire_all()
+    assert test_db.query(models.AssetUploadIntent).one().status == "cleaned"
+
+    after_cleanup = await _request_upload(
+        manager, test_user, test_game_session, xxhash="1" * 16
+    )
+    assert after_cleanup.success is True
+
+
 async def test_upload_counts_all_users_toward_global_storage_quota(
     monkeypatch, test_db, test_user, test_game_session
 ):
@@ -622,12 +667,10 @@ async def test_final_link_quota_failure_removes_new_r2_object(
     assert confirmed is False
     test_db.expire_all()
     intent = test_db.query(models.AssetUploadIntent).one()
-    assert intent.status == "link_quota_exceeded"
+    assert intent.status == "cleanup_pending"
     assert intent.error_message == "Session asset link quota exceeded"
     assert test_db.query(models.Asset).count() == 1
-    assert manager.r2_manager.deleted_keys == [
-        f"assets/{VALID_XXHASH[:16]}.png"
-    ]
+    assert manager.r2_manager.deleted_keys == []
 
 
 async def test_upload_requires_durable_session_membership(

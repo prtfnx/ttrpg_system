@@ -32,6 +32,10 @@ from service.asset_rate_limiter import (
     DurableAssetRateLimiter,
     TokenBucketLimit,
 )
+from service.asset_upload_cleanup_service import (
+    STORAGE_RESERVED_UPLOAD_STATUSES,
+    queue_upload_cleanup,
+)
 from sqlalchemy import func, or_
 from storage.r2_manager import R2AssetManager
 from utils.blocking import run_blocking
@@ -215,14 +219,9 @@ class ServerAssetManager:
         self, db, user_id: int, file_size: int
     ) -> Tuple[bool, Optional[str]]:
         """Enforce durable per-user pending, count, and storage quotas."""
-        now = utc_now()
         pending_query = db.query(AssetUploadIntent).filter(
             AssetUploadIntent.uploaded_by == user_id,
-            AssetUploadIntent.status == "awaiting_upload",
-            or_(
-                AssetUploadIntent.expires_at.is_(None),
-                AssetUploadIntent.expires_at > now,
-            ),
+            AssetUploadIntent.status.in_(STORAGE_RESERVED_UPLOAD_STATUSES),
         )
         pending_count = pending_query.count()
         if pending_count >= self.settings.ASSET_MAX_PENDING_UPLOADS_PER_USER:
@@ -247,11 +246,7 @@ class ServerAssetManager:
         total_pending_bytes = db.query(
             func.coalesce(func.sum(AssetUploadIntent.file_size), 0)
         ).filter(
-            AssetUploadIntent.status == "awaiting_upload",
-            or_(
-                AssetUploadIntent.expires_at.is_(None),
-                AssetUploadIntent.expires_at > now,
-            ),
+            AssetUploadIntent.status.in_(STORAGE_RESERVED_UPLOAD_STATUSES),
         ).scalar()
         projected_total = (
             int(total_stored_bytes or 0)
@@ -483,7 +478,7 @@ class ServerAssetManager:
                 AssetUploadIntent.status == "awaiting_upload"
             ).all()
             for intent in stale:
-                intent.status = "superseded"
+                queue_upload_cleanup(intent, "Upload intent was superseded")
             db.flush()
 
             try:
@@ -727,16 +722,19 @@ class ServerAssetManager:
                     return False
 
                 if intent.expires_at and intent.expires_at < utc_now():
-                    intent.status = "expired"
-                    intent.error_message = "Upload confirmation arrived after presigned URL expiry"
+                    queue_upload_cleanup(
+                        intent,
+                        "Upload confirmation arrived after upload link expiry",
+                    )
                     db.commit()
                     logger.error(f"Asset {asset_id} upload intent expired before confirmation")
                     return False
 
                 if not upload_success:
-                    intent.status = "failed"
-                    intent.error_message = error_message
-                    intent.confirmed_at = utc_now()
+                    queue_upload_cleanup(
+                        intent,
+                        error_message or "Client reported that the upload failed",
+                    )
                     db.commit()
                     logger.warning(
                         "Asset upload reported failed",
@@ -744,19 +742,16 @@ class ServerAssetManager:
                     )
                     return True
 
-                verified, verification_error, object_found, reject_object = self._verify_uploaded_asset(intent)
+                verified, verification_error, object_found, _reject_object = self._verify_uploaded_asset(intent)
                 if not verified:
                     if not object_found:
                         intent.status = "missing_object"
-                    elif reject_object:
-                        intent.status = "verification_failed"
                     else:
-                        intent.status = "inspection_failed"
-                    intent.error_message = verification_error
-                    intent.confirmed_at = utc_now()
+                        queue_upload_cleanup(intent, verification_error)
+                    if not object_found:
+                        intent.error_message = verification_error
+                        intent.confirmed_at = utc_now()
                     db.commit()
-                    if reject_object:
-                        self._delete_rejected_upload(intent.r2_key)
                     logger.error(
                         f"Asset {asset_id} failed R2 verification; refusing DB asset commit: "
                         f"{verification_error}"
@@ -766,9 +761,10 @@ class ServerAssetManager:
                 final_r2_key = self._generate_r2_key(intent.asset_id, intent.filename)
                 if intent.r2_key != final_r2_key:
                     if not self.r2_manager.promote_file(intent.r2_key, final_r2_key):
-                        intent.status = "promotion_failed"
-                        intent.error_message = "Verified upload could not be promoted to durable storage"
-                        intent.confirmed_at = utc_now()
+                        queue_upload_cleanup(
+                            intent,
+                            "Verified upload could not be promoted to durable storage",
+                        )
                         db.commit()
                         return False
                     intent.r2_key = final_r2_key
@@ -788,16 +784,11 @@ class ServerAssetManager:
 
                 save_result = self._save_asset_to_db(confirmed_metadata)
                 if not save_result.success:
-                    intent.status = (
-                        "link_quota_exceeded"
-                        if save_result.error and "link quota exceeded" in save_result.error
-                        else "metadata_failed"
+                    queue_upload_cleanup(
+                        intent,
+                        save_result.error or "Failed to save asset metadata",
                     )
-                    intent.error_message = save_result.error or "Failed to save asset metadata"
-                    intent.confirmed_at = utc_now()
                     db.commit()
-                    if save_result.created_asset:
-                        self._delete_rejected_upload(final_r2_key)
                     return False
 
                 intent.status = "uploaded"
@@ -1366,13 +1357,6 @@ class ServerAssetManager:
             return False, "Uploaded image bytes failed validation", True, True
 
         return True, "", True, False
-
-    def _delete_rejected_upload(self, r2_key: str) -> None:
-        try:
-            if not self.r2_manager.delete_file(r2_key):
-                logger.error("Rejected R2 upload cleanup failed")
-        except Exception:
-            logger.exception("Rejected R2 upload cleanup failed")
 
 # Global instance
 _server_asset_manager = None

@@ -129,6 +129,13 @@ def test_asset_resource_limits_are_bounded_and_consistent():
             ASSET_WORKER_HMAC_SECRET="x" * 32,
         )
 
+    with pytest.raises(ValueError, match="ASSET_WORKER_BASE_URL"):
+        Settings(
+            ASSET_LINK_MODE="worker",
+            ASSET_WORKER_BASE_URL="https://assets.example.com/unexpected?route=other",
+            ASSET_WORKER_HMAC_SECRET="x" * 32,
+        )
+
     with pytest.raises(ValueError, match="ASSET_WORKER_HMAC_SECRET"):
         Settings(
             ASSET_LINK_MODE="worker",

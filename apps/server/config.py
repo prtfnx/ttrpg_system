@@ -160,7 +160,16 @@ class Settings(BaseSettings):
             raise ValueError("ASSET_LINK_MODE must be presigned or worker.")
         if self.ASSET_LINK_MODE == "worker":
             worker_url = urlparse(self.ASSET_WORKER_BASE_URL)
-            if worker_url.scheme not in {"http", "https"} or not worker_url.netloc:
+            if (
+                worker_url.scheme not in {"http", "https"}
+                or not worker_url.hostname
+                or worker_url.username is not None
+                or worker_url.password is not None
+                or worker_url.path not in {"", "/"}
+                or worker_url.params
+                or worker_url.query
+                or worker_url.fragment
+            ):
                 raise ValueError("ASSET_WORKER_BASE_URL must be an absolute HTTP(S) URL in worker mode.")
             if self.is_production and worker_url.scheme != "https":
                 raise ValueError("ASSET_WORKER_BASE_URL must use HTTPS in production.")

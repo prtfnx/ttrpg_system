@@ -4,6 +4,9 @@ Cloudflare Worker entry point for private R2 browser transfers. FastAPI signs
 short-lived capabilities; the Worker validates them before an R2 binding is
 used. Downloads are cached only after authorization. Upload capabilities are
 size/type/hash bound and consumed once by the `AssetBudget` Durable Object.
+Each accepted upload conservatively reserves its expected PUT, verification,
+and promotion operations; abandoned uploads remain counted rather than risking
+free-tier overrun.
 
 Before deployment:
 

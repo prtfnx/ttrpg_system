@@ -212,13 +212,14 @@ WebSocket contract:
 6. Configure that HTTPS origin and the same secret on FastAPI, then set
    `ASSET_LINK_MODE=worker` and redeploy the API.
 
-The gateway reserves budget before browser-originated R2 calls: uploads count
-as Class A, authorized download cache misses as Class B, and both consume its
-daily allowance. Cache hits consume Worker capacity but avoid R2 reads. Keep
-headroom for API-side confirmation, promotion, deletion, smoke, and audit calls
-because they use the operational R2 token and bypass this counter. Switching
-the API back to `ASSET_LINK_MODE=presigned` is the rollback; keep direct R2
-CORS valid if that fallback must remain immediately available.
+The gateway reserves budget before browser-originated R2 calls. An upload
+conservatively reserves four normal-lifecycle operations: PUT and promotion
+copy as two Class A units, then confirmation HEAD and GET as two Class B units.
+An authorized download cache miss reserves one Class B unit. Both consume the
+weighted daily allowance; cache hits consume Worker capacity but avoid R2
+reads. Keep the remaining headroom for retries, deletion, smoke, and audit
+calls. Switching the API back to `ASSET_LINK_MODE=presigned` is the rollback;
+keep direct R2 CORS valid if that fallback must remain immediately available.
 
 Do not delete an old Render disk or Neon branch until the new service is
 verified and an operator has explicitly accepted any data loss.

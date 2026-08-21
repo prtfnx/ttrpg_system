@@ -96,9 +96,10 @@ bearer-URL replay until expiry. Worker mode consumes each upload capability
 once, rejects range downloads, serves authorized immutable cache hits without
 an R2 read, and reserves conservative daily/monthly operation budgets before a
 browser transfer reaches R2. The gateway cannot count trusted API-side R2
-verification, promotion, deletion, smoke, or audit calls, so neither mode is a
-provider-side billing hard stop. Keep Cloudflare billing notifications and the
-whole-bucket orphan audit enabled. See
+retries, deletion, smoke, or audit calls, but it conservatively pre-reserves the
+normal verification and promotion costs of every accepted upload. Neither mode
+is a provider-side billing hard stop. Keep Cloudflare billing notifications and
+the whole-bucket orphan audit enabled. See
 [Environment variables](../reference/ENVIRONMENT_VARIABLES.md) for tuning.
 
 The R2 client and current SQLAlchemy driver are synchronous. Public asset

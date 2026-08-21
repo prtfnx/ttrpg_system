@@ -109,7 +109,9 @@ time for server verification and promotion.
   origin and set `ASSET_WORKER_HMAC_SECRET` to the same secret installed on the
   Worker. The gateway enforces exact object, operation, size, type, hash,
   expiry, one-use upload nonce, daily R2-operation allowance, and monthly
-  Class A/Class B allowances before touching its private R2 binding.
+  Class A/Class B allowances before touching its private R2 binding. An upload
+  reserves two Class A units for PUT/promotion and two Class B units for
+  server-side verification, even if the client later abandons confirmation.
 
 The application protocol is unchanged between modes. The operational R2 token
 is still required in Worker mode because confirmation, hash verification,

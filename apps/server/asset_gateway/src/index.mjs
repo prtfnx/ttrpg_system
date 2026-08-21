@@ -199,7 +199,7 @@ async function download(request, env, context, claims, origin) {
     });
   }
 
-  await reserveBudget(env, 'b');
+  await reserveBudget(env, 'download');
   const object = await env.ASSETS.get(claims.key);
   if (!object?.body) throw new GatewayError(404, 'Asset not found');
 
@@ -238,7 +238,7 @@ async function upload(request, env, claims, origin) {
   }
   if (!request.body) throw new GatewayError(400, 'Upload body is required');
 
-  await reserveBudget(env, 'a', claims.nonce, claims.exp);
+  await reserveBudget(env, 'upload', claims.nonce, claims.exp);
   const object = await env.ASSETS.put(claims.key, request.body, {
     httpMetadata: { contentType: claims.type },
     customMetadata: { xxhash: claims.hash },
@@ -289,22 +289,20 @@ export class AssetBudget {
     } catch {
       return new Response('Invalid reservation', { status: 400 });
     }
-    if (!['a', 'b'].includes(body.kind)) return new Response('Invalid reservation', { status: 400 });
+    if (!['download', 'upload'].includes(body.kind)) {
+      return new Response('Invalid reservation', { status: 400 });
+    }
 
     const now = Math.floor(Date.now() / 1000);
     const isoDate = new Date(now * 1000).toISOString();
     const dayScope = `day:${isoDate.slice(0, 10)}`;
-    const monthScope = `month:${isoDate.slice(0, 7)}:${body.kind}`;
+    const classAScope = `month:${isoDate.slice(0, 7)}:a`;
+    const classBScope = `month:${isoDate.slice(0, 7)}:b`;
     const dayLimit = positiveInteger(this.env.ASSET_R2_DAILY_LIMIT, 80000);
-    const monthLimit = body.kind === 'a'
-      ? positiveInteger(this.env.ASSET_CLASS_A_MONTHLY_LIMIT, 800000)
-      : positiveInteger(this.env.ASSET_CLASS_B_MONTHLY_LIMIT, 8000000);
+    const classALimit = positiveInteger(this.env.ASSET_CLASS_A_MONTHLY_LIMIT, 800000);
+    const classBLimit = positiveInteger(this.env.ASSET_CLASS_B_MONTHLY_LIMIT, 8000000);
 
-    if (this.counter(dayScope) >= dayLimit || this.counter(monthScope) >= monthLimit) {
-      return new Response('R2 operation budget exhausted', { status: 429 });
-    }
-
-    if (body.kind === 'a') {
+    if (body.kind === 'upload') {
       if (typeof body.nonce !== 'string' || !Number.isSafeInteger(body.expires)) {
         return new Response('Upload nonce is required', { status: 400 });
       }
@@ -312,21 +310,40 @@ export class AssetBudget {
       for (const _row of this.sql.exec('SELECT nonce FROM used_nonces WHERE nonce = ?', body.nonce)) {
         return new Response('Upload capability was already used', { status: 409 });
       }
+    }
+
+    // A completed upload normally performs PUT + Copy (2 Class A) and the API
+    // confirms it with HEAD + GET (2 Class B). Reserving the full lifecycle at
+    // ingress intentionally overcounts abandoned uploads and fails safely.
+    const costs = body.kind === 'upload'
+      ? [
+          [dayScope, 4, dayLimit],
+          [classAScope, 2, classALimit],
+          [classBScope, 2, classBLimit],
+        ]
+      : [
+          [dayScope, 1, dayLimit],
+          [classBScope, 1, classBLimit],
+        ];
+    if (costs.some(([scope, cost, limit]) => this.counter(scope) + cost > limit)) {
+      return new Response('R2 operation budget exhausted', { status: 429 });
+    }
+
+    if (body.kind === 'upload') {
       this.sql.exec(
         'INSERT INTO used_nonces (nonce, expires) VALUES (?, ?)',
         body.nonce,
         body.expires,
       );
     }
-
-    this.sql.exec(
-      'INSERT INTO counters (scope, used) VALUES (?, 1) ON CONFLICT(scope) DO UPDATE SET used = used + 1',
-      dayScope,
-    );
-    this.sql.exec(
-      'INSERT INTO counters (scope, used) VALUES (?, 1) ON CONFLICT(scope) DO UPDATE SET used = used + 1',
-      monthScope,
-    );
+    for (const [scope, cost] of costs) {
+      this.sql.exec(
+        'INSERT INTO counters (scope, used) VALUES (?, ?) '
+          + 'ON CONFLICT(scope) DO UPDATE SET used = used + excluded.used',
+        scope,
+        cost,
+      );
+    }
     return new Response(null, { status: 204 });
   }
 }

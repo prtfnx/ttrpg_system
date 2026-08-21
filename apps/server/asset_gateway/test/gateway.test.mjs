@@ -144,7 +144,7 @@ test('reserves one Class B operation on a cache miss and caches the object', asy
   assert.equal(response.status, 200);
   assert.equal(await response.text(), 'image');
   assert.equal(cachedResponse.status, 200);
-  assert.deepEqual(reservations, [{ kind: 'b' }]);
+  assert.deepEqual(reservations, [{ kind: 'download' }]);
 });
 
 test('accepts one exact upload and rejects nonce replay before a second R2 put', async () => {
@@ -193,7 +193,7 @@ test('durable budget enforces monthly limits and upload nonce uniqueness', async
     { storage: { sql } },
     {
       ASSET_CLASS_A_MONTHLY_LIMIT: '2',
-      ASSET_CLASS_B_MONTHLY_LIMIT: '1',
+      ASSET_CLASS_B_MONTHLY_LIMIT: '3',
       ASSET_R2_DAILY_LIMIT: '10',
     },
   );
@@ -204,10 +204,12 @@ test('durable budget enforces monthly limits and upload nonce uniqueness', async
   }));
   const expires = Math.floor(Date.now() / 1000) + 900;
 
-  assert.equal((await reserve({ kind: 'a', nonce: 'nonce-1', expires })).status, 204);
-  assert.equal((await reserve({ kind: 'a', nonce: 'nonce-1', expires })).status, 409);
-  assert.equal((await reserve({ kind: 'b' })).status, 204);
-  assert.equal((await reserve({ kind: 'b' })).status, 429);
+  assert.equal((await reserve({ kind: 'upload', nonce: 'nonce-1', expires })).status, 204);
+  assert.equal((await reserve({ kind: 'upload', nonce: 'nonce-1', expires })).status, 409);
+  assert.equal((await reserve({ kind: 'download' })).status, 204);
+  assert.equal((await reserve({ kind: 'download' })).status, 429);
+  assert.equal(sql.exec("SELECT used FROM counters WHERE scope LIKE 'month:%:a'")[0].used, 2);
+  assert.equal(sql.exec("SELECT used FROM counters WHERE scope LIKE 'month:%:b'")[0].used, 3);
 
   database.close();
 });

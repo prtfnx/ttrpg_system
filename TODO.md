@@ -52,7 +52,37 @@ Remaining implementation or decisions, in priority order:
    creation, manual fog, optional media/animation/3D ideas, advanced mechanics,
    map-building/AI tooling, and the underspecified character-window item.
 
-All release changes are in logical local commits and have not been pushed.
+Commit publication status is intentionally not tracked in this file because it
+becomes stale after a push or history rewrite. Use `git status --short --branch`
+and `git log origin/main..HEAD` as the authoritative checks.
+
+### 2026-08-20 asset gateway follow-up
+
+The configurable presigned/Worker link path and a dependency-free Worker
+gateway are implemented. This is a functional implementation milestone, not
+yet the completed production rollout. The detailed provisioning and acceptance
+procedure is in
+[`docs/guide/PRODUCTION_DEPLOYMENT_GUIDE.md`](docs/guide/PRODUCTION_DEPLOYMENT_GUIDE.md).
+
+Release blockers found by the post-implementation source audit:
+
+- [ ] Reserve the full normal upload operation cost. The current gateway
+  reserves two Class A and two Class B operations, while verification and
+  promotion can use two Class A and four Class B operations before retries.
+- [ ] Replace UTC calendar-month operation counters with a rolling 30-day
+  window or the configured Cloudflare billing-cycle boundary.
+- [ ] Keep expired pending-upload bytes reserved until the corresponding R2
+  object is durably deleted; the one-day lifecycle is recovery defense, not an
+  immediate quota release signal.
+- [ ] Add the nested asset gateway package to CI and run a real deployed
+  browser-to-Worker-to-R2-to-server confirmation integration test.
+- [ ] Verify WAF rate limiting, billing visibility, secret rotation, cold
+  start, cache, replay, quota exhaustion, and presigned rollback in staging.
+
+Keep public untrusted asset upload disabled until these blockers close. A
+private trusted preview may retain `ASSET_LINK_MODE=presigned` with manual R2
+usage review, but that is not a hard guarantee of staying inside the free
+allowance.
 
 ### Verified foundations
 

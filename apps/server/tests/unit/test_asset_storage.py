@@ -211,6 +211,25 @@ async def test_upload_link_failure_releases_reserved_intent(
     assert intent.error_message == "Asset upload link generation failed"
 
 
+async def test_upload_link_exception_releases_reserved_intent(
+    monkeypatch, test_db, test_user, test_game_session
+):
+    manager = _manager(monkeypatch, test_db)
+
+    def raise_link_error(*args, **kwargs):
+        raise RuntimeError("signer unavailable")
+
+    monkeypatch.setattr(manager.asset_links, "generate_upload_url", raise_link_error)
+
+    response = await _request_upload(manager, test_user, test_game_session)
+
+    assert response.success is False
+    assert response.error == "Internal server error"
+    intent = test_db.query(models.AssetUploadIntent).one()
+    assert intent.status == "link_failed"
+    assert intent.error_message == "Asset upload link generation failed"
+
+
 async def test_upload_confirmation_rejects_object_metadata_mismatch(
     monkeypatch, test_db, test_user, test_game_session
 ):

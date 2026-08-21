@@ -1028,17 +1028,26 @@ class ServerAssetManager:
             if not reserved:
                 return PresignedUrlResponse(success=False, error=quota_error)
 
-            upload_url = self.asset_links.generate_upload_url(
-                self.r2_manager,
-                asset_id=asset_id,
-                r2_key=r2_key,
-                user_id=request.user_id,
-                session_code=request.session_code,
-                file_size=request.file_size,
-                content_type=request.content_type,
-                xxhash=file_xxhash,
-                expiration=expiry_seconds,
-            )
+            try:
+                upload_url = self.asset_links.generate_upload_url(
+                    self.r2_manager,
+                    asset_id=asset_id,
+                    r2_key=r2_key,
+                    user_id=request.user_id,
+                    session_code=request.session_code,
+                    file_size=request.file_size,
+                    content_type=request.content_type,
+                    xxhash=file_xxhash,
+                    expiration=expiry_seconds,
+                )
+            except Exception:
+                self._fail_upload_intent(
+                    asset_id,
+                    request.user_id,
+                    request.session_code,
+                    "Asset upload link generation failed",
+                )
+                raise
 
             if not upload_url:
                 self._fail_upload_intent(

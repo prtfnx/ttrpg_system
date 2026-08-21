@@ -66,16 +66,17 @@ procedure is in
 
 Release blockers found by the post-implementation source audit:
 
-- [ ] Reserve the full normal upload operation cost. The current gateway
-  reserves two Class A and two Class B operations, while verification and
-  promotion can use two Class A and four Class B operations before retries.
-- [ ] Replace UTC calendar-month operation counters with a rolling 30-day
-  window or the configured Cloudflare billing-cycle boundary.
-- [ ] Keep expired pending-upload bytes reserved until the corresponding R2
-  object is durably deleted; the one-day lifecycle is recovery defense, not an
-  immediate quota release signal.
-- [ ] Add the nested asset gateway package to CI and run a real deployed
-  browser-to-Worker-to-R2-to-server confirmation integration test.
+- [x] Reserve the full normal upload operation cost. The gateway now reserves
+  two Class A and four Class B operations before accepting an upload body.
+- [x] Replace UTC calendar-month operation counters with a conservative
+  rolling 30-day window.
+- [x] Keep expired pending-upload bytes reserved until the corresponding R2
+  object is durably deleted. Cleanup state and retry timing are persisted in
+  PostgreSQL; the one-day lifecycle remains recovery defense.
+- [x] Add the nested asset gateway package to CI. The explicit job runs the
+  dependency-free tests and a pinned Wrangler deployment dry run.
+- [ ] Run a real deployed browser-to-Worker-to-R2-to-server confirmation
+  integration test against isolated staging infrastructure.
 - [ ] Verify WAF rate limiting, billing visibility, secret rotation, cold
   start, cache, replay, quota exhaustion, and presigned rollback in staging.
 

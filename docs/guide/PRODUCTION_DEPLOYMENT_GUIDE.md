@@ -3,8 +3,10 @@
 Audience: the operator deploying the TTRPG application to Neon, Render, and
 Cloudflare R2/Workers.
 
-Status: source-audited on 2026-08-20. The infrastructure can be provisioned
-now, but public Worker-backed uploads are blocked by the release gates below.
+Status: source-audited and locally verified on 2026-08-20. The code-owned
+accounting, cleanup, CI, diagnostics, and secret-rotation gates are complete.
+Public Worker-backed uploads still require the account-owned staging and
+operational evidence below.
 The shorter current contract remains in
 [`docs/current/operations/DEPLOYMENT.md`](../current/operations/DEPLOYMENT.md).
 
@@ -56,13 +58,13 @@ needed and retains verified bytes in its bounded browser Blob cache.
 
 ## 2. Mandatory release gates
 
-Do not enable public, untrusted asset uploads while any item in this section is
-open. `ASSET_LINK_MODE=worker` is not an account-level billing hard stop yet.
+Do not enable public, untrusted asset uploads until the staging and operator
+items in sections 2.4 and 2.5 are complete. Application limits deliberately
+leave headroom, but neither link mode is an account-level billing hard stop.
 
 ### 2.1 Correct operation accounting
 
-The Worker currently reserves two Class A and two Class B units for an upload.
-The live server flow may use:
+Implemented. The Worker reserves the following worst-case successful flow:
 
 1. Worker `put`: one Class A operation.
 2. Server `head_object` and `get_object`: two Class B operations.
@@ -70,78 +72,63 @@ The live server flow may use:
    operations and one Class A operation.
 4. Source deletion: free under current R2 pricing.
 
-The conservative monthly and weighted-daily reservations must therefore cover
-two Class A and four Class B operations, plus separate headroom for failures,
-retries, smoke tests, and audits. Add a regression test derived from the real
-`R2AssetManager` call sequence rather than maintaining the number only in
-Worker documentation.
+Each accepted upload now reserves two Class A and four Class B operations plus
+six weighted daily units before accepting its body. The regression tests pin
+those values. Keep configured limits below the provider allowance to leave
+headroom for failures, manual audits, and smoke tests, which the gateway cannot
+observe.
 
 ### 2.2 Align the budget window with Cloudflare billing
 
-The Durable Object currently keys monthly counters by UTC calendar month.
-Cloudflare usage is aligned to the account billing cycle, which may start on a
-different day. A calendar reset can therefore allow two application budgets
-inside one provider billing period.
+Implemented. The Durable Object stores timestamped operation reservations,
+prunes entries older than 30 days, and sums every active reservation before
+accepting another R2 operation. The weighted daily guard still resets at UTC
+midnight. The rolling window is conservative and does not depend on account
+metadata.
 
-Use one of these designs before relying on the counter:
-
-- enforce Class A and Class B limits over every rolling 30-day window; or
-- configure the actual UTC billing-cycle boundary and test its rollover.
-
-A rolling window is more conservative and does not depend on account metadata.
 Cloudflare states that dashboard usage is billing-cycle aligned, not
 calendar-month aligned: [Monitor billable usage](https://developers.cloudflare.com/billing/manage/billable-usage/).
 
 ### 2.3 Keep pending bytes reserved until deletion
 
-PostgreSQL currently stops counting an `awaiting_upload` intent after its
-30-minute expiry. Its `pending/` R2 object can remain until the one-day bucket
-lifecycle processes it. Repeated abandoned uploads can therefore occupy more
-bytes than the 9 GB application ceiling while no longer appearing in the
-database quota.
-
-Before public upload:
-
-1. Keep expired intent bytes charged to the global/user quota until object
-   deletion succeeds, or move them into a durable cleanup reservation.
-2. Add a cleanup job/outbox that deletes expired `pending/` keys and releases
-   the reservation only after successful deletion.
-3. Keep the one-day R2 lifecycle as disaster recovery, not as the primary
-   accounting mechanism.
-4. Add tests for restart, deletion failure/retry, multiple users, and the exact
-   boundary at which reserved bytes become available again.
+Implemented. Upload intents that may own R2 bytes remain part of per-user and
+global storage accounting after capability expiry. A PostgreSQL-backed cleanup
+state machine waits one hour beyond expiry for in-flight PUTs to settle, then
+deletes the key without holding a database transaction over R2 I/O. Failed
+deletes retry with bounded backoff and remain charged; only `cleaned` releases
+the reservation. Rejected verification, client-reported failure, promotion
+failure, metadata failure, superseded links, and legacy terminal states enter
+the same path. The one-day lifecycle remains disaster recovery rather than the
+primary accounting mechanism.
 
 Cloudflare notes that lifecycle deletion is typically processed within 24
 hours and can take longer: [R2 object lifecycles](https://developers.cloudflare.com/r2/buckets/object-lifecycles/).
 
 ### 2.4 Put the gateway in CI and run a real integration test
 
-`apps/server/asset_gateway` is nested below the current `apps/*` pnpm workspace
-pattern, so the normal root test command does not discover it. Add an explicit
-CI job or include the package in the workspace. The gate must run:
+Implemented for the local/CI portion. The explicit `asset-gateway` CI job runs:
 
 ```powershell
+pnpm test:asset-gateway
 Set-Location apps/server/asset_gateway
-pnpm test
-pnpm run check
-pnpm dlx wrangler@latest deploy --dry-run
-Set-Location ../../..
+pnpm dlx wrangler@4.124.0 deploy --dry-run
 ```
 
-Unit tests currently fake Cache API, R2, and the Durable Object environment.
-Before cutover, test a deployed staging Worker with a real private staging
+The unit tests still fake Cache API, R2, and the Durable Object environment.
+The remaining gate is a deployed staging Worker with a real private staging
 bucket and a real browser upload/confirmation/download/delete cycle.
 
 ### 2.5 Complete operational hardening
 
-- Add Worker request/error/budget observability without logging capability
-  query strings, object keys, hashes, or secrets.
+- Rejection and budget failures now emit structured events containing only
+  method/kind/status, and downloads expose `X-Asset-Cache: HIT|MISS`. Confirm
+  those signals appear in staging without capability query strings, object
+  keys, hashes, or secrets being added to application logs.
 - Configure the one Free-plan WAF rate-limit rule for `/v1/assets/` and tune it
   using a multi-map session. Free-plan counting is IP-based, so account for
   players sharing NAT: [WAF rate limiting availability](https://developers.cloudflare.com/waf/rate-limiting-rules/).
-- Define a shared-secret rotation procedure. The current single-key design
-  cannot rotate without invalidating outstanding links; dual-key verification
-  is required for a zero-interruption rotation.
+- Exercise the implemented dual-key shared-secret rotation procedure in
+  staging, including removal of the previous key after one hour.
 - Capture live quota rollover, cache miss/hit, expired-token, replay, failure,
   cold-start, and rollback evidence.
 
@@ -409,6 +396,26 @@ Paste the password-manager value when prompted. Cloudflare documents that
 `wrangler secret put` creates and immediately deploys a new Worker version:
 [Worker secrets](https://developers.cloudflare.com/workers/configuration/secrets/).
 
+For a later zero-downtime rotation:
+
+1. Copy the current active value into the Worker secret
+   `ASSET_WORKER_HMAC_PREVIOUS_SECRET`.
+2. Generate a new independent value and replace the Worker
+   `ASSET_WORKER_HMAC_SECRET` with it.
+3. After that Worker deployment succeeds, replace the Render
+   `ASSET_WORKER_HMAC_SECRET` with the same new value and deploy the API.
+4. Exercise both a newly issued capability and one issued before the API
+   change. The Worker accepts either signature during this overlap.
+5. Wait one hour, which is the maximum capability lifetime accepted by the
+   gateway, then run:
+
+   ```powershell
+   pnpm dlx wrangler@latest secret delete ASSET_WORKER_HMAC_PREVIOUS_SECRET
+   ```
+
+6. Verify new upload and download capabilities again. Never remove or replace
+   the active Worker value before the previous value is installed.
+
 Verify the name, R2 binding, Durable Object namespace/migration, custom domain,
 and secret name in Workers & Pages. Then verify fail-closed behavior:
 
@@ -457,8 +464,8 @@ In Manage Account > Billing > Billable Usage:
 Budget alerts notify; they do not stop usage or billing:
 [Cloudflare budget alerts](https://developers.cloudflare.com/billing/manage/budget-alerts/).
 
-Record the account billing-cycle start day. This is needed until the Worker
-uses a rolling window or a configured billing-cycle boundary.
+Record the account billing-cycle start day for incident comparison with the
+Worker's conservative rolling 30-day application window.
 
 ## 13. Configure Render and deploy the application
 

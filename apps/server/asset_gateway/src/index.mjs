@@ -135,7 +135,10 @@ function responseHeaders(headers, origin) {
   result.set('X-Content-Type-Options', 'nosniff');
   if (origin) {
     result.set('Access-Control-Allow-Origin', origin);
-    result.set('Access-Control-Expose-Headers', 'Content-Length, Content-Type, ETag');
+    result.set(
+      'Access-Control-Expose-Headers',
+      'Content-Length, Content-Type, ETag, X-Asset-Cache',
+    );
     result.append('Vary', 'Origin');
   }
   return result;
@@ -185,8 +188,24 @@ async function reserveBudget(env, kind, nonce, expires) {
     body: JSON.stringify({ kind, nonce, expires }),
   });
   if (!response.ok) {
+    console.warn(JSON.stringify({
+      event: 'asset_gateway.budget.rejected',
+      kind,
+      status: response.status,
+    }));
     throw new GatewayError(response.status, await response.text() || 'R2 operation budget exhausted');
   }
+}
+
+function observeRejection(request, response) {
+  if (response.status >= 400) {
+    console.warn(JSON.stringify({
+      event: 'asset_gateway.request.rejected',
+      method: request.method,
+      status: response.status,
+    }));
+  }
+  return response;
 }
 
 async function download(request, env, context, claims, origin) {
@@ -203,9 +222,11 @@ async function download(request, env, context, claims, origin) {
     cached = undefined;
   }
   if (cached) {
+    const headers = responseHeaders(cached.headers, origin);
+    headers.set('X-Asset-Cache', 'HIT');
     return new Response(cached.body, {
       status: cached.status,
-      headers: responseHeaders(cached.headers, origin),
+      headers,
     });
   }
 
@@ -222,9 +243,11 @@ async function download(request, env, context, claims, origin) {
   context.waitUntil(
     caches.default.put(cacheKey, cacheResponse.clone()).catch(() => undefined),
   );
+  const clientHeaders = responseHeaders(cacheResponse.headers, origin);
+  clientHeaders.set('X-Asset-Cache', 'MISS');
   return new Response(cacheResponse.body, {
     status: 200,
-    headers: responseHeaders(cacheResponse.headers, origin),
+    headers: clientHeaders,
   });
 }
 
@@ -259,17 +282,20 @@ async function upload(request, env, claims, origin) {
 }
 
 export async function handleRequest(request, env, context) {
-  if (request.method === 'OPTIONS') return preflight(request, env);
+  if (request.method === 'OPTIONS') {
+    return observeRejection(request, preflight(request, env));
+  }
   let origin = null;
   try {
     origin = requestOrigin(request, env);
     if (!['GET', 'PUT'].includes(request.method)) throw new GatewayError(405, 'Method is not allowed');
     const claims = await verifyCapability(request, env);
-    return request.method === 'GET'
+    const response = request.method === 'GET'
       ? await download(request, env, context, claims, origin)
       : await upload(request, env, claims, origin);
+    return observeRejection(request, response);
   } catch (error) {
-    return errorResponse(error, origin);
+    return observeRejection(request, errorResponse(error, origin));
   }
 }
 

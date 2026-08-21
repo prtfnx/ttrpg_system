@@ -164,7 +164,13 @@ test('reserves one Class B operation on a cache miss and caches the object', asy
 
   assert.equal(response.status, 200);
   assert.equal(await response.text(), 'image');
+  assert.equal(response.headers.get('X-Asset-Cache'), 'MISS');
   assert.equal(cachedResponse.status, 200);
+  assert.equal(cachedResponse.headers.get('X-Asset-Cache'), 'HIT');
+  assert.match(
+    cachedResponse.headers.get('Access-Control-Expose-Headers'),
+    /X-Asset-Cache/,
+  );
   assert.deepEqual(reservations, [{ kind: 'download' }]);
 });
 

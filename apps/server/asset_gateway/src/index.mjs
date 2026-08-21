@@ -6,8 +6,7 @@ const ALLOWED_UPLOAD_HEADERS = new Set([
   'x-amz-meta-xxhash',
 ]);
 
-let cachedSecret = '';
-let cachedHmacKey;
+const cachedHmacKeys = new Map();
 
 class GatewayError extends Error {
   constructor(status, message) {
@@ -28,16 +27,16 @@ function base64urlBytes(value) {
 }
 
 async function hmacKey(secret) {
-  if (cachedHmacKey && cachedSecret === secret) return cachedHmacKey;
-  cachedSecret = secret;
-  cachedHmacKey = await crypto.subtle.importKey(
+  if (cachedHmacKeys.has(secret)) return cachedHmacKeys.get(secret);
+  const key = await crypto.subtle.importKey(
     'raw',
     encoder.encode(secret),
     { name: 'HMAC', hash: 'SHA-256' },
     false,
     ['verify'],
   );
-  return cachedHmacKey;
+  cachedHmacKeys.set(secret, key);
+  return key;
 }
 
 function validObjectKey(claims) {
@@ -63,16 +62,27 @@ export async function verifyCapability(request, env, nowSeconds = Math.floor(Dat
   const parts = capability.split('.');
   if (parts.length !== 2) throw new GatewayError(403, 'Invalid asset capability');
   const [encodedPayload, encodedSignature] = parts;
-  let verified = false;
+  let signature;
   try {
-    verified = await crypto.subtle.verify(
-      'HMAC',
-      await hmacKey(env.ASSET_WORKER_HMAC_SECRET),
-      base64urlBytes(encodedSignature),
-      encoder.encode(encodedPayload),
-    );
+    signature = base64urlBytes(encodedSignature);
   } catch {
     throw new GatewayError(403, 'Invalid asset capability');
+  }
+  const verificationSecrets = [
+    env.ASSET_WORKER_HMAC_SECRET,
+    env.ASSET_WORKER_HMAC_PREVIOUS_SECRET,
+  ].filter(secret => typeof secret === 'string' && secret.length >= 32);
+  let verified = false;
+  for (const secret of verificationSecrets) {
+    if (await crypto.subtle.verify(
+      'HMAC',
+      await hmacKey(secret),
+      signature,
+      encoder.encode(encodedPayload),
+    )) {
+      verified = true;
+      break;
+    }
   }
   if (!verified) throw new GatewayError(403, 'Invalid asset capability');
 

@@ -19,4 +19,14 @@ Before deployment:
 4. Configure the route fail mode as **fail closed**.
 5. Deploy with `pnpm run deploy` from this directory.
 
+To rotate the signing secret without invalidating capabilities that are still
+in flight:
+
+1. Store the old value as `ASSET_WORKER_HMAC_PREVIOUS_SECRET` on the Worker.
+2. Replace `ASSET_WORKER_HMAC_SECRET` on the Worker with the new random value.
+3. Deploy the Worker, then set the FastAPI `ASSET_WORKER_HMAC_SECRET` to the new
+   value and deploy FastAPI.
+4. Wait one hour (the gateway's maximum accepted capability lifetime), delete
+   `ASSET_WORKER_HMAC_PREVIOUS_SECRET`, and deploy the Worker again.
+
 Run dependency-free unit tests with `pnpm test`.

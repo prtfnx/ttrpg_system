@@ -11,10 +11,10 @@ function base64url(bytes) {
   return Buffer.from(bytes).toString('base64url');
 }
 
-async function capability(claims) {
+async function capability(claims, secret = SECRET) {
   const payload = base64url(encoder.encode(JSON.stringify(claims)));
   const key = await crypto.subtle.importKey(
-    'raw', encoder.encode(SECRET), { name: 'HMAC', hash: 'SHA-256' }, false, ['sign'],
+    'raw', encoder.encode(secret), { name: 'HMAC', hash: 'SHA-256' }, false, ['sign'],
   );
   return `${payload}.${base64url(await crypto.subtle.sign('HMAC', key, encoder.encode(payload)))}`;
 }
@@ -88,6 +88,27 @@ test('verifies a server-compatible HMAC capability', async () => {
 
   assert.deepEqual(
     await verifyCapability(request, { ASSET_WORKER_HMAC_SECRET: SECRET }, 1700000001),
+    claims,
+  );
+});
+
+test('accepts the previous HMAC secret during a zero-downtime rotation', async () => {
+  const previousSecret = 'previous-secret-that-is-at-least-32-characters';
+  const claims = {
+    asset: 'asset-1', exp: 1700000300, iat: 1700000000,
+    key: 'assets/asset-1.png', op: 'get', sid: 'ROOM', uid: 7, v: 1,
+  };
+  const cap = await capability(claims, previousSecret);
+  const request = new Request(
+    `https://assets.example.com/v1/assets/asset-1?cap=${cap}`,
+    { method: 'GET' },
+  );
+
+  assert.deepEqual(
+    await verifyCapability(request, {
+      ASSET_WORKER_HMAC_SECRET: SECRET,
+      ASSET_WORKER_HMAC_PREVIOUS_SECRET: previousSecret,
+    }, 1700000001),
     claims,
   );
 });

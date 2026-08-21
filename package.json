@@ -8,6 +8,7 @@
     "test": "turbo test",
     "test:run": "turbo test:run",
     "test:coverage": "turbo test:coverage",
+    "test:asset-gateway": "pnpm --dir apps/server/asset_gateway test",
     "lint": "turbo lint",
     "docs:check": "python scripts/check_docs.py",
     "bench": "turbo bench",

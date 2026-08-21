@@ -357,6 +357,12 @@ class AssetUploadIntent(Base):
     created_at: Mapped[Optional[datetime]] = mapped_column(DateTime, default=utc_now)
     expires_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True, index=True)
     confirmed_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
+    cleanup_attempts: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    cleanup_next_attempt_at: Mapped[Optional[datetime]] = mapped_column(
+        DateTime,
+        nullable=True,
+        index=True,
+    )
 
     uploader = relationship("User", foreign_keys=[uploaded_by])
     session = relationship("GameSession")

@@ -270,13 +270,14 @@ export class AssetBudget {
     this.sql = context.storage.sql;
     this.sql.exec('CREATE TABLE IF NOT EXISTS counters (scope TEXT PRIMARY KEY, used INTEGER NOT NULL)');
     this.sql.exec('CREATE TABLE IF NOT EXISTS used_nonces (nonce TEXT PRIMARY KEY, expires INTEGER NOT NULL)');
-  }
-
-  counter(scope) {
-    for (const row of this.sql.exec('SELECT used FROM counters WHERE scope = ?', scope)) {
-      return Number(row.used);
-    }
-    return 0;
+    this.sql.exec(
+      'CREATE TABLE IF NOT EXISTS operation_reservations '
+        + '(created INTEGER NOT NULL, a_used INTEGER NOT NULL, b_used INTEGER NOT NULL)',
+    );
+    this.sql.exec(
+      'CREATE INDEX IF NOT EXISTS operation_reservations_created '
+        + 'ON operation_reservations(created)',
+    );
   }
 
   async fetch(request) {
@@ -294,10 +295,13 @@ export class AssetBudget {
     }
 
     const now = Math.floor(Date.now() / 1000);
-    const isoDate = new Date(now * 1000).toISOString();
-    const dayScope = `day:${isoDate.slice(0, 10)}`;
-    const classAScope = `month:${isoDate.slice(0, 7)}:a`;
-    const classBScope = `month:${isoDate.slice(0, 7)}:b`;
+    const rollingWindowStart = now - (30 * 24 * 60 * 60);
+    const currentDate = new Date(now * 1000);
+    const dayStart = Math.floor(Date.UTC(
+      currentDate.getUTCFullYear(),
+      currentDate.getUTCMonth(),
+      currentDate.getUTCDate(),
+    ) / 1000);
     const dayLimit = positiveInteger(this.env.ASSET_R2_DAILY_LIMIT, 80000);
     const classALimit = positiveInteger(this.env.ASSET_CLASS_A_MONTHLY_LIMIT, 800000);
     const classBLimit = positiveInteger(this.env.ASSET_CLASS_B_MONTHLY_LIMIT, 8000000);
@@ -312,20 +316,29 @@ export class AssetBudget {
       }
     }
 
-    // A completed upload normally performs PUT + Copy (2 Class A) and the API
-    // confirms it with HEAD + GET (2 Class B). Reserving the full lifecycle at
-    // ingress intentionally overcounts abandoned uploads and fails safely.
-    const costs = body.kind === 'upload'
-      ? [
-          [dayScope, 4, dayLimit],
-          [classAScope, 2, classALimit],
-          [classBScope, 2, classBLimit],
-        ]
-      : [
-          [dayScope, 1, dayLimit],
-          [classBScope, 1, classBLimit],
-        ];
-    if (costs.some(([scope, cost, limit]) => this.counter(scope) + cost > limit)) {
+    this.sql.exec('DELETE FROM operation_reservations WHERE created <= ?', rollingWindowStart);
+    const [rolling] = this.sql.exec(
+      'SELECT COALESCE(SUM(a_used), 0) AS a_used, '
+        + 'COALESCE(SUM(b_used), 0) AS b_used FROM operation_reservations',
+    );
+    const [today] = this.sql.exec(
+      'SELECT COALESCE(SUM(a_used + b_used), 0) AS used '
+        + 'FROM operation_reservations WHERE created >= ?',
+      dayStart,
+    );
+
+    // A completed upload performs the Worker PUT and the server-side promotion
+    // copy (2 Class A), plus HEAD + GET verification and two promotion HEADs
+    // (4 Class B). Reserve the entire successful lifecycle before accepting
+    // bytes; abandoned uploads are deliberately overcounted to fail safely.
+    const cost = body.kind === 'upload'
+      ? { a: 2, b: 4 }
+      : { a: 0, b: 1 };
+    if (
+      Number(today.used) + cost.a + cost.b > dayLimit
+      || Number(rolling.a_used) + cost.a > classALimit
+      || Number(rolling.b_used) + cost.b > classBLimit
+    ) {
       return new Response('R2 operation budget exhausted', { status: 429 });
     }
 
@@ -336,14 +349,12 @@ export class AssetBudget {
         body.expires,
       );
     }
-    for (const [scope, cost] of costs) {
-      this.sql.exec(
-        'INSERT INTO counters (scope, used) VALUES (?, ?) '
-          + 'ON CONFLICT(scope) DO UPDATE SET used = used + excluded.used',
-        scope,
-        cost,
-      );
-    }
+    this.sql.exec(
+      'INSERT INTO operation_reservations (created, a_used, b_used) VALUES (?, ?, ?)',
+      now,
+      cost.a,
+      cost.b,
+    );
     return new Response(null, { status: 204 });
   }
 }

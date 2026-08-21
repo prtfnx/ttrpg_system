@@ -179,7 +179,7 @@ test('accepts one exact upload and rejects nonce replay before a second R2 put',
   assert.equal(objects.size, 1);
 });
 
-test('durable budget enforces monthly limits and upload nonce uniqueness', async () => {
+test('durable budget reserves the complete lifecycle and enforces rolling limits', async () => {
   const database = new DatabaseSync(':memory:');
   const sql = {
     exec(statement, ...bindings) {
@@ -193,7 +193,7 @@ test('durable budget enforces monthly limits and upload nonce uniqueness', async
     { storage: { sql } },
     {
       ASSET_CLASS_A_MONTHLY_LIMIT: '2',
-      ASSET_CLASS_B_MONTHLY_LIMIT: '3',
+      ASSET_CLASS_B_MONTHLY_LIMIT: '5',
       ASSET_R2_DAILY_LIMIT: '10',
     },
   );
@@ -208,8 +208,50 @@ test('durable budget enforces monthly limits and upload nonce uniqueness', async
   assert.equal((await reserve({ kind: 'upload', nonce: 'nonce-1', expires })).status, 409);
   assert.equal((await reserve({ kind: 'download' })).status, 204);
   assert.equal((await reserve({ kind: 'download' })).status, 429);
-  assert.equal(sql.exec("SELECT used FROM counters WHERE scope LIKE 'month:%:a'")[0].used, 2);
-  assert.equal(sql.exec("SELECT used FROM counters WHERE scope LIKE 'month:%:b'")[0].used, 3);
+  const [usage] = sql.exec(
+    'SELECT SUM(a_used) AS a_used, SUM(b_used) AS b_used FROM operation_reservations',
+  );
+  assert.equal(usage.a_used, 2);
+  assert.equal(usage.b_used, 5);
 
   database.close();
+});
+
+test('durable budget releases reservations after the rolling 30-day window', async () => {
+  const database = new DatabaseSync(':memory:');
+  const sql = {
+    exec(statement, ...bindings) {
+      const prepared = database.prepare(statement);
+      return statement.trimStart().startsWith('SELECT')
+        ? prepared.all(...bindings)
+        : (prepared.run(...bindings), []);
+    },
+  };
+  const budget = new AssetBudget(
+    { storage: { sql } },
+    {
+      ASSET_CLASS_A_MONTHLY_LIMIT: '10',
+      ASSET_CLASS_B_MONTHLY_LIMIT: '1',
+      ASSET_R2_DAILY_LIMIT: '10',
+    },
+  );
+  const reserve = () => budget.fetch(new Request('https://budget.internal/reserve', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ kind: 'download' }),
+  }));
+  const originalNow = Date.now;
+  const initialTime = Date.UTC(2026, 0, 15);
+
+  try {
+    Date.now = () => initialTime;
+    assert.equal((await reserve()).status, 204);
+    assert.equal((await reserve()).status, 429);
+
+    Date.now = () => initialTime + (30 * 24 * 60 * 60 * 1000) + 1000;
+    assert.equal((await reserve()).status, 204);
+  } finally {
+    Date.now = originalNow;
+    database.close();
+  }
 });

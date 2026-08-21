@@ -147,7 +147,8 @@ before release.
 2. Upgrade and test a disposable PostgreSQL database or Neon branch.
 3. Run `alembic current --check-heads` and `alembic check`.
 4. Confirm the application tables at the current Alembic head, including the
-   `0005_asset_quota_primitives` limiter/quota state, plus `alembic_version`.
+   `0006_upload_intent_cleanup` limiter/quota and cleanup state, plus
+   `alembic_version`.
 5. Confirm constraints, concurrent idempotency, readiness mismatch, and stale
    connection recovery tests pass.
 6. Prefer a forward fix; use Neon branch recovery only within the documented

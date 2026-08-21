@@ -177,6 +177,10 @@ counts. The server takes the global, user, and session locks in a stable order
 while reserving an upload intent. Final linking locks the session again, and
 duplicate links are idempotent. Limiter-store failure fails closed and emits
 `asset.rate_limit.unavailable` without falling back to per-process state.
+Expired or rejected intents that may own R2 bytes remain charged until a
+durable cleanup attempt deletes the object successfully. Cleanup retries use
+persisted backoff state; the bucket lifecycle is recovery defense rather than
+the signal that releases application quota.
 
 Presigned R2 GET URLs are five-minute bearer credentials; PUT URLs last 15
 minutes so the maximum supported image can cross a slow upstream connection.

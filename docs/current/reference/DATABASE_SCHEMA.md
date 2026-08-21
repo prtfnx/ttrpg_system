@@ -163,7 +163,7 @@ apps/server/database/alembic/versions/
 ```
 
 The PostgreSQL baseline is `0001_postgresql_baseline`; incremental revisions
-through the current `0005_asset_quota_primitives` head add later behavior.
+through the current `0006_upload_intent_cleanup` head add later behavior.
 Alembic records the deployed revision in `alembic_version`. The old numbered
 SQLite runner and ledger were retired; they are not an upgrade path for
 existing SQLite files.

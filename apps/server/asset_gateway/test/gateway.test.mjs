@@ -105,6 +105,22 @@ test('rejects an expired capability before touching R2', async () => {
   assert.equal(reservations.length, 0);
 });
 
+test('does not reflect a rejected preflight origin', async () => {
+  const { env } = environment();
+  const request = new Request('https://assets.example.com/v1/assets/asset-1', {
+    method: 'OPTIONS',
+    headers: {
+      'Access-Control-Request-Method': 'GET',
+      Origin: 'https://attacker.example',
+    },
+  });
+
+  const response = await handleRequest(request, env, { waitUntil() {} });
+
+  assert.equal(response.status, 403);
+  assert.equal(response.headers.get('Access-Control-Allow-Origin'), null);
+});
+
 test('reserves one Class B operation on a cache miss and caches the object', async () => {
   const { env, objects, reservations } = environment();
   const body = new TextEncoder().encode('image');

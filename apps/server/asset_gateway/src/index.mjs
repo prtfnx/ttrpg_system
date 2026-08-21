@@ -138,8 +138,9 @@ function errorResponse(error, origin = null) {
 }
 
 function preflight(request, env) {
+  let origin = null;
   try {
-    const origin = requestOrigin(request, env);
+    origin = requestOrigin(request, env);
     if (!origin) throw new GatewayError(403, 'Origin is required');
     const method = request.headers.get('Access-Control-Request-Method');
     if (!['GET', 'PUT'].includes(method)) throw new GatewayError(405, 'Method is not allowed');
@@ -161,7 +162,7 @@ function preflight(request, env) {
       },
     });
   } catch (error) {
-    return errorResponse(error, request.headers.get('Origin'));
+    return errorResponse(error, origin);
   }
 }
 

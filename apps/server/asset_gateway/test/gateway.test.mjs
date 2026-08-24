@@ -316,3 +316,42 @@ test('durable budget migrates per-operation reservations into hourly buckets', (
   );
   database.close();
 });
+
+test('durable budget cannot be configured above the free release profile', async () => {
+  const database = new DatabaseSync(':memory:');
+  const sql = {
+    exec(statement, ...bindings) {
+      const prepared = database.prepare(statement);
+      return statement.trimStart().startsWith('SELECT')
+        ? prepared.all(...bindings)
+        : (prepared.run(...bindings), []);
+    },
+  };
+  const budget = new AssetBudget(
+    { storage: { sql } },
+    {
+      ASSET_CLASS_A_MONTHLY_LIMIT: '999999999',
+      ASSET_CLASS_B_MONTHLY_LIMIT: '999999999',
+      ASSET_R2_DAILY_LIMIT: '999999999',
+    },
+  );
+  const reserve = body => budget.fetch(new Request('https://budget.internal/reserve', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+  }));
+
+  const now = Math.floor(Date.now() / 1000);
+  sql.exec(
+    'INSERT INTO operation_buckets VALUES (?, ?, ?)',
+    Math.floor(now / 3600) * 3600,
+    799999,
+    0,
+  );
+  assert.equal((await reserve({ kind: 'upload', nonce: 'bounded', expires: now + 300 })).status, 429);
+
+  sql.exec('DELETE FROM operation_buckets');
+  budget.env.ASSET_CLASS_B_MONTHLY_LIMIT = 'invalid';
+  assert.equal((await reserve({ kind: 'download' })).status, 429);
+  database.close();
+});

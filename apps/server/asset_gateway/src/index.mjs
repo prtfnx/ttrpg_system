@@ -1,6 +1,9 @@
 const encoder = new TextEncoder();
 const MAX_CAPABILITY_SECONDS = 3600;
 const OPERATION_BUCKET_SECONDS = 3600;
+const FREE_PROFILE_DAILY_LIMIT = 80000;
+const FREE_PROFILE_CLASS_A_LIMIT = 800000;
+const FREE_PROFILE_CLASS_B_LIMIT = 8000000;
 const ALLOWED_UPLOAD_HEADERS = new Set([
   'content-type',
   'x-amz-meta-upload-timestamp',
@@ -19,6 +22,13 @@ class GatewayError extends Error {
 function positiveInteger(value, fallback) {
   const parsed = Number(value);
   return Number.isSafeInteger(parsed) && parsed > 0 ? parsed : fallback;
+}
+
+function freeProfileLimit(value, ceiling) {
+  if (value === undefined || value === null || value === '') return ceiling;
+  const parsed = Number(value);
+  if (!Number.isSafeInteger(parsed) || parsed <= 0) return 0;
+  return Math.min(parsed, ceiling);
 }
 
 function base64urlBytes(value) {
@@ -349,9 +359,18 @@ export class AssetBudget {
       currentDate.getUTCMonth(),
       currentDate.getUTCDate(),
     ) / 1000);
-    const dayLimit = positiveInteger(this.env.ASSET_R2_DAILY_LIMIT, 80000);
-    const classALimit = positiveInteger(this.env.ASSET_CLASS_A_MONTHLY_LIMIT, 800000);
-    const classBLimit = positiveInteger(this.env.ASSET_CLASS_B_MONTHLY_LIMIT, 8000000);
+    const dayLimit = freeProfileLimit(
+      this.env.ASSET_R2_DAILY_LIMIT,
+      FREE_PROFILE_DAILY_LIMIT,
+    );
+    const classALimit = freeProfileLimit(
+      this.env.ASSET_CLASS_A_MONTHLY_LIMIT,
+      FREE_PROFILE_CLASS_A_LIMIT,
+    );
+    const classBLimit = freeProfileLimit(
+      this.env.ASSET_CLASS_B_MONTHLY_LIMIT,
+      FREE_PROFILE_CLASS_B_LIMIT,
+    );
 
     if (body.kind === 'upload') {
       if (typeof body.nonce !== 'string' || !Number.isSafeInteger(body.expires)) {

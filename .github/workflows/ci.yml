@@ -120,8 +120,17 @@ jobs:
           --features wasm-start
           --locked
         working-directory: packages/rust-core
-      - name: Verify tracked WASM is current
-        run: git diff --exit-code -- apps/web-ui/src/lib/wasm/generated
+      - name: Verify tracked WASM bindings are current
+        # wasm-bindgen embeds host-specific source paths in the binary, so a
+        # Windows-produced .wasm cannot be compared byte-for-byte on Linux.
+        # The generated bindings are deterministic and still detect stale API
+        # artifacts while the successful build validates the binary itself.
+        run: >-
+          git diff --exit-code --
+          apps/web-ui/src/lib/wasm/generated/package.json
+          apps/web-ui/src/lib/wasm/generated/ttrpg_rust_core.d.ts
+          apps/web-ui/src/lib/wasm/generated/ttrpg_rust_core.js
+          apps/web-ui/src/lib/wasm/generated/ttrpg_rust_core_bg.wasm.d.ts
 
   server:
     name: Server (lint + test + coverage)

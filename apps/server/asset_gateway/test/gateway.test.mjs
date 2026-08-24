@@ -236,10 +236,12 @@ test('durable budget reserves the complete lifecycle and enforces rolling limits
   assert.equal((await reserve({ kind: 'download' })).status, 204);
   assert.equal((await reserve({ kind: 'download' })).status, 429);
   const [usage] = sql.exec(
-    'SELECT SUM(a_used) AS a_used, SUM(b_used) AS b_used FROM operation_reservations',
+    'SELECT SUM(a_used) AS a_used, SUM(b_used) AS b_used FROM operation_buckets',
   );
   assert.equal(usage.a_used, 2);
   assert.equal(usage.b_used, 5);
+  const [bucketCount] = sql.exec('SELECT COUNT(*) AS count FROM operation_buckets');
+  assert.equal(bucketCount.count, 1);
 
   database.close();
 });
@@ -275,10 +277,42 @@ test('durable budget releases reservations after the rolling 30-day window', asy
     assert.equal((await reserve()).status, 204);
     assert.equal((await reserve()).status, 429);
 
-    Date.now = () => initialTime + (30 * 24 * 60 * 60 * 1000) + 1000;
+    Date.now = () => initialTime + (30 * 24 * 60 * 60 * 1000) + (60 * 60 * 1000);
     assert.equal((await reserve()).status, 204);
   } finally {
     Date.now = originalNow;
     database.close();
   }
+});
+
+test('durable budget migrates per-operation reservations into hourly buckets', () => {
+  const database = new DatabaseSync(':memory:');
+  database.exec(
+    'CREATE TABLE operation_reservations '
+      + '(created INTEGER NOT NULL, a_used INTEGER NOT NULL, b_used INTEGER NOT NULL); '
+      + 'INSERT INTO operation_reservations VALUES (3601, 2, 4), (3610, 0, 1), (7200, 0, 1);',
+  );
+  const sql = {
+    exec(statement, ...bindings) {
+      const prepared = database.prepare(statement);
+      return statement.trimStart().startsWith('SELECT')
+        ? prepared.all(...bindings)
+        : (prepared.run(...bindings), []);
+    },
+  };
+
+  new AssetBudget({ storage: { sql } }, {});
+
+  assert.deepEqual(
+    sql.exec('SELECT * FROM operation_buckets ORDER BY created_hour').map(row => ({ ...row })),
+    [
+      { created_hour: 3600, a_used: 2, b_used: 5 },
+      { created_hour: 7200, a_used: 0, b_used: 1 },
+    ],
+  );
+  assert.deepEqual(
+    sql.exec("SELECT name FROM sqlite_master WHERE name = 'operation_reservations'"),
+    [],
+  );
+  database.close();
 });

@@ -1,5 +1,6 @@
 const encoder = new TextEncoder();
 const MAX_CAPABILITY_SECONDS = 3600;
+const OPERATION_BUCKET_SECONDS = 3600;
 const ALLOWED_UPLOAD_HEADERS = new Set([
   'content-type',
   'x-amz-meta-upload-timestamp',
@@ -307,13 +308,22 @@ export class AssetBudget {
     this.sql.exec('CREATE TABLE IF NOT EXISTS counters (scope TEXT PRIMARY KEY, used INTEGER NOT NULL)');
     this.sql.exec('CREATE TABLE IF NOT EXISTS used_nonces (nonce TEXT PRIMARY KEY, expires INTEGER NOT NULL)');
     this.sql.exec(
-      'CREATE TABLE IF NOT EXISTS operation_reservations '
-        + '(created INTEGER NOT NULL, a_used INTEGER NOT NULL, b_used INTEGER NOT NULL)',
+      'CREATE TABLE IF NOT EXISTS operation_buckets '
+        + '(created_hour INTEGER PRIMARY KEY, a_used INTEGER NOT NULL, b_used INTEGER NOT NULL)',
     );
-    this.sql.exec(
-      'CREATE INDEX IF NOT EXISTS operation_reservations_created '
-        + 'ON operation_reservations(created)',
-    );
+    const legacyTable = [...this.sql.exec(
+      "SELECT name FROM sqlite_master WHERE type = 'table' AND name = 'operation_reservations'",
+    )];
+    if (legacyTable.length > 0) {
+      this.sql.exec(
+        'INSERT INTO operation_buckets (created_hour, a_used, b_used) '
+          + `SELECT (created / ${OPERATION_BUCKET_SECONDS}) * ${OPERATION_BUCKET_SECONDS}, `
+          + 'SUM(a_used), SUM(b_used) FROM operation_reservations GROUP BY 1 '
+          + 'ON CONFLICT(created_hour) DO UPDATE SET '
+          + 'a_used = excluded.a_used, b_used = excluded.b_used',
+      );
+      this.sql.exec('DROP TABLE operation_reservations');
+    }
   }
 
   async fetch(request) {
@@ -332,6 +342,7 @@ export class AssetBudget {
 
     const now = Math.floor(Date.now() / 1000);
     const rollingWindowStart = now - (30 * 24 * 60 * 60);
+    const currentHour = Math.floor(now / OPERATION_BUCKET_SECONDS) * OPERATION_BUCKET_SECONDS;
     const currentDate = new Date(now * 1000);
     const dayStart = Math.floor(Date.UTC(
       currentDate.getUTCFullYear(),
@@ -352,14 +363,20 @@ export class AssetBudget {
       }
     }
 
-    this.sql.exec('DELETE FROM operation_reservations WHERE created <= ?', rollingWindowStart);
+    // Retain a boundary bucket until its entire hour is outside the rolling
+    // window. The resulting overcount is at most one hour and fails safely.
+    this.sql.exec(
+      'DELETE FROM operation_buckets WHERE created_hour + ? <= ?',
+      OPERATION_BUCKET_SECONDS,
+      rollingWindowStart,
+    );
     const [rolling] = this.sql.exec(
       'SELECT COALESCE(SUM(a_used), 0) AS a_used, '
-        + 'COALESCE(SUM(b_used), 0) AS b_used FROM operation_reservations',
+        + 'COALESCE(SUM(b_used), 0) AS b_used FROM operation_buckets',
     );
     const [today] = this.sql.exec(
       'SELECT COALESCE(SUM(a_used + b_used), 0) AS used '
-        + 'FROM operation_reservations WHERE created >= ?',
+        + 'FROM operation_buckets WHERE created_hour >= ?',
       dayStart,
     );
 
@@ -386,8 +403,10 @@ export class AssetBudget {
       );
     }
     this.sql.exec(
-      'INSERT INTO operation_reservations (created, a_used, b_used) VALUES (?, ?, ?)',
-      now,
+      'INSERT INTO operation_buckets (created_hour, a_used, b_used) VALUES (?, ?, ?) '
+        + 'ON CONFLICT(created_hour) DO UPDATE SET '
+        + 'a_used = a_used + excluded.a_used, b_used = b_used + excluded.b_used',
+      currentHour,
       cost.a,
       cost.b,
     );

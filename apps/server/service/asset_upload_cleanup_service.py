@@ -126,15 +126,22 @@ def process_upload_cleanup(
             db.commit()
             return UploadCleanupResult(completed=False)
 
-        # A final key may belong to an already-persisted duplicate. Its bytes are
-        # accounted by Asset, so release only the redundant intent reservation.
-        if r2_key.startswith("assets/") and db.query(Asset.id).filter(
-            Asset.r2_key == r2_key
-        ).first() is not None:
-            intent.status = "cleaned"
+        if r2_key.startswith("assets/"):
+            # Final keys are content-addressed and can be shared by another
+            # confirmation. Deleting after an unlocked metadata check races
+            # that confirmation and can remove a live object. Release only a
+            # redundant reservation here; otherwise retain it and require the
+            # age-gated orphan audit to prove the key is unreferenced.
+            if db.query(Asset.id).filter(Asset.r2_key == r2_key).first() is not None:
+                intent.status = "cleaned"
+                intent.cleanup_next_attempt_at = None
+                db.commit()
+                return UploadCleanupResult(completed=True)
+            intent.status = "cleanup_failed"
+            intent.error_message = "Final asset key requires orphan reconciliation"
             intent.cleanup_next_attempt_at = None
             db.commit()
-            return UploadCleanupResult(completed=True)
+            return UploadCleanupResult(completed=False)
 
         intent.cleanup_attempts += 1
         intent.status = "cleanup_processing"

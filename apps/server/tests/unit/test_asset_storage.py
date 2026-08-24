@@ -629,7 +629,7 @@ async def test_duplicate_link_is_idempotent_when_session_quota_is_full(
     assert test_db.query(models.SessionAsset).count() == 1
 
 
-async def test_final_link_quota_failure_removes_new_r2_object(
+async def test_final_link_quota_failure_quarantines_unowned_final_key(
     monkeypatch, test_db, test_user, test_game_session
 ):
     manager = _manager(monkeypatch, test_db)
@@ -670,6 +670,15 @@ async def test_final_link_quota_failure_removes_new_r2_object(
     assert intent.status == "cleanup_pending"
     assert intent.error_message == "Session asset link quota exceeded"
     assert test_db.query(models.Asset).count() == 1
+    assert manager.r2_manager.deleted_keys == []
+
+    intent.cleanup_next_attempt_at = upload_cleanup_module.utc_now()
+    test_db.commit()
+    assert process_pending_upload_cleanups(manager.r2_manager) == 0
+    test_db.expire_all()
+    intent = test_db.query(models.AssetUploadIntent).one()
+    assert intent.status == "cleanup_failed"
+    assert intent.error_message == "Final asset key requires orphan reconciliation"
     assert manager.r2_manager.deleted_keys == []
 
 

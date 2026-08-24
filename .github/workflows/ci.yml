@@ -11,8 +11,8 @@ jobs:
     name: Current docs
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - uses: actions/checkout@v6
+      - uses: actions/setup-python@v6
         with:
           python-version: "3.11"
       - name: Validate current documentation
@@ -22,11 +22,11 @@ jobs:
     name: Asset gateway (test + dry run)
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
       - uses: pnpm/action-setup@v4
         with:
           version: 9.15.0
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v6
         with:
           node-version: 22
       - name: Run gateway unit tests
@@ -39,11 +39,11 @@ jobs:
     name: Web UI (lint + test)
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
       - uses: pnpm/action-setup@v4
         with:
           version: 9.15.0
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v6
         with:
           node-version: 22
           cache: pnpm
@@ -65,7 +65,7 @@ jobs:
           pnpm --filter @ttrpg/web-ui build
           python apps/server/scripts/package_web_ui.py
       - name: Upload web coverage
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: web-coverage
           path: apps/web-ui/coverage/
@@ -75,7 +75,7 @@ jobs:
     name: Rust WASM (test + coverage + build)
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
       - uses: dtolnay/rust-toolchain@1.91.1
         with:
           targets: wasm32-unknown-unknown
@@ -89,7 +89,7 @@ jobs:
         run: cargo llvm-cov --locked --lib --lcov --output-path coverage.lcov
         working-directory: packages/rust-core
       - name: Upload Rust coverage
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: rust-coverage
           path: packages/rust-core/coverage.lcov
@@ -150,11 +150,11 @@ jobs:
           --health-timeout 5s
           --health-retries 10
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - uses: actions/checkout@v6
+      - uses: actions/setup-python@v6
         with:
           python-version: "3.11"
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v6
         with:
           node-version: 22
       - name: Install core-table
@@ -190,7 +190,7 @@ jobs:
         env:
           PYTHONPATH: ${{ github.workspace }}/apps/server:${{ github.workspace }}/packages/core-table
       - name: Upload server coverage
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: server-coverage
           path: apps/server/coverage.xml

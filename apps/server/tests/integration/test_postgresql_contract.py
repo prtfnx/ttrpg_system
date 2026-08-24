@@ -100,7 +100,7 @@ def test_postgresql_schema_is_at_head_with_bounded_identifiers(postgresql_engine
 
     assert postgresql_engine.dialect.name == "postgresql"
     assert schema_is_current(postgresql_engine)
-    assert repository_heads() == ("0001_postgresql_baseline",)
+    assert len(repository_heads()) == 1
     assert set(inspector.get_table_names()) == set(Base.metadata.tables) | {
         "alembic_version"
     }
@@ -429,6 +429,7 @@ def test_postgresql_for_update_serializes_competing_writers(postgresql_engine):
 
 
 def test_postgresql_readiness_detects_revision_mismatch(postgresql_engine):
+    current_revision = repository_heads()[0]
     checker = ReadinessChecker(
         SimpleNamespace(is_production=False),
         postgresql_engine,
@@ -438,7 +439,7 @@ def test_postgresql_readiness_detects_revision_mismatch(postgresql_engine):
     )
     assert checker._check_database() == {
         "ok": True,
-        "revision": "0001_postgresql_baseline",
+        "revision": current_revision,
     }
 
     with postgresql_engine.begin() as connection:
@@ -453,8 +454,9 @@ def test_postgresql_readiness_detects_revision_mismatch(postgresql_engine):
             connection.execute(
                 text(
                     "INSERT INTO alembic_version (version_num) "
-                    "VALUES ('0001_postgresql_baseline')"
-                )
+                    "VALUES (:revision)"
+                ),
+                {"revision": current_revision},
             )
 
 

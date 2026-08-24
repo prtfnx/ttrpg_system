@@ -55,7 +55,8 @@ request carries the configured bearer token. Metrics use bounded labels for:
 - HTTP and WebSocket outcomes and durations;
 - database operations, transactions, and pool state;
 - auth, rate limits, email, assets, and background jobs;
-- durable pending-upload count and oldest age;
+- durable pending-upload count and oldest age, plus bounded queued,
+  processing, retry, and failed upload-cleanup counts;
 - browser error reports.
 
 Asset rate metrics use bounded `asset_upload_shared` and
@@ -111,7 +112,8 @@ background worker records `asset_deletion` job duration/outcome metrics and
 
 - configure an external Prometheus scraper and dashboards;
 - configure alert delivery for readiness, error rate, database failures,
-  pending uploads, and failed operational jobs;
+  pending uploads, retrying or failed upload cleanup, and failed operational
+  jobs;
 - configure an OTLP backend if distributed traces are required;
 - rehearse incident response without placing provider secrets in tickets or
   copied logs.

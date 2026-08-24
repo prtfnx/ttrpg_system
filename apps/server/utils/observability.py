@@ -117,6 +117,11 @@ PENDING_UPLOAD_OLDEST_AGE = Gauge(
     "ttrpg_pending_upload_oldest_age_seconds",
     "Age of the oldest durable upload intent awaiting confirmation.",
 )
+UPLOAD_CLEANUPS = Gauge(
+    "ttrpg_upload_cleanups",
+    "Durable upload-intent cleanup work by bounded state.",
+    ("state",),
+)
 OBSERVABILITY_EXPORTER_CONFIGURED = Gauge(
     "ttrpg_observability_exporter_configured",
     "Whether an observability exporter is configured.",
@@ -339,6 +344,18 @@ def refresh_durable_metrics(db: Any) -> None:
                 created_at = created_at.replace(tzinfo=timezone.utc)
             oldest_age = max((datetime.now(timezone.utc) - created_at).total_seconds(), 0.0)
         PENDING_UPLOAD_OLDEST_AGE.set(oldest_age)
+
+        cleanup_statuses = {
+            "queued": "cleanup_pending",
+            "processing": "cleanup_processing",
+            "retry": "cleanup_retry",
+            "failed": "cleanup_failed",
+        }
+        for state, status in cleanup_statuses.items():
+            count = db.query(AssetUploadIntent).filter(
+                AssetUploadIntent.status == status
+            ).count()
+            UPLOAD_CLEANUPS.labels(state).set(count)
 
         METRIC_REFRESHES.labels("success").inc()
     except Exception:

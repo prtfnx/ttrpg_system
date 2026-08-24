@@ -49,12 +49,23 @@ def test_durable_upload_gauges_refresh(test_db, test_user):
         status="awaiting_upload",
         created_at=created_at,
     ))
+    test_db.add(models.AssetUploadIntent(
+        asset_id="asset-cleanup",
+        filename="orphan.png",
+        r2_key="assets/orphan.png",
+        session_code="TEST",
+        uploaded_by=test_user.id,
+        status="cleanup_failed",
+        created_at=created_at,
+    ))
     test_db.commit()
     refresh_durable_metrics(test_db)
 
     metrics = generate_latest().decode("utf-8")
     assert "ttrpg_pending_uploads 1.0" in metrics
     assert "ttrpg_pending_upload_oldest_age_seconds" in metrics
+    assert 'ttrpg_upload_cleanups{state="failed"} 1.0' in metrics
+    assert 'ttrpg_upload_cleanups{state="retry"} 0.0' in metrics
 
 
 @pytest.mark.asyncio

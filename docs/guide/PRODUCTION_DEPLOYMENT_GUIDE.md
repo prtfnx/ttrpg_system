@@ -80,11 +80,12 @@ observe.
 
 ### 2.2 Align the budget window with Cloudflare billing
 
-Implemented. The Durable Object stores timestamped operation reservations,
-prunes entries older than 30 days, and sums every active reservation before
-accepting another R2 operation. The weighted daily guard still resets at UTC
-midnight. The rolling window is conservative and does not depend on account
-metadata.
+Implemented. The Durable Object aggregates reservations into hourly buckets,
+retains the boundary bucket until its entire hour is older than 30 days, and
+sums every active bucket before accepting another R2 operation. This bounds
+Durable Object row growth and conservatively overcounts by at most one hour.
+The weighted daily guard still resets at UTC midnight. The rolling window does
+not depend on account metadata.
 
 Cloudflare states that dashboard usage is billing-cycle aligned, not
 calendar-month aligned: [Monitor billable usage](https://developers.cloudflare.com/billing/manage/billable-usage/).

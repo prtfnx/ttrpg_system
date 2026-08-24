@@ -213,8 +213,9 @@ WebSocket contract:
    `ASSET_LINK_MODE=worker` and redeploy the API.
 
 The gateway reserves budget before browser-originated R2 calls. An upload
-conservatively reserves four normal-lifecycle operations: PUT and promotion
-copy as two Class A units, then confirmation HEAD and GET as two Class B units.
+conservatively reserves six normal-lifecycle operations: PUT and promotion
+copy as two Class A units, then confirmation HEAD/GET and two promotion checks
+as four Class B units.
 An authorized download cache miss reserves one Class B unit. Both consume the
 weighted daily allowance; cache hits consume Worker capacity but avoid R2
 reads. Keep the remaining headroom for retries, deletion, smoke, and audit

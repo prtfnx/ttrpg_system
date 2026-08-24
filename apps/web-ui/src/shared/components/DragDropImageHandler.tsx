@@ -238,7 +238,6 @@ export const DragDropImageHandler: React.FC<DragDropImageHandlerProps> = ({
       xhr.open('PUT', uploadUrl);
       xhr.setRequestHeader('Content-Type', file.type);
       xhr.setRequestHeader('x-amz-meta-xxhash', fullHash);
-      xhr.setRequestHeader('x-amz-meta-upload-timestamp', Math.floor(Date.now() / 1000).toString());
       
       logger.debug('Starting upload to R2', {
         file: file.name,

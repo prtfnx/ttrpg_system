@@ -415,6 +415,11 @@ export function calculate_asset_hash(data: Uint8Array): string;
 
 export function compute_visibility_polygon(player_x: number, player_y: number, obstacles: Float32Array, max_dist: number): any;
 
+/**
+ * Deterministic identity of the Rust sources and locked build inputs.
+ */
+export function core_build_fingerprint(): string;
+
 export function create_default_brush_presets(): any[];
 
 /**
@@ -608,7 +613,34 @@ export interface InitOutput {
     readonly tablemanager_table_to_screen: (a: number, b: number, c: number, d: number, e: number) => [number, number];
     readonly tablemanager_units_to_pixels: (a: number, b: number, c: number, d: number) => number;
     readonly tablemanager_zoom_table: (a: number, b: number, c: number, d: number, e: number, f: number) => number;
+    readonly __wbg_actionsclient_free: (a: number, b: number) => void;
+    readonly __wbg_tablesync_free: (a: number, b: number) => void;
+    readonly actionsclient_can_redo: (a: number) => number;
+    readonly actionsclient_can_undo: (a: number) => number;
+    readonly actionsclient_get_action_history: (a: number) => any;
+    readonly actionsclient_get_all_tables: (a: number) => any;
+    readonly actionsclient_get_sprite_info: (a: number, b: number, c: number) => any;
+    readonly actionsclient_get_sprites_by_layer: (a: number, b: number, c: number) => any;
+    readonly actionsclient_get_table_info: (a: number, b: number, c: number) => any;
+    readonly actionsclient_new: () => number;
+    readonly actionsclient_redo: (a: number) => any;
+    readonly actionsclient_set_action_handler: (a: number, b: any) => void;
+    readonly actionsclient_set_error_handler: (a: number, b: any) => void;
+    readonly actionsclient_set_state_change_handler: (a: number, b: any) => void;
+    readonly actionsclient_undo: (a: number) => any;
+    readonly tablesync_get_sprites: (a: number) => any;
+    readonly tablesync_get_sprites_by_layer: (a: number, b: number, c: number) => any;
+    readonly tablesync_get_table_data: (a: number) => any;
+    readonly tablesync_get_table_id: (a: number) => [number, number];
+    readonly tablesync_handle_error: (a: number, b: number, c: number) => void;
+    readonly tablesync_handle_sprite_update: (a: number, b: any) => [number, number];
+    readonly tablesync_handle_table_data: (a: number, b: any) => [number, number];
+    readonly tablesync_new: () => number;
+    readonly tablesync_set_error_handler: (a: number, b: any) => void;
+    readonly tablesync_set_sprite_update_handler: (a: number, b: any) => void;
+    readonly tablesync_set_table_received_handler: (a: number, b: any) => void;
     readonly calculate_asset_hash: (a: number, b: number) => [number, number];
+    readonly core_build_fingerprint: () => [number, number];
     readonly init_game_renderer: (a: any) => [number, number, number];
     readonly main: () => void;
     readonly renderengine_add_fog_polygon: (a: number, b: number, c: number, d: any) => [number, number];
@@ -691,32 +723,6 @@ export interface InitOutput {
     readonly renderengine_update_wall: (a: number, b: number, c: number, d: number, e: number) => number;
     readonly renderengine_world_to_screen: (a: number, b: number, c: number) => [number, number];
     readonly version: () => [number, number];
-    readonly __wbg_actionsclient_free: (a: number, b: number) => void;
-    readonly __wbg_tablesync_free: (a: number, b: number) => void;
-    readonly actionsclient_can_redo: (a: number) => number;
-    readonly actionsclient_can_undo: (a: number) => number;
-    readonly actionsclient_get_action_history: (a: number) => any;
-    readonly actionsclient_get_all_tables: (a: number) => any;
-    readonly actionsclient_get_sprite_info: (a: number, b: number, c: number) => any;
-    readonly actionsclient_get_sprites_by_layer: (a: number, b: number, c: number) => any;
-    readonly actionsclient_get_table_info: (a: number, b: number, c: number) => any;
-    readonly actionsclient_new: () => number;
-    readonly actionsclient_redo: (a: number) => any;
-    readonly actionsclient_set_action_handler: (a: number, b: any) => void;
-    readonly actionsclient_set_error_handler: (a: number, b: any) => void;
-    readonly actionsclient_set_state_change_handler: (a: number, b: any) => void;
-    readonly actionsclient_undo: (a: number) => any;
-    readonly tablesync_get_sprites: (a: number) => any;
-    readonly tablesync_get_sprites_by_layer: (a: number, b: number, c: number) => any;
-    readonly tablesync_get_table_data: (a: number) => any;
-    readonly tablesync_get_table_id: (a: number) => [number, number];
-    readonly tablesync_handle_error: (a: number, b: number, c: number) => void;
-    readonly tablesync_handle_sprite_update: (a: number, b: any) => [number, number];
-    readonly tablesync_handle_table_data: (a: number, b: any) => [number, number];
-    readonly tablesync_new: () => number;
-    readonly tablesync_set_error_handler: (a: number, b: any) => void;
-    readonly tablesync_set_sprite_update_handler: (a: number, b: any) => void;
-    readonly tablesync_set_table_received_handler: (a: number, b: any) => void;
     readonly renderengine_cancel_current_operation: (a: number) => number;
     readonly renderengine_clear_selection: (a: number) => void;
     readonly renderengine_get_cursor_type: (a: number, b: number, c: number) => [number, number];
@@ -732,7 +738,7 @@ export interface InitOutput {
     readonly renderengine_set_alt_pressed: (a: number, b: number) => void;
     readonly renderengine_start_camera_pan: (a: number, b: number, c: number) => void;
     readonly renderengine_translate_selected_walls: (a: number, b: number, c: number) => any;
-    readonly wasm_bindgen__convert__closures_____invoke__hb5f1b9d6ca71a5e3: (a: number, b: number) => void;
+    readonly wasm_bindgen__convert__closures_____invoke__h80981db08fed23f8: (a: number, b: number) => void;
     readonly __wbindgen_malloc: (a: number, b: number) => number;
     readonly __wbindgen_realloc: (a: number, b: number, c: number, d: number) => number;
     readonly __wbindgen_exn_store: (a: number) => void;

@@ -2105,6 +2105,23 @@ export function compute_visibility_polygon(player_x, player_y, obstacles, max_di
 }
 
 /**
+ * Deterministic identity of the Rust sources and locked build inputs.
+ * @returns {string}
+ */
+export function core_build_fingerprint() {
+    let deferred1_0;
+    let deferred1_1;
+    try {
+        const ret = wasm.core_build_fingerprint();
+        deferred1_0 = ret[0];
+        deferred1_1 = ret[1];
+        return getStringFromWasm0(ret[0], ret[1]);
+    } finally {
+        wasm.__wbindgen_free(deferred1_0, deferred1_1, 1);
+    }
+}
+
+/**
  * @returns {any[]}
  */
 export function create_default_brush_presets() {
@@ -2708,7 +2725,7 @@ function __wbg_get_imports() {
         },
         __wbindgen_cast_0000000000000001: function(arg0, arg1) {
             // Cast intrinsic for `Closure(Closure { owned: true, function: Function { arguments: [], shim_idx: 65, ret: Unit, inner_ret: Some(Unit) }, mutable: true }) -> Externref`.
-            const ret = makeMutClosure(arg0, arg1, wasm_bindgen__convert__closures_____invoke__hb5f1b9d6ca71a5e3);
+            const ret = makeMutClosure(arg0, arg1, wasm_bindgen__convert__closures_____invoke__h80981db08fed23f8);
             return ret;
         },
         __wbindgen_cast_0000000000000002: function(arg0) {
@@ -2757,8 +2774,8 @@ function __wbg_get_imports() {
     };
 }
 
-function wasm_bindgen__convert__closures_____invoke__hb5f1b9d6ca71a5e3(arg0, arg1) {
-    wasm.wasm_bindgen__convert__closures_____invoke__hb5f1b9d6ca71a5e3(arg0, arg1);
+function wasm_bindgen__convert__closures_____invoke__h80981db08fed23f8(arg0, arg1) {
+    wasm.wasm_bindgen__convert__closures_____invoke__h80981db08fed23f8(arg0, arg1);
 }
 
 const ActionsClientFinalization = (typeof FinalizationRegistry === 'undefined')

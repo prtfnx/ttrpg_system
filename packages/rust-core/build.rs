@@ -47,11 +47,9 @@ fn main() {
         println!("cargo:rerun-if-changed={relative}");
         update_hash(&mut hash, relative.as_bytes());
         update_hash(&mut hash, &[0]);
-        update_hash(
-            &mut hash,
-            &fs::read(&path)
-                .unwrap_or_else(|error| panic!("failed to read {}: {error}", path.display())),
-        );
+        let contents = fs::read_to_string(&path)
+            .unwrap_or_else(|error| panic!("failed to read {}: {error}", path.display()));
+        update_hash(&mut hash, contents.replace("\r\n", "\n").as_bytes());
         update_hash(&mut hash, &[0]);
     }
 

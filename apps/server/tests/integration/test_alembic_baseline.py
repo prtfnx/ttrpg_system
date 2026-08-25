@@ -36,11 +36,15 @@ def test_baseline_upgrades_an_empty_database_to_model_head(tmp_path, monkeypatch
             revision = connection.execute(
                 text("SELECT version_num FROM alembic_version")
             ).scalar_one()
+            quota_state_ids = connection.execute(
+                text("SELECT id FROM asset_quota_state ORDER BY id")
+            ).scalars().all()
     finally:
         engine.dispose()
 
     assert tables == set(Base.metadata.tables) | {"alembic_version"}
     assert revision == HEAD_REVISION
+    assert quota_state_ids == [1]
     command.check(config)
 
 

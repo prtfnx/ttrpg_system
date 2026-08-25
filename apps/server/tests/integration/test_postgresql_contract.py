@@ -68,7 +68,11 @@ def postgresql_engine():
                 text(f'SELECT COUNT(*) FROM "{table_name}"')
             ).scalar_one()
             for table_name in Base.metadata.tables
+            if table_name != "asset_quota_state"
         }
+        quota_state_ids = connection.execute(
+            text("SELECT id FROM asset_quota_state ORDER BY id")
+        ).scalars().all()
     nonempty_tables = {
         table_name: count
         for table_name, count in nonempty_tables.items()
@@ -77,6 +81,10 @@ def postgresql_engine():
     assert not nonempty_tables, (
         "Refusing PostgreSQL integration tests against nonempty application tables: "
         f"{sorted(nonempty_tables)}"
+    )
+    assert quota_state_ids == [1], (
+        "Refusing PostgreSQL integration tests with unexpected asset quota state: "
+        f"{quota_state_ids}"
     )
 
     try:

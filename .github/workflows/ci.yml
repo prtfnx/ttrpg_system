@@ -110,6 +110,10 @@ jobs:
           -ChromePath '${{ steps.chrome.outputs.chrome-path }}'
           -ChromeDriver '${{ steps.chrome.outputs.chromedriver-path }}'
         working-directory: packages/rust-core
+      - name: Preserve tracked WASM fingerprint
+        run: >-
+          cp apps/web-ui/src/lib/wasm/generated/ttrpg_rust_core_bg.wasm
+          "$RUNNER_TEMP/tracked-ttrpg-rust-core.wasm"
       - name: Build WASM
         run: >-
           wasm-pack build
@@ -120,17 +124,13 @@ jobs:
           --features wasm-start
           --locked
         working-directory: packages/rust-core
-      - name: Verify tracked WASM bindings are current
-        # wasm-bindgen embeds host-specific source paths in the binary, so a
-        # Windows-produced .wasm cannot be compared byte-for-byte on Linux.
-        # The generated bindings are deterministic and still detect stale API
-        # artifacts while the successful build validates the binary itself.
+      - name: Verify tracked WASM source fingerprint is current
+        # wasm-bindgen output contains host-specific paths and ordering. The
+        # embedded fingerprint covers Rust sources and locked build inputs.
         run: >-
-          git diff --exit-code --
-          apps/web-ui/src/lib/wasm/generated/package.json
-          apps/web-ui/src/lib/wasm/generated/ttrpg_rust_core.d.ts
-          apps/web-ui/src/lib/wasm/generated/ttrpg_rust_core.js
-          apps/web-ui/src/lib/wasm/generated/ttrpg_rust_core_bg.wasm.d.ts
+          node packages/rust-core/scripts/verify-wasm-fingerprint.mjs
+          "$RUNNER_TEMP/tracked-ttrpg-rust-core.wasm"
+          apps/web-ui/src/lib/wasm/generated/ttrpg_rust_core_bg.wasm
 
   server:
     name: Server (lint + test + coverage)

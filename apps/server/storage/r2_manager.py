@@ -3,7 +3,6 @@ Cloudflare R2 Asset Manager for TTRPG System.
 Production-ready boto3-based implementation following Cloudflare best practices.
 """
 import logging
-import os
 from typing import Any, Dict, List, Optional
 
 import boto3
@@ -11,7 +10,6 @@ from botocore.config import Config
 from botocore.exceptions import ClientError
 from config import Settings
 
-_settings = Settings()
 logger = logging.getLogger(__name__)
 
 class R2AssetManager:
@@ -19,7 +17,8 @@ class R2AssetManager:
     Cloudflare R2 storage manager using boto3.
     Follows Cloudflare documentation best practices.
     """
-    def __init__(self):
+    def __init__(self, settings: Optional[Settings] = None):
+        self.settings = settings or Settings()
         self._s3_client = None
 
     @property
@@ -43,20 +42,19 @@ class R2AssetManager:
             self._s3_client = boto3.client(
                 's3',
                 endpoint_url=endpoint_url,
-                aws_access_key_id=_settings.r2_access_key,
-                aws_secret_access_key=_settings.r2_secret_key,
+                aws_access_key_id=self.settings.r2_access_key,
+                aws_secret_access_key=self.settings.r2_secret_key,
                 config=config
             )
         return self._s3_client
 
     def _build_endpoint_url(self) -> str:
         """Build the R2 endpoint URL"""
-        if _settings.r2_endpoint:
+        if self.settings.r2_endpoint:
             # If a full endpoint is provided, use it
-            return _settings.r2_endpoint
+            return self.settings.r2_endpoint
 
-        # Try to get account ID from environment or settings
-        account_id = os.getenv('R2_ACCOUNT_ID') or _settings.r2_account_id
+        account_id = self.settings.r2_account_id
 
         if not account_id:
             raise ValueError("Either R2_ENDPOINT or R2_ACCOUNT_ID must be configured")
@@ -65,38 +63,37 @@ class R2AssetManager:
 
     def is_r2_configured(self) -> bool:
         """Check if R2 is properly configured"""
-        if not _settings.r2_enabled:
+        if not self.settings.r2_enabled:
             return False
 
         required_settings = [
-            _settings.r2_access_key,
-            _settings.r2_secret_key,
-            _settings.r2_bucket_name
+            self.settings.r2_access_key,
+            self.settings.r2_secret_key,
+            self.settings.r2_bucket_name
         ]
 
         has_endpoint_config = bool(
-            _settings.r2_endpoint or
-            os.getenv('R2_ACCOUNT_ID') or
-            _settings.r2_account_id
+            self.settings.r2_endpoint or
+            self.settings.r2_account_id
         )
 
         return all(required_settings) and has_endpoint_config
 
     def _build_public_url(self, file_key: str) -> str:
         """Build public URL for a file key"""
-        if _settings.r2_public_url:
-            return f"{_settings.r2_public_url.rstrip('/')}/{file_key}"
+        if self.settings.r2_public_url:
+            return f"{self.settings.r2_public_url.rstrip('/')}/{file_key}"
         else:
             # Use the R2 endpoint for direct access
             endpoint = self._build_endpoint_url()
-            return f"{endpoint}/{_settings.r2_bucket_name}/{file_key}"
+            return f"{endpoint}/{self.settings.r2_bucket_name}/{file_key}"
 
     def get_presigned_url(self, file_key: str, expiration: int = 3600) -> Optional[str]:
         """Generate presigned URL for file access"""
         try:
             url = self.s3_client.generate_presigned_url(
                 'get_object',
-                Params={'Bucket': _settings.r2_bucket_name, 'Key': file_key},
+                Params={'Bucket': self.settings.r2_bucket_name, 'Key': file_key},
                 ExpiresIn=expiration
             )
             return url
@@ -108,7 +105,7 @@ class R2AssetManager:
         """Delete file from R2 storage"""
         try:
             self.s3_client.delete_object(
-                Bucket=_settings.r2_bucket_name,
+                Bucket=self.settings.r2_bucket_name,
                 Key=file_key
             )
             logger.info("R2 object deleted", extra={"event_name": "r2.object.deleted"})
@@ -122,8 +119,8 @@ class R2AssetManager:
         try:
             if not self.object_exists(destination_key):
                 self.s3_client.copy_object(
-                    Bucket=_settings.r2_bucket_name,
-                    CopySource={"Bucket": _settings.r2_bucket_name, "Key": source_key},
+                    Bucket=self.settings.r2_bucket_name,
+                    CopySource={"Bucket": self.settings.r2_bucket_name, "Key": source_key},
                     Key=destination_key,
                     MetadataDirective="COPY"
                 )
@@ -143,7 +140,7 @@ class R2AssetManager:
         """List objects in R2 bucket"""
         try:
             response = self.s3_client.list_objects_v2(
-                Bucket=_settings.r2_bucket_name,
+                Bucket=self.settings.r2_bucket_name,
                 Prefix=prefix,
                 MaxKeys=max_keys
             )
@@ -166,7 +163,7 @@ class R2AssetManager:
         """Get information about a specific object"""
         try:
             response = self.s3_client.head_object(
-                Bucket=_settings.r2_bucket_name,
+                Bucket=self.settings.r2_bucket_name,
                 Key=file_key
             )
 
@@ -185,7 +182,7 @@ class R2AssetManager:
     def get_object_bytes(self, file_key: str, max_bytes: int) -> bytes:
         """Read a private object with a hard memory limit for content inspection."""
         response = self.s3_client.get_object(
-            Bucket=_settings.r2_bucket_name,
+            Bucket=self.settings.r2_bucket_name,
             Key=file_key
         )
         body = response["Body"]
@@ -221,7 +218,7 @@ class R2AssetManager:
                 url = self.s3_client.generate_presigned_url(
                     'get_object',
                     Params={
-                        'Bucket': _settings.r2_bucket_name,
+                        'Bucket': self.settings.r2_bucket_name,
                         'Key': file_key
                     },
                     ExpiresIn=expiration
@@ -230,7 +227,7 @@ class R2AssetManager:
                 url = self.s3_client.generate_presigned_url(
                     'put_object',
                     Params={
-                        'Bucket': _settings.r2_bucket_name,
+                        'Bucket': self.settings.r2_bucket_name,
                         'Key': file_key
                     },
                     ExpiresIn=expiration
@@ -239,7 +236,7 @@ class R2AssetManager:
                 url = self.s3_client.generate_presigned_url(
                     'delete_object',
                     Params={
-                        'Bucket': _settings.r2_bucket_name,
+                        'Bucket': self.settings.r2_bucket_name,
                         'Key': file_key
                     },
                     ExpiresIn=expiration
@@ -275,7 +272,7 @@ class R2AssetManager:
         """
         try:
             self.s3_client.head_object(
-                Bucket=_settings.r2_bucket_name,
+                Bucket=self.settings.r2_bucket_name,
                 Key=file_key
             )
             return True
@@ -294,7 +291,7 @@ class R2AssetManager:
         """Get stored xxHash for an object"""
         try:
             response = self.s3_client.head_object(
-                Bucket=_settings.r2_bucket_name,
+                Bucket=self.settings.r2_bucket_name,
                 Key=file_key
             )
             return response.get('Metadata', {}).get('xxhash')
@@ -318,7 +315,7 @@ class R2AssetManager:
                 expiration = max_expiration
 
             params: Dict[str, Any] = {
-                'Bucket': _settings.r2_bucket_name,
+                'Bucket': self.settings.r2_bucket_name,
                 'Key': file_key,
                 'Metadata': {
                     'xxhash': xxhash

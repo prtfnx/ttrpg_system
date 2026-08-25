@@ -102,9 +102,9 @@ class ServerAssetManager:
     """Server-side asset management with R2 integration"""
 
     def __init__(self):
-        self.r2_manager = R2AssetManager()
-        self.session_permissions: Dict[str, Dict[int, AssetPermission]] = {}  # session_code -> user_id -> permissions
         self.settings = Settings()
+        self.r2_manager = R2AssetManager(self.settings)
+        self.session_permissions: Dict[str, Dict[int, AssetPermission]] = {}  # session_code -> user_id -> permissions
         self.asset_links = AssetLinkService(self.settings)
 
         self._asset_rate_limiter = DurableAssetRateLimiter(lambda: SessionLocal())
@@ -1118,7 +1118,7 @@ class ServerAssetManager:
                     xxhash=asset_data.get("xxhash", ""),
                     uploaded_by=asset_data["uploaded_by"],
                     r2_key=asset_data["r2_key"],
-                    r2_bucket=Settings().r2_bucket_name or "default",
+                    r2_bucket=self.settings.r2_bucket_name or "default",
                     created_at=utc_now(),
                     last_accessed=utc_now()
                 )

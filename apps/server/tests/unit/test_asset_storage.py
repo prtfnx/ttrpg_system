@@ -119,6 +119,12 @@ def _manager(monkeypatch, test_db, object_exists=True, **r2_kwargs):
     return manager
 
 
+def test_asset_manager_shares_settings_with_r2_client():
+    manager = ServerAssetManager()
+
+    assert manager.r2_manager.settings is manager.settings
+
+
 async def _request_upload(
     manager, test_user, test_game_session, xxhash=VALID_XXHASH, file_size=len(VALID_PNG)
 ):

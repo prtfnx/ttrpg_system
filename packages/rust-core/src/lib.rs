@@ -6,6 +6,12 @@
 
 use wasm_bindgen::prelude::*;
 
+/// Deterministic identity of the Rust sources and locked build inputs.
+#[wasm_bindgen]
+pub fn core_build_fingerprint() -> String {
+    env!("TTRPG_CORE_BUILD_FINGERPRINT").to_owned()
+}
+
 // ===== RUST WASM LOGGING BEST PRACTICES =====
 // Feature-based conditional compilation for different log levels
 // Usage: cargo build --features="log-debug" for debug logs

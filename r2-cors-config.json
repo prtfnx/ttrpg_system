@@ -10,8 +10,7 @@
     "AllowedMethods": ["GET", "HEAD", "PUT"],
     "AllowedHeaders": [
       "Content-Type",
-      "x-amz-meta-xxhash",
-      "x-amz-meta-upload-timestamp"
+      "x-amz-meta-xxhash"
     ],
     "ExposeHeaders": ["ETag"],
     "MaxAgeSeconds": 3600

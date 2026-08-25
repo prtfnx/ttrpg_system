@@ -142,6 +142,23 @@ test('does not reflect a rejected preflight origin', async () => {
   assert.equal(response.headers.get('Access-Control-Allow-Origin'), null);
 });
 
+test('rejects retired unsigned upload metadata during preflight', async () => {
+  const { env } = environment();
+  const request = new Request('https://assets.example.com/v1/assets/asset-1', {
+    method: 'OPTIONS',
+    headers: {
+      'Access-Control-Request-Headers': 'content-type, x-amz-meta-upload-timestamp',
+      'Access-Control-Request-Method': 'PUT',
+      Origin: 'https://game.example.com',
+    },
+  });
+
+  const response = await handleRequest(request, env, { waitUntil() {} });
+
+  assert.equal(response.status, 403);
+  assert.equal(response.headers.get('Access-Control-Allow-Origin'), 'https://game.example.com');
+});
+
 test('reserves one Class B operation on a cache miss and caches the object', async () => {
   const { env, objects, reservations } = environment();
   const body = new TextEncoder().encode('image');

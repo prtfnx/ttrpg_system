@@ -6,7 +6,6 @@ const FREE_PROFILE_CLASS_A_LIMIT = 800000;
 const FREE_PROFILE_CLASS_B_LIMIT = 8000000;
 const ALLOWED_UPLOAD_HEADERS = new Set([
   'content-type',
-  'x-amz-meta-upload-timestamp',
   'x-amz-meta-xxhash',
 ]);
 

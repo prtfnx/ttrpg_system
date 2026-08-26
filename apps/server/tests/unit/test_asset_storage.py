@@ -125,6 +125,31 @@ def test_asset_manager_shares_settings_with_r2_client():
     assert manager.r2_manager.settings is manager.settings
 
 
+def test_asset_stats_expose_cleanup_backlog(monkeypatch, test_db, test_user, test_game_session):
+    manager = _manager(monkeypatch, test_db)
+    for index, status in enumerate([
+        "awaiting_upload", "cleanup_pending", "cleanup_retry", "cleanup_failed",
+    ]):
+        test_db.add(models.AssetUploadIntent(
+            asset_id=f"stats-{index}",
+            filename=f"stats-{index}.png",
+            r2_key=f"pending/STATS/stats-{index}.png",
+            session_id=test_game_session.id,
+            session_code=test_game_session.session_code,
+            uploaded_by=test_user.id,
+            file_size=1,
+            status=status,
+        ))
+    test_db.commit()
+
+    stats = manager.get_stats()
+
+    assert stats["pending_uploads"] == 1
+    assert stats["cleanup_pending_uploads"] == 2
+    assert stats["cleanup_failed_uploads"] == 1
+    assert stats["failed_uploads"] == 1
+
+
 async def _request_upload(
     manager, test_user, test_game_session, xxhash=VALID_XXHASH, file_size=len(VALID_PNG)
 ):

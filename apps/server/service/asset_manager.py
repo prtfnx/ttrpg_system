@@ -884,8 +884,17 @@ class ServerAssetManager:
             failed_uploads = db.query(AssetUploadIntent).filter(
                 AssetUploadIntent.status.in_([
                     "failed", "missing_object", "verification_failed", "inspection_failed",
-                    "promotion_failed", "metadata_failed", "link_failed", "expired"
+                    "promotion_failed", "metadata_failed", "link_failed", "expired",
+                    "cleanup_failed",
                 ])
+            ).count()
+            cleanup_pending_uploads = db.query(AssetUploadIntent).filter(
+                AssetUploadIntent.status.in_([
+                    "cleanup_pending", "cleanup_processing", "cleanup_retry",
+                ])
+            ).count()
+            cleanup_failed_uploads = db.query(AssetUploadIntent).filter(
+                AssetUploadIntent.status == "cleanup_failed"
             ).count()
         finally:
             db.close()
@@ -895,6 +904,8 @@ class ServerAssetManager:
             "uploaded_assets": total_assets,
             "pending_uploads": pending_uploads,
             "failed_uploads": failed_uploads,
+            "cleanup_pending_uploads": cleanup_pending_uploads,
+            "cleanup_failed_uploads": cleanup_failed_uploads,
             "r2_configured": self.r2_manager.is_r2_configured(),
             "active_sessions": len(self.session_permissions),
             "note": "Confirmed assets and pending upload intents are durable"

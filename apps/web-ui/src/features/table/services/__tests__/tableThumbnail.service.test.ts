@@ -111,23 +111,21 @@ describe('TableThumbnailService', () => {
       expect(thumbnail?.height).toBe(180);
     });
 
-    it('generates thumbnails for any table (regardless of active status)', async () => {
+    it('does not cache the active canvas under an inactive table', async () => {
       tableThumbnailService.initialize(mockRenderEngine);
-      // The service doesn't check active table - it generates thumbnails for any valid UUID
       mockRenderEngine.get_active_table_id.mockReturnValue(validUUID);
       
       const thumbnail = await tableThumbnailService.generateThumbnail(
-        validUUID2, // Different table ID
+        validUUID2,
         1920,
         1080,
         320,
         180
       );
       
-      // Service generates thumbnail regardless of active status
-      expect(thumbnail).not.toBeNull();
-      expect(thumbnail?.width).toBe(320);
-      expect(thumbnail?.height).toBe(180);
+      expect(thumbnail).toBeNull();
+      expect(mockRenderEngine.render).not.toHaveBeenCalled();
+      expect(tableThumbnailService.getCacheStats().size).toBe(0);
     });
 
     it('throws error when render engine not initialized', async () => {

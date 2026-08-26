@@ -8,6 +8,7 @@ interface ThumbnailCacheEntry {
 }
 
 interface ThumbnailRenderEngine {
+  get_active_table_id(): string | undefined;
   render(): void;
 }
 
@@ -94,6 +95,11 @@ class TableThumbnailService {
     if (!this.renderEngine) {
       throw new Error('RenderEngine not available - cannot generate thumbnail');
     }
+
+    if (this.renderEngine.get_active_table_id() !== tableId) {
+      logger.debug(`[ThumbnailService] Table ${tableId} is not active; using placeholder`);
+      return null;
+    }
     
     this.isGenerating.add(cacheKey);
     
@@ -172,6 +178,10 @@ class TableThumbnailService {
       // The render loop runs in WASM Rust and may not be producing frames
       // when the GameCanvas is not visible (e.g., on Tables tab)
       logger.debug('[ThumbnailService] Triggering render frame before capture');
+      if (this.renderEngine.get_active_table_id() !== tableId) {
+        logger.debug(`[ThumbnailService] Active table changed before capture: ${tableId}`);
+        return null;
+      }
       try {
         this.renderEngine.render();
         // Wait for the render to complete (WebGL/WASM operations)

@@ -1,6 +1,7 @@
 use std::env;
 use std::fs;
 use std::path::{Path, PathBuf};
+use std::process::Command;
 
 const FNV_OFFSET_BASIS: u64 = 0xcbf29ce484222325;
 const FNV_PRIME: u64 = 0x100000001b3;
@@ -25,6 +26,21 @@ fn update_hash(hash: &mut u64, bytes: &[u8]) {
         *hash ^= u64::from(*byte);
         *hash = hash.wrapping_mul(FNV_PRIME);
     }
+}
+
+fn rustc_version() -> String {
+    let rustc = env::var_os("RUSTC").unwrap_or_else(|| "rustc".into());
+    let output = Command::new(&rustc)
+        .arg("--version")
+        .output()
+        .unwrap_or_else(|error| panic!("failed to run {rustc:?} --version: {error}"));
+    if !output.status.success() {
+        panic!("{rustc:?} --version exited with {}", output.status);
+    }
+    String::from_utf8(output.stdout)
+        .expect("rustc version must be UTF-8")
+        .trim()
+        .to_owned()
 }
 
 fn main() {
@@ -52,6 +68,12 @@ fn main() {
         update_hash(&mut hash, contents.replace("\r\n", "\n").as_bytes());
         update_hash(&mut hash, &[0]);
     }
+
+    println!("cargo:rerun-if-env-changed=RUSTC");
+    update_hash(&mut hash, b"rustc-version");
+    update_hash(&mut hash, &[0]);
+    update_hash(&mut hash, rustc_version().as_bytes());
+    update_hash(&mut hash, &[0]);
 
     println!("cargo:rustc-env=TTRPG_CORE_BUILD_FINGERPRINT=fnv1a64:{hash:016x}");
 }

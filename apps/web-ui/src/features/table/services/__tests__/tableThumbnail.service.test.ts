@@ -320,6 +320,19 @@ describe('TableThumbnailService', () => {
       expect(stats.tables.length).toBe(0);
     });
 
+    it('cancels stale invalidations when clearing the cache', async () => {
+      tableThumbnailService.initialize(mockRenderEngine);
+      mockRenderEngine.get_active_table_id.mockReturnValue(validUUID);
+      await tableThumbnailService.generateThumbnail(validUUID, 1920, 1080, 200, 150);
+
+      tableThumbnailService.invalidateTable(validUUID);
+      tableThumbnailService.clearCache();
+      await tableThumbnailService.generateThumbnail(validUUID, 1920, 1080, 200, 150);
+      await new Promise(resolve => setTimeout(resolve, 350));
+
+      expect(tableThumbnailService.getCacheStats().size).toBe(1);
+    });
+
     it('debounces rapid invalidations', async () => {
       tableThumbnailService.initialize(mockRenderEngine);
       mockRenderEngine.get_active_table_id.mockReturnValue(validUUID);

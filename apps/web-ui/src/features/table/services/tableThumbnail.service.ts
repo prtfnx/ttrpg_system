@@ -356,6 +356,8 @@ class TableThumbnailService {
    */
   clearCache(): void {
     const count = this.cache.size;
+    this.debounceTimers.forEach(timer => clearTimeout(timer));
+    this.debounceTimers.clear();
     this.cache.clear();
     logger.debug(`[ThumbnailService] Cleared ${count} cached thumbnails`);
   }

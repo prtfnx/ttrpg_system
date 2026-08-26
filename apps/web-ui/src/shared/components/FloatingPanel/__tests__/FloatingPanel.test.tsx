@@ -4,9 +4,13 @@ import { FloatingPanel } from '../FloatingPanel';
 
 // Mock Draggable — render children directly, simulate drag via onStop
 vi.mock('react-draggable', () => ({
-  default: ({ children, onStop }: { children: React.ReactNode; onStop?: (e: unknown, data: { x: number; y: number }) => void }) => {
+  default: ({ children, onStop, position }: { children: React.ReactNode; onStop?: (e: unknown, data: { x: number; y: number }) => void; position?: { x: number; y: number } }) => {
     return (
-      <div data-testid="draggable" onDoubleClick={() => onStop?.({}, { x: 50, y: 80 })}>
+      <div
+        data-testid="draggable"
+        data-position={position ? `${position.x},${position.y}` : undefined}
+        onDoubleClick={() => onStop?.({}, { x: 50, y: 80 })}
+      >
         {children}
       </div>
     );
@@ -121,5 +125,37 @@ describe('FloatingPanel', () => {
         </FloatingPanel>
       )
     ).not.toThrow();
+  });
+
+  it('ignores persisted positions with invalid field types', () => {
+    localStorage.setItem('fp-pos-invalid', JSON.stringify({ x: 'far', y: null }));
+
+    render(
+      <FloatingPanel
+        id="invalid"
+        title="Invalid state"
+        defaultPos={{ x: 12, y: 34 }}
+        onClose={() => {}}
+      >
+        <div />
+      </FloatingPanel>
+    );
+
+    expect(screen.getByTestId('draggable').dataset.position).toBe('12,34');
+  });
+
+  it('keeps dragging when localStorage writes fail', () => {
+    const setItem = vi.spyOn(Storage.prototype, 'setItem').mockImplementation(() => {
+      throw new DOMException('Storage full', 'QuotaExceededError');
+    });
+
+    render(
+      <FloatingPanel id="storage-full" title="T" onClose={() => {}}>
+        <div />
+      </FloatingPanel>
+    );
+
+    expect(() => fireEvent.dblClick(screen.getByTestId('draggable'))).not.toThrow();
+    setItem.mockRestore();
   });
 });

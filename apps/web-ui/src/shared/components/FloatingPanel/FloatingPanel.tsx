@@ -21,10 +21,45 @@ type Size = { width: number; height: number };
 
 const HEADER_H = 32;
 
-const loadPos = (id: string): Pos | null => { try { return JSON.parse(localStorage.getItem(`fp-pos-${id}`) ?? 'null'); } catch { return null; } };
-const savePos = (id: string, p: Pos) => localStorage.setItem(`fp-pos-${id}`, JSON.stringify(p));
-const loadSize = (id: string): Size | null => { try { return JSON.parse(localStorage.getItem(`fp-size-${id}`) ?? 'null'); } catch { return null; } };
-const saveSize = (id: string, s: Size) => localStorage.setItem(`fp-size-${id}`, JSON.stringify(s));
+const isFiniteNumber = (value: unknown): value is number => (
+  typeof value === 'number' && Number.isFinite(value)
+);
+
+const loadPos = (id: string): Pos | null => {
+  try {
+    const value: unknown = JSON.parse(localStorage.getItem(`fp-pos-${id}`) ?? 'null');
+    if (typeof value !== 'object' || value === null) return null;
+    const position = value as Partial<Pos>;
+    return isFiniteNumber(position.x) && isFiniteNumber(position.y) ? position as Pos : null;
+  } catch {
+    return null;
+  }
+};
+
+const loadSize = (id: string): Size | null => {
+  try {
+    const value: unknown = JSON.parse(localStorage.getItem(`fp-size-${id}`) ?? 'null');
+    if (typeof value !== 'object' || value === null) return null;
+    const size = value as Partial<Size>;
+    return isFiniteNumber(size.width) && size.width > 0
+      && isFiniteNumber(size.height) && size.height > 0
+      ? size as Size
+      : null;
+  } catch {
+    return null;
+  }
+};
+
+const saveState = (key: string, value: Pos | Size): void => {
+  try {
+    localStorage.setItem(key, JSON.stringify(value));
+  } catch {
+    // Storage can be unavailable or full; panel interaction must still work.
+  }
+};
+
+const savePos = (id: string, position: Pos) => saveState(`fp-pos-${id}`, position);
+const saveSize = (id: string, size: Size) => saveState(`fp-size-${id}`, size);
 
 export function FloatingPanel({ id, title, defaultPos = { x: 80, y: 80 }, defaultSize = { width: 280, height: 400 }, minWidth = 240, minHeight = 200, onClose, children }: Props) {
   const [pos, setPos] = useState<Pos>(() => loadPos(id) ?? defaultPos);

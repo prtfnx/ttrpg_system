@@ -1,5 +1,6 @@
 import { isValidUUID } from '@lib/websocket';
 import { logger } from '@shared/utils/logger';
+import { getTablePreviewPalette } from './tablePreviewTheme';
 
 interface ThumbnailCacheEntry {
   imageData: ImageData;
@@ -227,7 +228,7 @@ class TableThumbnailService {
         const offsetY = (thumbnailHeight - scaledHeight) / 2;
         
         // Fill background
-        ctx.fillStyle = '#1a1a1a';
+        ctx.fillStyle = getTablePreviewPalette().background;
         ctx.fillRect(0, 0, thumbnailWidth, thumbnailHeight);
         
         // Draw scaled version of main canvas (zero-copy approach like Figma)

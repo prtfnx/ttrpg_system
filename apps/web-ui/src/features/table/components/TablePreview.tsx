@@ -3,6 +3,7 @@ import { useWasmRuntime, useWasmStatus } from '@lib/wasm/runtime';
 import { logger } from '@shared/utils/logger';
 import React, { useEffect, useRef, useState } from 'react';
 import { tableThumbnailService } from '../services/tableThumbnail.service';
+import { getTablePreviewPalette } from '../services/tablePreviewTheme';
 
 interface TablePreviewProps {
   table: TableInfo;
@@ -72,16 +73,17 @@ export const TablePreview: React.FC<TablePreviewProps> = ({
     const renderThumbnail = async () => {
       setIsLoading(true);
       setError(null);
+      const palette = getTablePreviewPalette();
       
       // Draw loading state immediately
-      ctx.fillStyle = '#1a1a1a';
+      ctx.fillStyle = palette.background;
       ctx.fillRect(0, 0, width, height);
       
-      ctx.strokeStyle = '#444';
+      ctx.strokeStyle = palette.border;
       ctx.lineWidth = 2;
       ctx.strokeRect(1, 1, width - 2, height - 2);
       
-      ctx.fillStyle = '#888';
+      ctx.fillStyle = palette.mutedText;
       ctx.font = '12px sans-serif';
       ctx.textAlign = 'center';
       ctx.textBaseline = 'middle';
@@ -118,18 +120,18 @@ export const TablePreview: React.FC<TablePreviewProps> = ({
             // Table not active - show "Not Loaded" placeholder
             logger.debug(`[TablePreview] Table ${table.table_id} not active, showing placeholder`);
             
-            ctx.fillStyle = '#1a1a1a';
+            ctx.fillStyle = palette.background;
             ctx.fillRect(0, 0, width, height);
             
             // Draw dashed border
             ctx.setLineDash([5, 5]);
-            ctx.strokeStyle = '#666';
+            ctx.strokeStyle = palette.subtleText;
             ctx.lineWidth = 2;
             ctx.strokeRect(2, 2, width - 4, height - 4);
             ctx.setLineDash([]);
             
             // Draw icon (table symbol)
-            ctx.strokeStyle = '#888';
+            ctx.strokeStyle = palette.mutedText;
             ctx.lineWidth = 2;
             const iconSize = 32;
             const iconX = width / 2;
@@ -149,13 +151,13 @@ export const TablePreview: React.FC<TablePreviewProps> = ({
             ctx.stroke();
             
             // Draw text
-            ctx.fillStyle = '#888';
+            ctx.fillStyle = palette.mutedText;
             ctx.font = '11px sans-serif';
             ctx.textAlign = 'center';
             ctx.textBaseline = 'top';
             ctx.fillText('Not Loaded', width / 2, height / 2 + 20);
             ctx.font = '9px sans-serif';
-            ctx.fillStyle = '#666';
+            ctx.fillStyle = palette.subtleText;
             ctx.fillText('(Switch to table to preview)', width / 2, height / 2 + 34);
           }
           setIsLoading(false);
@@ -166,14 +168,14 @@ export const TablePreview: React.FC<TablePreviewProps> = ({
           setError(err instanceof Error ? err.message : 'Failed to render thumbnail');
           
           // Draw error state - red border
-          ctx.fillStyle = '#1a1a1a';
+          ctx.fillStyle = palette.background;
           ctx.fillRect(0, 0, width, height);
           
-          ctx.strokeStyle = '#ff4444';
+          ctx.strokeStyle = palette.danger;
           ctx.lineWidth = 2;
           ctx.strokeRect(1, 1, width - 2, height - 2);
           
-          ctx.fillStyle = '#ff4444';
+          ctx.fillStyle = palette.danger;
           ctx.font = '12px sans-serif';
           ctx.textAlign = 'center';
           ctx.textBaseline = 'middle';

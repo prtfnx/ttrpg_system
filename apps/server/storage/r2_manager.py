@@ -21,6 +21,13 @@ class R2AssetManager:
         self.settings = settings or Settings()
         self._s3_client = None
 
+    @staticmethod
+    def _is_not_found(error: ClientError) -> bool:
+        response = error.response
+        code = str(response.get("Error", {}).get("Code", ""))
+        status = response.get("ResponseMetadata", {}).get("HTTPStatusCode")
+        return code in {"404", "NoSuchKey", "NotFound"} or status == 404
+
     @property
     def s3_client(self):
         """Lazy-loaded S3 client for R2 following Cloudflare best practices"""
@@ -175,9 +182,11 @@ class R2AssetManager:
                 'metadata': response.get('Metadata', {}),
                 'url': self._build_public_url(file_key)
             }
-        except ClientError:
+        except ClientError as error:
+            if self._is_not_found(error):
+                return None
             logger.exception("R2 object metadata read failed")
-            return None
+            raise
 
     def get_object_bytes(self, file_key: str, max_bytes: int) -> bytes:
         """Read a private object with a hard memory limit for content inspection."""
@@ -276,16 +285,11 @@ class R2AssetManager:
                 Key=file_key
             )
             return True
-        except ClientError as e:
-            error_code = e.response['Error']['Code']
-            if error_code == '404':
+        except ClientError as error:
+            if self._is_not_found(error):
                 return False
-            else:
-                logger.exception("R2 object existence check failed")
-                return False
-        except Exception:
-            logger.exception("Unexpected R2 object existence check failure")
-            return False
+            logger.exception("R2 object existence check failed")
+            raise
 
     def get_object_hash(self, file_key: str) -> Optional[str]:
         """Get stored xxHash for an object"""

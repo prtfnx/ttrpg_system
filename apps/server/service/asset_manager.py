@@ -1312,7 +1312,9 @@ class ServerAssetManager:
             object_info = self.r2_manager.get_object_info(intent.r2_key)
         except Exception:
             logger.exception("R2 upload metadata read failed")
-            return False, "Unable to read R2 object metadata", False, False
+            # The object may still exist when R2 is unavailable. Keep its
+            # storage reservation until cleanup can prove it was removed.
+            return False, "Unable to read R2 object metadata", True, False
 
         if not object_info:
             return False, "R2 object did not exist at confirmation time", False, False

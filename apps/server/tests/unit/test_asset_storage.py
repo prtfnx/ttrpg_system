@@ -40,6 +40,7 @@ class FakeR2Manager:
         delete_success=True,
         promote_success=True,
         upload_link_success=True,
+        info_error=False,
     ):
         self._object_exists = object_exists
         self.object_data = object_data
@@ -49,6 +50,7 @@ class FakeR2Manager:
         self.delete_success = delete_success
         self.promote_success = promote_success
         self.upload_link_success = upload_link_success
+        self.info_error = info_error
         self.deleted_keys = []
         self.promotions = []
         self.upload_expirations = []
@@ -71,6 +73,8 @@ class FakeR2Manager:
         return self._object_exists
 
     def get_object_info(self, file_key):
+        if self.info_error:
+            raise RuntimeError("R2 metadata unavailable")
         if not self._object_exists:
             return None
         return {
@@ -231,6 +235,20 @@ async def test_upload_confirmation_fails_without_r2_object(
     assert test_db.query(models.Asset).count() == 0
     intent = test_db.query(models.AssetUploadIntent).one()
     assert intent.status == "missing_object"
+
+
+async def test_upload_confirmation_reserves_bytes_when_r2_metadata_is_unavailable(
+    monkeypatch, test_db, test_user, test_game_session
+):
+    manager = _manager(monkeypatch, test_db, info_error=True)
+    response = await _request_upload(manager, test_user, test_game_session)
+
+    confirmed = await manager.confirm_upload(response.asset_id, test_user.id, upload_success=True)
+
+    assert confirmed is False
+    intent = test_db.query(models.AssetUploadIntent).one()
+    assert intent.status == "cleanup_pending"
+    assert intent.error_message == "Unable to read R2 object metadata"
 
 
 async def test_upload_link_failure_releases_reserved_intent(

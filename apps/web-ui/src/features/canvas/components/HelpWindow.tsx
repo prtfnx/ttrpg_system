@@ -72,6 +72,7 @@ export function HelpWindow({ onClose, zIndex }: HelpWindowProps) {
       minWidth={320}
       minHeight={300}
       zIndex={zIndex}
+      isTopmost
       onClose={onClose}
       onFocus={() => {}}
     >

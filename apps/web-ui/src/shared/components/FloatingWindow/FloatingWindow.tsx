@@ -14,6 +14,7 @@ interface FloatingWindowProps {
   initialX?: number;
   initialY?: number;
   zIndex: number;
+  isTopmost: boolean;
   minimized?: boolean;
   onClose: () => void;
   onFocus: () => void;
@@ -53,6 +54,7 @@ export function FloatingWindow({
   initialX,
   initialY,
   zIndex,
+  isTopmost,
   minimized: minimizedProp,
   onClose,
   onFocus,
@@ -90,11 +92,11 @@ export function FloatingWindow({
   // Escape key closes the topmost focused window
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') onClose();
+      if (e.key === 'Escape' && isTopmost && !isMinimized) onClose();
     };
     window.addEventListener('keydown', handler);
     return () => window.removeEventListener('keydown', handler);
-  }, [onClose]);
+  }, [isMinimized, isTopmost, onClose]);
 
   const root = document.getElementById('window-root');
   if (!root) return null;

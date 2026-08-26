@@ -36,6 +36,10 @@ function nextZ(windows: WindowEntry[]): number {
 
 export function WindowManagerProvider({ children }: { children: React.ReactNode }) {
   const [windows, setWindows] = useState<WindowEntry[]>([]);
+  const topmostVisibleZ = windows.reduce(
+    (highest, window) => window.minimized ? highest : Math.max(highest, window.zIndex),
+    Number.NEGATIVE_INFINITY,
+  );
 
   const openWindow = useCallback((
     id: string,
@@ -102,6 +106,7 @@ export function WindowManagerProvider({ children }: { children: React.ReactNode 
           id={w.id}
           title={w.title}
           zIndex={w.zIndex}
+          isTopmost={!w.minimized && w.zIndex === topmostVisibleZ}
           minimized={w.minimized}
           initialWidth={w.initialWidth}
           initialHeight={w.initialHeight}

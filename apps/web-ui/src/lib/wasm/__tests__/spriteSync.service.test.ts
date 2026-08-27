@@ -75,6 +75,17 @@ describe('SpriteSyncService', () => {
       expect(spy.mock.calls.length).toBeGreaterThan(0);
     });
 
+    it('does not register duplicate listeners when initialized twice', () => {
+      service.init();
+      service.init();
+
+      window.dispatchEvent(new CustomEvent('sprite-removed', {
+        detail: { sprite_id: 'sprite-1' },
+      }));
+
+      expect(engine.remove_sprite).toHaveBeenCalledOnce();
+    });
+
     it('dispose clears pending optimistic timers', () => {
       vi.useFakeTimers();
       service.init();

@@ -100,6 +100,8 @@ export class SpriteSyncService {
   }
 
   init(): void {
+    if (this.eventCleanups.length > 0) return;
+
     const on = (type: string, handler: (detail: SpritePayload) => void) => {
       const listener = (e: Event) => handler((e as CustomEvent<SpritePayload>).detail);
       window.addEventListener(type, listener);

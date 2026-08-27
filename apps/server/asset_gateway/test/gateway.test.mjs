@@ -126,6 +126,22 @@ test('rejects an expired capability before touching R2', async () => {
   assert.equal(reservations.length, 0);
 });
 
+test('rejects malformed encoded asset paths without returning a gateway failure', async () => {
+  const { env, reservations } = environment();
+  const now = Math.floor(Date.now() / 1000);
+  const cap = await capability({
+    asset: 'asset-1', exp: now + 300, iat: now,
+    key: 'assets/asset-1.png', op: 'get', sid: 'ROOM', uid: 7, v: 1,
+  });
+  const request = new Request(`https://assets.example.com/v1/assets/%ZZ?cap=${cap}`);
+
+  const response = await handleRequest(request, env, { waitUntil() {} });
+
+  assert.equal(response.status, 403);
+  assert.equal(await response.text(), 'Invalid asset capability');
+  assert.equal(reservations.length, 0);
+});
+
 test('does not reflect a rejected preflight origin', async () => {
   const { env } = environment();
   const request = new Request('https://assets.example.com/v1/assets/asset-1', {

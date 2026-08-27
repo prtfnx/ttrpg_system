@@ -103,7 +103,12 @@ export async function verifyCapability(request, env, nowSeconds = Math.floor(Dat
     throw new GatewayError(403, 'Invalid asset capability');
   }
 
-  const requestedAsset = decodeURIComponent(match[1]);
+  let requestedAsset;
+  try {
+    requestedAsset = decodeURIComponent(match[1]);
+  } catch {
+    throw new GatewayError(403, 'Invalid asset capability');
+  }
   const expectedOperation = request.method === 'GET' ? 'get' : request.method === 'PUT' ? 'put' : '';
   if (
     claims?.v !== 1

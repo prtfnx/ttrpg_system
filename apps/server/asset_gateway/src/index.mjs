@@ -162,7 +162,9 @@ function responseHeaders(headers, origin) {
 function errorResponse(error, origin = null) {
   const status = error instanceof GatewayError ? error.status : 500;
   const message = error instanceof GatewayError ? error.message : 'Asset gateway failure';
-  return new Response(message, { status, headers: responseHeaders({}, origin) });
+  const headers = responseHeaders({}, origin);
+  if (status === 405) headers.set('Allow', 'GET, PUT, OPTIONS');
+  return new Response(message, { status, headers });
 }
 
 function preflight(request, env) {

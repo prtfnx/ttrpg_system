@@ -175,6 +175,19 @@ test('rejects retired unsigned upload metadata during preflight', async () => {
   assert.equal(response.headers.get('Access-Control-Allow-Origin'), 'https://game.example.com');
 });
 
+test('advertises supported methods when rejecting an unsupported method', async () => {
+  const { env } = environment();
+  const request = new Request('https://assets.example.com/v1/assets/asset-1', {
+    method: 'DELETE',
+    headers: { Origin: 'https://game.example.com' },
+  });
+
+  const response = await handleRequest(request, env, { waitUntil() {} });
+
+  assert.equal(response.status, 405);
+  assert.equal(response.headers.get('Allow'), 'GET, PUT, OPTIONS');
+});
+
 test('reserves one Class B operation on a cache miss and caches the object', async () => {
   const { env, objects, reservations } = environment();
   const body = new TextEncoder().encode('image');

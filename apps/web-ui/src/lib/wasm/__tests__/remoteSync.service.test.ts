@@ -65,4 +65,15 @@ describe('RemoteSyncService', () => {
     dispatch('sprite-drag-preview-remote', { id: 's1', x: 10, y: 10 });
     expect(mockSpriteSync.updateSpritePosition).not.toHaveBeenCalled();
   });
+
+  it('does not register duplicate listeners when initialized twice', () => {
+    const svc = makeService();
+    svc.init();
+    svc.init();
+
+    dispatch('sprite-drag-preview-remote', { id: 's1', x: 10, y: 20 });
+
+    expect(mockSpriteSync.updateSpritePosition).toHaveBeenCalledOnce();
+    svc.dispose();
+  });
 });

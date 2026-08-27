@@ -55,6 +55,20 @@ describe('ChatOverlay — render', () => {
     expect(screen.getByTitle('Hide chat')).toBeInTheDocument();
   });
 
+  it('falls back to bounded defaults for invalid persisted settings', () => {
+    localStorage.setItem('chat-overlay-settings', JSON.stringify({
+      msgCount: 1000,
+      timeout: -1,
+      visible: 'false',
+    }));
+
+    render(<ChatOverlay />);
+    fireEvent.click(screen.getByTitle('Settings'));
+
+    expect(screen.getByText('Messages: 5')).toBeInTheDocument();
+    expect(screen.getByText('Fade after: 8s')).toBeInTheDocument();
+  });
+
   it('hides chat and shows 💬 button when hide is clicked', () => {
     render(<ChatOverlay />);
     fireEvent.click(screen.getByTitle('Hide chat'));

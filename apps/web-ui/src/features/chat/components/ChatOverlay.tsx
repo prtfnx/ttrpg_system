@@ -14,12 +14,32 @@ interface OverlaySettings {
   visible: boolean;
 }
 
+const DEFAULT_SETTINGS: OverlaySettings = { msgCount: 5, timeout: 8, visible: true };
+
+const isBoundedInteger = (value: unknown, min: number, max: number): value is number => (
+  typeof value === 'number' && Number.isSafeInteger(value) && value >= min && value <= max
+);
+
 function loadSettings(): OverlaySettings {
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
-    if (raw) return { msgCount: 5, timeout: 8, visible: true, ...JSON.parse(raw) };
+    if (!raw) return DEFAULT_SETTINGS;
+    const value: unknown = JSON.parse(raw);
+    if (typeof value !== 'object' || value === null) return DEFAULT_SETTINGS;
+    const persisted = value as Partial<OverlaySettings>;
+    return {
+      msgCount: isBoundedInteger(persisted.msgCount, 3, 10)
+        ? persisted.msgCount
+        : DEFAULT_SETTINGS.msgCount,
+      timeout: isBoundedInteger(persisted.timeout, 0, 15)
+        ? persisted.timeout
+        : DEFAULT_SETTINGS.timeout,
+      visible: typeof persisted.visible === 'boolean'
+        ? persisted.visible
+        : DEFAULT_SETTINGS.visible,
+    };
   } catch {}
-  return { msgCount: 5, timeout: 8, visible: true };
+  return DEFAULT_SETTINGS;
 }
 
 export function ChatOverlay() {
@@ -64,7 +84,11 @@ export function ChatOverlay() {
 
   function saveSettings(next: OverlaySettings) {
     setSettings(next);
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(next));
+    try {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(next));
+    } catch {
+      // Chat remains usable when storage is unavailable or full.
+    }
   }
 
   function handleSend(e: React.FormEvent) {

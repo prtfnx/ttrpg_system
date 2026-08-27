@@ -30,10 +30,35 @@ interface WindowState {
   minimized: boolean;
 }
 
-function loadState(id: string, defaults: WindowState): WindowState {
+const isFiniteNumber = (value: unknown): value is number => (
+  typeof value === 'number' && Number.isFinite(value)
+);
+
+function loadState(
+  id: string,
+  defaults: WindowState,
+  minWidth: number,
+  minHeight: number,
+): WindowState {
   try {
     const saved = sessionStorage.getItem(`fw:${id}`);
-    if (saved) return { ...defaults, ...JSON.parse(saved) };
+    if (!saved) return defaults;
+    const value: unknown = JSON.parse(saved);
+    if (typeof value !== 'object' || value === null) return defaults;
+    const persisted = value as Partial<WindowState>;
+    return {
+      x: isFiniteNumber(persisted.x) ? persisted.x : defaults.x,
+      y: isFiniteNumber(persisted.y) ? persisted.y : defaults.y,
+      width: isFiniteNumber(persisted.width)
+        ? Math.max(minWidth, persisted.width)
+        : defaults.width,
+      height: isFiniteNumber(persisted.height)
+        ? Math.max(minHeight, persisted.height)
+        : defaults.height,
+      minimized: typeof persisted.minimized === 'boolean'
+        ? persisted.minimized
+        : defaults.minimized,
+    };
   } catch {}
   return defaults;
 }
@@ -69,7 +94,9 @@ export function FloatingWindow({
     minimized: false,
   };
 
-  const [state, setState] = useState<WindowState>(() => loadState(id, defaults));
+  const [state, setState] = useState<WindowState>(() => (
+    loadState(id, defaults, minWidth, minHeight)
+  ));
   const rndRef = useRef<Rnd>(null);
   const isMinimized = minimizedProp !== undefined ? minimizedProp : state.minimized;
 

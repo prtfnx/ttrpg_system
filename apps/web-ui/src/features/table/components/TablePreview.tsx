@@ -22,19 +22,7 @@ export const TablePreview: React.FC<TablePreviewProps> = ({
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  // Add refresh trigger state
   const [refreshTrigger, setRefreshTrigger] = useState(0);
-  
-  // Expose regenerate method globally for debugging
-  React.useEffect(() => {
-    (window as Window & { __regenerateThumbnail?: (tableId: string) => void }).__regenerateThumbnail = (tableId: string) => {
-      if (tableId === table.table_id) {
-        logger.debug(`[TablePreview] Manual regeneration triggered for ${tableId}`);
-        tableThumbnailService.invalidateThumbnail(table.table_id, width, height);
-        setRefreshTrigger(prev => prev + 1);
-      }
-    };
-  }, [table.table_id, width, height]);
   
   // Listen for sprite loading completion to trigger thumbnail regeneration
   useEffect(() => {

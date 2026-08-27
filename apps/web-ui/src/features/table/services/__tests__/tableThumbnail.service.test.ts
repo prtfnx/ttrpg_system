@@ -454,6 +454,24 @@ describe('TableThumbnailService', () => {
       
       expect(result).toBeNull();
     });
+
+    it('rejects non-positive table dimensions before rendering', async () => {
+      tableThumbnailService.initialize(mockRenderEngine);
+
+      await expect(
+        tableThumbnailService.generateThumbnail(validUUID, 0, 1080, 200, 150)
+      ).rejects.toThrow('Table dimensions must be positive finite numbers');
+      expect(mockRenderEngine.render).not.toHaveBeenCalled();
+    });
+
+    it('rejects thumbnail dimensions that could allocate an excessive canvas', async () => {
+      tableThumbnailService.initialize(mockRenderEngine);
+
+      await expect(
+        tableThumbnailService.generateThumbnail(validUUID, 1920, 1080, 8192, 150)
+      ).rejects.toThrow('Thumbnail dimensions must be positive integers up to 4096');
+      expect(mockRenderEngine.render).not.toHaveBeenCalled();
+    });
   });
 
   describe('aspect ratio handling', () => {

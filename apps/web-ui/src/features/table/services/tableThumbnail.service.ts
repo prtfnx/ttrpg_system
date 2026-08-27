@@ -17,6 +17,26 @@ interface ThumbnailRuntimeOptions {
   isRuntimeReady?: () => boolean;
 }
 
+const MAX_THUMBNAIL_DIMENSION = 4096;
+
+function assertValidDimensions(
+  tableWidth: number,
+  tableHeight: number,
+  thumbnailWidth: number,
+  thumbnailHeight: number,
+): void {
+  if (![tableWidth, tableHeight].every(value => Number.isFinite(value) && value > 0)) {
+    throw new RangeError('Table dimensions must be positive finite numbers');
+  }
+  if (![thumbnailWidth, thumbnailHeight].every(value => (
+    Number.isSafeInteger(value) && value > 0 && value <= MAX_THUMBNAIL_DIMENSION
+  ))) {
+    throw new RangeError(
+      `Thumbnail dimensions must be positive integers up to ${MAX_THUMBNAIL_DIMENSION}`,
+    );
+  }
+}
+
 class TableThumbnailService {
   private cache = new Map<string, ThumbnailCacheEntry>();
   private renderEngine: ThumbnailRenderEngine | null = null;
@@ -73,6 +93,7 @@ class TableThumbnailService {
       logger.error(`[ThumbnailService] Invalid UUID: ${tableId}`);
       return null;
     }
+    assertValidDimensions(tableWidth, tableHeight, thumbnailWidth, thumbnailHeight);
     const cacheKey = `${tableId}_${thumbnailWidth}x${thumbnailHeight}`;
     
     // Return cached version if available

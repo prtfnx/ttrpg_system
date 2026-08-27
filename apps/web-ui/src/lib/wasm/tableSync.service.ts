@@ -56,6 +56,8 @@ export class TableSyncService {
   }
 
   init(): void {
+    if (this.eventCleanups.length > 0) return;
+
     this.eventCleanups.push(
       onProtocolEvent('table-data-received', d => this.handleTableDataReceived((d ?? {}) as TablePayload)),
       onProtocolEvent('table-response', d => this.handleTableDataReceived((d ?? {}) as TablePayload)),

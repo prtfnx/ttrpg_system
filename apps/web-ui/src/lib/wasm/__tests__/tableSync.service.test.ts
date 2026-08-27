@@ -71,6 +71,17 @@ describe('TableSyncService', () => {
       // After dispose, handler should not fire again
       expect(mockEngine.handle_table_data).not.toHaveBeenCalled();
     });
+
+    it('does not register duplicate listeners when initialized twice', () => {
+      const svc = makeService();
+      svc.init();
+      svc.init();
+
+      dispatch('table-data-received', { table_id: 't1', grid_size: 64 });
+
+      expect(mockEngine.handle_table_data).toHaveBeenCalledOnce();
+      svc.dispose();
+    });
   });
 
   describe('handleTableDataReceived', () => {

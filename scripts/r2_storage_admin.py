@@ -243,7 +243,7 @@ def _build_parser() -> argparse.ArgumentParser:
 def main() -> int:
     args = _build_parser().parse_args()
     settings = Settings()
-    manager = R2AssetManager()
+    manager = R2AssetManager(settings)
     if not manager.is_r2_configured():
         raise SystemExit("R2 is not configured")
     admin = R2StorageAdmin(manager.s3_client, settings.r2_bucket_name)

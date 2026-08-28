@@ -1854,6 +1854,21 @@ describe('WebClientProtocol', () => {
       });
       expect(rm.loadPaintStrokes).toHaveBeenCalledWith(JSON.stringify([ds]));
     });
+
+    it('PAINT_SYNC keeps valid strokes when another record is malformed', async () => {
+      const p = makeProtocol();
+      const rm = makeRm();
+      const valid = { id: 'valid', points: [], color: [1, 0, 0, 1], width: 3 };
+
+      await dispatch(p, 'paint_sync', {
+        strokes: [
+          { stroke_id: 'broken', stroke_data: '{not-json' },
+          { stroke_id: 'valid', stroke_data: JSON.stringify(valid) },
+        ],
+      });
+
+      expect(rm.loadPaintStrokes).toHaveBeenCalledWith(JSON.stringify([valid]));
+    });
   });
 
   describe('paint outgoing methods', () => {

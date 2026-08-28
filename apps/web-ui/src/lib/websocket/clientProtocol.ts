@@ -24,6 +24,28 @@ type WallCreateInput = Pick<WallData, 'x1' | 'y1' | 'x2' | 'y2'>
   & Partial<Omit<WallData, 'wall_id' | 'table_id' | 'x1' | 'y1' | 'x2' | 'y2'>>;
 type WallUpdateInput = Partial<WallCreateInput>;
 
+interface StoredPaintStroke {
+  stroke_id: string;
+  stroke_data: string;
+}
+
+function parseStoredPaintStrokes(strokes: StoredPaintStroke[]): Record<string, unknown>[] {
+  const parsed: Record<string, unknown>[] = [];
+  for (const stroke of strokes) {
+    try {
+      const value: unknown = JSON.parse(stroke.stroke_data);
+      if (typeof value === 'object' && value !== null && !Array.isArray(value)) {
+        parsed.push(value as Record<string, unknown>);
+      } else {
+        logger.warn('Ignoring invalid paint stroke payload', { strokeId: stroke.stroke_id });
+      }
+    } catch {
+      logger.warn('Ignoring malformed paint stroke JSON', { strokeId: stroke.stroke_id });
+    }
+  }
+  return parsed;
+}
+
 
 export class WebClientProtocol {
   private handlers = new Map<MessageType, Set<MessageHandler>>();
@@ -990,14 +1012,8 @@ export class WebClientProtocol {
     if (Array.isArray(rawData?.paint_strokes) && rawData.paint_strokes.length > 0) {
       const runtime = getCurrentWasmRuntime();
       if (runtime) {
-        try {
-          const drawStrokes = rawData.paint_strokes
-            .map(s => JSON.parse(s.stroke_data) as Record<string, unknown>)
-            .filter(Boolean);
-          runtime.loadPaintStrokes(JSON.stringify(drawStrokes));
-        } catch {
-          // non-fatal
-        }
+        const drawStrokes = parseStoredPaintStrokes(rawData.paint_strokes);
+        runtime.loadPaintStrokes(JSON.stringify(drawStrokes));
       }
     }
     emitProtocolEvent('table-response', message.data);
@@ -1519,16 +1535,8 @@ export class WebClientProtocol {
     const data = message.data as { strokes?: { stroke_id: string; stroke_data: string }[] };
     const runtime = getCurrentWasmRuntime();
     if (!runtime || !Array.isArray(data?.strokes)) return;
-    {
-      try {
-        const drawStrokes = data.strokes
-          .map(s => JSON.parse(s.stroke_data) as Record<string, unknown>)
-          .filter(Boolean);
-        runtime.loadPaintStrokes(JSON.stringify(drawStrokes));
-      } catch {
-        // non-fatal parse error
-      }
-    }
+    const drawStrokes = parseStoredPaintStrokes(data.strokes);
+    runtime.loadPaintStrokes(JSON.stringify(drawStrokes));
   }
 
   /** Apply a map of { layerName -> settings } to the WASM engine and Zustand store. */

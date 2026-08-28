@@ -55,6 +55,39 @@ export interface PerformanceSettings {
   shadowQuality: number;
 }
 
+const PERFORMANCE_LEVELS = new Set<unknown>(Object.values(PerformanceLevel));
+
+function sanitizePerformanceSettings(value: unknown): Partial<PerformanceSettings> {
+  if (typeof value !== 'object' || value === null) return {};
+  const input = value as Partial<PerformanceSettings>;
+  const settings: Partial<PerformanceSettings> = {};
+  if (PERFORMANCE_LEVELS.has(input.level)) settings.level = input.level;
+  if (Number.isSafeInteger(input.maxSprites) && input.maxSprites! >= 50 && input.maxSprites! <= 2000) {
+    settings.maxSprites = input.maxSprites;
+  }
+  if (typeof input.textureQuality === 'number' && Number.isFinite(input.textureQuality)
+      && input.textureQuality >= 0.25 && input.textureQuality <= 1) {
+    settings.textureQuality = input.textureQuality;
+  }
+  if (Number.isSafeInteger(input.maxRenderDistance)
+      && input.maxRenderDistance! >= 200 && input.maxRenderDistance! <= 5000) {
+    settings.maxRenderDistance = input.maxRenderDistance;
+  }
+  if (Number.isSafeInteger(input.shadowQuality)
+      && input.shadowQuality! >= 0 && input.shadowQuality! <= 3) {
+    settings.shadowQuality = input.shadowQuality;
+  }
+  for (const key of [
+    'enableVSync',
+    'enableSpritePooling',
+    'enableTextureCaching',
+    'enableFrustumCulling',
+  ] as const) {
+    if (typeof input[key] === 'boolean') settings[key] = input[key];
+  }
+  return settings;
+}
+
 class PerformanceService {
   private metrics: PerformanceMetrics;
   private settings: PerformanceSettings;
@@ -208,7 +241,7 @@ class PerformanceService {
    * Update performance settings
    */
   updateSettings(newSettings: Partial<PerformanceSettings>): void {
-    this.settings = { ...this.settings, ...newSettings };
+    this.settings = { ...this.settings, ...sanitizePerformanceSettings(newSettings) };
     this.applyOptimizations();
     this.saveSettings();
     logger.debug('Performance settings updated', newSettings);
@@ -472,7 +505,7 @@ class PerformanceService {
   private loadSettings(): Partial<PerformanceSettings> {
     try {
       const saved = localStorage.getItem('ttrpg_performance_settings');
-      return saved ? JSON.parse(saved) : {};
+      return saved ? sanitizePerformanceSettings(JSON.parse(saved)) : {};
     } catch (error) {
       logger.warn('Failed to load performance settings', error);
       return {};

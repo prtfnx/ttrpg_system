@@ -118,6 +118,38 @@ describe('PerformanceService', () => {
       const saved = JSON.parse(localStorage.getItem('ttrpg_performance_settings')!);
       expect(saved.maxSprites).toBe(123);
     });
+
+    it('ignores invalid settings instead of persisting them', () => {
+      const before = performanceService.getSettings();
+
+      performanceService.updateSettings({
+        level: 'impossible',
+        maxSprites: -1,
+        textureQuality: Number.NaN,
+        maxRenderDistance: 100_000,
+        shadowQuality: 9,
+        enableVSync: 'yes',
+      } as unknown as Parameters<typeof performanceService.updateSettings>[0]);
+
+      expect(performanceService.getSettings()).toEqual(before);
+      expect(JSON.parse(localStorage.getItem('ttrpg_performance_settings')!)).toEqual(before);
+    });
+
+    it('sanitizes settings loaded from localStorage', () => {
+      localStorage.setItem('ttrpg_performance_settings', JSON.stringify({
+        level: 'impossible',
+        maxSprites: 500,
+        textureQuality: 4,
+        enableVSync: false,
+        enableTextureCaching: 'yes',
+      }));
+
+      const loaded = (performanceService as unknown as {
+        loadSettings: () => Partial<ReturnType<typeof performanceService.getSettings>>;
+      }).loadSettings();
+
+      expect(loaded).toEqual({ maxSprites: 500, enableVSync: false });
+    });
   });
 
   describe('sprite cache', () => {

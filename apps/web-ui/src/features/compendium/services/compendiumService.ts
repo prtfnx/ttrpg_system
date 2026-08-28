@@ -176,22 +176,6 @@ class CompendiumService {
   private cache: Map<string, { data: unknown; timestamp: number }> = new Map();
   private readonly CACHE_DURATION = 5 * 60 * 1000; // 5 minutes
 
-  constructor() {
-    // Clear cache periodically
-    setInterval(() => {
-      this.clearExpiredCache();
-    }, 60 * 1000); // Check every minute
-  }
-
-  private clearExpiredCache() {
-    const now = Date.now();
-    for (const [key, value] of this.cache.entries()) {
-      if (now - value.timestamp > this.CACHE_DURATION) {
-        this.cache.delete(key);
-      }
-    }
-  }
-
   private async fetchWithCache<T>(endpoint: string): Promise<T> {
     const cacheKey = endpoint;
     const cached = this.cache.get(cacheKey);
@@ -199,6 +183,7 @@ class CompendiumService {
     if (cached && Date.now() - cached.timestamp < this.CACHE_DURATION) {
       return cached.data as T;
     }
+    if (cached) this.cache.delete(cacheKey);
 
     try {
       const response = await fetch(`${API_BASE_URL}${endpoint}`, {

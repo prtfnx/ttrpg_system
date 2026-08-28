@@ -30,6 +30,14 @@ function fail(status = 500) {
 }
 
 describe('CompendiumService', () => {
+  it('does not install a process-lifetime cache timer', () => {
+    const intervalSpy = vi.spyOn(globalThis, 'setInterval');
+
+    new CompendiumService();
+
+    expect(intervalSpy).not.toHaveBeenCalled();
+  });
+
   describe('getStatus', () => {
     it('returns status from API', async () => {
       mockFetch.mockReturnValue(ok({ available: true }));

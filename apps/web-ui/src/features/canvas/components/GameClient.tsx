@@ -247,10 +247,13 @@ const windowManager = useWindowManager();
   }, []);
 
   // Handle authentication errors — after all hooks
-  if (error?.includes('Authentication failed')) {
-    onAuthError();
-    return null;
-  }
+  const authenticationFailed = error?.includes('Authentication failed') ?? false;
+  useEffect(() => {
+    if (authenticationFailed) onAuthError();
+  }, [authenticationFailed, onAuthError]);
+
+  // Keep the failed client hidden while the parent handles re-authentication.
+  if (authenticationFailed) return null;
 
   // Persist panel visibility
   const toggleLeft = () => {

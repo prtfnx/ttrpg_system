@@ -94,6 +94,7 @@ class TableThumbnailService {
       return null;
     }
     assertValidDimensions(tableWidth, tableHeight, thumbnailWidth, thumbnailHeight);
+    this.pruneCache();
     const cacheKey = `${tableId}_${thumbnailWidth}x${thumbnailHeight}`;
     
     // Return cached version if available
@@ -419,10 +420,3 @@ class TableThumbnailService {
 
 // Singleton instance
 export const tableThumbnailService = new TableThumbnailService();
-
-// Auto-prune cache every 5 minutes
-if (typeof window !== 'undefined') {
-  setInterval(() => {
-    tableThumbnailService.pruneCache();
-  }, 5 * 60 * 1000);
-}

@@ -380,6 +380,19 @@ describe('TableThumbnailService', () => {
       const stats = tableThumbnailService.getCacheStats();
       expect(stats.size).toBe(1);
     });
+
+    it('prunes expired cache entries when a thumbnail is requested', async () => {
+      let now = 1_000;
+      vi.spyOn(Date, 'now').mockImplementation(() => now);
+      tableThumbnailService.initialize(mockRenderEngine);
+      mockRenderEngine.get_active_table_id.mockReturnValue(validUUID);
+
+      await tableThumbnailService.generateThumbnail(validUUID, 1920, 1080, 200, 150);
+      now += 5 * 60 * 1000 + 1;
+      await tableThumbnailService.generateThumbnail(validUUID, 1920, 1080, 200, 150);
+
+      expect(mockRenderEngine.render).toHaveBeenCalledTimes(2);
+    });
   });
 
   describe('concurrent generation prevention', () => {

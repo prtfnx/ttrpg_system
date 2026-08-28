@@ -121,6 +121,17 @@ describe('LightingPanel', () => {
       render(<LightingPanel />);
       expect(screen.getByText(/no lights placed/i)).toBeInTheDocument();
     });
+
+    it('uses safe defaults when light metadata decodes to null', () => {
+      useGameStore.setState({
+        sprites: [makeLight({ metadata: 'null' }) as unknown as Sprite],
+      } as unknown as Parameters<typeof useGameStore.setState>[0]);
+
+      expect(() => render(<LightingPanel />)).not.toThrow();
+      expect(engineMock.set_light_color).toHaveBeenCalledWith('torch_1', 1, 1, 1, 1);
+      expect(engineMock.set_light_intensity).toHaveBeenCalledWith('torch_1', 1);
+      expect(engineMock.set_light_radius).toHaveBeenCalledWith('torch_1', 100);
+    });
   });
 
   describe('light placement', () => {

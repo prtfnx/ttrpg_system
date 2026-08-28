@@ -42,13 +42,37 @@ function lightToSprite(light: Light, tableId: string): LightSpritePayload {
 }
 
 type LightSprite = { id?: string; sprite_id?: string; layer: string; texture_path?: string; texture?: string; x?: number; y?: number; metadata?: string | Record<string, unknown> };
+const DEFAULT_LIGHT_COLOR: Color = { r: 1, g: 1, b: 1, a: 1 };
+
+function finiteNumber(value: unknown, fallback: number): number {
+  return typeof value === 'number' && Number.isFinite(value) ? value : fallback;
+}
+
+function lightColor(value: unknown): Color {
+  if (typeof value !== 'object' || value === null || Array.isArray(value)) {
+    return DEFAULT_LIGHT_COLOR;
+  }
+  const color = value as Partial<Color>;
+  return [color.r, color.g, color.b, color.a].every(channel => (
+    typeof channel === 'number' && Number.isFinite(channel)
+  )) ? color as Color : DEFAULT_LIGHT_COLOR;
+}
+
 function spriteToLight(sprite: LightSprite): Light | null {
   const texturePath = sprite.texture_path || sprite.texture;
   if (sprite.layer !== 'light' || texturePath !== '__LIGHT__') return null;
 
+  const id = sprite.id ?? sprite.sprite_id;
+  if (!id) return null;
+
   let meta: Record<string, unknown> = {};
   try {
-    meta = (typeof sprite.metadata === 'string' ? JSON.parse(sprite.metadata) : (sprite.metadata ?? {})) as Record<string, unknown>;
+    const parsed: unknown = typeof sprite.metadata === 'string'
+      ? JSON.parse(sprite.metadata)
+      : sprite.metadata;
+    if (typeof parsed === 'object' && parsed !== null && !Array.isArray(parsed)) {
+      meta = parsed as Record<string, unknown>;
+    }
   } catch {
     // keep defaults
   }
@@ -57,20 +81,22 @@ function spriteToLight(sprite: LightSprite): Light | null {
 
   // Prefer radius_units (game units) → convert to px; fall back to legacy radius (px)
   let radius: number;
-  if (meta.radius_units != null) {
+  if (typeof meta.radius_units === 'number' && Number.isFinite(meta.radius_units)
+      && meta.radius_units > 0) {
     const converter = useGameStore.getState().getUnitConverter();
-    radius = converter.toPixels(meta.radius_units as number);
+    radius = converter.toPixels(meta.radius_units);
   } else {
-    radius = (meta.radius as number | undefined) ?? 100;
+    radius = finiteNumber(meta.radius, 100);
+    if (radius <= 0) radius = 100;
   }
 
   return {
-    id: sprite.id ?? sprite.sprite_id ?? '',
-    x: sprite.x ?? 0,
-    y: sprite.y ?? 0,
-    presetName: meta.presetName as string | undefined,
-    color: (meta.color as Color | undefined) || { r: 1, g: 1, b: 1, a: 1 },
-    intensity: (meta.intensity as number | undefined) ?? 1.0,
+    id,
+    x: finiteNumber(sprite.x, 0),
+    y: finiteNumber(sprite.y, 0),
+    presetName: typeof meta.presetName === 'string' ? meta.presetName : undefined,
+    color: lightColor(meta.color),
+    intensity: Math.max(0, finiteNumber(meta.intensity, 1)),
     radius,
     isOn: meta.isOn !== false,
   };

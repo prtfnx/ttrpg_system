@@ -48,6 +48,7 @@ class AssetIntegrationService {
    * Initialize the service with event listeners
    */
   initialize(): void {
+    if (this.eventListeners.length > 0) return;
     this.setupEventListeners();
     logger.debug('Asset integration service initialized');
   }

@@ -46,6 +46,20 @@ describe('AssetIntegrationService', () => {
     it('dispose is safe when called without initialize', () => {
       expect(() => assetIntegrationService.dispose()).not.toThrow();
     });
+
+    it('does not register duplicate listeners when initialized twice', () => {
+      assetIntegrationService.initialize();
+      assetIntegrationService.initialize();
+      const refreshed: CustomEvent[] = [];
+      window.addEventListener('asset-manager-refresh', e => refreshed.push(e as CustomEvent), {
+        once: true,
+      });
+
+      dispatch('asset-list-updated', { success: true, assets: [] });
+
+      expect(refreshed).toHaveLength(1);
+      expect((assetIntegrationService as Svc)['eventListeners']).toHaveLength(4);
+    });
   });
 
   describe('setProtocol', () => {

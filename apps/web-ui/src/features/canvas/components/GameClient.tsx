@@ -14,6 +14,12 @@ import clsx from 'clsx';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import React, { useEffect } from 'react';
 import { GameCanvas } from './GameCanvas';
+import {
+  loadPanelVisibility,
+  loadPanelWidth,
+  savePanelVisibility,
+  savePanelWidth,
+} from './panelLayoutStorage';
 import styles from './GameClient.module.css';
 import { TokenConfigModal } from './TokenConfigModal';
 import { ToolsPanel } from './ToolsPanel';
@@ -155,22 +161,10 @@ export function GameClient({ sessionCode, userInfo, userRole, onAuthError }: Gam
  }, [runtime]);
 
   // Panel size state with localStorage persistence — must be before early returns
-  const [leftWidth, setLeftWidth] = React.useState(() => {
-    const v = localStorage.getItem('panel_left_width');
-    return v ? parseInt(v) : 320;
-  });
-  const [rightWidth, setRightWidth] = React.useState(() => {
-    const v = localStorage.getItem('panel_right_width');
-    return v ? parseInt(v) : 400;
-  });
-  const [leftVisible, setLeftVisible] = React.useState(() => {
-    const v = localStorage.getItem('panel_left_visible');
-    return v !== 'false';
-  });
-  const [rightVisible, setRightVisible] = React.useState(() => {
-    const v = localStorage.getItem('panel_right_visible');
-    return v !== 'false';
-  });
+  const [leftWidth, setLeftWidth] = React.useState(() => loadPanelWidth('left'));
+  const [rightWidth, setRightWidth] = React.useState(() => loadPanelWidth('right'));
+  const [leftVisible, setLeftVisible] = React.useState(() => loadPanelVisibility('left'));
+  const [rightVisible, setRightVisible] = React.useState(() => loadPanelVisibility('right'));
 
 const windowManager = useWindowManager();
   const windowManagerRef = React.useRef(windowManager);
@@ -218,7 +212,7 @@ const windowManager = useWindowManager();
     nextWidth = Math.max(minWidth, Math.min(600, nextWidth));
     const setWidth = side === 'left' ? setLeftWidth : setRightWidth;
     setWidth(nextWidth);
-    localStorage.setItem(`panel_${side}_width`, nextWidth.toString());
+    savePanelWidth(side, nextWidth);
     window.dispatchEvent(new Event('resize'));
   };
 
@@ -230,11 +224,11 @@ const windowManager = useWindowManager();
       if (dragRef.current.side === 'left') {
         const w = Math.max(200, Math.min(600, dragRef.current.startWidth + dx));
         setLeftWidth(w);
-        localStorage.setItem('panel_left_width', w.toString());
+        savePanelWidth('left', w);
       } else {
         const w = Math.max(250, Math.min(600, dragRef.current.startWidth - dx));
         setRightWidth(w);
-        localStorage.setItem('panel_right_width', w.toString());
+        savePanelWidth('right', w);
       }
     };
     const onDragEnd = () => {
@@ -260,12 +254,16 @@ const windowManager = useWindowManager();
 
   // Persist panel visibility
   const toggleLeft = () => {
-    localStorage.setItem('panel_left_visible', (!leftVisible).toString());
-    setLeftVisible(v => !v);
+    setLeftVisible(visible => {
+      savePanelVisibility('left', !visible);
+      return !visible;
+    });
   };
   const toggleRight = () => {
-    localStorage.setItem('panel_right_visible', (!rightVisible).toString());
-    setRightVisible(v => !v);
+    setRightVisible(visible => {
+      savePanelVisibility('right', !visible);
+      return !visible;
+    });
   };
 
   return (

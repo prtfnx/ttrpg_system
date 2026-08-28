@@ -1533,6 +1533,21 @@ describe('WebClientProtocol', () => {
       expect(updateCharacter).toHaveBeenCalledWith('c5', expect.objectContaining({ syncStatus: 'synced', version: 3 }));
     });
 
+    it('CHARACTER_UPDATE_RESPONSE ignores a malformed version', async () => {
+      const store = mocks.storeState as Record<string, unknown>;
+      const updateCharacter = vi.fn();
+      store.updateCharacter = updateCharacter;
+      const p = makeProtocol();
+
+      await dispatch(p, 'character_update_response', {
+        success: true,
+        character_id: 'c5',
+        version: '3oops',
+      });
+
+      expect(updateCharacter).toHaveBeenCalledWith('c5', { syncStatus: 'synced' });
+    });
+
     it('CHARACTER_UPDATE_RESPONSE failure marks character as error', async () => {
       const store = mocks.storeState as Record<string, unknown>;
       const updateCharacter = vi.fn();

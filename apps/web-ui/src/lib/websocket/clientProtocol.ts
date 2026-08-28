@@ -1332,7 +1332,12 @@ export class WebClientProtocol {
       const store = useGameStore.getState();
       const updatePayload: Partial<Character> = { syncStatus: 'synced' };
       if (version !== undefined) {
-        updatePayload.version = typeof version === 'number' ? version : parseInt(String(version));
+        const parsedVersion = typeof version === 'number' ? version : Number(version);
+        if (Number.isSafeInteger(parsedVersion) && parsedVersion >= 0) {
+          updatePayload.version = parsedVersion;
+        } else {
+          logger.warn('Ignoring invalid character update version', { characterId, version });
+        }
       }
       store.updateCharacter(characterId, updatePayload);
     } else if (!success && characterId) {

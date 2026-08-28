@@ -421,6 +421,25 @@ describe('TableThumbnailService', () => {
       expect(result1).toBe(result2);
       expect(mockRenderEngine.render.mock.calls.length).toBeLessThanOrEqual(2);
     });
+
+    it('fails after the wait timeout instead of starting a duplicate render', async () => {
+      vi.useFakeTimers();
+      const service = new (tableThumbnailService.constructor as new () => typeof tableThumbnailService)();
+      const internals = service as unknown as {
+        isGenerating: Set<string>;
+        waitForGeneration: (key: string, timeoutMs: number) => Promise<void>;
+      };
+      internals.isGenerating.add('busy-thumbnail');
+
+      const waiting = internals.waitForGeneration('busy-thumbnail', 1);
+      const rejection = expect(waiting).rejects.toThrow(
+        'Thumbnail generation timed out for busy-thumbnail',
+      );
+      await vi.advanceTimersByTimeAsync(101);
+
+      await rejection;
+      vi.useRealTimers();
+    });
   });
 
   describe('error handling', () => {

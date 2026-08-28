@@ -323,7 +323,7 @@ class TableThumbnailService {
     while (this.isGenerating.has(cacheKey)) {
       if (Date.now() - startTime > timeoutMs) {
         logger.warn(`[ThumbnailService] Timeout waiting for ${cacheKey}`);
-        break;
+        throw new Error(`Thumbnail generation timed out for ${cacheKey}`);
       }
       await new Promise(resolve => setTimeout(resolve, 100));
     }

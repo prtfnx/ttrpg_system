@@ -13,6 +13,7 @@ import { logger } from '@shared/utils/logger';
 import clsx from 'clsx';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import React, { useEffect } from 'react';
+import { useAuthenticationFailure } from '../hooks/useAuthenticationFailure';
 import { GameCanvas } from './GameCanvas';
 import {
   loadPanelVisibility,
@@ -248,9 +249,7 @@ const windowManager = useWindowManager();
 
   // Handle authentication errors — after all hooks
   const authenticationFailed = error?.includes('Authentication failed') ?? false;
-  useEffect(() => {
-    if (authenticationFailed) onAuthError();
-  }, [authenticationFailed, onAuthError]);
+  useAuthenticationFailure(authenticationFailed, onAuthError);
 
   // Keep the failed client hidden while the parent handles re-authentication.
   if (authenticationFailed) return null;

@@ -1,4 +1,4 @@
-import { fireEvent, render, screen } from '@testing-library/react';
+import { act, fireEvent, render, screen } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { DiceRoller } from '../DiceRoller';
 
@@ -81,6 +81,22 @@ describe('DiceRoller', () => {
     fireEvent.click(screen.getByRole('button', { name: /roll/i }));
     expect(screen.getByText(/Sent to chat!/)).toBeTruthy();
     vi.runAllTimers();
+    vi.useRealTimers();
+  });
+
+  it('keeps chat confirmation visible for the latest roll', () => {
+    vi.useFakeTimers();
+    hasProtocol = true;
+    render(<DiceRoller />);
+    const roll = screen.getByRole('button', { name: /roll/i });
+
+    fireEvent.click(roll);
+    act(() => vi.advanceTimersByTime(1_000));
+    fireEvent.click(roll);
+    act(() => vi.advanceTimersByTime(300));
+
+    expect(screen.getByText(/Sent to chat!/)).toBeTruthy();
+    act(() => vi.runAllTimers());
     vi.useRealTimers();
   });
 

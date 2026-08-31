@@ -1,6 +1,6 @@
 import { ProtocolService } from '@lib/api';
 import { createMessage, MessageType } from '@lib/websocket';
-import { useId, useState } from 'react';
+import { useEffect, useId, useRef, useState } from 'react';
 import styles from './DiceRoller.module.css';
 
 /**
@@ -24,6 +24,11 @@ export function DiceRoller({ dice = 20, count = 1, onRoll }: DiceRollerProps) {
   const [rolling, setRolling] = useState(false);
   const [selectedDice, setSelectedDice] = useState<DiceType>(dice);
   const [sentToChat, setSentToChat] = useState(false);
+  const chatStatusTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => () => {
+    if (chatStatusTimerRef.current) clearTimeout(chatStatusTimerRef.current);
+  }, []);
 
   function rollDice() {
     setRolling(true);
@@ -37,7 +42,11 @@ export function DiceRoller({ dice = 20, count = 1, onRoll }: DiceRollerProps) {
     if (ProtocolService.hasProtocol()) {
       ProtocolService.getProtocol().sendMessage(createMessage(MessageType.CHAT, { text }));
       setSentToChat(true);
-      setTimeout(() => setSentToChat(false), 1200);
+      if (chatStatusTimerRef.current) clearTimeout(chatStatusTimerRef.current);
+      chatStatusTimerRef.current = setTimeout(() => {
+        chatStatusTimerRef.current = null;
+        setSentToChat(false);
+      }, 1200);
     }
   }
 

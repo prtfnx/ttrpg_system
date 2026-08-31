@@ -15,7 +15,7 @@ function scrub(value: string): string {
     .replace(/([?&](?:token|code|signature|access_token)=)[^&#\s]+/gi, '$1[REDACTED]');
 }
 
-function sendReport(eventType: BrowserErrorEventType, error: unknown): void {
+export function reportBrowserError(eventType: BrowserErrorEventType, error: unknown): void {
   if (Math.random() > sampleRate) return;
   const normalized = error instanceof Error ? error : new Error(String(error));
   const body = JSON.stringify({
@@ -26,23 +26,32 @@ function sendReport(eventType: BrowserErrorEventType, error: unknown): void {
     release: String(release).slice(0, 128),
   });
   const blob = new Blob([body], { type: 'application/json' });
-  if (navigator.sendBeacon('/api/telemetry/browser-error', blob)) return;
-  void fetch('/api/telemetry/browser-error', {
-    method: 'POST',
-    body,
-    headers: { 'Content-Type': 'application/json' },
-    credentials: 'same-origin',
-    keepalive: true,
-  }).catch(() => undefined);
+  try {
+    if (typeof navigator.sendBeacon === 'function'
+        && navigator.sendBeacon('/api/telemetry/browser-error', blob)) return;
+  } catch {
+    // Fall through to fetch without generating another global error.
+  }
+  try {
+    void fetch('/api/telemetry/browser-error', {
+      method: 'POST',
+      body,
+      headers: { 'Content-Type': 'application/json' },
+      credentials: 'same-origin',
+      keepalive: true,
+    }).catch(() => undefined);
+  } catch {
+    // Telemetry must never recursively report its own transport failure.
+  }
 }
 
 export function installBrowserTelemetry(): void {
   if (installed || typeof window === 'undefined' || import.meta.env.DEV) return;
   installed = true;
   window.addEventListener('error', (event) => {
-    sendReport('error', event.error ?? new Error(event.message));
+    reportBrowserError('error', event.error ?? new Error(event.message));
   });
   window.addEventListener('unhandledrejection', (event) => {
-    sendReport('unhandled_rejection', event.reason);
+    reportBrowserError('unhandled_rejection', event.reason);
   });
 }

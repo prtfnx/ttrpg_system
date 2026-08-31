@@ -4,12 +4,23 @@ import { beforeEach, expect, it, vi } from 'vitest';
 import { FloatingWindow } from '../FloatingWindow';
 
 vi.mock('react-rnd', () => ({
-  Rnd: ({ children, position, size }: {
+  Rnd: ({ children, position, size, onResizeStop }: {
     children: React.ReactNode;
     position: unknown;
     size: unknown;
+    onResizeStop?: (...args: unknown[]) => void;
   }) => (
-    <div data-position={JSON.stringify(position)} data-size={JSON.stringify(size)}>
+    <div
+      data-position={JSON.stringify(position)}
+      data-size={JSON.stringify(size)}
+      onDoubleClick={() => onResizeStop?.(
+        {},
+        'bottomRight',
+        { style: { width: '', height: 'auto' } },
+        {},
+        { x: Number.NaN, y: Number.NaN },
+      )}
+    >
       {children}
     </div>
   ),
@@ -86,4 +97,29 @@ it('sanitizes invalid persisted state and enforces minimum dimensions', () => {
   const windowElement = getByText('Inventory content').closest('[data-size]');
   expect(windowElement).toHaveAttribute('data-position', JSON.stringify({ x: 20, y: 40 }));
   expect(windowElement).toHaveAttribute('data-size', JSON.stringify({ width: 300, height: 600 }));
+});
+
+it('keeps the last valid state when resize output is malformed', () => {
+  const { getByText } = render(
+    <FloatingWindow
+      id="notes"
+      title="Notes"
+      initialWidth={450}
+      initialHeight={350}
+      initialX={25}
+      initialY={35}
+      zIndex={1001}
+      isTopmost
+      onClose={() => {}}
+      onFocus={() => {}}
+    >
+      Notes content
+    </FloatingWindow>,
+  );
+  const windowElement = getByText('Notes content').closest('[data-size]')!;
+
+  fireEvent.doubleClick(windowElement);
+
+  expect(windowElement).toHaveAttribute('data-position', JSON.stringify({ x: 25, y: 35 }));
+  expect(windowElement).toHaveAttribute('data-size', JSON.stringify({ width: 450, height: 350 }));
 });

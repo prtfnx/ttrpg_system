@@ -142,12 +142,16 @@ export function FloatingWindow({
         dragHandleClassName={styles.titleBar}
         bounds="window"
         onDragStop={(_, d) => updateState({ x: d.x, y: d.y })}
-        onResizeStop={(_, __, ref, ___, pos) => updateState({
-          width: parseInt(ref.style.width),
-          height: parseInt(ref.style.height),
-          x: pos.x,
-          y: pos.y,
-        })}
+        onResizeStop={(_, __, ref, ___, pos) => {
+          const width = Number.parseFloat(ref.style.width);
+          const height = Number.parseFloat(ref.style.height);
+          updateState({
+            ...(Number.isFinite(width) ? { width: Math.max(minWidth, width) } : {}),
+            ...(Number.isFinite(height) ? { height: Math.max(minHeight, height) } : {}),
+            ...(Number.isFinite(pos.x) ? { x: pos.x } : {}),
+            ...(Number.isFinite(pos.y) ? { y: pos.y } : {}),
+          });
+        }}
         enableResizing={!isMinimized}
         className={styles.floatingWindow}
       >

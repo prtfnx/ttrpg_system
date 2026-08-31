@@ -186,6 +186,17 @@ describe('useTableManager', () => {
       expect(mockTableManager.get_all_tables).toHaveBeenCalled();
       expect(result.current.tables).toEqual(mockTableData);
     });
+
+    it('does not replace table state with a non-array WASM payload', async () => {
+      vi.spyOn(console, 'error').mockImplementation(() => {});
+      mockTableManager.get_all_tables.mockReturnValue(JSON.stringify({ table_id: 'wrong' }));
+
+      const { result } = await renderUseTableManager();
+
+      act(() => result.current.refreshTables());
+
+      expect(result.current.tables).toEqual([]);
+    });
   });
 
   describe('Viewport Operations', () => {

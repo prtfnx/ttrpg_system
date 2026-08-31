@@ -33,6 +33,15 @@ export interface ScreenArea {
   height: number;
 }
 
+function isTableInfo(value: unknown): value is TableInfo {
+  if (typeof value !== 'object' || value === null) return false;
+  const table = value as Partial<TableInfo>;
+  return typeof table.table_id === 'string' && table.table_id.length > 0
+    && typeof table.table_name === 'string'
+    && typeof table.width === 'number' && Number.isFinite(table.width) && table.width > 0
+    && typeof table.height === 'number' && Number.isFinite(table.height) && table.height > 0;
+}
+
 export interface UseTableManagerReturn {
   tableManager: unknown;
   activeTableId: string | null;
@@ -97,7 +106,14 @@ export const useTableManager = (): UseTableManagerReturn => {
     
     try {
       const tablesJson = tableManager.get_all_tables() as string;
-      const parsedTables = JSON.parse(tablesJson) as TableInfo[];
+      const parsed: unknown = JSON.parse(tablesJson);
+      if (!Array.isArray(parsed)) throw new Error('Table manager returned a non-array payload');
+      const parsedTables = parsed.filter(isTableInfo);
+      if (parsedTables.length !== parsed.length) {
+        logger.warn('Ignored invalid table manager records', {
+          ignored: parsed.length - parsedTables.length,
+        });
+      }
       setTables(parsedTables);
       
       const activeId = tableManager.get_active_table_id() as string | null;

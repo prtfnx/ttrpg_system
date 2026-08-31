@@ -65,6 +65,18 @@ describe('ExperienceTracker', () => {
       expect(onAwardXP).toHaveBeenCalledWith(200, 'quest', '');
     });
 
+    it('rejects fractional XP awards', () => {
+      const onAwardXP = vi.fn();
+      render(<ExperienceTracker {...defaults} isDM onAwardXP={onAwardXP} />);
+      fireEvent.click(screen.getByRole('button', { name: 'Award XP' }));
+      fireEvent.change(screen.getByRole('spinbutton'), { target: { value: '1.5' } });
+
+      const confirm = screen.getByRole('button', { name: 'Confirm Award' });
+      expect(confirm).toBeDisabled();
+      fireEvent.click(confirm);
+      expect(onAwardXP).not.toHaveBeenCalled();
+    });
+
   });
 
   describe('custom advancement config', () => {

@@ -29,6 +29,8 @@ export function ExperienceTracker({
   const [awardAmount, setAwardAmount] = useState('');
   const [awardSource, setAwardSource] = useState('quest');
   const [awardDesc, setAwardDesc] = useState('');
+  const parsedAwardAmount = Number(awardAmount);
+  const canAward = Number.isSafeInteger(parsedAwardAmount) && parsedAwardAmount > 0;
 
   const xpTable = advancementConfig?.xp_table ?? EXPERIENCE_THRESHOLDS;
 
@@ -42,9 +44,8 @@ export function ExperienceTracker({
     ? Math.max(0, Math.min(rawProgress, 100))
     : 0;
   const handleAwardXP = () => {
-    const amount = parseInt(awardAmount);
-    if (!isNaN(amount) && amount > 0) {
-      onAwardXP?.(amount, awardSource, awardDesc);
+    if (canAward) {
+      onAwardXP?.(parsedAwardAmount, awardSource, awardDesc);
       setAwardAmount('');
       setAwardDesc('');
       setShowAwardDialog(false);
@@ -56,7 +57,7 @@ export function ExperienceTracker({
       <div className={styles.header}>
         <h3 className={styles.title}>Experience Tracker</h3>
         {isDM && (
-          <button className={styles.addBtn} onClick={() => setShowAwardDialog(v => !v)}>
+          <button type="button" className={styles.addBtn} onClick={() => setShowAwardDialog(v => !v)}>
             {showAwardDialog ? 'Cancel Award' : 'Award XP'}
           </button>
         )}
@@ -100,7 +101,7 @@ export function ExperienceTracker({
             onChange={e => setAwardDesc(e.target.value)}
             placeholder="Description (optional)" className={styles.input}
           />
-          <button className={styles.addBtn} onClick={handleAwardXP} disabled={!awardAmount || isNaN(parseInt(awardAmount))}>
+          <button type="button" className={styles.addBtn} onClick={handleAwardXP} disabled={!canAward}>
             Confirm Award
           </button>
         </div>

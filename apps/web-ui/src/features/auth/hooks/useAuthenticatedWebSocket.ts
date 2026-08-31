@@ -20,11 +20,13 @@ export function useAuthenticatedWebSocket({ sessionCode, userInfo }: UseAuthenti
   const ctx = useOptionalProtocol();
 
   const protocolRef = useRef<WebClientProtocol | null>(null);
+  const connectionAttemptRef = useRef(0);
   const [connectionState, setConnectionState] = useState<ConnectionState>('disconnected');
   const [error, setError] = useState<string | null>(null);
 
   const connect = useCallback(async () => {
     if (ctx) return; // managed by ProtocolProvider
+    const attempt = ++connectionAttemptRef.current;
     try {
       setConnectionState('connecting');
       setError(null);
@@ -44,6 +46,8 @@ export function useAuthenticatedWebSocket({ sessionCode, userInfo }: UseAuthenti
         logger.warn('Failed to resolve sessionCode', e);
       }
 
+      if (attempt !== connectionAttemptRef.current) return;
+
       if (protocolRef.current && protocolRef.current.isConnected()) {
         setConnectionState('connected');
         return;
@@ -52,12 +56,18 @@ export function useAuthenticatedWebSocket({ sessionCode, userInfo }: UseAuthenti
       const protocol = new WebClientProtocol(resolvedCode);
       protocolRef.current = protocol;
       await protocol.connect();
+      if (attempt !== connectionAttemptRef.current) {
+        protocol.disconnect();
+        if (protocolRef.current === protocol) protocolRef.current = null;
+        return;
+      }
       setConnectionState('connected');
       logger.info('Connected to authenticated session', {
         sessionCode: resolvedCode,
         username: userInfo.username,
       });
     } catch (err) {
+      if (attempt !== connectionAttemptRef.current) return;
       const errorMessage = err instanceof Error ? err.message : 'Connection failed';
       setError(errorMessage);
       setConnectionState('error');
@@ -68,6 +78,7 @@ export function useAuthenticatedWebSocket({ sessionCode, userInfo }: UseAuthenti
 
   const disconnect = useCallback(() => {
     if (ctx) return; // managed by ProtocolProvider
+    connectionAttemptRef.current += 1;
     if (protocolRef.current) {
       protocolRef.current.disconnect();
       protocolRef.current = null;

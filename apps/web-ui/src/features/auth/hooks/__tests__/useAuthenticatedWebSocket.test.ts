@@ -100,6 +100,20 @@ describe('useAuthenticatedWebSocket — standalone (no ProtocolProvider)', () =>
     await waitFor(() => expect(result.current.connectionState).toBe('connected'));
     expect(vi.mocked(WebClientProtocol)).toHaveBeenCalledWith('TEST-CODE');
   });
+
+  it('does not create a connection after unmounting during session resolution', async () => {
+    let resolveSessions!: (sessions: never[]) => void;
+    vi.mocked(authService.getUserSessions).mockReturnValueOnce(new Promise(resolve => {
+      resolveSessions = resolve;
+    }));
+    const { unmount } = renderHook(() => useAuthenticatedWebSocket(props));
+
+    unmount();
+    await act(async () => resolveSessions([]));
+
+    expect(vi.mocked(WebClientProtocol)).not.toHaveBeenCalled();
+    expect(mockProtocol.connect).not.toHaveBeenCalled();
+  });
 });
 
 describe('useAuthenticatedWebSocket — delegating to ProtocolProvider', () => {

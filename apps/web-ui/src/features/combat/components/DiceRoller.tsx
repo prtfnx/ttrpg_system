@@ -1,7 +1,7 @@
 import { CombatPreviewService, type DiceResult } from '@features/combat';
 import clsx from 'clsx';
 import { Dices, Star, X, Zap } from 'lucide-react';
-import React, { useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import styles from './DiceRoller.module.css';
 
 interface DiceRollerProps {
@@ -25,14 +25,27 @@ export const DiceRoller: React.FC<DiceRollerProps> = ({
   const [isRolling, setIsRolling] = useState(false);
   const [rollHistory, setRollHistory] = useState<DiceResult[]>([]);
   const [showDetails, setShowDetails] = useState(false);
+  const rollTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const detailsTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => () => {
+    if (rollTimerRef.current) clearTimeout(rollTimerRef.current);
+    if (detailsTimerRef.current) clearTimeout(detailsTimerRef.current);
+  }, []);
 
   const handleRoll = async () => {
     if (disabled || isRolling) return;
 
     setIsRolling(true);
+    setShowDetails(false);
+    if (detailsTimerRef.current) {
+      clearTimeout(detailsTimerRef.current);
+      detailsTimerRef.current = null;
+    }
     
     // Add rolling animation delay
-    setTimeout(() => {
+    rollTimerRef.current = setTimeout(() => {
+      rollTimerRef.current = null;
       try {
         const rollResult = CombatPreviewService.rollDice(formula);
         setResult(rollResult);
@@ -46,7 +59,10 @@ export const DiceRoller: React.FC<DiceRollerProps> = ({
         }
         
         setShowDetails(true);
-        setTimeout(() => setShowDetails(false), 3000); // Auto-hide details after 3s
+        detailsTimerRef.current = setTimeout(() => {
+          detailsTimerRef.current = null;
+          setShowDetails(false);
+        }, 3000); // Auto-hide details after 3s
       } catch (error) {
         console.error('Dice roll error:', error);
       } finally {

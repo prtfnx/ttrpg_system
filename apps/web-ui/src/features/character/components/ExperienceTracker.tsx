@@ -34,9 +34,13 @@ export function ExperienceTracker({
 
   const nextLevelExp = xpTable[currentLevel] ?? xpTable[xpTable.length - 1];
   const prevLevelExp = xpTable[currentLevel - 1] ?? 0;
-  const progressToNext = currentLevel < 20
-    ? ((currentExperience - prevLevelExp) / (nextLevelExp - prevLevelExp)) * 100
+  const levelSpan = nextLevelExp - prevLevelExp;
+  const rawProgress = currentLevel < 20 && Number.isFinite(levelSpan) && levelSpan > 0
+    ? ((currentExperience - prevLevelExp) / levelSpan) * 100
     : 100;
+  const progressToNext = Number.isFinite(rawProgress)
+    ? Math.max(0, Math.min(rawProgress, 100))
+    : 0;
   const handleAwardXP = () => {
     const amount = parseInt(awardAmount);
     if (!isNaN(amount) && amount > 0) {
@@ -66,12 +70,12 @@ export function ExperienceTracker({
         <div className={styles.progressTrack}>
           <div
             className={`${styles.progressFill} ${currentLevel < 20 ? styles.progressFillActive : styles.progressFillMax}`}
-            style={{ width: `${Math.min(progressToNext, 100)}%` }}
+            style={{ width: `${progressToNext}%` }}
           />
         </div>
         {currentLevel < 20 ? (
           <div className={styles.progressNote}>
-            {(nextLevelExp - currentExperience).toLocaleString()} XP needed for level {currentLevel + 1}
+            {Math.max(0, nextLevelExp - currentExperience).toLocaleString()} XP needed for level {currentLevel + 1}
           </div>
         ) : (
           <div className={styles.maxLevelNote}>Maximum level reached!</div>

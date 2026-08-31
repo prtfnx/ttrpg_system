@@ -21,6 +21,14 @@ describe('ExperienceTracker', () => {
       expect(screen.getByText(/XP needed for level 2/)).toBeInTheDocument();
     });
 
+    it('clamps inconsistent experience below the current level threshold', () => {
+      const { container } = render(
+        <ExperienceTracker {...defaults} currentLevel={5} currentExperience={100} />
+      );
+
+      expect(container.querySelector('[style*="width"]')).toHaveStyle({ width: '0%' });
+    });
+
     it('shows max level message at level 20', () => {
       render(<ExperienceTracker {...defaults} currentLevel={20} currentExperience={355000} />);
       expect(screen.getByText('Maximum level reached!')).toBeInTheDocument();

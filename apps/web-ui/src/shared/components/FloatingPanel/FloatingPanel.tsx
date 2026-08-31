@@ -83,7 +83,7 @@ export function FloatingPanel({ id, title, defaultPos = { x: 80, y: 80 }, defaul
       <div ref={nodeRef} className={styles.panel} style={{ width: size.width, height: size.height, position: 'fixed' }}>
         <div className={styles.header}>
           <span className={styles.title}>{title}</span>
-          <button className={styles.closeBtn} onClick={onClose} aria-label="Close">✕</button>
+          <button type="button" className={styles.closeBtn} onClick={onClose} aria-label="Close">✕</button>
         </div>
         <ResizableBox
           width={size.width}

@@ -60,6 +60,7 @@ describe('FloatingPanel', () => {
     );
     const closeBtn = screen.getByRole('button', { name: 'Close' });
     expect(closeBtn).toBeTruthy();
+    expect(closeBtn).toHaveAttribute('type', 'button');
   });
 
   it('calls onClose when close button clicked', () => {

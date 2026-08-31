@@ -243,14 +243,21 @@ class VisionService {
     for (const ls of allSprites) {
       if (ls.layer !== 'light') continue;
       let meta: LightMeta = {};
-      try { meta = typeof ls.metadata === 'string' ? JSON.parse(ls.metadata) : (ls.metadata ?? {}) as LightMeta; } catch {}
+      try {
+        const parsed: unknown = typeof ls.metadata === 'string' ? JSON.parse(ls.metadata) : ls.metadata;
+        if (typeof parsed === 'object' && parsed !== null && !Array.isArray(parsed)) {
+          meta = parsed as LightMeta;
+        }
+      } catch {}
       if (meta.isOn === false) continue;
       // meta.radius is stored in pixels (LightingPanel converts at placement)
       // Fallback: 20ft torch at default 10px/ft = 200px
-      const lightRadius = meta.radius ?? useGameStore.getState().getUnitConverter().toPixels(20);
+      const defaultLightRadius = useGameStore.getState().getUnitConverter().toPixels(20);
+      const lightRadius = typeof meta.radius === 'number' && Number.isFinite(meta.radius)
+        && meta.radius > 0 ? meta.radius : defaultLightRadius;
       const lightFogId = `fog_light_${ls.id}`;
-      const lx = ls.x ?? 0;
-      const ly = ls.y ?? 0;
+      const lx = typeof ls.x === 'number' && Number.isFinite(ls.x) ? ls.x : 0;
+      const ly = typeof ls.y === 'number' && Number.isFinite(ls.y) ? ls.y : 0;
       const lightPosKey = `${lx.toFixed(1)},${ly.toFixed(1)},${lightRadius}`;
       const lightMoved = this.lastPositions.get(lightFogId) !== lightPosKey;
       if (lightMoved || obstaclesChanged) {

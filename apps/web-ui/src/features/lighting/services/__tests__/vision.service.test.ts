@@ -163,6 +163,22 @@ describe('buildObstacles (via recompute)', () => {
   });
 });
 
+describe('light visibility sources', () => {
+  it('uses safe defaults when persisted light metadata is null', () => {
+    useGameStore.setState({
+      sprites: [makeSprite({ layer: 'light', metadata: 'null', x: Number.NaN })],
+    } as unknown as Parameters<typeof useGameStore.setState>[0]);
+
+    expect(() => visionService.start()).not.toThrow();
+    expect(runtimeMock.computeVisibilityPolygon).toHaveBeenCalledWith(
+      0,
+      400,
+      expect.any(Float32Array),
+      expect.any(Number),
+    );
+  });
+});
+
 describe('DM preview mode', () => {
   it('uses dmPreviewUserId instead of store userId', () => {
     useGameStore.setState({

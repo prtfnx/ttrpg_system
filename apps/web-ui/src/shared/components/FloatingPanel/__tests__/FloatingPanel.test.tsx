@@ -144,6 +144,25 @@ describe('FloatingPanel', () => {
     expect(screen.getByTestId('draggable').dataset.position).toBe('12,34');
   });
 
+  it('enforces minimum dimensions on persisted panel sizes', () => {
+    localStorage.setItem('fp-size-tiny', JSON.stringify({ width: 1, height: 2 }));
+
+    render(
+      <FloatingPanel
+        id="tiny"
+        title="Tiny panel"
+        minWidth={260}
+        minHeight={220}
+        onClose={() => {}}
+      >
+        <div />
+      </FloatingPanel>
+    );
+
+    const panel = screen.getByText('Tiny panel').closest('.panel');
+    expect(panel).toHaveStyle({ width: '260px', height: '220px' });
+  });
+
   it('keeps dragging when localStorage writes fail', () => {
     const setItem = vi.spyOn(Storage.prototype, 'setItem').mockImplementation(() => {
       throw new DOMException('Storage full', 'QuotaExceededError');

@@ -36,14 +36,19 @@ const loadPos = (id: string): Pos | null => {
   }
 };
 
-const loadSize = (id: string): Size | null => {
+const normalizeSize = (size: Size, minWidth: number, minHeight: number): Size => ({
+  width: Math.max(minWidth, size.width),
+  height: Math.max(minHeight, size.height),
+});
+
+const loadSize = (id: string, minWidth: number, minHeight: number): Size | null => {
   try {
     const value: unknown = JSON.parse(localStorage.getItem(`fp-size-${id}`) ?? 'null');
     if (typeof value !== 'object' || value === null) return null;
     const size = value as Partial<Size>;
     return isFiniteNumber(size.width) && size.width > 0
       && isFiniteNumber(size.height) && size.height > 0
-      ? size as Size
+      ? normalizeSize(size as Size, minWidth, minHeight)
       : null;
   } catch {
     return null;
@@ -63,7 +68,9 @@ const saveSize = (id: string, size: Size) => saveState(`fp-size-${id}`, size);
 
 export function FloatingPanel({ id, title, defaultPos = { x: 80, y: 80 }, defaultSize = { width: 280, height: 400 }, minWidth = 240, minHeight = 200, onClose, children }: Props) {
   const [pos, setPos] = useState<Pos>(() => loadPos(id) ?? defaultPos);
-  const [size, setSize] = useState<Size>(() => loadSize(id) ?? defaultSize);
+  const [size, setSize] = useState<Size>(() => (
+    loadSize(id, minWidth, minHeight) ?? normalizeSize(defaultSize, minWidth, minHeight)
+  ));
   const nodeRef = useRef<HTMLDivElement>(null);
 
   return (

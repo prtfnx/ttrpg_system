@@ -172,12 +172,17 @@ describe('AssetIntegrationService', () => {
       expect(msg.data.success).toBe(true);
     });
 
-    it('does not call protocol when success=false', () => {
+    it('confirms failed uploads so the server can release their reservation', () => {
       assetIntegrationService.initialize();
       const proto = { sendMessage: vi.fn() };
       assetIntegrationService.setProtocol(proto as never);
       dispatch('asset-upload-completed', { asset_id: 'a2', success: false, error: 'upload error' });
-      expect(proto.sendMessage).not.toHaveBeenCalled();
+      expect(proto.sendMessage).toHaveBeenCalledTimes(1);
+      expect(proto.sendMessage.mock.calls[0][0].data).toMatchObject({
+        asset_id: 'a2',
+        success: false,
+        error: 'upload error',
+      });
     });
 
     it('does not throw when protocol is null and upload succeeds', () => {

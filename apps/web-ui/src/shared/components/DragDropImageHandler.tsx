@@ -173,6 +173,18 @@ export const DragDropImageHandler: React.FC<DragDropImageHandlerProps> = ({
     if (!fullHash) {
       throw new Error('Failed to calculate file hash for upload header');
     }
+
+    const reportFailure = (error: string) => {
+      window.dispatchEvent(new CustomEvent('asset-upload-completed', {
+        detail: {
+          asset_id: assetId,
+          success: false,
+          file_size: file.size,
+          content_type: file.type,
+          error,
+        },
+      }));
+    };
     
     return new Promise((resolve, reject) => {
       const xhr = new XMLHttpRequest();
@@ -226,13 +238,17 @@ export const DragDropImageHandler: React.FC<DragDropImageHandlerProps> = ({
           resolve();
         } else {
           logger.error('R2 upload failed with HTTP status', { status: xhr.status, statusText: xhr.statusText });
-          reject(new Error(`Upload failed with status ${xhr.status}: ${xhr.statusText}`));
+          const message = `Upload failed with status ${xhr.status}: ${xhr.statusText}`;
+          reportFailure(message);
+          reject(new Error(message));
         }
       };
 
       xhr.onerror = () => {
         logger.error('R2 upload network error');
-        reject(new Error('Upload failed due to network error'));
+        const message = 'Upload failed due to network error';
+        reportFailure(message);
+        reject(new Error(message));
       };
       
       xhr.open('PUT', uploadUrl);

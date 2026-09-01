@@ -126,21 +126,27 @@ class AssetIntegrationService {
   }
 
   private handleAssetUploadCompleted(data: AssetUploadCompleted): void {
-    logger.debug('Asset upload completed', { assetId: data.asset_id });
+    logger.debug('Asset upload completed', { assetId: data.asset_id, success: data.success });
 
-    if (!data.success) {
-      logger.error('Asset upload to R2 failed', data.error);
+    if (!data.asset_id) {
+      logger.error('Cannot confirm asset upload without an asset ID');
       return;
     }
 
-    // Send confirmation to server that upload is complete
+    if (!data.success) logger.error('Asset upload to R2 failed', data.error);
+
+    // Release the server-side reservation on failure as well as finalizing success.
     if (this.protocol) {
-      logger.debug('Confirming asset upload to server', { assetId: data.asset_id });
+      logger.debug('Confirming asset upload outcome to server', {
+        assetId: data.asset_id,
+        success: data.success,
+      });
       this.protocol.sendMessage(createMessage(MessageType.ASSET_UPLOAD_CONFIRM, {
         asset_id: data.asset_id,
-        success: true,
+        success: data.success,
         file_size: data.file_size,
-        content_type: data.content_type
+        content_type: data.content_type,
+        error: data.error,
       }, 2));
     } else {
       logger.error('Protocol service not available for upload confirmation');

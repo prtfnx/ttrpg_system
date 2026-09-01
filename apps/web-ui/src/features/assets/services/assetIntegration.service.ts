@@ -40,7 +40,7 @@ class AssetIntegrationService {
   private eventListeners: Array<() => void> = [];
   private protocol: WebClientProtocol | null = null;
 
-  setProtocol(protocol: WebClientProtocol): void {
+  setProtocol(protocol: WebClientProtocol | null): void {
     this.protocol = protocol;
   }
 
@@ -59,6 +59,7 @@ class AssetIntegrationService {
   dispose(): void {
     this.eventListeners.forEach(cleanup => cleanup());
     this.eventListeners = [];
+    this.protocol = null;
   }
 
   private setupEventListeners(): void {

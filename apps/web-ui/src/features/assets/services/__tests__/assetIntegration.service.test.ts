@@ -37,9 +37,11 @@ describe('AssetIntegrationService', () => {
 
     it('dispose removes all registered listeners', () => {
       const spy = vi.spyOn(window, 'removeEventListener');
+      assetIntegrationService.setProtocol({ sendMessage: vi.fn() } as never);
       assetIntegrationService.initialize();
       assetIntegrationService.dispose();
       expect((assetIntegrationService as Svc)['eventListeners']).toHaveLength(0);
+      expect((assetIntegrationService as Svc)['protocol']).toBeNull();
       expect(spy).toHaveBeenCalledTimes(4);
     });
 
@@ -67,6 +69,12 @@ describe('AssetIntegrationService', () => {
       const proto = { sendMessage: vi.fn() };
       assetIntegrationService.setProtocol(proto as never);
       expect((assetIntegrationService as Svc)['protocol']).toBe(proto);
+    });
+
+    it('clears a disconnected protocol reference', () => {
+      assetIntegrationService.setProtocol({ sendMessage: vi.fn() } as never);
+      assetIntegrationService.setProtocol(null);
+      expect((assetIntegrationService as Svc)['protocol']).toBeNull();
     });
   });
 

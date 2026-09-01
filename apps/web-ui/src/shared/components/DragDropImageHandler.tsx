@@ -402,15 +402,16 @@ export const DragDropImageHandler: React.FC<DragDropImageHandlerProps> = ({
   // Listen for asset upload responses and sprite creation broadcasts
   useEffect(() => {
     // Initialize sprite creation service with protocol
+    assetIntegrationService.setProtocol(protocol);
     if (protocol) {
       spriteCreationService.setProtocol(protocol);
-      assetIntegrationService.setProtocol(protocol);
     }
     
     window.addEventListener('asset-uploaded', handleAssetUploadResponse as EventListener);
     
     return () => {
       window.removeEventListener('asset-uploaded', handleAssetUploadResponse as EventListener);
+      assetIntegrationService.setProtocol(null);
     };
   }, [handleAssetUploadResponse, protocol]);
 

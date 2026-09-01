@@ -281,6 +281,7 @@ export const LightingPanel: React.FC = () => {
     for (const l of lights) {
       try { engine.remove_light(l.id); } catch {}
       protocol?.removeSprite(l.id);
+      useGameStore.getState().removeSprite(l.id);
     }
     setSelectedLightId(null);
   };

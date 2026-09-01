@@ -132,6 +132,17 @@ describe('LightingPanel', () => {
       expect(engineMock.set_light_intensity).toHaveBeenCalledWith('torch_1', 1);
       expect(engineMock.set_light_radius).toHaveBeenCalledWith('torch_1', 100);
     });
+
+    it('removes cleared lights from the client store immediately', () => {
+      render(<LightingPanel />);
+
+      fireEvent.click(screen.getByRole('button', { name: /clear all/i }));
+
+      expect(engineMock.remove_light).toHaveBeenCalledWith('torch_1');
+      expect(protocolMock.removeSprite).toHaveBeenCalledWith('torch_1');
+      expect(useGameStore.getState().sprites).toHaveLength(0);
+      expect(screen.getByText(/no lights placed/i)).toBeInTheDocument();
+    });
   });
 
   describe('light placement', () => {

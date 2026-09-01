@@ -9,6 +9,20 @@ from ._protocol_base import _ProtocolBase
 
 logger = setup_logger(__name__)
 
+_DEFAULT_TABLE_DIMENSION = 2000
+_MIN_TABLE_DIMENSION = 500
+_MAX_TABLE_DIMENSION = 10_000
+_MAX_TABLE_NAME_LENGTH = 50
+
+
+def _validated_table_dimension(value: object) -> int | None:
+    if isinstance(value, bool) or not isinstance(value, (int, float)):
+        return None
+    if not float(value).is_integer():
+        return None
+    dimension = int(value)
+    return dimension if _MIN_TABLE_DIMENSION <= dimension <= _MAX_TABLE_DIMENSION else None
+
 
 class _TablesMixin(_ProtocolBase):
     """Handler methods for tables domain."""
@@ -70,7 +84,21 @@ class _TablesMixin(_ProtocolBase):
             return Message(MessageType.ERROR, {'error': 'Only DMs can create tables'})
         if not msg.data:
             return Message(MessageType.ERROR, {'error': 'No data provided in new table request'})
-        table_name = msg.data.get('table_name', 'default')
+        raw_table_name = msg.data.get('table_name', 'default')
+        if not isinstance(raw_table_name, str):
+            return Message(MessageType.ERROR, {'error': 'Table name must be text'})
+        table_name = raw_table_name.strip()
+        if not table_name:
+            return Message(MessageType.ERROR, {'error': 'Table name is required'})
+        if len(table_name) > _MAX_TABLE_NAME_LENGTH:
+            return Message(MessageType.ERROR, {'error': 'Table name must be 50 characters or fewer'})
+
+        width = _validated_table_dimension(msg.data.get('width', _DEFAULT_TABLE_DIMENSION))
+        height = _validated_table_dimension(msg.data.get('height', _DEFAULT_TABLE_DIMENSION))
+        if width is None or height is None:
+            return Message(MessageType.ERROR, {
+                'error': 'Table width and height must be whole numbers between 500 and 10000'
+            })
         local_table_id = msg.data.get('local_table_id')  # BEST PRACTICE: Preserve local ID for sync mapping
 
         # BEST PRACTICE: Get session_id for database persistence
@@ -80,7 +108,7 @@ class _TablesMixin(_ProtocolBase):
         else:
             logger.warning("No session_id available - table will not be persisted to database")
 
-        result = await self.actions.create_table(table_name, msg.data.get('width', 100), msg.data.get('height', 100), session_id=session_id)
+        result = await self.actions.create_table(table_name, width, height, session_id=session_id)
 
         if not result.success or not result.data or result.data.get('table') is None:
             return Message(MessageType.ERROR, {'error': 'Failed to create new table'})

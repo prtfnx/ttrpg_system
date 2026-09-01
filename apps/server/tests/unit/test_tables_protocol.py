@@ -175,6 +175,45 @@ class TestNewTableRequest:
         resp = await proto.handle_new_table_request(Message(MessageType.NEW_TABLE_REQUEST, {}), "c1")
         assert resp.type == MessageType.ERROR
 
+    @pytest.mark.parametrize("field,value", [
+        ("width", -1),
+        ("width", 499),
+        ("width", 10_001),
+        ("width", 1000.5),
+        ("width", "2000"),
+        ("height", True),
+    ])
+    async def test_invalid_dimensions_are_rejected_before_allocation(self, field, value):
+        proto = _ProtoStub(role="owner")
+        proto.actions.create_table = AsyncMock()
+        data = {"table_name": "Dungeon", "width": 2000, "height": 2000, field: value}
+
+        resp = await proto.handle_new_table_request(Message(MessageType.NEW_TABLE_REQUEST, data), "c1")
+
+        assert resp.type == MessageType.ERROR
+        assert "between 500 and 10000" in resp.data["error"]
+        proto.actions.create_table.assert_not_awaited()
+
+    async def test_create_normalizes_name_and_uses_safe_dimension_defaults(self):
+        proto = _ProtoStub(role="owner")
+        table_mock = MagicMock()
+        table_mock.to_dict.return_value = {"id": "t-new", "name": "Dungeon", "layers": {}}
+        proto.actions.create_table = AsyncMock(return_value=_ok_result(table=table_mock))
+        proto.actions.set_active_table = AsyncMock(return_value=_ok_result())
+
+        resp = await proto.handle_new_table_request(
+            Message(MessageType.NEW_TABLE_REQUEST, {"table_name": "  Dungeon  "}),
+            "c1",
+        )
+
+        assert resp.type != MessageType.ERROR
+        proto.actions.create_table.assert_awaited_once_with(
+            "Dungeon",
+            2000,
+            2000,
+            session_id=proto._get_session_id(None),
+        )
+
     async def test_successful_create_returns_table_response(self):
         proto = _ProtoStub(role="owner")
         table_mock = MagicMock()

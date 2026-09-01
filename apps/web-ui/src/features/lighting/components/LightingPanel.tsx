@@ -146,10 +146,16 @@ export const LightingPanel: React.FC = () => {
 
   // Track which light IDs are in WASM so we can add/remove incrementally
   const prevLightIdsRef = useRef<Set<string>>(new Set());
+  const previousEngineRef = useRef<typeof engine>(null);
 
   // Single WASM sync effect  replaces the 3 competing ones
   useEffect(() => {
     if (!engine) return;
+
+    if (previousEngineRef.current !== engine) {
+      previousEngineRef.current = engine;
+      prevLightIdsRef.current = new Set();
+    }
 
     const currentIds = new Set(lights.map(l => l.id));
     const prev = prevLightIdsRef.current;

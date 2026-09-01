@@ -16,8 +16,10 @@ const engineMock = {
   set_ambient_light: vi.fn(),
 };
 
+const useRenderEngineMock = vi.hoisted(() => vi.fn());
+
 vi.mock('@features/canvas', () => ({
-  useRenderEngine: () => engineMock,
+  useRenderEngine: () => useRenderEngineMock(),
 }));
 
 // ---- protocol mock ----
@@ -55,6 +57,7 @@ function makeLight(overrides: Record<string, unknown> = {}) {
 
 beforeEach(() => {
   vi.clearAllMocks();
+  useRenderEngineMock.mockReturnValue(engineMock);
   useGameStore.setState({ sprites: [], activeTableId: 'table-1', ambientLight: 1.0 } as unknown as Parameters<typeof useGameStore.setState>[0]);
 });
 
@@ -142,6 +145,24 @@ describe('LightingPanel', () => {
       expect(protocolMock.removeSprite).toHaveBeenCalledWith('torch_1');
       expect(useGameStore.getState().sprites).toHaveLength(0);
       expect(screen.getByText(/no lights placed/i)).toBeInTheDocument();
+    });
+
+    it('seeds existing lights when the render engine is replaced', () => {
+      const { rerender } = render(<LightingPanel />);
+      expect(engineMock.add_light).toHaveBeenCalledWith('torch_1', 100, 200);
+
+      const replacementEngine = {
+        ...engineMock,
+        add_light: vi.fn(),
+        set_light_color: vi.fn(),
+        set_light_intensity: vi.fn(),
+        set_light_radius: vi.fn(),
+        toggle_light: vi.fn(),
+      };
+      useRenderEngineMock.mockReturnValue(replacementEngine);
+      rerender(<LightingPanel />);
+
+      expect(replacementEngine.add_light).toHaveBeenCalledWith('torch_1', 100, 200);
     });
   });
 

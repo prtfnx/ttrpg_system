@@ -1,11 +1,13 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { SpriteSyncService } from '../spriteSync.service';
 
+const mockAddSprite = vi.hoisted(() => vi.fn());
+
 vi.mock('@/store', () => ({
   useGameStore: Object.assign(vi.fn(() => ({})), {
     getState: vi.fn(() => ({
       sprites: [],
-      addSprite: vi.fn(),
+      addSprite: mockAddSprite,
       moveSprite: vi.fn(),
     })),
     setState: vi.fn(),
@@ -39,6 +41,7 @@ function makeEngine() {
     remove_sprite: vi.fn(),
     update_sprite_position: vi.fn(() => true),
     update_light_position: vi.fn(),
+    update_sprite_controlled_by: vi.fn(),
     rotate_sprite: vi.fn(),
   };
 }
@@ -139,6 +142,50 @@ describe('SpriteSyncService', () => {
       expect(engine.add_sprite_to_layer).toHaveBeenCalledWith(
         'tokens',
         expect.objectContaining({ id: 's1', table_id: 'tbl1' }),
+      );
+    });
+
+    it('uses safe light defaults when metadata JSON is not an object', () => {
+      expect(() => service.addSpriteToWasm({
+        texture_path: '__LIGHT__',
+        layer: 'light',
+        sprite_id: 'light-null',
+        table_id: 'tbl1',
+        metadata: 'null',
+      })).not.toThrow();
+      expect(engine.set_light_radius).toHaveBeenCalledWith('light-null', 150);
+      expect(engine.set_light_intensity).toHaveBeenCalledWith('light-null', 1);
+    });
+
+    it('normalizes controller IDs for both WASM and the client store', () => {
+      service.addSpriteToWasm({
+        texture_path: 'hero.png',
+        sprite_id: 'controlled',
+        table_id: 'tbl1',
+        layer: 'tokens',
+        controlled_by: '["4", 7, -1, "invalid"]',
+      });
+
+      expect(engine.add_sprite_to_layer).toHaveBeenCalledWith(
+        'tokens',
+        expect.objectContaining({ controlled_by: [4, 7] }),
+      );
+      expect(mockAddSprite).toHaveBeenCalledWith(
+        expect.objectContaining({ controlledBy: ['4', '7'] }),
+      );
+    });
+
+    it('does not let non-array controller JSON abort sprite creation', () => {
+      expect(() => service.addSpriteToWasm({
+        texture_path: 'hero.png',
+        sprite_id: 'bad-controllers',
+        table_id: 'tbl1',
+        layer: 'tokens',
+        controlled_by: '{}',
+      })).not.toThrow();
+      expect(engine.add_sprite_to_layer).toHaveBeenCalledWith(
+        'tokens',
+        expect.objectContaining({ controlled_by: [] }),
       );
     });
 

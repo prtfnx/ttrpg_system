@@ -84,6 +84,32 @@ type RenderEngineExt = RenderEngine & {
 
 const OPTIMISTIC_TIMEOUT = 10_000;
 
+function parseRecord(value: unknown): Record<string, unknown> {
+  try {
+    const parsed: unknown = typeof value === 'string' ? JSON.parse(value) : value;
+    return typeof parsed === 'object' && parsed !== null && !Array.isArray(parsed)
+      ? parsed as Record<string, unknown>
+      : {};
+  } catch {
+    return {};
+  }
+}
+
+function controllerIds(value: unknown): number[] {
+  let parsed = value;
+  if (typeof value === 'string') {
+    try {
+      parsed = JSON.parse(value) as unknown;
+    } catch {
+      return [];
+    }
+  }
+  if (!Array.isArray(parsed)) return [];
+  return parsed
+    .map(item => Number(item))
+    .filter(item => Number.isSafeInteger(item) && item > 0);
+}
+
 export class SpriteSyncService {
   private optimisticTimers = new Map<string, number>();
   private pendingScaleOperations = new Set<string>();
@@ -451,13 +477,20 @@ export class SpriteSyncService {
       x = spriteData.coord_x ?? spriteData.x ?? 0;
       y = spriteData.coord_y ?? spriteData.y ?? 0;
     }
-    let meta: Record<string, unknown> = {};
-    try { if (typeof spriteData.metadata === 'string') meta = JSON.parse(spriteData.metadata); } catch { /* defaults */ }
+    const meta = parseRecord(spriteData.metadata);
 
     const lightId = spriteData.sprite_id || spriteData.id || `light_${Date.now()}`;
-    const radius = (meta.radius as number) ?? 150.0;
-    const intensity = (meta.intensity as number) ?? 1.0;
-    const color = (meta.color as { r: number; g: number; b: number; a: number }) ?? { r: 1.0, g: 0.9, b: 0.7, a: 1.0 };
+    const radius = typeof meta.radius === 'number' && Number.isFinite(meta.radius) && meta.radius > 0
+      ? meta.radius
+      : 150.0;
+    const intensity = typeof meta.intensity === 'number' && Number.isFinite(meta.intensity) && meta.intensity >= 0
+      ? meta.intensity
+      : 1.0;
+    const rawColor = parseRecord(meta.color);
+    const channels = [rawColor.r, rawColor.g, rawColor.b, rawColor.a];
+    const color = channels.every(channel => typeof channel === 'number' && Number.isFinite(channel))
+      ? rawColor as { r: number; g: number; b: number; a: number }
+      : { r: 1.0, g: 0.9, b: 0.7, a: 1.0 };
     const isOn = (meta.isOn as boolean) !== false;
 
     const existing = useGameStore.getState().sprites.find((s) => s.id === lightId);
@@ -555,9 +588,8 @@ export class SpriteSyncService {
     let tintColor = spriteData.tint_color || [1.0, 1.0, 1.0, 1.0];
     let shapeFilled = spriteData.shape_filled ?? null;
     if (isShape && typeof spriteData.metadata === 'string') {
-      try {
-        const m = JSON.parse(spriteData.metadata) as Record<string, unknown>;
-        if (typeof m.shape_color === 'string') {
+      const m = parseRecord(spriteData.metadata);
+        if (typeof m.shape_color === 'string' && /^#[0-9a-f]{6}$/i.test(m.shape_color)) {
           const hex = m.shape_color;
           const opacity = typeof m.opacity === 'number' ? m.opacity : 1.0;
           tintColor = [
@@ -568,8 +600,8 @@ export class SpriteSyncService {
           ];
         }
         if (typeof m.shape_filled === 'boolean') shapeFilled = m.shape_filled;
-      } catch { /* keep defaults */ }
     }
+    const normalizedControllerIds = controllerIds(spriteData.controlled_by);
     const wasmSprite = {
       id: spriteData.sprite_id || spriteData.id || `sprite_${Date.now()}`,
       world_x: x, world_y: y,
@@ -580,14 +612,7 @@ export class SpriteSyncService {
       tint_color: tintColor,
       table_id: spriteData.table_id,
       // controlled_by: normalize to number[] — server may send string IDs
-      controlled_by: (() => {
-        const raw = Array.isArray(spriteData.controlled_by)
-          ? spriteData.controlled_by
-          : (typeof spriteData.controlled_by === 'string'
-              ? (() => { try { return JSON.parse(spriteData.controlled_by); } catch { return []; } })()
-              : []);
-        return (raw as unknown[]).map(v => Number(v)).filter(v => Number.isFinite(v));
-      })(),
+      controlled_by: normalizedControllerIds,
       obstacle_type: spriteData.obstacle_type || null,
       polygon_vertices: spriteData.polygon_vertices ?? spriteData.obstacle_data?.vertices ?? null,
       shape_filled: shapeFilled,
@@ -603,7 +628,7 @@ export class SpriteSyncService {
         texture: spriteData.texture_path || '',
         scale: { x: wasmSprite.scale_x, y: wasmSprite.scale_y }, rotation: wasmSprite.rotation,
         characterId: spriteData.character_id,
-        controlledBy: (spriteData.controlled_by as string[] | undefined) || [],
+        controlledBy: normalizedControllerIds.map(String),
         hp: spriteData.hp, maxHp: spriteData.max_hp, ac: spriteData.ac,
         auraRadius: spriteData.aura_radius, auraRadiusUnits: spriteData.aura_radius_units ?? undefined,
         visionRadius: spriteData.vision_radius ?? undefined,
@@ -670,7 +695,7 @@ export class SpriteSyncService {
     // controlled_by is stored as a JSON array string; parse if needed.
     const rawCb = data.controlled_by ?? u.controlled_by;
     if (rawCb !== undefined) {
-      const cbNums: number[] = Array.isArray(rawCb) ? (rawCb as unknown[]).map(Number) : (typeof rawCb === 'string' ? (() => { try { return (JSON.parse(rawCb) as unknown[]).map(Number); } catch { return []; } })() : []);
+      const cbNums = controllerIds(rawCb);
       (this.getEngine() as RenderEngineExt)?.update_sprite_controlled_by?.(spriteId, cbNums);
       useGameStore.setState(state => ({ sprites: state.sprites.map(s => s.id === spriteId ? { ...s, controlledBy: cbNums.map(String) } : s) }));
     }

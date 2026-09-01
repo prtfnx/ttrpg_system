@@ -24,6 +24,7 @@ export const AssetManager: React.FC<AssetManagerProps> = ({ isVisible, onClose }
   const [selectedAssets, setSelectedAssets] = useState<Set<string>>(new Set());
   const [uploadFiles, setUploadFiles] = useState<Map<string, FileUploadInfo>>(new Map());
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const nextUploadIdRef = useRef(0);
 
   const {
     stats,
@@ -57,10 +58,10 @@ export const AssetManager: React.FC<AssetManagerProps> = ({ isVisible, onClose }
     const files = event.target.files;
     if (!files) return;
 
-    const newUploadFiles = new Map(uploadFiles);
+    const newUploadFiles = new Map<string, FileUploadInfo>();
 
     Array.from(files).forEach(file => {
-      const fileId = `${file.name}-${Date.now()}`;
+      const fileId = `${Date.now()}-${nextUploadIdRef.current++}-${file.name}`;
       const fileInfo: FileUploadInfo = {
         file,
         progress: 0,
@@ -72,8 +73,13 @@ export const AssetManager: React.FC<AssetManagerProps> = ({ isVisible, onClose }
         const reader = new FileReader();
         reader.onload = (e) => {
           if (e.target?.result) {
-            fileInfo.preview = e.target.result as string;
-            setUploadFiles(new Map(newUploadFiles.set(fileId, fileInfo)));
+            setUploadFiles(previous => {
+              const current = previous.get(fileId);
+              if (!current) return previous;
+              const next = new Map(previous);
+              next.set(fileId, { ...current, preview: e.target?.result as string });
+              return next;
+            });
           }
         };
         reader.readAsDataURL(file);
@@ -82,11 +88,11 @@ export const AssetManager: React.FC<AssetManagerProps> = ({ isVisible, onClose }
       newUploadFiles.set(fileId, fileInfo);
     });
 
-    setUploadFiles(newUploadFiles);
+    setUploadFiles(previous => new Map([...previous, ...newUploadFiles]));
     if (fileInputRef.current) {
       fileInputRef.current.value = '';
     }
-  }, [uploadFiles]);
+  }, []);
 
   // Message batching and delta updates for asset uploads
   const handleUploadBatch = useCallback(async (fileIds: string[]) => {
@@ -111,16 +117,25 @@ export const AssetManager: React.FC<AssetManagerProps> = ({ isVisible, onClose }
         // Delta update: only upload changed chunks if supported
         // (Assume uploadAsset supports chunked/delta upload)
         const success = await uploadAsset(file, (progress) => {
-          setUploadFiles(prev => new Map(prev.set(fileId, {
-            ...fileInfo,
-            progress,
-          })));
+          setUploadFiles(previous => {
+            const current = previous.get(fileId);
+            if (!current || current.status !== 'uploading') return previous;
+            const next = new Map(previous);
+            next.set(fileId, { ...current, progress });
+            return next;
+          });
         });
-        setUploadFiles(prev => new Map(prev.set(fileId, {
-          ...fileInfo,
-          status: success ? 'completed' : 'failed',
-          progress: success ? 100 : 0,
-        })));
+        setUploadFiles(previous => {
+          const current = previous.get(fileId);
+          if (!current) return previous;
+          const next = new Map(previous);
+          next.set(fileId, {
+            ...current,
+            status: success ? 'completed' : 'failed',
+            progress: success ? 100 : 0,
+          });
+          return next;
+        });
         return success;
       }));
       results.forEach((success, i) => {
@@ -134,12 +149,13 @@ export const AssetManager: React.FC<AssetManagerProps> = ({ isVisible, onClose }
       });
     } catch (_error) {
       batch.forEach(fileId => {
-        const fileInfo = uploadFiles.get(fileId);
-        setUploadFiles(prev => new Map(prev.set(fileId, {
-          ...fileInfo!,
-          status: 'failed',
-          progress: 0,
-        })));
+        setUploadFiles(previous => {
+          const current = previous.get(fileId);
+          if (!current) return previous;
+          const next = new Map(previous);
+          next.set(fileId, { ...current, status: 'failed', progress: 0 });
+          return next;
+        });
       });
     }
   }, [uploadFiles, uploadAsset]);
@@ -148,10 +164,12 @@ export const AssetManager: React.FC<AssetManagerProps> = ({ isVisible, onClose }
   // ...existing code...
 
   const handleRemoveUploadFile = useCallback((fileId: string) => {
-    const newUploadFiles = new Map(uploadFiles);
-    newUploadFiles.delete(fileId);
-    setUploadFiles(newUploadFiles);
-  }, [uploadFiles]);
+    setUploadFiles(previous => {
+      const next = new Map(previous);
+      next.delete(fileId);
+      return next;
+    });
+  }, []);
 
   const handleRemoveAsset = useCallback((assetId: string) => {
     const success = removeAsset(assetId);

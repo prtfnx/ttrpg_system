@@ -229,6 +229,22 @@ describe('WebClientProtocol', () => {
       expect((p as unknown as Record<string, unknown>)['connectionAlive']).toBe(false);
     });
 
+    it('stops consuming global send events after disconnect', () => {
+      const p = makeProtocol();
+      window.dispatchEvent(new CustomEvent('protocol-send-message', {
+        detail: { type: 'table_request', data: { table_id: 'before' } },
+      }));
+      const queue = (p as unknown as { messageQueue: unknown[] }).messageQueue;
+      expect(queue).toHaveLength(1);
+
+      p.disconnect();
+      window.dispatchEvent(new CustomEvent('protocol-send-message', {
+        detail: { type: 'table_request', data: { table_id: 'after' } },
+      }));
+
+      expect(queue).toHaveLength(1);
+    });
+
     it('rejects an in-flight connection when disconnected', async () => {
       const ws = {
         readyState: WebSocket.CONNECTING,

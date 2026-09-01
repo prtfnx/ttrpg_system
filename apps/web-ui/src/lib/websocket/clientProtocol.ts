@@ -76,6 +76,7 @@ export class WebClientProtocol {
   // Message batching
   private batchQueue: Message[] = [];
   private batchTimer: number | null = null;
+  private cleanupProtocolMessageSender: (() => void) | null = null;
   private readonly BATCH_DELAY_MS = 30;
   private readonly MAX_BATCH_SIZE = 15;
 
@@ -215,6 +216,8 @@ export class WebClientProtocol {
   }
 
   private setupProtocolMessageSender(): void {
+    if (this.cleanupProtocolMessageSender) return;
+
     // Listen for requests to send protocol messages
     const handleProtocolSendMessage = (detail: { type: string; data: unknown }) => {
       logger.debug('Protocol: Received protocol-send-message event', detail);
@@ -234,7 +237,7 @@ export class WebClientProtocol {
       }
     };
     
-    onProtocolEvent('protocol-send-message', handleProtocolSendMessage);
+    this.cleanupProtocolMessageSender = onProtocolEvent('protocol-send-message', handleProtocolSendMessage);
     logger.debug('Protocol: Registered protocol-send-message event listener');
   }
 
@@ -531,6 +534,7 @@ export class WebClientProtocol {
   }
 
   async connect(): Promise<void> {
+    this.setupProtocolMessageSender();
     this.reconnectEnabled = true;
     this.cancelReconnectTimer();
     return this.openSocket();
@@ -2061,6 +2065,8 @@ export class WebClientProtocol {
     this.connectionAlive = false;
     this.notifyConnectionState('disconnected');
     this.stopPingInterval();
+    this.cleanupProtocolMessageSender?.();
+    this.cleanupProtocolMessageSender = null;
     this.connecting = false;
     const socket = this.websocket;
     this.websocket = null;

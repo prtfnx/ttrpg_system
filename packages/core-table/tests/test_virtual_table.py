@@ -1,8 +1,9 @@
+import json
 import uuid
 
 import pytest
 from core_table.entities import Wall
-from core_table.table import Entity, VirtualTable
+from core_table.table import Entity, VirtualTable, create_table_from_json
 
 
 def make_table(w: int = 20, h: int = 20) -> VirtualTable:
@@ -213,6 +214,72 @@ class TestPositionQueries:
         assert t.get_entities_in_area((3, 3), (7, 7)) == [map_entity, inside]
         assert t.get_entities_in_area((3, 3), (7, 7), 'tokens') == [inside]
         assert outside not in t.get_entities_in_area((3, 3), (7, 7))
+
+
+class TestSerialization:
+    def test_entity_roundtrip_preserves_render_and_gameplay_fields(self):
+        entity = Entity(
+            name='Gate',
+            position=(3, 4),
+            layer='obstacles',
+            entity_id=7,
+            obstacle_type='polygon',
+            obstacle_data={'vertices': [[0, 0], [2, 0], [1, 2]]},
+            character_id='char-1',
+            controlled_by=[2, 3],
+            hp=9,
+            max_hp=12,
+            ac=15,
+            asset_id='asset-1',
+            width=48,
+            height=64,
+            vision_radius=30,
+            has_darkvision=True,
+        )
+        entity.rotation = 22.5
+
+        restored = Entity.from_dict(entity.to_dict())
+
+        assert restored.to_dict() == entity.to_dict()
+
+    def test_table_to_json_can_be_loaded_without_losing_entities(self):
+        table = make_table()
+        entity = add_entity(
+            table,
+            x=3,
+            y=4,
+            obstacle_type='circle',
+            obstacle_data={'radius': 2},
+            character_id='char-1',
+            controlled_by=[4],
+            hp=8,
+            max_hp=10,
+            asset_id='asset-1',
+            width=32,
+            height=40,
+            vision_radius=25,
+            has_darkvision=True,
+        )
+        entity.rotation = 45
+
+        restored = create_table_from_json(table.to_json())
+        restored_entity = next(iter(restored.entities.values()))
+
+        assert restored.display_name == table.display_name
+        assert restored_entity.to_dict() == entity.to_dict()
+
+    def test_flat_legacy_json_remains_supported(self):
+        payload = {
+            'name': 'Legacy',
+            'width': 20,
+            'height': 20,
+            'entities': [Entity('Hero', (1, 2), 'tokens', entity_id=1).to_dict()],
+        }
+
+        restored = create_table_from_json(json.dumps(payload))
+
+        assert restored.display_name == 'Legacy'
+        assert len(restored.entities) == 1
 
 
 class TestWalls:

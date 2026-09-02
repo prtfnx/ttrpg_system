@@ -160,7 +160,9 @@ class Entity:
             position=tuple(data['position']),
             layer=data['layer'],
             path_to_texture=data.get('texture_path'),
-            entity_id=data['entity_id'],
+            entity_id=data.get('entity_id'),
+            obstacle_type=data.get('obstacle_type'),
+            obstacle_data=data.get('obstacle_data'),
             character_id=data.get('character_id'),
             controlled_by=data.get('controlled_by', []),
             hp=data.get('hp'),
@@ -168,9 +170,16 @@ class Entity:
             ac=data.get('ac'),
             aura_radius=data.get('aura_radius'),
             aura_color=data.get('aura_color'),
+            metadata=data.get('metadata'),
             asset_id=data.get('asset_id'),
             width=float(data.get('width') or 0.0),
             height=float(data.get('height') or 0.0),
+            vision_radius=data.get('vision_radius'),
+            has_darkvision=data.get('has_darkvision') is True,
+            darkvision_radius=data.get('darkvision_radius'),
+            aura_radius_units=data.get('aura_radius_units'),
+            vision_radius_units=data.get('vision_radius_units'),
+            darkvision_radius_units=data.get('darkvision_radius_units'),
         )
         entity.sprite_id = data.get('sprite_id', str(uuid.uuid4()))
         entity.scale_x = data.get('scale_x', 1.0)
@@ -178,13 +187,6 @@ class Entity:
         entity.rotation = data.get('rotation', 0.0)
         entity.width = data.get('width', 0.0)
         entity.height = data.get('height', 0.0)
-        entity.metadata = data.get('metadata')
-        entity.vision_radius = data.get('vision_radius')
-        entity.has_darkvision = bool(data.get('has_darkvision', False))
-        entity.darkvision_radius = data.get('darkvision_radius')
-        entity.aura_radius_units = data.get('aura_radius_units')
-        entity.vision_radius_units = data.get('vision_radius_units')
-        entity.darkvision_radius_units = data.get('darkvision_radius_units')
         return entity
 
     def serialize(self) -> dict:
@@ -561,29 +563,35 @@ class VirtualTable:
                 logger.warning(f"Unknown layer in data: {layer}")
                 continue
 
-            for entity_id_str, entity_data in entities_data.items():
+            if isinstance(entities_data, dict):
+                entity_entries = entities_data.items()
+            elif isinstance(entities_data, list):
+                entity_entries = enumerate(entities_data, start=max_entity_id + 1)
+            else:
+                logger.warning(f"Invalid entity collection for layer: {layer}")
+                continue
+
+            for entity_id_str, entity_data in entity_entries:
                 try:
+                    if not isinstance(entity_data, dict):
+                        raise TypeError("entity data must be an object")
                     entity_id = int(entity_id_str)
                     max_entity_id = max(max_entity_id, entity_id)
 
-                    # Create entity from data
-                    entity = Entity(
-                        name=entity_data.get('name', f'Entity {entity_id}'),
-                        position=tuple(entity_data.get('position', [0, 0])),
-                        layer=layer,
-                        path_to_texture=entity_data.get('texture_path'),
-                        entity_id=entity_id
-                    )
-
-                    # Restore additional properties
-                    entity.scale_x = entity_data.get('scale_x', 1.0)
-                    entity.scale_y = entity_data.get('scale_y', 1.0)
-                    entity.sprite_id = entity_data.get('sprite_id', str(uuid.uuid4()))
+                    # Route every persisted field through the canonical entity
+                    # deserializer so save/load and import/export stay symmetric.
+                    entity = Entity.from_dict({
+                        **entity_data,
+                        'name': entity_data.get('name', f'Entity {entity_id}'),
+                        'position': entity_data.get('position', [0, 0]),
+                        'layer': layer,
+                        'entity_id': entity_id,
+                    })
 
                     if not self.restore_entity(entity):
                         logger.warning(f"Entity {entity_id} has invalid position: {entity.position}")
 
-                except (ValueError, KeyError) as e:
+                except (TypeError, ValueError, KeyError) as e:
                     logger.error(f"Failed to load entity {entity_id_str}: {e}")
                     continue
 
@@ -669,11 +677,18 @@ class VirtualTable:
 
 def create_table_from_json(json_data: str) -> VirtualTable:
     data = json.loads(json_data)
-    table = VirtualTable(data['name'], data['width'], data['height'])
-    for e_data in data['entities']:
-        entity = Entity.from_dict(e_data)
-        if entity.entity_id is not None:
-            table.restore_entity(entity)
+    name = data.get('table_name') or data.get('name')
+    if not isinstance(name, str) or not name.strip():
+        raise ValueError("Table JSON must contain a non-empty table_name")
+    table = VirtualTable(name, data['width'], data['height'])
+    if 'layers' in data:
+        table.from_dict(data)
+    else:
+        # Backward compatibility for the original flat entity export shape.
+        for e_data in data.get('entities', []):
+            entity = Entity.from_dict(e_data)
+            if entity.entity_id is not None:
+                table.restore_entity(entity)
     logger.info("Created table from JSON data")
     return table
 

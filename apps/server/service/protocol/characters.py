@@ -622,9 +622,14 @@ class _CharactersMixin(_ProtocolBase):
         character_id = msg.data.get('character_id')
         session_id = self._get_session_id(msg)
         user_id = self._get_user_id(msg, client_id) or 0
-        limit = int(msg.data.get('limit', 50))
         if not character_id or not session_id:
             return Message(MessageType.CHARACTER_LOG_RESPONSE, {'success': False, 'error': 'character_id and session required'})
+        limit = msg.data.get('limit', 50)
+        if isinstance(limit, bool) or not isinstance(limit, int) or not 1 <= limit <= 100:
+            return Message(MessageType.CHARACTER_LOG_RESPONSE, {
+                'success': False,
+                'error': 'limit must be an integer between 1 and 100',
+            })
         result = await self.actions.get_character_log(
             session_id,
             character_id,

@@ -704,6 +704,23 @@ class TestCharacterLogRequest:
         assert resp.data["success"] is False
         assert "required" in resp.data["error"].lower()
 
+    @pytest.mark.parametrize("limit", [0, -1, 101, "10", True, None])
+    async def test_invalid_limits_are_rejected_before_query(self, limit):
+        from core_table.protocol import Message, MessageType
+
+        proto = _make_proto()
+        proto.actions.get_character_log = AsyncMock()
+        msg = Message(MessageType.CHARACTER_LOG_REQUEST, {
+            "character_id": "c1", "session_code": "TST", "limit": limit,
+        })
+
+        resp = await proto.handle_character_log_request(msg, "client1")
+
+        assert resp.type == MessageType.CHARACTER_LOG_RESPONSE
+        assert resp.data["success"] is False
+        assert "between 1 and 100" in resp.data["error"]
+        proto.actions.get_character_log.assert_not_awaited()
+
     async def test_action_failure_returns_error(self):
         from core_table.protocol import Message, MessageType
 

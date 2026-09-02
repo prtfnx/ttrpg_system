@@ -197,7 +197,7 @@ class TestNewTableRequest:
     async def test_create_normalizes_name_and_uses_safe_dimension_defaults(self):
         proto = _ProtoStub(role="owner")
         table_mock = MagicMock()
-        table_mock.to_dict.return_value = {"id": "t-new", "name": "Dungeon", "layers": {}}
+        table_mock.to_dict.return_value = {"table_id": "t-new", "table_name": "Dungeon", "layers": {}}
         proto.actions.create_table = AsyncMock(return_value=_ok_result(table=table_mock))
         proto.actions.set_active_table = AsyncMock(return_value=_ok_result())
 
@@ -217,7 +217,7 @@ class TestNewTableRequest:
     async def test_successful_create_returns_table_response(self):
         proto = _ProtoStub(role="owner")
         table_mock = MagicMock()
-        table_mock.to_dict.return_value = {"id": "t-new", "name": "Dungeon", "layers": {}}
+        table_mock.to_dict.return_value = {"table_id": "t-new", "table_name": "Dungeon", "layers": {}}
         result = MagicMock()
         result.success = True
         result.data = {"table": table_mock}
@@ -227,6 +227,42 @@ class TestNewTableRequest:
         msg = Message(MessageType.NEW_TABLE_REQUEST, {"table_name": "Dungeon"})
         resp = await proto.handle_new_table_request(msg, "c1")
         assert resp.type != MessageType.ERROR
+
+    async def test_missing_session_id_is_rejected_before_creation(self):
+        proto = _ProtoStub(role="owner")
+        proto._get_session_id = MagicMock(return_value=None)
+        proto.actions.create_table = AsyncMock()
+
+        resp = await proto.handle_new_table_request(
+            Message(MessageType.NEW_TABLE_REQUEST, {"table_name": "Dungeon"}),
+            "c1",
+        )
+
+        assert resp.type == MessageType.ERROR
+        assert "session context" in resp.data["error"]
+        proto.actions.create_table.assert_not_awaited()
+
+    async def test_create_broadcasts_authoritative_table_id(self):
+        proto = _ProtoStub(role="owner")
+        proto.broadcast_to_session = AsyncMock()
+        table_mock = MagicMock()
+        table_mock.to_dict.return_value = {
+            "table_id": "t-new",
+            "table_name": "Dungeon",
+            "width": 2000,
+            "height": 2000,
+            "layers": {},
+        }
+        proto.actions.create_table = AsyncMock(return_value=_ok_result(table=table_mock))
+
+        await proto.handle_new_table_request(
+            Message(MessageType.NEW_TABLE_REQUEST, {"table_name": "Dungeon"}),
+            "c1",
+        )
+
+        broadcast = proto.broadcast_to_session.await_args.args[0]
+        assert broadcast.type == MessageType.TABLE_UPDATE
+        assert broadcast.data["table_id"] == "t-new"
 
 
 # ---------------------------------------------------------------------------

@@ -101,12 +101,14 @@ class _TablesMixin(_ProtocolBase):
             })
         local_table_id = msg.data.get('local_table_id')  # BEST PRACTICE: Preserve local ID for sync mapping
 
-        # BEST PRACTICE: Get session_id for database persistence
+        # Table creation must be durable. Validate all authenticated session
+        # context before adding anything to the in-memory table manager.
         session_id = self._get_session_id(msg)
-        if session_id:
-            logger.debug("Persistent table creation requested", extra={"event_name": "table.create.persistent"})
-        else:
-            logger.warning("No session_id available - table will not be persisted to database")
+        session_code = self._get_session_code()
+        user_id = self._get_user_id(msg, client_id)
+        if not session_id or not session_code or user_id is None:
+            return Message(MessageType.ERROR, {'error': 'Authentication and session context required'})
+        logger.debug("Persistent table creation requested", extra={"event_name": "table.create.persistent"})
 
         result = await self.actions.create_table(table_name, width, height, session_id=session_id)
 
@@ -125,10 +127,6 @@ class _TablesMixin(_ProtocolBase):
                     pass
             elif isinstance(table_obj, dict):
                 table_data = table_obj
-            session_code = self._get_session_code()
-            user_id = self._get_user_id(msg, client_id)
-            if not session_code or user_id is None:
-                return Message(MessageType.ERROR, {'error': 'Authentication and session context required'})
             await self.ensure_assets_in_r2(table_data, session_code, user_id)
             logger.debug(
                 "Table creation processed",
@@ -141,7 +139,7 @@ class _TablesMixin(_ProtocolBase):
             # Broadcast new table creation to all clients in the session
             update_message = Message(MessageType.TABLE_UPDATE, {
                 'operation': 'create',
-                'table_id': table_data.get('id'),
+                'table_id': table_data.get('table_id'),
                 'table_name': table_name,
                 'table_data': table_data
             })

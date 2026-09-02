@@ -703,6 +703,27 @@ describe('WebClientProtocol', () => {
       expect(handler).toHaveBeenCalledOnce();
     });
 
+    it('TABLE_UPDATE adds newly created tables to the store', async () => {
+      Object.assign(mocks.storeState, makeStoreState({ tables: [] }));
+      const p = makeProtocol();
+
+      await dispatch(p, 'table_update', {
+        operation: 'create',
+        table_id: 't-new',
+        table_name: 'Dungeon',
+        table_data: {
+          table_id: 't-new',
+          table_name: 'Dungeon',
+          width: 1600,
+          height: 1200,
+        },
+      });
+
+      expect(mockSetTables).toHaveBeenCalledWith([
+        expect.objectContaining({ table_id: 't-new', table_name: 'Dungeon' }),
+      ]);
+    });
+
     it('SPRITE_CREATE dispatches sprite-created event', async () => {
       const p = makeProtocol();
       const handler = vi.fn();

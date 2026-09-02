@@ -952,6 +952,29 @@ export class WebClientProtocol {
 
   private async handleTableUpdate(message: Message): Promise<void> {
     logger.debug('Table update:', message.data);
+    const data = message.data as Record<string, unknown>;
+    if (data?.operation === 'create' && data.table_data && typeof data.table_data === 'object') {
+      const tableData = data.table_data as Record<string, unknown>;
+      const tableId = String(tableData.table_id ?? data.table_id ?? '');
+      if (tableId) {
+        const store = useGameStore.getState();
+        const currentTables = store.tables ?? [];
+        if (!currentTables.some(table => table.table_id === tableId)) {
+          store.setTables([
+            ...currentTables,
+            {
+              ...tableData,
+              table_id: tableId,
+              table_name: String(tableData.table_name ?? data.table_name ?? 'Untitled'),
+              width: Number(tableData.width ?? 2000),
+              height: Number(tableData.height ?? 2000),
+              syncStatus: 'synced' as const,
+              lastSyncTime: Date.now(),
+            },
+          ]);
+        }
+      }
+    }
     emitProtocolEvent('table-updated', message.data);
   }
 

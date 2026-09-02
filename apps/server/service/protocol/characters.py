@@ -435,6 +435,7 @@ class _CharactersMixin(_ProtocolBase):
             return Message(MessageType.CHARACTER_LOAD_RESPONSE, {
                 'success': True,
                 'character_data': resdata.get('character_data'),
+                'version': resdata.get('version'),
                 'message': result.message
             })
         else:

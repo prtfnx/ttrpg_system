@@ -1096,7 +1096,10 @@ class ActionsCore(AsyncActionsProtocol):
                 return ActionResult(
                     success=True,
                     message="Character loaded successfully",
-                    data={'character_data': result.get('character_data')}
+                    data={
+                        'character_data': result.get('character_data'),
+                        'version': result.get('version'),
+                    }
                 )
             else:
                 logger.error(f"Character load failed: {result.get('error')}")

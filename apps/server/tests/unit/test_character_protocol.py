@@ -479,7 +479,7 @@ class TestCharacterLoadRequest:
         with patch.object(proto.actions, "load_character", new=AsyncMock(
             return_value=MagicMock(
                 success=True, message="OK",
-                data={"character_data": {"name": "Hero", "level": 3}},
+                data={"character_data": {"name": "Hero", "level": 3}, "version": 4},
             )
         )):
             resp = await proto.handle_character_load_request(msg, "client1")
@@ -487,6 +487,7 @@ class TestCharacterLoadRequest:
         assert resp.type == MessageType.CHARACTER_LOAD_RESPONSE
         assert resp.data["success"] is True
         assert resp.data["character_data"]["name"] == "Hero"
+        assert resp.data["version"] == 4
 
     async def test_missing_character_id_returns_error(self):
         from core_table.protocol import Message, MessageType

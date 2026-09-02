@@ -260,29 +260,9 @@ export const useTableManagement = () => {
     ));
 
     if (activeTableId === settingsTableId) {
-      const updatedTableDataForWasm = {
-        table_data: {
-          table_id: settingsTableId,
-          table_name: settingsName,
-          width: settingsWidth,
-          height: settingsHeight,
-          grid_size: settingsGridSize,
-          grid_enabled: settingsGridEnabled,
-          grid_snapping: false,
-          layers: {
- map: [],
- tokens: [],
- dungeon_master: [],
- light: [],
- height: [],
- obstacles: [],
- fog_of_war: []
-          }
-        }
-      };
-      
-      emitProtocolEvent('table-data-received', updatedTableDataForWasm);
-      
+      // Never synthesize a full table snapshot for a metadata-only update.
+      // TableSyncService treats snapshots as authoritative and clears layers
+      // missing from them. Request the canonical server snapshot instead.
       emitProtocolEvent('protocol-send-message', {
         type: 'table_request',
         data: {

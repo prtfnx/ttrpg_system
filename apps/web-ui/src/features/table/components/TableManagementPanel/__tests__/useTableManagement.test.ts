@@ -158,12 +158,23 @@ describe('settings management', () => {
 
   it('handleSaveSettings dispatches events and clears settingsTableId', () => {
     const eventSpy = vi.spyOn(window, 'dispatchEvent');
+    const tableDataSpy = vi.fn();
+    const protocolSpy = vi.fn();
+    window.addEventListener('table-data-received', tableDataSpy);
+    window.addEventListener('protocol-send-message', protocolSpy);
     const { result } = renderHook(() => useTableManagement());
-    act(() => result.current.handleOpenSettings('t2'));
+    act(() => result.current.handleOpenSettings('t1'));
     act(() => result.current.handleSaveSettings());
     expect(eventSpy).toHaveBeenCalled();
+    expect(tableDataSpy).not.toHaveBeenCalled();
+    expect(protocolSpy).toHaveBeenCalledTimes(2);
+    expect(protocolSpy.mock.calls[1][0]).toMatchObject({
+      detail: { type: 'table_request', data: { table_id: 't1' } },
+    });
     // After save, settingsTableId cleared
     expect(result.current.settingsTableId).toBeNull();
+    window.removeEventListener('table-data-received', tableDataSpy);
+    window.removeEventListener('protocol-send-message', protocolSpy);
   });
 
   it('handleSaveSettings does nothing when no settingsTableId', () => {

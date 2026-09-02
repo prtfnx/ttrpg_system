@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { formatDate, formatRelativeTime, TABLE_TEMPLATES } from '../utils';
+import { formatDate, formatRelativeTime, TABLE_TEMPLATES, validateImportedTableData } from '../utils';
 
 describe('formatDate', () => {
   it('returns Unknown for undefined', () => {
@@ -66,5 +66,27 @@ describe('TABLE_TEMPLATES', () => {
 
   it('huge is 8000×8000', () => {
     expect(TABLE_TEMPLATES.huge).toEqual({ width: 8000, height: 8000, label: 'Huge (8000×8000)' });
+  });
+});
+
+describe('validateImportedTableData', () => {
+  it('accepts a canonical table export with layers', () => {
+    const data = validateImportedTableData({
+      table_name: 'Dungeon',
+      width: 2000,
+      height: 1500,
+      layers: { tokens: { 1: { name: 'Hero' } } },
+    });
+
+    expect(data).toMatchObject({ table_name: 'Dungeon', width: 2000, height: 1500 });
+  });
+
+  it.each([
+    { table_name: 'Dungeon', width: '2000', height: 1500, layers: {} },
+    { table_name: 'Dungeon', width: -1, height: 1500, layers: {} },
+    { table_name: 'Dungeon', width: 2000, height: 10_001, layers: {} },
+    { table_name: 'Dungeon', width: 2000, height: 1500 },
+  ])('rejects invalid or incomplete exports', payload => {
+    expect(validateImportedTableData(payload)).toBeNull();
   });
 });

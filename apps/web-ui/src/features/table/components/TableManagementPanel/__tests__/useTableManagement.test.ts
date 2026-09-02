@@ -268,11 +268,23 @@ describe('bulk operations', () => {
   });
 
   it('handleBulkDuplicate duplicates all selected tables', () => {
+    const protocolSpy = vi.fn();
+    window.addEventListener('protocol-send-message', protocolSpy);
     const { result } = renderHook(() => useTableManagement());
     act(() => result.current.toggleTableSelection('t1'));
     act(() => result.current.handleBulkDuplicate());
-    expect(mockStore.createNewTable).toHaveBeenCalledWith('Alpha (Copy)', 2000, 2000);
+    expect(protocolSpy).toHaveBeenCalledWith(expect.objectContaining({
+      detail: {
+        type: 'new_table_request',
+        data: expect.objectContaining({
+          table_name: 'Alpha (Copy)',
+          source_table_id: 't1',
+        }),
+      },
+    }));
+    expect(mockStore.createNewTable).not.toHaveBeenCalled();
     expect(result.current.selectedTables.size).toBe(0);
+    window.removeEventListener('protocol-send-message', protocolSpy);
   });
 });
 

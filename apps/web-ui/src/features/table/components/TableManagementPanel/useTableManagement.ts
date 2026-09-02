@@ -6,7 +6,7 @@ import { emitProtocolEvent } from '@lib/websocket/protocolEvents';
 import { logger } from '@shared/utils/logger';
 import { showToast } from '@shared/utils/toast';
 import { useEffect, useMemo, useState } from 'react';
-import { TABLE_TEMPLATES } from './utils';
+import { TABLE_TEMPLATES, validateImportedTableData } from './utils';
 
 export const useTableManagement = () => {
   const runtime = useWasmRuntime();
@@ -320,7 +320,15 @@ export const useTableManagement = () => {
   const handleDuplicateTable = (tableId: string) => {
     const table = tables.find(t => t.table_id === tableId);
     if (table) {
-      createNewTable(`${table.table_name} (Copy)`, table.width, table.height);
+      emitProtocolEvent('protocol-send-message', {
+        type: 'new_table_request',
+        data: {
+          table_name: `${table.table_name} (Copy)`,
+          width: table.width,
+          height: table.height,
+          source_table_id: table.table_id,
+        },
+      });
     }
   };
 
@@ -372,18 +380,22 @@ export const useTableManagement = () => {
 
       try {
         const text = await file.text();
-        const data = JSON.parse(text);
+        const data = validateImportedTableData(JSON.parse(text));
 
-        if (!data.table_name || !data.width || !data.height) {
+        if (!data) {
           alert('Invalid table export file');
           return;
         }
 
-        createNewTable(
-          `${data.table_name} (Imported)`,
-          data.width,
-          data.height
-        );
+        emitProtocolEvent('protocol-send-message', {
+          type: 'new_table_request',
+          data: {
+            table_name: `${data.table_name} (Imported)`,
+            width: data.width,
+            height: data.height,
+            table_data: data,
+          },
+        });
       } catch (err) {
         alert('Failed to import table: ' + err);
       }

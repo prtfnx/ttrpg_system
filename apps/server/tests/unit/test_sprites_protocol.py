@@ -318,6 +318,26 @@ class TestScaleSprite:
         resp = await proto.handle_scale_sprite(msg, "c1")
         assert resp.type == MessageType.ERROR
 
+    @pytest.mark.parametrize("width,height", [
+        (0, 1),
+        (-1, 1),
+        (10_001, 1),
+        ("2", 1),
+        (True, 1),
+        (float("inf"), 1),
+    ])
+    async def test_invalid_dimensions_are_rejected(self, width, height):
+        proto = _ProtoStub(role="owner")
+        proto.actions.update_sprite = AsyncMock()
+        msg = Message(MessageType.SPRITE_SCALE, {
+            "sprite_id": "sp-1", "table_id": "t1", "width": width, "height": height,
+        })
+
+        resp = await proto.handle_scale_sprite(msg, "c1")
+
+        assert resp.type == MessageType.ERROR
+        proto.actions.update_sprite.assert_not_awaited()
+
     async def test_spectator_cannot_scale(self):
         proto = _ProtoStub(role="spectator")
         msg = Message(MessageType.SPRITE_SCALE, {"sprite_id": "sp-1", "table_id": "t1", "width": 2.0, "height": 2.0})
@@ -352,6 +372,19 @@ class TestRotateSprite:
         msg = Message(MessageType.SPRITE_ROTATE, {"sprite_id": "sp-1", "table_id": "t1"})
         resp = await proto.handle_rotate_sprite(msg, "c1")
         assert resp.type == MessageType.ERROR
+
+    @pytest.mark.parametrize("rotation", ["90", True, float("inf"), float("nan")])
+    async def test_non_numeric_or_non_finite_rotation_is_rejected(self, rotation):
+        proto = _ProtoStub(role="owner")
+        proto.actions.rotate_sprite = AsyncMock()
+        msg = Message(MessageType.SPRITE_ROTATE, {
+            "sprite_id": "sp-1", "table_id": "t1", "rotation": rotation,
+        })
+
+        resp = await proto.handle_rotate_sprite(msg, "c1")
+
+        assert resp.type == MessageType.ERROR
+        proto.actions.rotate_sprite.assert_not_awaited()
 
     async def test_spectator_cannot_rotate(self):
         proto = _ProtoStub(role="spectator")
@@ -396,6 +429,25 @@ class TestSpritePreviewHandlers:
         msg = Message(MessageType.SPRITE_DRAG_PREVIEW, {"id": "sp-1"})
         await proto.handle_sprite_drag_preview(msg, "c1")
         proto.broadcast_to_session.assert_not_called()
+
+    async def test_invalid_preview_numbers_are_not_broadcast(self):
+        proto = _ProtoStub(role="owner")
+        proto.broadcast_to_session = AsyncMock()
+
+        await proto.handle_sprite_drag_preview(
+            Message(MessageType.SPRITE_DRAG_PREVIEW, {"id": "sp-1", "x": "5", "y": 3}),
+            "c1",
+        )
+        await proto.handle_sprite_resize_preview(
+            Message(MessageType.SPRITE_RESIZE_PREVIEW, {"id": "sp-1", "width": -1, "height": 2}),
+            "c1",
+        )
+        await proto.handle_sprite_rotate_preview(
+            Message(MessageType.SPRITE_ROTATE_PREVIEW, {"id": "sp-1", "rotation": float("nan")}),
+            "c1",
+        )
+
+        proto.broadcast_to_session.assert_not_awaited()
 
     async def test_resize_preview_broadcasts(self):
         proto = _ProtoStub(role="owner")

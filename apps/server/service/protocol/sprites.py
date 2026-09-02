@@ -1,4 +1,5 @@
 import json
+import math
 
 from core_table.protocol import Message, MessageType
 from service.canvas_persistence_service import (
@@ -14,6 +15,7 @@ from utils.roles import can_interact, get_sprite_limit, is_dm
 from ._protocol_base import _ProtocolBase
 
 logger = setup_logger(__name__)
+_MAX_SPRITE_DIMENSION = 10_000.0
 
 
 def _get_required_table_id(data: dict[str, object]) -> str | None:
@@ -22,6 +24,20 @@ def _get_required_table_id(data: dict[str, object]) -> str | None:
     if not isinstance(table_id, str) or not table_id.strip():
         return None
     return table_id.strip()
+
+
+def _finite_number(value: object) -> float | None:
+    if isinstance(value, bool) or not isinstance(value, (int, float)):
+        return None
+    number = float(value)
+    return number if math.isfinite(number) else None
+
+
+def _sprite_dimension(value: object) -> float | None:
+    number = _finite_number(value)
+    if number is None or number <= 0 or number > _MAX_SPRITE_DIMENSION:
+        return None
+    return number
 
 
 class _SpritesMixin(_ProtocolBase):
@@ -328,12 +344,16 @@ class _SpritesMixin(_ProtocolBase):
         if table_id is None:
             return Message(MessageType.ERROR, {'error': 'table_id is required'})
         sprite_id = msg.data.get('sprite_id')
-        width = msg.data.get('width')
-        height = msg.data.get('height')
+        width = _sprite_dimension(msg.data.get('width'))
+        height = _sprite_dimension(msg.data.get('height'))
         action_id = msg.data.get('action_id')
 
-        if not sprite_id or width is None or height is None:
-            return Message(MessageType.ERROR, {'error': 'Sprite ID, width, and height are required'})
+        if not sprite_id:
+            return Message(MessageType.ERROR, {'error': 'Sprite ID is required'})
+        if width is None or height is None:
+            return Message(MessageType.ERROR, {
+                'error': 'Sprite width and height must be finite numbers between 0 and 10000'
+            })
         role = self._get_client_role(client_id)
         if not can_interact(role):
             return Message(MessageType.ERROR, {'error': 'Spectators cannot modify sprites'})
@@ -375,11 +395,13 @@ class _SpritesMixin(_ProtocolBase):
         if table_id is None:
             return Message(MessageType.ERROR, {'error': 'table_id is required'})
         sprite_id = msg.data.get('sprite_id')
-        rotation = msg.data.get('rotation')
+        rotation = _finite_number(msg.data.get('rotation'))
         action_id = msg.data.get('action_id')  # For confirmation tracking
 
-        if not sprite_id or rotation is None:
-            return Message(MessageType.ERROR, {'error': 'Sprite ID and rotation are required'})
+        if not sprite_id:
+            return Message(MessageType.ERROR, {'error': 'Sprite ID is required'})
+        if rotation is None:
+            return Message(MessageType.ERROR, {'error': 'Sprite rotation must be a finite number'})
         role = self._get_client_role(client_id)
         if not can_interact(role):
             return Message(MessageType.ERROR, {'error': 'Spectators cannot modify sprites'})
@@ -426,7 +448,7 @@ class _SpritesMixin(_ProtocolBase):
         if not data:
             return
         sprite_id = data.get('id') or data.get('sprite_id')
-        x, y = data.get('x'), data.get('y')
+        x, y = _finite_number(data.get('x')), _finite_number(data.get('y'))
         if not sprite_id or x is None or y is None:
             return
         role = self._get_client_role(client_id)
@@ -445,7 +467,8 @@ class _SpritesMixin(_ProtocolBase):
         if not data:
             return
         sprite_id = data.get('id') or data.get('sprite_id')
-        width, height = data.get('width'), data.get('height')
+        width = _sprite_dimension(data.get('width'))
+        height = _sprite_dimension(data.get('height'))
         if not sprite_id or width is None or height is None:
             return
         role = self._get_client_role(client_id)
@@ -464,7 +487,7 @@ class _SpritesMixin(_ProtocolBase):
         if not data:
             return
         sprite_id = data.get('id') or data.get('sprite_id')
-        rotation = data.get('rotation')
+        rotation = _finite_number(data.get('rotation'))
         if not sprite_id or rotation is None:
             return
         role = self._get_client_role(client_id)

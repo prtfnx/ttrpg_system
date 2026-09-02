@@ -160,7 +160,7 @@ class AssetIntegrationService {
   requestAssetUpload(fileName: string, fileSize: number, fileType: string): void {
     // This would be called by the AssetManager component
     emitProtocolEvent('protocol-send-message', {
-      type: 'ASSET_UPLOAD_REQUEST',
+      type: MessageType.ASSET_UPLOAD_REQUEST,
       data: { 
         filename: fileName,
         file_size: fileSize,
@@ -174,7 +174,7 @@ class AssetIntegrationService {
    */
   requestAssetList(): void {
     emitProtocolEvent('protocol-send-message', {
-      type: 'ASSET_LIST_REQUEST',
+      type: MessageType.ASSET_LIST_REQUEST,
       data: {}
     });
   }

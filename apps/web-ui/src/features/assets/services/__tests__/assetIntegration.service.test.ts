@@ -1,4 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { MessageType } from '@lib/websocket';
 import { assetIntegrationService } from '../assetIntegration.service';
 
 type Svc = typeof assetIntegrationService & Record<string, unknown>;
@@ -84,7 +85,7 @@ describe('AssetIntegrationService', () => {
       window.addEventListener('protocol-send-message', e => received.push(e as CustomEvent));
       assetIntegrationService.requestAssetUpload('sprite.png', 2048, 'image/png');
       expect(received).toHaveLength(1);
-      expect(received[0].detail.type).toBe('ASSET_UPLOAD_REQUEST');
+      expect(received[0].detail.type).toBe(MessageType.ASSET_UPLOAD_REQUEST);
       const d = received[0].detail.data;
       expect(d.filename).toBe('sprite.png');
       expect(d.file_size).toBe(2048);
@@ -98,7 +99,7 @@ describe('AssetIntegrationService', () => {
       window.addEventListener('protocol-send-message', e => received.push(e as CustomEvent));
       assetIntegrationService.requestAssetList();
       expect(received).toHaveLength(1);
-      expect(received[0].detail.type).toBe('ASSET_LIST_REQUEST');
+      expect(received[0].detail.type).toBe(MessageType.ASSET_LIST_REQUEST);
     });
   });
 

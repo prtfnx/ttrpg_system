@@ -1182,13 +1182,43 @@ export class WebClientProtocol {
 
   private async handleCharacterLoadResponse(message: Message): Promise<void> {
     logger.debug('Character loaded:', message.data);
-    // Upsert character into cache (server now uses `character_id` in payloads)
-    if (message.data && typeof message.data.character_id === 'string') {
+    const response = (message.data ?? {}) as Record<string, unknown>;
+    const document = response.character_data && typeof response.character_data === 'object'
+      ? response.character_data as Record<string, unknown>
+      : null;
+    const characterId = document && typeof document.character_id === 'string'
+      ? document.character_id
+      : null;
+
+    if (response.success !== false && document && characterId) {
+      const characterData = document.data && typeof document.data === 'object'
+        ? document.data as Record<string, unknown>
+        : {};
+      const store = useGameStore.getState();
+      const existing = store.characters.find(character => character.id === characterId);
+      const loadedCharacter: Character = {
+        id: characterId,
+        sessionId: existing?.sessionId ?? this.sessionCode,
+        name: String(document.name ?? existing?.name ?? 'Unnamed'),
+        ownerId: existing?.ownerId ?? 0,
+        controlledBy: Array.isArray(document.controlledBy)
+          ? document.controlledBy as number[]
+          : Array.isArray(document.controlled_by)
+            ? document.controlled_by as number[]
+            : existing?.controlledBy ?? [],
+        data: characterData,
+        version: Number(response.version ?? existing?.version ?? 1),
+        createdAt: existing?.createdAt ?? new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+        syncStatus: 'synced',
+      };
+      if (existing) store.updateCharacter(characterId, loadedCharacter);
+      else store.addCharacter(loadedCharacter);
+
       useAssetCharacterCache.getState().upsertCharacter({
-        // keep internal cache keyed by `id` for legacy code paths, but source is character_id
-        id: String(message.data.character_id),
-        name: typeof message.data.name === 'string' ? message.data.name : '',
-        data: message.data,
+        id: characterId,
+        name: loadedCharacter.name,
+        data: characterData,
       });
     }
     emitProtocolEvent('character-loaded', message.data);

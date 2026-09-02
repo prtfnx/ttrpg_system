@@ -1542,12 +1542,28 @@ describe('WebClientProtocol', () => {
       expect(fn).toHaveBeenCalledOnce();
     });
 
-    it('CHARACTER_LOAD_RESPONSE dispatches character-loaded', async () => {
+    it('CHARACTER_LOAD_RESPONSE stores nested character data and dispatches character-loaded', async () => {
       const p = makeProtocol();
       const fn = vi.fn();
       window.addEventListener('character-loaded', fn);
-      await dispatch(p, 'character_load_response', { character_id: 'c1', name: 'Hero' });
+      await dispatch(p, 'character_load_response', {
+        success: true,
+        version: 4,
+        character_data: {
+          character_id: 'c1',
+          name: 'Hero',
+          controlledBy: [1],
+          data: { level: 3 },
+        },
+      });
       window.removeEventListener('character-loaded', fn);
+      expect(mocks.storeState.addCharacter).toHaveBeenCalledWith(expect.objectContaining({
+        id: 'c1',
+        name: 'Hero',
+        controlledBy: [1],
+        data: { level: 3 },
+        version: 4,
+      }));
       expect(fn).toHaveBeenCalledOnce();
     });
 

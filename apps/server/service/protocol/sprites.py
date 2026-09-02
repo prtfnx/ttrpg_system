@@ -16,6 +16,7 @@ from ._protocol_base import _ProtocolBase
 
 logger = setup_logger(__name__)
 _MAX_SPRITE_DIMENSION = 10_000.0
+_MAX_TOKEN_STAT = 1_000_000
 
 
 def _get_required_table_id(data: dict[str, object]) -> str | None:
@@ -36,6 +37,19 @@ def _finite_number(value: object) -> float | None:
 def _sprite_dimension(value: object) -> float | None:
     number = _finite_number(value)
     if number is None or number <= 0 or number > _MAX_SPRITE_DIMENSION:
+        return None
+    return number
+
+
+def _bounded_integer(value: object, minimum: int, maximum: int) -> int | None:
+    if isinstance(value, bool) or not isinstance(value, int):
+        return None
+    return value if minimum <= value <= maximum else None
+
+
+def _bounded_number(value: object, minimum: float, maximum: float) -> float | None:
+    number = _finite_number(value)
+    if number is None or not minimum <= number <= maximum:
         return None
     return number
 
@@ -533,7 +547,14 @@ class _SpritesMixin(_ProtocolBase):
         # Extract character binding updates
         updates = {}
         if 'character_id' in update_data:
-            updates['character_id'] = update_data['character_id']
+            character_id = update_data['character_id']
+            if character_id is not None and (
+                not isinstance(character_id, str)
+                or not character_id.strip()
+                or len(character_id) > 64
+            ):
+                return Message(MessageType.ERROR, {'error': 'character_id must be null or non-empty text up to 64 characters'})
+            updates['character_id'] = character_id.strip() if isinstance(character_id, str) else None
         if 'controlled_by' in update_data:
             if not is_dm(role):
                 logger.warning(f"Non-DM user {user_id} tried to change controlled_by — ignored")
@@ -543,39 +564,59 @@ class _SpritesMixin(_ProtocolBase):
                 if isinstance(cb, str):
                     try:
                         cb = json.loads(cb)
-                    except Exception:
-                        cb = []
-                updates['controlled_by'] = [int(x) for x in cb if str(x).lstrip('-').isdigit()]
+                    except (TypeError, ValueError):
+                        return Message(MessageType.ERROR, {'error': 'controlled_by must be a list of positive user IDs'})
+                if not isinstance(cb, list) or len(cb) > 100:
+                    return Message(MessageType.ERROR, {'error': 'controlled_by must be a list of up to 100 positive user IDs'})
+                controllers = []
+                for controller_id in cb:
+                    parsed_id = _bounded_integer(controller_id, 1, 2_147_483_647)
+                    if parsed_id is None:
+                        return Message(MessageType.ERROR, {'error': 'controlled_by must contain positive integer user IDs'})
+                    if parsed_id not in controllers:
+                        controllers.append(parsed_id)
+                updates['controlled_by'] = controllers
 
         # Extract token stat updates
-        if 'hp' in update_data:
-            updates['hp'] = update_data['hp']
-        if 'max_hp' in update_data:
-            updates['max_hp'] = update_data['max_hp']
-        if 'ac' in update_data:
-            updates['ac'] = update_data['ac']
+        for field, maximum in (('hp', _MAX_TOKEN_STAT), ('max_hp', _MAX_TOKEN_STAT), ('ac', 100)):
+            if field in update_data:
+                value = _bounded_integer(update_data[field], 0, maximum)
+                if value is None:
+                    return Message(MessageType.ERROR, {'error': f'{field} must be a whole number between 0 and {maximum}'})
+                updates[field] = value
         if 'aura_radius' in update_data:
-            updates['aura_radius'] = update_data['aura_radius']
+            value = _bounded_number(update_data['aura_radius'], 0, _MAX_SPRITE_DIMENSION)
+            if value is None:
+                return Message(MessageType.ERROR, {'error': 'aura_radius must be a finite number between 0 and 10000'})
+            updates['aura_radius'] = value
         if 'aura_color' in update_data:
-            updates['aura_color'] = update_data['aura_color']
+            aura_color = update_data['aura_color']
+            if not isinstance(aura_color, str) or len(aura_color) > 32:
+                return Message(MessageType.ERROR, {'error': 'aura_color must be text up to 32 characters'})
+            updates['aura_color'] = aura_color
         if 'aura_radius_units' in update_data:
-            updates['aura_radius_units'] = update_data['aura_radius_units']
-        if 'scale_x' in update_data:
-            updates['scale_x'] = float(update_data['scale_x'])
-        if 'scale_y' in update_data:
-            updates['scale_y'] = float(update_data['scale_y'])
+            value = _bounded_number(update_data['aura_radius_units'], 0, _MAX_SPRITE_DIMENSION)
+            if value is None:
+                return Message(MessageType.ERROR, {'error': 'aura_radius_units must be a finite number between 0 and 10000'})
+            updates['aura_radius_units'] = value
+        for field in ('scale_x', 'scale_y'):
+            if field in update_data:
+                value = _sprite_dimension(update_data[field])
+                if value is None:
+                    return Message(MessageType.ERROR, {'error': f'{field} must be a finite number between 0 and 10000'})
+                updates[field] = value
         # Vision fields (DM-settable per token)
-        if 'vision_radius' in update_data and is_dm(role):
-            updates['vision_radius'] = update_data['vision_radius']
+        for field in ('vision_radius', 'darkvision_radius', 'vision_radius_units', 'darkvision_radius_units'):
+            if field in update_data and is_dm(role):
+                value = _bounded_number(update_data[field], 0, _MAX_SPRITE_DIMENSION)
+                if value is None:
+                    return Message(MessageType.ERROR, {'error': f'{field} must be a finite number between 0 and 10000'})
+                updates[field] = value
         if 'has_darkvision' in update_data and is_dm(role):
             val = update_data['has_darkvision']
-            updates['has_darkvision'] = val if isinstance(val, bool) else bool(val)
-        if 'darkvision_radius' in update_data and is_dm(role):
-            updates['darkvision_radius'] = update_data['darkvision_radius']
-        if 'vision_radius_units' in update_data and is_dm(role):
-            updates['vision_radius_units'] = update_data['vision_radius_units']
-        if 'darkvision_radius_units' in update_data and is_dm(role):
-            updates['darkvision_radius_units'] = update_data['darkvision_radius_units']
+            if not isinstance(val, bool):
+                return Message(MessageType.ERROR, {'error': 'has_darkvision must be a boolean'})
+            updates['has_darkvision'] = val
 
         # Apply updates via actions
         if updates:

@@ -562,6 +562,47 @@ class TestSpriteUpdate:
             call_kwargs = proto.actions.update_sprite.call_args[1]
             assert "controlled_by" not in call_kwargs
 
+    @pytest.mark.parametrize("field,value", [
+        ("scale_x", "large"),
+        ("scale_y", float("nan")),
+        ("hp", -1),
+        ("ac", 101),
+        ("vision_radius", float("inf")),
+        ("has_darkvision", "false"),
+        ("controlled_by", 7),
+    ])
+    async def test_invalid_generic_updates_are_rejected(self, field, value):
+        proto = _ProtoStub(role="owner")
+        proto.actions.update_sprite = AsyncMock(return_value=_ok_result())
+
+        resp = await proto.handle_sprite_update(
+            Message(MessageType.SPRITE_UPDATE, {
+                "sprite_id": "sp-1",
+                "table_id": "t1",
+                field: value,
+            }),
+            "c1",
+        )
+
+        assert resp.type == MessageType.ERROR
+        proto.actions.update_sprite.assert_not_awaited()
+
+    async def test_dm_controller_updates_are_normalized_and_deduplicated(self):
+        proto = _ProtoStub(role="owner")
+        proto.actions.update_sprite = AsyncMock(return_value=_ok_result())
+
+        resp = await proto.handle_sprite_update(
+            Message(MessageType.SPRITE_UPDATE, {
+                "sprite_id": "sp-1",
+                "table_id": "t1",
+                "controlled_by": "[7, 7, 9]",
+            }),
+            "c1",
+        )
+
+        assert resp.type == MessageType.SUCCESS
+        assert proto.actions.update_sprite.await_args.kwargs["controlled_by"] == [7, 9]
+
 
 # ---------------------------------------------------------------------------
 # handle_move_sprite — success and failure

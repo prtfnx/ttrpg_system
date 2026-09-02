@@ -96,6 +96,20 @@ class TestAddEntity:
         e2 = add_entity(t, x=1, y=1)
         assert entity_id(e2) == entity_id(e1) + 1
 
+    def test_normalizes_json_encoded_controller_ids(self):
+        entity = add_entity(
+            make_table(),
+            controlled_by='["4", 7, -1, true, "invalid"]',
+        )
+
+        assert entity.controlled_by == [4, 7]
+
+    @pytest.mark.parametrize("controlled_by", ['{}', 'null', '4', 'not-json', {"id": 4}])
+    def test_non_list_controller_metadata_is_ignored(self, controlled_by):
+        entity = add_entity(make_table(), controlled_by=controlled_by)
+
+        assert entity.controlled_by == []
+
 
 class TestFindEntity:
     def test_find_by_sprite_id(self):

@@ -10,6 +10,29 @@ logger = logging.getLogger(__name__)
 # logging.basicConfig removed - using central logger setup
 
 LAYER_NAMES = ['map', 'tokens', 'dungeon_master', 'light', 'height', 'obstacles', 'fog_of_war']
+_MAX_DATABASE_ID = 2**63 - 1
+
+
+def _normalize_controller_ids(value: Any) -> List[int]:
+    if isinstance(value, str):
+        try:
+            value = json.loads(value)
+        except (TypeError, ValueError, json.JSONDecodeError):
+            return []
+    if not isinstance(value, (list, tuple)):
+        return []
+
+    normalized: List[int] = []
+    for item in value:
+        if isinstance(item, bool):
+            continue
+        try:
+            controller_id = int(item)
+        except (TypeError, ValueError, OverflowError):
+            continue
+        if 0 < controller_id <= _MAX_DATABASE_ID:
+            normalized.append(controller_id)
+    return normalized
 
 
 @dataclass
@@ -70,12 +93,7 @@ class Entity:
         self.character_id = character_id
         # Normalize controlled_by: may arrive as a JSON string (encoded by server_protocol before
         # passing to add_entity). Always store as a Python list.
-        if isinstance(controlled_by, str):
-            try:
-                controlled_by = json.loads(controlled_by)
-            except Exception:
-                controlled_by = []
-        self.controlled_by = [int(x) for x in (controlled_by or []) if x is not None]
+        self.controlled_by = _normalize_controller_ids(controlled_by)
 
         # Token stats — coerce to int to avoid sending string values to WASM
         self.hp = int(hp) if hp is not None else None

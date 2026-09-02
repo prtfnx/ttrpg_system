@@ -166,14 +166,22 @@ export class WebClientProtocol {
       'paint_template_upsert', 'paint_template_delete', 'paint_template_sync',
       'measurement_upsert', 'measurement_delete', 'measurement_clear', 'measurement_sync',
     ];
-    
-    if (critical.includes(message.type)) {
-      logger.debug('Protocol: Sending critical message:', message.type);
-      if (this.websocket?.readyState === WebSocket.OPEN) {
-        this.websocket.send(JSON.stringify(message));
-      } else {
+
+    const durableDuringReconnect = [
+      'character_save_request', 'character_load_request', 'character_list_request',
+      'character_delete_request', 'character_update', 'character_log_request',
+    ];
+
+    if (this.websocket?.readyState !== WebSocket.OPEN) {
+      if (critical.includes(message.type) || durableDuringReconnect.includes(message.type)) {
         this.messageQueue.push(message);
       }
+      return;
+    }
+
+    if (critical.includes(message.type)) {
+      logger.debug('Protocol: Sending critical message:', message.type);
+      this.websocket.send(JSON.stringify(message));
     } else {
       this.queueMessage(message);
     }

@@ -1220,6 +1220,23 @@ describe('WebClientProtocol', () => {
       (p as unknown as Record<string, () => void>)['flushMessageQueue']();
       expect(openWs.send).toHaveBeenCalledOnce();
     });
+
+    it('retains character updates while reconnecting', () => {
+      const p = makeProtocol('S', 1);
+      const closedWs = { readyState: WebSocket.CLOSED, send: vi.fn(), close: vi.fn() };
+      (p as unknown as Record<string, unknown>)['websocket'] = closedWs;
+      p.updateCharacter('character-1', { hp: 9 }, 4);
+
+      const openWs = { readyState: WebSocket.OPEN, send: vi.fn(), close: vi.fn() };
+      (p as unknown as Record<string, unknown>)['websocket'] = openWs;
+      (p as unknown as Record<string, () => void>)['flushMessageQueue']();
+
+      expect(openWs.send).toHaveBeenCalledOnce();
+      expect(JSON.parse(openWs.send.mock.calls[0][0])).toMatchObject({
+        type: MessageType.CHARACTER_UPDATE,
+        data: { character_id: 'character-1', updates: { hp: 9 }, version: 4 },
+      });
+    });
   });
 
   // ── Remaining simple event-dispatch handlers ─────────────────────────────

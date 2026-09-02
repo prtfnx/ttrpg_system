@@ -212,6 +212,19 @@ describe('TableSyncService', () => {
       svc.dispose();
     });
 
+    it('applies nested canonical table update events', () => {
+      const svc = makeService();
+      svc.init();
+      dispatch('table-updated', {
+        category: 'table',
+        type: 'table_update',
+        data: { table_id: 't1', grid_size: 40, grid_enabled: false },
+      });
+      expect(mockEngine.set_grid_size).toHaveBeenCalledWith(40);
+      expect(mockEngine.set_grid_enabled).toHaveBeenCalledWith(false);
+      svc.dispose();
+    });
+
     it('skips when engine is null', () => {
       const svc = new TableSyncService(() => null, mockSpriteSync as never);
       svc.init();

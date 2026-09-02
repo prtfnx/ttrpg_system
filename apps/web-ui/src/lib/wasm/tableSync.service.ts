@@ -184,9 +184,12 @@ export class TableSyncService {
     const engine = this.getEngine();
     if (!engine) return;
     try {
-      if (data.grid_size) engine.set_grid_size(data.grid_size);
-      if (typeof data.grid_enabled === 'boolean') engine.set_grid_enabled(data.grid_enabled);
-      if (typeof data.grid_snapping === 'boolean') engine.set_grid_snapping(data.grid_snapping);
+      const update = data.data && typeof data.data === 'object'
+        ? data.data as TablePayload
+        : data;
+      if (update.grid_size) engine.set_grid_size(update.grid_size);
+      if (typeof update.grid_enabled === 'boolean') engine.set_grid_enabled(update.grid_enabled);
+      if (typeof update.grid_snapping === 'boolean') engine.set_grid_snapping(update.grid_snapping);
     } catch (err) {
       logger.error('[TableSyncService] handleTableUpdate failed:', err);
     }

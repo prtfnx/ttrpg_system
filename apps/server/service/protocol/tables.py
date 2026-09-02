@@ -435,7 +435,13 @@ class _TablesMixin(_ProtocolBase):
                 if response_error:
                     return response_error
                 elif response:
-                    await self.broadcast_to_session(message=msg, client_id=client_id)
+                    # Requests are commands and are not registered as inbound
+                    # events by clients. Broadcast the applied update using the
+                    # canonical event type while preserving the operation shape.
+                    await self.broadcast_to_session(
+                        message=Message(MessageType.TABLE_UPDATE, msg.data),
+                        client_id=client_id,
+                    )
                     return response
                 else:
                     raise ValueError("No response generated for table update")

@@ -495,7 +495,11 @@ class TestTableUpdate:
             "grid_cell_px": 75,
             "grid_enabled": False,
         })
-        proto.broadcast_to_session.assert_awaited_once_with(message=msg, client_id="c1")
+        proto.broadcast_to_session.assert_awaited_once()
+        broadcast = proto.broadcast_to_session.await_args.kwargs["message"]
+        assert broadcast.type == MessageType.TABLE_UPDATE
+        assert broadcast.data == msg.data
+        assert proto.broadcast_to_session.await_args.kwargs["client_id"] == "c1"
         proto.send_to_client.assert_not_awaited()
 
     async def test_action_failure_is_returned_without_broadcast(self):

@@ -82,6 +82,7 @@ export class WebClientProtocol {
     userId: number;
     retryCount: number;
   }>();
+  private pendingCharacterCreates = new Map<string, string>();
   private readonly BATCH_DELAY_MS = 30;
   private readonly MAX_BATCH_SIZE = 15;
 
@@ -1232,11 +1233,15 @@ export class WebClientProtocol {
       const realId = String(message.data.character_id);
       const version = typeof message.data.version === 'number' ? message.data.version : 1;
       
-      // Find character with 'syncing' status (likely has temp ID)
       const store = useGameStore.getState();
-      const tempChar = store.characters.find(c => 
-        c.syncStatus === 'syncing' && c.id.startsWith('temp-')
-      );
+      const correlatedTempId = message.correlation_id
+        ? this.pendingCharacterCreates.get(message.correlation_id)
+        : undefined;
+      const tempChar = correlatedTempId
+        ? store.characters.find(c => c.id === correlatedTempId)
+        : !message.correlation_id
+          ? store.characters.find(c => c.syncStatus === 'syncing' && c.id.startsWith('temp-'))
+          : undefined;
       
       if (tempChar) {
         // Update character with real ID and synced status
@@ -1249,16 +1254,25 @@ export class WebClientProtocol {
         });
         logger.debug(`Character synced: temp ID ${tempChar.id} -> real ID ${realId}`);
       }
+      if (message.correlation_id) this.pendingCharacterCreates.delete(message.correlation_id);
     } else if (message.data?.success === false) {
       // Handle save failure
       logger.error('Character save failed:', message.data?.error);
       
       // Find and mark character as error
       const store = useGameStore.getState();
-      const failedChar = store.characters.find(c => c.syncStatus === 'syncing');
+      const correlatedTempId = message.correlation_id
+        ? this.pendingCharacterCreates.get(message.correlation_id)
+        : undefined;
+      const failedChar = correlatedTempId
+        ? store.characters.find(c => c.id === correlatedTempId)
+        : !message.correlation_id
+          ? store.characters.find(c => c.syncStatus === 'syncing')
+          : undefined;
       if (failedChar) {
         store.updateCharacter(failedChar.id, { syncStatus: 'error' });
       }
+      if (message.correlation_id) this.pendingCharacterCreates.delete(message.correlation_id);
     }
     
     emitProtocolEvent('character-saved', message.data);
@@ -1891,11 +1905,20 @@ export class WebClientProtocol {
       return;
     }
 
-    this.sendMessage(createMessage(MessageType.CHARACTER_SAVE_REQUEST, {
+    const message = createMessage(MessageType.CHARACTER_SAVE_REQUEST, {
       character_data: characterData,
       user_id: effectiveUserId,
       session_code: this.sessionCode
-    }));
+    });
+    const localCharacterId = characterData.character_id;
+    if (
+      message.message_id
+      && typeof localCharacterId === 'string'
+      && localCharacterId.startsWith('temp-')
+    ) {
+      this.pendingCharacterCreates.set(message.message_id, localCharacterId);
+    }
+    this.sendMessage(message);
   }
 
   createCharacterDraft(draftData: Record<string, unknown>, currentStep = 0): void {

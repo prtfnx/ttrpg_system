@@ -661,8 +661,13 @@ describe('WebClientProtocol', () => {
   // ── Incoming handlers ─────────────────────────────────────────────────────
 
   describe('incoming message handlers', () => {
-    async function dispatch(p: WebClientProtocol, type: string, data: Record<string, unknown>) {
-      const raw = JSON.stringify({ type, data, version: '0.1', priority: 5 });
+    async function dispatch(
+      p: WebClientProtocol,
+      type: string,
+      data: Record<string, unknown>,
+      envelope: Record<string, unknown> = {},
+    ) {
+      const raw = JSON.stringify({ type, data, version: '0.1', priority: 5, ...envelope });
       await (p as unknown as Record<string, (...a: unknown[]) => Promise<void>>)['handleIncomingMessage'](raw);
     }
 
@@ -1263,8 +1268,13 @@ describe('WebClientProtocol', () => {
   // ── Remaining simple event-dispatch handlers ─────────────────────────────
 
   describe('more incoming handlers', () => {
-    async function dispatch(p: WebClientProtocol, type: string, data: Record<string, unknown>) {
-      const raw = JSON.stringify({ type, data, version: '0.1', priority: 5 });
+    async function dispatch(
+      p: WebClientProtocol,
+      type: string,
+      data: Record<string, unknown>,
+      envelope: Record<string, unknown> = {},
+    ) {
+      const raw = JSON.stringify({ type, data, version: '0.1', priority: 5, ...envelope });
       await (p as unknown as Record<string, (...a: unknown[]) => Promise<void>>)['handleIncomingMessage'](raw);
     }
 
@@ -1565,6 +1575,33 @@ describe('WebClientProtocol', () => {
         version: 4,
       }));
       expect(fn).toHaveBeenCalledOnce();
+    });
+
+    it('CHARACTER_SAVE_RESPONSE resolves the correlated temporary character', async () => {
+      const first = { id: 'temp-first', name: 'First', syncStatus: 'syncing' };
+      const second = { id: 'temp-second', name: 'Second', syncStatus: 'syncing' };
+      Object.assign(mocks.storeState, makeStoreState({ characters: [first, second] }));
+      const p = makeProtocol();
+      const ws = makeOpenWs(p);
+      p.saveCharacter({ character_id: first.id, name: first.name });
+      p.saveCharacter({ character_id: second.id, name: second.name });
+      p.sendBatch();
+      const batch = JSON.parse((ws.send as Mock).mock.calls[0][0]);
+      const secondRequestId = batch.data.messages[1].message_id;
+
+      await dispatch(
+        p,
+        'character_save_response',
+        { success: true, character_id: 'real-second', version: 1 },
+        { correlation_id: secondRequestId },
+      );
+
+      expect(mocks.storeState.removeCharacter).toHaveBeenCalledWith('temp-second');
+      expect(mocks.storeState.removeCharacter).not.toHaveBeenCalledWith('temp-first');
+      expect(mocks.storeState.addCharacter).toHaveBeenCalledWith(expect.objectContaining({
+        id: 'real-second',
+        name: 'Second',
+      }));
     });
 
     it('CHARACTER_DELETE_RESPONSE success removes character from store', async () => {

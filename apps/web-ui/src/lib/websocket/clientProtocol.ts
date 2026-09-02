@@ -78,6 +78,7 @@ export class WebClientProtocol {
   private batchTimer: number | null = null;
   private cleanupProtocolMessageSender: (() => void) | null = null;
   private pendingCharacterUpdates = new Map<string, {
+    characterId: string;
     updates: Record<string, unknown>;
     userId: number;
     retryCount: number;
@@ -1426,6 +1427,14 @@ export class WebClientProtocol {
     const version = message.data?.version;
     const error = message.data?.error;
     const currentVersion = message.data?.current_version;
+    const correlatedPending = message.correlation_id
+      ? this.pendingCharacterUpdates.get(message.correlation_id)
+      : undefined;
+    const fallbackPendingEntry = !correlatedPending && characterId
+      ? Array.from(this.pendingCharacterUpdates.entries()).find(([, pending]) => pending.characterId === characterId)
+      : undefined;
+    const pendingKey = correlatedPending ? message.correlation_id : fallbackPendingEntry?.[0];
+    const pending = correlatedPending ?? fallbackPendingEntry?.[1];
     
     if (success && characterId) {
       // Update successful - update version and sync status
@@ -1440,7 +1449,7 @@ export class WebClientProtocol {
         }
       }
       store.updateCharacter(characterId, updatePayload);
-      this.pendingCharacterUpdates.delete(characterId);
+      if (pendingKey) this.pendingCharacterUpdates.delete(pendingKey);
     } else if (!success && characterId) {
       // Update failed - handle version conflict or other errors
       const store = useGameStore.getState();
@@ -1448,7 +1457,6 @@ export class WebClientProtocol {
       const parsedCurrentVersion = typeof currentVersion === 'number'
         ? currentVersion
         : Number(currentVersion);
-      const pending = this.pendingCharacterUpdates.get(characterId);
       if (
         error === 'Version conflict'
         && Number.isSafeInteger(parsedCurrentVersion)
@@ -1458,22 +1466,26 @@ export class WebClientProtocol {
       ) {
         logger.warn(`Version conflict for character ${characterId}. Retrying version ${parsedCurrentVersion}`);
         showToast.warning('Character was modified by another user. Retrying your changes once...');
-        this.pendingCharacterUpdates.set(characterId, { ...pending, retryCount: 1 });
         store.updateCharacter(characterId, {
           version: parsedCurrentVersion,
           syncStatus: 'syncing',
         });
-        this.sendMessage(createMessage(MessageType.CHARACTER_UPDATE, {
+        const retryMessage = createMessage(MessageType.CHARACTER_UPDATE, {
           character_id: characterId,
           updates: pending.updates,
           user_id: pending.userId,
           session_code: this.sessionCode,
           version: parsedCurrentVersion,
-        }));
+        });
+        if (pendingKey) this.pendingCharacterUpdates.delete(pendingKey);
+        if (retryMessage.message_id) {
+          this.pendingCharacterUpdates.set(retryMessage.message_id, { ...pending, retryCount: 1 });
+        }
+        this.sendMessage(retryMessage);
       } else {
         // Other error
         logger.error(`Character update failed: ${error}`);
-        this.pendingCharacterUpdates.delete(characterId);
+        if (pendingKey) this.pendingCharacterUpdates.delete(pendingKey);
         store.updateCharacter(characterId, { syncStatus: 'error' });
         showToast.error(`Failed to update character: ${error || 'Unknown error'}`);
       }
@@ -2011,13 +2023,6 @@ export class WebClientProtocol {
       return;
     }
 
-    const existing = this.pendingCharacterUpdates.get(characterId);
-    this.pendingCharacterUpdates.set(characterId, {
-      updates: { ...existing?.updates, ...updates },
-      userId: effectiveUserId,
-      retryCount: 0,
-    });
-
     const payload: Record<string, unknown> = {
       character_id: characterId,
       updates,
@@ -2025,7 +2030,16 @@ export class WebClientProtocol {
       session_code: this.sessionCode
     };
     if (version !== undefined) payload.version = version;
-    this.sendMessage(createMessage(MessageType.CHARACTER_UPDATE, payload));
+    const message = createMessage(MessageType.CHARACTER_UPDATE, payload);
+    if (message.message_id) {
+      this.pendingCharacterUpdates.set(message.message_id, {
+        characterId,
+        updates,
+        userId: effectiveUserId,
+        retryCount: 0,
+      });
+    }
+    this.sendMessage(message);
   }
 
   /**

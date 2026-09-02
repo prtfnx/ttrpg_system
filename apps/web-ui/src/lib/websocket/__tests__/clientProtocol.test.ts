@@ -1700,6 +1700,36 @@ describe('WebClientProtocol', () => {
       expect(updateCharacter).toHaveBeenLastCalledWith('c-conflict', { syncStatus: 'error' });
     });
 
+    it('keeps later character updates pending after an earlier acknowledgement', async () => {
+      const p = makeProtocol('ROOM', 7);
+      const ws = makeOpenWs(p);
+      p.updateCharacter('c1', { hp: 10 }, 2);
+      p.updateCharacter('c1', { ac: 16 }, 2);
+      p.sendBatch();
+      const batch = JSON.parse(ws.send.mock.calls[0][0]);
+      const [firstRequest, secondRequest] = batch.data.messages;
+      ws.send.mockClear();
+
+      await dispatch(
+        p,
+        'character_update_response',
+        { success: true, character_id: 'c1', version: 3 },
+        { correlation_id: firstRequest.message_id },
+      );
+      await dispatch(
+        p,
+        'character_update_response',
+        { success: false, character_id: 'c1', error: 'Version conflict', current_version: 3 },
+        { correlation_id: secondRequest.message_id },
+      );
+      p.sendBatch();
+
+      const retryBatch = JSON.parse(ws.send.mock.calls[0][0]);
+      expect(retryBatch.data.messages[0]).toMatchObject({
+        data: { character_id: 'c1', updates: { ac: 16 }, version: 3 },
+      });
+    });
+
     it('CHARACTER_UPDATE_RESPONSE failure marks character as error', async () => {
       const store = mocks.storeState as Record<string, unknown>;
       const updateCharacter = vi.fn();

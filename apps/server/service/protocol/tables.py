@@ -1,3 +1,5 @@
+import json
+
 from core_table.async_actions_protocol import Position
 from core_table.protocol import Message, MessageType
 from service.canvas_persistence_service import load_table_hydration, persist_table_settings
@@ -13,6 +15,8 @@ _DEFAULT_TABLE_DIMENSION = 2000
 _MIN_TABLE_DIMENSION = 500
 _MAX_TABLE_DIMENSION = 10_000
 _MAX_TABLE_NAME_LENGTH = 50
+_MAX_IMPORTED_ENTITIES = 5_000
+_MAX_IMPORTED_TABLE_BYTES = 5 * 1024 * 1024
 
 
 def _validated_table_dimension(value: object) -> int | None:
@@ -101,6 +105,40 @@ class _TablesMixin(_ProtocolBase):
             })
         local_table_id = msg.data.get('local_table_id')  # BEST PRACTICE: Preserve local ID for sync mapping
 
+        source_table_id = msg.data.get('source_table_id')
+        initial_table_data = msg.data.get('table_data')
+        if source_table_id is not None and initial_table_data is not None:
+            return Message(MessageType.ERROR, {'error': 'Choose either source_table_id or table_data'})
+        if source_table_id is not None:
+            if not isinstance(source_table_id, str) or not source_table_id.strip():
+                return Message(MessageType.ERROR, {'error': 'source_table_id must be non-empty text'})
+            source_table = (
+                self.table_manager.tables_id.get(source_table_id.strip())
+                or self.table_manager.tables.get(source_table_id.strip())
+            )
+            if source_table is None:
+                return Message(MessageType.ERROR, {'error': 'Source table not found'})
+            initial_table_data = source_table.to_dict()
+        if initial_table_data is not None:
+            if not isinstance(initial_table_data, dict):
+                return Message(MessageType.ERROR, {'error': 'table_data must be an object'})
+            layers = initial_table_data.get('layers', {})
+            if not isinstance(layers, dict):
+                return Message(MessageType.ERROR, {'error': 'table_data.layers must be an object'})
+            entity_count = sum(
+                len(entities)
+                for entities in layers.values()
+                if isinstance(entities, (dict, list))
+            )
+            if entity_count > _MAX_IMPORTED_ENTITIES:
+                return Message(MessageType.ERROR, {'error': f'Table imports are limited to {_MAX_IMPORTED_ENTITIES} entities'})
+            try:
+                encoded_size = len(json.dumps(initial_table_data).encode('utf-8'))
+            except (TypeError, ValueError):
+                return Message(MessageType.ERROR, {'error': 'table_data must contain JSON-compatible values'})
+            if encoded_size > _MAX_IMPORTED_TABLE_BYTES:
+                return Message(MessageType.ERROR, {'error': 'Table import exceeds the 5 MB metadata limit'})
+
         # Table creation must be durable. Validate all authenticated session
         # context before adding anything to the in-memory table manager.
         session_id = self._get_session_id(msg)
@@ -110,7 +148,21 @@ class _TablesMixin(_ProtocolBase):
             return Message(MessageType.ERROR, {'error': 'Authentication and session context required'})
         logger.debug("Persistent table creation requested", extra={"event_name": "table.create.persistent"})
 
-        result = await self.actions.create_table(table_name, width, height, session_id=session_id)
+        if initial_table_data is not None:
+            result = await self.actions.create_table(
+                table_name,
+                width,
+                height,
+                session_id=session_id,
+                initial_data=initial_table_data,
+            )
+        else:
+            result = await self.actions.create_table(
+                table_name,
+                width,
+                height,
+                session_id=session_id,
+            )
 
         if not result.success or not result.data or result.data.get('table') is None:
             return Message(MessageType.ERROR, {'error': 'Failed to create new table'})

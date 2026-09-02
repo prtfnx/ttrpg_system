@@ -208,10 +208,34 @@ class ActionsCore(AsyncActionsProtocol):
             logger.error(f"Failed to flush pending saves: {e}")
 
     # Table Actions
-    async def create_table(self, name: str, width: int, height: int, session_id: Optional[int] = None) -> ActionResult:
+    async def create_table(
+        self,
+        name: str,
+        width: int,
+        height: int,
+        session_id: Optional[int] = None,
+        initial_data: Optional[Dict[str, Any]] = None,
+    ) -> ActionResult:
         """Create a new table"""
-
-        table = VirtualTable(name, width, height)
+        try:
+            table = VirtualTable(name, width, height)
+            if initial_data is not None:
+                layers = initial_data.get('layers', {})
+                expected_entities = sum(
+                    len(entities)
+                    for entities in layers.values()
+                    if isinstance(entities, (dict, list))
+                ) if isinstance(layers, dict) else 0
+                table.from_dict({
+                    **initial_data,
+                    'table_name': name,
+                    'width': width,
+                    'height': height,
+                })
+                if len(table.entities) != expected_entities:
+                    return ActionResult(False, "Table data contains invalid entities")
+        except (KeyError, TypeError, ValueError) as exc:
+            return ActionResult(False, f"Invalid initial table data: {exc}")
 
         # CRITICAL: Add table to BOTH dictionaries in table_manager
         self.table_manager.add_table(table)  # Adds to tables (by name) and tables_id (by UUID)

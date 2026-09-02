@@ -3,6 +3,8 @@ import uuid
 
 import pytest
 from core_table.entities import Wall
+from core_table.actions_core import ActionsCore
+from core_table.server import TableManager
 from core_table.table import Entity, VirtualTable, create_table_from_json
 
 
@@ -280,6 +282,26 @@ class TestSerialization:
 
         assert restored.display_name == 'Legacy'
         assert len(restored.entities) == 1
+
+    @pytest.mark.asyncio
+    async def test_create_action_hydrates_initial_table_before_registration(self):
+        source = make_table()
+        add_entity(source, x=2, y=3, asset_id='asset-1', hp=7)
+        manager = TableManager()
+        actions = ActionsCore(manager)
+
+        result = await actions.create_table(
+            'Copy',
+            20,
+            20,
+            initial_data=source.to_dict(),
+        )
+
+        assert result.success is True
+        created = result.data['table']
+        assert created.display_name == 'Copy'
+        assert len(created.entities) == 1
+        assert next(iter(created.entities.values())).asset_id == 'asset-1'
 
 
 class TestWalls:

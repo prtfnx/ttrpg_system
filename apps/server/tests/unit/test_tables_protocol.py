@@ -264,6 +264,53 @@ class TestNewTableRequest:
         assert broadcast.type == MessageType.TABLE_UPDATE
         assert broadcast.data["table_id"] == "t-new"
 
+    async def test_duplicate_hydrates_from_a_session_table(self):
+        proto = _ProtoStub(role="owner")
+        source = MagicMock()
+        source.to_dict.return_value = {
+            "table_id": "source",
+            "table_name": "Original",
+            "width": 2000,
+            "height": 2000,
+            "layers": {"tokens": {"1": {"entity_id": 1}}},
+        }
+        proto.table_manager.tables_id = {"source": source}
+        table_mock = MagicMock()
+        table_mock.to_dict.return_value = {"table_id": "copy", "table_name": "Copy", "layers": {}}
+        proto.actions.create_table = AsyncMock(return_value=_ok_result(table=table_mock))
+
+        resp = await proto.handle_new_table_request(
+            Message(MessageType.NEW_TABLE_REQUEST, {
+                "table_name": "Copy",
+                "width": 2000,
+                "height": 2000,
+                "source_table_id": "source",
+            }),
+            "c1",
+        )
+
+        assert resp.type == MessageType.NEW_TABLE_RESPONSE
+        assert proto.actions.create_table.await_args.kwargs["initial_data"] == source.to_dict.return_value
+
+    async def test_import_rejects_excessive_entity_metadata(self):
+        proto = _ProtoStub(role="owner")
+        proto.actions.create_table = AsyncMock()
+        layers = {"tokens": [{}] * 5_001}
+
+        resp = await proto.handle_new_table_request(
+            Message(MessageType.NEW_TABLE_REQUEST, {
+                "table_name": "Import",
+                "width": 2000,
+                "height": 2000,
+                "table_data": {"layers": layers},
+            }),
+            "c1",
+        )
+
+        assert resp.type == MessageType.ERROR
+        assert "5000" in resp.data["error"]
+        proto.actions.create_table.assert_not_awaited()
+
 
 # ---------------------------------------------------------------------------
 # handle_table_request

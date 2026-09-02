@@ -77,6 +77,11 @@ export class WebClientProtocol {
   private batchQueue: Message[] = [];
   private batchTimer: number | null = null;
   private cleanupProtocolMessageSender: (() => void) | null = null;
+  private pendingCharacterUpdates = new Map<string, {
+    updates: Record<string, unknown>;
+    userId: number;
+    retryCount: number;
+  }>();
   private readonly BATCH_DELAY_MS = 30;
   private readonly MAX_BATCH_SIZE = 15;
 
@@ -1368,47 +1373,40 @@ export class WebClientProtocol {
         }
       }
       store.updateCharacter(characterId, updatePayload);
+      this.pendingCharacterUpdates.delete(characterId);
     } else if (!success && characterId) {
       // Update failed - handle version conflict or other errors
       const store = useGameStore.getState();
       
-      if (error === 'Version conflict' && currentVersion !== undefined) {
-        // Version conflict - auto-retry with latest version
-        logger.warn(`Version conflict for character ${characterId}. Current version: ${currentVersion}`);
-        showToast.warning('Character was modified by another user. Retrying with latest version...');
-        
-        // Fetch latest version from server
-        this.loadCharacter(characterId);
-        
-        // Listen for load response to retry the update
-        const cleanupRetryListener = onProtocolEvent('character-loaded', (loadedData) => {
-          const loadedCharacterData = loadedData?.character_data as { character_id?: string } | undefined;
-
-          if (loadedCharacterData?.character_id === characterId) {
-            logger.debug(`Retrying update for ${characterId} with version ${currentVersion}`);
-            
-            // Get the character from store with pending updates
-            const character = store.characters.find(c => c.id === characterId);
-            if (character && character.syncStatus === 'error') {
-              // Update with the new version
-              store.updateCharacter(characterId, {
-                version: currentVersion as number,
-                syncStatus: 'synced'
-              });
-              
-              showToast.success('Character synchronized with latest version');
-            }
-            
-            cleanupRetryListener();
-          }
+      const parsedCurrentVersion = typeof currentVersion === 'number'
+        ? currentVersion
+        : Number(currentVersion);
+      const pending = this.pendingCharacterUpdates.get(characterId);
+      if (
+        error === 'Version conflict'
+        && Number.isSafeInteger(parsedCurrentVersion)
+        && parsedCurrentVersion >= 0
+        && pending
+        && pending.retryCount === 0
+      ) {
+        logger.warn(`Version conflict for character ${characterId}. Retrying version ${parsedCurrentVersion}`);
+        showToast.warning('Character was modified by another user. Retrying your changes once...');
+        this.pendingCharacterUpdates.set(characterId, { ...pending, retryCount: 1 });
+        store.updateCharacter(characterId, {
+          version: parsedCurrentVersion,
+          syncStatus: 'syncing',
         });
-        
-        // Set timeout to clean up listener if load fails
-        setTimeout(cleanupRetryListener, 5000);
-        
+        this.sendMessage(createMessage(MessageType.CHARACTER_UPDATE, {
+          character_id: characterId,
+          updates: pending.updates,
+          user_id: pending.userId,
+          session_code: this.sessionCode,
+          version: parsedCurrentVersion,
+        }));
       } else {
         // Other error
         logger.error(`Character update failed: ${error}`);
+        this.pendingCharacterUpdates.delete(characterId);
         store.updateCharacter(characterId, { syncStatus: 'error' });
         showToast.error(`Failed to update character: ${error || 'Unknown error'}`);
       }
@@ -1936,6 +1934,13 @@ export class WebClientProtocol {
       logger.error('Cannot update character: user ID not set');
       return;
     }
+
+    const existing = this.pendingCharacterUpdates.get(characterId);
+    this.pendingCharacterUpdates.set(characterId, {
+      updates: { ...existing?.updates, ...updates },
+      userId: effectiveUserId,
+      retryCount: 0,
+    });
 
     const payload: Record<string, unknown> = {
       character_id: characterId,

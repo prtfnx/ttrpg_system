@@ -7,6 +7,7 @@ import { logger } from '@shared/utils/logger';
 import React, { useCallback, useEffect, useRef, useState, type CSSProperties } from 'react';
 import { isSupportedAssetImage } from './assetImageValidation';
 import styles from './DragDropImageHandler.module.css';
+import { putFileToPresignedUrl } from './r2Upload';
 
 interface DragDropImageHandlerProps {
   children: React.ReactNode;
@@ -42,6 +43,18 @@ export const DragDropImageHandler: React.FC<DragDropImageHandlerProps> = ({
   
   const [dragOver, setDragOver] = useState(false);
   const pendingUploadsRef = useRef<Map<string, PendingUpload>>(new Map());
+  const activeUploadControllersRef = useRef<Set<AbortController>>(new Set());
+  const resetTimersRef = useRef<Set<number>>(new Set());
+  const mountedRef = useRef(true);
+
+  const scheduleUploadReset = useCallback((delay: number) => {
+    const timer = window.setTimeout(() => {
+      resetTimersRef.current.delete(timer);
+      if (!mountedRef.current) return;
+      setUploadState({ status: 'idle', progress: 0, message: '' });
+    }, delay);
+    resetTimersRef.current.add(timer);
+  }, []);
 
   // Handle asset upload response from server
   const handleAssetUploadResponse = useCallback((event: CustomEvent) => {
@@ -78,15 +91,10 @@ export const DragDropImageHandler: React.FC<DragDropImageHandlerProps> = ({
               
               // Server will broadcast sprite creation, so we wait for that
               // Reset UI after a delay
-              setTimeout(() => {
-                setUploadState({
-                  status: 'idle',
-                  progress: 0,
-                  message: ''
-                });
-              }, 3000);
+              scheduleUploadReset(3000);
             })
             .catch(error => {
+              if (!mountedRef.current || (error instanceof DOMException && error.name === 'AbortError')) return;
               logger.error('Drag-drop upload failed', error);
               setUploadState({
                 status: 'failed',
@@ -127,13 +135,7 @@ export const DragDropImageHandler: React.FC<DragDropImageHandlerProps> = ({
           pendingUploadsRef.current.delete(data.asset_id);
           
           // Reset UI after a delay
-          setTimeout(() => {
-            setUploadState({
-              status: 'idle',
-              progress: 0,
-              message: ''
-            });
-          }, 2000);
+          scheduleUploadReset(2000);
         }
       } else {
         logger.error('No matching drag-drop upload request found', { assetId: data.asset_id });
@@ -156,7 +158,7 @@ export const DragDropImageHandler: React.FC<DragDropImageHandlerProps> = ({
       pendingUploadsRef.current.clear();
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps -- known: camera props captured at call time
-  }, [uploadState.fileName]);
+  }, [scheduleUploadReset, uploadState.fileName]);
 
   // Upload file to R2 (server-first approach - no local sprite creation)
   const uploadFileToR2 = async (
@@ -186,84 +188,51 @@ export const DragDropImageHandler: React.FC<DragDropImageHandlerProps> = ({
       }));
     };
     
-    return new Promise((resolve, reject) => {
-      const xhr = new XMLHttpRequest();
-      
-      xhr.upload.onprogress = (event) => {
-        if (event.lengthComputable) {
-          const progress = Math.round((event.loaded / event.total) * 100);
+    const controller = new AbortController();
+    activeUploadControllersRef.current.add(controller);
+    try {
+      await putFileToPresignedUrl({
+        uploadUrl,
+        file,
+        fullHash,
+        signal: controller.signal,
+        onProgress: progress => {
+          if (!mountedRef.current) return;
           setUploadState(prev => ({
             ...prev,
             progress,
-            message: `Uploading ${file.name}... ${progress}%`
+            message: `Uploading ${file.name}... ${progress}%`,
           }));
-        }
-      };
-
-      xhr.onload = () => {
-        logger.debug('R2 upload response received', {
-          status: xhr.status,
-          headers: xhr.getAllResponseHeaders(),
-        });
-        
-        if (xhr.status >= 200 && xhr.status < 300) {
-          logger.info('File uploaded successfully to R2', { assetId, fileName: file.name });        
-         
-          // Dispatch upload completion event for AssetIntegrationService to handle
-          window.dispatchEvent(new CustomEvent('asset-upload-completed', {
-            detail: {
-              asset_id: assetId,
-              success: true,
-              file_size: file.size,
-              content_type: file.type
-            }
-          }));
-          
-          // Send sprite creation request to server with asset reference
-          if (protocol) {
-            const worldX = (pendingUpload.dropPosition.x - camera.x) / camera.zoom;
-            const worldY = (pendingUpload.dropPosition.y - camera.y) / camera.zoom;
-            
-            spriteCreationService.createSprite({
-              assetId: assetId,
-              fileName: pendingUpload.fileName,
-              worldX: worldX,
-              worldY: worldY,
-              sessionId: sessionId || 'default'
-            }).catch(error => {
-              logger.error('Failed to create sprite after drag-drop upload', error);
-            });
-          }
-          
-          resolve();
-        } else {
-          logger.error('R2 upload failed with HTTP status', { status: xhr.status, statusText: xhr.statusText });
-          const message = `Upload failed with status ${xhr.status}: ${xhr.statusText}`;
-          reportFailure(message);
-          reject(new Error(message));
-        }
-      };
-
-      xhr.onerror = () => {
-        logger.error('R2 upload network error');
-        const message = 'Upload failed due to network error';
-        reportFailure(message);
-        reject(new Error(message));
-      };
-      
-      xhr.open('PUT', uploadUrl);
-      xhr.setRequestHeader('Content-Type', file.type);
-      xhr.setRequestHeader('x-amz-meta-xxhash', fullHash);
-      
-      logger.debug('Starting upload to R2', {
-        file: file.name,
-        size: file.size,
-        type: file.type,
-        assetId: assetId
+        },
       });
-      
-      xhr.send(file);
-    });
+      logger.info('File uploaded successfully to R2', { assetId, fileName: file.name });
+      window.dispatchEvent(new CustomEvent('asset-upload-completed', {
+        detail: {
+          asset_id: assetId,
+          success: true,
+          file_size: file.size,
+          content_type: file.type,
+        },
+      }));
+
+      if (protocol) {
+        const worldX = (pendingUpload.dropPosition.x - camera.x) / camera.zoom;
+        const worldY = (pendingUpload.dropPosition.y - camera.y) / camera.zoom;
+        await spriteCreationService.createSprite({
+          assetId,
+          fileName: pendingUpload.fileName,
+          worldX,
+          worldY,
+          sessionId: sessionId || 'default',
+        });
+      }
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Upload failed';
+      reportFailure(message);
+      throw error;
+    } finally {
+      activeUploadControllersRef.current.delete(controller);
+    }
   };
 
   // Handle drag events
@@ -414,6 +383,23 @@ export const DragDropImageHandler: React.FC<DragDropImageHandlerProps> = ({
       assetIntegrationService.setProtocol(null);
     };
   }, [handleAssetUploadResponse, protocol]);
+
+  useEffect(() => {
+    const activeControllers = activeUploadControllersRef.current;
+    const pendingUploads = pendingUploadsRef.current;
+    const resetTimers = resetTimersRef.current;
+    return () => {
+      activeControllers.forEach(controller => controller.abort());
+      activeControllers.clear();
+      pendingUploads.clear();
+      resetTimers.forEach(timer => window.clearTimeout(timer));
+      resetTimers.clear();
+    };
+  }, [sessionId]);
+
+  useEffect(() => () => {
+    mountedRef.current = false;
+  }, []);
 
   // Prevent default browser drag-and-drop behavior
   useEffect(() => {

@@ -443,12 +443,38 @@ class _TablesMixin(_ProtocolBase):
                         return Message(MessageType.ERROR, {'error': 'Only DMs can modify table settings'})
                     match update_type:
                         case 'table_update':
-                            domain_update = update_data.copy()
-                            domain_update['table_id'] = table_id
-                            if 'table_name' in domain_update:
-                                domain_update['display_name'] = domain_update.pop('table_name')
-                            if 'grid_size' in domain_update:
-                                domain_update['grid_cell_px'] = domain_update.pop('grid_size')
+                            allowed_fields = {
+                                'table_id', 'table_name', 'width', 'height',
+                                'grid_size', 'grid_enabled',
+                            }
+                            unknown_fields = set(update_data) - allowed_fields
+                            if unknown_fields:
+                                return Message(MessageType.ERROR, {
+                                    'error': f'Unsupported table fields: {", ".join(sorted(unknown_fields))}'
+                                })
+                            domain_update = {'table_id': table_id}
+                            if 'table_name' in update_data:
+                                name = update_data['table_name']
+                                if not isinstance(name, str) or not name.strip() or len(name.strip()) > _MAX_TABLE_NAME_LENGTH:
+                                    return Message(MessageType.ERROR, {'error': 'table_name must be non-empty text up to 50 characters'})
+                                domain_update['display_name'] = name.strip()
+                            for dimension_name in ('width', 'height'):
+                                if dimension_name in update_data:
+                                    dimension = _validated_table_dimension(update_data[dimension_name])
+                                    if dimension is None:
+                                        return Message(MessageType.ERROR, {
+                                            'error': f'{dimension_name} must be a whole number between 500 and 10000'
+                                        })
+                                    domain_update[dimension_name] = dimension
+                            if 'grid_size' in update_data:
+                                grid_size = update_data['grid_size']
+                                if isinstance(grid_size, bool) or not isinstance(grid_size, (int, float)) or not 10 <= grid_size <= 500:
+                                    return Message(MessageType.ERROR, {'error': 'grid_size must be a number between 10 and 500'})
+                                domain_update['grid_cell_px'] = float(grid_size)
+                            if 'grid_enabled' in update_data:
+                                if not isinstance(update_data['grid_enabled'], bool):
+                                    return Message(MessageType.ERROR, {'error': 'grid_enabled must be a boolean'})
+                                domain_update['grid_enabled'] = update_data['grid_enabled']
 
                             result = await self.actions.update_table_from_data(domain_update)
                             if result.success:

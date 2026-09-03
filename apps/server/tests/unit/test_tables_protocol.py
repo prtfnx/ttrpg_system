@@ -605,6 +605,30 @@ class TestTableUpdate:
         proto.broadcast_to_session.assert_not_awaited()
         proto.send_to_client.assert_not_awaited()
 
+    @pytest.mark.parametrize("updates", [
+        {"width": -1},
+        {"height": "2000"},
+        {"grid_size": float("nan")},
+        {"grid_enabled": "false"},
+        {"entities": {}},
+        {"table_name": " "},
+    ])
+    async def test_rejects_invalid_or_unsafe_table_fields(self, updates):
+        proto = _ProtoStub()
+        proto.actions.update_table_from_data = AsyncMock(return_value=_ok_result())
+
+        resp = await proto.handle_table_update(
+            Message(MessageType.TABLE_UPDATE_REQUEST, {
+                "category": "table",
+                "type": "table_update",
+                "data": {"table_id": "t1", **updates},
+            }),
+            "c1",
+        )
+
+        assert resp.type == MessageType.ERROR
+        proto.actions.update_table_from_data.assert_not_awaited()
+
 
 # ---------------------------------------------------------------------------
 # handle_table_scale

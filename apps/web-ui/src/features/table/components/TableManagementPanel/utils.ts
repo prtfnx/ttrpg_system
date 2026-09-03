@@ -34,6 +34,14 @@ export type ImportedTableData = Record<string, unknown> & {
   layers: Record<string, unknown>;
 };
 
+export const appendTableNameSuffix = (
+  name: string,
+  suffix: ' (Copy)' | ' (Imported)',
+): string => {
+  const maximumBaseLength = 50 - suffix.length;
+  return `${name.trim().slice(0, maximumBaseLength).trimEnd()}${suffix}`;
+};
+
 export const validateImportedTableData = (value: unknown): ImportedTableData | null => {
   if (!value || typeof value !== 'object') return null;
   const data = value as Record<string, unknown>;

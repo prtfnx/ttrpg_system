@@ -1,5 +1,11 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { formatDate, formatRelativeTime, TABLE_TEMPLATES, validateImportedTableData } from '../utils';
+import {
+  appendTableNameSuffix,
+  formatDate,
+  formatRelativeTime,
+  TABLE_TEMPLATES,
+  validateImportedTableData,
+} from '../utils';
 
 describe('formatDate', () => {
   it('returns Unknown for undefined', () => {
@@ -87,5 +93,21 @@ describe('validateImportedTableData', () => {
     { table_name: 'Dungeon', width: 2000, height: 1500 },
   ])('rejects invalid or incomplete exports', payload => {
     expect(validateImportedTableData(payload)).toBeNull();
+  });
+});
+
+describe('appendTableNameSuffix', () => {
+  it.each([
+    [' (Copy)' as const, 'x'.repeat(43)],
+    [' (Imported)' as const, 'x'.repeat(39)],
+  ])('keeps generated %s names within the server limit', (suffix, expectedBase) => {
+    const result = appendTableNameSuffix('x'.repeat(50), suffix);
+
+    expect(result).toBe(`${expectedBase}${suffix}`);
+    expect(result).toHaveLength(50);
+  });
+
+  it('trims trailing whitespace before appending the suffix', () => {
+    expect(appendTableNameSuffix('Dungeon   ', ' (Copy)')).toBe('Dungeon (Copy)');
   });
 });

@@ -6,7 +6,7 @@ import { emitProtocolEvent } from '@lib/websocket/protocolEvents';
 import { logger } from '@shared/utils/logger';
 import { showToast } from '@shared/utils/toast';
 import { useEffect, useMemo, useState } from 'react';
-import { TABLE_TEMPLATES, validateImportedTableData } from './utils';
+import { appendTableNameSuffix, TABLE_TEMPLATES, validateImportedTableData } from './utils';
 
 export const useTableManagement = () => {
   const runtime = useWasmRuntime();
@@ -323,7 +323,7 @@ export const useTableManagement = () => {
       emitProtocolEvent('protocol-send-message', {
         type: 'new_table_request',
         data: {
-          table_name: `${table.table_name} (Copy)`,
+          table_name: appendTableNameSuffix(table.table_name, ' (Copy)'),
           width: table.width,
           height: table.height,
           source_table_id: table.table_id,
@@ -390,7 +390,7 @@ export const useTableManagement = () => {
         emitProtocolEvent('protocol-send-message', {
           type: 'new_table_request',
           data: {
-            table_name: `${data.table_name} (Imported)`,
+            table_name: appendTableNameSuffix(data.table_name, ' (Imported)'),
             width: data.width,
             height: data.height,
             table_data: data,

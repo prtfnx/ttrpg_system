@@ -571,13 +571,16 @@ class TestTableUpdate:
         resp = await proto.handle_table_update(msg, "c1")
 
         assert resp.type == MessageType.SUCCESS
-        proto.actions.update_table_from_data.assert_awaited_once_with({
-            "table_id": "t1",
-            "display_name": "Updated map",
-            "width": 2400,
-            "grid_cell_px": 75,
-            "grid_enabled": False,
-        })
+        proto.actions.update_table_from_data.assert_awaited_once_with(
+            {
+                "table_id": "t1",
+                "display_name": "Updated map",
+                "width": 2400,
+                "grid_cell_px": 75,
+                "grid_enabled": False,
+            },
+            session_id=1,
+        )
         proto.broadcast_to_session.assert_awaited_once()
         broadcast = proto.broadcast_to_session.await_args.kwargs["message"]
         assert broadcast.type == MessageType.TABLE_UPDATE

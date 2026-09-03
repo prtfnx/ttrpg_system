@@ -306,7 +306,12 @@ class ActionsCore(AsyncActionsProtocol):
         except Exception as e:
             return ActionResult(False, f"Failed to get table: {str(e)}")
 
-    async def update_table(self, table_id: str, **kwargs) -> ActionResult:
+    async def update_table(
+        self,
+        table_id: str,
+        session_id: Optional[int] = None,
+        **kwargs,
+    ) -> ActionResult:
         """Update table properties"""
         try:
             table = await self._get_table(table_id)
@@ -326,12 +331,17 @@ class ActionsCore(AsyncActionsProtocol):
                 'new_values': kwargs
             }
             await self._add_to_history(action)
+            await self._persist_table_state(table, "table update", session_id)
 
             return ActionResult(True, f"Table {table_id} updated successfully", kwargs)
         except Exception as e:
             return ActionResult(False, f"Failed to update table: {str(e)}")
 
-    async def update_table_from_data(self, data: Dict[str, Any]) -> ActionResult:
+    async def update_table_from_data(
+        self,
+        data: Dict[str, Any],
+        session_id: Optional[int] = None,
+    ) -> ActionResult:
         """Update table properties from data dictionary"""
         table_id = data.get('table_id')
         if not table_id:
@@ -342,7 +352,7 @@ class ActionsCore(AsyncActionsProtocol):
         data_copy.pop('table_id', None)
 
         # Update table properties
-        return await self.update_table(table_id, **data_copy)
+        return await self.update_table(table_id, session_id=session_id, **data_copy)
 
     async def move_table(self, table_id: str, position: Position) -> ActionResult:
         """Move table to new position (add position attribute if needed)"""

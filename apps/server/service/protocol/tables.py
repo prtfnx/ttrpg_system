@@ -476,7 +476,10 @@ class _TablesMixin(_ProtocolBase):
                                     return Message(MessageType.ERROR, {'error': 'grid_enabled must be a boolean'})
                                 domain_update['grid_enabled'] = update_data['grid_enabled']
 
-                            result = await self.actions.update_table_from_data(domain_update)
+                            result = await self.actions.update_table_from_data(
+                                domain_update,
+                                session_id=self._get_session_id(msg),
+                            )
                             if result.success:
                                 response = Message(MessageType.SUCCESS, {
                                     'table_id': table_id,

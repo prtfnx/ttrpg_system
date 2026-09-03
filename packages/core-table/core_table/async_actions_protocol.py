@@ -55,11 +55,20 @@ class AsyncActionsProtocol(ABC):
         pass
 
     @abstractmethod
-    async def update_table(self, table_id: str, **kwargs) -> ActionResult:
+    async def update_table(
+        self,
+        table_id: str,
+        session_id: Optional[int] = None,
+        **kwargs,
+    ) -> ActionResult:
         pass
 
     @abstractmethod
-    async def update_table_from_data(self, data: Dict[str, Any]) -> ActionResult:
+    async def update_table_from_data(
+        self,
+        data: Dict[str, Any],
+        session_id: Optional[int] = None,
+    ) -> ActionResult:
         pass
 
     @abstractmethod

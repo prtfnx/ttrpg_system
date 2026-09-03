@@ -16,9 +16,8 @@ describe('formatDate', () => {
     expect(typeof result).toBe('string');
   });
 
-  it('returns Invalid Date for an invalid date string', () => {
-    // new Date('not-a-date') doesn't throw; toLocaleDateString() returns 'Invalid Date'
-    expect(formatDate('not-a-date')).toBe('Invalid Date');
+  it('returns Unknown for an invalid date string', () => {
+    expect(formatDate('not-a-date')).toBe('Unknown');
   });
 });
 

@@ -1,10 +1,7 @@
 export const formatDate = (dateString?: string): string => {
   if (!dateString) return 'Unknown';
-  try {
-    return new Date(dateString).toLocaleDateString();
-  } catch {
-    return 'Unknown';
-  }
+  const date = new Date(dateString);
+  return Number.isNaN(date.getTime()) ? 'Unknown' : date.toLocaleDateString();
 };
 
 export const formatRelativeTime = (timestamp?: number): string => {

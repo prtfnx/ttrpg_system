@@ -1577,6 +1577,36 @@ describe('WebClientProtocol', () => {
       expect(fn).toHaveBeenCalledOnce();
     });
 
+    it('CHARACTER_LOAD_RESPONSE preserves a valid local version when the server version is malformed', async () => {
+      Object.assign(mocks.storeState, makeStoreState({
+        characters: [{ id: 'c1', version: 7, name: 'Hero', data: {} }],
+      }));
+      const p = makeProtocol();
+
+      await dispatch(p, 'character_load_response', {
+        success: true,
+        version: 'not-a-version',
+        character_data: { character_id: 'c1', name: 'Hero', data: { level: 4 } },
+      });
+
+      expect(mocks.storeState.updateCharacter).toHaveBeenCalledWith('c1', expect.objectContaining({
+        version: 7,
+      }));
+    });
+
+    it('CHARACTER_LIST_RESPONSE defaults malformed versions instead of storing NaN', async () => {
+      const p = makeProtocol();
+
+      await dispatch(p, 'character_list_response', {
+        characters: [{ character_id: 'c1', name: 'Hero', version: 'invalid' }],
+      });
+
+      expect(mocks.storeState.addCharacter).toHaveBeenCalledWith(expect.objectContaining({
+        id: 'c1',
+        version: 1,
+      }));
+    });
+
     it('CHARACTER_SAVE_RESPONSE resolves the correlated temporary character', async () => {
       const first = { id: 'temp-first', name: 'First', syncStatus: 'syncing' };
       const second = { id: 'temp-second', name: 'Second', syncStatus: 'syncing' };

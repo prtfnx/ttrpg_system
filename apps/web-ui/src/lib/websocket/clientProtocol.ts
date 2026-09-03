@@ -46,6 +46,11 @@ function parseStoredPaintStrokes(strokes: StoredPaintStroke[]): Record<string, u
   return parsed;
 }
 
+function parseCharacterVersion(value: unknown, fallback = 1): number {
+  const parsed = typeof value === 'number' ? value : Number(value);
+  return Number.isSafeInteger(parsed) && parsed >= 0 ? parsed : fallback;
+}
+
 
 export class WebClientProtocol {
   private handlers = new Map<MessageType, Set<MessageHandler>>();
@@ -1209,7 +1214,7 @@ export class WebClientProtocol {
             ? document.controlled_by as number[]
             : existing?.controlledBy ?? [],
         data: characterData,
-        version: Number(response.version ?? existing?.version ?? 1),
+        version: parseCharacterVersion(response.version, existing?.version ?? 1),
         createdAt: existing?.createdAt ?? new Date().toISOString(),
         updatedAt: new Date().toISOString(),
         syncStatus: 'synced',
@@ -1232,7 +1237,7 @@ export class WebClientProtocol {
     // Map temp ID to real ID from server
     if (message.data?.success && message.data?.character_id) {
       const realId = String(message.data.character_id);
-      const version = typeof message.data.version === 'number' ? message.data.version : 1;
+      const version = parseCharacterVersion(message.data.version);
       
       const store = useGameStore.getState();
       const correlatedTempId = message.correlation_id
@@ -1300,7 +1305,7 @@ export class WebClientProtocol {
           ownerId: Number(c.owner_user_id ?? c.ownerId ?? 0),
           controlledBy: Array.isArray(c.controlledBy) ? c.controlledBy as number[] : [],
           data: (c.character_data ?? c.data ?? {}) as Record<string, unknown>,
-          version: Number(c.version ?? 1),
+          version: parseCharacterVersion(c.version),
           createdAt: String(c.created_at ?? new Date().toISOString()),
           updatedAt: String(c.updated_at ?? new Date().toISOString()),
           syncStatus: 'synced' as const
@@ -1338,7 +1343,7 @@ export class WebClientProtocol {
         ownerId: Number(this.userId ?? 0),
         controlledBy: Array.isArray(document.controlledBy) ? document.controlledBy as number[] : [],
         data: characterData,
-        version: Number(data.version ?? 1),
+        version: parseCharacterVersion(data.version),
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString(),
         syncStatus: 'synced' as const,
@@ -1381,7 +1386,7 @@ export class WebClientProtocol {
           ownerId: Number(characterData.owner_user_id ?? characterData.ownerId ?? 0),
           controlledBy: Array.isArray(characterData.controlledBy) ? characterData.controlledBy as number[] : [],
           data: (characterData.data ?? characterData) as Record<string, unknown>,
-          version: Number(data.version ?? characterData.version ?? 1),
+          version: parseCharacterVersion(data.version ?? characterData.version),
           createdAt: String(characterData.created_at ?? characterData.createdAt ?? new Date().toISOString()),
           updatedAt: String(characterData.updated_at ?? characterData.updatedAt ?? new Date().toISOString()),
           syncStatus: 'synced' as const

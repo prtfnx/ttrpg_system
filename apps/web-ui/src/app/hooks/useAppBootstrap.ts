@@ -1,7 +1,7 @@
 import { authService, type UserInfo } from '@features/auth';
 import type { SessionRole } from '@features/session/types/roles';
 import { logger } from '@shared/utils/logger';
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 
 interface InitialData {
   sessionCode?: string;
@@ -44,6 +44,7 @@ async function resolveInitialSession(sessionCode: string): Promise<string | null
 
 export function useAppBootstrap() {
   const [state, setState] = useState<AppState>(initialState);
+  const logoutTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -141,9 +142,21 @@ export function useAppBootstrap() {
       userInfo: null,
     }));
 
-    setTimeout(() => {
+    if (logoutTimerRef.current !== null) {
+      clearTimeout(logoutTimerRef.current);
+    }
+
+    logoutTimerRef.current = setTimeout(() => {
+      logoutTimerRef.current = null;
       authService.logout();
     }, 2000);
+  }, []);
+
+  useEffect(() => () => {
+    if (logoutTimerRef.current !== null) {
+      clearTimeout(logoutTimerRef.current);
+      logoutTimerRef.current = null;
+    }
   }, []);
 
   return {

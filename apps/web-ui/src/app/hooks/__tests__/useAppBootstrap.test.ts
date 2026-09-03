@@ -104,4 +104,40 @@ describe('useAppBootstrap', () => {
 
     expect(authService.logout).toHaveBeenCalledTimes(1);
   });
+
+  it('replaces a pending logout when auth errors repeat', () => {
+    vi.useFakeTimers();
+    const { result } = renderHook(() => useAppBootstrap());
+
+    act(() => {
+      result.current.handleAuthError();
+      vi.advanceTimersByTime(1000);
+      result.current.handleAuthError();
+      vi.advanceTimersByTime(1000);
+    });
+
+    expect(authService.logout).not.toHaveBeenCalled();
+
+    act(() => {
+      vi.advanceTimersByTime(1000);
+    });
+
+    expect(authService.logout).toHaveBeenCalledTimes(1);
+  });
+
+  it('cancels a pending logout when the app unmounts', () => {
+    vi.useFakeTimers();
+    const { result, unmount } = renderHook(() => useAppBootstrap());
+
+    act(() => {
+      result.current.handleAuthError();
+    });
+    unmount();
+
+    act(() => {
+      vi.advanceTimersByTime(2000);
+    });
+
+    expect(authService.logout).not.toHaveBeenCalled();
+  });
 });

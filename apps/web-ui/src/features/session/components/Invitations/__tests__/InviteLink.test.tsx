@@ -65,6 +65,11 @@ describe('InviteLink', () => {
     expect(input.value).toBe(`${window.location.origin}/join/xyz`);
   });
 
+  it('resolves relative invite URLs without a leading slash', () => {
+    render(<InviteLink invitation={makeInvitation({ invite_url: 'join/xyz' })} onRevoke={vi.fn()} />);
+    expect(screen.getByRole('textbox')).toHaveValue(`${window.location.origin}/join/xyz`);
+  });
+
   it('Copy button copies to clipboard and shows Copied', async () => {
     render(<InviteLink invitation={makeInvitation()} onRevoke={vi.fn()} />);
     fireEvent.click(screen.getByText('Copy'));
@@ -86,6 +91,12 @@ describe('InviteLink', () => {
   it('shows expires date when expires_at is provided', () => {
     render(<InviteLink invitation={makeInvitation({ expires_at: '2099-12-31T12:00:00Z' })} onRevoke={vi.fn()} />);
     expect(screen.getByText(/Expires/)).toBeInTheDocument();
+  });
+
+  it('renders malformed dates as unknown without marking the invite expired', () => {
+    render(<InviteLink invitation={makeInvitation({ expires_at: 'invalid-date' })} onRevoke={vi.fn()} />);
+    expect(screen.getByText('Unknown')).toBeInTheDocument();
+    expect(screen.getByText('Active')).toBeInTheDocument();
   });
 
   it('Copy button is disabled when invitation is invalid', () => {

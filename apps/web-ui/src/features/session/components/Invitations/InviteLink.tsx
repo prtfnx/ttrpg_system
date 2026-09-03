@@ -1,6 +1,6 @@
 import type { SessionInvitation } from '@features/session/types/invitations';
 import { logger } from '@shared/utils/logger';
-import React, { useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import styles from './InviteLink.module.css';
 
 interface InviteLinkProps {
@@ -10,27 +10,37 @@ interface InviteLinkProps {
 
 export const InviteLink: React.FC<InviteLinkProps> = ({ invitation, onRevoke }) => {
   const [copied, setCopied] = useState(false);
+  const copiedTimerRef = useRef<number | null>(null);
 
-  // Check if invite_url is already a full URL (starts with http:// or https://)
-  const fullUrl = invitation.invite_url.startsWith('http://') || invitation.invite_url.startsWith('https://')
+  const fullUrl = /^https?:\/\//i.test(invitation.invite_url)
     ? invitation.invite_url
-    : `${window.location.origin}${invitation.invite_url}`;
+    : new URL(invitation.invite_url, `${window.location.origin}/`).toString();
+
+  useEffect(() => () => {
+    if (copiedTimerRef.current !== null) window.clearTimeout(copiedTimerRef.current);
+  }, []);
 
   const copyToClipboard = async () => {
     try {
       await navigator.clipboard.writeText(fullUrl);
       setCopied(true);
-      setTimeout(() => setCopied(false), 2000);
+      if (copiedTimerRef.current !== null) window.clearTimeout(copiedTimerRef.current);
+      copiedTimerRef.current = window.setTimeout(() => {
+        copiedTimerRef.current = null;
+        setCopied(false);
+      }, 2000);
     } catch (err) {
       logger.error('Failed to copy invitation link', err);
     }
   };
 
   const formatDate = (date: string) => {
-    return new Date(date).toLocaleString();
+    const parsed = new Date(date);
+    return Number.isNaN(parsed.getTime()) ? 'Unknown' : parsed.toLocaleString();
   };
 
-  const isExpired = invitation.expires_at && new Date(invitation.expires_at) < new Date();
+  const expirationTime = invitation.expires_at ? new Date(invitation.expires_at).getTime() : Number.NaN;
+  const isExpired = Number.isFinite(expirationTime) && expirationTime < Date.now();
   const isUsedUp = invitation.max_uses > 0 && invitation.uses_count >= invitation.max_uses;
 
   return (

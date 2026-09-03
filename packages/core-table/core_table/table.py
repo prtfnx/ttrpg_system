@@ -5,6 +5,8 @@ import uuid
 from dataclasses import dataclass
 from typing import Any, Dict, List, Optional, Tuple
 
+from .entities import Wall
+
 logger = logging.getLogger(__name__)
 
 # logging.basicConfig removed - using central logger setup
@@ -528,6 +530,16 @@ class VirtualTable:
             'grid_cell_px': self.grid_cell_px,
             'cell_distance': self.cell_distance,
             'distance_unit': self.distance_unit,
+            'grid_enabled': self.grid_enabled,
+            'snap_to_grid': self.snap_to_grid,
+            'grid_color_hex': self.grid_color_hex,
+            'background_color_hex': self.background_color_hex,
+            'position': list(self.position),
+            'scale': list(self.scale),
+            'layer_visibility': self.layer_visibility,
+            'walls': self.get_all_walls(),
+            'difficult_terrain_cells': [list(cell) for cell in sorted(self.difficult_terrain_cells)],
+            'cover_zones': [zone.to_dict() for zone in self.cover_zones],
         }
 
     def to_json(self) -> str:
@@ -546,6 +558,17 @@ class VirtualTable:
         self.grid_cell_px = float(data.get('grid_cell_px') or 50.0)
         self.cell_distance = float(data.get('cell_distance') or 5.0)
         self.distance_unit = data.get('distance_unit') or 'ft'
+        self.grid_enabled = data.get('grid_enabled') is not False
+        self.snap_to_grid = data.get('snap_to_grid') is not False
+        self.grid_color_hex = data.get('grid_color_hex') or '#ffffff'
+        self.background_color_hex = data.get('background_color_hex') or '#2a3441'
+        self.position = tuple(data.get('position', [0.0, 0.0]))
+        self.scale = tuple(data.get('scale', [1.0, 1.0]))
+        visibility = data.get('layer_visibility', {})
+        self.layer_visibility = {
+            layer: visibility.get(layer, True) if isinstance(visibility, dict) else True
+            for layer in self.layers
+        }
 
         # Clear existing entities
         self.entities.clear()
@@ -604,6 +627,20 @@ class VirtualTable:
             'hide': fog_data.get('hide', []),
             'reveal': fog_data.get('reveal', [])
         }
+        self.walls = {}
+        for wall_data in data.get('walls', []):
+            if isinstance(wall_data, dict):
+                self.add_wall(Wall.from_dict({**wall_data, 'table_id': str(self.table_id)}))
+        self.difficult_terrain_cells = {
+            tuple(cell)
+            for cell in data.get('difficult_terrain_cells', [])
+            if isinstance(cell, (list, tuple)) and len(cell) == 2
+        }
+        self.cover_zones = [
+            CoverZone.from_dict(zone)
+            for zone in data.get('cover_zones', [])
+            if isinstance(zone, dict)
+        ]
 
         logger.info(f"Loaded table '{self.display_name}' with {len(self.entities)} entities and {len(self.fog_rectangles['hide'])} fog rectangles")
 

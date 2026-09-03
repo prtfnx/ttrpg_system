@@ -5,7 +5,7 @@ import pytest
 from core_table.entities import Wall
 from core_table.actions_core import ActionsCore
 from core_table.server import TableManager
-from core_table.table import Entity, VirtualTable, create_table_from_json
+from core_table.table import CoverZone, Entity, VirtualTable, create_table_from_json
 
 
 def make_table(w: int = 20, h: int = 20) -> VirtualTable:
@@ -263,12 +263,30 @@ class TestSerialization:
             has_darkvision=True,
         )
         entity.rotation = 45
+        wall = Wall(table_id=str(table.table_id), x1=0, y1=1, x2=2, y2=3, is_door=True)
+        table.add_wall(wall)
+        table.cover_zones = [CoverZone('cover-1', 'rect', [0, 0, 2, 2])]
+        table.difficult_terrain_cells = {(2, 3)}
+        table.grid_enabled = False
+        table.snap_to_grid = False
+        table.grid_color_hex = '#112233'
+        table.background_color_hex = '#445566'
 
         restored = create_table_from_json(table.to_json())
         restored_entity = next(iter(restored.entities.values()))
 
         assert restored.display_name == table.display_name
         assert restored_entity.to_dict() == entity.to_dict()
+        assert restored.get_all_walls()[0] == {
+            **wall.to_dict(),
+            'table_id': str(restored.table_id),
+        }
+        assert [zone.to_dict() for zone in restored.cover_zones] == [zone.to_dict() for zone in table.cover_zones]
+        assert restored.difficult_terrain_cells == {(2, 3)}
+        assert restored.grid_enabled is False
+        assert restored.snap_to_grid is False
+        assert restored.grid_color_hex == '#112233'
+        assert restored.background_color_hex == '#445566'
 
     def test_flat_legacy_json_remains_supported(self):
         payload = {

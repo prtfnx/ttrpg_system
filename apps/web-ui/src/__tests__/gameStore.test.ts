@@ -379,14 +379,12 @@ describe('gameStore — switchToTable with existing table', () => {
   beforeEach(() => {
     vi.clearAllMocks();
   });
-  it('switchToTable dispatches table-data-received for existing table', () => {
+  it('switchToTable loads local data and only requests canonical server data', () => {
     const tableId = '1a74b0a1-8caa-48be-8623-5b1e13a9d853';
     useGameStore.setState({
       tables: [{ table_id: tableId, table_name: 'Main', width: 100, height: 100 }],
     } as never);
     useGameStore.getState().switchToTable(tableId);
-    console.log(runtimeMock.handleTableData.mock.calls);
-    console.log(protocolMock.sendMessage.mock.calls);
     expect(runtimeMock.handleTableData).toHaveBeenCalled();
     expect(runtimeMock.handleTableData).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -399,6 +397,7 @@ describe('gameStore — switchToTable with existing table', () => {
       }),
     );
 
+    expect(protocolMock.sendMessage).toHaveBeenCalledTimes(1);
     expect(protocolMock.sendMessage).toHaveBeenCalledWith(
       expect.objectContaining({
         type: 'table_request',
@@ -489,15 +488,11 @@ describe('gameStore — createNewTable', () => {
     expect(s.activeTableId).toBe(s.tables[0].table_id);
   });
 
-  it('dispatches table-data-received and protocol-send-message events', () => {
-    const events: string[] = [];
-    window.addEventListener('table-data-received', () => events.push('data'));
-    window.addEventListener('protocol-send-message', () => events.push('protocol'));
-
+  it('loads the local table and only sends the server creation request', () => {
     useGameStore.getState().createNewTable('Map', 100, 100);
 
     expect(runtimeMock.handleTableData).toHaveBeenCalled();
-
+    expect(protocolMock.sendMessage).toHaveBeenCalledTimes(1);
     expect(protocolMock.sendMessage).toHaveBeenCalledWith(
       expect.objectContaining({
         type: 'new_table_request',

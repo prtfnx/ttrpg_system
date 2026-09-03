@@ -714,8 +714,7 @@ export const useGameStore = create<GameStore>()(
           }
         };
         
-        // Emit table data event for WASM integration
-        sendProtocolMessage('table_data_received');
+        // Load the optimistic table directly into the local WASM runtime.
         getCurrentWasmRuntime()?.handleTableData(tableDataForWasm);
         // Send message via protocol to create new table on server
         // BEST PRACTICE: Include local_table_id for sync mapping
@@ -799,7 +798,6 @@ export const useGameStore = create<GameStore>()(
               }
             };
             getCurrentWasmRuntime()?.handleTableData(tableDataForWasm);
-            sendProtocolMessage('table_data_received', tableDataForWasm);
           }
           
           return {}; // activeTableId already set by setActiveTableId

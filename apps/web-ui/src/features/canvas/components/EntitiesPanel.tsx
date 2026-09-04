@@ -129,17 +129,23 @@ export function EntitiesPanel() {
 
   // Auto-sync on mount and when sprite events occur
   useEffect(() => {
-    syncSpritesFromRust()
+    void syncSpritesFromRust()
+    let syncTimer: ReturnType<typeof setTimeout> | null = null;
     
     // Listen for custom sprite addition events
     const handleSpriteAdded = () => {
-      setTimeout(syncSpritesFromRust, 500) // Small delay to ensure sprite is processed
+      if (syncTimer !== null) clearTimeout(syncTimer);
+      syncTimer = setTimeout(() => {
+        syncTimer = null;
+        void syncSpritesFromRust();
+      }, 500); // Small delay to ensure sprite is processed
     }
     
     window.addEventListener('spriteAdded', handleSpriteAdded)
     
     return () => {
       window.removeEventListener('spriteAdded', handleSpriteAdded)
+      if (syncTimer !== null) clearTimeout(syncTimer);
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps -- intentional: sync once on mount
   }, []) // Remove dependencies to avoid constant re-syncing

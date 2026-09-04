@@ -322,6 +322,8 @@ class VirtualTable:
             raise ValueError("Entity ID is required")
         if entity.layer not in self.entity_index:
             raise ValueError("Invalid layer")
+        if not self.is_valid_position(entity.position):
+            return False
 
         existing = self.entities.get(entity.entity_id)
         if existing is not None:
@@ -330,7 +332,8 @@ class VirtualTable:
         self.entities[entity.entity_id] = entity
         self.sprite_to_entity[entity.sprite_id] = entity.entity_id
         self.next_entity_id = max(self.next_entity_id, entity.entity_id + 1)
-        return self._index_entity(entity)
+        self._index_entity(entity)
+        return True
 
     def get_entity_at_position(
         self,

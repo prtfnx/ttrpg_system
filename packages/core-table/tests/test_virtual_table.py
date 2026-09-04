@@ -199,6 +199,22 @@ class TestRemoveEntity:
 
 
 class TestPositionQueries:
+    def test_invalid_restore_does_not_replace_indexed_entity(self):
+        table = make_table()
+        existing = add_entity(table, x=4, y=5)
+        replacement = Entity(
+            name='Invalid replacement',
+            position=(table.width, table.height),
+            layer='tokens',
+            entity_id=entity_id(existing),
+        )
+
+        assert table.restore_entity(replacement) is False
+        assert table.entities[entity_id(existing)] is existing
+        assert table.sprite_to_entity[existing.sprite_id] == entity_id(existing)
+        assert replacement.sprite_id not in table.sprite_to_entity
+        assert table.get_entity_at_position((4, 5), 'tokens') is existing
+
     def test_get_entity_at_position_checks_requested_layer(self):
         t = make_table()
         token = add_entity(t, x=4, y=5, layer='tokens')

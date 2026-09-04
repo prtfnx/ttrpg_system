@@ -1,6 +1,7 @@
 import { act, renderHook, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { useSessionPlayers } from '../useSessionPlayers';
+import type { SessionPlayer } from '../../types';
 
 vi.mock('../../services/sessionManagement.service', () => ({
   sessionManagementService: {
@@ -10,9 +11,9 @@ vi.mock('../../services/sessionManagement.service', () => ({
 
 import { sessionManagementService } from '../../services/sessionManagement.service';
 
-const mockPlayers = [
-  { userId: 1, username: 'Alice', role: 'owner' },
-  { userId: 2, username: 'Bob', role: 'player' },
+const mockPlayers: SessionPlayer[] = [
+  { id: 1, user_id: 1, username: 'Alice', role: 'owner', is_connected: true, permissions: [] },
+  { id: 2, user_id: 2, username: 'Bob', role: 'player', is_connected: false, permissions: [] },
 ];
 
 beforeEach(() => {
@@ -112,17 +113,31 @@ describe('useSessionPlayers', () => {
     ));
     const { result, rerender } = renderHook(
       ({ code }: { code: string | null }) => useSessionPlayers(code),
-      { initialProps: { code: 'FIRST' } },
+      { initialProps: { code: 'FIRST' as string | null } },
     );
 
     rerender({ code: 'SECOND' });
     await act(async () => {
-      resolveSecond([{ userId: 3, username: 'Second', role: 'player' }]);
+      resolveSecond([{
+        id: 3,
+        user_id: 3,
+        username: 'Second',
+        role: 'player',
+        is_connected: true,
+        permissions: [],
+      }]);
     });
     await waitFor(() => expect(result.current.players[0]?.username).toBe('Second'));
 
     await act(async () => {
-      resolveFirst([{ userId: 4, username: 'First', role: 'player' }]);
+      resolveFirst([{
+        id: 4,
+        user_id: 4,
+        username: 'First',
+        role: 'player',
+        is_connected: true,
+        permissions: [],
+      }]);
     });
 
     expect(result.current.players[0]?.username).toBe('Second');
@@ -132,7 +147,7 @@ describe('useSessionPlayers', () => {
     vi.mocked(sessionManagementService.getPlayers).mockResolvedValue(mockPlayers);
     const { result, rerender } = renderHook(
       ({ code }: { code: string | null }) => useSessionPlayers(code),
-      { initialProps: { code: 'SESS123' } },
+      { initialProps: { code: 'SESS123' as string | null } },
     );
     await waitFor(() => expect(result.current.players).toEqual(mockPlayers));
 

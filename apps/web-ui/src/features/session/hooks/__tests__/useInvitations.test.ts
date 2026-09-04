@@ -101,7 +101,7 @@ describe('useInvitations', () => {
       ));
       const { result, rerender } = renderHook(
         ({ code }: { code: string | null }) => useInvitations(code),
-        { initialProps: { code: 'FIRST' } },
+        { initialProps: { code: 'FIRST' as string | null } },
       );
 
       rerender({ code: 'SECOND' });
@@ -120,7 +120,7 @@ describe('useInvitations', () => {
     it('clears invitations when the selected session is removed', async () => {
       const { result, rerender } = renderHook(
         ({ code }: { code: string | null }) => useInvitations(code),
-        { initialProps: { code: sessionCode } },
+        { initialProps: { code: sessionCode as string | null } },
       );
       await waitFor(() => expect(result.current.invitations).toHaveLength(2));
 

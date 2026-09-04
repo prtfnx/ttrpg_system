@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { invitationService } from '../services/invitation.service';
 import type { CreateInvitationRequest, SessionInvitation } from '../types/invitations';
 
@@ -6,22 +6,38 @@ export const useInvitations = (sessionCode: string | null) => {
   const [invitations, setInvitations] = useState<SessionInvitation[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const latestRequestRef = useRef(0);
+  const sessionCodeRef = useRef(sessionCode);
+  sessionCodeRef.current = sessionCode;
 
-  const fetchInvitations = async () => {
-    if (!sessionCode) return;
+  const fetchInvitations = useCallback(async () => {
+    if (sessionCode !== sessionCodeRef.current) return;
+    const requestId = ++latestRequestRef.current;
+    if (!sessionCode) {
+      setInvitations([]);
+      setLoading(false);
+      setError(null);
+      return;
+    }
 
     setLoading(true);
     setError(null);
 
     try {
       const data = await invitationService.listSessionInvitations(sessionCode);
-      setInvitations(data);
+      if (requestId === latestRequestRef.current && sessionCode === sessionCodeRef.current) {
+        setInvitations(data);
+      }
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to fetch invitations');
+      if (requestId === latestRequestRef.current && sessionCode === sessionCodeRef.current) {
+        setError(err instanceof Error ? err.message : 'Failed to fetch invitations');
+      }
     } finally {
-      setLoading(false);
+      if (requestId === latestRequestRef.current && sessionCode === sessionCodeRef.current) {
+        setLoading(false);
+      }
     }
-  };
+  }, [sessionCode]);
 
   const createInvitation = async (data: CreateInvitationRequest): Promise<SessionInvitation | null> => {
     setLoading(true);
@@ -56,9 +72,11 @@ export const useInvitations = (sessionCode: string | null) => {
   };
 
   useEffect(() => {
-    fetchInvitations();
-  // eslint-disable-next-line react-hooks/exhaustive-deps -- intentional: fetch once on mount
-  }, [sessionCode]);
+    void fetchInvitations();
+    return () => {
+      latestRequestRef.current += 1;
+    };
+  }, [fetchInvitations]);
 
   return { invitations, loading, error, createInvitation, revokeInvitation, refetch: fetchInvitations };
 };

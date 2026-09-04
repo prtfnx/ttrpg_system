@@ -89,6 +89,47 @@ describe('useInvitations', () => {
       expect(result.current.invitations).toEqual([]);
       expect(result.current.loading).toBe(false);
     });
+
+    it('ignores a stale response after the selected session changes', async () => {
+      let resolveFirst!: (value: SessionInvitation[]) => void;
+      let resolveSecond!: (value: SessionInvitation[]) => void;
+      vi.mocked(invitationService.listSessionInvitations).mockImplementation(code => (
+        new Promise(resolve => {
+          if (code === 'FIRST') resolveFirst = resolve;
+          else resolveSecond = resolve;
+        })
+      ));
+      const { result, rerender } = renderHook(
+        ({ code }: { code: string | null }) => useInvitations(code),
+        { initialProps: { code: 'FIRST' } },
+      );
+
+      rerender({ code: 'SECOND' });
+      await act(async () => {
+        resolveSecond([{ ...mockInvitations[0], id: 22, session_code: 'SECOND' }]);
+      });
+      await waitFor(() => expect(result.current.invitations[0]?.session_code).toBe('SECOND'));
+
+      await act(async () => {
+        resolveFirst([{ ...mockInvitations[0], id: 11, session_code: 'FIRST' }]);
+      });
+
+      expect(result.current.invitations[0]?.session_code).toBe('SECOND');
+    });
+
+    it('clears invitations when the selected session is removed', async () => {
+      const { result, rerender } = renderHook(
+        ({ code }: { code: string | null }) => useInvitations(code),
+        { initialProps: { code: sessionCode } },
+      );
+      await waitFor(() => expect(result.current.invitations).toHaveLength(2));
+
+      rerender({ code: null });
+
+      expect(result.current.invitations).toEqual([]);
+      expect(result.current.error).toBeNull();
+      expect(result.current.loading).toBe(false);
+    });
   });
 
   describe('createInvitation', () => {

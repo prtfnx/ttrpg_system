@@ -1,5 +1,6 @@
 import json
 import logging
+import math
 import os
 import uuid
 from dataclasses import dataclass
@@ -13,6 +14,28 @@ logger = logging.getLogger(__name__)
 
 LAYER_NAMES = ['map', 'tokens', 'dungeon_master', 'light', 'height', 'obstacles', 'fog_of_war']
 _MAX_DATABASE_ID = 2**63 - 1
+
+
+def _finite_float(
+    value: Any,
+    default: float,
+    *,
+    minimum: Optional[float] = None,
+    maximum: Optional[float] = None,
+) -> float:
+    if isinstance(value, bool):
+        return default
+    try:
+        normalized = float(value)
+    except (TypeError, ValueError, OverflowError):
+        return default
+    if not math.isfinite(normalized):
+        return default
+    if minimum is not None and normalized < minimum:
+        return default
+    if maximum is not None and normalized > maximum:
+        return default
+    return normalized
 
 
 def _normalize_controller_ids(value: Any) -> List[int]:
@@ -552,14 +575,24 @@ class VirtualTable:
         self.display_name = data.get('table_name', data.get('name', 'Unknown Table'))
         self.width = data.get('width', 100)
         self.height = data.get('height', 100)
-        self.dynamic_lighting_enabled = bool(data.get('dynamic_lighting_enabled', False))
-        self.fog_exploration_mode = data.get('fog_exploration_mode', 'current_only')
-        self.ambient_light_level = float(data.get('ambient_light_level', 1.0))
-        self.grid_cell_px = float(data.get('grid_cell_px') or 50.0)
-        self.cell_distance = float(data.get('cell_distance') or 5.0)
-        self.distance_unit = data.get('distance_unit') or 'ft'
-        self.grid_enabled = data.get('grid_enabled') is not False
-        self.snap_to_grid = data.get('snap_to_grid') is not False
+        dynamic_lighting = data.get('dynamic_lighting_enabled')
+        self.dynamic_lighting_enabled = dynamic_lighting if isinstance(dynamic_lighting, bool) else False
+        fog_mode = data.get('fog_exploration_mode')
+        self.fog_exploration_mode = fog_mode if fog_mode in {'current_only', 'persist_dimmed'} else 'current_only'
+        self.ambient_light_level = _finite_float(
+            data.get('ambient_light_level'),
+            1.0,
+            minimum=0.0,
+            maximum=1.0,
+        )
+        self.grid_cell_px = _finite_float(data.get('grid_cell_px'), 50.0, minimum=0.000001)
+        self.cell_distance = _finite_float(data.get('cell_distance'), 5.0, minimum=0.000001)
+        distance_unit = data.get('distance_unit')
+        self.distance_unit = distance_unit if distance_unit in {'ft', 'm'} else 'ft'
+        grid_enabled = data.get('grid_enabled')
+        self.grid_enabled = grid_enabled if isinstance(grid_enabled, bool) else True
+        snap_to_grid = data.get('snap_to_grid')
+        self.snap_to_grid = snap_to_grid if isinstance(snap_to_grid, bool) else True
         self.grid_color_hex = data.get('grid_color_hex') or '#ffffff'
         self.background_color_hex = data.get('background_color_hex') or '#2a3441'
         self.position = tuple(data.get('position', [0.0, 0.0]))

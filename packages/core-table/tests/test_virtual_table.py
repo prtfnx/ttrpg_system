@@ -301,6 +301,33 @@ class TestSerialization:
         assert restored.display_name == 'Legacy'
         assert len(restored.entities) == 1
 
+    def test_malformed_settings_fall_back_to_safe_defaults(self):
+        table = make_table()
+
+        table.from_dict({
+            'table_name': 'Malformed settings',
+            'width': 20,
+            'height': 20,
+            'layers': {},
+            'dynamic_lighting_enabled': 'false',
+            'fog_exploration_mode': 'unlimited',
+            'ambient_light_level': float('nan'),
+            'grid_cell_px': -50,
+            'cell_distance': 'invalid',
+            'distance_unit': 'yards',
+            'grid_enabled': 'false',
+            'snap_to_grid': 0,
+        })
+
+        assert table.dynamic_lighting_enabled is False
+        assert table.fog_exploration_mode == 'current_only'
+        assert table.ambient_light_level == 1.0
+        assert table.grid_cell_px == 50.0
+        assert table.cell_distance == 5.0
+        assert table.distance_unit == 'ft'
+        assert table.grid_enabled is True
+        assert table.snap_to_grid is True
+
     @pytest.mark.asyncio
     async def test_create_action_hydrates_initial_table_before_registration(self):
         source = make_table()

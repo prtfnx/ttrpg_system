@@ -119,4 +119,16 @@ describe('transformServerTablesToClient', () => {
   it('returns empty array for empty input', () => {
     expect(transformServerTablesToClient([])).toEqual([]);
   });
+
+  it('keeps valid tables when sibling records are malformed', () => {
+    const result = transformServerTablesToClient([
+      null,
+      { table_id: 'not-a-uuid', table_name: 'Broken' },
+      { table_id: VALID_UUID, table_name: 'Valid' },
+      'not-an-object',
+    ]);
+
+    expect(result).toHaveLength(1);
+    expect(result[0]).toMatchObject({ table_id: VALID_UUID, table_name: 'Valid' });
+  });
 });

@@ -38,6 +38,13 @@ export function transformServerTableToClient(serverTable: Record<string, unknown
   };
 }
 
-export function transformServerTablesToClient(serverTables: Record<string, unknown>[]): TableInfo[] {
-  return serverTables.map(transformServerTableToClient);
+export function transformServerTablesToClient(serverTables: unknown[]): TableInfo[] {
+  return serverTables.flatMap(serverTable => {
+    if (!serverTable || typeof serverTable !== 'object' || Array.isArray(serverTable)) return [];
+    try {
+      return [transformServerTableToClient(serverTable as Record<string, unknown>)];
+    } catch {
+      return [];
+    }
+  });
 }

@@ -4,6 +4,7 @@ import main
 import pytest
 from database import crud, models
 from routers.users import get_current_user
+from sqlalchemy.orm import Query
 from utils.time import utc_now
 
 
@@ -142,6 +143,33 @@ class TestInvitationAcceptance:
 
         players = crud.get_session_players(test_db, invitation.session_id)
         assert player_user.id in [p.user_id for p in players]
+
+    def test_accept_invitation_locks_quota_row(
+        self,
+        client,
+        invitation_factory,
+        monkeypatch,
+        player_user,
+    ):
+        invitation = invitation_factory(max_uses=1)
+        lock_calls = 0
+        original_with_for_update = Query.with_for_update
+
+        def track_lock(query, *args, **kwargs):
+            nonlocal lock_calls
+            lock_calls += 1
+            return original_with_for_update(query, *args, **kwargs)
+
+        async def override_current():
+            return player_user
+
+        monkeypatch.setattr(Query, "with_for_update", track_lock)
+        main.app.dependency_overrides[get_current_user] = override_current
+        response = client.post(f"/api/invitations/{invitation.invite_code}/accept")
+        main.app.dependency_overrides.pop(get_current_user, None)
+
+        assert response.status_code == 200
+        assert lock_calls == 1
 
     def test_accept_invitation_already_member(self, auth_client, invitation_factory):
         invitation = invitation_factory()

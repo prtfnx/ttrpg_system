@@ -183,7 +183,7 @@ def accept_invitation(
     """Accept invitation and join session"""
     invitation = db.query(models.SessionInvitation).filter(
         models.SessionInvitation.invite_code == invite_code
-    ).first()
+    ).with_for_update().first()
 
     if not invitation:
         raise HTTPException(status_code=404, detail="Invitation not found")

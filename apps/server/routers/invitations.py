@@ -103,8 +103,8 @@ def list_session_invitations(
         models.GamePlayer.user_id == current_user.id
     ).first()
 
-    if not player:
-        raise HTTPException(status_code=403, detail="Access denied")
+    if not player or not is_dm(player.role):
+        raise HTTPException(status_code=403, detail="Owner/Co-DM access required")
 
     invitations = db.query(models.SessionInvitation).filter(
         models.SessionInvitation.session_id == session.id

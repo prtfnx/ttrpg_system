@@ -185,6 +185,24 @@ class TestInvitationManagement:
         )
         assert response.status_code == 401
 
+    def test_list_invitations_rejects_regular_session_members(
+        self,
+        client,
+        game_session_with_players,
+        player_user,
+    ):
+        async def override_current():
+            return player_user
+
+        main.app.dependency_overrides[get_current_user] = override_current
+        response = client.get(
+            f"/api/invitations/session/{game_session_with_players.session_code}",
+            headers={"accept": "application/json"},
+        )
+        main.app.dependency_overrides.pop(get_current_user, None)
+
+        assert response.status_code == 403
+
     def test_delete_invitation(self, auth_client, test_db, invitation_factory):
         invitation = invitation_factory()
         response = auth_client.delete(f"/api/invitations/{invitation.id}")

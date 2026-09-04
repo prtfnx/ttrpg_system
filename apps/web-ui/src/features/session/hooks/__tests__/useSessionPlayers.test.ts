@@ -100,4 +100,46 @@ describe('useSessionPlayers', () => {
     rerender({ code: 'CCDD' });
     await waitFor(() => expect(sessionManagementService.getPlayers).toHaveBeenCalledWith('CCDD'));
   });
+
+  it('ignores a stale player response after the selected session changes', async () => {
+    let resolveFirst!: (value: typeof mockPlayers) => void;
+    let resolveSecond!: (value: typeof mockPlayers) => void;
+    vi.mocked(sessionManagementService.getPlayers).mockImplementation(code => (
+      new Promise(resolve => {
+        if (code === 'FIRST') resolveFirst = resolve;
+        else resolveSecond = resolve;
+      })
+    ));
+    const { result, rerender } = renderHook(
+      ({ code }: { code: string | null }) => useSessionPlayers(code),
+      { initialProps: { code: 'FIRST' } },
+    );
+
+    rerender({ code: 'SECOND' });
+    await act(async () => {
+      resolveSecond([{ userId: 3, username: 'Second', role: 'player' }]);
+    });
+    await waitFor(() => expect(result.current.players[0]?.username).toBe('Second'));
+
+    await act(async () => {
+      resolveFirst([{ userId: 4, username: 'First', role: 'player' }]);
+    });
+
+    expect(result.current.players[0]?.username).toBe('Second');
+  });
+
+  it('clears players when the selected session is removed', async () => {
+    vi.mocked(sessionManagementService.getPlayers).mockResolvedValue(mockPlayers);
+    const { result, rerender } = renderHook(
+      ({ code }: { code: string | null }) => useSessionPlayers(code),
+      { initialProps: { code: 'SESS123' } },
+    );
+    await waitFor(() => expect(result.current.players).toEqual(mockPlayers));
+
+    rerender({ code: null });
+
+    expect(result.current.players).toEqual([]);
+    expect(result.current.error).toBeNull();
+    expect(result.current.loading).toBe(false);
+  });
 });

@@ -66,6 +66,31 @@ class TestInvitationCreation:
         assert data["pre_assigned_role"] == "co_dm"
         assert data["max_uses"] == 10
 
+    @pytest.mark.parametrize(("field", "value"), [
+        ("expires_hours", 0),
+        ("expires_hours", 169),
+        ("max_uses", 0),
+        ("max_uses", 101),
+    ])
+    def test_create_invitation_rejects_values_outside_ui_limits(
+        self,
+        auth_client,
+        test_game_session,
+        field,
+        value,
+    ):
+        payload = {
+            "session_code": test_game_session.session_code,
+            "pre_assigned_role": "player",
+            "expires_hours": 24,
+            "max_uses": 1,
+            field: value,
+        }
+
+        response = auth_client.post("/api/invitations/create", json=payload)
+
+        assert response.status_code == 422
+
 
 @pytest.mark.integration
 class TestInvitationValidation:

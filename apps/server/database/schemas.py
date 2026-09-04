@@ -4,7 +4,7 @@ Pydantic schemas for API models
 from datetime import datetime
 from typing import Any, Dict, List, Optional
 
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, Field
 
 
 # User schemas
@@ -259,8 +259,8 @@ class ChatMessage(ChatMessageBase):
 class CreateInvitationRequest(BaseModel):
     session_code: str
     pre_assigned_role: str = "player"
-    expires_hours: int = 24
-    max_uses: int = 1
+    expires_hours: int = Field(default=24, ge=1, le=168)
+    max_uses: int = Field(default=1, ge=1, le=100)
 
 class InvitationResponse(BaseModel):
     id: int

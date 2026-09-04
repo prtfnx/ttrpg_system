@@ -70,6 +70,27 @@ describe('transformServerTableToClient', () => {
     expect(result.table_name).toBe('Unknown Table');
   });
 
+  it('ignores invalid names instead of displaying coerced objects', () => {
+    const result = transformServerTableToClient({
+      table_id: VALID_UUID,
+      table_name: { unsafe: true },
+      display_name: '  Forest  ',
+    });
+
+    expect(result.table_name).toBe('Forest');
+  });
+
+  it.each([
+    { width: -1, height: 20 },
+    { width: Number.NaN, height: 20 },
+    { width: 20, height: Number.POSITIVE_INFINITY },
+  ])('replaces invalid dimensions with safe defaults', payload => {
+    const result = transformServerTableToClient({ table_id: VALID_UUID, ...payload });
+
+    expect(result.width).toBe(payload.width === 20 ? 20 : 100);
+    expect(result.height).toBe(payload.height === 20 ? 20 : 100);
+  });
+
   it('throws when UUID is missing entirely', () => {
     expect(() => transformServerTableToClient({ table_name: 'No ID' })).toThrow(
       'Server table missing valid UUID'

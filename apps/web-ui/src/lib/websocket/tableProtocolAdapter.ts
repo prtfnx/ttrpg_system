@@ -2,6 +2,18 @@ import type { TableInfo } from '@/store';
 
 const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[4][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
+function normalizedDimension(value: unknown): number {
+  const dimension = Number(value);
+  return Number.isFinite(dimension) && dimension > 0 ? dimension : 100;
+}
+
+function normalizedTableName(serverTable: Record<string, unknown>): string {
+  for (const candidate of [serverTable.table_name, serverTable.display_name, serverTable.name]) {
+    if (typeof candidate === 'string' && candidate.trim()) return candidate.trim();
+  }
+  return 'Unknown Table';
+}
+
 export function isValidUUID(value: string): boolean {
   return UUID_REGEX.test(value);
 }
@@ -18,13 +30,11 @@ export function transformServerTableToClient(serverTable: Record<string, unknown
     throw new Error(`Server table missing valid UUID: ${JSON.stringify(serverTable)}`);
   }
   
-  const displayName = serverTable.table_name || serverTable.display_name || serverTable.name || 'Unknown Table';
-  
   return {
     table_id: String(uuid),
-    table_name: String(displayName),
-    width: Number(serverTable.width) || 100,
-    height: Number(serverTable.height) || 100
+    table_name: normalizedTableName(serverTable),
+    width: normalizedDimension(serverTable.width),
+    height: normalizedDimension(serverTable.height),
   };
 }
 

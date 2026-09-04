@@ -3,6 +3,19 @@ import { useWasmRuntime } from '@lib/wasm/runtime';
 import { logger } from '@shared/utils/logger';
 import { useCallback, useEffect } from 'react';
 
+function finiteNumber(value: unknown, fallback: number): number {
+  if (value === null || value === undefined || value === '') return fallback;
+  const parsed = Number(value);
+  return Number.isFinite(parsed) ? parsed : fallback;
+}
+
+function runtimeSpriteId(sprite: Record<string, unknown>): string | null {
+  const value = sprite.id ?? sprite.sprite_id;
+  if (typeof value === 'string' && value.trim()) return value;
+  if (typeof value === 'number' && Number.isFinite(value)) return String(value);
+  return null;
+}
+
 export function useSpriteSyncing() {
   const addSprite = useGameStore(state => state.addSprite);
   const removeSprite = useGameStore(state => state.removeSprite);
@@ -22,21 +35,28 @@ export function useSpriteSyncing() {
       if (!Array.isArray(rustSprites)) return;
 
       // Convert Rust sprite data to our format
-      const convertedSprites = rustSprites.map((rustSprite: Record<string, unknown>) => ({
-        id: String(rustSprite.id || rustSprite.sprite_id || Math.random().toString()),
-        tableId: String(rustSprite.table_id || useGameStore.getState().activeTableId || ''),
-        characterId: rustSprite.character_id as string | undefined,
-        controlledBy: rustSprite.controlled_by as number[] | undefined,
-        x: Number(rustSprite.x || rustSprite.world_x || 0),
-        y: Number(rustSprite.y || rustSprite.world_y || 0),
-        layer: String(rustSprite.layer || 'tokens'),
-        texture: String(rustSprite.texture_id || rustSprite.texture || ''),
-        scale: {
-          x: Number(rustSprite.scale_x || (rustSprite.width ? Number(rustSprite.width) / 32 : 1)),
-          y: Number(rustSprite.scale_y || (rustSprite.height ? Number(rustSprite.height) / 32 : 1))
-        },
-        rotation: Number(rustSprite.rotation || 0)
-      }));
+      const convertedSprites = rustSprites.flatMap((rustSprite: Record<string, unknown>) => {
+        const id = runtimeSpriteId(rustSprite);
+        if (!id) {
+          logger.warn('[SpriteSyncing] Ignoring runtime sprite without a stable ID');
+          return [];
+        }
+        return [{
+          id,
+          tableId: String(rustSprite.table_id || useGameStore.getState().activeTableId || ''),
+          characterId: rustSprite.character_id as string | undefined,
+          controlledBy: rustSprite.controlled_by as number[] | undefined,
+          x: finiteNumber(rustSprite.x, finiteNumber(rustSprite.world_x, 0)),
+          y: finiteNumber(rustSprite.y, finiteNumber(rustSprite.world_y, 0)),
+          layer: String(rustSprite.layer || 'tokens'),
+          texture: String(rustSprite.texture_id || rustSprite.texture || ''),
+          scale: {
+            x: finiteNumber(rustSprite.scale_x, finiteNumber(rustSprite.width, 32) / 32),
+            y: finiteNumber(rustSprite.scale_y, finiteNumber(rustSprite.height, 32) / 32),
+          },
+          rotation: finiteNumber(rustSprite.rotation, 0),
+        }];
+      });
 
       // Update store with current sprites from Rust
       // For now, replace all sprites (can be optimized later for incremental updates)

@@ -91,4 +91,57 @@ describe('useSpriteSyncing', () => {
       }));
     });
   });
+
+  it('preserves zero-valued canonical coordinates over legacy aliases', async () => {
+    storeMocks.state.sprites = [{
+      id: 'existing',
+      tableId: 'table-1',
+      x: 5,
+      y: 6,
+      rotation: 1,
+      scale: { x: 1, y: 1 },
+      texture: 'token',
+      layer: 'tokens',
+      name: 'Existing',
+    }];
+
+    renderHookWithWasmRuntime(
+      () => useSpriteSyncing(),
+      createMockWasmRuntime({
+        getTableSync: vi.fn(() => ({
+          get_sprites: vi.fn(() => [{
+            id: 'existing',
+            table_id: 'table-1',
+            x: 0,
+            y: 0,
+            world_x: 99,
+            world_y: 88,
+            texture_id: 'token',
+            layer: 'tokens',
+          }]),
+        }) as never),
+      }),
+    );
+
+    await waitFor(() => expect(storeMocks.updateSprite).toHaveBeenCalledWith(
+      'existing',
+      expect.objectContaining({ x: 0, y: 0 }),
+    ));
+  });
+
+  it('ignores runtime sprites without stable IDs', async () => {
+    const getSprites = vi.fn(() => [{ world_x: 5, world_y: 6 }]);
+    renderHookWithWasmRuntime(
+      () => useSpriteSyncing(),
+      createMockWasmRuntime({
+        getTableSync: vi.fn(() => ({
+          get_sprites: getSprites,
+        }) as never),
+      }),
+    );
+
+    await waitFor(() => expect(getSprites).toHaveBeenCalledOnce());
+    expect(storeMocks.addSprite).not.toHaveBeenCalled();
+    expect(storeMocks.updateSprite).not.toHaveBeenCalled();
+  });
 });

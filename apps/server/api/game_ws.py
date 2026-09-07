@@ -6,7 +6,6 @@ import hashlib
 import json
 import time
 import uuid
-from collections import deque
 from dataclasses import dataclass
 
 from config import Settings
@@ -24,6 +23,7 @@ from utils.observability import (
     record_ws_connection,
     record_ws_message,
 )
+from utils.websocket_rate_limit import WebSocketMessageLimiter, WebSocketRateExceeded
 
 logger = setup_logger(__name__)
 router = APIRouter()
@@ -201,7 +201,7 @@ async def websocket_game_endpoint(
                 },
             )
 
-            message_times: deque[float] = deque()
+            limiter = WebSocketMessageLimiter(settings.WS_MESSAGES_PER_MINUTE, settings.WS_PREVIEWS_PER_MINUTE)
             while True:
                 raw_message = await websocket.receive_text()
                 message_started = time.perf_counter()
@@ -220,9 +220,7 @@ async def websocket_game_endpoint(
                     return
 
                 now = time.monotonic()
-                while message_times and now - message_times[0] >= 60:
-                    message_times.popleft()
-                if len(message_times) >= settings.WS_MESSAGES_PER_MINUTE:
+                if not limiter.allow_frame(now):
                     logger.info(
                         "WebSocket message rate exceeded",
                         extra={
@@ -231,13 +229,15 @@ async def websocket_game_endpoint(
                             "outcome": "rejected",
                         },
                     )
-                    await websocket.close(code=status.WS_1008_POLICY_VIOLATION)
+                    await websocket.close(code=status.WS_1013_TRY_AGAIN_LATER, reason="Message rate exceeded")
                     return
-                message_times.append(now)
                 try:
                     message_data = json.loads(raw_message)
                     if not isinstance(message_data, dict):
                         raise ValueError("WebSocket message must be an object")
+                    message_data = limiter.filter_message(message_data, now)
+                    if message_data is None:
+                        continue
                     message_id = message_data.get("message_id")
                     if not isinstance(message_id, str) or not message_id:
                         message_id = uuid.uuid4().hex
@@ -261,6 +261,10 @@ async def websocket_game_endpoint(
                                 "outcome": "success",
                             },
                         )
+                except WebSocketRateExceeded:
+                    record_ws_message("inbound", "unknown", "rejected", time.perf_counter() - message_started)
+                    await websocket.close(code=status.WS_1013_TRY_AGAIN_LATER, reason="Command rate exceeded")
+                    return
                 except (json.JSONDecodeError, ValueError):
                     record_ws_message(
                         "inbound", "unknown", "rejected", time.perf_counter() - message_started

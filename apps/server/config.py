@@ -80,7 +80,8 @@ class Settings(BaseSettings):
     CHAT_RETENTION_DAYS: int = 365
     TRUST_PROXY_HEADERS: bool = False
     WS_MAX_MESSAGE_BYTES: int = 64 * 1024
-    WS_MESSAGES_PER_MINUTE: int = 120
+    WS_MESSAGES_PER_MINUTE: int = 120  # Durable commands, including batch members
+    WS_PREVIEWS_PER_MINUTE: int = 1800  # Allows sustained 20 Hz drag updates
     WS_SEND_TIMEOUT_SECONDS: float = 5.0
 
     # Optional complete replacement for the bundled SRD starter artifact.
@@ -142,6 +143,8 @@ class Settings(BaseSettings):
             raise ValueError("WS_MAX_MESSAGE_BYTES must be between 1024 and 1048576.")
         if not 1 <= self.WS_MESSAGES_PER_MINUTE <= 6000:
             raise ValueError("WS_MESSAGES_PER_MINUTE must be between 1 and 6000.")
+        if not 1 <= self.WS_PREVIEWS_PER_MINUTE <= 12000:
+            raise ValueError("WS_PREVIEWS_PER_MINUTE must be between 1 and 12000.")
         if not 0.1 <= self.WS_SEND_TIMEOUT_SECONDS <= 60:
             raise ValueError("WS_SEND_TIMEOUT_SECONDS must be between 0.1 and 60.")
         if not 1 <= self.DB_POOL_SIZE <= 50:

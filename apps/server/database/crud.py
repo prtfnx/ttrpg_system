@@ -624,6 +624,21 @@ def save_table_to_db(db: Session, virtual_table_obj, session_id: int) -> Optiona
     # Check if table already exists
     existing_table = get_virtual_table_by_id(db, table_id_str)
 
+    # Validate ownership before any CRUD helper can commit table changes.
+    if existing_table and existing_table.session_id != session_id:
+        raise ValueError("Table does not belong to this session")
+    memory_entities = {entity.sprite_id: entity for entity in virtual_table_obj.entities.values()}
+    if len(memory_entities) != len(virtual_table_obj.entities):
+        raise ValueError("Duplicate sprite IDs in table snapshot")
+    if memory_entities:
+        existing_sprites = db.query(models.Entity).filter(
+            models.Entity.sprite_id.in_(list(memory_entities)),
+        ).all()
+        for sprite in existing_sprites:
+            if (existing_table is None or sprite.table_id != existing_table.id
+                    or sprite.entity_id != memory_entities[sprite.sprite_id].entity_id):
+                raise ValueError("Sprite ID already belongs to another entity")
+
     if existing_table:
         # Update existing table
         table_update = schemas.VirtualTableUpdate(
@@ -749,6 +764,9 @@ def save_entity_to_db(db: Session, entity_obj, table_db_id: int) -> models.Entit
     """
     # Check if entity already exists
     existing_entity = get_entity_by_sprite_id(db, entity_obj.sprite_id)
+    if existing_entity and (existing_entity.table_id != table_db_id
+                            or existing_entity.entity_id != entity_obj.entity_id):
+        raise ValueError("Sprite ID already belongs to another entity")
 
     # Prepare controlled_by as JSON string
     controlled_by_json = None

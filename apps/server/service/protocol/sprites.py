@@ -6,6 +6,7 @@ from service.canvas_persistence_service import (
     count_controlled_sprites,
     load_entity_character_id,
     load_movement_policy,
+    sprite_identity_exists,
 )
 from service.movement_validator import MovementValidator
 from utils.blocking import run_blocking
@@ -105,6 +106,13 @@ class _SpritesMixin(_ProtocolBase):
             return Message(MessageType.ERROR, {'error': 'Insufficient permissions to create sprites'})
         if layer in _dm_layers and not is_dm(role):
             return Message(MessageType.ERROR, {'error': 'Only DMs can create sprites on this layer'})
+
+        provided_id = sprite_data.get('sprite_id')
+        if provided_id is not None:
+            if not isinstance(provided_id, str) or not provided_id.strip() or len(provided_id) > 36:
+                return Message(MessageType.ERROR, {'error': 'Invalid sprite ID'})
+            if await run_blocking(sprite_identity_exists, provided_id):
+                return Message(MessageType.ERROR, {'error': 'Sprite ID already exists'})
 
         # Get user identity for ownership and limit enforcement
         user_id = self._get_user_id(msg, client_id)

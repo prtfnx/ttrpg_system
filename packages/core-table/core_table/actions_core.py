@@ -425,6 +425,11 @@ class ActionsCore(AsyncActionsProtocol):
             if not table:
                 return ActionResult(False, f"Table {table_id} not found")
 
+            provided_id = sprite_data.get("sprite_id")
+            if provided_id and any(str(provided_id) in candidate.sprite_to_entity
+                                   for candidate in self.table_manager.tables.values()):
+                return ActionResult(False, "Sprite ID already exists")
+
             # Create entity using VirtualTable method
             entity = table.add_entity(
                 sprite_data

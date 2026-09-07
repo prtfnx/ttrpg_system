@@ -325,6 +325,9 @@ class VirtualTable:
         if not self.is_valid_position(entity.position):
             return False
 
+        indexed_id = self.sprite_to_entity.get(entity.sprite_id)
+        if indexed_id is not None and indexed_id != entity.entity_id:
+            raise ValueError("Sprite ID already belongs to another entity")
         existing = self.entities.get(entity.entity_id)
         if existing is not None:
             self._unindex_entity(existing)

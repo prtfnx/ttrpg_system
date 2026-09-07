@@ -17,10 +17,16 @@ from core_table.session_rules import SessionRules
 from core_table.table import VirtualTable
 from service.combat_engine import CombatEngine
 from service.protocol.sprites import _SpritesMixin
+from sqlalchemy.orm import sessionmaker
 
 # ---------------------------------------------------------------------------
 # Stub — minimal concrete class satisfying _ProtocolBase interface
 # ---------------------------------------------------------------------------
+
+@pytest.fixture(autouse=True)
+def isolate_sprite_identity_lookup(monkeypatch, test_db_engine):
+    monkeypatch.setattr("service.canvas_persistence_service.SessionLocal", sessionmaker(bind=test_db_engine))
+
 
 class _ProtoStub(_SpritesMixin):
     def __init__(self, role="owner", user_id=1):

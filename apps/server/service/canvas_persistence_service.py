@@ -18,6 +18,12 @@ class TableHydration:
     paint_strokes: list[dict[str, Any]]
 
 
+def sprite_identity_exists(sprite_id: str) -> bool:
+    """Check global uniqueness with a worker-owned read session."""
+    with SessionLocal() as db:
+        return db.query(models.Entity.id).filter(models.Entity.sprite_id == sprite_id).first() is not None
+
+
 def count_controlled_sprites(session_id: int, user_id: int) -> int:
     """Count exact controller membership within one authoritative session."""
     with SessionLocal() as db:

@@ -480,6 +480,10 @@ def create_virtual_table(db: Session, table_data: schemas.VirtualTableCreate) ->
         grid_cell_px=table_data.grid_cell_px,
         cell_distance=table_data.cell_distance,
         distance_unit=table_data.distance_unit,
+        grid_enabled=table_data.grid_enabled,
+        snap_to_grid=table_data.snap_to_grid,
+        grid_color_hex=table_data.grid_color_hex,
+        background_color_hex=table_data.background_color_hex,
         difficult_terrain_json=json.dumps(table_data.difficult_terrain or []),
         cover_zones_json=json.dumps(table_data.cover_zones or []),
     )
@@ -637,6 +641,10 @@ def save_table_to_db(db: Session, virtual_table_obj, session_id: int) -> Optiona
             grid_cell_px=getattr(virtual_table_obj, 'grid_cell_px', 50.0),
             cell_distance=getattr(virtual_table_obj, 'cell_distance', 5.0),
             distance_unit=getattr(virtual_table_obj, 'distance_unit', 'ft'),
+            grid_enabled=virtual_table_obj.grid_enabled,
+            snap_to_grid=virtual_table_obj.snap_to_grid,
+            grid_color_hex=virtual_table_obj.grid_color_hex,
+            background_color_hex=virtual_table_obj.background_color_hex,
             difficult_terrain=_serialize_difficult_terrain(virtual_table_obj),
             cover_zones=_serialize_cover_zones(virtual_table_obj),
         )
@@ -660,6 +668,10 @@ def save_table_to_db(db: Session, virtual_table_obj, session_id: int) -> Optiona
             grid_cell_px=getattr(virtual_table_obj, 'grid_cell_px', 50.0),
             cell_distance=getattr(virtual_table_obj, 'cell_distance', 5.0),
             distance_unit=getattr(virtual_table_obj, 'distance_unit', 'ft'),
+            grid_enabled=virtual_table_obj.grid_enabled,
+            snap_to_grid=virtual_table_obj.snap_to_grid,
+            grid_color_hex=virtual_table_obj.grid_color_hex,
+            background_color_hex=virtual_table_obj.background_color_hex,
             difficult_terrain=_serialize_difficult_terrain(virtual_table_obj),
             cover_zones=_serialize_cover_zones(virtual_table_obj),
         )
@@ -859,6 +871,10 @@ def load_table_from_db(db: Session, table_id: str):
         virtual_table.grid_cell_px = float(db_table.grid_cell_px or 50.0)
         virtual_table.cell_distance = float(db_table.cell_distance or 5.0)
         virtual_table.distance_unit = db_table.distance_unit or 'ft'
+        virtual_table.grid_enabled = db_table.grid_enabled if db_table.grid_enabled is not None else True
+        virtual_table.snap_to_grid = db_table.snap_to_grid if db_table.snap_to_grid is not None else True
+        virtual_table.grid_color_hex = db_table.grid_color_hex or '#ffffff'
+        virtual_table.background_color_hex = db_table.background_color_hex or '#2a3441'
         if db_table.difficult_terrain_json:
             cells = json.loads(db_table.difficult_terrain_json)
             virtual_table.difficult_terrain_cells = {

@@ -73,6 +73,48 @@ def _ok_result(**data):
     return r
 
 
+@pytest.mark.asyncio
+@pytest.mark.parametrize("operation", ["scale", "move"])
+@pytest.mark.parametrize("role", ["player", "trusted_player", "spectator", "owner", "co_dm"])
+async def test_table_transforms_require_dm_and_pass_session(operation, role):
+    proto = _ProtoStub(role)
+    action = AsyncMock(return_value=_ok_result())
+    setattr(proto.actions, f"{operation}_table", action)
+    proto.broadcast_to_session = AsyncMock()
+    response = await getattr(proto, f"handle_table_{operation}")(
+        Message(MessageType.TABLE_UPDATE, {"table_id": "t1", "scale": 2, "x_moved": 10, "y_moved": 20}),
+        "c1",
+    )
+    if role in ("owner", "co_dm"):
+        assert response.type == MessageType.SUCCESS
+        assert action.call_args.kwargs["session_id"] == 1
+        proto.broadcast_to_session.assert_awaited_once()
+    else:
+        assert response.type == MessageType.ERROR
+        action.assert_not_awaited()
+        proto.broadcast_to_session.assert_not_awaited()
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("operation, field, value", [
+    ("scale", "scale", 0), ("scale", "scale", -1),
+    ("scale", "scale", float("nan")), ("scale", "scale", float("inf")),
+    ("scale", "scale", True), ("scale", "scale", "2"),
+    ("move", "x_moved", float("nan")), ("move", "y_moved", float("inf")),
+    ("move", "x_moved", True), ("move", "y_moved", "2"),
+])
+async def test_table_transforms_reject_invalid_numbers(operation, field, value):
+    proto = _ProtoStub()
+    action = AsyncMock()
+    setattr(proto.actions, f"{operation}_table", action)
+    proto.broadcast_to_session = AsyncMock()
+    data = {"table_id": "t1", "scale": 2, "x_moved": 10, "y_moved": 20, field: value}
+    response = await getattr(proto, f"handle_table_{operation}")(Message(MessageType.TABLE_UPDATE, data), "c1")
+    assert response.type == MessageType.ERROR
+    action.assert_not_awaited()
+    proto.broadcast_to_session.assert_not_awaited()
+
+
 def _fail_result(message="failed"):
     r = MagicMock()
     r.success = False

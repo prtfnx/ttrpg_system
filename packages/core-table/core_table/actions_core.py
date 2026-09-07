@@ -354,8 +354,11 @@ class ActionsCore(AsyncActionsProtocol):
         # Update table properties
         return await self.update_table(table_id, session_id=session_id, **data_copy)
 
-    async def move_table(self, table_id: str, position: Position) -> ActionResult:
+    async def move_table(self, table_id: str, position: Position, session_id: Optional[int] = None) -> ActionResult:
         """Move table to new position (add position attribute if needed)"""
+        if any(isinstance(value, bool) or not isinstance(value, (int, float)) or not math.isfinite(value)
+               for value in (position.x, position.y)):
+            return ActionResult(False, "Position must contain finite numbers")
         try:
             table = await self._get_table(table_id)
             if not table:
@@ -376,12 +379,16 @@ class ActionsCore(AsyncActionsProtocol):
             }
             await self._add_to_history(action)
 
+            await self._persist_table_state(table, "table move", session_id)
             return ActionResult(True, f"Table {table_id} moved to ({position.x}, {position.y})")
         except Exception as e:
             return ActionResult(False, f"Failed to move table: {str(e)}")
 
-    async def scale_table(self, table_id: str, scale_x: float, scale_y: float) -> ActionResult:
+    async def scale_table(self, table_id: str, scale_x: float, scale_y: float, session_id: Optional[int] = None) -> ActionResult:
         """Scale table by given factors (add scale attribute if needed)"""
+        if any(isinstance(value, bool) or not isinstance(value, (int, float)) or not math.isfinite(value) or value <= 0
+               for value in (scale_x, scale_y)):
+            return ActionResult(False, "Scale must contain finite positive numbers")
         try:
             table = await self._get_table(table_id)
             if not table:
@@ -402,6 +409,7 @@ class ActionsCore(AsyncActionsProtocol):
             }
             await self._add_to_history(action)
 
+            await self._persist_table_state(table, "table scale", session_id)
             return ActionResult(True, f"Table {table_id} scaled to ({scale_x}, {scale_y})")
         except Exception as e:
             return ActionResult(False, f"Failed to scale table: {str(e)}")

@@ -1,4 +1,5 @@
 import json
+import math
 
 from core_table.async_actions_protocol import Position
 from core_table.protocol import Message, MessageType
@@ -531,6 +532,8 @@ class _TablesMixin(_ProtocolBase):
 
     async def handle_table_scale(self, msg: Message, client_id: str) -> Message:
         """Handle table scale change"""
+        if not is_dm(self._get_client_role(client_id)):
+            return Message(MessageType.ERROR, {'error': 'Only DMs can scale tables'})
         try:
             if not msg.data:
                 return Message(MessageType.ERROR, {'error': 'No data provided'})
@@ -542,8 +545,12 @@ class _TablesMixin(_ProtocolBase):
             if not table_id or scale is None:
                 return Message(MessageType.ERROR, {'error': 'table_id and scale are required'})
 
+            if isinstance(scale, bool) or not isinstance(scale, (int, float)) or not math.isfinite(scale) or scale <= 0:
+                return Message(MessageType.ERROR, {'error': 'Scale must be a finite positive number'})
             scale_val = float(scale)
-            result = await self.actions.scale_table(table_id, scale_val, scale_val)
+            result = await self.actions.scale_table(
+                table_id, scale_val, scale_val, session_id=self._get_session_id(msg),
+            )
             if not result.success:
                 return Message(MessageType.ERROR, {'error': result.message})
 
@@ -561,6 +568,8 @@ class _TablesMixin(_ProtocolBase):
 
     async def handle_table_move(self, msg: Message, client_id: str) -> Message:
         """Handle table position change"""
+        if not is_dm(self._get_client_role(client_id)):
+            return Message(MessageType.ERROR, {'error': 'Only DMs can move tables'})
         try:
             if not msg.data:
                 return Message(MessageType.ERROR, {'error': 'No data provided'})
@@ -573,7 +582,12 @@ class _TablesMixin(_ProtocolBase):
             if not table_id or x_moved is None or y_moved is None:
                 return Message(MessageType.ERROR, {'error': 'table_id, x_moved, and y_moved are required'})
 
-            result = await self.actions.move_table(table_id, Position(float(x_moved), float(y_moved)))
+            if any(isinstance(value, bool) or not isinstance(value, (int, float)) or not math.isfinite(value)
+                   for value in (x_moved, y_moved)):
+                return Message(MessageType.ERROR, {'error': 'Position must contain finite numbers'})
+            result = await self.actions.move_table(
+                table_id, Position(float(x_moved), float(y_moved)), session_id=self._get_session_id(msg),
+            )
             if not result.success:
                 return Message(MessageType.ERROR, {'error': result.message})
 

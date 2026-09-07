@@ -72,11 +72,11 @@ class AsyncActionsProtocol(ABC):
         pass
 
     @abstractmethod
-    async def move_table(self, table_id: str, position: Position) -> ActionResult:
+    async def move_table(self, table_id: str, position: Position, session_id: Optional[int] = None) -> ActionResult:
         pass
 
     @abstractmethod
-    async def scale_table(self, table_id: str, scale_x: float, scale_y: float) -> ActionResult:
+    async def scale_table(self, table_id: str, scale_x: float, scale_y: float, session_id: Optional[int] = None) -> ActionResult:
         pass
 
     # Sprite Actions

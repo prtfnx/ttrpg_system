@@ -2,8 +2,8 @@ import json
 import uuid
 
 import pytest
-from core_table.entities import Wall
 from core_table.actions_core import ActionsCore
+from core_table.entities import Wall
 from core_table.server import TableManager
 from core_table.table import CoverZone, Entity, VirtualTable, create_table_from_json
 
@@ -234,7 +234,7 @@ class TestPositionQueries:
         assert outside not in t.get_entities_in_area((3, 3), (7, 7))
 
 
-class TestSerialization:
+class TestEntitySerialization:
     def test_entity_roundtrip_preserves_render_and_gameplay_fields(self):
         entity = Entity(
             name='Gate',

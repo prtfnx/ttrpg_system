@@ -10,10 +10,10 @@ Security features:
 - CSRF protection via state parameter
 - Secure session-based state storage
 - Automatic user creation with unique username generation
-- Email verification bypass for OAuth users
+- Verified provider email required for OAuth users
 - Proper error handling and logging
 - Secure cookie configuration
-- Account linking for existing users
+- Existing accounts resolved only by their bound Google subject
 
 Setup requirements:
 1. Install: pip install authlib httpx
@@ -34,7 +34,7 @@ from datetime import timedelta
 
 from authlib.integrations.starlette_client import OAuth, OAuthError
 from config import Settings
-from database import models
+from database import crud, models
 from database.database import get_db
 from fastapi import APIRouter, Depends, HTTPException, Request
 from fastapi.responses import JSONResponse, RedirectResponse
@@ -120,7 +120,7 @@ def _resolve_oauth_identity(
     name: str,
     audit_log: models.AuditLog,
 ) -> OAuthIdentity:
-    """Resolve/link an OAuth user in one worker-owned transaction."""
+    """Resolve an OAuth subject in one worker-owned transaction."""
     db = session_factory()
     try:
         user = db.query(models.User).filter(models.User.google_id == google_id).first()
@@ -130,9 +130,9 @@ def _resolve_oauth_identity(
         else:
             user = db.query(models.User).filter(models.User.email == email).first()
             if user:
-                logger.info("Linking OAuth identity", extra={"event_name": "oauth.user.linked"})
-                user.google_id = google_id
-                user.is_verified = True
+                # Linking requires authentication of both identities. Email alone
+                # must never upgrade an attacker-created password account.
+                raise HTTPException(status_code=409, detail="Account requires password sign-in")
             else:
                 base_username = re.sub(r"[^a-zA-Z0-9_]", "", email.split("@", 1)[0])
                 if len(base_username) < 4:
@@ -151,10 +151,13 @@ def _resolve_oauth_identity(
                     full_name=name,
                     google_id=google_id,
                     is_verified=True,
-                    hashed_password=secrets.token_urlsafe(32),
+                    hashed_password=crud.get_password_hash(secrets.token_urlsafe(32)),
                     disabled=False,
                 )
                 db.add(user)
+
+        if user.disabled:
+            raise HTTPException(status_code=403, detail="Account disabled")
 
         db.flush()
         audit_log.user_id = user.id
@@ -251,7 +254,7 @@ async def google_callback(request: Request, db: Session = Depends(get_db)):
     Handle Google OAuth callback.
 
     Validates state, exchanges authorization code for tokens,
-    retrieves user info, and creates or links user account.
+    retrieves verified user info, and resolves the bound Google subject.
     """
     if not OAUTH_CONFIGURED:
         record_auth("oauth", "failure", "configuration")
@@ -285,9 +288,12 @@ async def google_callback(request: Request, db: Session = Depends(get_db)):
         email = userinfo.get('email')
         name = userinfo.get('name', '')
 
-        if not google_id or not email:
+        if not isinstance(google_id, str) or not google_id.strip() or not isinstance(email, str) or not email.strip():
             logger.error("OAuth provider response is missing required identity fields")
             raise HTTPException(status_code=400, detail="Incomplete user information from Google")
+
+        if userinfo.get("email_verified") is not True:
+            raise HTTPException(status_code=400, detail="Verified Google email required")
 
         logger.info("OAuth identity received", extra={"event_name": "oauth.identity.received"})
 

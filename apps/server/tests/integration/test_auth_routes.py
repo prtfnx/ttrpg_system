@@ -64,6 +64,8 @@ class TestOAuthCallback:
         test_user,
         monkeypatch,
     ):
+        test_user.google_id = "google-identity-7"
+        test_db.commit()
         threads = {}
         original_resolver = auth._resolve_oauth_identity
 
@@ -73,6 +75,7 @@ class TestOAuthCallback:
                 "userinfo": {
                     "sub": "google-identity-7",
                     "email": test_user.email,
+                    "email_verified": True,
                     "name": "Test User",
                 },
             }

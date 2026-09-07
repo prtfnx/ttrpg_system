@@ -1,5 +1,6 @@
 import json
 import math
+from typing import Any
 
 from core_table.protocol import Message, MessageType
 from service.canvas_persistence_service import (
@@ -553,7 +554,7 @@ class _SpritesMixin(_ProtocolBase):
             return Message(MessageType.ERROR, {'error': 'Permission denied: you cannot control this sprite'})
 
         # Extract character binding updates
-        updates = {}
+        updates: dict[str, Any] = {}
         if 'character_id' in update_data:
             character_id = update_data['character_id']
             if character_id is not None and (
@@ -586,6 +587,7 @@ class _SpritesMixin(_ProtocolBase):
                 updates['controlled_by'] = controllers
 
         # Extract token stat updates
+        value: int | float | None
         for field, maximum in (('hp', _MAX_TOKEN_STAT), ('max_hp', _MAX_TOKEN_STAT), ('ac', 100)):
             if field in update_data:
                 value = _bounded_integer(update_data[field], 0, maximum)

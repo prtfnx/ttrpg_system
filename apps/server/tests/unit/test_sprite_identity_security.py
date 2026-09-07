@@ -16,6 +16,7 @@ def victim(test_db, test_game_session):
     table = VirtualTable("Victim", 1000, 1000)
     entity = table.add_entity({"sprite_id": "shared-id", "name": "Protected", "controlled_by": [42]})
     saved = crud.save_table_to_db(test_db, table, test_game_session.id)
+    assert saved is not None
     return table, entity, saved
 
 
@@ -28,6 +29,7 @@ def test_cross_session_snapshot_cannot_overwrite_sprite(test_db, test_user, vict
         crud.save_table_to_db(test_db, attacker, session.id)
     test_db.expire_all()
     row = crud.get_entity_by_sprite_id(test_db, "shared-id")
+    assert row is not None
     assert row.table_id == saved.id
     assert row.name == "Protected"
     assert row.controlled_by == "[42]"
@@ -41,17 +43,22 @@ def test_table_snapshot_cannot_cross_session_boundary(test_db, test_user, victim
     with pytest.raises(ValueError, match="session"):
         crud.save_table_to_db(test_db, table, session.id)
     test_db.expire_all()
-    assert crud.get_virtual_table_by_id(test_db, str(table.table_id)).name == "Victim"
+    stored_table = crud.get_virtual_table_by_id(test_db, str(table.table_id))
+    assert stored_table is not None
+    assert stored_table.name == "Victim"
 
 
 def test_direct_entity_save_also_checks_ownership(test_db, test_game_session, victim):
     _, entity, _ = victim
     other = VirtualTable("Other", 1000, 1000)
     saved = crud.save_table_to_db(test_db, other, test_game_session.id)
+    assert saved is not None
     entity.name = "Overwritten"
     with pytest.raises(ValueError, match="Sprite ID"):
         crud.save_entity_to_db(test_db, entity, saved.id)
-    assert crud.get_entity_by_sprite_id(test_db, entity.sprite_id).name == "Protected"
+    stored_entity = crud.get_entity_by_sprite_id(test_db, entity.sprite_id)
+    assert stored_entity is not None
+    assert stored_entity.name == "Protected"
 
 
 def test_duplicate_in_memory_id_preserves_original_indexes():
@@ -79,11 +86,10 @@ async def test_creation_rejects_duplicate_across_loaded_tables():
 @pytest.mark.asyncio
 async def test_protocol_rejects_persisted_id_before_mutation(monkeypatch, test_db_engine, victim):
     monkeypatch.setattr("service.canvas_persistence_service.SessionLocal", sessionmaker(bind=test_db_engine))
-    proto = SimpleNamespace(
-        _get_session_id=lambda _msg: 1,
-        _get_client_role=lambda _client: "owner",
-        actions=SimpleNamespace(create_sprite=AsyncMock()),
-    )
+    proto = _SpritesMixin()
+    monkeypatch.setattr(proto, "_get_session_id", lambda _msg: 1)
+    monkeypatch.setattr(proto, "_get_client_role", lambda _client: "owner")
+    proto.actions = SimpleNamespace(create_sprite=AsyncMock())
     response = await _SpritesMixin.handle_create_sprite(proto, Message(MessageType.SPRITE_CREATE, {
         "table_id": "other-table", "sprite_data": {"sprite_id": "shared-id"},
     }), "attacker")
@@ -96,5 +102,7 @@ def test_existing_sprite_can_still_update_in_its_own_table(test_db, test_game_se
     entity.name = "Legitimate edit"
     crud.save_table_to_db(test_db, table, test_game_session.id)
     test_db.expire_all()
-    assert crud.get_entity_by_sprite_id(test_db, entity.sprite_id).name == "Legitimate edit"
+    stored_entity = crud.get_entity_by_sprite_id(test_db, entity.sprite_id)
+    assert stored_entity is not None
+    assert stored_entity.name == "Legitimate edit"
     assert test_db.query(models.Entity).count() == 1

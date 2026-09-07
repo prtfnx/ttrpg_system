@@ -1,5 +1,6 @@
 import json
 import math
+from typing import Any
 
 from core_table.async_actions_protocol import Position
 from core_table.protocol import Message, MessageType
@@ -453,7 +454,7 @@ class _TablesMixin(_ProtocolBase):
                                 return Message(MessageType.ERROR, {
                                     'error': f'Unsupported table fields: {", ".join(sorted(unknown_fields))}'
                                 })
-                            domain_update = {'table_id': table_id}
+                            domain_update: dict[str, Any] = {'table_id': table_id}
                             if 'table_name' in update_data:
                                 name = update_data['table_name']
                                 if not isinstance(name, str) or not name.strip() or len(name.strip()) > _MAX_TABLE_NAME_LENGTH:

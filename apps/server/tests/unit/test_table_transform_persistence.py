@@ -21,7 +21,7 @@ async def test_table_transform_survives_persistence(test_db, test_game_session, 
     await actions.flush_all_pending_saves()
     test_db.expire_all()
     loaded, success = crud.load_table_from_db(test_db, table_id)
-    assert success
+    assert success and loaded is not None
     if operation == "move":
         assert loaded.position == (15, 30)
     else:

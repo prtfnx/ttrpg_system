@@ -264,6 +264,33 @@ class TestBroadcast:
 # get_session_stats / has_clients / auto_save
 # ---------------------------------------------------------------------------
 
+@pytest.mark.asyncio
+@pytest.mark.parametrize("filtered", [False, True])
+async def test_broadcast_survives_membership_changes_during_send(filtered):
+    svc = _make_service()
+    sockets = {name: _ws() for name in ("first", "leaving", "last", "joining")}
+    for name in ("first", "leaving", "last"):
+        await svc.add_client(sockets[name], name, {"user_id": 1, "role": "player"})
+        sockets[name].send_text.reset_mock()
+
+    async def change_membership(_payload):
+        await svc.remove_client(sockets["leaving"])
+        await svc.add_client(sockets["joining"], "joining", {"user_id": 2, "role": "player"})
+        sockets["joining"].send_text.reset_mock()
+
+    sockets["first"].send_text.side_effect = change_membership
+    message = Message(MessageType.PING, {})
+    if filtered:
+        await svc.broadcast_filtered(message, "tokens")
+    else:
+        await svc.broadcast_to_session(message)
+
+    sockets["first"].send_text.assert_awaited_once()
+    sockets["last"].send_text.assert_awaited_once()
+    sockets["leaving"].send_text.assert_not_awaited()
+    sockets["joining"].send_text.assert_not_awaited()
+
+
 class TestSessionUtils:
     def test_stats_reflect_connected_clients(self):
         svc = _make_service()

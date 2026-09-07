@@ -286,7 +286,9 @@ class GameSessionProtocolService:
         disconnected_clients = []
         broadcast_count = 0
 
-        for client_id, websocket in self.clients.items():
+        for client_id, websocket in list(self.clients.items()):
+            if self.clients.get(client_id) is not websocket:
+                continue
             if client_id != exclude_client:
                 try:
                     await self._send_message(websocket, message)
@@ -313,7 +315,9 @@ class GameSessionProtocolService:
     async def broadcast_filtered(self, message: Message, layer: str, exclude_client: Optional[str] = None):
         """Broadcast to clients who can see the given layer."""
         disconnected = []
-        for cid, ws in self.clients.items():
+        for cid, ws in list(self.clients.items()):
+            if self.clients.get(cid) is not ws:
+                continue
             if cid == exclude_client:
                 continue
             role = self.client_info.get(cid, {}).get('role', 'player')

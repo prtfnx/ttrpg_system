@@ -1,6 +1,44 @@
 use crate::math::{Rect, Vec2};
 use serde::{Deserialize, Serialize};
 
+/// Parse only six ASCII hex digits, optionally prefixed with a single '#'.
+/// Inspect bytes before slicing so untrusted UTF-8 cannot panic the renderer.
+pub(crate) fn parse_hex_rgb(hex: &str) -> Option<[u8; 3]> {
+    let digits = hex.strip_prefix('#').unwrap_or(hex).as_bytes();
+    if digits.len() != 6 || !digits.iter().all(u8::is_ascii_hexdigit) {
+        return None;
+    }
+    let mut rgb = [0; 3];
+    for (index, pair) in digits.chunks_exact(2).enumerate() {
+        let high = char::from(pair[0]).to_digit(16)?;
+        let low = char::from(pair[1]).to_digit(16)?;
+        rgb[index] = (high * 16 + low) as u8;
+    }
+    Some(rgb)
+}
+
+#[cfg(test)]
+mod color_tests {
+    use super::parse_hex_rgb;
+
+    #[test]
+    fn accepts_rgb_hex_with_optional_prefix() {
+        assert_eq!(parse_hex_rgb("#12aBcD"), Some([18, 171, 205]));
+        assert_eq!(parse_hex_rgb("000000"), Some([0, 0, 0]));
+        assert_eq!(parse_hex_rgb("FFFFFF"), Some([255, 255, 255]));
+    }
+
+    #[test]
+    fn rejects_malformed_and_multibyte_colors_without_panicking() {
+        for value in [
+            "💥aa", "#💥aa", "a💥a", "aa💥", "ééé", "中文", "", "#fff", "##ffffff", "ffffff00",
+            "gggggg", " fffff", "ffffff\n",
+        ] {
+            assert_eq!(parse_hex_rgb(value), None, "accepted {value:?}");
+        }
+    }
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Position {
     pub x: f64,

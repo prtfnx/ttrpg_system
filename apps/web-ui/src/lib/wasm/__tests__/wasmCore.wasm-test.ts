@@ -11,6 +11,7 @@
  */
 import { beforeAll, describe, expect, it } from 'vitest';
 import initWasm, {
+  RenderEngine,
   calculate_asset_hash,
   compute_visibility_polygon,
   create_default_brush_presets,
@@ -22,6 +23,34 @@ beforeAll(async () => {
 });
 
 describe('WASM module (real browser)', () => {
+  it('keeps rendering after malformed UTF-8 colors arrive from a table', () => {
+    const canvas = document.createElement('canvas');
+    canvas.width = 400;
+    canvas.height = 400;
+    const engine = new RenderEngine(canvas);
+    try {
+      for (const color of ['💥aa', '#💥aa', 'a💥a', 'ééé']) {
+        engine.handle_table_data({
+          table_id: 'color-regression', table_name: 'Colors', width: 1000, height: 1000, scale: 1,
+          layers: { tokens: [{
+            sprite_id: 'light-token', texture_path: '', coord_x: 100, coord_y: 100,
+            scale_x: 1, scale_y: 1, layer: 'tokens', width: 50, height: 50,
+            aura_radius: 100, aura_color: color,
+          }] },
+        });
+        engine.set_background_color(color);
+        engine.set_shape_style(color, 1, true);
+        engine.render();
+        expect(engine.get_active_table_id()).toBe('color-regression');
+        expect(engine.get_layer_sprite_count('tokens')).toBe(1);
+      }
+      engine.set_background_color('#123456');
+      engine.render();
+    } finally {
+      engine.free();
+    }
+  });
+
   it('version() returns a semver string', () => {
     const v = version();
     expect(typeof v).toBe('string');

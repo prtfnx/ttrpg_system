@@ -25,14 +25,13 @@ use crate::wall_manager::WallManager;
 use crate::webgl_renderer::WebGLRenderer;
 
 fn parse_hex_color(hex: &str) -> Option<crate::types::Color> {
-    let s = hex.trim_start_matches('#');
-    if s.len() != 6 {
-        return None;
-    }
-    let r = u8::from_str_radix(&s[0..2], 16).ok()? as f32 / 255.0;
-    let g = u8::from_str_radix(&s[2..4], 16).ok()? as f32 / 255.0;
-    let b = u8::from_str_radix(&s[4..6], 16).ok()? as f32 / 255.0;
-    Some(crate::types::Color::new(r, g, b, 1.0))
+    let [r, g, b] = crate::types::parse_hex_rgb(hex)?;
+    Some(crate::types::Color::new(
+        r as f32 / 255.0,
+        g as f32 / 255.0,
+        b as f32 / 255.0,
+        1.0,
+    ))
 }
 
 #[wasm_bindgen]
@@ -98,16 +97,8 @@ pub struct RenderEngine {
 #[wasm_bindgen]
 impl RenderEngine {
     pub(crate) fn hex_to_rgba(hex: &str, alpha: f32) -> [u8; 4] {
-        let hex = hex.trim_start_matches('#');
-        if hex.len() == 6 {
-            let r = u8::from_str_radix(&hex[0..2], 16).unwrap_or(255);
-            let g = u8::from_str_radix(&hex[2..4], 16).unwrap_or(255);
-            let b = u8::from_str_radix(&hex[4..6], 16).unwrap_or(255);
-            let a = (alpha * 255.0) as u8;
-            [r, g, b, a]
-        } else {
-            [255, 255, 255, (alpha * 255.0) as u8]
-        }
+        let [r, g, b] = crate::types::parse_hex_rgb(hex).unwrap_or([255, 255, 255]);
+        [r, g, b, (alpha * 255.0) as u8]
     }
 
     pub(crate) fn get_shape_settings(&self) -> (String, f32, bool) {

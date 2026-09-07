@@ -36,13 +36,14 @@ from starlette.middleware.sessions import SessionMiddleware
 from storage.r2_manager import R2AssetManager
 from utils.audit import persist_http_security_decision
 from utils.blocking import run_blocking
-from utils.http_security import add_security_headers, trusted_origins, unsafe_request_rejection
+from utils.http_security import add_security_headers, asset_connect_origins, trusted_origins, unsafe_request_rejection
 from utils.logger import bind_log_context, configure_logging, reset_log_context, setup_logger
 from utils.observability import configure_tracing, observe_http, record_job, refresh_durable_metrics
 from utils.rate_limiter import login_limiter, registration_limiter
 from utils.time import utc_now
 
 settings = Settings()
+browser_asset_origins = asset_connect_origins(settings)
 configure_logging(level=settings.LOG_LEVEL, log_format=settings.LOG_FORMAT)
 logger = setup_logger(__name__)
 environment = settings.ENVIRONMENT.lower()
@@ -304,7 +305,7 @@ async def browser_security(request: Request, call_next):
         response = JSONResponse(status_code=403, content={"detail": rejection})
     else:
         response = await call_next(request)
-    add_security_headers(response, production=settings.is_production)
+    add_security_headers(response, production=settings.is_production, asset_origins=browser_asset_origins)
     return response
 
 

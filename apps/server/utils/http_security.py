@@ -1,6 +1,7 @@
 from collections.abc import Iterable
 from urllib.parse import urlsplit
 
+from config import Settings
 from fastapi import Request
 from starlette.responses import Response
 
@@ -9,16 +10,49 @@ _CSP = "; ".join(
     (
         "default-src 'self'",
         "base-uri 'self'",
-        "connect-src 'self' ws: wss:",
+        "connect-src 'self' ws: wss:{asset_sources}",
         "font-src 'self' data:",
         "form-action 'self'",
         "frame-ancestors 'none'",
         "img-src 'self' data: blob: https:",
         "object-src 'none'",
-        "script-src 'self' 'unsafe-inline'",
+        "script-src 'self' 'unsafe-inline' 'wasm-unsafe-eval'",
         "style-src 'self' 'unsafe-inline'",
     )
 )
+
+
+def asset_connect_origins(settings: Settings) -> tuple[str, ...]:
+    """Allow only the configured browser asset transport, never a wildcard."""
+    if not settings.r2_enabled:
+        return ()
+    if settings.ASSET_LINK_MODE == "worker":
+        url = settings.ASSET_WORKER_BASE_URL
+    else:
+        url = settings.r2_endpoint or (
+            f"https://{settings.r2_account_id}.r2.cloudflarestorage.com"
+            if settings.r2_account_id else ""
+        )
+    if not url:
+        return ()
+    parsed = urlsplit(url)
+    if (
+        parsed.scheme not in ({"https"} if settings.is_production else {"http", "https"})
+        or not parsed.hostname
+        or parsed.username is not None
+        or parsed.password is not None
+        or parsed.query
+        or parsed.fragment
+        or any(char.isspace() or ord(char) < 32 or char in "'\";*<>\\" for char in url)
+    ):
+        raise ValueError("Browser asset endpoint must be a valid HTTP(S) URL; production requires HTTPS")
+    # Accessing port also validates malformed/out-of-range ports.
+    port = parsed.port
+    host = parsed.hostname
+    if ":" in host:
+        host = f"[{host}]"
+    suffix = f":{port}" if port is not None else ""
+    return (f"{parsed.scheme}://{host}{suffix}",)
 
 
 def normalized_origin(value: str) -> str | None:
@@ -70,8 +104,11 @@ def unsafe_request_rejection(
     return None
 
 
-def add_security_headers(response: Response, *, production: bool) -> None:
-    response.headers["Content-Security-Policy"] = _CSP
+def add_security_headers(
+    response: Response, *, production: bool, asset_origins: Iterable[str] = (),
+) -> None:
+    sources = "".join(f" {origin}" for origin in asset_origins)
+    response.headers["Content-Security-Policy"] = _CSP.format(asset_sources=sources)
     response.headers["Cross-Origin-Opener-Policy"] = "same-origin"
     response.headers["Permissions-Policy"] = (
         "camera=(), geolocation=(), microphone=(), payment=(), usb=()"

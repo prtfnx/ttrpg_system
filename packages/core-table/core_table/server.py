@@ -1,5 +1,6 @@
 # pyright: reportMissingImports=false
 import asyncio
+import copy
 import json
 import logging
 import uuid
@@ -19,6 +20,7 @@ class TableManager:
         self.tables: Dict[str, VirtualTable] = {}
         self.tables_id: dict[str, VirtualTable] = {}
         self.db_session = db_session  # SQLAlchemy session for database operations
+        self._save_locks: dict[str, asyncio.Lock] = {}
 
     def set_db_session(self, db_session):
         """Set database session for persistence operations"""
@@ -153,6 +155,46 @@ class TableManager:
             return False
         finally:
             self.release_db_session()
+
+    async def save_table_async(self, table_id: str, session_id: int) -> bool:
+        """Snapshot on-loop; write with a fresh worker-owned ORM session."""
+        if not self.db_session:
+            return False
+        from sqlalchemy.orm import sessionmaker
+        from utils.blocking import run_blocking
+
+        async with self._save_locks.setdefault(table_id, asyncio.Lock()):
+            table = self.tables.get(table_id)
+            if table is None:
+                return False
+            snapshot = copy.deepcopy(table)
+            session_factory = sessionmaker(bind=self.db_session.get_bind(), expire_on_commit=False)
+            self.release_db_session()
+
+            def save_snapshot() -> bool:
+                from database import crud
+                try:
+                    with session_factory() as db:
+                        crud.save_table_to_db(db, snapshot, session_id)
+                    return True
+                except Exception:
+                    logger.exception("Failed to save table snapshot %s", table_id)
+                    return False
+
+            # Cancellation cannot stop synchronous SQL. Keep the table's save
+            # lock until that worker exits, so a replacement cannot overtake it.
+            worker = asyncio.create_task(run_blocking(save_snapshot))
+            try:
+                return await asyncio.shield(worker)
+            except asyncio.CancelledError:
+                await worker
+                raise
+
+    async def save_to_database_async(self, session_id: int) -> bool:
+        for table_id in list(self.tables):
+            if not await self.save_table_async(table_id, session_id):
+                return False
+        return True
 
     def load_table(self, table_id: str) -> bool:
         """Load a specific table from database"""

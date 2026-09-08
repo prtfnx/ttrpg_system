@@ -15,7 +15,6 @@ from core_table.server import TableManager
 from database import models as db_models
 from database.crud import append_ban_to_session
 from fastapi import WebSocket
-from utils.blocking import run_blocking
 from utils.logger import log_context, setup_logger
 from utils.roles import can_modify_role, get_permissions, get_visible_layers
 from utils.roles import is_dm as _is_dm
@@ -93,6 +92,11 @@ class GameSessionProtocolService:
         """Save current state to database - delegates to to_db()"""
         return self.to_db()
 
+    async def save_to_database_async(self) -> bool:
+        if not self.db_session or self.game_session_db_id is None:
+            return False
+        return await self.table_manager.save_to_database_async(self.game_session_db_id)
+
     async def auto_save(self):
         """Auto-save session data (call this periodically or on important events)"""
         try:
@@ -107,7 +111,7 @@ class GameSessionProtocolService:
                 logger.debug(f"Session {self.session_code} - Skipping auto-save, only {time_since_last_save:.1f}s since last save")
                 return
 
-            success = await run_blocking(self.save_to_database)
+            success = await self.save_to_database_async()
             if success:
                 self._last_save_time = current_time
                 logger.info(f"Session {self.session_code} - Auto-save successful")

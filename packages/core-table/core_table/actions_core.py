@@ -103,7 +103,7 @@ class ActionsCore(AsyncActionsProtocol):
 
                 # Perform the actual save
                 logger.debug(f"Performing delayed save for table_id={table_id}, session_id={session_id}, last_operation={last_operation}")
-                self.table_manager.save_table(table_id, session_id=session_id)
+                await self.table_manager.save_table_async(table_id, session_id=session_id)
                 logger.info(f"Saved table '{table_id}' to database (delayed after {last_operation})")
 
         except asyncio.CancelledError:
@@ -139,7 +139,7 @@ class ActionsCore(AsyncActionsProtocol):
                 self._dirty_tables.pop(table_id, None)
 
                 # Save table state to database immediately
-                self.table_manager.save_table(table_id, session_id=session_id)
+                await self.table_manager.save_table_async(table_id, session_id=session_id)
                 logger.info(f"Force saved table '{table_id}' to database for {operation_name}")
             else:
                 logger.warning(f"Database persistence not available - {operation_name} only applied to in-memory state")
@@ -195,7 +195,7 @@ class ActionsCore(AsyncActionsProtocol):
             for table_id, session_id in list(self._dirty_tables.items()):
                 try:
                     logger.debug(f"Force saving dirty table: {table_id}, session_id: {session_id}")
-                    self.table_manager.save_table(table_id, session_id=session_id)
+                    await self.table_manager.save_table_async(table_id, session_id=session_id)
                     logger.info(f"Flushed table '{table_id}' to database")
                 except Exception as e:
                     logger.error(f"Failed to flush table {table_id}: {e}")

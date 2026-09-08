@@ -331,9 +331,9 @@ class TestAutoSave:
         svc.db_session = MagicMock()
         svc.game_session_db_id = 1
         svc._last_save_time = 1e15  # far future → 0 seconds elapsed
-        svc.table_manager.save_to_database = MagicMock(return_value=True)
+        svc.table_manager.save_to_database_async = AsyncMock(return_value=True)
         await svc.auto_save()  # should skip
-        svc.table_manager.save_to_database.assert_not_called()
+        svc.table_manager.save_to_database_async.assert_not_awaited()
 
     @pytest.mark.asyncio
     async def test_runs_when_enough_time_has_passed(self):
@@ -341,9 +341,9 @@ class TestAutoSave:
         svc.db_session = MagicMock()
         svc.game_session_db_id = 1
         svc._last_save_time = 0  # very old
-        svc.table_manager.save_to_database = MagicMock(return_value=True)
+        svc.table_manager.save_to_database_async = AsyncMock(return_value=True)
         await svc.auto_save()
-        svc.table_manager.save_to_database.assert_called_once()
+        svc.table_manager.save_to_database_async.assert_awaited_once()
 
 
 # ---------------------------------------------------------------------------

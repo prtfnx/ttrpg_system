@@ -24,7 +24,7 @@ def sprite_identity_exists(sprite_id: str) -> bool:
         return db.query(models.Entity.id).filter(models.Entity.sprite_id == sprite_id).first() is not None
 
 
-def count_controlled_sprites(session_id: int, user_id: int) -> int:
+def count_controlled_sprites(session_id: int, user_id: int, excluded_table_ids: tuple[str, ...] = ()) -> int:
     """Count exact controller membership within one authoritative session."""
     with SessionLocal() as db:
         candidates = (
@@ -32,6 +32,7 @@ def count_controlled_sprites(session_id: int, user_id: int) -> int:
             .join(models.VirtualTable, models.Entity.table_id == models.VirtualTable.id)
             .filter(
                 models.VirtualTable.session_id == session_id,
+                models.VirtualTable.table_id.notin_(excluded_table_ids),
                 models.Entity.controlled_by.isnot(None),
                 models.Entity.controlled_by.contains(str(user_id)),
             )

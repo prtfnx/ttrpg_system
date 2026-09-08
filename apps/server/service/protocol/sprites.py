@@ -76,6 +76,24 @@ class _SpritesMixin(_ProtocolBase):
         if layer is not None:
             await self.broadcast_filtered(message, layer, client_id)
 
+    async def _sprite_quota_error(self, session_id: int | None, user_id: int | None, role: str) -> Message | None:
+        if is_dm(role):
+            return None
+        if session_id is None or user_id is None:
+            return Message(MessageType.ERROR, {'error': 'Authenticated session membership is required'})
+        # Mutating handlers run under the session lock. Loaded tables therefore
+        # include accepted creations/deletions even before their next save.
+        tables = list(self.table_manager.tables.values())
+        accepted = sum(user_id in entity.controlled_by for table in tables for entity in table.entities.values())
+        stored = await run_blocking(
+            count_controlled_sprites, int(session_id), int(user_id),
+            tuple(str(table.table_id) for table in tables),
+        )
+        limit = get_sprite_limit(role)
+        if accepted + stored >= limit:
+            return Message(MessageType.ERROR, {'error': f'Sprite limit of {limit} reached for your role'})
+        return None
+
     async def handle_create_sprite(self, msg: Message, client_id: str) -> Message:
         """Handle create sprite request"""
         logger.debug("Sprite create requested", extra={"event_name": "sprite.create.requested"})
@@ -135,17 +153,9 @@ class _SpritesMixin(_ProtocolBase):
         # Get user identity for ownership and limit enforcement
         user_id = self._get_user_id(msg, client_id)
 
-        # Enforce per-role sprite creation limit for non-DM players
-        if not is_dm(role):
-            limit = get_sprite_limit(role)
-            if user_id is not None and session_id is not None:
-                owned_count = await run_blocking(
-                    count_controlled_sprites,
-                    int(session_id),
-                    int(user_id),
-                )
-                if owned_count >= limit:
-                    return Message(MessageType.ERROR, {'error': f'Sprite limit of {limit} reached for your role'})
+        quota_error = await self._sprite_quota_error(session_id, user_id, role)
+        if quota_error is not None:
+            return quota_error
 
         # Set controlled_by based on who is creating the sprite
         if isinstance(sprite_data, dict):
@@ -750,6 +760,10 @@ class _SpritesMixin(_ProtocolBase):
         if layer in _dm_layers and not is_dm(role):
             return Message(MessageType.ERROR, {'error': 'Only DMs can create sprites on this layer'})
 
+        quota_error = await self._sprite_quota_error(self._get_session_id(msg), user_id, role)
+        if quota_error is not None:
+            return quota_error
+
         # --- Step 1: resolve monster token asset ---
         asset_id = sprite_data.get('asset_id') or ''
         if monster_data and not asset_id:
@@ -803,7 +817,7 @@ class _SpritesMixin(_ProtocolBase):
             sprite_data_with_table['controlled_by'] = json.dumps([user_id])
 
         try:
-            result = await self.actions.create_sprite_from_data(sprite_data_with_table)
+            result = await self.actions.create_sprite(table_id, sprite_data_with_table, session_id=self._get_session_id(msg))
             if not result.success:
                 logger.error("Compendium sprite creation rejected")
                 return Message(MessageType.ERROR, {'error': f'Failed to create sprite: {result.message}'})

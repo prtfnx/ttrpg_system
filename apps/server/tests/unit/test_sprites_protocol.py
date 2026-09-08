@@ -218,7 +218,7 @@ class TestCreateSprite:
             sprite_data={"sprite_id": "sp-1", "x": 0, "y": 0, "layer": "tokens"}
         ))
 
-        def slow_count(_session_id, _user_id):
+        def slow_count(_session_id, _user_id, _excluded_table_ids):
             time.sleep(0.05)
             return 0
 
@@ -830,7 +830,7 @@ class TestCompendiumSpriteAdd:
 
     async def test_success_broadcasts_and_returns_sprite_response(self):
         proto = self._proto()
-        proto.actions.create_sprite_from_data = AsyncMock(return_value=_ok_result(
+        proto.actions.create_sprite = AsyncMock(return_value=_ok_result(
             sprite_data={"sprite_id": "sp-new", "x": 5, "y": 5}
         ))
 

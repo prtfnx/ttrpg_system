@@ -8,6 +8,7 @@ use super::RenderEngine;
 impl RenderEngine {
     #[wasm_bindgen]
     pub fn render(&mut self) -> Result<(), JsValue> {
+        self.texture_manager.collect_completed_loads();
         self.renderer.clear(
             self.background_color[0],
             self.background_color[1],

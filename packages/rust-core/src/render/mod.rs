@@ -118,7 +118,7 @@ impl RenderEngine {
 
         let gl = canvas
             .get_context_with_context_options("webgl2", &context_options)?
-            .unwrap()
+            .ok_or_else(|| JsValue::from_str("WebGL2 is unavailable"))?
             .dyn_into::<WebGlRenderingContext>()?;
 
         let stencil_bits = gl.get_parameter(WebGlRenderingContext::STENCIL_BITS)?;

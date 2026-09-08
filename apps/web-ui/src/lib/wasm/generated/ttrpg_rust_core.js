@@ -1627,6 +1627,16 @@ export class RenderEngine {
         return ret;
     }
     /**
+     * @param {string} name
+     * @returns {boolean}
+     */
+    unload_texture(name) {
+        const ptr0 = passStringToWasm0(name, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+        const len0 = WASM_VECTOR_LEN;
+        const ret = wasm.renderengine_unload_texture(this.__wbg_ptr, ptr0, len0);
+        return ret !== 0;
+    }
+    /**
      * @param {string} id
      * @param {number} x
      * @param {number} y
@@ -2324,6 +2334,9 @@ function __wbg_get_imports() {
         __wbg___wbindgen_throw_81fc77679af83bc6: function(arg0, arg1) {
             throw new Error(getStringFromWasm0(arg0, arg1));
         },
+        __wbg__wbg_cb_unref_3c3b4f651835fbcb: function(arg0) {
+            arg0._wbg_cb_unref();
+        },
         __wbg_activeTexture_55755e76627be758: function(arg0, arg1) {
             arg0.activeTexture(arg1 >>> 0);
         },
@@ -2402,6 +2415,9 @@ function __wbg_get_imports() {
         __wbg_createTexture_ab0a6dde87005cb1: function(arg0) {
             const ret = arg0.createTexture();
             return isLikeNone(ret) ? 0 : addToExternrefTable0(ret);
+        },
+        __wbg_deleteTexture_57bf3a76dc0a7bf9: function(arg0, arg1) {
+            arg0.deleteTexture(arg1);
         },
         __wbg_disableVertexAttribArray_a1f4414d0521b130: function(arg0, arg1) {
             arg0.disableVertexAttribArray(arg1 >>> 0);
@@ -2724,7 +2740,7 @@ function __wbg_get_imports() {
             return ret;
         },
         __wbindgen_cast_0000000000000001: function(arg0, arg1) {
-            // Cast intrinsic for `Closure(Closure { owned: true, function: Function { arguments: [], shim_idx: 65, ret: Unit, inner_ret: Some(Unit) }, mutable: true }) -> Externref`.
+            // Cast intrinsic for `Closure(Closure { owned: true, function: Function { arguments: [], shim_idx: 63, ret: Unit, inner_ret: Some(Unit) }, mutable: true }) -> Externref`.
             const ret = makeMutClosure(arg0, arg1, wasm_bindgen__convert__closures_____invoke__h80981db08fed23f8);
             return ret;
         },

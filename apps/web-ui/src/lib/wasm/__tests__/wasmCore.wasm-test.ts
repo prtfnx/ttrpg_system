@@ -9,7 +9,7 @@
  *   1. Build WASM first:  .\scripts\build-wasm.ps1
  *   2. Run tests:          pnpm vitest run --project browser
  */
-import { beforeAll, describe, expect, it } from 'vitest';
+import { beforeAll, describe, expect, it, vi } from 'vitest';
 import initWasm, {
   RenderEngine,
   calculate_asset_hash,
@@ -23,6 +23,56 @@ beforeAll(async () => {
 });
 
 describe('WASM module (real browser)', () => {
+  it.each(['load', 'error', 'dispose'])('releases texture callbacks after %s', async (outcome) => {
+    const onload = vi.spyOn(HTMLImageElement.prototype, 'onload', 'set');
+    const deleteTexture = vi.spyOn(WebGL2RenderingContext.prototype, 'deleteTexture');
+    const engine = new RenderEngine(document.createElement('canvas'));
+    let disposed = false;
+    try {
+      const images = [...new Set(onload.mock.contexts)] as HTMLImageElement[];
+      expect(images.length).toBeGreaterThan(0);
+      const image = images[0];
+      expect(image.onload).not.toBeNull();
+      if (outcome === 'load') {
+        image.src = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+aY1cAAAAASUVORK5CYII=';
+        await vi.waitFor(() => expect(image.onload).toBeNull());
+        engine.render();
+      } else if (outcome === 'error') {
+        image.onerror?.call(image, new Event('error'));
+        engine.render();
+      } else {
+        engine.free();
+        disposed = true;
+      }
+      for (const pending of images) {
+        expect(pending.onload).toBeNull();
+        expect(pending.onerror).toBeNull();
+      }
+      if (!disposed) {
+        engine.free();
+        disposed = true;
+      }
+      expect(deleteTexture).toHaveBeenCalled();
+    } finally {
+      if (!disposed) engine.free();
+      onload.mockRestore();
+      deleteTexture.mockRestore();
+    }
+  });
+
+  it('reports unavailable WebGL without poisoning the WASM module', () => {
+    const canvas = document.createElement('canvas');
+    const context = vi.spyOn(canvas, 'getContext').mockReturnValue(null);
+    try {
+      expect(() => new RenderEngine(canvas)).toThrow('WebGL2 is unavailable');
+    } finally {
+      context.mockRestore();
+    }
+    const engine = new RenderEngine(document.createElement('canvas'));
+    engine.render();
+    engine.free();
+  });
+
   it('keeps rendering after malformed UTF-8 colors arrive from a table', () => {
     const canvas = document.createElement('canvas');
     canvas.width = 400;

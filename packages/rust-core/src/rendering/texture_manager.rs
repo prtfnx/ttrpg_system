@@ -1,11 +1,30 @@
+use std::cell::Cell;
 use std::collections::HashMap;
 use std::rc::Rc;
 use wasm_bindgen::prelude::*;
 use wasm_bindgen::JsCast;
 use web_sys::{HtmlImageElement, WebGl2RenderingContext as WebGlRenderingContext, WebGlTexture};
 
+struct PendingTextureLoad {
+    image: HtmlImageElement,
+    _onload: Closure<dyn FnMut()>,
+    _onerror: Closure<dyn FnMut()>,
+    complete: Rc<Cell<bool>>,
+}
+
+impl Drop for PendingTextureLoad {
+    fn drop(&mut self) {
+        self.image.set_onload(None);
+        self.image.set_onerror(None);
+        if !self.complete.get() {
+            self.image.set_src("");
+        }
+    }
+}
+
 pub struct TextureManager {
     textures: HashMap<String, WebGlTexture>,
+    pending: HashMap<String, PendingTextureLoad>,
     gl: WebGlRenderingContext,
 }
 
@@ -13,11 +32,13 @@ impl TextureManager {
     pub fn new(gl: WebGlRenderingContext) -> Self {
         Self {
             textures: HashMap::new(),
+            pending: HashMap::new(),
             gl,
         }
     }
 
     pub fn load_texture(&mut self, name: &str, image: &HtmlImageElement) -> Result<(), JsValue> {
+        self.pending.remove(name);
         let texture = self.gl.create_texture().ok_or("Failed to create texture")?;
         self.gl
             .bind_texture(WebGlRenderingContext::TEXTURE_2D, Some(&texture));
@@ -50,8 +71,24 @@ impl TextureManager {
             WebGlRenderingContext::TEXTURE_WRAP_T,
             WebGlRenderingContext::CLAMP_TO_EDGE as i32,
         );
-        self.textures.insert(name.to_string(), texture);
+        if let Some(old) = self.textures.insert(name.to_string(), texture) {
+            self.gl.delete_texture(Some(&old));
+        }
         Ok(())
+    }
+
+    pub fn collect_completed_loads(&mut self) {
+        // Drop closure handles outside the currently executing JS callback.
+        self.pending.retain(|_, load| !load.complete.get());
+    }
+
+    pub fn unload_texture(&mut self, name: &str) -> bool {
+        self.pending.remove(name);
+        if let Some(texture) = self.textures.remove(name) {
+            self.gl.delete_texture(Some(&texture));
+            return true;
+        }
+        false
     }
 
     pub fn has_texture(&self, name: &str) -> bool {
@@ -74,6 +111,8 @@ impl TextureManager {
     /// Load texture from URL asynchronously
     /// This creates a placeholder 1x1 texture immediately, then replaces it when the image loads
     pub fn load_texture_from_url(&mut self, name: &str, url: &str) -> Result<(), JsValue> {
+        self.pending.remove(name);
+        self.collect_completed_loads();
         web_sys::console::log_1(
             &format!("[TEXTURE MANAGER] Loading texture '{}' from: {}", name, url).into(),
         );
@@ -102,8 +141,12 @@ impl TextureManager {
                 Some(&white_pixel),
             )?;
 
-        self.textures
-            .insert(name.to_string(), placeholder_texture.clone());
+        if let Some(old) = self
+            .textures
+            .insert(name.to_string(), placeholder_texture.clone())
+        {
+            self.gl.delete_texture(Some(&old));
+        }
 
         // Load actual image asynchronously
         let image = HtmlImageElement::new()?;
@@ -116,9 +159,14 @@ impl TextureManager {
         let image_rc = Rc::new(image.clone());
         let image_for_onload = image_rc.clone();
 
+        let complete = Rc::new(Cell::new(false));
+        let complete_onload = complete.clone();
         // Set up onload callback
         let onload = Closure::wrap(Box::new(move || {
             let img = (*image_for_onload).clone();
+            img.set_onload(None);
+            img.set_onerror(None);
+            complete_onload.set(true);
             gl.bind_texture(WebGlRenderingContext::TEXTURE_2D, Some(&texture));
 
             match gl.tex_image_2d_with_u32_and_u32_and_html_image_element(
@@ -172,12 +220,16 @@ impl TextureManager {
         }) as Box<dyn FnMut()>);
 
         image.set_onload(Some(onload.as_ref().unchecked_ref()));
-        onload.forget(); // Keep callback alive
 
         // Set up onerror callback
         let error_name = name.to_string();
         let error_url = url.to_string();
+        let error_image = image.clone();
+        let complete_onerror = complete.clone();
         let onerror = Closure::wrap(Box::new(move || {
+            error_image.set_onload(None);
+            error_image.set_onerror(None);
+            complete_onerror.set(true);
             web_sys::console::error_1(
                 &format!(
                     "[ERR] [TEXTURE MANAGER] Failed to load texture '{}' from {}",
@@ -188,11 +240,28 @@ impl TextureManager {
         }) as Box<dyn FnMut()>);
 
         image.set_onerror(Some(onerror.as_ref().unchecked_ref()));
-        onerror.forget();
+        self.pending.insert(
+            name.to_string(),
+            PendingTextureLoad {
+                image: image.clone(),
+                _onload: onload,
+                _onerror: onerror,
+                complete,
+            },
+        );
 
         // Start loading
         image.set_src(url);
 
         Ok(())
+    }
+}
+
+impl Drop for TextureManager {
+    fn drop(&mut self) {
+        self.pending.clear();
+        for (_, texture) in self.textures.drain() {
+            self.gl.delete_texture(Some(&texture));
+        }
     }
 }

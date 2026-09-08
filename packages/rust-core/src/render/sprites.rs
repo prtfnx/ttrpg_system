@@ -6,6 +6,10 @@ use super::RenderEngine;
 
 #[wasm_bindgen]
 impl RenderEngine {
+    pub fn unload_texture(&mut self, name: &str) -> bool {
+        self.texture_manager.unload_texture(name)
+    }
+
     // Sprite management methods
     #[wasm_bindgen]
     pub fn add_sprite_to_layer(

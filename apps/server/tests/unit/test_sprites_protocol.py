@@ -884,6 +884,23 @@ class TestCompendiumSpriteRemove:
 
 @pytest.mark.unit
 class TestSpriteRequest:
+    @pytest.mark.parametrize("role", ["owner", "co_dm", "player", "trusted_player", "spectator"])
+    @pytest.mark.parametrize("layer", ["tokens", "dungeon_master"])
+    async def test_requests_obey_authoritative_layer_visibility(self, role, layer):
+        proto = _ProtoStub(role=role)
+        table = VirtualTable("Request", 100, 100)
+        entity = table.add_entity({"sprite_id": "sp-1", "layer": layer})
+        proto.table_manager.get_table = MagicMock(return_value=table)
+        response = await proto.handle_sprite_request(
+            Message(MessageType.SPRITE_REQUEST, {"table_id": str(table.table_id), "sprite_id": "sp-1"}), "c1",
+        )
+        if layer == "tokens" or role in ("owner", "co_dm"):
+            assert response.type == MessageType.SPRITE_DATA
+            assert response.data["sprite_data"] == entity.to_dict()
+        else:
+            assert response.type == MessageType.ERROR
+            assert response.data == {"error": "Sprite not found"}
+
     async def test_missing_ids_returns_error(self):
         proto = _ProtoStub()
         msg = Message(MessageType.SPRITE_REQUEST, {"table_id": "t1"})  # no sprite_id
@@ -902,8 +919,7 @@ class TestSpriteRequest:
 
     async def test_sprite_not_found_returns_error(self):
         proto = _ProtoStub()
-        table_mock = MagicMock()
-        table_mock.layers = {}  # empty, no sprites
+        table_mock = VirtualTable("Request", 100, 100)
         proto.table_manager.get_table = MagicMock(return_value=table_mock)
 
         msg = Message(MessageType.SPRITE_REQUEST, {"sprite_id": "sp-1", "table_id": "t1"})
@@ -914,12 +930,8 @@ class TestSpriteRequest:
 
     async def test_sprite_found_returns_sprite_data(self):
         proto = _ProtoStub()
-        sprite_mock = MagicMock()
-        sprite_mock.sprite_id = "sp-1"
-        sprite_mock.to_dict.return_value = {"sprite_id": "sp-1", "x": 10, "y": 20}
-
-        table_mock = MagicMock()
-        table_mock.layers = {"tokens": [sprite_mock]}
+        table_mock = VirtualTable("Request", 100, 100)
+        table_mock.add_entity({"sprite_id": "sp-1", "x": 10, "y": 20})
         proto.table_manager.get_table = MagicMock(return_value=table_mock)
 
         msg = Message(MessageType.SPRITE_REQUEST, {"sprite_id": "sp-1", "table_id": "t1"})

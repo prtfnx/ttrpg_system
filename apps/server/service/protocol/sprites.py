@@ -12,7 +12,7 @@ from service.canvas_persistence_service import (
 from service.movement_validator import MovementValidator
 from utils.blocking import run_blocking
 from utils.logger import setup_logger
-from utils.roles import can_interact, get_sprite_limit, is_dm
+from utils.roles import can_interact, get_sprite_limit, get_visible_layers, is_dm
 
 from ._protocol_base import _ProtocolBase
 
@@ -890,17 +890,10 @@ class _SpritesMixin(_ProtocolBase):
             if not table_data:
                 return Message(MessageType.ERROR, {'error': 'Table not found'})
 
-            # Find sprite in table layers
-            sprite_data = None
-            for layer_sprites in table_data.layers.values():
-                for sprite in layer_sprites:
-                    if sprite.sprite_id == sprite_id:
-                        sprite_data = sprite.to_dict()
-                        break
-                if sprite_data:
-                    break
-
-            if sprite_data:
+            entity = table_data.find_entity_by_sprite_id(sprite_id)
+            role = self._get_client_role(client_id)
+            if entity is not None and entity.layer in get_visible_layers(role):
+                sprite_data = entity.to_dict()
                 return Message(MessageType.SPRITE_DATA, {
                     'sprite_id': sprite_id,
                     'table_id': table_id,

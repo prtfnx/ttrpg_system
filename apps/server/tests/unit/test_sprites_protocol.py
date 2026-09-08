@@ -39,6 +39,9 @@ class _ProtoStub(_SpritesMixin):
         self._rules_cache = {}
 
     # ── _ProtocolBase stubs ──────────────────────────────────────────────────
+    def _sprite_layer(self, table_id, sprite_id):
+        return "tokens"
+
     def _get_client_role(self, client_id):
         return self._role
 
@@ -423,7 +426,7 @@ class TestSpritePreviewHandlers:
     async def test_drag_preview_broadcasts(self):
         proto = _ProtoStub(role="owner")
         broadcasts = []
-        proto.broadcast_to_session = AsyncMock(side_effect=lambda m, c: broadcasts.append(m))
+        proto.broadcast_filtered = AsyncMock(side_effect=lambda m, layer, c: broadcasts.append(m))
         msg = Message(MessageType.SPRITE_DRAG_PREVIEW, {"id": "sp-1", "x": 5.0, "y": 3.0})
         await proto.handle_sprite_drag_preview(msg, "c1")
         assert len(broadcasts) == 1
@@ -431,14 +434,14 @@ class TestSpritePreviewHandlers:
 
     async def test_drag_preview_missing_coords_is_noop(self):
         proto = _ProtoStub(role="owner")
-        proto.broadcast_to_session = AsyncMock()
+        proto.broadcast_filtered = AsyncMock()
         msg = Message(MessageType.SPRITE_DRAG_PREVIEW, {"id": "sp-1"})
         await proto.handle_sprite_drag_preview(msg, "c1")
-        proto.broadcast_to_session.assert_not_called()
+        proto.broadcast_filtered.assert_not_called()
 
     async def test_invalid_preview_numbers_are_not_broadcast(self):
         proto = _ProtoStub(role="owner")
-        proto.broadcast_to_session = AsyncMock()
+        proto.broadcast_filtered = AsyncMock()
 
         await proto.handle_sprite_drag_preview(
             Message(MessageType.SPRITE_DRAG_PREVIEW, {"id": "sp-1", "x": "5", "y": 3}),
@@ -453,12 +456,12 @@ class TestSpritePreviewHandlers:
             "c1",
         )
 
-        proto.broadcast_to_session.assert_not_awaited()
+        proto.broadcast_filtered.assert_not_awaited()
 
     async def test_resize_preview_broadcasts(self):
         proto = _ProtoStub(role="owner")
         broadcasts = []
-        proto.broadcast_to_session = AsyncMock(side_effect=lambda m, c: broadcasts.append(m))
+        proto.broadcast_filtered = AsyncMock(side_effect=lambda m, layer, c: broadcasts.append(m))
         msg = Message(MessageType.SPRITE_RESIZE_PREVIEW, {"id": "sp-1", "width": 2.0, "height": 2.0})
         await proto.handle_sprite_resize_preview(msg, "c1")
         assert broadcasts[0].type == MessageType.SPRITE_RESIZE_PREVIEW
@@ -466,7 +469,7 @@ class TestSpritePreviewHandlers:
     async def test_rotate_preview_broadcasts(self):
         proto = _ProtoStub(role="owner")
         broadcasts = []
-        proto.broadcast_to_session = AsyncMock(side_effect=lambda m, c: broadcasts.append(m))
+        proto.broadcast_filtered = AsyncMock(side_effect=lambda m, layer, c: broadcasts.append(m))
         msg = Message(MessageType.SPRITE_ROTATE_PREVIEW, {"id": "sp-1", "rotation": 45.0})
         await proto.handle_sprite_rotate_preview(msg, "c1")
         assert broadcasts[0].type == MessageType.SPRITE_ROTATE_PREVIEW
@@ -474,10 +477,10 @@ class TestSpritePreviewHandlers:
     async def test_player_without_ownership_drag_preview_is_silent(self):
         proto = _ProtoStub(role="player")
         proto._can_control_sprite = AsyncMock(return_value=False)
-        proto.broadcast_to_session = AsyncMock()
+        proto.broadcast_filtered = AsyncMock()
         msg = Message(MessageType.SPRITE_DRAG_PREVIEW, {"id": "sp-other", "x": 0.0, "y": 0.0})
         await proto.handle_sprite_drag_preview(msg, "c1")
-        proto.broadcast_to_session.assert_not_called()
+        proto.broadcast_filtered.assert_not_called()
 
 
 # ---------------------------------------------------------------------------
@@ -518,7 +521,7 @@ class TestSpriteUpdate:
         proto.actions.update_sprite = AsyncMock(return_value=_ok_result())
         proto.actions.update_character = AsyncMock(return_value=_ok_result())
         broadcasts = []
-        proto.broadcast_to_session = AsyncMock(side_effect=lambda m, c: broadcasts.append(m))
+        proto.broadcast_filtered = AsyncMock(side_effect=lambda m, layer, c: broadcasts.append(m))
 
         msg = Message(MessageType.SPRITE_UPDATE, {
             "sprite_id": "sp-1", "table_id": "t1", "hp": 7, "character_id": "char-1",
@@ -535,7 +538,7 @@ class TestSpriteUpdate:
         proto = _ProtoStub(role="owner")
         proto.actions.update_sprite = AsyncMock(return_value=_ok_result())
         broadcasts = []
-        proto.broadcast_to_session = AsyncMock(side_effect=lambda m, c: broadcasts.append(m))
+        proto.broadcast_filtered = AsyncMock(side_effect=lambda m, layer, c: broadcasts.append(m))
 
         msg = Message(MessageType.SPRITE_UPDATE, {
             "sprite_id": "sp-1", "table_id": "t1", "scale_x": 1.25, "scale_y": 0.75,
@@ -556,7 +559,7 @@ class TestSpriteUpdate:
         proto._can_control_sprite = AsyncMock(return_value=True)
         proto.actions.update_sprite = AsyncMock(return_value=_ok_result())
         broadcasts = []
-        proto.broadcast_to_session = AsyncMock(side_effect=lambda m, c: broadcasts.append(m))
+        proto.broadcast_filtered = AsyncMock(side_effect=lambda m, layer, c: broadcasts.append(m))
 
         msg = Message(MessageType.SPRITE_UPDATE, {
             "sprite_id": "sp-1", "table_id": "t1", "controlled_by": "[99]",
@@ -645,7 +648,7 @@ class TestMoveSpriteResult:
         proto = self._proto()
         proto.actions.move_sprite = AsyncMock(return_value=_ok_result())
         broadcasts = []
-        proto.broadcast_to_session = AsyncMock(side_effect=lambda m, c: broadcasts.append(m))
+        proto.broadcast_filtered = AsyncMock(side_effect=lambda m, layer, c: broadcasts.append(m))
 
         msg = Message(MessageType.SPRITE_MOVE, {
             "sprite_id": "sp-1", "table_id": "t1",
@@ -673,7 +676,7 @@ class TestMoveSpriteResult:
         """action_id echoed back for client-side confirmation matching."""
         proto = self._proto()
         proto.actions.move_sprite = AsyncMock(return_value=_ok_result())
-        proto.broadcast_to_session = AsyncMock()
+        proto.broadcast_filtered = AsyncMock()
 
         msg = Message(MessageType.SPRITE_MOVE, {
             "sprite_id": "sp-1", "table_id": "t1",
@@ -801,7 +804,7 @@ class TestMoveSpriteResult:
 class TestCompendiumSpriteAdd:
     def _proto(self, role="owner"):
         proto = _ProtoStub(role=role)
-        proto.broadcast_to_session = AsyncMock()
+        proto.broadcast_filtered = AsyncMock()
         return proto
 
     async def test_missing_data_returns_error(self):
@@ -839,7 +842,7 @@ class TestCompendiumSpriteAdd:
 
         assert resp.type == MessageType.SPRITE_RESPONSE
         assert resp.data["sprite_id"] == "sp-new"
-        proto.broadcast_to_session.assert_awaited_once()
+        proto.broadcast_filtered.assert_awaited_once()
 
 
 # ---------------------------------------------------------------------------
@@ -853,20 +856,20 @@ class TestCompendiumSpriteRemove:
         msg = Message(MessageType.SPRITE_REMOVE, {"table_id": "t1"})
         resp = await proto.handle_compendium_sprite_remove(msg, "c1")
         assert resp.type == MessageType.ERROR
-        assert "sprite_id" in resp.data["error"].lower()
+        assert "sprite" in resp.data["error"].lower()
 
     async def test_success_broadcasts_and_returns_sprite_response(self):
         proto = _ProtoStub()
         proto.actions.delete_sprite = AsyncMock(return_value=_ok_result())
         broadcasts = []
-        proto.broadcast_to_session = AsyncMock(side_effect=lambda m, c: broadcasts.append(m))
+        proto.broadcast_filtered = AsyncMock(side_effect=lambda m, layer, c: broadcasts.append(m))
 
         msg = Message(MessageType.SPRITE_REMOVE, {"sprite_id": "sp-1", "table_id": "t1"})
         resp = await proto.handle_compendium_sprite_remove(msg, "c1")
 
         assert resp.type == MessageType.SPRITE_RESPONSE
-        assert resp.data["operation"] == "delete"
-        assert any(m.type == MessageType.SPRITE_UPDATE for m in broadcasts)
+        assert resp.data["operation"] == "remove"
+        assert any(m.type == MessageType.SPRITE_REMOVE for m in broadcasts)
 
     async def test_failed_delete_returns_error(self):
         proto = _ProtoStub()

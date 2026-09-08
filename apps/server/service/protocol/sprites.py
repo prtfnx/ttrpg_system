@@ -59,6 +59,23 @@ def _bounded_number(value: object, minimum: float, maximum: float) -> float | No
 class _SpritesMixin(_ProtocolBase):
     """Handler methods for sprites domain."""
 
+    def _sprite_layer(self, table_id: str | None, sprite_id: str) -> str | None:
+        """Resolve visibility from session-owned entities, never client fields."""
+        tables = [self.table_manager.get_table(table_id)] if table_id else self.table_manager.tables.values()
+        for table in tables:
+            if table is not None:
+                entity = table.find_entity_by_sprite_id(sprite_id)
+                if entity is not None:
+                    return entity.layer
+        return None
+
+    async def _broadcast_sprite_event(self, message: Message, client_id: str, *, layer: str | None = None) -> None:
+        data = message.data or {}
+        if layer is None:
+            layer = self._sprite_layer(data.get('table_id'), data.get('sprite_id') or data.get('id'))
+        if layer is not None:
+            await self.broadcast_filtered(message, layer, client_id)
+
     async def handle_create_sprite(self, msg: Message, client_id: str) -> Message:
         """Handle create sprite request"""
         logger.debug("Sprite create requested", extra={"event_name": "sprite.create.requested"})
@@ -194,6 +211,7 @@ class _SpritesMixin(_ProtocolBase):
         # Get session_id for database persistence
         session_id = self._get_session_id(msg)
 
+        layer = self._sprite_layer(table_id, sprite_id)
         result = await self.actions.delete_sprite(table_id=table_id, sprite_id=sprite_id, session_id=session_id)
         if result.success:
             # Broadcast sprite deletion to all other clients in the session
@@ -202,7 +220,7 @@ class _SpritesMixin(_ProtocolBase):
                 'operation': 'remove',
                 'table_id': table_id
             })
-            await self.broadcast_to_session(remove_message, client_id)
+            await self._broadcast_sprite_event(remove_message, client_id, layer=layer)
 
             return Message(MessageType.SPRITE_RESPONSE, {
                 'sprite_id': sprite_id,
@@ -348,7 +366,7 @@ class _SpritesMixin(_ProtocolBase):
                 'y': to_pos.get('y') if isinstance(to_pos, dict) else to_pos[1],
                 'table_id': table_id
             })
-            await self.broadcast_to_session(move_message, client_id)
+            await self._broadcast_sprite_event(move_message, client_id)
 
             return Message(MessageType.SPRITE_RESPONSE, response_data)
         else:
@@ -397,7 +415,7 @@ class _SpritesMixin(_ProtocolBase):
             if action_id:
                 response_data['action_id'] = action_id
 
-            await self.broadcast_to_session(
+            await self._broadcast_sprite_event(
                 Message(MessageType.SPRITE_SCALE, {'sprite_id': sprite_id, 'width': width, 'height': height, 'table_id': table_id}),
                 client_id
             )
@@ -449,7 +467,7 @@ class _SpritesMixin(_ProtocolBase):
             if action_id:
                 response_data['action_id'] = action_id
 
-            await self.broadcast_to_session(
+            await self._broadcast_sprite_event(
                 Message(MessageType.SPRITE_ROTATE, {
                     'sprite_id': sprite_id,
                     'rotation': rotation,
@@ -479,7 +497,7 @@ class _SpritesMixin(_ProtocolBase):
             user_id = self._get_user_id(msg, client_id)
             if not await self._can_control_sprite(sprite_id, user_id):
                 return  # silently drop — player doesn't own this sprite
-        await self.broadcast_to_session(
+        await self._broadcast_sprite_event(
             Message(MessageType.SPRITE_DRAG_PREVIEW, {'id': sprite_id, 'x': x, 'y': y}),
             client_id
         )
@@ -499,7 +517,7 @@ class _SpritesMixin(_ProtocolBase):
             user_id = self._get_user_id(msg, client_id)
             if not await self._can_control_sprite(sprite_id, user_id):
                 return
-        await self.broadcast_to_session(
+        await self._broadcast_sprite_event(
             Message(MessageType.SPRITE_RESIZE_PREVIEW, {'id': sprite_id, 'width': width, 'height': height}),
             client_id
         )
@@ -518,7 +536,7 @@ class _SpritesMixin(_ProtocolBase):
             user_id = self._get_user_id(msg, client_id)
             if not await self._can_control_sprite(sprite_id, user_id):
                 return
-        await self.broadcast_to_session(
+        await self._broadcast_sprite_event(
             Message(MessageType.SPRITE_ROTATE_PREVIEW, {'id': sprite_id, 'rotation': rotation}),
             client_id
         )
@@ -687,7 +705,7 @@ class _SpritesMixin(_ProtocolBase):
                 'updates': updates,
                 'operation': 'update'
             })
-            await self.broadcast_to_session(broadcast_msg, client_id)
+            await self._broadcast_sprite_event(broadcast_msg, client_id)
 
         response = Message(MessageType.SUCCESS, {
             'table_id': table_id,
@@ -800,7 +818,7 @@ class _SpritesMixin(_ProtocolBase):
                 'operation': 'create',
                 'client_temp_id': sprite_data.get('client_temp_id')
             }
-            await self.broadcast_to_session(Message(MessageType.SPRITE_UPDATE, broadcast_data), client_id)
+            await self._broadcast_sprite_event(Message(MessageType.SPRITE_UPDATE, broadcast_data), client_id)
 
             return Message(MessageType.SPRITE_RESPONSE, {
                 'sprite_id': created_sprite.get('sprite_id', created_sprite.get('entity_id')),
@@ -816,62 +834,16 @@ class _SpritesMixin(_ProtocolBase):
             return Message(MessageType.ERROR, {'error': 'Internal server error'})
 
     async def handle_compendium_sprite_update(self, msg: Message, client_id: str) -> Message:
-        # Minimal implementation: delegate to generic sprite update flow where possible
-        logger.debug(
-            "Compendium sprite update requested",
-            extra={"event_name": "compendium.sprite.update.requested"},
-        )
-        if not msg.data:
-            return Message(MessageType.ERROR, {'error': 'No data provided in compendium sprite update'})
-        # For now, reuse existing update methods by wrapping into a table_update if appropriate
-        try:
-            # If caller provided full sprite data with table_id, use update_sprite
-            sprite_data = msg.data.get('sprite_data')
-            table_id = _get_required_table_id(msg.data)
-            if table_id is None:
-                return Message(MessageType.ERROR, {'error': 'table_id is required'})
-            sprite_id = (sprite_data or {}).get('sprite_id')
-            if not sprite_id:
-                return Message(MessageType.ERROR, {'error': 'sprite_id required for compendium sprite update'})
-            result = await self.actions.update_sprite(table_id, sprite_id, data=sprite_data)
-            if result.success:
-                return Message(MessageType.SUCCESS, {'sprite_id': sprite_id})
-            else:
-                return Message(MessageType.ERROR, {'error': result.message})
-        except Exception:
-            logger.exception("Compendium sprite update failed")
-            return Message(MessageType.ERROR, {'error': 'Internal server error'})
+        data = msg.data or {}
+        sprite_data = data.get('sprite_data')
+        if not isinstance(sprite_data, dict):
+            return Message(MessageType.ERROR, {'error': 'sprite_data is required'})
+        return await self.handle_sprite_update(Message(
+            MessageType.SPRITE_UPDATE, {**sprite_data, 'table_id': data.get('table_id')},
+        ), client_id)
 
     async def handle_compendium_sprite_remove(self, msg: Message, client_id: str) -> Message:
-        logger.debug(
-            "Compendium sprite removal requested",
-            extra={"event_name": "compendium.sprite.remove.requested"},
-        )
-        if not msg.data:
-            return Message(MessageType.ERROR, {'error': 'No data provided in compendium sprite remove'})
-        table_id = _get_required_table_id(msg.data)
-        if table_id is None:
-            return Message(MessageType.ERROR, {'error': 'table_id is required'})
-        sprite_id = msg.data.get('sprite_id')
-        if not sprite_id:
-            return Message(MessageType.ERROR, {'error': 'sprite_id required to remove compendium sprite'})
-        try:
-            result = await self.actions.delete_sprite(table_id, sprite_id)
-            if result.success:
-                # Broadcast sprite deletion to all clients in session
-                broadcast_data = {
-                    'sprite_id': sprite_id,
-                    'table_id': table_id,
-                    'operation': 'delete'
-                }
-                await self.broadcast_to_session(Message(MessageType.SPRITE_UPDATE, broadcast_data), client_id)
-
-                return Message(MessageType.SPRITE_RESPONSE, {'sprite_id': sprite_id, 'operation': 'delete', 'success': True})
-            else:
-                return Message(MessageType.ERROR, {'error': result.message})
-        except Exception:
-            logger.exception("Compendium sprite removal failed")
-            return Message(MessageType.ERROR, {'error': 'Internal server error'})
+        return await self.handle_delete_sprite(msg, client_id)
 
     async def handle_sprite_request(self, msg: Message, client_id: str) -> Message:
         """Handle sprite data request"""

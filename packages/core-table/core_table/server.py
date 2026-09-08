@@ -190,6 +190,37 @@ class TableManager:
                 await worker
                 raise
 
+    async def delete_table_async(self, table_id: str, session_id: int) -> bool:
+        from sqlalchemy.orm import sessionmaker
+        from utils.blocking import run_blocking
+
+        if not self.db_session:
+            return False
+        async with self._save_locks.setdefault(table_id, asyncio.Lock()):
+            session_factory = sessionmaker(bind=self.db_session.get_bind())
+            self.release_db_session()
+
+            def delete_snapshot() -> bool:
+                from database import crud
+                try:
+                    with session_factory() as db:
+                        row = crud.get_virtual_table_by_id(db, table_id)
+                        if row is None:
+                            return True
+                        if row.session_id != session_id:
+                            return False
+                        return crud.delete_virtual_table(db, table_id)
+                except Exception:
+                    logger.exception("Failed to delete table %s", table_id)
+                    return False
+
+            worker = asyncio.create_task(run_blocking(delete_snapshot))
+            try:
+                return await asyncio.shield(worker)
+            except asyncio.CancelledError:
+                await worker
+                raise
+
     async def save_to_database_async(self, session_id: int) -> bool:
         for table_id in list(self.tables):
             if not await self.save_table_async(table_id, session_id):

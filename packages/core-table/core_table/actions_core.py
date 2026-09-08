@@ -28,6 +28,8 @@ class ActionsCore(AsyncActionsProtocol):
 
         # Persistence optimization: batch and debounce saves
         self._dirty_tables: Dict[str, int] = {}  # table_id -> session_id
+        self._dirty_generations: dict[str, int] = {}
+        self._save_generation = 0
         self._save_tasks: Dict[str, asyncio.Task] = {}  # table_id -> save task
         self._save_delay = 2.0  # seconds to wait before saving
 
@@ -58,154 +60,95 @@ class ActionsCore(AsyncActionsProtocol):
         logger.debug(f"Found table by name: {table}")
         return table
 
+    def _schedule_save_retry(self, table_id: str) -> None:
+        task = self._save_tasks.get(table_id)
+        if task is None or task.done():
+            self._save_tasks[table_id] = asyncio.create_task(self._delayed_save(table_id))
+
+    async def _save_dirty_table(self, table_id: str) -> bool:
+        session_id = self._dirty_tables.get(table_id)
+        if session_id is None:
+            return True
+        generation = self._dirty_generations[table_id]
+        success = await self.table_manager.save_table_async(table_id, session_id=session_id)
+        if success and self._dirty_generations.get(table_id) == generation:
+            self._dirty_tables.pop(table_id, None)
+            self._dirty_generations.pop(table_id, None)
+        return bool(success)
+
     async def _persist_table_state(self, table: VirtualTable, operation_name: str, session_id: Optional[int] = None):
-        """
-        Mark table as dirty for batched persistence after an operation.
-        This prevents excessive saves when multiple operations happen quickly.
-        """
+        """Confirm durable mutations before success; retain failed state for retry."""
+        if not self.table_manager.db_session:
+            return  # Standalone, explicitly in-memory domain use.
+        if session_id is None:
+            raise RuntimeError("Session identity is required for persistence")
+        table_id = str(table.table_id)
+        self._dirty_tables[table_id] = session_id
+        self._save_generation += 1
+        self._dirty_generations[table_id] = self._save_generation
         try:
-            if hasattr(self.table_manager, 'save_table') and hasattr(self.table_manager, 'db_session') and self.table_manager.db_session:
-                if session_id is None:
-                    logger.warning(f"No session_id provided for {operation_name}, skipping database persistence")
-                    return
+            success = await self._save_dirty_table(table_id)
+        except Exception:
+            self._schedule_save_retry(table_id)
+            raise
+        if not success:
+            self._schedule_save_retry(table_id)
+            raise RuntimeError(f"Could not persist {operation_name}; state is retained and retry is pending")
 
-                table_id = str(table.table_id)
-                logger.debug(f"Marking table dirty for batched save after {operation_name}: table_id={table_id}, session_id={session_id}")
-
-                # Mark table as dirty and schedule a delayed save
-                self._dirty_tables[table_id] = session_id
-
-                # Cancel any existing save task for this table
-                if table_id in self._save_tasks:
-                    if not self._save_tasks[table_id].done():
-                        self._save_tasks[table_id].cancel()
-
-                # Schedule a new delayed save
-                self._save_tasks[table_id] = asyncio.create_task(self._delayed_save(table_id, operation_name))
-
-            else:
-                logger.warning(f"Database persistence not available - {operation_name} only applied to in-memory state")
-        except Exception as persist_error:
-            logger.error(f"Failed to schedule batched persistence for {operation_name}: {persist_error}")
-
-    async def _delayed_save(self, table_id: str, last_operation: str = "unknown"):
-        """
-        Perform a delayed save of a table after a debounce period.
-        This prevents excessive saves when multiple operations happen quickly.
-        """
+    async def _delayed_save(self, table_id: str, last_operation: str = "retry"):
+        """Retry failed snapshots with capped backoff without forgetting dirty state."""
+        delay = self._save_delay
         try:
-            # Wait for the debounce period
-            await asyncio.sleep(self._save_delay)
-
-            # Check if table is still dirty (may have been saved by another operation)
-            if table_id in self._dirty_tables:
-                session_id = self._dirty_tables.pop(table_id)
-
-                # Perform the actual save
-                logger.debug(f"Performing delayed save for table_id={table_id}, session_id={session_id}, last_operation={last_operation}")
-                await self.table_manager.save_table_async(table_id, session_id=session_id)
-                logger.info(f"Saved table '{table_id}' to database (delayed after {last_operation})")
-
-        except asyncio.CancelledError:
-            logger.debug(f"Delayed save cancelled for table_id={table_id}")
-        except Exception as e:
-            logger.error(f"Failed during delayed save for table_id={table_id}: {e}")
+            while table_id in self._dirty_tables:
+                await asyncio.sleep(delay)
+                try:
+                    success = await self._save_dirty_table(table_id)
+                except Exception:
+                    logger.exception("Snapshot retry failed for %s", table_id)
+                    success = False
+                if not success:
+                    logger.error("Snapshot remains unsaved for %s after %s", table_id, last_operation)
+                    delay = min(max(delay * 2, 0.01), 30.0)
         finally:
-            # Clean up the task reference
-            if table_id in self._save_tasks:
-                del self._save_tasks[table_id]
+            if self._save_tasks.get(table_id) is asyncio.current_task():
+                self._save_tasks.pop(table_id, None)
 
     async def _force_persist_table_state(self, table: VirtualTable, operation_name: str, session_id: Optional[int] = None):
-        """
-        Immediately persist table state to database, bypassing the debounce mechanism.
-        Use this for critical operations that must be saved immediately.
-        """
-        try:
-            if hasattr(self.table_manager, 'save_table') and hasattr(self.table_manager, 'db_session') and self.table_manager.db_session:
-                if session_id is None:
-                    logger.warning(f"No session_id provided for {operation_name}, skipping database persistence")
-                    return
-
-                table_id = str(table.table_id)
-                logger.debug(f"Force persisting table state for {operation_name}: table_id={table_id}, session_id={session_id}")
-
-                # Cancel any pending delayed save
-                if table_id in self._save_tasks:
-                    if not self._save_tasks[table_id].done():
-                        self._save_tasks[table_id].cancel()
-                    del self._save_tasks[table_id]
-
-                # Remove from dirty list
-                self._dirty_tables.pop(table_id, None)
-
-                # Save table state to database immediately
-                await self.table_manager.save_table_async(table_id, session_id=session_id)
-                logger.info(f"Force saved table '{table_id}' to database for {operation_name}")
-            else:
-                logger.warning(f"Database persistence not available - {operation_name} only applied to in-memory state")
-        except Exception as persist_error:
-            logger.error(f"Failed to force persist {operation_name} to database: {persist_error}")
-            # Continue anyway - the operation was successful in memory
+        await self._persist_table_state(table, operation_name, session_id)
 
     async def _delete_table_from_database(self, table_id: str, session_id: int):
-        """
-        Delete table from database immediately.
-        """
-        try:
-            if hasattr(self.table_manager, 'db_session') and self.table_manager.db_session:
-                from database import crud
+        if not self.table_manager.db_session:
+            return
+        task = self._save_tasks.pop(table_id, None)
+        if task is not None:
+            task.cancel()
+            await asyncio.gather(task, return_exceptions=True)
+        if not await self.table_manager.delete_table_async(table_id, session_id):
+            if table_id in self._dirty_tables:
+                self._schedule_save_retry(table_id)
+            raise RuntimeError("Table deletion could not be persisted")
+        self._dirty_tables.pop(table_id, None)
+        self._dirty_generations.pop(table_id, None)
 
-                logger.debug(f"Deleting table from database: table_id={table_id}, session_id={session_id}")
+    async def flush_all_pending_saves(self) -> bool:
+        success = True
+        for table_id in list(self._dirty_tables):
+            try:
+                saved = await self._save_dirty_table(table_id)
+            except Exception:
+                logger.exception("Snapshot flush failed for %s", table_id)
+                saved = False
+            if not saved:
+                success = False
+                self._schedule_save_retry(table_id)
+        return success
 
-                # Cancel any pending saves for this table
-                if table_id in self._save_tasks:
-                    if not self._save_tasks[table_id].done():
-                        self._save_tasks[table_id].cancel()
-                    del self._save_tasks[table_id]
-
-                # Remove from dirty list
-                self._dirty_tables.pop(table_id, None)
-
-                # Delete table from database
-                success = crud.delete_virtual_table(self.table_manager.db_session, table_id)
-                if success:
-                    logger.info(f"Deleted table '{table_id}' from database")
-                else:
-                    logger.warning(f"Table '{table_id}' not found in database (may have already been deleted)")
-            else:
-                logger.warning("Database not available - table deletion only applied to in-memory state")
-        except Exception as e:
-            logger.error(f"Failed to delete table from database: {e}")
-            # Continue anyway - the operation was successful in memory
-
-    async def flush_all_pending_saves(self):
-        """
-        Force save all dirty tables immediately.
-        Call this when the server is shutting down or a critical event requires all data to be persisted.
-        """
-        try:
-            logger.info(f"Flushing all pending saves for {len(self._dirty_tables)} dirty tables")
-
-            # Cancel all delayed save tasks
-            for table_id, task in list(self._save_tasks.items()):
-                if not task.done():
-                    task.cancel()
-
-            # Save all dirty tables immediately
-            for table_id, session_id in list(self._dirty_tables.items()):
-                try:
-                    logger.debug(f"Force saving dirty table: {table_id}, session_id: {session_id}")
-                    await self.table_manager.save_table_async(table_id, session_id=session_id)
-                    logger.info(f"Flushed table '{table_id}' to database")
-                except Exception as e:
-                    logger.error(f"Failed to flush table {table_id}: {e}")
-
-            # Clear all tracking
-            self._dirty_tables.clear()
-            self._save_tasks.clear()
-
-        except Exception as e:
-            logger.error(f"Failed to flush pending saves: {e}")
+    async def stop_persistence(self) -> None:
+        tasks = list(self._save_tasks.values())
+        for task in tasks:
+            task.cancel()
+        await asyncio.gather(*tasks, return_exceptions=True)
+        self._save_tasks.clear()
 
     # Table Actions
     async def create_table(
@@ -251,7 +194,10 @@ class ActionsCore(AsyncActionsProtocol):
         await self._add_to_history(action)
 
         # Force immediate save for table creation (critical operation)
-        await self._force_persist_table_state(table, "table creation", session_id)
+        try:
+            await self._force_persist_table_state(table, "table creation", session_id)
+        except Exception as exc:
+            return ActionResult(False, str(exc), {'table_id': str(table.table_id), 'persistence_pending': True})
 
         return ActionResult(True, f"Table {name} created successfully", {'table': table})
 
@@ -275,14 +221,12 @@ class ActionsCore(AsyncActionsProtocol):
                 'entities': copy.deepcopy(table.entities)
             }
 
-            # Delete from memory FIRST (both dictionaries)
-            self.table_manager.remove_table(table_id)
-
-            # Then delete from database if session_id provided
-            if session_id:
+            # Keep the live table until deletion is durably confirmed.
+            if self.table_manager.db_session and session_id is None:
+                return ActionResult(False, "Session identity is required for deletion")
+            if session_id is not None:
                 await self._delete_table_from_database(str(table.table_id), session_id)
-            else:
-                logger.warning("No session_id provided for table deletion, skipping database deletion")
+            self.table_manager.remove_table(table_id)
 
             action = {
                 'type': 'delete_table',

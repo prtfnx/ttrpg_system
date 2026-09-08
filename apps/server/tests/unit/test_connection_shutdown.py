@@ -219,11 +219,8 @@ async def test_disconnect_user_persists_and_cleans_last_session_once(monkeypatch
     protocol_service = MagicMock()
     protocol_service.remove_client = AsyncMock()
     protocol_service.wait_for_mutations = AsyncMock()
-    save_threads = []
-    protocol_service.save_to_database.side_effect = lambda: save_threads.append(
-        threading.get_ident()
-    ) or True
-    event_loop_thread = threading.get_ident()
+    protocol_service.save_to_database_async = AsyncMock(return_value=True)
+    protocol_service.stop_persistence = AsyncMock()
     manager.sessions_protocols["ROOM"] = protocol_service
     manager.active_connections["ROOM"] = [first, second]
     manager.connection_info = {
@@ -236,8 +233,8 @@ async def test_disconnect_user_persists_and_cleans_last_session_once(monkeypatch
 
     assert await manager.disconnect_user("ROOM", 7, reason="Membership removed") == 2
 
-    protocol_service.save_to_database.assert_called_once_with()
-    assert save_threads and save_threads[0] != event_loop_thread
+    protocol_service.save_to_database_async.assert_awaited_once_with()
+    protocol_service.stop_persistence.assert_awaited_once_with()
     protocol_service.wait_for_mutations.assert_awaited_once_with()
     protocol_service.cleanup.assert_called_once_with()
     asset_manager.cleanup_session.assert_called_once_with("ROOM")

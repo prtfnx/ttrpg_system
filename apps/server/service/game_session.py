@@ -48,6 +48,7 @@ class ConnectionManager:
         self.sessions_protocols: Dict[str, GameSessionProtocolService] = {}
         self.game_session_db_ids: Dict[str, int] = {}  # session_code -> game_session_db_id
         self._session_lifecycle_locks: Dict[str, asyncio.Lock] = {}
+        self._cleanup_tasks: dict[str, asyncio.Task] = {}
 
     def _generate_client_id(self) -> str:
         """Generate unique client ID for protocol"""
@@ -226,11 +227,18 @@ class ConnectionManager:
 
         await protocol_service.wait_for_mutations()
         try:
-            await run_blocking(protocol_service.save_to_database)
-            logger.info(f"Session {session_code} data saved to database before cleanup")
-        except Exception as error:
-            logger.error(f"Error saving session {session_code} to database: {error}")
+            success = await protocol_service.save_to_database_async()
+        except Exception:
+            logger.exception("Error saving session %s before cleanup", session_code)
+            success = False
+        if not success:
+            logger.error("Retaining unsaved session %s for recovery", session_code)
+            task = self._cleanup_tasks.get(session_code)
+            if task is None or task.done():
+                self._cleanup_tasks[session_code] = asyncio.create_task(self._retry_empty_session(session_code))
+            return
 
+        await protocol_service.stop_persistence()
         try:
             protocol_service.cleanup()
         except Exception:
@@ -252,6 +260,20 @@ class ConnectionManager:
             )
 
         self.game_session_db_ids.pop(session_code, None)
+
+    async def _retry_empty_session(self, session_code: str) -> None:
+        delay = 5.0
+        try:
+            while session_code in self.sessions_protocols:
+                await asyncio.sleep(delay)
+                async with self._session_lifecycle_locks.setdefault(session_code, asyncio.Lock()):
+                    if session_code in self.active_connections:
+                        return
+                    await self._cleanup_empty_session(session_code)
+                delay = min(delay * 2, 60.0)
+        finally:
+            if self._cleanup_tasks.get(session_code) is asyncio.current_task():
+                self._cleanup_tasks.pop(session_code, None)
 
     def update_user_role(self, session_code: str, user_id: int, role: str) -> int:
         """Refresh the role used by every live connection for one member."""
@@ -402,6 +424,24 @@ class ConnectionManager:
                         "WebSocket was already closed during shutdown",
                         extra={"event_name": "websocket.shutdown.already_closed"},
                     )
+
+        # Include sessions retained after an earlier failed final save.
+        for session_code in list(self.sessions_protocols):
+            if session_code not in self.active_connections:
+                async with self._session_lifecycle_locks.setdefault(session_code, asyncio.Lock()):
+                    await self._cleanup_empty_session(session_code)
+        retry_tasks = list(self._cleanup_tasks.values())
+        for task in retry_tasks:
+            task.cancel()
+        await asyncio.gather(*retry_tasks, return_exceptions=True)
+        self._cleanup_tasks.clear()
+        for service in self.sessions_protocols.values():
+            await service.stop_persistence()
+        if self.sessions_protocols:
+            logger.critical(
+                "Shutdown retains %s sessions with unconfirmed persistence",
+                len(self.sessions_protocols),
+            )
 
         logger.info(
             "WebSocket connections drained",

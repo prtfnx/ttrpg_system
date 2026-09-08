@@ -97,6 +97,9 @@ class GameSessionProtocolService:
             return False
         return await self.table_manager.save_to_database_async(self.game_session_db_id)
 
+    async def stop_persistence(self) -> None:
+        await self.server_protocol.actions.stop_persistence()
+
     async def auto_save(self):
         """Auto-save session data (call this periodically or on important events)"""
         try:

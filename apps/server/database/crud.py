@@ -457,7 +457,7 @@ def delete_expired_chat_messages(db: Session, cutoff: datetime) -> int:
     return int(deleted)
 
 # Virtual Table operations
-def create_virtual_table(db: Session, table_data: schemas.VirtualTableCreate) -> models.VirtualTable:
+def create_virtual_table(db: Session, table_data: schemas.VirtualTableCreate, *, commit: bool = True) -> models.VirtualTable:
     """Create a new virtual table in the database"""
     layer_visibility_json = json.dumps(table_data.layer_visibility) if table_data.layer_visibility else json.dumps({
         'map': True, 'tokens': True, 'dungeon_master': True, 'light': True, 'height': True, 'obstacles': True
@@ -488,8 +488,11 @@ def create_virtual_table(db: Session, table_data: schemas.VirtualTableCreate) ->
         cover_zones_json=json.dumps(table_data.cover_zones or []),
     )
     db.add(db_table)
-    db.commit()
-    db.refresh(db_table)
+    if commit:
+        db.commit()
+        db.refresh(db_table)
+    else:
+        db.flush()
     return db_table
 
 def get_virtual_table_by_id(
@@ -502,7 +505,7 @@ def get_session_tables(db: Session, session_id: int) -> list[models.VirtualTable
     """Get all tables for a game session"""
     return db.query(models.VirtualTable).filter(models.VirtualTable.session_id == session_id).all()
 
-def update_virtual_table(db: Session, table_id: str, table_update: schemas.VirtualTableUpdate) -> Optional[models.VirtualTable]:
+def update_virtual_table(db: Session, table_id: str, table_update: schemas.VirtualTableUpdate, *, commit: bool = True) -> Optional[models.VirtualTable]:
     """Update virtual table"""
     db_table = get_virtual_table_by_id(db, table_id)
     if not db_table:
@@ -520,8 +523,11 @@ def update_virtual_table(db: Session, table_id: str, table_update: schemas.Virtu
             setattr(db_table, field, value)
 
     db_table.updated_at = utc_now()
-    db.commit()
-    db.refresh(db_table)
+    if commit:
+        db.commit()
+        db.refresh(db_table)
+    else:
+        db.flush()
     return db_table
 
 def delete_virtual_table(db: Session, table_id: str) -> bool:
@@ -535,7 +541,7 @@ def delete_virtual_table(db: Session, table_id: str) -> bool:
     return True
 
 # Entity operations
-def create_entity(db: Session, entity_data: schemas.EntityCreate, table_db_id: int) -> models.Entity:
+def create_entity(db: Session, entity_data: schemas.EntityCreate, table_db_id: int, *, commit: bool = True) -> models.Entity:
     """Create a new entity in the database"""
     db_entity = models.Entity(
         entity_id=entity_data.entity_id,
@@ -573,8 +579,11 @@ def create_entity(db: Session, entity_data: schemas.EntityCreate, table_db_id: i
         darkvision_radius_units=getattr(entity_data, 'darkvision_radius_units', None),
     )
     db.add(db_entity)
-    db.commit()
-    db.refresh(db_entity)
+    if commit:
+        db.commit()
+        db.refresh(db_entity)
+    else:
+        db.flush()
     return db_entity
 
 def get_entity_by_sprite_id(
@@ -587,7 +596,7 @@ def get_table_entities(db: Session, table_db_id: int) -> list[models.Entity]:
     """Get all entities for a table"""
     return db.query(models.Entity).filter(models.Entity.table_id == table_db_id).all()
 
-def update_entity(db: Session, sprite_id: str, entity_update: schemas.EntityUpdate) -> Optional[models.Entity]:
+def update_entity(db: Session, sprite_id: str, entity_update: schemas.EntityUpdate, *, commit: bool = True) -> Optional[models.Entity]:
     """Update entity"""
     db_entity = get_entity_by_sprite_id(db, sprite_id)
     if not db_entity:
@@ -600,8 +609,11 @@ def update_entity(db: Session, sprite_id: str, entity_update: schemas.EntityUpda
         setattr(db_entity, attr, value)
 
     db_entity.updated_at = utc_now()
-    db.commit()
-    db.refresh(db_entity)
+    if commit:
+        db.commit()
+        db.refresh(db_entity)
+    else:
+        db.flush()
     return db_entity
 
 def delete_entity(db: Session, sprite_id: str) -> bool:
@@ -615,6 +627,19 @@ def delete_entity(db: Session, sprite_id: str) -> bool:
     return True
 
 def save_table_to_db(db: Session, virtual_table_obj, session_id: int) -> Optional[models.VirtualTable]:
+    """Commit a complete table snapshot atomically, or roll it back."""
+    try:
+        table = _stage_table_snapshot(db, virtual_table_obj, session_id)
+        if table is None:
+            raise RuntimeError("Table snapshot could not be staged")
+        db.commit()
+        return table
+    except Exception:
+        db.rollback()
+        raise
+
+
+def _stage_table_snapshot(db: Session, virtual_table_obj, session_id: int) -> Optional[models.VirtualTable]:
     """
     Save a VirtualTable object from table.py to the database
     """
@@ -663,7 +688,7 @@ def save_table_to_db(db: Session, virtual_table_obj, session_id: int) -> Optiona
             difficult_terrain=_serialize_difficult_terrain(virtual_table_obj),
             cover_zones=_serialize_cover_zones(virtual_table_obj),
         )
-        db_table = update_virtual_table(db, table_id_str, table_update)
+        db_table = update_virtual_table(db, table_id_str, table_update, commit=False)
     else:
         # Create new table
         table_data = schemas.VirtualTableCreate(
@@ -690,7 +715,7 @@ def save_table_to_db(db: Session, virtual_table_obj, session_id: int) -> Optiona
             difficult_terrain=_serialize_difficult_terrain(virtual_table_obj),
             cover_zones=_serialize_cover_zones(virtual_table_obj),
         )
-        db_table = create_virtual_table(db, table_data)
+        db_table = create_virtual_table(db, table_data, commit=False)
 
     if db_table is None:
         logger.error(f"Failed to create/update virtual table {table_id_str}")
@@ -715,7 +740,7 @@ def save_table_to_db(db: Session, virtual_table_obj, session_id: int) -> Optiona
 
     # Save/update entities that are in memory
     for entity in virtual_table_obj.entities.values():
-        save_entity_to_db(db, entity, db_table.id)
+        save_entity_to_db(db, entity, db_table.id, commit=False)
 
     # Synchronize wall segments for lighting, movement validation, and doors.
     memory_walls = getattr(virtual_table_obj, 'walls', {})
@@ -725,20 +750,19 @@ def save_table_to_db(db: Session, virtual_table_obj, session_id: int) -> Optiona
 
     walls_to_delete = current_db_wall_ids - current_memory_wall_ids
     for wall_id in walls_to_delete:
-        delete_wall(db, wall_id)
+        delete_wall(db, wall_id, commit=False)
         logger.debug(f"Deleted wall from database: {wall_id}")
 
     for wall in memory_walls.values():
         wall_data = {**wall.to_dict(), 'table_id': table_id_str}
         if wall.wall_id in current_db_wall_ids:
-            update_wall(db, wall.wall_id, wall_data)
+            update_wall(db, wall.wall_id, wall_data, commit=False)
         else:
-            create_wall(db, wall_data)
+            create_wall(db, wall_data, commit=False)
 
-    # Commit all changes
-    db.commit()
+    # The public snapshot boundary owns the single commit.
     logger.info(
-        f"Synchronized table {virtual_table_obj.display_name}: "
+        f"Staged table {virtual_table_obj.display_name}: "
         f"{len(entities_to_delete)} entities deleted, {len(virtual_table_obj.entities)} entities saved/updated, "
         f"{len(walls_to_delete)} walls deleted, {len(memory_walls)} walls saved/updated"
     )
@@ -758,7 +782,7 @@ def _serialize_cover_zones(virtual_table_obj) -> list[dict]:
     return [zone.to_dict() if hasattr(zone, 'to_dict') else dict(zone) for zone in zones]
 
 
-def save_entity_to_db(db: Session, entity_obj, table_db_id: int) -> models.Entity:
+def save_entity_to_db(db: Session, entity_obj, table_db_id: int, *, commit: bool = True) -> models.Entity:
     """
     Save an Entity object from table.py to the database
     """
@@ -807,7 +831,7 @@ def save_entity_to_db(db: Session, entity_obj, table_db_id: int) -> models.Entit
             vision_radius_units=getattr(entity_obj, 'vision_radius_units', None),
             darkvision_radius_units=getattr(entity_obj, 'darkvision_radius_units', None),
         )
-        db_entity = update_entity(db, entity_obj.sprite_id, entity_update)
+        db_entity = update_entity(db, entity_obj.sprite_id, entity_update, commit=commit)
     else:
         # Create new entity
         entity_data = schemas.EntityCreate(
@@ -844,7 +868,7 @@ def save_entity_to_db(db: Session, entity_obj, table_db_id: int) -> models.Entit
             vision_radius_units=getattr(entity_obj, 'vision_radius_units', None),
             darkvision_radius_units=getattr(entity_obj, 'darkvision_radius_units', None),
         )
-        db_entity = create_entity(db, entity_data, table_db_id)
+        db_entity = create_entity(db, entity_data, table_db_id, commit=commit)
 
     if db_entity is None:
         raise RuntimeError(
@@ -971,7 +995,7 @@ def load_table_from_db(db: Session, table_id: str):
 # Wall CRUD
 # ---------------------------------------------------------------------------
 
-def create_wall(db: Session, wall_data: dict) -> models.Wall:
+def create_wall(db: Session, wall_data: dict, *, commit: bool = True) -> models.Wall:
     db_wall = models.Wall(
         wall_id=wall_data['wall_id'],
         table_id=wall_data['table_id'],
@@ -989,8 +1013,11 @@ def create_wall(db: Session, wall_data: dict) -> models.Wall:
         created_by=wall_data.get('created_by'),
     )
     db.add(db_wall)
-    db.commit()
-    db.refresh(db_wall)
+    if commit:
+        db.commit()
+        db.refresh(db_wall)
+    else:
+        db.flush()
     return db_wall
 
 
@@ -1002,7 +1029,7 @@ def get_table_walls(db: Session, table_id: str) -> list[models.Wall]:
     return db.query(models.Wall).filter(models.Wall.table_id == table_id).all()
 
 
-def update_wall(db: Session, wall_id: str, updates: dict) -> models.Wall | None:
+def update_wall(db: Session, wall_id: str, updates: dict, *, commit: bool = True) -> models.Wall | None:
     _allowed = {
         'x1', 'y1', 'x2', 'y2', 'wall_type',
         'blocks_movement', 'blocks_light', 'blocks_sight', 'blocks_sound',
@@ -1015,17 +1042,23 @@ def update_wall(db: Session, wall_id: str, updates: dict) -> models.Wall | None:
         if key in _allowed:
             setattr(db_wall, key, value)
     db_wall.updated_at = utc_now()
-    db.commit()
-    db.refresh(db_wall)
+    if commit:
+        db.commit()
+        db.refresh(db_wall)
+    else:
+        db.flush()
     return db_wall
 
 
-def delete_wall(db: Session, wall_id: str) -> bool:
+def delete_wall(db: Session, wall_id: str, *, commit: bool = True) -> bool:
     db_wall = get_wall(db, wall_id)
     if not db_wall:
         return False
     db.delete(db_wall)
-    db.commit()
+    if commit:
+        db.commit()
+    else:
+        db.flush()
     return True
 
 

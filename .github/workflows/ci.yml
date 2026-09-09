@@ -172,6 +172,7 @@ jobs:
           pytest
           tests/integration/test_alembic_baseline.py
           tests/integration/test_postgresql_contract.py
+          tests/integration/test_writer_fencing_postgresql.py
           --no-cov
         working-directory: apps/server
         env:

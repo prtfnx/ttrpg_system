@@ -52,6 +52,9 @@ def main() -> None:
             "-m",
             "uvicorn",
             "main:app",
+            # Live sessions are process-local; ignore accidental WEB_CONCURRENCY overrides.
+            "--workers",
+            "1",
             "--host",
             "0.0.0.0",
             "--port",

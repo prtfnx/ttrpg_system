@@ -44,6 +44,9 @@ def resolve_active_user_from_token(token: str, db: Session) -> models.User:
     if (user.session_version or 0) != payload.get("sv", 0):
         raise AccessTokenRejected("revoked")
 
+    if getattr(user, "guest_expires_at", None) is not None:
+        raise AccessTokenRejected("guest_scope")
+
     if user.disabled:
         raise AccessTokenRejected("inactive")
 

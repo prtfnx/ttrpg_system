@@ -50,6 +50,9 @@ class User(Base):
     password_set_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)  # NULL = OAuth-only user who never set a password
     session_version: Mapped[int] = mapped_column(Integer, default=0, nullable=False)  # Bump to invalidate all JWTs
 
+    # Non-null only for ephemeral demo principals; normal authentication rejects them.
+    guest_expires_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True, index=True)
+
     # Relationships
     game_sessions = relationship("GameSession", back_populates="owner")
 

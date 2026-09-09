@@ -30,5 +30,5 @@ def test_schema_lifecycle_tracks_repository_head(tmp_path):
 
 
 def test_repository_baseline_matches_all_model_tables():
-    assert len(Base.metadata.tables) == 29
-    assert repository_heads() == ("0007_demo_guest_expiry",)
+    assert len(Base.metadata.tables) == 30
+    assert repository_heads() == ("0008_application_writer",)

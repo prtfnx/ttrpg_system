@@ -12,7 +12,7 @@ from sqlalchemy import create_engine, inspect, text
 
 SERVER_ROOT = Path(__file__).resolve().parents[2]
 ALEMBIC_INI = SERVER_ROOT / "alembic.ini"
-HEAD_REVISION = "0007_demo_guest_expiry"
+HEAD_REVISION = "0008_application_writer"
 
 
 def _config(monkeypatch, database_url: str) -> Config:
@@ -130,7 +130,7 @@ def test_baseline_upgrades_postgresql_database_to_head(monkeypatch):
                     text(f'SELECT COUNT(*) FROM "{table_name}"')
                 ).scalar_one()
                 for table_name in Base.metadata.tables
-                if table_name in existing_tables
+                if table_name in existing_tables and table_name not in {"asset_quota_state", "application_writer_state"}
             }
         assert not {
             table_name: count

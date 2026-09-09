@@ -37,6 +37,7 @@ def _engine_at_head(*, omit_last_migration=False):
     with engine.begin() as connection:
         for table in (
             "assets",
+            "application_writer_state",
             "asset_deletion_jobs",
             "asset_upload_intents",
             "game_sessions",

@@ -10,6 +10,7 @@ from typing import Optional
 from sqlalchemy import (
     BigInteger,
     Boolean,
+    CheckConstraint,
     DateTime,
     Float,
     ForeignKey,
@@ -34,6 +35,15 @@ class Base(DeclarativeBase):
     """Typed SQLAlchemy declarative base for all application models."""
 
     metadata = MetaData(naming_convention=NAMING_CONVENTION)
+
+class ApplicationWriterState(Base):
+    __tablename__ = "application_writer_state"
+    __table_args__ = (CheckConstraint("id = 1", name="singleton"),)
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    owner_token: Mapped[Optional[str]] = mapped_column(String(36), nullable=True)
+    generation: Mapped[int] = mapped_column(BigInteger, nullable=False, server_default="0")
+
 
 class User(Base):
     __tablename__ = "users"

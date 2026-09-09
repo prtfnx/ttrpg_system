@@ -68,7 +68,7 @@ def postgresql_engine():
                 text(f'SELECT COUNT(*) FROM "{table_name}"')
             ).scalar_one()
             for table_name in Base.metadata.tables
-            if table_name != "asset_quota_state"
+            if table_name not in {"asset_quota_state", "application_writer_state"}
         }
         quota_state_ids = connection.execute(
             text("SELECT id FROM asset_quota_state ORDER BY id")

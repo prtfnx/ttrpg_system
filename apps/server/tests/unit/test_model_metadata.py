@@ -2,6 +2,7 @@ from database.models import NAMING_CONVENTION, Base
 from sqlalchemy import ForeignKeyConstraint, PrimaryKeyConstraint, UniqueConstraint
 
 EXPECTED_TABLES = {
+    "application_writer_state",
     "asset_deletion_jobs",
     "asset_quota_state",
     "asset_rate_limit_buckets",

@@ -17,7 +17,8 @@ from api import game_ws
 from config import Settings
 from core_table.server import TableManager
 from database import crud, models
-from database.database import SessionLocal, engine, get_db, schema_is_current
+from database.database import SessionLocal, create_database_engine, engine, get_db, schema_is_current
+from database.writer import ApplicationWriter, WriterOwnershipLost
 from fastapi import Depends, FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse, RedirectResponse, Response
@@ -26,10 +27,11 @@ from fastapi.templating import Jinja2Templates
 from prometheus_client import CONTENT_TYPE_LATEST, generate_latest
 from routers import audit, auth, compendium, demo, game, invitations, telemetry, users
 from routers.users import get_current_user_optional
+from service.application_writer import WriterAdmissionMiddleware, monitor_writer
 from service.asset_deletion_service import process_pending_asset_deletions
 from service.asset_manager import get_server_asset_manager
 from service.asset_upload_cleanup_service import process_pending_upload_cleanups
-from service.game_session import ConnectionManager
+from service.game_session import get_connection_manager
 from service.readiness import ReadinessChecker
 from sqlalchemy.orm import Session
 from starlette.middleware.sessions import SessionMiddleware
@@ -55,7 +57,7 @@ _TRACEPARENT = re.compile(
 # Application state
 class AppState:
     def __init__(self):
-        self.connection_manager = ConnectionManager()
+        self.connection_manager = get_connection_manager()
         self.table_manager = TableManager()
 
 app_state = AppState()
@@ -94,6 +96,27 @@ async def lifespan(app: FastAPI):
     app.state.connection_manager = app_state.connection_manager
     app.state.table_manager = app_state.table_manager
 
+    writer = None
+    writer_monitor = None
+    if engine.dialect.name == "postgresql":
+        # Validate the complete release before fencing the currently serving process.
+        preflight = await run_blocking(_readiness_result)
+        if preflight["status"] != "ready":
+            raise RuntimeError("Release preflight failed before writer handover")
+        control_engine = create_database_engine(settings)
+        writer = ApplicationWriter(engine, control_engine)
+        app.state.application_writer = writer
+        app_state.connection_manager.application_writer = writer
+        try:
+            generation = await run_blocking(writer.claim)
+        except BaseException:
+            writer.close()
+            raise
+        logger.info("Application writer claimed", extra={
+            "event_name": "application.writer.claimed", "generation": generation,
+        })
+        writer_monitor = asyncio.create_task(monitor_writer(writer, app_state.connection_manager))
+
     # Start cleanup task for rate limiters
     cleanup_task = asyncio.create_task(rate_limiter_cleanup_task())
     audit_retention_cleanup = asyncio.create_task(audit_retention_task())
@@ -104,7 +127,10 @@ async def lifespan(app: FastAPI):
 
     yield
 
-    # Shutdown
+    # Drain mutations before closing the writer gate. Never release ownership to legacy processes.
+    if writer_monitor is not None:
+        writer_monitor.cancel()
+        await asyncio.gather(writer_monitor, return_exceptions=True)
     await app_state.connection_manager.close_all()
     cleanup_task.cancel()
     audit_retention_cleanup.cancel()
@@ -136,6 +162,8 @@ async def lifespan(app: FastAPI):
         await demo_guest_cleanup
     except asyncio.CancelledError:
         pass
+    if writer is not None:
+        writer.close()
     logger.info("Application stopped", extra={"event_name": "application.stopped"})
 
 async def demo_guest_cleanup_task():
@@ -314,6 +342,17 @@ _TRUSTED_BROWSER_ORIGINS = trusted_origins(
     settings.BASE_URL,
     settings.cors_origin_list,
 )
+
+
+app.add_middleware(WriterAdmissionMiddleware)
+
+
+@app.exception_handler(WriterOwnershipLost)
+async def writer_unavailable_handler(request: Request, exc: WriterOwnershipLost):
+    return JSONResponse(
+        {"detail": "Server replaced; retry on the active instance"},
+        status_code=503, headers={"Retry-After": "2"},
+    )
 
 
 @app.middleware("http")
@@ -534,15 +573,19 @@ async def health_check():
     )
 
 
-@app.get("/health/ready")
-def readiness_check():
-    """Verify release-critical database, UI artifact, and R2 dependencies."""
-    result = ReadinessChecker(
+def _readiness_result() -> dict:
+    return ReadinessChecker(
         settings=settings,
         engine=engine,
         r2_manager=R2AssetManager(),
         static_ui_path=Path(__file__).resolve().parent / "static" / "ui" / "index.html",
     ).run()
+
+
+@app.get("/health/ready")
+def readiness_check():
+    """Verify release-critical database, UI artifact, and writer ownership."""
+    result = _readiness_result()
     return JSONResponse(content=result, status_code=200 if result["status"] == "ready" else 503)
 
 

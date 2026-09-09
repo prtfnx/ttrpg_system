@@ -14,6 +14,7 @@ from database.database import create_task_scoped_session
 from database.session_utils import (
     load_game_session_protocol_from_db,
 )
+from database.writer import ApplicationWriter
 from fastapi import WebSocket, status
 from utils.blocking import run_blocking
 from utils.logger import setup_logger
@@ -49,6 +50,7 @@ class ConnectionManager:
         self.game_session_db_ids: Dict[str, int] = {}  # session_code -> game_session_db_id
         self._session_lifecycle_locks: Dict[str, asyncio.Lock] = {}
         self._cleanup_tasks: dict[str, asyncio.Task] = {}
+        self.application_writer: ApplicationWriter | None = None
 
     def _generate_client_id(self) -> str:
         """Generate unique client ID for protocol"""
@@ -94,6 +96,8 @@ class ConnectionManager:
         connection_id: str | None,
     ) -> str:
         """Initialize and register a socket while holding its session lifecycle lock."""
+        if self.application_writer is not None:
+            self.application_writer.require_active()
         client_id = self._generate_client_id()
         if session_code not in self.sessions_protocols:
             protocol_service, error = await run_blocking(
@@ -117,6 +121,8 @@ class ConnectionManager:
             protocol_service = self.sessions_protocols[session_code]
 
         await websocket.accept()
+        if self.application_writer is not None:
+            self.application_writer.require_active()
         self.active_connections.setdefault(session_code, []).append(websocket)
         self.connection_info[websocket] = {
             "session_code": session_code,
@@ -226,11 +232,20 @@ class ConnectionManager:
             return
 
         await protocol_service.wait_for_mutations()
-        try:
-            success = await protocol_service.save_to_database_async()
-        except Exception:
-            logger.exception("Error saving session %s before cleanup", session_code)
-            success = False
+        if self.application_writer is not None and not self.application_writer.active:
+            # The replacement loaded committed state after draining our transactions.
+            # Retrying an obsolete snapshot can never succeed and must not overwrite it.
+            logger.warning(
+                "Discarding superseded session cache %s; unconfirmed edits cannot be recovered",
+                session_code,
+            )
+            success = True
+        else:
+            try:
+                success = await protocol_service.save_to_database_async()
+            except Exception:
+                logger.exception("Error saving session %s before cleanup", session_code)
+                success = False
         if not success:
             logger.error("Retaining unsaved session %s for recovery", session_code)
             task = self._cleanup_tasks.get(session_code)
@@ -487,6 +502,8 @@ class ConnectionManager:
 
     async def handle_message(self, websocket: WebSocket, message_data: dict):
         """Handle incoming message from a websocket with protocol support"""
+        if self.application_writer is not None:
+            self.application_writer.require_active()
         try:
             message_type = message_data.get("type")
             data = message_data.get("data", {})

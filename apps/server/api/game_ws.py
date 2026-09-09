@@ -13,6 +13,7 @@ from datetime import UTC
 from config import Settings
 from database import crud, models
 from database.database import SessionLocal
+from database.writer import WriterOwnershipLost
 from fastapi import APIRouter, Depends, WebSocket, WebSocketDisconnect, status
 from service.authentication import AccessTokenRejected, resolve_active_user_from_token
 from service.demo_guests import DEMO_COOKIE, demo_message_allowed, resolve_demo_guest
@@ -317,6 +318,8 @@ async def websocket_game_endpoint(
                         {"type": "error", "data": {"message": "Invalid message format"}},
                         websocket,
                     )
+        except WriterOwnershipLost:
+            await websocket.close(code=1012, reason="Server replaced; reconnect")
         except WebSocketDisconnect as exc:
             record_ws_connection("closed")
             logger.info(

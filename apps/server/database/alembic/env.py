@@ -9,6 +9,7 @@ from pathlib import Path
 from alembic import context
 from database.models import Base
 from database.url import normalize_database_url
+from database.writer import migration_writer_transaction
 from dotenv import load_dotenv
 from sqlalchemy import create_engine, pool
 
@@ -52,13 +53,14 @@ def run_migrations_online() -> None:
     """Run migrations against the configured database."""
     supplied_connection = config.attributes.get("connection")
     if supplied_connection is not None:
-        context.configure(
-            connection=supplied_connection,
-            target_metadata=target_metadata,
-            compare_type=True,
-        )
-        with context.begin_transaction():
-            context.run_migrations()
+        with migration_writer_transaction(supplied_connection):
+            context.configure(
+                connection=supplied_connection,
+                target_metadata=target_metadata,
+                compare_type=True,
+            )
+            with context.begin_transaction():
+                context.run_migrations()
         return
 
     connectable = create_engine(
@@ -68,14 +70,14 @@ def run_migrations_online() -> None:
     )
 
     with connectable.connect() as connection:
-        context.configure(
-            connection=connection,
-            target_metadata=target_metadata,
-            compare_type=True,
-        )
-
-        with context.begin_transaction():
-            context.run_migrations()
+        with migration_writer_transaction(connection):
+            context.configure(
+                connection=connection,
+                target_metadata=target_metadata,
+                compare_type=True,
+            )
+            with context.begin_transaction():
+                context.run_migrations()
 
     connectable.dispose()
 

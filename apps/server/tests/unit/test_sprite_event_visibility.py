@@ -43,12 +43,13 @@ async def test_every_sprite_event_uses_authoritative_layer(monkeypatch, layer, o
     table = manager.create_table("Visibility", 100, 100)
     table.add_entity({"sprite_id": "token", "layer": layer, "x": 10, "y": 10})
     service = GameSessionProtocolService.__new__(GameSessionProtocolService)
-    service.clients = {role: AsyncMock() for role in ("owner", "co_dm", "player", "spectator")}
+    sockets = {role: AsyncMock() for role in ("owner", "co_dm", "player", "spectator")}
+    monkeypatch.setattr(service, "clients", sockets, raising=False)
     service.client_info = {role: {"role": role} for role in service.clients}
     proto = SpriteProtocol()
     proto.table_manager = manager
     proto.actions = ActionsCore(manager)
-    proto.broadcast_filtered = service.broadcast_filtered
+    proto.broadcast_filtered = AsyncMock(wraps=service.broadcast_filtered)
     proto.broadcast_to_session = AsyncMock()
     monkeypatch.setattr("service.protocol.sprites.load_entity_character_id", lambda _id: None)
     data = {"table_id": str(table.table_id), "sprite_id": "token", **payload}
@@ -57,7 +58,7 @@ async def test_every_sprite_event_uses_authoritative_layer(monkeypatch, layer, o
     await getattr(proto, f"handle_{operation}")(Message(MessageType.SPRITE_UPDATE, data), "sender")
 
     proto.broadcast_to_session.assert_not_awaited()
-    for role, socket in service.clients.items():
+    for role, socket in sockets.items():
         if layer == "tokens" or role in ("owner", "co_dm"):
             socket.send_text.assert_awaited_once()
             assert json.loads(socket.send_text.call_args.args[0])["data"]

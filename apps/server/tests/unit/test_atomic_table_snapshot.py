@@ -18,6 +18,7 @@ def test_snapshot_failure_rolls_back_every_change(test_db, test_game_session, mo
         crud.save_table_to_db(test_db, table, test_game_session.id)
     table.display_name = "Changed"
     first.name = "Changed"
+    assert removed.entity_id is not None
     table.remove_entity(removed.entity_id)
     table.add_entity({"name": "Added"})
     table.walls.clear()

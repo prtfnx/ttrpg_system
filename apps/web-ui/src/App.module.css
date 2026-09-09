@@ -223,3 +223,24 @@
   0%, 100% { opacity: 1; }
   50% { opacity: 0.5; }
 }
+.demoNotice {
+  position: fixed;
+  bottom: 12px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: var(--z-fixed);
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 12px;
+  max-width: calc(100vw - 32px);
+  padding: 10px 16px;
+  border-radius: 8px;
+  background: var(--bg-elevated);
+  color: var(--text-primary);
+  font-size: 14px;
+}
+
+.demoNotice a {
+  color: var(--color-primary-light);
+}

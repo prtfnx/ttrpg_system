@@ -9,6 +9,7 @@ import { ErrorBoundary } from '@shared/components/ErrorBoundary';
 import { useAppBootstrap } from '@app/hooks/useAppBootstrap';
 import styles from './App.module.css';
 import { WasmRuntimeProvider } from './lib/wasm/runtime';
+import { isDemoSession } from '@shared/utils/demoSession';
 
 function App() {
   const { state, handleSessionSelected, handleAuthError } = useAppBootstrap();
@@ -73,6 +74,13 @@ function App() {
           </WasmRuntimeProvider>
         </ProtocolProvider>
         <ToastContainer theme="dark" />
+        {isDemoSession() && (
+          <aside className={styles.demoNotice} aria-label="Demo session">
+            <span>Read-only demo · 30 minutes</span>
+            <a href="/demo">Start a new demo</a>
+            <a href="/demo/logout">Leave demo</a>
+          </aside>
+        )}
       </div>
     </ErrorBoundary>
   );

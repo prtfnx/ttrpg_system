@@ -100,6 +100,7 @@ async def lifespan(app: FastAPI):
     chat_retention_cleanup = asyncio.create_task(chat_retention_task())
     asset_deletion_cleanup = asyncio.create_task(asset_deletion_cleanup_task())
     upload_intent_cleanup = asyncio.create_task(upload_intent_cleanup_task())
+    demo_guest_cleanup = asyncio.create_task(demo_guest_cleanup_task())
 
     yield
 
@@ -110,6 +111,7 @@ async def lifespan(app: FastAPI):
     chat_retention_cleanup.cancel()
     asset_deletion_cleanup.cancel()
     upload_intent_cleanup.cancel()
+    demo_guest_cleanup.cancel()
     try:
         await cleanup_task
     except asyncio.CancelledError:
@@ -130,7 +132,24 @@ async def lifespan(app: FastAPI):
         await upload_intent_cleanup
     except asyncio.CancelledError:
         pass
+    try:
+        await demo_guest_cleanup
+    except asyncio.CancelledError:
+        pass
     logger.info("Application stopped", extra={"event_name": "application.stopped"})
+
+async def demo_guest_cleanup_task():
+    from service.demo_guests import cleanup_expired_guests
+
+    while True:
+        try:
+            await asyncio.sleep(60)
+            await run_blocking(cleanup_expired_guests)
+        except asyncio.CancelledError:
+            break
+        except Exception:
+            logger.exception("Expired demo guest cleanup failed")
+
 
 async def rate_limiter_cleanup_task():
     """Background task to clean up old rate limiter entries"""

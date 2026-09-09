@@ -48,7 +48,8 @@
             'username': (user.username if user else None),
             'email': (user.email if user else None)
           },
-          'userRole': user_role
+          'userRole': user_role,
+          'isDemo': (request.state.is_demo | default(false))
         }) | tojson | safe }};
       } catch(e) {
         console.warn('Initial data injection failed:', e);

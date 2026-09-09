@@ -14,6 +14,7 @@ export interface UserInfo {
 
 import type { SessionRole } from '@features/session/types/roles';
 import { logger } from '@shared/utils/logger';
+import { isDemoSession } from '@shared/utils/demoSession';
 
 export interface SessionInfo {
   session_code: string;
@@ -116,7 +117,7 @@ class AuthService {
     // For HTTP-only cookies, we can't read them directly
     // Instead, we validate authentication by making a request to /users/me
     try {
-      const response = await fetch('/users/me', {
+      const response = await fetch(isDemoSession() ? '/demo/me' : '/users/me', {
         credentials: 'include',
         headers: { 'Accept': 'application/json' }
       });
@@ -157,7 +158,7 @@ class AuthService {
    */
   async validateToken(token: string): Promise<UserInfo | null> {
     try {
-      const response = await fetch('/users/me', {
+      const response = await fetch(isDemoSession() ? '/demo/me' : '/users/me', {
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'
@@ -186,7 +187,7 @@ class AuthService {
    */
   async getUserSessions(): Promise<SessionInfo[]> {
     try {
-      const response = await fetch('/users/dashboard', {
+      const response = await fetch(isDemoSession() ? '/demo/me' : '/users/dashboard', {
         credentials: 'include', // Include HTTP-only cookies
         headers: {
           'Accept': 'application/json',
@@ -222,6 +223,10 @@ class AuthService {
   logout(): void {
     this.token = null;
     this.userInfo = null;
+    if (isDemoSession()) {
+      window.location.href = '/demo/logout';
+      return;
+    }
     // Clear cookie by setting it to expire
     document.cookie = 'token=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;';
     window.location.href = '/users/logout';

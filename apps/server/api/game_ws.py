@@ -2,17 +2,20 @@
 
 from __future__ import annotations
 
+import asyncio
 import hashlib
 import json
 import time
 import uuid
 from dataclasses import dataclass
+from datetime import UTC
 
 from config import Settings
 from database import crud, models
 from database.database import SessionLocal
 from fastapi import APIRouter, Depends, WebSocket, WebSocketDisconnect, status
 from service.authentication import AccessTokenRejected, resolve_active_user_from_token
+from service.demo_guests import DEMO_COOKIE, demo_message_allowed, resolve_demo_guest
 from service.game_session import ConnectionManager, get_connection_manager
 from sqlalchemy.orm import Session
 from utils.blocking import run_blocking
@@ -35,6 +38,7 @@ class WebSocketSessionContext:
     user_id: int
     username: str
     role: str
+    guest_expires_at: float | None = None
 
 
 def _session_reference(session_code: str) -> str:
@@ -69,11 +73,18 @@ def get_user_from_token(token: str, db: Session):
 def _load_websocket_session_context(
     token: str,
     session_code: str,
+    demo: bool = False,
 ) -> tuple[WebSocketSessionContext | None, str | None]:
     """Resolve handshake authority with a worker-owned ORM session."""
     db = SessionLocal()
     try:
-        user = get_user_from_token(token, db)
+        if demo:
+            try:
+                user = resolve_demo_guest(token, db, session_code)
+            except AccessTokenRejected:
+                return None, "authentication"
+        else:
+            user = get_user_from_token(token, db)
         if not user:
             return None, "authentication"
 
@@ -92,6 +103,8 @@ def _load_websocket_session_context(
             user_id=user.id,
             username=user.username,
             role=db_player.role or "player",
+            guest_expires_at=(user.guest_expires_at.replace(tzinfo=UTC).timestamp()
+                              if demo and user.guest_expires_at else None),
         ), None
     finally:
         db.close()
@@ -125,7 +138,8 @@ async def websocket_game_endpoint(
                 await websocket.close(code=status.WS_1008_POLICY_VIOLATION)
                 return
 
-            token = websocket.cookies.get("token")
+            demo = websocket.query_params.get("demo") == "1"
+            token = websocket.cookies.get(DEMO_COOKIE if demo else "token")
             context = None
             rejection_reason = "authentication"
             if token:
@@ -133,6 +147,7 @@ async def websocket_game_endpoint(
                     _load_websocket_session_context,
                     token,
                     session_code,
+                    *([True] if demo else []),
                 )
 
             if not context:
@@ -203,7 +218,21 @@ async def websocket_game_endpoint(
 
             limiter = WebSocketMessageLimiter(settings.WS_MESSAGES_PER_MINUTE, settings.WS_PREVIEWS_PER_MINUTE)
             while True:
-                raw_message = await websocket.receive_text()
+                if context.guest_expires_at is None:
+                    raw_message = await websocket.receive_text()
+                else:
+                    remaining = context.guest_expires_at - time.time()
+                    if remaining <= 0:
+                        await websocket.close(code=status.WS_1008_POLICY_VIOLATION, reason="Demo expired")
+                        return
+                    try:
+                        raw_message = await asyncio.wait_for(websocket.receive_text(), timeout=remaining)
+                    except TimeoutError:
+                        await websocket.close(code=status.WS_1008_POLICY_VIOLATION, reason="Demo expired")
+                        return
+                    if time.time() >= context.guest_expires_at:
+                        await websocket.close(code=status.WS_1008_POLICY_VIOLATION, reason="Demo expired")
+                        return
                 message_started = time.perf_counter()
                 payload_bytes = len(raw_message.encode("utf-8"))
                 if payload_bytes > settings.WS_MAX_MESSAGE_BYTES:
@@ -237,6 +266,12 @@ async def websocket_game_endpoint(
                         raise ValueError("WebSocket message must be an object")
                     message_data = limiter.filter_message(message_data, now)
                     if message_data is None:
+                        continue
+                    if demo and not demo_message_allowed(message_data):
+                        await connection_manager.send_personal_message(
+                            {"type": "error", "data": {"error": "Demo is read-only"}},
+                            websocket,
+                        )
                         continue
                     message_id = message_data.get("message_id")
                     if not isinstance(message_id, str) or not message_id:

@@ -14,6 +14,7 @@ import { useCombatStore } from '@features/combat/stores/combatStore';
 import { useOAStore } from '@features/combat/stores/oaStore';
 import { getCurrentWasmRuntime } from '@lib/wasm/runtime';
 import { logger, protocolLogger } from '@shared/utils/logger';
+import { demoQuery } from '@shared/utils/demoSession';
 import { showToast } from '@shared/utils/toast';
 import type { Message, MessageHandler } from './message';
 import { MessageType, createMessage, parseMessage } from './message';
@@ -565,7 +566,7 @@ export class WebClientProtocol {
     const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
     const host = window.location.host;
     protocolLogger.connection('WebSocket URL', `${protocol}//${host}/ws/game/${this.sessionCode}`);
-    const wsUrl = `${protocol}//${host}/ws/game/${this.sessionCode}`;
+    const wsUrl = `${protocol}//${host}/ws/game/${this.sessionCode}${demoQuery(this.sessionCode)}`;
     // Debug: report the exact session code the browser will use for the WS connect
     protocolLogger.connection('Connecting to session code', this.sessionCode);
 
@@ -635,7 +636,11 @@ export class WebClientProtocol {
           if (event.code === 1008 || event.code === 4003) {
             this.reconnectEnabled = false;
             logger.debug(`[Protocol]  Code 1008 detected. Reason: '${event.reason}'`);
-            if (event.reason === 'Kicked from session') {
+            if (event.reason === 'Demo expired') {
+              showToast.info('Your demo has expired. Start a new demo or leave to continue with your account.');
+              rejectConnection(new Error('Demo expired'));
+              return;
+            } else if (event.reason === 'Kicked from session') {
               logger.warn('KICKED FROM SESSION - NOT RECONNECTING');
               showToast.error('You have been kicked from the session');
               rejectConnection(new Error('Kicked from session'));

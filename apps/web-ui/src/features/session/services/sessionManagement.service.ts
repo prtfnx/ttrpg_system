@@ -4,12 +4,14 @@
  */
 
 import type { RoleChangeResponse, SessionPlayer, SessionRole } from '../types';
+import { isDemoSession } from '@shared/utils/demoSession';
 
 class SessionManagementService {
   private baseUrl = '/game/api';
 
   async getPlayers(sessionCode: string): Promise<SessionPlayer[]> {
-    const response = await fetch(`${this.baseUrl}/sessions/${sessionCode}/players`, {
+    const url = isDemoSession(sessionCode) ? '/demo/players' : `${this.baseUrl}/sessions/${sessionCode}/players`;
+    const response = await fetch(url, {
       credentials: 'include',
       headers: {
         'Accept': 'application/json'

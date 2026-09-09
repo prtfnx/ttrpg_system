@@ -59,8 +59,10 @@ def _bounded_number(value: object, minimum: float, maximum: float) -> float | No
 class _SpritesMixin(_ProtocolBase):
     """Handler methods for sprites domain."""
 
-    def _sprite_layer(self, table_id: str | None, sprite_id: str) -> str | None:
+    def _sprite_layer(self, table_id: str | None, sprite_id: str | None) -> str | None:
         """Resolve visibility from session-owned entities, never client fields."""
+        if not isinstance(sprite_id, str) or not sprite_id:
+            return None
         tables = [self.table_manager.get_table(table_id)] if table_id else self.table_manager.tables.values()
         for table in tables:
             if table is not None:

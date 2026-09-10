@@ -4,7 +4,7 @@ Audience: contributors changing files under `docs/current/`.
 
 Status: current.
 
-Last source audit: 2026-07-21
+Last source audit: 2026-09-10
 
 ## Command
 
@@ -45,3 +45,15 @@ authority for a current page.
 
 For metadata failures, add the missing source-audit or ADR header only after
 checking the page against source code, tests, scripts, or config.
+
+## What it does not prove
+
+The checker does not execute commands, compare model tables or registered
+messages to reference tables, validate source paths written in inline code,
+check external URLs or heading anchors, or review semantic accuracy. It also
+does not require audit dates on every root-level explanation page.
+
+For a source change, compare the affected current guide with the implementation
+and regression tests. Validate schema and protocol inventories separately,
+and ensure new pages are reachable from the README/map. Source review is
+required even when `docs:check` passes.

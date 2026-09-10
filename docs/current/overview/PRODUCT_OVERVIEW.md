@@ -6,7 +6,7 @@ features.
 Status: partial. This page describes the visible product shape from current
 server, React, and protocol code.
 
-Last source audit: 2026-07-08
+Last source audit: 2026-09-10
 
 ## What it is
 
@@ -50,7 +50,7 @@ Current session roles are defined in
 - `spectator`: limited viewing role.
 
 The right panel uses role gates to show or hide tabs. For example, table
-management, players, lighting, fog, backgrounds, map, and performance panels
+management, players, lighting, fog, map, and performance panels
 are DM-only in current React code.
 
 ## Main play surface
@@ -73,7 +73,7 @@ combines:
 The current React app has feature folders for:
 
 - actions;
-- assets and backgrounds;
+- assets;
 - auth;
 - canvas, entities, fog, lighting, measurement, painting, and table tools;
 - character management;
@@ -96,3 +96,15 @@ See [Feature map](../explanation/FEATURE_MAP.md) for source and test pointers.
 For combat, this rule is stricter: React may plan a turn and Rust/WASM may draw
 previews, but the server accepts combat mutations through `combat_command` and
 `CombatCommandService`.
+
+## Public demo
+
+`/demo` opens a shared demo through a unique, expiring spectator identity.
+Visitors can view content and select their own table; shared-content edits are
+blocked. The guest cookie does not replace an existing normal login. See
+[Auth and roles](../features/AUTH_AND_ROLES.md).
+
+The integrated server uses external PostgreSQL for hosted state and configured
+R2 for object bytes. One active application writer owns the live session cache;
+deployment replacement uses database fencing. This is not a horizontally
+scaled session service.

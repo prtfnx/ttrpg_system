@@ -4,7 +4,7 @@ Audience: anyone adding or changing files in `docs/current/`.
 
 Status: usable.
 
-Last source audit: 2026-07-08
+Last source audit: 2026-09-10
 
 ## Core rule
 
@@ -103,3 +103,25 @@ Update docs in the same change when code changes:
 
 Incorrect docs are worse than missing docs. If you cannot verify a detail,
 write the narrow fact you can verify and leave the open part explicit.
+
+## Keep evidence and instructions distinct
+
+Use one canonical page for each contract and link to it from related guides.
+Tutorials teach a first successful run; how-to pages solve a task; references
+state contracts; explanations describe ownership and tradeoffs. This follows
+the reader needs in [Diataxis](https://diataxis.fr/start-here/) without requiring
+a disruptive folder reorganization.
+
+- Distinguish source-verified behavior, configured deployment examples, and
+  operator-verified live state. An environment variable does not prove which
+  provider or backup policy is actually deployed.
+- State failure and retry semantics, authority, persistence boundaries, and
+  unsupported operations alongside the successful path.
+- Give commands a working directory and prerequisite environment. Commands
+  that mutate external state need their scope and expected result described.
+- Update `Last source audit` only after reviewing the relevant source and
+  tests; do not refresh dates in bulk to imply review of unchanged material.
+- Put test totals, commit-by-commit progress, and audit narratives in dated
+  reports outside `docs/current`. Current references point to regression owners.
+- Passing the docs checker proves its explicit checks only. It does not prove
+  source accuracy, provider permissions, or that commands were executed.

@@ -32,6 +32,8 @@ older plans or reports in `docs/`.
 - [Rust/WASM engine](RUST_WASM_ENGINE.md): Rust crate shape, `RenderEngine`,
   exported objects, callbacks, and change rules.
 - [State ownership](STATE_OWNERSHIP.md): which domain owns which kind of state.
+- [Persistence and application ownership](explanation/PERSISTENCE_AND_WRITER_OWNERSHIP.md):
+  atomic snapshots, pending failures, workers, and PostgreSQL process fencing.
 - [Testing strategy](TESTING_STRATEGY.md): which tests match each kind of
   change.
 - [Source map](SOURCE_MAP.md): where the main code lives.
@@ -46,6 +48,8 @@ older plans or reports in `docs/`.
   checklist.
 - [Environment variables](reference/ENVIRONMENT_VARIABLES.md): current server
   configuration, secrets, email, R2, and Render notes.
+- [Security and reliability contracts](reference/SYSTEM_CONTRACTS.md): current
+  hardened behaviors, canonical guides, regression owners, and limitations.
 - [Database schema](reference/DATABASE_SCHEMA.md): model families,
   persistence owners, combat journal, assets, and migrations.
 - [Docs quality checks](reference/DOCS_QUALITY_CHECKS.md): local link and
@@ -58,7 +62,7 @@ older plans or reports in `docs/`.
 ## Feature Guides
 
 - [Auth and roles](features/AUTH_AND_ROLES.md): account auth, JWT cookies,
-  Google OAuth, session roles, permissions, role changes, invitations, and
+  Google OAuth, expiring demo guests, session roles, permissions, invitations, and
   current rough edges.
 - [Sessions and invitations](features/SESSIONS_AND_INVITATIONS.md): session
   entry, player management, invite routes, session rules, game mode, and
@@ -95,6 +99,8 @@ older plans or reports in `docs/`.
   build path, required environment, database notes, and smoke checks.
 - [Configuration](operations/CONFIGURATION.md): server settings, production
   secrets, browser config, R2, CORS, cookies, and change checklist.
+- [Writer handover](operations/WRITER_HANDOVER.md): one-worker startup,
+  replacement behavior, maintenance transactions, and compatible rollback.
 - [Database migrations](operations/DATABASE_MIGRATIONS.md): Alembic lifecycle,
   Render startup sequence, recovery policy, and verification.
 - [Backup and restore](operations/BACKUP_AND_RESTORE.md): Neon development

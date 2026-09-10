@@ -5,7 +5,7 @@ Audience: contributors looking for the source owner of a visible app feature.
 Status: partial. This map names the main current locations. It is not a full
 API or protocol reference.
 
-Last source audit: 2026-08-17
+Last source audit: 2026-09-10
 
 ## How to read this
 
@@ -28,6 +28,7 @@ ownership rules.
 | Area | Source | Notes |
 | --- | --- | --- |
 | Users and auth pages | `apps/server/routers/users.py` | login, register, profile, settings, password reset |
+| Demo guests | `apps/server/routers/demo.py` and `apps/server/service/demo_guests.py` | separate expiring spectator credentials |
 | Google OAuth | `apps/server/routers/auth.py` | optional when Google credentials are configured |
 | Game sessions | `apps/server/routers/game.py` | create, join, session page, settings |
 | Invitations | `apps/server/routers/invitations.py` | invite creation, lookup, accept flow |
@@ -36,7 +37,7 @@ ownership rules.
 | Session runtime | `apps/server/service/game_session.py` and `apps/server/service/game_session_protocol.py` | connection manager and per-session protocol service |
 | Protocol handlers | `apps/server/service/protocol/` | domain-split WebSocket handlers |
 | Database | `apps/server/database/` | models, CRUD, migrations, session helpers |
-| Asset storage | `apps/server/storage/` and `apps/server/service/asset_manager.py` | local/R2 storage behavior |
+| Asset storage | `apps/server/storage/` and `apps/server/service/asset_manager.py` | R2 bytes and PostgreSQL metadata; no local metadata fallback |
 
 ## React feature areas
 
@@ -47,7 +48,7 @@ ownership rules.
 | Table | `apps/web-ui/src/features/table/` | table management and sync panels |
 | Canvas | `apps/web-ui/src/features/canvas/` | game canvas, tools, entities, token config, layer controls |
 | Actions | `apps/web-ui/src/features/actions/` | action panels and queue UI |
-| Assets | `apps/web-ui/src/features/assets/` and `apps/web-ui/src/lib/wasm/runtime/BrowserAssetCache.ts` | asset/background panels and browser-owned verified Blob cache |
+| Assets | `apps/web-ui/src/features/assets/` and `apps/web-ui/src/lib/wasm/runtime/BrowserAssetCache.ts` | asset panels and browser-owned verified Blob cache |
 | Character | `apps/web-ui/src/features/character/` | character panel, sheet, wizard, customization |
 | Chat | `apps/web-ui/src/features/chat/` | chat panel and overlay |
 | Combat | `apps/web-ui/src/features/combat/` | combat dock, command hooks, planning, DM controls |
@@ -63,11 +64,11 @@ ownership rules.
 Server protocol modules under `apps/server/service/protocol/` currently split
 message behavior by area:
 
-- `auth.py`
 - `tables.py`
 - `sprites.py`
 - `walls.py`
-- `paint.py`
+- `paint.py` and `paint_templates.py`
+- `measurements.py`
 - `assets.py`
 - `players.py`
 - `characters.py`

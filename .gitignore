@@ -134,9 +134,10 @@ legacy/desktop_client/trash/
 
 
 # ============================================================
-# Docs (internal; tracked separately if needed)
+# Current system docs are versioned; historical/internal material stays local.
 # ============================================================
-docs/
+docs/*
+!docs/current/
 
 # Server internal
 server_host/doc/

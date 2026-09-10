@@ -122,3 +122,16 @@ For combat details, read [Battle flow](BATTLE_FLOW.md).
 - Change app state in feature stores or `apps/web-ui/src/store.ts`.
 - Change WASM behavior through `packages/rust-core` and
   `apps/web-ui/src/lib/wasm/runtime`.
+
+## Durable state and deployment
+
+Hosted relational state uses external PostgreSQL; configured R2 stores asset
+bytes. The server keeps live session caches in one active application process.
+Database writer ownership fences a replaced process before its successor
+hydrates committed state. Table snapshots use bounded workers and atomic
+transactions. Read [Persistence and application ownership](explanation/PERSISTENCE_AND_WRITER_OWNERSHIP.md)
+for failure semantics and [Writer handover](operations/WRITER_HANDOVER.md)
+for the one-worker deployment contract.
+
+The public demo uses a separate expiring guest identity and cookie, preserving
+the visitor's normal login. See [Auth and roles](features/AUTH_AND_ROLES.md).

@@ -4,7 +4,7 @@ Audience: contributors deciding where new state or behavior belongs.
 
 Status: usable.
 
-Last source audit: 2026-08-17
+Last source audit: 2026-09-10
 
 The app has several state owners. Keep each kind of state in the place that can
 maintain it without reaching across domains.
@@ -123,3 +123,15 @@ spend resources.
 - `WasmRuntime` is authoritative for Rust object lifetime.
 - Rust is authoritative for local engine internals.
 - Use explicit methods, callbacks, and protocol messages between domains.
+
+## Pending state and replacement processes
+
+One active PostgreSQL application writer owns all live session caches. The
+per-session mutation lock orders work inside that process; database ownership
+separately fences other processes. A replacement hydrates committed state only
+after earlier transactions drain. See [Persistence and application ownership](explanation/PERSISTENCE_AND_WRITER_OWNERSHIP.md).
+
+Core table save failure leaves pending in-memory state for retry and returns
+failure rather than success. It is not a universal rollback of the live cache.
+Unconfirmed edits have no crash-durable command log. A superseded cache cannot
+reclaim ownership or replay its old snapshot onto the new writer.

@@ -4,7 +4,7 @@ Audience: contributors changing persisted server data.
 
 Status: usable.
 
-Last source audit: 2026-07-20
+Last source audit: 2026-09-10
 
 PostgreSQL schema history is managed only by Alembic. Models describe current
 intent; committed revisions describe how deployed databases reach that intent.
@@ -49,3 +49,17 @@ intent; committed revisions describe how deployed databases reach that intent.
 
 See [Database migrations](../operations/DATABASE_MIGRATIONS.md) for operator
 commands and recovery policy.
+
+## Preserve writer fencing
+
+For every new application table, add a PostgreSQL statement trigger in the new
+revision using `enforce_application_writer()` before insert, update, delete,
+and truncate. The coordination singleton is the intentional exception.
+Drop that table's trigger with its downgrade and respect SQLite test portability.
+
+Online Alembic supplies the current token under the exclusive writer lock.
+Keep data changes in that coordinated transaction. Verify
+`tests/integration/test_writer_fencing_postgresql.py` as well as model drift;
+its inventory assertion catches an unguarded table that autogenerate cannot.
+Read [Writer handover](../operations/WRITER_HANDOVER.md) before designing a
+rollback that would remove the ownership mechanism.

@@ -4,7 +4,7 @@ Audience: contributors locating the owner of code, configuration, or tests.
 
 Status: current.
 
-Last source audit: 2026-08-17
+Last source audit: 2026-09-10
 
 This map lists the main source areas and their current responsibility.
 
@@ -110,3 +110,16 @@ This map lists the main source areas and their current responsibility.
   behavior.
 - `apps/web-ui/src/**/*.test.ts(x)`: Vitest tests for React, runtime, protocol,
   and shared code.
+
+## Reliability and maintenance owners
+
+- `apps/server/database/writer.py`: transaction fencing and migration coordination.
+- `apps/server/service/application_writer.py`: admission and replaced-process retirement.
+- `apps/server/service/demo_guests.py`: guest scope, expiry, and allowed messages.
+- `apps/server/utils/websocket_rate_limit.py`: command/preview/frame budgets.
+- `packages/core-table/core_table/actions_core.py`: confirmed canvas persistence and retry state.
+- `packages/rust-core/src/rendering/texture_manager.rs`: image callback and GL texture ownership.
+
+The old `apps/server/scripts/extract_protocol_mixins.py` refuses execution;
+it is not a maintenance or code-generation tool. See
+[Security and reliability contracts](reference/SYSTEM_CONTRACTS.md) for test owners.

@@ -4,7 +4,7 @@ Audience: contributors changing the Python server or shared domain package.
 
 Status: usable.
 
-Last source audit: 2026-08-17
+Last source audit: 2026-09-10
 
 The server is a FastAPI app with WebSocket sessions and a Python tabletop
 domain package behind it.
@@ -57,7 +57,7 @@ game_ws.py -> ConnectionManager -> GameSessionProtocolService -> ServerProtocol
 The WebSocket endpoint opens its handshake database session only after origin
 validation. Authentication and membership checks share that short-lived
 session, and a `finally` block closes it before the long-lived socket loop. The
-whole synchronous handshake lookup runs through `asyncio.to_thread`; the worker
+whole synchronous handshake lookup runs through `utils.blocking.run_blocking`; the worker
 creates and closes its own SQLAlchemy session.
 
 The connection manager does not retain one SQLAlchemy `Session` for the
@@ -88,7 +88,7 @@ over WebSocket on the event loop.
 
 Canvas database fallbacks follow it as well. Sprite quota/rules/character-link
 lookups and table wall/layer/paint hydration or settings writes execute in
-`canvas_persistence_service` through `asyncio.to_thread`. Each helper owns its
+`canvas_persistence_service` through `utils.blocking.run_blocking`. Each helper owns its
 ORM session and returns detached scalar/dictionary data; shared in-memory table
 state is read or mutated only after control returns to the event loop.
 
@@ -158,7 +158,6 @@ Protocol behavior is split by domain under `apps/server/service/protocol/`.
 - `characters.py`: character save, load, update, drafts, advancement, rolls,
   logs, and worker-offloaded linked-token persistence.
 - `combat.py`: combat, turns, conditions, cover, opportunity attacks.
-- `session.py`: layer settings, game mode, session rules.
 - `chat.py`: chat messages and history.
 - `helpers.py`: shared send, broadcast, and session helpers.
 
@@ -232,3 +231,21 @@ Focused combat tests live mainly in:
 - `apps/server/tests/unit/test_combat_state_presenter.py`;
 - `apps/server/tests/unit/test_combatant_factory.py`;
 - `apps/server/tests/unit/test_combat_persistence.py`.
+
+## Persistence and process lifecycle
+
+`main.AppState`, HTTP dependencies, and WebSocket endpoints use the same
+`get_connection_manager()` singleton. Startup attaches PostgreSQL writer
+ownership to this manager before loading live sessions. The ownership monitor
+rejects replaced-server admission and closes its real sockets with retry code
+1012. One Uvicorn worker is enforced by `scripts/migrate_and_start.py`.
+
+Table saves capture detached snapshots on the event loop and persist them
+atomically in worker-owned sessions. Failed saves remain pending; normal final
+disconnect retains failed state for retry, while a superseded process retires
+its obsolete cache. A failed command is not a universal in-memory rollback.
+See [Persistence and application ownership](explanation/PERSISTENCE_AND_WRITER_OWNERSHIP.md).
+
+`scripts/extract_protocol_mixins.py` is a retired one-off extractor that exits
+without rewriting files. Edit the current protocol modules directly; the
+`server_protocol.py` import shim does not make the extractor a supported tool.

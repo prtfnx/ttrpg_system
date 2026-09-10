@@ -5,7 +5,7 @@ Audience: contributors changing persistence, migrations, or server state.
 Status: partial. This page describes the current model families and migration
 flow. It is not a complete column-by-column schema.
 
-Last source audit: 2026-08-19
+Last source audit: 2026-09-10
 
 ## Source of truth
 
@@ -72,7 +72,8 @@ the runtime application.
 
 | Table | Model | Purpose |
 | --- | --- | --- |
-| `users` | `User` | account identity, password hash, verification, Google id, session version |
+| `users` | `User` | account identity, password hash, verification, Google id, session version, nullable guest expiry |
+| `application_writer_state` | `ApplicationWriterState` | singleton owner token and generation fencing process writes |
 | `game_sessions` | `GameSession` | session metadata, owner, session code, ban list, rules JSON, game mode |
 | `game_players` | `GamePlayer` | user membership in a session, role, connection state, active table |
 | `virtual_tables` | `VirtualTable` | persisted table state, dimensions, position, layers, lighting, grid, terrain, cover |
@@ -99,6 +100,8 @@ the runtime application.
 | `character_logs` | `CharacterLog` | per-character action log entries |
 | `chat_messages` | `ChatMessage` | persisted session chat messages |
 | `paint_strokes` | `PaintStroke` | persisted table drawing strokes |
+| `shared_measurements` | `SharedMeasurement` | persisted completed measurements |
+| `paint_templates` | `PaintTemplate` | persisted brush/template data |
 
 ## Important relationships
 
@@ -163,7 +166,10 @@ apps/server/database/alembic/versions/
 ```
 
 The PostgreSQL baseline is `0001_postgresql_baseline`; incremental revisions
-through the current `0006_upload_intent_cleanup` head add later behavior.
+through the current `0008_application_writer` head add later behavior.
+`0007_demo_guest_expiry` adds guest expiry and revokes the legacy demo host;
+`0008_application_writer` seeds the owner record and installs PostgreSQL
+statement triggers. There are 30 application model tables, plus Alembic's revision ledger.
 Alembic records the deployed revision in `alembic_version`. The old numbered
 SQLite runner and ledger were retired; they are not an upgrade path for
 existing SQLite files.
@@ -179,3 +185,16 @@ existing SQLite files.
 6. For combat persistence changes, update
    [Combat commands](COMBAT_COMMANDS.md) if command idempotency, rollback, or
    journal behavior changes.
+
+## Snapshot and writer contracts
+
+Table snapshots commit table fields, entities, and walls atomically. Entity
+identity checks prevent a table snapshot from taking over another table's
+sprite. Table hydration preserves grid, snap, background, lighting, and unit
+settings. Other resource services retain their own transaction boundaries.
+
+Every PostgreSQL game-data table has `application_writer_guard`; the singleton
+coordination table is excluded. New tables need an explicit trigger migration;
+autogenerate/model drift checks do not verify triggers. See
+[Persistence and application ownership](../explanation/PERSISTENCE_AND_WRITER_OWNERSHIP.md)
+and [Add a database migration](../how-to/ADD_DATABASE_MIGRATION.md).

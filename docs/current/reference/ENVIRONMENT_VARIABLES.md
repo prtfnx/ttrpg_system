@@ -2,9 +2,9 @@
 
 Audience: contributors and operators configuring the FastAPI server.
 
-Status: usable.
+Status: partial. This lists deployment-critical settings, not every field in `Settings`.
 
-Last source audit: 2026-08-19
+Last source audit: 2026-09-10
 
 Server settings are defined in `apps/server/config.py`; ignored `.env` files
 are loaded by Pydantic settings.
@@ -36,6 +36,9 @@ PostgreSQL and Alembic.
 | `SECRET_KEY` | development placeholder | Must be a strong non-default production secret. |
 | `SESSION_SECRET` | development placeholder | Must be at least 32 characters in production. |
 | `METRICS_TOKEN` | empty | Required when production metrics are enabled. |
+| `WS_MAX_MESSAGE_BYTES` | `65536` | Maximum inbound frame bytes; valid range 1024-1048576. |
+| `WS_MESSAGES_PER_MINUTE` | `120` | Non-preview messages per socket, including each batch member; valid range 1-6000. |
+| `WS_PREVIEWS_PER_MINUTE` | `1800` | Disposable drag/resize/rotate previews per socket; valid range 1-12000. |
 | `WS_SEND_TIMEOUT_SECONDS` | `5.0` | Per-message protocol send deadline. Valid range is 0.1-60 seconds; tune only with production load evidence. |
 
 ## Asset resource limits
@@ -88,3 +91,17 @@ owner connection for `DATABASE_MIGRATION_URL`.
 R2, email, OAuth, and observability variables remain defined in `config.py` and
 `render.yaml`. See [Deployment](../operations/DEPLOYMENT.md) for the required
 hosted set.
+
+## Process ownership and fixed guest settings
+
+The migration/start wrapper explicitly passes `--workers 1`; setting
+`WEB_CONCURRENCY` does not override it. Keep Render `numInstances: 1`.
+Writer ownership is enabled for PostgreSQL and is not an optional feature flag.
+The control engine is separate from the runtime engine, so connection budgeting
+must allow both pools and temporary overlap during a deploy.
+
+Guest lifetime (30 minutes), audience, and cookie name are code constants in
+`service/demo_guests.py`, not environment settings. Changing an unrelated JWT
+lifetime setting does not extend guest access. See
+[Writer handover](../operations/WRITER_HANDOVER.md) and
+[Auth and roles](../features/AUTH_AND_ROLES.md).

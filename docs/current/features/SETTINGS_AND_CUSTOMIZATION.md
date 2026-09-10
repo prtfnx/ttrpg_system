@@ -5,7 +5,7 @@ settings, or browser-only UI preferences.
 
 Status: current but split across several feature owners.
 
-Last source audit: 2026-08-17
+Last source audit: 2026-09-10
 
 ## Ownership
 
@@ -124,3 +124,12 @@ Useful coverage lives in:
   owning its own component implementation.
 - Account/session HTML settings and in-game table settings use different
   routes, persistence paths, and UI surfaces.
+
+## Save/load contract
+
+Table appearance settings survive full snapshot serialization and database
+reload, including false `grid_enabled` and `snap_to_grid` values and custom
+grid/background colors. The direct settings route and full-table save path
+must preserve the same fields. `apps/server/tests/unit/test_table_settings_roundtrip.py`
+covers this boundary. See [Tables and canvas](TABLES_AND_CANVAS.md) for shared
+transforms and the distinction from browser camera preferences.

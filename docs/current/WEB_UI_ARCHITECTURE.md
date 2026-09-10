@@ -5,7 +5,7 @@ web styling.
 
 Status: current.
 
-Last source audit: 2026-08-17
+Last source audit: 2026-09-10
 
 The web UI is a Vite React app. React owns user workflows and browser state.
 Protocol code owns the WebSocket connection. `WasmRuntime` owns Rust/WASM.
@@ -144,3 +144,16 @@ accepted command still goes to the server for final validation and mutation.
   `apps/web-ui`.
 - CSS lint: `pnpm.cmd run lint:css` from `apps/web-ui`.
 - Token validation: `pnpm.cmd run validate:css` from `apps/web-ui`.
+
+## Guest identity and retryable failures
+
+The server-injected demo context selects `/demo/me`, demo membership/roster
+routes, and the guest WebSocket query. Browser code does not read the HTTP-only
+guest JWT and must not overwrite normal account credentials. See
+[Auth and roles](features/AUTH_AND_ROLES.md).
+
+`WebClientProtocol` owns retries for server replacement (1012) and command/frame
+budget rejection (1013). Preview overload drops disposable updates. Renderer
+disposal releases pending image callbacks and GL textures through Rust ownership.
+See [WebSocket messages](reference/WEBSOCKET_MESSAGES.md) and
+[Rust/WASM engine](RUST_WASM_ENGINE.md).

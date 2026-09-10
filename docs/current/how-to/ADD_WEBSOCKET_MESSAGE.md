@@ -4,7 +4,7 @@ Audience: contributors changing browser/server protocol behavior.
 
 Status: usable.
 
-Last source audit: 2026-08-04
+Last source audit: 2026-09-10
 
 ## Before you start
 
@@ -89,3 +89,20 @@ Add a focused feature test if the message is triggered by UI.
 - Handler validates required ids and role rules.
 - Client handler updates the correct owner: store, runtime, or feature state.
 - Tests cover success and at least one failure or permission path.
+
+## Authority and persistence checklist
+
+- Classify authoritative mutations in `MUTATING_MESSAGE_TYPES` and shared-state
+  reads in the existing serialization boundary. A registered handler alone does
+  not establish ordering.
+- Use the runtime database engine and worker-owned ORM sessions. Await confirmed
+  persistence before success; document any pending retry or rollback semantics.
+- Filter sprite events by authoritative visibility, not caller-provided layer
+  hints, and preserve stable recipient iteration.
+- New messages are denied to demo guests unless deliberately added to the
+  explicit allowlist. Test denied writes and mixed batches.
+- Account for each batch member in transport budgets. Do not route persistent
+  commands through the disposable preview budget.
+
+See [Persistence and application ownership](../explanation/PERSISTENCE_AND_WRITER_OWNERSHIP.md)
+and [Security and reliability contracts](../reference/SYSTEM_CONTRACTS.md).

@@ -4,7 +4,7 @@ Audience: contributors changing browser/server WebSocket messages.
 
 Status: current but partial.
 
-Last source audit: 2026-08-17
+Last source audit: 2026-09-10
 
 The protocol boundary connects browser clients to a game session on the server.
 It is message-based and should stay explicit.
@@ -41,9 +41,9 @@ Run `python packages/core-table/scripts/generate_protocol_types.py` after
 changing the schema. Run the same command with `--check` in verification to
 detect stale Python, TypeScript, or packaged schema bindings.
 
-The browser compiles the generated schema with Ajv when the protocol module
-loads. Python caches a `Draft202012Validator` over the same schema when the
-server parses its first message. Both boundaries reject unknown message types,
+The browser validates the generated schema through its Ajv-based validator.
+Python caches a `Draft202012Validator` over the same schema when the server
+parses its first message. Both boundaries reject unknown message types,
 non-object `data`, invalid envelope metadata, and unexpected top-level fields
 before dispatch. Validation does not coerce wire values.
 
@@ -59,8 +59,9 @@ Table list and active-table queries carry empty data. The server resolves the
 requesting user and session from authenticated connection state, so the browser
 must not send `user_id` or `session_code` in those commands. Table mutations use
 non-empty table identifiers and allow-listed fields. Creation dimensions are
-positive integers capped at 10,000, table names follow the database's 100-character
-limit, scale is greater than zero and at most 100, and settings use their runtime
+validated by both schema and handlers: creation currently requires 500-10,000
+pixels per dimension and names of at most 50 characters, even where the wire
+schema permits a wider range. Scale is greater than zero and at most 100, and settings use their runtime
 ranges and color formats. Fog updates contain coordinate-pair rectangles and are
 capped at 10,000 rectangles per hide or reveal list.
 
@@ -181,3 +182,20 @@ attack preview, cover-zone sync, and DM-only AI suggestions.
   turn start, initiative order, cover-zone sync, and DM-only AI suggestion.
 - Encounters: encounter state and encounter workflow messages.
 - Chat: send and request chat history.
+
+## Persistence and guest dispatch
+
+Successful core table mutations wait for confirmed persistence before the
+handler broadcasts success. Failed snapshots remain pending for retry; they
+are not universally rolled back in memory. See
+[Persistence and application ownership](explanation/PERSISTENCE_AND_WRITER_OWNERSHIP.md).
+
+Demo mode is selected at the authenticated WebSocket handshake. Guest messages
+must pass the explicit read/own-active-table allowlist before normal dispatch.
+A mixed read/write batch is rejected. New registered messages do not
+automatically become guest-accessible. See [Auth and roles](features/AUTH_AND_ROLES.md).
+
+Sprite broadcasts use authoritative layer visibility, including deletion and
+previews. Recipient iteration is stable across concurrent connection changes.
+Transport command and preview budgets, including retryable close 1013, are
+specified in [WebSocket messages](reference/WEBSOCKET_MESSAGES.md).

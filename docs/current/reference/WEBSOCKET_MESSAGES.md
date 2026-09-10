@@ -5,25 +5,21 @@ Audience: contributors changing browser/server protocol behavior.
 Status: partial. This page catalogs the currently registered server handlers
 and the main browser message families. It does not document every payload field.
 
-Last source audit: 2026-08-17
+Last source audit: 2026-09-10
 
 ## Source of truth
 
-Current message definitions live in two places:
+`packages/core-table/protocol/message.schema.json` is the canonical envelope,
+message registry, and incrementally typed payload schema. Run
+`python packages/core-table/scripts/generate_protocol_types.py` to generate
+the Python enum, TypeScript enum, and packaged schema; `--check` detects drift.
+`apps/web-ui/src/lib/websocket/message.ts` and
+`packages/core-table/core_table/protocol.py` validate messages against that
+shared schema. Server registration lives in `service/protocol/base.py`.
 
-- Browser enum and `Message` shape:
-  `apps/web-ui/src/lib/websocket/message.ts`.
-- Python enum and shared `Message` dataclass:
-  `packages/core-table/core_table/protocol.py`.
-
-Server handler registration lives in
-`apps/server/service/protocol/base.py`.
-
-The browser and Python enums cover different runtime responsibilities and are
-not expected to be textually identical. Every active browser/server flow must,
-however, define the same wire value on both sides. XP awards and multiclass
-requests are exposed by both enums and by typed browser protocol methods.
-Verify the sender, receiver, and their tests before adding a message.
+An enum value does not by itself register an inbound handler or authorize a
+caller. Verify direction, registration, payload validation, and role checks.
+See [Protocol boundary](../PROTOCOL_BOUNDARY.md).
 
 ## Message envelope
 
@@ -41,11 +37,10 @@ Browser messages use this shape:
   message_id?: string;
   causation_id?: string;
   correlation_id?: string;
-  traceparent?: string;
 }
 ```
 
-The Python `Message` dataclass uses the same core fields. Correlation and trace
+The Python `Message` dataclass uses the same core fields. Correlation
 fields connect an accepted command to its response without trusting them for
 identity or authorization. Normal priority is `5`; lower numbers are more
 urgent in the existing comments.
@@ -84,12 +79,15 @@ These messages are registered in `ServerProtocol.init_handlers`.
 | Assets | `asset_upload_request`, `asset_download_request`, `asset_list_request`, `asset_upload_confirm`, `asset_delete_request`, `asset_hash_check` | `protocol/assets.py` |
 | Compendium sprites | `compendium_sprite_add`, `compendium_sprite_update`, `compendium_sprite_remove` | `protocol/sprites.py` |
 | Characters | `character_save_request`, `character_load_request`, `character_list_request`, `character_delete_request`, `character_update`, `character_log_request`, `character_roll`, `xp_award`, `multiclass_request` | `protocol/characters.py` |
+| Character drafts | `character_draft_create_request`, `character_draft_list_request`, `character_draft_load_request`, `character_draft_update_request`, `character_draft_finalize_request`, `character_draft_abandon_request` | `protocol/characters.py` |
 | Walls and doors | `wall_create`, `wall_update`, `wall_remove`, `door_toggle` | `protocol/walls.py` |
 | Paint | `paint_stroke_create`, `paint_stroke_delete`, `paint_stroke_clear` | `protocol/paint.py` |
+| Paint templates | `paint_template_upsert`, `paint_template_delete`, `paint_template_sync` | `protocol/paint_templates.py` |
+| Measurements | `measurement_upsert`, `measurement_delete`, `measurement_clear`, `measurement_sync` | `protocol/measurements.py` |
 | Session | `layer_settings_update`, `game_mode_change`, `session_rules_update`, `session_rules_request` | `protocol/session.py` |
 | Combat | `combat_state_request`, `cover_zones_sync`, `attack_preview`, `ai_action`, `combat_command` | `protocol/combat.py` |
 | Encounters | `encounter_start`, `encounter_end`, `encounter_choice`, `encounter_roll` | `protocol/encounter.py` |
-| Chat | `chat`, `chat_request` | `protocol/chat.py` |
+| Chat | `chat`, `chat_request`, `chat_moderate` | `protocol/chat.py` |
 
 If a message is only present in an enum but not registered here, it is not a
 normal server inbound handler unless another path handles it explicitly.
@@ -159,8 +157,8 @@ hold a protocol broadcast indefinitely.
 
 ## Adding or changing a message
 
-1. Update the browser message enum when browser code sends or receives it.
-2. Update the Python enum when the server receives or sends it.
+1. Update `packages/core-table/protocol/message.schema.json`, including payload rules.
+2. Run `python packages/core-table/scripts/generate_protocol_types.py`; do not hand-edit generated enums.
 3. Add or update the client send helper or handler in `clientProtocol.ts`.
 4. Add or update the matching server protocol handler.
 5. Register the server handler in `ServerProtocol.init_handlers`.
@@ -169,3 +167,25 @@ hold a protocol broadcast indefinitely.
 
 For combat writes, read [Combat commands](COMBAT_COMMANDS.md) first. New direct
 combat mutation messages are usually the wrong boundary.
+
+## Transport budgets and close behavior
+
+`utils/websocket_rate_limit.py` accounts for commands and disposable sprite
+drag/resize/rotate previews separately for each socket over a rolling minute.
+Defaults are 120 commands and 1,800 previews. Batch members consume their own
+budgets, so batching does not bypass command limits. The envelope schema allows
+at most 50 batch entries; the transport parser's preliminary bound is looser.
+The frame budget is the sum of the two configured limits and bounds malformed
+traffic too.
+
+Excess previews are dropped while durable commands in a mixed batch are
+preserved. Exhausted command/frame budgets close with retryable code 1013.
+Normal sustained 20 Hz dragging fits the preview budget. Do not interpret 1013
+as lost authorization. `WS_MAX_MESSAGE_BYTES` defaults to 65,536 bytes.
+
+Server replacement or graceful restart uses retryable close 1012. Normal close
+1000 and authorization/policy close 1008 remain terminal. The current reconnect
+implementation, rather than the reason text, decides retry behavior.
+
+See [Environment variables](ENVIRONMENT_VARIABLES.md) for settings and
+[Writer handover](../operations/WRITER_HANDOVER.md) for process replacement.

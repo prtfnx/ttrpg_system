@@ -4,7 +4,7 @@ Audience: contributors adding FastAPI routes, pages, or JSON endpoints.
 
 Status: usable.
 
-Last source audit: 2026-08-17
+Last source audit: 2026-09-10
 
 ## Route ownership
 
@@ -18,7 +18,9 @@ Current routers:
 - `game`: game dashboard, session pages, session settings, player admin APIs.
 - `compendium`: public `/api/compendium` JSON endpoints.
 - `invitations`: `/api/invitations` JSON endpoints.
-- `demo`: demo pages.
+- `demo`: separate expiring guest pages and identity/membership endpoints.
+- `audit`: authenticated audit access.
+- `telemetry`: browser telemetry ingestion.
 
 The WebSocket endpoint is separate, in `apps/server/api/game_ws.py`. Do not add
 WebSocket behavior through an HTTP router.
@@ -104,3 +106,16 @@ database fixtures from `apps/server/tests/conftest.py`.
   work in a worker-owned transaction.
 - Integration tests cover success and at least one failure path.
 - Docs mention the route only if contributors need to know it exists.
+
+## Runtime ownership
+
+Use the configured runtime database engine. A separately constructed engine
+does not inherit the application's transaction token and its writes are
+rejected after PostgreSQL ownership is claimed. Administrative scripts need
+the explicit maintenance context; request handlers must not claim a new writer.
+
+Regular account dependencies reject guest principals. Use the dedicated demo
+dependency only for intentionally guest-scoped endpoints; do not widen account
+routes to make a demo workflow convenient. See
+[Auth and roles](../features/AUTH_AND_ROLES.md) and
+[Writer handover](../operations/WRITER_HANDOVER.md).

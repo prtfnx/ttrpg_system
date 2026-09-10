@@ -5,7 +5,7 @@ or session-level rules.
 
 Status: current.
 
-Last source audit: 2026-08-17
+Last source audit: 2026-09-10
 
 ## Source owners
 
@@ -49,7 +49,9 @@ Session entry:
 Handshake authority lookup and initial durable protocol reconstruction run as
 worker-owned synchronous database operations. Autosave and the final save on
 last disconnect use the same off-thread boundary. Final cleanup waits for
-serialized mutations, saves once, then clears in-memory protocol state.
+serialized mutations and confirms the final save before clearing state. Failed
+saves retain the session for retry. Superseded writers instead retire obsolete
+caches; see [Persistence and application ownership](../explanation/PERSISTENCE_AND_WRITER_OWNERSHIP.md).
 
 Player management:
 
@@ -120,3 +122,10 @@ matching Vitest files for browser session UI changes.
 
 Invitation revocation uses `DELETE /api/invitations/{invitation_id}` in both the
 browser and server. There is no invitation refresh or alternate delete path.
+
+## Demo session entry
+
+The public demo is a separate guest path through `/demo` and `/demo/session`.
+It creates expiring spectator membership without replacing an account login.
+It does not make ordinary game-session codes public join credentials. See
+[Auth and roles](AUTH_AND_ROLES.md) for guest authentication and allowed messages.

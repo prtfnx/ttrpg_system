@@ -5,7 +5,7 @@ character-token links, or vision fields on tokens.
 
 Status: current but partial.
 
-Last source audit: 2026-08-17
+Last source audit: 2026-09-10
 
 ## Source owners
 
@@ -71,8 +71,10 @@ Server handlers enforce the role rules:
 
 - Spectators cannot create, move, resize, rotate, or update sprites.
 - Non-DM users can create sprites only on non-DM layers and are limited by
-  `get_sprite_limit()`. The durable count is scoped to the authenticated game
-  session and performs exact JSON controller matching after its SQL prefilter.
+  `get_sprite_limit()`. Quotas combine controlled sprites in loaded live tables
+  with persisted sprites from unloaded tables in the authenticated session.
+  Loaded tables are excluded from the database count, so accepted but unsaved
+  creations and deletions are counted once. Database controller matching is exact.
 - DMs can create sprites on DM layers; non-DMs cannot.
 - DM-created sprites get an empty `controlled_by` list.
 - Player-created sprites are controlled by the creating user.
@@ -133,3 +135,28 @@ render-engine sprite behavior changes.
   browser-side paths. Keep server persistence canonical when adding fields.
 - Vision and lighting use token fields, but the actual visibility computation
   is in the lighting/fog feature boundary.
+
+## Identity, visibility, and renderer input
+
+Client-proposed sprite IDs are not authority. Creation rejects collisions;
+snapshot persistence scopes existing entity ownership to the intended table
+and session and rejects cross-table reuse instead of updating another token.
+Imported tables and duplicate IDs are subject to the same checks. The protocol
+does not universally replace client IDs with server-generated IDs.
+
+Requests resolve sprites through the domain entity index rather than treating
+layers as nested sprite dictionaries. A missing or inaccessible sprite fails
+closed. Every sprite event, including previews and compendium operations, uses
+the authoritative layer to filter recipients. Deletion captures that layer
+before removal. Broadcasts iterate a captured client collection so concurrent
+connect/disconnect does not invalidate iteration.
+
+Aura-color input is still text with a server-side length bound; it is not
+universally restricted to hexadecimal at every write path. Rust validates
+ASCII hex bytes without unsafe UTF-8 slicing and uses its safe invalid-color
+fallback. Malformed persisted colors must not panic or poison later renders.
+
+Regressions: `test_sprite_identity_security.py`, `test_sprite_quotas.py`,
+`test_sprite_event_visibility.py`, and `test_sprites_protocol.py` under
+`apps/server/tests/unit/`, plus the real WASM renderer tests. See
+[WebSocket messages](../reference/WEBSOCKET_MESSAGES.md) for preview budgets.

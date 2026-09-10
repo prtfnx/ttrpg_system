@@ -4,7 +4,7 @@ Audience: contributors changing the browser engine or its TypeScript boundary.
 
 Status: usable.
 
-Last source audit: 2026-08-17
+Last source audit: 2026-09-10
 
 The Rust crate is the local engine behind the browser canvas. It should stay
 focused on compute-heavy rendering, geometry, visibility, collision, planning,
@@ -107,8 +107,8 @@ cargo fmt --all -- --check
 cargo clippy --all-targets --all-features -- -D warnings
 cargo test --all-features
 cargo check --target wasm32-unknown-unknown --features wasm-start
-wasm-pack test --node
-wasm-pack test --headless --chrome
+wasm-pack test --node --test wasm_node --locked
+pnpm.cmd run test:browser
 ```
 
 ## Change guide
@@ -119,3 +119,22 @@ wasm-pack test --headless --chrome
 - Regenerate bindings after export changes.
 - Add or update the `WasmRuntime` method that owns the generated export.
 - Do not hand-edit generated `.js`, `.d.ts`, or `.wasm` files.
+
+## External colors and texture lifetime
+
+`render/mod.rs` parses hexadecimal colors using checked ASCII bytes. Invalid
+or non-ASCII input returns the parser's safe fallback rather than slicing
+through a UTF-8 character or panicking. Server acceptance alone is not proof
+that a string is a valid render color.
+
+`rendering/texture_manager.rs` owns pending image loads and both load/error
+closures. Completion detaches DOM handlers; replacement and disposal cancel
+pending loads and release the owned closures. Replaced and disposed WebGL
+textures are explicitly deleted. Do not call `Closure::forget()` for a callback
+whose lifetime is bound to a renderer. Unavailable WebGL2 is a recoverable
+initialization error.
+
+Native tests cover color parsing. `packages/rust-core/tests/wasm_browser.rs`
+covers actual image success/failure, renderer disposal, unavailable WebGL2,
+and malformed color behavior in a browser. Rebuild the tracked generated WASM
+when changing this code; native tests alone do not exercise DOM/GL lifetimes.

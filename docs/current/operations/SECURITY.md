@@ -6,14 +6,15 @@ public routes.
 Status: current. This page documents current controls and the remaining
 single-instance limitations visible in the codebase.
 
-Last source audit: 2026-08-17
+Last source audit: 2026-09-10
 
 ## Main security boundaries
 
 The app currently relies on:
 
 - JWT auth tokens issued by `apps/server/routers/users.py`;
-- an HTTP-only `token` cookie for browser sessions;
+- an HTTP-only `token` cookie for account sessions and separate `demo_token`
+  credentials for expiring guests;
 - Starlette session middleware for OAuth state;
 - server-side session roles from `utils/roles.py`;
 - per-route and per-protocol permission checks;
@@ -225,7 +226,8 @@ requires migrating server templates to nonces or external assets.
 
 - `CORS_ORIGINS` defaults to `*` for development; production validation rejects
   it and Render requires an explicit dashboard value.
-- Rate limiting is in-memory and single-process.
+- Auth/demo and WebSocket rate limiting is process-local; asset limits and
+  storage reservations use PostgreSQL. Restart resets process-local budgets.
 - The CSP still permits existing inline script and style blocks.
 
 Do not document these as solved until code changes make them true.
@@ -253,3 +255,28 @@ python -m pytest tests\unit\test_auth.py tests\unit\test_game_ws_security.py tes
 - Admin or account-sensitive behavior has audit coverage.
 - Rate limits are considered for public unauthenticated routes.
 - Tests cover denied paths, not only success.
+
+## Audit-hardened boundaries
+
+- OAuth resolves provider subjects and rejects email-only linking to an
+  existing local account. Guest credentials cannot authenticate as accounts.
+  See [Auth and roles](../features/AUTH_AND_ROLES.md).
+- Sprite identity ownership is enforced during creation and persistence.
+  Requests and every sprite event enforce authoritative layer visibility.
+  Sprite quotas include live loaded tables and durable unloaded tables.
+- Shared table scale/movement is DM-only, bounded, and persisted; personal
+  camera state stays local.
+- CSP includes `'wasm-unsafe-eval'` for WASM compilation and the validated
+  configured R2/Worker origin in `connect-src`. This does not enable JavaScript
+  eval. R2-disabled configurations add no external asset origin. Existing
+  inline-script/style allowances remain a separate hardening gap.
+- Drag previews have a separate disposable budget. Command/frame exhaustion
+  uses retryable 1013 instead of terminal authorization code 1008.
+- PostgreSQL ownership blocks stale process writes during replacement. It is
+  not an authorization boundary against a database administrator, and it does
+  not make multiple live application workers supported.
+
+See [Writer handover](WRITER_HANDOVER.md) and
+[Sprites, tokens, and entities](../features/SPRITES_TOKENS_AND_ENTITIES.md)
+for ownership and regression tests. Local test results do not verify deployed
+secrets, provider permissions, backups, or capacity.

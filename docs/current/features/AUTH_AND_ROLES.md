@@ -3,7 +3,7 @@
 Status: current. Account authentication and per-session authorization are
 separate server-owned systems.
 
-Last source audit: 2026-08-17
+Last source audit: 2026-09-10
 
 ## Source owners
 
@@ -55,7 +55,7 @@ The cookie is HTTP-only, `sameSite=lax`, and secure only when
 
 `get_current_user()` reads the cookie first, then an `Authorization: Bearer`
 header. HTTP and WebSocket entry points use the same token resolver. It
-validates the JWT, loads the user by username, rejects disabled users, and
+validates the JWT, loads the user by username, rejects disabled and guest users, and
 rejects the token if its `sv` claim no longer matches
 `users.session_version`.
 
@@ -100,11 +100,16 @@ unauthenticated browser session; there is no refresh-route dependency.
 
 Google OAuth is optional and lives in `apps/server/routers/auth.py`.
 
-When configured, `/auth/google` starts the flow and `/auth/callback` creates or
-links a user, then sets the same `token` cookie as password login. Authlib keeps
+When configured, `/auth/google` starts the flow and `/auth/callback` resolves
+an existing Google subject or creates a new account, then sets the same `token`
+cookie as password login. The callback requires a verified provider email. An
+existing local account with the same email is not linked: the identity
+transaction raises HTTP 409; the callback catches it and redirects to the
+login page with an OAuth failure query. It does not return a raw 409 page.
+There is no authenticated account-linking endpoint yet. Authlib keeps
 state, nonce, and PKCE data in the signed, HTTP-only Starlette session so the
 callback remains bound to the initiating browser and works across workers.
-The provider exchange remains asynchronous; account linking/creation and its
+The provider exchange remains asynchronous; account resolution/creation and its
 audit record execute atomically in a worker-owned SQLAlchemy session so the
 callback does not block the application event loop.
 
@@ -183,3 +188,31 @@ When changing auth or roles:
    kick paths.
 6. Check `AuthProvider`, `authService`, and game-store session permissions.
 7. Add or update tests in server auth/role tests and web auth/session tests.
+
+## Separate demo identity
+
+`GET /demo` creates a unique 30-minute guest, a spectator membership in
+`DEMO2026`, and the HTTP-only `demo_token` cookie. It redirects to
+`/demo/session` without replacing an existing account `token` cookie.
+Production guest cookies are Secure and SameSite=Lax.
+
+`routers/demo.py` owns the demo pages and `/demo/me`, `/demo/players`, and
+`/demo/membership`. `service/demo_guests.py` validates audience `ttrpg-demo`,
+session scope, token version, database expiry, and active spectator membership.
+The demo template selects guest mode in React; auth initialization uses
+`/demo/me`, and the socket uses `/ws/game/DEMO2026?demo=1`.
+
+Guests may use the explicit content-read allowlist and choose their own active
+table. Shared-content writes, nested batches, and batches containing a denied
+command are rejected. This allowlist is narrower than a normal account's
+spectator role. Idle sockets expire too. Demo logout clears only `demo_token`.
+A minute-based cleanup job deletes at most 500 expired guests and memberships
+per run after a five-minute grace period; cleanup timing does not extend access.
+
+`users.guest_expires_at` is nullable for normal accounts. Migration
+`0007_demo_guest_expiry` also disables the known legacy demo host and increments
+its token version. Demo setup uses a disabled internal host, not a shared login.
+
+Verify with `test_demo_system.py`, `test_demo_guest_migration.py`, and the
+auth route and browser auth-service suites. See [Security](../operations/SECURITY.md)
+for the limits that also apply to guests.

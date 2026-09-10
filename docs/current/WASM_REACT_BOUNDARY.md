@@ -4,7 +4,7 @@ Audience: contributors changing React-to-Rust integration.
 
 Status: usable.
 
-Last source audit: 2026-08-17
+Last source audit: 2026-09-10
 
 React does not own Rust objects directly. It talks to `WasmRuntime`, and
 `WasmRuntime` owns the generated wasm-bindgen module.
@@ -20,7 +20,7 @@ apps/web-ui/src/lib/wasm/runtime
         |
         | generated wasm-bindgen bindings
         v
-apps/web-ui/src/lib/wasm/ttrpg_rust_core.*
+apps/web-ui/src/lib/wasm/generated/ttrpg_rust_core.*
         |
         | Rust exports
         v
@@ -43,9 +43,9 @@ packages/rust-core
 
 Generated files are implementation detail:
 
-- `apps/web-ui/src/lib/wasm/ttrpg_rust_core.js`
-- `apps/web-ui/src/lib/wasm/ttrpg_rust_core.d.ts`
-- `apps/web-ui/src/lib/wasm/ttrpg_rust_core_bg.wasm`
+- `apps/web-ui/src/lib/wasm/generated/ttrpg_rust_core.js`
+- `apps/web-ui/src/lib/wasm/generated/ttrpg_rust_core.d.ts`
+- `apps/web-ui/src/lib/wasm/generated/ttrpg_rust_core_bg.wasm`
 
 Feature code should not import those files directly. If feature code needs a
 WASM type, expose a runtime-owned type from

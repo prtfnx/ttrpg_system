@@ -5,7 +5,7 @@ canvas bootstrap, or table settings.
 
 Status: current but partial.
 
-Last source audit: 2026-08-17
+Last source audit: 2026-09-10
 
 ## Source owners
 
@@ -71,8 +71,8 @@ Create table:
 
 1. `createNewTable()` adds a local optimistic table with a `local_` id.
 2. The store sends `new_table_request` with `local_table_id`.
-3. The server creates the table through table actions and persists when a
-   session id is available.
+3. The server creates the table through table actions and confirms persistence
+   for the authenticated session before returning success.
 4. The server broadcasts `table_update` with `operation: create` and returns
    `new_table_response` to map the local id to server data.
 
@@ -100,7 +100,8 @@ Table management uses these current WebSocket messages:
 - `new_table_response`
 - `table_request`
 - `table_response`
-- `table_update`
+- `table_update_request` (client mutation)
+- `table_update` (server broadcast)
 - `table_delete`
 - `table_active_request`
 - `table_active_response`
@@ -186,3 +187,22 @@ engine contract changes.
   working when changing create responses.
 - Some join-time payloads are assembled from both in-memory table state and
   database fallbacks after server restart.
+
+## Durable transforms and reload
+
+`table_scale` and `table_move` change shared table transforms, so they require
+owner/co-DM authority. They are not personal camera pan/zoom commands. Scale
+must be finite, greater than zero, and at most 100; movement components must be
+finite and within the wire schema's coordinate bound. Domain actions persist these
+changes before success and broadcast.
+
+Full save/load preserves lighting, fog mode, unit/grid geometry, grid enabled,
+snap-to-grid, grid color, and background color through domain serialization
+and database hydration. Defaults apply when old data lacks a value, not when a
+saved value is false or otherwise differs from the default.
+
+Snapshot atomicity, pending failures, and cross-process ownership are described
+in [Persistence and application ownership](../explanation/PERSISTENCE_AND_WRITER_OWNERSHIP.md).
+Regression coverage includes `test_table_transform_persistence.py`,
+`test_table_settings_roundtrip.py`, and the atomic/async persistence suites in
+`apps/server/tests/unit/`.

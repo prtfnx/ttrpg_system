@@ -1,11 +1,13 @@
 ﻿# Build Rust WASM, React, copy assets to server, and update vite asset manifest.
 #
+# Stop the local server before deployment; assets and templates install with rollback.
 # Usage:
 #   .\build_and_deploy.ps1              # full production build
 #   .\build_and_deploy.ps1 -dev         # development build (unminified, debug logging)
 #   .\build_and_deploy.ps1 -WasmOnly    # build WASM only
 #   .\build_and_deploy.ps1 -WebOnly     # build React only (skip WASM)
 #   .\build_and_deploy.ps1 -SkipCopy    # build everything but don't copy to server
+#   .\build_and_deploy.ps1 -CopyOnly    # deploy an existing successful build
 #   .\build_and_deploy.ps1 -Test        # run Rust + TypeScript tests (no build)
 
 param(
@@ -13,7 +15,9 @@ param(
     [switch]$WasmOnly,
     [switch]$WebOnly,
     [switch]$SkipCopy,
-    [switch]$Test
+    [switch]$Test,
+    [switch]$CopyOnly,
+    [string]$Python
 )
 
 Set-StrictMode -Version Latest
@@ -25,13 +29,30 @@ $WebDir       = "$Root\apps\web-ui"
 $WasmOut      = "$WebDir\src\lib\wasm\generated"
 $Dist         = "$WebDir\dist"
 $Static       = "$Root\apps\server\static\ui"
-$Python       = "$Root\.venv\Scripts\python.exe"
-$UpdateScript = "$Root\apps\server\scripts\update_vite_assets.py"
+$PackageScript = "$Root\apps\server\scripts\package_web_ui.py"
 
 function Require-Command ($name) {
     if (-not (Get-Command $name -ErrorAction SilentlyContinue)) {
         throw "Required tool not found: '$name'. Install it and try again."
     }
+}
+
+function Resolve-Python {
+    if ($Python) {
+        $candidates = @($Python)
+    } else {
+        $candidates = @()
+        if ($env:VIRTUAL_ENV) { $candidates += "$env:VIRTUAL_ENV\Scripts\python.exe" }
+        $candidates += @("$Root\.venv311\Scripts\python.exe", "$Root\.venv\Scripts\python.exe", "python")
+    }
+    foreach ($candidate in $candidates) {
+        $command = Get-Command $candidate -ErrorAction SilentlyContinue
+        if ($command) {
+            & $command.Source -c "import sys; sys.exit(0 if sys.version_info >= (3, 11) else 1)"
+            if ($LASTEXITCODE -eq 0) { return $command.Source }
+        }
+    }
+    throw "Python 3.11+ is required for packaging. Activate your environment or pass -Python <python.exe>."
 }
 
 function Build-Wasm {
@@ -47,10 +68,10 @@ function Build-Wasm {
             # Preferred path: wasm-pack handles cargo + wasm-bindgen + wasm-opt in one step.
             if ($dev) {
                 Write-Host "    [dev] debug logging enabled"
-                wasm-pack build --target web --out-dir "$WasmOut" --features wasm-start,dev-logging 2>&1 |
+                wasm-pack build --dev --locked --target web --out-dir "$WasmOut" --features wasm-start,dev-logging 2>&1 |
                     ForEach-Object { Write-Host $_ }
             } else {
-                wasm-pack build --release --target web --out-dir "$WasmOut" --features wasm-start 2>&1 |
+                wasm-pack build --release --locked --target web --out-dir "$WasmOut" --features wasm-start 2>&1 |
                     ForEach-Object { Write-Host $_ }
             }
             if ($LASTEXITCODE -ne 0) { throw "wasm-pack failed (exit $LASTEXITCODE)" }
@@ -64,7 +85,7 @@ function Build-Wasm {
             $cargoFlags = if ($dev) { @("--features", "wasm-start,dev-logging") } else { @("--release", "--features", "wasm-start") }
             $wasmTarget = "$RustDir\target\wasm32-unknown-unknown\$profile\ttrpg_rust_core.wasm"
 
-            cargo build --target wasm32-unknown-unknown @cargoFlags 2>&1 |
+            cargo build --locked --target-dir "$RustDir\target" --target wasm32-unknown-unknown @cargoFlags 2>&1 |
                 ForEach-Object { Write-Host $_ }
             if ($LASTEXITCODE -ne 0) { throw "cargo build failed (exit $LASTEXITCODE)" }
 
@@ -75,10 +96,11 @@ function Build-Wasm {
 
             # Optional wasm-opt pass (skipped if not installed)
             $bgWasm = "$WasmOut\ttrpg_rust_core_bg.wasm"
-            if ((Get-Command wasm-opt -ErrorAction SilentlyContinue) -and (Test-Path $bgWasm)) {
+            if (-not $dev -and (Get-Command wasm-opt -ErrorAction SilentlyContinue) -and (Test-Path $bgWasm)) {
                 Write-Host "    [opt] running wasm-opt -O3"
                 wasm-opt -O3 "$bgWasm" -o "$bgWasm" 2>&1 | ForEach-Object { Write-Host $_ }
-            } else {
+                if ($LASTEXITCODE -ne 0) { throw "wasm-opt failed (exit $LASTEXITCODE)" }
+            } elseif (-not $dev) {
                 Write-Host "::warning::wasm-opt not found — WASM output is NOT size-optimized. Install binaryen to enable -O3 optimization." -ForegroundColor Yellow
             }
         }
@@ -101,24 +123,24 @@ function Build-Wasm {
 
 function Build-Web {
     Write-Host "`n==> Building React (Vite)..." -ForegroundColor Cyan
-    # NODE_ENV must not be set to production here - pnpm would skip devDependencies.
-    # Vite reads mode from --mode flag, not NODE_ENV during build steps.
+    # Build with Vite defaults even if the calling shell has NODE_ENV set.
     $savedNodeEnv = $env:NODE_ENV
     Remove-Item Env:NODE_ENV -ErrorAction SilentlyContinue
     Push-Location $WebDir
     try {
         # tsc type-check then vite build -- mirrors the `build` script in package.json
-        pnpm exec tsc -b
+        pnpm.cmd exec tsc -b
         if ($LASTEXITCODE -ne 0) { throw "TypeScript check failed" }
 
         if ($dev) {
-            pnpm exec vite build --mode development
+            pnpm.cmd exec vite build --mode development
         } else {
-            pnpm exec vite build
+            pnpm.cmd exec vite build
         }
         if ($LASTEXITCODE -ne 0) { throw "Vite build failed" }
     } finally {
-        if ($savedNodeEnv) { $env:NODE_ENV = $savedNodeEnv }
+        if ($null -ne $savedNodeEnv) { $env:NODE_ENV = $savedNodeEnv }
+        else { Remove-Item Env:NODE_ENV -ErrorAction SilentlyContinue }
         Pop-Location
     }
     Write-Host "    dist -> $Dist" -ForegroundColor DarkGreen
@@ -129,7 +151,7 @@ function Test-Rust {
     Require-Command "cargo"
     Push-Location $RustDir
     try {
-        cargo test 2>&1 | ForEach-Object { Write-Host $_ }
+        cargo test --locked
         if ($LASTEXITCODE -ne 0) { throw "cargo test failed (exit $LASTEXITCODE)" }
     } finally {
         Pop-Location
@@ -141,7 +163,7 @@ function Test-TypeScript {
     Write-Host "`n==> Running TypeScript tests (jsdom project)..." -ForegroundColor Cyan
     Push-Location $WebDir
     try {
-        pnpm exec vitest run --project jsdom 2>&1 | ForEach-Object { Write-Host $_ }
+        pnpm.cmd exec vitest run --project jsdom
         if ($LASTEXITCODE -ne 0) { throw "vitest failed (exit $LASTEXITCODE)" }
     } finally {
         Pop-Location
@@ -150,33 +172,10 @@ function Test-TypeScript {
 }
 
 function Copy-ToServer {
-    Write-Host "`n==> Copying build to server static..." -ForegroundColor Cyan
-
-    if (-not (Test-Path "$Dist\.vite\manifest.json")) {
-        throw "Build output missing at $Dist - run Build-Web first."
-    }
-
-    if (Test-Path $Static) {
-        Remove-Item "$Static\*" -Recurse -Force
-    } else {
-        New-Item -ItemType Directory -Path $Static -Force | Out-Null
-    }
-
-    Copy-Item "$Dist\*" $Static -Recurse -Force
-    Write-Host "    React dist  -> $Static" -ForegroundColor DarkGreen
-
-    if (Test-Path $WasmOut) {
-        $WasmDest = "$Static\wasm"
-        New-Item -ItemType Directory -Path $WasmDest -Force | Out-Null
-        Copy-Item "$WasmOut\*" $WasmDest -Recurse -Force
-        Write-Host "    WASM        -> $WasmDest" -ForegroundColor DarkGreen
-    } else {
-        Write-Host "    [warn] No WASM at $WasmOut -- skipping wasm copy" -ForegroundColor Yellow
-    }
-
-    Write-Host "`n==> Updating vite asset templates..."
-    & $Python $UpdateScript
-    if ($LASTEXITCODE -ne 0) { throw "update_vite_assets.py failed" }
+    Write-Host "`n==> Packaging build for server static..." -ForegroundColor Cyan
+    & $Python $PackageScript
+    if ($LASTEXITCODE -ne 0) { throw "UI packaging failed (exit $LASTEXITCODE)" }
+    Write-Host "    React + WASM -> $Static" -ForegroundColor DarkGreen
 }
 
 # -- Execution ------------------------------------------------------------------
@@ -185,7 +184,17 @@ $mode = if ($dev) { "development" } else { "production" }
 Write-Host "Build mode: $mode" -ForegroundColor Yellow
 
 try {
-    if ($Test) {
+    $selectedModes = @($WasmOnly, $WebOnly, $CopyOnly, $Test) | Where-Object { $_ }
+    if (@($selectedModes).Count -gt 1) { throw "Choose only one of -WasmOnly, -WebOnly, -CopyOnly, or -Test." }
+    if ($CopyOnly -and $SkipCopy) { throw "-CopyOnly cannot be combined with -SkipCopy." }
+    if (-not $WasmOnly -and -not $CopyOnly) { Require-Command "pnpm.cmd" }
+    if (-not $Test -and -not $WasmOnly -and -not $SkipCopy) {
+        $Python = Resolve-Python
+        Write-Host "Packaging Python: $Python"
+    }
+    if ($CopyOnly) {
+        Copy-ToServer
+    } elseif ($Test) {
         Test-Rust
         Test-TypeScript
     } elseif ($WasmOnly) {
@@ -201,5 +210,6 @@ try {
     Write-Host "`nDone." -ForegroundColor Green
 } catch {
     Write-Host "`nBuild failed: $_" -ForegroundColor Red
+    Write-Host $_.ScriptStackTrace -ForegroundColor DarkRed
     exit 1
 }

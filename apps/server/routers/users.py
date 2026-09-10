@@ -282,7 +282,13 @@ def login_page(request: Request):
     elif msg == "account_deleted":
         success_message = "Your account has been deactivated."
 
+    oauth_errors = {
+        "oauth_init_failed": "Google sign-in could not start. Please try again.",
+        "oauth_not_configured": "Google sign-in is currently unavailable.",
+        "oauth_failed": "Google sign-in could not be completed. Please try again.",
+    }
     return templates.TemplateResponse(request, "login.html", {
+        "error": oauth_errors.get(request.query_params.get("error", "")),
         "success": success_message,
         "invite_code": invite_code,
         "next_url": next_url

@@ -31,6 +31,7 @@ import re
 import secrets
 from dataclasses import dataclass
 from datetime import timedelta
+from urllib.parse import urlsplit
 
 from authlib.integrations.starlette_client import OAuth, OAuthError
 from config import Settings
@@ -230,6 +231,13 @@ async def google_login(request: Request):
         base_url = settings.BASE_URL.rstrip('/')
         redirect_uri = f"{base_url}/auth/callback"
 
+        # The signed state cookie is host-only. Starting on 127.0.0.1 and
+        # returning to a localhost callback loses it on the first attempt.
+        # Move to the configured callback host before Authlib creates state.
+        # Compare hosts, not schemes: TLS may terminate at the reverse proxy.
+        if request.url.hostname != urlsplit(base_url).hostname:
+            return RedirectResponse(url=f"{base_url}/auth/google", status_code=302)
+
         logger.info("Initiating Google OAuth flow", extra={"event_name": "oauth.flow.started"})
 
         # Redirect to Google's authorization endpoint
@@ -369,4 +377,3 @@ async def google_callback(request: Request, db: Session = Depends(get_db)):
             url="/users/login?error=oauth_failed&reason=unexpected_error",
             status_code=302
         )
-

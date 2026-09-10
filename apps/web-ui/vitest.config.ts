@@ -1,9 +1,10 @@
 import react from '@vitejs/plugin-react';
 import { playwright } from '@vitest/browser-playwright';
 import { defineConfig } from 'vitest/config';
+import { messageValidatorPlugin } from './scripts/message-validator-plugin';
 
 export default defineConfig({
-  plugins: [react()],
+  plugins: [react(), messageValidatorPlugin()],
   test: {
     coverage: {
       provider: 'v8',
@@ -27,7 +28,7 @@ export default defineConfig({
     // Workspace projects: jsdom (unit/component) + browser (real WASM integration)
     projects: [
       {
-        plugins: [react()],
+        plugins: [react(), messageValidatorPlugin()],
         test: {
           name: 'jsdom',
           environment: 'jsdom',
@@ -55,7 +56,7 @@ export default defineConfig({
         },
       },
       {
-        plugins: [react()],
+        plugins: [react(), messageValidatorPlugin()],
         test: {
           name: 'browser',
           include: ['src/**/*.wasm-test.ts'],
@@ -84,7 +85,7 @@ export default defineConfig({
       },
       // ── browser-components: React components that need real browser APIs ──
       {
-        plugins: [react()],
+        plugins: [react(), messageValidatorPlugin()],
         test: {
           name: 'browser-components',
           include: ['src/**/*.browser-test.{ts,tsx}'],

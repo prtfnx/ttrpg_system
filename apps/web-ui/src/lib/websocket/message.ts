@@ -3,9 +3,8 @@
  * Ensures compatibility with server-side message handling
  */
 
-import Ajv2020 from 'ajv/dist/2020';
-
-import messageSchema from './message.schema.generated.json';
+import type { ValidateFunction } from 'ajv';
+import validateMessage from 'virtual:ttrpg-message-validator';
 
 // BEGIN GENERATED MESSAGE TYPES - run packages/core-table/scripts/generate_protocol_types.py
 export const MessageType = {
@@ -389,9 +388,7 @@ interface WireMessage {
   causation_id?: string | null;
 }
 
-const messageValidator = new Ajv2020({ allErrors: true });
-messageValidator.addKeyword('x-enum-varnames');
-const validateWireMessage = messageValidator.compile<WireMessage>(messageSchema);
+const validateWireMessage = validateMessage as ValidateFunction<WireMessage>;
 
 export type MessageHandler = (message: Message) => Promise<void> | void;
 
@@ -426,9 +423,9 @@ export function createMessage(
 export function parseMessage(jsonStr: string): Message {
   const data: unknown = JSON.parse(jsonStr);
   if (!validateWireMessage(data)) {
-    const details = messageValidator.errorsText(validateWireMessage.errors, {
-      separator: '; ',
-    });
+    const details = validateWireMessage.errors
+      ?.map((error) => `data${error.instancePath} ${error.message}`)
+      .join('; ');
     throw new Error(`Invalid message: ${details}`);
   }
 

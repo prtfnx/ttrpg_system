@@ -3,6 +3,7 @@ import { fileURLToPath } from 'node:url';
 import path from 'path';
 import { defineConfig } from 'vite';
 import wasmPack from 'vite-plugin-wasm';
+import { messageValidatorPlugin } from './scripts/message-validator-plugin';
 
 const appRoot = path.dirname(fileURLToPath(import.meta.url));
 
@@ -12,7 +13,7 @@ export default defineConfig(({ mode }) => {
   
   return {
     base: '/static/ui/',
-    plugins: [react(), wasmPack()],
+    plugins: [react(), wasmPack(), messageValidatorPlugin()],
     resolve: {
       alias: {
         '@': path.resolve(appRoot, './src'),

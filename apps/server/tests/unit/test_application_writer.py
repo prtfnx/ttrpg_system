@@ -35,6 +35,36 @@ def test_lifespan_owns_the_same_manager_as_websocket_and_http_dependencies():
     assert main.app_state.connection_manager is get_connection_manager()
 
 
+@pytest.mark.asyncio
+async def test_startup_reports_preflight_failure_without_claiming_writer(monkeypatch, caplog):
+    import main
+
+    monkeypatch.setattr(main, "settings", SimpleNamespace(is_production=False, SERVICE_VERSION="test"))
+    monkeypatch.setattr(main, "engine", SimpleNamespace(dialect=SimpleNamespace(name="postgresql")))
+    monkeypatch.setattr(main, "_readiness_result", lambda: {
+        "status": "not_ready",
+        "checks": {"database": {
+            "ok": False, "code": "required_schema_missing",
+            "missing_tables": ["application_writer_state"],
+            "applied_revision": "0001_postgresql_baseline",
+            "expected_revision": "0008_application_writer",
+        }},
+    })
+    writer = MagicMock()
+    monkeypatch.setattr(main, "ApplicationWriter", writer)
+
+    with pytest.raises(RuntimeError, match="python -m alembic upgrade head") as error:
+        async with main.lifespan(FastAPI()):
+            pytest.fail("Startup must reject the stale database")
+
+    assert "application_writer_state" in str(error.value)
+    assert "0001_postgresql_baseline" in str(error.value)
+    assert "0008_application_writer" in str(error.value)
+    assert "Database schema accepted" not in caplog.text
+    assert "application_writer_state" in caplog.text
+    writer.assert_not_called()
+
+
 def test_successor_fences_previous_process_and_cannot_be_reacquired(writers):
     old, new = writers
     assert old.claim() == 1

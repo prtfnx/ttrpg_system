@@ -32,7 +32,7 @@ from service.asset_deletion_service import process_pending_asset_deletions
 from service.asset_manager import get_server_asset_manager
 from service.asset_upload_cleanup_service import process_pending_upload_cleanups
 from service.game_session import get_connection_manager
-from service.readiness import ReadinessChecker
+from service.readiness import ReadinessChecker, preflight_failure_message
 from sqlalchemy.orm import Session
 from starlette.middleware.sessions import SessionMiddleware
 from storage.r2_manager import R2AssetManager
@@ -90,7 +90,7 @@ async def lifespan(app: FastAPI):
                 extra={"event_name": "database.schema.rejected", "outcome": "error"},
             )
             raise RuntimeError("Database schema is not current")
-    logger.info("Database schema accepted", extra={"event_name": "database.schema.accepted"})
+        logger.info("Database schema accepted", extra={"event_name": "database.schema.accepted"})
 
     # Store app state in FastAPI app
     app.state.connection_manager = app_state.connection_manager
@@ -102,7 +102,12 @@ async def lifespan(app: FastAPI):
         # Validate the complete release before fencing the currently serving process.
         preflight = await run_blocking(_readiness_result)
         if preflight["status"] != "ready":
-            raise RuntimeError("Release preflight failed before writer handover")
+            message = preflight_failure_message(preflight)
+            logger.critical(message, extra={
+                "event_name": "application.preflight.failed", "outcome": "error",
+                "checks": preflight["checks"],
+            })
+            raise RuntimeError(message)
         control_engine = create_database_engine(settings)
         writer = ApplicationWriter(engine, control_engine)
         app.state.application_writer = writer

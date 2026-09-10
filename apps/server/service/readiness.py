@@ -20,6 +20,24 @@ REQUIRED_TABLES = {
 }
 
 
+def preflight_failure_message(result: dict) -> str:
+    """Describe bounded check results without exposing connection exceptions."""
+    failures = []
+    for name, check in result["checks"].items():
+        if check["ok"]:
+            continue
+        detail = f"{name}: {check.get('code', 'failed')}"
+        if check.get("missing_tables"):
+            detail += f" (missing tables: {', '.join(check['missing_tables'])})"
+        if "expected_revision" in check:
+            detail += f" (applied: {check.get('applied_revision') or 'none'}; expected: {check['expected_revision']})"
+        failures.append(detail)
+    message = "Release preflight failed before writer handover: " + "; ".join(failures)
+    if result["checks"].get("database", {}).get("code") in {"required_schema_missing", "schema_revision_mismatch"}:
+        message += ". From apps/server, run the server Python environment's `python -m alembic upgrade head`, then restart."
+    return message
+
+
 class ReadinessChecker:
     def __init__(self, settings, engine, r2_manager, static_ui_path: Path, compendium_artifact=None):
         self.settings = settings
@@ -45,10 +63,17 @@ class ReadinessChecker:
             with self.engine.connect() as connection:
                 connection.execute(text("SELECT 1"))
                 tables = set(inspect(connection).get_table_names())
-                if REQUIRED_TABLES - tables:
-                    return {"ok": False, "code": "required_schema_missing"}
+                missing_tables = sorted(REQUIRED_TABLES - tables)
                 applied = database_heads(connection)
             expected = repository_heads()
+            if missing_tables:
+                return {
+                    "ok": False,
+                    "code": "required_schema_missing",
+                    "missing_tables": missing_tables,
+                    "expected_revision": ",".join(expected) if expected else None,
+                    "applied_revision": ",".join(applied) if applied else None,
+                }
             if applied != expected:
                 return {
                     "ok": False,

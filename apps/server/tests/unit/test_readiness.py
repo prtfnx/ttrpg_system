@@ -99,6 +99,8 @@ def test_readiness_rejects_missing_asset_deletion_outbox(tmp_path):
 
     assert result["status"] == "not_ready"
     assert result["checks"]["database"]["code"] == "required_schema_missing"
+    assert result["checks"]["database"]["missing_tables"] == ["asset_deletion_jobs"]
+    assert result["checks"]["database"]["expected_revision"] == repository_heads()[0]
 
 
 def test_database_failure_is_bounded_and_does_not_log_connection_details(tmp_path, caplog):

@@ -3,7 +3,7 @@
 Status: current and practical. The checked-in Render target is a Free preview;
 use the production upgrade gate below before public-production approval.
 
-Last source audit: 2026-08-19
+Last source audit: 2026-09-10
 
 ## Scope
 
@@ -44,19 +44,25 @@ cd ../..
 pnpm.cmd dlx pyright@1.1.411
 ```
 
-PostgreSQL, against an empty disposable target:
+PostgreSQL, from `apps/server`, against an empty disposable target. Set the
+three variables below to the same isolated database; they serve different
+consumers (tests, runtime checks, and Alembic):
 
 ```powershell
-$env:TEST_POSTGRESQL_DATABASE_URL = "postgresql://..."
+cd apps/server
+$env:TEST_POSTGRESQL_DATABASE_URL = "postgresql://test_user:test_password@localhost:5432/ttrpg_test"
+$env:DATABASE_URL = $env:TEST_POSTGRESQL_DATABASE_URL
+$env:DATABASE_MIGRATION_URL = $env:TEST_POSTGRESQL_DATABASE_URL
 python -m pytest `
   tests/integration/test_alembic_baseline.py `
   tests/integration/test_postgresql_contract.py `
+  tests/integration/test_writer_fencing_postgresql.py `
   --no-cov
 alembic current --check-heads
 alembic check
 ```
 
-Web UI:
+Web UI, from the repository root:
 
 ```powershell
 cd apps/web-ui
@@ -67,7 +73,7 @@ pnpm.cmd run lint:css
 pnpm.cmd run validate:css
 ```
 
-Rust/WASM:
+Rust/WASM, from the repository root:
 
 ```powershell
 cd packages/rust-core
@@ -147,8 +153,8 @@ before release.
 2. Upgrade and test a disposable PostgreSQL database or Neon branch.
 3. Run `alembic current --check-heads` and `alembic check`.
 4. Confirm the application tables at the current Alembic head, including the
-   `0006_upload_intent_cleanup` limiter/quota and cleanup state, plus
-   `alembic_version`.
+   `0007_demo_guest_expiry` guest lifetime and `0008_application_writer`
+   ownership/trigger state, plus `alembic_version`.
 5. Confirm constraints, concurrent idempotency, readiness mismatch, and stale
    connection recovery tests pass.
 6. Prefer a forward fix; use Neon branch recovery only within the documented
@@ -173,7 +179,8 @@ cd apps/server && python scripts/migrate_and_start.py
 ```
 
 The wrapper takes a PostgreSQL advisory lock, upgrades and verifies Alembic,
-disposes the migration engine, and replaces itself with Uvicorn.
+disposes the migration engine, and replaces itself with one Uvicorn worker.
+PostgreSQL startup then preflights the release and claims writer ownership.
 
 The Blueprint uses one Free preview instance, disables automatic deploys, and
 provides a 60-second graceful shutdown window. Free has no Render maintenance
@@ -206,7 +213,9 @@ selected plan and acceptance evidence in the release record.
 
 ## Rollback and release record
 
-- Code rollback and schema recovery are separate decisions.
+- Code rollback and schema recovery are separate decisions. A release without
+  writer fencing cannot simply resume writes under migration 0008; follow
+  [Writer handover](WRITER_HANDOVER.md).
 - R2 bytes are separate from PostgreSQL metadata.
 - Use a reviewed forward migration when newer writes may exist.
 - Do not delete an old Neon branch or Render disk without explicit operator
@@ -214,3 +223,19 @@ selected plan and acceptance evidence in the release record.
 
 Record the commit, migrations, commands run, manual smoke results, known gaps,
 and the rollback decision point.
+
+## Additional acceptance boundaries
+
+- Enter `/demo` while normally logged in. Confirm the guest is a spectator,
+  writes fail, expiry is enforced, and leaving the demo preserves account login.
+- Load actual FastAPI-served assets with production CSP: WASM compiles, an
+  authorized R2/Worker image loads, and arbitrary external fetch origins remain
+  disallowed. Vite-only tests do not verify the server's CSP.
+- Persist table settings and a sprite, replace the server, and confirm the
+  acknowledged state reloads. Old sockets should reconnect with 1012; sustained
+  normal dragging should not exhaust the durable-command budget.
+- Confirm the PostgreSQL handover gate runs rather than skips. Unit tests with
+  SQLite do not prove row locks or trigger protection.
+- Check the current CLI limitations in [Database migrations](DATABASE_MIGRATIONS.md)
+  and [Observability and logging](OBSERVABILITY_AND_LOGGING.md) before an import
+  or privileged storage operation. Unit coverage is not a successful live drill.

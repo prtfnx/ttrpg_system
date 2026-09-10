@@ -6,7 +6,7 @@ Status: partial. Image upload, storage integrity, and the verified browser
 download path are implemented. Independent production backup remains an
 operations blocker.
 
-Last source audit: 2026-08-20
+Last source audit: 2026-09-10
 
 ## Ownership
 
@@ -148,8 +148,8 @@ written to normal logs.
 
 ## Operations
 
-Readiness validates required production R2 configuration and live dependency
-operations. The admin script applies CORS/lifecycle rules, runs a create/read/
+Readiness validates required R2 configuration; it does not make live object
+requests or verify provider permissions. The admin script applies CORS/lifecycle rules, runs a create/read/
 delete smoke check, and audits database keys against the whole dedicated bucket.
 Normal output is count-only; verbose output can reveal object keys.
 
@@ -163,3 +163,8 @@ Run asset-storage unit tests, Alembic/model-schema tests, R2 administration
 tests, TypeScript Blob-cache and Rust hash tests, browser asset tests, and the
 release smoke flow documented in
 [Release checklist](../operations/RELEASE_CHECKLIST.md).
+
+The standalone admin CLI currently cannot write its required audit event once
+PostgreSQL application ownership has been claimed, because it does not set the
+writer token. See [Observability and logging](../operations/OBSERVABILITY_AND_LOGGING.md)
+before treating that CLI as a verified live maintenance path.

@@ -5,7 +5,7 @@ Audience: new contributors setting up the app on Windows/PowerShell.
 Status: partial. This covers the current server-integrated run path. It does
 not cover production deployment.
 
-Last source audit: 2026-07-29
+Last source audit: 2026-09-10
 
 ## What you will run
 
@@ -32,7 +32,7 @@ Run from the repository root.
 Install JavaScript dependencies:
 
 ```powershell
-pnpm install
+pnpm install --frozen-lockfile
 ```
 
 Create and activate a Python virtual environment:
@@ -49,7 +49,9 @@ Install the editable Python domain package and server dependencies:
 ```
 
 That script installs `packages/core-table` in editable mode and then installs
-`apps/server/requirements.txt`.
+`apps/server/requirements.txt`. For server tests and static checks, also install
+`python -m pip install --require-hashes -r apps/server/requirements-dev.txt`
+from the repository root.
 
 For VS Code, open `ttrpg_system.code-workspace` after setup. Its Python leaf
 settings and Pyright configurations use `.venv311`. See
@@ -78,34 +80,35 @@ For a WASM-only rebuild:
 .\build_and_deploy.ps1 -WasmOnly
 ```
 
-## Start the server
+## Migrate, then start the server
 
-Keep the Python virtual environment active, then run:
+Keep the Python virtual environment active. From the repository root, configure
+an isolated development database and apply the schema before starting the app:
 
 ```powershell
+$env:ENVIRONMENT = "development"
+$env:DATABASE_URL = "sqlite:///./ttrpg.db"
+$env:DATABASE_MIGRATION_URL = $env:DATABASE_URL
+$env:R2_ENABLED = "false"
+Push-Location apps/server
+try {
+    python -m alembic upgrade head
+    if ($LASTEXITCODE -ne 0) { throw "Database migration failed" }
+} finally {
+    Pop-Location
+}
 .\scripts\dev-server.ps1
 ```
 
-The default URL is:
+Open `http://localhost:8000`. SQLite is a disposable first-run convenience;
+PostgreSQL is required for hosted operation and ownership/locking tests.
+Use a dedicated local PostgreSQL URL to exercise those boundaries. Do not point
+development startup at a live service database: a PostgreSQL process claims
+writer ownership and can supersede its server.
 
-```text
-http://localhost:8000
-```
-
-Before first start, set `DATABASE_URL` and apply the Alembic baseline:
-
-```powershell
-cd apps/server
-alembic upgrade head
-```
-
-Local SQLite remains available as a disposable convenience, but PostgreSQL is
-required for hosted and database-sensitive integration testing.
-
-For a local PostgreSQL setup, `DATABASE_URL` may use the same role while
-developing. To rehearse the production privilege split, set
-`DATABASE_MIGRATION_URL` to the schema owner and `DATABASE_URL` to a restricted
-runtime role.
+For the production privilege split, both database URLs must target the same
+schema: `DATABASE_MIGRATION_URL` uses the schema owner and `DATABASE_URL` a
+restricted runtime role. See [Writer handover](../operations/WRITER_HANDOVER.md).
 
 ## First smoke path
 
@@ -116,7 +119,9 @@ runtime role.
 5. Open the session page.
 6. Confirm the React game client loads.
 7. Confirm the WebSocket connection reaches the game session.
-8. Confirm the canvas area and right panel appear.
+8. Create a table as the session owner, then place a token and reload to
+   confirm saved state. An empty new session intentionally has no default table.
+9. Optionally open `/demo` and confirm it uses a separate spectator login.
 
 If login redirects or the React client does not load, rebuild with
 `.\build_and_deploy.ps1 -dev` and restart the server.

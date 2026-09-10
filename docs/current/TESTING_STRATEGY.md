@@ -4,7 +4,7 @@ Audience: contributors choosing and running verification for a change.
 
 Status: current.
 
-Last source audit: 2026-08-19
+Last source audit: 2026-09-10
 
 Tests should sit at the boundary where behavior is owned. Avoid testing a lower
 layer through an unrelated higher layer when a direct boundary test is clearer.
@@ -33,8 +33,9 @@ pnpm.cmd dlx pyright@1.1.411
 ```
 
 Pyright is pinned because diagnostic behavior changes between releases. The
-gate covers both Python packages and requires zero errors and warnings; do not
-hide a project diagnostic to compensate for a dependency missing from the
+gate covers both Python packages. CI invokes Pyright without `--warnings`, so
+errors fail the command while configured warnings are reported. Resolve new
+diagnostics; do not hide a project diagnostic to compensate for a dependency missing from the
 selected virtual environment.
 
 `tests/unit/test_protocol_serialization.py` verifies same-session mutation
@@ -53,7 +54,8 @@ async-to-sync submissions.
 for blocking HTTP handlers and injects a slow database call to prove the ASGI
 event loop remains responsive.
 OAuth callback integration tests assert that provider exchange and database
-persistence execute on different threads, and cover atomic identity linking
+persistence execute on different threads, and cover subject resolution,
+creation, and rejection of email-only linking
 with both success and failure audit records.
 Paint persistence regression tests cover the same thread boundary for stroke
 create/delete/clear and template upsert/delete/sync, plus stroke retry
@@ -93,7 +95,7 @@ Asset quota tests cover limiter state shared by independent workers, restart
 expiry, fail-closed store errors, per-user and plan-wide byte reservations,
 pending and final session/actor link decisions, idempotent duplicate linking,
 and cleanup when a final-link race rejects a newly promoted object. Run the
-optional PostgreSQL contract suite before scaling workers because SQLite does
+PostgreSQL contract suite for database-sensitive changes because SQLite does
 not implement `SELECT ... FOR UPDATE` row locking.
 
 The browser-only Rust/WASM suite uses pinned `wasm-pack 0.13.1`,
@@ -124,9 +126,9 @@ ruff check .
 Database-sensitive integration tests use an explicitly disposable database from
 `TEST_POSTGRESQL_DATABASE_URL`. They skip when the variable is absent and
 fail closed unless its database name contains `test`. Every application table
-must be empty at suite start. An operator can use
-`ALLOW_POSTGRESQL_INTEGRATION_TARGET=1` only for a uniquely named, short-lived
-schema that will be dropped after the run.
+must be empty at suite start except migration-owned singleton seed rows.
+Some older fixtures accept `ALLOW_POSTGRESQL_INTEGRATION_TARGET=1`; the writer
+handover suite deliberately requires a database name containing `test`.
 
 CI supplies a fresh PostgreSQL service and requires:
 
@@ -139,7 +141,11 @@ CI supplies a fresh PostgreSQL service and requires:
 - concurrent chat and combat idempotency constraints;
 - readiness at head and on a deliberately mismatched revision;
 - recovery when `pool_pre_ping` encounters a terminated idle backend;
-- ORM writes and generated primary keys across every model family.
+- ORM writes and generated primary keys across every model family;
+- writer triggers on every application table, rejected legacy/stale writes,
+  migration coordination, and transaction draining across two processes;
+- two real Uvicorn servers with authenticated WebSockets, retryable retirement,
+  and reload of acknowledged table state.
 
 SQLite remains useful for fast unit tests, but it is not evidence for hosted
 schema, constraint, or locking behavior.
@@ -279,3 +285,17 @@ Focused battle-flow suites:
 - Prefer small focused tests over broad integration tests for normal changes.
 - Add broader tests when changing a shared contract.
 - Do not use jsdom as proof that WebGL or real WASM canvas behavior works.
+
+## Persistence, identity, and guest regressions
+
+Use [Persistence and application ownership](explanation/PERSISTENCE_AND_WRITER_OWNERSHIP.md)
+for atomic snapshot, worker cancellation, save-recovery, and fencing test owners.
+Run `test_sprite_identity_security.py`, `test_sprite_event_visibility.py`, and
+`test_sprite_quotas.py` for token identity, per-recipient visibility, and live
+quota behavior. `test_demo_system.py` and `test_demo_guest_migration.py` cover
+separate guest authentication, expiry, and account isolation.
+
+Record exact commands, runtime versions, pass/skip counts, and unexercised
+provider checks in a dated report outside current docs. Do not turn one run's
+pass count into a permanent architecture guarantee or mark skipped PostgreSQL
+tests as validation. No test result alone verifies the live deployment.

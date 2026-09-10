@@ -4,7 +4,7 @@ Audience: contributors and operators changing runtime configuration.
 
 Status: usable.
 
-Last source audit: 2026-07-22
+Last source audit: 2026-09-10
 
 ## Source of truth
 
@@ -19,8 +19,8 @@ settings. Some code also reads environment variables directly, mainly:
 - `apps/server/routers/auth.py`;
 - `apps/server/routers/users.py`.
 
-Use [Environment variables](../reference/ENVIRONMENT_VARIABLES.md) for the full
-variable table. This page explains how to apply them safely.
+Use [Environment variables](../reference/ENVIRONMENT_VARIABLES.md) for the deployment-critical
+variable table; `config.py` remains the complete setting definition. This page explains how to apply them safely.
 
 ## Local server
 
@@ -50,8 +50,8 @@ In production, set:
 - `ENVIRONMENT=production`;
 - `SESSION_SECRET`, at least 32 characters;
 - `SECRET_KEY`, a real JWT secret;
-- `DATABASE_URL`, using the Neon runtime application role;
-- `DATABASE_MIGRATION_URL`, using the Neon schema-owner role;
+- `DATABASE_URL`, using the PostgreSQL runtime application role;
+- `DATABASE_MIGRATION_URL`, using the PostgreSQL schema-owner role;
 - `BASE_URL`, matching the public app origin when OAuth or email links are
   enabled.
 
@@ -69,8 +69,9 @@ OAuth callback URL is built from:
 {BASE_URL}/auth/callback
 ```
 
-Email uses Resend. When `RESEND_API_KEY` is empty, the email service logs the
-HTML instead of sending real mail. Set `EMAIL_FROM` to the verified sender used
+Email uses Resend. When `RESEND_API_KEY` is empty, delivery is disabled and a
+bounded disabled event is logged; message HTML, recipients, and recovery links
+are not logged. Set `EMAIL_FROM` to the verified sender used
 by the Resend account.
 
 ## R2 assets
@@ -203,3 +204,21 @@ and `BASE_URL` together.
   blueprint.
 - Keep secrets out of committed `.env` files.
 - Test production-only behavior with `ENVIRONMENT=production` before deploy.
+
+## Ownership and browser transport
+
+The two database URLs must reach the same application schema. The hosted entry
+point enforces one worker, and PostgreSQL startup claims writer ownership.
+See [Writer handover](WRITER_HANDOVER.md); no environment variable disables
+this guard. Do not start a development server against the live database.
+
+Guest expiry and cookie settings are described in [Auth and roles](../features/AUTH_AND_ROLES.md).
+Command and preview budgets are separate settings in
+[Environment variables](../reference/ENVIRONMENT_VARIABLES.md).
+CSP permits WASM compilation and derives `connect-src` from the configured
+R2/Worker transport. Switching transport modes therefore requires the matching
+origin and a server restart, not a wildcard browser policy.
+
+The storage ceiling is an application default, not a billing guarantee.
+Check the current [R2 pricing and free-tier rules](https://developers.cloudflare.com/r2/pricing/)
+before choosing provider budgets.

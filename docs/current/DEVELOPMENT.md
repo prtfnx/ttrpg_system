@@ -4,7 +4,7 @@ Audience: contributors changing code or running local verification.
 
 Status: current.
 
-Last source audit: 2026-08-04
+Last source audit: 2026-09-10
 
 This page lists the common local commands and the checks that match the main
 code areas.
@@ -105,8 +105,8 @@ cargo fmt --all -- --check
 cargo clippy --all-targets --all-features -- -D warnings
 cargo test --all-features
 cargo check --target wasm32-unknown-unknown --features wasm-start
-wasm-pack test --node
-wasm-pack test --headless --chrome
+wasm-pack test --node --test wasm_node --locked
+pnpm.cmd run test:browser
 ```
 
 Use native Rust tests for pure logic. Use wasm-bindgen tests for exported WASM
@@ -132,3 +132,17 @@ When adding docs:
 - Link to source paths.
 - Say what owns what.
 - Avoid migration history unless the page is explicitly a plan.
+
+## PostgreSQL and deployment-sensitive changes
+
+Use an isolated PostgreSQL database whose name contains `test` and set
+`TEST_POSTGRESQL_DATABASE_URL` before the integration gate. Never reuse a live
+application database for tests or development startup. Writer ownership means
+a fresh PostgreSQL server process can supersede an existing process using that
+same schema. See [Testing strategy](TESTING_STRATEGY.md) and
+[Writer handover](operations/WRITER_HANDOVER.md).
+
+The normal hosted entry point is `python scripts/migrate_and_start.py` from
+`apps/server`; it applies migrations and explicitly runs one worker. The local
+reload script is for isolated development. Install the locked
+`apps/server/requirements-dev.txt` for server test and type-check tooling.

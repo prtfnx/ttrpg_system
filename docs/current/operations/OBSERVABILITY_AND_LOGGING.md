@@ -4,7 +4,7 @@ Status: usable. Structured logs, request correlation, protected Prometheus
 metrics, audit retention, and optional OTLP traces are implemented. External
 dashboards and alert delivery remain operator work.
 
-Last source audit: 2026-08-17
+Last source audit: 2026-09-10
 
 ## Logging
 
@@ -86,27 +86,30 @@ but cannot replay an interrupted transaction.
 
 ## R2 operations
 
-Run from the repository root:
+`scripts/r2_storage_admin.py` implements storage configuration, a temporary
+create/read/delete smoke, and whole-bucket orphan comparison. Default audit
+output is counts; verbose output can reveal object keys.
 
-```powershell
-python scripts/r2_storage_admin.py smoke
-python scripts/r2_storage_admin.py audit
-```
+Current limitation: the CLI's `_record_admin_audit` uses an uninstrumented
+`SessionLocal`. After a PostgreSQL writer has claimed ownership, its required
+audit INSERT is rejected by the database trigger. Some R2 operations happen
+before that final audit, so command failure does not prove no object operation
+occurred. Stopping the app does not remove the persisted fence.
 
-The smoke command creates, reads, and deletes one temporary object. The audit
-compares database keys with the entire dedicated bucket and reports counts by
-default. Both commands record a bounded privileged audit event.
+Do not use this CLI as evidence of a successful audited production operation
+until its transaction is integrated with the maintenance writer context and
+tested against a claimed PostgreSQL database. Do not bypass this by clearing
+the token. See [Writer handover](WRITER_HANDOVER.md).
 
-An R2 token needs object delete for smoke cleanup and bucket list for the
-inventory audit. Stop after `cleanup_required=true`; fix permissions and remove
-objects under `pending/operations/smoke-` before trying again.
+The smoke requires object delete for cleanup; inventory needs bucket list.
+If a run reports `cleanup_required=true`, repair permissions and account for
+its temporary `pending/operations/smoke-` objects before another run.
 
-Normal asset removal emits distinct audit actions for `asset.unlink`,
-`asset.deletion.queued`, `asset.deletion.retry`,
-`asset.deletion.completed`, and terminal `asset.deletion.failed`. The bounded
-background worker records `asset_deletion` job duration/outcome metrics and
-`asset.deletion.cleanup.*` logs. Alert on failed job executions and durable
-`failed` outbox rows; object keys stay out of these events.
+Normal application asset removal uses the instrumented runtime engine and
+durable deletion outbox. Its audit actions include `asset.unlink`,
+`asset.deletion.queued`, `asset.deletion.retry`, `asset.deletion.completed`, and
+`asset.deletion.failed`. Monitor failed outbox rows separately from this CLI
+limitation.
 
 ## Remaining operator work
 
@@ -117,3 +120,18 @@ background worker records `asset_deletion` job duration/outcome metrics and
 - configure an OTLP backend if distributed traces are required;
 - rehearse incident response without placing provider secrets in tickets or
   copied logs.
+
+## Writer and persistence signals
+
+Successful PostgreSQL startup emits `application.writer.claimed` with a
+generation. Ownership loss emits `application.writer.superseded`. The old
+process rejects admission with HTTP 503/Retry-After and closes WebSockets with
+1012; `/health/live` remains available. `/health/ready` is unavailable on a
+superseded process. The readiness preflight checks configured R2 values, not
+network access or object permissions.
+
+Failed canvas saves remain dirty and retry with backoff. A normal shutdown
+that still has unsaved sessions logs an unconfirmed-persistence failure;
+superseded cache retirement is a different condition. Do not claim recovery of
+unacknowledged memory-only edits after process loss. See
+[Persistence and application ownership](../explanation/PERSISTENCE_AND_WRITER_OWNERSHIP.md).

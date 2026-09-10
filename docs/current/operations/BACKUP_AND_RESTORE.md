@@ -5,11 +5,14 @@ Audience: operators and maintainers protecting persisted game data.
 Status: development recovery only. Independent production backup is not yet
 implemented.
 
-Last source audit: 2026-08-17
+Last source audit: 2026-09-10
 
 ## Current development contract
 
-Relational state is in Neon PostgreSQL and asset bytes are in Cloudflare R2.
+Hosted relational state is in external PostgreSQL and asset bytes are in
+configured Cloudflare R2. The procedure below uses Neon as the development
+provider example; the repository does not establish the deployed provider or
+its enabled recovery window.
 Render's filesystem is disposable and is not a backup location.
 
 For the Free development deployment:
@@ -17,8 +20,9 @@ For the Free development deployment:
 - use Neon branch restore/time travel within the provider's available window;
 - use a fresh Neon branch/database to rehearse `alembic upgrade head`;
 - keep R2 lifecycle protection configured;
-- use `scripts/r2_storage_admin.py audit` to compare relational asset keys with
-  R2 objects.
+- compare relational asset keys with R2 objects; the standalone admin CLI
+  currently has a writer-token limitation described in
+  [Observability and logging](OBSERVABILITY_AND_LOGGING.md).
 
 The R2 audit inventories the entire dedicated bucket because valid legacy keys
 are not limited to an `assets/` prefix. Its default output contains counts
@@ -54,7 +58,8 @@ and an explicit retry after storage permission or availability is repaired.
    ```
 
 5. Run application and asset smoke tests.
-6. Replace Render's `DATABASE_URL` with the verified branch URL and deploy.
+6. Update both Render database URLs to the verified recovery database/schema
+   using their respective roles, then deploy one compatible writer.
 7. Delete the failed branch only after verification and explicit approval.
 
 ## Production blocker
@@ -70,3 +75,11 @@ encrypted PostgreSQL dump plus R2 snapshot contract with:
 
 Neon branch restore is useful development recovery, but it is not the
 independent backup required for production.
+
+## Restored writer ownership
+
+Restore the schema and singleton writer record with relational state. A fresh
+compatible process claims a new generation; do not reuse an old live cache or
+clear the restored token. Stop competing processes before recovery and verify
+that runtime and migration URLs point to the same recovered schema. See
+[Writer handover](WRITER_HANDOVER.md).

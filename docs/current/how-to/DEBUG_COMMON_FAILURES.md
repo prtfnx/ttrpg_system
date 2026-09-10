@@ -5,7 +5,7 @@ render, build, or persist.
 
 Status: usable.
 
-Last source audit: 2026-07-20
+Last source audit: 2026-09-10
 
 ## Start with the boundary
 
@@ -27,7 +27,7 @@ Check:
 
 ```powershell
 cd apps/server
-python main.py
+python scripts/migrate_and_start.py
 ```
 
 Common causes:
@@ -123,21 +123,23 @@ Check:
 - The asset row exists in the database after confirmation.
 - The runtime received `asset-downloaded` or `asset-uploaded` protocol events.
 
-Current asset listing is incomplete, so an empty asset-list response does not
-prove that uploads are broken.
+Asset listing is session-scoped and permission-filtered. Check confirmed
+metadata, active session links, and requesting identity before treating an empty
+list as missing object bytes. Readiness checks configuration, not live R2 access.
 
 ## Compendium data is missing
 
 Check:
 
 - `/api/compendium/status`;
-- exported JSON files under
-  `packages/core-table/core_table/compendiums/exports/`;
+- the bundled `packages/core-table/core_table/compendiums/bundled_srd51/`
+  manifest and payloads, or the explicitly configured `COMPENDIUM_DIR`;
 - `apps/server/routers/compendium.py`;
 - `apps/web-ui/src/features/compendium/services/compendiumService.ts`.
 
-Compendium route tests allow either available-data or missing-data status codes
-for some endpoints, because local data availability can vary.
+The bundled starter is the default. Ignored local exports are not the release
+artifact. A replacement directory must satisfy the verified manifest contract;
+see [Characters and compendiums](../features/CHARACTERS_AND_COMPENDIUMS.md).
 
 ## Last resort checklist
 
@@ -145,3 +147,24 @@ for some endpoints, because local data availability can vary.
 - Read the server log around the first failure, not the last cascade.
 - Run the smallest matching test file before a full suite.
 - Update docs only after the source behavior is confirmed.
+
+## Retryable closes and pending writes
+
+For HTTP 503 with a replacement message or WebSocket 1012, check
+`application.writer.claimed` and `application.writer.superseded`, the configured
+database/schema, and whether another process was started. Keep one worker.
+Never clear the owner token or restart old in-memory state to bypass fencing.
+
+WebSocket 1013 indicates a retryable command/frame budget limit; 1008 indicates
+a terminal policy/authentication rejection. Preview saturation drops disposable
+updates. Check the separate budgets before changing configuration.
+
+A failed canvas save can remain in memory and retry. Check database errors and
+pending-persistence logs before resubmitting creates. A superseded process
+cannot save its cache; only the replacement's committed state is authoritative.
+See [Persistence and application ownership](../explanation/PERSISTENCE_AND_WRITER_OWNERSHIP.md).
+
+For WASM compilation or image fetch failures, inspect browser CSP violations
+using the FastAPI-served page. `'wasm-unsafe-eval'` and the configured asset
+transport origin must appear in the response CSP. An allowed `img-src` alone
+does not authorize the Blob cache's `fetch()` call.

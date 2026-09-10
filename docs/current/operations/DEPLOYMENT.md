@@ -5,7 +5,7 @@ Audience: operators and contributors preparing a deploy.
 Status: usable for a Free preview deployment. Public production requires a
 paid, capacity-tested Render instance.
 
-Last source audit: 2026-07-29
+Last source audit: 2026-09-10
 
 ## Current target
 
@@ -14,7 +14,8 @@ Frankfurt:
 
 - source root: the repository root, so the build can access every monorepo
   package;
-- relational state: Neon PostgreSQL;
+- relational state: external PostgreSQL supplied by `DATABASE_URL`; Neon is
+  the documented development-provider example, not a requirement in code;
 - object bytes: Cloudflare R2;
 - local filesystem: build output and disposable runtime files only;
 - startup: `cd apps/server && python scripts/migrate_and_start.py`;
@@ -54,9 +55,10 @@ Render start
   +-- PostgreSQL advisory lock
   +-- alembic upgrade head + head verification
   +-- dispose migration engine
-  +-- exec Uvicorn
+  +-- exec Uvicorn with --workers 1
         |
         +-- DATABASE_URL (runtime application role)
+        +-- release preflight and one-time application writer claim
         +-- Neon PostgreSQL: relational state and R2 metadata
         +-- Cloudflare R2: asset bytes
 ```
@@ -80,14 +82,19 @@ Automatic deploys are disabled. For each reviewed release:
    during its zero-downtime deploy, and Free has no maintenance mode.
 3. Announce the preview restart and trigger a manual deploy of the recorded
    commit. Observe migration/startup
-   logs. The old process sends connected clients a retryable shutdown notice,
-   persists final protocol state, and closes WebSockets with code `1012`.
+   logs. Startup validates readiness, claims database ownership after older
+   transactions drain, and loads committed state. A superseded process closes
+   sockets with `1012` and retires its cache without saving a stale snapshot.
+   Brief retryable errors/reconnects can occur before the new process is routable.
 4. Confirm the deploy is healthy, at the expected Alembic revision, and serving
    the expected artifact and compendium digests.
 5. Run the preview smoke test, including cold-start and WebSocket reconnect.
 
-Do not scale above one instance until the in-memory OAuth state cache, rate
-limits, and connection coordination have shared-store designs.
+Keep one active process per database. PostgreSQL writer fencing handles
+replacement overlap; it does not support multiple simultaneously active
+session caches. OAuth state is already stored in the signed session cookie.
+Horizontal scaling still needs shared session ownership, event/revocation
+delivery, and a shared design for process-local rate limits.
 
 Use expand/contract migrations for the preview: add compatible schema first,
 deploy code that works with both shapes, and remove obsolete schema only in a
@@ -154,8 +161,10 @@ contract and manifest command.
 
 ## Verification
 
-Before deploying, use a uniquely named, disposable PostgreSQL database or
-schema:
+Before deploying, use a disposable PostgreSQL database whose name contains
+`test`. Set `TEST_POSTGRESQL_DATABASE_URL`, `DATABASE_URL`, and
+`DATABASE_MIGRATION_URL` to that isolated target before these commands; an
+existing migration URL must not silently select another database:
 
 ```powershell
 cd apps/server
@@ -165,6 +174,7 @@ alembic check
 python -m pytest `
   tests/integration/test_alembic_baseline.py `
   tests/integration/test_postgresql_contract.py `
+  tests/integration/test_writer_fencing_postgresql.py `
   --no-cov
 ```
 
@@ -224,3 +234,22 @@ keep direct R2 CORS valid if that fallback must remain immediately available.
 
 Do not delete an old Render disk or Neon branch until the new service is
 verified and an operator has explicitly accepted any data loss.
+
+## Writer handover requirements
+
+The current head is `0008_application_writer`. Follow
+[Writer handover](WRITER_HANDOVER.md) for role privileges, one-worker startup,
+maintenance writes, and rollback compatibility. Both database URLs must target
+the same application schema. Never clear the owner token to make older code
+write again. A rollback to code without fencing needs a planned stopped-service
+schema procedure, not just selection of an older Render commit.
+
+These are source-verified deployment instructions, not evidence that the live
+Render service, database provider, backup policy, or R2 permissions were inspected.
+The standalone R2 administrative CLI currently has a writer-fencing limitation;
+read [Observability and logging](OBSERVABILITY_AND_LOGGING.md) before using it.
+
+Provider policy details should be rechecked against
+[Render Free service documentation](https://render.com/docs/free) and
+[Render deployment behavior](https://render.com/docs/deploys) when choosing or
+changing a plan. Source configuration is not a provider-side acceptance test.

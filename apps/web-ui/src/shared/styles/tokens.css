@@ -367,10 +367,11 @@
   --z-dropdown: 1000;
   --z-sticky: 1020;
   --z-fixed: 1030;
-  --z-modal-backdrop: 1040;
-  --z-modal: 1050;
-  --z-popover: 1060;
-  --z-tooltip: 1070;
+  --z-floating-window: 1100;
+  --z-modal-backdrop: 1200;
+  --z-modal: 1210;
+  --z-popover: 1220;
+  --z-tooltip: 1230;
   
   /* ===== ANIMATION DURATIONS ===== */
   --duration-fast: 150ms;

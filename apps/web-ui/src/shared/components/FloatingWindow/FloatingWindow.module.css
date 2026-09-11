@@ -70,3 +70,28 @@
   flex-direction: column;
   min-height: 0;
 }
+
+.taskbar {
+  position: fixed;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  z-index: var(--z-tooltip);
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-xs);
+  padding: var(--space-xs) var(--space-sm);
+  background: var(--bg-elevated);
+  border-top: var(--border-width) solid var(--border-primary);
+}
+
+.taskbarButton {
+  height: 26px;
+  padding: 2px var(--space-sm);
+  color: var(--text-secondary);
+  background: var(--bg-secondary);
+  border: var(--border-width) solid var(--border-primary);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  font-size: var(--text-xs);
+}

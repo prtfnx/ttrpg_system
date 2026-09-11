@@ -42,6 +42,26 @@ body {
   overflow: hidden;
 }
 
+#window-root,
+#modal-root {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+}
+
+#window-root {
+  z-index: var(--z-floating-window);
+}
+
+#modal-root {
+  z-index: var(--z-modal-backdrop);
+}
+
+#window-root > *,
+#modal-root > * {
+  pointer-events: auto;
+}
+
 h1 {
   font-size: var(--text-5xl);
   line-height: var(--leading-none);

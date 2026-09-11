@@ -1,5 +1,7 @@
 import React, { createContext, useCallback, useContext, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { FloatingWindow } from './FloatingWindow';
+import styles from './FloatingWindow.module.css';
 
 interface WindowEntry {
   id: string;
@@ -28,10 +30,24 @@ interface WindowManagerContextValue {
 
 const WindowManagerContext = createContext<WindowManagerContextValue | null>(null);
 
-const BASE_Z = 1000;
+const BASE_Z = 0;
 
 function nextZ(windows: WindowEntry[]): number {
-  return windows.reduce((m, w) => Math.max(m, w.zIndex), BASE_Z) + 1;
+  return BASE_Z + windows.length + 1;
+}
+
+function normalizeZOrder(windows: WindowEntry[]): WindowEntry[] {
+  return [...windows]
+    .sort((left, right) => left.zIndex - right.zIndex)
+    .map((window, index) => ({ ...window, zIndex: BASE_Z + index + 1 }));
+}
+
+function moveToFront(windows: WindowEntry[], id: string): WindowEntry[] {
+  const ordered = normalizeZOrder(windows);
+  const entry = ordered.find(window => window.id === id);
+  if (!entry) return windows;
+  const behind = ordered.filter(window => window.id !== id);
+  return [...behind, { ...entry, zIndex: nextZ(behind) }];
 }
 
 export function WindowManagerProvider({ children }: { children: React.ReactNode }) {
@@ -48,13 +64,14 @@ export function WindowManagerProvider({ children }: { children: React.ReactNode 
     options: { title?: string; width?: number; height?: number } = {}
   ) => {
     setWindows(prev => {
-      const z = nextZ(prev);
-      const exists = prev.find(w => w.id === id);
+      const normalized = normalizeZOrder(prev);
+      const z = nextZ(normalized);
+      const exists = normalized.find(w => w.id === id);
       if (exists) {
         // Re-opening a window restores and brings to front
-        return [...prev.filter(w => w.id !== id), { ...exists, zIndex: z, minimized: false }];
+        return [...normalized.filter(w => w.id !== id), { ...exists, zIndex: z, minimized: false }];
       }
-      return [...prev, {
+      return [...normalized, {
         id,
         title: options.title ?? id,
         component,
@@ -72,12 +89,7 @@ export function WindowManagerProvider({ children }: { children: React.ReactNode 
   }, []);
 
   const bringToFront = useCallback((id: string) => {
-    setWindows(prev => {
-      const entry = prev.find(w => w.id === id);
-      if (!entry) return prev;
-      const z = nextZ(prev);
-      return [...prev.filter(w => w.id !== id), { ...entry, zIndex: z }];
-    });
+    setWindows(prev => moveToFront(prev, id));
   }, []);
 
   const isOpen = useCallback((id: string) => {
@@ -89,13 +101,13 @@ export function WindowManagerProvider({ children }: { children: React.ReactNode 
   }, []);
 
   const restoreWindow = useCallback((id: string) => {
-    setWindows(prev => {
-      const entry = prev.find(w => w.id === id);
-      if (!entry) return prev;
-      const z = nextZ(prev);
-      return [...prev.filter(w => w.id !== id), { ...entry, minimized: false, zIndex: z }];
-    });
+    setWindows(prev => moveToFront(
+      prev.map(window => window.id === id ? { ...window, minimized: false } : window),
+      id,
+    ));
   }, []);
+
+  const windowRoot = typeof document === 'undefined' ? null : document.getElementById('window-root');
 
   return (
     <WindowManagerContext.Provider value={{ openWindow, closeWindow, bringToFront, isOpen, minimizeWindow, restoreWindow }}>
@@ -117,35 +129,20 @@ export function WindowManagerProvider({ children }: { children: React.ReactNode 
           <w.component {...w.props} onClose={() => closeWindow(w.id)} />
         </FloatingWindow>
       ))}
-      {windows.some(w => w.minimized) && (
-        <div style={{
-          position: 'fixed', bottom: 0, left: 0, right: 0,
-          zIndex: 9999,
-          display: 'flex', flexWrap: 'wrap', gap: '4px',
-          padding: '4px 8px',
-          background: 'var(--bg-elevated)',
-          borderTop: '1px solid var(--border-primary)',
-        }}>
+      {windowRoot && windows.some(w => w.minimized) && createPortal(
+        <div className={styles.taskbar}>
           {windows.filter(w => w.minimized).map(w => (
             <button
               key={w.id}
               type="button"
               onClick={() => restoreWindow(w.id)}
-              style={{
-                background: 'var(--bg-secondary)',
-                border: '1px solid var(--border-primary)',
-                borderRadius: 'var(--radius-sm)',
-                color: 'var(--text-secondary)',
-                cursor: 'pointer',
-                fontSize: '12px',
-                padding: '2px 10px',
-                height: '26px',
-              }}
+              className={styles.taskbarButton}
             >
               {w.title}
             </button>
           ))}
-        </div>
+        </div>,
+        windowRoot,
       )}
     </WindowManagerContext.Provider>
   );

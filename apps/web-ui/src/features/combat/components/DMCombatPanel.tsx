@@ -1,5 +1,7 @@
 import { useGameStore } from '@/store';
 import type { Character, Sprite } from '@/types';
+import { isDM } from '@features/session/types/roles';
+import { isValidUUID } from '@lib/websocket';
 import { useMemo, useState } from 'react';
 import { useCombatCommands, type CombatantReferenceInput } from '../hooks/useCombatCommands';
 import { useCombatStore } from '../stores/combatStore';
@@ -76,22 +78,32 @@ function buildCombatantPayload(option: LinkedTokenOption): CombatantReferenceInp
   };
 }
 
-function buildCombatStartData(activeTableId: string | null, options: LinkedTokenOption[]) {
+function buildCombatStartData(activeTableId: string, options: LinkedTokenOption[]) {
   return {
-    table_id: activeTableId ?? 'default',
+    table_id: activeTableId,
     entity_ids: options.map((option) => option.spriteId),
     names: Object.fromEntries(options.map((option) => [option.spriteId, option.characterName])),
     combatants: options.map(buildCombatantPayload),
   };
 }
 
-function PreCombatSetup() {
+function PreCombatSetup({ onCancel }: { onCancel?: () => void }) {
   const { startCombat } = useCombatCommands();
   const activeTableId = useGameStore((s) => s.activeTableId);
+  const tables = useGameStore((s) => s.tables);
   const linkedTokenOptions = useLinkedTokenOptions();
+  const activeTable = tables.find(table => table.table_id === activeTableId);
+  const authoritativeTableId = activeTable
+    && activeTable.syncStatus !== 'local'
+    && activeTable.syncStatus !== 'syncing'
+    && activeTable.syncStatus !== 'error'
+    && isValidUUID(activeTable.table_id)
+    ? activeTable.table_id
+    : null;
 
   const startWithTableTokens = () => {
-    const data = buildCombatStartData(activeTableId, linkedTokenOptions);
+    if (!authoritativeTableId) return;
+    const data = buildCombatStartData(authoritativeTableId, linkedTokenOptions);
     startCombat({
       tableId: data.table_id,
       entityIds: data.entity_ids,
@@ -99,11 +111,16 @@ function PreCombatSetup() {
       combatants: data.combatants,
     });
   };
-  const startEmptyCombat = () => startCombat({ tableId: activeTableId ?? 'default' });
+  const startEmptyCombat = () => {
+    if (authoritativeTableId) startCombat({ tableId: authoritativeTableId });
+  };
 
   return (
     <div className={styles.panel}>
       <p className={styles.noCombaText}>No active combat.</p>
+      {!authoritativeTableId && (
+        <p className={styles.hint} role="status">Open a fully loaded table before starting combat.</p>
+      )}
       <div className={styles.rosterSummary}>
         <span>Current table linked tokens</span>
         <strong>{linkedTokenOptions.length}</strong>
@@ -119,21 +136,23 @@ function PreCombatSetup() {
         <button
           className={styles.startBtn}
           onClick={startWithTableTokens}
-          disabled={linkedTokenOptions.length === 0}
+          disabled={!authoritativeTableId || linkedTokenOptions.length === 0}
           title="Start combat and add linked token characters from the current table"
         >
           Start with Table Tokens ({linkedTokenOptions.length})
         </button>
-        <button className={styles.secondaryBtn} onClick={startEmptyCombat}>
+        <button className={styles.secondaryBtn} onClick={startEmptyCombat} disabled={!authoritativeTableId}>
           Start Empty
         </button>
+        {onCancel && <button className={styles.secondaryBtn} onClick={onCancel}>Cancel</button>}
       </div>
     </div>
   );
 }
 
-export function DMCombatPanel() {
+export function DMCombatPanel({ onCancelSetup }: { onCancelSetup?: () => void } = {}) {
   const combat = useCombatStore((s) => s.combat);
+  const role = useGameStore((s) => s.sessionRole);
   const activeTableId = useGameStore((s) => s.activeTableId);
   const {
     revertLastAction,
@@ -170,7 +189,8 @@ export function DMCombatPanel() {
   );
   const tableCombatantsAlreadyAdded = linkedTokenOptions.length - missingLinkedTokenOptions.length;
 
-  if (!combat) return <PreCombatSetup />;
+  if (!isDM(role)) return null;
+  if (!combat) return <PreCombatSetup onCancel={onCancelSetup} />;
 
   const selectedCombatant = combat.combatants.find(
     (combatant) => combatant.combatant_id === selectedId,
@@ -442,9 +462,14 @@ export function DMCombatPanel() {
         <h4 className={styles.sectionTitle}>Difficult Terrain</h4>
         <p className={styles.hint}>Mark cells as difficult terrain on the canvas, or clear all.</p>
         <div className={styles.row}>
-          <button className={styles.btn} onClick={() =>
-            setTerrain({ tableId: activeTableId ?? 'default', mode: 'clear' })
-          }>Clear All</button>
+          <button
+            className={styles.btn}
+            disabled={!activeTableId && !combat.table_id}
+            onClick={() => {
+              const tableId = activeTableId || combat.table_id;
+              if (tableId) setTerrain({ tableId, mode: 'clear' });
+            }}
+          >Clear All</button>
         </div>
       </div>
     </div>

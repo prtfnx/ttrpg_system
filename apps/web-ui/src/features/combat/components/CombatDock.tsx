@@ -1,7 +1,7 @@
 import { useGameStore } from '@/store';
 import { isDM } from '@features/session/types/roles';
 import { ChevronDown, ChevronUp, Swords } from 'lucide-react';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useCombatSelection } from '../hooks/useCombatSelection';
 import { useCombatStore } from '../stores/combatStore';
 import { ActionEconomyBar } from './ActionEconomyBar';
@@ -20,9 +20,11 @@ export function CombatDock() {
   const combat = useCombatStore((state) => state.combat);
   const role = useGameStore((state) => state.sessionRole);
   const userId = useGameStore((state) => state.userId);
+  const sessionId = useGameStore((state) => state.sessionId);
   const sprites = useGameStore((state) => state.sprites);
   const dmMode = isDM(role);
   const [expanded, setExpanded] = useState(true);
+  const [setupOpen, setSetupOpen] = useState(false);
   const { selectedCombatant, selectedCombatantId, selectCombatant } = useCombatSelection();
   const isPlanningMode = usePlanningStore((state) => state.isPlanningMode);
   const selectedSpriteId = usePlanningStore((state) => state.selectedSpriteId);
@@ -30,7 +32,19 @@ export function CombatDock() {
   const stopPlanning = usePlanningStore((state) => state.stopPlanning);
   const addAction = usePlanningStore((state) => state.addAction);
 
+  useEffect(() => {
+    setSetupOpen(false);
+  }, [sessionId]);
+
   if (!combat && !dmMode) return null;
+  if (!combat && !setupOpen) {
+    return (
+      <button type="button" className={styles.setupLauncher} onClick={() => setSetupOpen(true)}>
+        <Swords size={15} aria-hidden />
+        Set up combat
+      </button>
+    );
+  }
 
   const activeCombatants = combat?.combatants.filter((combatant) => !combatant.is_defeated) ?? [];
   const current = combat && activeCombatants.length > 0
@@ -137,7 +151,7 @@ export function CombatDock() {
               <summary>DM controls</summary>
               <GameModeSwitch />
               <EncounterBuilder />
-              <DMCombatPanel />
+              <DMCombatPanel onCancelSetup={() => setSetupOpen(false)} />
             </details>
           )}
         </div>

@@ -1,5 +1,5 @@
 import { useGameStore } from '@/store';
-import { fireEvent, render, screen } from '@testing-library/react';
+import { act, fireEvent, render, screen } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { useCombatStore } from '../../stores/combatStore';
 import { usePlanningStore } from '../../stores/planningStore';
@@ -8,7 +8,14 @@ import { CombatDock } from '../CombatDock';
 vi.mock('../ActionEconomyBar', () => ({ ActionEconomyBar: () => <div>Action economy</div> }));
 vi.mock('../ActionPanel', () => ({ ActionPanel: () => <div>Player actions</div> }));
 vi.mock('../CommitButton', () => ({ CommitButton: () => <div>Commit plan</div> }));
-vi.mock('../DMCombatPanel', () => ({ DMCombatPanel: () => <div>DM work surface</div> }));
+vi.mock('../DMCombatPanel', () => ({
+  DMCombatPanel: ({ onCancelSetup }: { onCancelSetup?: () => void }) => (
+    <div>
+      DM work surface
+      {onCancelSetup && <button onClick={onCancelSetup}>Cancel setup</button>}
+    </div>
+  ),
+}));
 vi.mock('../GameModeSwitch', () => ({ GameModeSwitch: () => <div>Game mode</div> }));
 vi.mock('../InitiativePanel', () => ({ InitiativePanel: () => <div>Initiative order</div> }));
 vi.mock('../MovementPlanner', () => ({
@@ -103,15 +110,33 @@ describe('CombatDock', () => {
     expect(screen.queryByText('DM controls')).toBeNull();
   });
 
-  it('shows combat setup and DM controls to a DM before combat starts', () => {
+  it('opens and closes combat setup only from an explicit DM action', () => {
     useGameStore.setState({ sessionRole: 'owner' });
 
     render(<CombatDock />);
 
+    expect(screen.queryByRole('region', { name: 'Combat dock' })).toBeNull();
+    expect(screen.queryByText('DM work surface')).toBeNull();
+    fireEvent.click(screen.getByRole('button', { name: /set up combat/i }));
     expect(screen.getByText('Combat setup')).toBeTruthy();
     expect(screen.getByText('DM controls')).toBeTruthy();
     expect(screen.getByText('Game mode')).toBeTruthy();
     expect(screen.getByText('DM work surface')).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: /cancel setup/i }));
+    expect(screen.queryByRole('region', { name: 'Combat dock' })).toBeNull();
+    expect(screen.getByRole('button', { name: /set up combat/i })).toBeTruthy();
+  });
+
+  it('closes setup when the session changes', () => {
+    useGameStore.setState({ sessionRole: 'owner', sessionId: 'ROOM-A' });
+    render(<CombatDock />);
+    fireEvent.click(screen.getByRole('button', { name: /set up combat/i }));
+    expect(screen.getByText('DM work surface')).toBeTruthy();
+
+    act(() => useGameStore.setState({ sessionId: 'ROOM-B' }));
+
+    expect(screen.queryByText('DM work surface')).toBeNull();
+    expect(screen.getByRole('button', { name: /set up combat/i })).toBeTruthy();
   });
 
   it('collapses the combat body without unmounting the dock', () => {

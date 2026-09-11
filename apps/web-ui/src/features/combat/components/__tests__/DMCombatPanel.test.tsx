@@ -6,6 +6,8 @@ import { DMCombatPanel } from '../DMCombatPanel';
 
 const mockSendMessage = vi.fn();
 const mockUseOptionalProtocol = vi.fn();
+const TABLE_ID = '550e8400-e29b-41d4-a716-446655440000';
+const OTHER_TABLE_ID = '0a577ca2-7f6a-400d-9758-26f232003cc5';
 
 vi.mock('@lib/api', () => ({
   useOptionalProtocol: () => mockUseOptionalProtocol(),
@@ -13,6 +15,7 @@ vi.mock('@lib/api', () => ({
 
 vi.mock('@lib/websocket', () => ({
   createMessage: vi.fn((type: string, data: unknown) => ({ type, data })),
+  isValidUUID: vi.fn((value: string) => /^[0-9a-f-]{36}$/i.test(value)),
   MessageType: {
     COMBAT_COMMAND: 'combat_command',
   },
@@ -58,7 +61,7 @@ const mockSprites = [
   {
     id: 'e1',
     name: 'Goblin Token',
-    tableId: 'table1',
+    tableId: TABLE_ID,
     characterId: 'char1',
     controlledBy: [],
     x: 0,
@@ -74,7 +77,7 @@ const mockSprites = [
   {
     id: 'e2',
     name: 'Hero Token',
-    tableId: 'table1',
+    tableId: TABLE_ID,
     characterId: 'char2',
     controlledBy: ['1'],
     x: 0,
@@ -90,7 +93,7 @@ const mockSprites = [
   {
     id: 'e3',
     name: 'Off Table Token',
-    tableId: 'table2',
+    tableId: OTHER_TABLE_ID,
     characterId: 'char3',
     controlledBy: [],
     x: 0,
@@ -105,7 +108,7 @@ const mockSprites = [
 const mockCombat = {
   combat_id: 'combat1',
   session_id: 'session1',
-  table_id: 'table1',
+  table_id: TABLE_ID,
   phase: 'active' as const,
   round_number: 1,
   current_turn_index: 0,
@@ -147,7 +150,9 @@ beforeEach(() => {
   mockUseOptionalProtocol.mockReturnValue({ protocol: { sendMessage: mockSendMessage } });
   // Set a default activeTableId
   useGameStore.setState({
-    activeTableId: 'table1',
+    activeTableId: TABLE_ID,
+    sessionRole: 'owner',
+    tables: [{ table_id: TABLE_ID, table_name: 'Arena', width: 1000, height: 800, syncStatus: 'synced' }],
     characters: mockCharacters,
     sprites: mockSprites,
   } as Parameters<typeof useGameStore.setState>[0]);
@@ -189,7 +194,7 @@ describe('DMCombatPanel - PreCombatSetup (no active combat)', () => {
             expect.objectContaining({
               type: 'start_combat',
               actor_id: '__dm__',
-              table_id: 'table1',
+              table_id: TABLE_ID,
               entity_ids: ['e1', 'e2'],
               names: { e1: 'Goblin', e2: 'Hero' },
               combatants: [
@@ -203,6 +208,18 @@ describe('DMCombatPanel - PreCombatSetup (no active combat)', () => {
     );
     expect(message.data.commands[0].combatants[0]).not.toHaveProperty('hp');
     expect(message.data.commands[0].combatants[0]).not.toHaveProperty('armor_class');
+  });
+
+  it('does not start combat without a loaded authoritative table', async () => {
+    const user = userEvent.setup();
+    useGameStore.setState({ tables: [], activeTableId: TABLE_ID });
+
+    render(<DMCombatPanel />);
+
+    expect(screen.getByText(/open a fully loaded table/i)).toBeTruthy();
+    expect(screen.getByRole('button', { name: /start empty/i })).toBeDisabled();
+    await user.click(screen.getByRole('button', { name: /start empty/i }));
+    expect(mockSendMessage).not.toHaveBeenCalled();
   });
 });
 
@@ -269,7 +286,7 @@ describe('DMCombatPanel - active combat', () => {
         commands: [expect.objectContaining({
           type: 'set_terrain',
           actor_id: '__dm__',
-          table_id: 'table1',
+          table_id: TABLE_ID,
           mode: 'clear',
           cells: [],
         })],

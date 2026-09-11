@@ -13,6 +13,25 @@
   box-shadow: var(--shadow-xl);
 }
 
+.setupLauncher {
+  position: absolute;
+  left: 50%;
+  bottom: var(--space-md);
+  z-index: var(--z-fixed);
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-sm);
+  transform: translateX(-50%);
+  padding: var(--space-sm) var(--space-md);
+  color: var(--button-primary-text);
+  background: var(--button-primary-bg);
+  border: var(--border-width) solid var(--panel-border);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-lg);
+  cursor: pointer;
+  font-weight: var(--font-semibold);
+}
+
 .header {
   width: 100%;
   display: grid;

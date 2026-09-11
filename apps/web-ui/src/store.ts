@@ -119,6 +119,7 @@ interface GameStore extends GameState {
   updateSprite: (id: string, updates: Partial<Sprite>) => void;
   addCharacter: (character: import('./types').Character) => void;
   updateCharacter: (id: string, updates: Partial<Character>) => void;
+  reconcileServerCharacters: (characters: Character[]) => void;
   removeCharacter: (id: string) => void;
   addInventoryItem: (characterId: string, item: string) => void;
   
@@ -473,6 +474,30 @@ export const useGameStore = create<GameStore>()(
             return merged;
           })
         }));
+      },
+
+      reconcileServerCharacters: (serverCharacters: Character[]) => {
+        set((state) => {
+          const serverIds = new Set(serverCharacters.map(character => character.id));
+          const localById = new Map(state.characters.map(character => [character.id, character]));
+          const isUnsynced = (character: Character) => (
+            character.syncStatus === 'local'
+            || character.syncStatus === 'syncing'
+            || character.syncStatus === 'error'
+          );
+          const characters = serverCharacters.map(serverCharacter => {
+            const localCharacter = localById.get(serverCharacter.id);
+            return localCharacter && isUnsynced(localCharacter) ? localCharacter : serverCharacter;
+          });
+
+          for (const localCharacter of state.characters) {
+            if (!serverIds.has(localCharacter.id) && isUnsynced(localCharacter)) {
+              characters.push(localCharacter);
+            }
+          }
+
+          return { characters };
+        });
       },
 
       removeCharacter: (id: string) => {

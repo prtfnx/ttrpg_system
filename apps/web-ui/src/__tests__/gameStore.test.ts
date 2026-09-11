@@ -398,6 +398,38 @@ describe('gameStore — sprite/character helpers', () => {
     useGameStore.setState({ sessionRole: 'owner' as never, characters: [makeCharacter('c1') as never] });
     expect(useGameStore.getState().canEditCharacter('c1')).toBe(true);
   });
+
+  it('preserves pending local edits when a reconnect list is older', () => {
+    const pending = {
+      id: 'c1', sessionId: 'ROOM', name: 'Locally edited', ownerId: 1,
+      controlledBy: [], data: { hp: 7 }, version: 3,
+      createdAt: '2026-01-01', updatedAt: '2026-01-02', syncStatus: 'syncing' as const,
+    };
+    const server = {
+      ...pending, name: 'Older server name', data: { hp: 5 }, version: 2,
+      syncStatus: 'synced' as const,
+    };
+    useGameStore.setState({ characters: [pending] } as never);
+
+    useGameStore.getState().reconcileServerCharacters([server]);
+
+    expect(useGameStore.getState().characters).toEqual([pending]);
+  });
+
+  it('retains unsynced local-only characters while removing stale synced entries', () => {
+    const base = {
+      sessionId: 'ROOM', ownerId: 1, controlledBy: [], data: {}, version: 1,
+      createdAt: '2026-01-01', updatedAt: '2026-01-01',
+    };
+    useGameStore.setState({ characters: [
+      { ...base, id: 'pending', name: 'Pending', syncStatus: 'local' },
+      { ...base, id: 'stale', name: 'Stale', syncStatus: 'synced' },
+    ] } as never);
+
+    useGameStore.getState().reconcileServerCharacters([]);
+
+    expect(useGameStore.getState().characters.map(character => character.id)).toEqual(['pending']);
+  });
 });
 
 // ─── table management ─────────────────────────────────────────────────────────

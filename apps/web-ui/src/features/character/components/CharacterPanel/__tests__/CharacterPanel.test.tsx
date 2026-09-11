@@ -447,7 +447,7 @@ describe('CharacterPanel', () => {
     it('shows offline banner when not connected', () => {
       render(<CharacterPanel />);
       
-      expect(screen.getByText(/offline.*changes saved locally/i)).toBeInTheDocument();
+      expect(screen.getByText(/offline.*remain in this page only.*export before reloading/i)).toBeInTheDocument();
     });
   });
 });

@@ -19,6 +19,8 @@ function CharacterPanel() {
   const {
     characters,
     isConnected,
+    connectionState,
+    connectionError,
     currentUserId,
     drafts,
     activeDraft,
@@ -73,6 +75,14 @@ function CharacterPanel() {
   const sessionRole = useGameStore(s => s.sessionRole);
   const storeUserId = useGameStore(s => s.userId);
   const effectiveUserId = storeUserId ?? currentUserId;
+  const unsyncedCount = characters.filter(character => character.syncStatus !== 'synced').length;
+  const connectionMessage = connectionState === 'connecting'
+    ? 'Connecting — edits remain in this page until they can be sent; drafts are unavailable.'
+    : connectionState === 'reconnecting'
+      ? 'Reconnecting — unsynced edits are queued in this page; keep it open.'
+      : connectionState === 'error'
+        ? 'Connection error — unsynced edits remain in this page only; export before reloading.'
+        : 'Offline — unsynced edits remain in this page only; export before reloading.';
 
   const filteredCharacters = characters.filter(char => {
     if (!isDM(sessionRole) && char.ownerId !== effectiveUserId &&
@@ -89,9 +99,13 @@ function CharacterPanel() {
   return (
     <div className={styles.characterPanelRedesigned}>
       {!isConnected && (
-        <div className={styles.offlineBanner} title="Not connected to server">
+        <div
+          className={styles.offlineBanner}
+          title={connectionError ?? 'Not connected to server'}
+          role="status"
+        >
           <AlertTriangle size={12} aria-hidden />
-          Offline — changes saved locally only; character drafts unavailable
+          {connectionMessage}{unsyncedCount > 0 ? ` ${unsyncedCount} unsynced.` : ''}
         </div>
       )}
       

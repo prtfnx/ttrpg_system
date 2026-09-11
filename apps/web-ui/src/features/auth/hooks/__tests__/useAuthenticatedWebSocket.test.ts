@@ -6,6 +6,7 @@ const mockProtocol = vi.hoisted(() => ({
   connect: vi.fn().mockResolvedValue(undefined),
   disconnect: vi.fn(),
   isConnected: vi.fn(() => false),
+  getConnectionDiagnostics: vi.fn(() => ({ state: 'disconnected' })),
   onConnectionStateChange: vi.fn(() => vi.fn()), // returns unsubscribe fn
 }));
 
@@ -16,6 +17,7 @@ vi.mock('@lib/websocket', () => ({
     connect = mockProtocol.connect;
     disconnect = mockProtocol.disconnect;
     isConnected = mockProtocol.isConnected;
+    getConnectionDiagnostics = mockProtocol.getConnectionDiagnostics;
     onConnectionStateChange = mockProtocol.onConnectionStateChange;
   }),
 }));
@@ -34,9 +36,12 @@ const props = { sessionCode: 'TEST-CODE', userInfo: user as Parameters<typeof us
 beforeEach(() => {
   vi.clearAllMocks();
   vi.mocked(useOptionalProtocol).mockReturnValue(null);
-  mockProtocol.connect.mockResolvedValue(undefined);
+  mockProtocol.connect.mockImplementation(async () => {
+    mockProtocol.isConnected.mockReturnValue(true);
+  });
   mockProtocol.disconnect.mockReset();
   mockProtocol.isConnected.mockReturnValue(false);
+  mockProtocol.getConnectionDiagnostics.mockReturnValue({ state: 'disconnected' });
   mockProtocol.onConnectionStateChange.mockReturnValue(vi.fn());
   vi.mocked(authService.getUserSessions).mockResolvedValue([]);
 });
@@ -120,6 +125,8 @@ describe('useAuthenticatedWebSocket — delegating to ProtocolProvider', () => {
   it('returns ctx values directly when context is available', () => {
     const mockCtx = {
       connectionState: 'connected',
+      connectionError: null,
+      isConnected: true,
       protocol: { connect: vi.fn(), disconnect: vi.fn() },
       connect: vi.fn(),
       disconnect: vi.fn(),
@@ -138,6 +145,8 @@ describe('useAuthenticatedWebSocket — delegating to ProtocolProvider', () => {
   it('does not call WebClientProtocol when context is present', () => {
     vi.mocked(useOptionalProtocol).mockReturnValue({
       connectionState: 'disconnected',
+      connectionError: null,
+      isConnected: false,
       protocol: null,
       connect: vi.fn(),
       disconnect: vi.fn(),

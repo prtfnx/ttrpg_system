@@ -3,7 +3,7 @@
  * Manages connection state and provides protocol interface
  */
 import { useOptionalProtocol } from '@lib/api';
-import { WebClientProtocol } from '@lib/websocket';
+import { WebClientProtocol, type ProtocolConnectionState } from '@lib/websocket';
 import { logger } from '@shared/utils/logger';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import type { UserInfo } from '../services/auth.service';
@@ -14,12 +14,13 @@ interface UseAuthenticatedWebSocketProps {
   userInfo: UserInfo;
 }
 
-export type ConnectionState = 'disconnected' | 'connecting' | 'connected' | 'error';
+export type ConnectionState = 'disconnected' | 'connecting' | 'reconnecting' | 'connected' | 'error';
 
 export function useAuthenticatedWebSocket({ sessionCode, userInfo }: UseAuthenticatedWebSocketProps) {
   const ctx = useOptionalProtocol();
 
   const protocolRef = useRef<WebClientProtocol | null>(null);
+  const connectionUnsubscribeRef = useRef<(() => void) | null>(null);
   const connectionAttemptRef = useRef(0);
   const [connectionState, setConnectionState] = useState<ConnectionState>('disconnected');
   const [error, setError] = useState<string | null>(null);
@@ -55,13 +56,29 @@ export function useAuthenticatedWebSocket({ sessionCode, userInfo }: UseAuthenti
 
       const protocol = new WebClientProtocol(resolvedCode);
       protocolRef.current = protocol;
+      connectionUnsubscribeRef.current?.();
+      connectionUnsubscribeRef.current = protocol.onConnectionStateChange((state: ProtocolConnectionState) => {
+        if (protocolRef.current !== protocol) return;
+        if (state === 'connected') {
+          setConnectionState('connected');
+          setError(null);
+        } else if (state === 'connecting' || state === 'reconnecting') {
+          setConnectionState(state);
+        } else if (state === 'timeout') {
+          setConnectionState('error');
+          setError('Connection timeout - server not responding');
+        } else {
+          setConnectionState('disconnected');
+          setError('Connection lost');
+        }
+      });
       await protocol.connect();
       if (attempt !== connectionAttemptRef.current) {
         protocol.disconnect();
         if (protocolRef.current === protocol) protocolRef.current = null;
         return;
       }
-      setConnectionState('connected');
+      if (protocol.isConnected()) setConnectionState('connected');
       logger.info('Connected to authenticated session', {
         sessionCode: resolvedCode,
         username: userInfo.username,
@@ -69,16 +86,27 @@ export function useAuthenticatedWebSocket({ sessionCode, userInfo }: UseAuthenti
     } catch (err) {
       if (attempt !== connectionAttemptRef.current) return;
       const errorMessage = err instanceof Error ? err.message : 'Connection failed';
+      const activeProtocol = protocolRef.current;
+      if (activeProtocol?.getConnectionDiagnostics().state === 'reconnecting') {
+        setConnectionState('reconnecting');
+        setError(null);
+        return;
+      }
+      connectionUnsubscribeRef.current?.();
+      connectionUnsubscribeRef.current = null;
+      activeProtocol?.disconnect();
+      protocolRef.current = null;
       setError(errorMessage);
       setConnectionState('error');
       logger.error('WebSocket connection error', err);
-      protocolRef.current = null;
     }
   }, [ctx, sessionCode, userInfo]);
 
   const disconnect = useCallback(() => {
     if (ctx) return; // managed by ProtocolProvider
     connectionAttemptRef.current += 1;
+    connectionUnsubscribeRef.current?.();
+    connectionUnsubscribeRef.current = null;
     if (protocolRef.current) {
       protocolRef.current.disconnect();
       protocolRef.current = null;
@@ -88,27 +116,6 @@ export function useAuthenticatedWebSocket({ sessionCode, userInfo }: UseAuthenti
   }, [ctx]);
 
   const getProtocol = useCallback(() => protocolRef.current, []);
-
-  useEffect(() => {
-    if (ctx || !protocolRef.current) return;
-
-    const handleConnectionStateChange = (state: 'connected' | 'disconnected' | 'timeout') => {
-      if (state === 'connected') {
-        setConnectionState('connected');
-        setError(null);
-      } else if (state === 'disconnected') {
-        setConnectionState('disconnected');
-        setError('Connection lost');
-      } else if (state === 'timeout') {
-        setConnectionState('error');
-        setError('Connection timeout - server not responding');
-      }
-    };
-
-    const unsubscribe = protocolRef.current.onConnectionStateChange(handleConnectionStateChange);
-    return () => { unsubscribe(); };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [ctx, protocolRef.current]);
 
   useEffect(() => {
     if (ctx) return;
@@ -127,11 +134,11 @@ export function useAuthenticatedWebSocket({ sessionCode, userInfo }: UseAuthenti
   if (ctx) {
     return {
       connectionState: ctx.connectionState as ConnectionState,
-      error: null,
+      error: ctx.connectionError,
       protocol: ctx.protocol as WebClientProtocol | null,
       connect: ctx.connect,
       disconnect: ctx.disconnect,
-      isConnected: ctx.connectionState === 'connected'
+      isConnected: ctx.isConnected
     };
   }
 

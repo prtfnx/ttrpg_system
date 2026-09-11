@@ -108,6 +108,7 @@ function makeStoreState(overrides: Record<string, unknown> = {}) {
     setActiveTableId: mockSetActiveTableId,
     addCharacter: vi.fn(),
     updateCharacter: vi.fn(),
+    reconcileServerCharacters: vi.fn(),
     removeCharacter: vi.fn(),
     ...overrides,
   };
@@ -208,6 +209,22 @@ describe('WebClientProtocol', () => {
       unsub();
       p.disconnect();
       expect(listener).not.toHaveBeenCalled();
+    });
+
+    it('exposes bounded transport diagnostics without message content', () => {
+      const p = makeProtocol();
+      const diagnostics = p.getConnectionDiagnostics();
+
+      expect(diagnostics).toMatchObject({
+        instanceId: expect.stringMatching(/^protocol-/),
+        sessionCode: 'TEST123',
+        state: 'disconnected',
+        transportReadyState: null,
+        connectionAlive: false,
+        reconnectAttempt: 0,
+        lastCloseCode: null,
+        lastCloseReason: null,
+      });
     });
   });
 
@@ -1601,10 +1618,9 @@ describe('WebClientProtocol', () => {
         characters: [{ character_id: 'c1', name: 'Hero', version: 'invalid' }],
       });
 
-      expect(mocks.storeState.addCharacter).toHaveBeenCalledWith(expect.objectContaining({
-        id: 'c1',
-        version: 1,
-      }));
+      expect(mocks.storeState.reconcileServerCharacters).toHaveBeenCalledWith([
+        expect.objectContaining({ id: 'c1', version: 1 }),
+      ]);
     });
 
     it('CHARACTER_SAVE_RESPONSE resolves the correlated temporary character', async () => {
@@ -2272,6 +2288,13 @@ describe('WebClientProtocol', () => {
       await openInitialConnection(protocol, sockets);
 
       sockets[0].onclose!({ code: 1012, reason: 'Restarting', wasClean: true });
+      expect(listener).toHaveBeenLastCalledWith('reconnecting');
+      expect(protocol.getConnectionDiagnostics()).toMatchObject({
+        state: 'reconnecting',
+        lastCloseCode: 1012,
+        lastCloseReason: 'Restarting',
+        reconnectAttempt: 1,
+      });
       vi.runOnlyPendingTimers();
       sockets[1].readyState = WebSocket.OPEN;
       sockets[1].onopen!();
@@ -2279,6 +2302,27 @@ describe('WebClientProtocol', () => {
 
       expect((protocol as unknown as Record<string, unknown>)['reconnectAttempts']).toBe(0);
       expect(listener).toHaveBeenLastCalledWith('connected');
+    });
+
+    it('replays an unacknowledged character edit once with the same operation identity', async () => {
+      vi.useFakeTimers();
+      vi.spyOn(Math, 'random').mockReturnValue(0);
+      const { sockets } = installWebSocketFactory();
+      const protocol = makeReconnectProtocol();
+      await openInitialConnection(protocol, sockets);
+
+      protocol.updateCharacter('character-1', { name: 'Edited' }, 3);
+      protocol.sendBatch();
+      const firstBatch = JSON.parse(sockets[0].send.mock.calls[0][0] as string);
+      const firstPayload = firstBatch.data.messages[0];
+      sockets[0].onclose!({ code: 1012, reason: 'Restarting', wasClean: true });
+      vi.runOnlyPendingTimers();
+      sockets[1].readyState = WebSocket.OPEN;
+      sockets[1].onopen!();
+      await Promise.resolve();
+
+      expect(sockets[1].send).toHaveBeenCalledOnce();
+      expect(JSON.parse(sockets[1].send.mock.calls[0][0] as string)).toEqual(firstPayload);
     });
 
     it('does not retry terminal policy closures', async () => {

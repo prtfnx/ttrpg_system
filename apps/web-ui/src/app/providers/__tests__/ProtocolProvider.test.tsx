@@ -3,12 +3,14 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 const mocks = vi.hoisted(() => {
   let stateListener:
-    | ((state: 'connected' | 'disconnected' | 'timeout') => void)
+    | ((state: 'connected' | 'connecting' | 'reconnecting' | 'disconnected' | 'timeout') => void)
     | null = null;
   const unsubscribe = vi.fn();
   const protocol = {
     connect: vi.fn().mockResolvedValue(undefined),
     disconnect: vi.fn(),
+    isConnected: vi.fn(() => true),
+    getConnectionDiagnostics: vi.fn(() => ({ instanceId: 'protocol-test', state: 'connected' })),
     onConnectionStateChange: vi.fn((listener) => {
       stateListener = listener;
       return unsubscribe;
@@ -48,6 +50,7 @@ vi.mock('@lib/websocket', () => ({
 
 vi.mock('@shared/utils/logger', () => ({
   logger: {
+    debug: vi.fn(),
     error: vi.fn(),
     warn: vi.fn(),
   },
@@ -79,6 +82,9 @@ describe('ProtocolProvider', () => {
 
     act(() => listener?.('disconnected'));
     expect(screen.getByText('disconnected')).toBeInTheDocument();
+
+    act(() => listener?.('reconnecting'));
+    expect(screen.getByText('reconnecting')).toBeInTheDocument();
 
     act(() => listener?.('timeout'));
     expect(screen.getByText('error')).toBeInTheDocument();

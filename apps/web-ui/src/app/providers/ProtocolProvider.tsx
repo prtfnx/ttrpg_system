@@ -4,9 +4,12 @@ import { WebClientProtocol } from '@lib/websocket';
 import { logger } from '@shared/utils/logger';
 import React, { createContext, useContext, useEffect, useMemo, useState } from 'react';
 
+export type ConnectionState = 'disconnected' | 'connecting' | 'reconnecting' | 'connected' | 'error';
+
 interface ProtocolContextValue {
   protocol: WebClientProtocol | null;
-  connectionState: 'disconnected' | 'connecting' | 'connected' | 'error';
+  connectionState: ConnectionState;
+  connectionError: string | null;
   isConnected: boolean;
   connect: () => Promise<void>;
   disconnect: () => void;
@@ -23,6 +26,7 @@ export function useProtocol() {
     return {
       protocol: null,
       connectionState: 'disconnected' as const,
+      connectionError: null,
       isConnected: false,
       connect: async () => {},
       disconnect: () => {}
@@ -45,7 +49,8 @@ interface ProviderProps {
 
 export function ProtocolProvider({ sessionCode, children }: ProviderProps) {
   const [protocol, setProtocol] = useState<WebClientProtocol | null>(null);
-  const [connectionState, setConnectionState] = useState<'disconnected' | 'connecting' | 'connected' | 'error'>('disconnected');
+  const [connectionState, setConnectionState] = useState<ConnectionState>('disconnected');
+  const [connectionError, setConnectionError] = useState<string | null>(null);
 
   useEffect(() => {
     let mounted = true;
@@ -54,6 +59,7 @@ export function ProtocolProvider({ sessionCode, children }: ProviderProps) {
 
     async function init() {
       setConnectionState('connecting');
+      setConnectionError(null);
 
       try {
         let resolved = sessionCode;
@@ -77,10 +83,15 @@ export function ProtocolProvider({ sessionCode, children }: ProviderProps) {
         currentProtocol = p;
         unsubscribeConnectionState = p.onConnectionStateChange((state) => {
           if (!mounted) return;
+          logger.debug('[ProtocolProvider] Connection transition', p.getConnectionDiagnostics());
           if (state === 'connected') {
             setConnectionState('connected');
+            setConnectionError(null);
+          } else if (state === 'connecting' || state === 'reconnecting') {
+            setConnectionState(state);
           } else if (state === 'timeout') {
             setConnectionState('error');
+            setConnectionError('Server heartbeat timed out');
           } else {
             setConnectionState('disconnected');
           }
@@ -101,7 +112,7 @@ export function ProtocolProvider({ sessionCode, children }: ProviderProps) {
           return;
         }
 
-        setConnectionState('connected');
+        if (p.isConnected()) setConnectionState('connected');
       } catch (error) {
         if (!mounted) return;
         if (error instanceof Error && error.message.includes('cancelled')) {
@@ -109,6 +120,7 @@ export function ProtocolProvider({ sessionCode, children }: ProviderProps) {
           return;
         }
         logger.error('[ProtocolProvider] Connection failed', error);
+        setConnectionError(error instanceof Error ? error.message : 'Connection failed');
         setConnectionState('error');
       }
     }
@@ -121,6 +133,7 @@ export function ProtocolProvider({ sessionCode, children }: ProviderProps) {
       currentProtocol?.disconnect();
       ProtocolService.clearProtocol();
       setProtocol(null);
+      setConnectionError(null);
       setConnectionState('disconnected');
     };
   }, [sessionCode]);
@@ -128,19 +141,28 @@ export function ProtocolProvider({ sessionCode, children }: ProviderProps) {
   const value = useMemo(() => ({
     protocol,
     connectionState,
-    isConnected: connectionState === 'connected',
+    connectionError,
+    isConnected: connectionState === 'connected' && protocol?.isConnected() === true,
     connect: async () => {
       if (!protocol) return;
       setConnectionState('connecting');
-      await protocol.connect();
-      setConnectionState('connected');
+      setConnectionError(null);
+      try {
+        await protocol.connect();
+        if (protocol.isConnected()) setConnectionState('connected');
+      } catch (error) {
+        setConnectionError(error instanceof Error ? error.message : 'Connection failed');
+        setConnectionState('error');
+        throw error;
+      }
     },
     disconnect: () => {
       if (!protocol) return;
       protocol.disconnect();
+      setConnectionError(null);
       setConnectionState('disconnected');
     }
-  }), [protocol, connectionState]);
+  }), [protocol, connectionState, connectionError]);
 
   return (
     <ProtocolContext.Provider value={value}>

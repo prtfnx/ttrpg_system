@@ -52,6 +52,27 @@ function parseCharacterVersion(value: unknown, fallback = 1): number {
   return Number.isSafeInteger(parsed) && parsed >= 0 ? parsed : fallback;
 }
 
+export type ProtocolConnectionState =
+  | 'disconnected'
+  | 'connecting'
+  | 'reconnecting'
+  | 'connected'
+  | 'timeout';
+
+export interface ProtocolConnectionDiagnostics {
+  instanceId: string;
+  sessionCode: string;
+  state: ProtocolConnectionState;
+  transportReadyState: number | null;
+  connectionAlive: boolean;
+  lastPongAt: number;
+  reconnectAttempt: number;
+  lastCloseCode: number | null;
+  lastCloseReason: string | null;
+}
+
+let protocolInstanceSequence = 0;
+
 
 export class WebClientProtocol {
   private handlers = new Map<MessageType, Set<MessageHandler>>();
@@ -77,7 +98,11 @@ export class WebClientProtocol {
   private pongTimeout: number | null = null;
   private readonly PONG_TIMEOUT_MS = 5000; // 5 seconds to receive pong
   private connectionAlive: boolean = false;
-  private connectionStateListeners: Set<(state: 'connected' | 'disconnected' | 'timeout') => void> = new Set();
+  private connectionState: ProtocolConnectionState = 'disconnected';
+  private connectionStateListeners: Set<(state: ProtocolConnectionState) => void> = new Set();
+  private readonly instanceId = `protocol-${++protocolInstanceSequence}`;
+  private lastCloseCode: number | null = null;
+  private lastCloseReason: string | null = null;
 
   // Message batching
   private batchQueue: Message[] = [];
@@ -88,6 +113,8 @@ export class WebClientProtocol {
     updates: Record<string, unknown>;
     userId: number;
     retryCount: number;
+    message: Message;
+    sent: boolean;
   }>();
   private pendingCharacterCreates = new Map<string, string>();
   private readonly BATCH_DELAY_MS = 30;
@@ -138,6 +165,11 @@ export class WebClientProtocol {
     
     try {
       this.websocket.send(JSON.stringify(batchMessage));
+      for (const message of this.batchQueue) {
+        if (!message.message_id) continue;
+        const pendingUpdate = this.pendingCharacterUpdates.get(message.message_id);
+        if (pendingUpdate) pendingUpdate.sent = true;
+      }
       // Only clear queue after successful send
       this.batchQueue = [];
       logger.debug('Protocol: Batch sent successfully');
@@ -558,6 +590,7 @@ export class WebClientProtocol {
     this.setupProtocolMessageSender();
     this.reconnectEnabled = true;
     this.cancelReconnectTimer();
+    this.notifyConnectionState('connecting');
     return this.openSocket();
   }
 
@@ -609,7 +642,10 @@ export class WebClientProtocol {
           this.connectionAlive = true;
           this.reconnectAttempts = 0;
           this.lastPongReceived = Date.now();
+          this.lastCloseCode = null;
+          this.lastCloseReason = null;
           this.notifyConnectionState('connected');
+          this.resendUnacknowledgedCharacterUpdates();
           this.flushMessageQueue();
           this.flushPendingBatches(); // Flush any batched messages that were queued during disconnection
           // Auto-start heartbeat for connection monitoring
@@ -629,6 +665,8 @@ export class WebClientProtocol {
           protocolLogger.connection('WebSocket connection closed', { code: event.code, reason: event.reason });
           this.websocket = null;
           this.connectionAlive = false;
+          this.lastCloseCode = event.code;
+          this.lastCloseReason = this.sanitizeCloseReason(event.reason);
           this.notifyConnectionState('disconnected');
           this.stopPingInterval();
           this.connecting = false;
@@ -706,6 +744,17 @@ export class WebClientProtocol {
     while (this.messageQueue.length > 0 && this.websocket?.readyState === WebSocket.OPEN) {
       const message = this.messageQueue.shift()!;
       this.websocket.send(JSON.stringify(message));
+      if (message.message_id) {
+        const pendingUpdate = this.pendingCharacterUpdates.get(message.message_id);
+        if (pendingUpdate) pendingUpdate.sent = true;
+      }
+    }
+  }
+
+  private resendUnacknowledgedCharacterUpdates(): void {
+    if (this.websocket?.readyState !== WebSocket.OPEN) return;
+    for (const pending of this.pendingCharacterUpdates.values()) {
+      if (pending.sent) this.websocket.send(JSON.stringify(pending.message));
     }
   }
 
@@ -794,6 +843,8 @@ export class WebClientProtocol {
     const socket = this.websocket;
     this.websocket = null;
     this.connectionAlive = false;
+    this.lastCloseCode = 4000;
+    this.lastCloseReason = this.sanitizeCloseReason(reason);
     this.connecting = false;
     this.stopPingInterval();
     if (socket) {
@@ -823,6 +874,7 @@ export class WebClientProtocol {
     const delay = Math.floor(Math.random() * backoffCap);
 
     logger.debug(`[Protocol] Reconnecting in ${delay}ms (attempt ${this.reconnectAttempts}/${this.MAX_RECONNECT_ATTEMPTS})`);
+    this.notifyConnectionState('reconnecting');
 
     this.reconnectTimer = window.setTimeout(async () => {
       this.reconnectTimer = null;
@@ -1316,15 +1368,14 @@ export class WebClientProtocol {
           syncStatus: 'synced' as const
         }));
       
-      // Clear existing characters and load new ones
-      // This ensures we don't have stale data
-      store.characters.forEach(c => store.removeCharacter(c.id));
-      characters.forEach(c => store.addCharacter(c));
+      // A list response may race a queued local edit during reconnect. Replace
+      // acknowledged state, but never overwrite work that has not been acked.
+      store.reconcileServerCharacters(characters);
       
       logger.debug(`Loaded ${characters.length} characters from server`);
       
       // Also sync to asset cache (used by asset resolution pipeline)
-      const cacheChars = characters.map(c => ({
+      const cacheChars = useGameStore.getState().characters.map(c => ({
         id: c.id,
         name: c.name,
         data: c.data as Record<string, unknown>,
@@ -1489,7 +1540,12 @@ export class WebClientProtocol {
         });
         if (pendingKey) this.pendingCharacterUpdates.delete(pendingKey);
         if (retryMessage.message_id) {
-          this.pendingCharacterUpdates.set(retryMessage.message_id, { ...pending, retryCount: 1 });
+          this.pendingCharacterUpdates.set(retryMessage.message_id, {
+            ...pending,
+            retryCount: 1,
+            message: retryMessage,
+            sent: false,
+          });
         }
         this.sendMessage(retryMessage);
       } else {
@@ -2026,11 +2082,11 @@ export class WebClientProtocol {
    * @param version - Optional version number for optimistic concurrency control
    * @param userId - Optional user ID (uses instance userId if not provided)
    */
-  updateCharacter(characterId: string, updates: Record<string, unknown>, version?: number, userId?: number): void {
+  updateCharacter(characterId: string, updates: Record<string, unknown>, version?: number, userId?: number): boolean {
     const effectiveUserId = userId ?? this.userId;
     if (effectiveUserId === null) {
       logger.error('Cannot update character: user ID not set');
-      return;
+      return false;
     }
 
     const payload: Record<string, unknown> = {
@@ -2047,9 +2103,12 @@ export class WebClientProtocol {
         updates,
         userId: effectiveUserId,
         retryCount: 0,
+        message,
+        sent: false,
       });
     }
     this.sendMessage(message);
+    return true;
   }
 
   /**
@@ -2202,7 +2261,7 @@ export class WebClientProtocol {
    * @param listener Callback function that receives connection state updates
    * @returns Unsubscribe function
    */
-  onConnectionStateChange(listener: (state: 'connected' | 'disconnected' | 'timeout') => void): () => void {
+  onConnectionStateChange(listener: (state: ProtocolConnectionState) => void): () => void {
     this.connectionStateListeners.add(listener);
     return () => this.connectionStateListeners.delete(listener);
   }
@@ -2210,7 +2269,30 @@ export class WebClientProtocol {
   /**
    * Notify all listeners of connection state change
    */
-  private notifyConnectionState(state: 'connected' | 'disconnected' | 'timeout'): void {
+  getConnectionDiagnostics(): ProtocolConnectionDiagnostics {
+    return {
+      instanceId: this.instanceId,
+      sessionCode: this.sessionCode,
+      state: this.connectionState,
+      transportReadyState: this.websocket?.readyState ?? null,
+      connectionAlive: this.connectionAlive,
+      lastPongAt: this.lastPongReceived,
+      reconnectAttempt: this.reconnectAttempts,
+      lastCloseCode: this.lastCloseCode,
+      lastCloseReason: this.lastCloseReason,
+    };
+  }
+
+  private sanitizeCloseReason(reason: string | undefined): string | null {
+    if (!reason) return null;
+    return Array.from(reason, character => {
+      const code = character.charCodeAt(0);
+      return code < 32 || code === 127 ? ' ' : character;
+    }).join('').slice(0, 160);
+  }
+
+  private notifyConnectionState(state: ProtocolConnectionState): void {
+    this.connectionState = state;
     this.connectionStateListeners.forEach(listener => listener(state));
   }
 

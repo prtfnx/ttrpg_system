@@ -1,6 +1,6 @@
-import { ProtocolService } from '@lib/api';
-import { createMessage, MessageType } from '@lib/websocket';
-import { useEffect, useId, useRef, useState } from 'react';
+import { useChatStore } from '@features/chat/chatStore';
+import { useChatWebSocket } from '@features/chat/hooks/useChatWebSocket';
+import { useId, useState } from 'react';
 import styles from './DiceRoller.module.css';
 
 /**
@@ -15,20 +15,20 @@ export interface DiceRollerProps {
   dice?: DiceType; // default: 20
   count?: number; // default: 1
   onRoll?: (results: number[]) => void;
+  user?: string;
 }
 
 
-export function DiceRoller({ dice = 20, count = 1, onRoll }: DiceRollerProps) {
+export function DiceRoller({ dice = 20, count = 1, onRoll, user = 'You' }: DiceRollerProps) {
   const diceTypeId = useId();
   const [results, setResults] = useState<number[]>([]);
   const [rolling, setRolling] = useState(false);
   const [selectedDice, setSelectedDice] = useState<DiceType>(dice);
-  const [sentToChat, setSentToChat] = useState(false);
-  const chatStatusTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-
-  useEffect(() => () => {
-    if (chatStatusTimerRef.current) clearTimeout(chatStatusTimerRef.current);
-  }, []);
+  const [chatOperationId, setChatOperationId] = useState<string | null>(null);
+  const { sendMessage, retryMessage } = useChatWebSocket('dice-roller', user);
+  const chatDeliveryStatus = useChatStore(state => state.messages.find(message => (
+    message.client_operation_id === chatOperationId || message.id === chatOperationId
+  ))?.deliveryStatus);
 
   function rollDice() {
     setRolling(true);
@@ -37,17 +37,8 @@ export function DiceRoller({ dice = 20, count = 1, onRoll }: DiceRollerProps) {
     setRolling(false);
     onRoll?.(newResults);
 
-    // Send to chat if possible
     const text = `Rolled ${count}d${selectedDice}: ${newResults.join(', ')}${newResults.length > 1 ? ` (Total: ${newResults.reduce((a, b) => a + b, 0)})` : ''}`;
-    if (ProtocolService.hasProtocol()) {
-      ProtocolService.getProtocol().sendMessage(createMessage(MessageType.CHAT, { text }));
-      setSentToChat(true);
-      if (chatStatusTimerRef.current) clearTimeout(chatStatusTimerRef.current);
-      chatStatusTimerRef.current = setTimeout(() => {
-        chatStatusTimerRef.current = null;
-        setSentToChat(false);
-      }, 1200);
-    }
+    setChatOperationId(sendMessage(text));
   }
 
   return (
@@ -92,8 +83,17 @@ export function DiceRoller({ dice = 20, count = 1, onRoll }: DiceRollerProps) {
           </span>
         )}
       </div>
-      {sentToChat && (
+      {chatDeliveryStatus === 'pending' && (
+        <div className={styles.chatSent} role="status">Sending to chat…</div>
+      )}
+      {chatDeliveryStatus === 'sent' && (
         <div className={styles.chatSent} role="status">Sent to chat!</div>
+      )}
+      {chatDeliveryStatus === 'failed' && chatOperationId && (
+        <div className={styles.chatSent} role="status">
+          Not sent to chat.{' '}
+          <button type="button" onClick={() => retryMessage(chatOperationId)}>Retry</button>
+        </div>
       )}
     </div>
   );

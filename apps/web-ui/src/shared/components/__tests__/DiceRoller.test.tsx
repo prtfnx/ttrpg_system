@@ -1,24 +1,27 @@
 import { act, fireEvent, render, screen } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { useChatStore } from '@features/chat/chatStore';
+import { MessageType } from '@lib/websocket';
 import { DiceRoller } from '../DiceRoller';
 
-const mockProtocol = { sendMessage: vi.fn() };
-let hasProtocol = false;
+const mockProtocol = {
+  sendMessage: vi.fn(),
+  isConnected: vi.fn(() => true),
+  getSessionCode: vi.fn(() => 'ROOM'),
+  registerHandler: vi.fn(),
+  unregisterHandler: vi.fn(),
+  onConnectionStateChange: vi.fn(() => vi.fn()),
+};
+let protocol: typeof mockProtocol | null = null;
 
 vi.mock('@lib/api', () => ({
-  ProtocolService: {
-    hasProtocol: vi.fn(() => hasProtocol),
-    getProtocol: vi.fn(() => mockProtocol),
-  },
-}));
-
-vi.mock('@lib/websocket', () => ({
-  createMessage: vi.fn((type: string, data: unknown) => ({ type, data })),
-  MessageType: { CHAT: 'chat' },
+  useOptionalProtocol: vi.fn(() => protocol ? { protocol } : null),
 }));
 
 beforeEach(() => {
-  hasProtocol = false;
+  protocol = null;
+  mockProtocol.isConnected.mockReturnValue(true);
+  useChatStore.setState({ activeSessionId: null, messages: [], messagesBySession: {} });
   vi.clearAllMocks();
 });
 
@@ -65,45 +68,62 @@ describe('DiceRoller', () => {
   });
 
   it('sends to chat via protocol if available', () => {
-    hasProtocol = true;
-    render(<DiceRoller />);
+    protocol = mockProtocol;
+    render(<DiceRoller user="Alice" />);
     fireEvent.click(screen.getByRole('button', { name: /roll/i }));
-    expect(mockProtocol.sendMessage).toHaveBeenCalledWith(expect.objectContaining({
-      type: 'chat',
-      data: expect.objectContaining({ text: expect.stringContaining('d20') }),
+    const chatCall = mockProtocol.sendMessage.mock.calls.find(([message]) => message.type === MessageType.CHAT);
+    expect(chatCall?.[0]).toEqual(expect.objectContaining({
+      type: MessageType.CHAT,
+      data: {
+        message: expect.objectContaining({
+          id: expect.stringMatching(/^[A-Za-z0-9._-]{1,64}$/),
+          client_operation_id: expect.stringMatching(/^[A-Za-z0-9._-]{1,64}$/),
+          user: 'Alice',
+          text: expect.stringContaining('d20'),
+        }),
+      },
     }));
+    expect(chatCall?.[0].data.message.id).toBe(chatCall?.[0].data.message.client_operation_id);
   });
 
-  it('shows "Sent to chat!" after sending', async () => {
-    vi.useFakeTimers();
-    hasProtocol = true;
+  it('shows sent only after the matching server acknowledgement', () => {
+    protocol = mockProtocol;
     render(<DiceRoller />);
     fireEvent.click(screen.getByRole('button', { name: /roll/i }));
-    expect(screen.getByText(/Sent to chat!/)).toBeTruthy();
-    vi.runAllTimers();
-    vi.useRealTimers();
-  });
-
-  it('keeps chat confirmation visible for the latest roll', () => {
-    vi.useFakeTimers();
-    hasProtocol = true;
-    render(<DiceRoller />);
-    const roll = screen.getByRole('button', { name: /roll/i });
-
-    fireEvent.click(roll);
-    act(() => vi.advanceTimersByTime(1_000));
-    fireEvent.click(roll);
-    act(() => vi.advanceTimersByTime(300));
-
-    expect(screen.getByText(/Sent to chat!/)).toBeTruthy();
-    act(() => vi.runAllTimers());
-    vi.useRealTimers();
-  });
-
-  it('does not send to chat if gameAPI is missing', () => {
-    render(<DiceRoller />);
-    // No error and no "Sent to chat!" message
-    fireEvent.click(screen.getByRole('button', { name: /roll/i }));
+    expect(screen.getByText(/Sending to chat/)).toBeTruthy();
     expect(screen.queryByText(/Sent to chat!/)).toBeNull();
+
+    const pending = useChatStore.getState().messages[0];
+    const confirmationHandler = mockProtocol.registerHandler.mock.calls.find(
+      ([type]) => type === MessageType.CHAT_CONFIRMATION,
+    )?.[1];
+    act(() => confirmationHandler({
+      type: MessageType.CHAT_CONFIRMATION,
+      data: {
+        client_operation_id: pending.client_operation_id,
+        chat_message: { ...pending, id: 'server-1' },
+      },
+      version: '0.1',
+      priority: 5,
+    }));
+    expect(screen.getByText(/Sent to chat!/)).toBeTruthy();
+  });
+
+  it('keeps the roll visible and offers an idempotent retry when disconnected', () => {
+    protocol = mockProtocol;
+    mockProtocol.isConnected.mockReturnValue(false);
+    render(<DiceRoller />);
+    fireEvent.click(screen.getByRole('button', { name: /roll/i }));
+    const failed = useChatStore.getState().messages[0];
+
+    expect(screen.getByText(/Result:/)).toBeTruthy();
+    expect(screen.getByText(/Not sent to chat/)).toBeTruthy();
+    expect(screen.queryByText(/Sent to chat!/)).toBeNull();
+
+    mockProtocol.isConnected.mockReturnValue(true);
+    fireEvent.click(screen.getByRole('button', { name: /retry/i }));
+    const chatCall = mockProtocol.sendMessage.mock.calls.find(([message]) => message.type === MessageType.CHAT);
+    expect(chatCall?.[0].data.message.client_operation_id).toBe(failed.client_operation_id);
+    expect(chatCall?.[0].data.message.text).toBe(failed.text);
   });
 });

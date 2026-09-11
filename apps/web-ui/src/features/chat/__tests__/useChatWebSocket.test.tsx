@@ -83,6 +83,56 @@ describe('useChatWebSocket', () => {
       expect(useChatStore.getState().messages[0].text).toBe('Hey');
     });
 
+    it('uses one valid operation ID in chat data and retains it across retry', () => {
+      const protocol = makeProtocol(false);
+      vi.mocked(useOptionalProtocol).mockReturnValue({ protocol } as unknown as ReturnType<typeof useOptionalProtocol>);
+      const { result } = renderHook(() => useChatWebSocket('ws://test', 'Bob'));
+
+      let operationId: string | null = null;
+      act(() => { operationId = result.current.sendMessage('Stable result'); });
+      expect(operationId).toMatch(/^[A-Za-z0-9._-]{1,64}$/);
+      expect(useChatStore.getState().messages[0].deliveryStatus).toBe('failed');
+
+      protocol.isConnected.mockReturnValue(true);
+      act(() => { result.current.retryMessage(operationId!); });
+
+      const sent = protocol.sendMessage.mock.calls[0][0];
+      expect(sent).toMatchObject({
+        type: MessageType.CHAT,
+        message_id: operationId,
+        data: {
+          message: {
+            id: operationId,
+            client_operation_id: operationId,
+            user: 'Bob',
+            text: 'Stable result',
+          },
+        },
+      });
+      expect(useChatStore.getState().messages[0].deliveryStatus).toBe('pending');
+    });
+
+    it('marks the matching optimistic message failed when the server rejects it', () => {
+      const protocol = makeProtocol(true);
+      vi.mocked(useOptionalProtocol).mockReturnValue({ protocol } as unknown as ReturnType<typeof useOptionalProtocol>);
+      const { result } = renderHook(() => useChatWebSocket('ws://test', 'Bob'));
+      let operationId: string | null = null;
+      act(() => { operationId = result.current.sendMessage('Rejected'); });
+      const errorHandler = protocol.registerHandler.mock.calls.find(
+        ([type]) => type === MessageType.ERROR,
+      )![1];
+
+      act(() => errorHandler({
+        type: MessageType.ERROR,
+        data: { error: 'Rejected' },
+        correlation_id: operationId!,
+        version: '0.1',
+        priority: 5,
+      }));
+
+      expect(useChatStore.getState().messages[0].deliveryStatus).toBe('failed');
+    });
+
     it('loads chat history from protocol messages', () => {
       const protocol = makeProtocol(true);
       vi.mocked(useOptionalProtocol).mockReturnValue({ protocol } as unknown as ReturnType<typeof useOptionalProtocol>);
@@ -225,12 +275,12 @@ describe('useChatWebSocket', () => {
       const first = renderHook(() => useChatWebSocket('ws://test', 'Bob'));
       const second = renderHook(() => useChatWebSocket('ws://test', 'Bob'));
 
-      expect(protocol.registerHandler).toHaveBeenCalledTimes(3);
+      expect(protocol.registerHandler).toHaveBeenCalledTimes(4);
       expect(protocol.sendMessage).toHaveBeenCalledTimes(1);
       first.unmount();
       expect(protocol.unregisterHandler).not.toHaveBeenCalled();
       second.unmount();
-      expect(protocol.unregisterHandler).toHaveBeenCalledTimes(3);
+      expect(protocol.unregisterHandler).toHaveBeenCalledTimes(4);
     });
   });
 

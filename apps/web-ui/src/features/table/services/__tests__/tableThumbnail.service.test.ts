@@ -320,6 +320,18 @@ describe('TableThumbnailService', () => {
       expect(stats.tables.length).toBe(0);
     });
 
+    it('clears cached previews when the session viewer scope changes', async () => {
+      tableThumbnailService.setScope('session-1:user-1:player:map,tokens');
+      tableThumbnailService.initialize(mockRenderEngine);
+      await tableThumbnailService.generateThumbnail(validUUID, 1920, 1080, 200, 150);
+      expect(tableThumbnailService.getCacheStats().size).toBe(1);
+
+      tableThumbnailService.setScope('session-1:user-2:owner:map,tokens,dungeon_master');
+
+      expect(tableThumbnailService.getCacheStats().size).toBe(0);
+      expect(tableThumbnailService.getCachedThumbnail(validUUID, 200, 150)).toBeNull();
+    });
+
     it('cancels stale invalidations when clearing the cache', async () => {
       tableThumbnailService.initialize(mockRenderEngine);
       mockRenderEngine.get_active_table_id.mockReturnValue(validUUID);
@@ -439,6 +451,38 @@ describe('TableThumbnailService', () => {
 
       await rejection;
       vi.useRealTimers();
+    });
+  });
+
+  describe('capture race protection', () => {
+    it('does not cache a frame after the active table changes', async () => {
+      tableThumbnailService.initialize(mockRenderEngine);
+      mockRenderEngine.get_active_table_id.mockReturnValue(validUUID);
+      let frame: FrameRequestCallback | null = null;
+      const requestFrame = vi.spyOn(window, 'requestAnimationFrame').mockImplementation(callback => {
+        frame = callback;
+        return 1;
+      });
+
+      const pending = tableThumbnailService.generateThumbnail(validUUID, 1920, 1080, 200, 150);
+      for (let index = 0; index < 4 && mockRenderEngine.render.mock.calls.length === 0; index += 1) {
+        await vi.waitFor(() => expect(frame).not.toBeNull());
+        const preparatoryFrame = frame as FrameRequestCallback | null;
+        frame = null;
+        if (preparatoryFrame) preparatoryFrame(performance.now());
+        await Promise.resolve();
+      }
+      await vi.waitFor(() => {
+        expect(mockRenderEngine.render).toHaveBeenCalled();
+        expect(frame).not.toBeNull();
+      });
+      mockRenderEngine.get_active_table_id.mockReturnValue(validUUID2);
+      const callback = frame as FrameRequestCallback | null;
+      if (callback) callback(performance.now());
+
+      await expect(pending).resolves.toBeNull();
+      expect(tableThumbnailService.getCachedThumbnail(validUUID, 200, 150)).toBeNull();
+      requestFrame.mockRestore();
     });
   });
 

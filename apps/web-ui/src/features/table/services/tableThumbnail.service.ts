@@ -44,6 +44,17 @@ class TableThumbnailService {
   private isGenerating = new Set<string>(); // Prevent concurrent generation
   private debounceTimers = new Map<string, number>(); // Debounce rapid invalidations
   private readonly DEBOUNCE_MS = 300; // Wait 300ms after last change before regenerating
+  private scopeKey = 'anonymous';
+
+  setScope(scopeKey: string): void {
+    if (scopeKey === this.scopeKey) return;
+    this.clearCache();
+    this.scopeKey = scopeKey;
+  }
+
+  getCachedThumbnail(tableId: string, width: number, height: number): ImageData | null {
+    return this.cache.get(this.cacheKey(tableId, width, height))?.imageData ?? null;
+  }
   
   /**
    * Set the WASM RenderEngine instance
@@ -95,7 +106,8 @@ class TableThumbnailService {
     }
     assertValidDimensions(tableWidth, tableHeight, thumbnailWidth, thumbnailHeight);
     this.pruneCache();
-    const cacheKey = `${tableId}_${thumbnailWidth}x${thumbnailHeight}`;
+    const cacheKey = this.cacheKey(tableId, thumbnailWidth, thumbnailHeight);
+    const generationScope = this.scopeKey;
     
     // Return cached version if available
     if (!forceRefresh && this.cache.has(cacheKey)) {
@@ -209,6 +221,10 @@ class TableThumbnailService {
         this.renderEngine.render();
         // Wait for the render to complete (WebGL/WASM operations)
         await new Promise(resolve => requestAnimationFrame(() => resolve(undefined)));
+        if (this.renderEngine.get_active_table_id() !== tableId || this.scopeKey !== generationScope) {
+          logger.debug(`[ThumbnailService] Capture cancelled because the active table or viewer scope changed: ${tableId}`);
+          return null;
+        }
       } catch (renderError) {
         logger.warn('[ThumbnailService] Failed to trigger render:', renderError);
       }
@@ -295,6 +311,9 @@ class TableThumbnailService {
           timestamp: Date.now(),
           tableId
         };
+        if (this.scopeKey !== generationScope || this.renderEngine.get_active_table_id() !== tableId) {
+          return null;
+        }
         this.cache.set(cacheKey, cacheEntry);
         
         const duration = performance.now() - startTime;
@@ -367,7 +386,7 @@ class TableThumbnailService {
    */
   invalidateThumbnail(tableId: string, width: number, height: number): void {
     if (!isValidUUID(tableId)) return;
-    const cacheKey = `${tableId}_${width}x${height}`;
+    const cacheKey = this.cacheKey(tableId, width, height);
     if (this.cache.delete(cacheKey)) {
       logger.debug(`[ThumbnailService] Invalidated thumbnail: ${cacheKey}`);
     }
@@ -380,6 +399,7 @@ class TableThumbnailService {
     const count = this.cache.size;
     this.debounceTimers.forEach(timer => clearTimeout(timer));
     this.debounceTimers.clear();
+    this.isGenerating.clear();
     this.cache.clear();
     logger.debug(`[ThumbnailService] Cleared ${count} cached thumbnails`);
   }
@@ -415,6 +435,10 @@ class TableThumbnailService {
       keysToDelete.forEach(key => this.cache.delete(key));
       logger.debug(`[ThumbnailService] Pruned ${keysToDelete.length} old thumbnails`);
     }
+  }
+
+  private cacheKey(tableId: string, width: number, height: number): string {
+    return `${this.scopeKey}:${tableId}_${width}x${height}`;
   }
 }
 

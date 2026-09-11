@@ -1,5 +1,6 @@
-import type { TableInfo } from '@/store';
+import { useGameStore, type TableInfo } from '@/store';
 import { useWasmRuntime, useWasmStatus } from '@lib/wasm/runtime';
+import { onWasmEvent } from '@lib/wasm/wasmEvents';
 import { logger } from '@shared/utils/logger';
 import React, { useEffect, useRef, useState } from 'react';
 import { tableThumbnailService } from '../services/tableThumbnail.service';
@@ -23,13 +24,19 @@ export const TablePreview: React.FC<TablePreviewProps> = ({
   const [error, setError] = useState<string | null>(null);
 
   const [refreshTrigger, setRefreshTrigger] = useState(0);
+  const sessionId = useGameStore(state => state.sessionId);
+  const userId = useGameStore(state => state.userId);
+  const sessionRole = useGameStore(state => state.sessionRole);
+  const visibleLayers = useGameStore(state => state.visibleLayers);
+  const viewerScope = `${sessionId ?? 'no-session'}:${userId ?? 'anonymous'}:${sessionRole ?? 'unknown'}:${visibleLayers.join(',')}`;
+
+  useEffect(() => {
+    tableThumbnailService.setScope(viewerScope);
+  }, [viewerScope]);
   
   // Listen for sprite loading completion to trigger thumbnail regeneration
   useEffect(() => {
-    const handleSpritesLoaded = (event: Event) => {
-      const customEvent = event as CustomEvent<{ tableId: string; spriteCount: number; timestamp: number }>;
-      const { tableId, spriteCount } = customEvent.detail;
-      
+    return onWasmEvent('table-sprites-loaded', ({ table_id: tableId, count: spriteCount }) => {
       // Only regenerate thumbnail if this event is for our table
       if (tableId === table.table_id) {
         logger.debug(`[TablePreview] Sprites loaded for table ${tableId} (${spriteCount} sprites), regenerating thumbnail`);
@@ -40,13 +47,7 @@ export const TablePreview: React.FC<TablePreviewProps> = ({
         // Trigger immediate thumbnail generation
         setRefreshTrigger(prev => prev + 1);
       }
-    };
-    
-    window.addEventListener('table-sprites-loaded', handleSpritesLoaded);
-    
-    return () => {
-      window.removeEventListener('table-sprites-loaded', handleSpritesLoaded);
-    };
+    });
   }, [table.table_id, width, height]);
   
   useEffect(() => {
@@ -57,6 +58,41 @@ export const TablePreview: React.FC<TablePreviewProps> = ({
     if (!ctx) return;
 
     let isCancelled = false;
+
+    const drawPlaceholder = (title: string, subtitle: string) => {
+      const palette = getTablePreviewPalette();
+      ctx.fillStyle = palette.background;
+      ctx.fillRect(0, 0, width, height);
+      ctx.setLineDash([5, 5]);
+      ctx.strokeStyle = palette.subtleText;
+      ctx.lineWidth = 2;
+      ctx.strokeRect(2, 2, width - 4, height - 4);
+      ctx.setLineDash([]);
+      ctx.strokeStyle = palette.mutedText;
+      ctx.lineWidth = 2;
+      const iconSize = 32;
+      const iconX = width / 2;
+      const iconY = height / 2 - 10;
+      ctx.strokeRect(iconX - iconSize / 2, iconY - iconSize / 2, iconSize, iconSize);
+      ctx.beginPath();
+      ctx.moveTo(iconX - iconSize / 2, iconY - iconSize / 6);
+      ctx.lineTo(iconX + iconSize / 2, iconY - iconSize / 6);
+      ctx.moveTo(iconX - iconSize / 2, iconY + iconSize / 6);
+      ctx.lineTo(iconX + iconSize / 2, iconY + iconSize / 6);
+      ctx.moveTo(iconX - iconSize / 6, iconY - iconSize / 2);
+      ctx.lineTo(iconX - iconSize / 6, iconY + iconSize / 2);
+      ctx.moveTo(iconX + iconSize / 6, iconY - iconSize / 2);
+      ctx.lineTo(iconX + iconSize / 6, iconY + iconSize / 2);
+      ctx.stroke();
+      ctx.fillStyle = palette.mutedText;
+      ctx.font = '11px sans-serif';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'top';
+      ctx.fillText(title, width / 2, height / 2 + 20);
+      ctx.font = '9px sans-serif';
+      ctx.fillStyle = palette.subtleText;
+      ctx.fillText(subtitle, width / 2, height / 2 + 34);
+    };
 
     const renderThumbnail = async () => {
       setIsLoading(true);
@@ -79,14 +115,29 @@ export const TablePreview: React.FC<TablePreviewProps> = ({
 
       try {
         const renderEngine = runtime.getRenderEngine();
-        if (!renderEngine) {
-          throw new Error('Render engine not initialized');
+        if (renderEngine && tableThumbnailService.getRenderEngine() !== renderEngine) {
+          tableThumbnailService.initialize(renderEngine, {
+            isRuntimeReady: () => runtime.status.isModuleReady
+              && runtime.status.isCanvasAttached
+              && runtime.status.frameTableId === table.table_id,
+          });
         }
 
-        if (tableThumbnailService.getRenderEngine() !== renderEngine) {
-          tableThumbnailService.initialize(renderEngine, {
-            isRuntimeReady: () => runtime.status.isModuleReady && runtime.status.isCanvasAttached,
-          });
+        const cached = tableThumbnailService.getCachedThumbnail(table.table_id, width, height);
+        const isActive = renderEngine?.get_active_table_id() === table.table_id;
+        const isFrameReady = wasmStatus.frameTableId === table.table_id;
+        if (cached) {
+          ctx.putImageData(cached, 0, 0);
+          setIsLoading(false);
+          return;
+        }
+        if (!renderEngine || !isActive || !isFrameReady) {
+          drawPlaceholder(
+            isActive ? 'Rendering…' : 'Not rendered yet',
+            isActive ? '(Waiting for the first frame)' : '(Open this table to create a preview)',
+          );
+          setIsLoading(isActive && !isFrameReady);
+          return;
         }
 
         // Generate thumbnail using real WASM rendering
@@ -105,48 +156,9 @@ export const TablePreview: React.FC<TablePreviewProps> = ({
             logger.debug(`[TablePreview] Rendering thumbnail for ${table.table_id}: ${imageData.width}x${imageData.height}`);
             ctx.putImageData(imageData, 0, 0);
           } else {
-            // Table not active - show "Not Loaded" placeholder
+            // Table stopped being active while capture was pending.
             logger.debug(`[TablePreview] Table ${table.table_id} not active, showing placeholder`);
-            
-            ctx.fillStyle = palette.background;
-            ctx.fillRect(0, 0, width, height);
-            
-            // Draw dashed border
-            ctx.setLineDash([5, 5]);
-            ctx.strokeStyle = palette.subtleText;
-            ctx.lineWidth = 2;
-            ctx.strokeRect(2, 2, width - 4, height - 4);
-            ctx.setLineDash([]);
-            
-            // Draw icon (table symbol)
-            ctx.strokeStyle = palette.mutedText;
-            ctx.lineWidth = 2;
-            const iconSize = 32;
-            const iconX = width / 2;
-            const iconY = height / 2 - 10;
-            
-            // Draw simple table icon (grid)
-            ctx.strokeRect(iconX - iconSize/2, iconY - iconSize/2, iconSize, iconSize);
-            ctx.beginPath();
-            ctx.moveTo(iconX - iconSize/2, iconY - iconSize/6);
-            ctx.lineTo(iconX + iconSize/2, iconY - iconSize/6);
-            ctx.moveTo(iconX - iconSize/2, iconY + iconSize/6);
-            ctx.lineTo(iconX + iconSize/2, iconY + iconSize/6);
-            ctx.moveTo(iconX - iconSize/6, iconY - iconSize/2);
-            ctx.lineTo(iconX - iconSize/6, iconY + iconSize/2);
-            ctx.moveTo(iconX + iconSize/6, iconY - iconSize/2);
-            ctx.lineTo(iconX + iconSize/6, iconY + iconSize/2);
-            ctx.stroke();
-            
-            // Draw text
-            ctx.fillStyle = palette.mutedText;
-            ctx.font = '11px sans-serif';
-            ctx.textAlign = 'center';
-            ctx.textBaseline = 'top';
-            ctx.fillText('Not Loaded', width / 2, height / 2 + 20);
-            ctx.font = '9px sans-serif';
-            ctx.fillStyle = palette.subtleText;
-            ctx.fillText('(Switch to table to preview)', width / 2, height / 2 + 34);
+            drawPlaceholder('Not rendered yet', '(Open this table to create a preview)');
           }
           setIsLoading(false);
         }
@@ -189,6 +201,8 @@ export const TablePreview: React.FC<TablePreviewProps> = ({
     runtime,
     wasmStatus.isModuleReady,
     wasmStatus.isCanvasAttached,
+    wasmStatus.frameTableId,
+    viewerScope,
   ]);
 
   return (

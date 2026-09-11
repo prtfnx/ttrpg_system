@@ -1,76 +1,59 @@
-import { act, screen, waitFor } from '@testing-library/react';
-import userEvent from '@testing-library/user-event';
 import { useGameStore } from '@/store';
-import { createMockWasmRuntime, renderWithWasmRuntime } from '@test/utils/wasmRuntimeTestUtils';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
-
 import { EntitiesPanel } from '@features/canvas';
+import { createMockWasmRuntime, renderWithWasmRuntime } from '@test/utils/wasmRuntimeTestUtils';
+import { act, screen } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
+import { beforeEach, describe, expect, it } from 'vitest';
 
-// Mock sprites that will be returned from WASM and stored in the store
-const mockSprites = [
-  { id: 's1', name: 'Goblin', x: 100, y: 150, layer: 'tokens', visible: true },
-  { id: 's2', name: 'Orc', x: 200, y: 50, layer: 'tokens', visible: true }
+const TABLE_ID = '550e8400-e29b-41d4-a716-446655440000';
+
+const sprites = [
+  {
+    id: 's1', name: 'Goblin', tableId: TABLE_ID, x: 100, y: 150,
+    layer: 'tokens', texture: '', scale: { x: 1, y: 1 }, rotation: 0,
+  },
+  {
+    id: 's2', name: 'Orc', tableId: TABLE_ID, x: 200, y: 50,
+    layer: 'tokens', texture: '', scale: { x: 1, y: 1 }, rotation: 0,
+  },
 ];
 
-describe('EntitiesPanel sprite sync', () => {
+describe('EntitiesPanel authoritative synchronization', () => {
   beforeEach(() => {
     useGameStore.setState({
-      sprites: [],
+      sprites,
       selectedSprites: [],
+      activeTableId: TABLE_ID,
       sessionRole: null,
       visibleLayers: [],
     });
   });
 
-  it('syncs sprites from table sync and displays them', async () => {
-    renderWithWasmRuntime(
-      <EntitiesPanel />,
-      createMockWasmRuntime({
-        getTableSync: vi.fn(() => ({ get_sprites: () => mockSprites }) as never),
-      }),
-    );
+  it('renders the store snapshot after the same table is hydrated', async () => {
+    const runtime = createMockWasmRuntime();
+    runtime.store.setSnapshot({ hydratedTableId: TABLE_ID, frameTableId: TABLE_ID });
+    renderWithWasmRuntime(<EntitiesPanel />, runtime);
 
-    // Wait for sync to complete and UI to update
-    await waitFor(() => {
-      // header includes Entities (N)
-      expect(screen.getByRole('heading', { name: /entities \(2\)/i })).toBeInTheDocument();
-      expect(screen.getByText(/Goblin/i)).toBeInTheDocument();
-      expect(screen.getByText(/Orc/i)).toBeInTheDocument();
-    });
-
+    expect(screen.getByText('Synchronized')).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: /entities \(2\)/i })).toBeInTheDocument();
     const goblinButton = screen.getByRole('button', { name: /Goblin/ });
-    expect(goblinButton).toHaveAttribute('aria-pressed', 'false');
-
     await userEvent.click(goblinButton);
     expect(useGameStore.getState().selectedSprites).toEqual(['s1']);
   });
 
-  it('debounces sprite events and cancels pending sync on unmount', () => {
-    vi.useFakeTimers();
-    const getSprites = vi.fn(() => mockSprites);
-    const { unmount } = renderWithWasmRuntime(
-      <EntitiesPanel />,
-      createMockWasmRuntime({
-        getTableSync: vi.fn(() => ({ get_sprites: getSprites }) as never),
-      }),
-    );
-    expect(getSprites).toHaveBeenCalledTimes(1);
+  it('never reads or deletes entities from the disconnected standalone TableSync', () => {
+    const runtime = createMockWasmRuntime();
+    renderWithWasmRuntime(<EntitiesPanel />, runtime);
 
-    act(() => {
-      window.dispatchEvent(new CustomEvent('spriteAdded'));
-      window.dispatchEvent(new CustomEvent('spriteAdded'));
-      window.dispatchEvent(new CustomEvent('spriteAdded'));
-      vi.advanceTimersByTime(499);
-    });
-    expect(getSprites).toHaveBeenCalledTimes(1);
+    expect(runtime.getTableSync).not.toHaveBeenCalled();
+    expect(useGameStore.getState().sprites).toHaveLength(2);
+    expect(screen.getByText('Loading table…')).toBeInTheDocument();
 
-    act(() => vi.advanceTimersByTime(1));
-    expect(getSprites).toHaveBeenCalledTimes(2);
-
-    act(() => window.dispatchEvent(new CustomEvent('spriteAdded')));
-    unmount();
-    act(() => vi.advanceTimersByTime(500));
-    expect(getSprites).toHaveBeenCalledTimes(2);
-    vi.useRealTimers();
+    act(() => runtime.store.setSnapshot({
+      hydratedTableId: TABLE_ID,
+      tableHydrationError: null,
+    }));
+    expect(useGameStore.getState().sprites).toHaveLength(2);
+    expect(screen.getByText('Synchronized')).toBeInTheDocument();
   });
 });

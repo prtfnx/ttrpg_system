@@ -12,17 +12,62 @@
 import { beforeAll, describe, expect, it, vi } from 'vitest';
 import initWasm, {
   RenderEngine,
+  TableSync,
   calculate_asset_hash,
   compute_visibility_polygon,
   create_default_brush_presets,
   version,
 } from '../generated/ttrpg_rust_core';
+import { normalizeTableSnapshot } from '../tableSnapshot';
 
 beforeAll(async () => {
-  await initWasm(new URL('../generated/ttrpg_rust_core_bg.wasm', import.meta.url));
+  await initWasm({ module_or_path: new URL('../generated/ttrpg_rust_core_bg.wasm', import.meta.url) });
 });
 
 describe('WASM module (real browser)', () => {
+  it('accepts a Python-serialized table only after canonical DTO conversion', () => {
+    const snapshot = normalizeTableSnapshot({
+      table_data: {
+        table_id: '550e8400-e29b-41d4-a716-446655440000',
+        table_name: 'Boundary fixture',
+        width: 1000,
+        height: 800,
+        scale: [1, 1],
+        position: [12, -4],
+        grid_cell_px: 70,
+        cell_distance: 5,
+        distance_unit: 'ft',
+        grid_enabled: false,
+        snap_to_grid: true,
+        layers: {
+          tokens: {
+            '1': {
+              sprite_id: 'fixture-sprite',
+              position: [0, 15],
+              texture_path: null,
+              scale_x: 1,
+              scale_y: 1,
+              width: 50,
+              height: 50,
+              controlled_by: [1],
+            },
+          },
+        },
+        walls: [{ wall_id: 'wall-1', x1: 0, y1: 0, x2: 10, y2: 10 }],
+      },
+    });
+    const tableSync = new TableSync();
+    try {
+      expect(() => tableSync.handle_table_data(snapshot.renderer)).not.toThrow();
+      expect(tableSync.get_table_id()).toBe(snapshot.renderer.table_id);
+      expect(tableSync.get_sprites()).toEqual([
+        expect.objectContaining({ sprite_id: 'fixture-sprite', coord_x: 0, coord_y: 15 }),
+      ]);
+    } finally {
+      tableSync.free();
+    }
+  });
+
   it.each(['load', 'error', 'dispose'])('releases texture callbacks after %s', async (outcome) => {
     const onload = vi.spyOn(HTMLImageElement.prototype, 'onload', 'set');
     const deleteTexture = vi.spyOn(WebGL2RenderingContext.prototype, 'deleteTexture');

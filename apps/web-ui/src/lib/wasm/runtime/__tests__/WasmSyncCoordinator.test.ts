@@ -2,7 +2,12 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 const mockAssetSync = vi.hoisted(() => ({ init: vi.fn(), dispose: vi.fn() }));
 const mockSpriteSync = vi.hoisted(() => ({ init: vi.fn(), dispose: vi.fn() }));
-const mockTableSync = vi.hoisted(() => ({ init: vi.fn(), dispose: vi.fn() }));
+const mockTableSync = vi.hoisted(() => ({
+  init: vi.fn(),
+  dispose: vi.fn(),
+  flushPending: vi.fn(),
+  retainLatestForRenderer: vi.fn(),
+}));
 const mockRemoteSync = vi.hoisted(() => ({ init: vi.fn(), dispose: vi.fn() }));
 
 vi.mock('../../assetSync.service', () => ({ AssetSyncService: vi.fn(function () { return mockAssetSync; }) }));
@@ -22,6 +27,10 @@ describe('WasmSyncCoordinator', () => {
     const coordinator = new WasmSyncCoordinator(resolveDownloadedAsset);
 
     expect(coordinator.getRenderEngine()).toBeNull();
+    expect(mockTableSync.init).not.toHaveBeenCalled();
+
+    coordinator.start();
+    expect(mockTableSync.init).toHaveBeenCalledOnce();
   });
 
   it('sets the render engine and initializes sub-services', () => {
@@ -33,6 +42,7 @@ describe('WasmSyncCoordinator', () => {
     expect(mockAssetSync.init).toHaveBeenCalledOnce();
     expect(mockSpriteSync.init).toHaveBeenCalledOnce();
     expect(mockTableSync.init).toHaveBeenCalledOnce();
+    expect(mockTableSync.flushPending).toHaveBeenCalledOnce();
     expect(mockRemoteSync.init).toHaveBeenCalledOnce();
   });
 
@@ -46,6 +56,17 @@ describe('WasmSyncCoordinator', () => {
     expect(mockTableSync.dispose).toHaveBeenCalledOnce();
     expect(mockSpriteSync.dispose).toHaveBeenCalledOnce();
     expect(mockAssetSync.dispose).toHaveBeenCalledOnce();
+    expect(coordinator.getRenderEngine()).toBeNull();
+  });
+
+  it('keeps the table listener alive while the renderer is detached', () => {
+    const coordinator = new WasmSyncCoordinator(resolveDownloadedAsset);
+    coordinator.initialize(fakeEngine);
+
+    coordinator.detachRenderer();
+
+    expect(mockTableSync.retainLatestForRenderer).toHaveBeenCalledOnce();
+    expect(mockTableSync.dispose).not.toHaveBeenCalled();
     expect(coordinator.getRenderEngine()).toBeNull();
   });
 });

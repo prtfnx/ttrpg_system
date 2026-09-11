@@ -90,8 +90,16 @@ export class WasmRuntime implements WasmRuntimePort {
   private animationFrameId: number | null = null;
   private onFrame: (() => void) | null = null;
   private protocol: RuntimeProtocol | null = null;
-  private readonly syncCoordinator = new WasmSyncCoordinator((url, expectedHash) =>
-    this.resolveDownloadedAsset(url, expectedHash)
+  private readonly syncCoordinator = new WasmSyncCoordinator(
+    (url, expectedHash) => this.resolveDownloadedAsset(url, expectedHash),
+    {
+      onTableHydrated: tableId => this.store.setSnapshot({
+        hydratedTableId: tableId,
+        frameTableId: null,
+        tableHydrationError: null,
+      }),
+      onTableHydrationError: error => this.store.setSnapshot({ tableHydrationError: error }),
+    },
   );
   private readonly runtimeOperationHandler = (operation: WasmRuntimeOperation) => {
     this.handleRuntimeOperation(operation);
@@ -104,7 +112,12 @@ export class WasmRuntime implements WasmRuntimePort {
     return this.store.getSnapshot();
   }
 
+  start(): void {
+    this.syncCoordinator.start();
+  }
+
   async initialize(): Promise<void> {
+    this.start();
     if (this.initPromise) return this.initPromise;
 
     this.initPromise = initializeWasmCore()
@@ -161,7 +174,7 @@ export class WasmRuntime implements WasmRuntimePort {
       cancelAnimationFrame(this.animationFrameId);
       this.animationFrameId = null;
     }
-    this.syncCoordinator.dispose();
+    this.syncCoordinator.detachRenderer();
     assetIntegrationService.dispose();
     this.onFrame = null;
 
@@ -174,7 +187,11 @@ export class WasmRuntime implements WasmRuntimePort {
     }
 
     this.renderEngine = null;
-    this.store.setSnapshot({ isCanvasAttached: false });
+    this.store.setSnapshot({
+      isCanvasAttached: false,
+      hydratedTableId: null,
+      frameTableId: null,
+    });
   }
 
   dispose(): void {
@@ -198,6 +215,9 @@ export class WasmRuntime implements WasmRuntimePort {
       isCanvasAttached: false,
       error: null,
       version: null,
+      hydratedTableId: null,
+      frameTableId: null,
+      tableHydrationError: null,
     });
   }
 
@@ -403,6 +423,10 @@ export class WasmRuntime implements WasmRuntimePort {
     const render = () => {
       try {
         this.renderEngine?.render();
+        const status = this.status;
+        if (status.hydratedTableId && status.frameTableId !== status.hydratedTableId) {
+          this.store.setSnapshot({ frameTableId: status.hydratedTableId });
+        }
         this.onFrame?.();
       } catch (error) {
         logger.error('Rust WASM render error', error);

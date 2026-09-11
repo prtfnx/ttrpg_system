@@ -9,6 +9,9 @@ const readySnapshot: WasmRuntimeSnapshot = {
   isCanvasAttached: true,
   error: null,
   version: 'test',
+  hydratedTableId: null,
+  frameTableId: null,
+  tableHydrationError: null,
 };
 
 export interface MockWasmRuntime extends WasmRuntimePort {

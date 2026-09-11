@@ -33,7 +33,12 @@ const mocks = vi.hoisted(() => {
     bridgeCleanup: vi.fn(),
     bridgeSetProtocol: vi.fn(),
     integrationInitialize: vi.fn(),
+    integrationDetach: vi.fn(),
     integrationDispose: vi.fn(),
+    coordinatorCallbacks: null as null | {
+      onTableHydrated?: (tableId: string) => void;
+      onTableHydrationError?: (error: Error) => void;
+    },
     assetIntegrationInitialize: vi.fn(),
     assetIntegrationDispose: vi.fn(),
   };
@@ -72,9 +77,12 @@ vi.mock('../../wasmEvents', async (importOriginal) => {
 });
 
 vi.mock('../WasmSyncCoordinator', () => ({
-  WasmSyncCoordinator: vi.fn(function () {
+  WasmSyncCoordinator: vi.fn(function (_resolver, callbacks) {
+    mocks.coordinatorCallbacks = callbacks;
     return {
+    start: vi.fn(),
     initialize: mocks.integrationInitialize,
+    detachRenderer: mocks.integrationDetach,
     dispose: mocks.integrationDispose,
     };
   }),
@@ -116,6 +124,8 @@ describe('WasmRuntime', () => {
       isCanvasAttached: false,
       error: null,
       version: '1.2.3-test',
+      hydratedTableId: null,
+      frameTableId: null,
     });
     expect(runtime.getActionsEngine()).not.toBeNull();
     expect(runtime.getTableSync()).not.toBeNull();
@@ -180,7 +190,7 @@ describe('WasmRuntime', () => {
     runtime.detachCanvas();
 
     expect(cancelAnimationFrame).toHaveBeenCalledWith(17);
-    expect(mocks.integrationDispose).toHaveBeenCalled();
+    expect(mocks.integrationDetach).toHaveBeenCalled();
     expect(mocks.assetIntegrationDispose).toHaveBeenCalled();
     expect(mocks.renderEngine.clear_runtime_operation_handler).toHaveBeenCalled();
     expect(mocks.renderEngine.clear_runtime_event_handler).toHaveBeenCalled();
@@ -219,6 +229,30 @@ describe('WasmRuntime', () => {
     expect(listener).toHaveBeenCalledTimes(1);
     expect(emitWasmEvent).toHaveBeenCalledWith('spriteAdded', {});
     window.removeEventListener('spriteAdded', listener);
+  });
+
+  it('publishes table hydration only after a successful render frame', async () => {
+    await runtime.attachCanvas(canvas, { userId: null, role: null, activeLayer: 'map' });
+    mocks.coordinatorCallbacks?.onTableHydrated?.('table-1');
+
+    expect(runtime.status).toMatchObject({
+      hydratedTableId: 'table-1',
+      frameTableId: null,
+      tableHydrationError: null,
+    });
+
+    const renderFrame = vi.mocked(requestAnimationFrame).mock.calls[0][0];
+    renderFrame(0);
+    expect(runtime.status.frameTableId).toBe('table-1');
+  });
+
+  it('surfaces table hydration errors without changing the hydrated table', async () => {
+    await runtime.attachCanvas(canvas, { userId: null, role: null, activeLayer: 'map' });
+    const error = new Error('invalid snapshot');
+    mocks.coordinatorCallbacks?.onTableHydrationError?.(error);
+
+    expect(runtime.status.tableHydrationError).toBe(error);
+    expect(runtime.status.hydratedTableId).toBeNull();
   });
 
   it('bridges Rust preview and movement runtime events to existing browser listeners', async () => {

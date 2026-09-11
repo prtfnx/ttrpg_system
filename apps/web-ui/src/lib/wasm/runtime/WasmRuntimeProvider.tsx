@@ -22,6 +22,7 @@ export function WasmRuntimeProvider({ children }: WasmRuntimeProviderProps) {
 
   React.useEffect(() => {
     const runtime = runtimeRef.current;
+    runtime?.start();
     setCurrentWasmRuntime(runtime);
     return () => {
       if (runtimeRef.current === runtime) setCurrentWasmRuntime(null);

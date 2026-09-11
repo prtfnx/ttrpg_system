@@ -1,7 +1,7 @@
 import { useGameStore } from '@/store';
 import type { Character } from '@/types';
+import { useCharacterUpdateCommand } from '@features/character/hooks/useCharacterUpdateCommand';
 import { CharacterSheet } from './CharacterSheetNew';
-import { useCharacterPanel } from './CharacterPanel/useCharacterPanel';
 
 interface CharacterSheetWindowProps {
   characterId: string;
@@ -11,14 +11,10 @@ interface CharacterSheetWindowProps {
 // Wrapper that runs inside a FloatingWindow — fetches char from store, renders CharacterSheet
 export function CharacterSheetWindow({ characterId }: CharacterSheetWindowProps) {
   const character = useGameStore(s => s.characters.find(c => c.id === characterId) ?? null);
-  const { updateCharacter, protocol, isConnected } = useCharacterPanel();
+  const { submitCharacterUpdate } = useCharacterUpdateCommand();
 
   const handleSave = (updates: Partial<Character>) => {
-    updateCharacter(characterId, updates);
-    if (protocol && isConnected && character) {
-      updateCharacter(characterId, { syncStatus: 'syncing' });
-      protocol.updateCharacter(characterId, updates, character.version);
-    }
+    submitCharacterUpdate(characterId, updates);
   };
 
   return <CharacterSheet character={character} onSave={handleSave} />;

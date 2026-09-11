@@ -3,6 +3,7 @@ import type { Character } from '@/types';
 import { authService } from '@features/auth';
 import type { WizardFormData } from '@features/character/components/CharacterWizard/WizardFormData';
 import type { CharacterDraft } from '@features/character/characterDraft';
+import { useCharacterUpdateCommand } from '@features/character/hooks/useCharacterUpdateCommand';
 import { useProtocol } from '@lib/api';
 import { onProtocolEvent } from '@lib/websocket/protocolEvents';
 import {
@@ -24,14 +25,15 @@ interface StatsEditForm {
 }
 
 interface PendingOperation {
-  type: 'create' | 'update' | 'delete';
+  type: 'create' | 'delete';
   characterId: string;
   originalState?: Character;
   timeoutId: ReturnType<typeof setTimeout>;
 }
 
 export function useCharacterPanel() {
-  const { protocol, isConnected } = useProtocol();
+  const { protocol, isConnected, connectionState, connectionError } = useProtocol();
+  const { submitCharacterUpdate } = useCharacterUpdateCommand();
   const userInfo = authService.getUserInfo();
   const currentUserId = userInfo?.id || 0;
   
@@ -198,9 +200,6 @@ export function useCharacterPanel() {
       if (type === 'create') {
         updateCharacter(characterId, { syncStatus: 'error' });
         showToast.error(`Failed to save character "${originalState?.name || 'character'}". Click retry to try again.`);
-      } else if (type === 'update' && originalState) {
-        updateCharacter(characterId, { ...originalState, syncStatus: 'error' });
-        showToast.error(`Failed to update character "${originalState?.name || 'character'}". Changes reverted.`);
       } else if (type === 'delete' && originalState) {
         addCharacter({ ...originalState, syncStatus: 'error' });
         showToast.error(`Failed to delete character "${originalState?.name || 'character'}". Character restored.`);
@@ -222,15 +221,6 @@ export function useCharacterPanel() {
 
   // Server response listeners
   useEffect(() => {
-    const handleCharacterUpdate = (event: CustomEvent) => {
-      const { character_id } = event.detail;
-      if (character_id) {
-        confirmPendingOperation(character_id);
-        const tempChars = characters.filter(c => c.id.startsWith('temp-') && c.syncStatus === 'syncing');
-        tempChars.forEach(c => confirmPendingOperation(c.id));
-      }
-    };
-
     const handleCharacterSaved = (event: CustomEvent) => {
       const tempChars = characters.filter(c => c.id.startsWith('temp-') && c.syncStatus === 'syncing');
       tempChars.forEach(c => {
@@ -240,11 +230,9 @@ export function useCharacterPanel() {
       if (event.detail?.character_id) confirmPendingOperation(String(event.detail.character_id));
     };
 
-    window.addEventListener('character-update' as keyof WindowEventMap, handleCharacterUpdate as EventListener);
     window.addEventListener('character-saved' as keyof WindowEventMap, handleCharacterSaved as EventListener);
 
     return () => {
-      window.removeEventListener('character-update' as keyof WindowEventMap, handleCharacterUpdate as EventListener);
       window.removeEventListener('character-saved' as keyof WindowEventMap, handleCharacterSaved as EventListener);
     };
   }, [characters]);
@@ -602,13 +590,7 @@ export function useCharacterPanel() {
       }
     };
 
-    updateCharacter(charId, updates);
-
-    if (protocol && isConnected) {
-      updateCharacter(charId, { syncStatus: 'syncing' });
-      protocol.updateCharacter(charId, updates, char.version);
-      registerPendingOperation(charId, 'update', charData as unknown as Character);
-    }
+    submitCharacterUpdate(charId, updates);
   };
 
   const handleAddCondition = (charId: string) => {
@@ -630,12 +612,7 @@ export function useCharacterPanel() {
       }
     };
 
-    updateCharacter(charId, updates);
-
-    if (protocol && isConnected) {
-      updateCharacter(charId, { syncStatus: 'syncing' });
-      protocol.updateCharacter(charId, updates, char.version);
-    }
+    submitCharacterUpdate(charId, updates);
 
     setEditFormData({ ...editFormData, newCondition: '' });
   };
@@ -652,12 +629,7 @@ export function useCharacterPanel() {
       }
     };
 
-    updateCharacter(charId, updates);
-
-    if (protocol && isConnected) {
-      updateCharacter(charId, { syncStatus: 'syncing' });
-      protocol.updateCharacter(charId, updates, char.version);
-    }
+    submitCharacterUpdate(charId, updates);
   };
 
   const handleShareCharacter = (charId: string) => setShareDialogCharId(charId);
@@ -668,13 +640,8 @@ export function useCharacterPanel() {
     if (!char) return;
 
     const updates = { controlledBy };
-    updateCharacter(charId, updates);
-
-    if (protocol && isConnected) {
-      updateCharacter(charId, { syncStatus: 'syncing' });
-      protocol.updateCharacter(charId, updates, char.version);
-      showToast.success(`Updated permissions for "${char.name}"`);
-    }
+    const disposition = submitCharacterUpdate(charId, updates);
+    if (disposition === 'sent') showToast.info(`Updating permissions for "${char.name}"...`);
   };
 
   const handleDragStart = (e: React.DragEvent, charId: string) => {
@@ -686,6 +653,8 @@ export function useCharacterPanel() {
     // State
     characters,
     isConnected,
+    connectionState,
+    connectionError,
     currentUserId,
     drafts,
     activeDraft,

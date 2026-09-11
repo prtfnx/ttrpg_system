@@ -7,12 +7,8 @@ vi.mock('@/store', () => ({
   useGameStore: vi.fn(),
 }));
 
-vi.mock('../CharacterPanel/useCharacterPanel', () => ({
-  useCharacterPanel: vi.fn(() => ({
-    updateCharacter: vi.fn(),
-    protocol: null,
-    isConnected: false,
-  })),
+vi.mock('../../hooks/useCharacterUpdateCommand', () => ({
+  useCharacterUpdateCommand: vi.fn(() => ({ submitCharacterUpdate: vi.fn() })),
 }));
 
 vi.mock('../CharacterSheetNew', () => ({

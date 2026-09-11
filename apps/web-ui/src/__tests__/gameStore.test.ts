@@ -110,6 +110,33 @@ describe('gameStore — sprites', () => {
     expect(useGameStore.getState().sprites).toHaveLength(1);
   });
 
+  it('replaces entities only after a complete authoritative table hydration', () => {
+    const tableId = '550e8400-e29b-41d4-a716-446655440000';
+    useGameStore.setState({
+      activeTableId: tableId,
+      sprites: [makeSprite('stale')],
+      selectedSprites: ['stale'],
+    } as never);
+
+    useGameStore.getState().hydrateTableSprites(tableId, [
+      { ...makeSprite('fresh', 0, 10), tableId },
+    ]);
+
+    expect(useGameStore.getState().sprites).toEqual([
+      expect.objectContaining({ id: 'fresh', x: 0, y: 10, syncStatus: 'synced' }),
+    ]);
+    expect(useGameStore.getState().selectedSprites).toEqual([]);
+  });
+
+  it('does not let a stale table hydration delete current entities', () => {
+    const currentId = '550e8400-e29b-41d4-a716-446655440000';
+    useGameStore.setState({ activeTableId: currentId, sprites: [makeSprite('current')] } as never);
+
+    useGameStore.getState().hydrateTableSprites('550e8400-e29b-41d4-a716-446655440001', []);
+
+    expect(useGameStore.getState().sprites).toEqual([expect.objectContaining({ id: 'current' })]);
+  });
+
   it('removeSprite removes by id', () => {
     useGameStore.getState().addSprite(makeSprite('s1'));
     useGameStore.getState().removeSprite('s1');
@@ -379,23 +406,14 @@ describe('gameStore — switchToTable with existing table', () => {
   beforeEach(() => {
     vi.clearAllMocks();
   });
-  it('switchToTable loads local data and only requests canonical server data', () => {
+  it('records selection and requests canonical server data without hydrating a summary', () => {
     const tableId = '1a74b0a1-8caa-48be-8623-5b1e13a9d853';
     useGameStore.setState({
       tables: [{ table_id: tableId, table_name: 'Main', width: 100, height: 100 }],
     } as never);
     useGameStore.getState().switchToTable(tableId);
-    expect(runtimeMock.handleTableData).toHaveBeenCalled();
-    expect(runtimeMock.handleTableData).toHaveBeenCalledWith(
-      expect.objectContaining({
-        table_data: expect.objectContaining({
-          table_id: tableId,
-          table_name: 'Main',
-          width: 100,
-          height: 100,
-        }),
-      }),
-    );
+    expect(runtimeMock.handleTableData).not.toHaveBeenCalled();
+    expect(useGameStore.getState().activeTableId).toBe(tableId);
 
     expect(protocolMock.sendMessage).toHaveBeenCalledTimes(1);
     expect(protocolMock.sendMessage).toHaveBeenCalledWith(
@@ -478,20 +496,44 @@ describe('gameStore — setTableUnits', () => {
 // ─── createNewTable ────────────────────────────────────────────────────────────
 
 describe('gameStore — createNewTable', () => {
-  it('adds table to store and sets activeTableId', () => {
+  it('adds a pending summary without making its local ID authoritative', () => {
     useGameStore.getState().createNewTable('Arena', 800, 600);
     const s = useGameStore.getState();
     expect(s.tables).toHaveLength(1);
     expect(s.tables[0].table_name).toBe('Arena');
     expect(s.tables[0].width).toBe(800);
-    expect(s.tables[0].syncStatus).toBe('local');
-    expect(s.activeTableId).toBe(s.tables[0].table_id);
+    expect(s.tables[0].syncStatus).toBe('syncing');
+    expect(s.tables[0].table_id).toMatch(/^local_/);
+    expect(s.activeTableId).toBeNull();
   });
 
-  it('loads the local table and only sends the server creation request', () => {
+  it('reconciles a server UUID without losing unrelated pending tables', () => {
+    useGameStore.setState({
+      activeTableId: 'local_first',
+      tables: [
+        { table_id: 'local_first', table_name: 'First', width: 500, height: 500, syncStatus: 'syncing' },
+        { table_id: 'local_second', table_name: 'Second', width: 600, height: 600, syncStatus: 'syncing' },
+      ],
+    } as never);
+
+    useGameStore.getState().reconcileTableIdentity('local_first', {
+      table_id: '550e8400-e29b-41d4-a716-446655440000',
+      table_name: 'First',
+      width: 500,
+      height: 500,
+    });
+
+    expect(useGameStore.getState().tables).toEqual(expect.arrayContaining([
+      expect.objectContaining({ table_id: '550e8400-e29b-41d4-a716-446655440000', syncStatus: 'synced' }),
+      expect.objectContaining({ table_id: 'local_second', syncStatus: 'syncing' }),
+    ]));
+    expect(useGameStore.getState().activeTableId).toBe('550e8400-e29b-41d4-a716-446655440000');
+  });
+
+  it('sends the server creation request without hydrating an incomplete local table', () => {
     useGameStore.getState().createNewTable('Map', 100, 100);
 
-    expect(runtimeMock.handleTableData).toHaveBeenCalled();
+    expect(runtimeMock.handleTableData).not.toHaveBeenCalled();
     expect(protocolMock.sendMessage).toHaveBeenCalledTimes(1);
     expect(protocolMock.sendMessage).toHaveBeenCalledWith(
       expect.objectContaining({

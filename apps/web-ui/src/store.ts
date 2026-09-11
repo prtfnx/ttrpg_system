@@ -4,7 +4,7 @@ import { advancedMeasurementSystem } from '@features/measurement/services/advanc
 import { isDM, type SessionRole } from '@features/session/types/roles';
 import { ProtocolService } from '@lib/api';
 import { getCurrentWasmRuntime } from '@lib/wasm/runtime';
-import { transformServerTablesToClient, validateTableId } from '@lib/websocket';
+import { createMessage, MessageType, transformServerTablesToClient, validateTableId } from '@lib/websocket';
 import { logger } from '@shared/utils/logger';
 import { create } from 'zustand';
 import { devtools } from 'zustand/middleware';
@@ -114,6 +114,7 @@ interface GameStore extends GameState {
   setConnection: (connected: boolean, sessionId?: string) => void;
   updateConnectionState: (state: ConnectionState) => void;
   addSprite: (sprite: Sprite) => void;
+  hydrateTableSprites: (tableId: string, sprites: Sprite[]) => void;
   removeSprite: (id: string) => void;
   updateSprite: (id: string, updates: Partial<Sprite>) => void;
   addCharacter: (character: import('./types').Character) => void;
@@ -123,6 +124,7 @@ interface GameStore extends GameState {
   
   // Table management actions
   setTables: (tables: TableInfo[]) => void;
+  reconcileTableIdentity: (localTableId: string, authoritativeTable: TableInfo) => void;
   setActiveTableId: (tableId: string | null) => void;
   setTablesLoading: (loading: boolean) => void;
   requestTableList: () => void;
@@ -634,6 +636,40 @@ export const useGameStore = create<GameStore>()(
         }));
       },
 
+      reconcileTableIdentity: (localTableId: string, authoritativeTable: TableInfo) => {
+        set(state => {
+          const pending = state.tables.find(table => table.table_id === localTableId);
+          const reconciled: TableInfo = {
+            ...pending,
+            ...authoritativeTable,
+            syncStatus: 'synced',
+            lastSyncTime: Date.now(),
+            syncError: undefined,
+          };
+          const withoutDuplicate = state.tables.filter(table => (
+            table.table_id !== localTableId && table.table_id !== authoritativeTable.table_id
+          ));
+          return {
+            tables: [...withoutDuplicate, reconciled],
+            activeTableId: state.activeTableId === localTableId
+              ? authoritativeTable.table_id
+              : state.activeTableId,
+          };
+        });
+      },
+
+      hydrateTableSprites: (tableId: string, sprites: Sprite[]) => {
+        set(state => {
+          if (state.activeTableId && state.activeTableId !== tableId) return state;
+          const synchronized = sprites.map(sprite => ({ ...sprite, tableId, syncStatus: 'synced' as const }));
+          const synchronizedIds = new Set(synchronized.map(sprite => sprite.id));
+          return {
+            sprites: synchronized,
+            selectedSprites: state.selectedSprites.filter(id => synchronizedIds.has(id)),
+          };
+        });
+      },
+
       setActiveTableId: (tableId: string | null) => {
         logger.debug('setActiveTableId called', { tableId });
         set(() => ({
@@ -675,55 +711,36 @@ export const useGameStore = create<GameStore>()(
       },
 
       createNewTable: (name: string, width: number, height: number) => {
-        // BEST PRACTICE: Create table locally first (optimistic UI)
+        // Keep a pending summary for UI feedback. It must never be applied to the
+        // renderer or used as an authoritative table identity.
         const newTable: TableInfo = {
-          table_id: `local_${Date.now()}`, // Local ID until synced to server
+          table_id: `local_${crypto.randomUUID()}`,
           table_name: name,
           width,
           height,
           created_at: new Date().toISOString(),
           updated_at: new Date().toISOString(),
-          syncStatus: 'local', // Mark as local-only initially
+          syncStatus: 'syncing',
           lastSyncTime: undefined
         };
         
         set((state) => ({
           tables: [...state.tables, newTable],
-          activeTableId: newTable.table_id
         }));
-        
-        // Create basic table data structure for WASM rendering
-        const tableDataForWasm = {
-          table_data: {
-            table_id: newTable.table_id,
-            table_name: newTable.table_name,
-            width: newTable.width,
-            height: newTable.height,
-            grid_size: 50,
-            grid_enabled: true,
-            grid_snapping: false,
-            layers: {
-              map: [],
-              tokens: [],
-              dungeon_master: [],
-              light: [],
-              height: [],
-              obstacles: [],
-              fog_of_war: []
-            }
-          }
-        };
-        
-        // Load the optimistic table directly into the local WASM runtime.
-        getCurrentWasmRuntime()?.handleTableData(tableDataForWasm);
-        // Send message via protocol to create new table on server
-        // BEST PRACTICE: Include local_table_id for sync mapping
-        sendProtocolMessage('new_table_request', {
-              table_name: name,
-              width,
-              height,
-              local_table_id: newTable.table_id // Include local ID for server mapping
-            });
+
+        const sent = sendProtocolMessage(MessageType.NEW_TABLE_REQUEST, {
+          table_name: name,
+          width,
+          height,
+          local_table_id: newTable.table_id,
+        });
+        if (!sent) {
+          set(state => ({
+            tables: state.tables.map(table => table.table_id === newTable.table_id
+              ? { ...table, syncStatus: 'error', syncError: 'Not connected to the session server' }
+              : table),
+          }));
+        }
           
         },
 
@@ -774,36 +791,7 @@ export const useGameStore = create<GameStore>()(
         const { setActiveTableId } = _get();
         setActiveTableId(tableId);
         
-        set((state) => {
-          const table = state.tables.find(t => t.table_id === tableId);
-          if (table) {
-            const tableDataForWasm = {
-              table_data: {
-                table_id: table.table_id,
-                table_name: table.table_name,
-                width: table.width,
-                height: table.height,
-                grid_size: 50,
-                grid_enabled: true,
-                grid_snapping: false,
-                layers: {
-                  map: [],
-                  tokens: [],
-                  dungeon_master: [],
-                  light: [],
-                  height: [],
-                  obstacles: [],
-                  fog_of_war: []
-                }
-              }
-            };
-            getCurrentWasmRuntime()?.handleTableData(tableDataForWasm);
-          }
-          
-          return {}; // activeTableId already set by setActiveTableId
-        });
-        
-        sendProtocolMessage('table_request', {
+        sendProtocolMessage(MessageType.TABLE_REQUEST, {
           table_id: tableId
         });
       },
@@ -850,16 +838,13 @@ export const useGameStore = create<GameStore>()(
   )
 );
 
-function sendProtocolMessage(type: string, data: Record<string, unknown> = {}): boolean {
+function sendProtocolMessage(type: MessageType, data: Record<string, unknown> = {}): boolean {
   if (!ProtocolService.hasProtocol()) {
     logger.warn('[Store] Protocol not initialized');
     return false;
   }
 
-  ProtocolService.getProtocol().sendMessage({
-    type,
-    data,
-  } as never);
+  ProtocolService.getProtocol().sendMessage(createMessage(type, data));
 
   return true;
 }

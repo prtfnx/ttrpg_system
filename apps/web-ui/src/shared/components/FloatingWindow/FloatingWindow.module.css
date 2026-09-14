@@ -87,7 +87,7 @@
 
 .taskbarButton {
   height: 26px;
-  padding: 2px var(--space-sm);
+  padding: var(--border-width-md) var(--space-sm);
   color: var(--text-secondary);
   background: var(--bg-secondary);
   border: var(--border-width) solid var(--border-primary);

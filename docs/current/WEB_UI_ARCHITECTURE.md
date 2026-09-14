@@ -5,7 +5,7 @@ web styling.
 
 Status: current.
 
-Last source audit: 2026-09-10
+Last source audit: 2026-09-14
 
 The web UI is a Vite React app. React owns user workflows and browser state.
 Protocol code owns the WebSocket connection. `WasmRuntime` owns Rust/WASM.
@@ -59,6 +59,8 @@ Important combat pieces:
 
 - Creates one `WasmRuntime`.
 - Passes the active protocol into the runtime.
+- Starts runtime-owned table subscriptions after the provider commits, so a
+  snapshot can be retained before the canvas mounts.
 - Registers the current runtime for non-React integration code.
 - Disposes the runtime on unmount.
 
@@ -99,13 +101,18 @@ and verification commands.
 
 - UI components should call hooks, stores, services, or runtime ports.
 - UI components should not import generated WASM bindings.
-- Protocol handlers should normalize server messages before updating store or
-  runtime state.
+- Protocol handlers and runtime synchronization services should normalize
+  server messages before updating store or runtime state. Complete table
+  snapshots go through `TableSyncService`; feature code must not pass them
+  directly to the renderer.
 - Feature hooks and development tools must not construct a second network
   client. Use `ProtocolProvider` or `ProtocolService` for browser transport.
 - Shared utilities should not depend on a mounted React tree unless their name
   makes that dependency clear.
 - Tests should mock the boundary being used: protocol, runtime, store, or DOM.
+  Runtime mocks should implement `WasmRuntimePort`, preferably through the
+  shared `createMockWasmRuntime` fixture, so lifecycle changes fail type-checking
+  instead of leaving stale hand-built mocks.
 - Keep unfinished renderer workflows latent rather than exposing controls that
   only update local configuration or logs. Background LOD/streaming and weather
   effects are not released UI features until a tested runtime-port contract

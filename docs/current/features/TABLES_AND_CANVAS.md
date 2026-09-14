@@ -5,7 +5,7 @@ canvas bootstrap, or table settings.
 
 Status: current but partial.
 
-Last source audit: 2026-09-10
+Last source audit: 2026-09-14
 
 ## Source owners
 
@@ -81,8 +81,15 @@ Switch table:
 1. `switchToTable()` validates the id and calls `setActiveTableId()`.
 2. `setActiveTableId()` sends `table_active_set` when protocol is available.
 3. The server writes `GamePlayer.active_table_id`.
-4. The browser asks for `table_request` and passes received table data to
-   `WasmRuntime.handleTableData()`.
+4. The browser asks for `table_request`; the protocol emits the received table
+   payload to the runtime-owned `TableSyncService`.
+5. `TableSyncService` validates and normalizes the complete snapshot once,
+   hydrates the authoritative browser sprite store, and passes the same
+   canonical table identity to the renderer. If no renderer is attached, it
+   retains the snapshot and flushes it on attachment.
+
+Feature code must not call the renderer's `handle_table_data` directly. The
+runtime port intentionally does not expose a complete-table hydration method.
 
 DM force switch:
 

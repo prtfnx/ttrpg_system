@@ -8,7 +8,6 @@ const protocolMock = vi.hoisted(() => ({
 }));
 
 const runtimeMock = vi.hoisted(() => ({
-  handleTableData: vi.fn(),
   addWall: vi.fn(),
   addWalls: vi.fn(),
   updateWall: vi.fn(),
@@ -444,7 +443,6 @@ describe('gameStore — switchToTable with existing table', () => {
       tables: [{ table_id: tableId, table_name: 'Main', width: 100, height: 100 }],
     } as never);
     useGameStore.getState().switchToTable(tableId);
-    expect(runtimeMock.handleTableData).not.toHaveBeenCalled();
     expect(useGameStore.getState().activeTableId).toBe(tableId);
 
     expect(protocolMock.sendMessage).toHaveBeenCalledTimes(1);
@@ -565,7 +563,6 @@ describe('gameStore — createNewTable', () => {
   it('sends the server creation request without hydrating an incomplete local table', () => {
     useGameStore.getState().createNewTable('Map', 100, 100);
 
-    expect(runtimeMock.handleTableData).not.toHaveBeenCalled();
     expect(protocolMock.sendMessage).toHaveBeenCalledTimes(1);
     expect(protocolMock.sendMessage).toHaveBeenCalledWith(
       expect.objectContaining({

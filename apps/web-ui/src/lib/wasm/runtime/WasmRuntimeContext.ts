@@ -1,11 +1,11 @@
 import { createContext, useContext } from 'react';
-import type { WasmRuntime } from './WasmRuntime';
+import type { WasmRuntimePort } from './WasmRuntimePort';
 import type { ActionsClient, RenderEngine } from './types';
 import { useWasmRuntimeSnapshot } from './wasmStore';
 
-export const WasmRuntimeContext = createContext<WasmRuntime | null>(null);
+export const WasmRuntimeContext = createContext<WasmRuntimePort | null>(null);
 
-export function useWasmRuntime(): WasmRuntime {
+export function useWasmRuntime(): WasmRuntimePort {
   const runtime = useContext(WasmRuntimeContext);
   if (!runtime) {
     throw new Error('useWasmRuntime must be used inside WasmRuntimeProvider');

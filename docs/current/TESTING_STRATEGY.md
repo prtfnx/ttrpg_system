@@ -4,7 +4,7 @@ Audience: contributors choosing and running verification for a change.
 
 Status: current.
 
-Last source audit: 2026-09-10
+Last source audit: 2026-09-14
 
 Tests should sit at the boundary where behavior is owned. Avoid testing a lower
 layer through an unrelated higher layer when a direct boundary test is clearer.
@@ -201,6 +201,10 @@ Use Vitest in `apps/web-ui`.
   cannot model.
 - Runtime tests: `WasmRuntimePort`, callback routing, attach/detach, and error
   snapshots.
+- Runtime component tests should use `createMockWasmRuntime` or a mock that
+  explicitly implements `WasmRuntimePort`. Do not maintain partial untyped
+  runtime doubles; lifecycle additions such as `start()` must be enforced by
+  TypeScript across shared fixtures.
 - Asset-boundary tests: TypeScript covers fetch ownership, concurrent download
   deduplication, hash mismatch, Blob eviction, and object-URL/abort cleanup;
   Rust covers stable byte-to-xxHash vectors.

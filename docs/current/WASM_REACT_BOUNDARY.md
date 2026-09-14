@@ -4,7 +4,7 @@ Audience: contributors changing React-to-Rust integration.
 
 Status: usable.
 
-Last source audit: 2026-09-10
+Last source audit: 2026-09-14
 
 React does not own Rust objects directly. It talks to `WasmRuntime`, and
 `WasmRuntime` owns the generated wasm-bindgen module.
@@ -30,6 +30,8 @@ packages/rust-core
 ## Runtime ownership
 
 - `WasmRuntimeProvider` creates one runtime for the React tree.
+- The provider starts runtime-owned protocol subscriptions after commit, before
+  a canvas is required.
 - `WasmRuntime` initializes the WASM module.
 - `WasmRuntime` creates and frees Rust-owned objects such as `RenderEngine`.
 - Runtime hooks expose app-facing access:
@@ -54,11 +56,17 @@ WASM type, expose a runtime-owned type from
 ## Canvas lifecycle
 
 1. React mounts `WasmRuntimeProvider`.
-2. The runtime initializes the WASM module once.
+2. The provider calls `runtime.start()`, which installs the table protocol
+   subscriptions without requiring a renderer.
 3. The canvas passes its `HTMLCanvasElement` to `runtime.attachCanvas`.
-4. The runtime creates or reuses the Rust `RenderEngine`.
-5. The runtime registers Rust callbacks for operations and events.
-6. On detach or dispose, the runtime clears callbacks and frees Rust objects.
+4. The runtime initializes the WASM module once and creates or reuses the Rust
+   `RenderEngine`.
+5. The runtime registers Rust callbacks and flushes any table snapshot that
+   arrived before the renderer attached.
+6. On canvas detach, renderer-specific subscriptions are cleared and the latest
+   table snapshot is retained for a later attachment.
+7. On provider disposal, all subscriptions, callbacks, and Rust objects are
+   released.
 
 ## Data flow
 
@@ -80,11 +88,16 @@ Rust event:
 Rust -> runtime event callback -> TypeScript bridge -> current app listener
 ```
 
-Server update:
+Server table update:
 
 ```text
-WebClientProtocol -> store/runtime method -> Rust renderer
+WebClientProtocol -> protocol event -> TableSyncService
+                  -> normalizeTableSnapshot -> store + Rust renderer
 ```
+
+`TableSyncService` is the only application entry point for complete table
+snapshots. `WasmRuntimePort` deliberately has no direct `handleTableData`
+method, so a caller cannot bypass table-ID validation and normalization.
 
 Authorized asset download:
 
@@ -103,6 +116,10 @@ Table and sprite synchronization must include a non-empty authoritative
 the received table ID to every normalized layer, flat sprite, and background
 sprite before calling Rust. It does not infer a renderer table from a fallback
 name.
+
+The runtime publishes `hydratedTableId` after the normalized snapshot reaches
+the renderer and `frameTableId` after that table has rendered a frame. Preview
+capture must wait for both IDs to match the requested table.
 
 Combat preview:
 
@@ -126,6 +143,8 @@ cover, terrain, resources, and turns are accepted by the server through
 - Do not call `fetch`, retain presigned URLs, or manage browser download queues
   in Rust. Pass bytes through a runtime method only for measured compute work.
 - Add new Rust-facing behavior through `WasmRuntimePort`.
+- Use the runtime-owned synchronization services for server snapshots; do not
+  add a second direct snapshot-to-renderer entry point.
 - Prefer Rust for measured compute-heavy engine work. Keep UI workflows,
   transport lifecycle, and application state in TypeScript.
 - Keep runtime tests at the port/callback boundary, not at React component

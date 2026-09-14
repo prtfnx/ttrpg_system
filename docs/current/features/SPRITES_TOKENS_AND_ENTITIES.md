@@ -5,7 +5,7 @@ character-token links, or vision fields on tokens.
 
 Status: current but partial.
 
-Last source audit: 2026-09-10
+Last source audit: 2026-09-14
 
 ## Source owners
 
@@ -109,6 +109,11 @@ session and returns only plain values to the async protocol handler.
 The browser store owns the React-visible sprite array and permission helpers.
 Protocol handlers update store state and dispatch DOM events such as
 `sprite-created`, `sprite-moved`, and `sprite-removed`.
+
+React entity lists read only this authoritative store array. They do not query
+the renderer as a second source of entity truth. Complete table hydration
+normalizes one snapshot, updates the store, and sends the corresponding render
+payload through `TableSyncService`.
 
 WASM owns render-time sprite state. React reaches it through `WasmRuntime` and
 the render engine, not by importing generated bindings in feature code.

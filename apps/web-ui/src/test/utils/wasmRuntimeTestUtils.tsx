@@ -27,6 +27,7 @@ export function createMockWasmRuntime(overrides: Partial<MockWasmRuntime> = {}):
     get status() {
       return store.getSnapshot();
     },
+    start: vi.fn(),
     initialize: vi.fn().mockResolvedValue(undefined),
     attachCanvas: vi.fn(),
     detachCanvas: vi.fn(),
@@ -71,7 +72,6 @@ export function createMockWasmRuntime(overrides: Partial<MockWasmRuntime> = {}):
     setAmbientLight: vi.fn(),
     setShapeStyle: vi.fn(),
     setTableUnits: vi.fn(),
-    handleTableData: vi.fn(),
     addWall: vi.fn(),
     addWalls: vi.fn(),
     updateWall: vi.fn(),
@@ -91,7 +91,7 @@ export function createMockWasmRuntime(overrides: Partial<MockWasmRuntime> = {}):
 export function createWasmRuntimeWrapper(runtime: WasmRuntimePort) {
   return function WasmRuntimeTestWrapper({ children }: { children: React.ReactNode }) {
     return (
-      <WasmRuntimeContext.Provider value={runtime as never}>
+      <WasmRuntimeContext.Provider value={runtime}>
         {children}
       </WasmRuntimeContext.Provider>
     );

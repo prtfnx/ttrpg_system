@@ -359,10 +359,6 @@ export class WasmRuntime implements WasmRuntimePort {
     this.tableManager?.set_table_units(tableId, gridCellPx, cellDistance, distanceUnit);
   }
 
-  handleTableData(tableData: unknown): void {
-    this.renderEngine?.handle_table_data(tableData);
-  }
-
   addWall(wall: unknown): void {
     this.renderEngine?.add_wall(JSON.stringify(wall));
   }

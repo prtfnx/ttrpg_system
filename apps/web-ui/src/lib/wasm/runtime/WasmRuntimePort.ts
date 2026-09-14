@@ -9,7 +9,7 @@ import type {
   VisibilityPoint,
 } from './types';
 import type { AssetCacheStats, AssetInfo, CacheAssetOptions } from './BrowserAssetCache';
-import type { WasmRuntimeSnapshot } from './wasmStore';
+import type { WasmRuntimeSnapshot, WasmRuntimeStore } from './wasmStore';
 
 export interface AttachCanvasOptions {
   userId: number | null;
@@ -19,8 +19,10 @@ export interface AttachCanvasOptions {
 }
 
 export interface WasmRuntimePort {
+  readonly store: WasmRuntimeStore;
   readonly status: WasmRuntimeSnapshot;
 
+  start(): void;
   initialize(): Promise<void>;
   attachCanvas(canvas: HTMLCanvasElement, options: AttachCanvasOptions): Promise<RenderEngine>;
   detachCanvas(): void;
@@ -57,7 +59,6 @@ export interface WasmRuntimePort {
   setAmbientLight(level: number): void;
   setShapeStyle(color: string, opacity: number, filled: boolean): void;
   setTableUnits(tableId: string | null, gridCellPx: number, cellDistance: number, distanceUnit: string): void;
-  handleTableData(tableData: unknown): void;
 
   addWall(wall: unknown): void;
   addWalls(walls: unknown[]): void;

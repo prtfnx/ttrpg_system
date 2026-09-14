@@ -67,7 +67,7 @@ export const showToast = {
   connectionLost: () => {
     toast.error(
       'Connection lost. Unsynced character edits will retry while this page stays open.',
-      { autoClose: false, toastId: connectionLostToastId }
+      { autoClose: false }
     );
   },
 

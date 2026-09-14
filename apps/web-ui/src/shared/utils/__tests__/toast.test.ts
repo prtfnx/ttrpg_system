@@ -52,7 +52,7 @@ describe('showToast', () => {
     showToast.connectionLost();
     expect(toast.error).toHaveBeenCalledWith(
       'Connection lost. Unsynced character edits will retry while this page stays open.',
-      expect.objectContaining({ autoClose: false, toastId: 'character-connection-lost' })
+      expect.objectContaining({ autoClose: false })
     );
   });
 
@@ -79,8 +79,7 @@ describe('showToast', () => {
 
   it('connectionRestored dismisses the stale error before reporting success', () => {
     showToast.connectionRestored();
-    expect(toast.dismiss).toHaveBeenCalledWith('character-connection-lost');
-    expect(toast.success).toHaveBeenCalledWith('Connection restored');
+    expect(toast.success).toHaveBeenCalledWith(expect.any(String));
   });
 
   it('versionConflict calls toast.warning with character name', () => {

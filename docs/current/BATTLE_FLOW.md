@@ -1,6 +1,6 @@
 # Battle flow
 
-Last source audit: 2026-08-17
+Last source audit: 2026-09-14
 
 Battle flow is command-oriented now. React can help the user plan a turn, and
 Rust/WASM can draw previews, but the server is the only place that accepts
@@ -178,6 +178,19 @@ plan visible so the user can fix it.
 ## UI surface
 
 `CombatDock` is mounted on the main canvas play surface.
+
+When no encounter is active, a DM sees a compact **Set up combat** launcher;
+the full setup panel does not open merely because the dock mounted. The setup
+state closes when the session changes. Non-DM users do not receive an empty
+combat dock.
+
+Pre-combat setup offers either the linked tokens on the active table or an
+empty encounter. A linked-token candidate must belong to that table, be on the
+tokens layer, and reference a character already loaded in the browser store.
+Starting remains disabled until the active table is server-confirmed (not
+`local`, `syncing`, or `error`) and has a valid UUID. Both start paths send that
+authoritative table ID; an optimistic local table ID is never used to start
+combat.
 
 It brings together:
 

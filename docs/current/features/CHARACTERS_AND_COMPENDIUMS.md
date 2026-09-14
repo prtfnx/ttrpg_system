@@ -6,7 +6,7 @@ compendium data, or character-token links.
 Status: usable. Character storage and authority and the bundled starter
 compendium are implemented.
 
-Last source audit: 2026-08-17
+Last source audit: 2026-09-14
 
 ## Ownership
 
@@ -21,6 +21,10 @@ Last source audit: 2026-08-17
 - `routers/compendium.py` exposes read-only, bounded compendium REST routes.
 - `service/compendium_artifact.py` verifies production artifact manifests.
 - `apps/web-ui/src/features/character/` owns editing and wizard workflows.
+- `apps/web-ui/src/features/character/hooks/useCharacterUpdateCommand.ts` is
+  the shared edit command for the character panel and modeless sheets.
+- `apps/web-ui/src/lib/websocket/clientProtocol.ts` owns update correlation,
+  reconnect replay, acknowledgement, and the bounded conflict retry.
 
 ## Persisted character flow
 
@@ -55,6 +59,27 @@ below.
 Deletion is an idempotent archive operation. It detaches linked tokens and
 removes active sharing grants while retaining character logs and an archive
 event.
+
+## Browser edits and reconnects
+
+The character panel and modeless character sheets submit edits through
+`useCharacterUpdateCommand`. The browser applies the edit optimistically and
+marks the character `syncing`; the protocol records the generated message ID
+before attempting transport. A successful correlated response advances the
+server version, marks the character `synced`, and removes the pending entry.
+
+If the socket disconnects, unsent updates stay in the protocol message queue
+and sent-but-unacknowledged updates stay in the pending map. Reconnecting the
+same protocol instance replays both categories. A server version conflict
+updates the local version and retries the same delta once; another rejection
+marks the character `error` instead of retrying forever.
+
+This queue is deliberately page-memory durability, not offline persistence. It
+survives a transport reconnect while the current page and protocol instance
+remain alive, but not navigation, reload, tab closure, or browser failure. UI
+copy must not claim that disconnected edits are durably saved. Wait for the
+`synced` state before leaving the page, or export the current character before
+an unavoidable reload.
 
 ## Draft flow
 

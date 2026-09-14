@@ -219,6 +219,7 @@ vi.mock('react-toastify', () => ({
     error: vi.fn(),
     warning: vi.fn(),
     info: vi.fn(),
+    dismiss: vi.fn(),
   },
   ToastContainer: () => null,
 }));

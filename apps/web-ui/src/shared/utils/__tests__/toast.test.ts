@@ -37,7 +37,7 @@ describe('showToast', () => {
 
   it('characterSaved calls toast.success', () => {
     showToast.characterSaved('Gandalf');
-    expect(toast.success).toHaveBeenCalledWith(expect.stringContaining('Gandalf'));
+    expect(toast.success).toHaveBeenCalledWith('Character "Gandalf" saved successfully');
   });
 
   it('characterSaveFailed includes reason when provided', () => {
@@ -51,14 +51,14 @@ describe('showToast', () => {
   it('connectionLost uses autoClose false', () => {
     showToast.connectionLost();
     expect(toast.error).toHaveBeenCalledWith(
-      expect.any(String),
-      expect.objectContaining({ autoClose: false })
+      'Connection lost. Unsynced character edits will retry while this page stays open.',
+      expect.objectContaining({ autoClose: false, toastId: 'character-connection-lost' })
     );
   });
 
   it('characterDeleted calls toast.info', () => {
     showToast.characterDeleted('Aragorn');
-    expect(toast.info).toHaveBeenCalledWith(expect.stringContaining('Aragorn'));
+    expect(toast.info).toHaveBeenCalledWith('Character "Aragorn" deleted');
   });
 
   it('characterUpdateFailed with reason includes reason', () => {
@@ -77,23 +77,16 @@ describe('showToast', () => {
     );
   });
 
-  it('connectionRestored calls toast.success', () => {
+  it('connectionRestored dismisses the stale error before reporting success', () => {
     showToast.connectionRestored();
-    expect(toast.success).toHaveBeenCalledWith(expect.any(String));
-  });
-
-  it('rollbackWarning calls toast.warning with character name', () => {
-    showToast.rollbackWarning('Bilbo');
-    expect(toast.warning).toHaveBeenCalledWith(
-      expect.stringContaining('Bilbo'),
-      expect.anything()
-    );
+    expect(toast.dismiss).toHaveBeenCalledWith('character-connection-lost');
+    expect(toast.success).toHaveBeenCalledWith('Connection restored');
   });
 
   it('versionConflict calls toast.warning with character name', () => {
     showToast.versionConflict('Sauron');
     expect(toast.warning).toHaveBeenCalledWith(
-      expect.stringContaining('Sauron'),
+      'Version conflict for "Sauron": another user has made changes. Please refresh.',
       expect.anything()
     );
   });

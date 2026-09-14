@@ -15,6 +15,8 @@ const defaultOptions: ToastOptions = {
   draggable: true,
 };
 
+const connectionLostToastId = 'character-connection-lost';
+
 export const showToast = {
   success: (message: string, options?: ToastOptions) => {
     toast.success(message, { ...defaultOptions, ...options });
@@ -34,11 +36,11 @@ export const showToast = {
 
   // Specific toast types for common scenarios
   characterSaved: (characterName: string) => {
-    toast.success(`Character "${characterName}"saved successfully`);
+    toast.success(`Character "${characterName}" saved successfully`);
   },
 
   characterDeleted: (characterName: string) => {
-    toast.info(`️ Character "${characterName}"deleted`);
+    toast.info(`Character "${characterName}" deleted`);
   },
 
   characterSaveFailed: (characterName: string, reason?: string) => {
@@ -57,23 +59,20 @@ export const showToast = {
 
   versionConflict: (characterName: string) => {
     toast.warning(
-      `️ Version conflict for "${characterName}"- another user has made changes. Please refresh.`,
+      `Version conflict for "${characterName}": another user has made changes. Please refresh.`,
       { autoClose: 10000 }
     );
   },
 
   connectionLost: () => {
-    toast.error('Connection lost - working offline', { autoClose: false });
+    toast.error(
+      'Connection lost. Unsynced character edits will retry while this page stays open.',
+      { autoClose: false, toastId: connectionLostToastId }
+    );
   },
 
   connectionRestored: () => {
+    toast.dismiss(connectionLostToastId);
     toast.success('Connection restored');
-  },
-
-  rollbackWarning: (characterName: string) => {
-    toast.warning(
-      `️ Server didn't respond for "${characterName}"- rolled back changes`,
-      { autoClose: 8000 }
-    );
   }
 };

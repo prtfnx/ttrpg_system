@@ -608,7 +608,8 @@ export function ToolsPanel({ userInfo: _userInfo }: ToolsPanelProps) {
                 <span>Heartbeat Monitor</span>
               </label>
               <span className={`${styles.networkStatus} ${pingEnabled ? styles.active : styles.inactive}`}>
-                {pingEnabled ? 'в—Џ Active' : 'в—‹ Inactive'}
+                <Circle size={8} fill="currentColor" aria-hidden />
+                {pingEnabled ? 'Active' : 'Inactive'}
               </span>
             </div>
             <div className={styles.networkDescription}>Sends ping every 30s to detect dead connections.</div>

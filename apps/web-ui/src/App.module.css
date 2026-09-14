@@ -225,20 +225,20 @@
 }
 .demoNotice {
   position: fixed;
-  bottom: 12px;
+  bottom: var(--space-sm);
   left: 50%;
   transform: translateX(-50%);
   z-index: var(--z-fixed);
   display: flex;
   flex-wrap: wrap;
   justify-content: center;
-  gap: 12px;
+  gap: var(--space-sm);
   max-width: calc(100vw - 32px);
-  padding: 10px 16px;
-  border-radius: 8px;
+  padding: var(--space-sm) var(--space-md);
+  border-radius: var(--radius-md);
   background: var(--bg-elevated);
   color: var(--text-primary);
-  font-size: 14px;
+  font-size: var(--text-xs);
 }
 
 .demoNotice a {

@@ -341,12 +341,19 @@ describe('ToolsPanel — wall list', () => {
     const removeWall = vi.fn();
     dmStore({ walls: [wall as never], activeTableId: 't1', removeWall });
     render(<ToolsPanel userInfo={makeUser('dm')} />);
-    // Find remove button by its parent wall row (last button in the row)
-    const wallLabelEl = screen.getByText('wall');
-    const wallRow = wallLabelEl.closest('div') as HTMLElement;
-    const removeBtn = wallRow.querySelectorAll('button');
-    fireEvent.click(removeBtn[removeBtn.length - 1]);
+    fireEvent.click(screen.getByRole('button', { name: 'Delete wall w1' }));
     expect(removeWall).toHaveBeenCalledWith('w1');
+  });
+
+  it('renders a readable door separator and accessible delete action', () => {
+    dmStore({
+      walls: [{ ...wall, is_door: true, door_state: 'closed' } as never],
+      activeTableId: 't1',
+    });
+    render(<ToolsPanel userInfo={makeUser('dm')} />);
+
+    expect(screen.getByText('wall · closed')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Delete wall w1' })).toHaveAttribute('title', 'Delete wall');
   });
 });
 

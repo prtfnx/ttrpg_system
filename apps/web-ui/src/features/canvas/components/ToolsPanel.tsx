@@ -12,7 +12,7 @@ import { ProtocolService } from '@lib/api';
 import { useRenderEngine, useWasmRuntime } from '@lib/wasm/runtime';
 import { AlignmentHelper } from '@shared/components';
 import DiceRoller from '@shared/components/DiceRoller';
-import { AlignLeft, BrickWall, Check, ChevronDown, Circle, Cloud, Crown, Eye, EyeOff, Flame, Folder, HelpCircle, Lightbulb, Map, Minus, Mountain, Paintbrush, Pencil, Ruler, Search, Send, Shield, Snowflake, Sparkles, Square, Type, User, Users, Wrench, Zap } from 'lucide-react';
+import { AlignLeft, BrickWall, Check, ChevronDown, Circle, Cloud, Crown, Eye, EyeOff, Flame, Folder, HelpCircle, Lightbulb, Map, Minus, Mountain, Paintbrush, Pencil, Ruler, Search, Send, Shield, Snowflake, Sparkles, Square, Trash2, Type, User, Users, Wrench, Zap } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import { HelpWindow } from './HelpWindow';
 import { PolygonConfigModal } from './PolygonConfigModal';
@@ -323,7 +323,7 @@ export function ToolsPanel({ userInfo: _userInfo }: ToolsPanelProps) {
             </button>}
           </div>
 
-          {/* Wall List вЂ” DM only */}
+          {/* Wall list - DM only */}
           {dmMode && activeTableId && (() => {
             const tableWalls = walls.filter(w => w.table_id === activeTableId);
             if (!tableWalls.length) return null;
@@ -339,16 +339,24 @@ export function ToolsPanel({ userInfo: _userInfo }: ToolsPanelProps) {
                 </div>
                 {tableWalls.map(w => (
                   <div key={w.wall_id} className={styles.wallRow}>
-                    <span className={styles.wallLabel}>{w.wall_type}{w.is_door ? ` В· ${w.door_state}` : ''}</span>
+                    <span className={styles.wallLabel}>{w.wall_type}{w.is_door ? ` · ${w.door_state}` : ''}</span>
                     {w.is_door && (
                       <button className={styles.toolButton} onClick={() => ProtocolService.hasProtocol() && ProtocolService.getProtocol().toggleDoor(w.wall_id)}>
                         {w.door_state === 'open' ? 'Close' : 'Open'}
                       </button>
                     )}
-                    <button className={`${styles.toolButton} ${styles.wallDangerBtn}`} onClick={() => {
-                      removeWall(w.wall_id);
-                      if (ProtocolService.hasProtocol()) ProtocolService.getProtocol().removeWall(w.wall_id);
-                    }}>вњ•</button>
+                    <button
+                      type="button"
+                      className={`${styles.toolButton} ${styles.wallDangerBtn}`}
+                      aria-label={`Delete wall ${w.wall_id}`}
+                      title="Delete wall"
+                      onClick={() => {
+                        removeWall(w.wall_id);
+                        if (ProtocolService.hasProtocol()) ProtocolService.getProtocol().removeWall(w.wall_id);
+                      }}
+                    >
+                      <Trash2 size={14} aria-hidden />
+                    </button>
                   </div>
                 ))}
               </div>

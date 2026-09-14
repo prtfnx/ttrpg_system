@@ -4,6 +4,7 @@ import { WasmRuntimeProvider } from '../WasmRuntimeProvider';
 
 const mocks = vi.hoisted(() => {
   const runtime = {
+    start: vi.fn(),
     setProtocol: vi.fn(),
     dispose: vi.fn(),
   };

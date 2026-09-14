@@ -2,6 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 // Import TypeScript services to test
 import { performanceService } from '@features/canvas';
+import { useGameStore } from '@/store';
 import type { RenderEngine } from '@lib/wasm/runtime';
 import { WasmSyncCoordinator } from '@lib/wasm/runtime/WasmSyncCoordinator';
 
@@ -19,6 +20,10 @@ const mockRenderEngine = {
   set_grid_size: vi.fn(),
   set_grid_enabled: vi.fn(),
   set_grid_snapping: vi.fn(),
+  set_layer_visibility: vi.fn(),
+  set_background_color: vi.fn(),
+  clear_walls: vi.fn(),
+  add_wall: vi.fn(),
   clear_layer: vi.fn(),
   add_sprite_to_layer: vi.fn().mockReturnValue(true),
   load_texture: vi.fn().mockResolvedValue({ success: true, texture_id: 'texture_789' }),
@@ -37,6 +42,7 @@ describe('TypeScript Service Layer Tests', () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
+    useGameStore.setState({ activeTableId: null, sprites: [] });
     wasmSyncCoordinator = new WasmSyncCoordinator(async () => 'blob:cached-asset');
     // Re-establish default return values that vi.clearAllMocks() removes
     mockRenderEngine.get_sprite_info = vi.fn().mockReturnValue({ id: 'sprite_123', x: 100, y: 150 });
@@ -61,7 +67,8 @@ describe('TypeScript Service Layer Tests', () => {
       
       // User expects typed message handling
       const tableData = {
-        table_id: 'table_456',
+        table_id: '550e8400-e29b-41d4-a716-446655440000',
+        table_name: 'Typed table',
         width: 800,
         height: 600,
         sprites: [
@@ -74,7 +81,9 @@ describe('TypeScript Service Layer Tests', () => {
       window.dispatchEvent(event);
       
       // User expects WASM integration to process typed data
-      expect(mockRenderEngine.add_sprite_to_layer).toHaveBeenCalled();
+      expect(mockRenderEngine.handle_table_data).toHaveBeenCalledWith(expect.objectContaining({
+        table_id: '550e8400-e29b-41d4-a716-446655440000',
+      }));
     });
 
     it('should handle sprite operations with TypeScript type safety', () => {
@@ -83,7 +92,8 @@ describe('TypeScript Service Layer Tests', () => {
       // Use the table data reception path that actually triggers add_sprite_to_layer
       const tableEvent = new CustomEvent('table-data-received', {
         detail: {
-          table_id: 'table_789',
+          table_id: '0a577ca2-7f6a-400d-9758-26f232003cc5',
+          table_name: 'Sprite table',
           width: 1000,
           height: 800,
           sprites: [{
@@ -98,7 +108,9 @@ describe('TypeScript Service Layer Tests', () => {
       window.dispatchEvent(tableEvent);
       
       // User expects operations to be processed with type safety
-      expect(mockRenderEngine.add_sprite_to_layer).toHaveBeenCalled();
+      expect(mockRenderEngine.handle_table_data).toHaveBeenCalledWith(expect.objectContaining({
+        table_id: '0a577ca2-7f6a-400d-9758-26f232003cc5',
+      }));
     });
 
     it('should provide error handling with TypeScript error types', () => {

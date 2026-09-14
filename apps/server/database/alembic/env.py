@@ -17,7 +17,7 @@ config = context.config
 load_dotenv(Path(__file__).resolve().parents[2] / ".env", override=False)
 
 if config.config_file_name is not None:
-    fileConfig(config.config_file_name)
+    fileConfig(config.config_file_name, disable_existing_loggers=False)
 
 target_metadata = Base.metadata
 

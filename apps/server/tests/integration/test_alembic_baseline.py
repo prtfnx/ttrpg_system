@@ -1,3 +1,4 @@
+import logging
 import os
 from contextlib import redirect_stdout
 from io import StringIO
@@ -26,8 +27,12 @@ def test_baseline_upgrades_an_empty_database_to_model_head(tmp_path, monkeypatch
     database_path = tmp_path / "baseline.db"
     database_url = f"sqlite:///{database_path.as_posix()}"
     config = _config(monkeypatch, database_url)
+    application_logger = logging.getLogger("ttrpg.application")
+    monkeypatch.setattr(application_logger, "disabled", False)
 
     command.upgrade(config, "head")
+
+    assert application_logger.disabled is False
 
     engine = create_engine(database_url)
     try:

@@ -37,14 +37,14 @@ export class TableSyncService {
   private eventCleanups: Array<() => void> = [];
   private readonly getEngine: () => RenderEngine | null;
   private readonly spriteSync: SpriteSyncService;
-  private readonly onHydrated: (tableId: string) => void;
+  private readonly onHydrated: (tableId: string, textureIds: readonly string[]) => void;
   private readonly onHydrationError: (error: Error) => void;
 
   constructor(
     getEngine: () => RenderEngine | null,
     spriteSync: SpriteSyncService,
     callbacks: {
-      onHydrated?: (tableId: string) => void;
+      onHydrated?: (tableId: string, textureIds: readonly string[]) => void;
       onHydrationError?: (error: Error) => void;
     } = {},
   ) {
@@ -135,7 +135,12 @@ export class TableSyncService {
       gameStore.hydrateTableSprites?.(tableId, snapshot.storeSprites);
       gameStore.setActiveTableId?.(tableId);
       this.latestPayload = data;
-      this.onHydrated(tableId);
+      const textureIds = [...new Set(
+        Object.values(snapshot.renderer.layers)
+          .flatMap(sprites => sprites.map(sprite => sprite.texture_path))
+          .filter(Boolean),
+      )];
+      this.onHydrated(tableId, textureIds);
       const spriteCount = Object.values(snapshot.renderer.layers).reduce((count, sprites) => count + sprites.length, snapshot.specialSprites.length);
       emitWasmEvent('table-sprites-loaded', { table_id: tableId, count: spriteCount });
 

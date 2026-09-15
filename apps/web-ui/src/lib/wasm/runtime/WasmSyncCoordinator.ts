@@ -13,6 +13,7 @@ import type { RenderEngine } from './types';
 
 export class WasmSyncCoordinator {
   private renderEngine: RenderEngine | null = null;
+  private readonly tableTextureIds = new Map<string, readonly string[]>();
 
   private readonly assetSync: AssetSyncService;
   private readonly spriteSync: SpriteSyncService;
@@ -29,7 +30,10 @@ export class WasmSyncCoordinator {
     this.assetSync = new AssetSyncService(() => this.renderEngine, resolveDownloadedAsset);
     this.spriteSync = new SpriteSyncService(() => this.renderEngine, this.assetSync);
     this.tableSync = new TableSyncService(() => this.renderEngine, this.spriteSync, {
-      onHydrated: callbacks.onTableHydrated,
+      onHydrated: (tableId, textureIds) => {
+        this.tableTextureIds.set(tableId, textureIds);
+        callbacks.onTableHydrated?.(tableId);
+      },
       onHydrationError: callbacks.onTableHydrationError,
     });
     this.remoteSync = new RemoteSyncService(this.spriteSync);
@@ -62,9 +66,15 @@ export class WasmSyncCoordinator {
   dispose(): void {
     this.detachRenderer();
     this.tableSync.dispose();
+    this.tableTextureIds.clear();
   }
 
   getRenderEngine(): RenderEngine | null {
     return this.renderEngine;
+  }
+
+  isTableVisuallyReady(tableId: string): boolean {
+    const textureIds = this.tableTextureIds.get(tableId);
+    return textureIds !== undefined && this.assetSync.areTexturesSettled(textureIds);
   }
 }

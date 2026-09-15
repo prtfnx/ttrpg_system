@@ -240,7 +240,29 @@ describe('TableSyncService', () => {
       engine = mockEngine;
       service.flushPending();
       expect(mockEngine.handle_table_data).toHaveBeenCalledOnce();
-      expect(onHydrated).toHaveBeenCalledWith(TABLE_A);
+      expect(onHydrated).toHaveBeenCalledWith(TABLE_A, []);
+      service.dispose();
+    });
+
+    it('reports the deduplicated canonical textures required by the hydrated table', () => {
+      const onHydrated = vi.fn();
+      const service = new TableSyncService(
+        () => mockEngine as never,
+        mockSpriteSync as never,
+        { onHydrated },
+      );
+      service.init();
+      dispatch('table-data-received', tableSnapshot({
+        layers: {
+          map: [{ sprite_id: 'map-1', asset_id: 'map-asset', width: 100, height: 100 }],
+          tokens: [
+            { sprite_id: 'token-1', asset_id: 'token-asset', width: 50, height: 50 },
+            { sprite_id: 'token-2', asset_id: 'token-asset', width: 50, height: 50 },
+          ],
+        },
+      }));
+
+      expect(onHydrated).toHaveBeenCalledWith(TABLE_A, ['map-asset', 'token-asset']);
       service.dispose();
     });
 

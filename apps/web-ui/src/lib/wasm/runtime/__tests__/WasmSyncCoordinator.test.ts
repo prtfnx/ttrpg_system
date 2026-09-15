@@ -1,6 +1,10 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-const mockAssetSync = vi.hoisted(() => ({ init: vi.fn(), dispose: vi.fn() }));
+const mockAssetSync = vi.hoisted(() => ({
+  init: vi.fn(),
+  dispose: vi.fn(),
+  areTexturesSettled: vi.fn(() => false),
+}));
 const mockSpriteSync = vi.hoisted(() => ({ init: vi.fn(), dispose: vi.fn() }));
 const mockTableSync = vi.hoisted(() => ({
   init: vi.fn(),
@@ -9,15 +13,27 @@ const mockTableSync = vi.hoisted(() => ({
   retainLatestForRenderer: vi.fn(),
 }));
 const mockRemoteSync = vi.hoisted(() => ({ init: vi.fn(), dispose: vi.fn() }));
+const tableCallbacks = vi.hoisted(() => ({
+  value: null as null | { onHydrated?: (tableId: string, textureIds: readonly string[]) => void },
+}));
 
 vi.mock('../../assetSync.service', () => ({ AssetSyncService: vi.fn(function () { return mockAssetSync; }) }));
 vi.mock('../../spriteSync.service', () => ({ SpriteSyncService: vi.fn(function () { return mockSpriteSync; }) }));
-vi.mock('../../tableSync.service', () => ({ TableSyncService: vi.fn(function () { return mockTableSync; }) }));
+vi.mock('../../tableSync.service', () => ({
+  TableSyncService: vi.fn(function (_getEngine, _spriteSync, callbacks) {
+    tableCallbacks.value = callbacks;
+    return mockTableSync;
+  }),
+}));
 vi.mock('../../remoteSync.service', () => ({ RemoteSyncService: vi.fn(function () { return mockRemoteSync; }) }));
 
 import { WasmSyncCoordinator } from '../WasmSyncCoordinator';
 
-beforeEach(() => vi.clearAllMocks());
+beforeEach(() => {
+  vi.clearAllMocks();
+  tableCallbacks.value = null;
+  mockAssetSync.areTexturesSettled.mockReturnValue(false);
+});
 
 describe('WasmSyncCoordinator', () => {
   const fakeEngine = { resize: vi.fn() } as never;
@@ -44,6 +60,21 @@ describe('WasmSyncCoordinator', () => {
     expect(mockTableSync.init).toHaveBeenCalledOnce();
     expect(mockTableSync.flushPending).toHaveBeenCalledOnce();
     expect(mockRemoteSync.init).toHaveBeenCalledOnce();
+  });
+
+  it('reports visual readiness only after required textures settle', () => {
+    const onTableHydrated = vi.fn();
+    const coordinator = new WasmSyncCoordinator(resolveDownloadedAsset, { onTableHydrated });
+
+    tableCallbacks.value?.onHydrated?.('table-1', ['map-asset', 'token-asset']);
+
+    expect(onTableHydrated).toHaveBeenCalledWith('table-1');
+    expect(coordinator.isTableVisuallyReady('table-1')).toBe(false);
+    expect(mockAssetSync.areTexturesSettled).toHaveBeenCalledWith(['map-asset', 'token-asset']);
+
+    mockAssetSync.areTexturesSettled.mockReturnValue(true);
+    expect(coordinator.isTableVisuallyReady('table-1')).toBe(true);
+    expect(coordinator.isTableVisuallyReady('unknown-table')).toBe(false);
   });
 
   it('disposes sub-services and clears the render engine', () => {

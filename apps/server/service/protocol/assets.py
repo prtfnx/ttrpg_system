@@ -135,6 +135,8 @@ class _AssetsMixin(_ProtocolBase):
             else:
                 return Message(MessageType.ASSET_DOWNLOAD_RESPONSE, {
                     'success': False,
+                    'asset_id': asset_id,
+                    'error': response.error,
                     'instructions': "Please upload the asset first"
                 })
 

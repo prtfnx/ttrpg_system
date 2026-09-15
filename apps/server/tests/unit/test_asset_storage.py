@@ -425,6 +425,30 @@ async def test_asset_upload_fails_closed_without_connection_identity(monkeypatch
     assert response.data["error"] == "Authentication and session context required"
 
 
+async def test_asset_download_failure_echoes_requested_identity(monkeypatch):
+    class MissingAssetManager:
+        async def request_download_url(self, _request):
+            return SimpleNamespace(success=False, error="Asset not found")
+
+    monkeypatch.setattr(
+        asset_protocol_module, "get_server_asset_manager", lambda: MissingAssetManager()
+    )
+    protocol = AssetProtocolStub(42, "AUTH-SESSION", "authenticated-user")
+
+    response = await protocol.handle_asset_download_request(
+        Message(MessageType.ASSET_DOWNLOAD_REQUEST, {"asset_id": "missing-asset"}),
+        "client-1",
+    )
+
+    assert response.type == MessageType.ASSET_DOWNLOAD_RESPONSE
+    assert response.data == {
+        "success": False,
+        "asset_id": "missing-asset",
+        "error": "Asset not found",
+        "instructions": "Please upload the asset first",
+    }
+
+
 async def test_asset_storage_io_does_not_block_event_loop(monkeypatch, test_db):
     manager = _manager(monkeypatch, test_db)
 

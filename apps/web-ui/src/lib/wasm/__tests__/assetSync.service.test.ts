@@ -67,6 +67,34 @@ describe('AssetSyncService', () => {
     });
   });
 
+  describe('areTexturesSettled', () => {
+    it('stays pending while a requested texture has no response', () => {
+      const svc = makeService();
+
+      svc.requestAssetDownloadLink('a1', 's1');
+
+      expect(svc.areTexturesSettled(['a1'])).toBe(false);
+      expect(svc.areTexturesSettled([])).toBe(true);
+    });
+
+    it('settles a terminal failure but keeps upload-retry assets pending', () => {
+      const svc = makeService();
+      svc.init();
+      svc.requestAssetDownloadLink('missing', 's1');
+      dispatch('asset-downloaded', { success: false, asset_id: 'missing' });
+      expect(svc.areTexturesSettled(['missing'])).toBe(true);
+
+      svc.requestAssetDownloadLink('uploading', 's2');
+      dispatch('asset-downloaded', {
+        success: false,
+        asset_id: 'uploading',
+        instructions: 'Please upload the asset first',
+      });
+      expect(svc.areTexturesSettled(['uploading'])).toBe(false);
+      svc.dispose();
+    });
+  });
+
   describe('handleAssetDownloaded', () => {
     it('adds to pending when instructions include upload', () => {
       const svc = makeService();

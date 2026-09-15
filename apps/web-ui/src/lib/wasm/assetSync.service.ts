@@ -81,6 +81,20 @@ export class AssetSyncService {
     return this.pendingAssetRetries.has(assetId);
   }
 
+  areTexturesSettled(assetIds: Iterable<string>): boolean {
+    for (const assetId of assetIds) {
+      if (!assetId || this.loadedTextureIds.has(assetId)) continue;
+      if (
+        this.requestedTextureIds.has(assetId)
+        || this.activeTextureLoads.has(assetId)
+        || this.pendingAssetRetries.has(assetId)
+      ) {
+        return false;
+      }
+    }
+    return true;
+  }
+
   trackPendingSprite(assetId: string, spriteId: string): void {
     const list = this.pendingSpritesForAssets.get(assetId) ?? [];
     list.push(spriteId);

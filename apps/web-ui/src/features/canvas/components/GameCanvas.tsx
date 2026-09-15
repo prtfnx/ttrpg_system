@@ -80,6 +80,8 @@ export const GameCanvas: React.FC = () => {
   const activeTableId = useGameStore(s => s.activeTableId);
   const activeTable = tables.find((t) => t.table_id === activeTableId);
   const activeLayer = useGameStore(s => s.activeLayer);
+  const obstaclesVisible = useGameStore(s => s.layerVisibility.obstacles ?? true);
+  const obstaclesOpacity = useGameStore(s => s.layerOpacity.obstacles ?? 1);
 
   // Stream live drag/resize/rotate previews to other clients via WebSocket
   const sendWsMessage = useCallback((msg: unknown) => { protocol?.sendMessage(msg as import('@lib/websocket').Message); }, [protocol]);
@@ -438,7 +440,12 @@ export const GameCanvas: React.FC = () => {
 
   useEffect(() => {
     const isDM = sessionRole === 'owner' || sessionRole === 'co_dm';
-    if (!isDM) return;
+    if (!isDM || !obstaclesVisible) {
+      hoveredWallRef.current = null;
+      const wallCanvas = wallCanvasRef.current;
+      wallCanvas?.getContext('2d')?.clearRect(0, 0, wallCanvas.width, wallCanvas.height);
+      return;
+    }
 
     // Track mouse position over the main canvas for hover detection
     const mainCanvas = canvasRef.current;
@@ -515,6 +522,7 @@ export const GameCanvas: React.FC = () => {
         hoveredWallRef.current = hoverId;
 
         ctx.save();
+        ctx.globalAlpha = Math.max(0, Math.min(1, obstaclesOpacity));
         const storeWallsMap = Object.fromEntries(
           useGameStore.getState().walls.map(w => [w.wall_id, w])
         );
@@ -579,7 +587,7 @@ export const GameCanvas: React.FC = () => {
       mainCanvas?.removeEventListener('mousemove', onMouseMove);
       window.removeEventListener('keydown', onKeyDown);
     };
- }, [sessionRole, protocol]);
+ }, [sessionRole, protocol, obstaclesVisible, obstaclesOpacity]);
   useEffect(() => {
     let mounted = true;
     let resizeObserver: ResizeObserver | null = null;

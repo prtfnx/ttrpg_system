@@ -14,6 +14,8 @@ export const RENDERER_LAYER_NAMES = [
 
 export type RendererLayerName = typeof RENDERER_LAYER_NAMES[number];
 
+const PROCEDURAL_TEXTURE_IDS = new Set(['__LIGHT__', '__FOG_HIDE__', '__FOG_REVEAL__']);
+
 export interface TableSummary {
   table_id: string;
   table_name: string;
@@ -245,6 +247,15 @@ function coordinate(sprite: Record<string, unknown>, axis: 'x' | 'y', path: stri
   return 0;
 }
 
+function rendererTextureKey(sprite: Record<string, unknown>, path: string): string {
+  const legacyPath = optionalText(sprite.texture_path, `${path}.texture_path`);
+  if (legacyPath && PROCEDURAL_TEXTURE_IDS.has(legacyPath)) return legacyPath;
+
+  const assetId = optionalText(sprite.asset_id, `${path}.asset_id`);
+  const textureId = optionalText(sprite.texture_id, `${path}.texture_id`);
+  return assetId || textureId || legacyPath || '';
+}
+
 function normalizeSprite(
   value: unknown,
   layer: RendererLayerName,
@@ -253,7 +264,7 @@ function normalizeSprite(
 ): { renderer: RendererSpriteInput; store: Sprite } {
   const sprite = record(value, path);
   const spriteId = requiredText(sprite.sprite_id ?? sprite.id, `${path}.sprite_id`);
-  const texturePath = optionalText(sprite.texture_path ?? sprite.texture_id ?? sprite.asset_id ?? '', `${path}.texture_path`) ?? '';
+  const texturePath = rendererTextureKey(sprite, path);
   const normalized: RendererSpriteInput = {
     sprite_id: spriteId,
     texture_path: texturePath,
@@ -435,7 +446,7 @@ export function normalizeTableSnapshot(input: unknown): NormalizedTableSnapshot 
     entries.forEach((entry, index) => {
       const { renderer: sprite, store } = normalizeSprite(entry, layerName, tableId, `table.layers.${layerName}[${index}]`);
       storeSprites.push(store);
-      if (sprite.texture_path === '__LIGHT__' || sprite.texture_path === '__FOG_HIDE__' || sprite.texture_path === '__FOG_REVEAL__') {
+      if (PROCEDURAL_TEXTURE_IDS.has(sprite.texture_path)) {
         specialSprites.push(sprite);
       } else {
         layers[layerName].push(sprite);

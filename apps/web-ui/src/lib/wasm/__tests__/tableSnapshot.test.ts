@@ -134,6 +134,35 @@ describe('normalizeTableSnapshot', () => {
     expect(result.snapToGrid).toBe(false);
   });
 
+  it('uses the canonical asset identity when a persisted legacy texture path is also present', () => {
+    const table = pythonSerializedTable();
+    const token = (table.layers.tokens as Record<string, Record<string, unknown>>)['7'];
+    token.texture_path = 'legacy/uploads/hero.png';
+    token.asset_id = 'asset-hash';
+
+    const result = normalizeTableSnapshot(table);
+
+    expect(result.renderer.layers.tokens[0]?.texture_path).toBe('asset-hash');
+    expect(result.storeSprites[0]?.texture).toBe('asset-hash');
+  });
+
+  it('preserves procedural texture sentinels instead of replacing them with asset metadata', () => {
+    const result = normalizeTableSnapshot(pythonSerializedTable({
+      layers: {
+        light: [{
+          sprite_id: 'light-1',
+          texture_path: '__LIGHT__',
+          asset_id: 'stale-asset-id',
+          width: 20,
+          height: 20,
+        }],
+      },
+    }));
+
+    expect(result.specialSprites[0]?.texture_path).toBe('__LIGHT__');
+    expect(result.renderer.layers.light).toEqual([]);
+  });
+
   it('rejects a missing or non-authoritative identity', () => {
     expect(() => normalizeTableSnapshot(pythonSerializedTable({ table_id: undefined })))
       .toThrow(TableSnapshotValidationError);

@@ -28,7 +28,6 @@ const mocks = vi.hoisted(() => {
     calculateAssetHash: vi.fn(() => 'hash-test'),
     planningFree: vi.fn(),
     tableFree: vi.fn(),
-    tableSyncFree: vi.fn(),
     bridgeInit: vi.fn(),
     bridgeCleanup: vi.fn(),
     bridgeSetProtocol: vi.fn(),
@@ -53,7 +52,6 @@ vi.mock('../../generated/ttrpg_rust_core', () => ({
   calculate_asset_hash: mocks.calculateAssetHash,
   PlanningManager: vi.fn(function () { return { free: mocks.planningFree }; }),
   TableManager: vi.fn(function () { return { free: mocks.tableFree }; }),
-  TableSync: vi.fn(function () { return { free: mocks.tableSyncFree }; }),
   create_default_brush_presets: mocks.createDefaultBrushPresets,
   compute_visibility_polygon: mocks.computeVisibilityPolygon,
   init_game_renderer: mocks.initGameRenderer,
@@ -128,8 +126,8 @@ describe('WasmRuntime', () => {
       frameTableId: null,
     });
     expect(runtime.getActionsEngine()).not.toBeNull();
-    expect(runtime.getTableSync()).not.toBeNull();
     expect('getNetworkClient' in runtime).toBe(false);
+    expect('getTableSync' in runtime).toBe(false);
     expect(runtime.getDefaultBrushPresets()).toEqual([{ id: 'round' }]);
     expect(runtime.calculateAssetHash(new Uint8Array([1, 2]))).toBe('hash-test');
   });

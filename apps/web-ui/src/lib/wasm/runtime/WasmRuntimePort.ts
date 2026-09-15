@@ -5,7 +5,6 @@ import type {
   PlanningManager,
   RenderEngine,
   TableManager,
-  TableSync,
   VisibilityPoint,
 } from './types';
 import type { AssetCacheStats, AssetInfo, CacheAssetOptions } from './BrowserAssetCache';
@@ -33,7 +32,6 @@ export interface WasmRuntimePort {
   getActionsEngine(): ActionsClient | null;
   getPlanningManager(): PlanningManager | null;
   getTableManager(): TableManager | null;
-  getTableSync(): TableSync | null;
   getDefaultBrushPresets(): BrushPreset[];
   computeVisibilityPolygon(x: number, y: number, obstacles: Float32Array, radius: number): VisibilityPoint[];
 

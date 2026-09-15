@@ -8,7 +8,6 @@ import {
   ActionsClient,
   PlanningManager,
   TableManager,
-  TableSync,
   compute_visibility_polygon,
   calculate_asset_hash,
   create_default_brush_presets,
@@ -86,7 +85,6 @@ export class WasmRuntime implements WasmRuntimePort {
   private assetCache: BrowserAssetCache | null = null;
   private planningManager: PlanningManager | null = null;
   private tableManager: TableManager | null = null;
-  private tableSync: TableSync | null = null;
   private animationFrameId: number | null = null;
   private onFrame: (() => void) | null = null;
   private protocol: RuntimeProtocol | null = null;
@@ -125,7 +123,6 @@ export class WasmRuntime implements WasmRuntimePort {
         this.actionsEngine ??= new ActionsClient();
         this.assetCache ??= createBrowserAssetCache(calculate_asset_hash);
         this.tableManager ??= new TableManager();
-        this.tableSync ??= new TableSync();
         this.store.setSnapshot({
           isModuleReady: true,
           error: null,
@@ -202,13 +199,11 @@ export class WasmRuntime implements WasmRuntimePort {
     this.assetCache?.dispose();
     try { this.planningManager?.free(); } catch {}
     try { this.tableManager?.free(); } catch {}
-    try { this.tableSync?.free(); } catch {}
 
     this.actionsEngine = null;
     this.assetCache = null;
     this.planningManager = null;
     this.tableManager = null;
-    this.tableSync = null;
     this.initPromise = null;
     this.store.setSnapshot({
       isModuleReady: false,
@@ -243,10 +238,6 @@ export class WasmRuntime implements WasmRuntimePort {
 
   getTableManager(): TableManager | null {
     return this.tableManager;
-  }
-
-  getTableSync(): TableSync | null {
-    return this.tableSync;
   }
 
   getDefaultBrushPresets(): BrushPreset[] {

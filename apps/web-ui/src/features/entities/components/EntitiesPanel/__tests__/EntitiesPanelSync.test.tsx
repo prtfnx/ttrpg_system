@@ -41,11 +41,11 @@ describe('EntitiesPanel authoritative synchronization', () => {
     expect(useGameStore.getState().selectedSprites).toEqual(['s1']);
   });
 
-  it('never reads or deletes entities from the disconnected standalone TableSync', () => {
+  it('keeps entities while authoritative table hydration is pending', () => {
     const runtime = createMockWasmRuntime();
     renderWithWasmRuntime(<EntitiesPanel />, runtime);
 
-    expect(runtime.getTableSync).not.toHaveBeenCalled();
+    expect('getTableSync' in runtime).toBe(false);
     expect(useGameStore.getState().sprites).toHaveLength(2);
     expect(screen.getByText('Loading table…')).toBeInTheDocument();
 

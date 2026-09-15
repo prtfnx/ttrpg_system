@@ -37,7 +37,6 @@ export function createMockWasmRuntime(overrides: Partial<MockWasmRuntime> = {}):
     getActionsEngine: vi.fn(() => null),
     getPlanningManager: vi.fn(() => null),
     getTableManager: vi.fn(() => null),
-    getTableSync: vi.fn(() => null),
     getDefaultBrushPresets: vi.fn(() => []),
     computeVisibilityPolygon: vi.fn(() => []),
     configureAssetCache: vi.fn(),

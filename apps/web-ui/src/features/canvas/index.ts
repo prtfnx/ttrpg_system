@@ -12,7 +12,6 @@ export { TokenConfigModal } from './components/TokenConfigModal';
 export { ToolsPanel } from './components/ToolsPanel';
 
 export { useRenderEngine } from './hooks';
-export { useSpriteSyncing } from './hooks';
 
 export { fpsService } from './services/fps.service';
 export { PerformanceLevel, performanceService } from './services/performance.service';

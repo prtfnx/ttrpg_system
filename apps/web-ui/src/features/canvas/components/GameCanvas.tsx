@@ -16,7 +16,6 @@ import type { LucideIcon } from 'lucide-react';
 import { ChevronRight, CloudFog, Construction, Crown, Lightbulb, Map as MapIcon, Mountain, Users } from 'lucide-react';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { useSpriteDragSync } from '../hooks/useSpriteDragSync';
-import { useSpriteSyncing } from '../hooks/useSpriteSyncing';
 import { MultiSelectManager } from '../services';
 import fpsService from '../services/fps.service';
 import { performanceService } from '../services/performance.service';
@@ -81,9 +80,6 @@ export const GameCanvas: React.FC = () => {
   const activeTableId = useGameStore(s => s.activeTableId);
   const activeTable = tables.find((t) => t.table_id === activeTableId);
   const activeLayer = useGameStore(s => s.activeLayer);
-
-  // Re-enabled sprite syncing with fixed React dependency issue
-  useSpriteSyncing();
 
   // Stream live drag/resize/rotate previews to other clients via WebSocket
   const sendWsMessage = useCallback((msg: unknown) => { protocol?.sendMessage(msg as import('@lib/websocket').Message); }, [protocol]);

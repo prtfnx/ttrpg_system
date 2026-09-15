@@ -6,4 +6,3 @@ export { KeyboardShortcutsDisplay, useKeyboardShortcuts } from './useKeyboardSho
 export { useLayerHotkeys } from './useLayerHotkeys';
 export { useRenderEngine } from './useRenderEngine';
 export { useSpriteDragSync } from './useSpriteDragSync';
-export { useSpriteSyncing } from './useSpriteSyncing';

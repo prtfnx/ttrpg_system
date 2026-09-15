@@ -4,7 +4,7 @@ Audience: operators and maintainers running schema changes.
 
 Status: usable.
 
-Last source audit: 2026-09-10
+Last source audit: 2026-09-14
 
 ## Contract
 
@@ -20,6 +20,13 @@ Alembic is the only hosted schema authority:
 The retired numbered SQLite runner is available only in Git history. It is not
 an active schema authority and existing SQLite schemas are not upgraded in
 place.
+
+Alembic loads its CLI logging configuration with
+`disable_existing_loggers=False`. This is required when migration commands run
+inside a process that has already configured application loggers: importing
+the Alembic environment must not silently disable those loggers. Keep the
+regression in `apps/server/tests/integration/test_alembic_baseline.py` when
+changing `env.py` or `alembic.ini`.
 
 ## Operator commands
 

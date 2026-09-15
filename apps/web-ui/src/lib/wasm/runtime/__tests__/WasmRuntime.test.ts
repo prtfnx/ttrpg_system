@@ -34,6 +34,7 @@ const mocks = vi.hoisted(() => {
     integrationInitialize: vi.fn(),
     integrationDetach: vi.fn(),
     integrationDispose: vi.fn(),
+    isTableVisuallyReady: vi.fn(() => true),
     coordinatorCallbacks: null as null | {
       onTableHydrated?: (tableId: string) => void;
       onTableHydrationError?: (error: Error) => void;
@@ -82,6 +83,7 @@ vi.mock('../WasmSyncCoordinator', () => ({
     initialize: mocks.integrationInitialize,
     detachRenderer: mocks.integrationDetach,
     dispose: mocks.integrationDispose,
+    isTableVisuallyReady: mocks.isTableVisuallyReady,
     };
   }),
 }));
@@ -101,6 +103,7 @@ describe('WasmRuntime', () => {
     vi.clearAllMocks();
     mocks.initializeWasmCore.mockResolvedValue(undefined);
     mocks.initGameRenderer.mockReturnValue(mocks.renderEngine);
+    mocks.isTableVisuallyReady.mockReturnValue(true);
     vi.stubGlobal('requestAnimationFrame', vi.fn(() => 17));
     vi.stubGlobal('cancelAnimationFrame', vi.fn());
     runtime = new WasmRuntime();
@@ -229,7 +232,8 @@ describe('WasmRuntime', () => {
     window.removeEventListener('spriteAdded', listener);
   });
 
-  it('publishes table hydration only after a successful render frame', async () => {
+  it('publishes frame readiness only after textures settle and a frame renders', async () => {
+    mocks.isTableVisuallyReady.mockReturnValue(false);
     await runtime.attachCanvas(canvas, { userId: null, role: null, activeLayer: 'map' });
     mocks.coordinatorCallbacks?.onTableHydrated?.('table-1');
 
@@ -241,6 +245,11 @@ describe('WasmRuntime', () => {
 
     const renderFrame = vi.mocked(requestAnimationFrame).mock.calls[0][0];
     renderFrame(0);
+    expect(runtime.status.frameTableId).toBeNull();
+    expect(mocks.isTableVisuallyReady).toHaveBeenCalledWith('table-1');
+
+    mocks.isTableVisuallyReady.mockReturnValue(true);
+    renderFrame(16);
     expect(runtime.status.frameTableId).toBe('table-1');
   });
 

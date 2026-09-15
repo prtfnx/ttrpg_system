@@ -411,7 +411,11 @@ export class WasmRuntime implements WasmRuntimePort {
       try {
         this.renderEngine?.render();
         const status = this.status;
-        if (status.hydratedTableId && status.frameTableId !== status.hydratedTableId) {
+        if (
+          status.hydratedTableId
+          && status.frameTableId !== status.hydratedTableId
+          && this.syncCoordinator.isTableVisuallyReady(status.hydratedTableId)
+        ) {
           this.store.setSnapshot({ frameTableId: status.hydratedTableId });
         }
         this.onFrame?.();

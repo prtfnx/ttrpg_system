@@ -11,6 +11,10 @@ SERVER_ROOT = Path(__file__).resolve().parents[1]
 if str(SERVER_ROOT) not in sys.path:
     sys.path.insert(0, str(SERVER_ROOT))
 
+from utils.runtime import require_supported_python  # noqa: E402
+
+require_supported_python()
+
 logger = logging.getLogger("database.startup")
 
 

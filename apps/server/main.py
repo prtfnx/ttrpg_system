@@ -2,6 +2,9 @@
 FastAPI-based TTRPG Server for render.com hosting
 Provides HTTP/webhook and WebSocket endpoints for client communication
 """
+# The runtime guard must run before imports that rely on Python 3.11 APIs.
+# ruff: noqa: E402
+
 import asyncio
 import os
 import re
@@ -11,6 +14,10 @@ import uuid
 from contextlib import asynccontextmanager
 from datetime import timedelta
 from pathlib import Path
+
+from utils.runtime import require_supported_python
+
+require_supported_python()
 
 import uvicorn
 from api import game_ws

@@ -95,11 +95,12 @@ impl RenderEngine {
                     &format!("[TABLE-SWITCH] [FOG] Updated fog bounds: {}x{}", tw, th).into(),
                 );
 
-                self.camera.center_on(tx, ty);
+                self.camera
+                    .set_camera(table.x_moved, table.y_moved, table.scale);
                 web_sys::console::log_1(
                     &format!(
-                        "[TABLE-SWITCH] [CAM] Camera positioned at table origin ({}, {})",
-                        tx, ty
+                        "[TABLE-SWITCH] [CAM] Restored camera at ({}, {}) with zoom {}",
+                        table.x_moved, table.y_moved, table.scale
                     )
                     .into(),
                 );

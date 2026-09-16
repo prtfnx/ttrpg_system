@@ -4,7 +4,7 @@ Audience: contributors changing the browser engine or its TypeScript boundary.
 
 Status: usable.
 
-Last source audit: 2026-09-10
+Last source audit: 2026-09-16
 
 The Rust crate is the local engine behind the browser canvas. It should stay
 focused on compute-heavy rendering, geometry, visibility, collision, planning,
@@ -41,10 +41,11 @@ The app currently depends on these generated WASM exports through
 - `calculate_asset_hash`
 - `PlanningManager`
 - `TableManager`
-- `TableSync`
 - `create_default_brush_presets`
 
 React feature code should not import those generated exports directly.
+`RenderEngine` embeds the Rust `TableSync` parser. `WasmRuntime` does not
+create or expose a second standalone `TableSync` object.
 
 `PlanningManager` is used by combat UI as a preview helper. It can compute
 ghost movement, movement range overlays, local distance estimates, line of
@@ -70,6 +71,10 @@ first normalized server table payload creates and activates the matching Rust
 table. Sprite, light, fog, shape, and input operations are ignored until that
 active table exists; Rust never substitutes an invented table ID.
 
+Authoritative hydration restores the persisted table position and uniform
+scale as camera state. Sprite coordinates and table bounds remain table-local;
+the renderer does not apply the table transform to every sprite a second time.
+
 ## Runtime callbacks
 
 Rust should not call app-level browser globals. It reports app intent through
@@ -84,6 +89,12 @@ This keeps Rust from knowing about React, Zustand, or WebSocket objects.
 `WebClientProtocol` is the only WebSocket owner. Rust exports do not connect,
 authenticate, reconnect, or send protocol messages. `TableSync` accepts data
 that TypeScript already received and normalized; it does not request data.
+
+For asset-backed sprites, `texture_id` is the canonical server `asset_id`.
+Rust emits that same opaque value in `assetDownloadRequested`, and
+`TextureManager` indexes the uploaded WebGL texture by it. Filesystem paths and
+display filenames are compatibility input only. Procedural sentinel values
+such as `__LIGHT__` and `__FOG_HIDE__` are not asset identities.
 
 Rust also does not fetch asset URLs or retain downloaded byte vectors. The
 TypeScript `WasmRuntime` owns browser fetch and a Blob/object-URL LRU cache,

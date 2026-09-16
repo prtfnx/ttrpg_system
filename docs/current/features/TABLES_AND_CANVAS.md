@@ -5,7 +5,7 @@ canvas bootstrap, or table settings.
 
 Status: current but partial.
 
-Last source audit: 2026-09-14
+Last source audit: 2026-09-16
 
 ## Source owners
 
@@ -87,6 +87,10 @@ Switch table:
    hydrates the authoritative browser sprite store, and passes the same
    canonical table identity to the renderer. If no renderer is attached, it
    retains the snapshot and flushes it on attachment.
+6. The renderer restores the persisted table position and scale as camera
+   state, then replaces ordinary layers, table-derived lights, fog, and walls.
+7. `frameTableId` becomes ready only after required textures settle and a
+   subsequent render frame completes.
 
 Feature code must not call the renderer's `handle_table_data` directly. The
 runtime port intentionally does not expose a complete-table hydration method.
@@ -168,6 +172,16 @@ WASM-owned:
 - render engine state for the active table;
 - canvas event interpretation and draw-time state reached through
   `WasmRuntime`.
+
+The authoritative server `asset_id` is the texture key across snapshot
+normalization, asset download, browser verification, and the Rust texture
+cache. A legacy `texture_path` may help the server resolve old records, but it
+must not replace an enriched `asset_id` at the renderer boundary. Map imagery
+and token sprites use this same rule.
+
+The Canvas2D wall overlay is a view of the `obstacles` layer. It is DM-only,
+honors obstacle visibility and opacity, and clears its pixels when the layer is
+hidden. It does not define separate wall visibility state.
 
 ## Tests to run
 

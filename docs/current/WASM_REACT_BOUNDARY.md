@@ -4,7 +4,7 @@ Audience: contributors changing React-to-Rust integration.
 
 Status: usable.
 
-Last source audit: 2026-09-14
+Last source audit: 2026-09-16
 
 React does not own Rust objects directly. It talks to `WasmRuntime`, and
 `WasmRuntime` owns the generated wasm-bindgen module.
@@ -98,6 +98,9 @@ WebClientProtocol -> protocol event -> TableSyncService
 `TableSyncService` is the only application entry point for complete table
 snapshots. `WasmRuntimePort` deliberately has no direct `handleTableData`
 method, so a caller cannot bypass table-ID validation and normalization.
+The runtime also has no standalone `getTableSync()` mirror. The service hydrates
+the browser sprite store and the renderer from the same normalized snapshot;
+no follow-up hook replaces store sprites from a disconnected Rust object.
 
 Authorized asset download:
 
@@ -117,9 +120,23 @@ the received table ID to every normalized layer, flat sprite, and background
 sprite before calling Rust. It does not infer a renderer table from a fallback
 name.
 
+When a persisted entity contains both a legacy `texture_path` and an enriched
+`asset_id`, normalization uses `asset_id` as the renderer texture key. That key
+must remain unchanged through the download request, verified browser cache,
+and Rust texture upload. Procedural sentinel textures retain their sentinel
+value and bypass the asset identity rule.
+
 The runtime publishes `hydratedTableId` after the normalized snapshot reaches
-the renderer and `frameTableId` after that table has rendered a frame. Preview
-capture must wait for both IDs to match the requested table.
+the renderer. It publishes `frameTableId` only after the table's deduplicated
+texture set has settled and that table has rendered a subsequent frame.
+Preview capture must wait for both IDs to match the requested table. A texture
+waiting for upload keeps the frame pending; a terminal download failure settles
+the request without pretending that the texture loaded.
+
+Complete snapshots replace prior table-derived state. Before rehydration,
+`TableSyncService` removes the lights and token auras it derived from the prior
+snapshot and clears fog. Rust replaces ordinary render layers, while walls are
+cleared and re-added from the same authoritative snapshot.
 
 Combat preview:
 

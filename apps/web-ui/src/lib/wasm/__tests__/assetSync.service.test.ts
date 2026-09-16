@@ -77,6 +77,16 @@ describe('AssetSyncService', () => {
       expect(svc.areTexturesSettled([])).toBe(true);
     });
 
+    it('tracks a download request emitted directly by the Rust runtime', () => {
+      const svc = makeService();
+      svc.init();
+
+      dispatch('request-asset-download', { asset_id: 'rust-requested' });
+
+      expect(svc.areTexturesSettled(['rust-requested'])).toBe(false);
+      svc.dispose();
+    });
+
     it('settles a terminal failure but keeps upload-retry assets pending', () => {
       const svc = makeService();
       svc.init();

@@ -57,7 +57,12 @@ export class AssetSyncService {
       onProtocolEvent('asset-downloaded', d => this.handleAssetDownloaded((d ?? {}) as AssetPayload)),
       onProtocolEvent('asset-uploaded', d => this.handleAssetUploaded((d ?? {}) as AssetPayload)),
       onWasmEvent('asset-upload-started', d => {
-      if (d?.asset_id) this.pendingAssetRetries.add(d.asset_id);
+        if (d?.asset_id) this.pendingAssetRetries.add(d.asset_id);
+      }),
+      onWasmEvent('request-asset-download', d => {
+        if (d?.asset_id && !this.loadedTextureIds.has(d.asset_id)) {
+          this.requestedTextureIds.add(d.asset_id);
+        }
       }),
       onProtocolEvent('protocol-success', d => this.handleProtocolSuccess((d ?? {}) as AssetPayload)),
       onWasmEvent('local-texture-ready', d => this.handleLocalTextureReady(d)),

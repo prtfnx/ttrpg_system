@@ -1,5 +1,7 @@
 #[cfg(target_arch = "wasm32")]
-use super::visibility::{shadow_quad, Point, VisibilityCalculator};
+use super::visibility::{
+    distance_squared_to_segment, shadow_quad, Point, VisibilityCalculator,
+};
 use crate::math::Vec2;
 use crate::types::Color;
 use serde::{Deserialize, Serialize};
@@ -718,27 +720,22 @@ impl LightingSystem {
             return shadow_quads;
         }
 
-        // Shadow distance culling: extend radius slightly to ensure shadows at the edge are complete
-        let shadow_cull_radius = radius * 1.5;
-        let shadow_cull_radius_squared = shadow_cull_radius * shadow_cull_radius;
+        let light = Point::new(light_pos.x, light_pos.y);
+        let radius_squared = radius * radius;
+        // One extra world unit keeps the projected edge outside the 64-sided
+        // light mesh despite floating-point rounding at the perimeter.
+        let shadow_length = radius + 1.0;
 
         for segment in calc.get_segments() {
-            // Distance-based culling: skip segments too far from light
-            // Check distance to segment midpoint for efficient culling
-            let mid_x = (segment.p1.x + segment.p2.x) * 0.5;
-            let mid_y = (segment.p1.y + segment.p2.y) * 0.5;
-            let dx = mid_x - light_pos.x;
-            let dy = mid_y - light_pos.y;
-            let dist_squared = dx * dx + dy * dy;
-
-            if dist_squared > shadow_cull_radius_squared {
+            // A long segment can intersect the light even when its midpoint
+            // is far away, so cull against its actual closest point.
+            if distance_squared_to_segment(light, segment) > radius_squared {
                 continue; // Segment is beyond light influence, skip shadow computation
             }
 
             // Segments are undirected. Endpoint order must not define a
             // one-way wall, so every in-range segment casts away from light.
-            if let Some(quad) = shadow_quad(segment, Point::new(light_pos.x, light_pos.y), 10000.0)
-            {
+            if let Some(quad) = shadow_quad(segment, light, shadow_length) {
                 shadow_quads.push(quad.to_vec());
             }
         }

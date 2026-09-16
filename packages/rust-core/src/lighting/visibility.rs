@@ -27,6 +27,33 @@ impl LineSegment {
     }
 }
 
+/// Squared distance from a point to the closest point on a line segment.
+///
+/// Keeping this calculation squared avoids a square root in the per-light,
+/// per-segment culling path.
+pub(crate) fn distance_squared_to_segment(point: Point, segment: &LineSegment) -> f32 {
+    let segment_x = segment.p2.x - segment.p1.x;
+    let segment_y = segment.p2.y - segment.p1.y;
+    let length_squared = segment_x * segment_x + segment_y * segment_y;
+
+    if length_squared <= f32::EPSILON {
+        let dx = point.x - segment.p1.x;
+        let dy = point.y - segment.p1.y;
+        return dx * dx + dy * dy;
+    }
+
+    let projection = ((point.x - segment.p1.x) * segment_x
+        + (point.y - segment.p1.y) * segment_y)
+        / length_squared;
+    let t = projection.clamp(0.0, 1.0);
+    let closest_x = segment.p1.x + t * segment_x;
+    let closest_y = segment.p1.y + t * segment_y;
+    let dx = point.x - closest_x;
+    let dy = point.y - closest_y;
+
+    dx * dx + dy * dy
+}
+
 /// Build the shadow volume for an undirected obstacle segment.
 ///
 /// A wall blocks a ray regardless of which endpoint was stored first or
@@ -238,5 +265,35 @@ mod tests {
 
         assert!(shadow_quad(&forward, light, 100.0).is_some());
         assert!(shadow_quad(&reverse, light, 100.0).is_some());
+    }
+
+    #[test]
+    fn segment_distance_uses_the_closest_point_not_the_midpoint() {
+        let segment = LineSegment::new(Point::new(-1_000.0, 0.0), Point::new(10.0, 0.0));
+
+        assert_eq!(
+            distance_squared_to_segment(Point::new(0.0, 5.0), &segment),
+            25.0
+        );
+    }
+
+    #[test]
+    fn segment_distance_clamps_to_an_endpoint() {
+        let segment = LineSegment::new(Point::new(10.0, 10.0), Point::new(20.0, 10.0));
+
+        assert_eq!(
+            distance_squared_to_segment(Point::new(0.0, 10.0), &segment),
+            100.0
+        );
+    }
+
+    #[test]
+    fn segment_distance_handles_degenerate_segments() {
+        let segment = LineSegment::new(Point::new(3.0, 4.0), Point::new(3.0, 4.0));
+
+        assert_eq!(
+            distance_squared_to_segment(Point::new(0.0, 0.0), &segment),
+            25.0
+        );
     }
 }

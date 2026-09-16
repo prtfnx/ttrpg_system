@@ -34,6 +34,8 @@ interface TablePayload {
 export class TableSyncService {
   private pendingPayload: TablePayload | null = null;
   private latestPayload: TablePayload | null = null;
+  private hydratedTableId: string | null = null;
+  private readonly tableDerivedLightIds = new Map<string, Set<string>>();
   private eventCleanups: Array<() => void> = [];
   private readonly getEngine: () => RenderEngine | null;
   private readonly spriteSync: SpriteSyncService;
@@ -70,6 +72,8 @@ export class TableSyncService {
     this.eventCleanups = [];
     this.pendingPayload = null;
     this.latestPayload = null;
+    this.hydratedTableId = null;
+    this.tableDerivedLightIds.clear();
   }
 
   flushPending(): void {
@@ -117,6 +121,13 @@ export class TableSyncService {
         return;
       }
 
+      if (this.hydratedTableId) {
+        this.tableDerivedLightIds.get(this.hydratedTableId)?.forEach(lightId => {
+          engine.remove_light(lightId);
+        });
+        engine.clear_fog();
+      }
+
       engine.handle_table_data(snapshot.renderer);
       engine.set_grid_size(snapshot.renderer.grid_cell_px);
       engine.set_grid_enabled(snapshot.renderer.show_grid);
@@ -131,6 +142,20 @@ export class TableSyncService {
       snapshot.specialSprites.forEach(sprite => {
         this.spriteSync.addSpriteToWasm({ ...sprite, obstacle_data: undefined, table_id: tableId });
       });
+
+      const derivedLightIds = new Set<string>();
+      snapshot.specialSprites.forEach(sprite => {
+        if (sprite.texture_path === '__LIGHT__') derivedLightIds.add(sprite.sprite_id);
+      });
+      Object.values(snapshot.renderer.layers).forEach(sprites => {
+        sprites.forEach(sprite => {
+          if (sprite.aura_radius !== undefined || sprite.aura_radius_units !== undefined) {
+            derivedLightIds.add(`token_light_${sprite.sprite_id}`);
+          }
+        });
+      });
+      this.tableDerivedLightIds.set(tableId, derivedLightIds);
+      this.hydratedTableId = tableId;
 
       gameStore.hydrateTableSprites?.(tableId, snapshot.storeSprites);
       gameStore.setActiveTableId?.(tableId);

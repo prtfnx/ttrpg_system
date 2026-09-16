@@ -19,6 +19,8 @@ const mockEngine = {
   set_background_color: vi.fn(),
   clear_walls: vi.fn(),
   add_wall: vi.fn(),
+  remove_light: vi.fn(),
+  clear_fog: vi.fn(),
 };
 
 const mockSpriteSync = { addSpriteToWasm: vi.fn() };
@@ -241,6 +243,31 @@ describe('TableSyncService', () => {
       service.flushPending();
       expect(mockEngine.handle_table_data).toHaveBeenCalledOnce();
       expect(onHydrated).toHaveBeenCalledWith(TABLE_A, []);
+      service.dispose();
+    });
+
+    it('replaces table-derived light and fog state on same-table hydration', () => {
+      const service = makeService();
+      service.init();
+      dispatch('table-data-received', tableSnapshot({
+        layers: {
+          light: [{ sprite_id: 'light-1', texture_path: '__LIGHT__', position: [5, 6] }],
+          tokens: [{
+            sprite_id: 'token-1',
+            position: [10, 20],
+            width: 50,
+            height: 50,
+            aura_radius: 30,
+          }],
+          fog_of_war: [{ sprite_id: 'fog-1', texture_path: '__FOG_HIDE__', position: [1, 2] }],
+        },
+      }));
+      dispatch('table-data-received', tableSnapshot());
+
+      expect(mockEngine.remove_light).toHaveBeenCalledWith('light-1');
+      expect(mockEngine.remove_light).toHaveBeenCalledWith('token_light_token-1');
+      expect(mockEngine.clear_fog).toHaveBeenCalledOnce();
+      expect(mockEngine.handle_table_data).toHaveBeenCalledTimes(2);
       service.dispose();
     });
 

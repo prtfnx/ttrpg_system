@@ -103,11 +103,6 @@ impl Camera {
         }
     }
 
-    pub fn center_on(&mut self, world_x: f64, world_y: f64) {
-        self.world_x = world_x;
-        self.world_y = world_y;
-    }
-
     #[allow(dead_code)] // Tested API; render/state.rs currently sets fields directly
     pub fn set_camera(&mut self, world_x: f64, world_y: f64, zoom: f64) {
         self.world_x = world_x;
@@ -274,14 +269,6 @@ mod tests {
         // 100 screen pixels / zoom=2 = 50 world units
         assert!((c.world_x - 50.0).abs() < 1e-6);
         assert!((c.world_y - 25.0).abs() < 1e-6);
-    }
-
-    #[test]
-    fn center_on_sets_world_position() {
-        let mut c = Camera::default();
-        c.center_on(500.0, 300.0);
-        assert_eq!(c.world_x, 500.0);
-        assert_eq!(c.world_y, 300.0);
     }
 
     #[test]

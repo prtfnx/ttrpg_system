@@ -295,6 +295,12 @@ impl RenderEngine {
 
     #[wasm_bindgen]
     pub fn get_obstacle_segments_flat(&self) -> js_sys::Float32Array {
+        let data = self.collect_vision_obstacle_segments();
+        js_sys::Float32Array::from(data.as_slice())
+    }
+
+    #[wasm_bindgen]
+    pub fn get_light_obstacle_segments_flat(&self) -> js_sys::Float32Array {
         let data = self.collect_lighting_obstacle_segments();
         js_sys::Float32Array::from(data.as_slice())
     }

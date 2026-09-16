@@ -1,5 +1,5 @@
 #[cfg(target_arch = "wasm32")]
-use super::visibility::{Point, VisibilityCalculator};
+use super::visibility::{shadow_quad, Point, VisibilityCalculator};
 use crate::math::Vec2;
 use crate::types::Color;
 use serde::{Deserialize, Serialize};
@@ -458,18 +458,14 @@ impl LightingSystem {
         _cached_polygon: Option<Vec<Point>>,
         _dirty: bool,
     ) -> Result<(Option<Vec<Point>>, bool), JsValue> {
-        // Check if light is inside an opaque obstacle
-        if self.is_light_occluded(position) {
-            log_debug!(
-                "[SKIP] Light at ({:.1}, {:.1}) is inside obstacle, skipping render",
-                position.x,
-                position.y
-            );
-            return Ok((None, false));
-        }
-
         // Set light-specific uniforms
         self.set_light_uniforms_explicit(program, &position, &color, intensity, radius, falloff)?;
+
+        // Stencil contents are a per-light shadow mask. Without this clear,
+        // shadows produced for an earlier light also block every later light.
+        self.gl.stencil_mask(0xFF);
+        self.gl.clear_stencil(0);
+        self.gl.clear(WebGlRenderingContext::STENCIL_BUFFER_BIT);
 
         // CORRECTED APPROACH: Use stencil buffer to BLOCK shadows
         // 1. Render shadow quads to stencil buffer (mark as 1 where shadows are)
@@ -739,123 +735,15 @@ impl LightingSystem {
                 continue; // Segment is beyond light influence, skip shadow computation
             }
 
-            // Segment direction vector
-            let seg_dx = segment.p2.x - segment.p1.x;
-            let seg_dy = segment.p2.y - segment.p1.y;
-
-            // Segment normal (perpendicular vector, rotate 90° counter-clockwise)
-            let normal_x = -seg_dy;
-            let normal_y = seg_dx;
-
-            // Vector from segment start to light
-            let to_light_x = light_pos.x - segment.p1.x;
-            let to_light_y = light_pos.y - segment.p1.y;
-
-            // Dot product: negative = back-facing (segment faces away from light, should cast shadow)
-            // This is geometrically correct: tests if the segment's outward normal points away from light
-            let faces_light = normal_x * to_light_x + normal_y * to_light_y;
-
-            if faces_light < 0.0 {
-                // Back-facing segments cast shadows
-                // Project segment endpoints away from light to create shadow quad
-                // Use a very large shadow length to ensure shadows extend beyond visible area
-                // This prevents light leaking when light source is very close to obstacle edges
-                let shadow_length = 10000.0; // Large enough to cover entire screen
-
-                // Direction from light to each endpoint
-                let dir1_x = segment.p1.x - light_pos.x;
-                let dir1_y = segment.p1.y - light_pos.y;
-                let len1 = (dir1_x * dir1_x + dir1_y * dir1_y).sqrt();
-
-                let dir2_x = segment.p2.x - light_pos.x;
-                let dir2_y = segment.p2.y - light_pos.y;
-                let len2 = (dir2_x * dir2_x + dir2_y * dir2_y).sqrt();
-
-                if len1 > 0.01 && len2 > 0.01 {
-                    // Normalize and extend
-                    let norm1_x = dir1_x / len1;
-                    let norm1_y = dir1_y / len1;
-                    let norm2_x = dir2_x / len2;
-                    let norm2_y = dir2_y / len2;
-
-                    // Shadow quad vertices (CORRECT order for triangle strip)
-                    // Triangle strip order: v0, v1, v2, v3 creates triangles (v0,v1,v2) and (v1,v2,v3)
-                    // We want: (p1, proj_p1, p2) and (proj_p1, p2, proj_p2)
-                    let projected_p1 = Point::new(
-                        segment.p1.x + norm1_x * shadow_length,
-                        segment.p1.y + norm1_y * shadow_length,
-                    );
-                    let projected_p2 = Point::new(
-                        segment.p2.x + norm2_x * shadow_length,
-                        segment.p2.y + norm2_y * shadow_length,
-                    );
-
-                    let quad = vec![
-                        segment.p1,   // v0: segment start
-                        projected_p1, // v1: projected start (forms diagonal)
-                        segment.p2,   // v2: segment end
-                        projected_p2, // v3: projected end
-                    ];
-
-                    shadow_quads.push(quad);
-                }
+            // Segments are undirected. Endpoint order must not define a
+            // one-way wall, so every in-range segment casts away from light.
+            if let Some(quad) = shadow_quad(segment, Point::new(light_pos.x, light_pos.y), 10000.0)
+            {
+                shadow_quads.push(quad.to_vec());
             }
         }
 
         shadow_quads
-    }
-
-    /// Check if a light position is inside an opaque obstacle
-    /// Uses ray-casting algorithm for point-in-polygon test
-    fn is_light_occluded(&self, light_pos: Vec2) -> bool {
-        let calc = self.visibility_calculator.borrow();
-        let segments = calc.get_segments();
-
-        if segments.is_empty() {
-            return false;
-        }
-
-        // Build polygons from connected segments (assuming obstacles form closed rectangles)
-        // For a simple rectangle, we'll check if the point is inside by counting ray intersections
-
-        // Ray-casting algorithm: cast a ray from the point to infinity
-        // Count how many times it crosses polygon edges
-        // Odd = inside, Even = outside
-
-        let mut intersections = 0;
-
-        for segment in segments {
-            // Check if ray intersects this segment
-            let x1 = segment.p1.x;
-            let y1 = segment.p1.y;
-            let x2 = segment.p2.x;
-            let y2 = segment.p2.y;
-
-            // Check if segment crosses the horizontal ray
-            if (y1 > light_pos.y) != (y2 > light_pos.y) {
-                // Calculate x coordinate of intersection
-                let x_intersect = x1 + (light_pos.y - y1) * (x2 - x1) / (y2 - y1);
-
-                // Count intersection if it's to the right of the point
-                if x_intersect > light_pos.x {
-                    intersections += 1;
-                }
-            }
-        }
-
-        // Odd number of intersections = point is inside
-        let is_occluded = intersections % 2 == 1;
-
-        if is_occluded {
-            log_debug!(
-                "[SKIP] Light occluded at ({:.1}, {:.1}): {} ray intersections",
-                light_pos.x,
-                light_pos.y,
-                intersections
-            );
-        }
-
-        is_occluded
     }
 
     /// Get light at position (for mouse interaction)

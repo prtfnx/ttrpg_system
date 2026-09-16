@@ -47,10 +47,15 @@ impl RenderEngine {
 
     #[wasm_bindgen]
     pub fn move_sprite_to_layer(&mut self, sprite_id: &str, new_layer: &str) -> bool {
+        let was_obstacle = self
+            .layer_manager
+            .find_sprite(sprite_id)
+            .map(|(_, layer)| layer == "obstacles")
+            .unwrap_or(false);
         let result = self
             .layer_manager
             .move_sprite_to_layer(sprite_id, new_layer);
-        if result && new_layer == "obstacles" {
+        if result && (was_obstacle || new_layer == "obstacles") {
             self.obstacles_dirty = true;
         }
         result
@@ -58,8 +63,18 @@ impl RenderEngine {
 
     #[wasm_bindgen]
     pub fn rotate_sprite(&mut self, sprite_id: &str, rotation_degrees: f64) -> bool {
-        self.layer_manager
-            .rotate_sprite(sprite_id, rotation_degrees)
+        let on_obstacles = self
+            .layer_manager
+            .find_sprite(sprite_id)
+            .map(|(_, layer)| layer == "obstacles")
+            .unwrap_or(false);
+        let ok = self
+            .layer_manager
+            .rotate_sprite(sprite_id, rotation_degrees);
+        if ok && on_obstacles {
+            self.obstacles_dirty = true;
+        }
+        ok
     }
 
     #[wasm_bindgen]
@@ -83,8 +98,17 @@ impl RenderEngine {
 
     #[wasm_bindgen]
     pub fn update_sprite_scale(&mut self, sprite_id: &str, scale_x: f64, scale_y: f64) -> bool {
+        let on_obstacles = self
+            .layer_manager
+            .find_sprite(sprite_id)
+            .map(|(_, layer)| layer == "obstacles")
+            .unwrap_or(false);
         let new_scale = crate::math::Vec2::new(scale_x as f32, scale_y as f32);
-        self.layer_manager.update_sprite_scale(sprite_id, new_scale)
+        let ok = self.layer_manager.update_sprite_scale(sprite_id, new_scale);
+        if ok && on_obstacles {
+            self.obstacles_dirty = true;
+        }
+        ok
     }
 
     #[wasm_bindgen]
@@ -100,14 +124,29 @@ impl RenderEngine {
         offset_x: f64,
         offset_y: f64,
     ) -> Result<String, JsValue> {
-        self.layer_manager
-            .paste_sprite(layer_name, sprite_json, offset_x, offset_y)
+        let result = self
+            .layer_manager
+            .paste_sprite(layer_name, sprite_json, offset_x, offset_y);
+        if result.is_ok() && layer_name == "obstacles" {
+            self.obstacles_dirty = true;
+        }
+        result
     }
 
     #[wasm_bindgen]
     pub fn resize_sprite(&mut self, sprite_id: &str, new_width: f64, new_height: f64) -> bool {
-        self.layer_manager
-            .resize_sprite(sprite_id, new_width, new_height)
+        let on_obstacles = self
+            .layer_manager
+            .find_sprite(sprite_id)
+            .map(|(_, layer)| layer == "obstacles")
+            .unwrap_or(false);
+        let ok = self
+            .layer_manager
+            .resize_sprite(sprite_id, new_width, new_height);
+        if ok && on_obstacles {
+            self.obstacles_dirty = true;
+        }
+        ok
     }
 
     /// Get sprite position for movement operations

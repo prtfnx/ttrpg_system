@@ -106,12 +106,27 @@ impl WallManager {
     // Pipeline queries
     // ------------------------------------------------------------------
 
-    /// Returns all wall segments that block light/sight as flat (x1,y1,x2,y2) f32 pairs.
+    /// Returns all wall segments that block light as flat (x1,y1,x2,y2) f32 pairs.
     /// Open doors are excluded automatically.
     pub fn get_light_blocking_segments(&self) -> Vec<f32> {
         let mut out = Vec::with_capacity(self.walls.len() * 4);
         for wall in self.walls.values() {
             if wall.blocks_light && !self.door_is_open(wall) {
+                out.push(wall.x1);
+                out.push(wall.y1);
+                out.push(wall.x2);
+                out.push(wall.y2);
+            }
+        }
+        out
+    }
+
+    /// Returns all wall segments that block sight as flat (x1,y1,x2,y2) f32 pairs.
+    /// Open doors are excluded automatically.
+    pub fn get_sight_blocking_segments(&self) -> Vec<f32> {
+        let mut out = Vec::with_capacity(self.walls.len() * 4);
+        for wall in self.walls.values() {
+            if wall.blocks_sight && !self.door_is_open(wall) {
                 out.push(wall.x1);
                 out.push(wall.y1);
                 out.push(wall.x2);
@@ -378,6 +393,23 @@ mod tests {
         w.blocks_light = false;
         wm.add_wall(w);
         assert!(wm.get_light_blocking_segments().is_empty());
+    }
+
+    #[test]
+    fn light_and_sight_blocking_are_independent() {
+        let mut wm = WallManager::new();
+        let mut sight_only = make_wall("sight", 0.0, 0.0, 50.0, 0.0);
+        sight_only.blocks_light = false;
+        let mut light_only = make_wall("light", 0.0, 10.0, 50.0, 10.0);
+        light_only.blocks_sight = false;
+        wm.add_wall(sight_only);
+        wm.add_wall(light_only);
+
+        assert_eq!(
+            wm.get_light_blocking_segments(),
+            vec![0.0, 10.0, 50.0, 10.0]
+        );
+        assert_eq!(wm.get_sight_blocking_segments(), vec![0.0, 0.0, 50.0, 0.0]);
     }
 
     #[test]

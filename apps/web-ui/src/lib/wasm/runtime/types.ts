@@ -68,6 +68,7 @@ export interface RenderEngine {
   get_layer_names(): string[];
   get_layer_sprite_count(layerName: string): number;
   get_obstacle_segments_flat(): Float32Array;
+  get_light_obstacle_segments_flat(): Float32Array;
   get_selected_sprites(): string[];
   get_selected_walls(): string[];
   get_sprite_position(spriteId: string): Float32Array | undefined;

@@ -27,6 +27,41 @@ impl LineSegment {
     }
 }
 
+/// Build the shadow volume for an undirected obstacle segment.
+///
+/// A wall blocks a ray regardless of which endpoint was stored first or
+/// which side contains the light.
+pub(crate) fn shadow_quad(
+    segment: &LineSegment,
+    light: Point,
+    shadow_length: f32,
+) -> Option<[Point; 4]> {
+    let dir1_x = segment.p1.x - light.x;
+    let dir1_y = segment.p1.y - light.y;
+    let len1 = (dir1_x * dir1_x + dir1_y * dir1_y).sqrt();
+
+    let dir2_x = segment.p2.x - light.x;
+    let dir2_y = segment.p2.y - light.y;
+    let len2 = (dir2_x * dir2_x + dir2_y * dir2_y).sqrt();
+
+    if len1 <= 0.01 || len2 <= 0.01 {
+        return None;
+    }
+
+    let projected_p1 = Point::new(
+        segment.p1.x + dir1_x / len1 * shadow_length,
+        segment.p1.y + dir1_y / len1 * shadow_length,
+    );
+    let projected_p2 = Point::new(
+        segment.p2.x + dir2_x / len2 * shadow_length,
+        segment.p2.y + dir2_y / len2 * shadow_length,
+    );
+
+    // TRIANGLE_STRIP produces (p1, projected_p1, p2) and
+    // (projected_p1, p2, projected_p2).
+    Some([segment.p1, projected_p1, segment.p2, projected_p2])
+}
+
 /// Visibility calculator using shadow quad generation for 2D lighting
 /// Stores obstacle line segments and provides access for shadow casting
 pub struct VisibilityCalculator {
@@ -182,5 +217,26 @@ mod tests {
         assert_eq!(segs[0].p1.x, 0.0);
         assert_eq!(segs[1].p1.x, 2.0);
         assert_eq!(segs[2].p1.x, 4.0);
+    }
+
+    #[test]
+    fn shadow_quad_is_cast_from_either_side_of_an_undirected_wall() {
+        let wall = LineSegment::new(Point::new(0.0, 0.0), Point::new(10.0, 0.0));
+
+        let from_above = shadow_quad(&wall, Point::new(5.0, -10.0), 100.0).unwrap();
+        let from_below = shadow_quad(&wall, Point::new(5.0, 10.0), 100.0).unwrap();
+
+        assert!(from_above[1].y > wall.p1.y);
+        assert!(from_below[1].y < wall.p1.y);
+    }
+
+    #[test]
+    fn reversing_wall_endpoints_does_not_disable_its_shadow() {
+        let forward = LineSegment::new(Point::new(0.0, 0.0), Point::new(10.0, 0.0));
+        let reverse = LineSegment::new(Point::new(10.0, 0.0), Point::new(0.0, 0.0));
+        let light = Point::new(5.0, -10.0);
+
+        assert!(shadow_quad(&forward, light, 100.0).is_some());
+        assert!(shadow_quad(&reverse, light, 100.0).is_some());
     }
 }

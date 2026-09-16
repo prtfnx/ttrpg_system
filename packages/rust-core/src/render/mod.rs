@@ -242,11 +242,18 @@ impl RenderEngine {
     }
 
     pub(crate) fn collect_lighting_obstacle_segments(&self) -> Vec<f32> {
-        let mut obstacles = Vec::new();
+        let mut obstacles = self.wall_manager.get_light_blocking_segments();
+        self.collect_obstacle_sprite_segments(&mut obstacles);
+        obstacles
+    }
 
-        let wall_segs = self.wall_manager.get_light_blocking_segments();
-        obstacles.extend_from_slice(&wall_segs);
+    pub(crate) fn collect_vision_obstacle_segments(&self) -> Vec<f32> {
+        let mut obstacles = self.wall_manager.get_sight_blocking_segments();
+        self.collect_obstacle_sprite_segments(&mut obstacles);
+        obstacles
+    }
 
+    fn collect_obstacle_sprite_segments(&self, obstacles: &mut Vec<f32>) {
         if let Some(obstacles_layer) = self.layer_manager.get_layer("obstacles") {
             for sprite in &obstacles_layer.sprites {
                 if sprite.obstacle_type.as_deref() == Some("polygon") {
@@ -298,8 +305,6 @@ impl RenderEngine {
                 }
             }
         }
-
-        obstacles
     }
 
     fn find_sprite(&self, sprite_id: &str) -> Option<&crate::types::Sprite> {

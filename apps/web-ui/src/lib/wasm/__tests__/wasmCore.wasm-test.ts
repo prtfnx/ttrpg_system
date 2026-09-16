@@ -165,6 +165,27 @@ describe('WASM module (real browser)', () => {
     expect(result !== null && result !== undefined).toBe(true);
   });
 
+  it('exports sight-blocking walls independently from light-blocking walls', () => {
+    const engine = new RenderEngine(document.createElement('canvas'));
+    try {
+      expect(engine.add_wall(JSON.stringify({
+        wall_id: 'sight-only', table_id: 'table-1',
+        x1: 10, y1: 20, x2: 30, y2: 40,
+        blocks_light: false, blocks_sight: true,
+      }))).toBe(true);
+      expect([...engine.get_obstacle_segments_flat()]).toEqual([10, 20, 30, 40]);
+      expect([...engine.get_light_obstacle_segments_flat()]).toEqual([]);
+
+      expect(engine.update_wall('sight-only', JSON.stringify({
+        blocks_light: true, blocks_sight: false,
+      }))).toBe(true);
+      expect([...engine.get_obstacle_segments_flat()]).toEqual([]);
+      expect([...engine.get_light_obstacle_segments_flat()]).toEqual([10, 20, 30, 40]);
+    } finally {
+      engine.free();
+    }
+  });
+
   it('calculate_asset_hash() matches the server xxHash64 contract', () => {
     expect(calculate_asset_hash(new TextEncoder().encode('hello')))
       .toBe('26c7827d889f6da3');

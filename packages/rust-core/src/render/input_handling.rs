@@ -191,7 +191,7 @@ impl RenderEngine {
             self.obstacles_dirty = true;
         } else if matches!(
             self.input.input_mode,
-            InputMode::SpriteMove | InputMode::SpriteResize(_)
+            InputMode::SpriteMove | InputMode::SpriteResize(_) | InputMode::SpriteRotate
         ) {
             if let Some(ref sprite_id) = self.input.selected_sprite_id.clone() {
                 let on_obstacles = self

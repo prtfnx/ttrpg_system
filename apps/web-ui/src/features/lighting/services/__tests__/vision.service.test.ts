@@ -17,6 +17,7 @@ const rm = {
   set_dynamic_lighting_enabled: vi.fn(),
   set_gm_mode: vi.fn(),
   get_obstacle_segments_flat: vi.fn().mockReturnValue(new Float32Array()),
+  get_light_obstacle_segments_flat: vi.fn().mockReturnValue(new Float32Array()),
   add_fog_polygon: vi.fn(),
   remove_fog_polygon: vi.fn(),
 };
@@ -24,6 +25,7 @@ const rm = {
 function baseStore(overrides: Record<string, unknown> = {}) {
   return {
     sprites: [],
+    walls: [],
     userId: 1,
     dynamicLightingEnabled: true,
     fogExplorationMode: 'none',
@@ -48,6 +50,7 @@ beforeEach(() => {
   runtimeMock.getRenderEngine.mockReturnValue(rm as unknown as RenderEngine);
   runtimeMock.computeVisibilityPolygon.mockReturnValue([]);
   rm.get_obstacle_segments_flat.mockReturnValue(new Float32Array());
+  rm.get_light_obstacle_segments_flat.mockReturnValue(new Float32Array());
   useGameStore.setState(baseStore() as unknown as Parameters<typeof useGameStore.setState>[0]);
 });
 
@@ -161,6 +164,40 @@ describe('buildObstacles (via recompute)', () => {
     expect(rm.get_obstacle_segments_flat).toHaveBeenCalled();
     expect(runtimeMock.computeVisibilityPolygon).toHaveBeenCalledWith(200, 400, obstacleSegments, 150);
   });
+
+  it('uses light-blocking segments for light visibility polygons', () => {
+    const lightSegments = new Float32Array([10, 20, 30, 40]);
+    rm.get_light_obstacle_segments_flat.mockReturnValue(lightSegments);
+    useGameStore.setState({
+      sprites: [makeSprite({ layer: 'light', metadata: JSON.stringify({ radius: 100 }) })],
+    } as unknown as Parameters<typeof useGameStore.setState>[0]);
+
+    visionService.start();
+
+    expect(runtimeMock.computeVisibilityPolygon).toHaveBeenCalledWith(200, 400, lightSegments, 100);
+  });
+
+  it('recomputes when a wall changes beyond the first four exported segments', async () => {
+    const before = new Float32Array(20);
+    const after = new Float32Array(before);
+    after[19] = 42;
+    rm.get_obstacle_segments_flat
+      .mockReturnValueOnce(before)
+      .mockReturnValue(after);
+    useGameStore.setState({
+      sprites: [makeSprite({ controlled_by: [1], vision_radius: 150 })],
+      walls: [],
+    } as unknown as Parameters<typeof useGameStore.setState>[0]);
+
+    visionService.start();
+    expect(runtimeMock.computeVisibilityPolygon).toHaveBeenCalledTimes(1);
+
+    useGameStore.setState({ walls: [{ wall_id: 'wall-5' }] } as unknown as Parameters<typeof useGameStore.setState>[0]);
+    await new Promise<void>(resolve => requestAnimationFrame(() => resolve()));
+
+    expect(runtimeMock.computeVisibilityPolygon).toHaveBeenCalledTimes(2);
+    expect(runtimeMock.computeVisibilityPolygon).toHaveBeenLastCalledWith(200, 400, after, 150);
+  });
 });
 
 describe('light visibility sources', () => {
@@ -175,6 +212,24 @@ describe('light visibility sources', () => {
       400,
       expect.any(Float32Array),
       expect.any(Number),
+    );
+  });
+
+  it('prefers a persisted game-unit radius over the legacy pixel radius', () => {
+    useGameStore.setState({
+      sprites: [makeSprite({
+        layer: 'light',
+        metadata: JSON.stringify({ radius_units: 20, radius: 999 }),
+      })],
+    } as unknown as Parameters<typeof useGameStore.setState>[0]);
+
+    visionService.start();
+
+    expect(runtimeMock.computeVisibilityPolygon).toHaveBeenCalledWith(
+      200,
+      400,
+      expect.any(Float32Array),
+      200,
     );
   });
 });

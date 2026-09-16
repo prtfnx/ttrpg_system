@@ -44,6 +44,7 @@ interface SpriteData {
 interface LightMeta {
   isOn?: boolean;
   radius?: number;
+  radius_units?: number;
 }
 
 class VisionService {
@@ -93,6 +94,8 @@ class VisionService {
     this.attachSpriteMoveListener();
 
     let prevSprites = state.sprites;
+    let prevWalls = state.walls;
+    let prevUnits = `${state.gridCellPx}:${state.cellDistance}:${state.distanceUnit}`;
     let prevLighting: boolean = state.dynamicLightingEnabled;
     let prevFogMode = state.fogExplorationMode;
 
@@ -106,6 +109,17 @@ class VisionService {
 
       if (s.sprites !== prevSprites) {
         prevSprites = s.sprites;
+        this.scheduleRecompute();
+      }
+
+      if (s.walls !== prevWalls) {
+        prevWalls = s.walls;
+        this.scheduleRecompute();
+      }
+
+      const units = `${s.gridCellPx}:${s.cellDistance}:${s.distanceUnit}`;
+      if (units !== prevUnits) {
+        prevUnits = units;
         this.scheduleRecompute();
       }
 
@@ -163,9 +177,20 @@ class VisionService {
     this.attachSpriteMoveListener();
 
     let prevSprites = useGameStore.getState().sprites;
+    let prevWalls = useGameStore.getState().walls;
+    let prevUnits = this.unitSettingsKey();
     this.unsubscribe = useGameStore.subscribe((s) => {
       if (s.sprites !== prevSprites) {
         prevSprites = s.sprites;
+        this.scheduleRecompute();
+      }
+      if (s.walls !== prevWalls) {
+        prevWalls = s.walls;
+        this.scheduleRecompute();
+      }
+      const units = `${s.gridCellPx}:${s.cellDistance}:${s.distanceUnit}`;
+      if (units !== prevUnits) {
+        prevUnits = units;
         this.scheduleRecompute();
       }
     });
@@ -193,8 +218,9 @@ class VisionService {
     const runtime = getRuntime();
     if (!runtime) return;
 
-    const obstacles = this.buildObstacles(rm);
-    const obstaclesKey = this.obstaclesKey(obstacles);
+    const sightObstacles = this.buildObstacles(rm);
+    const lightObstacles = rm.get_light_obstacle_segments_flat();
+    const obstaclesKey = `${this.obstaclesKey(sightObstacles)}|${this.obstaclesKey(lightObstacles)}`;
     const obstaclesChanged = obstaclesKey !== this.lastObstaclesKey;
     const { fogExplorationMode } = useGameStore.getState();
     const persistExplored = fogExplorationMode === 'persist_dimmed';
@@ -208,7 +234,7 @@ class VisionService {
       const moved = this.lastPositions.get(src.id) !== posKey;
 
       if (moved || obstaclesChanged) {
-        const rawPoly = runtime.computeVisibilityPolygon(src.x, src.y, obstacles, src.radius);
+        const rawPoly = runtime.computeVisibilityPolygon(src.x, src.y, sightObstacles, src.radius);
         const poly = [{ x: src.x, y: src.y }, ...rawPoly];
 
         if (persistExplored && moved && this.lastPositions.has(src.id)) {
@@ -229,7 +255,7 @@ class VisionService {
         const dvMoved = this.lastPositions.get(dvId) !== dvPosKey;
 
         if (dvMoved || obstaclesChanged) {
-          const rawDv = runtime.computeVisibilityPolygon(src.x, src.y, obstacles, src.darkvisionRadius);
+          const rawDv = runtime.computeVisibilityPolygon(src.x, src.y, sightObstacles, src.darkvisionRadius);
           rm.add_fog_polygon(dvId, [{ x: src.x, y: src.y }, ...rawDv]);
           this.lastPositions.set(dvId, dvPosKey);
         }
@@ -250,18 +276,22 @@ class VisionService {
         }
       } catch {}
       if (meta.isOn === false) continue;
-      // meta.radius is stored in pixels (LightingPanel converts at placement)
-      // Fallback: 20ft torch at default 10px/ft = 200px
+      // Prefer game units so table unit/grid changes rescale light visibility;
+      // fall back to the legacy pixel radius.
       const defaultLightRadius = useGameStore.getState().getUnitConverter().toPixels(20);
-      const lightRadius = typeof meta.radius === 'number' && Number.isFinite(meta.radius)
-        && meta.radius > 0 ? meta.radius : defaultLightRadius;
+      const lightRadius = typeof meta.radius_units === 'number' && Number.isFinite(meta.radius_units)
+        && meta.radius_units > 0
+        ? useGameStore.getState().getUnitConverter().toPixels(meta.radius_units)
+        : typeof meta.radius === 'number' && Number.isFinite(meta.radius) && meta.radius > 0
+          ? meta.radius
+          : defaultLightRadius;
       const lightFogId = `fog_light_${ls.id}`;
       const lx = typeof ls.x === 'number' && Number.isFinite(ls.x) ? ls.x : 0;
       const ly = typeof ls.y === 'number' && Number.isFinite(ls.y) ? ls.y : 0;
       const lightPosKey = `${lx.toFixed(1)},${ly.toFixed(1)},${lightRadius}`;
       const lightMoved = this.lastPositions.get(lightFogId) !== lightPosKey;
       if (lightMoved || obstaclesChanged) {
-        const rawLight = runtime.computeVisibilityPolygon(lx, ly, obstacles, lightRadius);
+        const rawLight = runtime.computeVisibilityPolygon(lx, ly, lightObstacles, lightRadius);
         const lightPoly = [{ x: lx, y: ly }, ...rawLight];
         rm.add_fog_polygon(lightFogId, lightPoly);
         this.lastPositions.set(lightFogId, lightPosKey);
@@ -380,9 +410,19 @@ class VisionService {
 
   private obstaclesKey(arr: Float32Array): string {
     if (arr.length === 0) return 'empty';
-    let sum = 0;
-    for (let i = 0; i < Math.min(16, arr.length); i++) sum += arr[i];
-    return `${arr.length}:${sum.toFixed(3)}`;
+    const bytes = new DataView(new ArrayBuffer(4));
+    let hash = 0x811c9dc5;
+    for (let i = 0; i < arr.length; i++) {
+      bytes.setFloat32(0, arr[i], true);
+      hash ^= bytes.getUint32(0, true);
+      hash = Math.imul(hash, 0x01000193);
+    }
+    return `${arr.length}:${hash >>> 0}`;
+  }
+
+  private unitSettingsKey(): string {
+    const { gridCellPx, cellDistance, distanceUnit } = useGameStore.getState();
+    return `${gridCellPx}:${cellDistance}:${distanceUnit}`;
   }
 }
 

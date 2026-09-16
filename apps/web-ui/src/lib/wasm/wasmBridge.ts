@@ -128,10 +128,15 @@ class WasmBridgeService {
 
   private onWallMoved = ({ wallId, x1, y1, x2, y2 }: WasmEventMap['wasm-wall-moved']) => {
     if (!this.protocol || !wallId) return;
-    // Update store (which also forwards to WASM)
-    useGameStore.getState().updateWall(wallId, { x1, y1, x2, y2 });
-    // Send to server
-    this.protocol.updateWall(wallId, { x1, y1, x2, y2 });
+    const updates = { x1, y1, x2, y2 };
+
+    // Rust emits this synchronously while handle_mouse_up still owns a
+    // mutable RenderEngine borrow. The store action forwards to update_wall,
+    // so defer it until wasm-bindgen has released the original borrow.
+    queueMicrotask(() => {
+      useGameStore.getState().updateWall(wallId, updates);
+      this.protocol?.updateWall(wallId, updates);
+    });
   };
 
   private onWasmOperation = ({ operation, spriteId, data }: WasmEventMap['wasm-sprite-operation']) => {

@@ -255,7 +255,7 @@ describe('WasmBridgeService', () => {
   });
 
   describe('wasm-wall-moved event', () => {
-    it('calls protocol.updateWall and store.updateWall', () => {
+    it('defers protocol and store wall updates until the WASM callback returns', async () => {
       const updateWall = vi.fn();
       const protoUpdateWall = vi.fn();
       const protocol = { updateWall: protoUpdateWall, sendMessage: vi.fn() };
@@ -266,8 +266,13 @@ describe('WasmBridgeService', () => {
         detail: { wallId: 'w1', x1: 0, y1: 0, x2: 50, y2: 50 },
       }));
 
-      expect(updateWall).toHaveBeenCalled();
-      expect(protoUpdateWall).toHaveBeenCalled();
+      expect(updateWall).not.toHaveBeenCalled();
+      expect(protoUpdateWall).not.toHaveBeenCalled();
+
+      await Promise.resolve();
+
+      expect(updateWall).toHaveBeenCalledWith('w1', { x1: 0, y1: 0, x2: 50, y2: 50 });
+      expect(protoUpdateWall).toHaveBeenCalledWith('w1', { x1: 0, y1: 0, x2: 50, y2: 50 });
     });
   });
 

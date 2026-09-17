@@ -158,6 +158,35 @@ describe('WASM module (real browser)', () => {
     }
   });
 
+  it('renders a bounded table plane without map imagery or a grid', () => {
+    const canvas = document.createElement('canvas');
+    canvas.width = 240;
+    canvas.height = 160;
+    const engine = new RenderEngine(canvas);
+    try {
+      const snapshot = normalizeTableSnapshot({ table_data: {
+        table_id: '550e8400-e29b-41d4-a716-446655440010',
+        table_name: 'Surface fallback',
+        width: 100,
+        height: 100,
+        scale: 1,
+        grid_enabled: false,
+        layers: {},
+      } });
+      engine.handle_table_data(snapshot.renderer);
+      engine.set_grid_enabled(false);
+      engine.set_background_color('#204060');
+      engine.render();
+
+      const insideTable = readPixel(canvas, 50, 50);
+      const outsideTable = readPixel(canvas, 180, 120);
+      expect(insideTable.slice(0, 3)).toEqual([32, 64, 96]);
+      expect(brightness(insideTable)).toBeGreaterThan(brightness(outsideTable) + 100);
+    } finally {
+      engine.free();
+    }
+  });
+
   it('version() returns a semver string', () => {
     const v = version();
     expect(typeof v).toBe('string');

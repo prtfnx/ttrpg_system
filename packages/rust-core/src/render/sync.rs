@@ -146,17 +146,32 @@ impl RenderEngine {
         };
         let aura_color = sprite_data.aura_color.clone();
 
-        // Extract polygon vertices from obstacle_data if obstacle_type is "polygon"
-        let polygon_vertices: Option<Vec<[f32; 2]>> =
-            if sprite_data.obstacle_type.as_deref() == Some("polygon") {
-                sprite_data
-                    .obstacle_data
-                    .as_ref()
-                    .and_then(|d| d.get("vertices"))
-                    .and_then(|v| serde_json::from_value::<Vec<[f32; 2]>>(v.clone()).ok())
-            } else {
-                None
-            };
+        // Polygon and line endpoints are stored in world space. Lines may
+        // arrive either as a vertices array or as explicit endpoint fields.
+        let polygon_vertices: Option<Vec<[f32; 2]>> = match sprite_data.obstacle_type.as_deref() {
+            Some("polygon") => sprite_data
+                .obstacle_data
+                .as_ref()
+                .and_then(|data| data.get("vertices"))
+                .and_then(|value| serde_json::from_value::<Vec<[f32; 2]>>(value.clone()).ok()),
+            Some("line") => sprite_data.obstacle_data.as_ref().and_then(|data| {
+                data.get("vertices")
+                    .and_then(|value| serde_json::from_value::<Vec<[f32; 2]>>(value.clone()).ok())
+                    .or_else(|| {
+                        Some(vec![
+                            [
+                                data.get("x1")?.as_f64()? as f32,
+                                data.get("y1")?.as_f64()? as f32,
+                            ],
+                            [
+                                data.get("x2")?.as_f64()? as f32,
+                                data.get("y2")?.as_f64()? as f32,
+                            ],
+                        ])
+                    })
+            }),
+            _ => None,
+        };
 
         let width = if sprite_data.width > 0.0 {
             sprite_data.width

@@ -174,7 +174,11 @@ impl LayerManager {
     pub fn rotate_sprite(&mut self, sprite_id: &str, rotation_degrees: f64) -> bool {
         for layer in self.layers.values_mut() {
             if let Some(sprite) = layer.sprites.iter_mut().find(|s| s.id == sprite_id) {
-                sprite.rotation = rotation_degrees.to_radians();
+                let rotation = rotation_degrees.to_radians();
+                if sprite.obstacle_type.as_deref() == Some("line") {
+                    Self::resize_line_vertices(sprite, sprite.width * sprite.scale_x, rotation);
+                }
+                sprite.rotation = rotation;
                 return true;
             }
         }
@@ -184,6 +188,9 @@ impl LayerManager {
     pub fn resize_sprite(&mut self, sprite_id: &str, new_width: f64, new_height: f64) -> bool {
         for layer in self.layers.values_mut() {
             if let Some(sprite) = layer.sprites.iter_mut().find(|s| s.id == sprite_id) {
+                if sprite.obstacle_type.as_deref() == Some("line") {
+                    Self::resize_line_vertices(sprite, new_width * sprite.scale_x, sprite.rotation);
+                }
                 sprite.width = new_width;
                 sprite.height = new_height;
                 return true;
@@ -234,6 +241,17 @@ impl LayerManager {
         sprite.id = format!("sprite_{}", js_sys::Math::random());
         sprite.world_x += offset_x;
         sprite.world_y += offset_y;
+        if matches!(
+            sprite.obstacle_type.as_deref(),
+            Some("polygon") | Some("line")
+        ) {
+            if let Some(vertices) = &mut sprite.polygon_vertices {
+                for vertex in vertices {
+                    vertex[0] += offset_x as f32;
+                    vertex[1] += offset_y as f32;
+                }
+            }
+        }
 
         let sprite_id = sprite.id.clone();
 
@@ -257,9 +275,12 @@ impl LayerManager {
     pub fn update_sprite_position(&mut self, sprite_id: &str, new_position: Vec2) -> bool {
         for layer in self.layers.values_mut() {
             if let Some(sprite) = layer.sprites.iter_mut().find(|s| s.id == sprite_id) {
-                // For polygon obstacles, translate stored vertices by the position delta
-                // so the obstacle geometry follows the sprite's visual position.
-                if sprite.obstacle_type.as_deref() == Some("polygon") {
+                // Polygon and line vertices are stored in world space, so
+                // translate them with the sprite anchor.
+                if matches!(
+                    sprite.obstacle_type.as_deref(),
+                    Some("polygon") | Some("line")
+                ) {
                     let dx = new_position.x as f64 - sprite.world_x;
                     let dy = new_position.y as f64 - sprite.world_y;
                     if let Some(verts) = &mut sprite.polygon_vertices {
@@ -281,12 +302,36 @@ impl LayerManager {
     pub fn update_sprite_scale(&mut self, sprite_id: &str, new_scale: Vec2) -> bool {
         for layer in self.layers.values_mut() {
             if let Some(sprite) = layer.sprites.iter_mut().find(|s| s.id == sprite_id) {
+                if sprite.obstacle_type.as_deref() == Some("line") {
+                    Self::resize_line_vertices(
+                        sprite,
+                        sprite.width * new_scale.x as f64,
+                        sprite.rotation,
+                    );
+                }
                 sprite.scale_x = new_scale.x as f64;
                 sprite.scale_y = new_scale.y as f64;
                 return true;
             }
         }
         false
+    }
+
+    fn resize_line_vertices(sprite: &mut Sprite, length: f64, rotation: f64) {
+        let Some(vertices) = &mut sprite.polygon_vertices else {
+            return;
+        };
+        if vertices.len() < 2 {
+            return;
+        }
+
+        let center_x = (vertices[0][0] + vertices[1][0]) * 0.5;
+        let center_y = (vertices[0][1] + vertices[1][1]) * 0.5;
+        let half_length = length.max(0.0) as f32 * 0.5;
+        let offset_x = half_length * (rotation as f32).cos();
+        let offset_y = half_length * (rotation as f32).sin();
+        vertices[0] = [center_x - offset_x, center_y - offset_y];
+        vertices[1] = [center_x + offset_x, center_y + offset_y];
     }
 
     /// Clear all sprites from a specific table
@@ -374,5 +419,32 @@ mod tests {
         assert!(lm.update_sprite_position("p1", Vec2::new(100.0, 200.0)));
         let (s, _) = lm.find_sprite("p1").unwrap();
         assert_eq!((s.world_x, s.world_y), (100.0, 200.0));
+    }
+
+    #[test]
+    fn line_endpoints_follow_position_and_rotation_updates() {
+        let mut lm = LayerManager::new();
+        let mut line = Sprite::new(
+            "line1".into(),
+            0.0,
+            0.0,
+            10.0,
+            4.0,
+            "obstacles".into(),
+            "table1".into(),
+        );
+        line.obstacle_type = Some("line".into());
+        line.polygon_vertices = Some(vec![[0.0, 0.0], [10.0, 0.0]]);
+        lm.layers.get_mut("obstacles").unwrap().sprites.push(line);
+
+        assert!(lm.update_sprite_position("line1", Vec2::new(5.0, 6.0)));
+        assert!(lm.rotate_sprite("line1", 90.0));
+
+        let (line, _) = lm.find_sprite("line1").unwrap();
+        let vertices = line.polygon_vertices.as_ref().unwrap();
+        assert!((vertices[0][0] - 10.0).abs() < 0.001);
+        assert!((vertices[0][1] - 1.0).abs() < 0.001);
+        assert!((vertices[1][0] - 10.0).abs() < 0.001);
+        assert!((vertices[1][1] - 11.0).abs() < 0.001);
     }
 }

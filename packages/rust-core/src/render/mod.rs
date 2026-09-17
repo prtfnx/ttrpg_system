@@ -256,53 +256,7 @@ impl RenderEngine {
     fn collect_obstacle_sprite_segments(&self, obstacles: &mut Vec<f32>) {
         if let Some(obstacles_layer) = self.layer_manager.get_layer("obstacles") {
             for sprite in &obstacles_layer.sprites {
-                if sprite.obstacle_type.as_deref() == Some("polygon") {
-                    if let Some(verts) = &sprite.polygon_vertices {
-                        if verts.len() >= 2 {
-                            let n = verts.len();
-                            for i in 0..n {
-                                let next = (i + 1) % n;
-                                obstacles.push(verts[i][0]);
-                                obstacles.push(verts[i][1]);
-                                obstacles.push(verts[next][0]);
-                                obstacles.push(verts[next][1]);
-                            }
-                        }
-                    }
-                    continue;
-                }
-
-                let w = (sprite.width * sprite.scale_x) as f32;
-                let h = (sprite.height * sprite.scale_y) as f32;
-
-                let cx = sprite.world_x as f32 + w / 2.0;
-                let cy = sprite.world_y as f32 + h / 2.0;
-
-                let half_w = w / 2.0;
-                let half_h = h / 2.0;
-
-                let angle = sprite.rotation as f32;
-                let cos_a = angle.cos();
-                let sin_a = angle.sin();
-
-                let raw = [
-                    (-half_w, -half_h),
-                    (half_w, -half_h),
-                    (half_w, half_h),
-                    (-half_w, half_h),
-                ];
-                let corners: [Vec2; 4] = std::array::from_fn(|i| {
-                    let (dx, dy) = raw[i];
-                    Vec2::new(cx + dx * cos_a - dy * sin_a, cy + dx * sin_a + dy * cos_a)
-                });
-
-                for i in 0..4 {
-                    let next = (i + 1) % 4;
-                    obstacles.push(corners[i].x);
-                    obstacles.push(corners[i].y);
-                    obstacles.push(corners[next].x);
-                    obstacles.push(corners[next].y);
-                }
+                append_sprite_obstacle_segments(sprite, obstacles);
             }
         }
     }
@@ -311,5 +265,131 @@ impl RenderEngine {
         self.layer_manager
             .find_sprite(sprite_id)
             .map(|(sprite, _)| sprite)
+    }
+}
+
+fn append_segment(obstacles: &mut Vec<f32>, start: [f32; 2], end: [f32; 2]) {
+    obstacles.extend_from_slice(&[start[0], start[1], end[0], end[1]]);
+}
+
+fn append_sprite_obstacle_segments(sprite: &crate::types::Sprite, obstacles: &mut Vec<f32>) {
+    if sprite.obstacle_type.as_deref() == Some("polygon") {
+        if let Some(vertices) = &sprite.polygon_vertices {
+            if vertices.len() >= 2 {
+                for index in 0..vertices.len() {
+                    append_segment(
+                        obstacles,
+                        vertices[index],
+                        vertices[(index + 1) % vertices.len()],
+                    );
+                }
+            }
+        }
+        return;
+    }
+
+    if sprite.obstacle_type.as_deref() == Some("line") {
+        if let Some(vertices) = &sprite.polygon_vertices {
+            if vertices.len() >= 2 {
+                append_segment(obstacles, vertices[0], vertices[1]);
+                return;
+            }
+        }
+    }
+
+    let width = (sprite.width * sprite.scale_x) as f32;
+    let height = (sprite.height * sprite.scale_y) as f32;
+    let center_x = sprite.world_x as f32 + width / 2.0;
+    let center_y = sprite.world_y as f32 + height / 2.0;
+    let half_width = width / 2.0;
+    let half_height = height / 2.0;
+    let angle = sprite.rotation as f32;
+    let cos_angle = angle.cos();
+    let sin_angle = angle.sin();
+    let transform = |dx: f32, dy: f32| {
+        [
+            center_x + dx * cos_angle - dy * sin_angle,
+            center_y + dx * sin_angle + dy * cos_angle,
+        ]
+    };
+
+    if sprite.obstacle_type.as_deref() == Some("circle") {
+        const CIRCLE_SEGMENTS: usize = 32;
+        let mut previous = transform(half_width, 0.0);
+        for index in 1..=CIRCLE_SEGMENTS {
+            let theta = index as f32 / CIRCLE_SEGMENTS as f32 * std::f32::consts::TAU;
+            let current = transform(half_width * theta.cos(), half_height * theta.sin());
+            append_segment(obstacles, previous, current);
+            previous = current;
+        }
+        return;
+    }
+
+    if sprite.obstacle_type.as_deref() == Some("line") {
+        append_segment(
+            obstacles,
+            transform(-half_width, 0.0),
+            transform(half_width, 0.0),
+        );
+        return;
+    }
+
+    let corners = [
+        transform(-half_width, -half_height),
+        transform(half_width, -half_height),
+        transform(half_width, half_height),
+        transform(-half_width, half_height),
+    ];
+    for index in 0..corners.len() {
+        append_segment(
+            obstacles,
+            corners[index],
+            corners[(index + 1) % corners.len()],
+        );
+    }
+}
+
+#[cfg(test)]
+mod obstacle_segment_tests {
+    use super::*;
+    use crate::types::Sprite;
+
+    fn shape(obstacle_type: &str) -> Sprite {
+        Sprite {
+            obstacle_type: Some(obstacle_type.to_string()),
+            world_x: 10.0,
+            world_y: 20.0,
+            width: 40.0,
+            height: 20.0,
+            scale_x: 1.0,
+            scale_y: 1.0,
+            ..Default::default()
+        }
+    }
+
+    #[test]
+    fn line_obstacle_uses_its_stored_endpoints() {
+        let mut sprite = shape("line");
+        sprite.polygon_vertices = Some(vec![[1.0, 2.0], [30.0, 40.0]]);
+        let mut segments = Vec::new();
+
+        append_sprite_obstacle_segments(&sprite, &mut segments);
+
+        assert_eq!(segments, vec![1.0, 2.0, 30.0, 40.0]);
+    }
+
+    #[test]
+    fn circle_obstacle_uses_a_closed_ellipse_boundary() {
+        let sprite = shape("circle");
+        let mut segments = Vec::new();
+
+        append_sprite_obstacle_segments(&sprite, &mut segments);
+
+        assert_eq!(segments.len(), 32 * 4);
+        assert!((segments[0] - 50.0).abs() < 0.001);
+        assert!((segments[1] - 30.0).abs() < 0.001);
+        let last = segments.len() - 2;
+        assert!((segments[last] - segments[0]).abs() < 0.001);
+        assert!((segments[last + 1] - segments[1]).abs() < 0.001);
     }
 }

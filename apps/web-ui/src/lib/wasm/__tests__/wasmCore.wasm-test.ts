@@ -186,6 +186,51 @@ describe('WASM module (real browser)', () => {
     }
   });
 
+  it('exports exact transformed line obstacle endpoints', () => {
+    const engine = new RenderEngine(document.createElement('canvas'));
+    try {
+      engine.add_sprite_to_layer('obstacles', {
+        id: 'line-1', table_id: '550e8400-e29b-41d4-a716-446655440001',
+        world_x: 0, world_y: 0, width: 10, height: 4, scale_x: 1, scale_y: 1,
+        rotation: 0, layer: 'obstacles', texture_id: '', tint_color: [1, 1, 1, 1],
+        obstacle_type: 'line', polygon_vertices: [[0, 0], [10, 0]], shape_filled: false,
+      });
+
+      expect([...engine.get_obstacle_segments_flat()]).toEqual([0, 0, 10, 0]);
+      expect(engine.update_sprite_position('line-1', 5, 6)).toBe(true);
+      expect(engine.rotate_sprite('line-1', 90)).toBe(true);
+      const transformed = [...engine.get_obstacle_segments_flat()];
+      expect(transformed).toHaveLength(4);
+      expect(transformed[0]).toBeCloseTo(10, 3);
+      expect(transformed[1]).toBeCloseTo(1, 3);
+      expect(transformed[2]).toBeCloseTo(10, 3);
+      expect(transformed[3]).toBeCloseTo(11, 3);
+    } finally {
+      engine.free();
+    }
+  });
+
+  it('exports circular obstacles as a closed segmented ellipse', () => {
+    const engine = new RenderEngine(document.createElement('canvas'));
+    try {
+      engine.add_sprite_to_layer('obstacles', {
+        id: 'circle-1', table_id: '550e8400-e29b-41d4-a716-446655440002',
+        world_x: 10, world_y: 20, width: 40, height: 20, scale_x: 1, scale_y: 1,
+        rotation: 0, layer: 'obstacles', texture_id: '', tint_color: [1, 1, 1, 1],
+        obstacle_type: 'circle', shape_filled: false,
+      });
+
+      const segments = [...engine.get_obstacle_segments_flat()];
+      expect(segments).toHaveLength(32 * 4);
+      expect(segments[0]).toBeCloseTo(50, 3);
+      expect(segments[1]).toBeCloseTo(30, 3);
+      expect(segments.at(-2)).toBeCloseTo(segments[0], 3);
+      expect(segments.at(-1)).toBeCloseTo(segments[1], 3);
+    } finally {
+      engine.free();
+    }
+  });
+
   it('calculate_asset_hash() matches the server xxHash64 contract', () => {
     expect(calculate_asset_hash(new TextEncoder().encode('hello')))
       .toBe('26c7827d889f6da3');

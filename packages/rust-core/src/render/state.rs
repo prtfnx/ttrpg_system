@@ -166,6 +166,13 @@ impl RenderEngine {
     }
 
     #[wasm_bindgen]
+    pub fn set_light_enabled(&mut self, id: &str, enabled: bool) {
+        if let Some(light) = self.lighting.get_light_mut(id) {
+            light.set_enabled(enabled);
+        }
+    }
+
+    #[wasm_bindgen]
     pub fn update_light_position(&mut self, id: &str, x: f32, y: f32) {
         self.lighting.update_light_position(id, Vec2::new(x, y));
     }

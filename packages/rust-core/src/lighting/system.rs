@@ -94,6 +94,10 @@ impl Light {
         self.is_on = !self.is_on;
     }
 
+    pub fn set_enabled(&mut self, enabled: bool) {
+        self.is_on = enabled;
+    }
+
     #[cfg(target_arch = "wasm32")]
     fn mark_dirty(&mut self) {
         self.dirty = true;
@@ -900,6 +904,16 @@ mod tests {
         l.toggle();
         assert!(!l.is_on);
         l.toggle();
+        assert!(l.is_on);
+    }
+
+    #[test]
+    fn set_enabled_is_idempotent() {
+        let mut l = Light::new("l1".to_string(), 0.0, 0.0, "table-1".to_string());
+        l.set_enabled(false);
+        l.set_enabled(false);
+        assert!(!l.is_on);
+        l.set_enabled(true);
         assert!(l.is_on);
     }
 

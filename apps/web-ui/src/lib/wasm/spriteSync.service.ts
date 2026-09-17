@@ -110,6 +110,30 @@ function controllerIds(value: unknown): number[] {
     .filter(item => Number.isSafeInteger(item) && item > 0);
 }
 
+interface LightSettings {
+  radius: number;
+  intensity: number;
+  color: { r: number; g: number; b: number; a: number };
+  isOn: boolean;
+}
+
+function lightSettings(metadata: unknown): LightSettings {
+  const meta = parseRecord(metadata);
+  const radius = typeof meta.radius === 'number' && Number.isFinite(meta.radius) && meta.radius > 0
+    ? meta.radius
+    : 150.0;
+  const intensity = typeof meta.intensity === 'number' && Number.isFinite(meta.intensity) && meta.intensity >= 0
+    ? meta.intensity
+    : 1.0;
+  const rawColor = parseRecord(meta.color);
+  const channels = [rawColor.r, rawColor.g, rawColor.b, rawColor.a];
+  const color = channels.every(channel => typeof channel === 'number' && Number.isFinite(channel))
+    ? rawColor as LightSettings['color']
+    : { r: 1.0, g: 0.9, b: 0.7, a: 1.0 };
+
+  return { radius, intensity, color, isOn: meta.isOn !== false };
+}
+
 export class SpriteSyncService {
   private optimisticTimers = new Map<string, number>();
   private pendingScaleOperations = new Set<string>();
@@ -327,6 +351,7 @@ export class SpriteSyncService {
       if (data.operation === 'move' && data.position) { this.updateSpritePosition(spriteId, Array.isArray(data.position) ? { x: data.position[0], y: data.position[1] } : data.position); return; }
       if (data.operation === 'scale') { this.updateSpriteScale(spriteId, data.scale_x, data.scale_y); return; }
       if (data.operation === 'rotate' && data.rotation !== undefined) { this.updateSpriteRotation(spriteId, data.rotation); return; }
+      if (this.reconcileLightMetadata(spriteId, data)) return;
       if (data.operation && !this.hasCompleteData(data)) { this.handlePartialSpriteUpdate(spriteId, data); return; }
       if (this.hasCompleteData(data) && this.needsFullRecreation(data)) {
         this.getEngine()?.remove_sprite(spriteId);
@@ -480,18 +505,7 @@ export class SpriteSyncService {
     const meta = parseRecord(spriteData.metadata);
 
     const lightId = spriteData.sprite_id || spriteData.id || `light_${Date.now()}`;
-    const radius = typeof meta.radius === 'number' && Number.isFinite(meta.radius) && meta.radius > 0
-      ? meta.radius
-      : 150.0;
-    const intensity = typeof meta.intensity === 'number' && Number.isFinite(meta.intensity) && meta.intensity >= 0
-      ? meta.intensity
-      : 1.0;
-    const rawColor = parseRecord(meta.color);
-    const channels = [rawColor.r, rawColor.g, rawColor.b, rawColor.a];
-    const color = channels.every(channel => typeof channel === 'number' && Number.isFinite(channel))
-      ? rawColor as { r: number; g: number; b: number; a: number }
-      : { r: 1.0, g: 0.9, b: 0.7, a: 1.0 };
-    const isOn = (meta.isOn as boolean) !== false;
+    const { radius, intensity, color, isOn } = lightSettings(meta);
 
     const existing = useGameStore.getState().sprites.find((s) => s.id === lightId);
     const finalX = existing ? (existing.x ?? x) : x;
@@ -501,7 +515,7 @@ export class SpriteSyncService {
     engine.set_light_color(lightId, color.r, color.g, color.b, color.a);
     engine.set_light_intensity(lightId, intensity);
     engine.set_light_radius(lightId, radius);
-    if (!isOn) engine.toggle_light(lightId);
+    engine.set_light_enabled(lightId, isOn);
 
     useGameStore.getState().addSprite({
       id: lightId, name: spriteData.name || (meta.presetName as string | undefined) || 'Light',
@@ -674,6 +688,38 @@ export class SpriteSyncService {
     const hasAsset = data.asset_id || data.asset_xxhash || data.texture_id;
     const hasDims = (data.width && data.height) || (data.size_x && data.size_y);
     return !!(hasPos && hasAsset && hasDims);
+  }
+
+  private reconcileLightMetadata(spriteId: string, data: SpritePayload): boolean {
+    const updates = data.updates ?? {};
+    const incomingMetadata = data.metadata ?? updates.metadata;
+    if (incomingMetadata === undefined) return false;
+
+    const existing = useGameStore.getState().sprites.find(sprite => sprite.id === spriteId);
+    const layer = data.layer ?? updates.layer ?? existing?.layer;
+    const texture = data.texture_path ?? updates.texture_path ?? existing?.texture;
+    if (layer !== 'light' && texture !== '__LIGHT__') return false;
+
+    const mergedMetadata = {
+      ...parseRecord(existing?.metadata),
+      ...parseRecord(incomingMetadata),
+    };
+    const { radius, intensity, color, isOn } = lightSettings(mergedMetadata);
+    const engine = this.getEngine();
+    if (!engine) return true;
+
+    engine.set_light_color(spriteId, color.r, color.g, color.b, color.a);
+    engine.set_light_intensity(spriteId, intensity);
+    engine.set_light_radius(spriteId, radius);
+    engine.set_light_enabled(spriteId, isOn);
+
+    const serializedMetadata = JSON.stringify(mergedMetadata);
+    useGameStore.setState(state => ({
+      sprites: state.sprites.map(sprite => sprite.id === spriteId
+        ? { ...sprite, metadata: serializedMetadata }
+        : sprite),
+    }));
+    return true;
   }
 
   private needsFullRecreation(data: SpritePayload): boolean {

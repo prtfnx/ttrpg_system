@@ -144,6 +144,7 @@ export interface RenderEngine {
   set_layer_opacity(layerName: string, opacity: number): boolean;
   set_layer_visibility(layerName: string, visible: boolean): boolean;
   set_light_color(id: string, r: number, g: number, b: number, a: number): void;
+  set_light_enabled(id: string, enabled: boolean): void;
   set_light_intensity(id: string, intensity: number): void;
   set_light_radius(id: string, radius: number): void;
   set_runtime_event_handler(callback: (event: { type?: string; data?: unknown }) => void): void;

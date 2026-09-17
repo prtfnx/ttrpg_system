@@ -2,11 +2,12 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { SpriteSyncService } from '../spriteSync.service';
 
 const mockAddSprite = vi.hoisted(() => vi.fn());
+const mockSprites = vi.hoisted(() => [] as Array<Record<string, unknown>>);
 
 vi.mock('@/store', () => ({
   useGameStore: Object.assign(vi.fn(() => ({})), {
     getState: vi.fn(() => ({
-      sprites: [],
+      sprites: mockSprites,
       addSprite: mockAddSprite,
       moveSprite: vi.fn(),
     })),
@@ -34,6 +35,7 @@ function makeEngine() {
     set_light_color: vi.fn(),
     set_light_intensity: vi.fn(),
     set_light_radius: vi.fn(),
+    set_light_enabled: vi.fn(),
     toggle_light: vi.fn(),
     add_fog_rectangle: vi.fn(),
     create_polygon_sprite: vi.fn(),
@@ -51,6 +53,7 @@ describe('SpriteSyncService', () => {
   let service: SpriteSyncService;
 
   beforeEach(() => {
+    mockSprites.length = 0;
     engine = makeEngine();
     service = new SpriteSyncService(() => engine as never, mockAssetSync as never);
   });
@@ -105,7 +108,47 @@ describe('SpriteSyncService', () => {
     it('routes __LIGHT__ with layer=light to add_light', () => {
       service.addSpriteToWasm({ texture_path: '__LIGHT__', layer: 'light', sprite_id: 'l1', table_id: 'tbl1', x: 10, y: 20 });
       expect(engine.add_light).toHaveBeenCalledWith('l1', 10, 20);
+      expect(engine.set_light_enabled).toHaveBeenCalledWith('l1', true);
       expect(engine.add_sprite_to_layer).not.toHaveBeenCalled();
+    });
+
+    it('sets disabled lights idempotently instead of toggling them', () => {
+      const light = {
+        texture_path: '__LIGHT__', layer: 'light', sprite_id: 'l1', table_id: 'tbl1',
+        metadata: JSON.stringify({ isOn: false }),
+      };
+
+      service.addSpriteToWasm(light);
+      service.addSpriteToWasm(light);
+
+      expect(engine.set_light_enabled).toHaveBeenCalledTimes(2);
+      expect(engine.set_light_enabled).toHaveBeenNthCalledWith(1, 'l1', false);
+      expect(engine.set_light_enabled).toHaveBeenNthCalledWith(2, 'l1', false);
+      expect(engine.toggle_light).not.toHaveBeenCalled();
+    });
+
+    it('reconciles remote metadata for an existing light', () => {
+      mockSprites.push({
+        id: 'remote-light', layer: 'light', texture: '__LIGHT__',
+        metadata: JSON.stringify({
+          radius: 100, intensity: 0.5,
+          color: { r: 1, g: 1, b: 1, a: 1 }, isOn: true,
+        }),
+      });
+      service.init();
+
+      window.dispatchEvent(new CustomEvent('sprite-updated', { detail: {
+        sprite_id: 'remote-light', operation: 'metadata',
+        updates: { metadata: JSON.stringify({
+          radius: 240, intensity: 1.5,
+          color: { r: 0.2, g: 0.4, b: 0.8, a: 1 }, isOn: false,
+        }) },
+      } }));
+
+      expect(engine.set_light_radius).toHaveBeenCalledWith('remote-light', 240);
+      expect(engine.set_light_intensity).toHaveBeenCalledWith('remote-light', 1.5);
+      expect(engine.set_light_color).toHaveBeenCalledWith('remote-light', 0.2, 0.4, 0.8, 1);
+      expect(engine.set_light_enabled).toHaveBeenCalledWith('remote-light', false);
     });
 
     it('routes __FOG_HIDE__ to add_fog_rectangle with hide mode', () => {

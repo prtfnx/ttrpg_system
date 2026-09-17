@@ -1,7 +1,5 @@
 #[cfg(target_arch = "wasm32")]
-use super::visibility::{
-    distance_squared_to_segment, shadow_quad, Point, VisibilityCalculator,
-};
+use super::visibility::{distance_squared_to_segment, shadow_quad, Point, VisibilityCalculator};
 use crate::math::Vec2;
 use crate::types::Color;
 use serde::{Deserialize, Serialize};

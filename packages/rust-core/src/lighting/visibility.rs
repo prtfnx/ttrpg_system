@@ -42,8 +42,7 @@ pub(crate) fn distance_squared_to_segment(point: Point, segment: &LineSegment) -
         return dx * dx + dy * dy;
     }
 
-    let projection = ((point.x - segment.p1.x) * segment_x
-        + (point.y - segment.p1.y) * segment_y)
+    let projection = ((point.x - segment.p1.x) * segment_x + (point.y - segment.p1.y) * segment_y)
         / length_squared;
     let t = projection.clamp(0.0, 1.0);
     let closest_x = segment.p1.x + t * segment_x;

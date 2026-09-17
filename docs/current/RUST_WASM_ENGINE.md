@@ -4,7 +4,7 @@ Audience: contributors changing the browser engine or its TypeScript boundary.
 
 Status: usable.
 
-Last source audit: 2026-09-16
+Last source audit: 2026-09-17
 
 The Rust crate is the local engine behind the browser canvas. It should stay
 focused on compute-heavy rendering, geometry, visibility, collision, planning,
@@ -74,6 +74,10 @@ active table exists; Rust never substitutes an invented table ID.
 Authoritative hydration restores the persisted table position and uniform
 scale as camera state. Sprite coordinates and table bounds remain table-local;
 the renderer does not apply the table transform to every sprite a second time.
+Each active frame clears to a workspace color, draws the bounded table plane
+using the table background color, and then draws map imagery, the grid, and
+ordinary scene layers. This explicit plane is the fallback when map imagery is
+absent or unavailable.
 
 ## Runtime callbacks
 

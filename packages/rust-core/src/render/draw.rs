@@ -4,16 +4,54 @@ use wasm_bindgen::prelude::*;
 
 use super::RenderEngine;
 
+const WORKSPACE_BACKGROUND: [f32; 4] = [0.035, 0.04, 0.05, 1.0];
+const TABLE_BORDER_COLOR: [f32; 4] = [0.38, 0.41, 0.48, 0.9];
+const QUAD_TEX_COORDS: [f32; 8] = [0.0, 0.0, 1.0, 0.0, 0.0, 1.0, 1.0, 1.0];
+
+fn table_surface_vertices(bounds: &Rect) -> [f32; 8] {
+    [
+        bounds.min.x,
+        bounds.min.y,
+        bounds.max.x,
+        bounds.min.y,
+        bounds.min.x,
+        bounds.max.y,
+        bounds.max.x,
+        bounds.max.y,
+    ]
+}
+
+fn table_border_vertices(bounds: &Rect) -> [f32; 16] {
+    [
+        bounds.min.x,
+        bounds.min.y,
+        bounds.max.x,
+        bounds.min.y,
+        bounds.max.x,
+        bounds.min.y,
+        bounds.max.x,
+        bounds.max.y,
+        bounds.max.x,
+        bounds.max.y,
+        bounds.min.x,
+        bounds.max.y,
+        bounds.min.x,
+        bounds.max.y,
+        bounds.min.x,
+        bounds.min.y,
+    ]
+}
+
 #[wasm_bindgen]
 impl RenderEngine {
     #[wasm_bindgen]
     pub fn render(&mut self) -> Result<(), JsValue> {
         self.texture_manager.collect_completed_loads();
         self.renderer.clear(
-            self.background_color[0],
-            self.background_color[1],
-            self.background_color[2],
-            self.background_color[3],
+            WORKSPACE_BACKGROUND[0],
+            WORKSPACE_BACKGROUND[1],
+            WORKSPACE_BACKGROUND[2],
+            WORKSPACE_BACKGROUND[3],
         );
 
         let viewport_bounds = self.get_world_view_bounds();
@@ -27,6 +65,19 @@ impl RenderEngine {
         };
 
         let table_bounds = Rect::new(tx as f32, ty as f32, tw as f32, th as f32);
+
+        // Render an explicit table plane before map imagery. This preserves a
+        // visible table boundary when the table has no map, its map texture
+        // cannot be loaded, or the grid is disabled.
+        self.texture_manager.unbind_texture();
+        self.renderer.draw_quad(
+            &table_surface_vertices(&table_bounds),
+            &QUAD_TEX_COORDS,
+            self.background_color,
+            false,
+        )?;
+        self.renderer
+            .draw_lines(&table_border_vertices(&table_bounds), TABLE_BORDER_COLOR)?;
 
         let intersect_min_x = viewport_bounds.min.x.max(table_bounds.min.x);
         let intersect_min_y = viewport_bounds.min.y.max(table_bounds.min.y);
@@ -172,5 +223,33 @@ impl RenderEngine {
         }
 
         Ok(())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn table_surface_uses_world_bounds() {
+        let bounds = Rect::new(10.0, 20.0, 300.0, 200.0);
+
+        assert_eq!(
+            table_surface_vertices(&bounds),
+            [10.0, 20.0, 310.0, 20.0, 10.0, 220.0, 310.0, 220.0]
+        );
+    }
+
+    #[test]
+    fn table_border_is_a_closed_rectangle() {
+        let bounds = Rect::new(-5.0, 2.0, 20.0, 8.0);
+
+        assert_eq!(
+            table_border_vertices(&bounds),
+            [
+                -5.0, 2.0, 15.0, 2.0, 15.0, 2.0, 15.0, 10.0, 15.0, 10.0, -5.0, 10.0, -5.0, 10.0,
+                -5.0, 2.0,
+            ]
+        );
     }
 }

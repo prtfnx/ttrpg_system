@@ -246,6 +246,17 @@ describe('TableSyncService', () => {
       service.dispose();
     });
 
+    it('resets the table plane color when the next snapshot omits a background', () => {
+      const service = makeService();
+      service.init();
+      dispatch('table-data-received', tableSnapshot({ background_color_hex: '#112233' }));
+      dispatch('table-data-received', tableSnapshot());
+
+      expect(mockEngine.set_background_color).toHaveBeenNthCalledWith(1, '#112233');
+      expect(mockEngine.set_background_color).toHaveBeenNthCalledWith(2, '#1a1a1a');
+      service.dispose();
+    });
+
     it('replaces table-derived light and fog state on same-table hydration', () => {
       const service = makeService();
       service.init();

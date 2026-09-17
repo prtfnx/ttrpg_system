@@ -6,6 +6,8 @@
 import { useGameStore } from '@/store';
 import { onProtocolEvent } from '@lib/websocket/protocolEvents';
 import { logger } from '@shared/utils/logger';
+
+const DEFAULT_TABLE_BACKGROUND = '#1a1a1a';
 import { normalizeTableSnapshot } from './tableSnapshot';
 import { emitWasmEvent } from './wasmEvents';
 import type { RenderEngine } from './runtime';
@@ -135,7 +137,7 @@ export class TableSyncService {
       Object.entries(snapshot.layerVisibility).forEach(([layer, visible]) => {
         engine.set_layer_visibility(layer, visible);
       });
-      if (snapshot.backgroundColor) engine.set_background_color(snapshot.backgroundColor);
+      engine.set_background_color(snapshot.backgroundColor ?? DEFAULT_TABLE_BACKGROUND);
 
       engine.clear_walls();
       snapshot.walls.forEach(wall => engine.add_wall(JSON.stringify(wall)));

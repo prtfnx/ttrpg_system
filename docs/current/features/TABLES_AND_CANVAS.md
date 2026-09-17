@@ -5,7 +5,7 @@ canvas bootstrap, or table settings.
 
 Status: current but partial.
 
-Last source audit: 2026-09-16
+Last source audit: 2026-09-17
 
 ## Source owners
 
@@ -58,6 +58,12 @@ Before the first table payload arrives, the renderer draws an empty frame and
 table-scoped interactions are no-ops. The browser rejects table and sprite
 sync payloads that omit a non-empty `table_id`.
 
+Once a table is active, Rust draws a bounded table plane in the persisted
+background color over a darker workspace, then map imagery and the grid. The
+plane remains visible when no map is configured, a map texture fails to load,
+or the grid is disabled; those states must not make the table indistinguishable
+from the surrounding canvas.
+
 ## Main workflows
 
 Table list:
@@ -88,7 +94,8 @@ Switch table:
    canonical table identity to the renderer. If no renderer is attached, it
    retains the snapshot and flushes it on attachment.
 6. The renderer restores the persisted table position and scale as camera
-   state, then replaces ordinary layers, table-derived lights, fog, and walls.
+   state, replaces ordinary layers, table-derived lights, fog, and walls, and
+   renders the bounded table plane before map imagery and the grid.
 7. `frameTableId` becomes ready only after required textures settle and a
    subsequent render frame completes.
 

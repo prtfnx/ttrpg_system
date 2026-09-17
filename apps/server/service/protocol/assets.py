@@ -92,6 +92,7 @@ class _AssetsMixin(_ProtocolBase):
 
     async def handle_asset_download_request(self, msg: Message, client_id: str) -> Message:
         """Handle asset download request - generate presigned GET URL with xxHash info"""
+        asset_id = None
         try:
             if not msg.data:
                 return Message(MessageType.ERROR, {'error': 'No data provided in asset download request'})
@@ -103,7 +104,13 @@ class _AssetsMixin(_ProtocolBase):
             asset_id = msg.data.get('asset_id')
             context = self._asset_request_context(msg, client_id)
             if context is None:
-                return Message(MessageType.ERROR, {'error': 'Authentication and session context required'})
+                return Message(MessageType.ASSET_DOWNLOAD_RESPONSE, {
+                    'success': False,
+                    'asset_id': asset_id,
+                    'error': 'Authentication and session context required',
+                    'error_code': 'authentication_required',
+                    'requires_upload': False,
+                })
             user_id, username, session_code = context
 
             if not asset_id:
@@ -137,11 +144,21 @@ class _AssetsMixin(_ProtocolBase):
                     'success': False,
                     'asset_id': asset_id,
                     'error': response.error,
-                    'instructions': "Please upload the asset first"
+                    'error_code': getattr(response, 'error_code', None) or 'download_failed',
+                    'requires_upload': bool(getattr(response, 'requires_upload', False)),
+                    'instructions': getattr(response, 'instructions', None),
                 })
 
         except Exception:
             logger.exception("Asset download request failed")
+            if asset_id:
+                return Message(MessageType.ASSET_DOWNLOAD_RESPONSE, {
+                    'success': False,
+                    'asset_id': asset_id,
+                    'error': 'Internal server error',
+                    'error_code': 'internal_error',
+                    'requires_upload': False,
+                })
             return Message(MessageType.ERROR, {'error': 'Internal server error'})
 
     async def handle_asset_list_request(self, msg: Message, client_id: str) -> Message:

@@ -15,6 +15,9 @@ interface AssetPayload {
   download_url?: string;
   xxhash?: string;
   success?: boolean;
+  error?: string;
+  error_code?: string;
+  requires_upload?: boolean;
   instructions?: string;
   status?: string;
   message?: string;
@@ -167,8 +170,12 @@ export class AssetSyncService {
   private handleAssetDownloaded(data: AssetPayload): void {
     if (!data?.success || !data.download_url || !data.asset_id) {
       if (data?.asset_id) this.requestedTextureIds.delete(data.asset_id);
-      if (data?.instructions?.includes('upload') && data?.asset_id) {
-        this.pendingAssetRetries.add(data.asset_id);
+      if (data?.asset_id && data.error) {
+        logger.warn('Asset texture download request failed', {
+          assetId: data.asset_id,
+          errorCode: data.error_code,
+          requiresUpload: data.requires_upload === true,
+        });
       }
       return;
     }

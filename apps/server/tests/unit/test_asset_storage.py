@@ -428,7 +428,13 @@ async def test_asset_upload_fails_closed_without_connection_identity(monkeypatch
 async def test_asset_download_failure_echoes_requested_identity(monkeypatch):
     class MissingAssetManager:
         async def request_download_url(self, _request):
-            return SimpleNamespace(success=False, error="Asset not found")
+            return SimpleNamespace(
+                success=False,
+                error="Asset not found",
+                error_code="asset_not_found",
+                requires_upload=True,
+                instructions="Please upload the asset first",
+            )
 
     monkeypatch.setattr(
         asset_protocol_module, "get_server_asset_manager", lambda: MissingAssetManager()
@@ -445,7 +451,52 @@ async def test_asset_download_failure_echoes_requested_identity(monkeypatch):
         "success": False,
         "asset_id": "missing-asset",
         "error": "Asset not found",
+        "error_code": "asset_not_found",
+        "requires_upload": True,
         "instructions": "Please upload the asset first",
+    }
+
+
+async def test_asset_download_auth_failure_is_correlated_and_terminal(monkeypatch):
+    protocol = AssetProtocolStub(None, "AUTH-SESSION")
+
+    response = await protocol.handle_asset_download_request(
+        Message(MessageType.ASSET_DOWNLOAD_REQUEST, {"asset_id": "private-asset"}),
+        "client-1",
+    )
+
+    assert response.type == MessageType.ASSET_DOWNLOAD_RESPONSE
+    assert response.data == {
+        "success": False,
+        "asset_id": "private-asset",
+        "error": "Authentication and session context required",
+        "error_code": "authentication_required",
+        "requires_upload": False,
+    }
+
+
+async def test_asset_download_exception_is_correlated_and_terminal(monkeypatch):
+    class FailingAssetManager:
+        async def request_download_url(self, _request):
+            raise RuntimeError("storage backend failed")
+
+    monkeypatch.setattr(
+        asset_protocol_module, "get_server_asset_manager", lambda: FailingAssetManager()
+    )
+    protocol = AssetProtocolStub(42, "AUTH-SESSION", "authenticated-user")
+
+    response = await protocol.handle_asset_download_request(
+        Message(MessageType.ASSET_DOWNLOAD_REQUEST, {"asset_id": "broken-asset"}),
+        "client-1",
+    )
+
+    assert response.type == MessageType.ASSET_DOWNLOAD_RESPONSE
+    assert response.data == {
+        "success": False,
+        "asset_id": "broken-asset",
+        "error": "Internal server error",
+        "error_code": "internal_error",
+        "requires_upload": False,
     }
 
 
@@ -960,6 +1011,8 @@ async def test_download_url_requires_session_asset_link(
 
     assert denied.success is False
     assert denied.error == "Asset not found"
+    assert denied.error_code == "asset_not_found"
+    assert denied.requires_upload is True
 
 
 async def test_filename_download_is_scoped_to_session_link(

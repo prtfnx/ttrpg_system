@@ -4,7 +4,7 @@ Audience: contributors changing React-to-Rust integration.
 
 Status: usable.
 
-Last source audit: 2026-09-16
+Last source audit: 2026-09-17
 
 React does not own Rust objects directly. It talks to `WasmRuntime`, and
 `WasmRuntime` owns the generated wasm-bindgen module.
@@ -129,9 +129,12 @@ value and bypass the asset identity rule.
 The runtime publishes `hydratedTableId` after the normalized snapshot reaches
 the renderer. It publishes `frameTableId` only after the table's deduplicated
 texture set has settled and that table has rendered a subsequent frame.
-Preview capture must wait for both IDs to match the requested table. A texture
-waiting for upload keeps the frame pending; a terminal download failure settles
-the request without pretending that the texture loaded.
+Preview capture must wait for both IDs to match the requested table. Only an
+upload lifecycle observed by this browser keeps a failed texture request
+pending. Server responses expose machine-readable `error_code` and
+`requires_upload` fields, but human-readable instructions never control
+readiness. A terminal or remotely missing texture settles the request without
+pretending that the texture loaded.
 
 Complete snapshots replace prior table-derived state. Before rehydration,
 `TableSyncService` removes the lights and token auras it derived from the prior

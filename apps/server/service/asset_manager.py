@@ -84,6 +84,8 @@ class PresignedUrlResponse:
     asset_id: Optional[str] = None
     expires_in: int = 0
     error: Optional[str] = None
+    error_code: Optional[str] = None
+    requires_upload: bool = False
     instructions: Optional[str] = None
     required_xxhash: Optional[str] = None  # xxHash that client must provide
 
@@ -565,7 +567,8 @@ class ServerAssetManager:
             if not self.r2_manager.is_r2_configured():
                 return PresignedUrlResponse(
                     success=False,
-                    error="Cloud storage not configured"
+                    error="Cloud storage not configured",
+                    error_code="storage_unavailable",
                 )
 
             # Check permissions
@@ -573,7 +576,8 @@ class ServerAssetManager:
             if not permissions.can_download:
                 return PresignedUrlResponse(
                     success=False,
-                    error="Download permission denied"
+                    error="Download permission denied",
+                    error_code="permission_denied",
                 )
 
             # Check rate limits
@@ -584,6 +588,7 @@ class ServerAssetManager:
                 return PresignedUrlResponse(
                     success=False,
                     error=limit_error,
+                    error_code="rate_limited",
                 )
               # Get asset metadata from database first, then fallback to memory
             asset_metadata = None
@@ -597,7 +602,10 @@ class ServerAssetManager:
             if not asset_metadata:
                 return PresignedUrlResponse(
                     success=False,
-                    error="Asset not found"
+                    error="Asset not found",
+                    error_code="asset_not_found",
+                    requires_upload=True,
+                    instructions="Please upload the asset first",
                 )
 
             # Keep bearer-style capabilities short lived to limit replay exposure.
@@ -614,7 +622,8 @@ class ServerAssetManager:
             if not download_url:
                 return PresignedUrlResponse(
                     success=False,
-                    error="Failed to generate download URL"
+                    error="Failed to generate download URL",
+                    error_code="link_generation_failed",
                 )
 
             logger.info(
@@ -634,7 +643,8 @@ class ServerAssetManager:
             logger.exception("Asset download URL generation failed")
             return PresignedUrlResponse(
                 success=False,
-                error="Internal server error"
+                error="Internal server error",
+                error_code="internal_error",
             )
 
     @track_asset_operation("download_url_by_filename")

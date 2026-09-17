@@ -87,17 +87,24 @@ describe('AssetSyncService', () => {
       svc.dispose();
     });
 
-    it('settles a terminal failure but keeps upload-retry assets pending', () => {
+    it('settles download failures unless this browser started an upload', () => {
       const svc = makeService();
       svc.init();
       svc.requestAssetDownloadLink('missing', 's1');
-      dispatch('asset-downloaded', { success: false, asset_id: 'missing' });
+      dispatch('asset-downloaded', {
+        success: false,
+        asset_id: 'missing',
+        requires_upload: true,
+        instructions: 'Please upload the asset first',
+      });
       expect(svc.areTexturesSettled(['missing'])).toBe(true);
 
       svc.requestAssetDownloadLink('uploading', 's2');
+      dispatch('asset-upload-started', { asset_id: 'uploading' });
       dispatch('asset-downloaded', {
         success: false,
         asset_id: 'uploading',
+        requires_upload: true,
         instructions: 'Please upload the asset first',
       });
       expect(svc.areTexturesSettled(['uploading'])).toBe(false);
@@ -106,11 +113,16 @@ describe('AssetSyncService', () => {
   });
 
   describe('handleAssetDownloaded', () => {
-    it('adds to pending when instructions include upload', () => {
+    it('does not infer a local upload lifecycle from server instructions', () => {
       const svc = makeService();
       svc.init();
-      dispatch('asset-downloaded', { success: false, asset_id: 'a1', instructions: 'please upload first' });
-      expect(svc.isAssetPending('a1')).toBe(true);
+      dispatch('asset-downloaded', {
+        success: false,
+        asset_id: 'a1',
+        requires_upload: true,
+        instructions: 'please upload first',
+      });
+      expect(svc.isAssetPending('a1')).toBe(false);
       svc.dispose();
     });
 

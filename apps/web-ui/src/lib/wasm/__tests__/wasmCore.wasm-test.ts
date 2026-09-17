@@ -24,6 +24,18 @@ beforeAll(async () => {
   await initWasm({ module_or_path: new URL('../generated/ttrpg_rust_core_bg.wasm', import.meta.url) });
 });
 
+function readPixel(canvas: HTMLCanvasElement, x: number, y: number): number[] {
+  const gl = canvas.getContext('webgl2');
+  if (!gl) throw new Error('WebGL2 context unavailable');
+  const pixel = new Uint8Array(4);
+  gl.readPixels(x, canvas.height - y - 1, 1, 1, gl.RGBA, gl.UNSIGNED_BYTE, pixel);
+  return [...pixel];
+}
+
+function brightness(pixel: number[]): number {
+  return pixel[0] + pixel[1] + pixel[2];
+}
+
 describe('WASM module (real browser)', () => {
   it('accepts a Python-serialized table only after canonical DTO conversion', () => {
     const snapshot = normalizeTableSnapshot({
@@ -226,6 +238,79 @@ describe('WASM module (real browser)', () => {
       expect(segments[1]).toBeCloseTo(30, 3);
       expect(segments.at(-2)).toBeCloseTo(segments[0], 3);
       expect(segments.at(-1)).toBeCloseTo(segments[1], 3);
+    } finally {
+      engine.free();
+    }
+  });
+
+  it('casts a wall shadow from either side of a point light', () => {
+    const canvas = document.createElement('canvas');
+    canvas.width = 200;
+    canvas.height = 200;
+    const engine = new RenderEngine(canvas);
+    const tableId = '550e8400-e29b-41d4-a716-446655440003';
+    try {
+      const snapshot = normalizeTableSnapshot({ table_data: {
+        table_id: tableId, table_name: 'Shadow test', width: 200, height: 200,
+        scale: 1, grid_enabled: false, layers: {},
+      } });
+      engine.handle_table_data(snapshot.renderer);
+      engine.set_background_color('#000000');
+      expect(engine.add_wall(JSON.stringify({
+        wall_id: 'wall-shadow', table_id: tableId,
+        x1: 100, y1: 50, x2: 100, y2: 150,
+        blocks_light: true, blocks_sight: true,
+      }))).toBe(true);
+      engine.add_light('light-shadow', 60, 100);
+      engine.set_light_color('light-shadow', 1, 1, 1, 1);
+      engine.set_light_intensity('light-shadow', 2);
+      engine.set_light_radius('light-shadow', 90);
+
+      engine.render();
+      const litFromLeft = brightness(readPixel(canvas, 80, 100));
+      const shadowFromLeft = brightness(readPixel(canvas, 130, 100));
+      expect(litFromLeft).toBeGreaterThan(shadowFromLeft + 20);
+
+      engine.update_light_position('light-shadow', 140, 100);
+      engine.render();
+      const litFromRight = brightness(readPixel(canvas, 120, 100));
+      const shadowFromRight = brightness(readPixel(canvas, 70, 100));
+      expect(litFromRight).toBeGreaterThan(shadowFromRight + 20);
+    } finally {
+      engine.free();
+    }
+  });
+
+  it('clears the stencil shadow mask between point lights', () => {
+    const canvas = document.createElement('canvas');
+    canvas.width = 200;
+    canvas.height = 200;
+    const engine = new RenderEngine(canvas);
+    const tableId = '550e8400-e29b-41d4-a716-446655440004';
+    try {
+      const snapshot = normalizeTableSnapshot({ table_data: {
+        table_id: tableId, table_name: 'Multi-light test', width: 200, height: 200,
+        scale: 1, grid_enabled: false, layers: {},
+      } });
+      engine.handle_table_data(snapshot.renderer);
+      engine.set_background_color('#000000');
+      expect(engine.add_wall(JSON.stringify({
+        wall_id: 'wall-multi', table_id: tableId,
+        x1: 100, y1: 50, x2: 100, y2: 150,
+        blocks_light: true, blocks_sight: true,
+      }))).toBe(true);
+      engine.add_light('left-light', 60, 100);
+      engine.add_light('right-light', 140, 100);
+      for (const lightId of ['left-light', 'right-light']) {
+        engine.set_light_color(lightId, 1, 1, 1, 1);
+        engine.set_light_intensity(lightId, 2);
+        engine.set_light_radius(lightId, 90);
+      }
+
+      engine.render();
+
+      expect(brightness(readPixel(canvas, 80, 100))).toBeGreaterThan(20);
+      expect(brightness(readPixel(canvas, 120, 100))).toBeGreaterThan(20);
     } finally {
       engine.free();
     }

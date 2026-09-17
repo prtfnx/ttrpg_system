@@ -55,7 +55,7 @@ class VisionService {
   private lastObstaclesKey: string | null = null;
   private isRunning = false;
   private dmPreviewUserId: number | null = null;
-  private pendingRecompute = false;
+  private recomputeFrameId: number | null = null;
   // Live position cache updated by sprite-moved / sprite-drag-preview events (top-left coords)
   private spritePositions = new Map<string, { x: number; y: number }>();
   private spriteMovedListener: ((e: Event) => void) | null = null;
@@ -140,6 +140,10 @@ class VisionService {
   }
 
   stop(): void {
+    if (this.recomputeFrameId !== null) {
+      cancelAnimationFrame(this.recomputeFrameId);
+      this.recomputeFrameId = null;
+    }
     if (this.renderRetryId) {
       clearTimeout(this.renderRetryId);
       this.renderRetryId = null;
@@ -204,10 +208,10 @@ class VisionService {
   }
 
   private scheduleRecompute(): void {
-    if (this.pendingRecompute) return;
-    this.pendingRecompute = true;
-    requestAnimationFrame(() => {
-      this.pendingRecompute = false;
+    if (this.recomputeFrameId !== null) return;
+    this.recomputeFrameId = requestAnimationFrame(() => {
+      this.recomputeFrameId = null;
+      if (!this.isRunning) return;
       this.recompute();
     });
   }

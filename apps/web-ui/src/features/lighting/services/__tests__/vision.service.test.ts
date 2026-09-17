@@ -29,6 +29,9 @@ function baseStore(overrides: Record<string, unknown> = {}) {
     userId: 1,
     dynamicLightingEnabled: true,
     fogExplorationMode: 'none',
+    gridCellPx: 50,
+    cellDistance: 5,
+    distanceUnit: 'ft',
     ...overrides,
   };
 }
@@ -80,6 +83,35 @@ describe('VisionService.start()', () => {
     useGameStore.setState({ dynamicLightingEnabled: false } as unknown as Parameters<typeof useGameStore.setState>[0]);
     visionService.start();
     expect(rm.set_dynamic_lighting_enabled).not.toHaveBeenCalled();
+  });
+
+  it('coalesces rapid store changes into one animation-frame recompute', async () => {
+    useGameStore.setState({
+      sprites: [makeSprite({ controlled_by: [1], vision_radius: 150 })],
+    } as unknown as Parameters<typeof useGameStore.setState>[0]);
+    visionService.start();
+    expect(runtimeMock.computeVisibilityPolygon).toHaveBeenCalledTimes(1);
+
+    useGameStore.setState({ sprites: [makeSprite({ id: 'hero-2', controlled_by: [1], vision_radius: 150 })] } as unknown as Parameters<typeof useGameStore.setState>[0]);
+    useGameStore.setState({ walls: [{ wall_id: 'wall-1' }] } as unknown as Parameters<typeof useGameStore.setState>[0]);
+    useGameStore.setState({ gridCellPx: 60 } as unknown as Parameters<typeof useGameStore.setState>[0]);
+    await new Promise<void>(resolve => requestAnimationFrame(() => resolve()));
+
+    expect(runtimeMock.computeVisibilityPolygon).toHaveBeenCalledTimes(2);
+  });
+
+  it('cancels a queued recompute when stopped', () => {
+    const cancel = vi.spyOn(window, 'cancelAnimationFrame');
+    useGameStore.setState({
+      sprites: [makeSprite({ controlled_by: [1], vision_radius: 150 })],
+    } as unknown as Parameters<typeof useGameStore.setState>[0]);
+    visionService.start();
+
+    useGameStore.setState({ walls: [{ wall_id: 'wall-1' }] } as unknown as Parameters<typeof useGameStore.setState>[0]);
+    visionService.stop();
+
+    expect(cancel).toHaveBeenCalledOnce();
+    cancel.mockRestore();
   });
 });
 

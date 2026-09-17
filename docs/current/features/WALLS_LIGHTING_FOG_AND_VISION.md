@@ -175,7 +175,8 @@ it:
 6. builds equivalent visibility polygons for enabled light sprites using the
    light-blocking segments;
 7. adds/removes those polygons in `FogOfWarSystem`; in `persist_dimmed` mode it
-   also writes a session-local `explored_*` polygon when a source moves.
+   stores the previous visibility polygon under a unique `explored_*` id when
+   a source moves. History is bounded to 128 polygons per source.
 
 The vision texture encodes outside vision as 1.0, ordinary vision as 0.75,
 explored space as 0.65, darkvision as 0.5, and lit space as 0.0. Light polygons
@@ -194,17 +195,19 @@ Both pipelines consume flat world-space segments in
 - open doors feed neither pipeline; closed and locked doors follow their
   blocking flags;
 - polygon obstacle sprites contribute their closed vertex loops;
-- every other sprite on the `obstacles` layer contributes its rotated,
-  scaled rectangular perimeter. Circles and line sprites therefore use a
-  rectangle approximation for occlusion.
+- line obstacle sprites contribute their exact stored endpoints and keep those
+  endpoints synchronized through move, rotate, scale, resize, and paste;
+- circle obstacle sprites contribute a closed 32-segment ellipse boundary;
+- remaining sprites on the `obstacles` layer contribute their rotated, scaled
+  rectangular perimeter.
 
 Adding, removing, moving, resizing, scaling, rotating, pasting, or moving a
 sprite into or out of the obstacle layer marks the render engine's obstacle
 cache dirty. Wall CRUD, endpoint dragging, and translation do the same. The
 next frame rebuilds point-light obstacle segments. `vision.service.ts` watches
-wall and sprite state and schedules visibility recomputation on the next
-animation frame; it fingerprints the complete segment buffer to avoid stale
-polygons.
+wall and sprite state and coalesces visibility recomputation onto one owned
+animation-frame callback. Stopping vision cancels queued work. The service
+fingerprints the complete segment buffer to avoid stale polygons.
 
 ## WASM callback rule
 
@@ -244,11 +247,12 @@ vision, or wall changes.
 - The point-light renderer and fog/vision compositor are separate passes. They
   share inputs but do not share one visibility mesh, so discrepancies are
   possible at polygon edges.
-- Non-polygon obstacle sprites use rotated rectangles; circles do not yet have
-  curved occluders, and line shapes use their thin bounding rectangle.
-- Point-light shadow culling uses segment midpoint distance and a fixed
-  10,000-world-unit extrusion. Very long segments or unusually large tables
-  can leak light.
+- Circle occluders are 32-segment ellipse approximations rather than analytic
+  curves. This is normally visually sufficient but can show facets at extreme
+  zoom.
+- Point-light shadow culling uses exact point-to-segment distance and projects
+  included segments just beyond the light radius. The path still scans every
+  segment for every light.
 - Each token, darkvision source, and light independently calls the CPU
   visibility function, which rebuilds its spatial index for the same segment
   buffer on every call. The point-light path also scans every segment per
@@ -257,14 +261,13 @@ vision, or wall changes.
   adequate for ordinary maps but is not a robust computational-geometry
   visibility solver for collinear/overlapping segments or a source exactly on
   a wall.
-- `persist_dimmed` does not yet provide a cumulative, server-persisted explored
-  map. The browser reuses one `explored_<sprite>` id and writes the newly
-  computed polygon, so older footprints are not accumulated and disappear on
-  reload.
+- `persist_dimmed` accumulates up to 128 prior visibility footprints per source
+  while vision remains active. The history is browser-session state, is cleared
+  when the mode or service stops, and is not persisted to the server or restored
+  after reload.
 - `direction` is persisted and shown in the wall UI, but lighting and vision
   currently treat every blocking segment as two-sided. Movement and sound
   flags belong to other systems and do not affect these render passes.
-- The light panel's incremental registration is strongest for local edits.
-  A later refactor should make remote metadata updates explicitly reconcile
-  every existing WASM light property rather than relying on add/remove and
-  local setter calls.
+- Remote light metadata updates reconcile color, intensity, radius, and enabled
+  state onto the existing WASM light. Enabled state uses an idempotent setter,
+  so replayed updates cannot invert the light.

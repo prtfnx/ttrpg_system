@@ -47,10 +47,20 @@ interface LightMeta {
   radius_units?: number;
 }
 
+interface VisionPoint {
+  x: number;
+  y: number;
+}
+
+const MAX_EXPLORED_POLYGONS_PER_SOURCE = 128;
+
 class VisionService {
   private unsubscribe: (() => void) | null = null;
   private activeIds = new Set<string>();
   private exploredIds = new Set<string>();
+  private exploredIdsBySource = new Map<string, string[]>();
+  private exploredSequence = new Map<string, number>();
+  private lastVisionPolygons = new Map<string, VisionPoint[]>();
   private lastPositions = new Map<string, string>();
   private lastObstaclesKey: string | null = null;
   private isRunning = false;
@@ -137,6 +147,9 @@ class VisionService {
       rm?.remove_fog_polygon(id);
     }
     this.exploredIds.clear();
+    this.exploredIdsBySource.clear();
+    this.exploredSequence.clear();
+    this.lastVisionPolygons.clear();
   }
 
   stop(): void {
@@ -241,13 +254,13 @@ class VisionService {
         const rawPoly = runtime.computeVisibilityPolygon(src.x, src.y, sightObstacles, src.radius);
         const poly = [{ x: src.x, y: src.y }, ...rawPoly];
 
-        if (persistExplored && moved && this.lastPositions.has(src.id)) {
-          const expId = `explored_${src.id}`;
-          rm.add_fog_polygon(expId, poly);
-          this.exploredIds.add(expId);
+        const previousPolygon = this.lastVisionPolygons.get(src.id);
+        if (persistExplored && moved && previousPolygon) {
+          this.addExploredPolygon(src.id, previousPolygon, rm);
         }
 
         rm.add_fog_polygon(id, poly);
+        this.lastVisionPolygons.set(src.id, poly);
         this.lastPositions.set(src.id, posKey);
       }
       seenIds.add(id);
@@ -312,6 +325,24 @@ class VisionService {
     }
 
     this.lastObstaclesKey = obstaclesKey;
+  }
+
+  private addExploredPolygon(sourceId: string, polygon: VisionPoint[], rm: RenderEngine): void {
+    const sequence = (this.exploredSequence.get(sourceId) ?? 0) + 1;
+    this.exploredSequence.set(sourceId, sequence);
+    const exploredId = `explored_${sourceId}_${sequence}`;
+    rm.add_fog_polygon(exploredId, polygon);
+    this.exploredIds.add(exploredId);
+
+    const sourceIds = this.exploredIdsBySource.get(sourceId) ?? [];
+    sourceIds.push(exploredId);
+    while (sourceIds.length > MAX_EXPLORED_POLYGONS_PER_SOURCE) {
+      const expiredId = sourceIds.shift();
+      if (!expiredId) break;
+      rm.remove_fog_polygon(expiredId);
+      this.exploredIds.delete(expiredId);
+    }
+    this.exploredIdsBySource.set(sourceId, sourceIds);
   }
 
   private buildObstacles(rm: RenderEngine): Float32Array {

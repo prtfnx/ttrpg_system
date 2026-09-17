@@ -266,6 +266,53 @@ describe('light visibility sources', () => {
   });
 });
 
+describe('persist_dimmed exploration', () => {
+  it('keeps distinct prior visibility footprints as a token moves', async () => {
+    runtimeMock.computeVisibilityPolygon.mockImplementation((x: number, y: number) => [
+      { x: x + 10, y },
+    ]);
+    useGameStore.setState({
+      fogExplorationMode: 'persist_dimmed',
+      sprites: [makeSprite({ controlled_by: [1], vision_radius: 150 })],
+    } as unknown as Parameters<typeof useGameStore.setState>[0]);
+    visionService.start();
+
+    useGameStore.setState({
+      sprites: [makeSprite({ x: 250, controlled_by: [1], vision_radius: 150 })],
+    } as unknown as Parameters<typeof useGameStore.setState>[0]);
+    await new Promise<void>(resolve => requestAnimationFrame(() => resolve()));
+
+    useGameStore.setState({
+      sprites: [makeSprite({ x: 300, controlled_by: [1], vision_radius: 150 })],
+    } as unknown as Parameters<typeof useGameStore.setState>[0]);
+    await new Promise<void>(resolve => requestAnimationFrame(() => resolve()));
+
+    expect(rm.add_fog_polygon).toHaveBeenCalledWith('explored_hero_1_1', [
+      { x: 200, y: 400 }, { x: 210, y: 400 },
+    ]);
+    expect(rm.add_fog_polygon).toHaveBeenCalledWith('explored_hero_1_2', [
+      { x: 250, y: 400 }, { x: 260, y: 400 },
+    ]);
+    expect(rm.remove_fog_polygon).not.toHaveBeenCalledWith('explored_hero_1_1');
+  });
+
+  it('clears cumulative footprints when exploration mode changes', async () => {
+    useGameStore.setState({
+      fogExplorationMode: 'persist_dimmed',
+      sprites: [makeSprite({ controlled_by: [1], vision_radius: 150 })],
+    } as unknown as Parameters<typeof useGameStore.setState>[0]);
+    visionService.start();
+    useGameStore.setState({
+      sprites: [makeSprite({ x: 250, controlled_by: [1], vision_radius: 150 })],
+    } as unknown as Parameters<typeof useGameStore.setState>[0]);
+    await new Promise<void>(resolve => requestAnimationFrame(() => resolve()));
+
+    useGameStore.setState({ fogExplorationMode: 'none' } as unknown as Parameters<typeof useGameStore.setState>[0]);
+
+    expect(rm.remove_fog_polygon).toHaveBeenCalledWith('explored_hero_1_1');
+  });
+});
+
 describe('DM preview mode', () => {
   it('uses dmPreviewUserId instead of store userId', () => {
     useGameStore.setState({

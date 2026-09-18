@@ -1011,6 +1011,7 @@ export class WebClientProtocol {
 
   private async handleTableData(message: Message): Promise<void> {
     logger.debug('Table data received:', message.data);
+    if (!this.targetsActiveTable(message.data)) return;
     emitProtocolEvent('table-data-received', message.data);
   }
 
@@ -1039,7 +1040,9 @@ export class WebClientProtocol {
         }
       }
     }
-    emitProtocolEvent('table-updated', message.data);
+    if (data?.operation === 'create' || this.targetsActiveTable(data)) {
+      emitProtocolEvent('table-updated', message.data);
+    }
   }
 
   private async handleTableListResponse(message: Message): Promise<void> {
@@ -1082,6 +1085,13 @@ export class WebClientProtocol {
       walls?: WallData[];
       layer_settings?: Record<string, Record<string, unknown>>;
     };
+    if (data?.table_data && !this.targetsActiveTable(data)) {
+      logger.debug('[Protocol] Ignoring stale table response', {
+        responseTableId: data.table_data.table_id,
+        activeTableId: useGameStore.getState().activeTableId,
+      });
+      return;
+    }
     if (data?.table_data) {
       const td = data.table_data;
       const store = useGameStore.getState();
@@ -1155,16 +1165,19 @@ export class WebClientProtocol {
   // Sprite handlers - integrate with existing store/WASM
   private async handleSpriteCreate(message: Message): Promise<void> {
     logger.debug('Sprite created:', message.data);
+    if (!this.targetsActiveTable(message.data)) return;
     emitProtocolEvent('sprite-created', message.data);
   }
 
   private async handleSpriteUpdate(message: Message): Promise<void> {
     logger.debug('Sprite updated:', message.data);
+    if (!this.targetsActiveTable(message.data)) return;
     emitProtocolEvent('sprite-updated', message.data);
   }
 
   private async handleSpriteRemove(message: Message): Promise<void> {
     logger.debug('Sprite removed:', message.data);
+    if (!this.targetsActiveTable(message.data)) return;
     emitProtocolEvent('sprite-removed', message.data);
   }
 
@@ -1172,6 +1185,7 @@ export class WebClientProtocol {
     if (message.data?.action_id) {
       emitProtocolEvent('sprite-action-confirmed', { actionId: message.data.action_id });
     }
+    if (!this.targetsActiveTable(message.data)) return;
     emitProtocolEvent('sprite-moved', message.data);
   }
 
@@ -1179,6 +1193,7 @@ export class WebClientProtocol {
     if (message.data?.action_id) {
       emitProtocolEvent('sprite-action-confirmed', { actionId: message.data.action_id });
     }
+    if (!this.targetsActiveTable(message.data)) return;
     emitProtocolEvent('sprite-scaled', message.data);
   }
 
@@ -1186,18 +1201,22 @@ export class WebClientProtocol {
     if (message.data?.action_id) {
       emitProtocolEvent('sprite-action-confirmed', { actionId: message.data.action_id });
     }
+    if (!this.targetsActiveTable(message.data)) return;
     emitProtocolEvent('sprite-rotated', message.data);
   }
 
   private async handleSpriteDragPreview(message: Message): Promise<void> {
+    if (!this.targetsActiveTable(message.data)) return;
     emitProtocolEvent('sprite-drag-preview-remote', message.data);
   }
 
   private async handleSpriteResizePreview(message: Message): Promise<void> {
+    if (!this.targetsActiveTable(message.data)) return;
     emitProtocolEvent('sprite-resize-preview-remote', message.data);
   }
 
   private async handleSpriteRotatePreview(message: Message): Promise<void> {
+    if (!this.targetsActiveTable(message.data)) return;
     emitProtocolEvent('sprite-rotate-preview-remote', message.data);
   }
 
@@ -1596,6 +1615,7 @@ export class WebClientProtocol {
 
   private async handleTableSettingsChanged(message: Message): Promise<void> {
     const data = message.data as {
+      table_id?: string;
       dynamic_lighting_enabled: boolean;
       fog_exploration_mode: string;
       ambient_light_level: number;
@@ -1607,6 +1627,7 @@ export class WebClientProtocol {
       grid_color_hex?: string;
       background_color_hex?: string;
     };
+    if (!this.targetsActiveTable(data)) return;
     const store = useGameStore.getState();
     store.applyTableLightingSettings(data);
     if (data.grid_cell_px != null || data.cell_distance != null || data.distance_unit != null) {
@@ -1635,7 +1656,8 @@ export class WebClientProtocol {
   }
 
   private async handleWallData(message: Message): Promise<void> {
-    const data = message.data as { operation: string; wall?: Partial<WallData>; wall_id?: string };
+    const data = message.data as { operation: string; table_id?: string; wall?: Partial<WallData>; wall_id?: string };
+    if (!this.targetsActiveTable(data)) return;
     const store = useGameStore.getState();
     switch (data.operation) {
       case 'create':
@@ -1651,7 +1673,8 @@ export class WebClientProtocol {
   }
 
   private async handleLayerSettingsUpdate(message: Message): Promise<void> {
-    const data = message.data as { layer: string; settings: Record<string, unknown> };
+    const data = message.data as { table_id?: string; layer: string; settings: Record<string, unknown> };
+    if (!this.targetsActiveTable(data)) return;
     if (data?.layer && data?.settings) {
       this.applyLayerSettings({ [data.layer]: data.settings });
     }
@@ -1659,7 +1682,8 @@ export class WebClientProtocol {
 
   private handlePaintStrokeCreate(message: Message): void {
     // Server sends: { operation, stroke: {stroke_id, created_by, stroke_data: <JSON string>, ...}, table_id }
-    const data = message.data as { stroke?: { stroke_id?: string; created_by?: number; stroke_data?: string } };
+    const data = message.data as { table_id?: string; stroke?: { stroke_id?: string; created_by?: number; stroke_data?: string } };
+    if (!this.targetsActiveTable(data)) return;
     const stroke = data?.stroke;
     if (!stroke) return;
     // Skip our own strokes - server excludes sender from broadcast, but sends response back
@@ -1673,13 +1697,15 @@ export class WebClientProtocol {
   }
 
   private handlePaintStrokeDelete(message: Message): void {
-    const data = message.data as { stroke_id?: string };
+    const data = message.data as { table_id?: string; stroke_id?: string };
+    if (!this.targetsActiveTable(data)) return;
     if (!data.stroke_id) return;
     getCurrentWasmRuntime()?.removePaintStroke(data.stroke_id);
     emitProtocolEvent('paint-stroke-deleted', data);
   }
 
   private handlePaintStrokeClear(message: Message): void {
+    if (!this.targetsActiveTable(message.data)) return;
     getCurrentWasmRuntime()?.clearPaintStrokes();
     emitProtocolEvent('paint-strokes-cleared', message.data);
   }
@@ -1687,7 +1713,8 @@ export class WebClientProtocol {
   private handlePaintSync(message: Message): void {
     // Server sends PAINT_SYNC with strokes in to_dict() format: [{stroke_id, stroke_data: <JSON>, ...}]
     // We need to extract the DrawStroke JSON from each entry
-    const data = message.data as { strokes?: { stroke_id: string; stroke_data: string }[] };
+    const data = message.data as { table_id?: string; strokes?: { stroke_id: string; stroke_data: string }[] };
+    if (!this.targetsActiveTable(data)) return;
     const runtime = getCurrentWasmRuntime();
     if (!runtime || !Array.isArray(data?.strokes)) return;
     const drawStrokes = parseStoredPaintStrokes(data.strokes);
@@ -1709,6 +1736,29 @@ export class WebClientProtocol {
         // no-op: WASM does not expose set_layer_inactive_opacity
       }
     }
+  }
+
+  /** Reject session-wide table mutations before they touch browser or WASM state. */
+  private targetsActiveTable(data: unknown): boolean {
+    if (!data || typeof data !== 'object') return true;
+    const record = data as Record<string, unknown>;
+    const nestedTable = record.table_data && typeof record.table_data === 'object'
+      ? record.table_data as Record<string, unknown>
+      : null;
+    const nestedSprite = record.sprite_data && typeof record.sprite_data === 'object'
+      ? record.sprite_data as Record<string, unknown>
+      : null;
+    const nestedWall = record.wall && typeof record.wall === 'object'
+      ? record.wall as Record<string, unknown>
+      : null;
+    const rawTableId = record.table_id
+      ?? nestedTable?.table_id
+      ?? nestedSprite?.table_id
+      ?? nestedWall?.table_id;
+    if (typeof rawTableId !== 'string' || !rawTableId.trim()) return true;
+
+    const activeTableId = useGameStore.getState().activeTableId;
+    return !activeTableId || activeTableId === rawTableId.trim();
   }
 
   // Public API methods for sending requests

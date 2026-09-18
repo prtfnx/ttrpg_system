@@ -427,10 +427,11 @@ class TestSpritePreviewHandlers:
         proto = _ProtoStub(role="owner")
         broadcasts = []
         proto.broadcast_filtered = AsyncMock(side_effect=lambda m, layer, c: broadcasts.append(m))
-        msg = Message(MessageType.SPRITE_DRAG_PREVIEW, {"id": "sp-1", "x": 5.0, "y": 3.0})
+        msg = Message(MessageType.SPRITE_DRAG_PREVIEW, {"id": "sp-1", "x": 5.0, "y": 3.0, "table_id": "t1"})
         await proto.handle_sprite_drag_preview(msg, "c1")
         assert len(broadcasts) == 1
         assert broadcasts[0].type == MessageType.SPRITE_DRAG_PREVIEW
+        assert broadcasts[0].data["table_id"] == "t1"
 
     async def test_drag_preview_missing_coords_is_noop(self):
         proto = _ProtoStub(role="owner")
@@ -462,7 +463,7 @@ class TestSpritePreviewHandlers:
         proto = _ProtoStub(role="owner")
         broadcasts = []
         proto.broadcast_filtered = AsyncMock(side_effect=lambda m, layer, c: broadcasts.append(m))
-        msg = Message(MessageType.SPRITE_RESIZE_PREVIEW, {"id": "sp-1", "width": 2.0, "height": 2.0})
+        msg = Message(MessageType.SPRITE_RESIZE_PREVIEW, {"id": "sp-1", "width": 2.0, "height": 2.0, "table_id": "t1"})
         await proto.handle_sprite_resize_preview(msg, "c1")
         assert broadcasts[0].type == MessageType.SPRITE_RESIZE_PREVIEW
 
@@ -470,7 +471,7 @@ class TestSpritePreviewHandlers:
         proto = _ProtoStub(role="owner")
         broadcasts = []
         proto.broadcast_filtered = AsyncMock(side_effect=lambda m, layer, c: broadcasts.append(m))
-        msg = Message(MessageType.SPRITE_ROTATE_PREVIEW, {"id": "sp-1", "rotation": 45.0})
+        msg = Message(MessageType.SPRITE_ROTATE_PREVIEW, {"id": "sp-1", "rotation": 45.0, "table_id": "t1"})
         await proto.handle_sprite_rotate_preview(msg, "c1")
         assert broadcasts[0].type == MessageType.SPRITE_ROTATE_PREVIEW
 

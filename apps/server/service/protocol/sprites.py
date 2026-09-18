@@ -509,8 +509,11 @@ class _SpritesMixin(_ProtocolBase):
             user_id = self._get_user_id(msg, client_id)
             if not await self._can_control_sprite(sprite_id, user_id):
                 return  # silently drop — player doesn't own this sprite
+        table_id = _get_required_table_id(data)
+        if table_id is None:
+            return
         await self._broadcast_sprite_event(
-            Message(MessageType.SPRITE_DRAG_PREVIEW, {'id': sprite_id, 'x': x, 'y': y}),
+            Message(MessageType.SPRITE_DRAG_PREVIEW, {'id': sprite_id, 'x': x, 'y': y, 'table_id': table_id}),
             client_id
         )
 
@@ -529,8 +532,11 @@ class _SpritesMixin(_ProtocolBase):
             user_id = self._get_user_id(msg, client_id)
             if not await self._can_control_sprite(sprite_id, user_id):
                 return
+        table_id = _get_required_table_id(data)
+        if table_id is None:
+            return
         await self._broadcast_sprite_event(
-            Message(MessageType.SPRITE_RESIZE_PREVIEW, {'id': sprite_id, 'width': width, 'height': height}),
+            Message(MessageType.SPRITE_RESIZE_PREVIEW, {'id': sprite_id, 'width': width, 'height': height, 'table_id': table_id}),
             client_id
         )
 
@@ -548,8 +554,11 @@ class _SpritesMixin(_ProtocolBase):
             user_id = self._get_user_id(msg, client_id)
             if not await self._can_control_sprite(sprite_id, user_id):
                 return
+        table_id = _get_required_table_id(data)
+        if table_id is None:
+            return
         await self._broadcast_sprite_event(
-            Message(MessageType.SPRITE_ROTATE_PREVIEW, {'id': sprite_id, 'rotation': rotation}),
+            Message(MessageType.SPRITE_ROTATE_PREVIEW, {'id': sprite_id, 'rotation': rotation, 'table_id': table_id}),
             client_id
         )
 

@@ -5,6 +5,7 @@
  */
 
 import { createMessage, MessageType } from '@lib/websocket';
+import { useGameStore } from '@/store';
 import { useEffect, useRef } from 'react';
 
 const THROTTLE_MS = 50;
@@ -21,19 +22,27 @@ export function useSpriteDragSync(sendMessage: (msg: unknown) => void) {
 
   useEffect(() => {
     function flush(type: 'move' | 'resize' | 'rotate') {
+      const tableId = useGameStore.getState().activeTableId;
+      if (!tableId) {
+        pendingMove.current = null;
+        pendingResize.current = null;
+        pendingRotate.current = null;
+        timers.current[type] = null;
+        return;
+      }
       if (type === 'move' && pendingMove.current) {
         const { spriteId, x, y } = pendingMove.current;
-        sendMessage(createMessage(MessageType.SPRITE_DRAG_PREVIEW, { id: spriteId, x, y }));
+        sendMessage(createMessage(MessageType.SPRITE_DRAG_PREVIEW, { id: spriteId, x, y, table_id: tableId }));
         pendingMove.current = null;
       }
       if (type === 'resize' && pendingResize.current) {
         const { spriteId, width, height } = pendingResize.current;
-        sendMessage(createMessage(MessageType.SPRITE_RESIZE_PREVIEW, { id: spriteId, width, height }));
+        sendMessage(createMessage(MessageType.SPRITE_RESIZE_PREVIEW, { id: spriteId, width, height, table_id: tableId }));
         pendingResize.current = null;
       }
       if (type === 'rotate' && pendingRotate.current) {
         const { spriteId, rotation } = pendingRotate.current;
-        sendMessage(createMessage(MessageType.SPRITE_ROTATE_PREVIEW, { id: spriteId, rotation }));
+        sendMessage(createMessage(MessageType.SPRITE_ROTATE_PREVIEW, { id: spriteId, rotation, table_id: tableId }));
         pendingRotate.current = null;
       }
       timers.current[type] = null;

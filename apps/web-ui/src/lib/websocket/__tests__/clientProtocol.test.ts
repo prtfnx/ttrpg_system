@@ -720,7 +720,7 @@ describe('WebClientProtocol', () => {
       const p = makeProtocol();
       const handler = vi.fn();
       window.addEventListener('table-updated', handler);
-      await dispatch(p, 'table_update', { table_id: 't1' });
+      await dispatch(p, 'table_update', { table_id: 'table-abc' });
       window.removeEventListener('table-updated', handler);
       expect(handler).toHaveBeenCalledOnce();
     });
@@ -794,6 +794,47 @@ describe('WebClientProtocol', () => {
       };
       await dispatch(p, 'wall_data', { operation: 'update', wall, table_id: 'table-abc' });
       expect(mockUpdateWall).toHaveBeenCalledWith('w3', wall);
+    });
+
+    it('ignores table-scoped mutations for an inactive table', async () => {
+      const p = makeProtocol();
+      const spriteHandler = vi.fn();
+      window.addEventListener('sprite-created', spriteHandler);
+
+      await dispatch(p, 'sprite_create', { sprite_id: 'foreign-sprite', table_id: 'table-other' });
+      await dispatch(p, 'wall_data', {
+        operation: 'remove', wall_id: 'foreign-wall', table_id: 'table-other',
+      });
+      await dispatch(p, 'table_settings_changed', {
+        table_id: 'table-other', dynamic_lighting_enabled: true,
+        fog_exploration_mode: 'persist_dimmed', ambient_light_level: 0,
+      });
+
+      window.removeEventListener('sprite-created', spriteHandler);
+      expect(spriteHandler).not.toHaveBeenCalled();
+      expect(mockRemoveWall).not.toHaveBeenCalledWith('foreign-wall');
+      expect(mockApplyTableLightingSettings).not.toHaveBeenCalled();
+    });
+
+    it('rejects stale table responses before applying ancillary state', async () => {
+      const p = makeProtocol();
+      const tableHandler = vi.fn();
+      window.addEventListener('table-response', tableHandler);
+
+      await dispatch(p, 'table_response', {
+        table_data: {
+          table_id: 'table-other', dynamic_lighting_enabled: true,
+          fog_exploration_mode: 'persist_dimmed', ambient_light_level: 0,
+        },
+        walls: [{ wall_id: 'foreign-wall', table_id: 'table-other' }],
+        paint_strokes: [{ stroke_id: 'foreign-stroke', stroke_data: '{}' }],
+      });
+
+      window.removeEventListener('table-response', tableHandler);
+      expect(tableHandler).not.toHaveBeenCalled();
+      expect(mockApplyTableLightingSettings).not.toHaveBeenCalled();
+      expect(mockAddWall).not.toHaveBeenCalled();
+      expect(mocks.runtime.loadPaintStrokes).not.toHaveBeenCalled();
     });
 
     it('PONG marks connection alive', async () => {
@@ -1010,7 +1051,7 @@ describe('WebClientProtocol', () => {
     it('TABLE_SETTINGS_CHANGED updates store', async () => {
       const p = makeProtocol();
       await dispatch(p, 'table_settings_changed', {
-        table_id: 'table-1',
+        table_id: 'table-abc',
         dynamic_lighting_enabled: true,
         fog_exploration_mode: 'persist_dimmed',
         ambient_light_level: 0.5,
@@ -1030,7 +1071,7 @@ describe('WebClientProtocol', () => {
     it('TABLE_SETTINGS_CHANGED applies supported WASM render settings', async () => {
       const p = makeProtocol();
       await dispatch(p, 'table_settings_changed', {
-        table_id: 'table-1',
+        table_id: 'table-abc',
         dynamic_lighting_enabled: true,
         fog_exploration_mode: 'current_only',
         ambient_light_level: 0.5,
@@ -1343,7 +1384,7 @@ describe('WebClientProtocol', () => {
       const p = makeProtocol();
       const fn = vi.fn();
       window.addEventListener('table-data-received', fn);
-      await dispatch(p, 'table_data', { table_id: 't1' });
+      await dispatch(p, 'table_data', { table_id: 'table-abc' });
       window.removeEventListener('table-data-received', fn);
       expect(fn).toHaveBeenCalledOnce();
     });
@@ -1988,6 +2029,10 @@ describe('WebClientProtocol', () => {
   // ── Paint protocol ────────────────────────────────────────────────────────
 
   describe('paint incoming handlers', () => {
+    beforeEach(() => {
+      Object.assign(mocks.storeState, makeStoreState({ activeTableId: 'tbl1' }));
+    });
+
     async function dispatch(p: WebClientProtocol, type: string, data: Record<string, unknown>) {
       const raw = JSON.stringify({ type, data, version: '0.1', priority: 5 });
       await (p as unknown as Record<string, (...a: unknown[]) => Promise<void>>)['handleIncomingMessage'](raw);

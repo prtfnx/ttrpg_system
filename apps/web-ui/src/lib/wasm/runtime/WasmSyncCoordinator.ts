@@ -31,6 +31,8 @@ export class WasmSyncCoordinator {
     this.spriteSync = new SpriteSyncService(() => this.renderEngine, this.assetSync);
     this.tableSync = new TableSyncService(() => this.renderEngine, this.spriteSync, {
       onHydrated: (tableId, textureIds) => {
+        this.assetSync.releaseTexturesExcept(textureIds);
+        this.tableTextureIds.clear();
         this.tableTextureIds.set(tableId, textureIds);
         callbacks.onTableHydrated?.(tableId);
       },

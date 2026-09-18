@@ -4,6 +4,7 @@ const mockAssetSync = vi.hoisted(() => ({
   init: vi.fn(),
   dispose: vi.fn(),
   areTexturesSettled: vi.fn(() => false),
+  releaseTexturesExcept: vi.fn(),
 }));
 const mockSpriteSync = vi.hoisted(() => ({ init: vi.fn(), dispose: vi.fn() }));
 const mockTableSync = vi.hoisted(() => ({
@@ -69,12 +70,22 @@ describe('WasmSyncCoordinator', () => {
     tableCallbacks.value?.onHydrated?.('table-1', ['map-asset', 'token-asset']);
 
     expect(onTableHydrated).toHaveBeenCalledWith('table-1');
+    expect(mockAssetSync.releaseTexturesExcept).toHaveBeenCalledWith(['map-asset', 'token-asset']);
     expect(coordinator.isTableVisuallyReady('table-1')).toBe(false);
     expect(mockAssetSync.areTexturesSettled).toHaveBeenCalledWith(['map-asset', 'token-asset']);
 
     mockAssetSync.areTexturesSettled.mockReturnValue(true);
     expect(coordinator.isTableVisuallyReady('table-1')).toBe(true);
     expect(coordinator.isTableVisuallyReady('unknown-table')).toBe(false);
+  });
+
+  it('forgets readiness for the prior table after a switch', () => {
+    const coordinator = new WasmSyncCoordinator(resolveDownloadedAsset);
+    tableCallbacks.value?.onHydrated?.('table-1', ['old-map']);
+    tableCallbacks.value?.onHydrated?.('table-2', ['new-map']);
+
+    expect(coordinator.isTableVisuallyReady('table-1')).toBe(false);
+    expect(mockAssetSync.releaseTexturesExcept).toHaveBeenLastCalledWith(['new-map']);
   });
 
   it('disposes sub-services and clears the render engine', () => {

@@ -90,6 +90,7 @@ export interface RenderEngine {
   is_in_light_drag_mode(): boolean;
   is_point_in_fog(x: number, y: number): boolean;
   load_texture(name: string, image: HTMLImageElement): void;
+  unload_texture(name: string): boolean;
   move_sprite_to_layer(spriteId: string, newLayer: string): boolean;
   paint_add_point(worldX: number, worldY: number, pressure: number): boolean;
   paint_add_remote_stroke(strokeJson: string): boolean;

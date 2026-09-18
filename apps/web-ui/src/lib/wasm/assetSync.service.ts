@@ -38,6 +38,7 @@ export class AssetSyncService {
   private pendingAssetRetries = new Set<string>();
   // Sprites waiting for a specific asset upload to complete
   private pendingSpritesForAssets = new Map<string, string[]>();
+  private retainedTextureIds: Set<string> | null = null;
   private retryTimerIds = new Set<ReturnType<typeof setTimeout>>();
   private lifecycleVersion = 0;
 
@@ -88,6 +89,7 @@ export class AssetSyncService {
     this.activeTextureLoads.clear();
     this.pendingAssetRetries.clear();
     this.pendingSpritesForAssets.clear();
+    this.retainedTextureIds = null;
   }
 
   isAssetPending(assetId: string): boolean {
@@ -106,6 +108,26 @@ export class AssetSyncService {
       }
     }
     return true;
+  }
+
+  releaseTexturesExcept(assetIds: Iterable<string>): void {
+    const retained = new Set([...assetIds].filter(Boolean));
+    this.retainedTextureIds = retained;
+    const engine = this.getEngine();
+    for (const assetId of this.loadedTextureIds) {
+      if (retained.has(assetId)) continue;
+      engine?.unload_texture(assetId);
+      this.loadedTextureIds.delete(assetId);
+    }
+    for (const assetId of this.requestedTextureIds) {
+      if (!retained.has(assetId)) this.requestedTextureIds.delete(assetId);
+    }
+    for (const assetId of this.pendingAssetRetries) {
+      if (!retained.has(assetId)) this.pendingAssetRetries.delete(assetId);
+    }
+    for (const assetId of this.pendingSpritesForAssets.keys()) {
+      if (!retained.has(assetId)) this.pendingSpritesForAssets.delete(assetId);
+    }
   }
 
   trackPendingSprite(assetId: string, spriteId: string): void {
@@ -161,6 +183,12 @@ export class AssetSyncService {
     this.loadTextureFromUrl(asset_id, url, isActive)
       .then(() => {
         if (!isActive()) return;
+        if (this.retainedTextureIds && !this.retainedTextureIds.has(asset_id)) {
+          this.getEngine()?.unload_texture(asset_id);
+          this.requestedTextureIds.delete(asset_id);
+          try { URL.revokeObjectURL(url); } catch { /* ignore */ }
+          return;
+        }
         this.loadedTextureIds.add(asset_id);
         this.requestedTextureIds.delete(asset_id);
         this.pendingAssetRetries.delete(asset_id);
@@ -198,6 +226,10 @@ export class AssetSyncService {
       .then(objectUrl => this.loadTextureFromUrl(asset_id, objectUrl, isActive))
       .then(() => {
         if (!isActive()) return;
+        if (this.retainedTextureIds && !this.retainedTextureIds.has(asset_id)) {
+          this.getEngine()?.unload_texture(asset_id);
+          return;
+        }
         this.loadedTextureIds.add(asset_id);
       })
       .catch(error => {

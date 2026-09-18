@@ -3,6 +3,7 @@ import { AssetSyncService } from '../assetSync.service';
 
 const mockEngine = {
   load_texture: vi.fn(),
+  unload_texture: vi.fn(() => true),
 };
 
 function makeService(
@@ -182,6 +183,40 @@ describe('AssetSyncService', () => {
       svc.requestAssetDownloadLink('a-loaded', 's1');
       expect(events).not.toContain('a-loaded');
       window.removeEventListener('request-asset-download', () => {});
+    });
+  });
+
+  describe('releaseTexturesExcept', () => {
+    it('unloads obsolete GPU textures and permits a later reload', () => {
+      const svc = makeService();
+      const loaded = (svc as unknown as Record<string, Set<string>>).loadedTextureIds;
+      loaded.add('old-map');
+      loaded.add('shared-token');
+
+      svc.releaseTexturesExcept(['shared-token', 'new-map']);
+
+      expect(mockEngine.unload_texture).toHaveBeenCalledWith('old-map');
+      expect(mockEngine.unload_texture).not.toHaveBeenCalledWith('shared-token');
+      expect(loaded.has('old-map')).toBe(false);
+    });
+
+    it('unloads a superseded texture that finishes after a table switch', async () => {
+      let finishDownload!: (url: string) => void;
+      const resolveDownloadedAsset = vi.fn(() => new Promise<string>(resolve => {
+        finishDownload = resolve;
+      }));
+      const svc = makeService(mockEngine, resolveDownloadedAsset);
+      vi.spyOn(svc, 'loadTextureFromUrl').mockResolvedValue(undefined);
+      svc.init();
+      dispatch('asset-downloaded', { success: true, asset_id: 'old-map', download_url: 'http://x/old.png' });
+
+      svc.releaseTexturesExcept(['new-map']);
+      finishDownload('blob:old-map');
+      await new Promise(resolve => setTimeout(resolve, 0));
+
+      expect(mockEngine.unload_texture).toHaveBeenCalledWith('old-map');
+      expect(svc.areTexturesSettled(['old-map'])).toBe(true);
+      svc.dispose();
     });
   });
 

@@ -254,9 +254,14 @@ impl RenderEngine {
     }
 
     fn collect_obstacle_sprite_segments(&self, obstacles: &mut Vec<f32>) {
+        let Some(active_table_id) = self.table_manager.active_table_id() else {
+            return;
+        };
         if let Some(obstacles_layer) = self.layer_manager.get_layer("obstacles") {
             for sprite in &obstacles_layer.sprites {
-                append_sprite_obstacle_segments(sprite, obstacles);
+                if sprite.table_id == active_table_id {
+                    append_sprite_obstacle_segments(sprite, obstacles);
+                }
             }
         }
     }

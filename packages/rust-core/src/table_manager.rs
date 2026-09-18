@@ -416,6 +416,10 @@ impl TableManager {
         self.active_table_id.as_deref()
     }
 
+    pub(crate) fn contains_table(&self, table_id: &str) -> bool {
+        self.tables.contains_key(table_id)
+    }
+
     pub fn get_active_table_screen_area_internal(&self) -> Option<(f64, f64, f64, f64)> {
         if let Some(active_id) = &self.active_table_id {
             if let Some(area) = self.screen_areas.get(active_id) {

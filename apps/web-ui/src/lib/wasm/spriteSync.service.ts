@@ -521,7 +521,13 @@ export class SpriteSyncService {
     const finalX = !authoritativeSnapshot && existing ? (existing.x ?? x) : x;
     const finalY = !authoritativeSnapshot && existing ? (existing.y ?? y) : y;
 
-    engine.add_light(lightId, finalX, finalY);
+    if (engine.add_light_for_table) {
+      engine.add_light_for_table(lightId, finalX, finalY, spriteData.table_id);
+    } else {
+      // Compatibility for an already-loaded runtime while a new WASM bundle is
+      // rolling out. Hydration has made this sprite's table active by this point.
+      engine.add_light(lightId, finalX, finalY);
+    }
     engine.set_light_color(lightId, color.r, color.g, color.b, color.a);
     engine.set_light_intensity(lightId, intensity);
     engine.set_light_radius(lightId, radius);

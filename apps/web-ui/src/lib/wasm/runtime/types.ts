@@ -48,6 +48,8 @@ export interface RenderEngine {
   add_fog_rectangle(id: string, startX: number, startY: number, endX: number, endY: number, mode: string): void;
   add_fog_polygon(id: string, polygon: VisibilityPoint[]): void;
   add_light(id: string, x: number, y: number): void;
+  /** Available in runtimes built with explicit synchronized-light ownership. */
+  add_light_for_table?(id: string, x: number, y: number, tableId: string): void;
   add_sprite_to_layer(layerName: string, spriteData: unknown): string;
   add_wall(wallJson: string): boolean;
   align_selected_to_grid(): void;

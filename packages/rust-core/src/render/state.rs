@@ -119,8 +119,21 @@ impl RenderEngine {
             return;
         };
 
-        let light = crate::lighting::Light::new(id.to_string(), x, y, table_id.clone());
+        self.add_light_for_table(id, x, y, &table_id);
+    }
 
+    /// Add a synchronized light to its authoritative table instead of inferring
+    /// ownership from whichever table happens to be active at call time.
+    #[wasm_bindgen]
+    pub fn add_light_for_table(&mut self, id: &str, x: f32, y: f32, table_id: &str) {
+        if !self.table_manager.contains_table(table_id) {
+            web_sys::console::warn_1(
+                &format!("[RUST] Ignoring light for unknown table '{}'", table_id).into(),
+            );
+            return;
+        }
+
+        let light = crate::lighting::Light::new(id.to_string(), x, y, table_id.to_string());
         self.lighting.add_light(light);
         web_sys::console::log_1(
             &format!(

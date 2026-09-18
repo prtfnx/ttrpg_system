@@ -33,6 +33,7 @@ const mockAssetSync = {
 function makeEngine() {
   return {
     add_light: vi.fn(),
+    add_light_for_table: vi.fn(),
     set_light_color: vi.fn(),
     set_light_intensity: vi.fn(),
     set_light_radius: vi.fn(),
@@ -111,9 +112,9 @@ describe('SpriteSyncService', () => {
   });
 
   describe('addSpriteToWasm routing', () => {
-    it('routes __LIGHT__ with layer=light to add_light', () => {
+    it('routes __LIGHT__ with layer=light to an explicitly scoped light', () => {
       service.addSpriteToWasm({ texture_path: '__LIGHT__', layer: 'light', sprite_id: 'l1', table_id: 'tbl1', x: 10, y: 20 });
-      expect(engine.add_light).toHaveBeenCalledWith('l1', 10, 20);
+      expect(engine.add_light_for_table).toHaveBeenCalledWith('l1', 10, 20, 'tbl1');
       expect(engine.set_light_enabled).toHaveBeenCalledWith('l1', true);
       expect(engine.add_sprite_to_layer).not.toHaveBeenCalled();
     });
@@ -354,11 +355,11 @@ describe('SpriteSyncService', () => {
       vi.useRealTimers();
     });
 
-    it('sprite-created with __LIGHT__ calls add_light', () => {
+    it('sprite-created with __LIGHT__ adds a table-scoped light', () => {
       window.dispatchEvent(new CustomEvent('sprite-created', {
         detail: { sprite_id: 'l2', texture_path: '__LIGHT__', layer: 'light', table_id: 'tbl1', x: 0, y: 0 },
       }));
-      expect(engine.add_light).toHaveBeenCalledWith('l2', 0, 0);
+      expect(engine.add_light_for_table).toHaveBeenCalledWith('l2', 0, 0, 'tbl1');
     });
 
     it('sprite-removed with no sprite_id is a no-op', () => {

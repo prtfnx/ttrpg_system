@@ -333,6 +333,8 @@ function normalizeSprite(
     y: normalized.coord_y,
     layer,
     texture: normalized.texture_path,
+    width: normalized.width,
+    height: normalized.height,
     scale: { x: normalized.scale_x, y: normalized.scale_y },
     rotation: normalized.rotation ?? 0,
     syncStatus: 'synced',

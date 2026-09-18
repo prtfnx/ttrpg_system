@@ -23,6 +23,8 @@ export interface Sprite {
   y: number;
   layer: string;
   texture: string;
+  width?: number;
+  height?: number;
   scale: { x: number; y: number };
   rotation: number;
   // Token stats (independent of character)

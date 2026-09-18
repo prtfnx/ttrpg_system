@@ -1,4 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { useGameStore } from '@/store';
 import { SpriteSyncService } from '../spriteSync.service';
 
 const mockAddSprite = vi.hoisted(() => vi.fn());
@@ -41,10 +42,15 @@ function makeEngine() {
     create_polygon_sprite: vi.fn(),
     add_sprite_to_layer: vi.fn(),
     remove_sprite: vi.fn(),
+    remove_light: vi.fn(),
+    remove_fog_rectangle: vi.fn(),
     update_sprite_position: vi.fn(() => true),
     update_light_position: vi.fn(),
     update_sprite_controlled_by: vi.fn(),
     rotate_sprite: vi.fn(),
+    resize_sprite: vi.fn(),
+    update_sprite_scale: vi.fn(),
+    render: vi.fn(),
   };
 }
 
@@ -296,6 +302,22 @@ describe('SpriteSyncService', () => {
     it('sprite-removed dispatches remove_sprite', () => {
       window.dispatchEvent(new CustomEvent('sprite-removed', { detail: { sprite_id: 'x1' } }));
       expect(engine.remove_sprite).toHaveBeenCalledWith('x1');
+      expect(engine.remove_light).toHaveBeenCalledWith('x1');
+      expect(engine.remove_fog_rectangle).toHaveBeenCalledWith('x1');
+      expect(useGameStore.setState).toHaveBeenCalled();
+    });
+
+    it('mirrors authoritative resize and rotation events into the store', () => {
+      window.dispatchEvent(new CustomEvent('sprite-scaled', {
+        detail: { sprite_id: 'x1', width: 80, height: 90, table_id: 'tbl1' },
+      }));
+      window.dispatchEvent(new CustomEvent('sprite-rotated', {
+        detail: { sprite_id: 'x1', rotation: 45, table_id: 'tbl1' },
+      }));
+
+      expect(engine.resize_sprite).toHaveBeenCalledWith('x1', 80, 90);
+      expect(engine.rotate_sprite).toHaveBeenCalledWith('x1', 45);
+      expect(useGameStore.setState).toHaveBeenCalledTimes(2);
     });
 
     it('sprite-revert move operation calls update_sprite_position', () => {

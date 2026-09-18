@@ -194,7 +194,7 @@ export class SpriteSyncService {
     on('protocol-error', d => {
       if (!d?.client_temp_id) return;
       this.clearOptimisticTimer(d.client_temp_id);
-      try { this.getEngine()?.remove_sprite(d.client_temp_id); } catch { /* best-effort */ }
+      try { this.removeSceneEntity(d.client_temp_id); } catch { /* best-effort */ }
     });
 
     on('compendium-insert', d => this.handleCompendiumInsert(d));
@@ -219,6 +219,11 @@ export class SpriteSyncService {
       return;
     }
     const normalizedSpriteData = { ...spriteData, table_id: tableId };
+    const activeTableId = useGameStore.getState().activeTableId;
+    if (activeTableId && activeTableId !== tableId) {
+      logger.debug('[SpriteSyncService] Ignoring sprite for inactive table', { tableId, activeTableId });
+      return;
+    }
 
     try {
       const layer = normalizedSpriteData.layer || 'tokens';
@@ -294,7 +299,7 @@ export class SpriteSyncService {
   startOptimisticTimer(tempId: string): void {
     this.clearOptimisticTimer(tempId);
     const t = window.setTimeout(() => {
-      try { this.getEngine()?.remove_sprite(tempId); } catch { /* best-effort */ }
+      try { this.removeSceneEntity(tempId); } catch { /* best-effort */ }
       this.optimisticTimers.delete(tempId);
     }, OPTIMISTIC_TIMEOUT);
     this.optimisticTimers.set(tempId, t as unknown as number);
@@ -319,11 +324,11 @@ export class SpriteSyncService {
       const tempId = data.client_temp_id;
       if (tempId) {
         this.clearOptimisticTimer(tempId);
-        try { this.getEngine()?.remove_sprite(tempId); } catch { /* ok */ }
+        this.removeSceneEntity(tempId);
       }
       const confirmedId = data.sprite_data?.sprite_id;
       if (confirmedId && confirmedId !== tempId) {
-        try { this.getEngine()?.remove_sprite(confirmedId); } catch { /* ok */ }
+        this.removeSceneEntity(confirmedId);
       }
       if (data.sprite_data) {
         try { this.addSpriteToWasm(data.sprite_data); } catch (e) {
@@ -331,7 +336,7 @@ export class SpriteSyncService {
         }
       }
     } else if (data.operation === 'remove' && data.success && data.sprite_id) {
-      try { this.getEngine()?.remove_sprite(data.sprite_id); } catch (e) {
+      try { this.removeSceneEntity(data.sprite_id); } catch (e) {
         logger.error('[SpriteSyncService] remove after server confirm:', e);
       }
     }
@@ -344,8 +349,7 @@ export class SpriteSyncService {
       if (!spriteId) return;
       if (data.operation === 'create' && data.sprite_data) { this.addSpriteToWasm(data.sprite_data); return; }
       if (data.operation === 'remove') {
-        try { this.getEngine()?.remove_sprite(spriteId); } catch { /* ignore */ }
-        useGameStore.setState(state => ({ sprites: state.sprites.filter(s => s.id !== spriteId) }));
+        this.removeSceneEntity(spriteId);
         return;
       }
       if (data.operation === 'move' && data.position) { this.updateSpritePosition(spriteId, Array.isArray(data.position) ? { x: data.position[0], y: data.position[1] } : data.position); return; }
@@ -369,7 +373,7 @@ export class SpriteSyncService {
     try {
       const spriteId = data.sprite_id || data.id;
       if (!spriteId) return;
-      this.getEngine()?.remove_sprite(spriteId);
+      this.removeSceneEntity(spriteId);
       if (data.table_id) tableThumbnailService.invalidateTable(data.table_id);
     } catch (err) {
       logger.error('[SpriteSyncService] handleSpriteRemoved failed:', err);
@@ -407,6 +411,7 @@ export class SpriteSyncService {
       if (data.width !== undefined && data.height !== undefined) {
         this.resizeSpriteInWasm(spriteId, data.width, data.height);
         wasmBridgeService.seedSpriteState(spriteId, { width: data.width, height: data.height });
+        this.patchStoreSprite(spriteId, { width: data.width, height: data.height });
       }
       if (data.table_id) tableThumbnailService.invalidateTable(data.table_id);
     } catch (err) {
@@ -421,6 +426,7 @@ export class SpriteSyncService {
       if (spriteId && typeof data.rotation === 'number') {
         this.updateSpriteRotation(spriteId, data.rotation);
         wasmBridgeService.seedSpriteState(spriteId, { rotation: data.rotation });
+        this.patchStoreSprite(spriteId, { rotation: data.rotation });
       }
     } catch (err) {
       logger.error('[SpriteSyncService] handleSpriteRotated failed:', err);
@@ -432,7 +438,7 @@ export class SpriteSyncService {
     try {
       if (data.client_temp_id) {
         this.clearOptimisticTimer(data.client_temp_id);
-        try { this.getEngine()?.remove_sprite(data.client_temp_id); } catch { /* ok */ }
+        try { this.removeSceneEntity(data.client_temp_id); } catch { /* ok */ }
       }
       if (_op === 'created') this.handleSpriteCreated(data);
       else this.handleSpriteUpdated(data);
@@ -596,7 +602,7 @@ export class SpriteSyncService {
       y = spriteData.y ?? 0;
     }
     // asset_xxhash is the server-computed verification hash; asset_id is the canonical identifier.
-    const assetId = spriteData.asset_id || spriteData.asset_xxhash || spriteData.texture_path || null;
+    const assetId = spriteData.asset_id || spriteData.texture_id || spriteData.texture_path || null;
     // For shapes, restore color and fill mode from metadata JSON (stored by client at creation time)
     const isShape = spriteData.obstacle_type === 'rectangle' || spriteData.obstacle_type === 'circle' || spriteData.obstacle_type === 'line';
     let tintColor = spriteData.tint_color || [1.0, 1.0, 1.0, 1.0];
@@ -639,7 +645,7 @@ export class SpriteSyncService {
       useGameStore.getState().addSprite({
         id: wasmSprite.id, name: spriteData.name || 'Unnamed Entity',
         tableId: wasmSprite.table_id, x, y, layer,
-        texture: spriteData.texture_path || '',
+        texture: assetId || '', width: wasmSprite.width, height: wasmSprite.height,
         scale: { x: wasmSprite.scale_x, y: wasmSprite.scale_y }, rotation: wasmSprite.rotation,
         characterId: spriteData.character_id,
         controlledBy: normalizedControllerIds.map(String),
@@ -690,6 +696,27 @@ export class SpriteSyncService {
     return !!(hasPos && hasAsset && hasDims);
   }
 
+  private patchStoreSprite(spriteId: string, updates: Partial<import('@/types').Sprite>): void {
+    useGameStore.setState(state => ({
+      sprites: state.sprites.map(sprite => sprite.id === spriteId ? { ...sprite, ...updates } : sprite),
+    }));
+  }
+
+  private removeSceneEntity(spriteId: string): void {
+    const engine = this.getEngine();
+    if (engine) {
+      // Scene ids are globally unique. Removing from every specialized registry
+      // makes deletion idempotent and prevents ghost lights/fog sentinels.
+      engine.remove_light(spriteId);
+      engine.remove_fog_rectangle(spriteId);
+      engine.remove_sprite(spriteId);
+    }
+    useGameStore.setState(state => ({
+      sprites: state.sprites.filter(sprite => sprite.id !== spriteId),
+      selectedSprites: state.selectedSprites.filter(id => id !== spriteId),
+    }));
+  }
+
   private reconcileLightMetadata(spriteId: string, data: SpritePayload): boolean {
     const updates = data.updates ?? {};
     const incomingMetadata = data.metadata ?? updates.metadata;
@@ -734,9 +761,18 @@ export class SpriteSyncService {
         ? (Array.isArray(rawPos) ? { x: rawPos[0], y: rawPos[1] } : rawPos)
         : { x: (data.x ?? (u.x as number | undefined)) ?? 0, y: (data.y ?? (u.y as number | undefined)) ?? 0 };
       this.updateSpritePosition(spriteId, pos);
+      this.patchStoreSprite(spriteId, pos);
     }
-    if (data.scale_x !== undefined || u.scale_x !== undefined) this.updateSpriteScale(spriteId, data.scale_x ?? u.scale_x, data.scale_y ?? u.scale_y);
-    if (data.rotation !== undefined || u.rotation !== undefined) this.updateSpriteRotation(spriteId, (data.rotation ?? (u.rotation as number | undefined)) ?? 0);
+    if (data.scale_x !== undefined || u.scale_x !== undefined) {
+      const scale = { x: data.scale_x ?? u.scale_x ?? 1, y: data.scale_y ?? u.scale_y ?? 1 };
+      this.updateSpriteScale(spriteId, scale.x, scale.y);
+      this.patchStoreSprite(spriteId, { scale });
+    }
+    if (data.rotation !== undefined || u.rotation !== undefined) {
+      const rotation = (data.rotation ?? (u.rotation as number | undefined)) ?? 0;
+      this.updateSpriteRotation(spriteId, rotation);
+      this.patchStoreSprite(spriteId, { rotation });
+    }
 
     // controlled_by is stored as a JSON array string; parse if needed.
     const rawCb = data.controlled_by ?? u.controlled_by;
@@ -763,8 +799,16 @@ export class SpriteSyncService {
         ? (Array.isArray(data.position) ? { x: data.position[0], y: data.position[1] } : data.position)
         : { x: data.x ?? data.world_x ?? 0, y: data.y ?? data.world_y ?? 0 };
       this.updateSpritePosition(spriteId, pos);
+      this.patchStoreSprite(spriteId, pos);
     }
-    if (data.scale_x !== undefined || data.scale_y !== undefined) this.updateSpriteScale(spriteId, data.scale_x, data.scale_y);
-    if (data.rotation !== undefined) this.updateSpriteRotation(spriteId, data.rotation);
+    if (data.scale_x !== undefined || data.scale_y !== undefined) {
+      const scale = { x: data.scale_x ?? 1, y: data.scale_y ?? 1 };
+      this.updateSpriteScale(spriteId, scale.x, scale.y);
+      this.patchStoreSprite(spriteId, { scale });
+    }
+    if (data.rotation !== undefined) {
+      this.updateSpriteRotation(spriteId, data.rotation);
+      this.patchStoreSprite(spriteId, { rotation: data.rotation });
+    }
   }
 }

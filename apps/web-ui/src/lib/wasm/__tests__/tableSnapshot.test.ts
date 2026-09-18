@@ -110,6 +110,8 @@ describe('normalizeTableSnapshot', () => {
         tableId: TABLE_ID,
         x: 0,
         y: 125,
+        width: 50,
+        height: 0,
         hp: 0,
         controlledBy: ['12'],
       }),

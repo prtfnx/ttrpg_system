@@ -136,29 +136,37 @@ describe('AssetSyncService', () => {
   });
 
   describe('handleProtocolSuccess', () => {
-    it('triggers upload handling when status is uploaded', () => {
-      vi.useFakeTimers();
-      const svc = makeService();
-      svc.init();
-      dispatch('asset-upload-started', { asset_id: 'a1' });
-      dispatch('protocol-success', { asset_id: 'a1', status: 'uploaded' });
-      vi.runAllTimers();
-      expect(svc.isAssetPending('a1')).toBe(false);
-      vi.useRealTimers();
-      svc.dispose();
-    });
-  });
-
-  describe('trackPendingSprite', () => {
-    it('queues sprite retry on asset upload', () => {
+    it('retries queued sprites only after the server confirms storage', () => {
       vi.useFakeTimers();
       const requestSpy = vi.spyOn(AssetSyncService.prototype, 'requestAssetDownloadLink');
       const svc = makeService();
       svc.init();
+      dispatch('asset-upload-started', { asset_id: 'a1' });
       svc.trackPendingSprite('a1', 's1');
-      dispatch('asset-uploaded', { asset_id: 'a1' });
+      dispatch('asset-uploaded', { asset_id: 'a1', upload_url: 'https://storage/upload' });
+      dispatch('asset-upload-completed', { asset_id: 'a1', success: true });
       vi.runAllTimers();
+      expect(requestSpy).not.toHaveBeenCalled();
+
+      dispatch('protocol-success', { asset_id: 'a1', status: 'uploaded' });
+      vi.runAllTimers();
+      expect(svc.isAssetPending('a1')).toBe(false);
       expect(requestSpy).toHaveBeenCalledWith('a1', 's1');
+      vi.useRealTimers();
+      svc.dispose();
+    });
+
+    it('settles a failed upload without scheduling a download retry', () => {
+      vi.useFakeTimers();
+      const requestSpy = vi.spyOn(AssetSyncService.prototype, 'requestAssetDownloadLink');
+      const svc = makeService();
+      svc.init();
+      dispatch('asset-upload-started', { asset_id: 'a1' });
+      svc.trackPendingSprite('a1', 's1');
+      dispatch('protocol-success', { asset_id: 'a1', status: 'failed', message: 'Upload failure recorded' });
+      vi.runAllTimers();
+      expect(svc.isAssetPending('a1')).toBe(false);
+      expect(requestSpy).not.toHaveBeenCalled();
       vi.useRealTimers();
       svc.dispose();
     });

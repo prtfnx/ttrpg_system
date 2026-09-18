@@ -56,9 +56,14 @@ export class AssetSyncService {
   init(): void {
     if (this.eventCleanups.length > 0) return;
     this.lifecycleVersion += 1;
+    const uploadCompletedHandler = (event: Event) => {
+      const data = (event as CustomEvent<AssetPayload>).detail ?? {};
+      this.handleLocalUploadCompleted(data);
+    };
+    window.addEventListener('asset-upload-completed', uploadCompletedHandler);
     this.eventCleanups.push(
       onProtocolEvent('asset-downloaded', d => this.handleAssetDownloaded((d ?? {}) as AssetPayload)),
-      onProtocolEvent('asset-uploaded', d => this.handleAssetUploaded((d ?? {}) as AssetPayload)),
+      () => window.removeEventListener('asset-upload-completed', uploadCompletedHandler),
       onWasmEvent('asset-upload-started', d => {
         if (d?.asset_id) this.pendingAssetRetries.add(d.asset_id);
       }),
@@ -208,7 +213,7 @@ export class AssetSyncService {
     this.pendingAssetRetries.delete(asset_id);
   }
 
-  private handleAssetUploaded(data: AssetPayload): void {
+  private handleUploadConfirmed(data: AssetPayload): void {
     if (!data?.asset_id) return;
     const assetId = data.asset_id;
     if (this.pendingAssetRetries.has(assetId)) {
@@ -224,10 +229,21 @@ export class AssetSyncService {
     }
   }
 
+  private handleLocalUploadCompleted(data: AssetPayload): void {
+    if (!data.asset_id || data.success !== false) return;
+    this.pendingAssetRetries.delete(data.asset_id);
+    this.pendingSpritesForAssets.delete(data.asset_id);
+    this.requestedTextureIds.delete(data.asset_id);
+    logger.warn('Asset upload failed before server confirmation', {
+      assetId: data.asset_id,
+      error: data.error,
+    });
+  }
+
   private handleProtocolSuccess(data: AssetPayload): void {
-    if (data?.asset_id && (data.message?.includes('Upload confirmed') || data.status === 'uploaded')) {
-      this.handleAssetUploaded(data);
-    }
+    if (!data?.asset_id) return;
+    if (data.status === 'uploaded') this.handleUploadConfirmed(data);
+    if (data.status === 'failed') this.handleLocalUploadCompleted({ ...data, success: false });
   }
 
   private scheduleRetry(callback: () => void, delayMs: number): void {

@@ -31,6 +31,31 @@ interface TablePayload {
   background_image?: string;
   table_data?: TablePayload;
   local_table_id?: string;
+  layer_settings?: Record<string, Record<string, unknown>>;
+  paint_strokes?: Array<{ stroke_id?: string; stroke_data?: string }>;
+  dynamic_lighting_enabled?: boolean;
+  fog_exploration_mode?: string;
+  ambient_light_level?: number;
+  grid_cell_px?: number;
+  cell_distance?: number;
+  distance_unit?: string;
+  grid_color_hex?: string;
+  background_color_hex?: string;
+}
+
+function parsePaintStrokes(strokes: TablePayload['paint_strokes']): Record<string, unknown>[] {
+  if (!Array.isArray(strokes)) return [];
+  return strokes.flatMap(stroke => {
+    if (typeof stroke.stroke_data !== 'string') return [];
+    try {
+      const parsed: unknown = JSON.parse(stroke.stroke_data);
+      return parsed && typeof parsed === 'object' && !Array.isArray(parsed)
+        ? [parsed as Record<string, unknown>]
+        : [];
+    } catch {
+      return [];
+    }
+  });
 }
 
 export class TableSyncService {
@@ -142,7 +167,10 @@ export class TableSyncService {
       engine.clear_walls();
       snapshot.walls.forEach(wall => engine.add_wall(JSON.stringify(wall)));
       snapshot.specialSprites.forEach(sprite => {
-        this.spriteSync.addSpriteToWasm({ ...sprite, obstacle_data: undefined, table_id: tableId });
+        this.spriteSync.addSpriteToWasm(
+          { ...sprite, obstacle_data: undefined, table_id: tableId },
+          { authoritativeSnapshot: true },
+        );
       });
 
       const derivedLightIds = new Set<string>();
@@ -159,8 +187,40 @@ export class TableSyncService {
       this.tableDerivedLightIds.set(tableId, derivedLightIds);
       this.hydratedTableId = tableId;
 
+      const tableData = data.table_data ?? data;
+      const layerSettings = data.layer_settings ?? {};
+      Object.entries(layerSettings).forEach(([layer, settings]) => {
+        if (typeof settings.visible === 'boolean') engine.set_layer_visibility(layer, settings.visible);
+        if (typeof settings.opacity === 'number') engine.set_layer_opacity(layer, settings.opacity);
+        if (Array.isArray(settings.color) && settings.color.length >= 4) {
+          engine.set_layer_color(layer, Number(settings.color[0]), Number(settings.color[1]), Number(settings.color[2]));
+        }
+        if (typeof settings.blend_mode === 'string') engine.set_layer_blend_mode(layer, settings.blend_mode);
+      });
+      engine.paint_set_current_table(tableId);
+      engine.paint_load_strokes(JSON.stringify(parsePaintStrokes(data.paint_strokes)));
+
       gameStore.hydrateTableSprites?.(tableId, snapshot.storeSprites);
-      gameStore.setActiveTableId?.(tableId);
+      useGameStore.setState({ walls: snapshot.walls });
+      gameStore.applyTableLightingSettings?.({
+        dynamic_lighting_enabled: tableData.dynamic_lighting_enabled ?? false,
+        fog_exploration_mode: tableData.fog_exploration_mode ?? 'current_only',
+        ambient_light_level: tableData.ambient_light_level ?? 1,
+      });
+      gameStore.setTableUnits?.({
+        gridCellPx: snapshot.renderer.grid_cell_px,
+        cellDistance: snapshot.renderer.cell_distance,
+        distanceUnit: snapshot.renderer.distance_unit as import('@/utils/unitConverter').DistanceUnit,
+      });
+      gameStore.setGridEnabled?.(snapshot.renderer.show_grid);
+      gameStore.setGridSnapping?.(snapshot.snapToGrid);
+      if (tableData.grid_color_hex) gameStore.setGridColorHex?.(tableData.grid_color_hex);
+      gameStore.setBackgroundColorHex?.(snapshot.backgroundColor ?? DEFAULT_TABLE_BACKGROUND);
+      Object.entries(layerSettings).forEach(([layer, settings]) => {
+        if (typeof settings.visible === 'boolean') gameStore.setLayerVisibility?.(layer, settings.visible);
+        if (typeof settings.opacity === 'number') gameStore.setLayerOpacity?.(layer, settings.opacity);
+      });
+      if (useGameStore.getState().activeTableId !== tableId) gameStore.setActiveTableId?.(tableId);
       this.latestPayload = data;
       const textureIds = [...new Set(
         Object.values(snapshot.renderer.layers)

@@ -210,7 +210,7 @@ export class SpriteSyncService {
 
   // ── Public: called by TableSyncService and RemoteSyncService ──────────────
 
-  addSpriteToWasm(spriteData: SpritePayload): void {
+  addSpriteToWasm(spriteData: SpritePayload, options: { authoritativeSnapshot?: boolean } = {}): void {
     const engine = this.getEngine();
     if (!engine) return;
     const tableId = spriteData.table_id?.trim();
@@ -236,7 +236,7 @@ export class SpriteSyncService {
       const isFogReveal = normalizedSpriteData.texture_path === '__FOG_REVEAL__';
 
       if (isLight) {
-        this.addLightToWasm(engine, normalizedSpriteData);
+        this.addLightToWasm(engine, normalizedSpriteData, options.authoritativeSnapshot === true);
         return;
       }
 
@@ -500,7 +500,11 @@ export class SpriteSyncService {
 
   // ── Sprite shape helpers ──────────────────────────────────────────────────
 
-  private addLightToWasm(engine: RenderEngine, spriteData: TableScopedSpritePayload): void {
+  private addLightToWasm(
+    engine: RenderEngine,
+    spriteData: TableScopedSpritePayload,
+    authoritativeSnapshot: boolean,
+  ): void {
     let x = 0, y = 0;
     if (Array.isArray(spriteData.position) && spriteData.position.length >= 2) {
       [x, y] = spriteData.position;
@@ -514,8 +518,8 @@ export class SpriteSyncService {
     const { radius, intensity, color, isOn } = lightSettings(meta);
 
     const existing = useGameStore.getState().sprites.find((s) => s.id === lightId);
-    const finalX = existing ? (existing.x ?? x) : x;
-    const finalY = existing ? (existing.y ?? y) : y;
+    const finalX = !authoritativeSnapshot && existing ? (existing.x ?? x) : x;
+    const finalY = !authoritativeSnapshot && existing ? (existing.y ?? y) : y;
 
     engine.add_light(lightId, finalX, finalY);
     engine.set_light_color(lightId, color.r, color.g, color.b, color.a);

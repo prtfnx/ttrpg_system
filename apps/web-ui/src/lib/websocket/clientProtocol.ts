@@ -1071,6 +1071,7 @@ export class WebClientProtocol {
     logger.debug('Table response received:', message.data);
     const data = message.data as {
       table_data?: {
+        table_id?: string;
         dynamic_lighting_enabled?: boolean;
         fog_exploration_mode?: string;
         ambient_light_level?: number;
@@ -1092,44 +1093,8 @@ export class WebClientProtocol {
       });
       return;
     }
-    if (data?.table_data) {
-      const td = data.table_data;
-      const store = useGameStore.getState();
-      store.applyTableLightingSettings({
-        dynamic_lighting_enabled: td.dynamic_lighting_enabled ?? false,
-        fog_exploration_mode: td.fog_exploration_mode ?? 'current_only',
-        ambient_light_level: td.ambient_light_level ?? 1.0,
-      });
-      if (td.grid_cell_px != null || td.cell_distance != null || td.distance_unit != null) {
-        store.setTableUnits({
-          gridCellPx: td.grid_cell_px ?? 50,
-          cellDistance: td.cell_distance ?? 5,
-          distanceUnit: (td.distance_unit ?? 'ft') as import('@/utils/unitConverter').DistanceUnit,
-        });
-      }
-      if (td.grid_enabled != null) store.setGridEnabled(td.grid_enabled);
-      if (td.snap_to_grid != null) store.setGridSnapping(td.snap_to_grid);
-      if (td.grid_color_hex) store.setGridColorHex(td.grid_color_hex);
-      if (td.background_color_hex) store.setBackgroundColorHex(td.background_color_hex);
-    }
-    // Sync walls on table join
-    if (Array.isArray(data?.walls) && data.walls.length > 0) {
-      useGameStore.getState().addWalls(data.walls);
-      // addWalls already forwards each wall into rustRenderManager
-    }
-    // Apply persisted layer settings on join
-    if (data?.layer_settings && typeof data.layer_settings === 'object') {
-      this.applyLayerSettings(data.layer_settings as Record<string, Record<string, unknown>>);
-    }
-    // Load paint strokes on join - server sends to_dict() format: [{stroke_id, stroke_data: <JSON>, ...}]
-    const rawData = message.data as { paint_strokes?: { stroke_id: string; stroke_data: string }[] };
-    if (Array.isArray(rawData?.paint_strokes) && rawData.paint_strokes.length > 0) {
-      const runtime = getCurrentWasmRuntime();
-      if (runtime) {
-        const drawStrokes = parseStoredPaintStrokes(rawData.paint_strokes);
-        runtime.loadPaintStrokes(JSON.stringify(drawStrokes));
-      }
-    }
+    // Complete table payloads are applied only by TableSyncService after
+    // validation. This protocol owner only admits the scoped event.
     emitProtocolEvent('table-response', message.data);
   }
 

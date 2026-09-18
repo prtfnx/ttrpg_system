@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 vi.mock('@/store', () => ({
-  useGameStore: Object.assign(vi.fn(), { getState: vi.fn() }),
+  useGameStore: Object.assign(vi.fn(), { getState: vi.fn(), setState: vi.fn() }),
 }));
 
 import { useGameStore } from '@/store';
@@ -16,11 +16,16 @@ const mockEngine = {
   set_grid_enabled: vi.fn(),
   set_grid_snapping: vi.fn(),
   set_layer_visibility: vi.fn(),
+  set_layer_opacity: vi.fn(),
+  set_layer_color: vi.fn(),
+  set_layer_blend_mode: vi.fn(),
   set_background_color: vi.fn(),
   clear_walls: vi.fn(),
   add_wall: vi.fn(),
   remove_light: vi.fn(),
   clear_fog: vi.fn(),
+  paint_set_current_table: vi.fn(),
+  paint_load_strokes: vi.fn(),
 };
 
 const mockSpriteSync = { addSpriteToWasm: vi.fn() };
@@ -32,6 +37,14 @@ const mockGameState = {
   reconcileTableIdentity: vi.fn(),
   setActiveTableId: vi.fn(),
   hydrateTableSprites: vi.fn(),
+  applyTableLightingSettings: vi.fn(),
+  setTableUnits: vi.fn(),
+  setGridEnabled: vi.fn(),
+  setGridSnapping: vi.fn(),
+  setGridColorHex: vi.fn(),
+  setBackgroundColorHex: vi.fn(),
+  setLayerVisibility: vi.fn(),
+  setLayerOpacity: vi.fn(),
 };
 
 const getState = useGameStore.getState as ReturnType<typeof vi.fn>;
@@ -140,6 +153,9 @@ describe('TableSyncService', () => {
       ]);
       expect(mockEngine.set_grid_enabled).toHaveBeenCalledWith(false);
       expect(mockEngine.set_grid_snapping).toHaveBeenCalledWith(false);
+      expect(useGameStore.setState).toHaveBeenCalledWith({ walls: [] });
+      expect(mockEngine.paint_set_current_table).toHaveBeenCalledWith(TABLE_A);
+      expect(mockEngine.paint_load_strokes).toHaveBeenCalledWith('[]');
       expect(mockGameState.setActiveTableId).toHaveBeenCalledWith(TABLE_A);
       service.dispose();
     });
@@ -243,6 +259,34 @@ describe('TableSyncService', () => {
       service.flushPending();
       expect(mockEngine.handle_table_data).toHaveBeenCalledOnce();
       expect(onHydrated).toHaveBeenCalledWith(TABLE_A, []);
+      service.dispose();
+    });
+
+    it('replaces complete ancillary state after snapshot validation', () => {
+      const service = makeService();
+      service.init();
+      dispatch('table-response', {
+        table_data: tableSnapshot({
+          dynamic_lighting_enabled: true,
+          fog_exploration_mode: 'persist_dimmed',
+          ambient_light_level: 0.25,
+        }),
+        walls: [{ wall_id: 'wall-1', table_id: TABLE_A, x1: 0, y1: 0, x2: 1, y2: 1 }],
+        layer_settings: { tokens: { visible: false, opacity: 0.5 } },
+        paint_strokes: [{ stroke_id: 'stroke-1', stroke_data: '{"id":"stroke-1"}' }],
+      });
+
+      expect(useGameStore.setState).toHaveBeenCalledWith({
+        walls: [expect.objectContaining({ wall_id: 'wall-1' })],
+      });
+      expect(mockEngine.set_layer_visibility).toHaveBeenCalledWith('tokens', false);
+      expect(mockEngine.set_layer_opacity).toHaveBeenCalledWith('tokens', 0.5);
+      expect(mockEngine.paint_load_strokes).toHaveBeenCalledWith('[{"id":"stroke-1"}]');
+      expect(mockGameState.applyTableLightingSettings).toHaveBeenCalledWith({
+        dynamic_lighting_enabled: true,
+        fog_exploration_mode: 'persist_dimmed',
+        ambient_light_level: 0.25,
+      });
       service.dispose();
     });
 

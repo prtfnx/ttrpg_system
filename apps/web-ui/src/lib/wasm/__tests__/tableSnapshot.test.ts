@@ -194,4 +194,18 @@ describe('normalizeTableSnapshot', () => {
       }],
     }))).toThrow('does not match');
   });
+
+  it('prefers the authoritative envelope wall set over a legacy nested list', () => {
+    const result = normalizeTableSnapshot({
+      table_data: pythonSerializedTable({ walls: [] }),
+      walls: [{
+        wall_id: 'wall-envelope', table_id: TABLE_ID,
+        x1: 0, y1: 0, x2: 10, y2: 10,
+      }],
+    });
+
+    expect(result.walls).toEqual([
+      expect.objectContaining({ wall_id: 'wall-envelope', table_id: TABLE_ID }),
+    ]);
+  });
 });

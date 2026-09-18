@@ -481,7 +481,9 @@ export function normalizeTableSnapshot(input: unknown): NormalizedTableSnapshot 
     layerVisibility[name as RendererLayerName] = value;
   }
 
-  const rawWalls = table.walls ?? envelope.walls ?? [];
+  // The response envelope carries the separately persisted authoritative wall
+  // set. Prefer it even when the serialized table contains an empty legacy list.
+  const rawWalls = envelope.walls ?? table.walls ?? [];
   if (!Array.isArray(rawWalls)) throw new TableSnapshotValidationError('table.walls must be an array');
   const walls = rawWalls.map((wall, index) => normalizeWall(wall, tableId, `table.walls[${index}]`));
   const gridEnabled = booleanValue(table.grid_enabled, 'table.grid_enabled', true);

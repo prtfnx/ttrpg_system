@@ -1,4 +1,4 @@
-use crate::math::Rect;
+use crate::math::{Rect, Vec2};
 use crate::sprite_renderer::SpriteRenderer;
 use wasm_bindgen::prelude::*;
 
@@ -39,6 +39,19 @@ fn table_border_vertices(bounds: &Rect) -> [f32; 16] {
         bounds.max.y,
         bounds.min.x,
         bounds.min.y,
+    ]
+}
+
+fn screen_rect_to_gl_scissor(min: Vec2, max: Vec2, canvas: Vec2) -> [i32; 4] {
+    let left = min.x.min(max.x).floor().clamp(0.0, canvas.x);
+    let right = min.x.max(max.x).ceil().clamp(0.0, canvas.x);
+    let top = min.y.min(max.y).floor().clamp(0.0, canvas.y);
+    let bottom = min.y.max(max.y).ceil().clamp(0.0, canvas.y);
+    [
+        left as i32,
+        (canvas.y - bottom) as i32,
+        (right - left).max(0.0) as i32,
+        (bottom - top).max(0.0) as i32,
     ]
 }
 
@@ -161,11 +174,18 @@ impl RenderEngine {
             self.obstacles_dirty = false;
         }
 
+        let table_scissor = screen_rect_to_gl_scissor(
+            self.camera.world_to_screen(table_bounds.min),
+            self.camera.world_to_screen(table_bounds.max),
+            self.canvas_size,
+        );
+
         self.lighting.render_lights_filtered(
             &self.view_matrix.to_array(),
             self.canvas_size.x,
             self.canvas_size.y,
             Some(&active_table_id),
+            Some(table_scissor),
         )?;
 
         self.paint.render_strokes(&self.renderer)?;
@@ -250,6 +270,30 @@ mod tests {
                 -5.0, 2.0, 15.0, 2.0, 15.0, 2.0, 15.0, 10.0, 15.0, 10.0, -5.0, 10.0, -5.0, 10.0,
                 -5.0, 2.0,
             ]
+        );
+    }
+
+    #[test]
+    fn table_scissor_converts_top_left_screen_space_to_webgl_coordinates() {
+        assert_eq!(
+            screen_rect_to_gl_scissor(
+                Vec2::new(10.2, 20.2),
+                Vec2::new(110.8, 70.8),
+                Vec2::new(200.0, 100.0),
+            ),
+            [10, 29, 101, 52]
+        );
+    }
+
+    #[test]
+    fn table_scissor_clamps_offscreen_bounds() {
+        assert_eq!(
+            screen_rect_to_gl_scissor(
+                Vec2::new(-50.0, -25.0),
+                Vec2::new(250.0, 125.0),
+                Vec2::new(200.0, 100.0),
+            ),
+            [0, 0, 200, 100]
         );
     }
 }

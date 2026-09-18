@@ -376,6 +376,35 @@ describe('WASM module (real browser)', () => {
     }
   });
 
+  it('clips point-light accumulation to the active table plane', () => {
+    const canvas = document.createElement('canvas');
+    canvas.width = 200;
+    canvas.height = 120;
+    const engine = new RenderEngine(canvas);
+    const tableId = '550e8400-e29b-41d4-a716-446655440013';
+    try {
+      const snapshot = normalizeTableSnapshot({ table_data: {
+        table_id: tableId, table_name: 'Light clipping', width: 100, height: 100,
+        scale: 1, grid_enabled: false, layers: {},
+      } });
+      engine.handle_table_data(snapshot.renderer);
+      engine.set_background_color('#000000');
+      engine.add_light_for_table('edge-light', 90, 50, tableId);
+      engine.set_light_color('edge-light', 1, 1, 1, 1);
+      engine.set_light_intensity('edge-light', 2);
+      engine.set_light_radius('edge-light', 80);
+
+      engine.render();
+
+      const inside = brightness(readPixel(canvas, 90, 50));
+      const outside = brightness(readPixel(canvas, 130, 50));
+      expect(inside).toBeGreaterThan(outside + 100);
+      expect(outside).toBeLessThan(50);
+    } finally {
+      engine.free();
+    }
+  });
+
   it('calculate_asset_hash() matches the server xxHash64 contract', () => {
     expect(calculate_asset_hash(new TextEncoder().encode('hello')))
       .toBe('26c7827d889f6da3');

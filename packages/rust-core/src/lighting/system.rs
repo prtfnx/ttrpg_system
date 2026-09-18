@@ -328,7 +328,7 @@ impl LightingSystem {
         canvas_height: f32,
     ) -> Result<(), JsValue> {
         // Default: render all lights (backwards compatibility)
-        self.render_lights_filtered(view_matrix, canvas_width, canvas_height, None)
+        self.render_lights_filtered(view_matrix, canvas_width, canvas_height, None, None)
     }
 
     /// Render lights filtered by table_id
@@ -338,11 +338,19 @@ impl LightingSystem {
         canvas_width: f32,
         canvas_height: f32,
         table_id: Option<&str>,
+        scissor_rect: Option<[i32; 4]>,
     ) -> Result<(), JsValue> {
         let program = self
             .light_shader
             .as_ref()
             .ok_or("Light shader not initialized")?;
+
+        // Clip the complete light/stencil pass to the visible table plane.
+        // Scissor coordinates use a bottom-left origin, unlike camera space.
+        if let Some([x, y, width, height]) = scissor_rect {
+            self.gl.enable(WebGlRenderingContext::SCISSOR_TEST);
+            self.gl.scissor(x, y, width, height);
+        }
 
         // Enable stencil test for shadow masking
         self.gl.enable(WebGlRenderingContext::STENCIL_TEST);
@@ -440,6 +448,9 @@ impl LightingSystem {
             WebGlRenderingContext::ONE_MINUS_SRC_ALPHA,
         );
         self.gl.disable(WebGlRenderingContext::STENCIL_TEST);
+        if scissor_rect.is_some() {
+            self.gl.disable(WebGlRenderingContext::SCISSOR_TEST);
+        }
         self.gl.stencil_mask(0xFF);
 
         self.obstacles_dirty = false;

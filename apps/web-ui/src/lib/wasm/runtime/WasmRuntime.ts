@@ -249,7 +249,7 @@ export class WasmRuntime implements WasmRuntimePort {
     return compute_visibility_polygon(x, y, obstacles, radius) as VisibilityPoint[];
   }
 
-  configureAssetCache(options: { maxCacheBytes?: number; maxAgeMs?: number }): void {
+  configureAssetCache(options: { maxCacheBytes?: number; maxAgeMs?: number; downloadTimeoutMs?: number }): void {
     this.requireAssetCache().configure(options);
   }
 

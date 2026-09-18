@@ -44,6 +44,7 @@ interface BrowserAssetCacheDependencies {
 
 const DEFAULT_MAX_CACHE_BYTES = 64 * 1024 * 1024;
 const DEFAULT_MAX_AGE_MS = 24 * 60 * 60 * 1000;
+const DEFAULT_DOWNLOAD_TIMEOUT_MS = 30_000;
 
 function filenameFromUrl(url: string): string {
   try {
@@ -66,11 +67,12 @@ export class BrowserAssetCache {
   private readonly hashLookup = new Map<string, string>();
   private readonly pendingDownloads = new Map<
     string,
-    { promise: Promise<string>; controller: AbortController }
+    { promise: Promise<string>; controller: AbortController; timeoutId: ReturnType<typeof setTimeout> }
   >();
   private disposed = false;
   private maxCacheBytes = DEFAULT_MAX_CACHE_BYTES;
   private maxAgeMs = DEFAULT_MAX_AGE_MS;
+  private downloadTimeoutMs = DEFAULT_DOWNLOAD_TIMEOUT_MS;
   private stats: AssetCacheStats;
 
   constructor(dependencies: BrowserAssetCacheDependencies) {
@@ -78,7 +80,7 @@ export class BrowserAssetCache {
     this.stats = this.emptyStats();
   }
 
-  configure(options: { maxCacheBytes?: number; maxAgeMs?: number }): void {
+  configure(options: { maxCacheBytes?: number; maxAgeMs?: number; downloadTimeoutMs?: number }): void {
     this.assertActive();
     if (options.maxCacheBytes !== undefined) {
       if (!Number.isSafeInteger(options.maxCacheBytes) || options.maxCacheBytes <= 0) {
@@ -91,6 +93,12 @@ export class BrowserAssetCache {
         throw new Error('Asset cache age must be positive');
       }
       this.maxAgeMs = options.maxAgeMs;
+    }
+    if (options.downloadTimeoutMs !== undefined) {
+      if (!Number.isFinite(options.downloadTimeoutMs) || options.downloadTimeoutMs <= 0) {
+        throw new Error('Asset download timeout must be positive');
+      }
+      this.downloadTimeoutMs = options.downloadTimeoutMs;
     }
     this.cleanup();
   }
@@ -109,11 +117,17 @@ export class BrowserAssetCache {
 
     const controller = new AbortController();
     const pending = this.fetchAndCache(url, normalizedHash, controller.signal);
-    this.pendingDownloads.set(pendingKey, { promise: pending, controller });
+    const timeoutId = setTimeout(() => {
+      const timeoutError = new Error(`Asset download timed out after ${this.downloadTimeoutMs}ms`);
+      timeoutError.name = 'TimeoutError';
+      controller.abort(timeoutError);
+    }, this.downloadTimeoutMs);
+    this.pendingDownloads.set(pendingKey, { promise: pending, controller, timeoutId });
     this.stats.download_queue_size = this.pendingDownloads.size;
     try {
       return await pending;
     } finally {
+      clearTimeout(timeoutId);
       this.pendingDownloads.delete(pendingKey);
       this.stats.download_queue_size = this.pendingDownloads.size;
     }
@@ -232,7 +246,10 @@ export class BrowserAssetCache {
   dispose(): void {
     if (this.disposed) return;
     this.disposed = true;
-    this.pendingDownloads.forEach(download => download.controller.abort());
+    this.pendingDownloads.forEach(download => {
+      clearTimeout(download.timeoutId);
+      download.controller.abort();
+    });
     this.pendingDownloads.clear();
     this.clear();
   }

@@ -145,4 +145,20 @@ describe('BrowserAssetCache', () => {
     await expect(pending).rejects.toMatchObject({ name: 'AbortError' });
     expect(cache.getStats().download_queue_size).toBe(0);
   });
+
+  it('times out stalled transport and clears readiness bookkeeping', async () => {
+    vi.useFakeTimers();
+    cache.configure({ downloadTimeoutMs: 50 });
+    fetchAsset.mockImplementation((_url, init) => new Promise((_resolve, reject) => {
+      init?.signal?.addEventListener('abort', () => reject(init.signal?.reason));
+    }));
+
+    const pending = cache.download('https://assets.example/stalled.png');
+    const rejection = expect(pending).rejects.toMatchObject({ name: 'TimeoutError' });
+    await vi.advanceTimersByTimeAsync(50);
+    await rejection;
+
+    expect(cache.getStats()).toMatchObject({ download_queue_size: 0, failed_downloads: 1 });
+    vi.useRealTimers();
+  });
 });

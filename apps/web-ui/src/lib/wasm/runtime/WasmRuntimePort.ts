@@ -35,7 +35,7 @@ export interface WasmRuntimePort {
   getDefaultBrushPresets(): BrushPreset[];
   computeVisibilityPolygon(x: number, y: number, obstacles: Float32Array, radius: number): VisibilityPoint[];
 
-  configureAssetCache(options: { maxCacheBytes?: number; maxAgeMs?: number }): void;
+  configureAssetCache(options: { maxCacheBytes?: number; maxAgeMs?: number; downloadTimeoutMs?: number }): void;
   downloadAsset(url: string, expectedHash?: string): Promise<string>;
   cacheAssetBytes(data: Uint8Array, options: CacheAssetOptions): string;
   calculateAssetHash(data: Uint8Array): string;

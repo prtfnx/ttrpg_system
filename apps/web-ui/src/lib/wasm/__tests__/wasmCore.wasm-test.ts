@@ -36,6 +36,14 @@ function brightness(pixel: number[]): number {
   return pixel[0] + pixel[1] + pixel[2];
 }
 
+function hydrateEmptyTable(engine: RenderEngine, tableId: string): void {
+  const snapshot = normalizeTableSnapshot({ table_data: {
+    table_id: tableId, table_name: 'Test table', width: 200, height: 200,
+    scale: 1, grid_cell_px: 50, cell_distance: 5, distance_unit: 'ft', layers: {},
+  } });
+  engine.handle_table_data(snapshot.renderer);
+}
+
 describe('WASM module (real browser)', () => {
   it('accepts a Python-serialized table only after canonical DTO conversion', () => {
     const snapshot = normalizeTableSnapshot({
@@ -158,6 +166,27 @@ describe('WASM module (real browser)', () => {
     }
   });
 
+  it('rejects an invalid snapshot before replacing the visible table', () => {
+    const engine = new RenderEngine(document.createElement('canvas'));
+    try {
+      const valid = normalizeTableSnapshot({ table_data: {
+        table_id: '550e8400-e29b-41d4-a716-446655440011', table_name: 'Stable', width: 200, height: 200,
+        scale: 1, grid_cell_px: 50, cell_distance: 5, distance_unit: 'ft',
+        layers: { tokens: {} },
+      } });
+      engine.handle_table_data(valid.renderer);
+
+      expect(() => engine.handle_table_data({
+        ...valid.renderer,
+        table_id: '550e8400-e29b-41d4-a716-446655440012',
+        layers: { unknown_layer: [] },
+      })).toThrow(/Unknown renderer layer/);
+      expect(engine.get_active_table_id()).toBe('550e8400-e29b-41d4-a716-446655440011');
+    } finally {
+      engine.free();
+    }
+  });
+
   it('renders a bounded table plane without map imagery or a grid', () => {
     const canvas = document.createElement('canvas');
     canvas.width = 240;
@@ -230,6 +259,7 @@ describe('WASM module (real browser)', () => {
   it('exports exact transformed line obstacle endpoints', () => {
     const engine = new RenderEngine(document.createElement('canvas'));
     try {
+      hydrateEmptyTable(engine, '550e8400-e29b-41d4-a716-446655440001');
       engine.add_sprite_to_layer('obstacles', {
         id: 'line-1', table_id: '550e8400-e29b-41d4-a716-446655440001',
         world_x: 0, world_y: 0, width: 10, height: 4, scale_x: 1, scale_y: 1,
@@ -254,6 +284,7 @@ describe('WASM module (real browser)', () => {
   it('exports circular obstacles as a closed segmented ellipse', () => {
     const engine = new RenderEngine(document.createElement('canvas'));
     try {
+      hydrateEmptyTable(engine, '550e8400-e29b-41d4-a716-446655440002');
       engine.add_sprite_to_layer('obstacles', {
         id: 'circle-1', table_id: '550e8400-e29b-41d4-a716-446655440002',
         world_x: 10, world_y: 20, width: 40, height: 20, scale_x: 1, scale_y: 1,

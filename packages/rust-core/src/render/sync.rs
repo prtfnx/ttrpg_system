@@ -1,4 +1,5 @@
 use crate::types::*;
+use std::collections::HashSet;
 use wasm_bindgen::prelude::*;
 
 use super::{parse_hex_color, RenderEngine};
@@ -8,17 +9,15 @@ impl RenderEngine {
     /// Handle table data received from server
     #[wasm_bindgen]
     pub fn handle_table_data(&mut self, table_data_js: &JsValue) -> Result<(), JsValue> {
-        self.table_sync.handle_table_data(table_data_js)?;
-
-        let table_data = self.table_sync.get_table_data();
-        if table_data.is_null() {
-            return Err(JsValue::from_str("Failed to get table data"));
-        }
-
-        let table: crate::table_sync::TableData = serde_wasm_bindgen::from_value(table_data)
-            .map_err(|e| {
+        // Parse and validate the complete snapshot before touching any resident
+        // renderer state. This keeps malformed payloads from clearing the
+        // currently visible table part-way through hydration.
+        let table: crate::table_sync::TableData =
+            serde_wasm_bindgen::from_value(table_data_js.clone()).map_err(|e| {
                 JsValue::from_str(&format!("Failed to parse table data for rendering: {}", e))
             })?;
+        validate_table_snapshot(&table)?;
+        self.table_sync.handle_table_data(table_data_js)?;
 
         if let Some(table_id) = self.table_sync.get_table_id() {
             web_sys::console::log_1(
@@ -257,4 +256,62 @@ impl RenderEngine {
         js_sys::Reflect::set(&event, &"data".into(), &data).unwrap();
         let _ = handler.call1(&JsValue::NULL, &event.into());
     }
+}
+
+fn validate_table_snapshot(table: &crate::table_sync::TableData) -> Result<(), JsValue> {
+    if table.table_id.trim().is_empty() || table.table_name.trim().is_empty() {
+        return Err(JsValue::from_str("Table id and name must not be empty"));
+    }
+    if !table.width.is_finite()
+        || table.width <= 0.0
+        || !table.height.is_finite()
+        || table.height <= 0.0
+        || !table.scale.is_finite()
+        || table.scale <= 0.0
+        || !table.grid_cell_px.is_finite()
+        || table.grid_cell_px <= 0.0
+        || !table.cell_distance.is_finite()
+        || table.cell_distance <= 0.0
+    {
+        return Err(JsValue::from_str(
+            "Table dimensions, scale, and grid units must be positive finite numbers",
+        ));
+    }
+
+    let mut sprite_ids = HashSet::new();
+    for (layer_name, sprites) in &table.layers {
+        if !crate::rendering::layer_manager::LAYER_NAMES.contains(&layer_name.as_str()) {
+            return Err(JsValue::from_str(&format!(
+                "Unknown renderer layer: {}",
+                layer_name
+            )));
+        }
+        for sprite in sprites {
+            if sprite.sprite_id.trim().is_empty() || !sprite_ids.insert(sprite.sprite_id.as_str()) {
+                return Err(JsValue::from_str("Sprite ids must be non-empty and unique"));
+            }
+            if sprite.layer != *layer_name {
+                return Err(JsValue::from_str(&format!(
+                    "Sprite '{}' layer does not match its container",
+                    sprite.sprite_id
+                )));
+            }
+            let numeric = [
+                sprite.coord_x,
+                sprite.coord_y,
+                sprite.scale_x,
+                sprite.scale_y,
+                sprite.width,
+                sprite.height,
+                sprite.rotation.unwrap_or(0.0),
+            ];
+            if numeric.iter().any(|value| !value.is_finite()) {
+                return Err(JsValue::from_str(&format!(
+                    "Sprite '{}' contains non-finite geometry",
+                    sprite.sprite_id
+                )));
+            }
+        }
+    }
+    Ok(())
 }

@@ -20,6 +20,7 @@ const rm = {
   get_light_obstacle_segments_flat: vi.fn().mockReturnValue(new Float32Array()),
   add_fog_polygon: vi.fn(),
   remove_fog_polygon: vi.fn(),
+  clear_vision_polygons: vi.fn(),
 };
 
 function baseStore(overrides: Record<string, unknown> = {}) {
@@ -32,6 +33,7 @@ function baseStore(overrides: Record<string, unknown> = {}) {
     gridCellPx: 50,
     cellDistance: 5,
     distanceUnit: 'ft',
+    activeTableId: 'table-1',
     ...overrides,
   };
 }
@@ -44,6 +46,7 @@ function makeSprite(overrides: Record<string, unknown> = {}) {
     width: 0,
     height: 0,
     layer: 'tokens',
+    tableId: 'table-1',
     ...overrides,
   };
 }
@@ -197,6 +200,30 @@ describe('buildObstacles (via recompute)', () => {
     expect(runtimeMock.computeVisibilityPolygon).toHaveBeenCalledWith(200, 400, obstacleSegments, 150);
   });
 
+  it('excludes vision sources owned by another table', () => {
+    useGameStore.setState({
+      sprites: [makeSprite({ tableId: 'table-2', controlled_by: [1], vision_radius: 150 })],
+    } as unknown as Parameters<typeof useGameStore.setState>[0]);
+    visionService.start();
+    expect(runtimeMock.computeVisibilityPolygon).not.toHaveBeenCalled();
+  });
+
+  it('clears caches and rebuilds when the active table changes', async () => {
+    useGameStore.setState({
+      sprites: [makeSprite({ controlled_by: [1], vision_radius: 150 })],
+    } as unknown as Parameters<typeof useGameStore.setState>[0]);
+    visionService.start();
+
+    useGameStore.setState({
+      activeTableId: 'table-2',
+      sprites: [makeSprite({ tableId: 'table-2', controlled_by: [1], vision_radius: 150 })],
+    } as unknown as Parameters<typeof useGameStore.setState>[0]);
+    await new Promise<void>(resolve => requestAnimationFrame(() => resolve()));
+
+    expect(rm.clear_vision_polygons).toHaveBeenCalled();
+    expect(runtimeMock.computeVisibilityPolygon).toHaveBeenCalledTimes(2);
+  });
+
   it('uses light-blocking segments for light visibility polygons', () => {
     const lightSegments = new Float32Array([10, 20, 30, 40]);
     rm.get_light_obstacle_segments_flat.mockReturnValue(lightSegments);
@@ -233,6 +260,14 @@ describe('buildObstacles (via recompute)', () => {
 });
 
 describe('light visibility sources', () => {
+  it('excludes lights owned by another table', () => {
+    useGameStore.setState({
+      sprites: [makeSprite({ tableId: 'table-2', layer: 'light', metadata: '{}' })],
+    } as unknown as Parameters<typeof useGameStore.setState>[0]);
+    visionService.start();
+    expect(runtimeMock.computeVisibilityPolygon).not.toHaveBeenCalled();
+  });
+
   it('uses safe defaults when persisted light metadata is null', () => {
     useGameStore.setState({
       sprites: [makeSprite({ layer: 'light', metadata: 'null', x: Number.NaN })],

@@ -57,6 +57,8 @@ export interface RenderEngine {
   can_redo(): boolean;
   can_undo(): boolean;
   clear_fog(): void;
+  /** Available in runtimes that support atomic vision reset on table changes. */
+  clear_vision_polygons?(): void;
   clear_layer(layerName: string): boolean;
   clear_runtime_event_handler(): void;
   clear_runtime_operation_handler(): void;

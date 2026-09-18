@@ -109,6 +109,11 @@ impl RenderEngine {
     }
 
     #[wasm_bindgen]
+    pub fn clear_vision_polygons(&mut self) {
+        self.fog.clear_vision_polygons();
+    }
+
+    #[wasm_bindgen]
     pub fn add_light(&mut self, id: &str, x: f32, y: f32) {
         web_sys::console::log_1(
             &format!("[RUST] add_light called: id={}, x={}, y={}", id, x, y).into(),

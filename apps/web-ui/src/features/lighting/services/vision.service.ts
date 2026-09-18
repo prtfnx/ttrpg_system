@@ -12,6 +12,8 @@ function getRm(): RenderEngine | undefined {
 
 interface SpriteData {
   id: string;
+  tableId?: string;
+  table_id?: string;
   layer?: string;
   x: number;
   y: number;
@@ -108,6 +110,7 @@ class VisionService {
     let prevUnits = `${state.gridCellPx}:${state.cellDistance}:${state.distanceUnit}`;
     let prevLighting: boolean = state.dynamicLightingEnabled;
     let prevFogMode = state.fogExplorationMode;
+    let prevActiveTableId = state.activeTableId;
 
     this.unsubscribe = useGameStore.subscribe((s) => {
       if (!s.dynamicLightingEnabled && prevLighting) {
@@ -116,6 +119,12 @@ class VisionService {
         return;
       }
       prevLighting = s.dynamicLightingEnabled;
+
+      if (s.activeTableId !== prevActiveTableId) {
+        prevActiveTableId = s.activeTableId;
+        this.resetVisionState();
+        this.scheduleRecompute();
+      }
 
       if (s.sprites !== prevSprites) {
         prevSprites = s.sprites;
@@ -152,6 +161,24 @@ class VisionService {
     this.lastVisionPolygons.clear();
   }
 
+  private resetVisionState(): void {
+    const rm = getRm();
+    if (rm?.clear_vision_polygons) {
+      rm.clear_vision_polygons();
+    } else {
+      for (const id of this.activeIds) rm?.remove_fog_polygon(id);
+      for (const id of this.exploredIds) rm?.remove_fog_polygon(id);
+    }
+    this.activeIds.clear();
+    this.exploredIds.clear();
+    this.exploredIdsBySource.clear();
+    this.exploredSequence.clear();
+    this.lastVisionPolygons.clear();
+    this.lastPositions.clear();
+    this.lastObstaclesKey = null;
+    this.spritePositions.clear();
+  }
+
   stop(): void {
     if (this.recomputeFrameId !== null) {
       cancelAnimationFrame(this.recomputeFrameId);
@@ -167,16 +194,8 @@ class VisionService {
     this.dmPreviewUserId = null;
 
     const rm = getRm();
-    for (const id of this.activeIds) {
-      rm?.remove_fog_polygon(id);
-    }
-    this.clearExploredPolygons();
+    this.resetVisionState();
     rm?.set_dynamic_lighting_enabled(false);
-
-    this.activeIds.clear();
-    this.lastPositions.clear();
-    this.lastObstaclesKey = null;
-    this.spritePositions.clear();
     this.detachSpriteMoveListener();
   }
 
@@ -196,7 +215,13 @@ class VisionService {
     let prevSprites = useGameStore.getState().sprites;
     let prevWalls = useGameStore.getState().walls;
     let prevUnits = this.unitSettingsKey();
+    let prevActiveTableId = useGameStore.getState().activeTableId;
     this.unsubscribe = useGameStore.subscribe((s) => {
+      if (s.activeTableId !== prevActiveTableId) {
+        prevActiveTableId = s.activeTableId;
+        this.resetVisionState();
+        this.scheduleRecompute();
+      }
       if (s.sprites !== prevSprites) {
         prevSprites = s.sprites;
         this.scheduleRecompute();
@@ -282,8 +307,10 @@ class VisionService {
     }
 
     // Also reveal areas illuminated by active lights (vision union light)
-    const allSprites = (useGameStore.getState().sprites || []) as SpriteData[];
+    const currentState = useGameStore.getState();
+    const allSprites = (currentState.sprites || []) as SpriteData[];
     for (const ls of allSprites) {
+      if ((ls.tableId ?? ls.table_id) !== currentState.activeTableId) continue;
       if (ls.layer !== 'light') continue;
       let meta: LightMeta = {};
       try {
@@ -350,7 +377,7 @@ class VisionService {
   }
 
   private getVisionSources(): { id: string; x: number; y: number; radius: number; darkvisionRadius?: number }[] {
-    const { sprites, userId, dynamicLightingEnabled, gridCellPx } = useGameStore.getState();
+    const { sprites, userId, dynamicLightingEnabled, gridCellPx, activeTableId } = useGameStore.getState();
     if (!dynamicLightingEnabled && this.dmPreviewUserId == null) return [];
     const cellPx = gridCellPx ?? 50;
 
@@ -359,6 +386,7 @@ class VisionService {
     const out: { id: string; x: number; y: number; radius: number; darkvisionRadius?: number }[] = [];
 
     for (const s of (sprites || []) as SpriteData[]) {
+      if ((s.tableId ?? s.table_id) !== activeTableId) continue;
       const controlled: number[] = s.controlledBy ?? s.controlled_by ?? [];
       if (controlled.length === 0) continue;
       if (targetUserId != null && !controlled.includes(targetUserId)) continue;

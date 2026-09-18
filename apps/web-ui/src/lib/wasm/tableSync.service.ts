@@ -153,6 +153,7 @@ export class TableSyncService {
           engine.remove_light(lightId);
         });
         engine.clear_fog();
+        if (this.hydratedTableId !== tableId) engine.clear_vision_polygons?.();
       }
 
       engine.handle_table_data(snapshot.renderer);

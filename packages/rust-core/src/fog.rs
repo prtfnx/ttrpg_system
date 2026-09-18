@@ -547,6 +547,13 @@ impl FogOfWarSystem {
         }
     }
 
+    pub fn clear_vision_polygons(&mut self) {
+        if !self.vision_polygons.is_empty() {
+            self.vision_polygons.clear();
+            self.needs_vision_rebuild = true;
+        }
+    }
+
     /// Rebuild the vision mask texture from stored polygons.
     ///
     /// Vision texture values (in R channel):

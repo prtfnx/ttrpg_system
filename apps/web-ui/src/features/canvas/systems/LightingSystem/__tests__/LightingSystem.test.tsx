@@ -399,10 +399,8 @@ describe('Lighting System', () => {
       const toggleButton = await screen.findByTitle('Toggle');
       await user.click(toggleButton);
       
-      // Verify light was toggled
-      expect(mockEngine.toggle_light).toHaveBeenCalledWith(
-        expect.any(String)
-      );
+      // Explicit setters are idempotent under duplicate events/retries.
+      expect(mockEngine.set_light_enabled).toHaveBeenCalledWith(expect.any(String), false);
     });
 
     it('should delete light', async () => {

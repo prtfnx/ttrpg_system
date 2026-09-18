@@ -12,7 +12,7 @@ import {
     Trash2,
     X,
 } from 'lucide-react';
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import styles from './LightingPanel.module.css';
 
 type LightSpritePayload = { id: string; x: number; y: number; scale_x: number; scale_y: number; rotation: number; texture_path: string; layer: string; table_id: string; metadata: string };
@@ -144,43 +144,6 @@ export const LightingPanel: React.FC = () => {
       .filter((l): l is Light => l !== null);
   }, [sprites, activeTableId]);
 
-  // Track which light IDs are in WASM so we can add/remove incrementally
-  const prevLightIdsRef = useRef<Set<string>>(new Set());
-  const previousEngineRef = useRef<typeof engine>(null);
-
-  // Single WASM sync effect  replaces the 3 competing ones
-  useEffect(() => {
-    if (!engine) return;
-
-    if (previousEngineRef.current !== engine) {
-      previousEngineRef.current = engine;
-      prevLightIdsRef.current = new Set();
-    }
-
-    const currentIds = new Set(lights.map(l => l.id));
-    const prev = prevLightIdsRef.current;
-
-    for (const light of lights) {
-      if (!prev.has(light.id)) {
-        try {
-          engine.add_light(light.id, light.x, light.y);
-          engine.set_light_color(light.id, light.color.r, light.color.g, light.color.b, light.color.a);
-          engine.set_light_intensity(light.id, light.intensity);
-          engine.set_light_radius(light.id, light.radius);
-          if (!light.isOn) engine.toggle_light(light.id);
-        } catch {}
-      }
-    }
-
-    for (const id of prev) {
-      if (!currentIds.has(id)) {
-        try { engine.remove_light(id); } catch {}
-      }
-    }
-
-    prevLightIdsRef.current = currentIds;
-  }, [engine, lights]);
-
   // Handle light placed on canvas
   useEffect(() => {
     const handler = (e: Event) => {
@@ -201,15 +164,18 @@ export const LightingPanel: React.FC = () => {
 
       // Add to WASM immediately
       try {
-        engine.add_light(lightId, x, y);
+        if (activeTableId && engine.add_light_for_table) {
+          engine.add_light_for_table(lightId, x, y, activeTableId);
+        } else {
+          engine.add_light(lightId, x, y);
+        }
         engine.set_light_color(lightId, newLight.color.r, newLight.color.g, newLight.color.b, newLight.color.a);
         engine.set_light_intensity(lightId, newLight.intensity);
         engine.set_light_radius(lightId, newLight.radius);
       } catch {}
 
-      prevLightIdsRef.current.add(lightId);
-      // Add to Zustand immediately (optimistic) so WASM sync effect seeds prevLightIdsRef
-      // and server confirmation doesn't reset the position if user moves it first
+      // Add to Zustand immediately so the panel reflects the optimistic entity.
+      // Snapshot/event services remain the sole reconcilers for server-owned lights.
       if (activeTableId) {
         const spritePayload = lightToSprite(newLight, activeTableId);
         const addSpriteArg: Sprite = { ...spritePayload, id: spritePayload.id, texture: '__LIGHT__', name: spritePayload.id, tableId: activeTableId, scale: { x: 1, y: 1 }, x: spritePayload.x, y: spritePayload.y, layer: spritePayload.layer, rotation: spritePayload.rotation };
@@ -247,7 +213,7 @@ export const LightingPanel: React.FC = () => {
         case 'color': { const c = value as Color; engine.set_light_color(lightId, c.r, c.g, c.b, c.a); break; }
         case 'intensity': engine.set_light_intensity(lightId, value as number); break;
         case 'radius': engine.set_light_radius(lightId, value as number); break;
-        case 'isOn': engine.toggle_light(lightId); break;
+        case 'isOn': engine.set_light_enabled(lightId, value as boolean); break;
         case 'x': case 'y': engine.update_light_position(lightId, property === 'x' ? value as number : light.x, property === 'y' ? value as number : light.y); break;
       }
     } catch {}
@@ -273,7 +239,7 @@ export const LightingPanel: React.FC = () => {
     if (!engine || !activeTableId) return;
     const allOn = lights.every(l => l.isOn);
     for (const l of lights) {
-      if (l.isOn === allOn) try { engine.toggle_light(l.id); } catch {}
+      if (l.isOn === allOn) try { engine.set_light_enabled(l.id, !allOn); } catch {}
     }
     for (const l of lights) {
       const updated = { ...l, isOn: !allOn };

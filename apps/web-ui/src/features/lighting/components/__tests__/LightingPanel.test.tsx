@@ -11,6 +11,7 @@ const engineMock = {
   set_light_color: vi.fn(),
   set_light_intensity: vi.fn(),
   set_light_radius: vi.fn(),
+  set_light_enabled: vi.fn(),
   toggle_light: vi.fn(),
   update_light_position: vi.fn(),
   set_ambient_light: vi.fn(),
@@ -131,9 +132,7 @@ describe('LightingPanel', () => {
       } as unknown as Parameters<typeof useGameStore.setState>[0]);
 
       expect(() => render(<LightingPanel />)).not.toThrow();
-      expect(engineMock.set_light_color).toHaveBeenCalledWith('torch_1', 1, 1, 1, 1);
-      expect(engineMock.set_light_intensity).toHaveBeenCalledWith('torch_1', 1);
-      expect(engineMock.set_light_radius).toHaveBeenCalledWith('torch_1', 100);
+      expect(screen.getByText(/lights \(1\)/i)).toBeInTheDocument();
     });
 
     it('removes cleared lights from the client store immediately', () => {
@@ -147,9 +146,9 @@ describe('LightingPanel', () => {
       expect(screen.getByText(/no lights placed/i)).toBeInTheDocument();
     });
 
-    it('seeds existing lights when the render engine is replaced', () => {
+    it('does not duplicate service-owned lights when the render engine is replaced', () => {
       const { rerender } = render(<LightingPanel />);
-      expect(engineMock.add_light).toHaveBeenCalledWith('torch_1', 100, 200);
+      expect(engineMock.add_light).not.toHaveBeenCalled();
 
       const replacementEngine = {
         ...engineMock,
@@ -162,7 +161,7 @@ describe('LightingPanel', () => {
       useRenderEngineMock.mockReturnValue(replacementEngine);
       rerender(<LightingPanel />);
 
-      expect(replacementEngine.add_light).toHaveBeenCalledWith('torch_1', 100, 200);
+      expect(replacementEngine.add_light).not.toHaveBeenCalled();
     });
   });
 

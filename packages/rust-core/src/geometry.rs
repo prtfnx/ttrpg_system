@@ -3,6 +3,7 @@ use crate::math::Vec2;
 use js_sys::Array;
 #[cfg(target_arch = "wasm32")]
 use serde::Serialize;
+use std::collections::{HashMap, HashSet};
 #[cfg(target_arch = "wasm32")]
 use wasm_bindgen::prelude::*;
 
@@ -41,6 +42,11 @@ pub(crate) fn compute_visibility_impl(
 ) -> JsValue {
     let points = compute_visibility_raw(player_x, player_y, data, max_dist);
 
+    visibility_points_to_js(points)
+}
+
+#[cfg(target_arch = "wasm32")]
+fn visibility_points_to_js(points: Vec<(f32, Vec2)>) -> JsValue {
     let arr = Array::new();
     for (_, p) in points {
         let pt = Point { x: p.x, y: p.y };
@@ -48,6 +54,107 @@ pub(crate) fn compute_visibility_impl(
         arr.push(&js);
     }
     JsValue::from(arr)
+}
+
+struct VisibilityScene {
+    endpoints: Vec<Vec2>,
+    segments: Vec<(Vec2, Vec2)>,
+    grid: HashMap<(i32, i32), Vec<usize>>,
+}
+
+impl VisibilityScene {
+    const CELL_SIZE: f32 = 128.0;
+
+    fn new(data: &[f32]) -> Self {
+        let mut endpoints = Vec::with_capacity(data.len() / 2);
+        let mut segments = Vec::with_capacity(data.len() / 4);
+        let mut grid: HashMap<(i32, i32), Vec<usize>> = HashMap::new();
+
+        for segment in data.chunks_exact(4) {
+            let start = Vec2::new(segment[0], segment[1]);
+            let end = Vec2::new(segment[2], segment[3]);
+            let segment_idx = segments.len();
+            endpoints.extend([start, end]);
+            segments.push((start, end));
+
+            let cx0 = (start.x.min(end.x) / Self::CELL_SIZE).floor() as i32;
+            let cx1 = (start.x.max(end.x) / Self::CELL_SIZE).floor() as i32;
+            let cy0 = (start.y.min(end.y) / Self::CELL_SIZE).floor() as i32;
+            let cy1 = (start.y.max(end.y) / Self::CELL_SIZE).floor() as i32;
+            for cx in cx0..=cx1 {
+                for cy in cy0..=cy1 {
+                    grid.entry((cx, cy)).or_default().push(segment_idx);
+                }
+            }
+        }
+
+        Self {
+            endpoints,
+            segments,
+            grid,
+        }
+    }
+
+    fn compute(&self, player_x: f32, player_y: f32, max_dist: f32) -> Vec<(f32, Vec2)> {
+        let mut angles = Vec::with_capacity(self.endpoints.len() * 3 + 32);
+        for endpoint in &self.endpoints {
+            let mut angle = (endpoint.y - player_y).atan2(endpoint.x - player_x);
+            if angle < 0.0 {
+                angle += std::f32::consts::PI * 2.0;
+            }
+            angles.extend([angle - 0.0001, angle, angle + 0.0001]);
+        }
+        for ray in 0..32 {
+            angles.push((ray as f32) * (2.0 * std::f32::consts::PI) / 32.0);
+        }
+
+        let player = Vec2::new(player_x, player_y);
+        let mut points = Vec::with_capacity(angles.len());
+        for angle in angles {
+            let direction = Vec2::new(angle.cos(), angle.sin());
+            let ray_end = Vec2::new(
+                player.x + direction.x * max_dist,
+                player.y + direction.y * max_dist,
+            );
+            let cx0 = (player.x.min(ray_end.x) / Self::CELL_SIZE).floor() as i32;
+            let cx1 = (player.x.max(ray_end.x) / Self::CELL_SIZE).floor() as i32;
+            let cy0 = (player.y.min(ray_end.y) / Self::CELL_SIZE).floor() as i32;
+            let cy1 = (player.y.max(ray_end.y) / Self::CELL_SIZE).floor() as i32;
+            let mut candidates = HashSet::new();
+            for cx in cx0..=cx1 {
+                for cy in cy0..=cy1 {
+                    if let Some(indices) = self.grid.get(&(cx, cy)) {
+                        candidates.extend(indices.iter().copied());
+                    }
+                }
+            }
+
+            let mut closest = None;
+            let mut closest_dist = max_dist;
+            for segment_idx in candidates {
+                let (start, end) = self.segments[segment_idx];
+                if let Some(point) = seg_intersect(player, ray_end, start, end) {
+                    let dx = point.x - player.x;
+                    let dy = point.y - player.y;
+                    let distance = (dx * dx + dy * dy).sqrt();
+                    if distance < closest_dist {
+                        closest_dist = distance;
+                        closest = Some(point);
+                    }
+                }
+            }
+
+            let normalized_angle = if angle < 0.0 {
+                angle + std::f32::consts::PI * 2.0
+            } else {
+                angle
+            };
+            points.push((normalized_angle, closest.unwrap_or(ray_end)));
+        }
+
+        points.sort_by(|a, b| a.0.partial_cmp(&b.0).unwrap_or(std::cmp::Ordering::Equal));
+        points
+    }
 }
 
 /// Pure visibility polygon computation. Returns sorted (angle, point) pairs.
@@ -59,133 +166,7 @@ pub(crate) fn compute_visibility_raw(
     data: &[f32],
     max_dist: f32,
 ) -> Vec<(f32, Vec2)> {
-    let mut endpoints: Vec<Vec2> = Vec::new();
-    let mut i = 0usize;
-    while i + 3 < data.len() {
-        let x1 = data[i];
-        let y1 = data[i + 1];
-        let x2 = data[i + 2];
-        let y2 = data[i + 3];
-        endpoints.push(Vec2::new(x1, y1));
-        endpoints.push(Vec2::new(x2, y2));
-        i += 4;
-    }
-
-    // Build ray angles
-    let mut angles: Vec<f32> = Vec::new();
-    for p in &endpoints {
-        let dx = p.x - player_x;
-        let dy = p.y - player_y;
-        let mut ang = dy.atan2(dx);
-        if ang < 0.0 {
-            ang += std::f32::consts::PI * 2.0;
-        }
-        angles.push(ang - 0.0001);
-        angles.push(ang);
-        angles.push(ang + 0.0001);
-    }
-
-    // add a few regular rays to cover open areas
-    let extra = 32usize;
-    for k in 0..extra {
-        angles.push((k as f32) * (2.0 * std::f32::consts::PI) / (extra as f32));
-    }
-
-    // Collect segments
-    let mut segments: Vec<(Vec2, Vec2)> = Vec::new();
-    let mut i = 0usize;
-    while i + 3 < data.len() {
-        segments.push((
-            Vec2::new(data[i], data[i + 1]),
-            Vec2::new(data[i + 2], data[i + 3]),
-        ));
-        i += 4;
-    }
-
-    // Build a simple uniform grid spatial index mapping cell -> segment indices
-    use std::collections::HashMap;
-    let cell_size: f32 = 128.0;
-    let mut grid: HashMap<(i32, i32), Vec<usize>> = HashMap::new();
-    for (idx, (s1, s2)) in segments.iter().enumerate() {
-        let min_x = s1.x.min(s2.x);
-        let max_x = s1.x.max(s2.x);
-        let min_y = s1.y.min(s2.y);
-        let max_y = s1.y.max(s2.y);
-        let cx0 = (min_x / cell_size).floor() as i32;
-        let cx1 = (max_x / cell_size).floor() as i32;
-        let cy0 = (min_y / cell_size).floor() as i32;
-        let cy1 = (max_y / cell_size).floor() as i32;
-        for cx in cx0..=cx1 {
-            for cy in cy0..=cy1 {
-                grid.entry((cx, cy)).or_default().push(idx);
-            }
-        }
-    }
-
-    let player = Vec2::new(player_x, player_y);
-    let mut points: Vec<(f32, Vec2)> = Vec::new();
-    for ang in angles {
-        let dir = Vec2::new(ang.cos(), ang.sin());
-        let ray_end = Vec2::new(player.x + dir.x * max_dist, player.y + dir.y * max_dist);
-        let mut closest: Option<Vec2> = None;
-        let mut closest_dist = max_dist;
-
-        // Compute bounding cells covering the ray bbox and gather candidate segment indices
-        let min_x = player.x.min(ray_end.x);
-        let max_x = player.x.max(ray_end.x);
-        let min_y = player.y.min(ray_end.y);
-        let max_y = player.y.max(ray_end.y);
-        let cx0 = (min_x / cell_size).floor() as i32;
-        let cx1 = (max_x / cell_size).floor() as i32;
-        let cy0 = (min_y / cell_size).floor() as i32;
-        let cy1 = (max_y / cell_size).floor() as i32;
-
-        use std::collections::HashSet;
-        let mut candidates: HashSet<usize> = HashSet::new();
-        for cx in cx0..=cx1 {
-            for cy in cy0..=cy1 {
-                if let Some(vec) = grid.get(&(cx, cy)) {
-                    for &idx in vec.iter() {
-                        candidates.insert(idx);
-                    }
-                }
-            }
-        }
-
-        if candidates.is_empty() {
-            let final_pt = ray_end;
-            let mut ang_norm = ang;
-            if ang_norm < 0.0 {
-                ang_norm += std::f32::consts::PI * 2.0;
-            }
-            points.push((ang_norm, final_pt));
-            continue;
-        }
-
-        for &idx in candidates.iter() {
-            let (s1, s2) = segments[idx];
-            if let Some(pt) = seg_intersect(player, ray_end, s1, s2) {
-                let dx = pt.x - player.x;
-                let dy = pt.y - player.y;
-                let d = (dx * dx + dy * dy).sqrt();
-                if d < closest_dist {
-                    closest_dist = d;
-                    closest = Some(pt);
-                }
-            }
-        }
-
-        let final_pt = closest.unwrap_or(ray_end);
-        let mut ang_norm = ang;
-        if ang_norm < 0.0 {
-            ang_norm += std::f32::consts::PI * 2.0;
-        }
-        points.push((ang_norm, final_pt));
-    }
-
-    // sort by angle
-    points.sort_by(|a, b| a.0.partial_cmp(&b.0).unwrap_or(std::cmp::Ordering::Equal));
-    points
+    VisibilityScene::new(data).compute(player_x, player_y, max_dist)
 }
 
 #[cfg(target_arch = "wasm32")]
@@ -197,6 +178,24 @@ pub fn compute_visibility_polygon(
     max_dist: f32,
 ) -> JsValue {
     compute_visibility_impl(player_x, player_y, &obstacles.to_vec(), max_dist)
+}
+
+/// Compute multiple visibility polygons while building the obstacle index once.
+/// Sources are packed as `[x, y, max_distance, ...]`.
+#[cfg(target_arch = "wasm32")]
+#[wasm_bindgen]
+pub fn compute_visibility_polygons(
+    sources: &js_sys::Float32Array,
+    obstacles: &js_sys::Float32Array,
+) -> JsValue {
+    let scene = VisibilityScene::new(&obstacles.to_vec());
+    let polygons = Array::new();
+    for source in sources.to_vec().chunks_exact(3) {
+        polygons.push(&visibility_points_to_js(
+            scene.compute(source[0], source[1], source[2]),
+        ));
+    }
+    JsValue::from(polygons)
 }
 
 #[cfg(test)]
@@ -283,6 +282,23 @@ mod tests {
             let dy = pt.y - 250.0;
             let d = (dx * dx + dy * dy).sqrt();
             assert!((d - MAX).abs() < 1.0, "expected ~{} got {}", MAX, d);
+        }
+    }
+
+    #[test]
+    fn shared_scene_matches_independent_visibility_computations() {
+        let obstacles = [0.0_f32, 100.0, 200.0, 100.0, 200.0, 100.0, 200.0, 300.0];
+        let scene = VisibilityScene::new(&obstacles);
+
+        for (x, y, radius) in [(100.0, 0.0, 500.0), (250.0, 150.0, 300.0)] {
+            let shared = scene.compute(x, y, radius);
+            let independent = compute_visibility_raw(x, y, &obstacles, radius);
+            assert_eq!(shared.len(), independent.len());
+            for (actual, expected) in shared.iter().zip(independent) {
+                assert!((actual.0 - expected.0).abs() < f32::EPSILON);
+                assert!((actual.1.x - expected.1.x).abs() < f32::EPSILON);
+                assert!((actual.1.y - expected.1.y).abs() < f32::EPSILON);
+            }
         }
     }
 }

@@ -2149,6 +2149,18 @@ export function compute_visibility_polygon(player_x, player_y, obstacles, max_di
 }
 
 /**
+ * Compute multiple visibility polygons while building the obstacle index once.
+ * Sources are packed as `[x, y, max_distance, ...]`.
+ * @param {Float32Array} sources
+ * @param {Float32Array} obstacles
+ * @returns {any}
+ */
+export function compute_visibility_polygons(sources, obstacles) {
+    const ret = wasm.compute_visibility_polygons(sources, obstacles);
+    return ret;
+}
+
+/**
  * Deterministic identity of the Rust sources and locked build inputs.
  * @returns {string}
  */
@@ -2773,8 +2785,8 @@ function __wbg_get_imports() {
             return ret;
         },
         __wbindgen_cast_0000000000000001: function(arg0, arg1) {
-            // Cast intrinsic for `Closure(Closure { owned: true, function: Function { arguments: [], shim_idx: 49, ret: Unit, inner_ret: Some(Unit) }, mutable: true }) -> Externref`.
-            const ret = makeMutClosure(arg0, arg1, wasm_bindgen__convert__closures_____invoke__h80981db08fed23f8);
+            // Cast intrinsic for `Closure(Closure { owned: true, function: Function { arguments: [], shim_idx: 53, ret: Unit, inner_ret: Some(Unit) }, mutable: true }) -> Externref`.
+            const ret = makeMutClosure(arg0, arg1, wasm_bindgen__convert__closures_____invoke__h1fb697f1e9285549);
             return ret;
         },
         __wbindgen_cast_0000000000000002: function(arg0) {
@@ -2823,8 +2835,8 @@ function __wbg_get_imports() {
     };
 }
 
-function wasm_bindgen__convert__closures_____invoke__h80981db08fed23f8(arg0, arg1) {
-    wasm.wasm_bindgen__convert__closures_____invoke__h80981db08fed23f8(arg0, arg1);
+function wasm_bindgen__convert__closures_____invoke__h1fb697f1e9285549(arg0, arg1) {
+    wasm.wasm_bindgen__convert__closures_____invoke__h1fb697f1e9285549(arg0, arg1);
 }
 
 const ActionsClientFinalization = (typeof FinalizationRegistry === 'undefined')

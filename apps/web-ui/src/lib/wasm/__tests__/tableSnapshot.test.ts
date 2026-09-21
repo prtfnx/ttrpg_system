@@ -148,6 +148,15 @@ describe('normalizeTableSnapshot', () => {
     expect(result.storeSprites[0]?.texture).toBe('asset-hash');
   });
 
+  it('does not interpret a legacy background URL as an authorized texture identity', () => {
+    const result = normalizeTableSnapshot(pythonSerializedTable({
+      background_image: 'https://legacy.example/map.png?token=secret',
+    }));
+
+    expect(result.wire.background_image).toContain('legacy.example');
+    expect(result.renderer.layers.map).toEqual([]);
+  });
+
   it('preserves procedural texture sentinels instead of replacing them with asset metadata', () => {
     const result = normalizeTableSnapshot(pythonSerializedTable({
       layers: {

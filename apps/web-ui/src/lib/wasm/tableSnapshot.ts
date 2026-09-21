@@ -456,22 +456,10 @@ export function normalizeTableSnapshot(input: unknown): NormalizedTableSnapshot 
     });
   }
 
+  // Retain legacy metadata for round-tripping, but never treat an arbitrary
+  // filename or URL as a renderer texture key. Map images use normal map-layer
+  // sprites whose canonical asset_id is resolved by normalizeSprite().
   const backgroundImage = optionalText(table.background_image ?? envelope.background_image, 'table.background_image');
-  if (backgroundImage) {
-    layers.map.unshift({
-      sprite_id: `table-background:${tableId}`,
-      texture_path: backgroundImage,
-      coord_x: 0,
-      coord_y: 0,
-      scale_x: 1,
-      scale_y: 1,
-      layer: 'map',
-      moving: false,
-      collidable: false,
-      width,
-      height,
-    });
-  }
 
   const rawVisibility = table.layer_visibility === undefined ? {} : record(table.layer_visibility, 'table.layer_visibility');
   const layerVisibility: Partial<Record<RendererLayerName, boolean>> = {};

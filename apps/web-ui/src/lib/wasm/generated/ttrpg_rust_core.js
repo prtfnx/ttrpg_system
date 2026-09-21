@@ -732,6 +732,21 @@ export class RenderEngine {
         wasm.renderengine_add_light(this.__wbg_ptr, ptr0, len0, x, y);
     }
     /**
+     * Add a synchronized light to its authoritative table instead of inferring
+     * ownership from whichever table happens to be active at call time.
+     * @param {string} id
+     * @param {number} x
+     * @param {number} y
+     * @param {string} table_id
+     */
+    add_light_for_table(id, x, y, table_id) {
+        const ptr0 = passStringToWasm0(id, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+        const len0 = WASM_VECTOR_LEN;
+        const ptr1 = passStringToWasm0(table_id, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+        const len1 = WASM_VECTOR_LEN;
+        wasm.renderengine_add_light_for_table(this.__wbg_ptr, ptr0, len0, x, y, ptr1, len1);
+    }
+    /**
      * @param {string} layer_name
      * @param {any} sprite_data
      * @returns {string}
@@ -826,6 +841,9 @@ export class RenderEngine {
      */
     clear_selection() {
         wasm.renderengine_clear_selection(this.__wbg_ptr);
+    }
+    clear_vision_polygons() {
+        wasm.renderengine_clear_vision_polygons(this.__wbg_ptr);
     }
     clear_walls() {
         wasm.renderengine_clear_walls(this.__wbg_ptr);
@@ -2308,10 +2326,6 @@ function __wbg_get_imports() {
             const ret = typeof(arg0) === 'function';
             return ret;
         },
-        __wbg___wbindgen_is_null_344c8750a8525473: function(arg0) {
-            const ret = arg0 === null;
-            return ret;
-        },
         __wbg___wbindgen_is_object_40c5a80572e8f9d3: function(arg0) {
             const val = arg0;
             const ret = typeof(val) === 'object' && val !== null;
@@ -2659,6 +2673,9 @@ function __wbg_get_imports() {
         __wbg_renderbufferStorage_d95f75be57ae52b3: function(arg0, arg1, arg2, arg3, arg4) {
             arg0.renderbufferStorage(arg1 >>> 0, arg2 >>> 0, arg3, arg4);
         },
+        __wbg_scissor_2ab796946944a395: function(arg0, arg1, arg2, arg3, arg4) {
+            arg0.scissor(arg1, arg2, arg3, arg4);
+        },
         __wbg_set_08463b1df38a7e29: function(arg0, arg1, arg2) {
             const ret = arg0.set(arg1, arg2);
             return ret;
@@ -2756,7 +2773,7 @@ function __wbg_get_imports() {
             return ret;
         },
         __wbindgen_cast_0000000000000001: function(arg0, arg1) {
-            // Cast intrinsic for `Closure(Closure { owned: true, function: Function { arguments: [], shim_idx: 80, ret: Unit, inner_ret: Some(Unit) }, mutable: true }) -> Externref`.
+            // Cast intrinsic for `Closure(Closure { owned: true, function: Function { arguments: [], shim_idx: 49, ret: Unit, inner_ret: Some(Unit) }, mutable: true }) -> Externref`.
             const ret = makeMutClosure(arg0, arg1, wasm_bindgen__convert__closures_____invoke__h80981db08fed23f8);
             return ret;
         },

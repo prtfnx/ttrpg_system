@@ -3,6 +3,7 @@ import { useSyncExternalStore } from 'react';
 export interface WasmRuntimeSnapshot {
   readonly isModuleReady: boolean;
   readonly isCanvasAttached: boolean;
+  readonly isContextLost: boolean;
   readonly error: Error | null;
   readonly version: string | null;
   readonly hydratedTableId: string | null;
@@ -15,6 +16,7 @@ type Listener = () => void;
 const initialSnapshot: WasmRuntimeSnapshot = Object.freeze({
   isModuleReady: false,
   isCanvasAttached: false,
+  isContextLost: false,
   error: null,
   version: null,
   hydratedTableId: null,
@@ -38,6 +40,7 @@ export class WasmRuntimeStore {
     if (
       snapshot.isModuleReady === this.snapshot.isModuleReady &&
       snapshot.isCanvasAttached === this.snapshot.isCanvasAttached &&
+      snapshot.isContextLost === this.snapshot.isContextLost &&
       snapshot.error === this.snapshot.error &&
       snapshot.version === this.snapshot.version
       && snapshot.hydratedTableId === this.snapshot.hydratedTableId

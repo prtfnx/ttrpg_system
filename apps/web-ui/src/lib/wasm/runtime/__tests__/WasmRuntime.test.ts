@@ -123,6 +123,7 @@ describe('WasmRuntime', () => {
     expect(runtime.status).toMatchObject({
       isModuleReady: true,
       isCanvasAttached: false,
+      isContextLost: false,
       error: null,
       version: '1.2.3-test',
       hydratedTableId: null,
@@ -198,6 +199,54 @@ describe('WasmRuntime', () => {
     expect(mocks.renderEngine.free).toHaveBeenCalled();
     expect(runtime.getRenderEngine()).toBeNull();
     expect(runtime.status.isCanvasAttached).toBe(false);
+  });
+
+  it('recreates the renderer and replays synchronization after WebGL context restoration', async () => {
+    await runtime.attachCanvas(canvas, { userId: 42, role: 'owner', activeLayer: 'tokens' });
+    mocks.coordinatorCallbacks?.onTableHydrated?.('table-1');
+
+    const contextLost = new Event('webglcontextlost', { cancelable: true });
+    canvas.dispatchEvent(contextLost);
+
+    expect(contextLost.defaultPrevented).toBe(true);
+    expect(cancelAnimationFrame).toHaveBeenCalledWith(17);
+    expect(mocks.integrationDetach).toHaveBeenCalledTimes(1);
+    expect(mocks.assetIntegrationDispose).toHaveBeenCalledTimes(1);
+    expect(mocks.renderEngine.free).toHaveBeenCalledTimes(1);
+    expect(runtime.getRenderEngine()).toBeNull();
+    expect(runtime.status).toMatchObject({
+      isCanvasAttached: true,
+      isContextLost: true,
+      hydratedTableId: 'table-1',
+      frameTableId: null,
+    });
+
+    canvas.dispatchEvent(new Event('webglcontextrestored'));
+
+    expect(mocks.initGameRenderer).toHaveBeenCalledTimes(2);
+    expect(mocks.integrationInitialize).toHaveBeenCalledTimes(2);
+    expect(mocks.assetIntegrationInitialize).toHaveBeenCalledTimes(2);
+    expect(mocks.renderEngine.set_current_user_id).toHaveBeenLastCalledWith(42);
+    expect(mocks.renderEngine.set_active_layer).toHaveBeenLastCalledWith('tokens');
+    expect(runtime.getRenderEngine()).toBe(mocks.renderEngine);
+    expect(runtime.status).toMatchObject({
+      isCanvasAttached: true,
+      isContextLost: false,
+      frameTableId: null,
+      error: null,
+    });
+  });
+
+  it('does not restore a renderer after its canvas has detached', async () => {
+    await runtime.attachCanvas(canvas, { userId: null, role: null, activeLayer: 'map' });
+    canvas.dispatchEvent(new Event('webglcontextlost', { cancelable: true }));
+    runtime.detachCanvas();
+
+    canvas.dispatchEvent(new Event('webglcontextrestored'));
+
+    expect(mocks.initGameRenderer).toHaveBeenCalledTimes(1);
+    expect(runtime.getRenderEngine()).toBeNull();
+    expect(runtime.status).toMatchObject({ isCanvasAttached: false, isContextLost: false });
   });
 
   it('routes Rust sprite create operations through the attached protocol', async () => {

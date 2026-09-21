@@ -65,7 +65,13 @@ WASM type, expose a runtime-owned type from
    arrived before the renderer attached.
 6. On canvas detach, renderer-specific subscriptions are cleared and the latest
    table snapshot is retained for a later attachment.
-7. On provider disposal, all subscriptions, callbacks, and Rust objects are
+7. If the browser loses the WebGL context, the runtime prevents the default
+   terminal loss, stops the animation loop, releases the invalid engine, and
+   retains the authoritative snapshot. On `webglcontextrestored`, it creates a
+   fresh engine, restores user/layer callbacks, replays the retained snapshot,
+   and resumes rendering. `isContextLost` distinguishes this recoverable state
+   from a detached canvas; readiness is withheld until a restored frame renders.
+8. On provider disposal, all subscriptions, callbacks, DOM listeners, and Rust objects are
    released.
 
 ## Data flow

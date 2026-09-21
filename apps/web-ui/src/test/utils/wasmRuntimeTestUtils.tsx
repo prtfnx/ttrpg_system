@@ -7,6 +7,7 @@ import { vi } from 'vitest';
 const readySnapshot: WasmRuntimeSnapshot = {
   isModuleReady: true,
   isCanvasAttached: true,
+  isContextLost: false,
   error: null,
   version: 'test',
   hydratedTableId: null,

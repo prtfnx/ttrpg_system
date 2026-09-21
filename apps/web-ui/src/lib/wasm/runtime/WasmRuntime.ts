@@ -87,6 +87,8 @@ export class WasmRuntime implements WasmRuntimePort {
   private tableManager: TableManager | null = null;
   private animationFrameId: number | null = null;
   private onFrame: (() => void) | null = null;
+  private attachedCanvas: HTMLCanvasElement | null = null;
+  private attachedOptions: AttachCanvasOptions | null = null;
   private protocol: RuntimeProtocol | null = null;
   private readonly syncCoordinator = new WasmSyncCoordinator(
     (url, expectedHash) => this.resolveDownloadedAsset(url, expectedHash),
@@ -104,6 +106,29 @@ export class WasmRuntime implements WasmRuntimePort {
   };
   private readonly runtimeEventHandler = (event: WasmRuntimeEvent) => {
     this.handleRuntimeEvent(event);
+  };
+  private readonly contextLostHandler = (event: Event) => {
+    if (event.currentTarget !== this.attachedCanvas) return;
+    event.preventDefault();
+    this.releaseRenderer();
+    this.store.setSnapshot({
+      isContextLost: true,
+      frameTableId: null,
+      error: null,
+    });
+  };
+  private readonly contextRestoredHandler = (event: Event) => {
+    if (event.currentTarget !== this.attachedCanvas || !this.attachedOptions) return;
+    const canvas = this.attachedCanvas;
+    if (!canvas) return;
+
+    try {
+      this.initializeRenderer(canvas, this.attachedOptions);
+    } catch (error) {
+      const err = error instanceof Error ? error : new Error(String(error));
+      this.store.setSnapshot({ error: err, isContextLost: true });
+      logger.error('Failed to restore Rust WASM renderer after WebGL context restoration', err);
+    }
   };
 
   get status(): WasmRuntimeSnapshot {
@@ -143,30 +168,52 @@ export class WasmRuntime implements WasmRuntimePort {
     await this.initialize();
 
     if (this.renderEngine) {
+      if (this.attachedCanvas !== canvas) this.detachCanvas();
+    }
+
+    if (this.renderEngine) {
+      this.attachedOptions = options;
       this.setUserContext(options.userId, options.role);
       this.setActiveLayer(options.activeLayer);
       this.onFrame = options.onFrame ?? null;
       return this.renderEngine;
     }
 
-    const engine = init_game_renderer(canvas);
-    engine.set_camera(0, 0, 1.0);
-    this.renderEngine = engine;
-    this.onFrame = options.onFrame ?? null;
-    this.registerRuntimeCallbacks(engine);
-    this.setUserContext(options.userId, options.role);
-    this.setActiveLayer(options.activeLayer);
+    if (this.attachedCanvas === canvas && this.status.isContextLost) {
+      throw new Error('Cannot attach a renderer while the WebGL context is lost');
+    }
 
-    wasmBridgeService.init();
-    this.syncCoordinator.initialize(engine);
-    assetIntegrationService.initialize();
-    this.startRenderLoop();
-    this.store.setSnapshot({ isCanvasAttached: true, error: null });
+    this.attachedCanvas = canvas;
+    this.attachedOptions = options;
+    canvas.addEventListener('webglcontextlost', this.contextLostHandler);
+    canvas.addEventListener('webglcontextrestored', this.contextRestoredHandler);
 
-    return engine;
+    try {
+      return this.initializeRenderer(canvas, options);
+    } catch (error) {
+      canvas.removeEventListener('webglcontextlost', this.contextLostHandler);
+      canvas.removeEventListener('webglcontextrestored', this.contextRestoredHandler);
+      this.attachedCanvas = null;
+      this.attachedOptions = null;
+      throw error;
+    }
   }
 
   detachCanvas(): void {
+    this.attachedCanvas?.removeEventListener('webglcontextlost', this.contextLostHandler);
+    this.attachedCanvas?.removeEventListener('webglcontextrestored', this.contextRestoredHandler);
+    this.attachedCanvas = null;
+    this.attachedOptions = null;
+    this.releaseRenderer();
+    this.store.setSnapshot({
+      isCanvasAttached: false,
+      isContextLost: false,
+      hydratedTableId: null,
+      frameTableId: null,
+    });
+  }
+
+  private releaseRenderer(): void {
     if (this.animationFrameId !== null) {
       cancelAnimationFrame(this.animationFrameId);
       this.animationFrameId = null;
@@ -184,11 +231,6 @@ export class WasmRuntime implements WasmRuntimePort {
     }
 
     this.renderEngine = null;
-    this.store.setSnapshot({
-      isCanvasAttached: false,
-      hydratedTableId: null,
-      frameTableId: null,
-    });
   }
 
   dispose(): void {
@@ -208,6 +250,7 @@ export class WasmRuntime implements WasmRuntimePort {
     this.store.setSnapshot({
       isModuleReady: false,
       isCanvasAttached: false,
+      isContextLost: false,
       error: null,
       version: null,
       hydratedTableId: null,
@@ -431,6 +474,34 @@ export class WasmRuntime implements WasmRuntimePort {
     };
 
     this.animationFrameId = requestAnimationFrame(render);
+  }
+
+  private initializeRenderer(canvas: HTMLCanvasElement, options: AttachCanvasOptions): RenderEngine {
+    const engine = init_game_renderer(canvas);
+
+    try {
+      engine.set_camera(0, 0, 1.0);
+      this.renderEngine = engine;
+      this.onFrame = options.onFrame ?? null;
+      this.registerRuntimeCallbacks(engine);
+      this.setUserContext(options.userId, options.role);
+      this.setActiveLayer(options.activeLayer);
+
+      wasmBridgeService.init();
+      this.syncCoordinator.initialize(engine);
+      assetIntegrationService.initialize();
+      this.startRenderLoop();
+      this.store.setSnapshot({
+        isCanvasAttached: true,
+        isContextLost: false,
+        frameTableId: null,
+        error: null,
+      });
+      return engine;
+    } catch (error) {
+      this.releaseRenderer();
+      throw error;
+    }
   }
 
   private clearRuntimeCallbacks(engine: RenderEngine | null): void {

@@ -133,6 +133,21 @@ describe('ToolsPanel — render', () => {
     expect(screen.getByRole('tab', { name: 'Lighting' })).toBeInTheDocument();
     expect(screen.getByRole('tab', { name: 'Layers' })).toBeInTheDocument();
   });
+
+  it('labels the persisted dynamic-lighting toggle by its vision and fog behavior', () => {
+    vi.mocked(useGameStore).mockImplementation(
+      ((sel?: (s: typeof baseStoreState) => unknown) => {
+        const state = { ...baseStoreState, sessionRole: 'dm', activeTableId: 'table-1' };
+        return sel ? sel(state) : state;
+      }) as unknown as typeof useGameStore
+    );
+    render(<ToolsPanel userInfo={makeUser('dm')} />);
+
+    fireEvent.click(screen.getByRole('tab', { name: 'Lighting' }));
+
+    expect(screen.getByRole('heading', { name: 'Player Vision & Fog' })).toBeInTheDocument();
+    expect(screen.getByRole('checkbox', { name: /enable player vision and fog/i })).toBeInTheDocument();
+  });
 });
 
 describe('ToolsPanel — toolbar tools', () => {

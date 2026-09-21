@@ -505,12 +505,12 @@ export function ToolsPanel({ userInfo: _userInfo }: ToolsPanelProps) {
         <div className={styles.tabContent}>
           {activeTableId && (
             <div className={styles.gamePanel}>
-              <h3 className={styles.panelTitle}>Dynamic Lighting</h3>
+              <h3 className={styles.panelTitle}>Player Vision &amp; Fog</h3>
               <div className={styles.controlRow}>
                 <label>
                   <input type="checkbox" checked={dynamicLightingEnabled}
                     onChange={e => ProtocolService.getProtocol().sendTableSettingsUpdate(activeTableId, { dynamic_lighting_enabled: e.target.checked })}
-                  />{' '}Enable
+                  />{' '}Enable player vision and fog
                 </label>
               </div>
               {dynamicLightingEnabled && (

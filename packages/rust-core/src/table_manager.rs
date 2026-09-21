@@ -416,6 +416,7 @@ impl TableManager {
         self.active_table_id.as_deref()
     }
 
+    #[cfg_attr(not(target_arch = "wasm32"), allow(dead_code))]
     pub(crate) fn contains_table(&self, table_id: &str) -> bool {
         self.tables.contains_key(table_id)
     }

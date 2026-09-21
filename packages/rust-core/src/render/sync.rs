@@ -1,8 +1,16 @@
 use crate::types::*;
+use crate::unit_converter::{DistanceUnit, UnitConverter};
 use std::collections::HashSet;
 use wasm_bindgen::prelude::*;
 
 use super::{parse_hex_color, RenderEngine};
+
+struct PreparedSprite {
+    layer: String,
+    sprite: Sprite,
+    aura_light: Option<crate::lighting::Light>,
+    texture_id: String,
+}
 
 #[wasm_bindgen]
 impl RenderEngine {
@@ -17,6 +25,7 @@ impl RenderEngine {
                 JsValue::from_str(&format!("Failed to parse table data for rendering: {}", e))
             })?;
         validate_table_snapshot(&table)?;
+        let prepared_sprites = prepare_table_sprites(&table)?;
         self.table_sync.handle_table_data(table_data_js)?;
 
         if let Some(table_id) = self.table_sync.get_table_id() {
@@ -111,10 +120,17 @@ impl RenderEngine {
 
         self.layer_manager.clear_all_layers();
 
-        let table_id = table.table_id.clone();
-        for sprites in table.layers.values() {
-            for sprite_data in sprites {
-                self.add_sprite_from_table_data(sprite_data, &table_id)?;
+        for prepared in prepared_sprites {
+            // Layer existence was checked during preflight. Keeping this phase
+            // infallible prevents a partially replaced scene after clearing.
+            if let Some(layer) = self.layer_manager.get_layer_mut(&prepared.layer) {
+                layer.sprites.push(prepared.sprite);
+            }
+            if let Some(light) = prepared.aura_light {
+                self.lighting.add_light(light);
+            }
+            if !prepared.texture_id.is_empty() {
+                self.request_asset_if_needed(&prepared.texture_id);
             }
         }
 
@@ -129,114 +145,6 @@ impl RenderEngine {
 
         Ok(())
     }
-
-    fn add_sprite_from_table_data(
-        &mut self,
-        sprite_data: &crate::table_sync::SpriteData,
-        table_id: &str,
-    ) -> Result<(), JsValue> {
-        let character_id = sprite_data.character_id.clone();
-        let controlled_by = sprite_data.controlled_by.clone().unwrap_or_default();
-        let aura_radius = if let Some(units) = sprite_data.aura_radius_units {
-            let conv = self.table_manager.get_unit_converter(table_id);
-            Some(conv.to_pixels(units as f32) as f64)
-        } else {
-            sprite_data.aura_radius
-        };
-        let aura_color = sprite_data.aura_color.clone();
-
-        // Polygon and line endpoints are stored in world space. Lines may
-        // arrive either as a vertices array or as explicit endpoint fields.
-        let polygon_vertices: Option<Vec<[f32; 2]>> = match sprite_data.obstacle_type.as_deref() {
-            Some("polygon") => sprite_data
-                .obstacle_data
-                .as_ref()
-                .and_then(|data| data.get("vertices"))
-                .and_then(|value| serde_json::from_value::<Vec<[f32; 2]>>(value.clone()).ok()),
-            Some("line") => sprite_data.obstacle_data.as_ref().and_then(|data| {
-                data.get("vertices")
-                    .and_then(|value| serde_json::from_value::<Vec<[f32; 2]>>(value.clone()).ok())
-                    .or_else(|| {
-                        Some(vec![
-                            [
-                                data.get("x1")?.as_f64()? as f32,
-                                data.get("y1")?.as_f64()? as f32,
-                            ],
-                            [
-                                data.get("x2")?.as_f64()? as f32,
-                                data.get("y2")?.as_f64()? as f32,
-                            ],
-                        ])
-                    })
-            }),
-            _ => None,
-        };
-
-        let width = if sprite_data.width > 0.0 {
-            sprite_data.width
-        } else {
-            50.0
-        };
-        let height = if sprite_data.height > 0.0 {
-            sprite_data.height
-        } else {
-            50.0
-        };
-
-        let sprite = Sprite {
-            id: sprite_data.sprite_id.clone(),
-            world_x: sprite_data.coord_x,
-            world_y: sprite_data.coord_y,
-            width,
-            height,
-            scale_x: sprite_data.scale_x,
-            scale_y: sprite_data.scale_y,
-            rotation: sprite_data.rotation.unwrap_or(0.0),
-            layer: sprite_data.layer.clone(),
-            texture_id: sprite_data.texture_path.clone(),
-            tint_color: [1.0, 1.0, 1.0, 1.0],
-            table_id: table_id.to_string(),
-            character_id,
-            controlled_by,
-            hp: sprite_data.hp,
-            max_hp: sprite_data.max_hp,
-            ac: sprite_data.ac,
-            aura_radius,
-            aura_color: aura_color.clone(),
-            is_text_sprite: None,
-            text_content: None,
-            text_size: None,
-            text_color: None,
-            obstacle_type: sprite_data.obstacle_type.clone(),
-            polygon_vertices,
-            shape_filled: None,
-        };
-
-        let sprite_js = serde_wasm_bindgen::to_value(&sprite)?;
-        self.layer_manager
-            .add_sprite_to_layer(&sprite_data.layer, &sprite_js)?;
-
-        if let Some(radius) = aura_radius {
-            let cx = (sprite_data.coord_x + 25.0) as f32;
-            let cy = (sprite_data.coord_y + 25.0) as f32;
-            let light_id = format!("token_light_{}", sprite_data.sprite_id);
-            let mut light = crate::lighting::Light::new(light_id, cx, cy, table_id.to_string());
-            light.set_radius(radius as f32);
-            if let Some(hex) = aura_color {
-                if let Some(color) = parse_hex_color(&hex) {
-                    light.set_color(color);
-                }
-            }
-            self.lighting.add_light(light);
-        }
-
-        if !sprite_data.texture_path.is_empty() {
-            self.request_asset_if_needed(&sprite_data.texture_path);
-        }
-
-        Ok(())
-    }
-
     fn request_asset_if_needed(&self, texture_path: &str) {
         if !self.texture_manager.has_texture(texture_path) {
             self.emit_asset_download_requested(texture_path);
@@ -255,6 +163,160 @@ impl RenderEngine {
         js_sys::Reflect::set(&event, &"type".into(), &"assetDownloadRequested".into()).unwrap();
         js_sys::Reflect::set(&event, &"data".into(), &data).unwrap();
         let _ = handler.call1(&JsValue::NULL, &event.into());
+    }
+}
+
+fn prepare_table_sprites(
+    table: &crate::table_sync::TableData,
+) -> Result<Vec<PreparedSprite>, JsValue> {
+    let converter = UnitConverter::new(
+        table.grid_cell_px as f32,
+        table.cell_distance as f32,
+        DistanceUnit::from_str(&table.distance_unit),
+    );
+    let sprite_count = table.layers.values().map(Vec::len).sum();
+    let mut prepared = Vec::with_capacity(sprite_count);
+
+    for sprites in table.layers.values() {
+        for sprite_data in sprites {
+            let width = if sprite_data.width > 0.0 {
+                sprite_data.width
+            } else {
+                50.0
+            };
+            let height = if sprite_data.height > 0.0 {
+                sprite_data.height
+            } else {
+                50.0
+            };
+            let aura_radius = sprite_data
+                .aura_radius_units
+                .map(|units| converter.to_pixels(units as f32) as f64)
+                .or(sprite_data.aura_radius);
+            let polygon_vertices = parse_obstacle_vertices(sprite_data)?;
+            let sprite = Sprite {
+                id: sprite_data.sprite_id.clone(),
+                world_x: sprite_data.coord_x,
+                world_y: sprite_data.coord_y,
+                width,
+                height,
+                scale_x: sprite_data.scale_x,
+                scale_y: sprite_data.scale_y,
+                rotation: sprite_data.rotation.unwrap_or(0.0),
+                layer: sprite_data.layer.clone(),
+                texture_id: sprite_data.texture_path.clone(),
+                tint_color: [1.0, 1.0, 1.0, 1.0],
+                table_id: table.table_id.clone(),
+                character_id: sprite_data.character_id.clone(),
+                controlled_by: sprite_data.controlled_by.clone().unwrap_or_default(),
+                hp: sprite_data.hp,
+                max_hp: sprite_data.max_hp,
+                ac: sprite_data.ac,
+                aura_radius,
+                aura_color: sprite_data.aura_color.clone(),
+                is_text_sprite: None,
+                text_content: None,
+                text_size: None,
+                text_color: None,
+                obstacle_type: sprite_data.obstacle_type.clone(),
+                polygon_vertices,
+                shape_filled: None,
+            };
+
+            let aura_light = aura_radius.map(|radius| {
+                let center_x = (sprite_data.coord_x + width * 0.5) as f32;
+                let center_y = (sprite_data.coord_y + height * 0.5) as f32;
+                let light_id = format!("token_light_{}", sprite_data.sprite_id);
+                let mut light = crate::lighting::Light::new(
+                    light_id,
+                    center_x,
+                    center_y,
+                    table.table_id.clone(),
+                );
+                light.set_radius(radius as f32);
+                if let Some(color) = sprite_data.aura_color.as_deref().and_then(parse_hex_color) {
+                    light.set_color(color);
+                }
+                light
+            });
+
+            prepared.push(PreparedSprite {
+                layer: sprite_data.layer.clone(),
+                sprite,
+                aura_light,
+                texture_id: sprite_data.texture_path.clone(),
+            });
+        }
+    }
+
+    Ok(prepared)
+}
+
+fn parse_obstacle_vertices(
+    sprite: &crate::table_sync::SpriteData,
+) -> Result<Option<Vec<[f32; 2]>>, JsValue> {
+    if !matches!(sprite.obstacle_type.as_deref(), Some("polygon" | "line")) {
+        return Ok(None);
+    }
+    let Some(data) = sprite.obstacle_data.as_ref() else {
+        return Err(JsValue::from_str(&format!(
+            "Sprite '{}' is missing obstacle geometry",
+            sprite.sprite_id
+        )));
+    };
+
+    let parse_vertices = |value: &serde_json::Value| {
+        serde_json::from_value::<Vec<[f32; 2]>>(value.clone()).map_err(|error| {
+            JsValue::from_str(&format!(
+                "Sprite '{}' contains invalid obstacle vertices: {}",
+                sprite.sprite_id, error
+            ))
+        })
+    };
+
+    match sprite.obstacle_type.as_deref() {
+        Some("polygon") => {
+            let vertices = data
+                .get("vertices")
+                .ok_or_else(|| {
+                    JsValue::from_str(&format!(
+                        "Sprite '{}' is missing polygon vertices",
+                        sprite.sprite_id
+                    ))
+                })
+                .and_then(parse_vertices)?;
+            if vertices.len() < 3 {
+                return Err(JsValue::from_str(&format!(
+                    "Sprite '{}' polygon requires at least three vertices",
+                    sprite.sprite_id
+                )));
+            }
+            Ok(Some(vertices))
+        }
+        Some("line") => {
+            if let Some(vertices) = data.get("vertices") {
+                let vertices = parse_vertices(vertices)?;
+                if vertices.len() != 2 {
+                    return Err(JsValue::from_str(&format!(
+                        "Sprite '{}' line requires exactly two vertices",
+                        sprite.sprite_id
+                    )));
+                }
+                return Ok(Some(vertices));
+            }
+            let endpoints = ["x1", "y1", "x2", "y2"]
+                .map(|key| data.get(key).and_then(serde_json::Value::as_f64));
+            match endpoints {
+                [Some(x1), Some(y1), Some(x2), Some(y2)] => {
+                    Ok(Some(vec![[x1 as f32, y1 as f32], [x2 as f32, y2 as f32]]))
+                }
+                _ => Err(JsValue::from_str(&format!(
+                    "Sprite '{}' contains incomplete line endpoints",
+                    sprite.sprite_id
+                ))),
+            }
+        }
+        _ => Ok(None),
     }
 }
 
@@ -308,6 +370,16 @@ fn validate_table_snapshot(table: &crate::table_sync::TableData) -> Result<(), J
             if numeric.iter().any(|value| !value.is_finite()) {
                 return Err(JsValue::from_str(&format!(
                     "Sprite '{}' contains non-finite geometry",
+                    sprite.sprite_id
+                )));
+            }
+            if [sprite.aura_radius, sprite.aura_radius_units]
+                .into_iter()
+                .flatten()
+                .any(|radius| !radius.is_finite() || radius < 0.0)
+            {
+                return Err(JsValue::from_str(&format!(
+                    "Sprite '{}' contains an invalid aura radius",
                     sprite.sprite_id
                 )));
             }

@@ -82,7 +82,11 @@ absent or unavailable.
 `RenderEngine.handle_table_data` parses and validates the complete DTO before
 changing table sync, camera, or layer state. It rejects unknown layers,
 non-finite geometry, invalid table dimensions, mismatched sprite containers,
-and duplicate/empty sprite IDs without replacing the resident scene.
+duplicate/empty sprite IDs, invalid aura radii, and malformed polygon or line
+geometry without replacing the resident scene. It also stages every `Sprite`
+and derived aura light before clearing layers. The commit phase then uses only
+prevalidated layer insertions, so a conversion failure cannot leave a
+half-replaced table visible.
 
 Synchronized lights enter through `add_light_for_table`; the legacy
 active-table form remains for immediate local UI placement. Rendering filters

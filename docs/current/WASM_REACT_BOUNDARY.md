@@ -4,7 +4,7 @@ Audience: contributors changing React-to-Rust integration.
 
 Status: usable.
 
-Last source audit: 2026-09-17
+Last source audit: 2026-09-21
 
 React does not own Rust objects directly. It talks to `WasmRuntime`, and
 `WasmRuntime` owns the generated wasm-bindgen module.
@@ -99,8 +99,10 @@ WebClientProtocol -> protocol event -> TableSyncService
 snapshots. `WasmRuntimePort` deliberately has no direct `handleTableData`
 method, so a caller cannot bypass table-ID validation and normalization.
 The runtime also has no standalone `getTableSync()` mirror. The service hydrates
-the browser sprite store and the renderer from the same normalized snapshot;
-no follow-up hook replaces store sprites from a disconnected Rust object.
+the renderer and then replaces the browser mirrors from the same normalized
+snapshot; no follow-up hook replaces store sprites from a disconnected Rust
+object. Rust validates the complete renderer DTO before mutating resident
+table state.
 
 Authorized asset download:
 
@@ -111,8 +113,11 @@ WebClientProtocol -> TypeScript fetch -> BrowserAssetCache
 ```
 
 The runtime owns the browser cache and revokes object URLs on eviction, clear,
-or disposal. Rust receives bytes only for hashing and does not retain or return
-downloaded payloads.
+or disposal. Browser downloads have a configurable deadline, and a timed-out
+request settles readiness instead of waiting forever. On table hydration, the
+coordinator unloads superseded GPU textures while retaining IDs shared with
+the new table. Rust receives bytes only for hashing and does not retain or
+return downloaded payloads.
 
 Table and sprite synchronization must include a non-empty authoritative
 `table_id`. The TypeScript boundary rejects incomplete payloads and attaches
@@ -138,8 +143,15 @@ pretending that the texture loaded.
 
 Complete snapshots replace prior table-derived state. Before rehydration,
 `TableSyncService` removes the lights and token auras it derived from the prior
-snapshot and clears fog. Rust replaces ordinary render layers, while walls are
-cleared and re-added from the same authoritative snapshot.
+snapshot and clears fog. Rust replaces ordinary render layers, while walls,
+paint strokes, layer settings, grid/units, and browser mirrors are replaced
+from the same authoritative snapshot. Empty arrays are replacement values, not
+“no update” signals.
+
+Upload URL issuance and browser PUT completion are intermediate states.
+`AssetSyncService` retries waiting textures only after the server reports
+`status: uploaded`; a failed confirmation clears pending state without a
+download loop.
 
 Combat preview:
 

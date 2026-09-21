@@ -5,7 +5,7 @@ canvas bootstrap, or table settings.
 
 Status: current but partial.
 
-Last source audit: 2026-09-17
+Last source audit: 2026-09-21
 
 ## Source owners
 
@@ -89,14 +89,19 @@ Switch table:
 3. The server writes `GamePlayer.active_table_id`.
 4. The browser asks for `table_request`; the protocol emits the received table
    payload to the runtime-owned `TableSyncService`.
-5. `TableSyncService` validates and normalizes the complete snapshot once,
-   hydrates the authoritative browser sprite store, and passes the same
-   canonical table identity to the renderer. If no renderer is attached, it
-   retains the snapshot and flushes it on attachment.
-6. The renderer restores the persisted table position and scale as camera
-   state, replaces ordinary layers, table-derived lights, fog, and walls, and
-   renders the bounded table plane before map imagery and the grid.
-7. `frameTableId` becomes ready only after required textures settle and a
+5. `TableSyncService` validates and normalizes the complete snapshot once. If
+   no renderer is attached, it retains the snapshot and flushes it on
+   attachment.
+6. Rust parses and validates the full renderer DTO before mutation, then
+   restores camera state and replaces ordinary layers. An invalid table,
+   layer, geometry value, or duplicate sprite ID leaves the visible resident
+   table intact.
+7. The service replaces the browser sprite and wall mirrors, table-derived
+   lights, fog rectangles, paint strokes (including an authoritative empty
+   list), layer settings, units, grid settings, and table lighting settings
+   from that same snapshot. It then renders the bounded table plane before map
+   imagery and the grid.
+8. `frameTableId` becomes ready only after required textures settle and a
    subsequent render frame completes.
 
 Feature code must not call the renderer's `handle_table_data` directly. The
@@ -185,6 +190,10 @@ normalization, asset download, browser verification, and the Rust texture
 cache. A legacy `texture_path` may help the server resolve old records, but it
 must not replace an enriched `asset_id` at the renderer boundary. Map imagery
 and token sprites use this same rule.
+
+Only the active hydrated table is visually ready. Switching tables drops the
+prior readiness record and unloads GPU textures not shared with the new table;
+late downloads for a superseded table are unloaded immediately.
 
 The Canvas2D wall overlay is a view of the `obstacles` layer. It is DM-only,
 honors obstacle visibility and opacity, and clears its pixels when the layer is

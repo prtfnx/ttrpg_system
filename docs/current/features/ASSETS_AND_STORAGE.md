@@ -6,7 +6,7 @@ Status: partial. Image upload, storage integrity, and the verified browser
 download path are implemented. Independent production backup remains an
 operations blocker.
 
-Last source audit: 2026-09-10
+Last source audit: 2026-09-21
 
 ## Ownership
 
@@ -76,10 +76,23 @@ requests and responses for the same texture are coalesced while in flight.
 Renderer texture state is cleared on canvas detach while verified Blob cache
 entries remain available for reuse by a reattached renderer.
 
+Upload URL issuance (`asset-uploaded`) and browser PUT completion
+(`asset-upload-completed`) are not storage confirmation. Waiting sprites retry
+their download only after the server's confirmation reports
+`status: uploaded`. Local or server-confirmed failure clears pending upload and
+sprite state without entering a retry loop.
+
 The browser cache defaults to 64 MiB and may be configured by the asset UI. Its
 size accounts for retained Blob payloads. Repeated metadata/hash-cache access
 does not clone full byte vectors across the WASM boundary; bytes cross that
 boundary only for the compute-heavy hash operation.
+
+Browser downloads default to a 30-second timeout and may configure
+`downloadTimeoutMs`. Completion, timeout, and runtime disposal all clear the
+owned timer and queue entry. After table hydration, the runtime retains only
+the active table's GPU texture IDs (plus shared IDs) and calls Rust
+`unload_texture` for obsolete or late-finishing loads. Blob-cache retention is
+independent, so returning to a table can reuse verified browser data.
 
 Upload abuse controls are keyed by the authenticated user, not by caller-sent
 fields. PostgreSQL-backed token buckets enforce upload burst/hour and download

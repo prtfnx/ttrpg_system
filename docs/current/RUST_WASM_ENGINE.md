@@ -4,7 +4,7 @@ Audience: contributors changing the browser engine or its TypeScript boundary.
 
 Status: usable.
 
-Last source audit: 2026-09-17
+Last source audit: 2026-09-21
 
 The Rust crate is the local engine behind the browser canvas. It should stay
 focused on compute-heavy rendering, geometry, visibility, collision, planning,
@@ -79,6 +79,17 @@ using the table background color, and then draws map imagery, the grid, and
 ordinary scene layers. This explicit plane is the fallback when map imagery is
 absent or unavailable.
 
+`RenderEngine.handle_table_data` parses and validates the complete DTO before
+changing table sync, camera, or layer state. It rejects unknown layers,
+non-finite geometry, invalid table dimensions, mismatched sprite containers,
+and duplicate/empty sprite IDs without replacing the resident scene.
+
+Synchronized lights enter through `add_light_for_table`; the legacy
+active-table form remains for immediate local UI placement. Rendering filters
+lights and obstacle sprites by the active table. The light/stencil pass uses a
+camera-derived WebGL scissor rectangle so additive light is confined to the
+bounded table plane, and cleanup restores scissor state even after an error.
+
 ## Runtime callbacks
 
 Rust should not call app-level browser globals. It reports app intent through
@@ -124,6 +135,7 @@ cargo test --all-features
 cargo check --target wasm32-unknown-unknown --features wasm-start
 wasm-pack test --node --test wasm_node --locked
 pnpm.cmd run test:browser
+pnpm.cmd run test:wasm
 ```
 
 ## Change guide

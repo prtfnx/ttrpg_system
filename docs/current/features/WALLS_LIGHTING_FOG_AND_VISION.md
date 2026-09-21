@@ -5,7 +5,7 @@ vision, or layer visibility.
 
 Status: current.
 
-Last source audit: 2026-09-15
+Last source audit: 2026-09-21
 
 ## Source owners
 
@@ -54,6 +54,11 @@ Consequently, a colored light and the area that it makes visible are generated
 separately from the same light-sprite metadata. They use the same obstacle
 shapes but can use different wall flags: `blocks_light` for colored light and
 `blocks_sight` for token/light visibility polygons.
+
+The persisted `dynamic_lighting_enabled` field enables player vision and the
+fog compositor. It does not enable or disable decorative point-light color;
+the UI labels this control “Player Vision & Fog” to make that distinction
+explicit. Each light sprite has its own persisted `isOn` state.
 
 ## Protocol messages
 
@@ -139,12 +144,14 @@ map -> grid -> ordinary layers -> refresh obstacle segments when dirty
 engine immediately, and sends the rectangle sets to the server through
 `protocol.updateFog()`. Persisted fog is a separate mask from dynamic vision.
 
-`LightingPanel` manages light sprites on the `light` layer. A light's color,
+`LightingPanel` edits light sprites on the `light` layer. A light's color,
 intensity, radius, game-unit radius, and on/off state are stored in sprite
 metadata; its `x`/`y` fields are the light origin. Presets start with D&D-style
 distances and are converted through the active table's unit converter. The
-panel registers those lights with `LightingSystem` and persists changes as
-sprite protocol messages.
+panel may create an optimistic local light, but `TableSyncService` and
+`SpriteSyncService` are the only reconcilers of server-owned lights. The panel
+does not re-register every store light when it renders or when an engine is
+replaced. Enabled state uses the idempotent `set_light_enabled` export.
 
 For each enabled light on the active table, `LightingSystem`:
 
@@ -152,8 +159,10 @@ For each enabled light on the active table, `LightingSystem`:
 2. projects every nearby, undirected blocking segment away from the light into
    a shadow quad and writes the union to stencil value 1;
 3. draws a 64-segment radial-gradient circle only where stencil equals 0;
-4. restores WebGL color, blend, attribute, and stencil state before processing
-   the next light.
+4. clips stencil and color writes to the active table's camera-transformed
+   screen rectangle, so light cannot spill onto the workspace;
+5. restores WebGL color, blend, scissor, attribute, and stencil state before
+   processing the next light.
 
 Segments are undirected: endpoint order and the side on which a light is
 placed do not change whether a wall casts a shadow. Each light has an
@@ -162,19 +171,21 @@ independent stencil mask. Point-light colors accumulate additively.
 `vision.service.ts` watches the game store. When dynamic lighting is enabled,
 it:
 
-1. gets separate sight-blocking and light-blocking obstacle segments from the
+1. filters token and light sources to the active table and resets all active,
+   explored, position, and obstacle caches when that table changes;
+2. gets separate sight-blocking and light-blocking obstacle segments from the
    render engine;
-2. finds sprites controlled by the current user, or the selected user during
+3. finds sprites controlled by the current user, or the selected user during
    DM preview, with a positive vision radius;
-3. places each vision origin at the sprite's current visual center;
-4. converts game-unit vision and darkvision radii to pixels, falling back to
+4. places each vision origin at the sprite's current visual center;
+5. converts game-unit vision and darkvision radii to pixels, falling back to
    legacy pixel fields;
-5. casts rays at every obstacle endpoint with small angular offsets plus 32
+6. casts rays at every obstacle endpoint with small angular offsets plus 32
    regular rays, clips each ray to the nearest segment or maximum radius, and
    angle-sorts the result into a visibility polygon;
-6. builds equivalent visibility polygons for enabled light sprites using the
+7. builds equivalent visibility polygons for enabled light sprites using the
    light-blocking segments;
-7. adds/removes those polygons in `FogOfWarSystem`; in `persist_dimmed` mode it
+8. adds/removes those polygons in `FogOfWarSystem`; in `persist_dimmed` mode it
    stores the previous visibility polygon under a unique `explored_*` id when
    a source moves. History is bounded to 128 polygons per source.
 
@@ -200,6 +211,10 @@ Both pipelines consume flat world-space segments in
 - circle obstacle sprites contribute a closed 32-segment ellipse boundary;
 - remaining sprites on the `obstacles` layer contribute their rotated, scaled
   rectangular perimeter.
+
+Obstacle sprites and lights carry explicit authoritative table IDs. Rust
+filters both collections by the active table before building shadow or vision
+geometry; it does not infer remote ownership from the current table.
 
 Adding, removing, moving, resizing, scaling, rotating, pasting, or moving a
 sprite into or out of the obstacle layer marks the render engine's obstacle
@@ -233,6 +248,7 @@ to a microtask. The store may then forward the authoritative endpoints to
 - `apps/web-ui/src/features/canvas/utils/__tests__/wallVisuals.test.ts`
 - `packages/rust-core/tests/wasm_browser.rs`
 - `packages/rust-core/tests/wasm_node.rs`
+- `pnpm.cmd run test:wasm`
 
 Use server tests for wall authority and persistence. Use Vitest for panel,
 store, and protocol behavior. Use Rust/WASM tests for render-engine fog,

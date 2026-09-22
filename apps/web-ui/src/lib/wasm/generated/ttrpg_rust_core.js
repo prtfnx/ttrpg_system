@@ -938,6 +938,16 @@ export class RenderEngine {
         return ret;
     }
     /**
+     * @returns {any}
+     */
+    get_render_diagnostics() {
+        const ret = wasm.renderengine_get_render_diagnostics(this.__wbg_ptr);
+        if (ret[2]) {
+            throw takeFromExternrefTable0(ret[1]);
+        }
+        return takeFromExternrefTable0(ret[0]);
+    }
+    /**
      * Get list of currently selected sprite IDs.
      * @returns {string[]}
      */
@@ -2785,8 +2795,8 @@ function __wbg_get_imports() {
             return ret;
         },
         __wbindgen_cast_0000000000000001: function(arg0, arg1) {
-            // Cast intrinsic for `Closure(Closure { owned: true, function: Function { arguments: [], shim_idx: 53, ret: Unit, inner_ret: Some(Unit) }, mutable: true }) -> Externref`.
-            const ret = makeMutClosure(arg0, arg1, wasm_bindgen__convert__closures_____invoke__h1fb697f1e9285549);
+            // Cast intrinsic for `Closure(Closure { owned: true, function: Function { arguments: [], shim_idx: 77, ret: Unit, inner_ret: Some(Unit) }, mutable: true }) -> Externref`.
+            const ret = makeMutClosure(arg0, arg1, wasm_bindgen__convert__closures_____invoke__h80981db08fed23f8);
             return ret;
         },
         __wbindgen_cast_0000000000000002: function(arg0) {
@@ -2835,8 +2845,8 @@ function __wbg_get_imports() {
     };
 }
 
-function wasm_bindgen__convert__closures_____invoke__h1fb697f1e9285549(arg0, arg1) {
-    wasm.wasm_bindgen__convert__closures_____invoke__h1fb697f1e9285549(arg0, arg1);
+function wasm_bindgen__convert__closures_____invoke__h80981db08fed23f8(arg0, arg1) {
+    wasm.wasm_bindgen__convert__closures_____invoke__h80981db08fed23f8(arg0, arg1);
 }
 
 const ActionsClientFinalization = (typeof FinalizationRegistry === 'undefined')

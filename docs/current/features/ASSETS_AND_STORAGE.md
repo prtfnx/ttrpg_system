@@ -69,6 +69,12 @@ browser-managed Blobs with stable object URLs; the runtime cache revokes those
 URLs on LRU/age eviction, clear, or runtime disposal. Rust does not own URLs,
 HTTP requests, retries, download queues, or a byte cache.
 
+Renderer snapshots consume the canonical lowercase 16-hex asset ID, never an
+object key or download URL. Legacy table `background_image` values are eligible
+for in-memory compatibility rendering only when they already match that exact
+identity format; authorization is still enforced by the normal session-scoped
+download lookup.
+
 `AssetIntegrationService` handles asset upload and list protocol adaptation; it
 does not subscribe to download responses or load renderer textures. A download
 response therefore creates at most one browser-cache fetch, and duplicate link

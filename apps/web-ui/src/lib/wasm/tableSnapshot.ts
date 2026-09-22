@@ -1,6 +1,7 @@
 import type { Sprite } from '@/types';
 
 const TABLE_ID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+const CANONICAL_ASSET_ID_PATTERN = /^[0-9a-f]{16}$/;
 
 export const RENDERER_LAYER_NAMES = [
   'map',
@@ -456,10 +457,26 @@ export function normalizeTableSnapshot(input: unknown): NormalizedTableSnapshot 
     });
   }
 
-  // Retain legacy metadata for round-tripping, but never treat an arbitrary
-  // filename or URL as a renderer texture key. Map images use normal map-layer
-  // sprites whose canonical asset_id is resolved by normalizeSprite().
+  // Retain legacy metadata for round-tripping. Old snapshots may contain the
+  // canonical asset identity directly; recover only that capability-safe form,
+  // never a filename, object key, URL, or presigned bearer token.
   const backgroundImage = optionalText(table.background_image ?? envelope.background_image, 'table.background_image');
+  if (backgroundImage && CANONICAL_ASSET_ID_PATTERN.test(backgroundImage)) {
+    layers.map.unshift({
+      sprite_id: `legacy_background_${tableId}`,
+      texture_path: backgroundImage,
+      asset_id: backgroundImage,
+      coord_x: 0,
+      coord_y: 0,
+      scale_x: 1,
+      scale_y: 1,
+      layer: 'map',
+      moving: false,
+      collidable: false,
+      width,
+      height,
+    });
+  }
 
   const rawVisibility = table.layer_visibility === undefined ? {} : record(table.layer_visibility, 'table.layer_visibility');
   const layerVisibility: Partial<Record<RendererLayerName, boolean>> = {};

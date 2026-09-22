@@ -191,10 +191,12 @@ cache. A legacy `texture_path` may help the server resolve old records, but it
 must not replace an enriched `asset_id` at the renderer boundary. Map imagery
 and token sprites use this same rule.
 
-Legacy `background_image` metadata is retained for wire compatibility but is
-not interpreted as a filename, URL, or texture key. A rendered background map
-must be an ordinary `map`-layer sprite carrying an authorized canonical
-`asset_id`.
+Legacy `background_image` metadata is retained for wire compatibility. A value
+matching the canonical lowercase 16-hex asset identity is migrated in memory
+to a bounded, non-store `map`-layer sprite. Filenames, object keys, paths,
+arbitrary IDs, URLs, and presigned bearer tokens are never interpreted as
+texture identities. New and updated maps must be ordinary persisted
+`map`-layer sprites carrying an authorized canonical `asset_id`.
 
 Only the active hydrated table is visually ready. Switching tables drops the
 prior readiness record and unloads GPU textures not shared with the new table;

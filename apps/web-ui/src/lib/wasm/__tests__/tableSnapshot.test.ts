@@ -157,6 +157,25 @@ describe('normalizeTableSnapshot', () => {
     expect(result.renderer.layers.map).toEqual([]);
   });
 
+  it('recovers a legacy background only when it is a canonical asset identity', () => {
+    const result = normalizeTableSnapshot(pythonSerializedTable({
+      background_image: '0123456789abcdef',
+    }));
+
+    expect(result.renderer.layers.map).toEqual([
+      expect.objectContaining({
+        sprite_id: `legacy_background_${TABLE_ID}`,
+        texture_path: '0123456789abcdef',
+        asset_id: '0123456789abcdef',
+        coord_x: 0,
+        coord_y: 0,
+        width: 2000,
+        height: 1500,
+      }),
+    ]);
+    expect(result.storeSprites).toHaveLength(1);
+  });
+
   it('preserves procedural texture sentinels instead of replacing them with asset metadata', () => {
     const result = normalizeTableSnapshot(pythonSerializedTable({
       layers: {

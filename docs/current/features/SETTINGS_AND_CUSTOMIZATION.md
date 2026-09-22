@@ -5,7 +5,7 @@ settings, or browser-only UI preferences.
 
 Status: current but split across several feature owners.
 
-Last source audit: 2026-09-10
+Last source audit: 2026-09-22
 
 ## Ownership
 
@@ -24,9 +24,9 @@ that applies them:
   through `features/customization/index.ts`.
 - Interface preference loading, validation, persistence, and document updates
   live in `apps/web-ui/src/features/customization/uiPreferences.ts`.
-- Canvas performance settings live in
-  `apps/web-ui/src/features/canvas/services/performance.service.ts` and
-  `components/PerformanceSettingsPanel.tsx`.
+- Canvas performance diagnostics live in
+  `apps/web-ui/src/features/canvas/services/performance.service.ts` and the
+  read-only `components/PerformanceSettingsPanel.tsx`.
 
 ## Account Settings
 
@@ -96,9 +96,11 @@ Reset applies and persists the complete default preference set. Theme and
 accent selectors remap shared semantic tokens, so token-driven components
 change consistently without feature code branching on the selected theme.
 
-Canvas performance settings are also browser-local. `performanceService` stores
-settings under `ttrpg_performance_settings` in `localStorage`; the panel can
-apply manual settings or choose a level from current performance metrics.
+Canvas performance diagnostics are observational, not settings.
+`performanceService` measures renderer submission timing and reads counters
+from the active WASM renderer. The panel does not persist a quality level or
+claim to clear renderer-owned caches. See [Rust/WASM engine](../RUST_WASM_ENGINE.md#renderer-diagnostics)
+for the metric ownership and lifetime contract.
 
 `GameClient.tsx` stores side panel width and visibility in `localStorage` using
 `panel_left_width`, `panel_right_width`, `panel_left_visible`, and

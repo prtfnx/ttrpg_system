@@ -4,7 +4,7 @@ Audience: contributors changing the browser engine or its TypeScript boundary.
 
 Status: usable.
 
-Last source audit: 2026-09-21
+Last source audit: 2026-09-22
 
 The Rust crate is the local engine behind the browser canvas. It should stay
 focused on compute-heavy rendering, geometry, visibility, collision, planning,
@@ -93,6 +93,35 @@ active-table form remains for immediate local UI placement. Rendering filters
 lights and obstacle sprites by the active table. The light/stencil pass uses a
 camera-derived WebGL scissor rectangle so additive light is confined to the
 bounded table plane, and cleanup restores scissor state even after an error.
+
+## Renderer diagnostics
+
+`RenderEngine.get_render_diagnostics()` returns counters owned by the current
+renderer instance. `WasmRuntime.getRenderDiagnostics()` resolves the active
+engine on every read, so diagnostics continue to follow the renderer after a
+WebGL context restore instead of retaining a stale engine reference.
+
+Each submitted frame reports sprite consideration/draw/cull counts, draw calls,
+buffer uploads, active lights, shadow segment totals/candidates/accepted counts,
+shadow draw calls, the occlusion revision and rebuild count, and resident
+textures. The occlusion revision and rebuild count are lifetime values for the
+current engine; the other operation counters describe the latest frame.
+
+TypeScript measures CPU submission duration immediately around
+`RenderEngine.render()`. This is main-thread submission time, not GPU execution
+time. `performanceService` keeps the latest 600 frame durations, derives mean,
+p50, p95, and maximum values, and reads renderer counters every 250 ms. Its
+history is bounded to 1,200 snapshots. The Performance panel is a read-only
+view of these measurements; it does not expose renderer cache or quality
+controls.
+
+Texture byte, budget, and over-budget fields are part of the boundary but
+remain zero until `TextureManager` owns explicit byte accounting. Do not treat
+those values as evidence that resident textures consume no memory.
+
+`performance_fixtures.rs` provides deterministic ordinary, large, shadow
+stress, culling stress, and long-segment scenes. Use those builders for
+repeatable renderer tests instead of inventing benchmark-only scene shapes.
 
 ## Runtime callbacks
 

@@ -4,7 +4,7 @@ Audience: contributors choosing and running verification for a change.
 
 Status: current.
 
-Last source audit: 2026-09-14
+Last source audit: 2026-09-22
 
 Tests should sit at the boundary where behavior is owned. Avoid testing a lower
 layer through an unrelated higher layer when a direct boundary test is clearer.
@@ -253,6 +253,14 @@ pnpm.cmd run test:browser
 
 The browser command intentionally uses the pinned wrapper described above;
 do not replace it with an unpinned `wasm-pack test --headless --chrome` gate.
+
+Renderer performance work uses the deterministic scene builders in
+`packages/rust-core/src/performance_fixtures.rs`. Native tests validate their
+shape, while the real-browser WASM suite validates that a rendered frame
+publishes non-zero operation counters. Timing baselines must use an optimized
+WASM build and record the browser, canvas size, warmup, sample count, and scene
+outside `docs/current`; submission timing is not GPU timing and is not a
+portable CI threshold.
 
 ## What to test for a change
 

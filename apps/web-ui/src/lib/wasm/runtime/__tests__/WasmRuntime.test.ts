@@ -217,7 +217,7 @@ describe('WasmRuntime', () => {
     expect(contextLost.defaultPrevented).toBe(true);
     expect(cancelAnimationFrame).toHaveBeenCalledWith(17);
     expect(mocks.integrationDetach).toHaveBeenCalledTimes(1);
-    expect(mocks.assetIntegrationDispose).toHaveBeenCalledTimes(1);
+    expect(mocks.assetIntegrationDispose).not.toHaveBeenCalled();
     expect(mocks.renderEngine.free).toHaveBeenCalledTimes(1);
     expect(runtime.getRenderEngine()).toBeNull();
     expect(runtime.status).toMatchObject({

@@ -111,7 +111,9 @@ export class WasmRuntime implements WasmRuntimePort {
   private readonly contextLostHandler = (event: Event) => {
     if (event.currentTarget !== this.attachedCanvas) return;
     event.preventDefault();
-    this.releaseRenderer();
+    // Session-level asset protocol listeners must survive a transient GPU
+    // reset; they are disposed only when the canvas/runtime actually detaches.
+    this.releaseRenderer(false);
     this.store.setSnapshot({
       isContextLost: true,
       frameTableId: null,
@@ -214,13 +216,13 @@ export class WasmRuntime implements WasmRuntimePort {
     });
   }
 
-  private releaseRenderer(): void {
+  private releaseRenderer(disposeCanvasIntegration = true): void {
     if (this.animationFrameId !== null) {
       cancelAnimationFrame(this.animationFrameId);
       this.animationFrameId = null;
     }
     this.syncCoordinator.detachRenderer();
-    assetIntegrationService.dispose();
+    if (disposeCanvasIntegration) assetIntegrationService.dispose();
     this.onFrame = null;
 
     this.clearRuntimeCallbacks(this.renderEngine);

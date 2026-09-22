@@ -17,6 +17,7 @@ use crate::layer_manager::LayerManager;
 use crate::lighting::LightingSystem;
 use crate::math::*;
 use crate::paint::PaintSystem;
+use crate::render_diagnostics::RenderFrameCounters;
 use crate::table_manager::TableManager;
 use crate::table_sync::TableSync;
 use crate::text_renderer::TextRenderer;
@@ -74,6 +75,9 @@ pub struct RenderEngine {
 
     // Wall segments
     pub(crate) wall_manager: WallManager,
+
+    // Deterministic diagnostics for the most recently submitted frame.
+    pub(crate) diagnostics: RenderFrameCounters,
 
     // Dirty flag — set whenever obstacles may have changed
     pub(crate) obstacles_dirty: bool,
@@ -170,6 +174,7 @@ impl RenderEngine {
             table_sync,
             table_manager,
             wall_manager,
+            diagnostics: RenderFrameCounters::default(),
             obstacles_dirty: true,
             background_color: [0.1, 0.1, 0.1, 1.0],
             is_gm: false,
@@ -239,6 +244,32 @@ impl RenderEngine {
     pub(crate) fn update_lighting_obstacles(&mut self) {
         let obstacles = self.collect_lighting_obstacle_segments();
         self.lighting.set_obstacles(&obstacles);
+        self.diagnostics.record_occlusion_rebuild();
+    }
+
+    #[wasm_bindgen]
+    pub fn get_render_diagnostics(&self) -> Result<JsValue, JsValue> {
+        let mut snapshot = self.diagnostics.clone();
+        snapshot.draw_calls = self
+            .renderer
+            .frame_draw_calls()
+            .saturating_add(self.lighting.frame_draw_calls())
+            .saturating_add(self.fog.frame_draw_calls());
+        snapshot.buffer_uploads = self
+            .renderer
+            .frame_buffer_uploads()
+            .saturating_add(self.lighting.frame_buffer_uploads())
+            .saturating_add(self.fog.frame_buffer_uploads());
+        snapshot.active_lights = self.lighting.frame_active_lights();
+        snapshot.shadow_segments_total = self.lighting.frame_shadow_segments_total();
+        snapshot.shadow_candidates = self.lighting.frame_shadow_candidates();
+        snapshot.shadow_segments_accepted = self.lighting.frame_shadow_segments_accepted();
+        snapshot.shadow_draw_calls = self.lighting.frame_shadow_draw_calls();
+        snapshot.resident_textures = self.texture_manager.resident_texture_count() as u32;
+
+        serde_wasm_bindgen::to_value(&snapshot).map_err(|error| {
+            JsValue::from_str(&format!("Failed to serialize diagnostics: {error}"))
+        })
     }
 
     pub(crate) fn collect_lighting_obstacle_segments(&self) -> Vec<f32> {

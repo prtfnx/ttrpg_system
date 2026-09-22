@@ -1,5 +1,6 @@
 use crate::math::Vec2;
 use crate::types::BlendMode;
+use std::cell::Cell;
 use wasm_bindgen::prelude::*;
 use web_sys::{
     WebGl2RenderingContext as WebGlRenderingContext, WebGlBuffer, WebGlProgram, WebGlShader,
@@ -11,6 +12,8 @@ pub struct WebGLRenderer {
     vertex_buffer: Option<WebGlBuffer>,
     index_buffer: Option<WebGlBuffer>,
     current_layer_color: [f32; 3],
+    frame_draw_calls: Cell<u32>,
+    frame_buffer_uploads: Cell<u32>,
 }
 
 impl WebGLRenderer {
@@ -28,6 +31,8 @@ impl WebGLRenderer {
             vertex_buffer: None,
             index_buffer: None,
             current_layer_color: [1.0, 1.0, 1.0], // Default to white
+            frame_draw_calls: Cell::new(0),
+            frame_buffer_uploads: Cell::new(0),
         };
         renderer.init_shaders()?;
         renderer.init_buffers()?;
@@ -155,6 +160,29 @@ impl WebGLRenderer {
         );
     }
 
+    pub fn begin_frame(&self) {
+        self.frame_draw_calls.set(0);
+        self.frame_buffer_uploads.set(0);
+    }
+
+    pub fn frame_draw_calls(&self) -> u32 {
+        self.frame_draw_calls.get()
+    }
+
+    pub fn frame_buffer_uploads(&self) -> u32 {
+        self.frame_buffer_uploads.get()
+    }
+
+    fn record_draw_call(&self) {
+        self.frame_draw_calls
+            .set(self.frame_draw_calls.get().saturating_add(1));
+    }
+
+    fn record_buffer_upload(&self) {
+        self.frame_buffer_uploads
+            .set(self.frame_buffer_uploads.get().saturating_add(1));
+    }
+
     pub fn draw_quad(
         &self,
         vertices: &[f32],
@@ -185,6 +213,7 @@ impl WebGLRenderer {
                         &view,
                         WebGlRenderingContext::DYNAMIC_DRAW,
                     );
+                    self.record_buffer_upload();
                 }
             }
 
@@ -246,6 +275,7 @@ impl WebGLRenderer {
                         &view,
                         WebGlRenderingContext::DYNAMIC_DRAW,
                     );
+                    self.record_buffer_upload();
                 }
             }
 
@@ -255,6 +285,7 @@ impl WebGLRenderer {
                 WebGlRenderingContext::UNSIGNED_SHORT,
                 0,
             );
+            self.record_draw_call();
         }
 
         Ok(())
@@ -295,6 +326,7 @@ impl WebGLRenderer {
                         &view,
                         WebGlRenderingContext::DYNAMIC_DRAW,
                     );
+                    self.record_buffer_upload();
                 }
             }
 
@@ -341,6 +373,7 @@ impl WebGLRenderer {
                 0,
                 (vertices.len() / 2) as i32,
             );
+            self.record_draw_call();
 
             // Reset line width to default
             self.gl.line_width(1.0);
@@ -376,6 +409,7 @@ impl WebGLRenderer {
                         &view,
                         WebGlRenderingContext::DYNAMIC_DRAW,
                     );
+                    self.record_buffer_upload();
                 }
             }
 
@@ -422,6 +456,7 @@ impl WebGLRenderer {
                 0,
                 (vertices.len() / 2) as i32,
             );
+            self.record_draw_call();
         }
 
         Ok(())
@@ -454,6 +489,7 @@ impl WebGLRenderer {
                         &view,
                         WebGlRenderingContext::DYNAMIC_DRAW,
                     );
+                    self.record_buffer_upload();
                 }
             }
 
@@ -497,6 +533,7 @@ impl WebGLRenderer {
             // Draw
             self.gl
                 .draw_arrays(WebGlRenderingContext::LINES, 0, (vertices.len() / 2) as i32);
+            self.record_draw_call();
         }
 
         Ok(())

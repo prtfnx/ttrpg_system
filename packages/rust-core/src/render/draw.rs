@@ -59,6 +59,10 @@ fn screen_rect_to_gl_scissor(min: Vec2, max: Vec2, canvas: Vec2) -> [i32; 4] {
 impl RenderEngine {
     #[wasm_bindgen]
     pub fn render(&mut self) -> Result<(), JsValue> {
+        self.diagnostics.begin_frame();
+        self.renderer.begin_frame();
+        self.lighting.begin_frame();
+        self.fog.begin_frame();
         self.texture_manager.collect_completed_loads();
         self.renderer.clear(
             WORKSPACE_BACKGROUND[0],
@@ -122,6 +126,8 @@ impl RenderEngine {
                     Self::get_effective_layer_opacity(&layer.settings, layer_name, &active_layer);
                 for sprite in &layer.sprites {
                     if sprite.table_id == active_table_id {
+                        self.diagnostics.sprites_considered =
+                            self.diagnostics.sprites_considered.saturating_add(1);
                         SpriteRenderer::draw_sprite(
                             sprite,
                             effective_opacity,
@@ -131,6 +137,8 @@ impl RenderEngine {
                             &self.input,
                             self.camera.zoom,
                         )?;
+                        self.diagnostics.sprites_drawn =
+                            self.diagnostics.sprites_drawn.saturating_add(1);
                     }
                 }
             }
@@ -155,6 +163,8 @@ impl RenderEngine {
 
                 for sprite in &layer.sprites {
                     if sprite.table_id == active_table_id {
+                        self.diagnostics.sprites_considered =
+                            self.diagnostics.sprites_considered.saturating_add(1);
                         SpriteRenderer::draw_sprite(
                             sprite,
                             effective_opacity,
@@ -164,6 +174,8 @@ impl RenderEngine {
                             &self.input,
                             self.camera.zoom,
                         )?;
+                        self.diagnostics.sprites_drawn =
+                            self.diagnostics.sprites_drawn.saturating_add(1);
                     }
                 }
             }

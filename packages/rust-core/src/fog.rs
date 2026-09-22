@@ -2,6 +2,8 @@ use crate::math::Vec2;
 #[cfg(target_arch = "wasm32")]
 use indexmap::IndexMap;
 #[cfg(target_arch = "wasm32")]
+use std::cell::Cell;
+#[cfg(target_arch = "wasm32")]
 use std::collections::HashMap;
 #[cfg(target_arch = "wasm32")]
 use wasm_bindgen::prelude::*;
@@ -96,6 +98,8 @@ pub struct FogOfWarSystem {
     vision_framebuffer: Option<web_sys::WebGlFramebuffer>,
     vision_texture: Option<web_sys::WebGlTexture>,
     vision_stencil_rb: Option<web_sys::WebGlRenderbuffer>,
+    frame_draw_calls: Cell<u32>,
+    frame_buffer_uploads: Cell<u32>,
 }
 
 #[cfg(target_arch = "wasm32")]
@@ -122,6 +126,8 @@ impl FogOfWarSystem {
             vision_framebuffer: None,
             vision_texture: None,
             vision_stencil_rb: None,
+            frame_draw_calls: Cell::new(0),
+            frame_buffer_uploads: Cell::new(0),
         };
 
         system.init_shaders()?;
@@ -716,6 +722,8 @@ impl FogOfWarSystem {
                 &arr,
                 WebGlRenderingContext::STREAM_DRAW,
             );
+            self.frame_buffer_uploads
+                .set(self.frame_buffer_uploads.get().saturating_add(1));
         }
 
         let pos_loc = self.gl.get_attrib_location(program, "a_position") as u32;
@@ -733,6 +741,8 @@ impl FogOfWarSystem {
             0,
             (fan.len() / 2) as i32,
         );
+        self.frame_draw_calls
+            .set(self.frame_draw_calls.get().saturating_add(1));
         self.gl.disable_vertex_attrib_array(pos_loc);
 
         Ok(())
@@ -1102,6 +1112,19 @@ impl FogOfWarSystem {
         Ok(())
     }
 
+    pub fn begin_frame(&self) {
+        self.frame_draw_calls.set(0);
+        self.frame_buffer_uploads.set(0);
+    }
+
+    pub fn frame_draw_calls(&self) -> u32 {
+        self.frame_draw_calls.get()
+    }
+
+    pub fn frame_buffer_uploads(&self) -> u32 {
+        self.frame_buffer_uploads.get()
+    }
+
     fn render_single_rectangle(
         &self,
         program: &WebGlProgram,
@@ -1133,6 +1156,8 @@ impl FogOfWarSystem {
                 &vertices_array,
                 WebGlRenderingContext::STATIC_DRAW,
             );
+            self.frame_buffer_uploads
+                .set(self.frame_buffer_uploads.get().saturating_add(1));
         }
 
         // Set up vertex attributes
@@ -1150,6 +1175,8 @@ impl FogOfWarSystem {
         // Draw rectangle
         self.gl
             .draw_arrays(WebGlRenderingContext::TRIANGLE_FAN, 0, 4);
+        self.frame_draw_calls
+            .set(self.frame_draw_calls.get().saturating_add(1));
 
         self.gl.disable_vertex_attrib_array(position_location);
 
@@ -1181,6 +1208,8 @@ impl FogOfWarSystem {
                 &vertices_array,
                 WebGlRenderingContext::STATIC_DRAW,
             );
+            self.frame_buffer_uploads
+                .set(self.frame_buffer_uploads.get().saturating_add(1));
         }
 
         // Set up vertex attributes (interleaved: position + texcoord)
@@ -1219,6 +1248,8 @@ impl FogOfWarSystem {
         // Draw quad
         self.gl
             .draw_arrays(WebGlRenderingContext::TRIANGLE_FAN, 0, 4);
+        self.frame_draw_calls
+            .set(self.frame_draw_calls.get().saturating_add(1));
 
         self.gl.disable_vertex_attrib_array(position_location);
         self.gl.disable_vertex_attrib_array(texcoord_location);

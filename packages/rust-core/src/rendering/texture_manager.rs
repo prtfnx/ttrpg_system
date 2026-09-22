@@ -95,6 +95,10 @@ impl TextureManager {
         self.textures.contains_key(name)
     }
 
+    pub fn resident_texture_count(&self) -> usize {
+        self.textures.len()
+    }
+
     pub fn bind_texture(&self, name: &str) {
         if let Some(texture) = self.textures.get(name) {
             self.gl.active_texture(WebGlRenderingContext::TEXTURE0);

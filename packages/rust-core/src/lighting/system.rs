@@ -4,7 +4,7 @@ use crate::math::Vec2;
 use crate::types::Color;
 use serde::{Deserialize, Serialize};
 #[cfg(target_arch = "wasm32")]
-use std::cell::RefCell;
+use std::cell::{Cell, RefCell};
 #[cfg(target_arch = "wasm32")]
 use std::collections::HashMap;
 #[cfg(target_arch = "wasm32")]
@@ -115,6 +115,13 @@ pub struct LightingSystem {
     ambient_light: f32,
     obstacles_dirty: bool,
     vertex_buffer: Option<WebGlBuffer>,
+    frame_draw_calls: Cell<u32>,
+    frame_buffer_uploads: Cell<u32>,
+    frame_active_lights: Cell<u32>,
+    frame_shadow_segments_total: Cell<u32>,
+    frame_shadow_candidates: Cell<u32>,
+    frame_shadow_segments_accepted: Cell<u32>,
+    frame_shadow_draw_calls: Cell<u32>,
 }
 
 #[cfg(target_arch = "wasm32")]
@@ -143,6 +150,13 @@ impl LightingSystem {
             ambient_light: 0.3,
             obstacles_dirty: true,
             vertex_buffer: None,
+            frame_draw_calls: Cell::new(0),
+            frame_buffer_uploads: Cell::new(0),
+            frame_active_lights: Cell::new(0),
+            frame_shadow_segments_total: Cell::new(0),
+            frame_shadow_candidates: Cell::new(0),
+            frame_shadow_segments_accepted: Cell::new(0),
+            frame_shadow_draw_calls: Cell::new(0),
         };
 
         system.init_shaders()?;
@@ -331,6 +345,44 @@ impl LightingSystem {
         self.render_lights_filtered(view_matrix, canvas_width, canvas_height, None, None)
     }
 
+    pub fn begin_frame(&self) {
+        self.frame_draw_calls.set(0);
+        self.frame_buffer_uploads.set(0);
+        self.frame_active_lights.set(0);
+        self.frame_shadow_segments_total.set(0);
+        self.frame_shadow_candidates.set(0);
+        self.frame_shadow_segments_accepted.set(0);
+        self.frame_shadow_draw_calls.set(0);
+    }
+
+    pub fn frame_draw_calls(&self) -> u32 {
+        self.frame_draw_calls.get()
+    }
+
+    pub fn frame_buffer_uploads(&self) -> u32 {
+        self.frame_buffer_uploads.get()
+    }
+
+    pub fn frame_active_lights(&self) -> u32 {
+        self.frame_active_lights.get()
+    }
+
+    pub fn frame_shadow_segments_total(&self) -> u32 {
+        self.frame_shadow_segments_total.get()
+    }
+
+    pub fn frame_shadow_candidates(&self) -> u32 {
+        self.frame_shadow_candidates.get()
+    }
+
+    pub fn frame_shadow_segments_accepted(&self) -> u32 {
+        self.frame_shadow_segments_accepted.get()
+    }
+
+    pub fn frame_shadow_draw_calls(&self) -> u32 {
+        self.frame_shadow_draw_calls.get()
+    }
+
     /// Render lights filtered by table_id
     pub fn render_lights_filtered(
         &mut self,
@@ -401,6 +453,8 @@ impl LightingSystem {
                             continue;
                         }
                     }
+                    self.frame_active_lights
+                        .set(self.frame_active_lights.get().saturating_add(1));
                     (
                         light.id.clone(),
                         light.position,
@@ -564,6 +618,8 @@ impl LightingSystem {
                 &vertices_array,
                 WebGlRenderingContext::DYNAMIC_DRAW,
             );
+            self.frame_buffer_uploads
+                .set(self.frame_buffer_uploads.get().saturating_add(1));
         }
 
         let position_location = self.gl.get_attrib_location(program, "a_position") as u32;
@@ -582,6 +638,8 @@ impl LightingSystem {
             0,
             (vertices.len() / 2) as i32,
         );
+        self.frame_draw_calls
+            .set(self.frame_draw_calls.get().saturating_add(1));
         self.gl.disable_vertex_attrib_array(position_location);
 
         Ok(())
@@ -607,6 +665,8 @@ impl LightingSystem {
                 &vertices_array,
                 WebGlRenderingContext::DYNAMIC_DRAW,
             );
+            self.frame_buffer_uploads
+                .set(self.frame_buffer_uploads.get().saturating_add(1));
         }
 
         let position_location = self.gl.get_attrib_location(program, "a_position") as u32;
@@ -625,6 +685,10 @@ impl LightingSystem {
             0,
             (vertices.len() / 2) as i32,
         );
+        self.frame_draw_calls
+            .set(self.frame_draw_calls.get().saturating_add(1));
+        self.frame_shadow_draw_calls
+            .set(self.frame_shadow_draw_calls.get().saturating_add(1));
         self.gl.disable_vertex_attrib_array(position_location);
 
         Ok(())
@@ -725,6 +789,17 @@ impl LightingSystem {
         let mut shadow_quads = Vec::new();
 
         let segment_count = calc.get_segments().len();
+        let segment_count = u32::try_from(segment_count).unwrap_or(u32::MAX);
+        self.frame_shadow_segments_total.set(
+            self.frame_shadow_segments_total
+                .get()
+                .saturating_add(segment_count),
+        );
+        self.frame_shadow_candidates.set(
+            self.frame_shadow_candidates
+                .get()
+                .saturating_add(segment_count),
+        );
         // web_sys::console::log_1(&format!("[LIGHTING-DEBUG] [DARK] Computing shadows for light at ({:.1}, {:.1}) with radius {:.1}, {} segments available",
         //     light_pos.x, light_pos.y, radius, segment_count).into());
 
@@ -752,6 +827,12 @@ impl LightingSystem {
                 shadow_quads.push(quad.to_vec());
             }
         }
+
+        self.frame_shadow_segments_accepted.set(
+            self.frame_shadow_segments_accepted
+                .get()
+                .saturating_add(u32::try_from(shadow_quads.len()).unwrap_or(u32::MAX)),
+        );
 
         shadow_quads
     }

@@ -220,6 +220,53 @@ describe('WASM module (real browser)', () => {
     }
   });
 
+  it('reports renderer-owned counters for a real submitted frame', () => {
+    const canvas = document.createElement('canvas');
+    canvas.width = 240;
+    canvas.height = 160;
+    const engine = new RenderEngine(canvas);
+    try {
+      const snapshot = normalizeTableSnapshot({ table_data: {
+        table_id: '550e8400-e29b-41d4-a716-446655440013',
+        table_name: 'Diagnostics fixture',
+        width: 200,
+        height: 120,
+        scale: 1,
+        grid_enabled: false,
+        layers: {
+          tokens: {
+            first: { sprite_id: 'first', position: [20, 20], width: 20, height: 20 },
+            second: { sprite_id: 'second', position: [60, 20], width: 20, height: 20 },
+          },
+        },
+      } });
+      engine.handle_table_data(snapshot.renderer);
+
+      engine.render();
+      const first = engine.get_render_diagnostics();
+      expect(first).toMatchObject({
+        frameNumber: 1,
+        spritesConsidered: 2,
+        spritesDrawn: 2,
+        spritesCulled: 0,
+        occlusionRevision: 1,
+        occlusionRebuilds: 1,
+      });
+      expect(first.drawCalls).toBeGreaterThanOrEqual(4);
+      expect(first.bufferUploads).toBeGreaterThanOrEqual(first.drawCalls);
+      expect(first.residentTextures).toBeGreaterThanOrEqual(1);
+
+      engine.render();
+      expect(engine.get_render_diagnostics()).toMatchObject({
+        frameNumber: 2,
+        occlusionRevision: 1,
+        occlusionRebuilds: 1,
+      });
+    } finally {
+      engine.free();
+    }
+  });
+
   it('version() returns a semver string', () => {
     const v = version();
     expect(typeof v).toBe('string');

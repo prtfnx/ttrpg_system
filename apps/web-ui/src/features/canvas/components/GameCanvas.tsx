@@ -638,7 +638,10 @@ export const GameCanvas: React.FC = () => {
           userId,
           role: sessionRole ?? initialRole ?? null,
           activeLayer: useGameStore.getState().activeLayer,
-          onFrame: () => fpsService.recordFrame(),
+          onFrame: sample => {
+            fpsService.recordFrame();
+            performanceService.recordFrame(sample);
+          },
         });
         if (!mounted) {
           runtime.detachCanvas();
@@ -647,7 +650,7 @@ export const GameCanvas: React.FC = () => {
         rustRenderManagerRef.current = rustRenderEngine;
 
         // Initialize performance monitoring
-        performanceService.initialize(rustRenderEngine);
+        performanceService.initialize(() => runtime.getRenderDiagnostics());
         logger.debug('[PERFORMANCE] Service initialized');
         resizeCanvas(canvas, dprRef, rustRenderEngine);
 
@@ -702,6 +705,7 @@ export const GameCanvas: React.FC = () => {
       mounted = false;
 
       runtime.detachCanvas();
+      performanceService.dispose();
       rustRenderManagerRef.current = null;
 
       // eslint-disable-next-line react-hooks/exhaustive-deps -- known: canvasRef.current captured at cleanup via const canvas above

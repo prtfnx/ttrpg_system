@@ -102,7 +102,7 @@ export const PerformanceMonitor: React.FC<PerformanceMonitorProps> = ({
         </div>
         
         <div className={styles.frameTimeDisplay}>
-          <span>Frame Time: {fpsMetrics.frameTime.toFixed(1)}ms</span>
+          <span>Render CPU: {metrics.frameTimeP95.toFixed(1)}ms p95</span>
         </div>
       </button>
 
@@ -144,10 +144,7 @@ export const PerformanceMonitor: React.FC<PerformanceMonitorProps> = ({
                   {Math.round(fpsMetrics.max)} FPS
                 </span>
               </div>
-              <div className={styles.metricRow}>
-                <span>Frame Time:</span>
-                <span>{fpsMetrics.frameTime.toFixed(2)}ms</span>
-              </div>
+              <div className={styles.metricRow}><span>Callback interval:</span><span>{fpsMetrics.frameTime.toFixed(2)}ms</span></div>
             </div>
 
             {/* Memory Section */}
@@ -167,12 +164,6 @@ export const PerformanceMonitor: React.FC<PerformanceMonitorProps> = ({
                     <span>Limit:</span>
                     <span>{formatBytes(metrics.memoryUsage.jsHeapSizeLimit)}</span>
                   </div>
-                  {metrics.wasmMemoryUsage > 0 && (
-                    <div className={styles.metricRow}>
-                      <span>WASM:</span>
-                      <span>{formatBytes(metrics.wasmMemoryUsage)}</span>
-                    </div>
-                  )}
                 </>
               )}
             </div>
@@ -183,38 +174,35 @@ export const PerformanceMonitor: React.FC<PerformanceMonitorProps> = ({
               {metrics && (
                 <>
                   <div className={styles.metricRow}>
-                    <span>Sprites:</span>
-                    <span>{metrics.spriteCount.toLocaleString()}</span>
+                    <span>Sprites drawn:</span>
+                    <span>{metrics.spritesDrawn.toLocaleString()} / {metrics.spritesConsidered.toLocaleString()}</span>
+                  </div>
+                  <div className={styles.metricRow}>
+                    <span>Culled:</span>
+                    <span>{metrics.spritesCulled.toLocaleString()}</span>
+                  </div>
+                  <div className={styles.metricRow}>
+                    <span>Draws / uploads:</span>
+                    <span>{metrics.drawCalls} / {metrics.bufferUploads}</span>
                   </div>
                   <div className={styles.metricRow}>
                     <span>Textures:</span>
-                    <span>{metrics.textureCount.toLocaleString()}</span>
+                    <span>{metrics.residentTextures.toLocaleString()}</span>
                   </div>
                   <div className={styles.metricRow}>
-                    <span>Cache Hit:</span>
-                    <span>{metrics.cacheHitRate.toFixed(1)}%</span>
+                    <span>Lights:</span>
+                    <span>{metrics.activeLights}</span>
+                  </div>
+                  <div className={styles.metricRow}>
+                    <span>Shadow draws:</span>
+                    <span>{metrics.shadowDrawCalls}</span>
                   </div>
                 </>
               )}
             </div>
           </div>
 
-          {/* Performance Actions */}
           <div className={styles.performanceActions}>
-            <button 
-              type="button"
-              onClick={() => performanceService.clearSpriteCache()}
-              className={styles.actionBtn}
-            >
-              Clear Sprite Cache
-            </button>
-            <button 
-              type="button"
-              onClick={() => performanceService.clearTextureCache()}
-              className={styles.actionBtn}
-            >
-              Clear Texture Cache
-            </button>
             <button 
               type="button"
               onClick={() => {

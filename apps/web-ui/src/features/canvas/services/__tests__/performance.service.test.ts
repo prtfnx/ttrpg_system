@@ -1,278 +1,120 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-
-const mockFpsGetMetrics = vi.hoisted(() => vi.fn(() => ({ current: 60, average: 60, min: 55, max: 65, frameTime: 16.7 })));
+import fpsService from '../fps.service';
+import { performanceService } from '../performance.service';
 
 vi.mock('../fps.service', () => ({
-  default: { getMetrics: mockFpsGetMetrics },
+  default: { getMetrics: vi.fn(() => ({ current: 60, average: 58, min: 50, max: 60, frameTime: 16.7 })) },
 }));
 
-import { performanceService, PerformanceLevel } from '../performance.service';
-
-type Svc = typeof performanceService & Record<string, unknown>;
-
-function resetSvc() {
-  const s = performanceService as Svc;
-  s['isMonitoring'] = false;
-  if (s['monitoringInterval']) { clearInterval(s['monitoringInterval'] as number); s['monitoringInterval'] = null; }
-  s['renderEngine'] = null;
-  s['spriteCache'] = new Map();
-  s['textureCache'] = new Map();
-  s['cacheHits'] = 0;
-  s['cacheRequests'] = 0;
-  s['performanceLog'] = [];
-  s['frameTimeHistory'] = [];
-  s['lastOptimizationTime'] = 0;
-  localStorage.clear();
-}
-
-beforeEach(() => {
-  vi.useFakeTimers();
-  resetSvc();
-  vi.clearAllMocks();
-});
-
-afterEach(() => {
-  performanceService.stopMonitoring();
-  vi.useRealTimers();
-});
+const diagnostics = {
+  frameNumber: 9,
+  spritesConsidered: 100,
+  spritesDrawn: 75,
+  spritesCulled: 25,
+  drawCalls: 80,
+  bufferUploads: 90,
+  activeLights: 4,
+  shadowSegmentsTotal: 800,
+  shadowCandidates: 800,
+  shadowSegmentsAccepted: 30,
+  shadowDrawCalls: 30,
+  occlusionRevision: 2,
+  occlusionRebuilds: 3,
+  residentTextures: 12,
+  estimatedTextureBytes: 4096,
+  textureBudgetBytes: 8192,
+  textureOverBudgetBytes: 0,
+};
 
 describe('PerformanceService', () => {
-  describe('getMetrics / getSettings', () => {
-    it('returns a metrics copy', () => {
-      const m = performanceService.getMetrics();
-      expect(m).toHaveProperty('fps');
-      expect(m).toHaveProperty('memoryUsage');
-      // Mutating result does not affect internal state
-      m.fps = 999;
-      expect(performanceService.getMetrics().fps).not.toBe(999);
-    });
-
-    it('returns a settings copy', () => {
-      const s = performanceService.getSettings();
-      expect(s).toHaveProperty('level');
-      expect(s).toHaveProperty('maxSprites');
-      s.maxSprites = 99999;
-      expect(performanceService.getSettings().maxSprites).not.toBe(99999);
+  beforeEach(() => {
+    vi.useFakeTimers();
+    performanceService.dispose();
+    vi.mocked(fpsService.getMetrics).mockReturnValue({
+      current: 60, average: 58, min: 50, max: 60, frameTime: 16.7,
     });
   });
 
-  describe('startMonitoring / stopMonitoring', () => {
-    it('startMonitoring sets isMonitoring=true', () => {
-      performanceService.startMonitoring();
-      expect((performanceService as Svc)['isMonitoring']).toBe(true);
-    });
+  afterEach(() => {
+    performanceService.dispose();
+    vi.useRealTimers();
+  });
 
-    it('startMonitoring is idempotent', () => {
-      performanceService.startMonitoring();
-      const interval = (performanceService as Svc)['monitoringInterval'];
-      performanceService.startMonitoring();
-      expect((performanceService as Svc)['monitoringInterval']).toBe(interval);
-    });
+  it('derives render timing percentiles from frame samples instead of the polling interval', () => {
+    performanceService.initialize(() => diagnostics);
+    for (const cpuDurationMs of [1, 2, 3, 4, 20]) {
+      performanceService.recordFrame({ timestamp: 100, cpuDurationMs });
+    }
+    vi.advanceTimersByTime(250);
 
-    it('stopMonitoring sets isMonitoring=false and clears interval', () => {
-      performanceService.startMonitoring();
-      performanceService.stopMonitoring();
-      expect((performanceService as Svc)['isMonitoring']).toBe(false);
-      expect((performanceService as Svc)['monitoringInterval']).toBeNull();
-    });
-
-    it('stopMonitoring is idempotent when already stopped', () => {
-      expect(() => performanceService.stopMonitoring()).not.toThrow();
-    });
-
-    it('monitoring interval fires updateMetrics', () => {
-      performanceService.startMonitoring();
-      vi.advanceTimersByTime(300); // one 250ms tick
-      const m = performanceService.getMetrics();
-      expect(m.fps).toBe(60); // from fpsService mock
+    expect(performanceService.getMetrics()).toMatchObject({
+      frameTime: 20,
+      averageFrameTime: 6,
+      frameTimeP50: 3,
+      frameTimeP95: 20,
+      frameTimeMax: 20,
     });
   });
 
-  describe('initialize', () => {
-    it('starts monitoring on initialize', () => {
-      const engine = {};
-      performanceService.initialize(engine as never);
-      expect((performanceService as Svc)['isMonitoring']).toBe(true);
-    });
+  it('reads renderer-owned operation and resource counters at four hertz', () => {
+    const source = vi.fn(() => diagnostics);
+    performanceService.initialize(source);
 
-    it('does not call unsupported render engine optimization methods on initialize', () => {
-      const engine = {
-        set_max_sprites: vi.fn(),
-        enable_frustum_culling: vi.fn(),
-      };
-      performanceService.initialize(engine as never);
-      expect(engine.set_max_sprites).not.toHaveBeenCalled();
-      expect(engine.enable_frustum_culling).not.toHaveBeenCalled();
-    });
+    vi.advanceTimersByTime(1_000);
+
+    expect(source).toHaveBeenCalledTimes(4);
+    expect(performanceService.getMetrics()).toMatchObject(diagnostics);
   });
 
-  describe('updateSettings', () => {
-    it('merges partial settings', () => {
-      const before = performanceService.getSettings().enableVSync;
-      performanceService.updateSettings({ enableVSync: !before });
-      expect(performanceService.getSettings().enableVSync).toBe(!before);
-    });
+  it('ignores invalid frame samples', () => {
+    performanceService.recordFrame({ timestamp: 1, cpuDurationMs: Number.NaN });
+    performanceService.recordFrame({ timestamp: 1, cpuDurationMs: -1 });
 
-    it('persists settings to localStorage', () => {
-      performanceService.updateSettings({ maxSprites: 123 });
-      const saved = JSON.parse(localStorage.getItem('ttrpg_performance_settings')!);
-      expect(saved.maxSprites).toBe(123);
-    });
-
-    it('ignores invalid settings instead of persisting them', () => {
-      const before = performanceService.getSettings();
-
-      performanceService.updateSettings({
-        level: 'impossible',
-        maxSprites: -1,
-        textureQuality: Number.NaN,
-        maxRenderDistance: 100_000,
-        shadowQuality: 9,
-        enableVSync: 'yes',
-      } as unknown as Parameters<typeof performanceService.updateSettings>[0]);
-
-      expect(performanceService.getSettings()).toEqual(before);
-      expect(JSON.parse(localStorage.getItem('ttrpg_performance_settings')!)).toEqual(before);
-    });
-
-    it('sanitizes settings loaded from localStorage', () => {
-      localStorage.setItem('ttrpg_performance_settings', JSON.stringify({
-        level: 'impossible',
-        maxSprites: 500,
-        textureQuality: 4,
-        enableVSync: false,
-        enableTextureCaching: 'yes',
-      }));
-
-      const loaded = (performanceService as unknown as {
-        loadSettings: () => Partial<ReturnType<typeof performanceService.getSettings>>;
-      }).loadSettings();
-
-      expect(loaded).toEqual({ maxSprites: 500, enableVSync: false });
-    });
+    expect(performanceService.getMetrics().frameTime).toBe(0);
   });
 
-  describe('sprite cache', () => {
-    it('caches and retrieves sprite data', () => {
-      performanceService.cacheSprite('s1', { texture: 'abc' });
-      expect(performanceService.getCachedSprite('s1')).toEqual({ texture: 'abc' });
-    });
+  it('bounds the frame sample ring', () => {
+    for (let index = 0; index < 700; index += 1) {
+      performanceService.recordFrame({ timestamp: index, cpuDurationMs: index });
+    }
+    performanceService.startMonitoring();
+    vi.advanceTimersByTime(250);
 
-    it('returns null for cache miss', () => {
-      expect(performanceService.getCachedSprite('missing')).toBeNull();
-    });
-
-    it('tracks cache hit rate in metrics', () => {
-      performanceService.cacheSprite('s1', {});
-      performanceService.getCachedSprite('s1');    // hit
-      performanceService.getCachedSprite('nope'); // miss
-      // advance timer to let updateMetrics run
-      performanceService.startMonitoring();
-      vi.advanceTimersByTime(300);
-      const m = performanceService.getMetrics();
-      expect(m.cacheHitRate).toBe(50); // 1 hit / 2 requests
-    });
-
-    it('clearSpriteCache empties the cache', () => {
-      performanceService.cacheSprite('s1', {});
-      performanceService.clearSpriteCache();
-      expect(performanceService.getCachedSprite('s1')).toBeNull();
-    });
+    expect(performanceService.getMetrics().frameTimeP50).toBe(399);
   });
 
-  describe('texture cache', () => {
-    it('caches and retrieves texture data', () => {
-      performanceService.cacheTexture('t1', { width: 64, height: 64 });
-      expect(performanceService.getCachedTexture('t1')).toEqual({ width: 64, height: 64 });
-    });
+  it('returns mutation-safe metrics and history', () => {
+    performanceService.initialize(() => diagnostics);
+    vi.advanceTimersByTime(250);
 
-    it('returns null for cache miss', () => {
-      expect(performanceService.getCachedTexture('missing')).toBeNull();
-    });
+    const metrics = performanceService.getMetrics();
+    metrics.memoryUsage.usedJSHeapSize = 999;
+    const history = performanceService.getPerformanceHistory();
+    history[0].metrics.drawCalls = 999;
 
-    it('clearTextureCache empties the cache', () => {
-      performanceService.cacheTexture('t1', {});
-      performanceService.clearTextureCache();
-      expect(performanceService.getCachedTexture('t1')).toBeNull();
-    });
+    expect(performanceService.getMetrics().memoryUsage.usedJSHeapSize).not.toBe(999);
+    expect(performanceService.getPerformanceHistory()[0].metrics.drawCalls).toBe(80);
   });
 
-  describe('getPerformanceHistory', () => {
-    it('returns empty array initially', () => {
-      expect(performanceService.getPerformanceHistory()).toEqual([]);
-    });
+  it('generates a report from measured renderer values', () => {
+    performanceService.initialize(() => diagnostics);
+    performanceService.recordFrame({ timestamp: 1, cpuDurationMs: 2.5 });
+    vi.advanceTimersByTime(250);
 
-    it('records entries after monitoring interval fires', () => {
-      performanceService.startMonitoring();
-      vi.advanceTimersByTime(600); // two 250ms ticks
-      const history = performanceService.getPerformanceHistory();
-      expect(history.length).toBeGreaterThanOrEqual(2);
-      expect(history[0]).toHaveProperty('timestamp');
-      expect(history[0]).toHaveProperty('metrics');
-    });
-
-    it('returns a copy (mutation safe)', () => {
-      performanceService.startMonitoring();
-      vi.advanceTimersByTime(300);
-      const h = performanceService.getPerformanceHistory();
-      h.length = 0;
-      expect(performanceService.getPerformanceHistory().length).toBeGreaterThan(0);
-    });
+    const report = performanceService.generateReport();
+    expect(report).toContain('CPU submission');
+    expect(report).toContain('80 draws');
+    expect(report).toContain('12');
   });
 
-  describe('generateReport', () => {
-    it('returns a non-empty string', () => {
-      const report = performanceService.generateReport();
-      expect(typeof report).toBe('string');
-      expect(report.length).toBeGreaterThan(0);
-    });
+  it('stops polling and clears retained samples on dispose', () => {
+    const source = vi.fn(() => diagnostics);
+    performanceService.initialize(source);
+    performanceService.recordFrame({ timestamp: 1, cpuDurationMs: 5 });
+    performanceService.dispose();
+    vi.advanceTimersByTime(500);
 
-    it('includes FPS and memory info', () => {
-      const report = performanceService.generateReport();
-      expect(report).toContain('FPS');
-      expect(report).toContain('Memory');
-    });
-
-    it('includes performance level', () => {
-      const report = performanceService.generateReport();
-      expect(report).toContain('Performance Level');
-    });
-  });
-
-  describe('dispose', () => {
-    it('stops monitoring and clears caches', () => {
-      performanceService.startMonitoring();
-      performanceService.cacheSprite('s1', {});
-      performanceService.cacheTexture('t1', {});
-      performanceService.dispose();
-      expect((performanceService as Svc)['isMonitoring']).toBe(false);
-      expect(performanceService.getCachedSprite('s1')).toBeNull();
-      expect(performanceService.getCachedTexture('t1')).toBeNull();
-    });
-  });
-
-  describe('PerformanceLevel auto-optimization', () => {
-    it('downgrades from HIGH to MEDIUM when average FPS too low', () => {
-      performanceService.updateSettings({ level: PerformanceLevel.HIGH });
-      // Set far in the past so cooldown (10s) is not blocking
-      (performanceService as Svc)['lastOptimizationTime'] = -1e9;
-      // averageFPS < targetFPS * 0.7 → HIGH target=60, threshold=42
-      mockFpsGetMetrics.mockReturnValue({ current: 10, average: 10, min: 10, max: 10, frameTime: 100 });
-      performanceService.startMonitoring();
-      vi.advanceTimersByTime(300);
-      expect(performanceService.getSettings().level).toBe(PerformanceLevel.MEDIUM);
-    });
-
-    it('upgrades from LOW to MEDIUM when FPS is high and memory is free', () => {
-      performanceService.updateSettings({ level: PerformanceLevel.LOW });
-      (performanceService as Svc)['lastOptimizationTime'] = -1e9;
-      // averageFPS > targetFPS * 1.5 → LOW target=30, threshold=45
-      mockFpsGetMetrics.mockReturnValue({ current: 90, average: 90, min: 90, max: 90, frameTime: 11 });
-      ((performanceService as Svc)['metrics'] as unknown as Record<string, unknown>)['memoryUsage'] =
-        { usedJSHeapSize: 100, totalJSHeapSize: 1000, jsHeapSizeLimit: 10000 };
-      performanceService.startMonitoring();
-      vi.advanceTimersByTime(300);
-      expect(performanceService.getSettings().level).toBe(PerformanceLevel.MEDIUM);
-    });
+    expect(source).not.toHaveBeenCalled();
+    expect(performanceService.getMetrics().frameTime).toBe(0);
   });
 });

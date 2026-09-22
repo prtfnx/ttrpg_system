@@ -1,582 +1,203 @@
-/**
- * Performance monitoring and optimization service for the TTRPG game client
- * Provides FPS monitoring, memory tracking, sprite caching, and performance analytics
- */
-
-import fpsService from './fps.service';
-import type { RenderEngine } from '@lib/wasm/runtime';
+import type { RenderDiagnostics, RenderFrameSample } from '@lib/wasm/runtime';
 import { logger } from '@shared/utils/logger';
+import fpsService from './fps.service';
 
 type PerformanceWithMemory = Performance & {
   memory?: { usedJSHeapSize: number; totalJSHeapSize: number; jsHeapSizeLimit: number };
 };
 
-type CacheEntry<T> = { data: T; timestamp: number; accessCount: number; size?: number };
+type DiagnosticsSource = () => RenderDiagnostics | null;
 
-// Performance metrics interface
-export interface PerformanceMetrics {
+export interface PerformanceMetrics extends RenderDiagnostics {
   fps: number;
   averageFPS: number;
   frameTime: number;
   averageFrameTime: number;
+  frameTimeP50: number;
+  frameTimeP95: number;
+  frameTimeMax: number;
   memoryUsage: {
     usedJSHeapSize: number;
     totalJSHeapSize: number;
     jsHeapSizeLimit: number;
   };
-  spriteCount: number;
-  textureCount: number;
-  renderCalls: number;
-  cacheHitRate: number;
-  networkLatency: number;
-  wasmMemoryUsage: number;
 }
 
-// Performance targets for different quality levels
+// Kept temporarily as source-compatible exports while callers migrate from
+// controls that never affected the renderer.
 export const PerformanceLevel = {
-  LOW: 'low',       // 30 FPS target
-  MEDIUM: 'medium', // 45 FPS target  
-  HIGH: 'high',     // 60 FPS target
-  ULTRA: 'ultra'    // 120 FPS target
+  LOW: 'low',
+  MEDIUM: 'medium',
+  HIGH: 'high',
+  ULTRA: 'ultra',
 } as const;
-
 export type PerformanceLevel = typeof PerformanceLevel[keyof typeof PerformanceLevel];
+export type PerformanceSettings = never;
 
-// Performance optimization settings
-export interface PerformanceSettings {
-  level: PerformanceLevel;
-  maxSprites: number;
-  textureQuality: number;
-  enableVSync: boolean;
-  enableSpritePooling: boolean;
-  enableTextureCaching: boolean;
-  enableFrustumCulling: boolean;
-  maxRenderDistance: number;
-  shadowQuality: number;
-}
+const SAMPLE_CAPACITY = 600;
+const HISTORY_CAPACITY = 1_200;
+const MONITOR_INTERVAL_MS = 250;
 
-const PERFORMANCE_LEVELS = new Set<unknown>(Object.values(PerformanceLevel));
+const emptyDiagnostics = (): RenderDiagnostics => ({
+  frameNumber: 0,
+  spritesConsidered: 0,
+  spritesDrawn: 0,
+  spritesCulled: 0,
+  drawCalls: 0,
+  bufferUploads: 0,
+  activeLights: 0,
+  shadowSegmentsTotal: 0,
+  shadowCandidates: 0,
+  shadowSegmentsAccepted: 0,
+  shadowDrawCalls: 0,
+  occlusionRevision: 0,
+  occlusionRebuilds: 0,
+  residentTextures: 0,
+  estimatedTextureBytes: 0,
+  textureBudgetBytes: 0,
+  textureOverBudgetBytes: 0,
+});
 
-function sanitizePerformanceSettings(value: unknown): Partial<PerformanceSettings> {
-  if (typeof value !== 'object' || value === null) return {};
-  const input = value as Partial<PerformanceSettings>;
-  const settings: Partial<PerformanceSettings> = {};
-  if (PERFORMANCE_LEVELS.has(input.level)) settings.level = input.level;
-  if (Number.isSafeInteger(input.maxSprites) && input.maxSprites! >= 50 && input.maxSprites! <= 2000) {
-    settings.maxSprites = input.maxSprites;
-  }
-  if (typeof input.textureQuality === 'number' && Number.isFinite(input.textureQuality)
-      && input.textureQuality >= 0.25 && input.textureQuality <= 1) {
-    settings.textureQuality = input.textureQuality;
-  }
-  if (Number.isSafeInteger(input.maxRenderDistance)
-      && input.maxRenderDistance! >= 200 && input.maxRenderDistance! <= 5000) {
-    settings.maxRenderDistance = input.maxRenderDistance;
-  }
-  if (Number.isSafeInteger(input.shadowQuality)
-      && input.shadowQuality! >= 0 && input.shadowQuality! <= 3) {
-    settings.shadowQuality = input.shadowQuality;
-  }
-  for (const key of [
-    'enableVSync',
-    'enableSpritePooling',
-    'enableTextureCaching',
-    'enableFrustumCulling',
-  ] as const) {
-    if (typeof input[key] === 'boolean') settings[key] = input[key];
-  }
-  return settings;
-}
+const percentile = (sorted: readonly number[], fraction: number): number => {
+  if (sorted.length === 0) return 0;
+  const index = Math.ceil(sorted.length * fraction) - 1;
+  return sorted[Math.max(0, Math.min(index, sorted.length - 1))];
+};
 
 class PerformanceService {
-  private metrics: PerformanceMetrics;
-  private settings: PerformanceSettings;
-  private frameTimeHistory: number[] = [];
-  private lastFrameTime: number = 0;
-  private isMonitoring: boolean = false;
+  private metrics: PerformanceMetrics = this.createInitialMetrics();
+  private diagnosticsSource: DiagnosticsSource | null = null;
+  private frameSamples: number[] = [];
+  private isMonitoring = false;
   private monitoringInterval: number | null = null;
-  private lastOptimizationTime: number = 0;
-  private readonly OPTIMIZATION_COOLDOWN_MS = 10000; // 10 seconds cooldown
+  private performanceLog: Array<{ timestamp: number; metrics: PerformanceMetrics }> = [];
 
-  private spriteCache = new Map<string, CacheEntry<unknown>>();
-  private textureCache = new Map<string, CacheEntry<unknown>>();
-  private cacheHits: number = 0;
-  private cacheRequests: number = 0;
-
-  // Performance history for analytics
-  private performanceLog: Array<{
-    timestamp: number;
-    metrics: PerformanceMetrics;
- }> = [];
-
-  constructor() {
-    this.metrics = this.initializeMetrics();
-    this.settings = this.getOptimalSettings();
-  }
-
-  private initializeMetrics(): PerformanceMetrics {
+  private createInitialMetrics(): PerformanceMetrics {
     const memory = (performance as PerformanceWithMemory).memory;
     return {
+      ...emptyDiagnostics(),
       fps: 0,
       averageFPS: 0,
       frameTime: 0,
       averageFrameTime: 0,
+      frameTimeP50: 0,
+      frameTimeP95: 0,
+      frameTimeMax: 0,
       memoryUsage: {
-        usedJSHeapSize: memory?.usedJSHeapSize || 0,
-        totalJSHeapSize: memory?.totalJSHeapSize || 0,
-        jsHeapSizeLimit: memory?.jsHeapSizeLimit || 0
+        usedJSHeapSize: memory?.usedJSHeapSize ?? 0,
+        totalJSHeapSize: memory?.totalJSHeapSize ?? 0,
+        jsHeapSizeLimit: memory?.jsHeapSizeLimit ?? 0,
       },
-      spriteCount: 0,
-      textureCount: 0,
-      renderCalls: 0,
-      cacheHitRate: 0,
-      networkLatency: 0,
-      wasmMemoryUsage: 0
     };
   }
 
-  /**
-   * Initialize performance monitoring with render engine reference
-   */
-  initialize(_renderEngine: RenderEngine): void {
+  initialize(diagnosticsSource: DiagnosticsSource): void {
+    this.diagnosticsSource = diagnosticsSource;
     this.startMonitoring();
-    this.applyOptimizations();
-    logger.info('Performance service initialized');
+    logger.info('Renderer performance diagnostics initialized');
   }
 
-  /**
-   * Start performance monitoring
-   */
+  recordFrame(sample: RenderFrameSample): void {
+    if (!Number.isFinite(sample.timestamp)
+      || !Number.isFinite(sample.cpuDurationMs)
+      || sample.cpuDurationMs < 0) return;
+
+    this.frameSamples.push(sample.cpuDurationMs);
+    if (this.frameSamples.length > SAMPLE_CAPACITY) this.frameSamples.shift();
+    this.metrics.frameTime = sample.cpuDurationMs;
+  }
+
   startMonitoring(): void {
     if (this.isMonitoring) return;
-
     this.isMonitoring = true;
-    this.lastFrameTime = performance.now();
-
-    // Monitor at 4Hz (every 250ms) to avoid performance overhead
-    this.monitoringInterval = window.setInterval(() => {
-      this.updateMetrics();
-      this.logPerformanceData();
-      this.optimizeIfNeeded();
-    }, 250);
-
+    this.monitoringInterval = window.setInterval(() => this.updateMetrics(), MONITOR_INTERVAL_MS);
     logger.info('Performance monitoring started');
   }
 
-  /**
-   * Stop performance monitoring
-   */
   stopMonitoring(): void {
     if (!this.isMonitoring) return;
-
     this.isMonitoring = false;
-    if (this.monitoringInterval) {
+    if (this.monitoringInterval !== null) {
       clearInterval(this.monitoringInterval);
       this.monitoringInterval = null;
     }
-
     logger.info('Performance monitoring stopped');
   }
 
-  /**
-   * Update performance metrics
-   */
   private updateMetrics(): void {
-    const currentTime = performance.now();
-    const deltaTime = currentTime - this.lastFrameTime;
-    
-    // Get FPS from unified FPS service
-    const fpsMetrics = fpsService.getMetrics();
-    this.metrics.fps = fpsMetrics.current;
-    this.metrics.averageFPS = fpsMetrics.average;
+    const fps = fpsService.getMetrics();
+    this.metrics.fps = fps.current;
+    this.metrics.averageFPS = fps.average;
 
-    // Update frame time
-    this.metrics.frameTime = deltaTime;
-    this.frameTimeHistory.push(deltaTime);
-    if (this.frameTimeHistory.length > 60) {
-      this.frameTimeHistory.shift();
+    if (this.frameSamples.length > 0) {
+      const sorted = [...this.frameSamples].sort((a, b) => a - b);
+      const total = this.frameSamples.reduce((sum, duration) => sum + duration, 0);
+      this.metrics.averageFrameTime = total / this.frameSamples.length;
+      this.metrics.frameTimeP50 = percentile(sorted, 0.5);
+      this.metrics.frameTimeP95 = percentile(sorted, 0.95);
+      this.metrics.frameTimeMax = sorted[sorted.length - 1];
     }
 
-    // Calculate averages
-    if (this.frameTimeHistory.length > 0) {
-      this.metrics.averageFrameTime = 
-        this.frameTimeHistory.reduce((a, b) => a + b, 0) / this.frameTimeHistory.length;
-    }
-
-    // Update memory metrics
     const memory = (performance as PerformanceWithMemory).memory;
-    if (memory) {
-      this.metrics.memoryUsage = {
-        usedJSHeapSize: memory.usedJSHeapSize,
-        totalJSHeapSize: memory.totalJSHeapSize,
-        jsHeapSizeLimit: memory.jsHeapSizeLimit
-      };
+    if (memory) this.metrics.memoryUsage = { ...memory };
+
+    try {
+      const diagnostics = this.diagnosticsSource?.();
+      if (diagnostics) Object.assign(this.metrics, diagnostics);
+    } catch (error) {
+      logger.warn('Failed to read renderer diagnostics', error);
     }
 
-    this.metrics.spriteCount = this.getSpriteCount();
-    this.metrics.textureCount = this.getTextureCount();
-
-    // Update cache hit rate
-    this.metrics.cacheHitRate = this.cacheRequests > 0 ? 
-      (this.cacheHits / this.cacheRequests) * 100 : 0;
-
-    this.lastFrameTime = currentTime;
+    this.performanceLog.push({
+      timestamp: Date.now(),
+      metrics: this.cloneMetrics(),
+    });
+    if (this.performanceLog.length > HISTORY_CAPACITY) this.performanceLog.shift();
   }
 
-  /**
-   * Get current performance metrics
-   */
-  getMetrics(): PerformanceMetrics {
-    return { ...this.metrics };
-  }
-
-  /**
-   * Get performance settings
-   */
-  getSettings(): PerformanceSettings {
-    return { ...this.settings };
-  }
-
-  /**
-   * Update performance settings
-   */
-  updateSettings(newSettings: Partial<PerformanceSettings>): void {
-    this.settings = { ...this.settings, ...sanitizePerformanceSettings(newSettings) };
-    this.applyOptimizations();
-    this.saveSettings();
-    logger.debug('Performance settings updated', newSettings);
-  }
-
-  /**
-   * Determine optimal settings based on device capabilities
-   */
-  private getOptimalSettings(): PerformanceSettings {
-    // Check device memory and GPU capabilities
-    const memory = (navigator as Navigator & { deviceMemory?: number }).deviceMemory || 4;
-    const hardwareConcurrency = navigator.hardwareConcurrency || 4;
-    
-    // Detect performance level based on hardware
-    let level: PerformanceLevel = PerformanceLevel.MEDIUM;
-    if (memory >= 8 && hardwareConcurrency >= 8) {
-      level = PerformanceLevel.HIGH;
-    } else if (memory <= 2 || hardwareConcurrency <= 2) {
-      level = PerformanceLevel.LOW;
-    }
-
-    // Load saved settings or use defaults
-    const saved = this.loadSettings();
-    
+  private cloneMetrics(): PerformanceMetrics {
     return {
-      level: saved.level || level,
-      maxSprites: saved.maxSprites || this.getMaxSpritesForLevel(level),
-      textureQuality: saved.textureQuality || this.getTextureQualityForLevel(level),
-      enableVSync: saved.enableVSync !== undefined ? saved.enableVSync : true,
-      enableSpritePooling: saved.enableSpritePooling !== undefined ? saved.enableSpritePooling : true,
-      enableTextureCaching: saved.enableTextureCaching !== undefined ? saved.enableTextureCaching : true,
-      enableFrustumCulling: saved.enableFrustumCulling !== undefined ? saved.enableFrustumCulling : true,
-      maxRenderDistance: saved.maxRenderDistance || this.getMaxRenderDistanceForLevel(level),
-      shadowQuality: saved.shadowQuality || this.getShadowQualityForLevel(level)
+      ...this.metrics,
+      memoryUsage: { ...this.metrics.memoryUsage },
     };
   }
 
-  private getMaxSpritesForLevel(level: PerformanceLevel): number {
-    switch (level) {
-      case PerformanceLevel.LOW: return 100;
-      case PerformanceLevel.MEDIUM: return 250;
-      case PerformanceLevel.HIGH: return 500;
-      case PerformanceLevel.ULTRA: return 1000;
-      default: return 250;
-    }
+  getMetrics(): PerformanceMetrics {
+    return this.cloneMetrics();
   }
 
-  private getTextureQualityForLevel(level: PerformanceLevel): number {
-    switch (level) {
-      case PerformanceLevel.LOW: return 0.5;
-      case PerformanceLevel.MEDIUM: return 0.75;
-      case PerformanceLevel.HIGH: return 1.0;
-      case PerformanceLevel.ULTRA: return 1.0;
-      default: return 0.75;
-    }
-  }
-
-  private getMaxRenderDistanceForLevel(level: PerformanceLevel): number {
-    switch (level) {
-      case PerformanceLevel.LOW: return 500;
-      case PerformanceLevel.MEDIUM: return 1000;
-      case PerformanceLevel.HIGH: return 2000;
-      case PerformanceLevel.ULTRA: return 4000;
-      default: return 1000;
-    }
-  }
-
-  private getShadowQualityForLevel(level: PerformanceLevel): number {
-    switch (level) {
-      case PerformanceLevel.LOW: return 0;
-      case PerformanceLevel.MEDIUM: return 1;
-      case PerformanceLevel.HIGH: return 2;
-      case PerformanceLevel.ULTRA: return 3;
-      default: return 1;
-    }
-  }
-
-  /**
-   * Apply performance optimizations to render engine
-   */
-  private applyOptimizations(): void {
-    logger.debug('Performance settings stored for client-side monitoring');
-  }
-
-  /**
-   * Auto-optimize based on current performance
-   */
-  private optimizeIfNeeded(): void {
-    const now = performance.now();
-    
-    // Enforce cooldown to prevent oscillation
-    if (now - this.lastOptimizationTime < this.OPTIMIZATION_COOLDOWN_MS) {
-      return;
-    }
-    
-    const targetFPS = this.getTargetFPS();
-    
-    // Require more extreme conditions to trigger optimization
-    // If FPS is consistently below 70% of target, reduce quality
-    if (this.metrics.averageFPS < targetFPS * 0.7) {
-      logger.info('Auto-downgrading performance level', {
-        averageFPS: this.metrics.averageFPS,
-        thresholdFPS: targetFPS * 0.7,
-        targetFPS,
-      });
-      this.downgradePerformance();
-      this.lastOptimizationTime = now;
-    }
-    // If FPS is consistently above 150% of target with memory headroom, upgrade quality
-    else if (this.metrics.averageFPS > targetFPS * 1.5 && this.metrics.memoryUsage.usedJSHeapSize < this.metrics.memoryUsage.jsHeapSizeLimit * 0.6) {
-      logger.info('Auto-upgrading performance level', {
-        averageFPS: this.metrics.averageFPS,
-        thresholdFPS: targetFPS * 1.5,
-        targetFPS,
-      });
-      this.upgradePerformance();
-      this.lastOptimizationTime = now;
-    }
-  }
-
-  private getTargetFPS(): number {
-    switch (this.settings.level) {
-      case PerformanceLevel.LOW: return 30;
-      case PerformanceLevel.MEDIUM: return 45;
-      case PerformanceLevel.HIGH: return 60;
-      case PerformanceLevel.ULTRA: return 120;
-      default: return 60;
-    }
-  }
-
-  private downgradePerformance(): void {
-    if (this.settings.level === PerformanceLevel.HIGH) {
-      this.updateSettings({ level: PerformanceLevel.MEDIUM });
-    } else if (this.settings.level === PerformanceLevel.MEDIUM) {
-      this.updateSettings({ level: PerformanceLevel.LOW });
-    } else if (this.settings.level === PerformanceLevel.ULTRA) {
-      this.updateSettings({ level: PerformanceLevel.HIGH });
-    }
-  }
-
-  private upgradePerformance(): void {
-    if (this.settings.level === PerformanceLevel.LOW) {
-      this.updateSettings({ level: PerformanceLevel.MEDIUM });
-    } else if (this.settings.level === PerformanceLevel.MEDIUM) {
-      this.updateSettings({ level: PerformanceLevel.HIGH });
-    } else if (this.settings.level === PerformanceLevel.HIGH) {
-      this.updateSettings({ level: PerformanceLevel.ULTRA });
-    }
-  }
-
-  /**
-   * Sprite caching functionality
-   */
-  cacheSprite(id: string, spriteData: unknown): void {
-    this.spriteCache.set(id, {
-      data: spriteData,
-      timestamp: Date.now(),
-      accessCount: 0
-    });
-  }
-
-  getCachedSprite(id: string): unknown | null {
-    this.cacheRequests++;
-    const cached = this.spriteCache.get(id);
-    
-    if (cached) {
-      this.cacheHits++;
-      cached.accessCount++;
-      return cached.data;
-    }
-    
-    return null;
-  }
-
-  clearSpriteCache(): void {
-    this.spriteCache.clear();
-    logger.debug('Sprite cache cleared');
-  }
-
-  /**
-   * Texture caching functionality
-   */
-  cacheTexture(id: string, textureData: unknown): void {
-    this.textureCache.set(id, {
-      data: textureData,
-      timestamp: Date.now(),
-      accessCount: 0,
-      size: this.estimateTextureSize(textureData)
-    });
-  }
-
-  getCachedTexture(id: string): unknown | null {
-    const cached = this.textureCache.get(id);
-    return cached ? cached.data : null;
-  }
-
-  clearTextureCache(): void {
-    this.textureCache.clear();
-    logger.debug('Texture cache cleared');
-  }
-
-  private estimateTextureSize(textureData: unknown): number {
-    if (textureData && typeof textureData === 'object') {
-      const td = textureData as { width?: number; height?: number };
-      if (td.width && td.height) return td.width * td.height * 4;
-    }
-    return 1024; // Default estimate
-  }
-
-  /**
-   * Get sprite count from render engine
-   */
-  private getSpriteCount(): number {
-    return this.spriteCache.size;
-  }
-
-  /**
-   * Get texture count from render engine
-   */
-  private getTextureCount(): number {
-    return this.textureCache.size;
-  }
-
-  /**
-   * Log performance data for analytics
-   */
-  private logPerformanceData(): void {
-    this.performanceLog.push({
-      timestamp: Date.now(),
-      metrics: { ...this.metrics }
-    });
-
-    // Keep only last 5 minutes of data
-    const fiveMinutesAgo = Date.now() - 5 * 60 * 1000;
-    this.performanceLog = this.performanceLog.filter(
-      entry => entry.timestamp > fiveMinutesAgo
-    );
-  }
-
-  /**
-   * Get performance history for analytics
-   */
   getPerformanceHistory(): Array<{ timestamp: number; metrics: PerformanceMetrics }> {
- return [...this.performanceLog];
+    return this.performanceLog.map(entry => ({
+      timestamp: entry.timestamp,
+      metrics: { ...entry.metrics, memoryUsage: { ...entry.metrics.memoryUsage } },
+    }));
   }
 
-  /**
-   * Save settings to localStorage
-   */
-  private saveSettings(): void {
-    try {
-      localStorage.setItem('ttrpg_performance_settings', JSON.stringify(this.settings));
-    } catch (error) {
-      logger.warn('Failed to save performance settings', error);
-    }
-  }
-
-  /**
-   * Load settings from localStorage
-   */
-  private loadSettings(): Partial<PerformanceSettings> {
-    try {
-      const saved = localStorage.getItem('ttrpg_performance_settings');
-      return saved ? sanitizePerformanceSettings(JSON.parse(saved)) : {};
-    } catch (error) {
-      logger.warn('Failed to load performance settings', error);
-      return {};
-    }
-  }
-
-  /**
-   * Generate performance report
-   */
   generateReport(): string {
-    const report = `
-TTRPG Performance Report
-========================
-
-Current Metrics:
-- FPS: ${this.metrics.fps.toFixed(1)} (avg: ${this.metrics.averageFPS.toFixed(1)})
-- Frame Time: ${this.metrics.frameTime.toFixed(2)}ms (avg: ${this.metrics.averageFrameTime.toFixed(2)}ms)
-- Memory Usage: ${(this.metrics.memoryUsage.usedJSHeapSize / 1024 / 1024).toFixed(1)}MB / ${(this.metrics.memoryUsage.totalJSHeapSize / 1024 / 1024).toFixed(1)}MB
-- Sprites: ${this.metrics.spriteCount}
-- Textures: ${this.metrics.textureCount}
-- Cache Hit Rate: ${this.metrics.cacheHitRate.toFixed(1)}%
-
-Settings:
-- Performance Level: ${this.settings.level}
-- Max Sprites: ${this.settings.maxSprites}
-- Texture Quality: ${this.settings.textureQuality}
-- Sprite Pooling: ${this.settings.enableSpritePooling ? 'Enabled' : 'Disabled'}
-- Texture Caching: ${this.settings.enableTextureCaching ? 'Enabled' : 'Disabled'}
-- Frustum Culling: ${this.settings.enableFrustumCulling ? 'Enabled' : 'Disabled'}
-
-Recommendations:
-${this.generateRecommendations()}
-    `.trim();
-
-    return report;
+    const metrics = this.metrics;
+    return [
+      'TTRPG Renderer Performance Report',
+      '=================================',
+      `FPS: ${metrics.fps.toFixed(1)} (average ${metrics.averageFPS.toFixed(1)})`,
+      `CPU submission: latest ${metrics.frameTime.toFixed(2)}ms, p50 ${metrics.frameTimeP50.toFixed(2)}ms, p95 ${metrics.frameTimeP95.toFixed(2)}ms, max ${metrics.frameTimeMax.toFixed(2)}ms`,
+      `Sprites: ${metrics.spritesDrawn}/${metrics.spritesConsidered} drawn, ${metrics.spritesCulled} culled`,
+      `GPU commands: ${metrics.drawCalls} draws, ${metrics.bufferUploads} buffer uploads`,
+      `Lighting: ${metrics.activeLights} lights, ${metrics.shadowSegmentsAccepted}/${metrics.shadowCandidates} shadow segments, ${metrics.shadowDrawCalls} shadow draws`,
+      `Occlusion: revision ${metrics.occlusionRevision}, ${metrics.occlusionRebuilds} rebuilds`,
+      `Textures: ${metrics.residentTextures}, ${(metrics.estimatedTextureBytes / 1024 / 1024).toFixed(1)}MB estimated`,
+      `JS memory: ${(metrics.memoryUsage.usedJSHeapSize / 1024 / 1024).toFixed(1)}MB used`,
+    ].join('\n');
   }
 
-  private generateRecommendations(): string {
-    const recommendations: string[] = [];
-    
-    if (this.metrics.averageFPS < 30) {
-      recommendations.push('- Consider reducing performance level for better FPS');
-    }
-    
-    if (this.metrics.memoryUsage.usedJSHeapSize > this.metrics.memoryUsage.jsHeapSizeLimit * 0.8) {
-      recommendations.push('- High memory usage detected, consider clearing caches');
-    }
-    
-    if (this.metrics.cacheHitRate < 50) {
-      recommendations.push('- Low cache hit rate, consider increasing cache size');
-    }
-    
-    if (this.metrics.spriteCount > this.settings.maxSprites * 0.9) {
-      recommendations.push('- Approaching sprite limit, consider increasing max sprites');
-    }
-
-    return recommendations.length > 0 ? recommendations.join('\n') : '- Performance looks good!';
-  }
-
-  /**
-   * Cleanup resources
-   */
   dispose(): void {
     this.stopMonitoring();
-    this.clearSpriteCache();
-    this.clearTextureCache();
+    this.diagnosticsSource = null;
+    this.frameSamples = [];
     this.performanceLog = [];
+    this.metrics = this.createInitialMetrics();
     logger.info('Performance service disposed');
   }
 }
 
-// Singleton instance
 export const performanceService = new PerformanceService();
 export default performanceService;

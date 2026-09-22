@@ -3,10 +3,25 @@ import type { RenderEngine } from '@lib/wasm/runtime';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { visionService } from '../vision.service';
 
-const runtimeMock = vi.hoisted(() => ({
-  getRenderEngine: vi.fn(),
-  computeVisibilityPolygon: vi.fn().mockReturnValue([]),
-}));
+const runtimeMock = vi.hoisted(() => {
+  const computeVisibilityPolygon = vi.fn().mockReturnValue([]);
+  return {
+    getRenderEngine: vi.fn(),
+    computeVisibilityPolygon,
+    computeVisibilityPolygons: vi.fn((sources: Float32Array, obstacles: Float32Array) => {
+      const polygons = [];
+      for (let index = 0; index + 2 < sources.length; index += 3) {
+        polygons.push(computeVisibilityPolygon(
+          sources[index],
+          sources[index + 1],
+          obstacles,
+          sources[index + 2],
+        ));
+      }
+      return polygons;
+    }),
+  };
+});
 
 vi.mock('@lib/wasm/runtime', () => ({
   getCurrentWasmRuntime: vi.fn(() => runtimeMock),
@@ -172,6 +187,7 @@ describe('getVisionSources (via recompute)', () => {
     } as unknown as Parameters<typeof useGameStore.setState>[0]);
     visionService.start();
     expect(runtimeMock.computeVisibilityPolygon).toHaveBeenCalledTimes(2);
+    expect(runtimeMock.computeVisibilityPolygons).toHaveBeenCalledOnce();
     // vision + darkvision
     expect(rm.add_fog_polygon).toHaveBeenCalledTimes(2);
   });

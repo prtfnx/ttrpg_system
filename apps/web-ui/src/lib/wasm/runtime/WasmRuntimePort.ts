@@ -34,6 +34,7 @@ export interface WasmRuntimePort {
   getTableManager(): TableManager | null;
   getDefaultBrushPresets(): BrushPreset[];
   computeVisibilityPolygon(x: number, y: number, obstacles: Float32Array, radius: number): VisibilityPoint[];
+  computeVisibilityPolygons(sources: Float32Array, obstacles: Float32Array): VisibilityPoint[][];
 
   configureAssetCache(options: { maxCacheBytes?: number; maxAgeMs?: number; downloadTimeoutMs?: number }): void;
   downloadAsset(url: string, expectedHash?: string): Promise<string>;

@@ -40,6 +40,7 @@ export function createMockWasmRuntime(overrides: Partial<MockWasmRuntime> = {}):
     getTableManager: vi.fn(() => null),
     getDefaultBrushPresets: vi.fn(() => []),
     computeVisibilityPolygon: vi.fn(() => []),
+    computeVisibilityPolygons: vi.fn(() => []),
     configureAssetCache: vi.fn(),
     downloadAsset: vi.fn().mockResolvedValue('asset-test'),
     cacheAssetBytes: vi.fn(() => 'asset-test'),

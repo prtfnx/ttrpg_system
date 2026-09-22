@@ -54,6 +54,17 @@ interface VisionPoint {
   y: number;
 }
 
+interface PendingVisibility {
+  id: string;
+  cacheId: string;
+  x: number;
+  y: number;
+  radius: number;
+  positionKey: string;
+  sourceId?: string;
+  moved?: boolean;
+}
+
 const MAX_EXPLORED_POLYGONS_PER_SOURCE = 128;
 
 class VisionService {
@@ -269,6 +280,7 @@ class VisionService {
     if (!persistExplored && this.exploredIds.size > 0) this.clearExploredPolygons();
     const sources = this.getVisionSources();
     const seenIds = new Set<string>();
+    const pendingSight: PendingVisibility[] = [];
 
     for (const src of sources) {
       const id = `vision_${src.id}`;
@@ -276,17 +288,16 @@ class VisionService {
       const moved = this.lastPositions.get(src.id) !== posKey;
 
       if (moved || obstaclesChanged) {
-        const rawPoly = runtime.computeVisibilityPolygon(src.x, src.y, sightObstacles, src.radius);
-        const poly = [{ x: src.x, y: src.y }, ...rawPoly];
-
-        const previousPolygon = this.lastVisionPolygons.get(src.id);
-        if (persistExplored && moved && previousPolygon) {
-          this.addExploredPolygon(src.id, previousPolygon, rm);
-        }
-
-        rm.add_fog_polygon(id, poly);
-        this.lastVisionPolygons.set(src.id, poly);
-        this.lastPositions.set(src.id, posKey);
+        pendingSight.push({
+          id,
+          cacheId: src.id,
+          sourceId: src.id,
+          x: src.x,
+          y: src.y,
+          radius: src.radius,
+          positionKey: posKey,
+          moved,
+        });
       }
       seenIds.add(id);
       this.activeIds.add(id);
@@ -297,18 +308,26 @@ class VisionService {
         const dvMoved = this.lastPositions.get(dvId) !== dvPosKey;
 
         if (dvMoved || obstaclesChanged) {
-          const rawDv = runtime.computeVisibilityPolygon(src.x, src.y, sightObstacles, src.darkvisionRadius);
-          rm.add_fog_polygon(dvId, [{ x: src.x, y: src.y }, ...rawDv]);
-          this.lastPositions.set(dvId, dvPosKey);
+          pendingSight.push({
+            id: dvId,
+            cacheId: dvId,
+            x: src.x,
+            y: src.y,
+            radius: src.darkvisionRadius,
+            positionKey: dvPosKey,
+          });
         }
         seenIds.add(dvId);
         this.activeIds.add(dvId);
       }
     }
 
+    this.applyVisibilityBatch(runtime, rm, pendingSight, sightObstacles, persistExplored);
+
     // Also reveal areas illuminated by active lights (vision union light)
     const currentState = useGameStore.getState();
     const allSprites = (currentState.sprites || []) as SpriteData[];
+    const pendingLights: PendingVisibility[] = [];
     for (const ls of allSprites) {
       if ((ls.tableId ?? ls.table_id) !== currentState.activeTableId) continue;
       if (ls.layer !== 'light') continue;
@@ -335,14 +354,20 @@ class VisionService {
       const lightPosKey = `${lx.toFixed(1)},${ly.toFixed(1)},${lightRadius}`;
       const lightMoved = this.lastPositions.get(lightFogId) !== lightPosKey;
       if (lightMoved || obstaclesChanged) {
-        const rawLight = runtime.computeVisibilityPolygon(lx, ly, lightObstacles, lightRadius);
-        const lightPoly = [{ x: lx, y: ly }, ...rawLight];
-        rm.add_fog_polygon(lightFogId, lightPoly);
-        this.lastPositions.set(lightFogId, lightPosKey);
+        pendingLights.push({
+          id: lightFogId,
+          cacheId: lightFogId,
+          x: lx,
+          y: ly,
+          radius: lightRadius,
+          positionKey: lightPosKey,
+        });
       }
       seenIds.add(lightFogId);
       this.activeIds.add(lightFogId);
     }
+
+    this.applyVisibilityBatch(runtime, rm, pendingLights, lightObstacles, false);
 
     for (const id of [...this.activeIds]) {
       if (!seenIds.has(id)) {
@@ -352,6 +377,31 @@ class VisionService {
     }
 
     this.lastObstaclesKey = obstaclesKey;
+  }
+
+  private applyVisibilityBatch(
+    runtime: WasmRuntimePort,
+    rm: RenderEngine,
+    pending: PendingVisibility[],
+    obstacles: Float32Array,
+    persistExplored: boolean,
+  ): void {
+    if (pending.length === 0) return;
+    const sources = new Float32Array(pending.flatMap(({ x, y, radius }) => [x, y, radius]));
+    const polygons = runtime.computeVisibilityPolygons(sources, obstacles);
+
+    pending.forEach((request, index) => {
+      const polygon = [{ x: request.x, y: request.y }, ...(polygons[index] ?? [])];
+      if (request.sourceId) {
+        const previousPolygon = this.lastVisionPolygons.get(request.sourceId);
+        if (persistExplored && request.moved && previousPolygon) {
+          this.addExploredPolygon(request.sourceId, previousPolygon, rm);
+        }
+        this.lastVisionPolygons.set(request.sourceId, polygon);
+      }
+      rm.add_fog_polygon(request.id, polygon);
+      this.lastPositions.set(request.cacheId, request.positionKey);
+    });
   }
 
   private addExploredPolygon(sourceId: string, polygon: VisionPoint[], rm: RenderEngine): void {

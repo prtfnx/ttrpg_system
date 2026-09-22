@@ -74,6 +74,11 @@ WASM type, expose a runtime-owned type from
 8. On provider disposal, all subscriptions, callbacks, DOM listeners, and Rust objects are
    released.
 
+The real-browser WASM regression suite covers this lifecycle end to end: it
+hydrates two distinct table scenes, verifies stale sprites are removed, forces
+Chromium context loss, restores it, and waits for the retained active table to
+publish a rendered `frameTableId` again.
+
 ## Data flow
 
 User input:

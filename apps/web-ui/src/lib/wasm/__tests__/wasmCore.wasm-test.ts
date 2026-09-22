@@ -15,10 +15,14 @@ import initWasm, {
   TableSync,
   calculate_asset_hash,
   compute_visibility_polygon,
+  compute_visibility_polygons,
   create_default_brush_presets,
   version,
 } from '../generated/ttrpg_rust_core';
 import { normalizeTableSnapshot } from '../tableSnapshot';
+import { WasmRuntime } from '../runtime/WasmRuntime';
+import { emitProtocolEvent } from '../../websocket/protocolEvents';
+import { useGameStore } from '@/store';
 
 beforeAll(async () => {
   await initWasm({ module_or_path: new URL('../generated/ttrpg_rust_core_bg.wasm', import.meta.url) });
@@ -234,6 +238,116 @@ describe('WASM module (real browser)', () => {
     const result = compute_visibility_polygon(0, 0, new Float32Array(0), 100);
     expect(result !== null && result !== undefined).toBe(true);
   });
+
+  it('compute_visibility_polygons() batches origins against one obstacle scene', () => {
+    const obstacles = new Float32Array([0, 50, 100, 50]);
+    const sources = new Float32Array([25, 0, 100, 75, 100, 80]);
+    const batched = compute_visibility_polygons(sources, obstacles) as Array<Array<{ x: number; y: number }>>;
+
+    expect(batched).toHaveLength(2);
+    expect(batched[0]).toEqual(compute_visibility_polygon(25, 0, obstacles, 100));
+    expect(batched[1]).toEqual(compute_visibility_polygon(75, 100, obstacles, 80));
+  });
+
+  it('switches complete scenes and replays the active table after real WebGL context restoration', async () => {
+    const canvas = document.createElement('canvas');
+    canvas.width = 220;
+    canvas.height = 140;
+    document.body.append(canvas);
+    const runtime = new WasmRuntime();
+    const tableA = '550e8400-e29b-41d4-a716-446655440021';
+    const tableB = '550e8400-e29b-41d4-a716-446655440022';
+    const tablePayload = (tableId: string, tokenId: string, x: number, background: string, auraRadius?: number) => ({
+      table_data: {
+        table_id: tableId,
+        table_name: tokenId,
+        width: 200,
+        height: 120,
+        scale: 1,
+        grid_enabled: false,
+        background_color_hex: background,
+        layers: {
+          tokens: [{
+            sprite_id: tokenId,
+            texture_path: '',
+            coord_x: x,
+            coord_y: 50,
+            scale_x: 1,
+            scale_y: 1,
+            width: 20,
+            height: 20,
+          }],
+          light: auraRadius ? [{
+            sprite_id: `light-${tokenId}`,
+            texture_path: '__LIGHT__',
+            layer: 'light',
+            coord_x: x + 10,
+            coord_y: 60,
+            scale_x: 1,
+            scale_y: 1,
+            width: 20,
+            height: 20,
+            metadata: JSON.stringify({ radius: auraRadius, intensity: 2, color: '#ffffff', isOn: true }),
+          }] : [],
+        },
+      },
+    });
+
+    try {
+      runtime.start();
+      await runtime.attachCanvas(canvas, { userId: 1, role: 'owner', activeLayer: 'tokens' });
+
+      useGameStore.setState({ activeTableId: tableA });
+      emitProtocolEvent('table-data-received', tablePayload(tableA, 'token-a', 20, '#203040'));
+      await vi.waitFor(() => expect(runtime.status.frameTableId).toBe(tableA));
+      expect(runtime.getRenderEngine()?.get_layer_sprite_count('tokens')).toBe(1);
+      expect(runtime.getRenderEngine()?.get_sprite_position('token-a')).toBeDefined();
+
+      useGameStore.setState({ activeTableId: tableB });
+      emitProtocolEvent('table-data-received', tablePayload(tableB, 'token-b', 90, '#000000', 45));
+      await vi.waitFor(() => expect(runtime.status.frameTableId).toBe(tableB));
+      expect(runtime.getRenderEngine()?.get_active_table_id()).toBe(tableB);
+      expect(runtime.getRenderEngine()?.get_sprite_position('token-a')).toBeUndefined();
+      expect(runtime.getRenderEngine()?.get_sprite_position('token-b')).toBeDefined();
+      runtime.getRenderEngine()?.render();
+      expect(brightness(readPixel(canvas, 100, 60))).toBeGreaterThan(brightness(readPixel(canvas, 190, 110)) + 20);
+
+      const gl = canvas.getContext('webgl2');
+      const contextControl = gl?.getExtension('WEBGL_lose_context');
+      expect(contextControl).not.toBeNull();
+      const contextLost = new Promise<void>(resolve => {
+        canvas.addEventListener('webglcontextlost', () => resolve(), { once: true });
+      });
+      contextControl?.loseContext();
+      await contextLost;
+      await vi.waitFor(() => expect(runtime.status.isContextLost).toBe(true));
+      expect(runtime.getRenderEngine()).toBeNull();
+      expect(gl?.isContextLost()).toBe(true);
+
+      const contextRestored = new Promise<void>(resolve => {
+        canvas.addEventListener('webglcontextrestored', () => resolve(), { once: true });
+      });
+      // Chromium requires the loss event to finish and the context to enter
+      // its restorable state before WEBGL_lose_context accepts restoration.
+      await new Promise(resolve => setTimeout(resolve, 100));
+      contextControl?.restoreContext();
+      await contextRestored;
+      await vi.waitFor(() => {
+        expect(runtime.status.isContextLost).toBe(false);
+        expect(runtime.status.frameTableId).toBe(tableB);
+      }, { timeout: 5_000 });
+
+      expect(runtime.getRenderEngine()?.get_active_table_id()).toBe(tableB);
+      expect(runtime.getRenderEngine()?.get_layer_sprite_count('tokens')).toBe(1);
+      expect(runtime.getRenderEngine()?.get_sprite_position('token-b')).toBeDefined();
+      runtime.getRenderEngine()?.render();
+      expect(brightness(readPixel(canvas, 100, 60))).toBeGreaterThan(brightness(readPixel(canvas, 190, 110)) + 20);
+    } finally {
+      runtime.dispose();
+      useGameStore.setState({ activeTableId: null, sprites: [] });
+      canvas.remove();
+    }
+  }, 30_000);
 
   it('exports sight-blocking walls independently from light-blocking walls', () => {
     const engine = new RenderEngine(document.createElement('canvas'));

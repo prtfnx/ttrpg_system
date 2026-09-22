@@ -220,10 +220,15 @@ hidden. It does not define separate wall visibility state.
 - `packages/core-table/tests/test_virtual_table.py`
 - `packages/rust-core/tests/wasm_browser.rs`
 - `packages/rust-core/tests/wasm_node.rs`
+- `apps/web-ui/src/lib/wasm/__tests__/wasmCore.wasm-test.ts`
 
 Use server protocol tests for authority and persistence changes. Use Vitest for
 React store, protocol, and panel behavior. Use Rust/WASM tests when the render
 engine contract changes.
+The browser WASM suite performs a complete A-to-B scene switch with distinct
+sprites and light state, forces `WEBGL_lose_context`, restores the context, and
+asserts that the retained B snapshot renders again through the production
+runtime lifecycle.
 
 ## Known edges
 

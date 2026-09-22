@@ -46,8 +46,8 @@ The implementation has two related but distinct pipelines:
 
 - visible point-light color is rendered by `LightingSystem` directly into the
   main WebGL framebuffer with additive blending and stencil shadow volumes;
-- player visibility is computed as CPU ray-cast polygons by
-  `compute_visibility_polygon`, stored as polygons in `FogOfWarSystem`, and
+- player visibility is computed as CPU ray-cast polygons by the batched
+  `compute_visibility_polygons` boundary, stored as polygons in `FogOfWarSystem`, and
   composed into a darkness/fog overlay.
 
 Consequently, a colored light and the area that it makes visible are generated
@@ -182,7 +182,9 @@ it:
    legacy pixel fields;
 6. casts rays at every obstacle endpoint with small angular offsets plus 32
    regular rays, clips each ray to the nearest segment or maximum radius, and
-   angle-sorts the result into a visibility polygon;
+   angle-sorts the result into a visibility polygon. Moved vision/darkvision
+   origins are batched by obstacle policy so one immutable segment list and
+   spatial index serve the entire group;
 7. builds equivalent visibility polygons for enabled light sprites using the
    light-blocking segments;
 8. adds/removes those polygons in `FogOfWarSystem`; in `persist_dimmed` mode it
@@ -269,10 +271,10 @@ vision, or wall changes.
 - Point-light shadow culling uses exact point-to-segment distance and projects
   included segments just beyond the light radius. The path still scans every
   segment for every light.
-- Each token, darkvision source, and light independently calls the CPU
-  visibility function, which rebuilds its spatial index for the same segment
-  buffer on every call. The point-light path also scans every segment per
-  light; its stored spatial grid is not queried during rendering.
+- CPU fog visibility batches token/darkvision origins against one sight index
+  and enabled light origins against one light-blocking index per recompute.
+  The point-light renderer still scans every segment per light; its stored
+  spatial grid is not queried during rendering.
 - Visibility uses endpoint rays plus 32 regular rays. It is deterministic and
   adequate for ordinary maps but is not a robust computational-geometry
   visibility solver for collinear/overlapping segments or a source exactly on

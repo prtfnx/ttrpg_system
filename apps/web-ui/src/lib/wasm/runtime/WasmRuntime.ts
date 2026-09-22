@@ -24,7 +24,7 @@ import {
   type BrowserAssetCache,
   type CacheAssetOptions,
 } from './BrowserAssetCache';
-import type { BrushPreset, VisibilityPoint } from './types';
+import type { BrushPreset, RenderDiagnostics, RenderFrameSample, VisibilityPoint } from './types';
 import { WasmSyncCoordinator } from './WasmSyncCoordinator';
 import { WasmRuntimeStore, type WasmRuntimeSnapshot } from './wasmStore';
 
@@ -87,7 +87,7 @@ export class WasmRuntime implements WasmRuntimePort {
   private planningManager: PlanningManager | null = null;
   private tableManager: TableManager | null = null;
   private animationFrameId: number | null = null;
-  private onFrame: (() => void) | null = null;
+  private onFrame: ((sample: RenderFrameSample) => void) | null = null;
   private attachedCanvas: HTMLCanvasElement | null = null;
   private attachedOptions: AttachCanvasOptions | null = null;
   private protocol: RuntimeProtocol | null = null;
@@ -269,6 +269,13 @@ export class WasmRuntime implements WasmRuntimePort {
 
   getRenderEngine(): RenderEngine | null {
     return this.renderEngine;
+  }
+
+  getRenderDiagnostics(): RenderDiagnostics | null {
+    const engine = this.renderEngine as (RenderEngine & {
+      get_render_diagnostics?: () => RenderDiagnostics;
+    }) | null;
+    return engine?.get_render_diagnostics?.() ?? null;
   }
 
   getActionsEngine(): ActionsClient | null {
@@ -459,7 +466,9 @@ export class WasmRuntime implements WasmRuntimePort {
 
     const render = () => {
       try {
+        const renderStart = performance.now();
         this.renderEngine?.render();
+        const renderEnd = performance.now();
         const status = this.status;
         if (
           status.hydratedTableId
@@ -468,7 +477,10 @@ export class WasmRuntime implements WasmRuntimePort {
         ) {
           this.store.setSnapshot({ frameTableId: status.hydratedTableId });
         }
-        this.onFrame?.();
+        this.onFrame?.({
+          timestamp: renderStart,
+          cpuDurationMs: Math.max(0, renderEnd - renderStart),
+        });
       } catch (error) {
         logger.error('Rust WASM render error', error);
       }

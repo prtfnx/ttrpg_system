@@ -73,6 +73,7 @@ export interface RenderEngine {
   get_layer_sprite_count(layerName: string): number;
   get_obstacle_segments_flat(): Float32Array;
   get_light_obstacle_segments_flat(): Float32Array;
+  get_render_diagnostics?(): RenderDiagnostics;
   get_selected_sprites(): string[];
   get_selected_walls(): string[];
   get_sprite_position(spriteId: string): Float32Array | undefined;
@@ -187,6 +188,31 @@ export interface TableManager {
   table_to_screen(tableId: string, tableX: number, tableY: number): Float64Array | undefined;
   units_to_pixels(tableId: string, gameDistance: number): number;
   zoom_table(tableId: string, zoomFactor: number, centerX: number, centerY: number): boolean;
+}
+
+export interface RenderFrameSample {
+  timestamp: number;
+  cpuDurationMs: number;
+}
+
+export interface RenderDiagnostics {
+  frameNumber: number;
+  spritesConsidered: number;
+  spritesDrawn: number;
+  spritesCulled: number;
+  drawCalls: number;
+  bufferUploads: number;
+  activeLights: number;
+  shadowSegmentsTotal: number;
+  shadowCandidates: number;
+  shadowSegmentsAccepted: number;
+  shadowDrawCalls: number;
+  occlusionRevision: number;
+  occlusionRebuilds: number;
+  residentTextures: number;
+  estimatedTextureBytes: number;
+  textureBudgetBytes: number;
+  textureOverBudgetBytes: number;
 }
 
 export interface TableSync {

@@ -4,6 +4,8 @@ import type {
   BrushPreset,
   PlanningManager,
   RenderEngine,
+  RenderDiagnostics,
+  RenderFrameSample,
   TableManager,
   VisibilityPoint,
 } from './types';
@@ -14,7 +16,7 @@ export interface AttachCanvasOptions {
   userId: number | null;
   role: SessionRole | string | null;
   activeLayer: string;
-  onFrame?: () => void;
+  onFrame?: (sample: RenderFrameSample) => void;
 }
 
 export interface WasmRuntimePort {
@@ -29,6 +31,7 @@ export interface WasmRuntimePort {
 
   setProtocol(protocol: unknown | null): void;
   getRenderEngine(): RenderEngine | null;
+  getRenderDiagnostics(): RenderDiagnostics | null;
   getActionsEngine(): ActionsClient | null;
   getPlanningManager(): PlanningManager | null;
   getTableManager(): TableManager | null;

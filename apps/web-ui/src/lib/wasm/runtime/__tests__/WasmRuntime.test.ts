@@ -15,6 +15,10 @@ const mocks = vi.hoisted(() => {
     clear_runtime_operation_handler: vi.fn(),
     clear_runtime_event_handler: vi.fn(),
     set_shape_style: vi.fn(),
+    get_render_diagnostics: vi.fn(() => ({
+      frameNumber: 7,
+      drawCalls: 12,
+    })),
   };
 
   return {
@@ -306,6 +310,26 @@ describe('WasmRuntime', () => {
     mocks.isTableVisuallyReady.mockReturnValue(true);
     renderFrame(16);
     expect(runtime.status.frameTableId).toBe('table-1');
+  });
+
+  it('reports measured render submission time and current diagnostics', async () => {
+    const onFrame = vi.fn();
+    const now = vi.spyOn(performance, 'now')
+      .mockReturnValueOnce(100)
+      .mockReturnValueOnce(103.5);
+    await runtime.attachCanvas(canvas, {
+      userId: null,
+      role: null,
+      activeLayer: 'map',
+      onFrame,
+    });
+
+    const renderFrame = vi.mocked(requestAnimationFrame).mock.calls[0][0];
+    renderFrame(0);
+
+    expect(onFrame).toHaveBeenCalledWith({ timestamp: 100, cpuDurationMs: 3.5 });
+    expect(runtime.getRenderDiagnostics()).toEqual({ frameNumber: 7, drawCalls: 12 });
+    now.mockRestore();
   });
 
   it('surfaces table hydration errors without changing the hydrated table', async () => {

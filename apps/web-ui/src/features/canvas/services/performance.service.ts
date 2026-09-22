@@ -23,17 +23,6 @@ export interface PerformanceMetrics extends RenderDiagnostics {
   };
 }
 
-// Kept temporarily as source-compatible exports while callers migrate from
-// controls that never affected the renderer.
-export const PerformanceLevel = {
-  LOW: 'low',
-  MEDIUM: 'medium',
-  HIGH: 'high',
-  ULTRA: 'ultra',
-} as const;
-export type PerformanceLevel = typeof PerformanceLevel[keyof typeof PerformanceLevel];
-export type PerformanceSettings = never;
-
 const SAMPLE_CAPACITY = 600;
 const HISTORY_CAPACITY = 1_200;
 const MONITOR_INTERVAL_MS = 250;

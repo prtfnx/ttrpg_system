@@ -14,6 +14,6 @@ export { ToolsPanel } from './components/ToolsPanel';
 export { useRenderEngine } from './hooks';
 
 export { fpsService } from './services/fps.service';
-export { PerformanceLevel, performanceService } from './services/performance.service';
-export type { PerformanceMetrics, PerformanceSettings } from './services/performance.service';
+export { performanceService } from './services/performance.service';
+export type { PerformanceMetrics } from './services/performance.service';
 

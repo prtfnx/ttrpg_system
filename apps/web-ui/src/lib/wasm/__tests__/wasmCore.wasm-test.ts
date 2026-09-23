@@ -641,9 +641,27 @@ describe('WASM module (real browser)', () => {
       engine.set_light_radius('light-shadow', 90);
 
       engine.render();
-      const litFromLeft = brightness(readPixel(canvas, 80, 100));
-      const shadowFromLeft = brightness(readPixel(canvas, 130, 100));
+      const litPixelBeforeIndexing = readPixel(canvas, 80, 100);
+      const shadowPixelBeforeIndexing = readPixel(canvas, 130, 100);
+      const litFromLeft = brightness(litPixelBeforeIndexing);
+      const shadowFromLeft = brightness(shadowPixelBeforeIndexing);
       expect(litFromLeft).toBeGreaterThan(shadowFromLeft + 20);
+
+      for (let index = 0; index < 20; index += 1) {
+        const x = 1_000 + index * 256;
+        expect(engine.add_wall(JSON.stringify({
+          wall_id: `wall-remote-${index}`, table_id: tableId,
+          x1: x, y1: 1_000, x2: x + 32, y2: 1_032,
+          blocks_light: true, blocks_sight: true,
+        }))).toBe(true);
+      }
+      engine.render();
+      expect(readPixel(canvas, 80, 100)).toEqual(litPixelBeforeIndexing);
+      expect(readPixel(canvas, 130, 100)).toEqual(shadowPixelBeforeIndexing);
+      const indexedDiagnostics = engine.get_render_diagnostics();
+      expect(indexedDiagnostics.shadowCandidates).toBeLessThan(
+        indexedDiagnostics.shadowSegmentsTotal,
+      );
 
       engine.update_light_position('light-shadow', 140, 100);
       engine.render();

@@ -1,7 +1,19 @@
 use criterion::{black_box, criterion_group, criterion_main, BenchmarkId, Criterion};
 use std::collections::HashMap;
 use ttrpg_rust_core::math::Vec2;
+use ttrpg_rust_core::performance_fixtures::{build_performance_fixture, PerformanceFixtureKind};
 use ttrpg_rust_core::types::{Layer, Sprite};
+
+mod performance_fixtures {
+    pub use ttrpg_rust_core::performance_fixtures::*;
+}
+
+#[path = "../src/lighting/visibility.rs"]
+mod lighting_visibility;
+
+use lighting_visibility::{
+    distance_squared_to_segment, Point, QueryMode, QueryScratch, VisibilityCalculator,
+};
 
 // ── Helpers ──
 
@@ -233,6 +245,96 @@ fn bench_sprite_serde(c: &mut Criterion) {
     group.finish();
 }
 
+fn count_indexed_segments(
+    calculator: &VisibilityCalculator,
+    scratch: &mut QueryScratch,
+    light: Point,
+    radius: f32,
+) -> usize {
+    let mode = calculator.query_aabb(
+        Point::new(light.x - radius, light.y - radius),
+        Point::new(light.x + radius, light.y + radius),
+        scratch,
+    );
+    let radius_squared = radius * radius;
+    match mode {
+        QueryMode::Indexed => scratch
+            .candidates()
+            .iter()
+            .filter(|&&index| {
+                distance_squared_to_segment(light, &calculator.get_segments()[index])
+                    <= radius_squared
+            })
+            .count(),
+        QueryMode::FullScan => calculator
+            .get_segments()
+            .iter()
+            .filter(|segment| distance_squared_to_segment(light, segment) <= radius_squared)
+            .count(),
+    }
+}
+
+fn count_full_scan_segments(calculator: &VisibilityCalculator, light: Point, radius: f32) -> usize {
+    let radius_squared = radius * radius;
+    calculator
+        .get_segments()
+        .iter()
+        .filter(|segment| distance_squared_to_segment(light, segment) <= radius_squared)
+        .count()
+}
+
+fn benchmark_calculator(kind: PerformanceFixtureKind, cell_size: f32) -> VisibilityCalculator {
+    let fixture = build_performance_fixture(kind);
+    let mut calculator = VisibilityCalculator::with_cell_size(cell_size);
+    for [x1, y1, x2, y2] in fixture.segments {
+        calculator.add_segment(Point::new(x1, y1), Point::new(x2, y2));
+    }
+    calculator
+}
+
+fn bench_lighting_spatial_query(c: &mut Criterion) {
+    let mut group = c.benchmark_group("lighting_spatial_query");
+    for kind in [
+        PerformanceFixtureKind::Ordinary,
+        PerformanceFixtureKind::Large,
+        PerformanceFixtureKind::ShadowStress,
+        PerformanceFixtureKind::LongSegments,
+    ] {
+        let fixture = build_performance_fixture(kind);
+        let fixture_light = fixture.lights[0];
+        let light = Point::new(fixture_light.x, fixture_light.y);
+        let baseline = benchmark_calculator(kind, 128.0);
+        group.bench_function(BenchmarkId::new(kind.name(), "full_scan"), |b| {
+            b.iter(|| {
+                count_full_scan_segments(
+                    black_box(&baseline),
+                    black_box(light),
+                    black_box(fixture_light.radius),
+                )
+            })
+        });
+
+        for cell_size in [64.0, 128.0, 256.0] {
+            let calculator = benchmark_calculator(kind, cell_size);
+            let mut scratch = QueryScratch::default();
+            group.bench_function(
+                BenchmarkId::new(kind.name(), format!("grid_{cell_size:.0}")),
+                |b| {
+                    b.iter(|| {
+                        count_indexed_segments(
+                            black_box(&calculator),
+                            &mut scratch,
+                            black_box(light),
+                            black_box(fixture_light.radius),
+                        )
+                    })
+                },
+            );
+        }
+    }
+    group.finish();
+}
+
 criterion_group!(
     bottlenecks,
     bench_grid_vertex_gen,
@@ -240,5 +342,6 @@ criterion_group!(
     bench_table_id_filter,
     bench_polygon_verts,
     bench_sprite_serde,
+    bench_lighting_spatial_query,
 );
 criterion_main!(bottlenecks);

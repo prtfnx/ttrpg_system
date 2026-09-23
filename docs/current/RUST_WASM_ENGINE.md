@@ -4,7 +4,7 @@ Audience: contributors changing the browser engine or its TypeScript boundary.
 
 Status: usable.
 
-Last source audit: 2026-09-22
+Last source audit: 2026-09-23
 
 The Rust crate is the local engine behind the browser canvas. It should stay
 focused on compute-heavy rendering, geometry, visibility, collision, planning,
@@ -142,9 +142,24 @@ For each active light, accepted shadow quads are converted to independent
 triangles in a reusable CPU vector. Lighting uploads that complete triangle
 list once and submits one stencil draw for the light; it does not issue one
 upload and draw per obstacle segment. Shadow batches are never combined across
-lights because each light owns a separate stencil-mask lifetime. The current
-candidate selection still scans the complete occlusion segment list for every
-light.
+lights because each light owns a separate stencil-mask lifetime.
+
+The lighting broad phase indexes each obstacle segment across every 128-unit
+grid cell touched by its axis-aligned bounds. A light queries the cells touched
+by its circle bounds before running the exact squared point-to-segment distance
+test. Cell conversion uses `floor`, including for negative coordinates. A
+generation-stamped scratch vector deduplicates long segments without allocating
+a `HashSet` for each light.
+
+The query falls back to the contiguous segment slice when its cell count is
+greater than a budget of 16 cells or twice the smaller of the segment count and
+occupied-cell count, whichever is larger. It also falls back when average grid
+density estimates that it would visit at least three quarters as many
+memberships as a full scan. Empty scenes remain on the indexed path.
+`shadowCandidates` reports the deduplicated broad-phase count, or the complete
+segment count when the fallback runs. The `lighting_spatial_query` group in
+`packages/rust-core/benches/bottleneck_bench.rs` compares the full scan with
+64-, 128-, and 256-unit cells on deterministic renderer fixtures.
 
 A restored WebGL context receives a new `RenderEngine` and therefore new
 pipelines. Never carry a program, buffer, uniform location, or VAO across

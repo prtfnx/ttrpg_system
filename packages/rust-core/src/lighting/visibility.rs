@@ -95,11 +95,55 @@ pub struct VisibilityCalculator {
     spatial_grid: SpatialGrid,
 }
 
+const DEFAULT_CELL_SIZE: f32 = 128.0;
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub(crate) enum QueryMode {
+    Indexed,
+    FullScan,
+}
+
+#[derive(Debug, Default)]
+pub(crate) struct QueryScratch {
+    candidates: Vec<usize>,
+    seen_generation: Vec<u32>,
+    generation: u32,
+}
+
+impl QueryScratch {
+    pub(crate) fn candidates(&self) -> &[usize] {
+        &self.candidates
+    }
+
+    fn begin(&mut self, segment_count: usize) {
+        self.candidates.clear();
+        self.seen_generation.resize(segment_count, 0);
+        self.generation = self.generation.wrapping_add(1);
+        if self.generation == 0 {
+            self.seen_generation.fill(0);
+            self.generation = 1;
+        }
+    }
+
+    fn push_if_unseen(&mut self, index: usize) {
+        if self.seen_generation[index] == self.generation {
+            return;
+        }
+        self.seen_generation[index] = self.generation;
+        self.candidates.push(index);
+    }
+}
+
 impl VisibilityCalculator {
     pub fn new() -> Self {
+        Self::with_cell_size(DEFAULT_CELL_SIZE)
+    }
+
+    pub(crate) fn with_cell_size(cell_size: f32) -> Self {
+        assert!(cell_size.is_finite() && cell_size > 0.0);
         Self {
             segments: Vec::new(),
-            spatial_grid: SpatialGrid::new(128.0),
+            spatial_grid: SpatialGrid::new(cell_size),
         }
     }
 
@@ -133,13 +177,37 @@ impl VisibilityCalculator {
     pub fn get_segments(&self) -> &[LineSegment] {
         &self.segments
     }
+
+    /// Gather unique segment indexes whose indexed AABBs overlap the query.
+    ///
+    /// The grid is a broad phase only. Callers must still apply their exact
+    /// geometry test to every returned candidate. Very large queries fall
+    /// back to a linear scan when visiting grid cells would cost more than
+    /// scanning the segment list.
+    pub(crate) fn query_aabb(
+        &self,
+        min: Point,
+        max: Point,
+        scratch: &mut QueryScratch,
+    ) -> QueryMode {
+        scratch.begin(self.segments.len());
+        if self.segments.is_empty() {
+            return QueryMode::Indexed;
+        }
+
+        self.spatial_grid
+            .query_aabb(min, max, self.segments.len(), scratch)
+    }
 }
 
-/// Spatial grid for fast obstacle lookup
-/// Uses uniform grid subdivision for O(1) spatial queries
+/// Uniform spatial grid for broad-phase obstacle lookup.
+///
+/// Query cost depends on the number of covered cells and candidate indexes;
+/// it is not constant time.
 struct SpatialGrid {
     cell_size: f32,
     grid: std::collections::HashMap<(i32, i32), Vec<usize>>,
+    memberships: usize,
 }
 
 impl SpatialGrid {
@@ -147,11 +215,13 @@ impl SpatialGrid {
         Self {
             cell_size,
             grid: std::collections::HashMap::new(),
+            memberships: 0,
         }
     }
 
     fn clear(&mut self) {
         self.grid.clear();
+        self.memberships = 0;
     }
 
     fn add_segment(&mut self, idx: usize, segment: &LineSegment) {
@@ -168,14 +238,118 @@ impl SpatialGrid {
         for cx in cx0..=cx1 {
             for cy in cy0..=cy1 {
                 self.grid.entry((cx, cy)).or_default().push(idx);
+                self.memberships = self.memberships.saturating_add(1);
             }
         }
+    }
+
+    fn query_aabb(
+        &self,
+        min: Point,
+        max: Point,
+        segment_count: usize,
+        scratch: &mut QueryScratch,
+    ) -> QueryMode {
+        if !min.x.is_finite() || !min.y.is_finite() || !max.x.is_finite() || !max.y.is_finite() {
+            return QueryMode::FullScan;
+        }
+
+        let min_x = min.x.min(max.x);
+        let max_x = min.x.max(max.x);
+        let min_y = min.y.min(max.y);
+        let max_y = min.y.max(max.y);
+        let cx0 = (min_x / self.cell_size).floor() as i32;
+        let cx1 = (max_x / self.cell_size).floor() as i32;
+        let cy0 = (min_y / self.cell_size).floor() as i32;
+        let cy1 = (max_y / self.cell_size).floor() as i32;
+
+        let columns = u64::try_from(i64::from(cx1) - i64::from(cx0) + 1).unwrap_or(u64::MAX);
+        let rows = u64::try_from(i64::from(cy1) - i64::from(cy0) + 1).unwrap_or(u64::MAX);
+        let queried_cells = columns.checked_mul(rows).unwrap_or(u64::MAX);
+
+        // A hash lookup plus candidate deduplication is not free. Once a
+        // query covers more than twice the smaller of the segment count and
+        // occupied-cell count, a contiguous linear scan is the safer path.
+        let comparison_size = segment_count.min(self.grid.len());
+        let cell_budget = u64::try_from(comparison_size)
+            .unwrap_or(u64::MAX)
+            .saturating_mul(2)
+            .max(16);
+        let estimated_membership_visits = queried_cells
+            .saturating_mul(u64::try_from(self.memberships).unwrap_or(u64::MAX))
+            .div_ceil(u64::try_from(self.grid.len()).unwrap_or(u64::MAX).max(1));
+        let dense_query_limit = u64::try_from(segment_count)
+            .unwrap_or(u64::MAX)
+            .saturating_mul(3)
+            .div_ceil(4);
+        if queried_cells > cell_budget || estimated_membership_visits >= dense_query_limit {
+            return QueryMode::FullScan;
+        }
+
+        for cx in cx0..=cx1 {
+            for cy in cy0..=cy1 {
+                if let Some(indexes) = self.grid.get(&(cx, cy)) {
+                    for &index in indexes {
+                        scratch.push_if_unseen(index);
+                    }
+                }
+            }
+        }
+
+        QueryMode::Indexed
     }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::performance_fixtures::{build_performance_fixture, PerformanceFixtureKind};
+
+    fn exact_indexes(segments: &[LineSegment], light: Point, radius: f32) -> Vec<usize> {
+        let radius_squared = radius * radius;
+        segments
+            .iter()
+            .enumerate()
+            .filter_map(|(index, segment)| {
+                (distance_squared_to_segment(light, segment) <= radius_squared).then_some(index)
+            })
+            .collect()
+    }
+
+    fn queried_exact_indexes(
+        calc: &VisibilityCalculator,
+        light: Point,
+        radius: f32,
+        scratch: &mut QueryScratch,
+    ) -> Vec<usize> {
+        let mode = calc.query_aabb(
+            Point::new(light.x - radius, light.y - radius),
+            Point::new(light.x + radius, light.y + radius),
+            scratch,
+        );
+        let radius_squared = radius * radius;
+        let mut indexes: Vec<_> = match mode {
+            QueryMode::Indexed => scratch
+                .candidates()
+                .iter()
+                .copied()
+                .filter(|&index| {
+                    distance_squared_to_segment(light, &calc.get_segments()[index])
+                        <= radius_squared
+                })
+                .collect(),
+            QueryMode::FullScan => exact_indexes(calc.get_segments(), light, radius),
+        };
+        indexes.sort_unstable();
+        indexes
+    }
+
+    fn add_far_segments(calc: &mut VisibilityCalculator, count: usize) {
+        for index in 0..count {
+            let x = 10_000.0 + index as f32 * 256.0;
+            calc.add_segment(Point::new(x, x), Point::new(x + 10.0, x + 10.0));
+        }
+    }
 
     #[test]
     fn point_new_creates_point() {
@@ -230,6 +404,185 @@ mod tests {
         assert_eq!(calc.get_segments().len(), 2);
         calc.clear();
         assert!(calc.get_segments().is_empty());
+    }
+
+    #[test]
+    fn indexed_queries_match_full_scans_for_every_performance_fixture() {
+        for kind in PerformanceFixtureKind::ALL {
+            let fixture = build_performance_fixture(kind);
+            let mut calc = VisibilityCalculator::new();
+            for [x1, y1, x2, y2] in fixture.segments {
+                calc.add_segment(Point::new(x1, y1), Point::new(x2, y2));
+            }
+            let mut scratch = QueryScratch::default();
+
+            for fixture_light in fixture.lights {
+                let light = Point::new(fixture_light.x, fixture_light.y);
+                assert_eq!(
+                    queried_exact_indexes(&calc, light, fixture_light.radius, &mut scratch),
+                    exact_indexes(calc.get_segments(), light, fixture_light.radius),
+                    "{} fixture light at ({}, {})",
+                    fixture.name,
+                    light.x,
+                    light.y
+                );
+            }
+        }
+    }
+
+    #[test]
+    fn ordinary_fixture_query_reduces_the_candidate_set() {
+        let fixture = build_performance_fixture(PerformanceFixtureKind::Ordinary);
+        let mut calc = VisibilityCalculator::new();
+        for [x1, y1, x2, y2] in fixture.segments {
+            calc.add_segment(Point::new(x1, y1), Point::new(x2, y2));
+        }
+        let light = fixture.lights[0];
+        let mut scratch = QueryScratch::default();
+
+        assert_eq!(
+            calc.query_aabb(
+                Point::new(light.x - light.radius, light.y - light.radius),
+                Point::new(light.x + light.radius, light.y + light.radius),
+                &mut scratch,
+            ),
+            QueryMode::Indexed
+        );
+        assert!(scratch.candidates().len() < calc.get_segments().len());
+    }
+
+    #[test]
+    fn query_deduplicates_long_segments_crossing_multiple_cells() {
+        let mut calc = VisibilityCalculator::new();
+        calc.add_segment(Point::new(-1_000.0, 10.0), Point::new(1_000.0, 10.0));
+        add_far_segments(&mut calc, 100);
+        let mut scratch = QueryScratch::default();
+
+        assert_eq!(
+            calc.query_aabb(
+                Point::new(-20.0, -20.0),
+                Point::new(20.0, 20.0),
+                &mut scratch,
+            ),
+            QueryMode::Indexed
+        );
+        assert_eq!(scratch.candidates(), &[0]);
+        assert_eq!(
+            queried_exact_indexes(&calc, Point::new(0.0, 0.0), 20.0, &mut scratch),
+            vec![0]
+        );
+    }
+
+    #[test]
+    fn query_uses_floor_for_negative_cells() {
+        let mut calc = VisibilityCalculator::new();
+        calc.add_segment(Point::new(-200.0, -200.0), Point::new(-150.0, -150.0));
+        add_far_segments(&mut calc, 20);
+        let mut scratch = QueryScratch::default();
+
+        assert_eq!(
+            calc.query_aabb(
+                Point::new(-210.0, -210.0),
+                Point::new(-140.0, -140.0),
+                &mut scratch,
+            ),
+            QueryMode::Indexed
+        );
+        assert_eq!(scratch.candidates(), &[0]);
+    }
+
+    #[test]
+    fn query_handles_zero_length_segments_and_exact_cell_boundaries() {
+        let mut calc = VisibilityCalculator::new();
+        calc.add_segment(Point::new(128.0, 64.0), Point::new(128.0, 64.0));
+        calc.add_segment(Point::new(0.0, 0.0), Point::new(128.0, 0.0));
+        add_far_segments(&mut calc, 20);
+        let mut scratch = QueryScratch::default();
+
+        assert_eq!(
+            calc.query_aabb(
+                Point::new(128.0, 0.0),
+                Point::new(128.0, 128.0),
+                &mut scratch,
+            ),
+            QueryMode::Indexed
+        );
+        let mut candidates = scratch.candidates().to_vec();
+        candidates.sort_unstable();
+        assert_eq!(candidates, vec![0, 1]);
+    }
+
+    #[test]
+    fn empty_queries_stay_indexed_and_return_no_candidates() {
+        let calc = VisibilityCalculator::new();
+        let mut scratch = QueryScratch::default();
+
+        assert_eq!(
+            calc.query_aabb(
+                Point::new(-10.0, -10.0),
+                Point::new(10.0, 10.0),
+                &mut scratch,
+            ),
+            QueryMode::Indexed
+        );
+        assert!(scratch.candidates().is_empty());
+    }
+
+    #[test]
+    fn huge_queries_fall_back_to_a_linear_scan() {
+        let mut calc = VisibilityCalculator::new();
+        calc.add_segment(Point::new(0.0, 0.0), Point::new(10.0, 0.0));
+        add_far_segments(&mut calc, 20);
+        let mut scratch = QueryScratch::default();
+
+        assert_eq!(
+            calc.query_aabb(
+                Point::new(-10_000.0, -10_000.0),
+                Point::new(10_000.0, 10_000.0),
+                &mut scratch,
+            ),
+            QueryMode::FullScan
+        );
+        assert!(scratch.candidates().is_empty());
+    }
+
+    #[test]
+    fn dense_long_segment_queries_use_the_cost_aware_fallback() {
+        let fixture = build_performance_fixture(PerformanceFixtureKind::LongSegments);
+        let mut calc = VisibilityCalculator::new();
+        for [x1, y1, x2, y2] in fixture.segments {
+            calc.add_segment(Point::new(x1, y1), Point::new(x2, y2));
+        }
+        let light = fixture.lights[0];
+        let mut scratch = QueryScratch::default();
+
+        assert_eq!(
+            calc.query_aabb(
+                Point::new(light.x - light.radius, light.y - light.radius),
+                Point::new(light.x + light.radius, light.y + light.radius),
+                &mut scratch,
+            ),
+            QueryMode::FullScan
+        );
+    }
+
+    #[test]
+    fn generation_wrap_clears_old_seen_stamps() {
+        let mut calc = VisibilityCalculator::new();
+        calc.add_segment(Point::new(0.0, 0.0), Point::new(10.0, 0.0));
+        add_far_segments(&mut calc, 20);
+        let mut scratch = QueryScratch {
+            candidates: vec![99],
+            seen_generation: vec![1],
+            generation: u32::MAX,
+        };
+
+        assert_eq!(
+            calc.query_aabb(Point::new(0.0, 0.0), Point::new(10.0, 10.0), &mut scratch,),
+            QueryMode::Indexed
+        );
+        assert_eq!(scratch.generation, 1);
+        assert_eq!(scratch.candidates(), &[0]);
     }
 
     #[test]

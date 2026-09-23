@@ -1,7 +1,7 @@
-#[cfg(target_arch = "wasm32")]
-use super::visibility::VisibilityCalculator;
 #[cfg(any(target_arch = "wasm32", test))]
 use super::visibility::{distance_squared_to_segment, shadow_quad, LineSegment, Point};
+#[cfg(target_arch = "wasm32")]
+use super::visibility::{QueryMode, QueryScratch, VisibilityCalculator};
 use crate::math::Vec2;
 use crate::types::Color;
 use serde::{Deserialize, Serialize};
@@ -31,6 +31,7 @@ fn append_shadow_quad_triangles(vertices: &mut Vec<f32>, quad: &[Point; 4]) {
 #[cfg(any(target_arch = "wasm32", test))]
 fn fill_shadow_triangle_vertices(
     segments: &[LineSegment],
+    candidate_indexes: Option<&[usize]>,
     light: Point,
     radius: f32,
     shadow_length: f32,
@@ -39,15 +40,26 @@ fn fill_shadow_triangle_vertices(
     vertices.clear();
     let radius_squared = radius * radius;
     let mut accepted = 0;
-    for segment in segments {
+    let mut append_segment = |segment: &LineSegment| {
         if distance_squared_to_segment(light, segment) > radius_squared {
-            continue;
+            return;
         }
         if let Some(quad) = shadow_quad(segment, light, shadow_length) {
             append_shadow_quad_triangles(vertices, &quad);
             accepted += 1;
         }
+    };
+
+    if let Some(indexes) = candidate_indexes {
+        for &index in indexes {
+            append_segment(&segments[index]);
+        }
+    } else {
+        for segment in segments {
+            append_segment(segment);
+        }
     }
+
     accepted
 }
 
@@ -398,6 +410,7 @@ pub struct LightingSystem {
     ambient_light: f32,
     obstacles_dirty: bool,
     shadow_vertices: Vec<f32>,
+    shadow_query_scratch: QueryScratch,
     frame_draw_calls: Cell<u32>,
     frame_buffer_uploads: Cell<u32>,
     frame_active_lights: Cell<u32>,
@@ -434,6 +447,7 @@ impl LightingSystem {
             ambient_light: 0.3,
             obstacles_dirty: true,
             shadow_vertices: Vec::new(),
+            shadow_query_scratch: QueryScratch::default(),
             frame_draw_calls: Cell::new(0),
             frame_buffer_uploads: Cell::new(0),
             frame_active_lights: Cell::new(0),
@@ -861,20 +875,32 @@ impl LightingSystem {
                 .get()
                 .saturating_add(segment_count),
         );
-        self.frame_shadow_candidates.set(
-            self.frame_shadow_candidates
-                .get()
-                .saturating_add(segment_count),
-        );
         // web_sys::console::log_1(&format!("[LIGHTING-DEBUG] [DARK] Computing shadows for light at ({:.1}, {:.1}) with radius {:.1}, {} segments available",
         //     light_pos.x, light_pos.y, radius, segment_count).into());
 
         let light = Point::new(light_pos.x, light_pos.y);
+        let query_mode = calc.query_aabb(
+            Point::new(light.x - radius, light.y - radius),
+            Point::new(light.x + radius, light.y + radius),
+            &mut self.shadow_query_scratch,
+        );
+        let candidate_indexes = match query_mode {
+            QueryMode::Indexed => Some(self.shadow_query_scratch.candidates()),
+            QueryMode::FullScan => None,
+        };
+        let candidate_count = candidate_indexes.map_or(segments.len(), <[usize]>::len);
+        self.frame_shadow_candidates.set(
+            self.frame_shadow_candidates
+                .get()
+                .saturating_add(u32::try_from(candidate_count).unwrap_or(u32::MAX)),
+        );
+
         // One extra world unit keeps the projected edge outside the 64-sided
         // light mesh despite floating-point rounding at the perimeter.
         let shadow_length = radius + 1.0;
         let accepted = fill_shadow_triangle_vertices(
             segments,
+            candidate_indexes,
             light,
             radius,
             shadow_length,
@@ -1017,14 +1043,14 @@ mod tests {
         let light = Point::new(0.0, 0.0);
         let mut vertices = vec![99.0];
         assert_eq!(
-            fill_shadow_triangle_vertices(&[], light, 20.0, 21.0, &mut vertices),
+            fill_shadow_triangle_vertices(&[], None, light, 20.0, 21.0, &mut vertices),
             0
         );
         assert!(vertices.is_empty());
 
         let wall = segment(10.0, -1.0, 10.0, 1.0);
         assert_eq!(
-            fill_shadow_triangle_vertices(&[wall], light, 20.0, 21.0, &mut vertices),
+            fill_shadow_triangle_vertices(&[wall], None, light, 20.0, 21.0, &mut vertices),
             1
         );
         assert_eq!(vertices.len(), 12);
@@ -1040,6 +1066,7 @@ mod tests {
         assert_eq!(
             fill_shadow_triangle_vertices(
                 &[forward, forward, reversed],
+                None,
                 light,
                 20.0,
                 21.0,
@@ -1060,6 +1087,7 @@ mod tests {
         assert_eq!(
             fill_shadow_triangle_vertices(
                 &[source_degenerate, long_crossing],
+                None,
                 light,
                 20.0,
                 21.0,

@@ -137,11 +137,59 @@ impl Sprite {
     pub fn world_bounds(&self) -> Rect {
         let scaled_width = (self.width * self.scale_x) as f32;
         let scaled_height = (self.height * self.scale_y) as f32;
+        Rect::new(
+            self.world_x as f32,
+            self.world_y as f32,
+            scaled_width,
+            scaled_height,
+        )
+    }
+
+    pub fn render_bounds(&self) -> Rect {
+        let minimum_vertices = match self.obstacle_type.as_deref() {
+            Some("line") => Some(2),
+            Some("polygon") => Some(3),
+            _ => None,
+        };
+        if let (Some(minimum), Some(vertices)) = (minimum_vertices, &self.polygon_vertices) {
+            if vertices.len() >= minimum
+                && vertices
+                    .iter()
+                    .all(|point| point[0].is_finite() && point[1].is_finite())
+            {
+                let mut min = Vec2::new(vertices[0][0], vertices[0][1]);
+                let mut max = min;
+                for point in &vertices[1..] {
+                    min.x = min.x.min(point[0]);
+                    min.y = min.y.min(point[1]);
+                    max.x = max.x.max(point[0]);
+                    max.y = max.y.max(point[1]);
+                }
+                return Rect::from_min_max(min, max);
+            }
+        }
+
+        let scaled_width = (self.width * self.scale_x) as f32;
+        let scaled_height = (self.height * self.scale_y) as f32;
+        if self.rotation == 0.0 {
+            return self.world_bounds();
+        }
+
         let center = Vec2::new(
             (self.world_x + scaled_width as f64 * 0.5) as f32,
             (self.world_y + scaled_height as f64 * 0.5) as f32,
         );
-        Rect::from_center_size(center, Vec2::new(scaled_width, scaled_height))
+        let half_width = scaled_width.abs() * 0.5;
+        let half_height = scaled_height.abs() * 0.5;
+        let cos = (self.rotation as f32).cos().abs();
+        let sin = (self.rotation as f32).sin().abs();
+        Rect::from_center_size(
+            center,
+            Vec2::new(
+                2.0 * (cos * half_width + sin * half_height),
+                2.0 * (sin * half_width + cos * half_height),
+            ),
+        )
     }
 
     pub fn contains_world_point(&self, world_point: Vec2) -> bool {
@@ -167,8 +215,8 @@ impl Sprite {
             let local_y = relative_point.x * sin_rot + relative_point.y * cos_rot;
 
             // Check if the rotated point is within the sprite bounds
-            let half_width = scaled_width * 0.5;
-            let half_height = scaled_height * 0.5;
+            let half_width = scaled_width.abs() * 0.5;
+            let half_height = scaled_height.abs() * 0.5;
             local_x >= -half_width
                 && local_x <= half_width
                 && local_y >= -half_height
@@ -259,6 +307,106 @@ mod shape_tests {
         assert!((bounds.min.y - 20.0).abs() < 0.01);
         assert!((bounds.max.x - 110.0).abs() < 0.01);
         assert!((bounds.max.y - 70.0).abs() < 0.01);
+    }
+
+    #[test]
+    fn render_bounds_normalize_negative_scale() {
+        let sprite = Sprite {
+            world_x: 50.0,
+            world_y: 60.0,
+            width: 20.0,
+            height: 10.0,
+            scale_x: -2.0,
+            scale_y: -3.0,
+            ..Default::default()
+        };
+
+        let bounds = sprite.render_bounds();
+
+        assert_eq!(bounds.min, Vec2::new(10.0, 30.0));
+        assert_eq!(bounds.max, Vec2::new(50.0, 60.0));
+    }
+
+    #[test]
+    fn render_bounds_cover_rotated_rectangle() {
+        let sprite = Sprite {
+            world_x: 10.0,
+            world_y: 20.0,
+            width: 100.0,
+            height: 20.0,
+            scale_x: 1.0,
+            scale_y: 1.0,
+            rotation: std::f64::consts::FRAC_PI_2,
+            ..Default::default()
+        };
+
+        let bounds = sprite.render_bounds();
+
+        assert!((bounds.min.x - 50.0).abs() < 0.01);
+        assert!((bounds.max.x - 70.0).abs() < 0.01);
+        assert!((bounds.min.y + 20.0).abs() < 0.01);
+        assert!((bounds.max.y - 80.0).abs() < 0.01);
+    }
+
+    #[test]
+    fn render_bounds_use_world_space_polygon_and_line_vertices() {
+        for (kind, vertices) in [
+            ("polygon", vec![[100.0, 20.0], [150.0, 80.0], [90.0, 70.0]]),
+            ("line", vec![[-20.0, 4.0], [300.0, 9.0]]),
+        ] {
+            let sprite = Sprite {
+                world_x: 0.0,
+                world_y: 0.0,
+                width: 1.0,
+                height: 1.0,
+                obstacle_type: Some(kind.to_string()),
+                polygon_vertices: Some(vertices.clone()),
+                ..Default::default()
+            };
+            let bounds = sprite.render_bounds();
+            assert_eq!(
+                bounds,
+                Rect::from_min_max(
+                    Vec2::new(
+                        vertices
+                            .iter()
+                            .map(|point| point[0])
+                            .fold(f32::INFINITY, f32::min),
+                        vertices
+                            .iter()
+                            .map(|point| point[1])
+                            .fold(f32::INFINITY, f32::min),
+                    ),
+                    Vec2::new(
+                        vertices
+                            .iter()
+                            .map(|point| point[0])
+                            .fold(f32::NEG_INFINITY, f32::max),
+                        vertices
+                            .iter()
+                            .map(|point| point[1])
+                            .fold(f32::NEG_INFINITY, f32::max),
+                    ),
+                )
+            );
+        }
+    }
+
+    #[test]
+    fn malformed_polygon_render_bounds_fall_back_to_sprite_rectangle() {
+        let sprite = Sprite {
+            world_x: 10.0,
+            world_y: 20.0,
+            width: 30.0,
+            height: 40.0,
+            scale_x: 1.0,
+            scale_y: 1.0,
+            obstacle_type: Some("polygon".to_string()),
+            polygon_vertices: Some(vec![[1.0, 2.0], [3.0, 4.0]]),
+            ..Default::default()
+        };
+
+        assert_eq!(sprite.render_bounds(), Rect::new(10.0, 20.0, 30.0, 40.0));
     }
 
     #[test]

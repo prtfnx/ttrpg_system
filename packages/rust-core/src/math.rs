@@ -146,9 +146,13 @@ pub struct Rect {
 
 impl Rect {
     pub fn new(x: f32, y: f32, width: f32, height: f32) -> Self {
+        Self::from_min_max(Vec2::new(x, y), Vec2::new(x + width, y + height))
+    }
+
+    pub fn from_min_max(first: Vec2, second: Vec2) -> Self {
         Self {
-            min: Vec2::new(x, y),
-            max: Vec2::new(x + width, y + height),
+            min: Vec2::new(first.x.min(second.x), first.y.min(second.y)),
+            max: Vec2::new(first.x.max(second.x), first.y.max(second.y)),
         }
     }
 
@@ -165,6 +169,21 @@ impl Rect {
             && point.x <= self.max.x
             && point.y >= self.min.y
             && point.y <= self.max.y
+    }
+
+    pub fn intersects(&self, other: &Self) -> bool {
+        self.min.x <= other.max.x
+            && self.max.x >= other.min.x
+            && self.min.y <= other.max.y
+            && self.max.y >= other.min.y
+    }
+
+    pub fn expanded(&self, amount: f32) -> Self {
+        let amount = amount.max(0.0);
+        Self {
+            min: self.min - Vec2::splat(amount),
+            max: self.max + Vec2::splat(amount),
+        }
     }
 }
 
@@ -315,5 +334,26 @@ mod tests {
         let r = Rect::from_center_size(Vec2::new(50.0, 50.0), Vec2::new(20.0, 10.0));
         assert!(vec2_approx(r.min, Vec2::new(40.0, 45.0)));
         assert!(vec2_approx(r.max, Vec2::new(60.0, 55.0)));
+    }
+
+    #[test]
+    fn rect_new_normalizes_negative_dimensions() {
+        let r = Rect::new(10.0, 20.0, -30.0, -40.0);
+        assert_eq!(r.min, Vec2::new(-20.0, -20.0));
+        assert_eq!(r.max, Vec2::new(10.0, 20.0));
+    }
+
+    #[test]
+    fn rect_intersection_includes_touching_edges() {
+        let left = Rect::new(0.0, 0.0, 10.0, 10.0);
+        assert!(left.intersects(&Rect::new(10.0, 2.0, 5.0, 5.0)));
+        assert!(!left.intersects(&Rect::new(10.01, 2.0, 5.0, 5.0)));
+    }
+
+    #[test]
+    fn rect_expansion_grows_every_edge() {
+        let expanded = Rect::new(10.0, 20.0, 30.0, 40.0).expanded(5.0);
+        assert_eq!(expanded.min, Vec2::new(5.0, 15.0));
+        assert_eq!(expanded.max, Vec2::new(45.0, 65.0));
     }
 }

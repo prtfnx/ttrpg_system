@@ -138,6 +138,14 @@ pipeline's program, VAO, and buffers. Lighting unbinds its VAO before handing
 control to paint or fog paths, so those independent renderers cannot mutate the
 cached lighting attribute state.
 
+For each active light, accepted shadow quads are converted to independent
+triangles in a reusable CPU vector. Lighting uploads that complete triangle
+list once and submits one stencil draw for the light; it does not issue one
+upload and draw per obstacle segment. Shadow batches are never combined across
+lights because each light owns a separate stencil-mask lifetime. The current
+candidate selection still scans the complete occlusion segment list for every
+light.
+
 A restored WebGL context receives a new `RenderEngine` and therefore new
 pipelines. Never carry a program, buffer, uniform location, or VAO across
 context restoration.

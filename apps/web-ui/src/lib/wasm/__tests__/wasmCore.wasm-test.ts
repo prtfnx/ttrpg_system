@@ -597,12 +597,16 @@ describe('WASM module (real browser)', () => {
         scale: 1, grid_enabled: false, layers: {},
       } });
       engine.handle_table_data(snapshot.renderer);
+      engine.set_dynamic_lighting_enabled(false);
       engine.set_background_color('#000000');
-      expect(engine.add_wall(JSON.stringify({
-        wall_id: 'wall-multi', table_id: tableId,
-        x1: 100, y1: 50, x2: 100, y2: 150,
-        blocks_light: true, blocks_sight: true,
-      }))).toBe(true);
+      engine.render(); // Grow shared dynamic buffers before measuring the light batch.
+      for (const [index, x] of [90, 100, 110].entries()) {
+        expect(engine.add_wall(JSON.stringify({
+          wall_id: `wall-multi-${index}`, table_id: tableId,
+          x1: x, y1: 50, x2: x, y2: 150,
+          blocks_light: true, blocks_sight: true,
+        }))).toBe(true);
+      }
       engine.add_light('left-light', 60, 100);
       engine.add_light('right-light', 140, 100);
       for (const lightId of ['left-light', 'right-light']) {
@@ -615,6 +619,11 @@ describe('WASM module (real browser)', () => {
 
       expect(brightness(readPixel(canvas, 80, 100))).toBeGreaterThan(20);
       expect(brightness(readPixel(canvas, 120, 100))).toBeGreaterThan(20);
+      const diagnostics = engine.get_render_diagnostics();
+      expect(diagnostics.activeLights).toBe(2);
+      expect(diagnostics.shadowSegmentsAccepted).toBeGreaterThan(diagnostics.shadowDrawCalls);
+      expect(diagnostics.shadowDrawCalls).toBeLessThanOrEqual(diagnostics.activeLights);
+      expect(diagnostics.bufferUploads).toBe(diagnostics.drawCalls);
     } finally {
       engine.free();
     }

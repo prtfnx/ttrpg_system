@@ -748,6 +748,7 @@ export interface InitOutput {
     readonly tablesync_set_error_handler: (a: number, b: any) => void;
     readonly tablesync_set_sprite_update_handler: (a: number, b: any) => void;
     readonly tablesync_set_table_received_handler: (a: number, b: any) => void;
+    readonly renderengine_handle_table_data: (a: number, b: any) => [number, number];
     readonly __wbg_collisionsystem_free: (a: number, b: number) => void;
     readonly collisionsystem_distance_ft: (a: number, b: number, c: number, d: number, e: number, f: number) => number;
     readonly collisionsystem_find_path: (a: number, b: number, c: number, d: number, e: number) => [number, number];
@@ -760,7 +761,6 @@ export interface InitOutput {
     readonly compute_visibility_polygon: (a: number, b: number, c: any, d: number) => any;
     readonly compute_visibility_polygons: (a: any, b: any) => any;
     readonly renderengine_render: (a: number) => [number, number];
-    readonly renderengine_handle_table_data: (a: number, b: any) => [number, number];
     readonly wasm_bindgen__convert__closures_____invoke__hdc4384c541f1ca1c: (a: number, b: number) => void;
     readonly __wbindgen_malloc: (a: number, b: number) => number;
     readonly __wbindgen_realloc: (a: number, b: number, c: number, d: number) => number;

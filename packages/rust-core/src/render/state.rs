@@ -18,6 +18,8 @@ impl RenderEngine {
     #[wasm_bindgen]
     pub fn resize_canvas(&mut self, width: f32, height: f32) {
         self.canvas_size = Vec2::new(width, height);
+        self.texture_manager
+            .update_canvas_size(width.max(0.0) as u32, height.max(0.0) as u32);
         self.update_view_matrix();
     }
 

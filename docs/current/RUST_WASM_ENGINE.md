@@ -115,9 +115,10 @@ history is bounded to 1,200 snapshots. The Performance panel is a read-only
 view of these measurements; it does not expose renderer cache or quality
 controls.
 
-Texture byte, budget, and over-budget fields are part of the boundary but
-remain zero until `TextureManager` owns explicit byte accounting. Do not treat
-those values as evidence that resident textures consume no memory.
+Texture diagnostics count records owned by `TextureManager`. Estimated bytes
+use decoded RGBA8 dimensions (`width * height * 4`) with checked `u64`
+arithmetic. This estimate excludes driver overhead, framebuffer and fog
+storage, antialiasing, and format emulation.
 
 `performance_fixtures.rs` provides deterministic ordinary, large, shadow
 stress, culling stress, and long-segment scenes. Use those builders for
@@ -164,6 +165,30 @@ segment count when the fallback runs. The `lighting_spatial_query` group in
 A restored WebGL context receives a new `RenderEngine` and therefore new
 pipelines. Never carry a program, buffer, uniform location, or VAO across
 context restoration.
+
+## Texture residency and budget
+
+`TextureManager` stores the WebGL handle, dimensions, estimated decoded bytes,
+last-used frame, and residency class for each texture. The font atlas is
+`Pinned`. Textures loaded for synchronized sprites are `SceneRequired`.
+`AssetSyncService.releaseTexturesExcept` remains the table-lifecycle owner and
+explicitly unloads textures outside the retained scene.
+
+The manager caches `MAX_TEXTURE_SIZE` during engine construction. It rejects
+zero dimensions, dimensions above that limit, and byte-estimate overflow before
+a synchronous upload. Replacements and unloads delete the old WebGL handle and
+update accounting once. Async URL callbacks record only an outcome; the next
+render lets the manager apply dimensions or remove and delete a failed
+placeholder.
+
+The policy budget is recalculated from canvas backing-store dimensions on
+construction and `resize_canvas`: 32 bytes per canvas pixel, clamped between 96
+MiB and 384 MiB. These are renderer policy values, not detected GPU capacity.
+Only records explicitly marked `Evictable` can be removed automatically, in
+oldest-used order with texture ID as the deterministic tie-breaker. Pinned and
+required records remain resident when they exceed the budget;
+`textureOverBudgetBytes` reports the excess rather than silently removing a
+referenced scene texture.
 
 ## Viewport culling
 

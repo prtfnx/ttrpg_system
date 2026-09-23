@@ -138,10 +138,11 @@ impl RenderEngine {
         let mut text_renderer = TextRenderer::new();
         let lighting = LightingSystem::new(gl.clone())?;
         let fog = FogOfWarSystem::new(gl.clone())?;
-        let mut texture_manager = TextureManager::new(gl);
+        let mut texture_manager = TextureManager::new(gl, canvas.width(), canvas.height())?;
 
         web_sys::console::log_1(&"[RENDER] Loading font atlas texture...".into());
-        texture_manager.load_texture_from_url("font_atlas", "/static/ui/assets/font_atlas.png")?;
+        texture_manager
+            .load_pinned_texture_from_url("font_atlas", "/static/ui/assets/font_atlas.png")?;
 
         text_renderer.init_font_atlas(&mut texture_manager)?;
 
@@ -266,6 +267,10 @@ impl RenderEngine {
         snapshot.shadow_segments_accepted = self.lighting.frame_shadow_segments_accepted();
         snapshot.shadow_draw_calls = self.lighting.frame_shadow_draw_calls();
         snapshot.resident_textures = self.texture_manager.resident_texture_count() as u32;
+        snapshot.estimated_texture_bytes = self.texture_manager.estimated_texture_bytes() as f64;
+        snapshot.texture_budget_bytes = self.texture_manager.texture_budget_bytes() as f64;
+        snapshot.texture_over_budget_bytes =
+            self.texture_manager.texture_over_budget_bytes() as f64;
 
         serde_wasm_bindgen::to_value(&snapshot).map_err(|error| {
             JsValue::from_str(&format!("Failed to serialize diagnostics: {error}"))

@@ -146,6 +146,7 @@ pub mod math;
 pub mod performance_fixtures;
 mod render_diagnostics;
 mod table_manager;
+mod texture_policy;
 pub mod types;
 pub mod unit_converter;
 mod wall_manager;

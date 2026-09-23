@@ -69,6 +69,7 @@ impl RenderEngine {
     #[wasm_bindgen]
     pub fn render(&mut self) -> Result<(), JsValue> {
         self.diagnostics.begin_frame();
+        self.texture_manager.begin_frame();
         self.renderer.begin_frame();
         self.lighting.begin_frame();
         self.fog.begin_frame();

@@ -40,6 +40,20 @@ function brightness(pixel: number[]): number {
   return pixel[0] + pixel[1] + pixel[2];
 }
 
+async function createLoadedImage(width: number, height: number): Promise<HTMLImageElement> {
+  const source = document.createElement('canvas');
+  source.width = width;
+  source.height = height;
+  const image = new Image();
+  const loaded = new Promise<void>((resolve, reject) => {
+    image.onload = () => resolve();
+    image.onerror = () => reject(new Error('Failed to create test image'));
+  });
+  image.src = source.toDataURL('image/png');
+  await loaded;
+  return image;
+}
+
 function hydrateEmptyTable(engine: RenderEngine, tableId: string): void {
   const snapshot = normalizeTableSnapshot({ table_data: {
     table_id: tableId, table_name: 'Test table', width: 200, height: 200,
@@ -264,6 +278,63 @@ describe('WASM module (real browser)', () => {
       });
     } finally {
       engine.free();
+    }
+  });
+
+  it('accounts for texture replacement, unload, budget, and renderer drop', async () => {
+    const firstImage = await createLoadedImage(4, 3);
+    const replacementImage = await createLoadedImage(2, 2);
+    const deleteTexture = vi.spyOn(WebGL2RenderingContext.prototype, 'deleteTexture');
+    const canvas = document.createElement('canvas');
+    canvas.width = 240;
+    canvas.height = 160;
+    const engine = new RenderEngine(canvas);
+    let freed = false;
+    try {
+      const baseline = engine.get_render_diagnostics();
+      expect(baseline.estimatedTextureBytes).toBeGreaterThanOrEqual(4);
+      expect(baseline.textureBudgetBytes).toBe(96 * 1024 * 1024);
+      expect(baseline.textureOverBudgetBytes).toBe(0);
+
+      engine.load_texture('accounted-texture', firstImage);
+      const first = engine.get_render_diagnostics();
+      expect(first.residentTextures).toBe(baseline.residentTextures + 1);
+      expect(first.estimatedTextureBytes).toBe(baseline.estimatedTextureBytes + 4 * 3 * 4);
+
+      const uploadTexture = vi.spyOn(WebGL2RenderingContext.prototype, 'texImage2D');
+      const deletesBeforeFailedUpload = deleteTexture.mock.calls.length;
+      uploadTexture.mockImplementationOnce(() => {
+        throw new Error('synthetic upload failure');
+      });
+      expect(() => engine.load_texture('accounted-texture', replacementImage)).toThrow();
+      expect(engine.get_render_diagnostics()).toMatchObject({
+        residentTextures: first.residentTextures,
+        estimatedTextureBytes: first.estimatedTextureBytes,
+      });
+      expect(deleteTexture.mock.calls.length).toBe(deletesBeforeFailedUpload + 1);
+      uploadTexture.mockRestore();
+
+      const deletesBeforeReplacement = deleteTexture.mock.calls.length;
+      engine.load_texture('accounted-texture', replacementImage);
+      const replaced = engine.get_render_diagnostics();
+      expect(replaced.residentTextures).toBe(first.residentTextures);
+      expect(replaced.estimatedTextureBytes).toBe(baseline.estimatedTextureBytes + 2 * 2 * 4);
+      expect(deleteTexture.mock.calls.length).toBe(deletesBeforeReplacement + 1);
+
+      expect(engine.unload_texture('accounted-texture')).toBe(true);
+      expect(engine.get_render_diagnostics()).toMatchObject({
+        residentTextures: baseline.residentTextures,
+        estimatedTextureBytes: baseline.estimatedTextureBytes,
+      });
+
+      const residentBeforeDrop = engine.get_render_diagnostics().residentTextures;
+      const deletesBeforeDrop = deleteTexture.mock.calls.length;
+      engine.free();
+      freed = true;
+      expect(deleteTexture.mock.calls.length).toBe(deletesBeforeDrop + residentBeforeDrop);
+    } finally {
+      if (!freed) engine.free();
+      deleteTexture.mockRestore();
     }
   });
 

@@ -2666,6 +2666,14 @@ function __wbg_get_imports() {
         __wbg_log_4c0baeb8af2f8f89: function(arg0) {
             console.log(arg0);
         },
+        __wbg_naturalHeight_5a05865beedffc55: function(arg0) {
+            const ret = arg0.naturalHeight;
+            return ret;
+        },
+        __wbg_naturalWidth_bd04449177fd0c7b: function(arg0) {
+            const ret = arg0.naturalWidth;
+            return ret;
+        },
         __wbg_new_227d7c05414eb861: function() {
             const ret = new Error();
             return ret;
@@ -2823,7 +2831,7 @@ function __wbg_get_imports() {
             return ret;
         },
         __wbindgen_cast_0000000000000001: function(arg0, arg1) {
-            // Cast intrinsic for `Closure(Closure { owned: true, function: Function { arguments: [], shim_idx: 46, ret: Unit, inner_ret: Some(Unit) }, mutable: true }) -> Externref`.
+            // Cast intrinsic for `Closure(Closure { owned: true, function: Function { arguments: [], shim_idx: 111, ret: Unit, inner_ret: Some(Unit) }, mutable: true }) -> Externref`.
             const ret = makeMutClosure(arg0, arg1, wasm_bindgen__convert__closures_____invoke__hdc4384c541f1ca1c);
             return ret;
         },

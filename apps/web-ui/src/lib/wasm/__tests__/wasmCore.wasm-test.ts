@@ -318,6 +318,38 @@ describe('WASM module (real browser)', () => {
     }
   });
 
+  it('resolves lighting attributes and uniforms only during pipeline construction', () => {
+    const getAttribLocation = vi.spyOn(WebGL2RenderingContext.prototype, 'getAttribLocation');
+    const getUniformLocation = vi.spyOn(WebGL2RenderingContext.prototype, 'getUniformLocation');
+    const canvas = document.createElement('canvas');
+    canvas.width = 240;
+    canvas.height = 160;
+    const engine = new RenderEngine(canvas);
+
+    try {
+      hydrateEmptyTable(engine, '550e8400-e29b-41d4-a716-446655440015');
+      engine.add_light('pipeline-light', 80, 60);
+      const attribLookupsAfterConstruction = getAttribLocation.mock.calls.length;
+      const uniformLookupsAfterConstruction = getUniformLocation.mock.calls.length;
+
+      engine.render();
+      engine.render();
+
+      expect(engine.get_render_diagnostics()).toMatchObject({
+        frameNumber: 2,
+        activeLights: 1,
+      });
+      expect(getAttribLocation).toHaveBeenCalledTimes(attribLookupsAfterConstruction);
+      expect(getUniformLocation).toHaveBeenCalledTimes(uniformLookupsAfterConstruction);
+      const gl = canvas.getContext('webgl2');
+      expect(gl?.getError()).toBe(gl?.NO_ERROR);
+    } finally {
+      engine.free();
+      getAttribLocation.mockRestore();
+      getUniformLocation.mockRestore();
+    }
+  });
+
   it('version() returns a semver string', () => {
     const v = version();
     expect(typeof v).toBe('string');

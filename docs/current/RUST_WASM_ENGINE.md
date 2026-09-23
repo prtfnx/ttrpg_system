@@ -123,6 +123,25 @@ those values as evidence that resident textures consume no memory.
 stress, culling stress, and long-segment scenes. Use those builders for
 repeatable renderer tests instead of inventing benchmark-only scene shapes.
 
+## WebGL pipeline lifetime
+
+The general quad path and lighting path each own a pipeline object containing
+their linked program, vertex array object, buffers, and validated uniform
+locations. Attribute layouts are fixed in GLSL. Draw calls bind the owning VAO
+and update only dynamic vertex bytes with `bufferSubData`; the quad index data
+is uploaded once with `STATIC_DRAW` when the engine is created. A buffer grows
+with `bufferData` only when the next upload exceeds its current capacity.
+
+Pipeline construction deletes compiled shader objects after linking and cleans
+up partial resources if initialization fails. Dropping the engine deletes each
+pipeline's program, VAO, and buffers. Lighting unbinds its VAO before handing
+control to paint or fog paths, so those independent renderers cannot mutate the
+cached lighting attribute state.
+
+A restored WebGL context receives a new `RenderEngine` and therefore new
+pipelines. Never carry a program, buffer, uniform location, or VAO across
+context restoration.
+
 ## Runtime callbacks
 
 Rust should not call app-level browser globals. It reports app intent through

@@ -12,7 +12,11 @@ use wasm_bindgen::prelude::*;
 #[cfg(target_arch = "wasm32")]
 use web_sys::{
     WebGl2RenderingContext as WebGlRenderingContext, WebGlBuffer, WebGlProgram, WebGlShader,
+    WebGlUniformLocation, WebGlVertexArrayObject,
 };
+
+#[cfg(target_arch = "wasm32")]
+const LIGHT_VERTEX_BYTES: i32 = (132 * std::mem::size_of::<f32>()) as i32;
 
 /// Light types supported by the system
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -105,16 +109,261 @@ impl Light {
     }
 }
 
+#[cfg(target_arch = "wasm32")]
+struct LightPipeline {
+    gl: WebGlRenderingContext,
+    program: WebGlProgram,
+    vao: WebGlVertexArrayObject,
+    vertex_buffer: WebGlBuffer,
+    vertex_capacity_bytes: Cell<i32>,
+    u_view_matrix: WebGlUniformLocation,
+    u_canvas_size: WebGlUniformLocation,
+    u_light_pos: WebGlUniformLocation,
+    u_light_radius: WebGlUniformLocation,
+    u_light_color: WebGlUniformLocation,
+    u_light_intensity: WebGlUniformLocation,
+    u_light_falloff: WebGlUniformLocation,
+}
+
+#[cfg(target_arch = "wasm32")]
+impl LightPipeline {
+    fn new(gl: WebGlRenderingContext) -> Result<Self, JsValue> {
+        let vertex_source = r#"#version 300 es
+            precision highp float;
+
+            layout(location = 0) in vec2 a_position;
+
+            uniform mat3 u_view_matrix;
+            uniform vec2 u_canvas_size;
+            uniform vec2 u_light_pos;
+
+            out vec2 v_light_coord;
+
+            void main() {
+                vec3 world_pos = u_view_matrix * vec3(a_position, 1.0);
+                vec2 clip_pos = (world_pos.xy / u_canvas_size) * 2.0 - 1.0;
+                clip_pos.y = -clip_pos.y;
+                gl_Position = vec4(clip_pos, 0.0, 1.0);
+                v_light_coord = a_position - u_light_pos;
+            }
+        "#;
+        let fragment_source = r#"#version 300 es
+            precision highp float;
+
+            in vec2 v_light_coord;
+
+            uniform vec3 u_light_color;
+            uniform float u_light_intensity;
+            uniform float u_light_radius;
+            uniform float u_light_falloff;
+
+            out vec4 fragColor;
+
+            void main() {
+                float distance = length(v_light_coord);
+                float normalized_dist = distance / u_light_radius;
+                float attenuation = pow(max(0.0, 1.0 - normalized_dist), u_light_falloff);
+                vec3 light_contribution = u_light_color * u_light_intensity * attenuation;
+                fragColor = vec4(light_contribution, attenuation * 0.8);
+            }
+        "#;
+
+        let program = Self::link_program(&gl, vertex_source, fragment_source)?;
+        let uniforms = (|| {
+            Ok((
+                Self::required_uniform(&gl, &program, "u_view_matrix")?,
+                Self::required_uniform(&gl, &program, "u_canvas_size")?,
+                Self::required_uniform(&gl, &program, "u_light_pos")?,
+                Self::required_uniform(&gl, &program, "u_light_radius")?,
+                Self::required_uniform(&gl, &program, "u_light_color")?,
+                Self::required_uniform(&gl, &program, "u_light_intensity")?,
+                Self::required_uniform(&gl, &program, "u_light_falloff")?,
+            ))
+        })();
+        let (
+            u_view_matrix,
+            u_canvas_size,
+            u_light_pos,
+            u_light_radius,
+            u_light_color,
+            u_light_intensity,
+            u_light_falloff,
+        ) = match uniforms {
+            Ok(uniforms) => uniforms,
+            Err(error) => {
+                gl.delete_program(Some(&program));
+                return Err(error);
+            }
+        };
+
+        let Some(vao) = gl.create_vertex_array() else {
+            gl.delete_program(Some(&program));
+            return Err(JsValue::from_str("Failed to create light VAO"));
+        };
+        let Some(vertex_buffer) = gl.create_buffer() else {
+            gl.delete_vertex_array(Some(&vao));
+            gl.delete_program(Some(&program));
+            return Err(JsValue::from_str("Failed to create light vertex buffer"));
+        };
+
+        gl.bind_vertex_array(Some(&vao));
+        gl.bind_buffer(WebGlRenderingContext::ARRAY_BUFFER, Some(&vertex_buffer));
+        gl.buffer_data_with_i32(
+            WebGlRenderingContext::ARRAY_BUFFER,
+            LIGHT_VERTEX_BYTES,
+            WebGlRenderingContext::DYNAMIC_DRAW,
+        );
+        gl.enable_vertex_attrib_array(0);
+        gl.vertex_attrib_pointer_with_i32(0, 2, WebGlRenderingContext::FLOAT, false, 0, 0);
+        gl.bind_vertex_array(None);
+        gl.bind_buffer(WebGlRenderingContext::ARRAY_BUFFER, None);
+
+        Ok(Self {
+            gl,
+            program,
+            vao,
+            vertex_buffer,
+            vertex_capacity_bytes: Cell::new(LIGHT_VERTEX_BYTES),
+            u_view_matrix,
+            u_canvas_size,
+            u_light_pos,
+            u_light_radius,
+            u_light_color,
+            u_light_intensity,
+            u_light_falloff,
+        })
+    }
+
+    fn compile_shader(
+        gl: &WebGlRenderingContext,
+        shader_type: u32,
+        source: &str,
+    ) -> Result<WebGlShader, JsValue> {
+        let shader = gl
+            .create_shader(shader_type)
+            .ok_or_else(|| JsValue::from_str("Failed to create light shader"))?;
+        gl.shader_source(&shader, source);
+        gl.compile_shader(&shader);
+        if gl
+            .get_shader_parameter(&shader, WebGlRenderingContext::COMPILE_STATUS)
+            .as_bool()
+            .unwrap_or(false)
+        {
+            return Ok(shader);
+        }
+
+        let info = gl.get_shader_info_log(&shader).unwrap_or_default();
+        gl.delete_shader(Some(&shader));
+        Err(JsValue::from_str(&format!(
+            "Failed to compile light shader: {info}"
+        )))
+    }
+
+    fn link_program(
+        gl: &WebGlRenderingContext,
+        vertex_source: &str,
+        fragment_source: &str,
+    ) -> Result<WebGlProgram, JsValue> {
+        let vertex_shader =
+            Self::compile_shader(gl, WebGlRenderingContext::VERTEX_SHADER, vertex_source)?;
+        let fragment_shader =
+            match Self::compile_shader(gl, WebGlRenderingContext::FRAGMENT_SHADER, fragment_source)
+            {
+                Ok(shader) => shader,
+                Err(error) => {
+                    gl.delete_shader(Some(&vertex_shader));
+                    return Err(error);
+                }
+            };
+        let Some(program) = gl.create_program() else {
+            gl.delete_shader(Some(&vertex_shader));
+            gl.delete_shader(Some(&fragment_shader));
+            return Err(JsValue::from_str("Failed to create light program"));
+        };
+
+        gl.attach_shader(&program, &vertex_shader);
+        gl.attach_shader(&program, &fragment_shader);
+        gl.link_program(&program);
+        let linked = gl
+            .get_program_parameter(&program, WebGlRenderingContext::LINK_STATUS)
+            .as_bool()
+            .unwrap_or(false);
+        gl.detach_shader(&program, &vertex_shader);
+        gl.detach_shader(&program, &fragment_shader);
+        gl.delete_shader(Some(&vertex_shader));
+        gl.delete_shader(Some(&fragment_shader));
+        if linked {
+            return Ok(program);
+        }
+
+        let info = gl.get_program_info_log(&program).unwrap_or_default();
+        gl.delete_program(Some(&program));
+        Err(JsValue::from_str(&format!(
+            "Failed to link light program: {info}"
+        )))
+    }
+
+    fn required_uniform(
+        gl: &WebGlRenderingContext,
+        program: &WebGlProgram,
+        name: &str,
+    ) -> Result<WebGlUniformLocation, JsValue> {
+        gl.get_uniform_location(program, name).ok_or_else(|| {
+            JsValue::from_str(&format!("Light shader is missing required uniform {name}"))
+        })
+    }
+
+    fn bind(&self) {
+        self.gl.use_program(Some(&self.program));
+        self.gl.bind_vertex_array(Some(&self.vao));
+    }
+
+    fn upload_vertices(&self, vertices: &[f32]) -> u32 {
+        self.gl.bind_buffer(
+            WebGlRenderingContext::ARRAY_BUFFER,
+            Some(&self.vertex_buffer),
+        );
+        let required_bytes = i32::try_from(std::mem::size_of_val(vertices)).unwrap_or(i32::MAX);
+        let mut uploads = 1;
+        if required_bytes > self.vertex_capacity_bytes.get() {
+            self.gl.buffer_data_with_i32(
+                WebGlRenderingContext::ARRAY_BUFFER,
+                required_bytes,
+                WebGlRenderingContext::DYNAMIC_DRAW,
+            );
+            self.vertex_capacity_bytes.set(required_bytes);
+            uploads += 1;
+        }
+        unsafe {
+            let view = js_sys::Float32Array::view(vertices);
+            self.gl.buffer_sub_data_with_i32_and_array_buffer_view(
+                WebGlRenderingContext::ARRAY_BUFFER,
+                0,
+                &view,
+            );
+        }
+        uploads
+    }
+}
+
+#[cfg(target_arch = "wasm32")]
+impl Drop for LightPipeline {
+    fn drop(&mut self) {
+        self.gl.delete_vertex_array(Some(&self.vao));
+        self.gl.delete_buffer(Some(&self.vertex_buffer));
+        self.gl.delete_program(Some(&self.program));
+    }
+}
+
 /// Lighting system with shadow casting using hybrid CPU/GPU approach
 #[cfg(target_arch = "wasm32")]
 pub struct LightingSystem {
     gl: WebGlRenderingContext,
-    light_shader: Option<WebGlProgram>,
+    pipeline: LightPipeline,
     lights: HashMap<String, Light>,
     visibility_calculator: RefCell<VisibilityCalculator>,
     ambient_light: f32,
     obstacles_dirty: bool,
-    vertex_buffer: Option<WebGlBuffer>,
     frame_draw_calls: Cell<u32>,
     frame_buffer_uploads: Cell<u32>,
     frame_active_lights: Cell<u32>,
@@ -142,14 +391,14 @@ impl LightingSystem {
             log_info!("[OK] Stencil buffer is available");
         }
 
-        let mut system = Self {
+        let pipeline = LightPipeline::new(gl.clone())?;
+        Ok(Self {
             gl,
-            light_shader: None,
+            pipeline,
             lights: HashMap::new(),
             visibility_calculator: RefCell::new(VisibilityCalculator::new()),
             ambient_light: 0.3,
             obstacles_dirty: true,
-            vertex_buffer: None,
             frame_draw_calls: Cell::new(0),
             frame_buffer_uploads: Cell::new(0),
             frame_active_lights: Cell::new(0),
@@ -157,130 +406,7 @@ impl LightingSystem {
             frame_shadow_candidates: Cell::new(0),
             frame_shadow_segments_accepted: Cell::new(0),
             frame_shadow_draw_calls: Cell::new(0),
-        };
-
-        system.init_shaders()?;
-        system.init_buffers()?;
-
-        Ok(system)
-    }
-
-    fn init_shaders(&mut self) -> Result<(), JsValue> {
-        // Shader for rendering visibility polygon with radial gradient
-        let vertex_source = r#"#version 300 es
-            precision highp float;
-            
-            in vec2 a_position;
-            
-            uniform mat3 u_view_matrix;
-            uniform vec2 u_canvas_size;
-            uniform vec2 u_light_pos;
-            
-            out vec2 v_light_coord;
-            
-            void main() {
-                vec3 world_pos = u_view_matrix * vec3(a_position, 1.0);
-                vec2 clip_pos = (world_pos.xy / u_canvas_size) * 2.0 - 1.0;
-                clip_pos.y = -clip_pos.y;
-                gl_Position = vec4(clip_pos, 0.0, 1.0);
-                
-                // Distance from light center for gradient
-                v_light_coord = a_position - u_light_pos;
-            }
-        "#;
-
-        let fragment_source = r#"#version 300 es
-            precision highp float;
-            
-            in vec2 v_light_coord;
-            
-            uniform vec3 u_light_color;
-            uniform float u_light_intensity;
-            uniform float u_light_radius;
-            uniform float u_light_falloff;
-            
-            out vec4 fragColor;
-            
-            void main() {
-                float distance = length(v_light_coord);
-                float normalized_dist = distance / u_light_radius;
-                
-                // Smooth falloff curve
-                float attenuation = pow(max(0.0, 1.0 - normalized_dist), u_light_falloff);
-                
-                vec3 light_contribution = u_light_color * u_light_intensity * attenuation;
-                
-                fragColor = vec4(light_contribution, attenuation * 0.8);
-            }
-        "#;
-
-        self.light_shader = Some(self.create_program(vertex_source, fragment_source)?);
-
-        Ok(())
-    }
-
-    fn init_buffers(&mut self) -> Result<(), JsValue> {
-        self.vertex_buffer = Some(
-            self.gl
-                .create_buffer()
-                .ok_or("Failed to create vertex buffer")?,
-        );
-        Ok(())
-    }
-
-    fn create_program(
-        &self,
-        vertex_source: &str,
-        fragment_source: &str,
-    ) -> Result<WebGlProgram, JsValue> {
-        let vertex_shader =
-            self.compile_shader(WebGlRenderingContext::VERTEX_SHADER, vertex_source)?;
-        let fragment_shader =
-            self.compile_shader(WebGlRenderingContext::FRAGMENT_SHADER, fragment_source)?;
-
-        let program = self.gl.create_program().ok_or("Failed to create program")?;
-        self.gl.attach_shader(&program, &vertex_shader);
-        self.gl.attach_shader(&program, &fragment_shader);
-        self.gl.link_program(&program);
-
-        if !self
-            .gl
-            .get_program_parameter(&program, WebGlRenderingContext::LINK_STATUS)
-            .as_bool()
-            .unwrap_or(false)
-        {
-            let info = self.gl.get_program_info_log(&program).unwrap_or_default();
-            return Err(JsValue::from_str(&format!(
-                "Failed to link program: {}",
-                info
-            )));
-        }
-
-        Ok(program)
-    }
-
-    fn compile_shader(&self, shader_type: u32, source: &str) -> Result<WebGlShader, JsValue> {
-        let shader = self
-            .gl
-            .create_shader(shader_type)
-            .ok_or("Failed to create shader")?;
-        self.gl.shader_source(&shader, source);
-        self.gl.compile_shader(&shader);
-
-        if !self
-            .gl
-            .get_shader_parameter(&shader, WebGlRenderingContext::COMPILE_STATUS)
-            .as_bool()
-            .unwrap_or(false)
-        {
-            let info = self.gl.get_shader_info_log(&shader).unwrap_or_default();
-            return Err(JsValue::from_str(&format!(
-                "Failed to compile shader: {}",
-                info
-            )));
-        }
-
-        Ok(shader)
+        })
     }
 
     /// Add a new light source
@@ -392,11 +518,6 @@ impl LightingSystem {
         table_id: Option<&str>,
         scissor_rect: Option<[i32; 4]>,
     ) -> Result<(), JsValue> {
-        let program = self
-            .light_shader
-            .as_ref()
-            .ok_or("Light shader not initialized")?;
-
         // Clip the complete light/stencil pass to the visible table plane.
         // Scissor coordinates use a bottom-left origin, unlike camera space.
         if let Some([x, y, width, height]) = scissor_rect {
@@ -415,19 +536,17 @@ impl LightingSystem {
         self.gl
             .blend_func(WebGlRenderingContext::ONE, WebGlRenderingContext::ONE);
 
-        self.gl.use_program(Some(program));
-
-        let view_matrix_location = self.gl.get_uniform_location(program, "u_view_matrix");
-        if let Some(location) = view_matrix_location {
-            self.gl
-                .uniform_matrix3fv_with_f32_array(Some(&location), false, view_matrix);
-        }
-
-        let canvas_size_location = self.gl.get_uniform_location(program, "u_canvas_size");
-        if let Some(location) = canvas_size_location {
-            self.gl
-                .uniform2f(Some(&location), canvas_width, canvas_height);
-        }
+        self.pipeline.bind();
+        self.gl.uniform_matrix3fv_with_f32_array(
+            Some(&self.pipeline.u_view_matrix),
+            false,
+            view_matrix,
+        );
+        self.gl.uniform2f(
+            Some(&self.pipeline.u_canvas_size),
+            canvas_width,
+            canvas_height,
+        );
 
         // Render each light — capture result to ensure cleanup runs regardless
         let light_ids: Vec<String> = self.lights.keys().cloned().collect();
@@ -472,7 +591,6 @@ impl LightingSystem {
             };
 
             match self.render_single_light(
-                program,
                 &id,
                 position,
                 color,
@@ -506,6 +624,9 @@ impl LightingSystem {
             self.gl.disable(WebGlRenderingContext::SCISSOR_TEST);
         }
         self.gl.stencil_mask(0xFF);
+        self.gl.bind_vertex_array(None);
+        self.gl
+            .bind_buffer(WebGlRenderingContext::ARRAY_BUFFER, None);
 
         self.obstacles_dirty = false;
 
@@ -517,7 +638,6 @@ impl LightingSystem {
     /// Best practice: Shadow geometry - project obstacles away from light to create shadow quads
     fn render_single_light(
         &self,
-        program: &WebGlProgram,
         _light_id: &str,
         position: Vec2,
         color: Color,
@@ -528,7 +648,7 @@ impl LightingSystem {
         _dirty: bool,
     ) -> Result<(Option<Vec<Point>>, bool), JsValue> {
         // Set light-specific uniforms
-        self.set_light_uniforms_explicit(program, &position, &color, intensity, radius, falloff)?;
+        self.set_light_uniforms(&position, &color, intensity, radius, falloff);
 
         // Stencil contents are a per-light shadow mask. Without this clear,
         // shadows produced for an earlier light also block every later light.
@@ -564,7 +684,7 @@ impl LightingSystem {
             for quad in shadow_quads.iter() {
                 if quad.len() == 4 {
                     let shadow_vertices = self.quad_to_vertices(quad);
-                    if let Err(e) = self.upload_and_draw_triangle_strip(&shadow_vertices, program) {
+                    if let Err(e) = self.upload_and_draw_triangle_strip(&shadow_vertices) {
                         shadow_result = Err(e);
                         break;
                     }
@@ -588,7 +708,7 @@ impl LightingSystem {
 
         let circle = self.generate_circle(position, radius);
         let circle_vertices = self.polygon_to_vertices_from_light(&circle, position);
-        let draw_result = self.upload_and_draw_vertices(&circle_vertices, program);
+        let draw_result = self.upload_and_draw_vertices(&circle_vertices);
 
         // ALWAYS reset stencil state for the next light
         self.gl.stencil_func(WebGlRenderingContext::ALWAYS, 0, 0xFF);
@@ -599,39 +719,11 @@ impl LightingSystem {
     }
 
     /// Helper to upload vertices and draw triangle fan
-    fn upload_and_draw_vertices(
-        &self,
-        vertices: &[f32],
-        program: &WebGlProgram,
-    ) -> Result<(), JsValue> {
-        let buffer = self
-            .vertex_buffer
-            .as_ref()
-            .ok_or("Vertex buffer not initialized")?;
-        self.gl
-            .bind_buffer(WebGlRenderingContext::ARRAY_BUFFER, Some(buffer));
-
-        unsafe {
-            let vertices_array = js_sys::Float32Array::view(vertices);
-            self.gl.buffer_data_with_array_buffer_view(
-                WebGlRenderingContext::ARRAY_BUFFER,
-                &vertices_array,
-                WebGlRenderingContext::DYNAMIC_DRAW,
-            );
-            self.frame_buffer_uploads
-                .set(self.frame_buffer_uploads.get().saturating_add(1));
-        }
-
-        let position_location = self.gl.get_attrib_location(program, "a_position") as u32;
-        self.gl.enable_vertex_attrib_array(position_location);
-        self.gl.vertex_attrib_pointer_with_i32(
-            position_location,
-            2,
-            WebGlRenderingContext::FLOAT,
-            false,
-            0,
-            0,
-        );
+    fn upload_and_draw_vertices(&self, vertices: &[f32]) -> Result<(), JsValue> {
+        self.pipeline.bind();
+        let uploads = self.pipeline.upload_vertices(vertices);
+        self.frame_buffer_uploads
+            .set(self.frame_buffer_uploads.get().saturating_add(uploads));
 
         self.gl.draw_arrays(
             WebGlRenderingContext::TRIANGLE_FAN,
@@ -640,45 +732,16 @@ impl LightingSystem {
         );
         self.frame_draw_calls
             .set(self.frame_draw_calls.get().saturating_add(1));
-        self.gl.disable_vertex_attrib_array(position_location);
 
         Ok(())
     }
 
     /// Helper to upload vertices and draw triangle strip (for shadow quads)
-    fn upload_and_draw_triangle_strip(
-        &self,
-        vertices: &[f32],
-        program: &WebGlProgram,
-    ) -> Result<(), JsValue> {
-        let buffer = self
-            .vertex_buffer
-            .as_ref()
-            .ok_or("Vertex buffer not initialized")?;
-        self.gl
-            .bind_buffer(WebGlRenderingContext::ARRAY_BUFFER, Some(buffer));
-
-        unsafe {
-            let vertices_array = js_sys::Float32Array::view(vertices);
-            self.gl.buffer_data_with_array_buffer_view(
-                WebGlRenderingContext::ARRAY_BUFFER,
-                &vertices_array,
-                WebGlRenderingContext::DYNAMIC_DRAW,
-            );
-            self.frame_buffer_uploads
-                .set(self.frame_buffer_uploads.get().saturating_add(1));
-        }
-
-        let position_location = self.gl.get_attrib_location(program, "a_position") as u32;
-        self.gl.enable_vertex_attrib_array(position_location);
-        self.gl.vertex_attrib_pointer_with_i32(
-            position_location,
-            2,
-            WebGlRenderingContext::FLOAT,
-            false,
-            0,
-            0,
-        );
+    fn upload_and_draw_triangle_strip(&self, vertices: &[f32]) -> Result<(), JsValue> {
+        self.pipeline.bind();
+        let uploads = self.pipeline.upload_vertices(vertices);
+        self.frame_buffer_uploads
+            .set(self.frame_buffer_uploads.get().saturating_add(uploads));
 
         self.gl.draw_arrays(
             WebGlRenderingContext::TRIANGLE_STRIP,
@@ -689,7 +752,6 @@ impl LightingSystem {
             .set(self.frame_draw_calls.get().saturating_add(1));
         self.frame_shadow_draw_calls
             .set(self.frame_shadow_draw_calls.get().saturating_add(1));
-        self.gl.disable_vertex_attrib_array(position_location);
 
         Ok(())
     }
@@ -705,37 +767,28 @@ impl LightingSystem {
     }
 
     /// Set uniforms for specific light
-    fn set_light_uniforms_explicit(
+    fn set_light_uniforms(
         &self,
-        program: &WebGlProgram,
         position: &Vec2,
         color: &Color,
         intensity: f32,
         radius: f32,
         falloff: f32,
-    ) -> Result<(), JsValue> {
-        if let Some(location) = self.gl.get_uniform_location(program, "u_light_pos") {
-            self.gl.uniform2f(Some(&location), position.x, position.y);
-        }
-
-        if let Some(location) = self.gl.get_uniform_location(program, "u_light_radius") {
-            self.gl.uniform1f(Some(&location), radius);
-        }
-
-        if let Some(location) = self.gl.get_uniform_location(program, "u_light_color") {
-            self.gl
-                .uniform3f(Some(&location), color.r, color.g, color.b);
-        }
-
-        if let Some(location) = self.gl.get_uniform_location(program, "u_light_intensity") {
-            self.gl.uniform1f(Some(&location), intensity);
-        }
-
-        if let Some(location) = self.gl.get_uniform_location(program, "u_light_falloff") {
-            self.gl.uniform1f(Some(&location), falloff);
-        }
-
-        Ok(())
+    ) {
+        self.gl
+            .uniform2f(Some(&self.pipeline.u_light_pos), position.x, position.y);
+        self.gl
+            .uniform1f(Some(&self.pipeline.u_light_radius), radius);
+        self.gl.uniform3f(
+            Some(&self.pipeline.u_light_color),
+            color.r,
+            color.g,
+            color.b,
+        );
+        self.gl
+            .uniform1f(Some(&self.pipeline.u_light_intensity), intensity);
+        self.gl
+            .uniform1f(Some(&self.pipeline.u_light_falloff), falloff);
     }
 
     /// Convert visibility polygon to vertex array for triangle fan

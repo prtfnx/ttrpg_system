@@ -21,7 +21,7 @@ impl RenderEngine {
             .layer_manager
             .add_sprite_to_layer(layer_name, sprite_data);
         if result.is_ok() && layer_name == "obstacles" {
-            self.obstacles_dirty = true;
+            self.mark_occlusion_dirty();
         }
         result
     }
@@ -39,7 +39,7 @@ impl RenderEngine {
                 self.input.selected_sprite_id = None;
             }
             if on_obstacles {
-                self.obstacles_dirty = true;
+                self.mark_occlusion_dirty();
             }
         }
         result
@@ -56,7 +56,7 @@ impl RenderEngine {
             .layer_manager
             .move_sprite_to_layer(sprite_id, new_layer);
         if result && (was_obstacle || new_layer == "obstacles") {
-            self.obstacles_dirty = true;
+            self.mark_occlusion_dirty();
         }
         result
     }
@@ -72,7 +72,7 @@ impl RenderEngine {
             .layer_manager
             .rotate_sprite(sprite_id, rotation_degrees);
         if ok && on_obstacles {
-            self.obstacles_dirty = true;
+            self.mark_occlusion_dirty();
         }
         ok
     }
@@ -90,7 +90,7 @@ impl RenderEngine {
                 .map(|(_, l)| l == "obstacles")
                 .unwrap_or(false);
             if on_obstacles {
-                self.obstacles_dirty = true;
+                self.mark_occlusion_dirty();
             }
         }
         ok
@@ -106,7 +106,7 @@ impl RenderEngine {
         let new_scale = crate::math::Vec2::new(scale_x as f32, scale_y as f32);
         let ok = self.layer_manager.update_sprite_scale(sprite_id, new_scale);
         if ok && on_obstacles {
-            self.obstacles_dirty = true;
+            self.mark_occlusion_dirty();
         }
         ok
     }
@@ -128,7 +128,7 @@ impl RenderEngine {
             .layer_manager
             .paste_sprite(layer_name, sprite_json, offset_x, offset_y);
         if result.is_ok() && layer_name == "obstacles" {
-            self.obstacles_dirty = true;
+            self.mark_occlusion_dirty();
         }
         result
     }
@@ -144,7 +144,7 @@ impl RenderEngine {
             .layer_manager
             .resize_sprite(sprite_id, new_width, new_height);
         if ok && on_obstacles {
-            self.obstacles_dirty = true;
+            self.mark_occlusion_dirty();
         }
         ok
     }
@@ -216,7 +216,7 @@ impl RenderEngine {
             .layer_manager
             .add_sprite_to_layer(layer_name, &sprite_data);
         if layer_name == "obstacles" {
-            self.obstacles_dirty = true;
+            self.mark_occlusion_dirty();
         }
         sprite_id
     }
@@ -266,7 +266,7 @@ impl RenderEngine {
             .layer_manager
             .add_sprite_to_layer(layer_name, &sprite_data);
         if layer_name == "obstacles" {
-            self.obstacles_dirty = true;
+            self.mark_occlusion_dirty();
         }
         sprite_id
     }
@@ -323,7 +323,7 @@ impl RenderEngine {
             .layer_manager
             .add_sprite_to_layer(layer_name, &sprite_data);
         if layer_name == "obstacles" {
-            self.obstacles_dirty = true;
+            self.mark_occlusion_dirty();
         }
         sprite_id
     }

@@ -284,7 +284,7 @@ impl RenderEngine {
     pub fn add_wall(&mut self, wall_json: &str) -> bool {
         let ok = self.wall_manager.add_wall_from_json(wall_json);
         if ok {
-            self.obstacles_dirty = true;
+            self.mark_occlusion_dirty();
         }
         ok
     }
@@ -293,7 +293,7 @@ impl RenderEngine {
     pub fn remove_wall(&mut self, wall_id: &str) -> bool {
         let removed = self.wall_manager.remove_wall(wall_id);
         if removed {
-            self.obstacles_dirty = true;
+            self.mark_occlusion_dirty();
             self.input.remove_from_wall_selection(wall_id);
         }
         removed
@@ -303,7 +303,7 @@ impl RenderEngine {
     pub fn update_wall(&mut self, wall_id: &str, updates_json: &str) -> bool {
         let ok = self.wall_manager.update_from_json(wall_id, updates_json);
         if ok {
-            self.obstacles_dirty = true;
+            self.mark_occlusion_dirty();
         }
         ok
     }
@@ -311,7 +311,7 @@ impl RenderEngine {
     #[wasm_bindgen]
     pub fn clear_walls(&mut self) {
         self.wall_manager.clear();
-        self.obstacles_dirty = true;
+        self.mark_occlusion_dirty();
     }
 
     #[wasm_bindgen]

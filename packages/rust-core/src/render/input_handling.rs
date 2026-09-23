@@ -188,7 +188,7 @@ impl RenderEngine {
         );
 
         if self.input.input_mode == InputMode::WallDrag {
-            self.obstacles_dirty = true;
+            self.mark_occlusion_dirty();
         } else if matches!(
             self.input.input_mode,
             InputMode::SpriteMove | InputMode::SpriteResize(_) | InputMode::SpriteRotate
@@ -200,7 +200,7 @@ impl RenderEngine {
                     .map(|(_, l)| l == "obstacles")
                     .unwrap_or(false);
                 if on_obstacles {
-                    self.obstacles_dirty = true;
+                    self.mark_occlusion_dirty();
                 }
             }
         }
@@ -547,7 +547,7 @@ impl RenderEngine {
         let wall_ids = self.input.selected_wall_ids.clone();
         for wall_id in wall_ids {
             if self.wall_manager.translate_wall(&wall_id, dx, dy) {
-                self.obstacles_dirty = true;
+                self.mark_occlusion_dirty();
                 if let Some((x1, y1, x2, y2)) = self.wall_manager.get_wall_endpoints(&wall_id) {
                     let detail = js_sys::Object::new();
                     js_sys::Reflect::set(&detail, &"wallId".into(), &JsValue::from_str(&wall_id))
@@ -574,7 +574,7 @@ impl RenderEngine {
             }
         }
         if !removed.is_empty() {
-            self.obstacles_dirty = true;
+            self.mark_occlusion_dirty();
             self.input.clear_wall_selection();
         }
         removed

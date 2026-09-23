@@ -248,6 +248,10 @@ impl RenderEngine {
         self.diagnostics.record_occlusion_rebuild();
     }
 
+    pub(crate) fn mark_occlusion_dirty(&mut self) {
+        self.obstacles_dirty = true;
+    }
+
     #[wasm_bindgen]
     pub fn get_render_diagnostics(&self) -> Result<JsValue, JsValue> {
         let mut snapshot = self.diagnostics.clone();

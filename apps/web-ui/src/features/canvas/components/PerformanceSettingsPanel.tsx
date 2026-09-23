@@ -43,6 +43,11 @@ export const PerformanceSettingsPanel: React.FC<PerformanceSettingsPanelProps> =
             <Stat label="Draw calls" value={metrics.drawCalls.toLocaleString()} />
             <Stat label="Buffer uploads" value={metrics.bufferUploads.toLocaleString()} />
             <Stat label="Textures" value={metrics.residentTextures.toLocaleString()} />
+            <Stat
+              label="Texture memory"
+              value={`${formatMiB(metrics.estimatedTextureBytes)} / ${formatMiB(metrics.textureBudgetBytes)}`}
+            />
+            <Stat label="Texture over budget" value={formatMiB(metrics.textureOverBudgetBytes)} />
             <Stat label="Active lights" value={metrics.activeLights.toLocaleString()} />
             <Stat label="Shadow draws" value={metrics.shadowDrawCalls.toLocaleString()} />
             <Stat label="Occlusion revision" value={metrics.occlusionRevision.toLocaleString()} />
@@ -59,5 +64,7 @@ const Stat: React.FC<{ label: string; value: string }> = ({ label, value }) => (
     <span className={styles.statValue}>{value}</span>
   </div>
 );
+
+const formatMiB = (bytes: number): string => `${(bytes / 1024 / 1024).toFixed(1)} MiB`;
 
 export default PerformanceSettingsPanel;

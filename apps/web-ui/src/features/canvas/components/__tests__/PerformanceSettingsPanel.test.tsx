@@ -13,6 +13,9 @@ const { getMetrics } = vi.hoisted(() => ({ getMetrics: vi.fn(() => ({
   drawCalls: 80,
   bufferUploads: 90,
   residentTextures: 12,
+  estimatedTextureBytes: 48 * 1024 * 1024,
+  textureBudgetBytes: 96 * 1024 * 1024,
+  textureOverBudgetBytes: 0,
   activeLights: 4,
   shadowDrawCalls: 3,
   occlusionRevision: 2,
@@ -37,6 +40,7 @@ describe('PerformanceSettingsPanel', () => {
     expect(screen.getByText('CPU p95:')).toBeInTheDocument();
     expect(screen.getByText('4.50ms')).toBeInTheDocument();
     expect(screen.getByText('Draw calls:')).toBeInTheDocument();
+    expect(screen.getByText('48.0 MiB / 96.0 MiB')).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: /auto optimize/i })).not.toBeInTheDocument();
     expect(screen.queryByLabelText(/frustum culling/i)).not.toBeInTheDocument();
   });

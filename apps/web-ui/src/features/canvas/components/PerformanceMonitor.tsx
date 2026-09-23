@@ -187,7 +187,9 @@ export const PerformanceMonitor: React.FC<PerformanceMonitorProps> = ({
                   </div>
                   <div className={styles.metricRow}>
                     <span>Textures:</span>
-                    <span>{metrics.residentTextures.toLocaleString()}</span>
+                    <span>
+                      {metrics.residentTextures.toLocaleString()} ({(metrics.estimatedTextureBytes / 1024 / 1024).toFixed(1)} / {(metrics.textureBudgetBytes / 1024 / 1024).toFixed(1)} MiB)
+                    </span>
                   </div>
                   <div className={styles.metricRow}>
                     <span>Lights:</span>

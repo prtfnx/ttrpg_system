@@ -173,7 +173,7 @@ class PerformanceService {
       `GPU commands: ${metrics.drawCalls} draws, ${metrics.bufferUploads} buffer uploads`,
       `Lighting: ${metrics.activeLights} lights, ${metrics.shadowSegmentsAccepted}/${metrics.shadowCandidates} shadow segments, ${metrics.shadowDrawCalls} shadow draws`,
       `Occlusion: revision ${metrics.occlusionRevision}, ${metrics.occlusionRebuilds} rebuilds`,
-      `Textures: ${metrics.residentTextures}, ${(metrics.estimatedTextureBytes / 1024 / 1024).toFixed(1)}MB estimated`,
+      `Textures: ${metrics.residentTextures}, ${(metrics.estimatedTextureBytes / 1024 / 1024).toFixed(1)}MiB estimated / ${(metrics.textureBudgetBytes / 1024 / 1024).toFixed(1)}MiB policy budget, ${(metrics.textureOverBudgetBytes / 1024 / 1024).toFixed(1)}MiB over`,
       `JS memory: ${(metrics.memoryUsage.usedJSHeapSize / 1024 / 1024).toFixed(1)}MB used`,
     ].join('\n');
   }

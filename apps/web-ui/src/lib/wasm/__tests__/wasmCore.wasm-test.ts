@@ -267,6 +267,57 @@ describe('WASM module (real browser)', () => {
     }
   });
 
+  it('uploads immutable quad indices once while rendering each quad variant', () => {
+    const bufferData = vi.spyOn(WebGL2RenderingContext.prototype, 'bufferData');
+    const canvas = document.createElement('canvas');
+    canvas.width = 240;
+    canvas.height = 160;
+    const engine = new RenderEngine(canvas);
+    const staticElementUploads = (): number => bufferData.mock.calls.filter(
+      ([target, , usage]) => target === WebGL2RenderingContext.ELEMENT_ARRAY_BUFFER
+        && usage === WebGL2RenderingContext.STATIC_DRAW,
+    ).length;
+
+    try {
+      expect(staticElementUploads()).toBe(1);
+      const snapshot = normalizeTableSnapshot({ table_data: {
+        table_id: '550e8400-e29b-41d4-a716-446655440014',
+        table_name: 'Quad pipeline fixture',
+        width: 200,
+        height: 120,
+        scale: 1,
+        grid_enabled: false,
+        layers: {
+          tokens: {
+            textured: {
+              sprite_id: 'textured', position: [20, 20], width: 30, height: 30,
+              texture_path: 'font_atlas',
+            },
+            shape: {
+              sprite_id: 'shape', position: [70, 20], width: 30, height: 30,
+              obstacle_type: 'rectangle', tint_color: [0.2, 0.7, 0.3, 1],
+            },
+          },
+        },
+      } });
+      engine.handle_table_data(snapshot.renderer);
+      engine.set_gm_mode(true);
+      engine.set_input_mode_select();
+      expect(engine.handle_mouse_down_full(30, 30, false, true)).toBe('textured');
+
+      engine.render();
+      engine.render();
+
+      expect(engine.get_selected_sprites()).toContain('textured');
+      expect(staticElementUploads()).toBe(1);
+      const gl = canvas.getContext('webgl2');
+      expect(gl?.getError()).toBe(gl?.NO_ERROR);
+    } finally {
+      engine.free();
+      bufferData.mockRestore();
+    }
+  });
+
   it('version() returns a semver string', () => {
     const v = version();
     expect(typeof v).toBe('string');

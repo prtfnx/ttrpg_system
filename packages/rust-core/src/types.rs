@@ -349,6 +349,43 @@ mod shape_tests {
     }
 
     #[test]
+    fn render_bounds_cover_positive_and_negative_diagonal_rotation() {
+        for rotation in [std::f64::consts::FRAC_PI_4, -std::f64::consts::FRAC_PI_4] {
+            let sprite = Sprite {
+                world_x: -60.0,
+                world_y: -20.0,
+                width: 100.0,
+                height: 20.0,
+                scale_x: 1.0,
+                scale_y: 1.0,
+                rotation,
+                ..Default::default()
+            };
+            let bounds = sprite.render_bounds();
+            let expected_size = 120.0 * std::f32::consts::FRAC_1_SQRT_2;
+            assert!((bounds.max.x - bounds.min.x - expected_size).abs() < 0.01);
+            assert!((bounds.max.y - bounds.min.y - expected_size).abs() < 0.01);
+            assert!(bounds.contains(Vec2::new(-10.0, -10.0)));
+        }
+    }
+
+    #[test]
+    fn circle_render_bounds_use_the_normalized_scaled_rectangle() {
+        let sprite = Sprite {
+            world_x: -25.0,
+            world_y: -15.0,
+            width: 40.0,
+            height: 20.0,
+            scale_x: 1.5,
+            scale_y: 2.0,
+            obstacle_type: Some("circle".to_string()),
+            ..Default::default()
+        };
+
+        assert_eq!(sprite.render_bounds(), Rect::new(-25.0, -15.0, 60.0, 40.0));
+    }
+
+    #[test]
     fn render_bounds_use_world_space_polygon_and_line_vertices() {
         for (kind, vertices) in [
             ("polygon", vec![[100.0, 20.0], [150.0, 80.0], [90.0, 70.0]]),

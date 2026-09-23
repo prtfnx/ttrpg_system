@@ -267,6 +267,76 @@ describe('WASM module (real browser)', () => {
     }
   });
 
+  it('culls offscreen sprites while retaining text with unknown glyph bounds', () => {
+    const canvas = document.createElement('canvas');
+    canvas.width = 240;
+    canvas.height = 160;
+    const engine = new RenderEngine(canvas);
+    const tokens: Record<string, {
+      sprite_id: string;
+      position: [number, number];
+      width: number;
+      height: number;
+      is_text_sprite?: boolean;
+      text_content?: string;
+    }> = {
+      visible: { sprite_id: 'visible', position: [20, 20], width: 20, height: 20 },
+    };
+    for (let index = 0; index < 50; index += 1) {
+      tokens[`offscreen-${index}`] = {
+        sprite_id: `offscreen-${index}`,
+        position: [1_000 + index * 25, 1_000],
+        width: 20,
+        height: 20,
+      };
+    }
+
+    try {
+      const snapshot = normalizeTableSnapshot({ table_data: {
+        table_id: '550e8400-e29b-41d4-a716-446655440016',
+        table_name: 'Culling fixture',
+        width: 3_000,
+        height: 2_000,
+        scale: 1,
+        grid_enabled: false,
+        layers: { tokens },
+      } });
+      engine.handle_table_data(snapshot.renderer);
+      engine.add_sprite_to_layer('tokens', {
+        id: 'offscreen-text', table_id: snapshot.renderer.table_id,
+        world_x: 1_000, world_y: 1_000, width: 20, height: 20,
+        scale_x: 1, scale_y: 1, rotation: 0, layer: 'tokens',
+        texture_id: '', tint_color: [1, 1, 1, 1],
+        is_text_sprite: true, text_content: 'Bounds pending',
+      });
+      engine.render();
+
+      expect(engine.get_render_diagnostics()).toMatchObject({
+        spritesConsidered: 52,
+        spritesDrawn: 2,
+        spritesCulled: 50,
+      });
+
+      engine.set_camera(950, 950, 1);
+      engine.render();
+      expect(engine.get_render_diagnostics()).toMatchObject({
+        spritesConsidered: 52,
+        spritesDrawn: 10,
+        spritesCulled: 42,
+      });
+
+      engine.set_camera(1_000, 1_000, 2);
+      engine.render();
+      expect(engine.get_render_diagnostics()).toMatchObject({
+        spritesConsidered: 52,
+        spritesDrawn: 7,
+        spritesCulled: 45,
+      });
+    } finally {
+      engine.free();
+    }
+  });
+
   it('uploads immutable quad indices once while rendering each quad variant', () => {
     const bufferData = vi.spyOn(WebGL2RenderingContext.prototype, 'bufferData');
     const canvas = document.createElement('canvas');

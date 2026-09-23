@@ -150,6 +150,21 @@ A restored WebGL context receives a new `RenderEngine` and therefore new
 pipelines. Never carry a program, buffer, uniform location, or VAO across
 context restoration.
 
+## Viewport culling
+
+Map and ordinary scene layers reject sprites before vertex preparation and
+texture binding when their conservative render bounds do not intersect the
+world viewport. The viewport expands by 32 physical pixels divided by camera
+zoom; this covers the rotation handle's 20px offset and 11.2px radius as well
+as resize handles and outlines.
+
+Rectangle and ellipse bounds account for signed scale and rotation. Polygon
+and line bounds come from their world-space vertices, with the normalized
+sprite rectangle as malformed-geometry fallback. Text sprites bypass culling
+because bitmap glyph layout can exceed the stored sprite dimensions. Culling
+changes draw submission only: hit testing, selection ownership, obstacle
+geometry, synchronization, and persistence still see the complete scene.
+
 ## Runtime callbacks
 
 Rust should not call app-level browser globals. It reports app intent through

@@ -1,5 +1,6 @@
 use crate::math::{Rect, Vec2};
 use crate::sprite_renderer::SpriteRenderer;
+use crate::types::Sprite;
 use wasm_bindgen::prelude::*;
 
 use super::RenderEngine;
@@ -7,6 +8,14 @@ use super::RenderEngine;
 const WORKSPACE_BACKGROUND: [f32; 4] = [0.035, 0.04, 0.05, 1.0];
 const TABLE_BORDER_COLOR: [f32; 4] = [0.38, 0.41, 0.48, 0.9];
 const QUAD_TEX_COORDS: [f32; 8] = [0.0, 0.0, 1.0, 0.0, 0.0, 1.0, 1.0, 1.0];
+// The primary rotation handle reaches 20px above a sprite and has an 11.2px
+// visual radius. A 32px margin also covers resize handles and line width.
+const SPRITE_CULL_MARGIN_PX: f32 = 32.0;
+
+fn sprite_intersects_view(sprite: &Sprite, viewport: &Rect) -> bool {
+    // Bitmap-font glyph layout can exceed the stored sprite dimensions.
+    sprite.is_text_sprite.unwrap_or(false) || sprite.render_bounds().intersects(viewport)
+}
 
 fn table_surface_vertices(bounds: &Rect) -> [f32; 8] {
     [
@@ -72,6 +81,8 @@ impl RenderEngine {
         );
 
         let viewport_bounds = self.get_world_view_bounds();
+        let cull_bounds = viewport_bounds
+            .expanded(SPRITE_CULL_MARGIN_PX / (self.camera.zoom as f32).max(f32::EPSILON));
 
         let Some(active_table_id) = self.table_manager.active_table_id().map(str::to_owned) else {
             return Ok(());
@@ -128,6 +139,11 @@ impl RenderEngine {
                     if sprite.table_id == active_table_id {
                         self.diagnostics.sprites_considered =
                             self.diagnostics.sprites_considered.saturating_add(1);
+                        if !sprite_intersects_view(sprite, &cull_bounds) {
+                            self.diagnostics.sprites_culled =
+                                self.diagnostics.sprites_culled.saturating_add(1);
+                            continue;
+                        }
                         SpriteRenderer::draw_sprite(
                             sprite,
                             effective_opacity,
@@ -165,6 +181,11 @@ impl RenderEngine {
                     if sprite.table_id == active_table_id {
                         self.diagnostics.sprites_considered =
                             self.diagnostics.sprites_considered.saturating_add(1);
+                        if !sprite_intersects_view(sprite, &cull_bounds) {
+                            self.diagnostics.sprites_culled =
+                                self.diagnostics.sprites_culled.saturating_add(1);
+                            continue;
+                        }
                         SpriteRenderer::draw_sprite(
                             sprite,
                             effective_opacity,

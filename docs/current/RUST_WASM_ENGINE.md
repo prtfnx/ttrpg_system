@@ -145,12 +145,22 @@ list once and submits one stencil draw for the light; it does not issue one
 upload and draw per obstacle segment. Shadow batches are never combined across
 lights because each light owns a separate stencil-mask lifetime.
 
-The lighting broad phase indexes each obstacle segment across every 128-unit
-grid cell touched by its axis-aligned bounds. A light queries the cells touched
-by its circle bounds before running the exact squared point-to-segment distance
-test. Cell conversion uses `floor`, including for negative coordinates. A
-generation-stamped scratch vector deduplicates long segments without allocating
-a `HashSet` for each light.
+`RenderEngine` owns one `OcclusionScene` with separate sight and light segment
+indexes. A dirty scene rebuild collects both segment sets and replaces both
+indexes before advancing one revision. Rendering, diagnostics, and the legacy
+segment-array getters ensure the scene is current, so several mutations before
+the next consumer coalesce into one rebuild. Lighting borrows the shared light
+index and keeps only its reusable query workspace; it does not own another
+obstacle store or grid.
+
+The shared broad phase indexes each obstacle segment across every 128-unit grid
+cell touched by its axis-aligned bounds. A light queries the cells touched by
+its circle bounds before running the exact squared point-to-segment distance
+test. The legacy visibility exports build the same index type from their
+supplied segment arrays and use separate workspaces. Cell conversion uses
+`floor`, including for negative coordinates. A generation-stamped scratch
+vector deduplicates long segments without allocating a `HashSet` for each
+light.
 
 The query falls back to the contiguous segment slice when its cell count is
 greater than a budget of 16 cells or twice the smaller of the segment count and
@@ -159,8 +169,8 @@ density estimates that it would visit at least three quarters as many
 memberships as a full scan. Empty scenes remain on the indexed path.
 `shadowCandidates` reports the deduplicated broad-phase count, or the complete
 segment count when the fallback runs. The `lighting_spatial_query` group in
-`packages/rust-core/benches/bottleneck_bench.rs` compares the full scan with
-64-, 128-, and 256-unit cells on deterministic renderer fixtures.
+`packages/rust-core/benches/bottleneck_bench.rs` compares a full scan with the
+production shared index on deterministic renderer fixtures.
 
 A restored WebGL context receives a new `RenderEngine` and therefore new
 pipelines. Never carry a program, buffer, uniform location, or VAO across

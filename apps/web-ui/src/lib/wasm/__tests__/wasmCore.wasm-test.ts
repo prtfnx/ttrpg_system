@@ -630,12 +630,28 @@ describe('WASM module (real browser)', () => {
       }))).toBe(true);
       expect([...engine.get_obstacle_segments_flat()]).toEqual([10, 20, 30, 40]);
       expect([...engine.get_light_obstacle_segments_flat()]).toEqual([]);
+      expect(engine.get_render_diagnostics()).toMatchObject({
+        occlusionRevision: 1,
+        occlusionRebuilds: 1,
+      });
 
       expect(engine.update_wall('sight-only', JSON.stringify({
         blocks_light: true, blocks_sight: false,
       }))).toBe(true);
       expect([...engine.get_obstacle_segments_flat()]).toEqual([]);
       expect([...engine.get_light_obstacle_segments_flat()]).toEqual([10, 20, 30, 40]);
+      expect(engine.get_render_diagnostics()).toMatchObject({
+        occlusionRevision: 2,
+        occlusionRebuilds: 2,
+      });
+
+      expect(engine.update_wall('sight-only', JSON.stringify({ x1: 12 }))).toBe(true);
+      expect(engine.update_wall('sight-only', JSON.stringify({ x1: 14 }))).toBe(true);
+      expect([...engine.get_light_obstacle_segments_flat()]).toEqual([14, 20, 30, 40]);
+      expect(engine.get_render_diagnostics()).toMatchObject({
+        occlusionRevision: 3,
+        occlusionRebuilds: 3,
+      });
     } finally {
       engine.free();
     }

@@ -203,10 +203,7 @@ impl RenderEngine {
             }
         }
 
-        if self.obstacles_dirty {
-            self.update_lighting_obstacles();
-            self.obstacles_dirty = false;
-        }
+        self.ensure_occlusion_scene_current();
 
         let table_scissor = screen_rect_to_gl_scissor(
             self.camera.world_to_screen(table_bounds.min),
@@ -215,6 +212,7 @@ impl RenderEngine {
         );
 
         self.lighting.render_lights_filtered(
+            &self.occlusion_scene.light,
             &self.view_matrix.to_array(),
             self.canvas_size.x,
             self.canvas_size.y,

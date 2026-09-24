@@ -1,12 +1,12 @@
-#[cfg(any(target_arch = "wasm32", test))]
-use super::visibility::{distance_squared_to_segment, shadow_quad, LineSegment, Point};
-#[cfg(target_arch = "wasm32")]
-use super::visibility::{QueryMode, QueryScratch, VisibilityCalculator};
 use crate::math::Vec2;
+#[cfg(any(target_arch = "wasm32", test))]
+use crate::occlusion::Segment;
+#[cfg(target_arch = "wasm32")]
+use crate::occlusion::{QueryMode, QueryWorkspace, SegmentIndex};
 use crate::types::Color;
 use serde::{Deserialize, Serialize};
 #[cfg(target_arch = "wasm32")]
-use std::cell::{Cell, RefCell};
+use std::cell::Cell;
 #[cfg(target_arch = "wasm32")]
 use std::collections::HashMap;
 #[cfg(target_arch = "wasm32")]
@@ -21,7 +21,7 @@ use web_sys::{
 const LIGHT_VERTEX_BYTES: i32 = (132 * std::mem::size_of::<f32>()) as i32;
 
 #[cfg(any(target_arch = "wasm32", test))]
-fn append_shadow_quad_triangles(vertices: &mut Vec<f32>, quad: &[Point; 4]) {
+fn append_shadow_quad_triangles(vertices: &mut Vec<f32>, quad: &[Vec2; 4]) {
     for index in [0, 1, 2, 2, 1, 3] {
         vertices.push(quad[index].x);
         vertices.push(quad[index].y);
@@ -30,9 +30,9 @@ fn append_shadow_quad_triangles(vertices: &mut Vec<f32>, quad: &[Point; 4]) {
 
 #[cfg(any(target_arch = "wasm32", test))]
 fn fill_shadow_triangle_vertices(
-    segments: &[LineSegment],
+    segments: &[Segment],
     candidate_indexes: Option<&[usize]>,
-    light: Point,
+    light: Vec2,
     radius: f32,
     shadow_length: f32,
     vertices: &mut Vec<f32>,
@@ -40,7 +40,7 @@ fn fill_shadow_triangle_vertices(
     vertices.clear();
     let radius_squared = radius * radius;
     let mut accepted = 0;
-    let mut append_segment = |segment: &LineSegment| {
+    let mut append_segment = |segment: &Segment| {
         if distance_squared_to_segment(light, segment) > radius_squared {
             return;
         }
@@ -61,6 +61,40 @@ fn fill_shadow_triangle_vertices(
     }
 
     accepted
+}
+
+#[cfg(any(target_arch = "wasm32", test))]
+fn distance_squared_to_segment(point: Vec2, segment: &Segment) -> f32 {
+    let edge = segment.end - segment.start;
+    let length_squared = edge.x * edge.x + edge.y * edge.y;
+    if length_squared <= f32::EPSILON {
+        let offset = point - segment.start;
+        return offset.x * offset.x + offset.y * offset.y;
+    }
+
+    let offset = point - segment.start;
+    let projection = (offset.x * edge.x + offset.y * edge.y) / length_squared;
+    let closest = segment.start + edge * projection.clamp(0.0, 1.0);
+    let distance = point - closest;
+    distance.x * distance.x + distance.y * distance.y
+}
+
+#[cfg(any(target_arch = "wasm32", test))]
+fn shadow_quad(segment: &Segment, light: Vec2, shadow_length: f32) -> Option<[Vec2; 4]> {
+    let direction_start = segment.start - light;
+    let direction_end = segment.end - light;
+    let start_length = direction_start.length();
+    let end_length = direction_end.length();
+    if start_length <= 0.01 || end_length <= 0.01 {
+        return None;
+    }
+
+    Some([
+        segment.start,
+        segment.start + direction_start * (shadow_length / start_length),
+        segment.end,
+        segment.end + direction_end * (shadow_length / end_length),
+    ])
 }
 
 /// Light types supported by the system
@@ -88,7 +122,7 @@ pub struct Light {
 
     #[serde(skip)]
     #[cfg(target_arch = "wasm32")]
-    pub(crate) cached_polygon: Option<Vec<Point>>,
+    pub(crate) cached_polygon: Option<Vec<Vec2>>,
 }
 
 impl Light {
@@ -145,12 +179,6 @@ impl Light {
 
     pub fn set_enabled(&mut self, enabled: bool) {
         self.is_on = enabled;
-    }
-
-    #[cfg(target_arch = "wasm32")]
-    fn mark_dirty(&mut self) {
-        self.dirty = true;
-        self.cached_polygon = None;
     }
 }
 
@@ -406,11 +434,9 @@ pub struct LightingSystem {
     gl: WebGlRenderingContext,
     pipeline: LightPipeline,
     lights: HashMap<String, Light>,
-    visibility_calculator: RefCell<VisibilityCalculator>,
     ambient_light: f32,
-    obstacles_dirty: bool,
     shadow_vertices: Vec<f32>,
-    shadow_query_scratch: QueryScratch,
+    shadow_query_workspace: QueryWorkspace,
     frame_draw_calls: Cell<u32>,
     frame_buffer_uploads: Cell<u32>,
     frame_active_lights: Cell<u32>,
@@ -443,11 +469,9 @@ impl LightingSystem {
             gl,
             pipeline,
             lights: HashMap::new(),
-            visibility_calculator: RefCell::new(VisibilityCalculator::new()),
             ambient_light: 0.3,
-            obstacles_dirty: true,
             shadow_vertices: Vec::new(),
-            shadow_query_scratch: QueryScratch::default(),
+            shadow_query_workspace: QueryWorkspace::default(),
             frame_draw_calls: Cell::new(0),
             frame_buffer_uploads: Cell::new(0),
             frame_active_lights: Cell::new(0),
@@ -485,39 +509,24 @@ impl LightingSystem {
         }
     }
 
-    /// Set obstacles for shadow casting
-    pub fn set_obstacles(&mut self, obstacles: &[f32]) {
-        // web_sys::console::log_1(&format!("[LIGHTING-DEBUG] [IN] Received {} floats = {} segments",
-        //     obstacles.len(), obstacles.len() / 4).into());
-
-        let mut calc = self.visibility_calculator.borrow_mut();
-        calc.clear();
-        calc.add_segments_from_array(obstacles);
-
-        // let segment_count = calc.get_segments().len();
-        // web_sys::console::log_1(&format!("[LIGHTING-DEBUG] [GEOM] VisibilityCalculator now has {} segments",
-        //     segment_count).into());
-
-        drop(calc); // Release borrow
-
-        self.obstacles_dirty = true;
-
-        // Mark all lights dirty
-        for light in self.lights.values_mut() {
-            light.mark_dirty();
-        }
-    }
-
     /// Render all lights with shadow casting
     /// Strategy: Render full light circle, then subtract shadow volumes
     pub fn render_lights(
         &mut self,
+        occluders: &SegmentIndex,
         view_matrix: &[f32; 9],
         canvas_width: f32,
         canvas_height: f32,
     ) -> Result<(), JsValue> {
         // Default: render all lights (backwards compatibility)
-        self.render_lights_filtered(view_matrix, canvas_width, canvas_height, None, None)
+        self.render_lights_filtered(
+            occluders,
+            view_matrix,
+            canvas_width,
+            canvas_height,
+            None,
+            None,
+        )
     }
 
     pub fn begin_frame(&self) {
@@ -561,6 +570,7 @@ impl LightingSystem {
     /// Render lights filtered by table_id
     pub fn render_lights_filtered(
         &mut self,
+        occluders: &SegmentIndex,
         view_matrix: &[f32; 9],
         canvas_width: f32,
         canvas_height: f32,
@@ -640,6 +650,7 @@ impl LightingSystem {
             };
 
             match self.render_single_light(
+                occluders,
                 &id,
                 position,
                 color,
@@ -677,8 +688,6 @@ impl LightingSystem {
         self.gl
             .bind_buffer(WebGlRenderingContext::ARRAY_BUFFER, None);
 
-        self.obstacles_dirty = false;
-
         render_result
     }
 
@@ -687,15 +696,16 @@ impl LightingSystem {
     /// Best practice: Shadow geometry - project obstacles away from light to create shadow quads
     fn render_single_light(
         &mut self,
+        occluders: &SegmentIndex,
         _light_id: &str,
         position: Vec2,
         color: Color,
         intensity: f32,
         radius: f32,
         falloff: f32,
-        _cached_polygon: Option<Vec<Point>>,
+        _cached_polygon: Option<Vec<Vec2>>,
         _dirty: bool,
-    ) -> Result<(Option<Vec<Point>>, bool), JsValue> {
+    ) -> Result<(Option<Vec<Vec2>>, bool), JsValue> {
         // Set light-specific uniforms
         self.set_light_uniforms(&position, &color, intensity, radius, falloff);
 
@@ -710,7 +720,7 @@ impl LightingSystem {
         // 2. Render full light circle where stencil = 0 (NOT in shadow)
 
         // Step 1: Compute and render one shadow triangle batch to stencil.
-        self.build_shadow_vertices(position, radius);
+        self.build_shadow_vertices(occluders, position, radius);
 
         // web_sys::console::log_1(&format!("[STENCIL-DEBUG] [DARK] Computing shadows for light at ({:.1}, {:.1}), found {} shadow quads",
         //     position.x, position.y, shadow_quads.len()).into());
@@ -822,7 +832,7 @@ impl LightingSystem {
 
     /// Convert visibility polygon to vertex array for triangle fan
     /// Triangle fan: light position as center + polygon vertices forming the lit area
-    fn polygon_to_vertices_from_light(&self, polygon: &[Point], light_position: Vec2) -> Vec<f32> {
+    fn polygon_to_vertices_from_light(&self, polygon: &[Vec2], light_position: Vec2) -> Vec<f32> {
         let mut vertices = Vec::with_capacity((polygon.len() + 2) * 2);
 
         // Center vertex MUST be the light position, not the polygon centroid!
@@ -846,14 +856,14 @@ impl LightingSystem {
     }
 
     /// Generate circle polygon for full light rendering
-    fn generate_circle(&self, center: Vec2, radius: f32) -> Vec<Point> {
+    fn generate_circle(&self, center: Vec2, radius: f32) -> Vec<Vec2> {
         const SEGMENTS: usize = 64;
         let mut points = Vec::with_capacity(SEGMENTS);
         use std::f32::consts::PI;
 
         for i in 0..SEGMENTS {
             let angle = (i as f32 / SEGMENTS as f32) * 2.0 * PI;
-            points.push(Point::new(
+            points.push(Vec2::new(
                 center.x + radius * angle.cos(),
                 center.y + radius * angle.sin(),
             ));
@@ -866,9 +876,8 @@ impl LightingSystem {
     /// Each obstacle edge that faces away from light casts a shadow quad
     /// This is the standard "shadow geometry" approach for 2D lighting
     /// Performance optimization: Only processes segments within light radius for shadow casting
-    fn build_shadow_vertices(&mut self, light_pos: Vec2, radius: f32) {
-        let calc = self.visibility_calculator.borrow();
-        let segments = calc.get_segments();
+    fn build_shadow_vertices(&mut self, occluders: &SegmentIndex, light_pos: Vec2, radius: f32) {
+        let segments = occluders.segments();
         let segment_count = u32::try_from(segments.len()).unwrap_or(u32::MAX);
         self.frame_shadow_segments_total.set(
             self.frame_shadow_segments_total
@@ -878,14 +887,14 @@ impl LightingSystem {
         // web_sys::console::log_1(&format!("[LIGHTING-DEBUG] [DARK] Computing shadows for light at ({:.1}, {:.1}) with radius {:.1}, {} segments available",
         //     light_pos.x, light_pos.y, radius, segment_count).into());
 
-        let light = Point::new(light_pos.x, light_pos.y);
-        let query_mode = calc.query_aabb(
-            Point::new(light.x - radius, light.y - radius),
-            Point::new(light.x + radius, light.y + radius),
-            &mut self.shadow_query_scratch,
+        let light = light_pos;
+        let query_mode = occluders.query_aabb(
+            Vec2::new(light.x - radius, light.y - radius),
+            Vec2::new(light.x + radius, light.y + radius),
+            &mut self.shadow_query_workspace,
         );
         let candidate_indexes = match query_mode {
-            QueryMode::Indexed => Some(self.shadow_query_scratch.candidates()),
+            QueryMode::Indexed => Some(self.shadow_query_workspace.candidates()),
             QueryMode::FullScan => None,
         };
         let candidate_count = candidate_indexes.map_or(segments.len(), <[usize]>::len);
@@ -1016,17 +1025,17 @@ mod tests {
     use super::*;
     use crate::math::Vec2;
 
-    fn segment(x1: f32, y1: f32, x2: f32, y2: f32) -> LineSegment {
-        LineSegment::new(Point::new(x1, y1), Point::new(x2, y2))
+    fn segment(x1: f32, y1: f32, x2: f32, y2: f32) -> Segment {
+        Segment::new(Vec2::new(x1, y1), Vec2::new(x2, y2))
     }
 
     #[test]
     fn shadow_quad_conversion_preserves_triangle_vertex_order() {
         let quad = [
-            Point::new(1.0, 2.0),
-            Point::new(3.0, 4.0),
-            Point::new(5.0, 6.0),
-            Point::new(7.0, 8.0),
+            Vec2::new(1.0, 2.0),
+            Vec2::new(3.0, 4.0),
+            Vec2::new(5.0, 6.0),
+            Vec2::new(7.0, 8.0),
         ];
         let mut vertices = Vec::new();
 
@@ -1040,7 +1049,7 @@ mod tests {
 
     #[test]
     fn shadow_batch_handles_empty_and_single_segment_scenes() {
-        let light = Point::new(0.0, 0.0);
+        let light = Vec2::new(0.0, 0.0);
         let mut vertices = vec![99.0];
         assert_eq!(
             fill_shadow_triangle_vertices(&[], None, light, 20.0, 21.0, &mut vertices),
@@ -1058,7 +1067,7 @@ mod tests {
 
     #[test]
     fn shadow_batch_preserves_overlapping_and_reversed_segments() {
-        let light = Point::new(0.0, 0.0);
+        let light = Vec2::new(0.0, 0.0);
         let forward = segment(10.0, -2.0, 10.0, 2.0);
         let reversed = segment(10.0, 2.0, 10.0, -2.0);
         let mut vertices = Vec::new();
@@ -1079,7 +1088,7 @@ mod tests {
 
     #[test]
     fn shadow_batch_rejects_source_degenerate_and_keeps_long_crossing_segment() {
-        let light = Point::new(0.0, 0.0);
+        let light = Vec2::new(0.0, 0.0);
         let source_degenerate = segment(0.0, 0.0, 0.0, 0.0);
         let long_crossing = segment(-1_000.0, 10.0, 1_000.0, 10.0);
         let mut vertices = Vec::new();

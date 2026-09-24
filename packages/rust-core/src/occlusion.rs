@@ -6,32 +6,32 @@ use std::collections::HashMap;
 const DEFAULT_CELL_SIZE: f32 = 128.0;
 
 #[derive(Clone, Copy, Debug, PartialEq)]
-pub(crate) struct Segment {
+pub struct Segment {
     pub start: Vec2,
     pub end: Vec2,
 }
 
 impl Segment {
-    pub(crate) fn new(start: Vec2, end: Vec2) -> Self {
+    pub fn new(start: Vec2, end: Vec2) -> Self {
         Self { start, end }
     }
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
-pub(crate) enum QueryMode {
+pub enum QueryMode {
     Indexed,
     FullScan,
 }
 
 #[derive(Debug, Default)]
-pub(crate) struct QueryWorkspace {
+pub struct QueryWorkspace {
     candidates: Vec<usize>,
     seen_generation: Vec<u32>,
     generation: u32,
 }
 
 impl QueryWorkspace {
-    pub(crate) fn candidates(&self) -> &[usize] {
+    pub fn candidates(&self) -> &[usize] {
         &self.candidates
     }
 
@@ -150,7 +150,7 @@ impl UniformGrid {
 }
 
 #[derive(Debug)]
-pub(crate) struct SegmentIndex {
+pub struct SegmentIndex {
     segments: Vec<Segment>,
     endpoints: Vec<Vec2>,
     grid: UniformGrid,
@@ -163,7 +163,7 @@ impl Default for SegmentIndex {
 }
 
 impl SegmentIndex {
-    pub(crate) fn from_flat(data: &[f32]) -> Self {
+    pub fn from_flat(data: &[f32]) -> Self {
         let mut index = Self {
             segments: Vec::with_capacity(data.len() / 4),
             endpoints: Vec::with_capacity(data.len() / 2),
@@ -185,20 +185,29 @@ impl SegmentIndex {
         self.grid.insert(segment_index, segment);
     }
 
-    pub(crate) fn segments(&self) -> &[Segment] {
+    pub fn segments(&self) -> &[Segment] {
         &self.segments
     }
 
-    pub(crate) fn endpoint_count(&self) -> usize {
+    #[cfg(test)]
+    fn endpoint_count(&self) -> usize {
         self.endpoints.len()
     }
 
-    pub(crate) fn query_aabb(
-        &self,
-        min: Vec2,
-        max: Vec2,
-        workspace: &mut QueryWorkspace,
-    ) -> QueryMode {
+    pub(crate) fn to_flat_vec(&self) -> Vec<f32> {
+        let mut values = Vec::with_capacity(self.segments.len().saturating_mul(4));
+        for segment in &self.segments {
+            values.extend_from_slice(&[
+                segment.start.x,
+                segment.start.y,
+                segment.end.x,
+                segment.end.y,
+            ]);
+        }
+        values
+    }
+
+    pub fn query_aabb(&self, min: Vec2, max: Vec2, workspace: &mut QueryWorkspace) -> QueryMode {
         self.grid.query(min, max, self.segments.len(), workspace)
     }
 
@@ -313,6 +322,70 @@ fn segment_intersection(ray_start: Vec2, ray_end: Vec2, segment: Segment) -> Opt
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::performance_fixtures::{build_performance_fixture, PerformanceFixtureKind};
+
+    fn fixture_index(kind: PerformanceFixtureKind) -> SegmentIndex {
+        let fixture = build_performance_fixture(kind);
+        let mut values = Vec::with_capacity(fixture.segments.len() * 4);
+        for segment in fixture.segments {
+            values.extend_from_slice(&segment);
+        }
+        SegmentIndex::from_flat(&values)
+    }
+
+    fn distance_squared_to_segment(point: Vec2, segment: Segment) -> f32 {
+        let edge = segment.end - segment.start;
+        let length_squared = edge.x * edge.x + edge.y * edge.y;
+        if length_squared <= f32::EPSILON {
+            let offset = point - segment.start;
+            return offset.x * offset.x + offset.y * offset.y;
+        }
+        let offset = point - segment.start;
+        let projection = (offset.x * edge.x + offset.y * edge.y) / length_squared;
+        let distance = point - (segment.start + edge * projection.clamp(0.0, 1.0));
+        distance.x * distance.x + distance.y * distance.y
+    }
+
+    fn exact_indexes(index: &SegmentIndex, origin: Vec2, radius: f32) -> Vec<usize> {
+        let radius_squared = radius * radius;
+        index
+            .segments()
+            .iter()
+            .enumerate()
+            .filter_map(|(segment_index, &segment)| {
+                (distance_squared_to_segment(origin, segment) <= radius_squared)
+                    .then_some(segment_index)
+            })
+            .collect()
+    }
+
+    fn queried_exact_indexes(
+        index: &SegmentIndex,
+        origin: Vec2,
+        radius: f32,
+        workspace: &mut QueryWorkspace,
+    ) -> Vec<usize> {
+        let mode = index.query_aabb(
+            origin - Vec2::new(radius, radius),
+            origin + Vec2::new(radius, radius),
+            workspace,
+        );
+        let radius_squared = radius * radius;
+        let mut indexes = match mode {
+            QueryMode::Indexed => workspace
+                .candidates()
+                .iter()
+                .copied()
+                .filter(|&candidate| {
+                    distance_squared_to_segment(origin, index.segments()[candidate])
+                        <= radius_squared
+                })
+                .collect(),
+            QueryMode::FullScan => exact_indexes(index, origin, radius),
+        };
+        indexes.sort_unstable();
+        indexes
+    }
 
     fn reference_visibility(origin: Vec2, data: &[f32], radius: f32) -> Vec<(f32, Vec2)> {
         let segments: Vec<_> = data
@@ -431,5 +504,98 @@ mod tests {
         if mode == QueryMode::Indexed {
             assert_eq!(workspace.candidates(), &[0]);
         }
+    }
+
+    #[test]
+    fn indexed_queries_match_full_scans_for_every_performance_fixture() {
+        for kind in PerformanceFixtureKind::ALL {
+            let fixture = build_performance_fixture(kind);
+            let index = fixture_index(kind);
+            let mut workspace = QueryWorkspace::default();
+            for light in fixture.lights {
+                let origin = Vec2::new(light.x, light.y);
+                assert_eq!(
+                    queried_exact_indexes(&index, origin, light.radius, &mut workspace),
+                    exact_indexes(&index, origin, light.radius),
+                    "{} fixture light at ({}, {})",
+                    fixture.name,
+                    light.x,
+                    light.y
+                );
+            }
+        }
+    }
+
+    #[test]
+    fn ordinary_query_reduces_candidates_and_negative_cells_are_indexed() {
+        let fixture = build_performance_fixture(PerformanceFixtureKind::Ordinary);
+        let light = fixture.lights[0];
+        let index = fixture_index(PerformanceFixtureKind::Ordinary);
+        let mut workspace = QueryWorkspace::default();
+        assert_eq!(
+            index.query_aabb(
+                Vec2::new(light.x - light.radius, light.y - light.radius),
+                Vec2::new(light.x + light.radius, light.y + light.radius),
+                &mut workspace,
+            ),
+            QueryMode::Indexed
+        );
+        assert!(workspace.candidates().len() < index.segments().len());
+
+        let negative = SegmentIndex::from_flat(&[
+            -200.0, -200.0, -150.0, -150.0, 10_000.0, 10_000.0, 10_010.0, 10_010.0,
+        ]);
+        assert_eq!(
+            negative.query_aabb(
+                Vec2::new(-210.0, -210.0),
+                Vec2::new(-140.0, -140.0),
+                &mut workspace,
+            ),
+            QueryMode::Indexed
+        );
+        assert_eq!(workspace.candidates(), &[0]);
+    }
+
+    #[test]
+    fn huge_and_dense_long_queries_use_full_scan_fallback() {
+        let ordinary = fixture_index(PerformanceFixtureKind::Ordinary);
+        let mut workspace = QueryWorkspace::default();
+        assert_eq!(
+            ordinary.query_aabb(
+                Vec2::new(-10_000.0, -10_000.0),
+                Vec2::new(10_000.0, 10_000.0),
+                &mut workspace,
+            ),
+            QueryMode::FullScan
+        );
+
+        let fixture = build_performance_fixture(PerformanceFixtureKind::LongSegments);
+        let light = fixture.lights[0];
+        let long = fixture_index(PerformanceFixtureKind::LongSegments);
+        assert_eq!(
+            long.query_aabb(
+                Vec2::new(light.x - light.radius, light.y - light.radius),
+                Vec2::new(light.x + light.radius, light.y + light.radius),
+                &mut workspace,
+            ),
+            QueryMode::FullScan
+        );
+    }
+
+    #[test]
+    fn generation_wrap_clears_seen_stamps() {
+        let index =
+            SegmentIndex::from_flat(&[0.0, 0.0, 10.0, 0.0, 10_000.0, 10_000.0, 10_010.0, 10_010.0]);
+        let mut workspace = QueryWorkspace {
+            candidates: vec![99],
+            seen_generation: vec![1],
+            generation: u32::MAX,
+        };
+        assert_eq!(
+            index.query_aabb(Vec2::new(0.0, 0.0), Vec2::new(10.0, 10.0), &mut workspace,),
+            QueryMode::Indexed
+        );
+        assert_eq!(workspace.generation, 1);
+        assert_eq!(workspace.candidates(), &[0]);
     }
 }

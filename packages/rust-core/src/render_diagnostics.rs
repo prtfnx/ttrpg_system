@@ -46,8 +46,8 @@ impl RenderFrameCounters {
         self.texture_over_budget_bytes = 0.0;
     }
 
-    pub fn record_occlusion_rebuild(&mut self) {
-        self.occlusion_revision = self.occlusion_revision.wrapping_add(1);
+    pub fn record_occlusion_rebuild(&mut self, revision: u32) {
+        self.occlusion_revision = revision;
         self.occlusion_rebuilds = self.occlusion_rebuilds.saturating_add(1);
     }
 }
@@ -83,13 +83,13 @@ mod tests {
     }
 
     #[test]
-    fn occlusion_rebuild_advances_revision_and_lifetime_total() {
+    fn occlusion_rebuild_records_scene_revision_and_lifetime_total() {
         let mut counters = RenderFrameCounters::default();
 
-        counters.record_occlusion_rebuild();
-        counters.record_occlusion_rebuild();
+        counters.record_occlusion_rebuild(7);
+        counters.record_occlusion_rebuild(8);
 
-        assert_eq!(counters.occlusion_revision, 2);
+        assert_eq!(counters.occlusion_revision, 8);
         assert_eq!(counters.occlusion_rebuilds, 2);
     }
 }

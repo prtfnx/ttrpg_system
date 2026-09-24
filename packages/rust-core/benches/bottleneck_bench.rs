@@ -1,19 +1,9 @@
 use criterion::{black_box, criterion_group, criterion_main, BenchmarkId, Criterion};
 use std::collections::HashMap;
 use ttrpg_rust_core::math::Vec2;
+use ttrpg_rust_core::occlusion::{QueryMode, QueryWorkspace, Segment, SegmentIndex};
 use ttrpg_rust_core::performance_fixtures::{build_performance_fixture, PerformanceFixtureKind};
 use ttrpg_rust_core::types::{Layer, Sprite};
-
-mod performance_fixtures {
-    pub use ttrpg_rust_core::performance_fixtures::*;
-}
-
-#[path = "../src/lighting/visibility.rs"]
-mod lighting_visibility;
-
-use lighting_visibility::{
-    distance_squared_to_segment, Point, QueryMode, QueryScratch, VisibilityCalculator,
-};
 
 // ── Helpers ──
 
@@ -246,50 +236,62 @@ fn bench_sprite_serde(c: &mut Criterion) {
 }
 
 fn count_indexed_segments(
-    calculator: &VisibilityCalculator,
-    scratch: &mut QueryScratch,
-    light: Point,
+    index: &SegmentIndex,
+    workspace: &mut QueryWorkspace,
+    light: Vec2,
     radius: f32,
 ) -> usize {
-    let mode = calculator.query_aabb(
-        Point::new(light.x - radius, light.y - radius),
-        Point::new(light.x + radius, light.y + radius),
-        scratch,
+    let mode = index.query_aabb(
+        Vec2::new(light.x - radius, light.y - radius),
+        Vec2::new(light.x + radius, light.y + radius),
+        workspace,
     );
     let radius_squared = radius * radius;
     match mode {
-        QueryMode::Indexed => scratch
+        QueryMode::Indexed => workspace
             .candidates()
             .iter()
-            .filter(|&&index| {
-                distance_squared_to_segment(light, &calculator.get_segments()[index])
-                    <= radius_squared
+            .filter(|&&candidate| {
+                distance_squared_to_segment(light, &index.segments()[candidate]) <= radius_squared
             })
             .count(),
-        QueryMode::FullScan => calculator
-            .get_segments()
+        QueryMode::FullScan => index
+            .segments()
             .iter()
             .filter(|segment| distance_squared_to_segment(light, segment) <= radius_squared)
             .count(),
     }
 }
 
-fn count_full_scan_segments(calculator: &VisibilityCalculator, light: Point, radius: f32) -> usize {
+fn count_full_scan_segments(index: &SegmentIndex, light: Vec2, radius: f32) -> usize {
     let radius_squared = radius * radius;
-    calculator
-        .get_segments()
+    index
+        .segments()
         .iter()
         .filter(|segment| distance_squared_to_segment(light, segment) <= radius_squared)
         .count()
 }
 
-fn benchmark_calculator(kind: PerformanceFixtureKind, cell_size: f32) -> VisibilityCalculator {
-    let fixture = build_performance_fixture(kind);
-    let mut calculator = VisibilityCalculator::with_cell_size(cell_size);
-    for [x1, y1, x2, y2] in fixture.segments {
-        calculator.add_segment(Point::new(x1, y1), Point::new(x2, y2));
+fn distance_squared_to_segment(point: Vec2, segment: &Segment) -> f32 {
+    let edge = segment.end - segment.start;
+    let length_squared = edge.x * edge.x + edge.y * edge.y;
+    if length_squared <= f32::EPSILON {
+        let offset = point - segment.start;
+        return offset.x * offset.x + offset.y * offset.y;
     }
-    calculator
+    let offset = point - segment.start;
+    let projection = (offset.x * edge.x + offset.y * edge.y) / length_squared;
+    let distance = point - (segment.start + edge * projection.clamp(0.0, 1.0));
+    distance.x * distance.x + distance.y * distance.y
+}
+
+fn benchmark_index(kind: PerformanceFixtureKind) -> SegmentIndex {
+    let fixture = build_performance_fixture(kind);
+    let mut values = Vec::with_capacity(fixture.segments.len() * 4);
+    for [x1, y1, x2, y2] in fixture.segments {
+        values.extend_from_slice(&[x1, y1, x2, y2]);
+    }
+    SegmentIndex::from_flat(&values)
 }
 
 fn bench_lighting_spatial_query(c: &mut Criterion) {
@@ -302,35 +304,29 @@ fn bench_lighting_spatial_query(c: &mut Criterion) {
     ] {
         let fixture = build_performance_fixture(kind);
         let fixture_light = fixture.lights[0];
-        let light = Point::new(fixture_light.x, fixture_light.y);
-        let baseline = benchmark_calculator(kind, 128.0);
+        let light = Vec2::new(fixture_light.x, fixture_light.y);
+        let index = benchmark_index(kind);
         group.bench_function(BenchmarkId::new(kind.name(), "full_scan"), |b| {
             b.iter(|| {
                 count_full_scan_segments(
-                    black_box(&baseline),
+                    black_box(&index),
                     black_box(light),
                     black_box(fixture_light.radius),
                 )
             })
         });
 
-        for cell_size in [64.0, 128.0, 256.0] {
-            let calculator = benchmark_calculator(kind, cell_size);
-            let mut scratch = QueryScratch::default();
-            group.bench_function(
-                BenchmarkId::new(kind.name(), format!("grid_{cell_size:.0}")),
-                |b| {
-                    b.iter(|| {
-                        count_indexed_segments(
-                            black_box(&calculator),
-                            &mut scratch,
-                            black_box(light),
-                            black_box(fixture_light.radius),
-                        )
-                    })
-                },
-            );
-        }
+        let mut workspace = QueryWorkspace::default();
+        group.bench_function(BenchmarkId::new(kind.name(), "shared_index"), |b| {
+            b.iter(|| {
+                count_indexed_segments(
+                    black_box(&index),
+                    &mut workspace,
+                    black_box(light),
+                    black_box(fixture_light.radius),
+                )
+            })
+        });
     }
     group.finish();
 }

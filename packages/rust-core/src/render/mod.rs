@@ -16,6 +16,7 @@ use crate::input::InputHandler;
 use crate::layer_manager::LayerManager;
 use crate::lighting::LightingSystem;
 use crate::math::*;
+use crate::occlusion::OcclusionScene;
 use crate::paint::PaintSystem;
 use crate::render_diagnostics::RenderFrameCounters;
 use crate::table_manager::TableManager;
@@ -76,11 +77,14 @@ pub struct RenderEngine {
     // Wall segments
     pub(crate) wall_manager: WallManager,
 
+    // Renderer-owned, atomically replaced sight and light occlusion indexes.
+    pub(crate) occlusion_scene: OcclusionScene,
+
     // Deterministic diagnostics for the most recently submitted frame.
     pub(crate) diagnostics: RenderFrameCounters,
 
     // Dirty flag — set whenever obstacles may have changed
-    pub(crate) obstacles_dirty: bool,
+    pub(crate) occlusion_dirty: bool,
 
     // Rendering settings
     pub(crate) background_color: [f32; 4],
@@ -175,8 +179,9 @@ impl RenderEngine {
             table_sync,
             table_manager,
             wall_manager,
+            occlusion_scene: OcclusionScene::default(),
             diagnostics: RenderFrameCounters::default(),
-            obstacles_dirty: true,
+            occlusion_dirty: true,
             background_color: [0.1, 0.1, 0.1, 1.0],
             is_gm: false,
             current_user_id: None,
@@ -242,18 +247,26 @@ impl RenderEngine {
         layer_settings.opacity * layer_settings.inactive_opacity
     }
 
-    pub(crate) fn update_lighting_obstacles(&mut self) {
-        let obstacles = self.collect_lighting_obstacle_segments();
-        self.lighting.set_obstacles(&obstacles);
-        self.diagnostics.record_occlusion_rebuild();
+    pub(crate) fn ensure_occlusion_scene_current(&mut self) {
+        if !self.occlusion_dirty {
+            return;
+        }
+
+        let sight = self.collect_vision_obstacle_segments();
+        let light = self.collect_lighting_obstacle_segments();
+        self.occlusion_scene.replace(&sight, &light);
+        self.occlusion_dirty = false;
+        self.diagnostics
+            .record_occlusion_rebuild(self.occlusion_scene.revision());
     }
 
     pub(crate) fn mark_occlusion_dirty(&mut self) {
-        self.obstacles_dirty = true;
+        self.occlusion_dirty = true;
     }
 
     #[wasm_bindgen]
-    pub fn get_render_diagnostics(&self) -> Result<JsValue, JsValue> {
+    pub fn get_render_diagnostics(&mut self) -> Result<JsValue, JsValue> {
+        self.ensure_occlusion_scene_current();
         let mut snapshot = self.diagnostics.clone();
         snapshot.draw_calls = self
             .renderer

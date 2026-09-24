@@ -146,6 +146,7 @@ pub mod math;
 #[doc(hidden)]
 pub mod occlusion;
 pub mod performance_fixtures;
+#[cfg(any(test, target_arch = "wasm32"))]
 mod render_diagnostics;
 mod table_manager;
 mod texture_policy;

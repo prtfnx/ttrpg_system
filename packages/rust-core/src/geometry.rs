@@ -1,4 +1,6 @@
+#[cfg(any(test, target_arch = "wasm32"))]
 use crate::math::Vec2;
+#[cfg(any(test, target_arch = "wasm32"))]
 use crate::occlusion::{SegmentIndex, VisibilityWorkspace};
 #[cfg(target_arch = "wasm32")]
 use js_sys::Array;

@@ -385,8 +385,8 @@ describe('Web Client TypeScript & WASM Systems Integration Tests', () => {
       // User expects memory usage monitoring
       expect(screen.getByText(/memory/i)).toBeInTheDocument();
       
-      // User expects frame time information
-      expect(screen.getByText(/frame.*time/i)).toBeInTheDocument();
+      // User expects measured renderer submission time rather than poll timing
+      expect(screen.getByText(/render cpu/i)).toBeInTheDocument();
     });
 
     it('should provide performance optimization suggestions', async () => {
@@ -406,7 +406,7 @@ describe('Web Client TypeScript & WASM Systems Integration Tests', () => {
       // User expects performance monitoring to be available
       expect(screen.getByText(/fps/i)).toBeInTheDocument();
       expect(screen.getByText(/memory/i)).toBeInTheDocument();
-      expect(screen.getByText(/frame.*time/i)).toBeInTheDocument();
+      expect(screen.getByText(/render cpu/i)).toBeInTheDocument();
     });
   });
 

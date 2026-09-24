@@ -54,6 +54,7 @@ impl QueryWorkspace {
 }
 
 #[derive(Debug, Default)]
+#[cfg_attr(not(any(test, target_arch = "wasm32")), allow(dead_code))]
 pub(crate) struct VisibilityWorkspace {
     angles: Vec<f32>,
     query: QueryWorkspace,
@@ -115,7 +116,7 @@ impl UniformGrid {
         let cy1 = self.cell(min.y.max(max.y));
         let columns = u64::try_from(i64::from(cx1) - i64::from(cx0) + 1).unwrap_or(u64::MAX);
         let rows = u64::try_from(i64::from(cy1) - i64::from(cy0) + 1).unwrap_or(u64::MAX);
-        let queried_cells = columns.checked_mul(rows).unwrap_or(u64::MAX);
+        let queried_cells = columns.saturating_mul(rows);
         let comparison_size = segment_count.min(self.cells.len());
         let cell_budget = u64::try_from(comparison_size)
             .unwrap_or(u64::MAX)
@@ -198,6 +199,7 @@ impl SegmentIndex {
         self.grid.query(min, max, self.segments.len(), workspace)
     }
 
+    #[cfg_attr(not(any(test, target_arch = "wasm32")), allow(dead_code))]
     pub(crate) fn compute_visibility(
         &self,
         origin: Vec2,
@@ -269,12 +271,14 @@ impl SegmentIndex {
 }
 
 #[derive(Debug, Default)]
+#[cfg_attr(not(any(test, target_arch = "wasm32")), allow(dead_code))]
 pub(crate) struct OcclusionScene {
     revision: u32,
     pub sight: SegmentIndex,
     pub light: SegmentIndex,
 }
 
+#[cfg_attr(not(any(test, target_arch = "wasm32")), allow(dead_code))]
 impl OcclusionScene {
     pub(crate) fn replace(&mut self, sight: &[f32], light: &[f32]) {
         let next_sight = SegmentIndex::from_flat(sight);
@@ -289,6 +293,7 @@ impl OcclusionScene {
     }
 }
 
+#[cfg_attr(not(any(test, target_arch = "wasm32")), allow(dead_code))]
 fn segment_intersection(ray_start: Vec2, ray_end: Vec2, segment: Segment) -> Option<Vec2> {
     let ray = ray_end - ray_start;
     let edge = segment.end - segment.start;

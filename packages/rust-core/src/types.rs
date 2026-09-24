@@ -3,6 +3,7 @@ use serde::{Deserialize, Serialize};
 
 /// Parse only six ASCII hex digits, optionally prefixed with a single '#'.
 /// Inspect bytes before slicing so untrusted UTF-8 cannot panic the renderer.
+#[cfg(any(test, target_arch = "wasm32"))]
 pub(crate) fn parse_hex_rgb(hex: &str) -> Option<[u8; 3]> {
     let digits = hex.strip_prefix('#').unwrap_or(hex).as_bytes();
     if digits.len() != 6 || !digits.iter().all(u8::is_ascii_hexdigit) {

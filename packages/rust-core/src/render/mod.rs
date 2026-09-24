@@ -144,6 +144,8 @@ impl RenderEngine {
         let lighting = LightingSystem::new(gl.clone())?;
         let fog = FogOfWarSystem::new(gl.clone())?;
         let mut texture_manager = TextureManager::new(gl, canvas.width(), canvas.height())?;
+        texture_manager
+            .reserve_renderer_resources(fog.estimated_gpu_bytes(), fog.resident_texture_count());
 
         web_sys::console::log_1(&"[RENDER] Loading font atlas texture...".into());
         texture_manager

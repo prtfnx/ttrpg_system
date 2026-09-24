@@ -104,6 +104,18 @@ pub struct FogOfWarSystem {
 
 #[cfg(target_arch = "wasm32")]
 impl FogOfWarSystem {
+    pub fn estimated_gpu_bytes(&self) -> u64 {
+        let pixels = u64::try_from(self.texture_width.max(0))
+            .unwrap_or(0)
+            .saturating_mul(u64::try_from(self.texture_height.max(0)).unwrap_or(0));
+        // Two R8 color masks plus one DEPTH24_STENCIL8 renderbuffer.
+        pixels.saturating_mul(1 + 1 + 4)
+    }
+
+    pub fn resident_texture_count(&self) -> usize {
+        usize::from(self.fog_texture.is_some()) + usize::from(self.vision_texture.is_some())
+    }
+
     pub fn new(gl: WebGlRenderingContext) -> Result<Self, JsValue> {
         let mut system = Self {
             gl,
@@ -744,6 +756,7 @@ impl FogOfWarSystem {
         self.frame_draw_calls
             .set(self.frame_draw_calls.get().saturating_add(1));
         self.gl.disable_vertex_attrib_array(pos_loc);
+        self.gl.delete_buffer(Some(&buffer));
 
         Ok(())
     }
@@ -1179,6 +1192,7 @@ impl FogOfWarSystem {
             .set(self.frame_draw_calls.get().saturating_add(1));
 
         self.gl.disable_vertex_attrib_array(position_location);
+        self.gl.delete_buffer(Some(&buffer));
 
         Ok(())
     }
@@ -1217,6 +1231,7 @@ impl FogOfWarSystem {
         let texcoord_location = self.gl.get_attrib_location(program, "a_texcoord");
 
         if position_location < 0 || texcoord_location < 0 {
+            self.gl.delete_buffer(Some(&buffer));
             return Err(JsValue::from_str("Shader attribute locations not found"));
         }
 
@@ -1253,6 +1268,7 @@ impl FogOfWarSystem {
 
         self.gl.disable_vertex_attrib_array(position_location);
         self.gl.disable_vertex_attrib_array(texcoord_location);
+        self.gl.delete_buffer(Some(&buffer));
 
         Ok(())
     }
@@ -1263,6 +1279,33 @@ impl FogOfWarSystem {
         self.fog_rectangles
             .retain(|_, fog| fog.table_id != table_id);
         before_count - self.fog_rectangles.len()
+    }
+}
+
+#[cfg(target_arch = "wasm32")]
+impl Drop for FogOfWarSystem {
+    fn drop(&mut self) {
+        if let Some(texture) = self.fog_texture.take() {
+            self.gl.delete_texture(Some(&texture));
+        }
+        if let Some(texture) = self.vision_texture.take() {
+            self.gl.delete_texture(Some(&texture));
+        }
+        if let Some(framebuffer) = self.fog_framebuffer.take() {
+            self.gl.delete_framebuffer(Some(&framebuffer));
+        }
+        if let Some(framebuffer) = self.vision_framebuffer.take() {
+            self.gl.delete_framebuffer(Some(&framebuffer));
+        }
+        if let Some(renderbuffer) = self.vision_stencil_rb.take() {
+            self.gl.delete_renderbuffer(Some(&renderbuffer));
+        }
+        if let Some(program) = self.fog_shader.take() {
+            self.gl.delete_program(Some(&program));
+        }
+        if let Some(program) = self.texture_shader.take() {
+            self.gl.delete_program(Some(&program));
+        }
     }
 }
 

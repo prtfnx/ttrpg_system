@@ -49,6 +49,8 @@ pub struct TextureManager {
     budget_policy: TextureBudgetPolicy,
     texture_budget_bytes: u64,
     estimated_texture_bytes: u64,
+    reserved_renderer_bytes: u64,
+    reserved_renderer_textures: usize,
     max_texture_size: u32,
     current_frame: Cell<u64>,
 }
@@ -73,6 +75,8 @@ impl TextureManager {
             budget_policy,
             texture_budget_bytes: budget_policy.budget_for_canvas(canvas_width, canvas_height),
             estimated_texture_bytes: 0,
+            reserved_renderer_bytes: 0,
+            reserved_renderer_textures: 0,
             max_texture_size,
             current_frame: Cell::new(0),
         })
@@ -85,6 +89,12 @@ impl TextureManager {
 
     pub fn update_canvas_size(&mut self, width: u32, height: u32) {
         self.texture_budget_bytes = self.budget_policy.budget_for_canvas(width, height);
+        self.enforce_budget();
+    }
+
+    pub fn reserve_renderer_resources(&mut self, bytes: u64, texture_count: usize) {
+        self.reserved_renderer_bytes = bytes;
+        self.reserved_renderer_textures = texture_count;
         self.enforce_budget();
     }
 
@@ -181,11 +191,14 @@ impl TextureManager {
     }
 
     pub fn resident_texture_count(&self) -> usize {
-        self.textures.len()
+        self.textures
+            .len()
+            .saturating_add(self.reserved_renderer_textures)
     }
 
     pub fn estimated_texture_bytes(&self) -> u64 {
         self.estimated_texture_bytes
+            .saturating_add(self.reserved_renderer_bytes)
     }
 
     pub fn texture_budget_bytes(&self) -> u64 {
@@ -193,7 +206,7 @@ impl TextureManager {
     }
 
     pub fn texture_over_budget_bytes(&self) -> u64 {
-        texture_over_budget_bytes(self.estimated_texture_bytes, self.texture_budget_bytes)
+        texture_over_budget_bytes(self.estimated_texture_bytes(), self.texture_budget_bytes)
     }
 
     pub fn bind_texture(&self, name: &str) {
@@ -418,7 +431,7 @@ impl TextureManager {
     }
 
     fn enforce_budget(&mut self) {
-        if self.estimated_texture_bytes <= self.texture_budget_bytes {
+        if self.estimated_texture_bytes() <= self.texture_budget_bytes {
             return;
         }
         let candidates = eviction_order(
@@ -432,7 +445,7 @@ impl TextureManager {
         for name in candidates {
             self.pending.remove(&name);
             self.remove_record(&name);
-            if self.estimated_texture_bytes <= self.texture_budget_bytes {
+            if self.estimated_texture_bytes() <= self.texture_budget_bytes {
                 break;
             }
         }

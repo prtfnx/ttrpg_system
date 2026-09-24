@@ -266,7 +266,8 @@ describe('WASM module (real browser)', () => {
       });
       expect(first.drawCalls).toBeGreaterThanOrEqual(4);
       expect(first.bufferUploads).toBeGreaterThanOrEqual(first.drawCalls);
-      expect(first.residentTextures).toBeGreaterThanOrEqual(1);
+      expect(first.residentTextures).toBeGreaterThanOrEqual(3);
+      expect(first.estimatedTextureBytes).toBeGreaterThanOrEqual(24 * 1024 * 1024);
 
       engine.render();
       expect(engine.get_render_diagnostics()).toMatchObject({

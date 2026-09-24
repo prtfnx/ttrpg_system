@@ -143,6 +143,7 @@ mod geometry;
 mod input;
 mod lighting;
 pub mod math;
+mod occlusion;
 pub mod performance_fixtures;
 mod render_diagnostics;
 mod table_manager;

@@ -6,7 +6,7 @@ without reading the whole tree.
 Status: usable. This map covers the current docs and maintenance notes. It
 should change as pages are added.
 
-Last source audit: 2026-09-10
+Last source audit: 2026-09-24
 
 ## Reader paths
 
@@ -36,8 +36,9 @@ Canvas or WASM contributor:
 
 1. [WASM React boundary](WASM_REACT_BOUNDARY.md)
 2. [Rust/WASM engine](RUST_WASM_ENGINE.md)
-3. [Web UI architecture](WEB_UI_ARCHITECTURE.md)
-4. [Testing strategy](TESTING_STRATEGY.md)
+3. [Renderer performance reference](reference/RENDERER_PERFORMANCE_REFERENCE.md)
+4. [Web UI architecture](WEB_UI_ARCHITECTURE.md)
+5. [Testing strategy](TESTING_STRATEGY.md)
 
 ## Current pages
 
@@ -68,6 +69,7 @@ Canvas or WASM contributor:
 | [Docs quality checks](reference/DOCS_QUALITY_CHECKS.md) | reference | doc contributors |
 | [Editor workspace](reference/EDITOR_WORKSPACE.md) | reference | contributors using VS Code |
 | [UI theme tokens](reference/UI_THEME_TOKENS.md) | reference | web UI contributors |
+| [Renderer performance reference](reference/RENDERER_PERFORMANCE_REFERENCE.md) | reference | WASM and renderer contributors |
 | [Auth and roles](features/AUTH_AND_ROLES.md) | feature guide | auth and session contributors |
 | [Sessions and invitations](features/SESSIONS_AND_INVITATIONS.md) | feature guide | session contributors |
 | [Tables and canvas](features/TABLES_AND_CANVAS.md) | feature guide | table and canvas contributors |

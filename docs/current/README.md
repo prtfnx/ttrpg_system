@@ -58,6 +58,9 @@ older plans or reports in `docs/`.
   Python analysis scopes, shared tasks, and diagnostic troubleshooting.
 - [UI theme tokens](reference/UI_THEME_TOKENS.md): token ownership, component
   styling rules, interaction states, and CSS verification.
+- [Renderer performance reference](reference/RENDERER_PERFORMANCE_REFERENCE.md):
+  reproducible ordinary-scene measurement method, environment, counters, and
+  current local timing reference.
 
 ## Feature Guides
 

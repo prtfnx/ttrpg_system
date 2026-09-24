@@ -1,7 +1,7 @@
 //! Shared, renderer-owned geometry for sight and light occlusion.
 
 use crate::math::Vec2;
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 
 const DEFAULT_CELL_SIZE: f32 = 128.0;
 
@@ -170,18 +170,34 @@ impl SegmentIndex {
             endpoints: Vec::with_capacity(data.len() / 2),
             grid: UniformGrid::new(DEFAULT_CELL_SIZE),
         };
+        let mut endpoint_keys = HashSet::with_capacity(data.len() / 2);
         for values in data.chunks_exact(4) {
-            index.push(Segment::new(
+            let segment = Segment::new(
                 Vec2::new(values[0], values[1]),
                 Vec2::new(values[2], values[3]),
-            ));
+            );
+            for endpoint in [segment.start, segment.end] {
+                let x = if endpoint.x == 0.0 {
+                    0
+                } else {
+                    endpoint.x.to_bits()
+                };
+                let y = if endpoint.y == 0.0 {
+                    0
+                } else {
+                    endpoint.y.to_bits()
+                };
+                if endpoint_keys.insert((x, y)) {
+                    index.endpoints.push(endpoint);
+                }
+            }
+            index.push(segment);
         }
         index
     }
 
     fn push(&mut self, segment: Segment) {
         let segment_index = self.segments.len();
-        self.endpoints.extend([segment.start, segment.end]);
         self.segments.push(segment);
         self.grid.insert(segment_index, segment);
     }
@@ -390,8 +406,24 @@ mod tests {
             })
             .collect();
         let mut angles = Vec::with_capacity(segments.len() * 6 + 32);
+        let mut endpoint_keys = HashSet::with_capacity(segments.len() * 2);
         for segment in &segments {
             for endpoint in [segment.start, segment.end] {
+                let key = (
+                    if endpoint.x == 0.0 {
+                        0
+                    } else {
+                        endpoint.x.to_bits()
+                    },
+                    if endpoint.y == 0.0 {
+                        0
+                    } else {
+                        endpoint.y.to_bits()
+                    },
+                );
+                if !endpoint_keys.insert(key) {
+                    continue;
+                }
                 let mut angle = (endpoint.y - origin.y).atan2(endpoint.x - origin.x);
                 if angle < 0.0 {
                     angle += std::f32::consts::TAU;
@@ -496,6 +528,20 @@ mod tests {
         if mode == QueryMode::Indexed {
             assert_eq!(workspace.candidates(), &[0]);
         }
+    }
+
+    #[test]
+    fn index_deduplicates_shared_wall_endpoints_before_casting_rays() {
+        let index = SegmentIndex::from_flat(&[0.0, 0.0, 10.0, 0.0, 10.0, 0.0, 20.0, 0.0]);
+
+        assert_eq!(index.segments().len(), 2);
+        assert_eq!(index.endpoint_count(), 3);
+        let points = index.compute_visibility(
+            Vec2::new(10.0, 10.0),
+            100.0,
+            &mut VisibilityWorkspace::default(),
+        );
+        assert_eq!(points.len(), 3 * 3 + 32);
     }
 
     #[test]

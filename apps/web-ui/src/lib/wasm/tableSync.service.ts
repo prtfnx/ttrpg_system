@@ -165,6 +165,14 @@ export class TableSyncService {
       });
       engine.set_background_color(snapshot.backgroundColor ?? DEFAULT_TABLE_BACKGROUND);
 
+      // Unit-backed light metadata must be converted with the incoming table's
+      // settings, not whichever table happened to be resident previously.
+      gameStore.setTableUnits?.({
+        gridCellPx: snapshot.renderer.grid_cell_px,
+        cellDistance: snapshot.renderer.cell_distance,
+        distanceUnit: snapshot.renderer.distance_unit as import('@/utils/unitConverter').DistanceUnit,
+      });
+
       engine.clear_walls();
       snapshot.walls.forEach(wall => engine.add_wall(JSON.stringify(wall)));
       snapshot.specialSprites.forEach(sprite => {
@@ -207,11 +215,6 @@ export class TableSyncService {
         dynamic_lighting_enabled: tableData.dynamic_lighting_enabled ?? false,
         fog_exploration_mode: tableData.fog_exploration_mode ?? 'current_only',
         ambient_light_level: tableData.ambient_light_level ?? 1,
-      });
-      gameStore.setTableUnits?.({
-        gridCellPx: snapshot.renderer.grid_cell_px,
-        cellDistance: snapshot.renderer.cell_distance,
-        distanceUnit: snapshot.renderer.distance_unit as import('@/utils/unitConverter').DistanceUnit,
       });
       gameStore.setGridEnabled?.(snapshot.renderer.show_grid);
       gameStore.setGridSnapping?.(snapshot.snapToGrid);

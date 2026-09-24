@@ -11,6 +11,7 @@ vi.mock('@/store', () => ({
       sprites: mockSprites,
       addSprite: mockAddSprite,
       moveSprite: vi.fn(),
+      getUnitConverter: () => ({ toPixels: (units: number) => units * 10 }),
     })),
     setState: vi.fn(),
   }),
@@ -132,6 +133,15 @@ describe('SpriteSyncService', () => {
       expect(engine.set_light_enabled).toHaveBeenNthCalledWith(1, 'l1', false);
       expect(engine.set_light_enabled).toHaveBeenNthCalledWith(2, 'l1', false);
       expect(engine.toggle_light).not.toHaveBeenCalled();
+    });
+
+    it('prefers game-unit light radius over the legacy pixel radius', () => {
+      service.addSpriteToWasm({
+        texture_path: '__LIGHT__', layer: 'light', sprite_id: 'unit-light', table_id: 'tbl1',
+        metadata: JSON.stringify({ radius: 240, radius_units: 30 }),
+      });
+
+      expect(engine.set_light_radius).toHaveBeenCalledWith('unit-light', 300);
     });
 
     it('reconciles remote metadata for an existing light', () => {

@@ -119,9 +119,22 @@ interface LightSettings {
 
 function lightSettings(metadata: unknown): LightSettings {
   const meta = parseRecord(metadata);
-  const radius = typeof meta.radius === 'number' && Number.isFinite(meta.radius) && meta.radius > 0
-    ? meta.radius
-    : 150.0;
+  const radiusUnits = typeof meta.radius_units === 'number'
+    && Number.isFinite(meta.radius_units)
+    && meta.radius_units > 0
+    ? meta.radius_units
+    : null;
+  const converter = radiusUnits === null
+    ? null
+    : useGameStore.getState().getUnitConverter?.();
+  const convertedRadius = radiusUnits !== null && converter
+    ? converter.toPixels(radiusUnits)
+    : null;
+  const radius = convertedRadius !== null && Number.isFinite(convertedRadius) && convertedRadius > 0
+    ? convertedRadius
+    : typeof meta.radius === 'number' && Number.isFinite(meta.radius) && meta.radius > 0
+      ? meta.radius
+      : 150.0;
   const intensity = typeof meta.intensity === 'number' && Number.isFinite(meta.intensity) && meta.intensity >= 0
     ? meta.intensity
     : 1.0;

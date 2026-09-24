@@ -194,19 +194,6 @@ impl SegmentIndex {
         self.endpoints.len()
     }
 
-    pub(crate) fn to_flat_vec(&self) -> Vec<f32> {
-        let mut values = Vec::with_capacity(self.segments.len().saturating_mul(4));
-        for segment in &self.segments {
-            values.extend_from_slice(&[
-                segment.start.x,
-                segment.start.y,
-                segment.end.x,
-                segment.end.y,
-            ]);
-        }
-        values
-    }
-
     pub fn query_aabb(&self, min: Vec2, max: Vec2, workspace: &mut QueryWorkspace) -> QueryMode {
         self.grid.query(min, max, self.segments.len(), workspace)
     }

@@ -14,8 +14,6 @@ import initWasm, {
   RenderEngine,
   TableSync,
   calculate_asset_hash,
-  compute_visibility_polygon,
-  compute_visibility_polygons,
   create_default_brush_presets,
   version,
 } from '../generated/ttrpg_rust_core';
@@ -505,19 +503,17 @@ describe('WASM module (real browser)', () => {
     expect(presets.length).toBeGreaterThan(0);
   });
 
-  it('compute_visibility_polygon() returns an array-like value', () => {
-    const result = compute_visibility_polygon(0, 0, new Float32Array(0), 100);
-    expect(result !== null && result !== undefined).toBe(true);
-  });
-
-  it('compute_visibility_polygons() batches origins against one obstacle scene', () => {
-    const obstacles = new Float32Array([0, 50, 100, 50]);
+  it('batches sight and light sources against renderer-owned indexes', () => {
+    const engine = new RenderEngine(document.createElement('canvas'));
     const sources = new Float32Array([25, 0, 100, 75, 100, 80]);
-    const batched = compute_visibility_polygons(sources, obstacles) as Array<Array<{ x: number; y: number }>>;
-
-    expect(batched).toHaveLength(2);
-    expect(batched[0]).toEqual(compute_visibility_polygon(25, 0, obstacles, 100));
-    expect(batched[1]).toEqual(compute_visibility_polygon(75, 100, obstacles, 80));
+    try {
+      hydrateEmptyTable(engine, '550e8400-e29b-41d4-a716-446655440030');
+      expect(engine.compute_sight_visibility_polygons(sources)).toHaveLength(2);
+      expect(engine.compute_light_visibility_polygons(sources)).toHaveLength(2);
+      expect(engine.get_occlusion_revision()).toBe(1);
+    } finally {
+      engine.free();
+    }
   });
 
   it('switches complete scenes and replays the active table after real WebGL context restoration', async () => {
@@ -537,6 +533,16 @@ describe('WASM module (real browser)', () => {
         scale: 1,
         grid_enabled: false,
         background_color_hex: background,
+        walls: [{
+          wall_id: `wall-${tokenId}`,
+          table_id: tableId,
+          x1: x + 30,
+          y1: 20,
+          x2: x + 30,
+          y2: 100,
+          blocks_light: true,
+          blocks_sight: true,
+        }],
         layers: {
           tokens: [{
             sprite_id: tokenId,
@@ -573,6 +579,8 @@ describe('WASM module (real browser)', () => {
       await vi.waitFor(() => expect(runtime.status.frameTableId).toBe(tableA));
       expect(runtime.getRenderEngine()?.get_layer_sprite_count('tokens')).toBe(1);
       expect(runtime.getRenderEngine()?.get_sprite_position('token-a')).toBeDefined();
+      const visibilityA = runtime.computeSightVisibilityPolygons(new Float32Array([30, 60, 80]));
+      expect(visibilityA[0].length).toBeGreaterThan(32);
 
       useGameStore.setState({ activeTableId: tableB });
       emitProtocolEvent('table-data-received', tablePayload(tableB, 'token-b', 90, '#000000', 45));
@@ -580,6 +588,8 @@ describe('WASM module (real browser)', () => {
       expect(runtime.getRenderEngine()?.get_active_table_id()).toBe(tableB);
       expect(runtime.getRenderEngine()?.get_sprite_position('token-a')).toBeUndefined();
       expect(runtime.getRenderEngine()?.get_sprite_position('token-b')).toBeDefined();
+      const visibilityB = runtime.computeSightVisibilityPolygons(new Float32Array([100, 60, 80]));
+      expect(visibilityB).not.toEqual(visibilityA);
       runtime.getRenderEngine()?.render();
       expect(brightness(readPixel(canvas, 100, 60))).toBeGreaterThan(brightness(readPixel(canvas, 190, 110)) + 20);
 
@@ -611,6 +621,8 @@ describe('WASM module (real browser)', () => {
       expect(runtime.getRenderEngine()?.get_active_table_id()).toBe(tableB);
       expect(runtime.getRenderEngine()?.get_layer_sprite_count('tokens')).toBe(1);
       expect(runtime.getRenderEngine()?.get_sprite_position('token-b')).toBeDefined();
+      expect(runtime.computeSightVisibilityPolygons(new Float32Array([100, 60, 80])))
+        .toEqual(visibilityB);
       runtime.getRenderEngine()?.render();
       expect(brightness(readPixel(canvas, 100, 60))).toBeGreaterThan(brightness(readPixel(canvas, 190, 110)) + 20);
     } finally {
@@ -620,16 +632,18 @@ describe('WASM module (real browser)', () => {
     }
   }, 30_000);
 
-  it('exports sight-blocking walls independently from light-blocking walls', () => {
+  it('queries sight-blocking walls independently from light-blocking walls', () => {
     const engine = new RenderEngine(document.createElement('canvas'));
+    const sources = new Float32Array([25, 50, 100]);
     try {
       expect(engine.add_wall(JSON.stringify({
         wall_id: 'sight-only', table_id: 'table-1',
-        x1: 10, y1: 20, x2: 30, y2: 40,
+        x1: 50, y1: 0, x2: 50, y2: 100,
         blocks_light: false, blocks_sight: true,
       }))).toBe(true);
-      expect([...engine.get_obstacle_segments_flat()]).toEqual([10, 20, 30, 40]);
-      expect([...engine.get_light_obstacle_segments_flat()]).toEqual([]);
+      const sightBlocked = engine.compute_sight_visibility_polygons(sources);
+      const lightOpen = engine.compute_light_visibility_polygons(sources);
+      expect(sightBlocked[0].length).toBeGreaterThan(lightOpen[0].length);
       expect(engine.get_render_diagnostics()).toMatchObject({
         occlusionRevision: 1,
         occlusionRebuilds: 1,
@@ -638,8 +652,10 @@ describe('WASM module (real browser)', () => {
       expect(engine.update_wall('sight-only', JSON.stringify({
         blocks_light: true, blocks_sight: false,
       }))).toBe(true);
-      expect([...engine.get_obstacle_segments_flat()]).toEqual([]);
-      expect([...engine.get_light_obstacle_segments_flat()]).toEqual([10, 20, 30, 40]);
+      const sightOpen = engine.compute_sight_visibility_polygons(sources);
+      const lightBlocked = engine.compute_light_visibility_polygons(sources);
+      expect(sightOpen[0]).toEqual(lightOpen[0]);
+      expect(lightBlocked[0]).toEqual(sightBlocked[0]);
       expect(engine.get_render_diagnostics()).toMatchObject({
         occlusionRevision: 2,
         occlusionRebuilds: 2,
@@ -647,7 +663,7 @@ describe('WASM module (real browser)', () => {
 
       expect(engine.update_wall('sight-only', JSON.stringify({ x1: 12 }))).toBe(true);
       expect(engine.update_wall('sight-only', JSON.stringify({ x1: 14 }))).toBe(true);
-      expect([...engine.get_light_obstacle_segments_flat()]).toEqual([14, 20, 30, 40]);
+      expect(engine.compute_light_visibility_polygons(sources)[0]).not.toEqual(lightBlocked[0]);
       expect(engine.get_render_diagnostics()).toMatchObject({
         occlusionRevision: 3,
         occlusionRebuilds: 3,
@@ -657,8 +673,9 @@ describe('WASM module (real browser)', () => {
     }
   });
 
-  it('exports exact transformed line obstacle endpoints', () => {
+  it('updates obstacle-sprite visibility before the next render', () => {
     const engine = new RenderEngine(document.createElement('canvas'));
+    const sources = new Float32Array([5, -10, 50]);
     try {
       hydrateEmptyTable(engine, '550e8400-e29b-41d4-a716-446655440001');
       engine.add_sprite_to_layer('obstacles', {
@@ -668,21 +685,19 @@ describe('WASM module (real browser)', () => {
         obstacle_type: 'line', polygon_vertices: [[0, 0], [10, 0]], shape_filled: false,
       });
 
-      expect([...engine.get_obstacle_segments_flat()]).toEqual([0, 0, 10, 0]);
+      const before = engine.compute_sight_visibility_polygons(sources);
+      expect(engine.get_occlusion_revision()).toBe(1);
       expect(engine.update_sprite_position('line-1', 5, 6)).toBe(true);
       expect(engine.rotate_sprite('line-1', 90)).toBe(true);
-      const transformed = [...engine.get_obstacle_segments_flat()];
-      expect(transformed).toHaveLength(4);
-      expect(transformed[0]).toBeCloseTo(10, 3);
-      expect(transformed[1]).toBeCloseTo(1, 3);
-      expect(transformed[2]).toBeCloseTo(10, 3);
-      expect(transformed[3]).toBeCloseTo(11, 3);
+      const after = engine.compute_sight_visibility_polygons(sources);
+      expect(after).not.toEqual(before);
+      expect(engine.get_occlusion_revision()).toBe(2);
     } finally {
       engine.free();
     }
   });
 
-  it('exports circular obstacles as a closed segmented ellipse', () => {
+  it('queries circular obstacle sprites through both internal indexes', () => {
     const engine = new RenderEngine(document.createElement('canvas'));
     try {
       hydrateEmptyTable(engine, '550e8400-e29b-41d4-a716-446655440002');
@@ -693,12 +708,11 @@ describe('WASM module (real browser)', () => {
         obstacle_type: 'circle', shape_filled: false,
       });
 
-      const segments = [...engine.get_obstacle_segments_flat()];
-      expect(segments).toHaveLength(32 * 4);
-      expect(segments[0]).toBeCloseTo(50, 3);
-      expect(segments[1]).toBeCloseTo(30, 3);
-      expect(segments.at(-2)).toBeCloseTo(segments[0], 3);
-      expect(segments.at(-1)).toBeCloseTo(segments[1], 3);
+      const sources = new Float32Array([30, 30, 100]);
+      const sight = engine.compute_sight_visibility_polygons(sources);
+      const light = engine.compute_light_visibility_polygons(sources);
+      expect(sight).toEqual(light);
+      expect(sight[0].length).toBeGreaterThan(32);
     } finally {
       engine.free();
     }

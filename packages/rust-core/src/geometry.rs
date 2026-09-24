@@ -14,20 +14,6 @@ struct Point {
     y: f32,
 }
 
-// Obstacles expected as flat array: [x1,y1,x2,y2, x1,y1,x2,y2, ...]
-// Only used from WASM modules (returns JsValue → Array of {x,y} points).
-#[cfg(target_arch = "wasm32")]
-pub(crate) fn compute_visibility_impl(
-    player_x: f32,
-    player_y: f32,
-    data: &[f32],
-    max_dist: f32,
-) -> JsValue {
-    let points = compute_visibility_raw(player_x, player_y, data, max_dist);
-
-    visibility_points_to_js(points)
-}
-
 #[cfg(target_arch = "wasm32")]
 fn visibility_points_to_js(points: Vec<(f32, Vec2)>) -> JsValue {
     let arr = Array::new();
@@ -41,7 +27,7 @@ fn visibility_points_to_js(points: Vec<(f32, Vec2)>) -> JsValue {
 
 /// Pure visibility polygon computation. Returns sorted (angle, point) pairs.
 /// Testable on all targets — no JS dependencies.
-#[cfg_attr(not(target_arch = "wasm32"), allow(dead_code))]
+#[cfg(test)]
 pub(crate) fn compute_visibility_raw(
     player_x: f32,
     player_y: f32,
@@ -56,32 +42,17 @@ pub(crate) fn compute_visibility_raw(
 }
 
 #[cfg(target_arch = "wasm32")]
-#[wasm_bindgen]
-pub fn compute_visibility_polygon(
-    player_x: f32,
-    player_y: f32,
-    obstacles: &js_sys::Float32Array,
-    max_dist: f32,
+pub(crate) fn compute_visibility_polygons_impl(
+    scene: &SegmentIndex,
+    sources: &[f32],
+    workspace: &mut VisibilityWorkspace,
 ) -> JsValue {
-    compute_visibility_impl(player_x, player_y, &obstacles.to_vec(), max_dist)
-}
-
-/// Compute multiple visibility polygons while building the obstacle index once.
-/// Sources are packed as `[x, y, max_distance, ...]`.
-#[cfg(target_arch = "wasm32")]
-#[wasm_bindgen]
-pub fn compute_visibility_polygons(
-    sources: &js_sys::Float32Array,
-    obstacles: &js_sys::Float32Array,
-) -> JsValue {
-    let scene = SegmentIndex::from_flat(&obstacles.to_vec());
-    let mut workspace = VisibilityWorkspace::default();
     let polygons = Array::new();
-    for source in sources.to_vec().chunks_exact(3) {
+    for source in sources.chunks_exact(3) {
         polygons.push(&visibility_points_to_js(scene.compute_visibility(
             Vec2::new(source[0], source[1]),
             source[2],
-            &mut workspace,
+            workspace,
         )));
     }
     JsValue::from(polygons)

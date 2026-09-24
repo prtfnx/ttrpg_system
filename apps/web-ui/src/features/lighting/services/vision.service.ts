@@ -75,7 +75,8 @@ class VisionService {
   private exploredSequence = new Map<string, number>();
   private lastVisionPolygons = new Map<string, VisionPoint[]>();
   private lastPositions = new Map<string, string>();
-  private lastObstaclesKey: string | null = null;
+  private lastOcclusionRevision: number | null = null;
+  private lastRenderEngine: RenderEngine | null = null;
   private isRunning = false;
   private dmPreviewUserId: number | null = null;
   private recomputeFrameId: number | null = null;
@@ -186,7 +187,7 @@ class VisionService {
     this.exploredSequence.clear();
     this.lastVisionPolygons.clear();
     this.lastPositions.clear();
-    this.lastObstaclesKey = null;
+    this.lastOcclusionRevision = null;
     this.spritePositions.clear();
   }
 
@@ -206,6 +207,7 @@ class VisionService {
 
     const rm = getRm();
     this.resetVisionState();
+    this.lastRenderEngine = null;
     rm?.set_dynamic_lighting_enabled(false);
     this.detachSpriteMoveListener();
   }
@@ -271,10 +273,12 @@ class VisionService {
     const runtime = getRuntime();
     if (!runtime) return;
 
-    const sightObstacles = this.buildObstacles(rm);
-    const lightObstacles = rm.get_light_obstacle_segments_flat();
-    const obstaclesKey = `${this.obstaclesKey(sightObstacles)}|${this.obstaclesKey(lightObstacles)}`;
-    const obstaclesChanged = obstaclesKey !== this.lastObstaclesKey;
+    if (rm !== this.lastRenderEngine) {
+      this.resetVisionState();
+      this.lastRenderEngine = rm;
+    }
+    const occlusionRevision = runtime.getOcclusionRevision();
+    const obstaclesChanged = occlusionRevision !== this.lastOcclusionRevision;
     const { fogExplorationMode } = useGameStore.getState();
     const persistExplored = fogExplorationMode === 'persist_dimmed';
     if (!persistExplored && this.exploredIds.size > 0) this.clearExploredPolygons();
@@ -322,7 +326,7 @@ class VisionService {
       }
     }
 
-    this.applyVisibilityBatch(runtime, rm, pendingSight, sightObstacles, persistExplored);
+    this.applyVisibilityBatch(runtime, rm, pendingSight, 'sight', persistExplored);
 
     // Also reveal areas illuminated by active lights (vision union light)
     const currentState = useGameStore.getState();
@@ -367,7 +371,7 @@ class VisionService {
       this.activeIds.add(lightFogId);
     }
 
-    this.applyVisibilityBatch(runtime, rm, pendingLights, lightObstacles, false);
+    this.applyVisibilityBatch(runtime, rm, pendingLights, 'light', false);
 
     for (const id of [...this.activeIds]) {
       if (!seenIds.has(id)) {
@@ -376,19 +380,28 @@ class VisionService {
       }
     }
 
-    this.lastObstaclesKey = obstaclesKey;
+    this.lastOcclusionRevision = occlusionRevision;
   }
 
   private applyVisibilityBatch(
     runtime: WasmRuntimePort,
     rm: RenderEngine,
     pending: PendingVisibility[],
-    obstacles: Float32Array,
+    index: 'sight' | 'light',
     persistExplored: boolean,
   ): void {
     if (pending.length === 0) return;
-    const sources = new Float32Array(pending.flatMap(({ x, y, radius }) => [x, y, radius]));
-    const polygons = runtime.computeVisibilityPolygons(sources, obstacles);
+    const sources = new Float32Array(pending.length * 3);
+    for (let index = 0; index < pending.length; index += 1) {
+      const request = pending[index];
+      const offset = index * 3;
+      sources[offset] = request.x;
+      sources[offset + 1] = request.y;
+      sources[offset + 2] = request.radius;
+    }
+    const polygons = index === 'sight'
+      ? runtime.computeSightVisibilityPolygons(sources)
+      : runtime.computeLightVisibilityPolygons(sources);
 
     pending.forEach((request, index) => {
       const polygon = [{ x: request.x, y: request.y }, ...(polygons[index] ?? [])];
@@ -420,10 +433,6 @@ class VisionService {
       this.exploredIds.delete(expiredId);
     }
     this.exploredIdsBySource.set(sourceId, sourceIds);
-  }
-
-  private buildObstacles(rm: RenderEngine): Float32Array {
-    return rm.get_obstacle_segments_flat();
   }
 
   private getVisionSources(): { id: string; x: number; y: number; radius: number; darkvisionRadius?: number }[] {
@@ -519,18 +528,6 @@ class VisionService {
       window.removeEventListener('sprite-drag-preview', this.spriteDragPreviewListener);
       this.spriteDragPreviewListener = null;
     }
-  }
-
-  private obstaclesKey(arr: Float32Array): string {
-    if (arr.length === 0) return 'empty';
-    const bytes = new DataView(new ArrayBuffer(4));
-    let hash = 0x811c9dc5;
-    for (let i = 0; i < arr.length; i++) {
-      bytes.setFloat32(0, arr[i], true);
-      hash ^= bytes.getUint32(0, true);
-      hash = Math.imul(hash, 0x01000193);
-    }
-    return `${arr.length}:${hash >>> 0}`;
   }
 
   private unitSettingsKey(): string {

@@ -16,7 +16,7 @@ use crate::input::InputHandler;
 use crate::layer_manager::LayerManager;
 use crate::lighting::LightingSystem;
 use crate::math::*;
-use crate::occlusion::OcclusionScene;
+use crate::occlusion::{OcclusionScene, VisibilityWorkspace};
 use crate::paint::PaintSystem;
 use crate::render_diagnostics::RenderFrameCounters;
 use crate::table_manager::TableManager;
@@ -79,6 +79,7 @@ pub struct RenderEngine {
 
     // Renderer-owned, atomically replaced sight and light occlusion indexes.
     pub(crate) occlusion_scene: OcclusionScene,
+    pub(crate) visibility_workspace: VisibilityWorkspace,
 
     // Deterministic diagnostics for the most recently submitted frame.
     pub(crate) diagnostics: RenderFrameCounters,
@@ -180,6 +181,7 @@ impl RenderEngine {
             table_manager,
             wall_manager,
             occlusion_scene: OcclusionScene::default(),
+            visibility_workspace: VisibilityWorkspace::default(),
             diagnostics: RenderFrameCounters::default(),
             occlusion_dirty: true,
             background_color: [0.1, 0.1, 0.1, 1.0],

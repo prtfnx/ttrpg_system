@@ -101,7 +101,9 @@ export function createMockRenderEngine() {
     is_in_fog_draw_mode: vi.fn().mockReturnValue(false),
 
     // Visibility
-    get_obstacle_segments_flat: vi.fn().mockReturnValue(new Float32Array()),
+    get_occlusion_revision: vi.fn().mockReturnValue(0),
+    compute_sight_visibility_polygons: vi.fn().mockReturnValue([]),
+    compute_light_visibility_polygons: vi.fn().mockReturnValue([]),
 
     // GM / user
     set_gm_mode: vi.fn(),

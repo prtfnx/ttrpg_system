@@ -71,8 +71,9 @@ export interface RenderEngine {
   get_cursor_type(screenX: number, screenY: number): string;
   get_layer_names(): string[];
   get_layer_sprite_count(layerName: string): number;
-  get_obstacle_segments_flat(): Float32Array;
-  get_light_obstacle_segments_flat(): Float32Array;
+  get_occlusion_revision(): number;
+  compute_sight_visibility_polygons(sources: Float32Array): VisibilityPoint[][];
+  compute_light_visibility_polygons(sources: Float32Array): VisibilityPoint[][];
   get_render_diagnostics?(): RenderDiagnostics;
   get_selected_sprites(): string[];
   get_selected_walls(): string[];

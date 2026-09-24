@@ -849,6 +849,22 @@ export class RenderEngine {
         wasm.renderengine_clear_walls(this.__wbg_ptr);
     }
     /**
+     * @param {Float32Array} sources
+     * @returns {any}
+     */
+    compute_light_visibility_polygons(sources) {
+        const ret = wasm.renderengine_compute_light_visibility_polygons(this.__wbg_ptr, sources);
+        return ret;
+    }
+    /**
+     * @param {Float32Array} sources
+     * @returns {any}
+     */
+    compute_sight_visibility_polygons(sources) {
+        const ret = wasm.renderengine_compute_sight_visibility_polygons(this.__wbg_ptr, sources);
+        return ret;
+    }
+    /**
      * @param {string} sprite_id
      * @returns {string | undefined}
      */
@@ -924,18 +940,11 @@ export class RenderEngine {
         return ret >>> 0;
     }
     /**
-     * @returns {Float32Array}
+     * @returns {number}
      */
-    get_light_obstacle_segments_flat() {
-        const ret = wasm.renderengine_get_light_obstacle_segments_flat(this.__wbg_ptr);
-        return ret;
-    }
-    /**
-     * @returns {Float32Array}
-     */
-    get_obstacle_segments_flat() {
-        const ret = wasm.renderengine_get_obstacle_segments_flat(this.__wbg_ptr);
-        return ret;
+    get_occlusion_revision() {
+        const ret = wasm.renderengine_get_occlusion_revision(this.__wbg_ptr);
+        return ret >>> 0;
     }
     /**
      * @returns {any}
@@ -2147,30 +2156,6 @@ export function calculate_asset_hash(data) {
 }
 
 /**
- * @param {number} player_x
- * @param {number} player_y
- * @param {Float32Array} obstacles
- * @param {number} max_dist
- * @returns {any}
- */
-export function compute_visibility_polygon(player_x, player_y, obstacles, max_dist) {
-    const ret = wasm.compute_visibility_polygon(player_x, player_y, obstacles, max_dist);
-    return ret;
-}
-
-/**
- * Compute multiple visibility polygons while building the obstacle index once.
- * Sources are packed as `[x, y, max_distance, ...]`.
- * @param {Float32Array} sources
- * @param {Float32Array} obstacles
- * @returns {any}
- */
-export function compute_visibility_polygons(sources, obstacles) {
-    const ret = wasm.compute_visibility_polygons(sources, obstacles);
-    return ret;
-}
-
-/**
  * Deterministic identity of the Rust sources and locked build inputs.
  * @returns {string}
  */
@@ -2831,8 +2816,8 @@ function __wbg_get_imports() {
             return ret;
         },
         __wbindgen_cast_0000000000000001: function(arg0, arg1) {
-            // Cast intrinsic for `Closure(Closure { owned: true, function: Function { arguments: [], shim_idx: 96, ret: Unit, inner_ret: Some(Unit) }, mutable: true }) -> Externref`.
-            const ret = makeMutClosure(arg0, arg1, wasm_bindgen__convert__closures_____invoke__hdc4384c541f1ca1c);
+            // Cast intrinsic for `Closure(Closure { owned: true, function: Function { arguments: [], shim_idx: 79, ret: Unit, inner_ret: Some(Unit) }, mutable: true }) -> Externref`.
+            const ret = makeMutClosure(arg0, arg1, wasm_bindgen__convert__closures_____invoke__h346c1d2cbe4d6714);
             return ret;
         },
         __wbindgen_cast_0000000000000002: function(arg0) {
@@ -2881,8 +2866,8 @@ function __wbg_get_imports() {
     };
 }
 
-function wasm_bindgen__convert__closures_____invoke__hdc4384c541f1ca1c(arg0, arg1) {
-    wasm.wasm_bindgen__convert__closures_____invoke__hdc4384c541f1ca1c(arg0, arg1);
+function wasm_bindgen__convert__closures_____invoke__h346c1d2cbe4d6714(arg0, arg1) {
+    wasm.wasm_bindgen__convert__closures_____invoke__h346c1d2cbe4d6714(arg0, arg1);
 }
 
 const ActionsClientFinalization = (typeof FinalizationRegistry === 'undefined')

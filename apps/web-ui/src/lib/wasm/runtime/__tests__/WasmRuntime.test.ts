@@ -19,14 +19,15 @@ const mocks = vi.hoisted(() => {
       frameNumber: 7,
       drawCalls: 12,
     })),
+    get_occlusion_revision: vi.fn(() => 9),
+    compute_sight_visibility_polygons: vi.fn(() => [[{ x: 1, y: 2 }]]),
+    compute_light_visibility_polygons: vi.fn(() => [[{ x: 3, y: 4 }]]),
   };
 
   return {
     initializeWasmCore: vi.fn(),
     initGameRenderer: vi.fn(),
     version: vi.fn(() => '1.2.3-test'),
-    computeVisibilityPolygon: vi.fn(() => [{ x: 1, y: 2 }]),
-    computeVisibilityPolygons: vi.fn(() => [[{ x: 1, y: 2 }]]),
     createDefaultBrushPresets: vi.fn(() => [{ id: 'round' }]),
     renderEngine,
     actionsFree: vi.fn(),
@@ -59,8 +60,6 @@ vi.mock('../../generated/ttrpg_rust_core', () => ({
   PlanningManager: vi.fn(function () { return { free: mocks.planningFree }; }),
   TableManager: vi.fn(function () { return { free: mocks.tableFree }; }),
   create_default_brush_presets: mocks.createDefaultBrushPresets,
-  compute_visibility_polygon: mocks.computeVisibilityPolygon,
-  compute_visibility_polygons: mocks.computeVisibilityPolygons,
   init_game_renderer: mocks.initGameRenderer,
   version: mocks.version,
 }));
@@ -183,17 +182,15 @@ describe('WasmRuntime', () => {
     expect(mocks.renderEngine.set_shape_style).toHaveBeenCalledWith('#ff8800', 0.75, true);
   });
 
-  it('computes visibility polygons through the generated runtime boundary', async () => {
-    const obstacles = new Float32Array([1, 2, 3, 4]);
-
-    const result = runtime.computeVisibilityPolygon(10, 20, obstacles, 120);
-
-    expect(result).toEqual([{ x: 1, y: 2 }]);
-    expect(mocks.computeVisibilityPolygon).toHaveBeenCalledWith(10, 20, obstacles, 120);
-
+  it('queries renderer-owned visibility through the generated runtime boundary', async () => {
+    await runtime.attachCanvas(canvas, { userId: null, role: null, activeLayer: 'map' });
     const sources = new Float32Array([10, 20, 120]);
-    expect(runtime.computeVisibilityPolygons(sources, obstacles)).toEqual([[{ x: 1, y: 2 }]]);
-    expect(mocks.computeVisibilityPolygons).toHaveBeenCalledWith(sources, obstacles);
+    expect(runtime.getOcclusionRevision()).toBe(9);
+    expect(runtime.computeSightVisibilityPolygons(sources)).toEqual([[{ x: 1, y: 2 }]]);
+    expect(runtime.computeLightVisibilityPolygons(sources)).toEqual([[{ x: 3, y: 4 }]]);
+    expect(mocks.renderEngine.get_occlusion_revision).toHaveBeenCalledOnce();
+    expect(mocks.renderEngine.compute_sight_visibility_polygons).toHaveBeenCalledWith(sources);
+    expect(mocks.renderEngine.compute_light_visibility_polygons).toHaveBeenCalledWith(sources);
   });
 
   it('detaches the canvas and cleans up renderer-owned services', async () => {

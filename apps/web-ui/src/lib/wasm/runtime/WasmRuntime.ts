@@ -8,8 +8,6 @@ import {
   ActionsClient,
   PlanningManager,
   TableManager,
-  compute_visibility_polygon,
-  compute_visibility_polygons,
   calculate_asset_hash,
   create_default_brush_presets,
   init_game_renderer,
@@ -298,12 +296,16 @@ export class WasmRuntime implements WasmRuntimePort {
     return create_default_brush_presets() as BrushPreset[];
   }
 
-  computeVisibilityPolygon(x: number, y: number, obstacles: Float32Array, radius: number): VisibilityPoint[] {
-    return compute_visibility_polygon(x, y, obstacles, radius) as VisibilityPoint[];
+  getOcclusionRevision(): number {
+    return this.renderEngine?.get_occlusion_revision() ?? 0;
   }
 
-  computeVisibilityPolygons(sources: Float32Array, obstacles: Float32Array): VisibilityPoint[][] {
-    return compute_visibility_polygons(sources, obstacles) as VisibilityPoint[][];
+  computeSightVisibilityPolygons(sources: Float32Array): VisibilityPoint[][] {
+    return (this.renderEngine?.compute_sight_visibility_polygons(sources) ?? []) as VisibilityPoint[][];
+  }
+
+  computeLightVisibilityPolygons(sources: Float32Array): VisibilityPoint[][] {
+    return (this.renderEngine?.compute_light_visibility_polygons(sources) ?? []) as VisibilityPoint[][];
   }
 
   configureAssetCache(options: { maxCacheBytes?: number; maxAgeMs?: number; downloadTimeoutMs?: number }): void {

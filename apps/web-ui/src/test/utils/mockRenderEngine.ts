@@ -9,7 +9,9 @@ export function createMockRenderEngine() {
     // Fog polygons (dynamic vision)
     add_fog_polygon: vi.fn(),
     remove_fog_polygon: vi.fn(),
-    get_obstacle_segments_flat: vi.fn().mockReturnValue(new Float32Array()),
+    get_occlusion_revision: vi.fn().mockReturnValue(0),
+    compute_sight_visibility_polygons: vi.fn().mockReturnValue([]),
+    compute_light_visibility_polygons: vi.fn().mockReturnValue([]),
     set_ambient_light: vi.fn(),
     set_dynamic_lighting_enabled: vi.fn(),
     // Camera

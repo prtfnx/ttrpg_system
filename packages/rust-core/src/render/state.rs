@@ -321,17 +321,29 @@ impl RenderEngine {
     }
 
     #[wasm_bindgen]
-    pub fn get_obstacle_segments_flat(&mut self) -> js_sys::Float32Array {
+    pub fn get_occlusion_revision(&mut self) -> u32 {
         self.ensure_occlusion_scene_current();
-        let data = self.occlusion_scene.sight.to_flat_vec();
-        js_sys::Float32Array::from(data.as_slice())
+        self.occlusion_scene.revision()
     }
 
     #[wasm_bindgen]
-    pub fn get_light_obstacle_segments_flat(&mut self) -> js_sys::Float32Array {
+    pub fn compute_sight_visibility_polygons(&mut self, sources: &js_sys::Float32Array) -> JsValue {
         self.ensure_occlusion_scene_current();
-        let data = self.occlusion_scene.light.to_flat_vec();
-        js_sys::Float32Array::from(data.as_slice())
+        crate::geometry::compute_visibility_polygons_impl(
+            &self.occlusion_scene.sight,
+            &sources.to_vec(),
+            &mut self.visibility_workspace,
+        )
+    }
+
+    #[wasm_bindgen]
+    pub fn compute_light_visibility_polygons(&mut self, sources: &js_sys::Float32Array) -> JsValue {
+        self.ensure_occlusion_scene_current();
+        crate::geometry::compute_visibility_polygons_impl(
+            &self.occlusion_scene.light,
+            &sources.to_vec(),
+            &mut self.visibility_workspace,
+        )
     }
 
     /// Returns wall IDs in the same order as get_wall_render_data().

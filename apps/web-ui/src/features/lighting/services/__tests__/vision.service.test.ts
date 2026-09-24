@@ -102,6 +102,21 @@ describe('VisionService.start()', () => {
     expect(rm.set_dynamic_lighting_enabled).not.toHaveBeenCalled();
   });
 
+  it('restarts after dynamic lighting is disabled and enabled again', async () => {
+    useGameStore.setState({
+      sprites: [makeSprite({ controlledBy: ['1'], visionRadius: 150 })],
+    } as unknown as Parameters<typeof useGameStore.setState>[0]);
+    visionService.start();
+
+    useGameStore.setState({ dynamicLightingEnabled: false } as unknown as Parameters<typeof useGameStore.setState>[0]);
+    useGameStore.setState({ dynamicLightingEnabled: true } as unknown as Parameters<typeof useGameStore.setState>[0]);
+    await new Promise<void>(resolve => requestAnimationFrame(() => resolve()));
+
+    expect(rm.set_dynamic_lighting_enabled).toHaveBeenCalledWith(false);
+    expect(rm.set_dynamic_lighting_enabled).toHaveBeenLastCalledWith(true);
+    expect(runtimeMock.computeVisibilityPolygon).toHaveBeenCalledTimes(2);
+  });
+
   it('coalesces rapid store changes into one animation-frame recompute', async () => {
     useGameStore.setState({
       sprites: [makeSprite({ controlled_by: [1], vision_radius: 150 })],
@@ -172,10 +187,21 @@ describe('getVisionSources (via recompute)', () => {
 
   it('handles camelCase controlledBy and visionRadius fields', () => {
     useGameStore.setState({
-      sprites: [makeSprite({ controlledBy: [1], visionRadius: 120 })],
+      sprites: [makeSprite({ controlledBy: ['1'], visionRadius: 120 })],
       userId: 1,
     } as unknown as Parameters<typeof useGameStore.setState>[0]);
     visionService.start();
+    expect(runtimeMock.computeVisibilityPolygon).toHaveBeenCalledWith(200, 400, 120);
+  });
+
+  it('matches canonical string controller IDs to the numeric session user', () => {
+    useGameStore.setState({
+      sprites: [makeSprite({ controlledBy: ['1'], visionRadius: 120 })],
+      userId: 1,
+    } as unknown as Parameters<typeof useGameStore.setState>[0]);
+
+    visionService.start();
+
     expect(runtimeMock.computeVisibilityPolygon).toHaveBeenCalledWith(200, 400, 120);
   });
 
@@ -305,6 +331,21 @@ describe('light visibility sources', () => {
       400,
       200,
     );
+  });
+
+  it('reinstalls a light polygon after the light is toggled off and on', async () => {
+    const enabled = makeSprite({ layer: 'light', metadata: JSON.stringify({ radius: 100, isOn: true }) });
+    const disabled = makeSprite({ layer: 'light', metadata: JSON.stringify({ radius: 100, isOn: false }) });
+    useGameStore.setState({ sprites: [enabled] } as unknown as Parameters<typeof useGameStore.setState>[0]);
+    visionService.start();
+
+    useGameStore.setState({ sprites: [disabled] } as unknown as Parameters<typeof useGameStore.setState>[0]);
+    await new Promise<void>(resolve => requestAnimationFrame(() => resolve()));
+    useGameStore.setState({ sprites: [enabled] } as unknown as Parameters<typeof useGameStore.setState>[0]);
+    await new Promise<void>(resolve => requestAnimationFrame(() => resolve()));
+
+    expect(rm.remove_fog_polygon).toHaveBeenCalledWith('fog_light_hero_1');
+    expect(rm.add_fog_polygon).toHaveBeenCalledTimes(2);
   });
 });
 

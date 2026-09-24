@@ -321,11 +321,12 @@ describe('SpriteSyncService', () => {
       expect(useGameStore.setState).toHaveBeenCalledTimes(2);
     });
 
-    it('sprite-revert move operation calls update_sprite_position', () => {
+    it('sprite-revert move operation restores renderer and store position', () => {
       window.dispatchEvent(new CustomEvent('sprite-revert', {
         detail: { spriteId: 'x1', operation: 'move', originalState: { x: 5, y: 10 } },
       }));
       expect(engine.update_sprite_position).toHaveBeenCalledWith('x1', 5, 10);
+      expect(useGameStore.setState).toHaveBeenCalledOnce();
     });
 
     it('sprite-revert rotate operation calls rotate_sprite', () => {
@@ -333,6 +334,7 @@ describe('SpriteSyncService', () => {
         detail: { spriteId: 'x1', operation: 'rotate', originalState: { rotation: 45 } },
       }));
       expect(engine.rotate_sprite).toHaveBeenCalledWith('x1', 45);
+      expect(useGameStore.setState).toHaveBeenCalledOnce();
     });
 
     it('protocol-error clears optimistic timer and removes sprite', () => {

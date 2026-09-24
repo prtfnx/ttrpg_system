@@ -27,8 +27,8 @@ interface SpriteData {
   obstacleType?: string;
   polygon_vertices?: number[][];
   metadata?: string | Record<string, unknown>;
-  controlledBy?: number[];
-  controlled_by?: number[];
+  controlledBy?: Array<string | number>;
+  controlled_by?: Array<string | number>;
   visionRadiusUnits?: number;
   vision_radius_units?: number;
   visionRadius?: number;
@@ -80,10 +80,6 @@ class VisionService {
   private isRunning = false;
   private dmPreviewUserId: number | null = null;
   private recomputeFrameId: number | null = null;
-  // Live position cache updated by sprite-moved / sprite-drag-preview events (top-left coords)
-  private spritePositions = new Map<string, { x: number; y: number }>();
-  private spriteMovedListener: ((e: Event) => void) | null = null;
-  private spriteDragPreviewListener: ((e: Event) => void) | null = null;
   private renderRetryId: ReturnType<typeof setTimeout> | null = null;
 
   start(): void {
@@ -115,7 +111,6 @@ class VisionService {
     rm.set_dynamic_lighting_enabled(true);
     this.isRunning = true;
     this.recompute();
-    this.attachSpriteMoveListener();
 
     let prevSprites = state.sprites;
     let prevWalls = state.walls;
@@ -128,6 +123,9 @@ class VisionService {
       if (!s.dynamicLightingEnabled && prevLighting) {
         prevLighting = false;
         this.stop();
+        // Keep a lightweight subscription armed so a later table-settings
+        // update can restart vision without requiring a role/component change.
+        this.start();
         return;
       }
       prevLighting = s.dynamicLightingEnabled;
@@ -188,7 +186,6 @@ class VisionService {
     this.lastVisionPolygons.clear();
     this.lastPositions.clear();
     this.lastOcclusionRevision = null;
-    this.spritePositions.clear();
   }
 
   stop(): void {
@@ -209,7 +206,6 @@ class VisionService {
     this.resetVisionState();
     this.lastRenderEngine = null;
     rm?.set_dynamic_lighting_enabled(false);
-    this.detachSpriteMoveListener();
   }
 
   startDmPreview(userId: number): void {
@@ -223,7 +219,6 @@ class VisionService {
     rm.set_dynamic_lighting_enabled(true);
     this.isRunning = true;
     this.recompute();
-    this.attachSpriteMoveListener();
 
     let prevSprites = useGameStore.getState().sprites;
     let prevWalls = useGameStore.getState().walls;
@@ -290,8 +285,9 @@ class VisionService {
       const id = `vision_${src.id}`;
       const posKey = `${src.x.toFixed(1)},${src.y.toFixed(1)},${src.radius}`;
       const moved = this.lastPositions.get(src.id) !== posKey;
+      const missing = !this.activeIds.has(id);
 
-      if (moved || obstaclesChanged) {
+      if (moved || obstaclesChanged || missing) {
         pendingSight.push({
           id,
           cacheId: src.id,
@@ -310,8 +306,9 @@ class VisionService {
         const dvId = `darkvision_${src.id}`;
         const dvPosKey = `${src.x.toFixed(1)},${src.y.toFixed(1)},dv${src.darkvisionRadius}`;
         const dvMoved = this.lastPositions.get(dvId) !== dvPosKey;
+        const dvMissing = !this.activeIds.has(dvId);
 
-        if (dvMoved || obstaclesChanged) {
+        if (dvMoved || obstaclesChanged || dvMissing) {
           pendingSight.push({
             id: dvId,
             cacheId: dvId,
@@ -357,7 +354,8 @@ class VisionService {
       const ly = typeof ls.y === 'number' && Number.isFinite(ls.y) ? ls.y : 0;
       const lightPosKey = `${lx.toFixed(1)},${ly.toFixed(1)},${lightRadius}`;
       const lightMoved = this.lastPositions.get(lightFogId) !== lightPosKey;
-      if (lightMoved || obstaclesChanged) {
+      const lightMissing = !this.activeIds.has(lightFogId);
+      if (lightMoved || obstaclesChanged || lightMissing) {
         pendingLights.push({
           id: lightFogId,
           cacheId: lightFogId,
@@ -377,6 +375,12 @@ class VisionService {
       if (!seenIds.has(id)) {
         rm.remove_fog_polygon(id);
         this.activeIds.delete(id);
+        this.lastPositions.delete(id);
+        if (id.startsWith('vision_')) {
+          const sourceId = id.slice('vision_'.length);
+          this.lastPositions.delete(sourceId);
+          this.lastVisionPolygons.delete(sourceId);
+        }
       }
     }
 
@@ -446,9 +450,9 @@ class VisionService {
 
     for (const s of (sprites || []) as SpriteData[]) {
       if ((s.tableId ?? s.table_id) !== activeTableId) continue;
-      const controlled: number[] = s.controlledBy ?? s.controlled_by ?? [];
+      const controlled = (s.controlledBy ?? s.controlled_by ?? []).map(String);
       if (controlled.length === 0) continue;
-      if (targetUserId != null && !controlled.includes(targetUserId)) continue;
+      if (targetUserId != null && !controlled.includes(String(targetUserId))) continue;
 
       // Prefer game-unit fields, convert to pixels; fall back to legacy pixel fields
       let radiusPx: number;
@@ -473,61 +477,19 @@ class VisionService {
         }
       }
 
-      const pos = this.spritePositions.get(s.id) ?? { x: s.x, y: s.y };
       const w = s.width ?? ((s.scale_x ?? (s.scale?.x ?? 1)) * cellPx);
       const h = s.height ?? ((s.scale_y ?? (s.scale?.y ?? 1)) * cellPx);
 
       out.push({
         id: s.id,
-        x: pos.x + w / 2,
-        y: pos.y + h / 2,
+        x: s.x + w / 2,
+        y: s.y + h / 2,
         radius: radiusPx,
         darkvisionRadius: dvRadiusPx > 0 ? dvRadiusPx : undefined,
       });
     }
 
     return out;
-  }
-
-  private attachSpriteMoveListener(): void {
-    if (!this.spriteMovedListener) {
-      this.spriteMovedListener = (e: Event) => {
-        const d = (e as CustomEvent).detail as { sprite_id?: string; id?: string; to?: { x: number; y: number }; position?: { x: number; y: number }; x?: number; y?: number };
-        const id = d?.sprite_id || d?.id;
-        const pos: { x: number; y: number } | null =
-          d?.to ?? d?.position ?? (d?.x !== undefined && d?.y !== undefined ? { x: d.x, y: d.y } : null);
-        if (id && pos) {
-          this.spritePositions.set(id, pos);
-          this.scheduleRecompute();
-        }
-      };
-      window.addEventListener('sprite-moved', this.spriteMovedListener);
-    }
-
-    if (!this.spriteDragPreviewListener) {
-      // sprite-drag-preview fires every mousemove during local drag (player's own sprite)
-      // detail: { spriteId, x, y } — top-left world coords from WASM
-      this.spriteDragPreviewListener = (e: Event) => {
-        const d = (e as CustomEvent).detail as { spriteId?: string; x?: number; y?: number };
-        const id = d?.spriteId;
-        if (id && d?.x !== undefined && d?.y !== undefined) {
-          this.spritePositions.set(id, { x: d.x, y: d.y });
-          this.scheduleRecompute();
-        }
-      };
-      window.addEventListener('sprite-drag-preview', this.spriteDragPreviewListener);
-    }
-  }
-
-  private detachSpriteMoveListener(): void {
-    if (this.spriteMovedListener) {
-      window.removeEventListener('sprite-moved', this.spriteMovedListener);
-      this.spriteMovedListener = null;
-    }
-    if (this.spriteDragPreviewListener) {
-      window.removeEventListener('sprite-drag-preview', this.spriteDragPreviewListener);
-      this.spriteDragPreviewListener = null;
-    }
   }
 
   private unitSettingsKey(): string {

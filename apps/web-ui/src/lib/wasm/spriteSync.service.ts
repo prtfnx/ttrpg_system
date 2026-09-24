@@ -185,9 +185,24 @@ export class SpriteSyncService {
       const { spriteId, operation, originalState } = d ?? {};
       if (!spriteId || !originalState) return;
       switch (operation) {
-        case 'move':   this.updateSpritePosition(spriteId, { x: originalState.x ?? 0, y: originalState.y ?? 0 }); break;
-        case 'resize': this.resizeSpriteInWasm(spriteId, originalState.width ?? 0, originalState.height ?? 0); break;
-        case 'rotate': this.updateSpriteRotation(spriteId, originalState.rotation ?? 0); break;
+        case 'move': {
+          const position = { x: originalState.x ?? 0, y: originalState.y ?? 0 };
+          this.updateSpritePosition(spriteId, position);
+          this.patchStoreSprite(spriteId, position);
+          break;
+        }
+        case 'resize': {
+          const size = { width: originalState.width ?? 0, height: originalState.height ?? 0 };
+          this.resizeSpriteInWasm(spriteId, size.width, size.height);
+          this.patchStoreSprite(spriteId, size);
+          break;
+        }
+        case 'rotate': {
+          const rotation = originalState.rotation ?? 0;
+          this.updateSpriteRotation(spriteId, rotation);
+          this.patchStoreSprite(spriteId, { rotation });
+          break;
+        }
       }
     });
 

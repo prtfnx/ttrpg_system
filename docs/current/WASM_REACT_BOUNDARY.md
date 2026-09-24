@@ -4,7 +4,7 @@ Audience: contributors changing React-to-Rust integration.
 
 Status: usable.
 
-Last source audit: 2026-09-21
+Last source audit: 2026-09-24
 
 React does not own Rust objects directly. It talks to `WasmRuntime`, and
 `WasmRuntime` owns the generated wasm-bindgen module.
@@ -105,6 +105,20 @@ Server table update:
 WebClientProtocol -> protocol event -> TableSyncService
                   -> normalizeTableSnapshot -> store + Rust renderer
 ```
+
+Visibility recompute:
+
+```text
+vision.service -> WasmRuntimePort -> RenderEngine occlusion revision
+               -> packed source triples -> resident sight/light index
+               <- visibility polygons
+```
+
+The renderer owns obstacle segments and their spatial indexes. Feature code
+compares the scalar occlusion revision and sends only changed source triples
+through `computeSightVisibilityPolygons` or
+`computeLightVisibilityPolygons`. Complete obstacle arrays and obstacle hashes
+do not cross or live at the TypeScript boundary.
 
 `TableSyncService` is the only application entry point for complete table
 snapshots. `WasmRuntimePort` deliberately has no direct `handleTableData`

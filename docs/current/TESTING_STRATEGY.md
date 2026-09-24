@@ -4,7 +4,7 @@ Audience: contributors choosing and running verification for a change.
 
 Status: current.
 
-Last source audit: 2026-09-22
+Last source audit: 2026-09-24
 
 Tests should sit at the boundary where behavior is owned. Avoid testing a lower
 layer through an unrelated higher layer when a direct boundary test is clearer.
@@ -261,6 +261,12 @@ publishes non-zero operation counters. Timing baselines must use an optimized
 WASM build and record the browser, canvas size, warmup, sample count, and scene
 outside `docs/current`; submission timing is not GPU timing and is not a
 portable CI threshold.
+
+Run `pnpm.cmd run test:wasm` from `apps/web-ui` after changing generated
+bindings, renderer lifecycle, WebGL resources, or occlusion behavior. That
+Chromium suite covers table replacement, context loss/restoration, viewport
+culling, batched shadows, renderer-owned sight/light queries, and occlusion
+updates before the next rendered frame.
 
 ## What to test for a change
 

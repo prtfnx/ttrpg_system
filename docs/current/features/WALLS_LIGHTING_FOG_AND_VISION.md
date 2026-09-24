@@ -5,7 +5,7 @@ vision, or layer visibility.
 
 Status: current.
 
-Last source audit: 2026-09-21
+Last source audit: 2026-09-24
 
 ## Source owners
 
@@ -26,10 +26,13 @@ Last source audit: 2026-09-21
 - `apps/web-ui/src/features/canvas/components/LayerPanel.tsx`: layer controls.
 - `packages/rust-core/src/wall_manager.rs`: WASM wall state.
 - `packages/rust-core/src/fog.rs`: fog texture and dynamic vision polygons.
-- `packages/rust-core/src/geometry.rs`: CPU visibility-polygon ray casting.
-- `packages/rust-core/src/lighting/`: WebGL point lights, stencil shadow
-  volumes, and obstacle-segment storage.
-- `packages/rust-core/src/render/draw.rs`: frame order and obstacle cache
+- `packages/rust-core/src/geometry.rs`: CPU visibility-polygon boundary
+  helpers.
+- `packages/rust-core/src/occlusion.rs`: renderer-owned sight/light segment
+  indexes and visibility ray casting.
+- `packages/rust-core/src/lighting/`: WebGL point lights and stencil shadow
+  volumes.
+- `packages/rust-core/src/render/draw.rs`: frame order and occlusion-scene
   refresh.
 
 ## What the feature does
@@ -46,9 +49,9 @@ The implementation has two related but distinct pipelines:
 
 - visible point-light color is rendered by `LightingSystem` directly into the
   main WebGL framebuffer with additive blending and stencil shadow volumes;
-- player visibility is computed as CPU ray-cast polygons by the batched
-  `compute_visibility_polygons` boundary, stored as polygons in `FogOfWarSystem`, and
-  composed into a darkness/fog overlay.
+- player visibility is computed as CPU ray-cast polygons by renderer-owned
+  sight/light queries, stored as polygons in `FogOfWarSystem`, and composed
+  into a darkness/fog overlay.
 
 Consequently, a colored light and the area that it makes visible are generated
 separately from the same light-sprite metadata. They use the same obstacle
@@ -135,7 +138,7 @@ state into it, and runs its animation frame loop.
 The frame path is:
 
 ```text
-map -> grid -> ordinary layers -> refresh obstacle segments when dirty
+map -> grid -> ordinary layers -> refresh the occlusion scene when dirty
     -> additive point lights with stencil shadows -> paint -> fog/vision overlay
     -> selection and tool previews
 ```
@@ -172,21 +175,20 @@ independent stencil mask. Point-light colors accumulate additively.
 it:
 
 1. filters token and light sources to the active table and resets all active,
-   explored, position, and obstacle caches when that table changes;
-2. gets separate sight-blocking and light-blocking obstacle segments from the
-   render engine;
+   explored, position, and revision caches when that table or render engine
+   changes;
+2. reads the renderer's scalar occlusion revision and marks every source for
+   recomputation when it changes;
 3. finds sprites controlled by the current user, or the selected user during
    DM preview, with a positive vision radius;
 4. places each vision origin at the sprite's current visual center;
 5. converts game-unit vision and darkvision radii to pixels, falling back to
    legacy pixel fields;
-6. casts rays at every obstacle endpoint with small angular offsets plus 32
-   regular rays, clips each ray to the nearest segment or maximum radius, and
-   angle-sorts the result into a visibility polygon. Moved vision/darkvision
-   origins are batched by obstacle policy so one immutable segment list and
-   spatial index serve the entire group;
-7. builds equivalent visibility polygons for enabled light sprites using the
-   light-blocking segments;
+6. packs changed vision/darkvision origins as `[x, y, radius, ...]` and asks
+   the renderer's resident sight index to cast endpoint-offset and 32 regular
+   rays, clip them to the nearest segment or maximum radius, and angle-sort the
+   results;
+7. submits enabled light origins to the equivalent renderer-owned light index;
 8. adds/removes those polygons in `FogOfWarSystem`; in `persist_dimmed` mode it
    stores the previous visibility polygon under a unique `explored_*` id when
    a source moves. History is bounded to 128 polygons per source.
@@ -200,8 +202,7 @@ light. DMs bypass dynamic vision unless they explicitly start player preview.
 
 ## Obstacle sources and invalidation
 
-Both pipelines consume flat world-space segments in
-`[x1, y1, x2, y2, ...]` form:
+Rust builds both indexes from world-space segments:
 
 - walls with `blocks_light` feed point-light shadows;
 - walls with `blocks_sight` feed visibility ray casting;
@@ -219,12 +220,14 @@ filters both collections by the active table before building shadow or vision
 geometry; it does not infer remote ownership from the current table.
 
 Adding, removing, moving, resizing, scaling, rotating, pasting, or moving a
-sprite into or out of the obstacle layer marks the render engine's obstacle
-cache dirty. Wall CRUD, endpoint dragging, and translation do the same. The
-next frame rebuilds point-light obstacle segments. `vision.service.ts` watches
-wall and sprite state and coalesces visibility recomputation onto one owned
-animation-frame callback. Stopping vision cancels queued work. The service
-fingerprints the complete segment buffer to avoid stale polygons.
+sprite into or out of the obstacle layer marks the renderer's occlusion scene
+dirty. Wall CRUD, endpoint dragging, and translation do the same. The next
+render, revision read, or visibility query atomically rebuilds both indexes and
+advances one wrapping revision; multiple mutations before that consumer
+coalesce into one rebuild. `vision.service.ts` watches wall and sprite state and
+coalesces recomputation onto one owned animation-frame callback. Stopping
+vision cancels queued work. It compares the revision rather than copying and
+fingerprinting complete segment buffers in TypeScript.
 
 ## WASM callback rule
 
@@ -269,12 +272,12 @@ vision, or wall changes.
   curves. This is normally visually sufficient but can show facets at extreme
   zoom.
 - Point-light shadow culling uses exact point-to-segment distance and projects
-  included segments just beyond the light radius. The path still scans every
-  segment for every light.
+  included segments just beyond the light radius. A shared uniform-grid query
+  narrows candidates and falls back to a full scan for broad or dense queries.
 - CPU fog visibility batches token/darkvision origins against one sight index
   and enabled light origins against one light-blocking index per recompute.
-  The point-light renderer still scans every segment per light; its stored
-  spatial grid is not queried during rendering.
+  Both indexes live in the renderer and are also shared with point-light shadow
+  candidate queries; obstacle arrays do not cross the WASM boundary.
 - Visibility uses endpoint rays plus 32 regular rays. It is deterministic and
   adequate for ordinary maps but is not a robust computational-geometry
   visibility solver for collinear/overlapping segments or a source exactly on

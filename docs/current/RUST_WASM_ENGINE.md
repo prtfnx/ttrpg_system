@@ -4,7 +4,7 @@ Audience: contributors changing the browser engine or its TypeScript boundary.
 
 Status: usable.
 
-Last source audit: 2026-09-23
+Last source audit: 2026-09-24
 
 The Rust crate is the local engine behind the browser canvas. It should stay
 focused on compute-heavy rendering, geometry, visibility, collision, planning,
@@ -147,20 +147,26 @@ lights because each light owns a separate stencil-mask lifetime.
 
 `RenderEngine` owns one `OcclusionScene` with separate sight and light segment
 indexes. A dirty scene rebuild collects both segment sets and replaces both
-indexes before advancing one revision. Rendering, diagnostics, and the legacy
-segment-array getters ensure the scene is current, so several mutations before
+indexes before advancing one revision. Rendering, diagnostics, revision reads,
+and visibility queries ensure the scene is current, so several mutations before
 the next consumer coalesce into one rebuild. Lighting borrows the shared light
 index and keeps only its reusable query workspace; it does not own another
 obstacle store or grid.
 
+Visibility callers read `get_occlusion_revision()` and submit packed
+`[x, y, radius, ...]` source triples to either
+`compute_sight_visibility_polygons()` or
+`compute_light_visibility_polygons()`. Both methods query the resident index
+with renderer-owned reusable workspace. Segment arrays and their hashes do not
+cross the WASM boundary.
+
 The shared broad phase indexes each obstacle segment across every 128-unit grid
 cell touched by its axis-aligned bounds. A light queries the cells touched by
 its circle bounds before running the exact squared point-to-segment distance
-test. The legacy visibility exports build the same index type from their
-supplied segment arrays and use separate workspaces. Cell conversion uses
-`floor`, including for negative coordinates. A generation-stamped scratch
-vector deduplicates long segments without allocating a `HashSet` for each
-light.
+test. Visibility rays query the same resident index for the ray AABB and then
+run the exact segment-intersection test. Cell conversion uses `floor`, including
+for negative coordinates. A generation-stamped scratch vector deduplicates long
+segments without allocating a `HashSet` for each query.
 
 The query falls back to the contiguous segment slice when its cell count is
 greater than a budget of 16 cells or twice the smaller of the segment count and

@@ -4,7 +4,7 @@ Audience: contributors measuring or changing the Rust/WASM renderer.
 
 Status: current local reference. These measurements are not product SLAs.
 
-Last source audit: 2026-09-24
+Last source audit: 2026-09-25
 
 ## Purpose
 
@@ -34,7 +34,7 @@ record and remains skipped in the ordinary browser regression suite.
 
 ## Reference environment
 
-Recorded on 2026-09-24 against renderer revision `2a872d20`:
+Recorded on 2026-09-25 against renderer revision `6cd718fe`:
 
 - Windows 11 Pro 23H2, build 22631;
 - AMD Ryzen 5 5600, 6 cores and 12 logical processors;
@@ -70,26 +70,31 @@ download is part of the samples.
 
 | Sample | Mean | p50 | p95 | Maximum |
 | --- | ---: | ---: | ---: | ---: |
-| Frame CPU submission, 300 frames | 0.222 ms | 0.200 ms | 0.300 ms | 0.800 ms |
-| Four-source sight query, 300 calls | 2.035 ms | 2.000 ms | 2.500 ms | 3.200 ms |
+| Frame CPU submission, 300 frames | 0.238 ms | 0.200 ms | 0.400 ms | 0.700 ms |
+| Four-source sight query, 300 calls | 1.866 ms | 1.800 ms | 2.100 ms | 2.800 ms |
 
 The final submitted frame reported:
 
 | Counter | Value |
 | --- | ---: |
 | Sprites considered / drawn / culled | 100 / 86 / 14 |
-| Draw calls / buffer uploads | 97 / 97 |
+| Draw calls / buffer uploads | 97 / 89 |
 | Active lights | 4 |
-| Shadow segments total / candidates / accepted | 800 / 105 / 45 |
+| Shadow segments total / candidates / accepted | 0 / 0 / 0 |
 | Shadow draw calls | 4 |
 | Occlusion revision / rebuilds | 1 / 1 |
-| Resident textures / estimated bytes | 1 / 64 |
+| Resident textures / estimated bytes | 3 / 24 MiB + 64 bytes |
 | Texture budget / over budget | 96 MiB / 0 |
 
 This run is below the plan's 10 ms ordinary-scene CPU-submission target, but
 it does not establish physical-GPU rendering performance or end-to-end UI
 latency. Use a visible production browser trace on a named device before
 making a user-facing performance claim.
+
+The final frame is an unchanged steady-state frame. Zero shadow candidates and
+accepted segments means the renderer reused the previously uploaded lighting
+geometry; the four shadow draw calls are still required because each light has
+an independent stencil mask.
 
 ## Refresh rules
 

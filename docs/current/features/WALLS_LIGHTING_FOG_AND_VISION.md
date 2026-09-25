@@ -5,7 +5,7 @@ vision, or layer visibility.
 
 Status: current.
 
-Last source audit: 2026-09-24
+Last source audit: 2026-09-25
 
 ## Source owners
 
@@ -158,13 +158,17 @@ replaced. Enabled state uses the idempotent `set_light_enabled` export.
 
 For each enabled light on the active table, `LightingSystem`:
 
-1. clears the stencil buffer for that light;
-2. projects every nearby, undirected blocking segment away from the light into
-   a shadow quad and writes the union to stencil value 1;
-3. draws a 64-segment radial-gradient circle only where stencil equals 0;
-4. clips stencil and color writes to the active table's camera-transformed
+1. rebuilds one combined shadow-and-circle vertex buffer when the occlusion
+   revision, active table, enabled-light set, light position, or radius changes;
+2. uploads that combined buffer once and reuses its per-light ranges on
+   unchanged frames;
+3. clears the stencil buffer for each light, then draws that light's cached
+   shadow triangles into stencil value 1;
+4. draws the cached 64-segment radial-gradient circle only where stencil
+   equals 0;
+5. clips stencil and color writes to the active table's camera-transformed
    screen rectangle, so light cannot spill onto the workspace;
-5. restores WebGL color, blend, scissor, attribute, and stencil state before
+6. restores WebGL color, blend, scissor, attribute, and stencil state before
    processing the next light.
 
 Segments are undirected: endpoint order and the side on which a light is
@@ -175,13 +179,14 @@ independent stencil mask. Point-light colors accumulate additively.
 it:
 
 1. filters token and light sources to the active table and resets all active,
-   explored, position, and revision caches when that table or render engine
+   explored, polygon, and revision caches when that table or render engine
    changes;
 2. reads the renderer's scalar occlusion revision and marks every source for
    recomputation when it changes;
-3. finds sprites controlled by the current user, or the selected user during
-   DM preview, with a positive vision radius;
-4. places each vision origin at the sprite's current visual center;
+3. normalizes numeric or string controller IDs before finding sprites
+   controlled by the current user, or the selected user during DM preview,
+   with a positive vision radius;
+4. places each vision origin at the current authoritative game-store position;
 5. converts game-unit vision and darkvision radii to pixels, falling back to
    legacy pixel fields;
 6. packs changed vision/darkvision origins as `[x, y, radius, ...]` and asks
@@ -192,6 +197,18 @@ it:
 8. adds/removes those polygons in `FogOfWarSystem`; in `persist_dimmed` mode it
    stores the previous visibility polygon under a unique `explored_*` id when
    a source moves. History is bounded to 128 polygons per source.
+
+The service owns one store subscription while active. Disabling dynamic
+lighting clears renderer polygons and installs only the lightweight settings
+watcher needed to restart the service when lighting is enabled again. It does
+not maintain a second drag-position cache. Rejected optimistic sprite moves
+restore the game store and renderer together, so a failed move cannot leave
+vision at a speculative position. A source removed by an off toggle or table
+update is recomputed when the same ID becomes active again.
+
+Light sprite hydration applies the table's grid units before converting
+`radius_units` to renderer pixels. Legacy pixel `radius` remains a fallback for
+older payloads.
 
 The vision texture encodes outside vision as 1.0, ordinary vision as 0.75,
 explored space as 0.65, darkvision as 0.5, and lit space as 0.0. Light polygons
@@ -214,6 +231,11 @@ Rust builds both indexes from world-space segments:
 - circle obstacle sprites contribute a closed 32-segment ellipse boundary;
 - remaining sprites on the `obstacles` layer contribute their rotated, scaled
   rectangular perimeter.
+
+Visibility indexes retain one copy of each exact wall endpoint, including
+shared polygon corners. Endpoint-offset rays are therefore cast once per
+unique point instead of once per incident segment; the 32 regular fallback
+rays are unchanged.
 
 Obstacle sprites and lights carry explicit authoritative table IDs. Rust
 filters both collections by the active table before building shadow or vision

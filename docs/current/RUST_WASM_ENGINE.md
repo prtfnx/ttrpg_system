@@ -4,7 +4,7 @@ Audience: contributors changing the browser engine or its TypeScript boundary.
 
 Status: usable.
 
-Last source audit: 2026-09-24
+Last source audit: 2026-09-25
 
 The Rust crate is the local engine behind the browser canvas. It should stay
 focused on compute-heavy rendering, geometry, visibility, collision, planning,
@@ -115,10 +115,12 @@ history is bounded to 1,200 snapshots. The Performance panel is a read-only
 view of these measurements; it does not expose renderer cache or quality
 controls.
 
-Texture diagnostics count records owned by `TextureManager`. Estimated bytes
-use decoded RGBA8 dimensions (`width * height * 4`) with checked `u64`
-arithmetic. This estimate excludes driver overhead, framebuffer and fog
-storage, antialiasing, and format emulation.
+Texture diagnostics include records owned by `TextureManager` plus the two
+renderer-owned fog and vision mask textures. Estimated asset bytes use decoded
+RGBA8 dimensions (`width * height * 4`) with checked `u64` arithmetic. The
+renderer reserves another 24 MiB for its two 2048 x 2048 R8 masks and one
+DEPTH24_STENCIL8 renderbuffer. This estimate still excludes driver overhead,
+antialiasing, and format emulation.
 
 `performance_fixtures.rs` provides deterministic ordinary, large, shadow
 stress, culling stress, and long-segment scenes. Use those builders for
@@ -135,15 +137,19 @@ with `bufferData` only when the next upload exceeds its current capacity.
 
 Pipeline construction deletes compiled shader objects after linking and cleans
 up partial resources if initialization fails. Dropping the engine deletes each
-pipeline's program, VAO, and buffers. Lighting unbinds its VAO before handing
-control to paint or fog paths, so those independent renderers cannot mutate the
-cached lighting attribute state.
+pipeline's program, VAO, and buffers. Fog teardown also deletes both mask
+textures, their framebuffers, the stencil renderbuffer, and shader programs;
+short-lived fog buffers are deleted after their draw. Lighting unbinds its VAO
+before handing control to paint or fog paths, so those independent renderers
+cannot mutate the cached lighting attribute state.
 
-For each active light, accepted shadow quads are converted to independent
-triangles in a reusable CPU vector. Lighting uploads that complete triangle
-list once and submits one stencil draw for the light; it does not issue one
-upload and draw per obstacle segment. Shadow batches are never combined across
-lights because each light owns a separate stencil-mask lifetime.
+Accepted shadow quads are converted to independent triangles in a reusable CPU
+vector. When geometry is dirty, lighting appends every active light's shadow
+triangles and circle vertices to one deterministic buffer and uploads it once.
+Later frames draw per-light ranges from that resident buffer until the
+occlusion revision, table, enabled-light set, position, or radius changes.
+Each light still owns a separate stencil-mask lifetime and therefore retains
+its own shadow and circle draw calls.
 
 `RenderEngine` owns one `OcclusionScene` with separate sight and light segment
 indexes. A dirty scene rebuild collects both segment sets and replaces both
@@ -167,6 +173,10 @@ test. Visibility rays query the same resident index for the ray AABB and then
 run the exact segment-intersection test. Cell conversion uses `floor`, including
 for negative coordinates. A generation-stamped scratch vector deduplicates long
 segments without allocating a `HashSet` for each query.
+
+The index stores each exact endpoint once, including corners shared by
+multiple segments. Visibility casts endpoint-offset rays once per unique point
+and retains the 32 regular rays used between obstacle features.
 
 The query falls back to the contiguous segment slice when its cell count is
 greater than a budget of 16 cells or twice the smaller of the segment count and
@@ -200,6 +210,8 @@ placeholder.
 The policy budget is recalculated from canvas backing-store dimensions on
 construction and `resize_canvas`: 32 bytes per canvas pixel, clamped between 96
 MiB and 384 MiB. These are renderer policy values, not detected GPU capacity.
+The reserved fog and vision allocation consumes this same policy budget before
+asset records are considered for eviction.
 Only records explicitly marked `Evictable` can be removed automatically, in
 oldest-used order with texture ID as the deterministic tie-breaker. Pinned and
 required records remain resident when they exceed the budget;

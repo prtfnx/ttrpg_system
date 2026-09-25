@@ -227,6 +227,13 @@ export class SpriteSyncService {
 
     on('compendium-insert', d => this.handleCompendiumInsert(d));
     on('compendium-drop', d => this.handleCompendiumDrop(d));
+
+    this.eventCleanups.push(useGameStore.subscribe((state, previousState) => {
+      if (state.gridCellPx === previousState.gridCellPx
+        && state.cellDistance === previousState.cellDistance
+        && state.distanceUnit === previousState.distanceUnit) return;
+      this.refreshUnitBasedLightRadii();
+    }));
   }
 
   dispose(): void {
@@ -785,6 +792,28 @@ export class SpriteSyncService {
         : sprite),
     }));
     return true;
+  }
+
+  private refreshUnitBasedLightRadii(): void {
+    const engine = this.getEngine();
+    if (!engine) return;
+
+    const { activeTableId, sprites } = useGameStore.getState();
+    if (!activeTableId) return;
+
+    for (const sprite of sprites) {
+      if (sprite.tableId !== activeTableId
+        || sprite.layer !== 'light'
+        || sprite.texture !== '__LIGHT__') continue;
+
+      const metadata = parseRecord(sprite.metadata);
+      const radiusUnits = metadata.radius_units;
+      if (typeof radiusUnits !== 'number'
+        || !Number.isFinite(radiusUnits)
+        || radiusUnits <= 0) continue;
+
+      engine.set_light_radius(sprite.id, lightSettings(metadata).radius);
+    }
   }
 
   private needsFullRecreation(data: SpritePayload): boolean {

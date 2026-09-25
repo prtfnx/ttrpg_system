@@ -208,7 +208,10 @@ update is recomputed when the same ID becomes active again.
 
 Light sprite hydration applies the table's grid units before converting
 `radius_units` to renderer pixels. Legacy pixel `radius` remains a fallback for
-older payloads.
+older payloads. `SpriteSyncService` also watches live table-unit changes and
+reapplies the converted radius to active-table point lights that carry
+`radius_units`. The vision service reads the same converter for fog-light
+polygons, so both render passes remain aligned after a grid or unit update.
 
 The vision texture encodes outside vision as 1.0, ordinary vision as 0.75,
 explored space as 0.65, darkvision as 0.5, and lit space as 0.0. Light polygons

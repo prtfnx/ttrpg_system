@@ -4,16 +4,21 @@ import { SpriteSyncService } from '../spriteSync.service';
 
 const mockAddSprite = vi.hoisted(() => vi.fn());
 const mockSprites = vi.hoisted(() => [] as Array<Record<string, unknown>>);
+const mockPixelsPerUnit = vi.hoisted(() => ({ value: 10 }));
+const mockStoreUnsubscribe = vi.hoisted(() => vi.fn());
+const mockStoreSubscribe = vi.hoisted(() => vi.fn(() => mockStoreUnsubscribe));
 
 vi.mock('@/store', () => ({
   useGameStore: Object.assign(vi.fn(() => ({})), {
     getState: vi.fn(() => ({
       sprites: mockSprites,
+      activeTableId: 'tbl1',
       addSprite: mockAddSprite,
       moveSprite: vi.fn(),
-      getUnitConverter: () => ({ toPixels: (units: number) => units * 10 }),
+      getUnitConverter: () => ({ toPixels: (units: number) => units * mockPixelsPerUnit.value }),
     })),
     setState: vi.fn(),
+    subscribe: mockStoreSubscribe,
   }),
 }));
 
@@ -62,6 +67,7 @@ describe('SpriteSyncService', () => {
 
   beforeEach(() => {
     mockSprites.length = 0;
+    mockPixelsPerUnit.value = 10;
     engine = makeEngine();
     service = new SpriteSyncService(() => engine as never, mockAssetSync as never);
   });
@@ -87,6 +93,7 @@ describe('SpriteSyncService', () => {
       const spy = vi.spyOn(window, 'removeEventListener');
       service.dispose();
       expect(spy.mock.calls.length).toBeGreaterThan(0);
+      expect(mockStoreUnsubscribe).toHaveBeenCalledOnce();
     });
 
     it('does not register duplicate listeners when initialized twice', () => {
@@ -142,6 +149,37 @@ describe('SpriteSyncService', () => {
       });
 
       expect(engine.set_light_radius).toHaveBeenCalledWith('unit-light', 300);
+    });
+
+    it('rescales active unit-based lights when table units change', () => {
+      mockSprites.push(
+        {
+          id: 'unit-light', tableId: 'tbl1', layer: 'light', texture: '__LIGHT__',
+          metadata: JSON.stringify({ radius: 300, radius_units: 30 }),
+        },
+        {
+          id: 'legacy-light', tableId: 'tbl1', layer: 'light', texture: '__LIGHT__',
+          metadata: JSON.stringify({ radius: 200 }),
+        },
+        {
+          id: 'other-table-light', tableId: 'tbl2', layer: 'light', texture: '__LIGHT__',
+          metadata: JSON.stringify({ radius_units: 30 }),
+        },
+      );
+      service.init();
+      mockPixelsPerUnit.value = 20;
+
+      type UnitState = { gridCellPx: number; cellDistance: number; distanceUnit: string };
+      const subscriptionCall = mockStoreSubscribe.mock.calls[0] as unknown as
+        [(state: UnitState, previousState: UnitState) => void] | undefined;
+      const onStoreChange = subscriptionCall?.[0];
+      onStoreChange?.(
+        { gridCellPx: 100, cellDistance: 5, distanceUnit: 'ft' },
+        { gridCellPx: 50, cellDistance: 5, distanceUnit: 'ft' },
+      );
+
+      expect(engine.set_light_radius).toHaveBeenCalledOnce();
+      expect(engine.set_light_radius).toHaveBeenCalledWith('unit-light', 600);
     });
 
     it('reconciles remote metadata for an existing light', () => {

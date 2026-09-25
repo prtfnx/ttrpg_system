@@ -809,11 +809,26 @@ describe('WASM module (real browser)', () => {
 
       expect(brightness(readPixel(canvas, 80, 100))).toBeGreaterThan(20);
       expect(brightness(readPixel(canvas, 120, 100))).toBeGreaterThan(20);
-      const diagnostics = engine.get_render_diagnostics();
-      expect(diagnostics.activeLights).toBe(2);
-      expect(diagnostics.shadowSegmentsAccepted).toBeGreaterThan(diagnostics.shadowDrawCalls);
-      expect(diagnostics.shadowDrawCalls).toBeLessThanOrEqual(diagnostics.activeLights);
-      expect(diagnostics.bufferUploads).toBe(diagnostics.drawCalls);
+      const rebuilt = engine.get_render_diagnostics();
+      expect(rebuilt.activeLights).toBe(2);
+      expect(rebuilt.shadowSegmentsAccepted).toBeGreaterThan(rebuilt.shadowDrawCalls);
+      expect(rebuilt.shadowDrawCalls).toBeLessThanOrEqual(rebuilt.activeLights);
+
+      engine.render();
+      expect(brightness(readPixel(canvas, 80, 100))).toBeGreaterThan(20);
+      expect(brightness(readPixel(canvas, 120, 100))).toBeGreaterThan(20);
+      const cached = engine.get_render_diagnostics();
+      expect(cached).toMatchObject({
+        activeLights: 2,
+        shadowCandidates: 0,
+        shadowSegmentsAccepted: 0,
+        shadowDrawCalls: 2,
+      });
+      expect(cached.bufferUploads).toBeLessThan(rebuilt.bufferUploads);
+
+      engine.update_light_position('left-light', 61, 100);
+      engine.render();
+      expect(engine.get_render_diagnostics().shadowCandidates).toBeGreaterThan(0);
     } finally {
       engine.free();
     }

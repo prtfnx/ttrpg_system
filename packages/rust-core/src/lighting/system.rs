@@ -119,10 +119,6 @@ pub struct Light {
 
     #[serde(skip)]
     pub(crate) dirty: bool,
-
-    #[serde(skip)]
-    #[cfg(target_arch = "wasm32")]
-    pub(crate) cached_polygon: Option<Vec<Vec2>>,
 }
 
 impl Light {
@@ -139,8 +135,6 @@ impl Light {
             is_on: true,
             light_type: LightType::Point,
             dirty: true,
-            #[cfg(target_arch = "wasm32")]
-            cached_polygon: None,
         }
     }
 
@@ -436,6 +430,11 @@ pub struct LightingSystem {
     lights: HashMap<String, Light>,
     ambient_light: f32,
     shadow_vertices: Vec<f32>,
+    geometry_vertices: Vec<f32>,
+    geometry_ranges: HashMap<String, LightGeometryRange>,
+    cached_light_ids: Vec<String>,
+    cached_table_id: Option<String>,
+    cached_occlusion_revision: Option<u32>,
     shadow_query_workspace: QueryWorkspace,
     frame_draw_calls: Cell<u32>,
     frame_buffer_uploads: Cell<u32>,
@@ -444,6 +443,15 @@ pub struct LightingSystem {
     frame_shadow_candidates: Cell<u32>,
     frame_shadow_segments_accepted: Cell<u32>,
     frame_shadow_draw_calls: Cell<u32>,
+}
+
+#[cfg(target_arch = "wasm32")]
+#[derive(Clone, Copy)]
+struct LightGeometryRange {
+    shadow_first: i32,
+    shadow_count: i32,
+    circle_first: i32,
+    circle_count: i32,
 }
 
 #[cfg(target_arch = "wasm32")]
@@ -471,6 +479,11 @@ impl LightingSystem {
             lights: HashMap::new(),
             ambient_light: 0.3,
             shadow_vertices: Vec::new(),
+            geometry_vertices: Vec::new(),
+            geometry_ranges: HashMap::new(),
+            cached_light_ids: Vec::new(),
+            cached_table_id: None,
+            cached_occlusion_revision: None,
             shadow_query_workspace: QueryWorkspace::default(),
             frame_draw_calls: Cell::new(0),
             frame_buffer_uploads: Cell::new(0),
@@ -518,9 +531,12 @@ impl LightingSystem {
         canvas_width: f32,
         canvas_height: f32,
     ) -> Result<(), JsValue> {
-        // Default: render all lights (backwards compatibility)
+        // Callers without an authoritative scene revision retain the original
+        // behavior: conservatively rebuild geometry for every invocation.
+        let synthetic_revision = self.cached_occlusion_revision.unwrap_or(0).wrapping_add(1);
         self.render_lights_filtered(
             occluders,
+            synthetic_revision,
             view_matrix,
             canvas_width,
             canvas_height,
@@ -571,6 +587,7 @@ impl LightingSystem {
     pub fn render_lights_filtered(
         &mut self,
         occluders: &SegmentIndex,
+        occlusion_revision: u32,
         view_matrix: &[f32; 9],
         canvas_width: f32,
         canvas_height: f32,
@@ -608,64 +625,49 @@ impl LightingSystem {
         );
 
         // Render each light — capture result to ensure cleanup runs regardless
-        let light_ids: Vec<String> = self.lights.keys().cloned().collect();
+        let mut light_ids: Vec<String> = self
+            .lights
+            .iter()
+            .filter(|(_, light)| {
+                light.is_on && table_id.is_none_or(|filter| light.table_id == filter)
+            })
+            .map(|(id, _)| id.clone())
+            .collect();
+        light_ids.sort_unstable();
+        self.frame_active_lights
+            .set(u32::try_from(light_ids.len()).unwrap_or(u32::MAX));
+
+        let cache_is_stale = self.cached_occlusion_revision != Some(occlusion_revision)
+            || self.cached_table_id.as_deref() != table_id
+            || self.cached_light_ids != light_ids
+            || light_ids
+                .iter()
+                .any(|id| self.lights.get(id).is_some_and(|light| light.dirty));
+        if cache_is_stale {
+            self.rebuild_geometry(occluders, occlusion_revision, table_id, &light_ids);
+        }
+
         let mut render_result: Result<(), JsValue> = Ok(());
         for light_id in light_ids {
-            let (
-                id,
-                position,
-                color,
-                intensity,
-                radius,
-                falloff,
-                cached_polygon,
-                dirty,
-                _light_table_id,
-            ) = {
+            let (position, color, intensity, radius, falloff) = {
                 if let Some(light) = self.lights.get(&light_id) {
-                    if !light.is_on {
-                        continue;
-                    }
-                    if let Some(filter_table_id) = table_id {
-                        if light.table_id != filter_table_id {
-                            continue;
-                        }
-                    }
-                    self.frame_active_lights
-                        .set(self.frame_active_lights.get().saturating_add(1));
                     (
-                        light.id.clone(),
                         light.position,
                         light.color,
                         light.intensity,
                         light.radius,
                         light.falloff,
-                        light.cached_polygon.clone(),
-                        light.dirty,
-                        light.table_id.clone(),
                     )
                 } else {
                     continue;
                 }
             };
+            let Some(range) = self.geometry_ranges.get(&light_id).copied() else {
+                continue;
+            };
 
-            match self.render_single_light(
-                occluders,
-                &id,
-                position,
-                color,
-                intensity,
-                radius,
-                falloff,
-                cached_polygon,
-                dirty,
-            ) {
-                Ok((new_polygon, new_dirty)) => {
-                    if let Some(light) = self.lights.get_mut(&light_id) {
-                        light.cached_polygon = new_polygon;
-                        light.dirty = new_dirty;
-                    }
-                }
+            match self.render_single_light(position, color, intensity, radius, falloff, range) {
+                Ok(()) => {}
                 Err(e) => {
                     render_result = Err(e);
                     break;
@@ -695,17 +697,14 @@ impl LightingSystem {
     /// CORRECTED APPROACH: Stencil buffer marks SHADOW areas, light renders everywhere EXCEPT shadows
     /// Best practice: Shadow geometry - project obstacles away from light to create shadow quads
     fn render_single_light(
-        &mut self,
-        occluders: &SegmentIndex,
-        _light_id: &str,
+        &self,
         position: Vec2,
         color: Color,
         intensity: f32,
         radius: f32,
         falloff: f32,
-        _cached_polygon: Option<Vec<Vec2>>,
-        _dirty: bool,
-    ) -> Result<(Option<Vec<Vec2>>, bool), JsValue> {
+        range: LightGeometryRange,
+    ) -> Result<(), JsValue> {
         // Set light-specific uniforms
         self.set_light_uniforms(&position, &color, intensity, radius, falloff);
 
@@ -719,13 +718,7 @@ impl LightingSystem {
         // 1. Render shadow quads to stencil buffer (mark as 1 where shadows are)
         // 2. Render full light circle where stencil = 0 (NOT in shadow)
 
-        // Step 1: Compute and render one shadow triangle batch to stencil.
-        self.build_shadow_vertices(occluders, position, radius);
-
-        // web_sys::console::log_1(&format!("[STENCIL-DEBUG] [DARK] Computing shadows for light at ({:.1}, {:.1}), found {} shadow quads",
-        //     position.x, position.y, shadow_quads.len()).into());
-
-        if !self.shadow_vertices.is_empty() {
+        if range.shadow_count > 0 {
             // Write shadows to stencil (set to 1)
             self.gl.stencil_func(WebGlRenderingContext::ALWAYS, 1, 0xFF);
             self.gl.stencil_op(
@@ -736,9 +729,12 @@ impl LightingSystem {
             self.gl.stencil_mask(0xFF); // Ensure stencil can be written
             self.gl.color_mask(false, false, false, false); // Don't write color, only stencil
 
-            // web_sys::console::log_1(&"[STENCIL-DEBUG] [STENCIL] Stencil setup: ALWAYS pass, REPLACE with 1, color mask OFF".into());
-
-            let shadow_result = self.upload_and_draw_shadow_triangles(&self.shadow_vertices);
+            let shadow_result = self.draw_cached_vertices(
+                WebGlRenderingContext::TRIANGLES,
+                range.shadow_first,
+                range.shadow_count,
+                true,
+            );
 
             // ALWAYS restore color writing, even if a shadow quad failed
             self.gl.color_mask(true, true, true, true);
@@ -755,54 +751,95 @@ impl LightingSystem {
         );
         self.gl.stencil_mask(0x00);
 
-        let circle = self.generate_circle(position, radius);
-        let circle_vertices = self.polygon_to_vertices_from_light(&circle, position);
-        let draw_result = self.upload_and_draw_vertices(&circle_vertices);
+        let draw_result = self.draw_cached_vertices(
+            WebGlRenderingContext::TRIANGLE_FAN,
+            range.circle_first,
+            range.circle_count,
+            false,
+        );
 
         // ALWAYS reset stencil state for the next light
         self.gl.stencil_func(WebGlRenderingContext::ALWAYS, 0, 0xFF);
         self.gl.stencil_mask(0xFF);
 
         draw_result?;
-        Ok((None, false))
+        Ok(())
     }
 
-    /// Helper to upload vertices and draw triangle fan
-    fn upload_and_draw_vertices(&self, vertices: &[f32]) -> Result<(), JsValue> {
+    fn draw_cached_vertices(
+        &self,
+        mode: u32,
+        first: i32,
+        count: i32,
+        is_shadow: bool,
+    ) -> Result<(), JsValue> {
         self.pipeline.bind();
-        let uploads = self.pipeline.upload_vertices(vertices);
-        self.frame_buffer_uploads
-            .set(self.frame_buffer_uploads.get().saturating_add(uploads));
-
-        self.gl.draw_arrays(
-            WebGlRenderingContext::TRIANGLE_FAN,
-            0,
-            (vertices.len() / 2) as i32,
-        );
+        self.gl.draw_arrays(mode, first, count);
         self.frame_draw_calls
             .set(self.frame_draw_calls.get().saturating_add(1));
+        if is_shadow {
+            self.frame_shadow_draw_calls
+                .set(self.frame_shadow_draw_calls.get().saturating_add(1));
+        }
 
         Ok(())
     }
 
-    /// Upload and draw all accepted shadow triangles for one light.
-    fn upload_and_draw_shadow_triangles(&self, vertices: &[f32]) -> Result<(), JsValue> {
-        self.pipeline.bind();
-        let uploads = self.pipeline.upload_vertices(vertices);
-        self.frame_buffer_uploads
-            .set(self.frame_buffer_uploads.get().saturating_add(uploads));
+    fn rebuild_geometry(
+        &mut self,
+        occluders: &SegmentIndex,
+        occlusion_revision: u32,
+        table_id: Option<&str>,
+        light_ids: &[String],
+    ) {
+        self.geometry_vertices.clear();
+        self.geometry_ranges.clear();
 
-        self.gl.draw_arrays(
-            WebGlRenderingContext::TRIANGLES,
-            0,
-            (vertices.len() / 2) as i32,
-        );
-        self.frame_draw_calls
-            .set(self.frame_draw_calls.get().saturating_add(1));
-        self.frame_shadow_draw_calls
-            .set(self.frame_shadow_draw_calls.get().saturating_add(1));
+        for light_id in light_ids {
+            let Some((position, radius)) = self
+                .lights
+                .get(light_id)
+                .map(|light| (light.position, light.radius))
+            else {
+                continue;
+            };
 
-        Ok(())
+            self.build_shadow_vertices(occluders, position, radius);
+            let shadow_first = i32::try_from(self.geometry_vertices.len() / 2).unwrap_or(i32::MAX);
+            let shadow_count = i32::try_from(self.shadow_vertices.len() / 2).unwrap_or(i32::MAX);
+            self.geometry_vertices
+                .extend_from_slice(&self.shadow_vertices);
+
+            let circle = self.generate_circle(position, radius);
+            let circle_vertices = self.polygon_to_vertices_from_light(&circle, position);
+            let circle_first = i32::try_from(self.geometry_vertices.len() / 2).unwrap_or(i32::MAX);
+            let circle_count = i32::try_from(circle_vertices.len() / 2).unwrap_or(i32::MAX);
+            self.geometry_vertices.extend_from_slice(&circle_vertices);
+
+            self.geometry_ranges.insert(
+                light_id.clone(),
+                LightGeometryRange {
+                    shadow_first,
+                    shadow_count,
+                    circle_first,
+                    circle_count,
+                },
+            );
+            if let Some(light) = self.lights.get_mut(light_id) {
+                light.dirty = false;
+            }
+        }
+
+        if !self.geometry_vertices.is_empty() {
+            self.pipeline.bind();
+            let uploads = self.pipeline.upload_vertices(&self.geometry_vertices);
+            self.frame_buffer_uploads
+                .set(self.frame_buffer_uploads.get().saturating_add(uploads));
+        }
+
+        self.cached_light_ids = light_ids.to_vec();
+        self.cached_table_id = table_id.map(str::to_owned);
+        self.cached_occlusion_revision = Some(occlusion_revision);
     }
 
     /// Set uniforms for specific light

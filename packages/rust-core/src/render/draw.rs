@@ -213,6 +213,7 @@ impl RenderEngine {
 
         self.lighting.render_lights_filtered(
             &self.occlusion_scene.light,
+            self.occlusion_scene.revision(),
             &self.view_matrix.to_array(),
             self.canvas_size.x,
             self.canvas_size.y,

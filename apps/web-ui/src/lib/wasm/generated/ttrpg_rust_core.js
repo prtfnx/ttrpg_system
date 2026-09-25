@@ -817,6 +817,27 @@ export class RenderEngine {
         const ret = wasm.renderengine_cancel_current_operation(this.__wbg_ptr);
         return ret !== 0;
     }
+    /**
+     * Render the complete resident table into a bounded region of the default
+     * framebuffer and synchronously copy its pixels before WebGL presentation.
+     * The interactive camera and frame are restored before returning, so the
+     * capture cannot flicker or depend on `preserveDrawingBuffer`.
+     * @param {string} table_id
+     * @param {number} requested_width
+     * @param {number} requested_height
+     * @returns {Uint8Array}
+     */
+    capture_active_table_thumbnail(table_id, requested_width, requested_height) {
+        const ptr0 = passStringToWasm0(table_id, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+        const len0 = WASM_VECTOR_LEN;
+        const ret = wasm.renderengine_capture_active_table_thumbnail(this.__wbg_ptr, ptr0, len0, requested_width, requested_height);
+        if (ret[3]) {
+            throw takeFromExternrefTable0(ret[2]);
+        }
+        var v2 = getArrayU8FromWasm0(ret[0], ret[1]).slice();
+        wasm.__wbindgen_free(ret[0], ret[1] * 1, 1);
+        return v2;
+    }
     clear_fog() {
         wasm.renderengine_clear_fog(this.__wbg_ptr);
     }
@@ -2719,6 +2740,9 @@ function __wbg_get_imports() {
             const ret = Math.random();
             return ret;
         },
+        __wbg_readPixels_b596cd7133d428c1: function() { return handleError(function (arg0, arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8) {
+            arg0.readPixels(arg1, arg2, arg3, arg4, arg5 >>> 0, arg6 >>> 0, arg7 === 0 ? undefined : getArrayU8FromWasm0(arg7, arg8));
+        }, arguments); },
         __wbg_renderbufferStorage_d95f75be57ae52b3: function(arg0, arg1, arg2, arg3, arg4) {
             arg0.renderbufferStorage(arg1 >>> 0, arg2 >>> 0, arg3, arg4);
         },
@@ -2822,7 +2846,7 @@ function __wbg_get_imports() {
             return ret;
         },
         __wbindgen_cast_0000000000000001: function(arg0, arg1) {
-            // Cast intrinsic for `Closure(Closure { owned: true, function: Function { arguments: [], shim_idx: 75, ret: Unit, inner_ret: Some(Unit) }, mutable: true }) -> Externref`.
+            // Cast intrinsic for `Closure(Closure { owned: true, function: Function { arguments: [], shim_idx: 70, ret: Unit, inner_ret: Some(Unit) }, mutable: true }) -> Externref`.
             const ret = makeMutClosure(arg0, arg1, wasm_bindgen__convert__closures_____invoke__h346c1d2cbe4d6714);
             return ret;
         },

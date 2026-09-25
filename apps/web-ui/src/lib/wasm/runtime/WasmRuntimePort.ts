@@ -19,6 +19,12 @@ export interface AttachCanvasOptions {
   onFrame?: (sample: RenderFrameSample) => void;
 }
 
+export interface CapturedTableThumbnail {
+  readonly data: Uint8ClampedArray;
+  readonly width: number;
+  readonly height: number;
+}
+
 export interface WasmRuntimePort {
   readonly store: WasmRuntimeStore;
   readonly status: WasmRuntimeSnapshot;
@@ -31,6 +37,7 @@ export interface WasmRuntimePort {
 
   setProtocol(protocol: unknown | null): void;
   getRenderEngine(): RenderEngine | null;
+  captureActiveTableThumbnail(tableId: string, width: number, height: number): CapturedTableThumbnail | null;
   getRenderDiagnostics(): RenderDiagnostics | null;
   getActionsEngine(): ActionsClient | null;
   getPlanningManager(): PlanningManager | null;

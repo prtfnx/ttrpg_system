@@ -20,6 +20,8 @@ const mocks = vi.hoisted(() => {
       drawCalls: 12,
     })),
     get_occlusion_revision: vi.fn(() => 9),
+    get_active_table_id: vi.fn(() => 'table-1'),
+    capture_active_table_thumbnail: vi.fn(() => new Uint8Array(4 * 4 * 4).fill(255)),
     compute_sight_visibility_polygons: vi.fn(() => [[{ x: 1, y: 2 }]]),
     compute_light_visibility_polygons: vi.fn(() => [[{ x: 3, y: 4 }]]),
   };
@@ -172,6 +174,22 @@ describe('WasmRuntime', () => {
     expect(mocks.renderEngine.set_current_user_id).toHaveBeenLastCalledWith(2);
     expect(mocks.renderEngine.set_gm_mode).toHaveBeenLastCalledWith(true);
     expect(mocks.renderEngine.set_active_layer).toHaveBeenLastCalledWith('light');
+  });
+
+  it('captures only a fully rendered matching table through the runtime boundary', async () => {
+    canvas.width = 4;
+    canvas.height = 4;
+    await runtime.attachCanvas(canvas, { userId: 1, role: 'owner', activeLayer: 'map' });
+    mocks.coordinatorCallbacks?.onTableHydrated?.('table-1');
+    const renderFrame = vi.mocked(requestAnimationFrame).mock.calls[0][0];
+    renderFrame(1);
+
+    const image = runtime.captureActiveTableThumbnail('table-1', 4, 4);
+
+    expect(image).toMatchObject({ width: 4, height: 4 });
+    expect(image?.data).toHaveLength(64);
+    expect(mocks.renderEngine.capture_active_table_thumbnail).toHaveBeenCalledWith('table-1', 4, 4);
+    expect(runtime.captureActiveTableThumbnail('other-table', 4, 4)).toBeNull();
   });
 
   it('routes shape style through the generated render contract', async () => {

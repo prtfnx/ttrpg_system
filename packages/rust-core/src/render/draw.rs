@@ -2,6 +2,7 @@ use crate::math::{Rect, Vec2};
 use crate::sprite_renderer::SpriteRenderer;
 use crate::types::Sprite;
 use wasm_bindgen::prelude::*;
+use web_sys::WebGl2RenderingContext as WebGlRenderingContext;
 
 use super::RenderEngine;
 
@@ -68,6 +69,10 @@ fn screen_rect_to_gl_scissor(min: Vec2, max: Vec2, canvas: Vec2) -> [i32; 4] {
 impl RenderEngine {
     #[wasm_bindgen]
     pub fn render(&mut self) -> Result<(), JsValue> {
+        self.render_scene(true)
+    }
+
+    fn render_scene(&mut self, include_transient_overlays: bool) -> Result<(), JsValue> {
         self.diagnostics.begin_frame();
         self.texture_manager.begin_frame();
         self.renderer.begin_frame();
@@ -134,8 +139,11 @@ impl RenderEngine {
             if *layer_name == "map" && layer.settings.visible {
                 self.renderer.set_blend_mode(&layer.settings.blend_mode);
                 self.renderer.set_layer_color(&layer.settings.color);
-                let effective_opacity =
-                    Self::get_effective_layer_opacity(&layer.settings, layer_name, &active_layer);
+                let effective_opacity = if include_transient_overlays {
+                    Self::get_effective_layer_opacity(&layer.settings, layer_name, &active_layer)
+                } else {
+                    layer.settings.opacity
+                };
                 for sprite in &layer.sprites {
                     if sprite.table_id == active_table_id {
                         self.diagnostics.sprites_considered =
@@ -175,8 +183,11 @@ impl RenderEngine {
             {
                 self.renderer.set_blend_mode(&layer.settings.blend_mode);
                 self.renderer.set_layer_color(&layer.settings.color);
-                let effective_opacity =
-                    Self::get_effective_layer_opacity(&layer.settings, layer_name, &active_layer);
+                let effective_opacity = if include_transient_overlays {
+                    Self::get_effective_layer_opacity(&layer.settings, layer_name, &active_layer)
+                } else {
+                    layer.settings.opacity
+                };
 
                 for sprite in &layer.sprites {
                     if sprite.table_id == active_table_id {
@@ -230,52 +241,127 @@ impl RenderEngine {
             Some(&active_table_id),
         )?;
 
-        if let Some((min, max)) = self.input.get_area_selection_rect() {
-            SpriteRenderer::draw_area_selection_rect(min, max, &self.renderer)?;
-        }
+        if include_transient_overlays {
+            if let Some((min, max)) = self.input.get_area_selection_rect() {
+                SpriteRenderer::draw_area_selection_rect(min, max, &self.renderer)?;
+            }
 
-        if let Some((start, end)) = self.input.get_measurement_line() {
-            let conv = self.table_manager.get_unit_converter(&active_table_id);
-            SpriteRenderer::draw_measurement_line(
-                start,
-                end,
-                &self.renderer,
-                &self.text_renderer,
-                &self.texture_manager,
-                &conv,
-            )?;
-        }
+            if let Some((start, end)) = self.input.get_measurement_line() {
+                let conv = self.table_manager.get_unit_converter(&active_table_id);
+                SpriteRenderer::draw_measurement_line(
+                    start,
+                    end,
+                    &self.renderer,
+                    &self.text_renderer,
+                    &self.texture_manager,
+                    &conv,
+                )?;
+            }
 
-        if let Some((start, end)) = self.input.get_shape_creation_rect() {
-            match self.input.input_mode {
-                crate::input::InputMode::CreateRectangle => {
-                    SpriteRenderer::draw_rectangle_preview(start, end, &self.renderer)?;
+            if let Some((start, end)) = self.input.get_shape_creation_rect() {
+                match self.input.input_mode {
+                    crate::input::InputMode::CreateRectangle => {
+                        SpriteRenderer::draw_rectangle_preview(start, end, &self.renderer)?;
+                    }
+                    crate::input::InputMode::CreateCircle => {
+                        SpriteRenderer::draw_circle_preview(start, end, &self.renderer)?;
+                    }
+                    crate::input::InputMode::CreateLine => {
+                        SpriteRenderer::draw_line_preview(start, end, &self.renderer)?;
+                    }
+                    _ => {}
                 }
-                crate::input::InputMode::CreateCircle => {
-                    SpriteRenderer::draw_circle_preview(start, end, &self.renderer)?;
-                }
-                crate::input::InputMode::CreateLine => {
-                    SpriteRenderer::draw_line_preview(start, end, &self.renderer)?;
-                }
-                _ => {}
+            }
+
+            if let Some((start, end)) = self.input.get_wall_preview_line() {
+                SpriteRenderer::draw_line_preview(start, end, &self.renderer)?;
+            }
+
+            if self.input.input_mode == crate::input::InputMode::CreatePolygon
+                && !self.input.polygon_vertices.is_empty()
+            {
+                SpriteRenderer::draw_polygon_preview(
+                    &self.input.polygon_vertices,
+                    self.input.polygon_cursor,
+                    &self.renderer,
+                )?;
             }
         }
 
-        if let Some((start, end)) = self.input.get_wall_preview_line() {
-            SpriteRenderer::draw_line_preview(start, end, &self.renderer)?;
-        }
-
-        if self.input.input_mode == crate::input::InputMode::CreatePolygon
-            && !self.input.polygon_vertices.is_empty()
-        {
-            SpriteRenderer::draw_polygon_preview(
-                &self.input.polygon_vertices,
-                self.input.polygon_cursor,
-                &self.renderer,
-            )?;
-        }
-
         Ok(())
+    }
+
+    /// Render the complete resident table into a bounded region of the default
+    /// framebuffer and synchronously copy its pixels before WebGL presentation.
+    /// The interactive camera and frame are restored before returning, so the
+    /// capture cannot flicker or depend on `preserveDrawingBuffer`.
+    #[wasm_bindgen]
+    pub fn capture_active_table_thumbnail(
+        &mut self,
+        table_id: &str,
+        requested_width: u32,
+        requested_height: u32,
+    ) -> Result<Vec<u8>, JsValue> {
+        if requested_width == 0 || requested_height == 0 {
+            return Err(JsValue::from_str("Thumbnail dimensions must be positive"));
+        }
+        if self.table_manager.active_table_id() != Some(table_id) {
+            return Err(JsValue::from_str("Only the active table can be captured"));
+        }
+        let (tx, ty, tw, th) = self
+            .table_manager
+            .get_active_table_world_bounds()
+            .ok_or_else(|| JsValue::from_str("Active table has no render bounds"))?;
+
+        let width = requested_width.min(self.canvas_size.x.max(1.0) as u32);
+        let height = requested_height.min(self.canvas_size.y.max(1.0) as u32);
+        let capture_size = Vec2::new(width as f32, height as f32);
+        let bounds = Rect::new(tx as f32, ty as f32, tw as f32, th as f32);
+        let capture_camera = self
+            .camera
+            .fitted_to_bounds(bounds, capture_size, 12.0)
+            .ok_or_else(|| JsValue::from_str("Cannot fit invalid table bounds"))?;
+
+        let interactive_camera = self.camera.clone();
+        let interactive_canvas_size = self.canvas_size;
+        self.camera = capture_camera;
+        self.canvas_size = capture_size;
+        self.update_view_matrix();
+
+        let capture_result = (|| {
+            self.render_scene(false)?;
+            let byte_len = width as usize * height as usize * 4;
+            let mut pixels = vec![0; byte_len];
+            self.renderer.gl.read_pixels_with_opt_u8_array(
+                0,
+                0,
+                width as i32,
+                height as i32,
+                WebGlRenderingContext::RGBA,
+                WebGlRenderingContext::UNSIGNED_BYTE,
+                Some(&mut pixels),
+            )?;
+
+            let row_bytes = width as usize * 4;
+            for row in 0..(height as usize / 2) {
+                let opposite = height as usize - row - 1;
+                let (head, tail) = pixels.split_at_mut(opposite * row_bytes);
+                head[row * row_bytes..(row + 1) * row_bytes]
+                    .swap_with_slice(&mut tail[..row_bytes]);
+            }
+            Ok(pixels)
+        })();
+
+        self.camera = interactive_camera;
+        self.canvas_size = interactive_canvas_size;
+        self.update_view_matrix();
+        let restore_result = self.render_scene(true);
+
+        match (capture_result, restore_result) {
+            (Ok(pixels), Ok(())) => Ok(pixels),
+            (Err(error), _) => Err(error),
+            (Ok(_), Err(error)) => Err(error),
+        }
     }
 }
 

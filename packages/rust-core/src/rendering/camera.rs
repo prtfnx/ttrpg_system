@@ -28,6 +28,45 @@ impl Default for Camera {
 
 #[cfg_attr(not(target_arch = "wasm32"), allow(dead_code))]
 impl Camera {
+    /// Return a camera that contains the complete rectangle inside the target
+    /// surface while preserving aspect ratio. Unlike the interactive camera,
+    /// thumbnail fitting intentionally permits zoom values below `min_zoom` so
+    /// very large tables are never cropped.
+    pub fn fitted_to_bounds(
+        &self,
+        bounds: Rect,
+        target_size: Vec2,
+        padding_px: f32,
+    ) -> Option<Self> {
+        let width = bounds.max.x - bounds.min.x;
+        let height = bounds.max.y - bounds.min.y;
+        let available_width = target_size.x - padding_px * 2.0;
+        let available_height = target_size.y - padding_px * 2.0;
+        if !width.is_finite()
+            || !height.is_finite()
+            || !available_width.is_finite()
+            || !available_height.is_finite()
+            || width <= 0.0
+            || height <= 0.0
+            || available_width <= 0.0
+            || available_height <= 0.0
+        {
+            return None;
+        }
+
+        let zoom = (available_width / width).min(available_height / height) as f64;
+        let visible_width = target_size.x as f64 / zoom;
+        let visible_height = target_size.y as f64 / zoom;
+        let center_x = (bounds.min.x + bounds.max.x) as f64 * 0.5;
+        let center_y = (bounds.min.y + bounds.max.y) as f64 * 0.5;
+
+        let mut camera = self.clone();
+        camera.world_x = center_x - visible_width * 0.5;
+        camera.world_y = center_y - visible_height * 0.5;
+        camera.zoom = zoom;
+        Some(camera)
+    }
+
     pub fn set_table_bounds(&mut self, x: f64, y: f64, width: f64, height: f64) {
         self.table_bounds = Some((x, y, width, height));
         #[cfg(target_arch = "wasm32")]
@@ -309,5 +348,34 @@ mod tests {
         // Center should be at (200, 200)
         assert!((c.world_x - 200.0).abs() < 0.01);
         assert!((c.world_y - 200.0).abs() < 0.01);
+    }
+
+    #[test]
+    fn fitted_to_bounds_contains_wide_table_without_interactive_zoom_clamp() {
+        let camera = Camera::default();
+        let fitted = camera
+            .fitted_to_bounds(
+                Rect::new(100.0, 200.0, 10_000.0, 2_000.0),
+                Vec2::new(640.0, 360.0),
+                12.0,
+            )
+            .expect("valid bounds");
+
+        assert!(fitted.zoom < camera.min_zoom);
+        let min = fitted.world_to_screen(Vec2::new(100.0, 200.0));
+        let max = fitted.world_to_screen(Vec2::new(10_100.0, 2_200.0));
+        assert!(min.x >= 11.9 && min.y >= 11.9);
+        assert!(max.x <= 628.1 && max.y <= 348.1);
+    }
+
+    #[test]
+    fn fitted_to_bounds_rejects_invalid_surfaces() {
+        assert!(Camera::default()
+            .fitted_to_bounds(
+                Rect::new(0.0, 0.0, 100.0, 100.0),
+                Vec2::new(0.0, 360.0),
+                0.0,
+            )
+            .is_none());
     }
 }

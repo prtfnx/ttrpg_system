@@ -136,6 +136,25 @@ export class WasmRuntime implements WasmRuntimePort {
     return this.store.getSnapshot();
   }
 
+  captureActiveTableThumbnail(tableId: string, width: number, height: number) {
+    const engine = this.renderEngine;
+    const status = this.status;
+    if (!engine
+      || status.hydratedTableId !== tableId
+      || status.frameTableId !== tableId
+      || engine.get_active_table_id() !== tableId) {
+      return null;
+    }
+
+    const captureWidth = Math.min(width, this.attachedCanvas?.width ?? width);
+    const captureHeight = Math.min(height, this.attachedCanvas?.height ?? height);
+    const pixels = engine.capture_active_table_thumbnail(tableId, captureWidth, captureHeight);
+    const data = pixels instanceof Uint8ClampedArray
+      ? pixels
+      : new Uint8ClampedArray(pixels.buffer, pixels.byteOffset, pixels.byteLength);
+    return { data: new Uint8ClampedArray(data), width: captureWidth, height: captureHeight };
+  }
+
   start(): void {
     this.syncCoordinator.start();
   }

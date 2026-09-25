@@ -121,6 +121,7 @@ export interface RenderEngine {
   remove_sprite(spriteId: string): boolean;
   remove_wall(wallId: string): boolean;
   render(): void;
+  capture_active_table_thumbnail(tableId: string, width: number, height: number): Uint8Array;
   resize_canvas(width: number, height: number): void;
   resize_sprite(spriteId: string, newWidth: number, newHeight: number): boolean;
   rotate_sprite(spriteId: string, rotationDegrees: number): boolean;

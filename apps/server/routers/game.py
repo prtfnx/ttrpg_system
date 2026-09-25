@@ -5,18 +5,22 @@ import os
 import secrets
 import string
 from functools import partial
+from hashlib import sha256
+from io import BytesIO
 from typing import Annotated, List
 
 from anyio import from_thread
 from core_table.protocol import Message, MessageType
 from database import crud, models, schemas
 from database.database import get_db
-from fastapi import APIRouter, Depends, Form, HTTPException, Request, status
-from fastapi.responses import RedirectResponse
+from fastapi import APIRouter, Depends, File, Form, HTTPException, Request, UploadFile, status
+from fastapi.responses import RedirectResponse, Response
 from fastapi.templating import Jinja2Templates
 from models import game as game_models
 from service.game_session import get_connection_manager
 from sqlalchemy.orm import Session
+from PIL import Image, UnidentifiedImageError
+from utils.time import utc_now
 from utils.audit import audit_event
 from utils.logger import setup_logger
 from utils.roles import can_assign_role, get_permissions, get_visible_layers, is_dm
@@ -27,6 +31,80 @@ logger = setup_logger(__name__)
 router = APIRouter(prefix="/game", tags=["game"])
 templates_dir = os.path.join(os.path.dirname(os.path.dirname(__file__)), "templates")
 templates = Jinja2Templates(directory=templates_dir)
+
+_TABLE_PREVIEW_WIDTH = 640
+_TABLE_PREVIEW_HEIGHT = 360
+_MAX_TABLE_PREVIEW_BYTES = 512 * 1024
+
+
+def _dm_table(db: Session, session_code: str, table_id: str, user_id: int):
+    session = crud.get_game_session_by_code(db, session_code)
+    if not session:
+        raise HTTPException(status_code=404, detail="Session not found")
+    membership = db.query(models.GamePlayer).filter(
+        models.GamePlayer.session_id == session.id,
+        models.GamePlayer.user_id == user_id,
+    ).first()
+    if not membership or not is_dm(membership.role):
+        raise HTTPException(status_code=403, detail="DM access required")
+    table = db.query(models.VirtualTable).filter(
+        models.VirtualTable.session_id == session.id,
+        models.VirtualTable.table_id == table_id,
+    ).first()
+    if not table:
+        raise HTTPException(status_code=404, detail="Table not found")
+    return table
+
+
+@router.post("/api/sessions/{session_code}/tables/{table_id}/preview")
+def upload_table_preview(
+    session_code: str,
+    table_id: str,
+    current_user: Annotated[schemas.User, Depends(get_current_active_user)],
+    preview: UploadFile = File(...),
+    db: Session = Depends(get_db),
+):
+    """Replace one DM-only derived table preview after strict image validation."""
+    table = _dm_table(db, session_code, table_id, current_user.id)
+    payload = preview.file.read(_MAX_TABLE_PREVIEW_BYTES + 1)
+    if len(payload) > _MAX_TABLE_PREVIEW_BYTES:
+        raise HTTPException(status_code=413, detail="Preview exceeds 512 KiB")
+    try:
+        with Image.open(BytesIO(payload)) as image:
+            if image.format != "WEBP" or image.size != (_TABLE_PREVIEW_WIDTH, _TABLE_PREVIEW_HEIGHT):
+                raise HTTPException(
+                    status_code=422,
+                    detail="Preview must be a 640x360 WebP image",
+                )
+            image.verify()
+    except (UnidentifiedImageError, OSError):
+        raise HTTPException(status_code=422, detail="Preview is not a valid image") from None
+
+    etag = sha256(payload).hexdigest()
+    table.preview_image = payload
+    table.preview_etag = etag
+    table.preview_updated_at = utc_now()
+    db.commit()
+    return {"etag": etag, "updated_at": table.preview_updated_at.isoformat()}
+
+
+@router.get("/api/sessions/{session_code}/tables/{table_id}/preview")
+def get_table_preview(
+    session_code: str,
+    table_id: str,
+    request: Request,
+    current_user: Annotated[schemas.User, Depends(get_current_active_user)],
+    db: Session = Depends(get_db),
+):
+    """Read a DM-only preview with private conditional caching."""
+    table = _dm_table(db, session_code, table_id, current_user.id)
+    if table.preview_image is None or table.preview_etag is None:
+        raise HTTPException(status_code=404, detail="Preview not generated")
+    quoted_etag = f'"{table.preview_etag}"'
+    headers = {"ETag": quoted_etag, "Cache-Control": "private, no-cache"}
+    if request.headers.get("if-none-match") == quoted_etag:
+        return Response(status_code=304, headers=headers)
+    return Response(table.preview_image, media_type="image/webp", headers=headers)
 
 def generate_session_code(length: int = 6) -> str:
     """Generate a short, unique session code"""

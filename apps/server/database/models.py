@@ -15,12 +15,13 @@ from sqlalchemy import (
     Float,
     ForeignKey,
     Integer,
+    LargeBinary,
     MetaData,
     String,
     Text,
     UniqueConstraint,
 )
-from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
+from sqlalchemy.orm import DeclarativeBase, Mapped, deferred, mapped_column, relationship
 from utils.time import utc_now
 
 NAMING_CONVENTION = {
@@ -144,6 +145,12 @@ class VirtualTable(Base):
     background_color_hex: Mapped[Optional[str]] = mapped_column(String(9), default='#2a3441')
     difficult_terrain_json: Mapped[Optional[str]] = mapped_column(Text, default="[]")
     cover_zones_json: Mapped[Optional[str]] = mapped_column(Text, default="[]")
+
+    # Derived DM-only table preview. Defer the blob so normal table hydration and
+    # list queries never pull image bytes into memory.
+    preview_image: Mapped[Optional[bytes]] = deferred(mapped_column(LargeBinary, nullable=True))
+    preview_etag: Mapped[Optional[str]] = mapped_column(String(64), nullable=True)
+    preview_updated_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
 
     created_at: Mapped[Optional[datetime]] = mapped_column(DateTime, default=utc_now)
     updated_at: Mapped[Optional[datetime]] = mapped_column(DateTime, default=utc_now, onupdate=utc_now)

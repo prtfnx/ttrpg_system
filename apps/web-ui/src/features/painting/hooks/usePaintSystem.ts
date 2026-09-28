@@ -2,6 +2,7 @@ import { useGameStore } from '@/store';
 import { ProtocolService } from '@lib/api';
 import { useWasmRuntime } from '@lib/wasm/runtime';
 import type { BrushPreset, RenderEngine } from '@lib/wasm/runtime';
+import { emitWasmEvent } from '@lib/wasm/wasmEvents';
 import { logger } from '@shared/utils/logger';
 import { useCallback, useEffect, useState } from 'react';
 
@@ -51,6 +52,12 @@ export function usePaintSystem(
     canUndo: false,
     canRedo: false,
   });
+
+  const invalidatePreview = useCallback(() => {
+    if (activeTableId) {
+      emitWasmEvent('table-preview-invalidated', { table_id: activeTableId });
+    }
+  }, [activeTableId]);
 
   const readStrokes = useCallback((): Record<string, unknown>[] => {
     if (!renderEngine) return [];
@@ -125,6 +132,7 @@ export function usePaintSystem(
   const clearAll = useCallback(() => {
     if (!renderEngine) return;
     renderEngine.paint_clear_all();
+    invalidatePreview();
     if (ProtocolService.hasProtocol()) {
       ProtocolService.getProtocol().clearPaintStrokes();
     }
@@ -135,7 +143,7 @@ export function usePaintSystem(
       canUndo: false,
       canRedo: false,
     }));
-  }, [renderEngine]);
+  }, [invalidatePreview, renderEngine]);
 
   const undoStroke = useCallback(() => {
     if (!renderEngine) return false;
@@ -148,9 +156,12 @@ export function usePaintSystem(
     if (ok && lastStrokeId && activeTableId) {
       ProtocolService.getProtocol().deletePaintStroke(lastStrokeId);
     }
-    if (ok) refreshPaintState();
+    if (ok) {
+      refreshPaintState();
+      invalidatePreview();
+    }
     return ok;
-  }, [activeTableId, readStrokes, refreshPaintState, renderEngine]);
+  }, [activeTableId, invalidatePreview, readStrokes, refreshPaintState, renderEngine]);
 
   const redoStroke = useCallback(() => {
     if (!renderEngine) return false;
@@ -161,9 +172,12 @@ export function usePaintSystem(
         ProtocolService.getProtocol().createPaintStroke(String(redone.id), JSON.stringify(redone));
       }
     }
-    if (ok) refreshPaintState();
+    if (ok) {
+      refreshPaintState();
+      invalidatePreview();
+    }
     return ok;
-  }, [activeTableId, readStrokes, refreshPaintState, renderEngine]);
+  }, [activeTableId, invalidatePreview, readStrokes, refreshPaintState, renderEngine]);
 
   const getStrokes = useCallback(() => readStrokes(), [readStrokes]);
 
@@ -194,9 +208,12 @@ export function usePaintSystem(
       }
     }
 
-    if (result) refreshPaintState();
+    if (result) {
+      refreshPaintState();
+      invalidatePreview();
+    }
     return result;
-  }, [readStrokes, refreshPaintState, renderEngine]);
+  }, [invalidatePreview, readStrokes, refreshPaintState, renderEngine]);
 
   const cancelStroke = useCallback(() => {
     if (!renderEngine) return;

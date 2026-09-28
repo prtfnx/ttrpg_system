@@ -463,6 +463,7 @@ export class SpriteSyncService {
         wasmBridgeService.seedSpriteState(spriteId, { rotation: data.rotation });
         this.patchStoreSprite(spriteId, { rotation: data.rotation });
       }
+      if (data.table_id) tableThumbnailService.invalidateTable(data.table_id);
     } catch (err) {
       logger.error('[SpriteSyncService] handleSpriteRotated failed:', err);
     }

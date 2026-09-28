@@ -146,8 +146,11 @@ export class WasmRuntime implements WasmRuntimePort {
       return null;
     }
 
-    const captureWidth = Math.min(width, this.attachedCanvas?.width ?? width);
-    const captureHeight = Math.min(height, this.attachedCanvas?.height ?? height);
+    const canvasWidth = this.attachedCanvas?.width ?? width;
+    const canvasHeight = this.attachedCanvas?.height ?? height;
+    const scale = Math.min(1, canvasWidth / width, canvasHeight / height);
+    const captureWidth = Math.max(1, Math.floor(width * scale));
+    const captureHeight = Math.max(1, Math.floor(height * scale));
     const pixels = engine.capture_active_table_thumbnail(tableId, captureWidth, captureHeight);
     const data = pixels instanceof Uint8ClampedArray
       ? pixels
@@ -405,6 +408,7 @@ export class WasmRuntime implements WasmRuntimePort {
 
   setGridEnabled(enabled: boolean): void {
     this.renderEngine?.set_grid_enabled(enabled);
+    this.invalidateFramedPreview();
   }
 
   setGridSnapping(enabled: boolean): void {
@@ -413,10 +417,12 @@ export class WasmRuntime implements WasmRuntimePort {
 
   setGridSize(size: number): void {
     this.renderEngine?.set_grid_size(size);
+    this.invalidateFramedPreview();
   }
 
   setAmbientLight(level: number): void {
     this.renderEngine?.set_ambient_light(level);
+    this.invalidateFramedPreview();
   }
 
   setShapeStyle(color: string, opacity: number, filled: boolean): void {
@@ -430,6 +436,7 @@ export class WasmRuntime implements WasmRuntimePort {
 
   addWall(wall: unknown): void {
     this.renderEngine?.add_wall(JSON.stringify(wall));
+    this.invalidateFramedPreview();
   }
 
   addWalls(walls: unknown[]): void {
@@ -438,14 +445,17 @@ export class WasmRuntime implements WasmRuntimePort {
 
   updateWall(wallId: string, updates: unknown): void {
     this.renderEngine?.update_wall(wallId, JSON.stringify(updates));
+    this.invalidateFramedPreview();
   }
 
   removeWall(wallId: string): void {
     this.renderEngine?.remove_wall(wallId);
+    this.invalidateFramedPreview();
   }
 
   clearWalls(): void {
     this.renderEngine?.clear_walls();
+    this.invalidateFramedPreview();
   }
 
   loadPaintStrokes(strokesJson: string): void {
@@ -454,14 +464,17 @@ export class WasmRuntime implements WasmRuntimePort {
 
   addRemotePaintStroke(strokeJson: string): void {
     this.renderEngine?.paint_add_remote_stroke(strokeJson);
+    this.invalidateFramedPreview();
   }
 
   removePaintStroke(strokeId: string): void {
     this.renderEngine?.paint_remove_stroke(strokeId);
+    this.invalidateFramedPreview();
   }
 
   clearPaintStrokes(): void {
     this.renderEngine?.paint_clear_all();
+    this.invalidateFramedPreview();
   }
 
   applyLayerSettings(settings: Record<string, Record<string, unknown>>): void {
@@ -479,6 +492,13 @@ export class WasmRuntime implements WasmRuntimePort {
           Number(setting.tint_color[2]),
         );
       }
+    }
+    this.invalidateFramedPreview();
+  }
+
+  private invalidateFramedPreview(): void {
+    if (this.status.frameTableId) {
+      emitWasmEvent('table-preview-invalidated', { table_id: this.status.frameTableId });
     }
   }
 

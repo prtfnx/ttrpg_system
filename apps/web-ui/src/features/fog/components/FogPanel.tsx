@@ -1,4 +1,5 @@
 import { useRenderEngine } from '@features/canvas';
+import { tableThumbnailService } from '@features/table/services/tableThumbnail.service';
 import { useProtocol } from '@lib/api';
 import { logger } from '@shared/utils/logger';
 import clsx from 'clsx';
@@ -42,6 +43,7 @@ export const FogPanel: React.FC = () => {
 
     logger.debug('Sending fog update to server', { tableId, hideCount: hideRectangles.length, revealCount: revealRectangles.length });
     protocol.updateFog(tableId, hideRectangles, revealRectangles);
+    tableThumbnailService.markDirty(tableId);
   }, [protocol, renderer]);
 
   // Load fog rectangles from server when table data arrives

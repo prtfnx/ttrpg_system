@@ -10,6 +10,7 @@ const mocks = vi.hoisted(() => {
     set_current_user_id: vi.fn(),
     set_gm_mode: vi.fn(),
     set_active_layer: vi.fn(),
+    set_grid_enabled: vi.fn(),
     set_runtime_operation_handler: vi.fn(),
     set_runtime_event_handler: vi.fn(),
     clear_runtime_operation_handler: vi.fn(),
@@ -190,6 +191,19 @@ describe('WasmRuntime', () => {
     expect(image?.data).toHaveLength(64);
     expect(mocks.renderEngine.capture_active_table_thumbnail).toHaveBeenCalledWith('table-1', 4, 4);
     expect(runtime.captureActiveTableThumbnail('other-table', 4, 4)).toBeNull();
+  });
+
+  it('invalidates the framed preview after a visual setting changes', async () => {
+    await runtime.attachCanvas(canvas, { userId: 1, role: 'owner', activeLayer: 'map' });
+    mocks.coordinatorCallbacks?.onTableHydrated?.('table-1');
+    vi.mocked(requestAnimationFrame).mock.calls[0][0](1);
+
+    runtime.setGridEnabled(false);
+
+    expect(emitWasmEvent).toHaveBeenCalledWith(
+      'table-preview-invalidated',
+      { table_id: 'table-1' },
+    );
   });
 
   it('routes shape style through the generated render contract', async () => {

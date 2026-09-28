@@ -5,7 +5,7 @@ canvas bootstrap, or table settings.
 
 Status: current but partial.
 
-Last source audit: 2026-09-21
+Last source audit: 2026-09-26
 
 ## Source owners
 
@@ -15,6 +15,8 @@ Last source audit: 2026-09-21
   database helpers.
 - `apps/server/service/canvas_persistence_service.py`: worker-owned table
   hydration and settings persistence.
+- `apps/server/routers/game.py`: authenticated table-preview upload and read
+  endpoints.
 - `apps/server/database/models.py`: `VirtualTable`, `GamePlayer.active_table_id`,
   walls, paint strokes, layer settings, and table lighting columns.
 - `apps/web-ui/src/store.ts`: table list, active table, optimistic create,
@@ -104,6 +106,26 @@ Switch table:
 8. `frameTableId` becomes ready only after required textures settle and a
    subsequent render frame completes.
 
+Table previews:
+
+1. The table list loads persisted previews only for cards near the viewport.
+2. Hover or keyboard focus opens the same image in a larger, non-interactive
+   preview. It does not hydrate or switch an inactive table.
+3. Only the active, hydrated table with a committed render frame can generate
+   a new preview. Rust temporarily fits the complete table into a bounded
+   capture camera, reads pixels synchronously, then restores the interactive
+   camera and frame.
+4. The browser debounces changes, limits capture frequency, and keeps at most
+   24 generated object URLs. It flushes a dirty active preview before a table
+   switch.
+5. The browser encodes a canonical 640x360 WebP and uploads it. Upload failure
+   leaves the in-memory preview usable for the current session.
+
+Preview invalidation covers sprite transforms and CRUD, table/grid and layer
+settings, walls, paint, fog, and ambient lighting. Inactive tables are not
+loaded into WASM just to refresh a thumbnail; their last persisted image stays
+visible until that table becomes active.
+
 Feature code must not call the renderer's `handle_table_data` directly. The
 runtime port intentionally does not expose a complete-table hydration method.
 
@@ -161,6 +183,8 @@ Server-owned:
   grid toggles, and colors;
 - persisted walls, paint strokes, and layer settings for join-time sync;
 - each player's active table.
+- a deferred, bounded WebP preview for each table. Preview bytes are excluded
+  from normal table queries and hydration.
 
 Active-table reads and writes run outside the asyncio event-loop thread with a
 worker-owned ORM session. Layer settings are also persisted off-thread and are
@@ -202,6 +226,13 @@ Only the active hydrated table is visually ready. Switching tables drops the
 prior readiness record and unloads GPU textures not shared with the new table;
 late downloads for a superseded table are unloaded immediately.
 
+Table previews are DM-only because a renderer capture can contain hidden
+layers. `POST /game/api/sessions/{session_code}/tables/{table_id}/preview`
+accepts only a valid 640x360 WebP up to 512 KiB. The matching `GET` endpoint
+uses a private ETag response and returns 404 until a preview exists. Both
+endpoints require owner or co-DM membership and constrain the table to the
+authenticated session.
+
 The Canvas2D wall overlay is a view of the `obstacles` layer. It is DM-only,
 honors obstacle visibility and opacity, and clears its pixels when the layer is
 hidden. It does not define separate wall visibility state.
@@ -211,6 +242,8 @@ hidden. It does not define separate wall visibility state.
 - `apps/server/tests/unit/test_tables_protocol.py`
 - `apps/server/tests/unit/test_canvas_persistence_service.py`
 - `apps/server/tests/unit/test_game_session_protocol.py`
+- `apps/server/tests/integration/test_table_previews.py`
+- `apps/server/tests/integration/test_alembic_baseline.py`
 - `apps/web-ui/src/lib/websocket/__tests__/clientProtocol.test.ts`
 - `apps/web-ui/src/features/table/**/__tests__/`
 - `apps/web-ui/src/features/canvas/components/**/__tests__/`
@@ -221,6 +254,8 @@ hidden. It does not define separate wall visibility state.
 - `packages/rust-core/tests/wasm_browser.rs`
 - `packages/rust-core/tests/wasm_node.rs`
 - `apps/web-ui/src/lib/wasm/__tests__/wasmCore.wasm-test.ts`
+- `apps/web-ui/src/lib/wasm/runtime/__tests__/WasmRuntime.test.ts`
+- `apps/web-ui/src/features/table/services/__tests__/tableThumbnail.service.test.ts`
 
 Use server protocol tests for authority and persistence changes. Use Vitest for
 React store, protocol, and panel behavior. Use Rust/WASM tests when the render

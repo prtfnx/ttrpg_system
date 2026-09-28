@@ -5,7 +5,7 @@ Audience: contributors changing persistence, migrations, or server state.
 Status: partial. This page describes the current model families and migration
 flow. It is not a complete column-by-column schema.
 
-Last source audit: 2026-09-10
+Last source audit: 2026-09-26
 
 ## Source of truth
 
@@ -76,7 +76,7 @@ the runtime application.
 | `application_writer_state` | `ApplicationWriterState` | singleton owner token and generation fencing process writes |
 | `game_sessions` | `GameSession` | session metadata, owner, session code, ban list, rules JSON, game mode |
 | `game_players` | `GamePlayer` | user membership in a session, role, connection state, active table |
-| `virtual_tables` | `VirtualTable` | persisted table state, dimensions, position, layers, lighting, grid, terrain, cover |
+| `virtual_tables` | `VirtualTable` | persisted table state, dimensions, position, layers, lighting, grid, terrain, cover, deferred DM preview |
 | `entities` | `Entity` | table sprites/tokens, ownership, character link, transform, vision, token stats |
 | `assets` | `Asset` | uploaded asset metadata and R2 object references |
 | `session_assets` | `SessionAsset` | session visibility and display names for global R2 assets |
@@ -166,10 +166,13 @@ apps/server/database/alembic/versions/
 ```
 
 The PostgreSQL baseline is `0001_postgresql_baseline`; incremental revisions
-through the current `0008_application_writer` head add later behavior.
+through the current `0009_table_previews` head add later behavior.
 `0007_demo_guest_expiry` adds guest expiry and revokes the legacy demo host;
 `0008_application_writer` seeds the owner record and installs PostgreSQL
-statement triggers. There are 30 application model tables, plus Alembic's revision ledger.
+statement triggers. `0009_table_previews` adds `preview_image`, `preview_etag`,
+and `preview_updated_at` to `virtual_tables`. The image column is deferred by
+the ORM so ordinary table reads do not load preview bytes. There are 30
+application model tables, plus Alembic's revision ledger.
 Alembic records the deployed revision in `alembic_version`. The old numbered
 SQLite runner and ledger were retired; they are not an upgrade path for
 existing SQLite files.

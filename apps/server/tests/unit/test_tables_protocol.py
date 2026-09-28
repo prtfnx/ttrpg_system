@@ -7,7 +7,7 @@ correct response message types. DB and WASM side-effects are mocked.
 import asyncio
 import time
 from types import SimpleNamespace
-from unittest.mock import AsyncMock, MagicMock
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 from core_table.protocol import Message, MessageType
@@ -182,6 +182,47 @@ class TestTableListRequest:
         assert resp.type == MessageType.TABLE_LIST_RESPONSE
         assert len(resp.data["tables"]) == 2
         assert resp.data["count"] == 2
+
+    async def test_dm_list_includes_preview_metadata_without_image_bytes(self):
+        proto = _ProtoStub(role="owner")
+        tables = {
+            "t1": {"table_id": "t1", "table_name": "Map 1"},
+            "t2": {"table_id": "t2", "table_name": "Map 2"},
+        }
+        proto.actions.get_all_tables = AsyncMock(return_value=_ok_result(tables=tables))
+        metadata = {
+            "t1": {
+                "has_preview": True,
+                "preview_etag": "abc123",
+                "preview_updated_at": "2026-09-28T10:00:00",
+            },
+        }
+
+        with patch(
+            "service.protocol.tables.run_blocking",
+            new=AsyncMock(return_value=metadata),
+        ) as load:
+            resp = await proto.handle_table_list_request(
+                Message(MessageType.TABLE_LIST_REQUEST, {}), "c1"
+            )
+
+        load.assert_awaited_once()
+        assert resp.data["tables"]["t1"]["preview_etag"] == "abc123"
+        assert resp.data["tables"]["t1"]["has_preview"] is True
+        assert resp.data["tables"]["t2"]["has_preview"] is False
+
+    async def test_player_list_does_not_load_dm_preview_metadata(self):
+        proto = _ProtoStub(role="player")
+        tables = [{"table_id": "t1", "table_name": "Map 1"}]
+        proto.actions.get_all_tables = AsyncMock(return_value=_ok_result(tables=tables))
+
+        with patch("service.protocol.tables.run_blocking", new=AsyncMock()) as load:
+            resp = await proto.handle_table_list_request(
+                Message(MessageType.TABLE_LIST_REQUEST, {}), "c1"
+            )
+
+        load.assert_not_awaited()
+        assert "has_preview" not in resp.data["tables"][0]
 
     async def test_empty_table_list_is_valid(self):
         proto = _ProtoStub()

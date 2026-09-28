@@ -1,6 +1,7 @@
 import { useGameStore } from '@/store';
 import { isDM } from '@features/session/types/roles';
 import { useProtocol } from '@lib/api';
+import { invalidateTablePreview } from '@lib/wasm/invalidateTablePreview';
 import { createMessage, MessageType } from '@lib/websocket';
 import { logger } from '@shared/utils/logger';
 import clsx from 'clsx';
@@ -180,6 +181,7 @@ export function LayerPanel({ className, style, id, initialLayers, ...otherProps 
     if (renderEngine) {
       try {
         renderEngine.set_layer_visibility(layerId, newVisibility);
+        invalidateTablePreview(activeTableId);
         logger.debug('LayerPanel synced layer visibility to WASM', { layerId, visible: newVisibility });
       } catch (error) {
         logger.error('LayerPanel failed to sync layer visibility to WASM', error);
@@ -210,6 +212,7 @@ export function LayerPanel({ className, style, id, initialLayers, ...otherProps 
     if (renderEngine) {
       try {
         renderEngine.set_layer_opacity(layerId, opacity);
+        invalidateTablePreview(activeTableId);
         logger.debug('LayerPanel synced layer opacity to WASM', { layerId, opacity });
       } catch (error) {
         logger.error('LayerPanel failed to sync layer opacity to WASM', error);

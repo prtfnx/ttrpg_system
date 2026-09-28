@@ -183,6 +183,8 @@ describe('LightingPanel', () => {
     });
 
     it('calls protocol.createSprite when lightPlaced event fires', () => {
+      const invalidated = vi.fn();
+      window.addEventListener('table-preview-invalidated', invalidated, { once: true });
       render(<LightingPanel />);
       fireEvent.click(screen.getByRole('button', { name: /torch/i }));
       window.dispatchEvent(new CustomEvent('lightPlaced', {
@@ -196,6 +198,7 @@ describe('LightingPanel', () => {
       expect(arg.layer).toBe('light');
       expect(arg.texture_path).toBe('__LIGHT__');
       expect(arg.x).toBe(300);
+      expect(invalidated).toHaveBeenCalledOnce();
     });
   });
 

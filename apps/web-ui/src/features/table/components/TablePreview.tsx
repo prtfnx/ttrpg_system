@@ -64,7 +64,10 @@ export const TablePreview: React.FC<TablePreviewProps> = ({ table, priority = fa
   }, [activeTableId, table.table_id, wasmStatus.frameTableId, wasmStatus.hydratedTableId]);
 
   const snapshot = tableThumbnailService.getSnapshot(table.table_id);
-  const persisted = tableThumbnailService.persistedSource(table.table_id);
+  const persisted = tableThumbnailService.persistedSource(
+    table.table_id,
+    table.has_preview ? (table.preview_etag ?? '') : null,
+  );
   const source = nearViewport ? (snapshot.source ?? persisted) : null;
   const visibleSource = source !== failedSource ? source : null;
 

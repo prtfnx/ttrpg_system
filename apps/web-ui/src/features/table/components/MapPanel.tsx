@@ -1,5 +1,6 @@
 import { useRenderEngine } from '@features/canvas';
 import { ProtocolService } from '@lib/api';
+import { invalidateTablePreview } from '@lib/wasm/invalidateTablePreview';
 import clsx from 'clsx';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { useGameStore } from '../../../store';
@@ -80,7 +81,8 @@ export const MapPanel: React.FC<MapPanelProps> = ({ className, style, id, ...res
     engine.set_grid_snapping(g.snapToGrid);
     engine.set_grid_size(g.size);
     engine.set_background_color(s.backgroundColor);
-  }, [engine]);
+    invalidateTablePreview(activeTableId);
+  }, [activeTableId, engine]);
 
   const sendToServer = useCallback((s: MapSettings) => {
     if (!activeTableId || !ProtocolService.hasProtocol()) return;

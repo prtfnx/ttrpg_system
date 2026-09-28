@@ -14,6 +14,10 @@ function normalizedTableName(serverTable: Record<string, unknown>): string {
   return 'Unknown Table';
 }
 
+function optionalString(value: unknown): string | null | undefined {
+  return value === null || typeof value === 'string' ? value : undefined;
+}
+
 export function isValidUUID(value: string): boolean {
   return UUID_REGEX.test(value);
 }
@@ -30,12 +34,18 @@ export function transformServerTableToClient(serverTable: Record<string, unknown
     throw new Error(`Server table missing valid UUID: ${JSON.stringify(serverTable)}`);
   }
   
-  return {
+  const table: TableInfo = {
     table_id: String(uuid),
     table_name: normalizedTableName(serverTable),
     width: normalizedDimension(serverTable.width),
     height: normalizedDimension(serverTable.height),
   };
+  if (typeof serverTable.has_preview === 'boolean') table.has_preview = serverTable.has_preview;
+  const previewEtag = optionalString(serverTable.preview_etag);
+  const previewUpdatedAt = optionalString(serverTable.preview_updated_at);
+  if (previewEtag !== undefined) table.preview_etag = previewEtag;
+  if (previewUpdatedAt !== undefined) table.preview_updated_at = previewUpdatedAt;
+  return table;
 }
 
 export function transformServerTablesToClient(serverTables: unknown[]): TableInfo[] {

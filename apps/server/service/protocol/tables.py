@@ -4,7 +4,11 @@ from typing import Any
 
 from core_table.async_actions_protocol import Position
 from core_table.protocol import Message, MessageType
-from service.canvas_persistence_service import load_table_hydration, persist_table_settings
+from service.canvas_persistence_service import (
+    load_table_hydration,
+    load_table_preview_metadata,
+    persist_table_settings,
+)
 from utils.blocking import run_blocking
 from utils.logger import setup_logger
 from utils.roles import get_visible_layers, is_dm
@@ -72,6 +76,26 @@ class _TablesMixin(_ProtocolBase):
             result = await self.actions.get_all_tables()
             if result.success:
                 tables = result.data.get('tables', []) if result.data else []
+                if is_dm(self._get_client_role(client_id)):
+                    session_code = self._get_session_code()
+                    if session_code:
+                        try:
+                            metadata = await run_blocking(
+                                load_table_preview_metadata,
+                                session_code,
+                            )
+                            table_values = tables.values() if isinstance(tables, dict) else tables
+                            for table in table_values:
+                                if not isinstance(table, dict):
+                                    continue
+                                table_id = str(table.get('table_id') or table.get('id') or '')
+                                table.update(metadata.get(table_id, {
+                                    'has_preview': False,
+                                    'preview_etag': None,
+                                    'preview_updated_at': None,
+                                }))
+                        except Exception:
+                            logger.exception("Table preview metadata load failed")
                 return Message(MessageType.TABLE_LIST_RESPONSE, {
                     'tables': tables,
                     'count': len(tables)

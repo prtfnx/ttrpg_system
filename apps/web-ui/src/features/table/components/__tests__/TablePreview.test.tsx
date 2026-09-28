@@ -9,7 +9,7 @@ const thumbnailMocks = vi.hoisted(() => ({
   setActiveTable: vi.fn(),
   subscribe: vi.fn(() => vi.fn()),
   getSnapshot: vi.fn(() => ({ source: null, isGenerating: false, error: null, dirty: false })),
-  persistedSource: vi.fn((id: string) => `/preview/${id}`),
+  persistedSource: vi.fn((id: string, etag: string | null) => etag === null ? null : `/preview/${id}?v=${etag}`),
   ensurePreview: vi.fn(),
 }));
 
@@ -35,11 +35,29 @@ describe('TablePreview', () => {
 
   it('loads the persisted preview lazily when no memory preview exists', () => {
     const { container } = renderWithWasmRuntime(
+      <TablePreview table={{
+        table_id: TABLE_ID,
+        table_name: 'Cave',
+        width: 1000,
+        height: 800,
+        has_preview: true,
+        preview_etag: 'etag-1',
+      }} priority />,
+      createMockWasmRuntime(),
+    );
+
+    expect(container.querySelector('img')).toHaveAttribute('src', `/preview/${TABLE_ID}?v=etag-1`);
+    expect(thumbnailMocks.persistedSource).toHaveBeenCalledWith(TABLE_ID, 'etag-1');
+  });
+
+  it('does not request a missing persisted preview', () => {
+    const { container } = renderWithWasmRuntime(
       <TablePreview table={{ table_id: TABLE_ID, table_name: 'Cave', width: 1000, height: 800 }} priority />,
       createMockWasmRuntime(),
     );
 
-    expect(container.querySelector('img')).toHaveAttribute('src', `/preview/${TABLE_ID}`);
+    expect(container.querySelector('img')).not.toBeInTheDocument();
+    expect(thumbnailMocks.persistedSource).toHaveBeenCalledWith(TABLE_ID, null);
   });
 
   it('requests capture only after the active table has a committed frame', async () => {

@@ -90,6 +90,29 @@ def load_table_hydration(table_id: str) -> TableHydration:
     return TableHydration(walls, layer_settings, paint_strokes)
 
 
+def load_table_preview_metadata(session_code: str) -> dict[str, dict[str, Any]]:
+    """Load lightweight preview metadata without undefering image blobs."""
+    with SessionLocal() as db:
+        rows = (
+            db.query(
+                models.VirtualTable.table_id,
+                models.VirtualTable.preview_etag,
+                models.VirtualTable.preview_updated_at,
+            )
+            .join(models.GameSession, models.VirtualTable.session_id == models.GameSession.id)
+            .filter(models.GameSession.session_code == session_code)
+            .all()
+        )
+    return {
+        str(table_id): {
+            "has_preview": bool(preview_etag),
+            "preview_etag": preview_etag,
+            "preview_updated_at": preview_updated_at.isoformat() if preview_updated_at else None,
+        }
+        for table_id, preview_etag, preview_updated_at in rows
+    }
+
+
 def persist_table_settings(table_id: str, settings: dict[str, Any]) -> bool:
     """Persist validated table settings using a worker-owned session."""
     with SessionLocal() as db:

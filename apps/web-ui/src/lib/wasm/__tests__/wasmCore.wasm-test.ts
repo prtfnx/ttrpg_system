@@ -232,6 +232,51 @@ describe('WASM module (real browser)', () => {
     }
   });
 
+  it('captures a nonblank fitted thumbnail of the complete table', () => {
+    const canvas = document.createElement('canvas');
+    canvas.width = 320;
+    canvas.height = 180;
+    const engine = new RenderEngine(canvas);
+    const tableId = '550e8400-e29b-41d4-a716-446655440014';
+    try {
+      const snapshot = normalizeTableSnapshot({ table_data: {
+        table_id: tableId,
+        table_name: 'Wide thumbnail fixture',
+        width: 400,
+        height: 100,
+        scale: 1,
+        grid_enabled: false,
+        background_color_hex: '#204060',
+        layers: {},
+      } });
+      engine.handle_table_data(snapshot.renderer);
+      engine.set_grid_enabled(false);
+      engine.set_background_color('#204060');
+      engine.set_camera(300, 0, 3);
+      engine.render();
+
+      const pixels = engine.capture_active_table_thumbnail(tableId, 320, 180);
+      expect(pixels).toHaveLength(320 * 180 * 4);
+
+      const pixelAt = (x: number, y: number) => {
+        const offset = (y * 320 + x) * 4;
+        return [...pixels.slice(offset, offset + 4)];
+      };
+      const center = pixelAt(160, 90);
+      const leftInside = pixelAt(14, 90);
+      const topLetterbox = pixelAt(160, 10);
+      expect(center.slice(0, 3)).toEqual([32, 64, 96]);
+      expect(leftInside.slice(0, 3)).toEqual([32, 64, 96]);
+      expect(brightness(center)).toBeGreaterThan(brightness(topLetterbox) + 100);
+
+      // Capture restores the interactive camera and submits its frame again.
+      expect(readPixel(canvas, 10, 90).slice(0, 3)).toEqual([32, 64, 96]);
+      expect(readPixel(canvas, 319, 90).slice(0, 3)).not.toEqual([32, 64, 96]);
+    } finally {
+      engine.free();
+    }
+  });
+
   it('reports renderer-owned counters for a real submitted frame', () => {
     const canvas = document.createElement('canvas');
     canvas.width = 240;

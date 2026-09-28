@@ -2,6 +2,7 @@ import { useGameStore } from '@/store';
 import type { Color, Sprite } from '@/types';
 import { useRenderEngine } from '@features/canvas';
 import { useProtocol } from '@lib/api';
+import { invalidateTablePreview } from '@lib/wasm/invalidateTablePreview';
 import {
     Flame,
     Lightbulb,
@@ -152,6 +153,7 @@ export const LightingPanel: React.FC = () => {
 
       if (preset.isMoving && preset.existingLightId) {
         try { engine.update_light_position(preset.existingLightId, x, y); } catch {}
+        invalidateTablePreview(activeTableId);
         protocol?.moveSprite(preset.existingLightId, x, y);
         setPlacementMode(null);
         return;
@@ -173,6 +175,7 @@ export const LightingPanel: React.FC = () => {
         engine.set_light_intensity(lightId, newLight.intensity);
         engine.set_light_radius(lightId, newLight.radius);
       } catch {}
+      invalidateTablePreview(activeTableId);
 
       // Add to Zustand immediately so the panel reflects the optimistic entity.
       // Snapshot/event services remain the sole reconcilers for server-owned lights.
@@ -197,6 +200,7 @@ export const LightingPanel: React.FC = () => {
   const removeLight = (lightId: string) => {
     if (!engine) return;
     try { engine.remove_light(lightId); } catch {}
+    invalidateTablePreview(activeTableId);
     if (selectedLightId === lightId) setSelectedLightId(null);
     // Optimistically remove from store so the panel updates immediately
     useGameStore.getState().removeSprite(lightId);
@@ -217,6 +221,7 @@ export const LightingPanel: React.FC = () => {
         case 'x': case 'y': engine.update_light_position(lightId, property === 'x' ? value as number : light.x, property === 'y' ? value as number : light.y); break;
       }
     } catch {}
+    invalidateTablePreview(activeTableId);
 
     const updated = { ...light, [property]: value };
     const spriteData = lightToSprite(updated, activeTableId);
@@ -241,6 +246,7 @@ export const LightingPanel: React.FC = () => {
     for (const l of lights) {
       if (l.isOn === allOn) try { engine.set_light_enabled(l.id, !allOn); } catch {}
     }
+    invalidateTablePreview(activeTableId);
     for (const l of lights) {
       const updated = { ...l, isOn: !allOn };
       protocol?.updateSprite(l.id, lightToSprite(updated, activeTableId));
@@ -255,6 +261,7 @@ export const LightingPanel: React.FC = () => {
       protocol?.removeSprite(l.id);
       useGameStore.getState().removeSprite(l.id);
     }
+    invalidateTablePreview(activeTableId);
     setSelectedLightId(null);
   };
 

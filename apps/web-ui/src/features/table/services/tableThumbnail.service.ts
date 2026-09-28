@@ -65,10 +65,10 @@ class TableThumbnailService {
     if (tableId) this.touch(tableId);
   }
 
-  persistedSource(tableId: string): string | null {
-    return this.sessionId
-      ? `/game/api/sessions/${encodeURIComponent(this.sessionId)}/tables/${encodeURIComponent(tableId)}/preview`
-      : null;
+  persistedSource(tableId: string, previewEtag: string | null): string | null {
+    if (!this.sessionId || previewEtag === null) return null;
+    const endpoint = this.previewEndpoint(tableId);
+    return previewEtag ? `${endpoint}?v=${encodeURIComponent(previewEtag)}` : endpoint;
   }
 
   getSnapshot(tableId: string): TablePreviewSnapshot {
@@ -232,7 +232,7 @@ class TableThumbnailService {
     const body = new FormData();
     body.append('preview', blob, 'preview.webp');
     try {
-      const response = await fetch(this.persistedSource(tableId)!, {
+      const response = await fetch(this.previewEndpoint(tableId), {
         method: 'POST',
         body,
         credentials: 'same-origin',
@@ -241,6 +241,10 @@ class TableThumbnailService {
     } catch (error) {
       logger.warn('[ThumbnailService] Preview remains memory-only after upload failure', error);
     }
+  }
+
+  private previewEndpoint(tableId: string): string {
+    return `/game/api/sessions/${encodeURIComponent(this.sessionId!)}/tables/${encodeURIComponent(tableId)}/preview`;
   }
 
   private prune(): void {

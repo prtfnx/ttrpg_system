@@ -60,6 +60,9 @@ export interface TableInfo {
   created_at?: string;
   updated_at?: string;
   entity_count?: number;
+  has_preview?: boolean;
+  preview_etag?: string | null;
+  preview_updated_at?: string | null;
   // Sync state tracking (best practice: local-first architecture)
   syncStatus?: 'local' | 'syncing' | 'synced' | 'error';
   lastSyncTime?: number;

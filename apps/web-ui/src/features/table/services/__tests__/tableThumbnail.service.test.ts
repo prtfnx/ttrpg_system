@@ -101,4 +101,11 @@ describe('TableThumbnailService', () => {
 
     expect(tableThumbnailService.getSnapshot(TABLE_ID).dirty).toBe(true);
   });
+
+  it('builds persisted URLs only for known previews and keys them by ETag', () => {
+    expect(tableThumbnailService.persistedSource(TABLE_ID, null)).toBeNull();
+    expect(tableThumbnailService.persistedSource(TABLE_ID, 'etag value')).toBe(
+      `/game/api/sessions/SESSION1/tables/${TABLE_ID}/preview?v=etag%20value`,
+    );
+  });
 });

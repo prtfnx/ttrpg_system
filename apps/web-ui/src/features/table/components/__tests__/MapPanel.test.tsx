@@ -75,12 +75,16 @@ describe('MapPanel — render', () => {
 
 describe('MapPanel — grid toggle', () => {
   it('toggling Enable Grid checkbox calls engine.set_grid_enabled', async () => {
+    const invalidated = vi.fn();
+    window.addEventListener('table-preview-invalidated', invalidated, { once: true });
     const user = userEvent.setup();
     render(<MapPanel />);
     const checkboxes = screen.getAllByRole('checkbox');
     const enableGrid = checkboxes.find(c => c.closest('label')?.textContent?.includes('Enable Grid'))!;
     await user.click(enableGrid);
     expect(mockEngine.set_grid_enabled).toHaveBeenCalledWith(false);
+    expect(invalidated).toHaveBeenCalledOnce();
+    expect((invalidated.mock.calls[0][0] as CustomEvent).detail).toEqual({ table_id: 'table-1' });
   });
 
   it('checking Snap to Grid calls engine.set_grid_snapping', async () => {

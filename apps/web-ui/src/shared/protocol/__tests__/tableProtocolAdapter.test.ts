@@ -201,4 +201,22 @@ describe('transformServerTableToClient', () => {
 
     expect(Object.keys(result).sort()).toEqual(['height', 'table_id', 'table_name', 'width'].sort());
   });
+
+  it('preserves lightweight preview metadata', () => {
+    const result = transformServerTableToClient({
+      table_id: '550e8400-e29b-41d4-a716-446655440000',
+      table_name: 'Previewed',
+      width: 2000,
+      height: 1500,
+      has_preview: true,
+      preview_etag: 'etag-1',
+      preview_updated_at: '2026-09-28T10:00:00',
+    });
+
+    expect(result).toMatchObject({
+      has_preview: true,
+      preview_etag: 'etag-1',
+      preview_updated_at: '2026-09-28T10:00:00',
+    });
+  });
 });

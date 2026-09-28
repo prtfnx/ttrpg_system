@@ -7,7 +7,7 @@ Status: current but partial. Paint strokes, completed measurement geometry,
 and paint templates are server-authoritative multiplayer state. Advanced
 measurement-template placement is not available in the UI.
 
-Last source audit: 2026-08-17
+Last source audit: 2026-09-28
 
 ## Ownership
 
@@ -46,6 +46,14 @@ cross into the worker, while authorization and WebSocket delivery remain on
 the event-loop thread.
 
 ## Paint flow
+
+`packages/core-table/protocol/paint_object.schema.json` defines the version-one
+payload contract for the replacement object model. It covers freehand paths,
+lines, rectangles, squares, ellipses, and circles; separates client-editable
+fields from server-owned identity metadata; and publishes the transport and
+table resource budgets. The generator packages the schema with `core_table`.
+This contract is a foundation only: the active runtime still uses the legacy
+stroke flow described below until object handlers and clients are connected.
 
 The WASM paint system owns active drawing and rendering. A completed stroke is
 sent with its stable id. The server requires the serialized stroke id to match,

@@ -1,0 +1,472 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://ttrpg-system.local/protocol/paint_object.schema.json",
+  "title": "TTRPG paint object v1",
+  "description": "Canonical schemas and resource limits for editable and authoritative paint objects.",
+  "oneOf": [
+    {
+      "$ref": "#/$defs/paintObjectInput"
+    },
+    {
+      "$ref": "#/$defs/paintObject"
+    }
+  ],
+  "x-limits": {
+    "maxSerializedBytes": 61440,
+    "maxObjectsPerTable": 2000,
+    "maxPointsPerTable": 100000
+  },
+  "$defs": {
+    "coordinate": {
+      "type": "number",
+      "minimum": -1000000,
+      "maximum": 1000000
+    },
+    "dimension": {
+      "type": "number",
+      "exclusiveMinimum": 0,
+      "maximum": 2000000
+    },
+    "rgba": {
+      "type": "array",
+      "prefixItems": [
+        {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+        },
+        {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+        },
+        {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+        },
+        {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+        }
+      ],
+      "minItems": 4,
+      "maxItems": 4
+    },
+    "point": {
+      "type": "object",
+      "required": [
+        "x",
+        "y",
+        "pressure"
+      ],
+      "properties": {
+        "x": {
+          "$ref": "#/$defs/coordinate"
+        },
+        "y": {
+          "$ref": "#/$defs/coordinate"
+        },
+        "pressure": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+        }
+      },
+      "additionalProperties": false
+    },
+    "freehandGeometry": {
+      "type": "object",
+      "required": [
+        "kind",
+        "points"
+      ],
+      "properties": {
+        "kind": {
+          "const": "freehand"
+        },
+        "points": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/point"
+          },
+          "minItems": 1,
+          "maxItems": 8192
+        }
+      },
+      "additionalProperties": false
+    },
+    "lineGeometry": {
+      "type": "object",
+      "required": [
+        "kind",
+        "start",
+        "end"
+      ],
+      "properties": {
+        "kind": {
+          "const": "line"
+        },
+        "start": {
+          "$ref": "#/$defs/point"
+        },
+        "end": {
+          "$ref": "#/$defs/point"
+        }
+      },
+      "additionalProperties": false
+    },
+    "rectangleGeometry": {
+      "type": "object",
+      "required": [
+        "kind",
+        "width",
+        "height"
+      ],
+      "properties": {
+        "kind": {
+          "const": "rectangle"
+        },
+        "width": {
+          "$ref": "#/$defs/dimension"
+        },
+        "height": {
+          "$ref": "#/$defs/dimension"
+        }
+      },
+      "additionalProperties": false
+    },
+    "squareGeometry": {
+      "type": "object",
+      "required": [
+        "kind",
+        "size"
+      ],
+      "properties": {
+        "kind": {
+          "const": "square"
+        },
+        "size": {
+          "$ref": "#/$defs/dimension"
+        }
+      },
+      "additionalProperties": false
+    },
+    "ellipseGeometry": {
+      "type": "object",
+      "required": [
+        "kind",
+        "width",
+        "height"
+      ],
+      "properties": {
+        "kind": {
+          "const": "ellipse"
+        },
+        "width": {
+          "$ref": "#/$defs/dimension"
+        },
+        "height": {
+          "$ref": "#/$defs/dimension"
+        }
+      },
+      "additionalProperties": false
+    },
+    "circleGeometry": {
+      "type": "object",
+      "required": [
+        "kind",
+        "diameter"
+      ],
+      "properties": {
+        "kind": {
+          "const": "circle"
+        },
+        "diameter": {
+          "$ref": "#/$defs/dimension"
+        }
+      },
+      "additionalProperties": false
+    },
+    "geometry": {
+      "oneOf": [
+        {
+          "$ref": "#/$defs/freehandGeometry"
+        },
+        {
+          "$ref": "#/$defs/lineGeometry"
+        },
+        {
+          "$ref": "#/$defs/rectangleGeometry"
+        },
+        {
+          "$ref": "#/$defs/squareGeometry"
+        },
+        {
+          "$ref": "#/$defs/ellipseGeometry"
+        },
+        {
+          "$ref": "#/$defs/circleGeometry"
+        }
+      ]
+    },
+    "transform": {
+      "type": "object",
+      "required": [
+        "x",
+        "y",
+        "scale_x",
+        "scale_y"
+      ],
+      "properties": {
+        "x": {
+          "$ref": "#/$defs/coordinate"
+        },
+        "y": {
+          "$ref": "#/$defs/coordinate"
+        },
+        "scale_x": {
+          "type": "number",
+          "exclusiveMinimum": 0,
+          "maximum": 1000
+        },
+        "scale_y": {
+          "type": "number",
+          "exclusiveMinimum": 0,
+          "maximum": 1000
+        }
+      },
+      "additionalProperties": false
+    },
+    "style": {
+      "type": "object",
+      "required": [
+        "stroke_rgba",
+        "width",
+        "fill_rgba"
+      ],
+      "properties": {
+        "stroke_rgba": {
+          "$ref": "#/$defs/rgba"
+        },
+        "width": {
+          "type": "number",
+          "minimum": 0.125,
+          "maximum": 512
+        },
+        "fill_rgba": {
+          "oneOf": [
+            {
+              "$ref": "#/$defs/rgba"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "additionalProperties": false
+    },
+    "paintEditableBase": {
+      "type": "object",
+      "required": [
+        "id",
+        "kind",
+        "geometry",
+        "transform",
+        "style"
+      ],
+      "properties": {
+        "id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "kind": {
+          "enum": [
+            "freehand",
+            "line",
+            "rectangle",
+            "square",
+            "ellipse",
+            "circle"
+          ]
+        },
+        "geometry": {
+          "$ref": "#/$defs/geometry"
+        },
+        "transform": {
+          "$ref": "#/$defs/transform"
+        },
+        "style": {
+          "$ref": "#/$defs/style"
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "kind": {
+                "const": "freehand"
+              }
+            },
+            "required": [
+              "kind"
+            ]
+          },
+          "then": {
+            "properties": {
+              "geometry": {
+                "$ref": "#/$defs/freehandGeometry"
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "kind": {
+                "const": "line"
+              }
+            },
+            "required": [
+              "kind"
+            ]
+          },
+          "then": {
+            "properties": {
+              "geometry": {
+                "$ref": "#/$defs/lineGeometry"
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "kind": {
+                "const": "rectangle"
+              }
+            },
+            "required": [
+              "kind"
+            ]
+          },
+          "then": {
+            "properties": {
+              "geometry": {
+                "$ref": "#/$defs/rectangleGeometry"
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "kind": {
+                "const": "square"
+              }
+            },
+            "required": [
+              "kind"
+            ]
+          },
+          "then": {
+            "properties": {
+              "geometry": {
+                "$ref": "#/$defs/squareGeometry"
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "kind": {
+                "const": "ellipse"
+              }
+            },
+            "required": [
+              "kind"
+            ]
+          },
+          "then": {
+            "properties": {
+              "geometry": {
+                "$ref": "#/$defs/ellipseGeometry"
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "kind": {
+                "const": "circle"
+              }
+            },
+            "required": [
+              "kind"
+            ]
+          },
+          "then": {
+            "properties": {
+              "geometry": {
+                "$ref": "#/$defs/circleGeometry"
+              }
+            }
+          }
+        }
+      ]
+    },
+    "paintObjectInput": {
+      "$ref": "#/$defs/paintEditableBase",
+      "unevaluatedProperties": false
+    },
+    "paintObject": {
+      "allOf": [
+        {
+          "$ref": "#/$defs/paintEditableBase"
+        },
+        {
+          "type": "object",
+          "required": [
+            "table_id",
+            "created_by",
+            "version",
+            "z_order",
+            "created_at",
+            "updated_at"
+          ],
+          "properties": {
+            "table_id": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "created_by": {
+              "type": "integer",
+              "minimum": 1
+            },
+            "version": {
+              "type": "integer",
+              "minimum": 1
+            },
+            "z_order": {
+              "type": "integer",
+              "minimum": 1
+            },
+            "created_at": {
+              "type": "string",
+              "format": "date-time"
+            },
+            "updated_at": {
+              "type": "string",
+              "format": "date-time"
+            }
+          }
+        }
+      ],
+      "unevaluatedProperties": false
+    }
+  }
+}

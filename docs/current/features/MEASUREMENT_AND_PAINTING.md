@@ -52,6 +52,9 @@ payload contract for the replacement object model. It covers freehand paths,
 lines, rectangles, squares, ellipses, and circles; separates client-editable
 fields from server-owned identity metadata; and publishes the transport and
 table resource budgets. The generator packages the schema with `core_table`.
+`core_table.paint` applies the schema, rejects non-finite JSON values and
+oversized serialized payloads, preserves square/circle aspect ratios, and can
+enforce aggregate table object and point budgets at server boundaries.
 This contract is a foundation only: the active runtime still uses the legacy
 stroke flow described below until object handlers and clients are connected.
 

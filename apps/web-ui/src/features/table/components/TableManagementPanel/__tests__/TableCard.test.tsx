@@ -1,5 +1,5 @@
 import { useGameStore } from '@/store';
-import { render, screen } from '@testing-library/react';
+import { act, render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { TableCard } from '../TableCard';
@@ -53,10 +53,22 @@ describe('TableCard', () => {
     render(<TableCard {...defaultProps} onOpen={onOpen} />);
 
     const preview = screen.getByRole('button', { name: 'Open Main table' });
-    preview.focus();
+    act(() => preview.focus());
     await user.keyboard('{Enter}');
 
     expect(onOpen).toHaveBeenCalledWith('t1');
+  });
+
+  it('shows a larger preview on hover and closes it on leave', async () => {
+    const user = userEvent.setup();
+    render(<TableCard {...defaultProps} />);
+    const preview = screen.getByRole('button', { name: 'Open Main table' });
+
+    await user.hover(preview);
+    expect(screen.getByRole('tooltip')).toBeInTheDocument();
+
+    await user.unhover(preview);
+    expect(screen.queryByRole('tooltip')).not.toBeInTheDocument();
   });
 
   it('calls onSettings when settings button is clicked', async () => {

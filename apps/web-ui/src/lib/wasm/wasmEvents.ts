@@ -37,6 +37,7 @@ export type WasmEventMap = {
   'new-table-response': TableData;
   'table-updated': { table_id: string; changes: Partial<TableData> };
   'table-sprites-loaded': { table_id: string; count: number };
+  'table-preview-invalidated': { table_id: string };
 
   // Sprite CRUD (from server protocol → WASM)
   'sprite-created': SpriteData;

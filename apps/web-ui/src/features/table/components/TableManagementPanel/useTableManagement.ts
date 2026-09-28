@@ -153,11 +153,14 @@ export const useTableManagement = () => {
     }
   };
 
-  const handleTableSelect = (tableId: string) => {
+  const handleTableSelect = async (tableId: string) => {
+    if (activeTableId && activeTableId !== tableId) {
+      await tableThumbnailService.captureBeforeSwitch(activeTableId);
+    }
     switchToTable(tableId);
   };
 
-  const handleDiagnoseThumbnails = async () => {
+  const handleDiagnoseThumbnails = () => {
     const wasmReady = wasmStatus.isModuleReady && wasmStatus.isCanvasAttached;
     const mainCanvas = document.querySelector('[data-testid="game-canvas"]') as HTMLCanvasElement;
     logger.debug('Thumbnail diagnostic: WASM status', wasmReady ? 'Initialized' : 'Not initialized');
@@ -167,14 +170,8 @@ export const useTableManagement = () => {
       inDOM: mainCanvas.parentElement ? 'In DOM': 'Not in DOM'
     } : 'Not Found');
     
-    const renderEngine = runtime.getRenderEngine();
-    logger.debug('Thumbnail diagnostic: active table', tables[0]?.table_name || 'None');
-    logger.debug('Thumbnail diagnostic: render engine', renderEngine ? 'Available' : 'Not available');
-    if (renderEngine) {
-      tableThumbnailService.initialize(renderEngine, {
-        isRuntimeReady: () => runtime.status.isModuleReady && runtime.status.isCanvasAttached,
-      });
-    }
+    logger.debug('Thumbnail diagnostic: active table', activeTableId || 'None');
+    logger.debug('Thumbnail diagnostic: runtime', runtime.status);
     
     if (mainCanvas) {
       const ctx = mainCanvas.getContext('2d');
@@ -189,33 +186,9 @@ export const useTableManagement = () => {
       }
     }
     
-    if (activeTableId) {
-      const table = tables.find(t => t.table_id === activeTableId);
-      if (table) {
-        logger.debug('Thumbnail diagnostic: regenerating active table thumbnail', table.table_name);
-        try {
-          const imageData = await tableThumbnailService.generateThumbnail(
-            table.table_id,
-            table.width,
-            table.height,
-            160,
-            120,
-            true
-          );
-          logger.debug('Thumbnail diagnostic: regeneration result', imageData ? `Generated ${imageData.width}x${imageData.height}` : 'Returned null');
-        } catch (error) {
-          logger.error('Thumbnail diagnostic failed:', error);
-        }
-      }
-    }
-    
-    const cacheStats = tableThumbnailService.getCacheStats();
-    logger.debug('Thumbnail diagnostic: cache statistics', {
-      totalCached: cacheStats.size,
-      tablesWithCache: cacheStats.tables
-    });
-    
-    alert(`Thumbnail Diagnostic Complete\n\nCheck browser console (F12) for detailed report.\n\nQuick Summary:\n- WASM: ${wasmReady ? '': ''}\n- Canvas: ${mainCanvas ? '': ''}\n- Active Table: ${activeTableId ? '': ''}\n- Cached: ${cacheStats.size} thumbnails`);
+    if (activeTableId) tableThumbnailService.markDirty(activeTableId);
+
+    alert(`Thumbnail Diagnostic Complete\n\nCheck browser console (F12) for detailed report.\n\nQuick Summary:\n- WASM: ${wasmReady ? 'ready' : 'not ready'}\n- Canvas: ${mainCanvas ? 'attached' : 'missing'}\n- Active preview: ${activeTableId ? 'refresh requested' : 'not available'}`);
   };
 
   const handleOpenSettings = (tableId: string) => {
@@ -236,6 +209,7 @@ export const useTableManagement = () => {
 
   const handleSaveSettings = () => {
     if (!settingsTableId) return;
+    tableThumbnailService.markDirty(settingsTableId);
     
     emitProtocolEvent('protocol-send-message', {
       type: 'table_update_request',

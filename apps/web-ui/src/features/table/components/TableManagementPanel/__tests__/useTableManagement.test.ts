@@ -8,6 +8,8 @@ vi.mock('@features/table/services/tableThumbnail.service', () => ({
     getRenderEngine: vi.fn().mockReturnValue(null),
     generateThumbnail: vi.fn().mockResolvedValue(null),
     getCacheStats: vi.fn().mockReturnValue({ size: 0, tables: [] }),
+    captureBeforeSwitch: vi.fn().mockResolvedValue(undefined),
+    markDirty: vi.fn(),
   },
 }));
 
@@ -126,9 +128,9 @@ describe('handleDeleteTable / confirmDeleteTable', () => {
 });
 
 describe('handleTableSelect', () => {
-  it('calls switchToTable with given id', () => {
+  it('calls switchToTable with given id', async () => {
     const { result } = renderHook(() => useTableManagement());
-    act(() => result.current.handleTableSelect('t3'));
+    await act(async () => result.current.handleTableSelect('t3'));
     expect(mockStore.switchToTable).toHaveBeenCalledWith('t3');
   });
 });

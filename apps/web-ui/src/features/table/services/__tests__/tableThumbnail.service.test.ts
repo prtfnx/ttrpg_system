@@ -1,571 +1,104 @@
-/**
- * TableThumbnailService Integration Tests
- * Production-ready tests for table thumbnail generation and caching
- */
-
-import { tableThumbnailService } from '@features/table';
-import type { RenderEngine } from '@lib/wasm/runtime';
+import type { WasmRuntimePort } from '@lib/wasm/runtime';
+import { emitWasmEvent } from '@lib/wasm/wasmEvents';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { tableThumbnailService } from '../tableThumbnail.service';
+
+const TABLE_ID = '550e8400-e29b-41d4-a716-446655440000';
+const OTHER_TABLE_ID = '550e8400-e29b-41d4-a716-446655440001';
 
 describe('TableThumbnailService', () => {
-  const validUUID = '550e8400-e29b-41d4-a716-446655440000';
-  const validUUID2 = '0a577ca2-7f6a-400d-9758-26f232003cc5';
-  
-  let mockRenderEngine: { get_active_table_id: ReturnType<typeof vi.fn>; render: ReturnType<typeof vi.fn> } & RenderEngine;
-  let mockCanvas: HTMLCanvasElement;
+  let runtime: WasmRuntimePort;
 
   beforeEach(() => {
+    vi.useFakeTimers();
     tableThumbnailService.clearCache();
-    
-    mockCanvas = document.createElement('canvas');
-    mockCanvas.width = 1920;
-    mockCanvas.height = 1080;
-    mockCanvas.setAttribute('data-testid', 'game-canvas');
-    document.body.appendChild(mockCanvas);
-    
-    const ctx = mockCanvas.getContext('2d');
-    if (ctx) {
-      ctx.fillStyle = '#333333';
-      ctx.fillRect(0, 0, mockCanvas.width, mockCanvas.height);
-      ctx.fillStyle = '#ff0000';
-      ctx.fillRect(100, 100, 200, 200);
-    }
-    
-    mockRenderEngine = {
-      get_active_table_id: vi.fn().mockReturnValue(validUUID),
-      render: vi.fn()
-    } as unknown as typeof mockRenderEngine;
-    
+    runtime = {
+      status: {
+        isModuleReady: true,
+        isCanvasAttached: true,
+        hydratedTableId: TABLE_ID,
+        frameTableId: TABLE_ID,
+      },
+      captureActiveTableThumbnail: vi.fn(() => ({
+        data: new Uint8Array(640 * 360 * 4).fill(80),
+        width: 640,
+        height: 360,
+      })),
+    } as unknown as WasmRuntimePort;
+    vi.spyOn(HTMLCanvasElement.prototype, 'toBlob').mockImplementation(callback => {
+      callback(new Blob(['webp'], { type: 'image/webp' }));
+    });
+    vi.stubGlobal('ImageData', class {
+      data: Uint8ClampedArray;
+      width: number;
+      height: number;
+      constructor(data: Uint8ClampedArray, width: number, height: number) {
+        this.data = data;
+        this.width = width;
+        this.height = height;
+      }
+    });
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: true }));
+    vi.stubGlobal('URL', {
+      createObjectURL: vi.fn(() => 'blob:preview'),
+      revokeObjectURL: vi.fn(),
+    });
+    tableThumbnailService.configure(runtime, 'SESSION1');
+    tableThumbnailService.setScope('SESSION1:owner:dm');
   });
 
   afterEach(() => {
-    const canvas = document.querySelector('[data-testid="game-canvas"]');
-    if (canvas) {
-      canvas.remove();
-    }
     tableThumbnailService.clearCache();
+    vi.useRealTimers();
+    vi.restoreAllMocks();
+    vi.unstubAllGlobals();
   });
 
-  describe('initialization', () => {
-    it('initializes with render engine', () => {
-      tableThumbnailService.initialize(mockRenderEngine);
-      
-      expect(tableThumbnailService.isInitialized()).toBe(true);
-      expect(tableThumbnailService.getRenderEngine()).toBe(mockRenderEngine);
-    });
+  it('debounces capture for the active, fully framed table and persists WebP', async () => {
+    tableThumbnailService.setActiveTable(TABLE_ID);
+    await vi.advanceTimersByTimeAsync(750);
 
-    it('provides null render engine before initialization', () => {
-      const service = new (tableThumbnailService.constructor as new () => typeof tableThumbnailService)();
-      
-      expect(service.getRenderEngine()).toBeNull();
-      expect(service.isInitialized()).toBe(false);
-    });
+    expect(runtime.captureActiveTableThumbnail).toHaveBeenCalledWith(TABLE_ID, 640, 360);
+    expect(tableThumbnailService.getSnapshot(TABLE_ID).source).toBe('blob:preview');
+    expect(fetch).toHaveBeenCalledWith(
+      '/game/api/sessions/SESSION1/tables/550e8400-e29b-41d4-a716-446655440000/preview',
+      expect.objectContaining({ method: 'POST', credentials: 'same-origin' }),
+    );
   });
 
-  describe('UUID validation', () => {
-    it('rejects invalid UUIDs', async () => {
-      tableThumbnailService.initialize(mockRenderEngine);
-      
-      const result = await tableThumbnailService.generateThumbnail(
-        'invalid-uuid',
-        1000,
-        800,
-        200,
-        150
-      );
-      
-      expect(result).toBeNull();
-    });
+  it('does not render an invalidated inactive table', async () => {
+    tableThumbnailService.setActiveTable(TABLE_ID);
+    tableThumbnailService.markDirty(OTHER_TABLE_ID);
+    await vi.advanceTimersByTimeAsync(2000);
 
-    it('accepts valid UUIDs', async () => {
-      tableThumbnailService.initialize(mockRenderEngine);
-      mockRenderEngine.get_active_table_id.mockReturnValue(validUUID);
-      
-      const result = await tableThumbnailService.generateThumbnail(
-        validUUID,
-        1000,
-        800,
-        200,
-        150
-      );
-      
-      expect(result).not.toBeNull();
-    });
+    expect(runtime.captureActiveTableThumbnail).toHaveBeenCalledTimes(1);
+    expect(tableThumbnailService.getSnapshot(OTHER_TABLE_ID).dirty).toBe(true);
   });
 
-  describe('thumbnail generation', () => {
-    it('generates thumbnail for active table', async () => {
-      tableThumbnailService.initialize(mockRenderEngine);
-      mockRenderEngine.get_active_table_id.mockReturnValue(validUUID);
-      
-      const thumbnail = await tableThumbnailService.generateThumbnail(
-        validUUID,
-        1920,
-        1080,
-        320,
-        180
-      );
-      
-      expect(thumbnail).not.toBeNull();
-      expect(thumbnail?.width).toBe(320);
-      expect(thumbnail?.height).toBe(180);
-    });
+  it('flushes the active preview before switching tables', async () => {
+    tableThumbnailService.setActiveTable(TABLE_ID);
+    await tableThumbnailService.captureBeforeSwitch(TABLE_ID);
 
-    it('does not cache the active canvas under an inactive table', async () => {
-      tableThumbnailService.initialize(mockRenderEngine);
-      mockRenderEngine.get_active_table_id.mockReturnValue(validUUID);
-      
-      const thumbnail = await tableThumbnailService.generateThumbnail(
-        validUUID2,
-        1920,
-        1080,
-        320,
-        180
-      );
-      
-      expect(thumbnail).toBeNull();
-      expect(mockRenderEngine.render).not.toHaveBeenCalled();
-      expect(tableThumbnailService.getCacheStats().size).toBe(0);
-    });
-
-    it('throws error when render engine not initialized', async () => {
-      // Create fresh service without initialization
-      const freshService = new (tableThumbnailService.constructor as new () => typeof tableThumbnailService)();
-      
-      await expect(
-        freshService.generateThumbnail(
-          validUUID,
-          1920,
-          1080,
-          320,
-          180
-        )
-      ).rejects.toThrow('RenderEngine not available');
-    });
-
-    it('triggers render before capture', async () => {
-      tableThumbnailService.initialize(mockRenderEngine);
-      mockRenderEngine.get_active_table_id.mockReturnValue(validUUID);
-      
-      await tableThumbnailService.generateThumbnail(
-        validUUID,
-        1920,
-        1080,
-        320,
-        180
-      );
-      
-      expect(mockRenderEngine.render).toHaveBeenCalled();
-    });
-
-    it('generates ImageData with correct dimensions', async () => {
-      tableThumbnailService.initialize(mockRenderEngine);
-      mockRenderEngine.get_active_table_id.mockReturnValue(validUUID);
-      
-      const thumbnail = await tableThumbnailService.generateThumbnail(
-        validUUID,
-        1920,
-        1080,
-        256,
-        144
-      );
-      
-      expect(thumbnail).not.toBeNull();
-      expect(thumbnail?.width).toBe(256);
-      expect(thumbnail?.height).toBe(144);
-      expect(thumbnail?.data).toBeInstanceOf(Uint8ClampedArray);
-      expect(thumbnail?.data.length).toBe(256 * 144 * 4);
-    });
+    expect(runtime.captureActiveTableThumbnail).toHaveBeenCalledTimes(1);
+    expect(tableThumbnailService.getSnapshot(TABLE_ID).source).toBe('blob:preview');
   });
 
-  describe('caching behavior', () => {
-    it('caches generated thumbnails', async () => {
-      tableThumbnailService.initialize(mockRenderEngine);
-      mockRenderEngine.get_active_table_id.mockReturnValue(validUUID);
-      
-      const first = await tableThumbnailService.generateThumbnail(
-        validUUID,
-        1920,
-        1080,
-        200,
-        150
-      );
-      
-      mockRenderEngine.render.mockClear();
-      
-      const second = await tableThumbnailService.generateThumbnail(
-        validUUID,
-        1920,
-        1080,
-        200,
-        150
-      );
-      
-      expect(first).toBe(second);
-      expect(mockRenderEngine.render).not.toHaveBeenCalled();
-    });
+  it('clears viewer-scoped object URLs when visibility changes', async () => {
+    tableThumbnailService.setActiveTable(TABLE_ID);
+    await tableThumbnailService.captureBeforeSwitch(TABLE_ID);
 
-    it('generates new thumbnail when dimensions change', async () => {
-      tableThumbnailService.initialize(mockRenderEngine);
-      mockRenderEngine.get_active_table_id.mockReturnValue(validUUID);
-      
-      const first = await tableThumbnailService.generateThumbnail(
-        validUUID,
-        1920,
-        1080,
-        200,
-        150
-      );
-      
-      const second = await tableThumbnailService.generateThumbnail(
-        validUUID,
-        1920,
-        1080,
-        300,
-        200
-      );
-      
-      expect(first).not.toBe(second);
-      expect(first?.width).toBe(200);
-      expect(second?.width).toBe(300);
-    });
+    tableThumbnailService.setScope('SESSION1:player:map,tokens');
 
-    it('bypasses cache when forceRefresh is true', async () => {
-      tableThumbnailService.initialize(mockRenderEngine);
-      mockRenderEngine.get_active_table_id.mockReturnValue(validUUID);
-      
-      const first = await tableThumbnailService.generateThumbnail(
-        validUUID,
-        1920,
-        1080,
-        200,
-        150,
-        false
-      );
-      
-      mockRenderEngine.render.mockClear();
-      
-      const second = await tableThumbnailService.generateThumbnail(
-        validUUID,
-        1920,
-        1080,
-        200,
-        150,
-        true
-      );
-      
-      expect(mockRenderEngine.render).toHaveBeenCalled();
-      expect(first).not.toBe(second);
-    });
-
-    it('provides accurate cache statistics', async () => {
-      tableThumbnailService.initialize(mockRenderEngine);
-      mockRenderEngine.get_active_table_id.mockReturnValue(validUUID);
-      
-      await tableThumbnailService.generateThumbnail(validUUID, 1920, 1080, 200, 150);
-      await tableThumbnailService.generateThumbnail(validUUID, 1920, 1080, 300, 200);
-      
-      const stats = tableThumbnailService.getCacheStats();
-      
-      expect(stats.size).toBe(2);
-      expect(stats.tables).toContain(validUUID);
-    });
+    expect(URL.revokeObjectURL).toHaveBeenCalledWith('blob:preview');
+    expect(tableThumbnailService.getSnapshot(TABLE_ID).source).toBeNull();
   });
 
-  describe('cache invalidation', () => {
-    it('invalidates table cache', async () => {
-      tableThumbnailService.initialize(mockRenderEngine);
-      mockRenderEngine.get_active_table_id.mockReturnValue(validUUID);
-      
-      await tableThumbnailService.generateThumbnail(validUUID, 1920, 1080, 200, 150);
-      
-      const statsBefore = tableThumbnailService.getCacheStats();
-      expect(statsBefore.size).toBe(1);
-      
-      // Invalidate triggers debounced timer (300ms)
-      tableThumbnailService.invalidateTable(validUUID);
-      
-      // Fast-forward past debounce delay
-      await new Promise(resolve => setTimeout(resolve, 350));
-      
-      const statsAfter = tableThumbnailService.getCacheStats();
-      expect(statsAfter.size).toBe(0);
-    });
+  it('marks a preview dirty from the renderer invalidation event', async () => {
+    tableThumbnailService.setActiveTable(TABLE_ID);
+    await tableThumbnailService.captureBeforeSwitch(TABLE_ID);
 
-    it('invalidates specific thumbnail', async () => {
-      tableThumbnailService.initialize(mockRenderEngine);
-      mockRenderEngine.get_active_table_id.mockReturnValue(validUUID);
-      
-      await tableThumbnailService.generateThumbnail(validUUID, 1920, 1080, 200, 150);
-      await tableThumbnailService.generateThumbnail(validUUID, 1920, 1080, 300, 200);
-      
-      tableThumbnailService.invalidateThumbnail(validUUID, 200, 150);
-      
-      const stats = tableThumbnailService.getCacheStats();
-      expect(stats.size).toBe(1);
-    });
+    emitWasmEvent('table-preview-invalidated', { table_id: TABLE_ID });
 
-    it('clears entire cache', async () => {
-      tableThumbnailService.initialize(mockRenderEngine);
-      mockRenderEngine.get_active_table_id.mockReturnValue(validUUID);
-      
-      await tableThumbnailService.generateThumbnail(validUUID, 1920, 1080, 200, 150);
-      mockRenderEngine.get_active_table_id.mockReturnValue(validUUID2);
-      await tableThumbnailService.generateThumbnail(validUUID2, 1920, 1080, 200, 150);
-      
-      tableThumbnailService.clearCache();
-      
-      const stats = tableThumbnailService.getCacheStats();
-      expect(stats.size).toBe(0);
-      expect(stats.tables.length).toBe(0);
-    });
-
-    it('clears cached previews when the session viewer scope changes', async () => {
-      tableThumbnailService.setScope('session-1:user-1:player:map,tokens');
-      tableThumbnailService.initialize(mockRenderEngine);
-      await tableThumbnailService.generateThumbnail(validUUID, 1920, 1080, 200, 150);
-      expect(tableThumbnailService.getCacheStats().size).toBe(1);
-
-      tableThumbnailService.setScope('session-1:user-2:owner:map,tokens,dungeon_master');
-
-      expect(tableThumbnailService.getCacheStats().size).toBe(0);
-      expect(tableThumbnailService.getCachedThumbnail(validUUID, 200, 150)).toBeNull();
-    });
-
-    it('cancels stale invalidations when clearing the cache', async () => {
-      tableThumbnailService.initialize(mockRenderEngine);
-      mockRenderEngine.get_active_table_id.mockReturnValue(validUUID);
-      await tableThumbnailService.generateThumbnail(validUUID, 1920, 1080, 200, 150);
-
-      tableThumbnailService.invalidateTable(validUUID);
-      tableThumbnailService.clearCache();
-      await tableThumbnailService.generateThumbnail(validUUID, 1920, 1080, 200, 150);
-      await new Promise(resolve => setTimeout(resolve, 350));
-
-      expect(tableThumbnailService.getCacheStats().size).toBe(1);
-    });
-
-    it('debounces rapid invalidations', async () => {
-      tableThumbnailService.initialize(mockRenderEngine);
-      mockRenderEngine.get_active_table_id.mockReturnValue(validUUID);
-      
-      await tableThumbnailService.generateThumbnail(validUUID, 1920, 1080, 200, 150);
-      
-      tableThumbnailService.invalidateTable(validUUID);
-      tableThumbnailService.invalidateTable(validUUID);
-      tableThumbnailService.invalidateTable(validUUID);
-      
-      await new Promise(resolve => setTimeout(resolve, 100));
-      const stats = tableThumbnailService.getCacheStats();
-      expect(stats.size).toBe(1);
-      
-      await new Promise(resolve => setTimeout(resolve, 250));
-      const statsAfter = tableThumbnailService.getCacheStats();
-      expect(statsAfter.size).toBe(0);
-    });
-  });
-
-  describe('cache pruning', () => {
-    it('prunes old cache entries', async () => {
-      tableThumbnailService.initialize(mockRenderEngine);
-      mockRenderEngine.get_active_table_id.mockReturnValue(validUUID);
-      
-      await tableThumbnailService.generateThumbnail(validUUID, 1920, 1080, 200, 150);
-      
-      // Wait to ensure timestamp is in the past
-      await new Promise(resolve => setTimeout(resolve, 10));
-      
-      tableThumbnailService.pruneCache(0);
-      
-      const stats = tableThumbnailService.getCacheStats();
-      expect(stats.size).toBe(0);
-    });
-
-    it('keeps recent cache entries', async () => {
-      tableThumbnailService.initialize(mockRenderEngine);
-      mockRenderEngine.get_active_table_id.mockReturnValue(validUUID);
-      
-      await tableThumbnailService.generateThumbnail(validUUID, 1920, 1080, 200, 150);
-      
-      tableThumbnailService.pruneCache(10000);
-      
-      const stats = tableThumbnailService.getCacheStats();
-      expect(stats.size).toBe(1);
-    });
-
-    it('prunes expired cache entries when a thumbnail is requested', async () => {
-      let now = 1_000;
-      vi.spyOn(Date, 'now').mockImplementation(() => now);
-      tableThumbnailService.initialize(mockRenderEngine);
-      mockRenderEngine.get_active_table_id.mockReturnValue(validUUID);
-
-      await tableThumbnailService.generateThumbnail(validUUID, 1920, 1080, 200, 150);
-      now += 5 * 60 * 1000 + 1;
-      await tableThumbnailService.generateThumbnail(validUUID, 1920, 1080, 200, 150);
-
-      expect(mockRenderEngine.render).toHaveBeenCalledTimes(2);
-    });
-  });
-
-  describe('concurrent generation prevention', () => {
-    it('prevents concurrent generation of same thumbnail', async () => {
-      tableThumbnailService.initialize(mockRenderEngine);
-      mockRenderEngine.get_active_table_id.mockReturnValue(validUUID);
-      
-      const promise1 = tableThumbnailService.generateThumbnail(
-        validUUID,
-        1920,
-        1080,
-        200,
-        150
-      );
-      
-      const promise2 = tableThumbnailService.generateThumbnail(
-        validUUID,
-        1920,
-        1080,
-        200,
-        150
-      );
-      
-      const [result1, result2] = await Promise.all([promise1, promise2]);
-      
-      expect(result1).toBe(result2);
-      expect(mockRenderEngine.render.mock.calls.length).toBeLessThanOrEqual(2);
-    });
-
-    it('fails after the wait timeout instead of starting a duplicate render', async () => {
-      vi.useFakeTimers();
-      const service = new (tableThumbnailService.constructor as new () => typeof tableThumbnailService)();
-      const internals = service as unknown as {
-        isGenerating: Set<string>;
-        waitForGeneration: (key: string, timeoutMs: number) => Promise<void>;
-      };
-      internals.isGenerating.add('busy-thumbnail');
-
-      const waiting = internals.waitForGeneration('busy-thumbnail', 1);
-      const rejection = expect(waiting).rejects.toThrow(
-        'Thumbnail generation timed out for busy-thumbnail',
-      );
-      await vi.advanceTimersByTimeAsync(101);
-
-      await rejection;
-      vi.useRealTimers();
-    });
-  });
-
-  describe('capture race protection', () => {
-    it('does not cache a frame after the active table changes', async () => {
-      tableThumbnailService.initialize(mockRenderEngine);
-      mockRenderEngine.get_active_table_id.mockReturnValue(validUUID);
-      let frame: FrameRequestCallback | null = null;
-      const requestFrame = vi.spyOn(window, 'requestAnimationFrame').mockImplementation(callback => {
-        frame = callback;
-        return 1;
-      });
-
-      const pending = tableThumbnailService.generateThumbnail(validUUID, 1920, 1080, 200, 150);
-      for (let index = 0; index < 4 && mockRenderEngine.render.mock.calls.length === 0; index += 1) {
-        await vi.waitFor(() => expect(frame).not.toBeNull());
-        const preparatoryFrame = frame as FrameRequestCallback | null;
-        frame = null;
-        if (preparatoryFrame) preparatoryFrame(performance.now());
-        await Promise.resolve();
-      }
-      await vi.waitFor(() => {
-        expect(mockRenderEngine.render).toHaveBeenCalled();
-        expect(frame).not.toBeNull();
-      });
-      mockRenderEngine.get_active_table_id.mockReturnValue(validUUID2);
-      const callback = frame as FrameRequestCallback | null;
-      if (callback) callback(performance.now());
-
-      await expect(pending).resolves.toBeNull();
-      expect(tableThumbnailService.getCachedThumbnail(validUUID, 200, 150)).toBeNull();
-      requestFrame.mockRestore();
-    });
-  });
-
-  describe('error handling', () => {
-    it('handles missing canvas element', async () => {
-      const canvas = document.querySelector('[data-testid="game-canvas"]');
-      if (canvas) canvas.remove();
-      
-      tableThumbnailService.initialize(mockRenderEngine);
-      mockRenderEngine.get_active_table_id.mockReturnValue(validUUID);
-      
-      await expect(
-        tableThumbnailService.generateThumbnail(validUUID, 1920, 1080, 200, 150)
-      ).rejects.toThrow('Main game canvas not found');
-    });
-
-    it('handles render engine errors gracefully', async () => {
-      tableThumbnailService.initialize(mockRenderEngine);
-      mockRenderEngine.get_active_table_id.mockReturnValue(validUUID);
-      mockRenderEngine.render.mockImplementation(() => {
-        throw new Error('Render failed');
-      });
-      
-      const result = await tableThumbnailService.generateThumbnail(
-        validUUID,
-        1920,
-        1080,
-        200,
-        150
-      );
-      
-      expect(result).not.toBeNull();
-    });
-
-    it('validates invalid UUID returns null', async () => {
-      tableThumbnailService.initialize(mockRenderEngine);
-      
-      const result = await tableThumbnailService.generateThumbnail(
-        'not-a-uuid',
-        1920,
-        1080,
-        200,
-        150
-      );
-      
-      expect(result).toBeNull();
-    });
-
-    it('rejects non-positive table dimensions before rendering', async () => {
-      tableThumbnailService.initialize(mockRenderEngine);
-
-      await expect(
-        tableThumbnailService.generateThumbnail(validUUID, 0, 1080, 200, 150)
-      ).rejects.toThrow('Table dimensions must be positive finite numbers');
-      expect(mockRenderEngine.render).not.toHaveBeenCalled();
-    });
-
-    it('rejects thumbnail dimensions that could allocate an excessive canvas', async () => {
-      tableThumbnailService.initialize(mockRenderEngine);
-
-      await expect(
-        tableThumbnailService.generateThumbnail(validUUID, 1920, 1080, 8192, 150)
-      ).rejects.toThrow('Thumbnail dimensions must be positive integers up to 4096');
-      expect(mockRenderEngine.render).not.toHaveBeenCalled();
-    });
-  });
-
-  describe('aspect ratio handling', () => {
-    it('maintains aspect ratio in thumbnails', async () => {
-      tableThumbnailService.initialize(mockRenderEngine);
-      mockRenderEngine.get_active_table_id.mockReturnValue(validUUID);
-      
-      const thumbnail = await tableThumbnailService.generateThumbnail(
-        validUUID,
-        1920,
-        1080,
-        320,
-        180
-      );
-      
-      expect(thumbnail).not.toBeNull();
-      expect(thumbnail!.width / thumbnail!.height).toBeCloseTo(320 / 180, 1);
-    });
+    expect(tableThumbnailService.getSnapshot(TABLE_ID).dirty).toBe(true);
   });
 });
-

@@ -1,0 +1,24 @@
+.root {
+  width: 100%;
+  height: 100%;
+  display: grid;
+  place-items: center;
+  color: var(--text-muted);
+  font-size: var(--text-xs);
+}
+
+.root[data-loading] {
+  opacity: 0.72;
+}
+
+.image {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+
+.placeholder {
+  padding: var(--space-sm);
+  text-align: center;
+}

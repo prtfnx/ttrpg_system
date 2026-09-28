@@ -1,226 +1,95 @@
 import { useGameStore, type TableInfo } from '@/store';
 import { useWasmRuntime, useWasmStatus } from '@lib/wasm/runtime';
-import { onWasmEvent } from '@lib/wasm/wasmEvents';
-import { logger } from '@shared/utils/logger';
 import React, { useEffect, useRef, useState } from 'react';
 import { tableThumbnailService } from '../services/tableThumbnail.service';
-import { getTablePreviewPalette } from '../services/tablePreviewTheme';
+import styles from './TablePreview.module.css';
 
 interface TablePreviewProps {
   table: TableInfo;
+  priority?: boolean;
   width?: number;
   height?: number;
 }
 
-export const TablePreview: React.FC<TablePreviewProps> = ({ 
-  table, 
-  width = 160, 
-  height = 120 
-}) => {
-  const canvasRef = useRef<HTMLCanvasElement>(null);
+export const TablePreview: React.FC<TablePreviewProps> = ({ table, priority = false }) => {
+  const rootRef = useRef<HTMLDivElement>(null);
   const runtime = useWasmRuntime();
   const wasmStatus = useWasmStatus();
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-
-  const [refreshTrigger, setRefreshTrigger] = useState(0);
   const sessionId = useGameStore(state => state.sessionId);
   const userId = useGameStore(state => state.userId);
   const sessionRole = useGameStore(state => state.sessionRole);
   const visibleLayers = useGameStore(state => state.visibleLayers);
+  const activeTableId = useGameStore(state => state.activeTableId);
+  const [nearViewport, setNearViewport] = useState(priority);
+  const [failedSource, setFailedSource] = useState<string | null>(null);
+  const [, rerender] = useState(0);
   const viewerScope = `${sessionId ?? 'no-session'}:${userId ?? 'anonymous'}:${sessionRole ?? 'unknown'}:${visibleLayers.join(',')}`;
 
   useEffect(() => {
+    tableThumbnailService.configure(runtime, sessionId ?? null);
     tableThumbnailService.setScope(viewerScope);
-  }, [viewerScope]);
-  
-  // Listen for sprite loading completion to trigger thumbnail regeneration
+    tableThumbnailService.setActiveTable(activeTableId);
+  }, [activeTableId, runtime, sessionId, viewerScope]);
+
+  useEffect(
+    () => tableThumbnailService.subscribe(table.table_id, () => rerender(value => value + 1)),
+    [table.table_id],
+  );
+
   useEffect(() => {
-    return onWasmEvent('table-sprites-loaded', ({ table_id: tableId, count: spriteCount }) => {
-      // Only regenerate thumbnail if this event is for our table
-      if (tableId === table.table_id) {
-        logger.debug(`[TablePreview] Sprites loaded for table ${tableId} (${spriteCount} sprites), regenerating thumbnail`);
-        
-        // Force regeneration by clearing cache
-        tableThumbnailService.invalidateThumbnail(table.table_id, width, height);
-        
-        // Trigger immediate thumbnail generation
-        setRefreshTrigger(prev => prev + 1);
+    if (priority || typeof IntersectionObserver === 'undefined') {
+      setNearViewport(true);
+      return;
+    }
+    const node = rootRef.current;
+    if (!node) return;
+    const observer = new IntersectionObserver(entries => {
+      if (entries.some(entry => entry.isIntersecting)) {
+        setNearViewport(true);
+        observer.disconnect();
       }
-    });
-  }, [table.table_id, width, height]);
-  
+    }, { rootMargin: '240px' });
+    observer.observe(node);
+    return () => observer.disconnect();
+  }, [priority]);
+
   useEffect(() => {
-    const canvas = canvasRef.current;
-    if (!canvas) return;
+    if (
+      table.table_id === activeTableId
+      && wasmStatus.hydratedTableId === table.table_id
+      && wasmStatus.frameTableId === table.table_id
+    ) {
+      tableThumbnailService.ensurePreview(table.table_id);
+    }
+  }, [activeTableId, table.table_id, wasmStatus.frameTableId, wasmStatus.hydratedTableId]);
 
-    const ctx = canvas.getContext('2d');
-    if (!ctx) return;
-
-    let isCancelled = false;
-
-    const drawPlaceholder = (title: string, subtitle: string) => {
-      const palette = getTablePreviewPalette();
-      ctx.fillStyle = palette.background;
-      ctx.fillRect(0, 0, width, height);
-      ctx.setLineDash([5, 5]);
-      ctx.strokeStyle = palette.subtleText;
-      ctx.lineWidth = 2;
-      ctx.strokeRect(2, 2, width - 4, height - 4);
-      ctx.setLineDash([]);
-      ctx.strokeStyle = palette.mutedText;
-      ctx.lineWidth = 2;
-      const iconSize = 32;
-      const iconX = width / 2;
-      const iconY = height / 2 - 10;
-      ctx.strokeRect(iconX - iconSize / 2, iconY - iconSize / 2, iconSize, iconSize);
-      ctx.beginPath();
-      ctx.moveTo(iconX - iconSize / 2, iconY - iconSize / 6);
-      ctx.lineTo(iconX + iconSize / 2, iconY - iconSize / 6);
-      ctx.moveTo(iconX - iconSize / 2, iconY + iconSize / 6);
-      ctx.lineTo(iconX + iconSize / 2, iconY + iconSize / 6);
-      ctx.moveTo(iconX - iconSize / 6, iconY - iconSize / 2);
-      ctx.lineTo(iconX - iconSize / 6, iconY + iconSize / 2);
-      ctx.moveTo(iconX + iconSize / 6, iconY - iconSize / 2);
-      ctx.lineTo(iconX + iconSize / 6, iconY + iconSize / 2);
-      ctx.stroke();
-      ctx.fillStyle = palette.mutedText;
-      ctx.font = '11px sans-serif';
-      ctx.textAlign = 'center';
-      ctx.textBaseline = 'top';
-      ctx.fillText(title, width / 2, height / 2 + 20);
-      ctx.font = '9px sans-serif';
-      ctx.fillStyle = palette.subtleText;
-      ctx.fillText(subtitle, width / 2, height / 2 + 34);
-    };
-
-    const renderThumbnail = async () => {
-      setIsLoading(true);
-      setError(null);
-      const palette = getTablePreviewPalette();
-      
-      // Draw loading state immediately
-      ctx.fillStyle = palette.background;
-      ctx.fillRect(0, 0, width, height);
-      
-      ctx.strokeStyle = palette.border;
-      ctx.lineWidth = 2;
-      ctx.strokeRect(1, 1, width - 2, height - 2);
-      
-      ctx.fillStyle = palette.mutedText;
-      ctx.font = '12px sans-serif';
-      ctx.textAlign = 'center';
-      ctx.textBaseline = 'middle';
-      ctx.fillText('Loading...', width / 2, height / 2);
-
-      try {
-        const renderEngine = runtime.getRenderEngine();
-        if (renderEngine && tableThumbnailService.getRenderEngine() !== renderEngine) {
-          tableThumbnailService.initialize(renderEngine, {
-            isRuntimeReady: () => runtime.status.isModuleReady
-              && runtime.status.isCanvasAttached
-              && runtime.status.frameTableId === table.table_id,
-          });
-        }
-
-        const cached = tableThumbnailService.getCachedThumbnail(table.table_id, width, height);
-        const isActive = renderEngine?.get_active_table_id() === table.table_id;
-        const isFrameReady = wasmStatus.frameTableId === table.table_id;
-        if (cached) {
-          ctx.putImageData(cached, 0, 0);
-          setIsLoading(false);
-          return;
-        }
-        if (!renderEngine || !isActive || !isFrameReady) {
-          drawPlaceholder(
-            isActive ? 'Rendering…' : 'Not rendered yet',
-            isActive ? '(Waiting for the first frame)' : '(Open this table to create a preview)',
-          );
-          setIsLoading(isActive && !isFrameReady);
-          return;
-        }
-
-        // Generate thumbnail using real WASM rendering
-        const imageData = await tableThumbnailService.generateThumbnail(
-          table.table_id,
-          table.width,
-          table.height,
-          width,
-          height,
-          false // Don't force refresh, use cache if available
-        );
-
-        // Only update if not cancelled
-        if (!isCancelled) {
-          if (imageData) {
-            logger.debug(`[TablePreview] Rendering thumbnail for ${table.table_id}: ${imageData.width}x${imageData.height}`);
-            ctx.putImageData(imageData, 0, 0);
-          } else {
-            // Table stopped being active while capture was pending.
-            logger.debug(`[TablePreview] Table ${table.table_id} not active, showing placeholder`);
-            drawPlaceholder('Not rendered yet', '(Open this table to create a preview)');
-          }
-          setIsLoading(false);
-        }
-      } catch (err) {
-        logger.error('Failed to render table thumbnail:', err);
-        if (!isCancelled) {
-          setError(err instanceof Error ? err.message : 'Failed to render thumbnail');
-          
-          // Draw error state - red border
-          ctx.fillStyle = palette.background;
-          ctx.fillRect(0, 0, width, height);
-          
-          ctx.strokeStyle = palette.danger;
-          ctx.lineWidth = 2;
-          ctx.strokeRect(1, 1, width - 2, height - 2);
-          
-          ctx.fillStyle = palette.danger;
-          ctx.font = '12px sans-serif';
-          ctx.textAlign = 'center';
-          ctx.textBaseline = 'middle';
-          ctx.fillText('Error', width / 2, height / 2);
-          
-          setIsLoading(false);
-        }
-      }
-    };
-
-    renderThumbnail();
-
-    return () => {
-      isCancelled = true;
-    };
-  }, [
-    table.table_id,
-    table.width,
-    table.height,
-    width,
-    height,
-    refreshTrigger,
-    runtime,
-    wasmStatus.isModuleReady,
-    wasmStatus.isCanvasAttached,
-    wasmStatus.frameTableId,
-    viewerScope,
-  ]);
+  const snapshot = tableThumbnailService.getSnapshot(table.table_id);
+  const persisted = tableThumbnailService.persistedSource(table.table_id);
+  const source = nearViewport ? (snapshot.source ?? persisted) : null;
+  const visibleSource = source !== failedSource ? source : null;
 
   return (
-    <canvas
-      ref={canvasRef}
-      width={width}
-      height={height}
-      className="table-preview-canvas"
-      style={{
-        display: 'block',
-        width: '100%',
-        height: '100%',
-        objectFit: 'contain',
-        imageRendering: 'auto',
-        opacity: isLoading ? 0.5 : 1,
-        transition: 'opacity 0.2s ease-in-out'
-      }}
-      title={error || (isLoading ? 'Loading thumbnail...' : `Table: ${table.table_name}`)}
-    />
+    <div
+      ref={rootRef}
+      className={styles.root}
+      data-loading={snapshot.isGenerating || undefined}
+      title={snapshot.error ?? `Table: ${table.table_name}`}
+    >
+      {visibleSource ? (
+        <img
+          src={visibleSource}
+          alt=""
+          loading={priority || table.table_id === activeTableId ? 'eager' : 'lazy'}
+          decoding="async"
+          className={styles.image}
+          onError={() => setFailedSource(visibleSource)}
+          onLoad={() => setFailedSource(null)}
+        />
+      ) : (
+        <span className={styles.placeholder}>
+          {snapshot.isGenerating ? 'Updating preview…' : 'No preview yet'}
+        </span>
+      )}
+    </div>
   );
 };

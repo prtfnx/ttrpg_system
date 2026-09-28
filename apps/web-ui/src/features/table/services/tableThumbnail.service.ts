@@ -1,50 +1,53 @@
-import { isValidUUID } from '@lib/websocket';
+import type { WasmRuntimePort } from '@lib/wasm/runtime';
+import { onWasmEvent } from '@lib/wasm/wasmEvents';
 import { logger } from '@shared/utils/logger';
-import { getTablePreviewPalette } from './tablePreviewTheme';
 
-interface ThumbnailCacheEntry {
-  imageData: ImageData;
-  timestamp: number;
-  tableId: string;
+const PREVIEW_WIDTH = 640;
+const PREVIEW_HEIGHT = 360;
+const DEBOUNCE_MS = 750;
+const MIN_CAPTURE_INTERVAL_MS = 1500;
+const MAX_MEMORY_PREVIEWS = 24;
+
+interface PreviewEntry {
+  source: string | null;
+  dirty: boolean;
+  generating: boolean;
+  error: string | null;
+  lastCapture: number;
+  lastAccess: number;
+  revision: number;
 }
 
-interface ThumbnailRenderEngine {
-  get_active_table_id(): string | undefined;
-  render(): void;
-}
-
-interface ThumbnailRuntimeOptions {
-  isRuntimeReady?: () => boolean;
-}
-
-const MAX_THUMBNAIL_DIMENSION = 4096;
-
-function assertValidDimensions(
-  tableWidth: number,
-  tableHeight: number,
-  thumbnailWidth: number,
-  thumbnailHeight: number,
-): void {
-  if (![tableWidth, tableHeight].every(value => Number.isFinite(value) && value > 0)) {
-    throw new RangeError('Table dimensions must be positive finite numbers');
-  }
-  if (![thumbnailWidth, thumbnailHeight].every(value => (
-    Number.isSafeInteger(value) && value > 0 && value <= MAX_THUMBNAIL_DIMENSION
-  ))) {
-    throw new RangeError(
-      `Thumbnail dimensions must be positive integers up to ${MAX_THUMBNAIL_DIMENSION}`,
-    );
-  }
+export interface TablePreviewSnapshot {
+  source: string | null;
+  isGenerating: boolean;
+  error: string | null;
+  dirty: boolean;
 }
 
 class TableThumbnailService {
-  private cache = new Map<string, ThumbnailCacheEntry>();
-  private renderEngine: ThumbnailRenderEngine | null = null;
-  private isRuntimeReady: () => boolean = () => true;
-  private isGenerating = new Set<string>(); // Prevent concurrent generation
-  private debounceTimers = new Map<string, number>(); // Debounce rapid invalidations
-  private readonly DEBOUNCE_MS = 300; // Wait 300ms after last change before regenerating
+  private runtime: WasmRuntimePort | null = null;
+  private entries = new Map<string, PreviewEntry>();
+  private listeners = new Map<string, Set<() => void>>();
+  private timers = new Map<string, number>();
+  private pendingDirty = new Set<string>();
   private scopeKey = 'anonymous';
+  private sessionId: string | null = null;
+  private activeTableId: string | null = null;
+  private hoveredTableId: string | null = null;
+
+  constructor() {
+    if (typeof window !== 'undefined') {
+      onWasmEvent('table-preview-invalidated', ({ table_id: tableId }) => {
+        this.markDirty(tableId);
+      });
+    }
+  }
+
+  configure(runtime: WasmRuntimePort, sessionId: string | null): void {
+    this.runtime = runtime;
+    this.sessionId = sessionId;
+  }
 
   setScope(scopeKey: string): void {
     if (scopeKey === this.scopeKey) return;
@@ -52,395 +55,211 @@ class TableThumbnailService {
     this.scopeKey = scopeKey;
   }
 
-  getCachedThumbnail(tableId: string, width: number, height: number): ImageData | null {
-    return this.cache.get(this.cacheKey(tableId, width, height))?.imageData ?? null;
+  setActiveTable(tableId: string | null): void {
+    this.activeTableId = tableId;
+    if (tableId) this.ensurePreview(tableId);
   }
-  
-  /**
-   * Set the WASM RenderEngine instance
-   * Must be called before generating thumbnails
-   */
-  initialize(engine: ThumbnailRenderEngine, options: ThumbnailRuntimeOptions = {}): void {
-    this.renderEngine = engine;
-    this.isRuntimeReady = options.isRuntimeReady ?? (() => true);
-    logger.debug('[ThumbnailService] RenderEngine initialized');
-  }
-  
-  /**
-   * Check if the service is initialized with a RenderEngine
-   */
-  isInitialized(): boolean {
-    return this.renderEngine !== null;
-  }
-  
-  /**
-   * Get the current RenderEngine instance
-   */
-  getRenderEngine(): ThumbnailRenderEngine | null {
-    return this.renderEngine;
-  }
-  
-  /**
-   * Generate thumbnail for a table using actual WASM rendering
-   * 
-   * @param tableId - Unique table identifier
-   * @param tableWidth - Full table width in pixels
-   * @param tableHeight - Full table height in pixels
-   * @param thumbnailWidth - Desired thumbnail width
-   * @param thumbnailHeight - Desired thumbnail height
-   * @param forceRefresh - Skip cache and regenerate
-   * @returns ImageData containing the rendered thumbnail, or null if table is not active
-   * @throws Error if RenderEngine is not available
-   */
-  async generateThumbnail(
-    tableId: string,
-    tableWidth: number,
-    tableHeight: number,
-    thumbnailWidth: number,
-    thumbnailHeight: number,
-    forceRefresh = false
-  ): Promise<ImageData | null> {
-    if (!isValidUUID(tableId)) {
-      logger.error(`[ThumbnailService] Invalid UUID: ${tableId}`);
-      return null;
-    }
-    assertValidDimensions(tableWidth, tableHeight, thumbnailWidth, thumbnailHeight);
-    this.pruneCache();
-    const cacheKey = this.cacheKey(tableId, thumbnailWidth, thumbnailHeight);
-    const generationScope = this.scopeKey;
-    
-    // Return cached version if available
-    if (!forceRefresh && this.cache.has(cacheKey)) {
-      const cached = this.cache.get(cacheKey)!;
-      logger.debug(`[ThumbnailService] Using cached thumbnail for ${tableId}`);
-      return cached.imageData;
-    }
-    
-    // Prevent concurrent generation for same thumbnail
-    if (this.isGenerating.has(cacheKey)) {
-      logger.debug(`[ThumbnailService] Already generating ${cacheKey}, waiting...`);
-      // Wait for ongoing generation
-      await this.waitForGeneration(cacheKey);
-      // Should be cached now
-      if (this.cache.has(cacheKey)) {
-        return this.cache.get(cacheKey)!.imageData;
-      }
-    }
-    
-    if (!this.renderEngine) {
-      throw new Error('RenderEngine not available - cannot generate thumbnail');
-    }
 
-    if (this.renderEngine.get_active_table_id() !== tableId) {
-      logger.debug(`[ThumbnailService] Table ${tableId} is not active; using placeholder`);
-      return null;
-    }
-    
-    this.isGenerating.add(cacheKey);
-    
-    try {
-      logger.debug(`[ThumbnailService] Generating thumbnail for ${tableId} at ${thumbnailWidth}x${thumbnailHeight}`);
-      
-      const startTime = performance.now();
-      
-      // Get the main game canvas - use data-testid selector since no id attribute exists
-      const mainCanvas = document.querySelector('[data-testid="game-canvas"]') as HTMLCanvasElement;
-      
-      if (!mainCanvas) {
-        logger.warn('[ThumbnailService] Main canvas element not found in DOM');
-        throw new Error('Main game canvas not found');
-      }
-      
-      if (mainCanvas.width === 0 || mainCanvas.height === 0) {
-        logger.warn('[ThumbnailService] Main canvas has zero dimensions:', { width: mainCanvas.width, height: mainCanvas.height });
-        throw new Error('Main game canvas not initialized (zero dimensions)');
-      }
-      
-      // CRITICAL: Check if WASM and canvas are fully initialized
-      // When opening Tables tab directly (without visiting Game tab first),
-      // the canvas exists but hasn't rendered any frames yet
-      if (!this.isRuntimeReady()) {
-        logger.warn('[ThumbnailService] WASM not fully initialized yet, waiting for first render...');
-        
-        // Wait for WASM to initialize (max 5 seconds)
-        const maxWaitMs = 5000;
-        const waitStart = Date.now();
-        while (!this.isRuntimeReady() && (Date.now() - waitStart < maxWaitMs)) {
-          await new Promise(resolve => setTimeout(resolve, 100));
-        }
-        
-        if (!this.isRuntimeReady()) {
-          throw new Error('WASM initialization timeout - canvas not ready');
-        }
-        
-        // Wait one more frame to ensure at least one render cycle
-        await new Promise(resolve => requestAnimationFrame(() => resolve(undefined)));
-        
-        logger.debug('[ThumbnailService] WASM initialized, proceeding with capture');
-      }
-      
-      // Additional check: Verify canvas has actual content (not all black)
-      // by sampling a few pixels from the main canvas
-      const ctx2d = mainCanvas.getContext('2d');
-      if (ctx2d) {
-        const sampleData = ctx2d.getImageData(
-          Math.floor(mainCanvas.width / 2), 
-          Math.floor(mainCanvas.height / 2), 
-          1, 
-          1
-        ).data;
-        
-        const isBlank = sampleData[0] === 0 && sampleData[1] === 0 && sampleData[2] === 0 && sampleData[3] === 0;
-        if (isBlank) {
-          logger.warn('[ThumbnailService] Canvas appears blank (all black), waiting for render...');
-          
-          // Wait for next render frame
-          await new Promise(resolve => requestAnimationFrame(() => 
-            requestAnimationFrame(() => resolve(undefined))
-          ));
-        }
-      }
-      
-      // Check if this is the currently active table
-      // IMPORTANT: Only the active table is loaded in WASM memory
-      // Other tables exist in server state but are not rendered until switched to
-      // Note: We rely on the server marking tables as active/inactive
-      logger.debug(`[ThumbnailService] Generating thumbnail for table '${tableId}'`);
-      
-      logger.debug(`[ThumbnailService] Generating thumbnail for active table '${tableId}'`);
-      
-      // CRITICAL: Trigger a render frame before capturing
-      // The render loop runs in WASM Rust and may not be producing frames
-      // when the GameCanvas is not visible (e.g., on Tables tab)
-      logger.debug('[ThumbnailService] Triggering render frame before capture');
-      if (this.renderEngine.get_active_table_id() !== tableId) {
-        logger.debug(`[ThumbnailService] Active table changed before capture: ${tableId}`);
-        return null;
-      }
-      try {
-        this.renderEngine.render();
-        // Wait for the render to complete (WebGL/WASM operations)
-        await new Promise(resolve => requestAnimationFrame(() => resolve(undefined)));
-        if (this.renderEngine.get_active_table_id() !== tableId || this.scopeKey !== generationScope) {
-          logger.debug(`[ThumbnailService] Capture cancelled because the active table or viewer scope changed: ${tableId}`);
-          return null;
-        }
-      } catch (renderError) {
-        logger.warn('[ThumbnailService] Failed to trigger render:', renderError);
-      }
-      
-      logger.debug('[ThumbnailService] Capturing from canvas:', { 
-        canvasWidth: mainCanvas.width, 
-        canvasHeight: mainCanvas.height,
-        tableWidth,
-        tableHeight,
-        thumbnailWidth,
-        thumbnailHeight
-      });
-      
-      // Create temporary canvas for thumbnail
-      const tempCanvas = document.createElement('canvas');
-      tempCanvas.width = thumbnailWidth;
-      tempCanvas.height = thumbnailHeight;
-      const ctx = tempCanvas.getContext('2d', { 
-        alpha: true,
-        desynchronized: true // Performance optimization
-      });
-      
-      if (!ctx) {
-        throw new Error('Failed to get 2D context for thumbnail canvas');
-      }
-      
-      try {
-        // Calculate scale to fit entire table into thumbnail
-        const scaleX = thumbnailWidth / tableWidth;
-        const scaleY = thumbnailHeight / tableHeight;
-        const scale = Math.min(scaleX, scaleY);
-        
-        // Calculate dimensions maintaining aspect ratio
-        const scaledWidth = tableWidth * scale;
-        const scaledHeight = tableHeight * scale;
-        
-        // Center the image in thumbnail
-        const offsetX = (thumbnailWidth - scaledWidth) / 2;
-        const offsetY = (thumbnailHeight - scaledHeight) / 2;
-        
-        // Fill background
-        ctx.fillStyle = getTablePreviewPalette().background;
-        ctx.fillRect(0, 0, thumbnailWidth, thumbnailHeight);
-        
-        // Draw scaled version of main canvas (zero-copy approach like Figma)
-        // This captures the current rendered state without re-rendering
-        logger.debug('[ThumbnailService] Drawing canvas:', {
-          source: { x: 0, y: 0, w: mainCanvas.width, h: mainCanvas.height },
-          dest: { x: offsetX, y: offsetY, w: scaledWidth, h: scaledHeight },
-          scale
-        });
-        
-        ctx.drawImage(
-          mainCanvas,
-          0, 0, mainCanvas.width, mainCanvas.height,
-          offsetX, offsetY, scaledWidth, scaledHeight
-        );
-        
-        // Extract ImageData
-        const imageData = ctx.getImageData(0, 0, thumbnailWidth, thumbnailHeight);
-        
-        // Diagnostic: Check if thumbnail is all black
-        let nonBlackPixels = 0;
-        for (let i = 0; i < imageData.data.length; i += 4) {
-          const r = imageData.data[i];
-          const g = imageData.data[i + 1];
-          const b = imageData.data[i + 2];
-          if (r > 30 || g > 30 || b > 30) {
-            nonBlackPixels++;
-          }
-        }
-        const totalPixels = (imageData.width * imageData.height);
-        const percentVisible = (nonBlackPixels / totalPixels * 100).toFixed(1);
-        logger.debug('[ThumbnailService] Content analysis:', {
-          totalPixels,
-          nonBlackPixels,
-          percentVisible: `${percentVisible}%`,
-          status: nonBlackPixels > 0 ? 'Has content' : 'All black/empty'
-        });
-        
-        // Cache the result
-        const cacheEntry: ThumbnailCacheEntry = {
-          imageData,
-          timestamp: Date.now(),
-          tableId
-        };
-        if (this.scopeKey !== generationScope || this.renderEngine.get_active_table_id() !== tableId) {
-          return null;
-        }
-        this.cache.set(cacheKey, cacheEntry);
-        
-        const duration = performance.now() - startTime;
-        logger.debug(`[ThumbnailService] Generated thumbnail in ${duration.toFixed(2)}ms`);
-        
-        return imageData;
-        
-      } catch (error) {
-        logger.error('[ThumbnailService] Error during thumbnail generation:', error);
-        throw error;
-      }
-      
-    } catch (error) {
-      logger.error('[ThumbnailService] Failed to generate thumbnail:', error);
-      throw error;
-    } finally {
-      this.isGenerating.delete(cacheKey);
-    }
+  setHoveredTable(tableId: string | null): void {
+    this.hoveredTableId = tableId;
+    if (tableId) this.touch(tableId);
   }
-  
-  /**
-   * Wait for ongoing thumbnail generation to complete
-   */
-  private async waitForGeneration(cacheKey: string, timeoutMs = 5000): Promise<void> {
-    const startTime = Date.now();
-    while (this.isGenerating.has(cacheKey)) {
-      if (Date.now() - startTime > timeoutMs) {
-        logger.warn(`[ThumbnailService] Timeout waiting for ${cacheKey}`);
-        throw new Error(`Thumbnail generation timed out for ${cacheKey}`);
-      }
-      await new Promise(resolve => setTimeout(resolve, 100));
-    }
+
+  persistedSource(tableId: string): string | null {
+    return this.sessionId
+      ? `/game/api/sessions/${encodeURIComponent(this.sessionId)}/tables/${encodeURIComponent(tableId)}/preview`
+      : null;
   }
-  
-  /**
-   * Invalidate cache for a specific table
-   * Call this when table content changes (sprites added/moved/removed)
-   * Uses debouncing to prevent thrashing during rapid sprite movements
-   */
-  invalidateTable(tableId: string): void {
-    // Clear existing debounce timer
-    const existingTimer = this.debounceTimers.get(tableId);
-    if (existingTimer) {
-      clearTimeout(existingTimer);
-    }
-    
-    // Set new debounce timer
-    const timer = window.setTimeout(() => {
-      const keysToDelete: string[] = [];
-      
-      this.cache.forEach((entry, key) => {
-        if (entry.tableId === tableId) {
-          keysToDelete.push(key);
-        }
-      });
-      
-      if (keysToDelete.length > 0) {
-        keysToDelete.forEach(key => this.cache.delete(key));
-        logger.debug(`[ThumbnailService] Invalidated ${keysToDelete.length} cached thumbnails for table ${tableId}`);
-      }
-      
-      this.debounceTimers.delete(tableId);
-    }, this.DEBOUNCE_MS);
-    
-    this.debounceTimers.set(tableId, timer);
-  }
-  
-  /**
-   * Invalidate specific thumbnail by exact cache key
-   */
-  invalidateThumbnail(tableId: string, width: number, height: number): void {
-    if (!isValidUUID(tableId)) return;
-    const cacheKey = this.cacheKey(tableId, width, height);
-    if (this.cache.delete(cacheKey)) {
-      logger.debug(`[ThumbnailService] Invalidated thumbnail: ${cacheKey}`);
-    }
-  }
-  
-  /**
-   * Clear entire thumbnail cache
-   */
-  clearCache(): void {
-    const count = this.cache.size;
-    this.debounceTimers.forEach(timer => clearTimeout(timer));
-    this.debounceTimers.clear();
-    this.isGenerating.clear();
-    this.cache.clear();
-    logger.debug(`[ThumbnailService] Cleared ${count} cached thumbnails`);
-  }
-  
-  /**
-   * Get cache statistics
-   */
-  getCacheStats(): { size: number; tables: string[] } {
-    const tables = new Set<string>();
-    this.cache.forEach(entry => tables.add(entry.tableId));
-    
+
+  getSnapshot(tableId: string): TablePreviewSnapshot {
+    const entry = this.entry(tableId);
+    entry.lastAccess = Date.now();
     return {
-      size: this.cache.size,
-      tables: Array.from(tables)
+      source: entry.source,
+      isGenerating: entry.generating,
+      error: entry.error,
+      dirty: entry.dirty,
     };
   }
-  
-  /**
-   * Prune old cache entries
-   * @param maxAgeMs - Maximum age in milliseconds (default 5 minutes)
-   */
-  pruneCache(maxAgeMs = 5 * 60 * 1000): void {
-    const now = Date.now();
-    const keysToDelete: string[] = [];
-    
-    this.cache.forEach((entry, key) => {
-      if (now - entry.timestamp > maxAgeMs) {
-        keysToDelete.push(key);
-      }
-    });
-    
-    if (keysToDelete.length > 0) {
-      keysToDelete.forEach(key => this.cache.delete(key));
-      logger.debug(`[ThumbnailService] Pruned ${keysToDelete.length} old thumbnails`);
+
+  subscribe(tableId: string, listener: () => void): () => void {
+    const listeners = this.listeners.get(tableId) ?? new Set();
+    listeners.add(listener);
+    this.listeners.set(tableId, listeners);
+    return () => {
+      listeners.delete(listener);
+      if (listeners.size === 0) this.listeners.delete(tableId);
+    };
+  }
+
+  invalidateTable(tableId: string): void {
+    this.markDirty(tableId);
+  }
+
+  markDirty(tableId: string): void {
+    this.pendingDirty.add(tableId);
+    const entry = this.entries.get(tableId);
+    if (entry) {
+      entry.dirty = true;
+      entry.revision += 1;
+      this.notify(tableId);
+    }
+    if (tableId === this.activeTableId) this.schedule(tableId);
+  }
+
+  ensurePreview(tableId: string): void {
+    const entry = this.entry(tableId);
+    if (tableId === this.activeTableId && (entry.dirty || !entry.source)) {
+      this.schedule(tableId);
     }
   }
 
-  private cacheKey(tableId: string, width: number, height: number): string {
-    return `${this.scopeKey}:${tableId}_${width}x${height}`;
+  async captureBeforeSwitch(tableId: string): Promise<void> {
+    if (tableId !== this.activeTableId) return;
+    const timer = this.timers.get(tableId);
+    if (timer) {
+      clearTimeout(timer);
+      this.timers.delete(tableId);
+    }
+    await this.capture(tableId);
+  }
+
+  clearCache(): void {
+    this.timers.forEach(timer => clearTimeout(timer));
+    this.timers.clear();
+    this.entries.forEach(entry => {
+      if (entry.source) URL.revokeObjectURL(entry.source);
+    });
+    this.entries.clear();
+    this.pendingDirty.clear();
+  }
+
+  private entry(tableId: string): PreviewEntry {
+    let entry = this.entries.get(tableId);
+    if (!entry) {
+      entry = {
+        source: null,
+        dirty: this.pendingDirty.has(tableId),
+        generating: false,
+        error: null,
+        lastCapture: 0,
+        lastAccess: Date.now(),
+        revision: 0,
+      };
+      this.entries.set(tableId, entry);
+    }
+    return entry;
+  }
+
+  private touch(tableId: string): void {
+    this.entry(tableId).lastAccess = Date.now();
+  }
+
+  private schedule(tableId: string): void {
+    const prior = this.timers.get(tableId);
+    if (prior) clearTimeout(prior);
+    const entry = this.entry(tableId);
+    const throttle = Math.max(0, MIN_CAPTURE_INTERVAL_MS - (Date.now() - entry.lastCapture));
+    const timer = window.setTimeout(() => {
+      this.timers.delete(tableId);
+      void this.capture(tableId);
+    }, Math.max(DEBOUNCE_MS, throttle));
+    this.timers.set(tableId, timer);
+  }
+
+  private async capture(tableId: string): Promise<void> {
+    const runtime = this.runtime;
+    const entry = this.entry(tableId);
+    if (!runtime || tableId !== this.activeTableId || entry.generating) return;
+    if (runtime.status.frameTableId !== tableId || runtime.status.hydratedTableId !== tableId) return;
+
+    const scope = this.scopeKey;
+    const revision = entry.revision;
+    entry.generating = true;
+    entry.error = null;
+    this.notify(tableId);
+    try {
+      const captured = runtime.captureActiveTableThumbnail(
+        tableId,
+        PREVIEW_WIDTH,
+        PREVIEW_HEIGHT,
+      );
+      if (!captured || captured.data.length !== captured.width * captured.height * 4) return;
+      const sourceCanvas = document.createElement('canvas');
+      sourceCanvas.width = captured.width;
+      sourceCanvas.height = captured.height;
+      const sourceContext = sourceCanvas.getContext('2d');
+      if (!sourceContext) throw new Error('2D canvas is unavailable');
+      sourceContext.putImageData(new ImageData(
+        new Uint8ClampedArray(captured.data),
+        captured.width,
+        captured.height,
+      ), 0, 0);
+      const canvas = document.createElement('canvas');
+      canvas.width = PREVIEW_WIDTH;
+      canvas.height = PREVIEW_HEIGHT;
+      const context = canvas.getContext('2d');
+      if (!context) throw new Error('2D canvas is unavailable');
+      context.drawImage(sourceCanvas, 0, 0, PREVIEW_WIDTH, PREVIEW_HEIGHT);
+      const blob = await new Promise<Blob>((resolve, reject) => {
+        canvas.toBlob(
+          value => value ? resolve(value) : reject(new Error('WebP encoding failed')),
+          'image/webp',
+          0.82,
+        );
+      });
+      if (scope !== this.scopeKey || tableId !== this.activeTableId) return;
+      if (entry.source) URL.revokeObjectURL(entry.source);
+      entry.source = URL.createObjectURL(blob);
+      entry.lastCapture = Date.now();
+      entry.dirty = entry.revision !== revision;
+      this.pendingDirty.delete(tableId);
+      this.notify(tableId);
+      this.prune();
+      void this.persist(tableId, blob, scope);
+    } catch (error) {
+      entry.error = error instanceof Error ? error.message : 'Preview capture failed';
+      logger.warn('[ThumbnailService] Preview capture failed', error);
+    } finally {
+      entry.generating = false;
+      this.notify(tableId);
+      if (entry.dirty && tableId === this.activeTableId) this.schedule(tableId);
+    }
+  }
+
+  private async persist(tableId: string, blob: Blob, scope: string): Promise<void> {
+    if (!this.sessionId || scope !== this.scopeKey) return;
+    const body = new FormData();
+    body.append('preview', blob, 'preview.webp');
+    try {
+      const response = await fetch(this.persistedSource(tableId)!, {
+        method: 'POST',
+        body,
+        credentials: 'same-origin',
+      });
+      if (!response.ok) throw new Error(`upload returned ${response.status}`);
+    } catch (error) {
+      logger.warn('[ThumbnailService] Preview remains memory-only after upload failure', error);
+    }
+  }
+
+  private prune(): void {
+    const cached = [...this.entries.entries()].filter(([, entry]) => entry.source);
+    if (cached.length <= MAX_MEMORY_PREVIEWS) return;
+    cached.sort((a, b) => a[1].lastAccess - b[1].lastAccess);
+    let remaining = cached.length;
+    for (const [tableId, entry] of cached) {
+      if (remaining <= MAX_MEMORY_PREVIEWS) break;
+      if (tableId === this.activeTableId || tableId === this.hoveredTableId) continue;
+      if (entry.source) URL.revokeObjectURL(entry.source);
+      this.entries.delete(tableId);
+      remaining -= 1;
+    }
+  }
+
+  private notify(tableId: string): void {
+    this.listeners.get(tableId)?.forEach(listener => listener());
   }
 }
 
-// Singleton instance
 export const tableThumbnailService = new TableThumbnailService();

@@ -55,6 +55,8 @@ table resource budgets. The generator packages the schema with `core_table`.
 `core_table.paint` applies the schema, rejects non-finite JSON values and
 oversized serialized payloads, preserves square/circle aspect ratios, and can
 enforce aggregate table object and point budgets at server boundaries.
+`src/features/painting/model/paintObject.ts` provides the matching strict
+browser types and runtime checks from the generated schema limits.
 This contract is a foundation only: the active runtime still uses the legacy
 stroke flow described below until object handlers and clients are connected.
 

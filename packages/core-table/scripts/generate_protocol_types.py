@@ -20,6 +20,16 @@ TYPESCRIPT_TARGET = (
     REPOSITORY_ROOT / "apps" / "web-ui" / "src" / "lib" / "websocket" / "message.ts"
 )
 TYPESCRIPT_SCHEMA_TARGET = TYPESCRIPT_TARGET.with_name("message.schema.generated.json")
+TYPESCRIPT_PAINT_SCHEMA_TARGET = (
+    REPOSITORY_ROOT
+    / "apps"
+    / "web-ui"
+    / "src"
+    / "features"
+    / "painting"
+    / "model"
+    / "paint_object.schema.generated.json"
+)
 
 PYTHON_BEGIN = (
     "# BEGIN GENERATED MESSAGE TYPES - "
@@ -112,6 +122,7 @@ def main() -> int:
             _typescript_block(entries),
         ),
         TYPESCRIPT_SCHEMA_TARGET: SCHEMA_PATH.read_bytes(),
+        TYPESCRIPT_PAINT_SCHEMA_TARGET: PAINT_SCHEMA_PATH.read_bytes(),
         PYTHON_SCHEMA_TARGET: SCHEMA_PATH.read_bytes(),
         PYTHON_PAINT_SCHEMA_TARGET: PAINT_SCHEMA_PATH.read_bytes(),
     }
@@ -130,6 +141,7 @@ def main() -> int:
         return 0
 
     for path in stale:
+        path.parent.mkdir(parents=True, exist_ok=True)
         path.write_bytes(targets[path])
         print(f"updated {path.relative_to(REPOSITORY_ROOT)}")
     if not stale:

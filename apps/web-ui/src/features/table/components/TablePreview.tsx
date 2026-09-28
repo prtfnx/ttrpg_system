@@ -1,4 +1,5 @@
 import { useGameStore, type TableInfo } from '@/store';
+import { isDM } from '@features/session/types/roles';
 import { useWasmRuntime, useWasmStatus } from '@lib/wasm/runtime';
 import React, { useEffect, useRef, useState } from 'react';
 import { tableThumbnailService } from '../services/tableThumbnail.service';
@@ -23,13 +24,14 @@ export const TablePreview: React.FC<TablePreviewProps> = ({ table, priority = fa
   const [nearViewport, setNearViewport] = useState(priority);
   const [failedSource, setFailedSource] = useState<string | null>(null);
   const [, rerender] = useState(0);
+  const canUsePersistence = isDM(sessionRole);
   const viewerScope = `${sessionId ?? 'no-session'}:${userId ?? 'anonymous'}:${sessionRole ?? 'unknown'}:${visibleLayers.join(',')}`;
 
   useEffect(() => {
-    tableThumbnailService.configure(runtime, sessionId ?? null);
+    tableThumbnailService.configure(runtime, sessionId ?? null, canUsePersistence);
     tableThumbnailService.setScope(viewerScope);
     tableThumbnailService.setActiveTable(activeTableId);
-  }, [activeTableId, runtime, sessionId, viewerScope]);
+  }, [activeTableId, canUsePersistence, runtime, sessionId, viewerScope]);
 
   useEffect(
     () => tableThumbnailService.subscribe(table.table_id, () => rerender(value => value + 1)),
@@ -66,7 +68,7 @@ export const TablePreview: React.FC<TablePreviewProps> = ({ table, priority = fa
   const snapshot = tableThumbnailService.getSnapshot(table.table_id);
   const persisted = tableThumbnailService.persistedSource(
     table.table_id,
-    table.has_preview ? (table.preview_etag ?? '') : null,
+    canUsePersistence && table.has_preview ? (table.preview_etag ?? '') : null,
   );
   const source = nearViewport ? (snapshot.source ?? persisted) : null;
   const visibleSource = source !== failedSource ? source : null;

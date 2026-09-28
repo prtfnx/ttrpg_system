@@ -69,14 +69,14 @@ describe('useLayerHotkeys', () => {
     expect(mockSetActiveLayer).not.toHaveBeenCalled();
   });
 
-  it('calls runtime render engine set_active_layer if available', () => {
-    const set_active_layer = vi.fn();
+  it('routes layer changes through the preview-aware runtime boundary', () => {
+    const setActiveLayer = vi.fn();
     renderHookWithWasmRuntime(
       () => useLayerHotkeys(),
-      createMockWasmRuntime({ getRenderEngine: vi.fn(() => ({ set_active_layer }) as never) }),
+      createMockWasmRuntime({ setActiveLayer }),
     );
     pressKey('2');
-    expect(set_active_layer).toHaveBeenCalledWith('tokens');
+    expect(setActiveLayer).toHaveBeenCalledWith('tokens');
   });
 
   it('cleans up event listener on unmount', () => {

@@ -5,7 +5,7 @@
  */
 import { useGameStore } from '@/store';
 import { isDM } from '@features/session/types/roles';
-import { useRenderEngine } from '@lib/wasm/runtime';
+import { useWasmRuntime } from '@lib/wasm/runtime';
 import { useEffect } from 'react';
 
 const LAYER_HOTKEYS: Record<string, string> = {
@@ -21,7 +21,7 @@ const LAYER_HOTKEYS: Record<string, string> = {
 export function useLayerHotkeys() {
   const sessionRole = useGameStore(s => s.sessionRole);
   const setActiveLayer = useGameStore(s => s.setActiveLayer);
-  const renderEngine = useRenderEngine();
+  const runtime = useWasmRuntime();
 
   useEffect(() => {
     if (!isDM(sessionRole)) return;
@@ -37,10 +37,10 @@ export function useLayerHotkeys() {
 
       e.preventDefault();
       setActiveLayer(layer);
-      renderEngine?.set_active_layer(layer);
+      runtime.setActiveLayer(layer);
     };
 
     window.addEventListener('keydown', handler);
     return () => window.removeEventListener('keydown', handler);
-  }, [renderEngine, sessionRole, setActiveLayer]);
+  }, [runtime, sessionRole, setActiveLayer]);
 }

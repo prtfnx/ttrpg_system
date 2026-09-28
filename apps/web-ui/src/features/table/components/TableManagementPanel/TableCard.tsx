@@ -45,7 +45,10 @@ export const TableCard: FC<TableCardProps> = ({
           : Math.max(16, rect.top - height - 8),
       });
     }
-    tableThumbnailService.setHoveredTable(table.table_id);
+    tableThumbnailService.setHoveredTable(
+      table.table_id,
+      canSetForAll && table.has_preview ? (table.preview_etag ?? '') : null,
+    );
     setExpanded(true);
   };
 

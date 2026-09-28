@@ -26,15 +26,14 @@ const PLAYER_PERMITTED_LAYERS = [
   { id: 'tokens', label: 'Tokens', Icon: Users },
 ] as const;
 
-function PlayerLayerControls() {
+function PlayerLayerControls({ runtime }: { runtime: ReturnType<typeof useWasmRuntime> }) {
   const layerVisibility = useGameStore(s => s.layerVisibility);
   const setLayerVisibility = useGameStore(s => s.setLayerVisibility);
-  const renderEngine = useRenderEngine();
 
   const toggle = (id: string) => {
     const next = !(layerVisibility[id] ?? true);
     setLayerVisibility(id, next);
-    renderEngine?.set_layer_visibility(id, next);
+    runtime.setLayerVisibility(id, next);
   };
 
   return (
@@ -126,7 +125,7 @@ export function ToolsPanel({ userInfo: _userInfo }: ToolsPanelProps) {
 
   const handleLayerSwitch = (layerId: string) => {
     setActiveLayer(layerId);
-    renderEngine?.set_active_layer(layerId);
+    wasmRuntime.setActiveLayer(layerId);
   };
 
   // controlledBy is stored as string[] in the store (server sends user IDs as strings)
@@ -485,7 +484,7 @@ export function ToolsPanel({ userInfo: _userInfo }: ToolsPanelProps) {
           )}
 
           {/* Player layer visibility */}
-          {!dmMode && <PlayerLayerControls />}
+          {!dmMode && <PlayerLayerControls runtime={wasmRuntime} />}
 
           <DiceRoller />
 
@@ -573,7 +572,7 @@ export function ToolsPanel({ userInfo: _userInfo }: ToolsPanelProps) {
               <LayerPanel />
             </>
           )}
-          {!dmMode && <PlayerLayerControls />}
+          {!dmMode && <PlayerLayerControls runtime={wasmRuntime} />}
         </div>
       )}
 

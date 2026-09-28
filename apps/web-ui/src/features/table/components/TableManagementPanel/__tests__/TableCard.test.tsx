@@ -3,6 +3,7 @@ import { act, render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { TableCard } from '../TableCard';
+import { tableThumbnailService } from '../../../services/tableThumbnail.service';
 
 vi.mock('../../TablePreview', () => ({
   TablePreview: () => <div data-testid="preview" />,
@@ -69,6 +70,18 @@ describe('TableCard', () => {
 
     await user.unhover(preview);
     expect(screen.queryByRole('tooltip')).not.toBeInTheDocument();
+  });
+
+  it('revalidates a known persisted preview when an inactive card is hovered', async () => {
+    useGameStore.setState({ sessionRole: 'owner' } as never);
+    const hovered = vi.spyOn(tableThumbnailService, 'setHoveredTable');
+    const table = { ...makeTable(), has_preview: true, preview_etag: 'etag-1' };
+    const user = userEvent.setup();
+    render(<TableCard {...defaultProps} table={table} />);
+
+    await user.hover(screen.getByRole('button', { name: 'Open Main table' }));
+
+    expect(hovered).toHaveBeenCalledWith('t1', 'etag-1');
   });
 
   it('calls onSettings when settings button is clicked', async () => {

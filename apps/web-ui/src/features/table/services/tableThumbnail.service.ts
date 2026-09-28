@@ -31,10 +31,13 @@ class TableThumbnailService {
   private listeners = new Map<string, Set<() => void>>();
   private timers = new Map<string, number>();
   private pendingDirty = new Set<string>();
+  private persistedEtags = new Map<string, string>();
   private scopeKey = 'anonymous';
   private sessionId: string | null = null;
+  private canUsePersistence = false;
   private activeTableId: string | null = null;
   private hoveredTableId: string | null = null;
+  private hoverController: AbortController | null = null;
 
   constructor() {
     if (typeof window !== 'undefined') {
@@ -44,9 +47,10 @@ class TableThumbnailService {
     }
   }
 
-  configure(runtime: WasmRuntimePort, sessionId: string | null): void {
+  configure(runtime: WasmRuntimePort, sessionId: string | null, canUsePersistence: boolean): void {
     this.runtime = runtime;
     this.sessionId = sessionId;
+    this.canUsePersistence = canUsePersistence;
   }
 
   setScope(scopeKey: string): void {
@@ -60,13 +64,19 @@ class TableThumbnailService {
     if (tableId) this.ensurePreview(tableId);
   }
 
-  setHoveredTable(tableId: string | null): void {
+  setHoveredTable(tableId: string | null, previewEtag: string | null = null): void {
+    this.hoverController?.abort();
+    this.hoverController = null;
     this.hoveredTableId = tableId;
-    if (tableId) this.touch(tableId);
+    if (!tableId) return;
+    this.touch(tableId);
+    if (tableId !== this.activeTableId && previewEtag !== null && this.canUsePersistence) {
+      void this.refreshPersisted(tableId, this.persistedEtags.get(tableId) ?? previewEtag);
+    }
   }
 
   persistedSource(tableId: string, previewEtag: string | null): string | null {
-    if (!this.sessionId || previewEtag === null) return null;
+    if (!this.sessionId || !this.canUsePersistence || previewEtag === null) return null;
     const endpoint = this.previewEndpoint(tableId);
     return previewEtag ? `${endpoint}?v=${encodeURIComponent(previewEtag)}` : endpoint;
   }
@@ -125,6 +135,8 @@ class TableThumbnailService {
   }
 
   clearCache(): void {
+    this.hoverController?.abort();
+    this.hoverController = null;
     this.timers.forEach(timer => clearTimeout(timer));
     this.timers.clear();
     this.entries.forEach(entry => {
@@ -132,6 +144,8 @@ class TableThumbnailService {
     });
     this.entries.clear();
     this.pendingDirty.clear();
+    this.persistedEtags.clear();
+    this.hoveredTableId = null;
   }
 
   private entry(tableId: string): PreviewEntry {
@@ -228,7 +242,7 @@ class TableThumbnailService {
   }
 
   private async persist(tableId: string, blob: Blob, scope: string): Promise<void> {
-    if (!this.sessionId || scope !== this.scopeKey) return;
+    if (!this.sessionId || !this.canUsePersistence || scope !== this.scopeKey) return;
     const body = new FormData();
     body.append('preview', blob, 'preview.webp');
     try {
@@ -240,6 +254,50 @@ class TableThumbnailService {
       if (!response.ok) throw new Error(`upload returned ${response.status}`);
     } catch (error) {
       logger.warn('[ThumbnailService] Preview remains memory-only after upload failure', error);
+    }
+  }
+
+  private async refreshPersisted(tableId: string, previewEtag: string): Promise<void> {
+    const scope = this.scopeKey;
+    const controller = new AbortController();
+    this.hoverController = controller;
+    const entry = this.entry(tableId);
+    entry.generating = true;
+    entry.error = null;
+    this.notify(tableId);
+    try {
+      const headers = previewEtag ? { 'If-None-Match': `"${previewEtag}"` } : undefined;
+      const response = await fetch(this.previewEndpoint(tableId), {
+        method: 'GET',
+        credentials: 'same-origin',
+        cache: 'no-cache',
+        headers,
+        signal: controller.signal,
+      });
+      if (response.status === 304) return;
+      if (!response.ok) throw new Error(`download returned ${response.status}`);
+      const blob = await response.blob();
+      if (
+        controller.signal.aborted
+        || scope !== this.scopeKey
+        || tableId !== this.hoveredTableId
+      ) return;
+      if (entry.source) URL.revokeObjectURL(entry.source);
+      entry.source = URL.createObjectURL(blob);
+      const responseEtag = response.headers.get('etag')?.replace(/^"|"$/g, '');
+      if (responseEtag) this.persistedEtags.set(tableId, responseEtag);
+      entry.error = null;
+      entry.lastAccess = Date.now();
+      this.notify(tableId);
+      this.prune();
+    } catch (error) {
+      if (controller.signal.aborted) return;
+      entry.error = error instanceof Error ? error.message : 'Preview refresh failed';
+      logger.warn('[ThumbnailService] Persisted preview refresh failed', error);
+    } finally {
+      if (this.hoverController === controller) this.hoverController = null;
+      entry.generating = false;
+      this.notify(tableId);
     }
   }
 

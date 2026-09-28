@@ -111,8 +111,9 @@ Table previews:
 1. For DMs, `table_list_response` includes `has_preview`, `preview_etag`, and
    `preview_updated_at` without loading image bytes. Cards request an image
    only when `has_preview` is true and only when they are near the viewport.
-2. Hover or keyboard focus opens the same image in a larger, non-interactive
-   preview. It does not hydrate or switch an inactive table.
+2. Hover or keyboard focus opens the image in a larger, non-interactive
+   preview. For a DM, hovering an inactive table conditionally revalidates its
+   saved WebP by ETag. It does not hydrate, render, or switch that table.
 3. Only the active, hydrated table with a committed render frame can generate
    a new preview. Rust temporarily fits the complete table into a bounded
    capture camera, reads pixels synchronously, then restores the interactive
@@ -120,9 +121,10 @@ Table previews:
 4. The browser debounces changes, limits capture frequency, and keeps at most
    24 generated object URLs. It flushes a dirty active preview before a table
    switch.
-5. The browser keys persisted image URLs by preview ETag, encodes a canonical
-   640x360 WebP, and uploads it. Upload failure
-   leaves the in-memory preview usable for the current session.
+5. For a DM, the browser keys persisted image URLs by preview ETag, encodes a
+   canonical 640x360 WebP, and uploads it. Other roles can keep a scoped
+   in-memory preview but never call the DM-only persistence routes. Upload
+   failure leaves the in-memory preview usable for the current session.
 
 Preview invalidation covers sprite transforms and CRUD, table/grid and layer
 settings, walls, paint, fog, and ambient lighting. Inactive tables are not

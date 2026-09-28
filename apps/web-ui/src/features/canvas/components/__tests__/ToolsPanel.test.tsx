@@ -393,7 +393,7 @@ describe('ToolsPanel — PlayerLayerControls (player role)', () => {
 
   it('clicking Toggle Map layer calls setLayerVisibility and rustRenderManager', () => {
     const setLayerVisibility = vi.fn();
-    const set_layer_visibility = vi.fn();
+    const runtimeSetLayerVisibility = vi.fn();
     vi.mocked(useGameStore).mockImplementation(
       ((sel?: (s: typeof baseStoreState) => unknown) => {
         const state = { ...baseStoreState, setLayerVisibility };
@@ -403,9 +403,9 @@ describe('ToolsPanel — PlayerLayerControls (player role)', () => {
     renderWithWasmRuntime(
       <ToolsPanel userInfo={makeUser('player')} />,
       createMockWasmRuntime({
+        setLayerVisibility: runtimeSetLayerVisibility,
         getRenderEngine: vi.fn(() => ({
           paint_exit_mode: vi.fn(),
-          set_layer_visibility,
           set_tool_mode: vi.fn(),
           set_input_mode_select: vi.fn(),
         }) as never),
@@ -413,7 +413,7 @@ describe('ToolsPanel — PlayerLayerControls (player role)', () => {
     );
     fireEvent.click(screen.getByRole('button', { name: 'Toggle Map layer' }));
     expect(setLayerVisibility).toHaveBeenCalledWith('map', false);
-    expect(set_layer_visibility).toHaveBeenCalledWith('map', false);
+    expect(runtimeSetLayerVisibility).toHaveBeenCalledWith('map', false);
   });
 });
 
@@ -430,9 +430,14 @@ describe('ToolsPanel — DM Layers tab', () => {
 
   it('clicking a layer button calls setActiveLayer', () => {
     dmStore();
-    render(<ToolsPanel userInfo={makeUser('dm')} />);
+    const runtimeSetActiveLayer = vi.fn();
+    render(
+      <ToolsPanel userInfo={makeUser('dm')} />,
+      createMockWasmRuntime({ setActiveLayer: runtimeSetActiveLayer }),
+    );
     fireEvent.click(screen.getByRole('tab', { name: 'Layers' }));
     fireEvent.click(screen.getByTitle('Map layer [1]'));
     expect(mockSetActiveLayer).toHaveBeenCalledWith('map');
+    expect(runtimeSetActiveLayer).toHaveBeenCalledWith('map');
   });
 });

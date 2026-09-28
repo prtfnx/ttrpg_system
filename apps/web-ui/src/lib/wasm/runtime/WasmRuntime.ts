@@ -404,6 +404,12 @@ export class WasmRuntime implements WasmRuntimePort {
 
   setActiveLayer(layerName: string): void {
     this.renderEngine?.set_active_layer(layerName);
+    this.invalidateFramedPreview();
+  }
+
+  setLayerVisibility(layerName: string, visible: boolean): void {
+    this.renderEngine?.set_layer_visibility(layerName, visible);
+    this.invalidateFramedPreview();
   }
 
   setGridEnabled(enabled: boolean): void {

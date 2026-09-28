@@ -47,6 +47,7 @@ describe('TablePreview', () => {
     );
 
     expect(container.querySelector('img')).toHaveAttribute('src', `/preview/${TABLE_ID}?v=etag-1`);
+    expect(thumbnailMocks.configure).toHaveBeenCalledWith(expect.anything(), 'SESSION1', true);
     expect(thumbnailMocks.persistedSource).toHaveBeenCalledWith(TABLE_ID, 'etag-1');
   });
 
@@ -57,6 +58,25 @@ describe('TablePreview', () => {
     );
 
     expect(container.querySelector('img')).not.toBeInTheDocument();
+    expect(thumbnailMocks.persistedSource).toHaveBeenCalledWith(TABLE_ID, null);
+  });
+
+  it('never exposes a persisted preview URL to a non-DM render', () => {
+    useGameStore.setState({ sessionRole: 'player' });
+    const { container } = renderWithWasmRuntime(
+      <TablePreview table={{
+        table_id: TABLE_ID,
+        table_name: 'Cave',
+        width: 1000,
+        height: 800,
+        has_preview: true,
+        preview_etag: 'dm-etag',
+      }} priority />,
+      createMockWasmRuntime(),
+    );
+
+    expect(container.querySelector('img')).not.toBeInTheDocument();
+    expect(thumbnailMocks.configure).toHaveBeenCalledWith(expect.anything(), 'SESSION1', false);
     expect(thumbnailMocks.persistedSource).toHaveBeenCalledWith(TABLE_ID, null);
   });
 

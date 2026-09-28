@@ -115,7 +115,7 @@ export function GameClient({ sessionCode, userInfo, userRole, onAuthError }: Gam
     for (const layer of ALL_LAYERS) {
       const roleAllows = allowed.has(layer);
       const userToggle = layerVisibility[layer] ?? true;
-      engine.set_layer_visibility(layer, roleAllows && userToggle);
+      runtime.setLayerVisibility(layer, roleAllows && userToggle);
     }
  }, [runtime, sessionRole, visibleLayers, layerVisibility]);
 

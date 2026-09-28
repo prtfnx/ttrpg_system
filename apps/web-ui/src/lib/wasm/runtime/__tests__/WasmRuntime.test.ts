@@ -10,6 +10,7 @@ const mocks = vi.hoisted(() => {
     set_current_user_id: vi.fn(),
     set_gm_mode: vi.fn(),
     set_active_layer: vi.fn(),
+    set_layer_visibility: vi.fn(),
     set_grid_enabled: vi.fn(),
     set_runtime_operation_handler: vi.fn(),
     set_runtime_event_handler: vi.fn(),
@@ -198,9 +199,14 @@ describe('WasmRuntime', () => {
     mocks.coordinatorCallbacks?.onTableHydrated?.('table-1');
     vi.mocked(requestAnimationFrame).mock.calls[0][0](1);
 
+    runtime.setActiveLayer('tokens');
+    runtime.setLayerVisibility('tokens', false);
     runtime.setGridEnabled(false);
 
-    expect(emitWasmEvent).toHaveBeenCalledWith(
+    expect(mocks.renderEngine.set_active_layer).toHaveBeenCalledWith('tokens');
+    expect(mocks.renderEngine.set_layer_visibility).toHaveBeenCalledWith('tokens', false);
+    expect(emitWasmEvent).toHaveBeenCalledTimes(3);
+    expect(emitWasmEvent).toHaveBeenLastCalledWith(
       'table-preview-invalidated',
       { table_id: 'table-1' },
     );

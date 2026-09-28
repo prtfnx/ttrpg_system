@@ -63,6 +63,7 @@ export interface WasmRuntimePort {
 
   setUserContext(userId: number | null, role: SessionRole | string | null): void;
   setActiveLayer(layerName: string): void;
+  setLayerVisibility(layerName: string, visible: boolean): void;
   setGridEnabled(enabled: boolean): void;
   setGridSnapping(enabled: boolean): void;
   setGridSize(size: number): void;

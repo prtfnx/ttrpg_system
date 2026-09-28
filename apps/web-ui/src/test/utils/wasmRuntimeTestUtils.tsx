@@ -70,6 +70,7 @@ export function createMockWasmRuntime(overrides: Partial<MockWasmRuntime> = {}):
     })),
     setUserContext: vi.fn(),
     setActiveLayer: vi.fn(),
+    setLayerVisibility: vi.fn(),
     setGridEnabled: vi.fn(),
     setGridSnapping: vi.fn(),
     setGridSize: vi.fn(),

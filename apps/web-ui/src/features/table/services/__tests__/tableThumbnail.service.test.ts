@@ -43,7 +43,7 @@ describe('TableThumbnailService', () => {
       createObjectURL: vi.fn(() => 'blob:preview'),
       revokeObjectURL: vi.fn(),
     });
-    tableThumbnailService.configure(runtime, 'SESSION1');
+    tableThumbnailService.configure(runtime, 'SESSION1', true);
     tableThumbnailService.setScope('SESSION1:owner:dm');
   });
 
@@ -107,5 +107,50 @@ describe('TableThumbnailService', () => {
     expect(tableThumbnailService.persistedSource(TABLE_ID, 'etag value')).toBe(
       `/game/api/sessions/SESSION1/tables/${TABLE_ID}/preview?v=etag%20value`,
     );
+  });
+
+  it('revalidates only a hovered inactive persisted preview', async () => {
+    vi.mocked(fetch).mockResolvedValueOnce({
+      ok: true,
+      status: 200,
+      headers: new Headers({ ETag: '"etag-3"' }),
+      blob: vi.fn().mockResolvedValue(new Blob(['saved'], { type: 'image/webp' })),
+    } as unknown as Response);
+    tableThumbnailService.setActiveTable(TABLE_ID);
+
+    tableThumbnailService.setHoveredTable(OTHER_TABLE_ID, 'etag-2');
+    await vi.advanceTimersByTimeAsync(0);
+
+    expect(fetch).toHaveBeenCalledWith(
+      `/game/api/sessions/SESSION1/tables/${OTHER_TABLE_ID}/preview`,
+      expect.objectContaining({
+        method: 'GET',
+        cache: 'no-cache',
+        credentials: 'same-origin',
+        headers: { 'If-None-Match': '"etag-2"' },
+      }),
+    );
+    expect(runtime.captureActiveTableThumbnail).not.toHaveBeenCalled();
+    expect(tableThumbnailService.getSnapshot(OTHER_TABLE_ID).source).toBe('blob:preview');
+
+    vi.mocked(fetch).mockResolvedValueOnce({ status: 304 } as Response);
+    tableThumbnailService.setHoveredTable(null);
+    tableThumbnailService.setHoveredTable(OTHER_TABLE_ID, 'etag-2');
+    await vi.advanceTimersByTimeAsync(0);
+
+    expect(fetch).toHaveBeenLastCalledWith(
+      `/game/api/sessions/SESSION1/tables/${OTHER_TABLE_ID}/preview`,
+      expect.objectContaining({ headers: { 'If-None-Match': '"etag-3"' } }),
+    );
+  });
+
+  it('keeps non-DM previews memory-only without calling persistence routes', async () => {
+    tableThumbnailService.configure(runtime, 'SESSION1', false);
+    tableThumbnailService.setActiveTable(TABLE_ID);
+    await vi.advanceTimersByTimeAsync(750);
+
+    expect(runtime.captureActiveTableThumbnail).toHaveBeenCalledOnce();
+    expect(fetch).not.toHaveBeenCalled();
+    expect(tableThumbnailService.persistedSource(TABLE_ID, 'etag-1')).toBeNull();
   });
 });

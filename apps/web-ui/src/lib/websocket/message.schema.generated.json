@@ -170,6 +170,14 @@
         "paint_stroke_delete",
         "paint_stroke_clear",
         "paint_sync",
+        "paint_object_create",
+        "paint_object_update",
+        "paint_object_delete",
+        "paint_object_event",
+        "paint_snapshot_request",
+        "paint_snapshot_chunk",
+        "paint_preview",
+        "paint_preview_cancel",
         "paint_template_upsert",
         "paint_template_delete",
         "paint_template_sync",
@@ -345,6 +353,14 @@
         "PAINT_STROKE_DELETE",
         "PAINT_STROKE_CLEAR",
         "PAINT_SYNC",
+        "PAINT_OBJECT_CREATE",
+        "PAINT_OBJECT_UPDATE",
+        "PAINT_OBJECT_DELETE",
+        "PAINT_OBJECT_EVENT",
+        "PAINT_SNAPSHOT_REQUEST",
+        "PAINT_SNAPSHOT_CHUNK",
+        "PAINT_PREVIEW",
+        "PAINT_PREVIEW_CANCEL",
         "PAINT_TEMPLATE_UPSERT",
         "PAINT_TEMPLATE_DELETE",
         "PAINT_TEMPLATE_SYNC",
@@ -458,6 +474,27 @@
         "action_id": {
           "type": "string",
           "minLength": 1
+        },
+        "operation_id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "code": {
+          "enum": [
+            "forbidden",
+            "not_found",
+            "version_conflict",
+            "limit_exceeded",
+            "retry_window_expired",
+            "invalid_payload"
+          ]
+        },
+        "current_object": {
+          "type": "object"
+        },
+        "current_version": {
+          "type": "integer",
+          "minimum": 1
         },
         "original_message": {
           "type": "object"
@@ -1687,6 +1724,284 @@
           "additionalProperties": false
         }
       ]
+    },
+    "paintObjectCreateData": {
+      "type": "object",
+      "required": [
+        "operation_id",
+        "table_id",
+        "object"
+      ],
+      "properties": {
+        "operation_id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "table_id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "object": {
+          "type": "object"
+        }
+      },
+      "additionalProperties": false
+    },
+    "paintObjectUpdateData": {
+      "type": "object",
+      "required": [
+        "operation_id",
+        "table_id",
+        "id",
+        "expected_version",
+        "object"
+      ],
+      "properties": {
+        "operation_id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "table_id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "expected_version": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "object": {
+          "type": "object"
+        }
+      },
+      "additionalProperties": false
+    },
+    "paintObjectDeleteData": {
+      "type": "object",
+      "required": [
+        "operation_id",
+        "table_id",
+        "id",
+        "expected_version"
+      ],
+      "properties": {
+        "operation_id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "table_id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "expected_version": {
+          "type": "integer",
+          "minimum": 1
+        }
+      },
+      "additionalProperties": false
+    },
+    "paintSnapshotRequestData": {
+      "type": "object",
+      "required": [
+        "table_id"
+      ],
+      "properties": {
+        "table_id": {
+          "type": "string",
+          "format": "uuid"
+        }
+      },
+      "additionalProperties": false
+    },
+    "paintObjectEventData": {
+      "oneOf": [
+        {
+          "type": "object",
+          "required": [
+            "operation_id",
+            "table_id",
+            "revision",
+            "action",
+            "object"
+          ],
+          "properties": {
+            "operation_id": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "table_id": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "revision": {
+              "type": "integer",
+              "minimum": 1
+            },
+            "action": {
+              "enum": [
+                "create",
+                "update"
+              ]
+            },
+            "object": {
+              "type": "object"
+            }
+          },
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "required": [
+            "operation_id",
+            "table_id",
+            "revision",
+            "action",
+            "deleted_id",
+            "deleted_version"
+          ],
+          "properties": {
+            "operation_id": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "table_id": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "revision": {
+              "type": "integer",
+              "minimum": 1
+            },
+            "action": {
+              "const": "delete"
+            },
+            "deleted_id": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "deleted_version": {
+              "type": "integer",
+              "minimum": 1
+            }
+          },
+          "additionalProperties": false
+        }
+      ]
+    },
+    "paintSnapshotChunkData": {
+      "type": "object",
+      "required": [
+        "snapshot_id",
+        "table_id",
+        "revision",
+        "chunk_index",
+        "chunk_count",
+        "complete",
+        "objects"
+      ],
+      "properties": {
+        "snapshot_id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "table_id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "revision": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "chunk_index": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "chunk_count": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "complete": {
+          "type": "boolean"
+        },
+        "objects": {
+          "type": "array",
+          "maxItems": 2000,
+          "items": {
+            "type": "object"
+          }
+        }
+      },
+      "additionalProperties": false
+    },
+    "paintPreviewData": {
+      "type": "object",
+      "required": [
+        "table_id",
+        "temporary_id",
+        "sequence",
+        "expires_at",
+        "draft"
+      ],
+      "properties": {
+        "table_id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "temporary_id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "sequence": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "expires_at": {
+          "type": "number",
+          "exclusiveMinimum": 0
+        },
+        "draft": {
+          "type": "object"
+        },
+        "actor_id": {
+          "type": "integer",
+          "minimum": 1
+        }
+      },
+      "additionalProperties": false
+    },
+    "paintPreviewCancelData": {
+      "type": "object",
+      "required": [
+        "table_id",
+        "temporary_id",
+        "sequence"
+      ],
+      "properties": {
+        "table_id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "temporary_id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "sequence": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "actor_id": {
+          "type": "integer",
+          "minimum": 1
+        }
+      },
+      "additionalProperties": false
     }
   },
   "allOf": [
@@ -2339,6 +2654,182 @@
         "properties": {
           "data": {
             "$ref": "#/$defs/wallData"
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "type": {
+            "const": "paint_object_create"
+          }
+        },
+        "required": [
+          "type"
+        ]
+      },
+      "then": {
+        "required": [
+          "data"
+        ],
+        "properties": {
+          "data": {
+            "$ref": "#/$defs/paintObjectCreateData"
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "type": {
+            "const": "paint_object_update"
+          }
+        },
+        "required": [
+          "type"
+        ]
+      },
+      "then": {
+        "required": [
+          "data"
+        ],
+        "properties": {
+          "data": {
+            "$ref": "#/$defs/paintObjectUpdateData"
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "type": {
+            "const": "paint_object_delete"
+          }
+        },
+        "required": [
+          "type"
+        ]
+      },
+      "then": {
+        "required": [
+          "data"
+        ],
+        "properties": {
+          "data": {
+            "$ref": "#/$defs/paintObjectDeleteData"
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "type": {
+            "const": "paint_object_event"
+          }
+        },
+        "required": [
+          "type"
+        ]
+      },
+      "then": {
+        "required": [
+          "data"
+        ],
+        "properties": {
+          "data": {
+            "$ref": "#/$defs/paintObjectEventData"
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "type": {
+            "const": "paint_snapshot_request"
+          }
+        },
+        "required": [
+          "type"
+        ]
+      },
+      "then": {
+        "required": [
+          "data"
+        ],
+        "properties": {
+          "data": {
+            "$ref": "#/$defs/paintSnapshotRequestData"
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "type": {
+            "const": "paint_snapshot_chunk"
+          }
+        },
+        "required": [
+          "type"
+        ]
+      },
+      "then": {
+        "required": [
+          "data"
+        ],
+        "properties": {
+          "data": {
+            "$ref": "#/$defs/paintSnapshotChunkData"
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "type": {
+            "const": "paint_preview"
+          }
+        },
+        "required": [
+          "type"
+        ]
+      },
+      "then": {
+        "required": [
+          "data"
+        ],
+        "properties": {
+          "data": {
+            "$ref": "#/$defs/paintPreviewData"
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "type": {
+            "const": "paint_preview_cancel"
+          }
+        },
+        "required": [
+          "type"
+        ]
+      },
+      "then": {
+        "required": [
+          "data"
+        ],
+        "properties": {
+          "data": {
+            "$ref": "#/$defs/paintPreviewCancelData"
           }
         }
       }

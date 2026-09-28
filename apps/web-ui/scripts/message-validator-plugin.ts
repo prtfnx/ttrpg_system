@@ -26,6 +26,7 @@ export function messageValidatorPlugin(): Plugin {
       this.addWatchFile(schemaPath);
       const ajv = new Ajv2020({ allErrors: true, code: { source: true, esm: true } });
       ajv.addKeyword('x-enum-varnames');
+      ajv.addFormat('uuid', /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i);
       const validate = ajv.compile(JSON.parse(await readFile(schemaPath, 'utf8')));
       const imports = new Map<string, string>();
       // Ajv's ESM output still uses CommonJS for runtime helpers (e.g. Unicode

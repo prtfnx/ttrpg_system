@@ -7,7 +7,7 @@ from functools import lru_cache
 from importlib.resources import files
 from typing import Any, Dict, Optional
 
-from jsonschema import Draft202012Validator
+from jsonschema import Draft202012Validator, FormatChecker
 from jsonschema.exceptions import ValidationError
 
 
@@ -17,7 +17,7 @@ def _message_validator() -> Draft202012Validator:
     schema_resource = files("core_table").joinpath("message.schema.generated.json")
     schema = json.loads(schema_resource.read_text(encoding="utf-8"))
     Draft202012Validator.check_schema(schema)
-    return Draft202012Validator(schema)
+    return Draft202012Validator(schema, format_checker=FormatChecker())
 
 
 # BEGIN GENERATED MESSAGE TYPES - run packages/core-table/scripts/generate_protocol_types.py
@@ -181,6 +181,14 @@ class MessageType(enum.Enum):
     PAINT_STROKE_DELETE = "paint_stroke_delete"
     PAINT_STROKE_CLEAR = "paint_stroke_clear"
     PAINT_SYNC = "paint_sync"
+    PAINT_OBJECT_CREATE = "paint_object_create"
+    PAINT_OBJECT_UPDATE = "paint_object_update"
+    PAINT_OBJECT_DELETE = "paint_object_delete"
+    PAINT_OBJECT_EVENT = "paint_object_event"
+    PAINT_SNAPSHOT_REQUEST = "paint_snapshot_request"
+    PAINT_SNAPSHOT_CHUNK = "paint_snapshot_chunk"
+    PAINT_PREVIEW = "paint_preview"
+    PAINT_PREVIEW_CANCEL = "paint_preview_cancel"
     PAINT_TEMPLATE_UPSERT = "paint_template_upsert"
     PAINT_TEMPLATE_DELETE = "paint_template_delete"
     PAINT_TEMPLATE_SYNC = "paint_template_sync"

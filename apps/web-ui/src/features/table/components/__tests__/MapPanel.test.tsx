@@ -153,10 +153,13 @@ describe('MapPanel — camera controls', () => {
 
 describe('MapPanel — actions', () => {
   it('Clear Map with confirm clears known render layers', () => {
+    const invalidated = vi.fn();
+    window.addEventListener('table-preview-invalidated', invalidated, { once: true });
     render(<MapPanel />);
     fireEvent.click(screen.getByText('Clear Map'));
     expect(mockEngine.clear_layer).toHaveBeenCalledWith('map');
     expect(mockEngine.clear_layer).toHaveBeenCalledWith('tokens');
+    expect(invalidated).toHaveBeenCalledOnce();
   });
 
   it('Clear Map with confirm=false does not call engine', () => {

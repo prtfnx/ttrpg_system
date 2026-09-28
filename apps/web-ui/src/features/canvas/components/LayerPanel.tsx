@@ -162,6 +162,7 @@ export function LayerPanel({ className, style, id, initialLayers, ...otherProps 
     if (renderEngine) {
       try {
         renderEngine.set_active_layer(layerId);
+        invalidateTablePreview(activeTableId);
       } catch (error) {
         logger.error('LayerPanel failed to sync active layer to WASM', error);
       }

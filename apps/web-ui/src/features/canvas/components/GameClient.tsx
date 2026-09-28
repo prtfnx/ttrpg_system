@@ -7,6 +7,7 @@ import { CombatDock, EncounterView } from '@features/combat';
 import { visionService } from '@features/lighting/services/vision.service';
 import { SessionManagementPanel } from '@features/session';
 import { isDM, type SessionRole } from '@features/session/types/roles';
+import { invalidateTablePreview } from '@lib/wasm/invalidateTablePreview';
 import { useWasmRuntime } from '@lib/wasm/runtime';
 import { useWindowManager } from '@shared/components/FloatingWindow';
 import { logger } from '@shared/utils/logger';
@@ -156,6 +157,7 @@ export function GameClient({ sessionCode, userInfo, userRole, onAuthError }: Gam
       revealRects.forEach(([start, end], i) =>
         engine.add_fog_rectangle(`reveal_${i}`, start[0], start[1], end[0], end[1], 'reveal')
       );
+      invalidateTablePreview(useGameStore.getState().activeTableId);
     };
     window.addEventListener('table-updated', handler);
     return () => window.removeEventListener('table-updated', handler);

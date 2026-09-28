@@ -139,8 +139,9 @@ export const MapPanel: React.FC<MapPanelProps> = ({ className, style, id, ...res
     if (!engine) return;
     if (confirm('Clear all sprites from the map? This cannot be undone.')) {
       CLEARABLE_LAYERS.forEach(layer => engine.clear_layer(layer));
+      invalidateTablePreview(activeTableId);
     }
-  }, [engine]);
+  }, [activeTableId, engine]);
 
   return (
     <div className={clsx(styles.mapPanel, className)} style={style} id={id} {...rest}>

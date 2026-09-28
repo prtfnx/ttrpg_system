@@ -5,7 +5,7 @@ Audience: contributors changing persistence, migrations, or server state.
 Status: partial. This page describes the current model families and migration
 flow. It is not a complete column-by-column schema.
 
-Last source audit: 2026-09-26
+Last source audit: 2026-09-28
 
 ## Source of truth
 

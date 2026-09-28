@@ -5,7 +5,7 @@ canvas bootstrap, or table settings.
 
 Status: current but partial.
 
-Last source audit: 2026-09-26
+Last source audit: 2026-09-28
 
 ## Source owners
 
@@ -108,7 +108,9 @@ Switch table:
 
 Table previews:
 
-1. The table list loads persisted previews only for cards near the viewport.
+1. For DMs, `table_list_response` includes `has_preview`, `preview_etag`, and
+   `preview_updated_at` without loading image bytes. Cards request an image
+   only when `has_preview` is true and only when they are near the viewport.
 2. Hover or keyboard focus opens the same image in a larger, non-interactive
    preview. It does not hydrate or switch an inactive table.
 3. Only the active, hydrated table with a committed render frame can generate
@@ -118,7 +120,8 @@ Table previews:
 4. The browser debounces changes, limits capture frequency, and keeps at most
    24 generated object URLs. It flushes a dirty active preview before a table
    switch.
-5. The browser encodes a canonical 640x360 WebP and uploads it. Upload failure
+5. The browser keys persisted image URLs by preview ETag, encodes a canonical
+   640x360 WebP, and uploads it. Upload failure
    leaves the in-memory preview usable for the current session.
 
 Preview invalidation covers sprite transforms and CRUD, table/grid and layer

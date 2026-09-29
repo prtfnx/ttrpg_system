@@ -1,0 +1,516 @@
+"""Transactional authority for durable paint objects."""
+
+from __future__ import annotations
+
+import hashlib
+import json
+from dataclasses import dataclass
+from datetime import UTC, datetime
+from typing import Any, Callable, Mapping
+
+from core_table.paint import (
+    PaintValidationError,
+    paint_limits,
+    paint_point_count,
+    validate_paint_object_input,
+)
+from database import models
+from sqlalchemy.orm import Session
+from utils.roles import can_interact, is_dm
+from utils.time import utc_now
+
+
+@dataclass(frozen=True)
+class PaintCommandError:
+    code: str
+    message: str
+    current_object: dict[str, Any] | None = None
+    current_version: int | None = None
+
+
+@dataclass(frozen=True)
+class PaintCommandResult:
+    event: dict[str, Any] | None = None
+    error: PaintCommandError | None = None
+    broadcast: bool = False
+
+
+@dataclass(frozen=True)
+class PaintSnapshot:
+    table_id: str
+    revision: int
+    objects: list[dict[str, Any]]
+
+
+class _Rejected(RuntimeError):
+    def __init__(
+        self,
+        code: str,
+        message: str,
+        *,
+        current_object: dict[str, Any] | None = None,
+        current_version: int | None = None,
+    ):
+        super().__init__(message)
+        self.error = PaintCommandError(
+            code,
+            message,
+            current_object=current_object,
+            current_version=current_version,
+        )
+
+
+def _timestamp(value: datetime) -> str:
+    if value.tzinfo is None:
+        value = value.replace(tzinfo=UTC)
+    return value.astimezone(UTC).isoformat().replace("+00:00", "Z")
+
+
+def _object_dict(value: models.PaintObject) -> dict[str, Any]:
+    return {
+        "id": value.id,
+        "table_id": value.table_id,
+        "kind": value.kind,
+        "geometry": value.geometry,
+        "transform": value.transform,
+        "style": value.style,
+        "created_by": value.created_by,
+        "version": value.version,
+        "z_order": value.z_order,
+        "created_at": _timestamp(value.created_at),
+        "updated_at": _timestamp(value.updated_at),
+    }
+
+
+def _canonical_payload(value: Mapping[str, Any]) -> dict[str, Any]:
+    try:
+        return json.loads(json.dumps(
+            value,
+            allow_nan=False,
+            sort_keys=True,
+            separators=(",", ":"),
+        ))
+    except (TypeError, ValueError) as exc:
+        raise _Rejected("invalid_payload", "Paint command must contain finite JSON values") from exc
+
+
+def _request_hash(action: str, payload: Mapping[str, Any]) -> str:
+    canonical = json.dumps(
+        {"action": action, "payload": payload},
+        sort_keys=True,
+        separators=(",", ":"),
+    )
+    return hashlib.sha256(canonical.encode()).hexdigest()
+
+
+class PaintObjectService:
+    """Apply one paint command per database transaction."""
+
+    def __init__(self, session_factory: Callable[[], Session]):
+        self._session_factory = session_factory
+
+    @staticmethod
+    def _lock_table_and_role(
+        db: Session,
+        *,
+        table_id: str,
+        session_id: int,
+        actor_id: int,
+    ) -> tuple[models.VirtualTable, str]:
+        row = (
+            db.query(models.VirtualTable, models.GameSession.owner_id)
+            .join(
+                models.GameSession,
+                models.VirtualTable.session_id == models.GameSession.id,
+            )
+            .filter(
+                models.VirtualTable.table_id == table_id,
+                models.VirtualTable.session_id == session_id,
+            )
+            .with_for_update()
+            .one_or_none()
+        )
+        if row is None:
+            raise _Rejected("not_found", "Paint table was not found in this session")
+        table, owner_id = row
+        if owner_id == actor_id:
+            return table, "owner"
+        membership = (
+            db.query(models.GamePlayer.role)
+            .filter(
+                models.GamePlayer.session_id == session_id,
+                models.GamePlayer.user_id == actor_id,
+            )
+            .one_or_none()
+        )
+        if membership is None or membership[0] is None:
+            raise _Rejected("forbidden", "Actor is not a member of this session")
+        return table, membership[0]
+
+    @staticmethod
+    def _lock_state(
+        db: Session,
+        table_id: str,
+        *,
+        create: bool = True,
+    ) -> models.PaintState | None:
+        state = (
+            db.query(models.PaintState)
+            .filter(models.PaintState.table_id == table_id)
+            .with_for_update()
+            .one_or_none()
+        )
+        if state is None and create:
+            state = models.PaintState(table_id=table_id, revision=0, next_z_order=1)
+            db.add(state)
+            db.flush()
+        return state
+
+    @staticmethod
+    def _require_interactive(role: str) -> None:
+        if not can_interact(role):
+            raise _Rejected("forbidden", "Spectators cannot change paint objects")
+
+    @staticmethod
+    def _require_editor(role: str, actor_id: int, paint_object: models.PaintObject) -> None:
+        if paint_object.created_by != actor_id and not is_dm(role):
+            raise _Rejected("forbidden", "Only the creator or a DM may edit this paint object")
+
+    @staticmethod
+    def _replay(
+        db: Session,
+        *,
+        table_id: str,
+        actor_id: int,
+        operation_id: str,
+        request_hash: str,
+    ) -> PaintCommandResult | None:
+        previous = db.get(
+            models.PaintOperationResult,
+            (table_id, actor_id, operation_id),
+        )
+        if previous is None:
+            return None
+        if previous.request_hash != request_hash:
+            raise _Rejected(
+                "invalid_payload",
+                "operation_id was already used for a different paint command",
+            )
+        return PaintCommandResult(event=previous.result_json, broadcast=False)
+
+    @staticmethod
+    def _record_result(
+        db: Session,
+        *,
+        table_id: str,
+        actor_id: int,
+        operation_id: str,
+        request_hash: str,
+        event: dict[str, Any],
+    ) -> None:
+        db.add(models.PaintOperationResult(
+            table_id=table_id,
+            actor_id=actor_id,
+            operation_id=operation_id,
+            request_hash=request_hash,
+            result_json=event,
+            created_at=utc_now(),
+        ))
+
+    @staticmethod
+    def _table_objects(db: Session, table_id: str) -> list[models.PaintObject]:
+        return (
+            db.query(models.PaintObject)
+            .filter(models.PaintObject.table_id == table_id)
+            .order_by(models.PaintObject.z_order, models.PaintObject.id)
+            .all()
+        )
+
+    @staticmethod
+    def _require_budget(
+        existing: list[models.PaintObject],
+        candidate: Mapping[str, Any],
+        *,
+        replacing_id: str | None = None,
+    ) -> None:
+        limits = paint_limits()
+        if replacing_id is None and len(existing) >= limits.max_objects_per_table:
+            raise _Rejected("limit_exceeded", "Paint table object limit reached")
+        points = sum(
+            paint_point_count({"kind": item.kind, "geometry": item.geometry})
+            for item in existing
+            if item.id != replacing_id
+        )
+        points += paint_point_count(candidate)
+        if points > limits.max_points_per_table:
+            raise _Rejected("limit_exceeded", "Paint table point limit reached")
+
+    def create(
+        self,
+        *,
+        session_id: int,
+        actor_id: int,
+        table_id: str,
+        operation_id: str,
+        editable: Mapping[str, Any],
+    ) -> PaintCommandResult:
+        try:
+            candidate = _canonical_payload(editable)
+            validate_paint_object_input(candidate)
+            request_hash = _request_hash("create", candidate)
+            with self._session_factory() as db, db.begin():
+                _, role = self._lock_table_and_role(
+                    db,
+                    table_id=table_id,
+                    session_id=session_id,
+                    actor_id=actor_id,
+                )
+                self._require_interactive(role)
+                state = self._lock_state(db, table_id)
+                assert state is not None
+                replay = self._replay(
+                    db,
+                    table_id=table_id,
+                    actor_id=actor_id,
+                    operation_id=operation_id,
+                    request_hash=request_hash,
+                )
+                if replay is not None:
+                    return replay
+                if db.get(models.PaintObject, candidate["id"]) is not None:
+                    raise _Rejected("invalid_payload", "Paint object id already exists")
+                existing = self._table_objects(db, table_id)
+                self._require_budget(existing, candidate)
+                now = utc_now()
+                accepted = models.PaintObject(
+                    id=candidate["id"],
+                    table_id=table_id,
+                    kind=candidate["kind"],
+                    geometry=candidate["geometry"],
+                    transform=candidate["transform"],
+                    style=candidate["style"],
+                    created_by=actor_id,
+                    version=1,
+                    z_order=state.next_z_order,
+                    created_at=now,
+                    updated_at=now,
+                )
+                db.add(accepted)
+                db.flush()
+                state.revision += 1
+                state.next_z_order += 1
+                event = {
+                    "operation_id": operation_id,
+                    "table_id": table_id,
+                    "revision": state.revision,
+                    "action": "create",
+                    "object": _object_dict(accepted),
+                }
+                self._record_result(
+                    db,
+                    table_id=table_id,
+                    actor_id=actor_id,
+                    operation_id=operation_id,
+                    request_hash=request_hash,
+                    event=event,
+                )
+            return PaintCommandResult(event=event, broadcast=True)
+        except (PaintValidationError, _Rejected) as exc:
+            error = exc.error if isinstance(exc, _Rejected) else PaintCommandError(
+                "invalid_payload", str(exc)
+            )
+            return PaintCommandResult(error=error)
+
+    def update(
+        self,
+        *,
+        session_id: int,
+        actor_id: int,
+        table_id: str,
+        operation_id: str,
+        object_id: str,
+        expected_version: int,
+        editable: Mapping[str, Any],
+    ) -> PaintCommandResult:
+        try:
+            candidate = _canonical_payload(editable)
+            validate_paint_object_input(candidate)
+            if candidate["id"] != object_id:
+                raise _Rejected("invalid_payload", "Paint object id does not match update target")
+            request = {
+                "id": object_id,
+                "expected_version": expected_version,
+                "object": candidate,
+            }
+            request_hash = _request_hash("update", request)
+            with self._session_factory() as db, db.begin():
+                _, role = self._lock_table_and_role(
+                    db,
+                    table_id=table_id,
+                    session_id=session_id,
+                    actor_id=actor_id,
+                )
+                self._require_interactive(role)
+                state = self._lock_state(db, table_id)
+                assert state is not None
+                replay = self._replay(
+                    db,
+                    table_id=table_id,
+                    actor_id=actor_id,
+                    operation_id=operation_id,
+                    request_hash=request_hash,
+                )
+                if replay is not None:
+                    return replay
+                current = (
+                    db.query(models.PaintObject)
+                    .filter(
+                        models.PaintObject.table_id == table_id,
+                        models.PaintObject.id == object_id,
+                    )
+                    .with_for_update()
+                    .one_or_none()
+                )
+                if current is None:
+                    raise _Rejected("not_found", "Paint object was not found")
+                self._require_editor(role, actor_id, current)
+                if current.version != expected_version:
+                    current_dto = _object_dict(current)
+                    raise _Rejected(
+                        "version_conflict",
+                        "Paint object version changed",
+                        current_object=current_dto,
+                        current_version=current.version,
+                    )
+                self._require_budget(
+                    self._table_objects(db, table_id),
+                    candidate,
+                    replacing_id=object_id,
+                )
+                current.kind = candidate["kind"]
+                current.geometry = candidate["geometry"]
+                current.transform = candidate["transform"]
+                current.style = candidate["style"]
+                current.version += 1
+                current.updated_at = utc_now()
+                state.revision += 1
+                db.flush()
+                event = {
+                    "operation_id": operation_id,
+                    "table_id": table_id,
+                    "revision": state.revision,
+                    "action": "update",
+                    "object": _object_dict(current),
+                }
+                self._record_result(
+                    db,
+                    table_id=table_id,
+                    actor_id=actor_id,
+                    operation_id=operation_id,
+                    request_hash=request_hash,
+                    event=event,
+                )
+            return PaintCommandResult(event=event, broadcast=True)
+        except (PaintValidationError, _Rejected) as exc:
+            error = exc.error if isinstance(exc, _Rejected) else PaintCommandError(
+                "invalid_payload", str(exc)
+            )
+            return PaintCommandResult(error=error)
+
+    def delete(
+        self,
+        *,
+        session_id: int,
+        actor_id: int,
+        table_id: str,
+        operation_id: str,
+        object_id: str,
+        expected_version: int,
+    ) -> PaintCommandResult:
+        try:
+            request = {"id": object_id, "expected_version": expected_version}
+            request_hash = _request_hash("delete", request)
+            with self._session_factory() as db, db.begin():
+                _, role = self._lock_table_and_role(
+                    db,
+                    table_id=table_id,
+                    session_id=session_id,
+                    actor_id=actor_id,
+                )
+                self._require_interactive(role)
+                state = self._lock_state(db, table_id)
+                assert state is not None
+                replay = self._replay(
+                    db,
+                    table_id=table_id,
+                    actor_id=actor_id,
+                    operation_id=operation_id,
+                    request_hash=request_hash,
+                )
+                if replay is not None:
+                    return replay
+                current = (
+                    db.query(models.PaintObject)
+                    .filter(
+                        models.PaintObject.table_id == table_id,
+                        models.PaintObject.id == object_id,
+                    )
+                    .with_for_update()
+                    .one_or_none()
+                )
+                if current is None:
+                    raise _Rejected("not_found", "Paint object was not found")
+                self._require_editor(role, actor_id, current)
+                if current.version != expected_version:
+                    current_dto = _object_dict(current)
+                    raise _Rejected(
+                        "version_conflict",
+                        "Paint object version changed",
+                        current_object=current_dto,
+                        current_version=current.version,
+                    )
+                deleted_version = current.version
+                db.delete(current)
+                state.revision += 1
+                event = {
+                    "operation_id": operation_id,
+                    "table_id": table_id,
+                    "revision": state.revision,
+                    "action": "delete",
+                    "deleted_id": object_id,
+                    "deleted_version": deleted_version,
+                }
+                self._record_result(
+                    db,
+                    table_id=table_id,
+                    actor_id=actor_id,
+                    operation_id=operation_id,
+                    request_hash=request_hash,
+                    event=event,
+                )
+            return PaintCommandResult(event=event, broadcast=True)
+        except _Rejected as exc:
+            return PaintCommandResult(error=exc.error)
+
+    def snapshot(
+        self,
+        *,
+        session_id: int,
+        actor_id: int,
+        table_id: str,
+    ) -> PaintSnapshot | PaintCommandError:
+        try:
+            with self._session_factory() as db, db.begin():
+                self._lock_table_and_role(
+                    db,
+                    table_id=table_id,
+                    session_id=session_id,
+                    actor_id=actor_id,
+                )
+                state = self._lock_state(db, table_id, create=False)
+                objects = [
+                    _object_dict(value) for value in self._table_objects(db, table_id)
+                ]
+                return PaintSnapshot(table_id, state.revision if state else 0, objects)
+        except _Rejected as exc:
+            return exc.error

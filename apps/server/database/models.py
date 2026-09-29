@@ -972,10 +972,10 @@ class PaintObject(Base):
         Integer, nullable=False, default=1, server_default="1"
     )
     z_order: Mapped[int] = mapped_column(BigInteger, nullable=False)
-    created_at: Mapped[Optional[datetime]] = mapped_column(
+    created_at: Mapped[datetime] = mapped_column(
         DateTime, nullable=False, default=utc_now
     )
-    updated_at: Mapped[Optional[datetime]] = mapped_column(
+    updated_at: Mapped[datetime] = mapped_column(
         DateTime, nullable=False, default=utc_now, onupdate=utc_now
     )
 
@@ -1001,7 +1001,7 @@ class PaintOperationResult(Base):
     operation_id: Mapped[str] = mapped_column(String(36), primary_key=True)
     request_hash: Mapped[str] = mapped_column(String(64), nullable=False)
     result_json: Mapped[dict] = mapped_column(JSON_DOCUMENT, nullable=False)
-    created_at: Mapped[Optional[datetime]] = mapped_column(
+    created_at: Mapped[datetime] = mapped_column(
         DateTime, nullable=False, default=utc_now
     )
 

@@ -61,6 +61,11 @@ browser types and runtime checks from the generated schema limits.
 future cutover without writing the database. It deterministically maps IDs,
 orders objects per table, validates converted payloads, hashes the source, and
 reports every rejected row without copying raw paint data into the report.
+`apps/server/service/paint_object_service.py` owns staged object transactions.
+It derives roles from database membership, serializes mutations through
+`paint_state`, assigns revisions and z-order, enforces ownership and optimistic
+versions, records accepted operation IDs, and reads ordered snapshots. No
+WebSocket handler calls it yet.
 This contract is a foundation only: the active runtime still uses the legacy
 stroke flow described below until object handlers and clients are connected.
 

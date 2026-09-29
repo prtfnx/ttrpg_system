@@ -128,3 +128,8 @@ and paint-template database operations leave the event-loop thread and that an
 identical stroke-create retry does not broadcast twice. Durable-object tests
 cover idempotent commands, optimistic conflicts, authoritative snapshots,
 bounded chunks, and worker-thread database execution.
+`test_postgresql_contract.py` separately launches simultaneous writers against
+one paint table and requires distinct gap-free revisions and z-order values,
+then verifies a fresh service snapshot. This test is skipped unless
+`TEST_POSTGRESQL_DATABASE_URL` targets an explicitly disposable test database;
+SQLite results are not evidence for row-lock behavior.

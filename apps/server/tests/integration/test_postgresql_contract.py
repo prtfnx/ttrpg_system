@@ -16,10 +16,11 @@ from database import models
 from database.models import Base
 from database.schema import repository_heads, schema_is_current
 from database.url import normalize_database_url
+from service.paint_object_service import PaintObjectService
 from service.readiness import ReadinessChecker
 from sqlalchemy import create_engine, inspect, text
 from sqlalchemy.exc import IntegrityError
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, sessionmaker
 from sqlalchemy.pool import NullPool
 
 SERVER_ROOT = Path(__file__).resolve().parents[2]
@@ -434,6 +435,137 @@ def test_postgresql_for_update_serializes_competing_writers(postgresql_engine):
         contender.join(timeout=2)
         with postgresql_engine.begin() as connection:
             connection.execute(text("DELETE FROM users WHERE id = :id"), {"id": user_id})
+
+
+def test_postgresql_paint_writers_receive_gap_free_revisions(postgresql_engine):
+    suffix = uuid.uuid4().hex[:12]
+    table_id = str(uuid.uuid4())
+    with postgresql_engine.begin() as connection:
+        user_id = connection.execute(
+            text(
+                "INSERT INTO users "
+                "(username, hashed_password, disabled, is_verified, session_version) "
+                "VALUES (:username, :password, false, false, 0) RETURNING id"
+            ),
+            {
+                "username": f"paint-writer-{suffix}",
+                "password": "not-a-real-hash",
+            },
+        ).scalar_one()
+        session_id = connection.execute(
+            text(
+                "INSERT INTO game_sessions "
+                "(name, session_code, owner_id, is_active, is_demo) "
+                "VALUES (:name, :code, :owner_id, true, false) RETURNING id"
+            ),
+            {
+                "name": "Paint writer contract",
+                "code": suffix.upper(),
+                "owner_id": user_id,
+            },
+        ).scalar_one()
+        connection.execute(
+            text(
+                "INSERT INTO virtual_tables "
+                "(table_id, name, width, height, session_id) "
+                "VALUES (:table_id, 'Paint table', 1000, 1000, :session_id)"
+            ),
+            {"table_id": table_id, "session_id": session_id},
+        )
+
+    factory = sessionmaker(bind=postgresql_engine)
+    barrier = threading.Barrier(2)
+    results = []
+    failures: list[BaseException] = []
+    result_lock = threading.Lock()
+
+    def create_object(index: int) -> None:
+        try:
+            object_id = str(uuid.uuid4())
+            barrier.wait(timeout=5)
+            result = PaintObjectService(factory).create(
+                session_id=session_id,
+                actor_id=user_id,
+                table_id=table_id,
+                operation_id=str(uuid.uuid4()),
+                editable={
+                    "id": object_id,
+                    "kind": "line",
+                    "geometry": {
+                        "kind": "line",
+                        "start": {"x": index, "y": 0},
+                        "end": {"x": index + 1, "y": 1},
+                    },
+                    "transform": {
+                        "x": 0,
+                        "y": 0,
+                        "scale_x": 1,
+                        "scale_y": 1,
+                    },
+                    "style": {
+                        "stroke_rgba": [0.1, 0.2, 0.3, 1],
+                        "width": 2,
+                        "fill_rgba": None,
+                    },
+                },
+            )
+            with result_lock:
+                results.append(result)
+        except BaseException as exc:
+            with result_lock:
+                failures.append(exc)
+
+    writers = [
+        threading.Thread(target=create_object, args=(index,), daemon=True)
+        for index in range(2)
+    ]
+    try:
+        for writer in writers:
+            writer.start()
+        for writer in writers:
+            writer.join(timeout=10)
+
+        assert all(not writer.is_alive() for writer in writers)
+        assert not failures
+        assert all(result.error is None for result in results)
+        assert sorted(result.event["revision"] for result in results) == [1, 2]
+        assert sorted(result.event["object"]["z_order"] for result in results) == [1, 2]
+
+        snapshot = PaintObjectService(factory).snapshot(
+            session_id=session_id,
+            actor_id=user_id,
+            table_id=table_id,
+        )
+        assert snapshot.revision == 2
+        assert [item["z_order"] for item in snapshot.objects] == [1, 2]
+    finally:
+        for writer in writers:
+            writer.join(timeout=2)
+        with postgresql_engine.begin() as connection:
+            connection.execute(
+                text("DELETE FROM paint_operation_results WHERE table_id = :table_id"),
+                {"table_id": table_id},
+            )
+            connection.execute(
+                text("DELETE FROM paint_objects WHERE table_id = :table_id"),
+                {"table_id": table_id},
+            )
+            connection.execute(
+                text("DELETE FROM paint_state WHERE table_id = :table_id"),
+                {"table_id": table_id},
+            )
+            connection.execute(
+                text("DELETE FROM virtual_tables WHERE table_id = :table_id"),
+                {"table_id": table_id},
+            )
+            connection.execute(
+                text("DELETE FROM game_sessions WHERE id = :session_id"),
+                {"session_id": session_id},
+            )
+            connection.execute(
+                text("DELETE FROM users WHERE id = :user_id"),
+                {"user_id": user_id},
+            )
 
 
 def test_postgresql_readiness_detects_revision_mismatch(postgresql_engine):

@@ -57,6 +57,10 @@ oversized serialized payloads, preserves square/circle aspect ratios, and can
 enforce aggregate table object and point budgets at server boundaries.
 `src/features/painting/model/paintObject.ts` provides the matching strict
 browser types and runtime checks from the generated schema limits.
+`apps/server/service/paint_legacy_migration.py` prepares legacy rows for a
+future cutover without writing the database. It deterministically maps IDs,
+orders objects per table, validates converted payloads, hashes the source, and
+reports every rejected row without copying raw paint data into the report.
 This contract is a foundation only: the active runtime still uses the legacy
 stroke flow described below until object handlers and clients are connected.
 

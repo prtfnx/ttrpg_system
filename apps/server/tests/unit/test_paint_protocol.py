@@ -17,6 +17,7 @@ from sqlalchemy.orm import sessionmaker
 from sqlalchemy.pool import StaticPool
 
 TABLE_ID = "9e8ed60d-f18c-4f47-a5ce-fc04db50506a"
+OTHER_TABLE_ID = "d57d06dc-85d1-42a7-a928-2d1fa10848f9"
 OBJECT_ID = "dd830253-e2bf-4a92-9862-eabe85f79c99"
 
 
@@ -81,6 +82,13 @@ def paint_db(monkeypatch):
             height=1000,
             session_id=first.id,
         ),
+        models.VirtualTable(
+            table_id=OTHER_TABLE_ID,
+            name="Foreign object table",
+            width=1000,
+            height=1000,
+            session_id=second.id,
+        ),
     ])
     db.commit()
 
@@ -121,6 +129,22 @@ def object_create_message(*, operation_id: str | None = None) -> Message:
         "operation_id": operation_id or str(uuid.uuid4()),
         "table_id": TABLE_ID,
         "object": editable_object(),
+    })
+
+
+def preview_message(
+    *,
+    table_id: str = TABLE_ID,
+    sequence: int = 1,
+    draft: dict | None = None,
+) -> Message:
+    return Message(MessageType.PAINT_PREVIEW, {
+        "table_id": table_id,
+        "temporary_id": OBJECT_ID,
+        "sequence": sequence,
+        "expires_at": 1000,
+        "draft": draft or editable_object(),
+        "actor_id": 999999,
     })
 
 
@@ -398,3 +422,105 @@ async def test_object_database_operations_run_off_event_loop(paint_db, monkeypat
         "_delete_paint_object",
     }
     assert all(thread_id != event_loop_thread for thread_id in worker_threads.values())
+
+
+@pytest.mark.asyncio
+async def test_preview_relay_derives_actor_and_never_writes(paint_db):
+    session_factory, first_id, _, _, player_id, _ = paint_db
+    harness = PaintHarness(first_id, player_id, "player")
+
+    await harness.handle_paint_preview(preview_message(), "player")
+    await harness.handle_paint_preview_cancel(Message(
+        MessageType.PAINT_PREVIEW_CANCEL,
+        {
+            "table_id": TABLE_ID,
+            "temporary_id": OBJECT_ID,
+            "sequence": 2,
+            "actor_id": 999999,
+        },
+    ), "player")
+
+    preview = harness.broadcast_to_session.await_args_list[0].args[0]
+    cancel = harness.broadcast_to_session.await_args_list[1].args[0]
+    assert preview.type == MessageType.PAINT_PREVIEW
+    assert preview.data["actor_id"] == player_id
+    assert cancel.type == MessageType.PAINT_PREVIEW_CANCEL
+    assert cancel.data["actor_id"] == player_id
+    with session_factory() as db:
+        assert db.query(models.PaintState).count() == 0
+        assert db.query(models.PaintOperationResult).count() == 0
+
+
+@pytest.mark.asyncio
+async def test_preview_authorization_is_cached_and_runs_off_event_loop(
+    paint_db,
+    monkeypatch,
+):
+    _, first_id, _, _, player_id, _ = paint_db
+    harness = PaintHarness(first_id, player_id, "player")
+    event_loop_thread = threading.get_ident()
+    authorization_threads = []
+    original = paint_module._authorize_paint_preview
+
+    def recording_authorization(**kwargs):
+        authorization_threads.append(threading.get_ident())
+        return original(**kwargs)
+
+    monkeypatch.setattr(
+        paint_module,
+        "_authorize_paint_preview",
+        recording_authorization,
+    )
+
+    await harness.handle_paint_preview(preview_message(sequence=1), "player")
+    await harness.handle_paint_preview(preview_message(sequence=2), "player")
+
+    assert len(authorization_threads) == 1
+    assert authorization_threads[0] != event_loop_thread
+    assert harness.broadcast_to_session.await_count == 2
+
+
+@pytest.mark.asyncio
+async def test_preview_rejects_foreign_table_and_spectator(paint_db):
+    session_factory, first_id, _, _, player_id, _ = paint_db
+    foreign_harness = PaintHarness(first_id, player_id, "player")
+
+    await foreign_harness.handle_paint_preview(
+        preview_message(table_id=OTHER_TABLE_ID),
+        "player",
+    )
+
+    with session_factory.begin() as db:
+        membership = db.query(models.GamePlayer).filter_by(
+            session_id=first_id,
+            user_id=player_id,
+        ).one()
+        membership.role = "spectator"
+    spectator_harness = PaintHarness(first_id, player_id, "spectator")
+    await spectator_harness.handle_paint_preview(preview_message(), "spectator")
+
+    foreign_harness.broadcast_to_session.assert_not_awaited()
+    spectator_harness.broadcast_to_session.assert_not_awaited()
+
+
+@pytest.mark.asyncio
+async def test_preview_rejects_invalid_identity_and_oversized_draft(paint_db):
+    _, first_id, _, _, player_id, _ = paint_db
+    harness = PaintHarness(first_id, player_id, "player")
+    wrong_identity = editable_object(str(uuid.uuid4()))
+    oversized = editable_object()
+    oversized["geometry"]["points"] = [
+        {"x": index, "y": index, "pressure": 0.5}
+        for index in range(800)
+    ]
+
+    await harness.handle_paint_preview(
+        preview_message(draft=wrong_identity),
+        "player",
+    )
+    await harness.handle_paint_preview(
+        preview_message(draft=oversized),
+        "player",
+    )
+
+    harness.broadcast_to_session.assert_not_awaited()

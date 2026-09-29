@@ -73,7 +73,11 @@ chunks after the transaction closes.
 
 The browser has not switched to these object messages yet, so the active UI
 still uses the legacy stroke flow described below. The server retains both
-paths during this staged cutover. Object preview messages are also not active.
+paths during this staged cutover. The server-side object preview and preview
+cancel relays are active, but have no browser producer or consumer yet. They
+use the disposable preview traffic budget, derive actor identity from the
+connection, authorize interactive table membership through a short-lived
+cache, validate drafts, cap relays at 16 KiB, and never write durable state.
 
 The WASM paint system owns active drawing and rendering. A completed stroke is
 sent with its stable id. The server requires the serialized stroke id to match,

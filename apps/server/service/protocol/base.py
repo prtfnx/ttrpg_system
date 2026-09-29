@@ -153,6 +153,9 @@ class ServerProtocol(
         self.session_manager = session_manager
         self._transport_send = transport_send
         self._mutation_lock = asyncio.Lock()
+        self._paint_preview_authorizations: dict[
+            tuple[int, int, str], tuple[float, bool]
+        ] = {}
         self.clients: Dict[str, Any] = {}
         self.handlers: Dict[MessageType, Callable] = {}
         self.init_handlers()
@@ -261,6 +264,8 @@ class ServerProtocol(
         self.register_handler(MessageType.PAINT_OBJECT_UPDATE, self.handle_paint_object_update)
         self.register_handler(MessageType.PAINT_OBJECT_DELETE, self.handle_paint_object_delete)
         self.register_handler(MessageType.PAINT_SNAPSHOT_REQUEST, self.handle_paint_snapshot_request)
+        self.register_handler(MessageType.PAINT_PREVIEW, self.handle_paint_preview)
+        self.register_handler(MessageType.PAINT_PREVIEW_CANCEL, self.handle_paint_preview_cancel)
         self.register_handler(MessageType.PAINT_TEMPLATE_UPSERT, self.handle_paint_template_upsert)
         self.register_handler(MessageType.PAINT_TEMPLATE_DELETE, self.handle_paint_template_delete)
         self.register_handler(MessageType.PAINT_TEMPLATE_SYNC, self.handle_paint_template_sync)

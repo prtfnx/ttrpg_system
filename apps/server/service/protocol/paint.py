@@ -1,8 +1,11 @@
 import json
+import math
+import time
 import uuid
 from dataclasses import dataclass
 
 from config import Settings
+from core_table.paint import PaintValidationError, validate_paint_object_input
 from core_table.protocol import Message, MessageType
 from database import crud, models
 from database.database import SessionLocal
@@ -20,6 +23,8 @@ from ._protocol_base import _ProtocolBase
 
 logger = setup_logger(__name__)
 SNAPSHOT_FRAME_RESERVE_BYTES = 1024
+PAINT_PREVIEW_MAX_BYTES = 16 * 1024
+PAINT_PREVIEW_AUTH_TTL_SECONDS = 5.0
 
 
 @dataclass(frozen=True)
@@ -134,6 +139,46 @@ def _delete_paint_object(**kwargs) -> PaintCommandResult:
 
 def _paint_snapshot(**kwargs) -> PaintSnapshot | PaintCommandError:
     return PaintObjectService(SessionLocal).snapshot(**kwargs)
+
+
+def _authorize_paint_preview(
+    *,
+    session_id: int,
+    actor_id: int,
+    table_id: str,
+) -> bool:
+    db = SessionLocal()
+    try:
+        row = (
+            db.query(models.GameSession.owner_id)
+            .join(
+                models.VirtualTable,
+                models.VirtualTable.session_id == models.GameSession.id,
+            )
+            .filter(
+                models.VirtualTable.table_id == table_id,
+                models.VirtualTable.session_id == session_id,
+            )
+            .one_or_none()
+        )
+        if row is None:
+            return False
+        if row[0] == actor_id:
+            return True
+        role = (
+            db.query(models.GamePlayer.role)
+            .filter(
+                models.GamePlayer.session_id == session_id,
+                models.GamePlayer.user_id == actor_id,
+            )
+            .scalar()
+        )
+        return can_interact(role)
+    except Exception:
+        logger.exception("Paint preview authorization failed")
+        return False
+    finally:
+        db.close()
 
 
 def _snapshot_chunks(
@@ -498,3 +543,130 @@ class _PaintMixin(_ProtocolBase):
             response.causation_id = msg.message_id
             await self.send_to_client(response, client_id)
         return Message(MessageType.PAINT_SNAPSHOT_CHUNK, chunks[-1])
+
+    async def _paint_preview_allowed(
+        self,
+        *,
+        session_id: int,
+        actor_id: int,
+        table_id: str,
+    ) -> bool:
+        key = (session_id, actor_id, table_id)
+        now = time.monotonic()
+        cache = getattr(self, "_paint_preview_authorizations", None)
+        if cache is None:
+            cache = {}
+            self._paint_preview_authorizations = cache
+        cached = cache.get(key)
+        if cached is not None and cached[0] > now:
+            return cached[1]
+        allowed = await run_blocking(
+            _authorize_paint_preview,
+            session_id=session_id,
+            actor_id=actor_id,
+            table_id=table_id,
+        )
+        cache[key] = (now + PAINT_PREVIEW_AUTH_TTL_SECONDS, allowed)
+        if len(cache) > 256:
+            self._paint_preview_authorizations = {
+                cache_key: value
+                for cache_key, value in cache.items()
+                if value[0] > now
+            }
+        return allowed
+
+    async def handle_paint_preview(self, msg: Message, client_id: str) -> None:
+        if not can_interact(self._get_client_role(client_id)):
+            return
+        data = msg.data or {}
+        table_id = data.get("table_id")
+        temporary_id = data.get("temporary_id")
+        sequence = data.get("sequence")
+        expires_at = data.get("expires_at")
+        draft = data.get("draft")
+        if not isinstance(table_id, str) or not isinstance(temporary_id, str):
+            return
+        if not isinstance(sequence, int) or isinstance(sequence, bool) or sequence < 0:
+            return
+        if (
+            not isinstance(expires_at, (int, float))
+            or isinstance(expires_at, bool)
+            or not math.isfinite(expires_at)
+            or expires_at <= 0
+            or not isinstance(draft, dict)
+            or draft.get("id") != temporary_id
+        ):
+            return
+        try:
+            validate_paint_object_input(draft)
+        except PaintValidationError:
+            return
+        context = self._paint_context(msg, client_id)
+        if context is None:
+            return
+        session_id, actor_id = context
+        relay = {
+            "table_id": table_id,
+            "temporary_id": temporary_id,
+            "sequence": sequence,
+            "expires_at": expires_at,
+            "draft": draft,
+            "actor_id": actor_id,
+        }
+        try:
+            relay_bytes = len(
+                json.dumps(
+                    relay,
+                    allow_nan=False,
+                    separators=(",", ":"),
+                ).encode("utf-8")
+            )
+        except (TypeError, ValueError):
+            return
+        if relay_bytes > PAINT_PREVIEW_MAX_BYTES:
+            return
+        if not await self._paint_preview_allowed(
+            session_id=session_id,
+            actor_id=actor_id,
+            table_id=table_id,
+        ):
+            return
+        await self.broadcast_to_session(
+            Message(MessageType.PAINT_PREVIEW, relay),
+            client_id,
+        )
+
+    async def handle_paint_preview_cancel(
+        self,
+        msg: Message,
+        client_id: str,
+    ) -> None:
+        if not can_interact(self._get_client_role(client_id)):
+            return
+        data = msg.data or {}
+        table_id = data.get("table_id")
+        temporary_id = data.get("temporary_id")
+        sequence = data.get("sequence")
+        if not isinstance(table_id, str) or not isinstance(temporary_id, str):
+            return
+        if not isinstance(sequence, int) or isinstance(sequence, bool) or sequence < 0:
+            return
+        context = self._paint_context(msg, client_id)
+        if context is None:
+            return
+        session_id, actor_id = context
+        if not await self._paint_preview_allowed(
+            session_id=session_id,
+            actor_id=actor_id,
+            table_id=table_id,
+        ):
+            return
+        await self.broadcast_to_session(
+            Message(MessageType.PAINT_PREVIEW_CANCEL, {
+                "table_id": table_id,
+                "temporary_id": temporary_id,
+                "sequence": sequence,
+                "actor_id": actor_id,
+            }),
+            client_id,
+        )

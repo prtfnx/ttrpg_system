@@ -20,6 +20,8 @@ Last source audit: 2026-09-29
   `PaintObject`, paint operation state, and `PaintTemplate`.
 - `packages/rust-core/src/systems/paint.rs` owns canvas paint rendering and
   local stroke history.
+- `packages/rust-core/src/systems/paint_scene.rs` owns the staged authoritative
+  object scene, deterministic ordering, bounds, and shared geometry hit tests.
 
 ## Measurement flow
 
@@ -78,6 +80,13 @@ cancel relays are active, but have no browser producer or consumer yet. They
 use the disposable preview traffic budget, derive actor identity from the
 connection, authorize interactive table membership through a short-lived
 cache, validate drafts, cap relays at 16 KiB, and never write durable state.
+
+The replacement Rust scene is renderer-independent and does not originate
+writes. It atomically validates/replaces snapshots, accepts only contiguous
+table revisions and object versions, orders by immutable `z_order` then ID,
+and provides transformed bounds and geometry-based topmost hit testing. It is
+not connected to WebGL or browser runtime methods yet; legacy stroke rendering
+remains the visible path until cached object meshes are implemented.
 
 The WASM paint system owns active drawing and rendering. A completed stroke is
 sent with its stable id. The server requires the serialized stroke id to match,

@@ -159,6 +159,7 @@ mod systems;
 pub use systems::collision;
 #[cfg(target_arch = "wasm32")]
 pub(crate) use systems::paint;
+pub use systems::paint_scene;
 pub use systems::planning;
 
 // Rendering subsystem

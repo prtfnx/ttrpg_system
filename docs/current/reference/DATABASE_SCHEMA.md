@@ -100,6 +100,9 @@ the runtime application.
 | `character_logs` | `CharacterLog` | per-character action log entries |
 | `chat_messages` | `ChatMessage` | persisted session chat messages |
 | `paint_strokes` | `PaintStroke` | persisted table drawing strokes |
+| `paint_state` | `PaintState` | staged per-table paint revision and z-order allocator |
+| `paint_objects` | `PaintObject` | staged typed, versioned, independently editable paint objects |
+| `paint_operation_results` | `PaintOperationResult` | staged idempotent paint mutation results by table, actor, and operation |
 | `shared_measurements` | `SharedMeasurement` | persisted completed measurements |
 | `paint_templates` | `PaintTemplate` | persisted brush/template data |
 
@@ -166,13 +169,17 @@ apps/server/database/alembic/versions/
 ```
 
 The PostgreSQL baseline is `0001_postgresql_baseline`; incremental revisions
-through the current `0009_table_previews` head add later behavior.
+through the current `0010_paint_objects` head add later behavior.
 `0007_demo_guest_expiry` adds guest expiry and revokes the legacy demo host;
 `0008_application_writer` seeds the owner record and installs PostgreSQL
 statement triggers. `0009_table_previews` adds `preview_image`, `preview_etag`,
 and `preview_updated_at` to `virtual_tables`. The image column is deferred by
-the ORM so ordinary table reads do not load preview bytes. There are 30
-application model tables, plus Alembic's revision ledger.
+the ORM so ordinary table reads do not load preview bytes.
+`0010_paint_objects` adds three writer-fenced tables with JSONB documents on
+PostgreSQL and JSON-compatible storage on SQLite. It seeds revision state for
+existing tables but does not backfill or activate object reads; legacy
+`paint_strokes` remains authoritative until the explicit cutover. There are
+33 application model tables, plus Alembic's revision ledger.
 Alembic records the deployed revision in `alembic_version`. The old numbered
 SQLite runner and ledger were retired; they are not an upgrade path for
 existing SQLite files.

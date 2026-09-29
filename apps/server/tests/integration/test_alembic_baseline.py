@@ -7,13 +7,14 @@ from pathlib import Path
 import pytest
 from alembic import command
 from alembic.config import Config
-from database.models import Base
+from database.models import Base, GameSession, User, VirtualTable
 from database.url import normalize_database_url
 from sqlalchemy import create_engine, inspect, text
+from sqlalchemy.orm import Session
 
 SERVER_ROOT = Path(__file__).resolve().parents[2]
 ALEMBIC_INI = SERVER_ROOT / "alembic.ini"
-HEAD_REVISION = "0009_table_previews"
+HEAD_REVISION = "0010_paint_objects"
 
 
 def _config(monkeypatch, database_url: str) -> Config:
@@ -50,6 +51,12 @@ def test_baseline_upgrades_an_empty_database_to_model_head(tmp_path, monkeypatch
     assert tables == set(Base.metadata.tables) | {"alembic_version"}
     assert revision == HEAD_REVISION
     assert quota_state_ids == [1]
+    assert {
+        index["name"] for index in inspect(engine).get_indexes("paint_objects")
+    } >= {
+        "ix_paint_objects_table_id_id",
+        "ix_paint_objects_table_z_order_id",
+    }
     command.check(config)
 
 
@@ -64,6 +71,54 @@ def test_baseline_downgrade_drops_application_schema(tmp_path, monkeypatch):
     engine = create_engine(database_url)
     try:
         assert set(inspect(engine).get_table_names()) <= {"alembic_version"}
+    finally:
+        engine.dispose()
+
+
+def test_paint_migration_seeds_state_for_existing_tables(tmp_path, monkeypatch):
+    database_path = tmp_path / "paint-upgrade.db"
+    database_url = f"sqlite:///{database_path.as_posix()}"
+    config = _config(monkeypatch, database_url)
+    command.upgrade(config, "0009_table_previews")
+    engine = create_engine(database_url)
+
+    try:
+        with Session(engine) as db:
+            user = User(username="paint-owner", hashed_password="hash")
+            db.add(user)
+            db.flush()
+            session = GameSession(
+                name="Paint migration",
+                session_code="PAINT001",
+                owner_id=user.id,
+            )
+            db.add(session)
+            db.flush()
+            db.add(VirtualTable(
+                table_id="9e8ed60d-f18c-4f47-a5ce-fc04db50506a",
+                name="Existing table",
+                width=1000,
+                height=1000,
+                session_id=session.id,
+            ))
+            db.commit()
+
+        command.upgrade(config, "head")
+        with engine.connect() as connection:
+            assert connection.execute(text(
+                "SELECT table_id, revision, next_z_order FROM paint_state"
+            )).one() == (
+                "9e8ed60d-f18c-4f47-a5ce-fc04db50506a",
+                0,
+                1,
+            )
+
+        command.downgrade(config, "0009_table_previews")
+        tables = set(inspect(engine).get_table_names())
+        assert "paint_state" not in tables
+        assert "paint_objects" not in tables
+        assert "paint_operation_results" not in tables
+        assert "paint_strokes" in tables
     finally:
         engine.dispose()
 
@@ -96,6 +151,9 @@ def test_baseline_compiles_for_postgresql(monkeypatch):
     sql = output.getvalue()
     assert "CREATE TABLE users" in sql
     assert "CREATE TABLE character_drafts" in sql
+    assert "CREATE TABLE paint_objects" in sql
+    assert "JSONB" in sql
+    assert 'ON "paint_objects"' in sql
     assert "INSERT INTO alembic_version" in sql
     assert "SERIAL" in sql
     assert "PRAGMA" not in sql

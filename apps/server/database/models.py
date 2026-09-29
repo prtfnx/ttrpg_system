@@ -8,12 +8,14 @@ from datetime import datetime
 from typing import Optional
 
 from sqlalchemy import (
+    JSON,
     BigInteger,
     Boolean,
     CheckConstraint,
     DateTime,
     Float,
     ForeignKey,
+    Index,
     Integer,
     LargeBinary,
     MetaData,
@@ -21,6 +23,7 @@ from sqlalchemy import (
     Text,
     UniqueConstraint,
 )
+from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import DeclarativeBase, Mapped, deferred, mapped_column, relationship
 from utils.time import utc_now
 
@@ -31,6 +34,8 @@ NAMING_CONVENTION = {
     "fk": "fk_%(table_name)s_%(column_0_name)s_%(referred_table_name)s",
     "pk": "pk_%(table_name)s",
 }
+
+JSON_DOCUMENT = JSON().with_variant(JSONB(), "postgresql")
 
 class Base(DeclarativeBase):
     """Typed SQLAlchemy declarative base for all application models."""
@@ -160,6 +165,9 @@ class VirtualTable(Base):
     entities = relationship("Entity", back_populates="table", cascade="all, delete-orphan")
     walls = relationship("Wall", back_populates="table", cascade="all, delete-orphan", foreign_keys="Wall.table_id", primaryjoin="VirtualTable.table_id==Wall.table_id")
     paint_strokes = relationship("PaintStroke", back_populates="table", cascade="all, delete-orphan", foreign_keys="PaintStroke.table_id")
+    paint_state = relationship("PaintState", back_populates="table", cascade="all, delete-orphan", uselist=False)
+    paint_objects = relationship("PaintObject", back_populates="table", cascade="all, delete-orphan")
+    paint_operation_results = relationship("PaintOperationResult", back_populates="table", cascade="all, delete-orphan")
     shared_measurements = relationship("SharedMeasurement", back_populates="table", cascade="all, delete-orphan")
 
 class Entity(Base):
@@ -907,6 +915,98 @@ class PaintStroke(Base):
             'stroke_data': self.stroke_data,
             'created_at': self.created_at.isoformat() if self.created_at else None,
         }
+
+
+class PaintState(Base):
+    """Table-scoped revision and z-order allocator for paint objects."""
+    __tablename__ = "paint_state"
+    __table_args__ = (
+        CheckConstraint("revision >= 0", name="revision_nonnegative"),
+        CheckConstraint("next_z_order >= 1", name="next_z_order_positive"),
+    )
+
+    table_id: Mapped[str] = mapped_column(
+        String(36),
+        ForeignKey("virtual_tables.table_id", ondelete="CASCADE"),
+        primary_key=True,
+    )
+    revision: Mapped[int] = mapped_column(
+        BigInteger, nullable=False, default=0, server_default="0"
+    )
+    next_z_order: Mapped[int] = mapped_column(
+        BigInteger, nullable=False, default=1, server_default="1"
+    )
+
+    table = relationship("VirtualTable", back_populates="paint_state")
+
+
+class PaintObject(Base):
+    """Validated, independently editable object on a virtual table."""
+    __tablename__ = "paint_objects"
+    __table_args__ = (
+        CheckConstraint(
+            "kind IN ('freehand', 'line', 'rectangle', 'square', 'ellipse', 'circle')",
+            name="kind_supported",
+        ),
+        CheckConstraint("version >= 1", name="version_positive"),
+        CheckConstraint("z_order >= 1", name="z_order_positive"),
+        UniqueConstraint("table_id", "z_order", name="uq_paint_object_table_z_order"),
+        Index("ix_paint_objects_table_z_order_id", "table_id", "z_order", "id"),
+        Index("ix_paint_objects_table_id_id", "table_id", "id"),
+    )
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True)
+    table_id: Mapped[str] = mapped_column(
+        String(36),
+        ForeignKey("virtual_tables.table_id", ondelete="CASCADE"),
+        nullable=False,
+    )
+    kind: Mapped[str] = mapped_column(String(20), nullable=False)
+    geometry: Mapped[dict] = mapped_column(JSON_DOCUMENT, nullable=False)
+    transform: Mapped[dict] = mapped_column(JSON_DOCUMENT, nullable=False)
+    style: Mapped[dict] = mapped_column(JSON_DOCUMENT, nullable=False)
+    created_by: Mapped[int] = mapped_column(
+        Integer, ForeignKey("users.id"), nullable=False
+    )
+    version: Mapped[int] = mapped_column(
+        Integer, nullable=False, default=1, server_default="1"
+    )
+    z_order: Mapped[int] = mapped_column(BigInteger, nullable=False)
+    created_at: Mapped[Optional[datetime]] = mapped_column(
+        DateTime, nullable=False, default=utc_now
+    )
+    updated_at: Mapped[Optional[datetime]] = mapped_column(
+        DateTime, nullable=False, default=utc_now, onupdate=utc_now
+    )
+
+    table = relationship("VirtualTable", back_populates="paint_objects")
+    creator = relationship("User", foreign_keys=[created_by])
+
+
+class PaintOperationResult(Base):
+    """Durable result for idempotent paint command retries."""
+    __tablename__ = "paint_operation_results"
+    __table_args__ = (
+        Index("ix_paint_operation_results_created_at", "created_at"),
+    )
+
+    table_id: Mapped[str] = mapped_column(
+        String(36),
+        ForeignKey("virtual_tables.table_id", ondelete="CASCADE"),
+        primary_key=True,
+    )
+    actor_id: Mapped[int] = mapped_column(
+        Integer, ForeignKey("users.id", ondelete="CASCADE"), primary_key=True
+    )
+    operation_id: Mapped[str] = mapped_column(String(36), primary_key=True)
+    request_hash: Mapped[str] = mapped_column(String(64), nullable=False)
+    result_json: Mapped[dict] = mapped_column(JSON_DOCUMENT, nullable=False)
+    created_at: Mapped[Optional[datetime]] = mapped_column(
+        DateTime, nullable=False, default=utc_now
+    )
+
+    table = relationship("VirtualTable", back_populates="paint_operation_results")
+    actor = relationship("User", foreign_keys=[actor_id])
 
 
 class SharedMeasurement(Base):

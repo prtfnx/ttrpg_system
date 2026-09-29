@@ -23,6 +23,9 @@ EXPECTED_TABLES = {
     "game_sessions",
     "paint_strokes",
     "paint_templates",
+    "paint_state",
+    "paint_objects",
+    "paint_operation_results",
     "password_reset_tokens",
     "pending_email_changes",
     "session_assets",
@@ -63,3 +66,16 @@ def test_integer_primary_keys_autoincrement():
         assert primary_key_columns, f"{table.name} has no primary key"
         if len(primary_key_columns) == 1 and primary_key_columns[0].type.python_type is int:
             assert primary_key_columns[0].autoincrement in {"auto", True}
+
+
+def test_paint_objects_use_jsonb_on_postgresql_and_ordered_indexes():
+    from sqlalchemy.dialects import postgresql, sqlite
+
+    table = Base.metadata.tables["paint_objects"]
+
+    assert str(table.c.geometry.type.compile(dialect=postgresql.dialect())) == "JSONB"
+    assert str(table.c.geometry.type.compile(dialect=sqlite.dialect())) == "JSON"
+    assert {index.name for index in table.indexes} == {
+        "ix_paint_objects_table_id_id",
+        "ix_paint_objects_table_z_order_id",
+    }

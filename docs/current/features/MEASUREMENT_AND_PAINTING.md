@@ -84,9 +84,11 @@ cache, validate drafts, cap relays at 16 KiB, and never write durable state.
 The replacement Rust scene is renderer-independent and does not originate
 writes. It atomically validates/replaces snapshots, accepts only contiguous
 table revisions and object versions, orders by immutable `z_order` then ID,
-and provides transformed bounds and geometry-based topmost hit testing. It is
-not connected to WebGL or browser runtime methods yet; legacy stroke rendering
-remains the visible path until cached object meshes are implemented.
+and provides transformed bounds and geometry-based topmost hit testing. The
+render engine exposes snapshot, upsert, delete, revision/count, and hit-test
+WASM methods; table switches clear stale object state. TypeScript runtime
+wrappers and WebGL meshes are not connected yet, so legacy stroke rendering
+remains the visible path until those stages are implemented.
 
 The WASM paint system owns active drawing and rendering. A completed stroke is
 sent with its stable id. The server requires the serialized stroke id to match,

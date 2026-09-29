@@ -592,10 +592,81 @@ impl RenderEngine {
         self.paint.load_strokes_json(strokes_json)
     }
 
+    #[wasm_bindgen]
+    pub fn paint_replace_object_snapshot(
+        &mut self,
+        table_id: &str,
+        revision: f64,
+        objects_json: &str,
+    ) -> bool {
+        parse_paint_integer(revision).is_some_and(|revision| {
+            self.paint
+                .replace_object_snapshot_json(table_id, revision, objects_json)
+        })
+    }
+
+    #[wasm_bindgen]
+    pub fn paint_upsert_object(
+        &mut self,
+        table_id: &str,
+        revision: f64,
+        object_json: &str,
+    ) -> bool {
+        parse_paint_integer(revision).is_some_and(|revision| {
+            self.paint
+                .upsert_object_json(table_id, revision, object_json)
+        })
+    }
+
+    #[wasm_bindgen]
+    pub fn paint_remove_object(
+        &mut self,
+        table_id: &str,
+        revision: f64,
+        object_id: &str,
+        deleted_version: f64,
+    ) -> bool {
+        let Some(revision) = parse_paint_integer(revision) else {
+            return false;
+        };
+        let Some(deleted_version) = parse_paint_integer(deleted_version) else {
+            return false;
+        };
+        self.paint
+            .remove_object(table_id, revision, object_id, deleted_version)
+    }
+
+    #[wasm_bindgen]
+    pub fn paint_hit_test_object(
+        &self,
+        world_x: f32,
+        world_y: f32,
+        tolerance: f32,
+    ) -> Option<String> {
+        self.paint
+            .hit_test_object(world_x, world_y, tolerance.max(0.0))
+    }
+
+    #[wasm_bindgen]
+    pub fn paint_object_revision(&self) -> f64 {
+        self.paint.object_revision() as f64
+    }
+
+    #[wasm_bindgen]
+    pub fn paint_object_count(&self) -> usize {
+        self.paint.object_count()
+    }
+
     // Background color
     pub fn set_background_color(&mut self, hex: &str) {
         if let Some(color) = super::parse_hex_color(hex) {
             self.background_color = [color.r, color.g, color.b, 1.0];
         }
     }
+}
+
+fn parse_paint_integer(value: f64) -> Option<u64> {
+    const MAX_SAFE_INTEGER: f64 = 9_007_199_254_740_991.0;
+    (value.is_finite() && value >= 0.0 && value <= MAX_SAFE_INTEGER && value.fract() == 0.0)
+        .then(|| value as u64)
 }

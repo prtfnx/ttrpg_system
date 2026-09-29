@@ -120,6 +120,14 @@ pub struct PaintScene {
 }
 
 impl PaintScene {
+    pub fn activate_table(&mut self, table_id: &str) {
+        if self.table_id.as_deref() != Some(table_id) {
+            self.table_id = Some(table_id.to_owned());
+            self.revision = 0;
+            self.objects.clear();
+        }
+    }
+
     pub fn table_id(&self) -> Option<&str> {
         self.table_id.as_deref()
     }
@@ -631,5 +639,30 @@ mod tests {
             Err(PaintSceneError::InvalidObject("square".to_owned()))
         );
         assert_eq!(scene.table_id(), None);
+    }
+
+    #[test]
+    fn table_activation_clears_only_on_an_actual_switch() {
+        let mut scene = PaintScene::default();
+        scene
+            .replace_snapshot(
+                "first",
+                3,
+                vec![{
+                    let mut value = line("line", 1);
+                    value.table_id = "first".to_owned();
+                    value
+                }],
+            )
+            .unwrap();
+
+        scene.activate_table("first");
+        assert_eq!(scene.revision(), 3);
+        assert_eq!(scene.len(), 1);
+
+        scene.activate_table("second");
+        assert_eq!(scene.table_id(), Some("second"));
+        assert_eq!(scene.revision(), 0);
+        assert!(scene.is_empty());
     }
 }

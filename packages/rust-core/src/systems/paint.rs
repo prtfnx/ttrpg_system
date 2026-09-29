@@ -5,8 +5,11 @@ use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use wasm_bindgen::prelude::*;
 
+use super::paint_scene::{PaintObject, PaintScene};
+
 #[wasm_bindgen]
 pub struct PaintSystem {
+    object_scene: PaintScene,
     // Per-table paint storage
     table_strokes: HashMap<String, Vec<DrawStroke>>,
     table_redo_stacks: HashMap<String, Vec<DrawStroke>>,
@@ -74,6 +77,7 @@ impl PaintSystem {
     #[wasm_bindgen(constructor)]
     pub fn new() -> Self {
         Self {
+            object_scene: PaintScene::default(),
             table_strokes: HashMap::new(),
             table_redo_stacks: HashMap::new(),
             current_table_id: None,
@@ -94,6 +98,7 @@ impl PaintSystem {
     pub fn set_current_table(&mut self, table_id: &str) {
         let table_id_string = table_id.to_string();
         self.current_table_id = Some(table_id_string.clone());
+        self.object_scene.activate_table(table_id);
 
         // Initialize table storage if it doesn't exist
         if !self.table_strokes.contains_key(&table_id_string) {
@@ -379,6 +384,55 @@ impl PaintSystem {
                 false
             }
         }
+    }
+
+    pub fn replace_object_snapshot_json(
+        &mut self,
+        table_id: &str,
+        revision: u64,
+        objects_json: &str,
+    ) -> bool {
+        let Ok(objects) = serde_json::from_str::<Vec<PaintObject>>(objects_json) else {
+            return false;
+        };
+        self.object_scene
+            .replace_snapshot(table_id, revision, objects)
+            .is_ok()
+    }
+
+    pub fn upsert_object_json(&mut self, table_id: &str, revision: u64, object_json: &str) -> bool {
+        let Ok(object) = serde_json::from_str::<PaintObject>(object_json) else {
+            return false;
+        };
+        self.object_scene
+            .apply_upsert(table_id, revision, object)
+            .is_ok()
+    }
+
+    pub fn remove_object(
+        &mut self,
+        table_id: &str,
+        revision: u64,
+        object_id: &str,
+        deleted_version: u64,
+    ) -> bool {
+        self.object_scene
+            .apply_delete(table_id, revision, object_id, deleted_version)
+            .is_ok()
+    }
+
+    pub fn hit_test_object(&self, world_x: f32, world_y: f32, tolerance: f32) -> Option<String> {
+        self.object_scene
+            .hit_test(world_x, world_y, tolerance)
+            .map(str::to_owned)
+    }
+
+    pub fn object_revision(&self) -> u64 {
+        self.object_scene.revision()
+    }
+
+    pub fn object_count(&self) -> usize {
+        self.object_scene.len()
     }
 }
 

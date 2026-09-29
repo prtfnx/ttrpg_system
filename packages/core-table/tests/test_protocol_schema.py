@@ -237,3 +237,193 @@ def test_message_from_json_accepts_wall_command_payloads(message):
 def test_message_from_json_rejects_invalid_wall_command_payloads(message):
     with pytest.raises(ValueError, match="Invalid protocol message"):
         Message.from_json(json.dumps(message))
+
+
+PAINT_OPERATION_ID = "4e34ddf1-b61d-43ee-92ea-834c30a4c8d4"
+PAINT_TABLE_ID = "9e8ed60d-f18c-4f47-a5ce-fc04db50506a"
+PAINT_OBJECT_ID = "dd830253-e2bf-4a92-9862-eabe85f79c99"
+
+
+@pytest.mark.parametrize(
+    "message",
+    [
+        {
+            "type": "paint_object_create",
+            "data": {
+                "operation_id": PAINT_OPERATION_ID,
+                "table_id": PAINT_TABLE_ID,
+                "object": {},
+            },
+        },
+        {
+            "type": "paint_object_update",
+            "data": {
+                "operation_id": PAINT_OPERATION_ID,
+                "table_id": PAINT_TABLE_ID,
+                "id": PAINT_OBJECT_ID,
+                "expected_version": 1,
+                "object": {},
+            },
+        },
+        {
+            "type": "paint_object_delete",
+            "data": {
+                "operation_id": PAINT_OPERATION_ID,
+                "table_id": PAINT_TABLE_ID,
+                "id": PAINT_OBJECT_ID,
+                "expected_version": 2,
+            },
+        },
+        {
+            "type": "paint_object_event",
+            "data": {
+                "operation_id": PAINT_OPERATION_ID,
+                "table_id": PAINT_TABLE_ID,
+                "revision": 3,
+                "action": "create",
+                "object": {},
+            },
+        },
+        {
+            "type": "paint_object_event",
+            "data": {
+                "operation_id": PAINT_OPERATION_ID,
+                "table_id": PAINT_TABLE_ID,
+                "revision": 4,
+                "action": "delete",
+                "deleted_id": PAINT_OBJECT_ID,
+                "deleted_version": 2,
+            },
+        },
+        {"type": "paint_snapshot_request", "data": {"table_id": PAINT_TABLE_ID}},
+        {
+            "type": "paint_snapshot_chunk",
+            "data": {
+                "snapshot_id": PAINT_OPERATION_ID,
+                "table_id": PAINT_TABLE_ID,
+                "revision": 0,
+                "chunk_index": 0,
+                "chunk_count": 1,
+                "complete": True,
+                "objects": [],
+            },
+        },
+        {
+            "type": "paint_preview",
+            "data": {
+                "table_id": PAINT_TABLE_ID,
+                "temporary_id": PAINT_OBJECT_ID,
+                "sequence": 0,
+                "expires_at": 1000,
+                "draft": {},
+            },
+        },
+        {
+            "type": "paint_preview_cancel",
+            "data": {
+                "table_id": PAINT_TABLE_ID,
+                "temporary_id": PAINT_OBJECT_ID,
+                "sequence": 1,
+            },
+        },
+        {
+            "type": "error",
+            "data": {
+                "error": "Paint object changed",
+                "operation_id": PAINT_OPERATION_ID,
+                "code": "version_conflict",
+                "current_object": {},
+                "current_version": 2,
+            },
+        },
+    ],
+)
+def test_message_from_json_accepts_paint_object_envelopes(message):
+    parsed = Message.from_json(json.dumps(message))
+
+    assert parsed.type.value == message["type"]
+
+
+@pytest.mark.parametrize(
+    "message",
+    [
+        {
+            "type": "paint_object_create",
+            "data": {
+                "operation_id": "not-a-uuid",
+                "table_id": PAINT_TABLE_ID,
+                "object": {},
+            },
+        },
+        {
+            "type": "paint_object_update",
+            "data": {
+                "operation_id": PAINT_OPERATION_ID,
+                "table_id": PAINT_TABLE_ID,
+                "id": PAINT_OBJECT_ID,
+                "expected_version": 0,
+                "object": {},
+            },
+        },
+        {
+            "type": "paint_object_delete",
+            "data": {
+                "operation_id": PAINT_OPERATION_ID,
+                "table_id": PAINT_TABLE_ID,
+                "id": PAINT_OBJECT_ID,
+                "expected_version": 1,
+                "created_by": 99,
+            },
+        },
+        {
+            "type": "paint_object_event",
+            "data": {
+                "operation_id": PAINT_OPERATION_ID,
+                "table_id": PAINT_TABLE_ID,
+                "revision": 1,
+                "action": "delete",
+                "object": {},
+            },
+        },
+        {
+            "type": "paint_snapshot_chunk",
+            "data": {
+                "snapshot_id": PAINT_OPERATION_ID,
+                "table_id": PAINT_TABLE_ID,
+                "revision": 0,
+                "chunk_index": 0,
+                "chunk_count": 0,
+                "complete": True,
+                "objects": [],
+            },
+        },
+        {
+            "type": "paint_preview",
+            "data": {
+                "table_id": PAINT_TABLE_ID,
+                "temporary_id": PAINT_OBJECT_ID,
+                "sequence": 0,
+                "expires_at": 1000,
+            },
+        },
+        {
+            "type": "paint_preview_cancel",
+            "data": {
+                "table_id": PAINT_TABLE_ID,
+                "temporary_id": PAINT_OBJECT_ID,
+                "sequence": -1,
+            },
+        },
+        {
+            "type": "error",
+            "data": {
+                "error": "Paint failed",
+                "operation_id": PAINT_OPERATION_ID,
+                "code": "made_up_code",
+            },
+        },
+    ],
+)
+def test_message_from_json_rejects_invalid_paint_object_envelopes(message):
+    with pytest.raises(ValueError, match="Invalid protocol message"):
+        Message.from_json(json.dumps(message))

@@ -17,6 +17,15 @@ the Python enum, TypeScript enum, and packaged schema; `--check` detects drift.
 `packages/core-table/core_table/protocol.py` validate messages against that
 shared schema. Server registration lives in `service/protocol/base.py`.
 
+The registry also contains staged paint-object envelopes:
+`paint_object_create`, `paint_object_update`, `paint_object_delete`,
+`paint_object_event`, `paint_snapshot_request`, `paint_snapshot_chunk`,
+`paint_preview`, and `paint_preview_cancel`. Their envelope metadata is
+validated now, while nested objects use
+`packages/core-table/protocol/paint_object.schema.json`. These names do not
+yet have registered server handlers; legacy stroke messages remain active
+until the object persistence path is connected.
+
 An enum value does not by itself register an inbound handler or authorize a
 caller. Verify direction, registration, payload validation, and role checks.
 See [Protocol boundary](../PROTOCOL_BOUNDARY.md).

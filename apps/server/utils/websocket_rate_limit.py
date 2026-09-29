@@ -8,7 +8,11 @@ class WebSocketRateExceeded(Exception):
 
 class WebSocketMessageLimiter:
     PREVIEW_TYPES = frozenset({
-        "sprite_drag_preview", "sprite_resize_preview", "sprite_rotate_preview",
+        "sprite_drag_preview",
+        "sprite_resize_preview",
+        "sprite_rotate_preview",
+        "paint_preview",
+        "paint_preview_cancel",
     })
 
     def __init__(self, commands_per_minute: int, previews_per_minute: int):

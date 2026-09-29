@@ -7,6 +7,11 @@ from fastapi import WebSocketDisconnect
 from utils.websocket_rate_limit import WebSocketMessageLimiter, WebSocketRateExceeded
 
 PREVIEW = {"type": "sprite_drag_preview", "data": {"sprite_id": "token"}}
+PAINT_PREVIEW = {"type": "paint_preview", "data": {"temporary_id": "draft"}}
+PAINT_PREVIEW_CANCEL = {
+    "type": "paint_preview_cancel",
+    "data": {"temporary_id": "draft"},
+}
 COMMAND = {"type": "sprite_move", "data": {"sprite_id": "token"}}
 
 
@@ -36,6 +41,15 @@ def test_excess_previews_drop_without_losing_batched_final_move():
     assert limiter.filter_message(batch, 2) == {
         "type": "batch_request", "data": {"seq": 7, "messages": [COMMAND]},
     }
+
+
+@pytest.mark.parametrize("preview", [PAINT_PREVIEW, PAINT_PREVIEW_CANCEL])
+def test_paint_preview_messages_use_disposable_budget(preview):
+    limiter = WebSocketMessageLimiter(1, 1)
+
+    assert limiter.filter_message(preview, 0) is preview
+    assert limiter.filter_message(preview, 1) is None
+    assert limiter.filter_message(COMMAND, 1) is COMMAND
 
 
 def test_frame_budget_also_bounds_malformed_traffic():

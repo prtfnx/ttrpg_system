@@ -182,12 +182,12 @@ combat mutation messages are usually the wrong boundary.
 ## Transport budgets and close behavior
 
 `utils/websocket_rate_limit.py` accounts for commands and disposable sprite
-drag/resize/rotate previews separately for each socket over a rolling minute.
-Defaults are 120 commands and 1,800 previews. Batch members consume their own
-budgets, so batching does not bypass command limits. The envelope schema allows
-at most 50 batch entries; the transport parser's preliminary bound is looser.
-The frame budget is the sum of the two configured limits and bounds malformed
-traffic too.
+drag/resize/rotate and paint preview/cancel messages separately for each socket
+over a rolling minute. Defaults are 120 commands and 1,800 previews. Batch
+members consume their own budgets, so batching does not bypass command limits.
+The envelope schema allows at most 50 batch entries; the transport parser's
+preliminary bound is looser. The frame budget is the sum of the two configured
+limits and bounds malformed traffic too.
 
 Excess previews are dropped while durable commands in a mixed batch are
 preserved. Exhausted command/frame budgets close with retryable code 1013.

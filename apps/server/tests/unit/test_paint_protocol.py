@@ -1,17 +1,23 @@
 # pyright: reportAttributeAccessIssue=false, reportIncompatibleMethodOverride=false
 
+import json
 import threading
+import uuid
 from types import SimpleNamespace
 from unittest.mock import AsyncMock
 
 import pytest
 from core_table.protocol import Message, MessageType
 from database import models
+from service.paint_object_service import PaintSnapshot
 from service.protocol import paint as paint_module
-from service.protocol.paint import _PaintMixin
+from service.protocol.paint import _PaintMixin, _snapshot_chunks
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.pool import StaticPool
+
+TABLE_ID = "9e8ed60d-f18c-4f47-a5ce-fc04db50506a"
+OBJECT_ID = "dd830253-e2bf-4a92-9862-eabe85f79c99"
 
 
 class PaintHarness(_PaintMixin):
@@ -21,6 +27,7 @@ class PaintHarness(_PaintMixin):
         self.role = role
         self.session_manager = SimpleNamespace()
         self.broadcast_to_session = AsyncMock()
+        self.send_to_client = AsyncMock()
 
     def _get_session_id(self, _msg):
         return self.session_id
@@ -52,8 +59,28 @@ def paint_db(monkeypatch):
     db.add_all([first, second])
     db.flush()
     db.add_all([
-        models.VirtualTable(table_id="table-first", name="First", width=10, height=10, session_id=first.id),
-        models.VirtualTable(table_id="table-second", name="Second", width=10, height=10, session_id=second.id),
+        models.GamePlayer(session_id=first.id, user_id=player.id, role="player"),
+        models.VirtualTable(
+            table_id="table-first",
+            name="First",
+            width=10,
+            height=10,
+            session_id=first.id,
+        ),
+        models.VirtualTable(
+            table_id="table-second",
+            name="Second",
+            width=10,
+            height=10,
+            session_id=second.id,
+        ),
+        models.VirtualTable(
+            table_id=TABLE_ID,
+            name="Object table",
+            width=1000,
+            height=1000,
+            session_id=first.id,
+        ),
     ])
     db.commit()
 
@@ -69,6 +96,31 @@ def create_message(table_id: str, stroke_id: str = "stroke-1") -> Message:
         "table_id": table_id,
         "stroke_id": stroke_id,
         "stroke_data": {"id": stroke_id, "points": [{"x": 1, "y": 2}]},
+    })
+
+
+def editable_object(object_id: str = OBJECT_ID) -> dict:
+    return {
+        "id": object_id,
+        "kind": "freehand",
+        "geometry": {
+            "kind": "freehand",
+            "points": [{"x": 0, "y": 0, "pressure": 0.5}],
+        },
+        "transform": {"x": 10, "y": 20, "scale_x": 1, "scale_y": 1},
+        "style": {
+            "stroke_rgba": [0.1, 0.2, 0.3, 1],
+            "width": 3,
+            "fill_rgba": None,
+        },
+    }
+
+
+def object_create_message(*, operation_id: str | None = None) -> Message:
+    return Message(MessageType.PAINT_OBJECT_CREATE, {
+        "operation_id": operation_id or str(uuid.uuid4()),
+        "table_id": TABLE_ID,
+        "object": editable_object(),
     })
 
 
@@ -209,5 +261,140 @@ async def test_paint_database_operations_run_off_event_loop(paint_db, monkeypatc
         "_create_paint_stroke",
         "_delete_paint_stroke",
         "_clear_paint_strokes",
+    }
+    assert all(thread_id != event_loop_thread for thread_id in worker_threads.values())
+
+
+@pytest.mark.asyncio
+async def test_object_create_is_persisted_broadcast_and_idempotent(paint_db):
+    session_factory, first_id, _, _, player_id, _ = paint_db
+    harness = PaintHarness(first_id, player_id, "player")
+    message = object_create_message()
+
+    accepted = await harness.handle_paint_object_create(message, "player")
+    replay = await harness.handle_paint_object_create(message, "player")
+
+    assert accepted.type == MessageType.PAINT_OBJECT_EVENT
+    assert accepted.data["action"] == "create"
+    assert accepted.data["object"]["version"] == 1
+    assert replay.data == accepted.data
+    harness.broadcast_to_session.assert_awaited_once()
+    with session_factory() as db:
+        assert db.query(models.PaintObject).filter_by(id=OBJECT_ID).one()
+
+
+@pytest.mark.asyncio
+async def test_object_update_returns_authoritative_version_conflict(paint_db):
+    _, first_id, _, _, player_id, _ = paint_db
+    harness = PaintHarness(first_id, player_id, "player")
+    await harness.handle_paint_object_create(object_create_message(), "player")
+    changed = editable_object()
+    changed["transform"]["x"] = 50
+
+    updated = await harness.handle_paint_object_update(Message(
+        MessageType.PAINT_OBJECT_UPDATE,
+        {
+            "operation_id": str(uuid.uuid4()),
+            "table_id": TABLE_ID,
+            "id": OBJECT_ID,
+            "expected_version": 1,
+            "object": changed,
+        },
+    ), "player")
+    conflict = await harness.handle_paint_object_update(Message(
+        MessageType.PAINT_OBJECT_UPDATE,
+        {
+            "operation_id": str(uuid.uuid4()),
+            "table_id": TABLE_ID,
+            "id": OBJECT_ID,
+            "expected_version": 1,
+            "object": changed,
+        },
+    ), "player")
+
+    assert updated.data["object"]["version"] == 2
+    assert conflict.type == MessageType.ERROR
+    assert conflict.data["code"] == "version_conflict"
+    assert conflict.data["current_version"] == 2
+    assert conflict.data["current_object"] == updated.data["object"]
+
+
+@pytest.mark.asyncio
+async def test_snapshot_returns_authoritative_objects_and_revision(paint_db):
+    _, first_id, _, _, player_id, _ = paint_db
+    harness = PaintHarness(first_id, player_id, "player")
+    await harness.handle_paint_object_create(object_create_message(), "player")
+
+    response = await harness.handle_paint_snapshot_request(Message(
+        MessageType.PAINT_SNAPSHOT_REQUEST,
+        {"table_id": TABLE_ID},
+    ), "player")
+
+    assert response.type == MessageType.PAINT_SNAPSHOT_CHUNK
+    assert response.data["revision"] == 1
+    assert response.data["chunk_index"] == 0
+    assert response.data["chunk_count"] == 1
+    assert response.data["complete"] is True
+    assert [item["id"] for item in response.data["objects"]] == [OBJECT_ID]
+    harness.send_to_client.assert_not_awaited()
+
+
+def test_snapshot_chunks_stay_within_frame_budget():
+    objects = [
+        {"id": str(uuid.uuid4()), "payload": "x" * 220},
+        {"id": str(uuid.uuid4()), "payload": "y" * 220},
+    ]
+    chunks = _snapshot_chunks(PaintSnapshot(TABLE_ID, 2, objects), max_bytes=520)
+
+    assert len(chunks) == 2
+    assert [chunk["chunk_index"] for chunk in chunks] == [0, 1]
+    assert all(chunk["chunk_count"] == 2 for chunk in chunks)
+    assert [chunk["complete"] for chunk in chunks] == [False, True]
+    assert all(
+        len(json.dumps(chunk, separators=(",", ":")).encode("utf-8")) <= 520
+        for chunk in chunks
+    )
+
+
+@pytest.mark.asyncio
+async def test_object_database_operations_run_off_event_loop(paint_db, monkeypatch):
+    _, first_id, _, _, player_id, _ = paint_db
+    harness = PaintHarness(first_id, player_id, "player")
+    event_loop_thread = threading.get_ident()
+    worker_threads = {}
+
+    def recording_wrapper(name, operation):
+        def wrapped(**kwargs):
+            worker_threads[name] = threading.get_ident()
+            return operation(**kwargs)
+
+        return wrapped
+
+    for name in ("_create_paint_object", "_paint_snapshot", "_delete_paint_object"):
+        monkeypatch.setattr(
+            paint_module,
+            name,
+            recording_wrapper(name, getattr(paint_module, name)),
+        )
+
+    await harness.handle_paint_object_create(object_create_message(), "player")
+    await harness.handle_paint_snapshot_request(Message(
+        MessageType.PAINT_SNAPSHOT_REQUEST,
+        {"table_id": TABLE_ID},
+    ), "player")
+    await harness.handle_paint_object_delete(Message(
+        MessageType.PAINT_OBJECT_DELETE,
+        {
+            "operation_id": str(uuid.uuid4()),
+            "table_id": TABLE_ID,
+            "id": OBJECT_ID,
+            "expected_version": 1,
+        },
+    ), "player")
+
+    assert set(worker_threads) == {
+        "_create_paint_object",
+        "_paint_snapshot",
+        "_delete_paint_object",
     }
     assert all(thread_id != event_loop_thread for thread_id in worker_threads.values())

@@ -5,7 +5,7 @@ Audience: contributors changing browser/server protocol behavior.
 Status: partial. This page catalogs the currently registered server handlers
 and the main browser message families. It does not document every payload field.
 
-Last source audit: 2026-09-10
+Last source audit: 2026-09-29
 
 ## Source of truth
 
@@ -17,14 +17,15 @@ the Python enum, TypeScript enum, and packaged schema; `--check` detects drift.
 `packages/core-table/core_table/protocol.py` validate messages against that
 shared schema. Server registration lives in `service/protocol/base.py`.
 
-The registry also contains staged paint-object envelopes:
-`paint_object_create`, `paint_object_update`, `paint_object_delete`,
-`paint_object_event`, `paint_snapshot_request`, `paint_snapshot_chunk`,
-`paint_preview`, and `paint_preview_cancel`. Their envelope metadata is
-validated now, while nested objects use
-`packages/core-table/protocol/paint_object.schema.json`. These names do not
-yet have registered server handlers; legacy stroke messages remain active
-until the object persistence path is connected.
+The registry also contains paint-object envelopes. The server registers
+`paint_object_create`, `paint_object_update`, `paint_object_delete`, and
+`paint_snapshot_request`; it responds with `paint_object_event` and bounded
+`paint_snapshot_chunk` messages. Envelope metadata is validated by the shared
+message schema, while nested objects use
+`packages/core-table/protocol/paint_object.schema.json`. The browser has not
+adopted this path yet, so legacy stroke handlers remain active during the
+cutover. `paint_preview` and `paint_preview_cancel` are reserved but do not yet
+have registered handlers.
 
 An enum value does not by itself register an inbound handler or authorize a
 caller. Verify direction, registration, payload validation, and role checks.
@@ -90,7 +91,7 @@ These messages are registered in `ServerProtocol.init_handlers`.
 | Characters | `character_save_request`, `character_load_request`, `character_list_request`, `character_delete_request`, `character_update`, `character_log_request`, `character_roll`, `xp_award`, `multiclass_request` | `protocol/characters.py` |
 | Character drafts | `character_draft_create_request`, `character_draft_list_request`, `character_draft_load_request`, `character_draft_update_request`, `character_draft_finalize_request`, `character_draft_abandon_request` | `protocol/characters.py` |
 | Walls and doors | `wall_create`, `wall_update`, `wall_remove`, `door_toggle` | `protocol/walls.py` |
-| Paint | `paint_stroke_create`, `paint_stroke_delete`, `paint_stroke_clear` | `protocol/paint.py` |
+| Paint | `paint_stroke_create`, `paint_stroke_delete`, `paint_stroke_clear`, `paint_object_create`, `paint_object_update`, `paint_object_delete`, `paint_snapshot_request` | `protocol/paint.py` |
 | Paint templates | `paint_template_upsert`, `paint_template_delete`, `paint_template_sync` | `protocol/paint_templates.py` |
 | Measurements | `measurement_upsert`, `measurement_delete`, `measurement_clear`, `measurement_sync` | `protocol/measurements.py` |
 | Session | `layer_settings_update`, `game_mode_change`, `session_rules_update`, `session_rules_request` | `protocol/session.py` |
@@ -124,7 +125,8 @@ Common families include:
 - Assets: upload, download, list, delete, and hash responses.
 - Characters: save, load, list, delete, update, log, roll, XP, and multiclass
   responses.
-- Walls and paint: `wall_data`, paint stroke broadcasts, and `paint_sync`.
+- Walls and paint: `wall_data`, paint stroke broadcasts, `paint_sync`,
+  `paint_object_event`, and `paint_snapshot_chunk`.
 - Session: `game_mode_state`, `session_rules_changed`,
   `layer_settings_update`.
 - Combat: `combat_state`, `action_result`, `action_rejected`,

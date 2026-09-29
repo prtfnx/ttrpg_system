@@ -69,6 +69,9 @@ MUTATING_MESSAGE_TYPES = frozenset({
     MessageType.PAINT_STROKE_CREATE,
     MessageType.PAINT_STROKE_DELETE,
     MessageType.PAINT_STROKE_CLEAR,
+    MessageType.PAINT_OBJECT_CREATE,
+    MessageType.PAINT_OBJECT_UPDATE,
+    MessageType.PAINT_OBJECT_DELETE,
     MessageType.PAINT_TEMPLATE_UPSERT,
     MessageType.PAINT_TEMPLATE_DELETE,
     MessageType.MEASUREMENT_UPSERT,
@@ -94,6 +97,7 @@ SESSION_STATE_READ_MESSAGE_TYPES = frozenset({
     MessageType.PLAYER_LIST_REQUEST,
     MessageType.SPRITE_REQUEST,
     MessageType.PAINT_TEMPLATE_SYNC,
+    MessageType.PAINT_SNAPSHOT_REQUEST,
     MessageType.MEASUREMENT_SYNC,
     MessageType.SESSION_RULES_REQUEST,
     MessageType.COMBAT_STATE_REQUEST,
@@ -253,6 +257,10 @@ class ServerProtocol(
         self.register_handler(MessageType.PAINT_STROKE_CREATE, self.handle_paint_stroke_create)
         self.register_handler(MessageType.PAINT_STROKE_DELETE, self.handle_paint_stroke_delete)
         self.register_handler(MessageType.PAINT_STROKE_CLEAR,  self.handle_paint_stroke_clear)
+        self.register_handler(MessageType.PAINT_OBJECT_CREATE, self.handle_paint_object_create)
+        self.register_handler(MessageType.PAINT_OBJECT_UPDATE, self.handle_paint_object_update)
+        self.register_handler(MessageType.PAINT_OBJECT_DELETE, self.handle_paint_object_delete)
+        self.register_handler(MessageType.PAINT_SNAPSHOT_REQUEST, self.handle_paint_snapshot_request)
         self.register_handler(MessageType.PAINT_TEMPLATE_UPSERT, self.handle_paint_template_upsert)
         self.register_handler(MessageType.PAINT_TEMPLATE_DELETE, self.handle_paint_template_delete)
         self.register_handler(MessageType.PAINT_TEMPLATE_SYNC, self.handle_paint_template_sync)

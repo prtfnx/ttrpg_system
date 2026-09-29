@@ -7,7 +7,7 @@ Status: current but partial. Paint strokes, completed measurement geometry,
 and paint templates are server-authoritative multiplayer state. Advanced
 measurement-template placement is not available in the UI.
 
-Last source audit: 2026-09-28
+Last source audit: 2026-09-29
 
 ## Ownership
 
@@ -17,7 +17,7 @@ Last source audit: 2026-09-28
   measurement writes and snapshot synchronization.
 - `apps/server/service/protocol/paint.py` authorizes and persists paint writes.
 - `apps/server/database/models.py` defines `SharedMeasurement`, `PaintStroke`,
-  and `PaintTemplate`.
+  `PaintObject`, paint operation state, and `PaintTemplate`.
 - `packages/rust-core/src/systems/paint.rs` owns canvas paint rendering and
   local stroke history.
 
@@ -61,13 +61,19 @@ browser types and runtime checks from the generated schema limits.
 future cutover without writing the database. It deterministically maps IDs,
 orders objects per table, validates converted payloads, hashes the source, and
 reports every rejected row without copying raw paint data into the report.
-`apps/server/service/paint_object_service.py` owns staged object transactions.
+`apps/server/service/paint_object_service.py` owns durable object transactions.
 It derives roles from database membership, serializes mutations through
 `paint_state`, assigns revisions and z-order, enforces ownership and optimistic
-versions, records accepted operation IDs, and reads ordered snapshots. No
-WebSocket handler calls it yet.
-This contract is a foundation only: the active runtime still uses the legacy
-stroke flow described below until object handlers and clients are connected.
+versions, records accepted operation IDs, and reads ordered snapshots. The
+server registers create, update, delete, and snapshot handlers; blocking ORM
+work runs in worker threads. Accepted mutations broadcast canonical object
+events, retries return the recorded event without rebroadcasting, conflicts
+include the current object, and snapshots are split into bounded ordered
+chunks after the transaction closes.
+
+The browser has not switched to these object messages yet, so the active UI
+still uses the legacy stroke flow described below. The server retains both
+paths during this staged cutover. Object preview messages are also not active.
 
 The WASM paint system owns active drawing and rendering. A completed stroke is
 sent with its stable id. The server requires the serialized stroke id to match,
@@ -115,4 +121,6 @@ component tests assert that unfinished measurement-template controls stay
 hidden. Include a multi-client acceptance test for any change to stroke
 identity or undo authority. Server tests also assert that measurement, stroke,
 and paint-template database operations leave the event-loop thread and that an
-identical stroke-create retry does not broadcast twice.
+identical stroke-create retry does not broadcast twice. Durable-object tests
+cover idempotent commands, optimistic conflicts, authoritative snapshots,
+bounded chunks, and worker-thread database execution.

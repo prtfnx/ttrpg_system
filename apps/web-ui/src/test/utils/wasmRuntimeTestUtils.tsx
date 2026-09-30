@@ -86,6 +86,12 @@ export function createMockWasmRuntime(overrides: Partial<MockWasmRuntime> = {}):
     addRemotePaintStroke: vi.fn(),
     removePaintStroke: vi.fn(),
     clearPaintStrokes: vi.fn(),
+    replacePaintObjectSnapshot: vi.fn(() => true),
+    upsertPaintObject: vi.fn(() => true),
+    removePaintObject: vi.fn(() => true),
+    hitTestPaintObject: vi.fn(() => null),
+    getPaintObjectRevision: vi.fn(() => 0),
+    getPaintObjectCount: vi.fn(() => 0),
     applyLayerSettings: vi.fn(),
     ...overrides,
   };

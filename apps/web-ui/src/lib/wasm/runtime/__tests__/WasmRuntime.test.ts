@@ -26,6 +26,12 @@ const mocks = vi.hoisted(() => {
     capture_active_table_thumbnail: vi.fn(() => new Uint8Array(4 * 4 * 4).fill(255)),
     compute_sight_visibility_polygons: vi.fn(() => [[{ x: 1, y: 2 }]]),
     compute_light_visibility_polygons: vi.fn(() => [[{ x: 3, y: 4 }]]),
+    paint_replace_object_snapshot: vi.fn(() => true),
+    paint_upsert_object: vi.fn(() => true),
+    paint_remove_object: vi.fn(() => true),
+    paint_hit_test_object: vi.fn(() => 'paint-1'),
+    paint_object_revision: vi.fn(() => 7),
+    paint_object_count: vi.fn(() => 3),
   };
 
   return {
@@ -176,6 +182,38 @@ describe('WasmRuntime', () => {
     expect(mocks.renderEngine.set_current_user_id).toHaveBeenLastCalledWith(2);
     expect(mocks.renderEngine.set_gm_mode).toHaveBeenLastCalledWith(true);
     expect(mocks.renderEngine.set_active_layer).toHaveBeenLastCalledWith('light');
+  });
+
+  it('applies authoritative paint objects through typed runtime methods', async () => {
+    await runtime.attachCanvas(canvas, {
+      userId: 42,
+      role: 'owner',
+      activeLayer: 'tokens',
+    });
+    const object = { id: 'paint-1', version: 1 };
+
+    expect(runtime.replacePaintObjectSnapshot('table-1', 6, [object])).toBe(true);
+    expect(mocks.renderEngine.paint_replace_object_snapshot).toHaveBeenCalledWith(
+      'table-1',
+      6,
+      JSON.stringify([object]),
+    );
+    expect(runtime.upsertPaintObject('table-1', 7, object)).toBe(true);
+    expect(mocks.renderEngine.paint_upsert_object).toHaveBeenCalledWith(
+      'table-1',
+      7,
+      JSON.stringify(object),
+    );
+    expect(runtime.removePaintObject('table-1', 8, 'paint-1', 1)).toBe(true);
+    expect(mocks.renderEngine.paint_remove_object).toHaveBeenCalledWith(
+      'table-1',
+      8,
+      'paint-1',
+      1,
+    );
+    expect(runtime.hitTestPaintObject(10, 20, 4)).toBe('paint-1');
+    expect(runtime.getPaintObjectRevision()).toBe(7);
+    expect(runtime.getPaintObjectCount()).toBe(3);
   });
 
   it('captures only a fully rendered matching table through the runtime boundary', async () => {

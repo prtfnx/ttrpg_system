@@ -88,6 +88,15 @@ browser WebSocket queue exceeds 64 KiB. The server derives actor identity,
 authorizes interactive table membership through a short-lived cache, validates
 drafts, caps relays at 16 KiB, and never writes durable preview state.
 
+`PaintController` now owns the staged authoritative browser scene. It assembles
+bounded out-of-order snapshot chunks atomically, queues events during hydration,
+applies only contiguous revisions, detects gaps, ignores stale tables, retains
+exact pending operation bodies for retry, expires operations after the supported
+window, and restores a recreated renderer from confirmed state. It also
+coalesces local previews to 20 Hz and rejects stale, cancelled, or expired remote
+previews. The active canvas and panel have not been migrated to this controller
+yet.
+
 The replacement Rust scene does not originate
 writes. It atomically validates/replaces snapshots, accepts only contiguous
 table revisions and object versions, orders by immutable `z_order` then ID,

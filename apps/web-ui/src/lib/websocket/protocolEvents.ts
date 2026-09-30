@@ -1,4 +1,11 @@
 import type { CharacterDraft } from '@features/character/characterDraft';
+import type {
+  PaintObjectEvent,
+  PaintOperationRejection,
+  PaintPreview,
+  PaintPreviewCancel,
+  PaintSnapshotChunk,
+} from '@features/painting/model/paintProtocol';
 
 type ProtocolRecord = Record<string, unknown> | undefined;
 
@@ -33,6 +40,11 @@ export type ProtocolEventMap = {
   'paint-stroke-created': ProtocolRecord;
   'paint-stroke-deleted': ProtocolRecord;
   'paint-strokes-cleared': ProtocolRecord;
+  'paint-object-event': PaintObjectEvent;
+  'paint-operation-rejected': PaintOperationRejection;
+  'paint-preview': PaintPreview;
+  'paint-preview-cancel': PaintPreviewCancel;
+  'paint-snapshot-chunk': PaintSnapshotChunk;
   'paint-template-upserted': ProtocolRecord;
   'paint-template-deleted': ProtocolRecord;
   'paint-templates-synced': ProtocolRecord;

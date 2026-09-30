@@ -12,6 +12,17 @@ import { useAssetCharacterCache } from '@features/assets/services/assetCache';
 import { sendSpriteMovement } from '@features/combat/services/movementCommand.service';
 import { useCombatStore } from '@features/combat/stores/combatStore';
 import { useOAStore } from '@features/combat/stores/oaStore';
+import {
+  assertPaintObject,
+  assertPaintObjectInput,
+  type PaintObjectInput,
+} from '@features/painting/model/paintObject';
+import {
+  parsePaintObjectEvent,
+  parsePaintPreview,
+  parsePaintPreviewCancel,
+  parsePaintSnapshotChunk,
+} from '@features/painting/model/paintProtocol';
 import { getCurrentWasmRuntime } from '@lib/wasm/runtime';
 import { logger, protocolLogger } from '@shared/utils/logger';
 import { demoQuery } from '@shared/utils/demoSession';
@@ -75,6 +86,7 @@ let protocolInstanceSequence = 0;
 
 
 export class WebClientProtocol {
+  private static readonly PAINT_PREVIEW_BUFFER_LIMIT_BYTES = 64 * 1024;
   private handlers = new Map<MessageType, Set<MessageHandler>>();
   private websocket: WebSocket | null = null;
   private connecting: boolean = false;
@@ -543,6 +555,18 @@ export class WebClientProtocol {
     this.registerHandler(MessageType.PAINT_STROKE_DELETE, this.handlePaintStrokeDelete.bind(this));
     this.registerHandler(MessageType.PAINT_STROKE_CLEAR, this.handlePaintStrokeClear.bind(this));
     this.registerHandler(MessageType.PAINT_SYNC, this.handlePaintSync.bind(this));
+    this.registerHandler(MessageType.PAINT_OBJECT_EVENT, (message) => {
+      emitProtocolEvent('paint-object-event', parsePaintObjectEvent(message.data));
+    });
+    this.registerHandler(MessageType.PAINT_SNAPSHOT_CHUNK, (message) => {
+      emitProtocolEvent('paint-snapshot-chunk', parsePaintSnapshotChunk(message.data));
+    });
+    this.registerHandler(MessageType.PAINT_PREVIEW, (message) => {
+      emitProtocolEvent('paint-preview', parsePaintPreview(message.data));
+    });
+    this.registerHandler(MessageType.PAINT_PREVIEW_CANCEL, (message) => {
+      emitProtocolEvent('paint-preview-cancel', parsePaintPreviewCancel(message.data));
+    });
     this.registerHandler(MessageType.PAINT_TEMPLATE_UPSERT, (message) => {
       emitProtocolEvent('paint-template-upserted', message.data);
     });
@@ -953,6 +977,19 @@ export class WebClientProtocol {
       emitProtocolEvent('sprite-action-rejected', {
         actionId: message.data.action_id,
         reason: 'server_rejected',
+      });
+    }
+    if (typeof message.data?.operation_id === 'string') {
+      const currentObject = message.data.current_object;
+      if (currentObject !== undefined) assertPaintObject(currentObject);
+      emitProtocolEvent('paint-operation-rejected', {
+        operation_id: message.data.operation_id,
+        code: typeof message.data.code === 'string' ? message.data.code : 'invalid_payload',
+        error: typeof message.data.error === 'string' ? message.data.error : 'Paint operation rejected',
+        ...(currentObject === undefined ? {} : { current_object: currentObject }),
+        ...(typeof message.data.current_version === 'number'
+          ? { current_version: message.data.current_version }
+          : {}),
       });
     }
     emitProtocolEvent('protocol-error', message.data);
@@ -1898,6 +1935,96 @@ export class WebClientProtocol {
     const tableId = useGameStore.getState().activeTableId;
     if (!tableId) return;
     this.sendMessage(createMessage(MessageType.PAINT_STROKE_CLEAR, { table_id: tableId }, 3));
+  }
+
+  private sendPaintMessage(type: MessageType, data: Record<string, unknown>): boolean {
+    const socket = this.websocket;
+    if (!socket || socket.readyState !== WebSocket.OPEN) return false;
+    try {
+      socket.send(JSON.stringify(createMessage(type, data, 3)));
+      return true;
+    } catch (error) {
+      logger.error('Protocol: Failed to send paint message', error);
+      return false;
+    }
+  }
+
+  createPaintObject(tableId: string, operationId: string, object: PaintObjectInput): boolean {
+    validateTableId(tableId);
+    assertPaintObjectInput(object);
+    return this.sendPaintMessage(MessageType.PAINT_OBJECT_CREATE, {
+      table_id: tableId,
+      operation_id: operationId,
+      object,
+    });
+  }
+
+  updatePaintObject(
+    tableId: string,
+    operationId: string,
+    objectId: string,
+    expectedVersion: number,
+    object: PaintObjectInput,
+  ): boolean {
+    validateTableId(tableId);
+    assertPaintObjectInput(object);
+    return this.sendPaintMessage(MessageType.PAINT_OBJECT_UPDATE, {
+      table_id: tableId,
+      operation_id: operationId,
+      id: objectId,
+      expected_version: expectedVersion,
+      object,
+    });
+  }
+
+  deletePaintObject(
+    tableId: string,
+    operationId: string,
+    objectId: string,
+    expectedVersion: number,
+  ): boolean {
+    validateTableId(tableId);
+    return this.sendPaintMessage(MessageType.PAINT_OBJECT_DELETE, {
+      table_id: tableId,
+      operation_id: operationId,
+      id: objectId,
+      expected_version: expectedVersion,
+    });
+  }
+
+  requestPaintSnapshot(tableId: string): boolean {
+    validateTableId(tableId);
+    return this.sendPaintMessage(MessageType.PAINT_SNAPSHOT_REQUEST, { table_id: tableId });
+  }
+
+  sendPaintPreview(
+    tableId: string,
+    temporaryId: string,
+    sequence: number,
+    expiresAt: number,
+    draft: PaintObjectInput,
+  ): boolean {
+    const socket = this.websocket;
+    if (!socket || socket.readyState !== WebSocket.OPEN) return false;
+    if (socket.bufferedAmount > WebClientProtocol.PAINT_PREVIEW_BUFFER_LIMIT_BYTES) return false;
+    validateTableId(tableId);
+    assertPaintObjectInput(draft);
+    return this.sendPaintMessage(MessageType.PAINT_PREVIEW, {
+      table_id: tableId,
+      temporary_id: temporaryId,
+      sequence,
+      expires_at: expiresAt,
+      draft,
+    });
+  }
+
+  cancelPaintPreview(tableId: string, temporaryId: string, sequence: number): boolean {
+    validateTableId(tableId);
+    return this.sendPaintMessage(MessageType.PAINT_PREVIEW_CANCEL, {
+      table_id: tableId,
+      temporary_id: temporaryId,
+      sequence,
+    });
   }
 
   upsertPaintTemplate(template: Record<string, unknown>): void {

@@ -119,8 +119,14 @@ function makeProtocol(sessionCode = 'TEST123', userId = 1) {
 }
 
 function makeOpenWs(protocol: WebClientProtocol) {
-  const ws: { readyState: number; send: ReturnType<typeof vi.fn>; close: ReturnType<typeof vi.fn> } = {
+  const ws: {
+    readyState: number;
+    bufferedAmount: number;
+    send: ReturnType<typeof vi.fn>;
+    close: ReturnType<typeof vi.fn>;
+  } = {
     readyState: WebSocket.OPEN,
+    bufferedAmount: 0,
     send: vi.fn(),
     close: vi.fn(),
   };
@@ -2142,6 +2148,53 @@ describe('WebClientProtocol', () => {
 
       expect(rm.loadPaintStrokes).toHaveBeenCalledWith(JSON.stringify([valid]));
     });
+
+    it('dispatches strictly parsed object events and snapshot chunks', async () => {
+      const p = makeProtocol();
+      const object = {
+        id: 'dd830253-e2bf-4a92-9862-eabe85f79c99',
+        table_id: '9e8ed60d-f18c-4f47-a5ce-fc04db50506a',
+        kind: 'line',
+        geometry: {
+          kind: 'line',
+          start: { x: 0, y: 0, pressure: 1 },
+          end: { x: 10, y: 10, pressure: 1 },
+        },
+        transform: { x: 0, y: 0, scale_x: 1, scale_y: 1 },
+        style: { stroke_rgba: [1, 0, 0, 1], width: 2, fill_rgba: null },
+        created_by: 1,
+        version: 1,
+        z_order: 1,
+        created_at: '2026-09-29T00:00:00Z',
+        updated_at: '2026-09-29T00:00:00Z',
+      };
+      const event = vi.fn();
+      const chunk = vi.fn();
+      window.addEventListener('paint-object-event', event);
+      window.addEventListener('paint-snapshot-chunk', chunk);
+
+      await dispatch(p, 'paint_object_event', {
+        operation_id: '856e7eca-6461-4a42-a273-25c1171b5cc3',
+        table_id: object.table_id,
+        revision: 1,
+        action: 'create',
+        object,
+      });
+      await dispatch(p, 'paint_snapshot_chunk', {
+        snapshot_id: 'a8f761db-c98d-46d6-b690-88ed74135fd1',
+        table_id: object.table_id,
+        revision: 1,
+        chunk_index: 0,
+        chunk_count: 1,
+        complete: true,
+        objects: [object],
+      });
+
+      window.removeEventListener('paint-object-event', event);
+      window.removeEventListener('paint-snapshot-chunk', chunk);
+      expect((event.mock.calls[0][0] as CustomEvent).detail.object.id).toBe(object.id);
+      expect((chunk.mock.calls[0][0] as CustomEvent).detail.objects).toEqual([object]);
+    });
   });
 
   describe('paint outgoing methods', () => {
@@ -2172,6 +2225,66 @@ describe('WebClientProtocol', () => {
       expect(ws.send).toHaveBeenCalled();
       const sent = JSON.parse((ws.send as Mock).mock.calls[0][0]);
       expect(sent.type).toBe('paint_stroke_clear');
+    });
+
+    it('sends object commands with captured table and operation IDs', () => {
+      const p = makeProtocol();
+      const ws = makeOpenWs(p);
+      const tableId = '9e8ed60d-f18c-4f47-a5ce-fc04db50506a';
+      const operationId = '856e7eca-6461-4a42-a273-25c1171b5cc3';
+      const object = {
+        id: 'dd830253-e2bf-4a92-9862-eabe85f79c99',
+        kind: 'circle' as const,
+        geometry: { kind: 'circle' as const, diameter: 20 },
+        transform: { x: 4, y: 5, scale_x: 1, scale_y: 1 },
+        style: {
+          stroke_rgba: [1, 0, 0, 1] as [number, number, number, number],
+          width: 2,
+          fill_rgba: null,
+        },
+      };
+
+      expect(p.createPaintObject(tableId, operationId, object)).toBe(true);
+      expect(p.updatePaintObject(tableId, operationId, object.id, 1, object)).toBe(true);
+      expect(p.deletePaintObject(tableId, operationId, object.id, 2)).toBe(true);
+      expect(p.requestPaintSnapshot(tableId)).toBe(true);
+
+      const sent = ws.send.mock.calls.map(([raw]) => JSON.parse(raw as string));
+      expect(sent.map(message => message.type)).toEqual([
+        'paint_object_create',
+        'paint_object_update',
+        'paint_object_delete',
+        'paint_snapshot_request',
+      ]);
+      expect(sent[0].data).toMatchObject({ table_id: tableId, operation_id: operationId });
+      expect(sent[1].data).toMatchObject({ id: object.id, expected_version: 1 });
+      expect(sent[2].data).toMatchObject({ id: object.id, expected_version: 2 });
+    });
+
+    it('drops disposable previews under websocket backpressure', () => {
+      const p = makeProtocol();
+      const ws = makeOpenWs(p);
+      ws.bufferedAmount = 64 * 1024 + 1;
+      const object = {
+        id: 'dd830253-e2bf-4a92-9862-eabe85f79c99',
+        kind: 'square' as const,
+        geometry: { kind: 'square' as const, size: 20 },
+        transform: { x: 4, y: 5, scale_x: 1, scale_y: 1 },
+        style: {
+          stroke_rgba: [1, 0, 0, 1] as [number, number, number, number],
+          width: 2,
+          fill_rgba: null,
+        },
+      };
+
+      expect(p.sendPaintPreview(
+        '9e8ed60d-f18c-4f47-a5ce-fc04db50506a',
+        object.id,
+        1,
+        Date.now() + 1_000,
+        object,
+      )).toBe(false);
+      expect(ws.send).not.toHaveBeenCalled();
     });
   });
 

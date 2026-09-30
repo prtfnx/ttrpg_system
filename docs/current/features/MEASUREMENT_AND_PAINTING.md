@@ -79,11 +79,14 @@ rows only after the longer configured retention period.
 
 The browser has not switched to these object messages yet, so the active UI
 still uses the legacy stroke flow described below. The server retains both
-paths during this staged cutover. The server-side object preview and preview
-cancel relays are active, but have no browser producer or consumer yet. They
-use the disposable preview traffic budget, derive actor identity from the
-connection, authorize interactive table membership through a short-lived
-cache, validate drafts, cap relays at 16 KiB, and never write durable state.
+paths during this staged cutover. The browser protocol now exposes explicitly
+scoped durable object commands and strict typed event, snapshot, preview,
+preview-cancel, and operation-rejection events. Durable paint sends do not
+enter the generic reconnect queue; the paint controller must retain and retry
+the exact operation ID/body. Preview sends are best-effort and drop when the
+browser WebSocket queue exceeds 64 KiB. The server derives actor identity,
+authorizes interactive table membership through a short-lived cache, validates
+drafts, caps relays at 16 KiB, and never writes durable preview state.
 
 The replacement Rust scene does not originate
 writes. It atomically validates/replaces snapshots, accepts only contiguous

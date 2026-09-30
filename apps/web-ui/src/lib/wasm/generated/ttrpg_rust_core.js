@@ -401,6 +401,21 @@ export class PaintSystem {
         return ret;
     }
     /**
+     * @param {number} world_x
+     * @param {number} world_y
+     * @param {number} tolerance
+     * @returns {string | undefined}
+     */
+    hit_test_object(world_x, world_y, tolerance) {
+        const ret = wasm.paintsystem_hit_test_object(this.__wbg_ptr, world_x, world_y, tolerance);
+        let v1;
+        if (ret[0] !== 0) {
+            v1 = getStringFromWasm0(ret[0], ret[1]).slice();
+            wasm.__wbindgen_free(ret[0], ret[1] * 1, 1);
+        }
+        return v1;
+    }
+    /**
      * Bulk-load a JSON array of DrawStroke objects, replacing all existing strokes for the current table.
      * @param {string} strokes_json
      * @returns {boolean}
@@ -418,10 +433,39 @@ export class PaintSystem {
         return this;
     }
     /**
+     * @returns {number}
+     */
+    object_count() {
+        const ret = wasm.paintsystem_object_count(this.__wbg_ptr);
+        return ret >>> 0;
+    }
+    /**
+     * @returns {bigint}
+     */
+    object_revision() {
+        const ret = wasm.paintsystem_object_revision(this.__wbg_ptr);
+        return BigInt.asUintN(64, ret);
+    }
+    /**
      * @returns {boolean}
      */
     redo_last_stroke() {
         const ret = wasm.paintsystem_redo_last_stroke(this.__wbg_ptr);
+        return ret !== 0;
+    }
+    /**
+     * @param {string} table_id
+     * @param {bigint} revision
+     * @param {string} object_id
+     * @param {bigint} deleted_version
+     * @returns {boolean}
+     */
+    remove_object(table_id, revision, object_id, deleted_version) {
+        const ptr0 = passStringToWasm0(table_id, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+        const len0 = WASM_VECTOR_LEN;
+        const ptr1 = passStringToWasm0(object_id, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+        const len1 = WASM_VECTOR_LEN;
+        const ret = wasm.paintsystem_remove_object(this.__wbg_ptr, ptr0, len0, revision, ptr1, len1, deleted_version);
         return ret !== 0;
     }
     /**
@@ -433,6 +477,20 @@ export class PaintSystem {
         const ptr0 = passStringToWasm0(stroke_id, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
         const len0 = WASM_VECTOR_LEN;
         const ret = wasm.paintsystem_remove_stroke_by_id(this.__wbg_ptr, ptr0, len0);
+        return ret !== 0;
+    }
+    /**
+     * @param {string} table_id
+     * @param {bigint} revision
+     * @param {string} objects_json
+     * @returns {boolean}
+     */
+    replace_object_snapshot_json(table_id, revision, objects_json) {
+        const ptr0 = passStringToWasm0(table_id, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+        const len0 = WASM_VECTOR_LEN;
+        const ptr1 = passStringToWasm0(objects_json, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+        const len1 = WASM_VECTOR_LEN;
+        const ret = wasm.paintsystem_replace_object_snapshot_json(this.__wbg_ptr, ptr0, len0, revision, ptr1, len1);
         return ret !== 0;
     }
     /**
@@ -481,6 +539,20 @@ export class PaintSystem {
      */
     undo_last_stroke() {
         const ret = wasm.paintsystem_undo_last_stroke(this.__wbg_ptr);
+        return ret !== 0;
+    }
+    /**
+     * @param {string} table_id
+     * @param {bigint} revision
+     * @param {string} object_json
+     * @returns {boolean}
+     */
+    upsert_object_json(table_id, revision, object_json) {
+        const ptr0 = passStringToWasm0(table_id, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+        const len0 = WASM_VECTOR_LEN;
+        const ptr1 = passStringToWasm0(object_json, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+        const len1 = WASM_VECTOR_LEN;
+        const ret = wasm.paintsystem_upsert_object_json(this.__wbg_ptr, ptr0, len0, revision, ptr1, len1);
         return ret !== 0;
     }
 }
@@ -1241,6 +1313,21 @@ export class RenderEngine {
         return ret;
     }
     /**
+     * @param {number} world_x
+     * @param {number} world_y
+     * @param {number} tolerance
+     * @returns {string | undefined}
+     */
+    paint_hit_test_object(world_x, world_y, tolerance) {
+        const ret = wasm.renderengine_paint_hit_test_object(this.__wbg_ptr, world_x, world_y, tolerance);
+        let v1;
+        if (ret[0] !== 0) {
+            v1 = getStringFromWasm0(ret[0], ret[1]).slice();
+            wasm.__wbindgen_free(ret[0], ret[1] * 1, 1);
+        }
+        return v1;
+    }
+    /**
      * @param {string} strokes_json
      * @returns {boolean}
      */
@@ -1251,10 +1338,39 @@ export class RenderEngine {
         return ret !== 0;
     }
     /**
+     * @returns {number}
+     */
+    paint_object_count() {
+        const ret = wasm.renderengine_paint_object_count(this.__wbg_ptr);
+        return ret >>> 0;
+    }
+    /**
+     * @returns {number}
+     */
+    paint_object_revision() {
+        const ret = wasm.renderengine_paint_object_revision(this.__wbg_ptr);
+        return ret;
+    }
+    /**
      * @returns {boolean}
      */
     paint_redo_stroke() {
         const ret = wasm.renderengine_paint_redo_stroke(this.__wbg_ptr);
+        return ret !== 0;
+    }
+    /**
+     * @param {string} table_id
+     * @param {number} revision
+     * @param {string} object_id
+     * @param {number} deleted_version
+     * @returns {boolean}
+     */
+    paint_remove_object(table_id, revision, object_id, deleted_version) {
+        const ptr0 = passStringToWasm0(table_id, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+        const len0 = WASM_VECTOR_LEN;
+        const ptr1 = passStringToWasm0(object_id, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+        const len1 = WASM_VECTOR_LEN;
+        const ret = wasm.renderengine_paint_remove_object(this.__wbg_ptr, ptr0, len0, revision, ptr1, len1, deleted_version);
         return ret !== 0;
     }
     /**
@@ -1265,6 +1381,20 @@ export class RenderEngine {
         const ptr0 = passStringToWasm0(stroke_id, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
         const len0 = WASM_VECTOR_LEN;
         const ret = wasm.renderengine_paint_remove_stroke(this.__wbg_ptr, ptr0, len0);
+        return ret !== 0;
+    }
+    /**
+     * @param {string} table_id
+     * @param {number} revision
+     * @param {string} objects_json
+     * @returns {boolean}
+     */
+    paint_replace_object_snapshot(table_id, revision, objects_json) {
+        const ptr0 = passStringToWasm0(table_id, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+        const len0 = WASM_VECTOR_LEN;
+        const ptr1 = passStringToWasm0(objects_json, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+        const len1 = WASM_VECTOR_LEN;
+        const ret = wasm.renderengine_paint_replace_object_snapshot(this.__wbg_ptr, ptr0, len0, revision, ptr1, len1);
         return ret !== 0;
     }
     /**
@@ -1313,6 +1443,20 @@ export class RenderEngine {
      */
     paint_undo_stroke() {
         const ret = wasm.renderengine_paint_undo_stroke(this.__wbg_ptr);
+        return ret !== 0;
+    }
+    /**
+     * @param {string} table_id
+     * @param {number} revision
+     * @param {string} object_json
+     * @returns {boolean}
+     */
+    paint_upsert_object(table_id, revision, object_json) {
+        const ptr0 = passStringToWasm0(table_id, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+        const len0 = WASM_VECTOR_LEN;
+        const ptr1 = passStringToWasm0(object_json, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+        const len1 = WASM_VECTOR_LEN;
+        const ret = wasm.renderengine_paint_upsert_object(this.__wbg_ptr, ptr0, len0, revision, ptr1, len1);
         return ret !== 0;
     }
     /**
@@ -2846,7 +2990,7 @@ function __wbg_get_imports() {
             return ret;
         },
         __wbindgen_cast_0000000000000001: function(arg0, arg1) {
-            // Cast intrinsic for `Closure(Closure { owned: true, function: Function { arguments: [], shim_idx: 70, ret: Unit, inner_ret: Some(Unit) }, mutable: true }) -> Externref`.
+            // Cast intrinsic for `Closure(Closure { owned: true, function: Function { arguments: [], shim_idx: 116, ret: Unit, inner_ret: Some(Unit) }, mutable: true }) -> Externref`.
             const ret = makeMutClosure(arg0, arg1, wasm_bindgen__convert__closures_____invoke__h346c1d2cbe4d6714);
             return ret;
         },

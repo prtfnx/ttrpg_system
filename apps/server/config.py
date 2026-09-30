@@ -83,6 +83,8 @@ class Settings(BaseSettings):
     WS_MESSAGES_PER_MINUTE: int = 120  # Durable commands, including batch members
     WS_PREVIEWS_PER_MINUTE: int = 1800  # Allows sustained 20 Hz drag updates
     WS_SEND_TIMEOUT_SECONDS: float = 5.0
+    PAINT_OPERATION_RETRY_WINDOW_SECONDS: int = 24 * 60 * 60
+    PAINT_OPERATION_RETENTION_SECONDS: int = 48 * 60 * 60
 
     # Optional complete replacement for the bundled SRD starter artifact.
     COMPENDIUM_DIR: str = ""
@@ -147,6 +149,19 @@ class Settings(BaseSettings):
             raise ValueError("WS_PREVIEWS_PER_MINUTE must be between 1 and 12000.")
         if not 0.1 <= self.WS_SEND_TIMEOUT_SECONDS <= 60:
             raise ValueError("WS_SEND_TIMEOUT_SECONDS must be between 0.1 and 60.")
+        if not 60 <= self.PAINT_OPERATION_RETRY_WINDOW_SECONDS <= 7 * 24 * 60 * 60:
+            raise ValueError(
+                "PAINT_OPERATION_RETRY_WINDOW_SECONDS must be between 60 and 604800."
+            )
+        if not (
+            self.PAINT_OPERATION_RETRY_WINDOW_SECONDS
+            < self.PAINT_OPERATION_RETENTION_SECONDS
+            <= 30 * 24 * 60 * 60
+        ):
+            raise ValueError(
+                "PAINT_OPERATION_RETENTION_SECONDS must exceed the retry window "
+                "and be at most 2592000."
+            )
         if not 1 <= self.DB_POOL_SIZE <= 50:
             raise ValueError("DB_POOL_SIZE must be between 1 and 50.")
         if not 0 <= self.DB_MAX_OVERFLOW <= 50:

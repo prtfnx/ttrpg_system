@@ -110,6 +110,13 @@ def test_observability_settings_are_normalized_and_bounded():
 
     with pytest.raises(ValueError, match="WS_SEND_TIMEOUT_SECONDS"):
         Settings(WS_SEND_TIMEOUT_SECONDS=0)
+    with pytest.raises(ValueError, match="PAINT_OPERATION_RETRY_WINDOW_SECONDS"):
+        Settings(PAINT_OPERATION_RETRY_WINDOW_SECONDS=30)
+    with pytest.raises(ValueError, match="PAINT_OPERATION_RETENTION_SECONDS"):
+        Settings(
+            PAINT_OPERATION_RETRY_WINDOW_SECONDS=3600,
+            PAINT_OPERATION_RETENTION_SECONDS=3600,
+        )
 
     with pytest.raises(ValueError, match="AUDIT_RETENTION_DAYS"):
         Settings(AUDIT_RETENTION_DAYS=7)

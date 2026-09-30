@@ -4,7 +4,7 @@ Audience: contributors and operators configuring the FastAPI server.
 
 Status: partial. This lists deployment-critical settings, not every field in `Settings`.
 
-Last source audit: 2026-09-10
+Last source audit: 2026-09-29
 
 Server settings are defined in `apps/server/config.py`; ignored `.env` files
 are loaded by Pydantic settings.
@@ -40,6 +40,8 @@ PostgreSQL and Alembic.
 | `WS_MESSAGES_PER_MINUTE` | `120` | Non-preview messages per socket, including each batch member; valid range 1-6000. |
 | `WS_PREVIEWS_PER_MINUTE` | `1800` | Disposable drag/resize/rotate previews per socket; valid range 1-12000. |
 | `WS_SEND_TIMEOUT_SECONDS` | `5.0` | Per-message protocol send deadline. Valid range is 0.1-60 seconds; tune only with production load evidence. |
+| `PAINT_OPERATION_RETRY_WINDOW_SECONDS` | `86400` | Maximum age for replaying an accepted durable paint operation ID; valid range 60-604800 seconds. Older pending client work must resync. |
+| `PAINT_OPERATION_RETENTION_SECONDS` | `172800` | Operation-ledger retention before cleanup. It must exceed the retry window and be at most 2592000 seconds. |
 
 ## Asset resource limits
 

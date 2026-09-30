@@ -1,4 +1,5 @@
 import { assetIntegrationService } from '@features/assets';
+import type { PaintObject } from '@features/painting/model/paintObject';
 import { isDM, type SessionRole } from '@features/session/types/roles';
 import { logger } from '@shared/utils/logger';
 import { initializeWasmCore } from '../wasmCore';
@@ -486,7 +487,7 @@ export class WasmRuntime implements WasmRuntimePort {
   replacePaintObjectSnapshot(
     tableId: string,
     revision: number,
-    objects: readonly unknown[],
+    objects: readonly PaintObject[],
   ): boolean {
     const applied = this.renderEngine?.paint_replace_object_snapshot(
       tableId,
@@ -497,7 +498,7 @@ export class WasmRuntime implements WasmRuntimePort {
     return applied;
   }
 
-  upsertPaintObject(tableId: string, revision: number, object: unknown): boolean {
+  upsertPaintObject(tableId: string, revision: number, object: PaintObject): boolean {
     const applied = this.renderEngine?.paint_upsert_object(
       tableId,
       revision,
@@ -533,6 +534,10 @@ export class WasmRuntime implements WasmRuntimePort {
 
   getPaintObjectCount(): number {
     return this.renderEngine?.paint_object_count() ?? 0;
+  }
+
+  getPaintObjectMeshRebuildCount(): number {
+    return this.renderEngine?.paint_object_mesh_rebuild_count() ?? 0;
   }
 
   applyLayerSettings(settings: Record<string, Record<string, unknown>>): void {

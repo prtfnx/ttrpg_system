@@ -92,6 +92,7 @@ export function createMockWasmRuntime(overrides: Partial<MockWasmRuntime> = {}):
     hitTestPaintObject: vi.fn(() => null),
     getPaintObjectRevision: vi.fn(() => 0),
     getPaintObjectCount: vi.fn(() => 0),
+    getPaintObjectMeshRebuildCount: vi.fn(() => 0),
     applyLayerSettings: vi.fn(),
     ...overrides,
   };

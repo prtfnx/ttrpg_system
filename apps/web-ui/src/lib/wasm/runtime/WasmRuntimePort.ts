@@ -1,4 +1,5 @@
 import type { SessionRole } from '@features/session/types/roles';
+import type { PaintObject } from '@features/painting/model/paintObject';
 import type {
   ActionsClient,
   BrushPreset,
@@ -81,12 +82,13 @@ export interface WasmRuntimePort {
   addRemotePaintStroke(strokeJson: string): void;
   removePaintStroke(strokeId: string): void;
   clearPaintStrokes(): void;
-  replacePaintObjectSnapshot(tableId: string, revision: number, objects: readonly unknown[]): boolean;
-  upsertPaintObject(tableId: string, revision: number, object: unknown): boolean;
+  replacePaintObjectSnapshot(tableId: string, revision: number, objects: readonly PaintObject[]): boolean;
+  upsertPaintObject(tableId: string, revision: number, object: PaintObject): boolean;
   removePaintObject(tableId: string, revision: number, objectId: string, deletedVersion: number): boolean;
   hitTestPaintObject(worldX: number, worldY: number, tolerance: number): string | null;
   getPaintObjectRevision(): number;
   getPaintObjectCount(): number;
+  getPaintObjectMeshRebuildCount(): number;
 
   applyLayerSettings(settings: Record<string, Record<string, unknown>>): void;
 }

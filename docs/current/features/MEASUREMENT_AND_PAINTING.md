@@ -99,7 +99,8 @@ world viewport. Paths use pressure-scaled triangle widths with round joins and
 caps; filled and outlined forms use separate meshes. Hit-test tolerance is
 converted from screen pixels through camera zoom. GPU buffers and controller
 draft meshes are still pending, so legacy stroke rendering remains alongside
-the object path during the staged cutover.
+the object path during the staged cutover. The typed runtime boundary exposes
+the lifetime mesh-rebuild count for unchanged-frame regression checks.
 
 The WASM paint system owns active drawing and rendering. A completed stroke is
 sent with its stable id. The server requires the serialized stroke id to match,

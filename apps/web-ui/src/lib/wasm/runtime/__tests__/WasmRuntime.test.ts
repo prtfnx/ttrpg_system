@@ -32,6 +32,7 @@ const mocks = vi.hoisted(() => {
     paint_hit_test_object: vi.fn(() => 'paint-1'),
     paint_object_revision: vi.fn(() => 7),
     paint_object_count: vi.fn(() => 3),
+    paint_object_mesh_rebuild_count: vi.fn(() => 5),
   };
 
   return {
@@ -190,7 +191,23 @@ describe('WasmRuntime', () => {
       role: 'owner',
       activeLayer: 'tokens',
     });
-    const object = { id: 'paint-1', version: 1 };
+    const object = {
+      id: 'dd830253-e2bf-4a92-9862-eabe85f79c99',
+      table_id: '9e8ed60d-f18c-4f47-a5ce-fc04db50506a',
+      kind: 'line' as const,
+      geometry: {
+        kind: 'line' as const,
+        start: { x: 0, y: 0, pressure: 1 },
+        end: { x: 10, y: 10, pressure: 1 },
+      },
+      transform: { x: 0, y: 0, scale_x: 1, scale_y: 1 },
+      style: { stroke_rgba: [1, 0, 0, 1] as [number, number, number, number], width: 2, fill_rgba: null },
+      created_by: 42,
+      version: 1,
+      z_order: 1,
+      created_at: '2026-09-29T00:00:00Z',
+      updated_at: '2026-09-29T00:00:00Z',
+    };
 
     expect(runtime.replacePaintObjectSnapshot('table-1', 6, [object])).toBe(true);
     expect(mocks.renderEngine.paint_replace_object_snapshot).toHaveBeenCalledWith(
@@ -214,6 +231,7 @@ describe('WasmRuntime', () => {
     expect(runtime.hitTestPaintObject(10, 20, 4)).toBe('paint-1');
     expect(runtime.getPaintObjectRevision()).toBe(7);
     expect(runtime.getPaintObjectCount()).toBe(3);
+    expect(runtime.getPaintObjectMeshRebuildCount()).toBe(5);
   });
 
   it('captures only a fully rendered matching table through the runtime boundary', async () => {

@@ -111,6 +111,7 @@ export interface RenderEngine {
   paint_hit_test_object(worldX: number, worldY: number, tolerance: number): string | undefined;
   paint_object_revision(): number;
   paint_object_count(): number;
+  paint_object_mesh_rebuild_count(): number;
   paint_redo_stroke(): boolean;
   paint_remove_stroke(strokeId: string): boolean;
   paint_set_blend_mode(blendMode: string): void;

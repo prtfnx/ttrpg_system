@@ -86,9 +86,11 @@ writes. It atomically validates/replaces snapshots, accepts only contiguous
 table revisions and object versions, orders by immutable `z_order` then ID,
 and provides transformed bounds and geometry-based topmost hit testing. The
 render engine exposes snapshot, upsert, delete, revision/count, and hit-test
-WASM methods; table switches clear stale object state. TypeScript runtime
-wrappers and WebGL meshes are not connected yet, so legacy stroke rendering
-remains the visible path until those stages are implemented.
+WASM methods; table switches clear stale object state. `WasmRuntimePort`
+provides typed snapshot/upsert/delete, revision/count, and hit-test wrappers
+and invalidates framed previews only after accepted scene changes. WebGL
+meshes are not connected yet, so legacy stroke rendering remains the visible
+path until that stage is implemented.
 
 The WASM paint system owns active drawing and rendering. A completed stroke is
 sent with its stable id. The server requires the serialized stroke id to match,

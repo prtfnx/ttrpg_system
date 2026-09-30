@@ -483,6 +483,58 @@ export class WasmRuntime implements WasmRuntimePort {
     this.invalidateFramedPreview();
   }
 
+  replacePaintObjectSnapshot(
+    tableId: string,
+    revision: number,
+    objects: readonly unknown[],
+  ): boolean {
+    const applied = this.renderEngine?.paint_replace_object_snapshot(
+      tableId,
+      revision,
+      JSON.stringify(objects),
+    ) ?? false;
+    if (applied) this.invalidateFramedPreview();
+    return applied;
+  }
+
+  upsertPaintObject(tableId: string, revision: number, object: unknown): boolean {
+    const applied = this.renderEngine?.paint_upsert_object(
+      tableId,
+      revision,
+      JSON.stringify(object),
+    ) ?? false;
+    if (applied) this.invalidateFramedPreview();
+    return applied;
+  }
+
+  removePaintObject(
+    tableId: string,
+    revision: number,
+    objectId: string,
+    deletedVersion: number,
+  ): boolean {
+    const applied = this.renderEngine?.paint_remove_object(
+      tableId,
+      revision,
+      objectId,
+      deletedVersion,
+    ) ?? false;
+    if (applied) this.invalidateFramedPreview();
+    return applied;
+  }
+
+  hitTestPaintObject(worldX: number, worldY: number, tolerance: number): string | null {
+    return this.renderEngine?.paint_hit_test_object(worldX, worldY, tolerance) ?? null;
+  }
+
+  getPaintObjectRevision(): number {
+    return this.renderEngine?.paint_object_revision() ?? 0;
+  }
+
+  getPaintObjectCount(): number {
+    return this.renderEngine?.paint_object_count() ?? 0;
+  }
+
   applyLayerSettings(settings: Record<string, Record<string, unknown>>): void {
     const engine = this.renderEngine;
     if (!engine) return;

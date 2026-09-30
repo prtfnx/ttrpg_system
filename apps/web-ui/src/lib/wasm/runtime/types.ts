@@ -105,6 +105,12 @@ export interface RenderEngine {
   paint_exit_mode(): void;
   paint_get_strokes(): unknown;
   paint_load_strokes(strokesJson: string): boolean;
+  paint_replace_object_snapshot(tableId: string, revision: number, objectsJson: string): boolean;
+  paint_upsert_object(tableId: string, revision: number, objectJson: string): boolean;
+  paint_remove_object(tableId: string, revision: number, objectId: string, deletedVersion: number): boolean;
+  paint_hit_test_object(worldX: number, worldY: number, tolerance: number): string | undefined;
+  paint_object_revision(): number;
+  paint_object_count(): number;
   paint_redo_stroke(): boolean;
   paint_remove_stroke(strokeId: string): boolean;
   paint_set_blend_mode(blendMode: string): void;

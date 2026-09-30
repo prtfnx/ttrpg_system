@@ -39,6 +39,7 @@ from service.asset_deletion_service import process_pending_asset_deletions
 from service.asset_manager import get_server_asset_manager
 from service.asset_upload_cleanup_service import process_pending_upload_cleanups
 from service.game_session import get_connection_manager
+from service.paint_operation_cleanup import cleanup_expired_paint_operations
 from service.readiness import ReadinessChecker, preflight_failure_message
 from sqlalchemy.orm import Session
 from starlette.middleware.sessions import SessionMiddleware
@@ -136,6 +137,7 @@ async def lifespan(app: FastAPI):
     asset_deletion_cleanup = asyncio.create_task(asset_deletion_cleanup_task())
     upload_intent_cleanup = asyncio.create_task(upload_intent_cleanup_task())
     demo_guest_cleanup = asyncio.create_task(demo_guest_cleanup_task())
+    paint_operation_cleanup = asyncio.create_task(paint_operation_retention_task())
 
     yield
 
@@ -150,6 +152,7 @@ async def lifespan(app: FastAPI):
     asset_deletion_cleanup.cancel()
     upload_intent_cleanup.cancel()
     demo_guest_cleanup.cancel()
+    paint_operation_cleanup.cancel()
     try:
         await cleanup_task
     except asyncio.CancelledError:
@@ -172,6 +175,10 @@ async def lifespan(app: FastAPI):
         pass
     try:
         await demo_guest_cleanup
+    except asyncio.CancelledError:
+        pass
+    try:
+        await paint_operation_cleanup
     except asyncio.CancelledError:
         pass
     if writer is not None:
@@ -278,6 +285,44 @@ async def chat_retention_task():
             logger.exception(
                 "Chat retention cleanup failed",
                 extra={"event_name": "chat.retention.failed", "outcome": "error"},
+            )
+
+
+async def paint_operation_retention_task():
+    """Remove operation results only after the supported retry horizon."""
+    while True:
+        started = time.perf_counter()
+        try:
+            await asyncio.sleep(3600)
+            started = time.perf_counter()
+            deleted = await run_blocking(cleanup_expired_paint_operations)
+            record_job(
+                "paint_operation_retention",
+                "success",
+                time.perf_counter() - started,
+            )
+            if deleted:
+                logger.info(
+                    "Paint operation retention cleanup completed",
+                    extra={
+                        "event_name": "paint.operation.retention.completed",
+                        "deleted_count": deleted,
+                    },
+                )
+        except asyncio.CancelledError:
+            break
+        except Exception:
+            record_job(
+                "paint_operation_retention",
+                "error",
+                time.perf_counter() - started,
+            )
+            logger.exception(
+                "Paint operation retention cleanup failed",
+                extra={
+                    "event_name": "paint.operation.retention.failed",
+                    "outcome": "error",
+                },
             )
 
 

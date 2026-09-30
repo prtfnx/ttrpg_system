@@ -10,6 +10,7 @@ import { useAppBootstrap } from '@app/hooks/useAppBootstrap';
 import styles from './App.module.css';
 import { WasmRuntimeProvider } from './lib/wasm/runtime';
 import { isDemoSession } from '@shared/utils/demoSession';
+import { PaintControllerProvider } from '@features/painting';
 
 function App() {
   const { state, handleSessionSelected, handleAuthError } = useAppBootstrap();
@@ -63,14 +64,16 @@ function App() {
       <div className={styles.app}>
         <ProtocolProvider sessionCode={state.selectedSession}>
           <WasmRuntimeProvider>
-            <WindowManagerProvider>
-              <GameClient 
-                sessionCode={state.selectedSession}
-                userInfo={state.userInfo}
-                userRole={state.userRole!}
-                onAuthError={handleAuthError}
-              />
-            </WindowManagerProvider>
+            <PaintControllerProvider>
+              <WindowManagerProvider>
+                <GameClient
+                  sessionCode={state.selectedSession}
+                  userInfo={state.userInfo}
+                  userRole={state.userRole!}
+                  onAuthError={handleAuthError}
+                />
+              </WindowManagerProvider>
+            </PaintControllerProvider>
           </WasmRuntimeProvider>
         </ProtocolProvider>
         <ToastContainer theme="dark" />

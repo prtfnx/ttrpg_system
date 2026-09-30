@@ -94,8 +94,12 @@ applies only contiguous revisions, detects gaps, ignores stale tables, retains
 exact pending operation bodies for retry, expires operations after the supported
 window, and restores a recreated renderer from confirmed state. It also
 coalesces local previews to 20 Hz and rejects stale, cancelled, or expired remote
-previews. The active canvas and panel have not been migrated to this controller
-yet.
+previews. The application now mounts one controller per connected session
+beneath the protocol and WASM runtime providers. The provider follows the
+active table, subscribes to typed protocol events, advances snapshot and
+preview expiry, disposes session state deterministically, and restores
+confirmed objects after a WebGL canvas is attached or restored. Pointer input
+and panel controls still use the legacy path until the next cutover step.
 
 The replacement Rust scene does not originate
 writes. It atomically validates/replaces snapshots, accepts only contiguous

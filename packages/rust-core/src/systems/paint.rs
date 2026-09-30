@@ -5,11 +5,13 @@ use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use wasm_bindgen::prelude::*;
 
+use super::paint_mesh::PaintMeshCache;
 use super::paint_scene::{PaintObject, PaintScene};
 
 #[wasm_bindgen]
 pub struct PaintSystem {
     object_scene: PaintScene,
+    object_meshes: PaintMeshCache,
     // Per-table paint storage
     table_strokes: HashMap<String, Vec<DrawStroke>>,
     table_redo_stacks: HashMap<String, Vec<DrawStroke>>,
@@ -78,6 +80,7 @@ impl PaintSystem {
     pub fn new() -> Self {
         Self {
             object_scene: PaintScene::default(),
+            object_meshes: PaintMeshCache::default(),
             table_strokes: HashMap::new(),
             table_redo_stacks: HashMap::new(),
             current_table_id: None,
@@ -98,7 +101,11 @@ impl PaintSystem {
     pub fn set_current_table(&mut self, table_id: &str) {
         let table_id_string = table_id.to_string();
         self.current_table_id = Some(table_id_string.clone());
+        let switched = self.object_scene.table_id() != Some(table_id);
         self.object_scene.activate_table(table_id);
+        if switched {
+            self.object_meshes.clear();
+        }
 
         // Initialize table storage if it doesn't exist
         if !self.table_strokes.contains_key(&table_id_string) {
@@ -395,18 +402,34 @@ impl PaintSystem {
         let Ok(objects) = serde_json::from_str::<Vec<PaintObject>>(objects_json) else {
             return false;
         };
-        self.object_scene
+        if self
+            .object_scene
             .replace_snapshot(table_id, revision, objects)
-            .is_ok()
+            .is_err()
+        {
+            return false;
+        }
+        self.object_meshes
+            .replace(self.object_scene.ordered_objects());
+        true
     }
 
     pub fn upsert_object_json(&mut self, table_id: &str, revision: u64, object_json: &str) -> bool {
         let Ok(object) = serde_json::from_str::<PaintObject>(object_json) else {
             return false;
         };
-        self.object_scene
+        let object_id = object.id.clone();
+        if self
+            .object_scene
             .apply_upsert(table_id, revision, object)
-            .is_ok()
+            .is_err()
+        {
+            return false;
+        }
+        if let Some(accepted) = self.object_scene.get(&object_id) {
+            self.object_meshes.upsert(accepted);
+        }
+        true
     }
 
     pub fn remove_object(
@@ -416,9 +439,15 @@ impl PaintSystem {
         object_id: &str,
         deleted_version: u64,
     ) -> bool {
-        self.object_scene
+        if self
+            .object_scene
             .apply_delete(table_id, revision, object_id, deleted_version)
-            .is_ok()
+            .is_err()
+        {
+            return false;
+        }
+        self.object_meshes.remove(object_id);
+        true
     }
 
     pub fn hit_test_object(&self, world_x: f32, world_y: f32, tolerance: f32) -> Option<String> {
@@ -433,6 +462,10 @@ impl PaintSystem {
 
     pub fn object_count(&self) -> usize {
         self.object_scene.len()
+    }
+
+    pub fn object_mesh_rebuild_count(&self) -> u64 {
+        self.object_meshes.rebuild_count()
     }
 }
 
@@ -457,6 +490,33 @@ impl PaintSystem {
             self.render_stroke(stroke, renderer)?;
         }
 
+        Ok(())
+    }
+
+    pub fn render_objects(
+        &self,
+        renderer: &WebGLRenderer,
+        viewport: &crate::math::Rect,
+    ) -> Result<(), JsValue> {
+        renderer.set_blend_mode(&BlendMode::Alpha);
+        for object in self.object_scene.ordered_objects() {
+            let Some(mesh) = self.object_meshes.get(&object.id) else {
+                continue;
+            };
+            let bounds = crate::math::Rect::new(
+                mesh.bounds.min_x,
+                mesh.bounds.min_y,
+                mesh.bounds.max_x - mesh.bounds.min_x,
+                mesh.bounds.max_y - mesh.bounds.min_y,
+            );
+            if !bounds.intersects(viewport) {
+                continue;
+            }
+            if let Some(fill) = object.style.fill_rgba {
+                renderer.draw_triangles(&mesh.fill_vertices, fill)?;
+            }
+            renderer.draw_triangles(&mesh.stroke_vertices, object.style.stroke_rgba)?;
+        }
         Ok(())
     }
 

@@ -233,6 +233,8 @@ impl RenderEngine {
         )?;
 
         self.paint.render_strokes(&self.renderer)?;
+        self.paint
+            .render_objects(&self.renderer, &viewport_bounds)?;
 
         self.fog.render_fog_filtered(
             &self.view_matrix.to_array(),

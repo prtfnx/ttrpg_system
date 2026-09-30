@@ -85,16 +85,21 @@ use the disposable preview traffic budget, derive actor identity from the
 connection, authorize interactive table membership through a short-lived
 cache, validate drafts, cap relays at 16 KiB, and never write durable state.
 
-The replacement Rust scene is renderer-independent and does not originate
+The replacement Rust scene does not originate
 writes. It atomically validates/replaces snapshots, accepts only contiguous
 table revisions and object versions, orders by immutable `z_order` then ID,
 and provides transformed bounds and geometry-based topmost hit testing. The
 render engine exposes snapshot, upsert, delete, revision/count, and hit-test
 WASM methods; table switches clear stale object state. `WasmRuntimePort`
 provides typed snapshot/upsert/delete, revision/count, and hit-test wrappers
-and invalidates framed previews only after accepted scene changes. WebGL
-meshes are not connected yet, so legacy stroke rendering remains the visible
-path until that stage is implemented.
+and invalidates framed previews only after accepted scene changes. Authoritative
+objects now tessellate into cached triangle geometry only on snapshot or
+accepted change, render in stable object order under fog, and cull against the
+world viewport. Paths use pressure-scaled triangle widths with round joins and
+caps; filled and outlined forms use separate meshes. Hit-test tolerance is
+converted from screen pixels through camera zoom. GPU buffers and controller
+draft meshes are still pending, so legacy stroke rendering remains alongside
+the object path during the staged cutover.
 
 The WASM paint system owns active drawing and rendering. A completed stroke is
 sent with its stable id. The server requires the serialized stroke id to match,

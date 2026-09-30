@@ -643,8 +643,9 @@ impl RenderEngine {
         world_y: f32,
         tolerance: f32,
     ) -> Option<String> {
+        let world_tolerance = tolerance.max(0.0) / (self.camera.zoom as f32).max(f32::EPSILON);
         self.paint
-            .hit_test_object(world_x, world_y, tolerance.max(0.0))
+            .hit_test_object(world_x, world_y, world_tolerance)
     }
 
     #[wasm_bindgen]
@@ -655,6 +656,11 @@ impl RenderEngine {
     #[wasm_bindgen]
     pub fn paint_object_count(&self) -> usize {
         self.paint.object_count()
+    }
+
+    #[wasm_bindgen]
+    pub fn paint_object_mesh_rebuild_count(&self) -> f64 {
+        self.paint.object_mesh_rebuild_count() as f64
     }
 
     // Background color

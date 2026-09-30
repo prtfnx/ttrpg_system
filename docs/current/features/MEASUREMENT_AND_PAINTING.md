@@ -71,7 +71,10 @@ server registers create, update, delete, and snapshot handlers; blocking ORM
 work runs in worker threads. Accepted mutations broadcast canonical object
 events, retries return the recorded event without rebroadcasting, conflicts
 include the current object, and snapshots are split into bounded ordered
-chunks after the transaction closes.
+chunks after the transaction closes. Operation replays are accepted only
+within the configured retry window; an older recorded operation is rejected
+with `retry_window_expired` so the client must obtain a fresh snapshot rather
+than risk applying stale intent.
 
 The browser has not switched to these object messages yet, so the active UI
 still uses the legacy stroke flow described below. The server retains both

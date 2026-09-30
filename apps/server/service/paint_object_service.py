@@ -5,9 +5,10 @@ from __future__ import annotations
 import hashlib
 import json
 from dataclasses import dataclass
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from typing import Any, Callable, Mapping
 
+from config import Settings
 from core_table.paint import (
     PaintValidationError,
     paint_limits,
@@ -106,8 +107,23 @@ def _request_hash(action: str, payload: Mapping[str, Any]) -> str:
 class PaintObjectService:
     """Apply one paint command per database transaction."""
 
-    def __init__(self, session_factory: Callable[[], Session]):
+    def __init__(
+        self,
+        session_factory: Callable[[], Session],
+        *,
+        retry_window_seconds: int | None = None,
+        now: Callable[[], datetime] = utc_now,
+    ):
         self._session_factory = session_factory
+        configured_window = (
+            retry_window_seconds
+            if retry_window_seconds is not None
+            else Settings().PAINT_OPERATION_RETRY_WINDOW_SECONDS
+        )
+        if configured_window <= 0:
+            raise ValueError("retry_window_seconds must be positive")
+        self._retry_window = timedelta(seconds=configured_window)
+        self._now = now
 
     @staticmethod
     def _lock_table_and_role(
@@ -176,8 +192,8 @@ class PaintObjectService:
         if paint_object.created_by != actor_id and not is_dm(role):
             raise _Rejected("forbidden", "Only the creator or a DM may edit this paint object")
 
-    @staticmethod
     def _replay(
+        self,
         db: Session,
         *,
         table_id: str,
@@ -191,6 +207,11 @@ class PaintObjectService:
         )
         if previous is None:
             return None
+        if previous.created_at < self._now() - self._retry_window:
+            raise _Rejected(
+                "retry_window_expired",
+                "Paint operation retry window expired; request a snapshot before retrying",
+            )
         if previous.request_hash != request_hash:
             raise _Rejected(
                 "invalid_payload",
@@ -198,8 +219,8 @@ class PaintObjectService:
             )
         return PaintCommandResult(event=previous.result_json, broadcast=False)
 
-    @staticmethod
     def _record_result(
+        self,
         db: Session,
         *,
         table_id: str,
@@ -214,7 +235,7 @@ class PaintObjectService:
             operation_id=operation_id,
             request_hash=request_hash,
             result_json=event,
-            created_at=utc_now(),
+            created_at=self._now(),
         ))
 
     @staticmethod

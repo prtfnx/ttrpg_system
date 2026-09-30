@@ -1,5 +1,6 @@
 import copy
 import uuid
+from datetime import timedelta
 
 import pytest
 from core_table.paint import PaintLimits
@@ -9,6 +10,7 @@ from service.paint_object_service import PaintCommandError, PaintObjectService
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.pool import StaticPool
+from utils.time import utc_now
 
 TABLE_ID = "9e8ed60d-f18c-4f47-a5ce-fc04db50506a"
 OTHER_TABLE_ID = "d57d06dc-85d1-42a7-a928-2d1fa10848f9"
@@ -143,6 +145,37 @@ def test_reused_operation_id_with_different_body_is_rejected(paint_service):
 
     assert result.error.code == "invalid_payload"
     assert result.event is None
+
+
+def test_retry_after_supported_window_requires_snapshot(paint_service):
+    _, factory, ids = paint_service
+    operation_id = str(uuid.uuid4())
+    service = PaintObjectService(factory, retry_window_seconds=3600)
+    first = create(service, ids, operation_id=operation_id)
+    with factory.begin() as db:
+        recorded = db.get(
+            models.PaintOperationResult,
+            (TABLE_ID, ids["player"], operation_id),
+        )
+        assert recorded is not None
+        recorded.created_at = utc_now() - timedelta(hours=2)
+
+    replay = create(service, ids, operation_id=operation_id)
+
+    assert first.error is None
+    assert replay.error.code == "retry_window_expired"
+    assert replay.event is None
+    with factory() as db:
+        assert db.query(models.PaintObject).count() == 1
+        assert db.query(models.PaintOperationResult).count() == 1
+        assert db.get(models.PaintState, TABLE_ID).revision == 1
+
+
+def test_retry_window_must_be_positive(paint_service):
+    _, factory, _ = paint_service
+
+    with pytest.raises(ValueError, match="retry_window_seconds"):
+        PaintObjectService(factory, retry_window_seconds=0)
 
 
 def test_update_requires_current_version_and_preserves_server_fields(paint_service):

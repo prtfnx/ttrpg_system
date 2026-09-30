@@ -34,6 +34,12 @@ pub struct PaintSystem {
     last_point: Option<Vec2>,
 }
 
+impl Default for PaintSystem {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct DrawPoint {
     pub x: f32,
@@ -464,6 +470,10 @@ impl PaintSystem {
         self.object_scene.len()
     }
 
+    pub(crate) fn object_table_id(&self) -> Option<&str> {
+        self.object_scene.table_id()
+    }
+
     pub fn object_mesh_rebuild_count(&self) -> u64 {
         self.object_meshes.rebuild_count()
     }
@@ -512,10 +522,21 @@ impl PaintSystem {
             if !bounds.intersects(viewport) {
                 continue;
             }
+            let cache_prefix = format!("paint:{}:{}", object.table_id, object.id);
             if let Some(fill) = object.style.fill_rgba {
-                renderer.draw_triangles(&mesh.fill_vertices, fill)?;
+                renderer.draw_cached_triangles(
+                    &format!("{cache_prefix}:fill"),
+                    mesh.version,
+                    &mesh.fill_vertices,
+                    fill,
+                )?;
             }
-            renderer.draw_triangles(&mesh.stroke_vertices, object.style.stroke_rgba)?;
+            renderer.draw_cached_triangles(
+                &format!("{cache_prefix}:stroke"),
+                mesh.version,
+                &mesh.stroke_vertices,
+                object.style.stroke_rgba,
+            )?;
         }
         Ok(())
     }

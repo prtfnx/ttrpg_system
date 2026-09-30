@@ -97,10 +97,15 @@ objects now tessellate into cached triangle geometry only on snapshot or
 accepted change, render in stable object order under fog, and cull against the
 world viewport. Paths use pressure-scaled triangle widths with round joins and
 caps; filled and outlined forms use separate meshes. Hit-test tolerance is
-converted from screen pixels through camera zoom. GPU buffers and controller
-draft meshes are still pending, so legacy stroke rendering remains alongside
-the object path during the staged cutover. The typed runtime boundary exposes
-the lifetime mesh-rebuild count for unchanged-frame regression checks.
+converted from screen pixels through camera zoom. Triangle data is uploaded to
+retained GPU buffers on first draw after a snapshot or changed object, reused
+on unchanged frames, and explicitly deleted on update, deletion, table switch,
+renderer detach, or context loss. Controller draft meshes are still pending,
+so legacy stroke rendering remains alongside the object path during the staged
+cutover. The renderer requests WebGL antialiasing for triangle-edge coverage;
+implementations without multisample support fall back to hard triangle edges.
+The typed runtime boundary exposes the lifetime mesh-rebuild count for
+unchanged-frame regression checks.
 
 The WASM paint system owns active drawing and rendering. A completed stroke is
 sent with its stable id. The server requires the serialized stroke id to match,

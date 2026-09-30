@@ -503,7 +503,11 @@ impl RenderEngine {
 
     // Paint system methods
     pub fn paint_set_current_table(&mut self, table_id: &str) {
+        let switched = self.paint.object_table_id() != Some(table_id);
         self.paint.set_current_table(table_id);
+        if switched {
+            self.renderer.clear_cached_triangles_with_prefix("paint:");
+        }
     }
     #[wasm_bindgen]
     pub fn paint_enter_mode(&mut self, width: f32, height: f32) {
@@ -599,10 +603,16 @@ impl RenderEngine {
         revision: f64,
         objects_json: &str,
     ) -> bool {
-        parse_paint_integer(revision).is_some_and(|revision| {
-            self.paint
-                .replace_object_snapshot_json(table_id, revision, objects_json)
-        })
+        let Some(revision) = parse_paint_integer(revision) else {
+            return false;
+        };
+        let applied = self
+            .paint
+            .replace_object_snapshot_json(table_id, revision, objects_json);
+        if applied {
+            self.renderer.clear_cached_triangles_with_prefix("paint:");
+        }
+        applied
     }
 
     #[wasm_bindgen]
@@ -612,10 +622,16 @@ impl RenderEngine {
         revision: f64,
         object_json: &str,
     ) -> bool {
-        parse_paint_integer(revision).is_some_and(|revision| {
-            self.paint
-                .upsert_object_json(table_id, revision, object_json)
-        })
+        let Some(revision) = parse_paint_integer(revision) else {
+            return false;
+        };
+        let applied = self
+            .paint
+            .upsert_object_json(table_id, revision, object_json);
+        if applied {
+            self.clear_paint_object_buffers(table_id, object_json);
+        }
+        applied
     }
 
     #[wasm_bindgen]
@@ -632,8 +648,13 @@ impl RenderEngine {
         let Some(deleted_version) = parse_paint_integer(deleted_version) else {
             return false;
         };
-        self.paint
-            .remove_object(table_id, revision, object_id, deleted_version)
+        let removed = self
+            .paint
+            .remove_object(table_id, revision, object_id, deleted_version);
+        if removed {
+            self.remove_paint_object_buffers(table_id, object_id);
+        }
+        removed
     }
 
     #[wasm_bindgen]
@@ -668,6 +689,21 @@ impl RenderEngine {
         if let Some(color) = super::parse_hex_color(hex) {
             self.background_color = [color.r, color.g, color.b, 1.0];
         }
+    }
+}
+
+impl RenderEngine {
+    fn clear_paint_object_buffers(&self, table_id: &str, object_json: &str) {
+        let Ok(object) = serde_json::from_str::<crate::paint_scene::PaintObject>(object_json)
+        else {
+            return;
+        };
+        self.remove_paint_object_buffers(table_id, &object.id);
+    }
+
+    fn remove_paint_object_buffers(&self, table_id: &str, object_id: &str) {
+        let prefix = format!("paint:{table_id}:{object_id}");
+        self.renderer.clear_cached_triangles_with_prefix(&prefix);
     }
 }
 

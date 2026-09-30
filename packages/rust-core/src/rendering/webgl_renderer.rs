@@ -1,6 +1,7 @@
 use crate::math::Vec2;
 use crate::types::BlendMode;
-use std::cell::Cell;
+use std::cell::{Cell, RefCell};
+use std::collections::HashMap;
 use wasm_bindgen::prelude::*;
 use web_sys::{
     WebGl2RenderingContext as WebGlRenderingContext, WebGlBuffer, WebGlProgram, WebGlShader,
@@ -21,6 +22,13 @@ struct QuadPipeline {
     u_canvas_size: WebGlUniformLocation,
     u_color: WebGlUniformLocation,
     u_use_texture: WebGlUniformLocation,
+}
+
+struct CachedTriangleBuffer {
+    vao: WebGlVertexArrayObject,
+    vertex_buffer: WebGlBuffer,
+    vertex_count: i32,
+    generation: u64,
 }
 
 impl QuadPipeline {
@@ -266,6 +274,7 @@ pub struct WebGLRenderer {
     current_layer_color: [f32; 3],
     frame_draw_calls: Cell<u32>,
     frame_buffer_uploads: Cell<u32>,
+    cached_triangles: RefCell<HashMap<String, CachedTriangleBuffer>>,
 }
 
 impl WebGLRenderer {
@@ -282,6 +291,7 @@ impl WebGLRenderer {
             current_layer_color: [1.0, 1.0, 1.0],
             frame_draw_calls: Cell::new(0),
             frame_buffer_uploads: Cell::new(0),
+            cached_triangles: RefCell::new(HashMap::new()),
         })
     }
 
@@ -421,6 +431,109 @@ impl WebGLRenderer {
         Ok(())
     }
 
+    pub fn draw_cached_triangles(
+        &self,
+        key: &str,
+        generation: u64,
+        vertices: &[f32],
+        color: [f32; 4],
+    ) -> Result<(), JsValue> {
+        if vertices.len() < 6 || !vertices.len().is_multiple_of(2) {
+            self.remove_cached_triangles(key);
+            return Ok(());
+        }
+
+        let needs_upload = self
+            .cached_triangles
+            .borrow()
+            .get(key)
+            .is_none_or(|cached| cached.generation != generation);
+        if needs_upload {
+            self.store_cached_triangles(key, generation, vertices)?;
+        }
+
+        let cached = self.cached_triangles.borrow();
+        let mesh = cached
+            .get(key)
+            .ok_or_else(|| JsValue::from_str("Cached triangle mesh disappeared"))?;
+        self.pipeline.bind();
+        self.gl.bind_vertex_array(Some(&mesh.vao));
+        self.set_color(color, false);
+        self.gl
+            .draw_arrays(WebGlRenderingContext::TRIANGLES, 0, mesh.vertex_count);
+        self.record_draw_call();
+        Ok(())
+    }
+
+    fn store_cached_triangles(
+        &self,
+        key: &str,
+        generation: u64,
+        vertices: &[f32],
+    ) -> Result<(), JsValue> {
+        self.remove_cached_triangles(key);
+        let Some(vao) = self.gl.create_vertex_array() else {
+            return Err(JsValue::from_str("Failed to create cached triangle VAO"));
+        };
+        let Some(vertex_buffer) = self.gl.create_buffer() else {
+            self.gl.delete_vertex_array(Some(&vao));
+            return Err(JsValue::from_str("Failed to create cached triangle buffer"));
+        };
+        self.gl.bind_vertex_array(Some(&vao));
+        self.gl
+            .bind_buffer(WebGlRenderingContext::ARRAY_BUFFER, Some(&vertex_buffer));
+        let vertex_data = Self::interleave_positions(vertices);
+        unsafe {
+            let view = js_sys::Float32Array::view(&vertex_data);
+            self.gl.buffer_data_with_array_buffer_view(
+                WebGlRenderingContext::ARRAY_BUFFER,
+                &view,
+                WebGlRenderingContext::STATIC_DRAW,
+            );
+        }
+        self.gl.enable_vertex_attrib_array(0);
+        self.gl
+            .vertex_attrib_pointer_with_i32(0, 2, WebGlRenderingContext::FLOAT, false, 16, 0);
+        self.gl.enable_vertex_attrib_array(1);
+        self.gl
+            .vertex_attrib_pointer_with_i32(1, 2, WebGlRenderingContext::FLOAT, false, 16, 8);
+        self.gl.bind_vertex_array(None);
+        self.gl
+            .bind_buffer(WebGlRenderingContext::ARRAY_BUFFER, None);
+        self.cached_triangles.borrow_mut().insert(
+            key.to_owned(),
+            CachedTriangleBuffer {
+                vao,
+                vertex_buffer,
+                vertex_count: (vertices.len() / 2) as i32,
+                generation,
+            },
+        );
+        self.frame_buffer_uploads
+            .set(self.frame_buffer_uploads.get().saturating_add(1));
+        Ok(())
+    }
+
+    pub fn remove_cached_triangles(&self, key: &str) {
+        if let Some(cached) = self.cached_triangles.borrow_mut().remove(key) {
+            self.gl.delete_vertex_array(Some(&cached.vao));
+            self.gl.delete_buffer(Some(&cached.vertex_buffer));
+        }
+    }
+
+    pub fn clear_cached_triangles_with_prefix(&self, prefix: &str) {
+        let keys: Vec<_> = self
+            .cached_triangles
+            .borrow()
+            .keys()
+            .filter(|key| key.starts_with(prefix))
+            .cloned()
+            .collect();
+        for key in keys {
+            self.remove_cached_triangles(&key);
+        }
+    }
+
     pub fn draw_lines(&self, vertices: &[f32], color: [f32; 4]) -> Result<(), JsValue> {
         if vertices.len() < 4 || !vertices.len().is_multiple_of(2) {
             return Ok(());
@@ -476,5 +589,15 @@ impl WebGLRenderer {
             sprite_color[2] * self.current_layer_color[2],
             sprite_color[3],
         ]
+    }
+}
+
+impl Drop for WebGLRenderer {
+    fn drop(&mut self) {
+        let cached = self.cached_triangles.get_mut();
+        for (_, mesh) in cached.drain() {
+            self.gl.delete_vertex_array(Some(&mesh.vao));
+            self.gl.delete_buffer(Some(&mesh.vertex_buffer));
+        }
     }
 }

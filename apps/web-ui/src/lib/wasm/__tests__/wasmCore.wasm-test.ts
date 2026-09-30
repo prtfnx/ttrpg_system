@@ -325,6 +325,63 @@ describe('WASM module (real browser)', () => {
     }
   });
 
+  it('retains authoritative paint buffers across unchanged WebGL frames', () => {
+    const canvas = document.createElement('canvas');
+    canvas.width = 240;
+    canvas.height = 160;
+    const tableId = '550e8400-e29b-41d4-a716-446655440014';
+    const object = {
+      id: 'dd830253-e2bf-4a92-9862-eabe85f79c99',
+      table_id: tableId,
+      kind: 'rectangle',
+      geometry: { kind: 'rectangle', width: 40, height: 30 },
+      transform: { x: 20, y: 20, scale_x: 1, scale_y: 1 },
+      style: { stroke_rgba: [1, 0, 0, 1], width: 4, fill_rgba: [0, 1, 0, 0.5] },
+      created_by: 1,
+      version: 1,
+      z_order: 1,
+      created_at: '2026-09-29T00:00:00Z',
+      updated_at: '2026-09-29T00:00:00Z',
+    };
+    const deleteBuffer = vi.spyOn(WebGL2RenderingContext.prototype, 'deleteBuffer');
+    const engine = new RenderEngine(canvas);
+    try {
+      hydrateEmptyTable(engine, tableId);
+      engine.paint_set_current_table(tableId);
+      expect(engine.paint_replace_object_snapshot(tableId, 1, JSON.stringify([object]))).toBe(true);
+      expect(engine.paint_object_mesh_rebuild_count()).toBe(1);
+
+      engine.render();
+      const first = engine.get_render_diagnostics();
+      engine.render();
+      const unchanged = engine.get_render_diagnostics();
+
+      expect(first.bufferUploads).toBeGreaterThanOrEqual(unchanged.bufferUploads + 2);
+      expect(engine.paint_object_mesh_rebuild_count()).toBe(1);
+
+      const deletesBeforeUpdate = deleteBuffer.mock.calls.length;
+      const updated = {
+        ...object,
+        version: 2,
+        transform: { ...object.transform, x: 30 },
+        updated_at: '2026-09-29T00:01:00Z',
+      };
+      expect(engine.paint_upsert_object(tableId, 2, JSON.stringify(updated))).toBe(true);
+      expect(deleteBuffer.mock.calls.length).toBe(deletesBeforeUpdate + 2);
+      expect(engine.paint_object_mesh_rebuild_count()).toBe(2);
+      engine.render();
+      expect(engine.get_render_diagnostics().bufferUploads)
+        .toBeGreaterThanOrEqual(unchanged.bufferUploads + 2);
+
+      const deletesBeforeRemoval = deleteBuffer.mock.calls.length;
+      expect(engine.paint_remove_object(tableId, 3, object.id, 2)).toBe(true);
+      expect(deleteBuffer.mock.calls.length).toBe(deletesBeforeRemoval + 2);
+    } finally {
+      engine.free();
+      deleteBuffer.mockRestore();
+    }
+  });
+
   it('accounts for texture replacement, unload, budget, and renderer drop', async () => {
     const firstImage = await createLoadedImage(4, 3);
     const replacementImage = await createLoadedImage(2, 2);

@@ -442,6 +442,13 @@ export class PaintSystem {
     /**
      * @returns {bigint}
      */
+    object_mesh_rebuild_count() {
+        const ret = wasm.paintsystem_object_mesh_rebuild_count(this.__wbg_ptr);
+        return BigInt.asUintN(64, ret);
+    }
+    /**
+     * @returns {bigint}
+     */
     object_revision() {
         const ret = wasm.paintsystem_object_revision(this.__wbg_ptr);
         return BigInt.asUintN(64, ret);
@@ -1343,6 +1350,13 @@ export class RenderEngine {
     paint_object_count() {
         const ret = wasm.renderengine_paint_object_count(this.__wbg_ptr);
         return ret >>> 0;
+    }
+    /**
+     * @returns {number}
+     */
+    paint_object_mesh_rebuild_count() {
+        const ret = wasm.renderengine_paint_object_mesh_rebuild_count(this.__wbg_ptr);
+        return ret;
     }
     /**
      * @returns {number}
@@ -2990,7 +3004,7 @@ function __wbg_get_imports() {
             return ret;
         },
         __wbindgen_cast_0000000000000001: function(arg0, arg1) {
-            // Cast intrinsic for `Closure(Closure { owned: true, function: Function { arguments: [], shim_idx: 116, ret: Unit, inner_ret: Some(Unit) }, mutable: true }) -> Externref`.
+            // Cast intrinsic for `Closure(Closure { owned: true, function: Function { arguments: [], shim_idx: 75, ret: Unit, inner_ret: Some(Unit) }, mutable: true }) -> Externref`.
             const ret = makeMutClosure(arg0, arg1, wasm_bindgen__convert__closures_____invoke__h346c1d2cbe4d6714);
             return ret;
         },

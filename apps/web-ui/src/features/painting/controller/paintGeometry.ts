@@ -1,14 +1,103 @@
 import type {
   PaintKind,
+  PaintObject,
   PaintObjectInput,
   PaintPoint,
   PaintStyle,
 } from '../model/paintObject';
 
 export type PaintTool = 'draw' | PaintKind | 'select' | 'delete';
+export type PaintHandleKind = 'line-start' | 'line-end' | 'nw' | 'ne' | 'se' | 'sw';
 
 const MIN_DIMENSION = 0.001;
 const MAX_PATH_POINTS = 8_192;
+
+function editableObject(object: PaintObject): PaintObjectInput {
+  const {
+    table_id: _tableId,
+    created_by: _createdBy,
+    version: _version,
+    z_order: _zOrder,
+    created_at: _createdAt,
+    updated_at: _updatedAt,
+    ...editable
+  } = object;
+  return structuredClone(editable) as PaintObjectInput;
+}
+
+function localBounds(object: PaintObject): [number, number, number, number] {
+  switch (object.geometry.kind) {
+    case 'freehand': {
+      const xs = object.geometry.points.map(point => point.x);
+      const ys = object.geometry.points.map(point => point.y);
+      return [Math.min(...xs), Math.min(...ys), Math.max(...xs), Math.max(...ys)];
+    }
+    case 'line':
+      return [
+        Math.min(object.geometry.start.x, object.geometry.end.x),
+        Math.min(object.geometry.start.y, object.geometry.end.y),
+        Math.max(object.geometry.start.x, object.geometry.end.x),
+        Math.max(object.geometry.start.y, object.geometry.end.y),
+      ];
+    case 'rectangle':
+    case 'ellipse':
+      return [0, 0, object.geometry.width, object.geometry.height];
+    case 'square':
+      return [0, 0, object.geometry.size, object.geometry.size];
+    case 'circle':
+      return [0, 0, object.geometry.diameter, object.geometry.diameter];
+  }
+}
+
+export function resizePaintObject(
+  object: PaintObject,
+  handle: PaintHandleKind,
+  worldPoint: PaintPoint,
+): PaintObjectInput {
+  const replacement = editableObject(object);
+  if (object.geometry.kind === 'line') {
+    if (handle !== 'line-start' && handle !== 'line-end') return replacement;
+    const target = handle === 'line-start'
+      ? replacement.geometry.kind === 'line' && replacement.geometry.start
+      : replacement.geometry.kind === 'line' && replacement.geometry.end;
+    if (!target) return replacement;
+    target.x = (worldPoint.x - object.transform.x) / object.transform.scale_x;
+    target.y = (worldPoint.y - object.transform.y) / object.transform.scale_y;
+    target.pressure = worldPoint.pressure;
+    return replacement;
+  }
+  if (handle === 'line-start' || handle === 'line-end') return replacement;
+
+  const [minX, minY, maxX, maxY] = localBounds(object);
+  const width = Math.max(maxX - minX, MIN_DIMENSION);
+  const height = Math.max(maxY - minY, MIN_DIMENSION);
+  const left = handle === 'nw' || handle === 'sw';
+  const top = handle === 'nw' || handle === 'ne';
+  const anchorLocalX = left ? maxX : minX;
+  const anchorLocalY = top ? maxY : minY;
+  const anchorWorldX = object.transform.x + anchorLocalX * object.transform.scale_x;
+  const anchorWorldY = object.transform.y + anchorLocalY * object.transform.scale_y;
+  let scaleX = Math.max(
+    MIN_DIMENSION,
+    (left ? anchorWorldX - worldPoint.x : worldPoint.x - anchorWorldX) / width,
+  );
+  let scaleY = Math.max(
+    MIN_DIMENSION,
+    (top ? anchorWorldY - worldPoint.y : worldPoint.y - anchorWorldY) / height,
+  );
+  if (object.kind === 'square' || object.kind === 'circle') {
+    const uniform = Math.max(scaleX, scaleY);
+    scaleX = uniform;
+    scaleY = uniform;
+  }
+  replacement.transform = {
+    x: anchorWorldX - anchorLocalX * scaleX,
+    y: anchorWorldY - anchorLocalY * scaleY,
+    scale_x: scaleX,
+    scale_y: scaleY,
+  };
+  return replacement;
+}
 
 function pointDistanceToSegment(point: PaintPoint, start: PaintPoint, end: PaintPoint): number {
   const dx = end.x - start.x;

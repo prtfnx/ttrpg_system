@@ -161,6 +161,10 @@ lines and transformed corner handles for every other kind. Handle hit tolerance
 is converted from screen pixels through camera zoom. The renderer draws
 screen-size-stable handle squares in the transient paint layer and clears
 selection when its object disappears or the active table changes.
+Resize commands keep the opposite corner anchored. Rectangle, ellipse, and
+freehand objects may scale independently by axis; freehand points are not
+rewritten. Square and circle use one uniform scale, while line handles replace
+only the selected endpoint in local coordinates and preserve the other end.
 
 The WASM paint system owns active drawing and rendering. A completed stroke is
 sent with its stable id. The server requires the serialized stroke id to match,

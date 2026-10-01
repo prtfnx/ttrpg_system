@@ -33,6 +33,10 @@ const mocks = vi.hoisted(() => {
     paint_object_revision: vi.fn(() => 7),
     paint_object_count: vi.fn(() => 3),
     paint_object_mesh_rebuild_count: vi.fn(() => 5),
+    paint_set_draft: vi.fn(() => true),
+    paint_clear_draft: vi.fn(() => true),
+    paint_clear_drafts: vi.fn(),
+    paint_draft_count: vi.fn(() => 2),
   };
 
   return {
@@ -232,6 +236,40 @@ describe('WasmRuntime', () => {
     expect(runtime.getPaintObjectRevision()).toBe(7);
     expect(runtime.getPaintObjectCount()).toBe(3);
     expect(runtime.getPaintObjectMeshRebuildCount()).toBe(5);
+  });
+
+  it('keeps transient paint drafts behind typed runtime methods', async () => {
+    await runtime.attachCanvas(canvas, {
+      userId: 42,
+      role: 'owner',
+      activeLayer: 'tokens',
+    });
+    const draft = {
+      id: 'dd830253-e2bf-4a92-9862-eabe85f79c99',
+      kind: 'line' as const,
+      geometry: {
+        kind: 'line' as const,
+        start: { x: 0, y: 0, pressure: 1 },
+        end: { x: 10, y: 10, pressure: 1 },
+      },
+      transform: { x: 0, y: 0, scale_x: 1, scale_y: 1 },
+      style: {
+        stroke_rgba: [1, 0, 0, 1] as [number, number, number, number],
+        width: 2,
+        fill_rgba: null,
+      },
+    };
+
+    expect(runtime.setPaintDraft('table-1', 'local', draft)).toBe(true);
+    expect(mocks.renderEngine.paint_set_draft).toHaveBeenCalledWith(
+      'table-1',
+      'local',
+      JSON.stringify(draft),
+    );
+    expect(runtime.getPaintDraftCount()).toBe(2);
+    expect(runtime.clearPaintDraft('local')).toBe(true);
+    runtime.clearPaintDrafts();
+    expect(mocks.renderEngine.paint_clear_drafts).toHaveBeenCalledOnce();
   });
 
   it('captures only a fully rendered matching table through the runtime boundary', async () => {

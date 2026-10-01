@@ -112,6 +112,10 @@ export interface RenderEngine {
   paint_object_revision(): number;
   paint_object_count(): number;
   paint_object_mesh_rebuild_count(): number;
+  paint_set_draft(tableId: string, key: string, draftJson: string): boolean;
+  paint_clear_draft(key: string): boolean;
+  paint_clear_drafts(): void;
+  paint_draft_count(): number;
   paint_redo_stroke(): boolean;
   paint_remove_stroke(strokeId: string): boolean;
   paint_set_blend_mode(blendMode: string): void;

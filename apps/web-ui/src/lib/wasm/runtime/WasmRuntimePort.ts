@@ -1,5 +1,5 @@
 import type { SessionRole } from '@features/session/types/roles';
-import type { PaintObject } from '@features/painting/model/paintObject';
+import type { PaintObject, PaintObjectInput } from '@features/painting/model/paintObject';
 import type {
   ActionsClient,
   BrushPreset,
@@ -89,6 +89,10 @@ export interface WasmRuntimePort {
   getPaintObjectRevision(): number;
   getPaintObjectCount(): number;
   getPaintObjectMeshRebuildCount(): number;
+  setPaintDraft(tableId: string, key: string, draft: PaintObjectInput): boolean;
+  clearPaintDraft(key: string): boolean;
+  clearPaintDrafts(): void;
+  getPaintDraftCount(): number;
 
   applyLayerSettings(settings: Record<string, Record<string, unknown>>): void;
 }

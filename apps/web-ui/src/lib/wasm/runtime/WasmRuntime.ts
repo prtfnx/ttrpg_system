@@ -1,5 +1,5 @@
 import { assetIntegrationService } from '@features/assets';
-import type { PaintObject } from '@features/painting/model/paintObject';
+import type { PaintObject, PaintObjectInput } from '@features/painting/model/paintObject';
 import { isDM, type SessionRole } from '@features/session/types/roles';
 import { logger } from '@shared/utils/logger';
 import { initializeWasmCore } from '../wasmCore';
@@ -538,6 +538,27 @@ export class WasmRuntime implements WasmRuntimePort {
 
   getPaintObjectMeshRebuildCount(): number {
     return this.renderEngine?.paint_object_mesh_rebuild_count() ?? 0;
+  }
+
+  setPaintDraft(tableId: string, key: string, draft: PaintObjectInput): boolean {
+    const applied = this.renderEngine?.paint_set_draft(tableId, key, JSON.stringify(draft)) ?? false;
+    if (applied) this.invalidateFramedPreview();
+    return applied;
+  }
+
+  clearPaintDraft(key: string): boolean {
+    const cleared = this.renderEngine?.paint_clear_draft(key) ?? false;
+    if (cleared) this.invalidateFramedPreview();
+    return cleared;
+  }
+
+  clearPaintDrafts(): void {
+    this.renderEngine?.paint_clear_drafts();
+    this.invalidateFramedPreview();
+  }
+
+  getPaintDraftCount(): number {
+    return this.renderEngine?.paint_draft_count() ?? 0;
   }
 
   applyLayerSettings(settings: Record<string, Record<string, unknown>>): void {

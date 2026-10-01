@@ -382,6 +382,45 @@ describe('WASM module (real browser)', () => {
     }
   });
 
+  it('renders replaceable paint drafts without mutating the committed scene', () => {
+    const canvas = document.createElement('canvas');
+    canvas.width = 240;
+    canvas.height = 160;
+    const tableId = '550e8400-e29b-41d4-a716-446655440014';
+    const draft = {
+      id: 'dd830253-e2bf-4a92-9862-eabe85f79c99',
+      kind: 'freehand',
+      geometry: { kind: 'freehand', points: [{ x: 20, y: 20, pressure: 0.5 }] },
+      transform: { x: 0, y: 0, scale_x: 1, scale_y: 1 },
+      style: { stroke_rgba: [1, 0, 0, 1], width: 8, fill_rgba: null },
+    };
+    const engine = new RenderEngine(canvas);
+    try {
+      hydrateEmptyTable(engine, tableId);
+      engine.paint_set_current_table(tableId);
+      expect(engine.paint_set_draft(tableId, 'local', JSON.stringify(draft))).toBe(true);
+      expect(engine.paint_draft_count()).toBe(1);
+      expect(engine.paint_object_count()).toBe(0);
+      expect(engine.paint_object_mesh_rebuild_count()).toBe(0);
+      engine.render();
+
+      const moved = {
+        ...draft,
+        geometry: { kind: 'freehand', points: [
+          { x: 20, y: 20, pressure: 0.5 },
+          { x: 60, y: 50, pressure: 1 },
+        ] },
+      };
+      expect(engine.paint_set_draft(tableId, 'local', JSON.stringify(moved))).toBe(true);
+      expect(engine.paint_draft_count()).toBe(1);
+      engine.render();
+      expect(engine.paint_clear_draft('local')).toBe(true);
+      expect(engine.paint_draft_count()).toBe(0);
+    } finally {
+      engine.free();
+    }
+  });
+
   it('accounts for texture replacement, unload, budget, and renderer drop', async () => {
     const firstImage = await createLoadedImage(4, 3);
     const replacementImage = await createLoadedImage(2, 2);

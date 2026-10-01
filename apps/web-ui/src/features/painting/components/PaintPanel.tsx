@@ -1,198 +1,7 @@
-import { useRenderEngine } from '@features/canvas';
-import { Modal } from '@shared/components';
-import { logger } from '@shared/utils/logger';
-import clsx from 'clsx';
-import React, { useEffect, useRef, useState } from 'react';
-import { useBrushPresets, usePaintInteraction, usePaintSystem } from '../hooks/usePaintSystem';
-import { paintTemplateService, type TemplateMetadata } from '../services/paintTemplate.service';
+import { useOptionalPaintController } from '../controller/PaintControllerProvider';
+import type { PaintStyle } from '../model/paintObject';
+import type { PaintTool } from '../controller/paintGeometry';
 import styles from './PaintPanel.module.css';
-
-interface PanelDimensions {
-  width: number;
-  height: number;
-}
-
-// Custom hook for responsive panel dimensions
-const usePanelDimensions = (): PanelDimensions => {
-  const [dimensions, setDimensions] = useState<PanelDimensions>({ width: 320, height: 400 });
-  
-  useEffect(() => {
-    const updateDimensions = () => {
-      const rightPanel = document.querySelector('.right-panel');
-      if (rightPanel) {
-        const { width, height } = rightPanel.getBoundingClientRect();
-        setDimensions({
-          width: Math.max(width - 20, 200), // Min width with padding
-          height: height - 40 // Account for headers
-        });
-      }
-    };
-    
-    // Initial measurement
-    updateDimensions();
-    
-    // Listen for resize events
-    window.addEventListener('resize', updateDimensions);
-    
-    // Use ResizeObserver for more accurate panel size changes
-    const observer = new ResizeObserver(updateDimensions);
-    const rightPanel = document.querySelector('.right-panel');
-    if (rightPanel) {
-      observer.observe(rightPanel);
-    }
-    
-    return () => {
-      window.removeEventListener('resize', updateDimensions);
-      observer.disconnect();
-    };
-  }, []);
-  
-  return dimensions;
-};
-
-interface PaintModeStatus {
-  mode: 'draw' | 'erase' | 'template' | 'table';
-  isActive: boolean;
-  brush: {
-    size: number;
-    color: string;
-  };
-  template?: {
-    name: string;
-  };
-  isDrawing: boolean;
-  tableIntegration: boolean;
-}
-
-// Paint Mode Indicator Component
-const PaintModeIndicator: React.FC<{ status: PaintModeStatus }> = ({ status }) => (
-  <div className={clsx(
-    styles.paintModeIndicator,
-    styles[status.mode],
-    status.isActive ? styles.active : styles.inactive
-  )}>
-    <div className={styles.modeIcon}>
-      {status.mode === 'draw' && <span>Draw</span>}
-      {status.mode === 'erase' && <span>Erase</span>}
-      {status.mode === 'template' && <span>Template</span>}
-      {status.mode === 'table' && <span>Table</span>}
-    </div>
-    <div className={styles.modeDetails}>
-      <div className={styles.modeName}>{status.mode.toUpperCase()} MODE</div>
-      <div className={styles.modeSettings}>
-        Size: {status.brush.size}px | 
-        {status.template ? ` Template: ${status.template.name}` : ` Color: ${status.brush.color}`}
-        {status.tableIntegration && <span className={styles.tableBadge}> | TABLE</span>}
-      </div>
-      {status.isDrawing && (
-        <div className={styles.drawingIndicator}>
-          <span className={styles.pulseDot}>●</span> Drawing...
-        </div>
-      )}
-    </div>
-    <div className={clsx(styles.statusIndicator, status.isActive ? styles.active : styles.inactive)}>
-      {status.isActive ? 'ON' : 'OFF'}
-    </div>
-  </div>
-);
-
-interface WASMTablePaintIntegration {
-  paintLayer: string;
-  tableId: string;
-  coordinateSystem: 'world' | 'screen';
-  persistence: boolean;
-}
-
-interface PaintStroke {
-  id: string;
-  points: Array<{ x: number; y: number }>;
-  color: string;
-  width: number;
-  blendMode: string;
-}
-
-// Custom hook for paint-table integration
-const usePaintTableIntegration = () => {
-  const engine = useRenderEngine();
-  
-  const paintToTable = async (
-    strokes: PaintStroke[],
-    _layer: string,
-    options: WASMTablePaintIntegration
-  ) => {
-    if (!engine) {
-      throw new Error('Render engine not available');
-    }
-    
-    try {
-      // Convert paint strokes to WASM coordinates and paint them
-      for (const stroke of strokes) {
-        // Set brush properties
-        const [r, g, b, a] = hexToRgb(stroke.color);
-        engine.paint_set_brush_color(r, g, b, a);
-        engine.paint_set_brush_width(stroke.width);
-        
-        // Paint the stroke
-        if (stroke.points.length > 0) {
-          const firstPoint = stroke.points[0];
-          let worldCoords = [firstPoint.x, firstPoint.y];
-          
-          if (options.coordinateSystem === 'world') {
-            worldCoords = Array.from(engine.screen_to_world(firstPoint.x, firstPoint.y));
-          }
-          
-          engine.paint_start_stroke(worldCoords[0], worldCoords[1], 1.0);
-          
-          for (let i = 1; i < stroke.points.length; i++) {
-            let coords = [stroke.points[i].x, stroke.points[i].y];
-            if (options.coordinateSystem === 'world') {
-              coords = Array.from(engine.screen_to_world(coords[0], coords[1]));
-            }
-            engine.paint_add_point(coords[0], coords[1], 1.0);
-          }
-          
-          engine.paint_end_stroke();
-        }
-      }
-      
-      return [];
-      
-    } catch (error) {
-      throw new Error(`Failed to integrate paint with table: ${error instanceof Error ? error.message : 'Unknown error'}`);
-    }
-  };
-  
-  const clearTablePaint = async () => {
-    if (!engine) {
-      throw new Error('Render engine not available');
-    }
-    
-    try {
-      engine.paint_clear_all();
-    } catch (error) {
-      throw new Error(`Failed to clear table paint: ${error instanceof Error ? error.message : 'Unknown error'}`);
-    }
-  };
-  
-  // Helper function to convert hex to RGB array
-  const hexToRgb = (hex: string): [number, number, number, number] => {
-    const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
-    if (!result) return [1, 1, 1, 1];
-    return [
-      parseInt(result[1], 16) / 255,
-      parseInt(result[2], 16) / 255,
-      parseInt(result[3], 16) / 255,
-      1.0
-    ];
-  };
-  
-  return {
-    paintToTable,
-    clearTablePaint,
-    isIntegrated: !!engine,
-    engine
-  };
-};
 
 interface PaintPanelProps {
   isVisible?: boolean;
@@ -200,560 +9,188 @@ interface PaintPanelProps {
   onClose?: () => void;
 }
 
-export const PaintPanel: React.FC<PaintPanelProps> = ({
-  isVisible = true,
-  onToggle,
-  onClose
-}) => {
-  // WASM table integration hook
-  const { paintToTable, isIntegrated, engine } = usePaintTableIntegration();
-  
-  const [paintState, paintControls] = usePaintSystem(engine);
+const TOOLS: ReadonlyArray<{ tool: PaintTool; label: string }> = [
+  { tool: 'draw', label: 'Draw' },
+  { tool: 'line', label: 'Line' },
+  { tool: 'rectangle', label: 'Rectangle' },
+  { tool: 'square', label: 'Square' },
+  { tool: 'ellipse', label: 'Ellipse' },
+  { tool: 'circle', label: 'Circle' },
+  { tool: 'select', label: 'Select/Edit' },
+  { tool: 'delete', label: 'Delete' },
+];
 
-  const brushPresets = useBrushPresets();
-  const canvasRef = useRef<HTMLCanvasElement>(null);
-  const panelDimensions = usePanelDimensions();
-  
-  // Paint interaction for table integration
-  usePaintInteraction(engine, paintControls, paintState);
+function channelHex(value: number): string {
+  return Math.round(Math.max(0, Math.min(1, value)) * 255)
+    .toString(16)
+    .padStart(2, '0');
+}
 
-  // Responsive layout detection
-  const isNarrow = panelDimensions.width < 300;
-  const isCompact = panelDimensions.width < 250;
+function rgbaToHex(value: PaintStyle['stroke_rgba']): string {
+  return `#${channelHex(value[0])}${channelHex(value[1])}${channelHex(value[2])}`;
+}
 
-  // Color picker state for future advanced color picker
-  const [currentColor, setCurrentColor] = useState('#ffffff');
-  
-  // Template management state
-  const [templates, setTemplates] = useState<TemplateMetadata[]>([]);
-  const [selectedTemplate, setSelectedTemplate] = useState<string | null>(null);
-  const [showTemplateDialog, setShowTemplateDialog] = useState(false);
-  const [newTemplateName, setNewTemplateName] = useState('');
-  const [brushType, setBrushType] = useState<'brush' | 'marker' | 'eraser'>('brush');
-  
-  // Paint mode state for table integration
-  const [paintMode, setPaintMode] = useState<'canvas' | 'table'>('table');
-
-  // Determine current paint mode status for the indicator
-  const currentPaintMode: PaintModeStatus = {
-    mode: brushType === 'eraser' ? 'erase' : selectedTemplate ? 'template' : paintMode === 'table' ? 'table' : 'draw',
-    isActive: paintState.isActive,
-    brush: {
-      size: 10, // Default brush size - could be enhanced to track actual brush size
-      color: currentColor
-    },
-    template: selectedTemplate ? { name: templates.find(t => t.id === selectedTemplate)?.name || 'Unknown' } : undefined,
-    isDrawing: paintState.isDrawing,
-    tableIntegration: isIntegrated && paintMode === 'table'
-  };
-
-  // Keep the panel reconciled with session-backed templates.
-  useEffect(() => {
-    const refreshTemplates = () => {
-      setTemplates(paintTemplateService.getAllTemplateMetadata());
-    };
-    refreshTemplates();
-    const unsubscribe = paintTemplateService.subscribe(refreshTemplates);
-    paintTemplateService.requestSync();
-    return unsubscribe;
-  }, []);
-
-  // Template management functions
-  const handleSaveTemplate = async () => {
-    if (!newTemplateName.trim()) return;
-    
-    // Get current strokes from paint system
-    const strokes = paintControls.getStrokes();
-    
-    await paintTemplateService.saveTemplate(
-      newTemplateName.trim(), 
-      strokes,
-      `Template saved on ${new Date().toLocaleDateString()}`
-    );
-    setTemplates(paintTemplateService.getAllTemplateMetadata());
-    setNewTemplateName('');
-    setShowTemplateDialog(false);
-  };
-
-  const closeTemplateDialog = () => {
-    setShowTemplateDialog(false);
-    setNewTemplateName('');
-  };
-
-  const handleLoadTemplate = async (templateId: string) => {
-    const template = paintTemplateService.getTemplate(templateId);
-    if (template) {
-      // Clear current canvas and apply template strokes
-      paintControls.clearAll();
-      
-      // Load template into table if in table mode
-      if (paintMode === 'table' && isIntegrated) {
-        try {
-          await paintToTable(template.strokes as PaintStroke[], 'paint', {
-            paintLayer: 'paint',
-            tableId: 'main-table',
-            coordinateSystem: 'world',
-            persistence: true
-          });
-        } catch (error) {
-          logger.error('Failed to load paint template into table', error);
-        }
-      }
-      
-      setSelectedTemplate(templateId);
-    }
-  };
-
-  const handleDeleteTemplate = async (templateId: string) => {
-    await paintTemplateService.deleteTemplate(templateId);
-    setTemplates(paintTemplateService.getAllTemplateMetadata());
-    if (selectedTemplate === templateId) {
-      setSelectedTemplate(null);
-    }
-  };
-
-  // Convert RGB array to hex color
-  const rgbToHex = (rgb: number[]) => {
-    const [r, g, b] = rgb.map(c => Math.round(c * 255));
-    return `#${r.toString(16).padStart(2, '0')}${g.toString(16).padStart(2, '0')}${b.toString(16).padStart(2, '0')}`;
-  };
-
-  // Convert hex color to RGB array
-  const hexToRgb = (hex: string): number[] => {
-    const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
-    if (!result) return [1, 1, 1, 1];
-    return [
-      parseInt(result[1], 16) / 255,
-      parseInt(result[2], 16) / 255,
-      parseInt(result[3], 16) / 255,
-      1.0
-    ];
-  };
-
-  // Update color when brush color changes
-  useEffect(() => {
-    if (paintState.brushColor.length >= 3) {
-      setCurrentColor(rgbToHex(paintState.brushColor));
-    }
-  }, [paintState.brushColor]);
-
-  const handleColorChange = (event: React.ChangeEvent<HTMLInputElement>) => {
-    const color = event.target.value;
-    setCurrentColor(color);
-    const [r, g, b] = hexToRgb(color);
-    paintControls.setBrushColor(r, g, b, 1.0);
-  };
-
-  const handleWidthChange = (event: React.ChangeEvent<HTMLInputElement>) => {
-    const width = parseFloat(event.target.value);
-    paintControls.setBrushWidth(width);
-  };
-
-  const handleBlendModeChange = (event: React.ChangeEvent<HTMLSelectElement>) => {
-    const mode = event.target.value as 'alpha' | 'additive' | 'modulate' | 'multiply';
-    paintControls.setBlendMode(mode);
-  };
-
-  const handleEnterPaintMode = () => {
-    const canvas = canvasRef.current;
-    if (canvas) {
-      paintControls.enterPaintMode(canvas.width, canvas.height);
-    } else {
-      paintControls.enterPaintMode(800, 600);
-    }
-  };
-
-  const predefinedColors = [
-    '#FF0000', '#00FF00', '#0000FF', '#FFFF00', '#FF00FF', '#00FFFF',
-    '#FFA500', '#800080', '#FFC0CB', '#A52A2A', '#808080', '#000000'
+function hexToRgba(hex: string, alpha: number): PaintStyle['stroke_rgba'] {
+  const value = hex.replace('#', '');
+  return [
+    Number.parseInt(value.slice(0, 2), 16) / 255,
+    Number.parseInt(value.slice(2, 4), 16) / 255,
+    Number.parseInt(value.slice(4, 6), 16) / 255,
+    alpha,
   ];
+}
+
+export function PaintPanel({ isVisible = true, onToggle, onClose }: PaintPanelProps) {
+  const paint = useOptionalPaintController();
+  const interaction = paint?.interaction ?? null;
+  const interactionState = paint?.interactionState ?? null;
+  const scene = paint?.state ?? null;
 
   if (!isVisible) return null;
 
-  const panelStyle = {
-    width: `${panelDimensions.width}px`,
-    maxWidth: '100%',
-    minWidth: '200px',
-    position: 'relative' as const
+  const style: PaintStyle = interactionState?.style ?? {
+    stroke_rgba: [1, 0, 0, 1],
+    width: 4,
+    fill_rgba: null,
   };
+  const strokeHex = rgbaToHex(style.stroke_rgba);
+  const fillHex = rgbaToHex(style.fill_rgba ?? style.stroke_rgba);
+  const available = interaction !== null && interactionState?.enabled === true;
+
+  const updateStyle = (next: PaintStyle) => interaction?.setStyle(next);
+  const updateStroke = (hex: string) => updateStyle({
+    ...style,
+    stroke_rgba: hexToRgba(hex, style.stroke_rgba[3]),
+  });
+  const updateFill = (enabled: boolean, hex = fillHex) => updateStyle({
+    ...style,
+    fill_rgba: enabled ? hexToRgba(hex, style.fill_rgba?.[3] ?? 0.25) : null,
+  });
 
   return (
-    <div 
-      className={clsx(styles.paintPanel, isNarrow ? styles.narrow : styles.wide, isCompact && styles.compact)}
-      style={panelStyle}
-    >
-      <div className={styles.paintPanelHeader}>
-        <h3>Paint System</h3>
-        <div className={styles.headerControls}>
+    <section className={styles.paintPanel} aria-label="Paint object tools">
+      <header className={styles.header}>
+        <div>
+          <h3>Paint</h3>
+          <p>{scene?.hydrating ? 'Loading objects…' : `${scene?.committed.length ?? 0} objects`}</p>
+        </div>
+        <div className={styles.headerActions}>
           {onToggle && (
-            <button onClick={onToggle} className={styles.panelToggle}>
-              &darr;
-            </button>
+            <button type="button" onClick={onToggle} aria-label="Toggle paint panel">−</button>
           )}
           {onClose && (
-            <button onClick={onClose} className={styles.panelToggle}>
-              ×
-            </button>
+            <button type="button" onClick={onClose} aria-label="Close paint panel">×</button>
           )}
         </div>
-      </div>
+      </header>
 
-      <div className={styles.paintPanelContent}>
-        {/* Paint Mode Controls */}
-        <div className={styles.paintModeSection}>
-          <PaintModeIndicator status={currentPaintMode} />
-          
-          <div className={styles.paintModeControls}>
-            {!paintState.isActive ? (
-              <button 
-                onClick={handleEnterPaintMode}
-                className={styles.btnPrimary}
-                disabled={!engine}
-              >
-                Enter Paint Mode
-              </button>
-            ) : (
-              <button 
-                onClick={paintControls.exitPaintMode}
-                className={styles.btnSecondary}
-              >
-                Exit Paint Mode
-              </button>
-            )}
-          </div>
-        </div>
+      {!available && (
+        <p className={styles.notice} role="status">
+          Paint is waiting for the active table connection.
+        </p>
+      )}
+      {scene?.lastError && <p className={styles.error} role="alert">{scene.lastError}</p>}
 
-        {/* Paint Target Mode Selector */}
-        <div className={styles.paintTargetModeSection}>
-          <h4>Paint Target</h4>
-          <div className={styles.paintModeSelector}>
-            <button 
-              className={clsx(styles.modeButton, paintMode === 'canvas' && styles.active)}
-              onClick={() => setPaintMode('canvas')}
-              disabled={!paintState.isActive}
-              title="Paint to local canvas (preview only)"
-            >
-              Canvas Mode
-            </button>
-            <button 
-              className={clsx(styles.modeButton, paintMode === 'table' && styles.active)}
-              onClick={() => setPaintMode('table')}
-              disabled={!paintState.isActive || !isIntegrated}
-              title={isIntegrated ? "Paint directly to WASM table (persistent)" : "WASM table integration not available"}
-            >
-              Table Mode {!isIntegrated && '(Unavailable)'}
-            </button>
-          </div>
-          <div className={styles.modeStatus}>
-            {paintMode === 'table' && isIntegrated && (
-              <div className={clsx(styles.statusIndicator, styles.success)}>
-                Paint strokes will be saved to the table
-              </div>
-            )}
-            {paintMode === 'canvas' && (
-              <div className={clsx(styles.statusIndicator, styles.warning)}>
-                Paint strokes are preview only (not saved to table)
-              </div>
-            )}
-            {paintMode === 'table' && !isIntegrated && (
-              <div className={clsx(styles.statusIndicator, styles.error)}>
-                WASM table integration unavailable
-              </div>
-            )}
-          </div>
-        </div>
-
-        {/* Brush Settings */}
-        <div className={styles.brushSettingsSection}>
-          <h4>Brush Settings</h4>
-          
-          {/* Brush Type Selection */}
-          <div className={styles.brushTypeSection}>
-            <span className={styles.sectionLabel}>Brush Type:</span>
-            <div 
-              className={clsx(
-                styles.brushTypeControls,
-                isCompact && styles.compact,
-                isNarrow && styles.narrow,
-              )}
-            >
-              <button 
-                className={clsx(styles.panelButton, brushType === 'brush' && styles.primary)}
-                onClick={() => setBrushType('brush')}
-                disabled={!paintState.isActive}
-              >
-                Brush
-              </button>
-              <button 
-                className={clsx(styles.panelButton, brushType === 'marker' && styles.primary)}
-                onClick={() => setBrushType('marker')}
-                disabled={!paintState.isActive}
-              >
-                Marker
-              </button>
-              <button 
-                className={clsx(styles.panelButton, brushType === 'eraser' && styles.primary)}
-                onClick={() => setBrushType('eraser')}
-                disabled={!paintState.isActive}
-              >
-                Eraser
-              </button>
-            </div>
-          </div>
-          
-          {/* Color Picker */}
-          <div className={styles.colorPickerSection}>
-            <label htmlFor="color-picker">Color:</label>
-            <div className={styles.colorControls}>
-              <input
-                id="color-picker"
-                type="color"
-                value={currentColor}
-                onChange={handleColorChange}
-                disabled={!paintState.isActive}
-                className={styles.colorInput}
-              />
-              <div 
-                className={clsx(
-                  styles.predefinedColors,
-                  isNarrow && styles.narrow,
-                  isCompact && styles.compact
-                )}
-              >
-                {predefinedColors.map(color => (
-                  <button
-                    key={color}
-                    className={styles.colorSwatch}
-                    style={{ backgroundColor: color }}
-                    onClick={() => {
-                      setCurrentColor(color);
-                      const [r, g, b] = hexToRgb(color);
-                      paintControls.setBrushColor(r, g, b, 1.0);
-                    }}
-                    disabled={!paintState.isActive}
-                  />
-                ))}
-              </div>
-            </div>
-          </div>
-
-          {/* Brush Width */}
-          <div className={styles.brushWidthSection}>
-            <label htmlFor="brush-size">Brush Size: {paintState.brushWidth.toFixed(1)}px</label>
-            <input
-              id="brush-size"
-              type="range"
-              min="0.5"
-              max="20"
-              step="0.5"
-              value={paintState.brushWidth}
-              onChange={handleWidthChange}
-              disabled={!paintState.isActive}
-              className={styles.widthSlider}
-            />
-          </div>
-
-          {/* Opacity Control */}
-          <div className={styles.opacitySection}>
-            <label htmlFor="opacity">Opacity: {(paintState.brushColor[3] || 1).toFixed(2)}</label>
-            <input
-              id="opacity"
-              type="range"
-              min="0.1"
-              max="1.0"
-              step="0.1"
-              value={paintState.brushColor[3] || 1}
-              onChange={(e) => {
-                const opacity = parseFloat(e.target.value);
-                const [r, g, b] = paintState.brushColor;
-                paintControls.setBrushColor(r, g, b, opacity);
-              }}
-              disabled={!paintState.isActive}
-              className={styles.opacitySlider}
-            />
-          </div>
-
-          {/* Blend Mode */}
-          <div className={styles.blendModeSection}>
-            <label htmlFor="paint-blend-mode">Blend Mode:</label>
-            <select 
-              id="paint-blend-mode"
-              value={paintState.blendMode} 
-              onChange={handleBlendModeChange}
-              disabled={!paintState.isActive}
-              className={styles.blendModeSelect}
-            >
-              <option value="alpha">Alpha (Normal)</option>
-              <option value="additive">Additive (Glow)</option>
-              <option value="modulate">Modulate</option>
-              <option value="multiply">Multiply (Darken)</option>
-            </select>
-          </div>
-        </div>
-
-        {/* Brush Presets */}
-        {brushPresets.length > 0 && (
-          <div className={styles.brushPresetsSection}>
-            <h4>Brush Presets</h4>
-            <div className={styles.presetButtons}>
-              {brushPresets.map((preset, index) => (
-                <button
-                  key={index}
-                  onClick={() => paintControls.applyBrushPreset(preset)}
-                  disabled={!paintState.isActive}
-                  className={styles.presetButton}
-                  title={`Preset ${index + 1}`}
-                >
-                  {index + 1}
-                </button>
-              ))}
-            </div>
-          </div>
-        )}
-
-        {/* Paint Templates */}
-        <div className={styles.templatesSection}>
-          <h4>Paint Templates</h4>
-          
-          {/* Save Template */}
-          <div className={styles.templateSave}>
+      <fieldset className={styles.section} disabled={!available}>
+        <legend>Tool</legend>
+        <div className={styles.toolGrid}>
+          {TOOLS.map(({ tool, label }) => (
             <button
-              onClick={() => setShowTemplateDialog(true)}
-              disabled={!paintState.isActive || paintState.strokeCount === 0}
-              className={styles.btnPrimary}
-              title="Save current strokes as template"
+              key={tool}
+              type="button"
+              className={interactionState?.tool === tool ? styles.activeTool : undefined}
+              aria-pressed={interactionState?.tool === tool}
+              onClick={() => interaction?.setTool(tool)}
             >
-              Save Template
+              {label}
             </button>
-          </div>
-
-          {/* Template List */}
-          {templates.length > 0 && (
-            <div className={styles.templateList}>
-              <span className={styles.sectionLabel}>Saved Templates:</span>
-              {templates.map((template) => (
-                <div key={template.id} className={styles.templateItem}>
-                  <div className={styles.templateInfo}>
-                    <span className={styles.templateName}>{template.name}</span>
-                    <span className={styles.templateMeta}>
-                      {template.strokeCount} strokes • {new Date(template.created).toLocaleDateString()}
-                    </span>
-                  </div>
-                  <div className={styles.templateActions}>
-                    <button
-                      onClick={() => handleLoadTemplate(template.id)}
-                      disabled={!paintState.isActive}
-                      className={clsx(styles.btnSecondary, styles.small)}
-                      title="Load template"
-                    >
-                      Load
-                    </button>
-                    <button
-                      onClick={() => handleDeleteTemplate(template.id)}
-                      className={clsx(styles.btnDanger, styles.small)}
-                      title="Delete template"
-                    >
-                      Delete
-                    </button>
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
+          ))}
         </div>
+      </fieldset>
 
-        {/* Template Save Dialog */}
-        {showTemplateDialog && (
-          <Modal isOpen onClose={closeTemplateDialog} title="Save paint template" size="small">
-            <div className={styles.formGroup}>
-              <label htmlFor="template-name">Template Name:</label>
-              <input
-                id="template-name"
-                type="text"
-                value={newTemplateName}
-                onChange={(e) => setNewTemplateName(e.target.value)}
-                placeholder="Enter template name..."
-                autoFocus
-              />
-            </div>
-            <div className={styles.modalActions}>
+      <fieldset className={styles.section} disabled={!available}>
+        <legend>Style</legend>
+        <label className={styles.controlRow}>
+          <span>Stroke</span>
+          <input
+            type="color"
+            aria-label="Stroke color"
+            value={strokeHex}
+            onChange={event => updateStroke(event.target.value)}
+          />
+        </label>
+        <label className={styles.controlRow}>
+          <span>Width</span>
+          <input
+            type="range"
+            aria-label="Stroke width"
+            min="0.125"
+            max="64"
+            step="0.125"
+            value={style.width}
+            onChange={event => updateStyle({ ...style, width: Number(event.target.value) })}
+          />
+          <output>{style.width.toFixed(2)}</output>
+        </label>
+        <label className={styles.controlRow}>
+          <input
+            type="checkbox"
+            aria-label="Fill"
+            checked={style.fill_rgba !== null}
+            onChange={event => updateFill(event.target.checked)}
+          />
+          <span>Fill</span>
+          <input
+            type="color"
+            aria-label="Fill color"
+            value={fillHex}
+            disabled={style.fill_rgba === null}
+            onChange={event => updateFill(true, event.target.value)}
+          />
+        </label>
+      </fieldset>
+
+      <section className={styles.selection} aria-label="Paint selection">
+        <h4>Selection</h4>
+        {interactionState?.selected ? (
+          <>
+            <dl>
+              <div><dt>Type</dt><dd>{interactionState.selected.kind}</dd></div>
+              <div><dt>Owner</dt><dd>User {interactionState.selected.created_by}</dd></div>
+              <div><dt>Version</dt><dd>{interactionState.selected.version}</dd></div>
+            </dl>
+            {!interactionState.canEditSelected && (
+              <p className={styles.notice}>You can inspect this object but cannot change it.</p>
+            )}
+            <div className={styles.selectionActions}>
               <button
                 type="button"
-                onClick={handleSaveTemplate}
-                disabled={!newTemplateName.trim()}
-                className={styles.btnPrimary}
+                disabled={!interactionState.canEditSelected}
+                onClick={() => interaction?.restyleSelected(style)}
               >
-                Save
+                Apply style
               </button>
-              <button type="button" onClick={closeTemplateDialog} className={styles.btnSecondary}>
-                Cancel
+              <button
+                type="button"
+                className={styles.danger}
+                disabled={!interactionState.canEditSelected}
+                onClick={() => interaction?.deleteSelected()}
+              >
+                Delete object
               </button>
             </div>
-          </Modal>
+          </>
+        ) : (
+          <p>Choose Select/Edit, then click an object.</p>
         )}
+      </section>
 
-        {/* Canvas Actions */}
-        <div className={styles.canvasActionsSection}>
-          <h4>Canvas Actions</h4>
-          <div className={styles.actionButtons}>
-            <button
-              onClick={paintControls.undoStroke}
-              disabled={!paintState.isActive || paintState.strokeCount === 0}
-              className={styles.btnSecondary}
-              title="Undo last stroke"
-            >
-              ↶ Undo
-            </button>
-            <button
-              onClick={paintControls.redoStroke}
-              disabled={!paintState.isActive || !paintState.canRedo}
-              className={styles.btnSecondary}
-              title="Redo last undone stroke"
-            >
-              ↷ Redo
-            </button>
-            <button
-              onClick={paintControls.clearAll}
-              disabled={!paintState.isActive || paintState.strokeCount === 0}
-              className={styles.btnDanger}
-              title="Clear all strokes"
-            >
-              Clear All
-            </button>
-          </div>
-        </div>
-
-        {/* Statistics */}
-        <div className={styles.paintStatsSection}>
-          <h4>Statistics</h4>
-          <div className={styles.statsGrid}>
-            <div className={styles.stat}>
-              <span className={styles.statLabel}>Strokes:</span>
-              <span className={styles.statValue}>{paintState.strokeCount}</span>
-            </div>
-            <div className={styles.stat}>
-              <span className={styles.statLabel}>Status:</span>
-              <span className={styles.statValue}>
-                {paintState.isDrawing ? 'Drawing' : 'Idle'}
-              </span>
-            </div>
-          </div>
-        </div>
-
-        {/* Instructions */}
-        <div className={styles.instructionsSection}>
-          <h4>Instructions</h4>
-          <ul className={styles.instructionsList}>
-            <li>Enter paint mode to start drawing</li>
-            <li>Click and drag on the canvas to draw strokes</li>
-            <li>Use different brush sizes and colors</li>
-            <li>Try different blend modes for effects</li>
-            <li>Use presets for quick brush changes</li>
-          </ul>
-        </div>
-      </div>
-    </div>
+      <footer className={styles.footer}>
+        <span>{interactionState?.gestureActive ? 'Drawing preview' : 'Ready'}</span>
+        <span>{scene?.pending.length ?? 0} pending</span>
+      </footer>
+    </section>
   );
-};
+}
 
 export default PaintPanel;

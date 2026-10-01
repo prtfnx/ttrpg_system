@@ -1,225 +1,118 @@
 import { fireEvent, render, screen } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { PaintPanel } from '../PaintPanel';
-// NOTE: test is in __tests__/ — relative imports are one level deeper than the component
 
-// ── mocks ────────────────────────────────────────────────────────────────────
-const mockPaintControls = {
-  enterPaintMode: vi.fn(),
-  exitPaintMode: vi.fn(),
-  setBrushColor: vi.fn(),
-  setBrushWidth: vi.fn(),
-  setBlendMode: vi.fn(),
-  clearAll: vi.fn(),
-  undoStroke: vi.fn(),
-  redoStroke: vi.fn(),
-  getStrokes: vi.fn(() => []),
-  getCurrentStroke: vi.fn(() => null),
-  startStroke: vi.fn(),
-  addPoint: vi.fn(),
-  endStroke: vi.fn(),
-  cancelStroke: vi.fn(),
-  applyBrushPreset: vi.fn(),
-};
-
-const defaultPaintState = {
-  isActive: false,
-  isDrawing: false,
-  strokeCount: 0,
-  brushColor: [1, 1, 1, 1],
-  brushWidth: 3.0,
-  blendMode: 'alpha',
-  canUndo: false,
-  canRedo: false,
-};
-
-vi.mock('@features/canvas', () => ({
-  useRenderEngine: vi.fn(() => null),
-}));
-
-vi.mock('../../hooks/usePaintSystem', () => ({
-  usePaintSystem: vi.fn(() => [defaultPaintState, mockPaintControls]),
-  useBrushPresets: vi.fn(() => []),
-  usePaintInteraction: vi.fn(),
-}));
-
-vi.mock('../../services/paintTemplate.service', () => ({
-  paintTemplateService: {
-    getAllTemplateMetadata: vi.fn(() => []),
-    saveTemplate: vi.fn(),
-    getTemplate: vi.fn(() => null),
-    deleteTemplate: vi.fn(),
-    subscribe: vi.fn(() => vi.fn()),
-    requestSync: vi.fn(),
+const mocks = vi.hoisted(() => ({
+  interaction: {
+    setTool: vi.fn(),
+    setStyle: vi.fn(),
+    restyleSelected: vi.fn(() => true),
+    deleteSelected: vi.fn(() => true),
   },
+  value: null as null | Record<string, unknown>,
 }));
 
-vi.mock('@/store', () => ({
-  useGameStore: vi.fn(() => ({ activeTableId: 'table-1' })),
+vi.mock('../../controller/PaintControllerProvider', () => ({
+  useOptionalPaintController: () => mocks.value,
 }));
 
-import { useRenderEngine } from '@features/canvas';
-import { usePaintSystem } from '../../hooks/usePaintSystem';
+function connected(selected = false, canEditSelected = true) {
+  return {
+    controller: {},
+    interaction: mocks.interaction,
+    state: {
+      hydrating: false,
+      committed: selected ? [{ id: 'paint-1' }] : [],
+      pending: [],
+      lastError: null,
+    },
+    interactionState: {
+      enabled: true,
+      tool: 'draw',
+      style: {
+        stroke_rgba: [1, 0, 0, 1],
+        width: 4,
+        fill_rgba: null,
+      },
+      gestureActive: false,
+      selected: selected ? {
+        id: 'paint-1',
+        kind: 'rectangle',
+        created_by: 17,
+        version: 3,
+      } : null,
+      canEditSelected,
+    },
+  };
+}
 
-beforeEach(() => {
-  vi.clearAllMocks();
-  vi.mocked(useRenderEngine).mockReturnValue(null);
-  vi.mocked(usePaintSystem).mockReturnValue([defaultPaintState, mockPaintControls]);
-});
-
-// ── tests ─────────────────────────────────────────────────────────────────────
-
-describe('PaintPanel — render', () => {
-  it('renders the Paint System header', () => {
-    render(<PaintPanel />);
-    expect(screen.getByText('Paint System')).toBeInTheDocument();
+describe('PaintPanel', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mocks.value = connected();
   });
 
-  it('returns null when isVisible is false', () => {
+  it('does not render while hidden', () => {
     const { container } = render(<PaintPanel isVisible={false} />);
-    expect(container.firstChild).toBeNull();
+    expect(container).toBeEmptyDOMElement();
   });
 
-  it('renders toggle button when onToggle is provided', () => {
+  it('offers every implemented object tool', () => {
+    render(<PaintPanel />);
+    for (const label of [
+      'Draw', 'Line', 'Rectangle', 'Square', 'Ellipse', 'Circle', 'Select/Edit', 'Delete',
+    ]) {
+      expect(screen.getByRole('button', { name: label })).toBeEnabled();
+    }
+    fireEvent.click(screen.getByRole('button', { name: 'Circle' }));
+    expect(mocks.interaction.setTool).toHaveBeenCalledWith('circle');
+  });
+
+  it('updates implemented stroke width, stroke color, and fill controls', () => {
+    render(<PaintPanel />);
+    fireEvent.change(screen.getByLabelText('Stroke width'), { target: { value: '8' } });
+    expect(mocks.interaction.setStyle).toHaveBeenCalledWith(expect.objectContaining({ width: 8 }));
+
+    fireEvent.change(screen.getByLabelText('Stroke color'), { target: { value: '#00ff00' } });
+    expect(mocks.interaction.setStyle).toHaveBeenCalledWith(expect.objectContaining({
+      stroke_rgba: [0, 1, 0, 1],
+    }));
+
+    fireEvent.click(screen.getByRole('checkbox', { name: 'Fill' }));
+    expect(mocks.interaction.setStyle).toHaveBeenCalledWith(expect.objectContaining({
+      fill_rgba: [1, 0, 0, 0.25],
+    }));
+  });
+
+  it('shows selected owner/version and invokes authorized object actions', () => {
+    mocks.value = connected(true, true);
+    render(<PaintPanel />);
+    expect(screen.getByText('User 17')).toBeInTheDocument();
+    expect(screen.getByText('3')).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Apply style' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Delete object' }));
+    expect(mocks.interaction.restyleSelected).toHaveBeenCalledOnce();
+    expect(mocks.interaction.deleteSelected).toHaveBeenCalledOnce();
+  });
+
+  it('keeps foreign selections inspectable but disables mutation', () => {
+    mocks.value = connected(true, false);
+    render(<PaintPanel />);
+    expect(screen.getByText(/inspect this object/)).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Apply style' })).toBeDisabled();
+    expect(screen.getByRole('button', { name: 'Delete object' })).toBeDisabled();
+  });
+
+  it('reports disconnected state and handles header actions', () => {
+    mocks.value = null;
     const onToggle = vi.fn();
-    render(<PaintPanel onToggle={onToggle} />);
-    // toggle button has ↓ arrow
-    const toggleBtn = screen.getByText('↓');
-    expect(toggleBtn).toBeInTheDocument();
-    fireEvent.click(toggleBtn);
-    expect(onToggle).toHaveBeenCalledOnce();
-  });
-
-  it('renders close button when onClose is provided', () => {
     const onClose = vi.fn();
-    render(<PaintPanel onClose={onClose} />);
-    const closeBtn = screen.getByText('×');
-    expect(closeBtn).toBeInTheDocument();
-    fireEvent.click(closeBtn);
+    render(<PaintPanel onToggle={onToggle} onClose={onClose} />);
+    expect(screen.getByText(/waiting for the active table/)).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Draw' })).toBeDisabled();
+    fireEvent.click(screen.getByRole('button', { name: 'Toggle paint panel' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Close paint panel' }));
+    expect(onToggle).toHaveBeenCalledOnce();
     expect(onClose).toHaveBeenCalledOnce();
-  });
-});
-
-describe('PaintPanel — paint mode controls', () => {
-  it('shows Enter Paint Mode button when not active', () => {
-    render(<PaintPanel />);
-    expect(screen.getByText('Enter Paint Mode')).toBeInTheDocument();
-    expect(screen.queryByText('Exit Paint Mode')).not.toBeInTheDocument();
-  });
-
-  it('Enter Paint Mode is disabled when no engine', () => {
-    render(<PaintPanel />);
-    const enterBtn = screen.getByText('Enter Paint Mode');
-    expect(enterBtn).toBeDisabled();
-  });
-
-  it('Enter Paint Mode is enabled when engine is available', () => {
-    const fakeEngine = { paint_set_brush_color: vi.fn() } as unknown as ReturnType<typeof useRenderEngine>;
-    vi.mocked(useRenderEngine).mockReturnValue(fakeEngine);
-    render(<PaintPanel />);
-    expect(screen.getByText('Enter Paint Mode')).not.toBeDisabled();
-  });
-
-  it('shows Exit Paint Mode button when paint is active', () => {
-    vi.mocked(usePaintSystem).mockReturnValue([
-      { ...defaultPaintState, isActive: true },
-      mockPaintControls,
-    ]);
-    render(<PaintPanel />);
-    expect(screen.getByText('Exit Paint Mode')).toBeInTheDocument();
-    expect(screen.queryByText('Enter Paint Mode')).not.toBeInTheDocument();
-  });
-
-  it('clicking Exit Paint Mode calls paintControls.exitPaintMode', () => {
-    vi.mocked(usePaintSystem).mockReturnValue([
-      { ...defaultPaintState, isActive: true },
-      mockPaintControls,
-    ]);
-    render(<PaintPanel />);
-    fireEvent.click(screen.getByText('Exit Paint Mode'));
-    expect(mockPaintControls.exitPaintMode).toHaveBeenCalledOnce();
-  });
-});
-
-describe('PaintPanel — brush controls', () => {
-  it('renders Brush, Marker, Eraser type buttons', () => {
-    render(<PaintPanel />);
-    expect(screen.getByText('Brush')).toBeInTheDocument();
-    expect(screen.getByText('Marker')).toBeInTheDocument();
-    expect(screen.getByText('Eraser')).toBeInTheDocument();
-  });
-
-  it('brush type buttons are disabled when paint is not active', () => {
-    render(<PaintPanel />);
-    expect(screen.getByText('Brush')).toBeDisabled();
-    expect(screen.getByText('Marker')).toBeDisabled();
-    expect(screen.getByText('Eraser')).toBeDisabled();
-  });
-});
-
-describe('PaintPanel — paint target mode', () => {
-  it('renders Canvas Mode and Table Mode buttons', () => {
-    render(<PaintPanel />);
-    expect(screen.getByText('Canvas Mode')).toBeInTheDocument();
-    expect(screen.getByText(/Table Mode/)).toBeInTheDocument();
-  });
-
-  it('shows (Unavailable) when engine not available', () => {
-    render(<PaintPanel />);
-    expect(screen.getByText(/Unavailable/)).toBeInTheDocument();
-  });
-
-  it('shows paint-only warning for canvas mode status', () => {
-    render(<PaintPanel />);
-    // Default paintMode is 'table', but engine is unavailable so table mode shows error
-    // The status section should show the "unavailable" message  
-    expect(screen.getByText(/WASM table integration unavailable/)).toBeInTheDocument();
-  });
-
-  it('does not render unsupported save-strokes-as-sprites action', () => {
-    render(<PaintPanel />);
-    expect(screen.queryByTitle('Save current strokes as sprites')).not.toBeInTheDocument();
-  });
-});
-
-describe('PaintPanel — template dialog', () => {
-  it('Save Template button is disabled when no strokes', () => {
-    render(<PaintPanel />);
-    const saveTemplateBtn = screen.getByTitle('Save current strokes as template');
-    expect(saveTemplateBtn).toBeDisabled();
-  });
-
-  it('shows template dialog when Save Template is clicked (active mode with strokes)', () => {
-    vi.mocked(usePaintSystem).mockReturnValue([
-      { ...defaultPaintState, isActive: true, strokeCount: 2 },
-      mockPaintControls,
-    ]);
-    render(<PaintPanel />);
-    fireEvent.click(screen.getByTitle('Save current strokes as template'));
-    expect(screen.getByRole('dialog', { name: 'Save paint template' })).toBeInTheDocument();
-  });
-
-  it('dismisses template dialog on Cancel', () => {
-    vi.mocked(usePaintSystem).mockReturnValue([
-      { ...defaultPaintState, isActive: true, strokeCount: 2 },
-      mockPaintControls,
-    ]);
-    render(<PaintPanel />);
-    fireEvent.click(screen.getByTitle('Save current strokes as template'));
-    fireEvent.click(screen.getByText('Cancel'));
-    expect(screen.queryByRole('dialog', { name: 'Save paint template' })).not.toBeInTheDocument();
-  });
-
-  it('dismisses template dialog with Escape', () => {
-    vi.mocked(usePaintSystem).mockReturnValue([
-      { ...defaultPaintState, isActive: true, strokeCount: 2 },
-      mockPaintControls,
-    ]);
-    render(<PaintPanel />);
-    fireEvent.click(screen.getByTitle('Save current strokes as template'));
-
-    fireEvent.keyDown(document, { key: 'Escape' });
-
-    expect(screen.queryByRole('dialog', { name: 'Save paint template' })).not.toBeInTheDocument();
   });
 });

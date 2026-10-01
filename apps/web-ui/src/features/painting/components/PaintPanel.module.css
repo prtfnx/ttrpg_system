@@ -1,882 +1,183 @@
-/* ===================================================================
-   Paint Panel - Component-Specific Styles
-   Uses PanelBase.module.css for shared panel patterns + Design Tokens
-   =================================================================== */
-
-/* Panel container with responsive variants */
 .paintPanel {
-  composes: panel-container extra-wide from '@shared/styles/PanelBase.module.css';
-  min-height: var(--space-5xl);
-  max-height: 90dvh;
-  transition: width var(--transition-normal);
-}
-
-/* Responsive layout classes */
-.paintPanel.narrow {
-  /* Narrow layout optimizations for panels < 300px */
-}
-
-.paintPanel.narrow .paintModeControls {
-  flex-wrap: wrap;
-  gap: var(--space-xs);
-}
-
-.paintPanel.narrow .paintModeControls button {
-  font-size: var(--text-xs);
-  padding: var(--space-sm) var(--space-md);
-}
-
-.paintPanel.narrow .predefinedColors {
-  grid-template-columns: repeat(4, 1fr);
-  gap: var(--space-xs);
-}
-
-.paintPanel.narrow .colorSwatch {
-  width: var(--space-xl);
-  height: var(--space-xl);
-}
-
-.paintPanel.narrow .brushSliderContainer {
+  display: flex;
   flex-direction: column;
-  gap: var(--space-xs);
-}
-
-.paintPanel.compact {
-  /* Ultra-compact layout for very small panels < 250px */
-  min-height: var(--size-75);
-}
-
-.paintPanel.compact .paintPanelContent {
-  padding: var(--space-sm);
-}
-
-.paintPanel.compact h4 {
-  font-size: var(--text-xs);
-  margin-bottom: var(--space-sm);
-}
-
-.paintPanel.compact .paintModeControls {
-  gap: var(--space-xs);
-}
-
-.paintPanel.compact .paintModeControls button {
-  font-size: var(--text-2xs);
-  padding: var(--space-xs) var(--space-sm);
-}
-
-.paintPanel.compact .predefinedColors {
-  grid-template-columns: repeat(3, 1fr);
-  gap: var(--space-xs);
-}
-
-.paintPanel.compact .colorSwatch {
-  width: var(--space-lg);
-  height: var(--space-lg);
-}
-
-.paintPanel.compact .brushSlider {
-  height: var(--space-xs);
-}
-
-.paintPanel.wide {
-  /* Wide layout with more spacing for panels >= 300px */
-}
-
-.paintPanel.wide .paintModeControls {
   gap: var(--space-md);
-}
-
-.paintPanel.wide .predefinedColors {
-  grid-template-columns: repeat(6, 1fr);
-  gap: var(--space-sm);
-}
-
-.paintPanel.wide .colorSwatch {
-  width: var(--space-2xl);
-  height: var(--space-2xl);
-}
-
-.paintPanel.wide .templateItem {
+  width: 100%;
   padding: var(--space-md);
-}
-
-.paintPanel.wide .templateActions {
-  gap: var(--space-sm);
-}
-
-/* Responsive template layout optimizations */
-.paintPanel.narrow .templateItem {
-  flex-direction: column;
-  align-items: flex-start;
-  gap: var(--space-sm);
-}
-
-.paintPanel.narrow .templateActions {
-  align-self: stretch;
-  justify-content: center;
-}
-
-.paintPanel.compact .templateItem {
-  padding: var(--space-sm) var(--space-sm);
-  margin-bottom: var(--space-xs);
-}
-
-.paintPanel.compact .templateInfo {
-  gap: var(--space-xs);
-}
-
-.paintPanel.compact .templateName {
-  font-size: var(--text-xs);
-}
-
-.paintPanel.compact .templateMeta {
-  font-size: var(--text-2xs);
-}
-
-/* Responsive grid layouts */
-.paintPanel.narrow .brushPresetsGrid {
-  grid-template-columns: repeat(2, 1fr);
-  gap: var(--space-sm);
-}
-
-.paintPanel.compact .brushPresetsGrid {
-  grid-template-columns: 1fr;
-  gap: var(--space-xs);
-}
-
-.paintPanel.wide .brushPresetsGrid {
-  grid-template-columns: repeat(3, 1fr);
-  gap: var(--space-sm);
-}
-
-.paintPanelHeader {
-  composes: panel-header from '@shared/styles/PanelBase.module.css';
-  padding: var(--space-md) var(--space-lg);
-  border-radius: var(--radius-lg) var(--radius-lg) 0 0;
-}
-
-.paintPanelHeader h3 {
-  margin: 0;
-  font-size: var(--text-lg);
-  font-weight: var(--font-semibold);
-}
-
-.headerControls {
-  display: flex;
-  gap: var(--space-xs);
-}
-
-.panelToggle {
-  background: none;
-  border: none;
-  color: var(--text-secondary);
-  font-size: var(--text-lg);
-  cursor: pointer;
-  padding: var(--space-xs) var(--space-sm);
-  border-radius: var(--radius-sm);
-  transition: background-color var(--duration-base);
-}
-
-.panelToggle:hover {
-  background: var(--hover-bg);
   color: var(--text-primary);
-}
-
-.paintPanelContent {
-  composes: panel-content from '@shared/styles/PanelBase.module.css';
-  padding: var(--space-lg);
-}
-
-/* Paint Mode Section */
-.paintModeSection {
-  margin-bottom: var(--space-xl);
-}
-
-/* Enhanced Paint Mode Indicator */
-.paintModeIndicator {
-  display: flex;
-  align-items: center;
-  gap: var(--space-md);
-  padding: var(--space-md) var(--space-lg);
-  background: var(--bg-tertiary);
+  background: var(--bg-secondary);
+  border: var(--border-width) solid var(--border-secondary);
   border-radius: var(--radius-md);
-  border-left: var(--border-width-thick) solid var(--border-secondary);
-  margin-bottom: var(--space-md);
-  transition: var(--transition-interactive-normal);
 }
 
-.paintModeIndicator.active {
-  border-left-color: var(--color-success);
-  background: var(--status-success-bg);
-}
-
-.paintModeIndicator.inactive {
-  border-left-color: var(--color-danger);
-  background: var(--status-error-bg);
-}
-
-.paintModeIndicator .modeIcon {
-  font-size: var(--text-xl);
-  min-width: var(--space-xl);
-  text-align: center;
-}
-
-.paintModeIndicator .modeDetails {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-xs);
-}
-
-.paintModeIndicator .modeName {
-  font-size: var(--text-sm);
-  font-weight: var(--font-bold);
-  color: var(--text-primary);
-  text-transform: uppercase;
-  letter-spacing: var(--tracking-wide);
-}
-
-.paintModeIndicator .modeSettings {
-  font-size: var(--text-xs);
-  color: var(--text-muted);
-  line-height: var(--leading-tight);
-}
-
-.paintModeIndicator .drawingIndicator {
+.header,
+.headerActions,
+.controlRow,
+.selectionActions,
+.footer {
   display: flex;
   align-items: center;
-  gap: var(--space-sm);
-  font-size: var(--text-2xs);
-  color: var(--status-warning-text);
-  font-weight: var(--font-semibold);
 }
 
-.paintModeIndicator .pulseDot {
-  color: var(--status-warning-text);
-  animation: pulse calc(var(--duration-pulse) * 0.75) infinite;
-}
-
-.paintModeIndicator .statusIndicator {
-  padding: var(--space-sm) var(--space-md);
-  border-radius: var(--radius-lg);
-  font-size: var(--text-2xs);
-  font-weight: var(--font-bold);
-  text-transform: uppercase;
-  letter-spacing: var(--tracking-wide);
-  min-width: var(--space-3xl);
-  text-align: center;
-}
-
-.paintModeIndicator .statusIndicator.active {
-  background: var(--status-success-bg);
-  color: var(--status-success-text);
-  border: var(--border-width) solid var(--status-success-border);
-}
-
-.paintModeIndicator .statusIndicator.inactive {
-  background: var(--status-error-bg);
-  color: var(--status-error-text);
-  border: var(--border-width) solid var(--status-error-border);
-}
-
-/* Mode-specific styling */
-.paintModeIndicator.draw .modeIcon {
-  color: var(--color-success);
-}
-
-.paintModeIndicator.erase .modeIcon {
-  color: var(--status-warning-text);
-}
-
-.paintModeIndicator.template .modeIcon {
-  color: var(--color-info);
-}
-
-.paintModeIndicator.table .modeIcon {
-  color: var(--color-info);
-}
-
-.tableBadge {
-  color: var(--status-success-text);
-  font-weight: var(--font-semibold);
-}
-
-/* Responsive paint mode indicator */
-.paintPanel.narrow .paintModeIndicator {
-  flex-direction: column;
-  text-align: center;
-  gap: var(--space-sm);
-}
-
-.paintPanel.narrow .paintModeIndicator .modeDetails {
-  align-items: center;
-}
-
-.paintPanel.compact .paintModeIndicator {
-  padding: var(--space-sm) var(--space-md);
-}
-
-.paintPanel.compact .paintModeIndicator .modeName {
-  font-size: var(--text-xs);
-}
-
-.paintPanel.compact .paintModeIndicator .modeSettings {
-  font-size: var(--text-2xs);
-}
-
-/* Legacy paint mode status (keeping for fallback) */
-.paintModeStatus {
-  display: flex;
-  align-items: center;
+.header {
+  justify-content: space-between;
   gap: var(--space-md);
-  margin-bottom: var(--space-md);
 }
 
-.statusIndicator {
-  padding: var(--space-xs) var(--space-md);
-  border-radius: var(--radius-lg);
-  font-size: var(--text-xs);
-  font-weight: var(--font-semibold);
-  text-transform: uppercase;
-}
-
-.statusIndicator.active {
-  background: var(--status-success-bg);
-  color: var(--status-success-text);
-  border: var(--border-width) solid var(--status-success-border);
-}
-
-.statusIndicator.inactive {
-  background: var(--status-error-bg);
-  color: var(--status-error-text);
-  border: var(--border-width) solid var(--status-error-border);
-}
-
-.drawingIndicator {
-  padding: var(--space-2xs) var(--space-sm);
-  background: var(--button-warning-bg);
-  color: var(--button-warning-text);
-  border-radius: var(--radius-full);
-  font-size: var(--text-2xs);
-  font-weight: var(--font-semibold);
-  animation: pulse var(--duration-spin) infinite;
-}
-
-@keyframes pulse {
-  0%, 100% { opacity: 1; }
-  50% { opacity: 0.7; }
-}
-
-.paintModeControls {
-  display: flex;
-  gap: var(--space-sm);
-}
-
-/* Brush Settings Section */
-.brushSettingsSection {
-  margin-bottom: var(--space-xl);
-}
-
-.brushSettingsSection h4 {
-  margin: 0 0 var(--space-md) 0;
-  font-size: var(--text-sm);
-  color: var(--text-secondary);
-  border-bottom: var(--border-width) solid var(--border-primary);
-  padding-bottom: var(--space-xs);
-}
-
-.brushTypeSection,
-.opacitySection {
-  margin-bottom: var(--space-lg);
-}
-
-.sectionLabel {
-  display: block;
-  margin-bottom: var(--space-sm);
-  font-size: var(--text-sm);
-  color: var(--text-muted);
-  font-weight: var(--font-medium);
-}
-
-.brushTypeControls {
-  display: flex;
-  gap: var(--space-sm);
-  margin-bottom: var(--space-md);
-}
-
-.brushTypeControls.compact {
-  gap: var(--space-xs);
-}
-
-.brushTypeControls.narrow {
-  flex-wrap: wrap;
-}
-
-.panelButton {
-  composes: panel-button secondary from '@shared/styles/PanelBase.module.css';
-  flex: 1;
-}
-
-.panelButton.primary {
-  background: var(--button-success-bg);
-  border-color: var(--button-success-border);
-  color: var(--button-success-text);
-}
-
-.colorPickerSection {
-  margin-bottom: var(--space-lg);
-}
-
-.colorPickerSection label {
-  display: block;
-  margin-bottom: var(--space-sm);
-  font-size: var(--text-sm);
-  color: var(--text-muted);
-}
-
-.colorControls {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-sm);
-}
-
-.colorInput {
-  width: var(--space-4xl);
-  height: var(--space-2xl);
-  border: none;
-  border-radius: var(--radius-xs);
-  cursor: pointer;
-}
-
-.predefinedColors {
-  display: grid;
-  grid-template-columns: repeat(6, 1fr);
-  gap: var(--space-xs);
-  margin-top: var(--space-sm);
-}
-
-.colorSwatch {
-  width: var(--space-xl);
-  height: var(--space-xl);
-  border: var(--border-width-thick) solid var(--border-secondary);
-  border-radius: var(--radius-sm);
-  cursor: pointer;
-  transition: transform var(--duration-fast), border-color var(--transition-fast);
-}
-
-.colorSwatch:hover {
-  transform: scale(1.1);
-  border-color: var(--border-hover);
-}
-
-.colorSwatch:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
-  transform: none;
-}
-
-.brushWidthSection {
-  margin-bottom: var(--space-lg);
-}
-
-.brushWidthSection label {
-  display: block;
-  margin-bottom: var(--space-sm);
-  font-size: var(--text-sm);
-  color: var(--text-muted);
-  font-weight: var(--font-medium);
-}
-
-.widthSlider,
-.opacitySlider {
-  width: 100%;
-  height: var(--space-sm);
-  background: var(--bg-tertiary);
-  border-radius: var(--radius-sm);
-  cursor: pointer;
-}
-
-.widthSlider:focus-visible,
-.opacitySlider:focus-visible {
-  outline: var(--border-width-md) solid var(--focus-outline-color);
-  outline-offset: var(--border-width-md);
-}
-
-.widthSlider::-webkit-slider-thumb,
-.opacitySlider::-webkit-slider-thumb {
-  appearance: none;
-  width: var(--space-lg);
-  height: var(--space-lg);
-  background: var(--color-success);
-  border-radius: 50%;
-  cursor: pointer;
-}
-
-.widthSlider::-moz-range-thumb,
-.opacitySlider::-moz-range-thumb {
-  width: var(--space-lg);
-  height: var(--space-lg);
-  background: var(--color-success);
-  border-radius: 50%;
-  cursor: pointer;
-  border: none;
-}
-
-.blendModeSection {
-  margin-bottom: var(--space-lg);
-}
-
-.blendModeSection label {
-  display: block;
-  margin-bottom: var(--space-sm);
-  font-size: var(--text-sm);
-  color: var(--text-muted);
-  font-weight: var(--font-medium);
-}
-
-.blendModeSelect {
-  composes: control-input from '@shared/styles/PanelBase.module.css';
-  width: 100%;
-}
-
-.blendModeSelect:focus {
-  outline: none;
-  border-color: var(--color-success);
-  box-shadow: var(--focus-ring);
-}
-
-/* Brush Presets Section */
-.brushPresetsSection {
-  margin-bottom: var(--space-xl);
-}
-
-.brushPresetsSection h4 {
-  margin: 0 0 var(--space-md) 0;
-  font-size: var(--text-sm);
-  color: var(--text-secondary);
-  border-bottom: var(--border-width) solid var(--border-primary);
-  padding-bottom: var(--space-xs);
-}
-
-.presetButtons {
-  display: grid;
-  grid-template-columns: repeat(4, 1fr);
-  gap: var(--space-sm);
-}
-
-.presetButton {
-  composes: panel-button secondary from '@shared/styles/PanelBase.module.css';
-  padding: var(--space-sm);
-  font-size: var(--text-xs);
-}
-
-.presetButton:hover:not(:disabled) {
-  background: var(--button-secondary-hover);
-  border-color: var(--border-button-hover);
-}
-
-.presetButton:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
-}
-
-/* Canvas Actions Section */
-.canvasActionsSection {
-  margin-bottom: var(--space-xl);
-}
-
-.canvasActionsSection h4 {
-  margin: 0 0 var(--space-md) 0;
-  font-size: var(--text-sm);
-  color: var(--text-secondary);
-  border-bottom: var(--border-width) solid var(--border-primary);
-  padding-bottom: var(--space-xs);
-}
-
-.actionButtons {
-  display: flex;
-  gap: var(--space-sm);
-}
-
-/* Statistics Section */
-.paintStatsSection {
-  margin-bottom: var(--space-xl);
-}
-
-.paintStatsSection h4 {
-  margin: 0 0 var(--space-md) 0;
-  font-size: var(--text-sm);
-  color: var(--text-secondary);
-  border-bottom: var(--border-width) solid var(--border-primary);
-  padding-bottom: var(--space-xs);
-}
-
-.statsGrid {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: var(--space-sm);
-}
-
-.stat {
-  display: flex;
-  flex-direction: column;
-  padding: var(--space-sm);
-  background: var(--bg-tertiary);
-  border-radius: var(--radius-sm);
-  border: var(--border-width) solid var(--border-primary);
-}
-
-.statLabel {
-  font-size: var(--text-2xs);
-  color: var(--text-muted);
-  text-transform: uppercase;
-  margin-bottom: var(--space-xs);
-}
-
-.statValue {
-  font-size: var(--text-sm);
-  font-weight: var(--font-semibold);
-  color: var(--text-primary);
-}
-
-/* Instructions Section */
-.instructionsSection h4 {
-  margin: 0 0 var(--space-md) 0;
-  font-size: var(--text-sm);
-  color: var(--text-secondary);
-  border-bottom: var(--border-width) solid var(--border-primary);
-  padding-bottom: var(--space-xs);
-}
-
-.instructionsList {
+.header h3,
+.header p,
+.selection h4,
+.selection p {
   margin: 0;
-  padding-left: var(--space-lg);
-  font-size: var(--text-xs);
+}
+
+.header p,
+.footer,
+.selection p {
   color: var(--text-muted);
-  line-height: var(--leading-snug);
+  font-size: var(--text-xs);
 }
 
-.instructionsList li {
-  margin-bottom: var(--space-xs);
+.headerActions,
+.selectionActions {
+  gap: var(--space-sm);
 }
 
-/* Button Styles */
-.btnPrimary {
-  composes: panel-button success from '@shared/styles/PanelBase.module.css';
+.headerActions button,
+.toolGrid button,
+.selectionActions button {
+  min-height: var(--size-8);
+  padding: var(--space-sm) var(--space-md);
+  color: var(--text-primary);
+  background: var(--bg-tertiary);
+  border: var(--border-width) solid var(--border-secondary);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
 }
 
-.btnSecondary {
-  composes: panel-button secondary from '@shared/styles/PanelBase.module.css';
+.section {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-sm);
+  min-width: 0;
+  margin: 0;
+  padding: var(--space-md);
+  border: var(--border-width) solid var(--border-secondary);
+  border-radius: var(--radius-sm);
 }
 
-.btnDanger {
-  composes: panel-button danger from '@shared/styles/PanelBase.module.css';
+.section legend {
+  padding: 0 var(--space-xs);
+  color: var(--text-secondary);
+  font-size: var(--text-sm);
+  font-weight: var(--font-semibold);
 }
 
-/* Responsive Design */
-@media (max-width: 360px) {
-  .paintPanel {
-    width: 100%;
-    max-width: 320px;
-  }
-  
-  .predefinedColors {
-    grid-template-columns: repeat(4, 1fr);
-  }
-  
-  .presetButtons {
-    grid-template-columns: repeat(3, 1fr);
-  }
+.toolGrid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--space-sm);
 }
 
-/* Templates Section */
-.templatesSection {
-  margin-top: var(--space-lg);
-  padding-top: var(--space-lg);
-  border-top: var(--border-width) solid var(--border-secondary);
+.toolGrid .activeTool {
+  color: var(--button-primary-text);
+  background: var(--button-primary-bg);
+  border-color: var(--button-primary-border);
 }
 
-.templateSave {
-  margin-bottom: var(--space-md);
+.controlRow {
+  gap: var(--space-sm);
+  min-width: 0;
 }
 
-.templateList {
-  margin-top: var(--space-md);
+.controlRow > span:first-child {
+  min-width: var(--size-12);
 }
 
-.templateItem {
+.controlRow input[type='range'] {
+  flex: 1;
+  min-width: 0;
+}
+
+.controlRow output {
+  width: var(--size-12);
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+.selection {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-sm);
+  padding: var(--space-md);
+  background: var(--bg-tertiary);
+  border-radius: var(--radius-sm);
+}
+
+.selection dl {
+  display: grid;
+  gap: var(--space-xs);
+  margin: 0;
+}
+
+.selection dl div {
   display: flex;
   justify-content: space-between;
-  align-items: center;
-  padding: var(--space-sm) var(--space-md);
-  margin-bottom: var(--space-sm);
-  background: var(--bg-tertiary);
-  border-radius: var(--radius-md);
-  border: var(--border-width) solid var(--border-primary);
 }
 
-.templateInfo {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-xs);
-}
-
-.templateName {
-  font-weight: var(--font-medium);
-  color: var(--text-primary);
-}
-
-.templateMeta {
-  font-size: var(--text-xs);
+.selection dt {
   color: var(--text-muted);
 }
 
-.templateActions {
-  display: flex;
-  gap: var(--space-xs);
+.selection dd {
+  margin: 0;
 }
 
-.btnSecondary.small,
-.btnDanger.small {
-  padding: var(--space-xs) var(--space-sm);
-  font-size: var(--text-xs);
-  min-width: auto;
-}
-
-.formGroup {
-  margin-bottom: var(--space-lg);
-}
-
-.formGroup label {
-  display: block;
-  margin-bottom: var(--space-xs);
-  color: var(--text-secondary);
-  font-size: var(--text-sm);
-  font-weight: var(--font-medium);
-}
-
-.formGroup input[type="text"] {
-  width: 100%;
-  padding: var(--space-sm) var(--space-md);
-  background: var(--bg-tertiary);
-  border: var(--border-width) solid var(--border-secondary);
-  border-radius: var(--radius-sm);
-  color: var(--text-primary);
-  font-size: var(--text-sm);
-}
-
-.formGroup input[type="text"]:focus {
-  outline: none;
-  border-color: var(--color-info);
-  box-shadow: var(--focus-ring);
-}
-
-.modalActions {
-  display: flex;
-  gap: var(--space-sm);
-  justify-content: flex-end;
-}
-
-/* Paint Target Mode Selector Styles */
-.paintTargetModeSection {
-  margin-bottom: var(--space-lg);
-}
-
-.paintTargetModeSection h4 {
-  color: var(--text-secondary);
-  margin-bottom: var(--space-sm);
-  font-size: var(--text-sm);
-  font-weight: var(--font-semibold);
-}
-
-.paintModeSelector {
-  display: flex;
-  gap: var(--space-sm);
-  margin-bottom: var(--space-md);
-}
-
-.paintModeSelector .modeButton {
+.selectionActions button {
   flex: 1;
-  padding: var(--space-sm) var(--space-md);
-  border: var(--border-width) solid var(--border-secondary);
-  background: var(--bg-tertiary);
-  color: var(--text-primary);
-  border-radius: var(--radius-sm);
-  cursor: pointer;
-  font-size: var(--text-xs);
-  font-weight: var(--font-medium);
-  transition: var(--transition-interactive-fast);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: var(--space-xs);
 }
 
-.paintModeSelector .modeButton:hover:not(:disabled) {
-  background: var(--hover-bg);
-  border-color: var(--border-hover);
-}
-
-.paintModeSelector .modeButton.active {
-  background: var(--color-info);
-  border-color: var(--color-info);
-  color: var(--text-on-accent);
-  box-shadow: var(--shadow-md);
-}
-
-.paintModeSelector .modeButton:disabled {
-  background: var(--bg-disabled);
-  color: var(--text-disabled);
-  border-color: var(--border-disabled);
-  cursor: not-allowed;
-  opacity: 0.6;
-}
-
-.modeStatus {
-  border-radius: var(--radius-xs);
-  padding: var(--space-sm) var(--space-md);
-  font-size: var(--text-xs);
-  font-weight: var(--font-medium);
-}
-
-.modeStatus.success {
-  background: var(--status-success-bg);
-  color: var(--status-success-text);
-  border: var(--border-width) solid var(--status-success-border);
-}
-
-.modeStatus.warning {
-  background: var(--status-warning-bg);
-  color: var(--status-warning-text);
-  border: var(--border-width) solid var(--status-warning-border);
-}
-
-.modeStatus.error {
-  background: var(--status-error-bg);
+.selectionActions .danger {
   color: var(--status-error-text);
-  border: var(--border-width) solid var(--status-error-border);
+  border-color: var(--status-error-border);
 }
 
-.statusIndicator {
-  display: flex;
-  align-items: center;
-  gap: var(--space-sm);
-}
-
-/* Responsive adjustments for paint mode selector */
-.paintPanel.narrow .paintModeSelector {
-  flex-direction: column;
-  gap: var(--space-xs);
-}
-
-.paintPanel.narrow .paintModeSelector .modeButton {
-  flex: none;
-  font-size: var(--text-2xs);
+.notice,
+.error {
+  margin: 0;
   padding: var(--space-sm);
+  border-radius: var(--radius-sm);
+  font-size: var(--text-xs);
 }
 
-.paintPanel.compact .modeStatus {
-  font-size: var(--text-2xs);
-  padding: var(--space-sm);
+.notice {
+  color: var(--status-warning-text);
+  background: var(--status-warning-bg);
+}
+
+.error {
+  color: var(--status-error-text);
+  background: var(--status-error-bg);
+}
+
+.footer {
+  justify-content: space-between;
+}
+
+.section:disabled,
+button:disabled,
+input:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+
+@media (width <= 280px) {
+  .toolGrid {
+    grid-template-columns: 1fr;
+  }
+
+  .selectionActions {
+    align-items: stretch;
+    flex-direction: column;
+  }
 }

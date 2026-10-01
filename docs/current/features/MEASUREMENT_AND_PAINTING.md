@@ -98,8 +98,9 @@ previews. The application now mounts one controller per connected session
 beneath the protocol and WASM runtime providers. The provider follows the
 active table, subscribes to typed protocol events, advances snapshot and
 preview expiry, disposes session state deterministically, and restores
-confirmed objects after a WebGL canvas is attached or restored. Pointer input
-and panel controls still use the legacy path until the next cutover step.
+confirmed objects after a WebGL canvas is attached or restored. The live canvas
+and object panel now use this controller; legacy strokes remain read-only only
+until the migration cutover is completed.
 Pending create/update commands and remote previews are mirrored into separately
 keyed transient renderer drafts. Acceptance, rejection, cancellation, expiry,
 and table changes remove those keys; renderer restoration reapplies only the
@@ -123,6 +124,13 @@ canvas binds its Pointer Events route and suppresses matching legacy left-mouse
 and delete handlers while paint mode is active. Right/middle-button camera input
 and wheel zoom remain on the established canvas route. Closing the panel selects
 the normal selection tool and therefore cancels any captured paint gesture.
+The panel exposes Draw, Line, Rectangle, Square, Ellipse, Circle, Select/Edit,
+and Delete to every interactive role. Its color, width, and fill controls map
+directly to implemented object styles. Selection metadata reports object kind,
+owner, and version; mutation actions are disabled when controller authorization
+does not permit the current actor to edit that object. Templates, canvas-only
+mode, fake marker/eraser choices, and global stroke undo/redo are no longer in
+the active panel.
 
 The replacement Rust scene does not originate
 writes. It atomically validates/replaces snapshots, accepts only contiguous

@@ -19,7 +19,7 @@ export const getGridCoord = (world: { x: number; y: number }, gridSize: number =
  * Calculate relative coordinates from mouse event to canvas
  */
 export const getRelativeCoords = (
-  e: MouseEvent | WheelEvent,
+  e: MouseEvent | PointerEvent | WheelEvent,
   canvas: HTMLCanvasElement
 ): { x: number; y: number } => {
   const rect = canvas.getBoundingClientRect();

@@ -110,6 +110,13 @@ Rectangle and ellipse drags normalize either direction; square and circle drags
 lock both axes to the larger delta. Freehand completion uses a spatial
 simplifier while retaining endpoints and pressure discontinuities, then applies
 the canonical 8,192-point ceiling. A freehand click remains a one-point dot.
+`PaintInteractionController` owns one primary pointer and captures the active
+table at pointer-down. It converts backing-pixel canvas coordinates through the
+Rust camera once per coalesced sample, publishes renderer-only drafts and 20 Hz
+previews, and emits at most one create/update command on release. Cancel, lost
+capture, Escape, tool/table change, disable, unbind, and failed capture all
+clear the local draft. Selection movement, deletion, and restyling check creator
+or DM authority before submitting a versioned command.
 
 The replacement Rust scene does not originate
 writes. It atomically validates/replaces snapshots, accepts only contiguous

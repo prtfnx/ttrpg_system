@@ -2,7 +2,13 @@ import { getRelativeCoords } from '@features/canvas/components/GameCanvas/canvas
 import type { RenderEngine } from '@lib/wasm/runtime';
 import type { PaintControllerState } from './PaintController';
 import type { PaintObject, PaintObjectInput, PaintPoint, PaintStyle } from '../model/paintObject';
-import { compactFreehandPoints, createPaintDraft, type PaintTool } from './paintGeometry';
+import {
+  compactFreehandPoints,
+  createPaintDraft,
+  resizePaintObject,
+  type PaintHandleKind,
+  type PaintTool,
+} from './paintGeometry';
 
 const LOCAL_DRAFT_KEY = 'local';
 const HIT_TOLERANCE_PX = 6;
@@ -18,9 +24,18 @@ export interface PaintInteractionScene {
 }
 
 interface PaintInteractionRuntime {
-  getRenderEngine(): Pick<RenderEngine, 'screen_to_world' | 'paint_hit_test_object'> | null;
+  getRenderEngine(): Pick<RenderEngine, 'screen_to_world'> | null;
   setPaintDraft(tableId: string, key: string, draft: PaintObjectInput): boolean;
   clearPaintDraft(key: string): boolean;
+  hitTestPaintObject(worldX: number, worldY: number, tolerance: number): string | null;
+  hitTestPaintHandle(
+    objectId: string,
+    worldX: number,
+    worldY: number,
+    tolerance: number,
+  ): string | null;
+  selectPaintObject(objectId: string): boolean;
+  clearPaintObjectSelection(): void;
 }
 
 interface CreationGesture {
@@ -47,7 +62,20 @@ interface MoveGesture {
   canvas: HTMLCanvasElement;
 }
 
-type Gesture = CreationGesture | MoveGesture;
+interface ResizeGesture {
+  kind: 'resize';
+  pointerId: number;
+  tableId: string;
+  start: PaintPoint;
+  current: PaintPoint;
+  original: PaintObject;
+  handle: PaintHandleKind;
+  draft: PaintObjectInput;
+  changed: boolean;
+  canvas: HTMLCanvasElement;
+}
+
+type Gesture = CreationGesture | MoveGesture | ResizeGesture;
 
 export interface PaintInteractionState {
   enabled: boolean;
@@ -114,11 +142,13 @@ export class PaintInteractionController {
       if (state.tableId !== this.tableId) {
         this.cancelGesture();
         this.selectedId = null;
+        this.runtime.clearPaintObjectSelection();
         this.tableId = state.tableId;
       }
       this.sceneState = state;
       if (this.selectedId && !state.committed.some(object => object.id === this.selectedId)) {
         this.selectedId = null;
+        this.runtime.clearPaintObjectSelection();
       }
       this.emit();
     });
@@ -162,6 +192,7 @@ export class PaintInteractionController {
     if (!enabled) {
       this.cancelGesture();
       this.selectedId = null;
+      this.runtime.clearPaintObjectSelection();
     }
     if (this.canvas) this.canvas.style.touchAction = enabled ? 'none' : this.previousTouchAction;
     this.emit();
@@ -193,6 +224,7 @@ export class PaintInteractionController {
     const operation = this.scene.submitDelete(selected.id, selected.version);
     if (!operation) return false;
     this.selectedId = null;
+    this.runtime.clearPaintObjectSelection();
     this.emit();
     return true;
   }
@@ -209,6 +241,10 @@ export class PaintInteractionController {
     canvas.addEventListener('lostpointercapture', this.handleLostPointerCapture);
     document.addEventListener('keydown', this.handleKeyDown);
     return () => this.unbind();
+  }
+
+  restoreRenderer(): void {
+    if (this.selectedId) this.runtime.selectPaintObject(this.selectedId);
   }
 
   unbind(): void {
@@ -234,12 +270,43 @@ export class PaintInteractionController {
     if (!point) return;
 
     if (this.tool === 'delete' || this.tool === 'select') {
-      const objectId = this.runtime.getRenderEngine()?.paint_hit_test_object(
-        point.x,
-        point.y,
-        HIT_TOLERANCE_PX,
-      ) ?? null;
+      const previouslySelected = this.selectedObject();
+      const handle = this.tool === 'select' && previouslySelected
+        ? this.runtime.hitTestPaintHandle(
+          previouslySelected.id,
+          point.x,
+          point.y,
+          HIT_TOLERANCE_PX,
+        ) as PaintHandleKind | null
+        : null;
+      if (handle) {
+        if (!this.canEdit(previouslySelected!) || !this.capture(canvas, event.pointerId)) {
+          this.emit();
+          event.preventDefault();
+          return;
+        }
+        const draft = editableObject(previouslySelected!);
+        this.gesture = {
+          kind: 'resize',
+          pointerId: event.pointerId,
+          tableId,
+          start: point,
+          current: point,
+          original: previouslySelected!,
+          handle,
+          draft,
+          changed: false,
+          canvas,
+        };
+        this.publishDraft(tableId, draft);
+        event.preventDefault();
+        this.emit();
+        return;
+      }
+      const objectId = this.runtime.hitTestPaintObject(point.x, point.y, HIT_TOLERANCE_PX);
       this.selectedId = objectId;
+      if (objectId) this.runtime.selectPaintObject(objectId);
+      else this.runtime.clearPaintObjectSelection();
       const selected = this.selectedObject();
       if (this.tool === 'delete') {
         this.deleteSelected();
@@ -307,7 +374,7 @@ export class PaintInteractionController {
           gesture.samples,
           this.style,
         );
-      } else {
+      } else if (gesture.kind === 'move') {
         const replacement = editableObject(gesture.original);
         replacement.transform.x += point.x - gesture.start.x;
         replacement.transform.y += point.y - gesture.start.y;
@@ -315,6 +382,11 @@ export class PaintInteractionController {
           || point.x !== gesture.start.x
           || point.y !== gesture.start.y;
         gesture.draft = replacement;
+      } else {
+        gesture.changed = gesture.changed
+          || point.x !== gesture.start.x
+          || point.y !== gesture.start.y;
+        gesture.draft = resizePaintObject(gesture.original, gesture.handle, point);
       }
     }
     this.publishDraft(gesture.tableId, gesture.draft);
@@ -365,6 +437,7 @@ export class PaintInteractionController {
     if (event.key === 'Escape') {
       this.cancelGesture();
       this.selectedId = null;
+      this.runtime.clearPaintObjectSelection();
       this.emit();
       return;
     }

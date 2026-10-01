@@ -75,12 +75,15 @@ function harness(committed: PaintObject[] = []) {
   };
   const engine = {
     screen_to_world: vi.fn((x: number, y: number) => new Float64Array([x / 2, y / 2])),
-    paint_hit_test_object: vi.fn(() => committed[0]?.id),
   };
   const runtime = {
     getRenderEngine: vi.fn(() => engine),
     setPaintDraft: vi.fn(() => true),
     clearPaintDraft: vi.fn(() => true),
+    hitTestPaintObject: vi.fn(() => committed[0]?.id ?? null),
+    hitTestPaintHandle: vi.fn((): string | null => null),
+    selectPaintObject: vi.fn(() => true),
+    clearPaintObjectSelection: vi.fn(),
   };
   const captured = new Set<number>();
   const canvas = document.createElement('canvas');
@@ -185,6 +188,50 @@ describe('PaintInteractionController', () => {
       3,
       expect.objectContaining({ transform: { x: 15, y: 16, scale_x: 1, scale_y: 1 } }),
     );
+  });
+
+  it('edits a selected line endpoint through a renderer handle', () => {
+    const line = {
+      ...object(),
+      kind: 'line' as const,
+      geometry: {
+        kind: 'line' as const,
+        start: { x: 0, y: 0, pressure: 1 },
+        end: { x: 10, y: 0, pressure: 1 },
+      },
+    };
+    const { controller, scene, runtime } = harness([line]);
+    controller.setTool('select');
+    controller.handlePointerDown(pointer(1, 20, 30));
+    controller.handlePointerUp(pointer(1, 20, 30));
+    vi.mocked(runtime.hitTestPaintHandle).mockReturnValue('line-end');
+
+    controller.handlePointerDown(pointer(2, 30, 30));
+    controller.handlePointerMove(pointer(2, 50, 50));
+    controller.handlePointerUp(pointer(2, 50, 50));
+
+    expect(scene.submitUpdate).toHaveBeenCalledOnce();
+    expect(scene.submitUpdate).toHaveBeenCalledWith(
+      OBJECT_ID,
+      3,
+      expect.objectContaining({
+        geometry: expect.objectContaining({
+          end: { x: 35, y: 24, pressure: 0.5 },
+        }),
+      }),
+    );
+  });
+
+  it('restores and clears renderer selection with interaction lifecycle', () => {
+    const { controller, runtime } = harness([object()]);
+    controller.setTool('select');
+    controller.handlePointerDown(pointer(1, 20, 30));
+    controller.handlePointerUp(pointer(1, 20, 30));
+    expect(runtime.selectPaintObject).toHaveBeenCalledWith(OBJECT_ID);
+    controller.restoreRenderer();
+    expect(runtime.selectPaintObject).toHaveBeenCalledTimes(2);
+    controller.setEnabled(false);
+    expect(runtime.clearPaintObjectSelection).toHaveBeenCalled();
   });
 
   it('allows selection but denies foreign-object mutation to a non-DM', () => {

@@ -124,9 +124,9 @@ export function PaintControllerProvider({ children }: PaintControllerProviderPro
 
   useEffect(() => {
     if (controller && runtimeStatus.isCanvasAttached && !runtimeStatus.isContextLost) {
-      controller.restoreRenderer();
+      if (controller.restoreRenderer()) interaction?.restoreRenderer();
     }
-  }, [controller, runtimeStatus.isCanvasAttached, runtimeStatus.isContextLost]);
+  }, [controller, interaction, runtimeStatus.isCanvasAttached, runtimeStatus.isContextLost]);
 
   const value = useMemo(
     () => ({ controller, state, interaction, interactionState }),

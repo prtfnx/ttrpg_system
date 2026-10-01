@@ -165,6 +165,11 @@ Resize commands keep the opposite corner anchored. Rectangle, ellipse, and
 freehand objects may scale independently by axis; freehand points are not
 rewritten. Square and circle use one uniform scale, while line handles replace
 only the selected endpoint in local coordinates and preserve the other end.
+The pointer controller tests a selected handle before testing object bodies.
+Authorized handle drags remain transient until release and then send exactly
+one complete versioned update. Selected handle overlays are reapplied after a
+renderer/context recreation and cleared on deselection, deletion, disable, or
+table change.
 
 The WASM paint system owns active drawing and rendering. A completed stroke is
 sent with its stable id. The server requires the serialized stroke id to match,

@@ -18,7 +18,7 @@ const mocks = vi.hoisted(() => ({
     }),
     selectTable: vi.fn(),
     tick: vi.fn(),
-    restoreRenderer: vi.fn(),
+    restoreRenderer: vi.fn(() => true),
     dispose: vi.fn(),
   },
   constructor: vi.fn(),
@@ -29,6 +29,7 @@ const mocks = vi.hoisted(() => ({
     }),
     setActor: vi.fn(),
     setEnabled: vi.fn(),
+    restoreRenderer: vi.fn(),
     dispose: vi.fn(),
   },
   interactionConstructor: vi.fn(),
@@ -107,5 +108,6 @@ describe('PaintControllerProvider', () => {
     mocks.runtimeStatus = { isCanvasAttached: true, isContextLost: false };
     render(<PaintControllerProvider><Consumer /></PaintControllerProvider>);
     expect(mocks.controller.restoreRenderer).toHaveBeenCalledOnce();
+    expect(mocks.interaction.restoreRenderer).toHaveBeenCalledOnce();
   });
 });

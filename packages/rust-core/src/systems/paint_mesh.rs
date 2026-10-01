@@ -51,7 +51,7 @@ impl PaintMeshCache {
     }
 }
 
-fn tessellate(object: &PaintObject) -> PaintMesh {
+pub(super) fn tessellate(object: &PaintObject) -> PaintMesh {
     let mut fill_vertices = Vec::new();
     let mut stroke_vertices = Vec::new();
     match &object.geometry {

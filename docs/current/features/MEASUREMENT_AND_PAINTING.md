@@ -116,9 +116,12 @@ caps; filled and outlined forms use separate meshes. Hit-test tolerance is
 converted from screen pixels through camera zoom. Triangle data is uploaded to
 retained GPU buffers on first draw after a snapshot or changed object, reused
 on unchanged frames, and explicitly deleted on update, deletion, table switch,
-renderer detach, or context loss. Controller draft meshes are still pending,
-so legacy stroke rendering remains alongside the object path during the staged
-cutover. The renderer requests WebGL antialiasing for triangle-edge coverage;
+renderer detach, or context loss. Transient controller drafts use the same
+validated geometry and triangle tessellation as committed objects, but remain
+in a separately keyed scene that does not change table revision or retained
+object buffers. Draft meshes replace in place, cull in world space, draw after
+committed paint and below fog, and clear on table changes. The renderer requests
+WebGL antialiasing for triangle-edge coverage;
 implementations without multisample support fall back to hard triangle edges.
 The typed runtime boundary exposes the lifetime mesh-rebuild count for
 unchanged-frame regression checks.

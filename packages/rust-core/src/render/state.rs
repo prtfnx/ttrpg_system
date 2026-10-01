@@ -684,6 +684,26 @@ impl RenderEngine {
         self.paint.object_mesh_rebuild_count() as f64
     }
 
+    #[wasm_bindgen]
+    pub fn paint_set_draft(&mut self, table_id: &str, key: &str, draft_json: &str) -> bool {
+        self.paint.set_draft_json(table_id, key, draft_json)
+    }
+
+    #[wasm_bindgen]
+    pub fn paint_clear_draft(&mut self, key: &str) -> bool {
+        self.paint.clear_draft(key)
+    }
+
+    #[wasm_bindgen]
+    pub fn paint_clear_drafts(&mut self) {
+        self.paint.clear_drafts();
+    }
+
+    #[wasm_bindgen]
+    pub fn paint_draft_count(&self) -> usize {
+        self.paint.draft_count()
+    }
+
     // Background color
     pub fn set_background_color(&mut self, hex: &str) {
         if let Some(color) = super::parse_hex_color(hex) {

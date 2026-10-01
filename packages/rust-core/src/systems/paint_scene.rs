@@ -85,6 +85,35 @@ pub struct PaintObject {
     pub updated_at: String,
 }
 
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct PaintObjectInput {
+    pub id: String,
+    pub kind: PaintKind,
+    pub geometry: PaintGeometry,
+    pub transform: PaintTransform,
+    pub style: PaintStyle,
+}
+
+impl PaintObjectInput {
+    pub fn into_transient(self, table_id: &str) -> Result<PaintObject, PaintSceneError> {
+        let object = PaintObject {
+            id: self.id,
+            table_id: table_id.to_owned(),
+            kind: self.kind,
+            geometry: self.geometry,
+            transform: self.transform,
+            style: self.style,
+            created_by: 1,
+            version: 1,
+            z_order: 1,
+            created_at: String::new(),
+            updated_at: String::new(),
+        };
+        validate_object(&object)?;
+        Ok(object)
+    }
+}
+
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct PaintBounds {
     pub min_x: f32,
@@ -639,6 +668,37 @@ mod tests {
             Err(PaintSceneError::InvalidObject("square".to_owned()))
         );
         assert_eq!(scene.table_id(), None);
+    }
+
+    #[test]
+    fn transient_inputs_share_authoritative_geometry_validation() {
+        let valid = PaintObjectInput {
+            id: "draft".to_owned(),
+            kind: PaintKind::Circle,
+            geometry: PaintGeometry::Circle { diameter: 10.0 },
+            transform: PaintTransform {
+                x: 2.0,
+                y: 3.0,
+                scale_x: 1.0,
+                scale_y: 1.0,
+            },
+            style: PaintStyle {
+                stroke_rgba: [1.0, 0.0, 0.0, 1.0],
+                width: 2.0,
+                fill_rgba: Some([1.0, 0.0, 0.0, 0.25]),
+            },
+        };
+        assert_eq!(
+            valid.clone().into_transient("table").unwrap().table_id,
+            "table"
+        );
+
+        let mut invalid = valid;
+        invalid.transform.scale_y = 2.0;
+        assert_eq!(
+            invalid.into_transient("table"),
+            Err(PaintSceneError::InvalidObject("draft".to_owned()))
+        );
     }
 
     #[test]

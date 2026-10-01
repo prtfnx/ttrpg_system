@@ -2,16 +2,22 @@ use crate::math::Vec2;
 use crate::types::BlendMode;
 use crate::webgl_renderer::WebGLRenderer;
 use serde::{Deserialize, Serialize};
-use std::collections::HashMap;
+use std::collections::{BTreeMap, HashMap};
 use wasm_bindgen::prelude::*;
 
-use super::paint_mesh::PaintMeshCache;
-use super::paint_scene::{PaintObject, PaintScene};
+use super::paint_mesh::{tessellate, PaintMesh, PaintMeshCache};
+use super::paint_scene::{PaintObject, PaintObjectInput, PaintScene};
+
+struct PaintDraft {
+    object: PaintObject,
+    mesh: PaintMesh,
+}
 
 #[wasm_bindgen]
 pub struct PaintSystem {
     object_scene: PaintScene,
     object_meshes: PaintMeshCache,
+    transient_drafts: BTreeMap<String, PaintDraft>,
     // Per-table paint storage
     table_strokes: HashMap<String, Vec<DrawStroke>>,
     table_redo_stacks: HashMap<String, Vec<DrawStroke>>,
@@ -87,6 +93,7 @@ impl PaintSystem {
         Self {
             object_scene: PaintScene::default(),
             object_meshes: PaintMeshCache::default(),
+            transient_drafts: BTreeMap::new(),
             table_strokes: HashMap::new(),
             table_redo_stacks: HashMap::new(),
             current_table_id: None,
@@ -111,6 +118,7 @@ impl PaintSystem {
         self.object_scene.activate_table(table_id);
         if switched {
             self.object_meshes.clear();
+            self.transient_drafts.clear();
         }
 
         // Initialize table storage if it doesn't exist
@@ -477,6 +485,34 @@ impl PaintSystem {
     pub fn object_mesh_rebuild_count(&self) -> u64 {
         self.object_meshes.rebuild_count()
     }
+
+    pub fn set_draft_json(&mut self, table_id: &str, key: &str, draft_json: &str) -> bool {
+        if key.is_empty() || key.len() > 256 || self.current_table_id.as_deref() != Some(table_id) {
+            return false;
+        }
+        let Ok(input) = serde_json::from_str::<PaintObjectInput>(draft_json) else {
+            return false;
+        };
+        let Ok(object) = input.into_transient(table_id) else {
+            return false;
+        };
+        let mesh = tessellate(&object);
+        self.transient_drafts
+            .insert(key.to_owned(), PaintDraft { object, mesh });
+        true
+    }
+
+    pub fn clear_draft(&mut self, key: &str) -> bool {
+        self.transient_drafts.remove(key).is_some()
+    }
+
+    pub fn clear_drafts(&mut self) {
+        self.transient_drafts.clear();
+    }
+
+    pub fn draft_count(&self) -> usize {
+        self.transient_drafts.len()
+    }
 }
 
 impl PaintSystem {
@@ -537,6 +573,21 @@ impl PaintSystem {
                 &mesh.stroke_vertices,
                 object.style.stroke_rgba,
             )?;
+        }
+        for draft in self.transient_drafts.values() {
+            let bounds = crate::math::Rect::new(
+                draft.mesh.bounds.min_x,
+                draft.mesh.bounds.min_y,
+                draft.mesh.bounds.max_x - draft.mesh.bounds.min_x,
+                draft.mesh.bounds.max_y - draft.mesh.bounds.min_y,
+            );
+            if !bounds.intersects(viewport) {
+                continue;
+            }
+            if let Some(fill) = draft.object.style.fill_rgba {
+                renderer.draw_triangles(&draft.mesh.fill_vertices, fill)?;
+            }
+            renderer.draw_triangles(&draft.mesh.stroke_vertices, draft.object.style.stroke_rgba)?;
         }
         Ok(())
     }
@@ -612,7 +663,8 @@ pub fn create_default_brush_presets() -> Vec<JsValue> {
 
 #[cfg(test)]
 mod tests {
-    use super::{DrawPoint, DrawStroke};
+    use super::{DrawPoint, DrawStroke, PaintSystem};
+    use crate::paint_scene::PaintScene;
     use crate::types::BlendMode;
 
     #[test]
@@ -666,5 +718,28 @@ mod tests {
         assert_eq!(s2.id, "rt");
         assert_eq!(s2.points.len(), 1);
         assert_eq!(s2.width, 4.0);
+    }
+
+    #[test]
+    fn transient_drafts_replace_by_key_and_clear_without_committing() {
+        let mut paint = PaintSystem::new();
+        paint.current_table_id = Some("table".to_owned());
+        paint.object_scene = PaintScene::default();
+        paint.object_scene.activate_table("table");
+        let draft = r#"{
+            "id":"00000000-0000-4000-8000-000000000001",
+            "kind":"line",
+            "geometry":{"kind":"line","start":{"x":0,"y":0,"pressure":1},"end":{"x":10,"y":10,"pressure":0.5}},
+            "transform":{"x":0,"y":0,"scale_x":1,"scale_y":1},
+            "style":{"stroke_rgba":[1,0,0,1],"width":2,"fill_rgba":null}
+        }"#;
+
+        assert!(paint.set_draft_json("table", "local", draft));
+        assert!(paint.set_draft_json("table", "local", draft));
+        assert_eq!(paint.draft_count(), 1);
+        assert_eq!(paint.object_count(), 0);
+        assert!(!paint.set_draft_json("other", "local", draft));
+        assert!(paint.clear_draft("local"));
+        assert_eq!(paint.draft_count(), 0);
     }
 }

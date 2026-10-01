@@ -117,6 +117,12 @@ previews, and emits at most one create/update command on release. Cancel, lost
 capture, Escape, tool/table change, disable, unbind, and failed capture all
 clear the local draft. Selection movement, deletion, and restyling check creator
 or DM authority before submitting a versioned command.
+The session provider creates that interaction controller beside the scene
+controller and derives enablement only from the toolbar's `activeTool`. The live
+canvas binds its Pointer Events route and suppresses matching legacy left-mouse
+and delete handlers while paint mode is active. Right/middle-button camera input
+and wheel zoom remain on the established canvas route. Closing the panel selects
+the normal selection tool and therefore cancels any captured paint gesture.
 
 The replacement Rust scene does not originate
 writes. It atomically validates/replaces snapshots, accepts only contiguous

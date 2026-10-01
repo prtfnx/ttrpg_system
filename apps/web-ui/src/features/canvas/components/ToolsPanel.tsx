@@ -199,8 +199,8 @@ export function ToolsPanel({ userInfo: _userInfo }: ToolsPanelProps) {
       case 'line':        renderEngine.set_input_mode_create_line(); break;
       case 'text':        renderEngine.set_input_mode_create_text(); break;
       case 'paint':
-        renderEngine.set_input_mode_paint();
-        renderEngine.paint_enter_mode(800, 600);
+        renderEngine.paint_exit_mode();
+        renderEngine.set_input_mode_select();
         break;
       case 'draw_wall':    renderEngine.set_input_mode_draw_wall(); break;
       case 'draw_polygon': renderEngine.set_input_mode_create_polygon(); break;
@@ -410,7 +410,6 @@ export function ToolsPanel({ userInfo: _userInfo }: ToolsPanelProps) {
               )}
               {interactMode && (
                 <button className={`${styles.toolButton} ${activeTool === 'paint' ? styles.active : ''}`} onClick={() => {
-                  renderEngine?.set_input_mode_paint();
                   setActiveTool('paint');
                   setPaintPanelVisible(true);
                 }} title="Paint System">
@@ -420,7 +419,10 @@ export function ToolsPanel({ userInfo: _userInfo }: ToolsPanelProps) {
             </div>
           </div>
 
-          {paintPanelVisible && <PaintPanel isVisible={paintPanelVisible} onClose={() => setPaintPanelVisible(false)} />}
+          {paintPanelVisible && <PaintPanel isVisible={paintPanelVisible} onClose={() => {
+            setPaintPanelVisible(false);
+            setActiveTool('select');
+          }} />}
 
           {activeTool === 'text' && (
             <div className={styles.textSettings}>

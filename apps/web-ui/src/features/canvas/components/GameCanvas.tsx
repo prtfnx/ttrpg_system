@@ -9,6 +9,7 @@ import { useGameModeStore } from '@features/combat/stores/gameModeStore';
 import { isDM } from '@features/session/types/roles';
 import { useOptionalProtocol } from '@lib/api';
 import { useWasmRuntime } from '@lib/wasm/runtime';
+import { useOptionalPaintController } from '@features/painting/controller/PaintControllerProvider';
 import type { RenderEngine } from '@lib/wasm/runtime';
 import { DragDropImageHandler } from '@shared/components';
 import { logger } from '@shared/utils/logger';
@@ -80,6 +81,8 @@ export const GameCanvas: React.FC = () => {
   const activeTableId = useGameStore(s => s.activeTableId);
   const activeTable = tables.find((t) => t.table_id === activeTableId);
   const activeLayer = useGameStore(s => s.activeLayer);
+  const activeTool = useGameStore(s => s.activeTool);
+  const paintInteraction = useOptionalPaintController()?.interaction ?? null;
   const obstaclesVisible = useGameStore(s => s.layerVisibility.obstacles ?? true);
   const obstaclesOpacity = useGameStore(s => s.layerOpacity.obstacles ?? 1);
 
@@ -170,6 +173,32 @@ export const GameCanvas: React.FC = () => {
       togglePerformanceMonitor,
       protocol,
     });
+
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas || !paintInteraction) return;
+    return paintInteraction.bind(canvas);
+  }, [paintInteraction]);
+
+  const routedMouseDown = useCallback((event: MouseEvent) => {
+    if (activeTool === 'paint' && event.button === 0) return;
+    stableMouseDown(event);
+  }, [activeTool, stableMouseDown]);
+  const routedMouseMove = useCallback((event: MouseEvent) => {
+    if (activeTool === 'paint' && (event.buttons & 1) !== 0) return;
+    stableMouseMove(event);
+  }, [activeTool, stableMouseMove]);
+  const routedMouseUp = useCallback((event: MouseEvent) => {
+    if (activeTool === 'paint' && event.button === 0) return;
+    stableMouseUp(event);
+  }, [activeTool, stableMouseUp]);
+  const routedKeyDown = useCallback((event: KeyboardEvent) => {
+    if (
+      activeTool === 'paint'
+      && (event.key === 'Delete' || event.key === 'Backspace' || event.key === 'Escape')
+    ) return;
+    stableKeyDown(event);
+  }, [activeTool, stableKeyDown]);
 
   // Initialize multi-select manager
   useEffect(() => {
@@ -458,6 +487,7 @@ export const GameCanvas: React.FC = () => {
     // Delete / Backspace removes selected walls, or the hovered wall when no wall is selected.
     const onKeyDown = (e: KeyboardEvent) => {
       if (e.key !== 'Delete' && e.key !== 'Backspace') return;
+      if (useGameStore.getState().activeTool === 'paint') return;
 
       const rm = rustRenderManagerRef.current;
       const selectedWallIds = rm?.get_selected_walls() ?? [];
@@ -653,14 +683,14 @@ export const GameCanvas: React.FC = () => {
         logger.debug('[PERFORMANCE] Service initialized');
         resizeCanvas(canvas, dprRef, rustRenderEngine);
 
-        canvas.addEventListener('mousedown', stableMouseDown);
-        canvas.addEventListener('mousemove', stableMouseMove);
-        canvas.addEventListener('mouseup', stableMouseUp);
+        canvas.addEventListener('mousedown', routedMouseDown);
+        canvas.addEventListener('mousemove', routedMouseMove);
+        canvas.addEventListener('mouseup', routedMouseUp);
         canvas.addEventListener('wheel', stableWheel);
         canvas.addEventListener('contextmenu', stableRightClick);
         canvas.addEventListener('focus', handleCanvasFocus);
         canvas.addEventListener('blur', handleCanvasBlur);
-        document.addEventListener('keydown', stableKeyDown);
+        document.addEventListener('keydown', routedKeyDown);
 
         // Make canvas focusable for keyboard events
         canvas.tabIndex = 0;
@@ -710,15 +740,15 @@ export const GameCanvas: React.FC = () => {
       // eslint-disable-next-line react-hooks/exhaustive-deps -- known: canvasRef.current captured at cleanup via const canvas above
       const canvas = canvasRef.current;
       if (canvas) {
-        canvas.removeEventListener('mousedown', stableMouseDown);
-        canvas.removeEventListener('mousemove', stableMouseMove);
-        canvas.removeEventListener('mouseup', stableMouseUp);
+        canvas.removeEventListener('mousedown', routedMouseDown);
+        canvas.removeEventListener('mousemove', routedMouseMove);
+        canvas.removeEventListener('mouseup', routedMouseUp);
         canvas.removeEventListener('wheel', stableWheel);
         canvas.removeEventListener('contextmenu', stableRightClick);
         canvas.removeEventListener('focus', handleCanvasFocus);
         canvas.removeEventListener('blur', handleCanvasBlur);
       }
-      document.removeEventListener('keydown', stableKeyDown);
+      document.removeEventListener('keydown', routedKeyDown);
       window.removeEventListener('resize', scheduleResize);
       if (resizeObserver && canvas) {
         try {
@@ -743,12 +773,12 @@ export const GameCanvas: React.FC = () => {
  }, [
     runtime,
     updateConnectionState,
-    stableMouseDown,
-    stableMouseMove,
-    stableMouseUp,
+    routedMouseDown,
+    routedMouseMove,
+    routedMouseUp,
     stableWheel,
     stableRightClick,
-    stableKeyDown,
+    routedKeyDown,
     handleCanvasFocus,
     handleCanvasBlur,
   ]);

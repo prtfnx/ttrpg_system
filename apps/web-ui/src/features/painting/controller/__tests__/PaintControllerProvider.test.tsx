@@ -4,6 +4,9 @@ import { PaintControllerProvider, usePaintController } from '../PaintControllerP
 
 const mocks = vi.hoisted(() => ({
   activeTableId: 'table-1' as string | null,
+  activeTool: 'paint',
+  actorId: 42,
+  sessionRole: 'owner',
   protocol: {},
   runtime: {},
   runtimeStatus: { isCanvasAttached: false, isContextLost: false },
@@ -19,6 +22,16 @@ const mocks = vi.hoisted(() => ({
     dispose: vi.fn(),
   },
   constructor: vi.fn(),
+  interaction: {
+    subscribe: vi.fn((listener: (state: object) => void) => {
+      listener({ enabled: true, tool: 'draw', selected: null });
+      return vi.fn();
+    }),
+    setActor: vi.fn(),
+    setEnabled: vi.fn(),
+    dispose: vi.fn(),
+  },
+  interactionConstructor: vi.fn(),
 }));
 
 vi.mock('@app/providers', () => ({
@@ -26,8 +39,13 @@ vi.mock('@app/providers', () => ({
 }));
 
 vi.mock('@/store', () => ({
-  useGameStore: (selector: (state: { activeTableId: string | null }) => unknown) => (
-    selector({ activeTableId: mocks.activeTableId })
+  useGameStore: (selector: (state: object) => unknown) => (
+    selector({
+      activeTableId: mocks.activeTableId,
+      activeTool: mocks.activeTool,
+      userId: mocks.actorId,
+      sessionRole: mocks.sessionRole,
+    })
   ),
 }));
 
@@ -40,6 +58,13 @@ vi.mock('../PaintController', () => ({
   PaintController: vi.fn(function () {
     mocks.constructor();
     return mocks.controller;
+  }),
+}));
+
+vi.mock('../PaintInteractionController', () => ({
+  PaintInteractionController: vi.fn(function () {
+    mocks.interactionConstructor();
+    return mocks.interaction;
   }),
 }));
 
@@ -67,12 +92,15 @@ describe('PaintControllerProvider', () => {
     expect(mocks.constructor).toHaveBeenCalledOnce();
     expect(mocks.controller.connectEvents).toHaveBeenCalledOnce();
     expect(mocks.controller.selectTable).toHaveBeenCalledWith('table-1');
+    expect(mocks.interaction.setActor).toHaveBeenCalledWith(42, true);
+    expect(mocks.interaction.setEnabled).toHaveBeenCalledWith(true);
 
     act(() => vi.advanceTimersByTime(500));
     expect(mocks.controller.tick).toHaveBeenCalledTimes(2);
 
     unmount();
     expect(mocks.controller.dispose).toHaveBeenCalledOnce();
+    expect(mocks.interaction.dispose).toHaveBeenCalledOnce();
   });
 
   it('restores confirmed objects after a canvas is attached', () => {

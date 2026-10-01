@@ -105,6 +105,12 @@ keyed transient renderer drafts. Acceptance, rejection, cancellation, expiry,
 and table changes remove those keys; renderer restoration reapplies only the
 still-current pending and preview state.
 
+Gesture geometry is constructed in world coordinates with local object points.
+Rectangle and ellipse drags normalize either direction; square and circle drags
+lock both axes to the larger delta. Freehand completion uses a spatial
+simplifier while retaining endpoints and pressure discontinuities, then applies
+the canonical 8,192-point ceiling. A freehand click remains a one-point dot.
+
 The replacement Rust scene does not originate
 writes. It atomically validates/replaces snapshots, accepts only contiguous
 table revisions and object versions, orders by immutable `z_order` then ID,

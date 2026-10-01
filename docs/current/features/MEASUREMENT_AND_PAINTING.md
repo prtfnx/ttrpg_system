@@ -7,7 +7,7 @@ Status: current but partial. Paint strokes, completed measurement geometry,
 and paint templates are server-authoritative multiplayer state. Advanced
 measurement-template placement is not available in the UI.
 
-Last source audit: 2026-09-29
+Last source audit: 2026-09-30
 
 ## Ownership
 
@@ -59,10 +59,16 @@ oversized serialized payloads, preserves square/circle aspect ratios, and can
 enforce aggregate table object and point budgets at server boundaries.
 `src/features/painting/model/paintObject.ts` provides the matching strict
 browser types and runtime checks from the generated schema limits.
-`apps/server/service/paint_legacy_migration.py` prepares legacy rows for a
-future cutover without writing the database. It deterministically maps IDs,
-orders objects per table, validates converted payloads, hashes the source, and
-reports every rejected row without copying raw paint data into the report.
+`apps/server/service/paint_legacy_migration.py` deterministically maps legacy
+IDs, orders objects per table, validates converted payloads, hashes the source,
+and reports every rejected row without copying raw paint data into the report.
+`apps/server/scripts/cutover_legacy_paint.py` is the maintenance-only cutover
+entry point. Every run writes a private lossless backup and a separate bounded
+mapping/quarantine report before mutation. Apply mode requires the reviewed
+source checksum, holds the existing database writer fence plus paint-table
+locks, refuses quarantine unless explicitly acknowledged, verifies every
+persisted object, leaves source rows intact for rollback, and is idempotent
+until object state becomes live or otherwise diverges.
 `apps/server/service/paint_object_service.py` owns durable object transactions.
 It derives roles from database membership, serializes mutations through
 `paint_state`, assigns revisions and z-order, enforces ownership and optimistic

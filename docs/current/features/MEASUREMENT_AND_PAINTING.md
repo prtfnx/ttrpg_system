@@ -135,6 +135,10 @@ The obsolete polling `usePaintSystem` hook, its duplicate pointer interaction,
 brush presets, and its tests have been removed. Object counts, pending state,
 selection, and errors now update through controller subscriptions instead of
 serializing the full legacy stroke scene every 250 ms.
+The browser paint-template service and its tests are also removed because no
+active object workflow imports it. Persisted template rows are deliberately
+left intact on the server until a separate export/retirement migration is
+approved; removing the browser service does not delete user data.
 
 The replacement Rust scene does not originate
 writes. It atomically validates/replaces snapshots, accepts only contiguous

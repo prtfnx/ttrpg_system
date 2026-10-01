@@ -46,6 +46,9 @@ function harness(now = 1_000) {
     replacePaintObjectSnapshot: vi.fn(() => true),
     upsertPaintObject: vi.fn(() => true),
     removePaintObject: vi.fn(() => true),
+    setPaintDraft: vi.fn(() => true),
+    clearPaintDraft: vi.fn(() => true),
+    clearPaintDrafts: vi.fn(),
   };
   const errors: string[] = [];
   const controller = new PaintController(transport, runtime, {
@@ -190,6 +193,44 @@ describe('PaintController', () => {
     advance(1_001);
     controller.tick();
     expect(controller.getState().remotePreviews).toHaveLength(0);
+  });
+
+  it('renders pending and remote drafts until authoritative resolution', () => {
+    const { controller, runtime } = harness();
+    controller.selectTable(TABLE);
+    controller.submitCreate(input());
+    expect(runtime.setPaintDraft).toHaveBeenCalledWith(
+      TABLE,
+      `pending:${OPERATION}`,
+      input(),
+    );
+
+    const preview = {
+      table_id: TABLE,
+      temporary_id: input().id,
+      sequence: 1,
+      expires_at: 2_000,
+      draft: input(),
+      actor_id: 44,
+    };
+    controller.acceptPreview(preview);
+    expect(runtime.setPaintDraft).toHaveBeenCalledWith(
+      TABLE,
+      `remote:44:${preview.temporary_id}`,
+      preview.draft,
+    );
+
+    controller.acceptEvent({
+      operation_id: OPERATION,
+      table_id: TABLE,
+      revision: 1,
+      action: 'create',
+      object: object(),
+    });
+    expect(runtime.clearPaintDraft).toHaveBeenCalledWith(`pending:${OPERATION}`);
+    expect(runtime.clearPaintDraft).toHaveBeenCalledWith(
+      `remote:44:${preview.temporary_id}`,
+    );
   });
 
   it('replaces a restored renderer from retained authoritative state', () => {

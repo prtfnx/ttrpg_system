@@ -49,6 +49,9 @@ export interface PaintSceneRuntime {
   replacePaintObjectSnapshot(tableId: string, revision: number, objects: readonly PaintObject[]): boolean;
   upsertPaintObject(tableId: string, revision: number, object: PaintObject): boolean;
   removePaintObject(tableId: string, revision: number, objectId: string, deletedVersion: number): boolean;
+  setPaintDraft?(tableId: string, key: string, draft: PaintObjectInput): boolean;
+  clearPaintDraft?(key: string): boolean;
+  clearPaintDrafts?(): void;
 }
 
 type PaintCommand =
@@ -160,6 +163,7 @@ export class PaintController {
 
   dispose(): void {
     this.cancelLocalPreview();
+    this.runtime.clearPaintDrafts?.();
     this.unbindEvents?.();
     this.listeners.clear();
   }
@@ -186,6 +190,7 @@ export class PaintController {
   selectTable(tableId: string | null): void {
     if (this.tableId === tableId) return;
     this.cancelLocalPreview();
+    this.runtime.clearPaintDrafts?.();
     this.tableId = tableId;
     this.generation += 1;
     this.revision = 0;
@@ -230,6 +235,7 @@ export class PaintController {
   acceptEvent(event: PaintObjectEvent): void {
     if (event.table_id !== this.tableId) return;
     this.pending.delete(event.operation_id);
+    this.runtime.clearPaintDraft?.(this.pendingDraftKey(event.operation_id));
     this.removePreviewForCommittedEvent(event);
     if (this.hydrating) {
       this.queuedEvents.push(event);
@@ -320,6 +326,7 @@ export class PaintController {
     const pending = this.pending.get(rejection.operation_id);
     if (!pending) return;
     this.pending.delete(rejection.operation_id);
+    this.runtime.clearPaintDraft?.(this.pendingDraftKey(rejection.operation_id));
     this.reportError(rejection.error);
     if (rejection.code === 'version_conflict' || rejection.code === 'retry_window_expired') {
       this.requestSnapshot();
@@ -333,6 +340,7 @@ export class PaintController {
     for (const [operationId, pending] of this.pending) {
       if (now - pending.createdAt > this.retryWindowMs) {
         this.pending.delete(operationId);
+        this.runtime.clearPaintDraft?.(this.pendingDraftKey(operationId));
         this.reportError('A pending paint change expired and was discarded');
         continue;
       }
@@ -348,7 +356,22 @@ export class PaintController {
       this.revision,
       this.orderedCommitted(),
     );
-    if (!restored) this.requestSnapshot();
+    if (!restored) {
+      this.requestSnapshot();
+      return false;
+    }
+    for (const pending of this.pending.values()) {
+      if (pending.command.kind !== 'delete') {
+        this.runtime.setPaintDraft?.(
+          pending.command.tableId,
+          this.pendingDraftKey(pending.operationId),
+          pending.command.object,
+        );
+      }
+    }
+    for (const [key, preview] of this.remotePreviews) {
+      this.runtime.setPaintDraft?.(preview.table_id, this.remoteDraftKey(key), preview.draft);
+    }
     return restored;
   }
 
@@ -393,6 +416,7 @@ export class PaintController {
     const current = this.remotePreviews.get(key);
     if (!current || preview.sequence > current.sequence) {
       this.remotePreviews.set(key, preview);
+      this.runtime.setPaintDraft?.(preview.table_id, this.remoteDraftKey(key), preview.draft);
       this.emit();
     }
   }
@@ -403,6 +427,7 @@ export class PaintController {
     const current = this.remotePreviews.get(key);
     if (current && cancel.sequence >= current.sequence) {
       this.remotePreviews.delete(key);
+      this.runtime.clearPaintDraft?.(this.remoteDraftKey(key));
       this.emit();
     }
   }
@@ -413,6 +438,7 @@ export class PaintController {
     for (const [key, preview] of this.remotePreviews) {
       if (preview.expires_at <= now) {
         this.remotePreviews.delete(key);
+        this.runtime.clearPaintDraft?.(this.remoteDraftKey(key));
         changed = true;
       }
     }
@@ -427,6 +453,13 @@ export class PaintController {
     const operationId = this.operationId();
     const pending = { operationId, createdAt: this.now(), command };
     this.pending.set(operationId, pending);
+    if (command.kind !== 'delete') {
+      this.runtime.setPaintDraft?.(
+        command.tableId,
+        this.pendingDraftKey(operationId),
+        command.object,
+      );
+    }
     this.sendPending(pending);
     this.emit();
     return operationId;
@@ -503,8 +536,19 @@ export class PaintController {
   private removePreviewForCommittedEvent(event: PaintObjectEvent): void {
     const objectId = event.action === 'delete' ? event.deleted_id : event.object.id;
     for (const [key, preview] of this.remotePreviews) {
-      if (preview.temporary_id === objectId) this.remotePreviews.delete(key);
+      if (preview.temporary_id === objectId) {
+        this.remotePreviews.delete(key);
+        this.runtime.clearPaintDraft?.(this.remoteDraftKey(key));
+      }
     }
+  }
+
+  private pendingDraftKey(operationId: string): string {
+    return `pending:${operationId}`;
+  }
+
+  private remoteDraftKey(previewKey: string): string {
+    return `remote:${previewKey}`;
   }
 
   private orderedCommitted(): PaintObject[] {

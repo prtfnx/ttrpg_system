@@ -100,6 +100,10 @@ active table, subscribes to typed protocol events, advances snapshot and
 preview expiry, disposes session state deterministically, and restores
 confirmed objects after a WebGL canvas is attached or restored. Pointer input
 and panel controls still use the legacy path until the next cutover step.
+Pending create/update commands and remote previews are mirrored into separately
+keyed transient renderer drafts. Acceptance, rejection, cancellation, expiry,
+and table changes remove those keys; renderer restoration reapplies only the
+still-current pending and preview state.
 
 The replacement Rust scene does not originate
 writes. It atomically validates/replaces snapshots, accepts only contiguous

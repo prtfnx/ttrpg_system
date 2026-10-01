@@ -389,6 +389,9 @@ export class PaintSystem {
     clear_drafts() {
         wasm.paintsystem_clear_drafts(this.__wbg_ptr);
     }
+    clear_object_selection() {
+        wasm.paintsystem_clear_object_selection(this.__wbg_ptr);
+    }
     /**
      * @returns {number}
      */
@@ -419,6 +422,24 @@ export class PaintSystem {
     get_all_strokes_json() {
         const ret = wasm.paintsystem_get_all_strokes_json(this.__wbg_ptr);
         return ret;
+    }
+    /**
+     * @param {string} object_id
+     * @param {number} world_x
+     * @param {number} world_y
+     * @param {number} tolerance
+     * @returns {string | undefined}
+     */
+    hit_test_handle(object_id, world_x, world_y, tolerance) {
+        const ptr0 = passStringToWasm0(object_id, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+        const len0 = WASM_VECTOR_LEN;
+        const ret = wasm.paintsystem_hit_test_handle(this.__wbg_ptr, ptr0, len0, world_x, world_y, tolerance);
+        let v2;
+        if (ret[0] !== 0) {
+            v2 = getStringFromWasm0(ret[0], ret[1]).slice();
+            wasm.__wbindgen_free(ret[0], ret[1] * 1, 1);
+        }
+        return v2;
     }
     /**
      * @param {number} world_x
@@ -519,6 +540,28 @@ export class PaintSystem {
         const len1 = WASM_VECTOR_LEN;
         const ret = wasm.paintsystem_replace_object_snapshot_json(this.__wbg_ptr, ptr0, len0, revision, ptr1, len1);
         return ret !== 0;
+    }
+    /**
+     * @param {string} object_id
+     * @returns {boolean}
+     */
+    select_object(object_id) {
+        const ptr0 = passStringToWasm0(object_id, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+        const len0 = WASM_VECTOR_LEN;
+        const ret = wasm.paintsystem_select_object(this.__wbg_ptr, ptr0, len0);
+        return ret !== 0;
+    }
+    /**
+     * @returns {string | undefined}
+     */
+    selected_object_id() {
+        const ret = wasm.paintsystem_selected_object_id(this.__wbg_ptr);
+        let v1;
+        if (ret[0] !== 0) {
+            v1 = getStringFromWasm0(ret[0], ret[1]).slice();
+            wasm.__wbindgen_free(ret[0], ret[1] * 1, 1);
+        }
+        return v1;
     }
     /**
      * @param {string} blend_mode
@@ -1344,6 +1387,9 @@ export class RenderEngine {
     paint_clear_drafts() {
         wasm.renderengine_paint_clear_drafts(this.__wbg_ptr);
     }
+    paint_clear_object_selection() {
+        wasm.renderengine_paint_clear_object_selection(this.__wbg_ptr);
+    }
     /**
      * @returns {number}
      */
@@ -1374,6 +1420,24 @@ export class RenderEngine {
     paint_get_strokes() {
         const ret = wasm.renderengine_paint_get_strokes(this.__wbg_ptr);
         return ret;
+    }
+    /**
+     * @param {string} object_id
+     * @param {number} world_x
+     * @param {number} world_y
+     * @param {number} tolerance
+     * @returns {string | undefined}
+     */
+    paint_hit_test_handle(object_id, world_x, world_y, tolerance) {
+        const ptr0 = passStringToWasm0(object_id, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+        const len0 = WASM_VECTOR_LEN;
+        const ret = wasm.renderengine_paint_hit_test_handle(this.__wbg_ptr, ptr0, len0, world_x, world_y, tolerance);
+        let v2;
+        if (ret[0] !== 0) {
+            v2 = getStringFromWasm0(ret[0], ret[1]).slice();
+            wasm.__wbindgen_free(ret[0], ret[1] * 1, 1);
+        }
+        return v2;
     }
     /**
      * @param {number} world_x
@@ -1466,6 +1530,28 @@ export class RenderEngine {
         const len1 = WASM_VECTOR_LEN;
         const ret = wasm.renderengine_paint_replace_object_snapshot(this.__wbg_ptr, ptr0, len0, revision, ptr1, len1);
         return ret !== 0;
+    }
+    /**
+     * @param {string} object_id
+     * @returns {boolean}
+     */
+    paint_select_object(object_id) {
+        const ptr0 = passStringToWasm0(object_id, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+        const len0 = WASM_VECTOR_LEN;
+        const ret = wasm.renderengine_paint_select_object(this.__wbg_ptr, ptr0, len0);
+        return ret !== 0;
+    }
+    /**
+     * @returns {string | undefined}
+     */
+    paint_selected_object_id() {
+        const ret = wasm.renderengine_paint_selected_object_id(this.__wbg_ptr);
+        let v1;
+        if (ret[0] !== 0) {
+            v1 = getStringFromWasm0(ret[0], ret[1]).slice();
+            wasm.__wbindgen_free(ret[0], ret[1] * 1, 1);
+        }
+        return v1;
     }
     /**
      * @param {string} blend_mode
@@ -3076,7 +3162,7 @@ function __wbg_get_imports() {
             return ret;
         },
         __wbindgen_cast_0000000000000001: function(arg0, arg1) {
-            // Cast intrinsic for `Closure(Closure { owned: true, function: Function { arguments: [], shim_idx: 81, ret: Unit, inner_ret: Some(Unit) }, mutable: true }) -> Externref`.
+            // Cast intrinsic for `Closure(Closure { owned: true, function: Function { arguments: [], shim_idx: 113, ret: Unit, inner_ret: Some(Unit) }, mutable: true }) -> Externref`.
             const ret = makeMutClosure(arg0, arg1, wasm_bindgen__convert__closures_____invoke__h346c1d2cbe4d6714);
             return ret;
         },

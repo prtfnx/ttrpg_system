@@ -156,6 +156,11 @@ WebGL antialiasing for triangle-edge coverage;
 implementations without multisample support fall back to hard triangle edges.
 The typed runtime boundary exposes the lifetime mesh-rebuild count for
 unchanged-frame regression checks.
+Selected objects expose renderer-owned handles: exact transformed endpoints for
+lines and transformed corner handles for every other kind. Handle hit tolerance
+is converted from screen pixels through camera zoom. The renderer draws
+screen-size-stable handle squares in the transient paint layer and clears
+selection when its object disappears or the active table changes.
 
 The WASM paint system owns active drawing and rendering. A completed stroke is
 sent with its stable id. The server requires the serialized stroke id to match,

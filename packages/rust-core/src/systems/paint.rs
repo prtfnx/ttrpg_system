@@ -18,6 +18,7 @@ pub struct PaintSystem {
     object_scene: PaintScene,
     object_meshes: PaintMeshCache,
     transient_drafts: BTreeMap<String, PaintDraft>,
+    selected_object_id: Option<String>,
     // Per-table paint storage
     table_strokes: HashMap<String, Vec<DrawStroke>>,
     table_redo_stacks: HashMap<String, Vec<DrawStroke>>,
@@ -94,6 +95,7 @@ impl PaintSystem {
             object_scene: PaintScene::default(),
             object_meshes: PaintMeshCache::default(),
             transient_drafts: BTreeMap::new(),
+            selected_object_id: None,
             table_strokes: HashMap::new(),
             table_redo_stacks: HashMap::new(),
             current_table_id: None,
@@ -119,6 +121,7 @@ impl PaintSystem {
         if switched {
             self.object_meshes.clear();
             self.transient_drafts.clear();
+            self.selected_object_id = None;
         }
 
         // Initialize table storage if it doesn't exist
@@ -425,6 +428,13 @@ impl PaintSystem {
         }
         self.object_meshes
             .replace(self.object_scene.ordered_objects());
+        if self
+            .selected_object_id
+            .as_ref()
+            .is_some_and(|id| self.object_scene.get(id).is_none())
+        {
+            self.selected_object_id = None;
+        }
         true
     }
 
@@ -461,6 +471,9 @@ impl PaintSystem {
             return false;
         }
         self.object_meshes.remove(object_id);
+        if self.selected_object_id.as_deref() == Some(object_id) {
+            self.selected_object_id = None;
+        }
         true
     }
 
@@ -468,6 +481,34 @@ impl PaintSystem {
         self.object_scene
             .hit_test(world_x, world_y, tolerance)
             .map(str::to_owned)
+    }
+
+    pub fn hit_test_handle(
+        &self,
+        object_id: &str,
+        world_x: f32,
+        world_y: f32,
+        tolerance: f32,
+    ) -> Option<String> {
+        self.object_scene
+            .hit_test_handle(object_id, world_x, world_y, tolerance)
+            .map(str::to_owned)
+    }
+
+    pub fn select_object(&mut self, object_id: &str) -> bool {
+        if self.object_scene.get(object_id).is_none() {
+            return false;
+        }
+        self.selected_object_id = Some(object_id.to_owned());
+        true
+    }
+
+    pub fn clear_object_selection(&mut self) {
+        self.selected_object_id = None;
+    }
+
+    pub fn selected_object_id(&self) -> Option<String> {
+        self.selected_object_id.clone()
     }
 
     pub fn object_revision(&self) -> u64 {
@@ -543,6 +584,7 @@ impl PaintSystem {
         &self,
         renderer: &WebGLRenderer,
         viewport: &crate::math::Rect,
+        camera_zoom: f32,
     ) -> Result<(), JsValue> {
         renderer.set_blend_mode(&BlendMode::Alpha);
         for object in self.object_scene.ordered_objects() {
@@ -588,6 +630,26 @@ impl PaintSystem {
                 renderer.draw_triangles(&draft.mesh.fill_vertices, fill)?;
             }
             renderer.draw_triangles(&draft.mesh.stroke_vertices, draft.object.style.stroke_rgba)?;
+        }
+        if let Some(object_id) = self.selected_object_id.as_deref() {
+            let radius = 5.0 / camera_zoom.max(f32::EPSILON);
+            for handle in self.object_scene.handles(object_id) {
+                let vertices = [
+                    handle.x - radius,
+                    handle.y - radius,
+                    handle.x + radius,
+                    handle.y - radius,
+                    handle.x - radius,
+                    handle.y + radius,
+                    handle.x + radius,
+                    handle.y - radius,
+                    handle.x + radius,
+                    handle.y + radius,
+                    handle.x - radius,
+                    handle.y + radius,
+                ];
+                renderer.draw_triangles(&vertices, [0.1, 0.8, 1.0, 0.95])?;
+            }
         }
         Ok(())
     }

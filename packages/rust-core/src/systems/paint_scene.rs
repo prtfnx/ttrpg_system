@@ -122,6 +122,13 @@ pub struct PaintBounds {
     pub max_y: f32,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct PaintHandle {
+    pub kind: &'static str,
+    pub x: f32,
+    pub y: f32,
+}
+
 impl PaintBounds {
     pub fn contains(self, x: f32, y: f32, tolerance: f32) -> bool {
         x >= self.min_x - tolerance
@@ -268,6 +275,29 @@ impl PaintScene {
             .map(|object| object.id.as_str())
     }
 
+    pub fn handles(&self, object_id: &str) -> Vec<PaintHandle> {
+        self.objects
+            .get(object_id)
+            .map_or_else(Vec::new, PaintObject::handles)
+    }
+
+    pub fn hit_test_handle(
+        &self,
+        object_id: &str,
+        world_x: f32,
+        world_y: f32,
+        tolerance: f32,
+    ) -> Option<&'static str> {
+        self.handles(object_id)
+            .into_iter()
+            .filter_map(|handle| {
+                let distance = (handle.x - world_x).hypot(handle.y - world_y);
+                (distance <= tolerance.max(0.0)).then_some((handle.kind, distance))
+            })
+            .min_by(|left, right| left.1.total_cmp(&right.1))
+            .map(|(kind, _)| kind)
+    }
+
     fn require_next_revision(&self, table_id: &str, revision: u64) -> Result<(), PaintSceneError> {
         if self.table_id.as_deref() != Some(table_id) {
             return Err(PaintSceneError::TableMismatch);
@@ -325,6 +355,37 @@ impl PaintObject {
             PaintGeometry::Square { size } => (0.0, 0.0, *size, *size),
             PaintGeometry::Circle { diameter } => (0.0, 0.0, *diameter, *diameter),
         }
+    }
+
+    fn handles(&self) -> Vec<PaintHandle> {
+        if let PaintGeometry::Line { start, end } = self.geometry {
+            return vec![
+                PaintHandle {
+                    kind: "line-start",
+                    x: self.transform.x + start.x * self.transform.scale_x,
+                    y: self.transform.y + start.y * self.transform.scale_y,
+                },
+                PaintHandle {
+                    kind: "line-end",
+                    x: self.transform.x + end.x * self.transform.scale_x,
+                    y: self.transform.y + end.y * self.transform.scale_y,
+                },
+            ];
+        }
+        let (min_x, min_y, max_x, max_y) = self.local_bounds();
+        [
+            ("nw", min_x, min_y),
+            ("ne", max_x, min_y),
+            ("se", max_x, max_y),
+            ("sw", min_x, max_y),
+        ]
+        .into_iter()
+        .map(|(kind, x, y)| PaintHandle {
+            kind,
+            x: self.transform.x + x * self.transform.scale_x,
+            y: self.transform.y + y * self.transform.scale_y,
+        })
+        .collect()
     }
 
     fn hit_test(&self, world_x: f32, world_y: f32, tolerance: f32) -> bool {
@@ -608,6 +669,63 @@ mod tests {
 
         assert_eq!(scene.hit_test(5.0, 0.5, 0.0), Some("upper"));
         assert_eq!(scene.hit_test(5.0, 5.0, 0.0), None);
+    }
+
+    #[test]
+    fn handles_use_transformed_geometry_and_precise_line_endpoints() {
+        let mut scene = PaintScene::default();
+        scene
+            .replace_snapshot("table", 1, vec![line("line", 1)])
+            .unwrap();
+        assert_eq!(
+            scene.handles("line"),
+            vec![
+                PaintHandle {
+                    kind: "line-start",
+                    x: 10.0,
+                    y: 20.0
+                },
+                PaintHandle {
+                    kind: "line-end",
+                    x: 30.0,
+                    y: 20.0
+                },
+            ]
+        );
+        assert_eq!(
+            scene.hit_test_handle("line", 30.5, 20.0, 1.0),
+            Some("line-end")
+        );
+        assert_eq!(scene.hit_test_handle("line", 30.5, 20.0, 0.25), None);
+
+        let mut square = object("square", 2, PaintGeometry::Square { size: 10.0 });
+        square.transform.scale_y = 2.0;
+        scene.replace_snapshot("table", 2, vec![square]).unwrap();
+        assert_eq!(
+            scene.handles("square"),
+            vec![
+                PaintHandle {
+                    kind: "nw",
+                    x: 10.0,
+                    y: 20.0
+                },
+                PaintHandle {
+                    kind: "ne",
+                    x: 30.0,
+                    y: 20.0
+                },
+                PaintHandle {
+                    kind: "se",
+                    x: 30.0,
+                    y: 40.0
+                },
+                PaintHandle {
+                    kind: "sw",
+                    x: 10.0,
+                    y: 40.0
+                },
+            ]
+        );
     }
 
     #[test]

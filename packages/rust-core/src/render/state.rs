@@ -670,6 +670,34 @@ impl RenderEngine {
     }
 
     #[wasm_bindgen]
+    pub fn paint_hit_test_handle(
+        &self,
+        object_id: &str,
+        world_x: f32,
+        world_y: f32,
+        tolerance: f32,
+    ) -> Option<String> {
+        let world_tolerance = tolerance.max(0.0) / (self.camera.zoom as f32).max(f32::EPSILON);
+        self.paint
+            .hit_test_handle(object_id, world_x, world_y, world_tolerance)
+    }
+
+    #[wasm_bindgen]
+    pub fn paint_select_object(&mut self, object_id: &str) -> bool {
+        self.paint.select_object(object_id)
+    }
+
+    #[wasm_bindgen]
+    pub fn paint_clear_object_selection(&mut self) {
+        self.paint.clear_object_selection();
+    }
+
+    #[wasm_bindgen]
+    pub fn paint_selected_object_id(&self) -> Option<String> {
+        self.paint.selected_object_id()
+    }
+
+    #[wasm_bindgen]
     pub fn paint_object_revision(&self) -> f64 {
         self.paint.object_revision() as f64
     }

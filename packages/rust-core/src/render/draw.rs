@@ -234,7 +234,7 @@ impl RenderEngine {
 
         self.paint.render_strokes(&self.renderer)?;
         self.paint
-            .render_objects(&self.renderer, &viewport_bounds)?;
+            .render_objects(&self.renderer, &viewport_bounds, self.camera.zoom as f32)?;
 
         self.fog.render_fog_filtered(
             &self.view_matrix.to_array(),

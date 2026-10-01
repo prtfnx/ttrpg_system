@@ -96,7 +96,8 @@ authorizes interactive table membership through a short-lived cache, validates
 drafts, caps relays at 16 KiB, and never writes durable preview state.
 Join-time table hydration no longer queries or publishes `paint_strokes`;
 clients obtain the current drawing exclusively through a versioned object
-snapshot.
+snapshot. Browser table hydration likewise ignores legacy stroke fields and
+does not invoke the old Rust stroke loader or table selector.
 
 `PaintController` now owns the staged authoritative browser scene. It assembles
 bounded out-of-order snapshot chunks atomically, queues events during hydration,

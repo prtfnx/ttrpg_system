@@ -32,7 +32,6 @@ interface TablePayload {
   table_data?: TablePayload;
   local_table_id?: string;
   layer_settings?: Record<string, Record<string, unknown>>;
-  paint_strokes?: Array<{ stroke_id?: string; stroke_data?: string }>;
   dynamic_lighting_enabled?: boolean;
   fog_exploration_mode?: string;
   ambient_light_level?: number;
@@ -41,21 +40,6 @@ interface TablePayload {
   distance_unit?: string;
   grid_color_hex?: string;
   background_color_hex?: string;
-}
-
-function parsePaintStrokes(strokes: TablePayload['paint_strokes']): Record<string, unknown>[] {
-  if (!Array.isArray(strokes)) return [];
-  return strokes.flatMap(stroke => {
-    if (typeof stroke.stroke_data !== 'string') return [];
-    try {
-      const parsed: unknown = JSON.parse(stroke.stroke_data);
-      return parsed && typeof parsed === 'object' && !Array.isArray(parsed)
-        ? [parsed as Record<string, unknown>]
-        : [];
-    } catch {
-      return [];
-    }
-  });
 }
 
 export class TableSyncService {
@@ -206,9 +190,6 @@ export class TableSyncService {
         }
         if (typeof settings.blend_mode === 'string') engine.set_layer_blend_mode(layer, settings.blend_mode);
       });
-      engine.paint_set_current_table(tableId);
-      engine.paint_load_strokes(JSON.stringify(parsePaintStrokes(data.paint_strokes)));
-
       gameStore.hydrateTableSprites?.(tableId, snapshot.storeSprites);
       useGameStore.setState({ walls: snapshot.walls });
       gameStore.applyTableLightingSettings?.({

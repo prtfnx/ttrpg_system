@@ -154,8 +154,6 @@ describe('TableSyncService', () => {
       expect(mockEngine.set_grid_enabled).toHaveBeenCalledWith(false);
       expect(mockEngine.set_grid_snapping).toHaveBeenCalledWith(false);
       expect(useGameStore.setState).toHaveBeenCalledWith({ walls: [] });
-      expect(mockEngine.paint_set_current_table).toHaveBeenCalledWith(TABLE_A);
-      expect(mockEngine.paint_load_strokes).toHaveBeenCalledWith('[]');
       expect(mockGameState.setActiveTableId).toHaveBeenCalledWith(TABLE_A);
       service.dispose();
     });
@@ -273,7 +271,6 @@ describe('TableSyncService', () => {
         }),
         walls: [{ wall_id: 'wall-1', table_id: TABLE_A, x1: 0, y1: 0, x2: 1, y2: 1 }],
         layer_settings: { tokens: { visible: false, opacity: 0.5 } },
-        paint_strokes: [{ stroke_id: 'stroke-1', stroke_data: '{"id":"stroke-1"}' }],
       });
 
       expect(useGameStore.setState).toHaveBeenCalledWith({
@@ -281,7 +278,6 @@ describe('TableSyncService', () => {
       });
       expect(mockEngine.set_layer_visibility).toHaveBeenCalledWith('tokens', false);
       expect(mockEngine.set_layer_opacity).toHaveBeenCalledWith('tokens', 0.5);
-      expect(mockEngine.paint_load_strokes).toHaveBeenCalledWith('[{"id":"stroke-1"}]');
       expect(mockGameState.applyTableLightingSettings).toHaveBeenCalledWith({
         dynamic_lighting_enabled: true,
         fog_exploration_mode: 'persist_dimmed',

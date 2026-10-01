@@ -83,10 +83,11 @@ with `retry_window_expired` so the client must obtain a fresh snapshot rather
 than risk applying stale intent. A bounded hourly background job removes ledger
 rows only after the longer configured retention period.
 
-The browser has not switched to these object messages yet, so the active UI
-still uses the legacy stroke flow described below. The server retains both
-paths during this staged cutover. The browser protocol now exposes explicitly
-scoped durable object commands and strict typed event, snapshot, preview,
+The active browser uses the object protocol. The server keeps the three legacy
+stroke message names registered only to return a deterministic
+`upgrade_required` error; they cannot write, delete, clear, or broadcast legacy
+state after cutover. The browser protocol exposes explicitly scoped durable
+object commands and strict typed event, snapshot, preview,
 preview-cancel, and operation-rejection events. Durable paint sends do not
 enter the generic reconnect queue; the paint controller must retain and retry
 the exact operation ID/body. Preview sends are best-effort and drop when the
@@ -105,8 +106,7 @@ beneath the protocol and WASM runtime providers. The provider follows the
 active table, subscribes to typed protocol events, advances snapshot and
 preview expiry, disposes session state deterministically, and restores
 confirmed objects after a WebGL canvas is attached or restored. The live canvas
-and object panel now use this controller; legacy strokes remain read-only only
-until the migration cutover is completed.
+and object panel use this controller.
 Pending create/update commands and remote previews are mirrored into separately
 keyed transient renderer drafts. Acceptance, rejection, cancellation, expiry,
 and table changes remove those keys; renderer restoration reapplies only the
@@ -185,33 +185,6 @@ one complete versioned update. Selected handle overlays are reapplied after a
 renderer/context recreation and cleared on deselection, deletion, disable, or
 table change.
 
-The WASM paint system owns active drawing and rendering. A completed stroke is
-sent with its stable id. The server requires the serialized stroke id to match,
-accepts it for a table in the authenticated session, persists it, and broadcasts
-the canonical record. An identical retry by the creator is idempotent. Joining
-clients receive persisted strokes in the table response.
-
-Roles allowed to interact can create strokes and delete their own strokes. DMs
-can delete any stroke in their session and clear a table. Create, delete, and
-clear first constrain the supplied table to the authenticated session; a DM
-cannot mutate a foreign session by knowing a table or stroke id. Accepted
-operations broadcast the same mutation so clients converge.
-
-Paint persistence is blocking SQLAlchemy work, so stroke create/delete/clear
-and template upsert/delete/sync run in worker threads. Each worker creates and
-closes its own ORM session; only validated values cross the thread boundary,
-and WebSocket broadcasts stay on the event-loop thread. This keeps paint
-traffic from blocking unrelated connections and avoids sharing a synchronous
-ORM session between threads.
-
-## Undo and redo
-
-Local undo removes the last WASM stroke and requests deletion with its accepted
-id. The server permits that only when the connected user created the stroke or
-has a DM role. Redo recreates the same stroke through the idempotent create
-path. Cross-session table access, mismatched identities, and deletion of another
-creator's stroke fail closed.
-
 Paint templates are session-scoped and server-authoritative. The browser keeps
 only an optimistic in-memory cache, requests a snapshot on session entry and
 reconnect, and reconciles confirmations and live changes. Creators may replace
@@ -228,10 +201,9 @@ payloads. Limits are 100 templates per session, 500 strokes per template,
 Run the measurement and painting Vitest suites, browser protocol tests, server
 paint/table protocol tests, and Rust paint/WASM tests. The advanced-panel
 component tests assert that unfinished measurement-template controls stay
-hidden. Include a multi-client acceptance test for any change to stroke
-identity or undo authority. Server tests also assert that measurement, stroke,
-and paint-template database operations leave the event-loop thread and that an
-identical stroke-create retry does not broadcast twice. Durable-object tests
+hidden. Server tests assert that measurement and paint-template database
+operations leave the event-loop thread and that retired stroke commands always
+fail with `upgrade_required` without a write or broadcast. Durable-object tests
 cover idempotent commands, optimistic conflicts, authoritative snapshots,
 bounded chunks, and worker-thread database execution.
 `test_postgresql_contract.py` separately launches simultaneous writers against

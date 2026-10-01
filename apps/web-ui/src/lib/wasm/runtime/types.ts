@@ -109,6 +109,10 @@ export interface RenderEngine {
   paint_upsert_object(tableId: string, revision: number, objectJson: string): boolean;
   paint_remove_object(tableId: string, revision: number, objectId: string, deletedVersion: number): boolean;
   paint_hit_test_object(worldX: number, worldY: number, tolerance: number): string | undefined;
+  paint_hit_test_handle(objectId: string, worldX: number, worldY: number, tolerance: number): string | undefined;
+  paint_select_object(objectId: string): boolean;
+  paint_clear_object_selection(): void;
+  paint_selected_object_id(): string | undefined;
   paint_object_revision(): number;
   paint_object_count(): number;
   paint_object_mesh_rebuild_count(): number;

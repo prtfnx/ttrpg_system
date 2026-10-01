@@ -30,6 +30,10 @@ const mocks = vi.hoisted(() => {
     paint_upsert_object: vi.fn(() => true),
     paint_remove_object: vi.fn(() => true),
     paint_hit_test_object: vi.fn(() => 'paint-1'),
+    paint_hit_test_handle: vi.fn(() => 'se'),
+    paint_select_object: vi.fn(() => true),
+    paint_clear_object_selection: vi.fn(),
+    paint_selected_object_id: vi.fn(() => 'paint-1'),
     paint_object_revision: vi.fn(() => 7),
     paint_object_count: vi.fn(() => 3),
     paint_object_mesh_rebuild_count: vi.fn(() => 5),
@@ -233,6 +237,11 @@ describe('WasmRuntime', () => {
       1,
     );
     expect(runtime.hitTestPaintObject(10, 20, 4)).toBe('paint-1');
+    expect(runtime.hitTestPaintHandle('paint-1', 10, 20, 6)).toBe('se');
+    expect(runtime.selectPaintObject('paint-1')).toBe(true);
+    expect(runtime.getSelectedPaintObjectId()).toBe('paint-1');
+    runtime.clearPaintObjectSelection();
+    expect(mocks.renderEngine.paint_clear_object_selection).toHaveBeenCalledOnce();
     expect(runtime.getPaintObjectRevision()).toBe(7);
     expect(runtime.getPaintObjectCount()).toBe(3);
     expect(runtime.getPaintObjectMeshRebuildCount()).toBe(5);

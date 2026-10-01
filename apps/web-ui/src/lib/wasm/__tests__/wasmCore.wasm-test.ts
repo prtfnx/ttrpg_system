@@ -421,6 +421,46 @@ describe('WASM module (real browser)', () => {
     }
   });
 
+  it('hit-tests paint handles in stable screen space and clears stale selection', () => {
+    const canvas = document.createElement('canvas');
+    canvas.width = 240;
+    canvas.height = 160;
+    const tableId = '550e8400-e29b-41d4-a716-446655440014';
+    const object = {
+      id: 'dd830253-e2bf-4a92-9862-eabe85f79c99',
+      table_id: tableId,
+      kind: 'line',
+      geometry: {
+        kind: 'line',
+        start: { x: 0, y: 0, pressure: 1 },
+        end: { x: 40, y: 0, pressure: 1 },
+      },
+      transform: { x: 20, y: 20, scale_x: 1, scale_y: 1 },
+      style: { stroke_rgba: [1, 0, 0, 1], width: 4, fill_rgba: null },
+      created_by: 1,
+      version: 1,
+      z_order: 1,
+      created_at: '2026-09-30T00:00:00Z',
+      updated_at: '2026-09-30T00:00:00Z',
+    };
+    const engine = new RenderEngine(canvas);
+    try {
+      hydrateEmptyTable(engine, tableId);
+      engine.paint_set_current_table(tableId);
+      expect(engine.paint_replace_object_snapshot(tableId, 1, JSON.stringify([object]))).toBe(true);
+      expect(engine.paint_select_object(object.id)).toBe(true);
+      expect(engine.paint_selected_object_id()).toBe(object.id);
+      expect(engine.paint_hit_test_handle(object.id, 61, 20, 2)).toBe('line-end');
+
+      engine.set_camera(0, 0, 2);
+      expect(engine.paint_hit_test_handle(object.id, 60.75, 20, 2)).toBe('line-end');
+      expect(engine.paint_remove_object(tableId, 2, object.id, 1)).toBe(true);
+      expect(engine.paint_selected_object_id()).toBeUndefined();
+    } finally {
+      engine.free();
+    }
+  });
+
   it('accounts for texture replacement, unload, budget, and renderer drop', async () => {
     const firstImage = await createLoadedImage(4, 3);
     const replacementImage = await createLoadedImage(2, 2);

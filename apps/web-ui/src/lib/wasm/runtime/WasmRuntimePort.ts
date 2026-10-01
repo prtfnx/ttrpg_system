@@ -86,6 +86,10 @@ export interface WasmRuntimePort {
   upsertPaintObject(tableId: string, revision: number, object: PaintObject): boolean;
   removePaintObject(tableId: string, revision: number, objectId: string, deletedVersion: number): boolean;
   hitTestPaintObject(worldX: number, worldY: number, tolerance: number): string | null;
+  hitTestPaintHandle(objectId: string, worldX: number, worldY: number, tolerance: number): string | null;
+  selectPaintObject(objectId: string): boolean;
+  clearPaintObjectSelection(): void;
+  getSelectedPaintObjectId(): string | null;
   getPaintObjectRevision(): number;
   getPaintObjectCount(): number;
   getPaintObjectMeshRebuildCount(): number;

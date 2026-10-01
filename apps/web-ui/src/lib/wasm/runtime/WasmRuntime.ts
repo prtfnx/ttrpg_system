@@ -528,6 +528,35 @@ export class WasmRuntime implements WasmRuntimePort {
     return this.renderEngine?.paint_hit_test_object(worldX, worldY, tolerance) ?? null;
   }
 
+  hitTestPaintHandle(
+    objectId: string,
+    worldX: number,
+    worldY: number,
+    tolerance: number,
+  ): string | null {
+    return this.renderEngine?.paint_hit_test_handle(
+      objectId,
+      worldX,
+      worldY,
+      tolerance,
+    ) ?? null;
+  }
+
+  selectPaintObject(objectId: string): boolean {
+    const selected = this.renderEngine?.paint_select_object(objectId) ?? false;
+    if (selected) this.invalidateFramedPreview();
+    return selected;
+  }
+
+  clearPaintObjectSelection(): void {
+    this.renderEngine?.paint_clear_object_selection();
+    this.invalidateFramedPreview();
+  }
+
+  getSelectedPaintObjectId(): string | null {
+    return this.renderEngine?.paint_selected_object_id() ?? null;
+  }
+
   getPaintObjectRevision(): number {
     return this.renderEngine?.paint_object_revision() ?? 0;
   }

@@ -32,44 +32,6 @@ vi.mock('../../../features/canvas/services/performance.service', () => ({
   },
 }));
 
-// Mock usePaintSystem for PaintPanel
-vi.mock('../../../features/painting/hooks/usePaintSystem', () => ({
-  usePaintSystem: vi.fn().mockReturnValue([
-    {
-      isActive: false,
-      isDrawing: false,
-      strokeCount: 0,
-      brushColor: [1.0, 1.0, 1.0, 1.0], // Properly formatted RGBA array
-      brushWidth: 3.0,
-      blendMode: 'alpha',
-      canUndo: false,
-      canRedo: false,
-    },
-    {
-      enterPaintMode: vi.fn(),
-      exitPaintMode: vi.fn(),
-      setBrushColor: vi.fn(),
-      setBrushWidth: vi.fn(),
-      setBlendMode: vi.fn(),
-      clearAll: vi.fn(),
-      undoStroke: vi.fn(),
-      redoStroke: vi.fn(),
-      getStrokes: vi.fn(() => []),
-      getCurrentStroke: vi.fn(() => null),
-      startStroke: vi.fn(() => true),
-      addPoint: vi.fn(() => true),
-      endStroke: vi.fn(() => true),
-      cancelStroke: vi.fn(),
-      applyBrushPreset: vi.fn(),
-    }
-  ]),
-  usePaintInteraction: vi.fn().mockReturnValue({
-    paintToTable: vi.fn().mockResolvedValue(undefined),
-    isIntegrated: false,
-  }),
-  useBrushPresets: vi.fn().mockReturnValue([]),
-}));
-
 // Mock useAssetManager for AssetPanel
 vi.mock('../../hooks/useAssetManager', () => ({
   useAssetManager: vi.fn().mockReturnValue({

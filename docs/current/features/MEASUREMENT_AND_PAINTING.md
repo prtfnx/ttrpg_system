@@ -131,6 +131,10 @@ owner, and version; mutation actions are disabled when controller authorization
 does not permit the current actor to edit that object. Templates, canvas-only
 mode, fake marker/eraser choices, and global stroke undo/redo are no longer in
 the active panel.
+The obsolete polling `usePaintSystem` hook, its duplicate pointer interaction,
+brush presets, and its tests have been removed. Object counts, pending state,
+selection, and errors now update through controller subscriptions instead of
+serializing the full legacy stroke scene every 250 ms.
 
 The replacement Rust scene does not originate
 writes. It atomically validates/replaces snapshots, accepts only contiguous

@@ -377,6 +377,26 @@ export class PaintSystem {
         wasm.paintsystem_clear_all_strokes(this.__wbg_ptr);
     }
     /**
+     * @param {string} key
+     * @returns {boolean}
+     */
+    clear_draft(key) {
+        const ptr0 = passStringToWasm0(key, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+        const len0 = WASM_VECTOR_LEN;
+        const ret = wasm.paintsystem_clear_draft(this.__wbg_ptr, ptr0, len0);
+        return ret !== 0;
+    }
+    clear_drafts() {
+        wasm.paintsystem_clear_drafts(this.__wbg_ptr);
+    }
+    /**
+     * @returns {number}
+     */
+    draft_count() {
+        const ret = wasm.paintsystem_draft_count(this.__wbg_ptr);
+        return ret >>> 0;
+    }
+    /**
      * @returns {boolean}
      */
     end_stroke() {
@@ -530,6 +550,22 @@ export class PaintSystem {
         const ptr0 = passStringToWasm0(table_id, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
         const len0 = WASM_VECTOR_LEN;
         wasm.paintsystem_set_current_table(this.__wbg_ptr, ptr0, len0);
+    }
+    /**
+     * @param {string} table_id
+     * @param {string} key
+     * @param {string} draft_json
+     * @returns {boolean}
+     */
+    set_draft_json(table_id, key, draft_json) {
+        const ptr0 = passStringToWasm0(table_id, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+        const len0 = WASM_VECTOR_LEN;
+        const ptr1 = passStringToWasm0(key, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+        const len1 = WASM_VECTOR_LEN;
+        const ptr2 = passStringToWasm0(draft_json, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+        const len2 = WASM_VECTOR_LEN;
+        const ret = wasm.paintsystem_set_draft_json(this.__wbg_ptr, ptr0, len0, ptr1, len1, ptr2, len2);
+        return ret !== 0;
     }
     /**
      * @param {number} world_x
@@ -1296,6 +1332,26 @@ export class RenderEngine {
         wasm.renderengine_paint_clear_all(this.__wbg_ptr);
     }
     /**
+     * @param {string} key
+     * @returns {boolean}
+     */
+    paint_clear_draft(key) {
+        const ptr0 = passStringToWasm0(key, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+        const len0 = WASM_VECTOR_LEN;
+        const ret = wasm.renderengine_paint_clear_draft(this.__wbg_ptr, ptr0, len0);
+        return ret !== 0;
+    }
+    paint_clear_drafts() {
+        wasm.renderengine_paint_clear_drafts(this.__wbg_ptr);
+    }
+    /**
+     * @returns {number}
+     */
+    paint_draft_count() {
+        const ret = wasm.renderengine_paint_draft_count(this.__wbg_ptr);
+        return ret >>> 0;
+    }
+    /**
      * @returns {boolean}
      */
     paint_end_stroke() {
@@ -1441,6 +1497,22 @@ export class RenderEngine {
         const ptr0 = passStringToWasm0(table_id, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
         const len0 = WASM_VECTOR_LEN;
         wasm.renderengine_paint_set_current_table(this.__wbg_ptr, ptr0, len0);
+    }
+    /**
+     * @param {string} table_id
+     * @param {string} key
+     * @param {string} draft_json
+     * @returns {boolean}
+     */
+    paint_set_draft(table_id, key, draft_json) {
+        const ptr0 = passStringToWasm0(table_id, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+        const len0 = WASM_VECTOR_LEN;
+        const ptr1 = passStringToWasm0(key, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+        const len1 = WASM_VECTOR_LEN;
+        const ptr2 = passStringToWasm0(draft_json, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+        const len2 = WASM_VECTOR_LEN;
+        const ret = wasm.renderengine_paint_set_draft(this.__wbg_ptr, ptr0, len0, ptr1, len1, ptr2, len2);
+        return ret !== 0;
     }
     /**
      * @param {number} world_x
@@ -3004,7 +3076,7 @@ function __wbg_get_imports() {
             return ret;
         },
         __wbindgen_cast_0000000000000001: function(arg0, arg1) {
-            // Cast intrinsic for `Closure(Closure { owned: true, function: Function { arguments: [], shim_idx: 77, ret: Unit, inner_ret: Some(Unit) }, mutable: true }) -> Externref`.
+            // Cast intrinsic for `Closure(Closure { owned: true, function: Function { arguments: [], shim_idx: 81, ret: Unit, inner_ret: Some(Unit) }, mutable: true }) -> Externref`.
             const ret = makeMutClosure(arg0, arg1, wasm_bindgen__convert__closures_____invoke__h346c1d2cbe4d6714);
             return ret;
         },

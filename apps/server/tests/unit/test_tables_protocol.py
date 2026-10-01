@@ -435,7 +435,7 @@ class TestTableRequest:
 
         def slow_hydration(_table_id):
             time.sleep(0.05)
-            return SimpleNamespace(walls=[], layer_settings={}, paint_strokes=[])
+            return SimpleNamespace(walls=[], layer_settings={})
 
         monkeypatch.setattr("service.protocol.tables.load_table_hydration", slow_hydration)
         marker = asyncio.Event()

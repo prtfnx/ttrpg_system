@@ -86,7 +86,6 @@ def test_table_hydration_returns_detached_serializable_data(canvas_db):
 
     assert result.walls[0]["wall_id"] == "wall-one"
     assert result.layer_settings == {"tokens": {"opacity": 0.5}}
-    assert result.paint_strokes[0]["stroke_id"] == "stroke-one"
 
 
 def test_movement_policy_and_table_settings_round_trip(canvas_db):

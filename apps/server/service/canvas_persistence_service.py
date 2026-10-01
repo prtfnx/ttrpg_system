@@ -15,7 +15,6 @@ from database.database import SessionLocal
 class TableHydration:
     walls: list[dict[str, Any]]
     layer_settings: dict[str, Any]
-    paint_strokes: list[dict[str, Any]]
 
 
 def sprite_identity_exists(sprite_id: str) -> bool:
@@ -83,11 +82,7 @@ def load_table_hydration(table_id: str) -> TableHydration:
             parsed = json.loads(table.layer_settings)
             if isinstance(parsed, dict):
                 layer_settings = parsed
-        paint_strokes = [
-            stroke.to_dict()
-            for stroke in crud.get_paint_strokes_for_table(db, table_id)
-        ]
-    return TableHydration(walls, layer_settings, paint_strokes)
+    return TableHydration(walls, layer_settings)
 
 
 def load_table_preview_metadata(session_code: str) -> dict[str, dict[str, Any]]:

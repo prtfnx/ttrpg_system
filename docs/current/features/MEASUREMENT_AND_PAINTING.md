@@ -94,6 +94,9 @@ the exact operation ID/body. Preview sends are best-effort and drop when the
 browser WebSocket queue exceeds 64 KiB. The server derives actor identity,
 authorizes interactive table membership through a short-lived cache, validates
 drafts, caps relays at 16 KiB, and never writes durable preview state.
+Join-time table hydration no longer queries or publishes `paint_strokes`;
+clients obtain the current drawing exclusively through a versioned object
+snapshot.
 
 `PaintController` now owns the staged authoritative browser scene. It assembles
 bounded out-of-order snapshot chunks atomically, queues events during hydration,

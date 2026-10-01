@@ -278,22 +278,19 @@ class _TablesMixin(_ProtocolBase):
                 walls_list = [w.to_dict() for w in table_obj2.walls.values()]
 
             layer_settings_data = {}
-            paint_strokes_list: list = []
             if table_id:
                 try:
                     hydration = await run_blocking(load_table_hydration, str(table_id))
                     if not walls_list:
                         walls_list = hydration.walls
                     layer_settings_data = hydration.layer_settings
-                    paint_strokes_list = hydration.paint_strokes
                 except Exception as _e:
                     logger.warning(f"Could not hydrate table {table_id} from DB: {_e}")
 
             return Message(MessageType.TABLE_RESPONSE, {'name': table_name, 'client_id': client_id,
                                                             'table_data': table_data_with_hashes,
                                                             'walls': walls_list,
-                                                            'layer_settings': layer_settings_data,
-                                                            'paint_strokes': paint_strokes_list})
+                                                            'layer_settings': layer_settings_data})
 
     async def handle_table_settings_update(self, msg: Message, client_id: str) -> Message:
         """Handle DM request to change dynamic lighting / fog exploration settings for a table."""

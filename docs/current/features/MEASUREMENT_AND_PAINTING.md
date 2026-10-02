@@ -122,6 +122,9 @@ calling a separate legacy table selector.
 The browser runtime port and shared runtime types no longer expose default
 brush presets; the object panel's explicit color, width, and fill state is the
 only paint styling surface.
+Real-browser WASM coverage activates paint through snapshots and no longer
+asserts the removed brush-preset export; shared runtime test fixtures mirror
+the narrower object-only port.
 
 `PaintController` now owns the staged authoritative browser scene. It assembles
 bounded out-of-order snapshot chunks atomically, queues events during hydration,

@@ -14,7 +14,6 @@ import initWasm, {
   RenderEngine,
   TableSync,
   calculate_asset_hash,
-  create_default_brush_presets,
   version,
 } from '../generated/ttrpg_rust_core';
 import { normalizeTableSnapshot } from '../tableSnapshot';
@@ -347,7 +346,6 @@ describe('WASM module (real browser)', () => {
     const engine = new RenderEngine(canvas);
     try {
       hydrateEmptyTable(engine, tableId);
-      engine.paint_set_current_table(tableId);
       expect(engine.paint_replace_object_snapshot(tableId, 1, JSON.stringify([object]))).toBe(true);
       expect(engine.paint_object_mesh_rebuild_count()).toBe(1);
 
@@ -397,7 +395,7 @@ describe('WASM module (real browser)', () => {
     const engine = new RenderEngine(canvas);
     try {
       hydrateEmptyTable(engine, tableId);
-      engine.paint_set_current_table(tableId);
+      expect(engine.paint_replace_object_snapshot(tableId, 0, '[]')).toBe(true);
       expect(engine.paint_set_draft(tableId, 'local', JSON.stringify(draft))).toBe(true);
       expect(engine.paint_draft_count()).toBe(1);
       expect(engine.paint_object_count()).toBe(0);
@@ -446,7 +444,6 @@ describe('WASM module (real browser)', () => {
     const engine = new RenderEngine(canvas);
     try {
       hydrateEmptyTable(engine, tableId);
-      engine.paint_set_current_table(tableId);
       expect(engine.paint_replace_object_snapshot(tableId, 1, JSON.stringify([object]))).toBe(true);
       expect(engine.paint_select_object(object.id)).toBe(true);
       expect(engine.paint_selected_object_id()).toBe(object.id);
@@ -678,11 +675,6 @@ describe('WASM module (real browser)', () => {
     const parts = v.split('.');
     expect(parts.length).toBeGreaterThanOrEqual(3);
     parts.forEach(part => expect(part[0]).toMatch(/\d/));
-  });
-
-  it('create_default_brush_presets() is non-empty', () => {
-    const presets = create_default_brush_presets();
-    expect(presets.length).toBeGreaterThan(0);
   });
 
   it('batches sight and light sources against renderer-owned indexes', () => {

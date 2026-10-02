@@ -75,11 +75,6 @@ const mockWasmModule = {
     add_layer: vi.fn(),
     remove_layer: vi.fn()
   })),
-  PaintSystem: vi.fn().mockImplementation(() => ({
-    start_painting: vi.fn(),
-    stop_painting: vi.fn()
-  })),
-  create_default_brush_presets: vi.fn().mockReturnValue([]),
   default: vi.fn().mockResolvedValue(undefined)
 };
 

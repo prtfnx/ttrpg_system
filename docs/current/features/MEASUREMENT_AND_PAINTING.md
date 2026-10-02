@@ -125,6 +125,9 @@ only paint styling surface.
 Real-browser WASM coverage activates paint through snapshots and no longer
 asserts the removed brush-preset export; shared runtime test fixtures mirror
 the narrower object-only port.
+Shared module, integration, table-sync, and protocol mocks no longer advertise
+the deleted stroke system or accept legacy hydration fields.
+Generic renderer test helpers likewise omit the removed paint input mode.
 
 `PaintController` now owns the staged authoritative browser scene. It assembles
 bounded out-of-order snapshot chunks atomically, queues events during hydration,

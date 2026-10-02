@@ -24,8 +24,6 @@ const mockEngine = {
   add_wall: vi.fn(),
   remove_light: vi.fn(),
   clear_fog: vi.fn(),
-  paint_set_current_table: vi.fn(),
-  paint_load_strokes: vi.fn(),
 };
 
 const mockSpriteSync = { addSpriteToWasm: vi.fn() };

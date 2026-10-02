@@ -37,7 +37,6 @@ export function createMockRenderEngine() {
     set_input_mode_create_line: vi.fn(),
     set_input_mode_create_text: vi.fn(),
     set_input_mode_select: vi.fn(),
-    set_input_mode_paint: vi.fn(),
     set_input_mode_draw_wall: vi.fn(),
     set_input_mode_create_polygon: vi.fn(),
     // Sprites

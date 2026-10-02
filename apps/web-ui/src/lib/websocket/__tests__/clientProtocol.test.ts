@@ -15,10 +15,6 @@ const mocks = vi.hoisted(() => {
     { getState }
   );
   const runtime = {
-    addRemotePaintStroke: vi.fn(),
-    removePaintStroke: vi.fn(),
-    clearPaintStrokes: vi.fn(),
-    loadPaintStrokes: vi.fn(),
     applyLayerSettings: vi.fn(),
     setGridEnabled: vi.fn(),
     setGridSnapping: vi.fn(),
@@ -833,14 +829,12 @@ describe('WebClientProtocol', () => {
           fog_exploration_mode: 'persist_dimmed', ambient_light_level: 0,
         },
         walls: [{ wall_id: 'foreign-wall', table_id: 'table-other' }],
-        paint_strokes: [{ stroke_id: 'foreign-stroke', stroke_data: '{}' }],
       });
 
       window.removeEventListener('table-response', tableHandler);
       expect(tableHandler).not.toHaveBeenCalled();
       expect(mockApplyTableLightingSettings).not.toHaveBeenCalled();
       expect(mockAddWall).not.toHaveBeenCalled();
-      expect(mocks.runtime.loadPaintStrokes).not.toHaveBeenCalled();
     });
 
     it('PONG marks connection alive', async () => {

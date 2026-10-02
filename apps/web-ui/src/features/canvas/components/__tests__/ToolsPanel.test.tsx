@@ -381,7 +381,6 @@ describe('ToolsPanel — combat section', () => {
   });
 });
 
-// Shared rustRenderManager mock — avoids paint_is_mode errors across tests
 // ── player layer controls ─────────────────────────────────────────────────────
 describe('ToolsPanel — PlayerLayerControls (player role)', () => {
   it('shows Toggle Map layer and Toggle Tokens layer buttons', () => {
